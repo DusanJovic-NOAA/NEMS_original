@@ -1,0 +1,124 @@
+################################################################################
+# 
+#     Makefile for Global NMM Model 
+#
+#     Use:
+#     make         -  build the executable
+#     make clean   -  start with a clean slate
+#
+#     The following macros will be of interest:
+#
+#         TARGET   - name of the executable
+#         FC       - name of Fortran compiler
+#         CPP      - name of CPP
+#         ARCH     - architecture
+#         CPPFLAGS - CPP flags
+#         OPTS     - compiler code optimizations
+#         LIST     - source listing
+#         SMP      - threading
+#         TRAPS    - runtime traps for floating point exceptions
+#         PROFILE  - source code profiling ( -pg )
+#         DEBUG    - -g
+#         MEM      - user data area and stack size
+#         MAP      - load map
+#         W3LIB    - w3lib
+#         ESSL     - ESSL library
+#         MASS     - MASS library
+#         TRACE    - MPI tracing
+#
+#################################################################################
+#
+# Define the name of the executable
+#
+TARGET = umo_esmf.x
+#
+# CPP, Compiler, and Linker Options
+#
+#FC       = /usrx/local/bin/xlf10/mpxlf90_r
+FC       = mpxlf90_r
+ARCH     = AIX
+CPP      = /lib/cpp -P
+CPPFLAGS = -DMASSV
+OPTS     = -O2 -qsource -qlist -qstrict -qmaxmem=-1 -NS2000
+OPTS0    = -O2 -qxflag=newalobj -qlist -qstrict -qmaxmem=-1 -NS2000
+##LIST     = -qsource -qxref=full -qattr=full
+##SMP      = -qsmp=noauto
+#TRAPS    = -qinitauto=FF -qflttrap=ov:zero:inv:en -qsigtrap
+#TRAPS    = -qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap -C -qextchk
+TRAPS    = -qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap -C 
+#TRAPS    = 
+PROFILE  = 
+##PROFILE  = -g -pg -qfullpath
+#DEBUG    = -g -qfullpath
+DEBUG    =
+MEM      =
+MAP      = -bmap:map -bloadmap:lm
+MASS     = -L/usrx/local/mass -lmass -lmassvp3
+ESSL     = -L/usr/lpp/essl.rte.rs1/lib -lessl
+#
+# Assemble Options
+#
+FINCS    = -I/nwprod/lib/incmod/esmf
+FFLAGS   = $(OPTS) $(FINCS) $(LIST) $(TRAPS) $(PROFILE) $(DEBUG)
+FFLAGS0  = $(OPTS0) $(FINCS) $(LIST) $(TRAPS) $(PROFILE) $(DEBUG)
+FFLAGST  = $(OPTS) $(LIST) $(SMP) $(TRAPS) $(PROFILE) $(DEBUG)
+LDFLAGS  = $(MEM) $(MAP) $(SMP) $(PROFILE) $(TRACE)
+ESMFLIB  = -L/nwprod/lib -lesmf -lesmf_netcdf_stubs
+###LIBS     = -lC -L/nwprod/lib -lw3_4 -lbacio_4 ${ESSL} ${MASS} ${ESMFLIB} -L/nfsuser/g01/wx22tb/lib/trace_p4 -lmpitrace
+LIBS     = -lC -L/nwprod/lib -lw3_4 -lbacio_4 ${ESSL} ${MASS} ${ESMFLIB} 
+#
+# Non-threaded object files
+#
+OBJSM=	module_INCLUDE.o module_CONSTANTS.o module_DM_PARALLEL.o module_EXCHANGE.o \
+        module_CONTROL.o module_FLTBNDS.o module_DYNAMICS_ROUTINES.o module_INTEGRATE.o module_OUTPUT.o \
+     	module_QUILT.o module_DYNAMICS_INTERNAL_STATE.o module_DYNAMICS_FIELDS.o \
+     	module_MICROPHYSICS.o module_RADIATION.o module_CONVECTION.o \
+     	module_PHYSICS_INTERNAL_STATE.o module_PHYSICS_FIELDS.o \
+     	module_GET_CONFIG.o module_EXPORT_IMPORT_DATA.o \
+     	module_DYNAMICS_INIT_RUN_FINALIZE.o module_PHYSICS_INIT_RUN_FINALIZE.o \
+     	module_COUPLER_INIT_RUN_FINALIZE.o module_MAIN_GRID_COMP.o 
+
+OBJSF=	REPLACE.o COAL.o DECOAL.o UMO_MAIN_ESMF.o
+
+#
+# Threaded object files
+#
+#OBJST=	A.o B.o ...
+#
+# Includes
+#
+#umo_main.o:   module_INTERNAL_STATE.o
+
+#umo_init.o:   module_INTERNAL_STATE.o
+ 
+#umo_run.o:   module_INTERNAL_STATE.o
+ 
+#umo_finalize.o:   module_INTERNAL_STATE.o
+
+#module_dynamics.o:   module_constants.o
+
+INCLUDES=	kind.inc
+
+#
+
+DEPS= $(INCLUDES)
+
+#main.o: module_control.o
+#module_dynamics.o: module_control.o
+
+.SUFFIXES:	.F90 .f90 .o
+
+.F90.f90:
+	$(CPP) $(CPPFLAGS) $< > $*.f90
+
+$(TARGET):	$(OBJSM) $(OBJSF)
+	$(FC) $(LDFLAGS) $(LIBS) -o $@ $(OBJSM) $(OBJSF)
+
+$(OBJSM):	$(DEPS)
+	$(FC) $(FFLAGS) -c $<
+
+$(OBJSF):	$(DEPS)
+	$(FC) $(FFLAGS) -c $<
+
+clean:	
+	/bin/rm -f  $(TARGET) *.f90 *.lst *.o *.mod

@@ -1,0 +1,856 @@
+stty: tcgetattr: A specified file does not support the ioctl system call.
++ export CDATE=2007070200
++ export ADIAB=.false.
++ export REDUCED_GRID=.false.
++ export SFCPRESS_ID=2
++ export THERMODYN_ID=3
++ export IDVC=3
++ export hybrid=NO
++ export GEN_COORD_HYBRID=YES
++ export SPECTRAL_LOOP=1
++ export CPIlist= 1004.6,   1846.0, 820.2391,    0.0
++ export RIlist=  286.05,   461.50, 173.2247,    0.0
++ export wave=62
++ export lm=64
++ export lsoil=4
++ export NCP=cp
++ export FTSFS=0.0
++ export FAISS=0.0
++ export ENS_NUM=1
++ tasks=16
++ export PE1=16
++ export MP_STDOUTMODE=ordered
++ export MP_LABELIO=yes
++ export MP_SHARED_MEMORY=yes
++ export MEMORY_AFFINITY=MCM
++ export NTHREADS=2
++ export XLSMPOPTS=parthds=2:spins=0:yields=0:stack=512000000
++ export SPINLOOPTIME=500
++ export YIELDLOOPTIME=500
++ export AIXTHREAD_SCOPE=S
++ export MALLOCMULTIHEAP=true
++ export FHROT=0
++ export expt=gfs.2
++ export NSCDIR=/global/noscrub
++ export TOPDIR=/global/save
++ export DUMPDIR=/global/shared/dump
++ export MP_COREFILE_FORMAT=lite
++ export RUNDIR=/ptmp/wx22ec/gfs.2
++ export SCRIPTS=/global/save/wx23sm/gsm/scripts
++ export fcst_begin=YES
++ export cold_sfc=NO
++ export hybrid=NO
++ export NCP=cp
++ export ndays=2
++ [[ YES = YES ]]
++ export nhourb=0
++ expr 2 * 24
++ export nhours=48
++ export ntrc=3
++ export varid=21
++ export numcld=1
++ export fmax=48
++ export fout=3
++ export fzer=3
++ export fcyc=0
++ export fdfi=0
++ export FHRES=48
++ export wave=62
++ export lm=64
++ export lsoil=4
++ export NTRAC=3
++ export NTOZ=2
++ export NTCW=3
++ export NCLD=1
++ export NMTVR=14
++ export nsout=0
++ export lsm=1
++ export gfsio_in=.true.
++ export gfsio_out=.true.
++ export DYNVARS=liope=.F.,gfsio_in=.true.,gfsio_out=.true.
++ export PHYVARS=liope=.F.,gfsio_in=.true.,gfsio_out=.true.
++ export TRACERVARS=RI=  286.05,   461.50, 173.2247,    0.0,CPI= 1004.6,   1846.0, 820.2391,    0.0,
++ export NGPTC=12
++ export NGPTC=12
++ export LEVR=0
++ export FCSTSCRIPT=/meso/save/wx22ec/NEMS/run/exglobal_fcst.sh.sms_nems
++ export FCSTEXEC=/meso/save/wx22ec/NEMS/MAIN_NEMS.x
++ cp configfile_global_new configure_file
++ cp configure_file /ptmp/wx22ec/gfs.2
++ mkdir -p /ptmp/wx22ec/gfs.2
++ cd /ptmp/wx22ec/gfs.2
++ export COMOUT=/ptmp/wx22ec/gfs.2
++ export FIXGLOBAL=/nwprod/fix
++ export FIX_RAD=/global/save/wx23hh/00wkgfs/fix/fix_rad
++ export POSTGPDIR=/global/save/wx23hh/00wkgfs/src/global_postgp.fd
++ export POSTGPEXEC=/global/save/wx23hh/00wkgfs/src/global_postgp.fd/global_postgp
++ export POSTGPSH=/nwprod/ush/global_postgp.sh
++ export LANDICE_OPT=1
++ export CLIMO_FIELDS_OPT=2
++ [[ 62 -eq 62 ]]
++ export LONF=192
++ export LATG=94
++ export LONR=192
++ export LATR=94
++ export im=192
++ export jm=94
++ export iop=144
++ export jop=73
++ [[ 64 -eq 64 ]]
++ export DELTIM=900
++ [[ 64 -eq 150 ]]
++ export DELTIM=900
++ export JCAP=62
++ export LEVS=64
++ export LONB=192
++ export LATB=94
++ export VERBOSE=YES
++ export SIGI=/ptmp/wx22ec/gfs.2/gfsanl.2007070200
++ export SFCI=/ptmp/wx22ec/gfs.2/sfcanl.2007070200
++ export FHINI=00
++ [[ 0 -lt 48 ]]
++ export FNTSFA=
++ export FNACNA=
++ export FHOUT=3
++ export FHZER=3
++ export FHCYC=0
++ export FHDFI=0
++ export FHLWR=3
++ export FHSWR=1
++ export FHMAX=48
++ export FHRES=48
++ export FHROT=0
++ /meso/save/wx22ec/NEMS/run/exglobal_fcst.sh.sms_nems
+Tue Aug 19 12:45:57 EDT 2008 EXECUTING /meso/save/wx22ec/NEMS/run/exglobal_fcst.sh.sms_nems
++ export ENS_NUM=1
++ export FM=
++ export SIGI=/ptmp/wx22ec/gfs.2/gfsanl.2007070200
++ export SFCI=/ptmp/wx22ec/gfs.2/sfcanl.2007070200
++ export SIGO=
++ export FLXO=
++ export FHOUT=3
++ export FHMAX=48
++ export IGEN=0
++ export D3DO=
++ export FIXGLOBAL=/nwprod/fix
++ export FIX_RAD=/global/save/wx23hh/00wkgfs/fix/fix_rad
++ export EXECGLOBAL=/nwprod/exec
++ pwd
++ export DATA=/ptmp/wx22ec/gfs.2
++ export COMOUT=/ptmp/wx22ec/gfs.2
++ export XC=
++ export SUFOUT=
++ export SIGHDR=/nwprod/exec/global_sighdr
++ export JCAP=62
++ export LEVS=64
++ export LEVR=0
++ export LONR=192
++ export LATR=94
++ export LONF=192
++ export LATG=94
++ export NTRAC=3
++ export IDVC=3
++ export NMTVR=14
++ export LSOIL=4
++ export NTOZ=2
++ export NTCW=3
++ export NCLD=1
++ export NGPTC=12
++ export ADIAB=.false.
++ export EXPLICIT=.false.
++ export NON_ITER_SEMI_LAGRANGIAN_FV=.false.
++ export ZFLXTVD=.false.
++ export pre_rad=.false.
++ export random_xkt2=.true.
++ export FCSTEXEC=/meso/save/wx22ec/NEMS/MAIN_NEMS.x
++ export SIGI2=NULL
++ export CO2CON=/nwprod/fix/global_co2con.l64.f77
++ export MTNVAR=/nwprod/fix/global_mtnvar.t62.f77
++ export CLTUNE=/nwprod/fix/global_cldtune.f77
++ export DTBTHE=/nwprod/fix/global_tbthe.f77
++ export O3FORC=/nwprod/fix/global_o3prdlos.f77
++ export O3CLIM=/nwprod/fix/global_o3clim.txt
++ export FNGLAC=/nwprod/fix/global_glacier.2x2.grb
++ export FNMXIC=/nwprod/fix/global_maxice.2x2.grb
++ export FNTSFC=/nwprod/fix/cfs_oi2sst1x1monclim19822001.grb
++ export FNSNOC=/nwprod/fix/global_snoclim.1.875.grb
++ export FNZORC=/nwprod/fix/global_zorclim.1x1.grb
++ export FNALBC=/nwprod/fix/global_albedo4.1x1.grb
++ export FNAISC=/nwprod/fix/cfs_ice1x1monclim19822001.grb
++ export FNTG3C=/nwprod/fix/global_tg3clim.2.6x1.5.grb
++ export FNVEGC=/nwprod/fix/global_vegfrac.0.144.decpercent.grb
++ export FNVETC=/nwprod/fix/global_vegtype.1x1.grb
++ export FNSOTC=/nwprod/fix/global_soiltype.1x1.grb
++ export FNSMCC=/nwprod/fix/global_soilmcpc.1x1.grb
++ export FNVMNC=/nwprod/fix/global_shdmin.0.144x0.144.grb
++ export FNVMXC=/nwprod/fix/global_shdmax.0.144x0.144.grb
++ export FNSLPC=/nwprod/fix/global_slope.1x1.grb
++ export FNABSC=/nwprod/fix/global_snoalb.1x1.grb
++ export FNMSKH=/nwprod/fix/seaice_newland.grb
++ export OROGRAPHY=/nwprod/fix/global_orography.t62.grb
++ export FNTSFA=
++ export FNACNA=
++ export FNSNOA=
++ export AERODIR=/global/save/wx23hh/00wkgfs/fix/fix_rad
++ export EMISDIR=/global/save/wx23hh/00wkgfs/fix/fix_rad
++ export SOLCDIR=/global/save/wx23hh/00wkgfs/fix/fix_rad
++ export VOLCDIR=/global/save/wx23hh/00wkgfs/fix/fix_rad
++ export CO2DIR=/global/save/wx23hh/00wkgfs/fix/fix_rad
++ export IEMS=0
++ export ISOL=0
++ export IAER=0
++ export ICO2=0
++ export SIGR1=/ptmp/wx22ec/gfs.2/sigr1
++ export SIGR2=/ptmp/wx22ec/gfs.2/sigr2
++ export SFCR=/ptmp/wx22ec/gfs.2/sfcr
++ export SIGO=/ptmp/wx22ec/gfs.2/sigf${FH}${MN}
++ export SFCO=/ptmp/wx22ec/gfs.2/sfcf${FH}${MN}
++ export FLXO=/ptmp/wx22ec/gfs.2/flxf${FH}${MN}
++ export LOGO=/ptmp/wx22ec/gfs.2/logf${FH}${MN}
++ export D3DO=/ptmp/wx22ec/gfs.2/d3df${FH}${MN}
++ export INISCRIPT=
++ export ERRSCRIPT=eval [[ $err = 0 ]]
++ export LOGSCRIPT=
++ export ENDSCRIPT=
++ export FHINI=00
++ export FHSEG=0
++ export FHMAX=48
++ export DELTIM=900
++ export FHRES=48
++ export FHZER=3
++ export FHLWR=3
++ export FHSWR=1
++ export FHROT=0
++ export FHDFI=0
++ export FHCYC=0
++ export GB=0
++ export gfsio_in=.true.
++ [ .true. = .true. ]
++ export GB=1
++ [ 3 = 1 ]
++ [ 3 = 2 ]
++ [ 3 = 3 ]
++ export HYBRID=.false.
++ export GEN_COORD_HYBRID=.true.
++ export TFILTC=0.85
++ export DYNVARS=liope=.F.,gfsio_in=.true.,gfsio_out=.true.
++ export PHYVARS=liope=.F.,gfsio_in=.true.,gfsio_out=.true.
++ export TRACERVARS=RI=  286.05,   461.50, 173.2247,    0.0,CPI= 1004.6,   1846.0, 820.2391,    0.0,
++ export FSMCL2=99999
++ export FTSFS=0.0
++ export FAISS=0.0
++ export FSNOL=99999
++ export FSICL=99999
++ export CYCLVARS=
++ export NTHREADS=2
++ export NTHSTACK=128000000
++ export SPECTRAL_LOOP=1
++ export XLSMPOPTS=parthds=2:spins=0:yields=0:stack=512000000
++ export FILESTYLE=L
++ export PGMOUT=&1
++ export PGMERR=&2
++ export MEMBER_NAMES=
++ export BIND_TASKS=no
++ typeset -L1 l=&1
++ [[ & = & ]]
++ a=
++ export REDOUT=1>
++ typeset -L1 l=&2
++ [[ & = & ]]
++ a=
++ export REDERR=2>
++ + pwd
+pwd=/ptmp/wx22ec/gfs.2
++ [[ -d /ptmp/wx22ec/gfs.2 ]]
++ mkdata=NO
++ cd /ptmp/wx22ec/gfs.2
++ [[ -d /ptmp/wx22ec/gfs.2 ]]
++ export XLFRTEOPTS=unit_vars=yes
++ basename /meso/save/wx22ec/NEMS/MAIN_NEMS.x
++ export PGM=/ptmp/wx22ec/gfs.2/MAIN_NEMS.x
++ export pgm=/ptmp/wx22ec/gfs.2/MAIN_NEMS.x
++ cp /meso/save/wx22ec/NEMS/MAIN_NEMS.x /ptmp/wx22ec/gfs.2
++ rm -f NULL
++ FH=0
++ [[ 0 -lt 10 ]]
++ FH=00
++ [[ 00 -gt 0 ]]
++ [[ 00 -le 48 ]]
++ eval rm -f /ptmp/wx22ec/gfs.2/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs.2/logf00
++ (( FH=10#00+10#3 ))
++ [[ 3 -lt 10 ]]
++ FH=03
++ [[ 03 -le 48 ]]
++ eval rm -f /ptmp/wx22ec/gfs.2/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs.2/logf03
++ (( FH=10#03+10#3 ))
++ [[ 6 -lt 10 ]]
++ FH=06
++ [[ 06 -le 48 ]]
++ eval rm -f /ptmp/wx22ec/gfs.2/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs.2/logf06
++ (( FH=10#06+10#3 ))
++ [[ 9 -lt 10 ]]
++ FH=09
++ [[ 09 -le 48 ]]
++ eval rm -f /ptmp/wx22ec/gfs.2/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs.2/logf09
++ (( FH=10#09+10#3 ))
++ [[ 12 -lt 10 ]]
++ [[ 12 -le 48 ]]
++ eval rm -f /ptmp/wx22ec/gfs.2/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs.2/logf12
++ (( FH=10#12+10#3 ))
++ [[ 15 -lt 10 ]]
++ [[ 15 -le 48 ]]
++ eval rm -f /ptmp/wx22ec/gfs.2/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs.2/logf15
++ (( FH=10#15+10#3 ))
++ [[ 18 -lt 10 ]]
++ [[ 18 -le 48 ]]
++ eval rm -f /ptmp/wx22ec/gfs.2/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs.2/logf18
++ (( FH=10#18+10#3 ))
++ [[ 21 -lt 10 ]]
++ [[ 21 -le 48 ]]
++ eval rm -f /ptmp/wx22ec/gfs.2/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs.2/logf21
++ (( FH=10#21+10#3 ))
++ [[ 24 -lt 10 ]]
++ [[ 24 -le 48 ]]
++ eval rm -f /ptmp/wx22ec/gfs.2/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs.2/logf24
++ (( FH=10#24+10#3 ))
++ [[ 27 -lt 10 ]]
++ [[ 27 -le 48 ]]
++ eval rm -f /ptmp/wx22ec/gfs.2/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs.2/logf27
++ (( FH=10#27+10#3 ))
++ [[ 30 -lt 10 ]]
++ [[ 30 -le 48 ]]
++ eval rm -f /ptmp/wx22ec/gfs.2/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs.2/logf30
++ (( FH=10#30+10#3 ))
++ [[ 33 -lt 10 ]]
++ [[ 33 -le 48 ]]
++ eval rm -f /ptmp/wx22ec/gfs.2/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs.2/logf33
++ (( FH=10#33+10#3 ))
++ [[ 36 -lt 10 ]]
++ [[ 36 -le 48 ]]
++ eval rm -f /ptmp/wx22ec/gfs.2/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs.2/logf36
++ (( FH=10#36+10#3 ))
++ [[ 39 -lt 10 ]]
++ [[ 39 -le 48 ]]
++ eval rm -f /ptmp/wx22ec/gfs.2/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs.2/logf39
++ (( FH=10#39+10#3 ))
++ [[ 42 -lt 10 ]]
++ [[ 42 -le 48 ]]
++ eval rm -f /ptmp/wx22ec/gfs.2/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs.2/logf42
++ (( FH=10#42+10#3 ))
++ [[ 45 -lt 10 ]]
++ [[ 45 -le 48 ]]
++ eval rm -f /ptmp/wx22ec/gfs.2/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs.2/logf45
++ (( FH=10#45+10#3 ))
++ [[ 48 -lt 10 ]]
++ [[ 48 -le 48 ]]
++ eval rm -f /ptmp/wx22ec/gfs.2/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs.2/logf48
++ (( FH=10#48+10#3 ))
++ [[ 51 -lt 10 ]]
++ [[ 51 -le 48 ]]
++ [[ L = L ]]
++ ln -fs /nwprod/fix/global_co2con.l64.f77 fort.15
++ ln -fs /nwprod/fix/global_mtnvar.t62.f77 fort.24
++ ln -fs /nwprod/fix/global_tbthe.f77 fort.27
++ ln -fs /nwprod/fix/global_o3prdlos.f77 fort.28
++ ln -fs /nwprod/fix/global_cldtune.f77 fort.43
++ ln -fs /nwprod/fix/global_o3clim.txt fort.48
++ AEROSOL_FILE=global_climaeropac_global.txt
++ EMMISSIVITY_FILE=global_sfc_emissivity_idx.txt
++ ln -fs /global/save/wx23hh/00wkgfs/fix/fix_rad/global_climaeropac_global.txt aerosol.dat
++ ln -fs /global/save/wx23hh/00wkgfs/fix/fix_rad/global_sfc_emissivity_idx.txt sfc_emissivity_idx.txt
++ ln -fs /nwprod/fix/global_orography.t62.grb orography
++ [ 0 -gt 0 ]
++ [ 0 -gt 0 ]
++ [ 0 -gt 0 ]
++ [ 0 -gt 0 ]
++ cd /ptmp/wx22ec/gfs.2
++ export PHYVARS=IEMS=0,ISOL=0,IAER=0,ICO2=0,liope=.F.,gfsio_in=.true.,gfsio_out=.true.
++ mins=15
++ secs=0
++ [[ 15 -lt 10 ]]
++ [[ 0 -lt 10 ]]
++ secs=00
++ [[ 1 -le 1 ]]
++ FH=0
++ [[ 0 -lt 10 ]]
++ FH=00
++ [[ 00 -gt 0 ]]
++ ln -fs /ptmp/wx22ec/gfs.2/gfsanl.2007070200 sig_ini
++ ln -fs /ptmp/wx22ec/gfs.2/sfcanl.2007070200 sfc_ini
++ ln -fs NULL sig_ini2
++ [[ 00 -le 48 ]]
++ [ 00 -eq 00 ]
++ eval ln -fs /ptmp/wx22ec/gfs.2/sigf${FH}${MN} SIG.F00
++ ln -fs /ptmp/wx22ec/gfs.2/sigf00 SIG.F00
++ eval ln -fs /ptmp/wx22ec/gfs.2/flxf${FH}${MN} FLX.F00:15:00
++ ln -fs /ptmp/wx22ec/gfs.2/flxf00 FLX.F00:15:00
++ eval ln -fs /ptmp/wx22ec/gfs.2/sfcf${FH}${MN} SFC.F00:15:00
++ ln -fs /ptmp/wx22ec/gfs.2/sfcf00 SFC.F00:15:00
++ eval ln -fs /ptmp/wx22ec/gfs.2/logf${FH}${MN} LOG.F00
++ ln -fs /ptmp/wx22ec/gfs.2/logf00 LOG.F00
++ eval ln -fs /ptmp/wx22ec/gfs.2/d3df${FH}${MN} D3D.F00:15:00
++ ln -fs /ptmp/wx22ec/gfs.2/d3df00 D3D.F00:15:00
++ (( FH=10#00+10#3 ))
++ [[ 3 -lt 10 ]]
++ FH=03
++ [[ 03 -le 48 ]]
++ [ 03 -eq 00 ]
++ eval ln -fs /ptmp/wx22ec/gfs.2/sigf${FH}${MN} SIG.F03
++ ln -fs /ptmp/wx22ec/gfs.2/sigf03 SIG.F03
++ eval ln -fs /ptmp/wx22ec/gfs.2/sfcf${FH}${MN} SFC.F03
++ ln -fs /ptmp/wx22ec/gfs.2/sfcf03 SFC.F03
++ eval ln -fs /ptmp/wx22ec/gfs.2/flxf${FH}${MN} FLX.F03
++ ln -fs /ptmp/wx22ec/gfs.2/flxf03 FLX.F03
++ eval ln -fs /ptmp/wx22ec/gfs.2/logf${FH}${MN} LOG.F03
++ ln -fs /ptmp/wx22ec/gfs.2/logf03 LOG.F03
++ eval ln -fs /ptmp/wx22ec/gfs.2/d3df${FH}${MN} D3D.F03
++ ln -fs /ptmp/wx22ec/gfs.2/d3df03 D3D.F03
++ (( FH=10#03+10#3 ))
++ [[ 6 -lt 10 ]]
++ FH=06
++ [[ 06 -le 48 ]]
++ [ 06 -eq 00 ]
++ eval ln -fs /ptmp/wx22ec/gfs.2/sigf${FH}${MN} SIG.F06
++ ln -fs /ptmp/wx22ec/gfs.2/sigf06 SIG.F06
++ eval ln -fs /ptmp/wx22ec/gfs.2/sfcf${FH}${MN} SFC.F06
++ ln -fs /ptmp/wx22ec/gfs.2/sfcf06 SFC.F06
++ eval ln -fs /ptmp/wx22ec/gfs.2/flxf${FH}${MN} FLX.F06
++ ln -fs /ptmp/wx22ec/gfs.2/flxf06 FLX.F06
++ eval ln -fs /ptmp/wx22ec/gfs.2/logf${FH}${MN} LOG.F06
++ ln -fs /ptmp/wx22ec/gfs.2/logf06 LOG.F06
++ eval ln -fs /ptmp/wx22ec/gfs.2/d3df${FH}${MN} D3D.F06
++ ln -fs /ptmp/wx22ec/gfs.2/d3df06 D3D.F06
++ (( FH=10#06+10#3 ))
++ [[ 9 -lt 10 ]]
++ FH=09
++ [[ 09 -le 48 ]]
++ [ 09 -eq 00 ]
++ eval ln -fs /ptmp/wx22ec/gfs.2/sigf${FH}${MN} SIG.F09
++ ln -fs /ptmp/wx22ec/gfs.2/sigf09 SIG.F09
++ eval ln -fs /ptmp/wx22ec/gfs.2/sfcf${FH}${MN} SFC.F09
++ ln -fs /ptmp/wx22ec/gfs.2/sfcf09 SFC.F09
++ eval ln -fs /ptmp/wx22ec/gfs.2/flxf${FH}${MN} FLX.F09
++ ln -fs /ptmp/wx22ec/gfs.2/flxf09 FLX.F09
++ eval ln -fs /ptmp/wx22ec/gfs.2/logf${FH}${MN} LOG.F09
++ ln -fs /ptmp/wx22ec/gfs.2/logf09 LOG.F09
++ eval ln -fs /ptmp/wx22ec/gfs.2/d3df${FH}${MN} D3D.F09
++ ln -fs /ptmp/wx22ec/gfs.2/d3df09 D3D.F09
++ (( FH=10#09+10#3 ))
++ [[ 12 -lt 10 ]]
++ [[ 12 -le 48 ]]
++ [ 12 -eq 00 ]
++ eval ln -fs /ptmp/wx22ec/gfs.2/sigf${FH}${MN} SIG.F12
++ ln -fs /ptmp/wx22ec/gfs.2/sigf12 SIG.F12
++ eval ln -fs /ptmp/wx22ec/gfs.2/sfcf${FH}${MN} SFC.F12
++ ln -fs /ptmp/wx22ec/gfs.2/sfcf12 SFC.F12
++ eval ln -fs /ptmp/wx22ec/gfs.2/flxf${FH}${MN} FLX.F12
++ ln -fs /ptmp/wx22ec/gfs.2/flxf12 FLX.F12
++ eval ln -fs /ptmp/wx22ec/gfs.2/logf${FH}${MN} LOG.F12
++ ln -fs /ptmp/wx22ec/gfs.2/logf12 LOG.F12
++ eval ln -fs /ptmp/wx22ec/gfs.2/d3df${FH}${MN} D3D.F12
++ ln -fs /ptmp/wx22ec/gfs.2/d3df12 D3D.F12
++ (( FH=10#12+10#3 ))
++ [[ 15 -lt 10 ]]
++ [[ 15 -le 48 ]]
++ [ 15 -eq 00 ]
++ eval ln -fs /ptmp/wx22ec/gfs.2/sigf${FH}${MN} SIG.F15
++ ln -fs /ptmp/wx22ec/gfs.2/sigf15 SIG.F15
++ eval ln -fs /ptmp/wx22ec/gfs.2/sfcf${FH}${MN} SFC.F15
++ ln -fs /ptmp/wx22ec/gfs.2/sfcf15 SFC.F15
++ eval ln -fs /ptmp/wx22ec/gfs.2/flxf${FH}${MN} FLX.F15
++ ln -fs /ptmp/wx22ec/gfs.2/flxf15 FLX.F15
++ eval ln -fs /ptmp/wx22ec/gfs.2/logf${FH}${MN} LOG.F15
++ ln -fs /ptmp/wx22ec/gfs.2/logf15 LOG.F15
++ eval ln -fs /ptmp/wx22ec/gfs.2/d3df${FH}${MN} D3D.F15
++ ln -fs /ptmp/wx22ec/gfs.2/d3df15 D3D.F15
++ (( FH=10#15+10#3 ))
++ [[ 18 -lt 10 ]]
++ [[ 18 -le 48 ]]
++ [ 18 -eq 00 ]
++ eval ln -fs /ptmp/wx22ec/gfs.2/sigf${FH}${MN} SIG.F18
++ ln -fs /ptmp/wx22ec/gfs.2/sigf18 SIG.F18
++ eval ln -fs /ptmp/wx22ec/gfs.2/sfcf${FH}${MN} SFC.F18
++ ln -fs /ptmp/wx22ec/gfs.2/sfcf18 SFC.F18
++ eval ln -fs /ptmp/wx22ec/gfs.2/flxf${FH}${MN} FLX.F18
++ ln -fs /ptmp/wx22ec/gfs.2/flxf18 FLX.F18
++ eval ln -fs /ptmp/wx22ec/gfs.2/logf${FH}${MN} LOG.F18
++ ln -fs /ptmp/wx22ec/gfs.2/logf18 LOG.F18
++ eval ln -fs /ptmp/wx22ec/gfs.2/d3df${FH}${MN} D3D.F18
++ ln -fs /ptmp/wx22ec/gfs.2/d3df18 D3D.F18
++ (( FH=10#18+10#3 ))
++ [[ 21 -lt 10 ]]
++ [[ 21 -le 48 ]]
++ [ 21 -eq 00 ]
++ eval ln -fs /ptmp/wx22ec/gfs.2/sigf${FH}${MN} SIG.F21
++ ln -fs /ptmp/wx22ec/gfs.2/sigf21 SIG.F21
++ eval ln -fs /ptmp/wx22ec/gfs.2/sfcf${FH}${MN} SFC.F21
++ ln -fs /ptmp/wx22ec/gfs.2/sfcf21 SFC.F21
++ eval ln -fs /ptmp/wx22ec/gfs.2/flxf${FH}${MN} FLX.F21
++ ln -fs /ptmp/wx22ec/gfs.2/flxf21 FLX.F21
++ eval ln -fs /ptmp/wx22ec/gfs.2/logf${FH}${MN} LOG.F21
++ ln -fs /ptmp/wx22ec/gfs.2/logf21 LOG.F21
++ eval ln -fs /ptmp/wx22ec/gfs.2/d3df${FH}${MN} D3D.F21
++ ln -fs /ptmp/wx22ec/gfs.2/d3df21 D3D.F21
++ (( FH=10#21+10#3 ))
++ [[ 24 -lt 10 ]]
++ [[ 24 -le 48 ]]
++ [ 24 -eq 00 ]
++ eval ln -fs /ptmp/wx22ec/gfs.2/sigf${FH}${MN} SIG.F24
++ ln -fs /ptmp/wx22ec/gfs.2/sigf24 SIG.F24
++ eval ln -fs /ptmp/wx22ec/gfs.2/sfcf${FH}${MN} SFC.F24
++ ln -fs /ptmp/wx22ec/gfs.2/sfcf24 SFC.F24
++ eval ln -fs /ptmp/wx22ec/gfs.2/flxf${FH}${MN} FLX.F24
++ ln -fs /ptmp/wx22ec/gfs.2/flxf24 FLX.F24
++ eval ln -fs /ptmp/wx22ec/gfs.2/logf${FH}${MN} LOG.F24
++ ln -fs /ptmp/wx22ec/gfs.2/logf24 LOG.F24
++ eval ln -fs /ptmp/wx22ec/gfs.2/d3df${FH}${MN} D3D.F24
++ ln -fs /ptmp/wx22ec/gfs.2/d3df24 D3D.F24
++ (( FH=10#24+10#3 ))
++ [[ 27 -lt 10 ]]
++ [[ 27 -le 48 ]]
++ [ 27 -eq 00 ]
++ eval ln -fs /ptmp/wx22ec/gfs.2/sigf${FH}${MN} SIG.F27
++ ln -fs /ptmp/wx22ec/gfs.2/sigf27 SIG.F27
++ eval ln -fs /ptmp/wx22ec/gfs.2/sfcf${FH}${MN} SFC.F27
++ ln -fs /ptmp/wx22ec/gfs.2/sfcf27 SFC.F27
++ eval ln -fs /ptmp/wx22ec/gfs.2/flxf${FH}${MN} FLX.F27
++ ln -fs /ptmp/wx22ec/gfs.2/flxf27 FLX.F27
++ eval ln -fs /ptmp/wx22ec/gfs.2/logf${FH}${MN} LOG.F27
++ ln -fs /ptmp/wx22ec/gfs.2/logf27 LOG.F27
++ eval ln -fs /ptmp/wx22ec/gfs.2/d3df${FH}${MN} D3D.F27
++ ln -fs /ptmp/wx22ec/gfs.2/d3df27 D3D.F27
++ (( FH=10#27+10#3 ))
++ [[ 30 -lt 10 ]]
++ [[ 30 -le 48 ]]
++ [ 30 -eq 00 ]
++ eval ln -fs /ptmp/wx22ec/gfs.2/sigf${FH}${MN} SIG.F30
++ ln -fs /ptmp/wx22ec/gfs.2/sigf30 SIG.F30
++ eval ln -fs /ptmp/wx22ec/gfs.2/sfcf${FH}${MN} SFC.F30
++ ln -fs /ptmp/wx22ec/gfs.2/sfcf30 SFC.F30
++ eval ln -fs /ptmp/wx22ec/gfs.2/flxf${FH}${MN} FLX.F30
++ ln -fs /ptmp/wx22ec/gfs.2/flxf30 FLX.F30
++ eval ln -fs /ptmp/wx22ec/gfs.2/logf${FH}${MN} LOG.F30
++ ln -fs /ptmp/wx22ec/gfs.2/logf30 LOG.F30
++ eval ln -fs /ptmp/wx22ec/gfs.2/d3df${FH}${MN} D3D.F30
++ ln -fs /ptmp/wx22ec/gfs.2/d3df30 D3D.F30
++ (( FH=10#30+10#3 ))
++ [[ 33 -lt 10 ]]
++ [[ 33 -le 48 ]]
++ [ 33 -eq 00 ]
++ eval ln -fs /ptmp/wx22ec/gfs.2/sigf${FH}${MN} SIG.F33
++ ln -fs /ptmp/wx22ec/gfs.2/sigf33 SIG.F33
++ eval ln -fs /ptmp/wx22ec/gfs.2/sfcf${FH}${MN} SFC.F33
++ ln -fs /ptmp/wx22ec/gfs.2/sfcf33 SFC.F33
++ eval ln -fs /ptmp/wx22ec/gfs.2/flxf${FH}${MN} FLX.F33
++ ln -fs /ptmp/wx22ec/gfs.2/flxf33 FLX.F33
++ eval ln -fs /ptmp/wx22ec/gfs.2/logf${FH}${MN} LOG.F33
++ ln -fs /ptmp/wx22ec/gfs.2/logf33 LOG.F33
++ eval ln -fs /ptmp/wx22ec/gfs.2/d3df${FH}${MN} D3D.F33
++ ln -fs /ptmp/wx22ec/gfs.2/d3df33 D3D.F33
++ (( FH=10#33+10#3 ))
++ [[ 36 -lt 10 ]]
++ [[ 36 -le 48 ]]
++ [ 36 -eq 00 ]
++ eval ln -fs /ptmp/wx22ec/gfs.2/sigf${FH}${MN} SIG.F36
++ ln -fs /ptmp/wx22ec/gfs.2/sigf36 SIG.F36
++ eval ln -fs /ptmp/wx22ec/gfs.2/sfcf${FH}${MN} SFC.F36
++ ln -fs /ptmp/wx22ec/gfs.2/sfcf36 SFC.F36
++ eval ln -fs /ptmp/wx22ec/gfs.2/flxf${FH}${MN} FLX.F36
++ ln -fs /ptmp/wx22ec/gfs.2/flxf36 FLX.F36
++ eval ln -fs /ptmp/wx22ec/gfs.2/logf${FH}${MN} LOG.F36
++ ln -fs /ptmp/wx22ec/gfs.2/logf36 LOG.F36
++ eval ln -fs /ptmp/wx22ec/gfs.2/d3df${FH}${MN} D3D.F36
++ ln -fs /ptmp/wx22ec/gfs.2/d3df36 D3D.F36
++ (( FH=10#36+10#3 ))
++ [[ 39 -lt 10 ]]
++ [[ 39 -le 48 ]]
++ [ 39 -eq 00 ]
++ eval ln -fs /ptmp/wx22ec/gfs.2/sigf${FH}${MN} SIG.F39
++ ln -fs /ptmp/wx22ec/gfs.2/sigf39 SIG.F39
++ eval ln -fs /ptmp/wx22ec/gfs.2/sfcf${FH}${MN} SFC.F39
++ ln -fs /ptmp/wx22ec/gfs.2/sfcf39 SFC.F39
++ eval ln -fs /ptmp/wx22ec/gfs.2/flxf${FH}${MN} FLX.F39
++ ln -fs /ptmp/wx22ec/gfs.2/flxf39 FLX.F39
++ eval ln -fs /ptmp/wx22ec/gfs.2/logf${FH}${MN} LOG.F39
++ ln -fs /ptmp/wx22ec/gfs.2/logf39 LOG.F39
++ eval ln -fs /ptmp/wx22ec/gfs.2/d3df${FH}${MN} D3D.F39
++ ln -fs /ptmp/wx22ec/gfs.2/d3df39 D3D.F39
++ (( FH=10#39+10#3 ))
++ [[ 42 -lt 10 ]]
++ [[ 42 -le 48 ]]
++ [ 42 -eq 00 ]
++ eval ln -fs /ptmp/wx22ec/gfs.2/sigf${FH}${MN} SIG.F42
++ ln -fs /ptmp/wx22ec/gfs.2/sigf42 SIG.F42
++ eval ln -fs /ptmp/wx22ec/gfs.2/sfcf${FH}${MN} SFC.F42
++ ln -fs /ptmp/wx22ec/gfs.2/sfcf42 SFC.F42
++ eval ln -fs /ptmp/wx22ec/gfs.2/flxf${FH}${MN} FLX.F42
++ ln -fs /ptmp/wx22ec/gfs.2/flxf42 FLX.F42
++ eval ln -fs /ptmp/wx22ec/gfs.2/logf${FH}${MN} LOG.F42
++ ln -fs /ptmp/wx22ec/gfs.2/logf42 LOG.F42
++ eval ln -fs /ptmp/wx22ec/gfs.2/d3df${FH}${MN} D3D.F42
++ ln -fs /ptmp/wx22ec/gfs.2/d3df42 D3D.F42
++ (( FH=10#42+10#3 ))
++ [[ 45 -lt 10 ]]
++ [[ 45 -le 48 ]]
++ [ 45 -eq 00 ]
++ eval ln -fs /ptmp/wx22ec/gfs.2/sigf${FH}${MN} SIG.F45
++ ln -fs /ptmp/wx22ec/gfs.2/sigf45 SIG.F45
++ eval ln -fs /ptmp/wx22ec/gfs.2/sfcf${FH}${MN} SFC.F45
++ ln -fs /ptmp/wx22ec/gfs.2/sfcf45 SFC.F45
++ eval ln -fs /ptmp/wx22ec/gfs.2/flxf${FH}${MN} FLX.F45
++ ln -fs /ptmp/wx22ec/gfs.2/flxf45 FLX.F45
++ eval ln -fs /ptmp/wx22ec/gfs.2/logf${FH}${MN} LOG.F45
++ ln -fs /ptmp/wx22ec/gfs.2/logf45 LOG.F45
++ eval ln -fs /ptmp/wx22ec/gfs.2/d3df${FH}${MN} D3D.F45
++ ln -fs /ptmp/wx22ec/gfs.2/d3df45 D3D.F45
++ (( FH=10#45+10#3 ))
++ [[ 48 -lt 10 ]]
++ [[ 48 -le 48 ]]
++ [ 48 -eq 00 ]
++ eval ln -fs /ptmp/wx22ec/gfs.2/sigf${FH}${MN} SIG.F48
++ ln -fs /ptmp/wx22ec/gfs.2/sigf48 SIG.F48
++ eval ln -fs /ptmp/wx22ec/gfs.2/sfcf${FH}${MN} SFC.F48
++ ln -fs /ptmp/wx22ec/gfs.2/sfcf48 SFC.F48
++ eval ln -fs /ptmp/wx22ec/gfs.2/flxf${FH}${MN} FLX.F48
++ ln -fs /ptmp/wx22ec/gfs.2/flxf48 FLX.F48
++ eval ln -fs /ptmp/wx22ec/gfs.2/logf${FH}${MN} LOG.F48
++ ln -fs /ptmp/wx22ec/gfs.2/logf48 LOG.F48
++ eval ln -fs /ptmp/wx22ec/gfs.2/d3df${FH}${MN} D3D.F48
++ ln -fs /ptmp/wx22ec/gfs.2/d3df48 D3D.F48
++ (( FH=10#48+10#3 ))
++ [[ 51 -lt 10 ]]
++ [[ 51 -le 48 ]]
++ ln -fs /ptmp/wx22ec/gfs.2/sigr1 SIGR1
++ ln -fs /ptmp/wx22ec/gfs.2/sigr2 SIGR2
++ ln -fs /ptmp/wx22ec/gfs.2/sfcr SFCR
++ c=1
++ [ 1 -le 1 ]
++ eval export PE1=${PE1:-0}
++ export PE1=16
++ c=2
++ [ 2 -le 1 ]
++ export wgrib=/nwprod/util/exec/wgrib
++ + wgrib -4yr /ptmp/wx22ec/gfs.2/gfsanl.2007070200
++ grep -i hgt
++ awk -F: {print $3}
+CDATE=2007070200
++ + cut -c1-4
++ echo 2007070200
+INI_YEAR=2007
++ + cut -c5-6
++ echo 2007070200
+INI_MONTH=07
++ + cut -c7-8
++ echo 2007070200
+INI_DAY=02
++ + cut -c9-10
++ echo 2007070200
+INI_HOUR=00
++ cat
++ 0<<
+
+#nam_atm +++++++++++++++++++++++++++
+nlunit:                  35
+deltim:                  900.0
+namelist:                atm_namelist
+total_member:            1
+grib_input:              1
+PE_MEMBER01:             16
+PE_MEMBER02:             
+PE_MEMBER03:             
+PE_MEMBER04:             
+PE_MEMBER05:             
+PE_MEMBER06:             
+PE_MEMBER07:             
+PE_MEMBER08:             
+PE_MEMBER09:             
+PE_MEMBER10:             
+PE_MEMBER11:             
+PE_MEMBER12:             
+PE_MEMBER13:             
+PE_MEMBER14:             
+PE_MEMBER14:             
+PE_MEMBER16:             
+PE_MEMBER17:             
+PE_MEMBER18:             
+PE_MEMBER19:             
+PE_MEMBER20:             
+PE_MEMBER21:             
+#
+dt_int:               900
+dt_num:               0
+dt_den:               1
+start_year:           2007
+start_month:          07
+start_day:            02
+start_hour:           00
+start_minute:         0.0
+start_second:         0.0
+nhours_fcst:          48
+inpes:                1
+jnpes:                16
+im:                   192
+jm:                   94
+global:               .true.
+nhours_dfini:          0
+adiabatic:            .false.
+
+1> atm_namelist.rc
++ cat atm_namelist.rc
++ 1> dyn_namelist.rc
++ cat
++ 0< /tmp/sh115332.3 1>> dyn_namelist.rc
++ cat atm_namelist.rc
++ 1> phy_namelist.rc
++ cat
++ 0< /tmp/sh115332.5 1>> phy_namelist.rc
++ cat
++ 1> atm_namelist 0<<
+ &nam_dyn
+  FHOUT=3, FHMAX=48, IGEN=0, DELTIM=900,
+  FHRES=48, FHROT=0, 
+  spectral_loop=1, explicit=.false.,
+  nxpt=1, nypt=2, jintmx=2, lonf=192, latg=94,
+  jcap=62, levs=64,  levr=0,
+  ntrac=3, ntoz=2, ntcw=3, ncld=1,
+  ngptc=12, hybrid=.false., tfiltc=0.85,
+  gen_coord_hybrid=.true., zflxtvd=.false.,
+  liope=.F.,gfsio_in=.true.,gfsio_out=.true. /
+&nam_phy
+  FHOUT=3, FHMAX=48, IGEN=0, DELTIM=900,
+  FHRES=48, FHROT=0, FHCYC=0,
+  FHZER=3, FHLWR=3, FHSWR=1,
+  nxpt=1, nypt=2, jintmx=2, lonr=192, latr=94,
+  jcap=62, levs=64, levr=0,
+  ntrac=3, ntoz=2, ntcw=3, ncld=1,
+  lsoil=4, nmtvr=14,
+  ngptc=12, hybrid=.false., tfiltc=0.85,
+  gen_coord_hybrid=.true.,
+  thermodyn_id=3, sfcpress_id=2,
+  IEMS=0,ISOL=0,IAER=0,ICO2=0,liope=.F.,gfsio_in=.true.,gfsio_out=.true. /
+&TRACER_CONSTANT
+  RI=  286.05,   461.50, 173.2247,    0.0,CPI= 1004.6,   1846.0, 820.2391,    0.0, /
+&SOIL_VEG
+  LPARAM = .FALSE./
+&NAMSFC
+  FNGLAC="/nwprod/fix/global_glacier.2x2.grb",
+  FNMXIC="/nwprod/fix/global_maxice.2x2.grb",
+  FNTSFC="/nwprod/fix/cfs_oi2sst1x1monclim19822001.grb",
+  FNSNOC="/nwprod/fix/global_snoclim.1.875.grb",
+  FNZORC="/nwprod/fix/global_zorclim.1x1.grb",
+  FNALBC="/nwprod/fix/global_albedo4.1x1.grb",
+  FNAISC="/nwprod/fix/cfs_ice1x1monclim19822001.grb",
+  FNTG3C="/nwprod/fix/global_tg3clim.2.6x1.5.grb",
+  FNVEGC="/nwprod/fix/global_vegfrac.0.144.decpercent.grb",
+  FNVETC="/nwprod/fix/global_vegtype.1x1.grb",
+  FNSOTC="/nwprod/fix/global_soiltype.1x1.grb",
+  FNSMCC="/nwprod/fix/global_soilmcpc.1x1.grb",
+  FNMSKH="/nwprod/fix/seaice_newland.grb",
+  FNTSFA="",
+  FNACNA="",
+  FNSNOA="",
+  FNVMNC="/nwprod/fix/global_shdmin.0.144x0.144.grb",
+  FNVMXC="/nwprod/fix/global_shdmax.0.144x0.144.grb",
+  FNSLPC="/nwprod/fix/global_slope.1x1.grb",
+  FNABSC="/nwprod/fix/global_snoalb.1x1.grb",
+  LDEBUG=.false.,
+  FSMCL(2)=99999,
+  FSMCL(3)=99999,
+  FSMCL(4)=99999,
+  FTSFS=0.0,
+  FAISS=0.0,
+  FSNOL=99999,
+  FSICL=99999,
+  FTSFL=99999,
+  FAISL=99999,
+  FVETL=99999,
+  FSOTL=99999,
+  FvmnL=99999,
+  FvmxL=99999,
+  FSLPL=99999,
+  FABSL=99999,
+  FSNOS=99999,
+  FSICS=99999,
+
+   /
++ eval /ptmp/wx22ec/gfs.2/MAIN_NEMS.x 1>&1 2>&2
++ /ptmp/wx22ec/gfs.2/MAIN_NEMS.x
++ 1>& 1 2>& 2
+ATTENTION: 0031-408  16 tasks allocated by LoadLeveler, continuing...
+   0:  atm_init_tim= 2.340000153
+   1:  atm_init_tim= 2.340000153
+   2:  atm_init_tim= 2.340000153
+   3:  atm_init_tim= 2.340000153
+   8:  atm_init_tim= 3.308000088
+   9:  atm_init_tim= 3.308000088
+   4:  atm_init_tim= 2.340000153
+  10:  atm_init_tim= 3.308000088
+  11:  atm_init_tim= 3.308000088
+   5:  atm_init_tim= 2.340000153
+  12:  atm_init_tim= 3.308000088
+  13:  atm_init_tim= 3.308000088
+  14:  atm_init_tim= 3.308000088
+   6:  atm_init_tim= 2.340000153
+  15:  atm_init_tim= 3.308000088
+   7:  atm_init_tim= 2.340000153
+   9: ATM FINALIZE STEP SUCCEEDED
+  10: ATM FINALIZE STEP SUCCEEDED
+  11: ATM FINALIZE STEP SUCCEEDED
+  13: ATM FINALIZE STEP SUCCEEDED
+   8: ATM FINALIZE STEP SUCCEEDED
+  14: ATM FINALIZE STEP SUCCEEDED
+   0: ATM FINALIZE STEP SUCCEEDED
+   1: ATM FINALIZE STEP SUCCEEDED
+   2: ATM FINALIZE STEP SUCCEEDED
+   3: ATM FINALIZE STEP SUCCEEDED
+   5: ATM FINALIZE STEP SUCCEEDED
+   7: ATM FINALIZE STEP SUCCEEDED
+   4: ATM FINALIZE STEP SUCCEEDED
+   6: ATM FINALIZE STEP SUCCEEDED
+  12: ATM FINALIZE STEP SUCCEEDED
+  15: ATM FINALIZE STEP SUCCEEDED
+  14: MODEL FORECAST RUN SUCCEEDED
+  10: MODEL FORECAST RUN SUCCEEDED
+   9: MODEL FORECAST RUN SUCCEEDED
+  11: MODEL FORECAST RUN SUCCEEDED
+  12: MODEL FORECAST RUN SUCCEEDED
+  13: MODEL FORECAST RUN SUCCEEDED
+   0: MODEL FORECAST RUN SUCCEEDED
+   8: MODEL FORECAST RUN SUCCEEDED
+  15: MODEL FORECAST RUN SUCCEEDED
+   7: MODEL FORECAST RUN SUCCEEDED
+   5: MODEL FORECAST RUN SUCCEEDED
+   6: MODEL FORECAST RUN SUCCEEDED
+   3: MODEL FORECAST RUN SUCCEEDED
+   2: MODEL FORECAST RUN SUCCEEDED
+   1: MODEL FORECAST RUN SUCCEEDED
+   4: MODEL FORECAST RUN SUCCEEDED
++ export ERR=0
++ export err=0
++ eval [[ $err = 0 ]]
++ [[ 0 = 0 ]]
++ rm -f NULL
++ rm -f fort.11 fort.12 fort.14
++ rm -f fort.15 fort.24 fort.27 fort.28 fort.29 fort.43 fort.48
++ rm -f orography
++ rm -f fort.51 fort.52 fort.53
++ cd /ptmp/wx22ec/gfs.2
++ [[ NO = YES ]]
+Tue Aug 19 12:48:29 EDT 2008 EXITING /meso/save/wx22ec/NEMS/run/exglobal_fcst.sh.sms_nems with return code 0

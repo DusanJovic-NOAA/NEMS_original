@@ -1,0 +1,49 @@
+NMM-B Experiment (Global)
+Duration: 00Z 09182007  - 00Z 09202007
+Domain: IM,JM,KM = 257, 181,35
+Grid Decomposition: 
+inpes: 03, 05
+jnpes: 05, 09
+Timestep: 180 s
+
+GFS Experiment
+Duration: 00Z 07022007 - 00Z 07042007
+LONB=192,LATB=94,
+LEVS=64
+Grid Decomposition: 
+inpes: 01
+jnpes: 16
+Timestep: 900 s
+
+
+Test 1:
+
+	Nodes: 1
+   	Tasks: 15 + 1(write)
+	Threading: None
+	Duration: 48 hours
+
+Test 2:
+
+	Nodes: 2
+	Tasks:  15 + 1 (write)
+	Threading: 2
+	Duration: 48 hours
+
+Test 3:
+
+	Nodes: 3
+	Tasks: 45+3 (write)
+	Threading: None
+	Duration: 48 hours
+
+Results
+        NMM-B: 		        GFS:
+I) 	Pass			Pass
+II)  	Pass			Pass
+III) 	Pass			Pass
+
+
+Test results located on hpss server:
+
+/hpssuser/g01/wx22ec/NEMS_TESTS/		

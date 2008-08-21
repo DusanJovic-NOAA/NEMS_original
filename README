@@ -1,0 +1,38 @@
+National Environmental Modeling System (NEMS) Version 1.0 (August 2008)
+======================================
+
+	-Employs ESMF superstructure & utilities
+	-Separate dynamics, physics, and coupler grid components & import/export states
+	-Digital filtering capabilities added
+	-Adiabatic (dynamics only) simulation capability
+	-Enhanced postprocessing capability
+
+How to compile and run?
+-----------------------
+
+- In NEMS directory, one is given the option of building NEMS with either an NMM-B or GFS compile options. Both link to slightly different libraries.
+
+	 NMM : make NMM  
+	 GFS:  make GFS
+	 cleans: make clean (removes source code copies, object files, modules, NEMS library files, and executables)
+
+-Executable MAIN_NEMS.x created in ${USER}/NEMS 
+
+-run directory contains run scripts, configure files and error/output log directories.
+	
+	-configfile_global_new: master config file  
+		 
+		core: nmm - all of the other file entries are read in my NEMS
+		core: gfs - rest of the file entries are ignored and NEMS reads in the run information from the file exglobal_fcst.sh.sms_nems 
+	
+ 	-exglobal_fcst.sh.sms_nems: gfs core control file
+
+	-gfs_prep_test3, gfs_prep_test3, gfs_prep_test3: scripts used to setup up run directories and files needed prior to running NEMS tests using the gfs core option.
+	-run_gfs_test1, run_gfs_test2, run_gfs_test3: scripts used to run the NEMS tests using the gfs core option.
+
+	-run_nmm_test1, run_nmm_test2, run_nmm_test3: scripts used to run the NEMS tests using the nmm core option. 
+
+	-gfs_out: directory containing ouput and error files created during the last NEMS run in which the gfs core option was selected
+	
+	-nmm_out: directory containing ouput and error files created during the last NEMS run in which the nmm core option was selected
+
