@@ -3,10 +3,11 @@
 !
 !***********************************************************************
 !
-      use resol_def
-      use layout1
-      use mpi_def
-      use ozne_def
+      use resol_def, ONLY: latr, lonr, nmtvr
+      use layout1,   ONLY: me, nodes, lats_node_r
+      use mpi_def,   ONLY: icolor
+      use ozne_def,  ONLY: latsozp, levozp, timeoz, pl_coeff
+      USE machine,   ONLY: kind_io8, kind_io4
       implicit none
 
 !
@@ -68,22 +69,25 @@
       endif
       call split2d(buff1,buffo,global_lats_r)
       CALL interpred(1,kmsk0,buffo,oro,global_lats_r,lonsperlar)
- 
       endif
       RETURN
       END
+
+
       SUBROUTINE read_sfc(sfc_fld,NEEDORO,nread,
      &                    cfile,global_lats_r,lonsperlar)
 !
 !***********************************************************************
 !
-      use sfcio_module
-      use resol_def
-      use layout1
-      use mpi_def
-      use gfs_physics_sfc_flx_mod
-      use namelist_soilveg , only : salp_data, snupx
-      use physcons, only : tgice => con_tice
+      use sfcio_module, ONLY: sfcio_head, sfcio_data, sfcio_realfill,
+     &                        sfcio_srohdc, sfcio_axdata
+      use resol_def,    ONLY: latr, latr2, lonr, lsoil
+      use layout1,      ONLY: me, nodes, lats_node_r
+      use mpi_def,      ONLY: icolor
+      use gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data
+      use namelist_soilveg ,       only: salp_data, snupx
+      use physcons,     only : tgice => con_tice
+      USE machine,      ONLY: kind_io4, kind_io8
       implicit none
 !
       TYPE(Sfc_Var_Data)        :: sfc_fld
@@ -138,6 +142,7 @@
       CALL interpred(1,kmsk,buffo,sfc_fld%TSEA,global_lats_r,lonsperlar)
 
       DO K=1, LSOIL
+
         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%smc(:,:,k)
         call split2d(buff1, buffo,global_lats_r)
         CALL interpred(1,kmsk,buffo,buff3,global_lats_r,lonsperlar)
@@ -345,7 +350,8 @@
       DO j=1,lats_node_r
         DO i=1,LONR
           sfc_fld%SNCOVR(i,j) = 0.0
-          if (sfc_fld%slmsk(i,j) > 0.001) then
+          if (sfc_fld%slmsk(i,j) > 0.001 .AND. 
+     &        ABS(sfc_fld%VTYPE(i,j)) >= 0.5 ) then
             vegtyp = sfc_fld%VTYPE(i,j)
             RSNOW  = 0.001*sfc_fld%SHELEG(i,j)/SNUPX(vegtyp)
             IF (0.001*sfc_fld%SHELEG(i,j) < SNUPX(vegtyp)) THEN
@@ -379,8 +385,9 @@
 !
       subroutine interpred(iord,kmsk,f,fi,global_lats_r,lonsperlar)
 !!
-      use resol_def
-      use layout1
+      use resol_def,   ONLY: latr, lonr
+      use layout1,     ONLY: ipt_lats_node_r, lats_node_r
+      USE machine,     ONLY: kind_io8
       implicit none
 !!
       integer              global_lats_r(latr)
@@ -408,7 +415,7 @@ c
 c***********************************************************************
 c
       subroutine intlon(iord,imon,imsk,m1,m2,k1,f1,f2)
-      use machine
+      use machine, ONLY: kind_io8
       implicit none
       integer,intent(in):: iord,imon,imsk,m1,m2
       integer,intent(in):: k1(m1)
@@ -434,9 +441,8 @@ c**********************************************************************
 c
       SUBROUTINE readoz_disprd(ozplin)
  
-      use resol_def
-      use layout1
-      use ozne_def
+      use ozne_def, ONLY: latsozp, levozp, timeoz, pl_coeff, kozpl
+      USE machine,  ONLY: kind_phys, kind_io4
       implicit none
 !!
       integer n,k,kk,i
@@ -459,8 +465,8 @@ c***********************************************************************
 c
       SUBROUTINE ORORD(LUGB,IORO,JORO,ORO)
 !
-      use resol_def
-      use layout1
+      use layout1, ONLY: me
+      USE machine, ONLY: kind_io4, kind_io8
       implicit none
 !!
       integer lugb, ioro, joro, kpdoro, ior, jor, i,k
@@ -492,9 +498,11 @@ c
 c
 c***********************************************************************
 c
-      use resol_def
-      use layout1
-      use mpi_def
+      use resol_def,     ONLY: latr, lonr
+      use layout1,       ONLY: me, nodes, lats_node_r, ipt_lats_node_r
+      use mpi_def,       ONLY: icolor, liope, info, mpi_r_io, 
+     &                         mpi_comm_all
+      USE machine,       ONLY: kind_io4, kind_io8
       implicit none
 !!
       real(kind=kind_io4) x(lonr,latr)
@@ -618,9 +626,11 @@ c
 c
 c***********************************************************************
 c
-      use resol_def
-      use layout1
-      use mpi_def
+      use resol_def,  ONLY: latr
+      use layout1,    ONLY: nodes, lats_node_r_max, lats_node_r,
+     &                      ipt_lats_node_r
+      use mpi_def,    ONLY: mc_comp, mpi_r_def
+      USE machine,    ONLY: kind_io8
       implicit none
  
       integer n,i,j,ierr,ilat,lat,node,nsend
@@ -676,7 +686,8 @@ c
 c
 c***********************************************************************
 c
-      use mpi_def
+      use mpi_def,   ONLY: MC_COMP, MPI_R_DEF, info, mpi_sum
+      USE machine,   ONLY: kind_io8, kind_io4
       implicit none
  
       integer n,i,j,np,mr,nodes
@@ -708,9 +719,12 @@ c
 c
 c***********************************************************************
 c
-      use resol_def
-      use layout1
-      use mpi_def
+      use resol_def,   ONLY: latr, lonr
+      use layout1,     ONLY: me, lats_node_r, lats_node_r_max,
+     &                       ipt_lats_node_r, nodes
+      use mpi_def,     ONLY: info, mpi_comm_all, liope, mpi_r_io,
+     &                       stat
+      USE machine,     ONLY: kind_io4, kind_io8
       implicit none
 !!
       real(kind=kind_io4) x(lonr,latr)
@@ -809,8 +823,9 @@ c***********************************************************************
 c
       subroutine uninterpred(iord,kmsk,f,fi,global_lats_r,lonsperlar)
 !!
-      use resol_def
-      use layout1
+      use resol_def,   ONLY: latr, lonr
+      use layout1,     ONLY: lats_node_r, ipt_lats_node_r
+      USE machine,     ONLY: kind_io8
       implicit none
 !!
       integer              global_lats_r(latr)
@@ -832,11 +847,15 @@ c
           endif
         enddo
       end subroutine
+
+
+
       subroutine uninterprez(iord,kmsk,f,fi,global_lats_r,lonsperlar)
 !!
-      use resol_def
-      use mod_state
-      use layout1
+      use resol_def,   ONLY: latr, lonr
+      use mod_state,   ONLY: buff_mult_piecea, ngrid
+      use layout1,     ONLY: lats_node_r, ipt_lats_node_r
+      USE machine,     ONLY: kind_io8
       implicit none
 !!
       integer              global_lats_r(latr)
@@ -868,14 +887,18 @@ c
       end do
       ngrid=ngrid+1
       end subroutine
+
+
+
        subroutine unsplit2z(ioproc,x,global_lats_r)
 c
 c***********************************************************************
 c
-      use resol_def
-      use mod_state
-      use layout1
-      use mpi_def
+      use resol_def,   ONLY: lonr,latr
+      use mod_state,   ONLY: ivar_global_a, buff_mult_piecesa, ngrid
+      use layout1,     ONLY: me, nodes_comp
+      use mpi_def,     ONLY: liope
+      USE machine,     ONLY: kind_io4
       implicit none
 !!
       real(kind=kind_io4) x(lonr,latr)
@@ -944,9 +967,12 @@ c
 c
 c***********************************************************************
 c
-      use resol_def
-      use layout1
-      use mpi_def
+      use resol_def,   ONLY: latr, lonr
+      use layout1,     ONLY: me, lats_node_r, lats_node_r_max, 
+     &                       ipt_lats_node_r, nodes
+      use mpi_def,     ONLY: liope, info, stat, mpi_comm_all, 
+     &                       mpi_r_io_r
+      USE machine,     ONLY: kind_ior, kind_io8
       implicit none
 !!
       real(kind=kind_ior) x(lonr,latr)
@@ -1048,9 +1074,11 @@ c
 c
 c***********************************************************************
 c
-      use resol_def
-      use layout1
-      use mpi_def
+      use resol_def,      ONLY: latr, lonr
+      use layout1,        ONLY: me, lats_node_r, ipt_lats_node_r, nodes
+      use mpi_def,        ONLY: liope, mpi_comm_all, info, icolor,
+     &                          mpi_r_io_r
+      USE machine,        ONLY: kind_ior, kind_io8
       implicit none
 !!
       real(kind=kind_ior) x(lonr,latr)
@@ -1142,18 +1170,26 @@ c     &                msgtag,MPI_COMM_ALL,stat,info)
  103  format(' GLOBAL AND SEND TIMES  SPLIT2D',2f10.5)
       return
       end
+
+
+
+
+
       SUBROUTINE read_sfc_r(sfc_fld,NEEDORO,nread,
      &                    cfile,global_lats_r,lonsperlar)
 !
 !***********************************************************************
 !
-      use sfcio_module
-      use resol_def
-      use layout1
-      use mpi_def
-      use gfs_physics_sfc_flx_mod
-      use namelist_soilveg , only : salp_data, snupx
-      use physcons, only : tgice => con_tice
+      use sfcio_module,   ONLY: sfcio_head, sfcio_dbta, sfcio_realfill,
+     &                          sfcio_srohdc, sfcio_axdbta
+      use resol_def,      ONLY: latr, lonr, latr2, lsoil
+      use layout1,        ONLY: me, nodes, lats_node_r
+      use mpi_def,        ONLY: icolor, liope
+      USE machine,        ONLY: kind_ior, kind_io8
+
+      use gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data
+      use namelist_soilveg ,       only: salp_data, snupx
+      use physcons,                only : tgice => con_tice
       implicit none
 !
       TYPE(Sfc_Var_Data)        :: sfc_fld

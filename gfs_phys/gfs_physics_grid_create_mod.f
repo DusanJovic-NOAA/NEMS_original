@@ -11,8 +11,13 @@
 !
 !!uses:
 !
-      use esmf_mod                       ! the esmf library.
-      use gfs_physics_internal_state_mod ! the contents of the esmf internal state.
+      use esmf_mod,                         ONLY: esmf_grid, esmf_vm,                &
+                                                  ESMF_DistGrid, esmf_success,       &
+                                                  ESMF_LogWrite, ESMF_LOG_INFO,      &
+                                                  ESMF_DistGridCreate,               &
+                                                  ESMF_LogMsgFoundError,             &
+                                                  ESMF_FAILURE, ESMF_GridCreate
+      use gfs_physics_internal_state_mod,   ONLY: gfs_physics_internal_state
 
       implicit none
 
@@ -26,11 +31,6 @@
 
       contains
 
-
-
-
-
-
 !------------------------------------------------------------------------
       subroutine gfs_physics_grid_create_gauss(vm, int_state,  &
                                                DistGrid0, DistGrid3, DistGrid4, rc)
@@ -38,9 +38,6 @@
 ! this routine create Gaussian grid type for single and multiple levels
 ! grid 3 (single) and grid4(multiple)
 !
-      use esmf_mod     
-      use gfs_physics_internal_state_mod
-
       type(esmf_vm),                     intent(inout) :: vm   
       type(gfs_physics_internal_state),  intent(inout) :: int_state
       integer,                           intent(out)   :: rc
@@ -72,11 +69,6 @@
       arrayend(1)    = counts(1)
       arrayend(2)    = counts(2)
 
-! test
-!     print *,' gfs_phy grid3 lonr ',int_state%lonr
-!     print *,' gfs_phy grid3 lats ',int_state%lats_node_r_max
-!     print *,' gfs_phy grid3 dimension ',counts
-                                                                                
 ! Create the ESMF DistGrid3 using the 1-D default decomposition.
 !---------------------------------------------------------------
       CALL ESMF_LogWrite("Create DistGrid3", ESMF_LOG_INFO, rc = rc1)
@@ -114,8 +106,6 @@
       arraystr(2)    = 1
       arrayend(1)    = counts(1)
       arrayend(2)    = counts(2)
-! test
-!     print *,' gfs_phy grid4 dimension ',counts
 
 ! Create the ESMF DistGrid4 using the 1-D default decomposition.
 !---------------------------------------------------------------

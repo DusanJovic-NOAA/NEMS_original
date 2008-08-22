@@ -7,22 +7,24 @@
 !
 !!uses:
 !
-      use esmf_mod                 ! the esmf library.
+      use esmf_mod,                       ONLY: esmf_gridcomp, esmf_state,    &
+                                                esmf_vm, esmf_success,        &
+                                                esmf_logwrite, esmf_log_info, &
+                                                esmf_gridcompget 
 
 ! the derived type of the internal state.
 !----------------------------------------
-      use gfs_physics_internal_state_mod
+      use gfs_physics_internal_state_mod, ONLY: gfs_physics_internal_state
 
 ! routines which can be used to add a fortran array to 
 ! an esmf state and to get a fortran array from an 
 ! esmf state
 !-----------------------------------------------------
-      use gfs_physics_grid_create_mod
-      use gfs_physics_add_get_state_mod
-      use gfs_physics_err_msg_mod
-
-      use mpi_def
-      use date_def
+      USE gfs_physics_grid_create_mod,   ONLY: grid0, grid3, grid4
+      use gfs_physics_add_get_state_mod, ONLY: AddF90ArrayToState,        &
+                                               GetF90ArrayFromState
+      use gfs_physics_err_msg_mod,       ONLY: gfs_physics_err_msg_final, &
+                                               gfs_physics_err_msg
 
       implicit none
 
@@ -77,50 +79,42 @@
 
       if(int_state%esmf_sta_list%idate1_import == 1) then
 
-          nullify(hold0)
-          call getf90arrayfromstate(imp_gfs_phy, 'date', hold0, rc = rc1)
+          call getf90arrayfromstate(imp_gfs_phy, 'date', hold0, 0, rc = rc1)
           int_state%fhour_idate(:,:)=hold0
-
+          call gfs_physics_err_msg(rc1,"done idate1_import.",rcfinal)
       end if
-      call gfs_physics_err_msg(rc1,"done idate1_import.",rcfinal)
 
 ! get the surface orography array from the esmf import state.
 !------------------------------------------------------------
       if(int_state%esmf_sta_list%z_import == 1) then
 
-          nullify(hold1)
           kstr=int_state%g_gz
           kend=int_state%g_gz
-          call getf90arrayfromstate(imp_gfs_phy, 'hs', hold1, rc = rc1)
+          call getf90arrayfromstate(imp_gfs_phy, 'hs', hold1, 0, rc = rc1)
           int_state%grid_gr(:,kstr:kend)=hold1
-
           call gfs_physics_err_msg(rc1,"gete esmf state - hs_im",rcfinal)
 
       end if
-      call gfs_physics_err_msg(rc1,"done z_import.",rcfinal)
 ! get the surface pressure array from the esmf import state.
 ! for the detailed comments for every computational steps
 ! please refer to the surface orography array code.
 !-----------------------------------------------------------
       if(int_state%esmf_sta_list%ps_import == 1) then
 
-          nullify(hold1)
           kstr=int_state%g_ps
           kend=int_state%g_ps
-          call getf90arrayfromstate(imp_gfs_phy, 'ps', hold1, rc = rc1)
+          call getf90arrayfromstate(imp_gfs_phy, 'ps', hold1, 0, rc = rc1)
           int_state%grid_gr(:,kstr:kend)=hold1
 
           call gfs_physics_err_msg(rc1,"gete esmf state - ps_im",rcfinal)
 
       end if
-      call gfs_physics_err_msg(rc1,"done ps_import.",rcfinal)
 
 ! get the temperature array from the esmf import state.
 !------------------------------------------------------
       if(int_state%esmf_sta_list%temp_import == 1) then
 
-          nullify(hold2)
-          call getf90arrayfromstate(imp_gfs_phy, 't', hold2, rc = rc1)
+          call getf90arrayfromstate(imp_gfs_phy, 't', hold2, 0, rc = rc1)
           kstr = int_state%g_t
           kend = kstr + int_state%levs - 1
           int_state%grid_gr(:,kstr:kend)=hold2
@@ -128,7 +122,6 @@
           call gfs_physics_err_msg(rc1,"gete esmf state - t_im",rcfinal)
 
       end if
-      call gfs_physics_err_msg(rc1,"done temp_import.",rcfinal)
 
 ! get the zonal-wind array from the esmf import state.
 ! for detailed line by line comments please refer to 
@@ -136,8 +129,7 @@
 !-----------------------------------------------------
       if(int_state%esmf_sta_list%u_import == 1) then
 
-          nullify(hold2)
-          call getf90arrayfromstate(imp_gfs_phy, 'u', hold2, rc = rc1)
+          call getf90arrayfromstate(imp_gfs_phy, 'u', hold2, 0, rc = rc1)
           kstr = int_state%g_u
           kend = kstr + int_state%levs - 1
           int_state%grid_gr(:,kstr:kend)=hold2
@@ -146,14 +138,12 @@
 
 
       end if
-      call gfs_physics_err_msg(rc1,"done u_import.",rcfinal)
 
 ! get the meridian-wind array from the esmf import state.
 !-----------------------------------------------------
       if(int_state%esmf_sta_list%v_import == 1) then
 
-          nullify(hold2)
-          call getf90arrayfromstate(imp_gfs_phy, 'v', hold2, rc = rc1)
+          call getf90arrayfromstate(imp_gfs_phy, 'v', hold2, 0, rc = rc1)
           kstr = int_state%g_v
           kend = kstr + int_state%levs - 1
           int_state%grid_gr(:,kstr:kend)=hold2
@@ -161,15 +151,13 @@
           call gfs_physics_err_msg(rc1,"gete esmf state - v_im",rcfinal)
 
       end if
-      call gfs_physics_err_msg(rc1,"done v_import.",rcfinal)
 
 ! get the moisture array from the esmf import state.
 !---------------------------------------------------
       if(int_state%esmf_sta_list%q_import == 1) then
 
           krq=int_state%g_q
-          nullify(hold2)
-          call getf90arrayfromstate(imp_gfs_phy, 'shum', hold2,rc = rc1)
+          call getf90arrayfromstate(imp_gfs_phy, 'shum', hold2,0, rc = rc1)
           kstr = krq
           kend = kstr + int_state%levs - 1
           int_state%grid_gr(:,kstr:kend)=hold2
@@ -177,15 +165,13 @@
           call gfs_physics_err_msg(rc1,"gete esmf state - shum_im",rcfinal)
 
       end if
-      call gfs_physics_err_msg(rc1,"done q_import.",rcfinal)
 
 ! get the ozone array from the esmf import state.
 !------------------------------------------------
       if(int_state%esmf_sta_list%oz_import == 1) then
 
           krq = krq + int_state%levs
-          nullify(hold2)
-          call getf90arrayfromstate(imp_gfs_phy, 'oz', hold2, rc = rc1)
+          call getf90arrayfromstate(imp_gfs_phy, 'oz', hold2, 0, rc = rc1)
           kstr = krq
           kend = kstr + int_state%levs - 1
           int_state%grid_gr(:,kstr:kend)=hold2
@@ -193,15 +179,13 @@
           call gfs_physics_err_msg(rc1,"gete esmf state - oz_im",rcfinal)
 
       end if
-      call gfs_physics_err_msg(rc1,"done oz_import.",rcfinal)
 
 ! get the cloud liquid water array from the esmf import state.
 !-------------------------------------------------------------
       if(int_state%esmf_sta_list%cld_import == 1) then
 
           krq = krq + int_state%levs
-          nullify(hold2)
-          call getf90arrayfromstate(imp_gfs_phy, 'cld', hold2, rc = rc1)
+          call getf90arrayfromstate(imp_gfs_phy, 'cld', hold2, 0, rc = rc1)
           kstr = krq
           kend = kstr + int_state%levs - 1
           int_state%grid_gr(:,kstr:kend)=hold2
@@ -209,14 +193,12 @@
           call gfs_physics_err_msg(rc1,"gete esmf state - cld_im",rcfinal)
 
       end if
-      call gfs_physics_err_msg(rc1,"done cld_import.",rcfinal)
 
 ! get the pressure array from the esmf import state.
 !-------------------------------------------------------------
       if(int_state%esmf_sta_list%p_import == 1) then
 
-          nullify(hold2)
-          call getf90arrayfromstate(imp_gfs_phy, 'p', hold2, rc = rc1)
+          call getf90arrayfromstate(imp_gfs_phy, 'p', hold2, 0, rc = rc1)
           kstr = int_state%g_p
           kend = kstr + int_state%levs - 1
           int_state%grid_gr(:,kstr:kend)=hold2
@@ -224,7 +206,6 @@
           call gfs_physics_err_msg(rc1,"gete esmf state - p_im",rcfinal)
 
       end if
-      call gfs_physics_err_msg(rc1,"done p_import.",rcfinal)
 
 !
 
@@ -232,8 +213,7 @@
 !-------------------------------------------------------------
       if(int_state%esmf_sta_list%dp_import == 1) then
 
-          nullify(hold2)
-          call getf90arrayfromstate(imp_gfs_phy, 'dp', hold2, rc = rc1)
+          call getf90arrayfromstate(imp_gfs_phy, 'dp', hold2, 0, rc = rc1)
           kstr = int_state%g_dp
           kend = kstr + int_state%levs - 1
           int_state%grid_gr(:,kstr:kend)=hold2
@@ -241,15 +221,13 @@
           call gfs_physics_err_msg(rc1,"gete esmf state - dp_im",rcfinal)
 
       end if
-      call gfs_physics_err_msg(rc1,"done dp_import.",rcfinal)
 
 !
 ! get the omega (dpdt) array from the esmf import state.
 !-------------------------------------------------------------
       if(int_state%esmf_sta_list%dpdt_import == 1) then
 
-          nullify(hold2)
-          call getf90arrayfromstate(imp_gfs_phy, 'dpdt', hold2, rc = rc1)
+          call getf90arrayfromstate(imp_gfs_phy, 'dpdt', hold2, 0, rc = rc1)
           kstr = int_state%g_dpdt
           kend = kstr + int_state%levs - 1
           int_state%grid_gr(:,kstr:kend)=hold2
@@ -257,7 +235,6 @@
           call gfs_physics_err_msg(rc1,"gete esmf state - dpdt_im",rcfinal)
 
       end if
-      call gfs_physics_err_msg(rc1,"done dpdt_import.",rcfinal)
 !
 !
 ! print out the final error signal message and put it to rc.
@@ -332,7 +309,6 @@
           allocate(hold_p(ii1, int_state%levs))
           allocate(hold_dp(ii1, int_state%levs))
           allocate(hold_dpdt(ii1, int_state%levs))
-          first = .false.
       END IF
 
 ! print out the information.
@@ -365,12 +341,13 @@
       if(int_state%esmf_sta_list%idate1_export == 1) then
 
           hold0 = int_state%fhour_idate(:,:)
-          call addf90arraytostate(exp_gfs_phy,grid0,'date',hold0,rc=rc1)
+          IF(first) THEN
+              call addf90arraytostate(exp_gfs_phy,grid0,'date',hold0,rc=rc1)
 
-          call gfs_physics_err_msg(rc1,"put to esmf state - date_ex",rcfinal)
+              call gfs_physics_err_msg(rc1,"put to esmf state - date_ex",rcfinal)
+          END IF
 
       end if
-      call gfs_physics_err_msg(rc1,"done idate1_export.",rcfinal)
 
 ! orography field. gaussian grid
 !----------------------------------------------------------------
@@ -380,11 +357,13 @@
           kstr=int_state%g_gz
           kend=int_state%g_gz
           hold_z = int_state%grid_gr(:,kstr:kend)
-          call addf90arraytostate(exp_gfs_phy, grid3, 'hs',             & 
-                                  hold_z, rc = rc1)
+          IF(first) THEN
+              call addf90arraytostate(exp_gfs_phy, grid3, 'hs',             & 
+                                      hold_z, rc = rc1)
+              call gfs_physics_err_msg(rc1,"done z_export.",rcfinal)
+          END IF
 
       end if
-      call gfs_physics_err_msg(rc1,"done z_export.",rcfinal)
 
 ! surface pressure
 !----------------------------------------------------------------
@@ -394,13 +373,14 @@
           kstr=int_state%g_ps
           kend=int_state%g_ps
           hold_ps = int_state%grid_gr(:,kstr:kend)
-          call addf90arraytostate(exp_gfs_phy, grid3, 'ps',             &
-                                  hold_ps, rc = rc1)
+          IF(first) THEN
+              call addf90arraytostate(exp_gfs_phy, grid3, 'ps',             &
+                                      hold_ps, rc = rc1)
 
-          call gfs_physics_err_msg(rc1,"put to esmf state - ps_ex",rcfinal)
+              call gfs_physics_err_msg(rc1,"put to esmf state - ps_ex",rcfinal)
+          END IF
 
       end if
-      call gfs_physics_err_msg(rc1,"done ps_export.",rcfinal)
 
 
 ! add the temperature fileds into the esmf export state.
@@ -411,12 +391,13 @@
           kstr = int_state%g_t
           kend = kstr + int_state%levs - 1
           hold_temp = int_state%grid_gr(:,kstr:kend)
-          call addf90arraytostate(exp_gfs_phy, grid4, 't',             & 
-                                  hold_temp, rc = rc1)
-          call gfs_physics_err_msg(rc1,"put to esmf state - t_ex",rcfinal)
+          IF(first) THEN
+              call addf90arraytostate(exp_gfs_phy, grid4, 't',             & 
+                                      hold_temp, rc = rc1)
+              call gfs_physics_err_msg(rc1,"put to esmf state - t_ex",rcfinal)
+          END IF
 
       end if
-      call gfs_physics_err_msg(rc1,"done temp_export.",rcfinal)
 
 ! to add the u field into the esmf export state.  for the detailed
 ! description comments please refer to the temperature field.
@@ -427,13 +408,14 @@
           kstr = int_state%g_u
           kend = kstr + int_state%levs - 1
           hold_u = int_state%grid_gr(:,kstr:kend)
-          call addf90arraytostate(exp_gfs_phy, grid4, 'u',             & 
-                                  hold_u, rc = rc1)
-
-          call gfs_physics_err_msg(rc1,"put to esmf state - u_ex",rcfinal)
+          IF(first) THEN
+              call addf90arraytostate(exp_gfs_phy, grid4, 'u',             & 
+                                      hold_u, rc = rc1)
+    
+              call gfs_physics_err_msg(rc1,"put to esmf state - u_ex",rcfinal)
+          END IF
 
       end if
-      call gfs_physics_err_msg(rc1,"done u_export.",rcfinal)
 
 ! add the v field into the esmf export state.
 !----------------------------------------------------
@@ -443,13 +425,14 @@
           kstr = int_state%g_v
           kend = kstr + int_state%levs - 1
           hold_v = int_state%grid_gr(:,kstr:kend)
-          call addf90arraytostate(exp_gfs_phy, grid4, 'v',             & 
-                                  hold_v, rc = rc1)
+          IF(first) THEN
+              call addf90arraytostate(exp_gfs_phy, grid4, 'v',             & 
+                                      hold_v, rc = rc1)
 
-          call gfs_physics_err_msg(rc1,"put to esmf state - v_ex",rcfinal)
+              call gfs_physics_err_msg(rc1,"put to esmf state - v_ex",rcfinal)
+          END IF
 
       end if
-      call gfs_physics_err_msg(rc1,"done v_export.",rcfinal)
 
 ! add the moisture field into the esmf export state.
 !---------------------------------------------------
@@ -461,13 +444,14 @@
           kstr = krq
           kend = kstr + int_state%levs - 1
           hold_q = int_state%grid_gr(:,kstr:kend)
-          call addf90arraytostate(exp_gfs_phy, grid4, 'shum',          & 
-                                  hold_q, rc = rc1)
+          IF(first) THEN
+              call addf90arraytostate(exp_gfs_phy, grid4, 'shum',          & 
+                                      hold_q, rc = rc1)
 
-           call gfs_physics_err_msg(rc1,"put to esmf state - shum_ex",rcfinal)
+               call gfs_physics_err_msg(rc1,"put to esmf state - shum_ex",rcfinal)
+          END IF
 
       end if
-      call gfs_physics_err_msg(rc1,"done q_export.",rcfinal)
 
 ! add the ozone field into the esmf export state.
 !------------------------------------------------
@@ -479,13 +463,14 @@
           kstr = krq
           kend = kstr + int_state%levs - 1
           hold_oz = int_state%grid_gr(:,kstr:kend)
-          call addf90arraytostate(exp_gfs_phy, grid4, 'oz',          & 
-                                  hold_oz, rc = rc1)
+          IF(first) THEN
+              call addf90arraytostate(exp_gfs_phy, grid4, 'oz',          & 
+                                      hold_oz, rc = rc1)
 
-          call gfs_physics_err_msg(rc1,"put to esmf state - oz_ex",rcfinal)
+              call gfs_physics_err_msg(rc1,"put to esmf state - oz_ex",rcfinal)
+          END IF
 
       end if
-      call gfs_physics_err_msg(rc1,"done oz_export.",rcfinal)
 
 ! add the cloud liquid water field into the esmf export state.
 !-------------------------------------------------------------
@@ -497,13 +482,14 @@
           kstr = krq
           kend = kstr + int_state%levs - 1
           hold_cld = int_state%grid_gr(:,kstr:kend)
-          call addf90arraytostate(exp_gfs_phy, grid4, 'cld',          & 
-                                  hold_cld, rc = rc1)
+          IF(first) THEN
+              call addf90arraytostate(exp_gfs_phy, grid4, 'cld',          & 
+                                      hold_cld, rc = rc1)
 
-          call gfs_physics_err_msg(rc1,"put to esmf state - cld_ex",rcfinal)
+              call gfs_physics_err_msg(rc1,"put to esmf state - cld_ex",rcfinal)
+          END IF
 
       end if
-      call gfs_physics_err_msg(rc1,"done cld_export.",rcfinal)
 
 ! add layer pressure (pp) fileds into the esmf export state.
 !-------------------------------------------------------
@@ -513,14 +499,15 @@
           kstr = int_state%g_p
           kend = kstr + int_state%levs - 1
           hold_p = int_state%grid_gr(:,kstr:kend)
-          call addf90arraytostate(exp_gfs_phy, grid4, 'p',          & 
-                                  hold_p, rc = rc1)
+          IF(first) THEN
+              call addf90arraytostate(exp_gfs_phy, grid4, 'p',          & 
+                                      hold_p, rc = rc1)
 
-          call gfs_physics_err_msg(rc1,                                &
-                  "put to esmf state - p_ex",rcfinal)
+              call gfs_physics_err_msg(rc1,                                &
+                      "put to esmf state - p_ex",rcfinal)
+          END IF
 
       end if
-      call gfs_physics_err_msg(rc1,"done p_export.",rcfinal)
 
 
 ! add pressure depth (dp) fileds into the esmf export state.
@@ -531,14 +518,15 @@
           kstr = int_state%g_dp
           kend = kstr + int_state%levs - 1
           hold_dp = int_state%grid_gr(:,kstr:kend)
-          call addf90arraytostate(exp_gfs_phy, grid4, 'dp',          & 
-                                  hold_dp, rc = rc1)
+          IF(first) THEN
+              call addf90arraytostate(exp_gfs_phy, grid4, 'dp',          & 
+                                      hold_dp, rc = rc1)
 
-          call gfs_physics_err_msg(rc1,                                &
-                  "put to esmf state - dp_ex",rcfinal)
+              call gfs_physics_err_msg(rc1,                                &
+                      "put to esmf state - dp_ex",rcfinal)
+          END IF
 
       end if
-      call gfs_physics_err_msg(rc1,"done dp_export.",rcfinal)
 
 
 ! add omega (dpdt) fileds into the esmf export state.
@@ -549,14 +537,15 @@
           kstr = int_state%g_dpdt
           kend = kstr + int_state%levs - 1
           hold_dpdt = int_state%grid_gr(:,kstr:kend)
-          call addf90arraytostate(exp_gfs_phy, grid4, 'dpdt',          & 
-                                  hold_dpdt, rc = rc1)
+          IF(first) THEN
+              call addf90arraytostate(exp_gfs_phy, grid4, 'dpdt',          & 
+                                      hold_dpdt, rc = rc1)
 
-          call gfs_physics_err_msg(rc1,                                &
-                  "put to esmf state - dpdt_ex",rcfinal)
+              call gfs_physics_err_msg(rc1,                                &
+                      "put to esmf state - dpdt_ex",rcfinal)
+          END IF
 
       end if
-      call gfs_physics_err_msg(rc1,"done dpdt_export.",rcfinal)
 
 
 !
@@ -564,6 +553,8 @@
 !!-------------------------------------------------------------------
       call gfs_physics_err_msg_final(rcfinal,                         &
                     "gfs_physics_internal2export",rc)
+
+      IF(first) first = .false.
 
       end subroutine gfs_physics_internal2export
 

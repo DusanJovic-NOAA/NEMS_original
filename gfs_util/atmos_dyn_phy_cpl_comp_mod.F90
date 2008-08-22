@@ -17,11 +17,11 @@
 !
       use esmf_mod
 #ifdef NMM_B
-      use module_dm_parallel_gfs,only : ids,ide,jds,jde                     &
+      use module_dm_parallel,only : ids,ide,jds,jde                     &
                                    ,ims,ime,jms,jme                     &
                                    ,its,ite,jts,jte                     &
                                    ,mype_share
-      use module_control_gfs,only : lm
+      use module_control,only : lm
 #endif
       use module_export_import_data
       use atmos_err_msg_mod
@@ -284,19 +284,19 @@
                         ,itemnamelist = exp_item_name                   &
                         ,rc   =rc)
 !
-!     print *,' import item count is ',imp_item
-!     print *,' export item count is ',exp_item
+!      print *,' import item count is ',imp_item
+!      print *,' export item count is ',exp_item
 !
-!     print *,' import item name ',(imp_item_name(n),n=1,imp_item)
-!     print *,' export item name ',(exp_item_name(n),n=1,exp_item)
+!      print *,' import item name ',(imp_item_name(n),n=1,imp_item)
+!      print *,' export item name ',(exp_item_name(n),n=1,exp_item)
 !
       call atmos_err_msg(rc,'retrieve state name in coupler',rcfinal)
 !
       rcfinal=rc
 !
 !-----------------------------------------------------------------------
-!***  the number of arrays transferred from the dynamics to
-!***  the physics may not equal the number of arrays transferred
+!***  the number of fields transferred from the dynamics to
+!***  the physics may not equal the number of fields transferred
 !***  in the other direction.  these values are specified in
 !***  module_export_import_data.
 !-----------------------------------------------------------------------
@@ -377,10 +377,10 @@
       endif
 !
 !-----------------------------------------------------------------------
-!***  loop through the array data names, extract those arrays from the
+!***  loop through the field data names, extract those fields from the
 !***  import state, and add them to the export state.
 !-----------------------------------------------------------------------
-!***  loop through the array data names, extract those arrays from the
+!***  loop through the field data names, extract those fields from the
 !***  import state, and add them to the export state.
 !-----------------------------------------------------------------------
 !
@@ -403,10 +403,7 @@
 !
 !       print *,' get ',array_name
 !
-        call esmf_stateget(          imp_state                     &  
-                               ,          array_name                    &  
-                               ,          hold_array                    &  
-                               ,rc=rc)
+        CALL ESMF_StateGet(imp_state, array_name, hold_array, rc = rc)
 !
 !       call atmos_err_msg(rc,'retrieve array from cpl import',rcfinal)
 !
@@ -414,9 +411,7 @@
 !
 !       print *,' add ',array_name
 !
-        call ESMF_StateAdd(      exp_state                         &
-                               ,      hold_array                        &
-                               ,rc )
+        CALL ESMF_StateAdd(exp_state, hold_array, rc = rc)
 !
 !       call atmos_err_msg(rc,'add array to cpl export',rcfinal)
 !
@@ -434,12 +429,10 @@
 !
         array_name=trim(datanames_2d(n))
 !
-!       print *,' get ',array_name
+!        print *,' get ',array_name
 !
-        call esmf_stateget(          imp_state                     &  
-                               ,          array_name                    &  
-                               ,          hold_array                    &  
-                               ,rc=rc)
+        CALL ESMF_StateGet(imp_state, array_name, hold_array, rc = rc)
+
 !
 !       call atmos_err_msg(rc,'retrieve array from cpl import',rcfinal)
 !
@@ -447,9 +440,7 @@
 !
 !       print *,' add ',array_name
 !
-        call ESMF_StateAdd(      exp_state                         &
-                               ,      hold_array                        &
-                               ,rc )
+        CALL ESMF_StateAdd(exp_state, hold_array, rc = rc)
 !
 !       call atmos_err_msg(rc,'add array to cpl export',rcfinal)
 !
@@ -484,11 +475,9 @@
           array_name=trim(datanames_3d(n))
 #endif
 !
+!         print *,' get ',array_name
 !
-          call esmf_stateget(          imp_state                   &  
-                                 ,          array_name                  &  
-                                 ,          hold_array                  &  
-                                 ,rc=rc)
+          CALL ESMF_StateGet(imp_state, array_name, hold_array, rc = rc)
 !
 !         call atmos_err_msg(rc,'retrieve array from cpl import',rcfinal)
 !
@@ -496,9 +485,7 @@
 !
 !         print *,' add ',array_name
 !
-          call ESMF_StateAdd(      exp_state                       &
-                                 ,      hold_array                      &
-                                 ,rc)
+          CALL ESMF_StateAdd(exp_state, hold_array, rc = rc)
 !
 !         call atmos_err_msg(rc,'add array to cpl export',rcfinal)
 !
@@ -514,35 +501,35 @@
 !
 ! check the export state
 !
-      call esmf_stateget(exp_state                                &
+      call esmf_stateget(exp_state                                      &
                         ,name =export_statename                         &
                         ,itemcount = exp_item                           &
                         ,itemnamelist = exp_item_name                   &
                         ,rc   =rc)
 !
-      print *,' coupler is done for exporp state '                       &
-             ,' (',trim(export_statename),') with item =',exp_item      &
-             ,' and item name is ',(exp_item_name(n),n=1,exp_item)
+!      print *,' coupler is done for expor state '                       &
+!             ,' (',trim(export_statename),') with item =',exp_item      &
+!             ,' and item name is ',(exp_item_name(n),n=1,exp_item)
 !
       rcfinal=rc
 !
 ! make sure to run once
 !
-!     if( trim(import_statename).eq.'dynamics export' .and.             &
-!         trim(export_statename).eq.'physics import'  )                  &
-!         from_exp_dyn_to_imp_phy = .true.
-
-!     if( trim(import_statename).eq.'physics export'  .and.             &
-!         trim(export_statename).eq.'dynamics import' )                 &
-!         from_exp_phy_to_imp_dyn = .true.
-
-!     if( trim(import_statename).eq.'dynamics import' .and.             &
-!         trim(export_statename).eq.'dynamics export' )                 &
-!         from_imp_dyn_to_exp_dyn = .true.
-
-!     if( trim(import_statename).eq.'physics import' .and.              &
-!         trim(export_statename).eq.'physics export' )                  &
-!         from_imp_phy_to_exp_phy = .true.
+!      if( trim(import_statename).eq.'dynamics export' .and.             &
+!          trim(export_statename).eq.'physics import'  )                  &
+!          from_exp_dyn_to_imp_phy = .true.
+!
+!      if( trim(import_statename).eq.'physics export'  .and.             &
+!          trim(export_statename).eq.'dynamics import' )                 &
+!          from_exp_phy_to_imp_dyn = .true.
+!
+!      if( trim(import_statename).eq.'dynamics import' .and.             &
+!          trim(export_statename).eq.'dynamics export' )                 &
+!          from_imp_dyn_to_exp_dyn = .true.
+!
+!      if( trim(import_statename).eq.'physics import' .and.              &
+!          trim(export_statename).eq.'physics export' )                  &
+!          from_imp_phy_to_exp_phy = .true.
 
 !-----------------------------------------------------------------------
 !

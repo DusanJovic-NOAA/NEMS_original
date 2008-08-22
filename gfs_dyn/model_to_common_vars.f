@@ -77,6 +77,9 @@
             enddo
           enddo
         endif
+!       call mymaxmin(ttg(1,lan,1),lons_lat,lonf,1,' h1 in mdl to com')
+!       call mymaxmin(uug(1,lan,1),lons_lat,lonf,1,' u1 in mdl to com')
+!       call mymaxmin(vvg(1,lan,1),lons_lat,lonf,1,' v1 in mdl to com')
         do k=1,levs
           do i=1,lons_lat
             ttg(i,lan,k) = ttg(i,lan,k) / tfac(i,k)
@@ -84,6 +87,14 @@
             vvg(i,lan,k) = vvg(i,lan,k) / coslat_a(lat)
           enddo
         enddo
+
+!       do k=1,levs
+!       call mymaxmin(rqg(1,lan,k),lons_lat,lonf,1,' rq1 ')
+!       call mymaxmin(rqg(1,lan,k+levs),lons_lat,lonf,1,' rq2 ')
+!       call mymaxmin(rqg(1,lan,k+levs*2),lons_lat,lonf,1,' rq3 ')
+!       enddo
+
+!       call mymaxmin(tfac(1,1),lons_lat,lonf,1,' tfac in mdl to com')
 !
         if (gen_coord_hybrid) then   ! Ps is the prognostic variable
           do i=1,lons_lat

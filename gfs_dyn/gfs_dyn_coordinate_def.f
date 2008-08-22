@@ -1,7 +1,7 @@
       module gfs_dyn_coordinate_def
       use gfs_dyn_machine
       implicit none
-      save
+      
        real(kind=kind_evod) , allocatable ::
      . AK5(:),BK5(:),CK5(:),CK(:),DBK(:),bkl(:),   		! hmhj
      . AMHYB(:,:),BMHYB(:,:),SVHYB(:),tor_hyb(:),

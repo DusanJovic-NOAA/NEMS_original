@@ -33,14 +33,14 @@ c wrtout.
      &    ls_node,ls_nodes,max_ls_nodes,
      &    lats_nodes_a,global_lats_a,lonsperlat,nblck,
      &    colat1,cfhour1,
-     &    epsedn,epsodn,snnp1ev,snnp1od,plnev_a,plnod_a)
+     &    epsedn,epsodn,snnp1ev,snnp1od,plnev_a,plnod_a,
+     &    pdryini)
 !!
 !! write out only grid values for gfsio
 !!
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
       use gfs_dyn_coordinate_def
-!     use sig_io
       use namelist_dynamics_def
       use gfs_dyn_mpi_def
       use gfs_dyn_gg_def
@@ -89,7 +89,7 @@ cc
       character CFHOUR*40,CFORM*40
       integer jdate(4),nzsig,ndigyr,ndig,kh,IOPROC
 !!
-      REAL (KIND=KIND_IO8) pdryini
+      REAL (KIND=KIND_grid) pdryini
       INTEGER              GLOBAL_lats_a(latg),   lonsperlat(latg)
 !
       real(kind=kind_evod)  epsedn(len_trie_ls)
@@ -174,7 +174,11 @@ csela set lfnhr to false for writing one step output etc.
      &      '("(I",I1,".",I1,",A1,I2.2,A1,I2.2)")') NDIG,NDIG
         WRITE(CFHOUR,CFORM) KH,':',KM,':',KS
       ENDIF
+      if( nfill(ens_nam) == 0 ) then
+      CFHOUR = CFHOUR(1:nfill(CFHOUR))
+      else
       CFHOUR = CFHOUR(1:nfill(CFHOUR)) // ens_nam(1:nfill(ens_nam))
+      endif
       print *,' in wrtout_dynamics cfhour=',cfhour,' ens_nam=',ens_nam
 cjfe
       nosig=61
@@ -491,7 +495,11 @@ ccmr  lfnhr=.false.   !    output
      &      '("(I",I1,".",I1,",A1,I2.2,A1,I2.2)")') NDIG,NDIG
         WRITE(CFHOUR,CFORM) KH,':',KM,':',KS
       ENDIF
+      if( nfill(ens_nam) == 0 ) then
+      CFHOUR = CFHOUR(1:nfill(CFHOUR))
+      else
       CFHOUR = CFHOUR(1:nfill(CFHOUR)) // ens_nam(1:nfill(ens_nam))
+      endif
 
       nolog=99
       OPEN(NOlog,FILE='LOG.F'//CFHOUR,FORM='FORMATTED')
@@ -507,7 +515,6 @@ ccmr  lfnhr=.false.   !    output
 !
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
-      use sig_io
       use namelist_dynamics_def
       use gfs_dyn_mpi_def
       implicit none
@@ -529,7 +536,7 @@ cc
 cc
       real(kind=kind_io4)   tmps(4+nodes+jcap1*nodes)
       real(kind=kind_io4)   tmpr(3+nodes+jcap1*(nodes-1))
-      REAL (KIND=KIND_IO8) pdryini
+      REAL (KIND=KIND_grid) pdryini
 cc
       INTEGER              GLOBAL_lats_a(latg)
       INTEGER                 lonsperlat(latg)

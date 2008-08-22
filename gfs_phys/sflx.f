@@ -2119,6 +2119,7 @@ C IF ETP < 0, ASSUME DEW FORMS (TRANSFORM ETP1 INTO DEW AND REINITIALIZE
 C ETP1 TO ZERO).
 C ----------------------------------------------------------------------
         DEW = -ETP1
+        ETA1 = 0.0 ! Added by weiyu for initializing.
 c        ETP1 = 0.0
 
 C ----------------------------------------------------------------------

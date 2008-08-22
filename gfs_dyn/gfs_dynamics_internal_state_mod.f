@@ -26,7 +26,7 @@
       use gfs_dyn_layout1
       use gfs_dyn_gg_def
       use gfs_dyn_vert_def
-      use sig_io
+      use gfs_dyn_resol_def
       use gfs_dyn_date_def
       use namelist_dynamics_def
       use gfs_dyn_mpi_def
@@ -95,6 +95,7 @@
       real(kind=kind_evod) ,allocatable ::       grid_gr(:,:)
       real(kind=kind_evod) ,allocatable ::    syn_gr_a_1(:,:)
       real(kind=kind_evod) ,allocatable ::    syn_gr_a_2(:,:)
+      real(kind=kind_evod) ,allocatable ::    sym_gr_a_2(:,:)
       real(kind=kind_evod) ,allocatable ::    dyn_gr_a_1(:,:)
       real(kind=kind_evod) ,allocatable ::    dyn_gr_a_2(:,:)
       real(kind=kind_evod) ,allocatable ::    anl_gr_a_1(:,:)
@@ -128,7 +129,7 @@
       integer   g_uu ,g_vv ,g_tt ,g_rq,g_q 
       integer   g_u  ,g_v  ,g_t  ,g_rt,g_zq,g_p,g_dp,g_dpdt
 
-      integer              lotls,lotgr,lots,lotd,lota
+      integer              lotls,lotgr,lots,lotd,lota,lotm
 
       integer              ibrad,ifges,ihour,ini,j,jdt,ksout,maxstp
       integer              mdt,idt,timetot,timer,time0

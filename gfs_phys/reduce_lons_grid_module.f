@@ -1,7 +1,6 @@
       module reduce_lons_grid_module
       use machine , only : kind_dbl_prec
       implicit none
-      SAVE
 
       real(kind=kind_dbl_prec) , allocatable :: colrad(:)
       real(kind=kind_dbl_prec) , allocatable :: dx(:),yy(:)

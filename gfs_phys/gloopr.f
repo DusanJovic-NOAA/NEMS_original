@@ -11,7 +11,9 @@
 cc
 #include "f_hpm.h"
 !
-      USE MACHINE              ,     ONLY : kind_phys
+      USE MACHINE              ,     ONLY : kind_phys,
+     &                                      kind_grid,
+     &                                      kind_evod
       USE FUNCPHYS             ,     ONLY : fpkap
       USE PHYSCONS, fv => con_fvirt, rerth => con_rerth 
       USE PHYSCONS, rk => con_rocp	! hmhj
@@ -23,16 +25,19 @@ cc
 !!    use module_radsw_parameters,   only : NBDSW
 !!    use module_radlw_parameters,   only : NBDLW
 !
-      use resol_def
-      use layout1
-      use gg_def
-!     use vert_def
-      use date_def
-      use namelist_physics_def
-      use coordinate_def					! hmhj
-!     use tracer_const						! hmhj
-      use d3d_def , only : cldcov
-      use mpi_def
+      use resol_def,            ONLY: levs, levr, latr, lonr, lotgr,
+     &                                g_t, g_p, g_q, g_dp, g_ps, 
+     &                                ntcw, ntoz, ncld, num_p3d, 
+     &                                nmtvr, ntrac, levp1, nfxr, g_dpdt
+      use layout1,              ONLY: me, nodes, lats_node_r, 
+     &                                lats_node_r_max, ipt_lats_node_r
+      use gg_def,               ONLY: coslat_r, sinlat_r
+      use date_def,             ONLY: idate
+      use namelist_physics_def, ONLY: lsswr, iaer, lslwr, sashal, 
+     &                                lssav, flgmin, ldiag3d, 
+     &                                iovr_lw, iovr_sw, isol, iems, 
+     &                                ialb, fhlwr, fhswr, ico2, ngptc
+      use d3d_def ,             ONLY: cldcov
 !
       implicit none
 !
@@ -228,7 +233,6 @@ cc
           si_loc(k+1)=si_loc(k)-grid_gr(1,g_dp+k-1)/grid_gr(1,g_ps)
         enddo
         si_loc(levr+1)=0.0
-!       print *,' si_loc ',si_loc
 
 !  --- determin prognostic/diagnostic cloud scheme
 
@@ -244,12 +248,14 @@ cc
       dtsw  = 3600.0 * fhswr
       dtlw  = 3600.0 * fhlwr
 
+
       call radinit                                                      &
 !  ---  input:
      &     ( si_loc, LEVR, IFLIP, NUM_P3D,                              &
      &       ISOL, ICO2, ICWP, IALB, IEMS, IAER, jdat, me )
 !  ---  output: ( none )
                                                                                                             
+!
 !===> *** ...  astronomy for sw radiation calculation.
 !
       call astronomy                                                    &
@@ -416,6 +422,7 @@ cc
 !    &,' tsea=',tsea(lon,lan),' sncovr=',sncovr(lon,lan),
 !    &' snwdph=',snwdph(lon,lan)
 !
+
 
           call grrad
 !  ---  inputs:

@@ -26,8 +26,15 @@
 
 ! the esmf internal state contents.
 !----------------------------------
-      use gfs_physics_internal_state_mod
-      use gfs_physics_err_msg_mod
+      use gfs_physics_internal_state_mod, ONLY: gfs_physics_internal_state
+      USE esmf_mod,                       ONLY: esmf_gridcomp, esmf_vm,              &
+                                                esmf_config, esmf_success,           &
+                                                esmf_gridcompget, esmf_vmgetglobal,  &
+                                                esmf_vmget, esmf_configgetattribute, &
+                                                esmf_vmgetcurrent
+      USE gfs_physics_err_msg_mod,        ONLY: gfs_physics_err_msg_final,           &
+                                                gfs_physics_err_msg,                 &
+                                                gfs_physics_err_msg_var
 
       implicit none
 

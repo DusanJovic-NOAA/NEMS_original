@@ -5,7 +5,7 @@
      &                 HPRIME,SWH,HLW, FLUXR,SFALB, SLAG,SDEC,CDEC,
      &                 OZPLIN,JINDX1,JINDX2, DDY,
      &                 phy_f3d,  phy_f2d, NBLCK,
-     &                 ZHOUR, n3, n4, LSSAVD, LSOUT,COLAT1,CFHOUR1)
+     &                 ZHOUR, n3, n4, LSOUT,COLAT1,CFHOUR1)
 !!
 #include "f_hpm.h"
       use resol_def
@@ -16,7 +16,10 @@
       use mpi_def
       use ozne_def
       use gfs_physics_sfc_flx_mod
-      use d3d_def
+      use gfs_physics_sfc_flx_set_mod
+      use d3d_def, ONLY: d3d_zero
+      USE machine, ONLY: KIND_GRID, KIND_GRID, KIND_RAD,
+     &                   kind_phys
       IMPLICIT NONE
 !!     
       TYPE(Sfc_Var_Data)        :: sfc_fld
@@ -58,19 +61,18 @@
       REAL(KIND=KIND_EVOD) SLAG,SDEC,CDEC
       INTEGER   kdt,       IERR,J,K,L,LOCL,N
       integer iprint
-      LOGICAL LSOUT,ex_out,lssavd
+      LOGICAL LSOUT,ex_out
 
 !
       real*8 rtc ,timer1,timer2
 !
-!     print *,' enter do_physics_one_step '
+      print *,' enter do_physics_one_step '
 !
 !     SHOUR = SHOUR + deltim
-      SHOUR = kdt * deltim
+      shour = kdt * deltim
       fhour = shour / 3600.
       lsfwd=kdt.eq.1
-!     lssav=.true.
-      lssav=lssavd
+      lssav=.true.
       lscca=mod(KDT ,nsswr).eq.0
       lsswr=mod(KDT ,nsswr).eq.1
       lslwr=mod(KDT ,nslwr).eq.1
@@ -94,7 +96,7 @@
      &                    XLON ,XLAT  , sfc_fld, ialb)
             ENDIF
           endif
-!         print *,' num_p3d ',num_p3d
+          print *,' num_p3d ',num_p3d
 !
           if (num_p3d .eq. 3) then        ! Ferrier Microphysics initialization
             call INIT_MICRO(phydt, levs, 
@@ -144,8 +146,6 @@
       endif !.NOT.LIOPE.or.icolor.ne.2
 !--------------------------------------------
 !
-!     print *,' in do_tstep lsout=',lsout,' kdt=',kdt
-
       if( lsout.and.kdt.ne.0.0 ) then
       CALL WRTOUT_physics(phyhour,FHOUR,ZHOUR,IDATE,
      X            SL,SI,
@@ -163,7 +163,7 @@
 !    &        phy_f3d, phy_f2d, ngptc, nblck, ens_nam)
         endif
       endif ! if ls_out
-!
+
       IF (mod(kdt,nszer).eq.0 .and. lsout.and.kdt.ne.0) THEN
         call flx_init(flx_fld,ierr)
         zhour = fhour

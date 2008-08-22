@@ -1,7 +1,7 @@
       module resol_def
-      use machine
+      
       implicit none
-      save
+      
       integer   jcap,jcap1,jcap2,latg,latg2,latr,latr2
       integer   levh,levm1,levp1,levs,lnt,lnt2,lnt22,levr
       integer   lnte,lnted,lnto,lntod,lnuv
@@ -28,7 +28,7 @@
       module ozne_def
       use machine , only : kind_phys
       implicit none
-      save
+      
       integer, parameter :: kozpl=28, kozc=48
       integer latsozp, levozp, timeoz, latsozc, levozc, timeozc
      &,       PL_Coeff

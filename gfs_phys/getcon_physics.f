@@ -5,14 +5,19 @@
      x                  lats_nodes_ext,global_lats_ext,
      x                  colat1)
 cc
-      use resol_def
-      use layout1
-
-      use gg_def
-      use vert_def
-      use date_def
-      use namelist_physics_def
-      use mpi_def
+      use resol_def,            ONLY: latr, jintmx, nypt, lonrx, lonr,
+     &                                latr2                             
+      use layout1,              ONLY: me, nodes, lon_dims_r, 
+     &                                lon_dims_ext, ipt_lats_node_r, 
+     &                                ipt_lats_node_ext,
+     &                                lats_node_r_max, lats_node_ext,
+     &                                lats_node_r, lats_dim_r, 
+     &                                lats_dim_ext
+      use gg_def,               ONLY: colrad_r, wgt_r, wgtcs_r, rcs2_r, 
+     &                                sinlat_r, coslat_r
+      use namelist_physics_def, ONLY: shuff_lats_r
+      use mpi_def,              ONLY: icolor, liope
+      USE machine,              ONLY: kind_dbl_prec, kind_evod
       implicit none
 cc
 !!
@@ -94,7 +99,7 @@ c
       endif
 !!
 cc
-!     print *,' getcon shuff_lats_r ',shuff_lats_r
+!      print *,' getcon shuff_lats_r ',shuff_lats_r
       if (shuff_lats_r) then
  
         gl_lats_index = 0
@@ -124,12 +129,12 @@ cmy
            call get_lats_node_r( node-1, global_lats_r,
      &                 lats_nodes_r(node),
      &                 gl_lats_index,global_time_sort_index_r,iprint)
-           if (me+1 .eq. node .and. iprint .eq. 1)
+!           if (me+1 .eq. node .and. iprint .eq. 1)
+           if (me+1 .eq. node)
      &     print *,' node lats_nodes_r(node) ',lats_nodes_r(node)
         enddo
         call setlats_r_ext_shuff(lats_nodes_r,lats_nodes_ext,
      &           global_lats_r, global_lats_ext,iprint,lonsperlar)
-
        else
 
         call setlats_r(lats_nodes_r,lats_nodes_ext,global_lats_r,
@@ -137,33 +142,33 @@ cmy
 
       endif ! shuff_lats_r
 c
-!     print *,' getcon physics: lats_nodes_r',lats_nodes_r
+!      print *,' getcon physics: lats_nodes_r',lats_nodes_r
       iprint = 0
 cc
       lats_dim_r=0
       do node=1,nodes
          lats_dim_r = max(lats_dim_r,lats_nodes_r(node))
       enddo
-!     print *,' getcon physics: lats_dim_r',lats_dim_r
+!      print *,' getcon physics: lats_dim_r',lats_dim_r
 cc
       lats_dim_ext=0
       do node=1,nodes
              lats_dim_ext =
      &   max(lats_dim_ext, lats_nodes_ext(node), lats_nodes_r(node))
       enddo
-!     print *,' getcon physics: lats_dim_ext',lats_dim_ext
+!      print *,' getcon physics: lats_dim_ext',lats_dim_ext
 cc
       lats_node_r = lats_nodes_r(me+1)
-!     print *,' getcon physics: lats_node_r',lats_node_r
+!      print *,' getcon physics: lats_node_r',lats_node_r
 !
       lats_node_ext = lats_nodes_ext(me+1)
-!     print *,' getcon physics: lats_node_ext',lats_node_ext
+!      print *,' getcon physics: lats_node_ext',lats_node_ext
 c
       lats_node_r_max=0
       do i=1,nodes
         lats_node_r_max=max(lats_node_r_max,lats_nodes_r(i))
       enddo
-!     print *,' getcon physics: lats_node_r_max',lats_node_r_max
+!      print *,' getcon physics: lats_node_r_max',lats_node_r_max
 c
 cc
       ipt_lats_node_r=1
@@ -197,7 +202,8 @@ cc
 !
       if ( kind_evod .eq. 8 ) then !------------------------------------
 
-           call glats(latr2,colrad_r,wgt_r,wgtcs_r,rcs2_r,iprint)
+           call glats_physics(latr2,colrad_r(1:latr2),wgt_r,wgtcs_r,
+     &                        rcs2_r,iprint)
 !!
            colat1=colrad_r(1)
 !!
@@ -211,7 +217,8 @@ cc
            allocate  (  wgtcs_dp(latr2) )
            allocate  (   rcs2_dp(latr2) )
 cc
-           call glats(latr2,colrad_dp,wgt_dp,wgtcs_dp,rcs2_dp,iprint)
+           call glats_physics(latr2,colrad_dp,wgt_dp,wgtcs_dp,rcs2_dp,
+     &                        iprint)
 !!
            colat1=colrad_dp(1)
 !!

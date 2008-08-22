@@ -43,7 +43,7 @@
  LIB_COM    = ${GCLIBS} -L /nwprod/lib/ -l w3_d -l bacio_4 -lsp_d
  LIB_GFS    = -lC $(GCLIBS) $(LIB_COM)
  LIB_NMM     = -lC ${ESSL} ${MASS} ${ESMFLIBS} $(LIB_COM)
-
+ LDR     = mpxlf95_r -qsmp=noauto
  .SUFFIXES:      .F90 .f90 .o
 
  .F90.f90:

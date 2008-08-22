@@ -21,8 +21,35 @@
 !
 !!uses:
 !
-      use gfs_physics_getcf_mod
-      use machine, only : kind_io4
+      USE ESMF_Mod
+      USE gfs_physics_internal_state_mod, ONLY: gfs_physics_internal_state
+      USE mpi_def,                        ONLY: icolor, mc_comp, mc_io, mpi_comm_all_dup,     &
+                                                mpi_comm_all, liope, buff_mult
+      USE resol_def,                      ONLY: g_dpdt, lotgr, g_p, g_dp, nrcm, g_q,          &
+                                                g_gz, g_u, g_v, g_ps, g_t, ntoz,              &
+                                                ntcw, lonr, latr, ncld, num_p3d, num_p2d,     &
+                                                lsoil, nmtvr, levr, nlunit, ntrac, nxpt,      &
+                                                jcap, levs, nypt, jintmx, ngrids_sfcc,        &
+                                                ngrids_flx, levp1, lonrx, nfxr, ngrids_gg,    &
+                                                levm1, ivssfc, thermodyn_id, sfcpress_id,     &
+                                                ivssfc_restart, latrd, latr2, ivsupa, levh
+      USE ozne_def,                       ONLY: levozc, latsozp, blatc, timeozc, timeoz,      &
+                                                kozpl, levozp, pl_time, pl_lat, pl_pres,      &
+                                                kozc, dphiozc, latsozc, pl_coeff
+      USE namelist_physics_def,           ONLY: ras, jo3, ldiag3d, ngptc, ens_nam,            &
+                                                reduced_grid
+      USE module_ras,                     ONLY: nrcmax
+      USE gg_def,                         ONLY: sinlat_r, coslat_r, wgtcs_r, rcs2_r, wgt_r,   &
+                                                colrad_r
+      USE layout1,                        ONLY: nodes_comp, lats_node_r_max, lats_node_r, me, &
+                                                nodes, lon_dims_ext, lon_dims_r
+      USE date_def,                       ONLY: fhour
+      USE tracer_const,                   ONLY: set_tracer_const
+      USE gfs_physics_sfc_flx_set_mod,    ONLY: sfcvar_aldata, flxvar_aldata, flx_init
+      USE d3d_def,                        ONLY: d3d_init, d3d_zero
+      use machine,                        ONLY : kind_io4
+      USE sfcio_module,                   ONLY: sfcio_axdbta
+      include 'mpif.h'
 
       implicit none
 
@@ -39,7 +66,7 @@
 
       integer 		:: ierr
 
-      integer 		:: l, n, ilat, locl, ikey, nrank_all
+      integer 		:: j, l, n, ilat, locl, ikey, nrank_all
 !!
       real (kind=kind_io4) blatc4
       real (kind=kind_io4), allocatable :: pl_lat4(:)
@@ -53,6 +80,7 @@
 !-------------------------------------------------------------------
       me     = gis_phy%me
       nodes  = gis_phy%nodes
+!      CALL ESMF_VMGetCurrent(vm, rc = ierr)
 
       call compns_physics(gis_phy%deltim, gis_phy%iret,  gis_phy%ntrac,	&
                           gis_phy%nxpt,   gis_phy%nypt,  gis_phy%jintmx,&
@@ -115,7 +143,7 @@
       allocate ( lon_dims_r(latr), stat = ierr )
       allocate ( lon_dims_ext(latrd), stat = ierr )
 !
-      allocate(colrad_r(latr2), stat = ierr)
+      allocate(colrad_r(latr), stat = ierr)
       allocate(wgt_r(latr2), stat = ierr)
       allocate(wgtcs_r(latr2), stat = ierr)
       allocate(rcs2_r(latr2), stat = ierr)
@@ -124,13 +152,22 @@
 !
       allocate(buff_mult(lonr,latr,ngrids_sfcc), stat = ierr)
 !
-      allocate ( gis_phy% lats_nodes_r(nodes), stat = ierr )
-      allocate ( gis_phy% lats_nodes_ext(nodes), stat = ierr )
-      allocate ( gis_phy% global_lats_r(latr), stat = ierr )
-      allocate ( gis_phy% global_lats_ext(latr), stat = ierr )
-      allocate ( gis_phy% lonsperlar(latr), stat = ierr)
+      allocate ( gis_phy%lats_nodes_r(nodes), stat = ierr )
+      allocate ( gis_phy%lats_nodes_ext(nodes), stat = ierr )
+      allocate ( gis_phy%global_lats_r(latr), stat = ierr )
+      allocate ( gis_phy%global_lats_ext(latr), stat = ierr )
+      allocate ( gis_phy%lonsperlar(latr), stat = ierr)
 
-      call set_lonsgg(gis_phy%lonsperlar)
+      if( reduced_grid ) then
+        print *,' run with reduced gaussian grid '
+        call set_lonsgg(gis_phy%lonsperlar)
+      else
+        print *,' run with full gaussian grid '
+        do j=1,latr
+          gis_phy%lonsperlar(j) = lonr
+        enddo
+      endif
+
 !
       g_gz   = 1
       g_ps   = g_gz  + 1
@@ -216,7 +253,6 @@
       pl_pres(:) = log(0.1*pl_pres(:))       ! Natural log of pres in cbars
 !
       allocate(gis_phy%OZPLIN(LATSOZP,LEVOZP,pl_coeff,timeoz), stat = ierr) !OZONE P-L coeffcients
-!
 
       print *,' finished array allocation in gfs_physics_initialize '
 
@@ -228,7 +264,7 @@
       if (me == 0) write(*,*) 'io option ,liope :',liope
 !
       call mpi_comm_dup(mpi_comm_all, mpi_comm_all_dup, ierr)
-      call mpi_barrier (mpi_comm_all_dup,               ierr)
+!     call mpi_barrier (mpi_comm_all_dup,               ierr)
 
       if (nodes == 1) liope=.false.
       if (liope) then
@@ -307,8 +343,8 @@
 
       gis_phy%lats_node_r_max = lats_node_r_max
 
-      call sfcvar_aldata(lonr,lats_node_r,lsoil,gis_phy%sfc_fld,ierr)
-      call flxvar_aldata(lonr,lats_node_r,gis_phy%flx_fld,ierr)
+      call sfcvar_aldata(lonr, lats_node_r, lsoil, gis_phy%sfc_fld, ierr)
+      call flxvar_aldata(lonr, lats_node_r, gis_phy%flx_fld, ierr)
 
       print *,' check after sfc flx var_aldata ' 
 
@@ -335,7 +371,7 @@
 !
       allocate (   gis_phy%fhour_idate(1,5), stat = ierr )
 !
-!     print *,' check after lots allocates ' 
+      print *,' check after lots allocates ' 
 
       if (ldiag3d) then
         call d3d_init(ngptc,gis_phy%nblck,lonr,lats_node_r,levs,pl_coeff)
@@ -360,8 +396,8 @@
       gis_phy%zhour=fhour
       gis_phy%FLUXR=0.
 !
-      call flx_init(gis_phy%flx_fld,ierr)
-!
+      call flx_init(gis_phy%flx_fld, ierr)
+
       print *,' finish fix_init '
 
       if (ldiag3d) then

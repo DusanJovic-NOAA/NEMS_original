@@ -1,9 +1,7 @@
       module vert_def
-!     use resol_def
-      use machine
+      use machine, ONLY: KIND_EVOD
       implicit none
 
-      save
       REAL(KIND=KIND_EVOD) ,ALLOCATABLE :: am(:,:),bm(:,:),cm(:,:),
      . dm(:,:,:),tor(:), si(:),sl(:),del(:),rdel2(:),ci(:),
      . cl(:),tov(:),sv(:)

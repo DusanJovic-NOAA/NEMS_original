@@ -187,7 +187,8 @@ cc
       use gfs_dyn_vert_def
       use gfsio_def
       use gfs_dyn_coordinate_def
-      use sig_io
+      use gfs_dyn_io_header
+      use gfs_dyn_resol_def
       use gfs_dyn_mod_state
       use gfs_dyn_layout1
       use gfs_dyn_mpi_def
@@ -199,7 +200,7 @@ cc
       real (kind=kind_io4), parameter  :: zero4=0.0
       integer IOPROC
       character*40 cfile, tracer
-      real(kind=kind_io8) xhour, pdryini
+      real(kind=kind_grid) xhour, pdryini
       integer idate(4),k,il, ngridgg, nt
 !
       INTEGER              global_lats_a(latg),   lonsperlat(latg)

@@ -7,7 +7,7 @@
 !
 ! version of ppi=ak+bk*psfc+ck*(h/h0)^(1/kappa)
 !
-! hmhj : this is modified hybrid by finite difference from henry
+! hmhj : this is modified hybrid by finite difference from hann-ming henry juang 
 ! hmhj : use h=CpT instead of Tv for thermodynamical equation
 ! Fanglin Yang, June 2007: use flux-limited scheme for vertical advection of tracers
 !
@@ -47,45 +47,46 @@
      1  drqdt(lon_dim,levs,ntrac), spdmax(levs)
       real dpdti(lon_dim,levs+1)
 !     real dppmin(levs)
+      real drdf (lon_dim,levs), drdl (lon_dim,levs)
+      real dcpdf(lon_dim,levs), dcpdl(lon_dim,levs)
+      real dkhdf(lon_dim,levs), dkhdl(lon_dim,levs)
+
+! -----------------------------
 c
       real fs(lons_lat),rm2(lons_lat),xm2(lons_lat)
       real rdelp2(lons_lat,levs)
       real xr(lons_lat,levs),xcp(lons_lat,levs)
       real xkappa(lons_lat,levs)
-      real drdf (lon_dim,levs), drdl (lon_dim,levs)
-      real dcpdf(lon_dim,levs), dcpdl(lon_dim,levs)
-      real dkhdf(lon_dim,levs), dkhdl(lon_dim,levs)
-      real sumdf(lon_dim,levs), sumdl(lon_dim,levs)
-      real sumrq(lon_dim,levs)
       real cg(lons_lat,levs),ek(lons_lat,levs)
       real fb(lons_lat,levs+1),fg(lons_lat,levs)
       real dpxi(lons_lat,levs+1),dpyi(lons_lat,levs+1)
+      real ppi(lons_lat,levs+1), ppl(lons_lat,levs)
       real hki (lons_lat,levs+1),hkci(lons_lat,levs+1)
       real dpp(lons_lat,levs),rpp(lons_lat,levs)
       real dlnpx(lons_lat,levs),dlnpy(lons_lat,levs)
       real dphix (lons_lat,levs),dphiy (lons_lat,levs)
       real dphixk(lons_lat,levs),dphiyk(lons_lat,levs)
-      real wflx(lons_lat,levs+1)
       real wf(lons_lat,levs+1),wf1(lons_lat,levs+1)
+      real wflx(lons_lat,levs+1)
       real wml(lons_lat,levs),wmm(lons_lat,levs),wmu(lons_lat,levs)
       real work(lons_lat,levs)
       real dup(lons_lat,levs),dum(lons_lat,levs)
-      real ppi(lons_lat,levs+1),ppl(lons_lat,levs)
       real alpha(lons_lat,levs),betta(lons_lat,levs)
       real gamma(lons_lat,levs),delta(lons_lat,levs)
       real zadv(lons_lat,levs,3+ntrac)
+      real sumdf(lons_lat,levs), sumdl(lons_lat,levs)
+      real sumrq(lons_lat,levs)
+!
       real, parameter ::  cons0=0.0, cons1=1.0, cons2=2.0, cons0p5=0.5
       real rdt2
       logical adjusted
       integer levsb
       integer irc
-      logical , parameter :: repro = .false.
 
       real szdrqdt(lon_dim,levs,ntrac)   !saved vertical advection of tracers from time step n -1
       real rqg_half(lons_lat,0:levs,ntrac), rqg_d(lons_lat,0:levs,ntrac)
       real rrkp,rrk1m,phkp,phk1m,bb,cc,tmpdrqdt
       logical zfirst
-
 c
 !
 ! -------- prepare coriolis and gaussian weighting 
@@ -174,20 +175,6 @@ c
         enddo 
       enddo
 !
-!!    if( vertcoord_id.eq.3. ) then
-!!     call adj_dpp(lons_lat,lon_dim,levs,ppi,dpdti,adjusted)
-!      call adj_dpp(lons_lat,lon_dim,levs,ppi,hg,1.0,adjusted)
-!      if( adjusted ) then
-!      do k=2,levs
-!       do i=1,lons_lat
-!         hkrt0 = (hg(i,k-1)+hg(i,k))/(thref(k-1)+thref(k))
-!         hki (i,k)=ck5(k)*hkrt0**rkappa
-!         ppi(i,k)  =ak5(k  )+bk5(k  )*ps(i)+hki(i,k)
-!       enddo
-!      enddo
-!      endif
-!!    endif
-!
       do k=1,levs
         do i=1,lons_lat
           ppl(i,k)  = cons0p5 * ( ppi(i,k) + ppi(i,k+1) )
@@ -199,17 +186,6 @@ c
           endif
         enddo
       enddo
-!
-! ------------------ debug ---------------
-!
-! min dpp
-!
-!     dppmin=100.0
-!     do k=1,levs
-!      do i=1,lons_lat
-!       dppmin(k)=min( dpp(i,k),dppmin(k) )
-!      enddo
-!     enddo
 !
 ! ----------------------------------------------------------------------
 
@@ -329,25 +305,6 @@ c
 c
 c total derivative of horizontal wind
 c
-! test repro
-      if( repro ) then
-
-      do k=1,levs
-       do i=1,lons_lat
-         dudt(i,k)=
-     &                   - xkappa(i,k) *hg(i,k)*dlnpx(i,k)
-     &                   - dphix(i,k) 	
-     &                   + vg(i,k)*coriol
-         dvdt(i,k)=
-     &                   - xkappa(i,k) *hg(i,k)*dlnpy(i,k)
-     &                   - dphiy(i,k) 
-     &                   - ug(i,k)*coriol
-     &                   - ek(i,k) * sinra
-       enddo
-      enddo
-
-      else	! repro
-
       do k=1,levs
        do i=1,lons_lat
          dudt(i,k)=
@@ -361,8 +318,6 @@ c
      &                   - ek(i,k) * sinra
        enddo
       enddo
-
-      endif	! repro
 
 c
 c total derivative of virtual temperature
@@ -390,14 +345,15 @@ c
      &               -ug(i,k)*dhdl(i,k)-vg(i,k)*dhdf(i,k)
         enddo
       enddo
-      do n=1,ntrac
-      do k=1,levs
-        do i=1,lons_lat
-          drqdt(i,k,n)=
+
+        do n=1,ntrac
+        do k=1,levs
+          do i=1,lons_lat
+            drqdt(i,k,n)=
      &               -ug(i,k)*drqdl(i,k,n)-vg(i,k)*drqdf(i,k,n)
+          enddo
         enddo
-      enddo
-      enddo
+        enddo
 !
 ! ------ hybrid to solve vertical flux ----------
 
@@ -450,10 +406,12 @@ c
      &              +hkci(i,k)*(dhdt(i,k-1)+dhdt(i,k))
         enddo
       enddo
+
       call tridim_hyb_gc_h(lons_lat,lons_lat,levsb-1,levs+1,1,
      &                wml,wmm,wmu,wf,work,wf1)
+
       wflx(:,1     )=cons0
-!hmhj wflx(:,levs+1)=cons0
+      wflx(:,levs+1)=cons0
 !hmhj do k=2,levs
       wflx(:,levsb+1:levs+1)=cons0
       do k=2,levsb
@@ -461,49 +419,58 @@ c
           wflx(i,k)=wf1(i,k-1)
         enddo
       enddo
-!
+
+! -----------------------------------------------------------------------
 ! ------ vertical advection for all --------
-c
+!
+! do thermodynamic variable first
+!
 c do vertical advection of hg first, since dup and dum are obtained
 c
-      do k=1,levs
-        do i=1,lons_lat
-          zadv(i,k,3)=-rdelp2(i,k)*
-     &             (wflx(i,k)*dum(i,k)+wflx(i,k+1)*dup(i,k))
+        do k=1,levs
+          do i=1,lons_lat
+            zadv(i,k,3)=-rdelp2(i,k)*
+     &               (wflx(i,k)*dum(i,k)+wflx(i,k+1)*dup(i,k))
+          enddo
         enddo
-      enddo
 c
-c
+! ---------------------------------------------------------------------
 c vertical advection of uu 
 c
-      do k=1,levs-1
-        do i=1,lons_lat
-          dup(i,k  )=ug(i,k)-ug(i,k+1)
-          dum(i,k+1)=ug(i,k)-ug(i,k+1)
-        enddo
-      enddo
 
-      do k=1,levs
-        do i=1,lons_lat
-          zadv(i,k,1)=-rdelp2(i,k)*
-     &             (wflx(i,k)*dum(i,k)+wflx(i,k+1)*dup(i,k))
+        do k=1,levs-1
+          do i=1,lons_lat
+            dup(i,k  )=ug(i,k)-ug(i,k+1)
+            dum(i,k+1)=ug(i,k)-ug(i,k+1)
+          enddo
         enddo
-      enddo
+    
+        do k=1,levs
+          do i=1,lons_lat
+            zadv(i,k,1)=-rdelp2(i,k)*
+     &             (wflx(i,k)*dum(i,k)+wflx(i,k+1)*dup(i,k))
+          enddo
+        enddo
+!
+! ----------------------------------------------------------------------
 c
 c vertical advection of vv 
 c
-      do k=1,levs-1
-        do i=1,lons_lat
-          dup(i,k  )=vg(i,k)-vg(i,k+1)
-          dum(i,k+1)=vg(i,k)-vg(i,k+1)
+
+        do k=1,levs-1
+          do i=1,lons_lat
+            dup(i,k  )=vg(i,k)-vg(i,k+1)
+            dum(i,k+1)=vg(i,k)-vg(i,k+1)
+          enddo
         enddo
-      enddo
-      do k=1,levs
-        do i=1,lons_lat
-          zadv(i,k,2)=-rdelp2(i,k)*
+        do k=1,levs
+          do i=1,lons_lat
+            zadv(i,k,2)=-rdelp2(i,k)*
      &             (wflx(i,k)*dum(i,k)+wflx(i,k+1)*dup(i,k))
+          enddo
         enddo
-      enddo
+!
+! -------------------------------------------------------------------
 c
 c vertical advection of qq
 c
@@ -588,28 +555,30 @@ c
 !--------------------------------------
       else
 !--------------------------------------
-      do n=1,ntrac
-      do k=1,levs-1
-        do i=1,lons_lat
-          dup(i,k  )=rqg(i,k,n)-rqg(i,k+1,n)
-          dum(i,k+1)=rqg(i,k,n)-rqg(i,k+1,n)
-        enddo
-      enddo
-      do k=1,levs
-        do i=1,lons_lat
-          zadv(i,k,3+n)=-rdelp2(i,k)*
+        do n=1,ntrac
+          do k=1,levs-1
+            do i=1,lons_lat
+              dup(i,k  )=rqg(i,k,n)-rqg(i,k+1,n)
+              dum(i,k+1)=rqg(i,k,n)-rqg(i,k+1,n)
+            enddo
+          enddo
+          do k=1,levs
+            do i=1,lons_lat
+              zadv(i,k,3+n)=-rdelp2(i,k)*
      &               (wflx(i,k)*dum(i,k)+wflx(i,k+1)*dup(i,k))
+            enddo
+          enddo
+!         print *,' vadv zadv ',n,(zadv(i,1,3+n),i=1,4)
         enddo
-      enddo
-      enddo
-!--------------------------------------
+! -------------------------
       endif
 !--------------------------------------
 
 ! do vertical advection filter
-      call vcnhyb_gc_h(lons_lat,levs,3+ntrac,deltim,
+        call vcnhyb_gc_h(lons_lat,levs,3+ntrac,deltim,
      &            ppi,ppl,wflx,zadv,nvcn,xvcn)
       if( nvcn.gt.0 ) print *,' ---- nvcn =',nvcn,'    xvcn=',xvcn 
+
 ! add vertical filterd advection
       do k=1,levs
       do i=1,lons_lat
@@ -617,13 +586,6 @@ c
        dvdt(i,k)=dvdt(i,k)+zadv(i,k,2)
        dhdt(i,k)=dhdt(i,k)+zadv(i,k,3)
       enddo
-      enddo
-      do  n=1,ntrac
-       do k=1,levs
-       do i=1,lons_lat
-        drqdt(i,k,n)=drqdt(i,k,n)+zadv(i,k,3+n)
-       enddo
-       enddo
       enddo
 !
 !     print *,' end of gfidi_hyb_gc_h. '

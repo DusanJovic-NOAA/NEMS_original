@@ -17,10 +17,18 @@
 !------
       use esmf_mod
 
-      use gfs_physics_err_msg_mod
-      use gfs_physics_initialize_mod
-      use gfs_physics_run_mod
-      use gfs_physics_finalize_mod
+      use gfs_physics_err_msg_mod,        ONLY: gfs_physics_err_msg,        &
+                                                gfs_physics_err_msg_final
+      use gfs_physics_initialize_mod,     ONLY: gfs_physics_initialize
+      use gfs_physics_run_mod,            ONLY: gfs_physics_run
+      use gfs_physics_finalize_mod,       ONLY: gfs_physics_finalize
+      USE gfs_physics_getcf_mod,          ONLY: gfs_physics_getcf
+      USE gfs_physics_internal_state_mod, ONLY: gfs_physics_internal_state, &
+                                                gfs_phy_wrap
+      USE mpi_def,                        ONLY: mpi_comm_all
+      USE layout1,                        ONLY: me
+      USE date_def,                       ONLY: idate, fhour
+      USE namelist_physics_def,           ONLY: fhini, fhmax
 
       implicit none
 
@@ -315,9 +323,10 @@
                           esmf_log_info, rc = rc1)
 
       call esmf_vmget(vm_local, localpet = int_state%me,    		&
-                           mpicommunicator = mpi_comm_all,      	&
+                           mpicommunicator = mpi_comm_all,        	&
                            petcount = int_state%nodes,			&
                            rc       = rc1)
+      me = int_state%me
 
       call gfs_physics_err_msg(rc1,'get me and nodes from vm',rc)
 
@@ -453,8 +462,8 @@
 !     call esmf_logwrite("internal state link to esmf export state", 	&
 !                       esmf_log_info, rc = rc1)
 
-!     int_state%fhour_idate(1,1)=int_state%kfhour
-!     int_state%fhour_idate(1,2:5)=idate(1:4)
+      int_state%fhour_idate(1,1)=int_state%kfhour
+      int_state%fhour_idate(1,2:5)=idate(1:4)
 
 !      call gfs_physics_internal2export(gc_gfs_phy, int_state,  	&
 !                                          exp_gfs_phy, rc = rc1)
@@ -491,8 +500,6 @@
 !  may      2005     weiyu yang for the updated gfs version.
 !  february 2006     moorthi
 !  december 2007     juang
-!  April    2008     Shrinivas Moorthi
-!                    Used ESMF alrarm to set the lsout and lssav
 !
 ! !interface:
 !
@@ -501,7 +508,6 @@
                             imp_gfs_phy, exp_gfs_phy, clock, rc)
 
       use gfs_physics_states_mod
-      use module_alarms
 !
 ! !input variables and parameters:
 !---------------------------------
@@ -517,8 +523,6 @@
       type(esmf_time)                    :: stoptime     
       type(esmf_state),    intent(inout) :: exp_gfs_phy
       integer,             intent(out)   :: rc   
-      logical, save :: first
-      data first/.true./
 !
 !eop
 !-------------------------------------------------------------------------
@@ -594,39 +598,11 @@
 !--------------------------
       call esmf_logwrite("run the gfs_physics_run", 			&
                          esmf_log_info, rc = rc1)
-!
-      if (first) then
-        int_state%lsoutd = .true.
-        first = .false.
-      endif
-!
-!
-!     If half of digital filter is over, then set lssav to flase
-!
-      if (ESMF_AlarmIsRinging(alarm(1), rc)) then
-        int_state%lssavd = .false.
-        int_state%lsoutd = .false.
-      endif
-
-!     print *,' bef phys_run lsoutd=',int_state%lsoutd  &
-!    ,' lssavd=',int_state%lssavd,' kdt=',int_state%kdt
-!
-!     At the end of  digital filter reset lssavd and lsoutd to true
-!
-      if (.not. int_state%lssavd) then
-        if (ESMF_AlarmIsRinging(alarm(2), rc)) then
-          int_state%lssavd = .true.
-          int_state%lsoutd = .true.
-          print *,' LSSAVD and LSOUTD set to TRUE'
-        endif
-!     print *,' after IF test lsoutd=',int_state%lsoutd  &
-!    ,' lssavd=',int_state%lssavd,' kdt=',int_state%kdt
-      endif
 
       call gfs_physics_run(int_state, rc = rc1)
 
       call gfs_physics_err_msg(rc1,'run the gfs_physics_run',rc)
-!
+
 ! transfer the gfs export fields in the internal state 
 ! to the esmf exprot state which is the public interface
 ! for other esmf grid components.

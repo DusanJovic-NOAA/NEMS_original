@@ -236,6 +236,8 @@ cc
          do thread=1,num_threads   ! start of thread loop ..............
             nvar_1=(thread-1)*nvar_thread_max+1
             nvar_2=min(nvar_1+nvar_thread_max-1,nvars)
+
+            if( nvar_2 >= nvar_1 ) then		! hmhj
 ccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 cc
             DO k = nvar_1,nvar_2
@@ -312,6 +314,8 @@ cc             set the  odd (n-L) terms of the top row to zero
                   flnod(indod2,2,k) = cons0     !constant
                end do
             endif
+
+            endif	! end of if nvar_2 >= nvar_1  hmhj
 cc
          end do   ! end of thread loop .................................
 cc

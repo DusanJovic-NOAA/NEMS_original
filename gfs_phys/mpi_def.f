@@ -1,6 +1,6 @@
       module mpi_def
-!     use resol_def
-      use machine
+! 
+      use machine,   ONLY: KIND_io4, KIND_ior
       include 'mpif.h'
       integer stat(MPI_STATUS_SIZE),info
       INTEGER :: icolor

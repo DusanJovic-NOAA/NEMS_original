@@ -39,7 +39,9 @@
          DO THREAD=1,NUM_THREADS   ! START OF THREAD LOOP ..............
             NVAR_1=(THREAD-1)*NVAR_THREAD_MAX+1
             NVAR_2=MIN(NVAR_1+NVAR_THREAD_MAX-1,lot)
-            lot_thread=NVAR_2 - NVAR_1 +2
+            lot_thread=NVAR_2 - NVAR_1 +1
+
+         if( lot_thread > 0 ) then
          indbeg=1+LON_DIM*(NVAR_1-1)
 !sela    print 200,thread,nvar_1,nvar_2,lot_thread,indbeg,lan,me,lon_dim
 !sela& ,lons_lat
@@ -62,8 +64,9 @@
      X              LONS_LAT,LOT_thread,IBMSIGN,SCALE_IBM,
      X              AUX1CRS,22000,
      X              AUX1CRS(22001),20000)
+         endif
  
-      enddo  ! fin thread loop .........................................
+         enddo  ! fin thread loop .........................................
       else !------------------------------------------------------------
 !$OMP PARALLEL DO SHARED(syn_gr_a_1,syn_gr_a_2,lon_dim,lons_lat)
 !$OMP+SHARED(lot,NUM_THREADS,NVAR_THREAD_MAX)
@@ -73,7 +76,9 @@
          DO THREAD=1,NUM_THREADS   ! START OF THREAD LOOP ..............
             NVAR_1=(THREAD-1)*NVAR_THREAD_MAX+1
             NVAR_2=MIN(NVAR_1+NVAR_THREAD_MAX-1,lot)
-            lot_thread=NVAR_2 - NVAR_1 +2
+            lot_thread=NVAR_2 - NVAR_1 +1
+
+         if( lot_thread > 0 ) then
          indbeg=1+LON_DIM*(NVAR_1-1)
 !sela    print 200,thread,nvar_1,nvar_2,lot_thread,indbeg,lan,me,lon_dim
 !sela& ,lons_lat
@@ -99,7 +104,9 @@
      X              AUX1CRS(22001),20000,
      X              AUX1CRS(22001),0)
  
-      enddo  ! fin thread loop .........................................
+         endif
+
+         enddo  ! fin thread loop .........................................
       endif !-----------------------------------------------------------
 !!
       RETURN
@@ -137,8 +144,9 @@
          DO THREAD=1,NUM_THREADS   ! START OF THREAD LOOP ..............
             NVAR_1=(THREAD-1)*NVAR_THREAD_MAX+1
             NVAR_2=MIN(NVAR_1+NVAR_THREAD_MAX-1,lot)
-            lot_thread=NVAR_2 - NVAR_1 +2
+            lot_thread=NVAR_2 - NVAR_1 +1
  
+         if( lot_thread > 0 ) then
          indbeg=1+LON_DIM*(NVAR_1-1)
  
          INIT=1
@@ -158,8 +166,9 @@
      X              LONS_LAT,LOT_thread,IBMSIGN,SCALE_IBM,
      X              AUX1CRS,22000,
      X              AUX1CRS(22001),20000)
+         endif
  
-      enddo  ! fin thread loop .........................................
+         enddo  ! fin thread loop .........................................
       else !------------------------------------------------------------
 !$OMP PARALLEL DO SHARED(anl_gr_a_1,anl_gr_a_2,lon_dim,lons_lat)
 !$OMP+SHARED(lot,NUM_THREADS,NVAR_THREAD_MAX)
@@ -169,8 +178,9 @@
          DO THREAD=1,NUM_THREADS   ! START OF THREAD LOOP ..............
             NVAR_1=(THREAD-1)*NVAR_THREAD_MAX+1
             NVAR_2=MIN(NVAR_1+NVAR_THREAD_MAX-1,lot)
-            lot_thread=NVAR_2 - NVAR_1 +2
+            lot_thread=NVAR_2 - NVAR_1 +1
  
+         if( lot_thread > 0 ) then
          indbeg=1+LON_DIM*(NVAR_1-1)
  
          INIT=1
@@ -192,8 +202,9 @@
      X              AUX1CRS,22000,
      X              AUX1CRS(22001),20000,
      X              AUX1CRS(22001),0)
+         endif
  
-      enddo  ! fin thread loop .........................................
+         enddo  ! fin thread loop .........................................
       endif !-----------------------------------------------------------
 !!
       RETURN

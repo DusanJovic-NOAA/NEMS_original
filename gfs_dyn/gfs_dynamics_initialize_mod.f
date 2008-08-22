@@ -40,7 +40,7 @@
 
       integer 		:: ierr
 
-      integer 		:: l, n, ilat, locl, ikey, nrank_all
+      integer 		:: j, l, n, ilat, locl, ikey, nrank_all
 !!
       integer 		nf0, nf1
       real 		fd2
@@ -62,7 +62,7 @@
                            gis_dyn%jcap,   gis_dyn%levs, gis_dyn%levr, 	&
                            gis_dyn%lonf,   gis_dyn%latg,          	&
                            gis_dyn%ntoz,   gis_dyn%ntcw, gis_dyn%ncld, 	&
-                           gis_dyn%spectral_loop, 			&
+                           gis_dyn%spectral_loop,               	&
                      me,   gis_dyn%nam_gfs_dyn%nlunit, 			&
                            gis_dyn%nam_gfs_dyn%gfs_dyn_namelist)
 !
@@ -167,12 +167,20 @@
          d_m  =444444444.
 !
 
-      allocate(z(lnt2))
-      allocate(z_r(lnt2))
+!hmhj allocate(z(lnt2))	! not used
+!hmhj allocate(z_r(lnt2))	! not used
 !
       allocate(gis_dyn%lonsperlat(latg))
 
-      call set_lonsgg(gis_dyn%lonsperlat)
+      if( reduced_grid ) then
+        print *,' run with reduced gaussian grid '
+        call set_lonsgg(gis_dyn%lonsperlat)
+      else
+        print *,' run with full gaussian grid '
+        do j=1,latg
+          gis_dyn%lonsperlat(j) = lonf
+        enddo
+      endif
 !
       p_gz   =         1     !      gze/o(lnte/od,2),
       p_zem  = p_gz   +1     !     zeme/o(lnte/od,2,levs),
@@ -229,6 +237,7 @@
       lots = 5*levs+1*levh+5 
       lotd = 6*levs+2*levh+0 
       lota = 3*levs+1*levh+1 
+      lotm = 3*levs+1*levh+1 
 !
       kwq  = 0*levs+0*levh+1   !   qe/o_ls
       kwte = 0*levs+0*levh+2   !  tee/o_ls
@@ -246,6 +255,12 @@
       ksv     =ksu+levs
       kzslam  =ksv+levs
       kzsphi  =kzslam+1
+!
+      ksum    =1
+      ksvm    =ksum+levs
+      kstm    =ksvm+levs
+      ksrm    =kstm+levs
+      kspsm   =ksrm+levh
 !
       kau     =1
       kav     =kau+levs
@@ -311,6 +326,7 @@
       gis_dyn%lots = lots 
       gis_dyn%lotd = lotd
       gis_dyn%lota = lota
+      gis_dyn%lotm = lotm
 !
       allocate(gis_dyn%tee1(levs))
 
@@ -483,6 +499,7 @@
 !c
       allocate (   gis_dyn%syn_gr_a_1(lonfx*gis_dyn%lots,lats_dim_ext) )
       allocate (   gis_dyn%syn_gr_a_2(lonfx*gis_dyn%lots,lats_dim_ext) )
+      allocate (   gis_dyn%sym_gr_a_2(lonfx*gis_dyn%lotm,lats_dim_ext) )
       allocate (   gis_dyn%dyn_gr_a_1(lonfx*gis_dyn%lotd,lats_dim_ext) )
       allocate (   gis_dyn%dyn_gr_a_2(lonfx*gis_dyn%lotd,lats_dim_ext) )
       allocate (   gis_dyn%anl_gr_a_1(lonfx*gis_dyn%lota,lats_dim_ext) )
@@ -544,7 +561,7 @@
                    gis_dyn%epso,gis_dyn%epso,gis_dyn%epso,		&
                    gis_dyn%epso,gis_dyn%epso,gis_dyn%epso,      	& 
                    gis_dyn%cons0,sl,gis_dyn%ls_node,gis_dyn%epse,	&
-                   0,hybrid,gen_coord_hybrid)  
+                   0,hybrid,gen_coord_hybrid,nislfv)  
  
 !c
       call f_hpmstart(26,"step1")

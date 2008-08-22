@@ -1,7 +1,7 @@
       MODULE gfs_dyn_MACHINE
 
       IMPLICIT NONE
-      SAVE
+      
 !  Machine dependant constants
       integer, parameter :: kind_io4  = 4, kind_io8  = 8 , kind_ior = 8
      &,                     kind_evod = 8, kind_dbl_prec = 8

@@ -1,9 +1,9 @@
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-                        module module_control_gfs
+                        module module_control
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
 use module_include
-use module_dm_parallel_gfs,only : ids,ide,jds,jde &
+use module_dm_parallel,only : ids,ide,jds,jde &
                              ,ims,ime,jms,jme &
                              ,its,ite,jts,jte &
                              ,mype_share,npes,num_pts_max &
@@ -11,7 +11,7 @@ use module_dm_parallel_gfs,only : ids,ide,jds,jde &
                              ,dstrb &
                              ,idstrb &
                              ,dstrb_soil
-use module_exchange_gfs
+use module_exchange
 use module_constants
 !-----------------------------------------------------------------------
 !
@@ -2324,7 +2324,7 @@ real(kind=kfpt):: &
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !-----------------------------------------------------------------------
 !
-                       end module module_control_gfs
+                       end module module_control
 !
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&

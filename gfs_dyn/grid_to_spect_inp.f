@@ -176,22 +176,21 @@
           enddo
         enddo
         do i=1,lons_lat
-          for_gr_a_2(i+(kazs-1)*lon_dim,lan) = zsg(i,lan)
-        enddo
-        do i=1,lons_lat
           ptot(i,lan) = psg(i,lan) * pa2cb
         enddo
         if (gen_coord_hybrid) then   ! Ps is the prognostic variable
           do i=1,lons_lat
             psg(i,lan) = psg(i,lan) * pa2cb
-            for_gr_a_2(i+(kaps-1)*lon_dim,lan) = psg(i,lan)
           enddo
         else                         ! ln(Ps) is the prognostic variable
           do i=1,lons_lat
             psg(i,lan) = log(psg(i,lan)*pa2cb)
-            for_gr_a_2(i+(kaps-1)*lon_dim,lan) = psg(i,lan)
           enddo
         endif
+        do i=1,lons_lat
+          for_gr_a_2(i+(kazs-1)*lon_dim,lan) = zsg(i,lan)
+          for_gr_a_2(i+(kaps-1)*lon_dim,lan) = psg(i,lan)
+        enddo
 !
 ! get pressure at interfaces for pwat 
         if (gen_coord_hybrid) then  

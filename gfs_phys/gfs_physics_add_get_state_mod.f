@@ -1,26 +1,27 @@
 !BOP
 !
 ! !MODULE: GFS_ESMFStateAddGetMod --- a class attaching a F90 array to an 
-!                                  ESMF state, getting F90 pointer and 
-!                                  providing related services
+!                                     ESMF state, getting F90 pointer and 
+!                                     providing related services
 !
 ! !INTERFACE:
 !
  MODULE gfs_physics_add_get_state_mod
 
 !USES:
-  USE ESMF_Mod
-!      ESMF_Grid,                                &
-!      ESMF_GridGet,                             &
-!      ESMF_DistGrid,                            &
-!      ESMF_State,                               &
-!      ESMF_StateAddArray,                       &
-!      ESMF_StateGet,                       &
-!      ESMF_SUCCESS,                             &
-!      ESMF_Array,                               &
-!      ESMF_ArrayCreate,                         &
-!      ESMF_ArrayGet,                            &
-!      ESMF_ArrayDestroy
+  USE ESMF_Mod, ONLY :                          &
+      ESMF_Grid,                                &
+      ESMF_GridGet,                             &
+      ESMF_DistGrid,                            &
+      ESMF_State,                               &
+      ESMF_StateAdd,                            &
+      ESMF_StateGet,                            &
+      ESMF_SUCCESS,                             &
+      ESMF_Array,                               &
+      ESMF_ArrayCreate,                         &
+      ESMF_ArrayGet,                            &
+      ESMF_ArrayDestroy,                        &
+      ESMF_CopyFlag
 
  IMPLICIT NONE
  PRIVATE
@@ -42,8 +43,13 @@
 ! March 26, 2004, Weiyu Yang, modified for the ESMF 1.0.6 version.
 ! September 3, 2004, Weiyu Yang, modified for the NCEP GFS model.
 ! July 2005,            Weiyu Yang added real(4) for 1D and changed real to real(8).
+! May 2006, Weiyu Yang modIFied the code for the ESMF 3.0.0 library
+!                      and adding the releasing memory option after
+!                      getting a fortran array from the state.
+! June 2006, Weiyu Yang, modified the code to reduce the maximum memory requirement.
 ! April 2007 , S. Moorthi Added Weiyu's upgrades to use ESMF 3.0.0 library
-! February 2008        Weiyu Yang updated to use the ESMF 3.1.0 library
+! September 2007       Weiyu Yang updated to use the ESMF 3.0.3 library.
+! May 2008             Weiyu Yang updated to use the ESMF 3.1.0r library
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -90,7 +96,7 @@ CONTAINS
 !
 ! !INTERFACE:
 !
- SUBROUTINE AddF90IntegerArrayToState1D(state, grid, name, F90Array, rc)
+ SUBROUTINE AddF90IntegerArrayToState1D(state, grid, name, F90Array, copyflag, rc)
 
 !
 ! !USES:
@@ -102,6 +108,8 @@ CONTAINS
  INTEGER, DIMENSION(:), POINTER       :: F90array
  TYPE(ESMF_Grid),       INTENT(inout) :: grid
  CHARACTER(LEN = *),    INTENT(in)    :: name
+
+ TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -124,7 +132,8 @@ CONTAINS
 ! !REVISION HISTORY:
 !
 ! 20oct2003  Zaslavsky   Initial code.
-! February 2008  Weiyu Yang updated to use the ESMF 3.1.0 library
+! 10/01/2007 Weiyu Yang  Rewritting for the ESFM 3.0.3 version.
+! May 2008   Weiyu Yang updated to use the ESMF 3.1.0r library.
 !
 !
 !EOP
@@ -142,16 +151,21 @@ CONTAINS
          RETURN
       END IF
 
-      ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
-          name = name, rc = status)
+      IF(PRESENT(copyflag)) THEN
+          ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
+              copyflag = copyflag, name = name, rc = status)
+      ELSE
+          ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
+              name = name, rc = status)
+      END IF
 
       IF(status /= ESMF_SUCCESS) THEN
          IF(PRESENT(rc)) rc = 3
          return
       END IF
 
-!      CALL ESMF_StateAddArray(state, ESMFArray, rc=status)
-      CALL ESMF_StateAdd(state, ESMFArray, rc)
+      CALL ESMF_StateAdd(state, ESMFArray, rc=status)
+
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
            RETURN
@@ -177,7 +191,7 @@ CONTAINS
 !
 ! !INTERFACE:
 !
- SUBROUTINE AddF90IntegerArrayToState2D(state, grid, name, F90Array, rc)
+ SUBROUTINE AddF90IntegerArrayToState2D(state, grid, name, F90Array, copyflag, rc)
 
 !
 ! !USES:
@@ -189,6 +203,8 @@ CONTAINS
  INTEGER, DIMENSION(:, :), POINTER       :: F90array
  TYPE(ESMF_Grid),          INTENT(inout) :: grid
  CHARACTER(LEN = *),       INTENT(in)    :: name
+
+ TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -211,7 +227,8 @@ CONTAINS
 ! !REVISION HISTORY:
 !
 ! 20oct2003  Zaslavsky   Initial code.
-! February 2008  Weiyu Yang updated to use the ESMF 3.1.0 library
+! 10/01/2007 Weiyu Yang  Rewritting for the ESFM 3.0.3 version.
+! May 2008   Weiyu Yang updated to use the ESMF 3.1.0r library.
 !
 !
 !EOP
@@ -229,16 +246,21 @@ CONTAINS
          RETURN
       END IF
 
-      ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
-          name = name, rc = status)
+      IF(PRESENT(copyflag)) THEN
+          ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
+              copyflag = copyflag, name = name, rc = status)
+      ELSE
+          ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
+              name = name, rc = status)
+      END IF
 
       IF(status /= ESMF_SUCCESS) THEN
          IF(PRESENT(rc)) rc = 3
          return
       END IF
 
-!      CALL ESMF_StateAddArray(state, ESMFArray, rc = status)
-      CALL ESMF_StateAdd(state, ESMFArray, rc)
+      CALL ESMF_StateAdd(state, ESMFArray, rc = status)
+
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
            RETURN
@@ -264,7 +286,7 @@ CONTAINS
 !
 ! !INTERFACE:
 !
- SUBROUTINE AddF90Real8ArrayToState1D(state, grid, name, F90Array, rc)
+ SUBROUTINE AddF90Real8ArrayToState1D(state, grid, name, F90Array, copyflag, rc)
 
 !
 ! !USES:
@@ -276,6 +298,8 @@ CONTAINS
  REAL(8), DIMENSION(:), POINTER       :: F90array
  TYPE(ESMF_Grid),       INTENT(inout) :: grid
  CHARACTER(LEN = *),    INTENT(in)    :: name
+
+ TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -298,7 +322,8 @@ CONTAINS
 ! !REVISION HISTORY:
 !
 ! 20oct2003  Zaslavsky   Initial code.
-! February 2008  Weiyu Yang updated to use the ESMF 3.1.0 library
+! 10/01/2007 Weiyu Yang  Rewritting for the ESFM 3.0.3 version.
+! May 2008   Weiyu Yang updated to use the ESMF 3.1.0r library.
 !
 !
 !EOP
@@ -316,16 +341,21 @@ CONTAINS
          RETURN
       END IF
 
-      ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
-          name = name, rc = status)
+      IF(PRESENT(copyflag)) THEN
+          ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
+              copyflag = copyflag, name = name, rc = status)
+      ELSE
+          ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
+              name = name, rc = status)
+      END IF
 
       IF(status /= ESMF_SUCCESS) THEN
          IF(PRESENT(rc)) rc = 3
          return
       END IF
 
-!      CALL ESMF_StateAddArray(state, ESMFArray, rc = status)
-      CALL ESMF_StateAdd(state, ESMFArray, rc)
+      CALL ESMF_StateAdd(state, ESMFArray, rc = status)
+
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
            RETURN
@@ -351,7 +381,7 @@ CONTAINS
 !
 ! !INTERFACE:
 !
- SUBROUTINE AddF90Real4ArrayToState1D(state, grid, name, F90Array, rc)
+ SUBROUTINE AddF90Real4ArrayToState1D(state, grid, name, F90Array, copyflag, rc)
 
 !
 ! !USES:
@@ -363,6 +393,8 @@ CONTAINS
  REAL(4), DIMENSION(:), POINTER       :: F90array
  TYPE(ESMF_Grid),       INTENT(inout) :: grid
  CHARACTER(LEN = *),    INTENT(in)    :: name
+
+ TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -385,7 +417,8 @@ CONTAINS
 ! !REVISION HISTORY:
 !
 ! 20oct2003  Zaslavsky   Initial code.
-! February 2008  Weiyu Yang updated to use the ESMF 3.1.0 library
+! 10/01/2007 Weiyu Yang  Rewritting for the ESFM 3.0.3 version.
+! May 2008   Weiyu Yang updated to use the ESMF 3.1.0r library.
 !
 !
 !EOP
@@ -403,16 +436,21 @@ CONTAINS
          RETURN
       END IF
 
-      ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
-          name = name, rc = status)
+      IF(PRESENT(copyflag)) THEN
+          ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
+              copyflag = copyflag, name = name, rc = status)
+      ELSE
+          ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
+              name = name, rc = status)
+      END IF
 
       IF(status /= ESMF_SUCCESS) THEN
          IF(PRESENT(rc)) rc = 3
          return
       END IF
 
-!      CALL ESMF_StateAddArray(state, ESMFArray, rc = status)
-      CALL ESMF_StateAdd(state, ESMFArray, rc)
+      CALL ESMF_StateAdd(state, ESMFArray, rc = status)
+
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
            RETURN
@@ -438,7 +476,7 @@ CONTAINS
 !
 ! !INTERFACE:
 !
- SUBROUTINE AddF90Real8ArrayToState2D(state, grid, name, F90Array, rc)
+ SUBROUTINE AddF90Real8ArrayToState2D(state, grid, name, F90Array, copyflag, rc)
 
 !
 ! !USES:
@@ -450,6 +488,8 @@ CONTAINS
  REAL(8), DIMENSION(:, :), POINTER       :: F90array
  TYPE(ESMF_Grid),          INTENT(inout) :: grid
  CHARACTER(LEN = *),       INTENT(in)    :: name
+
+ TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -472,7 +512,8 @@ CONTAINS
 ! !REVISION HISTORY:
 !
 ! 20oct2003  Zaslavsky   Initial code.
-! February 2008  Weiyu Yang updated to use the ESMF 3.1.0 library
+! 10/01/2007 Weiyu Yang  Rewritting for the ESFM 3.0.3 version.
+! May 2008   Weiyu Yang updated to use the ESMF 3.1.0r library.
 !
 !
 !EOP
@@ -490,15 +531,21 @@ CONTAINS
          RETURN
       END IF
 
-      ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, name = name, rc = status)
+      IF(PRESENT(copyflag)) THEN
+          ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
+              copyflag = copyflag, name = name, rc = status)
+      ELSE
+          ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
+              name = name, rc = status)
+      END IF
 
       IF(status /= ESMF_SUCCESS) THEN
          IF(PRESENT(rc)) rc = 3
          return
       END IF
 
-!      CALL ESMF_StateAddArray(state, ESMFArray, rc = status)
-      CALL ESMF_StateAdd(state, ESMFArray, rc)
+      CALL ESMF_StateAdd(state, ESMFArray, rc = status)
+
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
            RETURN
@@ -524,7 +571,7 @@ CONTAINS
 !
 ! !INTERFACE:
 !
- SUBROUTINE AddF90Real4ArrayToState2D(state, grid, name, F90Array, rc)
+ SUBROUTINE AddF90Real4ArrayToState2D(state, grid, name, F90Array, copyflag, rc)
 
 !
 ! !USES:
@@ -536,6 +583,8 @@ CONTAINS
  REAL(4), DIMENSION(:, :), POINTER       :: F90array
  TYPE(ESMF_Grid),          INTENT(inout) :: grid
  CHARACTER(LEN = *),       INTENT(in)    :: name
+
+ TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -558,7 +607,8 @@ CONTAINS
 ! !REVISION HISTORY:
 !
 ! 20oct2003  Zaslavsky   Initial code.
-! February 2008  Weiyu Yang updated to use the ESMF 3.1.0 library
+! 10/01/2007 Weiyu Yang  Rewritting for the ESFM 3.0.3 version.
+! May 2008   Weiyu Yang updated to use the ESMF 3.1.0r library.
 !
 !
 !EOP
@@ -576,16 +626,21 @@ CONTAINS
          RETURN
       END IF
 
-      ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
-          name = name, rc = status)
+      IF(PRESENT(copyflag)) THEN
+          ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
+              copyflag = copyflag, name = name, rc = status)
+      ELSE
+          ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
+              name = name, rc = status)
+      END IF
 
       IF(status /= ESMF_SUCCESS) THEN
          IF(PRESENT(rc)) rc = 3
          return
       END IF
 
-!      CALL ESMF_StateAddArray(state, ESMFArray, rc = status)
-      CALL ESMF_StateAdd(state, ESMFArray, rc)
+      CALL ESMF_StateAdd(state, ESMFArray, rc = status)
+
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
            RETURN
@@ -611,7 +666,7 @@ CONTAINS
 !
 ! !INTERFACE:
 !
- SUBROUTINE AddF90Real8ArrayToState3D(state, grid, name, F90Array, rc)
+ SUBROUTINE AddF90Real8ArrayToState3D(state, grid, name, F90Array, copyflag, rc)
 
 !
 ! !USES:
@@ -623,6 +678,8 @@ CONTAINS
  REAL(8), DIMENSION(:, :, :), POINTER       :: F90array
  TYPE(ESMF_Grid),             INTENT(inout) :: grid
  CHARACTER(LEN = *),          INTENT(in)    :: name
+
+ TYPE(ESMF_CopyFlag),  INTENT(in), OPTIONAL :: copyflag
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -645,7 +702,8 @@ CONTAINS
 ! !REVISION HISTORY:
 !
 ! 20oct2003  Zaslavsky   Initial code.
-! February 2008  Weiyu Yang updated to use the ESMF 3.1.0 library
+! 10/01/2007 Weiyu Yang  Rewritting for the ESFM 3.0.3 version.
+! May 2008   Weiyu Yang updated to use the ESMF 3.1.0r library.
 !
 !
 !EOP
@@ -663,16 +721,21 @@ CONTAINS
          RETURN
       END IF
 
-      ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
-          name = name, rc = status)
+      IF(PRESENT(copyflag)) THEN
+          ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
+              copyflag = copyflag, name = name, rc = status)
+      ELSE
+          ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
+              name = name, rc = status)
+      END IF
 
       IF(status /= ESMF_SUCCESS) THEN
          IF(PRESENT(rc)) rc = 3
          return
       END IF
 
-!      CALL ESMF_StateAddArray(state, ESMFArray, rc = status)
-      CALL ESMF_StateAdd(state, ESMFArray, rc)
+      CALL ESMF_StateAdd(state, ESMFArray, rc = status)
+
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
            RETURN
@@ -698,7 +761,7 @@ CONTAINS
 !
 ! !INTERFACE:
 !
- SUBROUTINE AddF90Real4ArrayToState3D(state, grid, name, F90Array, rc)
+ SUBROUTINE AddF90Real4ArrayToState3D(state, grid, name, F90Array, copyflag, rc)
 
 !
 ! !USES:
@@ -710,6 +773,8 @@ CONTAINS
  REAL(4), DIMENSION(:, :, :), POINTER       :: F90array
  TYPE(ESMF_Grid),             INTENT(inout) :: grid
  CHARACTER(LEN = *),          INTENT(in)    :: name
+
+ TYPE(ESMF_CopyFlag),  INTENT(in), OPTIONAL :: copyflag
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -732,7 +797,8 @@ CONTAINS
 ! !REVISION HISTORY:
 !
 ! 20oct2003  Zaslavsky   Initial code.
-! February 2008  Weiyu Yang updated to use the ESMF 3.1.0 library
+! 10/01/2007 Weiyu Yang  Rewritting for the ESFM 3.0.3 version.
+! May 2008   Weiyu Yang updated to use the ESMF 3.1.0r library.
 !
 !
 !EOP
@@ -750,16 +816,21 @@ CONTAINS
          RETURN
       END IF
 
-      ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
-          name = name, rc = status)
+      IF(PRESENT(copyflag)) THEN
+          ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
+              copyflag = copyflag, name = name, rc = status)
+      ELSE
+          ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
+              name = name, rc = status)
+      END IF
 
       IF(status /= ESMF_SUCCESS) THEN
          IF(PRESENT(rc)) rc = 3
          return
       END IF
 
-!      CALL ESMF_StateAddArray(state, ESMFArray, rc = status)
-      CALL ESMF_StateAdd(state, ESMFArray, rc)
+      CALL ESMF_StateAdd(state, ESMFArray, rc = status)
+
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
            RETURN
@@ -785,7 +856,7 @@ CONTAINS
 !
 ! !INTERFACE:
 !
- SUBROUTINE AddF90Real8ArrayToState4D(state, grid, name, F90Array, rc)
+ SUBROUTINE AddF90Real8ArrayToState4D(state, grid, name, F90Array, copyflag, rc)
 
 !
 ! !USES:
@@ -797,6 +868,8 @@ CONTAINS
  REAL(8), DIMENSION(:, :, :, :), POINTER       :: F90array
  TYPE(ESMF_Grid),                INTENT(inout) :: grid
  CHARACTER(LEN = *),             INTENT(in)    :: name
+
+ TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL   :: copyflag
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -819,7 +892,8 @@ CONTAINS
 ! !REVISION HISTORY:
 !
 ! 20oct2003  Zaslavsky   Initial code.
-! February 2008  Weiyu Yang updated to use the ESMF 3.1.0 library
+! 10/01/2007 Weiyu Yang  Rewritting for the ESFM 3.0.3 version.
+! May 2008   Weiyu Yang updated to use the ESMF 3.1.0r library.
 !
 !
 !EOP
@@ -837,16 +911,21 @@ CONTAINS
          RETURN
       END IF
 
-      ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
-          name = name, rc = status)
+      IF(PRESENT(copyflag)) THEN
+          ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
+              copyflag = copyflag, name = name, rc = status)
+      ELSE
+          ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
+              name = name, rc = status)
+      END IF
 
       IF(status /= ESMF_SUCCESS) THEN
          IF(PRESENT(rc)) rc = 3
          return
       END IF
 
-!      CALL ESMF_StateAddArray(state, ESMFArray, rc = status)
-      CALL ESMF_StateAdd(state, ESMFArray, rc)
+      CALL ESMF_StateAdd(state, ESMFArray, rc = status)
+
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
            RETURN
@@ -872,7 +951,7 @@ CONTAINS
 !
 ! !INTERFACE:
 !
- SUBROUTINE AddF90Real4ArrayToState4D(state, grid, name, F90Array, rc)
+ SUBROUTINE AddF90Real4ArrayToState4D(state, grid, name, F90Array, copyflag, rc)
 
 !
 ! !USES:
@@ -884,6 +963,8 @@ CONTAINS
  REAL(4), DIMENSION(:, :, :, :), POINTER       :: F90array
  TYPE(ESMF_Grid),                INTENT(inout) :: grid
  CHARACTER(LEN = *),             INTENT(in)    :: name
+
+ TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL   :: copyflag
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -906,7 +987,8 @@ CONTAINS
 ! !REVISION HISTORY:
 !
 ! 20oct2003  Zaslavsky   Initial code.
-! February 2008  Weiyu Yang updated to use the ESMF 3.1.0 library
+! 10/01/2007 Weiyu Yang  Rewritting for the ESFM 3.0.3 version.
+! May 2008   Weiyu Yang updated to use the ESMF 3.1.0r library.
 !
 !
 !EOP
@@ -924,16 +1006,21 @@ CONTAINS
          RETURN
       END IF
 
-      ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
-          name = name, rc = status)
+      IF(PRESENT(copyflag)) THEN
+          ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
+              copyflag = copyflag, name = name, rc = status)
+      ELSE
+          ESMFArray = ESMF_ArrayCreate(F90Array, distgrid, &
+              name = name, rc = status)
+      END IF
 
       IF(status /= ESMF_SUCCESS) THEN
          IF(PRESENT(rc)) rc = 3
          return
       END IF
 
-!      CALL ESMF_StateAddArray(state, ESMFArray, rc = status)
-      CALL ESMF_StateAdd(state, ESMFArray, rc)
+      CALL ESMF_StateAdd(state, ESMFArray, rc = status)
+
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
            RETURN
@@ -960,7 +1047,7 @@ CONTAINS
 ! !INTERFACE:
 
  SUBROUTINE GetF90IntegerArrayFromState1D(state, name, F90Array, &
-     nestedStateName, DestroyArray, rc)
+     localPE, nestedStateName, DestroyArray, rc)
 
 !
 ! !USES:
@@ -974,6 +1061,9 @@ CONTAINS
  CHARACTER(LEN = *)                        :: name   
                                                  ! name of the ESMF array to extract 
                                                  ! the fortran array from
+
+ INTEGER,            INTENT(in)            :: localPE 
+                                                 ! PE id of the local PE.
 
  CHARACTER(LEN = *), INTENT(in), OPTIONAL  :: nestedStateName   
                                                  ! Name of the nested ESMF state which contains
@@ -1003,7 +1093,8 @@ CONTAINS
 ! March 26, 2004,  Weiyu Yang modified for the ESMF 1.0.6 version.
 ! April 05, 2007,  S. Moorthi added WeiYu's modifications for ESMF 3.0.0 (adding
 !                             the destroy field option
-! February 2008    Weiyu Yang updated to use the ESMF 3.1.0 library
+! Ootober 01, 2007 Weiyu Yang Rewritting for the ESFM 3.0.3 version.
+! May 2008         Weiyu Yang updated to use the ESMF 3.1.0r library.
 !
 !EOP
 !-------------------------------------------------------------------------    
@@ -1013,10 +1104,10 @@ CONTAINS
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
-     CALL ESMF_StateGet(state=state, itemName=name, array=ESMFArray, &
+     CALL ESMF_StateGet(state, name, ESMFArray,           &
          nestedStateName = nestedStateName, rc = status)
  ELSE
-     CALL ESMF_StateGet(state=state, itemName=name, array=ESMFArray, rc = status)
+     CALL ESMF_StateGet(state, name, ESMFArray, rc = status)
  END IF
 
  IF(status /= ESMF_SUCCESS) THEN
@@ -1026,7 +1117,7 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
- CALL ESMF_ArrayGet(ESMFArray, localDe=0, farrayPtr=F90Array, rc = status)
+ CALL ESMF_ArrayGet(ESMFArray, localPE, F90Array, rc = status)
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1058,7 +1149,7 @@ CONTAINS
 ! !INTERFACE:
 
  SUBROUTINE GetF90IntegerArrayFromState2D(state, name, F90Array, &
-     nestedStateName, DestroyArray, rc)
+     localPE, nestedStateName, DestroyArray, rc)
 
 !
 ! !USES:
@@ -1072,6 +1163,9 @@ CONTAINS
  CHARACTER(LEN = *)                        :: name   
                                                  ! name of the ESMF array to extract 
                                                  ! the fortran array from
+
+ INTEGER,            INTENT(in)            :: localPE 
+                                                 ! PE id of the local PE.
 
  CHARACTER(LEN = *), INTENT(in), OPTIONAL  :: nestedStateName   
                                                  ! Name of the nested ESMF state which contains
@@ -1101,7 +1195,8 @@ CONTAINS
 ! March 26, 2004,  Weiyu Yang modified for the ESMF 1.0.6 version.
 ! April 05, 2007,  S. Moorthi added WeiYu's modifications for ESMF 3.0.0 (adding
 !                             the destroy field option
-! February 2008    Weiyu Yang updated to use the ESMF 3.1.0 library
+! Ootober 01, 2007 Weiyu Yang Rewritting for the ESFM 3.0.3 version.
+! May 2008         Weiyu Yang updated to use the ESMF 3.1.0r library.
 !
 !EOP
 !-------------------------------------------------------------------------    
@@ -1111,10 +1206,10 @@ CONTAINS
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
-     CALL ESMF_StateGet(state=state, itemName=name, array=ESMFArray, &
+     CALL ESMF_StateGet(state, name, ESMFArray,           &
          nestedStateName = nestedStateName, rc = status)
  ELSE
-     CALL ESMF_StateGet(state=state, itemName=name, array=ESMFArray, rc = status)
+     CALL ESMF_StateGet(state, name, ESMFArray, rc = status)
  END IF
 
  IF(status /= ESMF_SUCCESS) THEN
@@ -1124,7 +1219,7 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
- CALL ESMF_ArrayGet(ESMFArray, localDe=0, farrayPtr=F90Array, rc = status)
+ CALL ESMF_ArrayGet(ESMFArray, localPE, F90Array, rc = status)
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1156,7 +1251,7 @@ CONTAINS
 ! !INTERFACE:
 
  SUBROUTINE GetF90Real8ArrayFromState1D(state, name, F90Array, &
-     nestedStateName, DestroyArray, rc)
+     localPE, nestedStateName, DestroyArray, rc)
 
 !
 ! !USES:
@@ -1170,6 +1265,9 @@ CONTAINS
  CHARACTER(LEN = *)                        :: name   
                                                  ! name of the ESMF array to extract 
                                                  ! the fortran array from
+
+ INTEGER,            INTENT(in)            :: localPE 
+                                                 ! PE id of the local PE.
 
  CHARACTER(LEN = *), INTENT(in), OPTIONAL  :: nestedStateName   
                                                  ! Name of the nested ESMF state which contains
@@ -1199,7 +1297,8 @@ CONTAINS
 ! March 26, 2004,  Weiyu Yang modified for the ESMF 1.0.6 version.
 ! April 05, 2007,  S. Moorthi added WeiYu's modifications for ESMF 3.0.0 (adding
 !                             the destroy field option
-! February 2008    Weiyu Yang updated to use the ESMF 3.1.0 library
+! Ootober 01, 2007 Weiyu Yang Rewritting for the ESFM 3.0.3 version.
+! May 2008         Weiyu Yang updated to use the ESMF 3.1.0r library.
 !
 !EOP
 !-------------------------------------------------------------------------    
@@ -1209,10 +1308,10 @@ CONTAINS
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
-     CALL ESMF_StateGet(state=state, itemName=name, array=ESMFArray, &
+     CALL ESMF_StateGet(state, name, ESMFArray,           &
          nestedStateName = nestedStateName, rc = status)
  ELSE
-     CALL ESMF_StateGet(state=state, itemName=name, array=ESMFArray, rc = status)
+     CALL ESMF_StateGet(state, name, ESMFArray, rc = status)
  END IF
 
  IF(status /= ESMF_SUCCESS) THEN
@@ -1222,7 +1321,7 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
- CALL ESMF_ArrayGet(ESMFArray, localDe=0, farrayPtr=F90Array, rc = status)
+ CALL ESMF_ArrayGet(ESMFArray, localPE, F90Array, rc = status)
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1254,7 +1353,7 @@ CONTAINS
 ! !INTERFACE:
 
  SUBROUTINE GetF90Real4ArrayFromState1D(state, name, F90Array, &
-     nestedStateName, DestroyArray, rc)
+     localPE, nestedStateName, DestroyArray, rc)
 
 !
 ! !USES:
@@ -1268,6 +1367,9 @@ CONTAINS
  CHARACTER(LEN = *)                        :: name   
                                                  ! name of the ESMF array to extract 
                                                  ! the fortran array from
+
+ INTEGER,            INTENT(in)            :: localPE 
+                                                 ! PE id of the local PE.
 
  CHARACTER(LEN = *), INTENT(in), OPTIONAL  :: nestedStateName   
                                                  ! Name of the nested ESMF state which contains
@@ -1297,7 +1399,8 @@ CONTAINS
 ! March 26, 2004,  Weiyu Yang modified for the ESMF 1.0.6 version.
 ! April 05, 2007,  S. Moorthi added WeiYu's modifications for ESMF 3.0.0 (adding
 !                             the destroy field option
-! February 2008    Weiyu Yang updated to use the ESMF 3.1.0 library
+! Ootober 01, 2007 Weiyu Yang Rewritting for the ESFM 3.0.3 version.
+! May 2008         Weiyu Yang updated to use the ESMF 3.1.0r library.
 !
 !EOP
 !-------------------------------------------------------------------------    
@@ -1307,10 +1410,10 @@ CONTAINS
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
-     CALL ESMF_StateGet(state=state, itemName=name, array=ESMFArray, &
+     CALL ESMF_StateGet(state, name, ESMFArray,           &
          nestedStateName = nestedStateName, rc = status)
  ELSE
-     CALL ESMF_StateGet(state=state, itemName=name, array=ESMFArray, rc = status)
+     CALL ESMF_StateGet(state, name, ESMFArray, rc = status)
  END IF
 
  IF(status /= ESMF_SUCCESS) THEN
@@ -1320,7 +1423,7 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
- CALL ESMF_ArrayGet(ESMFArray, localDe=0, farrayPtr=F90Array, rc = status)
+ CALL ESMF_ArrayGet(ESMFArray, localPE, F90Array, rc = status)
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1352,7 +1455,7 @@ CONTAINS
 ! !INTERFACE:
 
  SUBROUTINE GetF90Real8ArrayFromState2D(state, name, F90Array, &
-     nestedStateName, DestroyArray, rc)
+     localPE, nestedStateName, DestroyArray, rc)
 
 !
 ! !USES:
@@ -1366,6 +1469,9 @@ CONTAINS
  CHARACTER(LEN = *)                        :: name   
                                                  ! name of the ESMF array to extract 
                                                  ! the fortran array from
+
+ INTEGER,            INTENT(in)            :: localPE 
+                                                 ! PE id of the local PE.
 
  CHARACTER(LEN = *), INTENT(in), OPTIONAL  :: nestedStateName   
                                                  ! Name of the nested ESMF state which contains
@@ -1395,7 +1501,8 @@ CONTAINS
 ! March 26, 2004,  Weiyu Yang modified for the ESMF 1.0.6 version.
 ! April 05, 2007,  S. Moorthi added WeiYu's modifications for ESMF 3.0.0 (adding
 !                             the destroy field option
-! February 2008    Weiyu Yang updated to use the ESMF 3.1.0 library
+! Ootober 01, 2007 Weiyu Yang Rewritting for the ESFM 3.0.3 version.
+! May 2008         Weiyu Yang updated to use the ESMF 3.1.0r library.
 !
 !EOP
 !-------------------------------------------------------------------------    
@@ -1405,10 +1512,10 @@ CONTAINS
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
-     CALL ESMF_StateGet(state=state, itemName=name, array=ESMFArray, &
+     CALL ESMF_StateGet(state, name, ESMFArray,           &
          nestedStateName = nestedStateName, rc = status)
  ELSE
-     CALL ESMF_StateGet(state=state, itemName=name, array=ESMFArray, rc = status)
+     CALL ESMF_StateGet(state, name, ESMFArray, rc = status)
  END IF
 
  IF(status /= ESMF_SUCCESS) THEN
@@ -1418,7 +1525,7 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
- CALL ESMF_ArrayGet(ESMFArray, localDe=0, farrayPtr=F90Array, rc = status)
+ CALL ESMF_ArrayGet(ESMFArray, localPE, F90Array, rc = status)
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1450,7 +1557,7 @@ CONTAINS
 ! !INTERFACE:
 
  SUBROUTINE GetF90Real4ArrayFromState2D(state, name, F90Array, &
-     nestedStateName, DestroyArray, rc)
+     localPE, nestedStateName, DestroyArray, rc)
 
 !
 ! !USES:
@@ -1464,6 +1571,9 @@ CONTAINS
  CHARACTER(LEN = *)                        :: name   
                                                  ! name of the ESMF array to extract 
                                                  ! the fortran array from
+
+ INTEGER,            INTENT(in)            :: localPE 
+                                                 ! PE id of the local PE.
 
  CHARACTER(LEN = *), INTENT(in), OPTIONAL  :: nestedStateName   
                                                  ! Name of the nested ESMF state which contains
@@ -1493,7 +1603,8 @@ CONTAINS
 ! March 26, 2004,  Weiyu Yang modified for the ESMF 1.0.6 version.
 ! April 05, 2007,  S. Moorthi added WeiYu's modifications for ESMF 3.0.0 (adding
 !                             the destroy field option
-! February 2008    Weiyu Yang updated to use the ESMF 3.1.0 library
+! Ootober 01, 2007 Weiyu Yang Rewritting for the ESFM 3.0.3 version.
+! May 2008         Weiyu Yang updated to use the ESMF 3.1.0r library.
 !
 !EOP
 !-------------------------------------------------------------------------    
@@ -1503,10 +1614,10 @@ CONTAINS
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
-     CALL ESMF_StateGet(state=state, itemName=name, array=ESMFArray, &
+     CALL ESMF_StateGet(state, name, ESMFArray,           &
          nestedStateName = nestedStateName, rc = status)
  ELSE
-     CALL ESMF_StateGet(state=state, itemName=name, array=ESMFArray, rc = status)
+     CALL ESMF_StateGet(state, name, ESMFArray, rc = status)
  END IF
 
  IF(status /= ESMF_SUCCESS) THEN
@@ -1516,7 +1627,7 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
- CALL ESMF_ArrayGet(ESMFArray, localDe=0, farrayPtr=F90Array, rc = status)
+ CALL ESMF_ArrayGet(ESMFArray, localPE, F90Array, rc = status)
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1548,7 +1659,7 @@ CONTAINS
 ! !INTERFACE:
 
  SUBROUTINE GetF90Real8ArrayFromState3D(state, name, F90Array, &
-     nestedStateName, DestroyArray, rc)
+     localPE, nestedStateName, DestroyArray, rc)
 
 !
 ! !USES:
@@ -1562,6 +1673,9 @@ CONTAINS
  CHARACTER(LEN = *)                        :: name   
                                                  ! name of the ESMF array to extract 
                                                  ! the fortran array from
+
+ INTEGER,            INTENT(in)            :: localPE 
+                                                 ! PE id of the local PE.
 
  CHARACTER(LEN = *), INTENT(in), OPTIONAL  :: nestedStateName   
                                                  ! Name of the nested ESMF state which contains
@@ -1591,7 +1705,8 @@ CONTAINS
 ! March 26, 2004,  Weiyu Yang modified for the ESMF 1.0.6 version.
 ! April 05, 2007,  S. Moorthi added WeiYu's modifications for ESMF 3.0.0 (adding
 !                             the destroy field option
-! February 2008    Weiyu Yang updated to use the ESMF 3.1.0 library
+! Ootober 01, 2007 Weiyu Yang Rewritting for the ESFM 3.0.3 version.
+! May 2008         Weiyu Yang updated to use the ESMF 3.1.0r library.
 !
 !EOP
 !-------------------------------------------------------------------------    
@@ -1601,10 +1716,10 @@ CONTAINS
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
-     CALL ESMF_StateGet(state=state, itemName=name, array=ESMFArray, &
+     CALL ESMF_StateGet(state, name, ESMFArray,           &
          nestedStateName = nestedStateName, rc = status)
  ELSE
-     CALL ESMF_StateGet(state=state, itemName=name, array=ESMFArray, rc = status)
+     CALL ESMF_StateGet(state, name, ESMFArray, rc = status)
  END IF
 
  IF(status /= ESMF_SUCCESS) THEN
@@ -1614,7 +1729,7 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
- CALL ESMF_ArrayGet(ESMFArray, localDe=0, farrayPtr=F90Array, rc = status)
+ CALL ESMF_ArrayGet(ESMFArray, localPE, F90Array, rc = status)
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1646,7 +1761,7 @@ CONTAINS
 ! !INTERFACE:
 
  SUBROUTINE GetF90Real4ArrayFromState3D(state, name, F90Array, &
-     nestedStateName, DestroyArray, rc)
+     localPE, nestedStateName, DestroyArray, rc)
 
 !
 ! !USES:
@@ -1660,6 +1775,9 @@ CONTAINS
  CHARACTER(LEN = *)                        :: name   
                                                  ! name of the ESMF array to extract 
                                                  ! the fortran array from
+
+ INTEGER,            INTENT(in)            :: localPE 
+                                                 ! PE id of the local PE.
 
  CHARACTER(LEN = *), INTENT(in), OPTIONAL  :: nestedStateName   
                                                  ! Name of the nested ESMF state which contains
@@ -1689,7 +1807,8 @@ CONTAINS
 ! March 26, 2004,  Weiyu Yang modified for the ESMF 1.0.6 version.
 ! April 05, 2007,  S. Moorthi added WeiYu's modifications for ESMF 3.0.0 (adding
 !                             the destroy field option
-! February 2008    Weiyu Yang updated to use the ESMF 3.1.0 library
+! Ootober 01, 2007 Weiyu Yang Rewritting for the ESFM 3.0.3 version.
+! May 2008         Weiyu Yang updated to use the ESMF 3.1.0r library.
 !
 !EOP
 !-------------------------------------------------------------------------    
@@ -1699,10 +1818,10 @@ CONTAINS
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
-     CALL ESMF_StateGet(state=state, itemName=name, array=ESMFArray, &
+     CALL ESMF_StateGet(state, name, ESMFArray,           &
          nestedStateName = nestedStateName, rc = status)
  ELSE
-     CALL ESMF_StateGet(state=state, itemName=name, array=ESMFArray, rc = status)
+     CALL ESMF_StateGet(state, name, ESMFArray, rc = status)
  END IF
 
  IF(status /= ESMF_SUCCESS) THEN
@@ -1712,7 +1831,7 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
- CALL ESMF_ArrayGet(ESMFArray, localDe=0, farrayPtr=F90Array, rc = status)
+ CALL ESMF_ArrayGet(ESMFArray, localPE, F90Array, rc = status)
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1744,7 +1863,7 @@ CONTAINS
 ! !INTERFACE:
 
  SUBROUTINE GetF90Real8ArrayFromState4D(state, name, F90Array, &
-     nestedStateName, DestroyArray, rc)
+     localPE, nestedStateName, DestroyArray, rc)
 
 !
 ! !USES:
@@ -1758,6 +1877,9 @@ CONTAINS
  CHARACTER(LEN = *)                        :: name   
                                                  ! name of the ESMF array to extract 
                                                  ! the fortran array from
+
+ INTEGER,            INTENT(in)            :: localPE 
+                                                 ! PE id of the local PE.
 
  CHARACTER(LEN = *), INTENT(in), OPTIONAL  :: nestedStateName   
                                                  ! Name of the nested ESMF state which contains
@@ -1787,7 +1909,8 @@ CONTAINS
 ! March 26, 2004,  Weiyu Yang modified for the ESMF 1.0.6 version.
 ! April 05, 2007,  S. Moorthi added WeiYu's modifications for ESMF 3.0.0 (adding
 !                             the destroy field option
-! February 2008    Weiyu Yang updated to use the ESMF 3.1.0 library
+! Ootober 01, 2007 Weiyu Yang Rewritting for the ESFM 3.0.3 version.
+! May 2008         Weiyu Yang updated to use the ESMF 3.1.0r library.
 !
 !EOP
 !-------------------------------------------------------------------------    
@@ -1797,10 +1920,10 @@ CONTAINS
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
-     CALL ESMF_StateGet(state=state, itemName=name, array=ESMFArray, &
+     CALL ESMF_StateGet(state, name, ESMFArray,           &
          nestedStateName = nestedStateName, rc = status)
  ELSE
-     CALL ESMF_StateGet(state=state, itemName=name, array=ESMFArray, rc = status)
+     CALL ESMF_StateGet(state, name, ESMFArray, rc = status)
  END IF
 
  IF(status /= ESMF_SUCCESS) THEN
@@ -1810,7 +1933,7 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
- CALL ESMF_ArrayGet(ESMFArray, localDe=0, farrayPtr=F90Array, rc = status)
+ CALL ESMF_ArrayGet(ESMFArray, localPE, F90Array, rc = status)
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1842,7 +1965,7 @@ CONTAINS
 ! !INTERFACE:
 
  SUBROUTINE GetF90Real4ArrayFromState4D(state, name, F90Array, &
-     nestedStateName, DestroyArray, rc)
+     localPE, nestedStateName, DestroyArray, rc)
 
 !
 ! !USES:
@@ -1856,6 +1979,9 @@ CONTAINS
  CHARACTER(LEN = *)                        :: name   
                                                  ! name of the ESMF array to extract 
                                                  ! the fortran array from
+
+ INTEGER,            INTENT(in)            :: localPE 
+                                                 ! PE id of the local PE.
 
  CHARACTER(LEN = *), INTENT(in), OPTIONAL  :: nestedStateName   
                                                  ! Name of the nested ESMF state which contains
@@ -1885,7 +2011,8 @@ CONTAINS
 ! March 26, 2004,  Weiyu Yang modified for the ESMF 1.0.6 version.
 ! April 05, 2007,  S. Moorthi added WeiYu's modifications for ESMF 3.0.0 (adding
 !                             the destroy field option
-! February 2008    Weiyu Yang updated to use the ESMF 3.1.0 library
+! Ootober 01, 2007 Weiyu Yang Rewritting for the ESFM 3.0.3 version.
+! May 2008         Weiyu Yang updated to use the ESMF 3.1.0r library.
 !
 !EOP
 !-------------------------------------------------------------------------    
@@ -1895,10 +2022,10 @@ CONTAINS
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
-     CALL ESMF_StateGet(state=state, itemName=name, array=ESMFArray, &
+     CALL ESMF_StateGet(state, name, ESMFArray,           &
          nestedStateName = nestedStateName, rc = status)
  ELSE
-     CALL ESMF_StateGet(state=state, itemName=name, array=ESMFArray, rc = status)
+     CALL ESMF_StateGet(state, name, ESMFArray, rc = status)
  END IF
 
  IF(status /= ESMF_SUCCESS) THEN
@@ -1908,7 +2035,7 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
- CALL ESMF_ArrayGet(ESMFArray, localDe=0, farrayPtr=F90Array, rc = status)
+ CALL ESMF_ArrayGet(ESMFArray, localPE, F90Array, rc = status)
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2

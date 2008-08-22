@@ -1066,15 +1066,15 @@ c.................................................
       if(me.eq.ioproc) then
       LBM=slmskful.EQ.1._kind_io8
       if(lsoil.gt.2)then
-        call gribit(wrkga,LBM,4,lonr,latr,16,CL1,ILPDS,130,ICEN,IGEN,
-     &              1,ISLC,I2DBLS,10,40,IYR,IMO,IDA,IHR,
+      call gribit(wrkga,LBM,4,lonr,latr,16,CL1,ILPDS,130,ICEN,
+     &              IGEN,1,ISLC,I2DBLS,10,40,IYR,IMO,IDA,IHR,
      &              IFHOUR,ITHR,0,INST,0,0,ICEN2,IDS(ISOILM),IENS,
      &              0.,0.,0.,0.,0.,0.,G,LG,IERR)
         if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
      x '62)Liquid soil moist content (frac) layer 40cm and 10cm '
       else
-        call gribit(wrkga,LBM,4,lonr,latr,16,CL1,ILPDS,130,ICEN,IGEN,
-     &              1,ISLC,I2DBLS,10,200,IYR,IMO,IDA,IHR,
+        call gribit(wrkga,LBM,4,lonr,latr,16,CL1,ILPDS,130,ICEN,
+     &              IGEN,1,ISLC,I2DBLS,10,200,IYR,IMO,IDA,IHR,
      &              IFHOUR,ITHR,0,INST,0,0,ICEN2,IDS(ISOILM),IENS,
      &              0.,0.,0.,0.,0.,0.,G,LG,IERR)
         if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
@@ -1090,8 +1090,8 @@ c.................................................
         call unsplit2d(ioproc,wrkga,buffo,global_lats_r)
         if(me.eq.ioproc) then
         LBM=slmskful.EQ.1._kind_io8
-        call gribit(wrkga,LBM,4,lonr,latr,16,CL1,ILPDS,130,ICEN,IGEN,
-     &              1,ISLC,I2DBLS,40,100,IYR,IMO,IDA,IHR,
+        call gribit(wrkga,LBM,4,lonr,latr,16,CL1,ILPDS,130,ICEN,
+     &              IGEN,1,ISLC,I2DBLS,40,100,IYR,IMO,IDA,IHR,
      &              IFHOUR,ITHR,0,INST,0,0,ICEN2,IDS(ISOILM),IENS,
      &              0.,0.,0.,0.,0.,0.,G,LG,IERR)
         if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
@@ -1105,8 +1105,8 @@ c.................................................
         call unsplit2d(ioproc,wrkga,buffo,global_lats_r)
         if(me.eq.ioproc) then
         LBM=slmskful.EQ.1._kind_io8
-        call gribit(wrkga,LBM,4,lonr,latr,16,CL1,ILPDS,130,ICEN,IGEN,
-     &              1,ISLC,I2DBLS,100,200,IYR,IMO,IDA,IHR,
+        call gribit(wrkga,LBM,4,lonr,latr,16,CL1,ILPDS,130,ICEN,
+     &              IGEN,1,ISLC,I2DBLS,100,200,IYR,IMO,IDA,IHR,
      &              IFHOUR,ITHR,0,INST,0,0,ICEN2,IDS(ISOILM),IENS,
      &              0.,0.,0.,0.,0.,0.,G,LG,IERR)
         if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',

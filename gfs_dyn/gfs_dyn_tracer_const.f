@@ -1,7 +1,6 @@
       module gfs_dyn_tracer_const
       use gfs_dyn_machine , only : kind_grid
       implicit none
-      SAVE
 
       real(kind=kind_grid) ri(0:20),cpi(0:20)
       integer, parameter :: num_tracer=3

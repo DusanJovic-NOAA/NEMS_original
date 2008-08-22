@@ -14,7 +14,8 @@
 !
 !!uses:
 !
-      use esmf_mod                 ! the esmf library.
+      use esmf_mod, ONLY: esmf_logmsgfounderror, esmf_failure, &
+                          esmf_success
 
       implicit none
 

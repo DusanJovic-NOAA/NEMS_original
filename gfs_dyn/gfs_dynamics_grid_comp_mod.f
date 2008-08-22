@@ -468,11 +468,8 @@
 ! to the esmf export state which is the public interface
 ! for other esmf grid components.
 !-------------------------------------------------------
-      call esmf_logwrite("transfor internal state to export state ", 	&
-                        esmf_log_info, rc = rc1)
-
-!     call gfs_dynamics_internal2import(gc_gfs_dyn, int_state, 	        &
-!                                      imp_gfs_dyn, rc1)
+!     call esmf_logwrite("transfor internal state to export state ", 	&
+!                       esmf_log_info, rc = rc1)
 
       int_state%fhour_idate(1,1)=fhour
       int_state%fhour_idate(1,2:5)=idate(1:4)
@@ -480,8 +477,8 @@
 !      call gfs_dynamics_internal2export(gc_gfs_dyn, int_state,         &
 !                                       exp_gfs_dyn, rc1)
 
-      call gfs_dynamics_err_msg(rc1,                                    &
-           'transfor internal state to export state',rc)
+!     call gfs_dynamics_err_msg(rc1,                                    &
+!          'transfor internal state to export state',rc)
 
       DEALLOCATE(i2)
 !
@@ -604,6 +601,8 @@
       if( currtime .eq. stoptime ) then
           print *,' currtime equals to stoptime '
           int_state%end_step=.true.
+      else
+          int_state%end_step=.false.
       endif
 
 ! ======================================================================
@@ -629,7 +628,7 @@
                                          exp_gfs_dyn, rc1)
 
      call gfs_dynamics_err_msg(rc1,'internal state to esmf export state',rc)
-!
+ 
 !*******************************************************************
 !
 ! print out the final error signal information and put it to rc.

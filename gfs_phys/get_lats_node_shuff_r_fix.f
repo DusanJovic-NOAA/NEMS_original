@@ -2,9 +2,9 @@
      .          lats_nodes_r_fake,gl_lats_index,
      .          global_time_sort_index,iprint)
 cc
-      use resol_def
-      use layout1
-      use mpi_def
+      use resol_def, ONLY: latr
+      use layout1,   ONLY: nodes
+      use mpi_def,   ONLY: icolor, liope
       implicit none
 cc
       integer   gl_lats_index,gl_start

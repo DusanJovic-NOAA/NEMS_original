@@ -1,6 +1,6 @@
       module namelist_soilveg
       implicit none
-      save
+      
 
       INTEGER MAX_SLOPETYP
       INTEGER MAX_SOILTYP

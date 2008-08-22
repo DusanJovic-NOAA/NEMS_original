@@ -8,6 +8,7 @@ cc
       public do_dynamics_gridc2syn
       public do_dynamics_gridt2anl
       public do_dynamics_gridn2anl
+      public do_dynamics_gridm2sym
       public do_dynamics_spectupdatewrt
       public do_dynamics_spectupdatexyzq
       public do_dynamics_spectn2c
@@ -20,6 +21,7 @@ cc
       public do_dynamics_gridn2m
       public do_dynamics_gridupdate
       public do_dynamics_gridpdp
+      public do_dynamics_griddpm
       public do_dynamics_gridcheck
 
       contains
@@ -104,6 +106,46 @@ cc
 
       return
       end subroutine do_dynamics_gridn2anl
+!
+! --------------------------------------------------------------
+      subroutine  do_dynamics_gridm2sym(grid_gr,sym_gr_a_2,
+     &                                  global_lats_a,lonsperlat)
+
+      real(kind=kind_grid) grid_gr(lonf*lats_node_a_max,lotgr)
+      real(kind=kind_evod) sym_gr_a_2(lonfx*lotm,lats_dim_ext)
+      integer,intent(in):: global_lats_a(latg)
+      integer,intent(in):: lonsperlat(latg)
+ 
+      integer	lan,lat,lon_dim,lons_lat,k,i
+      integer   jlonf,ilan
+
+      do lan=1,lats_node_a
+        lat = global_lats_a(ipt_lats_node_a-1+lan)
+        lon_dim = lon_dims_a(lan)
+        lons_lat = lonsperlat(lat)
+        jlonf = (lan-1)*lonf
+        do k=1,levs
+          do i=1,lons_lat
+            ilan=i+jlonf
+            sym_gr_a_2(i+(ksum-2+k)*lon_dim,lan)=grid_gr(ilan,g_uum+k-1)
+            sym_gr_a_2(i+(ksvm-2+k)*lon_dim,lan)=grid_gr(ilan,g_vvm+k-1)
+            sym_gr_a_2(i+(kstm-2+k)*lon_dim,lan)=grid_gr(ilan,g_ttm+k-1)
+          enddo
+        enddo
+        do k=1,levh
+          do i=1,lons_lat
+            ilan=i+jlonf
+            sym_gr_a_2(i+(ksrm-2+k)*lon_dim,lan)=grid_gr(ilan,g_rm +k-1)
+          enddo
+        enddo
+        do i=1,lons_lat
+            ilan=i+jlonf
+            sym_gr_a_2(i+(kspsm-1)*lon_dim,lan)=grid_gr(ilan,g_qm)
+        enddo
+      enddo
+
+      return
+      end subroutine do_dynamics_gridm2sym
 !
 ! --------------------------------------------------------------
       subroutine do_dynamics_gridt2anl(grid_gr,anl_gr_a_2,rdt2,
@@ -386,12 +428,13 @@ cc
 
 !--------------------------------------------
       subroutine do_dynamics_syn2gridn(syn_gr_a_2,grid_gr,
-     &                                 global_lats_a,lonsperlat)
+     &                                 global_lats_a,lonsperlat,nislfv)
 
       real(kind=kind_grid) grid_gr(lonf*lats_node_a_max,lotgr)
       real(kind=kind_evod) syn_gr_a_2(lonfx*lots,lats_dim_ext)
       integer,intent(in):: global_lats_a(latg)
       integer,intent(in):: lonsperlat(latg)
+      integer,intent(in):: nislfv
 
       integer	lan,lat,lon_dim,lons_lat,k,i
       integer   jlonf,ilan
@@ -409,12 +452,17 @@ cc
             grid_gr(ilan,G_t+k-1)= syn_gr_a_2(i+(kst-2+k)*lon_dim,lan)
           enddo
         enddo
+!hmhj test
+        if( nislfv.le.1 ) then
+! ---------------------
         do k=1,levh
           do i=1,lons_lat
             ilan=i+jlonf
             grid_gr(ilan,G_rt+k-1)= syn_gr_a_2(i+(ksr-2+k)*lon_dim,lan)
           enddo
         enddo
+        endif
+! --------------------
         do i=1,lons_lat
             ilan=i+jlonf
             grid_gr(ilan,G_zq)= syn_gr_a_2(i+(ksq-1)*lon_dim,lan)
@@ -717,6 +765,60 @@ cc
  
       return
       end subroutine do_dynamics_gridpdp
+!
+! -------------------------------------------------------------------
+!
+      subroutine do_dynamics_griddpm(grid_gr,
+     &                                  global_lats_a,lonsperlat)
+
+      use namelist_dynamics_def
+
+      real(kind=kind_grid) grid_gr(lonf*lats_node_a_max,lotgr)
+      integer,intent(in):: global_lats_a(latg)
+      integer,intent(in):: lonsperlat(latg)
+
+      real(kind=kind_grid)  gtv (lonf,levs)
+      real(kind=kind_grid)  gq  (lonf)
+      real(kind=kind_grid)  prsl(lonf,levs), dprs(lonf,levs)
+
+      integer 	lan,lat,lon_dim,lons_lat,k,i
+      integer   jlonf,ilan
+
+      do lan=1,lats_node_a
+        lat = global_lats_a(ipt_lats_node_a-1+lan)
+        lon_dim = lon_dims_a(lan)
+        lons_lat = lonsperlat(lat)
+        jlonf = (lan-1)*lonf
+        do k=1,levs
+          do i=1,lons_lat
+            ilan=i+jlonf
+            gtv(i,k) = grid_gr(ilan,G_ttm+k-1)
+          enddo
+        enddo
+        do i=1,lons_lat
+            ilan=i+jlonf
+            gq(i) = grid_gr(ilan,G_qm)
+        enddo
+
+        if( gen_coord_hybrid ) then 
+          call gch2press(lons_lat,lonf,gq, gtv, prsl, dprs)
+        else if( hybrid )then 
+          call hyb2press(lons_lat,lonf,gq, prsl, dprs)
+        else
+          call sig2press(lons_lat,lonf,gq, prsl, dprs)
+        endif
+
+        do k=1,levs
+          do i=1,lons_lat
+            ilan=i+jlonf
+            grid_gr(ilan,g_dp  +k-1)=dprs(i,k)
+          enddo
+        enddo
+
+      enddo
+ 
+      return
+      end subroutine do_dynamics_griddpm
 !
 ! -------------------------------------------------------------------
       subroutine do_dynamics_gridcheck(grid_gr,

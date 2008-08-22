@@ -1,6 +1,6 @@
       module gfs_dyn_layout1
       implicit none
-      save
+      
 cc
       integer           nodes, nodes_comp,nodes_io,
      x                  me,
@@ -21,4 +21,15 @@ cc
 cc
       INTEGER ,ALLOCATABLE :: lat1s_a(:),
      .  lon_dims_a(:),lon_dims_ext(:)
+
+!hmhj nislfv
+      integer   lonfull,lonhalf,lonpart,mylonlen
+      integer   latfull,lathalf,latpart,mylatlen
+
+      integer, allocatable :: lonstr(:),lonlen(:)
+      integer, allocatable :: latstr(:),latlen(:)
+      real, allocatable :: cosglat(:)
+      real, allocatable :: gglat(:),gglati(:)
+      real, allocatable :: gglon(:),ggloni(:)
+
       end module gfs_dyn_layout1

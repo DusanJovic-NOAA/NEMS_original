@@ -116,6 +116,9 @@ cjfe!$omp+shared(jbasev,jbasod,l,lat1,nvar_thread_max,nvars)
          do thread=1,num_threads   ! start of thread loop ..............
             nvar_1=(thread-1)*nvar_thread_max+1
             nvar_2=min(nvar_1+nvar_thread_max-1,nvars)
+
+            if( nvar_2 >= nvar_1 ) then 	! hmhj
+
 cc          compute the even and odd components
 cc          of the fourier coefficients
 cc
@@ -136,6 +139,7 @@ cc
      &                 plnod(indlsod(l+1,l),lat1), len_trio_ls,
      &                 flnod(indlsod(l+1,l),1,nvar_1),len_trio_ls,cons0,     !constant
      &                 apod(lat1,1,nvar_1), latl2)
+            endif	! hmhj
 cc
          enddo   ! end of thread loop ..................................
          else !---------------------------------------------------------
@@ -145,6 +149,9 @@ cjfe!$omp+shared(jbasev,jbasod,l,lat1,nvar_thread_max,nvars)
          do thread=1,num_threads   ! start of thread loop ..............
             nvar_1=(thread-1)*nvar_thread_max+1
             nvar_2=min(nvar_1+nvar_thread_max-1,nvars)
+
+            if( nvar_2 >= nvar_1 ) then		! hmhj
+
 cc          compute the even and odd components
 cc          of the fourier coefficients
 cc
@@ -165,6 +172,8 @@ cc
      &                 plnod(indlsod(l+1,l),lat1), len_trio_ls,
      &                 flnod(indlsod(l+1,l),1,nvar_1),len_trio_ls,cons0,     !constant
      &                 apod(lat1,1,nvar_1), latl2)
+
+            endif	! hmhj
 cc
          enddo   ! end of thread loop ..................................
          endif !--------------------------------------------------------
@@ -389,6 +398,9 @@ cc
          do thread=1,num_threads   ! start of thread loop ..............
             nvar_1=(thread-1)*nvar_thread_max+1
             nvar_2=min(nvar_1+nvar_thread_max-1,nvars)
+
+            if( nvar_2 >= nvar_1 ) then		! hmhj
+
             call dgemm(
      &                 't',
      &                 'n',
@@ -419,6 +431,8 @@ cc
      &                 apod(2*nvar_1-1,lat1),
      &                 2*(levs+levh)
      &                 )
+            endif		! hmhj
+
          enddo   ! end of thread loop ..................................
       else !------------------------------------------------------------
 !$omp parallel do shared(apev,apod,flnev,flnod,plnev,plnod)

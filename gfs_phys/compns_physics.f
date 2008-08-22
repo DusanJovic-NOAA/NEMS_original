@@ -94,7 +94,7 @@ csela - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 c     if output (fhout) more frequently than zeroing ,get partial rains
  
       namelist /nam_phy/FHMAX,FHOUT,FHRES,FHZER,FHSEG,FHROT,DELTIM,IGEN,
-     & NGPTC,fhswr,fhlwr,fhcyc,ras,LDIAG3D,
+     & NGPTC,fhswr,fhlwr,fhcyc,ras,LDIAG3D,reduced_grid,
      & shuff_lats_r,reshuff_lats_r,thermodyn_id,sfcpress_id,
      & pre_rad,hybrid,gen_coord_hybrid,random_xkt2,liope,
      & ntrac,nxpt,nypt,jintmx,jcap,levs,lonr,latr,levr,
@@ -123,6 +123,8 @@ c     if output (fhout) more frequently than zeroing ,get partial rains
       NGPTC    = lonr
       sashal   = .false.
       newsas   = .false.
+!
+      reduced_grid     = .true.
 !
       pre_rad          = .false.
       hybrid           = .false.

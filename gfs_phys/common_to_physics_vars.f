@@ -7,14 +7,12 @@
 !!        model  usage are t=virtal temperature (k) or enthalpy, 
 !!                         p is centibar, mapping winds
 !!
-      use resol_def
-      use layout1
-      use gg_def
-      use vert_def
-      use date_def
-      use namelist_physics_def
-      use coordinate_def 
-      use tracer_const
+      use resol_def,            ONLY: lonr, latr, levs, levh
+      use layout1,              ONLY: lats_node_r_max, ipt_lats_node_r, 
+     &                                lats_node_r
+      use gg_def,               ONLY: coslat_r
+      use namelist_physics_def, ONLY: gen_coord_hybrid
+      USE machine,              ONLY: KIND_GRID, kind_evod
       implicit none
 !!
 !
@@ -35,13 +33,14 @@
       integer              lons_lat
 !
       real(kind=kind_evod), parameter :: pa2cb=0.001
-!
 !--------------------------------------------------------------------
 !
       do lan=1,lats_node_r
         lat = global_lats_r(ipt_lats_node_r-1+lan)
         lons_lat = lonsperlar(lat)
-!
+! check
+!       print *,' phy: me lan lat lons_lat ',me,lan,lat,lons_lat
+
         do k=1,levs
           do i=1,lons_lat
             uug(i,lan,k) = uug(i,lan,k) * coslat_r(lat)

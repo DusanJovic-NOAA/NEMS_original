@@ -74,7 +74,7 @@ tstart:       0.            # The starting forecast hour
 ###########################
 
 nhours_fcst:    48          # Length of the forecast (hours)
-nhours_history: 01          # Frequency of history output (hours)
+nhours_history: 03          # Frequency of history output (hours)
 nhours_dfini:   0 
 adiabatic:      false
 restart:        false       # True--> A restarted run
@@ -218,9 +218,9 @@ nhrs_srfc:  3               # Frequency in hours between times when sfc evap/flu
 ####  Write History Specifications ####
 #######################################
 
-write_flag:              .true.       # True--> Yes write history files
-write_nemsioflag:        .true.       # True--> Yes write nemsio run history files
-write_nemsioctl:         .true.       # True--> Yes write ctl for nemsio run history files
+write_flag:              .TRUE.       # True--> Yes write history files
+write_nemsioflag:        .FALSE.       # True--> Yes write nemsio run history files
+write_nemsioctl:         .FALSE.       # True--> Yes write ctl for nemsio run history files
 io_unit:                 -999
 io_file:                 'DEFERRED'
                                                                                                                                               

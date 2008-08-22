@@ -10,6 +10,7 @@
      &                 PLNEW_A,PLNOW_A,
      &                 SYN_LS_A,DYN_LS_A,
      &                 SYN_GR_A_1,DYN_GR_A_1,ANL_GR_A_1,
+     &                 SYM_GR_A_2,
      &                 SYN_GR_A_2,DYN_GR_A_2,ANL_GR_A_2,
      &                 LSLAG,pwat,ptot,
      &                 pdryini,nblck,ZHOUR,N1,N4,
@@ -81,6 +82,11 @@ c
       REAL(KIND=KIND_EVOD) DYN_GR_A_1(LONFX*LOTD,LATS_DIM_EXT)
       REAL(KIND=KIND_EVOD) ANL_GR_A_1(LONFX*LOTA,LATS_DIM_EXT)
 
+      REAL(KIND=KIND_EVOD) ppi_GR(LONFX*(levs+1),LATS_DIM_EXT)
+      REAL(KIND=KIND_EVOD) wwi_GR(LONFX*(levs+1),LATS_DIM_EXT)
+
+      REAL(KIND=KIND_EVOD) SYM_GR_A_2(LONFX*LOTM,LATS_DIM_EXT)
+
       REAL(KIND=KIND_EVOD) SYN_GR_A_2(LONFX*LOTS,LATS_DIM_EXT)
       REAL(KIND=KIND_EVOD) DYN_GR_A_2(LONFX*LOTD,LATS_DIM_EXT)
       REAL(KIND=KIND_EVOD) ANL_GR_A_2(LONFX*LOTA,LATS_DIM_EXT)
@@ -109,7 +115,8 @@ c
       include 'function2'
       LOGICAL               LSLAG,LSOUT,ex_out
       LOGICAL               start_step,reset_step,end_step
-      LOGICAL, parameter          :: ladj = .false.
+!     LOGICAL, parameter          :: ladj = .false.
+      LOGICAL, parameter          :: ladj = .true.
       LOGICAL, save               :: fwd_step = .true.
       REAL (KIND=KIND_grid), save :: dt,dt2,rdt2
       real(kind=kind_grid)  typdel(levs)
@@ -355,16 +362,9 @@ c timings
 
       if (ladj) then
 !
-        trie_ls(:,:,p_q)=0.
-        trio_ls(:,:,p_q)=0.
-        if (me.eq.me_l_0) then
-          trie_ls(1,1,p_q)=pcorr
-        endif
-!!
-      if( gen_coord_hybrid ) then                                       
-
        trie_ls_sfc=0.0                                                  
        trio_ls_sfc=0.0                                                  
+
        do k=1,levs                                                      
         do i=1,len_trie_ls                                              
          trie_ls_sfc(i,1)=trie_ls_sfc(i,1)+typdel(k)*trie_ls_rqt(i,1,k) 
@@ -376,29 +376,34 @@ c timings
         enddo                                                           
        enddo                                                           
 
-       do i=1,len_trie_ls                                             
-        trie_ls(i,1,p_q)=trie_ls(i,1,p_q)*(1.+trie_ls_sfc(i,1))      
-        trie_ls(i,2,p_q)=trie_ls(i,2,p_q)*(1.+trie_ls_sfc(i,2))     
-       enddo
-       do i=1,len_trio_ls                                          
-        trio_ls(i,1,p_q)=trio_ls(i,1,p_q)*(1.+trio_ls_sfc(i,1))   
-        trio_ls(i,2,p_q)=trio_ls(i,2,p_q)*(1.+trio_ls_sfc(i,2))  
-       enddo                                                    
+       if( gen_coord_hybrid ) then                                       
 
-      else                                                     
- 
-      do k=1,levs
-       do i=1,len_trie_ls
-        trie_ls(i,1,p_q)=trie_ls(i,1,p_q)+typdel(k)*trie_ls_rqt(i,1,k)
-        trie_ls(i,2,p_q)=trie_ls(i,2,p_q)+typdel(k)*trie_ls_rqt(i,2,k)
-       enddo
-       do i=1,len_trio_ls
-        trio_ls(i,1,p_q)=trio_ls(i,1,p_q)+typdel(k)*trio_ls_rqt(i,1,k)
-        trio_ls(i,2,p_q)=trio_ls(i,2,p_q)+typdel(k)*trio_ls_rqt(i,2,k)
-       enddo
-      enddo
+        do i=1,len_trie_ls                                             
+         trie_ls(i,1,p_q)=trie_ls(i,1,p_q)*trie_ls_sfc(i,1)      
+         trie_ls(i,2,p_q)=trie_ls(i,2,p_q)*trie_ls_sfc(i,2)     
+        enddo
+        do i=1,len_trio_ls                                          
+         trio_ls(i,1,p_q)=trio_ls(i,1,p_q)*trio_ls_sfc(i,1)
+         trio_ls(i,2,p_q)=trio_ls(i,2,p_q)*trio_ls_sfc(i,2)
+        enddo                                                    
 
-      endif                                                   
+       else
+
+        do i=1,len_trie_ls                                             
+         trie_ls(i,1,p_q)=trie_ls_sfc(i,1)
+         trie_ls(i,2,p_q)=trie_ls_sfc(i,2)
+        enddo
+        do i=1,len_trio_ls                                          
+         trio_ls(i,1,p_q)=trio_ls_sfc(i,1)
+         trio_ls(i,2,p_q)=trio_ls_sfc(i,2)
+        enddo                                                    
+
+       endif                                                   
+
+       if (me.eq.me_l_0) then
+         trie_ls(1,1,p_q)=trie_ls(1,1,p_q)+pcorr
+       endif
+!!
 !!
       do k=1,levs
        do i=1,len_trie_ls
@@ -498,12 +503,12 @@ c timings
 !!
       do k=1,levs
        do i=1,len_trie_ls
-        trie_ls(i,1,p_zq)=trie_ls(i,1,p_zq)+del(k)*trie_ls_rqt(i,1,k)
-        trie_ls(i,2,p_zq)=trie_ls(i,2,p_zq)+del(k)*trie_ls_rqt(i,2,k)
+        trie_ls(i,1,p_zq)=trie_ls(i,1,p_zq)+typdel(k)*trie_ls_rqt(i,1,k)
+        trie_ls(i,2,p_zq)=trie_ls(i,2,p_zq)+typdel(k)*trie_ls_rqt(i,2,k)
        enddo
        do i=1,len_trio_ls
-        trio_ls(i,1,p_zq)=trio_ls(i,1,p_zq)+del(k)*trio_ls_rqt(i,1,k)
-        trio_ls(i,2,p_zq)=trio_ls(i,2,p_zq)+del(k)*trio_ls_rqt(i,2,k)
+        trio_ls(i,1,p_zq)=trio_ls(i,1,p_zq)+typdel(k)*trio_ls_rqt(i,1,k)
+        trio_ls(i,2,p_zq)=trio_ls(i,2,p_zq)+typdel(k)*trio_ls_rqt(i,2,k)
        enddo
       enddo
 !!
@@ -543,7 +548,7 @@ c timings
      &                   TRIO_LS(1,1,P_X+k-1), TRIO_LS(1,1,P_W +k-1),
      &                   TRIO_LS(1,1,P_Y+k-1), TRIO_LS(1,1,P_RT+k-1),
      &                   NDEXOD,
-     &                   SL,SPDMAX(k),dt,LS_NODE)
+     &                   SL,SPDMAX(k),dt,LS_NODE,nislfv)
       enddo
 !
 !-------------------------------------------
@@ -592,7 +597,7 @@ c timings
      &       snnp1ev,snnp1od,plnev_a,plnod_a)
 !
       call do_dynamics_syn2gridn(syn_gr_a_2,grid_gr,
-     &                           global_lats_a,lonsperlat)
+     &                           global_lats_a,lonsperlat,nislfv)
 !
 ! do filter in the grid point values and advance time with update
 ! ---------------------------
@@ -638,7 +643,8 @@ c
      &    ls_node,LS_NODES,MAX_LS_NODES,
      & lats_nodes_a,global_lats_a,lonsperlat,nblck,
      & COLAT1,CFHOUR1,
-     & epsedn,epsodn,snnp1ev,snnp1od,plnev_a,plnod_a)
+     & epsedn,epsodn,snnp1ev,snnp1od,plnev_a,plnod_a,
+     & pdryini)
 !
         CALL f_hpmstop(32)
 CC
@@ -727,7 +733,7 @@ c
       call do_dynamics_gridomega(syn_gr_a_2,dyn_gr_a_2,grid_gr,
      &                           rcs2_a,global_lats_a,lonsperlat)
 !
-!----------------------------------------------------------
+! -------------------------------------------------------------------
       do lan=1,lats_node_a  
 !
         lat = global_lats_a(ipt_lats_node_a-1+lan)
@@ -889,7 +895,7 @@ c
      &               syn_gr_a_2(istrt+(kzsphi-1)*lon_dim,lan),
      &               syn_gr_a_2(istrt+(kzslam-1)*lon_dim,lan),
      &               rcs2_a(min(lat,latg-lat+1)),
-     &               del,rdel2,ci,tov,spdlat(1,iblk),
+     &               typdel,rdel2,ci,tov,spdlat(1,iblk),
      &               dt,sl,nvcn,xvcn,
      &               dyn_gr_a_2(istrt+(kdtphi-1)*lon_dim,lan),
      &               dyn_gr_a_2(istrt+(kdtlam-1)*lon_dim,lan),
@@ -1100,7 +1106,7 @@ c
      &                TRIO_LS(1,1,P_QM    ), TRIO_LS(1,1,P_X+k-1),
      &                TRIO_LS(1,1,P_Y +k-1), TRIO_LS(1,1,P_TEM+k-1),    
      &                dt,SL,LS_NODE,coef00,k,hybrid,                
-     &                gen_coord_hybrid)                                 
+     &                gen_coord_hybrid,nislfv)                                 
       enddo
 !
 !-------------------------------------------
@@ -1150,7 +1156,7 @@ c
      &       snnp1ev,snnp1od,plnev_a,plnod_a)
  
       call do_dynamics_syn2gridn(syn_gr_a_2,grid_gr,
-     &                           global_lats_a,lonsperlat)
+     &                           global_lats_a,lonsperlat,nislfv)
 !
 ! -------------------------------------------------------------------
 !  update the grid point values of p and dp

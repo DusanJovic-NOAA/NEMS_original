@@ -1,10 +1,12 @@
        SUBROUTINE PARA_FIXIO_W(IOPROC,sfc_fld, nw,cfile,xhour,idate,
      &                         global_lats_r,lonsperlar)
 !!
-      use resol_def
-      use layout1
-      use sfcio_module
+      use resol_def,     ONLY: latr, lonr, lsoil, ivssfc_restart
+      use layout1,       ONLY: lats_node_r, me
+      use sfcio_module,  ONLY: sfcio_head, sfcio_dbta, sfcio_axdbta,
+     &                         sfcio_swohdc, sfcio_alhead, sfcio_axdbta
       use gfs_physics_sfc_flx_mod
+      USE machine,   ONLY: kind_io4, kind_ior, kind_io8
       implicit none
 !!
       TYPE(Sfc_Var_Data)        :: sfc_fld

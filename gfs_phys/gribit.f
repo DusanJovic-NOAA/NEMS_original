@@ -98,7 +98,11 @@ C$$$
       REAL (KIND=KIND_IO8) F(IM*JM)
       LOGICAL(1) LBM(IM*JM)
       CHARACTER GRIB(*)
-      INTEGER IBM(IM*JM*IBMS+1-IBMS),IPDS(100),IGDS(100),IBDS(100)
+! Modified by Weiyu.
+!-------------------
+      INTEGER IBM(IM*JM),IPDS(100),IGDS(100),IBDS(100)
+!      INTEGER IBM(IM*JM*IBMS+1-IBMS),IPDS(100),IGDS(100),IBDS(100)
+
       REAL (KIND=KIND_IO8) FR(IM*JM)
       CHARACTER PDS(ILPDS)
 C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -246,6 +250,10 @@ C  FILL GDS AND BDS PARAMETERS
       IBDS(1:9)=0       ! BDS FLAGS
 C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 C  FILL BITMAP AND COUNT VALID DATA.  RESET BITMAP FLAG IF ALL VALID.
+! Modified by Weiyu.
+!-------------------
+      IBM=0
+
       NBM=NF
       IF(IBMS.NE.0) THEN
         NBM=0

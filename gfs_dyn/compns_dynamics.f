@@ -77,11 +77,11 @@
       integer ntoz,ntcw,ncld,spectral_loop,member_num
       real    tfiltc
 
-csela - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !
       namelist /nam_dyn/FHMAX,FHOUT,FHRES,FHROT,DELTIM,IGEN,
-     & NGPTC,spectral_loop,
-     & shuff_lats_a,reshuff_lats_a,
+     & NGPTC,spectral_loop,nislfv,
+     & shuff_lats_a,reshuff_lats_a,reduced_grid,
      & explicit,hybrid,gen_coord_hybrid,liope, 
      & ntrac,nxpt,nypt,jintmx,jcap,levs,lonf,latg,levr,
      & ntoz,ntcw,ncld,nsout,tfiltc,
@@ -101,12 +101,15 @@ csela - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       shuff_lats_a     = .true.
       reshuff_lats_a   = .false.
 !
+      reduced_grid     = .true.
+!
       explicit         = .false.
       hybrid           = .false.
       gen_coord_hybrid = .false.                                     !hmhj
       liope            = .true.
 !
       zflxtvd          = .false.
+      nislfv           = 0        ! non_iteration semi_Lagrangian finite volume
 !
       gfsio_in         = .true.
       gfsio_out        = .true.

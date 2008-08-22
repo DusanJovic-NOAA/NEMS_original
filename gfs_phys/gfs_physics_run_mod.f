@@ -19,7 +19,9 @@
 !
 !!uses:
 !
-      use gfs_physics_internal_state_mod
+      use gfs_physics_internal_state_mod, ONLY: gfs_physics_internal_state
+      USE date_def,                       ONLY: fhour
+      USE namelist_physics_def,           ONLY: nsout
 
       implicit none
 
@@ -70,14 +72,7 @@
 ! ======================================================================
 !                     do one physics time step
 ! ---------------------------------------------------------------------
-        if (gis_phy%lsoutd) then
-!         gis_phy%LSOUT = MOD(gis_phy%kdt ,NSOUT).EQ.0
-          gis_phy%LSOUT = MOD(gis_phy%kdt ,NSOUT).EQ.0 .or. gis_phy%kdt == 1
-        else
-          gis_phy%LSOUT = .false.
-        endif
-!     print *,' kdt in run =',gis_phy%kdt,' lsout=',gis_phy%LSOUT &
-!    ,' lsoutd=',gis_phy%lsoutd,' lssavd=',gis_phy%lssavd,' lssav=',lssav
+        gis_phy%LSOUT=MOD(gis_phy%kdt ,NSOUT).EQ.0
 !
 ! ======================================================================
         call do_physics_one_step(                                         &
@@ -93,7 +88,6 @@
                  gis_phy%DDY,                                             &
                  gis_phy%phy_f3d, gis_phy%phy_f2d, gis_phy%NBLCK,         &
                  gis_phy%ZHOUR,   gis_phy%N3,      gis_phy%N4,            &
-                 gis_phy%lssavd,                                          &
                  gis_phy%LSOUT,   gis_phy%COLAT1,  gis_phy%CFHOUR1)
                         
 

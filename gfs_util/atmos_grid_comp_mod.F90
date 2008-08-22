@@ -12,11 +12,6 @@
 !  February 2007	Hann-Ming Henry Juang
 !			options to run eithor dynamics, physics or couple.
 !  February 2008        Weiyu Yang, updated to use the ESMF 3.1.0 library.
-
-!  April    2008        Shrinivas Moorthi
-!                       Added alarms for digital filter to use in physics
-!                       gridded component
-
 !
 !-----------------------------------------------------------------------
 !
@@ -40,7 +35,7 @@
 ! 
       private
 !
-      public :: atmos_setservices, atmos_initialize,atmos_run,atmos_finalize
+      public :: atmos_setservices,atmos_initialize,atmos_run,atmos_finalize
 !
 !-----------------------------------------------------------------------
 !
@@ -188,9 +183,9 @@
       TYPE(ESMF_DistGrid)          :: DistGrid_atmos
 
 !
-      integer, dimension(2)         :: ncounts     ! parameter array to set up the
+      integer, dimension(2)        :: ncounts      ! parameter array to set up the
                                                    ! size of the 2-d esmf grid.
-      integer, dimension(2)         :: min,max     ! parameter arrays to set up the
+      integer, dimension(2)        :: min,max      ! parameter arrays to set up the
                                                    ! start number and the end number of
                                                    ! the esmf grid in each dimension.
       real(esmf_kind_r8),dimension(esmf_maxgriddim) :: mincoords,maxcoords
@@ -411,7 +406,7 @@
       endif
 !
 !-----------------------------------------------------------------------
-!***  using 'localcellcountperdim' from array i1 obtained in the
+!***  using 'localcellcountperdim' from array i2 obtained in the
 !***  previous call, generate all of the local task index limits.
 !-----------------------------------------------------------------------
 !
@@ -494,8 +489,7 @@
 !
       call esmf_logwrite("initialize dynamics",esmf_log_info,rc=rc)
 !
-      CALL ESMF_GridCompPrint(gc_gfs_dyn)
-      call esmf_gridcompinitialize(            gc_gfs_dyn            &  
+      call esmf_gridcompinitialize(gc_gfs_dyn                        &  
                                   ,importstate=imp_gfs_dyn           &  
                                   ,exportstate=exp_gfs_dyn           &  
                                   ,clock      =clock                 &  
@@ -516,11 +510,10 @@
       call esmf_logwrite("attach the subcomponent grids"                &
                         ,esmf_log_info,rc=rc)
 !
-      grid_gfs_dyn=grid_atmos     
+      grid_gfs_dyn=grid_atmos                                                   
       call esmf_gridcompset(         gc_gfs_dyn      &  
                            ,grid    =grid_gfs_dyn    &  
                            ,rc      =rc)
-  !    CALL ESMF_GridCompPrint(gc_gfs_dyn)
 !
       call atmos_err_msg(rc,'attach dyn subcomponent grids',rcfinal)
 !
@@ -679,7 +672,6 @@
 !     use module_quilt
 !endif
       use module_digital_filter_gfs
-      use module_alarms
 !
 !-----------------------------------------------------------------------
 !
@@ -710,7 +702,6 @@
 
       character(50)             :: mode
       logical                   :: physics_on
-      character (len=ESMF_MAXSTR) :: alarm_name
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -797,16 +788,9 @@
            halfdfitime = starttime + halfdfiintval
            dfitime = halfdfitime + halfdfiintval
 
-           alarm(1) = ESMF_AlarmCreate("Half of digital filter", clock, &
-                                  ringTime=halfdfitime,                 &
-                                  ringTimeStepCount=1, sticky=.false.,  rc=rc)
-           alarm(2) = ESMF_AlarmCreate("Fulldigital filter", clock,     &
-                                  ringTime=dfitime,                     &
-                                  ringTimeStepCount=1, sticky=.false.,  rc=rc)
-
            call digital_filter_dyn_init_gfs(imp_gfs_dyn,ndfistep)
 ! -------------------- inital summation  ------------------------------
-           call digital_filter_dyn_sum_gfs(imp_gfs_dyn)
+           call digital_filter_dyn_sum_gfs(imp_gfs_dyn, mype)
 
 
            if( physics_on ) then
@@ -832,20 +816,6 @@
                               ,options="currtime string"                &
                               ,rc=rc)
 !
-!          call ESMF_AlarmGet(alarm(1), name=alarm_name, rc=rc)
-!           print *, trim(alarm_name), " is NOT ringing!"
-!          if (ESMF_AlarmIsRinging(alarm(1), rc)) then
-!             call ESMF_AlarmGet(alarm(1), name=alarm_name, rc=rc)
-!             print *, trim(alarm_name), " is ringing!"
-!          endif
-!          call ESMF_AlarmGet(alarm(2), name=alarm_name, rc=rc)
-!           print *, trim(alarm_name), " is NOT ringing!"
-!          if (ESMF_AlarmIsRinging(alarm(2), rc)) then
-!             call ESMF_AlarmGet(alarm(2), name=alarm_name, rc=rc)
-!             print *, trim(alarm_name), " is ringing!"
-!          endif
-
-
 
 !-----------------------------------------------------------------------
 !***  execute the run step of the dynamics.
@@ -878,44 +848,44 @@
                               ,exportstate=imp_gfs_phy         &  
                               ,clock      =clock               &  
                               ,rc         =rc)        
-!
+
           call atmos_err_msg(rc,'couple dyn-to-phy',rcfinal)
-!
+
 
 
 !-------------------------------
-          if( physics_on ) then
+        if( physics_on ) then
 !-----------------------------------------------------------------------
 !***  execute the run step of the physics.
 !-----------------------------------------------------------------------
 !
-            call esmf_logwrite("execute physics",esmf_log_info,rc=rc)
+          call esmf_logwrite("execute physics",esmf_log_info,rc=rc)
 !
-            call esmf_gridcomprun(            gc_gfs_phy            &  
-                                 ,importstate=imp_gfs_phy           &  
-                                 ,exportstate=exp_gfs_phy           &  
-                                 ,clock      =clock                 &  
-                                 ,rc         =rc)        
+          call esmf_gridcomprun(            gc_gfs_phy            &  
+                               ,importstate=imp_gfs_phy           &  
+                               ,exportstate=exp_gfs_phy           &  
+                               ,clock      =clock                 &  
+                               ,rc         =rc)        
 !
-            call atmos_err_msg(rc,'execute physics',rcfinal)
-!
-!----------------
-          else
-!----------------
-!
-            call esmf_logwrite("pass phy_imp to phy_exp ",       &
-                               esmf_log_info,rc=rc)
-!
-            call esmf_cplcomprun(            gc_atm_cpl          &  
-                                ,importstate=imp_gfs_phy         &  
-                                ,exportstate=exp_gfs_phy         &  
-                                ,clock      =clock               &  
-                                ,rc         =rc)        
-!
-            call atmos_err_msg(rc,'pass phy_imp-to-phy_exp',rcfinal)
+          call atmos_err_msg(rc,'execute physics',rcfinal)
 !
 !----------------
-          endif	! physics_on
+        else
+!----------------
+!
+          call esmf_logwrite("pass phy_imp to phy_exp ",       &
+                             esmf_log_info,rc=rc)
+!
+          call esmf_cplcomprun(            gc_atm_cpl          &  
+                              ,importstate=imp_gfs_phy         &  
+                              ,exportstate=exp_gfs_phy         &  
+                              ,clock      =clock               &  
+                              ,rc         =rc)        
+!
+          call atmos_err_msg(rc,'pass phy_imp-to-phy_exp',rcfinal)
+!
+!----------------
+        endif	! physics_on
 !----------------
 !
 !
@@ -926,13 +896,13 @@
 !
           call esmf_logwrite("couple phy_exp-to-dyn_imp",         &
                              esmf_log_info,rc=rc)
-!
+
           call esmf_cplcomprun(            gc_atm_cpl             &  
                               ,importstate=exp_gfs_phy            &  
                               ,exportstate=imp_gfs_dyn            &  
                               ,clock      =clock                  & 
                               ,rc         =rc)        
-!
+
           call atmos_err_msg(rc,'couple phy_exp-to-dyn_imp',rcfinal)
 !
 !-----------------------------------------------------------------------
@@ -954,27 +924,25 @@
 !*** do digital filter when it is necessary
 !-----------------------------------------------------------------------
           call esmf_clockget(         clock				&
-                            ,currtime=currtime			&
+                            ,currtime=currtime				&
                             ,rc      =rc)
 
           if( dfihr.gt.0 ) then
 
 ! -------------------- summation stage ------------------------------
-            call digital_filter_dyn_sum_gfs(imp_gfs_dyn)
+            call digital_filter_dyn_sum_gfs(imp_gfs_dyn, mype)
 
             if( physics_on ) then
-!             if( currtime .eq. halfdfitime ) then
-              if (ESMF_AlarmIsRinging(alarm(1), rc)) then
+              if( currtime .eq. halfdfitime ) then
                 call digital_filter_phy_save_gfs(imp_gfs_phy)
               endif
             endif
 
 ! --------------------- final stage -----------------------------------
-!           if( currtime .eq. dfitime ) then
-            if (ESMF_AlarmIsRinging(alarm(2), rc)) then
+            if( currtime .eq. dfitime ) then
               print *,' dfi at finaldfitime '
 
-              call digital_filter_dyn_average_gfs(imp_gfs_dyn)
+              call digital_filter_dyn_average_gfs(imp_gfs_dyn, mype)
            
               if( physics_on )  then
                 call digital_filter_phy_restore_gfs(imp_gfs_phy)
@@ -986,10 +954,9 @@
               dfitime = starttime
               dfihr = 0
               print *,' dfi reset time to '
-              call esmf_clockprint(      clock                          &
+              call esmf_clockprint(      clock                              &
                               ,options="currtime string"                &
                               ,rc=rc)
-!
             endif
 ! -----------------------------------------------------------------------
 
@@ -1182,6 +1149,7 @@
       call esmf_logwrite("destroy dynamics subcomponents",		&
                          esmf_log_info,rc=rc)
 !
+! hmhj cannot destroy gc_gfs_dyn, why?
       call esmf_gridcompdestroy(gc_gfs_dyn, rc=rc)
 !
       call atmos_err_msg(rc,'destroy dynamics subcomponents',rcfinal)

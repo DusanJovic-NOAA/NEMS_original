@@ -7,14 +7,13 @@
 !!        model  usage are t=virtal temperature (k) or enthalpy, 
 !!                         p is centibar, mapping winds
 !!
-      use resol_def
-      use layout1
-      use gg_def
-      use vert_def
-      use date_def
-      use namelist_physics_def
-      use coordinate_def 
-      use tracer_const
+      use resol_def,            ONLY: levh, lonr, latr, levs
+      use layout1,              ONLY: ipt_lats_node_r, lats_node_r,
+     &                                lats_node_r_max
+      use gg_def,               ONLY: coslat_r
+      use namelist_physics_def, ONLY: gen_coord_hybrid
+      USE machine,              ONLY: KIND_GRID, kind_evod
+    
       implicit none
 !!
 !
@@ -69,7 +68,7 @@
 !
       enddo
 !
-!     print *,' exit physics_to_common_vars '
+!     print *,' exit model_to_physics_vars '
 !!
       return
       end

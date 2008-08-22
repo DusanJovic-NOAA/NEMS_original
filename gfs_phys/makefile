@@ -1,39 +1,34 @@
 #### this is elementary grid component or independent grid component ####
- F77     = mpxlf95_r
+ F77     = mpxlf_r
  F90     = mpxlf95_r
  EXEC	 = gfs_phys.a
 #
  FINC0    = -I/meso/save/wx20rv/ESMF_libs/esmf_test_310r/mod/modO/AIX.default.64.mpi.default
-  FINCS    = $(FINC0) -I/nwprod/lib/incmod/w3_d
+ FINCS    = $(FINC0) -I/nwprod/lib/incmod/w3_d
 
- OPTS     = -qsuffix=cpp=f -O0 -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave
- OPTS90   = -qsuffix=cpp=f -O0 -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave
- OPTS90A  = -qsuffix=cpp=f -O0 -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave 
+ DEBUG    = -qcheck -qsource -qlist
+#FFLAGM_DEBUG  = -g -fullpath -O0 -qinitauto=FF911299 -qflttrap=enable:overflow:zerodivide:invalid -qsigtrap=xl__trcedump -NS2048 $(DEBUG)
+
+#---------------
+# For non-debug.
+#---------------
+FFLAGM_DEBUG  = -O0
+
+ OPTS     = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
+ OPTS90   = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
+ OPTS90A  = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
 #TRAPS    = -qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap
-#DEBUG    = -g -qfullpath -qcheck -qextchk
-#
-#FFLAGM  = -g -qsuffix=cpp=f -O0 -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave -qinitauto=7FBFFFFF -qflttrap=enable:overflow:zerodivide:invalid -qsigtrap=xl__trcedump -qcheck -qextchk -NS2048
 
  FFLAG90  = $(OPTS90) $(FINCS) -qfree -NS2048
  FFLAG90A = $(OPTS90A) $(FINCS) -qfree -NS2048
- FFLAGS   = $(OPTS) $(TRAPS) -qfixed
- FFLAGX   = $(OPTS) $(TRAPS) -qfixed
- FFLAGIO  = $(OPTS) $(TRAPS) -qfixed
- FFLAGY   = $(OPTS) -qfixed
- FFLAGM   = $(OPTS) $(FINCS) $(TRAPS) $(DEBUG) -NS2048 -qfixed
- FFLAGSF  = -O0 -qnosave -q free=f90 -qcheck
- FFLAGSI  = -qnosave -O0 -q free=f90
- FFLAGB   = -qnosave -O0 -q fixed
-
- ESMFLIB  =/meso/save/wx20rv/ESMF_libs/esmf_test_310r/lib/libO/AIX.default.64.mpi.default
- ESMFLIBS = ${ESMFLIB}/libesmf.a ${ESMFLIB}/libnetcdf_stubs.a
-# ---------------------------------
-# for haze machine
-# LDR     = ncepmpxlf -qsmp=noauto
-# ---------------------------------
- LDR     = mpxlf95_r -qsmp=noauto 
- LDFLAGS = -lessl_r -lmass -qsmp=noauto ${ESMFLIBS}
- LIBS = -lC -L /nwprod/lib/ -l w3_d -l bacio_4
+ FFLAGS   = $(OPTS) $(TRAPS)
+ FFLAGX   = $(OPTS) $(TRAPS)
+ FFLAGIO  = $(OPTS) $(TRAPS)
+ FFLAGY   = $(OPTS)
+ FFLAGM   = $(OPTS) $(FINCS) $(TRAPS) $(FFLAGM_DEBUG) -NS2048
+ FFLAGSF  = -qnosave -q free=f90 -qcheck $(FFLAGM_DEBUG)
+ FFLAGSI  = -qnosave -q free=f90 $(FFLAGM_DEBUG)
+ FFLAGB   = -qnosave -qfixed $(FFLAGM_DEBUG)
 
  AR = ar
  ARFLAGS = -r
@@ -44,8 +39,8 @@
 #
 OBJS0   = gfs_physics_err_msg_mod.o            \
 	  gfs_physics_sfc_flx_mod.o	       \
+	  gfs_physics_sfc_flx_set_mod.o	       \
 	  gfs_physics_namelist_mod.o           \
-	  module_alarms.o                      \
 	  gfs_physics_start_time_get_mod.o     \
 	  gfs_physics_internal_state_mod.o     \
 	  gfs_physics_grid_create_mod.o        \
@@ -74,12 +69,15 @@ OBJ_MOD	= machine.o		\
 	  tracer_const_h.o  	\
 	  reduce_lons_grid_module.o	\
 	  module_bfmicrophysics.o	\
+	  mersenne_twister.o	\
 	  mpi_def.o		\
 	  d3d_def.o        	\
 	  sfcio_module.o        
 
 OBJS	= \
+	  glats_physics.o               \
 	  getcon_physics.o		\
+	  lon_lat_para.o		\
 	  compns_physics.o		\
 	  lats_shuff.o			\
 	  setlats.o			\
@@ -115,6 +113,7 @@ OBJS_RAD	=              \
 	radiation_surface.o    \
 	grrad.o                \
 	gloopr.o
+
 
 OBJS_PHY= \
 	ozinterp.o          \
@@ -162,7 +161,6 @@ SRC= 				\
 #
 # *****************************************************************
 #
-gfs_physics : $(EXEC)
                                                                                 
 $(EXEC):  $(OBJ_MOD) $(OBJS0) $(OBJS)  $(OBJS_RAD) $(OBJS_PHY) $(OBJS_IO)
 	$(AR) $(ARFLAGS) $(EXEC) $(OBJ_MOD) $(OBJS0) $(OBJS)  $(OBJS_RAD) $(OBJS_PHY) $(OBJS_IO)
@@ -181,9 +179,6 @@ clean:
 #
 # *****************************************************************
 #
-module_alarms.o:	module_alarms.f
-		$(F77) $(FFLAGM) -c module_alarms.f
-
 cnvcld_v.o:	cnvcld_v.f
 		$(F77) $(FFLAGM) -c cnvcld_v.f
 
@@ -192,6 +187,9 @@ dcyc2_v.o:	dcyc2_v.f
 
 dcyc2_v.pre.rad.o:	dcyc2_v.pre.rad.f
 		$(F77) $(FFLAGM) -c dcyc2_v.pre.rad.f
+
+#digifilt.o:	digifilt.f
+#		$(F77) $(FFLAGX) -c digifilt.f
 
 funcphys_subsx.o:	funcphys_subsx.f
 		$(F77) $(FFLAGM) -c funcphys_subsx.f
@@ -231,6 +229,9 @@ moninp_v.o:	moninp_v.f
 
 moninq_v.o:	moninq_v.f
 		$(F77) $(FFLAGM) -c moninq_v.f
+
+moninp_han_v.o:	moninp_han_v.f
+		$(F77) $(FFLAGM) -c moninp_han_v.f
 
 mstadb_v.o:	mstadb_v.f
 		$(F77) $(FFLAGM) -c mstadb_v.f
@@ -408,6 +409,12 @@ wrtsfc.o:	wrtsfc.f
 para_fixio_w.o:		para_fixio_w.f
 		$(F77) $(FFLAGIO) -c para_fixio_w.f
 
+##para_fixio_all_w.o:		para_fixio_all_w.f
+##		$(F77) $(FFLAGIO) -c para_fixio_all_w.f
+#
+##para_fixio_iop_w.o:	para_fixio_iop_w.f
+##		$(F77) $(FFLAGIO) -c para_fixio_iop_w.f
+
 wrtout_physics.o:	wrtout_physics.f
 		$(F77) $(FFLAGIO) -c wrtout_physics.f
 
@@ -416,6 +423,9 @@ gfs_physics_err_msg_mod.o:      gfs_physics_err_msg_mod.f
 
 gfs_physics_sfc_flx_mod.o:      gfs_physics_sfc_flx_mod.f
 		$(F77) $(FFLAG90) -c gfs_physics_sfc_flx_mod.f
+                                                                                
+gfs_physics_sfc_flx_set_mod.o:      gfs_physics_sfc_flx_set_mod.f
+		$(F77) $(FFLAG90) -c gfs_physics_sfc_flx_set_mod.f
                                                                                 
 gfs_physics_namelist_mod.o:     gfs_physics_namelist_mod.f
 		$(F77) $(FFLAG90) -c gfs_physics_namelist_mod.f

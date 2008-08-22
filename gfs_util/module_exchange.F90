@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------
-                        module module_exchange_gfs
+                        module module_exchange
 !-----------------------------------------------------------------------
 !
 !***  module_exchange contains the halo exchange routines.  there is a
@@ -40,7 +40,7 @@
 !-----------------------------------------------------------------------
 !
 use module_include
-use module_dm_parallel_gfs,only : its,ite,jts,jte &
+use module_dm_parallel,only : its,ite,jts,jte &
                              ,ims,ime,jms,jme &
                              ,ids,ide,jds,jde &
                              ,mype_share,my_neb,mpi_comm_comp
@@ -2605,6 +2605,6 @@ use module_dm_parallel_gfs,only : its,ite,jts,jte &
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !--------------------------------------------------------------------
 !
-      end module module_exchange_gfs
+      end module module_exchange
 !
 !-----------------------------------------------------------------------

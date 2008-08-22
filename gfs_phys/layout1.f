@@ -1,6 +1,6 @@
       module layout1
       implicit none
-      save
+      
 cc
       integer           nodes, nodes_comp,nodes_io,
      x                  me,

@@ -1,7 +1,7 @@
       module coordinate_def
-      use machine
+      use machine, ONLY: kind_evod
       implicit none
-      save
+      
        real(kind=kind_evod) , allocatable ::
      & AK5(:),BK5(:),CK5(:),CK(:),DBK(:),bkl(:),   		! hmhj
      & AMHYB(:,:),BMHYB(:,:),SVHYB(:),tor_hyb(:),

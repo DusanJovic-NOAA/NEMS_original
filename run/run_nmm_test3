@@ -42,7 +42,7 @@ export XLSMPOPTS="parthds=1:stack=128000000"
 export AIXTHREAD_SCOPE=S
 
 
-RUNDIR=/ptmp/${USER}/nmm.1 ### change here
+RUNDIR=/ptmp/${USER}/nmm.3 ### change here
 DATADIR=/meso/noscrub/wx22tb/nmmb_input/input_global
 SRCDIR=/meso/save/${USER}/NEMS2   ##### change here
 

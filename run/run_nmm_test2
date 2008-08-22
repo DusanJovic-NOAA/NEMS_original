@@ -56,13 +56,18 @@ ls $DATADIR
 cp $DATADIR/test_input_nmmb_global_257_181_35-2007091800 main_input_filename
 cp $SRCDIR/run/configfile_global_new $RUNDIR/configure_file
 
+cp /meso/save/wx22tb/co2/co2.60_hyb_opnl.levels_2mbtop co2_trans
 cp $DATADIR/co2.35_hybrid_50mbtop co2_trans
 cp $DATADIR/tr* .
 
 cp /nwprod/fix/nam_micro_lookup.dat ETAMPNEW_DATA
 cp /meso/save/wx22tb/WRF_repository/run/RRT* .
-cp /meso/save/wx22tb/WRF_repository/run/*.TBL .
 cp /meso/noscrub/wx20rv/NOAH_wrf_data/*.TBL .
+cp /meso/noscrub/wx20rv/NOAH_wrf_data/grib* .
+#ln -sf loopdata fort.98
+
+#ln -sf /gpfstmp/wx22tb/run_umo_serial/global_sums fort.58
+#ln -sf /stmp/wx22tb/run_umo_serial/global_sums fort.58
 
 poe /u/wx15ja/bin/hybrid_launch $SRCDIR/MAIN_NEMS.x
 

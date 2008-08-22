@@ -10,6 +10,7 @@
      &                 PLNEW_A,PLNOW_A,
      &                 SYN_LS_A,DYN_LS_A,
      &                 SYN_GR_A_1,DYN_GR_A_1,ANL_GR_A_1,
+     &                 SYM_GR_A_2,
      &                 SYN_GR_A_2,DYN_GR_A_2,ANL_GR_A_2,
      &                 LSLAG,pwat,ptot,
      &                 pdryini,nblck,ZHOUR,N1,N4,
@@ -74,10 +75,12 @@ c
       REAL(KIND=KIND_EVOD) DYN_GR_A_1(LONFX*LOTD,LATS_DIM_EXT)
       REAL(KIND=KIND_EVOD) ANL_GR_A_1(LONFX*LOTA,LATS_DIM_EXT)
 
+      REAL(KIND=KIND_EVOD) SYM_GR_A_2(LONFX*LOTM,LATS_DIM_EXT)
+
       REAL(KIND=KIND_EVOD) SYN_GR_A_2(LONFX*LOTS,LATS_DIM_EXT)
       REAL(KIND=KIND_EVOD) DYN_GR_A_2(LONFX*LOTD,LATS_DIM_EXT)
       REAL(KIND=KIND_EVOD) ANL_GR_A_2(LONFX*LOTA,LATS_DIM_EXT)
-!!     
+!
       INTEGER LEV,LEVMAX
       real (kind=kind_grid) pdryini,pcorr
       real (kind=kind_grid) ptot(lonf,lats_node_a)
@@ -444,7 +447,7 @@ c timings
      &                TRIO_LS(1,1,P_QM    ), TRIO_LS(1,1,P_X+k-1),
      &                TRIO_LS(1,1,P_Y +k-1), TRIO_LS(1,1,P_TEM+k-1),    
      &                dt,SL,LS_NODE,coef00,k,hybrid,                
-     &                gen_coord_hybrid)                                 
+     &                gen_coord_hybrid,nislfv)                                 
       enddo
 !
 ! ----------------------------------------------------------------------
@@ -457,7 +460,7 @@ c timings
      &                   TRIO_LS(1,1,P_X+k-1), TRIO_LS(1,1,P_W +k-1),
      &                   TRIO_LS(1,1,P_Y+k-1), TRIO_LS(1,1,P_RT+k-1),
      &                   NDEXOD,
-     &                   SL,SPDMAX(k),dt,LS_NODE)
+     &                   SL,SPDMAX(k),dt,LS_NODE,nislfv)
       enddo
 !
 !-------------------------------------------
@@ -509,7 +512,7 @@ c timings
      &       snnp1ev,snnp1od,plnev_a,plnod_a)
 !
       call do_dynamics_syn2gridn(syn_gr_a_2,grid_gr,
-     &                           global_lats_a,lonsperlat)
+     &                           global_lats_a,lonsperlat,nislfv)
 !
 !
 ! do filter in the grid point values and advance time with update
@@ -556,7 +559,8 @@ c
      &    ls_node,LS_NODES,MAX_LS_NODES,
      & lats_nodes_a,global_lats_a,lonsperlat,nblck,
      & COLAT1,CFHOUR1,
-     & epsedn,epsodn,snnp1ev,snnp1od,plnev_a,plnod_a)
+     & epsedn,epsodn,snnp1ev,snnp1od,plnev_a,plnod_a,
+     & pdryini)
 !
         CALL f_hpmstop(32)
 CC
@@ -644,6 +648,12 @@ c
       call do_dynamics_gridomega(syn_gr_a_2,dyn_gr_a_2,grid_gr,
      &                           rcs2_a,global_lats_a,lonsperlat)
 !
+! -------------------------------------------------------------------
+!  prepare for fv nisl with n-1 values 
+!
+      call do_dynamics_gridm2sym(grid_gr,sym_gr_a_2,
+     &                             global_lats_a,lonsperlat)
+!
 !----------------------------------------------------------
 
       do lan=1,lats_node_a  
@@ -692,11 +702,11 @@ c
      &               syn_gr_a_2(istrt+(kspphi-1)*lon_dim,lan),          ! hmhj
      &               syn_gr_a_2(istrt+(ksplam-1)*lon_dim,lan),          ! hmhj
      &               syn_gr_a_2(istrt+(ksq   -1)*lon_dim,lan),          ! hmhj
-     x               syn_gr_a_2(istrt+(kzsphi-1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(istrt+(kzsphi-1)*lon_dim,lan),          ! hmhj
      &               syn_gr_a_2(istrt+(kzslam-1)*lon_dim,lan),          ! hmhj
      &               rcs2_a(min(lat,latg-lat+1)),                       ! hmhj
      &               spdlat(1,iblk),                                    ! hmhj
-     &               dt,nvcn,xvcn,                                  ! hmhj
+     &               dt,nvcn,xvcn,                                  	! hmhj
      &               dyn_gr_a_2(istrt+(kdtphi-1)*lon_dim,lan),          ! hmhj
      &               dyn_gr_a_2(istrt+(kdtlam-1)*lon_dim,lan),          ! hmhj
      &               dyn_gr_a_2(istrt+(kdrphi-1)*lon_dim,lan),          ! hmhj

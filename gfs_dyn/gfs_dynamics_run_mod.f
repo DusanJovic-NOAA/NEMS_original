@@ -51,8 +51,7 @@
 !
       if( .not. gis_dyn% start_step ) then
 !       print *,' change common variables to model variables '
-!       gis_dyn%lsout = mod(gis_dyn%kdt,nsout).eq.0
-        gis_dyn%lsout = mod(gis_dyn%kdt,nsout).eq.0 .or. gis_dyn%kdt == 1
+        gis_dyn%lsout = mod(gis_dyn%kdt,nsout).eq.0
         call common_to_model_vars (gis_dyn%grid_gr(1,gis_dyn%g_zq),      &
                                    gis_dyn%grid_gr(1,gis_dyn%g_t ),      &
                                    gis_dyn%grid_gr(1,gis_dyn%g_rt),      &
@@ -114,7 +113,7 @@
                gis_dyn% plnew_a       ,gis_dyn% plnow_a        ,	&
                gis_dyn% syn_ls_a      ,gis_dyn% dyn_ls_a       ,	&
                gis_dyn% syn_gr_a_1    ,gis_dyn% dyn_gr_a_1     ,	&
-               gis_dyn% anl_gr_a_1    ,					&
+               gis_dyn% anl_gr_a_1    ,gis_dyn% sym_gr_a_2     ,        &
                gis_dyn% syn_gr_a_2    ,gis_dyn% dyn_gr_a_2     ,	&
                gis_dyn% anl_gr_a_2    ,gis_dyn% lslag          ,        &
                gis_dyn% pwat          ,gis_dyn% ptot           ,	&
@@ -150,7 +149,7 @@
                gis_dyn% plnew_a       ,gis_dyn% plnow_a        ,	&
                gis_dyn% syn_ls_a      ,gis_dyn% dyn_ls_a       ,	&
                gis_dyn% syn_gr_a_1    ,gis_dyn% dyn_gr_a_1     ,	&
-               gis_dyn% anl_gr_a_1    ,					&
+               gis_dyn% anl_gr_a_1    ,gis_dyn% sym_gr_a_2     ,        &
                gis_dyn% syn_gr_a_2    ,gis_dyn% dyn_gr_a_2     ,	&
                gis_dyn% anl_gr_a_2    ,gis_dyn% lslag          ,        &
                gis_dyn% pwat          ,gis_dyn% ptot           ,	&

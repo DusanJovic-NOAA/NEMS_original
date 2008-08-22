@@ -67,7 +67,7 @@ LIBRARY: Shared object libc_r.a[pty_64.o]: 1 symbols imported.
 FILELIST: Number of previously inserted files processed: 27
 (ld): initfini poe_remote_main 
 (ld): resolve
-RESOLVE: 5557 of 48481 symbols were kept.
+RESOLVE: 5587 of 47954 symbols were kept.
 (ld): addgl /usr/lib/glink64.o
 ADDGL: Glink code added for 266 symbols.
 (ld): er full
@@ -75,13 +75,13 @@ ER: There are no unresolved symbols.
 (ld): mismatch
 MISMATCH: No type mismatches exist.
 (ld): comprld
-COMPRLD: Kept 79181 of 79181 relocation entries.
+COMPRLD: Kept 79453 of 79453 relocation entries.
 (ld): origin page 0x100000000 0x110000000
 (ld): libpath /usr/lib:/usr/lpp/essl.rte.rs1/lib:/usrx/local/mass:/nwprod/lib/:/usr/lpp/ppe.poe/lib/threads:/usr/lpp/ppe.poe/lib:/usr/lpp/ppe.poe/lib/ip:/lib/threads:/usr/lpp/xlf/lib:/usr/lib:/lib
 LIBPATH: Library path set to /usr/lib:/usr/lpp/essl.rte.rs1/lib:/usrx/local/mass:/nwprod/lib/:/usr/lpp/ppe.poe/lib/threads:/usr/lpp/ppe.poe/lib:/usr/lpp/ppe.poe/lib/ip:/lib/threads:/usr/lpp/xlf/lib:/usr/lib:/lib
 (ld): save 1L .
-SAVE: Section sizes = 12004520+2626504+85415980 (0xB72CA8+0x2813C8+0x517582C hex)
-SAVE: Size of TOC: 11032 (0x2B18 hex)
+SAVE: Section sizes = 11809520+2626680+85416124 (0xB432F0+0x281478+0x51758BC hex)
+SAVE: Size of TOC: 11104 (0x2B60 hex)
 (ld): gen map map
 (ld): rc
 RC: Highest return code was 0.

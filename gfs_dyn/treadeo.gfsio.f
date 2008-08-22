@@ -11,7 +11,7 @@
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
       use gfs_dyn_coordinate_def					! hmhj
-      use sig_io
+      use gfs_dyn_io_header
       use namelist_dynamics_def
       use gfs_dyn_vert_def
       use gfs_dyn_mpi_def
@@ -74,7 +74,7 @@
       REAL(KIND=KIND_EVOD) XI(LEVP1),XL(LEVS)
       REAL(KIND=KIND_EVOD) sikp1(levp1)
       REAL(KIND=KIND_IO4)   VTID,RUNID4,fhour4,pdryini4,XNCLD,xgf
-      REAL(KIND=KIND_IO8)   PDRYINI
+      REAL(KIND=KIND_grid)  PDRYINI
       real(kind=kind_io4), allocatable ::  vcoord4(:,:)
 !     integer             idusr
 !

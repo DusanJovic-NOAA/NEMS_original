@@ -21,26 +21,13 @@
 
 !!uses:
 !------
-      use esmf_mod
-      use gfs_physics_namelist_mod
+      use gfs_physics_namelist_mod, ONLY: nam_gfs_phy_namelist, gfs_phy_state_namelist
+      use gfs_physics_sfc_flx_mod,  ONLY: Sfc_Var_Data, Flx_Var_Data
 
-      use machine, only: kind_grid, kind_io4, kind_phys, kind_rad
-      use namelist_physics_def
-      USE namelist_soilveg
-      use tracer_const
-
-      use resol_def
-      use layout1
-      use gg_def
-      use date_def
-      use mpi_def
-
-      use module_ras , only : nrcmax
-      use ozne_def
-      use d3d_def
-      use gfs_physics_sfc_flx_mod
-
+      use machine, only: kind_phys, kind_rad, kind_evod
       implicit none
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 ! -----------------------------------------------
       type gfs_physics_internal_state		! start type define
@@ -131,7 +118,7 @@
 
 !     logical start_step
 !     logical end_step
-      logical lsout, lssavd, lsoutd
+      logical lsout
 
       integer ikey,nrank_all,kcolor
 

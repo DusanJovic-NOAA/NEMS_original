@@ -1,38 +1,34 @@
 ##  This is an elementary grid component or say independent grid component ##
- F77     = mpxlf95_r
+ F77     = mpxlf_r
  F90     = mpxlf95_r
  EXEC    = gfs_dyn.a
 #
  FINCS    = -I/meso/save/wx20rv/ESMF_libs/esmf_test_310r/mod/modO/AIX.default.64.mpi.default
- OPTS     = -qsuffix=cpp=f -O0 -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave
- OPTS90   = -qsuffix=cpp=f -O0 -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave 
- OPTS90A  = -qsuffix=cpp=f -O0 -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave 
-#TRAPS    = -qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap
-#DEBUG    = -g -qfullpath -qcheck -qextchk
-#
-#FFLAGM  = -g -qsuffix=cpp=f -O0 -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave -qinitauto=7FBFFFFF -qflttrap=enable:overflow:zerodivide:invalid -qsigtrap=xl__trcedump -qcheck -qextchk -NS2048
 
+DEBUG    = -qcheck -qsource -qlist
+#FFLAGM_DEBUG  = -g -fullpath -O0 -qinitauto=FF911299 -qflttrap=enable:overflow:zerodivide:invalid -qsigtrap=xl__trcedump -NS2048 $(DEBUG)
+
+#---------------
+# For non-debug.
+#---------------
+FFLAGM_DEBUG  = -O0
+
+ OPTS     = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
+ OPTS90   = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
+ OPTS90A  = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave$(FFLAGM_DEBUG)
+#TRAPS    = -qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap
+#
  FFLAG90  = $(OPTS90) $(FINCS) -qfree -NS2048
  FFLAG90A = $(OPTS90A) $(FINCS) -qfree -NS2048
- FFLAGS   = $(OPTS) $(TRAPS) -qfixed
- FFLAGX   = $(OPTS) $(TRAPS) -qfixed
- FFLAGIO  = $(OPTS) $(TRAPS) -qfixed
- FFLAGY   = $(OPTS) -qfixed
- FFLAGM   = $(OPTS) $(FINCS) $(TRAPS) $(DEBUG) -NS2048 -qfixed
- FFLAGSF  = -O0 -qnosave -q free=f90 -qcheck
- FFLAGSI  = -qnosave -O0 -q free=f90
- FFLAGB   = -qnosave -O0 -q fixed
+ FFLAGS   = $(OPTS) $(TRAPS)
+ FFLAGX   = $(OPTS) $(TRAPS)
+ FFLAGIO  = $(OPTS) $(TRAPS)
+ FFLAGY   = $(OPTS)
+ FFLAGM   = $(OPTS) $(FINCS) $(TRAPS) $(FFLAGM_DEBUG) -NS2048
+ FFLAGSF  = -qnosave -q free=f90 -qcheck $(FFLAGM_DEBUG)
+ FFLAGSI  = -qnosave -q free=f90 $(FFLAGM_DEBUG)
+ FFLAGB   = -qnosave -qfixed $(FFLAGM_DEBUG)
 
- ESMFLIB  = /meso/save/wx20rv/ESMF_libs/esmf_test_310r/lib/libO/AIX.default.64.mpi.default
- ESMFLIBS = ${ESMFLIB}/libesmf.a ${ESMFLIB}/libnetcdf_stubs.a
-#----------------------------------
-# For haze machine.
-# LDR     = ncepmpxlf -qsmp=noauto
-#----------------------------------
- LDR     = mpxlf95_r -qsmp=noauto 
- LDFLAGS = -lessl_r -lmass -qsmp=noauto ${ESMFLIBS}
-# LIBS = -lC -L /nwprod/lib/ -l w3_d -l bacio_4
-  LIBS = -lC -L /nwprod/lib/ -l bacio_4 -L /global/save/wx23lu/NEMS/gfs/lib/ -l w3_d
  AR = ar
  ARFLAGS = -r
 
@@ -60,7 +56,7 @@ OBJ_MOD	= gfs_dyn_machine.o             \
 	  gfs_dyn_resol_def.o           \
 	  gfs_dyn_gg_def.o              \
 	  gfs_dyn_vert_def.o            \
-	  sig_io.o              	\
+	  gfs_dyn_io_header.o           \
 	  gfs_dyn_date_def.o            \
 	  gfs_dyn_layout1.o             \
 	  namelist_dynamics_def.o       \
@@ -72,6 +68,7 @@ OBJ_MOD	= gfs_dyn_machine.o             \
 	  semi_lag_def.o        	\
 	  gfs_dyn_deldifs_def.o         \
 	  gfs_dyn_bfilt_def.o   	\
+	  gfs_dyn_glats.o		\
 	  gfsio_module.o        	\
 	  gfsio_def.o           
 
@@ -115,11 +112,9 @@ OBJS	= \
 	gfidi_hyb.o\
 	gfidi_hyb_gc.o\
 	gfidi_hyb_gc_h.o\
-	glats.o\
 	grid_to_spect.o\
 	spect_to_grid.o\
 	spect_to_gridxy.o\
-	lon_lat_para.o\
 	compns_dynamics.o\
 	gozrineo.o\
 	pln2eo.o \
@@ -158,13 +153,16 @@ OBJS_PORT	= \
 
 OBJS_IO= \
 	grid_fix.o         \
-	gribit.o           \
 	treadeo.gfsio.o    \
 	grid_to_spect_inp.o    \
 	spect_to_grid_inp.o    \
 	setsig.o           \
 	bafrio.o        
 
+#	treadeo.io.o       \
+#	twriteeo.o         \
+#	spect_send.o       \
+#	spect_write.o
 
 #
 INCS = f_hpm.h mpi_inc.h function2
@@ -172,7 +170,6 @@ INCS = f_hpm.h mpi_inc.h function2
 #
 # *****************************************************************
 #
-gfs_dynamics : $(EXEC)
 
 $(EXEC):  $(OBJ_MOD) $(OBJS0) $(OBJS) $(OBJS_IO) 
 	$(AR) $(ARFLAGS) $(EXEC) $(OBJ_MOD) $(OBJS0) $(OBJS) $(OBJS_IO) 
@@ -183,6 +180,7 @@ clean:
 
 .F.o:
 	$(F77) $(FFLAGS) -c -d $< 
+	#$(F77) $(FFLAGS) -c -d -WF,-DCLR:${RASV} $< 
 .f.o:
 	$(F77) $(FFLAGS) -c $< 
 
@@ -200,6 +198,12 @@ gfs_dyn_machine.o:	gfs_dyn_machine.f
 gfs_dyn_physcons.o:	gfs_dyn_physcons.f
 		$(F77) $(FFLAG90) -c gfs_dyn_physcons.f
 
+#sigio_module.o:	sigio_module.f
+#		$(F77) $(FFLAGSI) -c sigio_module.f
+
+#sigio_r_module.o:	sigio_r_module.f
+#		$(F77) $(FFLAGSI) -c sigio_r_module.f
+
 gfsio_def.o:	gfsio_def.f
 		$(F77) $(FFLAGSI) -c gfsio_def.f
 
@@ -208,6 +212,8 @@ gfsio_module.o:	gfsio_module.f
 
 bafrio.o:	bafrio.f
 		$(F77) $(FFLAGB) -c bafrio.f
+
+#
 
 read_fix.o:	read_fix.f
 		$(F77) $(FFLAGX) -c read_fix.f
@@ -218,11 +224,20 @@ softcount.o:	softcount.f
 getaer.o:	getaer.f
 		$(F77) $(FFLAGIO) -c getaer.f
 
-gribit.o:	gribit.f
-		$(F77) $(FFLAGIO) -c gribit.f
+#treadeo.io.o:	treadeo.io.f
+#		$(F77) $(FFLAGIO) -c treadeo.io.f
 
 treadeo.gfsio.o:	treadeo.gfsio.f
 		$(F77) $(FFLAGIO) -c treadeo.gfsio.f
+
+#twriteeo.o:	twriteeo.f
+#		$(F77) $(FFLAGIO) -c twriteeo.f
+
+#spect_send.o:	spect_send.f
+#		$(F77) $(FFLAGIO) -c spect_send.f
+
+#spect_write.o:	spect_write.f
+#		$(F77) $(FFLAGIO) -c spect_write.f
 
 spect_to_grid_inp.o:	spect_to_grid_inp.f
 		$(F77) $(FFLAGIO) -c spect_to_grid_inp.f

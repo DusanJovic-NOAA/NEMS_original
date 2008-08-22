@@ -1,7 +1,6 @@
       module tracer_const
       use machine , only : kind_phys
       implicit none
-      SAVE
 
       real(kind=kind_phys) ri(0:20),cpi(0:20)
       integer, parameter :: num_tracer=3

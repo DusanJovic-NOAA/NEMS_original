@@ -2,9 +2,9 @@
      .                   global_lats_r,
      &                   global_lats_ext,iprint,lonsperlat)
 cc
-      use resol_def
-      use layout1
-      use mpi_def
+      use resol_def, ONLY: latr, jintmx, nypt
+      use layout1,   ONLY: nodes
+      use mpi_def,   ONLY: icolor, liope
       implicit none
 cc
       integer              lats_nodes_r(nodes)
@@ -136,9 +136,9 @@ c
      .                   global_lats_r,
      &                   global_lats_ext,iprint,lonsperlat)
 cc
-      use resol_def
-      use layout1
-      use mpi_def
+      use resol_def, ONLY: latr, jintmx, nypt
+      use layout1,   ONLY: nodes
+      use mpi_def,   ONLY: icolor, liope
       implicit none
 cc
       integer              lats_nodes_r(nodes)

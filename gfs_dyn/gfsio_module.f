@@ -2165,7 +2165,7 @@ contains
     gfile%nvcoord=1
     call gfsio_almeta(gfile,iret)
     if (iret .ne.0) return
-    allocate(vcoord(gfile%levs))
+    allocate(vcoord(gfile%levs+1))
     vcoord=(/1.0000000,0.99467099,0.98863202,0.98180002,0.97408301, &
       0.96538502,0.95560300,0.94463098,0.93235999,0.91867799,0.90347999, &
       0.88666302,0.86813903,0.84783000,0.82568502,0.80167699,0.77581102, &

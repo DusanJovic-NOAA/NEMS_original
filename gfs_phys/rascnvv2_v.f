@@ -4,7 +4,7 @@
      &,             alhf => con_hfus, rgas => con_rd, rkap => con_rocp  &
      &,             nu => con_FVirt
       implicit none
-      SAVE
+      
 !     real, parameter :: nu=0.0
 !
       integer, parameter :: nrcmax=12 ! Maximum # of random clouds per 1200s

@@ -20,7 +20,7 @@ cc
       implicit none
 cc
 !!
-      integer              j,k,l,lat,lev
+      integer              j,k,l,lat,lan,lons_lat,lev
       integer              n,n3,n4,ndgi
       integer              i
 cc
@@ -270,7 +270,8 @@ cc
       iprint = 0
 c$$$      if ( me .eq. 0 ) iprint = 1
       if ( kind_evod .eq. 8 ) then !------------------------------------
-           call glats(latg2,colrad_a,wgt_a,wgtcs_a,rcs2_a,iprint)
+           call gfs_dyn_glats(latg2,colrad_a,
+     &                        wgt_a,wgtcs_a,rcs2_a,iprint)
 cc
            call epslon(epse,epso,epsedn,epsodn,
      &                 ls_node)
@@ -299,7 +300,8 @@ cc
            allocate  (  pddod_dp(len_trio_ls) )
            allocate  (  plnew_dp(len_trie_ls) )
            allocate  (  plnow_dp(len_trio_ls) )
-           call glats(latg2,colrad_dp,wgt_dp,wgtcs_dp,rcs2_dp,iprint)
+           call gfs_dyn_glats(latg2,colrad_dp,
+     &                        wgt_dp,wgtcs_dp,rcs2_dp,iprint)
 cc
            do i=1,latg2
               colrad_a(i) = colrad_dp(i)
@@ -412,8 +414,8 @@ cc
           sinlat_a(j) = -cos(colrad_a(latg+1-j))
         endif
         coslat_a(j) = sqrt(1.-sinlat_a(j)*sinlat_a(j))
-!hmhj   print *,' lat colrad sinlat coslat ',
-!hmhj&            j,colrad_a(j),sinlat_a(j),coslat_a(j)
+        print *,' lat sinlat coslat ',
+     &            j,sinlat_a(j),coslat_a(j)
       enddo
 cc
 cc
@@ -477,7 +479,15 @@ cc
           if (mod(L,2).ne.mod(jcap+1,2)) bfilto(indod)=1.
       enddo
 
-!!
+! hmhj
+!     print *,' lats_node_a ',lats_node_a
+!     print *,' ipt_lats_node_a ',ipt_lats_node_a
+!     do lan=1,lats_node_a
+!        lat = global_lats_a(ipt_lats_node_a-1+lan)
+!        lons_lat = lonsperlat(lat)
+!        print *,' lan lat lons_lat ',lan,lat,lons_lat
+!     enddo
+!
 
 !     print *,' end of getcon_dynamics '
 cc

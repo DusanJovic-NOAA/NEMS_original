@@ -1,6 +1,6 @@
       module sfccyc_module
       implicit none
-      SAVE
+      
 !
 !  GRIB code for each parameter - Used in subroutines SFCCYCLE and SETRMSK.
 !

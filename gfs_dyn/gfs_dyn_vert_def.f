@@ -2,7 +2,6 @@
       use gfs_dyn_machine
       implicit none
 
-      save
       REAL(KIND=KIND_EVOD) ,ALLOCATABLE :: am(:,:),bm(:,:),cm(:,:),
      . dm(:,:,:),tor(:), si(:),sl(:),del(:),rdel2(:),ci(:),
      . cl(:),tov(:),sv(:)

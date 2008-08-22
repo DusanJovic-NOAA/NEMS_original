@@ -15,6 +15,8 @@
 !                                Moved the FIRST block from the old
 !                                write component here for clarity.
 !       15 Aug 2008:  J. Wang  - Revised for NEMS-IO
+!       20 Aug 2008:  J. Wang  - Output start date first instead of
+!                                forecast date.
 !
 !-----------------------------------------------------------------------
 !
@@ -2144,7 +2146,8 @@
 !
       INTEGER :: I,J,N,N1,N2,NPOSN_1,NPOSN_2,LENGTH,MAXLENGTH
 !
-      INTEGER :: DIM1,DIM2,FIELDSIZE,IM,JM,LM,IDATE(7),INDX_2D,IRET     &
+      INTEGER :: DIM1,DIM2,FIELDSIZE,IM,JM,LM,IDATE(7),FCSTDATE(7)      &
+                ,INDX_2D,IRET                                           &
                 ,N2ISCALAR,N2IARY,N2RSCALAR,N2RARY,N2LSCALAR            &
                 ,NBDR,NDYH,NDXH,NFRAME,NPT,NPDTOP,NREC                  &
                 ,NSG1,NSG2,NSGML1,NSGML2,NSOIL,TLMETA,VLEV
@@ -2194,14 +2197,13 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-     write(0,*)'in nemsio_runhistory'
-      IDATE(1)=IYEAR_FCST
-      IDATE(2)=IMONTH_FCST
-      IDATE(3)=IDAY_FCST
-      IDATE(4)=IHOUR_FCST
-      IDATE(5)=IMINUTE_FCST
-      IDATE(6)=nint(SECOND_FCST*100.)
-      IDATE(7)=100
+      FCSTDATE(1)=IYEAR_FCST
+      FCSTDATE(2)=IMONTH_FCST
+      FCSTDATE(3)=IDAY_FCST
+      FCSTDATE(4)=IHOUR_FCST
+      FCSTDATE(5)=IMINUTE_FCST
+      FCSTDATE(6)=nint(SECOND_FCST*100.)
+      FCSTDATE(7)=100
 !
 !-----------------------------------------------------------------------
 !***  INTEGER SCALAR/1D HISTORY VARIABLES
@@ -2227,6 +2229,8 @@
 !
       ENDDO
 !
+      N2IARY=N2IARY+1
+      MAXLENGTH=MAX(LENGTH,7)
       ALLOCATE(VARINAME(N2ISCALAR),VARIVAL(N2ISCALAR))
       ALLOCATE(ARYINAME(N2IARY),ARYILEN(N2IARY),ARYIVAL(MAXLENGTH,N2IARY))
 !
@@ -2237,6 +2241,7 @@
       N2=0                                                                 !<-- Word counter for full string of integer scalar/1D data
       N2ISCALAR=0
       N2IARY=0
+      IDATE=0
 !
       DO N=1,wrt_int_state%KOUNT_I1D(1)                                    !<-- Loop through all scalar/1D integer data
 !
@@ -2250,6 +2255,9 @@
           N2ISCALAR=N2ISCALAR+1
           VARINAME(N2ISCALAR)=TRIM(NAME)
           VARIVAL(N2ISCALAR)=wrt_int_state%ALL_DATA_I1D(N2)
+          IF(VARINAME(N2ISCALAR)=='IHRST') then
+            IDATE(4)=VARIVAL(N2ISCALAR)
+          ENDIF
         ELSE
           N2IARY=N2IARY+1
           ARYINAME(N2IARY)=TRIM(NAME)
@@ -2261,11 +2269,27 @@
             N2=N2+1
             ARYIVAL(N1,N2IARY)=wrt_int_state%ALL_DATA_I1D(N2)              !<-- Extract the individual data from the data string
           ENDDO
+
+          IF(ARYINAME(N2IARY)=='IDAT') THEN
+            IDATE(1)=ARYIVAL(3,N2IARY)
+            IDATE(2)=ARYIVAL(2,N2IARY)
+            IDATE(3)=ARYIVAL(1,N2IARY)
+            IDATE(7)=100.
+          ENDIF
 !
             write(0,*)'in I1D array,aryival=',aryival(:,N2IARY)
         ENDIF
 !
       ENDDO
+!
+!-----------------------------
+!***  Add fcst_date into ARYI
+!-----------------------------
+!
+      N2IARY=N2IARY+1
+      ARYINAME(N2IARY)='FCSTDATE'
+      ARYILEN(N2IARY)=7
+      ARYIVAL(1:7,N2IARY)=FCSTDATE(1:7)
 !
 !-----------------------------------------------------------------------
 !***  REAL SCALAR/1D HISTORY VARIABLES
@@ -2430,7 +2454,7 @@
          +VARRVAL(NPT) )
       VCOORD(1:LM,2,2)=ARYRVAL(1:LM,NSGML2)
       VCOORD(1:LM,3,2)=0
-      write(0,*)'after vcoord,count_I2d=',wrt_int_state%kount_I2D(1),'nrec=',nrec
+!!!   write(0,*)'after vcoord,count_I2d=',wrt_int_state%kount_I2D(1),'nrec=',nrec
 !
 !-----------------------------------------------------------------------
 !***  Cut the output I2D array.
@@ -2473,7 +2497,7 @@
         CALL LOWERCASE(RECNAME(NREC))
       ENDDO
 !
-      write(0,*)'after I2D,nrec=',nrec
+!!!   write(0,*)'after I2D,nrec=',nrec
 !
 !-----------------------------------------------------------------------
 !*** Cut the output R2D array.
@@ -2534,13 +2558,13 @@
 !change unit for 'FIS'
         IF(RECNAME(NREC)=='hgt') wrt_int_state%OUTPUT_ARRAY_R2D(:,:,NFIELD)= &
           wrt_int_state%OUTPUT_ARRAY_R2D(:,:,NFIELD)/G
-        write(0,*)'nfield=',nfield,'recname=',recname(nfield+4)
+!       write(0,*)'nfield=',nfield,'recname=',recname(nfield+4)
         CALL LOWERCASE(RECNAME(NREC))
       ENDDO
 !
-      write(0,'(12A8)')'after recname=',recname
-      write(0,'(12A16)')'after reclevtyp=',reclevtyp
-      write(0,'(12I4)')'after reclev=',reclev
+!     write(0,'(12A8)')'after recname=',recname
+!     write(0,'(12A16)')'after reclevtyp=',reclevtyp
+!     write(0,'(12I4)')'after reclev=',reclev
 !
 !glat1d and glon1d
       ALLOCATE(GLAT1D(FIELDSIZE),GLON1D(FIELDSIZE))
@@ -2551,8 +2575,8 @@
       wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2,6)=wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2,6)*DEGRAD
       GLAT1D(1:FIELDSIZE)=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2,2),(/FIELDSIZE/))
       GLON1D(1:FIELDSIZE)=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2,3),(/FIELDSIZE/))
-      write(0,*)'after glat1d=',maxval(glat1d),minval(glat1d),           &
-        'glon1d=',maxval(glon1d),minval(glon1d)
+!     write(0,*)'after glat1d=',maxval(glat1d),minval(glat1d),           &
+!       'glon1d=',maxval(glon1d),minval(glon1d)
 !
 !dx and dy
       ALLOCATE(DX(FIELDSIZE),DY(FIELDSIZE))
@@ -2566,7 +2590,7 @@
         DX(I+(J-1)*DIM1)=ARYRVAL(J+NBDR,NDXH)
       ENDDO
       ENDDO
-      write(0,*)'after dx=',maxval(dx),minval(dx),'dy=',maxval(dy),minval(dy)
+!     write(0,*)'after dx=',maxval(dx),minval(dx),'dy=',maxval(dy),minval(dy)
 !
 !-----------------------------------------------------------------------
 !                      SET UP NEMSIO WRITE
@@ -2613,7 +2637,7 @@
 !-----------------------------------------------------------------------
 !
         CALL NEMSIO_GETRECHEAD(NEMSIOFILE,NFIELD,NAME,VLEVTYP,VLEV,IRET=IRET)
-            write(0,*)'nfield=',nfield,trim(name),vlevtyp,vlev
+!       write(0,*)'nfield=',nfield,trim(name),vlevtyp,vlev
         TMP=RESHAPE(wrt_int_state%OUTPUT_ARRAY_I2D(1:DIM1,1:DIM2,NFIELD),(/FIELDSIZE/))
         CALL NEMSIO_WRITEREC(NEMSIOFILE,NFIELD,TMP,IRET=IRET)             !<-- Lead write task writes out the 2D int data
 !
@@ -2631,7 +2655,7 @@
 !
         N=NFIELD+wrt_int_state%KOUNT_I2D(1)
         CALL NEMSIO_GETRECHEAD(NEMSIOFILE,N,NAME,VLEVTYP,VLEV,IRET=IRET)
-            write(0,*)'nfield=',nfield,trim(name),vlevtyp,vlev
+!       write(0,*)'nfield=',nfield,trim(name),vlevtyp,vlev
         TMP=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2,NFIELD),(/FIELDSIZE/))
         CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IRET)                  !<-- Lead write task writes out the 2D real data
 !

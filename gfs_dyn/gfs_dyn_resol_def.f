@@ -1,7 +1,7 @@
       module gfs_dyn_resol_def
       use gfs_dyn_machine
       implicit none
-      save
+      
       integer   jcap,jcap1,jcap2,latg,latg2
       integer   levh,levm1,levp1,levs,lnt,lnt2,lnt22,levr
       integer   lnte,lnted,lnto,lntod,lnuv
@@ -21,12 +21,14 @@
       INTEGER   G_UUM,G_VVM,G_TTM,G_RM,G_QM,G_GZ
       INTEGER   G_UU ,G_VV ,G_TT ,G_RQ,G_Q 
       INTEGER   G_U  ,G_V  ,G_T  ,G_RT,G_ZQ, g_p, g_dp, g_dpdt
-      INTEGER   LOTS,LOTD,LOTA,LOTLS,LOTGR
+      INTEGER   LOTS,LOTD,LOTA,LOTM,LOTLS,LOTGR
 
       integer   kwq,kwte,kwdz,kwrq
 
       integer   ksz, ksd, kst, ksr, ksq, ksplam, kspphi
       integer   ksu, ksv, kzslam, kzsphi
+!
+      integer   ksum, ksvm, kstm, ksrm, kspsm
 !
       integer   kau, kav, kat, kar, kaps, kazs
 !

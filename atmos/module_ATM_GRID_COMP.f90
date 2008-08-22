@@ -1768,7 +1768,7 @@
 !
 ! -------------------- summation stage ---------------------------------
 !
-              CALL DIGITAL_FILTER_DYN_SUM_GFS(imp_gfs_dyn)
+              CALL DIGITAL_FILTER_DYN_SUM_GFS(imp_gfs_dyn,MYPE)
 !
 ! ----------------------------------------------------------------------
 !
@@ -1786,7 +1786,7 @@
 !
              IF (ESMF_AlarmIsRinging(alarm(2), RC)) then
               print *,' dfi at finaldfitime '
-                CALL DIGITAL_FILTER_DYN_AVERAGE_GFS(imp_gfs_dyn)
+                CALL DIGITAL_FILTER_DYN_AVERAGE_GFS(imp_gfs_dyn,MYPE)
               IF( PHYSICS_ON ) then
                 CALL DIGITAL_FILTER_PHY_RESTORE_GFS(imp_gfs_phy)
               ENDIF

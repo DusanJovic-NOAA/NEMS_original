@@ -3,8 +3,7 @@
 !    New module to supply domain information to the GFS output routines
 !    called by wrtout.
 !
-      use machine
-      use resol_def
+      use machine,    ONLY: kind_io4
       implicit none
 !
 !
@@ -22,10 +21,9 @@
       integer , allocatable :: maskss(:,:,:)
 !
       integer ngrid ,ngrida,ngridg
-      save ngrid,ngrida,buff_mult_piece,buff_mult_pieces,ivar_global
-     &,    ngridg,buff_mult_pieceg,buff_mult_piecesg,ivarg_global
-      save maskss
       end module mod_state
+
+
       subroutine wrtout_physics(phour,fhour,zhour,idate,
      &                  sl,si,
      &                  sfc_fld, flx_fld,
@@ -33,11 +31,15 @@
      &                  lats_nodes_r,global_lats_r,lonsperlar,nblck,
      &                  colat1,cfhour1,pl_coeff)
 !!
-      use resol_def
-      use layout1
-      use namelist_physics_def
-      use mpi_def
-      use gfs_physics_sfc_flx_mod
+      use resol_def,               ONLY: latr, levs, levp1, lonr, nfxr
+      use layout1,                 ONLY: me, nodes, lats_node_r, 
+     &                                   nodes_comp
+      use namelist_physics_def,    ONLY: gen_coord_hybrid, ldiag3d, 
+     &                                   hybrid, fhlwr, fhswr, ens_nam
+      use mpi_def,                 ONLY: liope, info, mpi_comm_all, 
+     &                                   mc_comp, mpi_comm_null, icolor
+      use gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data, Flx_Var_Data
+      USE machine,                 ONLY: kind_evod, kind_io8
       implicit none
 !!
       TYPE(Sfc_Var_Data)        :: sfc_fld
@@ -126,8 +128,13 @@
      &      '("(I",I1,".",I1,",A1,I2.2,A1,I2.2)")') NDIG,NDIG
         WRITE(CFHOUR,CFORM) KH,':',KM,':',KS
       ENDIF
+      IF(nfill(ens_nam) == 0) THEN
+      CFHOUR = CFHOUR(1:nfill(CFHOUR))
+      ELSE
       CFHOUR = CFHOUR(1:nfill(CFHOUR)) // ens_nam(1:nfill(ens_nam))
-      print *,' in wrtout_physics cfhour=',cfhour,' ens_nam=',ens_nam
+      END IF
+      print *,' in wrtout_physics cfhour=',cfhour
+      print *,' in wrtout_physics ens_nam=',ens_nam
 !jfe
       nosfc=62
       noflx=63
@@ -273,10 +280,12 @@
      &        global_lats_r,lonsperlar,
      &        phy_f3d, phy_f2d, ngptc, nblck, ens_nam)
 !!
-      use resol_def
-      use layout1
-      use mpi_def
-      use gfs_physics_sfc_flx_mod
+      use resol_def,               ONLY: latr, levp1, levs, lonr, 
+     &                                   num_p2d, num_p3d
+      use layout1,                 ONLY: me, nodes, lats_node_r
+      use mpi_def,                 ONLY: icolor
+      use gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data, Flx_Var_Data
+      USE machine,                 ONLY: kind_evod, kind_phys
       implicit none
 !!
       TYPE(Sfc_Var_Data)        :: sfc_fld
@@ -352,8 +361,7 @@
       end
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       SUBROUTINE wrtlog_physics(phour,fhour,idate)
-      use resol_def
-      use namelist_physics_def
+      use namelist_physics_def, ONLY: ens_nam
       implicit none
 
       integer idate(4),ndigyr,nolog
@@ -385,7 +393,11 @@
      &      '("(I",I1,".",I1,",A1,I2.2,A1,I2.2)")') NDIG,NDIG
         WRITE(CFHOUR,CFORM) KH,':',KM,':',KS
       ENDIF
+      IF(nfill(ens_nam) == 0) THEN
+      CFHOUR = CFHOUR(1:nfill(CFHOUR))
+      ELSE
       CFHOUR = CFHOUR(1:nfill(CFHOUR)) // ens_nam(1:nfill(ens_nam))
+      END IF
 
       nolog=99
       OPEN(NOlog,FILE='LOG.F'//CFHOUR,FORM='FORMATTED')
@@ -400,11 +412,14 @@
 
       SUBROUTINE sfc_collect (sfc_fld,global_lats_r,lonsperlar)
 !!
-      use resol_def
-      use mod_state
-      use layout1
-      use mpi_def
-      use gfs_physics_sfc_flx_mod
+      use resol_def,               ONLY: latr, lonr, ngrids_sfcc, 
+     &                                   ngrids_flx, lsoil
+      use mod_state,               ONLY: buff_mult_piecea, ngrid, 
+     &                                   buff_mult_piece, 
+     &                                   buff_mult_piecef
+      use layout1,                 ONLY: lats_node_r
+      use gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data
+      USE machine,                 ONLY: kind_io8, kind_io4
       implicit none
 !!
       TYPE(Sfc_Var_Data)        :: sfc_fld
@@ -584,10 +599,16 @@
 !
 !***********************************************************************
 !
-      use resol_def
-      use mod_state
-      use layout1
-      use mpi_def
+      use resol_def, ONLY: ngrids_flx, ngrids_sfcc, lonr
+      use mod_state, ONLY: buff_mult_piecesa, buff_mult_piece, 
+     &                     buff_mult_piecea, buff_mult_piecesf, 
+     &                     buff_mult_pieces, ivar_global_a, 
+     &                     ivar_global
+      use layout1,   ONLY: nodes, ipt_lats_node_r, lats_node_r, 
+     &                     lats_node_r_max, me, nodes_comp
+      use mpi_def,   ONLY: mpi_comm_null, mpi_r_io, mc_comp, 
+     &                     mpi_integer, mpi_comm_all, liope, 
+     &                     info, stat
       implicit none
 !
       integer ipt_lats_node_rl,nodesr
@@ -690,12 +711,14 @@ c  array copy
       SUBROUTINE sfc_wrt(IOPROC,nw,cfile,xhour,idate
      &,                  global_lats_r,lonsperlar)
 !!
-      use sfcio_module
-      use resol_def
-      use mod_state
-      use layout1
-      use mpi_def
-!     use mod_state , only : ngrids_sfcc
+      use sfcio_module, ONLY: sfcio_head, sfcio_data,
+     &                        sfcio_alhead, sfcio_swohdc
+      use resol_def,    ONLY: lonr, latr, ngrids_sfcc,
+     &                        lsoil, ivssfc
+      use mod_state,    ONLY: ngrid
+      use layout1,      ONLY: me
+      use mpi_def,      ONLY: buff_mult
+      USE machine,      ONLY: kind_io8, kind_io4
       implicit none
 !!
       integer nw,IOPROC
@@ -853,11 +876,12 @@ c  array copy
      &                  SECSWR,SECLWR, sfc_fld, flx_fld, fluxr,
      &                  global_lats_r,lonsperlar)
 !!
-      use resol_def
-      use mod_state
-      use layout1
-      use namelist_physics_def
-      use gfs_physics_sfc_flx_mod
+      use resol_def,               ONLY: lonr, latr, levp1, lsoil, nfxr,
+     *                                   ngrids_sfcc
+      use mod_state,               ONLY: buff_mult_piecea, ngrid
+      use layout1,                 ONLY: me, lats_node_r
+      use gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data, Flx_Var_Data
+      USE machine,                 ONLY: kind_io8, kind_io4
       implicit none
 !!
       TYPE(Sfc_Var_Data)        :: sfc_fld
@@ -1542,10 +1566,12 @@ Cwei: addition of 30 records ends here -------------------------------
       SUBROUTINE wrtflx_w(IOPROC,noflx,ZHOUR,FHOUR,IDATE,colat1,SECSWR,
      &                  SECLWR,slmsk, global_lats_r,lonsperlar)
 !
-      use resol_def
-      use mod_state
-      use layout1
-      use namelist_physics_def
+      use resol_def,            ONLY: ngrids_sfcc, lsoil, lonr, latr, 
+     &                                levp1
+      use layout1,              ONLY: me, lats_node_r
+      use namelist_physics_def, ONLY: igen
+      USE mod_state,            ONLY: ngrid
+      USE machine,              ONLY: kind_io8, kind_io4
       implicit none
 !!
       INTEGER              GLOBAL_LATS_R(LATR)
@@ -3190,10 +3216,14 @@ c...      cvb already a pressure (cb)...convert to Pa
 !
 !***********************************************************************
 !
-      use resol_def
-      use mod_state
-      use layout1
-      use mpi_def
+      use resol_def, ONLY: ngrids_flx, ngrids_sfcc, lonr
+      use mod_state, ONLY: buff_mult_piecesa, buff_mult_piecea,
+     &                     ivar_global_a, buff_mult_pieces, 
+     &                     buff_mult_piecesf, ivar_global
+      use layout1,   ONLY: me, nodes, ipt_lats_node_r, lats_node_r,
+     &                     lats_node_r_max, nodes_comp
+      use mpi_def,   ONLY: mpi_r_io, stat, mpi_comm_null, info, 
+     &                     mc_comp, mpi_integer, mpi_comm_all, liope
       implicit none
 !
       integer ipt_lats_node_rl,nodesr

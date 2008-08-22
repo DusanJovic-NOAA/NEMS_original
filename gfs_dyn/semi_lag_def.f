@@ -1,7 +1,7 @@
       module semi_lag_def
       use gfs_dyn_machine
       implicit none
-      save
+      
       INTEGER PMAP                ! DIMENSION OF ARTIFICIAL ARRAY
       PARAMETER(PMAP=2000)
 !
