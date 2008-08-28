@@ -113,7 +113,7 @@ stty: tcgetattr: A specified file does not support the ioctl system call.
 + export CHGRESSH=/global/save/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh
 + export CHGRESVARS=ntrac=3,idvt=21,ncldt=1,idvc=3,IVSSIG=200509,NVCOORD=3,IVSSFC=200509,idvm=32,idsl=2,OUTTYP=1,RI=  286.05,   461.50, 173.2247,    0.0,CPI= 1004.6,   1846.0, 820.2391,    0.0
 + /global/save/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh
-Thu Aug 28 14:51:28 EDT 2008 EXECUTING /global/save/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh
+Thu Aug 28 16:15:58 EDT 2008 EXECUTING /global/save/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh
 + export SIGINP=/global/shared/dump/2007070200/gfs/siganl.gfs.2007070200
 + export SFCINP=/global/shared/dump/2007070200/gfs/sfcanl.gfs.2007070200
 + export OUTTYP=2
@@ -281,7 +281,7 @@ pwd=/ptmp/wx22ec/gfs.1_test
 + rm -f chgres.out.sig chgres.out.sfc fort.35 fort.81
 + cd /ptmp/wx22ec/gfs.1_test
 + [[ NO = YES ]]
-Thu Aug 28 14:52:01 EDT 2008 EXITING /global/save/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh with return code 0
+Thu Aug 28 16:16:30 EDT 2008 EXITING /global/save/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh with return code 0
 + export SIGI=/ptmp/wx22ec/gfs.1_test/siganl.2007070200
 + export GFSI=/ptmp/wx22ec/gfs.1_test/gfsanl.2007070200
 + export SFCI=/ptmp/wx22ec/gfs.1_test/sfcanl.2007070200

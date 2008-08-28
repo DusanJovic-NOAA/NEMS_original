@@ -83,7 +83,6 @@ export MALLOCMULTIHEAP=true
 #    Set up experiment and directory names
 #
  export expt=gfs.1
-
 #
  export NSCDIR=/global/noscrub
  export TOPDIR=/global/save

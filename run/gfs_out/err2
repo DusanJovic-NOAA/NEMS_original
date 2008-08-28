@@ -121,7 +121,7 @@ stty: tcgetattr: A specified file does not support the ioctl system call.
 + export FHRES=48
 + export FHROT=0
 + /meso/save/wx22ec/NEMS/run/exglobal_fcst.sh.sms_nems
-Thu Aug 28 14:55:24 EDT 2008 EXECUTING /meso/save/wx22ec/NEMS/run/exglobal_fcst.sh.sms_nems
+Thu Aug 28 16:18:00 EDT 2008 EXECUTING /meso/save/wx22ec/NEMS/run/exglobal_fcst.sh.sms_nems
 + export ENS_NUM=1
 + export FM=
 + export SIGI=/ptmp/wx22ec/gfs.1_test/gfsanl.2007070200
@@ -648,7 +648,6 @@ pwd=/ptmp/wx22ec/gfs.1_test
 + [ 2 -le 1 ]
 + export wgrib=/nwprod/util/exec/wgrib
 + + wgrib -4yr /ptmp/wx22ec/gfs.1_test/gfsanl.2007070200
-+ grep -i hgt
 + awk -F= {print $2}
 + awk -F: {print $3}
 CDATE=2007070200
@@ -717,11 +716,11 @@ adiabatic:            .false.
 + cat atm_namelist.rc
 + 1> dyn_namelist.rc
 + cat
-+ 0< /tmp/sh139338.3 1>> dyn_namelist.rc
++ 0< /tmp/sh241798.3 1>> dyn_namelist.rc
 + cat atm_namelist.rc
 + 1> phy_namelist.rc
 + cat
-+ 0< /tmp/sh139338.5 1>> phy_namelist.rc
++ 0< /tmp/sh241798.5 1>> phy_namelist.rc
 + cat
 + 1> atm_namelist 0<<
  &nam_dyn
@@ -795,54 +794,54 @@ adiabatic:            .false.
 + /ptmp/wx22ec/gfs.1_test/MAIN_NEMS.x
 + 1>& 1 2>& 2
 ATTENTION: 0031-408  16 tasks allocated by LoadLeveler, continuing...
-   0:  atm_init_tim= 1.800000072
-   1:  atm_init_tim= 1.800000072
-   2:  atm_init_tim= 1.800000072
-   3:  atm_init_tim= 1.800000072
-   4:  atm_init_tim= 1.800000072
-   5:  atm_init_tim= 1.800000072
-   8:  atm_init_tim= 1.800000072
-   9:  atm_init_tim= 1.800000072
-  10:  atm_init_tim= 1.800000072
-  11:  atm_init_tim= 1.800000072
-  12:  atm_init_tim= 1.800000072
-  13:  atm_init_tim= 1.800000072
-  14:  atm_init_tim= 1.800000072
-  15:  atm_init_tim= 1.800000072
-   7:  atm_init_tim= 1.800000072
-   6:  atm_init_tim= 1.800000072
+   0:  atm_init_tim= 1.920000076
+   1:  atm_init_tim= 1.920000076
+   2:  atm_init_tim= 1.920000076
+   3:  atm_init_tim= 1.920000076
+   4:  atm_init_tim= 1.920000076
+   5:  atm_init_tim= 1.920000076
+   6:  atm_init_tim= 1.920000076
+   7:  atm_init_tim= 1.920000076
+   8:  atm_init_tim= 1.920000076
+   9:  atm_init_tim= 1.920000076
+  10:  atm_init_tim= 1.920000076
+  11:  atm_init_tim= 1.920000076
+  12:  atm_init_tim= 1.920000076
+  13:  atm_init_tim= 1.920000076
+  14:  atm_init_tim= 1.920000076
+  15:  atm_init_tim= 1.920000076
    0: ATM FINALIZE STEP SUCCEEDED
    1: ATM FINALIZE STEP SUCCEEDED
-   2: ATM FINALIZE STEP SUCCEEDED
+   3: ATM FINALIZE STEP SUCCEEDED
    4: ATM FINALIZE STEP SUCCEEDED
    5: ATM FINALIZE STEP SUCCEEDED
-   6: ATM FINALIZE STEP SUCCEEDED
-   7: ATM FINALIZE STEP SUCCEEDED
-   8: ATM FINALIZE STEP SUCCEEDED
    9: ATM FINALIZE STEP SUCCEEDED
   10: ATM FINALIZE STEP SUCCEEDED
   11: ATM FINALIZE STEP SUCCEEDED
+   2: ATM FINALIZE STEP SUCCEEDED
+   6: ATM FINALIZE STEP SUCCEEDED
+   7: ATM FINALIZE STEP SUCCEEDED
   12: ATM FINALIZE STEP SUCCEEDED
-   3: ATM FINALIZE STEP SUCCEEDED
   13: ATM FINALIZE STEP SUCCEEDED
   14: ATM FINALIZE STEP SUCCEEDED
+   8: ATM FINALIZE STEP SUCCEEDED
   15: ATM FINALIZE STEP SUCCEEDED
-   0: MODEL FORECAST RUN SUCCEEDED
-   6: MODEL FORECAST RUN SUCCEEDED
-   5: MODEL FORECAST RUN SUCCEEDED
-  14: MODEL FORECAST RUN SUCCEEDED
-   1: MODEL FORECAST RUN SUCCEEDED
-  11: MODEL FORECAST RUN SUCCEEDED
    7: MODEL FORECAST RUN SUCCEEDED
   15: MODEL FORECAST RUN SUCCEEDED
-   8: MODEL FORECAST RUN SUCCEEDED
-  10: MODEL FORECAST RUN SUCCEEDED
+  14: MODEL FORECAST RUN SUCCEEDED
    4: MODEL FORECAST RUN SUCCEEDED
-   2: MODEL FORECAST RUN SUCCEEDED
+   0: MODEL FORECAST RUN SUCCEEDED
+   5: MODEL FORECAST RUN SUCCEEDED
+   6: MODEL FORECAST RUN SUCCEEDED
   13: MODEL FORECAST RUN SUCCEEDED
-  12: MODEL FORECAST RUN SUCCEEDED
    3: MODEL FORECAST RUN SUCCEEDED
    9: MODEL FORECAST RUN SUCCEEDED
+   1: MODEL FORECAST RUN SUCCEEDED
+  11: MODEL FORECAST RUN SUCCEEDED
+   2: MODEL FORECAST RUN SUCCEEDED
+  10: MODEL FORECAST RUN SUCCEEDED
+  12: MODEL FORECAST RUN SUCCEEDED
+   8: MODEL FORECAST RUN SUCCEEDED
 + export ERR=0
 + export err=0
 + eval [[ $err = 0 ]]
@@ -854,4 +853,4 @@ ATTENTION: 0031-408  16 tasks allocated by LoadLeveler, continuing...
 + rm -f fort.51 fort.52 fort.53
 + cd /ptmp/wx22ec/gfs.1_test
 + [[ NO = YES ]]
-Thu Aug 28 14:59:11 EDT 2008 EXITING /meso/save/wx22ec/NEMS/run/exglobal_fcst.sh.sms_nems with return code 0
+Thu Aug 28 16:21:59 EDT 2008 EXITING /meso/save/wx22ec/NEMS/run/exglobal_fcst.sh.sms_nems with return code 0

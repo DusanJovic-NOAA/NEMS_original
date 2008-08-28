@@ -4,7 +4,7 @@ YES
 
 * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . 
      PROGRAM GLOBAL_CHGRES HAS BEGUN. COMPILED 1999253.50     ORG: NP23
-     STARTING DATE-TIME  AUG 28,2008  14:51:29.035  241  THU   2454707
+     STARTING DATE-TIME  AUG 28,2008  16:15:58.666  241  THU   2454707
 
 
  &NAMCHG
@@ -20,7 +20,7 @@ CHANGE SIGMA FILE RESOLUTION FROM  382 WAVES,   64 LEVELS, AND    3 TRACERS
   USING A GAUSSIAN TRANSFORM GRID OF  192 X   94
   NEW OROGRAPHY READ IN
   NEW MODEL LEVELS READ IN
- omega time= 8017.194336
+ omega time= 8009.864258
   JREC= 578  NREC= 578
   iret= 0  nslm= 22
 CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
@@ -2082,30 +2082,30 @@ RTSFS,RALBS,RAISS,RSNOS,RSMCS,RZORS,RVEGS=   .000  1.000   .000
  - CALCULATE LIQUID PORTION OF TOTAL SOIL MOISTURE.
 
 
-     ENDING DATE-TIME    AUG 28,2008  14:52:01.457  241  THU   2454707
+     ENDING DATE-TIME    AUG 28,2008  16:16:30.501  241  THU   2454707
      PROGRAM GLOBAL_CHGRES HAS ENDED.  IBM RS/6000 SP
 * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . 
-     1     1       1.371       1.371       1.371
-     2     1       1.133       1.133       1.133
-     3     1        .010        .010        .010
-     4     1        .005        .005        .005
-     5     6       7.843       1.136       1.539
+     1     1        .291        .291        .291
+     2     1       1.522       1.522       1.522
+     3     1        .008        .008        .008
+     4     1        .003        .003        .003
+     5     6       7.716       1.133       1.421
      6     6        .002        .000        .001
-     7     6      10.391       1.547       1.831
-     8     6       1.271        .184        .229
-     9     6        .089        .010        .017
-    10     1        .717        .717        .717
+     7     6      10.349       1.549       1.799
+     8     6       1.271        .185        .229
+     9     6        .090        .010        .019
+    10     1        .703        .703        .703
     11     0        .000        .000        .000
     12     0        .000        .000        .000
     13     0        .000        .000        .000
     14     0        .000        .000        .000
-    15     1        .052        .052        .052
-    16     1        .040        .040        .040
-    17     1        .437        .437        .437
-    18     1        .024        .024        .024
-    19     1        .021        .021        .021
-    20     1       9.013       9.013       9.013
-    21     1        .005        .005        .005
+    15     1        .256        .256        .256
+    16     1        .036        .036        .036
+    17     1        .448        .448        .448
+    18     1        .023        .023        .023
+    19     1        .010        .010        .010
+    20     1       9.099       9.099       9.099
+    21     1        .010        .010        .010
     22     0        .000        .000        .000
     23     0        .000        .000        .000
     24     0        .000        .000        .000
@@ -2117,22 +2117,22 @@ RTSFS,RALBS,RAISS,RSNOS,RSMCS,RZORS,RVEGS=   .000  1.000   .000
     30     0        .000        .000        .000
 *****************RESOURCE STATISTICS*******************************
 
-The total amount of wall time                        = 32.422712
-The total amount of time in user mode                = 28.938093
-The total amount of time in sys mode                 = 0.169511
+The total amount of wall time                        = 31.835368
+The total amount of time in user mode                = 28.912300
+The total amount of time in sys mode                 = 0.165029
 The maximum resident set size (KB)                   = 517084
-Average shared memory use in text segment (KB*sec)   = 20808
-Average unshared memory use in data segment (KB*sec) = 9939455
+Average shared memory use in text segment (KB*sec)   = 20686
+Average unshared memory use in data segment (KB*sec) = 9880983
 Average unshared memory use in stack segment(KB*sec) = 0
-Number of page faults without I/O activity           = 129245
-Number of page faults with I/O activity              = 284
+Number of page faults without I/O activity           = 129149
+Number of page faults with I/O activity              = 220
 Number of times process was swapped out              = 0
 Number of times filesystem performed INPUT           = 0
 Number of times filesystem performed OUTPUT          = 0
 Number of IPC messages sent                          = 0
 Number of IPC messages received                      = 0
 Number of Signals delivered                          = 0
-Number of Voluntary Context Switches                 = 413
-Number of InVoluntary Context Switches               = 88
+Number of Voluntary Context Switches                 = 385
+Number of InVoluntary Context Switches               = 47
 *****************END OF RESOURCE STATISTICS*************************
 
