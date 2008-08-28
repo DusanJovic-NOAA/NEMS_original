@@ -113,7 +113,7 @@ $(MODULE_SMP):	$(DEPS)
 	$(FC) $(FFLAGS) $(SMP) $(MAF) -qsource -qlist -c $<
 
 clean:	
-	/bin/rm -f  $(TARGET) *.f90 *.lst *.o *.mod lm map
+	/bin/rm -f  $(TARGET) *.f90 *.lst *.o *.mod *.a lm map
 
 #
 # DEPENDENCIES :
