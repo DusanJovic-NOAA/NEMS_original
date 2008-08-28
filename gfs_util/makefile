@@ -41,7 +41,7 @@ FFLAGM_DEBUG  = -O0
 # *****************************************************************
 #
 OBJS0	= atmos_err_msg_mod.o 		\
-	  module_digital_filter.o 	\
+	  module_digital_filter_gfs.o 	\
 	  module_include.o 		\
 	  module_export_import_data.o 	\
 	  atmos_dyn_phy_cpl_comp_mod.o \
@@ -56,7 +56,7 @@ $(EXEC): $(OBJS0)
 	$(AR) $(ARFLAGS) $(EXEC) $(OBJS0) 
 	echo " $(EXEC) is created! "
 clean:
-	rm -f *.o *.mod *.lst  $(EXEC)
+	rm -f *.o *.mod *.lst *.a $(EXEC)
 
 .F90.o:
 	$(F77) $(FFLAGS) -c -d $< 
@@ -68,8 +68,8 @@ clean:
 atmos_err_msg_mod.o:     atmos_err_msg_mod.F90
 	$(F77) $(FFLAG90) -c atmos_err_msg_mod.F90
                                                                                   
-module_digital_filter.o:     module_digital_filter.F90
-	$(F77) $(FFLAG90) -c module_digital_filter.F90
+module_digital_filter_gfs.o:     module_digital_filter_gfs.F90
+	$(F77) $(FFLAG90) -c module_digital_filter_gfs.F90
                                                                                   
 module_include.o:     module_include.F90
 	$(F77) $(FFLAG90) -c module_include.F90

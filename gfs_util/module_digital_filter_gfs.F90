@@ -38,9 +38,9 @@
       integer,          intent(in) ::   ndfistep
 !
       TYPE(ESMF_VM)                :: vm
-      type(esmf_array)		   :: tmp_array
-      integer			   :: tmp_rank, dim, dim_max
-      integer 			   :: m,n,rc
+      type(esmf_array)             :: tmp_array
+      integer                      :: tmp_rank, dim, dim_max
+      integer                      :: m,n,rc
       integer                      :: me, nodes
 
       INTEGER, DIMENSION(:, :), POINTER :: tmp_counts
@@ -65,15 +65,15 @@
       print *,' in digital_filter_dyn_init itemname = ',dyn_name
       dim_max=0
       do n=1,dyn_items
-        CALL ESMF_StateGet(dyn_state, dyn_name(n), tmp_array, rc=rc)
+        CALL ESMF_StateGet(dyn_state, dyn_name(n), tmp_array, rc = rc)
 
-        call esmf_arrayget(tmp_array                                    &
+        call esmf_arrayget(tmp_array	   				&
                           ,rank              = tmp_rank                 &
                           ,indexCountPDimPDe = tmp_counts               &
                           ,rc                = rc)
         dim=tmp_counts(1, me + 1)
         if( dim.gt.1 ) then
-          do m=2,tmp_rank
+          do m=2,tmp_rank 
             dim=dim*tmp_counts(m, me + 1)
           enddo
           dyn_dim(n)=dim
@@ -95,15 +95,16 @@
       end subroutine digital_filter_dyn_init_gfs
 
 ! ---------------------------------------------------------------
-      subroutine digital_filter_dyn_sum_gfs(dyn_state)
+      subroutine digital_filter_dyn_sum_gfs(dyn_state, mype)
 !
       implicit none
       type(esmf_state), intent(in)  :: dyn_state
+      integer,          intent(in)  :: mype
 !
-      type(esmf_array)		    :: tmp_array
+      TYPE(ESMF_Array)		    :: tmp_array
       real, dimension(:,:), pointer :: tmp_ptr
-      real 			    :: sx, wx, digfil
-      integer			    :: n,i,rc
+      real                          :: sx, wx, digfil
+      integer                       :: n, i, rc
 
         kstep = kstep + 1
         sx     = acos(-1.)*kstep/nstep
@@ -120,10 +121,10 @@
         
         do n=1,dyn_items
           if( dyn_dim(n).gt.1 ) then
-          CALL ESMF_StateGet(dyn_state, dyn_name(n), tmp_array, rc=rc)
+          CALL ESMF_StateGet(dyn_state, dyn_name(n), tmp_array, rc = rc)
 
           nullify(tmp_ptr)
-          CALL ESMF_ArrayGet(tmp_array, localDe=0, farrayPtr=tmp_ptr, rc = rc)
+          CALL ESMF_ArrayGet(tmp_array, mype, tmp_ptr, rc = rc)
 
           do i=1,dyn_dim(n)
           dyn_array_save(i,n)=dyn_array_save(i,n)+digfil*tmp_ptr(i,1)
@@ -134,17 +135,18 @@
       end subroutine digital_filter_dyn_sum_gfs
 
 ! ---------------------------------------------------------------
-      subroutine digital_filter_dyn_average_gfs(dyn_state)
+      subroutine digital_filter_dyn_average_gfs(dyn_state, mype)
 !
       implicit none
       type(esmf_state), intent(inout) :: dyn_state
+      integer,          intent(in)    :: mype
 !
-      type(esmf_array)		      :: tmp_array
+      TYPE(ESMF_Array)                :: tmp_array
       TYPE(ESMF_DistGrid)             :: tmp_distgrid
       CHARACTER(ESMF_Maxstr)          :: name
       real, dimension(:,:), pointer   :: tmp_ptr
-      real			      :: totalsumi
-      integer			      :: n,i,rc
+      real                            :: totalsumi
+      integer                         :: n, i, rc
 !
       totalsumi = 1.0 / totalsum
 
@@ -154,16 +156,16 @@
         dyn_array_save(i,n)=dyn_array_save(i,n)*totalsumi
         enddo
 
-        CALL ESMF_StateGet(dyn_state, dyn_name(n), tmp_array, rc=rc)
+        CALL ESMF_StateGet(dyn_state, dyn_name(n), tmp_array, rc = rc)
 
         nullify(tmp_ptr)
-        CALL ESMF_ArrayGet(tmp_array, localDe=0, farrayPtr=tmp_ptr, rc = rc)
+        CALL ESMF_ArrayGet(tmp_array, mype, tmp_ptr, rc = rc) 
 
         do i=1,dyn_dim(n)
         tmp_ptr(i,1) = dyn_array_save(i,n)
         enddo
 
-        CALL ESMF_StateAdd(dyn_state, tmp_array, rc )
+        CALL ESMF_StateAdd(dyn_state, tmp_array, rc = rc)
         endif
       enddo
 
@@ -202,13 +204,13 @@
       implicit none
       type(esmf_state), intent(in) :: phy_state
 !
-      type(esmf_array)		   :: tmp_array
-      integer			   :: n,rc
+      TYPE(ESMF_Array)             :: tmp_array
+      integer                      :: n, rc
 !
       do n=1,phy_items
-        CALL ESMF_StateGet(phy_state, phy_name(n), tmp_array, rc=rc)
+        CALL ESMF_StateGet(phy_state, phy_name(n), tmp_array, rc = rc)
 
-        CALL ESMF_StateAdd(phy_state_save, tmp_array, rc)
+        CALL ESMF_StateAdd(phy_state_save, tmp_array, rc = rc)
       enddo
       end subroutine digital_filter_phy_save_gfs
 
@@ -218,13 +220,13 @@
       implicit none
       type(esmf_state), intent(inout) :: phy_state
 !
-      type(esmf_array)		      :: tmp_array
-      integer			      :: n,rc
+      TYPE(ESMF_Array)                :: tmp_array
+      integer                         :: n, rc
 !
       do n=1,phy_items
-        CALL ESMF_StateGet(phy_state_save, phy_name(n), tmp_array, rc=rc)
+        CALL ESMF_StateGet(phy_state_save, phy_name(n), tmp_array, rc = rc)
 
-        CALL ESMF_StateAdd(phy_state, tmp_array, rc)
+        CALL ESMF_StateAdd(phy_state, tmp_array, rc = rc)
       enddo
       call esmf_statedestroy(phy_state_save,rc=rc)
 

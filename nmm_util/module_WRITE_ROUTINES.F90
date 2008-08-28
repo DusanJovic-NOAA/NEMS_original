@@ -2230,7 +2230,7 @@
       ENDDO
 !
       N2IARY=N2IARY+1
-      MAXLENGTH=MAX(LENGTH,7)
+      MAXLENGTH=MAX(MAXLENGTH,7)
       ALLOCATE(VARINAME(N2ISCALAR),VARIVAL(N2ISCALAR))
       ALLOCATE(ARYINAME(N2IARY),ARYILEN(N2IARY),ARYIVAL(MAXLENGTH,N2IARY))
 !
@@ -2607,7 +2607,7 @@
         modelname="NMMB", gdatatype="bin4", idate=IDATE,nfhour=NF_HOURS, &
         nfminute=NF_MINUTES,nfsecondn=nint(NF_SECONDS*100),              &
         nfsecondd=100,dimx=DIM1,dimy=DIM2,dimz=LM,nframe=NFRAME,         &
-        nsoil=NSOIL,ntrac=3, ncldt=1,rlon_min=minval(glon1d),            &
+        nsoil=NSOIL,ntrac=3,nrec=nrec, ncldt=1,rlon_min=minval(glon1d),  &
         rlon_max=maxval(glon1d), rlat_max=maxval(glat1d),                &
         rlat_min=minval(glat1d),vcoord=vcoord,lon=glon1d,lat=glat1d,     &
         dx=dx,dy=dy,extrameta=.true.,nmetavari=N2ISCALAR,                &
@@ -2616,7 +2616,7 @@
         varrname=VARRNAME,varrval=VARRVAL,varlname=VARLNAME,             &
         varlval=VARLVAL,aryiname=ARYINAME,aryilen=ARYILEN,               &
         aryival=ARYIVAL,aryrname=ARYRNAME,aryrlen=ARYRLEN,               &
-        aryrval=ARYRVAL,recname=recname,reclevtyp=reclevtyp,reclev=reclev)
+        aryrval=ARYRVAL,recname=RECNAME,reclevtyp=RECLEVTYP,reclev=RECLEV)
 !
       ALLOCATE(TMP(FIELDSIZE))
 !

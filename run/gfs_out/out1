@@ -4,7 +4,7 @@ YES
 
 * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . 
      PROGRAM GLOBAL_CHGRES HAS BEGUN. COMPILED 1999253.50     ORG: NP23
-     STARTING DATE-TIME  AUG 19,2008  14:17:08.927  232  TUE   2454698
+     STARTING DATE-TIME  AUG 28,2008  14:51:29.035  241  THU   2454707
 
 
  &NAMCHG
@@ -20,7 +20,7 @@ CHANGE SIGMA FILE RESOLUTION FROM  382 WAVES,   64 LEVELS, AND    3 TRACERS
   USING A GAUSSIAN TRANSFORM GRID OF  192 X   94
   NEW OROGRAPHY READ IN
   NEW MODEL LEVELS READ IN
- omega time= 4085.687500
+ omega time= 8017.194336
   JREC= 578  NREC= 578
   iret= 0  nslm= 22
 CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
@@ -122,16 +122,10 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  I1,I2,J1,J2= 133 134 6 7
  RSLMSK= 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00
  I= 177  SLMASK(I)= 1.000000000  outlon= -15.00000000  outlat= 80.94734955
- I1,I2,J1,J2= 7 8 79 80
- RSLMSK= 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00
- I= 9774  SLMASK(I)= 1.000000000  outlon= 18.00000000  outlat= -33.33280182
  I1,I2,J1,J2= 109 110 9 10
  RSLMSK= 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00
  I= 282  SLMASK(I)= 1.000000000  outlon= -78.00000000  outlat= 77.13935852
- I1,I2,J1,J2= 53 54 81 82
- RSLMSK= 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00
- I= 10014  SLMASK(I)= 1.000000000  outlon= 138.0000000  outlat= -35.23751831
-  Unable to interpolate.  Filled with nearest point value at  4  points  imxnx= -72944
+  Unable to interpolate.  Filled with nearest point value at  21  points  imxnx= -73008
   LEVEL= 1 MAX= .3024E+03 AT I= 4809 MIN= .2155E+03 AT I=12906
   IN FIXRDC for MON= -1  FNGRIB=/nwprod/fix/global_vegtype.1x1.grb
   FILE /nwprod/fix/global_vegtype.1x1.grb opened. Unit= 51
@@ -149,8 +143,7 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  IMAX,JMAX,IJMAX,DLON,DLAT,IJORDR,WLON,RNLAT=
  360 180 64800 1.000000000 1.000000000 T -179.5000153 89.50000763
   Nearest grid point used kpds5= 225  lmask =  T
-  LEVEL= 1 MAX= .1300E+02 AT I= 6536 MIN= .0000E+00 AT I= 6297
-  LEVEL= 1 MAX= .1300E+02 AT I=  892 MIN= .0000E+00 AT I= 6536
+  LEVEL= 1 MAX= .1300E+02 AT I=13072 MIN= .0000E+00 AT I=12833
   LEVEL= 1 MAX= .1300E+02 AT I=13072 MIN= .0000E+00 AT I=12833
  Climatological vegetation type read in.
   IN FIXRDC for MON= -1  FNGRIB=/nwprod/fix/global_soiltype.1x1.grb
@@ -169,8 +162,7 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  IMAX,JMAX,IJMAX,DLON,DLAT,IJORDR,WLON,RNLAT=
  360 180 64800 1.000000000 1.000000000 T -179.5000153 89.50000763
   Nearest grid point used kpds5= 230  lmask =  T
-  LEVEL= 1 MAX= .9000E+01 AT I= 3167 MIN= .0000E+00 AT I= 6536
-  LEVEL= 1 MAX= .9000E+01 AT I= 6536 MIN= .0000E+00 AT I= 6297
+  LEVEL= 1 MAX= .9000E+01 AT I=13072 MIN= .0000E+00 AT I=12833
   LEVEL= 1 MAX= .9000E+01 AT I=13072 MIN= .0000E+00 AT I=12833
  Climatological soil type read in.
   IN FIXRDC for MON= -1  FNGRIB=/nwprod/fix/global_shdmin.0.144x0.144.grb
@@ -194,13 +186,7 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  I1,I2,J1,J2= 938 939 50 51
  RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
  I= 126  SLMASK(I)= 0.0000000000E+00  outlon= -45.00000000  outlat= 82.85076141
- I1,I2,J1,J2= 2084 2085 632 633
- RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
- I= 6601  SLMASK(I)= 0.0000000000E+00  outlon= 120.0000000  outlat= -0.9523620605
- I1,I2,J1,J2= 2097 2098 632 633
- RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
- I= 6602  SLMASK(I)= 0.0000000000E+00  outlon= 121.8750000  outlat= -0.9523620605
-  Unable to interpolate.  Filled with nearest point value at  43  points  imxnx= -72944
+  Unable to interpolate.  Filled with nearest point value at  156  points  imxnx= -73008
   LEVEL= 1 MAX= .8363E+02 AT I= 6311 MIN= .0000E+00 AT I=12833
  Climatological shdmin read in.
   IN FIXRDC for MON= -1  FNGRIB=/nwprod/fix/global_shdmax.0.144x0.144.grb
@@ -224,13 +210,7 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  I1,I2,J1,J2= 938 939 50 51
  RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
  I= 126  SLMASK(I)= 0.0000000000E+00  outlon= -45.00000000  outlat= 82.85076141
- I1,I2,J1,J2= 2084 2085 632 633
- RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
- I= 6601  SLMASK(I)= 0.0000000000E+00  outlon= 120.0000000  outlat= -0.9523620605
- I1,I2,J1,J2= 2097 2098 632 633
- RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
- I= 6602  SLMASK(I)= 0.0000000000E+00  outlon= 121.8750000  outlat= -0.9523620605
-  Unable to interpolate.  Filled with nearest point value at  43  points  imxnx= -72944
+  Unable to interpolate.  Filled with nearest point value at  156  points  imxnx= -73008
   LEVEL= 1 MAX= .9900E+02 AT I= 2732 MIN= .0000E+00 AT I=12833
  Climatological shdmax read in.
   IN FIXRDC for MON= -1  FNGRIB=/nwprod/fix/global_slope.1x1.grb
@@ -249,8 +229,7 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  IMAX,JMAX,IJMAX,DLON,DLAT,IJORDR,WLON,RNLAT=
  360 180 64800 1.000000000 1.000000000 T -179.5000153 89.50000763
   Nearest grid point used kpds5= 236  lmask =  T
-  LEVEL= 1 MAX= .1300E+02 AT I= 6536 MIN= .0000E+00 AT I= 6297
-  LEVEL= 1 MAX= .1300E+02 AT I= 3167 MIN= .0000E+00 AT I= 6536
+  LEVEL= 1 MAX= .1300E+02 AT I=13072 MIN= .0000E+00 AT I=12833
   LEVEL= 1 MAX= .1300E+02 AT I=13072 MIN= .0000E+00 AT I=12833
  Climatological slope read in.
   IN FIXRDC for MON= -1  FNGRIB=/nwprod/fix/global_snoalb.1x1.grb
@@ -274,13 +253,7 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  I1,I2,J1,J2= 103 104 13 14
  RSLMSK= 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00
  I= 282  SLMASK(I)= 1.000000000  outlon= -78.00000000  outlat= 77.13935852
- I1,I2,J1,J2= 100 101 93 94
- RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
- I= 6878  SLMASK(I)= 0.0000000000E+00  outlon= -80.62500000  outlat= -2.857101440
- I1,I2,J1,J2= 194 195 99 100
- RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
- I= 7312  SLMASK(I)= 0.0000000000E+00  outlon= 13.12500000  outlat= -8.571304321
-  Unable to interpolate.  Filled with nearest point value at  15  points  imxnx= -72944
+  Unable to interpolate.  Filled with nearest point value at  47  points  imxnx= -73008
   LEVEL= 1 MAX= .8000E+02 AT I=  588 MIN= .0000E+00 AT I=12833
  Climatological snoalb read in.
   IN FIXRDC for MON= 3  FNGRIB=/nwprod/fix/global_albedo4.1x1.grb
@@ -368,13 +341,7 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  I1,I2,J1,J2= 306 307 19 20
  RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
  I= 507  SLMASK(I)= 0.0000000000E+00  outlon= -54.00000000  outlat= 71.42617798
- I1,I2,J1,J2= 109 110 97 98
- RSLMSK= 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00
- I= 7171  SLMASK(I)= 1.000000000  outlon= 108.7500000  outlat= -6.666572571
- I1,I2,J1,J2= 286 287 127 128
- RSLMSK= 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00
- I= 10268  SLMASK(I)= 1.000000000  outlon= -74.00000000  outlat= -37.14224243
-  Unable to interpolate.  Filled with nearest point value at  5  points  imxnx= -72944
+  Unable to interpolate.  Filled with nearest point value at  21  points  imxnx= -73008
   LEVEL= 1 MAX= .3047E+03 AT I= 3880 MIN= .2713E+03 AT I=13072
   IN FIXRDC for MON= 6  FNGRIB=/nwprod/fix/global_soilmcpc.1x1.grb
   FILE /nwprod/fix/global_soilmcpc.1x1.grb opened. Unit= 51
@@ -397,13 +364,7 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  I1,I2,J1,J2= 266 267 15 16
  RSLMSK= 1.000000000 1.000000000 0.0000000000E+00 1.000000000
  I= 348  SLMASK(I)= 0.0000000000E+00  outlon= -95.00000000  outlat= 75.23506165
- I1,I2,J1,J2= 121 122 95 96
- RSLMSK= 1.000000000 1.000000000 0.0000000000E+00 0.0000000000E+00
- I= 6985  SLMASK(I)= 0.0000000000E+00  outlon= 120.0000000  outlat= -4.761833191
- I1,I2,J1,J2= 313 314 118 119
- RSLMSK= 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00
- I= 9381  SLMASK(I)= 1.000000000  outlon= -48.00000000  outlat= -27.61862183
-  Unable to interpolate.  Filled with nearest point value at  10  points  imxnx= -72944
+  Unable to interpolate.  Filled with nearest point value at  33  points  imxnx= -73008
   LEVEL= 1 MAX= .4700E+00 AT I= 6535 MIN= .1040E+00 AT I= 4241
   IN FIXRDC for MON= 6  FNGRIB=/nwprod/fix/cfs_ice1x1monclim19822001.grb
   FILE /nwprod/fix/cfs_ice1x1monclim19822001.grb opened. Unit= 51
@@ -442,13 +403,7 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  I1,I2,J1,J2= 55 56 6 7
  RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
  I= 252  SLMASK(I)= 0.0000000000E+00  outlon= 102.0000000  outlat= 77.13935852
- I1,I2,J1,J2= 6 7 48 49
- RSLMSK= 0.0000000000E+00 0.0000000000E+00 1.000000000 1.000000000
- I= 6542  SLMASK(I)= 1.000000000  outlon= 9.375000000  outlat= -0.9523620605
- I1,I2,J1,J2= 150 151 48 49
- RSLMSK= 0.0000000000E+00 0.0000000000E+00 1.000000000 1.000000000
- I= 6686  SLMASK(I)= 1.000000000  outlon= -80.62500000  outlat= -0.9523620605
-  Unable to interpolate.  Filled with nearest point value at  7  points  imxnx= -72944
+  Unable to interpolate.  Filled with nearest point value at  27  points  imxnx= -73008
   LEVEL= 1 MAX= .5000E+05 AT I=12893 MIN= .0000E+00 AT I=12965
   IN FIXRDC for MON= 6  FNGRIB=/nwprod/fix/global_zorclim.1x1.grb
   FILE /nwprod/fix/global_zorclim.1x1.grb opened. Unit= 51
@@ -465,19 +420,13 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  LAT/LON GRID
  IMAX,JMAX,IJMAX,DLON,DLAT,IJORDR,WLON,RNLAT=
  360 180 64800 1.000000000 1.000000000 T -179.5000153 89.50000763
- I1,I2,J1,J2= 291 292 97 98
- RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
- I= 7172  SLMASK(I)= 0.0000000000E+00  outlon= 110.6250000  outlat= -6.666572571
- I1,I2,J1,J2= 293 294 97 98
- RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
- I= 7173  SLMASK(I)= 0.0000000000E+00  outlon= 112.5000000  outlat= -6.666572571
  I1,I2,J1,J2= 90 91 9 10
  RSLMSK= 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00
  I= 167  SLMASK(I)= 1.000000000  outlon= -90.00000000  outlat= 80.94734955
  I1,I2,J1,J2= 161 162 11 12
  RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
  I= 232  SLMASK(I)= 0.0000000000E+00  outlon= -19.28573608  outlat= 79.04348755
-  Unable to interpolate.  Filled with nearest point value at  34  points  imxnx= -72944
+  Unable to interpolate.  Filled with nearest point value at  44  points  imxnx= -73008
   LEVEL= 1 MAX= .1000E+02 AT I= 4848 MIN= .0000E+00 AT I=13072
   IN FIXRDC for MON= 6  FNGRIB=/nwprod/fix/global_vegfrac.0.144.decpercent.grb
   FILE /nwprod/fix/global_vegfrac.0.144.decpercent.grb opened. Unit= 51
@@ -500,13 +449,7 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  I1,I2,J1,J2= 938 939 50 51
  RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
  I= 126  SLMASK(I)= 0.0000000000E+00  outlon= -45.00000000  outlat= 82.85076141
- I1,I2,J1,J2= 2084 2085 632 633
- RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
- I= 6601  SLMASK(I)= 0.0000000000E+00  outlon= 120.0000000  outlat= -0.9523620605
- I1,I2,J1,J2= 2097 2098 632 633
- RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
- I= 6602  SLMASK(I)= 0.0000000000E+00  outlon= 121.8750000  outlat= -0.9523620605
-  Unable to interpolate.  Filled with nearest point value at  43  points  imxnx= -72944
+  Unable to interpolate.  Filled with nearest point value at  156  points  imxnx= -73008
   LEVEL= 1 MAX= .9900E+00 AT I= 2732 MIN= .0000E+00 AT I=12833
  Climatological vegetation cover read in for mon= 6
   IN FIXRDC for MON= 6  FNGRIB=/nwprod/fix/global_albedo4.1x1.grb
@@ -594,13 +537,7 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  I1,I2,J1,J2= 306 307 19 20
  RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
  I= 507  SLMASK(I)= 0.0000000000E+00  outlon= -54.00000000  outlat= 71.42617798
- I1,I2,J1,J2= 109 110 97 98
- RSLMSK= 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00
- I= 7171  SLMASK(I)= 1.000000000  outlon= 108.7500000  outlat= -6.666572571
- I1,I2,J1,J2= 286 287 127 128
- RSLMSK= 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00
- I= 10268  SLMASK(I)= 1.000000000  outlon= -74.00000000  outlat= -37.14224243
-  Unable to interpolate.  Filled with nearest point value at  5  points  imxnx= -72944
+  Unable to interpolate.  Filled with nearest point value at  21  points  imxnx= -73008
   LEVEL= 1 MAX= .3057E+03 AT I= 3879 MIN= .2713E+03 AT I=13072
   IN FIXRDC for MON= 7  FNGRIB=/nwprod/fix/global_soilmcpc.1x1.grb
   FILE /nwprod/fix/global_soilmcpc.1x1.grb opened. Unit= 51
@@ -623,13 +560,7 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  I1,I2,J1,J2= 266 267 15 16
  RSLMSK= 1.000000000 1.000000000 0.0000000000E+00 1.000000000
  I= 348  SLMASK(I)= 0.0000000000E+00  outlon= -95.00000000  outlat= 75.23506165
- I1,I2,J1,J2= 121 122 95 96
- RSLMSK= 1.000000000 1.000000000 0.0000000000E+00 0.0000000000E+00
- I= 6985  SLMASK(I)= 0.0000000000E+00  outlon= 120.0000000  outlat= -4.761833191
- I1,I2,J1,J2= 313 314 118 119
- RSLMSK= 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00
- I= 9381  SLMASK(I)= 1.000000000  outlon= -48.00000000  outlat= -27.61862183
-  Unable to interpolate.  Filled with nearest point value at  10  points  imxnx= -72944
+  Unable to interpolate.  Filled with nearest point value at  33  points  imxnx= -73008
   LEVEL= 1 MAX= .4700E+00 AT I= 6535 MIN= .1030E+00 AT I= 4052
   IN FIXRDC for MON= 7  FNGRIB=/nwprod/fix/cfs_ice1x1monclim19822001.grb
   FILE /nwprod/fix/cfs_ice1x1monclim19822001.grb opened. Unit= 51
@@ -662,19 +593,13 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  LAT/LON GRID
  IMAX,JMAX,IJMAX,DLON,DLAT,IJORDR,WLON,RNLAT=
  192 95 18240 1.875000119 -1.875000119 T 0.0000000000E+00 88.12500763
- I1,I2,J1,J2= 6 7 48 49
- RSLMSK= 0.0000000000E+00 0.0000000000E+00 1.000000000 1.000000000
- I= 6542  SLMASK(I)= 1.000000000  outlon= 9.375000000  outlat= -0.9523620605
- I1,I2,J1,J2= 150 151 48 49
- RSLMSK= 0.0000000000E+00 0.0000000000E+00 1.000000000 1.000000000
- I= 6686  SLMASK(I)= 1.000000000  outlon= -80.62500000  outlat= -0.9523620605
  I1,I2,J1,J2= 185 186 4 5
  RSLMSK= 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00 0.0000000000E+00
  I= 177  SLMASK(I)= 1.000000000  outlon= -15.00000000  outlat= 80.94734955
  I1,I2,J1,J2= 55 56 6 7
  RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
  I= 252  SLMASK(I)= 0.0000000000E+00  outlon= 102.0000000  outlat= 77.13935852
-  Unable to interpolate.  Filled with nearest point value at  20  points  imxnx= -72944
+  Unable to interpolate.  Filled with nearest point value at  27  points  imxnx= -73008
   LEVEL= 1 MAX= .5000E+05 AT I=12893 MIN= .0000E+00 AT I=12965
   IN FIXRDC for MON= 7  FNGRIB=/nwprod/fix/global_zorclim.1x1.grb
   FILE /nwprod/fix/global_zorclim.1x1.grb opened. Unit= 51
@@ -697,13 +622,7 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  I1,I2,J1,J2= 161 162 11 12
  RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
  I= 232  SLMASK(I)= 0.0000000000E+00  outlon= -19.28573608  outlat= 79.04348755
- I1,I2,J1,J2= 291 292 97 98
- RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
- I= 7172  SLMASK(I)= 0.0000000000E+00  outlon= 110.6250000  outlat= -6.666572571
- I1,I2,J1,J2= 293 294 97 98
- RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
- I= 7173  SLMASK(I)= 0.0000000000E+00  outlon= 112.5000000  outlat= -6.666572571
-  Unable to interpolate.  Filled with nearest point value at  10  points  imxnx= -72944
+  Unable to interpolate.  Filled with nearest point value at  44  points  imxnx= -73008
   LEVEL= 1 MAX= .1000E+02 AT I= 4848 MIN= .0000E+00 AT I=13072
   IN FIXRDC for MON= 7  FNGRIB=/nwprod/fix/global_vegfrac.0.144.decpercent.grb
   FILE /nwprod/fix/global_vegfrac.0.144.decpercent.grb opened. Unit= 51
@@ -722,17 +641,11 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  2500 1250 3125000 0.1440000087 0.1440000087 T -180.0000153 89.92800140
  I1,I2,J1,J2= 688 689 50 51
  RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
- I1,I2,J1,J2= 2084 2085 632 633
- RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
- I= 6601  SLMASK(I)= 0.0000000000E+00  outlon= 120.0000000  outlat= -0.9523620605
- I1,I2,J1,J2= 2097 2098 632 633
- RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
- I= 6602  SLMASK(I)= 0.0000000000E+00  outlon= 121.8750000  outlat= -0.9523620605
  I= 122  SLMASK(I)= 0.0000000000E+00  outlon= -81.00000000  outlat= 82.85076141
  I1,I2,J1,J2= 938 939 50 51
  RSLMSK= 1.000000000 1.000000000 1.000000000 1.000000000
  I= 126  SLMASK(I)= 0.0000000000E+00  outlon= -45.00000000  outlat= 82.85076141
-  Unable to interpolate.  Filled with nearest point value at  113  points  imxnx= -72944
+  Unable to interpolate.  Filled with nearest point value at  156  points  imxnx= -73008
   LEVEL= 1 MAX= .9900E+00 AT I= 1867 MIN= .0000E+00 AT I=12833
  Climatological vegetation cover read in for mon= 7
   mon1s= 6  mon2s= 7  sea1s= 4  sea2s= 7
@@ -790,6 +703,8 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  Performing QC of ALBc     MODE= 1 (0=count only, 1=replace)
  Bare land min. check. LAT= 75.2 LON=-115.0 FLD= .000000E+00 to  .600000E-01
  Bare land min. check. LAT= 75.2 LON=-100.0 FLD= .000000E+00 to  .600000E-01
+ Bare land max. check. LAT=-75.2 LON= -60.0 FLD= .900000E+00 to  .800000E+00
+ Bare land max. check. LAT=-77.1 LON= -66.0 FLD= .900000E+00 to  .800000E+00
  Sno covrd land min. check. LAT= 75.2 LON=  90.0 FLD= .0000E+00 to  .6000E-01
  Sno covrd land min. check. LAT= 75.2 LON=  95.0 FLD= .0000E+00 to  .6000E-01
  Snow land max. check. LAT= 82.9 LON= -36.0 FLD= .9000E+00 to  .8000E+00
@@ -814,6 +729,7 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  Seaice no snow max. check LAT= 88.5 LON=    .0 FLD= .1000E+04 to  .1000E+01
  Seaice no snow max. check LAT= 88.5 LON=  12.0 FLD= .1000E+04 to  .1000E+01
  Seaice snow max check LAT= 82.9 LON= -63.0 FLD= .1000E+04 to  .1000E+01
+ Seaice snow max check LAT=-67.6 LON=  36.0 FLD= .1000E+04 to  .1000E+01
  Bare land min check.  Modified to      2.0 at 52288 points ****percent
  Bare land max check. Modified to    300.0 at 52288 points ****percent
  Open ocean min check.  Modified to       .0 at 52288 points ****percent
@@ -841,6 +757,7 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  Seaice no snow min. check LAT= 88.5 LON=    .0 FLD= .4700E+00 to  .1000E+01
  Seaice no snow min. check LAT= 88.5 LON=  12.0 FLD= .4700E+00 to  .1000E+01
  Sea ice snow min. check LAT= 82.9 LON= -63.0 FLD= .4700E+00 to  .1000E+01
+ Sea ice snow min. check LAT=-67.6 LON=  36.0 FLD= .4700E+00 to  .1000E+01
  Bare land min check.  Modified to       .0 at 52288 points ****percent
  Bare land max check. Modified to       .6 at 52288 points ****percent
  Open ocean min check.  Modified to      1.0 at 52288 points ****percent
@@ -857,6 +774,7 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  Seaice no snow min. check LAT= 88.5 LON=    .0 FLD= .4700E+00 to  .1000E+01
  Seaice no snow min. check LAT= 88.5 LON=  12.0 FLD= .4700E+00 to  .1000E+01
  Sea ice snow min. check LAT= 82.9 LON= -63.0 FLD= .4700E+00 to  .1000E+01
+ Sea ice snow min. check LAT=-67.6 LON=  36.0 FLD= .4700E+00 to  .1000E+01
  Bare land min check.  Modified to       .0 at 52288 points ****percent
  Bare land max check. Modified to       .6 at 52288 points ****percent
  Open ocean min check.  Modified to      1.0 at 52288 points ****percent
@@ -873,6 +791,7 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  Seaice no snow min. check LAT= 88.5 LON=    .0 FLD= .4700E+00 to  .1000E+01
  Seaice no snow min. check LAT= 88.5 LON=  12.0 FLD= .4700E+00 to  .1000E+01
  Sea ice snow min. check LAT= 82.9 LON= -63.0 FLD= .4700E+00 to  .1000E+01
+ Sea ice snow min. check LAT=-67.6 LON=  36.0 FLD= .4700E+00 to  .1000E+01
  Bare land min check.  Modified to       .0 at 52288 points ****percent
  Bare land max check. Modified to       .6 at 52288 points ****percent
  Open ocean min check.  Modified to      1.0 at 52288 points ****percent
@@ -889,6 +808,7 @@ CHANGE SURFACE FILE RESOLUTION FROM 1152 X  576 X    4   VERSION  200509
  Seaice no snow min. check LAT= 88.5 LON=    .0 FLD= .4700E+00 to  .1000E+01
  Seaice no snow min. check LAT= 88.5 LON=  12.0 FLD= .4700E+00 to  .1000E+01
  Sea ice snow min. check LAT= 82.9 LON= -63.0 FLD= .4700E+00 to  .1000E+01
+ Sea ice snow min. check LAT=-67.6 LON=  36.0 FLD= .4700E+00 to  .1000E+01
  Bare land min check.  Modified to       .0 at 52288 points ****percent
  Bare land max check. Modified to       .6 at 52288 points ****percent
  Open ocean min check.  Modified to      1.0 at 52288 points ****percent
@@ -2162,30 +2082,30 @@ RTSFS,RALBS,RAISS,RSNOS,RSMCS,RZORS,RVEGS=   .000  1.000   .000
  - CALCULATE LIQUID PORTION OF TOTAL SOIL MOISTURE.
 
 
-     ENDING DATE-TIME    AUG 19,2008  14:17:31.520  232  TUE   2454698
+     ENDING DATE-TIME    AUG 28,2008  14:52:01.457  241  THU   2454707
      PROGRAM GLOBAL_CHGRES HAS ENDED.  IBM RS/6000 SP
 * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . 
-     1     1        .277        .277        .277
-     2     1       1.494       1.494       1.494
-     3     1        .011        .011        .011
+     1     1       1.371       1.371       1.371
+     2     1       1.133       1.133       1.133
+     3     1        .010        .010        .010
      4     1        .005        .005        .005
-     5     6       4.120        .604        .768
-     6     6        .004        .000        .001
-     7     6       5.443        .815        .953
-     8     6        .719        .102        .134
-     9     6        .098        .011        .020
-    10     1        .712        .712        .712
+     5     6       7.843       1.136       1.539
+     6     6        .002        .000        .001
+     7     6      10.391       1.547       1.831
+     8     6       1.271        .184        .229
+     9     6        .089        .010        .017
+    10     1        .717        .717        .717
     11     0        .000        .000        .000
     12     0        .000        .000        .000
     13     0        .000        .000        .000
     14     0        .000        .000        .000
-    15     1        .038        .038        .038
-    16     1        .309        .309        .309
-    17     1        .467        .467        .467
-    18     1        .023        .023        .023
-    19     1        .008        .008        .008
-    20     1       8.801       8.801       8.801
-    21     1        .064        .064        .064
+    15     1        .052        .052        .052
+    16     1        .040        .040        .040
+    17     1        .437        .437        .437
+    18     1        .024        .024        .024
+    19     1        .021        .021        .021
+    20     1       9.013       9.013       9.013
+    21     1        .005        .005        .005
     22     0        .000        .000        .000
     23     0        .000        .000        .000
     24     0        .000        .000        .000
@@ -2197,22 +2117,22 @@ RTSFS,RALBS,RAISS,RSNOS,RSMCS,RZORS,RVEGS=   .000  1.000   .000
     30     0        .000        .000        .000
 *****************RESOURCE STATISTICS*******************************
 
-The total amount of wall time                        = 22.593293
-The total amount of time in user mode                = 40.251333
-The total amount of time in sys mode                 = 0.238584
-The maximum resident set size (KB)                   = 521296
-Average shared memory use in text segment (KB*sec)   = 32721
-Average unshared memory use in data segment (KB*sec) = 15248080
+The total amount of wall time                        = 32.422712
+The total amount of time in user mode                = 28.938093
+The total amount of time in sys mode                 = 0.169511
+The maximum resident set size (KB)                   = 517084
+Average shared memory use in text segment (KB*sec)   = 20808
+Average unshared memory use in data segment (KB*sec) = 9939455
 Average unshared memory use in stack segment(KB*sec) = 0
-Number of page faults without I/O activity           = 130142
-Number of page faults with I/O activity              = 228
+Number of page faults without I/O activity           = 129245
+Number of page faults with I/O activity              = 284
 Number of times process was swapped out              = 0
 Number of times filesystem performed INPUT           = 0
 Number of times filesystem performed OUTPUT          = 0
 Number of IPC messages sent                          = 0
 Number of IPC messages received                      = 0
 Number of Signals delivered                          = 0
-Number of Voluntary Context Switches                 = 423
-Number of InVoluntary Context Switches               = 74
+Number of Voluntary Context Switches                 = 413
+Number of InVoluntary Context Switches               = 88
 *****************END OF RESOURCE STATISTICS*************************
 

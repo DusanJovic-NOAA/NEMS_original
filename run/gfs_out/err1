@@ -18,18 +18,18 @@ stty: tcgetattr: A specified file does not support the ioctl system call.
 + export MP_STDOUTMODE=ordered
 + export MP_SHARED_MEMORY=yes
 + export MEMORY_AFFINITY=MCM
-+ export NTHREADS=2
-+ export XLSMPOPTS=parthds=2:spins=0:yields=0:stack=512000000
++ export NTHREADS=1
++ export XLSMPOPTS=parthds=1:spins=0:yields=0:stack=512000000
 + export SPINLOOPTIME=500
 + export YIELDLOOPTIME=500
 + export AIXTHREAD_SCOPE=S
 + export MALLOCMULTIHEAP=true
-+ export expt=gfs.2
++ export expt=gfs.1_test
 + export NSCDIR=/global/noscrub
 + export TOPDIR=/global/save
 + export DUMPDIR=/global/shared/dump
 + export MP_COREFILE_FORMAT=lite
-+ export RUNDIR=/ptmp/wx22ec/gfs.2
++ export RUNDIR=/ptmp/wx22ec/gfs.1_test
 + export SCRIPTS=/global/save/wx23sm/gsm/scripts
 + export cold_sfc=NO
 + export hybrid=NO
@@ -65,9 +65,9 @@ stty: tcgetattr: A specified file does not support the ioctl system call.
 + export ivssig=200509
 + export nvcoord=3
 + export LATCH=48
-+ mkdir -p /ptmp/wx22ec/gfs.2
-+ cd /ptmp/wx22ec/gfs.2
-+ export COMOUT=/ptmp/wx22ec/gfs.2
++ mkdir -p /ptmp/wx22ec/gfs.1_test
++ cd /ptmp/wx22ec/gfs.1_test
++ export COMOUT=/ptmp/wx22ec/gfs.1_test
 + export FIXGLOBAL=/nwprod/fix
 + export kop=26
 + [[ 64 -eq 64 ]]
@@ -102,9 +102,9 @@ stty: tcgetattr: A specified file does not support the ioctl system call.
 + export VERBOSE=YES
 + export SIGINP=/global/shared/dump/2007070200/gfs/siganl.gfs.2007070200
 + export SFCINP=/global/shared/dump/2007070200/gfs/sfcanl.gfs.2007070200
-+ export GFSOUT=/ptmp/wx22ec/gfs.2/gfsanl.2007070200
-+ export SIGOUT=/ptmp/wx22ec/gfs.2/siganl.2007070200
-+ export SFCOUT=/ptmp/wx22ec/gfs.2/sfcanl.2007070200
++ export GFSOUT=/ptmp/wx22ec/gfs.1_test/gfsanl.2007070200
++ export SIGOUT=/ptmp/wx22ec/gfs.1_test/siganl.2007070200
++ export SFCOUT=/ptmp/wx22ec/gfs.1_test/sfcanl.2007070200
 + echo YES
 + [[ YES = YES ]]
 + export CHGRESVARS=ntrac=3,idvt=21,ncldt=1,idvc=3,IVSSIG=200509,NVCOORD=3,IVSSFC=200509,idvm=32,idsl=2,OUTTYP=1,
@@ -113,13 +113,13 @@ stty: tcgetattr: A specified file does not support the ioctl system call.
 + export CHGRESSH=/global/save/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh
 + export CHGRESVARS=ntrac=3,idvt=21,ncldt=1,idvc=3,IVSSIG=200509,NVCOORD=3,IVSSFC=200509,idvm=32,idsl=2,OUTTYP=1,RI=  286.05,   461.50, 173.2247,    0.0,CPI= 1004.6,   1846.0, 820.2391,    0.0
 + /global/save/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh
-Tue Aug 19 14:17:08 EDT 2008 EXECUTING /global/save/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh
+Thu Aug 28 14:51:28 EDT 2008 EXECUTING /global/save/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh
 + export SIGINP=/global/shared/dump/2007070200/gfs/siganl.gfs.2007070200
 + export SFCINP=/global/shared/dump/2007070200/gfs/sfcanl.gfs.2007070200
 + export OUTTYP=2
-+ export SIGOUT=/ptmp/wx22ec/gfs.2/siganl.2007070200
-+ export GFSOUT=/ptmp/wx22ec/gfs.2/gfsanl.2007070200
-+ export SFCOUT=/ptmp/wx22ec/gfs.2/sfcanl.2007070200
++ export SIGOUT=/ptmp/wx22ec/gfs.1_test/siganl.2007070200
++ export GFSOUT=/ptmp/wx22ec/gfs.1_test/gfsanl.2007070200
++ export SFCOUT=/ptmp/wx22ec/gfs.1_test/sfcanl.2007070200
 + export JCAP=62
 + export LEVS=64
 + export LONB=192
@@ -128,7 +128,7 @@ Tue Aug 19 14:17:08 EDT 2008 EXECUTING /global/save/wx23hh/00wkgfs/ush/global_ch
 + export FIXGLOBAL=/nwprod/fix
 + export EXECGLOBAL=/nwprod/exec
 + pwd
-+ export DATA=/ptmp/wx22ec/gfs.2
++ export DATA=/ptmp/wx22ec/gfs.1_test
 + export XC=
 + export CHGRESEXEC=/global/save/wx23hh/00wkgfs/src/global_chgres-moorthi.fd/global_chgres
 + export OROGRAPHY=/nwprod/fix/global_orography.t62.grb
@@ -165,9 +165,9 @@ Tue Aug 19 14:17:08 EDT 2008 EXECUTING /global/save/wx23hh/00wkgfs/ush/global_ch
 + export LSOIL=0
 + export IVSSFC=0
 + export CHGRESVARS=ntrac=3,idvt=21,ncldt=1,idvc=3,IVSSIG=200509,NVCOORD=3,IVSSFC=200509,idvm=32,idsl=2,OUTTYP=1,RI=  286.05,   461.50, 173.2247,    0.0,CPI= 1004.6,   1846.0, 820.2391,    0.0
-+ export NTHREADS=2
++ export NTHREADS=1
 + export NTHSTACK=64000000
-+ export XLSMPOPTS=parthds=2:spins=0:yields=0:stack=512000000
++ export XLSMPOPTS=parthds=1:spins=0:yields=0:stack=512000000
 + export PGMOUT=&1
 + export PGMERR=&2
 + typeset -L1 l=&1
@@ -179,10 +179,10 @@ Tue Aug 19 14:17:08 EDT 2008 EXECUTING /global/save/wx23hh/00wkgfs/ush/global_ch
 + a=
 + export REDERR=2>
 + + pwd
-pwd=/ptmp/wx22ec/gfs.2
-+ [[ -d /ptmp/wx22ec/gfs.2 ]]
+pwd=/ptmp/wx22ec/gfs.1_test
++ [[ -d /ptmp/wx22ec/gfs.1_test ]]
 + mkdata=NO
-+ cd /ptmp/wx22ec/gfs.2
++ cd /ptmp/wx22ec/gfs.1_test
 + export PGM=/global/save/wx23hh/00wkgfs/src/global_chgres-moorthi.fd/global_chgres
 + export pgm=/global/save/wx23hh/00wkgfs/src/global_chgres-moorthi.fd/global_chgres
 + rm -f NULL
@@ -193,9 +193,9 @@ pwd=/ptmp/wx22ec/gfs.2
 + ln -sf /global/shared/dump/2007070200/gfs/sfcanl.gfs.2007070200 chgres.inp.sfc
 + ln -sf /nwprod/fix/global_slmask.t62.grb chgres.inp.slmgb
 + ln -sf /global/save/wx20mi/newres/global_lonsperlat.t62.txt chgres.inp.lonsperlat
-+ ln -sf /ptmp/wx22ec/gfs.2/siganl.2007070200 chgres.out.sig
-+ ln -sf /ptmp/wx22ec/gfs.2/gfsanl.2007070200 chgres.out.grd
-+ ln -sf /ptmp/wx22ec/gfs.2/sfcanl.2007070200 chgres.out.sfc
++ ln -sf /ptmp/wx22ec/gfs.1_test/siganl.2007070200 chgres.out.sig
++ ln -sf /ptmp/wx22ec/gfs.1_test/gfsanl.2007070200 chgres.out.grd
++ ln -sf /ptmp/wx22ec/gfs.1_test/sfcanl.2007070200 chgres.out.sfc
 + [[ 2 = 3 ]]
 + [[ 2 = 4 ]]
 + LANDICE=.true.
@@ -279,9 +279,9 @@ pwd=/ptmp/wx22ec/gfs.2
 + rm -f chgres.inp.sig chgres.inp.orogb chgres.inp.siglevel chgres.inp.o3clim
 + rm -f chgres.inp.sfc chgres.inp.slmgb chgres.inp.lonsperlat
 + rm -f chgres.out.sig chgres.out.sfc fort.35 fort.81
-+ cd /ptmp/wx22ec/gfs.2
++ cd /ptmp/wx22ec/gfs.1_test
 + [[ NO = YES ]]
-Tue Aug 19 14:17:31 EDT 2008 EXITING /global/save/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh with return code 0
-+ export SIGI=/ptmp/wx22ec/gfs.2/siganl.2007070200
-+ export GFSI=/ptmp/wx22ec/gfs.2/gfsanl.2007070200
-+ export SFCI=/ptmp/wx22ec/gfs.2/sfcanl.2007070200
+Thu Aug 28 14:52:01 EDT 2008 EXITING /global/save/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh with return code 0
++ export SIGI=/ptmp/wx22ec/gfs.1_test/siganl.2007070200
++ export GFSI=/ptmp/wx22ec/gfs.1_test/gfsanl.2007070200
++ export SFCI=/ptmp/wx22ec/gfs.1_test/sfcanl.2007070200

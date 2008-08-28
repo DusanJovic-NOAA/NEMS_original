@@ -84,5 +84,5 @@ clean:
 	cd $(NMM_DYN) && make -f makefile clean && cd ..
 	cd $(NMM_PHY) && make -f makefile clean && cd ..
 	cd $(ATM) && make -f makefile clean && cd ..
-	rm -f *.o *.mod *.f *.lst $(EXEC)
+	rm -f *.o *.mod *.f *.lst *.a lm map $(EXEC)
 	echo "directories cleaned."

@@ -112,7 +112,7 @@ $(MODULES):	$(DEPS)
 	$(FC) $(FFLAGS) -c $<
 
 clean:	
-	/bin/rm -f  $(TARGET) *.f90 *.lst *.o *.mod lm map
+	/bin/rm -f  $(TARGET) *.f90 *.lst *.o *.mod *.a lm map
 
 #
 # DEPENDENCIES :
