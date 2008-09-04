@@ -30,12 +30,12 @@ stty: tcgetattr: A specified file does not support the ioctl system call.
 + export AIXTHREAD_SCOPE=S
 + export MALLOCMULTIHEAP=true
 + export FHROT=0
-+ export expt=gfs.1_test
++ export expt=gfs_filter
 + export NSCDIR=/global/noscrub
 + export TOPDIR=/global/save
 + export DUMPDIR=/global/shared/dump
 + export MP_COREFILE_FORMAT=lite
-+ export RUNDIR=/ptmp/wx22ec/gfs.1_test
++ export RUNDIR=/ptmp/wx22ec/gfs_filter
 + export SCRIPTS=/global/save/wx23sm/gsm/scripts
 + export fcst_begin=YES
 + export cold_sfc=NO
@@ -73,13 +73,13 @@ stty: tcgetattr: A specified file does not support the ioctl system call.
 + export NGPTC=12
 + export NGPTC=12
 + export LEVR=0
-+ export FCSTSCRIPT=/meso/save/wx22ec/NEMS/run/exglobal_fcst.sh.sms_nems
-+ export FCSTEXEC=/meso/save/wx22ec/NEMS/MAIN_NEMS.x
++ export FCSTSCRIPT=/meso/save/wx22ec/scratch/run/exglobal_fcst.sh.sms_nems
++ export FCSTEXEC=/meso/save/wx22ec/scratch/MAIN_NEMS.x
 + cp configfile_global_new configure_file
-+ cp configure_file /ptmp/wx22ec/gfs.1_test
-+ mkdir -p /ptmp/wx22ec/gfs.1_test
-+ cd /ptmp/wx22ec/gfs.1_test
-+ export COMOUT=/ptmp/wx22ec/gfs.1_test
++ cp configure_file /ptmp/wx22ec/gfs_filter
++ mkdir -p /ptmp/wx22ec/gfs_filter
++ cd /ptmp/wx22ec/gfs_filter
++ export COMOUT=/ptmp/wx22ec/gfs_filter
 + export FIXGLOBAL=/nwprod/fix
 + export FIX_RAD=/global/save/wx23hh/00wkgfs/fix/fix_rad
 + export POSTGPDIR=/global/save/wx23hh/00wkgfs/src/global_postgp.fd
@@ -105,8 +105,8 @@ stty: tcgetattr: A specified file does not support the ioctl system call.
 + export LONB=192
 + export LATB=94
 + export VERBOSE=YES
-+ export SIGI=/ptmp/wx22ec/gfs.1_test/gfsanl.2007070200
-+ export SFCI=/ptmp/wx22ec/gfs.1_test/sfcanl.2007070200
++ export SIGI=/ptmp/wx22ec/gfs_filter/gfsanl.2007070200
++ export SFCI=/ptmp/wx22ec/gfs_filter/sfcanl.2007070200
 + export FHINI=00
 + [[ 0 -lt 48 ]]
 + export FNTSFA=
@@ -120,12 +120,12 @@ stty: tcgetattr: A specified file does not support the ioctl system call.
 + export FHMAX=48
 + export FHRES=48
 + export FHROT=0
-+ /meso/save/wx22ec/NEMS/run/exglobal_fcst.sh.sms_nems
-Thu Aug 28 16:18:00 EDT 2008 EXECUTING /meso/save/wx22ec/NEMS/run/exglobal_fcst.sh.sms_nems
++ /meso/save/wx22ec/scratch/run/exglobal_fcst.sh.sms_nems
+Wed Sep 3 17:06:09 EDT 2008 EXECUTING /meso/save/wx22ec/scratch/run/exglobal_fcst.sh.sms_nems
 + export ENS_NUM=1
 + export FM=
-+ export SIGI=/ptmp/wx22ec/gfs.1_test/gfsanl.2007070200
-+ export SFCI=/ptmp/wx22ec/gfs.1_test/sfcanl.2007070200
++ export SIGI=/ptmp/wx22ec/gfs_filter/gfsanl.2007070200
++ export SFCI=/ptmp/wx22ec/gfs_filter/sfcanl.2007070200
 + export SIGO=
 + export FLXO=
 + export FHOUT=3
@@ -136,8 +136,8 @@ Thu Aug 28 16:18:00 EDT 2008 EXECUTING /meso/save/wx22ec/NEMS/run/exglobal_fcst.
 + export FIX_RAD=/global/save/wx23hh/00wkgfs/fix/fix_rad
 + export EXECGLOBAL=/nwprod/exec
 + pwd
-+ export DATA=/ptmp/wx22ec/gfs.1_test
-+ export COMOUT=/ptmp/wx22ec/gfs.1_test
++ export DATA=/ptmp/wx22ec/gfs_filter
++ export COMOUT=/ptmp/wx22ec/gfs_filter
 + export XC=
 + export SUFOUT=
 + export SIGHDR=/nwprod/exec/global_sighdr
@@ -162,7 +162,7 @@ Thu Aug 28 16:18:00 EDT 2008 EXECUTING /meso/save/wx22ec/NEMS/run/exglobal_fcst.
 + export ZFLXTVD=.false.
 + export pre_rad=.false.
 + export random_xkt2=.true.
-+ export FCSTEXEC=/meso/save/wx22ec/NEMS/MAIN_NEMS.x
++ export FCSTEXEC=/meso/save/wx22ec/scratch/MAIN_NEMS.x
 + export SIGI2=NULL
 + export CO2CON=/nwprod/fix/global_co2con.l64.f77
 + export MTNVAR=/nwprod/fix/global_mtnvar.t62.f77
@@ -200,14 +200,14 @@ Thu Aug 28 16:18:00 EDT 2008 EXECUTING /meso/save/wx22ec/NEMS/run/exglobal_fcst.
 + export ISOL=0
 + export IAER=0
 + export ICO2=0
-+ export SIGR1=/ptmp/wx22ec/gfs.1_test/sigr1
-+ export SIGR2=/ptmp/wx22ec/gfs.1_test/sigr2
-+ export SFCR=/ptmp/wx22ec/gfs.1_test/sfcr
-+ export SIGO=/ptmp/wx22ec/gfs.1_test/sigf${FH}${MN}
-+ export SFCO=/ptmp/wx22ec/gfs.1_test/sfcf${FH}${MN}
-+ export FLXO=/ptmp/wx22ec/gfs.1_test/flxf${FH}${MN}
-+ export LOGO=/ptmp/wx22ec/gfs.1_test/logf${FH}${MN}
-+ export D3DO=/ptmp/wx22ec/gfs.1_test/d3df${FH}${MN}
++ export SIGR1=/ptmp/wx22ec/gfs_filter/sigr1
++ export SIGR2=/ptmp/wx22ec/gfs_filter/sigr2
++ export SFCR=/ptmp/wx22ec/gfs_filter/sfcr
++ export SIGO=/ptmp/wx22ec/gfs_filter/sigf${FH}${MN}
++ export SFCO=/ptmp/wx22ec/gfs_filter/sfcf${FH}${MN}
++ export FLXO=/ptmp/wx22ec/gfs_filter/flxf${FH}${MN}
++ export LOGO=/ptmp/wx22ec/gfs_filter/logf${FH}${MN}
++ export D3DO=/ptmp/wx22ec/gfs_filter/d3df${FH}${MN}
 + export INISCRIPT=
 + export ERRSCRIPT=eval [[ $err = 0 ]]
 + export LOGSCRIPT=
@@ -260,107 +260,107 @@ Thu Aug 28 16:18:00 EDT 2008 EXECUTING /meso/save/wx22ec/NEMS/run/exglobal_fcst.
 + a=
 + export REDERR=2>
 + + pwd
-pwd=/ptmp/wx22ec/gfs.1_test
-+ [[ -d /ptmp/wx22ec/gfs.1_test ]]
+pwd=/ptmp/wx22ec/gfs_filter
++ [[ -d /ptmp/wx22ec/gfs_filter ]]
 + mkdata=NO
-+ cd /ptmp/wx22ec/gfs.1_test
-+ [[ -d /ptmp/wx22ec/gfs.1_test ]]
++ cd /ptmp/wx22ec/gfs_filter
++ [[ -d /ptmp/wx22ec/gfs_filter ]]
 + export XLFRTEOPTS=unit_vars=yes
-+ basename /meso/save/wx22ec/NEMS/MAIN_NEMS.x
-+ export PGM=/ptmp/wx22ec/gfs.1_test/MAIN_NEMS.x
-+ export pgm=/ptmp/wx22ec/gfs.1_test/MAIN_NEMS.x
-+ cp /meso/save/wx22ec/NEMS/MAIN_NEMS.x /ptmp/wx22ec/gfs.1_test
++ basename /meso/save/wx22ec/scratch/MAIN_NEMS.x
++ export PGM=/ptmp/wx22ec/gfs_filter/MAIN_NEMS.x
++ export pgm=/ptmp/wx22ec/gfs_filter/MAIN_NEMS.x
++ cp /meso/save/wx22ec/scratch/MAIN_NEMS.x /ptmp/wx22ec/gfs_filter
 + rm -f NULL
 + FH=0
 + [[ 0 -lt 10 ]]
 + FH=00
 + [[ 00 -gt 0 ]]
 + [[ 00 -le 48 ]]
-+ eval rm -f /ptmp/wx22ec/gfs.1_test/logf${FH}${MN}
-+ rm -f /ptmp/wx22ec/gfs.1_test/logf00
++ eval rm -f /ptmp/wx22ec/gfs_filter/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs_filter/logf00
 + (( FH=10#00+10#3 ))
 + [[ 3 -lt 10 ]]
 + FH=03
 + [[ 03 -le 48 ]]
-+ eval rm -f /ptmp/wx22ec/gfs.1_test/logf${FH}${MN}
-+ rm -f /ptmp/wx22ec/gfs.1_test/logf03
++ eval rm -f /ptmp/wx22ec/gfs_filter/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs_filter/logf03
 + (( FH=10#03+10#3 ))
 + [[ 6 -lt 10 ]]
 + FH=06
 + [[ 06 -le 48 ]]
-+ eval rm -f /ptmp/wx22ec/gfs.1_test/logf${FH}${MN}
-+ rm -f /ptmp/wx22ec/gfs.1_test/logf06
++ eval rm -f /ptmp/wx22ec/gfs_filter/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs_filter/logf06
 + (( FH=10#06+10#3 ))
 + [[ 9 -lt 10 ]]
 + FH=09
 + [[ 09 -le 48 ]]
-+ eval rm -f /ptmp/wx22ec/gfs.1_test/logf${FH}${MN}
-+ rm -f /ptmp/wx22ec/gfs.1_test/logf09
++ eval rm -f /ptmp/wx22ec/gfs_filter/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs_filter/logf09
 + (( FH=10#09+10#3 ))
 + [[ 12 -lt 10 ]]
 + [[ 12 -le 48 ]]
-+ eval rm -f /ptmp/wx22ec/gfs.1_test/logf${FH}${MN}
-+ rm -f /ptmp/wx22ec/gfs.1_test/logf12
++ eval rm -f /ptmp/wx22ec/gfs_filter/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs_filter/logf12
 + (( FH=10#12+10#3 ))
 + [[ 15 -lt 10 ]]
 + [[ 15 -le 48 ]]
-+ eval rm -f /ptmp/wx22ec/gfs.1_test/logf${FH}${MN}
-+ rm -f /ptmp/wx22ec/gfs.1_test/logf15
++ eval rm -f /ptmp/wx22ec/gfs_filter/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs_filter/logf15
 + (( FH=10#15+10#3 ))
 + [[ 18 -lt 10 ]]
 + [[ 18 -le 48 ]]
-+ eval rm -f /ptmp/wx22ec/gfs.1_test/logf${FH}${MN}
-+ rm -f /ptmp/wx22ec/gfs.1_test/logf18
++ eval rm -f /ptmp/wx22ec/gfs_filter/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs_filter/logf18
 + (( FH=10#18+10#3 ))
 + [[ 21 -lt 10 ]]
 + [[ 21 -le 48 ]]
-+ eval rm -f /ptmp/wx22ec/gfs.1_test/logf${FH}${MN}
-+ rm -f /ptmp/wx22ec/gfs.1_test/logf21
++ eval rm -f /ptmp/wx22ec/gfs_filter/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs_filter/logf21
 + (( FH=10#21+10#3 ))
 + [[ 24 -lt 10 ]]
 + [[ 24 -le 48 ]]
-+ eval rm -f /ptmp/wx22ec/gfs.1_test/logf${FH}${MN}
-+ rm -f /ptmp/wx22ec/gfs.1_test/logf24
++ eval rm -f /ptmp/wx22ec/gfs_filter/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs_filter/logf24
 + (( FH=10#24+10#3 ))
 + [[ 27 -lt 10 ]]
 + [[ 27 -le 48 ]]
-+ eval rm -f /ptmp/wx22ec/gfs.1_test/logf${FH}${MN}
-+ rm -f /ptmp/wx22ec/gfs.1_test/logf27
++ eval rm -f /ptmp/wx22ec/gfs_filter/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs_filter/logf27
 + (( FH=10#27+10#3 ))
 + [[ 30 -lt 10 ]]
 + [[ 30 -le 48 ]]
-+ eval rm -f /ptmp/wx22ec/gfs.1_test/logf${FH}${MN}
-+ rm -f /ptmp/wx22ec/gfs.1_test/logf30
++ eval rm -f /ptmp/wx22ec/gfs_filter/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs_filter/logf30
 + (( FH=10#30+10#3 ))
 + [[ 33 -lt 10 ]]
 + [[ 33 -le 48 ]]
-+ eval rm -f /ptmp/wx22ec/gfs.1_test/logf${FH}${MN}
-+ rm -f /ptmp/wx22ec/gfs.1_test/logf33
++ eval rm -f /ptmp/wx22ec/gfs_filter/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs_filter/logf33
 + (( FH=10#33+10#3 ))
 + [[ 36 -lt 10 ]]
 + [[ 36 -le 48 ]]
-+ eval rm -f /ptmp/wx22ec/gfs.1_test/logf${FH}${MN}
-+ rm -f /ptmp/wx22ec/gfs.1_test/logf36
++ eval rm -f /ptmp/wx22ec/gfs_filter/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs_filter/logf36
 + (( FH=10#36+10#3 ))
 + [[ 39 -lt 10 ]]
 + [[ 39 -le 48 ]]
-+ eval rm -f /ptmp/wx22ec/gfs.1_test/logf${FH}${MN}
-+ rm -f /ptmp/wx22ec/gfs.1_test/logf39
++ eval rm -f /ptmp/wx22ec/gfs_filter/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs_filter/logf39
 + (( FH=10#39+10#3 ))
 + [[ 42 -lt 10 ]]
 + [[ 42 -le 48 ]]
-+ eval rm -f /ptmp/wx22ec/gfs.1_test/logf${FH}${MN}
-+ rm -f /ptmp/wx22ec/gfs.1_test/logf42
++ eval rm -f /ptmp/wx22ec/gfs_filter/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs_filter/logf42
 + (( FH=10#42+10#3 ))
 + [[ 45 -lt 10 ]]
 + [[ 45 -le 48 ]]
-+ eval rm -f /ptmp/wx22ec/gfs.1_test/logf${FH}${MN}
-+ rm -f /ptmp/wx22ec/gfs.1_test/logf45
++ eval rm -f /ptmp/wx22ec/gfs_filter/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs_filter/logf45
 + (( FH=10#45+10#3 ))
 + [[ 48 -lt 10 ]]
 + [[ 48 -le 48 ]]
-+ eval rm -f /ptmp/wx22ec/gfs.1_test/logf${FH}${MN}
-+ rm -f /ptmp/wx22ec/gfs.1_test/logf48
++ eval rm -f /ptmp/wx22ec/gfs_filter/logf${FH}${MN}
++ rm -f /ptmp/wx22ec/gfs_filter/logf48
 + (( FH=10#48+10#3 ))
 + [[ 51 -lt 10 ]]
 + [[ 51 -le 48 ]]
@@ -380,7 +380,7 @@ pwd=/ptmp/wx22ec/gfs.1_test
 + [ 0 -gt 0 ]
 + [ 0 -gt 0 ]
 + [ 0 -gt 0 ]
-+ cd /ptmp/wx22ec/gfs.1_test
++ cd /ptmp/wx22ec/gfs_filter
 + export PHYVARS=IEMS=0,ISOL=0,IAER=0,ICO2=0,liope=.F.,gfsio_in=.true.,gfsio_out=.true.
 + mins=15
 + secs=0
@@ -392,254 +392,254 @@ pwd=/ptmp/wx22ec/gfs.1_test
 + [[ 0 -lt 10 ]]
 + FH=00
 + [[ 00 -gt 0 ]]
-+ ln -fs /ptmp/wx22ec/gfs.1_test/gfsanl.2007070200 sig_ini
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sfcanl.2007070200 sfc_ini
++ ln -fs /ptmp/wx22ec/gfs_filter/gfsanl.2007070200 sig_ini
++ ln -fs /ptmp/wx22ec/gfs_filter/sfcanl.2007070200 sfc_ini
 + ln -fs NULL sig_ini2
 + [[ 00 -le 48 ]]
 + [ 00 -eq 00 ]
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sigf${FH}${MN} SIG.F00
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sigf00 SIG.F00
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/flxf${FH}${MN} FLX.F00:15:00
-+ ln -fs /ptmp/wx22ec/gfs.1_test/flxf00 FLX.F00:15:00
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sfcf${FH}${MN} SFC.F00:15:00
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sfcf00 SFC.F00:15:00
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/logf${FH}${MN} LOG.F00
-+ ln -fs /ptmp/wx22ec/gfs.1_test/logf00 LOG.F00
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/d3df${FH}${MN} D3D.F00:15:00
-+ ln -fs /ptmp/wx22ec/gfs.1_test/d3df00 D3D.F00:15:00
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sigf${FH}${MN} SIG.F00
++ ln -fs /ptmp/wx22ec/gfs_filter/sigf00 SIG.F00
++ eval ln -fs /ptmp/wx22ec/gfs_filter/flxf${FH}${MN} FLX.F00:15:00
++ ln -fs /ptmp/wx22ec/gfs_filter/flxf00 FLX.F00:15:00
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sfcf${FH}${MN} SFC.F00:15:00
++ ln -fs /ptmp/wx22ec/gfs_filter/sfcf00 SFC.F00:15:00
++ eval ln -fs /ptmp/wx22ec/gfs_filter/logf${FH}${MN} LOG.F00
++ ln -fs /ptmp/wx22ec/gfs_filter/logf00 LOG.F00
++ eval ln -fs /ptmp/wx22ec/gfs_filter/d3df${FH}${MN} D3D.F00:15:00
++ ln -fs /ptmp/wx22ec/gfs_filter/d3df00 D3D.F00:15:00
 + (( FH=10#00+10#3 ))
 + [[ 3 -lt 10 ]]
 + FH=03
 + [[ 03 -le 48 ]]
 + [ 03 -eq 00 ]
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sigf${FH}${MN} SIG.F03
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sigf03 SIG.F03
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sfcf${FH}${MN} SFC.F03
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sfcf03 SFC.F03
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/flxf${FH}${MN} FLX.F03
-+ ln -fs /ptmp/wx22ec/gfs.1_test/flxf03 FLX.F03
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/logf${FH}${MN} LOG.F03
-+ ln -fs /ptmp/wx22ec/gfs.1_test/logf03 LOG.F03
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/d3df${FH}${MN} D3D.F03
-+ ln -fs /ptmp/wx22ec/gfs.1_test/d3df03 D3D.F03
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sigf${FH}${MN} SIG.F03
++ ln -fs /ptmp/wx22ec/gfs_filter/sigf03 SIG.F03
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sfcf${FH}${MN} SFC.F03
++ ln -fs /ptmp/wx22ec/gfs_filter/sfcf03 SFC.F03
++ eval ln -fs /ptmp/wx22ec/gfs_filter/flxf${FH}${MN} FLX.F03
++ ln -fs /ptmp/wx22ec/gfs_filter/flxf03 FLX.F03
++ eval ln -fs /ptmp/wx22ec/gfs_filter/logf${FH}${MN} LOG.F03
++ ln -fs /ptmp/wx22ec/gfs_filter/logf03 LOG.F03
++ eval ln -fs /ptmp/wx22ec/gfs_filter/d3df${FH}${MN} D3D.F03
++ ln -fs /ptmp/wx22ec/gfs_filter/d3df03 D3D.F03
 + (( FH=10#03+10#3 ))
 + [[ 6 -lt 10 ]]
 + FH=06
 + [[ 06 -le 48 ]]
 + [ 06 -eq 00 ]
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sigf${FH}${MN} SIG.F06
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sigf06 SIG.F06
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sfcf${FH}${MN} SFC.F06
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sfcf06 SFC.F06
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/flxf${FH}${MN} FLX.F06
-+ ln -fs /ptmp/wx22ec/gfs.1_test/flxf06 FLX.F06
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/logf${FH}${MN} LOG.F06
-+ ln -fs /ptmp/wx22ec/gfs.1_test/logf06 LOG.F06
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/d3df${FH}${MN} D3D.F06
-+ ln -fs /ptmp/wx22ec/gfs.1_test/d3df06 D3D.F06
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sigf${FH}${MN} SIG.F06
++ ln -fs /ptmp/wx22ec/gfs_filter/sigf06 SIG.F06
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sfcf${FH}${MN} SFC.F06
++ ln -fs /ptmp/wx22ec/gfs_filter/sfcf06 SFC.F06
++ eval ln -fs /ptmp/wx22ec/gfs_filter/flxf${FH}${MN} FLX.F06
++ ln -fs /ptmp/wx22ec/gfs_filter/flxf06 FLX.F06
++ eval ln -fs /ptmp/wx22ec/gfs_filter/logf${FH}${MN} LOG.F06
++ ln -fs /ptmp/wx22ec/gfs_filter/logf06 LOG.F06
++ eval ln -fs /ptmp/wx22ec/gfs_filter/d3df${FH}${MN} D3D.F06
++ ln -fs /ptmp/wx22ec/gfs_filter/d3df06 D3D.F06
 + (( FH=10#06+10#3 ))
 + [[ 9 -lt 10 ]]
 + FH=09
 + [[ 09 -le 48 ]]
 + [ 09 -eq 00 ]
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sigf${FH}${MN} SIG.F09
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sigf09 SIG.F09
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sfcf${FH}${MN} SFC.F09
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sfcf09 SFC.F09
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/flxf${FH}${MN} FLX.F09
-+ ln -fs /ptmp/wx22ec/gfs.1_test/flxf09 FLX.F09
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/logf${FH}${MN} LOG.F09
-+ ln -fs /ptmp/wx22ec/gfs.1_test/logf09 LOG.F09
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/d3df${FH}${MN} D3D.F09
-+ ln -fs /ptmp/wx22ec/gfs.1_test/d3df09 D3D.F09
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sigf${FH}${MN} SIG.F09
++ ln -fs /ptmp/wx22ec/gfs_filter/sigf09 SIG.F09
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sfcf${FH}${MN} SFC.F09
++ ln -fs /ptmp/wx22ec/gfs_filter/sfcf09 SFC.F09
++ eval ln -fs /ptmp/wx22ec/gfs_filter/flxf${FH}${MN} FLX.F09
++ ln -fs /ptmp/wx22ec/gfs_filter/flxf09 FLX.F09
++ eval ln -fs /ptmp/wx22ec/gfs_filter/logf${FH}${MN} LOG.F09
++ ln -fs /ptmp/wx22ec/gfs_filter/logf09 LOG.F09
++ eval ln -fs /ptmp/wx22ec/gfs_filter/d3df${FH}${MN} D3D.F09
++ ln -fs /ptmp/wx22ec/gfs_filter/d3df09 D3D.F09
 + (( FH=10#09+10#3 ))
 + [[ 12 -lt 10 ]]
 + [[ 12 -le 48 ]]
 + [ 12 -eq 00 ]
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sigf${FH}${MN} SIG.F12
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sigf12 SIG.F12
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sfcf${FH}${MN} SFC.F12
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sfcf12 SFC.F12
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/flxf${FH}${MN} FLX.F12
-+ ln -fs /ptmp/wx22ec/gfs.1_test/flxf12 FLX.F12
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/logf${FH}${MN} LOG.F12
-+ ln -fs /ptmp/wx22ec/gfs.1_test/logf12 LOG.F12
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/d3df${FH}${MN} D3D.F12
-+ ln -fs /ptmp/wx22ec/gfs.1_test/d3df12 D3D.F12
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sigf${FH}${MN} SIG.F12
++ ln -fs /ptmp/wx22ec/gfs_filter/sigf12 SIG.F12
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sfcf${FH}${MN} SFC.F12
++ ln -fs /ptmp/wx22ec/gfs_filter/sfcf12 SFC.F12
++ eval ln -fs /ptmp/wx22ec/gfs_filter/flxf${FH}${MN} FLX.F12
++ ln -fs /ptmp/wx22ec/gfs_filter/flxf12 FLX.F12
++ eval ln -fs /ptmp/wx22ec/gfs_filter/logf${FH}${MN} LOG.F12
++ ln -fs /ptmp/wx22ec/gfs_filter/logf12 LOG.F12
++ eval ln -fs /ptmp/wx22ec/gfs_filter/d3df${FH}${MN} D3D.F12
++ ln -fs /ptmp/wx22ec/gfs_filter/d3df12 D3D.F12
 + (( FH=10#12+10#3 ))
 + [[ 15 -lt 10 ]]
 + [[ 15 -le 48 ]]
 + [ 15 -eq 00 ]
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sigf${FH}${MN} SIG.F15
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sigf15 SIG.F15
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sfcf${FH}${MN} SFC.F15
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sfcf15 SFC.F15
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/flxf${FH}${MN} FLX.F15
-+ ln -fs /ptmp/wx22ec/gfs.1_test/flxf15 FLX.F15
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/logf${FH}${MN} LOG.F15
-+ ln -fs /ptmp/wx22ec/gfs.1_test/logf15 LOG.F15
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/d3df${FH}${MN} D3D.F15
-+ ln -fs /ptmp/wx22ec/gfs.1_test/d3df15 D3D.F15
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sigf${FH}${MN} SIG.F15
++ ln -fs /ptmp/wx22ec/gfs_filter/sigf15 SIG.F15
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sfcf${FH}${MN} SFC.F15
++ ln -fs /ptmp/wx22ec/gfs_filter/sfcf15 SFC.F15
++ eval ln -fs /ptmp/wx22ec/gfs_filter/flxf${FH}${MN} FLX.F15
++ ln -fs /ptmp/wx22ec/gfs_filter/flxf15 FLX.F15
++ eval ln -fs /ptmp/wx22ec/gfs_filter/logf${FH}${MN} LOG.F15
++ ln -fs /ptmp/wx22ec/gfs_filter/logf15 LOG.F15
++ eval ln -fs /ptmp/wx22ec/gfs_filter/d3df${FH}${MN} D3D.F15
++ ln -fs /ptmp/wx22ec/gfs_filter/d3df15 D3D.F15
 + (( FH=10#15+10#3 ))
 + [[ 18 -lt 10 ]]
 + [[ 18 -le 48 ]]
 + [ 18 -eq 00 ]
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sigf${FH}${MN} SIG.F18
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sigf18 SIG.F18
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sfcf${FH}${MN} SFC.F18
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sfcf18 SFC.F18
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/flxf${FH}${MN} FLX.F18
-+ ln -fs /ptmp/wx22ec/gfs.1_test/flxf18 FLX.F18
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/logf${FH}${MN} LOG.F18
-+ ln -fs /ptmp/wx22ec/gfs.1_test/logf18 LOG.F18
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/d3df${FH}${MN} D3D.F18
-+ ln -fs /ptmp/wx22ec/gfs.1_test/d3df18 D3D.F18
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sigf${FH}${MN} SIG.F18
++ ln -fs /ptmp/wx22ec/gfs_filter/sigf18 SIG.F18
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sfcf${FH}${MN} SFC.F18
++ ln -fs /ptmp/wx22ec/gfs_filter/sfcf18 SFC.F18
++ eval ln -fs /ptmp/wx22ec/gfs_filter/flxf${FH}${MN} FLX.F18
++ ln -fs /ptmp/wx22ec/gfs_filter/flxf18 FLX.F18
++ eval ln -fs /ptmp/wx22ec/gfs_filter/logf${FH}${MN} LOG.F18
++ ln -fs /ptmp/wx22ec/gfs_filter/logf18 LOG.F18
++ eval ln -fs /ptmp/wx22ec/gfs_filter/d3df${FH}${MN} D3D.F18
++ ln -fs /ptmp/wx22ec/gfs_filter/d3df18 D3D.F18
 + (( FH=10#18+10#3 ))
 + [[ 21 -lt 10 ]]
 + [[ 21 -le 48 ]]
 + [ 21 -eq 00 ]
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sigf${FH}${MN} SIG.F21
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sigf21 SIG.F21
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sfcf${FH}${MN} SFC.F21
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sfcf21 SFC.F21
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/flxf${FH}${MN} FLX.F21
-+ ln -fs /ptmp/wx22ec/gfs.1_test/flxf21 FLX.F21
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/logf${FH}${MN} LOG.F21
-+ ln -fs /ptmp/wx22ec/gfs.1_test/logf21 LOG.F21
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/d3df${FH}${MN} D3D.F21
-+ ln -fs /ptmp/wx22ec/gfs.1_test/d3df21 D3D.F21
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sigf${FH}${MN} SIG.F21
++ ln -fs /ptmp/wx22ec/gfs_filter/sigf21 SIG.F21
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sfcf${FH}${MN} SFC.F21
++ ln -fs /ptmp/wx22ec/gfs_filter/sfcf21 SFC.F21
++ eval ln -fs /ptmp/wx22ec/gfs_filter/flxf${FH}${MN} FLX.F21
++ ln -fs /ptmp/wx22ec/gfs_filter/flxf21 FLX.F21
++ eval ln -fs /ptmp/wx22ec/gfs_filter/logf${FH}${MN} LOG.F21
++ ln -fs /ptmp/wx22ec/gfs_filter/logf21 LOG.F21
++ eval ln -fs /ptmp/wx22ec/gfs_filter/d3df${FH}${MN} D3D.F21
++ ln -fs /ptmp/wx22ec/gfs_filter/d3df21 D3D.F21
 + (( FH=10#21+10#3 ))
 + [[ 24 -lt 10 ]]
 + [[ 24 -le 48 ]]
 + [ 24 -eq 00 ]
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sigf${FH}${MN} SIG.F24
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sigf24 SIG.F24
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sfcf${FH}${MN} SFC.F24
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sfcf24 SFC.F24
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/flxf${FH}${MN} FLX.F24
-+ ln -fs /ptmp/wx22ec/gfs.1_test/flxf24 FLX.F24
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/logf${FH}${MN} LOG.F24
-+ ln -fs /ptmp/wx22ec/gfs.1_test/logf24 LOG.F24
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/d3df${FH}${MN} D3D.F24
-+ ln -fs /ptmp/wx22ec/gfs.1_test/d3df24 D3D.F24
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sigf${FH}${MN} SIG.F24
++ ln -fs /ptmp/wx22ec/gfs_filter/sigf24 SIG.F24
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sfcf${FH}${MN} SFC.F24
++ ln -fs /ptmp/wx22ec/gfs_filter/sfcf24 SFC.F24
++ eval ln -fs /ptmp/wx22ec/gfs_filter/flxf${FH}${MN} FLX.F24
++ ln -fs /ptmp/wx22ec/gfs_filter/flxf24 FLX.F24
++ eval ln -fs /ptmp/wx22ec/gfs_filter/logf${FH}${MN} LOG.F24
++ ln -fs /ptmp/wx22ec/gfs_filter/logf24 LOG.F24
++ eval ln -fs /ptmp/wx22ec/gfs_filter/d3df${FH}${MN} D3D.F24
++ ln -fs /ptmp/wx22ec/gfs_filter/d3df24 D3D.F24
 + (( FH=10#24+10#3 ))
 + [[ 27 -lt 10 ]]
 + [[ 27 -le 48 ]]
 + [ 27 -eq 00 ]
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sigf${FH}${MN} SIG.F27
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sigf27 SIG.F27
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sfcf${FH}${MN} SFC.F27
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sfcf27 SFC.F27
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/flxf${FH}${MN} FLX.F27
-+ ln -fs /ptmp/wx22ec/gfs.1_test/flxf27 FLX.F27
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/logf${FH}${MN} LOG.F27
-+ ln -fs /ptmp/wx22ec/gfs.1_test/logf27 LOG.F27
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/d3df${FH}${MN} D3D.F27
-+ ln -fs /ptmp/wx22ec/gfs.1_test/d3df27 D3D.F27
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sigf${FH}${MN} SIG.F27
++ ln -fs /ptmp/wx22ec/gfs_filter/sigf27 SIG.F27
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sfcf${FH}${MN} SFC.F27
++ ln -fs /ptmp/wx22ec/gfs_filter/sfcf27 SFC.F27
++ eval ln -fs /ptmp/wx22ec/gfs_filter/flxf${FH}${MN} FLX.F27
++ ln -fs /ptmp/wx22ec/gfs_filter/flxf27 FLX.F27
++ eval ln -fs /ptmp/wx22ec/gfs_filter/logf${FH}${MN} LOG.F27
++ ln -fs /ptmp/wx22ec/gfs_filter/logf27 LOG.F27
++ eval ln -fs /ptmp/wx22ec/gfs_filter/d3df${FH}${MN} D3D.F27
++ ln -fs /ptmp/wx22ec/gfs_filter/d3df27 D3D.F27
 + (( FH=10#27+10#3 ))
 + [[ 30 -lt 10 ]]
 + [[ 30 -le 48 ]]
 + [ 30 -eq 00 ]
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sigf${FH}${MN} SIG.F30
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sigf30 SIG.F30
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sfcf${FH}${MN} SFC.F30
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sfcf30 SFC.F30
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/flxf${FH}${MN} FLX.F30
-+ ln -fs /ptmp/wx22ec/gfs.1_test/flxf30 FLX.F30
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/logf${FH}${MN} LOG.F30
-+ ln -fs /ptmp/wx22ec/gfs.1_test/logf30 LOG.F30
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/d3df${FH}${MN} D3D.F30
-+ ln -fs /ptmp/wx22ec/gfs.1_test/d3df30 D3D.F30
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sigf${FH}${MN} SIG.F30
++ ln -fs /ptmp/wx22ec/gfs_filter/sigf30 SIG.F30
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sfcf${FH}${MN} SFC.F30
++ ln -fs /ptmp/wx22ec/gfs_filter/sfcf30 SFC.F30
++ eval ln -fs /ptmp/wx22ec/gfs_filter/flxf${FH}${MN} FLX.F30
++ ln -fs /ptmp/wx22ec/gfs_filter/flxf30 FLX.F30
++ eval ln -fs /ptmp/wx22ec/gfs_filter/logf${FH}${MN} LOG.F30
++ ln -fs /ptmp/wx22ec/gfs_filter/logf30 LOG.F30
++ eval ln -fs /ptmp/wx22ec/gfs_filter/d3df${FH}${MN} D3D.F30
++ ln -fs /ptmp/wx22ec/gfs_filter/d3df30 D3D.F30
 + (( FH=10#30+10#3 ))
 + [[ 33 -lt 10 ]]
 + [[ 33 -le 48 ]]
 + [ 33 -eq 00 ]
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sigf${FH}${MN} SIG.F33
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sigf33 SIG.F33
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sfcf${FH}${MN} SFC.F33
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sfcf33 SFC.F33
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/flxf${FH}${MN} FLX.F33
-+ ln -fs /ptmp/wx22ec/gfs.1_test/flxf33 FLX.F33
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/logf${FH}${MN} LOG.F33
-+ ln -fs /ptmp/wx22ec/gfs.1_test/logf33 LOG.F33
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/d3df${FH}${MN} D3D.F33
-+ ln -fs /ptmp/wx22ec/gfs.1_test/d3df33 D3D.F33
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sigf${FH}${MN} SIG.F33
++ ln -fs /ptmp/wx22ec/gfs_filter/sigf33 SIG.F33
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sfcf${FH}${MN} SFC.F33
++ ln -fs /ptmp/wx22ec/gfs_filter/sfcf33 SFC.F33
++ eval ln -fs /ptmp/wx22ec/gfs_filter/flxf${FH}${MN} FLX.F33
++ ln -fs /ptmp/wx22ec/gfs_filter/flxf33 FLX.F33
++ eval ln -fs /ptmp/wx22ec/gfs_filter/logf${FH}${MN} LOG.F33
++ ln -fs /ptmp/wx22ec/gfs_filter/logf33 LOG.F33
++ eval ln -fs /ptmp/wx22ec/gfs_filter/d3df${FH}${MN} D3D.F33
++ ln -fs /ptmp/wx22ec/gfs_filter/d3df33 D3D.F33
 + (( FH=10#33+10#3 ))
 + [[ 36 -lt 10 ]]
 + [[ 36 -le 48 ]]
 + [ 36 -eq 00 ]
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sigf${FH}${MN} SIG.F36
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sigf36 SIG.F36
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sfcf${FH}${MN} SFC.F36
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sfcf36 SFC.F36
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/flxf${FH}${MN} FLX.F36
-+ ln -fs /ptmp/wx22ec/gfs.1_test/flxf36 FLX.F36
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/logf${FH}${MN} LOG.F36
-+ ln -fs /ptmp/wx22ec/gfs.1_test/logf36 LOG.F36
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/d3df${FH}${MN} D3D.F36
-+ ln -fs /ptmp/wx22ec/gfs.1_test/d3df36 D3D.F36
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sigf${FH}${MN} SIG.F36
++ ln -fs /ptmp/wx22ec/gfs_filter/sigf36 SIG.F36
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sfcf${FH}${MN} SFC.F36
++ ln -fs /ptmp/wx22ec/gfs_filter/sfcf36 SFC.F36
++ eval ln -fs /ptmp/wx22ec/gfs_filter/flxf${FH}${MN} FLX.F36
++ ln -fs /ptmp/wx22ec/gfs_filter/flxf36 FLX.F36
++ eval ln -fs /ptmp/wx22ec/gfs_filter/logf${FH}${MN} LOG.F36
++ ln -fs /ptmp/wx22ec/gfs_filter/logf36 LOG.F36
++ eval ln -fs /ptmp/wx22ec/gfs_filter/d3df${FH}${MN} D3D.F36
++ ln -fs /ptmp/wx22ec/gfs_filter/d3df36 D3D.F36
 + (( FH=10#36+10#3 ))
 + [[ 39 -lt 10 ]]
 + [[ 39 -le 48 ]]
 + [ 39 -eq 00 ]
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sigf${FH}${MN} SIG.F39
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sigf39 SIG.F39
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sfcf${FH}${MN} SFC.F39
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sfcf39 SFC.F39
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/flxf${FH}${MN} FLX.F39
-+ ln -fs /ptmp/wx22ec/gfs.1_test/flxf39 FLX.F39
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/logf${FH}${MN} LOG.F39
-+ ln -fs /ptmp/wx22ec/gfs.1_test/logf39 LOG.F39
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/d3df${FH}${MN} D3D.F39
-+ ln -fs /ptmp/wx22ec/gfs.1_test/d3df39 D3D.F39
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sigf${FH}${MN} SIG.F39
++ ln -fs /ptmp/wx22ec/gfs_filter/sigf39 SIG.F39
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sfcf${FH}${MN} SFC.F39
++ ln -fs /ptmp/wx22ec/gfs_filter/sfcf39 SFC.F39
++ eval ln -fs /ptmp/wx22ec/gfs_filter/flxf${FH}${MN} FLX.F39
++ ln -fs /ptmp/wx22ec/gfs_filter/flxf39 FLX.F39
++ eval ln -fs /ptmp/wx22ec/gfs_filter/logf${FH}${MN} LOG.F39
++ ln -fs /ptmp/wx22ec/gfs_filter/logf39 LOG.F39
++ eval ln -fs /ptmp/wx22ec/gfs_filter/d3df${FH}${MN} D3D.F39
++ ln -fs /ptmp/wx22ec/gfs_filter/d3df39 D3D.F39
 + (( FH=10#39+10#3 ))
 + [[ 42 -lt 10 ]]
 + [[ 42 -le 48 ]]
 + [ 42 -eq 00 ]
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sigf${FH}${MN} SIG.F42
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sigf42 SIG.F42
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sfcf${FH}${MN} SFC.F42
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sfcf42 SFC.F42
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/flxf${FH}${MN} FLX.F42
-+ ln -fs /ptmp/wx22ec/gfs.1_test/flxf42 FLX.F42
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/logf${FH}${MN} LOG.F42
-+ ln -fs /ptmp/wx22ec/gfs.1_test/logf42 LOG.F42
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/d3df${FH}${MN} D3D.F42
-+ ln -fs /ptmp/wx22ec/gfs.1_test/d3df42 D3D.F42
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sigf${FH}${MN} SIG.F42
++ ln -fs /ptmp/wx22ec/gfs_filter/sigf42 SIG.F42
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sfcf${FH}${MN} SFC.F42
++ ln -fs /ptmp/wx22ec/gfs_filter/sfcf42 SFC.F42
++ eval ln -fs /ptmp/wx22ec/gfs_filter/flxf${FH}${MN} FLX.F42
++ ln -fs /ptmp/wx22ec/gfs_filter/flxf42 FLX.F42
++ eval ln -fs /ptmp/wx22ec/gfs_filter/logf${FH}${MN} LOG.F42
++ ln -fs /ptmp/wx22ec/gfs_filter/logf42 LOG.F42
++ eval ln -fs /ptmp/wx22ec/gfs_filter/d3df${FH}${MN} D3D.F42
++ ln -fs /ptmp/wx22ec/gfs_filter/d3df42 D3D.F42
 + (( FH=10#42+10#3 ))
 + [[ 45 -lt 10 ]]
 + [[ 45 -le 48 ]]
 + [ 45 -eq 00 ]
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sigf${FH}${MN} SIG.F45
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sigf45 SIG.F45
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sfcf${FH}${MN} SFC.F45
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sfcf45 SFC.F45
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/flxf${FH}${MN} FLX.F45
-+ ln -fs /ptmp/wx22ec/gfs.1_test/flxf45 FLX.F45
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/logf${FH}${MN} LOG.F45
-+ ln -fs /ptmp/wx22ec/gfs.1_test/logf45 LOG.F45
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/d3df${FH}${MN} D3D.F45
-+ ln -fs /ptmp/wx22ec/gfs.1_test/d3df45 D3D.F45
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sigf${FH}${MN} SIG.F45
++ ln -fs /ptmp/wx22ec/gfs_filter/sigf45 SIG.F45
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sfcf${FH}${MN} SFC.F45
++ ln -fs /ptmp/wx22ec/gfs_filter/sfcf45 SFC.F45
++ eval ln -fs /ptmp/wx22ec/gfs_filter/flxf${FH}${MN} FLX.F45
++ ln -fs /ptmp/wx22ec/gfs_filter/flxf45 FLX.F45
++ eval ln -fs /ptmp/wx22ec/gfs_filter/logf${FH}${MN} LOG.F45
++ ln -fs /ptmp/wx22ec/gfs_filter/logf45 LOG.F45
++ eval ln -fs /ptmp/wx22ec/gfs_filter/d3df${FH}${MN} D3D.F45
++ ln -fs /ptmp/wx22ec/gfs_filter/d3df45 D3D.F45
 + (( FH=10#45+10#3 ))
 + [[ 48 -lt 10 ]]
 + [[ 48 -le 48 ]]
 + [ 48 -eq 00 ]
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sigf${FH}${MN} SIG.F48
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sigf48 SIG.F48
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/sfcf${FH}${MN} SFC.F48
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sfcf48 SFC.F48
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/flxf${FH}${MN} FLX.F48
-+ ln -fs /ptmp/wx22ec/gfs.1_test/flxf48 FLX.F48
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/logf${FH}${MN} LOG.F48
-+ ln -fs /ptmp/wx22ec/gfs.1_test/logf48 LOG.F48
-+ eval ln -fs /ptmp/wx22ec/gfs.1_test/d3df${FH}${MN} D3D.F48
-+ ln -fs /ptmp/wx22ec/gfs.1_test/d3df48 D3D.F48
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sigf${FH}${MN} SIG.F48
++ ln -fs /ptmp/wx22ec/gfs_filter/sigf48 SIG.F48
++ eval ln -fs /ptmp/wx22ec/gfs_filter/sfcf${FH}${MN} SFC.F48
++ ln -fs /ptmp/wx22ec/gfs_filter/sfcf48 SFC.F48
++ eval ln -fs /ptmp/wx22ec/gfs_filter/flxf${FH}${MN} FLX.F48
++ ln -fs /ptmp/wx22ec/gfs_filter/flxf48 FLX.F48
++ eval ln -fs /ptmp/wx22ec/gfs_filter/logf${FH}${MN} LOG.F48
++ ln -fs /ptmp/wx22ec/gfs_filter/logf48 LOG.F48
++ eval ln -fs /ptmp/wx22ec/gfs_filter/d3df${FH}${MN} D3D.F48
++ ln -fs /ptmp/wx22ec/gfs_filter/d3df48 D3D.F48
 + (( FH=10#48+10#3 ))
 + [[ 51 -lt 10 ]]
 + [[ 51 -le 48 ]]
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sigr1 SIGR1
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sigr2 SIGR2
-+ ln -fs /ptmp/wx22ec/gfs.1_test/sfcr SFCR
++ ln -fs /ptmp/wx22ec/gfs_filter/sigr1 SIGR1
++ ln -fs /ptmp/wx22ec/gfs_filter/sigr2 SIGR2
++ ln -fs /ptmp/wx22ec/gfs_filter/sfcr SFCR
 + c=1
 + [ 1 -le 1 ]
 + eval export PE1=${PE1:-0}
@@ -647,7 +647,7 @@ pwd=/ptmp/wx22ec/gfs.1_test
 + c=2
 + [ 2 -le 1 ]
 + export wgrib=/nwprod/util/exec/wgrib
-+ + wgrib -4yr /ptmp/wx22ec/gfs.1_test/gfsanl.2007070200
++ + wgrib -4yr /ptmp/wx22ec/gfs_filter/gfsanl.2007070200
 + awk -F= {print $2}
 + awk -F: {print $3}
 CDATE=2007070200
@@ -716,11 +716,11 @@ adiabatic:            .false.
 + cat atm_namelist.rc
 + 1> dyn_namelist.rc
 + cat
-+ 0< /tmp/sh241798.3 1>> dyn_namelist.rc
++ 0< /tmp/sh237744.3 1>> dyn_namelist.rc
 + cat atm_namelist.rc
 + 1> phy_namelist.rc
 + cat
-+ 0< /tmp/sh241798.5 1>> phy_namelist.rc
++ 0< /tmp/sh237744.5 1>> phy_namelist.rc
 + cat
 + 1> atm_namelist 0<<
  &nam_dyn
@@ -790,57 +790,57 @@ adiabatic:            .false.
   FSICS=99999,
 
    /
-+ eval /ptmp/wx22ec/gfs.1_test/MAIN_NEMS.x 1>&1 2>&2
-+ /ptmp/wx22ec/gfs.1_test/MAIN_NEMS.x
++ eval /ptmp/wx22ec/gfs_filter/MAIN_NEMS.x 1>&1 2>&2
++ /ptmp/wx22ec/gfs_filter/MAIN_NEMS.x
 + 1>& 1 2>& 2
 ATTENTION: 0031-408  16 tasks allocated by LoadLeveler, continuing...
-   0:  atm_init_tim= 1.920000076
-   1:  atm_init_tim= 1.920000076
-   2:  atm_init_tim= 1.920000076
-   3:  atm_init_tim= 1.920000076
-   4:  atm_init_tim= 1.920000076
-   5:  atm_init_tim= 1.920000076
-   6:  atm_init_tim= 1.920000076
-   7:  atm_init_tim= 1.920000076
-   8:  atm_init_tim= 1.920000076
-   9:  atm_init_tim= 1.920000076
-  10:  atm_init_tim= 1.920000076
-  11:  atm_init_tim= 1.920000076
-  12:  atm_init_tim= 1.920000076
-  13:  atm_init_tim= 1.920000076
-  14:  atm_init_tim= 1.920000076
-  15:  atm_init_tim= 1.920000076
-   0: ATM FINALIZE STEP SUCCEEDED
+   0:  atm_init_tim= 1.260000110
+   1:  atm_init_tim= 1.260000110
+   2:  atm_init_tim= 1.260000110
+   3:  atm_init_tim= 1.260000110
+   4:  atm_init_tim= 1.260000110
+   5:  atm_init_tim= 1.260000110
+   6:  atm_init_tim= 1.260000110
+   7:  atm_init_tim= 1.260000110
+   8:  atm_init_tim= 1.260000110
+   9:  atm_init_tim= 1.260000110
+  10:  atm_init_tim= 1.260000110
+  11:  atm_init_tim= 1.260000110
+  12:  atm_init_tim= 1.260000110
+  13:  atm_init_tim= 1.260000110
+  14:  atm_init_tim= 1.260000110
+  15:  atm_init_tim= 1.260000110
    1: ATM FINALIZE STEP SUCCEEDED
-   3: ATM FINALIZE STEP SUCCEEDED
+   2: ATM FINALIZE STEP SUCCEEDED
    4: ATM FINALIZE STEP SUCCEEDED
    5: ATM FINALIZE STEP SUCCEEDED
-   9: ATM FINALIZE STEP SUCCEEDED
-  10: ATM FINALIZE STEP SUCCEEDED
-  11: ATM FINALIZE STEP SUCCEEDED
-   2: ATM FINALIZE STEP SUCCEEDED
    6: ATM FINALIZE STEP SUCCEEDED
-   7: ATM FINALIZE STEP SUCCEEDED
+   9: ATM FINALIZE STEP SUCCEEDED
   12: ATM FINALIZE STEP SUCCEEDED
   13: ATM FINALIZE STEP SUCCEEDED
-  14: ATM FINALIZE STEP SUCCEEDED
+   0: ATM FINALIZE STEP SUCCEEDED
+   3: ATM FINALIZE STEP SUCCEEDED
+   7: ATM FINALIZE STEP SUCCEEDED
    8: ATM FINALIZE STEP SUCCEEDED
+  10: ATM FINALIZE STEP SUCCEEDED
+  11: ATM FINALIZE STEP SUCCEEDED
+  14: ATM FINALIZE STEP SUCCEEDED
   15: ATM FINALIZE STEP SUCCEEDED
-   7: MODEL FORECAST RUN SUCCEEDED
-  15: MODEL FORECAST RUN SUCCEEDED
-  14: MODEL FORECAST RUN SUCCEEDED
-   4: MODEL FORECAST RUN SUCCEEDED
+  11: MODEL FORECAST RUN SUCCEEDED
    0: MODEL FORECAST RUN SUCCEEDED
    5: MODEL FORECAST RUN SUCCEEDED
-   6: MODEL FORECAST RUN SUCCEEDED
-  13: MODEL FORECAST RUN SUCCEEDED
-   3: MODEL FORECAST RUN SUCCEEDED
    9: MODEL FORECAST RUN SUCCEEDED
-   1: MODEL FORECAST RUN SUCCEEDED
-  11: MODEL FORECAST RUN SUCCEEDED
-   2: MODEL FORECAST RUN SUCCEEDED
+  13: MODEL FORECAST RUN SUCCEEDED
+  15: MODEL FORECAST RUN SUCCEEDED
   10: MODEL FORECAST RUN SUCCEEDED
+   2: MODEL FORECAST RUN SUCCEEDED
+   4: MODEL FORECAST RUN SUCCEEDED
+   6: MODEL FORECAST RUN SUCCEEDED
+   7: MODEL FORECAST RUN SUCCEEDED
   12: MODEL FORECAST RUN SUCCEEDED
+  14: MODEL FORECAST RUN SUCCEEDED
+   1: MODEL FORECAST RUN SUCCEEDED
+   3: MODEL FORECAST RUN SUCCEEDED
    8: MODEL FORECAST RUN SUCCEEDED
 + export ERR=0
 + export err=0
@@ -851,6 +851,6 @@ ATTENTION: 0031-408  16 tasks allocated by LoadLeveler, continuing...
 + rm -f fort.15 fort.24 fort.27 fort.28 fort.29 fort.43 fort.48
 + rm -f orography
 + rm -f fort.51 fort.52 fort.53
-+ cd /ptmp/wx22ec/gfs.1_test
++ cd /ptmp/wx22ec/gfs_filter
 + [[ NO = YES ]]
-Thu Aug 28 16:21:59 EDT 2008 EXITING /meso/save/wx22ec/NEMS/run/exglobal_fcst.sh.sms_nems with return code 0
+Wed Sep 3 17:09:45 EDT 2008 EXITING /meso/save/wx22ec/scratch/run/exglobal_fcst.sh.sms_nems with return code 0

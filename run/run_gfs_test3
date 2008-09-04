@@ -164,8 +164,8 @@ export LEVR=${levr:-0}
 #
 #     Forecaset script and executable name
 #
- export FCSTSCRIPT=/meso/save/${USER}/NEMS/run/exglobal_fcst.sh.sms_nems
- export FCSTEXEC=/meso/save/${USER}/NEMS/MAIN_NEMS.x
+ export FCSTSCRIPT=/meso/save/${USER}/trunk/run/exglobal_fcst.sh.sms_nems
+ export FCSTEXEC=/meso/save/${USER}/trunk/MAIN_NEMS.x
 #
 #
 # ***************************************************************

@@ -5,26 +5,21 @@
 #
  FINCS    = -I/meso/save/wx20rv/ESMF_libs/esmf_test_310r/mod/modO/AIX.default.64.mpi.default
 
-DEBUG    = -qcheck -qsource -qlist
-#FFLAGM_DEBUG  = -g -fullpath -O0 -qinitauto=FF911299 -qflttrap=enable:overflow:zerodivide:invalid -qsigtrap=xl__trcedump -NS2048 $(DEBUG)
-
 #---------------
 # For non-debug.
 #---------------
-FFLAGM_DEBUG  = -O0
+FFLAGM_DEBUG  = -O2
 
  OPTS     = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
  OPTS90   = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
  OPTS90A  = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave$(FFLAGM_DEBUG)
-#TRAPS    = -qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap
-#
  FFLAG90  = $(OPTS90) $(FINCS) -qfree -NS2048
  FFLAG90A = $(OPTS90A) $(FINCS) -qfree -NS2048
- FFLAGS   = $(OPTS) $(TRAPS)
- FFLAGX   = $(OPTS) $(TRAPS)
- FFLAGIO  = $(OPTS) $(TRAPS)
+ FFLAGS   = $(OPTS) 
+ FFLAGX   = $(OPTS) 
+ FFLAGIO  = $(OPTS) 
  FFLAGY   = $(OPTS)
- FFLAGM   = $(OPTS) $(FINCS) $(TRAPS) $(FFLAGM_DEBUG) -NS2048
+ FFLAGM   = $(OPTS) $(FINCS) $(FFLAGM_DEBUG) -NS2048
  FFLAGSF  = -qnosave -q free=f90 -qcheck $(FFLAGM_DEBUG)
  FFLAGSI  = -qnosave -q free=f90 $(FFLAGM_DEBUG)
  FFLAGB   = -qnosave -qfixed $(FFLAGM_DEBUG)
@@ -71,9 +66,6 @@ OBJ_MOD	= gfs_dyn_machine.o             \
 	  gfs_dyn_glats.o		\
 	  gfsio_module.o        	\
 	  gfsio_def.o           
-
-#	  sigio_module.o        	\
-#	  sigio_r_module.o      	\
 
 OBJS	= \
 	get_cd_hyb.o get_am_bm_hyb.o\
@@ -159,12 +151,6 @@ OBJS_IO= \
 	setsig.o           \
 	bafrio.o        
 
-#	treadeo.io.o       \
-#	twriteeo.o         \
-#	spect_send.o       \
-#	spect_write.o
-
-#
 INCS = f_hpm.h mpi_inc.h function2
 
 #
@@ -198,12 +184,6 @@ gfs_dyn_machine.o:	gfs_dyn_machine.f
 gfs_dyn_physcons.o:	gfs_dyn_physcons.f
 		$(F77) $(FFLAG90) -c gfs_dyn_physcons.f
 
-#sigio_module.o:	sigio_module.f
-#		$(F77) $(FFLAGSI) -c sigio_module.f
-
-#sigio_r_module.o:	sigio_r_module.f
-#		$(F77) $(FFLAGSI) -c sigio_r_module.f
-
 gfsio_def.o:	gfsio_def.f
 		$(F77) $(FFLAGSI) -c gfsio_def.f
 
@@ -212,8 +192,6 @@ gfsio_module.o:	gfsio_module.f
 
 bafrio.o:	bafrio.f
 		$(F77) $(FFLAGB) -c bafrio.f
-
-#
 
 read_fix.o:	read_fix.f
 		$(F77) $(FFLAGX) -c read_fix.f
@@ -224,20 +202,8 @@ softcount.o:	softcount.f
 getaer.o:	getaer.f
 		$(F77) $(FFLAGIO) -c getaer.f
 
-#treadeo.io.o:	treadeo.io.f
-#		$(F77) $(FFLAGIO) -c treadeo.io.f
-
 treadeo.gfsio.o:	treadeo.gfsio.f
 		$(F77) $(FFLAGIO) -c treadeo.gfsio.f
-
-#twriteeo.o:	twriteeo.f
-#		$(F77) $(FFLAGIO) -c twriteeo.f
-
-#spect_send.o:	spect_send.f
-#		$(F77) $(FFLAGIO) -c spect_send.f
-
-#spect_write.o:	spect_write.f
-#		$(F77) $(FFLAGIO) -c spect_write.f
 
 spect_to_grid_inp.o:	spect_to_grid_inp.f
 		$(F77) $(FFLAGIO) -c spect_to_grid_inp.f

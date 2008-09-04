@@ -7,25 +7,22 @@
  FINCS    = $(FINC0) -I/nwprod/lib/incmod/w3_d
 
  DEBUG    = -qcheck -qsource -qlist
-#FFLAGM_DEBUG  = -g -fullpath -O0 -qinitauto=FF911299 -qflttrap=enable:overflow:zerodivide:invalid -qsigtrap=xl__trcedump -NS2048 $(DEBUG)
-
 #---------------
 # For non-debug.
 #---------------
-FFLAGM_DEBUG  = -O0
+FFLAGM_DEBUG  = -O2
 
  OPTS     = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
  OPTS90   = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
  OPTS90A  = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
-#TRAPS    = -qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap
 
  FFLAG90  = $(OPTS90) $(FINCS) -qfree -NS2048
  FFLAG90A = $(OPTS90A) $(FINCS) -qfree -NS2048
- FFLAGS   = $(OPTS) $(TRAPS)
- FFLAGX   = $(OPTS) $(TRAPS)
- FFLAGIO  = $(OPTS) $(TRAPS)
+ FFLAGS   = $(OPTS) 
+ FFLAGX   = $(OPTS)
+ FFLAGIO  = $(OPTS) 
  FFLAGY   = $(OPTS)
- FFLAGM   = $(OPTS) $(FINCS) $(TRAPS) $(FFLAGM_DEBUG) -NS2048
+ FFLAGM   = $(OPTS) $(FINCS) $(FFLAGM_DEBUG) -NS2048
  FFLAGSF  = -qnosave -q free=f90 -qcheck $(FFLAGM_DEBUG)
  FFLAGSI  = -qnosave -q free=f90 $(FFLAGM_DEBUG)
  FFLAGB   = -qnosave -qfixed $(FFLAGM_DEBUG)
@@ -187,9 +184,6 @@ dcyc2_v.o:	dcyc2_v.f
 
 dcyc2_v.pre.rad.o:	dcyc2_v.pre.rad.f
 		$(F77) $(FFLAGM) -c dcyc2_v.pre.rad.f
-
-#digifilt.o:	digifilt.f
-#		$(F77) $(FFLAGX) -c digifilt.f
 
 funcphys_subsx.o:	funcphys_subsx.f
 		$(F77) $(FFLAGM) -c funcphys_subsx.f
@@ -366,19 +360,6 @@ gfsio_module.o:	gfsio_module.f
 sigio_r_module.o:	sigio_r_module.f
 		$(F77) $(FFLAGSI) -c sigio_r_module.f
 
-#bafrio.o:	bafrio.f
-#		$(F77) $(FFLAGB) -c bafrio.f
-
-#
-##sigdas.io.o:	sigdas.io.f
-###		$(F77) $(FFLAGIO) -c sigdas.io.f
-
-#read_fix.o:	read_fix.f
-#		$(F77) $(FFLAGX) -c read_fix.f
-
-#softcount.o:	softcount.f
-#		$(F77) $(FFLAGX) -c softcount.f
-
 gloopr.o:	gloopr.f
 		$(F77) $(FFLAGS) -c gloopr.f
 
@@ -408,12 +389,6 @@ wrtsfc.o:	wrtsfc.f
 
 para_fixio_w.o:		para_fixio_w.f
 		$(F77) $(FFLAGIO) -c para_fixio_w.f
-
-##para_fixio_all_w.o:		para_fixio_all_w.f
-##		$(F77) $(FFLAGIO) -c para_fixio_all_w.f
-#
-##para_fixio_iop_w.o:	para_fixio_iop_w.f
-##		$(F77) $(FFLAGIO) -c para_fixio_iop_w.f
 
 wrtout_physics.o:	wrtout_physics.f
 		$(F77) $(FFLAGIO) -c wrtout_physics.f

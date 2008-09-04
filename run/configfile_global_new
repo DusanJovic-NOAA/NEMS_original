@@ -73,7 +73,7 @@ tstart:       0.            # The starting forecast hour
 ##### Forecast Length #####
 ###########################
 
-nhours_fcst:    48          # Length of the forecast (hours)
+nhours_fcst:    24          # Length of the forecast (hours)
 nhours_history: 03          # Frequency of history output (hours)
 nhours_dfini:   0 
 adiabatic:      false

@@ -1,178 +1,3 @@
-ETAMPNEW_DATA
-GENPARM.TBL
-LANDUSE.TBL
-PET0.ESMF_LogFile
-PET0.Error_Log.txt
-PET1.ESMF_LogFile
-PET1.Error_Log.txt
-PET10.ESMF_LogFile
-PET10.Error_Log.txt
-PET11.ESMF_LogFile
-PET11.Error_Log.txt
-PET12.ESMF_LogFile
-PET12.Error_Log.txt
-PET13.ESMF_LogFile
-PET13.Error_Log.txt
-PET14.ESMF_LogFile
-PET14.Error_Log.txt
-PET15.ESMF_LogFile
-PET15.Error_Log.txt
-PET16.ESMF_LogFile
-PET16.Error_Log.txt
-PET17.ESMF_LogFile
-PET17.Error_Log.txt
-PET18.ESMF_LogFile
-PET18.Error_Log.txt
-PET19.ESMF_LogFile
-PET19.Error_Log.txt
-PET2.ESMF_LogFile
-PET2.Error_Log.txt
-PET20.ESMF_LogFile
-PET20.Error_Log.txt
-PET21.ESMF_LogFile
-PET21.Error_Log.txt
-PET22.ESMF_LogFile
-PET22.Error_Log.txt
-PET23.ESMF_LogFile
-PET23.Error_Log.txt
-PET24.ESMF_LogFile
-PET24.Error_Log.txt
-PET25.ESMF_LogFile
-PET25.Error_Log.txt
-PET26.ESMF_LogFile
-PET26.Error_Log.txt
-PET27.ESMF_LogFile
-PET27.Error_Log.txt
-PET28.ESMF_LogFile
-PET28.Error_Log.txt
-PET29.ESMF_LogFile
-PET29.Error_Log.txt
-PET3.ESMF_LogFile
-PET3.Error_Log.txt
-PET30.ESMF_LogFile
-PET30.Error_Log.txt
-PET31.ESMF_LogFile
-PET31.Error_Log.txt
-PET32.ESMF_LogFile
-PET32.Error_Log.txt
-PET33.ESMF_LogFile
-PET33.Error_Log.txt
-PET34.ESMF_LogFile
-PET34.Error_Log.txt
-PET35.ESMF_LogFile
-PET35.Error_Log.txt
-PET36.ESMF_LogFile
-PET36.Error_Log.txt
-PET37.ESMF_LogFile
-PET37.Error_Log.txt
-PET38.ESMF_LogFile
-PET38.Error_Log.txt
-PET39.ESMF_LogFile
-PET39.Error_Log.txt
-PET4.ESMF_LogFile
-PET4.Error_Log.txt
-PET40.ESMF_LogFile
-PET40.Error_Log.txt
-PET41.ESMF_LogFile
-PET41.Error_Log.txt
-PET42.ESMF_LogFile
-PET42.Error_Log.txt
-PET43.ESMF_LogFile
-PET43.Error_Log.txt
-PET44.ESMF_LogFile
-PET44.Error_Log.txt
-PET45.ESMF_LogFile
-PET45.Error_Log.txt
-PET46.ESMF_LogFile
-PET46.Error_Log.txt
-PET47.ESMF_LogFile
-PET47.Error_Log.txt
-PET5.ESMF_LogFile
-PET5.Error_Log.txt
-PET6.ESMF_LogFile
-PET6.Error_Log.txt
-PET7.ESMF_LogFile
-PET7.Error_Log.txt
-PET8.ESMF_LogFile
-PET8.Error_Log.txt
-PET9.ESMF_LogFile
-PET9.Error_Log.txt
-RRTM_DATA
-RRTM_DATA_DBL
-SOILPARM.TBL
-VEGPARM.TBL
-co2_trans
-configure_file
-gribmap.txt
-main_input_filename
-mpi_profile.0
-mpi_profile.1
-mpi_profile.10
-mpi_profile.11
-mpi_profile.12
-mpi_profile.13
-mpi_profile.14
-mpi_profile.15
-mpi_profile.16
-mpi_profile.17
-mpi_profile.18
-mpi_profile.19
-mpi_profile.2
-mpi_profile.20
-mpi_profile.21
-mpi_profile.22
-mpi_profile.23
-mpi_profile.24
-mpi_profile.25
-mpi_profile.26
-mpi_profile.27
-mpi_profile.28
-mpi_profile.29
-mpi_profile.3
-mpi_profile.30
-mpi_profile.31
-mpi_profile.32
-mpi_profile.33
-mpi_profile.34
-mpi_profile.35
-mpi_profile.36
-mpi_profile.37
-mpi_profile.38
-mpi_profile.39
-mpi_profile.4
-mpi_profile.40
-mpi_profile.41
-mpi_profile.42
-mpi_profile.43
-mpi_profile.44
-mpi_profile.45
-mpi_profile.46
-mpi_profile.47
-mpi_profile.5
-mpi_profile.6
-mpi_profile.7
-mpi_profile.8
-mpi_profile.9
-nmm_b_history.000
-nmm_b_history.003
-nmm_b_history.006
-nmm_b_history.009
-nmm_b_history.012
-nmm_b_history.015
-nmm_b_history.018
-nmm_b_history.021
-nmm_b_history.024
-nmm_b_history.027
-nmm_b_history.030
-nmm_b_history.033
-nmm_b_history.036
-nmm_b_history.039
-nmm_b_history.042
-nmm_b_history.045
-nmm_b_history.048
-tr49t67
-tr49t85
-tr67t85
 /meso/noscrub/wx22tb/nmmb_input/input_global
 co2.35_hybrid_50mbtop
 namelist_global.rc
@@ -192,7 +17,7 @@ tr67t85
    0:Clock ----------------------------------
    0:stopTime = 
    0:Time -----------------------------------
-   0:2007-09-20T00:00:00
+   0:2007-09-19T00:00:00
    0:end Time -------------------------------
    0:
    0:end Clock ------------------------------
@@ -206,7 +31,7 @@ tr67t85
    1:Clock ----------------------------------
    1:stopTime = 
    1:Time -----------------------------------
-   1:2007-09-20T00:00:00
+   1:2007-09-19T00:00:00
    1:end Time -------------------------------
    1:
    1:end Clock ------------------------------
@@ -220,7 +45,7 @@ tr67t85
    2:Clock ----------------------------------
    2:stopTime = 
    2:Time -----------------------------------
-   2:2007-09-20T00:00:00
+   2:2007-09-19T00:00:00
    2:end Time -------------------------------
    2:
    2:end Clock ------------------------------
@@ -234,7 +59,7 @@ tr67t85
    3:Clock ----------------------------------
    3:stopTime = 
    3:Time -----------------------------------
-   3:2007-09-20T00:00:00
+   3:2007-09-19T00:00:00
    3:end Time -------------------------------
    3:
    3:end Clock ------------------------------
@@ -248,7 +73,7 @@ tr67t85
    4:Clock ----------------------------------
    4:stopTime = 
    4:Time -----------------------------------
-   4:2007-09-20T00:00:00
+   4:2007-09-19T00:00:00
    4:end Time -------------------------------
    4:
    4:end Clock ------------------------------
@@ -262,7 +87,7 @@ tr67t85
    5:Clock ----------------------------------
    5:stopTime = 
    5:Time -----------------------------------
-   5:2007-09-20T00:00:00
+   5:2007-09-19T00:00:00
    5:end Time -------------------------------
    5:
    5:end Clock ------------------------------
@@ -276,7 +101,7 @@ tr67t85
    6:Clock ----------------------------------
    6:stopTime = 
    6:Time -----------------------------------
-   6:2007-09-20T00:00:00
+   6:2007-09-19T00:00:00
    6:end Time -------------------------------
    6:
    6:end Clock ------------------------------
@@ -290,7 +115,7 @@ tr67t85
    7:Clock ----------------------------------
    7:stopTime = 
    7:Time -----------------------------------
-   7:2007-09-20T00:00:00
+   7:2007-09-19T00:00:00
    7:end Time -------------------------------
    7:
    7:end Clock ------------------------------
@@ -304,7 +129,7 @@ tr67t85
    8:Clock ----------------------------------
    8:stopTime = 
    8:Time -----------------------------------
-   8:2007-09-20T00:00:00
+   8:2007-09-19T00:00:00
    8:end Time -------------------------------
    8:
    8:end Clock ------------------------------
@@ -318,7 +143,7 @@ tr67t85
    9:Clock ----------------------------------
    9:stopTime = 
    9:Time -----------------------------------
-   9:2007-09-20T00:00:00
+   9:2007-09-19T00:00:00
    9:end Time -------------------------------
    9:
    9:end Clock ------------------------------
@@ -332,7 +157,7 @@ tr67t85
   10:Clock ----------------------------------
   10:stopTime = 
   10:Time -----------------------------------
-  10:2007-09-20T00:00:00
+  10:2007-09-19T00:00:00
   10:end Time -------------------------------
   10:
   10:end Clock ------------------------------
@@ -346,7 +171,7 @@ tr67t85
   11:Clock ----------------------------------
   11:stopTime = 
   11:Time -----------------------------------
-  11:2007-09-20T00:00:00
+  11:2007-09-19T00:00:00
   11:end Time -------------------------------
   11:
   11:end Clock ------------------------------
@@ -360,7 +185,7 @@ tr67t85
   12:Clock ----------------------------------
   12:stopTime = 
   12:Time -----------------------------------
-  12:2007-09-20T00:00:00
+  12:2007-09-19T00:00:00
   12:end Time -------------------------------
   12:
   12:end Clock ------------------------------
@@ -374,7 +199,7 @@ tr67t85
   13:Clock ----------------------------------
   13:stopTime = 
   13:Time -----------------------------------
-  13:2007-09-20T00:00:00
+  13:2007-09-19T00:00:00
   13:end Time -------------------------------
   13:
   13:end Clock ------------------------------
@@ -388,7 +213,7 @@ tr67t85
   14:Clock ----------------------------------
   14:stopTime = 
   14:Time -----------------------------------
-  14:2007-09-20T00:00:00
+  14:2007-09-19T00:00:00
   14:end Time -------------------------------
   14:
   14:end Clock ------------------------------
@@ -401,7 +226,7 @@ tr67t85
   15:Clock ----------------------------------
   15:stopTime = 
   15:Time -----------------------------------
-  15:2007-09-20T00:00:00
+  15:2007-09-19T00:00:00
   15:end Time -------------------------------
   15:
   15:end Clock ------------------------------

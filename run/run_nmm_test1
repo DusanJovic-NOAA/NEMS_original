@@ -44,7 +44,7 @@ export AIXTHREAD_SCOPE=S
 
 RUNDIR=/ptmp/${USER}/nmm.1 ### change here
 DATADIR=/meso/noscrub/wx22tb/nmmb_input/input_global
-SRCDIR=/meso/save/${USER}/NEMS   ##### change here
+SRCDIR=/meso/save/${USER}/trunk   ##### change here
 
 mkdir -p $RUNDIR
 cd $RUNDIR

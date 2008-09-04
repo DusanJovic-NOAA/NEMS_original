@@ -10,11 +10,10 @@ National Environmental Modeling System (NEMS) Version 1.1 (August 2008)
 How to compile and run?
 -----------------------
 
-- In NEMS directory, one is given the option of building NEMS with either an NMM-B or GFS compile options. Both link to slightly different libraries.
+- In NEMS directory, a single executable is created using a single compile option: 
 
-	 NMM : make NMM  
-	 GFS:  make GFS
-	 cleans: make clean (removes source code copies, object files, modules, NEMS library files, and executables)
+	 make all
+	 make cleans (removes source code copies, object files, modules, NEMS library files, and executables)
 
 -Executable MAIN_NEMS.x created in ${USER}/NEMS 
 

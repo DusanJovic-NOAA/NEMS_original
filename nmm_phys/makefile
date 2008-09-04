@@ -45,32 +45,16 @@ PROF     =
 ARCH     = AIX
 CPP      = /lib/cpp -P
 CPPFLAGS = -DENABLE_SMP -DIBM
-#CPPFLAGS = -DENABLE_SMP
 SMP      = -qsmp=omp
 MAF      = -qfloat=nomaf
-OPTS     = -O0 -qmaxmem=-1 -qarch=auto -qtune=auto $(PROF) -NS2000
-#OPTS     = -O3 -qnostrict -qmaxmem=-1 -qarch=auto -qtune=auto $(PROF)
-########     O3 failed in producing bit-identical results with diff. decomposition
-TRAPS    = -NS2000 -qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap -C 
-TRACE    = -L /usr/lib -lmpitrace
-PROFILE  = 
-DEBUG    =
-MEM      =
+OPTS     = -O2 -qmaxmem=-1 -qarch=auto -qtune=auto $(PROF) -NS2000
 MAP      = -bmap:map -bloadmap:lm
-MASS     = -L/usrx/local/mass -lmass -lmassvp5
-ESSL     = -L/usr/lpp/essl.rte.rs1/lib -lessl_r
 #
 # Assemble Options
 #
 FINCO    = -I/meso/save/wx20rv/ESMF_libs/esmf_test_310r/mod/modO/AIX.default.64.mpi.default
 FINCS	 = $(FINCO) $(GCINCS)
-FFLAGS   = $(OPTS) $(FINCS) $(LIST) $(PROFILE) $(DEBUG)
-FFLAGSDB   = $(OPTS) $(FINCS) $(LIST) $(PROFILE) $(DEBUG) $(TRAPS)
-FFLAGSNT = $(OPTS) $(FINCS) $(LIST) $(PROFILE) $(DEBUG)
-LDFLAGS  = $(MEM) $(MAP) $(SMP) $(PROF) $(TRACE)
-ESMFLIB  = -L/meso/save/wx20rv/ESMF_libs/esmf_test_310r/lib/libO/AIX.default.64.mpi.default                  \
-             /meso/save/wx20rv/ESMF_libs/esmf_test_310r/lib/libO/AIX.default.64.mpi.default/libesmf.a
-LIBS     = -lC ${ESSL} ${MASS} ${ESMFLIB} $(GCLIBS)
+FFLAGS   = $(OPTS) $(FINCS)   
 #
 
 MODULES=	\
