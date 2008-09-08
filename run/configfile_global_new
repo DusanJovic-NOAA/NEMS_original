@@ -76,16 +76,15 @@ tstart:       0.            # The starting forecast hour
 nhours_fcst:    24          # Length of the forecast (hours)
 nhours_history: 03          # Frequency of history output (hours)
 nhours_dfini:   0 
-adiabatic:      false
 restart:        false       # True--> A restarted run
-gwdflg:         false
 
 #########################
 ##### General modes #####
 #########################
 
-global:  true               # True--> Global ; False--> Regional
-hydro:   false              # True--> Hydrostatic ;  False--> Nonhydrostatic
+global:    true             # True--> Global ;      False--> Regional
+hydro:     false            # True--> Hydrostatic ; False--> Nonhydrostatic
+adiabatic: false            # True--> Adiabatic ;   False--> Diabatic
 
 
 ##############################
@@ -134,6 +133,13 @@ write_global_sums: false    # Write out global summations or not
 pcpflg:  false              # True--> assimilation on ; False--> assimilation off
 
 
+###########################
+### Gravity Wave Drag  ####
+###########################
+
+gwdflg:  false              # True--> GWD on ; False--> GWD off
+
+
 ##################################
 ##### Physics Scheme Options #####
 ##################################
@@ -145,7 +151,7 @@ longwave:  gfdl
                                 # dudh--> Dudhia shortwave
                                 # rrtm--> RRTM longwave
 
-co2tf:  0                       # co2tf--> Read (0) or generate internally (1)
+co2tf:  1                       # co2tf--> Read (0) or generate internally (1)
                                 #          the GFDL CO2 transmission functions
 
 #---------------------------------

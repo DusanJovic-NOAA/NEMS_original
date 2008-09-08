@@ -9,13 +9,6 @@
 !
 !-----------------------------------------------------------------------
 !
-! HISTORY LOG:
-!
-!   2008-07-28  Vasic - Turned off counters (now computed in
-!                       SET_INTERNAL_STATE_PHY).
-!
-!-----------------------------------------------------------------------
-!
       USE MODULE_INCLUDE
 !
       USE MODULE_DM_PARALLEL,ONLY : ITS_B1,ITE_B1,ITE_B2                &
@@ -236,6 +229,9 @@
 !   02-05-03  JANJIC     - REMOVAL OF SUPERSATURATION AT 2m AND 10m
 !   04-11-18  BLACK      - THREADED
 !   06-10-25  BLACK      - BUILT INTO NMMB PHYSICS COMPONENT
+!   08-07-28  VASIC      - Turned off counters (now computed in
+!                            SET_INTERNAL_STATE_PHY).
+!   08-08     JANJIC     - Synchronize WATER array and Q.
 !     
 ! USAGE: CALL TURBL FROM PHY_RUN
 !
@@ -830,6 +826,25 @@
         ENDDO
         ENDDO
       ENDIF 
+!
+!-----------------------------------------------------------------------
+!***  SYNCHRONIZE MIXING RATIO IN WATER ARRAY WITH SPECIFIC HUMIDITY.
+!-----------------------------------------------------------------------
+!
+!.......................................................................
+!$omp parallel do                                                       &
+!$omp& private(i,j,k)
+!.......................................................................
+      DO K=1,LM                                          
+        DO J=JMS,JME                                    
+          DO I=IMS,IME                                 
+            WATER(I,J,K,P_QV)=Q(I,J,K)/(1.-Q(I,J,K))  
+          ENDDO                                      
+        ENDDO                                       
+      ENDDO                                        
+!.......................................................................
+!$omp end parallel do
+!.......................................................................
 !
 !-----------------------------------------------------------------------
 !***  TRANSPOSE THE WATER ARRAY (IJK) FOR THE PHYSICS (IKJ).

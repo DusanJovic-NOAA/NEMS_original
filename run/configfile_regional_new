@@ -73,7 +73,6 @@ tstart:       0.            # The starting forecast hour
 nhours_fcst:    48          # Length of the forecast (hours)
 nhours_history: 03          # Frequency of history output (hours)
 nhours_dfini:   0
-adiabatic:      false
 restart:        false       # True--> A restarted run
 
 
@@ -81,8 +80,9 @@ restart:        false       # True--> A restarted run
 ##### General modes #####
 #########################
 
-global:  false              # True--> Global ; False--> Regional
-hydro:   false              # True--> Hydrostatic ;  False--> Nonhydrostatic
+global:    false            # True--> Global ; False--> Regional
+hydro:     false            # True--> Hydrostatic ;  False--> Nonhydrostatic
+adiabatic: false            # True--> Adiabatic ;   False--> Diabatic
 
 
 ##############################
@@ -182,7 +182,7 @@ sfc_layer:  myj             # Surface layer schemes
                                                                                                                                               
 #---------------------------------
                                                                                                                                               
-land_surface:  nmm         # Land surface schemes
+land_surface:  noah        # Land surface schemes
                                 # nmm-->  LSM NMM
                                 # noah--> NOAH scheme
 

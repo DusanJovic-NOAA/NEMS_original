@@ -1933,6 +1933,7 @@
 !   02-09-09  WOLFE      - CONVERTING TO GLOBAL INDEXING
 !   04-11-18  BLACK      - THREADED
 !   06-07-20  BLACK      - INCORPORATED INTO NMMB PHYSICS COMPONENT
+!   08-08     JANJIC     - Synchronize WATER array and Q.
 !     
 ! USAGE: CALL RADIATION FROM PHY_RUN
 !
@@ -1965,8 +1966,6 @@
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,LM),INTENT(IN) :: CWM,Q,T
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,LM,NUM_WATER),INTENT(IN) :: WATER
-!
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: F_ICE,F_RAIN
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: ACFRCV,ACFRST    &
@@ -1980,6 +1979,8 @@
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: CFRACH,CFRACL      &
      &                                              ,CFRACM,CZMEAN      &
      &                                              ,SIGT4
+!
+      REAL,DIMENSION(IMS:IME,JMS:JME,LM,NUM_WATER),INTENT(INOUT) :: WATER
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: CLDFRA
 !
@@ -2178,6 +2179,25 @@
 !          reset to clear sky values after the call to radiation and after the top of the hour
 !          in subroutine CUCNVC below.
 !-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  SYNCHRONIZE MIXING RATIO IN WATER ARRAY WITH SPECIFIC HUMIDITY.
+!-----------------------------------------------------------------------
+!
+!.......................................................................
+!$omp parallel do                                                       &
+!$omp& private(i,j,k)
+!.......................................................................
+      DO K=1,LM                                            
+        DO J=JMS,JME                                      
+          DO I=IMS,IME                                   
+            WATER(I,J,K,P_QV)=Q(I,J,K)/(1.-Q(I,J,K))    
+          ENDDO                                        
+        ENDDO                                         
+      ENDDO                                          
+!.......................................................................
+!$omp end parallel do
+!.......................................................................
 !
 !-----------------------------------------------------------------------
 !***  TRANSPOSE THE MOIST ARRAY (IJK) FOR THE PHYSICS (IKJ).

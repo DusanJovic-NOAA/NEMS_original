@@ -170,6 +170,7 @@
 !   02-03-21  BLACK      - ORIGINATOR
 !   04-11-18  BLACK      - THREADED
 !   06-10-11  BLACK      - BUILT INTO UMO PHYSICS COMPONENT
+!   08-08     JANJIC     - Synchronize WATER array and Q.
 !     
 ! USAGE: CALL CUCNVC FROM PHY_RUN
 !
@@ -505,6 +506,24 @@
         ENDDO
 !
       ENDIF
+!
+!-----------------------------------------------------------------------
+!***  SYNCHRONIZE MIXING RATIO IN WATER ARRAY WITH SPECIFIC HUMIDITY.
+!-----------------------------------------------------------------------
+!
+!.......................................................................
+!$omp parallel do private(i,j,k)
+!.......................................................................
+      DO K=1,LM                                               
+        DO J=JMS,JME                                         
+          DO I=IMS,IME                                      
+            WATER(I,J,K,P_QV)=Q(I,J,K)/(1.-Q(I,J,K))       
+          ENDDO                                           
+        ENDDO                                            
+      ENDDO                                             
+!.......................................................................
+!$omp end parallel do
+!.......................................................................
 !
 !-----------------------------------------------------------------------
 !***  TRANSPOSE THE WATER ARRAY (IJK) FOR THE WRF PHYSICS (IKJ).
