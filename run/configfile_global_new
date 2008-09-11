@@ -183,7 +183,6 @@ sfc_layer:  myj             # Surface layer schemes
 #---------------------------------
                                                                                                                                               
 land_surface:  noah         # Land surface schemes
-                                # nmm-->  LSM NMM
                                 # noah--> NOAH scheme
 
 ucmcall: 0                  # Use (1) or do not use (0) the Urban Canopy Model

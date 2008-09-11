@@ -1378,9 +1378,9 @@
         TWBS(I,J)=-TWBS(I,J)
 !
         IF ( SM(I,J) + SICE(I,J) <= 0.5 ) THEN
-          QWBS(I,J)= QWBS(I,J)*XLV*CHKLOWQ(I,J) ! land
+          QWBS(I,J)=-QWBS(I,J)*XLV*CHKLOWQ(I,J) ! land
         ELSE
-          QWBS(I,J)=-QWBS(I,J)    *CHKLOWQ(I,J) ! ocean
+          QWBS(I,J)= QWBS(I,J)    *CHKLOWQ(I,J) ! ocean
         ENDIF
 !
 !-----------------------------------------------------------------------
