@@ -17,6 +17,8 @@
 !       15 Aug 2008:  J. Wang  - Revised for NEMS-IO
 !       20 Aug 2008:  J. Wang  - Output start date first instead of
 !                                forecast date.
+!       16 Sep 2008:  J. Wang  - WRITE_NEMSIO_RUNHISTORY_OPEN only
+!                                opens file and writes metadata.
 !
 !-----------------------------------------------------------------------
 !
@@ -51,9 +53,9 @@
       PUBLIC :: FIRST_PASS                                              &
                ,WRITE_ASYNC                                             &
                ,WRITE_INIT                                              &
-               ,WRITE_NEMSIO_RUNHISTORY                                 &
+               ,WRITE_NEMSIO_RUNHISTORY_OPEN                            &
                ,WRITE_NEMSIOCTL                                         &
-               ,WRITE_RUNHISTORY
+               ,WRITE_RUNHISTORY_OPEN
 !
 !-----------------------------------------------------------------------
 !
@@ -1210,8 +1212,8 @@
 !-----------------------------------------------------------------------
 !
       IF(MYPE==LEAD_WRITE_TASK)THEN
-        ALLOCATE(wrt_int_state%OUTPUT_ARRAY_I2D(1:IM,1:JM,wrt_int_state%KOUNT_I2D(1)))
-        ALLOCATE(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM,wrt_int_state%KOUNT_R2D(1)))
+        ALLOCATE(wrt_int_state%OUTPUT_ARRAY_I2D(1:IM,1:JM))
+        ALLOCATE(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM))
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -1832,6 +1834,8 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_ASYNC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!!!   CALL ESMF_VMBarrier(vm=VM,rc=RC)
+!
 !-----------------------------------------------------------------------
 !***  ALL FORECAST TASKS PLUS THOSE WRITE TASKS IN THE APPROPRIATE
 !***  WRITE GROUP EXECUTE THE RUN STEP OF A WRITE COMPONENT.
@@ -1845,9 +1849,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO I=1,NUM_PES_FCST+WRITE_TASKS_PER_GROUP
-
         IF(MYPE==atm_int_state%PETLIST_WRITE(I,N_GROUP))THEN
-!
           CALL ESMF_GridCompRun(atm_int_state%WRT_COMPS(N_GROUP)          &  !<-- The write gridded component
                                ,importState=atm_int_state%IMP_STATE_WRITE &  !<-- Its import state
                                ,exportState=atm_int_state%EXP_STATE_WRITE &  !<-- Its export state
@@ -1887,7 +1889,7 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE WRITE_RUNHISTORY(WRT_INT_STATE                         &
+      SUBROUTINE WRITE_RUNHISTORY_OPEN(WRT_INT_STATE                    &
                                  ,IYEAR_FCST                            &
                                  ,IMONTH_FCST                           &
                                  ,IDAY_FCST                             &
@@ -1897,7 +1899,7 @@
                                  ,NF_HOURS                              &
                                  ,NF_MINUTES                            &
                                  ,NF_SECONDS                            &
-                                 ,LEAD_WRITE_TASK)
+                                 ,LEAD_WRITE_TASK )
 !
 !-----------------------------------------------------------------------
 !***  WRITE OUT A BINARY RUN HISTORY FILE.
@@ -2046,71 +2048,15 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  FIRST LOOP THROUGH ALL OF THE INTEGER Fields
-!-----------------------------------------------------------------------
 !
-!-----------------------------------------------------------------------
-      field_loop_int: DO NFIELD=1,wrt_int_state%KOUNT_I2D(1)               !<-- Loop through all 2D integer gridded history data
-!-----------------------------------------------------------------------
-!
-        NPOSN_1=(NFIELD-1)*ESMF_MAXSTR+1
-        NPOSN_2=NFIELD*ESMF_MAXSTR
-        NAME=wrt_int_state%NAMES_I2D_STRING(NPOSN_1:NPOSN_2)               !<-- The variable's name
-
-        WRITE(wrt_int_state%IO_UNIT,iostat=RC)                          &  !<-- Lead write task writes out the 2D real data
-          wrt_int_state%OUTPUT_ARRAY_I2D(:,:,NFIELD) 
-!
-        IF(wrt_int_state%NFHOUR==0)THEN
-          WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_UNIT
-        ENDIF
-!
-!-----------------------------------------------------------------------
-!
-      ENDDO field_loop_int
-!
-!-----------------------------------------------------------------------
-!***  NOW LOOP THROUGH ALL THE REAL Fields
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-      field_loop_real: DO NFIELD=1,wrt_int_state%KOUNT_R2D(1)              !<-- Loop through all 2D real gridded history data
-!-----------------------------------------------------------------------
-!
-        NPOSN_1=(NFIELD-1)*ESMF_MAXSTR+1
-        NPOSN_2=NFIELD*ESMF_MAXSTR
-        NAME=wrt_int_state%NAMES_R2D_STRING(NPOSN_1:NPOSN_2)               !<-- The name of this 2D real history quantity
-!
-        WRITE(wrt_int_state%IO_UNIT,iostat=RC)                          &  !<-- Lead write task writes out the 2D real data
-           wrt_int_state%OUTPUT_ARRAY_R2D(:,:,NFIELD)
-!
-        IF(wrt_int_state%NFHOUR==0)THEN
-          WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_UNIT,NFIELD
-        ENDIF
-!
-!-----------------------------------------------------------------------
-!
-      ENDDO field_loop_real
-!
-      WRITE(0,*)'Wrote all the real array'
-!
-!-----------------------------------------------------------------------
-!***  CLOSE THE DISK FILE IF NEEDED.
-!-----------------------------------------------------------------------
-!
-      IF(wrt_int_state%WRITE_FLAG.and.wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
-        CLOSE(wrt_int_state%IO_UNIT)
-        write(0,*)' Closed history file with unit=',wrt_int_state%IO_UNIT
-      ENDIF
-!
-!-----------------------------------------------------------------------
-!
-      END SUBROUTINE WRITE_RUNHISTORY
+      END SUBROUTINE WRITE_RUNHISTORY_OPEN
 !
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE WRITE_NEMSIO_RUNHISTORY(WRT_INT_STATE                  &
+      SUBROUTINE WRITE_NEMSIO_RUNHISTORY_OPEN(WRT_INT_STATE             &
+                                        ,NEMSIOFILE                     &
                                         ,IYEAR_FCST                     &
                                         ,IMONTH_FCST                    &
                                         ,IDAY_FCST                      &
@@ -2120,6 +2066,7 @@
                                         ,NF_HOURS                       &
                                         ,NF_MINUTES                     &
                                         ,NF_SECONDS                     &
+                                        ,DIM1,DIM2,NBDR                 &
                                         ,LEAD_WRITE_TASK)
 !
 !-----------------------------------------------------------------------
@@ -2127,6 +2074,8 @@
 !-----------------------------------------------------------------------
 !
       TYPE(WRITE_INTERNAL_STATE),INTENT(INOUT) :: WRT_INT_STATE             !<-- The Write component's internal state
+!
+      TYPE(NEMSIO_GFILE),INTENT(INOUT)         :: NEMSIOFILE                !<-- The nemsio file handler
 !
       INTEGER,INTENT(IN)  :: IYEAR_FCST                                 &
                             ,IMONTH_FCST                                &
@@ -2136,6 +2085,8 @@
                             ,NF_HOURS                                   &
                             ,NF_MINUTES                                 &
                             ,LEAD_WRITE_TASK
+
+      INTEGER,INTENT(OUT) :: DIM1,DIM2,NBDR           
 !
       REAL,INTENT(IN)     :: NF_SECONDS                                 &
                             ,SECOND_FCST
@@ -2146,10 +2097,10 @@
 !
       INTEGER :: I,J,N,N1,N2,NPOSN_1,NPOSN_2,LENGTH,MAXLENGTH
 !
-      INTEGER :: DIM1,DIM2,FIELDSIZE,IM,JM,LM,IDATE(7),FCSTDATE(7)      &
+      INTEGER :: FIELDSIZE,IM,JM,LM,IDATE(7),FCSTDATE(7)                &
                 ,INDX_2D,IRET                                           &
                 ,N2ISCALAR,N2IARY,N2RSCALAR,N2RARY,N2LSCALAR            &
-                ,NBDR,NDYH,NDXH,NFRAME,NPT,NPDTOP,NREC                  &
+                ,NDYH,NDXH,NFRAME,NPT,NPDTOP,NREC                       &
                 ,NSG1,NSG2,NSGML1,NSGML2,NSOIL,TLMETA,VLEV
 !
       INTEGER :: NFIELD,RC
@@ -2188,8 +2139,6 @@
       CHARACTER(16),DIMENSION(:),POINTER :: RECLEVTYP
 !
       CHARACTER(ESMF_MAXSTR) :: NAME,FILENAME
-!
-      TYPE(NEMSIO_GFILE) :: NEMSIOFILE
 !
       TYPE(ESMF_Logical) :: WORK_LOGICAL
 !
@@ -2381,7 +2330,7 @@
       N2LSCALAR=wrt_int_state%KOUNT_LOG(1)                                 !<-- Counter for full string of logical data
 !
       ALLOCATE(VARLNAME(N2LSCALAR),VARLVAL(N2LSCALAR))
-      N2LSCALAR=0                         
+      N2LSCALAR=0
 !
       DO N=1,wrt_int_state%KOUNT_LOG(1)                                    !<-- Loop through all logical data
 !
@@ -2465,13 +2414,6 @@
 !
       DO NFIELD=1,wrt_int_state%KOUNT_I2D(1)
 !
-        DO J=1,DIM2
-        DO I=1,DIM1
-           wrt_int_state%OUTPUT_ARRAY_I2D(I,J,NFIELD)=                  &
-             wrt_int_state%OUTPUT_ARRAY_I2D(I+NBDR,J+NBDR,NFIELD)
-        ENDDO
-        ENDDO
-!
         NREC=NREC+1
         NPOSN_1=(NFIELD-1)*ESMF_MAXSTR+1
         NPOSN_2=NFIELD*ESMF_MAXSTR
@@ -2503,17 +2445,9 @@
 !*** Cut the output R2D array.
 !-----------------------------------------------------------------------
 !
-!      NREC=21*lm+103
       NSOIL=0
 !
       DO NFIELD=1,wrt_int_state%KOUNT_R2D(1)
-!
-        DO J=1,DIM2
-        DO I=1,DIM1
-           wrt_int_state%OUTPUT_ARRAY_R2D(I,J,NFIELD)=                  &
-             wrt_int_state%OUTPUT_ARRAY_R2D(I+NBDR,J+NBDR,NFIELD)
-        ENDDO
-        ENDDO
 !
         NREC=NREC+1
         NPOSN_1=(NFIELD-1)*ESMF_MAXSTR+1
@@ -2544,7 +2478,7 @@
           RECLEVTYP(NREC)='sfc'
 !
           IF (INDEX(RECNAME(NREC),"10")>0) RECLEVTYP(NREC)='10 m above gnd'
-          IF (RECNAME(NREC)=='PD') THEN 
+          IF (RECNAME(NREC)=='PD') THEN
             RECNAME(NREC)='dpres'
             RECLEVTYP(NREC)='hybrid sig lev'
           ENDIF
@@ -2556,25 +2490,16 @@
         ENDIF
 !
 !change unit for 'FIS'
-        IF(RECNAME(NREC)=='hgt') wrt_int_state%OUTPUT_ARRAY_R2D(:,:,NFIELD)= &
-          wrt_int_state%OUTPUT_ARRAY_R2D(:,:,NFIELD)/G
+!jw        IF(RECNAME(NREC)=='hgt') wrt_int_state%OUTPUT_ARRAY_R2D(:,:,NFIELD)= &
+!jw          wrt_int_state%OUTPUT_ARRAY_R2D(:,:,NFIELD)/G
 !       write(0,*)'nfield=',nfield,'recname=',recname(nfield+4)
         CALL LOWERCASE(RECNAME(NREC))
       ENDDO
-!
-!     write(0,'(12A8)')'after recname=',recname
-!     write(0,'(12A16)')'after reclevtyp=',reclevtyp
-!     write(0,'(12I4)')'after reclev=',reclev
-!
 !glat1d and glon1d
       ALLOCATE(GLAT1D(FIELDSIZE),GLON1D(FIELDSIZE))
       DEGRAD=90./ASIN(1.)
-      wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2,2)=wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2,2)*DEGRAD
-      wrt_int_state%oUTPUT_ARRAY_R2D(1:DIM1,1:DIM2,3)=wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2,3)*DEGRAD
-      wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2,5)=wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2,5)*DEGRAD
-      wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2,6)=wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2,6)*DEGRAD
-      GLAT1D(1:FIELDSIZE)=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2,2),(/FIELDSIZE/))
-      GLON1D(1:FIELDSIZE)=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2,3),(/FIELDSIZE/))
+      glon1d=0.
+      glat1d=0.
 !     write(0,*)'after glat1d=',maxval(glat1d),minval(glat1d),           &
 !       'glon1d=',maxval(glon1d),minval(glon1d)
 !
@@ -2598,12 +2523,12 @@
 !
       CALL NEMSIO_INIT(IRET=IRET)
       print *,'nemsio_init, iret=',iret
-
+!
 !-----------------------------------------------------------------------
 !***  OPEN NEMSIO FILE
 !-----------------------------------------------------------------------
 !
-      CALL NEMSIO_OPEN(nemsiofile,trim(FILENAME),'write',iret,           &
+      CALL NEMSIO_OPEN(NEMSIOFILE,trim(FILENAME),'write',iret,           &
         modelname="NMMB", gdatatype="bin4", idate=IDATE,nfhour=NF_HOURS, &
         nfminute=NF_MINUTES,nfsecondn=nint(NF_SECONDS*100),              &
         nfsecondd=100,dimx=DIM1,dimy=DIM2,dimz=LM,nframe=NFRAME,         &
@@ -2629,57 +2554,12 @@
       DYCTL=MAXVAL(DY)*180./(A*PI)
 !
 !-----------------------------------------------------------------------
-!***  FIRST LOOP THROUGH ALL OF THE INTEGER Fields.
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-      field_loop_int: DO NFIELD=1,wrt_int_state%KOUNT_I2D(1)              !<-- Loop through all 2D integer gridded history data
-!-----------------------------------------------------------------------
-!
-        CALL NEMSIO_GETRECHEAD(NEMSIOFILE,NFIELD,NAME,VLEVTYP,VLEV,IRET=IRET)
-!       write(0,*)'nfield=',nfield,trim(name),vlevtyp,vlev
-        TMP=RESHAPE(wrt_int_state%OUTPUT_ARRAY_I2D(1:DIM1,1:DIM2,NFIELD),(/FIELDSIZE/))
-        CALL NEMSIO_WRITEREC(NEMSIOFILE,NFIELD,TMP,IRET=IRET)             !<-- Lead write task writes out the 2D int data
-!
-!-----------------------------------------------------------------------
-!
-      ENDDO field_loop_int
-!
-!-----------------------------------------------------------------------
-!***  NOW LOOP THROUGH ALL THE REAL Fields
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-      field_loop_real: DO NFIELD=1,wrt_int_state%KOUNT_R2D(1)             !<-- Loop through all 2D real gridded history data
-!-----------------------------------------------------------------------
-!
-        N=NFIELD+wrt_int_state%KOUNT_I2D(1)
-        CALL NEMSIO_GETRECHEAD(NEMSIOFILE,N,NAME,VLEVTYP,VLEV,IRET=IRET)
-!       write(0,*)'nfield=',nfield,trim(name),vlevtyp,vlev
-        TMP=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2,NFIELD),(/FIELDSIZE/))
-        CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IRET)                  !<-- Lead write task writes out the 2D real data
-!
-!-----------------------------------------------------------------------
-!
-      ENDDO field_loop_real
-!
-!-----------------------------------------------------------------------
-!***  CLOSE THE DISK FILE IF NEEDED.
-!-----------------------------------------------------------------------
-!
-      IF(wrt_int_state%WRITE_NEMSIOFLAG.and.wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
-        CALL NEMSIO_CLOSE(NEMSIOFILE)
-        WRITE(0,*)' Closed nemsio_history file'
-        CALL NEMSIO_FINALIZE()
-      ENDIF
-!
-!-----------------------------------------------------------------------
 !***  WRITE OUT NEMSIO CTL FILE
 !-----------------------------------------------------------------------
 !
       IF(wrt_int_state%WRITE_NEMSIOCTL.AND.wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
         CALL WRITE_NEMSIOCTL(GLOBAL,IHOUR_FCST,IDAY_FCST,IMONTH_FCST,       &
-          IYEAR_FCST,FILENAME,TLMETA,DIM1,DIM2,LM,NSOIL,TLM0D,TPH0D,DXCTL,  & 
+          IYEAR_FCST,FILENAME,TLMETA,DIM1,DIM2,LM,NSOIL,TLM0D,TPH0D,DXCTL,  &
           DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP)
       ENDIF
 !
@@ -2687,14 +2567,14 @@
 !***  CLEAN UP
 !-----------------------------------------------------------------------
 !
-      DEALLOCATE(VCOORD,GLAT1D,GLON1D,DX,DY,TMP)
+      DEALLOCATE(VCOORD,DX,DY)
       DEALLOCATE(VARINAME,VARIVAL,ARYINAME,ARYILEN,ARYIVAL)
       DEALLOCATE(VARRNAME,VARRVAL,ARYRNAME,ARYRLEN,ARYRVAL)
       DEALLOCATE(VARLNAME,VARLVAL)
 !
 !-----------------------------------------------------------------------
 !
-      END SUBROUTINE WRITE_NEMSIO_RUNHISTORY
+      END SUBROUTINE WRITE_NEMSIO_RUNHISTORY_OPEN
 !
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
@@ -2832,9 +2712,10 @@
         if (ic >= 65 .and. ic < 91) word(i:i) = char(ic+32)
       end do
 !
+!
 !-----------------------------------------------------------------------
 !
-      end subroutine lowercase 
+      end subroutine lowercase
 !
 !-----------------------------------------------------------------------
 !
@@ -2850,29 +2731,29 @@
 !-----------------------------------------------------------------------
 !
       SELECT CASE (IMON)
-        CASE(1) 
+        CASE(1)
             CMON='Jan'
-        CASE(2) 
+        CASE(2)
             CMON='Feb'
-        CASE(3) 
+        CASE(3)
             CMON='Mar'
-        CASE(4) 
+        CASE(4)
             CMON='Apr'
-        CASE(5) 
+        CASE(5)
             CMON='May'
-        CASE(6) 
+        CASE(6)
             CMON='Jun'
-        CASE(7) 
+        CASE(7)
             CMON='Jul'
-        CASE(8) 
+        CASE(8)
             CMON='Aug'
-        CASE(9) 
+        CASE(9)
             CMON='Sep'
-        CASE(10) 
+        CASE(10)
             CMON='Oct'
-        CASE(11) 
+        CASE(11)
             CMON='Nov'
-        CASE(12) 
+        CASE(12)
             CMON='Dec'
       END SELECT
 !

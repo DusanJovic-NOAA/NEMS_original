@@ -1837,33 +1837,24 @@
 !
           SIMH10=(PSH10-PSHZ+RLNT10)*FH02
 !
-          AKMS10=MAX(USTARK/SIMM10,CXCHL)
-          AKHS02=MAX(USTARK/SIMH02,CXCHL)
-          AKHS10=MAX(USTARK/SIMH10,CXCHL)
+          AKMS10=USTARK/SIMM10
+          AKHS02=USTARK/SIMH02
+          AKHS10=USTARK/SIMH10
+!
+          IF(AKMS10<=CXCHL) AKMS10=AKMS
+          IF(AKHS02<=CXCHL) AKHS02=AKHS
+          IF(AKHS10<=CXCHL) AKHS10=AKHS
+!
 !----------------------------------------------------------------------
         ENDIF
 !----------------------------------------------------------------------
 !     ENDIF
 !----------------------------------------------------------------------
+!
       U10 =UMFLX/AKMS10+UZ0
       V10 =VMFLX/AKMS10+VZ0
       TH02=HSFLX/AKHS02+THZ0
-!
-!***  BE CERTAIN THAT THE 2-M THETA AND 10-M THETA ARE BRACKETED BY
-!***  THE VALUES OF THZ0 AND THLOW.
-!
-      IF(THLOW>THZ0.AND.(TH02<THZ0.OR.TH02>THLOW).OR.                  &
-         THLOW<THZ0.AND.(TH02>THZ0.OR.TH02<THLOW))THEN
-           TH02=THZ0+2.*RDZ*(THLOW-THZ0)
-      ENDIF
-!
       TH10=HSFLX/AKHS10+THZ0
-!
-      IF(THLOW>THZ0.AND.(TH10<THZ0.OR.TH10>THLOW).OR.                  &
-         THLOW<THZ0.AND.(TH10>THZ0.OR.TH10<THLOW))THEN
-           TH10=THZ0+10.*RDZ*(THLOW-THZ0)
-      ENDIF
-!
       Q02 =HLFLX/AKHS02+QZ0
       Q10 =HLFLX/AKHS10+QZ0
       TERM1=-0.068283/TLOW

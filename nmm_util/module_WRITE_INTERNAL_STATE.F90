@@ -11,6 +11,7 @@
 !       14 Aug 2007:  T. Black - Some pointers changed to arrays
 !       11 Sep 2007:  T. Black - Updates for quilting
 !       15 Aug 2008:  J. Wang  - Add NEMSIO variables
+!       16 Sep 2008:  J. Wang  - 3-D output arrays revert to 2-D
 !
 !-----------------------------------------------------------------------
 !
@@ -19,10 +20,6 @@
 !-----------------------------------------------------------------------
 !
       IMPLICIT NONE
-!
-!-----------------------------------------------------------------------
-!
-      PUBLIC
 !
 !-----------------------------------------------------------------------
 !
@@ -92,13 +89,13 @@
 !
       INTEGER,DIMENSION(:),ALLOCATABLE :: NCOUNT_FIELDS
 !
-      INTEGER,DIMENSION(:)    ,ALLOCATABLE :: ALL_DATA_I1D
-      INTEGER,DIMENSION(:)    ,ALLOCATABLE :: ALL_DATA_I2D
-      INTEGER,DIMENSION(:,:,:),ALLOCATABLE :: OUTPUT_ARRAY_I2D
+      INTEGER,DIMENSION(:)  ,ALLOCATABLE :: ALL_DATA_I1D
+      INTEGER,DIMENSION(:)  ,ALLOCATABLE :: ALL_DATA_I2D
+      INTEGER,DIMENSION(:,:),ALLOCATABLE :: OUTPUT_ARRAY_I2D
 !
-      REAL   ,DIMENSION(:)    ,ALLOCATABLE :: ALL_DATA_R1D
-      REAL   ,DIMENSION(:)    ,ALLOCATABLE :: ALL_DATA_R2D
-      REAL   ,DIMENSION(:,:,:),ALLOCATABLE :: OUTPUT_ARRAY_R2D
+      REAL   ,DIMENSION(:)  ,ALLOCATABLE :: ALL_DATA_R1D
+      REAL   ,DIMENSION(:)  ,ALLOCATABLE :: ALL_DATA_R2D
+      REAL   ,DIMENSION(:,:),ALLOCATABLE :: OUTPUT_ARRAY_R2D
 !
 !-----------------------------------------------------------------------
 !*** STORAGE ARRAYS

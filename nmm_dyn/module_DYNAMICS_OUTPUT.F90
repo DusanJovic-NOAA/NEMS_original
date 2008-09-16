@@ -88,6 +88,8 @@
                                           ,'TLM0D     ', 'H         '   &
                                           ,'TPH0D     ', 'H         '   &
                                           ,'TSTART    ', 'H         '   &
+                                          ,'DPHD      ', 'H         '   &
+                                          ,'DLMD      ', 'H         '   &
 !
 !                                          -----------------------------
 !
@@ -358,6 +360,8 @@
       R_SC(5)%NAME=>int_state%TLM0D
       R_SC(6)%NAME=>int_state%TPH0D
       R_SC(7)%NAME=>int_state%TSTART
+      R_SC(8)%NAME=>int_state%DPHD
+      R_SC(9)%NAME=>int_state%DLMD
 !        
 !***  1D INTEGER ARRAYS
 !
