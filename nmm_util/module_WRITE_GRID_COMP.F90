@@ -42,7 +42,7 @@
                                       ,MPI_COMM_COMP                    &
                                       ,MPI_COMM_INTER_ARRAY
       USE MODULE_CONTROL       ,ONLY : TIMEF
-      USE MODULE_GET_CONFIG
+      USE MODULE_GET_CONFIG_WRITE
       USE MODULE_ERR_MSG       ,ONLY : ERR_MSG,MESSAGE_CHECK
       USE MODULE_INCLUDE
       USE MODULE_CONSTANTS,ONLY : G
@@ -409,7 +409,7 @@
 !***  THE DISK FILES.
 !-----------------------------------------------------------------------
 !
-      CALL GET_CONFIG(WRT_COMP,WRT_INT_STATE,RC)                         !<-- User's routine to extract configfile data
+      CALL GET_CONFIG_WRITE(WRT_COMP,WRT_INT_STATE,RC)                   !<-- User's routine to extract configfile data
 !
       NWTPG          =wrt_int_state%WRITE_TASKS_PER_GROUP
       LAST_FCST_TASK =NTASKS-NWTPG-1
