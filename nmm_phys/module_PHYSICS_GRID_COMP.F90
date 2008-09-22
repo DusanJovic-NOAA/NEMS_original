@@ -2065,7 +2065,7 @@
       DO K=1,LM
         JJ=LDIM2-1
         DO J=JMS,JME
-          JJ=LDIM2+1
+          JJ=JJ+1
           II=LDIM1-1
           DO I=IMS,IME
             II=II+1
