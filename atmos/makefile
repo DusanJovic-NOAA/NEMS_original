@@ -65,6 +65,9 @@ FINCS	 = $(FINCO) $(GCINCS)
 FFLAGSDB   = $(OPTS) $(FINCS) $(TRAPS)
 #
 
+MODULE=         module_CORE_SETUP.o \
+                module_FWD_INTEGRATE.o
+
 MODULE_AGC=     module_ATM_GRID_COMP.o
 
 INCLUDES=	kind.inc
@@ -81,11 +84,17 @@ ARFLAGS = -r
 .F90.f90:
 	$(CPP) $(CPPFLAGS) $< > $*.f90
 
-$(EXEC): module_ATM_GRID_COMP.o
-	$(AR) $(ARFLAGS) $(EXEC) module_ATM_GRID_COMP.o
+$(EXEC): $(MODULE) $(MODULE_AGC)
+	$(AR) $(ARFLAGS) $(EXEC) $(MODULE) $(MODULE_AGC)
 
 module_ATM_GRID_COMP.o: $(DEPS)
 	$(FC) $(FFLAGSDB) -c module_ATM_GRID_COMP.F90
+
+module_CORE_SETUP.o: $(DEPS)
+	$(FC) $(FFLAGSDB) -c module_CORE_SETUP.F90
+
+module_FWD_INTEGRATE.o: $(DEPS)
+	$(FC) $(FFLAGSDB) -c module_FWD_INTEGRATE.F90
 
 clean:	
 	/bin/rm -f  $(TARGET) *.f90 *.lst *.o *.mod *.a lm map

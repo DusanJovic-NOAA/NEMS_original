@@ -12,9 +12,6 @@
 ! ---------
 ! dynamics
 ! ---------
-      real(kind=kfpt),parameter :: NUM_TRACERS=4  & 
-                                   ,NUM_WATER=5
-
       real, allocatable, save :: array_save_2d(:,:,:)
       real, allocatable, save :: array_save_3d(:,:,:,:)
       real, allocatable, save :: array_save_4d(:,:,:,:,:)
@@ -42,10 +39,11 @@
 ! ---------------------------------------------------------------
 ! subroutine for dynamics
 ! ---------------------------------------------------------------
-      subroutine digital_filter_dyn_init_nmm(dyn_state,ndfistep)
+      subroutine digital_filter_dyn_init_nmm(dyn_state,ndfistep,NUM_WATER,NUM_TRACERS)
       USE MODULE_DM_PARALLEL
       type(esmf_state), intent(in) :: dyn_state   
       INTEGER, intent(in)          :: ndfistep
+      INTEGER, intent(in)          :: NUM_WATER,NUM_TRACERS
       type(esmf_array)             :: tmp_array
       integer                      :: tmp_rank
       integer                      :: SPEC_MAX,rc,N
@@ -99,13 +97,14 @@
       end subroutine digital_filter_dyn_init_nmm
 
 ! ---------------------------------------------------------------
-      subroutine digital_filter_dyn_sum_nmm(dyn_state)
+      subroutine digital_filter_dyn_sum_nmm(dyn_state,NUM_WATER,NUM_TRACERS)
       USE MODULE_DM_PARALLEL
 !
       implicit none
           
       type(esmf_state), intent(in)  :: dyn_state 
-      INTEGER(KIND=KINT) :: I,II,J,JJ,L,N,P,RC,RC_UPD,NUM_WATER,NUM_TRACER
+      INTEGER, intent(in)          :: NUM_WATER,NUM_TRACERS
+      INTEGER(KIND=KINT) :: I,II,J,JJ,L,N,P,RC,RC_UPD
       REAL(KIND=KFPT),DIMENSION(:,:)    ,POINTER :: HOLD_2D
       REAL(KIND=KFPT),DIMENSION(:,:,:)  ,POINTER :: HOLD_3D
       REAL(KIND=KFPT),DIMENSION(:,:,:,:),POINTER :: HOLD_4D
@@ -135,8 +134,6 @@
       IF (tot_rank_2d  .GT. 0) THEN
       DO N=1,tot_rank_2d
       ARRAY_NAME=name_save_2d(N)
-      print *,'tot_rank_2d=',tot_rank_2d
-      print *,'ARRAY_NAME=',ARRAY_NAME
       NULLIFY(HOLD_2D) 
 
       CALL ESMF_StateGet(state   =DYN_STATE                             &  !<-- State that holds the Array
@@ -160,8 +157,6 @@
       IF (tot_rank_3d  .GT. 0 ) THEN
       DO N=1,tot_rank_3d
       ARRAY_NAME=name_save_3d(N)
-      print *,'tot_rank_3d=',tot_rank_3d
-      print *,'ARRAY_NAME=',ARRAY_NAME
       NULLIFY(HOLD_3D)
 
       CALL ESMF_StateGet(state   =DYN_STATE                             &  !<-- State that holds the Array
@@ -193,8 +188,6 @@
       ELSE IF (ARRAY_NAME == 'WATER') THEN
       NUM_SPEC=NUM_WATER
       ENDIF
-      print *,'tot_rank_4d=',tot_rank_4d
-      print *,'ARRAY_NAME=',ARRAY_NAME
 
       CALL ESMF_StateGet(state   =DYN_STATE                             &  !<-- State that holds the Array
                         ,itemName=ARRAY_NAME                            &  !<-- Name of the
@@ -228,12 +221,13 @@
       end subroutine digital_filter_dyn_sum_nmm
 
 ! ---------------------------------------------------------------
-      subroutine digital_filter_dyn_average_nmm(dyn_state)
+      subroutine digital_filter_dyn_average_nmm(dyn_state,NUM_WATER,NUM_TRACERS)
 !
       USE MODULE_DM_PARALLEL
       implicit none
       type(esmf_state), intent(inout) :: dyn_state
-      INTEGER(KIND=KINT) :: I,II,J,JJ,L,N,P,RC,RC_UPD,NUM_TRACER,NUM_WATER
+      INTEGER, intent(in)          :: NUM_WATER,NUM_TRACERS
+      INTEGER(KIND=KINT) :: I,II,J,JJ,L,N,P,RC,RC_UPD
       REAL(KIND=KFPT),DIMENSION(:,:)    ,POINTER :: HOLD_2D
       REAL(KIND=KFPT),DIMENSION(:,:,:)  ,POINTER :: HOLD_3D
       REAL(KIND=KFPT),DIMENSION(:,:,:,:),POINTER :: HOLD_4D
