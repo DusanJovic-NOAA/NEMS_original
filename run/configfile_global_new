@@ -175,13 +175,11 @@ turbulence:  myj            # Turbulence schemes
                                 # myj--> Mellor-Yamada-Janjic
                                                                                                                                               
 #---------------------------------
-                                                                                                                                              
 sfc_layer:  myj             # Surface layer schemes
                                 # myj--> Mellor-Yamada-Jamnjic
                                 # mm5--> MM5 sfc layer
                                                                                                                                               
 #---------------------------------
-                                                                                                                                              
 land_surface:  noah         # Land surface schemes
                                 # noah--> NOAH scheme
 

@@ -169,19 +169,14 @@ microphysics:  fer          # Microphysics scheme
                                                                                                                                               
 #---------------------------------
 turbulence:  myj            # Turbulence schemes
-                                # fer--> Ferrier
-                                # kes--> Kessler
-                                # lin--> Lin
-                                # tho--> Thompson
+                                # myj--> Mellor-Yamada-Janjic
                                                                                                                                               
 #---------------------------------
-                                                                                                                                              
 sfc_layer:  myj             # Surface layer schemes
-                                # myj--> Mellor-Yamada-Jamnjic
+                                # myj--> Mellor-Yamada-Janjic
                                 # mm5--> MM5 sfc layer
                                                                                                                                               
 #---------------------------------
-                                                                                                                                              
 land_surface:  noah        # Land surface schemes
                                 # noah--> NOAH scheme
 
