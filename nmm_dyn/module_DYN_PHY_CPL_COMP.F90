@@ -240,9 +240,9 @@
 !***  LOCAL VARIABLES
 !-----------------------------------------------------------------------
 !
-      INTEGER :: L,N,NDATA2,NDATA3,NUM_WATER,RC,RC_FINAL
-      INTEGER :: ndata1i,ndata2i,ndata3i,ndata1o,ndata2o,ndata3o
-      INTEGER :: imp_item, exp_item
+      INTEGER :: L,N,NDATA2,NDATA3,RC,RC_FINAL
+      INTEGER :: NDATA1I,NDATA2I,NDATA3I,NDATA1O,NDATA2O,NDATA3O
+      INTEGER :: IMP_ITEM,EXP_ITEM
 !
       CHARACTER(ESMF_MAXSTR) :: IMPORT_STATENAME,EXPORT_STATENAME
 !
@@ -252,12 +252,13 @@
 !
       LOGICAL,SAVE :: POINT_PHY_AT_DYN=.FALSE.                           &  !<-- Has Physics Import pointed to Dynamics Export yet?
                      ,POINT_DYN_AT_PHY=.FALSE.                              !<-- Has Dynamics Import pointed to Physics Export yet?
-      logical, save :: from_exp_dyn_to_imp_phy = .false.
-      logical, save :: from_exp_phy_to_imp_dyn = .false.
-      logical, save :: from_imp_dyn_to_exp_dyn = .false.
-      logical, save :: from_imp_phy_to_exp_phy = .false.
-      logical, save :: check
-
+!
+      LOGICAL,SAVE :: FROM_EXP_DYN_TO_IMP_PHY=.FALSE.                    &
+                     ,FROM_EXP_PHY_TO_IMP_DYN=.FALSE.                    &
+                     ,FROM_IMP_DYN_TO_EXP_DYN=.FALSE.                    &
+                     ,FROM_IMP_PHY_TO_EXP_PHY=.FALSE.         
+!
+      LOGICAL,SAVE :: CHECK
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -273,9 +274,9 @@
 !***  INITIALIZE THE ERROR SIGNAL VARIABLES.
 !-----------------------------------------------------------------------
 !
-        RC     =ESMF_SUCCESS
-        RC_FINAL=ESMF_SUCCESS
-        RC_CPL  =ESMF_SUCCESS
+      RC     =ESMF_SUCCESS
+      RC_FINAL=ESMF_SUCCESS
+      RC_CPL  =ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
 !***  DETERMINE THE DIRECTION OF THE TRANSFER BY EXTRACTING
@@ -283,51 +284,59 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Retrieve State Name in Coupler"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+      MESSAGE_CHECK="Retrieve State Name in Coupler"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_StateGet(state=IMP_STATE                              &  !<-- The Dyn-Phy Coupler's Import State
-                          ,name =IMPORT_STATENAME                       &  !<-- The Import State's Name
-                          ,rc   =RC)
-        CALL ESMF_StateGet(state=EXP_STATE                              &  !<-- The Dyn-Phy Coupler's Imp
-                          ,name =EXPORT_STATENAME                       &  !<-- The Import State's Name
-                          ,rc   =RC)
-
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      if( trim(IMPORT_STATENAME).eq.'Dynamics Export' .and.             &
-
-          trim(EXPORT_STATENAME).eq.'Physics Import'  .and.             &
-          from_exp_dyn_to_imp_phy ) return
-!
-      if( trim(IMPORT_STATENAME).eq.'Physics Export'  .and.             &
-          trim(EXPORT_STATENAME).eq.'Dynamics Import' .and.             &
-          from_exp_phy_to_imp_dyn ) return
-!
-      if( trim(IMPORT_STATENAME).eq.'Dynamics Import' .and.             &
-          trim(EXPORT_STATENAME).eq.'Dynamics Export' .and.             &
-          from_imp_dyn_to_exp_dyn ) return
-!
-      if( trim(IMPORT_STATENAME).eq.'Physics Import' .and.              &
-          trim(EXPORT_STATENAME).eq.'Physics Export' .and.              &
-          from_imp_phy_to_exp_phy ) return
-
-      call esmf_stateget(IMP_STATE                                      &
-                        ,itemcount = IMP_ITEM                           &
-                        ,itemnamelist = IMP_ITEM_NAME                   &
+      CALL ESMF_StateGet(state=IMP_STATE                                &  !<-- The Dyn-Phy Coupler's Import State
+                        ,name =IMPORT_STATENAME                         &  !<-- The Import State's Name
                         ,rc   =RC)
-      call esmf_stateget(EXP_STATE                                      &
-                        ,itemcount = EXP_ITEM                           &
-                        ,itemnamelist = EXP_ITEM_NAME                   &
+!
+      CALL ESMF_StateGet(state=EXP_STATE                                &  !<-- The Dyn-Phy Coupler's Imp
+                        ,name =EXPORT_STATENAME                         &  !<-- The Import State's Name
                         ,rc   =RC)
-      call err_msg(RC,'retrieve state name in coupler',RC_FINAL)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      IF(TRIM(IMPORT_STATENAME)=='Dynamics Export'.AND.                 &
+         TRIM(EXPORT_STATENAME)=='Physics Import' .AND.                 &
+         FROM_EXP_DYN_TO_IMP_PHY ) RETURN
+!
+      IF(TRIM(IMPORT_STATENAME)=='Physics Export' .AND.                 &
+         TRIM(EXPORT_STATENAME)=='Dynamics Import'.AND.                 &
+         FROM_EXP_PHY_TO_IMP_DYN ) RETURN
+!
+      IF(TRIM(IMPORT_STATENAME)=='Dynamics Import'.AND.                 &
+         TRIM(EXPORT_STATENAME)=='Dynamics Export'.AND.                 &
+         FROM_IMP_DYN_TO_EXP_DYN ) RETURN
+!
+      IF(TRIM(IMPORT_STATENAME)=='Physics Import'.AND.                  &
+         TRIM(EXPORT_STATENAME)=='Physics Export'.AND.                  &
+         FROM_IMP_PHY_TO_EXP_PHY ) RETURN
+!
+      CALL ESMF_StateGet(state       =IMP_STATE                         &
+                        ,itemcount   =IMP_ITEM                          &
+                        ,itemnamelist=IMP_ITEM_NAME                     &
+                        ,rc          =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Retrieve State Name in Coupler"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateGet(state       =EXP_STATE                         &
+                        ,itemcount   =EXP_ITEM                          &
+                        ,itemnamelist=EXP_ITEM_NAME                     &
+                        ,rc          =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       RC_FINAL=RC
-
+!
 !-----------------------------------------------------------------------
 !***  THE NUMBER OF FIELDS TRANSFERRED FROM THE DYNAMICS TO
 !***  THE PHYSICS MAY NOT EQUAL THE NUMBER OF FIELDS TRANSFERRED
@@ -335,64 +344,89 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-! get from dynamics import state
-      if(trim(IMPORT_STATENAME)=="Dynamics Import")then
-        ndata3i=NDATA_3D_PHY_TO_DYN
-        ndata2i=NDATA_2D_PHY_TO_DYN
+!------------------------------------
+!***  Get From Dynamics Import State
+!------------------------------------
 !
-! get from dynamics export state
-      elseif(trim(IMPORT_STATENAME)=="Dynamics Export")then
-        ndata3i=NDATA_3D_DYN_TO_PHY
-        ndata2i=NDATA_2D_DYN_TO_PHY
+      IF(TRIM(IMPORT_STATENAME)=="Dynamics Import")THEN
+        NDATA3I=NDATA_3D_PHY_TO_DYN
+        NDATA2I=NDATA_2D_PHY_TO_DYN
 !
-! get from physics import state
-      elseif(trim(IMPORT_STATENAME)=="Physics Import")then
-        ndata3i=NDATA_3D_DYN_TO_PHY
-        ndata2i=NDATA_2D_DYN_TO_PHY
+!------------------------------------
+!***  Get From Dynamics Export State
+!------------------------------------
 !
-! get from physics export state
-      elseif(trim(IMPORT_STATENAME)=="Physics Export")then
-        ndata3i=NDATA_3D_PHY_TO_DYN
-        ndata2i=NDATA_2D_PHY_TO_DYN
-      endif
+      ELSEIF(TRIM(IMPORT_STATENAME)=="Dynamics Export")THEN
+        NDATA3I=NDATA_3D_DYN_TO_PHY
+        NDATA2I=NDATA_2D_DYN_TO_PHY
+!
+!-----------------------------------
+!***  Get From Physics Import State
+!-----------------------------------
+!
+      ELSEIF(TRIM(IMPORT_STATENAME)=="Physics Import")THEN
+        NDATA3I=NDATA_3D_DYN_TO_PHY
+        NDATA2I=NDATA_2D_DYN_TO_PHY
+!
+!-----------------------------------
+!***  Get From Physics Export State
+!-----------------------------------
+!
+      ELSEIF(TRIM(IMPORT_STATENAME)=="Physics Export")THEN
+        NDATA3I=NDATA_3D_PHY_TO_DYN
+        NDATA2I=NDATA_2D_PHY_TO_DYN
+      ENDIF
 
-! ---------------------------------------------------------------------
-! put to dynamics import state
-      if(trim(EXPORT_STATENAME)=="Dynamics Import")then
-        ndata3o=NDATA_3D_PHY_TO_DYN
-        ndata2o=NDATA_2D_PHY_TO_DYN
+!-----------------------------------------------------------------------
 !
-! put to dynamics export state
-      elseif(trim(EXPORT_STATENAME)=="Dynamics Export")then
-        ndata3o=NDATA_3D_DYN_TO_PHY
-        ndata2o=NDATA_2D_DYN_TO_PHY
+!------------------------------------
+!***  Put Into Dynamics Import State
+!------------------------------------
 !
-! put to physics import state
-      elseif(trim(EXPORT_STATENAME)=="Physics Import")then
-        ndata3o=NDATA_3D_DYN_TO_PHY
-        ndata2o=NDATA_2D_DYN_TO_PHY
+      IF(TRIM(EXPORT_STATENAME)=="Dynamics Import")THEN
+        NDATA3O=NDATA_3D_PHY_TO_DYN
+        NDATA2O=NDATA_2D_PHY_TO_DYN
 !
-! put to physics export state
-      elseif(trim(EXPORT_STATENAME)=="Physics Export")then
-        ndata3o=NDATA_3D_PHY_TO_DYN
-        ndata2o=NDATA_2D_PHY_TO_DYN
+!------------------------------------
+!***  Put Into Dynamics Export State
+!------------------------------------
 !
-      else
-        print *,' Error: no state name match, state_name='         &
-               , trim(EXPORT_STATENAME)
-      endif
+      ELSEIF(TRIM(EXPORT_STATENAME)=="Dynamics Export")THEN
+        NDATA3O=NDATA_3D_DYN_TO_PHY
+        NDATA2O=NDATA_2D_DYN_TO_PHY
+!
+!-----------------------------------
+!***  Put Into Physics Import State
+!-----------------------------------
+!
+      ELSEIF(TRIM(EXPORT_STATENAME)=="Physics Import")THEN
+        NDATA3O=NDATA_3D_DYN_TO_PHY
+        NDATA2O=NDATA_2D_DYN_TO_PHY
+!
+!-----------------------------------
+!***  Put Into Physics Export State
+!-----------------------------------
+!
+      ELSEIF(TRIM(EXPORT_STATENAME)=="Physics Export")THEN
+        NDATA3O=NDATA_3D_PHY_TO_DYN
+        NDATA2O=NDATA_2D_PHY_TO_DYN
+!
+      ELSE
+        WRITE(6,*)' Error: No state name match, state_name='            &
+                 ,TRIM(EXPORT_STATENAME)
+        WRITE(0,*)' Error: No state name match, state_name='            &
+                 ,TRIM(EXPORT_STATENAME)
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !
-      if( ndata2o.gt.ndata2i .or.                                       &
-          ndata3o.gt.ndata3i ) then
-        print *,' ERROR: import data is too few for export data '
-        call abort
-      endif
-!-----------------------------------------------------------------------
-
+      IF(NDATA2O>NDATA2I .OR. NDATA3O>NDATA3I)THEN
+        WRITE(6,*)' ERROR: Import data is too few for export data.'
+        WRITE(0,*)' ERROR: Import data is too few for export data.'
+        CALL ABORT
+      ENDIF
 !
-! ---------------------------------------------------------------------
+!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !***  LOOP THROUGH THE DATA NAMES, EXTRACT THOSE Arrays FROM THE
@@ -403,125 +437,21 @@
 !***  BEGIN WITH THE 3-D FIELDS.
 !-----------------------------------------------------------------------
 !
-        data_3D: DO N=1,ndata3i
+      data_3D: DO N=1,NDATA3I
 !
-!-----------------------------------------------------------------------
-!
-          btim=timef()
-          ARRAY_NAME=TRIM(DATANAMES_3D(N))
-!          print *,' ARRAY_NAME=', ARRAY_NAME
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Extract 3-D Array from Dyn-Phy Cpl Import State"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-
-
-          CALL ESMF_StateGet(state=IMP_STATE                         &  !<--- Import State that holds the Fields
-                            ,itemName=ARRAY_NAME                        &  !<--- Extract Array with this name
-                            ,array=HOLD_ARRAY                        &  !<--- Put the extracted Array here
-                            ,rc      =RC)
-
-
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          get_fld_tim=get_fld_tim+timef()-btim
-!
-!-----------------------------------------------------------------------
-!
-          btim=timef()
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Insert 3-D Array into Dyn-Phy Cpl Export State"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-
-          
-          CALL ESMF_StateAdd(state=EXP_STATE                            &  !<--- Insert Array into this Export State
-                            ,array=HOLD_ARRAY                           &  !<--- The Array to be inserted
-                            ,rc   =RC)
-
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          add_fld_tim=add_fld_tim+timef()-btim
-!
-!-----------------------------------------------------------------------
-!
-        ENDDO data_3D
-!
-!-----------------------------------------------------------------------
-!***  NOW TRANSFER THE 2-D FIELDS.
-!-----------------------------------------------------------------------
-!
-        data_2D: DO N=1,ndata2i
-!
-!-----------------------------------------------------------------------
-!
-          btim=timef()
-!
-          ARRAY_NAME=TRIM(DATANAMES_2D(N))
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Extract 2-D Array from Dyn-Phy Cpl Import State"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_StateGet(state   =IMP_STATE                         &  !<--- Import State that holds the Arrays
-                            ,itemName=ARRAY_NAME                        &  !<--- Extract Array with this name
-                            ,array   =HOLD_ARRAY                        &  !<--- Put the extracted Array here
-                            ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          get_fld_tim=get_fld_tim+timef()-btim
-!
-!-----------------------------------------------------------------------
-!
-          btim=timef()
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Insert 2-D Array into Dyn-Phy Cpl Import State"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_StateAdd(state=EXP_STATE                            &  !<--- Insert Array into this Export State
-                            ,array=HOLD_ARRAY                           &  !<--- The Array to be inserted
-                            ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          add_fld_tim=add_fld_tim+timef()-btim
-!
-!-----------------------------------------------------------------------
-!
-        ENDDO data_2D
-!
-!-----------------------------------------------------------------------
-!***  TRANSFER THE 4-D TRACERS ARRAY.
 !-----------------------------------------------------------------------
 !
         btim=timef()
 !
-        ARRAY_NAME='TRACERS'
+        ARRAY_NAME=TRIM(DATANAMES_3D(N))
+!       write(0,*)' ARRAY_NAME=', ARRAY_NAME
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract Tracers Array from Dyn-Phy Import State"
+        MESSAGE_CHECK="Extract 3-D Array from Dyn-Phy Cpl Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_StateGet(state   =IMP_STATE                           &  !<--- The Coupler's Import State
+        CALL ESMF_StateGet(state   =IMP_STATE                           &  !<--- Import State that holds the Fields
                           ,itemName=ARRAY_NAME                          &  !<--- Extract Array with this name
                           ,array   =HOLD_ARRAY                          &  !<--- Put the extracted Array here
                           ,rc      =RC)
@@ -537,52 +467,11 @@
         btim=timef()
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Insert TRACERS Array into Dyn-Phy Export State"
+        MESSAGE_CHECK="Insert 3-D Array into Dyn-Phy Cpl Export State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_StateAdd(state=EXP_STATE                              &  !<--- Insert Array into the Coupler's Export State
-                          ,array=HOLD_ARRAY                             &  !<--- The Array to be inserted
-                          ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  TRANSFER THE 4-D WATER ARRAY.
-!-----------------------------------------------------------------------
-!
-        btim=timef()
-!
-        ARRAY_NAME='WATER'
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract Water Array from Dyn-Phy Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_StateGet(state   =IMP_STATE                           &  !<--- The Coupler's Import State
-                          ,itemName=ARRAY_NAME                          &  !<--- Extract Array with this name
-                          ,array   =HOLD_ARRAY                          &  !<--- Put the extracted Array here
-                          ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        get_fld_tim=get_fld_tim+timef()-btim
-!
-!-----------------------------------------------------------------------
-!
-        btim=timef()
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Insert Water Array into Dyn-Phy Export State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_StateAdd(state=EXP_STATE                              &  !<--- Insert Array into the Coupler's Export State
+        CALL ESMF_StateAdd(state=EXP_STATE                              &  !<--- Insert Array into this Export State
                           ,array=HOLD_ARRAY                             &  !<--- The Array to be inserted
                           ,rc   =RC)
 !
@@ -591,46 +480,143 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         add_fld_tim=add_fld_tim+timef()-btim
+!
+!-----------------------------------------------------------------------
+!
+      ENDDO data_3D
+!
+!-----------------------------------------------------------------------
+!***  NOW TRANSFER THE 2-D FIELDS.
+!-----------------------------------------------------------------------
+!
+      data_2D: DO N=1,NDATA2I
+!
+!-----------------------------------------------------------------------
+!
+        btim=timef()
+!
+        ARRAY_NAME=TRIM(DATANAMES_2D(N))
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract 2-D Array from Dyn-Phy Cpl Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_StateGet(state   =IMP_STATE                           &  !<--- Import State that holds the Arrays
+                          ,itemName=ARRAY_NAME                          &  !<--- Extract Array with this name
+                          ,array   =HOLD_ARRAY                          &  !<--- Put the extracted Array here
+                          ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        get_fld_tim=get_fld_tim+timef()-btim
+!
+!-----------------------------------------------------------------------
+!
+        btim=timef()
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert 2-D Array into Dyn-Phy Cpl Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_StateAdd(state=EXP_STATE                              &  !<--- Insert Array into this Export State
+                          ,array=HOLD_ARRAY                             &  !<--- The Array to be inserted
+                          ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        add_fld_tim=add_fld_tim+timef()-btim
+!
+!-----------------------------------------------------------------------
+!
+      ENDDO data_2D
+!
+!-----------------------------------------------------------------------
+!***  TRANSFER THE 4-D TRACERS ARRAY.
+!-----------------------------------------------------------------------
+!
+      btim=timef()
+!
+      ARRAY_NAME='TRACERS'
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Tracers Array from Dyn-Phy Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateGet(state   =IMP_STATE                             &  !<--- The Coupler's Import State
+                        ,itemName=ARRAY_NAME                            &  !<--- Extract Array with this name
+                        ,array   =HOLD_ARRAY                            &  !<--- Put the extracted Array here
+                        ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      get_fld_tim=get_fld_tim+timef()-btim
+!
+!-----------------------------------------------------------------------
+!
+      btim=timef()
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert TRACERS Array into Dyn-Phy Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateAdd(state=EXP_STATE                                &  !<--- Insert Array into the Coupler's Export State
+                        ,array=HOLD_ARRAY                               &  !<--- The Array to be inserted
+                        ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      add_fld_tim=add_fld_tim+timef()-btim
+!
 !-----------------------------------------------------------------------
 !***  AFTER THE ESMF Arrays IN THE EXPORT STATES ARE POINTED AT THE
 !***  CORRECT DATA IN THE IMPORT STATES, THEY REMAIN PROPERLY POINTED
 !***  THUS THE StateGet/StateAdd PROCEDURE DOES NOT NEED TO BE REPEATED.
 !***  SIGNAL THAT FACT WITH THE FOLLOWING LOGICAL FLAGS.
 !-----------------------------------------------------------------------
-! make sure to run once
 !
-     if( trim(IMPORT_STATENAME).eq.'Dynamics Export' .and.             &
-         trim(EXPORT_STATENAME).eq.'Physics Import'  )                  &
-         from_exp_dyn_to_imp_phy = .true.
+     IF(TRIM(IMPORT_STATENAME)=='Dynamics Export'.AND.                  &
+        TRIM(EXPORT_STATENAME)=='Physics Import')                       &
+       FROM_EXP_DYN_TO_IMP_PHY = .TRUE.
 
-     if( trim(IMPORT_STATENAME).eq.'Physics Export'  .and.             &
-         trim(EXPORT_STATENAME).eq.'Dynamics Import' )                 &
-         from_exp_phy_to_imp_dyn = .true.
-
-     if( trim(IMPORT_STATENAME).eq.'Dynamics Import' .and.             &
-         trim(EXPORT_STATENAME).eq.'Dynamics Export' )                 &
-         from_imp_dyn_to_exp_dyn = .true.
-
-     if( trim(IMPORT_STATENAME).eq.'Physics Import' .and.              &
-         trim(EXPORT_STATENAME).eq.'Physics Export' )                  &
-         from_imp_phy_to_exp_phy = .true.
+     IF(TRIM(IMPORT_STATENAME)=='Physics Export'.AND.                   &
+        TRIM(EXPORT_STATENAME)=='Dynamics Import')                      &
+       FROM_EXP_PHY_TO_IMP_DYN = .TRUE.
+!
+     IF(TRIM(IMPORT_STATENAME)=='Dynamics Import'.AND.                  &
+        TRIM(EXPORT_STATENAME)=='Dynamics Export')                      &
+       FROM_IMP_DYN_TO_EXP_DYN = .TRUE.
+!
+     IF(TRIM(IMPORT_STATENAME)=='Physics Import'.AND.                   &
+        TRIM(EXPORT_STATENAME)=='Physics Export')                       &
+       FROM_IMP_PHY_TO_EXP_PHY = .TRUE.
 
 !-----------------------------------------------------------------------
 !
       RC_FINAL=RC
-
 !
 !-----------------------------------------------------------------------
 !
-        IF(RC_FINAL==ESMF_SUCCESS)THEN
-!         WRITE(0,*)"CPL RUN STEP SUCCEEDED"
-        ELSE
-          WRITE(0,*)"CPL RUN STEP FAILED"
-        ENDIF
+      IF(RC_FINAL==ESMF_SUCCESS)THEN
+!       WRITE(0,*)"CPL RUN STEP SUCCEEDED"
+      ELSE
+        WRITE(0,*)"CPL RUN STEP FAILED"
+      ENDIF
 !
-        IF(PRESENT(RC_CPL))THEN
-          RC_CPL=RC_FINAL
-        ENDIF
+      IF(PRESENT(RC_CPL))THEN
+        RC_CPL=RC_FINAL
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !

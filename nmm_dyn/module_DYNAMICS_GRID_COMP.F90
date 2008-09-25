@@ -23,11 +23,9 @@
 !
       USE MODULE_DYNAMICS_FIELDS,ONLY : ARRAY_T                         &
                                        ,ARRAY_U,ARRAY_V                 &
-!!!                                    ,ARRAY_Q,ARRAY_CW                &
                                        ,ARRAY_Q2,ARRAY_PD               &
                                        ,ARRAY_OMGALF                    &
                                        ,ARRAY_TRACERS                   &
-                                       ,ARRAY_WATER                     &
                                        ,ALLOC_FIELDS_DYN
 !
       USE MODULE_DM_PARALLEL,ONLY : IDS,IDE,JDS,JDE                     &
@@ -368,7 +366,7 @@
 !***  AND PLACES THEM IN THE NAMELIST COMPONENTS OF THE INTERNAL STATE.
 !-----------------------------------------------------------------------
 !
-      CALL GET_CONFIG_DYN(GRID_COMP,INT_STATE,RC)                             !<-- User's routine to extract config file information
+      CALL GET_CONFIG_DYN(GRID_COMP,INT_STATE,RC)                          !<-- User's routine to extract config file information
 !
       IM=int_state%IM
       JM=int_state%JM
@@ -466,7 +464,7 @@
 !-----------------------------------------------------------------------
 !
         KSS=1        
-        KSE=int_state%NUM_TRACERS_TOTAL
+        KSE=int_state%NUM_TRACERS_MET
 !
         btim=timef()
 !
@@ -728,44 +726,6 @@
         CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Dynamics export state
                               ,name ='NUM_TRACERS_TOTAL'                &  !<-- The inserted quantity will have this name
                               ,value=int_state%NUM_TRACERS_TOTAL        &  !<-- The value of this is associated with the preceding name
-                              ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  ADD THE 4D WATER ARRAY TO THE EXPORT STATE.
-!***  THE NUMBER OF 3D CONSTITUENTS IS GIVEN BY NUM_WATER.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Add 4-D Water Data to Dynamics Export State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_StateAdd(state=EXP_STATE                              &
-                          ,array=ARRAY_WATER                            &  !<-- Tracer variables
-                          ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  ALSO INSERT THE VALUE OF NUM_WATER INTO THE EXPORT STATE.
-!***  THIS WILL TELL THE Dyn-Phy Coupler HOW MANY CONSTITUENTS
-!***  THERE ARE TO TRANSFER IN THE 4-D WATER ARRAY.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Insert NUM_WATER into Dynamics Export State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Dynamics export state
-                              ,name ='NUM_WATER'                        &  !<-- The inserted quantity will have this name
-                              ,value=int_state%NUM_WATER                &  !<-- The value of this is associated with the preceding name
                               ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1049,7 +1009,7 @@
         IDTAD=int_state%IDTAD
         IDTADT=int_state%IDTADT
         IHRSTBC=int_state%IHRSTBC
-        KSE=int_state%NUM_TRACERS_TOTAL
+        KSE=int_state%NUM_TRACERS_MET
         KSS=1
         LM=int_state%LM
         LNSAD=int_state%LNSAD
@@ -2244,16 +2204,19 @@
         btim=timef()
 !
         vadv2_micro_check: IF(int_state%MICROPHYSICS=='fer')THEN
-          CALL VADV2                                                    &
+          CALL AVEQ2                                                    &
+            (LM                                                         &
+            ,DSG2,PDSG1,PSGML1,SGML2                                    &
+            ,int_state%PD                                               &
+            ,int_state%Q2,int_state%E2                                  &
+            ,1)
+!
+          CALL VADV2_SCAL                                               &
             (LM,IDTAD                                                   &
             ,DT,DSG2,PDSG1,PSGML1,SGML2                                 &
             ,int_state%PD,int_state%PSGDT                               &
-            ,int_state%CW,int_state%Q,int_state%Q2,int_state%RRW        &
-!
-!***  Temporary argument
-!
-            ,int_state%E2)
-!
+            ,int_state%TRACERS                                          &
+            ,int_state%NUM_TRACERS_MET,1,int_state%INDX_Q2)
 !
         ELSE vadv2_micro_check
           CALL VADV2_SCAL                                               &
@@ -2261,14 +2224,14 @@
             ,DT,DSG2,PDSG1,PSGML1,SGML2                                 &
             ,int_state%PD,int_state%PSGDT                               &
             ,int_state%Q2                                               &
-            ,1,1)
+            ,1,1,int_state%INDX_Q2)
 !
           CALL VADV2_SCAL                                               &
             (LM,IDTAD                                                   &
             ,DT,DSG2,PDSG1,PSGML1,SGML2                                 &
             ,int_state%PD,int_state%PSGDT                               &
             ,int_state%WATER                                            &
-            ,int_state%NUM_WATER,2)
+            ,int_state%NUM_WATER,2,int_state%INDX_Q2)
 !
           DO K=1,LM
           DO J=JTS,JTE
@@ -2348,7 +2311,7 @@
                 (LM                                                     &
                 ,int_state%KHFILT                                       &
                 ,int_state%HFILT                                        &
-                ,int_state%WATER(IMS:IME,JMS:JME,1:LM,N)                &
+                ,int_state%WATER(:,:,:,N)                               &
 #ifdef IBM
                 ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3     &
                 ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3     &
@@ -2372,7 +2335,7 @@
 !
           IF(int_state%MICROPHYSICS/='fer')THEN
             DO N=2,int_state%NUM_WATER
-              CALL SWAPHN(int_state%WATER(IMS:IME,JMS:JME,1:LM,N)       &
+              CALL SWAPHN(int_state%WATER(:,:,:,N)                      &
                          ,IMS,IME,JMS,JME,LM,INPES)
             ENDDO
           ENDIF
@@ -2387,7 +2350,7 @@
 !
           IF(int_state%MICROPHYSICS/='fer')THEN
             DO N=2,int_state%NUM_WATER
-              CALL POLEHN(int_state%WATER(IMS:IME,JMS:JME,1:LM,N)       &
+              CALL POLEHN(int_state%WATER(:,:,:,N)                      &
                          ,IMS,IME,JMS,JME,LM,INPES,JNPES)
             ENDDO
           ENDIF
@@ -2422,18 +2385,23 @@
         btim=timef()
 !
         hadv2_micro_check: IF(int_state%MICROPHYSICS=='fer')THEN
-          CALL HADV2                                                    &
+!
+          CALL HADV2_SCAL                                               &
             (GLOBAL,NTIMESTEP,INPES,JNPES                               &
             ,LM,IDTAD,DT,RDYH                                           &
             ,DSG2,PDSG1,PSGML1,SGML2                                    &
             ,DARE,RDXH                                                  &
             ,int_state%PD                                               &
             ,int_state%U,int_state%V                                    &
-            ,int_state%CW,int_state%Q,int_state%Q2,int_state%RRW        &
+            ,int_state%TRACERS                                          &
+            ,int_state%NUM_TRACERS_MET,1,int_state%INDX_Q2)
 !
-!***  Temporary argument
-!
-            ,int_state%E2)
+          CALL AVEQ2                                                    &
+            (LM                                                         &
+            ,DSG2,PDSG1,PSGML1,SGML2                                    &
+            ,int_state%PD                                               &
+            ,int_state%Q2,int_state%E2                                  &
+            ,2)
 !
 !***  UPDATE WATER ARRAY.
 !***  REMEMBER THAT WATER IS USED WITH THE WRF PHYSICS AND THUS
@@ -2494,7 +2462,7 @@
             ,int_state%PD                                               &
             ,int_state%U,int_state%V                                    &
             ,int_state%Q2                                               &
-            ,1,1)
+            ,1,1,int_state%INDX_Q2)
 !
           CALL HADV2_SCAL                                               &
             (GLOBAL,NTIMESTEP,INPES,JNPES                               &
@@ -2504,7 +2472,7 @@
             ,int_state%PD                                               &
             ,int_state%U,int_state%V                                    &
             ,int_state%WATER                                            &
-            ,int_state%NUM_WATER,2)
+            ,int_state%NUM_WATER,2,int_state%INDX_Q2)
 !
         ENDIF hadv2_micro_check
 !
@@ -2524,7 +2492,7 @@
 !
           IF(int_state%MICROPHYSICS/='fer')THEN
             DO N=2,int_state%NUM_WATER
-              CALL SWAPHN(int_state%WATER(IMS:IME,JMS:JME,1:LM,N)       &
+              CALL SWAPHN(int_state%WATER(:,:,:,N)                      &
                          ,IMS,IME,JMS,JME,LM,INPES)
             ENDDO
           ENDIF
@@ -2539,7 +2507,7 @@
 !
           IF(int_state%MICROPHYSICS/='fer')THEN
             DO N=2,int_state%NUM_WATER
-              CALL POLEHN(int_state%WATER(IMS:IME,JMS:JME,1:LM,N)       &
+              CALL POLEHN(int_state%WATER(:,:,:,N)                      &
                          ,IMS,IME,JMS,JME,LM,INPES,JNPES)
             ENDDO
           ENDIF

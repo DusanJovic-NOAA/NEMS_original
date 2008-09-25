@@ -228,6 +228,9 @@
                              ,P_QS                                      &  !<-- Index for snow in WATER array
                              ,P_QG                                         !<-- Index for graupel in WATER array
 !
+        INTEGER(KIND=KINT) :: INDX_WATER_START                          &  !<-- Start index of the water in tracers array
+                             ,INDX_WATER_END                               !<-- End index of the water in tracers array
+!
         REAL(KIND=KFPT),DIMENSION(:,:,:,:),POINTER :: WATER                !<-- Storage array for water substance
 !
         REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER :: F_ICE,F_RAIN        &  !<-- Fractions of ice, rain, and rime
@@ -604,20 +607,9 @@
         int_state%F_QG=.FALSE.
       ENDIF
 !
-      ALLOCATE(int_state%WATER(IMS:IME,JMS:JME,1:LM,1:int_state%NUM_WATER))  !<-- All types of water substance (kg kg-1)
       ALLOCATE(int_state%F_ICE(IMS:IME,JMS:JME,1:LM))                        !<-- Fraction of condensate as ice
       ALLOCATE(int_state%F_RAIN(IMS:IME,JMS:JME,1:LM))                       !<-- Fraction of condensate as rain
       ALLOCATE(int_state%F_RIMEF(IMS:IME,JMS:JME,1:LM))                      !<-- Fraction of condensate as rime
-!
-      DO N=1,int_state%NUM_WATER
-      DO L=1,LM
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%WATER(I,J,L,N)=0.
-      ENDDO
-      ENDDO
-      ENDDO
-      ENDDO
 !
       DO L=1,LM
       DO J=JMS,JME
@@ -638,7 +630,8 @@
 !
       int_state%NUM_TRACERS_TOTAL=                                      &  !<-- # of 3-D arrays in 4-D TRACERS array
                                   int_state%NUM_TRACERS_MET             &  !<-- # of water, etc. tracers specified now (see below)
-                                 +int_state%NUM_TRACERS_CHEM               !<-- # of specified scalars (chem, aerosol, etc.)
+                                 +int_state%NUM_TRACERS_CHEM            &  !<-- # of specified scalars (chem, aerosol, etc.)
+                                 +int_state%NUM_WATER                      !<-- # of water types
 !
       ALLOCATE(int_state%TRACERS     (IMS:IME,JMS:JME,1:LM,1:int_state%NUM_TRACERS_TOTAL))  !<-- All tracer variables
       ALLOCATE(int_state%TRACERS_SQRT(IMS:IME,JMS:JME,1:LM,1:int_state%NUM_TRACERS_TOTAL))  !<-- Sqrt of tracers (for advection)
@@ -681,7 +674,7 @@
 !--------------------------------
 !
       int_state%INDX_Q2=3                                                 !<-- Used for the SQRT, PREV, and TEND arrays
-!!!   int_state%Q2=>int_state%TRACERS(IMS:IME,JMS:JME,1:LM,int_state%INDX_Q2)
+      int_state%E2=>int_state%TRACERS(IMS:IME,JMS:JME,1:LM,int_state%INDX_Q2)
 !
 !--------------------------------
 !***  General tracer for testing
@@ -689,6 +682,14 @@
 !
       int_state%INDX_RRW=4
       int_state%RRW=>int_state%TRACERS(IMS:IME,JMS:JME,1:LM,int_state%INDX_RRW)
+!
+!--------------------------------
+!***  Water tracers
+!--------------------------------
+!
+      int_state%INDX_WATER_START = int_state%NUM_TRACERS_MET + int_state%NUM_TRACERS_CHEM + 1
+      int_state%INDX_WATER_END = int_state%INDX_WATER_START + int_state%NUM_WATER - 1
+      int_state%WATER=>int_state%TRACERS(IMS:IME,JMS:JME,1:LM,int_state%INDX_WATER_START:int_state%INDX_WATER_END)
 !
 !-----------------------------------------------------------------------
 !***  NOTE:  REMAINING SCALAR VARIABLES IN THE TRACER ARRAYS WILL 
@@ -739,7 +740,6 @@
 !-----------------------------------------------------------------------
 !
       ALLOCATE(int_state%DIV (IMS:IME,JMS:JME,1:LM))                      !<-- Horizontal mass divergence
-      ALLOCATE(int_state%E2  (IMS:IME,JMS:JME,1:LM))                      !<-- 2*tke at midlayers  (m2 s-2)
       ALLOCATE(int_state%PCNE(IMS:IME,JMS:JME,1:LM))                      !<-- 2nd term of pgf, NE direction
       ALLOCATE(int_state%PCNW(IMS:IME,JMS:JME,1:LM))                      !<-- 2nd term of pgf, NW direction
       ALLOCATE(int_state%PCX (IMS:IME,JMS:JME,1:LM))                      !<-- 2nd term of pgf, X direction
@@ -757,7 +757,6 @@
       DO J=JMS,JME
       DO I=IMS,IME
         int_state%DIV(I,J,L) =-1.E6
-        int_state%E2(I,J,L)  =-1.E6
         int_state%PCNE(I,J,L)=-1.E6
         int_state%PCNW(I,J,L)=-1.E6
         int_state%PCX(I,J,L) =-1.E6
@@ -1083,59 +1082,6 @@
             DO I=IMS,IME
               II=II+1
               int_state%TRACERS(I,J,L,N)=HOLD_4D(II,JJ,L,N)                !<-- Update tracer variables
-            ENDDO
-          ENDDO
-        ENDDO
-      ENDDO
-!
-!-----------------------------------------------------------------------
-!***  NOW UPDATE THE 4-D WATER ARRAY.
-!***  THE NUMBER OF 3-D QUANTITIES WITHIN IT IS KNOWN THROUGH THE
-!***  NUM_WATER VARIABLE WHICH WAS DETERMINED BY THE SELECTED
-!***  MICROPHYSICS SCHEME.
-!***  THE FIRST 3-D SECTION OF THIS WRF ARRAY IS NEVER CONSIDERED.
-!-----------------------------------------------------------------------
-!
-      ARRAY_NAME='WATER'
-      NULLIFY(HOLD_4D)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract 4-D Water Array from Dynamics Import State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateGet(state   =IMP_STATE                             &  !<-- State that holds the Array
-                        ,itemName=ARRAY_NAME                            &  !<-- Name of the Array we want
-                        ,array   =HOLD_ARRAY                            &  !<-- Put extracted Array here
-                        ,rc      = RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Dyn Update: Extract Water Pointer from Array"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_ArrayGet(array    =HOLD_ARRAY                           &  !<-- Array that holds the data pointer
-                        ,localDe  =0                                    &
-                        ,farrayPtr=HOLD_4D                              &  !<-- Put the pointer here
-                        ,rc       =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      DO N=1,int_state%NUM_WATER
-        DO L=1,LM
-          JJ=-JHALO
-          DO J=JMS,JME
-            II=-IHALO
-            JJ=JJ+1
-            DO I=IMS,IME
-              II=II+1
-              int_state%WATER(I,J,L,N)=HOLD_4D(II,JJ,L,N)                   !<-- Update Water species
             ENDDO
           ENDDO
         ENDDO

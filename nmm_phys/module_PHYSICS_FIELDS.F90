@@ -35,7 +35,6 @@
       PUBLIC :: ARRAY_PD
 !
       PUBLIC :: ARRAY_TRACERS
-      PUBLIC :: ARRAY_WATER
 !
       PUBLIC :: ALLOC_FIELDS_PHY
 !
@@ -57,7 +56,6 @@
       TYPE(ESMF_Array),SAVE :: ARRAY_PD
 !
       TYPE(ESMF_Array),SAVE :: ARRAY_TRACERS
-      TYPE(ESMF_Array),SAVE :: ARRAY_WATER
 !
 !-----------------------------------------------------------------------
 !
@@ -247,31 +245,6 @@
                                     ,distgrid=DISTGRID                  &  !<-- ESMF distributed grid information
                                     ,name    =ARRAY_NAME                &  !<-- ESMF Array name
                                     ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  CREATE AND FILL THE Arrays FOR THE 4-D WATER ARRAY.
-!***  THIS WRF ARRAY NEVER USES THE 1ST 3-D SECTION.
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!- - - - - - - - - - - - - - -  WATER - - - - - - - - - - - - - - - - -
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Create ARRAY_WATER"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      ARRAY_NAME='WATER'
-!
-      ARRAY_WATER=ESMF_ArrayCreate(farray  =int_state%WATER             &  !<-- The F90 input array
-                                  ,distgrid=distgrid                    &  !<-- ESMF distributed grid information
-                                  ,name    =ARRAY_NAME                  &  !<-- ESMF Array name
-                                  ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)

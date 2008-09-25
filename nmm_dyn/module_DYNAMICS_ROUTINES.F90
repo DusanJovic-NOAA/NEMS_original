@@ -195,14 +195,6 @@ integer(kind=kint) :: &
 #endif
 !-----------------
 !-----------------------------------------------------------------------
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!do l=1,lm
-!do j=1,jm
-!  print*,j,l,u(ide-2,j,l),u(ide-1,j,l),u(ide,j,l),u(1,j,l),u(2,j,l)
-!  print*,j,l,v(ide-2,j,l),v(ide-1,j,l),v(ide,j,l),v(1,j,l),v(2,j,l)
-!enddo
-!enddo
-!-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
       do j=jts_h1,jte_h1
@@ -4944,9 +4936,6 @@ real(kind=kdbl),save :: sumdrrw=0.
       do ks=kss,kse
         sumps=vgsums(2*ks-1)
         sumns=vgsums(2*ks  )
-
-!jaaif(mype.eq.0) write(0,*) 'sumps,sumns ',sumps,sumns
-
 !
         if(sumps*(-sumns).gt.1.) then
           sfacs=-sumns/sumps
@@ -5126,7 +5115,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
 !---temporary arguments-------------------------------------------------
 !-----------------------------------------------------------------------
 !
-real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
  e2                          ! 2TKE in the layers
 !
 !-----------------------------------------------------------------------
@@ -5216,30 +5205,12 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
 !-----------------------------------------------------------------------
       addt=dt*float(idtad)
 !-----------------------------------------------------------------------
-      do j=jts,jte
-        do i=its,ite
-          e2(i,j,1)=(q2(i,j,1)+epsq2)*0.5
-        enddo
-      enddo
-!jaa      do l=2,lm
-!jaa        do j=jts,jte
-!jaa          do i=its,ite
-!jaa            e2(i,j,l)=(q2(i,j,l-1)+q2(i,j,l))*0.5
-!jaa          enddo
-!jaa        enddo
-!jaa      enddo
+!
 !.......................................................................
 !$omp parallel 
 !$omp do private(l,j,i)
 !.......................................................................
       do l=1,lm
-       if (l .gt.1) then
-        do j=jts,jte
-         do i=its,ite
-           e2(i,j,l)=(q2(i,j,l-1)+q2(i,j,l))*0.5
-         enddo
-        enddo
-       endif
         do j=jts,jte
           do i=its,ite
             q  (i,j,l)=max(q  (i,j,l),epsq)
@@ -5344,9 +5315,7 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
             endif
           enddo
         enddo
- !jaa     enddo
 !
-!jaa      do l=1,lm
         do j=jts_b1,jte_b1
           do i=its_b1,ite_b1
             q1(i,j,l)=q  (i,j,l)+dq(i,j,l)
@@ -5591,9 +5560,9 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
 !
           enddo
         enddo
-!jaa      enddo
+!
 !-----------------------------------------------------------------------
-!jaa      do l=1,lm
+!
         do j=jts_b1,jte_b1
           do i=its_b1,ite_b1
             q (i,j,l)=max(q (i,j,l),epsq)
@@ -6477,59 +6446,6 @@ integer(kind=kint) :: &
 !.......................................................................
 !
 !-----------------------------------------------------------------------
-!-----------------
-#ifdef ENABLE_SMP
-!-----------------
-!.......................................................................
-!$omp parallel &
-!$omp private(nth,tid,i,j,jstart,jstop)
-!.......................................................................
-        nth = omp_get_num_threads()
-        tid = omp_get_thread_num()
-        call looplimits(tid, nth,jts_b1,jte_b1,jstart,jstop) 
-!-----------------
-#else
-!-----------------
-   jstart = jts_b1
-   jstop  = jte_b1
-!-----------------
-#endif
-!-----------------
-      do j=jstart,jstop
-        do i=its_b1,ite_b1
-          e2(i,j,1)=e2(i,j,1)-(epsq2+q2(i,j,1))*0.5
-        enddo
-      enddo
-!
-      do l=2,lm
-        do j=jstart,jstop
-          do i=its_b1,ite_b1
-            e2(i,j,l)=e2(i,j,l)-(q2(i,j,l-1)+q2(i,j,l))*0.5
-          enddo
-        enddo
-      enddo
-!
-      do l=1,lm-1
-        do j=jstart,jstop
-          do i=its_b1,ite_b1
-            q2(i,j,l)=(e2(i,j,l)*(dsg2(l)*pd(i,j)+pdsg1(l)) &
-                      +e2(i,j,l+1)*(dsg2(l+1)*pd(i,j)+pdsg1(l+1)))*0.5 &
-                    /((sgml2(l+1)-sgml2(l))*pd(i,j) &
-                     +(psgml1(l+1)-psgml1(l))) &
-                    +q2(i,j,l)
-            q2(i,j,l)=max(q2(i,j,l),epsq2)
-          enddo
-        enddo
-      enddo
-!-----------------
-#ifdef ENABLE_SMP
-!-----------------
-!.......................................................................
-!$omp end parallel
-!.......................................................................
-!-----------------
-#endif
-!-----------------
 !zjwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
 !-----------------------------------------------------------------------
       do l=1,lm
@@ -6596,13 +6512,13 @@ integer(kind=kint) :: &
 ,pd &
 ,psgdt &
 ,scal &
-,num_scal,indx_start)
+,num_scal,indx_start,indx_q2)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
 implicit none
 !-----------------------------------------------------------------------
 logical(kind=klog),parameter:: &
- traditional=.true.          !
+ traditional=.false.         !
 
 integer(kind=kint),parameter:: &
  nsmud=0                     ! number of smoothing iterations
@@ -6611,6 +6527,7 @@ real(kind=kfpt),parameter:: &
  conserve_max=1.5 &          ! max limit on conservation ratios
 ,conserve_min=0.5 &          ! min limit on conservation ratios
 ,epsq=1.e-20 &               ! floor value for scalar
+,epsq2=0.02 &                ! floor value for 2tke
 ,ff1=0.52500 &               ! antifiltering weighting factor
 ,ff2=-0.64813 &              ! antifiltering weighting factor
 ,ff3=0.24520 &               ! antifiltering weighting factor
@@ -6619,8 +6536,9 @@ real(kind=kfpt),parameter:: &
 integer(kind=kint),intent(in):: &
  lm &                        ! total # of levels
 ,idtad &                     ! timestep factor
+,num_scal &                  ! vertical extent of scalar array
 ,indx_start &                ! starting index in 4-D scalar array
-,num_scal                    ! vertical extent of scalar array
+,indx_q2                     ! index of q2 in scalar array
 
 real(kind=kfpt),intent(in):: &
  dt                          ! dynamics time step
@@ -6675,6 +6593,9 @@ real(kind=kfpt):: &
 ,rfc &                       !
 ,rr                          !
 
+real(kind=kfpt):: &
+ eps                         ! epsq or epsq2 depending on the scalar index
+
 real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1):: &
  sfacs &                     ! scratch, correction factor, scalar
 ,sumns &                     ! scratch, sum of negative changes, scalar
@@ -6695,10 +6616,15 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
       scalar_loop: do n=indx_start,num_scal
 !
 !-----------------------------------------------------------------------
+      if (n==indx_q2) then
+         eps = epsq2
+      else
+         eps = epsq
+      end if
       do l=1,lm
         do j=jts,jte
           do i=its,ite
-            scal(i,j,l,n)=max(scal(i,j,l,n),epsq)
+            scal(i,j,l,n)=max(scal(i,j,l,n),eps)
             s1  (i,j,l)=scal(i,j,l,n)
           enddo
         enddo
@@ -6766,7 +6692,8 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
                 /(pdsg1(l)*0.5))
               if(rr.gt.0.999) rr=0.999
               afr(i,j,l)=0.
-              ds(i,j,l)=-scal(i,j,l,n)*rr
+!              ds(i,j,l)=-scal(i,j,l,n)*rr
+              ds(i,j,l)=0.
             endif
           enddo
         enddo
@@ -6832,7 +6759,7 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
           sumns(i,j)=0.
         enddo
       enddo
-      do l=1,lm
+      do l=2,lm-1
         do j=jts_b1,jte_b1
           do i=its_b1,ite_b1
             pdsg=(dsg2(l)*pd(i,j)+pdsg1(l))
@@ -6882,7 +6809,7 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
       do l=1,lm
         do j=jts_b1,jte_b1
           do i=its_b1,ite_b1
-            scal(i,j,l,n)=max(scal(i,j,l,n),epsq)
+            scal(i,j,l,n)=max(scal(i,j,l,n),eps)
           enddo
         enddo
       enddo
@@ -6906,7 +6833,7 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
 ,pd &
 ,u,v &
 ,scal &
-,num_scal,indx_start)
+,num_scal,indx_start,indx_q2)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
 implicit none
@@ -6930,12 +6857,13 @@ logical(kind=klog),intent(in):: &
 
 integer(kind=kint),intent(in):: &
  idtad &                     ! timestep factor
-,indx_start &                ! starting index for general scalar
 ,inpes &                     ! tasks in the x direction
 ,jnpes &                     ! tasks in y direction
 ,lm &                        ! total # of levels
 ,ntsd &                      ! timestep
-,num_scal                    ! vertical extent of scalar array
+,num_scal &                  ! vertical extent of scalar array
+,indx_start &                ! starting index for general scalar
+,indx_q2                     ! index of q2 in general scalar array
 
 real(kind=kfpt),intent(in):: &
  dt &                        ! dynamics time step
@@ -7000,12 +6928,13 @@ real(kind=kfpt):: &
 ,qq &                        !
 ,rdx &                       !
 ,rdy &                       !
-,sumnql &                    ! sum of negative changes, spec. hum.
-,sumpql &                    ! sum of positive changes, spec. hum.
 ,sumnsl &                    ! sum of negative changes, scalar
 ,sumpsl &                    ! sum of positive changes, scalar
 ,up4 &                       !
 ,vp4                         !
+
+real(kind=kfpt):: &
+ eps                         ! epsq or epsq2 depending on the scalar index
 
 real(kind=kfpt),dimension(1:lm):: &
  sfacsp                      ! correction factor, scalar
@@ -7030,7 +6959,7 @@ integer(kind=kint) :: ierr,istat
 logical(kind=klog) :: opened
 logical(kind=klog),save :: sum_file_is_open=.false.
 character(10) :: fstatus
-real(kind=kfpt),dimension(8,1:lm) :: gsums_single
+real(kind=kfpt),dimension(2,1:lm) :: gsums_single
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -7041,10 +6970,15 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
       scalar_loop: do n=indx_start,num_scal
 !
 !-----------------------------------------------------------------------
+      if (n==indx_q2) then
+         eps = epsq2
+      else
+         eps = epsq
+      end if
       do l=1,lm
         do j=jts_h1,jte_h1
           do i=its_h1,ite_h1
-            scal(i,j,l,n)=max(scal(i,j,l,n),epsq)
+            scal(i,j,l,n)=max(scal(i,j,l,n),eps)
             s1  (i,j,l)=scal(i,j,l,n)
           enddo
         enddo
@@ -7139,7 +7073,7 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
 !-----------------------------------------------------------------------
 !
         if(.not.read_global_sums)then
-          call mpi_allreduce(xsums,gsums,8*lm,mpi_double_precision &
+          call mpi_allreduce(xsums,gsums,2*lm,mpi_double_precision &
                             ,mpi_sum,mpi_comm_comp,irecv)
 !
           do l=1,lm
@@ -7314,7 +7248,7 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
 !-----------------------------------------------------------------------
 !
       if(.not.read_global_sums)then
-        call mpi_allreduce(xsums,gsums,8*lm,mpi_double_precision &
+        call mpi_allreduce(xsums,gsums,2*lm,mpi_double_precision &
                           ,mpi_sum,mpi_comm_comp,irecv)
 !
         do l=1,lm
@@ -7353,8 +7287,8 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
 !--------------first moment conserving factor---------------------------
 !-----------------------------------------------------------------------
       do l=1,lm
-        sumpql=gsums_single(1,l)
-        sumnql=gsums_single(2,l)
+        sumpsl=gsums_single(1,l)
+        sumnsl=gsums_single(2,l)
 !
         if(sumpsl*(-sumnsl).gt.1.)    then
           sfacsp(l)=-sumnsl/sumpsl
@@ -7391,7 +7325,7 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
       do l=1,lm
         do j=jts_b1,jte_b1
           do i=its_b1,ite_b1
-            scal(i,j,l,n)=max(scal(i,j,l,n),epsq)
+            scal(i,j,l,n)=max(scal(i,j,l,n),eps)
           enddo
         enddo
       enddo
@@ -7406,6 +7340,152 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
 !----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
+!
+                        subroutine aveq2 &
+(lm &
+,dsg2,pdsg1,psgml1,sgml2 &
+,pd &
+,q2,e2 &
+,mode)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!-----------------------------------------------------------------------
+implicit none
+!-----------------------------------------------------------------------
+integer(kind=kint),intent(in):: &
+ lm &
+,mode                        ! mode; 1=interfaces to layers
+                             !       2=layers to interfaces
+real(kind=kfpt),dimension(1:lm),intent(in):: &
+ dsg2 &                      ! delta sigma
+,pdsg1 &                     ! delta pressure
+,psgml1 &                    ! pressure at midlevels
+,sgml2                       ! sigma at midlevels
+
+real(kind=kfpt),dimension(ims:ime,jms:jme),intent(in):: &
+ pd                          ! sigma range pressure difference
+
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
+ q2 &                        ! 2TKE
+,e2                          ! 2TKE in the layers
+!
+!-----------------------------------------------------------------------
+!--local variables------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+integer(kind=kint):: &
+ i &                         ! index in x direction
+,j &                         ! index in y direction
+,l                           ! index in p direction
+!-----------------
+#ifdef ENABLE_SMP
+!-----------------
+integer(kind=kint) :: &
+ jstart &
+,jstop &
+,nth &
+,omp_get_num_threads &
+,omp_get_thread_num &
+,tid
+!-----------------
+#else
+!-----------------
+integer(kind=kint) :: &
+ jstart &
+,jstop
+!-----------------
+#endif
+!-----------------
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      if (mode == 1) then
+!
+!.......................................................................
+!$omp parallel
+!$omp do private(j,i)
+!.......................................................................
+      do j=jts_h1,jte_h1
+        do i=its_h1,ite_h1
+          e2(i,j,1)=(q2(i,j,1)+epsq2)*0.5
+        enddo
+      enddo
+!.......................................................................
+!$omp end do
+!$omp do private(l,j,i)
+!.......................................................................
+      do l=2,lm
+        do j=jts_h1,jte_h1
+          do i=its_h1,ite_h1
+            e2(i,j,l)=(q2(i,j,l-1)+q2(i,j,l))*0.5
+          enddo
+        enddo
+      enddo
+!.......................................................................
+!$omp end do
+!$omp end parallel
+!.......................................................................
+!
+      else if (mode == 2) then
+!
+!-----------------
+#ifdef ENABLE_SMP
+!-----------------
+!.......................................................................
+!$omp parallel &
+!$omp private(nth,tid,i,j,jstart,jstop)
+!.......................................................................
+      nth = omp_get_num_threads()
+      tid = omp_get_thread_num()
+      call looplimits(tid, nth,jts_b1,jte_b1,jstart,jstop)
+!-----------------
+#else
+!-----------------
+      jstart = jts_b1
+      jstop  = jte_b1
+!-----------------
+#endif
+!-----------------
+      do j=jstart,jstop
+        do i=its_b1,ite_b1
+          e2(i,j,1)=e2(i,j,1)-(epsq2+q2(i,j,1))*0.5
+        enddo
+      enddo
+!
+      do l=2,lm
+        do j=jstart,jstop
+          do i=its_b1,ite_b1
+            e2(i,j,l)=e2(i,j,l)-(q2(i,j,l-1)+q2(i,j,l))*0.5
+          enddo
+        enddo
+      enddo
+!
+      do l=1,lm-1
+        do j=jstart,jstop
+          do i=its_b1,ite_b1
+            q2(i,j,l)=(e2(i,j,l)*(dsg2(l)*pd(i,j)+pdsg1(l)) &
+                      +e2(i,j,l+1)*(dsg2(l+1)*pd(i,j)+pdsg1(l+1)))*0.5 &
+                    /((sgml2(l+1)-sgml2(l))*pd(i,j) &
+                     +(psgml1(l+1)-psgml1(l))) &
+                    +q2(i,j,l)
+            q2(i,j,l)=max(q2(i,j,l),epsq2)
+          enddo
+        enddo
+      enddo
+!-----------------
+#ifdef ENABLE_SMP
+!-----------------
+!.......................................................................
+!$omp end parallel
+!.......................................................................
+!-----------------
+#endif
+!-----------------
+!
+      else
+      end if
+
+                        endsubroutine aveq2
 !----------------------------------------------------------------------
 !
                         end module module_dynamics_routines

@@ -23,7 +23,6 @@
                                       ,ARRAY_U,ARRAY_V                  &
                                       ,ARRAY_Q2,ARRAY_PD                &
                                       ,ARRAY_TRACERS                    &
-                                      ,ARRAY_WATER                      &
                                       ,ALLOC_FIELDS_PHY
 !
       USE MODULE_DM_PARALLEL,ONLY : IDS,IDE,JDS,JDE                     &
@@ -578,47 +577,6 @@
         CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Dynamics export state
                               ,name ='NUM_TRACERS_TOTAL'                &  !<-- The inserted quantity will have this name
                               ,value=int_state%NUM_TRACERS_TOTAL        &  !<-- The value of this is associated with the preceding name
-                              ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  ADD THE 4D WATER ARRAY TO THE EXPORT STATE.
-!***  THE NUMBER OF 3D CONSTITUENTS THAT ARE ACTUALLY USED
-!***  IS GIVEN BY THE NUM_WATER VARIABLE THAT WAS DETERMINED
-!***  BY THE SELECTED MICROPHYSICS SCHEME.
-!***  THE FIRST 3D SECTION OF THIS WRF ARRAY IS NEVER CONSIDERED.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Add 4-D Water Array to Physics Export State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_StateAdd(state=EXP_STATE                              &
-                          ,array=ARRAY_WATER                            &  !<-- Water substance
-                          ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  ALSO INSERT THE VALUE OF NUM_WATER INTO THE EXPORT STATE.
-!***  THIS WILL TELL THE Dyn-Phy Coupler HOW MANY CONSTITUENTS
-!***  THERE ARE TO TRANSFER IN THE 4-D WATER ARRAY.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Add Value of NUM_WATER to Physics Export State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Dynamics export state
-                              ,name ='NUM_WATER'                        &  !<-- The inserted quantity will have this name
-                              ,value=int_state%NUM_WATER                &  !<-- The value of this is associated with the preceding name
                               ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2069,7 +2027,7 @@
           II=LDIM1-1
           DO I=IMS,IME
             II=II+1
-            int_state%WATER(I,J,K,int_state%P_QV)=                      & ! WRF water array uses mixing ratio for vapor
+            int_state%WATER(II,JJ,K,int_state%P_QV)=                      & ! WRF water array uses mixing ratio for vapor
                       int_state%Q(II,JJ,K)/(1.-int_state%Q(II,JJ,K))     
           ENDDO
         ENDDO
