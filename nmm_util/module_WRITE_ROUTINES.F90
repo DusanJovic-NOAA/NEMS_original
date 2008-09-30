@@ -246,6 +246,12 @@
                               ,name   ='GLOBAL'                   &  !<-- Name of the Attribute to extract
                               ,value  =wrt_int_state%GLOBAL       &  !<-- Extract this Attribute from History Bundle
                               ,rc     =RC)
+
+!        CALL ESMF_AttributeGet(bundle =HISTORY_BUNDLE             &  !<-- The Bundle of history data
+!                              ,name   ='ADIABATIC'                   &  !<-- Name of the Attribute to extract
+!                              ,value  =wrt_int_state%ADIABATIC    &  !<-- Extract this Attribute from History Bundle
+!                              ,rc     =RC)
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
@@ -2098,7 +2104,8 @@
       INTEGER :: I,J,N,N1,N2,NPOSN_1,NPOSN_2,LENGTH,MAXLENGTH
 !
       INTEGER :: FIELDSIZE,IM,JM,LM,IDATE(7),FCSTDATE(7)                &
-                ,INDX_2D,IRET                                           &
+                ,INDX_2D,IRET,IND1,IND2,IND3,IND4,CNT                   &
+ 		,INI1,INI2                                              &
                 ,N2ISCALAR,N2IARY,N2RSCALAR,N2RARY,N2LSCALAR            &
                 ,NDYH,NDXH,NFRAME,NPT,NPDTOP,NREC                       &
                 ,NSG1,NSG2,NSGML1,NSGML2,NSOIL,TLMETA,VLEV
@@ -2411,6 +2418,8 @@
 !
       ALLOCATE(RECNAME(NREC),RECLEVTYP(NREC),RECLEV(NREC))
       NREC=0
+      INI1=0
+      INI2=0
 !
       DO NFIELD=1,wrt_int_state%KOUNT_I2D(1)
 !
@@ -2426,10 +2435,12 @@
           RECNAME(NREC)=NAME(1:INDX_2D-4)
           RECLEVTYP(NREC)='mid_layer'
           IF (RECLEV(NREC)==LM+1) RECLEVTYP(NREC-LM:NREC)='layer'
+          INI1=INI1+1
         ELSE
           RECNAME(NREC)=TRIM(NAME)
           RECLEV(NREC)=1
           RECLEVTYP(NREC)='sfc'
+          INI2=INI2+1
         ENDIF
 !
         IF (RECNAME(NREC)=='ISLTYP') RECNAME(NREC)='sltyp'
@@ -2446,6 +2457,10 @@
 !-----------------------------------------------------------------------
 !
       NSOIL=0
+      IND4=0
+      IND3=0
+      IND2=0
+      IND1=0
 !
       DO NFIELD=1,wrt_int_state%KOUNT_R2D(1)
 !
@@ -2462,16 +2477,21 @@
           RECLEVTYP(NREC)='mid layer'
           IF (RECLEV(NREC)==LM+1) RECLEVTYP(NREC-LM:NREC)='layer'
           IF (RECNAME(NREC)=='SMC') NSOIL=NSOIL+1
-          IF(RECNAME(NREC)=='SMC'.OR.RECNAME(NREC)=='SH2O'.or.RECNAME(NREC)=='STC') &
-             RECLEVTYP(NREC)='soil layer'
           IF (RECNAME(NREC)=='W') RECNAME(NREC)='vvel'
-          IF (RECNAME(NREC)=='PINT') RECNAME(NREC)='pres'
           IF (RECNAME(NREC)=='CW') RECNAME(NREC)='clwmr'
           IF (RECNAME(NREC)=='U') RECNAME(NREC)='ugrd'
           IF (RECNAME(NREC)=='V') RECNAME(NREC)='vgrd'
           IF (RECNAME(NREC)=='T') RECNAME(NREC)='tmp'
           IF (RECNAME(NREC)=='Q') RECNAME(NREC)='spfh'
-!
+          IF (RECNAME(NREC)=='PINT') THEN
+          RECNAME(NREC)='pres'
+          IND1=IND1+1
+          ELSE IF (RECNAME(NREC)=='SMC'.OR.RECNAME(NREC)=='SH2O'.or.RECNAME(NREC)=='STC') THEN 
+             RECLEVTYP(NREC)='soil layer' 
+          IND2=IND2+1
+          ELSE
+          IND3=IND3+1
+          ENDIF
         ELSE
           RECLEV(NREC)=1
           RECNAME(NREC)=TRIM(NAME)
@@ -2487,6 +2507,7 @@
           IF (RECNAME(NREC)=='FIS') RECNAME(NREC)='hgt'
           IF (RECNAME(NREC)=='USTAR') RECNAME(NREC)='uustar'
           IF (RECNAME(NREC)=='Z0') RECNAME(NREC)='zorl'
+          IND4=IND4+1
         ENDIF
 !
 !change unit for 'FIS'
@@ -2522,7 +2543,6 @@
 !-----------------------------------------------------------------------
 !
       CALL NEMSIO_INIT(IRET=IRET)
-      print *,'nemsio_init, iret=',iret
 !
 !-----------------------------------------------------------------------
 !***  OPEN NEMSIO FILE
@@ -2552,6 +2572,12 @@
       CALL NEMSIO_GETFILEHEAD(NEMSIOFILE,TLMETA=TLMETA)
       DXCTL=MAXVAL(DX)*180./(A*PI)
       DYCTL=MAXVAL(DY)*180./(A*PI)
+      IF (VARLVAL(3)) THEN
+      CNT=(IND1/(LM+1))+(IND3/LM)+IND4
+      ELSE
+      CNT=(INI1/LM)+INI2+(IND1/(LM+1))+(IND2/NSOIL)+(IND3/LM)+IND4
+      ENDIF
+
 !
 !-----------------------------------------------------------------------
 !***  WRITE OUT NEMSIO CTL FILE
@@ -2560,7 +2586,7 @@
       IF(wrt_int_state%WRITE_NEMSIOCTL.AND.wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
         CALL WRITE_NEMSIOCTL(GLOBAL,IHOUR_FCST,IDAY_FCST,IMONTH_FCST,       &
           IYEAR_FCST,FILENAME,TLMETA,DIM1,DIM2,LM,NSOIL,TLM0D,TPH0D,DXCTL,  &
-          DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP)
+          DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP,CNT)
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -2582,7 +2608,7 @@
 !
       SUBROUTINE WRITE_NEMSIOCTL(GLOBAL,IHOUR_FCST,IDAY_FCST,IMONTH_FCST, &
         IYEAR_FCST,FILENAME,TLMETA,DIM1,DIM2,LM,NSOIL,TLM0D,TPH0D,DXCTL,  &
-        DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP)
+        DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP,KOUNT_R2D)
 !
 !-----------------------------------------------------------------------
 !***  WRITE OUT CTL FILE
@@ -2594,7 +2620,7 @@
 !
       INTEGER,INTENT(IN) :: DIM1,DIM2                                   &
                            ,IHOUR_FCST,IDAY_FCST,IMONTH_FCST,IYEAR_FCST &
-                           ,LM,NF_HOURS,NREC,NSOIL,TLMETA
+                           ,LM,NF_HOURS,NREC,NSOIL,TLMETA,KOUNT_R2D
 !
       REAL,INTENT(IN)    :: dxctl,dyctl,tlm0d,tph0d
 !
@@ -2669,9 +2695,10 @@
  113  FORMAT('zdef ',I6,' linear 1 1 ')
  114  FORMAT('tdef ',I6,' linear ',A12,' 6hr')
 !
-      WRITE(IO_UNIT,'(A)')'VARS 114'
+      WRITE(IO_UNIT,'(A,I6)')'VARS ',KOUNT_R2D
+
       N=1
-!
+
       DO WHILE (N<=NREC)
         IF(RECLEVTYP(N)=='mid layer') THEN
           WRITE(IO_UNIT,'(A8,I3,A)')RECNAME(N),LM,' 99 mid layer'
@@ -2687,7 +2714,7 @@
           N=N+1
         ENDIF
       ENDDO
-!
+
       WRITE(IO_UNIT,'(A8)')'endvars'
       CLOSE(IO_UNIT)
 !

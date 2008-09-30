@@ -892,13 +892,13 @@ contains
       call bafrread(gfile%flunit,iskip,iread,nread,gfile%varlname)
       if(nread.lt.iread) return
       gfile%tlmeta=gfile%tlmeta+nread
-!      print *,'tlmetavarl =',gfile%tlmeta,'nread=',nread
+      print *,'tlmetavarl =',gfile%tlmeta,'nread=',nread
       iskip=iskip+nread
       iread=nemsio_logickind*gfile%nmetavarl
       call bafrread(gfile%flunit,iskip,iread,nread,gfile%varlval)
       if(nread.lt.iread) return
       gfile%tlmeta=gfile%tlmeta+nread
-!      print *,'tlmetavarlval =',gfile%tlmeta,'nread=',nread
+      print *,'tlmetavarlval =',gfile%tlmeta,'nread=',nread
     endif
 !meta arr integer
     if (gfile%nmetaaryi.gt.0) then

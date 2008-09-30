@@ -63,7 +63,8 @@
                              ,RESTART                                   &
                              ,SECADV,SECDIF                             &
                              ,READ_GLOBAL_SUMS                          &
-                             ,WRITE_GLOBAL_SUMS
+                             ,WRITE_GLOBAL_SUMS                         &
+			     ,ADIABATIC
 !
         TYPE(ESMF_Logical) :: GLOBAL_E
 !
