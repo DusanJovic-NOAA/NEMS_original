@@ -44,16 +44,6 @@
 !***  WE WILL USE A WORKING POINTER FOR EACH TYPE.
 !-----------------------------------------------------------------------
 !
-!-------------------------
-!-------------------------
-!***  LOGICALS  ***
-!-------------------------
-!-------------------------
-!      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_LOG
-!
-!-----------------------------------------------------------------------
-!
-!
 !
 !-------------------------
 !-------------------------
@@ -61,10 +51,23 @@
 !-------------------------
 !-------------------------
 !
-      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_ISCALAR     
+      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_ISCALAR     &
+!
+       =RESHAPE((/                                                      &
+!                                         ------------------------------
+!
+                                           'IM        ', 'H         '   &
+                                          ,'JM        ', 'H         '   &
+                                          ,'LM        ', 'H         '   &
+                                          ,'IHRST     ', 'H         '   &
+!
+!                                         ------------------------------
+!
+         /)                                                             &
+        ,(/2,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********'/))
 !
 !-----------------------------------------------------------------------
-!
 !
 !
 !----------------------
@@ -73,11 +76,28 @@
 !----------------------
 !----------------------
 !
-      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_RSCALAR       
+      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_RSCALAR     &  
 !
+       =RESHAPE((/                                                      &
+!                                          -----------------------------
+!
+                                           'DT        ', 'H         '   &
+                                          ,'DYH       ', 'H         '   &
+                                          ,'PDTOP     ', 'H         '   &
+                                          ,'PT        ', 'H         '   &
+                                          ,'TLM0D     ', 'H         '   &
+                                          ,'TPH0D     ', 'H         '   &
+                                          ,'TSTART    ', 'H         '   &
+                                          ,'DPHD      ', 'H         '   &
+                                          ,'DLMD      ', 'H         '   &
+!
+!                                          -----------------------------
+!
+         /)                                                             &
+        ,(/2,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********'/))
 !
 !-----------------------------------------------------------------------
-!
 !
 !
 !----------------------------
@@ -86,10 +106,20 @@
 !----------------------------
 !----------------------------
 !
-      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_1D_I         
+      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_1D_I        &
+!
+       =RESHAPE((/                                                      &
+!                                          -----------------------------
+!
+                                           'IDAT      ', 'H         '   &
+!
+!                                          -----------------------------
+!
+         /)                                                             &
+        ,(/2,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********'/))
 !
 !-----------------------------------------------------------------------
-!
 !
 !
 !----------------------------
@@ -98,10 +128,19 @@
 !----------------------------
 !----------------------------
 !
-      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_2D_I         
+      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_2D_I        &
 !
+       =RESHAPE((/                                                      &
+!                                          -----------------------------
+!
+                                           '-         ', '-         '   &
+!
+!                                          -----------------------------
+!
+         /)                                                             &
+        ,(/2,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********'/))
 !-----------------------------------------------------------------------
-!
 !
 !
 !-------------------------
@@ -110,10 +149,26 @@
 !-------------------------
 !-------------------------
 !
-      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_1D_R         
+      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_1D_R        &
+!
+       =RESHAPE((/                                                      &
+!                                         ------------------------------
+!
+                                           'DXH       ', 'H         '   &
+                                          ,'SG1       ', 'H         '   &
+                                          ,'SG2       ', 'H         '   &
+                                          ,'DSG1      ', 'H         '   &
+                                          ,'DSG2      ', 'H         '   &
+                                          ,'SGML1     ', 'H         '   &
+                                          ,'SGML2     ', 'H         '   &
+!
+!                                         ------------------------------
+!
+         /)                                                             &
+        ,(/2,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********'/))
 !
 !-----------------------------------------------------------------------
-!
 !
 !
 !-------------------------
@@ -122,10 +177,25 @@
 !-------------------------
 !-------------------------
 !
-      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_2D_R         
+      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_2D_R        &
+!
+       =RESHAPE((/                                                      &
+!                                         ------------------------------
+!
+                                           'FIS       ', 'H         '   &
+                                          ,'GLAT      ', 'H         '   &
+                                          ,'GLON      ', 'H         '   &
+                                          ,'PD        ', 'H         '   &
+                                          ,'VLAT      ', 'H         '   &
+                                          ,'VLON      ', 'H         '   &
+!
+!                                         ------------------------------
+!
+         /)                                                             &
+        ,(/2,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********'/))
 !
 !-----------------------------------------------------------------------
-!
 !
 !
 !-------------------------
@@ -134,7 +204,86 @@
 !-------------------------
 !-------------------------
 !
-      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_3D_R        
+!------------------------------
+!***  Diabatic forecast output
+!------------------------------
+!
+      CHARACTER(10),DIMENSION(2,MAX_KOUNT),TARGET ::                    &  
+!
+                                            DYN_INT_STATE_3D_R_DIAB     &  
+!
+       =RESHAPE((/                                                      &
+!                                         ------------------------------
+!
+                                           'T         ', '-         '   &  !<-- The physics counterparts of these variables
+                                          ,'Q         ', '-         '   &  !    are being designated for history output.
+                                          ,'U         ', '-         '   &  !    This assumes that history output always
+                                          ,'V         ', '-         '   &  !    immediately follows a call to the Physics.
+                                          ,'Q2        ', '-         '   &  !
+                                          ,'CW        ', '-         '   &  !<--
+                                          ,'W         ', 'H         '   &
+                                          ,'DWDT      ', 'H         '   &
+                                          ,'PINT      ', 'H         '   &
+                                          ,'OMGALF    ', 'H         '   &
+                                          ,'RRW       ', 'H         '   &
+!
+!                                         ------------------------------
+!
+         /)                                                             &
+        ,(/2,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********'/))
+!
+!-------------------------------
+!***  Adiabatic forecast output
+!-------------------------------
+!
+      CHARACTER(10),DIMENSION(2,MAX_KOUNT),TARGET ::                    & 
+!
+                                            DYN_INT_STATE_3D_R_ADIAB    &  
+!
+       =RESHAPE((/                                                      &
+!                                         ------------------------------
+!
+                                           'T         ', 'H         '   &  
+                                          ,'Q         ', 'H         '   &  
+                                          ,'U         ', 'H         '   &  
+                                          ,'V         ', 'H         '   &  
+                                          ,'Q2        ', 'H         '   &  
+                                          ,'CW        ', 'H         '   &  
+                                          ,'W         ', 'H         '   &
+                                          ,'DWDT      ', 'H         '   &
+                                          ,'PINT      ', 'H         '   &
+                                          ,'OMGALF    ', 'H         '   &
+                                          ,'RRW       ', 'H         '   &
+!
+!                                         ------------------------------
+!
+         /)                                                             &
+        ,(/2,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********'/))
+!
+!-----------------------------------------------------------------------
+!
+!
+!-------------------------
+!-------------------------
+!***  LOGICALS  ***
+!-------------------------
+!-------------------------
+!
+!      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_LOG        &
+!
+!       =RESHAPE((/                                                     &
+!                                        ------------------------------
+!
+!                                          'ADIABATIC ', 'H         '   &
+!
+!                                        ------------------------------
+!
+!         /)                                                            &
+!        ,(/2,MAX_KOUNT/)                                               &
+!        ,(/'**********', '**********'/))
+!
 !
 !-----------------------------------------------------------------------
 !
@@ -181,6 +330,8 @@
       CHARACTER(6)                :: FMT='(I2.2)'
       CHARACTER(ESMF_MAXSTR)      :: VBL_NAME
 !
+      CHARACTER(10),DIMENSION(:,:),POINTER :: DYN_INT_STATE_3D_R
+!
       TYPE(ESMF_FieldBundle),SAVE :: HISTORY_BUNDLE
 !
       TYPE(ESMF_Field)            :: FIELD
@@ -192,15 +343,12 @@
 !***  ESMF VERSIONS OF THE LOGICALS IN THE DYNAMICS INTERNAL STATE
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_Logical),TARGET :: GLOBAL_ESMF,RUN_ESMF,ADIABATIC_ESMF
+      TYPE(ESMF_Logical),TARGET :: ADIABATIC_ESMF                       &
+                                  ,GLOBAL_ESMF                          &
+                                  ,RUN_ESMF
 !
 !-----------------------------------------------------------------------
 !***  FIRST WE MUST PROVIDE POINTERS INTO THE DYNAMICS INTERNAL STATE. 
-!-----------------------------------------------------------------------
-!      TYPE DYN_LOG
-!        LOGICAL(KIND=1),POINTER :: NAME                                          !<-- Pointer for logicals
-!      END TYPE DYN_LOG
-
 !-----------------------------------------------------------------------
       TYPE DYN_ISC
         INTEGER(KIND=KINT),POINTER :: NAME                               !<-- Pointer for integer scalars
@@ -230,241 +378,25 @@
         REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER :: NAME                 !<-- Pointer for 3D real arrays
       END TYPE DYN_R3D
 !-----------------------------------------------------------------------
+!      TYPE DYN_LOG
+!        LOGICAL(KIND=1),POINTER :: NAME                                 !<-- Pointer for logicals
+!      END TYPE DYN_LOG
+!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !***  ARRAYS OF POINTERS OF THE ABOVE TYPES
 !-----------------------------------------------------------------------
 !
-!      TYPE(DYN_LOG),DIMENSION(MAX_KOUNT) :: L_FL
       TYPE(DYN_ISC),DIMENSION(MAX_KOUNT) :: I_SC
       TYPE(DYN_RSC),DIMENSION(MAX_KOUNT) :: R_SC
       TYPE(DYN_I1D),DIMENSION(MAX_KOUNT) :: I_1D
       TYPE(DYN_R1D),DIMENSION(MAX_KOUNT) :: R_1D
       TYPE(DYN_R2D),DIMENSION(MAX_KOUNT) :: R_2D
       TYPE(DYN_R3D),DIMENSION(MAX_KOUNT) :: R_3D
+!      TYPE(DYN_LOG),DIMENSION(MAX_KOUNT) :: L_FL
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
-!-------------------------
-!-------------------------
-!***  LOGICALS  ***
-!-------------------------
-!-------------------------
-!      DYN_INT_STATE_LOG     &
-!
-!       =RESHAPE((/                                                      &
-!                                         ------------------------------
-!
-!                                           'ADIABATIC ', 'H         '   &
-!
-!                                         ------------------------------
-!
-!         /)                                                             &
-!        ,(/2,MAX_KOUNT/)                                                &
-!        ,(/'**********', '**********'/))
-!
-!-----------------------------------------------------------------------
-!
-!
-!
-!-------------------------
-!-------------------------
-!***  INTEGER SCALARS  ***
-!-------------------------
-!-------------------------
-!
-      DYN_INT_STATE_ISCALAR     &
-!
-       =RESHAPE((/                                                      &
-!                                         ------------------------------
-!
-                                           'IM        ', 'H         '   &
-                                          ,'JM        ', 'H         '   &
-                                          ,'LM        ', 'H         '   &
-                                          ,'IHRST     ', 'H         '   &
-!
-!                                         ------------------------------
-!
-         /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
-!
-!-----------------------------------------------------------------------
-!
-!
-!
-!----------------------
-!----------------------
-!***  REAL SCALARS  ***
-!----------------------
-!----------------------
-!
-       DYN_INT_STATE_RSCALAR     &
-!
-       =RESHAPE((/                                                      &
-!                                          -----------------------------
-!
-                                           'DT        ', 'H         '   &
-                                          ,'DYH       ', 'H         '   &
-                                          ,'PDTOP     ', 'H         '   &
-                                          ,'PT        ', 'H         '   &
-                                          ,'TLM0D     ', 'H         '   &
-                                          ,'TPH0D     ', 'H         '   &
-                                          ,'TSTART    ', 'H         '   &
-                                          ,'DPHD      ', 'H         '   &
-                                          ,'DLMD      ', 'H         '   &
-!
-!                                          -----------------------------
-!
-         /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
-!
-!-----------------------------------------------------------------------
-!
-!
-!
-!----------------------------
-!----------------------------
-!***  INTEGER 1-D ARRAYS  ***
-!----------------------------
-!----------------------------
-!
-      DYN_INT_STATE_1D_I        &
-!
-       =RESHAPE((/                                                      &
-!                                          -----------------------------
-!
-                                           'IDAT      ', 'H         '   &
-!
-!                                          -----------------------------
-!
-         /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
-!
-!-----------------------------------------------------------------------
-!
-!
-!
-!----------------------------
-!----------------------------
-!***  INTEGER 2-D ARRAYS  ***
-!----------------------------
-!----------------------------
-!
-      DYN_INT_STATE_2D_I        &
-!
-       =RESHAPE((/                                                      &
-!                                          -----------------------------
-!
-                                           '-         ', '-         '   &
-!
-!                                          -----------------------------
-!
-         /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
-!
-!-----------------------------------------------------------------------
-!-------------------------
-!-------------------------
-!***  REAL 1-D ARRAYS  ***
-!-------------------------
-!-------------------------
-!
-       DYN_INT_STATE_1D_R        &
-!
-       =RESHAPE((/                                                      &
-!                                         ------------------------------
-!
-                                           'DXH       ', 'H         '   &
-                                          ,'SG1       ', 'H         '   &
-                                          ,'SG2       ', 'H         '   &
-                                          ,'DSG1      ', 'H         '   &
-                                          ,'DSG2      ', 'H         '   &
-                                          ,'SGML1     ', 'H         '   &
-                                          ,'SGML2     ', 'H         '   &
-!
-!                                         ------------------------------
-!
-         /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
-!
-!-----------------------------------------------------------------------
-	DYN_INT_STATE_2D_R        &
-!
-       =RESHAPE((/                                                      &
-!                                         ------------------------------
-!
-                                           'FIS       ', 'H         '   &
-                                          ,'GLAT      ', 'H         '   &
-                                          ,'GLON      ', 'H         '   &
-                                          ,'PD        ', 'H         '   &
-                                          ,'VLAT      ', 'H         '   &
-                                          ,'VLON      ', 'H         '   &
-!
-!                                         ------------------------------
-!
-         /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
-!
-!-----------------------------------------------------------------------
-
-
-      if (int_state%ADIABATIC) THEN
-      DYN_INT_STATE_3D_R        &
-!
-       =RESHAPE((/                                                      &
-!                                         ------------------------------
-!
-                                           'T         ', 'H         '   &  !<-- The physics counterparts of these variables
-                                          ,'Q         ', 'H         '   &  !    are being designated for history output.
-                                          ,'U         ', 'H         '   &  !    This assumes that history output always
-                                          ,'V         ', 'H         '   &  !    immediately follows a call to the Physics.
-                                          ,'Q2        ', 'H         '   &  !
-                                          ,'CW        ', 'H         '   &  !<--
-                                          ,'W         ', 'H         '   &
-                                          ,'DWDT      ', 'H         '   &
-                                          ,'PINT      ', 'H         '   &
-                                          ,'OMGALF    ', 'H         '   &
-                                          ,'RRW       ', 'H         '   &
-!
-!                                         ------------------------------
-!
-         /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
-!
-      else
-      DYN_INT_STATE_3D_R        &
-!
-       =RESHAPE((/                                                      &
-!                                         ------------------------------
-!
-                                           'T         ', '-         '   &  !<-- The physics counterparts of these variables
-                                          ,'Q         ', '-         '   &  !    are being designated for history output.
-                                          ,'U         ', '-         '   &  !    This assumes that history output always
-                                          ,'V         ', '-         '   &  !    immediately follows a call to the Physics.
-                                          ,'Q2        ', '-         '   &  !
-                                          ,'CW        ', '-         '   &  !<--
-                                          ,'W         ', 'H         '   &
-                                          ,'DWDT      ', 'H         '   &
-                                          ,'PINT      ', 'H         '   &
-                                          ,'OMGALF    ', 'H         '   &
-                                          ,'RRW       ', 'H         '   &
-!
-!                                         ------------------------------
-!
-         /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
-        endif
-!
-
-!
 !
 !-----------------------------------------------------------------------
 !***  THE DYNAMICS INTERNAL STATE POINTER BLOCK
@@ -473,10 +405,6 @@
 !***  THAT COULD BE WRITTEN TO HISTORY OUTPUT, I.E., THOSE
 !***  LISTED AT THE TOP OF THIS MODULE.
 !-----------------------------------------------------------------------
-!
-!***  Logicals
-!
-!      L_FL(1)%NAME=>int_state%ADIABATIC
 !
 !***  INTEGER SCALARS
 !
@@ -534,14 +462,18 @@
       R_3D(10)%NAME=>int_state%OMGALF
       R_3D(11)%NAME=>int_state%RRW
 !
+!***  LOGICALS
+!
+!      L_FL(1)%NAME=>int_state%ADIABATIC
+!
 !-----------------------------------------------------------------------
 !***  ESMF VERSION OF LOGICALS NEEDED FOR THEIR INSERTION
 !***  INTO THE HISTORY OUTPUT Bundle OF THE WRITE COMPONENT'S
 !***  IMPORT STATE.
 !-----------------------------------------------------------------------
 !
-      RUN_ESMF=ESMF_False
-      GLOBAL_ESMF=ESMF_False
+      RUN_ESMF      =ESMF_False
+      GLOBAL_ESMF   =ESMF_False
       ADIABATIC_ESMF=ESMF_False
 !
       IF(int_state%RUN)RUN_ESMF=ESMF_True
@@ -671,13 +603,13 @@
 !
       CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                      &  !<-- The Write component output data Bundle
                             ,name  ='RUN'                               &  !<-- Name of the logical
-                            ,value =RUN_ESMF                             &  !<-- The logical being inserted into the import state
+                            ,value =RUN_ESMF                            &  !<-- The logical being inserted into the import state
                             ,rc    =RC)
+!
       CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                      &  !<-- The Write component output data Bundle
-                            ,name  ='ADIABATIC'                            &  !<-- Name of the logical
-                            ,value =ADIABATIC_ESMF                         &  !<-- The logical being inserted into the import state
+                            ,name  ='ADIABATIC'                         &  !<-- Name of the logical
+                            ,value =ADIABATIC_ESMF                      &  !<-- The logical being inserted into the import state
                             ,rc    =RC)
-
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
@@ -691,35 +623,6 @@
 !***  THE ROUTINE.
 !-----------------------------------------------------------------------
 !
-!-----------------------------------------------------------------------
-!***  BEGIN WITH THE LOGICALS.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!      MESSAGE_CHECK="Insert Dynamics Logicals into History Bundle"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!      DO NFIND=1,MAX_KOUNT
-!        IF(DYN_INT_STATE_LOG(2,1)=='H')THEN                        !<-- Take integer logical data specified for history output
-!          VBL_NAME=TRIM(DYN_INT_STATE_LOG(1,1))
-!
-!          CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                  &  !<-- The Write component output data Bundle
-!                                ,name  =VBL_NAME                        &  !<-- Name of the logical
-!                                ,value =L_FL(1)%NAME                &  !<-- The logical being inserted into the import state
-!                                ,rc    =RC)
-!
-!        ELSEIF(DYN_INT_STATE_LOG(2,1)=='*')THEN                    !<-- End of the logical list
-!          EXIT
-!        ENDIF
-!
-!      ENDDO
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-
 !-----------------------------------------------------------------------
 !***  BEGIN WITH THE INTEGER SCALARS.
 !-----------------------------------------------------------------------
@@ -837,6 +740,34 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
+!***  THE LOGICALS.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!      MESSAGE_CHECK="Insert Dynamics Logicals into History Bundle"
+!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!      DO NFIND=1,MAX_KOUNT
+!        IF(DYN_INT_STATE_LOG(2,1)=='H')THEN                        !<-- Take integer logical data specified for history output
+!          VBL_NAME=TRIM(DYN_INT_STATE_LOG(1,1))
+!
+!          CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                  &  !<-- The Write component output data Bundle
+!                                ,name  =VBL_NAME                        &  !<-- Name of the logical
+!                                ,value =L_FL(1)%NAME                &  !<-- The logical being inserted into the import state
+!                                ,rc    =RC)
+!
+!        ELSEIF(DYN_INT_STATE_LOG(2,1)=='*')THEN                    !<-- End of the logical list
+!          EXIT
+!        ENDIF
+!
+!      ENDDO
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
 !***  DEREFERENCE THE LOCAL MEMORY LIMTS.  THESE DETERMINE THE TOTAL
 !***  NUMBER OF WORDS LOADED PER SUBDOMAIN.
 !-----------------------------------------------------------------------
@@ -905,6 +836,12 @@
 !***  WE ARE WORKING WITH 3D ARRAYS BUT THEY ARE LOADED LAYER BY LAYER
 !***  INTO 2D Fields.
 !-----------------------------------------------------------------------
+!
+      IF(.NOT.int_state%ADIABATIC)THEN
+        DYN_INT_STATE_3D_R=>DYN_INT_STATE_3D_R_DIAB(1:2,1:MAX_KOUNT)       !<-- Select diabatic output
+      ELSE
+        DYN_INT_STATE_3D_R=>DYN_INT_STATE_3D_R_ADIAB(1:2,1:MAX_KOUNT)      !<-- Select adiabatic output
+      ENDIF
 !
       NULLIFY(TEMP_R2D)
 !

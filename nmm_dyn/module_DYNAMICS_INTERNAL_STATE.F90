@@ -57,14 +57,14 @@
                           ,TSTART                                       &
                           ,WBD,WCOR
 !
-        LOGICAL(KIND=KLOG) :: ADVECT_TRACERS                            &
+        LOGICAL(KIND=KLOG) :: ADIABATIC                                 &
+                             ,ADVECT_TRACERS                            &
                              ,HYDRO                                     &
                              ,GLOBAL                                    &
                              ,RESTART                                   &
                              ,SECADV,SECDIF                             &
                              ,READ_GLOBAL_SUMS                          &
-                             ,WRITE_GLOBAL_SUMS                         &
-			     ,ADIABATIC
+                             ,WRITE_GLOBAL_SUMS
 !
         TYPE(ESMF_Logical) :: GLOBAL_E
 !

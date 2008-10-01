@@ -19,6 +19,7 @@
 !                                forecast date.
 !       16 Sep 2008:  J. Wang  - WRITE_NEMSIO_RUNHISTORY_OPEN only
 !                                opens file and writes metadata.
+!       30 Sep 2008:  E. Colon - Generalize counts for nemsio
 !
 !-----------------------------------------------------------------------
 !
@@ -224,34 +225,33 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeGet(bundle    =HISTORY_BUNDLE          &  !<-- The Bundle of history data
-                              ,name      ='IM'                    &  !<-- Name of the Attribute to extract
-                              ,count     =1                       &  !<-- Length of Attribute
-                              ,valueList =wrt_int_state%IM        &  !<-- Extract this Attribute from History Bundle
+        CALL ESMF_AttributeGet(bundle    =HISTORY_BUNDLE                &  !<-- The Bundle of history data
+                              ,name      ='IM'                          &  !<-- Name of the Attribute to extract
+                              ,count     =1                             &  !<-- Length of Attribute
+                              ,valueList =wrt_int_state%IM              &  !<-- Extract this Attribute from History Bundle
                               ,rc        =RC)
 !
-        CALL ESMF_AttributeGet(bundle    =HISTORY_BUNDLE          &  !<-- The Bundle of history data
-                              ,name      ='JM'                    &  !<-- Name of the Attribute to extract
-                              ,count     =1                       &  !<-- Length of Attribute
-                              ,valueList =wrt_int_state%JM        &  !<-- Extract this Attribute from History Bundle
+        CALL ESMF_AttributeGet(bundle    =HISTORY_BUNDLE                &  !<-- The Bundle of history data
+                              ,name      ='JM'                          &  !<-- Name of the Attribute to extract
+                              ,count     =1                             &  !<-- Length of Attribute
+                              ,valueList =wrt_int_state%JM              &  !<-- Extract this Attribute from History Bundle
                               ,rc        =RC)
 !
-        CALL ESMF_AttributeGet(bundle    =HISTORY_BUNDLE          &  !<-- The Bundle of history data
-                              ,name      ='LM'                    &  !<-- Name of the Attribute to extract
-                              ,count     =1                       &  !<-- Length of Attribute
-                              ,valueList =wrt_int_state%LM        &  !<-- Extract this Attribute from History Bundle
+        CALL ESMF_AttributeGet(bundle    =HISTORY_BUNDLE                &  !<-- The Bundle of history data
+                              ,name      ='LM'                          &  !<-- Name of the Attribute to extract
+                              ,count     =1                             &  !<-- Length of Attribute
+                              ,valueList =wrt_int_state%LM              &  !<-- Extract this Attribute from History Bundle
                               ,rc        =RC)
 !
-        CALL ESMF_AttributeGet(bundle =HISTORY_BUNDLE             &  !<-- The Bundle of history data
-                              ,name   ='GLOBAL'                   &  !<-- Name of the Attribute to extract
-                              ,value  =wrt_int_state%GLOBAL       &  !<-- Extract this Attribute from History Bundle
+        CALL ESMF_AttributeGet(bundle =HISTORY_BUNDLE                   &  !<-- The Bundle of history data
+                              ,name   ='GLOBAL'                         &  !<-- Name of the Attribute to extract
+                              ,value  =wrt_int_state%GLOBAL             &  !<-- Extract this Attribute from History Bundle
                               ,rc     =RC)
-
-!        CALL ESMF_AttributeGet(bundle =HISTORY_BUNDLE             &  !<-- The Bundle of history data
-!                              ,name   ='ADIABATIC'                   &  !<-- Name of the Attribute to extract
-!                              ,value  =wrt_int_state%ADIABATIC    &  !<-- Extract this Attribute from History Bundle
+!
+!        CALL ESMF_AttributeGet(bundle =HISTORY_BUNDLE                  &  !<-- The Bundle of history data
+!                              ,name   ='ADIABATIC'                     &  !<-- Name of the Attribute to extract
+!                              ,value  =wrt_int_state%ADIABATIC         &  !<-- Extract this Attribute from History Bundle
 !                              ,rc     =RC)
-
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
@@ -2101,11 +2101,12 @@
 !***  LOCAL VARIABLES
 !-----------------------------------------------------------------------
 !
+      INTEGER :: IM,JM,LM
       INTEGER :: I,J,N,N1,N2,NPOSN_1,NPOSN_2,LENGTH,MAXLENGTH
 !
-      INTEGER :: FIELDSIZE,IM,JM,LM,IDATE(7),FCSTDATE(7)                &
-                ,INDX_2D,IRET,IND1,IND2,IND3,IND4,CNT                   &
- 		,INI1,INI2                                              &
+      INTEGER :: CNT,FIELDSIZE,FCSTDATE(7),IDATE(7)                     &
+                ,IND1,IND2,IND3,IND4,INI1,INI2                          &
+                ,INDX_2D,IRET                                           &
                 ,N2ISCALAR,N2IARY,N2RSCALAR,N2RARY,N2LSCALAR            &
                 ,NDYH,NDXH,NFRAME,NPT,NPDTOP,NREC                       &
                 ,NSG1,NSG2,NSGML1,NSGML2,NSOIL,TLMETA,VLEV
@@ -2484,13 +2485,13 @@
           IF (RECNAME(NREC)=='T') RECNAME(NREC)='tmp'
           IF (RECNAME(NREC)=='Q') RECNAME(NREC)='spfh'
           IF (RECNAME(NREC)=='PINT') THEN
-          RECNAME(NREC)='pres'
-          IND1=IND1+1
+            RECNAME(NREC)='pres'
+            IND1=IND1+1
           ELSE IF (RECNAME(NREC)=='SMC'.OR.RECNAME(NREC)=='SH2O'.or.RECNAME(NREC)=='STC') THEN 
-             RECLEVTYP(NREC)='soil layer' 
-          IND2=IND2+1
+            RECLEVTYP(NREC)='soil layer' 
+            IND2=IND2+1
           ELSE
-          IND3=IND3+1
+            IND3=IND3+1
           ENDIF
         ELSE
           RECLEV(NREC)=1
@@ -2573,9 +2574,9 @@
       DXCTL=MAXVAL(DX)*180./(A*PI)
       DYCTL=MAXVAL(DY)*180./(A*PI)
       IF (VARLVAL(3)) THEN
-      CNT=(IND1/(LM+1))+(IND3/LM)+IND4
+        CNT=(IND1/(LM+1))+(IND3/LM)+IND4
       ELSE
-      CNT=(INI1/LM)+INI2+(IND1/(LM+1))+(IND2/NSOIL)+(IND3/LM)+IND4
+        CNT=(INI1/LM)+INI2+(IND1/(LM+1))+(IND2/NSOIL)+(IND3/LM)+IND4
       ENDIF
 
 !
