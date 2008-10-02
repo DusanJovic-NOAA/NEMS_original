@@ -730,7 +730,7 @@ real(kind=kfpt),dimension(jds:jde):: &
 !---global branch-------------------------------------------------------
 !-----------------------------------------------------------------------
         tph=sb-dph
-        fpole=1.0                                                                      
+        fpole=4.0                                                                      
 !-----------------------------------------------------------------------
 !----south pole---------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -844,7 +844,7 @@ real(kind=kfpt),dimension(jds:jde):: &
         rare(jde)=rare(jde-2)
         wpdar(jde)=wpdar(jde-2)
         curv(jde-1)=curv(jde-2)
-        curv(jde-1)=curv(jde-2)
+        curv(jde)=curv(jde-2)
         fad(jde-1)=fad(jde-2)
         fad(jde)=fad(jde-2)
         fah(jde)=fah(jde-2)
