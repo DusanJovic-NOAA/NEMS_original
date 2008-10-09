@@ -2581,10 +2581,14 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
       vertical_loop_1: do l=1,lm
 !
 !-----------------------------------------------------------------------
-        if(l.gt.lpt2/3) then
-          defc=0.
+        if(global)then
+          if(l.gt.lpt2/3) then
+            defc=0.
+          else
+            defc=defm*0.01
+          endif
         else
-          defc=defm*0.01
+          defc=0.
         endif
 !-----------------------------------------------------------------------
 !        do j=jts_h1,jte_h2

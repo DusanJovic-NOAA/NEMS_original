@@ -100,7 +100,7 @@ nested:     false
 secadv:  true               # True--> 2nd order advection ; False--> 4th order advection
                                                   
 secdif:  true               # True--> 2nd order diffusion ; False--> 4th order diffusion
-smag2:   0.2                # Smagorinsky constant for 2nd order diffusion
+smag2:   0.4                # Smagorinsky constant for 2nd order diffusion
 smag4:   1.3                # Smagorinsky constant for 4th order diffusion
                                         
 codamp:  9.0                # Divergence damping constant
