@@ -969,7 +969,7 @@ integer :: mpi_intra
 !***  local variables
 !***
 !
-      integer(kind=kfpt) :: i,iend,ipe,irecv,irtn,isend,istart,j,jend &
+      integer(kind=kint) :: i,iend,ipe,irecv,irtn,isend,istart,j,jend &
                            ,jstart,knt,l,mype,numvals
       integer,dimension(4) :: limits
       integer,dimension(mpi_status_size) :: jstat
@@ -1121,7 +1121,7 @@ integer :: mpi_intra
 !***  local variables
 !***
 !
-      integer(kind=kfpt) :: i,iend,ipe,irecv,irtn,isend,istart,j,jend &
+      integer(kind=kint) :: i,iend,ipe,irecv,irtn,isend,istart,j,jend &
                            ,jstart,knt,l,mype,numvals
       integer,dimension(4) :: limits
       integer,dimension(mpi_status_size) :: jstat
@@ -1265,7 +1265,7 @@ integer :: mpi_intra
 !***  local variables
 !***
 !
-      integer(kind=kfpt) :: i,iend,ipe,irecv,irtn,isend,istart,j,jend &
+      integer(kind=kint) :: i,iend,ipe,irecv,irtn,isend,istart,j,jend &
                            ,jstart,knt,l,mype,numvals
       integer,dimension(4) :: limits
       integer,dimension(mpi_status_size) :: jstat

@@ -6483,7 +6483,7 @@ integer(kind=kint) :: &
 !-----------------------------------------------------------------------
 !***  GLOBAL REDUCTION
 !-----------------------------------------------------------------------
-      lngth=2*lm
+      lngth=lm
       call mpi_allreduce(xsumr,gsumr,lngth &
                         ,mpi_double_precision &
                         ,mpi_sum,mpi_comm_comp,irecv)
