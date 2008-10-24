@@ -20,7 +20,7 @@ lm:  60                     # Number of atmospheric layers
 tph0d:  38.                 # Central geographic latitude of grid (degrees)
 tlm0d: -97.5                # Central geographic longitude of grid (degrees, positive east)
 
-wbd:  -26.25                 # Grid's western boundary (rotated degrees)
+wbd:  -26.25                # Grid's western boundary (rotated degrees)
 sbd:  -15.0                 # Grid's southern boundary (rotated degrees)
 
 
@@ -29,7 +29,7 @@ sbd:  -15.0                 # Grid's southern boundary (rotated degrees)
 ##############################
 
 inpes:  05                  # Number of compute tasks in the I direction
-jnpes:  03                  # Number of compute tasks in the J direction
+jnpes:  09                  # Number of compute tasks in the J direction
 
 
 ###############################
@@ -40,7 +40,7 @@ quilting:              true    # Do you want asynchronous quilting/history write
 read_groups:           0
 read_tasks_per_group:  0
 write_groups:          1
-write_tasks_per_group: 1
+write_tasks_per_group: 3
 
 
 ##########################################
@@ -73,8 +73,9 @@ tstart:       0.            # The starting forecast hour
 nhours_fcst:    48          # Length of the forecast (hours)
 nhours_history: 03          # Frequency of history output (hours)
 nhours_dfini:   0
-restart:        false       # True--> A restarted run
 
+restart:        false       # True--> A restarted run
+nhours_restart: 12          # Frequency of restart output (hours)
 
 #########################
 ##### General modes #####
@@ -194,9 +195,9 @@ gfs:  false                 # Select entire GFS physics suite
 nrads:    72               # Number of dynamics timesteps between calls to shortwave
 nradl:    72               # Number of dynamics timesteps  between calls to longwave
 
-nphs:       4               # Number of dynamics timesteps between calls to landsurface and turbulence
+nphs:      4                # Number of dynamics timesteps between calls to landsurface and turbulence
 
-nprecip:    4               # Number of dynamics timesteps between calls to convection and microphysics
+nprecip:   4                # Number of dynamics timesteps between calls to convection and microphysics
 
 ####
 #### NOTE:  User must set nhrs_udef to .TRUE. and set the emptying frequencies (nhrs_*) to the desired values
@@ -213,21 +214,27 @@ nhrs_rdsw:  3               # Frequency in hours between times when SW radiation
 nhrs_srfc:  3               # Frequency in hours between times when sfc evap/flux arrays are emptied
 
 
-#######################################
-####  Write History Specifications ####
-#######################################
+#################################################
+####  Write History & Restart Specifications ####
+#################################################
  
-write_flag:              .TRUE.       # True--> Yes write history files
-write_nemsioflag:        .FALSE.       # True--> Yes write nemsio run history files
-write_nemsioctl:         .FALSE.       # True--> Yes write ctl for nemsio run history files
-io_unit:                 -999
-io_file:                 'DEFERRED'
+write_hst_flag:          .TRUE.       # True--> Yes write history files
+write_rst_flag:          .TRUE.       # True--> Yes write restart files
+
+write_nemsioflag:        .TRUE.       # True--> Yes write nemsio run history files
+write_nemsioctl:         .TRUE.       # True--> Yes write ctl for nemsio run history files
+
+io_hst_unit:             -999
+io_rst_unit:             -999
+io_hst_file:             'DEFERRED'
+io_rst_file:             'DEFERRED'
  
 #-------------------------------------------------
 # If IO_FILE == 'DEFERRED', use FILENAME_BASE
 # as the first part of the history file names.
 #-------------------------------------------------
-filename_base:           'nmm_b_history.'
+hst_name_base:           'nmm_b_history.'
+rst_name_base:           'nmm_b_restart.'
 io_status:               'REPLACE'
 io_access:               'SEQUENTIAL'
 io_form:                 'UNFORMATTED'
@@ -241,4 +248,4 @@ io_pad:                  ' '
 ####  timing info                  ####
 #######################################
 nhours_clocktime:   1        # Frequency in hours between clocktime diagnostic prints.
-npe_print:          7        # The MPI task that will provide the clocktimes.
+npe_print:         22        # The MPI task that will provide the clocktimes.

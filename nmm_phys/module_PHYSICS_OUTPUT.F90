@@ -53,27 +53,27 @@
 !-------------------------
 !-------------------------
 !
-      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: PHY_INT_STATE_ISCALAR     &
+      CHARACTER(10),DIMENSION(3,MAX_KOUNT) :: PHY_INT_STATE_ISCALAR     &
 !
        =RESHAPE((/                                                      &
-!                                         ------------------------------
+!                              -----------------------------------------
 !
-                                           'IM        ', '-         '   &
-                                          ,'JM        ', '-         '   &
-                                          ,'LM        ', '-         '   &
-                                          ,'NPHS      ', 'H         '   &
-                                          ,'NCLOD     ', 'H         '   &
-                                          ,'NHEAT     ', 'H         '   &
-                                          ,'NPREC     ', 'H         '   &
-                                          ,'NRDLW     ', 'H         '   &
-                                          ,'NRDSW     ', 'H         '   &
-                                          ,'NSRFC     ', 'H         '   &
+                               'IM        ', '-         ', '-         ' &
+                              ,'JM        ', '-         ', '-         ' &
+                              ,'LM        ', '-         ', '-         ' &
+                              ,'NPHS      ', 'H         ', '-         ' &
+                              ,'NCLOD     ', 'H         ', '-         ' &
+                              ,'NHEAT     ', 'H         ', '-         ' &
+                              ,'NPREC     ', 'H         ', '-         ' &
+                              ,'NRDLW     ', 'H         ', '-         ' &
+                              ,'NRDSW     ', 'H         ', '-         ' &
+                              ,'NSRFC     ', 'H         ', '-         ' &
 !
-!                                         ------------------------------
+!                              -----------------------------------------
 !
          /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
+        ,(/3,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********', '**********'/))
 !
 !-----------------------------------------------------------------------
 !
@@ -85,24 +85,24 @@
 !----------------------
 !----------------------
 !
-      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: PHY_INT_STATE_RSCALAR     &  
+      CHARACTER(10),DIMENSION(3,MAX_KOUNT) :: PHY_INT_STATE_RSCALAR     &  
 !
        =RESHAPE((/                                                      &
-!                                          -----------------------------
+!                              -----------------------------------------
 !
-                                           'APHTIM    ', 'H         '   &
-                                          ,'ARDLW     ', 'H         '   &
-                                          ,'ARDSW     ', 'H         '   &
-                                          ,'ASRFC     ', 'H         '   &
-                                          ,'AVCNVC    ', 'H         '   &
-                                          ,'AVRAIN    ', 'H         '   &
-                                          ,'PDTOP     ', '-         '   &
+                               'APHTIM    ', 'H         ', '-         ' &
+                              ,'ARDLW     ', 'H         ', '-         ' &
+                              ,'ARDSW     ', 'H         ', '-         ' &
+                              ,'ASRFC     ', 'H         ', '-         ' &
+                              ,'AVCNVC    ', 'H         ', '-         ' &
+                              ,'AVRAIN    ', 'H         ', '-         ' &
+                              ,'PDTOP     ', '-         ', '-         ' &
 !
-!                                          -----------------------------
+!                              -----------------------------------------
 !
          /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
+        ,(/3,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********', '**********'/))
 !
 !-----------------------------------------------------------------------
 !
@@ -114,18 +114,18 @@
 !----------------------------
 !----------------------------
 !
-      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: PHY_INT_STATE_1D_I        & 
+      CHARACTER(10),DIMENSION(3,MAX_KOUNT) :: PHY_INT_STATE_1D_I        & 
 !
        =RESHAPE((/                                                      &
-!                                          -----------------------------
+!                              -----------------------------------------
 !
-                                           '-         ', '-         '   &
+                               '-         ', '-         ', '-         ' &
 !
-!                                          -----------------------------
+!                              -----------------------------------------
 !
          /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
+        ,(/3,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********', '**********'/))
 !
 !-----------------------------------------------------------------------
 !
@@ -137,21 +137,21 @@
 !----------------------------
 !----------------------------
 !
-      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: PHY_INT_STATE_2D_I        & 
+      CHARACTER(10),DIMENSION(3,MAX_KOUNT) :: PHY_INT_STATE_2D_I        & 
 !
        =RESHAPE((/                                                      &
-!                                          -----------------------------
+!                              -----------------------------------------
 !
-                                           'ISLTYP    ', 'H         '   &
-                                          ,'IVGTYP    ', 'H         '   &
-                                          ,'NCFRCV    ', 'H         '   &
-                                          ,'NCFRST    ', 'H         '   &
+                               'ISLTYP    ', 'H         ', 'R         ' &
+                              ,'IVGTYP    ', 'H         ', 'R         ' &
+                              ,'NCFRCV    ', 'H         ', '-         ' &
+                              ,'NCFRST    ', 'H         ', '-         ' &
 !
-!                                          -----------------------------
+!                              -----------------------------------------
 !
          /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
+        ,(/3,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********', '**********'/))
 !
 !-----------------------------------------------------------------------
 !
@@ -163,20 +163,23 @@
 !-------------------------
 !-------------------------
 !
-      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: PHY_INT_STATE_1D_R        & 
+      CHARACTER(10),DIMENSION(3,MAX_KOUNT) :: PHY_INT_STATE_1D_R        & 
 !
        =RESHAPE((/                                                      &
-!                                         ------------------------------
+!                              -----------------------------------------
 !
-                                           'DSG2      ', '-         '   &
-                                          ,'SGML2     ', '-         '   &
-                                          ,'SLDPTH    ', 'H         '   &
+                               'DSG2      ', '-         ', '-         ' &
+                              ,'SGML2     ', '-         ', '-         ' &
+                              ,'SLDPTH    ', 'H         ', 'R         ' &
+                              ,'MP_RESTART', '-         ', 'R         ' &
+                              ,'TBPVS_STAT', '-         ', 'R         ' &
+                              ,'TBPVS0_STA', '-         ', 'R         ' &
 !
-!                                         ------------------------------
+!                              -----------------------------------------
 !
          /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
+        ,(/3,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********', '**********'/))
 !
 !-----------------------------------------------------------------------
 !
@@ -188,99 +191,102 @@
 !-------------------------
 !-------------------------
 !
-      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: PHY_INT_STATE_2D_R        & 
+      CHARACTER(10),DIMENSION(3,MAX_KOUNT) :: PHY_INT_STATE_2D_R        & 
 !
        =RESHAPE((/                                                      &
-!                                         ------------------------------
+!                              -----------------------------------------
 !
-                                           'ACFRCV    ', 'H         '   &
-                                          ,'ACFRST    ', 'H         '   &
-                                          ,'ACPREC    ', 'H         '   &
-                                          ,'ACSNOM    ', 'H         '   &
-                                          ,'ACSNOW    ', 'H         '   &
-                                          ,'AKHS_OUT  ', 'H         '   &
-                                          ,'AKMS_OUT  ', 'H         '   &
-                                          ,'ALBASE    ', 'H         '   &
-                                          ,'ALBEDO    ', 'H         '   &
-                                          ,'ALWIN     ', 'H         '   &
-                                          ,'ALWOUT    ', 'H         '   &
-                                          ,'ALWTOA    ', 'H         '   &
-                                          ,'ASWIN     ', 'H         '   &
-                                          ,'ASWOUT    ', 'H         '   &
-                                          ,'ASWTOA    ', 'H         '   &
-                                          ,'BGROFF    ', 'H         '   &
-                                          ,'CFRACH    ', 'H         '   &
-                                          ,'CFRACL    ', 'H         '   &
-                                          ,'CFRACM    ', 'H         '   &
-                                          ,'CLDEFI    ', 'H         '   &
-                                          ,'CMC       ', 'H         '   &
-                                          ,'CNVBOT    ', 'H         '   &
-                                          ,'CNVTOP    ', 'H         '   &
-                                          ,'CPRATE    ', 'H         '   &
-                                          ,'CUPPT     ', 'H         '   &
-                                          ,'CUPREC    ', 'H         '   &
-                                          ,'CZEN      ', 'H         '   &
-                                          ,'CZMEAN    ', 'H         '   &
-                                          ,'EPSR      ', 'H         '   &
-                                          ,'FIS       ', '-         '   &  !<-- Already turned on in Dynamics output
-                                          ,'GRNFLX    ', 'H         '   &
-                                          ,'HBOTD     ', 'H         '   &
-                                          ,'HBOTS     ', 'H         '   &
-                                          ,'HTOPD     ', 'H         '   &
-                                          ,'HTOPS     ', 'H         '   &
-                                          ,'MXSNAL    ', 'H         '   &
-                                          ,'PBLH      ', 'H         '   &
-                                          ,'PD        ', '-         '   &  !<-- Already turned on in Dynamics output
-                                          ,'POTEVP    ', 'H         '   & 
-                                          ,'PREC      ', 'H         '   & 
-                                          ,'PSHLTR    ', 'H         '   & 
-                                          ,'Q10       ', 'H         '   &
-                                          ,'QSH       ', 'H         '   &
-                                          ,'QSHLTR    ', 'H         '   &
-                                          ,'QWBS      ', 'H         '   &
-                                          ,'QZ0       ', 'H         '   &
-                                          ,'RADOT     ', 'H         '   &
-                                          ,'RLWIN     ', 'H         '   &
-                                          ,'RLWTOA    ', 'H         '   &
-                                          ,'RSWIN     ', 'H         '   &
-                                          ,'RSWINC    ', 'H         '   &
-                                          ,'RSWOUT    ', 'H         '   &
-                                          ,'SFCEVP    ', 'H         '   &
-                                          ,'SFCEXC    ', 'H         '   &
-                                          ,'SFCLHX    ', 'H         '   &
-                                          ,'SFCSHX    ', 'H         '   &
-                                          ,'SI        ', 'H         '   &
-                                          ,'SICE      ', 'H         '   &
-                                          ,'SIGT4     ', 'H         '   &
-                                          ,'SM        ', 'H         '   &
-                                          ,'SMSTAV    ', 'H         '   &
-                                          ,'SMSTOT    ', 'H         '   &
-                                          ,'SNO       ', 'H         '   &
-                                          ,'SNOPCX    ', 'H         '   &
-                                          ,'SOILTB    ', 'H         '   &
-                                          ,'SR        ', 'H         '   &
-                                          ,'SSROFF    ', 'H         '   &
-                                          ,'SST       ', 'H         '   &
-                                          ,'SUBSHX    ', 'H         '   &
-                                          ,'TG        ', 'H         '   &
-                                          ,'TH10      ', 'H         '   &
-                                          ,'THS       ', 'H         '   &
-                                          ,'THZ0      ', 'H         '   &
-                                          ,'TSHLTR    ', 'H         '   &
-                                          ,'TWBS      ', 'H         '   &
-                                          ,'U10       ', 'H         '   &
-                                          ,'USTAR     ', 'H         '   &
-                                          ,'UZ0       ', 'H         '   &
-                                          ,'V10       ', 'H         '   &
-                                          ,'VEGFRC    ', 'H         '   &
-                                          ,'VZ0       ', 'H         '   &
-                                          ,'Z0        ', 'H         '   &
+                               'ACFRCV    ', 'H         ', 'R         ' &
+                              ,'ACFRST    ', 'H         ', 'R         ' &
+                              ,'ACPREC    ', 'H         ', 'R         ' &
+                              ,'ACSNOM    ', 'H         ', 'R         ' &
+                              ,'ACSNOW    ', 'H         ', 'R         ' &
+                              ,'AKHS_OUT  ', 'H         ', 'R         ' &
+                              ,'AKMS_OUT  ', 'H         ', 'R         ' &
+                              ,'ALBASE    ', 'H         ', 'R         ' &
+                              ,'ALBEDO    ', 'H         ', 'R         ' &
+                              ,'ALWIN     ', 'H         ', 'R         ' &
+                              ,'ALWOUT    ', 'H         ', 'R         ' &
+                              ,'ALWTOA    ', 'H         ', 'R         ' &
+                              ,'ASWIN     ', 'H         ', 'R         ' &
+                              ,'ASWOUT    ', 'H         ', 'R         ' &
+                              ,'ASWTOA    ', 'H         ', 'R         ' &
+                              ,'BGROFF    ', 'H         ', 'R         ' &
+                              ,'CFRACH    ', 'H         ', 'R         ' &
+                              ,'CFRACL    ', 'H         ', 'R         ' &
+                              ,'CFRACM    ', 'H         ', 'R         ' &
+                              ,'CLDEFI    ', 'H         ', 'R         ' &
+                              ,'CMC       ', 'H         ', 'R         ' &
+                              ,'CNVBOT    ', 'H         ', 'R         ' &
+                              ,'CNVTOP    ', 'H         ', 'R         ' &
+                              ,'CPRATE    ', 'H         ', 'R         ' &
+                              ,'CUPPT     ', 'H         ', 'R         ' &
+                              ,'CUPREC    ', 'H         ', 'R         ' &
+                              ,'CZEN      ', 'H         ', 'R         ' &
+                              ,'CZMEAN    ', 'H         ', 'R         ' &
+                              ,'EPSR      ', 'H         ', 'R         ' &
+                              ,'FIS       ', '-         ', '-         ' &  !<-- Already turned on in Dynamics output
+                              ,'GRNFLX    ', 'H         ', 'R         ' &
+                              ,'HBOTD     ', 'H         ', 'R         ' &
+                              ,'HBOTS     ', 'H         ', 'R         ' &
+                              ,'HTOPD     ', 'H         ', 'R         ' &
+                              ,'HTOPS     ', 'H         ', 'R         ' &
+                              ,'MXSNAL    ', 'H         ', 'R         ' &
+                              ,'PBLH      ', 'H         ', 'R         ' &
+                              ,'PD        ', '-         ', '-         ' &  !<-- Already turned on in Dynamics output
+                              ,'POTEVP    ', 'H         ', 'R         ' &
+                              ,'PREC      ', 'H         ', 'R         ' &
+                              ,'PSHLTR    ', 'H         ', 'R         ' &
+                              ,'Q10       ', 'H         ', 'R         ' &
+                              ,'QSH       ', 'H         ', 'R         ' &
+                              ,'QSHLTR    ', 'H         ', 'R         ' &
+                              ,'QWBS      ', 'H         ', 'R         ' &
+                              ,'QZ0       ', 'H         ', 'R         ' &
+                              ,'RADOT     ', 'H         ', 'R         ' &
+                              ,'RLWIN     ', 'H         ', 'R         ' &
+                              ,'RLWTOA    ', 'H         ', 'R         ' &
+                              ,'RSWIN     ', 'H         ', 'R         ' &
+                              ,'RSWINC    ', 'H         ', 'R         ' &
+                              ,'RSWOUT    ', 'H         ', 'R         ' &
+                              ,'SFCEVP    ', 'H         ', 'R         ' &
+                              ,'SFCEXC    ', 'H         ', 'R         ' &
+                              ,'SFCLHX    ', 'H         ', 'R         ' &
+                              ,'SFCSHX    ', 'H         ', 'R         ' &
+                              ,'SI        ', 'H         ', 'R         ' &
+                              ,'SICE      ', 'H         ', 'R         ' &
+                              ,'SIGT4     ', 'H         ', 'R         ' &
+                              ,'SM        ', 'H         ', 'R         ' &
+                              ,'SMSTAV    ', 'H         ', 'R         ' &
+                              ,'SMSTOT    ', 'H         ', 'R         ' &
+                              ,'SNO       ', 'H         ', 'R         ' &
+                              ,'SNOPCX    ', 'H         ', 'R         ' &
+                              ,'SOILTB    ', 'H         ', 'R         ' &
+                              ,'SR        ', 'H         ', 'R         ' &
+                              ,'SSROFF    ', 'H         ', 'R         ' &
+                              ,'SST       ', 'H         ', 'R         ' &
+                              ,'SUBSHX    ', 'H         ', 'R         ' &
+                              ,'TG        ', 'H         ', 'R         ' &
+                              ,'TH10      ', 'H         ', 'R         ' &
+                              ,'THS       ', 'H         ', 'R         ' &
+                              ,'THZ0      ', 'H         ', 'R         ' &
+                              ,'TSHLTR    ', 'H         ', 'R         ' &
+                              ,'TWBS      ', 'H         ', 'R         ' &
+                              ,'U10       ', 'H         ', 'R         ' &
+                              ,'USTAR     ', 'H         ', 'R         ' &
+                              ,'UZ0       ', 'H         ', 'R         ' &
+                              ,'V10       ', 'H         ', 'R         ' &
+                              ,'VEGFRC    ', 'H         ', 'R         ' &
+                              ,'VZ0       ', 'H         ', 'R         ' &
+                              ,'Z0        ', 'H         ', 'R         ' &
+                              ,'TSKIN     ', '-         ', 'R         ' &
+                              ,'AKHS      ', '-         ', 'R         ' &
+                              ,'AKMS      ', '-         ', 'R         ' &
 !
-!                                         ------------------------------
+!                              -----------------------------------------
 !
          /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
+        ,(/3,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********', '**********'/))
 !
 !-----------------------------------------------------------------------
 !
@@ -292,39 +298,62 @@
 !-------------------------
 !-------------------------
 !
-      CHARACTER(12),DIMENSION(2,MAX_KOUNT) :: PHY_INT_STATE_3D_R          & 
+      CHARACTER(12),DIMENSION(3,MAX_KOUNT) :: PHY_INT_STATE_3D_R          & 
 !
        =RESHAPE((/                                                        &
-!                                         ------------------------------
+!                          ---------------------------------------------
 !                                                                            !<-- Append "_ikj" to any 3D variables with IKJ storage order
-                                           'CLDFRA      ', 'H           ' &
-                                          ,'CW          ', 'H           ' &
-                                          ,'EXCH_H      ', 'H           ' &
-                                          ,'Q           ', 'H           ' &
-                                          ,'Q2          ', 'H           ' &
-                                          ,'RLWTT       ', 'H           ' &
-                                          ,'RSWTT       ', 'H           ' &
-                                          ,'T           ', 'H           ' &
-                                          ,'TCUCN       ', 'H           ' &
-                                          ,'TRAIN       ', 'H           ' &
-                                          ,'U           ', 'H           ' &
-                                          ,'V           ', 'H           ' &
-                                          ,'XLEN_MIX    ', 'H           ' &
+                           'CLDFRA      ', 'H           ', 'R           ' &
+                          ,'CW          ', 'H           ', 'R           ' &
+                          ,'EXCH_H      ', 'H           ', '-           ' &
+                          ,'Q           ', 'H           ', 'R           ' &
+                          ,'Q2          ', 'H           ', 'R           ' &
+                          ,'RLWTT       ', 'H           ', 'R           ' &
+                          ,'RSWTT       ', 'H           ', 'R           ' &
+                          ,'T           ', 'H           ', 'R           ' &
+                          ,'TCUCN       ', 'H           ', 'R           ' &
+                          ,'TRAIN       ', 'H           ', 'R           ' &
+                          ,'U           ', 'H           ', 'R           ' &
+                          ,'V           ', 'H           ', 'R           ' &
+                          ,'XLEN_MIX    ', 'H           ', 'R           ' &
 !
-                                          ,'F_ICE       ', 'H           ' & 
-                                          ,'F_RIMEF     ', 'H           ' & 
-                                          ,'F_RAIN      ', 'H           ' & 
-                                          ,'SH2O        ', 'H           ' & 
-                                          ,'SMC         ', 'H           ' & 
-                                          ,'STC         ', 'H           ' & 
+                          ,'F_ICE       ', 'H           ', 'R           ' &
+                          ,'F_RIMEF     ', 'H           ', 'R           ' &
+                          ,'F_RAIN      ', 'H           ', 'R           ' &
+                          ,'SH2O        ', 'H           ', 'R           ' &
+                          ,'SMC         ', 'H           ', 'R           ' &
+                          ,'STC         ', 'H           ', 'R           ' &
 !
-!                                         ------------------------------
+!                          ---------------------------------------------
 !
          /)                                                               &
-        ,(/2,MAX_KOUNT/)                                                  &
-        ,(/'**********', '**********'/))
+        ,(/3,MAX_KOUNT/)                                                  &
+        ,(/'**********', '**********', '**********'/))
 !
 !-----------------------------------------------------------------------
+!
+!
+!
+!-------------------------
+!-------------------------
+!***  REAL 4-D ARRAYS  ***
+!-------------------------
+!-------------------------
+!
+      CHARACTER(12),DIMENSION(3,MAX_KOUNT) :: PHY_INT_STATE_4D_R          &
+!
+       =RESHAPE((/                                                        &
+!                          ---------------------------------------------
+                           'TRACERS     ', '-           ', 'R           ' &
+!
+!                          ---------------------------------------------
+!
+         /)                                                               &
+        ,(/3,MAX_KOUNT/)                                                  &
+        ,(/'**********', '**********', '**********'/))
+!
+!-----------------------------------------------------------------------
+!
 !
 !-----------------------------------------------------------------------
 !
@@ -364,17 +393,18 @@
                                      ,RC,RC_PHY_OUT                     &
                                      ,SF_SURFACE_PHYSICS
 !
-      INTEGER                     :: LDIM1,LDIM2                        &
-                                    ,UDIM1,UDIM2
+      INTEGER                     :: LDIM1,LDIM2,LDIM3,LDIM4            &
+                                    ,UDIM1,UDIM2,UDIM3,UDIM4
 !
       INTEGER(ESMF_KIND_I4),DIMENSION(:,:),POINTER :: TEMP_I2D
       REAL(ESMF_KIND_R4)   ,DIMENSION(:,:),POINTER :: TEMP_R2D
 !
-      CHARACTER(2)           :: MODEL_LEVEL
+      CHARACTER(2)           :: MODEL_LEVEL,TRACERS_KIND
       CHARACTER(6)           :: FMT='(I2.2)'
       CHARACTER(ESMF_MAXSTR) :: VBL_NAME,VBL_NAME_X
 !
       TYPE(ESMF_FieldBundle),SAVE :: HISTORY_BUNDLE
+      TYPE(ESMF_FieldBundle),SAVE :: RESTART_BUNDLE
 !
       TYPE(ESMF_Field)       :: FIELD
 !
@@ -412,6 +442,10 @@
         REAL(ESMF_KIND_R4),DIMENSION(:,:,:),POINTER :: NAME               !<-- Pointer for 3D real arrays
       END TYPE PHY_R3D
 !-----------------------------------------------------------------------
+      TYPE PHY_R4D
+        REAL(ESMF_KIND_R4),DIMENSION(:,:,:,:),POINTER :: NAME             !<-- Pointer for 4D real arrays
+      END TYPE PHY_R4D
+!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !***  ARRAYS OF POINTERS OF THE ABOVE TYPES
@@ -424,6 +458,7 @@
       TYPE(PHY_R1D),DIMENSION(MAX_KOUNT) :: R_1D
       TYPE(PHY_R2D),DIMENSION(MAX_KOUNT) :: R_2D
       TYPE(PHY_R3D),DIMENSION(MAX_KOUNT) :: R_3D
+      TYPE(PHY_R4D),DIMENSION(MAX_KOUNT) :: R_4D
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -476,6 +511,9 @@
       R_1D(1)%NAME=>int_state%DSG2
       R_1D(2)%NAME=>int_state%SGML2
       R_1D(3)%NAME=>int_state%SLDPTH
+      R_1D(4)%NAME=>int_state%MP_RESTART_STATE
+      R_1D(5)%NAME=>int_state%TBPVS_STATE
+      R_1D(6)%NAME=>int_state%TBPVS0_STATE
 !        
 !-----------------------
 !***  2D INTEGER ARRAYS
@@ -572,6 +610,9 @@
       R_2D(80)%NAME=>int_state%VEGFRC
       R_2D(81)%NAME=>int_state%VZ0
       R_2D(82)%NAME=>int_state%Z0
+      R_2D(83)%NAME=>int_state%TSKIN
+      R_2D(84)%NAME=>int_state%AKHS
+      R_2D(85)%NAME=>int_state%AKMS
 !        
 !--------------------
 !***  3D REAL ARRAYS
@@ -597,6 +638,12 @@
       R_3D(17)%NAME=>int_state%SH2O
       R_3D(18)%NAME=>int_state%SMC
       R_3D(19)%NAME=>int_state%STC
+!
+!--------------------
+!***  4D REAL ARRAYS
+!--------------------
+!
+      R_4D( 1)%NAME=>int_state%TRACERS
 !
 !-----------------------------------------------------------------------
 !
@@ -627,6 +674,27 @@
       CALL ESMF_StateGet(state      =IMP_STATE_WRITE                    &  !<-- Take Bundle from the Write component's import state
                         ,itemName   ='Bundle_Output_Data'               &  !<-- The Bundle's name
                         ,fieldbundle=HISTORY_BUNDLE                     &  !<-- The Bundle object
+                        ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PHY_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  EXTRACT THE RESTART OUTPUT Bundle FROM THE WRITE COMPONENT'S
+!***  IMPORT STATE.  IT ALREADY CONTAINS RESTART VARIABLES FROM
+!***  THE DYNAMICS.  WE ARE PREPARING TO ADD RESTART VARIABLES
+!***  FROM THE PHYSICS.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Restart Data Bundle from the Write Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateGet(state      =IMP_STATE_WRITE                    &  !<-- Take Bundle from the Write component's import state
+                        ,itemName   ='Bundle_Restart_Data'              &  !<-- The Bundle's name
+                        ,fieldbundle=RESTART_BUNDLE                     &  !<-- The Bundle object
                         ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -719,7 +787,19 @@
                                 ,value =I_SC(NFIND)%NAME                &  !<-- The scalar being inserted into the output data Bundle
                                 ,rc    =RC)
 !
-        ELSEIF(PHY_INT_STATE_ISCALAR(2,NFIND)=='*')THEN                    !<-- End of the integer scalar list
+        ENDIF
+!
+        IF(PHY_INT_STATE_ISCALAR(3,NFIND)=='R')THEN                        !<-- Take integer scalar data specified for restart output
+          VBL_NAME=TRIM(PHY_INT_STATE_ISCALAR(1,NFIND))
+!
+          CALL ESMF_AttributeSet(bundle=RESTART_BUNDLE                  &  !<-- The write component's output data Bundle
+                                ,name  =VBL_NAME                        &  !<-- Name of the integer scalar
+                                ,value =I_SC(NFIND)%NAME                &  !<-- The scalar being inserted into the output data Bundle
+                                ,rc    =RC)
+        ENDIF
+!
+        IF(PHY_INT_STATE_ISCALAR(2,NFIND)=='*' .AND.                    &
+           PHY_INT_STATE_ISCALAR(3,NFIND)=='*')THEN                        !<-- End of the integer scalar list
           EXIT
         ENDIF
 !
@@ -747,7 +827,19 @@
                                 ,value =R_SC(NFIND)%NAME                &  !<-- The scalar being inserted into the output data Bundle
                                 ,rc    =RC)
 !
-        ELSEIF(PHY_INT_STATE_RSCALAR(2,NFIND)=='*')THEN                    !<-- End of the real scalar list
+        ENDIF
+!
+        IF(PHY_INT_STATE_RSCALAR(3,NFIND)=='R')THEN                        !<-- Take real scalar data specified for restart output
+          VBL_NAME=TRIM(PHY_INT_STATE_RSCALAR(1,NFIND))
+!
+          CALL ESMF_AttributeSet(bundle=RESTART_BUNDLE                  &  !<-- The write component's output data Bundle
+                                ,name  =VBL_NAME                        &  !<-- Name of the integer scalar
+                                ,value =R_SC(NFIND)%NAME                &  !<-- The scalar being inserted into the output data Bundle
+                                ,rc    =RC)
+        ENDIF
+!
+        IF(PHY_INT_STATE_RSCALAR(2,NFIND)=='*' .AND.                    &
+           PHY_INT_STATE_RSCALAR(3,NFIND)=='*'      )THEN                  !<-- End of the real scalar list
           EXIT
         ENDIF
 !
@@ -777,7 +869,21 @@
                                 ,valueList=I_1D(NFIND)%NAME             &  !<-- The 1D integer being inserted into the output data Bundle
                                 ,rc       =RC)
 !
-        ELSEIF(PHY_INT_STATE_1D_I(2,NFIND)=='*')THEN                       !<-- End of the 1D integer array list
+        ENDIF
+!
+        IF(PHY_INT_STATE_1D_I(3,NFIND)=='R')THEN                           !<-- Take 1D integer array data specified for restart output
+          VBL_NAME=TRIM(PHY_INT_STATE_1D_I(1,NFIND))
+          LENGTH=SIZE(I_1D(NFIND)%NAME)
+!
+          CALL ESMF_AttributeSet(bundle   =RESTART_BUNDLE               &  !<-- The write component's output data Bundle
+                                ,name     =VBL_NAME                     &  !<-- Name of the integer scalar
+                                ,count    =LENGTH                       &  !<-- # of elements in this attribute
+                                ,valueList=I_1D(NFIND)%NAME             &  !<-- The 1D integer being inserted into the output data Bundle
+                                ,rc       =RC)
+        ENDIF
+!
+        IF(PHY_INT_STATE_1D_I(2,NFIND)=='*' .AND.                       &
+           PHY_INT_STATE_1D_I(3,NFIND)=='*'      )THEN                     !<-- End of the 1D integer array list
           EXIT
         ENDIF
 !
@@ -807,7 +913,21 @@
                                 ,valueList=R_1D(NFIND)%NAME             &  !<-- The 1D real being inserted into the output data Bundle
                                 ,rc       =RC)
 !
-        ELSEIF(PHY_INT_STATE_1D_R(2,NFIND)=='*')THEN                       !<-- End of the 1D real array list
+        ENDIF
+!
+        IF(PHY_INT_STATE_1D_R(3,NFIND)=='R')THEN                           !<-- Take 1D real array data specified for restart output
+          VBL_NAME=TRIM(PHY_INT_STATE_1D_R(1,NFIND))
+          LENGTH=SIZE(R_1D(NFIND)%NAME)
+!
+          CALL ESMF_AttributeSet(bundle   =RESTART_BUNDLE               &  !<-- The write component's output data Bundle
+                                ,name     =VBL_NAME                     &  !<-- Name of the integer scalar
+                                ,count    =LENGTH                       &  !<-- # of elements in this attribute
+                                ,valueList=R_1D(NFIND)%NAME             &  !<-- The 1D real being inserted into the output data Bundle
+                                ,rc       =RC)
+        ENDIF
+!
+        IF(PHY_INT_STATE_1D_R(2,NFIND)=='*' .AND.                       &
+           PHY_INT_STATE_1D_R(3,NFIND)=='*')THEN                           !<-- End of the 1D real array list
           EXIT
         ENDIF
 !
@@ -830,7 +950,6 @@
       DO NFIND=1,MAX_KOUNT
         IF(PHY_INT_STATE_2D_I(2,NFIND)=='H')THEN                           !<-- Take 2D integer array data specified for history output
           VBL_NAME=TRIM(PHY_INT_STATE_2D_I(1,NFIND))
-!!!       TEMP_I2D=>I_2D(NFIND)%NAME(ITS:ITE,JTS:JTE)
           TEMP_I2D=>I_2D(NFIND)%NAME(IMS:IME,JMS:JME)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -865,7 +984,46 @@
 !
           NUM_2D_FIELDS_I=NUM_2D_FIELDS_I+1                                !<-- Add upt the number of 2D integer Fields
 !
-        ELSEIF(PHY_INT_STATE_2D_I(2,NFIND)=='*')THEN                       !<-- End of the 2D integer array list
+        ENDIF
+!
+        IF(PHY_INT_STATE_2D_I(3,NFIND)=='R')THEN                           !<-- Take 2D integer array data specified for restart output
+          VBL_NAME=TRIM(PHY_INT_STATE_2D_I(1,NFIND))
+          TEMP_I2D=>I_2D(NFIND)%NAME(IMS:IME,JMS:JME)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert Physics 2-D Integer Data into Field"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
+                                ,farray       =TEMP_I2D                 &  !<-- The 2D integer array being inserted into output data Bundle
+                                ,copyflag     =COPYFLAG                 &
+                                ,maxHaloUWidth=(/IHALO,JHALO/)          &
+                                ,maxHaloLWidth=(/IHALO,JHALO/)          &
+                                ,name         =VBL_NAME                 &  !<-- Name of the 2D real array
+                                ,rc           =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PHY_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert Physics 2-D Integer Field into History Bundle"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_FieldBundleAdd(bundle=RESTART_BUNDLE                &  !<-- The write component's restart data Bundle
+                                  ,field =FIELD                         &  !<-- ESMF Field holding the 2D integer array
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PHY_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        ENDIF
+!
+        IF(PHY_INT_STATE_2D_I(2,NFIND)=='*' .AND.                       &
+           PHY_INT_STATE_2D_I(3,NFIND)=='*'      )THEN                     !<-- End of the 2D integer array list
           EXIT
         ENDIF
 !
@@ -916,7 +1074,46 @@
 !
           NUM_2D_FIELDS_R=NUM_2D_FIELDS_R+1                                !<-- Add up the number of 2D real Fields
 !
-        ELSEIF(PHY_INT_STATE_2D_R(2,NFIND)=='*')THEN                       !<-- End of the 2D real array list
+        ENDIF
+!
+        IF(PHY_INT_STATE_2D_R(3,NFIND)=='R')THEN                           !<-- Take 2D real array data specified for restart output
+          VBL_NAME=TRIM(PHY_INT_STATE_2D_R(1,NFIND))
+          TEMP_R2D=>R_2D(NFIND)%NAME(IMS:IME,JMS:JME)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert Physics 2-D Real Data into Field"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
+                                ,farray       =TEMP_R2D                 &  !<-- The 2D real array being inserted into the output data Bundle
+                                ,copyflag     =COPYFLAG                 &
+                                ,maxHaloUWidth=(/IHALO,JHALO/)          &
+                                ,maxHaloLWidth=(/IHALO,JHALO/)          &
+                                ,name         =VBL_NAME                 &  !<-- Name of the 2D real array
+                                ,rc           =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PHY_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert Physics 2-D Real Field into History Bundle"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_FieldBundleAdd(bundle=RESTART_BUNDLE                &  !<-- The write component's restart data Bundle
+                                  ,field =FIELD                         &  !<-- ESMF Field holding the 2D real array
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PHY_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        ENDIF
+!
+        IF(PHY_INT_STATE_2D_R(2,NFIND)=='*' .AND.                       &
+           PHY_INT_STATE_2D_R(3,NFIND)=='*'      )THEN                     !<-- End of the 2D real array list
           EXIT
         ENDIF
 !
@@ -996,11 +1193,213 @@
 !
           ENDDO
 !
-        ELSEIF(PHY_INT_STATE_3D_R(2,NFIND)=='*')THEN                       !<-- End of the 3D real array list
+        ENDIF
+!
+        IF(PHY_INT_STATE_3D_R(3,NFIND)=='R')THEN                           !<-- Take 3D real array data specified for restart output
+!
+          INDEX_IKJ=INDEX(PHY_INT_STATE_3D_R(1,NFIND),'_ikj')              !<-- If an IKJ array, isolate "_ikj" in the NAME
+!
+          IF(INDEX_IKJ==0)THEN
+            NDIM3=UBOUND(R_3D(NFIND)%NAME,3)                               !<-- Determine # of vertical levels in this IJK variable
+            LDIM2=LBOUND(R_3D(NFIND)%NAME,2)
+            UDIM2=UBOUND(R_3D(NFIND)%NAME,2)
+          ELSE
+            NDIM3=UBOUND(R_3D(NFIND)%NAME,2)                               !<-- Determine # of vertical levels in this IKJ variable
+            LDIM2=LBOUND(R_3D(NFIND)%NAME,3)
+            UDIM2=UBOUND(R_3D(NFIND)%NAME,3)
+          ENDIF
+!
+          LDIM1=LBOUND(R_3D(NFIND)%NAME,1)
+          UDIM1=UBOUND(R_3D(NFIND)%NAME,1)
+!
+          DO K=1,NDIM3                                                     !<-- Loop through the levels of the array
+            WRITE(MODEL_LEVEL,FMT)K
+!
+            IF(INDEX_IKJ==0)THEN
+              VBL_NAME=TRIM(PHY_INT_STATE_3D_R(1,NFIND))//'_'//MODEL_LEVEL//'_2D'
+              NULLIFY(TEMP_R2D)
+              TEMP_R2D=>R_3D(NFIND)%NAME(LDIM1:UDIM1,LDIM2:UDIM2,K)        !<-- Point at appropriate section of this IJK level
+            ELSE
+              VBL_NAME_X=PHY_INT_STATE_3D_R(1,NFIND)(1:INDEX_IKJ-1)
+              VBL_NAME=TRIM(VBL_NAME_X)//'_'//MODEL_LEVEL//'_2D'
+              NULLIFY(TEMP_R2D)
+              TEMP_R2D=>R_3D(NFIND)%NAME(LDIM1:UDIM1,K,LDIM2:UDIM2)        !<-- Point at appropriate section of this IKJ level
+            ENDIF
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Fill 2-D Fields with Each Level of Physics 3-D Data"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
+                                  ,farray       =TEMP_R2D               &  !<-- Level K of 3D real array being inserted into the data Bundle
+                                  ,copyflag     =COPYFLAG               &
+                                  ,maxHaloUWidth=(/IHALO,JHALO/)        &
+                                  ,maxHaloLWidth=(/IHALO,JHALO/)        &
+                                  ,name         =VBL_NAME               &  !<-- Name of this level of the 3D real array
+                                  ,rc           =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PHY_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Insert Physics 3-D Data into History Bundle"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_FieldBundleAdd(bundle=RESTART_BUNDLE              &  !<-- The write component's restart data Bundle
+                                    ,field =FIELD                       &  !<-- ESMF Field holding the 1D real array
+                                    ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PHY_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            NUM_2D_FIELDS_R=NUM_2D_FIELDS_R+1                              !<-- Continue adding up all levels of 3D Fields
+!
+          ENDDO
+!
+        ENDIF
+!
+        IF(PHY_INT_STATE_3D_R(2,NFIND)=='*' .AND.                       &
+           PHY_INT_STATE_3D_R(3,NFIND)=='*'      )THEN                     !<-- End of the 3D real array list
           EXIT
         ENDIF
 !
       ENDDO
+!
+!-----------------------------------------------------------------------
+!***  THE 4D REAL ARRAYS.
+!***  WE ARE WORKING WITH 4D ARRAYS BUT THEY ARE LOADED LAYER BY LAYER
+!***  INTO 2D Fields.
+!-----------------------------------------------------------------------
+!
+!
+      DO NFIND=1,MAX_KOUNT                                                 
+!
+        IF(PHY_INT_STATE_4D_R(2,NFIND)=='H')THEN                           !<-- Take 4D real array data specified for history output
+!
+          LDIM1=LBOUND(R_4D(NFIND)%NAME,1)
+          UDIM1=UBOUND(R_4D(NFIND)%NAME,1)
+          LDIM2=LBOUND(R_4D(NFIND)%NAME,2)
+          UDIM2=UBOUND(R_4D(NFIND)%NAME,2)
+          LDIM3=LBOUND(R_4D(NFIND)%NAME,3)
+          UDIM3=UBOUND(R_4D(NFIND)%NAME,3)
+          LDIM4=LBOUND(R_4D(NFIND)%NAME,4)
+          UDIM4=UBOUND(R_4D(NFIND)%NAME,4)
+!
+         DO N=LDIM4,UDIM4                                                  !<-- Loop through the tracers kind
+          DO K=LDIM3,UDIM3                                                 !<-- Loop through the levels of the array
+            WRITE(TRACERS_KIND,FMT)N
+            WRITE(MODEL_LEVEL,FMT)K
+!
+              VBL_NAME=TRIM(PHY_INT_STATE_4D_R(1,NFIND))//'_'//TRACERS_KIND//'_'//MODEL_LEVEL//'_2D'
+              NULLIFY(TEMP_R2D)
+              TEMP_R2D=>R_4D(NFIND)%NAME(LDIM1:UDIM1,LDIM2:UDIM2,K,N)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Fill 2-D Fields with Each Level of Physics 4-D Data"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
+                                  ,farray       =TEMP_R2D               &  !<-- Level K of 4D real array being inserted into the data Bundle
+                                  ,copyflag     =COPYFLAG               &
+                                  ,maxHaloUWidth=(/IHALO,JHALO/)        &
+                                  ,maxHaloLWidth=(/IHALO,JHALO/)        &
+                                  ,name         =VBL_NAME               &  !<-- Name of this level of the 4D real array
+                                  ,rc           =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PHY_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Insert Physics 4-D Data into History Bundle"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_FieldBundleAdd(bundle=HISTORY_BUNDLE              &  !<-- The write component's output data Bundle
+                                    ,field =FIELD                       &  !<-- ESMF Field holding the 1D real array
+                                    ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PHY_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            NUM_2D_FIELDS_R=NUM_2D_FIELDS_R+1                              !<-- Continue adding up all levels of 4D Fields
+!
+          ENDDO
+         ENDDO
+!
+        ENDIF
+!
+        IF(PHY_INT_STATE_4D_R(3,NFIND)=='R')THEN                           !<-- Take 4D real array data specified for restart output
+!
+          LDIM1=LBOUND(R_4D(NFIND)%NAME,1)
+          UDIM1=UBOUND(R_4D(NFIND)%NAME,1)
+          LDIM2=LBOUND(R_4D(NFIND)%NAME,2)
+          UDIM2=UBOUND(R_4D(NFIND)%NAME,2)
+          LDIM3=LBOUND(R_4D(NFIND)%NAME,3)
+          UDIM3=UBOUND(R_4D(NFIND)%NAME,3)
+          LDIM4=LBOUND(R_4D(NFIND)%NAME,4)
+          UDIM4=UBOUND(R_4D(NFIND)%NAME,4)
+!
+         DO N=LDIM4,UDIM4                                                  !<-- Loop through the tracers kind
+          DO K=LDIM3,UDIM3                                                 !<-- Loop through the levels of the array
+            WRITE(TRACERS_KIND,FMT)N
+            WRITE(MODEL_LEVEL,FMT)K
+!
+              VBL_NAME=TRIM(PHY_INT_STATE_4D_R(1,NFIND))//'_'//TRACERS_KIND//'_'//MODEL_LEVEL//'_2D'
+              NULLIFY(TEMP_R2D)
+              TEMP_R2D=>R_4D(NFIND)%NAME(LDIM1:UDIM1,LDIM2:UDIM2,K,N)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Fill 2-D Fields with Each Level of Physics 4-D Data"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
+                                  ,farray       =TEMP_R2D               &  !<-- Level K of 4D real array being inserted into the data Bundle
+                                  ,copyflag     =COPYFLAG               &
+                                  ,maxHaloUWidth=(/IHALO,JHALO/)        &
+                                  ,maxHaloLWidth=(/IHALO,JHALO/)        &
+                                  ,name         =VBL_NAME               &  !<-- Name of this level of the 4D real array
+                                  ,rc           =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PHY_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Insert Physics 4-D Data into History Bundle"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_FieldBundleAdd(bundle=RESTART_BUNDLE              &  !<-- The write component's restart data Bundle
+                                    ,field =FIELD                       &  !<-- ESMF Field holding the 1D real array
+                                    ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PHY_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            NUM_2D_FIELDS_R=NUM_2D_FIELDS_R+1                              !<-- Continue adding up all levels of 4D Fields
+!
+          ENDDO
+         ENDDO
+!
+        ENDIF
+!
+        IF(PHY_INT_STATE_4D_R(2,NFIND)=='*' .AND.                       &
+           PHY_INT_STATE_4D_R(3,NFIND)=='*'      )THEN                     !<-- End of the 4D real array list
+          EXIT
+        ENDIF
+!
+      ENDDO
+!-----------------------------------------------------------------------
+!
       IF(MYPE==0)WRITE(0,*)' PHYSICS_OUTPUT: Number of 2-D Real Fields=',NUM_2D_FIELDS_R
 !
 !-----------------------------------------------------------------------
@@ -1015,6 +1414,24 @@
 !
       CALL ESMF_StateAdd(state      =IMP_STATE_WRITE                    &  !<-- The write component's import state
                         ,fieldbundle=HISTORY_BUNDLE                     &  !<-- The ESMF Bundle holding all Physics output data
+                        ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PHY_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  INSERT THE OUTPUT DATA Bundle INTO THE WRITE COMPONENT'S
+!***  IMPORT STATE.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Phsyics: Insert Restart Bundle into the Write Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateAdd(state      =IMP_STATE_WRITE                    &  !<-- The write component's import state
+                        ,fieldbundle=RESTART_BUNDLE                     &  !<-- The ESMF Bundle holding all Physics restart data
                         ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

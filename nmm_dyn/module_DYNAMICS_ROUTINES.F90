@@ -42,7 +42,7 @@ real(kind=kfpt),private :: &
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
                         subroutine pgforce &
-(ntsd,first &
+(ntsd,first,restart &
 ,lm &
 ,dt,rdyv &
 ,dsg2,pdsg1 &
@@ -69,7 +69,8 @@ real(kind=kfpt),parameter:: &
 ,bfc=1.-cfc                  ! adams bashforth positioning in time
 !-----------------------------------------------------------------------
 logical(kind=klog),intent(in):: &
- first                       ! first pass
+ first &                     ! first pass
+,restart                     ! restart case
 
 integer(kind=kint),intent(in):: &
  lm &                        ! total # of levels
@@ -392,7 +393,7 @@ integer(kind=kint) :: &
 !-----------------------------------------------------------------------
 !---first pass switch---------------------------------------------------
 !-----------------------------------------------------------------------
-        if(.not.first) then
+        if(.not.first.or.restart) then
 !-----------------------------------------------------------------------
 !---updating u and v due to pgf force, end of time-step for u and v-----
 !-----------------------------------------------------------------------
@@ -3369,7 +3370,7 @@ integer(kind=kint) :: &
 !-----------------------------------------------------------------------
                         subroutine cdwdt &
 (global,hydro,inpes,jnpes &
-,lm,ntsd &
+,lm,ntsd,restart &
 ,dt,g &
 ,dsg2,pdsg1 &
 ,fah &
@@ -3404,7 +3405,8 @@ real(kind=kfpt),parameter:: &
 !-----------------------------------------------------------------------
 logical(kind=klog),intent(in):: &
  global &                    ! global or regional
-,hydro                       ! hydrostatic or nonhydrostatic
+,hydro  &                    ! hydrostatic or nonhydrostatic
+,restart                     ! restart
 
 integer(kind=kint),intent(in):: &
  lm &                        ! total # of levels
@@ -3487,7 +3489,8 @@ real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
       mype=mype_share
 !
 !-----------------------------------------------------------------------
-      if(hydro.or.ntsd.lt.2) then
+      if(.not.restart.and.(hydro.or.ntsd.lt.2).or.                      &
+         restart.and.hydro) then
 !-----------------------------------------------------------------------
         do l=1,lm
           do j=jts,jte
@@ -3820,7 +3823,7 @@ real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
                         subroutine vsound &
-(global,hydro &
+(global,hydro,restart &
 ,lm,ntsd &
 ,cp,dt,pt &
 ,dsg2,pdsg1 &
@@ -3841,7 +3844,8 @@ real(kind=kfpt),parameter:: &
 !-----------------------------------------------------------------------
 logical(kind=klog),intent(in):: &
  global &                    ! global or regional
-,hydro                       ! hydrostatic or nonhydrostatic
+,hydro  &                    ! hydrostatic or nonhydrostatic
+,restart                     ! restart
 
 integer(kind=kint),intent(in):: &
  lm &                        ! total # of levels
@@ -3938,7 +3942,12 @@ integer(kind=kint) :: &
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      if(hydro.or.ntsd.lt.2) return
+!!! (fix when ESMF/restart/ntimestep is done)
+      if(.not.restart) then
+        if(hydro.or.ntsd.lt.2) return
+      else
+        if(hydro) return
+      endif
 !
 !-----------------------------------------------------------------------
       cappa=r/cp

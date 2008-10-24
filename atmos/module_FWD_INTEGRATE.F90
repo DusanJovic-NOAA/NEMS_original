@@ -49,45 +49,83 @@
 !
 !-----------------------------------------------------------------------
 !#######################################################################
+!-----------------------------------------------------------------------
 !
-
-      SUBROUTINE NMM_FWD_INTEGRATE(ATM_GRID_COMP,ATM_INT_STATE,CLOCK_ATM,CURRTIME &
-				  ,HALFDFITIME,SDFITIME,DFITIME,STARTTIME,ALARM_CLOCKTIME &
-				  ,ALARM,ALARM_HISTORY,MYPE,NUM_TRACERS_MET,NUM_TRACERS_CHEM &
-				  ,NTIMESTEP,NDFISTEP,NPE_PRINT,DFIHR,PHYSICS_ON)
-
+      SUBROUTINE NMM_FWD_INTEGRATE(ATM_GRID_COMP                        &
+                                  ,ATM_INT_STATE                        &
+                                  ,CLOCK_ATM                            &
+                                  ,CURRTIME                             &
+				  ,HALFDFITIME                          &
+				  ,SDFITIME                             &
+				  ,DFITIME                              &
+				  ,STARTTIME                            &
+				  ,ALARM_CLOCKTIME                      &
+				  ,ALARM                                &
+				  ,ALARM_HISTORY                        &
+				  ,ALARM_RESTART                        &
+				  ,MYPE                                 &
+				  ,NUM_TRACERS_MET                      &
+				  ,NUM_TRACERS_CHEM                     &
+				  ,NTIMESTEP                            &
+				  ,NDFISTEP                             &
+				  ,NPE_PRINT                            &
+				  ,DFIHR                                &
+				  ,PHYSICS_ON)
+!
+!-----------------------------------------------------------------------
+!
       USE MODULE_DIGITAL_FILTER_NMM
       USE MODULE_ATM_INTERNAL_STATE
       USE MODULE_CONTROL,ONLY: TIMEF
-      USE MODULE_WRITE_ROUTINES ,ONLY: WRITE_ASYNC             !<-- These are routines used only when asynchronous
-
+      USE MODULE_WRITE_ROUTINES,ONLY: WRITE_ASYNC                         !<-- These are routines used only when asynchronous
+!
+!-----------------------------------------------------------------------
+!
       TYPE(ESMF_GridComp)     ,INTENT(INOUT) :: ATM_GRID_COMP             !<-- The ATM gridded component
+!
       TYPE(ATM_INTERNAL_STATE),INTENT(INOUT) :: ATM_INT_STATE             !<-- The ATM Internal State
-      TYPE(ESMF_Clock),INTENT(INOUT) 	     :: CLOCK_ATM                         !<-- The ATM Component's ESMF Clock
-      INTEGER(KIND=KINT),INTENT(IN)          :: MYPE,NUM_TRACERS_MET,NUM_TRACERS_CHEM  !<-- MPI processor
-      INTEGER(KIND=KINT),INTENT(INOUT)       :: NTIMESTEP                          !<-- The current forecast timestep
-      TYPE(ESMF_Time),INTENT(INOUT)          :: CURRTIME                           !<-- The current forecast time
-      TYPE(ESMF_Alarm),INTENT(INOUT)            :: ALARM_CLOCKTIME                    !<-- The ESMF Alarm for clocktime prints
-      TYPE(ESMF_Time),INTENT(INOUT)             :: HALFDFITIME
-      TYPE(ESMF_Time),INTENT(INOUT)             :: SDFITIME
-      TYPE(ESMF_Time),INTENT(INOUT)             :: STARTTIME
-      TYPE(ESMF_Time),INTENT(INOUT)             :: DFITIME
-      TYPE(ESMF_Alarm),INTENT(INOUT)         :: alarm(2)
-      TYPE(ESMF_Alarm),INTENT(INOUT) 	     :: ALARM_HISTORY                              !<-- The ESMF Alarm for history output
-      INTEGER(KIND=KINT),INTENT(INOUT)       :: DFIHR
+!
+      TYPE(ESMF_Clock),INTENT(INOUT) 	     :: CLOCK_ATM                 !<-- The ATM Component's ESMF Clock
+!
       INTEGER(KIND=KINT),INTENT(IN)          :: NPE_PRINT,NDFISTEP
+      INTEGER(KIND=KINT),INTENT(IN)          :: MYPE                    & !<-- MPI task rank
+                                               ,NUM_TRACERS_MET         & !<-- # of meteorological tracer variables
+                                               ,NUM_TRACERS_CHEM          !<-- # of chemistry tracer variables
+!
+      INTEGER(KIND=KINT),INTENT(INOUT)       :: NTIMESTEP                 !<-- The current forecast timestep
+      INTEGER(KIND=KINT),INTENT(INOUT)       :: DFIHR
+!
+      TYPE(ESMF_Time),INTENT(INOUT)          :: CURRTIME                  !<-- The current forecast time
+      TYPE(ESMF_Time),INTENT(INOUT)          :: HALFDFITIME
+      TYPE(ESMF_Time),INTENT(INOUT)          :: SDFITIME
+      TYPE(ESMF_Time),INTENT(INOUT)          :: STARTTIME
+      TYPE(ESMF_Time),INTENT(INOUT)          :: DFITIME
+!
+      TYPE(ESMF_Alarm),INTENT(INOUT)         :: ALARM(2)
+      TYPE(ESMF_Alarm),INTENT(INOUT)         :: ALARM_CLOCKTIME           !<-- The ESMF Alarm for clocktime prints
+      TYPE(ESMF_Alarm),INTENT(INOUT) 	     :: ALARM_HISTORY             !<-- The ESMF Alarm for history output
+      TYPE(ESMF_Alarm),INTENT(INOUT) 	     :: ALARM_RESTART             !<-- The ESMF Alarm for restart output
+!
       LOGICAL,INTENT(IN)                     :: PHYSICS_ON
-      INTEGER(KIND=KINT)                     :: RC,RC_LOOP
-      INTEGER(KIND=ESMF_KIND_I8)             :: NTIMESTEP_ESMF                         !<-- The current forecast timestep (ESMF_INT)
-     
-
-
+!
+!
+!-----------------------------------------------------------------------
+!
+      INTEGER(KIND=KINT)         :: RC,RC_LOOP
+      INTEGER(KIND=ESMF_KIND_I8) :: NTIMESTEP_ESMF                        !<-- The current forecast timestep (ESMF_INT)
+!
+      CHARACTER(ESMF_MAXSTR) :: CWRT                                      !<-- Restart/History label
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
 !
       timeloop: DO WHILE (.NOT.ESMF_ClockIsStopTime(CLOCK_ATM,RC))
 !
 !-----------------------------------------------------------------------
 !
         btim0=timef()
+!
 !-----------------------------------------------------------------------
 !***  WRITE A HISTORY FILE AT THE START OF THE FIRST TIMESTEP
 !***  OTHERWISE WRITE IT AT THE END OF THE APPROPRIATE TIMESTEPS.
@@ -96,7 +134,12 @@
        output_0: IF(NTIMESTEP==0)THEN
 !
           IF(atm_int_state%QUILTING)THEN
-            CALL WRITE_ASYNC(ATM_GRID_COMP,ATM_INT_STATE,CLOCK_ATM,MYPE)
+            CWRT='History'
+            CALL WRITE_ASYNC(ATM_GRID_COMP                              &
+                            ,ATM_INT_STATE                              &
+                            ,CLOCK_ATM                                  &
+                            ,MYPE                                       &
+                            ,CWRT)
           ENDIF
 !
         ENDIF output_0
@@ -235,76 +278,85 @@
 !
         NTIMESTEP=NTIMESTEP_ESMF
 !
-        call ESMF_ClockGet( clock       =CLOCK_ATM                              &
-                            ,currtime=CURRTIME                  &
-                            ,rc      =RC)
-
+        CALL ESMF_ClockGet(clock   =CLOCK_ATM                           &
+                          ,currtime=CURRTIME                            &
+                          ,rc      =RC)
 !
-        IF (DFIHR .GT. 0) THEN
-
-        IF(MYPE<atm_int_state%NUM_PES_FCST)THEN
-
-         IF ( CURRTIME .eq. SDFITIME ) THEN
-           CALL DIGITAL_FILTER_DYN_INIT_NMM(atm_int_state%IMP_STATE_DYN,NDFISTEP,NUM_TRACERS_MET,NUM_TRACERS_CHEM)
-
+!-----------------------------------------------------------------------
+!
+        dfihr_gt0: IF(DFIHR>0)THEN
+!
+!-----------------------------------------------------------------------
+!
+          IF(MYPE<atm_int_state%NUM_PES_FCST)THEN
+!
+          IF(CURRTIME==SDFITIME)THEN
+            CALL DIGITAL_FILTER_DYN_INIT_NMM(atm_int_state%IMP_STATE_DYN &
+                                            ,NDFISTEP                    &
+                                            ,NUM_TRACERS_MET             &
+                                            ,NUM_TRACERS_CHEM)
+!
 ! -------------------- inital summation  ------------------------------
 !
-                IF ( PHYSICS_ON ) THEN
-                        CALL DIGITAL_FILTER_PHY_INIT_NMM(atm_int_state%IMP_STATE_PHY)
-                ENDIF
+            IF(PHYSICS_ON)THEN
+              CALL DIGITAL_FILTER_PHY_INIT_NMM(atm_int_state%IMP_STATE_PHY)
+            ENDIF
+!
           ENDIF
-
-
 !
 ! -------------------- summation stage ---------------------------------
 !
-
-              CALL DIGITAL_FILTER_DYN_SUM_NMM(atm_int_state%IMP_STATE_DYN,NUM_TRACERS_MET,NUM_TRACERS_CHEM)
-
+          CALL DIGITAL_FILTER_DYN_SUM_NMM(atm_int_state%IMP_STATE_DYN   &
+                                         ,NUM_TRACERS_MET               &
+                                         ,NUM_TRACERS_CHEM)
 !
 ! ----------------------------------------------------------------------
 !
-              IF( PHYSICS_ON ) then
-              IF( CURRTIME .eq. HALFDFITIME ) THEN
-
-               IF (ESMF_AlarmIsRinging(alarm(1), RC)) then
+          IF(PHYSICS_ON)THEN
+!
+            IF(CURRTIME==HALFDFITIME)THEN
+              IF(ESMF_AlarmIsRinging(alarm(1),RC))THEN
                 CALL DIGITAL_FILTER_PHY_SAVE_NMM(atm_int_state%IMP_STATE_PHY)
-               ENDIF
               ENDIF
-              ENDIF
+            ENDIF
+!
+          ENDIF
 !
 ! ----------------------------------------------------------------------
 !
 ! --------------------- final stage ------------------------------------
 !
-           IF ( CURRTIME .EQ. DFITIME ) THEN
-             IF (ESMF_AlarmIsRinging(alarm(2), RC)) then
+          IF(CURRTIME==DFITIME)THEN
+            IF (ESMF_AlarmIsRinging(ALARM(2),RC))THEN
               print *,' dfi at finaldfitime '
-                CALL DIGITAL_FILTER_DYN_AVERAGE_NMM(atm_int_state%IMP_STATE_DYN,NUM_TRACERS_MET,NUM_TRACERS_CHEM)
-              IF( PHYSICS_ON ) then
+              CALL DIGITAL_FILTER_DYN_AVERAGE_NMM(atm_int_state%IMP_STATE_DYN &
+                                                 ,NUM_TRACERS_MET             &
+                                                 ,NUM_TRACERS_CHEM)
+              IF(PHYSICS_ON)THEN
                 CALL DIGITAL_FILTER_PHY_RESTORE_NMM(atm_int_state%IMP_STATE_PHY)
               ENDIF
 !
 ! ----------------------------------------------------------------------
 !
-!              CALL ESMF_ClockSet(clock   =CLOCK_ATM                     &
-!                                ,currtime=HALFDFITIME                   &
-!                                ,rc      =RC)
+!             CALL ESMF_ClockSet(clock   =CLOCK_ATM                     &
+!                               ,currtime=HALFDFITIME                   &
+!                               ,rc      =RC)
               DFITIME = STARTTIME
               DFIHR = 0
-              CALL ESMF_ClockPrint(clock=CLOCK_ATM                      &
-                              ,options="currtime string"                &
-                              ,rc=RC)
-             ENDIF
+              CALL ESMF_ClockPrint(clock  =CLOCK_ATM                    &
+                                  ,options="currtime string"            &
+                                  ,rc     =RC)
+!
             ENDIF
+!
+          ENDIF
 !
 ! -----------------------------------------------------------------------
 !
         ENDIF
-        ENDIF !< -- DFIHR
-
-
-
+!
+        ENDIF dfihr_gt0
+!
 !-----------------------------------------------------------------------
 !***  WRITE A HISTORY FILE IF THE ALARM INDICATES IT IS TIME TO DO SO
 !***  AFTER TIMESTEP 0.
@@ -314,11 +366,35 @@
                                       ,rc   =RC))THEN
 !
           IF(atm_int_state%QUILTING)THEN
-            CALL WRITE_ASYNC(ATM_GRID_COMP,ATM_INT_STATE,CLOCK_ATM,MYPE)
+            CWRT='History'
+            CALL WRITE_ASYNC(ATM_GRID_COMP                              &
+                            ,ATM_INT_STATE                              &
+                            ,CLOCK_ATM                                  &
+                            ,MYPE                                       &
+                            ,CWRT)
           ENDIF
 !
         ENDIF output
 !
+!-----------------------------------------------------------------------
+!***  WRITE A RESTART FILE IF THE ALARM INDICATES IT IS TIME TO DO SO.
+!-----------------------------------------------------------------------
+!
+        restart: IF(ESMF_AlarmIsRinging(alarm=ALARM_RESTART             &  !<-- The restart output alarm
+                                       ,rc   =RC))THEN
+!
+          IF(atm_int_state%QUILTING)THEN
+            CWRT='Restart'
+            CALL WRITE_ASYNC(ATM_GRID_COMP                              &
+                            ,ATM_INT_STATE                              &
+                            ,CLOCK_ATM                                  &
+                            ,MYPE                                       &
+                            ,CWRT)
+          ENDIF
+!
+        ENDIF restart
+!
+!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !
@@ -331,9 +407,9 @@
 !
         clocktimes: IF(ESMF_AlarmIsRinging(alarm=ALARM_CLOCKTIME        &  !<-- The alarm to print clocktimes
                                           ,rc   =RC))THEN
-
-             CALL PRINT_CLOCKTIMES(NTIMESTEP,MYPE,NPE_PRINT)
-
+!
+          CALL PRINT_CLOCKTIMES(NTIMESTEP,MYPE,NPE_PRINT)
+!
         ENDIF clocktimes
 !-----------------------------------------------------------------------
 !

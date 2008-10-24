@@ -48,6 +48,7 @@
 !
         INTEGER(KIND=KINT) :: IM,JM,LM                                  &
                              ,NHOURS_HISTORY                            &
+                             ,NHOURS_RESTART                            &
                              ,NUM_TRACERS_MET                           &  !<-- Number of meteorological tracers (e.g. water)
                              ,NUM_TRACERS_CHEM                          &  !<-- Number of chem/aerosol tracers
                              ,START_YEAR,START_MONTH,START_DAY          &

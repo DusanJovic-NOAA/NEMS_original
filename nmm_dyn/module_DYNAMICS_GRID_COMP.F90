@@ -477,24 +477,28 @@
                  ,int_state%SGML1,int_state%PSGML1,int_state%SGML2      &
                  ,int_state%FIS,int_state%SM,int_state%SICE             &
                  ,int_state%PD,int_state%PDO,int_state%PINT             &
-                 ,int_state%U,int_state%V,int_state%Q2                  &
-                 ,int_state%T,int_state%Q,int_state%CW                  &
+                 ,int_state%U,int_state%V,int_state%Q2,int_state%E2     &
+                 ,int_state%T,int_state%Q,int_state%CW,int_state%PSGDT  &
                  ,int_state%TP,int_state%UP,int_state%VP                &
                  ,int_state%RRW,int_state%DWDT,int_state%W              &
+                 ,int_state%OMGALF,int_state%DIV,int_state%Z            &
+                 ,int_state%RTOP                                        &
+                 ,int_state%TCU,int_state%TCV,int_state%TCT             &
                  ,int_state%TRACERS_PREV                                &
                  ,int_state%INDX_Q,int_state%INDX_CW                    &
                  ,int_state%INDX_RRW,int_state%INDX_Q2                  &
                  ,int_state%NTSTI,int_state%NTSTM                       &
                  ,int_state%IHR,int_state%IHRST,int_state%IDAT          &
-                 ,RUN_LOCAL                                             &
+                 ,RUN_LOCAL,int_state%RESTART                           &
                  ,int_state%NUM_WATER,int_state%WATER                   &
+                 ,int_state%NUM_TRACERS_TOTAL,int_state%TRACERS         &
                  ,int_state%P_QV,int_state%P_QC,int_state%P_QR          &
                  ,int_state%P_QI,int_state%P_QS,int_state%P_QG)
 !
 !***  CHECK IF STARTING DATE/TIME IN INPUT DATA FILE AGREES WITH
 !***  THE CONFIGURE FILE.
 !
-        IF(MYPE==0)THEN
+        IF(.NOT.int_state%RESTART.AND.MYPE==0)THEN
           IF(int_state%START_HOUR /=int_state%IHRST.OR.                 &
              int_state%START_DAY  /=int_state%IDAT(1).OR.               &
              int_state%START_MONTH/=int_state%IDAT(2).OR.               &
@@ -1121,7 +1125,8 @@
 !
 !-----------------------------------------------------------------------
 !
-      firststep: IF(int_state%FIRST)THEN     !<--  The following block is used only for the first timestep
+      firststep: IF(int_state%FIRST.AND.                                &  !<-- The following block is used only for
+                    .NOT.int_state%RESTART)THEN                            !    the first timestep and cold start
 !
 !-----------------------------------------------------------------------
 !
@@ -1156,7 +1161,7 @@
         btim=timef()
 !
         CALL PGFORCE                                                    &
-          (NTIMESTEP,int_state%FIRST,LM,DT                              &
+          (NTIMESTEP,int_state%FIRST,int_state%RESTART,LM,DT            &
           ,RDYV,DSG2,PDSG1,RDXV,WPDAR,FIS                               &
           ,int_state%PD,int_state%PDO                                   &
           ,int_state%T,int_state%Q,int_state%CW,int_state%DWDT          &
@@ -1293,7 +1298,8 @@
 !
 !-----------------------------------------------------------------------
 !
-      not_firststep: IF(.NOT.int_state%FIRST)THEN     !<--  The following block is for all timesteps after the first
+      not_firststep: IF(.NOT.int_state%FIRST                            &  !<-- The following block is for all timesteps after
+                        .OR.int_state%RESTART)THEN                         !    the first or all steps in restart case
 !
 !-----------------------------------------------------------------------
 !
@@ -1436,7 +1442,7 @@
         btim=timef()
 !
         CALL PGFORCE                                                    &
-          (NTIMESTEP,int_state%FIRST,LM,DT                              &
+          (NTIMESTEP,int_state%FIRST,int_state%RESTART,LM,DT            &
           ,RDYV,DSG2,PDSG1,RDXV,WPDAR,FIS                               &
           ,int_state%PD,int_state%PDO                                   &
           ,int_state%T,int_state%Q,int_state%CW,int_state%DWDT          &
@@ -2071,7 +2077,7 @@
 !
       CALL CDWDT                                                        &
         (GLOBAL,HYDRO,INPES,JNPES                                       &
-        ,LM,NTIMESTEP                                                   &
+        ,LM,NTIMESTEP,int_state%RESTART                                 &
         ,DT,G,DSG2,PDSG1,FAH                                            &
         ,int_state%PD,int_state%PDO                                     &
         ,int_state%PSGDT                                                &
@@ -2134,7 +2140,7 @@
       btim=timef()
 !
       CALL VSOUND                                                       &
-        (GLOBAL,HYDRO                                                   &
+        (GLOBAL,HYDRO,int_state%RESTART                                 &
         ,LM,NTIMESTEP                                                   &
         ,CP,DT,PT,DSG2,PDSG1                                            &
         ,int_state%PD                                                   &
@@ -2576,6 +2582,13 @@
                         ,ITS,ITE,JTS,JTE                                &
                         ,IMS,IME,JMS,JME                                &
                         ,IDS,IDE,JDS,JDE)
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      IF(MYPE==0)THEN
+        WRITE(0,25)NTIMESTEP,(NTIMESTEP+1)*DT/3600.
+   25   FORMAT(' Finished Dyn Timestep ',i8,' ending at ',f10.3,' hours')
       ENDIF
 !
 !-----------------------------------------------------------------------

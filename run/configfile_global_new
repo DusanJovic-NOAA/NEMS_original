@@ -57,9 +57,6 @@ dt_den: 1                   # Denominator of fractional second
 ###############################
 
 start_year:   2007   
-###start_month:  04
-###start_day:    15
-###start_hour:   12
 start_month:  09
 start_day:    18
 start_hour:   00
@@ -76,7 +73,9 @@ tstart:       0.            # The starting forecast hour
 nhours_fcst:    48          # Length of the forecast (hours)
 nhours_history: 03          # Frequency of history output (hours)
 nhours_dfini:   0 
+
 restart:        false       # True--> A restarted run
+nhours_restart: 12          # Frequency of restart output (hours)
 
 #########################
 ##### General modes #####
@@ -216,22 +215,27 @@ nhrs_rdlw:  3               # Frequency in hours between times when LW radiation
 nhrs_rdsw:  3               # Frequency in hours between times when SW radiation arrays are emptied
 nhrs_srfc:  3               # Frequency in hours between times when sfc evap/flux arrays are emptied
 
+#################################################
+####  Write History & Restart Specifications ####
+#################################################
 
-#######################################
-####  Write History Specifications ####
-#######################################
+write_hst_flag:          .TRUE.       # True--> Yes write history files
+write_rst_flag:          .TRUE.       # True--> Yes write restart files
 
-write_flag:              .TRUE.       # True--> Yes write history files
 write_nemsioflag:        .TRUE.       # True--> Yes write nemsio run history files
 write_nemsioctl:         .TRUE.       # True--> Yes write ctl for nemsio run history files
-io_unit:                 -999
-io_file:                 'DEFERRED'
-                                                                                                                                              
+
+io_hst_unit:             -999
+io_rst_unit:             -999
+io_hst_file:             'DEFERRED'
+io_rst_file:             'DEFERRED'
+
 #-------------------------------------------------
 # If IO_FILE == 'DEFERRED', use FILENAME_BASE
 # as the first part of the history file names.
 #-------------------------------------------------
-filename_base:           'nmm_b_history.'
+hst_name_base:           'nmm_b_history.'
+rst_name_base:           'nmm_b_restart.'
 io_status:               'REPLACE'
 io_access:               'SEQUENTIAL'
 io_form:                 'UNFORMATTED'

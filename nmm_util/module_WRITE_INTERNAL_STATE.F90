@@ -26,7 +26,7 @@
       INTEGER,PARAMETER :: MAX_DATA_I1D=50             !<-- Max # of 1D integer arrays
       INTEGER,PARAMETER :: MAX_DATA_I2D=50             !<-- Max # of 2D integer arrays
       INTEGER,PARAMETER :: MAX_DATA_R1D=50             !<-- Max # of 1D real arrays
-      INTEGER,PARAMETER :: MAX_DATA_R2D=1500           !<-- Max # of 2D real arrays and layers of all real 3D arrays combined
+      INTEGER,PARAMETER :: MAX_DATA_R2D=3000           !<-- Max # of 2D real arrays and layers of all real 3D arrays combined
       INTEGER,PARAMETER :: MAX_DATA_LOG=10
 !
 !-----------------------------------------------------------------------
@@ -78,24 +78,50 @@
                                          ,KOUNT_R2D                     &
                                          ,KOUNT_LOG
 !
+      INTEGER,DIMENSION(:),ALLOCATABLE :: RST_KOUNT_I1D                     &
+                                         ,RST_KOUNT_I2D                     &
+                                         ,RST_KOUNT_R1D                     &
+                                         ,RST_KOUNT_R2D                     &
+                                         ,RST_KOUNT_LOG
+!
+!
       INTEGER,DIMENSION(:),ALLOCATABLE :: LENGTH_DATA_I1D               &
                                          ,LENGTH_DATA_R1D               &
                                          ,LENGTH_DATA_R2D
+!
+      INTEGER,DIMENSION(:),ALLOCATABLE :: RST_LENGTH_DATA_I1D               &
+                                         ,RST_LENGTH_DATA_R1D               &
+                                         ,RST_LENGTH_DATA_R2D
 !
       INTEGER,DIMENSION(:),ALLOCATABLE :: LENGTH_SUM_I1D                &
                                          ,LENGTH_SUM_R1D                &
                                          ,LENGTH_SUM_R2D                &
                                          ,LENGTH_SUM_LOG
 !
+      INTEGER,DIMENSION(:),ALLOCATABLE :: RST_LENGTH_SUM_I1D                &
+                                         ,RST_LENGTH_SUM_R1D                &
+                                         ,RST_LENGTH_SUM_R2D                &
+                                         ,RST_LENGTH_SUM_LOG
+!
+!
       INTEGER,DIMENSION(:),ALLOCATABLE :: NCOUNT_FIELDS
+      INTEGER,DIMENSION(:),ALLOCATABLE :: RST_NCOUNT_FIELDS
 !
       INTEGER,DIMENSION(:)  ,ALLOCATABLE :: ALL_DATA_I1D
       INTEGER,DIMENSION(:)  ,ALLOCATABLE :: ALL_DATA_I2D
       INTEGER,DIMENSION(:,:),ALLOCATABLE :: OUTPUT_ARRAY_I2D
 !
+      INTEGER,DIMENSION(:)  ,ALLOCATABLE :: RST_ALL_DATA_I1D
+      INTEGER,DIMENSION(:)  ,ALLOCATABLE :: RST_ALL_DATA_I2D
+      INTEGER,DIMENSION(:,:),ALLOCATABLE :: RST_OUTPUT_ARRAY_I2D
+!
       REAL   ,DIMENSION(:)  ,ALLOCATABLE :: ALL_DATA_R1D
       REAL   ,DIMENSION(:)  ,ALLOCATABLE :: ALL_DATA_R2D
       REAL   ,DIMENSION(:,:),ALLOCATABLE :: OUTPUT_ARRAY_R2D
+!
+      REAL   ,DIMENSION(:)  ,ALLOCATABLE :: RST_ALL_DATA_R1D
+      REAL   ,DIMENSION(:)  ,ALLOCATABLE :: RST_ALL_DATA_R2D
+      REAL   ,DIMENSION(:,:),ALLOCATABLE :: RST_OUTPUT_ARRAY_R2D
 !
 !-----------------------------------------------------------------------
 !*** STORAGE ARRAYS
@@ -106,9 +132,16 @@
       REAL   ,DIMENSION(:)    ,ALLOCATABLE :: BUFF_REAL
       REAL   ,DIMENSION(:,:,:),ALLOCATABLE :: WRITE_SUBSET_R
 !
+      INTEGER,DIMENSION(:)    ,ALLOCATABLE :: RST_BUFF_INT
+      INTEGER,DIMENSION(:,:,:),ALLOCATABLE :: RST_WRITE_SUBSET_I
+      REAL   ,DIMENSION(:)    ,ALLOCATABLE :: RST_BUFF_REAL
+      REAL   ,DIMENSION(:,:,:),ALLOCATABLE :: RST_WRITE_SUBSET_R
+!
       TYPE(ESMF_Logical),DIMENSION(:),ALLOCATABLE :: ALL_DATA_LOG 
+      TYPE(ESMF_Logical),DIMENSION(:),ALLOCATABLE :: RST_ALL_DATA_LOG
 !
       CHARACTER(ESMF_MAXSTR),DIMENSION(5000) :: FIELD_NAME
+      CHARACTER(ESMF_MAXSTR),DIMENSION(5000) :: RST_FIELD_NAME
 !
       CHARACTER(ESMF_MAXSTR*MAX_DATA_I1D) :: NAMES_I1D_STRING
       CHARACTER(ESMF_MAXSTR*MAX_DATA_I2D) :: NAMES_I2D_STRING
@@ -116,16 +149,22 @@
       CHARACTER(ESMF_MAXSTR*MAX_DATA_R2D) :: NAMES_R2D_STRING
       CHARACTER(ESMF_MAXSTR*MAX_DATA_LOG) :: NAMES_LOG_STRING
 !
+      CHARACTER(ESMF_MAXSTR*MAX_DATA_I1D) :: RST_NAMES_I1D_STRING
+      CHARACTER(ESMF_MAXSTR*MAX_DATA_I2D) :: RST_NAMES_I2D_STRING
+      CHARACTER(ESMF_MAXSTR*MAX_DATA_R1D) :: RST_NAMES_R1D_STRING
+      CHARACTER(ESMF_MAXSTR*MAX_DATA_R2D) :: RST_NAMES_R2D_STRING
+      CHARACTER(ESMF_MAXSTR*MAX_DATA_LOG) :: RST_NAMES_LOG_STRING
+!
 !-----------------------------------------------------------------------
 !***  THE OUTPUT FILE
 !-----------------------------------------------------------------------
 !
-      INTEGER                :: IO_UNIT
+      INTEGER                :: IO_HST_UNIT,IO_RST_UNIT
       INTEGER                :: IO_RECL
       INTEGER                :: NFHOUR
 !
-      CHARACTER(ESMF_MAXSTR) :: IO_FILE
-      CHARACTER(ESMF_MAXSTR) :: FILENAME_BASE
+      CHARACTER(ESMF_MAXSTR) :: IO_HST_FILE,IO_RST_FILE
+      CHARACTER(ESMF_MAXSTR) :: HST_NAME_BASE,RST_NAME_BASE
       CHARACTER(ESMF_MAXSTR) :: IO_STATUS
       CHARACTER(ESMF_MAXSTR) :: IO_ACCESS
       CHARACTER(ESMF_MAXSTR) :: IO_FORM
@@ -145,7 +184,7 @@
 !***  I/O direction flags (Read or Write)
 !-----------------------------------------
 !
-      LOGICAL :: WRITE_FLAG
+      LOGICAL :: WRITE_HST_FLAG,WRITE_RST_FLAG
       LOGICAL :: WRITE_NEMSIOFLAG
       LOGICAL :: WRITE_NEMSIOCTL
  

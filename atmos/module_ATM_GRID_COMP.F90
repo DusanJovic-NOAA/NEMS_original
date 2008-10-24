@@ -17,6 +17,7 @@
 !                                 the Main Clock.
 !   2007-12-11  Black - Generalized for easier use by any dynamics core.
 !   2008-08     Colon - Added conditional checks multiple dynamics cores.
+!   2008-10-14  Vasic - Added restart Alarm.
 !
 ! USAGE: ATM Gridded component parts CALLed from MAIN_ESMF.F90
 !
@@ -99,18 +100,19 @@
       TYPE(ESMF_Clock),SAVE :: CLOCK_ATM                                  !<-- The ATM Component's ESMF Clock
       TYPE(ESMF_VM),SAVE    :: VM                                         !<-- The ESMF virtual machine.
 !
-      TYPE(ESMF_Alarm),SAVE :: ALARM_CLOCKTIME                            !<-- The ESMF Alarm for clocktime prints
-      TYPE(ESMF_Alarm),SAVE :: ALARM_HISTORY                              !<-- The ESMF Alarm for history output
+      TYPE(ESMF_Alarm),SAVE :: ALARM_CLOCKTIME                          & !<-- The ESMF Alarm for clocktime prints
+                              ,ALARM_HISTORY                            & !<-- The ESMF Alarm for history output
+                              ,ALARM_RESTART                              !<-- The ESMF Alarm for restart output
 !
-!
-      TYPE(ESMF_GridComp),save :: gc_gfs_dyn
-      TYPE(ESMF_GridComp),save :: gc_gfs_phy
-      TYPE(ESMF_CplComp), save :: gc_atm_cpl
+      TYPE(ESMF_GridComp),SAVE :: GC_GFS_DYN
+      TYPE(ESMF_GridComp),SAVE :: GC_GFS_PHY
+      TYPE(ESMF_CplComp), SAVE :: GC_ATM_CPL
 
 !
-      TYPE(ESMF_State),save :: imp_gfs_dyn,exp_gfs_dyn
-      TYPE(ESMF_State),save :: imp_gfs_phy,exp_gfs_phy
-      INTEGER :: inpes,jnpes  ! mpi tasks in i and j
+      TYPE(ESMF_State),SAVE :: IMP_GFS_DYN,EXP_GFS_DYN
+      TYPE(ESMF_State),SAVE :: IMP_GFS_PHY,EXP_GFS_PHY
+!
+      INTEGER :: INPES,JNPES                                               ! MPI tasks in i and j
 
 !      INTEGER(KIND=KINT),PUBLIC :: IM,JM,LM
 !      INTEGER(KIND=KINT)        :: NUM_PES
@@ -290,10 +292,13 @@
 !
       TYPE(ESMF_Grid)                  :: grid_atmos    ! the esmf grid for the integration attached to
 
-      INTEGER                          :: NHOURS_CLOCKTIME              !<-- Hours between clocktime prints
-      INTEGER                          :: NHOURS_HISTORY                !<-- Hours between history output
-      TYPE(ESMF_TimeInterval)          :: TIMEINTERVAL_CLOCKTIME        !<-- ESMF time interval between clocktime prints (h)
-      TYPE(ESMF_TimeInterval)          :: TIMEINTERVAL_HISTORY          !<-- ESMF time interval between history output (h)
+      INTEGER                          :: NHOURS_CLOCKTIME            & !<-- Hours between clocktime prints
+                                         ,NHOURS_HISTORY              & !<-- Hours between history output
+                                         ,NHOURS_RESTART                !<-- Hours between restart output
+!
+      TYPE(ESMF_TimeInterval)          :: TIMEINTERVAL_CLOCKTIME      & !<-- ESMF time interval between clocktime prints (h)
+                                         ,TIMEINTERVAL_HISTORY        & !<-- ESMF time interval between history output (h)
+                                         ,TIMEINTERVAL_RESTART          !<-- ESMF time interval between restart output (h)
 !
       LOGICAL                          :: DIST_MEM,PHYSICS_ON           !<-- Logical flag for distributed
       LOGICAL                          :: QUILTING                      !<-- Logical flag for quilting in
@@ -573,6 +578,49 @@
                                     ,clock            =CLOCK_ATM            &  !<-- ATM Clock
                                     ,ringTime         =STARTTIME            &  !<-- Forecast start time (ESMF)
                                     ,ringInterval     =TIMEINTERVAL_HISTORY &  !<-- Time interval between
+                                    ,ringTimeStepCount=1                    &  !<-- The Alarm rings for this many timesteps
+                                    ,sticky           =.false.              &  !<-- Alarm does not ring until turned off
+                                    ,rc               =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  GET THE RESTART OUTPUT INTERVAL (HOURS) FROM THE CONFIG FILE.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Obtain Restart Interval from the Config File"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure object
+                                  ,value =NHOURS_RESTART                &  !<-- Fill this variable
+                                  ,label ='nhours_restart:'             &  !<-- Give the variable this label's value from the config file
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  CREATE THE RESTART FILE OUTPUT ALARM.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Create the Restart Output Alarm"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_TimeIntervalSet(timeinterval=TIMEINTERVAL_RESTART           &  !<-- Time interval between restart writes (h) (ESMF)
+                               ,h           =NHOURS_RESTART                 &  !<-- Hours between restart writes (REAL)
+                               ,rc          =RC)
+!
+      ALARM_RESTART=ESMF_AlarmCreate(name             ='ALARM_RESTART'      &
+                                    ,clock            =CLOCK_ATM            &  !<-- ATM Clock
+                                    ,ringTime         =STARTTIME            &  !<-- Forecast start time (ESMF)
+                                    ,ringInterval     =TIMEINTERVAL_RESTART &  !<-- Time interval between restart output (ESMF)
                                     ,ringTimeStepCount=1                    &  !<-- The Alarm rings for this many timesteps
                                     ,sticky           =.false.              &  !<-- Alarm does not ring until turned off
                                     ,rc               =RC)
@@ -1412,10 +1460,26 @@
       total_tim=total_tim+timef()-btim0
       
       IF (CORE=='nmm') THEN
-           CALL NMM_FWD_INTEGRATE(ATM_GRID_COMP,ATM_INT_STATE,CLOCK_ATM,CURRTIME &
-                                  ,HALFDFITIME,SDFITIME,DFITIME,STARTTIME,ALARM_CLOCKTIME &
-                                  ,ALARM,ALARM_HISTORY,MYPE,NUM_TRACERS_MET,NUM_TRACERS_CHEM &
-                                  ,NTIMESTEP,NDFISTEP,NPE_PRINT,DFIHR,PHYSICS_ON)
+           CALL NMM_FWD_INTEGRATE(ATM_GRID_COMP                         &
+                                 ,ATM_INT_STATE                         &
+                                 ,CLOCK_ATM                             &
+                                 ,CURRTIME                              &
+                                 ,HALFDFITIME                           &
+                                 ,SDFITIME                              &
+                                 ,DFITIME                               &
+                                 ,STARTTIME                             &
+                                 ,ALARM_CLOCKTIME                       &
+                                 ,ALARM                                 &
+                                 ,ALARM_HISTORY                         &
+                                 ,ALARM_RESTART                         &
+                                 ,MYPE                                  &
+                                 ,NUM_TRACERS_MET                       &
+                                 ,NUM_TRACERS_CHEM                      &
+                                 ,NTIMESTEP                             &
+                                 ,NDFISTEP                              &
+                                 ,NPE_PRINT                             &
+                                 ,DFIHR                                 &
+                                 ,PHYSICS_ON)
 
 
       ELSE IF (CORE=='gfs') THEN

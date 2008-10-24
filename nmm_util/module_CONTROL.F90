@@ -300,9 +300,6 @@ real(kind=kfpt),allocatable,dimension(:,:):: &      !im,jm
 ,vz0 &                       ! v at the top of viscous sublayer
 ,wliq                        ! canopy moisture
 
-real(kind=kfpt),allocatable,dimension(:,:,:):: wg   ! soil moisture(nwetc,im,jm)
-real(kind=kfpt),allocatable,dimension(:,:,:):: tg   ! soil temperature (kmsc,im,jm)
-
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
 !---regional boundary conditions----------------------------------------
@@ -579,9 +576,6 @@ real(kind=kfpt),dimension(jds:jde):: &
         dlmd=-wbd*2./real(ide-3)
         dphd=-sbd*2./real(jde-3)
 !
-!!!     pt=1000.     !<-- Read from input file
-!!!     ptsgm=22000. 
-!
         lnsbc=lnsh
         bofac=0.
 !
@@ -597,9 +591,6 @@ real(kind=kfpt),dimension(jds:jde):: &
         dlmd=-wbd*2./real(ide-1)
         dphd=-sbd*2./real(jde-1)
 	write(0,*) 'dlmd, dphd: ', dlmd, dphd
-!
-!!!     pt=5000.     !<-- Read from input file
-!!!     ptsgm=42000.
 !
         lnsbc=lnsh
         bofac=4.
@@ -641,15 +632,6 @@ real(kind=kfpt),dimension(jds:jde):: &
         hdacvyj(j)=0.
       enddo
 !-----------------------------------------------------------------------
-!!!   input_data='/gpfstmp/wx22tb/umo_data/'
-!
-!!!   idtad=4
-!!!   idtadt=4
-!!!   nphs=8
-!!!   ncnvc=nphs
-!!!   nrads=nint(3600./dt)
-!!!   nradl=nint(3600./dt*3.)
-!!!   nprec=nint(24.*3600./dt)
       dtq2=nphs*dt
 !
       if(.not.global) then
@@ -1031,7 +1013,6 @@ real(kind=kfpt),dimension(jds:jde):: &
 !
         ddmpv=cddamp*dyv/(2.*dyv)
 !
-!!!!!   do j=jms,jme
         do j=jds,jde
           tph=sb+(j-jds)*dph
           tpv=tph+dph*0.5
@@ -1060,7 +1041,6 @@ real(kind=kfpt),dimension(jds:jde):: &
 !-----------------------------------------------------------------------
 !-------------diagonal distances at v points----------------------------
 !-----------------------------------------------------------------------
-!!!!    do j=jms,jme
         do j=jds,jde
           ddv(j)=sqrt(dxv(j)**2+dyv**2)
           rddv(j)=1./ddv(j)
@@ -1265,15 +1245,19 @@ real(kind=kfpt),dimension(jds:jde):: &
       ,sgml1,psgml1,sgml2 &
       ,fis,sm,sice &
       ,pd,pdo,pint &
-      ,u,v,q2 &
-      ,t,q,cw &
+      ,u,v,q2,e2 &
+      ,t,q,cw,psgdt &
       ,tp,up,vp &
       ,rrw,dwdt,w &
+      ,omgalf,div,z &
+      ,rtop &
+      ,tcu,tcv,tct &
       ,sp,indx_q,indx_cw,indx_rrw,indx_q2 &
       ,ntsti,ntstm &
       ,ihr,ihrst,idat &
-      ,run &
+      ,run,restart &
       ,num_water,water &
+      ,num_tracers_total,tracers &
       ,p_qv,p_qc,p_qr &
       ,p_qi,p_qs,p_qg &
        )
@@ -1290,6 +1274,7 @@ integer(kind=kint),intent(in) :: &
  kse &
 ,kss &
 ,num_water &
+,num_tracers_total &
 ,p_qv &
 ,p_qc &
 ,p_qr &
@@ -1342,13 +1327,24 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(out) :: &
 ,q &
 ,q2 &
 ,rrw &
+,omgalf &
+,div &
+,z &
+,rtop &
+,tcu &
+,tcv &
+,tct &
 ,t &
 ,tp &
 ,u &
 ,up &
 ,v &
 ,vp &
+,e2 &
 ,w
+
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm-1),intent(out) :: &
+ psgdt
 
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm+1),intent(out) :: &
  pint
@@ -1356,12 +1352,16 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm+1),intent(out) :: &
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,1:num_water),intent(out) :: &
  water
 
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,1:num_tracers_total),intent(out) :: &
+ tracers
+
 
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse),intent(out) :: &
  sp 
 
 logical(kind=klog),intent(in) :: &
- global
+ global &
+,restart
  
 logical(kind=klog),intent(out) :: &
  run
@@ -1378,6 +1378,12 @@ integer(kind=kint) :: &
 ,l &                         ! index in p direction
 ,n &
 ,nrecs_skip_for_pt
+
+integer(kind=kint) :: &
+ iyear_fcst           &
+,imonth_fcst          &
+,iday_fcst            &
+,ihour_fcst
 
 integer(kind=kint),allocatable,dimension(:,:) :: &
  insoil &
@@ -1414,6 +1420,9 @@ logical(kind=klog) :: opened
         endif
       enddo select_unit
 
+!-----------------------------------------------------------------------
+         if(.not.restart) then                     ! cold start
+!-----------------------------------------------------------------------
 !
       infile='main_input_filename'
       open(unit=nfcst,file=infile,status='old',form='unformatted')
@@ -1423,7 +1432,7 @@ logical(kind=klog) :: opened
 !-----------------------------------------------------------------------
 !
       if(mype==0)then
-        nrecs_skip_for_pt=6+5*lm+21 !<-- For current WPS iniput
+        nrecs_skip_for_pt=6+5*lm+21 !<-- For current WPS input
 !       nrecs_skip_for_pt=6+5*lm+23 !zj 21
 !
         do n=1,nrecs_skip_for_pt
@@ -1755,6 +1764,891 @@ logical(kind=klog) :: opened
         close(nfcst)
       endif
 !
+!-----------------------------------------------------------------------
+         else                                      ! restart
+!-----------------------------------------------------------------------
+!
+      infile='restart_file'
+      open(unit=nfcst,file=infile,status='old',form='unformatted')
+!
+!-----------------------------------------------------------------------
+!   READ FROM RESTART FILE: INGEGER SCALARS
+!-----------------------------------------------------------------------
+      read(nfcst) iyear_fcst
+      read(nfcst) imonth_fcst
+      read(nfcst) iday_fcst
+      read(nfcst) ihour_fcst
+      read(nfcst) ! iminute_fcst
+      read(nfcst) ! second_fcst
+      read(nfcst) ! im
+      read(nfcst) ! jm
+      read(nfcst) ! lm
+      read(nfcst) ihrst
+      read(nfcst) lpt2
+!     read(nfcst) ihrend   ---- FIX THIS, ADD IN RESTART FILE
+!     read(nfcst) ntsd     ---- FIX THIS, ADD IN RESTART FILE
+!-----------------------------------------------------------------------
+!   READ FROM RESTART FILE: INTEGER 1D ARRAYS
+!-----------------------------------------------------------------------
+      read(nfcst) idat
+!-----------------------------------------------------------------------
+!***  Print the time information.
+!-----------------------------------------------------------------------
+!
+      if(mype==0)then
+        write(0,*)'*************************************' 
+        write(0,*)' Restart year =',iyear_fcst
+        write(0,*)' Restart month=',imonth_fcst
+        write(0,*)' Restart day  =',iday_fcst
+        write(0,*)' Restart hour =',ihour_fcst
+        write(0,*)' Original start year =',idat(3)
+        write(0,*)' Original start month=',idat(2)
+        write(0,*)' Original start day  =',idat(1)
+        write(0,*)' Original start hour =',ihrst
+        write(0,*)' Timestep   =',dt
+        write(0,*)' Steps/hour =',3600./dt
+        if(.not.global)write(0,*)' Max fcst hours=',ihrend
+        write(0,*)'*************************************' 
+      endif
+!
+!-----------------------------------------------------------------------
+!   READ FROM RESTART FILE: REAL SCALARS
+!-----------------------------------------------------------------------
+      read(nfcst) pdtop
+!-----------------------------------------------------------------------
+      read(nfcst) pt
+!-----------------------------------------------------------------------
+!   READ FROM RESTART FILE: REAL 1D ARRAYS
+!-----------------------------------------------------------------------
+      read(nfcst) sg1
+      read(nfcst) sg2
+      read(nfcst) dsg1
+      read(nfcst) dsg2
+      read(nfcst) sgml1
+      read(nfcst) sgml2
+      read(nfcst) sgm
+      read(nfcst) ! sldpth
+      read(nfcst) ! mp_restart_state
+      read(nfcst) ! tbpvs_state
+      read(nfcst) ! tbpvs0_state
+!-----------------------------------------------------------------------
+!   READ FROM RESTART FILE: LOGICAL
+!-----------------------------------------------------------------------
+      read(nfcst) ! global
+      read(nfcst) run
+      if(mype==0)then
+        write(0,*) 'run, idat,ntsd: ', run, idat, ntsd
+      endif
+!-----------------------------------------------------------------------
+!   READ FROM RESTART FILE: INTEGER 2D ARRAYS
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst) ! isltyp
+      endif
+      if(mype==0)then
+        read(nfcst) ! ivgtyp
+      endif
+!-----------------------------------------------------------------------
+!   READ FROM RESTART FILE: REAL 2D ARRAYS
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1
+      endif
+      do j=jms,jme
+      do i=ims,ime
+        fis(i,j)=0.
+      enddo
+      enddo
+      call dstrb(temp1,fis,1,1,1,1,1)
+      call halo_exch(fis,1,2,2)
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1
+      endif
+      do j=jms,jme
+      do i=ims,ime
+        pd(i,j)=0.
+      enddo
+      enddo
+      call dstrb(temp1,pd,1,1,1,1,1)
+      call halo_exch(pd,1,2,2)
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1
+      endif
+      do j=jms,jme
+      do i=ims,ime
+        pdo(i,j)=0.
+      enddo
+      enddo
+      call dstrb(temp1,pdo,1,1,1,1,1)
+      call halo_exch(pdo,1,2,2)
+!-----------------------------------------------------------------------
+
+!-----------------------------------------------------------------------
+!   READ FROM RESTART FILE: REAL 3D ARRAYS (only DYN)
+!-----------------------------------------------------------------------
+!     call mpi_barrier(mpi_comm_comp,irtn)
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          w(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,w,1,1,1,lm,l)
+      enddo
+      call halo_exch(w,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          dwdt(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,dwdt,1,1,1,lm,l)
+      enddo
+      call halo_exch(dwdt,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm+1
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          pint(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,pint,1,1,1,lm+1,l)
+      enddo
+      call halo_exch(pint,lm+1,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          omgalf(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,omgalf,1,1,1,lm,l)
+      enddo
+      call halo_exch(omgalf,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          rrw(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,rrw,1,1,1,lm,l)
+      enddo
+      call halo_exch(rrw,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          div(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,div,1,1,1,lm,l)
+      enddo
+      call halo_exch(div,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          rtop(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,rtop,1,1,1,lm,l)
+      enddo
+      call halo_exch(rtop,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          tcu(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,tcu,1,1,1,lm,l)
+      enddo
+      call halo_exch(tcu,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          tcv(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,tcv,1,1,1,lm,l)
+      enddo
+      call halo_exch(tcv,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          tct(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,tct,1,1,1,lm,l)
+      enddo
+      call halo_exch(tct,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          tp(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,tp,1,1,1,lm,l)
+      enddo
+      call halo_exch(tp,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          up(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,up,1,1,1,lm,l)
+      enddo
+      call halo_exch(up,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          vp(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,vp,1,1,1,lm,l)
+      enddo
+      call halo_exch(vp,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          e2(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,e2,1,1,1,lm,l)
+      enddo
+      call halo_exch(e2,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm-1
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+!rv     do j=jms,jme
+!rv     do i=ims,ime
+!rv       psgdt(i,j,l)=0.
+!rv     enddo
+!rv     enddo
+!rv     call dstrb(temp1,psgdt,1,1,1,lm-1,l)
+      enddo
+!rv   call halo_exch(psgdt,lm-1,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          z(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,z,1,1,1,lm,l)
+      enddo
+      call halo_exch(z,lm,2,2)
+!-----------------------------------------------------------------------
+
+!-----------------------------------------------------------------------
+!   READ FROM RESTART FILE: REAL 2D ARRAYS (contd.)
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! ACFRCV
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! ACFRST
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! ACPREC
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! ACSNOM
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! ACSNOW
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! AKHS_OUT
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! AKMS_OUT
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! ALBASE
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! albedo
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! ALWIN
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! ALWOUT
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! ALWTOA
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! ASWIN
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! ASWOUT
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! ASWTOA
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! BGROFF
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! CFRACH
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! CFRACL
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! CFRACM
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! cldefi
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! cmc
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! CNVBOT
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! CNVTOP
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! CPRATE
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! CUPPT
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! CUPREC
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! CZEN
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! CZMEAN
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! epsr
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! GRNFLX
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! HBOTD
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! HBOTS
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! HTOPD
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! HTOPS
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! mxsnal
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! PBLH
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! POTEVP
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! PREC
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! PSHLTR
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! Q10
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! QSH
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! QSHLTR
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! QWBS
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! QZ0
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! RADOT
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! RLWIN
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! RLWTOA
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! RSWIN
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! RSWINC
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! RSWOUT
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! SFCEVP
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! SFCEXC
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! SFCLHX
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! SFCSHX
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! si
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! sice
+      endif
+      do j=jms,jme
+      do i=ims,ime
+        sice(i,j)=0.
+      enddo
+      enddo
+      call dstrb(temp1,sice,1,1,1,1,1)
+      call halo_exch(sice,1,2,2)
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! SIGT4
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! sm
+      endif
+      do j=jms,jme
+      do i=ims,ime
+        sm(i,j)=0.
+      enddo
+      enddo
+      call dstrb(temp1,sm,1,1,1,1,1)
+      call halo_exch(sm,1,2,2)
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! SMSTAV
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! SMSTOT
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! sno
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! SNOPCX
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! SOILTB
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! sr
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! SSROFF
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! sst
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! SUBSHX
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! tg
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! TH10
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! THS
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! THZ0
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! TSHLTR
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! TWBS
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! U10
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  !ustar
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! UZ0
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! V10
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  !vegfrc
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! VZ0
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  !z0
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! tskin
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! akhs
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! akms
+      endif
+!-----------------------------------------------------------------------
+!   READ FROM RESTART FILE: REAL 3D ARRAYS
+!-----------------------------------------------------------------------
+      call mpi_barrier(mpi_comm_comp,irtn)
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1 ! cldfra
+        endif
+      enddo
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          cw(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,cw,1,1,1,lm,l)
+      enddo
+      call halo_exch(cw,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          q(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,q,1,1,1,lm,l)
+      enddo
+      call halo_exch(q,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          q2(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,q2,1,1,1,lm,l)
+      enddo
+      call halo_exch(q2,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1 ! rlwtt
+        endif
+      enddo
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1 ! rswtt
+        endif
+      enddo
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1
+          write(0,*) 'L, T extremes: ', L, minval(temp1),maxval(temp1)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          t(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,t,1,1,1,lm,l)
+      enddo
+      call halo_exch(t,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1 ! tcucn
+        endif
+      enddo
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1 ! train
+        endif
+      enddo
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          u(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,u,1,1,1,lm,l)
+      enddo
+      call halo_exch(u,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          v(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,v,1,1,1,lm,l)
+      enddo
+      call halo_exch(v,lm,2,2)
+!-----------------------------------------------------------------------
+!
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1 ! xlen_mix
+        endif
+      enddo
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1 ! f_ice
+        endif
+      enddo
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1 ! f_rimef
+        endif
+      enddo
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1 ! f_rain
+        endif
+      enddo
+!-----------------------------------------------------------------------
+      do n=1,num_tracers_total
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          tracers(i,j,l,n)=0.
+        enddo
+        enddo
+        call dstrb(temp1,tracers(:,:,:,n),1,1,1,lm,l)
+      enddo
+      enddo
+      call halo_exch(tracers,lm,num_tracers_total,1,2,2)
+!-----------------------------------------------------------------------
+!
+      if(mype==0)then
+        close(nfcst)
+      endif
+!
+!-----------------------------------------------------------------------
+      ntsti=ntsd+1
+!
+      tend_max=real(ihrend)
+      ntstm_max=nint(tend_max*3600./dt)+1
+      tend=real(nhours_fcst)
+      ntstm=nint(tend*3600./dt)+1
+      if(.not.global)then
+         write(0,*)' Max runtime is ',tend_max,' hours'
+      endif
+      if(mype==0)then
+        write(0,*)' Requested runtime is ',tend,' hours'
+        write(0,*)' NTSTM=',ntstm
+      endif
+      if(ntstm>ntstm_max.and..not.global)then
+        if(mype==0)then
+          write(0,*)' Requested fcst length exceeds maximum'
+          write(0,*)' Resetting to maximum'
+        endif
+        ntstm=min(ntstm,ntstm_max)
+      endif
+!
+      ihr=nint(ntsd*dt/3600.)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        pdsg1(l)=dsg1(l)*pdtop
+        psgml1(l)=sgml1(l)*pdtop+pt
+      enddo
+!
+      do l=1,lm+1
+        psg1(l)=sg1(l)*pdtop+pt
+      enddo
+!-----------------------------------------------------------------------
+      do l=1,lm
+        do j=jms,jme
+          do i=ims,ime
+            sp(i,j,l,indx_q  )=sqrt(max(q  (i,j,l),0.))
+            sp(i,j,l,indx_cw )=sqrt(max(cw (i,j,l),0.))
+            sp(i,j,l,indx_rrw)=sqrt(max(rrw(i,j,l),0.))
+            sp(i,j,l,indx_q2 )=sqrt(max(q2 (i,j,l),0.))
+          enddo
+        enddo
+      enddo
+!-----------------------------------------------------------------------
+         endif                                     ! cold start /restart
 !-----------------------------------------------------------------------
 !
       deallocate(temp1)
@@ -2299,8 +3193,6 @@ real(kind=kfpt):: &
         integer irc
         CALL MPI_Finalize(irc)
         stop 911
-!
-!!!     call ESMF_Finalize(terminationflag=ESMF_ABORT)
 !
       end subroutine NMMB_Finalize
 !

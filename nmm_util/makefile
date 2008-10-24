@@ -43,14 +43,18 @@ ARCH     = AIX
 CPP      = /lib/cpp -P
 CPPFLAGS = -DENABLE_SMP -DIBM
 OPTS     = -O2 -qmaxmem=-1 -qarch=auto -qtune=auto $(PROF) -NS2000
+#TRAPS    = -qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap -C
+TRAPS    = 
 #
 # Assemble Options
 #
 FINCO    = -I/meso/save/wx20rv/ESMF_libs/esmf_test_310r/mod/modO/AIX.default.64.mpi.default
 FINCS	 = $(FINCO) 
-FFLAGS   = $(OPTS) $(FINCS) 
+FFLAGS   = $(OPTS) $(FINCS) $(TRAPS)
 #
 
+PRINTMEM=       print_memory.o 
+ 
 MODULEIO=       nemsio_module.o
 
 MODULES=	\

@@ -253,6 +253,17 @@
       atm_int_state%NUM_PES_FCST=NUM_PES_FCST                            !<-- Save this for the ATM's Run step
 !
 !-----------------------------------------------------------------------
+!***  ALLOCATE AND FILL THE TASK LIST THAT HOLDS THE IDs OF
+!***  THE FORECAST TASKS.
+!-----------------------------------------------------------------------
+!
+      ALLOCATE(atm_int_state%PETLIST_FCST(NUM_PES_FCST))                   !<-- Task IDs of the forecast tasks
+!
+      DO N=0,NUM_PES_FCST-1
+        atm_int_state%PETLIST_FCST(N+1)=N                                  !<-- Collect just the forecast task IDs
+      ENDDO
+!
+!-----------------------------------------------------------------------
 !***  CREATE DE LAYOUT BASED ON THE I TASKS BY J TASKS SPECIFIED IN
 !***  THE CONFIG FILE.
 !***  THIS REFERS ONLY TO FORECAST TASKS.

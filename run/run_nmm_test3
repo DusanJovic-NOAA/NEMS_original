@@ -3,10 +3,7 @@
 #@ output = nmm_out/out
 #@ error = nmm_out/err
 #@ job_type = parallel
-###@ total_tasks = 32
 #@ tasks_per_node = 16
-##@ tasks_per_node = 6
-##@ node = 1
 #@ node = 3
 #@ node_usage=not_shared
 ####@ blocking = unlimited
@@ -15,9 +12,7 @@
 #@ class = dev
 ###@ group = devqpri
 ###@ group = devonprod
-#@ wall_clock_limit = 01:45:00
-###@ wall_clock_limit = 00:40:00
-##@ wall_clock_limit = 00:10:00
+#@ wall_clock_limit = 01:00:00
 #@ preferences = Feature == "dev"
 #@ network.MPI = csss,shared,us
 #@ bulkxfer=yes
@@ -54,22 +49,20 @@ echo $DATADIR
 ls $DATADIR
 
 cp $DATADIR/test_input_nmmb_global_257_181_35-2007091800 main_input_filename
+#cp /meso/save/wx20rv/NEMS_new/NEMS_1.0_COLD/trunk/run/tmp/nmm_b_restart.004 restart_file
 cp $SRCDIR/run/configfile_global_new $RUNDIR/configure_file
 
-cp /meso/save/wx22tb/co2/co2.60_hyb_opnl.levels_2mbtop co2_trans
-cp $DATADIR/co2.35_hybrid_50mbtop co2_trans
 cp $DATADIR/tr* .
 
 cp /nwprod/fix/nam_micro_lookup.dat ETAMPNEW_DATA
 cp /meso/save/wx22tb/WRF_repository/run/RRT* .
 cp /meso/noscrub/wx20rv/NOAH_wrf_data/*.TBL .
-cp /meso/noscrub/wx20rv/NOAH_wrf_data/grib* .
-#ln -sf loopdata fort.98
 
-#ln -sf /gpfstmp/wx22tb/run_umo_serial/global_sums fort.58
-#ln -sf /stmp/wx22tb/run_umo_serial/global_sums fort.58
+echo "Model started:  " `date`
 
-poe $SRCDIR/MAIN_NEMS.x
+poe /u/wx15ja/bin/hybrid_launch $SRCDIR/MAIN_NEMS.x
+
+echo "Model ended:    " `date`
 
 exit
 

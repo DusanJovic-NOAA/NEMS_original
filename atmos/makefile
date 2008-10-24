@@ -56,7 +56,7 @@ ARCH     = AIX
 CPP      = /lib/cpp -P
 CPPFLAGS = -DENABLE_SMP -DIBM
 OPTS     = -O2 -qmaxmem=-1 -qarch=auto -qtune=auto $(PROF) -NS2000
-TRAPS    = -NS2000 -qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap -C 
+TRAPS    = -qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap -C 
 #
 # Assemble Options
 #

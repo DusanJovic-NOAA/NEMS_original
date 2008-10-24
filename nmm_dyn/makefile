@@ -42,16 +42,21 @@ PROF     = -g -pg
 PROF     =
 ARCH     = AIX
 CPP      = /lib/cpp -P
+#CPPFLAGS = -DIBM
 CPPFLAGS = -DENABLE_SMP -DIBM
 SMP      = -qsmp=omp
+#SMP      = 
 MAF      = -qfloat=nomaf
 OPTS     = -O2 -qmaxmem=-1 -qarch=auto -qtune=auto $(PROF) -NS2000
+#TRAPS    = -qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap -C
+TRAPS    = 
 #
 # Assemble Options
 #
 FINCO    = -I/meso/save/wx20rv/ESMF_libs/esmf_test_310r/mod/modO/AIX.default.64.mpi.default
 FINCS	 = $(FINCO) $(GCINCS)
-FFLAGS   = $(OPTS) $(FINCS)  
+FFLAGS   = $(OPTS) $(FINCS) $(TRAPS)
+FFLAGSNT = $(OPTS) $(FINCS)
 #
 
 MODULES=	\
@@ -88,7 +93,7 @@ $(MODULES):	$(DEPS)
 	$(FC) $(FFLAGS) -c $<
 
 $(MODULE_DGC):	$(DEPS)
-	$(FC) $(FFLAGS) -c $<
+	$(FC) $(FFLAGSNT) -c $<
 
 $(MODULE_SMP):	$(DEPS)
 	$(FC) $(FFLAGS) $(SMP) $(MAF) -qsource -qlist -c $<

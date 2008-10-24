@@ -51,21 +51,22 @@
 !-------------------------
 !-------------------------
 !
-      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_ISCALAR     &
+      CHARACTER(10),DIMENSION(3,MAX_KOUNT) :: DYN_INT_STATE_ISCALAR     &
 !
        =RESHAPE((/                                                      &
-!                                         ------------------------------
+!                              -----------------------------------------
 !
-                                           'IM        ', 'H         '   &
-                                          ,'JM        ', 'H         '   &
-                                          ,'LM        ', 'H         '   &
-                                          ,'IHRST     ', 'H         '   &
+                               'IM        ', 'H         ', 'R         ' &
+                              ,'JM        ', 'H         ', 'R         ' &
+                              ,'LM        ', 'H         ', 'R         ' &
+                              ,'IHRST     ', 'H         ', 'R         ' &
+                              ,'LPT2      ', '-         ', 'R         ' &
 !
-!                                         ------------------------------
+!                              -----------------------------------------
 !
          /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
+        ,(/3,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********', '**********'/))
 !
 !-----------------------------------------------------------------------
 !
@@ -76,26 +77,26 @@
 !----------------------
 !----------------------
 !
-      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_RSCALAR     &  
+      CHARACTER(10),DIMENSION(3,MAX_KOUNT) :: DYN_INT_STATE_RSCALAR     &  
 !
        =RESHAPE((/                                                      &
-!                                          -----------------------------
+!                              -----------------------------------------
 !
-                                           'DT        ', 'H         '   &
-                                          ,'DYH       ', 'H         '   &
-                                          ,'PDTOP     ', 'H         '   &
-                                          ,'PT        ', 'H         '   &
-                                          ,'TLM0D     ', 'H         '   &
-                                          ,'TPH0D     ', 'H         '   &
-                                          ,'TSTART    ', 'H         '   &
-                                          ,'DPHD      ', 'H         '   &
-                                          ,'DLMD      ', 'H         '   &
+                               'DT        ', 'H         ', '-         ' &
+                              ,'DYH       ', 'H         ', '-         ' &
+                              ,'PDTOP     ', 'H         ', 'R         ' &
+                              ,'PT        ', 'H         ', 'R         ' &
+                              ,'TLM0D     ', 'H         ', '-         ' &
+                              ,'TPH0D     ', 'H         ', '-         ' &
+                              ,'TSTART    ', 'H         ', '-         ' &
+                              ,'DPHD      ', 'H         ', '-         ' &
+                              ,'DLMD      ', 'H         ', '-         ' &
 !
-!                                          -----------------------------
+!                              -----------------------------------------
 !
          /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
+        ,(/3,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********', '**********'/))
 !
 !-----------------------------------------------------------------------
 !
@@ -106,18 +107,18 @@
 !----------------------------
 !----------------------------
 !
-      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_1D_I        &
+      CHARACTER(10),DIMENSION(3,MAX_KOUNT) :: DYN_INT_STATE_1D_I        &
 !
        =RESHAPE((/                                                      &
-!                                          -----------------------------
+!                              -----------------------------------------
 !
-                                           'IDAT      ', 'H         '   &
+                               'IDAT      ', 'H         ', 'R         ' &
 !
-!                                          -----------------------------
+!                              -----------------------------------------
 !
          /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
+        ,(/3,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********', '**********'/))
 !
 !-----------------------------------------------------------------------
 !
@@ -128,18 +129,18 @@
 !----------------------------
 !----------------------------
 !
-      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_2D_I        &
+      CHARACTER(10),DIMENSION(3,MAX_KOUNT) :: DYN_INT_STATE_2D_I        &
 !
        =RESHAPE((/                                                      &
-!                                          -----------------------------
+!                              -----------------------------------------
 !
-                                           '-         ', '-         '   &
+                               '-         ', '-         ', '-         ' &
 !
-!                                          -----------------------------
+!                              -----------------------------------------
 !
          /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
+        ,(/3,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********', '**********'/))
 !-----------------------------------------------------------------------
 !
 !
@@ -149,24 +150,25 @@
 !-------------------------
 !-------------------------
 !
-      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_1D_R        &
+      CHARACTER(10),DIMENSION(3,MAX_KOUNT) :: DYN_INT_STATE_1D_R        &
 !
        =RESHAPE((/                                                      &
-!                                         ------------------------------
+!                              -----------------------------------------
 !
-                                           'DXH       ', 'H         '   &
-                                          ,'SG1       ', 'H         '   &
-                                          ,'SG2       ', 'H         '   &
-                                          ,'DSG1      ', 'H         '   &
-                                          ,'DSG2      ', 'H         '   &
-                                          ,'SGML1     ', 'H         '   &
-                                          ,'SGML2     ', 'H         '   &
+                               'DXH       ', 'H         ', '-         ' &
+                              ,'SG1       ', 'H         ', 'R         ' &
+                              ,'SG2       ', 'H         ', 'R         ' &
+                              ,'DSG1      ', 'H         ', 'R         ' &
+                              ,'DSG2      ', 'H         ', 'R         ' &
+                              ,'SGML1     ', 'H         ', 'R         ' &
+                              ,'SGML2     ', 'H         ', 'R         ' &
+                              ,'SGM       ', '-         ', 'R         ' &
 !
-!                                         ------------------------------
+!                              -----------------------------------------
 !
          /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
+        ,(/3,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********', '**********'/))
 !
 !-----------------------------------------------------------------------
 !
@@ -177,23 +179,24 @@
 !-------------------------
 !-------------------------
 !
-      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_2D_R        &
+      CHARACTER(10),DIMENSION(3,MAX_KOUNT) :: DYN_INT_STATE_2D_R        &
 !
        =RESHAPE((/                                                      &
-!                                         ------------------------------
+!                              -----------------------------------------
 !
-                                           'FIS       ', 'H         '   &
-                                          ,'GLAT      ', 'H         '   &
-                                          ,'GLON      ', 'H         '   &
-                                          ,'PD        ', 'H         '   &
-                                          ,'VLAT      ', 'H         '   &
-                                          ,'VLON      ', 'H         '   &
+                               'FIS       ', 'H         ', 'R         ' &
+                              ,'GLAT      ', 'H         ', '-         ' &
+                              ,'GLON      ', 'H         ', '-         ' &
+                              ,'PD        ', 'H         ', 'R         ' &
+                              ,'VLAT      ', 'H         ', '-         ' &
+                              ,'VLON      ', 'H         ', '-         ' &
+                              ,'PDO       ', '-         ', 'R         ' &
 !
-!                                         ------------------------------
+!                              -----------------------------------------
 !
          /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
+        ,(/3,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********', '**********'/))
 !
 !-----------------------------------------------------------------------
 !
@@ -208,82 +211,81 @@
 !***  Diabatic forecast output
 !------------------------------
 !
-      CHARACTER(10),DIMENSION(2,MAX_KOUNT),TARGET ::                    &  
+      CHARACTER(10),DIMENSION(3,MAX_KOUNT),TARGET ::                    &  
 !
                                             DYN_INT_STATE_3D_R_DIAB     &  
 !
        =RESHAPE((/                                                      &
-!                                         ------------------------------
+!                              -----------------------------------------
 !
-                                           'T         ', '-         '   &  !<-- The physics counterparts of these variables
-                                          ,'Q         ', '-         '   &  !    are being designated for history output.
-                                          ,'U         ', '-         '   &  !    This assumes that history output always
-                                          ,'V         ', '-         '   &  !    immediately follows a call to the Physics.
-                                          ,'Q2        ', '-         '   &  !
-                                          ,'CW        ', '-         '   &  !<--
-                                          ,'W         ', 'H         '   &
-                                          ,'DWDT      ', 'H         '   &
-                                          ,'PINT      ', 'H         '   &
-                                          ,'OMGALF    ', 'H         '   &
-                                          ,'RRW       ', 'H         '   &
+                               'T         ', '-         ', '-         ' &  !<-- The physics counterparts of these variables
+                              ,'Q         ', '-         ', '-         ' &  !    are being designated for history output.
+                              ,'U         ', '-         ', '-         ' &  !    This assumes that history output always
+                              ,'V         ', '-         ', '-         ' &  !    immediately follows a call to the Physics.
+                              ,'Q2        ', '-         ', '-         ' &  !
+                              ,'CW        ', '-         ', '-         ' &  !<--
+                              ,'W         ', 'H         ', 'R         ' &
+                              ,'DWDT      ', 'H         ', 'R         ' &
+                              ,'PINT      ', 'H         ', 'R         ' &
+                              ,'OMGALF    ', 'H         ', 'R         ' &
+                              ,'RRW       ', 'H         ', 'R         ' &
+                              ,'DIV       ', '-         ', 'R         ' &
+                              ,'RTOP      ', '-         ', 'R         ' &
+                              ,'TCU       ', '-         ', 'R         ' &
+                              ,'TCV       ', '-         ', 'R         ' &
+                              ,'TCT       ', '-         ', 'R         ' &
+                              ,'TP        ', '-         ', 'R         ' &
+                              ,'UP        ', '-         ', 'R         ' &
+                              ,'VP        ', '-         ', 'R         ' &
+                              ,'E2        ', '-         ', 'R         ' &
+                              ,'PSGDT     ', '-         ', 'R         ' &
+                              ,'Z         ', '-         ', 'R         ' &
 !
-!                                         ------------------------------
+!                              -----------------------------------------
 !
          /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
+        ,(/3,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********', '**********'/))
 !
 !-------------------------------
 !***  Adiabatic forecast output
 !-------------------------------
 !
-      CHARACTER(10),DIMENSION(2,MAX_KOUNT),TARGET ::                    & 
+      CHARACTER(10),DIMENSION(3,MAX_KOUNT),TARGET ::                    & 
 !
                                             DYN_INT_STATE_3D_R_ADIAB    &  
 !
        =RESHAPE((/                                                      &
-!                                         ------------------------------
+!                              -----------------------------------------
 !
-                                           'T         ', 'H         '   &  
-                                          ,'Q         ', 'H         '   &  
-                                          ,'U         ', 'H         '   &  
-                                          ,'V         ', 'H         '   &  
-                                          ,'Q2        ', 'H         '   &  
-                                          ,'CW        ', 'H         '   &  
-                                          ,'W         ', 'H         '   &
-                                          ,'DWDT      ', 'H         '   &
-                                          ,'PINT      ', 'H         '   &
-                                          ,'OMGALF    ', 'H         '   &
-                                          ,'RRW       ', 'H         '   &
+                               'T         ', 'H         ', '-         ' &
+                              ,'Q         ', 'H         ', '-         ' &
+                              ,'U         ', 'H         ', '-         ' &
+                              ,'V         ', 'H         ', '-         ' &
+                              ,'Q2        ', 'H         ', '-         ' &
+                              ,'CW        ', 'H         ', '-         ' &
+                              ,'W         ', 'H         ', 'R         ' &
+                              ,'DWDT      ', 'H         ', 'R         ' &
+                              ,'PINT      ', 'H         ', 'R         ' &
+                              ,'OMGALF    ', 'H         ', 'R         ' &
+                              ,'RRW       ', 'H         ', 'R         ' &
+                              ,'DIV       ', '-         ', 'R         ' &
+                              ,'RTOP      ', '-         ', 'R         ' &
+                              ,'TCU       ', '-         ', 'R         ' &
+                              ,'TCV       ', '-         ', 'R         ' &
+                              ,'TCT       ', '-         ', 'R         ' &
+                              ,'TP        ', '-         ', 'R         ' &
+                              ,'UP        ', '-         ', 'R         ' &
+                              ,'VP        ', '-         ', 'R         ' &
+                              ,'E2        ', '-         ', 'R         ' &
+                              ,'PSGDT     ', '-         ', 'R         ' &
+                              ,'Z         ', '-         ', 'R         ' &
 !
-!                                         ------------------------------
+!                              -----------------------------------------
 !
          /)                                                             &
-        ,(/2,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********'/))
-!
-!-----------------------------------------------------------------------
-!
-!
-!-------------------------
-!-------------------------
-!***  LOGICALS  ***
-!-------------------------
-!-------------------------
-!
-!      CHARACTER(10),DIMENSION(2,MAX_KOUNT) :: DYN_INT_STATE_LOG        &
-!
-!       =RESHAPE((/                                                     &
-!                                        ------------------------------
-!
-!                                          'ADIABATIC ', 'H         '   &
-!
-!                                        ------------------------------
-!
-!         /)                                                            &
-!        ,(/2,MAX_KOUNT/)                                               &
-!        ,(/'**********', '**********'/))
-!
+        ,(/3,MAX_KOUNT/)                                                &
+        ,(/'**********', '**********', '**********'/))
 !
 !-----------------------------------------------------------------------
 !
@@ -306,11 +308,7 @@
       TYPE(ESMF_Grid)     ,INTENT(IN)    :: GRID                         !<-- The ESMF Grid
       TYPE(ESMF_State)    ,INTENT(INOUT) :: IMP_STATE_WRITE              !<-- Import state for the Write components
       TYPE(INTERNAL_STATE),POINTER       :: INT_STATE                    !<-- The dynamics internal state
-
 !
-!
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
 !-----------------------------------------------------------------------
 !
       INTEGER                     :: ITS,ITE,JTS,JTE                    &
@@ -333,6 +331,7 @@
       CHARACTER(10),DIMENSION(:,:),POINTER :: DYN_INT_STATE_3D_R
 !
       TYPE(ESMF_FieldBundle),SAVE :: HISTORY_BUNDLE
+      TYPE(ESMF_FieldBundle),SAVE :: RESTART_BUNDLE
 !
       TYPE(ESMF_Field)            :: FIELD
 !
@@ -378,10 +377,6 @@
         REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER :: NAME                 !<-- Pointer for 3D real arrays
       END TYPE DYN_R3D
 !-----------------------------------------------------------------------
-!      TYPE DYN_LOG
-!        LOGICAL(KIND=1),POINTER :: NAME                                 !<-- Pointer for logicals
-!      END TYPE DYN_LOG
-!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !***  ARRAYS OF POINTERS OF THE ABOVE TYPES
@@ -393,7 +388,6 @@
       TYPE(DYN_R1D),DIMENSION(MAX_KOUNT) :: R_1D
       TYPE(DYN_R2D),DIMENSION(MAX_KOUNT) :: R_2D
       TYPE(DYN_R3D),DIMENSION(MAX_KOUNT) :: R_3D
-!      TYPE(DYN_LOG),DIMENSION(MAX_KOUNT) :: L_FL
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -412,6 +406,7 @@
       I_SC(2)%NAME=>int_state%JM
       I_SC(3)%NAME=>int_state%LM
       I_SC(4)%NAME=>int_state%IHRST
+      I_SC(5)%NAME=>int_state%LPT2
 !        
 !***  REAL SCALARS
 !
@@ -438,6 +433,7 @@
       R_1D(5)%NAME=>int_state%DSG2
       R_1D(6)%NAME=>int_state%SGML1
       R_1D(7)%NAME=>int_state%SGML2
+      R_1D(8)%NAME=>int_state%SGM
 !        
 !***  2D REAL ARRAYS
 !
@@ -447,6 +443,7 @@
       R_2D(4)%NAME=>int_state%PD
       R_2D(5)%NAME=>int_state%VLAT
       R_2D(6)%NAME=>int_state%VLON
+      R_2D(7)%NAME=>int_state%PDO
 !        
 !***  3D REAL ARRAYS
 !
@@ -461,10 +458,17 @@
       R_3D(9)%NAME=>int_state%PINT
       R_3D(10)%NAME=>int_state%OMGALF
       R_3D(11)%NAME=>int_state%RRW
-!
-!***  LOGICALS
-!
-!      L_FL(1)%NAME=>int_state%ADIABATIC
+      R_3D(12)%NAME=>int_state%DIV
+      R_3D(13)%NAME=>int_state%RTOP
+      R_3D(14)%NAME=>int_state%TCU
+      R_3D(15)%NAME=>int_state%TCV
+      R_3D(16)%NAME=>int_state%TCT
+      R_3D(17)%NAME=>int_state%TP
+      R_3D(18)%NAME=>int_state%UP
+      R_3D(19)%NAME=>int_state%VP
+      R_3D(20)%NAME=>int_state%E2
+      R_3D(21)%NAME=>int_state%PSGDT
+      R_3D(22)%NAME=>int_state%Z
 !
 !-----------------------------------------------------------------------
 !***  ESMF VERSION OF LOGICALS NEEDED FOR THEIR INSERTION
@@ -503,6 +507,26 @@
 !
       HISTORY_BUNDLE=ESMF_FieldBundleCreate(grid=GRID                   &  !<-- The ESMF integration Grid
                                            ,name='Bundle_Output_Data'   &  !<-- The Bundle's name
+                                           ,rc  =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  CREATE AN ESMF Bundle THAT WILL HOLD RESTART DATA
+!***  AND NOTHING ELSE.  THIS WILL SERVE TO ISOLATE THE RESTART
+!***  DATA FROM EVERYTHING ELSE INSIDE THE WRITE COMPONENT'S
+!***  IMPORT STATE.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Create Restart Data Bundle"
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      RESTART_BUNDLE=ESMF_FieldBundleCreate(grid=GRID                   &  !<-- The ESMF integration Grid
+                                           ,name='Bundle_Restart_Data'  &  !<-- The Bundle's name
                                            ,rc  =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -596,19 +620,43 @@
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                      &  !<-- The Write component output data Bundle
+      CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                      &  !<-- The Write component output history Bundle
                             ,name  ='GLOBAL'                            &  !<-- Name of the logical
                             ,value =GLOBAL_ESMF                         &  !<-- The logical being inserted into the import state
                             ,rc    =RC)
 !
-      CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                      &  !<-- The Write component output data Bundle
+      CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                      &  !<-- The Write component output history Bundle
                             ,name  ='RUN'                               &  !<-- Name of the logical
                             ,value =RUN_ESMF                            &  !<-- The logical being inserted into the import state
                             ,rc    =RC)
 !
-      CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                      &  !<-- The Write component output data Bundle
+      CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                      &  !<-- The Write component output history Bundle
                             ,name  ='ADIABATIC'                         &  !<-- Name of the logical
                             ,value =ADIABATIC_ESMF                      &  !<-- The logical being inserted into the import state
+                            ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  THE FOLLOWING LOGICAL VARIABLES ARE TO BE PART OF THE
+!***  RESTART THEREFORE PLACE THEM INTO THE RESTART Bundle.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert Global and Run Logicals into Restart Bundle"
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeSet(bundle=RESTART_BUNDLE                      &  !<-- The Write component restart Bundle
+                            ,name  ='GLOBAL'                            &  !<-- Name of the logical
+                            ,value =GLOBAL_ESMF                         &  !<-- The logical being inserted into the import state
+                            ,rc    =RC)
+!
+      CALL ESMF_AttributeSet(bundle=RESTART_BUNDLE                      &  !<-- The Write component restart Bundle
+                            ,name  ='RUN'                               &  !<-- Name of the logical
+                            ,value =RUN_ESMF                            &  !<-- The logical being inserted into the import state
                             ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -628,7 +676,7 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert Dynamics Integer Scalars into History Bundle"
+      MESSAGE_CHECK="Insert Dynamics Integer Scalars into Hist/Res Bundles"
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -636,12 +684,25 @@
         IF(DYN_INT_STATE_ISCALAR(2,NFIND)=='H')THEN                        !<-- Take integer scalar data specified for history output
           VBL_NAME=TRIM(DYN_INT_STATE_ISCALAR(1,NFIND))
 !
-          CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                  &  !<-- The Write component output data Bundle
+          CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                  &  !<-- The Write component output history Bundle
                                 ,name  =VBL_NAME                        &  !<-- Name of the integer scalar
                                 ,value =I_SC(NFIND)%NAME                &  !<-- The scalar being inserted into the import state
                                 ,rc    =RC)
 !
-        ELSEIF(DYN_INT_STATE_ISCALAR(2,NFIND)=='*')THEN                    !<-- End of the integer scalar list
+        ENDIF
+!
+        IF(DYN_INT_STATE_ISCALAR(3,NFIND)=='R')THEN                        !<-- Take integer scalar data specified for restart output
+          VBL_NAME=TRIM(DYN_INT_STATE_ISCALAR(1,NFIND))
+!
+          CALL ESMF_AttributeSet(bundle=RESTART_BUNDLE                  &  !<-- The Write component output restart Bundle
+                                ,name  =VBL_NAME                        &  !<-- Name of the integer scalar
+                                ,value =I_SC(NFIND)%NAME                &  !<-- The scalar being inserted into the import state
+                                ,rc    =RC)
+!
+        ENDIF
+!
+        IF(DYN_INT_STATE_ISCALAR(2,NFIND)=='*' .AND.                    &
+           DYN_INT_STATE_ISCALAR(3,NFIND)=='*'      )THEN                  !<-- End of the integer scalar list
           EXIT
         ENDIF
 !
@@ -656,7 +717,7 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert Dynamics Real Scalars into History Bundle"
+      MESSAGE_CHECK="Insert Dynamics Real Scalars into History/Res Bundles"
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -664,12 +725,24 @@
         IF(DYN_INT_STATE_RSCALAR(2,NFIND)=='H')THEN                        !<-- Take real scalar data specified for history output
           VBL_NAME=TRIM(DYN_INT_STATE_RSCALAR(1,NFIND))
 !
-          CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                  &  !<-- The Write component output data Bundle
+          CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                  &  !<-- The Write component output history Bundle
                                 ,name  =VBL_NAME                        &  !<-- Name of the integer scalar
                                 ,value =R_SC(NFIND)%NAME                &  !<-- The scalar being inserted into the import state
                                 ,rc    =RC)
 !
-        ELSEIF(DYN_INT_STATE_RSCALAR(2,NFIND)=='*')THEN                    !<-- End of the real scalar list
+        ENDIF
+!
+        IF(DYN_INT_STATE_RSCALAR(3,NFIND)=='R')THEN                        !<-- Take real scalar data specified for restart output
+          VBL_NAME=TRIM(DYN_INT_STATE_RSCALAR(1,NFIND))
+!
+          CALL ESMF_AttributeSet(bundle=RESTART_BUNDLE                  &  !<-- The Write component output restart Bundle
+                                ,name  =VBL_NAME                        &  !<-- Name of the integer scalar
+                                ,value =R_SC(NFIND)%NAME                &  !<-- The scalar being inserted into the import state
+                                ,rc    =RC)
+        ENDIF
+!
+        IF(DYN_INT_STATE_RSCALAR(2,NFIND)=='*' .AND.                    &
+           DYN_INT_STATE_RSCALAR(3,NFIND)=='*'      )THEN                  !<-- End of the real scalar list
           EXIT
         ENDIF
 !
@@ -684,7 +757,7 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert Dynamics 1-D Integer Arrays into History Bundle"
+      MESSAGE_CHECK="Insert Dynamics 1-D Integer Arrays into Hist/Res Bundles"
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -693,13 +766,27 @@
           VBL_NAME=TRIM(DYN_INT_STATE_1D_I(1,NFIND))
           LENGTH=SIZE(I_1D(NFIND)%NAME)
 !
-          CALL ESMF_AttributeSet(bundle   =HISTORY_BUNDLE               &  !<-- The Write component output data Bundle
+          CALL ESMF_AttributeSet(bundle   =HISTORY_BUNDLE               &  !<-- The Write component output history Bundle
                                 ,name     =VBL_NAME                     &  !<-- Name of the integer scalar
                                 ,count    =LENGTH                       &  !<-- # of elements in this attribute
                                 ,valueList=I_1D(NFIND)%NAME             &  !<-- The 1D integer being inserted into the import state
                                 ,rc       =RC)
 !
-        ELSEIF(DYN_INT_STATE_1D_I(2,NFIND)=='*')THEN                       !<-- End of the 1D integer array list
+        ENDIF
+!
+        IF(DYN_INT_STATE_1D_I(3,NFIND)=='R')THEN                           !<-- Take 1D integer array data specified for restart output
+          VBL_NAME=TRIM(DYN_INT_STATE_1D_I(1,NFIND))
+          LENGTH=SIZE(I_1D(NFIND)%NAME)
+!
+          CALL ESMF_AttributeSet(bundle   =RESTART_BUNDLE               &  !<-- The Write component output restart Bundle
+                                ,name     =VBL_NAME                     &  !<-- Name of the integer scalar
+                                ,count    =LENGTH                       &  !<-- # of elements in this attribute
+                                ,valueList=I_1D(NFIND)%NAME             &  !<-- The 1D integer being inserted into the import state
+                                ,rc       =RC)
+        ENDIF
+!
+        IF(DYN_INT_STATE_1D_I(2,NFIND)=='*' .AND.                       &
+           DYN_INT_STATE_1D_I(3,NFIND)=='*'      )THEN                     !<-- End of the 1D integer array list
           EXIT
         ENDIF
 !
@@ -714,7 +801,7 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert Dynamics 1-D Real Arrays into History Bundle"
+      MESSAGE_CHECK="Insert Dynamics 1-D Real Arrays into Hist/Res Bundles"
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -723,13 +810,27 @@
           VBL_NAME=TRIM(DYN_INT_STATE_1D_R(1,NFIND))
           LENGTH=SIZE(R_1D(NFIND)%NAME)
 !
-          CALL ESMF_AttributeSet(bundle   =HISTORY_BUNDLE               &  !<-- The Write component output data Bundle
+          CALL ESMF_AttributeSet(bundle   =HISTORY_BUNDLE               &  !<-- The Write component output history Bundle
                                 ,name     =VBL_NAME                     &  !<-- Name of the integer scalar
                                 ,count    =LENGTH                       &  !<-- # of elements in this attribute
                                 ,valueList=R_1D(NFIND)%NAME             &  !<-- The 1D real being inserted into the import state
                                 ,rc       =RC)
 !
-        ELSEIF(DYN_INT_STATE_1D_R(2,NFIND)=='*')THEN                       !<-- End of the 1D real array list
+        ENDIF
+!
+        IF(DYN_INT_STATE_1D_R(3,NFIND)=='R')THEN                           !<-- Take 1D real array data specified for restart output
+          VBL_NAME=TRIM(DYN_INT_STATE_1D_R(1,NFIND))
+          LENGTH=SIZE(R_1D(NFIND)%NAME)
+!
+          CALL ESMF_AttributeSet(bundle   =RESTART_BUNDLE               &  !<-- The Write component output restart Bundle
+                                ,name     =VBL_NAME                     &  !<-- Name of the integer scalar
+                                ,count    =LENGTH                       &  !<-- # of elements in this attribute
+                                ,valueList=R_1D(NFIND)%NAME             &  !<-- The 1D real being inserted into the import state
+                                ,rc       =RC)
+        ENDIF
+!
+        IF(DYN_INT_STATE_1D_R(2,NFIND)=='*' .AND.                       &
+           DYN_INT_STATE_1D_R(3,NFIND)=='*'      )THEN                     !<-- End of the 1D real array list
           EXIT
         ENDIF
 !
@@ -737,34 +838,6 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  THE LOGICALS.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!      MESSAGE_CHECK="Insert Dynamics Logicals into History Bundle"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!      DO NFIND=1,MAX_KOUNT
-!        IF(DYN_INT_STATE_LOG(2,1)=='H')THEN                        !<-- Take integer logical data specified for history output
-!          VBL_NAME=TRIM(DYN_INT_STATE_LOG(1,1))
-!
-!          CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                  &  !<-- The Write component output data Bundle
-!                                ,name  =VBL_NAME                        &  !<-- Name of the logical
-!                                ,value =L_FL(1)%NAME                &  !<-- The logical being inserted into the import state
-!                                ,rc    =RC)
-!
-!        ELSEIF(DYN_INT_STATE_LOG(2,1)=='*')THEN                    !<-- End of the logical list
-!          EXIT
-!        ENDIF
-!
-!      ENDDO
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
@@ -785,12 +858,44 @@
       JHALO=int_state%JHALO
 !
       NUM_2D_FIELDS=0
-      NULLIFY(TEMP_R2D)
 !
       DO NFIND=1,MAX_KOUNT
         IF(DYN_INT_STATE_2D_R(2,NFIND)=='H')THEN                           !<-- Take 2D real array data specified for history output
           VBL_NAME=TRIM(DYN_INT_STATE_2D_R(1,NFIND))
-!!!       TEMP_R2D=>R_2D(NFIND)%NAME(ITS:ITE,JTS:JTE)
+          TEMP_R2D=>R_2D(NFIND)%NAME(IMS:IME,JMS:JME)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert Dynamics 2-D Real Data into Field"
+          CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
+                                ,farray       =TEMP_R2D                 &  !<-- The 2D real array being inserted into the import state
+                                ,copyflag     =COPYFLAG                 &
+                                ,maxHaloUWidth=(/IHALO,JHALO/)          &
+                                ,maxHaloLWidth=(/IHALO,JHALO/)          &
+                                ,name         =VBL_NAME                 &  !<-- Name of the 2D real array
+                                ,rc           =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert Dynamics 2-D Real Field into Hist/Res Bundles"
+          CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_FieldBundleAdd(bundle=HISTORY_BUNDLE                &  !<-- The Write component output history Bundle
+                                  ,field =FIELD                         &  !<-- ESMF Field holding the 2D real array
+                                  ,rc    =RC)
+!
+          NUM_2D_FIELDS=NUM_2D_FIELDS+1
+!
+        ENDIF
+!
+        IF(DYN_INT_STATE_2D_R(3,NFIND)=='R')THEN                           !<-- Take 2D real array data specified for restart output
+          VBL_NAME=TRIM(DYN_INT_STATE_2D_R(1,NFIND))
           TEMP_R2D=>R_2D(NFIND)%NAME(IMS:IME,JMS:JME)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -815,13 +920,13 @@
           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_FieldBundleAdd(bundle=HISTORY_BUNDLE                &  !<-- The Write component output data Bundle
+          CALL ESMF_FieldBundleAdd(bundle=RESTART_BUNDLE                &  !<-- The Write component restart restart Bundle
                                   ,field =FIELD                         &  !<-- ESMF Field holding the 2D real array
                                   ,rc    =RC)
+        ENDIF
 !
-          NUM_2D_FIELDS=NUM_2D_FIELDS+1
-!
-        ELSEIF(DYN_INT_STATE_2D_R(2,NFIND)=='*')THEN                       !<-- End of the 2D real array list
+        IF(DYN_INT_STATE_2D_R(2,NFIND)=='*' .AND.                       &
+           DYN_INT_STATE_2D_R(3,NFIND)=='*'      )THEN                     !<-- End of the 2D real array list
           EXIT
         ENDIF
 !
@@ -838,9 +943,9 @@
 !-----------------------------------------------------------------------
 !
       IF(.NOT.int_state%ADIABATIC)THEN
-        DYN_INT_STATE_3D_R=>DYN_INT_STATE_3D_R_DIAB(1:2,1:MAX_KOUNT)       !<-- Select diabatic output
+        DYN_INT_STATE_3D_R=>DYN_INT_STATE_3D_R_DIAB(1:3,1:MAX_KOUNT)       !<-- Select diabatic output
       ELSE
-        DYN_INT_STATE_3D_R=>DYN_INT_STATE_3D_R_ADIAB(1:2,1:MAX_KOUNT)      !<-- Select adiabatic output
+        DYN_INT_STATE_3D_R=>DYN_INT_STATE_3D_R_ADIAB(1:3,1:MAX_KOUNT)      !<-- Select adiabatic output
       ENDIF
 !
       NULLIFY(TEMP_R2D)
@@ -881,7 +986,7 @@
             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL ESMF_FieldBundleAdd(bundle=HISTORY_BUNDLE              &  !<-- The Write component output data Bundle
+            CALL ESMF_FieldBundleAdd(bundle=HISTORY_BUNDLE              &  !<-- The Write component output history Bundle
                                     ,field =FIELD                       &  !<-- ESMF Field holding the 1D real array
                                     ,rc    =RC)
 !
@@ -893,7 +998,56 @@
 !
           ENDDO
 !
-        ELSEIF(DYN_INT_STATE_3D_R(2,NFIND)=='*')THEN                       !<-- End of the 3D real array list
+        ENDIF
+!
+        IF(DYN_INT_STATE_3D_R(3,NFIND)=='R')THEN                           !<-- Take 3D real array data specified for restart output
+          NDIM3=UBOUND(R_3D(NFIND)%NAME,3)                                 !<-- Determine # of vertical levels in this variable
+          LDIM1=LBOUND(R_3D(NFIND)%NAME,1)
+          UDIM1=UBOUND(R_3D(NFIND)%NAME,1)
+          LDIM2=LBOUND(R_3D(NFIND)%NAME,2)
+          UDIM2=UBOUND(R_3D(NFIND)%NAME,2)
+!
+          DO K=1,NDIM3
+            WRITE(MODEL_LEVEL,FMT)K
+            VBL_NAME=TRIM(DYN_INT_STATE_3D_R(1,NFIND))//'_'//MODEL_LEVEL//'_2D'
+            TEMP_R2D=>R_3D(NFIND)%NAME(LDIM1:UDIM1,LDIM2:UDIM2,K)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Fill 2-D Fields with Each Level of Dynamics 3-D Data"
+            CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
+                                  ,farray       =TEMP_R2D               &  !<-- Level K of 3D real array being inserted into the import state
+                                  ,copyflag     =COPYFLAG               &
+                                  ,maxHaloUWidth=(/IHALO,JHALO/)        &
+                                  ,maxHaloLWidth=(/IHALO,JHALO/)        &
+                                  ,name         =VBL_NAME               &  !<-- Name of this level of the 3D real array
+                                  ,rc           =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Insert Dynamics 3-D Data into History Bundle"
+            CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_FieldBundleAdd(bundle=RESTART_BUNDLE              &  !<-- The Write component restart restart Bundle
+                                    ,field =FIELD                       &  !<-- ESMF Field holding the 1D real array
+                                    ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          ENDDO
+!
+        ENDIF
+!
+        IF(DYN_INT_STATE_3D_R(2,NFIND)=='*' .AND.                       &
+           DYN_INT_STATE_3D_R(3,NFIND)=='*'      )THEN                     !<-- End of the 3D real array list
           EXIT
         ENDIF
 !
@@ -901,7 +1055,7 @@
       IF(MYPE==0)WRITE(0,*)' Exit DYNAMICS_OUTPUT num_2d_fields=',NUM_2D_FIELDS
 !
 !-----------------------------------------------------------------------
-!***  INSERT THE OUTPUT DATA Bundle INTO THE WRITE COMPONENT'S
+!***  INSERT THE HISTORY DATA Bundle INTO THE WRITE COMPONENT'S
 !***  IMPORT STATE.
 !***  SINCE DYNAMICS IS CALLED BEFORE PHYSICS, WE WILL INSERT THE
 !***  BUNDLE NOW AND SIMPLY USE IT IN POINT_PHYSICS_OUTPUT.
@@ -913,7 +1067,27 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_StateAdd(state      =IMP_STATE_WRITE                    &  !<-- The Write component's import state
-                        ,fieldbundle=HISTORY_BUNDLE                     &  !<-- The ESMF Bundle holding all Dynamics output data
+                        ,fieldbundle=HISTORY_BUNDLE                     &  !<-- The ESMF Bundle holding all Dynamics history data
+                        ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  INSERT THE RESTART DATA Bundle INTO THE WRITE COMPONENT'S
+!***  IMPORT STATE.
+!***  SINCE DYNAMICS IS CALLED BEFORE PHYSICS, WE WILL INSERT THE
+!***  BUNDLE NOW AND SIMPLY USE IT IN POINT_PHYSICS_OUTPUT.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Dynamics: Insert Restart Bundle into the Write Import State"
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateAdd(state      =IMP_STATE_WRITE                    &  !<-- The Write component's import state
+                        ,fieldbundle=RESTART_BUNDLE                     &  !<-- The ESMF Bundle holding all Dynamics restart data
                         ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
