@@ -24,12 +24,12 @@ stty: tcgetattr: A specified file does not support the ioctl system call.
 + export YIELDLOOPTIME=500
 + export AIXTHREAD_SCOPE=S
 + export MALLOCMULTIHEAP=true
-+ export expt=gfs.x
++ export expt=gfs.1
 + export NSCDIR=/global/noscrub
 + export TOPDIR=/global/save
 + export DUMPDIR=/global/shared/dump
 + export MP_COREFILE_FORMAT=lite
-+ export RUNDIR=/ptmp/wx22ec/gfs.x
++ export RUNDIR=/ptmp/wx22ec/gfs.1
 + export SCRIPTS=/global/save/wx23sm/gsm/scripts
 + export cold_sfc=NO
 + export hybrid=NO
@@ -65,9 +65,9 @@ stty: tcgetattr: A specified file does not support the ioctl system call.
 + export ivssig=200509
 + export nvcoord=3
 + export LATCH=48
-+ mkdir -p /ptmp/wx22ec/gfs.x
-+ cd /ptmp/wx22ec/gfs.x
-+ export COMOUT=/ptmp/wx22ec/gfs.x
++ mkdir -p /ptmp/wx22ec/gfs.1
++ cd /ptmp/wx22ec/gfs.1
++ export COMOUT=/ptmp/wx22ec/gfs.1
 + export FIXGLOBAL=/nwprod/fix
 + export kop=26
 + [[ 64 -eq 64 ]]
@@ -102,9 +102,9 @@ stty: tcgetattr: A specified file does not support the ioctl system call.
 + export VERBOSE=YES
 + export SIGINP=/global/shared/dump/2007070200/gfs/siganl.gfs.2007070200
 + export SFCINP=/global/shared/dump/2007070200/gfs/sfcanl.gfs.2007070200
-+ export GFSOUT=/ptmp/wx22ec/gfs.x/gfsanl.2007070200
-+ export SIGOUT=/ptmp/wx22ec/gfs.x/siganl.2007070200
-+ export SFCOUT=/ptmp/wx22ec/gfs.x/sfcanl.2007070200
++ export GFSOUT=/ptmp/wx22ec/gfs.1/gfsanl.2007070200
++ export SIGOUT=/ptmp/wx22ec/gfs.1/siganl.2007070200
++ export SFCOUT=/ptmp/wx22ec/gfs.1/sfcanl.2007070200
 + echo YES
 + [[ YES = YES ]]
 + export CHGRESVARS=ntrac=3,idvt=21,ncldt=1,idvc=3,IVSSIG=200509,NVCOORD=3,IVSSFC=200509,idvm=32,idsl=2,OUTTYP=1,
@@ -113,13 +113,13 @@ stty: tcgetattr: A specified file does not support the ioctl system call.
 + export CHGRESSH=/global/save/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh
 + export CHGRESVARS=ntrac=3,idvt=21,ncldt=1,idvc=3,IVSSIG=200509,NVCOORD=3,IVSSFC=200509,idvm=32,idsl=2,OUTTYP=1,RI=  286.05,   461.50, 173.2247,    0.0,CPI= 1004.6,   1846.0, 820.2391,    0.0
 + /global/save/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh
-Mon Sep 22 11:14:35 EDT 2008 EXECUTING /global/save/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh
+Tue Oct 28 00:53:25 EDT 2008 EXECUTING /global/save/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh
 + export SIGINP=/global/shared/dump/2007070200/gfs/siganl.gfs.2007070200
 + export SFCINP=/global/shared/dump/2007070200/gfs/sfcanl.gfs.2007070200
 + export OUTTYP=2
-+ export SIGOUT=/ptmp/wx22ec/gfs.x/siganl.2007070200
-+ export GFSOUT=/ptmp/wx22ec/gfs.x/gfsanl.2007070200
-+ export SFCOUT=/ptmp/wx22ec/gfs.x/sfcanl.2007070200
++ export SIGOUT=/ptmp/wx22ec/gfs.1/siganl.2007070200
++ export GFSOUT=/ptmp/wx22ec/gfs.1/gfsanl.2007070200
++ export SFCOUT=/ptmp/wx22ec/gfs.1/sfcanl.2007070200
 + export JCAP=62
 + export LEVS=64
 + export LONB=192
@@ -128,7 +128,7 @@ Mon Sep 22 11:14:35 EDT 2008 EXECUTING /global/save/wx23hh/00wkgfs/ush/global_ch
 + export FIXGLOBAL=/nwprod/fix
 + export EXECGLOBAL=/nwprod/exec
 + pwd
-+ export DATA=/ptmp/wx22ec/gfs.x
++ export DATA=/ptmp/wx22ec/gfs.1
 + export XC=
 + export CHGRESEXEC=/global/save/wx23hh/00wkgfs/src/global_chgres-moorthi.fd/global_chgres
 + export OROGRAPHY=/nwprod/fix/global_orography.t62.grb
@@ -179,10 +179,10 @@ Mon Sep 22 11:14:35 EDT 2008 EXECUTING /global/save/wx23hh/00wkgfs/ush/global_ch
 + a=
 + export REDERR=2>
 + + pwd
-pwd=/ptmp/wx22ec/gfs.x
-+ [[ -d /ptmp/wx22ec/gfs.x ]]
+pwd=/ptmp/wx22ec/gfs.1
++ [[ -d /ptmp/wx22ec/gfs.1 ]]
 + mkdata=NO
-+ cd /ptmp/wx22ec/gfs.x
++ cd /ptmp/wx22ec/gfs.1
 + export PGM=/global/save/wx23hh/00wkgfs/src/global_chgres-moorthi.fd/global_chgres
 + export pgm=/global/save/wx23hh/00wkgfs/src/global_chgres-moorthi.fd/global_chgres
 + rm -f NULL
@@ -193,9 +193,9 @@ pwd=/ptmp/wx22ec/gfs.x
 + ln -sf /global/shared/dump/2007070200/gfs/sfcanl.gfs.2007070200 chgres.inp.sfc
 + ln -sf /nwprod/fix/global_slmask.t62.grb chgres.inp.slmgb
 + ln -sf /global/save/wx20mi/newres/global_lonsperlat.t62.txt chgres.inp.lonsperlat
-+ ln -sf /ptmp/wx22ec/gfs.x/siganl.2007070200 chgres.out.sig
-+ ln -sf /ptmp/wx22ec/gfs.x/gfsanl.2007070200 chgres.out.grd
-+ ln -sf /ptmp/wx22ec/gfs.x/sfcanl.2007070200 chgres.out.sfc
++ ln -sf /ptmp/wx22ec/gfs.1/siganl.2007070200 chgres.out.sig
++ ln -sf /ptmp/wx22ec/gfs.1/gfsanl.2007070200 chgres.out.grd
++ ln -sf /ptmp/wx22ec/gfs.1/sfcanl.2007070200 chgres.out.sfc
 + [[ 2 = 3 ]]
 + [[ 2 = 4 ]]
 + LANDICE=.true.
@@ -279,9 +279,9 @@ pwd=/ptmp/wx22ec/gfs.x
 + rm -f chgres.inp.sig chgres.inp.orogb chgres.inp.siglevel chgres.inp.o3clim
 + rm -f chgres.inp.sfc chgres.inp.slmgb chgres.inp.lonsperlat
 + rm -f chgres.out.sig chgres.out.sfc fort.35 fort.81
-+ cd /ptmp/wx22ec/gfs.x
++ cd /ptmp/wx22ec/gfs.1
 + [[ NO = YES ]]
-Mon Sep 22 11:15:08 EDT 2008 EXITING /global/save/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh with return code 0
-+ export SIGI=/ptmp/wx22ec/gfs.x/siganl.2007070200
-+ export GFSI=/ptmp/wx22ec/gfs.x/gfsanl.2007070200
-+ export SFCI=/ptmp/wx22ec/gfs.x/sfcanl.2007070200
+Tue Oct 28 00:53:57 EDT 2008 EXITING /global/save/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh with return code 0
++ export SIGI=/ptmp/wx22ec/gfs.1/siganl.2007070200
++ export GFSI=/ptmp/wx22ec/gfs.1/gfsanl.2007070200
++ export SFCI=/ptmp/wx22ec/gfs.1/sfcanl.2007070200

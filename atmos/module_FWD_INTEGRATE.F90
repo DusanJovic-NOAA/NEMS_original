@@ -56,11 +56,11 @@
                                   ,CLOCK_ATM                            &
                                   ,CURRTIME                             &
 				  ,HALFDFITIME                          &
+                                  ,HALFDFIINTVAL                        &
 				  ,SDFITIME                             &
 				  ,DFITIME                              &
 				  ,STARTTIME                            &
 				  ,ALARM_CLOCKTIME                      &
-				  ,ALARM                                &
 				  ,ALARM_HISTORY                        &
 				  ,ALARM_RESTART                        &
 				  ,MYPE                                 &
@@ -97,11 +97,11 @@
 !
       TYPE(ESMF_Time),INTENT(INOUT)          :: CURRTIME                  !<-- The current forecast time
       TYPE(ESMF_Time),INTENT(INOUT)          :: HALFDFITIME
+      TYPE(ESMF_TimeInterval),INTENT(INOUT)          :: HALFDFIINTVAL
       TYPE(ESMF_Time),INTENT(INOUT)          :: SDFITIME
       TYPE(ESMF_Time),INTENT(INOUT)          :: STARTTIME
       TYPE(ESMF_Time),INTENT(INOUT)          :: DFITIME
 !
-      TYPE(ESMF_Alarm),INTENT(INOUT)         :: ALARM(2)
       TYPE(ESMF_Alarm),INTENT(INOUT)         :: ALARM_CLOCKTIME           !<-- The ESMF Alarm for clocktime prints
       TYPE(ESMF_Alarm),INTENT(INOUT) 	     :: ALARM_HISTORY             !<-- The ESMF Alarm for history output
       TYPE(ESMF_Alarm),INTENT(INOUT) 	     :: ALARM_RESTART             !<-- The ESMF Alarm for restart output
@@ -288,8 +288,8 @@
 !
 !-----------------------------------------------------------------------
 !
-          IF(MYPE<atm_int_state%NUM_PES_FCST)THEN
 !
+          IF (MYPE == 0) THEN
           IF(CURRTIME==SDFITIME)THEN
             CALL DIGITAL_FILTER_DYN_INIT_NMM(atm_int_state%IMP_STATE_DYN &
                                             ,NDFISTEP                    &
@@ -301,7 +301,6 @@
             IF(PHYSICS_ON)THEN
               CALL DIGITAL_FILTER_PHY_INIT_NMM(atm_int_state%IMP_STATE_PHY)
             ENDIF
-!
           ENDIF
 !
 ! -------------------- summation stage ---------------------------------
@@ -314,12 +313,9 @@
 !
           IF(PHYSICS_ON)THEN
 !
-            IF(CURRTIME==HALFDFITIME)THEN
-              IF(ESMF_AlarmIsRinging(alarm(1),RC))THEN
+           IF(CURRTIME==HALFDFITIME)THEN
                 CALL DIGITAL_FILTER_PHY_SAVE_NMM(atm_int_state%IMP_STATE_PHY)
-              ENDIF
-            ENDIF
-!
+           ENDIF
           ENDIF
 !
 ! ----------------------------------------------------------------------
@@ -327,32 +323,27 @@
 ! --------------------- final stage ------------------------------------
 !
           IF(CURRTIME==DFITIME)THEN
-            IF (ESMF_AlarmIsRinging(ALARM(2),RC))THEN
-              print *,' dfi at finaldfitime '
-              CALL DIGITAL_FILTER_DYN_AVERAGE_NMM(atm_int_state%IMP_STATE_DYN &
+!              IF (ESMF_AlarmIsRinging(alarm=ALARM_FILTER(3), rc=RC)) then
+                print *,' dfi at finaldfitime '
+                CALL DIGITAL_FILTER_DYN_AVERAGE_NMM(atm_int_state%IMP_STATE_DYN &
                                                  ,NUM_TRACERS_MET             &
                                                  ,NUM_TRACERS_CHEM)
-              IF(PHYSICS_ON)THEN
-                CALL DIGITAL_FILTER_PHY_RESTORE_NMM(atm_int_state%IMP_STATE_PHY)
-              ENDIF
+                IF(PHYSICS_ON)THEN
+                 CALL DIGITAL_FILTER_PHY_RESTORE_NMM(atm_int_state%IMP_STATE_PHY)
+                ENDIF
 !
 ! ----------------------------------------------------------------------
 !
-!             CALL ESMF_ClockSet(clock   =CLOCK_ATM                     &
+!               CALL ESMF_ClockSet(clock   =CLOCK_ATM                     &
 !                               ,currtime=HALFDFITIME                   &
 !                               ,rc      =RC)
-              DFITIME = STARTTIME
-              DFIHR = 0
-              CALL ESMF_ClockPrint(clock  =CLOCK_ATM                    &
+                DFITIME = STARTTIME
+                DFIHR = 0
+                CALL ESMF_ClockPrint(clock  =CLOCK_ATM                    &
                                   ,options="currtime string"            &
                                   ,rc     =RC)
-!
-            ENDIF
-!
+!             ENDIF
           ENDIF
-!
-! -----------------------------------------------------------------------
-!
         ENDIF
 !
         ENDIF dfihr_gt0
@@ -420,8 +411,8 @@
 !-----------------------------------------------------------------------
 
       SUBROUTINE GFS_FWD_INTEGRATE(gc_gfs_dyn,gc_gfs_phy,gc_atm_cpl,imp_gfs_dyn,exp_gfs_dyn &
-				   ,imp_gfs_phy,exp_gfs_phy,CLOCK_MAIN,ALARM,ALARM_HISTORY,CURRTIME,HALFDFITIME &
-                                   ,SDFITIME,DFITIME,STARTTIME,NDFISTEP,DFIHR,MYPE,PHYSICS_ON)
+				   ,imp_gfs_phy,exp_gfs_phy,CLOCK_MAIN,ALARM_HISTORY,CURRTIME,HALFDFITIME &
+                                   ,HALFDFIINTVAL,SDFITIME,DFITIME,STARTTIME,NDFISTEP,DFIHR,MYPE,PHYSICS_ON)
 
       USE MODULE_DIGITAL_FILTER_GFS
       USE MODULE_CONTROL,ONLY: TIMEF
@@ -433,17 +424,15 @@
       TYPE(ESMF_Clock),INTENT(INOUT)         :: CLOCK_MAIN                         !<-- The ATM Component's ESMF Clock
       TYPE(ESMF_Time),INTENT(INOUT)             :: CURRTIME                           !<-- The current forecast time
       TYPE(ESMF_Time),INTENT(INOUT)             :: HALFDFITIME
+      TYPE(ESMF_TimeInterval),INTENT(INOUT)             :: HALFDFIINTVAL
       TYPE(ESMF_Alarm),INTENT(INOUT)            :: ALARM_HISTORY
       TYPE(ESMF_Time),INTENT(INOUT)             :: SDFITIME
       TYPE(ESMF_Time),INTENT(INOUT)             :: STARTTIME
       TYPE(ESMF_Time),INTENT(INOUT)             :: DFITIME
       INTEGER(KIND=KINT),INTENT(INOUT)       :: DFIHR
       INTEGER(KIND=KINT),INTENT(IN)          :: NDFISTEP, MYPE
-      TYPE(ESMF_Alarm),INTENT(INOUT)            :: alarm(2)
       LOGICAL,INTENT(IN)                     :: PHYSICS_ON
       INTEGER(KIND=KINT)                     :: RC,RC_LOOP
-
-
 
           do while (.not.esmf_clockisstoptime(CLOCK_MAIN,rc))
           call esmf_logwrite("execute dynamics",esmf_log_info,rc=rc)
@@ -529,18 +518,18 @@
                           ,rc          =RC)
 !
 !
+        IF (MYPE==0) THEN
         IF (DFIHR .GT. 0) THEN
 ! --------------------- first stage -----------------------------------
-           IF ( CURRTIME .eq. SDFITIME ) THEN
-
-           CALL DIGITAL_FILTER_DYN_INIT_GFS(imp_gfs_dyn,NDFISTEP)
+          IF ( CURRTIME .eq. SDFITIME ) THEN
+             CALL DIGITAL_FILTER_DYN_INIT_GFS(imp_gfs_dyn,NDFISTEP)
 
 ! -------------------- inital summation  ------------------------------
 !
                 IF ( PHYSICS_ON ) THEN
                         CALL DIGITAL_FILTER_PHY_INIT_GFS(imp_gfs_phy)
                 ENDIF
-             ENDIF
+          ENDIF
 
 !
 ! -------------------- summation stage ---------------------------------
@@ -550,42 +539,45 @@
 ! ----------------------------------------------------------------------
 !
               IF( PHYSICS_ON ) then
-              IF( CURRTIME .eq. HALFDFITIME ) THEN
-               IF (ESMF_AlarmIsRinging(alarm(1), RC)) then
-                CALL DIGITAL_FILTER_PHY_SAVE_GFS(imp_gfs_phy)
-               ENDIF
-              ENDIF
+                IF( CURRTIME .eq. HALFDFITIME ) THEN
+                    CALL DIGITAL_FILTER_PHY_SAVE_GFS(imp_gfs_phy)
+                ENDIF
               ENDIF
 !
 ! ----------------------------------------------------------------------
 !
 ! --------------------- final stage ------------------------------------
 !
-             IF (ESMF_AlarmIsRinging(alarm(2), RC)) then
-              print *,' dfi at finaldfitime '
+            IF( CURRTIME .eq. DFITIME ) then
+                 print *,' dfi at finaldfitime '
                 CALL DIGITAL_FILTER_DYN_AVERAGE_GFS(imp_gfs_dyn,mype)
-              IF( PHYSICS_ON ) then
-                CALL DIGITAL_FILTER_PHY_RESTORE_GFS(imp_gfs_phy)
-              ENDIF
+                IF( PHYSICS_ON ) then
+                  CALL DIGITAL_FILTER_PHY_RESTORE_GFS(imp_gfs_phy)
+                ENDIF
 !
 ! ----------------------------------------------------------------------
 !
-              CALL ESMF_ClockSet(clock   =CLOCK_MAIN                     &
-                                ,currtime=HALFDFITIME                   &
-                                ,rc      =RC)
-              DFITIME = STARTTIME
-              DFIHR = 0
-              CALL ESMF_ClockPrint(clock=CLOCK_MAIN                      &
+!              CALL ESMF_ClockSet(clock   =CLOCK_MAIN                     &
+!                               ,currtime=HALFDFITIME                   &
+!                               ,rc      =RC)
+              
+
+               DFITIME = STARTTIME
+               DFIHR = 0
+               CALL ESMF_ClockPrint(clock=CLOCK_MAIN                      &
                               ,options="currtime string"                &
                               ,rc=RC)
-             ENDIF
+          ENDIF 
         ENDIF !< -- DFIHR
+        ENDIF
 
         total_tim=total_tim+timef()-btim0
 !
 !-----------------------------------------------------------------------
 !
+       
        ENDDO
+
         MESSAGE_CHECK="last step dynamics"
                 call esmf_gridcomprun(gridcomp=gc_gfs_dyn       &
                                ,importstate=imp_gfs_dyn         &

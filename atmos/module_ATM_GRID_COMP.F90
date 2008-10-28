@@ -1255,7 +1255,6 @@
       TYPE(ESMF_Time)                  :: HALFDFITIME                      !<-- Digital filter time interval
       TYPE(ESMF_TimeInterval)          :: HALFDFIINTVAL                    !<-- Digital filter time interval
       TYPE(ESMF_TimeInterval)          :: TIMESTEP                         !<-- Digital filter time interval
-      TYPE(ESMF_Alarm), save           :: alarm(2)
 !
       INTEGER(KIND=KINT)         :: RC,NUM_PES_FCST                        !<-- Error signal variable.
       INTEGER(KIND=KINT)         :: I,IER,J
@@ -1430,25 +1429,9 @@
                           ,rc =RC)
            ENDIF
            NDFISTEP = HALFDFIINTVAL / TIMESTEP
-           print *,'NDFISTEP=',NDFISTEP
            HALFDFITIME = STARTTIME + HALFDFIINTVAL
            SDFITIME = STARTTIME + HALFDFIINTVAL/NDFISTEP
            DFITIME = HALFDFITIME + HALFDFIINTVAL
-           IF (CORE=='nmm') THEN
-           alarm(1) = ESMF_AlarmCreate("Half of digital filter", CLOCK_ATM, &
-                                  ringTime=HALFDFITIME,                 &
-                                  ringTimeStepCount=1, sticky=.false.,  rc=RC)
-           alarm(2) = ESMF_AlarmCreate("Fulldigital filter", CLOCK_ATM,     &
-                                  ringTime=DFITIME,                     &
-                                  ringTimeStepCount=1, sticky=.false.,  rc=RC)
-           ELSE IF (CORE=='gfs') THEN
-           alarm(1) = ESMF_AlarmCreate("Half of digital filter", CLOCK_MAIN, &
-                                  ringTime=HALFDFITIME,                 &
-                                  ringTimeStepCount=1, sticky=.false.,  rc=RC)
-           alarm(2) = ESMF_AlarmCreate("Fulldigital filter", CLOCK_MAIN,     &
-                                  ringTime=DFITIME,                     &
-                                  ringTimeStepCount=1, sticky=.false.,  rc=RC)
-           ENDIF
            ENDIF
 !
 !-----------------------------------------------------------------------
@@ -1465,11 +1448,11 @@
                                  ,CLOCK_ATM                             &
                                  ,CURRTIME                              &
                                  ,HALFDFITIME                           &
+                                 ,HALFDFIINTVAL                         &
                                  ,SDFITIME                              &
                                  ,DFITIME                               &
                                  ,STARTTIME                             &
                                  ,ALARM_CLOCKTIME                       &
-                                 ,ALARM                                 &
                                  ,ALARM_HISTORY                         &
                                  ,ALARM_RESTART                         &
                                  ,MYPE                                  &
@@ -1483,9 +1466,25 @@
 
 
       ELSE IF (CORE=='gfs') THEN
-           CALL GFS_FWD_INTEGRATE(gc_gfs_dyn,gc_gfs_phy,gc_atm_cpl,imp_gfs_dyn,exp_gfs_dyn &
-                                   ,imp_gfs_phy,exp_gfs_phy,CLOCK_ATM,ALARM,ALARM_HISTORY,CURRTIME,HALFDFITIME &
-                                   ,SDFITIME,DFITIME,STARTTIME,NDFISTEP,DFIHR,MYPE,PHYSICS_ON)
+           CALL GFS_FWD_INTEGRATE(gc_gfs_dyn                            &
+				 ,gc_gfs_phy                            &
+				 ,gc_atm_cpl                            &
+				 ,imp_gfs_dyn                           &
+                                 ,exp_gfs_dyn                           &
+                                 ,imp_gfs_phy                           &
+				 ,exp_gfs_phy                           &
+                                 ,CLOCK_MAIN                            & 
+                                 ,ALARM_HISTORY                         &
+                                 ,CURRTIME                              &
+                                 ,HALFDFITIME                           &
+                                 ,HALFDFIINTVAL                         &
+                                 ,SDFITIME                              &
+				 ,DFITIME                               &
+				 ,STARTTIME                             &
+			         ,NDFISTEP                              &
+                                 ,DFIHR                                 &
+                                 ,MYPE                                  &
+                                 ,PHYSICS_ON)
       ENDIF
 
 

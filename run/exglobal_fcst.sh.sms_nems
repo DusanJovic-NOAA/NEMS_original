@@ -711,7 +711,7 @@ jnpes:                ${PE1}
 im:                   ${LONB}
 jm:                   ${LATB}
 global:               .true.
-nhours_dfini:          0
+nhours_dfini:          1
 adiabatic:            .false.
 
 EOF
