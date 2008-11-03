@@ -3432,6 +3432,7 @@
                                  ,NF_HOURS                              &
                                  ,NF_MINUTES                            &
                                  ,NF_SECONDS                            &
+                                 ,HST_FIRST                             &
                                  ,LEAD_WRITE_TASK )
 !
 !-----------------------------------------------------------------------
@@ -3450,6 +3451,8 @@
                            ,LEAD_WRITE_TASK
 !
       REAL,INTENT(IN) :: NF_SECONDS,SECOND_FCST
+!
+      LOGICAL,INTENT(IN) :: HST_FIRST
 !
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES
@@ -3486,7 +3489,7 @@
       WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)NF_MINUTES
       WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)NF_SECONDS
 !
-      IF(wrt_int_state%NFHOUR==0)THEN
+      IF(HST_FIRST)THEN
         WRITE(0,*)' Wrote IYEAR_FCST to history file unit ',wrt_int_state%IO_HST_UNIT
         WRITE(0,*)' Wrote IMONTH_FCST to history file unit ',wrt_int_state%IO_HST_UNIT
         WRITE(0,*)' Wrote IDAY_FCST to history file unit ',wrt_int_state%IO_HST_UNIT
@@ -3519,7 +3522,7 @@
 !
         WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)WORK_ARRAY_I1D          !<-- Write out the data
 !
-        IF(wrt_int_state%NFHOUR==0)THEN
+        IF(HST_FIRST)THEN
           WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
         ENDIF
 !
@@ -3548,7 +3551,7 @@
 !
         WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)WORK_ARRAY_R1D          !<-- Write out the data
 !
-        IF(wrt_int_state%NFHOUR==0)THEN
+        IF(HST_FIRST)THEN
           WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
         ENDIF
 !
@@ -3574,7 +3577,7 @@
 !
         WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)WRITE_LOGICAL           !<-- Write out the data
 !
-        IF(wrt_int_state%NFHOUR==0)THEN
+        IF(HST_FIRST)THEN
           WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
         ENDIF
 !
@@ -4137,6 +4140,7 @@
                                  ,IHOUR_FCST                            &
                                  ,IMINUTE_FCST                          &
                                  ,SECOND_FCST                           &
+                                 ,NTIMESTEP                             &
                                  ,NF_HOURS                              &
                                  ,NF_MINUTES                            &
                                  ,NF_SECONDS                            &
@@ -4154,11 +4158,12 @@
                            ,IDAY_FCST                                   &
                            ,IHOUR_FCST                                  &
                            ,IMINUTE_FCST                                &
+                           ,LEAD_WRITE_TASK                             &
                            ,NF_HOURS                                    &
                            ,NF_MINUTES                                  &
-                           ,LEAD_WRITE_TASK
+                           ,NTIMESTEP 
 !
-      LOGICAL,INTENT(IN)                       :: RST_FIRST
+      LOGICAL,INTENT(IN) :: RST_FIRST
 !
       REAL,INTENT(IN) :: NF_SECONDS,SECOND_FCST
 !
@@ -4168,12 +4173,12 @@
 !
       INTEGER :: N,N1,N2,NPOSN_1,NPOSN_2,LENGTH
       INTEGER :: NFIELD,RC
-      CHARACTER(ESMF_MAXSTR)                :: NAME
-      INTEGER,DIMENSION(:),POINTER          :: WORK_ARRAY_I1D
-      REAL(4),DIMENSION(:),POINTER          :: WORK_ARRAY_R1D
-      LOGICAL                               :: WRITE_LOGICAL
+      CHARACTER(ESMF_MAXSTR)       :: NAME
+      INTEGER,DIMENSION(:),POINTER :: WORK_ARRAY_I1D
+      REAL(4),DIMENSION(:),POINTER :: WORK_ARRAY_R1D
+      LOGICAL                      :: WRITE_LOGICAL
 !
-      TYPE(ESMF_Logical)                    :: WORK_LOGICAL
+      TYPE(ESMF_Logical)           :: WORK_LOGICAL
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -4193,6 +4198,7 @@
       WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)IHOUR_FCST
       WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)IMINUTE_FCST
       WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)SECOND_FCST
+      WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)NTIMESTEP
 !
       IF(RST_FIRST)THEN
         WRITE(0,*)' Wrote IYEAR_FCST to restart file unit ',wrt_int_state%IO_RST_UNIT
@@ -4201,6 +4207,7 @@
         WRITE(0,*)' Wrote IHOUR_FCST to restart file unit ',wrt_int_state%IO_RST_UNIT
         WRITE(0,*)' Wrote IMINUTE_FCST to restart file unit ',wrt_int_state%IO_RST_UNIT
         WRITE(0,*)' Wrote SECOND_FCST to restart file unit ',wrt_int_state%IO_RST_UNIT
+        WRITE(0,*)' Wrote NTIMESTEP to restart file unit ',wrt_int_state%IO_RST_UNIT
       ENDIF
 !
 !-----------------------------------------------------------------------

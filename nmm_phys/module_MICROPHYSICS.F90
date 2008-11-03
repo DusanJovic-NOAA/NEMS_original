@@ -3299,8 +3299,6 @@ nsteps = 0
 !     ENDDO
 !     ENDDO
 !    
-!     AVRAIN = 0. ! ratko - should we put only if not restart?
-!
       IF(.NOT.RESTART)THEN
         DO K = kts,kte
         DO J = jts,jte

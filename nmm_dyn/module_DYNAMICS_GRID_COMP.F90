@@ -2140,7 +2140,7 @@
       btim=timef()
 !
       CALL VSOUND                                                       &
-        (GLOBAL,HYDRO,int_state%RESTART                                 &
+        (GLOBAL,HYDRO                                                   &
         ,LM,NTIMESTEP                                                   &
         ,CP,DT,PT,DSG2,PDSG1                                            &
         ,int_state%PD                                                   &

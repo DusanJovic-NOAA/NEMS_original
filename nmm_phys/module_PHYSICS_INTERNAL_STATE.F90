@@ -49,6 +49,7 @@
         INTEGER(KIND=KINT) :: IM,JM,LM                                  &
                              ,NHOURS_HISTORY                            &
                              ,NHOURS_RESTART                            &
+                             ,NSOIL                                     &  !<-- # of soil layers
                              ,NUM_TRACERS_MET                           &  !<-- Number of meteorological tracers (e.g. water)
                              ,NUM_TRACERS_CHEM                          &  !<-- Number of chem/aerosol tracers
                              ,START_YEAR,START_MONTH,START_DAY          &
@@ -139,8 +140,7 @@
                                                    ,RQVBLTEN,RTHBLTEN   &
                                                    ,TRAIN,XLEN_MIX
 !
-        REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER :: KEEPFR3DFLAG        &
-                                                   ,SMC,SMFR3D,STC,SH2O
+        REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER :: SMC,STC,SH2O
 !
         REAL(KIND=KFPT),DIMENSION(:,:),POINTER :: CROT,SROT             &
                          ,HANGL,HANIS,HASYS,HASYSW,HASYNW,HASYW,HCNVX   &
@@ -299,6 +299,8 @@
       int_state%JMS=JMS
       int_state%JME=JME
 !
+      int_state%NSOIL=NUM_SOIL_LAYERS
+!
 !-----------------------------------------------------------------------
 !***  INITIALIZE
 !-----------------------------------------------------------------------
@@ -346,8 +348,8 @@
       ALLOCATE(int_state%RLWTT(IMS:IME,JMS:JME,1:LM))     ! Radiative T tendency, longwave  (K s-1)
       ALLOCATE(int_state%RSWTT(IMS:IME,JMS:JME,1:LM))     ! Radiative T tendency, shortwave (K s-1)
 !
-      ALLOCATE(int_state%RQVBLTEN(IMS:IME,1:LM+1,JMS:JME)) ! Specific humidity tendency from turbulence  (kg kg-1 s-1)
-      ALLOCATE(int_state%RTHBLTEN(IMS:IME,1:LM+1,JMS:JME)) ! Theta tendency from turbulence  (K s-1)
+      ALLOCATE(int_state%RQVBLTEN(IMS:IME,JMS:JME,1:LM+1)) ! Specific humidity tendency from turbulence  (kg kg-1 s-1)
+      ALLOCATE(int_state%RTHBLTEN(IMS:IME,JMS:JME,1:LM+1)) ! Theta tendency from turbulence  (K s-1)
 !
       ALLOCATE(int_state%EXCH_H(IMS:IME,JMS:JME,1:LM))    ! Turbulent exchange coefficient for heat  (m2 s-1)
 !
@@ -363,9 +365,7 @@
       ALLOCATE(int_state%WINT(IMS:IME,1:LM+1,JMS:JME))    ! Interface vertical velocity (m s-1)
 !
       ALLOCATE(int_state%SLDPTH(1:NUM_SOIL_LAYERS))                       ! Thickness of soil layers (m) from top
-      ALLOCATE(int_state%KEEPFR3DFLAG(IMS:IME,1:NUM_SOIL_LAYERS,JMS:JME)) ! Frozen soil flag: 0.0=>no 1.0=>yes
       ALLOCATE(int_state%SMC(IMS:IME,JMS:JME,1:NUM_SOIL_LAYERS))          ! Soil moisture volume fraction
-      ALLOCATE(int_state%SMFR3D(IMS:IME,1:NUM_SOIL_LAYERS,JMS:JME))       ! Soil ice
       ALLOCATE(int_state%STC(IMS:IME,JMS:JME,1:NUM_SOIL_LAYERS))          ! Soil temperature  (K)
       ALLOCATE(int_state%SH2O(IMS:IME,JMS:JME,1:NUM_SOIL_LAYERS))         ! Soil non-frozen moisture
 !
@@ -499,7 +499,7 @@
         int_state%RLWTT(I,J,L)=0.
         int_state%RSWTT(I,J,L)=0.
 !
-        int_state%EXCH_H(I,J,L)=-1.E6
+        int_state%EXCH_H(I,J,L)=0.
         int_state%XLEN_MIX(I,J,L)=-1.E6
 !
         int_state%CLDFRA(I,J,L)=0.
@@ -509,11 +509,18 @@
       ENDDO
       ENDDO
 !
+      DO L=1,LM+1
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%RQVBLTEN(I,J,L)=-1.E6
+        int_state%RTHBLTEN(I,J,L)=-1.E6
+      ENDDO
+      ENDDO
+      ENDDO
+!
       DO J=JMS,JME
       DO L=1,LM+1
       DO I=IMS,IME
-        int_state%RQVBLTEN(I,L,J)=-1.E6
-        int_state%RTHBLTEN(I,L,J)=-1.E6
         int_state%W0AVG(I,L,J)=-1.E6
         int_state%WINT(I,L,J)=-1.E6
       ENDDO
@@ -526,15 +533,6 @@
         int_state%SMC(I,J,L)=-1.E6
         int_state%STC(I,J,L)=-1.E6
         int_state%SH2O(I,J,L)=-1.E6
-      ENDDO
-      ENDDO
-      ENDDO
-!
-      DO J=JMS,JME
-      DO L=1,NUM_SOIL_LAYERS
-      DO I=IMS,IME
-        int_state%KEEPFR3DFLAG(I,L,J)=-1.E6
-        int_state%SMFR3D(I,L,J)=-1.E6
       ENDDO
       ENDDO
       ENDDO

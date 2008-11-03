@@ -13,7 +13,6 @@
 ###@ group = devqpri
 ###@ group = devonprod
 #@ wall_clock_limit = 01:00:00
-##@ wall_clock_limit = 00:10:00
 #@ preferences = Feature == "dev"
 #@ network.MPI = csss,shared,us
 #@ bulkxfer=yes

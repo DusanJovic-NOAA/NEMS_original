@@ -9,9 +9,7 @@ use module_dm_parallel,only : ids,ide,jds,jde &
                              ,lm &
                              ,mype_share,npes,num_pts_max &
                              ,mpi_comm_comp &
-                             ,dstrb &
-                             ,idstrb &
-                             ,dstrb_soil
+                             ,dstrb
 use module_exchange
 use module_constants
 !-----------------------------------------------------------------------
@@ -245,10 +243,6 @@ real(kind=kfpt),allocatable,dimension(:,:):: &      !im,jm
 !-----------------------------------------------------------------------
 !---fixed surface fields------------------------------------------------
 !-----------------------------------------------------------------------
-integer(kind=kint),allocatable,dimension(:,:):: &      !im,jm
- insoil &                    ! soil type
-,inveg                       ! vegetation type
-
 real(kind=kfpt),allocatable,dimension(:,:):: &      !im,jm
  albedo &                    ! base albedo
 !,epsr &                      ! emissivity
@@ -264,9 +258,6 @@ real(kind=kfpt),allocatable,dimension(:,:):: &      !im,jm
 !-----------------------------------------------------------------------
 !---surface variables---------------------------------------------------
 !-----------------------------------------------------------------------
-integer(kind=kint),allocatable,dimension(:,:):: &      !im,jm
- kmp                         ! # of active soil layers
-
 real(kind=kfpt),allocatable,dimension(:,:):: &      !im,jm
  akhs &                      ! heat exchange coeff. / sfc. layer depth
 ,akms &                      ! momentum exchange coeff. / sfc. layer depth
@@ -1379,16 +1370,14 @@ integer(kind=kint) :: &
 ,n &
 ,nrecs_skip_for_pt
 
+integer(kind=kint) :: &      ! number of soil levels
+ nsoil
+
 integer(kind=kint) :: &
  iyear_fcst           &
 ,imonth_fcst          &
 ,iday_fcst            &
 ,ihour_fcst
-
-integer(kind=kint),allocatable,dimension(:,:) :: &
- insoil &
-,inveg &
-,itemp
 
 real(kind=kfpt):: &
  tend,tend_max   
@@ -1405,7 +1394,6 @@ logical(kind=klog) :: opened
       mype=mype_share
 !
       allocate(temp1(ids:ide,jds:jde),stat=i)
-      allocate(itemp(ids:ide,jds:jde),stat=i)
       allocate(stdh(ims:ime,jms:jme),stat=i)
 !
 !-----------------------------------------------------------------------
@@ -1780,13 +1768,12 @@ logical(kind=klog) :: opened
       read(nfcst) ihour_fcst
       read(nfcst) ! iminute_fcst
       read(nfcst) ! second_fcst
+      read(nfcst) ! ntsd
       read(nfcst) ! im
       read(nfcst) ! jm
       read(nfcst) ! lm
       read(nfcst) ihrst
       read(nfcst) lpt2
-!     read(nfcst) ihrend   ---- FIX THIS, ADD IN RESTART FILE
-!     read(nfcst) ntsd     ---- FIX THIS, ADD IN RESTART FILE
 !-----------------------------------------------------------------------
 !   READ FROM RESTART FILE: INTEGER 1D ARRAYS
 !-----------------------------------------------------------------------
@@ -1796,7 +1783,7 @@ logical(kind=klog) :: opened
 !-----------------------------------------------------------------------
 !
       if(mype==0)then
-        write(0,*)'*************************************' 
+        write(0,*)'**** read in dynamics ***************' 
         write(0,*)' Restart year =',iyear_fcst
         write(0,*)' Restart month=',imonth_fcst
         write(0,*)' Restart day  =',iday_fcst
@@ -1807,10 +1794,13 @@ logical(kind=klog) :: opened
         write(0,*)' Original start hour =',ihrst
         write(0,*)' Timestep   =',dt
         write(0,*)' Steps/hour =',3600./dt
-        if(.not.global)write(0,*)' Max fcst hours=',ihrend
         write(0,*)'*************************************' 
       endif
 !
+!-----------------------------------------------------------------------
+!   READ FROM RESTART FILE: INTEGER SCALARS
+!-----------------------------------------------------------------------
+      read(nfcst) nsoil
 !-----------------------------------------------------------------------
 !   READ FROM RESTART FILE: REAL SCALARS
 !-----------------------------------------------------------------------
@@ -1847,6 +1837,12 @@ logical(kind=klog) :: opened
       endif
       if(mype==0)then
         read(nfcst) ! ivgtyp
+      endif
+      if(mype==0)then
+        read(nfcst) ! ncfrcv
+      endif
+      if(mype==0)then
+        read(nfcst) ! ncfrst
       endif
 !-----------------------------------------------------------------------
 !   READ FROM RESTART FILE: REAL 2D ARRAYS
@@ -2447,6 +2443,34 @@ logical(kind=klog) :: opened
         read(nfcst)temp1  ! akms
       endif
 !-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! hbot
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! htop
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! rswtoa
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! potflx
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! rmol
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! t2
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! z0base
+      endif
+!-----------------------------------------------------------------------
 !   READ FROM RESTART FILE: REAL 3D ARRAYS
 !-----------------------------------------------------------------------
       call mpi_barrier(mpi_comm_comp,irtn)
@@ -2584,6 +2608,36 @@ logical(kind=klog) :: opened
         endif
       enddo
 !-----------------------------------------------------------------------
+      do l=1,lm+1
+        if(mype==0)then
+          read(nfcst)temp1 ! rthblten
+        endif
+      enddo
+!-----------------------------------------------------------------------
+      do l=1,lm+1
+        if(mype==0)then
+          read(nfcst)temp1 ! rqvblten
+        endif
+      enddo
+!-----------------------------------------------------------------------
+      do l=1,nsoil
+        if(mype==0)then
+          read(nfcst)temp1 ! sh2o
+        endif
+      enddo
+!-----------------------------------------------------------------------
+      do l=1,nsoil
+        if(mype==0)then
+          read(nfcst)temp1 ! smc
+        endif
+      enddo
+!-----------------------------------------------------------------------
+      do l=1,nsoil
+        if(mype==0)then
+          read(nfcst)temp1 ! stc
+        endif
+      enddo
+!-----------------------------------------------------------------------
       do n=1,num_tracers_total
       do l=1,lm
         if(mype==0)then
@@ -2597,7 +2651,17 @@ logical(kind=klog) :: opened
         call dstrb(temp1,tracers(:,:,:,n),1,1,1,lm,l)
       enddo
       enddo
-      call halo_exch(tracers,lm,num_tracers_total,1,2,2)
+!
+      do n=1,num_water
+      do l=1,lm
+        do j=jms,jme
+        do i=ims,ime
+          water(i,j,l,n)=tracers(i,j,l,n+num_tracers_total-num_water)
+        enddo
+        enddo
+      enddo
+      enddo
+!
 !-----------------------------------------------------------------------
 !
       if(mype==0)then
@@ -2652,7 +2716,6 @@ logical(kind=klog) :: opened
 !-----------------------------------------------------------------------
 !
       deallocate(temp1)
-      deallocate(itemp)
       deallocate(stdh)
       if(mype==0)then
         write(0,*)' EXIT SUBROUTINE INIT pt=',pt

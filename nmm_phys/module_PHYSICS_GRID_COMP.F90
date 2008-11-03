@@ -692,8 +692,6 @@
 !
       REAL,DIMENSION(LM) :: DSG2,PDSG1,PSGML1,SGML2
 !
-      REAL,DIMENSION(IMS:IME,1:LM+1,JMS:JME) :: RQVBLTEN,RTHBLTEN  ! For WRF physics
-!
       LOGICAL :: CALL_LONGWAVE,CALL_PRECIP,CALL_SHORTWAVE,CALL_TURBULENCE
 !
       TYPE(ESMF_Field)    :: HOLD_FIELD
@@ -801,25 +799,6 @@
           ENDDO
           ENDDO
         ENDIF
-!       DO J=JTS,JTE
-!       DO I=ITS,ITE
-!         int_state%RLWIN(I,J)=0.
-!         int_state%RSWIN(I,J)=0.
-!         int_state%RSWINC(I,J)=0.
-!         int_state%RSWOUT(I,J)=0.
-!         int_state%RLWTOA(I,J)=0.
-!         int_state%RSWTOA(I,J)=0.
-!       ENDDO
-!       ENDDO
-!
-!       DO L=1,LM
-!       DO J=JMS,JME
-!       DO I=IMS,IME
-!         int_state%RLWTT=0.
-!         int_state%RSWTT=0.
-!       ENDDO
-!       ENDDO
-!       ENDDO
 !
         CALL RADIATION(NTIMESTEP,int_state%DT,JULDAY,JULYR,XTIME,JULIAN &
                       ,START_HOUR,int_state%NPHS                        &
@@ -998,7 +977,6 @@
                   ,int_state%T2                                        &
                   ,int_state%QSG,int_state%QVG,int_state%QCG           &
                   ,int_state%SOILT1,int_state%TSNAV                    &
-                  ,int_state%SMFR3D,int_state%KEEPFR3DFLAG             &
                   ,int_state%TWBS,int_state%QWBS                       &
                   ,int_state%SFCSHX,int_state%SFCLHX,int_state%SFCEVP  &
                   ,int_state%POTEVP,int_state%POTFLX,int_state%SUBSHX  &
@@ -1144,7 +1122,7 @@
                    ,int_state%CW,int_state%TCUCN,int_state%WATER       &
                    ,int_state%OMGALF                                   &
                    ,int_state%U,int_state%V                            &
-                   ,int_state%FIS,int_state%W0AVG                      &
+                   ,int_state%FIS                                      &
                    ,int_state%PREC,int_state%ACPREC,int_state%CUPREC   &
                    ,int_state%CUPPT,int_state%CPRATE                   &
                    ,int_state%CNVBOT,int_state%CNVTOP                  &
@@ -1364,7 +1342,6 @@
 !
 !-----------------------------------------------------------------------
 !
-!!!   INTEGER,PARAMETER  :: NSOIL=4
       INTEGER,INTENT(IN) :: CO2TF
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                          &
                            ,IMS,IME,JMS,JME                             &
@@ -1386,12 +1363,14 @@
 !
       INTEGER :: LDIM1,LDIM2,UDIM1,UDIM2
 !
-      INTEGER :: IYEAR_FCST,IMONTH_FCST,IDAY_FCST,IHOUR_FCST
+      INTEGER :: IYEAR_FCST,IMONTH_FCST,IDAY_FCST,IHOUR_FCST            &
+                ,IMINUTE_FCST
 !
       INTEGER,DIMENSION(3) :: IDAT
 !
       INTEGER,DIMENSION(:,:),ALLOCATABLE :: ITEMP,LOWLYR
 !
+      REAL :: SECOND_FCST
       REAL :: SWRAD_SCAT=1.
 !
       REAL :: ALM,ANUM,APH,AVE,CTLM,CTPH,CTPH0,DELX,DELY,DENOM          &
@@ -1643,6 +1622,15 @@
       CALL MPI_BCAST(SGML2(1),LM,MPI_REAL,0,MPI_COMM_COMP,IRTN)
       CALL MPI_BCAST(PDTOP,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
       CALL MPI_BCAST(LPT2,1,MPI_INTEGER,0,MPI_COMM_COMP,IRTN)
+!
+      CALL MPI_BCAST(IDAT         ,3,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(IHRST        ,1,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
+!
+      IYEAR_FCST  = IDAT(3)
+      IMONTH_FCST = IDAT(2)
+      IDAY_FCST   = IDAT(1)
+      IHOUR_FCST  = IHRST
+!
       CALL MPI_BARRIER(MPI_COMM_COMP,IRTN)
 !
 !-----------------------------------------------------------------------
@@ -2036,42 +2024,53 @@
         READ(NFCST) IMONTH_FCST
         READ(NFCST) IDAY_FCST
         READ(NFCST) IHOUR_FCST
-        READ(NFCST) ! IMINUTE_FCST
-        READ(NFCST) ! SECOND_FCST
+        READ(NFCST) IMINUTE_FCST
+        READ(NFCST) SECOND_FCST
+        READ(NFCST) ! NTSD
         READ(NFCST) ! IM
         READ(NFCST) ! JM
         READ(NFCST) ! LM
         READ(NFCST) IHRST
         READ(NFCST) LPT2
-!       READ(NFCST) ! IHREND   ---- FIX THIS, ADD IN RESTART FILE
-!       READ(NFCST) ! NTSD     ---- FIX THIS, ADD IN RESTART FILE
       ENDIF
-!
-!***  CHECK TO SEE IF THE STARTING DATE/TIME IN THE RESTART FILE
-!***  AGREES WITH THAT IN THE CONFGURE FILE.
 !
       IF(MYPE==0)THEN
-        IF(IMONTH_FCST  /=  START_MONTH  .OR.                           &
-           IDAY_FCST    /=  START_DAY    .OR.                           &
-           IYEAR_FCST   /=  START_YEAR   .OR.                           &
-           IHOUR_FCST   /=  START_HOUR)THEN
-          WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
-          WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
-          WRITE(0,*)' DATES IN RESTART AND CONFIGURE FILE DISAGREE!!'
-          WRITE(0,*)' INPUT:  HOUR=',IHOUR_FCST,' DAY=',IDAY_FCST       &
-                    ,' MONTH=',IMONTH_FCST,' YEAR=',IYEAR_FCST
-          WRITE(0,*)' CONFIG: HOUR=',START_HOUR,' DAY=',START_DAY       &
-                    ,' MONTH=',START_MONTH,' YEAR=',START_YEAR
-          WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
-          WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
-        ENDIF
+        write(0,*)'**** read in physics ****************'
+        write(0,*)' Restart year =',iyear_fcst
+        write(0,*)' Restart month=',imonth_fcst
+        write(0,*)' Restart day  =',iday_fcst
+        write(0,*)' Restart hour =',ihour_fcst
+        write(0,*)' Original start year =',idat(3)
+        write(0,*)' Original start month=',idat(2)
+        write(0,*)' Original start day  =',idat(1)
+        write(0,*)' Original start hour =',ihrst
+        write(0,*)' Timestep   =',dt
+        write(0,*)' Steps/hour =',3600./dt
+        write(0,*)'*************************************'
       ENDIF
+!
+      CALL MPI_BCAST(IYEAR_FCST   ,1,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(IMONTH_FCST  ,1,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(IDAY_FCST    ,1,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(IHOUR_FCST   ,1,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(IMINUTE_FCST ,1,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(SECOND_FCST  ,1,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(IHRST        ,1,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
+!
 !-----------------------------------------------------------------------
 !              READ FROM RESTART FILE: INTEGER 1D ARRAYS
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST) IDAT
       ENDIF
+      CALL MPI_BCAST(IDAT,3,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
+!-----------------------------------------------------------------------
+!              READ FROM RESTART FILE: INTEGER SCALARS
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST) NSOIL
+      ENDIF
+      CALL MPI_BCAST(NSOIL,1,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
 !-----------------------------------------------------------------------
 !              READ FROM RESTART FILE: REAL SCALARS
 !-----------------------------------------------------------------------
@@ -2099,25 +2098,30 @@
         READ(NFCST) SGML1
         READ(NFCST) SGML2
         READ(NFCST) SGM
-        READ(NFCST) ! SLDPTH
+        READ(NFCST) SLDPTH
         READ(NFCST) int_state%MP_RESTART_STATE
         READ(NFCST) int_state%TBPVS_STATE
         READ(NFCST) int_state%TBPVS0_STATE
       ENDIF
 !
-      CALL MPI_BCAST(SGM(1)   ,LM+1 ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(SG1(1)   ,LM+1 ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(DSG1(1)  ,LM   ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(SGML1(1) ,LM   ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(SG2(1)   ,LM+1 ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(DSG2(1)  ,LM   ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(SGML2(1) ,LM   ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(PDTOP    ,1    ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(LPT2     ,1    ,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(SGM(1)  ,LM+1 ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(SG1(1)  ,LM+1 ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(DSG1(1) ,LM   ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(SGML1(1),LM   ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(SG2(1)  ,LM+1 ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(DSG2(1) ,LM   ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(SGML2(1),LM   ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(PDTOP   ,1    ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(LPT2    ,1    ,MPI_INTEGER,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(SLDPTH  ,NSOIL,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
 
       CALL MPI_BCAST(int_state%MP_RESTART_STATE(1) ,MICRO_RESTART ,MPI_REAL ,0,MPI_COMM_COMP,IRTN)
       CALL MPI_BCAST(int_state%TBPVS_STATE(1)      ,MICRO_RESTART ,MPI_REAL ,0,MPI_COMM_COMP,IRTN)
       CALL MPI_BCAST(int_state%TBPVS0_STATE(1)     ,MICRO_RESTART ,MPI_REAL ,0,MPI_COMM_COMP,IRTN)
+!
+      DO N=1,NSOIL
+        int_state%SLDPTH(N)=SLDPTH(N)
+      ENDDO
 !
 !-----------------------------------------------------------------------
 !              READ FROM RESTART FILE: LOGICAL
@@ -2174,6 +2178,16 @@
         READ(NFCST) ITEMP
       ENDIF
       CALL IDSTRB(ITEMP,int_state%IVGTYP)
+!
+      IF(MYPE==0)THEN
+        READ(NFCST) ITEMP
+      ENDIF
+      CALL IDSTRB(ITEMP,int_state%NCFRCV)
+!
+      IF(MYPE==0)THEN
+        READ(NFCST) ITEMP
+      ENDIF
+      CALL IDSTRB(ITEMP,int_state%NCFRST)
 !
       DEALLOCATE(ITEMP)
 !
@@ -2390,12 +2404,12 @@
         READ(NFCST)TEMP1
       ENDIF
 !
-!rv   DO J=JMS,JME
-!rv   DO I=IMS,IME
-!rv     int_state%AKHS_OUT(I,J)=0.
-!rv   ENDDO
-!rv   ENDDO
-!rv   CALL DSTRB(TEMP1,int_state%AKHS_OUT,1,1,1,1,1)
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%AKHS_OUT(I,J)=0.
+      ENDDO
+      ENDDO
+      CALL DSTRB(TEMP1,int_state%AKHS_OUT,1,1,1,1,1)
 !-----------------------------------------------------------------------
 !***  AKMS_OUT
 !-----------------------------------------------------------------------
@@ -2403,12 +2417,12 @@
         READ(NFCST)TEMP1
       ENDIF
 !
-!rv   DO J=JMS,JME
-!rv   DO I=IMS,IME
-!rv     int_state%AKMS_OUT(I,J)=0.
-!rv   ENDDO
-!rv   ENDDO
-!rv   CALL DSTRB(TEMP1,int_state%AKMS_OUT,1,1,1,1,1)
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%AKMS_OUT(I,J)=0.
+      ENDDO
+      ENDDO
+      CALL DSTRB(TEMP1,int_state%AKMS_OUT,1,1,1,1,1)
 !-----------------------------------------------------------------------
 !***  ALBASE
 !-----------------------------------------------------------------------
@@ -2904,6 +2918,7 @@
         READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%UZ0,1,1,1,1,1)
+      CALL HALO_EXCH(int_state%UZ0,1,3,3)
 !-----------------------------------------------------------------------
 !***  V10
 !-----------------------------------------------------------------------
@@ -2925,6 +2940,7 @@
         READ(NFCST) TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%VZ0,1,1,1,1,1)
+      CALL HALO_EXCH(int_state%VZ0,1,3,3)
 !-----------------------------------------------------------------------
 !***  Z0
 !-----------------------------------------------------------------------
@@ -2954,6 +2970,59 @@
         READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%AKMS,1,1,1,1,1)
+!-----------------------------------------------------------------------
+!***  HBOT
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%HBOT,1,1,1,1,1)
+!-----------------------------------------------------------------------
+!***  HTOP
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%HTOP,1,1,1,1,1)
+!-----------------------------------------------------------------------
+!***  RSWTOA
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%RSWTOA,1,1,1,1,1)
+!
+!-----------------------------------------------------------------------
+!***  POTFLX
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%POTFLX,1,1,1,1,1)
+!
+!-----------------------------------------------------------------------
+!***  RMOL
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%RMOL,1,1,1,1,1)
+!
+!-----------------------------------------------------------------------
+!***  T2
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%T2,1,1,1,1,1)
+!
+!-----------------------------------------------------------------------
+!***  Z0BASE
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%Z0BASE,1,1,1,1,1)
 !
 !-----------------------------------------------------------------------
 !              READ FROM RESTART FILE: REAL 3D ARRAYS
@@ -2962,7 +3031,7 @@
       CALL MPI_BARRIER(MPI_COMM_COMP,IRTN)
 !
 !-----------------------------------------------------------------------
-!***  U, V, T, Q, Q2, CW, F_ICE, F_RIMEF, F_RAIN
+!***  U, V, T, Q, Q2, CW, F_ICE, F_RIMEF, F_RAIN, RTHBLTEN, RQVBLTEN
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -2970,13 +3039,13 @@
           READ(NFCST)TEMP1   ! CLDFRA
         ENDIF
 !
-!rv     DO J=JMS,JME
-!rv     DO I=IMS,IME
-!rv       int_state%CLDFRA(I,J,K)=0.
-!rv     ENDDO
-!rv     ENDDO
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%CLDFRA(I,J,K)=0.
+        ENDDO
+        ENDDO
 !
-!rv     CALL DSTRB(TEMP1,int_state%CLDFRA,1,1,1,LM,K)
+        CALL DSTRB(TEMP1,int_state%CLDFRA,1,1,1,LM,K)
       ENDDO 
 !-----------------------------------------------------------------------
 !
@@ -3030,13 +3099,13 @@
           READ(NFCST)TEMP1   ! RLWTT
         ENDIF
 !
-!rv     DO J=JMS,JME
-!rv     DO I=IMS,IME
-!rv       int_state%RLWTT(I,J,K)=0.
-!rv     ENDDO
-!rv     ENDDO
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%RLWTT(I,J,K)=0.
+        ENDDO
+        ENDDO
 !
-!rv     CALL DSTRB(TEMP1,int_state%RLWTT,1,1,1,LM,K)
+        CALL DSTRB(TEMP1,int_state%RLWTT,1,1,1,LM,K)
       ENDDO 
 !-----------------------------------------------------------------------
 !
@@ -3045,13 +3114,13 @@
           READ(NFCST)TEMP1   ! RSWTT
         ENDIF
 !
-!rv     DO J=JMS,JME
-!rv     DO I=IMS,IME
-!rv       int_state%RSWTT(I,J,K)=0.
-!rv     ENDDO
-!rv     ENDDO
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%RSWTT(I,J,K)=0.
+        ENDDO
+        ENDDO
 !
-!rv     CALL DSTRB(TEMP1,int_state%RSWTT,1,1,1,LM,K)
+        CALL DSTRB(TEMP1,int_state%RSWTT,1,1,1,LM,K)
       ENDDO 
 !-----------------------------------------------------------------------
 !
@@ -3075,13 +3144,13 @@
           READ(NFCST)TEMP1  ! TCUCN
         ENDIF
 !
-!rv     DO J=JMS,JME
-!rv     DO I=IMS,IME
-!rv       int_state%TCUCN(I,J,K)=0.
-!rv     ENDDO
-!rv     ENDDO
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%TCUCN(I,J,K)=0.
+        ENDDO
+        ENDDO
 !
-!rv     CALL DSTRB(TEMP1,int_state%TCUCN,1,1,1,LM,K)
+        CALL DSTRB(TEMP1,int_state%TCUCN,1,1,1,LM,K)
       ENDDO 
 !-----------------------------------------------------------------------
 !
@@ -3090,13 +3159,13 @@
           READ(NFCST)TEMP1  ! TRAIN
         ENDIF
 !
-!rv     DO J=JMS,JME
-!rv     DO I=IMS,IME
-!rv       int_state%TRAIN(I,J,K)=0.
-!rv     ENDDO
-!rv     ENDDO
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%TRAIN(I,J,K)=0.
+        ENDDO
+        ENDDO
 !
-!rv     CALL DSTRB(TEMP1,int_state%TRAIN,1,1,1,LM,K)
+        CALL DSTRB(TEMP1,int_state%TRAIN,1,1,1,LM,K)
       ENDDO 
 !-----------------------------------------------------------------------
 !
@@ -3135,13 +3204,13 @@
           READ(NFCST)TEMP1   ! XLEN_MIX
         ENDIF
 !
-!rv     DO J=JMS,JME
-!rv     DO I=IMS,IME
-!rv       int_state%XLEN_MIX(I,J,K)=0.
-!rv     ENDDO
-!rv     ENDDO
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%XLEN_MIX(I,J,K)=0.
+        ENDDO
+        ENDDO
 !
-!rv     CALL DSTRB(TEMP1,int_state%XLEN_MIX,1,1,1,LM,K)
+        CALL DSTRB(TEMP1,int_state%XLEN_MIX,1,1,1,LM,K)
       ENDDO 
 !-----------------------------------------------------------------------
 !
@@ -3188,6 +3257,36 @@
 !
         CALL DSTRB(TEMP1,int_state%F_RAIN,1,1,1,LM,K)
       ENDDO 
+!-----------------------------------------------------------------------
+!
+      DO K=1,LM+1
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1   ! RTHBLTEN
+        ENDIF
+!
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%RTHBLTEN(I,J,K)=0.
+        ENDDO
+        ENDDO
+!
+        CALL DSTRB(TEMP1,int_state%RTHBLTEN,1,1,1,LM,K)
+      ENDDO
+!-----------------------------------------------------------------------
+!
+      DO K=1,LM+1
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1   ! RQVBLTEN
+        ENDIF
+!
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%RQVBLTEN(I,J,K)=0.
+        ENDDO
+        ENDDO
+!
+        CALL DSTRB(TEMP1,int_state%RQVBLTEN,1,1,1,LM,K)
+      ENDDO
 !-----------------------------------------------------------------------
 !***  SH2O, SMC, STC
 !-----------------------------------------------------------------------
@@ -3243,6 +3342,7 @@
         CALL DSTRB(TEMP1,int_state%TRACERS(:,:,:,N),1,1,1,LM,K)
       ENDDO 
       ENDDO 
+!rv do not use HALO_EXCH
 !-----------------------------------------------------------------------
 !
       DEALLOCATE(TEMP1)
@@ -3573,7 +3673,7 @@
             ENDDO
             SFULL_FLIP(LM+1)=SFULL(1)
 !
-            GMT=REAL(START_HOUR)
+            GMT=REAL(IHOUR_FCST)
             CALL GFDL_INIT(EMISS,SFULL_FLIP,SMID_FLIP,PT_CB            &
                           ,JULYR,START_MONTH,START_DAY,GMT             &
                           ,CO2TF                                       &

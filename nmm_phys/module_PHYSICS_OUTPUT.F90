@@ -61,6 +61,7 @@
                                'IM        ', '-         ', '-         ' &
                               ,'JM        ', '-         ', '-         ' &
                               ,'LM        ', '-         ', '-         ' &
+                              ,'NSOIL     ', '-         ', 'R         ' &
                               ,'NPHS      ', 'H         ', '-         ' &
                               ,'NCLOD     ', 'H         ', '-         ' &
                               ,'NHEAT     ', 'H         ', '-         ' &
@@ -144,8 +145,8 @@
 !
                                'ISLTYP    ', 'H         ', 'R         ' &
                               ,'IVGTYP    ', 'H         ', 'R         ' &
-                              ,'NCFRCV    ', 'H         ', '-         ' &
-                              ,'NCFRST    ', 'H         ', '-         ' &
+                              ,'NCFRCV    ', 'H         ', 'R         ' &
+                              ,'NCFRST    ', 'H         ', 'R         ' &
 !
 !                              -----------------------------------------
 !
@@ -281,6 +282,13 @@
                               ,'TSKIN     ', '-         ', 'R         ' &
                               ,'AKHS      ', '-         ', 'R         ' &
                               ,'AKMS      ', '-         ', 'R         ' &
+                              ,'HBOT      ', '-         ', 'R         ' &
+                              ,'HTOP      ', '-         ', 'R         ' &
+                              ,'RSWTOA    ', '-         ', 'R         ' &
+                              ,'POTFLX    ', '-         ', 'R         ' &
+                              ,'RMOL      ', '-         ', 'R         ' &
+                              ,'T2        ', '-         ', 'R         ' &
+                              ,'Z0BASE    ', '-         ', 'R         ' &
 !
 !                              -----------------------------------------
 !
@@ -320,6 +328,8 @@
                           ,'F_ICE       ', 'H           ', 'R           ' &
                           ,'F_RIMEF     ', 'H           ', 'R           ' &
                           ,'F_RAIN      ', 'H           ', 'R           ' &
+                          ,'RTHBLTEN    ', '-           ', 'R           ' &
+                          ,'RQVBLTEN    ', '-           ', 'R           ' &
                           ,'SH2O        ', 'H           ', 'R           ' &
                           ,'SMC         ', 'H           ', 'R           ' &
                           ,'STC         ', 'H           ', 'R           ' &
@@ -478,13 +488,14 @@
       I_SC( 1)%NAME=>int_state%IM
       I_SC( 2)%NAME=>int_state%JM
       I_SC( 3)%NAME=>int_state%LM
-      I_SC( 4)%NAME=>int_state%NPHS
-      I_SC( 5)%NAME=>int_state%NCLOD
-      I_SC( 6)%NAME=>int_state%NHEAT
-      I_SC( 7)%NAME=>int_state%NPREC
-      I_SC( 8)%NAME=>int_state%NRDLW
-      I_SC( 9)%NAME=>int_state%NRDSW
-      I_SC(10)%NAME=>int_state%NSRFC
+      I_SC( 4)%NAME=>int_state%NSOIL
+      I_SC( 5)%NAME=>int_state%NPHS
+      I_SC( 6)%NAME=>int_state%NCLOD
+      I_SC( 7)%NAME=>int_state%NHEAT
+      I_SC( 8)%NAME=>int_state%NPREC
+      I_SC( 9)%NAME=>int_state%NRDLW
+      I_SC(10)%NAME=>int_state%NRDSW
+      I_SC(11)%NAME=>int_state%NSRFC
 !        
 !------------------
 !***  REAL SCALARS
@@ -613,6 +624,13 @@
       R_2D(83)%NAME=>int_state%TSKIN
       R_2D(84)%NAME=>int_state%AKHS
       R_2D(85)%NAME=>int_state%AKMS
+      R_2D(86)%NAME=>int_state%HBOT
+      R_2D(87)%NAME=>int_state%HTOP
+      R_2D(88)%NAME=>int_state%RSWTOA
+      R_2D(89)%NAME=>int_state%POTFLX
+      R_2D(90)%NAME=>int_state%RMOL
+      R_2D(91)%NAME=>int_state%T2
+      R_2D(92)%NAME=>int_state%Z0BASE
 !        
 !--------------------
 !***  3D REAL ARRAYS
@@ -635,9 +653,11 @@
       R_3D(14)%NAME=>int_state%F_ICE
       R_3D(15)%NAME=>int_state%F_RIMEF
       R_3D(16)%NAME=>int_state%F_RAIN
-      R_3D(17)%NAME=>int_state%SH2O
-      R_3D(18)%NAME=>int_state%SMC
-      R_3D(19)%NAME=>int_state%STC
+      R_3D(17)%NAME=>int_state%RTHBLTEN
+      R_3D(18)%NAME=>int_state%RQVBLTEN
+      R_3D(19)%NAME=>int_state%SH2O
+      R_3D(20)%NAME=>int_state%SMC
+      R_3D(21)%NAME=>int_state%STC
 !
 !--------------------
 !***  4D REAL ARRAYS

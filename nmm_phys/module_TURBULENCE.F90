@@ -186,7 +186,7 @@
                       ,SFCEXC,ACSNOW,ACSNOM,SNOPCX,SICE,TG,SOILTB       &
                       ,ALBASE,MXSNAL,ALBEDO,SH2O,SI,EPSR                &
                       ,U10,V10,TH10,Q10,TSHLTR,QSHLTR,PSHLTR            &
-                      ,T2,QSG,QVG,QCG,SOILT1,TSNAV,SMFR3D,KEEPFR3DFLAG  &
+                      ,T2,QSG,QVG,QCG,SOILT1,TSNAV                      &
                       ,TWBS,QWBS,SFCSHX,SFCLHX,SFCEVP                   &
                       ,POTEVP,POTFLX,SUBSHX                             &
                       ,APHTIM,ARDSW,ARDLW,ASRFC                         &
@@ -321,7 +321,7 @@
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) ::  F_ICE    &
                                                             ,F_RAIN
 
-      REAL,DIMENSION(IMS:IME,1:LM+1,JMS:JME),INTENT(INOUT) ::  RQVBLTEN &
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1),INTENT(INOUT) ::  RQVBLTEN &
                                                               ,RTHBLTEN
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: DUDT,DVDT     &
@@ -330,9 +330,6 @@
       REAL,DIMENSION(NSOIL),INTENT(IN) :: DZSOIL,SLDPTH
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,NSOIL),INTENT(INOUT) :: SH2O,SMC,STC
-!
-      REAL,DIMENSION(IMS:IME,NSOIL,JMS:JME),INTENT(INOUT) :: KEEPFR3DFLAG &
-                                                            ,SMFR3D
 !
       CHARACTER(99),INTENT(IN) :: LAND_SURFACE,LONGWAVE,MICROPHYSICS    &
                                  ,SFC_LAYER,TURBULENCE
@@ -728,8 +725,8 @@
           P_PHY(I,K,J)=PLYR
           TKE(I,K,J)=0.5*Q2(I,J,KFLIP)
 !
-          RTHBLTEN(I,K,J)=0.
-          RQVBLTEN(I,K,J)=0.
+          RTHBLTEN(I,J,K)=0.
+          RQVBLTEN(I,J,K)=0.
           RQCBLTEN(I,K,J)=0.
           RQIBLTEN(I,K,J)=0.
 !
@@ -945,7 +942,7 @@
                 ,RAINBL=RAINBL                                          &
 ! for RUCLSM
                 ,QSG=QSG, QVG=QVG, QCG=QCG, SOILT1=SOILT1               &
-                ,TSNAV=TSNAV, SMFR3D=SMFR3D, KEEPFR3DFLAG=KEEPFR3DFLAG  &
+                ,TSNAV=TSNAV                                            &
                 ,POTEVP=POTEVP,SNOPCX=SNOPCX,SOILTB=SOILTB,SR=SR)
 !
 !-----------------------------------------------------------------------
@@ -1209,8 +1206,8 @@
         DO K=1,LM
           KFLIP=LM+1-K
           DO I=ITS_B1,ITE_B1
-            DTDT=RTHBLTEN(I,K,J)*PI_PHY(I,K,J)
-            DQDT=RQVBLTEN(I,K,J)         !Mixing ratio tendency
+            DTDT=RTHBLTEN(I,J,K)*PI_PHY(I,K,J)
+            DQDT=RQVBLTEN(I,J,K)         !Mixing ratio tendency
             T(I,J,KFLIP)=T(I,J,KFLIP)+DTDT*DTPHS
             QOLD=Q(I,J,KFLIP)
             RATIOMX=QOLD/(1.-QOLD)+DQDT*DTPHS
@@ -1235,7 +1232,7 @@
               ENDIF
 !
               IF(I_M==P_QV)THEN
-                WATER_TRANS(I,K,J,P_QV)=MAX(EPSQ,(WATER_TRANS(I,K,J,P_QV)+RQVBLTEN(I,K,J)*DTPHS))
+                WATER_TRANS(I,K,J,P_QV)=MAX(EPSQ,(WATER_TRANS(I,K,J,P_QV)+RQVBLTEN(I,J,K)*DTPHS))
               ELSEIF(I_M==P_QC)THEN
                 CWM(I,J,KFLIP)=MAX(0.,(CWM(I,J,KFLIP)+RQCBLTEN(I,K,J)*DTPHS))
               ELSEIF(I_M==P_QI)THEN
@@ -1641,8 +1638,10 @@
    REAL,       DIMENSION( ims:ime, kms:kme, jms:jme ),            &
                INTENT(INOUT)    ::                       RUBLTEN, &
                                                          RVBLTEN, &
-                                                        RTHBLTEN, &
                                                   EXCH_H,TKE_MYJ
+!
+   REAL,       DIMENSION( ims:ime, jms:jme, kms:kme ),            &
+               INTENT(INOUT)    ::                      RTHBLTEN
 !
    REAL,       DIMENSION( ims:ime, kms:kme, jms:jme ),            &
                INTENT(OUT)    ::                          EL_MYJ
@@ -1681,9 +1680,13 @@
                       ! 2 time levels; if only one then use CURR
                       qv_curr, qc_curr, qr_curr                  &
                      ,qi_curr, qs_curr, qg_curr                  &
-                     ,rqvblten,rqcblten,rqrblten                 &
+                              ,rqcblten,rqrblten                 &
                      ,rqiblten,rqsblten,rqgblten
-
+!
+   REAL, DIMENSION( ims:ime, jms:jme, kms:kme ),                 &
+         OPTIONAL, INTENT(INOUT) ::                              &
+                      rqvblten
+!
    REAL,       DIMENSION( ims:ime, jms:jme )                    , &
                OPTIONAL                                         , &
                INTENT(INOUT)    ::                           HOL, &
@@ -1762,11 +1765,11 @@
          PSFC(I,J)=p8w(I,kms,J)
 
          DO k=kts,min(kte+1,kde)
-            RTHBLTEN(I,K,J)=0.
+            RTHBLTEN(I,J,K)=0.
             RUBLTEN(I,K,J)=0.
             RVBLTEN(I,K,J)=0.
             IF ( PRESENT( RQCBLTEN )) RQCBLTEN(I,K,J)=0.
-            IF ( PRESENT( RQVBLTEN )) RQVBLTEN(I,K,J)=0.
+            IF ( PRESENT( RQVBLTEN )) RQVBLTEN(I,J,K)=0.
          ENDDO
 
          IF (flag_QI .AND. PRESENT(RQIBLTEN) ) THEN
@@ -1985,9 +1988,11 @@
 !
       REAL,DIMENSION(IMS:IME,KMS:KME,JMS:JME)                          &
      &    ,INTENT(OUT) ::                      EL_MYJ                  &
-     &                                        ,RQCBLTEN,RQVBLTEN       &
-     &                                        ,RTHBLTEN                &
-     &                                        ,RUBLTEN,RVBLTEN        
+     &                                        ,RQCBLTEN                &
+     &                                        ,RUBLTEN,RVBLTEN
+!
+      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME)                          &
+     &    ,INTENT(OUT) ::                      RTHBLTEN,RQVBLTEN
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: CT,QSFC,QZ0     &
      &                                                ,THZ0,USTAR      &
@@ -2339,8 +2344,8 @@
             DQDT=(QK(KFLIP)-QOLD)*RDTTURBL
             DCDT=(CWMK(KFLIP)-CWM(I,K,J))*RDTTURBL
 !
-            RTHBLTEN(I,K,J)=DTDT
-            RQVBLTEN(I,K,J)=DQDT/(1.-QK(KFLIP))**2
+            RTHBLTEN(I,J,K)=DTDT
+            RQVBLTEN(I,J,K)=DQDT/(1.-QK(KFLIP))**2
             RQCBLTEN(I,K,J)=DCDT
           ENDDO
 !

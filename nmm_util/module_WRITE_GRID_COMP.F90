@@ -73,7 +73,7 @@
       INTEGER,PARAMETER :: MAX_LENGTH_I1D=5000                            !<-- Max words in all 1-D integer history variables
       INTEGER,PARAMETER :: MAX_LENGTH_I2D=50000                           !<-- Max I,J points in each integer 2D subdomain
       INTEGER,PARAMETER :: MAX_LENGTH_R1D=25000                           !<-- Max words in all 1-D real history variables
-      INTEGER,PARAMETER :: MAX_LENGTH_R2D=1500000                         !<-- Max I,J points in each real 2D subdomain
+      INTEGER,PARAMETER :: MAX_LENGTH_R2D=1000000                         !<-- Max I,J points in each real 2D subdomain
       INTEGER,PARAMETER :: MAX_LENGTH_LOG=MAX_DATA_LOG                    !<-- Max logical variables
 !
       INTEGER,SAVE      :: LAST_FCST_TASK                                 !<-- Rank of the last forecast task
@@ -626,6 +626,9 @@
                                               ,ISECOND_NUM              &
                                               ,ISECOND_DEN
 !
+      INTEGER(KIND=ESMF_KIND_I8)            :: NTIMESTEP_ESMF
+      INTEGER(KIND=KINT)                    :: NTIMESTEP
+!
       INTEGER                               :: NF_HOURS                 &
                                               ,NF_MINUTES               &
                                               ,NSECONDS                 &
@@ -679,6 +682,7 @@
 !
       LOGICAL                               :: WRITE_LOGICAL
       LOGICAL,SAVE                          :: FIRST=.TRUE.
+      LOGICAL,SAVE                          :: HST_FIRST=.TRUE.
       LOGICAL,SAVE                          :: RST_FIRST=.TRUE.
 !
       CHARACTER(ESMF_MAXSTR)                :: NAME,GFNAME
@@ -1434,7 +1438,7 @@
 !
         IF(KOUNT_I2D>0)THEN
           CALL MPI_RECV(wrt_int_state%ALL_DATA_I2D                      &  !<-- Fcst tasks' string of 2D integer history data
-                       ,MAXSIZE_R2D                                     &  !<-- Max #of words in the data string
+                       ,MAXSIZE_I2D                                     &  !<-- Max #of words in the data string
                        ,MPI_INTEGER                                     &  !<-- The datatype
                        ,ID_RECV                                         &  !<-- Recv from this fcst task
                        ,wrt_int_state%NFHOUR                            &  !<-- An MPI tag
@@ -1647,6 +1651,7 @@
                                ,NF_HOURS                                &
                                ,NF_MINUTES                              &
                                ,NF_SECONDS                              &
+                               ,HST_FIRST                               &
                                ,LEAD_WRITE_TASK)
         ENDIF
 !
@@ -1766,7 +1771,7 @@
 ! 
             WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)wrt_int_state%OUTPUT_ARRAY_I2D  !<-- Lead write task writes out the 2D real data
 !
-            IF(wrt_int_state%NFHOUR==0)THEN
+            IF(HST_FIRST)THEN
               WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
             ENDIF
           ENDIF
@@ -1892,7 +1897,7 @@
 !
             WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)wrt_int_state%OUTPUT_ARRAY_R2D   !<-- Lead write task writes out the 2D real data
 !
-            IF(wrt_int_state%NFHOUR==0)THEN
+            IF(HST_FIRST)THEN
               WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
             ENDIF
           ENDIF
@@ -1936,7 +1941,7 @@
 !
             CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)
 !
-            IF(wrt_int_state%NFHOUR==0)THEN
+            IF(HST_FIRST)THEN
               WRITE(0,*)'Wrote ',TRIM(NAME),' to nemsio history file iret=',ierr
             ENDIF
 
@@ -1947,6 +1952,8 @@
 !-----------------------------------------------------------------------
 !
       ENDDO field_loop_real
+!
+      HST_FIRST=.FALSE.
 !
 !-----------------------------------------------------------------------
 !***  CLOSE THE DISK FILE IF NEEDED.
@@ -2004,7 +2011,7 @@
 !
         IF(RST_KOUNT_I2D>0)THEN
           CALL MPI_RECV(wrt_int_state%RST_ALL_DATA_I2D                  &  !<-- Fcst tasks' string of 2D integer restart data
-                       ,MAXSIZE_R2D                                     &  !<-- Max #of words in the data string
+                       ,MAXSIZE_I2D                                     &  !<-- Max #of words in the data string
                        ,MPI_INTEGER                                     &  !<-- The datatype
                        ,ID_RECV                                         &  !<-- Recv from this fcst task
                        ,wrt_int_state%NFHOUR                            &  !<-- An MPI tag
@@ -2111,9 +2118,12 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_ClockGet(clock   =CLOCK                             &  !<-- The ESMF Clock
-                            ,currTime=CURRTIME                          &  !<-- The current time (ESMF) on the clock
-                            ,rc      =RC)
+          CALL ESMF_ClockGet(clock       =CLOCK                         &  !<-- The ESMF Clock
+                            ,currTime    =CURRTIME                      &  !<-- The current time (ESMF) on the clock
+                            ,advanceCount=NTIMESTEP_ESMF                &  !<-- # of times the clock has advanced
+                            ,rc          =RC)
+!
+          NTIMESTEP=NTIMESTEP_ESMF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -2206,6 +2216,7 @@
                                ,IHOUR_FCST                              &
                                ,IMINUTE_FCST                            &
                                ,SECOND_FCST                             &
+                               ,NTIMESTEP                               &
                                ,NF_HOURS                                &
                                ,NF_MINUTES                              &
                                ,NF_SECONDS                              &
@@ -2501,7 +2512,7 @@
 !
             CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)
 !
-            IF(wrt_int_state%NFHOUR==0)THEN
+            IF(RST_FIRST)THEN
               WRITE(0,*)'Wrote ',TRIM(NAME),' to nemsio restart file iret=',ierr
             ENDIF
 

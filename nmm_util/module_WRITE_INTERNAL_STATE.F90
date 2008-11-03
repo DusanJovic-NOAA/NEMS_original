@@ -26,7 +26,7 @@
       INTEGER,PARAMETER :: MAX_DATA_I1D=50             !<-- Max # of 1D integer arrays
       INTEGER,PARAMETER :: MAX_DATA_I2D=50             !<-- Max # of 2D integer arrays
       INTEGER,PARAMETER :: MAX_DATA_R1D=50             !<-- Max # of 1D real arrays
-      INTEGER,PARAMETER :: MAX_DATA_R2D=3000           !<-- Max # of 2D real arrays and layers of all real 3D arrays combined
+      INTEGER,PARAMETER :: MAX_DATA_R2D=2100           !<-- Max # of 2D real arrays and layers of all real 3D arrays combined
       INTEGER,PARAMETER :: MAX_DATA_LOG=10
 !
 !-----------------------------------------------------------------------

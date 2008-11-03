@@ -97,6 +97,8 @@
 !
       CHARACTER(3)          :: CORE                                       !<-- The name of the selected dynamic core
 !
+      LOGICAL               :: RESTARTED_RUN                              !<-- Original/restarted run logical flag
+!
       TYPE(ESMF_Clock),SAVE :: CLOCK_ATM                                  !<-- The ATM Component's ESMF Clock
       TYPE(ESMF_VM),SAVE    :: VM                                         !<-- The ESMF virtual machine.
 !
@@ -241,8 +243,6 @@
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-!#######################################################################
-!-----------------------------------------------------------------------
 !
       SUBROUTINE ATM_INITIALIZE(ATM_GRID_COMP                           &
                                ,IMP_STATE,EXP_STATE                     &
@@ -260,7 +260,7 @@
 !
       TYPE(ESMF_GridComp),INTENT(INOUT) :: ATM_GRID_COMP                !<-- The ATM gridded component
       TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE,EXP_STATE          !<-- The ATM component's import/export states
-      TYPE(ESMF_Clock)   ,INTENT(INOUT)    :: CLOCK_MAIN                   !<-- The main program's ESMF Clock!
+      TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_MAIN                   !<-- The main program's ESMF Clock!
       INTEGER,OPTIONAL   ,INTENT(OUT)   :: RC_INIT                      !<-- Return code for Initialize step
 !
 !-----------------------------------------------------------------------
@@ -296,6 +296,9 @@
                                          ,NHOURS_HISTORY              & !<-- Hours between history output
                                          ,NHOURS_RESTART                !<-- Hours between restart output
 !
+      INTEGER                          :: NFCST, NTSD
+      INTEGER(ESMF_KIND_I8)            :: NTSD_START                    !<-- Timestep count (>0 for restarted runs
+!
       TYPE(ESMF_TimeInterval)          :: TIMEINTERVAL_CLOCKTIME      & !<-- ESMF time interval between clocktime prints (h)
                                          ,TIMEINTERVAL_HISTORY        & !<-- ESMF time interval between history output (h)
                                          ,TIMEINTERVAL_RESTART          !<-- ESMF time interval between restart output (h)
@@ -303,9 +306,20 @@
       LOGICAL                          :: DIST_MEM,PHYSICS_ON           !<-- Logical flag for distributed
       LOGICAL                          :: QUILTING                      !<-- Logical flag for quilting in
 !
+      LOGICAL                          :: OPENED
+!
       INTEGER                          :: I,IERR,RC,IRTN,J,K,N,NN
       INTEGER                          :: RC_FINAL
       CHARACTER(50)                    :: MODE
+!
+      INTEGER                          :: IYEAR_FCST     &              !<-- Current year from restart file
+                                         ,IMONTH_FCST    &              !<-- Current month from restart file
+                                         ,IDAY_FCST      &              !<-- Current day from restart file
+                                         ,IHOUR_FCST     &              !<-- Current hour from restart file
+                                         ,IMINUTE_FCST   &              !<-- Current minute from restart file
+                                         ,ISECOND_FCST                  !<-- Current second from restart file
+!
+      REAL                             :: SECOND_FCST                   !<-- Current second from restart file
 !
       type(ESMF_DistGrid)          :: DistGrid_atmos
 
@@ -520,6 +534,79 @@
       CURRTIME=STARTTIME                                                   !<-- Set the current forecast time
 !
 !-----------------------------------------------------------------------
+!***  EXTRACT RESTART LOGICAL FROM CF;
+!***  IF RESTARTED RUN:
+!***     READ NTSD FROM restart_file
+!***     SET CURRTIME TO TIME WHEN RESTART FILE WAS WRITTEN
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Restart Logical from Config File"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The config object
+                                  ,value =RESTARTED_RUN                 &  !<-- The variable filled (logical restart or cold start)
+                                  ,label ='restart:'                    &  !<-- Give this label's value to the previous variable
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+      NTSD_START=0
+!
+      IF(RESTARTED_RUN) THEN                                               !<-- If this is a restarted run, set the current time
+!
+        select_unit: DO N=51,59
+          INQUIRE(N,OPENED=OPENED)
+          IF(.NOT.OPENED)THEN
+            NFCST=N
+            EXIT select_unit
+          ENDIF
+        ENDDO select_unit
+!
+        OPEN(unit=NFCST,file='restart_file',status='old',form='unformatted')
+!
+        READ(NFCST) IYEAR_FCST                                             !<-- Read time form restart file
+        READ(NFCST) IMONTH_FCST                                            !
+        READ(NFCST) IDAY_FCST                                              !
+        READ(NFCST) IHOUR_FCST                                             !
+        READ(NFCST) IMINUTE_FCST                                           !
+        READ(NFCST) SECOND_FCST                                            !<--
+!
+        READ(NFCST) NTSD                                                   !<-- Read timestep from restart file
+!
+        CLOSE(NFCST)
+!
+        ISECOND_FCST=NINT(SECOND_FCST)                                      !<-- ESMF clock needs integer seconds
+        NTSD_START=NTSD
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="RESTART: Set the Forecast Current Time"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_TimeSet(time=CURRTIME                                   &  !<-- Current time of the forecast (ESMF)
+                         ,yy  =IYEAR_FCST                                 &  !<-- Year from restart file
+                         ,mm  =IMONTH_FCST                                &  !<-- Month from restart file
+                         ,dd  =IDAY_FCST                                  &  !<-- Day from restart file
+                         ,h   =IHOUR_FCST                                 &  !<-- Hour from restart file
+                         ,m   =IMINUTE_FCST                               &  !<-- Minute from restart file
+                         ,s   =ISECOND_FCST                               &  !<-- Second from restart file
+                         ,rc  =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
 !***  WITH DATA FROM ABOVE, CREATE THE LOCAL ESMF CLOCK
 !***  TO CONTROL THE TIMESTEPPING IN THE ATM COMPONENT.
 !-----------------------------------------------------------------------
@@ -535,9 +622,10 @@
                                 ,runduration=RUNDURATION                &  !<-- Duration of simulation
                                 ,rc         =RC)
 !
-      CALL ESMF_ClockSet(clock   =CLOCK_ATM                             &  !<-- The ATM Component's Clock
-                        ,currtime=CURRTIME                              &  !<-- Current time of simulation
-                        ,rc      =RC)
+      CALL ESMF_ClockSet(clock       =CLOCK_ATM                         &  !<-- The ATM Component's Clock
+                        ,currtime    =CURRTIME                          &  !<-- Current time of simulation
+                        ,advanceCount=NTSD_START                        &  !<-- Timestep at this current time
+                        ,rc          =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -576,7 +664,7 @@
 !
       ALARM_HISTORY=ESMF_AlarmCreate(name             ='ALARM_HISTORY'      &
                                     ,clock            =CLOCK_ATM            &  !<-- ATM Clock
-                                    ,ringTime         =STARTTIME            &  !<-- Forecast start time (ESMF)
+                                    ,ringTime         =CURRTIME             &  !<-- Forecast/Restart start time (ESMF)
                                     ,ringInterval     =TIMEINTERVAL_HISTORY &  !<-- Time interval between
                                     ,ringTimeStepCount=1                    &  !<-- The Alarm rings for this many timesteps
                                     ,sticky           =.false.              &  !<-- Alarm does not ring until turned off
@@ -619,7 +707,7 @@
 !
       ALARM_RESTART=ESMF_AlarmCreate(name             ='ALARM_RESTART'      &
                                     ,clock            =CLOCK_ATM            &  !<-- ATM Clock
-                                    ,ringTime         =STARTTIME            &  !<-- Forecast start time (ESMF)
+                                    ,ringTime         =CURRTIME             &  !<-- Forecast/Restart start time (ESMF)
                                     ,ringInterval     =TIMEINTERVAL_RESTART &  !<-- Time interval between restart output (ESMF)
                                     ,ringTimeStepCount=1                    &  !<-- The Alarm rings for this many timesteps
                                     ,sticky           =.false.              &  !<-- Alarm does not ring until turned off
@@ -1462,26 +1550,27 @@
                                  ,NDFISTEP                              &
                                  ,NPE_PRINT                             &
                                  ,DFIHR                                 &
-                                 ,PHYSICS_ON)
+                                 ,PHYSICS_ON                            &
+                                 ,RESTARTED_RUN)
 
 
       ELSE IF (CORE=='gfs') THEN
            CALL GFS_FWD_INTEGRATE(gc_gfs_dyn                            &
-				 ,gc_gfs_phy                            &
-				 ,gc_atm_cpl                            &
-				 ,imp_gfs_dyn                           &
+                                 ,gc_gfs_phy                            &
+                                 ,gc_atm_cpl                            &
+                                 ,imp_gfs_dyn                           &
                                  ,exp_gfs_dyn                           &
                                  ,imp_gfs_phy                           &
-				 ,exp_gfs_phy                           &
-                                 ,CLOCK_MAIN                            & 
+                                 ,exp_gfs_phy                           &
+                                 ,CLOCK_MAIN                            &
                                  ,ALARM_HISTORY                         &
                                  ,CURRTIME                              &
                                  ,HALFDFITIME                           &
                                  ,HALFDFIINTVAL                         &
                                  ,SDFITIME                              &
-				 ,DFITIME                               &
-				 ,STARTTIME                             &
-			         ,NDFISTEP                              &
+                                 ,DFITIME                               &
+                                 ,STARTTIME                             &
+                                 ,NDFISTEP                              &
                                  ,DFIHR                                 &
                                  ,MYPE                                  &
                                  ,PHYSICS_ON)

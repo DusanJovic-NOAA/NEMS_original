@@ -3823,7 +3823,7 @@ real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
                         subroutine vsound &
-(global,hydro,restart &
+(global,hydro &
 ,lm,ntsd &
 ,cp,dt,pt &
 ,dsg2,pdsg1 &
@@ -3844,8 +3844,7 @@ real(kind=kfpt),parameter:: &
 !-----------------------------------------------------------------------
 logical(kind=klog),intent(in):: &
  global &                    ! global or regional
-,hydro  &                    ! hydrostatic or nonhydrostatic
-,restart                     ! restart
+,hydro                       ! hydrostatic or nonhydrostatic
 
 integer(kind=kint),intent(in):: &
  lm &                        ! total # of levels
@@ -3942,12 +3941,7 @@ integer(kind=kint) :: &
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-!!! (fix when ESMF/restart/ntimestep is done)
-      if(.not.restart) then
-        if(hydro.or.ntsd.lt.2) return
-      else
-        if(hydro) return
-      endif
+      if(hydro.or.ntsd.lt.2) return
 !
 !-----------------------------------------------------------------------
       cappa=r/cp
