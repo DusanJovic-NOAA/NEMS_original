@@ -82,15 +82,15 @@
        =RESHAPE((/                                                      &
 !                              -----------------------------------------
 !
-                               'DT        ', 'H         ', '-         ' &
-                              ,'DYH       ', 'H         ', '-         ' &
+                               'DT        ', 'H         ', 'R         ' &
+                              ,'DYH       ', 'H         ', 'R         ' &
                               ,'PDTOP     ', 'H         ', 'R         ' &
                               ,'PT        ', 'H         ', 'R         ' &
-                              ,'TLM0D     ', 'H         ', '-         ' &
-                              ,'TPH0D     ', 'H         ', '-         ' &
-                              ,'TSTART    ', 'H         ', '-         ' &
-                              ,'DPHD      ', 'H         ', '-         ' &
-                              ,'DLMD      ', 'H         ', '-         ' &
+                              ,'TLM0D     ', 'H         ', 'R         ' &
+                              ,'TPH0D     ', 'H         ', 'R         ' &
+                              ,'TSTART    ', 'H         ', 'R         ' &
+                              ,'DPHD      ', 'H         ', 'R         ' &
+                              ,'DLMD      ', 'H         ', 'R         ' &
 !
 !                              -----------------------------------------
 !
@@ -155,7 +155,7 @@
        =RESHAPE((/                                                      &
 !                              -----------------------------------------
 !
-                               'DXH       ', 'H         ', '-         ' &
+                               'DXH       ', 'H         ', 'R         ' &
                               ,'SG1       ', 'H         ', 'R         ' &
                               ,'SG2       ', 'H         ', 'R         ' &
                               ,'DSG1      ', 'H         ', 'R         ' &
@@ -185,11 +185,11 @@
 !                              -----------------------------------------
 !
                                'FIS       ', 'H         ', 'R         ' &
-                              ,'GLAT      ', 'H         ', '-         ' &
-                              ,'GLON      ', 'H         ', '-         ' &
+                              ,'GLAT      ', 'H         ', 'R         ' &
+                              ,'GLON      ', 'H         ', 'R         ' &
                               ,'PD        ', 'H         ', 'R         ' &
-                              ,'VLAT      ', 'H         ', '-         ' &
-                              ,'VLON      ', 'H         ', '-         ' &
+                              ,'VLAT      ', 'H         ', 'R         ' &
+                              ,'VLON      ', 'H         ', 'R         ' &
                               ,'PDO       ', '-         ', 'R         ' &
 !
 !                              -----------------------------------------
@@ -612,7 +612,7 @@
 !
 !-----------------------------------------------------------------------
 !***  THE FOLLOWING LOGICAL VARIABLES ARE TO BE PART OF THE
-!***  HISTORY OUTPUT THEREFORE PLACE THEM INTO THE OUTPUT Bundle.
+!***  HISTORY OUTPUT THEREFORE PLACE THEM INTO THE HISTORY Bundle.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -622,17 +622,17 @@
 !
       CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                      &  !<-- The Write component output history Bundle
                             ,name  ='GLOBAL'                            &  !<-- Name of the logical
-                            ,value =GLOBAL_ESMF                         &  !<-- The logical being inserted into the import state
+                            ,value =GLOBAL_ESMF                         &  !<-- The logical being inserted into the Bundle
                             ,rc    =RC)
 !
       CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                      &  !<-- The Write component output history Bundle
                             ,name  ='RUN'                               &  !<-- Name of the logical
-                            ,value =RUN_ESMF                            &  !<-- The logical being inserted into the import state
+                            ,value =RUN_ESMF                            &  !<-- The logical being inserted into the Bundle
                             ,rc    =RC)
 !
       CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                      &  !<-- The Write component output history Bundle
                             ,name  ='ADIABATIC'                         &  !<-- Name of the logical
-                            ,value =ADIABATIC_ESMF                      &  !<-- The logical being inserted into the import state
+                            ,value =ADIABATIC_ESMF                      &  !<-- The logical being inserted into the Bundle
                             ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -651,12 +651,17 @@
 !
       CALL ESMF_AttributeSet(bundle=RESTART_BUNDLE                      &  !<-- The Write component restart Bundle
                             ,name  ='GLOBAL'                            &  !<-- Name of the logical
-                            ,value =GLOBAL_ESMF                         &  !<-- The logical being inserted into the import state
+                            ,value =GLOBAL_ESMF                         &  !<-- The logical being inserted into the Bundle
                             ,rc    =RC)
 !
       CALL ESMF_AttributeSet(bundle=RESTART_BUNDLE                      &  !<-- The Write component restart Bundle
                             ,name  ='RUN'                               &  !<-- Name of the logical
-                            ,value =RUN_ESMF                            &  !<-- The logical being inserted into the import state
+                            ,value =RUN_ESMF                            &  !<-- The logical being inserted into the Bundle
+                            ,rc    =RC)
+!
+      CALL ESMF_AttributeSet(bundle=RESTART_BUNDLE                      &  !<-- The Write component restart Bundle
+                            ,name  ='ADIABATIC'                         &  !<-- Name of the logical
+                            ,value =ADIABATIC_ESMF                      &  !<-- The logical being inserted into the Bundle
                             ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

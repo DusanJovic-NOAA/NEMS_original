@@ -1371,6 +1371,7 @@
       INTEGER,DIMENSION(:,:),ALLOCATABLE :: ITEMP,LOWLYR
 !
       REAL :: SECOND_FCST
+!
       REAL :: SWRAD_SCAT=1.
 !
       REAL :: ALM,ANUM,APH,AVE,CTLM,CTPH,CTPH0,DELX,DELY,DENOM          &
@@ -1952,6 +1953,7 @@
       CALL DSTRB(TEMPSOIL(4,:,:),int_state%SH2O(:,:,4),1,1,1,1,1)
 !
       DEALLOCATE(TEMPSOIL)
+!
       ALLOCATE(ITEMP(IDS:IDE,JDS:JDE),STAT=I)
 !
       IF(MYPE==0)THEN
@@ -2017,7 +2019,7 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!              READ FROM RESTART FILE: INGEGER SCALARS
+!              READ FROM RESTART FILE: INTEGER SCALARS
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST) IYEAR_FCST
@@ -2068,19 +2070,35 @@
 !              READ FROM RESTART FILE: INTEGER SCALARS
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
+        READ(NFCST) ! MP_PHYSICS
+        READ(NFCST) ! SF_SURFACE_PHYSICS
         READ(NFCST) NSOIL
+        READ(NFCST) ! NPHS
+        READ(NFCST) ! NCLOD
+        READ(NFCST) ! NHEAT
+        READ(NFCST) ! NPREC
+        READ(NFCST) ! NRDLW
+        READ(NFCST) ! NRDSW
+        READ(NFCST) ! NSRFC
       ENDIF
       CALL MPI_BCAST(NSOIL,1,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
 !-----------------------------------------------------------------------
 !              READ FROM RESTART FILE: REAL SCALARS
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
+        READ(NFCST) ! DT
+        READ(NFCST) ! DYH
         READ(NFCST) PDTOP
       ENDIF
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)PT
         int_state%PT=PT
+        READ(NFCST) ! TLM0D
+        READ(NFCST) ! TPH0D
+        READ(NFCST) ! TSTART
+        READ(NFCST) ! DPHD
+        READ(NFCST) ! DLMD
       ENDIF
 !
       CALL MPI_BCAST(int_state%PT,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
@@ -2091,6 +2109,7 @@
 !              READ FROM RESTART FILE: REAL 1D ARRAYS
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
+        READ(NFCST) ! DXH
         READ(NFCST) SG1
         READ(NFCST) SG2
         READ(NFCST) DSG1
@@ -2098,22 +2117,28 @@
         READ(NFCST) SGML1
         READ(NFCST) SGML2
         READ(NFCST) SGM
+        READ(NFCST) ! APHTIM
+        READ(NFCST) ! ARDLW
+        READ(NFCST) ! ARDSW
+        READ(NFCST) ! ASRFC
+        READ(NFCST) ! AVCNVC
+        READ(NFCST) ! AVRAIN
         READ(NFCST) SLDPTH
         READ(NFCST) int_state%MP_RESTART_STATE
         READ(NFCST) int_state%TBPVS_STATE
         READ(NFCST) int_state%TBPVS0_STATE
       ENDIF
 !
-      CALL MPI_BCAST(SGM(1)  ,LM+1 ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(SG1(1)  ,LM+1 ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(DSG1(1) ,LM   ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(SGML1(1),LM   ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(SG2(1)  ,LM+1 ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(DSG2(1) ,LM   ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(SGML2(1),LM   ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(PDTOP   ,1    ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(LPT2    ,1    ,MPI_INTEGER,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(SLDPTH  ,NSOIL,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(SGM(1)   ,LM+1  ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(SG1(1)   ,LM+1  ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(DSG1(1)  ,LM    ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(SGML1(1) ,LM    ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(SG2(1)   ,LM+1  ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(DSG2(1)  ,LM    ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(SGML2(1) ,LM    ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(PDTOP    ,1     ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(LPT2     ,1     ,MPI_INTEGER,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(SLDPTH   ,NSOIL ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
 
       CALL MPI_BCAST(int_state%MP_RESTART_STATE(1) ,MICRO_RESTART ,MPI_REAL ,0,MPI_COMM_COMP,IRTN)
       CALL MPI_BCAST(int_state%TBPVS_STATE(1)      ,MICRO_RESTART ,MPI_REAL ,0,MPI_COMM_COMP,IRTN)
@@ -2129,6 +2154,7 @@
       IF(MYPE==0)THEN
         READ(NFCST) ! GLOBAL
         READ(NFCST) RUN
+        READ(NFCST) ! ADIABATIC
       ENDIF
 !-----------------------------------------------------------------------
 !
@@ -2215,6 +2241,8 @@
 !***  PD
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
+        READ(NFCST) !GLAT
+        READ(NFCST) !GLON
         READ(NFCST)TEMP1
       ENDIF
 !
@@ -2228,6 +2256,8 @@
 !***  PDO
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
+        READ(NFCST) !VLAT
+        READ(NFCST) !VLON
         READ(NFCST)TEMP1    ! PDO
       ENDIF
 !-----------------------------------------------------------------------
@@ -2919,6 +2949,7 @@
       ENDIF
       CALL DSTRB(TEMP1,int_state%UZ0,1,1,1,1,1)
       CALL HALO_EXCH(int_state%UZ0,1,3,3)
+!     must do HALO_EXCH
 !-----------------------------------------------------------------------
 !***  V10
 !-----------------------------------------------------------------------
@@ -2941,6 +2972,7 @@
       ENDIF
       CALL DSTRB(TEMP1,int_state%VZ0,1,1,1,1,1)
       CALL HALO_EXCH(int_state%VZ0,1,3,3)
+!     must do HALO_EXCH
 !-----------------------------------------------------------------------
 !***  Z0
 !-----------------------------------------------------------------------
@@ -3062,6 +3094,14 @@
 !
         CALL DSTRB(TEMP1,int_state%CW,1,1,1,LM,K)
       ENDDO 
+!-----------------------------------------------------------------------
+!
+      DO K=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1   ! EXCH_H
+        ENDIF
+      ENDDO
+!
 !-----------------------------------------------------------------------
 !
       DO K=1,LM

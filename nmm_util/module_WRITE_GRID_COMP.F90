@@ -615,7 +615,7 @@
                                               ,N_POSITION               &
                                               ,NUM_ATTRIB
 !
-      INTEGER                               :: DIM1,DIM2,NBDR,FIELDSIZE
+      INTEGER                               :: DIM1,DIM2,FIELDSIZE,NBDR
 !
       INTEGER                               :: IYEAR_FCST               &
                                               ,IMONTH_FCST              &
@@ -1671,9 +1671,8 @@
                                       ,NF_SECONDS                       &
                                       ,DIM1,DIM2,NBDR                   &
                                       ,LEAD_WRITE_TASK)
-          FIELDSIZE=DIM1*DIM2
+          FIELDSIZE=(DIM1+2*NBDR)*(DIM2+2*NBDR)
           ALLOCATE(TMP(FIELDSIZE))
-          ALLOCATE(GLAT1D(FIELDSIZE),GLON1D(FIELDSIZE))
         ENDIF
 !
       ENDIF
@@ -1764,11 +1763,12 @@
             ENDDO
           ENDIF
 !
-          IF(wrt_int_state%WRITE_HST_FLAG)THEN
-            NPOSN_1=(NFIELD-1)*ESMF_MAXSTR+1
-            NPOSN_2=NFIELD*ESMF_MAXSTR
-            NAME=wrt_int_state%NAMES_I2D_STRING(NPOSN_1:NPOSN_2)                      !<-- The name of this 2D integer history quantity
+          NPOSN_1=(NFIELD-1)*ESMF_MAXSTR+1
+          NPOSN_2=NFIELD*ESMF_MAXSTR
+          NAME=wrt_int_state%NAMES_I2D_STRING(NPOSN_1:NPOSN_2)                      !<-- The name of this 2D integer history quantity
 ! 
+          IF(wrt_int_state%WRITE_HST_FLAG)THEN
+!
             WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)wrt_int_state%OUTPUT_ARRAY_I2D  !<-- Lead write task writes out the 2D real data
 !
             IF(HST_FIRST)THEN
@@ -1780,18 +1780,16 @@
 !***  FOR NEMSIO FILE
 !-----------------------------------------------------------------------
 !
-         IF(wrt_int_state%WRITE_NEMSIOFLAG)THEN
+          IF(wrt_int_state%WRITE_NEMSIOFLAG)THEN
 !
-           DO J=1,DIM2
-           DO I=1,DIM1
-             wrt_int_state%OUTPUT_ARRAY_I2D(I,J)=                       &
-                   wrt_int_state%OUTPUT_ARRAY_I2D(I+NBDR,J+NBDR)
-           ENDDO
-           ENDDO
+            IF(FIELDSIZE/=IM*JM)THEN
+              WRITE(0,*)'WRONG: input data dimension ',IM*JM,           &
+               ' does not match data size in NEMSIO file ',FIELDSIZE
+            ENDIF
 !
-           TMP=RESHAPE(wrt_int_state%OUTPUT_ARRAY_I2D(1:DIM1,1:DIM2),(/FIELDSIZE/))
+            TMP=RESHAPE(wrt_int_state%OUTPUT_ARRAY_I2D(1:IM,1:JM),(/FIELDSIZE/))
 !
-           CALL NEMSIO_WRITEREC(NEMSIOFILE,NFIELD,TMP,IRET=IERR)           !<-- Lead write task writes out the 2D int data!
+            CALL NEMSIO_WRITEREC(NEMSIOFILE,NFIELD,TMP,IRET=IERR)           !<-- Lead write task writes out the 2D int data!
 !
          ENDIF
 !-----------------------------------------------------------------------
@@ -1890,10 +1888,11 @@
             ENDDO
           ENDIF
 !
+          NPOSN_1=(NFIELD-1)*ESMF_MAXSTR+1
+          NPOSN_2=NFIELD*ESMF_MAXSTR
+          NAME=wrt_int_state%NAMES_R2D_STRING(NPOSN_1:NPOSN_2)                       !<-- The name of this 2D real history quantity
+!
           IF(wrt_int_state%WRITE_HST_FLAG)THEN
-            NPOSN_1=(NFIELD-1)*ESMF_MAXSTR+1
-            NPOSN_2=NFIELD*ESMF_MAXSTR
-            NAME=wrt_int_state%NAMES_R2D_STRING(NPOSN_1:NPOSN_2)                       !<-- The name of this 2D real history quantity
 !
             WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)wrt_int_state%OUTPUT_ARRAY_R2D   !<-- Lead write task writes out the 2D real data
 !
@@ -1908,36 +1907,36 @@
 !
           IF(wrt_int_state%WRITE_NEMSIOFLAG)THEN
 !
-            DO J=1,DIM2
-            DO I=1,DIM1
-              wrt_int_state%OUTPUT_ARRAY_R2D(I,J)=                      &
-                  wrt_int_state%OUTPUT_ARRAY_R2D(I+NBDR,J+NBDR)
-            ENDDO
-            ENDDO
-!
-            IF(NFIELD==1)wrt_int_state%OUTPUT_ARRAY_R2D(:,:)=           &
-                  wrt_int_state%OUTPUT_ARRAY_R2D(:,:)/G
-!
-            IF(NFIELD==2)THEN
-               wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2)=           &
-                 wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2)*DEGRAD
-               GLAT1D(1:FIELDSIZE)=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2),(/FIELDSIZE/))
+            IF(FIELDSIZE/=IM*JM)THEN
+              WRITE(0,*)'WRONG: data dimension ',IM*JM,                &
+               ' does not match data size in NEMSIO file,',FIELDSIZE
             ENDIF
 !
-            IF(NFIELD==3)THEN
-               wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2)=           &
-                 wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2)*DEGRAD
-               GLON1D(1:FIELDSIZE)=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2),(/FIELDSIZE/))
+            IF(TRIM(NAME)=='FIS')wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)=           &
+                  wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)/G
+!
+            IF(TRIM(NAME)=='GLAT')THEN
+               wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)=           &
+                 wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)*DEGRAD
+               ALLOCATE(GLAT1D(FIELDSIZE))
+               GLAT1D(1:FIELDSIZE)=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))
             ENDIF
 !
-            IF(NFIELD==5)wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2)=   &
-               wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2)*DEGRAD
+            IF(TRIM(NAME)=='GLON')THEN
+               wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)=           &
+                 wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)*DEGRAD
+               ALLOCATE(GLON1D(FIELDSIZE))
+               GLON1D(1:FIELDSIZE)=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))
+            ENDIF
 !
-            if(NFIELD==6)wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2)=   &
-               wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2)*DEGRAD
+            IF(TRIM(NAME)=='VLAT')wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)=   &
+               wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)*DEGRAD
+!
+            IF(TRIM(NAME)=='VLON')wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)=   &
+               wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)*DEGRAD
 !
             N=NFIELD+wrt_int_state%KOUNT_I2D(1)
-            TMP=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2),(/FIELDSIZE/))
+            TMP=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))
 !
             CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)
 !
@@ -1970,10 +1969,14 @@
 !
       IF(wrt_int_state%WRITE_NEMSIOFLAG.AND.wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
 !
-        CALL NEMSIO_SETFILEHEAD(NEMSIOFILE,IERR,GLAT1D,GLON1D)
+        IF(ASSOCIATED(GLAT1D).AND.ASSOCIATED(GLON1D)) THEN
+          CALL NEMSIO_SETFILEHEAD(NEMSIOFILE,IERR,GLAT1D,GLON1D)
+          DEALLOCATE(GLAT1D,GLON1D)
+        ENDIF
+!
         CALL NEMSIO_GETFILEHEAD(NEMSIOFILE,IERR,gfname=GFNAME)
 !
-        DEALLOCATE(GLAT1D,GLON1D,TMP)
+        DEALLOCATE(TMP)
 !
         CALL NEMSIO_CLOSE(NEMSIOFILE)
         WRITE(0,*)' Closed nemsio_history file, ', gfname
@@ -2240,9 +2243,8 @@
                                       ,NF_SECONDS                       &
                                       ,DIM1,DIM2,NBDR                   &
                                       ,LEAD_WRITE_TASK)
-          FIELDSIZE=DIM1*DIM2
+          FIELDSIZE=(DIM1+2*NBDR)*(DIM2+2*NBDR)
           ALLOCATE(TMP(FIELDSIZE))
-          ALLOCATE(GLAT1D(FIELDSIZE),GLON1D(FIELDSIZE))
         ENDIF
 !
       ENDIF
@@ -2294,7 +2296,8 @@
 !
           DO J=JSTA_WRITE,JEND_WRITE
           DO I=1,IM
-            wrt_int_state%RST_OUTPUT_ARRAY_I2D(I,J)=wrt_int_state%RST_WRITE_SUBSET_I(I,J,NFIELD) !<-- Lead write task fills its part of full domain
+            wrt_int_state%RST_OUTPUT_ARRAY_I2D(I,J)=wrt_int_state%RST_WRITE_SUBSET_I(I,J,NFIELD) !<-- Lead write task fills its part
+                                                                                                 !    of full domain
           ENDDO
           ENDDO
 !
@@ -2326,22 +2329,25 @@
               DO J=JSTA_WRITE,JEND_WRITE
               DO I=1,IM
                 NN=NN+1
-                wrt_int_state%RST_OUTPUT_ARRAY_I2D(I,J)=wrt_int_state%RST_BUFF_INT(NN)   !<-- Insert other write tasks' subsections into full domain
+                wrt_int_state%RST_OUTPUT_ARRAY_I2D(I,J)=wrt_int_state%RST_BUFF_INT(NN)   !<-- Insert other write tasks' subsections
+                                                                                         !    into full domain
               ENDDO
               ENDDO
 !
             ENDDO
           ENDIF
 !
+         NPOSN_1=(NFIELD-1)*ESMF_MAXSTR+1
+         NPOSN_2=NFIELD*ESMF_MAXSTR
+         NAME=wrt_int_state%RST_NAMES_I2D_STRING(NPOSN_1:NPOSN_2)                       !<-- The name of this 2D integer restart quantity
+!
          IF(wrt_int_state%WRITE_RST_FLAG)THEN
-          NPOSN_1=(NFIELD-1)*ESMF_MAXSTR+1
-          NPOSN_2=NFIELD*ESMF_MAXSTR
-          NAME=wrt_int_state%RST_NAMES_I2D_STRING(NPOSN_1:NPOSN_2)                       !<-- The name of this 2D integer restart quantity
 !
           WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)wrt_int_state%RST_OUTPUT_ARRAY_I2D   !<-- Lead write task writes out the 2D integer data
 !
           IF(RST_FIRST)THEN
-            WRITE(0,*)'Wrote ',TRIM(NAME),' to restart file unit ',wrt_int_state%IO_RST_UNIT
+            WRITE(0,*)'Wrote ',TRIM(NAME),' to restart file unit ',wrt_int_state%IO_RST_UNIT, &
+             maxval(wrt_int_state%RST_OUTPUT_ARRAY_I2D),minval(wrt_int_state%RST_OUTPUT_ARRAY_I2D)
           ENDIF
          ENDIF
 !
@@ -2351,14 +2357,11 @@
 !
          IF(wrt_int_state%WRITE_NEMSIOFLAG)THEN
 !
-           DO J=1,DIM2
-           DO I=1,DIM1
-             wrt_int_state%OUTPUT_ARRAY_I2D(I,J)=                       &
-                   wrt_int_state%OUTPUT_ARRAY_I2D(I+NBDR,J+NBDR)
-           ENDDO
-           ENDDO
-!
-           TMP=RESHAPE(wrt_int_state%OUTPUT_ARRAY_I2D(1:DIM1,1:DIM2),(/FIELDSIZE/))
+           IF(FIELDSIZE/=IM*JM)THEN
+             WRITE(0,*)'WRONG: input data dimension ',IM*JM,                &
+              ' does not match data size in NEMSIO file ',FIELDSIZE
+           ENDIF
+           TMP=RESHAPE(wrt_int_state%RST_OUTPUT_ARRAY_I2D(1:IM,1:JM),(/FIELDSIZE/))
 !
            CALL NEMSIO_WRITEREC(NEMSIOFILE,NFIELD,TMP,IRET=IERR)           !<-- Lead write task writes out the 2D int data!
 !
@@ -2420,7 +2423,8 @@
 !
           DO J=JSTA_WRITE,JEND_WRITE
           DO I=1,IM
-            wrt_int_state%RST_OUTPUT_ARRAY_R2D(I,J)=wrt_int_state%RST_WRITE_SUBSET_R(I,J,NFIELD) !<-- Lead write task fills its part of full domain
+            wrt_int_state%RST_OUTPUT_ARRAY_R2D(I,J)=wrt_int_state%RST_WRITE_SUBSET_R(I,J,NFIELD) !<-- Lead write task fills its part
+                                                                                                 !    of full domain
           ENDDO
           ENDDO
 !
@@ -2452,23 +2456,26 @@
               DO J=JSTA_WRITE,JEND_WRITE
               DO I=1,IM
                 NN=NN+1
-                wrt_int_state%RST_OUTPUT_ARRAY_R2D(I,J)=wrt_int_state%RST_BUFF_REAL(NN)   !<-- Insert other write tasks' subsections into full domain
+                wrt_int_state%RST_OUTPUT_ARRAY_R2D(I,J)=wrt_int_state%RST_BUFF_REAL(NN)   !<-- Insert other write tasks' subsections
+                                                                                          !    into full domain
               ENDDO
               ENDDO
 !
             ENDDO
           ENDIF
 !
-          IF(wrt_int_state%WRITE_RST_FLAG)THEN
 !
-            NPOSN_1=(NFIELD-1)*ESMF_MAXSTR+1
-            NPOSN_2=NFIELD*ESMF_MAXSTR
-            NAME=wrt_int_state%RST_NAMES_R2D_STRING(NPOSN_1:NPOSN_2)                       !<-- The name of this 2D real restart quantity
+          NPOSN_1=(NFIELD-1)*ESMF_MAXSTR+1
+          NPOSN_2=NFIELD*ESMF_MAXSTR
+          NAME=wrt_int_state%RST_NAMES_R2D_STRING(NPOSN_1:NPOSN_2)                       !<-- The name of this 2D real restart quantity
+!
+          IF(wrt_int_state%WRITE_RST_FLAG)THEN
 !
             WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)wrt_int_state%RST_OUTPUT_ARRAY_R2D   !<-- Lead write task writes out the 2D real data
 !
             IF(RST_FIRST)THEN
-              WRITE(0,*)'Wrote ',TRIM(NAME),' to restart file unit ',wrt_int_state%IO_RST_UNIT
+              WRITE(0,*)'Wrote ',TRIM(NAME),' to restart file unit ',wrt_int_state%IO_RST_UNIT &
+              ,maxval(wrt_int_state%RST_OUTPUT_ARRAY_R2D),minval(wrt_int_state%RST_OUTPUT_ARRAY_R2D)
             ENDIF
 !
           ENDIF
@@ -2479,36 +2486,35 @@
 !
           IF(wrt_int_state%WRITE_NEMSIOFLAG)THEN
 !
-            DO J=1,DIM2
-            DO I=1,DIM1
-              wrt_int_state%OUTPUT_ARRAY_R2D(I,J)=                      &
-                  wrt_int_state%OUTPUT_ARRAY_R2D(I+NBDR,J+NBDR)
-            ENDDO
-            ENDDO
+            IF(FIELDSIZE/=IM*JM)THEN
+              WRITE(0,*)'WRONG: data dimension ',IM*JM,                 &
+               ' does not match data size in NEMSIO file,',FIELDSIZE
+            ENDIF
+            IF(TRIM(NAME)=='FIS')wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)=   &
+                  wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)/G
 !
-            IF(NFIELD==1)wrt_int_state%OUTPUT_ARRAY_R2D(:,:)=           &
-                  wrt_int_state%OUTPUT_ARRAY_R2D(:,:)/G
-!
-            IF(NFIELD==2)THEN
-               wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2)=           &
-                 wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2)*DEGRAD
-               GLAT1D(1:FIELDSIZE)=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2),(/FIELDSIZE/))
+            IF(TRIM(NAME)=='GLAT')THEN
+               wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)=           &
+                 wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)*DEGRAD
+               ALLOCATE(GLAT1D(FIELDSIZE))
+               GLAT1D(1:FIELDSIZE)=RESHAPE(wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))
             ENDIF
 !
-            IF(NFIELD==3)THEN
-               wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2)=           &
-                 wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2)*DEGRAD
-               GLON1D(1:FIELDSIZE)=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2),(/FIELDSIZE/))
+            IF(TRIM(NAME)=='GLON')THEN
+               wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)=           &
+                 wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)*DEGRAD
+               ALLOCATE(GLON1D(FIELDSIZE))
+               GLON1D(1:FIELDSIZE)=RESHAPE(wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))
             ENDIF
 !
-            IF(NFIELD==5)wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2)=   &
-               wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2)*DEGRAD
+            IF(TRIM(NAME)=='VLAT')wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)=   &
+               wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)*DEGRAD
 !
-            if(NFIELD==6)wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2)=   &
-               wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2)*DEGRAD
+            IF(TRIM(NAME)=='VLON')wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)=   &
+               wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)*DEGRAD
 !
-            N=NFIELD+wrt_int_state%KOUNT_I2D(1)
-            TMP=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:DIM1,1:DIM2),(/FIELDSIZE/))
+            N=NFIELD+wrt_int_state%RST_KOUNT_I2D(1)
+            TMP=RESHAPE(wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))
 !
             CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)
 !
@@ -2543,10 +2549,14 @@
 !
       IF(wrt_int_state%WRITE_NEMSIOFLAG.AND.wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
 !
-        CALL NEMSIO_SETFILEHEAD(NEMSIOFILE,IERR,GLAT1D,GLON1D)
+        IF(ASSOCIATED(GLAT1D).AND.ASSOCIATED(GLON1D)) THEN
+          CALL NEMSIO_SETFILEHEAD(NEMSIOFILE,IERR,GLAT1D,GLON1D)
+          DEALLOCATE(GLAT1D,GLON1D)
+        ENDIF
+!  
         CALL NEMSIO_GETFILEHEAD(NEMSIOFILE,IERR,gfname=GFNAME)
 !
-        DEALLOCATE(GLAT1D,GLON1D,TMP)
+        DEALLOCATE(TMP)
 !
         CALL NEMSIO_CLOSE(NEMSIOFILE)
         WRITE(0,*)' Closed nemsio_restart file, ', gfname
@@ -2793,6 +2803,7 @@
           atm_int_state%PETLIST_WRITE(I+1,J)=I                          !<-- Collect forecast task IDs to be associated with
                                                                         !    write tasks by write group
         ENDDO
+!
       ENDDO
 !
       K=NUM_PES_FCST

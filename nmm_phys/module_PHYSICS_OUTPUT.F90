@@ -62,13 +62,13 @@
                               ,'JM        ', '-         ', '-         ' &
                               ,'LM        ', '-         ', '-         ' &
                               ,'NSOIL     ', '-         ', 'R         ' &
-                              ,'NPHS      ', 'H         ', '-         ' &
-                              ,'NCLOD     ', 'H         ', '-         ' &
-                              ,'NHEAT     ', 'H         ', '-         ' &
-                              ,'NPREC     ', 'H         ', '-         ' &
-                              ,'NRDLW     ', 'H         ', '-         ' &
-                              ,'NRDSW     ', 'H         ', '-         ' &
-                              ,'NSRFC     ', 'H         ', '-         ' &
+                              ,'NPHS      ', 'H         ', 'R         ' &
+                              ,'NCLOD     ', 'H         ', 'R         ' &
+                              ,'NHEAT     ', 'H         ', 'R         ' &
+                              ,'NPREC     ', 'H         ', 'R         ' &
+                              ,'NRDLW     ', 'H         ', 'R         ' &
+                              ,'NRDSW     ', 'H         ', 'R         ' &
+                              ,'NSRFC     ', 'H         ', 'R         ' &
 !
 !                              -----------------------------------------
 !
@@ -91,12 +91,12 @@
        =RESHAPE((/                                                      &
 !                              -----------------------------------------
 !
-                               'APHTIM    ', 'H         ', '-         ' &
-                              ,'ARDLW     ', 'H         ', '-         ' &
-                              ,'ARDSW     ', 'H         ', '-         ' &
-                              ,'ASRFC     ', 'H         ', '-         ' &
-                              ,'AVCNVC    ', 'H         ', '-         ' &
-                              ,'AVRAIN    ', 'H         ', '-         ' &
+                               'APHTIM    ', 'H         ', 'R         ' &
+                              ,'ARDLW     ', 'H         ', 'R         ' &
+                              ,'ARDSW     ', 'H         ', 'R         ' &
+                              ,'ASRFC     ', 'H         ', 'R         ' &
+                              ,'AVCNVC    ', 'H         ', 'R         ' &
+                              ,'AVRAIN    ', 'H         ', 'R         ' &
                               ,'PDTOP     ', '-         ', '-         ' &
 !
 !                              -----------------------------------------
@@ -743,7 +743,21 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                      &  !<-- The Write component output data Bundle
+      CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                      &  !<-- The Write component history Bundle
+                            ,name  ='MP_PHYSICS'                        &  !<-- Name of microphysics scheme variable
+                            ,value =MP_PHYSICS                          &  !<-- The microphysics scheme integer specification
+                            ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PHY_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert Microphysics Scheme Specification into Restart Bundle"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeSet(bundle=RESTART_BUNDLE                      &  !<-- The Write component restart Bundle
                             ,name  ='MP_PHYSICS'                        &  !<-- Name of microphysics scheme variable
                             ,value =MP_PHYSICS                          &  !<-- The microphysics scheme integer specification
                             ,rc    =RC)
@@ -768,11 +782,25 @@
       ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert Microphysics Scheme Specification into History Bundle"
+      MESSAGE_CHECK="Insert Surface Physics Scheme Specification into History Bundle"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                      &  !<-- The Write component output data Bundle
+      CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                      &  !<-- The Write component history Bundle
+                            ,name  ='SF_SURFACE_PHYSICS'                &  !<-- Name of land surface scheme variable
+                            ,value =SF_SURFACE_PHYSICS                  &  !<-- The land surface scheme integer specification
+                            ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PHY_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert Surface Physics Scheme Specification into Restart Bundle"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeSet(bundle=RESTART_BUNDLE                      &  !<-- The Write component restart Bundle
                             ,name  ='SF_SURFACE_PHYSICS'                &  !<-- Name of land surface scheme variable
                             ,value =SF_SURFACE_PHYSICS                  &  !<-- The land surface scheme integer specification
                             ,rc    =RC)

@@ -3602,7 +3602,7 @@
                                         ,NF_HOURS                       &
                                         ,NF_MINUTES                     &
                                         ,NF_SECONDS                     &
-                                        ,DIM1,DIM2,NBDR                 &
+                                        ,DIM1,DIM2,NFRAME               &
                                         ,LEAD_WRITE_TASK)
 !
 !-----------------------------------------------------------------------
@@ -3622,7 +3622,7 @@
                             ,NF_MINUTES                                 &
                             ,LEAD_WRITE_TASK
 
-      INTEGER,INTENT(OUT) :: DIM1,DIM2,NBDR           
+      INTEGER,INTENT(OUT) :: DIM1,DIM2,NFRAME
 !
       REAL,INTENT(IN)     :: NF_SECONDS                                 &
                             ,SECOND_FCST
@@ -3637,8 +3637,7 @@
                 ,INDX_2D,IRET,IND1,IND2,IND3,IND4,CNT                   &
  		,INI1,INI2                                              &
                 ,N2ISCALAR,N2IARY,N2RSCALAR,N2RARY,N2LSCALAR            &
-                ,NDYH,NDXH,NFRAME,NPT,NPDTOP,NREC                       &
-                ,NSG1,NSG2,NSGML1,NSGML2,NSOIL,TLMETA,VLEV
+                ,NMETA,TLMETA,VLEV,NSOIL
 !
       INTEGER :: NFIELD,RC
 !
@@ -3677,6 +3676,9 @@
       CHARACTER(ESMF_MAXSTR) :: NAME,FILENAME
 !
       TYPE(ESMF_Logical) :: WORK_LOGICAL
+!
+      INTEGER :: NDYH=0,NDXH=0,NPT=0,NPDTOP=0,NREC=0                    &
+                ,NSG1=0,NSG2=0,NSGML1=0,NSGML2=0
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -3906,39 +3908,39 @@
 !dimension
       IF(GLOBAL) THEN
 !for global im/jm for data field
-        IM=wrt_int_state%im(1)+2
-        JM=wrt_int_state%jm(1)+2
-        DIM1=wrt_int_state%im(1)-3
-        DIM2=wrt_int_state%jm(1)-2
+        NFRAME=1
       ELSE
 !for regional
-        IM=wrt_int_state%im(1)
-        JM=wrt_int_state%jm(1)
-        DIM1=wrt_int_state%im(1)-2
-        DIM2=wrt_int_state%jm(1)-2
+        NFRAME=0
       ENDIF
+      IM=wrt_int_state%im(1)
+      JM=wrt_int_state%jm(1)
+      DIM1=wrt_int_state%im(1)-2*NFRAME
+      DIM2=wrt_int_state%jm(1)-2*NFRAME
 !
       LM=wrt_int_state%LM(1)
 !
-!for nmmb trimmed domain
-      NBDR=1
-      NFRAME=0
-      FIELDSIZE=DIM1*DIM2
+!for nmmb whole domain
+      FIELDSIZE=IM*JM
       NREC=wrt_int_state%kount_I2D(1)+wrt_int_state%kount_R2D(1)
 !
 !vcoord
       ALLOCATE(VCOORD(LM+1,3,2))
       VCOORD=0.
-      VCOORD(1:LM+1,1,1)=0.1*(ARYRVAL(1:LM+1,NSG1)*VARRVAL(NPDTOP)      &
-         -ARYRVAL(1:LM+1,NSG2)*(VARRVAL(NPDTOP)+VARRVAL(NPT))           &
-         +VARRVAL(NPT) )
-      VCOORD(1:LM+1,2,1)=ARYRVAL(1:LM+1,NSG2)
-      VCOORD(1:LM+1,3,1)=0
-      VCOORD(1:LM,1,2)=0.1*(ARYRVAL(1:LM,NSGML1)*VARRVAL(NPDTOP)        &
-         -ARYRVAL(1:LM,NSGML2)*(VARRVAL(NPDTOP)+VARRVAL(NPT))           &
-         +VARRVAL(NPT) )
-      VCOORD(1:LM,2,2)=ARYRVAL(1:LM,NSGML2)
-      VCOORD(1:LM,3,2)=0
+      IF(NSG1>0.and.NSG2>0.and.NPDTOP>0.and.NPT>0) then
+        VCOORD(1:LM+1,1,1)=0.1*(ARYRVAL(1:LM+1,NSG1)*VARRVAL(NPDTOP)      &
+          -ARYRVAL(1:LM+1,NSG2)*(VARRVAL(NPDTOP)+VARRVAL(NPT))            &
+          +VARRVAL(NPT) )
+        VCOORD(1:LM+1,2,1)=ARYRVAL(1:LM+1,NSG2)
+        VCOORD(1:LM+1,3,1)=0
+      ENDIF
+      IF(NSGML1>0.and.NSGML2>0.and.NPDTOP>0.and.NPT>0) then
+        VCOORD(1:LM,1,2)=0.1*(ARYRVAL(1:LM,NSGML1)*VARRVAL(NPDTOP)        &
+          -ARYRVAL(1:LM,NSGML2)*(VARRVAL(NPDTOP)+VARRVAL(NPT))            &
+          +VARRVAL(NPT) )
+        VCOORD(1:LM,2,2)=ARYRVAL(1:LM,NSGML2)
+        VCOORD(1:LM,3,2)=0
+      ENDIF
 !!!   write(0,*)'after vcoord,count_I2d=',wrt_int_state%kount_I2D(1),'nrec=',nrec
 !
 !-----------------------------------------------------------------------
@@ -3956,7 +3958,7 @@
         NPOSN_1=(NFIELD-1)*ESMF_MAXSTR+1
         NPOSN_2=NFIELD*ESMF_MAXSTR
         NAME=wrt_int_state%NAMES_I2D_STRING(NPOSN_1:NPOSN_2)               !<-- The name of this 2D integer history quantity
-        INDX_2D=index(recname(nrec),"_2D")
+        INDX_2D=index(NAME,"_2D")
 !
         IF (INDX_2D > 0) THEN
           MODEL_LEVEL=NAME(INDX_2D-2:INDX_2D-1)
@@ -4039,10 +4041,6 @@
           IND4=IND4+1
         ENDIF
 !
-!change unit for 'FIS'
-!jw        IF(RECNAME(NREC)=='hgt') wrt_int_state%OUTPUT_ARRAY_R2D(:,:,NFIELD)= &
-!jw          wrt_int_state%OUTPUT_ARRAY_R2D(:,:,NFIELD)/G
-!       write(0,*)'nfield=',nfield,'recname=',recname(nfield+4)
         CALL LOWERCASE(RECNAME(NREC))
       ENDDO
 !glat1d and glon1d
@@ -4050,22 +4048,28 @@
       DEGRAD=90./ASIN(1.)
       glon1d=0.
       glat1d=0.
-!     write(0,*)'after glat1d=',maxval(glat1d),minval(glat1d),           &
-!       'glon1d=',maxval(glon1d),minval(glon1d)
+      NMETA=12
 !
 !dx and dy
       ALLOCATE(DX(FIELDSIZE),DY(FIELDSIZE))
 !
-      DO I=1,FIELDSIZE
-        DY(I)=VARRVAL(NDYH)
-      ENDDO
+      if(NDXH>0) then
+       DO J=1,JM
+       DO I=1,IM
+         DX(I+(J-1)*IM)=ARYRVAL(J,NDXH)
+       ENDDO
+       ENDDO
+!       write(0,*)'after dx=',maxval(dx),minval(dx)
+      else
+       NMETA=7
+      endif
 !
-      DO J=1,DIM2
-      DO I=1,DIM1
-        DX(I+(J-1)*DIM1)=ARYRVAL(J+NBDR,NDXH)
-      ENDDO
-      ENDDO
-!     write(0,*)'after dx=',maxval(dx),minval(dx),'dy=',maxval(dy),minval(dy)
+      if(NDYH>0) then
+       DO I=1,FIELDSIZE
+        DY(I)=VARRVAL(NDYH)
+       ENDDO
+!       write(0,*)'after dy=',maxval(dy),minval(dy)
+      endif
 !
 !-----------------------------------------------------------------------
 !                      SET UP NEMSIO WRITE
@@ -4081,6 +4085,7 @@
         modelname="NMMB", gdatatype="bin4", idate=IDATE,nfhour=NF_HOURS, &
         nfminute=NF_MINUTES,nfsecondn=nint(NF_SECONDS*100),              &
         nfsecondd=100,dimx=DIM1,dimy=DIM2,dimz=LM,nframe=NFRAME,         &
+        nmeta=NMETA,                                                     &
         nsoil=NSOIL,ntrac=3,nrec=nrec, ncldt=1,rlon_min=minval(glon1d),  &
         rlon_max=maxval(glon1d), rlat_max=maxval(glat1d),                &
         rlat_min=minval(glat1d),vcoord=vcoord,lon=glon1d,lat=glat1d,     &
@@ -4311,7 +4316,7 @@
                                         ,NF_HOURS                       &
                                         ,NF_MINUTES                     &
                                         ,NF_SECONDS                     &
-                                        ,DIM1,DIM2,NBDR                 &
+                                        ,DIM1,DIM2,NFRAME               &
                                         ,LEAD_WRITE_TASK)
 !
 !-----------------------------------------------------------------------
@@ -4331,7 +4336,7 @@
                             ,NF_MINUTES                                 &
                             ,LEAD_WRITE_TASK
 
-      INTEGER,INTENT(OUT) :: DIM1,DIM2,NBDR           
+      INTEGER,INTENT(OUT) :: DIM1,DIM2,NFRAME         
 !
       REAL,INTENT(IN)     :: NF_SECONDS                                 &
                             ,SECOND_FCST
@@ -4346,8 +4351,7 @@
                 ,INDX_2D,IRET,IND1,IND2,IND3,IND4,CNT                   &
  		,INI1,INI2                                              &
                 ,N2ISCALAR,N2IARY,N2RSCALAR,N2RARY,N2LSCALAR            &
-                ,NDYH,NDXH,NFRAME,NPT,NPDTOP,NREC                       &
-                ,NSG1,NSG2,NSGML1,NSGML2,NSOIL,TLMETA,VLEV
+                ,NMETA,NSOIL,TLMETA,VLEV    
 !
       INTEGER :: NFIELD,RC
 !
@@ -4387,6 +4391,9 @@
 !
       TYPE(ESMF_Logical) :: WORK_LOGICAL
 !
+      INTEGER :: NDYH=0,NDXH=0,NPT=0,NPDTOP=0,NREC=0                    &
+                ,NSG1=0,NSG2=0,NSGML1=0,NSGML2=0
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -4411,8 +4418,8 @@
       N2IARY=0
       MAXLENGTH=1
 !
-      DO N=1,wrt_int_state%KOUNT_I1D(1)                                    !<-- Loop through all scalar/1D integer data
-        LENGTH=wrt_int_state%LENGTH_DATA_I1D(N)
+      DO N=1,wrt_int_state%RST_KOUNT_I1D(1)                                    !<-- Loop through all scalar/1D integer data
+        LENGTH=wrt_int_state%RST_LENGTH_DATA_I1D(N)
 !
         IF(LENGTH==1)THEN
           N2ISCALAR=N2ISCALAR+1
@@ -4437,18 +4444,18 @@
       N2IARY=0
       IDATE=0
 !
-      DO N=1,wrt_int_state%KOUNT_I1D(1)                                    !<-- Loop through all scalar/1D integer data
+      DO N=1,wrt_int_state%RST_KOUNT_I1D(1)                                    !<-- Loop through all scalar/1D integer data
 !
         NPOSN_1=(N-1)*ESMF_MAXSTR+1
         NPOSN_2=N*ESMF_MAXSTR
-        NAME=wrt_int_state%NAMES_I1D_STRING(NPOSN_1:NPOSN_2)               !<-- The variable's name
-        LENGTH=wrt_int_state%LENGTH_DATA_I1D(N)                            !<-- The variable's length in words
+        NAME=wrt_int_state%RST_NAMES_I1D_STRING(NPOSN_1:NPOSN_2)               !<-- The variable's name
+        LENGTH=wrt_int_state%RST_LENGTH_DATA_I1D(N)                            !<-- The variable's length in words
 !
         IF(LENGTH==1)THEN
           N2=N2+1
           N2ISCALAR=N2ISCALAR+1
           VARINAME(N2ISCALAR)=TRIM(NAME)
-          VARIVAL(N2ISCALAR)=wrt_int_state%ALL_DATA_I1D(N2)
+          VARIVAL(N2ISCALAR)=wrt_int_state%RST_ALL_DATA_I1D(N2)
           IF(VARINAME(N2ISCALAR)=='IHRST') then
             IDATE(4)=VARIVAL(N2ISCALAR)
           ENDIF
@@ -4457,11 +4464,11 @@
           ARYINAME(N2IARY)=TRIM(NAME)
           ARYILEN(N2IARY)=LENGTH
 !            write(0,*)'in I1D array,aryiname=',aryiname(N2IARY),'len=',aryilen(N2IARY),  &
-!              wrt_int_state%ALL_DATA_I1D(N2+1:N2+length)
+!              wrt_int_state%RST_ALL_DATA_I1D(N2+1:N2+length)
 !
           DO N1=1,LENGTH
             N2=N2+1
-            ARYIVAL(N1,N2IARY)=wrt_int_state%ALL_DATA_I1D(N2)              !<-- Extract the individual data from the data string
+            ARYIVAL(N1,N2IARY)=wrt_int_state%RST_ALL_DATA_I1D(N2)              !<-- Extract the individual data from the data string
           ENDDO
 
           IF(ARYINAME(N2IARY)=='IDAT') THEN
@@ -4497,8 +4504,8 @@
       N2RARY=0
       MAXLENGTH=1
 !
-      DO N=1,wrt_int_state%KOUNT_R1D(1)                                    !<-- Loop through all scalar/1D real data
-        LENGTH=wrt_int_state%LENGTH_DATA_R1D(N)                            !<-- The variable's length
+      DO N=1,wrt_int_state%RST_KOUNT_R1D(1)                                    !<-- Loop through all scalar/1D real data
+        LENGTH=wrt_int_state%RST_LENGTH_DATA_R1D(N)                            !<-- The variable's length
         IF(LENGTH==1)THEN
            N2RSCALAR=N2RSCALAR+1
         ELSE
@@ -4517,18 +4524,18 @@
       N2RSCALAR=0
       N2RARY=0
 !
-      DO N=1,wrt_int_state%KOUNT_R1D(1)                                    !<-- Loop through all scalar/1D real data
+      DO N=1,wrt_int_state%RST_KOUNT_R1D(1)                                    !<-- Loop through all scalar/1D real data
 !
         NPOSN_1=(N-1)*ESMF_MAXSTR+1
         NPOSN_2=N*ESMF_MAXSTR
-        NAME=wrt_int_state%NAMES_R1D_STRING(NPOSN_1:NPOSN_2)               !<-- The variable's name
-        LENGTH=wrt_int_state%LENGTH_DATA_R1D(N)                            !<-- The variable's length
+        NAME=wrt_int_state%RST_NAMES_R1D_STRING(NPOSN_1:NPOSN_2)               !<-- The variable's name
+        LENGTH=wrt_int_state%RST_LENGTH_DATA_R1D(N)                            !<-- The variable's length
 !
         IF(LENGTH==1)THEN
           N2=N2+1
           N2RSCALAR=N2RSCALAR+1
           VARRNAME(N2RSCALAR)=TRIM(NAME)
-          VARRVAL(N2RSCALAR)=wrt_int_state%ALL_DATA_R1D(N2)
+          VARRVAL(N2RSCALAR)=wrt_int_state%RST_ALL_DATA_R1D(N2)
 !
           IF( TRIM(NAME)=='PT') THEN
             NPT=N2RSCALAR
@@ -4549,7 +4556,7 @@
 !
           DO N1=1,LENGTH
             N2=N2+1
-            ARYRVAL(N1,N2RARY)=wrt_int_state%ALL_DATA_R1D(N2)              !<-- Extract the individual data from the data string
+            ARYRVAL(N1,N2RARY)=wrt_int_state%RST_ALL_DATA_R1D(N2)              !<-- Extract the individual data from the data string
           ENDDO
 !
           IF( TRIM(NAME)=='SG1') THEN
@@ -4572,19 +4579,19 @@
 !***  LOGICAL HISTORY VARIABLES
 !-----------------------------------------------------------------------
 !
-      N2LSCALAR=wrt_int_state%KOUNT_LOG(1)                                 !<-- Counter for full string of logical data
+      N2LSCALAR=wrt_int_state%RST_KOUNT_LOG(1)                                 !<-- Counter for full string of logical data
 !
       ALLOCATE(VARLNAME(N2LSCALAR),VARLVAL(N2LSCALAR))
       N2LSCALAR=0
 !
-      DO N=1,wrt_int_state%KOUNT_LOG(1)                                    !<-- Loop through all logical data
+      DO N=1,wrt_int_state%RST_KOUNT_LOG(1)                                    !<-- Loop through all logical data
 !
         NPOSN_1=(N-1)*ESMF_MAXSTR+1
         NPOSN_2=N*ESMF_MAXSTR
-        NAME=wrt_int_state%NAMES_LOG_STRING(NPOSN_1:NPOSN_2)               !<-- The variable's name
+        NAME=wrt_int_state%RST_NAMES_LOG_STRING(NPOSN_1:NPOSN_2)               !<-- The variable's name
 !
         N2LSCALAR=N2LSCALAR+1
-        WORK_LOGICAL=wrt_int_state%ALL_DATA_LOG(N2LSCALAR)                 !<-- Extract the individual data from the data string
+        WORK_LOGICAL=wrt_int_state%RST_ALL_DATA_LOG(N2LSCALAR)                 !<-- Extract the individual data from the data string
         VARLNAME(N2LSCALAR)=NAME
         VARLVAL(N2LSCALAR)=WORK_LOGICAL
         IF(TRIM(NAME)=='GLOBAL') GLOBAL=WORK_LOGICAL
@@ -4615,40 +4622,40 @@
 !dimension
       IF(GLOBAL) THEN
 !for global im/jm for data field
-        IM=wrt_int_state%im(1)+2
-        JM=wrt_int_state%jm(1)+2
-        DIM1=wrt_int_state%im(1)-3
-        DIM2=wrt_int_state%jm(1)-2
+        NFRAME=1
       ELSE
 !for regional
-        IM=wrt_int_state%im(1)
-        JM=wrt_int_state%jm(1)
-        DIM1=wrt_int_state%im(1)-2
-        DIM2=wrt_int_state%jm(1)-2
+        NFRAME=0
       ENDIF
+      IM=wrt_int_state%im(1)
+      JM=wrt_int_state%jm(1)
+      DIM1=wrt_int_state%im(1)-2*NFRAME
+      DIM2=wrt_int_state%jm(1)-2*NFRAME
 !
       LM=wrt_int_state%LM(1)
 !
 !for nmmb trimmed domain
-      NBDR=1
-      NFRAME=0
-      FIELDSIZE=DIM1*DIM2
-      NREC=wrt_int_state%kount_I2D(1)+wrt_int_state%kount_R2D(1)
+      FIELDSIZE=IM*JM
+      NREC=wrt_int_state%RST_kount_I2D(1)+wrt_int_state%RST_kount_R2D(1)
 !
 !vcoord
       ALLOCATE(VCOORD(LM+1,3,2))
       VCOORD=0.
-      VCOORD(1:LM+1,1,1)=0.1*(ARYRVAL(1:LM+1,NSG1)*VARRVAL(NPDTOP)      &
-         -ARYRVAL(1:LM+1,NSG2)*(VARRVAL(NPDTOP)+VARRVAL(NPT))           &
-         +VARRVAL(NPT) )
-      VCOORD(1:LM+1,2,1)=ARYRVAL(1:LM+1,NSG2)
-      VCOORD(1:LM+1,3,1)=0
-      VCOORD(1:LM,1,2)=0.1*(ARYRVAL(1:LM,NSGML1)*VARRVAL(NPDTOP)        &
-         -ARYRVAL(1:LM,NSGML2)*(VARRVAL(NPDTOP)+VARRVAL(NPT))           &
-         +VARRVAL(NPT) )
-      VCOORD(1:LM,2,2)=ARYRVAL(1:LM,NSGML2)
-      VCOORD(1:LM,3,2)=0
-!!!   write(0,*)'after vcoord,count_I2d=',wrt_int_state%kount_I2D(1),'nrec=',nrec
+      if(NSG1>0.and.NSG2>0.and.NPT>0.and.NPDTOP>0 ) THEN
+        VCOORD(1:LM+1,1,1)=0.1*(ARYRVAL(1:LM+1,NSG1)*VARRVAL(NPDTOP)      &
+          -ARYRVAL(1:LM+1,NSG2)*(VARRVAL(NPDTOP)+VARRVAL(NPT))            &
+          +VARRVAL(NPT) )
+        VCOORD(1:LM+1,2,1)=ARYRVAL(1:LM+1,NSG2)
+        VCOORD(1:LM+1,3,1)=0
+      ENDIF
+      if(NSGML1>0.and.NSGML2>0.and.NPT>0.and.NPDTOP>0 ) THEN
+        VCOORD(1:LM,1,2)=0.1*(ARYRVAL(1:LM,NSGML1)*VARRVAL(NPDTOP)        &
+          -ARYRVAL(1:LM,NSGML2)*(VARRVAL(NPDTOP)+VARRVAL(NPT))            &
+          +VARRVAL(NPT) )
+        VCOORD(1:LM,2,2)=ARYRVAL(1:LM,NSGML2)
+        VCOORD(1:LM,3,2)=0
+      ENDIF
+!!!     write(0,*)'after vcoord,count_I2d=',wrt_int_state%rst_kount_I2D(1),'nrec=',nrec
 !
 !-----------------------------------------------------------------------
 !***  Cut the output I2D array.
@@ -4659,13 +4666,13 @@
       INI1=0
       INI2=0
 !
-      DO NFIELD=1,wrt_int_state%KOUNT_I2D(1)
+      DO NFIELD=1,wrt_int_state%RST_KOUNT_I2D(1)
 !
         NREC=NREC+1
         NPOSN_1=(NFIELD-1)*ESMF_MAXSTR+1
         NPOSN_2=NFIELD*ESMF_MAXSTR
-        NAME=wrt_int_state%NAMES_I2D_STRING(NPOSN_1:NPOSN_2)               !<-- The name of this 2D integer history quantity
-        INDX_2D=index(recname(nrec),"_2D")
+        NAME=wrt_int_state%RST_NAMES_I2D_STRING(NPOSN_1:NPOSN_2)               !<-- The name of this 2D integer history quantity
+        INDX_2D=index(NAME,"_2D")
 !
         IF (INDX_2D > 0) THEN
           MODEL_LEVEL=NAME(INDX_2D-2:INDX_2D-1)
@@ -4688,7 +4695,7 @@
         CALL LOWERCASE(RECNAME(NREC))
       ENDDO
 !
-!!!   write(0,*)'after I2D,nrec=',nrec
+      write(0,*)'after I2D,nrec=',nrec
 !
 !-----------------------------------------------------------------------
 !*** Cut the output R2D array.
@@ -4700,12 +4707,12 @@
       IND2=0
       IND1=0
 !
-      DO NFIELD=1,wrt_int_state%KOUNT_R2D(1)
+      DO NFIELD=1,wrt_int_state%RST_KOUNT_R2D(1)
 !
         NREC=NREC+1
         NPOSN_1=(NFIELD-1)*ESMF_MAXSTR+1
         NPOSN_2=NFIELD*ESMF_MAXSTR
-        NAME=wrt_int_state%NAMES_R2D_STRING(NPOSN_1:NPOSN_2)  !<-- The name of this 2D integer history quantity
+        NAME=wrt_int_state%RST_NAMES_R2D_STRING(NPOSN_1:NPOSN_2)  !<-- The name of this 2D integer history quantity
         INDX_2D=INDEX(NAME,"_2D")
 !
         IF (INDX_2D > 0) THEN
@@ -4748,33 +4755,39 @@
           IND4=IND4+1
         ENDIF
 !
-!change unit for 'FIS'
-!jw        IF(RECNAME(NREC)=='hgt') wrt_int_state%OUTPUT_ARRAY_R2D(:,:,NFIELD)= &
-!jw          wrt_int_state%OUTPUT_ARRAY_R2D(:,:,NFIELD)/G
-!       write(0,*)'nfield=',nfield,'recname=',recname(nfield+4)
         CALL LOWERCASE(RECNAME(NREC))
       ENDDO
+      write(0,*)'after R2D,nrec=',nrec,'kount_r2d=',wrt_int_state%RST_KOUNT_R2D(1)
+
 !glat1d and glon1d
       ALLOCATE(GLAT1D(FIELDSIZE),GLON1D(FIELDSIZE))
       DEGRAD=90./ASIN(1.)
       glon1d=0.
       glat1d=0.
-!     write(0,*)'after glat1d=',maxval(glat1d),minval(glat1d),           &
-!       'glon1d=',maxval(glon1d),minval(glon1d)
+      NMETA=12
+      write(0,*)'after glat1d,NDYH=',ndyh
 !
 !dx and dy
       ALLOCATE(DX(FIELDSIZE),DY(FIELDSIZE))
 !
-      DO I=1,FIELDSIZE
-        DY(I)=VARRVAL(NDYH)
-      ENDDO
+      if(NDXH>0) then
+       DO J=1,JM
+       DO I=1,IM
+         DX(I+(J-1)*IM)=ARYRVAL(J,NDXH)
+       ENDDO
+       ENDDO
+       write(0,*)'after dx=',maxval(dx),minval(dx),'dy=',maxval(dy),minval(dy)
+      else
+       NMETA=7
+      endif
 !
-      DO J=1,DIM2
-      DO I=1,DIM1
-        DX(I+(J-1)*DIM1)=ARYRVAL(J+NBDR,NDXH)
-      ENDDO
-      ENDDO
-!     write(0,*)'after dx=',maxval(dx),minval(dx),'dy=',maxval(dy),minval(dy)
+      if(NDYH>0) then
+       DO I=1,FIELDSIZE
+        DY(I)=VARRVAL(NDYH)
+       ENDDO
+      endif
+      write(0,*)'after DY,nrec=',nrec
+
 !
 !-----------------------------------------------------------------------
 !                      SET UP NEMSIO WRITE
@@ -4790,6 +4803,7 @@
         modelname="NMMB", gdatatype="bin4", idate=IDATE,nfhour=NF_HOURS, &
         nfminute=NF_MINUTES,nfsecondn=nint(NF_SECONDS*100),              &
         nfsecondd=100,dimx=DIM1,dimy=DIM2,dimz=LM,nframe=NFRAME,         &
+        nmeta=NMETA,                                                     &
         nsoil=NSOIL,ntrac=3,nrec=nrec, ncldt=1,rlon_min=minval(glon1d),  &
         rlon_max=maxval(glon1d), rlat_max=maxval(glat1d),                &
         rlat_min=minval(glat1d),vcoord=vcoord,lon=glon1d,lat=glat1d,     &

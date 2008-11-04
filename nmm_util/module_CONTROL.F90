@@ -1800,16 +1800,34 @@ logical(kind=klog) :: opened
 !-----------------------------------------------------------------------
 !   READ FROM RESTART FILE: INTEGER SCALARS
 !-----------------------------------------------------------------------
+      read(nfcst) ! mp_physics
+      read(nfcst) ! sf_surface_physics
       read(nfcst) nsoil
+      read(nfcst) ! nphs
+      read(nfcst) ! nclod
+      read(nfcst) ! nheat
+      read(nfcst) ! nprec
+      read(nfcst) ! nrdlw
+      read(nfcst) ! nrdsw
+      read(nfcst) ! nsrfc
 !-----------------------------------------------------------------------
 !   READ FROM RESTART FILE: REAL SCALARS
 !-----------------------------------------------------------------------
+      read(nfcst) ! dt
+      read(nfcst) ! dyh
       read(nfcst) pdtop
 !-----------------------------------------------------------------------
       read(nfcst) pt
+      read(nfcst) ! tlm0d
+      read(nfcst) ! tph0d
+      read(nfcst) ! tph0d
+      read(nfcst) ! tstart
+      read(nfcst) ! dphd
+      read(nfcst) ! dlmd
 !-----------------------------------------------------------------------
 !   READ FROM RESTART FILE: REAL 1D ARRAYS
 !-----------------------------------------------------------------------
+      read(nfcst) ! dxh
       read(nfcst) sg1
       read(nfcst) sg2
       read(nfcst) dsg1
@@ -1817,6 +1835,12 @@ logical(kind=klog) :: opened
       read(nfcst) sgml1
       read(nfcst) sgml2
       read(nfcst) sgm
+      read(nfcst) ! aphtim
+      read(nfcst) ! ardlw
+      read(nfcst) ! ardsw
+      read(nfcst) ! asrfc
+      read(nfcst) ! avcnvc
+      read(nfcst) ! avrain
       read(nfcst) ! sldpth
       read(nfcst) ! mp_restart_state
       read(nfcst) ! tbpvs_state
@@ -1829,6 +1853,7 @@ logical(kind=klog) :: opened
       if(mype==0)then
         write(0,*) 'run, idat,ntsd: ', run, idat, ntsd
       endif
+      read(nfcst) ! adiabatic
 !-----------------------------------------------------------------------
 !   READ FROM RESTART FILE: INTEGER 2D ARRAYS
 !-----------------------------------------------------------------------
@@ -1859,6 +1884,8 @@ logical(kind=klog) :: opened
       call halo_exch(fis,1,2,2)
 !-----------------------------------------------------------------------
       if(mype==0)then
+        read(nfcst) !glat
+        read(nfcst) !glon
         read(nfcst)temp1
       endif
       do j=jms,jme
@@ -1870,6 +1897,8 @@ logical(kind=klog) :: opened
       call halo_exch(pd,1,2,2)
 !-----------------------------------------------------------------------
       if(mype==0)then
+        read(nfcst) !vlat
+        read(nfcst) !vlon
         read(nfcst)temp1
       endif
       do j=jms,jme
@@ -2492,6 +2521,12 @@ logical(kind=klog) :: opened
         call dstrb(temp1,cw,1,1,1,lm,l)
       enddo
       call halo_exch(cw,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          read(nfcst)temp1  !exch_h
+        endif
+      enddo
 !-----------------------------------------------------------------------
       do l=1,lm
         if(mype==0)then
