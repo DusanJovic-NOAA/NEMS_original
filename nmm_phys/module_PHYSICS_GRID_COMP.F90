@@ -1122,7 +1122,7 @@
                    ,int_state%CW,int_state%TCUCN,int_state%WATER       &
                    ,int_state%OMGALF                                   &
                    ,int_state%U,int_state%V                            &
-                   ,int_state%FIS                                      &
+                   ,int_state%FIS,int_state%W0AVG                      &
                    ,int_state%PREC,int_state%ACPREC,int_state%CUPREC   &
                    ,int_state%CUPPT,int_state%CPRATE                   &
                    ,int_state%CNVBOT,int_state%CNVTOP                  &
