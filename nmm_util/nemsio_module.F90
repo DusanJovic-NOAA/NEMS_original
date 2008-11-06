@@ -9,6 +9,9 @@ module nemsio_module
 ! Program history log
 !    2006-11-10    Jun Wang  for gfsio
 !    2008-02-29    Jun Wang
+!    2008-11-04    Jun Wang - Changes to NFRAME; users can output fewer
+!                             metadata records and update data fields in
+!                             existing files.
 !
 ! Public Variables
 ! Public Defined Types

@@ -539,6 +539,8 @@
      REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT)  :: FRC_URB2D  !urban 
      INTEGER, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT)  :: UTYPE_URB2D  !urban 
 
+     INTEGER :: NRL,NWL,NRDL
+
      REAL,  DIMENSION( ims:ime, jms:jme )  :: PSIM_URB2D  !urban local var
      REAL,  DIMENSION( ims:ime, jms:jme )  :: PSIH_URB2D  !urban local var
      REAL,  DIMENSION( ims:ime, jms:jme )  :: GZ1OZ0_URB2D  !urban local var
@@ -819,6 +821,19 @@
            frpcpn=.true.
          ENDIF
 
+         nrl=1
+         IF ( PRESENT(num_roof_layers) ) THEN
+             nrl=num_roof_layers
+         ENDIF
+         nwl=1
+         IF ( PRESENT(num_wall_layers) ) THEN
+             nwl=num_wall_layers
+         ENDIF
+         nrdl=1
+         IF ( PRESENT(num_road_layers) ) THEN
+             nrdl=num_road_layers
+         ENDIF
+
 !nmmb     CALL wrf_debug(100,'in NOAH LSM')
            CALL noahlsm(dz8w,qv_curr,p8w,t_phy,tsk,             &
                 hfx,qfx,lh,grdflx,qgh,gsw,swdown,glw,smstav,smstot,    &
@@ -850,8 +865,8 @@
                 th2_urb2d,q2_urb2d,ust_urb2d,                   & !O urban
                 declin_urb,cosz_urb2d,omg_urb2d,                & !I urban
                 xlat_urb2d,                                     & !I urban
-                num_roof_layers, num_wall_layers,               & !I urban
-                num_road_layers, DZR, DZB, DZG,                 & !I urban
+                nrl, nwl,                                       & !I urban
+                nrdl, DZR, DZB, DZG,                            & !I urban
                 FRC_URB2D, UTYPE_URB2D                          & ! urban
                 )
 
