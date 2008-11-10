@@ -4,7 +4,7 @@
 #@ error = nmm_out/err
 #@ job_type = parallel
 #@ tasks_per_node = 16
-#@ node = 3
+#@ node = 1
 #@ node_usage=not_shared
 ####@ blocking = unlimited
 #@ resources=ConsumableCPUs(1)ConsumableMemory(500MB)
@@ -24,7 +24,7 @@ set -x
 #
 ### For MPI
 #
-export BIND_TASKS=yes
+export BIND_TASKS=no
 export MP_EAGER_LIMIT=65536
 export MP_SHARED_MEMORY=yes
 export MP_SINGLE_THREAD=yes
@@ -37,7 +37,7 @@ export XLSMPOPTS="parthds=1:stack=128000000"
 export AIXTHREAD_SCOPE=S
 
 
-RUNDIR=/ptmp/${USER}/nmm.3 ### change here
+RUNDIR=/ptmp/${USER}/nmm.1 ### change here
 DATADIR=/meso/noscrub/wx22tb/nmmb_input/input_global
 SRCDIR=/meso/save/${USER}/trunk   ##### change here
 
