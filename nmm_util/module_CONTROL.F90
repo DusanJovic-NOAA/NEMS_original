@@ -1820,7 +1820,6 @@ logical(kind=klog) :: opened
       read(nfcst) pt
       read(nfcst) ! tlm0d
       read(nfcst) ! tph0d
-      read(nfcst) ! tph0d
       read(nfcst) ! tstart
       read(nfcst) ! dphd
       read(nfcst) ! dlmd
