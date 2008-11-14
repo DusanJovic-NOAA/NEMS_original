@@ -2523,12 +2523,6 @@ logical(kind=klog) :: opened
 !-----------------------------------------------------------------------
       do l=1,lm
         if(mype==0)then
-          read(nfcst)temp1  !exch_h
-        endif
-      enddo
-!-----------------------------------------------------------------------
-      do l=1,lm
-        if(mype==0)then
           read(nfcst)temp1
         endif
         do j=jms,jme

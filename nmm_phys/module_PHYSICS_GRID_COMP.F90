@@ -3098,14 +3098,6 @@
 !
       DO K=1,LM
         IF(MYPE==0)THEN
-          READ(NFCST)TEMP1   ! EXCH_H
-        ENDIF
-      ENDDO
-!
-!-----------------------------------------------------------------------
-!
-      DO K=1,LM
-        IF(MYPE==0)THEN
           READ(NFCST)TEMP1   ! Q
         ENDIF
 !
