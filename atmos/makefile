@@ -68,7 +68,9 @@ FFLAGSDB   = $(OPTS) $(FINCS) $(TRAPS)
 #
 
 MODULE=         module_CORE_SETUP.o \
-                module_FWD_INTEGRATE.o
+                module_BCK_INTEGRATE.o \
+		module_FWD_INTEGRATE.o \
+		module_INTEGRATE.o
 
 MODULE_AGC=     module_ATM_GRID_COMP.o
 
@@ -95,8 +97,14 @@ module_ATM_GRID_COMP.o: $(DEPS)
 module_CORE_SETUP.o: $(DEPS)
 	$(FC) $(FFLAGSDB) -c module_CORE_SETUP.F90
 
+module_BCK_INTEGRATE.o: $(DEPS)
+	$(FC) $(FFLAGSDB) -c module_BCK_INTEGRATE.F90
+
 module_FWD_INTEGRATE.o: $(DEPS)
 	$(FC) $(FFLAGSDB) -c module_FWD_INTEGRATE.F90
+
+module_INTEGRATE.o: $(DEPS)
+	$(FC) $(FFLAGSDB) -c module_INTEGRATE.F90
 
 clean:	
 	/bin/rm -f  $(TARGET) *.f90 *.lst *.o *.mod *.a lm map

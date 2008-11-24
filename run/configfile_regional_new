@@ -65,7 +65,36 @@ start_second: 0
                                                                                                                                               
 tstart:       0.            # The starting forecast hour
                                                                                                                                               
-                                                                                                                                              
+###################################
+##### Digital Filtering options ###
+###################################
+
+filter_method: 0          # 0--->none ; 1--->DFL ; 2---> DDFI ; 3--->TDFI
+
+## DFL only
+##### HALF foward filter window (s)
+
+nsecs_dfl: 1800
+
+## DDFI only
+##### HALF backward integration duration (s)
+
+nsecs_bckddfi: 1800
+
+##### HALF foward filter window (s)
+
+nsecs_fwdddfi: 3600
+
+## TDFI only
+##### HALF backward filter window (s)
+
+nsecs_bcktdfi: 3600
+
+##### HALF forward filter window (s)
+
+nsecs_fwdtdfi: 3600
+
+
 ###########################
 ##### Forecast Length #####
 ###########################

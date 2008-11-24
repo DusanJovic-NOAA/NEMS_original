@@ -897,7 +897,7 @@
 !
       INTEGER(KIND=ESMF_KIND_I8) :: NTIMESTEP_ESMF
 !
-      LOGICAL(KIND=KLOG) :: READBC
+      LOGICAL(KIND=KLOG) :: READBC,HDIFF_FLAG
 !
 !***  THE FOLLOWING SAVEs ARE FOR DEREFERENCED CONSTANT VARIABLES.
 !
@@ -933,6 +933,7 @@
       LOGICAL(KIND=KLOG),SAVE :: FIRST_PASS=.TRUE.
 !
       INTEGER(KIND=KINT),SAVE :: N_PRINT_STATS                            !<--- Timesteps between statistics prints
+      INTEGER(KIND=KINT),SAVE :: HDIFF_ON
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -1307,6 +1308,11 @@
 !***  HORIZONTAL DIFFUSION (Internal halo exchange for 4th order)
 !-----------------------------------------------------------------------
 !
+         CALL ESMF_AttributeGet(state=EXP_STATE                          &
+           ,name='HDIFF'                                                 &
+           ,value= HDIFF_ON                                            &
+           ,rc=RC)
+
         btim=timef()
 !
         CALL HDIFF                                                      &
@@ -1318,7 +1324,8 @@
           ,HDACX,HDACY,HDACVX,HDACVY                                    &
           ,int_state%W,int_state%Z                                      &
           ,int_state%CW,int_state%Q,int_state%Q2                        &
-          ,int_state%T,int_state%U,int_state%V)
+          ,int_state%T,int_state%U,int_state%V                          &
+          ,HDIFF_ON) 
 !
         hdiff_tim=hdiff_tim+timef()-btim
 !

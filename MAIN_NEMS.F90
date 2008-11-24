@@ -84,6 +84,7 @@
       TYPE(ESMF_TimeInterval) :: RUNDURATION                             !<-- The ESMF time. The total forecast hours.
 !
       TYPE(ESMF_TimeInterval) :: TIMESTEP                                !<-- The ESMF timestep length (we only need a dummy here)
+      TYPE(ESMF_TimeInterval) :: BCK_DURATION
 !
       TYPE(ESMF_Time)         :: STARTTIME                               !<-- The ESMF start time.
 !
@@ -93,6 +94,7 @@
       INTEGER,ALLOCATABLE     :: pe_member(:), petlist(:,:)
       INTEGER                 :: member_id, i, j, ij, tasks, pe_max, me, total_member, mype, num_pes
       INTEGER		      :: timestep_sec_whole, timestep_sec_numerator, timestep_sec_denominator
+      INTEGER                 :: FILTER_METHOD, HALF_BCK_DURATION
 !
 !-----------------------------------------------------------------------
 !***  Declare the ATM gridded component and state names.
@@ -548,6 +550,64 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       NSECONDS_FCST=NHOURS_FCST*3600                                       !<-- The forecast length (s) (REAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      IF (CORE=='nmm') THEN
+      MESSAGE_CHECK="Checking if filtering employed"
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ESMF_ConfigGetAttribute(config=CF                            &
+                                  ,value =FILTER_METHOD                 &
+                                  ,label ='filter_method:'               &
+                                  ,rc    =RC)
+
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      IF (FILTER_METHOD .eq. 2) THEN
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+      MESSAGE_CHECK="DDFI employed so obtaining backward integration duration"
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+      CALL ESMF_ConfigGetAttribute(config=CF                            &
+                                  ,value = HALF_BCK_DURATION             &
+                                  ,label ='nsecs_bckddfi:'            &
+                                  ,rc    =RC)
+      CALL ESMF_TimeIntervalSet(timeinterval= BCK_DURATION         &  !<-- Time interval between
+                               ,s           =  2*HALF_BCK_DURATION    &  !<-- Hours between history
+                               ,rc          =RC)
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      ELSE IF (FILTER_METHOD .eq. 3 ) THEN
+
+      CALL ESMF_ConfigGetAttribute(config=CF                            &
+                                  ,value = HALF_BCK_DURATION             &
+                                  ,label ='nsecs_bcktdfi:'            &
+                                  ,rc    =RC)
+      CALL ESMF_TimeIntervalSet(timeinterval= BCK_DURATION         &  !<-- Time interval between
+                               ,s           =  2*HALF_BCK_DURATION    &  !<-- Hours between history
+                               ,rc          =RC)
+
+      ELSE
+
+      HALF_BCK_DURATION=0
+
+      CALL ESMF_TimeIntervalSet(timeinterval= BCK_DURATION         &  !<-- Time interval between
+                               ,s           = HALF_BCK_DURATION     &  !<-- Hours between history
+                               ,rc          =RC)
+      ENDIF
+      ELSE IF (CORE=='gfs') THEN
+      HALF_BCK_DURATION=0
+      CALL ESMF_TimeIntervalSet(timeinterval= BCK_DURATION         &  !<-- Time interval between
+                               ,s           = HALF_BCK_DURATION     &  !<-- Hours between history
+                               ,rc          =RC)
+      ENDIF
+ 
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="MAIN: Set the Forecast Length"
@@ -562,6 +622,7 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+      RUNDURATION=RUNDURATION+BCK_DURATION
 !-----------------------------------------------------------------------
 !***  Now the Main Clock can be created.
 !-----------------------------------------------------------------------
@@ -571,7 +632,7 @@
 !      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-
+      STARTTIME=STARTTIME-BCK_DURATION
       CLOCK_MAIN=ESMF_ClockCreate(name       ='MAIN_CLOCK'              &  !<-- The top-level ESMF Clock
                                  ,timestep   =TIMESTEP                  &  !<-- A dummy timestep needed by the Clock
                                  ,starttime  =STARTTIME                 &  !<-- The forecast start time

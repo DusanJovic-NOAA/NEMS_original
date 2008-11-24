@@ -90,7 +90,7 @@
       totalsum=0.0
       dyn_array_save=0.0
       
-      DEALLOCATE(tmp_counts)
+     DEALLOCATE(tmp_counts)
 
       end subroutine digital_filter_dyn_init_gfs
 

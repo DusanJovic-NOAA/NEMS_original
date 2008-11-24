@@ -2,7 +2,7 @@
 ######## Model Core ###########
 ###############################
 
-core: gfs                   # The dynamic core options:
+core: nmm                   # The dynamic core options:
                                 # nmm
                                 # gfs
                                 # fim
@@ -65,14 +65,42 @@ start_second: 0
 
 tstart:       0.            # The starting forecast hour
 
+###################################
+##### Digital Filtering options ###
+###################################
+
+filter_method: 0          # 0--->none ; 1--->DFL ; 2---> DDFI ; 3--->TDFI
+
+## DFL only
+##### HALF foward filter window (s)
+
+nsecs_dfl: 1800
+
+## DDFI only
+##### HALF backward integration duration (s)
+
+nsecs_bckddfi: 1800
+
+##### HALF foward filter window (s)
+
+nsecs_fwdddfi: 3600
+
+## TDFI only
+##### HALF backward filter window (s)
+
+nsecs_bcktdfi: 3600
+
+##### HALF forward filter window (s)
+
+nsecs_fwdtdfi: 3600
+
 
 ###########################
 ##### Forecast Length #####
 ###########################
 
-nhours_fcst:    48          # Length of the forecast (hours)
+nhours_fcst:    24          # Length of the forecast (hours)
 nhours_history: 03          # Frequency of history output (hours)
-nhours_dfini:   0 
 
 restart:        false       # True--> A restarted run
 nhours_restart: 12          # Frequency of restart output (hours)
@@ -193,8 +221,8 @@ gfs:  false                 # Select entire GFS physics suite
 ##### Physics Timesteps #####
 #############################
 
-nrads:     20               # Number of dynamics timesteps between calls to shortwave
-nradl:     20               # Number of dynamics timesteps  between calls to longwave
+nrads:     40               # Number of dynamics timesteps between calls to shortwave
+nradl:     40               # Number of dynamics timesteps  between calls to longwave
 
 nphs:       2               # Number of dynamics timesteps between calls to landsurface and turbulence
 

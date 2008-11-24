@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------
 !
-      MODULE MODULE_FWD_INTEGRATE
+      MODULE MODULE_BCK_INTEGRATE
 !
 !-----------------------------------------------------------------------
 !
@@ -28,7 +28,7 @@
       PRIVATE
 !
 !
-      PUBLIC :: NMM_FWD_INTEGRATE       !<-- An NMM-specific routine to set up parallelism and ESMF Grid
+      PUBLIC :: NMM_BCK_INTEGRATE       !<-- An NMM-specific routine to set up parallelism and ESMF Grid
 !
 !-----------------------------------------------------------------------
       INCLUDE 'kind.inc'
@@ -51,25 +51,26 @@
 !#######################################################################
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE NMM_FWD_INTEGRATE(ATM_GRID_COMP                        &
+      SUBROUTINE NMM_BCK_INTEGRATE(ATM_GRID_COMP                        &
                                   ,ATM_INT_STATE                        &
                                   ,CLOCK_ATM                            &
                                   ,CURRTIME                             &
-                                  ,STARTTIME                            &
+				  ,STARTTIME                            &
 				  ,HALFDFIINTVAL                        &
-                                  ,FILTER_METHOD                        &
                                   ,TIMESTEP                             &
+                                  ,FILTER_METHOD                        &
 				  ,MYPE                                 &
 				  ,NUM_TRACERS_MET                      &
 				  ,NUM_TRACERS_CHEM                     &
 				  ,NTIMESTEP                            &
-				  ,NPE_PRINT)                            
+				  ,NPE_PRINT)                         
 !
 !-----------------------------------------------------------------------
 !
       USE MODULE_DIGITAL_FILTER_NMM
       USE MODULE_ATM_INTERNAL_STATE
       USE MODULE_CONTROL,ONLY: TIMEF
+      USE MODULE_WRITE_ROUTINES,ONLY: WRITE_ASYNC                         !<-- These are routines used only when asynchronous
 !
 !-----------------------------------------------------------------------
 !
@@ -88,14 +89,17 @@
 !
       TYPE(ESMF_Time),INTENT(INOUT)          :: CURRTIME                  !<-- The current forecast time
       TYPE(ESMF_Time),INTENT(INOUT)          :: STARTTIME
+      TYPE(ESMF_Time)          :: DFITIME
+      TYPE(ESMF_Time)          :: HALFDFITIME
       TYPE(ESMF_TimeInterval),INTENT(INOUT)  :: HALFDFIINTVAL
       TYPE(ESMF_TimeInterval),INTENT(INOUT)  :: TIMESTEP
-      TYPE(ESMF_Time)                        :: SDFITIME
-      TYPE(ESMF_Time)          :: HALFDFITIME
-      TYPE(ESMF_Time)          :: DFITIME
-      INTEGER(KIND=KINT)      :: NDFISTEP,FILTER_METHOD
+      INTEGER(KIND=KINT),INTENT(INOUT)       :: FILTER_METHOD
 !
 !
+      INTEGER(KIND=KINT)       :: NDFISTEP, I
+      INTEGER(KIND=KINT)       :: MEAN_ON
+      INTEGER(KIND=KINT)       :: HDIFF_ON = 0
+
 !
 !
 !-----------------------------------------------------------------------
@@ -104,9 +108,6 @@
       INTEGER(KIND=ESMF_KIND_I8) :: NTIMESTEP_ESMF                        !<-- The current forecast timestep (ESMF_INT)
 !
       CHARACTER(ESMF_MAXSTR) :: CWRT                                      !<-- Restart/History label
-      INTEGER(KIND=KINT)       :: MEAN_ON = 0
-      INTEGER(KIND=KINT)       :: HDIFF_ON = 1
-
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -118,8 +119,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_AttributeSet(state    =atm_int_state%EXP_STATE_DYN    &  !<-- Dynamics impor
-                              ,name     ='HDIFF'   &  !<-- Insert this qu
-                              ,value= HDIFF_ON  &
+                              ,name     ='HDIFF'                 &  !<-- The attribute'
+                              ,value= HDIFF_ON     &  !<-- Insert this qu
                               ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -127,11 +128,22 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
           NDFISTEP = HALFDFIINTVAL / TIMESTEP
-          HALFDFITIME = CURRTIME + HALFDFIINTVAL
-          SDFITIME = CURRTIME
-          DFITIME = HALFDFITIME + HALFDFIINTVAL
+          HALFDFITIME = STARTTIME - HALFDFIINTVAL
+          DFITIME = HALFDFITIME - HALFDFIINTVAL
 
-          timeloop: DO WHILE (CURRTIME .LE. DFITIME)
+         IF (FILTER_METHOD .EQ. 2) THEN
+         MEAN_ON=1
+         ELSE IF (FILTER_METHOD .EQ. 3) THEN
+         MEAN_ON=0
+         ENDIF
+
+          CALL ESMF_ClockSet(CLOCK_ATM   &
+         , direction=ESMF_MODE_REVERSE  &
+         ,starttime=STARTTIME          &
+         , rc=rc)
+
+
+         timeloop: DO WHILE (CURRTIME .GE. DFITIME) 
 !
 !-----------------------------------------------------------------------
 !
@@ -193,11 +205,14 @@
           MESSAGE_CHECK="Execute the Run Step for Physics"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ESMF_GridCompRun(gridcomp   =atm_int_state%PHY_GRID_COMP &  !<-- The physics component
-                               ,importState=atm_int_state%IMP_STATE_PHY &  !<-- The physics import state
-                               ,exportState=atm_int_state%EXP_STATE_PHY &  !<-- The physics export state
-                               ,clock      =CLOCK_ATM                   &  !<-- The ATM Clock
-                               ,rc         =RC)
+
+          CALL ESMF_CplCompRun(cplcomp    =atm_int_state%COUPLER_DYN_PHY_COMP &  !<-- The dynamics-physics coupler component
+                              ,importState=atm_int_state%IMP_STATE_PHY        &  !<-- The coupler import state = physics export state
+                              ,exportState=atm_int_state%EXP_STATE_PHY        &  !<-- The coupler export state = dynamics import state
+                              ,clock      =CLOCK_ATM                          &  !<-- The ATM Clock
+                              ,rc         =RC)
+
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_LOOP)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -229,23 +244,27 @@
  RC_LOOP=ESMF_SUCCESS
 !ratko
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!-----------------------------------------------------------------------
 !
+!-----------------------------------------------------------------------
+!***
+!-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
 !
           IF (MYPE==0) THEN
-          IF(CURRTIME==SDFITIME)THEN
+          IF(CURRTIME==STARTTIME)THEN
             CALL DIGITAL_FILTER_DYN_INIT_NMM(atm_int_state%IMP_STATE_DYN &
                                             ,NDFISTEP               &
                                             ,NUM_TRACERS_MET             &
                                             ,NUM_TRACERS_CHEM)
-              CALL DIGITAL_FILTER_PHY_INIT_NMM(atm_int_state%IMP_STATE_PHY)
+
+! -------------------- inital summation  ------------------------------
+!
           ENDIF
 !
 ! -------------------- summation stage ---------------------------------
 !
-          IF (CURRTIME .GE. SDFITIME)THEN
+          IF (CURRTIME .LE. STARTTIME)THEN
           CALL DIGITAL_FILTER_DYN_SUM_NMM(atm_int_state%IMP_STATE_DYN   &
                                          ,MEAN_ON                       &
                                          ,NUM_TRACERS_MET               &
@@ -254,9 +273,6 @@
 !
 ! ----------------------------------------------------------------------
 !
-           IF(CURRTIME==HALFDFITIME)THEN
-                CALL DIGITAL_FILTER_PHY_SAVE_NMM(atm_int_state%IMP_STATE_PHY)
-           ENDIF
 !
 ! ----------------------------------------------------------------------
 !
@@ -267,7 +283,6 @@
                 CALL DIGITAL_FILTER_DYN_AVERAGE_NMM(atm_int_state%IMP_STATE_DYN &
                                                  ,NUM_TRACERS_MET             &
                                                  ,NUM_TRACERS_CHEM)
-                 CALL DIGITAL_FILTER_PHY_RESTORE_NMM(atm_int_state%IMP_STATE_PHY)
 !
 ! ----------------------------------------------------------------------
 !
@@ -276,7 +291,11 @@
                                   ,rc     =RC)
           ENDIF
         ENDIF
-     
+!
+!
+!        IF( CURRTIME .NE. DFITIME) THEN
+!-----------------------------------------------------------------------
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Advance the Timestep"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
@@ -284,6 +303,7 @@
 !
         CALL ESMF_ClockAdvance(clock=CLOCK_ATM                          &
                               ,rc   =RC)
+
         CALL ESMF_ClockGet(clock       =CLOCK_ATM                       &
                           ,advanceCount=NTIMESTEP_ESMF                  &  !<-- # of times the clock has advanced
                           ,rc          =RC)
@@ -292,42 +312,47 @@
         CALL ESMF_ClockGet(clock   =CLOCK_ATM                           &
                           ,currtime=CURRTIME                            &
                           ,rc      =RC)
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_LOOP)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!   
+!
+!        ENDIF
 !-----------------------------------------------------------------------
-
 !
 !
+!-----------------------------------------------------------------------
 !
-      ENDDO timeloop 
 !
-      IF (FILTER_METHOD .EQ. 1) THEN
+!-----------------------------------------------------------------------
+!
 
-        CURRTIME=CURRTIME-HALFDFIINTVAL
-        NTIMESTEP=NTIMESTEP-(HALFDFIINTVAL/TIMESTEP)
-        NTIMESTEP_ESMF=NTIMESTEP
+      ENDDO timeloop
 
-        CALL ESMF_ClockSet(clock   =CLOCK_ATM                     &
-                               ,currtime=CURRTIME                   &
-                               ,advanceCount=NTIMESTEP_ESMF         &
-                               ,rc      =RC)
+          CALL ESMF_ClockSet(CLOCK_ATM                  &
+              , direction=ESMF_MODE_FORWARD                 &
+              ,starttime=CURRTIME                           &
+              , rc=rc)
 
-      ELSE IF ((FILTER_METHOD .EQ. 2).OR.(FILTER_METHOD .EQ. 3)) THEN
+          IF (FILTER_METHOD .EQ. 2) THEN
+            CALL ESMF_ClockAdvance(CLOCK_ATM              &
+              , rc=rc)
+          ELSE IF (FILTER_METHOD .EQ. 3) THEN
+            DO I=1,NDFISTEP+1
+            CALL ESMF_ClockAdvance(CLOCK_ATM              &
+              , rc=rc)
+            ENDDO
+          ENDIF
 
-        CURRTIME=STARTTIME
-        NTIMESTEP=0
-        NTIMESTEP_ESMF=NTIMESTEP
-        CALL ESMF_ClockSet(clock   =CLOCK_ATM                     &
-                               ,currtime=CURRTIME                   &
-                               ,advanceCount=NTIMESTEP_ESMF         &
-                               ,rc      =RC)
-      ENDIF
-      
-      END SUBROUTINE NMM_FWD_INTEGRATE
+          CALL ESMF_ClockGet(CLOCK_ATM              &
+               ,currtime=CURRTIME                     &
+               ,rc= RC)
+
+
+
+      END SUBROUTINE NMM_BCK_INTEGRATE
       
 !-----------------------------------------------------------------------
-
-      END MODULE MODULE_FWD_INTEGRATE
+!
+      END MODULE MODULE_BCK_INTEGRATE

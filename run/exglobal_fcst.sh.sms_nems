@@ -660,7 +660,7 @@ while [ $c -le $ENS_NUM ] ; do
 done
 
 export wgrib=${wgrib:-/nwprod/util/exec/wgrib}
-CDATE=$(wgrib -4yr $SIGI | grep -i hgt |awk -F: '{print $3}' |awk -F= '{print $2}')
+CDATE=$($wgrib -4yr $SIGI | grep -i hgt |awk -F: '{print $3}' |awk -F= '{print $2}')
 INI_YEAR=$(echo $CDATE | cut -c1-4)
 INI_MONTH=$(echo $CDATE | cut -c5-6)
 INI_DAY=$(echo $CDATE | cut -c7-8)
@@ -711,7 +711,7 @@ jnpes:                ${PE1}
 im:                   ${LONB}
 jm:                   ${LATB}
 global:               .true.
-nhours_dfini:          1
+nhours_dfini:          1 
 adiabatic:            .false.
 
 EOF

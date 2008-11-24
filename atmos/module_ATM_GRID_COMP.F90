@@ -51,7 +51,7 @@
       USE MODULE_DIAGNOSE,ONLY : FIELD_STATS
 !
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
-      
+     
       
       USE gfs_dynamics_grid_comp_mod  ,only: gfs_dyn_setservices
 
@@ -286,6 +286,7 @@
       TYPE(ESMF_TimeInterval)          :: RUNDURATION                   !<-- The ESMF simulation length (h)
       TYPE(ESMF_Time)                  :: CURRTIME                      !<-- The ESMF current time.
       TYPE(ESMF_Time)                  :: STARTTIME                     !<-- The ESMF start time.
+      TYPE(ESMF_TimeInterval)          :: BCK_DURATION
       TYPE(ESMF_Grid)  :: grid_gfs_dyn     ! the ESMF grid for the integration attached to
                                                    ! the dynamics gridded component.
       TYPE(ESMF_Grid)  :: grid_gfs_phy     ! the ESMF grid for the integration attached to
@@ -296,6 +297,8 @@
                                          ,NHOURS_HISTORY              & !<-- Hours between history output
                                          ,NHOURS_RESTART                !<-- Hours between restart output
 !
+      INTEGER                 :: FILTER_METHOD, HALF_BCK_DURATION
+
       INTEGER                          :: NFCST, NTSD
       INTEGER(ESMF_KIND_I8)            :: NTSD_START                    !<-- Timestep count (>0 for restarted runs
 !
@@ -388,6 +391,7 @@
 !-----------------------------------------------------------------------
 !
       IF (CORE=='nmm') THEN
+
       ALLOCATE(ATM_INT_STATE,stat=RC)
 !
       wrap%ATM_INT_STATE=>ATM_INT_STATE
@@ -428,9 +432,7 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      ENDIF
 !-----------------------------------------------------------------------
-      IF (CORE=='nmm') THEN
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Obtain MPI Task IDs from VM"
@@ -581,7 +583,7 @@
 !
         CLOSE(NFCST)
 !
-        ISECOND_FCST=NINT(SECOND_FCST)                                      !<-- ESMF clock needs integer seconds
+       ISECOND_FCST=NINT(SECOND_FCST)                                      !<-- ESMF clock needs integer seconds
         NTSD_START=NTSD
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -602,7 +604,7 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      ENDIF
+       ENDIF
 !
 !-----------------------------------------------------------------------
 !
@@ -631,6 +633,79 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ESMF_ConfigGetAttribute(config=CF                            &
+                                  ,value =FILTER_METHOD                 &
+                                  ,label ='filter_method:'              &
+                                  ,rc    =RC)
+
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! 
+      IF (FILTER_METHOD .eq. 2) THEN
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+      MESSAGE_CHECK="DDFI employed so obtaining backward integration duration"
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+      CALL ESMF_ConfigGetAttribute(config=CF                            &
+                                  ,value = HALF_BCK_DURATION             &
+                                  ,label ='nsecs_bckddfi:'            &
+                                  ,rc    =RC)
+      CALL ESMF_TimeIntervalSet(timeinterval= BCK_DURATION         &  
+                               ,s           =  2*HALF_BCK_DURATION    &  
+                               ,rc          =RC)
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      ELSE IF (FILTER_METHOD .eq. 3) THEN
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+      MESSAGE_CHECK="TDFI employed so obtaining backward integration duration"
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+      CALL ESMF_ConfigGetAttribute(config=CF                            &
+                                  ,value = HALF_BCK_DURATION             &
+                                  ,label ='nsecs_bcktdfi:'            &
+                                  ,rc    =RC)
+      CALL ESMF_TimeIntervalSet(timeinterval= BCK_DURATION         &
+                               ,s           =  2*HALF_BCK_DURATION    &
+                               ,rc          =RC)
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+      ELSE
+
+      HALF_BCK_DURATION=0
+
+      CALL ESMF_TimeIntervalSet(timeinterval= BCK_DURATION         &  
+                               ,s           = HALF_BCK_DURATION     &  
+                               ,rc          =RC)
+      ENDIF
+
+
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="MAIN: Set the Forecast Length"
+!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+       STARTTIME=STARTTIME+BCK_DURATION
+       CURRTIME=STARTTIME
+
+       CALL ESMF_ClockSet(clock   =CLOCK_ATM                &  
+                        ,currtime=CURRTIME                  &  
+                        ,starttime=STARTTIME                &
+                        ,rc      =RC)
+
 !-----------------------------------------------------------------------
 !***  GET THE HISTORY OUTPUT INTERVAL (HOURS) FROM THE CONFIG FILE.
 !-----------------------------------------------------------------------
@@ -664,7 +739,7 @@
 !
       ALARM_HISTORY=ESMF_AlarmCreate(name             ='ALARM_HISTORY'      &
                                     ,clock            =CLOCK_ATM            &  !<-- ATM Clock
-                                    ,ringTime         =CURRTIME             &  !<-- Forecast/Restart start time (ESMF)
+                                    ,ringTime         =STARTTIME             &  !<-- Forecast/Restart start time (ESMF)
                                     ,ringInterval     =TIMEINTERVAL_HISTORY &  !<-- Time interval between
                                     ,ringTimeStepCount=1                    &  !<-- The Alarm rings for this many timesteps
                                     ,sticky           =.false.              &  !<-- Alarm does not ring until turned off
@@ -682,7 +757,7 @@
       MESSAGE_CHECK="Obtain Restart Interval from the Config File"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure object
                                   ,value =NHOURS_RESTART                &  !<-- Fill this variable
                                   ,label ='nhours_restart:'             &  !<-- Give the variable this label's value from the config file
@@ -707,7 +782,7 @@
 !
       ALARM_RESTART=ESMF_AlarmCreate(name             ='ALARM_RESTART'      &
                                     ,clock            =CLOCK_ATM            &  !<-- ATM Clock
-                                    ,ringTime         =CURRTIME             &  !<-- Forecast/Restart start time (ESMF)
+                                    ,ringTime         =STARTTIME             &  !<-- Forecast/Restart start time (ESMF)
                                     ,ringInterval     =TIMEINTERVAL_RESTART &  !<-- Time interval between restart output (ESMF)
                                     ,ringTimeStepCount=1                    &  !<-- The Alarm rings for this many timesteps
                                     ,sticky           =.false.              &  !<-- Alarm does not ring until turned off
@@ -1318,10 +1393,9 @@
 !-----------------------------------------------------------------------
 !***  RUN THE ATM (Atmosphere) GRIDDED COMPONENT.
 !-----------------------------------------------------------------------
-      USE MODULE_DIGITAL_FILTER_NMM
-      USE MODULE_DIGITAL_FILTER_GFS 
       USE MODULE_FWD_INTEGRATE
-
+      USE MODULE_BCK_INTEGRATE
+      USE MODULE_INTEGRATE
 !
       TYPE(ESMF_GridComp),INTENT(INOUT) :: ATM_GRID_COMP                   !<-- The ATM gridded component
       TYPE(ESMF_State),   INTENT(IN)    :: IMP_STATE                       !<-- The ATM Run step's import
@@ -1344,15 +1418,20 @@
       TYPE(ESMF_TimeInterval)          :: HALFDFIINTVAL                    !<-- Digital filter time interval
       TYPE(ESMF_TimeInterval)          :: TIMESTEP                         !<-- Digital filter time interval
 !
+       TYPE(ESMF_Time)                  :: REFERENCE
+       TYPE(ESMF_TimeInterval)          :: RUNDURATION
+       TYPE(ESMF_TimeInterval)          :: DIFF
+       INTEGER(KIND=KINT)    :: DFIHR                       !<-- Digital filter time interval
+
       INTEGER(KIND=KINT)         :: RC,NUM_PES_FCST                        !<-- Error signal variable.
       INTEGER(KIND=KINT)         :: I,IER,J
       INTEGER(KIND=KINT)         :: YY,MM,DD,H,M,S,NDFISTEP
       INTEGER(KIND=KINT),SAVE    :: NTIMESTEP                              !<-- The current forecast timestep (INT)
       INTEGER(KIND=ESMF_KIND_I8) :: NTIMESTEP_ESMF                         !<-- The current forecast timestep (ESMF_INT)
-      INTEGER(KIND=KINT),SAVE    :: DFIHR                                  !<-- Digital filter time interval
       CHARACTER(50)              :: MODE
-      INTEGER(KIND=KINT)         :: NUM_TRACERS_MET,NUM_TRACERS_CHEM
-      LOGICAL                    :: PHYSICS_ON
+      INTEGER(KIND=KINT)         :: NUM_TRACERS_MET,NUM_TRACERS_CHEM,MEAN_ON
+      INTEGER(KIND=KINT)         :: FILTER_METHOD,HALF_FILTER_DURATION, HALF_BCK_DURATION
+      LOGICAL                    :: PHYSICS_ON,FILTER_ON
       
 !
 !-----------------------------------------------------------------------
@@ -1360,7 +1439,6 @@
 !-----------------------------------------------------------------------
 !
       btim0=timef()
-      DFIHR=0
 !
 !-----------------------------------------------------------------------
 !***  RETRIEVE THE ATM COMPONENT'S INTERNAL STATE.
@@ -1427,6 +1505,21 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      ELSE IF (CORE=='gfs') THEN
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Retrieve Timestep from the ATM MAIN"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ClockGet(clock       =CLOCK_MAIN                         &
+                        ,advanceCount=NTIMESTEP_ESMF                    &  !<-- # of times the clock has advanced
+                        ,rc          =RC)
+!
+      NTIMESTEP=NTIMESTEP_ESMF
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       ENDIF 
       
 !-----------------------------------------------------------------------
@@ -1491,71 +1584,195 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The config object
-                                  ,value =DFIHR                         &
-                                  ,label ='nhours_dfini:'               &  !<-- Give this label's value to the previous variable
-                                  ,rc    =RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
 !
 ! ------------------------------------------------------------------
 !
-           IF (DFIHR .GT. 0) THEN
-           
+       IF (CORE=='nmm') THEN
 
-! -------------------- initial stage -------------------------------
-!
-           CALL ESMF_TimeIntervalSet(HALFDFIINTVAL                      &
-                                 ,h=DFIHR,rc=RC)
-           IF (CORE=='nmm') THEN
-           CALL ESMF_ClockGet(clock =CLOCK_ATM                          &
+       CALL ESMF_ClockGet(clock =CLOCK_ATM                          &
                           ,starttime =STARTTIME                         &
+                          ,currtime =CURRTIME                           &
                           ,timestep =TIMESTEP                           &
+                          ,runduration=RUNDURATION                      &
                           ,rc =RC)
-           ELSE IF (CORE=='gfs') THEN
+
+
+       CALL ESMF_ConfigGetAttribute(config=CF                            &
+                                  ,value =FILTER_METHOD                 &
+                                  ,label ='filter_method:'               &
+                                  ,rc    =RC)
+
+       IF (FILTER_METHOD .eq. 0) then
+
+       print *,'no filtering.'
+
+
+!-------------------------------------------------------------------
+
+       ELSE IF (FILTER_METHOD .eq. 1) THEN
+
+
+       CALL ESMF_ConfigGetAttribute(config=CF                     &  !<-- The config object
+                                   ,value = DFIHR                 &
+                                   ,label ='nsecs_dfl:'         &  !<-- Give this label's value
+                                   ,rc    =RC)
+
+
+       CALL ESMF_TimeIntervalSet(HALFDFIINTVAL                      &
+                                 ,s=DFIHR,rc=RC)
+
+       CALL NMM_FWD_INTEGRATE(ATM_GRID_COMP                        &
+                                  ,ATM_INT_STATE                        &
+                                  ,CLOCK_ATM                            &
+                                  ,CURRTIME                             &
+                                  ,STARTTIME                            &
+                                  ,HALFDFIINTVAL                        &
+                                  ,FILTER_METHOD                        &
+                                  ,TIMESTEP                             &
+                                  ,MYPE                                 &
+                                  ,NUM_TRACERS_MET                      &
+                                  ,NUM_TRACERS_CHEM                     &
+                                  ,NTIMESTEP                            &
+                                  ,NPE_PRINT)
+ 
+
+!----------------------------------------------------------------------
+
+        ELSE IF (FILTER_METHOD .EQ. 2 ) THEN
+
+         CALL ESMF_ConfigGetAttribute(config=CF                     &  !<-- The config object
+                                  ,value = DFIHR                  &
+                                  ,label ='nsecs_bckddfi:'         &  !<-- Give this label's value
+                                  ,rc    =RC)
+
+         CALL ESMF_TimeIntervalSet(HALFDFIINTVAL                      &
+                                 ,s=DFIHR,rc=RC)
+
+
+         CALL NMM_BCK_INTEGRATE(ATM_GRID_COMP                        &
+                                  ,ATM_INT_STATE                        &
+                                  ,CLOCK_ATM                            &
+                                  ,CURRTIME                             &
+                                  ,STARTTIME                            &
+				  ,HALFDFIINTVAL                        &
+                                  ,TIMESTEP                             &
+                                  ,FILTER_METHOD                        &
+                                  ,MYPE                                 &
+                                  ,NUM_TRACERS_MET                      &
+                                  ,NUM_TRACERS_CHEM                     &
+                                  ,NTIMESTEP                            &
+                                  ,NPE_PRINT)
+
+
+
+         CALL ESMF_ConfigGetAttribute(config=CF            &  !<-- The config object
+                                  ,value = DFIHR           &
+                                  ,label ='nsecs_fwdddfi:'      &  !<-- Give this label's value
+                                  ,rc    =RC)
+
+         CALL ESMF_TimeIntervalSet(HALFDFIINTVAL                      &
+                                 ,s=DFIHR,rc=RC)
+
+
+         CALL NMM_FWD_INTEGRATE(ATM_GRID_COMP                        &
+                                  ,ATM_INT_STATE                        &
+                                  ,CLOCK_ATM                            &
+                                  ,CURRTIME                             &
+                                  ,STARTTIME                          &
+                                  ,HALFDFIINTVAL                        &
+				  ,FILTER_METHOD                        &
+                                  ,TIMESTEP                             &
+                                  ,MYPE                                 &
+                                  ,NUM_TRACERS_MET                      &
+                                  ,NUM_TRACERS_CHEM                     &
+                                  ,NTIMESTEP                            &
+                                  ,NPE_PRINT)
+
+!----------------------------------------------------------------------
+
+        ELSE IF (FILTER_METHOD .EQ. 3 ) THEN
+
+         CALL ESMF_ConfigGetAttribute(config=CF                     &  !<-- The config object
+                                  ,value = DFIHR                  &
+                                  ,label ='nsecs_bcktdfi:'         &  !<-- Give this label's value
+                                  ,rc    =RC)
+
+         CALL ESMF_TimeIntervalSet(HALFDFIINTVAL                      &
+                                 ,s=DFIHR,rc=RC)
+
+
+         CALL NMM_BCK_INTEGRATE(ATM_GRID_COMP                        &
+                                  ,ATM_INT_STATE                        &
+                                  ,CLOCK_ATM                            &
+                                  ,CURRTIME                             &
+                                  ,STARTTIME                            &
+                                  ,HALFDFIINTVAL                        &
+                                  ,TIMESTEP                             &
+                                  ,FILTER_METHOD                        &
+                                  ,MYPE                                 &
+                                  ,NUM_TRACERS_MET                      &
+                                  ,NUM_TRACERS_CHEM                     &
+                                  ,NTIMESTEP                            &
+                                  ,NPE_PRINT)
+
+
+         CALL ESMF_ConfigGetAttribute(config=CF            &  !<-- The config object
+                                  ,value = DFIHR           &
+                                  ,label ='nsecs_fwdtdfi:'      &  !<-- Give this label's value
+                                  ,rc    =RC)
+
+         CALL ESMF_TimeIntervalSet(HALFDFIINTVAL                      &
+                                 ,s=DFIHR,rc=RC)
+
+
+         CALL NMM_FWD_INTEGRATE(ATM_GRID_COMP                        &
+                                  ,ATM_INT_STATE                        &
+                                  ,CLOCK_ATM                            &
+                                  ,CURRTIME                             &
+                                  ,STARTTIME                            &
+                                  ,HALFDFIINTVAL                        &
+                                  ,FILTER_METHOD                        &
+                                  ,TIMESTEP                             &
+                                  ,MYPE                                 &
+                                  ,NUM_TRACERS_MET                      &
+                                  ,NUM_TRACERS_CHEM                     &
+                                  ,NTIMESTEP                            &
+                                  ,NPE_PRINT)
+
+        ENDIF
+
+            CALL NMM_INTEGRATE(ATM_GRID_COMP                        &
+                                  ,ATM_INT_STATE                        &
+                                  ,CLOCK_ATM                            &
+                                  ,CURRTIME                             &
+                                  ,ALARM_CLOCKTIME                      &
+                                  ,ALARM_HISTORY                        &
+                                  ,ALARM_RESTART                        &
+                                  ,MYPE                                 &
+                                  ,NUM_TRACERS_MET                      &
+                                  ,NUM_TRACERS_CHEM                     &
+                                  ,NTIMESTEP                            &
+                                  ,NPE_PRINT                            &
+                                  ,PHYSICS_ON                           &
+                                  ,RESTARTED_RUN)
+
+       ELSE IF (CORE=='gfs') THEN
+
            CALL ESMF_ClockGet(clock =CLOCK_MAIN                          &
                           ,starttime =STARTTIME                         &
+                          ,currtime =CURRTIME                           &
                           ,timestep =TIMESTEP                           &
+                          ,runduration=RUNDURATION                      &
                           ,rc =RC)
-           ENDIF
-           NDFISTEP = HALFDFIINTVAL / TIMESTEP
-           HALFDFITIME = STARTTIME + HALFDFIINTVAL
-           SDFITIME = STARTTIME + HALFDFIINTVAL/NDFISTEP
-           DFITIME = HALFDFITIME + HALFDFIINTVAL
-           ENDIF
-!
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!***  THE INTEGRATION TIME LOOP OF THE ATMOSPHERE.
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!
-      total_tim=total_tim+timef()-btim0
-      
-      IF (CORE=='nmm') THEN
-           CALL NMM_FWD_INTEGRATE(ATM_GRID_COMP                         &
-                                 ,ATM_INT_STATE                         &
-                                 ,CLOCK_ATM                             &
-                                 ,CURRTIME                              &
-                                 ,HALFDFITIME                           &
-                                 ,HALFDFIINTVAL                         &
-                                 ,SDFITIME                              &
-                                 ,DFITIME                               &
-                                 ,STARTTIME                             &
-                                 ,ALARM_CLOCKTIME                       &
-                                 ,ALARM_HISTORY                         &
-                                 ,ALARM_RESTART                         &
-                                 ,MYPE                                  &
-                                 ,NUM_TRACERS_MET                       &
-                                 ,NUM_TRACERS_CHEM                      &
-                                 ,NTIMESTEP                             &
-                                 ,NDFISTEP                              &
-                                 ,NPE_PRINT                             &
-                                 ,DFIHR                                 &
-                                 ,PHYSICS_ON                            &
-                                 ,RESTARTED_RUN)
 
+           CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The config object
+                                  ,value =DFIHR                         &
+                                  ,label ='nhours_dfini:'               &  !<-- Give this label's value to the previous variable
+                                  ,rc    =RC)
 
-      ELSE IF (CORE=='gfs') THEN
-           CALL GFS_FWD_INTEGRATE(gc_gfs_dyn                            &
+           CALL GFS_INTEGRATE(gc_gfs_dyn                            &
                                  ,gc_gfs_phy                            &
                                  ,gc_atm_cpl                            &
                                  ,imp_gfs_dyn                           &
@@ -1565,19 +1782,13 @@
                                  ,CLOCK_MAIN                            &
                                  ,ALARM_HISTORY                         &
                                  ,CURRTIME                              &
-                                 ,HALFDFITIME                           &
-                                 ,HALFDFIINTVAL                         &
-                                 ,SDFITIME                              &
-                                 ,DFITIME                               &
                                  ,STARTTIME                             &
-                                 ,NDFISTEP                              &
+                                 ,NTIMESTEP                             &
+                                 ,TIMESTEP                              &
                                  ,DFIHR                                 &
                                  ,MYPE                                  &
                                  ,PHYSICS_ON)
-      ENDIF
-
-
-
+      ENDIF 
 
 
 

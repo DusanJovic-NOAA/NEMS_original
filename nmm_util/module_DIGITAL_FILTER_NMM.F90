@@ -16,15 +16,13 @@
       real, allocatable, save :: array_save_3d(:,:,:,:)
       real, allocatable, save :: array_save_4d(:,:,:,:,:)
       real             , save :: totalsum
-      character(20), allocatable, save :: dyn_name(:)
       character(20), allocatable, save :: name_save_2d(:)
       character(20), allocatable, save :: name_save_3d(:)
       character(20), allocatable, save :: name_save_4d(:)
-      character(20),              save :: state_name
       integer,                    save :: tot_rank_2d=0 
       integer,                    save :: tot_rank_3d=0
       integer,                    save :: tot_rank_4d=0
-      integer,                    save :: dyn_items, kstep, nstep
+      integer,                    save :: kstep, nstep
       
 ! ---------
 ! physics
@@ -45,10 +43,10 @@
       INTEGER, intent(in)          :: ndfistep
       INTEGER, intent(in)          :: NUM_WATER,NUM_TRACERS
       type(esmf_array)             :: tmp_array
-      integer                      :: tmp_rank
+      integer                      :: tmp_rank,dyn_items
       integer                      :: SPEC_MAX,rc,N
-!
-!
+      character(20), allocatable   :: dyn_name(:)
+      character(20)                :: state_name
       nstep = ndfistep 
       kstep = - nstep -1
 
@@ -85,25 +83,30 @@
       SPEC_MAX=MAX(NUM_TRACERS,NUM_WATER)
      
       IF (tot_rank_2d .GT. 0) THEN
-      	allocate(array_save_2d(ITE,JTE,tot_rank_2d))
+      	allocate(array_save_2d(ITS:ITE,JTS:JTE,tot_rank_2d))
       ENDIF
       IF (tot_rank_3d .GT. 0) THEN
-      	allocate(array_save_3d(ITE,JTE,LM,tot_rank_3d))
+      	allocate(array_save_3d(ITS:ITE,JTS:JTE,LM,tot_rank_3d))
       ENDIF
       IF (tot_rank_4d .GT. 0) THEN
-      	allocate(array_save_4d(ITE,JTE,LM,SPEC_MAX,tot_rank_4d))
+      	allocate(array_save_4d(ITS:ITE,JTS:JTE,LM,SPEC_MAX,tot_rank_4d))
       ENDIF
+      deallocate(dyn_name)
+      array_save_2d=0.
+      array_save_3d=0.
+      array_save_4d=0.
+      totalsum=0.
 
       end subroutine digital_filter_dyn_init_nmm
 
 ! ---------------------------------------------------------------
-      subroutine digital_filter_dyn_sum_nmm(dyn_state,NUM_WATER,NUM_TRACERS)
+      subroutine digital_filter_dyn_sum_nmm(dyn_state,MEAN_ON,NUM_WATER,NUM_TRACERS)
       USE MODULE_DM_PARALLEL
 !
       implicit none
           
       type(esmf_state), intent(in)  :: dyn_state 
-      INTEGER, intent(in)          :: NUM_WATER,NUM_TRACERS
+      INTEGER, intent(in)          :: MEAN_ON,NUM_WATER,NUM_TRACERS
       INTEGER(KIND=KINT) :: I,II,J,JJ,L,N,P,RC,RC_UPD
       REAL(KIND=KFPT),DIMENSION(:,:)    ,POINTER :: HOLD_2D
       REAL(KIND=KFPT),DIMENSION(:,:,:)  ,POINTER :: HOLD_3D
@@ -113,23 +116,32 @@
 !
       TYPE(ESMF_Array) :: HOLD_ARRAY
 !
-      real                          :: sx, wx, digfil
+      real                          :: sx, wx, digfil,prod
       integer			    :: NUM_SPEC
       RC    =ESMF_SUCCESS
       RC_UPD=ESMF_SUCCESS
-        
         kstep = kstep + 1
         sx     = acos(-1.)*kstep/nstep
         wx     = acos(-1.)*kstep/(nstep+1)
+  
         if( kstep.ne.0 ) then
             digfil = sin(wx)/wx*sin(sx)/sx
         else
-            digfil=1
+            digfil=1.
         endif 
 
+        
+        IF (MEAN_ON .GT. 0) THEN
+            digfil=1.
+        ENDIF
+   
         print *,' in digital_filter_sum digfil = ',digfil
 
         totalsum = totalsum + digfil
+  
+
+        
+        
 
       IF (tot_rank_2d  .GT. 0) THEN
       DO N=1,tot_rank_2d
@@ -145,7 +157,8 @@
                         ,localDe  =0                                    &
                         ,farrayPtr=HOLD_2D                              &  !<-- Put the pointer here
                         ,rc       =RC)
-        
+
+!         array_save_2d(:,:,N)=array_save_2d(:,:,N)+digfil*HOLD_2D(:,:) 
         DO J=JTS,JTE
           DO I=ITS,ITE
             array_save_2d(I,J,N)=array_save_2d(I,J,N)+digfil*HOLD_2D(I,J)
@@ -248,7 +261,7 @@
 
 
 !
-      totalsumi = 1.0 / totalsum
+      totalsumi = 1.0 / totalsum   
 
       IF (tot_rank_2d  .GT. 0) THEN
       DO N=1,tot_rank_2d
@@ -421,13 +434,20 @@
         CALL ESMF_StateAdd(dyn_state,HOLD_ARRAY,rc)
       ENDDO
       ENDIF
-      deallocate(dyn_name)
+
+
       deallocate(name_save_2d)
       deallocate(name_save_3d)
       deallocate(name_save_4d)
       deallocate(array_save_2d)
       deallocate(array_save_3d)
       deallocate(array_save_4d)
+      tot_rank_2d=0
+      tot_rank_3d=0
+      tot_rank_4d=0
+      kstep=0
+      nstep=0
+
 
       end subroutine digital_filter_dyn_average_nmm
 !----------------------------------------------------------------------------
@@ -481,10 +501,8 @@
 
         CALL ESMF_StateAdd(phy_state, tmp_array, rc = rc)
       enddo
-      call esmf_statedestroy(phy_state_save,rc=rc)
       deallocate(phy_name)
 
       end subroutine digital_filter_phy_restore_nmm
-
 
       end module module_digital_filter_nmm
