@@ -115,8 +115,8 @@ c
       include 'function2'
       LOGICAL               LSLAG,LSOUT,ex_out
       LOGICAL               start_step,reset_step,end_step
-!     LOGICAL, parameter          :: ladj = .false.
-      LOGICAL, parameter          :: ladj = .true.
+      LOGICAL, parameter          :: ladj = .false.
+!     LOGICAL, parameter          :: ladj = .true.
       LOGICAL, save               :: fwd_step = .true.
       REAL (KIND=KIND_grid), save :: dt,dt2,rdt2
       real(kind=kind_grid)  typdel(levs)

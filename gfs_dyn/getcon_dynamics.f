@@ -414,8 +414,8 @@ cc
           sinlat_a(j) = -cos(colrad_a(latg+1-j))
         endif
         coslat_a(j) = sqrt(1.-sinlat_a(j)*sinlat_a(j))
-        print *,' lat sinlat coslat ',
-     &            j,sinlat_a(j),coslat_a(j)
+!       print *,' lat sinlat coslat ',
+!    &            j,sinlat_a(j),coslat_a(j)
       enddo
 cc
 cc

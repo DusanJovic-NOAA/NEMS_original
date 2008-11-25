@@ -1,38 +1,37 @@
-      SUBROUTINE LONLAT_PARA(global_lats_a,XLON,XLAT,lonsperlat)
+      SUBROUTINE LONLAT_PARA(global_lats_r,XLON,XLAT,lonsperlar)
 !
 c***********************************************************************
 !
-      USE gfs_dyn_MACHINE , ONLY : kind_grid
+      USE MACHINE , ONLY : kind_grid
 
-      use gfs_dyn_resol_def
-      use gfs_dyn_layout1
-      use gfs_dyn_gg_def
-      use gfs_dyn_physcons, pi => con_pi
+      use resol_def
+      use layout1
+      use gg_def
+      use physcons, pi => con_pi
       implicit none
       integer i,j,lat
-      integer                 lonsperlat(latg)
+      integer                 lonsperlar(latr)
       real (kind=kind_grid) tpi,hpi,bphi
       PARAMETER (TPI=2.E0*PI,HPI=0.5E0*PI)
-      integer              global_lats_a(latg)
-      real (kind=kind_grid) XLON(lonf,lats_node_a)
-      real (kind=kind_grid) XLAT(lonf,lats_node_a)
+      integer              global_lats_r(latr)
+      real (kind=kind_grid) XLON(lonr,lats_node_r)
+      real (kind=kind_grid) XLAT(lonr,lats_node_r)
 !
       xlon=0.
       xlat=0.
  
-      DO j=1,lats_node_a
-        lat = global_lats_a(ipt_lats_node_a-1+j)
-        BPHI = TPI/lonsperlat(lat)
-        if (lat.le.latg2) then
-          DO i=1,lonsperlat(lat)
+      DO j=1,lats_node_r
+        lat = global_lats_r(ipt_lats_node_r-1+j)
+        BPHI = TPI/lonsperlar(lat)
+        if (lat.le.latr2) then
+          DO i=1,lonsperlar(lat)
             XLON(I,J) = (i-1) * BPHI
-            XLAT(I,J) = HPI - colrad_a(lat)
+            XLAT(I,J) = HPI - colrad_r(lat)
           ENDDO
         else
-          DO i=1,lonsperlat(lat)
+          DO i=1,lonsperlar(lat)
             XLON(I,J) =  (i-1) * BPHI
-!           XLAT(I,J) = colrad_a(lat)-HPI
-            XLAT(I,J) = colrad_a(latg+1-lat)-HPI
+            XLAT(I,J) = colrad_r(lat)-HPI
           ENDDO
         endif
       ENDDO

@@ -501,7 +501,7 @@
 !
 !-----------------------------------------------------------------------
 
-        IF (MYPE==0) THEN
+!        IF (MYPE==0) THEN
         IF (DFIHR .GT. 0) THEN
 
 ! --------------------- first stage -----------------------------------
@@ -518,7 +518,7 @@
 !
 ! -------------------- summation stage ---------------------------------
 !
-              CALL DIGITAL_FILTER_DYN_SUM_GFS(imp_gfs_dyn,mype)
+              CALL DIGITAL_FILTER_DYN_SUM_GFS(imp_gfs_dyn)
 !
 ! ----------------------------------------------------------------------
 !
@@ -534,21 +534,26 @@
 !
             IF( CURRTIME .eq. DFITIME ) then
                  print *,' dfi at finaldfitime '
-                CALL DIGITAL_FILTER_DYN_AVERAGE_GFS(imp_gfs_dyn,mype)
+                CALL DIGITAL_FILTER_DYN_AVERAGE_GFS(imp_gfs_dyn)
                 IF( PHYSICS_ON ) then
                   CALL DIGITAL_FILTER_PHY_RESTORE_GFS(imp_gfs_phy)
                 ENDIF
 !
 ! ----------------------------------------------------------------------
 !
+              call ESMF_ClockSet(CLOCK_MAIN                             &
+                                ,currtime=HALFDFITIME                   &
+                                ,rc      =rc)
+
               DFITIME = STARTTIME
               DFIHR = 0
+              print *,' dfi reset time to '
               CALL ESMF_ClockPrint(clock=CLOCK_MAIN                      &
                               ,options="currtime string"                &
                               ,rc=RC)
              ENDIF
         ENDIF !< -- DFIHR
-        ENDIF
+!        ENDIF
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Advance the Timestep"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)

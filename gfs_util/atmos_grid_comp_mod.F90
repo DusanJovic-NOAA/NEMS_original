@@ -185,7 +185,7 @@
 !
       integer, dimension(2)        :: ncounts      ! parameter array to set up the
                                                    ! size of the 2-d esmf grid.
-      integer, dimension(2)        :: min,max      ! parameter arrays to set up the
+      integer, dimension(2)        :: grmin,grmax  ! parameter arrays to set up the
                                                    ! start number and the end number of
                                                    ! the esmf grid in each dimension.
       real(esmf_kind_r8),dimension(esmf_maxgriddim) :: mincoords,maxcoords
@@ -338,11 +338,11 @@
         ncounts(2)=jm
       endif
 !
-      max(1)=ncounts(1)
-      max(2)=ncounts(2)
+      grmax(1)=ncounts(1)
+      grmax(2)=ncounts(2)
 !
-      min(1)=1
-      min(2)=1
+      grmin(1)=1
+      grmin(2)=1
 !
 !---------------------------------------------------------
 !***  condition to run only adiabatic (dynamics only)
@@ -370,8 +370,8 @@
 !--------------------------------
       CALL ESMF_LogWrite("Create DistGrid_atmos", ESMF_LOG_INFO, rc = rc)
 
-      DistGrid_atmos = ESMF_DistGridCreate(minIndex  = min,              &
-                                           maxIndex  = max,              &
+      DistGrid_atmos = ESMF_DistGridCreate(minIndex  = grmin,            &
+                                           maxIndex  = grmax,            &
                                            regDecomp = (/inpes, jnpes/), &
                                            rc        = rc)
 
@@ -697,6 +697,7 @@
       type(esmf_time)		:: currtime
       type(esmf_time)		:: dfitime
       type(esmf_time)		:: halfdfitime
+      type(esmf_time)		:: sdfitime
       type(esmf_timeinterval)	:: halfdfiintval
       type(esmf_timeinterval)	:: timestep
 
@@ -786,16 +787,8 @@
                           ,rc=rc)
            ndfistep = halfdfiintval / timestep
            halfdfitime = starttime + halfdfiintval
+           sdfitime    = starttime + halfdfiintval/ndfistep
            dfitime = halfdfitime + halfdfiintval
-
-           call digital_filter_dyn_init_gfs(imp_gfs_dyn,ndfistep)
-! -------------------- inital summation  ------------------------------
-           call digital_filter_dyn_sum_gfs(imp_gfs_dyn, mype)
-
-
-           if( physics_on ) then
-             call digital_filter_phy_init_gfs(imp_gfs_phy)
-           endif	! physics_on
 
 ! -----------------------------------------------------------------------
 
@@ -928,13 +921,26 @@
                             ,rc      =rc)
 
           if( dfihr.gt.0 ) then
+!
+!digital filter initial sum
+!
+! --------------------- first stage -----------------------------------
+           if( currtime .eq. sdfitime ) then
+!            call esmf_stateprint(state=imp_gfs_dyn,rc=rc)
+             call digital_filter_dyn_init(imp_gfs_dyn,ndfistep)
+             if( physics_on ) then
+               call digital_filter_phy_init(imp_gfs_phy)
+             endif        ! physics_on
+            endif
+
 
 ! -------------------- summation stage ------------------------------
-            call digital_filter_dyn_sum_gfs(imp_gfs_dyn, mype)
+            call digital_filter_dyn_sum(imp_gfs_dyn)
+!           call esmf_stateprint(state=imp_gfs_dyn,rc=rc)
 
             if( physics_on ) then
               if( currtime .eq. halfdfitime ) then
-                call digital_filter_phy_save_gfs(imp_gfs_phy)
+                call digital_filter_phy_save(imp_gfs_phy)
               endif
             endif
 
@@ -942,10 +948,10 @@
             if( currtime .eq. dfitime ) then
               print *,' dfi at finaldfitime '
 
-              call digital_filter_dyn_average_gfs(imp_gfs_dyn, mype)
+              call digital_filter_dyn_average(imp_gfs_dyn)
            
               if( physics_on )  then
-                call digital_filter_phy_restore_gfs(imp_gfs_phy)
+                call digital_filter_phy_restore(imp_gfs_phy)
               endif
 
               call esmf_clockset(         clock				&
@@ -1128,8 +1134,6 @@
 !
       call atmos_err_msg(rc,'finalize dynamics subcomponents',rcfinal)
 !
-! destroy dynamics states
-!
       stime=timef()
 
       call esmf_logwrite("destroy dynamics states",esmf_log_info,rc=rc)
@@ -1149,7 +1153,6 @@
       call esmf_logwrite("destroy dynamics subcomponents",		&
                          esmf_log_info,rc=rc)
 !
-! hmhj cannot destroy gc_gfs_dyn, why?
       call esmf_gridcompdestroy(gc_gfs_dyn, rc=rc)
 !
       call atmos_err_msg(rc,'destroy dynamics subcomponents',rcfinal)

@@ -587,6 +587,15 @@ c
        dhdt(i,k)=dhdt(i,k)+zadv(i,k,3)
       enddo
       enddo
+
+      do n=1,ntrac
+        do k=1,levs
+         do i=1,lons_lat
+          drqdt(i,k,n)=drqdt(i,k,n)+zadv(i,k,3+n)
+         enddo
+        enddo
+       enddo
+
 !
 !     print *,' end of gfidi_hyb_gc_h. '
 !!

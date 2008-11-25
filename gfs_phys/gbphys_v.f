@@ -447,14 +447,14 @@ Clu_q2m_iter [+1L]: add iter
 !  INITIALIZE DTDT WITH HEATING RATE FROM DCYC2 
 !
       if(lprnt) then
-      do ipr=1,im
+!     do ipr=1,im
       print *,' before DCYC2: IM=',IM,' LSOIL=',LSOIL,' levs=',levs
      &,' sde=',sdec,' cdec=',cdec,' tsea=',tsea(ipr),' ipr=',ipr
      &,' lat=',lat,' me=',me,' kdt=',kdt
      &,' sfcdlw=',sfcdlw(ipr),' sfcnsw=',sfcnsw(ipr)
         print *,' hlw=',hlw(ipr,:),' me=',me,' lat=',lat,xlon(ipr)
         print *,' swh=',swh(ipr,:),' me=',me,' lat=',lat,xlon(ipr)
-      enddo
+!     enddo
       endif
 !
 !

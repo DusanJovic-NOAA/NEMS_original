@@ -12,7 +12,7 @@
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
-      USE MODULE_DYNAMICS_INTERNAL_STATE                                  !<-- Horizontal loop limits obtained here
+      USE MODULE_DYNAMICS_INTERNAL_STATE      !<-- Horizontal loop limits obtained here
 !
       USE MODULE_GET_CONFIG_DYN
       USE MODULE_GET_CONFIG_PHY

@@ -117,7 +117,7 @@ cjfe!$omp+shared(jbasev,jbasod,l,lat1,nvar_thread_max,nvars)
             nvar_1=(thread-1)*nvar_thread_max+1
             nvar_2=min(nvar_1+nvar_thread_max-1,nvars)
 
-            if( nvar_2 >= nvar_1 ) then 	! hmhj
+            if( nvar_2 >= nvar_1 ) then       ! hmhj
 
 cc          compute the even and odd components
 cc          of the fourier coefficients
@@ -139,7 +139,7 @@ cc
      &                 plnod(indlsod(l+1,l),lat1), len_trio_ls,
      &                 flnod(indlsod(l+1,l),1,nvar_1),len_trio_ls,cons0,     !constant
      &                 apod(lat1,1,nvar_1), latl2)
-            endif	! hmhj
+            endif     ! hmhj
 cc
          enddo   ! end of thread loop ..................................
          else !---------------------------------------------------------
@@ -150,7 +150,7 @@ cjfe!$omp+shared(jbasev,jbasod,l,lat1,nvar_thread_max,nvars)
             nvar_1=(thread-1)*nvar_thread_max+1
             nvar_2=min(nvar_1+nvar_thread_max-1,nvars)
 
-            if( nvar_2 >= nvar_1 ) then		! hmhj
+            if( nvar_2 >= nvar_1 ) then               ! hmhj
 
 cc          compute the even and odd components
 cc          of the fourier coefficients
@@ -173,7 +173,7 @@ cc
      &                 flnod(indlsod(l+1,l),1,nvar_1),len_trio_ls,cons0,     !constant
      &                 apod(lat1,1,nvar_1), latl2)
 
-            endif	! hmhj
+            endif     ! hmhj
 cc
          enddo   ! end of thread loop ..................................
          endif !--------------------------------------------------------
@@ -399,7 +399,7 @@ cc
             nvar_1=(thread-1)*nvar_thread_max+1
             nvar_2=min(nvar_1+nvar_thread_max-1,nvars)
 
-            if( nvar_2 >= nvar_1 ) then		! hmhj
+            if( nvar_2 >= nvar_1 ) then               ! hmhj
 
             call dgemm(
      &                 't',
@@ -431,7 +431,7 @@ cc
      &                 apod(2*nvar_1-1,lat1),
      &                 2*(levs+levh)
      &                 )
-            endif		! hmhj
+            endif             ! hmhj
 
          enddo   ! end of thread loop ..................................
       else !------------------------------------------------------------

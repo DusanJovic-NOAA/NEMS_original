@@ -194,17 +194,6 @@
       gis_phy%lotgr = lotgr
 
 
-      print *,' g_gz ',g_gz
-      print *,' g_ps ',g_ps
-      print *,' g_t  ',g_t 
-      print *,' g_u  ',g_u 
-      print *,' g_v  ',g_v 
-      print *,' g_q  ',g_q 
-      print *,' g_p  ',g_p 
-      print *,' g_dp ',g_dp
-      print *,' g_dpdt ',g_dpdt
-      print *,' lotgr ',lotgr
-
       if (ras) then
         nrcm = max(nrcmax, nint((nrcmax*gis_phy%deltim)/600.0))
       else
@@ -243,13 +232,26 @@
       dphiozc = -(blatc+blatc)/(latsozc-1)
 !
       if (me .eq. 0) then
+
+!       print *,' g_gz ',g_gz
+!       print *,' g_ps ',g_ps
+!       print *,' g_t  ',g_t 
+!       print *,' g_u  ',g_u 
+!       print *,' g_v  ',g_v 
+!       print *,' g_q  ',g_q 
+!       print *,' g_p  ',g_p 
+!       print *,' g_dp ',g_dp
+!       print *,' g_dpdt ',g_dpdt
+!       print *,' lotgr ',lotgr
         print *,' latsozp=',latsozp,' levozp=',levozp,' timeoz=',timeoz
         print *,' latsozc=',latsozc,' levozc=',levozc,' timeozc=',        &
                   timeozc, 'dphiozc=',dphiozc
-        print *,' pl_lat=',pl_lat
-        print *,' pl_pres=',pl_pres
-        print *,' pl_time=',pl_time
+!       print *,' pl_lat=',pl_lat
+!       print *,' pl_pres=',pl_pres
+!       print *,' pl_time=',pl_time
+
       endif
+
       pl_pres(:) = log(0.1*pl_pres(:))       ! Natural log of pres in cbars
 !
       allocate(gis_phy%OZPLIN(LATSOZP,LEVOZP,pl_coeff,timeoz), stat = ierr) !OZONE P-L coeffcients
@@ -389,6 +391,7 @@
         gis_phy%HPRIME,gis_phy%JINDX1,gis_phy%JINDX2,gis_phy%DDY,         &
         gis_phy%OZPLIN,gis_phy%nam_gfs_phy%sfc_ini)
 
+!     print *,' GISXLAT=',gis_phy%XLAT(1,:)
       print *,' finish fix_fields '
 !!
       call countperf(1,18,0.)

@@ -95,11 +95,10 @@
       end subroutine digital_filter_dyn_init_gfs
 
 ! ---------------------------------------------------------------
-      subroutine digital_filter_dyn_sum_gfs(dyn_state, mype)
+      subroutine digital_filter_dyn_sum_gfs(dyn_state)
 !
       implicit none
       type(esmf_state), intent(in)  :: dyn_state
-      integer,          intent(in)  :: mype
 !
       TYPE(ESMF_Array)		    :: tmp_array
       real, dimension(:,:), pointer :: tmp_ptr
@@ -115,7 +114,7 @@
             digfil=1
         endif 
 
-        print *,' in digital_filter_sum digfil = ',digfil
+!        print *,' in digital_filter_sum digfil = ',digfil
 
         totalsum = totalsum + digfil
         
@@ -124,7 +123,7 @@
           CALL ESMF_StateGet(dyn_state, dyn_name(n), tmp_array, rc = rc)
 
           nullify(tmp_ptr)
-          CALL ESMF_ArrayGet(tmp_array, mype, tmp_ptr, rc = rc)
+          CALL ESMF_ArrayGet(tmp_array, 0, tmp_ptr, rc = rc)
 
           do i=1,dyn_dim(n)
           dyn_array_save(i,n)=dyn_array_save(i,n)+digfil*tmp_ptr(i,1)
@@ -135,11 +134,10 @@
       end subroutine digital_filter_dyn_sum_gfs
 
 ! ---------------------------------------------------------------
-      subroutine digital_filter_dyn_average_gfs(dyn_state, mype)
+      subroutine digital_filter_dyn_average_gfs(dyn_state)
 !
       implicit none
       type(esmf_state), intent(inout) :: dyn_state
-      integer,          intent(in)    :: mype
 !
       TYPE(ESMF_Array)                :: tmp_array
       TYPE(ESMF_DistGrid)             :: tmp_distgrid
@@ -159,7 +157,7 @@
         CALL ESMF_StateGet(dyn_state, dyn_name(n), tmp_array, rc = rc)
 
         nullify(tmp_ptr)
-        CALL ESMF_ArrayGet(tmp_array, mype, tmp_ptr, rc = rc) 
+        CALL ESMF_ArrayGet(tmp_array, 0, tmp_ptr, rc = rc) 
 
         do i=1,dyn_dim(n)
         tmp_ptr(i,1) = dyn_array_save(i,n)

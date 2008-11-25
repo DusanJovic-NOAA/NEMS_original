@@ -237,7 +237,7 @@ cc
             nvar_1=(thread-1)*nvar_thread_max+1
             nvar_2=min(nvar_1+nvar_thread_max-1,nvars)
 
-            if( nvar_2 >= nvar_1 ) then		! hmhj
+            if( nvar_2 >= nvar_1 ) then               ! hmhj
 ccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 cc
             DO k = nvar_1,nvar_2
@@ -315,7 +315,7 @@ cc             set the  odd (n-L) terms of the top row to zero
                end do
             endif
 
-            endif	! end of if nvar_2 >= nvar_1  hmhj
+            endif     ! end of if nvar_2 >= nvar_1  hmhj
 cc
          end do   ! end of thread loop .................................
 cc

@@ -2,10 +2,10 @@
       
       implicit none
       
-      integer   jcap,jcap1,jcap2,latg,latg2,latr,latr2
+      integer   jcap,jcap1,jcap2,latr,latr2
       integer   levh,levm1,levp1,levs,lnt,lnt2,lnt22,levr
       integer   lnte,lnted,lnto,lntod,lnuv
-      integer   lonf,lonfx,lonr,lonrx
+      integer   lonr,lonrx
       integer   ntrac
       integer   nxpt,nypt,jintmx,latrd
       integer   ntoz,ntcw
