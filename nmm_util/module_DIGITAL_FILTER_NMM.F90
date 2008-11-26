@@ -158,7 +158,6 @@
                         ,farrayPtr=HOLD_2D                              &  !<-- Put the pointer here
                         ,rc       =RC)
 
-!         array_save_2d(:,:,N)=array_save_2d(:,:,N)+digfil*HOLD_2D(:,:) 
         DO J=JTS,JTE
           DO I=ITS,ITE
             array_save_2d(I,J,N)=array_save_2d(I,J,N)+digfil*HOLD_2D(I,J)

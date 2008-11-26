@@ -251,7 +251,7 @@
 !-----------------------------------------------------------------------
 !
 !
-          IF (MYPE==0) THEN
+          IF(MYPE<atm_int_state%NUM_PES_FCST)THEN          
           IF(CURRTIME==STARTTIME)THEN
             CALL DIGITAL_FILTER_DYN_INIT_NMM(atm_int_state%IMP_STATE_DYN &
                                             ,NDFISTEP               &

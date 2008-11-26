@@ -2,7 +2,7 @@
 ######## Model Core ###########
 ###############################
 
-core: gfs                   # The dynamic core options:
+core: nmm                   # The dynamic core options:
                                 # nmm
                                 # gfs
                                 # fim
@@ -69,7 +69,7 @@ tstart:       0.            # The starting forecast hour
 ##### Digital Filtering options ###
 ###################################
 
-filter_method: 1          # 0--->none ; 1--->DFL ; 2---> DDFI ; 3--->TDFI
+filter_method: 3          # 0--->none ; 1--->DFL ; 2---> DDFI ; 3--->TDFI
 
 ## DFL only
 ##### HALF foward filter window (s)
