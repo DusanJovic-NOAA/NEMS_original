@@ -23,12 +23,19 @@
 !       14 Oct 2008:  R. Vasic - Added restart capability
 !       05 Jan 2009:  J. Wang  - Added 10-m wind factor to NMMB
 !                                runhistory and restart files.
+!       06 Jan 2009:  T. Black - Replace Max # of words recv'd by
+!                                Write tasks with actual # of words.
 !
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
 !
-      USE MODULE_WRITE_INTERNAL_STATE
+      USE MODULE_WRITE_INTERNAL_STATE,ONLY: WRITE_INTERNAL_STATE        &
+                                           ,WRITE_WRAP                  &
+                                           ,MAX_DATA_I1D                &
+                                           ,MAX_DATA_I2D                &
+                                           ,MAX_DATA_R1D                &
+                                           ,MAX_DATA_LOG
 !
       USE MODULE_ATM_INTERNAL_STATE,ONLY: ATM_INTERNAL_STATE
 !
@@ -117,9 +124,9 @@
 !
       INTEGER,SAVE                 :: ITS,ITE,JTS,JTE
 !
-      INTEGER                      :: I,IERR,IM,J,JM,L                  &
+      INTEGER                      :: I,IERR,IM,ISTAT,J,JM,L            &
                                      ,N,NN,NUM_ATTRIB,NWTPG             &
-                                     ,RC,RC_WRT
+                                     ,RC,RC_ABORT,RC_WRT
 !
       INTEGER,DIMENSION(:),POINTER :: INPES,JNPES
       INTEGER,DIMENSION(:),POINTER :: IHALO,JHALO
@@ -128,7 +135,9 @@
 !
       INTEGER                      :: LAST_FCST_TASK                    &
                                      ,LEAD_WRITE_TASK                   &
-                                     ,LAST_WRITE_TASK
+                                     ,LAST_WRITE_TASK                   &
+                                     ,N_END                             &
+                                     ,N_STA
 !
       INTEGER,SAVE                 :: NCHAR_I1D                         &
                                      ,NCHAR_R1D                         &
@@ -149,8 +158,12 @@
 !
       INTEGER                      :: NPOSN_START,NPOSN_END
 !
-      INTEGER                      :: NUM_FIELD_NAMES                   &
-                                     ,NUM_PES_FCST
+      INTEGER                      :: MAX_WORDS                         &
+                                     ,NUM_FIELD_NAMES                   &
+                                     ,NUM_PES_FCST                      &
+                                     ,NUM_WORDS
+!
+      INTEGER(KIND=KDIN) :: NUM_WORDS_TOT
 !
       INTEGER,DIMENSION(MPI_STATUS_SIZE) :: JSTAT
 !
@@ -624,7 +637,7 @@
 !                  -- SCALAR AND 1D REAL HISTORY DATA --
 !-----------------------------------------------------------------------
 !
-          ELSEIF(DATATYPE==ESMF_TYPEKIND_R4)THEN                           ! <-- Extract real data with rank <2
+          ELSEIF(DATATYPE==ESMF_TYPEKIND_R4)THEN                           ! <-- Extract real data with rank <2 as Attributes
 !
             ALLOCATE(WORK_ARRAY_R1D(LENGTH),stat=RC)
 !
@@ -827,12 +840,6 @@
           ELSEIF(DATATYPE==ESMF_TYPEKIND_R4)THEN
             KOUNT_R2D=KOUNT_R2D+1                                          !<-- Add up the total number of real 2D Fields
 !
-            IF(KOUNT_R2D>MAX_DATA_R2D)THEN
-              WRITE(0,*)' FATAL: YOU HAVE EXCEEDED MAX NUMBER OF REAL 2D FIELDS FOR OUTPUT'
-              WRITE(0,*)' KOUNT_R2D=',KOUNT_R2D
-              WRITE(0,*)' YOU MUST INCREASE VALUE OF MAX_DATA_R2D WHICH NOW EQUALS ',MAX_DATA_R2D
-            ENDIF
-!
             NPOSN_END  =KOUNT_R2D*ESMF_MAXSTR
             NPOSN_START=NPOSN_END-ESMF_MAXSTR+1
             wrt_int_state%NAMES_R2D_STRING(NPOSN_START:NPOSN_END)=wrt_int_state%FIELD_NAME(N) !<-- Save the 2D real Field names 
@@ -845,6 +852,58 @@
 !
         wrt_int_state%KOUNT_R2D(1)=KOUNT_R2D
         wrt_int_state%KOUNT_I2D(1)=KOUNT_I2D
+!
+!-----------------------------------------------------------------------
+!***  COMPUTE THE TOTAL NUMBER OF WORDS FOR ALL 2D AND 3D REAL DATA
+!***  AND ALLOCATE A DATASTRING TO THAT LENGTH.  IT WILL TRANSFER
+!***  THE 2D/3D REAL DATA FROM FORECAST TO WRITE TASKS.
+!-----------------------------------------------------------------------
+!
+        NUM_WORDS_TOT=(ITE-ITS+1+2*IHALO(1))*(JTE-JTS+1+2*JHALO(1))     &
+                      *KOUNT_R2D
+!
+        IF(NUM_WORDS_TOT>2147483647)THEN
+          WRITE(0,*)' You have TOO MANY words in your datastring.'
+          WRITE(0,*)' You must increase the number of tasks.'
+          CALL ESMF_Finalize(terminationflag=ESMF_ABORT                 &
+                            ,rc             =RC_ABORT  )
+        ELSE
+          wrt_int_state%NUM_WORDS_SEND_R2D_HST=NUM_WORDS_TOT
+          NUM_WORDS=wrt_int_state%NUM_WORDS_SEND_R2D_HST
+          IF(.NOT.ALLOCATED(wrt_int_state%ALL_DATA_R2D))THEN
+            ALLOCATE(wrt_int_state%ALL_DATA_R2D(NUM_WORDS),stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,*)' Fcst task FAILED to allocate ALL_DATA_R2D'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT             &
+                                ,rc             =RC_ABORT  )
+            ENDIF
+          ENDIF
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  LIKEWISE FOR 2D INTEGER DATA.
+!-----------------------------------------------------------------------
+!
+        NUM_WORDS_TOT=(ITE-ITS+1+2*IHALO(1))*(JTE-JTS+1+2*JHALO(1))     &
+                      *KOUNT_I2D
+!
+        IF(NUM_WORDS_TOT>2147483647)THEN
+          WRITE(0,*)' You have TOO MANY words in your datastring.'
+          WRITE(0,*)' You must increase the number of tasks.'
+          CALL ESMF_Finalize(terminationflag=ESMF_ABORT                 &
+                            ,rc             =RC_ABORT  )
+        ELSE
+          wrt_int_state%NUM_WORDS_SEND_I2D_HST=NUM_WORDS_TOT
+          NUM_WORDS=wrt_int_state%NUM_WORDS_SEND_I2D_HST
+          IF(.NOT.ALLOCATED(wrt_int_state%ALL_DATA_I2D))THEN
+            ALLOCATE(wrt_int_state%ALL_DATA_I2D(NUM_WORDS),stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,*)' Fcst task FAILED to allocate ALL_DATA_I2D'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT             &
+                                ,rc             =RC_ABORT  )
+            ENDIF
+          ENDIF
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !
@@ -1159,7 +1218,6 @@
 !
       ENDIF
 !
-!
 !-----------------------------------------------------------------------
 !***  EACH WRITE TASK MUST KNOW THE IDs OF THE FORECAST TASKS
 !***  FROM WHICH IT WILL RECEIVE 2D GRIDDED HISTORY DATA.
@@ -1179,6 +1237,82 @@
           wrt_int_state%ID_FTASK_RECV_STA(N)=(JROW_FIRST-1)*INPES(1)       !<-- First fcst task that sends to this write task
           wrt_int_state%ID_FTASK_RECV_END(N)=JROW_LAST*INPES(1)-1          !<-- Last fcst task that sends to this write task
         ENDDO
+!
+!-----------------------------------------------------------------------
+!***  EACH WRITE TASK COMPUTES THE NUMBER OF WORDS IN THE DATASTRING
+!***  OF 2D/3D REAL HISTORY DATA IT WILL RECEIVE FROM EACH FORECAST
+!***  TASK IT IS ASSOCIATED WITH.  THEN ALLOCATE THAT DATASTRING.
+!-----------------------------------------------------------------------
+!
+        IF(.NOT.ALLOCATED(wrt_int_state%NUM_WORDS_RECV_R2D_HST))THEN
+          N_STA=wrt_int_state%ID_FTASK_RECV_STA(MYPE)
+          N_END=wrt_int_state%ID_FTASK_RECV_END(MYPE)
+          ALLOCATE(wrt_int_state%NUM_WORDS_RECV_R2D_HST(N_STA:N_END))
+        ENDIF
+!
+        MAX_WORDS=0
+!
+        DO N=wrt_int_state%ID_FTASK_RECV_STA(MYPE)                      &  !<-- The fcst tasks sending to this write task
+            ,wrt_int_state%ID_FTASK_RECV_END(MYPE)                         !<--
+!
+          ITS=wrt_int_state%LOCAL_ISTART(N)
+          ITE=wrt_int_state%LOCAL_IEND  (N)
+          JTS=wrt_int_state%LOCAL_JSTART(N)
+          JTE=wrt_int_state%LOCAL_JEND  (N)
+!
+          NUM_WORDS_TOT=(ITE-ITS+1+2*IHALO(1))*(JTE-JTS+1+2*JHALO(1))   &  !<-- # of words of 2D/3D real history data from fcst task N
+                        *wrt_int_state%KOUNT_R2D(1)
+!
+          wrt_int_state%NUM_WORDS_RECV_R2D_HST(N)=NUM_WORDS_TOT
+          MAX_WORDS=MAX(MAX_WORDS                                       &  !<-- Max # of integer words from any fcst tasks
+                       ,wrt_int_state%NUM_WORDS_RECV_R2D_HST(N))           !<--
+        ENDDO
+!
+        IF(.NOT.ALLOCATED(wrt_int_state%ALL_DATA_R2D))THEN
+          ALLOCATE(wrt_int_state%ALL_DATA_R2D(MAX_WORDS),stat=ISTAT)
+          IF(ISTAT/=0)THEN
+            WRITE(0,*)' Write task FAILED to allocate ALL_DATA_R2D'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT               &
+                              ,rc             =RC_ABORT  )
+          ENDIF
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  LIKEWISE FOR THE 2D INTEGER DATA.
+!-----------------------------------------------------------------------
+!
+        IF(.NOT.ALLOCATED(wrt_int_state%NUM_WORDS_RECV_I2D_HST))THEN
+          N_STA=wrt_int_state%ID_FTASK_RECV_STA(MYPE)
+          N_END=wrt_int_state%ID_FTASK_RECV_END(MYPE)
+          ALLOCATE(wrt_int_state%NUM_WORDS_RECV_I2D_HST(N_STA:N_END))
+        ENDIF
+!
+        MAX_WORDS=0
+!
+        DO N=wrt_int_state%ID_FTASK_RECV_STA(MYPE)                      &  !<-- The fcst tasks sending to this write task
+            ,wrt_int_state%ID_FTASK_RECV_END(MYPE)                         !<--
+!
+          ITS=wrt_int_state%LOCAL_ISTART(N)
+          ITE=wrt_int_state%LOCAL_IEND  (N)
+          JTS=wrt_int_state%LOCAL_JSTART(N)
+          JTE=wrt_int_state%LOCAL_JEND  (N)
+!
+          NUM_WORDS_TOT=(ITE-ITS+1+2*IHALO(1))*(JTE-JTS+1+2*JHALO(1))   &  !<-- # of words of 2D integer history data from fcst task N
+                        *wrt_int_state%KOUNT_I2D(1)
+!
+          wrt_int_state%NUM_WORDS_RECV_I2D_HST(N)=NUM_WORDS_TOT
+          MAX_WORDS=MAX(MAX_WORDS                                       &  !<-- Max # of real words from all fcst tasks
+                       ,wrt_int_state%NUM_WORDS_RECV_I2D_HST(N))           !<--
+        ENDDO
+!
+        IF(.NOT.ALLOCATED(wrt_int_state%ALL_DATA_I2D))THEN
+          ALLOCATE(wrt_int_state%ALL_DATA_I2D(MAX_WORDS),stat=ISTAT)
+          IF(ISTAT/=0)THEN
+            WRITE(0,*)' Write task FAILED to allocate ALL_DATA_I2D'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT               &
+                              ,rc             =RC_ABORT  )
+          ENDIF
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !***  EACH WRITE TASK ALSO MUST KNOW THE NORTH-SOUTH EXTENT OF THE
@@ -1543,9 +1677,9 @@
 !
       INTEGER,SAVE                 :: ITS,ITE,JTS,JTE
 !
-      INTEGER                      :: I,IERR,IM,J,JM,L                  &
+      INTEGER                      :: I,IERR,IM,ISTAT,J,JM,L,MAX_WORDS  &
                                      ,N,NN,RST_NUM_ATTRIB,NWTPG         &
-                                     ,RC,RC_WRT
+                                     ,RC,RC_ABORT,RC_WRT
 !
       INTEGER,DIMENSION(:),POINTER :: INPES,JNPES
       INTEGER,DIMENSION(:),POINTER :: IHALO,JHALO
@@ -1554,7 +1688,9 @@
 !
       INTEGER                      :: LAST_FCST_TASK                    &
                                      ,LEAD_WRITE_TASK                   &
-                                     ,LAST_WRITE_TASK
+                                     ,LAST_WRITE_TASK                   &
+                                     ,N_END                             &
+                                     ,N_STA
 !
       INTEGER,SAVE                 :: RST_NCHAR_I1D                     &
                                      ,RST_NCHAR_R1D                     &
@@ -1575,8 +1711,11 @@
 !
       INTEGER                      :: NPOSN_START,NPOSN_END
 !
-      INTEGER                      :: RST_NUM_FIELD_NAMES               &
-                                     ,NUM_PES_FCST
+      INTEGER                      :: NUM_PES_FCST                      &
+                                     ,NUM_WORDS                         &
+                                     ,RST_NUM_FIELD_NAMES
+!
+      INTEGER(KIND=KDIN) :: NUM_WORDS_TOT
 !
       INTEGER,DIMENSION(MPI_STATUS_SIZE) :: JSTAT
 !
@@ -2253,12 +2392,6 @@
           ELSEIF(DATATYPE==ESMF_TYPEKIND_R4)THEN
             RST_KOUNT_R2D=RST_KOUNT_R2D+1                                  !<-- Add up the total number of real 2D Fields
 !
-            IF(RST_KOUNT_R2D>MAX_DATA_R2D)THEN
-              WRITE(0,*)' FATAL: YOU HAVE EXCEEDED MAX NUMBER OF REAL 2D FIELDS FOR OUTPUT'
-              WRITE(0,*)' RST_KOUNT_R2D=',RST_KOUNT_R2D
-              WRITE(0,*)' YOU MUST INCREASE VALUE OF MAX_DATA_R2D WHICH NOW EQUALS ',MAX_DATA_R2D
-            ENDIF
-!
             NPOSN_END  =RST_KOUNT_R2D*ESMF_MAXSTR
             NPOSN_START=NPOSN_END-ESMF_MAXSTR+1
             wrt_int_state%RST_NAMES_R2D_STRING(NPOSN_START:NPOSN_END)=wrt_int_state%RST_FIELD_NAME(N) !<-- Save the 2D real Field names 
@@ -2271,6 +2404,60 @@
 !
         wrt_int_state%RST_KOUNT_R2D(1)=RST_KOUNT_R2D
         wrt_int_state%RST_KOUNT_I2D(1)=RST_KOUNT_I2D
+!
+!-----------------------------------------------------------------------
+!***  COMPUTE THE TOTAL NUMBER OF WORDS FOR ALL 2D AND 3D REAL DATA
+!***  AND ALLOCATE A DATASTRING TO THAT LENGTH.  IT WILL TRANSFER
+!***  THE 2D/3D REAL DATA FROM FORECAST TO WRITE TASKS.
+!-----------------------------------------------------------------------
+!
+        NUM_WORDS_TOT=(ITE-ITS+1+2*IHALO(1))*(JTE-JTS+1+2*JHALO(1))     &
+                      *RST_KOUNT_R2D
+!
+        IF(NUM_WORDS_TOT>2147483647)THEN
+          WRITE(0,*)' You have TOO MANY words in your datastring.'
+          WRITE(0,*)' You must increase the number of tasks.'
+          CALL ESMF_Finalize(terminationflag=ESMF_ABORT                 &
+                            ,rc             =RC_ABORT  )
+        ELSE
+          wrt_int_state%NUM_WORDS_SEND_R2D_RST=NUM_WORDS_TOT
+          NUM_WORDS=wrt_int_state%NUM_WORDS_SEND_R2D_RST
+          IF(.NOT.ALLOCATED(wrt_int_state%RST_ALL_DATA_R2D))THEN
+            ALLOCATE(wrt_int_state%RST_ALL_DATA_R2D(NUM_WORDS)          &
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,*)' Fcst task FAILED to allocate RST_ALL_DATA_R2D'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT             &
+                                ,rc             =RC_ABORT  )
+            ENDIF
+          ENDIF
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  LIKEWISE FOR 2D INTEGER DATA.
+!-----------------------------------------------------------------------
+!
+        NUM_WORDS_TOT=(ITE-ITS+1+2*IHALO(1))*(JTE-JTS+1+2*JHALO(1))     &
+                      *RST_KOUNT_I2D
+!
+        IF(NUM_WORDS_TOT>2147483647)THEN
+          WRITE(0,*)' You have TOO MANY words in your datastring.'
+          WRITE(0,*)' You must increase the number of tasks.'
+          CALL ESMF_Finalize(terminationflag=ESMF_ABORT                 &
+                            ,rc             =RC_ABORT  )
+        ELSE
+          wrt_int_state%NUM_WORDS_SEND_I2D_RST=NUM_WORDS_TOT
+          NUM_WORDS=wrt_int_state%NUM_WORDS_SEND_I2D_RST
+          IF(.NOT.ALLOCATED(wrt_int_state%RST_ALL_DATA_I2D))THEN
+            ALLOCATE(wrt_int_state%RST_ALL_DATA_I2D(NUM_WORDS)          &
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,*)' Fcst task FAILED to allocate RST_ALL_DATA_I2D'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT             &
+                                ,rc             =RC_ABORT  )
+            ENDIF
+          ENDIF
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !
@@ -2585,7 +2772,6 @@
 !
       ENDIF
 !
-!
 !-----------------------------------------------------------------------
 !***  EACH WRITE TASK MUST KNOW THE IDs OF THE FORECAST TASKS
 !***  FROM WHICH IT WILL RECEIVE 2D GRIDDED RESTART DATA.
@@ -2593,10 +2779,13 @@
 !
       IF(MYPE>=LEAD_WRITE_TASK)THEN                                        !<-- The write tasks
 !
-        IF(.NOT.ALLOCATED(wrt_int_state%ID_FTASK_RECV_STA)) &
-        ALLOCATE(wrt_int_state%ID_FTASK_RECV_STA(LEAD_WRITE_TASK:LAST_WRITE_TASK))
-        IF(.NOT.ALLOCATED(wrt_int_state%ID_FTASK_RECV_END)) &
-        ALLOCATE(wrt_int_state%ID_FTASK_RECV_END(LEAD_WRITE_TASK:LAST_WRITE_TASK))
+        IF(.NOT.ALLOCATED(wrt_int_state%ID_FTASK_RECV_STA))THEN
+          ALLOCATE(wrt_int_state%ID_FTASK_RECV_STA(LEAD_WRITE_TASK:LAST_WRITE_TASK))
+        ENDIF
+!
+        IF(.NOT.ALLOCATED(wrt_int_state%ID_FTASK_RECV_END))THEN
+          ALLOCATE(wrt_int_state%ID_FTASK_RECV_END(LEAD_WRITE_TASK:LAST_WRITE_TASK))
+        ENDIF
 !
         NN=0
         DO N=LEAD_WRITE_TASK,LAST_WRITE_TASK
@@ -2607,6 +2796,81 @@
           wrt_int_state%ID_FTASK_RECV_STA(N)=(JROW_FIRST-1)*INPES(1)       !<-- First fcst task that sends to this write task
           wrt_int_state%ID_FTASK_RECV_END(N)=JROW_LAST*INPES(1)-1          !<-- Last fcst task that sends to this write task
         ENDDO
+!
+!-----------------------------------------------------------------------
+!***  EACH WRITE TASK COMPUTES THE NUMBER OF WORDS IN THE DATASTRING
+!***  OF 2D/3D REAL RESTART DATA IT WILL RECEIVE FROM EACH FORECAST
+!***  TASK IT IS ASSOCIATED WITH.  THEN ALLOCATE THAT DATASTRING.
+!-----------------------------------------------------------------------
+!
+        IF(.NOT.ALLOCATED(wrt_int_state%NUM_WORDS_RECV_R2D_RST))THEN
+          N_STA=wrt_int_state%ID_FTASK_RECV_STA(MYPE)
+          N_END=wrt_int_state%ID_FTASK_RECV_END(MYPE)
+          ALLOCATE(wrt_int_state%NUM_WORDS_RECV_R2D_RST(N_STA:N_END))
+        ENDIF
+!
+        MAX_WORDS=0
+!
+        DO N=wrt_int_state%ID_FTASK_RECV_STA(MYPE)                      &  !<-- The fcst tasks sending to this write task
+            ,wrt_int_state%ID_FTASK_RECV_END(MYPE)                         !<--
+!
+          ITS=wrt_int_state%LOCAL_ISTART(N)
+          ITE=wrt_int_state%LOCAL_IEND  (N)
+          JTS=wrt_int_state%LOCAL_JSTART(N)
+          JTE=wrt_int_state%LOCAL_JEND  (N)
+!
+          NUM_WORDS_TOT=(ITE-ITS+1+2*IHALO(1))*(JTE-JTS+1+2*JHALO(1))   &  !<-- # of words of 2D/3D real restart data from fcst task N
+                        *wrt_int_state%RST_KOUNT_R2D(1)
+!
+          wrt_int_state%NUM_WORDS_RECV_R2D_RST(N)=NUM_WORDS_TOT
+          MAX_WORDS=MAX_WORDS+NUM_WORDS_TOT                                !<-- # of words from all fcst tasks
+        ENDDO
+!
+        IF(.NOT.ALLOCATED(wrt_int_state%RST_ALL_DATA_R2D))THEN
+          ALLOCATE(wrt_int_state%RST_ALL_DATA_R2D(MAX_WORDS)            &
+                  ,stat=ISTAT)
+          IF(ISTAT/=0)THEN
+            WRITE(0,*)' Write task FAILED to allocate RST_ALL_DATA_R2D'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT               &
+                              ,rc             =RC_ABORT  )
+          ENDIF
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  LIKEWISE FOR THE 2D INTEGER DATA.
+!-----------------------------------------------------------------------
+!
+        IF(.NOT.ALLOCATED(wrt_int_state%NUM_WORDS_RECV_I2D_RST))THEN
+          N_STA=wrt_int_state%ID_FTASK_RECV_STA(MYPE)
+          N_END=wrt_int_state%ID_FTASK_RECV_END(MYPE)
+          ALLOCATE(wrt_int_state%NUM_WORDS_RECV_I2D_RST(N_STA:N_END))
+        ENDIF
+!
+        MAX_WORDS=0
+!
+        DO N=wrt_int_state%ID_FTASK_RECV_STA(MYPE)                      &  !<-- The fcst tasks sending to this write task
+            ,wrt_int_state%ID_FTASK_RECV_END(MYPE)                         !<--
+!
+          ITS=wrt_int_state%LOCAL_ISTART(N)
+          ITE=wrt_int_state%LOCAL_IEND  (N)
+          JTS=wrt_int_state%LOCAL_JSTART(N)
+          JTE=wrt_int_state%LOCAL_JEND  (N)
+!
+          NUM_WORDS_TOT=(ITE-ITS+1+2*IHALO(1))*(JTE-JTS+1+2*JHALO(1))   &  !<-- # of words of 2D integer restart data from fcst task N
+                        *wrt_int_state%RST_KOUNT_I2D(1)
+!
+          wrt_int_state%NUM_WORDS_RECV_I2D_RST(N)=NUM_WORDS_TOT
+          MAX_WORDS=MAX_WORDS+NUM_WORDS_TOT                                !<-- # of words from all fcst tasks
+        ENDDO
+!
+        IF(.NOT.ALLOCATED(wrt_int_state%RST_ALL_DATA_I2D))THEN
+          ALLOCATE(wrt_int_state%RST_ALL_DATA_I2D(MAX_WORDS),stat=ISTAT)
+          IF(ISTAT/=0)THEN
+            WRITE(0,*)' Write task FAILED to allocate RST_ALL_DATA_I2D'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT               &
+                              ,rc             =RC_ABORT  )
+          ENDIF
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !***  EACH WRITE TASK ALSO MUST KNOW THE NORTH-SOUTH EXTENT OF THE
@@ -3640,7 +3904,7 @@
                 ,INDX_2D,IRET,IND1,IND2,IND3,IND4,CNT                   &
  		,INI1,INI2                                              &
                 ,N2ISCALAR,N2IARY,N2RSCALAR,N2RARY,N2LSCALAR            &
-                ,NMETA,TLMETA,VLEV,NSOIL
+                ,NMETA,NSOIL,TLMETA,VLEV
 !
       INTEGER :: NFIELD,RC
 !

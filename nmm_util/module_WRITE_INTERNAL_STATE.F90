@@ -23,6 +23,15 @@
 !
 !-----------------------------------------------------------------------
 !
+      PRIVATE
+!
+      PUBLIC :: WRITE_INTERNAL_STATE,WRITE_WRAP                         &
+               ,MAX_DATA_I1D,MAX_DATA_I2D                               &
+               ,MAX_DATA_R1D,MAX_DATA_R2D                               &
+               ,MAX_DATA_LOG
+!
+!-----------------------------------------------------------------------
+!
       INTEGER,PARAMETER :: MAX_DATA_I1D=50             !<-- Max # of 1D integer arrays
       INTEGER,PARAMETER :: MAX_DATA_I2D=50             !<-- Max # of 2D integer arrays
       INTEGER,PARAMETER :: MAX_DATA_R1D=50             !<-- Max # of 1D real arrays
@@ -68,6 +77,26 @@
       INTEGER,DIMENSION(:),ALLOCATABLE :: ID_FTASK_RECV_STA             &
                                          ,ID_FTASK_RECV_END
 !
+!----------------------------------------------------
+!***  # OF WORDS SENT BY EACH FORECAST TASK 
+!***  TO ITS DESIGNATED WRITE TASK.
+!----------------------------------------------------
+!
+      INTEGER :: NUM_WORDS_SEND_I2D_HST                                 &
+                ,NUM_WORDS_SEND_R2D_HST                                 &
+                ,NUM_WORDS_SEND_I2D_RST                                 & 
+                ,NUM_WORDS_SEND_R2D_RST
+!
+!----------------------------------------------------
+!***  # OF WORDS RECEIVED BY EACH WRITE TASK FROM
+!***  ALL OF ITS DESIGNATED FORECAST TASKS.
+!----------------------------------------------------
+!
+      INTEGER,DIMENSION(:),ALLOCATABLE :: NUM_WORDS_RECV_I2D_HST        &
+                                         ,NUM_WORDS_RECV_R2D_HST        &
+                                         ,NUM_WORDS_RECV_I2D_RST        &
+                                         ,NUM_WORDS_RECV_R2D_RST
+!
 !------------------------------
 !***  HISTORY DATA INFORMATION
 !------------------------------
@@ -78,10 +107,10 @@
                                          ,KOUNT_R2D                     &
                                          ,KOUNT_LOG
 !
-      INTEGER,DIMENSION(:),ALLOCATABLE :: RST_KOUNT_I1D                     &
-                                         ,RST_KOUNT_I2D                     &
-                                         ,RST_KOUNT_R1D                     &
-                                         ,RST_KOUNT_R2D                     &
+      INTEGER,DIMENSION(:),ALLOCATABLE :: RST_KOUNT_I1D                 &
+                                         ,RST_KOUNT_I2D                 &
+                                         ,RST_KOUNT_R1D                 &
+                                         ,RST_KOUNT_R2D                 &
                                          ,RST_KOUNT_LOG
 !
 !
@@ -89,8 +118,8 @@
                                          ,LENGTH_DATA_R1D               &
                                          ,LENGTH_DATA_R2D
 !
-      INTEGER,DIMENSION(:),ALLOCATABLE :: RST_LENGTH_DATA_I1D               &
-                                         ,RST_LENGTH_DATA_R1D               &
+      INTEGER,DIMENSION(:),ALLOCATABLE :: RST_LENGTH_DATA_I1D           &
+                                         ,RST_LENGTH_DATA_R1D           &
                                          ,RST_LENGTH_DATA_R2D
 !
       INTEGER,DIMENSION(:),ALLOCATABLE :: LENGTH_SUM_I1D                &
@@ -98,9 +127,9 @@
                                          ,LENGTH_SUM_R2D                &
                                          ,LENGTH_SUM_LOG
 !
-      INTEGER,DIMENSION(:),ALLOCATABLE :: RST_LENGTH_SUM_I1D                &
-                                         ,RST_LENGTH_SUM_R1D                &
-                                         ,RST_LENGTH_SUM_R2D                &
+      INTEGER,DIMENSION(:),ALLOCATABLE :: RST_LENGTH_SUM_I1D            &
+                                         ,RST_LENGTH_SUM_R1D            &
+                                         ,RST_LENGTH_SUM_R2D            &
                                          ,RST_LENGTH_SUM_LOG
 !
 !

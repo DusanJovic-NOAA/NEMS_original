@@ -74,9 +74,7 @@
 !-----------------------------------------------------------------------
 !
       INTEGER,PARAMETER :: MAX_LENGTH_I1D=5000                            !<-- Max words in all 1-D integer history variables
-      INTEGER,PARAMETER :: MAX_LENGTH_I2D=50000                           !<-- Max I,J points in each integer 2D subdomain
       INTEGER,PARAMETER :: MAX_LENGTH_R1D=25000                           !<-- Max words in all 1-D real history variables
-      INTEGER,PARAMETER :: MAX_LENGTH_R2D=1000000                         !<-- Max I,J points in each real 2D subdomain
       INTEGER,PARAMETER :: MAX_LENGTH_LOG=MAX_DATA_LOG                    !<-- Max logical variables
 !
       INTEGER,SAVE      :: LAST_FCST_TASK                                 !<-- Rank of the last forecast task
@@ -84,10 +82,6 @@
       INTEGER,SAVE      :: LAST_WRITE_TASK                                !<-- Rank of the last write task the write group
       INTEGER,SAVE      :: NTASKS                                         !<-- # of write tasks in the current group + all forecast tasks
       INTEGER,SAVE      :: NWTPG                                          !<-- # of write tasks (servers) per group 
-!
-      INTEGER,SAVE      :: MAXSIZE_I2D=MAX_LENGTH_I2D*MAX_DATA_I2D        !<-- Max size of the 2D integer history array on each task 
-!
-      INTEGER,SAVE      :: MAXSIZE_R2D=MAX_LENGTH_R2D*MAX_DATA_R2D        !<-- Max size of the 2D real history array on each task 
 !
       INTEGER,DIMENSION(:),ALLOCATABLE,SAVE :: NCURRENT_GROUP             !<-- The currently active write group
 !
@@ -338,26 +332,19 @@
       NTASKS=wrt_int_state%NTASKS
 !
 !-----------------------------------------------------------------------
-!***  ALL TASKS ALLOCATE BUFFER DATA ARRAYS THAT WILL HOLD ALL OF EACH
-!***  TYPE OF HISTORY DATA AND WILL BE USED TO Send/Recv THAT DATA
+!***  ALL TASKS ALLOCATE BUFFER DATA ARRAYS THAT WILL HOLD SCALAR/1D
+!***  HISTORY/RESTART DATA AND WILL BE USED TO Send/Recv THAT DATA
 !***  BETWEEN THE FORECAST TASKS THAT KNOW IT INITIALLY TO THE
 !***  WRITE TASKS THAT OBTAIN IT FROM THE FORECAST TASKS FOR WRITING.
+!***  LOGICAL DATA BUFFERS ARE ALSO HANDLED HERE.
 !-----------------------------------------------------------------------
 !
       IF(.NOT.ALLOCATED(wrt_int_state%ALL_DATA_I1D))THEN
         ALLOCATE(wrt_int_state%ALL_DATA_I1D(MAX_LENGTH_I1D),stat=ISTAT)
       ENDIF
 !
-      IF(.NOT.ALLOCATED(wrt_int_state%ALL_DATA_I2D))THEN
-        ALLOCATE(wrt_int_state%ALL_DATA_I2D(MAXSIZE_I2D),stat=ISTAT)
-      ENDIF
-!
       IF(.NOT.ALLOCATED(wrt_int_state%ALL_DATA_R1D))THEN
         ALLOCATE(wrt_int_state%ALL_DATA_R1D(MAX_LENGTH_R1D),stat=ISTAT)
-      ENDIF
-!
-      IF(.NOT.ALLOCATED(wrt_int_state%ALL_DATA_R2D))THEN
-        ALLOCATE(wrt_int_state%ALL_DATA_R2D(MAXSIZE_R2D),stat=ISTAT)
       ENDIF
 !
       IF(.NOT.ALLOCATED(wrt_int_state%ALL_DATA_LOG))THEN
@@ -368,16 +355,8 @@
         ALLOCATE(wrt_int_state%RST_ALL_DATA_I1D(MAX_LENGTH_I1D),stat=ISTAT)
       ENDIF
 !
-      IF(.NOT.ALLOCATED(wrt_int_state%RST_ALL_DATA_I2D))THEN
-        ALLOCATE(wrt_int_state%RST_ALL_DATA_I2D(MAXSIZE_I2D),stat=ISTAT)
-      ENDIF
-!
       IF(.NOT.ALLOCATED(wrt_int_state%RST_ALL_DATA_R1D))THEN
         ALLOCATE(wrt_int_state%RST_ALL_DATA_R1D(MAX_LENGTH_R1D),stat=ISTAT)
-      ENDIF
-!
-      IF(.NOT.ALLOCATED(wrt_int_state%RST_ALL_DATA_R2D))THEN
-        ALLOCATE(wrt_int_state%RST_ALL_DATA_R2D(MAXSIZE_R2D),stat=ISTAT)
       ENDIF
 !
       IF(.NOT.ALLOCATED(wrt_int_state%RST_ALL_DATA_LOG))THEN
@@ -437,17 +416,17 @@
 !***  AS THE 'STRINGS' THEMSELVES.
 !-----------------------------------------------------------------------
 !
-        ALLOCATE(wrt_int_state%LENGTH_DATA_I1D(100),stat=ISTAT)          !<-- Lengths of each individual 1-D integer array
-        ALLOCATE(wrt_int_state%LENGTH_DATA_R1D(100),stat=ISTAT)          !<-- Lengths of each individual 1-D real array
-        ALLOCATE(wrt_int_state%LENGTH_SUM_I1D(1),stat=ISTAT)             !<-- Length of string of data of ALL 1-D integer arrays
-        ALLOCATE(wrt_int_state%LENGTH_SUM_R1D(1),stat=ISTAT)             !<-- Length of string of data of ALL 1-D real arrays
-        ALLOCATE(wrt_int_state%LENGTH_SUM_LOG(1),stat=ISTAT)             !<-- Length of string of data of ALL logical variables
+        ALLOCATE(wrt_int_state%LENGTH_DATA_I1D(100),stat=ISTAT)            !<-- Lengths of each individual 1-D integer array
+        ALLOCATE(wrt_int_state%LENGTH_DATA_R1D(100),stat=ISTAT)            !<-- Lengths of each individual 1-D real array
+        ALLOCATE(wrt_int_state%LENGTH_SUM_I1D(1),stat=ISTAT)               !<-- Length of string of data of ALL 1-D integer arrays
+        ALLOCATE(wrt_int_state%LENGTH_SUM_R1D(1),stat=ISTAT)               !<-- Length of string of data of ALL 1-D real arrays
+        ALLOCATE(wrt_int_state%LENGTH_SUM_LOG(1),stat=ISTAT)               !<-- Length of string of data of ALL logical variables
 !
-        ALLOCATE(wrt_int_state%RST_LENGTH_DATA_I1D(100),stat=ISTAT)      !<-- Lengths of each restart individual 1-D integer array
-        ALLOCATE(wrt_int_state%RST_LENGTH_DATA_R1D(100),stat=ISTAT)      !<-- Lengths of each restart individual 1-D real array
-        ALLOCATE(wrt_int_state%RST_LENGTH_SUM_I1D(1),stat=ISTAT)         !<-- Length of string of restart data of ALL 1-D integer arrays
-        ALLOCATE(wrt_int_state%RST_LENGTH_SUM_R1D(1),stat=ISTAT)         !<-- Length of string of restart data of ALL 1-D real arrays
-        ALLOCATE(wrt_int_state%RST_LENGTH_SUM_LOG(1),stat=ISTAT)         !<-- Length of string of restart data of ALL logical variables
+        ALLOCATE(wrt_int_state%RST_LENGTH_DATA_I1D(100),stat=ISTAT)        !<-- Lengths of each restart individual 1-D integer array
+        ALLOCATE(wrt_int_state%RST_LENGTH_DATA_R1D(100),stat=ISTAT)        !<-- Lengths of each restart individual 1-D real array
+        ALLOCATE(wrt_int_state%RST_LENGTH_SUM_I1D(1),stat=ISTAT)           !<-- Length of string of restart data of ALL 1-D integer arrays
+        ALLOCATE(wrt_int_state%RST_LENGTH_SUM_R1D(1),stat=ISTAT)           !<-- Length of string of restart data of ALL 1-D real arrays
+        ALLOCATE(wrt_int_state%RST_LENGTH_SUM_LOG(1),stat=ISTAT)           !<-- Length of string of restart data of ALL logical variables
 !
       ENDIF
 !
@@ -596,88 +575,87 @@
 !***  LOCAL VARIABLES
 !-----------------------------------------------------------------------
 !
-      INTEGER,SAVE                          :: IH_INT =MPI_REQUEST_NULL &
-                                              ,IH_REAL=MPI_REQUEST_NULL
+      INTEGER,SAVE :: IH_INT =MPI_REQUEST_NULL                          &
+                     ,IH_REAL=MPI_REQUEST_NULL
 !
-      INTEGER,SAVE                          :: RST_IH_INT =MPI_REQUEST_NULL &
-                                              ,RST_IH_REAL=MPI_REQUEST_NULL
+      INTEGER,SAVE :: RST_IH_INT =MPI_REQUEST_NULL                      &
+                     ,RST_IH_REAL=MPI_REQUEST_NULL
 !
-      INTEGER,SAVE                          :: ITS,ITE,JTS,JTE       
-      INTEGER,SAVE                          :: IMS,IME,JMS,JME       
-      INTEGER,SAVE                          :: IHALO,JHALO
+      INTEGER,SAVE :: ITS,ITE,JTS,JTE
+      INTEGER,SAVE :: IMS,IME,JMS,JME
+      INTEGER,SAVE :: IHALO,JHALO
 !
-      INTEGER,SAVE                          :: N_START,N_END
-      INTEGER,SAVE                          :: NPOSN_1,NPOSN_2
+      INTEGER,SAVE :: N_START,N_END
+      INTEGER,SAVE :: NPOSN_1,NPOSN_2
 !
-      INTEGER                               :: I,I1,IJ,IJG,IM,IMJM      &
-                                              ,J,JM,K,L                 &
-                                              ,MY_LOCAL_ID              &
-                                              ,MYPE,MYPE_ROW            &
-                                              ,N,N1,N2,NF,NN            &
-                                              ,NN_INTEGER,NN_REAL       &
-                                              ,N_POSITION               &
-                                              ,NUM_ATTRIB
+      INTEGER      :: I,I1,IJ,IJG,IM,IMJM                               &
+                     ,J,JM,K,L                                          &
+                     ,MY_LOCAL_ID                                       &
+                     ,MYPE,MYPE_ROW                                     &
+                     ,N,N1,N2,NF,NN                                     &
+                     ,NN_INTEGER,NN_REAL                                &
+                     ,N_POSITION                                        &
+                     ,NUM_ATTRIB
 !
-      INTEGER                               :: DIM1,DIM2,FIELDSIZE,NBDR
+      INTEGER      :: DIM1,DIM2,FIELDSIZE,NBDR
 !
-      INTEGER                               :: IYEAR_FCST               &
-                                              ,IMONTH_FCST              &
-                                              ,IDAY_FCST                &
-                                              ,IHOUR_FCST               &
-                                              ,IMINUTE_FCST             &
-                                              ,ISECOND_FCST             &
-                                              ,ISECOND_NUM              &
-                                              ,ISECOND_DEN
+      INTEGER      :: IYEAR_FCST                                        &
+                     ,IMONTH_FCST                                       &
+                     ,IDAY_FCST                                         &
+                     ,IHOUR_FCST                                        &
+                     ,IMINUTE_FCST                                      &
+                     ,ISECOND_FCST                                      &
+                     ,ISECOND_NUM                                       &
+                     ,ISECOND_DEN
 !
-      INTEGER(KIND=ESMF_KIND_I8)            :: NTIMESTEP_ESMF
-      INTEGER(KIND=KINT)                    :: NTIMESTEP
+      INTEGER(KIND=ESMF_KIND_I8) :: NTIMESTEP_ESMF
+      INTEGER(KIND=KINT)         :: NTIMESTEP
 !
-      INTEGER                               :: NF_HOURS                 &
-                                              ,NF_MINUTES               &
-                                              ,NSECONDS                 &
-                                              ,NSECONDS_NUM             &
-                                              ,NSECONDS_DEN
+      INTEGER      :: NF_HOURS                                          &
+                     ,NF_MINUTES                                        &
+                     ,NSECONDS                                          &
+                     ,NSECONDS_NUM                                      &
+                     ,NSECONDS_DEN
 !
-      INTEGER                               :: ID_DUMMY                 &
-                                              ,ID_RECV                  &
-                                              ,NFCST_TASKS              &
-                                              ,NFIELD                   &
-                                              ,NPE_WRITE                &
-                                              ,NUM_FIELD_NAMES          &
-                                              ,NUM_PES_FCST
+      INTEGER      :: ID_DUMMY                                          &
+                     ,ID_RECV                                           &
+                     ,NFCST_TASKS                                       &
+                     ,NFIELD                                            &
+                     ,NPE_WRITE                                         &
+                     ,NUM_FIELD_NAMES                                   &
+                     ,NUM_PES_FCST
 !
-      INTEGER                               :: ID_START,ID_END          &
-                                              ,ISTART,IEND              &
-                                              ,JSTART,JEND
+      INTEGER     :: ID_START,ID_END                                    &
+                    ,ISTART,IEND                                        &
+                    ,JSTART,JEND
 !
-      INTEGER                               :: JROW_FIRST,JROW_LAST     &
-                                              ,JSTA_WRITE,JEND_WRITE
+      INTEGER     :: JROW_FIRST,JROW_LAST                               &
+                    ,JSTA_WRITE,JEND_WRITE
 !
-      INTEGER                               :: KOUNT_I2D                &
-                                              ,KOUNT_I2D_DATA           &
-                                              ,KOUNT_R2D                &
-                                              ,KOUNT_R2D_DATA
+      INTEGER     :: KOUNT_I2D                                          &
+                    ,KOUNT_I2D_DATA                                     &
+                    ,KOUNT_R2D                                          &
+                    ,KOUNT_R2D_DATA
 !
-      INTEGER                               :: RST_KOUNT_I2D            &
-                                              ,RST_KOUNT_I2D_DATA       &
-                                              ,RST_KOUNT_R2D            &
-                                              ,RST_KOUNT_R2D_DATA
+      INTEGER     :: RST_KOUNT_I2D                                      &
+                    ,RST_KOUNT_I2D_DATA                                 &
+                    ,RST_KOUNT_R2D                                      &
+                    ,RST_KOUNT_R2D_DATA
 !
-      INTEGER                               :: LENGTH                   &
-                                              ,MPI_COMM,MPI_COMM2
+      INTEGER     :: LENGTH                                             &
+                    ,MPI_COMM,MPI_COMM2
 !
-      INTEGER                               :: IO_HST_UNIT,IO_RST_UNIT
+      INTEGER     :: IO_HST_UNIT,IO_RST_UNIT
 !
-      INTEGER                               :: IERR,ISTAT,RC
-!
+      INTEGER     :: IERR,ISTAT,RC
       INTEGER,DIMENSION(MPI_STATUS_SIZE)    :: JSTAT
 !
       INTEGER,DIMENSION(:)  ,POINTER        :: WORK_ARRAY_I1D
       INTEGER,DIMENSION(:,:),POINTER        :: WORK_ARRAY_I2D
 !
-      REAL                                  :: NF_SECONDS               &
-                                              ,SECOND_FCST
-      REAL                                  :: DEGRAD
+      REAL :: DEGRAD                                                    &
+             ,NF_SECONDS                                                &
+             ,SECOND_FCST
 !
       REAL(KIND=KFPT),DIMENSION(:)  ,POINTER  :: WORK_ARRAY_R1D
       REAL(KIND=KFPT),DIMENSION(:,:),POINTER  :: WORK_ARRAY_R2D
@@ -689,29 +667,33 @@
 !
       LOGICAL                               :: GLOBAL                   &
                                               ,WRITE_LOGICAL
-      LOGICAL,SAVE                          :: FIRST=.TRUE.
-      LOGICAL,SAVE                          :: HST_FIRST=.TRUE.
-      LOGICAL,SAVE                          :: RST_FIRST=.TRUE.
 !
-      CHARACTER(ESMF_MAXSTR)                :: NAME,GFNAME
-      CHARACTER(2)                          :: MODEL_LEVEL
+      LOGICAL,SAVE :: FIRST=.TRUE.                                      &
+                     ,HST_FIRST=.TRUE.                                  &
+                     ,RST_FIRST=.TRUE.
 !
-      TYPE(ESMF_Logical)                    :: WORK_LOGICAL
+      CHARACTER(ESMF_MAXSTR) :: GFNAME,NAME
+      CHARACTER(2)           :: MODEL_LEVEL
 !
-      TYPE(ESMF_VM)                         :: VM
-      TYPE(ESMF_Grid),SAVE                  :: GRID1
-      TYPE(ESMF_DELayout)                   :: MY_DE_LAYOUT
-      TYPE(ESMF_Field)                      :: FIELD_WORK1
+      TYPE(WRITE_WRAP)                   :: WRAP
+      TYPE(WRITE_INTERNAL_STATE),POINTER :: WRT_INT_STATE
 !
-      TYPE(ESMF_InternArray)                  :: ARRAY_WORK
-      TYPE(WRITE_WRAP)                        :: WRAP
-      TYPE(WRITE_INTERNAL_STATE),POINTER      :: WRT_INT_STATE
+      TYPE(ESMF_Logical)   :: WORK_LOGICAL
+!
+      TYPE(ESMF_VM)        :: VM
+      TYPE(ESMF_Grid),SAVE :: GRID1
+      TYPE(ESMF_DELayout)  :: MY_DE_LAYOUT
+      TYPE(ESMF_Field)     :: FIELD_WORK1
+!
+      TYPE(ESMF_InternArray) :: ARRAY_WORK
+!
+      TYPE(ESMF_Time)     :: CURRTIME
+!
+      TYPE(ESMF_TypeKind) :: DATATYPE
+!
+      TYPE(NEMSIO_GFILE)  :: NEMSIOFILE
+!
       TYPE(ESMF_LOGICAL),DIMENSION(:),POINTER :: FIRST_IO_PE
-      TYPE(ESMF_Time)                         :: CURRTIME
-!
-      TYPE(ESMF_TypeKind)      :: DATATYPE
-!
-      TYPE(NEMSIO_GFILE)      :: NEMSIOFILE
 !
 !-----------------------------------------------------------------------
 !
@@ -961,7 +943,7 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-      hst_fcst_tasks: IF(TIME_FOR_HISTORY .AND. MYPE<=LAST_FCST_TASK)THEN  !<-- Only the forecast tasks can see this data so far
+      hst_fcst_tasks: IF(TIME_FOR_HISTORY.AND.MYPE<=LAST_FCST_TASK)THEN    !<-- Only the forecast tasks can see this data so far
 !-----------------------------------------------------------------------
 !
         NN_INTEGER=0
@@ -1053,11 +1035,11 @@
             JSTART=LBOUND(WORK_ARRAY_I2D,2)
             JEND  =UBOUND(WORK_ARRAY_I2D,2)
 !
-            IF(NN_INTEGER+IEND*JEND>MAXSIZE_I2D)THEN
-              WRITE(0,*)' WARNING:  YOU MUST INCREASE THE SIZE OF'      &
-                       ,' MAX_LENGTH_I2D OR MAX_DATA_I2D BECAUSE'       &
-                       ,' YOU HAVE EXCEEDED THE DECLARED SIZE OF'       &
-                       ,' ALL_DATA_I2D'
+            IF(NN_INTEGER+IEND*JEND>wrt_int_state%NUM_WORDS_SEND_I2D_HST)THEN
+              WRITE(0,*)' WARNING:  THE NUMBER OF INTEGER WORDS YOU'    &
+                       ,' ARE SENDING FROM FCST TO WRITE TASKS HAS'     &
+                       ,' EXCEEDED THE ORIGINAL COUNT WHICH SHOULD'     &
+                       ,' NOT CHANGE.  CHECK YOUR WORK'
             ENDIF
 !
             DO J=JSTART,JEND
@@ -1087,18 +1069,16 @@
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            KOUNT_R2D=KOUNT_R2D+1                                          !<-- Count # of 2D real Fields (as opposed to 2D integer Fields)
-!
             ISTART=LBOUND(WORK_ARRAY_R2D,1)
             IEND  =UBOUND(WORK_ARRAY_R2D,1)
             JSTART=LBOUND(WORK_ARRAY_R2D,2)
             JEND  =UBOUND(WORK_ARRAY_R2D,2)
 !
-            IF(NN_REAL+IEND*JEND>MAXSIZE_R2D)THEN
-              WRITE(0,*)' WARNING:  YOU MUST INCREASE THE SIZE OF'      &
-                       ,' MAX_LENGTH_R2D OR MAX_DATA_R2D BECAUSE'       &
-                       ,' YOU HAVE EXCEEDED THE DECLARED SIZE OF'       &
-                       ,' ALL_DATA_R2D'
+            IF(NN_REAL+IEND*JEND>wrt_int_state%NUM_WORDS_SEND_R2D_HST)THEN
+              WRITE(0,*)' WARNING:  THE NUMBER OF REAL WORDS YOU'       &
+                       ,' ARE SENDING FROM FCST TO WRITE TASKS HAS'     &
+                       ,' EXCEEDED THE ORIGINAL COUNT WHICH SHOULD'     &
+                       ,' NOT CHANGE.  CHECK YOUR WORK'
             ENDIF
 !
             DO J=JSTART,JEND
@@ -1123,8 +1103,8 @@
 !***  TO THE APPROPRIATE WRITE TASKS.
 !-----------------------------------------------------------------------
 !
-        KOUNT_R2D_DATA=(ITE-ITS+1+2*IHALO)*(JTE-JTS+1+2*JHALO)*KOUNT_R2D   !<-- Total #of words in 2D real history data on this fcst task
-        KOUNT_I2D_DATA=(ITE-ITS+1+2*IHALO)*(JTE-JTS+1+2*JHALO)*KOUNT_I2D   !<-- Total #of words in 2D integer history data on this fcst task
+        KOUNT_I2D_DATA=wrt_int_state%NUM_WORDS_SEND_I2D_HST                !<-- Total #of words in 2D integer history data on this fcst task
+        KOUNT_R2D_DATA=wrt_int_state%NUM_WORDS_SEND_R2D_HST                !<-- Total #of words in 2D real history data on this fcst task
 !
         MYPE_ROW=MYPE/wrt_int_state%INPES+1                                !<-- Each fcst task's row among all rows of fcst tasks
 !
@@ -1180,19 +1160,17 @@
 !
       ENDIF hst_fcst_tasks
 !
-!rst-rst vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+!-----------------------------------------------------------------------
+!***  NOW PULL THE 2D RESTART DATA FROM THE IMPORT STATE.
+!***  THIS INCLUDES ALL INDIVIDUAL 2D RESTART QUANTITIES AS WELL AS
+!***  ALL MODEL LEVELS OF THE 3D REAL RESTART ARRAYS.
+!-----------------------------------------------------------------------
 !
       RST_KOUNT_I2D=wrt_int_state%RST_KOUNT_I2D(1)
       RST_KOUNT_R2D=wrt_int_state%RST_KOUNT_R2D(1)
 !
 !-----------------------------------------------------------------------
-!***  NOW PULL THE 2D DATA FROM THE IMPORT STATE.
-!***  THIS INCLUDES ALL INDIVIDUAL 2D RESTART QUANTITIES AS WELL AS
-!***  ALL MODEL LEVELS OF THE 3D REAL RESTART ARRAYS.
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-      rst_fcst_tasks: IF(TIME_FOR_RESTART .AND. MYPE<=LAST_FCST_TASK)THEN  !<-- Only the forecast tasks can see this data so far
+      rst_fcst_tasks: IF(TIME_FOR_RESTART.AND.MYPE<=LAST_FCST_TASK)THEN    !<-- Only the forecast tasks can see this data so far
 !-----------------------------------------------------------------------
 !
         NN_INTEGER=0
@@ -1284,11 +1262,11 @@
             JSTART=LBOUND(WORK_ARRAY_I2D,2)
             JEND  =UBOUND(WORK_ARRAY_I2D,2)
 !
-            IF(NN_INTEGER+IEND*JEND>MAXSIZE_I2D)THEN
-              WRITE(0,*)' WARNING:  YOU MUST INCREASE THE SIZE OF'      &
-                       ,' MAX_LENGTH_I2D OR MAX_DATA_I2D BECAUSE'       &
-                       ,' YOU HAVE EXCEEDED THE DECLARED SIZE OF'       &
-                       ,' RST_ALL_DATA_I2D'
+            IF(NN_INTEGER+IEND*JEND>wrt_int_state%NUM_WORDS_SEND_I2D_RST)THEN
+              WRITE(0,*)' WARNING:  THE NUMBER OF INTEGER WORDS YOU'    &
+                       ,' ARE SENDING FROM FCST TO WRITE TASKS HAS'     &
+                       ,' EXCEEDED THE ORIGINAL COUNT WHICH SHOULD'     &
+                       ,' NOT CHANGE.  CHECK YOUR WORK'
             ENDIF
 !
             DO J=JSTART,JEND
@@ -1325,11 +1303,11 @@
             JSTART=LBOUND(WORK_ARRAY_R2D,2)
             JEND  =UBOUND(WORK_ARRAY_R2D,2)
 !
-            IF(NN_REAL+IEND*JEND>MAXSIZE_R2D)THEN
-              WRITE(0,*)' WARNING:  YOU MUST INCREASE THE SIZE OF'      &
-                       ,' MAX_LENGTH_R2D OR MAX_DATA_R2D BECAUSE'       &
-                       ,' YOU HAVE EXCEEDED THE DECLARED SIZE OF'       &
-                       ,' RST_ALL_DATA_R2D'
+            IF(NN_REAL+IEND*JEND>wrt_int_state%NUM_WORDS_SEND_R2D_RST)THEN
+              WRITE(0,*)' WARNING:  THE NUMBER OF REAL WORDS YOU'       &
+                       ,' ARE SENDING FROM FCST TO WRITE TASKS HAS'     &
+                       ,' EXCEEDED THE ORIGINAL COUNT WHICH SHOULD'     &
+                       ,' NOT CHANGE.  CHECK YOUR WORK'
             ENDIF
 !
             DO J=JSTART,JEND
@@ -1354,8 +1332,8 @@
 !***  TO THE APPROPRIATE WRITE TASKS.
 !-----------------------------------------------------------------------
 !
-        RST_KOUNT_R2D_DATA=(ITE-ITS+1+2*IHALO)*(JTE-JTS+1+2*JHALO)*RST_KOUNT_R2D  !<-- # of words in 2D real restart data on this fcst task
-        RST_KOUNT_I2D_DATA=(ITE-ITS+1+2*IHALO)*(JTE-JTS+1+2*JHALO)*RST_KOUNT_I2D  !<-- # of words in 2D integer restart data on this fcst task
+        RST_KOUNT_I2D_DATA=wrt_int_state%NUM_WORDS_SEND_I2D_RST            !<-- # of words in 2D integer restart data on this fcst task
+        RST_KOUNT_R2D_DATA=wrt_int_state%NUM_WORDS_SEND_R2D_RST            !<-- # of words in 2D real restart data on this fcst task
 !
         MYPE_ROW=MYPE/wrt_int_state%INPES+1                                !<-- Each fcst task's row among all rows of fcst tasks
 !
@@ -1447,7 +1425,7 @@
 !
         IF(KOUNT_I2D>0)THEN
           CALL MPI_RECV(wrt_int_state%ALL_DATA_I2D                      &  !<-- Fcst tasks' string of 2D integer history data
-                       ,MAXSIZE_I2D                                     &  !<-- Max #of words in the data string
+                       ,wrt_int_state%NUM_WORDS_RECV_I2D_HST(ID_RECV)   &  !<-- # of integer words in the data string
                        ,MPI_INTEGER                                     &  !<-- The datatype
                        ,ID_RECV                                         &  !<-- Recv from this fcst task
                        ,wrt_int_state%NFHOUR                            &  !<-- An MPI tag
@@ -1463,13 +1441,13 @@
 !-----------------------------------------------------------------------
 !
         IF(KOUNT_R2D>0)THEN
-          CALL MPI_RECV(wrt_int_state%ALL_DATA_R2D                        &  !<-- Fcst tasks' string of 2D real history data
-                       ,MAXSIZE_R2D                                       &  !<-- Max #of words in the data string
-                       ,MPI_REAL                                          &  !<-- The datatype
-                       ,ID_RECV                                           &  !<-- Recv from this fcst task
-                       ,wrt_int_state%NFHOUR                              &  !<-- An MPI tag
-                       ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP(1))           &  !<-- The MPI intercommunicator between quilt and fcst tasks
-                       ,JSTAT                                             &  !<-- MPI status object
+          CALL MPI_RECV(wrt_int_state%ALL_DATA_R2D                      &  !<-- Fcst tasks' string of 2D real history data
+                       ,wrt_int_state%NUM_WORDS_RECV_R2D_HST(ID_RECV)   &  !<-- # of real words in the data string
+                       ,MPI_REAL                                        &  !<-- The datatype
+                       ,ID_RECV                                         &  !<-- Recv from this fcst task
+                       ,wrt_int_state%NFHOUR                            &  !<-- An MPI tag
+                       ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP(1))         &  !<-- The MPI intercommunicator between quilt and fcst tasks
+                       ,JSTAT                                           &  !<-- MPI status object
                        ,IERR )
 !
           IF(IERR/=0)WRITE(0,*)' Recv by write task from fcst task has failed.  IERR=',IERR
@@ -1495,10 +1473,10 @@
         IHALO=wrt_int_state%IHALO                                          !<-- Subdomain halo depth in I
         JHALO=wrt_int_state%JHALO                                          !<-- Subdomain halo depth in J
 !
-          IMS=ITS-IHALO
-          IME=ITE+IHALO
-          JMS=JTS-JHALO
-          JME=JTE+JHALO
+        IMS=ITS-IHALO
+        IME=ITE+IHALO
+        JMS=JTS-JHALO
+        JME=JTE+JHALO
 !
         NN=0
 !
@@ -1774,7 +1752,7 @@
 !
           NPOSN_1=(NFIELD-1)*ESMF_MAXSTR+1
           NPOSN_2=NFIELD*ESMF_MAXSTR
-          NAME=wrt_int_state%NAMES_I2D_STRING(NPOSN_1:NPOSN_2)                      !<-- The name of this 2D integer history quantity
+          NAME=wrt_int_state%NAMES_I2D_STRING(NPOSN_1:NPOSN_2)                        !<-- The name of this 2D integer history quantity
 ! 
           IF(wrt_int_state%WRITE_HST_FLAG)THEN
 !
@@ -2137,7 +2115,7 @@
 !
         IF(RST_KOUNT_I2D>0)THEN
           CALL MPI_RECV(wrt_int_state%RST_ALL_DATA_I2D                  &  !<-- Fcst tasks' string of 2D integer restart data
-                       ,MAXSIZE_I2D                                     &  !<-- Max #of words in the data string
+                       ,wrt_int_state%NUM_WORDS_RECV_I2D_RST(ID_RECV)   &  !<-- # of words in the data string
                        ,MPI_INTEGER                                     &  !<-- The datatype
                        ,ID_RECV                                         &  !<-- Recv from this fcst task
                        ,wrt_int_state%NFHOUR                            &  !<-- An MPI tag
@@ -2154,7 +2132,7 @@
 !
         IF(RST_KOUNT_R2D>0)THEN
           CALL MPI_RECV(wrt_int_state%RST_ALL_DATA_R2D                  &  !<-- Fcst tasks' string of 2D real restart data
-                       ,MAXSIZE_R2D                                     &  !<-- Max #of words in the data string
+                       ,wrt_int_state%NUM_WORDS_RECV_R2D_RST(ID_RECV)   &  !<-- # of words in the data string
                        ,MPI_REAL                                        &  !<-- The datatype
                        ,ID_RECV                                         &  !<-- Recv from this fcst task
                        ,wrt_int_state%NFHOUR                            &  !<-- An MPI tag

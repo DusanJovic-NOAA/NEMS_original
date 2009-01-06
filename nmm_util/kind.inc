@@ -6,5 +6,6 @@ integer,parameter :: double=selected_real_kind(p=13,r=200)
 integer,parameter:: &
  klog=4 &
 ,kint=isingle &
+,kdin=idouble &
 ,kfpt=single &
 ,kdbl=double
