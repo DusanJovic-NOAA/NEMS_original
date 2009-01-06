@@ -31,6 +31,8 @@
 !       15 Aug 2008:  J. Wang  - Revised for addition of NEMS-IO
 !       16 Sep 2008:  J. Wang  - Output array reverts from 3-D to 2-D
 !       14 Oct 2008:  R. Vasic - Add restart capability
+!       05 Jan 2009:  J. Wang  - Add 10-m wind factor into NMMB
+!                                runhistory and restart files
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
@@ -55,6 +57,7 @@
       USE MODULE_INCLUDE
       USE MODULE_CONSTANTS,ONLY : G
       USE NEMSIO_MODULE
+      USE MODULE_BGRID_INTERP, ONLY: V_TO_H_BGRID
 !
 !-----------------------------------------------------------------------
 !
@@ -680,12 +683,18 @@
       REAL(KIND=KFPT),DIMENSION(:,:),POINTER  :: WORK_ARRAY_R2D
       REAL(KIND=KFPT),DIMENSION(:)  ,POINTER  :: GLAT1D,GLON1D,TMP
 !
-      LOGICAL                               :: WRITE_LOGICAL
+      REAL(KIND=KFPT),DIMENSION(:,:),ALLOCATABLE:: FACT10               &
+                                                  ,FACT10TMPU           &
+                                                  ,FACT10TMPV
+!
+      LOGICAL                               :: GLOBAL                   &
+                                              ,WRITE_LOGICAL
       LOGICAL,SAVE                          :: FIRST=.TRUE.
       LOGICAL,SAVE                          :: HST_FIRST=.TRUE.
       LOGICAL,SAVE                          :: RST_FIRST=.TRUE.
 !
       CHARACTER(ESMF_MAXSTR)                :: NAME,GFNAME
+      CHARACTER(2)                          :: MODEL_LEVEL
 !
       TYPE(ESMF_Logical)                    :: WORK_LOGICAL
 !
@@ -1669,7 +1678,7 @@
                                       ,NF_HOURS                         &
                                       ,NF_MINUTES                       &
                                       ,NF_SECONDS                       &
-                                      ,DIM1,DIM2,NBDR                   &
+                                      ,DIM1,DIM2,NBDR,GLOBAL            &
                                       ,LEAD_WRITE_TASK)
           FIELDSIZE=(DIM1+2*NBDR)*(DIM2+2*NBDR)
           ALLOCATE(TMP(FIELDSIZE))
@@ -1804,6 +1813,8 @@
 !***  NOW LOOP THROUGH ALL THE REAL Fields
 !-----------------------------------------------------------------------
 !
+      WRITE(MODEL_LEVEL,'(I2.2)')wrt_int_state%LM(1)
+!
 !-----------------------------------------------------------------------
       field_loop_real: DO NFIELD=1,wrt_int_state%KOUNT_R2D(1)              !<-- Loop through all 2D real gridded history data
 !-----------------------------------------------------------------------
@@ -1892,12 +1903,68 @@
           NPOSN_2=NFIELD*ESMF_MAXSTR
           NAME=wrt_int_state%NAMES_R2D_STRING(NPOSN_1:NPOSN_2)                       !<-- The name of this 2D real history quantity
 !
+!-----------------------------------------------------------------------
+!***  BEGIN COMPUTATION OF THE 10-M WIND FACTOR FOR GSI.
+!-----------------------------------------------------------------------
+!
+          IF(TRIM(NAME)=='U10') THEN
+            IF(.NOT.ALLOCATED(FACT10)) THEN
+              ALLOCATE(FACT10(1:IM,1:JM))
+!
+              DO J=1,JM
+              DO I=1,IM
+                FACT10(I,J)=0.
+              ENDDO
+              ENDDO
+            ENDIF
+!
+            DO J=1,JM
+            DO I=1,IM
+              FACT10(I,J)=FACT10(I,J)+                                  &
+                          wrt_int_state%OUTPUT_ARRAY_R2D(I,J)*          &
+                          wrt_int_state%OUTPUT_ARRAY_R2D(I,J)
+            ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(TRIM(NAME)=='V10') THEN
+            IF(.NOT.ALLOCATED(FACT10)) THEN
+              ALLOCATE(FACT10(1:IM,1:JM))
+              FACT10=0.
+            ENDIF
+!
+            DO J=1,JM
+            DO I=1,IM
+              FACT10(I,J)=FACT10(I,J)+                                 &
+                          wrt_int_state%OUTPUT_ARRAY_R2D(I,J)*         &
+                          wrt_int_state%OUTPUT_ARRAY_R2D(I,J)
+            ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(TRIM(NAME)=='U_'//MODEL_LEVEL//'_2D') THEN
+            ALLOCATE(FACT10TMPU(1:IM,1:JM))
+            CALL V_TO_H_BGRID(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM) &
+                             ,IM,JM,GLOBAL,FACT10TMPU)
+            write(0,*)'fact10tmpu=',maxval(fact10tmpu(1:im,1:jm)),minval(fact10tmpu(1:im,1:jm))
+          ENDIF
+!
+          IF(TRIM(NAME)=='V_'//MODEL_LEVEL//'_2D') THEN
+            ALLOCATE(FACT10TMPV(1:IM,1:JM))
+            CALL V_TO_H_BGRID(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM) &
+                             ,IM,JM,GLOBAL,FACT10TMPV)
+            write(0,*)'fact10tmpv=',maxval(fact10tmpv(1:im,1:jm)),minval(fact10tmpv(1:im,1:jm))
+          ENDIF
+!
           IF(wrt_int_state%WRITE_HST_FLAG)THEN
 !
             WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)wrt_int_state%OUTPUT_ARRAY_R2D   !<-- Lead write task writes out the 2D real data
 !
             IF(HST_FIRST)THEN
-              WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
+              WRITE(0,*)'Wrote ',TRIM(NAME)                                &
+                       ,' to history file unit ',wrt_int_state%IO_HST_UNIT &
+                       ,MAXVAL(wrt_int_state%OUTPUT_ARRAY_R2D)             &
+                       ,MINVAL(wrt_int_state%OUTPUT_ARRAY_R2D)
             ENDIF
           ENDIF
 !
@@ -1912,7 +1979,7 @@
                ' does not match data size in NEMSIO file,',FIELDSIZE
             ENDIF
 !
-            IF(TRIM(NAME)=='FIS')wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)=           &
+            IF(TRIM(NAME)=='FIS')wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)=          &
                   wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)/G
 !
             IF(TRIM(NAME)=='GLAT')THEN
@@ -1951,6 +2018,62 @@
 !-----------------------------------------------------------------------
 !
       ENDDO field_loop_real
+!
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  COMPLETE COMPUTATION OF 10-M WIND FACTOR AND WRITE IT OUT.
+!-----------------------------------------------------------------------
+!
+      write(0,*)'allocated fact10=',allocated(FACT10),allocated(FACT10TMPU),allocated(FACT10TMPV)
+      IF( MYPE==LEAD_WRITE_TASK )THEN
+        IF(ALLOCATED(FACT10).AND.ALLOCATED(FACT10TMPU).AND.ALLOCATED(FACT10TMPV)) THEN
+          write(0,*)'allocated fact10,fact10tmpu,fact10tmpv'
+          DO J=1,JM
+          DO I=1,IM
+            FACT10TMPV(I,J)=SQRT(FACT10TMPU(I,J)*FACT10TMPU(I,J)+       &
+                                 FACT10TMPV(I,J)*FACT10TMPV(I,J))
+          ENDDO
+          ENDDO
+!
+          write(0,*)'wind mgn=',maxval(FACT10TMPV(1:IM,1:JM)),minval(FACT10TMPV(1:IM,1:JM))
+          write(0,*)'wind10 mgn=',maxval(sqrt(FACT10(1:IM,1:JM))),minval(sqrt(FACT10(1:IM,1:JM)))
+!
+          DO J=1,JM
+          DO I=1,IM
+            IF(FACT10TMPV(I,J)/=0) THEN
+              FACT10(I,J)=SQRT(FACT10(I,J))/FACT10TMPV(I,J)
+            ELSE
+              FACT10(I,J)=1.
+            ENDIF
+          ENDDO
+          ENDDO
+!
+          DEALLOCATE(FACT10TMPU)
+          DEALLOCATE(FACT10TMPV)
+!
+          write(0,*)'WRITE_HST_FLAG=',wrt_int_state%WRITE_HST_FLAG,'NEMSIOFLAG=',wrt_int_state%WRITE_NEMSIOFLAG
+          IF(wrt_int_state%WRITE_HST_FLAG)THEN
+            WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)FACT10                    !<-- Lead write task writes out the 2D real data
+            write(0,*)'WRITE_HST_FLAG=',wrt_int_state%WRITE_HST_FLAG,'rc=',rc
+            IF(HST_FIRST)THEN
+              WRITE(0,*)'Wrote FACT10 to history file unit ',wrt_int_state%IO_HST_UNIT &
+                       ,maxval(fact10),minval(fact10)
+            ENDIF
+          ENDIF
+!
+          IF(wrt_int_state%WRITE_NEMSIOFLAG)THEN
+            N=N+1
+            TMP=RESHAPE(FACT10(1:IM,1:JM),(/FIELDSIZE/))
+            CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)
+            write(0,*)'after nemsio_writerec,n=',n,'fact10=',maxval(tmp),minval(tmp),'iret=',ierr
+          ENDIF
+!
+          DEALLOCATE(FACT10)
+!
+        ENDIF
+!
+      ENDIF
 !
       HST_FIRST=.FALSE.
 !
@@ -2241,7 +2364,7 @@
                                       ,NF_HOURS                         &
                                       ,NF_MINUTES                       &
                                       ,NF_SECONDS                       &
-                                      ,DIM1,DIM2,NBDR                   &
+                                      ,DIM1,DIM2,NBDR,GLOBAL            &
                                       ,LEAD_WRITE_TASK)
           FIELDSIZE=(DIM1+2*NBDR)*(DIM2+2*NBDR)
           ALLOCATE(TMP(FIELDSIZE))
@@ -2469,13 +2592,67 @@
           NPOSN_2=NFIELD*ESMF_MAXSTR
           NAME=wrt_int_state%RST_NAMES_R2D_STRING(NPOSN_1:NPOSN_2)                       !<-- The name of this 2D real restart quantity
 !
+!-----------------------------------------------------------------------
+!***  BEGIN COMPUTATION OF THE 10-M WIND FACTOR FOR GSI.
+!-----------------------------------------------------------------------
+!
+          IF(TRIM(NAME)=='U10') THEN
+            IF(.NOT.ALLOCATED(FACT10)) THEN
+              ALLOCATE(FACT10(1:IM,1:JM))
+!
+              DO J=1,JM
+              DO I=1,IM
+                FACT10(I,J)=0.
+              ENDDO
+              ENDDO
+            ENDIF
+!
+            DO J=1,JM
+            DO I=1,IM
+              FACT10(I,J)=FACT10(I,J)+                                 &
+                          wrt_int_state%RST_OUTPUT_ARRAY_R2D(I,J)*     &
+                          wrt_int_state%RST_OUTPUT_ARRAY_R2D(I,J)
+            ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(TRIM(NAME)=='V10') THEN
+            IF(.NOT.ALLOCATED(FACT10)) THEN
+              ALLOCATE(FACT10(1:IM,1:JM))
+              FACT10=0.
+            ENDIF
+!
+            DO J=1,JM
+            DO I=1,IM
+             FACT10(I,J)=FACT10(I,J)+                                  &
+                         wrt_int_state%RST_OUTPUT_ARRAY_R2D(I,J)*      &
+                         wrt_int_state%RST_OUTPUT_ARRAY_R2D(I,J)
+            ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(TRIM(NAME)=='U_'//MODEL_LEVEL//'_2D') THEN
+            ALLOCATE(FACT10TMPU(1:IM,1:JM))
+            CALL V_TO_H_BGRID(wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM) &
+                             ,IM,JM,GLOBAL,FACT10TMPU)
+          ENDIF
+!
+          IF(TRIM(NAME)=='V_'//MODEL_LEVEL//'_2D') THEN
+            ALLOCATE(FACT10TMPV(1:IM,1:JM))
+            CALL V_TO_H_BGRID(wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM) &
+                             ,IM,JM,GLOBAL,FACT10TMPV)
+          ENDIF
+
+!
           IF(wrt_int_state%WRITE_RST_FLAG)THEN
 !
             WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)wrt_int_state%RST_OUTPUT_ARRAY_R2D   !<-- Lead write task writes out the 2D real data
 !
             IF(RST_FIRST)THEN
-              WRITE(0,*)'Wrote ',TRIM(NAME),' to restart file unit ',wrt_int_state%IO_RST_UNIT &
-              ,maxval(wrt_int_state%RST_OUTPUT_ARRAY_R2D),minval(wrt_int_state%RST_OUTPUT_ARRAY_R2D)
+              WRITE(0,*)'Wrote ',TRIM(NAME)                                &
+                       ,' to restart file unit ',wrt_int_state%IO_RST_UNIT &
+                       ,MAXVAL(wrt_int_state%RST_OUTPUT_ARRAY_R2D)         &
+                       ,MINVAL(wrt_int_state%RST_OUTPUT_ARRAY_R2D)
             ENDIF
 !
           ENDIF
@@ -2531,6 +2708,49 @@
 !-----------------------------------------------------------------------
 !
       ENDDO rst_field_loop_real
+!
+!-----------------------------------------------------------------------
+!***  COMPLETE COMPUTATION OF 10-M WIND FACTOR AND WRITE IT OUT.
+!-----------------------------------------------------------------------
+!
+      IF(MYPE==LEAD_WRITE_TASK) THEN
+        IF(ALLOCATED(FACT10).AND.ALLOCATED(FACT10TMPU).AND.ALLOCATED(FACT10TMPV)) THEN
+!
+          DO J=1,JM
+          DO I=1,IM
+            FACT10TMPV(I,J)=SQRT(FACT10TMPU(I,J)*FACT10TMPU(I,J)+       &
+                                 FACT10TMPV(I,J)*FACT10TMPV(I,J) )
+!
+            IF(FACT10TMPV(I,J)/=0) THEN
+              FACT10(I,J)=SQRT(FACT10(I,J))/FACT10TMPV(I,J)
+            ELSE
+              FACT10(I,J)=1.
+            ENDIF
+          ENDDO
+          ENDDO
+!
+          DEALLOCATE(FACT10TMPU)
+          DEALLOCATE(FACT10TMPV)
+!
+          IF(wrt_int_state%WRITE_RST_FLAG)THEN
+            WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)FACT10                !<-- Lead write task writes out the 2D real data
+            IF(RST_FIRST)THEN
+              WRITE(0,*)'Wrote FACT10 to restart file unit ',wrt_int_state%IO_RST_UNIT &
+                       ,MAXVAL(fact10),MINVAL(fact10)
+            ENDIF
+          ENDIF
+
+          IF(wrt_int_state%WRITE_NEMSIOFLAG)THEN
+            N=N+1
+            TMP=RESHAPE(FACT10(1:IM,1:JM),(/FIELDSIZE/))
+            CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)
+             write(0,*)'after nemsio_writerec,n=',n,'fact10=',maxval(tmp),minval(tmp),'iret=',ierr
+          ENDIF
+!
+          DEALLOCATE(FACT10)
+
+        ENDIF
+      ENDIF
 !
       RST_FIRST=.FALSE.
 !

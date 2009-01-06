@@ -66,6 +66,7 @@ MODULES=	\
 		module_DM_PARALLEL.o \
 		module_EXCHANGE.o \
 		module_INCLUDE.o \
+		module_BGRID_INTERP.o \
 		module_GET_CONFIG_WRITE.o \
 		module_WRITE_GRID_COMP.o \
 		module_WRITE_ROUTINES.o \
@@ -105,6 +106,7 @@ clean:
 module_WRITE_GRID_COMP.o:       module_INCLUDE.o \
                                 module_CONTROL.o \
                                 module_WRITE_ROUTINES.o \
+				module_BGRID_INTERP.o \
                                 module_WRITE_INTERNAL_STATE.o \
                                 module_ERR_MSG.o
 

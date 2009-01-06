@@ -21,6 +21,8 @@
 !                                opens file and writes metadata.
 !       30 Sep 2008:  E. Colon - Generalize counts for nemsio
 !       14 Oct 2008:  R. Vasic - Added restart capability
+!       05 Jan 2009:  J. Wang  - Added 10-m wind factor to NMMB
+!                                runhistory and restart files.
 !
 !-----------------------------------------------------------------------
 !
@@ -3602,7 +3604,7 @@
                                         ,NF_HOURS                       &
                                         ,NF_MINUTES                     &
                                         ,NF_SECONDS                     &
-                                        ,DIM1,DIM2,NFRAME               &
+                                        ,DIM1,DIM2,NFRAME,GLOBAL        &
                                         ,LEAD_WRITE_TASK)
 !
 !-----------------------------------------------------------------------
@@ -3623,6 +3625,7 @@
                             ,LEAD_WRITE_TASK
 
       INTEGER,INTENT(OUT) :: DIM1,DIM2,NFRAME
+      LOGICAL,INTENT(OUT) :: GLOBAL
 !
       REAL,INTENT(IN)     :: NF_SECONDS                                 &
                             ,SECOND_FCST
@@ -3658,7 +3661,6 @@
       REAL(KIND=KFPT),DIMENSION(:)  ,POINTER :: VARRVAL
       REAL(KIND=KFPT),DIMENSION(:,:),POINTER :: ARYRVAL
 !
-      LOGICAL                      :: GLOBAL
       LOGICAL,DIMENSION(:),POINTER :: VARLVAL
 !
       CHARACTER(6)                       :: MODEL_LEVEL
@@ -3922,7 +3924,7 @@
 !
 !for nmmb whole domain
       FIELDSIZE=IM*JM
-      NREC=wrt_int_state%kount_I2D(1)+wrt_int_state%kount_R2D(1)
+      NREC=wrt_int_state%kount_I2D(1)+wrt_int_state%kount_R2D(1)+1        !add fact10 for GSI
 !
 !vcoord
       ALLOCATE(VCOORD(LM+1,3,2))
@@ -4043,6 +4045,13 @@
 !
         CALL LOWERCASE(RECNAME(NREC))
       ENDDO
+!
+!for fact10
+      NREC=NREC+1
+      RECNAME(NREC)='fact10'
+      RECLEVTYP(NREC)='10 m above gnd'
+      RECLEV(NREC)=1
+    
 !glat1d and glon1d
       ALLOCATE(GLAT1D(FIELDSIZE),GLON1D(FIELDSIZE))
       DEGRAD=90./ASIN(1.)
@@ -4316,7 +4325,7 @@
                                         ,NF_HOURS                       &
                                         ,NF_MINUTES                     &
                                         ,NF_SECONDS                     &
-                                        ,DIM1,DIM2,NFRAME               &
+                                        ,DIM1,DIM2,NFRAME,GLOBAL        &
                                         ,LEAD_WRITE_TASK)
 !
 !-----------------------------------------------------------------------
@@ -4337,6 +4346,7 @@
                             ,LEAD_WRITE_TASK
 
       INTEGER,INTENT(OUT) :: DIM1,DIM2,NFRAME         
+      LOGICAL,INTENT(OUT) :: GLOBAL
 !
       REAL,INTENT(IN)     :: NF_SECONDS                                 &
                             ,SECOND_FCST
@@ -4372,7 +4382,6 @@
       REAL(KIND=KFPT),DIMENSION(:)  ,POINTER :: VARRVAL
       REAL(KIND=KFPT),DIMENSION(:,:),POINTER :: ARYRVAL
 !
-      LOGICAL                      :: GLOBAL
       LOGICAL,DIMENSION(:),POINTER :: VARLVAL
 !
       CHARACTER(6)                       :: MODEL_LEVEL
@@ -4636,7 +4645,7 @@
 !
 !for nmmb trimmed domain
       FIELDSIZE=IM*JM
-      NREC=wrt_int_state%RST_kount_I2D(1)+wrt_int_state%RST_kount_R2D(1)
+      NREC=wrt_int_state%RST_kount_I2D(1)+wrt_int_state%RST_kount_R2D(1)+1 !add fact10 for GSI
 !
 !vcoord
       ALLOCATE(VCOORD(LM+1,3,2))
@@ -4758,7 +4767,13 @@
         CALL LOWERCASE(RECNAME(NREC))
       ENDDO
       write(0,*)'after R2D,nrec=',nrec,'kount_r2d=',wrt_int_state%RST_KOUNT_R2D(1)
-
+!
+!for fact10
+      NREC=NREC+1
+      RECNAME(NREC)='fact10'
+      RECLEVTYP(NREC)='10 m above gnd'
+      RECLEV(NREC)=1
+!
 !glat1d and glon1d
       ALLOCATE(GLAT1D(FIELDSIZE),GLON1D(FIELDSIZE))
       DEGRAD=90./ASIN(1.)
