@@ -7,7 +7,7 @@
      &     phy_f3d, phy_f2d,xlat,nblck,kdt,
      &     global_times_b)
 !!
-#include "f_hpm.h"
+! #include "f_hpm.h"
 !!
       use resol_def
       use layout1
@@ -22,7 +22,7 @@
       use d3d_def
       use gfs_physics_sfc_flx_mod
       use mersenne_twister
-      include 'mpif.h'
+      include '../../inc/mpif.h'
       implicit none
 !
       real(kind=kind_grid) grid_gr(lonr*lats_node_r_max,lotgr)

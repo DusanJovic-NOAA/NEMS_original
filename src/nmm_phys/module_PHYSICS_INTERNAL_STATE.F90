@@ -22,7 +22,7 @@
                                    ,ITS,ITE,JTS,JTE                    
 !
       USE MODULE_LANDSURFACE ,ONLY: NUM_SOIL_LAYERS
-      USE MODULE_MICROPHYSICS,ONLY: MICRO_RESTART
+      USE MODULE_MICROPHYSICS_NMM,ONLY: MICRO_RESTART
       USE MODULE_ERR_MSG     ,ONLY: ERR_MSG,MESSAGE_CHECK
 !
 !-----------------------------------------------------------------------
@@ -49,7 +49,7 @@
         INTEGER(KIND=KINT) :: IM,JM,LM                                  &
                              ,NHOURS_HISTORY                            &
                              ,NHOURS_RESTART                            &
-                             ,NSOIL                                     &  !<-- # of soil layers
+			     ,NSOIL                                     &
                              ,NUM_TRACERS_MET                           &  !<-- Number of meteorological tracers (e.g. water)
                              ,NUM_TRACERS_CHEM                          &  !<-- Number of chem/aerosol tracers
                              ,START_YEAR,START_MONTH,START_DAY          &
@@ -86,7 +86,10 @@
         REAL(KIND=KFPT) :: DYH,DYV,RDYH,RDYV,PDTOP,PT
 !
         REAL(KIND=KFPT),DIMENSION(:),POINTER :: DSG2,DXH,DXV,RDXH,RDXV  &
-                                               ,PDSG1,PSGML1,SGML2
+                                                ,PDSG1,PSGML1,SGML2
+!
+        REAL(KIND=KFPT),DIMENSION(:),POINTER :: PSG1,SG1,SG2,SGM
+
 !
         REAL(KIND=KFPT),DIMENSION(:,:),POINTER :: GLAT,GLON
 !
@@ -132,15 +135,16 @@
 !
         REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER :: EXCH_H
 !
-        REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER :: TCUCN,W0AVG,WINT
+        REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER :: TCUCN,W0AVG,WINT    &
+						    ,RQVBLTEN,RTHBLTEN   
 !
         REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER :: CLDFRA              &
                                                    ,F_ICE,F_RAIN        &
                                                    ,F_RIMEF             &
-                                                   ,RQVBLTEN,RTHBLTEN   &
                                                    ,TRAIN,XLEN_MIX
 !
-        REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER :: SMC,STC,SH2O
+        REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER ::                     &
+                                                   SMC,STC,SH2O
 !
         REAL(KIND=KFPT),DIMENSION(:,:),POINTER :: CROT,SROT             &
                          ,HANGL,HANIS,HASYS,HASYSW,HASYNW,HASYW,HCNVX   &
@@ -163,7 +167,7 @@
 !zj                                                 ,SST,THS,THZ0,USTAR    &
                                                  ,SST,STDH              & !zj
                                                  ,THS,THZ0,USTAR        & !zj
-                                                 ,UZ0,UZ0H,VZ0,VZ0H     &
+                                                 ,UZ0,VZ0               &
                                                  ,Z0,Z0BASE
 !
         REAL(KIND=KFPT),DIMENSION(:,:),POINTER :: ALBASE,ALBEDO         &
@@ -188,7 +192,7 @@
         REAL(KIND=KFPT),DIMENSION(:,:),POINTER :: ACPREC,ACSNOM,ACSNOW  &
                                                  ,CUPREC,CLDEFI         &
                                                  ,PREC,PSHLTR,Q02,Q10   &
-                                                 ,QSHLTR                &
+                                                 ,QSHLTR,PSFC           &
                                                  ,T2,TH02,TH10,TSHLTR   &
                                                  ,U10,V10
 !
@@ -298,7 +302,6 @@
       int_state%IME=IME
       int_state%JMS=JMS
       int_state%JME=JME
-!
       int_state%NSOIL=NUM_SOIL_LAYERS
 !
 !-----------------------------------------------------------------------
@@ -313,6 +316,11 @@
       ALLOCATE(int_state%PDSG1(1:LM))    ! Delta pressure (top domain)
       ALLOCATE(int_state%PSGML1(1:LM))   ! Midlayer pressure (top domain)
       ALLOCATE(int_state%SGML2(1:LM))    ! Midlayer sigma (bottom domain)
+!
+      ALLOCATE(INT_STATE%SG1(1:LM+1))    ! First hybrid component
+      ALLOCATE(INT_STATE%PSG1(1:LM+1))   ! First hybrid component press.
+      ALLOCATE(INT_STATE%SG2(1:LM+1))    ! Second hybrid component
+      ALLOCATE(INT_STATE%SGM(1:LM+1))    ! Reference sigma
 !
       ALLOCATE(int_state%RDXH(JDS:JDE))  ! 1./DX for H point rows !zj
       ALLOCATE(int_state%RDXV(JDS:JDE))  ! 1./DX for V point rows !zj
@@ -350,6 +358,7 @@
 !
       ALLOCATE(int_state%RQVBLTEN(IMS:IME,JMS:JME,1:LM+1)) ! Specific humidity tendency from turbulence  (kg kg-1 s-1)
       ALLOCATE(int_state%RTHBLTEN(IMS:IME,JMS:JME,1:LM+1)) ! Theta tendency from turbulence  (K s-1)
+
 !
       ALLOCATE(int_state%EXCH_H(IMS:IME,JMS:JME,1:LM))    ! Turbulent exchange coefficient for heat  (m2 s-1)
 !
@@ -509,18 +518,11 @@
       ENDDO
       ENDDO
 !
-      DO L=1,LM+1
       DO J=JMS,JME
+      DO L=1,LM+1
       DO I=IMS,IME
         int_state%RQVBLTEN(I,J,L)=-1.E6
         int_state%RTHBLTEN(I,J,L)=-1.E6
-      ENDDO
-      ENDDO
-      ENDDO
-!
-      DO J=JMS,JME
-      DO L=1,LM+1
-      DO I=IMS,IME
         int_state%W0AVG(I,L,J)=-1.E6
         int_state%WINT(I,L,J)=-1.E6
       ENDDO
@@ -536,6 +538,7 @@
       ENDDO
       ENDDO
       ENDDO
+!
 !
       ALLOCATE(int_state%ISLTYP(IMS:IME,JMS:JME))   ! Soil type
       ALLOCATE(int_state%IVGTYP(IMS:IME,JMS:JME))   ! Vegetation type
@@ -628,10 +631,8 @@
       ALLOCATE(int_state%TWBS(IMS:IME,JMS:JME))     ! Instantaneous sensible heat flux (W m-2)
       ALLOCATE(int_state%USTAR(IMS:IME,JMS:JME))    ! Friction velocity  (m s-1)
       ALLOCATE(int_state%UZ0(IMS:IME,JMS:JME))      ! U component at top of viscous sublayer  (m s-1)
-      ALLOCATE(int_state%UZ0H(IMS:IME,JMS:JME))     ! UZ0 on mass points  (m s-1)
       ALLOCATE(int_state%VEGFRC(IMS:IME,JMS:JME))   ! Vegetation fraction
       ALLOCATE(int_state%VZ0(IMS:IME,JMS:JME))      ! V component at top of viscous sublayer  (m s-1)
-      ALLOCATE(int_state%VZ0H(IMS:IME,JMS:JME))     ! VZ0 on mass points  (m s-1)
       ALLOCATE(int_state%Z0(IMS:IME,JMS:JME))       ! Roughness length  (m)
       ALLOCATE(int_state%Z0BASE(IMS:IME,JMS:JME))   ! Background roughness length  (m)
       ALLOCATE(int_state%CROT(IMS:IME,JMS:JME))     ! Cosine of the angle between Earth and model coordinates
@@ -740,10 +741,8 @@
         int_state%TWBS(I,J)    =-1.E6
         int_state%USTAR(I,J)   =-1.E6
         int_state%UZ0(I,J)     =-1.E6
-        int_state%UZ0H(I,J)    =-1.E6
         int_state%VEGFRC(I,J)  =-1.E6
         int_state%VZ0(I,J)     =-1.E6
-        int_state%VZ0H(I,J)    =-1.E6
         int_state%Z0(I,J)      =-1.E6
         int_state%Z0BASE(I,J)  =-1.E6
         int_state%CROT(I,J)    = 0.
@@ -771,7 +770,8 @@
       ALLOCATE(int_state%CUPREC(IMS:IME,JMS:JME))  ! Conv precip  (m)
       ALLOCATE(int_state%CLDEFI(IMS:IME,JMS:JME))  ! Convective cloud efficiency
       ALLOCATE(int_state%PREC(IMS:IME,JMS:JME))    ! Precip within physics timestep  (m)
-      ALLOCATE(int_state%pSHLTR(IMS:IME,JMS:JME))  ! Pressure at 2-m  (Pa)
+      ALLOCATE(int_state%PSHLTR(IMS:IME,JMS:JME))  ! Pressure at 2-m  (Pa)
+      ALLOCATE(int_state%PSFC(IMS:IME,JMS:JME))    ! Surface Pressure (Pa)
       ALLOCATE(int_state%Q02(IMS:IME,JMS:JME))     ! Specific humidity at 2-m  (kg k-1)
       ALLOCATE(int_state%Q10(IMS:IME,JMS:JME))     ! Specific humidity at 10-m  (kg k-1)
       ALLOCATE(int_state%QSHLTR(IMS:IME,JMS:JME))  ! Specific humidity at 2-m  (kg kg-1)
@@ -793,6 +793,7 @@
         int_state%PREC(I,J)  = 0.
         int_state%CLDEFI(I,J)=-1.E6
         int_state%PSHLTR(I,J)=-1.E6
+        int_state%PSFC(I,J)=-1.E6
         int_state%Q02(I,J)   = 0.
         int_state%Q10(I,J)   = 0.
         int_state%QSHLTR(I,J)= 0.

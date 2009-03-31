@@ -47,8 +47,8 @@ real(kind=kfpt),private :: &
 ,dt,rdyv &
 ,dsg2,pdsg1 &
 ,rdxv,wpdar &
-,fis,pd,pdo &
-,t,q,cw,dwdt &
+,fis,pd &
+,t,q,cw &
 ,pint &
 ,rtop &
 !---temporary arguments-------------------------------------------------
@@ -90,14 +90,12 @@ real(kind=kfpt),dimension(jds:jde),intent(in):: &
 
 real(kind=kfpt),dimension(ims:ime,jms:jme),intent(in):: &
  fis &                       ! surface geopotential
-,pd &                        ! sigma range pressure difference
-,pdo                         ! old sigma range pressure difference
+,pd                          ! sigma range pressure difference
 
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(in):: &
  t &                         ! temperature
 ,q &                         ! specific humidity
-,cw &                        ! condensate
-,dwdt                        ! nonhydrostatic correction factor
+,cw                          ! condensate
 
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm+1),intent(in):: &
  pint                        ! pressure at interfaces
@@ -127,17 +125,13 @@ integer(kind=kint):: &
 ,jcl &                       ! lower bound for no divergence correction
 ,jch &                       ! upper bound for no divergence correction
 ,l                           ! index in p direction
-                                                                                                                                              
+
 real(kind=kfpt):: &
  apd &                       ! hydrostatic pressure difference at the point
 ,apelp &                     ! pressure at the point
 ,dfip &                      ! delta phi
 ,dfdp &                      ! dfi/dp
 ,fiup &                      ! geopotential at the upper interface
-,pdnep &                     ! hydrostatic pressure difference at the point
-,pdnwp &                     ! hydrostatic pressure difference at the point
-,pdxp &                      ! hydrostatic pressure difference at the point
-,pdyp &                      ! hydrostatic pressure difference at the point
 ,ppne &                      ! first term of pgf, ne direction
 ,ppnw &                      ! first term of pgf, nw direction
 ,ppx &                       ! first term of pgf, x direction
@@ -146,34 +140,25 @@ real(kind=kfpt):: &
 ,rdv &                       !
 ,rpdp &                      !
 ,wprp                        ! divergence modification weight at the point
-                                                                                                                                              
+
 real(kind=kfpt),dimension(its_h1:ite_h1,jts_h1:jte_h1):: &
  apel &                      ! scratch, pressure in the middle of the layer
 ,dfi &                       ! scratch, delta phi
 ,filo &                      ! scratch, geopotential at lower interface
 ,fim                         ! scratch, geopotential in the middle of the layer
-real(kind=kfpt),dimension(its_h1:ite_h1,jts_h1:jte_h1,1:lm):: &
- apel_3d &                      ! scratch, 3d copy of pressure in the middle of the layer
-,fim_3d  &                      ! scratch, 3d copy of geopotential in the middle of the layer
-,dfi_3d                         ! scratch, 3d copy of delta phi
 
- 
-real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
- pdne &                      ! hydrostatic pressure difference at the point
-,pdnw                        ! hydrostatic pressure difference at the point
-real(kind=kfpt),dimension(its_b1:ite_h1,jts:jte_h1):: &
- pdx                         ! hydrostatic pressure difference at the point
- 
-real(kind=kfpt),dimension(its:ite_h1,jts_b1:jte_h1):: &
- pdy                         ! hydrostatic pressure difference at the point
- 
+real(kind=kfpt),dimension(its_h1:ite_h1,jts_h1:jte_h1,1:lm):: &
+ apel_3d &                   ! scratch, 3d copy of pressure in the middle of the layer
+,fim_3d  &                   ! scratch, 3d copy of geopotential in the middle of the layer
+,dfi_3d                      ! scratch, 3d copy of delta phi
+
 real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
  pgne &                      ! scratch, pgf, ne direction
 ,pgnw                        ! scratch, pgf, nw direction
- 
+
 real(kind=kfpt),dimension(its_b1:ite_h1,jts:jte_h1):: &
  pgx                         ! scratch, pgf, x direction
- 
+
 real(kind=kfpt),dimension(its:ite_h1,jts_b1:jte_h1):: &
  pgy                         ! scratch, pgf, y direction
 !-----------------
@@ -185,7 +170,7 @@ integer(kind=kint) :: &
 ,nth &
 ,omp_get_num_threads &
 ,omp_get_thread_num &
-,tid 
+,tid
 !-----------------
 #else
 !-----------------
@@ -201,29 +186,6 @@ integer(kind=kint) :: &
       do j=jts_h1,jte_h1
         do i=its_h1,ite_h1
           filo(i,j)=fis(i,j)
-        enddo
-      enddo
-!-----------------------------------------------------------------------
-      do j=jts,jte_h1
-        do i=its_b1,ite_h1
-          pdx (i,j)=((pd (i-1,j)+pd (i,j))*cfc &
-                    +(pdo(i-1,j)+pdo(i,j))*bfc)*0.5
-        enddo
-      enddo
-!
-      do j=jts_b1,jte_h1
-        do i=its,ite_h1
-          pdy (i,j)=((pd (i,j-1)+pd (i,j))*cfc &
-                    +(pdo(i,j-1)+pdo(i,j))*bfc)*0.5
-        enddo
-      enddo
-!
-      do j=jts_b1,jte_h1
-        do i=its_b1,ite_h1
-          pdne(i,j)=((pd (i-1,j-1)+pd (i,j))*cfc &
-                    +(pdo(i-1,j-1)+pdo(i,j))*bfc)*0.5
-          pdnw(i,j)=((pd (i,j-1)+pd (i-1,j))*cfc &
-                    +(pdo(i,j-1)+pdo(i-1,j))*bfc)*0.5
         enddo
       enddo
 !-----------------------------------------------------------------------
@@ -274,8 +236,8 @@ integer(kind=kint) :: &
 !-----------------
 !.......................................................................
 !$omp parallel do &
-!$omp private (l,j,i,fim,apel,dfi,pdxp,ppx,pgx,pdyp,ppy,pgy, &
-!$omp          pdnep,pdnwp,ppne,ppnw,pgne,pgnw,jcl,jch,wprp,rdv,rdu,apd,&
+!$omp private (l,j,i,fim,apel,dfi,ppx,pgx,ppy,pgy, &
+!$omp          ppne,ppnw,pgne,pgnw,jcl,jch,wprp,rdv,rdu,apd,&
 !$omp          rpdp)
 !.......................................................................
 !-----------------------------------------------------------------------
@@ -294,9 +256,9 @@ integer(kind=kint) :: &
 !-----------------------------------------------------------------------
         do j=jts,jte_h1
           do i=its_b1,ite_h1
-            pdxp=(dsg2(l)*pdx(i,j)+pdsg1(l))*0.5
-            ppx=(fim(i,j)-fim(i-1,j))  &
-               *(dwdt(i-1,j,l)+dwdt(i,j,l))*pdxp
+            ppx=(fim(i,j)-fim(i-1,j)) &
+               *(pint(i  ,j ,l+1)+pint(i-1,j  ,l+1) &
+                -pint(i  ,j ,l  )-pint(i-1,j  ,l  ))*0.5
             pcx(i,j,l)=(dfi (i-1,j  )+dfi (i  ,j  )) &
                       *(apel(i  ,j  )-apel(i-1,j  ))
             pgx(i,j)=ppx+pcx(i,j,l)
@@ -305,9 +267,9 @@ integer(kind=kint) :: &
 !
         do j=jts_b1,jte_h1
           do i=its,ite_h1
-            pdyp=(dsg2(l)*pdy(i,j)+pdsg1(l))*0.5
-            ppy=(fim(i,j)-fim(i,j-1))  &
-               *(dwdt(i,j-1,l)+dwdt(i,j,l))*pdyp
+            ppy=(fim(i,j)-fim(i,j-1)) &
+               *(pint(i ,j ,l+1)+pint(i  ,j-1,l+1) &
+                -pint(i ,j ,l  )-pint(i  ,j-1,l  ))*0.5
             pcy(i,j,l)=(dfi (i  ,j-1)+dfi (i  ,j  )) &
                       *(apel(i  ,j  )-apel(i  ,j-1))
             pgy(i,j)=ppy+pcy(i,j,l)
@@ -316,15 +278,15 @@ integer(kind=kint) :: &
 !
         do j=jts_b1,jte_h1
           do i=its_b1,ite_h1
-            pdnep=(dsg2(l)*pdne(i,j)+pdsg1(l))*0.5
-            pdnwp=(dsg2(l)*pdnw(i,j)+pdsg1(l))*0.5
-            ppne=(fim(i,j)-fim(i-1,j-1))  &
-                *(dwdt(i-1,j-1,l)+dwdt(i,j,l))*pdnep
-            ppnw=(fim(i-1,j)-fim(i,j-1))  &
-                *(dwdt(i,j-1,l)+dwdt(i-1,j,l))*pdnwp
-            pcne(i,j,l)=(dfi (i-1,j-1)+dfi (i  ,j  )) & 
+            ppne=(fim(i,j)-fim(i-1,j-1)) &
+                *(pint(i-1,j-1,l+1)+pint(i  ,j  ,l+1) &
+                 -pint(i-1,j-1,l  )-pint(i  ,j  ,l  ))*0.5
+            ppnw=(fim(i-1,j)-fim(i,j-1)) &
+                *(pint(i-1,j  ,l+1)+pint(i  ,j-1,l+1) &
+                 -pint(i-1,j  ,l  )-pint(i  ,j-1,l  ))*0.5
+            pcne(i,j,l)=(dfi (i-1,j-1)+dfi (i  ,j  )) &
                        *(apel(i  ,j  )-apel(i-1,j-1))
-            pcnw(i,j,l)=(dfi (i  ,j-1)+dfi (i-1,j  )) & 
+            pcnw(i,j,l)=(dfi (i  ,j-1)+dfi (i-1,j  )) &
                        *(apel(i-1,j  )-apel(i  ,j-1))
             pgne(i,j)=ppne+pcne(i,j,l)
             pgnw(i,j)=ppnw+pcnw(i,j,l)
@@ -727,6 +689,7 @@ integer(kind=kint) :: &
 (lm &
 ,ddmpv,pdtop &
 ,dsg2,pdsg1 &
+,sg1,sg2 &
 ,ddmpu &
 ,pd,pdo &
 ,u,v &
@@ -742,46 +705,54 @@ real(kind=kfpt),parameter:: &
 !-----------------------------------------------------------------------
 integer(kind=kint),intent(in):: &
  lm                          ! total # of levels
- 
+
 real(kind=kfpt),intent(in):: &
  ddmpv &                     ! divergence damping, v component
 ,pdtop                       ! pressure coordinate depth
- 
+
 real(kind=kfpt),dimension(1:lm),intent(in):: &
  dsg2 &                      ! delta sigmas
 ,pdsg1                       ! delta pressures
- 
+
+real(kind=kfpt),dimension(1:lm+1),intent(in):: &
+ sg1 &                       !
+,sg2                         !
+
 real(kind=kfpt),dimension(jds:jde),intent(in):: &
  ddmpu                       ! divergence damping, u direction
- 
+
 real(kind=kfpt),dimension(ims:ime,jms:jme),intent(in):: &
  pd &                        ! sigma range pressure difference
 ,pdo                         ! sigma range pressure difference
- 
+
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
  u &                         ! u wind component
 ,v                           ! v wind component
- 
+
 !---temporary arguments-------------------------------------------------
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
  div                         ! horizontal mass divergence
- 
+
 !--local variables------------------------------------------------------
 logical(kind=klog):: &
  extmod                      ! external mode divergence damping
- 
+
 integer(kind=kint):: &
  i &                         ! index in x direction
 ,j &                         ! index in y direction
 ,l                           ! index in p direction
- 
+
 real(kind=kfpt):: &
- fcim &                      !
+ dfac &                      ! fcim enhancement factor at top
+,dpb &                       !
+,dpl &                       !
+,fcim &                      ! relative weight of internal mode damping
 ,fcxm &                      ! blow up factor for external mode damping
+,fint &                      !
 ,rdpd &                      !
 ,dud &                       !
 ,dvd                         !
- 
+
 real(kind=kfpt),dimension(ims:ime,jms:jme):: &
  apd &                       !
 ,dive &                      !
@@ -809,6 +780,11 @@ integer(kind=kint) :: &
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
+      fcim=1.
+      dfac=9.
+      dpb=1500.
+      fint=(1.-dfac)/dpb
+!-----------------------------------------------------------------------
 !
       dvd=ddmpv
       do j=jts_b1,jte_b2
@@ -827,8 +803,7 @@ integer(kind=kint) :: &
       extmod=.false.
       extmod=.true.
       if(extmod) then
-        fcxm=1.
-        fcim=1.
+        fcxm=1.0
 !
 !-----------------
 #ifdef ENABLE_SMP
@@ -872,7 +847,7 @@ integer(kind=kint) :: &
         do j=jts_b1,jte_b2
           dud=ddmpu(j)
           do i=its_b1,ite_b2
-            rdpd=fcxm/(apd(i,j)+pdtop)
+            rdpd=fcxm/(sg1(lm+1)*pdtop+sg2(lm+1)*apd(i,j))
             rddu(i,j)=(dive(i+1,j)+dive(i+1,j+1) &
                       -dive(i  ,j)-dive(i  ,j+1))*dud*rdpd
             rddv(i,j)=(dive(i,j+1)+dive(i+1,j+1) &
@@ -883,9 +858,16 @@ integer(kind=kint) :: &
         jstart = jts_b1
         jstop = jte_b2
 !.......................................................................
-!$omp parallel do private(l,j,i,dud,rdpd)
+!$omp parallel do private(l,dpl,fcim,j,i,dud,rdpd)
 !.......................................................................
         do l=1,lm
+          dpl=sg1(l+1)*pdtop+sg2(l+1)*10000.
+          if(dpl.lt.dpb) then
+            fcim=fint*dpl+dfac
+          else
+            fcim=1.
+          endif
+!
           do j=jstart,jstop
             dud=ddmpu(j)
             do i=its_b1,ite_b2
@@ -911,14 +893,21 @@ integer(kind=kint) :: &
 !---divergence damping--------------------------------------------------
 !-----------------------------------------------------------------------
 !.......................................................................
-!$omp parallel do private(l,j,i,dvd,dud,rdpd)
+!$omp parallel do private(l,dpl,fcim,j,i,dvd,dud,rdpd)
 !.......................................................................
         do l=1,lm
+          dpl=sg1(l+1)*pdtop+sg2(l+1)*10000.
+          if(dpl.lt.dpb) then
+            fcim=fint*dpl+dfac
+          else
+            fcim=1.
+          endif
+!
           dvd=ddmpv
           do j=jts_b1,jte_b2
             dud=ddmpu(j)
             do i=its_b1,ite_b2
-              rdpd=1./(dsg2(l)*apd(i,j)+pdsg1(l))
+              rdpd=fcim/(dsg2(l)*apd(i,j)+pdsg1(l))
               u(i,j,l)=(div(i+1,j,l)+div(i+1,j+1,l) &
                        -div(i  ,j,l)-div(i  ,j+1,l)) &
                       *dud*rdpd+u(i,j,l)
@@ -1128,27 +1117,27 @@ real(kind=kfpt),parameter:: &
 ,w1=1.0 &                    ! crank-nicholson uncentering
 !,w1=0.0 &                    ! crank-nicholson uncentering
 ,w2=2.-w1                    ! crank-nicholson uncentering
- 
+
 logical(kind=klog),intent(in):: &
  global &                    ! global or regional
 ,secadv                      ! second order momentum advection
- 
+
 integer(kind=kint),intent(in):: &
  lm &                        ! total # of levels
 ,lnsad &                     ! # of boundary lines w. upstream advection
 ,inpes &                     ! domain decomposition parameter
 ,jnpes                       ! domain decomposition parameter
- 
+
 real(kind=kfpt),intent(in):: &
  dt &                        ! dynamics time step
 ,dyv &                       ! deltay
 ,rdyh &                      ! 1/deltay
 ,rdyv                        ! 1/deltay
- 
+
 real(kind=kfpt),dimension(1:lm),intent(in):: &
  dsg2 &                      ! delta sigmas
 ,pdsg1                       ! delta pressures
- 
+
 real(kind=kfpt),dimension(jds:jde),intent(in):: &
  curv &                      ! curvature
 ,dxv &                       ! dxv
@@ -1156,21 +1145,21 @@ real(kind=kfpt),dimension(jds:jde),intent(in):: &
 ,fah &                       ! grid factor
 ,rdxh &                      ! 1/deltax
 ,rdxv                        ! 1/deltax
- 
+
 real(kind=kfpt),dimension(ims:ime,jms:jme),intent(in):: &
  f &                         ! coriolis parameter
 ,pd &                        ! sigma range pressure difference
 ,pdo                         ! sigma range pressure difference
- 
+
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm-1),intent(in):: &
  psgdt                       ! vertical mass flux
- 
+
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(in):: &
  omgalf &                    !
 ,t &                         ! temperature
 ,u &                         ! u wind component
 ,v                           ! v wind component
- 
+
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
  tp &                        ! old temperature
 ,up &                        ! old u
@@ -1183,7 +1172,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(in) :: &
 ,pfnw &                      ! mass flux, nw direction
 ,pfx &                       ! mass flux, x direction
 ,pfy                         ! mass flux, y direction
- 
+
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(out) :: &
  tct &                       ! time change of temperature
 ,tcu &                       ! time change of u
@@ -1201,7 +1190,7 @@ integer(kind=kint):: &
 ,jbeg &                      ! starting j in some horiz advec loops
 ,jend &                      ! ending j in some horiz advec loops
 ,l                           ! index in p direction
- 
+
 real(kind=kfpt):: &
  cf &                        ! temporary
 ,cmt &                       ! temporary
@@ -1232,11 +1221,11 @@ real(kind=kfpt):: &
 ,vvlo &                      ! vertical velocity, lower interface
 ,vvup &                      ! vertical velocity, upper interface
 ,pvvup                       ! vertical mass flux, upper interface
- 
+
 real(kind=kfpt),dimension(its:ite,jts:jte):: &
  pdop &                      ! hydrostatic pressure difference at v points
 ,pvvlo                       ! vertical mass flux, lower interface
- 
+
 real(kind=kfpt),dimension(its_b1:ite_b1_h1,jts_b1:jte_b1_h1):: &
  pfnex1 &                    ! average mass flux for momentum advection
 ,pfney1 &                    ! average mass flux for momentum advection
@@ -1262,29 +1251,29 @@ real(kind=kfpt),dimension(its_b1:ite_b1_h1,jts_b1:jte_b1_h1):: &
 ,vfxy1 &                     ! average mass flux for momentum advection
 ,vfyx1 &                     ! average mass flux for momentum advection
 ,vfyy1                       ! average mass flux for momentum advection
- 
+
 real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
  tne &                       ! temperature flux, ne direction
 ,tnw &                       ! temperature flux, nw direction
 ,tx &                        ! temperature flux, x direction
 ,ty                          ! temperature flux, y direction
- 
+
 real(kind=kfpt),dimension(its_h1:ite_h1,jts_h1:jte_h1):: &
  t1                          ! extrapolated temperature between time levels
- 
+
 real(kind=kfpt),dimension(ims:ime,jms:jme):: &
  u2d &                       ! 4th order diagonal u between time levels
 ,v2d &                       ! 4th order diagonal v between time levels
- 
+
 !real(kind=kfpt),dimension(its_h1:ite_h1,jts_h1:jte_h1):: &
 ,u1d &                       ! extrapolated diagonal u between time levels
 ,v1d                         ! extrapolated diagonal v between time levels
- 
+
 real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
  crt &                       ! vertical advection temporary
 ,rcmt &                      ! vertical advection temporary
 ,rstt                        ! vertical advection temporary
- 
+
 real(kind=kfpt),dimension(its_b1:ite_b2,jts_b1:jte_b2,1:lm):: &
  crw &                       ! vertical advection temporary
 ,rcmw &                      ! vertical advection temporary
@@ -1447,11 +1436,12 @@ integer(kind=kint) :: &
           do j=jbeg,jend
             fahp=fah(j)
             do i=ibeg,iend
-            tct(i,j,l)=(((tx(i,j)+tx(i+1,j)+ty(i,j)+ty(i,j+1)) &
-                        +(tne(i+1,j+1)+tne(i,j) &
-                         +tnw(i,j+1)+tnw(i+1,j))*0.25)*fahp) &
-                      /(dsg2(l)*pdop(i,j)+pdsg1(l)) &
-                      +omgalf(i,j,l)+tct(i,j,l)
+              tct(i,j,l)=(((tx (i  ,j  )+tx (i+1,j  ) &
+                           +ty (i  ,j  )+ty (i  ,j+1)) &
+                          +(tne(i+1,j+1)+tne(i  ,j  ) &
+                           +tnw(i  ,j+1)+tnw(i+1,j  ))*0.25)*fahp) &
+                        /(dsg2(l)*pdop(i,j)+pdsg1(l)) &
+                        +omgalf(i,j,l)+tct(i,j,l)
             enddo
           enddo
         endif
@@ -1702,7 +1692,8 @@ integer(kind=kint) :: &
 !$omp private (u1d,v1d,crv,fp,fpp,pfxx1,pfyx1,pfnex1,pfnwx1,pfxy1,pfyy1, &
 !$omp          pfney1,pfnwy1,u2d,v2d,ufxx1,ufyx1,ufnex1,ufnwx1,          &
 !$omp          ufxy1,ufyy1,ufney1,ufnwy1,vfxx1,vfyx1,vfnex1,vfnwx1,vfxy1, &
-!$omp          vfyy1,vfney1,vfnwy1,rdyp,ibeg,iend,jbeg,jend,fadp,rdxp,    &                     
+!$omp          vfyy1,vfney1,vfnwy1,rdyp,ibeg,iend,jbeg,jend,fadp,rdxp,    &
+
 !$omp          fdpp,dux1,dvx1,duy1,dvy1,envp,emvp, pp,qq,iap,jap,j,i)
 !.......................................................................
 !-----------------------------------------------------------------------
@@ -1877,25 +1868,25 @@ integer(kind=kint) :: &
 !
               fdpp=fadp/(dsg2(l)*pdop(i,j)+pdsg1(l))
 !
-              dux1= ufxx1 (i  ,j  )+ufxx1 (i+1,j  ) &
-                   +ufyx1 (i  ,j  )+ufyx1 (i  ,j+1) &
-                  +(ufnex1(i+1,j+1)+ufnex1(i  ,j  ) &
-                   +ufnwx1(i  ,j+1)+ufnwx1(i+1,j  ))*0.25
+              dux1=(ufnex1(i+1,j+1)+ufnex1(i  ,j  ) &
+                   +ufnwx1(i  ,j+1)+ufnwx1(i+1,j  ))*0.25 &
+                  +(ufxx1 (i  ,j  )+ufxx1 (i+1,j  ) &
+                   +ufyx1 (i  ,j  )+ufyx1 (i  ,j+1))
 !
-              dvx1= vfxx1 (i  ,j  )+vfxx1 (i+1,j  ) &
-                   +vfyx1 (i  ,j  )+vfyx1 (i  ,j+1) &
-                  +(vfnex1(i+1,j+1)+vfnex1(i  ,j  ) &
-                   +vfnwx1(i  ,j+1)+vfnwx1(i+1,j  ))*0.25
+              dvx1=(vfnex1(i+1,j+1)+vfnex1(i  ,j  ) &
+                   +vfnwx1(i  ,j+1)+vfnwx1(i+1,j  ))*0.25 &
+                  +(vfxx1 (i  ,j  )+vfxx1 (i+1,j  ) &
+                   +vfyx1 (i  ,j  )+vfyx1 (i  ,j+1))
 !
-              duy1= ufxy1 (i  ,j  )+ufxy1 (i+1,j  ) &
-                   +ufyy1 (i  ,j  )+ufyy1 (i  ,j+1) &
-                  +(ufney1(i+1,j+1)+ufney1(i  ,j  ) &
-                   +ufnwy1(i  ,j+1)+ufnwy1(i+1,j  ))*0.25
+              duy1=(ufney1(i+1,j+1)+ufney1(i  ,j  ) &
+                   +ufnwy1(i  ,j+1)+ufnwy1(i+1,j  ))*0.25 &
+                  +(ufxy1 (i  ,j  )+ufxy1 (i+1,j  ) &
+                   +ufyy1 (i  ,j  )+ufyy1 (i  ,j+1))
 !
-              dvy1= vfxy1 (i  ,j  )+vfxy1 (i+1,j  ) &
-                   +vfyy1 (i  ,j  )+vfyy1 (i  ,j+1) &
-                  +(vfney1(i+1,j+1)+vfney1(i  ,j  ) &
-                   +vfnwy1(i  ,j+1)+vfnwy1(i+1,j  ))*0.25
+              dvy1=(vfney1(i+1,j+1)+vfney1(i  ,j  ) &
+                   +vfnwy1(i  ,j+1)+vfnwy1(i+1,j  ))*0.25 &
+                  +(vfxy1 (i  ,j  )+vfxy1 (i+1,j  ) &
+                   +vfyy1 (i  ,j  )+vfyy1 (i  ,j+1))
 !
               tcu(i,j,l)=((dvx1-dvy1)*dxody+(dux1+duy1))*fdpp &
                         +tcu(i,j,l)
@@ -2156,15 +2147,6 @@ integer(kind=kint) :: &
 !-----------------
 !-----------------------------------------------------------------------
 !***********************************************************************
-!-----------------------------------------------------------------------
-!      do l=1,lm !!!debugggggggg!!!!!!!
-!        do j=jds,jde
-!          do i=ids,ide
-!            tct(i,j,l)=0.
-!          enddo
-!        enddo
-!      enddo
-!-----------------------------------------------------------------------
 !-----------------
 #ifdef ENABLE_SMP
 !-----------------
@@ -2182,6 +2164,17 @@ integer(kind=kint) :: &
 !-----------------
 #endif 
 !-----------------
+
+
+!do l=1,lm
+!  do j=jstart,jstop
+!    do i=its_b1,ite_b1
+!      tct(i,j,l)=0.
+!    enddo
+!  enddo
+!enddo
+
+
       do j=jstart,jstop
         do i=its_b1,ite_b1
           pint(i,j,1)=pt
@@ -2363,7 +2356,7 @@ integer(kind=kint):: &
 implicit none
 !-----------------------------------------------------------------------
 real(kind=kfpt),parameter:: &
- cflfc=1./(160.*160.)        ! cfl limit
+ cflfc=1./(140.*140.)        ! cfl limit
            
 integer(kind=kint),intent(in):: &
  lm                          ! total # of levels
@@ -2439,7 +2432,6 @@ implicit none
 !-----------------------------------------------------------------------
 real(kind=kfpt),parameter:: &
  scq2=50. &                  ! 2tke weighting factor
-,defm=1.35e-3/2. &           ! deformation cap, /4. for smag2=0.4
 ,epsq=1.e-20 &               ! floor value for specific humidity
 ,epsq2=0.02 &                ! floor value for 2tke
 ,slopec=.05                  ! critical slope
@@ -2455,8 +2447,8 @@ integer(kind=kint),intent(in):: &
 ,jnpes &                     ! n-s # of subdomains
 ,lm &                        ! total # of levels
 ,lpt2 &                       ! # of levels in the pressure range
-,hdiff_on
-           
+,hdiff_on           
+
 real(kind=kfpt),intent(in):: &
  dyh &                       !
 ,rdyh                        ! 1/deltay
@@ -2499,11 +2491,12 @@ integer(kind=kint):: &
 ,l                           ! index in p direction
            
 real(kind=kfpt):: &
- defc &                      ! deformation floor
-,def1 &                      ! component of deformation
+ def1 &                      ! component of deformation
 ,def2 &                      ! component of deformation
 ,def3 &                      ! component of deformation
 ,def4 &                      ! component of deformation
+,defc &                      ! deformation floor
+,defm &                      ! deformation cap
 ,defp &                      ! deformation at the point
 ,defs &                      ! component of deformation
 ,deft &                      ! component of deformation
@@ -2542,33 +2535,38 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-!
-     do l=1,lm
-      if(s_bdy)then
-        do i=ims,ime
-          def3d(i,jds,l)=0.
-        enddo
+      if(global) then
+        defm=1.35e-3/2./4. ! deformation cap, /4. for smag2=0.4
+      else
+        defm=9999.
       endif
+!-----------------------------------------------------------------------
 !
-      if(n_bdy)then
-        do i=ims,ime
-          def3d(i,jde,l)=0.
-        enddo
-      endif
+      do l=1,lm
+       if(s_bdy)then
+         do i=ims,ime
+           def3d(i,jds,l)=0.
+         enddo
+       endif
 !
-      if(w_bdy)then
-        do j=jms,jme
-          def3d(ids,j,l)=0.
-        enddo
-      endif
+       if(n_bdy)then
+         do i=ims,ime
+           def3d(i,jde,l)=0.
+         enddo
+       endif
 !
-      if(e_bdy)then
-        do j=jms,jme
-          def3d(ide,j,l)=0.
-        enddo
-      endif
-    enddo
-
+       if(w_bdy)then
+         do j=jms,jme
+           def3d(ids,j,l)=0.
+         enddo
+       endif
+!
+       if(e_bdy)then
+         do j=jms,jme
+           def3d(ide,j,l)=0.
+         enddo
+       endif
+     enddo
 !
 !-----------------------------------------------------------------------
 !---grand vertical loop-------------------------------------------------
@@ -2791,7 +2789,6 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
             enddo
           enddo
           endif
-
 !-----------------------------------------------------------------------
 !
         enddo vertical_loop_3
@@ -3409,8 +3406,8 @@ integer(kind=kint) :: &
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
                         subroutine cdwdt &
-(global,hydro,inpes,jnpes &
-,lm,ntsd,restart &
+(global,hydro,restart &
+,inpes,jnpes,lm,ntsd &
 ,dt,g &
 ,dsg2,pdsg1 &
 ,fah &
@@ -3502,7 +3499,7 @@ integer(kind=kint):: &
 ,lmx &                       !
 ,kn &                        ! counter
 ,kp &                        ! counter
-,ks                        ! smoothing counter
+,ks                          ! smoothing counter
 
 real(kind=kfpt):: &
  dwdtmn &                    ! minimum value of dwdt
@@ -3529,8 +3526,7 @@ real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
       mype=mype_share
 !
 !-----------------------------------------------------------------------
-      if(.not.restart.and.(hydro.or.ntsd.lt.2).or.                      &
-         restart.and.hydro) then
+      if(hydro.or.(.not.hydro.and..not.restart.and.ntsd.lt.2)) then
 !-----------------------------------------------------------------------
         do l=1,lm
           do j=jts,jte
@@ -3863,7 +3859,7 @@ real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
                         subroutine vsound &
-(global,hydro &
+(global,hydro,restart &
 ,lm,ntsd &
 ,cp,dt,pt &
 ,dsg2,pdsg1 &
@@ -3884,7 +3880,8 @@ real(kind=kfpt),parameter:: &
 !-----------------------------------------------------------------------
 logical(kind=klog),intent(in):: &
  global &                    ! global or regional
-,hydro                       ! hydrostatic or nonhydrostatic
+,hydro &                     ! hydrostatic or nonhydrostatic
+,restart                     ! restart case
 
 integer(kind=kint),intent(in):: &
  lm &                        ! total # of levels
@@ -4191,7 +4188,7 @@ integer(kind=kint) :: &
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
-include 'kind.inc'
+include '../../inc/kind.inc'
 !-----------------------------------------------------------------------
 real(kind=kfpt),parameter:: &
  cfc=1.533 &                 ! adams-bashforth positioning in time
@@ -4717,7 +4714,7 @@ integer(kind=kint) :: &
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
-include 'kind.inc'
+include '../../inc/kind.inc'
 !-----------------------------------------------------------------------
 real(kind=kfpt),parameter:: &
  epsq=1.e-20 &               ! floor value for specific humidity
@@ -5102,6 +5099,1454 @@ real(kind=kdbl),save :: sumdrrw=0.
                         endsubroutine mono
 !
 !-----------------------------------------------------------------------
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!-----------------------------------------------------------------------
+                        subroutine vadv2 &
+(lm,idtad &
+,dt &
+,dsg2,pdsg1,psgml1,sgml2 &
+,pd &
+,psgdt &
+,cw,q,q2,rrw &
+!temporary argument passing
+,e2)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!-----------------------------------------------------------------------
+implicit none
+!-----------------------------------------------------------------------
+logical(kind=klog),parameter:: &
+ traditional=.false.         !
+
+integer(kind=kint),parameter:: &
+ nsmud=0                     ! number of smoothing iterations
+
+real(kind=kfpt),parameter:: &
+ conserve_max=1.5 &          ! max limit on conservation ratios
+,conserve_min=0.5 &          ! min limit on conservation ratios
+,epsq=1.e-20 &               ! floor value for specific humidity
+,epsq2=0.02 &                ! floor value for 2tke
+,ff1=0.52500 &               ! antifiltering weighting factor
+!ff1=0.50000 &               ! antifiltering weighting factor
+,ff2=-0.64813 &              ! antifiltering weighting factor
+,ff3=0.24520 &               ! antifiltering weighting factor
+,ff4=-0.12189                ! antifiltering weighting factor
+!-----------------------------------------------------------------------
+integer(kind=kint),intent(in):: &
+ lm &                        ! total # of levels
+,idtad                       ! timestep factor
+
+real(kind=kfpt),intent(in):: &
+ dt                          ! dynamics time step
+
+real(kind=kfpt),dimension(1:lm),intent(in):: &
+ dsg2 &                      ! delta sigma
+,pdsg1 &                     ! delta pressure
+,psgml1 &                    ! pressure at midlevels
+,sgml2                       ! sigma at midlevels
+
+real(kind=kfpt),dimension(ims:ime,jms:jme),intent(in):: &
+ pd                          ! sigma range pressure difference
+
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm-1),intent(in):: &
+ psgdt                       ! vertical mass flux
+
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
+ cw &                        ! condensate
+,q &                         ! specific humidity
+,q2 &                        ! 2tke
+,rrw                         ! rt/p
+!-----------------------------------------------------------------------
+!---temporary arguments-------------------------------------------------
+!-----------------------------------------------------------------------
+!
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
+ e2                          ! 2TKE in the layers
+!
+!-----------------------------------------------------------------------
+!--local variables------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+!*** This next group of four arrays is dimensioned with haloes
+!*** since they are used as primary arrays.
+!
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm) :: &
+ e1 &                        ! scratch, 2tke
+,g1 &                        ! scratch, rrw
+,q1 &                        ! scratch, specific humidity
+,w1                          ! scratch, condensate
+!
+integer(kind=kint):: &
+ i &                         ! index in x direction
+,j &                         ! index in y direction
+,l &                         ! index in p direction
+,lap &                       ! l increment next to departure point
+,llap                        ! vertical index next to departure point
+
+real(kind=kfpt):: &
+ addt &                      ! dt*idtad, time step
+,afrp &                      !
+,q1p &                       !
+,w1p &                       !
+,g1p &                       !
+,e1p &                       !
+,dqp &                       !
+,dwp &                       !
+,dgp &                       !
+,dep &                       !
+,dpdn &                      !
+,dpup &                      !
+,rdpdn &                     !
+,rdpup &                     !
+,d2pqq &                     !
+,d2pqw &                     !
+,d2pqg &                     !
+,d2pqe &                     !
+,ep &                        !
+,e00 &                       !
+,ep0 &                       !
+,gp &                        !
+,g00 &                       !
+,gp0 &                       !
+,qp &                        !
+,q00 &                       !
+,qp0 &                       !
+,wp &                        !
+,w00 &                       !
+,wp0 &                       !
+,pdsg &                      !
+,psgdtp &                    ! vertical mass flux
+,rfc &                       !
+,rr                          !
+
+logical(kind=klog),dimension(its_b1:ite_b1,jts_b1:jte_b1):: &
+ bot                         !
+
+real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1):: &
+ sface &                     ! scratch, correction factor, 2tke
+,sfacg &                     ! scratch, correction factor, rrw
+,sfacq &                     ! scratch, correction factor, spec. hum.
+,sfacw &                     ! scratch, correction factor, condensate
+,sumne &                     ! scratch, sum of negative changes, 2tke
+,sumng &                     ! scratch, sum of negative changes, rrw
+,sumnq &                     ! scratch, sum of negative changes, spec. hum.
+,sumnw &                     ! scratch, sum of negative changes, cond.
+,sumpe &                     ! scratch, sum of positive changes, 2tke
+,sumpg &                     ! scratch, sum of positive changes, rrw
+,sumpq &                     ! scratch, sum of positive changes, spec. hum.
+,sumpw                       ! scratch, sum of positive changes, cond.
+
+integer(kind=kint),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
+ la                          ! vertical index increment, next to departure pt.
+
+real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
+ afr &                       ! antifiltering factor,horizontal
+,de &                        ! scratch, 2tke change
+,dg &                        ! scratch, rrw change
+,dq &                        ! scratch, specific humidity change
+,dw                          ! scratch, condensate change
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+      addt=dt*float(idtad)
+!-----------------------------------------------------------------------
+!
+!.......................................................................
+!$omp parallel 
+!$omp do private(l,j,i)
+!.......................................................................
+      do l=1,lm
+        do j=jts,jte
+          do i=its,ite
+            q  (i,j,l)=max(q  (i,j,l),epsq)
+            cw (i,j,l)=max(cw (i,j,l),epsq)
+            rrw(i,j,l)=max(rrw(i,j,l),epsq)
+            e2 (i,j,l)=max(e2 (i,j,l),epsq2)
+            q1 (i,j,l)=q  (i,j,l)
+            w1 (i,j,l)=cw (i,j,l)
+            g1 (i,j,l)=rrw(i,j,l)
+            e1 (i,j,l)=e2 (i,j,l)
+          enddo
+        enddo
+      enddo
+!.......................................................................
+!$omp end do
+!.......................................................................
+!
+!-----------------------------------------------------------------------
+!-----------------vertical advection------------------------------------
+!-----------------------------------------------------------------------
+!
+!.......................................................................
+!$omp do private (l,j,i,psgdtp,rr,lap,llap)
+!.......................................................................
+      do l=1,lm
+        do j=jts_b1,jte_b1
+          do i=its_b1,ite_b1
+            if(traditional) then
+              if(l.eq.1) then
+                psgdtp=psgdt(i,j,1)*0.5
+              elseif(l.eq.lm) then
+                psgdtp=psgdt(i,j,lm-1)*0.5
+              else
+                psgdtp=(psgdt(i,j,l-1)+psgdt(i,j,l))*0.5
+              endif
+            else
+              if(l.eq.1) then
+                psgdtp=(psgdt(i,j-1,1   )+psgdt(i-1,j,1   ) &
+                       +psgdt(i+1,j,1   )+psgdt(i,j+1,1   ) &
+                       +psgdt(i ,j ,1   )*4.)*0.0625
+              elseif(l.eq.lm) then
+                psgdtp=(psgdt(i,j-1,lm-1)+psgdt(i-1,j,lm-1) &
+                       +psgdt(i+1,j,lm-1)+psgdt(i,j+1,lm-1) &
+                       +psgdt(i ,j ,lm-1)*4.)*0.0625
+              else
+                psgdtp=(psgdt(i,j-1,l-1 )+psgdt(i-1,j,l-1 ) &
+                       +psgdt(i+1,j,l-1 )+psgdt(i,j+1,l-1 ) &
+                       +psgdt(i ,j ,l-1 )*4. &
+                       +psgdt(i,j-1,l   )+psgdt(i-1,j,l   ) &
+                       +psgdt(i+1,j,l   )+psgdt(i,j+1,l   ) &
+                       +psgdt(i ,j ,l   )*4.)*0.0625
+              endif
+            endif
+!
+            rr=psgdtp*(-addt)
+            if(rr.lt.0.) then
+              lap=-1
+            else
+              lap=1
+            endif
+!
+            la(i,j,l)=lap
+            llap=l+lap
+!
+            if(llap.gt.0.and.llap.lt.lm+1) then ! internal and outflow points
+              rr=abs(rr &
+                /((sgml2(llap)-sgml2(l))*pd(i,j) &
+                 +(psgml1(llap)-psgml1(l))))
+              if(rr.gt.0.999) rr=0.999
+              afr(i,j,l)=(((ff4*rr+ff3)*rr+ff2)*rr+ff1)*rr
+              dq(i,j,l)=(q  (i,j,llap)-q  (i,j,l))*rr
+              dw(i,j,l)=(cw (i,j,llap)-cw (i,j,l))*rr
+              dg(i,j,l)=(rrw(i,j,llap)-rrw(i,j,l))*rr
+              de(i,j,l)=(e2 (i,j,llap)-e2 (i,j,l))*rr
+            elseif(llap.eq.lm+1) then
+              bot(i,j)=.true.
+              rr=abs(rr &
+                /((1.-sgml2(l))*pd(i,j)))
+              if(rr.gt.0.999) rr=0.999
+              afr(i,j,l)=0.
+!              dq(i,j,l)=-q  (i,j,l)*rr
+!              dw(i,j,l)=-cw (i,j,l)*rr
+!              dg(i,j,l)=-rrw(i,j,l)*rr
+!              de(i,j,l)=-e2 (i,j,l)*rr
+              dq(i,j,l)=0.
+              dw(i,j,l)=0.
+              dg(i,j,l)=0.
+              de(i,j,l)=0.
+            else
+              rr=abs(rr &
+                /(pdsg1(l)*0.5))
+              if(rr.gt.0.999) rr=0.999
+              afr(i,j,l)=0.
+!              dq(i,j,l)=-q  (i,j,l)*rr
+!              dw(i,j,l)=-cw (i,j,l)*rr
+!              dg(i,j,l)=-rrw(i,j,l)*rr
+!              de(i,j,l)=-e2 (i,j,l)*rr
+              dq(i,j,l)=0.
+              dw(i,j,l)=0.
+              dg(i,j,l)=0.
+              de(i,j,l)=0.
+            endif
+          enddo
+        enddo
+!
+        do j=jts_b1,jte_b1
+          do i=its_b1,ite_b1
+            q1(i,j,l)=q  (i,j,l)+dq(i,j,l)
+            w1(i,j,l)=cw (i,j,l)+dw(i,j,l)
+            g1(i,j,l)=rrw(i,j,l)+dg(i,j,l)
+            e1(i,j,l)=e2 (i,j,l)+de(i,j,l)
+          enddo
+        enddo
+      enddo
+!.......................................................................
+!$omp end do
+!$omp end parallel
+!.......................................................................
+!
+!----------------------------------------------------------------------
+!--------------anti-filtering diffusion and limiters-------------------
+!----------------------------------------------------------------------
+!
+!.......................................................................
+!$omp parallel do &
+!$omp private (l,j,i,q1p,w1p,g1p,e1p,lap,dpdn,dpup,afrp,rdpdn,rdpup, &
+!$omp          d2pqq,d2pqw,d2pqg,d2pqe,qp,wp,gp,ep,q00,qp0,w00,wp0,  &
+!$omp          g00,gp0,e00,ep0)
+!.......................................................................
+      do l=2,lm-1
+        do j=jts_b1,jte_b1
+          do i=its_b1,ite_b1
+            dq(i,j,l)=0.
+            dw(i,j,l)=0.
+            dg(i,j,l)=0.
+            de(i,j,l)=0.
+!
+            q1p=q1(i,j,l)
+            w1p=w1(i,j,l)
+            g1p=g1(i,j,l)
+            e1p=e1(i,j,l)
+!
+            lap=la(i,j,l)
+!
+              dpdn=(sgml2(l+lap)-sgml2(l))*pd(i,j) &
+                  +(psgml1(l+lap)-psgml1(l))
+              dpup=(sgml2(l)-sgml2(l-lap))*pd(i,j) &
+                  +(psgml1(l)-psgml1(l-lap))
+!
+              rdpdn=1./dpdn
+              rdpup=1./dpup
+!
+              afrp=afr(i,j,l)*(dsg2(l)*pd(i,j)+pdsg1(l))
+!
+              d2pqq=((q1(i,j,l+lap)-q1p)*rdpdn &
+                    -(q1p-q1(i,j,l-lap))*rdpup)*afrp
+              d2pqw=((w1(i,j,l+lap)-w1p)*rdpdn &
+                    -(w1p-w1(i,j,l-lap))*rdpup)*afrp
+              d2pqg=((g1(i,j,l+lap)-g1p)*rdpdn &
+                    -(g1p-g1(i,j,l-lap))*rdpup)*afrp
+              d2pqe=((e1(i,j,l+lap)-e1p)*rdpdn &
+                    -(e1p-e1(i,j,l-lap))*rdpup)*afrp
+!
+              qp=q1p-d2pqq
+              wp=w1p-d2pqw
+              gp=g1p-d2pqg
+              ep=e1p-d2pqe
+!
+              q00=q(i,j,l)
+              qp0=q(i,j,l+lap)
+!
+              w00=cw(i,j,l)
+              wp0=cw(i,j,l+lap)
+!
+              g00=rrw(i,j,l)
+              gp0=rrw(i,j,l+lap)
+!
+              e00=e2(i,j,l)
+              ep0=e2(i,j,l+lap)
+!
+              qp=max(qp,min(q00,qp0))
+              qp=min(qp,max(q00,qp0))
+              wp=max(wp,min(w00,wp0))
+              wp=min(wp,max(w00,wp0))
+              gp=max(gp,min(g00,gp0))
+              gp=min(gp,max(g00,gp0))
+              ep=max(ep,min(e00,ep0))
+              ep=min(ep,max(e00,ep0))
+!
+              dq(i,j,l)=qp-q1p
+              dw(i,j,l)=wp-w1p
+              dg(i,j,l)=gp-g1p
+              de(i,j,l)=ep-e1p
+!
+          enddo
+        enddo
+      enddo
+!.......................................................................
+!$omp end parallel do
+!.......................................................................
+!
+      do j=jts_b1,jte_b1
+        do i=its_b1,ite_b1
+          dq(i,j,1 )=0.
+          dw(i,j,1 )=0.
+          dg(i,j,1 )=0.
+          de(i,j,1 )=0.
+!
+          dq(i,j,lm)=0.
+          dw(i,j,lm)=0.
+          dg(i,j,lm)=0.
+          de(i,j,lm)=0.
+        enddo
+      enddo
+!--------------compensate + & - antifiltering changes-------------------
+      do j=jts_b1,jte_b1
+        do i=its_b1,ite_b1
+          sumpq(i,j)=0.
+          sumnq(i,j)=0.
+          sumpw(i,j)=0.
+          sumnw(i,j)=0.
+          sumpg(i,j)=0.
+          sumng(i,j)=0.
+          sumpe(i,j)=0.
+          sumne(i,j)=0.
+        enddo
+      enddo
+      do l=2,lm-1
+        do j=jts_b1,jte_b1
+          do i=its_b1,ite_b1
+            pdsg=(dsg2(l)*pd(i,j)+pdsg1(l))
+            if(dq(i,j,l).gt.0.) then
+              sumpq(i,j)=dq(i,j,l)*pdsg+sumpq(i,j)
+            else
+              sumnq(i,j)=dq(i,j,l)*pdsg+sumnq(i,j)
+            endif
+            if(dw(i,j,l).gt.0.) then
+              sumpw(i,j)=dw(i,j,l)*pdsg+sumpw(i,j)
+            else
+              sumnw(i,j)=dw(i,j,l)*pdsg+sumnw(i,j)
+            endif
+            if(dg(i,j,l).gt.0.) then
+              sumpg(i,j)=dg(i,j,l)*pdsg+sumpg(i,j)
+            else
+              sumng(i,j)=dg(i,j,l)*pdsg+sumng(i,j)
+            endif
+            if(de(i,j,l).gt.0.) then
+              sumpe(i,j)=de(i,j,l)*pdsg+sumpe(i,j)
+            else
+              sumne(i,j)=de(i,j,l)*pdsg+sumne(i,j)
+            endif
+          enddo
+        enddo
+      enddo
+!-----------------------------------------------------------------------
+!--------------first moment conserving factor---------------------------
+!-----------------------------------------------------------------------
+      do j=jts_b1,jte_b1
+        do i=its_b1,ite_b1
+!          if(sumpq(i,j).gt.1.e-9)    then
+          if(sumpq(i,j)*(-sumnq(i,j)).gt.0.)    then
+            sfacq(i,j)=-sumnq(i,j)/sumpq(i,j)
+          else
+            sfacq(i,j)=0.
+          endif
+!          if(sumpw(i,j).gt.1.e-9)    then
+          if(sumpw(i,j)*(-sumnw(i,j)).gt.0.)    then
+            sfacw(i,j)=-sumnw(i,j)/sumpw(i,j)
+          else
+            sfacw(i,j)=0.
+          endif
+!          if(sumpg(i,j).gt.1.e-9)    then
+          if(sumpg(i,j)*(-sumng(i,j)).gt.0.)    then
+            sfacg(i,j)=-sumng(i,j)/sumpg(i,j)
+          else
+            sfacg(i,j)=0.
+          endif
+!          if(sumpe(i,j).gt.1.e-9)    then
+          if(sumpe(i,j)*(-sumne(i,j)).gt.0.)    then
+            sface(i,j)=-sumne(i,j)/sumpe(i,j)
+          else
+            sface(i,j)=0.
+          endif
+!
+        enddo
+      enddo
+!
+!.......................................................................
+!$omp parallel do &
+!$omp private (l,j,i,dqp,dwp,dgp,dep)
+!.......................................................................
+      do l=1,lm
+        do j=jts_b1,jte_b1
+          do i=its_b1,ite_b1
+!
+            dqp=dq(i,j,l)
+            if(sfacq(i,j).gt.0.) then
+              if(sfacq(i,j).ge.1.) then
+                if(dqp.lt.0.) dqp=dqp/sfacq(i,j)
+              else
+                if(dqp.gt.0.) dqp=dqp*sfacq(i,j)
+              endif
+            else
+              dqp=0.
+            endif
+!
+            q  (i,j,l)=q1(i,j,l)+dqp
+!
+            dwp=dw(i,j,l)
+            if(sfacw(i,j).gt.0.) then
+              if(sfacw(i,j).ge.1.) then
+                if(dwp.lt.0.) dwp=dwp/sfacw(i,j)
+              else
+                if(dwp.gt.0.) dwp=dwp*sfacw(i,j)
+              endif
+            else
+              dwp=0.
+            endif
+!
+            cw (i,j,l)=w1(i,j,l)+dwp
+!
+            dgp=dg(i,j,l)
+            if(sfacg(i,j).gt.0.) then
+              if(sfacg(i,j).ge.1.) then
+                if(dgp.lt.0.) dgp=dgp/sfacg(i,j)
+              else
+                if(dgp.gt.0.) dgp=dgp*sfacg(i,j)
+              endif
+            else
+              dgp=0.
+            endif
+!
+            rrw(i,j,l)=g1(i,j,l)+dgp
+!
+            dep=de(i,j,l)
+            if(sface(i,j).gt.0.) then
+              if(sface(i,j).ge.1.) then
+                if(dep.lt.0.) dep=dep/sface(i,j)
+              else
+                if(dep.gt.0.) dep=dep*sface(i,j)
+              endif
+            else
+              dep=0.
+            endif
+!
+            e2 (i,j,l)=e1(i,j,l)+dep
+!
+          enddo
+        enddo
+!
+!-----------------------------------------------------------------------
+!
+        do j=jts_b1,jte_b1
+          do i=its_b1,ite_b1
+            q (i,j,l)=max(q (i,j,l),epsq)
+            cw(i,j,l)=max(cw(i,j,l),epsq)
+            rrw(i,j,l)=max(rrw(i,j,l),epsq)
+            e2(i,j,l)=max(e2(i,j,l),epsq2)
+          enddo
+        enddo
+      enddo
+!.......................................................................
+!$omp end parallel do
+!.......................................................................
+!-----------------------------------------------------------------------
+!
+                        endsubroutine vadv2
+!
+!-----------------------------------------------------------------------
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!-----------------------------------------------------------------------
+                        subroutine hadv2 &
+(global,ntsd,inpes,jnpes &
+,lm,idtad &
+,dt,rdyh &
+,dsg2,pdsg1,psgml1,sgml2 &
+,dare,rdxh &
+,pd &
+,u,v &
+,cw,q,q2,rrw &
+!temporary argument passing
+,e2)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!-----------------------------------------------------------------------
+implicit none
+!-----------------------------------------------------------------------
+integer(kind=kint),parameter:: &
+ nsmud=0                     ! number of smoothing iterations
+
+real(kind=kfpt),parameter:: &
+ conserve_max=1.1 &          ! max limit on conservation ratios
+,conserve_min=0.9 &          ! min limit on conservation ratios
+,epsq=1.e-20 &               ! floor value for specific humidity
+,epsq2=0.02 &                ! floor value for 2tke
+!,ff1=0.52500 &               ! antifiltering weighting factor
+,ff1=0.50000 &               ! antifiltering weighting factor
+,ff2=-0.64813 &              ! antifiltering weighting factor
+,ff3=0.24520 &               ! antifiltering weighting factor
+,ff4=-0.12189                ! antifiltering weighting factor
+!-----------------------------------------------------------------------
+logical(kind=klog),intent(in):: &
+ global                      ! global or regional
+
+integer(kind=kint),intent(in):: &
+ idtad &                     ! timestep factor
+,inpes &                     ! tasks in the x direction
+,jnpes &                     ! tasks in y direction
+,lm &                        ! total # of levels
+,ntsd                        ! timestep
+
+real(kind=kfpt),intent(in):: &
+ dt &                        ! dynamics time step
+,rdyh                        ! 1/deltay, h points
+
+real(kind=kfpt),dimension(1:lm),intent(in):: &
+ dsg2 &                      ! delta sigma
+,pdsg1 &                     ! delta pressure
+,psgml1 &                    ! pressure at midlevels
+,sgml2                       ! sigma at midlevels
+
+real(kind=kfpt),dimension(jds:jde),intent(in):: &
+ dare &                      ! grid box area, h points
+,rdxh                        ! 1/dx, h points
+
+real(kind=kfpt),dimension(ims:ime,jms:jme),intent(in):: &
+ pd                          ! sigma range pressure difference
+
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(in):: &
+ u &                         ! u wind component
+,v                           ! v wind component
+
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
+ cw &                        ! condensate
+,q &                         ! specific humidity
+,q2 &                        ! 2tke
+,rrw                         ! rt/p
+!-----------------------------------------------------------------------
+!---temporary arguments-------------------------------------------------
+!-----------------------------------------------------------------------
+!
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
+ e2                          ! 2TKE in the layers
+!
+!-----------------------------------------------------------------------
+!--local variables------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+!*** This next group of four arrays are dimensioned with haloes
+!*** since they are used as primary arrays
+!
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm) :: &
+ e1 &                        ! scratch, 2tke
+,g1 &                        ! scratch, rrw
+,q1 &                        ! scratch, specific humidity
+,w1                          ! scratch, condensate
+
+integer(kind=kint):: &
+ i &                         ! index in x direction
+,iap &                       !
+,irecv &                     !
+,j &                         ! index in y direction
+,jap &                       !
+,l &                         ! index in p direction
+,lngth                       !
+
+real(kind=kfpt):: &
+ addt &                      ! dt*idtad, time step
+,app &                       !
+,aqq &                       !
+,darep &                     ! grid box area at the point
+,dvolp &                     ! grid box volume at the point
+,emhp &                      !
+,enhp &                      !
+,qfc &                       !
+,q1p &                       !
+,w1p &                       !
+,g1p &                       !
+,e1p &                       !
+,dqp &                       !
+,dwp &                       !
+,dgp &                       !
+,dep &                       !
+,d2pqq &                     !
+,d2pqw &                     !
+,d2pqg &                     !
+,d2pqe &                     !
+,ep &                        !
+,e00 &                       !
+,e0q &                       !
+,ep0 &                       !
+,gp &                        !
+,g00 &                       !
+,g0q &                       !
+,gp0 &                       !
+,qp &                        !
+,q00 &                       !
+,q0q &                       !
+,qp0 &                       !
+,wp &                        !
+,w00 &                       !
+,w0q &                       !
+,wp0 &                       !
+,pp &                        !
+,qq &                        !
+,rdx &                       !
+,rdy &                       !
+,sumnel &                    ! sum of negative changes, 2tke
+,sumpel &                    ! sum of positive changes, 2tke
+,sumngl &                    ! sum of negative changes, rrw
+,sumpgl &                    ! sum of positive changes, rrw
+,sumnql &                    ! sum of negative changes, spec. hum.
+,sumpql &                    ! sum of positive changes, spec. hum.
+,sumnwl &                    ! sum of negative changes, condensate
+,sumpwl &                    ! sum of positive changes, condensate
+,up4 &                       !
+,vp4                         !
+
+real(kind=kfpt),dimension(1:lm):: &
+ sfacep &                    ! correction factor, 2tke
+,sfacgp &                    ! correction factor, rrw
+,sfacqp &                    ! correction factor, spec. hum.
+,sfacwp                      ! correction factor, condensate
+
+real(kind=kdbl):: &
+ xsump,gsump,vgsums
+
+real(kind=kdbl),dimension(1:lm):: &
+ xsumr &                     ! sum of neg/pos changes all local fields
+,gsumr                       ! sum of neg/pos changes all global fields
+
+real(kind=kdbl),dimension(8,1:lm):: &
+ xsums &                     ! sum of neg/pos changes all local fields
+,gsums                       ! sum of neg/pos changes all global fields
+
+integer(kind=kint),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
+ ia &                        ! scratch, i index next to departure point
+,ja                          ! scratch, j index next to departure point
+
+real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
+ afp &                       ! scratch, antifiltering weight, x direction
+,afq                         ! scratch, antifiltering weight, y direction
+
+real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
+ de &                        ! scratch, 2tke change
+,dg &                        ! scratch, rrw change
+,dq &                        ! scratch, specific humidity change
+,dw &                        ! scratch, condensate change
+,dvol                        !
+
+integer(kind=kint) :: ierr,istat
+!!!integer(kind=kint),save :: iunit
+logical(kind=klog) :: opened
+logical(kind=klog),save :: sum_file_is_open=.false.
+character(10) :: fstatus
+real(kind=kfpt),dimension(8,1:lm) :: gsums_single
+!-----------------
+#ifdef ENABLE_SMP
+!-----------------
+integer(kind=kint) :: &
+ jstart &
+,jstop &
+,nth &
+,omp_get_num_threads &
+,omp_get_thread_num &
+,tid
+!-----------------
+#else
+!-----------------
+integer(kind=kint) :: &
+ jstart &
+,jstop
+!-----------------
+#endif
+!-----------------
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      mype=mype_share
+      addt=dt*real(idtad)
+!
+!-----------------------------------------------------------------------
+!
+      rdy=rdyh
+      enhp=-addt*rdyh*0.25
+!
+!.......................................................................
+!$omp parallel do private (i,j,l,rdx,emhp,up4,vp4,pp,qq,iap,app,jap, &
+!$omp                      aqq,qfc,dqp,dwp,dgp,dep,darep,dvolp)
+!.......................................................................
+      do l=1,lm
+        do j=jts_h1,jte_h1
+          do i=its_h1,ite_h1
+            q  (i,j,l)=max(q  (i,j,l),epsq)
+            cw (i,j,l)=max(cw (i,j,l),epsq)
+            rrw(i,j,l)=max(rrw(i,j,l),epsq)
+            e2 (i,j,l)=max(e2 (i,j,l),epsq2)
+            q1 (i,j,l)=q  (i,j,l)
+            w1 (i,j,l)=cw (i,j,l)
+            g1 (i,j,l)=rrw(i,j,l)
+            e1 (i,j,l)=e2 (i,j,l)
+          enddo
+        enddo
+!
+!-----------------------------------------------------------------------
+!--------------horizontal advection-------------------------------------
+!-----------------------------------------------------------------------
+!
+!
+        enhp=-addt*rdyh*0.25
+        do j=jts_b1,jte_b1
+          rdx=rdxh(j)
+          emhp=-addt*rdxh(j)*0.25
+          do i=its_b1,ite_b1
+            up4=u(i-1,j-1,l)+u(i,j-1,l)+u(i-1,j,l)+u(i,j,l)
+            vp4=v(i-1,j-1,l)+v(i,j-1,l)+v(i-1,j,l)+v(i,j,l)
+!
+            pp=up4*emhp
+            qq=vp4*enhp
+!
+            if(pp.lt.0.) then
+              iap=-1
+            else
+              iap= 1
+            endif
+!
+            app=abs(pp)
+!
+            if(qq.lt.0.) then
+              jap=-1
+            else
+              jap=1
+            endif
+!
+            ia(i,j,l)=iap
+            ja(i,j,l)=jap
+!
+            aqq=abs(qq)
+!
+            if(app.le.1.) then
+              afp(i,j,l)=(((ff4*app+ff3)*app+ff2)*app+ff1)*app
+              qfc=pp*qq*0.25
+            else
+              afp(i,j,l)=0.
+!              qfc=0.
+              qfc=pp*qq*0.25
+            endif
+            afq(i,j,l)=(((ff4*aqq+ff3)*aqq+ff2)*aqq+ff1)*aqq
+!
+            dq(i,j,l)=(q  (i+iap,j,l)-q  (i,j,l))*app &
+                     +(q  (i,j+jap,l)-q  (i,j,l))*aqq &
+                     +(q  (i+1,j+1,l)-q  (i-1,j+1,l) &
+                      -q  (i+1,j-1,l)+q  (i-1,j-1,l))*qfc
+            dw(i,j,l)=(cw (i+iap,j,l)-cw (i,j,l))*app &
+                     +(cw (i,j+jap,l)-cw (i,j,l))*aqq &
+                     +(cw (i+1,j+1,l)-cw (i-1,j+1,l) &
+                      -cw (i+1,j-1,l)+cw (i-1,j-1,l))*qfc
+            dg(i,j,l)=(rrw(i+iap,j,l)-rrw(i,j,l))*app &
+                     +(rrw(i,j+jap,l)-rrw(i,j,l))*aqq &
+                     +(rrw(i+1,j+1,l)-rrw(i-1,j+1,l) &
+                      -rrw(i+1,j-1,l)+rrw(i-1,j-1,l))*qfc
+            de(i,j,l)=(e2 (i+iap,j,l)-e2 (i,j,l))*app &
+                     +(e2 (i,j+jap,l)-e2 (i,j,l))*aqq &
+                     +(e2 (i+1,j+1,l)-e2 (i-1,j+1,l) &
+                      -e2 (i+1,j-1,l)+e2 (i-1,j-1,l))*qfc
+!
+          enddo
+        enddo
+!-----------------------------------------------------------------------
+        if(global) then
+!-----------------------------------------------------------------------
+          xsums(1,l)=0.
+          xsums(2,l)=0.
+          xsums(3,l)=0.
+          xsums(4,l)=0.
+          xsums(5,l)=0.
+          xsums(6,l)=0.
+          xsums(7,l)=0.
+          xsums(8,l)=0.
+!-----------------------------------------------------------------------
+          do j=jts_b1,jte_b1
+            darep=dare(j)
+            do i=its_b1,ite_b1
+              dvolp=(dsg2(l)*pd(i,j)+pdsg1(l))*darep
+!
+              dqp=dq(i,j,l)*dvolp
+              dwp=dw(i,j,l)*dvolp
+              dgp=dg(i,j,l)*dvolp
+              dep=de(i,j,l)*dvolp
+!
+              if(dqp.gt.0.) then
+                xsums(1,l)=xsums(1,l)+dqp
+              else
+                xsums(2,l)=xsums(2,l)+dqp
+              endif
+!
+              if(dwp.gt.0.) then
+                xsums(3,l)=xsums(3,l)+dwp
+              else
+                xsums(4,l)=xsums(4,l)+dwp
+              endif
+!
+              if(dgp.gt.0.) then
+                xsums(5,l)=xsums(5,l)+dgp
+              else
+                xsums(6,l)=xsums(6,l)+dgp
+              endif
+!
+              if(dep.gt.0.) then
+                xsums(7,l)=xsums(7,l)+dep
+              else
+                xsums(8,l)=xsums(8,l)+dep
+              endif
+          enddo
+        enddo
+!-----------------------------------------------------------------------
+        endif
+!-----------------------------------------------------------------------
+!
+      enddo
+!.......................................................................
+!$omp end parallel do
+!.......................................................................
+!
+!-----------------------------------------------------------------------
+      if(global) then
+!-----------------------------------------------------------------------
+!***  Global reductions
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Skip computing the global reduction if they are to be read in
+!***  from another run to check bit reproducibility.
+!-----------------------------------------------------------------------
+!
+        if(.not.read_global_sums)then
+          call mpi_allreduce(xsums,gsums,8*lm,mpi_double_precision &
+                            ,mpi_sum,mpi_comm_comp,irecv)
+!
+          do l=1,lm
+            gsums_single(1,l)=gsums(1,l)
+            gsums_single(2,l)=gsums(2,l)
+            gsums_single(3,l)=gsums(3,l)
+            gsums_single(4,l)=gsums(4,l)
+            gsums_single(5,l)=gsums(5,l)
+            gsums_single(6,l)=gsums(6,l)
+            gsums_single(7,l)=gsums(7,l)
+            gsums_single(8,l)=gsums(8,l)
+          enddo
+!
+        endif
+!-----------------------------------------------------------------------
+!***  For bit reproducibility, read/write global sums.
+!-----------------------------------------------------------------------
+!
+        bitsad: if(read_global_sums.or.write_global_sums)then   !<--- NEVER SET BOTH READ AND WRITE TO .TRUE.
+!!!       if(ntsd==0.and..not.sum_file_is_open)then
+          if(.not.sum_file_is_open.and.mype==0)then
+            open_unit_ad: do l=51,59
+              inquire(l,opened=opened)
+              if(.not.opened)then
+                iunit_advec_sums=l
+                if(read_global_sums)fstatus='OLD'
+                if(write_global_sums)fstatus='REPLACE'
+                open(unit=iunit_advec_sums,file='global_sums',status=fstatus &
+                    ,form='UNFORMATTED',iostat=istat)
+                sum_file_is_open=.true.
+                exit open_unit_ad
+              endif
+            enddo open_unit_ad
+            write(0,*)' hadv2 opened iunit_advec_sums=',iunit_advec_sums
+          endif
+!
+          if(write_global_sums.and.mype==0)then
+            write(0,*)' hadv2 writing to iunit_advec_sums=',iunit_advec_sums
+            do l=1,lm
+              write(iunit_advec_sums)gsums_single(1,l),gsums_single(2,l) &
+                                    ,gsums_single(3,l),gsums_single(4,l) &
+                                    ,gsums_single(5,l),gsums_single(6,l) &
+                                    ,gsums_single(7,l),gsums_single(8,l)
+            enddo
+          endif
+!
+          if(read_global_sums)then
+            if(mype==0)then
+              do l=1,lm
+                read(iunit_advec_sums)gsums_single(1,l),gsums_single(2,l) &
+                                     ,gsums_single(3,l),gsums_single(4,l) &
+                                     ,gsums_single(5,l),gsums_single(6,l) &
+                                     ,gsums_single(7,l),gsums_single(8,l)
+              enddo
+            endif
+!
+            call mpi_bcast(gsums_single,8*lm,mpi_real,0,mpi_comm_comp,ierr)
+          endif
+!
+        endif bitsad
+!
+!-----------------------------------------------------------------------
+!--------------first moment conserving factor---------------------------
+!-----------------------------------------------------------------------
+        do l=1,lm
+          sumpql=gsums_single(1,l)
+          sumnql=gsums_single(2,l)
+          sumpwl=gsums_single(3,l)
+          sumnwl=gsums_single(4,l)
+          sumpgl=gsums_single(5,l)
+          sumngl=gsums_single(6,l)
+          sumpel=gsums_single(7,l)
+          sumnel=gsums_single(8,l)
+!
+          if(sumpql*(-sumnql).gt.1.)    then
+            sfacqp(l)=-sumnql/sumpql
+          else
+            sfacqp(l)=0.
+          endif
+!
+          if(sumpwl*(-sumnwl).gt.1.)    then
+            sfacwp(l)=-sumnwl/sumpwl
+          else
+            sfacwp(l)=0.
+          endif
+!
+          if(sumpgl*(-sumngl).gt.1.)    then
+            sfacgp(l)=-sumngl/sumpgl
+          else
+            sfacgp(l)=0.
+          endif
+!
+          if(sumpel*(-sumnel).gt.1.)    then
+            sfacep(l)=-sumnel/sumpel
+          else
+            sfacep(l)=0.
+          endif
+!
+        enddo
+!
+!-----------------------------------------------------------------------
+!
+      endif ! global
+!
+!-----------------------------------------------------------------------
+!--------------impose conservation on global advection------------------
+!-----------------------------------------------------------------------
+      do l=1,lm
+!-----------------------------------------------------------------------
+        if(global) then
+!-----------------------------------------------------------------------
+          do j=jts_b1,jte_b1
+            do i=its_b1,ite_b1
+              dqp=dq(i,j,l)
+              if(sfacqp(l).eq.0.) then
+                dqp=0.
+              elseif(sfacqp(l).ge.1.) then
+                if(dqp.lt.0.) dqp=dqp/sfacqp(l)
+              else
+                if(dqp.gt.0.) dqp=dqp*sfacqp(l)
+              endif
+              q1(i,j,l)=q(i,j,l)+dqp
+!
+              dwp=dw(i,j,l)
+              if(sfacwp(l).eq.0.) then
+                dwp=0.
+              elseif(sfacwp(l).ge.1.) then
+                if(dwp.lt.0.) dwp=dwp/sfacwp(l)
+              else
+                if(dwp.gt.0.) dwp=dwp*sfacwp(l)
+              endif
+              w1(i,j,l)=cw(i,j,l)+dwp
+!
+              dgp=dg(i,j,l)
+              if(sfacgp(l).eq.0.) then
+                dgp=0.
+              elseif(sfacgp(l).ge.1.) then
+                if(dgp.lt.0.) dgp=dgp/sfacgp(l)
+              else
+                if(dgp.gt.0.) dgp=dgp*sfacgp(l)
+              endif
+              g1(i,j,l)=rrw(i,j,l)+dgp
+!
+              dep=de(i,j,l)
+              if(sfacep(l).eq.0.) then
+                dep=0.
+              elseif(sfacep(l).ge.1.) then
+                if(dep.lt.0.) dep=dep/sfacep(l)
+              else
+                if(dep.gt.0.) dep=dep*sfacep(l)
+              endif
+                e1(i,j,l)=e2(i,j,l)+dep
+!
+            enddo
+          enddo
+!
+          btim=timef()
+          call swaphn(q1(ims,jms,l),ims,ime,jms,jme,1,inpes)
+          call swaphn(w1(ims,jms,l),ims,ime,jms,jme,1,inpes)
+          call swaphn(g1(ims,jms,l),ims,ime,jms,jme,1,inpes)
+          call swaphn(e1(ims,jms,l),ims,ime,jms,jme,1,inpes)
+          swaphn_tim=swaphn_tim+timef()-btim
+!
+          btim=timef()
+          call polehn(q1(ims,jms,l),ims,ime,jms,jme,1,inpes,jnpes)
+          call polehn(w1(ims,jms,l),ims,ime,jms,jme,1,inpes,jnpes)
+          call polehn(g1(ims,jms,l),ims,ime,jms,jme,1,inpes,jnpes)
+          call polehn(e1(ims,jms,l),ims,ime,jms,jme,1,inpes,jnpes)
+          polehn_tim=polehn_tim+timef()-btim
+!-----------------------------------------------------------------------
+        else
+!-----------------------------------------------------------------------
+          do j=jts_b1,jte_b1
+            do i=its_b1,ite_b1
+              q1(i,j,l)=q  (i,j,l)+dq(i,j,l)
+              w1(i,j,l)=cw (i,j,l)+dw(i,j,l)
+              g1(i,j,l)=rrw(i,j,l)+dg(i,j,l)
+              e1(i,j,l)=e2 (i,j,l)+de(i,j,l)
+            enddo
+          enddo
+!-----------------------------------------------------------------------
+        endif !global
+!-----------------------------------------------------------------------
+      enddo
+!-----------------------------------------------------------------------
+!
+      btim=timef()
+      call halo_exch(q1,lm,w1,lm,g1,lm,e1,lm,1,1)
+      exch_dyn_tim=exch_dyn_tim+timef()-btim
+!
+!-----------------------------------------------------------------------
+!--------------anti-filtering limiters----------------------------------
+!-----------------------------------------------------------------------
+!
+!.......................................................................
+!$omp parallel do private (q1p,w1p,g1p,e1p,iap,jap,d2pqq,d2pqw,d2pqg,d2pqe, &
+!$omp                      qp,wp,gp,ep,q00,qp0,q0q,w00,wp0,w0q,g00,gp0,g0q, &
+!$omp                      e00,ep0,e0q,darep,dvolp,dqp,dwp,dgp,dep)
+!.......................................................................
+       do l=1,lm
+        do j=jts_b1,jte_b1
+          do i=its_b1,ite_b1
+            q1p=q1(i,j,l)
+            w1p=w1(i,j,l)
+            g1p=g1(i,j,l)
+            e1p=e1(i,j,l)
+!
+            iap=ia(i,j,l)
+            jap=ja(i,j,l)
+!
+            d2pqq=(q1(i+1,j,l)+q1(i-1,j,l)-q1p-q1p) &
+                 *afp(i,j,l) &
+                 +(q1(i,j+1,l)+q1(i,j-1,l)-q1p-q1p) &
+                 *afq(i,j,l)
+            d2pqw=(w1(i+1,j,l)+w1(i-1,j,l)-w1p-w1p) &
+                 *afp(i,j,l) &
+                 +(w1(i,j+1,l)+w1(i,j-1,l)-w1p-w1p) &
+                 *afq(i,j,l)
+            d2pqg=(g1(i+1,j,l)+g1(i-1,j,l)-g1p-g1p) &
+                 *afp(i,j,l) &
+                 +(g1(i,j+1,l)+g1(i,j-1,l)-g1p-g1p) &
+                 *afq(i,j,l)
+            d2pqe=(e1(i+1,j,l)+e1(i-1,j,l)-e1p-e1p) &
+                 *afp(i,j,l) &
+                 +(e1(i,j+1,l)+e1(i,j-1,l)-e1p-e1p) &
+                 *afq(i,j,l)
+!
+            qp=q1p-d2pqq
+            wp=w1p-d2pqw
+            gp=g1p-d2pqg
+            ep=e1p-d2pqe
+!
+            q00=q(i,j,l)
+            qp0=q(i+iap,j,l)
+            q0q=q(i,j+jap,l)
+!
+            w00=cw(i,j,l)
+            wp0=cw(i+iap,j,l)
+            w0q=cw(i,j+jap,l)
+!
+            g00=rrw(i,j,l)
+            gp0=rrw(i+iap,j,l)
+            g0q=rrw(i,j+jap,l)
+!
+            e00=e2(i,j,l)
+            ep0=e2(i+iap,j,l)
+            e0q=e2(i,j+jap,l)
+!
+            qp=max(qp,min(q00,qp0,q0q))
+            qp=min(qp,max(q00,qp0,q0q))
+            wp=max(wp,min(w00,wp0,w0q))
+            wp=min(wp,max(w00,wp0,w0q))
+            gp=max(gp,min(g00,gp0,g0q))
+            gp=min(gp,max(g00,gp0,g0q))
+            ep=max(ep,min(e00,ep0,e0q))
+            ep=min(ep,max(e00,ep0,e0q))
+!
+!            dq(i,j,l)=qp-q00
+!            dw(i,j,l)=wp-w00
+!            dg(i,j,l)=gp-g00
+!            de(i,j,l)=ep-e00
+            dq(i,j,l)=qp-q1p
+            dw(i,j,l)=wp-w1p
+            dg(i,j,l)=gp-g1p
+            de(i,j,l)=ep-e1p
+          enddo
+        enddo
+!-----------------------------------------------------------------------
+        xsums(1,l)=0.
+        xsums(2,l)=0.
+        xsums(3,l)=0.
+        xsums(4,l)=0.
+        xsums(5,l)=0.
+        xsums(6,l)=0.
+        xsums(7,l)=0.
+        xsums(8,l)=0.
+!-----------------------------------------------------------------------
+        do j=jts_b1,jte_b1
+          darep=dare(j)
+          do i=its_b1,ite_b1
+            dvolp=(dsg2(l)*pd(i,j)+pdsg1(l))*darep
+            dvol(i,j,l)=dvolp
+!
+            dqp=dq(i,j,l)*dvolp
+            dwp=dw(i,j,l)*dvolp
+            dgp=dg(i,j,l)*dvolp
+            dep=de(i,j,l)*dvolp
+!
+            if(dqp.gt.0.) then
+              xsums(1,l)=xsums(1,l)+dqp
+            else
+              xsums(2,l)=xsums(2,l)+dqp
+            endif
+!
+            if(dwp.gt.0.) then
+              xsums(3,l)=xsums(3,l)+dwp
+            else
+              xsums(4,l)=xsums(4,l)+dwp
+            endif
+!
+            if(dgp.gt.0.) then
+              xsums(5,l)=xsums(5,l)+dgp
+            else
+              xsums(6,l)=xsums(6,l)+dgp
+            endif
+!
+            if(dep.gt.0.) then
+              xsums(7,l)=xsums(7,l)+dep
+            else
+              xsums(8,l)=xsums(8,l)+dep
+            endif
+          enddo
+        enddo
+      enddo
+!.......................................................................
+!$omp end parallel do
+!.......................................................................
+!
+!-----------------------------------------------------------------------
+!***  Global reductions
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Skip computing the global reduction if they are to be read in
+!***  from another run to check bit reproducibility.
+!-----------------------------------------------------------------------
+!
+      if(.not.read_global_sums)then
+        call mpi_allreduce(xsums,gsums,8*lm,mpi_double_precision &
+                          ,mpi_sum,mpi_comm_comp,irecv)
+!
+        do l=1,lm
+          gsums_single(1,l)=gsums(1,l)
+          gsums_single(2,l)=gsums(2,l)
+          gsums_single(3,l)=gsums(3,l)
+          gsums_single(4,l)=gsums(4,l)
+          gsums_single(5,l)=gsums(5,l)
+          gsums_single(6,l)=gsums(6,l)
+          gsums_single(7,l)=gsums(7,l)
+          gsums_single(8,l)=gsums(8,l)
+        enddo
+!
+      endif
+!-----------------------------------------------------------------------
+!***  For bit reproducibility, read/write global sums.
+!-----------------------------------------------------------------------
+!
+      bitsaf: if(read_global_sums.or.write_global_sums)then   !<--- NEVER SET BOTH READ AND WRITE TO .TRUE.
+!
+        if(write_global_sums.and.mype==0)then
+          write(0,*)' hadv2 2 writing to iunit_advec_sums=',iunit_advec_sums
+          do l=1,lm
+            write(iunit_advec_sums)gsums_single(1,l),gsums_single(2,l) &
+                                  ,gsums_single(3,l),gsums_single(4,l) &
+                                  ,gsums_single(5,l),gsums_single(6,l) &
+                                  ,gsums_single(7,l),gsums_single(8,l)
+          enddo
+        endif
+!
+        if(read_global_sums)then
+          if(mype==0)then
+            do l=1,lm
+              read(iunit_advec_sums)gsums_single(1,l),gsums_single(2,l) &
+                                   ,gsums_single(3,l),gsums_single(4,l) &
+                                   ,gsums_single(5,l),gsums_single(6,l) &
+                                   ,gsums_single(7,l),gsums_single(8,l)
+            enddo
+          endif
+!
+          call mpi_bcast(gsums_single,8*lm,mpi_real,0,mpi_comm_comp,ierr)
+!
+        endif
+!
+      endif bitsaf
+!
+!-----------------------------------------------------------------------
+!--------------first moment conserving factor---------------------------
+!-----------------------------------------------------------------------
+!
+!.......................................................................
+!$omp parallel do private(sumpql,sumnql,sumpwl,sumnwl,sumpgl,sumngl,sumpel, &
+!$omp                     sumnel,dqp,dwp,dgp,dep)
+!.......................................................................
+      do l=1,lm
+        sumpql=gsums_single(1,l)
+        sumnql=gsums_single(2,l)
+        sumpwl=gsums_single(3,l)
+        sumnwl=gsums_single(4,l)
+        sumpgl=gsums_single(5,l)
+        sumngl=gsums_single(6,l)
+        sumpel=gsums_single(7,l)
+        sumnel=gsums_single(8,l)
+!
+        if(sumpql*(-sumnql).gt.1.)    then
+          sfacqp(l)=-sumnql/sumpql
+        else
+          sfacqp(l)=0.
+        endif
+!
+        if(sumpwl*(-sumnwl).gt.1.)    then
+          sfacwp(l)=-sumnwl/sumpwl
+        else
+          sfacwp(l)=0.
+        endif
+!
+        if(sumpgl*(-sumngl).gt.1.)    then
+          sfacgp(l)=-sumngl/sumpgl
+        else
+          sfacgp(l)=0.
+        endif
+!
+        if(sumpel*(-sumnel).gt.1.)    then
+          sfacep(l)=-sumnel/sumpel
+        else
+          sfacep(l)=0.
+        endif
+!
+!        if(sfacqp(l).lt.conserve_min.or.sfacqp(l).gt.conserve_max) &
+!           sfacqp(l)=1.
+!        if(sfacwp(l).lt.conserve_min.or.sfacwp(l).gt.conserve_max) &
+!           sfacwp(l)=1.
+!        if(sfacgp(l).lt.conserve_min.or.sfacgp(l).gt.conserve_max) &
+!           sfacgp(l)=1.
+!        if(sfacep(l).lt.conserve_min.or.sfacep(l).gt.conserve_max) &
+!           sfacep(l)=1.
+!
+!-----------------------------------------------------------------------
+!--------------impose conservation on anti-filtering--------------------
+!-----------------------------------------------------------------------
+!
+        do j=jts_b1,jte_b1
+          do i=its_b1,ite_b1
+!
+            dqp=dq(i,j,l)
+            if(sfacqp(l).eq.0.) then
+              dqp=0.
+            elseif(sfacqp(l).ge.1.) then
+              if(dqp.lt.0.) dqp=dqp/sfacqp(l)
+            else
+              if(dqp.gt.0.) dqp=dqp*sfacqp(l)
+            endif
+!            q(i,j,l)=q(i,j,l)+dqp
+            q(i,j,l)=q1(i,j,l)+dqp
+!
+            dwp=dw(i,j,l)
+            if(sfacwp(l).eq.0.) then
+              dwp=0.
+            elseif(sfacwp(l).ge.1.) then
+              if(dwp.lt.0.) dwp=dwp/sfacwp(l)
+            else
+              if(dwp.gt.0.) dwp=dwp*sfacwp(l)
+            endif
+!            cw(i,j,l)=cw(i,j,l)+dwp
+            cw(i,j,l)=w1(i,j,l)+dwp
+!
+            dgp=dg(i,j,l)
+            if(sfacgp(l).eq.0.) then
+              dgp=0.
+            elseif(sfacgp(l).ge.1.) then
+              if(dgp.lt.0.) dgp=dgp/sfacgp(l)
+            else
+              if(dgp.gt.0.) dgp=dgp*sfacgp(l)
+            endif
+!            rrw(i,j,l)=rrw(i,j,l)+dgp
+            rrw(i,j,l)=g1(i,j,l)+dgp
+!
+            dep=de(i,j,l)
+            if(sfacep(l).eq.0.) then
+              dep=0.
+            elseif(sfacep(l).ge.1.) then
+              if(dep.lt.0.) dep=dep/sfacep(l)
+            else
+              if(dep.gt.0.) dep=dep*sfacep(l)
+            endif
+!              e2(i,j,l)=e2(i,j,l)+dep
+              e2(i,j,l)=e1(i,j,l)+dep
+!
+          enddo
+        enddo
+!
+!-----------------------------------------------------------------------
+!
+        do j=jts_b1,jte_b1
+          do i=its_b1,ite_b1
+            q (i,j,l)=max(q (i,j,l),epsq)
+            cw(i,j,l)=max(cw(i,j,l),epsq)
+            rrw(i,j,l)=max(rrw(i,j,l),epsq)
+            e2(i,j,l)=max(e2(i,j,l),epsq2)
+          enddo
+        enddo
+!-----------------------------------------------------------------------
+!
+      enddo
+!.......................................................................
+!$omp end parallel do
+!.......................................................................
+!
+!-----------------------------------------------------------------------
+!zjwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
+!-----------------------------------------------------------------------
+      do l=1,lm
+        xsumr(l)=0.
+        gsumr(l)=0.
+!
+        do j=jts_b1,jte_b1
+          do i=its_b1,ite_b1
+            xsumr(l)=rrw(i,j,l)*dvol(i,j,l)+xsumr(l)
+          enddo
+        enddo
+      enddo
+!
+      xsump=0.
+      gsump=0.
+      do j=jts_b1,jte_b1
+        do i=its_b1,ite_b1
+          xsump=pd(i,j)*dare(j)+xsump
+        enddo
+      enddo
+!-----------------------------------------------------------------------
+!***  GLOBAL REDUCTION
+!-----------------------------------------------------------------------
+      lngth=1
+      call mpi_allreduce(xsump,gsump,lngth &
+                        ,mpi_double_precision &
+                        ,mpi_sum,mpi_comm_comp,irecv)
+!-----------------------------------------------------------------------
+!***  END OF GLOBAL REDUCTION
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!***  GLOBAL REDUCTION
+!-----------------------------------------------------------------------
+      lngth=lm
+      call mpi_allreduce(xsumr,gsumr,lngth &
+                        ,mpi_double_precision &
+                        ,mpi_sum,mpi_comm_comp,irecv)
+!-----------------------------------------------------------------------
+!***  END OF GLOBAL REDUCTION
+!-----------------------------------------------------------------------
+        vgsums=0.
+!
+        do l=1,lm
+          vgsums=gsumr(l)+vgsums
+        enddo
+!
+      if(mype.eq.0) then
+        write(0,1000) vgsums,gsump
+      endif
+ 1000 format('global vol sums ',10d13.5)
+!zjmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
+
+!-----------------------------------------------------------------------
+!
+                        endsubroutine hadv2
+!
+!----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
                         subroutine vadv2_scal &
@@ -5661,7 +7106,7 @@ real(kind=kfpt),dimension(2,1:lm) :: gsums_single
 !-----------------------------------------------------------------------
       enddo
 !-----------------------------------------------------------------------
-      if(global) then
+!      if(global) then
 !-----------------------------------------------------------------------
 !***  Global reductions
 !-----------------------------------------------------------------------
@@ -5739,7 +7184,7 @@ real(kind=kfpt),dimension(2,1:lm) :: gsums_single
 !
 !-----------------------------------------------------------------------
 !
-      endif ! global
+!      endif ! global
 !
 !-----------------------------------------------------------------------
 !--------------impose conservation on global advection------------------

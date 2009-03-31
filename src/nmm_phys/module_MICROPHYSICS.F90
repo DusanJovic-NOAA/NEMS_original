@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------
 !
-      MODULE MODULE_MICROPHYSICS
+      MODULE MODULE_MICROPHYSICS_NMM
 !
 !-----------------------------------------------------------------------
 !
@@ -59,13 +59,13 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-     REAL,PRIVATE,SAVE ::  ABFR, CBFR, CIACW, CIACR, C_N0r0,           &
+     REAL,PRIVATE,SAVE ::  ABFR, CBFR, CIACW, CIACR, C_N0r0,            &
      &  CN0r0, CN0r_DMRmin, CN0r_DMRmax, CRACW, CRAUT, ESW0,            &
      &  RFmax, RQR_DR1, RQR_DR2, RQR_DR3, RQR_DRmin,                    &
      &  RQR_DRmax, RR_DRmin, RR_DR1, RR_DR2, RR_DR3, RR_DRmax
 !
       INTEGER, PRIVATE,PARAMETER :: MY_T1=1, MY_T2=35
-      REAL,PRIVATE,DIMENSION(MY_T1:MY_T2),SAVE :: MY_GROWTH
+      REAL,PRIVATE,DIMENSION(MY_T1:MY_T2),SAVE :: MY_GROWTH_NMM
 !
       REAL, PRIVATE,PARAMETER :: DMImin=.05e-3, DMImax=1.e-3,           &
      &      DelDMI=1.e-6,XMImin=1.e6*DMImin
@@ -185,7 +185,7 @@
 !-----------------------------------------------------------------------
       SUBROUTINE GSMDRIVE(ITIMESTEP,DT,NPHS,NUM_WATER                   &
                          ,DX,DY,SM,FIS                                  &
-                         ,DSG2,SGML2,PDSG1,PSGML1,PDTOP,PT,PD           &
+                         ,DSG2,SGML2,PDSG1,PSGML1,PT,PD                 &
                          ,T,Q,CWM,OMGALF,WATER                          &
                          ,TRAIN,SR                                      &
                          ,F_ICE,F_RAIN,F_RIMEF                          &
@@ -234,7 +234,7 @@
 !
       INTEGER,INTENT(IN) :: P_QV,P_QC,P_QR,P_QI,P_QS,P_QG
 !
-      REAL,INTENT(IN) :: DT,DX,DY,PDTOP,PT
+      REAL,INTENT(IN) :: DT,DX,DY,PT
 !
       REAL,INTENT(INOUT) :: AVRAIN
 !
@@ -356,20 +356,14 @@
           KFLIP=LM+1-K ! The flipped index will thus be for the NMMB arrays
 !
           DPL=PDSG1(KFLIP)+DSG2(KFLIP)*PDSL
-!!!!      PLYR=PSGML1(KFLIP)+SGML2(KFLIP)*PDSL+PT
-          IF(DSG2(KFLIP)<1.E-10)THEN
-            PLYR=PSGML1(KFLIP)
-          ELSE
-            PLYR=PT+PDTOP+SGML2(KFLIP)*PDSL
-          ENDIF
-!
+          PLYR=SGML2(KFLIP)*PDSL+PSGML1(KFLIP)
           TL(K)=T(I,J,KFLIP)
           QL(K)=AMAX1(Q(I,J,KFLIP),EPSQ)
 !
           RR(I,K,J)=PLYR/(R_D*TL(K)*(P608*QL(K)+1.))
           T_PHY(I,K,J)=TL(K)
           CWM_PHY(I,K,J)=CWM(I,J,KFLIP)
-          WATER_TRANS(I,K,J,P_QV)=WATER(I,J,KFLIP,P_QV)
+!zj flipped twice          WATER_TRANS(I,K,J,P_QV)=WATER(I,J,KFLIP,P_QV)
           F_ICE_PHY(I,K,J)=F_ICE(I,J,KFLIP)
           F_RAIN_PHY(I,K,J)=F_RAIN(I,J,KFLIP)
           F_RIMEF_PHY(I,K,J)=F_RIMEF(I,J,KFLIP)
@@ -404,13 +398,13 @@
 !$omp parallel do                                                       &
 !$omp& private(i,j,k)
 !.......................................................................
-      DO K=1,LM                             
-        DO J=JMS,JME                       
-          DO I=IMS,IME                    
-            WATER(I,J,K,P_QV)=Q(I,J,K)/(1.-Q(I,J,K))  
-          ENDDO                                      
-        ENDDO                                       
-      ENDDO                                        
+      DO K=1,LM
+        DO J=JMS,JME
+          DO I=IMS,IME
+            WATER(I,J,K,P_QV)=Q(I,J,K)/(1.-Q(I,J,K))
+          ENDDO
+        ENDDO
+      ENDDO
 !.......................................................................
 !$omp end parallel do
 !.......................................................................
@@ -1265,7 +1259,7 @@ SUBROUTINE microphysics_driver(                                          &
 !**********************************************************************
 !-----------------------------------------------------------------------
 !
-      MY_GROWTH(MY_T1:MY_T2)=MP_RESTART_STATE(MY_T1:MY_T2)
+      MY_GROWTH_NMM(MY_T1:MY_T2)=MP_RESTART_STATE(MY_T1:MY_T2)
 !
       C1XPVS0=MP_RESTART_STATE(MY_T2+1)
       C2XPVS0=MP_RESTART_STATE(MY_T2+2)
@@ -1401,7 +1395,7 @@ SUBROUTINE microphysics_driver(                                          &
        ENDDO
        ENDDO
 !
-     MP_RESTART_STATE(MY_T1:MY_T2)=MY_GROWTH(MY_T1:MY_T2)
+     MP_RESTART_STATE(MY_T1:MY_T2)=MY_GROWTH_NMM(MY_T1:MY_T2)
      MP_RESTART_STATE(MY_T2+1)=C1XPVS0
      MP_RESTART_STATE(MY_T2+2)=C2XPVS0
      MP_RESTART_STATE(MY_T2+3)=C1XPVS
@@ -2403,7 +2397,7 @@ SUBROUTINE microphysics_driver(                                          &
       !
               DUM1=QSW/QSI-1.      
               DUM2=1.E3*EXP(12.96*DUM1-.639)
-              PIDEP=MIN(PIDEP_max, DUM2*MY_GROWTH(INDEX_MY)*RRHO)
+              PIDEP=MIN(PIDEP_max, DUM2*MY_GROWTH_NMM(INDEX_MY)*RRHO)
       !
             ENDIF       ! End IF (QTICE .GT. 0.)
    !
@@ -3204,7 +3198,7 @@ nsteps = 0
 !     NONE
 !     
 !   SUBROUTINES:
-!     MY_GROWTH_RATES - lookup table for growth of nucleated ice
+!     MY_GROWTH_RATES_NMM - lookup table for growth of nucleated ice
 !     GPVS            - lookup tables for saturation vapor pressure (water, ice)
 !
 !   UNIQUE: NONE
@@ -3299,6 +3293,8 @@ nsteps = 0
 !     ENDDO
 !     ENDDO
 !    
+!     AVRAIN = 0. ! ratko - should we put only if not restart?
+!
       IF(.NOT.RESTART)THEN
         DO K = kts,kte
         DO J = jts,jte
@@ -3418,8 +3414,8 @@ nsteps = 0
 !--- Calculates coefficients for growth rates of ice nucleated in water
 !    saturated conditions, scaled by physics time step (lookup table)
 !
-        CALL MY_GROWTH_RATES (DTPH)
-!       CALL MY_GROWTH_RATES (DTPH,MY_GROWTH)
+        CALL MY_GROWTH_RATES_NMM (DTPH)
+!       CALL MY_GROWTH_RATES_NMM (DTPH,MY_GROWTH_NMM)
 !
         PI=ACOS(-1.)
 !
@@ -3523,7 +3519,7 @@ nsteps = 0
 
 !wrf
         IF(.NOT.RESTART)THEN
-          MP_RESTART_STATE(MY_T1:MY_T2)=MY_GROWTH(MY_T1:MY_T2)
+          MP_RESTART_STATE(MY_T1:MY_T2)=MY_GROWTH_NMM(MY_T1:MY_T2)
           MP_RESTART_STATE(MY_T2+1)=C1XPVS0
           MP_RESTART_STATE(MY_T2+2)=C2XPVS0
           MP_RESTART_STATE(MY_T2+3)=C1XPVS
@@ -3554,8 +3550,8 @@ nsteps = 0
 !-----------------------------------------------------------------------
       END SUBROUTINE FERRIER_INIT
 !
-      SUBROUTINE MY_GROWTH_RATES (DTPH)
-!     SUBROUTINE MY_GROWTH_RATES (DTPH,MY_GROWTH)
+      SUBROUTINE MY_GROWTH_RATES_NMM (DTPH)
+!     SUBROUTINE MY_GROWTH_RATES_NMM (DTPH,MY_GROWTH_NMM)
 !
 !--- Below are tabulated values for the predicted mass of ice crystals
 !    after 600 s of growth in water saturated conditions, based on 
@@ -3589,11 +3585,11 @@ nsteps = 0
 !-----------------------------------------------------------------------
 !
       DT_ICE=(DTPH/600.)**1.5
-      MY_GROWTH=DT_ICE*MY_600
+      MY_GROWTH_NMM=DT_ICE*MY_600
 !
 !-----------------------------------------------------------------------
 !
-      END SUBROUTINE MY_GROWTH_RATES
+      END SUBROUTINE MY_GROWTH_RATES_NMM
 !
 !-----------------------------------------------------------------------
 !---------  Old GFS saturation vapor pressure lookup tables  -----------
@@ -4739,6 +4735,6 @@ nsteps = 0
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 
-      END MODULE MODULE_MICROPHYSICS
+      END MODULE MODULE_MICROPHYSICS_NMM
 
 !-----------------------------------------------------------------------

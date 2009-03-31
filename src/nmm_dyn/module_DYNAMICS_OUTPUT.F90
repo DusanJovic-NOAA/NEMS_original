@@ -880,6 +880,7 @@
                                 ,maxHaloUWidth=(/IHALO,JHALO/)          &
                                 ,maxHaloLWidth=(/IHALO,JHALO/)          &
                                 ,name         =VBL_NAME                 &  !<-- Name of the 2D real array
+			        ,indexFlag=ESMF_INDEX_DELOCAL           &
                                 ,rc           =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -914,6 +915,7 @@
                                 ,maxHaloUWidth=(/IHALO,JHALO/)          &
                                 ,maxHaloLWidth=(/IHALO,JHALO/)          &
                                 ,name         =VBL_NAME                 &  !<-- Name of the 2D real array
+                                ,indexFlag=ESMF_INDEX_DELOCAL           &
                                 ,rc           =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -980,6 +982,7 @@
                                   ,maxHaloUWidth=(/IHALO,JHALO/)        &
                                   ,maxHaloLWidth=(/IHALO,JHALO/)        &
                                   ,name         =VBL_NAME               &  !<-- Name of this level of the 3D real array
+				  ,indexFlag=ESMF_INDEX_DELOCAL         &
                                   ,rc           =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1028,6 +1031,7 @@
                                   ,maxHaloUWidth=(/IHALO,JHALO/)        &
                                   ,maxHaloLWidth=(/IHALO,JHALO/)        &
                                   ,name         =VBL_NAME               &  !<-- Name of this level of the 3D real array
+                                  ,indexFlag=ESMF_INDEX_DELOCAL         &
                                   ,rc           =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

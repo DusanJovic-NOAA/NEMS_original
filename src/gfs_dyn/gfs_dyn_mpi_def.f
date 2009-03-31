@@ -1,6 +1,6 @@
       module gfs_dyn_mpi_def
       use gfs_dyn_machine
-      include 'mpif.h'
+      include '../../inc/mpif.h'
       integer stat(MPI_STATUS_SIZE),info
       INTEGER :: icolor
       INTEGER :: MC_COMP, MC_IO, MPI_COMM_ALL, MPI_COMM_ALL_DUP

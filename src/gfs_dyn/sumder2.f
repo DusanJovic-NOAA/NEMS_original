@@ -6,7 +6,7 @@
      x                   lats_node,ipt_lats_node,lon_dims,dimg,
      x                   lons_lat,londi,latl)
 cc
-#include "f_hpm.h"
+!#include "f_hpm.h"
 cc
       use gfs_dyn_resol_def
       use gfs_dyn_layout1

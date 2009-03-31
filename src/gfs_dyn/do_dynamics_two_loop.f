@@ -17,7 +17,7 @@
      &                 LSOUT,COLAT1,CFHOUR1,
      &                 start_step,reset_step,end_step)
 cc
-#include "f_hpm.h"
+!#include "f_hpm.h"
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
       use gfs_dyn_gg_def

@@ -1,0 +1,72 @@
+####  this is dependent grd component, needs elemetary grid components ###
+ F77     = xlf
+ EXEC    = gfs_util_stub.a
+#
+ DIR_DYN = ../gfs_dyn
+ DIR_PHY = ../gfs_phys
+ GCINCS  = -I$(DIR_DYN) -I$(DIR_PHY) 
+#
+ FINC0    = -I/meso/save/wx22ec/NEMS/mod/esmf_3_1_0rp2
+ FINCS    = $(FINC0) $(GCINCS)
+ DEBUG    = -qcheck -qsource -qlist
+
+#---------------
+# For non-debug.
+#---------------
+FFLAGM_DEBUG  = -O2
+
+ OPTS     = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
+ OPTS90   = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
+ OPTS90A  = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
+
+#
+ FFLAG90  = $(OPTS90) $(FINCS) -qfree -NS2048
+ FFLAG90A = $(OPTS90A) $(FINCS) -qfree -NS2048
+ FFLAGS   = $(OPTS) $(FINCS)
+ FFLAGX   = $(OPTS) 
+ FFLAGIO  = $(OPTS) 
+ FFLAGY   = $(OPTS)
+ FFLAGM   = $(OPTS) $(FINCS) $(FFLAGM_DEBUG) -NS2048
+ FFLAGSF  = -qnosave -q free=f90 -qcheck $(FFLAGM_DEBUG)
+ FFLAGSI  = -qnosave -q free=f90 $(FFLAGM_DEBUG)
+ FFLAGB   = -qnosave -qfixed $(FFLAGM_DEBUG)
+
+ AR = ar
+ ARFLAGS = -r
+
+.SUFFIXES: .o .f .F90 .h
+#
+# *****************************************************************
+#
+OBJS0	= \
+          module_digital_filter_gfs.o \
+          module_ERR_MSG.o            \
+	  atmos_dyn_phy_cpl_comp_mod_stub.o 
+
+#
+#
+# *****************************************************************
+#
+
+$(EXEC): $(OBJS0) 
+	$(AR) $(ARFLAGS) $(EXEC) $(OBJS0) 
+	echo " $(EXEC) is created! "
+clean:
+	rm -f *.o *.mod *.lst *.a $(EXEC)
+
+.F90.o:
+	$(F77) $(FFLAGS) -c -d $< 
+.f.o:
+	$(F77) $(FFLAGS) -c $< 
+
+#
+# *****************************************************************
+module_err_msg.o:     module_err_msg.F90
+	$(F77) $(FFLAG90) -c module_err_msg.F90
+                                                                                  
+atmos_dyn_phy_cpl_comp_mod_stub.o:     atmos_dyn_phy_cpl_comp_mod_stub.F90
+	$(F77) $(FFLAG90) -c atmos_dyn_phy_cpl_comp_mod_stub.F90
+
+module_digital_filter_gfs.o:     module_digital_filter_gfs.F90
+	$(F77) $(FFLAG90) -c module_digital_filter_gfs.F90
+

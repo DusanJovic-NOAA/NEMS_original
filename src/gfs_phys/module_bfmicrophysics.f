@@ -1,4 +1,4 @@
-      MODULE module_microphysics
+      MODULE module_microphysics_gfs
 !
       USE MACHINE , ONLY : kind_phys
       USE FUNCPHYS
@@ -26,7 +26,7 @@
 !     are multiplied by physics time step in GSMCONST.
 !
       INTEGER, PRIVATE,PARAMETER :: MY_T1=1, MY_T2=35
-      REAL,PRIVATE,DIMENSION(MY_T1:MY_T2) :: MY_GROWTH
+      REAL,PRIVATE,DIMENSION(MY_T1:MY_T2) :: MY_GROWTH_GFS
 !
 !--- Parameters for ice lookup tables, which establish the range of mean ice particle
 !      diameters; from a minimum mean diameter of 0.05 mm (DMImin) to a
@@ -147,7 +147,7 @@
 !
 !
 !   SUBROUTINES:
-!     MY_GROWTH_RATES - lookup table for growth of nucleated ice
+!     MY_GROWTH_RATES_GFS - lookup table for growth of nucleated ice
 !
 !   UNIQUE: NONE
 !
@@ -326,7 +326,7 @@
 !--- Calculates coefficients for growth rates of ice nucleated in water
 !    saturated conditions, scaled by physics time step (lookup table)
 !
-      CALL MY_GROWTH_RATES (DTPH)
+      CALL MY_GROWTH_RATES_GFS (DTPH)
 !
 !--- CIACW is used in calculating riming rates
 !      The assumed effective collection efficiency of cloud water rimed onto
@@ -401,7 +401,7 @@
 !--- Sets up lookup table for calculating initial ice crystal growth ---
 !#######################################################################
 !
-      SUBROUTINE MY_GROWTH_RATES (DTPH)
+      SUBROUTINE MY_GROWTH_RATES_GFS (DTPH)
 !
       implicit none
 !
@@ -431,11 +431,11 @@
 !-----------------------------------------------------------------------
 !
       DT_ICE=(DTPH/600.)**1.5
-      MY_GROWTH=DT_ICE*MY_600
+      MY_GROWTH_GFS=DT_ICE*MY_600
 !
 !-----------------------------------------------------------------------
 !
-      END subroutine MY_GROWTH_RATES
+      END subroutine MY_GROWTH_RATES_GFS
 !
 !#######################################################################
 !--------------- Creates lookup tables for ice processes ---------------
@@ -1862,7 +1862,7 @@
       !
               DUM1=QSW/QSI-1.      
               DUM2=1.E3*EXP(12.96*DUM1-0.639)
-              PIDEP=MIN(PIDEP_max, DUM2*MY_GROWTH(INDEX_MY)*RRHO)
+              PIDEP=MIN(PIDEP_max, DUM2*MY_GROWTH_GFS(INDEX_MY)*RRHO)
       !
             ENDIF       ! End IF (QTICE .GT. 0.)
    !
@@ -3207,5 +3207,5 @@
       end subroutine rsipath2
 !-----------------------------------
 
-      end MODULE module_microphysics
+      end MODULE module_microphysics_gfs
 

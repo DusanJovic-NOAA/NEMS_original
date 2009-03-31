@@ -23,7 +23,7 @@
 
       implicit none
 
-#include "esmf_log_macros.inc"
+#include "../../inc/ESMF_LogMacros.inc"
 
       private   ! by default, data is private to this module
 

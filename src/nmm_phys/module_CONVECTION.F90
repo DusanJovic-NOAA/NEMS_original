@@ -62,7 +62,7 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-     REAL,PARAMETER ::                                                 &
+     REAL,PARAMETER ::                                                  &
      &                  DSPC=-3000.                                     &
      &                 ,DTTOP=0.,EFIFC=5.0,EFIMN=0.20,EFMNT=0.70        &
      &                 ,ELIWV=2.683E6,ENPLO=20000.,ENPUP=15000.         &
@@ -70,7 +70,7 @@
      &                 ,EPSNTP=.0001,EPSNTT=.0001,EPSPR=1.E-7           &
      &                 ,EPSUP=1.00                                      &
      &                 ,FR=1.00,FSL=0.85,FSS=0.85                       &
-     &                 ,FUP=0.                                          &
+     &                 ,FUP=1./200000.                                  &
      &                 ,PBM=13000.,PFRZ=15000.,PNO=1000.                &
      &                 ,PONE=2500.,PQM=20000.                           &
      &                 ,PSH=20000.,PSHU=45000.                          &
@@ -85,11 +85,11 @@
                        ,DTPtrigr=DTtrigr*PONE      !<-- Average parcel virtual temperature deficit over depth PONE.
                                                    !<-- NOTE: CAPEtrigr is scaled by the cloud base temperature (see below)
 !
-      REAL,PARAMETER :: DSPBFL=-3875.*FR                                &
-     &                 ,DSP0FL=-5875.*FR                                &
-     &                 ,DSPTFL=-1875.*FR                                &
-     &                 ,DSPBFS=-3875.                                   &
-     &                 ,DSP0FS=-5875.                                   &
+      REAL,PARAMETER :: DSPBFL=-3875.*FR                           &
+     &                 ,DSP0FL=-5875.*FR                           &
+     &                 ,DSPTFL=-1875.*FR                           &
+     &                 ,DSPBFS=-3875.                              &
+     &                 ,DSP0FS=-5875.                              &
      &                 ,DSPTFS=-1875.
 !
       REAL,PARAMETER :: PL=2500.,PLQ=70000.,PH=105000.                  &
@@ -143,7 +143,7 @@
                        ,F_ICE,F_RAIN                                    &
                        ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG                   &
                        ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG                   &
-                       ,DSG2,SGML2,PDSG1,PSGML1,PDTOP                   &
+                       ,DSG2,SGML2,SG2,PDSG1,PSGML1,PSG1                &
                        ,PT,PD,T,Q,CWM,TCUCN,WATER                       &
                        ,OMGALF,U,V                                      &
                        ,FIS,W0AVG                                       &
@@ -194,11 +194,13 @@
 !
       INTEGER,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: LPBL
 !
-      REAL,INTENT(IN) :: DT,DYH,PDTOP,PT
+      REAL,INTENT(IN) :: DT,DYH,PT
 !
       REAL,INTENT(INOUT) :: ACUTIM,AVCNVC
 !
       REAL,DIMENSION(1:LM),INTENT(IN) :: DSG2,PDSG1,PSGML1,SGML2
+!
+      REAL,DIMENSION(1:LM+1),INTENT(IN) :: PSG1,SG2 
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: FIS,PD              &
                                                    ,RSWIN,RSWOUT,SM
@@ -271,7 +273,7 @@
 !-----------------------------------------------------------------------
 !***  FOR TEMPERATURE CHANGE CHECK ONLY.
 !-----------------------------------------------------------------------
-      REAL :: DTEMP_CHECK=2.0
+!zj      REAL :: DTEMP_CHECK=1.0
       REAL :: TCHANGE
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -390,7 +392,7 @@
         PDSL=PD(I,J)
         RAINCV(I,J)=0.
         RAINC(I,J)=0.
-        P8W(I,1,J)=PT+PDTOP+PD(I,J)
+        P8W(I,1,J)=SG2(LM+1)*PDSL+PSG1(LM+1)
         LOWLYR(I,J)=1
         XLAND(I,J)=SM(I,J)+1.
         NCA(I,J)=0.
@@ -416,11 +418,7 @@
         DO K=1,LM
           KFLIP=LM+1-K
 !
-          IF(DSG2(KFLIP)<1.E-10)THEN
-            PLYR=PSGML1(KFLIP)
-          ELSE
-            PLYR=PT+PDTOP+SGML2(KFLIP)*PDSL
-          ENDIF
+          PLYR=SGML2(KFLIP)*PDSL+PSGML1(KFLIP)
 
           QL=MAX(Q(I,J,KFLIP),EPSQ)
           TL=T(I,J,KFLIP)
@@ -514,13 +512,13 @@
 !.......................................................................
 !$omp parallel do private(i,j,k)
 !.......................................................................
-      DO K=1,LM                                               
-        DO J=JMS,JME                                         
-          DO I=IMS,IME                                      
-            WATER(I,J,K,P_QV)=Q(I,J,K)/(1.-Q(I,J,K))       
-          ENDDO                                           
-        ENDDO                                            
-      ENDDO                                             
+      DO K=1,LM
+        DO J=JMS,JME
+          DO I=IMS,IME
+            WATER(I,J,K,P_QV)=Q(I,J,K)/(1.-Q(I,J,K))
+          ENDDO
+        ENDDO
+      ENDDO
 !.......................................................................
 !$omp end parallel do
 !.......................................................................
@@ -656,10 +654,10 @@
           TCUCN(I,J,KFLIP)=TCUCN(I,J,KFLIP)+DTDT
           WATER_TRANS(I,K,J,P_QV)=Q(I,J,KFLIP)/(1.-Q(I,J,KFLIP))       !Convert to mixing ratio
 !
-          TCHANGE=DTDT*DTCNVC
-          IF(ABS(TCHANGE)>DTEMP_CHECK)THEN
-            WRITE(0,*)'BIG T CHANGE BY CONVECTION:',TCHANGE,' at (',I,',',J,',',KFLIP,')' 
-	  ENDIF
+!zj          TCHANGE=DTDT*DTCNVC
+!zj          IF(ABS(TCHANGE)>DTEMP_CHECK)THEN
+!zj            WRITE(0,*)'BIG T CHANGE BY CONVECTION:',TCHANGE,' at (',I,',',J,',',KFLIP,')' 
+!zj	  ENDIF
 !
         ENDDO
 !
@@ -2843,7 +2841,7 @@
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
-      SUBROUTINE BMJ_INIT(CLDEFI,RESTART,AVCNVC,ACUTIM                  &
+      SUBROUTINE BMJ_INIT(CLDEFI,RESTART                                &
      &                   ,IDS,IDE,JDS,JDE,KDS,KDE                       &
      &                   ,IMS,IME,JMS,JME,KMS,KME                       &
      &                   ,ITS,ITE,JTS,JTE,KTS,KTE)
@@ -2856,7 +2854,7 @@
      &                     ,IMS,IME,JMS,JME,KMS,KME                     &
      &                     ,ITS,ITE,JTS,JTE,KTS,KTE
 !
-      REAL,INTENT(OUT) :: ACUTIM,AVCNVC
+!      REAL,INTENT(OUT) :: ACUTIM,AVCNVC
 !
 !!!   REAL,DIMENSION(IMS:IME,KMS:KME,JMS:JME),INTENT(OUT) ::            &
 !!!  &                                              RTHCUTEN            &

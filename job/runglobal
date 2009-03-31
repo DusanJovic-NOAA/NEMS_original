@@ -1,0 +1,64 @@
+#!/bin/ksh
+#
+#@ output = /meso/save/wx22ec/NEW_STRUCTURE_A/exp/nmm/out
+#@ error = /meso/save/wx22ec/NEW_STRUCTURE_A/exp/nmm/err
+#@ job_type = parallel
+#@ tasks_per_node = 16
+#@ node = 1
+#@ node_usage=not_shared
+#@ resources=ConsumableCPUs(1)ConsumableMemory(800MB)
+#@ class = debug
+##@ class = dev
+#@ wall_clock_limit = 00:10:00
+#@ preferences = Feature == "dev"
+#@ network.MPI = csss,shared,us
+#@ bulkxfer=yes
+#@ account_no=NAM-T2O
+#@ queue
+#
+#
+set -x
+#
+### For MPI
+#
+export BIND_TASKS=no
+export MP_EAGER_LIMIT=65536
+export MP_SHARED_MEMORY=yes
+export MP_SINGLE_THREAD=yes
+export MP_LABELIO=yes
+export MP_STDOUTMODE=ordered
+export MEMORY_AFFINITY=mcm
+export MP_COREFILE_FORMAT=core.txt
+export TARGET_CPU_RANGE="-1"
+export XLSMPOPTS="parthds=1:stack=128000000"
+export AIXTHREAD_SCOPE=S
+
+RUNDIR=/ptmp/${USER}/nmm.x
+DATADIR=/meso/noscrub/wx22tb/nmmb_input/input_global
+SRCDIR=/meso/save/wx22ec/NEW_STRUCTURE_A
+
+mkdir -p $RUNDIR
+cd $RUNDIR
+
+rm -f $RUNDIR/*
+
+cp $DATADIR/test_input_nmmb_global_257_181_35-2007091800 main_input_filename
+#cp $DATADIR/fcst main_input_filename
+#cp $DATADIR/GWD.bin .
+#cp /ptmp/wx22ec/nmm.1/nmm_b_restart.024 restart_file
+cp $SRCDIR/exp/configure_files/configfile_global_new configure_file
+
+#cp /meso/save/wx20zj/umo90/geodata/co2data/tr* .
+cp $DATADIR/tr* .
+#cp $DATADIR/co2_trans .
+
+cp /nwprod/fix/nam_micro_lookup.dat ETAMPNEW_DATA
+cp /meso/save/wx22tb/WRF_repository/run/RRT* .
+cp /meso/noscrub/wx20rv/NOAH_wrf_data/*.TBL .
+
+echo "Model started:  " `date`
+
+poe hpmcount -o nmm.4_test /u/wx15ja/bin/hybrid_launch $SRCDIR/exe/NMM_NEMS.x
+echo "Model ended:    " `date`
+
+exit

@@ -14,6 +14,9 @@
 ! HISTORY LOG:
 !
 !   2008-07-28  Vasic - Removed counters (computed in SET_INTERNAL_STATE_PHY)
+!   2008-10-    Vasic - Restart capability
+!   2008-08-23  Janjic - Removed uz0h, vz0h
+!   2008-08-23  Janjic - General hybrid coordinate
 !
 !-----------------------------------------------------------------------
 !
@@ -42,7 +45,7 @@
       USE MODULE_LANDSURFACE  ,ONLY : DZSOIL,NOAH_LSM_INIT              &
                                      ,NUM_SOIL_LAYERS,SLDPTH
       USE MODULE_CONVECTION   ,ONLY : BMJ_INIT,CUCNVC
-      USE MODULE_MICROPHYSICS ,ONLY : FERRIER_INIT,GSMDRIVE             &
+      USE MODULE_MICROPHYSICS_NMM ,ONLY : FERRIER_INIT,GSMDRIVE             &
                                      ,WSM3INIT,MICRO_RESTART
       USE MODULE_H_TO_V       ,ONLY : H_TO_V,H_TO_V_TEND
       USE MODULE_GWD          ,ONLY : GWD_INIT
@@ -692,6 +695,11 @@
 !
       REAL,DIMENSION(LM) :: DSG2,PDSG1,PSGML1,SGML2
 !
+      REAL,DIMENSION(LM+1) :: PSG1,SG2
+!
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1) :: RQVBLTEN,RTHBLTEN  ! For WRF physics
+
+!
       LOGICAL :: CALL_LONGWAVE,CALL_PRECIP,CALL_SHORTWAVE,CALL_TURBULENCE
 !
       TYPE(ESMF_Field)    :: HOLD_FIELD
@@ -739,6 +747,11 @@
         PDSG1(L)=int_state%PDSG1(L)
         PSGML1(L)=int_state%PSGML1(L)
         SGML2(L)=int_state%SGML2(L)
+      ENDDO
+!
+      DO L=1,LM+1
+        SG2(L)=INT_STATE%SG2(L)
+        PSG1(L)=INT_STATE%PSG1(L)
       ENDDO
 !
 !-----------------------------------------------------------------------
@@ -799,12 +812,30 @@
           ENDDO
           ENDDO
         ENDIF
+
+	if (ITS .le. 267 .and. ITE .ge. 267 .and. JTS .le. 228 .and. JTE .ge. 228) then
+!	write(0,*) 'int_state%T(267,228,24) into RADIATION: ', int_state%T(267,228,24)
+	endif
+!        write(0,*) 'minval(T), maxval(T): ', minval(int_state%T(ITS:ITE,JTS:JTE,1:LM)), & 
+!                                             maxval(int_state%T(ITS:ITE,JTS:JTE,1:LM))
+
+	do L=1,LM
+          DO J=JTS,JTE
+          DO I=ITS,ITE
+	if (int_state%T(I,J,L) .lt. 195.) then
+!	write(0,*) 'low T...I,J,L , int_state%T(I,J,L): ', I,J,L , int_state%T(I,J,L) int_state%T(I,J,L)=195.
+	endif
+          ENDDO
+          ENDDO
+        enddo
 !
+
+!	write(0,*) 'radiation called'
         CALL RADIATION(NTIMESTEP,int_state%DT,JULDAY,JULYR,XTIME,JULIAN &
                       ,START_HOUR,int_state%NPHS                        &
                       ,int_state%GLAT,int_state%GLON                    &
                       ,int_state%NRADS,int_state%NRADL                  &
-                      ,DSG2,SGML2,PDSG1,PSGML1,PDTOP                    &
+                      ,DSG2,SGML2,PDSG1,PSGML1                          &
                       ,int_state%PT,int_state%PD                        &
                       ,int_state%T,int_state%Q,int_state%CW             &
                       ,int_state%THS,int_state%ALBEDO,int_state%EPSR    &
@@ -839,11 +870,21 @@
 !
       btim=timef()
 !
+	if (ITS .le. 50 .and. ITE .ge. 50 .and. JTS .le. 50 .and. JTE .ge. 50) then
+!	write(0,*) 'call RDTEMP with these arguments'
+!	write(0,*) 'int_state%GLAT,int_state%GLON: ', int_state%GLAT(50,50),int_state%GLON(50,50) 
+!	write(0,*) 'CZEN, CZMEAN, T, RSWTT, RLWTT: ', int_state%CZEN(50,50),int_state%CZMEAN(50,50),int_state%T(50,50,10), int_state%RSWTT(50,50,10),int_state%RLWTT(50,50,10)
+	endif
       CALL RDTEMP(NTIMESTEP,int_state%DT,JULDAY,JULYR,START_HOUR        &
                  ,int_state%GLAT,int_state%GLON                         &
                  ,int_state%CZEN,int_state%CZMEAN,int_state%T           &
                  ,int_state%RSWTT,int_state%RLWTT                       &
                  ,LM)
+	if (ITS .le. 50 .and. ITE .ge. 50 .and. JTS .le. 50 .and. JTE .ge. 50) then
+!	write(0,*) 'int_state%T(50,50,10) after RDTEMP: ', int_state%T(50,50,10)
+	endif
+
+ 973 continue
 !
       rdtemp_tim=rdtemp_tim+timef()-btim
 !
@@ -936,7 +977,7 @@
 !
         CALL TURBL(NTIMESTEP,int_state%DT,int_state%NPHS               &
                   ,int_state%NUM_WATER,NUM_SOIL_LAYERS,SLDPTH,DZSOIL   &
-                  ,DSG2,SGML2,PDSG1,PSGML1,PDTOP,PT                    &
+                  ,DSG2,SGML2,SG2,PDSG1,PSGML1,PSG1,PT                 &
                   ,int_state%SM,int_state%CZEN,int_state%CZMEAN        &
                   ,int_state%SIGT4,int_state%RLWIN,int_state%RSWIN     &
                   ,int_state%RADOT                                     &
@@ -959,7 +1000,6 @@
                   ,int_state%AKHS_OUT,int_state%AKMS_OUT               &
                   ,int_state%THZ0,int_state%QZ0                        &
                   ,int_state%UZ0,int_state%VZ0                         &
-                  ,int_state%UZ0H,int_state%VZ0H                       &
                   ,int_state%QSH,int_state%MAVAIL                      &
                   ,int_state%STC,int_state%SMC,int_state%CMC           &
                   ,int_state%SMSTAV,int_state%SMSTOT                   &
@@ -974,7 +1014,7 @@
                   ,int_state%U10,int_state%V10                         &
                   ,int_state%TH10,int_state%Q10                        &
                   ,int_state%TSHLTR,int_state%QSHLTR,int_state%PSHLTR  &
-                  ,int_state%T2                                        &
+                  ,int_state%PSFC,int_state%T2                         &
                   ,int_state%QSG,int_state%QVG,int_state%QCG           &
                   ,int_state%SOILT1,int_state%TSNAV                    &
                   ,int_state%TWBS,int_state%QWBS                       &
@@ -1005,25 +1045,21 @@
         turbl_tim=turbl_tim+timef()-btim
 !
 !-----------------------------------------------------------------------
-!***  EXCHANGE FRICTION VELOCITIES AND WIND TENDENCIES.
+!***  EXCHANGE WIND TENDENCIES.
 !-----------------------------------------------------------------------
 !
         btim=timef()
 !
-        CALL HALO_EXCH(int_state%UZ0H,1,int_state%VZ0H,1,1,1)
         CALL HALO_EXCH(int_state%DUDT,LM,int_state%DVDT,LM,1,1)
 !
         exch_phy_tim=exch_phy_tim+timef()-btim
 !
 !-----------------------------------------------------------------------
-!***  NOW INTERPOLATE FRICTION VELOCTIES AND WIND TENDENCIES
+!***  NOW INTERPOLATE WIND TENDENCIES
 !***  FROM H TO V POINTS.
 !-----------------------------------------------------------------------
 !
         btim=timef()
-!
-        CALL H_TO_V(int_state%UZ0H,int_state%UZ0)
-        CALL H_TO_V(int_state%VZ0H,int_state%VZ0)
 !
         CALL H_TO_V_TEND(int_state%DUDT,int_state%DT,int_state%NPHS,LM  &
                         ,int_state%U)
@@ -1116,7 +1152,7 @@
                    ,int_state%P_QI,int_state%P_QS,int_state%P_QG       &
                    ,int_state%F_QV,int_state%F_QC,int_state%F_QR       &
                    ,int_state%F_QI,int_state%F_QS,int_state%F_QG       &
-                   ,DSG2,SGML2,PDSG1,PSGML1,PDTOP                      &
+                   ,DSG2,SGML2,SG2,PDSG1,PSGML1,PSG1                   &
                    ,int_state%PT,int_state%PD                          &
                    ,int_state%T,int_state%Q                            &
                    ,int_state%CW,int_state%TCUCN,int_state%WATER       &
@@ -1173,7 +1209,7 @@
                      ,NPRECIP,int_state%NUM_WATER                       &
                      ,int_state%DXH(JC),int_state%DYH                   &
                      ,int_state%SM,int_state%FIS                        &
-                     ,DSG2,SGML2,PDSG1,PSGML1,PDTOP                     &
+                     ,DSG2,SGML2,PDSG1,PSGML1                           &
                      ,int_state%PT,int_state%PD                         &
                      ,int_state%T,int_state%Q                           &
                      ,int_state%CW,int_state%OMGALF                     &
@@ -1375,13 +1411,14 @@
       REAL :: SWRAD_SCAT=1.
 !
       REAL :: ALM,ANUM,APH,AVE,CTLM,CTPH,CTPH0,DELX,DELY,DENOM          &
-             ,DLM,DLMD,DPH,DPHD,DSIG,DSIGSUM,DT,DT_MICRO,DTPHS          &
+             ,DLM,DLMD,DPH,DPHD,DT,DT_MICRO,DTPHS                       &
              ,GMT,JULIAN,PDBOT,PDTOP,PDTOT,PT_CB,RELM,RPDTOT            &
              ,SB,SPH,STLM,STPH,STPH0,THETA_HALF                         &
              ,TLM,TLM_BASE,TPH,TPH_BASE,TPH0,TPV,WB,XTIME
 !
       REAL,DIMENSION(LM) :: DSG1,DSG2,PDSG1,PSGML1,SGML1,SGML2
-      REAL,DIMENSION(LM+1) :: SG1,SG2,SGM,SFULL,SFULL_FLIP,SMID,SMID_FLIP
+      REAL,DIMENSION(LM+1) :: PSG1,SG1,SG2,SGM                         &
+                             ,SFULL,SFULL_FLIP,SMID,SMID_FLIP
 !
 !zj      REAL,DIMENSION(:),ALLOCATABLE,TARGET :: DXH,DXV
       REAL,DIMENSION(:),ALLOCATABLE,TARGET :: DXH,DXV,RDXH,RDXV !zj
@@ -1567,8 +1604,8 @@
 !
       IF(MYPE==0)THEN
         OPEN(unit=NFCST,file=INFILE,status='old',form='unformatted')
-        NRECS_SKIP_FOR_PT=6+5*LM+21 !<-- For current WPS input
-!       NRECS_SKIP_FOR_PT=6+5*LM+23 !zj +21
+!        NRECS_SKIP_FOR_PT=6+5*LM+21 !<-- For current WPS input
+        NRECS_SKIP_FOR_PT=6+5*LM+23 !zj +21
 !
         DO N=1,NRECS_SKIP_FOR_PT
           READ(NFCST)
@@ -1593,7 +1630,10 @@
 
       IF(MYPE==0)THEN
         READ(NFCST)RUN,IDAT,IHRST
-        READ(NFCST)PDTOP,LPT2,SGM,SG1,DSG1,SGML1,SG2,DSG2,SGML2
+        READ(NFCST)PT,PDTOP,LPT2,SGM,SG1,DSG1,SGML1,SG2,DSG2,SGML2
+
+!	write(0,*) 'PDTOP, SG1: ', PDTOP, SG1
+!	write(0,*) 'SG2: ', SG2
 !
 !***  CHECK TO SEE IF THE STARTING DATE/TIME IN THE INPUT DATA FILE
 !***  AGREES WITH THAT IN THE CONFGURE FILE.
@@ -1642,7 +1682,10 @@
 !       WRITE(0,*)' PHYSICS_INITIALIZE l=',l,' pdsg1=',pdsg1(l),' dsg1=',dsg1(l) &
 !               ,' psgml1=',psgml1(l),' sgml1=',sgml1(l),' pdtop=',pdtop,' pt=',pt
       ENDDO
-
+!
+      DO L=1,LM+1
+        PSG1(L)=SG1(L)*PDTOP+PT
+      ENDDO
 !
 !-----------------------------------------------------------------------
 !***  BEFORE MOVING ON, TRANSFER VALUES TO THE INTERNAL STATE.
@@ -1655,6 +1698,13 @@
         int_state%PDSG1(L)=PDSG1(L)
         int_state%PSGML1(L)=PSGML1(L)
         int_state%SGML2(L)=SGML2(L)
+      ENDDO
+!
+      DO L=1,LM+1
+        int_state%SG1(L)=SG1(L)
+        int_state%PSG1(L)=PSG1(L)
+        int_state%SG2(L)=SG2(L)
+        int_state%SGM(L)=SGM(L)
       ENDDO
 !
       ALLOCATE(TEMP1(IDS:IDE,JDS:JDE),STAT=I)
@@ -1757,6 +1807,7 @@
       DO K=1,LM
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1  ! T
+!	write(0,*) 'min max of T read in: ', K, minval(TEMP1), maxval(TEMP1)
         ENDIF
 !
         DO J=JMS,JME
@@ -1827,6 +1878,7 @@
 !
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
+!	write(0,*) 'min, max of EPSR: ', minval(TEMP1), maxval(TEMP1)
       ENDIF
       CALL DSTRB(TEMP1,int_state%EPSR,1,1,1,1,1)
 !
@@ -1836,6 +1888,7 @@
 !
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
+!	write(0,*) 'min, max of MXSNAL: ', minval(TEMP1), maxval(TEMP1)
       ENDIF
 
       CALL DSTRB(TEMP1,int_state%MXSNAL,1,1,1,1,1)
@@ -1846,11 +1899,13 @@
 !
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1        ! actually NMM_TSK from WRF
+!	write(0,*) 'min, max of TSKIN: ', minval(TEMP1), maxval(TEMP1)
       ENDIF
       CALL DSTRB(TEMP1,int_state%TSKIN,1,1,1,1,1)
 !
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1        ! actually NMM_TSK from WRF
+!	write(0,*) 'min, max of SST: ', minval(TEMP1), maxval(TEMP1)
       ENDIF
       CALL DSTRB(TEMP1,int_state%SST,1,1,1,1,1)
 !
@@ -1860,6 +1915,7 @@
 !
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
+!	write(0,*) 'min, max of SNO: ', minval(TEMP1), maxval(TEMP1)
       ENDIF
       CALL DSTRB(TEMP1,int_state%SNO,1,1,1,1,1)
 !
@@ -1897,23 +1953,23 @@
 !
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
-	write(0,*) 'min, max for Z0: ', minval(TEMP1),maxval(TEMP1)
+!	write(0,*) 'min, max for Z0: ', minval(TEMP1),maxval(TEMP1)
       ENDIF
       CALL DSTRB(TEMP1,int_state%Z0,1,1,1,1,1)
       CALL HALO_EXCH(int_state%Z0,1,3,3)
 !
-      go to 11111  !<-- For current WPS input
+!zj      go to 11111  !<-- For current WPS input
 !
       IF(MYPE==0)THEN !zj
         READ(NFCST)TEMP1 !zj
-        write(0,*) 'min, max for Z0BASE: ', minval(TEMP1),maxval(TEMP1) !zj
+!        write(0,*) 'min, max for Z0BASE: ', minval(TEMP1),maxval(TEMP1) !zj
       ENDIF !zj
       CALL DSTRB(TEMP1,int_state%Z0BASE,1,1,1,1,1) !zj
       CALL HALO_EXCH(int_state%Z0BASE,1,3,3) !zj
 !
       IF(MYPE==0)THEN !zj
         READ(NFCST)TEMP1 !zj
-        write(0,*) 'min, max for STDH: ', minval(TEMP1),maxval(TEMP1) !zj
+!        write(0,*) 'min, max for STDH: ', minval(TEMP1),maxval(TEMP1) !zj
       ENDIF !zj
       CALL DSTRB(TEMP1,int_state%STDH,1,1,1,1,1) !zj
       CALL HALO_EXCH(int_state%STDH,1,3,3) !zj
@@ -1924,7 +1980,7 @@
 !
       IF(MYPE==0)THEN
         READ(NFCST)TEMPSOIL
-	write(0,*) 'min, max for STC: ', minval(TEMPSOIL),maxval(TEMPSOIL)
+!	write(0,*) 'min, max for STC: ', minval(TEMPSOIL),maxval(TEMPSOIL)
       ENDIF
 !
       CALL DSTRB(TEMPSOIL(1,IDS:IDE,JDS:JDE),int_state%STC(IMS:IME,JMS:JME,1),1,1,1,1,1)
@@ -1934,7 +1990,7 @@
 !
       IF(MYPE==0)THEN
         READ(NFCST)TEMPSOIL
-        write(0,*) 'min, max for SMC: ', minval(TEMPSOIL),maxval(TEMPSOIL)
+!        write(0,*) 'min, max for SMC: ', minval(TEMPSOIL),maxval(TEMPSOIL)
       ENDIF
 !
       CALL DSTRB(TEMPSOIL(1,:,:),int_state%SMC(:,:,1),1,1,1,1,1)
@@ -1944,7 +2000,7 @@
 !
       IF(MYPE==0)THEN
         READ(NFCST)TEMPSOIL
-        write(0,*) 'min, max for SH2O: ', minval(TEMPSOIL),maxval(TEMPSOIL)
+!        write(0,*) 'min, max for SH2O: ', minval(TEMPSOIL),maxval(TEMPSOIL)
       ENDIF
 !
       CALL DSTRB(TEMPSOIL(1,:,:),int_state%SH2O(:,:,1),1,1,1,1,1)
@@ -1953,32 +2009,34 @@
       CALL DSTRB(TEMPSOIL(4,:,:),int_state%SH2O(:,:,4),1,1,1,1,1)
 !
       DEALLOCATE(TEMPSOIL)
-!
       ALLOCATE(ITEMP(IDS:IDE,JDS:JDE),STAT=I)
 !
       IF(MYPE==0)THEN
         READ(NFCST) ITEMP
-        write(0,*) 'min, max for ISLTYP: ', minval(ITEMP),maxval(ITEMP)
+!        write(0,*) 'min, max for ISLTYP: ', minval(ITEMP),maxval(ITEMP)
       ENDIF
       CALL IDSTRB(ITEMP,int_state%ISLTYP)
 !
       IF(MYPE==0)THEN
         READ(NFCST) ITEMP
-        write(0,*) 'min, max for IVGTYP: ', minval(ITEMP),maxval(ITEMP)
+!        write(0,*) 'min, max for IVGTYP: ', minval(ITEMP),maxval(ITEMP)
       ENDIF
       CALL IDSTRB(ITEMP,int_state%IVGTYP)
 !
       IF(MYPE==0)THEN
         READ(NFCST) TEMP1
+!        write(0,*) 'min, max for VEGFRC: ', minval(TEMP1),maxval(TEMP1) !zj
       ENDIF
       CALL DSTRB(TEMP1,int_state%VEGFRC,1,1,1,1,1)
 !
       IF(MYPE==0)THEN
         READ(NFCST) SOIL1DIN
+!	write(0,*) 'SOIL1DIN: ', SOIL1DIN
       ENDIF
 !
       IF(MYPE==0)THEN
         READ(NFCST) SOIL1DIN
+!	write(0,*) 'SOIL1DIN: ', SOIL1DIN
       ENDIF
 !
       DO N=1,NSOIL
@@ -1987,7 +2045,7 @@
 !
       IF(MYPE==0)THEN
         READ(NFCST) PT
-        write(0,*) 'read in ptop: ', PT
+!        write(0,*) 'read in ptop in PHYS: ', PT
       ENDIF
 !
       CALL MPI_BARRIER(MPI_COMM_COMP,IRTN)
@@ -2140,6 +2198,7 @@
       CALL MPI_BCAST(LPT2     ,1     ,MPI_INTEGER,0,MPI_COMM_COMP,IRTN)
       CALL MPI_BCAST(SLDPTH   ,NSOIL ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
 
+
       CALL MPI_BCAST(int_state%MP_RESTART_STATE(1) ,MICRO_RESTART ,MPI_REAL ,0,MPI_COMM_COMP,IRTN)
       CALL MPI_BCAST(int_state%TBPVS_STATE(1)      ,MICRO_RESTART ,MPI_REAL ,0,MPI_COMM_COMP,IRTN)
       CALL MPI_BCAST(int_state%TBPVS0_STATE(1)     ,MICRO_RESTART ,MPI_REAL ,0,MPI_COMM_COMP,IRTN)
@@ -2167,6 +2226,10 @@
         PSGML1(L)=SGML1(L)*PDTOP+PT
       ENDDO
 !
+      DO L=1,LM+1
+        PSG1(L)=SG1(L)*PDTOP+PT
+      ENDDO
+!
 !-----------------------------------------------------------------------
 !***  BEFORE MOVING ON, TRANSFER VALUES TO THE INTERNAL STATE.
 !-----------------------------------------------------------------------
@@ -2178,6 +2241,13 @@
         int_state%PDSG1(L)=PDSG1(L)
         int_state%PSGML1(L)=PSGML1(L)
         int_state%SGML2(L)=SGML2(L)
+      ENDDO
+!
+      DO L=1,LM+1
+        int_state%SG1(L)=SG1(L)
+        int_state%PSG1(L)=PSG1(L)
+        int_state%SG2(L)=SG2(L)
+        int_state%SGM(L)=SGM(L)
       ENDDO
 !
 !-----------------------------------------
@@ -2948,8 +3018,6 @@
         READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%UZ0,1,1,1,1,1)
-      CALL HALO_EXCH(int_state%UZ0,1,3,3)
-!     must do HALO_EXCH
 !-----------------------------------------------------------------------
 !***  V10
 !-----------------------------------------------------------------------
@@ -2971,8 +3039,6 @@
         READ(NFCST) TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%VZ0,1,1,1,1,1)
-      CALL HALO_EXCH(int_state%VZ0,1,3,3)
-!     must do HALO_EXCH
 !-----------------------------------------------------------------------
 !***  Z0
 !-----------------------------------------------------------------------
@@ -3096,6 +3162,14 @@
       ENDDO 
 !-----------------------------------------------------------------------
 !
+!      DO K=1,LM
+!        IF(MYPE==0)THEN
+!          READ(NFCST)TEMP1   ! EXCH_H
+!        ENDIF
+!      ENDDO
+!
+!-----------------------------------------------------------------------
+!
       DO K=1,LM
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1   ! Q
@@ -3138,7 +3212,7 @@
         ENDDO
 !
         CALL DSTRB(TEMP1,int_state%RLWTT,1,1,1,LM,K)
-      ENDDO 
+      ENDDO
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -3153,7 +3227,7 @@
         ENDDO
 !
         CALL DSTRB(TEMP1,int_state%RSWTT,1,1,1,LM,K)
-      ENDDO 
+      ENDDO
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -3183,7 +3257,7 @@
         ENDDO
 !
         CALL DSTRB(TEMP1,int_state%TCUCN,1,1,1,LM,K)
-      ENDDO 
+      ENDDO
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -3198,7 +3272,7 @@
         ENDDO
 !
         CALL DSTRB(TEMP1,int_state%TRAIN,1,1,1,LM,K)
-      ENDDO 
+      ENDDO
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -3243,7 +3317,7 @@
         ENDDO
 !
         CALL DSTRB(TEMP1,int_state%XLEN_MIX,1,1,1,LM,K)
-      ENDDO 
+      ENDDO
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -3327,7 +3401,7 @@
 !
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1
-          write(0,*) 'lev, min, max for SH2O: ', k,minval(TEMP1),maxval(TEMP1)
+!          write(0,*) 'lev, min, max for SH2O: ', k,minval(TEMP1),maxval(TEMP1)
         ENDIF
 !
         CALL DSTRB(TEMP1,int_state%SH2O,1,1,1,NSOIL,K)
@@ -3338,7 +3412,7 @@
 !
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1
-          write(0,*) 'lev, min, max for SMC: ', k,minval(TEMP1),maxval(TEMP1)
+!          write(0,*) 'lev, min, max for SMC: ', k,minval(TEMP1),maxval(TEMP1)
         ENDIF
 !
         CALL DSTRB(TEMP1,int_state%SMC,1,1,1,NSOIL,K)
@@ -3349,7 +3423,7 @@
 !
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1
-          write(0,*) 'lev, min, max for STC: ', k,minval(TEMP1),maxval(TEMP1)
+!          write(0,*) 'lev, min, max for STC: ', k,minval(TEMP1),maxval(TEMP1)
         ENDIF
 !
         CALL DSTRB(TEMP1,int_state%STC,1,1,1,NSOIL,K)
@@ -3394,20 +3468,16 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  MAKE UP A SKIN TEMPERATURE.
+!***  MAKE UP A POTENTIAL SKIN TEMPERATURE.
 !-----------------------------------------------------------------------
 !
       IF(.NOT.int_state%RESTART) THEN
 !
       DO J=JTS,JTE
       DO I=ITS,ITE
-        IF(int_state%SM(I,J)<0.5)THEN
-          int_state%THS(I,J)=int_state%TSKIN(I,J)                        &
-                            *(100000./(SGML2(LM)*int_state%PD(I,J)+PSGML1(LM)))**CAPPA
-        ELSE
-          int_state%THS(I,J)=int_state%SST(I,J)                         &
-                            *(100000.0/(int_state%PD(I,J)+PDTOP+PT))**CAPPA
-        ENDIF
+        int_state%THS(I,J)=int_state%TSKIN(I,J)                        &
+                          *(100000./(SG2 (LM+1)*int_state%PD(I,J)      &
+                                    +PSG1(LM+1)))**CAPPA
       ENDDO
       ENDDO
 !
@@ -3415,27 +3485,17 @@
 !
 !-----------------------------------------------------------------------
 !***  RECREATE SIGMA VALUES AT LAYER INTERFACES FOR THE FULL VERTICAL
-!***  DOMAIN FROM THICKNESS VALUES FOR THE TWO SUBDOMAINS.
+!***  DOMAIN. 
 !-----------------------------------------------------------------------
 !
-      PDTOT=101325.-PT
-      RPDTOT=1./PDTOT
-      PDBOT=PDTOT-PDTOP
-      SFULL(LM+1)=1.
-      SFULL(1)=0.
-      DSIGSUM=0.
-!
-      DO K=2,LM
-        DSIG=(DSG1(K-1)*PDTOP+DSG2(K-1)*PDBOT)*RPDTOT
-        DSIGSUM=DSIGSUM+DSIG
-        SFULL(K)=SFULL(K-1)+DSIG
-        SMID(K-1)=0.5*(SFULL(K-1)+SFULL(K))
+      DO L=1,LM+1
+        SFULL(L)=SGM(L)
       ENDDO
 !
-      SMID(LM)=0.5*(SFULL(LM)+SFULL(LM+1))
+      DO L=1,LM
+        SMID(L)=(SFULL(L)+SFULL(L+1))*0.5
+      ENDDO
       SMID(LM+1)=-9999999.
-      DSIG=(DSG1(LM)*PDTOP+DSG2(LM)*PDBOT)*RPDTOT
-      DSIGSUM=DSIGSUM+DSIG
 !
 !-----------------------------------------------------------------------
 !***  THE RADIATIVE EMISSIVITY
@@ -3476,30 +3536,40 @@
         DLMD=-int_state%WBD*2./REAL(IDE-3)
         DPH=DPHD*DTR
         DLM=DLMD*DTR
-        TPH_BASE=SB-DPH-DPH
+!        TPH_BASE=SB-DPH-DPH
 !
-        DO J=J_LO,J_HI
-          TPH=TPH_BASE+(J-JDS+1)*DPH
-          STPH=SIN(TPH)
-          CTPH=COS(TPH)
+!        DO J=J_LO,J_HI
+!          TPH=TPH_BASE+(J-JDS+1)*DPH
+!          STPH=SIN(TPH)
+!          CTPH=COS(TPH)
 !
-          TLM_BASE=WB-DLM
-          DO I=I_LO,I_HI
-            TLM=TLM_BASE+(I-IDS+1)*DLM
-            STLM=SIN(TLM)
-            CTLM=COS(TLM)
-            SPH=CTPH0*STPH+STPH0*CTPH*CTLM
-            APH=ASIN(SPH)
-            int_state%GLAT(I,J)=APH
-            ANUM=CTPH*STLM
-            DENOM=(CTLM*CTPH-STPH0*SPH)/CTPH0
-            RELM=ATAN2(ANUM,DENOM)
-            ALM=RELM+int_state%TLM0D*DTR
-            IF(ALM>PI)ALM=ALM-PI-PI
-            IF(ALM<-PI)ALM=ALM+PI+PI
-            int_state%GLON(I,J)=ALM
-          ENDDO
-        ENDDO
+!          TLM_BASE=WB-DLM
+!          DO I=I_LO,I_HI
+!            TLM=TLM_BASE+(I-IDS+1)*DLM
+!            STLM=SIN(TLM)
+!            CTLM=COS(TLM)
+!            SPH=CTPH0*STPH+STPH0*CTPH*CTLM
+!            APH=ASIN(SPH)
+!            int_state%GLAT(I,J)=APH
+!            ANUM=CTPH*STLM
+!            DENOM=(CTLM*CTPH-STPH0*SPH)/CTPH0
+!            RELM=ATAN2(ANUM,DENOM)
+!            ALM=RELM+int_state%TLM0D*DTR
+!            IF(ALM>PI)ALM=ALM-PI-PI
+!            IF(ALM<-PI)ALM=ALM+PI+PI
+!            int_state%GLON(I,J)=ALM
+         tph_base=sb-dph-dph
+         do j=j_lo,j_hi
+           tlm_base=wb-dlm-dlm
+           aph=tph_base+(j-jds+1)*dph
+           do i=i_lo,i_hi
+             alm=tlm_base+(i-ids+1)*dlm
+             if(alm> pi) alm=alm-pi-pi
+             if(alm<-pi) alm=alm+pi+pi
+             int_state%GLAT(I,J)=aph
+             int_state%GLON(I,J)=alm
+           enddo
+         enddo
 !
       ELSE  ! regional
 
@@ -3557,6 +3627,7 @@
 !
 !----------------------------------------------------------------------
 !***  BETWEEN THE POLES
+!
 !----------------------------------------------------------------------
 !
         DO J=JDS+2,JDE-2
@@ -3796,12 +3867,12 @@
                             ,IMS,IME, JMS,JME                          &
                             ,ITS,ITE, JTS,JTE                         )
 
-          CASE ('nmm')
+          CASE ('liss')
 
 !!!         CALL LSM_INIT
 
           CASE DEFAULT
-            WRITE(0,*)' BAD SELECTION OF TURBULENCE SCHEME: INIT'
+            WRITE(0,*)' BAD SELECTION OF LAND SURFACE SCHEME: INIT'
         END SELECT
 !
 !----------------------------------------------------------------------
@@ -3811,7 +3882,6 @@
         SELECT CASE (convection)
           CASE ('bmj')
             CALL BMJ_INIT(int_state%CLDEFI,int_state%RESTART           &
-                         ,int_state%AVCNVC,int_state%ACUTIM            &
                          ,IDS,IDE,JDS,JDE,1,LM+1                       &
                          ,IMS,IME,JMS,JME,1,LM+1                       &
                          ,ITS,ITE,JTS,JTE,1,LM)
@@ -3902,7 +3972,7 @@
 !----------------------------------------------------------------------
       IMPLICIT NONE
 !----------------------------------------------------------------------
-      INCLUDE "mpif.h"
+      INCLUDE "../../inc/mpif.h"
 !----------------------------------------------------------------------
       INTEGER,INTENT(IN) :: NTSD
 !

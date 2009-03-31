@@ -95,7 +95,7 @@
       use physcons,               only : con_pi,    con_g,   con_rd,    &
      &                                   con_fvirt, con_ttp, con_rocp,  &
      &                                   con_t0c
-      use module_microphysics,    only : rsipath2
+      use module_microphysics_gfs,    only : rsipath2
       use module_iounitdef,       only : NICLTUN
 !
       implicit   none

@@ -56,7 +56,8 @@
       INTEGER(KIND=KINT),PARAMETER :: NMMLSMSCHEME=99                   &
                                      ,SLABSCHEME  =1                    &
                                      ,LSMSCHEME   =2                    &
-                                     ,RUCLSMSCHEME=3
+                                     ,RUCLSMSCHEME=3                    &  
+                                     ,lissscheme  =101
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -781,34 +782,37 @@
 !nmmb   ENDIF
 
 !nmmb#if ( NMM_CORE == 1 )
-     CASE (NMMLSMSCHEME)
+     CASE (lissscheme)
        IF (PRESENT(qv_curr)    .AND.  PRESENT(rainbl)  .AND.    &
            PRESENT(potevp)     .AND.  PRESENT(snopcx)  .AND.    &
            PRESENT(soiltb)     .AND.  PRESENT(sr)      .AND.    &
                                                       .TRUE. ) THEN
 !nmmb      CALL wrf_debug(100,'in NMM LSM')
-!	if (ims .lt. 5 .and. jms .lt. 5) then
-! 	write(0,*) 't_phy(1,KDE-1,1): ', t_phy(1,KDE-1,1)
-!	write(0,*) 't_phy(1,1,1): ', t_phy(1,1,1)
-!	endif
-!noah      CALL nmmlsm(dz8w,qv_curr,p8w,rho,                    &
-!noah           t_phy,th_phy,tsk,chs,                           &
-!noah           hfx,qfx,qgh,swdown,glw,lh,rmol,                 &
-!noah           smstav,smstot,sfcrunoff,                        &
-!noah           udrunoff,ivgtyp,isltyp,vegfra,sfcevp,potevp,    &
-!noah           grdflx,sfcexc,acsnow,acsnom,snopcx,             &
-!noah           albbck,tmn,xland,xice,qz0,                      &
-!noah           th2,q2,snowc,cqs2,qsfc,soiltb,chklowq,rainbl,   &
-!noah           num_soil_layers,dtbl,dzs,itimestep,             &
-!noah           smois,tslb,snow,canwat,cpm,rcp,sr,              &    !tslb
-!noah           albedo,snoalb,sh2o,snowh,                       &
-!noah           ids,ide, jds,jde, kds,kde,                      &
-!noah           ims,ime, jms,jme, kms,kme,                      &
-!noah           i_start(ij),i_end(ij), j_start(ij),j_end(ij), kts,kte )
-!nmmb      CALL wrf_debug(100,'back from NMM LSM')
+!       if (ims .lt. 5 .and. jms .lt. 5) then
+!       write(0,*) 't_phy(1,KDE-1,1): ', t_phy(1,KDE-1,1)
+!       write(0,*) 't_phy(1,1,1): ', t_phy(1,1,1)
+!       endif
 
+
+       CALL liss(dz8w,qv_curr,p8w,rho,                      &
+            t_phy,th_phy,tsk,chs,                           &
+            hfx,qfx,qgh,swdown,glw,lh,rmol,                 &
+            smstav,smstot,sfcrunoff,                        &
+            udrunoff,ivgtyp,isltyp,vegfra,sfcevp,potevp,    &
+            grdflx,sfcexc,acsnow,acsnom,snopcx,             &
+            albbck,tmn,xland,xice,qz0,                      &
+            th2,q2,snowc,cqs2,qsfc,soiltb,chklowq,rainbl,   &
+            num_soil_layers,dtbl,dzs,itimestep,             &
+            smois,tslb,snow,canwat,cpm,rcp,sr,              &    !tslb
+            albedo,snoalb,sh2o,snowh,                       &
+            ids,ide, jds,jde, kds,kde,                      &
+            ims,ime, jms,jme, kms,kme,                      &
+            i_start(ij),i_end(ij), j_start(ij),j_end(ij), kts,kte )
+
+
+!nmmb      CALL wrf_debug(100,'back from NMM LSM')
        ELSE
-         WRITE(0,*)'Lacking arguments for NMMLSM in surface driver'
+         WRITE(0,*)'Lacking arguments for liss in surface driver'
 !nmmb     CALL wrf_error_fatal('Lacking arguments for NMMLSM in surface driver')
        ENDIF
 !nmmb#endif

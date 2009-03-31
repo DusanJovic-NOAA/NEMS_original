@@ -1,0 +1,144 @@
+###########################################################
+# NEMS Directories
+###########################################################
+  DISK=../..
+  DISK1=../../..
+  SRCDIR=$(DISK)/src
+  SRCDIR1=$(DISK1)/src
+  EXEDIR=$(DISK)/exe
+  USHDIR=$(DISK)/ush
+  JSHDIR=$(DISK)/jsh
+  FIXDIR=$(DISK)/fix
+  JOBDIR=$(DISK)/job
+  LIBDIR=$(DISK)/lib
+  LIBDIR1=$(DISK1)/lib
+  MAINDIR=$(SRCDIR)/main
+  PAKDIR=$(DISK)/pak
+  UTILDIR=$(DISK)/util
+  EXPDIR=$(DISK)/exp
+  INCDIR=$(DISK)/inc
+  MODDIR=$(DISK)/mod
+  MODDIR1=$(DISK1)/mod
+  MAKEFILES=$(EXPDIR)/makefiles
+  TEMPLATES=$(USHDIR)/templates
+###########################################################
+# Driver 
+###########################################################
+  ROOT=MAIN_NEMS
+  OBJS=$(ROOT).o
+###########################################################
+# Compiler & Linker
+###########################################################
+  F77=/usr/bin/mpxlf_r
+  F90=/usr/bin/mpxlf95_r
+  FC=$(F90)
+  CPP=/lib/cpp -P
+  LDR=$(F77) -qsmp=noauto
+###########################################################
+# Compile & Archive Options
+###########################################################
+  OPT_NMM=-O2 -qmaxmem=-1 -qarch=auto -qtune=auto -NS2000
+  SMP=-qsmp=omp
+  MAF=-qfloat=nomaf
+  TRAPS=-qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap -C
+  FFLAGM_DEBUG=-O2
+  OPT_GFS=-qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
+  CPPFLAGS=-DENABLE_SMP -DIBM
+  FFLAGSF=-qnosave -q free=f90 -qcheck $(FFLAGM_DEBUG)
+  FFLAGSI=-qnosave -q free=f90 $(FFLAGM_DEBUG)
+  FFLAGB=-qnosave -qfixed $(FFLAGM_DEBUG)
+  AR=ar
+  ARFLAG=-r
+###########################################################
+# ESMF Library & Include files
+###########################################################
+  ESMF_LIB=$(LIBDIR)/esmf_3_1_0rp2/libesmf.a
+  ESMF_MOD=$(MODDIR)/esmf_3_1_0rp2
+  ESMF_MOD1=$(MODDIR1)/esmf_3_1_0rp2
+###########################################################
+# W3 Include files
+###########################################################
+  FINCP=$(MODDIR)/w3/w3_d
+###########################################################
+# System Libraries
+###########################################################
+  SYS_LIB=-L $(LIBDIR)/syslib -l w3_d -l bacio_4 -l sp_d
+###########################################################
+# Compiler Flags
+###########################################################
+  FFLAG90=$(OPT_GFS) -I$(ESMF_MOD) -I$(FINCP) -qfree -NS2048
+  FFLAGS=$(OPT_GFS)
+  FFLAGIO=$(FFLAGS)
+  FFLAGM=$(FFLAGIO) -I$(ESMF_MOD) $(FFLAGM_DEBUG) -NS2048
+###########################################################
+# Source Code Include Files
+###########################################################
+  ATM=$(MAINDIR)/atmos
+  NMM_UTIL=$(SRCDIR)/nmm_libutil
+  NMM_PHY=$(SRCDIR)/nmm_phys
+  NMM_DYN=$(SRCDIR)/nmm_dyn
+  NMM_IO=$(SRCDIR)/nmm_io
+  GFS_UTIL=$(SRCDIR)/gfs_libutil
+  GFS_PHY=$(SRCDIR)/gfs_phys
+  GFS_DYN=$(SRCDIR)/gfs_dyn
+  GFS_IO=$(SRCDIR)/gfs_io
+  NMM_UTIL1=$(SRCDIR1)/nmm_libutil
+  NMM_PHY1=$(SRCDIR1)/nmm_phys
+  NMM_DYN1=$(SRCDIR1)/nmm_dyn
+  NMM_IO1=$(SRCDIR1)/nmm_io
+  GFS_UTIL1=$(SRCDIR1)/gfs_libutil
+  GFS_PHY1=$(SRCDIR1)/gfs_phys
+  GFS_DYN1=$(SRCDIR1)/gfs_dyn
+  GFS_IO1=$(SRCDIR1)/gfs_io
+###########################################################
+# Cumulative Source Code Include File Compiler Flags
+###########################################################
+  GCINCS=-I$(NMM_UTIL) -I$(NMM_IO) -I$(NMM_DYN) -I$(NMM_PHY) -I$(ATM) -I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_UTIL) -I$(GFS_IO)
+  GCINCS_NMM=-I$(NMM_UTIL) -I$(NMM_IO) -I$(NMM_DYN) -I$(NMM_PHY) -I$(ATM) -I$(MODDIR)/modstub/gfs
+  GCINCS_GFS=-I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_UTIL) -I$(GFS_IO) -I$(ATM) -I$(MODDIR)/modstub/nmm
+  GCINCS_NMM1=-I$(NMM_UTIL1) -I$(NMM_IO1) -I$(NMM_DYN1) -I$(NMM_PHY1) -I$(MODDIR1)/modstub/gfs
+  GCINCS_GFS1=-I$(GFS_DYN1) -I$(GFS_PHY1) -I$(GFS_UTIL1) -I$(GFS_IO1) -I$(MODDIR1)/modstub/nmm
+  FINCS=-I$(ESMF_MOD) $(GCINCS)
+  FINCS_NMM=-I$(ESMF_MOD) $(GCINCS_NMM)
+  FINCS_GFS=-I$(ESMF_MOD) $(GCINCS_GFS)
+  FINCS_NMM1=-I$(ESMF_MOD1) $(GCINCS_NMM1)
+  FINCS_GFS1=-I$(ESMF_MOD1) $(GCINCS_GFS1)
+  FFLAG=$(OPT_NMM) $(FINCS) $(TRAPS) -qfree -NS2048
+  FFLAG_NMM_MAIN=$(OPT_NMM) $(FINCS_NMM) -qfree -NS2048
+  FFLAG_GFS_MAIN=$(OPT_GFS) $(FINCS_GFS) -qfree -NS2048
+  FFLAG_NMM_UTIL=$(OPT_NMM) -I$(ESMF_MOD) -I$(FINCP)
+  FFLAG_NMM_IO=$(OPT_NMM) -I$(ESMF_MOD) -I$(NMM_UTIL)
+  FFLAG_NMM_PHY=$(OPT_NMM) -I$(ESMF_MOD) -I$(NMM_UTIL) -I$(NMM_IO)
+  FFLAG_NMM_DYN=$(OPT_NMM) -I$(ESMF_MOD) -I$(NMM_UTIL) -I$(NMM_IO)
+  FFLAG_GFS_UTIL90=$(OPTS90) -I$(ESMF_MOD) -I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_IO) -qfree -NS2048
+  FFLAG_GFS_UTIL=$(OPTS90) -I$(ESMF_MOD) -I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_IO)
+  FFLAG_GFS_IO=-I$(GFS_DYN) -I$(GFS_PHY)
+###########################################################
+# Makefile Labels (likely won't change)
+###########################################################
+  NMM_UTIL_MAKEFILE=nmm_libutil_makefile
+  NMM_DYN_MAKEFILE=nmm_dyn_makefile
+  NMM_PHY_MAKEFILE=nmm_phys_makefile
+  NMM_IO_MAKEFILE=nmm_io_makefile
+  GFS_UTIL_MAKEFILE=gfs_libutil_makefile
+  GFS_DYN_MAKEFILE=gfs_dyn_makefile
+  GFS_PHY_MAKEFILE=gfs_phys_makefile
+  GFS_IO_MAKEFILE=gfs_io_makefile
+  ATM_MAKEFILE=atmos_makefile
+###########################################################
+# Makefile Command Variables
+###########################################################
+  GFS_DYN_MAKEFILE_NEW=make -f $(GFS_DYN_MAKEFILE)
+  GFS_PHY_MAKEFILE_NEW=make -f $(GFS_PHY_MAKEFILE)
+  GFS_IO_MAKEFILE_NEW=make -f $(GFS_IO_MAKEFILE)
+  GFS_UTIL_MAKEFILE_NEW=make -f $(GFS_UTIL_MAKEFILE)
+  ATM_MAKEFILE_NEW=make -f $(ATM_MAKEFILE)
+  NMM_DYN_MAKEFILE_NEW=make -f $(NMM_DYN_MAKEFILE)
+  NMM_PHY_MAKEFILE_NEW=make -f $(NMM_PHY_MAKEFILE)
+  NMM_IO_MAKEFILE_NEW=make -f $(NMM_IO_MAKEFILE)
+  NMM_UTIL_MAKEFILE_NEW=make -f $(NMM_UTIL_MAKEFILE)
+###########################################################
+# Local Include Files
+###########################################################
+  DEPS=../../inc/kind.inc
+  DEPS2=../../../inc/kind.inc

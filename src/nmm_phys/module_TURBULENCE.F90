@@ -8,6 +8,12 @@
 !***  PLUS THE WRF TURBULENCE DRIVER AND THE VARIOUS TURBULENCE SCHEMES.
 !
 !-----------------------------------------------------------------------
+! HISTORY LOG:
+!
+!   2008-07-28  Vasic - Turned off counters (now computed in
+!                       SET_INTERNAL_STATE_PHY).
+!
+!-----------------------------------------------------------------------
 !
       USE MODULE_INCLUDE
 !
@@ -170,7 +176,7 @@
 !-----------------------------------------------------------------------
       SUBROUTINE TURBL(NTSD,DT,NPHS                                     &
                       ,NUM_WATER,NSOIL,SLDPTH,DZSOIL                    &
-                      ,DSG2,SGML2,PDSG1,PSGML1,PDTOP,PT                 &
+                      ,DSG2,SGML2,SG2,PDSG1,PSGML1,PSG1,PT              &
                       ,SM,CZEN,CZMEAN,SIGT4,RLWIN,RSWIN,RADOT           &
 !- RLWIN/RSWIN - downward longwave/shortwave at the surface (also TOTLWDN/TOTSWDN in RADIATION)
                       ,PD,T,Q,CWM,F_ICE,F_RAIN,SR                       &
@@ -180,12 +186,12 @@
                       ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG                    &
                       ,FIS,Z0,Z0BASE,USTAR,PBLH,LPBL,XLEN_MIX,RMOL      &
                       ,EXCH_H,AKHS,AKMS,AKHS_OUT,AKMS_OUT               &
-                      ,THZ0,QZ0,UZ0,VZ0,UZ0H,VZ0H,QS,MAVAIL             &
+                      ,THZ0,QZ0,UZ0,VZ0,QS,MAVAIL                       &
                       ,STC,SMC,CMC,SMSTAV,SMSTOT,SSROFF,BGROFF          &
                       ,IVGTYP,ISLTYP,VEGFRC,SHDMIN,SHDMAX,GRNFLX        &
                       ,SFCEXC,ACSNOW,ACSNOM,SNOPCX,SICE,TG,SOILTB       &
                       ,ALBASE,MXSNAL,ALBEDO,SH2O,SI,EPSR                &
-                      ,U10,V10,TH10,Q10,TSHLTR,QSHLTR,PSHLTR            &
+                      ,U10,V10,TH10,Q10,TSHLTR,QSHLTR,PSHLTR,PSFC_OUT   &
                       ,T2,QSG,QVG,QCG,SOILT1,TSNAV                      &
                       ,TWBS,QWBS,SFCSHX,SFCLHX,SFCEVP                   &
                       ,POTEVP,POTFLX,SUBSHX                             &
@@ -232,6 +238,7 @@
 !   08-07-28  VASIC      - Turned off counters (now computed in
 !                            SET_INTERNAL_STATE_PHY).
 !   08-08     JANJIC     - Synchronize WATER array and Q.
+!
 !     
 ! USAGE: CALL TURBL FROM PHY_RUN
 !
@@ -257,11 +264,13 @@
 !
       INTEGER,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: LPBL
 !
-      REAL,INTENT(IN) :: DT,PDTOP,PT
+      REAL,INTENT(IN) :: DT,PT
 !
       REAL,INTENT(INOUT) :: APHTIM,ARDSW,ARDLW,ASRFC
 !
       REAL,DIMENSION(1:LM),INTENT(IN) :: DSG2,PDSG1,PSGML1,SGML2
+!
+      REAL,DIMENSION(1:LM+1),INTENT(IN) :: PSG1,SG2
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: ALBASE,MXSNAL
 !
@@ -309,7 +318,7 @@
                                                     ,ASWOUT,ASWTOA      &
                                                     ,PSHLTR,Q10,QSHLTR  &
                                                     ,TH10,TSHLTR        &
-                                                    ,U10,UZ0H,V10,VZ0H
+                                                    ,U10,V10
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: CWM         &
                                                            ,EXCH_H      &
@@ -323,6 +332,7 @@
 
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1),INTENT(INOUT) ::  RQVBLTEN &
                                                               ,RTHBLTEN
+
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: DUDT,DVDT     &
                                                          ,XLEN_MIX
@@ -438,6 +448,8 @@
           SURFACE_PHYSICS=99
         CASE ('noah')
           SURFACE_PHYSICS=2
+        case ('liss')
+          surface_physics=101
         CASE DEFAULT
           WRITE(0,*)' User selected LAND_SURFACE=',TRIM(LAND_SURFACE)
           WRITE(0,*)' Improper selection of Land Surface scheme in TURBL'
@@ -514,8 +526,6 @@
 !
       DO J=JMS,JME
       DO I=IMS,IME
-        UZ0H(I,J)=0.
-        VZ0H(I,J)=0.
         ONE(I,J)=1.
         RMOL(I,J)=0.     !Reciprocal of Monin-Obukhov length
         SFCEVPX(I,J)=0.  !Dummy for accumulated latent energy, not flux
@@ -563,7 +573,7 @@
         ENDDO
       ENDIF
 !
-      IF(SURFACE_PHYSICS==99)THEN
+      IF(SURFACE_PHYSICS==99.or.surface_physics.eq.101)THEN
         SNO_FACTR=1.
       ELSE
         SNO_FACTR=0.001
@@ -643,7 +653,7 @@
       DO I=ITS,ITE
 !
         PDSL=PD(I,J)         
-        PSFC=PD(I,J)+PDTOP+PT
+        PSFC=SG2(LM+1)*PDSL+PSG1(LM+1)
         P8W(I,1,J)=PSFC
         LOWLYR(I,J)=1
         EXNSFC(I,J)=(1.E5/PSFC)**CAPA
@@ -660,9 +670,19 @@
 !YL
         RAINBL(I,J)=0.
         IF(SNO(I,J)>0.)SNOWC(I,J)=1.
-        PLM=PT+PDTOP+SGML2(LM)*PDSL
+        PLM=SGML2(LM)*PDSL+PSGML1(LM)
         TH2X(I,J)=T(I,J,LM)*(1.E5/PLM)**CAPA
         Q2X(I,J)=Q(I,J,LM)
+!
+!-----------------------------------------------------------------------
+!*** modify z0 if snow on the ground
+!-----------------------------------------------------------------------
+!
+        if(snow(i,j).gt.0.) then  !zj
+          z0(i,j)=0.0013          !zj
+        else                      !zj
+          z0(i,j)=z0base(i,j)     !zj
+        endif                     !zj
 !
 !-----------------------------------------------------------------------
 !*** LONG AND SHORTWAVE FLUX AT GROUND SURFACE
@@ -706,12 +726,7 @@
         DO K=1,LM
           KFLIP=LM+1-K
 !
-          IF(DSG2(KFLIP)<1.E-10)THEN
-            PLYR=PSGML1(KFLIP)
-          ELSE
-            PLYR=PT+PDTOP+SGML2(KFLIP)*PDSL
-          ENDIF
-!
+          PLYR=SGML2(KFLIP)*PDSL+PSGML1(KFLIP)
           QL=MAX(Q(I,J,KFLIP),EPSQ)
           TL=T(I,J,KFLIP)
           CWML=CWM(I,J,KFLIP)
@@ -725,10 +740,11 @@
           P_PHY(I,K,J)=PLYR
           TKE(I,K,J)=0.5*Q2(I,J,KFLIP)
 !
-          RTHBLTEN(I,J,K)=0.
-          RQVBLTEN(I,J,K)=0.
           RQCBLTEN(I,K,J)=0.
           RQIBLTEN(I,K,J)=0.
+          RTHBLTEN(I,J,K)=0.
+	  RQVBLTEN(I,J,K)=0.
+
 !
           DZ(I,K,J)=T_PHY(I,K,J)*(P608*QL+1.)*R_D                       &
                     *(P8W(I,K,J)-P8W(I,K+1,J))                          &
@@ -740,6 +756,7 @@
         ENDDO
       ENDDO
       ENDDO
+
 !.......................................................................
 !$omp end parallel do
 !.......................................................................
@@ -775,12 +792,6 @@
 !$omp& private(j,i,k,kflip)
 !.......................................................................
       DO J=JTS_B1,JTE_B1
-        DO I=ITS_B1,ITE_B1
-          UZ0H(I,J)=(UZ0(I,J  )+UZ0(I-1,J  )                            &
-                    +UZ0(I,J-1)+UZ0(I-1,J-1))*0.25
-          VZ0H(I,J)=(VZ0(I,J  )+VZ0(I-1,J  )                            &
-                    +VZ0(I,J-1)+VZ0(I-1,J-1))*0.25
-        ENDDO
         DO K=1,LM
           KFLIP=LM+1-K
           DO I=ITS_B1,ITE_B1
@@ -794,18 +805,6 @@
 !.......................................................................
 !$omp end parallel do
 !.......................................................................
-!
-!jaa!$omp parallel do                                                       &
-!jaa!$omp& private(i,j)
-!jaa      DO J=JTS_B1,JTE_B1
-!jaa        DO I=ITS_B1,ITE_B1
-!jaa          UZ0H(I,J)=(UZ0(I,J  )+UZ0(I-1,J  )                            &
-!jaa                    +UZ0(I,J-1)+UZ0(I-1,J-1))*0.25
-!jaa          VZ0H(I,J)=(VZ0(I,J  )+VZ0(I-1,J  )                            &
-!jaa                    +VZ0(I,J-1)+VZ0(I-1,J-1))*0.25
-!jaa        ENDDO
-!jaa      ENDDO
-!
 !-----------------------------------------------------------------------
 !***  MOISTURE AVAILABILITY
 !-----------------------------------------------------------------------
@@ -832,13 +831,13 @@
 !$omp parallel do                                                       &
 !$omp& private(i,j,k)
 !.......................................................................
-      DO K=1,LM                                          
-        DO J=JMS,JME                                    
-          DO I=IMS,IME                                 
-            WATER(I,J,K,P_QV)=Q(I,J,K)/(1.-Q(I,J,K))  
-          ENDDO                                      
-        ENDDO                                       
-      ENDDO                                        
+      DO K=1,LM
+        DO J=JMS,JME
+          DO I=IMS,IME
+            WATER(I,J,K,P_QV)=Q(I,J,K)/(1.-Q(I,J,K))
+          ENDDO
+        ENDDO
+      ENDDO
 !.......................................................................
 !$omp end parallel do
 !.......................................................................
@@ -915,9 +914,9 @@
                 ,SST=SST,SST_UPDATE=SST_UPDATE                          &
                 ,TH10=TH10,TH2=TH2X,T2=T2,THZ0=THZ0,TH_PHY=TH_PHY       &
                 ,TMN=TG,TSHLTR=TSHLTR,TSK=TSFC,TSLB=STC_PHY,T_PHY=T_PHY &
-                ,U10=U10,UDRUNOFF=BGROFF,UST=USTAR,UZ0=UZ0H             &
+                ,U10=U10,UDRUNOFF=BGROFF,UST=USTAR,UZ0=UZ0              &
                 ,U_FRAME=U_FRAME,U_PHY=U_PHY,V10=V10,VEGFRA=VGFRCK      &
-                ,VZ0=VZ0H,V_FRAME=V_FRAME,V_PHY=V_PHY                   &
+                ,VZ0=VZ0,V_FRAME=V_FRAME,V_PHY=V_PHY                    &
                 ,WARM_RAIN=WARM_RAIN,WSPD=WSPD,XICE=SICE                &
                 ,XLAND=XLAND,Z=Z,ZNT=Z0,ZS=SLDPTH,CT=CT,TKE_MYJ=TKE     &
                 ,ALBBCK=ALBASE,LH=ELFLX,SH2O=SH2O_PHY,SHDMAX=SHDMAX     &
@@ -999,7 +998,7 @@
                      ,P_PHY=P_PHY,PI_PHY=PI_PHY,P8W=P8W,T_PHY=T_PHY   &
                      ,DZ8W=DZ,Z=Z,TKE_MYJ=TKE,EL_MYJ=EL_MYJ           &
                      ,EXCH_H=EXCH_H_PHY,AKHS=AKHS,AKMS=AKMS           &
-                     ,THZ0=THZ0,QZ0=QZ0,UZ0=UZ0H,VZ0=VZ0H             &
+                     ,THZ0=THZ0,QZ0=QZ0,UZ0=UZ0,VZ0=VZ0               &
                      ,QSFC=QS,LOWLYR=LOWLYR                           &
                      ,PSIM=PSIM,PSIH=PSIH,GZ1OZ0=GZ1OZ0               &
                      ,WSPD=WSPD,BR=BR,CHKLOWQ=CHKLOWQ                 &
@@ -1125,7 +1124,7 @@
 !.......................................................................
       ENDIF
 !
-      IF(SURFACE_PHYSICS==99)THEN
+      IF(SURFACE_PHYSICS==99.or.surface_physics.eq.101)THEN
         SNO_FACTR=1.
       ELSE
         SNO_FACTR=1000.
@@ -1147,7 +1146,6 @@
 !
       RARDSW=1./ARDSW
       RARDLW=1./ARDLW
-!
 !.......................................................................
 !$omp parallel do private(j,i,tsfc2)
 !.......................................................................
@@ -1375,9 +1373,9 @@
         TWBS(I,J)=-TWBS(I,J)
 !
         IF ( SM(I,J) + SICE(I,J) <= 0.5 ) THEN
-          QWBS(I,J)=-QWBS(I,J)*XLV*CHKLOWQ(I,J) ! land
+          QWBS(I,J)= -QWBS(I,J)*XLV*CHKLOWQ(I,J) ! land
         ELSE
-          QWBS(I,J)= QWBS(I,J)    *CHKLOWQ(I,J) ! ocean
+          QWBS(I,J)=QWBS(I,J)    *CHKLOWQ(I,J) ! ocean
         ENDIF
 !
 !-----------------------------------------------------------------------
@@ -1639,9 +1637,10 @@
                INTENT(INOUT)    ::                       RUBLTEN, &
                                                          RVBLTEN, &
                                                   EXCH_H,TKE_MYJ
-!
-   REAL,       DIMENSION( ims:ime, jms:jme, kms:kme ),            &
-               INTENT(INOUT)    ::                      RTHBLTEN
+
+   REAL,       DIMENSION( ims:ime, jms:jme, kms:kme),             &
+              INTENT(INOUT)    ::                        RTHBLTEN
+
 !
    REAL,       DIMENSION( ims:ime, kms:kme, jms:jme ),            &
                INTENT(OUT)    ::                          EL_MYJ
@@ -1680,13 +1679,9 @@
                       ! 2 time levels; if only one then use CURR
                       qv_curr, qc_curr, qr_curr                  &
                      ,qi_curr, qs_curr, qg_curr                  &
-                              ,rqcblten,rqrblten                 &
+                     ,rqvblten,rqcblten,rqrblten                 &
                      ,rqiblten,rqsblten,rqgblten
-!
-   REAL, DIMENSION( ims:ime, jms:jme, kms:kme ),                 &
-         OPTIONAL, INTENT(INOUT) ::                              &
-                      rqvblten
-!
+
    REAL,       DIMENSION( ims:ime, jms:jme )                    , &
                OPTIONAL                                         , &
                INTENT(INOUT)    ::                           HOL, &
@@ -1766,8 +1761,8 @@
 
          DO k=kts,min(kte+1,kde)
             RTHBLTEN(I,J,K)=0.
-            RUBLTEN(I,K,J)=0.
-            RVBLTEN(I,K,J)=0.
+            RUBLTEN(I,K,J)=0.  
+	    RVBLTEN(I,K,J)=0.
             IF ( PRESENT( RQCBLTEN )) RQCBLTEN(I,K,J)=0.
             IF ( PRESENT( RQVBLTEN )) RQVBLTEN(I,J,K)=0.
          ENDDO
@@ -1933,7 +1928,7 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-! REFERENCES:  Janjic (2002), NCEP Office Note 437
+! REFERENCES:  Janjic (2001), NCEP Office Note 437
 !              Mellor and Yamada (1982), Rev. Geophys. Space Phys.
 !
 ! ABSTRACT:
@@ -1980,7 +1975,7 @@
      &                                                     ,EXNER      &
      &                                                     ,PMID,PINT  &
      &                                                     ,QV,RHO     &
-     &                                                     ,T,TH,U,V   
+     &                                                     ,T,TH,U,V
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: PBLH
 !
@@ -1990,9 +1985,9 @@
      &    ,INTENT(OUT) ::                      EL_MYJ                  &
      &                                        ,RQCBLTEN                &
      &                                        ,RUBLTEN,RVBLTEN
-!
       REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME)                          &
      &    ,INTENT(OUT) ::                      RTHBLTEN,RQVBLTEN
+
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: CT,QSFC,QZ0     &
      &                                                ,THZ0,USTAR      &
@@ -2194,8 +2189,8 @@
      &               ,IMS,IME,JMS,JME,KMS,KME                          &
      &               ,ITS,ITE,JTS,JTE,KTS,KTE,I,J,PRINT_DIAG)   ! debug
 !
-!***  COUNTING DOWNWARD FROM THE TOP, THE EXCHANGE COEFFICIENTS AKH 
-!***  ARE DEFINED ON THE BOTTOMS OF THE LAYERS KTS TO KTE-1.  COUNTING 
+!***  COUNTING DOWNWARD FROM THE TOP, THE EXCHANGE COEFFICIENTS AKH
+!***  ARE DEFINED ON THE BOTTOMS OF THE LAYERS KTS TO KTE-1.  COUNTING
 !***  COUNTING UPWARD FROM THE BOTTOM, THOSE SAME COEFFICIENTS EXCH_H
 !***  ARE DEFINED ON THE TOPS OF THE LAYERS KTS TO KTE-1.
 !
@@ -3297,7 +3292,7 @@
       LOGICAL,INTENT(IN) :: RESTART
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                          &
      &                     ,IMS,IME,JMS,JME                             &
-     &                     ,ITS,ITE,JTS,JTE          
+     &                     ,ITS,ITE,JTS,JTE
 
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) ::    EXCH_H
 !

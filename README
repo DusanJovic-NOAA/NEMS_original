@@ -7,31 +7,155 @@ National Environmental Modeling System (NEMS) Version 1.1 (August 2008)
 	-Adiabatic (dynamics only) simulation capability
 	-Enhanced postprocessing capability
 
-How to compile and run?
------------------------
+Directory Structure
 
-- In NEMS directory, a single executable is created using a single compile option: 
+======================================
+NEMS includes the following directories with associated file contents`:
 
-	 make all
-	 make cleans (removes source code copies, object files, modules, NEMS library files, and executables)
+exe - NEMS executables
+exp - Experiment Directory 
+    - /configuration_files: NEMS configuration files
+    - /nmm: nmm experiment output & error files
+    - /gfs: gfs experiment output & error files 
+fix - currently empty
+inc - include files shared by all modules that are needed to build the appropriate NEMS executables
+job - location of loadleveler submission scripts created by script llscript_configure.sh
+    - /regression_tests: sample scripts used in the NEMS regression tests 
+lib - NEMS libraries
+    - /esmf_3_1_0rp2: ESMF library files (compiles on IBM p6)
+    - /lib: library (archive) files created from grid component compile step
+    - /libstub: stub library files used when linking to dynamical core components not being used 
+    - /syslib: IBM p6 system libraries 
+mod - NEMS module files
+    - /esmf_3_1_0rp2: ESMF module files  
+    - /modstub: module files created from grid component compile step
+    - /w3: W3 library module files 
+pak - currently empty
+src - NEMS source code modules 
+    - /gfs_dyn (gfs dynamics modules)
+    - /gfs_io (gfs I/O modules)
+    - /gfs_libutil (gfs miscellaneous utility modules)
+    - /gfs_phys (gfs physics modules)
+    - /main (main driver and atmospheric modules)
+    - /nmm_dyn (nmm dynamics modules)
+    - /nmm_io (nmm I/O modules)
+    - /nmm_libutil (nmm miscellaneous utility modules)
+    - /nmm_phys (nmm physics modules)
+ush - NEMS configure, compile and clean scripts
+    - clean.sh: cleans the NEMS directories (dependent on dynamical core selected)
+    - compile.sh: compiles NEMS (after makefiles configured)
+    - compile_configure.sh: configures NEMS prior to the compilation step based on the user specified dynamical core selected. 
+    - compile_settings: text file containing compile and link settings accessed by NEMS during the compile step.
+    - compile options: text files containing options used to build NEMS.
+      -gen_compile_options: compile options that are not core specific.
+      -gfs_compile_options: compile options specific to building NEMS with the gfs core.
+      -nmm_compile_options: compile options specific to building NEMS with the nmm core. 
+    - llscript_configure.sh: script used to create a loadleveler submission script may be used to submit a run job on the IBM p6 queu.
+    - /ll_templates: template files used by llscript_configure.sh to create loadleveler submission scripts.
+    - /makefile_templates: template files used during the compile step for each NEMS grid component. 
+util - currently contains  ESMF Library source code. Other source codes and utilties will be added to aid in NEMS porting efforts.
+ 
+I. Configure
 
--Executable MAIN_NEMS.x created in ${USER}/NEMS 
+======================================
+Before building NEMS for the 1st time or before switching from one dynamical core to another, the following command is issued:
 
--run directory contains run scripts, configure files and error/output log directories.
-	
-	-configfile_global_new: master config file  
-		 
-		core: nmm - all of the other file entries are read in my NEMS
-		core: gfs - rest of the file entries are ignored and NEMS reads in the run information from the file exglobal_fcst.sh.sms_nems 
-	
- 	-exglobal_fcst.sh.sms_nems: gfs core control file
+./compile_configure.sh <dynamical core option>
 
-	-gfs_prep_test3, gfs_prep_test3, gfs_prep_test3: scripts used to setup up run directories and files needed prior to running NEMS tests using the gfs core option.
-	-run_gfs_test1, run_gfs_test2, run_gfs_test3: scripts used to run the NEMS tests using the gfs core option.
+where the dynamical core option may be 'nmm' or 'gfs.' Others will be added over time. A new file:
 
-	-run_nmm_test1, run_nmm_test2, run_nmm_test3: scripts used to run the NEMS tests using the nmm core option. 
+compile_settings
 
-	-gfs_out: directory containing ouput and error files created during the last NEMS run in which the gfs core option was selected
-	
-	-nmm_out: directory containing ouput and error files created during the last NEMS run in which the nmm core option was selected
+is created in the /ush directory and is subsequently accessed by each NEMS makefile during the build step.
+
+
+II. Compile
+
+======================================
+
+Prior to compiling NEMS, one has the option of modifying any number of options used during the build. These options are stored in:
+
+/ush/compile_options/gen_compile_options (general options - not core specific)
+/ush/compile_options/gfs_compile_options (gfs options)
+/ush/compile_options/nmm_compile_options (nmm options)
+
+After making any needed changes to these test files, one must follow this sequence:
+
+1. ./compile_configure.sh <dynamical core option> (insures that a new compile_settings file  is created that includes  any changes in the compile options)
+2. ./compile.sh
+
+
+Note that (1) is only needed if changes are made to one of the test files in /ush/compile_options. Otherwise, one may build NEMS by merely issuing the command:
+
+./compile.sh
+
+Following the build, a new executable file should appear in the directory /exe and will be labelled:
+
+GFS_NEMS.x or NMM_NEMS.x depending on which core is selected.
+
+III. Execution
+
+Once an executable is created, one may go about running NEMS by merely using one's own loadleveler submission script and accessing:
+
+/exe/GFS_NEMS.x or /exe/NMM_NEMS.x 
+
+or one may use the provided /ush/llscript_configure.sh script to create loadleveler submission script based on model configuration files provided before hand.
+
+For example, one by create a loadleveler script by issuing the command:
+
+/ush/llscript_configure.sh ../exp/configure_files/configfile_regional_new
+
+The llscript_configure.sh file will attempt to extract:
+
+1. core being selected (nmm vs. gfs)
+2. regional vs. global 
+3. coldstart vs. restart
+
+Based on the selection of these fields, the llscript_configure.sh script will then build job submission scripts in the location /job:
+
+run_nmm_script (if nmm core selected)
+
+prep_gfs_script & run_gfs_script (if gfs core selected)
+
+This script employs stream editor commands to make substitutions using template files provided in 
+
+/ush/ll_templates/
+
+and include:
+
+nmm_submission_script_tmp
+gfs_prep_script_tmp
+gfs_run_script_tmp
+
+In the case of the either core, one may easily modify the loadleveler environmental variables and run-time parameters by making changes to the script otptions. For example, 
+n the case of an NMM regional run, the following variables are defined and may be modified to suit your specific application:
+
+#####################################NMM SUBMISSION SCRIPT OPTIONS######################################
+
+  JOB_TYPE=parallel
+  TASK_PER_NODE=32
+  NODES=1
+  NODE_USAGE=not_shared
+  CONSUMABLE_MEMORY=500MB
+  CLASS=debug
+  OUTPUT=/meso/save/wx22ec/NEMS/exp/nmm
+  ERROR=/meso/save/wx22ec/NEMS/exp/gfs
+  WALL_CLOCK_TIME="00\:10\:00"
+  ACCT_NO=NAM-T2O
+  MP_SINGLE_THREAD=yes
+  THREADS=1
+  RUNDIR=/ptmp/\${USER}/test
+  DATADIR=/stmp/wx20py/nmmb_init
+  MAIN_INPUT_FILENAME=test_input_umo_regional.d01
+  main_input_file=main_input_filename
+  GWD=GWD.bin
+  RESTART_FILE=/ptmp/wx22ec/nmm.1/nmm_b_restart.024
+  ETA=/nwprod/fix/nam_micro_lookup.dat
+  RRT=/meso/save/wx22ec/test
+  TBL=/meso/save/wx22ec/test
+  TIMING_FILE=nmm.0.test
+  HYBRID_LAUNCH=/u/wx15ja/bin/hybrid_launch
+  EXEDIR=$SRCDIR/exe
+
+A more extensive set of environment variables may also be defined for gfs runs in the creation of prep and run loadleveler scripts.
 

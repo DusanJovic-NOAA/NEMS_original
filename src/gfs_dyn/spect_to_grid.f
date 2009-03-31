@@ -10,7 +10,7 @@
 !                 syn_gr_a_1 and syn_gr_a_2 will be used in
 !                 the next spect_to_gridxy for saving time
 c
-#include "f_hpm.h"
+! #include "f_hpm.h"
 !
       use gfs_dyn_resol_def
       use gfs_dyn_layout1

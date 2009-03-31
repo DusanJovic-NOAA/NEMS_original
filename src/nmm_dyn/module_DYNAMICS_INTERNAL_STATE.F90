@@ -358,7 +358,6 @@
       ALLOCATE(int_state%WFFTRW(1:2*I_CYCLE))                             !<-- FFT working field, v points
       ALLOCATE(int_state%NFFTRH(1:15))                                    !<-- FFT working field, h points
       ALLOCATE(int_state%NFFTRW(1:15))                                    !<-- FFT working field, v points
-!       
       ALLOCATE(int_state%F     (IMS:IME,JMS:JME))                         !<-- Coriolis parameter  (s-1)
       ALLOCATE(int_state%GLAT  (IMS:IME,JMS:JME))                         !<-- Latitudes of h points  (radians)
       ALLOCATE(int_state%GLON  (IMS:IME,JMS:JME))                         !<-- Longitudes of h points (radians)

@@ -23,7 +23,7 @@
                                    ,MPI_COMM_COMP                       &
                                    ,MYPE_SHARE,NUM_TILES
 !
-      USE MODULE_MICROPHYSICS,ONLY :                                    &
+      USE MODULE_MICROPHYSICS_NMM,ONLY :                                    &
        RHgrd,T_ICE,FPVS,QAUT0,XMImax,XMIexp,MDImin,MDImax,MASSI,        &
        FLARGE1,FLARGE2,NLImin,NLImax
 !
@@ -82,7 +82,7 @@
       REAL   , SAVE                   :: AB15WD,SKO2D,SKC1R,SKO3R
 
       REAL   , SAVE :: EM1(28,180),EM1WDE(28,180),TABLE1(28,180),     &
-                           TABLE2(28,180),TABLE3(28,180),EM3(28,180), &
+                           TABLE2(28,180),TABLE3(28,180),             &
                            SOURCE(28,NBLY), DSRCE(28,NBLY)
 
       REAL   ,SAVE, DIMENSION(5040):: T1,T2,T4,EM1V,EM1VW,EM3V
@@ -107,7 +107,6 @@
       REAL   ,SAVE  :: CORE,UEXP,SEXP
 
       EQUIVALENCE (EM1V(1),EM1(1,1)),(EM1VW(1),EM1WDE(1,1)) 
-      EQUIVALENCE (EM3V(1),EM3(1,1))
       EQUIVALENCE (T1(1),TABLE1(1,1)),(T2(1),TABLE2(1,1)), &
                   (T4(1),TABLE3(1,1))
       REAL,SAVE,DIMENSION(4) :: PTOPC
@@ -1891,7 +1890,7 @@
       SUBROUTINE RADIATION(ITIMESTEP,DT,JULDAY,JULYR,XTIME,JULIAN       &
      &                    ,IHRST,NPHS,GLAT,GLON                         &
      &                    ,NRADS,NRADL                                  &
-     &                    ,DSG2,SGML2,PDSG1,PSGML1,PDTOP,PT,PD          &
+     &                    ,DSG2,SGML2,PDSG1,PSGML1,PT,PD                &
      &                    ,T,Q,CWM                                      &
      &                    ,THS,ALBEDO,EPSR                              &
      &                    ,F_ICE,F_RAIN                                 &
@@ -1934,6 +1933,7 @@
 !   04-11-18  BLACK      - THREADED
 !   06-07-20  BLACK      - INCORPORATED INTO NMMB PHYSICS COMPONENT
 !   08-08     JANJIC     - Synchronize WATER array and Q.
+!   08-11-23  janjic     - general hybrid coordinate
 !     
 ! USAGE: CALL RADIATION FROM PHY_RUN
 !
@@ -1955,7 +1955,7 @@
 !
       INTEGER,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: NCFRCV,NCFRST
 !
-      REAL,INTENT(IN) :: DT,JULIAN,PDTOP,PT,XTIME
+      REAL,INTENT(IN) :: DT,JULIAN,PT,XTIME
 !
       REAL,DIMENSION(1:LM),INTENT(IN) :: DSG2,PDSG1,PSGML1,SGML2
 !
@@ -2087,13 +2087,7 @@
           KFLIP=LM+1-K ! The flipped index will thus be for the NMMB arrays
 !
           DPL=PDSG1(KFLIP)+DSG2(KFLIP)*PDSL
-!!!       PLYR=PSGML1(KFLIP)+SGML2(KFLIP)*PDSL+PT
-          IF(DSG2(KFLIP)<1.E-10)THEN
-            PLYR=PSGML1(KFLIP)
-          ELSE
-!mp            PLYR=PT+PDTOP+DSG2(KFLIP)*PDSL
-            PLYR=PT+PDTOP+SGML2(KFLIP)*PDSL
-          ENDIF
+          PLYR=SGML2(KFLIP)*PDSL+PSGML1(KFLIP)
 !
           QL(K)=AMAX1(Q(I,J,KFLIP),EPSQ)
           TL(K)=T(I,J,KFLIP)
@@ -2464,6 +2458,11 @@
             DO K=1,LM
               KFLIP=LM+1-K
               RLWTT(I,J,KFLIP)=THRATENLW(I,K,J)*PI_PHY(I,K,J)
+
+	if (K .eq. 10 .and. I .eq. 50 .and. J .eq. 50) then
+!	write(0,*) 'THRATENLW(I,K,J),PI_PHY(I,K,J): ', THRATENLW(I,K,J),PI_PHY(I,K,J)
+	endif
+
             ENDDO
 !
             RLWIN(I,J)=TOTLWDN(I,J)
@@ -2616,6 +2615,9 @@
       DO J=JTS,JTE
       DO I=ITS,ITE
         CZEN(I,J)=CZEN2(I,J)
+	if (I .eq. 50 .and. J .eq. 50) then
+!	write(0,*) 'CZEN(50,50) in ZENITH: ', CZEN(50,50)
+	endif
         IF(CZMEAN(I,J)>0.)THEN 
           FACTR(I,J)=CZEN(I,J)/CZMEAN(I,J)
         ELSE
@@ -2627,6 +2629,9 @@
       DO K=1,LM
         DO J=JTS_B1,JTE_B1
         DO I=ITS_B1,ITE_B1
+	if (I .eq. 50 .and. J .eq. 50 .and. K .eq. 10) then
+!	write(0,*) 'FACTR(I,J), RSWTT, RLWTT: ', FACTR(I,J), RSWTT(I,J,10), RLWTT(I,J,10)
+	endif
           TTNDKL=RSWTT(I,J,K)*FACTR(I,J)+RLWTT(I,J,K)
           T(I,J,K)=T(I,J,K)+TTNDKL*DT
         ENDDO
@@ -3553,7 +3558,9 @@
       ENDIF
 !
       CALL O3CLIM
+!	write(0,*) 'call TABLE'
       CALL TABLE
+!	write(0,*) 'return call TABLE'
       IHRST=NINT(GMT)
 !jaa      if(mype==0)then
 !jaa        WRITE(0,*)'into solard ',gmt,ihrst
@@ -3742,10 +3749,9 @@
       IDAT(3)=JULYR
 
       IHRST  =NINT(GMT)
-!
       IHOUR  =MOD((IHRST+NINT(XTIME/60.0)),24)
       CALL SOLARD(IHOUR,JDAY,JMONTH,JULYR)
-!
+
 !-----------------------------------------------------------------------
       CALL RADTN (DT,TFLIP,QFLIP,QWFLIP,QIFLIP,                         &
      &            PFLIP,P8WFLIP,XLAND,TSK2D,                            &
@@ -3783,6 +3789,10 @@
         DO K = KTS,KTE
           KFLIP=KTE+1-K
           DO I=ITS,ITE
+	if (I .eq. 50 .and. J .eq. 50 .and. K .eq. 10) then
+!	write(0,*) 'I,J, TENDL(I,KFLIP,J), PI3D(I,K,J): ', I,J, TENDL(I,KFLIP,J), PI3D(I,K,J)
+!	write(0,*) 'TENDS: ', I,J, TENDS(I,KFLIP,J)
+	endif
             THRATENLW(I,K,J)=TENDL(I,KFLIP,J)/PI3D(I,K,J)
             THRATENSW(I,K,J)=TENDS(I,KFLIP,J)/PI3D(I,K,J)
             THRATEN(I,K,J)  =THRATEN(I,K,J) + THRATENLW(I,K,J)
@@ -4362,10 +4372,10 @@
                   IXSD=INT(ARG/DXSD+HALF)
                   IXSD=MIN(NXSD, MAX(IXSD,1))
                   CLFR=HALF+AXSD(IXSD)
-                  if (SDprint)                                          &
-     & write(6,"(a,3i3,i4,f8.4,f7.4,2f6.3,f7.3,f6.1,f6.0)")                 &
-     & 'I,LL,J,IXSD,ARG,SDM,CLFR,RHtot,QSAT,T,P=', I,LL,J,IXSD,ARG,SDM,CLFR,RHtot     &
-     & ,1000.*QSAT,TCLD,.01*PMID(I,LL)
+!                  if (SDprint)                                          &
+!     & write(6,"(a,3i3,i4,f8.4,f7.4,2f6.3,f7.3,f6.1,f6.0)")                 &
+!     & 'I,LL,J,IXSD,ARG,SDM,CLFR,RHtot,QSAT,T,P=', I,LL,J,IXSD,ARG,SDM,CLFR,RHtot     &
+!     & ,1000.*QSAT,TCLD,.01*PMID(I,LL)
                ENDIF              !--- End IF (ARG .GE. XSDmax)
             ELSE
                IF (ARG .LE. XSDmin) THEN
@@ -4374,10 +4384,10 @@
                   IXSD=INT(ARG/DXSD1+HALF)
                   IXSD=MIN(NXSD, MAX(IXSD,1))
                   CLFR=HALF-AXSD(IXSD)
-                  if (SDprint)                                          &
-     & write(6,"(a,3i3,i4,f8.4,f7.4,2f6.3,f7.3,f6.1,f6.0)")                 &
-     & 'I,LL,J,IXSD,ARG,SDM,CLFR,RHtot,QSAT,T,P=', I,LL,J,IXSD,ARG,SDM,CLFR,RHtot     &
-     & ,1000.*QSAT,TCLD,.01*PMID(I,LL)
+!                  if (SDprint)                                          &
+!     & write(6,"(a,3i3,i4,f8.4,f7.4,2f6.3,f7.3,f6.1,f6.0)")                 &
+!     & 'I,LL,J,IXSD,ARG,SDM,CLFR,RHtot,QSAT,T,P=', I,LL,J,IXSD,ARG,SDM,CLFR,RHtot     &
+!     & ,1000.*QSAT,TCLD,.01*PMID(I,LL)
                   IF (CLFR .LT. CLFRmin) CLFR=H0
                ENDIF        !--- End IF (ARG .LE. XSDmin) 
             ENDIF           !--- IF (ARG.LE.DXSD2 .AND. ARG.GE.DXSD2N)
@@ -4873,7 +4883,16 @@
 !
         DO I=MYIS,MYIE
           GLW(I,J)=FLWDNS(I)
+
+	if (I .eq. 50 .and. J .eq. 50) then
+!	write(0,*) 'I,J, GLW(I,J) after RADFS: ', I,J,GLW(I,J)
+	endif
+
           RLWTOA(I,J)=FLWUP(I)
+	if (I .eq. 50 .and. J .eq. 50) then
+!	write(0,*) 'I,J, RLWTOA(I,J) after RADFS: ', I,J,RLWTOA(I,J)
+!	write(0,*) 'I,J, TENDL, TENDS: ', I,J, TENDL(I,10,J), TENDS(I,10,J)
+	endif
         ENDDO
       ENDIF
 !
@@ -6018,9 +6037,9 @@
       DO 125 K=1,LP1
       DO 125 I=MYIS,MYIE
       if(abs(temp(i,k))<1.e-6)then
-        write(0,*)' LWR88 i=',i,' j=',jndx,' k=',k,' temp=',temp(i,k)
+!        write(0,*)' LWR88 i=',i,' j=',jndx,' k=',k,' temp=',temp(i,k)
 	do KK=1,LP1
-	write(0,*) 'KK, TEMP(I,KK): ', KK, TEMP(I,KK)
+!	write(0,*) 'KK, TEMP(I,KK): ', KK, TEMP(I,KK)
 	enddo
       endif
       TEXPSL(I,K)=H18E3/TEMP(I,K)-H6P08108
@@ -6692,6 +6711,10 @@
                 +SORC(I,1,13)*TO3SP(I,K-1) &
                 +CSOUR(I,1)*CO2SP(I,K)) &
                 *CLDFAC(I,1,K)
+
+	if (I .eq. 50 .and. K .eq. 10) then
+!	write(0,*) 'E1FLX(I,K), FLX(I,K): ', E1FLX(I,K), FLX(I,K)
+	endif
 305   CONTINUE
       DO 307 I=MYIS,MYIE
       FLX(I,1)= TC(I,1)*E1FLX(I,1)+SS1(I,1)+SORC(I,1,13) &
@@ -6813,10 +6836,16 @@
 !---THE KP TERMS FOR ARBIRRARY K..
       DO 3423 KP=K+1,LP1
       DO 3423 I=MYIS,MYIE
+	if (I .eq. 50 .and. K .eq. 10) then
+!	write(0,*) 'I,L, FLX(I,K) (c): ', I,K, FLX(I,K)
+	endif
       FLX(I,K)=FLX(I,K)+(OSS(I,KP)*TO31D(I,KP-1) &
                         +SS2(I,KP)*CONT1D(I,KP-1) &
                         +CSS(I,KP)*CO21(I,KP,K) &
                         +DTC(I,KP)*EMISS(I,KP-1))*CLDFAC(I,KP,K)
+	if (I .eq. 50 .and. K .eq. 10) then
+!	write(0,*) 'I,K, FLX(I,K) (d): ', I,K, FLX(I,K)
+	endif
 3423  CONTINUE
       DO 3425 KP=K+1,LP1
       DO 3425 I=MYIS,MYIE
@@ -6864,6 +6893,9 @@
 !    USING METHODS FOR H2O GIVEN IN REF. (4)
       DO 851 K=2,L
       DO 851 I=MYIS,MYIE
+	if (I .eq. 50 .and. K .eq. 10) then
+!	write(0,*) 'EMD(I,K), EMD(I,K+L): ', EMD(I,K), EMD(I,K+L)
+	endif
       EMISDG(I,K)=EMD(I,K+L)+EMD(I,K)
 851   CONTINUE
 !
@@ -6957,10 +6989,20 @@
 !    FOR THE DIAGONAL TERMS...
       DO 871 K=2,LP1
       DO 871 I=MYIS,MYIE
+	if (I .eq. 50 .and. K .eq. 10) then
+!	write(0,*) 'I,L, FLX(I,K) (b): ', I,L, FLX(I,K)
+!	write(0,*) 'DTC, EMISDG: ', DTC(I,K), EMISDG(I,K)
+!	write(0,*) 'SS2, CONTDG: ', SS2(I,K), CONTDG(I,K)
+!	write(0,*) 'OSS, TO3DG: ', OSS(I,K), TO3DG(I,K)
+!	write(0,*) 'CSS,CO21,CLDFAC: ', CSS(I,K),CO21(I,K,K),CLDFAC(I,K,K)
+	endif
       FLX(I,K)=FLX(I,K)+(DTC(I,K)*EMISDG(I,K) &
                        +SS2(I,K)*CONTDG(I,K) &
                        +OSS(I,K)*TO3DG(I,K) &
                        +CSS(I,K)*CO21(I,K,K))*CLDFAC(I,K,K)
+	if (I .eq. 50 .and. K .eq. 10) then
+!	write(0,*) 'I,L, FLX(I,K) (bb): ', I,L, FLX(I,K)
+	endif
 871   CONTINUE
 !     FOR THE TWO OFF-DIAGONAL TERMS...
       DO 873 I=MYIS,MYIE
@@ -6968,6 +7010,9 @@
                         +DTC(I,LP1)*EMSPEC(I,2) &
                         +OSS(I,LP1)*TO31D(I,L) &
                         +SS2(I,LP1)*CONT1D(I,L))*CLDFAC(I,LP1,L)
+	if (I .eq. 50 .and. L .eq. 10) then
+!	write(0,*) 'I,L, FLX(I,L) (e): ', I,L, FLX(I,L)
+	endif
       FLX(I,LP1)=FLX(I,LP1)+(CSS(I,L)*CO21(I,L,LP1) &
                             +OSS(I,L)*TO31D(I,L) &
                             +SS2(I,L)*CONT1D(I,L) &
@@ -6981,17 +7026,27 @@
       DO 1101 K=1,L
       DO 1101 I=MYIS,MYIE
       HEATEM(I,K)=RADCON*(FLX(I,K+1)-FLX(I,K))*DELP(I,K)
+	if (I .eq. 50 .and. K .eq. 10) then
+!	write(0,*) 'RADCON, FLX(I,K), DELP(I,K): ', RADCON, FLX(I,K), DELP(I,K)
+	endif
+
 1101  CONTINUE
 !     .....CALCULATE THE TOTAL HEATING RATES
       DO 1103 K=1,L
       DO 1103 I=MYIS,MYIE
       HEATRA(I,K)=HEATEM(I,K)-CTS(I,K)-CTSO3(I,K)+EXCTS(I,K)
+	if (I .eq. 50 .and. K .eq. 10) then
+!	write(0,*) 'HEATEM(I,K),CTS(I,K),CTSO3(I,K),EXCTS(I,K): ', HEATEM(I,K),CTS(I,K),CTSO3(I,K),EXCTS(I,K)
+	endif
 1103  CONTINUE
 !     .....CALCULATE THE FLUX AT EACH FLUX LEVEL USING THE FLUX AT THE
 !    TOP (FLX1E1+GXCTS) AND THE INTEGRAL OF THE HEATING RATES (VSUM1)
       DO 1111 K=1,L
       DO 1111 I=MYIS,MYIE
       VSUM1(I,K)=HEATRA(I,K)*DELP2(I,K)*RADCON1
+	if (I .eq. 50 .and. K .eq. 10) then
+!	write(0,*) 'HEATRA(I,K),DELP2(I,K),RADCON1: ', HEATRA(I,K),DELP2(I,K),RADCON1
+	endif
 1111  CONTINUE
       DO 1115 I=MYIS,MYIE
       TOPFLX(I)=FLX1E1(I)+GXCTS(I)
@@ -7002,9 +7057,17 @@
       DO 1123 K=2,LP1
       DO 1123 I=MYIS,MYIE
       FLXNET(I,K)=FLXNET(I,K-1)+VSUM1(I,K-1)
+
+	if (I .eq. 50 .and. K .eq. 10) then
+!	write(0,*) 'FLXNET(I,K), FLXNET(I,K-1),VSUM1(I,K-1): ', FLXNET(I,K), FLXNET(I,K-1),VSUM1(I,K-1)
+	endif
+
 1123  CONTINUE
       DO 1125 I=MYIS,MYIE
       GRNFLX(I)=FLXNET(I,LP1)
+	if (I .eq. 50) then
+!	write(0,*) 'FLXNET(I,LP1), GRNFLX(I): ', FLXNET(I,LP1), GRNFLX(I)
+	endif
 1125  CONTINUE
 !
 !     THIS IS THE THICK CLOUD SECTION.OPTIONALLY,IF THICK CLOUD
@@ -8217,10 +8280,18 @@
         IT(I,K)=FXO(I,K)+FYO(I,K)*H28E1
         WW1(I,K)=TEN-DT(I,K)
         WW2(I,K)=HP1-DU(I,K)
+	if (I .eq. 50) then
+!	write(0,*) 'WW1, WW2: ', I,K,WW1(I,K), WW2(I,K)
+!	write(0,*) 'DT, DU: ', I,K, DT(I,K), DU(I,K)
+!	write(0,*) 'EM3Vs: ', EM3V(IT(I,K)-9), EM3V(IT(I,K)-8), EM3V(IT(I,K)+19), EM3V(IT(I,K)+20)
+	endif
         EMV(I,K)=WW1(I,K)*WW2(I,K)*EM3V(IT(I,K)-9)+ &
                  WW2(I,K)*DT(I,K)*EM3V(IT(I,K)-8)+ & 
                  WW1(I,K)*DU(I,K)*EM3V(IT(I,K)+19)+ & 
                  DT(I,K)*DU(I,K)*EM3V(IT(I,K)+20)
+	if (I .eq. 50) then
+!	write(0,*) 'I,K, EMV(I,K): ', I,K, EMV(I,K)
+	endif
 203   CONTINUE
 
   END SUBROUTINE E3V88
@@ -8240,13 +8311,13 @@
                        H323M4,HM1EZ,DIFFCTR,O3DIFCTR,FIFTY,RADCON,    &
                        ids,ide, jds,jde, kds,kde,                     &
                        ims,ime, jms,jme, kms,kme,                     &
-                       its,ite, jts,jte, kts,kte                      )
+                       its,ite, jts,jte, kts,kte,jndx                 )
 !----------------------------------------------------------------------
  IMPLICIT NONE
 !----------------------------------------------------------------------
       INTEGER, INTENT(IN)        :: ids,ide, jds,jde, kds,kde ,      &
                                     ims,ime, jms,jme, kms,kme ,      &
-                                    its,ite, jts,jte, kts,kte
+                                    its,ite, jts,jte, kts,kte ,jndx
       REAL,INTENT(IN) :: RRCO2,SSOLAR
       REAL,INTENT(IN) :: H35E1,H1224E3,ONE,ZERO,HAF,H69766E5,HP219,HP816,RRAYAV,&
                          GINV,CFCO2,CFO3
@@ -9945,6 +10016,9 @@
 !--- Use an average of the skin & lowest model level temperature
         TDUM=.5*(TEMP(I,LP1)+TEMP(I,L))
         FLWUPS(IR)=HSIGMA*TDUM*TDUM*TDUM*TDUM
+	if (IR .eq. 50) then
+!	write(0,*) 'TDUM, FLWUPS: ', TDUM, FLWUPS(IR)
+	endif
 !BSF        FLWUPS(IR)=SFCEMS*HSIGMA*TDUM*TDUM*TDUM*TDUM
 !     if(grnflx(i)/=grnflx(i))then
 !       write(0,*)' grnflx i=',i,' ir=',ir,' ibeg=',ibeg,' jndx=',jndx
@@ -9959,6 +10033,9 @@
 !       write(0,*)' flwups=',flwups(ir)
 !     endif
         FLWDNS(IR)=FLWUPS(IR)-.001*GRNFLX(I)
+	if (IR .eq. 50) then
+!	write(0,*) 'GRNFLX(I), FLWDNS(IR): ', GRNFLX(I), FLWDNS(IR)
+	endif
   280 CONTINUE
 !ratko-wrf
 ! Remove LW modification for June 2006 NAM implementation
@@ -9992,7 +10069,7 @@
                  H323M4,HM1EZ,DIFFCTR,O3DIFCTR,FIFTY,RADCON,    &
                  ids,ide, jds,jde, kds,kde,                     &
                  ims,ime, jms,jme, kms,kme,                     &
-                 its,ite, jts,jte, kts,kte                      )
+                 its,ite, jts,jte, kts,kte,jndx                )
 
 !SW
 !
@@ -11301,7 +11378,8 @@
 431   CONTINUE
       DO 433 J=121,180
       DO 433 I=1,28
-      EM3(I,J)=SUM3(I,J)/FORTCU(I)
+        N = 28*(J-1)+I
+        EM3V(N)=SUM3(I,J)/FORTCU(I)
 433   CONTINUE
       DO 441 J=1,179
       DO 441 I=1,28
@@ -11323,11 +11401,13 @@
 449   CONTINUE
       DO 451 J=1,120
       DO 451 I=1,28
-      EM3(I,J)=R2(I)/TWO-S2(I)*SQRT(ZMASS(J))/THREE+T3(I)*ZMASS(J)/EIGHT
+        N = 28*(J-1)+I
+        EM3V(N)=R2(I)/TWO-S2(I)*SQRT(ZMASS(J))/THREE+T3(I)*ZMASS(J)/EIGHT
 451   CONTINUE
       DO 453 J=121,180
       DO 453 I=1,28
-      EM3(I,J)=EM3(I,J)/ZMASS(J)
+       N = 28*(J-1)+I
+       EM3V(N)=EM3V(N)/ZMASS(J)
 453   CONTINUE
 !***NOW COMPUTE E1 TABLES FOR 160-560 CM-1 BANDS ONLY.
 !   WE USE R1WD AND SUMWDE OBTAINED ABOVE.

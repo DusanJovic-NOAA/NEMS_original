@@ -24,21 +24,19 @@
 !***  Run, and Finalize, only the Register routine is public.
 !-----------------------------------------------------------------------
 !
-!      USE module_ATM_GRID_COMP,ONLY: ATM_REGISTER
        USE module_ATM_GRID_COMP
 !
 !-----------------------------------------------------------------------
 !***  The following module contains error-checking.
 !-----------------------------------------------------------------------
 !
-!      USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
        USE MODULE_ERR_MSG
 !
 !-----------------------------------------------------------------------
 !***  This is some information required by the ESMF Log error utility.
 !-----------------------------------------------------------------------
 !
-#include "ESMF_LogMacros.inc"
+#include "../../inc/ESMF_LogMacros.inc"
 !
 !-----------------------------------------------------------------------
 !

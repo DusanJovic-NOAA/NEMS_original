@@ -2,12 +2,54 @@
 How to run NMMB tests:
 #############################################
 
-We run 3 tests:
-1) 15 processors, no threads
-2) 15 processors, 2 threads
-3) 45 processors, no threads
+We run 4 tests using the NMMB dynamical core for 
+both global and regional domains and 4 tests using
+the GFS dynamical core:
+
+NMM
+
+0) 6 processors, no threads, 1 node, cold start
+1) 15 processors, no threads, 1 node, cold start
+2) 15 processors, 2 threads, 2 nodes, cold start
+3) 45 processors, no threads, 3 nodes, cold start
+4) 15 processors, no threads, 1 node, initialized from restart.
+
+GFS
+
+0) 1 processors, no threads, 1 node, cold start
+1) 15 processors, no threads, 1 node, cold start
+2) 15 processors, 2 threads, 2 nodes, cold start
+3) 45 processors, no threads, 3 nodes, cold start
+
 
 ---------------------------------------------
+0) 0-Run (minimal processors)
+
+*** file run_nmmb:
+
+set number of processors/node and nodes:
+#@ tasks_per_node = (6 for NMM & 1 for GFS) 
+#@ node = 1
+
+be sure that these environment variables are set:
+export BIND_TASKS=no
+export XLSMPOPTS="parthds=1:stack=128000000"
+
+*** file configfile_global_new:
+
+set numbers of processors:
+inpes:  02
+jnpes:  02
+
+set number of I/O processors:
+write_groups:          1
+write_tasks_per_group: 2
+
+set read/write global summation arguments:
+read_global_sums:  false
+write_global_sums: false 
+
+
 1) First run (control).
 
 *** file run_nmmb:
@@ -94,6 +136,33 @@ set read/write global summation arguments:
 read_global_sums:  true
 write_global_sums: false
 
+4) Fourth run. (NMM ONLY)
+
+set number of processors/node and nodes:
+#@ tasks_per_node = 16
+#@ node = 1
+
+be sure that these environment variables are set:
+export BIND_TASKS=no
+export XLSMPOPTS="parthds=1:stack=128000000"
+
+cp nmm_b_restart.xx restart_file
+
+*** file configfile_global_new:
+
+set numbers of processors:
+inpes:  03
+jnpes:  05
+
+set number of I/O processors:
+write_groups:          1
+write_tasks_per_group: 1
+
+set read/write global summation arguments:
+read_global_sums:  true
+write_global_sums: false
+
+
 ---------------------------------------------
 Compare results with control run.
 ---------------------------------------------
@@ -130,6 +199,11 @@ inpes: 01
 jnpes: 16
 Timestep: 900 s
 
+Test 0:
+        Nodes: 1
+        Tasks: 4 + 2(write)
+        Threading: None
+        Duration: 48 hours
 
 Test 1:
 
@@ -152,9 +226,20 @@ Test 3:
 	Threading: None
 	Duration: 48 hours
 
+Test 4:
+
+        Nodes: 1
+        Tasks: 15+1 (write)
+        Threading: None
+        Duration: 24 hours (starting from the 24th hour of Test 1 restart file)
+
+
 Results
         NMM-B: 		        GFS:
+0)      PASS                    PASS (1 processor) 
 I) 	Pass			Pass
 II)  	Pass			Pass
 III) 	Pass			Pass
+IV)     Pass                    -
+
 		

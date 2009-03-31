@@ -289,6 +289,7 @@
                               ,'RMOL      ', '-         ', 'R         ' &
                               ,'T2        ', '-         ', 'R         ' &
                               ,'Z0BASE    ', '-         ', 'R         ' &
+                              ,'PSFC      ', 'H         ', '-         ' &
 !
 !                              -----------------------------------------
 !
@@ -631,6 +632,7 @@
       R_2D(90)%NAME=>int_state%RMOL
       R_2D(91)%NAME=>int_state%T2
       R_2D(92)%NAME=>int_state%Z0BASE
+      R_2D(93)%NAME=>int_state%PSFC
 !        
 !--------------------
 !***  3D REAL ARRAYS
@@ -1011,6 +1013,7 @@
                                 ,maxHaloUWidth=(/IHALO,JHALO/)          &
                                 ,maxHaloLWidth=(/IHALO,JHALO/)          &
                                 ,name         =VBL_NAME                 &  !<-- Name of the 2D real array
+                                ,indexFlag=ESMF_INDEX_DELOCAL           &
                                 ,rc           =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1049,6 +1052,7 @@
                                 ,maxHaloUWidth=(/IHALO,JHALO/)          &
                                 ,maxHaloLWidth=(/IHALO,JHALO/)          &
                                 ,name         =VBL_NAME                 &  !<-- Name of the 2D real array
+                                ,indexFlag=ESMF_INDEX_DELOCAL           &
                                 ,rc           =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1101,6 +1105,7 @@
                                 ,maxHaloUWidth=(/IHALO,JHALO/)          &
                                 ,maxHaloLWidth=(/IHALO,JHALO/)          &
                                 ,name         =VBL_NAME                 &  !<-- Name of the 2D real array
+                                ,indexFlag=ESMF_INDEX_DELOCAL           &
                                 ,rc           =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1139,6 +1144,7 @@
                                 ,maxHaloUWidth=(/IHALO,JHALO/)          &
                                 ,maxHaloLWidth=(/IHALO,JHALO/)          &
                                 ,name         =VBL_NAME                 &  !<-- Name of the 2D real array
+                                ,indexFlag=ESMF_INDEX_DELOCAL           &
                                 ,rc           =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1218,6 +1224,7 @@
                                   ,maxHaloUWidth=(/IHALO,JHALO/)        &
                                   ,maxHaloLWidth=(/IHALO,JHALO/)        &
                                   ,name         =VBL_NAME               &  !<-- Name of this level of the 3D real array
+                                  ,indexFlag=ESMF_INDEX_DELOCAL         &
                                   ,rc           =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1285,6 +1292,7 @@
                                   ,maxHaloUWidth=(/IHALO,JHALO/)        &
                                   ,maxHaloLWidth=(/IHALO,JHALO/)        &
                                   ,name         =VBL_NAME               &  !<-- Name of this level of the 3D real array
+                                  ,indexFlag=ESMF_INDEX_DELOCAL         &
                                   ,rc           =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1357,6 +1365,7 @@
                                   ,maxHaloUWidth=(/IHALO,JHALO/)        &
                                   ,maxHaloLWidth=(/IHALO,JHALO/)        &
                                   ,name         =VBL_NAME               &  !<-- Name of this level of the 4D real array
+                                  ,indexFlag=ESMF_INDEX_DELOCAL         &
                                   ,rc           =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1414,6 +1423,7 @@
                                   ,maxHaloUWidth=(/IHALO,JHALO/)        &
                                   ,maxHaloLWidth=(/IHALO,JHALO/)        &
                                   ,name         =VBL_NAME               &  !<-- Name of this level of the 4D real array
+                                  ,indexFlag=ESMF_INDEX_DELOCAL         &
                                   ,rc           =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

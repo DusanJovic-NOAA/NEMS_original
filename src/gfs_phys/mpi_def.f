@@ -1,7 +1,7 @@
       module mpi_def
 ! 
       use machine,   ONLY: KIND_io4, KIND_ior
-      include 'mpif.h'
+      include '../../inc/mpif.h'
       integer stat(MPI_STATUS_SIZE),info
       INTEGER :: icolor
       INTEGER :: MC_COMP, MC_IO, MPI_COMM_ALL, MPI_COMM_ALL_DUP

@@ -87,7 +87,7 @@
 !
 !------------------------------------------------------------------------
       USE MACHINE , ONLY : kind_phys
-      use module_microphysics , only : gsmcolumn
+      use module_microphysics_gfs , only : gsmcolumn
       implicit none
 !
       integer im, ix, lm, ilon, ilat, me, ipr
@@ -521,7 +521,7 @@
 !     tables for Brad Ferrier's cloud microphysics package
 !
       USE MACHINE , ONLY : kind_phys
-      use module_microphysics , only : gsmconst
+      use module_microphysics_gfs , only : gsmconst
       implicit none
 !
       logical first
