@@ -32,7 +32,7 @@ export XLSMPOPTS="parthds=1:stack=128000000"
 export AIXTHREAD_SCOPE=S
 
 
-RUNDIR=/ptmp/${USER}/trunk ### change here
+RUNDIR=/ptmp/${USER}/trunk2 ### change here
 DATADIR=/meso/save/${USER}/tomscase
 SRCDIR=/meso/save/${USER}/trunk   ##### change here
 

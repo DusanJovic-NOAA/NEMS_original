@@ -1,0 +1,38 @@
+####   requires necessary grid components
+#
+#
+include ../../ush/compile_settings
+# *****************************************************************
+#
+all: 
+	cd $(GFS_DYN) && $(GFS_DYN_MAKEFILE_NEW)
+	cd $(GFS_PHY) && $(GFS_PHY_MAKEFILE_NEW)
+	cd $(GFS_IO) && $(GFS_IO_MAKEFILE_NEW) 
+	cd $(GFS_UTIL) && $(GFS_UTIL_MAKEFILE_NEW)
+	cd $(ATM) && $(ATM_MAKEFILE_NEW)
+	/bin/rm -f $(EXEDIR)/GFS_NEMS.x 
+	/bin/rm -f *.o 
+	/bin/rm -f *.mod 
+	/bin/rm -f *.f90 
+	/bin/rm -f *.lst 
+	/bin/rm -f lm 
+	/bin/rm -f map
+	$(CPP) $(CPPFLAGS) $(ROOT).F90 > $(ROOT).f90
+	$(F90) $(FFLAG_GFS_MAIN) -c $(ROOT).f90
+	$(LDR) $(LDFLAGS) -o $(EXEDIR)/GFS_NEMS.x $(OBJS) $(LIB)
+	echo "GFS_NEMS.x is created for GFS core."
+
+clean:
+	cd $(GFS_DYN) && $(GFS_DYN_MAKEFILE_NEW) clean
+	cd $(GFS_PHY) && $(GFS_PHY_MAKEFILE_NEW) clean
+	cd $(GFS_IO) && $(GFS_IO_MAKEFILE_NEW) clean
+	cd $(GFS_UTIL) && $(GFS_UTIL_MAKEFILE_NEW) clean
+	cd $(ATM) && $(ATM_MAKEFILE_NEW) clean
+	/bin/rm -f $(EXEDIR)/GFS_NEMS.x
+	/bin/rm -f *.o 
+	/bin/rm -f *.mod
+	/bin/rm -f *.f90
+	/bin/rm -f *.lst
+	/bin/rm -f lm
+	/bin/rm -f map
+	echo "directories cleaned."
