@@ -1,0 +1,59 @@
+##  This is an elementary grid component or say independent grid component ##
+ F77     = xlf
+ F90     = xlf
+ EXEC    = gfs_dyn_stub.a
+#
+ FINCS    = -I/meso/save/${USER}/NEMS/mod/esmf_3_1_0rp2
+
+#---------------
+# For non-debug.
+#---------------
+FFLAGM_DEBUG  = -O2
+
+ OPTS     = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
+ OPTS90   = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
+ OPTS90A  = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave$(FFLAGM_DEBUG)
+ FFLAG90  = $(OPTS90) $(FINCS) -qfree -NS2048
+ FFLAG90A = $(OPTS90A) $(FINCS) -qfree -NS2048
+ FFLAGS   = $(OPTS) 
+ FFLAGX   = $(OPTS) 
+ FFLAGIO  = $(OPTS) 
+ FFLAGY   = $(OPTS)
+ FFLAGM   = $(OPTS) $(FINCS) $(FFLAGM_DEBUG) -NS2048
+ FFLAGSF  = -qnosave -q free=f90 -qcheck $(FFLAGM_DEBUG)
+ FFLAGSI  = -qnosave -q free=f90 $(FFLAGM_DEBUG)
+ FFLAGB   = -qnosave -qfixed $(FFLAGM_DEBUG)
+
+ AR = ar
+ ARFLAGS = -r
+
+.SUFFIXES: .o .f .F .h
+#
+# *****************************************************************
+#
+OBJS0	= \
+	  gfs_dynamics_grid_comp_mod_stub.o
+	  
+#
+# *****************************************************************
+#
+
+$(EXEC):  $(OBJS0) 
+	$(AR) $(ARFLAGS) $(EXEC) $(OBJS0) 
+	echo " $(EXEC) created!"
+
+clean:
+	rm -f $(OBJS0) *.mod *.a
+
+.F.o:
+	$(F77) $(FFLAGS) -c -d $< 
+	#$(F77) $(FFLAGS) -c -d -WF,-DCLR:${RASV} $< 
+.f.o:
+	$(F77) $(FFLAGS) -c $< 
+
+
+#
+# *****************************************************************
+#
+gfs_dynamics_grid_comp_mod_stub.o:	 gfs_dynamics_grid_comp_mod_stub.f
+		$(F77) $(FFLAG90) -c gfs_dynamics_grid_comp_mod_stub.f

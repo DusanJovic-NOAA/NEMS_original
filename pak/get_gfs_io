@@ -1,0 +1,7 @@
+#!/bin/sh
+
+REPOSITORY=https://svn.ncep.noaa.gov/emc/nems/trunk
+GET=${1:-export}
+
+cd ../src
+/usrx/local/svn.1.4.5/bin/svn --force $GET $REPOSITORY/src/gfs_io
