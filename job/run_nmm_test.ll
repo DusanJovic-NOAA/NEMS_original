@@ -3,10 +3,12 @@
 #@ output =out
 #@ error = err
 #@ job_type = parallel
-#@ node = 1
-#@ total_tasks = 32
+##@ node = 2
+#@ total_tasks = 64
+#@ blocking=unlimited
+#@ task_affinity = core(1)
 #@ node_usage=shared
-#@ resources=ConsumableCPUs(1)ConsumableMemory(999MB)
+#@ resources=ConsumableCPUs(1)ConsumableMemory(3000MB)
 #@ class = dev
 #@ wall_clock_limit = 00:30:00
 #@ preferences = Feature == "dev"
@@ -32,7 +34,7 @@ export XLSMPOPTS="parthds=1:stack=128000000"
 export AIXTHREAD_SCOPE=S
 
 
-RUNDIR=/ptmp/${USER}/trunk2 ### change here
+RUNDIR=/ptmp/${USER}/trunk ### change here
 DATADIR=/meso/save/${USER}/tomscase
 SRCDIR=/meso/save/${USER}/trunk   ##### change here
 

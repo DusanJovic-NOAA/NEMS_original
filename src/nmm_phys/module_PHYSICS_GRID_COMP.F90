@@ -813,24 +813,6 @@
           ENDDO
         ENDIF
 
-	if (ITS .le. 267 .and. ITE .ge. 267 .and. JTS .le. 228 .and. JTE .ge. 228) then
-!	write(0,*) 'int_state%T(267,228,24) into RADIATION: ', int_state%T(267,228,24)
-	endif
-!        write(0,*) 'minval(T), maxval(T): ', minval(int_state%T(ITS:ITE,JTS:JTE,1:LM)), & 
-!                                             maxval(int_state%T(ITS:ITE,JTS:JTE,1:LM))
-
-	do L=1,LM
-          DO J=JTS,JTE
-          DO I=ITS,ITE
-	if (int_state%T(I,J,L) .lt. 195.) then
-!	write(0,*) 'low T...I,J,L , int_state%T(I,J,L): ', I,J,L , int_state%T(I,J,L) int_state%T(I,J,L)=195.
-	endif
-          ENDDO
-          ENDDO
-        enddo
-!
-
-!	write(0,*) 'radiation called'
         CALL RADIATION(NTIMESTEP,int_state%DT,JULDAY,JULYR,XTIME,JULIAN &
                       ,START_HOUR,int_state%NPHS                        &
                       ,int_state%GLAT,int_state%GLON                    &
@@ -1041,6 +1023,8 @@
                   ,IDS,IDE,JDS,JDE,LM                                  &
                   ,IMS,IME,JMS,JME                                     &
                   ,ITS,ITE,JTS,JTE)
+
+
 !
         turbl_tim=turbl_tim+timef()-btim
 !
@@ -1202,6 +1186,7 @@
 !-----------------------------------------------------------------------
 !
       microphysics: IF(CALL_PRECIP)THEN
+
 !
         btim=timef()
 !
@@ -1632,8 +1617,8 @@
         READ(NFCST)RUN,IDAT,IHRST
         READ(NFCST)PT,PDTOP,LPT2,SGM,SG1,DSG1,SGML1,SG2,DSG2,SGML2
 
-!	write(0,*) 'PDTOP, SG1: ', PDTOP, SG1
-!	write(0,*) 'SG2: ', SG2
+	write(0,*) 'PDTOP, SG1: ', PDTOP, SG1
+	write(0,*) 'SG2: ', SG2
 !
 !***  CHECK TO SEE IF THE STARTING DATE/TIME IN THE INPUT DATA FILE
 !***  AGREES WITH THAT IN THE CONFGURE FILE.
@@ -1807,7 +1792,7 @@
       DO K=1,LM
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1  ! T
-!	write(0,*) 'min max of T read in: ', K, minval(TEMP1), maxval(TEMP1)
+	write(0,*) 'min max of T read in: ', K, minval(TEMP1), maxval(TEMP1)
         ENDIF
 !
         DO J=JMS,JME
@@ -1878,7 +1863,7 @@
 !
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
-!	write(0,*) 'min, max of EPSR: ', minval(TEMP1), maxval(TEMP1)
+	write(0,*) 'min, max of EPSR: ', minval(TEMP1), maxval(TEMP1)
       ENDIF
       CALL DSTRB(TEMP1,int_state%EPSR,1,1,1,1,1)
 !
@@ -1888,7 +1873,7 @@
 !
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
-!	write(0,*) 'min, max of MXSNAL: ', minval(TEMP1), maxval(TEMP1)
+	write(0,*) 'min, max of MXSNAL: ', minval(TEMP1), maxval(TEMP1)
       ENDIF
 
       CALL DSTRB(TEMP1,int_state%MXSNAL,1,1,1,1,1)
@@ -1899,13 +1884,13 @@
 !
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1        ! actually NMM_TSK from WRF
-!	write(0,*) 'min, max of TSKIN: ', minval(TEMP1), maxval(TEMP1)
+	write(0,*) 'min, max of TSKIN: ', minval(TEMP1), maxval(TEMP1)
       ENDIF
       CALL DSTRB(TEMP1,int_state%TSKIN,1,1,1,1,1)
 !
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1        ! actually NMM_TSK from WRF
-!	write(0,*) 'min, max of SST: ', minval(TEMP1), maxval(TEMP1)
+	write(0,*) 'min, max of SST: ', minval(TEMP1), maxval(TEMP1)
       ENDIF
       CALL DSTRB(TEMP1,int_state%SST,1,1,1,1,1)
 !
@@ -1915,7 +1900,7 @@
 !
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
-!	write(0,*) 'min, max of SNO: ', minval(TEMP1), maxval(TEMP1)
+	write(0,*) 'min, max of SNO: ', minval(TEMP1), maxval(TEMP1)
       ENDIF
       CALL DSTRB(TEMP1,int_state%SNO,1,1,1,1,1)
 !
@@ -1941,19 +1926,19 @@
 !
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
-!	write(0,*) 'min, max for SR: ', minval(TEMP1),maxval(TEMP1)
+	write(0,*) 'min, max for SR: ', minval(TEMP1),maxval(TEMP1)
       ENDIF
       CALL DSTRB(TEMP1,int_state%SR,1,1,1,1,1)
 !
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
-!	write(0,*) 'min, max for USTAR: ', minval(TEMP1),maxval(TEMP1)
+	write(0,*) 'min, max for USTAR: ', minval(TEMP1),maxval(TEMP1)
       ENDIF
       CALL DSTRB(TEMP1,int_state%USTAR,1,1,1,1,1)
 !
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
-!	write(0,*) 'min, max for Z0: ', minval(TEMP1),maxval(TEMP1)
+	write(0,*) 'min, max for Z0: ', minval(TEMP1),maxval(TEMP1)
       ENDIF
       CALL DSTRB(TEMP1,int_state%Z0,1,1,1,1,1)
       CALL HALO_EXCH(int_state%Z0,1,3,3)
@@ -1962,14 +1947,14 @@
 !
       IF(MYPE==0)THEN !zj
         READ(NFCST)TEMP1 !zj
-!        write(0,*) 'min, max for Z0BASE: ', minval(TEMP1),maxval(TEMP1) !zj
+        write(0,*) 'min, max for Z0BASE: ', minval(TEMP1),maxval(TEMP1) !zj
       ENDIF !zj
       CALL DSTRB(TEMP1,int_state%Z0BASE,1,1,1,1,1) !zj
       CALL HALO_EXCH(int_state%Z0BASE,1,3,3) !zj
 !
       IF(MYPE==0)THEN !zj
         READ(NFCST)TEMP1 !zj
-!        write(0,*) 'min, max for STDH: ', minval(TEMP1),maxval(TEMP1) !zj
+        write(0,*) 'min, max for STDH: ', minval(TEMP1),maxval(TEMP1) !zj
       ENDIF !zj
       CALL DSTRB(TEMP1,int_state%STDH,1,1,1,1,1) !zj
       CALL HALO_EXCH(int_state%STDH,1,3,3) !zj
@@ -1980,7 +1965,7 @@
 !
       IF(MYPE==0)THEN
         READ(NFCST)TEMPSOIL
-!	write(0,*) 'min, max for STC: ', minval(TEMPSOIL),maxval(TEMPSOIL)
+	write(0,*) 'min, max for STC: ', minval(TEMPSOIL),maxval(TEMPSOIL)
       ENDIF
 !
       CALL DSTRB(TEMPSOIL(1,IDS:IDE,JDS:JDE),int_state%STC(IMS:IME,JMS:JME,1),1,1,1,1,1)
@@ -1990,7 +1975,7 @@
 !
       IF(MYPE==0)THEN
         READ(NFCST)TEMPSOIL
-!        write(0,*) 'min, max for SMC: ', minval(TEMPSOIL),maxval(TEMPSOIL)
+        write(0,*) 'min, max for SMC: ', minval(TEMPSOIL),maxval(TEMPSOIL)
       ENDIF
 !
       CALL DSTRB(TEMPSOIL(1,:,:),int_state%SMC(:,:,1),1,1,1,1,1)
@@ -2000,7 +1985,7 @@
 !
       IF(MYPE==0)THEN
         READ(NFCST)TEMPSOIL
-!        write(0,*) 'min, max for SH2O: ', minval(TEMPSOIL),maxval(TEMPSOIL)
+        write(0,*) 'min, max for SH2O: ', minval(TEMPSOIL),maxval(TEMPSOIL)
       ENDIF
 !
       CALL DSTRB(TEMPSOIL(1,:,:),int_state%SH2O(:,:,1),1,1,1,1,1)
@@ -2013,30 +1998,30 @@
 !
       IF(MYPE==0)THEN
         READ(NFCST) ITEMP
-!        write(0,*) 'min, max for ISLTYP: ', minval(ITEMP),maxval(ITEMP)
+        write(0,*) 'min, max for ISLTYP: ', minval(ITEMP),maxval(ITEMP)
       ENDIF
       CALL IDSTRB(ITEMP,int_state%ISLTYP)
 !
       IF(MYPE==0)THEN
         READ(NFCST) ITEMP
-!        write(0,*) 'min, max for IVGTYP: ', minval(ITEMP),maxval(ITEMP)
+        write(0,*) 'min, max for IVGTYP: ', minval(ITEMP),maxval(ITEMP)
       ENDIF
       CALL IDSTRB(ITEMP,int_state%IVGTYP)
 !
       IF(MYPE==0)THEN
         READ(NFCST) TEMP1
-!        write(0,*) 'min, max for VEGFRC: ', minval(TEMP1),maxval(TEMP1) !zj
+        write(0,*) 'min, max for VEGFRC: ', minval(TEMP1),maxval(TEMP1) !zj
       ENDIF
       CALL DSTRB(TEMP1,int_state%VEGFRC,1,1,1,1,1)
 !
       IF(MYPE==0)THEN
         READ(NFCST) SOIL1DIN
-!	write(0,*) 'SOIL1DIN: ', SOIL1DIN
+	write(0,*) 'SOIL1DIN: ', SOIL1DIN
       ENDIF
 !
       IF(MYPE==0)THEN
         READ(NFCST) SOIL1DIN
-!	write(0,*) 'SOIL1DIN: ', SOIL1DIN
+	write(0,*) 'SOIL1DIN: ', SOIL1DIN
       ENDIF
 !
       DO N=1,NSOIL
@@ -2045,7 +2030,7 @@
 !
       IF(MYPE==0)THEN
         READ(NFCST) PT
-!        write(0,*) 'read in ptop in PHYS: ', PT
+        write(0,*) 'read in ptop in PHYS: ', PT
       ENDIF
 !
       CALL MPI_BARRIER(MPI_COMM_COMP,IRTN)
@@ -3376,7 +3361,7 @@
         ENDDO
         ENDDO
 !
-        CALL DSTRB(TEMP1,int_state%RTHBLTEN,1,1,1,LM,K)
+        CALL DSTRB(TEMP1,int_state%RTHBLTEN,1,1,1,LM+1,K)
       ENDDO
 !-----------------------------------------------------------------------
 !
@@ -3391,7 +3376,7 @@
         ENDDO
         ENDDO
 !
-        CALL DSTRB(TEMP1,int_state%RQVBLTEN,1,1,1,LM,K)
+        CALL DSTRB(TEMP1,int_state%RQVBLTEN,1,1,1,LM+1,K)
       ENDDO
 !-----------------------------------------------------------------------
 !***  SH2O, SMC, STC

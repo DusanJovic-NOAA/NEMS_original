@@ -119,7 +119,7 @@
       ARRAY_T=ESMF_ArrayCreate(farray  =int_state%T                     &  !<-- The F90 input array
                               ,distgrid=DISTGRID                        &  !<-- ESMF distributed grid information 
                               ,name    =ARRAY_NAME                      &  !<-- ESMF Array name
-			      ,indexFlag=ESMF_INDEX_DELOCAL	        &
+                              ,indexFlag=ESMF_INDEX_DELOCAL             &
                               ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -140,7 +140,7 @@
       ARRAY_U=ESMF_ArrayCreate(farray  =int_state%U                     &  !<-- The F90 input array
                               ,distgrid=DISTGRID                        &  !<-- ESMF distributed grid information
                               ,name    =ARRAY_NAME                      &  !<-- ESMF Array name
-			      ,indexFlag=ESMF_INDEX_DELOCAL             &
+                              ,indexFlag=ESMF_INDEX_DELOCAL             &
                               ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -161,7 +161,7 @@
       ARRAY_V=ESMF_ArrayCreate(farray    =int_state%V                   &  !<-- The F90 input array
                                 ,distgrid=distgrid                      &  !<-- ESMF distributed grid information
                                 ,name    =ARRAY_NAME                    &  !<-- ESMF Array name
-			        ,indexFlag=ESMF_INDEX_DELOCAL           & 
+                                ,indexFlag=ESMF_INDEX_DELOCAL           &
                                 ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -182,7 +182,7 @@
       ARRAY_Q2=ESMF_ArrayCreate(farray  =int_state%Q2                   &  !<-- The F90 input array
                                ,distgrid=distgrid                       &  !<-- ESMF distributed grid information
                                ,name    =ARRAY_NAME                     &  !<-- ESMF Array name
-			       ,indexFlag=ESMF_INDEX_DELOCAL            & 
+                               ,indexFlag=ESMF_INDEX_DELOCAL            &
                                ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -203,7 +203,7 @@
       ARRAY_OMGALF=ESMF_ArrayCreate(farray  =int_state%OMGALF           &  !<-- The F90 input array
                                    ,distgrid=distgrid                   &  !<-- ESMF distributed grid information
                                    ,name    =ARRAY_NAME                 &  !<-- ESMF Array name
-				   ,indexFlag=ESMF_INDEX_DELOCAL        & 
+                                   ,indexFlag=ESMF_INDEX_DELOCAL        &
                                    ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -228,7 +228,7 @@
       ARRAY_PD=ESMF_ArrayCreate(farray  =int_state%PD                   &  !<-- The F90 input array
                                ,distgrid=distgrid                       &  !<-- ESMF distributed grid information
                                ,name    =ARRAY_NAME                     &  !<-- ESMF Array name
-			       ,indexFlag=ESMF_INDEX_DELOCAL            &
+                               ,indexFlag=ESMF_INDEX_DELOCAL            &
                                ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -253,7 +253,7 @@
       ARRAY_TRACERS=ESMF_ArrayCreate(farray  =int_state%TRACERS           &  !<-- The F90 input array
                                     ,distgrid=distgrid                    &  !<-- ESMF distributed grid information
                                     ,name    =ARRAY_NAME                  &  !<-- ESMF Array name
-				    ,indexFlag=ESMF_INDEX_DELOCAL         &
+                                    ,indexFlag=ESMF_INDEX_DELOCAL         &
                                     ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

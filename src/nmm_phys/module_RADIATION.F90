@@ -2030,7 +2030,6 @@
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-!     write(0,*)' enter RADIATION'
 !*****
 !***** NOTE: THIS IS HARDWIRED FOR CALLS TO LONGWAVE AND SHORTWAVE
 !*****       AT EQUAL INTERVALS
@@ -3784,6 +3783,9 @@
 !--- Need to save LW & SW tendencies since radiation calculates both and this block
 !    is skipped when GFDL SW is called, both only if GFDL LW is also called
 !    
+
+
+       
       IF(GFDL_LW)THEN
         DO J=JTS,JTE
         DO K = KTS,KTE
@@ -3839,6 +3841,8 @@
         ENDDO
         ENDDO
       ENDIF
+
+
 !
   END SUBROUTINE ETARA
 !

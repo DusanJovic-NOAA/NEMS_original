@@ -37,16 +37,22 @@
 ###########################################################
 # Compile & Archive Options
 ###########################################################
+###NMMB optimization####
   OPT_NMM=-O2 -qmaxmem=-1 -qarch=auto -qtune=auto -NS2000
   SMP=-qsmp=omp
   MAF=-qfloat=nomaf
-  TRAPS=-qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap -C
+###GFS optimization###
   FFLAGM_DEBUG=-O2
   OPT_GFS=-qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
-  CPPFLAGS=-DENABLE_SMP -DIBM
   FFLAGSF=-qnosave -q free=f90 -qcheck $(FFLAGM_DEBUG)
   FFLAGSI=-qnosave -q free=f90 $(FFLAGM_DEBUG)
   FFLAGB=-qnosave -qfixed $(FFLAGM_DEBUG)
+###Traps setting###
+#  TRAPS=-qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap -C
+  TRAPS=
+###CPP Flags###
+  CPPFLAGS=-DENABLE_SMP -DIBM
+###Archive settings###
   AR=ar
   ARFLAG=-r
 ###########################################################
@@ -104,12 +110,12 @@
   FINCS_NMM1=-I$(ESMF_MOD1) $(GCINCS_NMM1)
   FINCS_GFS1=-I$(ESMF_MOD1) $(GCINCS_GFS1)
   FFLAG=$(OPT_NMM) $(FINCS) $(TRAPS) -qfree -NS2048
-  FFLAG_NMM_MAIN=$(OPT_NMM) $(FINCS_NMM) -qfree -NS2048
+  FFLAG_NMM_MAIN=$(OPT_NMM) $(FINCS_NMM) $(TRAPS) -qfree -NS2048
   FFLAG_GFS_MAIN=$(OPT_GFS) $(FINCS_GFS) -qfree -NS2048
-  FFLAG_NMM_UTIL=$(OPT_NMM) -I$(ESMF_MOD) -I$(FINCP)
-  FFLAG_NMM_IO=$(OPT_NMM) -I$(ESMF_MOD) -I$(NMM_UTIL)
-  FFLAG_NMM_PHY=$(OPT_NMM) -I$(ESMF_MOD) -I$(NMM_UTIL) -I$(NMM_IO)
-  FFLAG_NMM_DYN=$(OPT_NMM) -I$(ESMF_MOD) -I$(NMM_UTIL) -I$(NMM_IO)
+  FFLAG_NMM_UTIL=$(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(FINCP)
+  FFLAG_NMM_IO=$(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(NMM_UTIL)
+  FFLAG_NMM_PHY=$(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(NMM_UTIL) -I$(NMM_IO)
+  FFLAG_NMM_DYN=$(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(NMM_UTIL) -I$(NMM_IO)
   FFLAG_GFS_UTIL90=$(OPTS90) -I$(ESMF_MOD) -I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_IO) -qfree -NS2048
   FFLAG_GFS_UTIL=$(OPTS90) -I$(ESMF_MOD) -I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_IO)
   FFLAG_GFS_IO=-I$(GFS_DYN) -I$(GFS_PHY)

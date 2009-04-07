@@ -501,10 +501,6 @@
                  ,int_state%P_QV,int_state%P_QC,int_state%P_QR          &
                  ,int_state%P_QI,int_state%P_QS,int_state%P_QG)
 
-	if (ITS .le. 50 .and. ITE .ge. 50 .and. JTS .le. 50 .and. JTE .ge. 50) then
-!	write(0,*) 'int_state%T(50,50,24) from INIT: ', int_state%T(50,50,24)
-!	write(0,*) 'PDTOP, PT from INIT: ', int_state%PDTOP, int_state%PT
-	endif
 !
 !***  CHECK IF STARTING DATE/TIME IN INPUT DATA FILE AGREES WITH
 !***  THE CONFIGURE FILE.
@@ -1192,9 +1188,6 @@
           ,int_state%TCU,int_state%TCV)
 !
         pgforce_tim=pgforce_tim+timef()-btim
-	if (ITS .le. 50 .and. ITE .ge. 50 .and. JTS .le. 50 .and. JTE .ge. 50) then
-!	write(0,*) 'int_state%T(50,50,24) after PGFORCE: ', int_state%T(50,50,24)
-	endif
 !
 !-----------------------------------------------------------------------
 !
@@ -1212,9 +1205,6 @@
 !
         btim=timef()
 !
-	if (ITS .le. 50 .and. ITE .ge. 50 .and. JTS .le. 50 .and. JTE .ge. 50) then
-!	write(0,*) 'int_state%T(50,50,24) before DHT: ', int_state%T(50,50,24)
-	endif
         CALL DHT                                                        &
           (LM,DYV,DSG2,PDSG1,DXV                                        &
           ,FCP,FDIV                                                     &
@@ -1225,9 +1215,6 @@
           ,int_state%PFNE,int_state%PFNW,int_state%PFX,int_state%PFY    &
           ,int_state%DIV,int_state%TDIV)
 
-	if (ITS .le. 50 .and. ITE .ge. 50 .and. JTS .le. 50 .and. JTE .ge. 50) then
-!	write(0,*) 'int_state%T(50,50,24) after DHT: ', int_state%T(50,50,24)
-	endif
 !
         dht_tim=dht_tim+timef()-btim
 !
@@ -1299,18 +1286,12 @@
 !
 !-----------------------------------------------------------------------
 !
-	if (ITS .le. 50 .and. ITE .ge. 50 .and. JTS .le. 50 .and. JTE .ge. 50) then
-!	write(0,*) 'int_state%T(50,50,24) before HALO_EXCH: ', int_state%T(50,50,24)
-	endif
         btim=timef()
         CALL HALO_EXCH                                                  &
          (int_state%T,LM                                                &
          ,int_state%U,LM                                                &
          ,int_state%V,LM                                                &
          ,2,2)
-	if (ITS .le. 50 .and. ITE .ge. 50 .and. JTS .le. 50 .and. JTE .ge. 50) then
-!	write(0,*) 'int_state%T(50,50,24) after HALO_EXCH: ', int_state%T(50,50,24)
-	endif
         exch_dyn_tim=exch_dyn_tim+timef()-btim
 !
 !-----------------------------------------------------------------------
@@ -1348,9 +1329,6 @@
 	enddo
 
         btim=timef()
-	if (ITS .le. 50 .and. ITE .ge. 50 .and. JTS .le. 50 .and. JTE .ge. 50) then
-!	write(0,*) 'int_state%T(50,50,24) into HDIFF: ', int_state%T(50,50,24)
-	endif
 !
         CALL HDIFF                                                      &
           (GLOBAL,HYDRO,SECDIF                                          &
@@ -1366,9 +1344,6 @@
 !
         hdiff_tim=hdiff_tim+timef()-btim
 
-	if (ITS .le. 50 .and. ITE .ge. 50 .and. JTS .le. 50 .and. JTE .ge. 50) then
-!	write(0,*) 'int_state%T(50,50,24) after HDIFF: ', int_state%T(50,50,24)
-	endif
 !
 !-----------------------------------------------------------------------
 !***  FILTERING AND BOUNDARY CONDITIONS FOR THE GLOBAL FORECAST.
@@ -1719,9 +1694,6 @@
 !
       int_state%FIRST=.FALSE.
 
-	if (ITS .le. 50 .and. ITE .ge. 50 .and. JTS .le. 50 .and. JTE .ge. 50) then
-!	write(0,*) 'int_state%T(50,50,24) below not_firststep: ', int_state%T(50,50,24)
-	endif
 !
 !-----------------------------------------------------------------------
 !***  UPDATE THE SURFACE PRESSURE.
@@ -1779,9 +1751,6 @@
 !-----------------------------------------------------------------------
 !
       btim=timef()
-	if (ITS .le. 50 .and. ITE .ge. 50 .and. JTS .le. 50 .and. JTE .ge. 50) then
-!	write(0,*) 'int_state%T(50,50,24) into ADV1: ', int_state%T(50,50,24)
-	endif
 !
       CALL ADV1                                                         &
         (GLOBAL,SECADV                                                  &
@@ -1801,9 +1770,6 @@
         ,int_state%TCT,int_state%TCU,int_state%TCV)
 !
       adv1_tim=adv1_tim+timef()-btim
-	if (ITS .le. 50 .and. ITE .ge. 50 .and. JTS .le. 50 .and. JTE .ge. 50) then
-!	write(0,*) 'int_state%T(50,50,24) after ADV1: ', int_state%T(50,50,24)
-	endif
 !
 !-----------------------------------------------------------------------
 !***  ADVECTION OF TRACERS
@@ -2022,10 +1988,6 @@
 !
       btim=timef()
 !
-	if (ITS .le. 50 .and. ITE .ge. 50 .and. JTS .le. 50 .and. JTE .ge. 50) then
-!	write(0,*) 'int_state%TCT(50,50,24) before UPDATET: ', int_state%TCT(50,50,24)
-!	write(0,*) 'int_state%T(50,50,24) before UPDATET: ', int_state%T(50,50,24)
-	endif
 
       CALL UPDATET                                                      &
         (LM                                                             &
@@ -2035,9 +1997,6 @@
 !
         ,int_state%TCT)
 
-	if (ITS .le. 50 .and. ITE .ge. 50 .and. JTS .le. 50 .and. JTE .ge. 50) then
-!	write(0,*) 'int_state%T(50,50,24) after UPDATET: ', int_state%T(50,50,24)
-	endif
 !
       updatet_tim=updatet_tim+timef()-btim
 !
@@ -2255,9 +2214,6 @@
 !
 !-----------------------------------------------------------------------
 !
-	if (ITS .le. 50 .and. ITE .ge. 50 .and. JTS .le. 50 .and. JTE .ge. 50) then
-!	write(0,*) 'int_state%T(50,50,24) here(b): ', int_state%T(50,50,24)
-	endif
       passive_advec: IF(MOD(NTIMESTEP,IDTAD)==0.AND.OLD_PASSIVE)THEN
 !
 !-----------------------------------------------------------------------
@@ -2297,6 +2253,7 @@
             ,int_state%PD,int_state%PSGDT                               &
             ,int_state%WATER                                            &
             ,int_state%NUM_WATER,2,int_state%INDX_Q2)
+
 !
           DO K=1,LM
           DO J=JTS,JTE
@@ -2448,9 +2405,6 @@
 !-----------------------------------------------------------------------
 !
         btim=timef()
-	if (ITS .le. 50 .and. ITE .ge. 50 .and. JTS .le. 50 .and. JTE .ge. 50) then
-!	write(0,*) 'int_state%T(50,50,24) here(c): ', int_state%T(50,50,24)
-	endif
 !
         hadv2_micro_check: IF(int_state%MICROPHYSICS=='fer')THEN
 !
@@ -2609,9 +2563,6 @@
 !***  IF THE FORECAST IS FINISHED.
 !-----------------------------------------------------------------------
 !
-	if (ITS .le. 50 .and. ITE .ge. 50 .and. JTS .le. 50 .and. JTE .ge. 50) then
-!	write(0,*) 'int_state%T(50,50,24) here(d): ', int_state%T(50,50,24)
-	endif
       IF(ESMF_ClockIsStopTime(clock=CLOCK_ATM,rc=RC))THEN
         IF(WRITE_GLOBAL_SUMS.AND.MYPE==0)THEN
           CLOSE(IUNIT_ADVEC_SUMS)
@@ -2643,12 +2594,10 @@
 !
       IF(MOD(NTIMESTEP+1,N_PRINT_STATS)==0)THEN
 !
-!	write(0,*) 'call FIELD_STATS'
         CALL FIELD_STATS(INT_STATE%T,MYPE,MPI_COMM_COMP,LM              &
                         ,ITS,ITE,JTS,JTE                                &
                         ,IMS,IME,JMS,JME                                &
                         ,IDS,IDE,JDS,JDE)
-!	write(0,*) 'return FIELD_STATS'
       ENDIF
 !-----------------------------------------------------------------------
 !
@@ -2675,9 +2624,6 @@
 !
 !-----------------------------------------------------------------------
 !
-	if (ITS .le. 50 .and. ITE .ge. 50 .and. JTS .le. 50 .and. JTE .ge. 50) then
-!	write(0,*) 'int_state%T(50,50,24) end DYN_RUN: ', int_state%T(50,50,24)
-	endif
       END SUBROUTINE DYN_RUN
 !
 !-----------------------------------------------------------------------

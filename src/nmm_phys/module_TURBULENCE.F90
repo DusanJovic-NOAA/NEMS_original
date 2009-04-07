@@ -723,6 +723,7 @@
 !***  USE THE FLIPPED INDEX IN THE NMMB ARRAYS.
 !-----------------------------------------------------------------------
 !
+
         DO K=1,LM
           KFLIP=LM+1-K
 !
@@ -744,6 +745,7 @@
           RQIBLTEN(I,K,J)=0.
           RTHBLTEN(I,J,K)=0.
 	  RQVBLTEN(I,J,K)=0.
+
 
 !
           DZ(I,K,J)=T_PHY(I,K,J)*(P608*QL+1.)*R_D                       &
@@ -984,6 +986,7 @@
       ENDDO
 
 !
+
       CALL PBL_DRIVER(                                                &
                       ITIMESTEP=NTSD,DT=DT                            &
                      ,U_FRAME=U_FRAME,V_FRAME=V_FRAME                 &
@@ -1017,7 +1020,9 @@
                      ,QR_CURR=WATER_TRANS(IMS,1,JMS,P_QR),F_QR=F_QR   &
                      ,QI_CURR=WATER_TRANS(IMS,1,JMS,P_QI),F_QI=F_QI   &
                      ,QS_CURR=WATER_TRANS(IMS,1,JMS,P_QS),F_QS=F_QS   &
-                     ,QG_CURR=WATER_TRANS(IMS,1,JMS,P_QG),F_QG=F_QG  )
+                     ,QG_CURR=WATER_TRANS(IMS,1,JMS,P_QG),F_QG=F_QG  ) 
+
+
 !
 !***  NOTE THAT THE EXCHANGE COEFFICIENTS FOR HEAT EXCH_H COMING OUT OF
 !***  PBL_DRIVER ARE DEFINED AT THE TOPS OF THE LAYERS KTS TO KTE-1
@@ -1196,10 +1201,12 @@
 !***  UPDATE TEMPERATURE, SPECIFIC HUMIDITY, CLOUD, AND TKE.
 !-----------------------------------------------------------------------
 !
+
 !.......................................................................
 !$omp parallel do                                                       &
 !$omp& private(j,k,kflip,i,dtdt,dqdt,qold,ratiomx,qw,qi,qr,i_m)
 !.......................................................................
+
       DO J=JTS_B1,JTE_B1
         DO K=1,LM
           KFLIP=LM+1-K
@@ -1264,8 +1271,10 @@
         ENDDO
 !
       ENDDO
+
 !.......................................................................
 !$omp end parallel do
+
 !.......................................................................
 !
 !-----------------------------------------------------------------------
@@ -1638,7 +1647,7 @@
                                                          RVBLTEN, &
                                                   EXCH_H,TKE_MYJ
 
-   REAL,       DIMENSION( ims:ime, jms:jme, kms:kme),             &
+   REAL,       DIMENSION( ims:ime, jms:jme, kms:kme+1),             &
               INTENT(INOUT)    ::                        RTHBLTEN
 
 !
@@ -1679,8 +1688,12 @@
                       ! 2 time levels; if only one then use CURR
                       qv_curr, qc_curr, qr_curr                  &
                      ,qi_curr, qs_curr, qg_curr                  &
-                     ,rqvblten,rqcblten,rqrblten                 &
+                     ,rqcblten,rqrblten                 &
                      ,rqiblten,rqsblten,rqgblten
+
+   REAL, DIMENSION( ims:ime, jms:jme,kms:kme+1 ),                 &
+         OPTIONAL, INTENT(INOUT) ::                             &
+                     rqvblten
 
    REAL,       DIMENSION( ims:ime, jms:jme )                    , &
                OPTIONAL                                         , &
@@ -1763,6 +1776,7 @@
             RTHBLTEN(I,J,K)=0.
             RUBLTEN(I,K,J)=0.  
 	    RVBLTEN(I,K,J)=0.
+
             IF ( PRESENT( RQCBLTEN )) RQCBLTEN(I,K,J)=0.
             IF ( PRESENT( RQVBLTEN )) RQVBLTEN(I,J,K)=0.
          ENDDO
@@ -1985,7 +1999,7 @@
      &    ,INTENT(OUT) ::                      EL_MYJ                  &
      &                                        ,RQCBLTEN                &
      &                                        ,RUBLTEN,RVBLTEN
-      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME)                          &
+      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME+1)                          &
      &    ,INTENT(OUT) ::                      RTHBLTEN,RQVBLTEN
 
 !

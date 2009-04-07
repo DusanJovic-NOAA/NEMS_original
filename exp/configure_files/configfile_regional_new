@@ -28,7 +28,7 @@ sbd:  -45.0                 # Grid's southern boundary (rotated degrees)
 ##### Grid Decomposition #####
 ##############################
 
-inpes:  05                  # Number of compute tasks in the I direction
+inpes:  10                  # Number of compute tasks in the I direction
 jnpes:  06                  # Number of compute tasks in the J direction
 
 
@@ -40,7 +40,7 @@ quilting:              true    # Do you want asynchronous quilting/history write
 read_groups:           0
 read_tasks_per_group:  0
 write_groups:          1
-write_tasks_per_group: 2
+write_tasks_per_group: 4
 
 
 ##########################################
@@ -151,7 +151,7 @@ num_tracers_chem:  0         # Number of specified chem/aerosol "tracer" scalars
 ########################################
 
 read_global_sums:  false    # Read in global summations or not
-write_global_sums: true    # Write out global summations or not
+write_global_sums: false    # Write out global summations or not
 
 
 ##################################

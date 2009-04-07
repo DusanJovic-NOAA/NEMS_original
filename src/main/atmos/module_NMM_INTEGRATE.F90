@@ -273,7 +273,6 @@
                                ,exportState=atm_int_state%EXP_STATE_PHY &  !<-- The physics export state
                                ,clock      =CLOCK_ATM                   &  !<-- The ATM Clock
                                ,rc         =RC)
-
          ELSE
 
 
@@ -284,7 +283,6 @@
                               ,rc         =RC)
 
           ENDIF
-
 
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -310,6 +308,7 @@
 !-----------------------------------------------------------------------
 !
         ENDIF fcst_pes
+        
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !ratko    CALL ERR_MSG(RC,MESSAGE_CHECK,RC_LOOP)

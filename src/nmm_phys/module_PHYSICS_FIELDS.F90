@@ -116,7 +116,7 @@
       ARRAY_T=ESMF_ArrayCreate(farray  =int_state%T                     &  !<-- The F90 input array
                               ,distgrid=DISTGRID                        &  !<-- ESMF distributed grid information
                               ,name    =ARRAY_NAME                      &  !<-- ESMF Array name
-			      ,indexFlag=ESMF_INDEX_DELOCAL             &
+                              ,indexFlag=ESMF_INDEX_DELOCAL             &
                               ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
