@@ -94,10 +94,11 @@
       INTEGER(KIND=KINT),INTENT(INOUT)       :: NTIMESTEP                 !<-- The current forecast timestep
 !
       TYPE(ESMF_Time),INTENT(INOUT)          :: CURRTIME                  !<-- The current forecast time
-      TYPE(ESMF_Time)                        :: NEWTIME
       TYPE(ESMF_TimeInterval),INTENT(IN)     :: TIMEINTERVAL_CLOCKTIME
       TYPE(ESMF_TimeInterval),INTENT(IN)     :: TIMEINTERVAL_HISTORY
       TYPE(ESMF_TimeInterval),INTENT(IN)     :: TIMEINTERVAL_RESTART
+      TYPE(ESMF_Time)                        ::  ALARM_HISTORY_RING,ALARM_RESTART_RING,ALARM_CLOCKTIME_RING
+
 !
       TYPE(ESMF_Alarm)         :: ALARM_CLOCKTIME           !<-- The ESMF Alarm for clocktime prints
       TYPE(ESMF_Alarm) 	     :: ALARM_HISTORY             !<-- The ESMF Alarm for history output
@@ -132,39 +133,65 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_LOOP)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      NEWTIME=CURRTIME
-      call ESMF_TimeGet(NEWTIME, yy=YY, mm=MM, dd=DD, h=H, m=M, s=S, rc=RC) 
-      IF (M .ne. 0) THEN
-      H=H+1
-      M=0 
-      CALL ESMF_TimeSet(NEWTIME,yy=YY, mm=MM, dd=DD, h=H, m=M, s=S, rc=RC)
-      print *,'NEWTIME'
-      CALL ESMF_TimePrint(NEWTIME,'strings',rc=RC)
-      ENDIF
-      
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+       MESSAGE_CHECK="ADUSTING ALARM RINGS"
+       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+       ALARM_HISTORY_RING=CURRTIME+TIMEINTERVAL_HISTORY
+       ALARM_RESTART_RING=CURRTIME+TIMEINTERVAL_RESTART
+       ALARM_CLOCKTIME_RING=CURRTIME+TIMEINTERVAL_CLOCKTIME
+
+       call ESMF_TimeGet(ALARM_HISTORY_RING, yy=YY, mm=MM, dd=DD, h=H, m=M, s=S, rc=RC) 
+        IF (M .ne. 0) THEN
+         H=H+1
+         M=0 
+         CALL ESMF_TimeSet(ALARM_HISTORY_RING,yy=YY, mm=MM, dd=DD, h=H, m=M, s=S, rc=RC)
+        ENDIF
+       call ESMF_TimeGet(ALARM_RESTART_RING, yy=YY, mm=MM, dd=DD, h=H, m=M, s=S, rc=RC)
+        IF (M .ne. 0) THEN
+         H=H+1
+         M=0
+         CALL ESMF_TimeSet(ALARM_RESTART_RING,yy=YY, mm=MM, dd=DD, h=H, m=M, s=S, rc=RC)
+        ENDIF
+       call ESMF_TimeGet(ALARM_CLOCKTIME_RING, yy=YY, mm=MM, dd=DD, h=H, m=M, s=S, rc=RC)
+        IF (M .ne. 0) THEN
+         H=H+1
+         M=0
+         CALL ESMF_TimeSet(ALARM_CLOCKTIME_RING,yy=YY, mm=MM, dd=DD, h=H, m=M, s=S, rc=RC)
+        ENDIF
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_LOOP)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+       MESSAGE_CHECK="CREATING ALARMS "
+       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+
       ALARM_HISTORY=ESMF_AlarmCreate(name             ='ALARM_HISTORY'      &
                                     ,clock            =CLOCK_ATM            &  !<-- ATM Clock
-                                    ,ringTime         =NEWTIME             &  !<-- Forecast/Restart start time (ESMF)
+                                    ,ringTime         =ALARM_HISTORY_RING             &  !<-- Forecast/Restart start time (ESMF)
                                     ,ringInterval     =TIMEINTERVAL_HISTORY &  !<-- Time interval between
                                     ,ringTimeStepCount=1                    &  !<-- The Alarm rings for this many timesteps
                                     ,sticky           =.false.              &  !<-- Alarm does not ring until turned off
                                     ,rc               =RC)
       ALARM_RESTART=ESMF_AlarmCreate(name             ='ALARM_RESTART'      &
                                     ,clock            =CLOCK_ATM            &  !<-- ATM Clock
-                                    ,ringTime         =NEWTIME             &  !<-- Forecast/Restart start time (ESMF)
+                                    ,ringTime         =ALARM_RESTART_RING             &  !<-- Forecast/Restart start time (ESMF)
                                     ,ringInterval     =TIMEINTERVAL_RESTART &  !<-- Time interval between  restart output (ESMF)
                                     ,ringTimeStepCount=1                    &  !<-- The Alarm rings for this many timesteps
                                     ,sticky           =.false.              &  !<-- Alarm does not ring until turned off
                                     ,rc               =RC)
       ALARM_CLOCKTIME=ESMF_AlarmCreate(name             ='ALARM_CLOCKTIME'      &
                                     ,clock              =CLOCK_ATM              &  !<-- ATM Clock
-                                    ,ringTime           =NEWTIME    &  !<-- Forecast start time (ESMF)
+                                    ,ringTime           =ALARM_CLOCKTIME_RING    &  !<-- Forecast start time (ESMF)
                                     ,ringInterval       =TIMEINTERVAL_CLOCKTIME &  !<-- Time interval between clocktime prints (ESMF)
                                     ,ringTimeStepCount  =1                      &  !<-- The Alarm rings for this many timesteps
                                     ,sticky             =.false.                &  !<-- Alarm does not ring until turned off
                                     ,rc                 =RC)
-
-
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_LOOP)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !-----------------------------------------------------------------------
 !
       timeloop: DO WHILE (.NOT.ESMF_ClockIsStopTime(CLOCK_ATM,RC))
@@ -356,7 +383,6 @@
 !***  AFTER TIMESTEP 0.
 !-----------------------------------------------------------------------
 !
-
         output: IF(ESMF_AlarmIsRinging(alarm=ALARM_HISTORY              &  !<-- The history output alarm
                                       ,rc   =RC))THEN
 !
