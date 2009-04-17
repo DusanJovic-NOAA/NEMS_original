@@ -20,6 +20,7 @@
 !
       USE MODULE_CONSTANTS,ONLY: A2,A3,A4,CAPPA,CP,ELWV,EPSQ2,G         &
                                 ,P608,PQ0,R_D
+      USE MODULE_PHYSICS_INTERNAL_STATE
 !
 !-----------------------------------------------------------------------
 !
@@ -59,6 +60,12 @@
                                      ,RUCLSMSCHEME=3                    &  
                                      ,lissscheme  =101
 !
+      INTEGER(KIND=KINT),PARAMETER :: JF = 1000000
+      INTEGER(KIND=KINT),PARAMETER :: ILIM=97                           &
+                                     ,JLIM=101                          &
+                                     ,MAXLEV=39
+      INTEGER(KIND=KINT),PARAMETER :: ITOT=ILIM*JLIM
+      INTEGER(KIND=KINT),PARAMETER :: MBUF=2000000
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !***  FOR MYJSFC SCHEME
@@ -138,6 +145,7 @@
      &          ,sh_urb2d,lh_urb2d,g_urb2d,rn_urb2d,ts_urb2d          & !H urban
      &          ,frc_urb2d, utype_urb2d                               & !H urban
      &          ,ucmcall                                              & ! urban
+     &          ,pcpflg                                               &
      &          , ids,ide,jds,jde,kds,kde                             &
      &          , ims,ime,jms,jme,kms,kme                             &
      &          , i_start,i_end,j_start,j_end,kts,kte,num_tiles       &
@@ -342,7 +350,7 @@
    INTEGER, INTENT(IN )::   ITIMESTEP
    INTEGER, INTENT(IN )::   NUM_SOIL_LAYERS
    INTEGER, INTENT(IN )::   STEPBL
-   LOGICAL, INTENT(IN )::   WARM_RAIN
+   LOGICAL, INTENT(IN )::   WARM_RAIN, PCPFLG
    REAL , INTENT(IN )::   U_FRAME
    REAL , INTENT(IN )::   V_FRAME
    REAL, DIMENSION( ims:ime , 1:num_soil_layers, jms:jme ), INTENT(INOUT)::   SMOIS
@@ -540,12 +548,22 @@
      REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT)  :: FRC_URB2D  !urban 
      INTEGER, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT)  :: UTYPE_URB2D  !urban 
 
-     INTEGER :: NRL,NWL,NRDL
-
+     INTEGER :: NRL,NWL,NRDL,ihr, LUGB, LUGI,KF,IRET, NUMVAL,IGDNUM,LGRIB,LSKIP,IMAX
+     INTEGER :: NUMLEV,JMAX,NNUM,NLEN,KR,IRETGI,IRETGB,II,KK,KSKIP 
+     INTEGER :: IRETGB2, JR, IRGS, KMAX, FHR1, FHR2, IRGI, IRETGI2, ISTAT
+     INTEGER :: JJINC, LUGI2, LUGB2, LUGB3, JJ1, LUGB5, LUGB4
+     REAL :: F(JF)
+     INTEGER, DIMENSION(200) :: JPDS, JGDS, KPDS, KGDS,JENS,KENS,IV,L 
+     LOGICAL :: LB 
+     REAL,  DIMENSION(ITOT) :: GRID,APCP,APCP2,CAPCP,CAPCP2,APCP3HR,CAPCP3HR 
+     LOGICAL, DIMENSION(ITOT) :: MASK, MASK2
+     CHARACTER, DIMENSION(MBUF) :: CBUF, CBUF2
+     CHARACTER(11) :: ENVVAR
+     CHARACTER(80) :: FNAME
+     
      REAL,  DIMENSION( ims:ime, jms:jme )  :: PSIM_URB2D  !urban local var
      REAL,  DIMENSION( ims:ime, jms:jme )  :: PSIH_URB2D  !urban local var
      REAL,  DIMENSION( ims:ime, jms:jme )  :: GZ1OZ0_URB2D  !urban local var
-!m     REAL, DIMENSION( ims:ime, jms:jme ) :: AKHS_URB2D  !urban local var
      REAL,  DIMENSION( ims:ime, jms:jme )  :: AKMS_URB2D  !urban local var
      REAL,  DIMENSION( ims:ime, jms:jme )  :: U10_URB2D   !urban local var
      REAL,  DIMENSION( ims:ime, jms:jme )  :: V10_URB2D   !urban local var
@@ -555,6 +573,7 @@
 
 !------------------------------------------------------------------
    CHARACTER*256 :: message
+   CHARACTER(64) :: infile
 !------------------------------------------------------------------
 !
 
@@ -570,8 +589,8 @@
   DTMIN = 0.
   DTBL = 0.
 
-! RAINBL in mm (Accumulation between PBL calls)
-
+!  RAINBL in mm (Accumulation between PBL calls)
+  IF (.NOT. PCPFLG) THEN
   IF ( PRESENT( rainncv ) .AND. PRESENT( rainbl ) ) THEN
 !jaa    !$omp parallel do   &
 !jaa    !$omp private ( ij, i, j, k )
@@ -597,6 +616,284 @@
     ENDDO
 !jaa    !$omp end parallel do
   ENDIF
+  ELSE
+
+!  ihr=nint(itimestep*dt/3600.)
+!  write(infile,'(a,i3.3)')')03.tm.',ihr
+!     select_unit: do l=51,59
+!        inquire(l,opened=opened)
+!        if(.not.opened)then
+!          iunit=l
+!          exit select_unit
+!        endif
+!      enddo select_unit
+      
+      LUGB=13
+      LUGI=14
+      LUGB2=15
+      LUGI2=16
+      LUGB3=50
+      LUGB4=51
+      LUGB5=52
+!
+      JJ1 = 1
+      JJINC = 1
+!
+      ISTAT = 0
+!
+!  READ INDEX FILE TO GET GRID SPECS
+      IRGI = 1
+      IRGS = 1
+      KMAX = 0
+      JR=0
+      KSKIP = 0
+      ENVVAR='XLFUNIT_   '
+      WRITE(ENVVAR(9:10),FMT='(I2)') LUGB
+      CALL GETENV(ENVVAR,FNAME)
+      CALL BAOPEN(LUGB,FNAME,IRETGB)
+      ENVVAR='XLFUNIT_   '
+      WRITE(ENVVAR(9:10),FMT='(I2)') LUGI
+      CALL GETENV(ENVVAR,FNAME)
+      CALL BAOPEN(LUGI,FNAME,IRETGI)
+      CALL GETGI(LUGI,KSKIP,MBUF,CBUF,NLEN,NNUM,IRGI)
+      write(6,*)' IRET FROM GETGI ',IRGI
+      IF(IRGI .NE. 0) THEN
+        WRITE(6,*)' PROBLEMS READING GRIB INDEX FILE SO ABORT'
+        ISTAT = IRGI
+        RETURN
+      ENDIF
+
+      DO K = 1, NNUM
+        JR = K - 1
+        JPDS = -1
+        JGDS = -1
+        CALL GETGB1S(CBUF,NLEN,NNUM,JR,JPDS,JGDS,JENS      &
+                    ,KR,KPDS,KGDS,KENS,LSKIP,LGRIB,IRGS)
+        write(6,*)' IRET FROM GETGB1S ',IRGS
+        IF(IRGI .NE. 0) THEN
+          WRITE(6,*)' PROBLEMS ON 1ST READ OF GRIB FILE SO ABORT'
+          ISTAT = IRGS
+          RETURN
+        ENDIF
+      ENDDO
+
+!    GET GRID NUMBER FROM PDS
+      IGDNUM = KPDS(3)
+!   PROCESS THE GRIB FILE
+
+
+      IMAX = KGDS(2)
+      JMAX = KGDS(3)
+      NUMVAL = IMAX*JMAX
+      KMAX = MAXLEV
+      WRITE(6,280) IMAX,JMAX,NUMLEV,KMAX
+  280 FORMAT(' IMAX,JMAX,NUMLEV,KMAX ',5I4)
+  285 FORMAT(' IV, IVAR, L, IRET:  ',4I5)
+
+! -== GET SURFACE FIELDS ==-
+      L = 0
+      IV= 0
+
+!   PRECIP
+
+!   to start each new file with its index, set J=-1 for sfc pressure
+!
+
+      J = 0
+      JPDS = -1
+      JPDS(3) = IGDNUM
+      JPDS(5) = 061
+      JPDS(6) = 001
+      JPDS(13) = 1
+
+
+      CALL GETGB(LUGB,LUGI,NUMVAL,J,JPDS,JGDS         &
+                     ,KF,K,KPDS,KGDS,MASK,GRID,IRET)
+
+      IF(IRET.EQ.0) THEN
+        II = 1
+        JJ = JJ1
+        DO KK = 1, ITOT
+          APCP(KK) = GRID(KK)
+!          if (APCP(KK) .GT. 0.1) THEN
+!            print *, 'PRECIP ', KK, APCP(KK)
+!          endif
+        ENDDO
+      ELSE
+        WRITE(6,285)IV,JPDS(5),L,IRET
+        WRITE(6,*)' COULD NOT UNPACK GRID 251 FILE '
+         ISTAT = IRET
+        RETURN
+      ENDIF
+
+!   PRECIP
+
+!   to start each new file with its index, set J=-1 for sfc pressure
+!
+!  CONVECTIVE PRECIP
+      J = 0
+      JPDS = -1
+      JPDS(3) = IGDNUM
+      JPDS(5) = 063
+      JPDS(6) = 001
+      JPDS(13) = 1
+      CALL GETGB(LUGB,LUGI,NUMVAL,J,JPDS,JGDS,KF,K    &
+                ,KPDS,KGDS,MASK,GRID,IRET)
+      IF(IRET.EQ.0) THEN
+        II = 1
+        JJ = JJ1
+        DO KK = 1, ITOT
+          CAPCP(KK) = GRID(KK)
+        ENDDO
+      ELSE
+        WRITE(6,285)IV,JPDS(5),L,IRET
+        WRITE(6,*)' COULD NOT UNPACK GRID 251 FILE '
+         ISTAT = IRET
+        RETURN
+      ENDIF
+!  PRINT VALUES AT POINT IN MIDDLE OF GRID
+          write(6,1234)apcp(5500), capcp(5500)
+ 1234      format(f7.3)
+
+! BEGIN WORK ON 2ND FILE
+      JJ1 = 1
+      JJINC = 1
+
+!  READ INDEX FILE TO GET GRID SPECS
+!
+      IRGI = 1
+      IRGS = 1
+      KMAX = 0
+      JR=0
+      KSKIP = 0
+      ENVVAR='XLFUNIT_   '
+      WRITE(ENVVAR(9:10),FMT='(I2)') LUGB2
+      CALL GETENV(ENVVAR,FNAME)
+      CALL BAOPEN(LUGB2,FNAME,IRETGB2)
+      ENVVAR='XLFUNIT_   '
+      WRITE(ENVVAR(9:10),FMT='(I2)') LUGI2
+      CALL GETENV(ENVVAR,FNAME)
+      CALL BAOPEN(LUGI2,FNAME,IRETGI2)
+      CALL GETGI(LUGI2,KSKIP,MBUF,CBUF2,NLEN,NNUM,IRGI)
+      write(6,*)' IRET FROM GETGI ',IRGI
+      IF(IRGI .NE. 0) THEN
+        WRITE(6,*)' PROBLEMS READING GRIB INDEX FILE SO ABORT'
+        ISTAT = IRGI
+        RETURN
+      ENDIF
+!      REWIND LUGI2
+
+      DO K = 1, NNUM
+        JR = K - 1
+        JPDS = -1
+        JGDS = -1
+        CALL GETGB1S(CBUF2,NLEN,NNUM,JR,JPDS,JGDS,JENS     &
+                    ,KR,KPDS,KGDS,KENS,LSKIP,LGRIB,IRGS)
+        write(6,*)' IRET FROM GETGB1S ',IRGS
+        IF(IRGI .NE. 0) THEN
+          WRITE(6,*)' PROBLEMS ON 1ST READ OF GRIB FILE SO ABORT'
+          ISTAT = IRGS
+          RETURN
+        ENDIF
+!
+      ENDDO
+
+!    GET GRID NUMBER FROM PDS
+!
+      IGDNUM = KPDS(3)
+!
+!   PROCESS THE GRIB FILE
+!
+      IMAX = KGDS(2)
+      JMAX = KGDS(3)
+      NUMVAL = IMAX*JMAX
+      KMAX = MAXLEV
+      WRITE(6,280) IMAX,JMAX,NUMLEV,KMAX
+
+! -== GET SURFACE FIELDS ==-
+      L = 0
+      IV= 0
+!   ACCUMULATED PRECIP
+
+!   to start each new file with its index, set J=-1 for sfc pressure
+!
+!
+      J = -1
+      JPDS = -1
+      JPDS(3) = IGDNUM
+      JPDS(5) = 061
+      JPDS(6) = 001
+      JPDS(13) = 1
+      CALL GETGB(LUGB2,LUGI2,NUMVAL,J,JPDS,JGDS,KF,K     &
+                ,KPDS,KGDS,MASK2,GRID,IRET)
+      IF(IRET.EQ.0) THEN
+        II = 1
+        JJ = JJ1
+        DO KK = 1, ITOT
+          APCP2(KK) = GRID(KK)
+        ENDDO
+      ELSE
+        WRITE(6,285)IV,JPDS(5),L,IRET
+        WRITE(6,*)' COULD NOT UNPACK 2ND GRID 251 FILE '
+         ISTAT = IRET
+        RETURN
+      ENDIF
+
+!   ACCUMULATED CONVECTIVE PRECIP
+!   to start each new file with its index, set J=-1 for sfc pressure
+!
+!
+      J = -1
+      JPDS = -1
+      JPDS(3) = IGDNUM
+      JPDS(5) = 063
+      JPDS(6) = 001
+      JPDS(13) = 1
+      CALL GETGB(LUGB2,LUGI2,NUMVAL,J,JPDS,JGDS      &
+                ,KF,K,KPDS,KGDS,MASK2,GRID,IRET)
+      IF(IRET.EQ.0) THEN
+        II = 1
+        JJ = JJ1
+        DO KK = 1, ITOT
+          CAPCP2(KK) = GRID(KK)
+        ENDDO
+  111 CONTINUE
+      ELSE
+        WRITE(6,285)IV,JPDS(5),L,IRET
+        WRITE(6,*)' COULD NOT UNPACK 2ND GRID 251 FILE '
+         ISTAT = IRET
+        RETURN
+      ENDIF
+
+!  PRINT VALUES AT POINT IN MIDDLE OF GRID
+       write(6,1234) apcp2(5500), capcp2(5500)
+
+       DO K = 1, ITOT
+         APCP3HR(K)=APCP2(K)-APCP(K)
+         CAPCP3HR(K)=CAPCP2(K)-CAPCP(K)
+!        SWEM3HR(K)=SWEM2(K)-SWEM(K)
+       ENDDO
+
+      KPDS(5)=61
+      KPDS(14)=FHR1
+      KPDS(15)=FHR2
+      ENVVAR='XLFUNIT_   '
+      WRITE(ENVVAR(9:10),FMT='(I2)') LUGB3
+      CALL GETENV(ENVVAR,FNAME)
+      CALL BAOPEN(LUGB3,FNAME,IRET)
+      CALL PUTGB(LUGB3,ITOT,KPDS,KGDS,MASK2,APCP3HR,IRET)
+
+      KPDS(5)=63
+      KPDS(14)=FHR1
+      KPDS(15)=FHR2
+      ENVVAR='XLFUNIT_   '
+      WRITE(ENVVAR(9:10),FMT='(I2)') LUGB4
+      CALL GETENV(ENVVAR,FNAME)
+      CALL BAOPEN(LUGB4,FNAME,IRET)
+      CALL PUTGB(LUGB4,ITOT,KPDS,KGDS,MASK2,CAPCP3HR,IRET)
+ENDIF     
+  
+  
 ! Update SST
   IF (sst_update .EQ. 1) THEN
 !jaa    !$omp parallel do   &

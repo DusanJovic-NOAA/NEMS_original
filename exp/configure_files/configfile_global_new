@@ -2,7 +2,7 @@
 ######## Model Core ###########
 ###############################
 
-core: gfs                   # The dynamic core options:
+core: nmm                   # The dynamic core options:
                                 # nmm
                                 # gfs
                                 # fim
@@ -28,8 +28,8 @@ sbd:  -90.0                 # Grid's southern boundary (rotated degrees)
 ##### Grid Decomposition #####
 ##############################
 
-inpes:  10                  # Number of compute tasks in the I direction
-jnpes:  12                  # Number of compute tasks in the J direction
+inpes:  02                 # Number of compute tasks in the I direction
+jnpes:  02                  # Number of compute tasks in the J direction
 
 
 ###############################
@@ -40,7 +40,7 @@ quilting:              true    # Do you want asynchronous quilting/history write
 read_groups:           0
 read_tasks_per_group:  0
 write_groups:          1
-write_tasks_per_group: 8
+write_tasks_per_group: 1
 
 
 ##########################################
@@ -56,9 +56,9 @@ dt_den: 1                   # Denominator of fractional second
 ##### Forecast Start Time #####
 ###############################
 
-start_year:   2007   
-start_month:  09
-start_day:    18
+start_year:   2009  
+start_month:  04
+start_day:    08
 start_hour:   00
 start_minute: 0
 start_second: 0
@@ -93,7 +93,6 @@ nsecs_bcktdfi: 3600
 ##### HALF forward filter window (s)
 
 nsecs_fwdtdfi: 3600
-
 
 ###########################
 ##### Forecast Length #####
@@ -250,8 +249,8 @@ nhrs_srfc:  3               # Frequency in hours between times when sfc evap/flu
 write_hst_flag:          .TRUE.       # True--> Yes write history files
 write_rst_flag:          .TRUE.       # True--> Yes write restart files
 
-write_nemsioflag:        .FALSE.       # True--> Yes write nemsio run history files
-write_nemsioctl:         .FALSE.       # True--> Yes write ctl for nemsio run history files
+write_nemsioflag:        .TRUE.       # True--> Yes write nemsio run history files
+write_nemsioctl:         .TRUE.       # True--> Yes write ctl for nemsio run history files
 
 io_hst_unit:             -999
 io_rst_unit:             -999

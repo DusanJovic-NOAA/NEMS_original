@@ -928,6 +928,7 @@
                 ,SF_SURFACE_PHYSICS=SURFACE_PHYSICS                     &
                 ,RA_LW_PHYSICS=LW_PHYSICS                               &
                 ,UCMCALL=UCMCALL                                        &
+                ,PCPFLG=PCPFLG                                          &
                 ,IDS=IDS,IDE=IDE,JDS=JDS,JDE=JDE,KDS=1,KDE=LM+1         &
                 ,IMS=IMS,IME=IME,JMS=JMS,JME=JME,KMS=1,KME=LM+1         &
                 ,I_START=I_START,I_END=I_END                            &
