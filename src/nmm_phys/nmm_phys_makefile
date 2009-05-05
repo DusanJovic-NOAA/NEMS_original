@@ -41,21 +41,22 @@ MODULES=	\
 		module_GET_CONFIG_PHY.o \
 		module_H_TO_V.o \
 		module_SF_URBAN.o \
-                module_surface.o \
+		module_surface.o \
 		module_LANDSURFACE.o \
 		module_PHYSICS_FIELDS.o \
+		module_PRECIP_ADJUST.o \
 		module_PHYSICS_GRID_COMP.o \
 		module_PHYSICS_OUTPUT.o \
-		module_GWD.o \
+		module_GWD.o 
 
 MODULE_SMP=     \
-                module_FLTBNDS.o
+		module_FLTBNDS.o
 
 MODULE_SMP1=    \
 		module_CONVECTION.o \
-                module_MICROPHYSICS.o \
-                module_PHYSICS_INTERNAL_STATE.o \
-                module_RADIATION.o \
+		module_MICROPHYSICS.o \
+		module_PHYSICS_INTERNAL_STATE.o \
+		module_RADIATION.o \
 		module_SURFACE_LAYER.o \
 		module_TURBULENCE.o
 
@@ -104,6 +105,7 @@ module_PHYSICS_GRID_COMP.o:	\
 			   	module_RADIATION.o \
 			   	module_SURFACE_LAYER.o \
 			   	module_TURBULENCE.o \
+				module_PRECIP_ADJUST.o \
 				module_GWD.o 
 
 module_GET_CONFIG_PHY.o:        \

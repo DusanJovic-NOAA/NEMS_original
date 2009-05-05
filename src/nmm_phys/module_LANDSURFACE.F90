@@ -431,6 +431,7 @@
                INTENT(OUT)    ::                        CHKLOWQ
    REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) ::        QZ0
 
+
 ! Local variables (moved here from driver to make routine thread safe, 20031007 jm)
 
       REAL, DIMENSION(1:num_soil_layers) ::  ET

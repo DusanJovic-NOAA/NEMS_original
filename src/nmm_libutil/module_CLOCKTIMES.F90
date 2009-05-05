@@ -36,7 +36,7 @@
       REAL :: cucnvc_tim,exch_phy_tim,gsmdrive_tim,h_to_v_tim           &
              ,phy_init_tim,phy_run_tim,phy_sum_tim                      &
              ,pole_swap_phy_tim,radiation_tim,rdtemp_tim                &
-             ,turbl_tim,update_phy_int_state_tim
+             ,turbl_tim,update_phy_int_state_tim,adjppt_tim
 !
 !-----------------------------------------------------------------------
 !***  ASSOCIATED WITH DYNAMICS-PHYSICS COUPLER

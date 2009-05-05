@@ -53,6 +53,7 @@
                                   ,ATM_INT_STATE                        &
                                   ,CLOCK_ATM                            &
                                   ,CURRTIME                             &
+				  ,STARTTIME                            &
 				  ,TIMEINTERVAL_CLOCKTIME               &
 				  ,TIMEINTERVAL_HISTORY                 &
 				  ,TIMEINTERVAL_RESTART                 &
@@ -94,11 +95,12 @@
       INTEGER(KIND=KINT),INTENT(INOUT)       :: NTIMESTEP                 !<-- The current forecast timestep
 !
       TYPE(ESMF_Time),INTENT(INOUT)          :: CURRTIME                  !<-- The current forecast time
+      TYPE(ESMF_Time),INTENT(INOUT)          :: STARTTIME                  !<-- The current forecast time
       TYPE(ESMF_TimeInterval),INTENT(IN)     :: TIMEINTERVAL_CLOCKTIME
       TYPE(ESMF_TimeInterval),INTENT(IN)     :: TIMEINTERVAL_HISTORY
       TYPE(ESMF_TimeInterval),INTENT(IN)     :: TIMEINTERVAL_RESTART
       TYPE(ESMF_Time)                        ::  ALARM_HISTORY_RING,ALARM_RESTART_RING,ALARM_CLOCKTIME_RING
-
+      TYPE(ESMF_Time)                        :: ADJTIME_HISTORY, ADJTIME_RESTART, ADJTIME_CLOCKTIME
 !
       TYPE(ESMF_Alarm)         :: ALARM_CLOCKTIME           !<-- The ESMF Alarm for clocktime prints
       TYPE(ESMF_Alarm) 	     :: ALARM_HISTORY             !<-- The ESMF Alarm for history output
@@ -133,13 +135,31 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_LOOP)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ESMF_ClockGet(clock   =CLOCK_ATM                           &
+                          ,stoptime=STOPTIME                            &
+                          ,rc      =RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
        MESSAGE_CHECK="ADUSTING ALARM RINGS"
        CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+       IF (CURRTIME .EQ. STARTTIME)THEN       
+       IF(RESTARTED_RUN)THEN
        ALARM_HISTORY_RING=CURRTIME+TIMEINTERVAL_HISTORY
        ALARM_RESTART_RING=CURRTIME+TIMEINTERVAL_RESTART
        ALARM_CLOCKTIME_RING=CURRTIME+TIMEINTERVAL_CLOCKTIME
+       ELSE
+       ALARM_HISTORY_RING=CURRTIME
+       ALARM_RESTART_RING=CURRTIME
+       ALARM_CLOCKTIME_RING=CURRTIME
+       ENDIF
+       ELSE
+       ALARM_HISTORY_RING=STARTTIME+TIMEINTERVAL_HISTORY
+       ALARM_RESTART_RING=STARTTIME+TIMEINTERVAL_RESTART
+       ALARM_CLOCKTIME_RING=STARTTIME+TIMEINTERVAL_CLOCKTIME
+       ENDIF
+
+
+
 
        call ESMF_TimeGet(ALARM_HISTORY_RING, yy=YY, mm=MM, dd=DD, h=H, m=M, s=S, rc=RC) 
         IF (M .ne. 0) THEN
@@ -161,7 +181,6 @@
         ENDIF
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_LOOP)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
        MESSAGE_CHECK="CREATING ALARMS "
        CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)

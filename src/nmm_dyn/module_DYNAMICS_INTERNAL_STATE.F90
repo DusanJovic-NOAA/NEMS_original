@@ -48,7 +48,8 @@
                              ,START_DAY                                 &
                              ,START_HOUR                                &
                              ,START_MINUTE                              &
-                             ,START_SECOND
+                             ,START_SECOND                              &
+                             ,FILTER_METHOD                             
 !
         REAL(KIND=KFPT) :: CODAMP,DT                                    &
                           ,PWRC                                         &

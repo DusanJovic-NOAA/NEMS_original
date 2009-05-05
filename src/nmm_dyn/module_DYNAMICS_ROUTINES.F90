@@ -42,7 +42,7 @@ real(kind=kfpt),private :: &
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
                         subroutine pgforce &
-(ntsd,first,restart &
+(first,restart &
 ,lm &
 ,dt,rdyv &
 ,dsg2,pdsg1 &
@@ -73,8 +73,7 @@ logical(kind=klog),intent(in):: &
 ,restart                     ! restart case
 
 integer(kind=kint),intent(in):: &
- lm &                        ! total # of levels
-,ntsd                        ! timestep
+ lm                         ! total # of levels
 
 real(kind=kfpt),intent(in):: &
  dt &                        ! dynamics time step
@@ -6869,7 +6868,7 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
                         subroutine hadv2_scal &
-(global,ntsd,inpes,jnpes &
+(global,inpes,jnpes &
 ,lm,idtad &
 ,dt,rdyh &
 ,dsg2,pdsg1,psgml1,sgml2 &
@@ -6904,7 +6903,6 @@ integer(kind=kint),intent(in):: &
 ,inpes &                     ! tasks in the x direction
 ,jnpes &                     ! tasks in y direction
 ,lm &                        ! total # of levels
-,ntsd &                      ! timestep
 ,num_scal &                  ! vertical extent of scalar array
 ,indx_start &                ! starting index for general scalar
 ,indx_q2                     ! index of q2 in general scalar array
@@ -7106,7 +7104,7 @@ real(kind=kfpt),dimension(2,1:lm) :: gsums_single
 !-----------------------------------------------------------------------
       enddo
 !-----------------------------------------------------------------------
-!      if(global) then
+      if(global) then
 !-----------------------------------------------------------------------
 !***  Global reductions
 !-----------------------------------------------------------------------
@@ -7131,7 +7129,6 @@ real(kind=kfpt),dimension(2,1:lm) :: gsums_single
 !-----------------------------------------------------------------------
 !
         bitsad: if(read_global_sums.or.write_global_sums)then   !<--- NEVER SET BOTH READ AND WRITE TO .TRUE.
-!!!       if(ntsd==0.and..not.sum_file_is_open)then
           if(.not.sum_file_is_open.and.mype==0)then
             open_unit_ad: do l=51,59
               inquire(l,opened=opened)
@@ -7184,7 +7181,7 @@ real(kind=kfpt),dimension(2,1:lm) :: gsums_single
 !
 !-----------------------------------------------------------------------
 !
-!      endif ! global
+      endif ! global
 !
 !-----------------------------------------------------------------------
 !--------------impose conservation on global advection------------------

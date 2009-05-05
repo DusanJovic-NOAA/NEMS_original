@@ -3535,7 +3535,7 @@ real(kind=kfpt) :: &
 !-----------------------------------------------------------------------
 !
                         subroutine poavhn &
-(i_start,i_end,j_start,j_end,km,hn,ntsd)
+(i_start,i_end,j_start,j_end,km,hn)
 !-----------------------------------------------------------------------
 !
       implicit none
@@ -3549,8 +3549,7 @@ integer(kind=kint),intent(in) :: &
 ,i_end &
 ,j_start &
 ,j_end &
-,km &
-,ntsd
+,km 
 !
 real(kind=kfpt),dimension(i_start:i_end,j_start:j_end,km),intent(inout):: &
  hn
@@ -3723,7 +3722,7 @@ character(10) :: fstatus
 !-----------------------------------------------------------------------
 !
                         subroutine nhpoav &
-(i_start,i_end,j_start,j_end,km,hn,ntsd)
+(i_start,i_end,j_start,j_end,km,hn)
 !-----------------------------------------------------------------------
 !
       implicit none
@@ -3737,8 +3736,7 @@ integer(kind=kint),intent(in) :: &
 ,i_end &
 ,j_start &
 ,j_end &
-,km &
-,ntsd
+,km 
 !
 real(kind=kfpt),dimension(i_start:i_end,j_start:j_end,km),intent(inout):: &
  hn

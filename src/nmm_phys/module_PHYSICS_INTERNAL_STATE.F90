@@ -55,7 +55,7 @@
                              ,START_YEAR,START_MONTH,START_DAY          &
                              ,START_HOUR,START_MINUTE,START_SECOND
 !
-        INTEGER(KIND=KINT) :: NPHS,NPRECIP,NRADL,NRADS,UCMCALL,DT_INT
+        INTEGER(KIND=KINT) :: NPHS,NPRECIP,NRADL,NRADS,UCMCALL,DT_INT,PCPHR
 !
         REAL(KIND=KFPT) :: DT,SBD,WBD,TPH0D,TLM0D
 !
@@ -133,7 +133,7 @@
 !
         REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER :: RLWTT,RSWTT
 !
-        REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER :: EXCH_H
+        REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER :: EXCH_H,PPTDAT
 !
         REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER :: TCUCN,W0AVG,WINT    &
 						    ,RQVBLTEN,RTHBLTEN   
@@ -156,7 +156,7 @@
                                                  ,CFRACH,CFRACL,CFRACM  &
                                                  ,CMC,CNVBOT,CNVTOP     &
                                                  ,CPRATE,CUPPT          &
-                                                 ,CZMEAN,CZEN           &
+                                                 ,CZMEAN,CZEN,LSPA      &
                                                  ,DDATA,EPSR,FIS        &
                                                  ,HBOT,HBOTD,HBOTS      &
                                                  ,HTOP,HTOPD,HTOPS      &
@@ -167,7 +167,7 @@
 !zj                                                 ,SST,THS,THZ0,USTAR    &
                                                  ,SST,STDH              & !zj
                                                  ,THS,THZ0,USTAR        & !zj
-                                                 ,UZ0,VZ0               &
+                                                 ,UZ0,UZ0H,VZ0,VZ0H     &
                                                  ,Z0,Z0BASE
 !
         REAL(KIND=KFPT),DIMENSION(:,:),POINTER :: ALBASE,ALBEDO         &
@@ -377,6 +377,7 @@
       ALLOCATE(int_state%SMC(IMS:IME,JMS:JME,1:NUM_SOIL_LAYERS))          ! Soil moisture volume fraction
       ALLOCATE(int_state%STC(IMS:IME,JMS:JME,1:NUM_SOIL_LAYERS))          ! Soil temperature  (K)
       ALLOCATE(int_state%SH2O(IMS:IME,JMS:JME,1:NUM_SOIL_LAYERS))         ! Soil non-frozen moisture
+      ALLOCATE(int_state%PPTDAT(IMS:IME,JMS:JME,1:int_state%PCPHR))
 !
 !-----------------------------------------------------------------------
 !***  THE ARRAY CALLED WATER IS A SPECIAL CASE NEEDED TO SATISFY
@@ -538,6 +539,15 @@
       ENDDO
       ENDDO
       ENDDO
+  
+      DO L=1,3
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%PPTDAT(I,J,L)=-1.E6
+      ENDDO
+      ENDDO
+      ENDDO
+
 !
 !
       ALLOCATE(int_state%ISLTYP(IMS:IME,JMS:JME))   ! Soil type
@@ -571,6 +581,7 @@
       ALLOCATE(int_state%CZMEAN(IMS:IME,JMS:JME))   ! Mean cosine of solar zenith angle between radiation calls
       ALLOCATE(int_state%CZEN(IMS:IME,JMS:JME))     ! Current cosine of solar zenith angle
       ALLOCATE(int_state%DDATA(IMS:IME,JMS:JME))    ! Observed precip to each physics timestep (kg m-2)
+      ALLOCATE(int_state%LSPA(IMS:IME,JMS:JME)) 
       ALLOCATE(int_state%EPSR(IMS:IME,JMS:JME))     !
       ALLOCATE(int_state%FIS(IMS:IME,JMS:JME))      ! Surface geopotential  (m2 s-2)
       ALLOCATE(int_state%GRNFLX(IMS:IME,JMS:JME))   ! Deep sloil heat flux  (W m-2)
@@ -631,8 +642,10 @@
       ALLOCATE(int_state%TWBS(IMS:IME,JMS:JME))     ! Instantaneous sensible heat flux (W m-2)
       ALLOCATE(int_state%USTAR(IMS:IME,JMS:JME))    ! Friction velocity  (m s-1)
       ALLOCATE(int_state%UZ0(IMS:IME,JMS:JME))      ! U component at top of viscous sublayer  (m s-1)
+      ALLOCATE(int_state%UZ0H(IMS:IME,JMS:JME))     ! UZ0 on mass points  (m s-1
       ALLOCATE(int_state%VEGFRC(IMS:IME,JMS:JME))   ! Vegetation fraction
       ALLOCATE(int_state%VZ0(IMS:IME,JMS:JME))      ! V component at top of viscous sublayer  (m s-1)
+      ALLOCATE(int_state%VZ0H(IMS:IME,JMS:JME))     ! VZ0 on mass points  (m s-1
       ALLOCATE(int_state%Z0(IMS:IME,JMS:JME))       ! Roughness length  (m)
       ALLOCATE(int_state%Z0BASE(IMS:IME,JMS:JME))   ! Background roughness length  (m)
       ALLOCATE(int_state%CROT(IMS:IME,JMS:JME))     ! Cosine of the angle between Earth and model coordinates
@@ -681,6 +694,7 @@
         int_state%CZMEAN(I,J)  =-1.E6
         int_state%CZEN(I,J)    =-1.E6
         int_state%DDATA(I,J)   =-1.E6
+        int_state%LSPA(I,J)   =-1.E6
         int_state%EPSR(I,J)    =-1.E6
         int_state%FIS(I,J)     =-1.E6
         int_state%HBOT(I,J)    =-1.E6
@@ -741,8 +755,10 @@
         int_state%TWBS(I,J)    =-1.E6
         int_state%USTAR(I,J)   =-1.E6
         int_state%UZ0(I,J)     =-1.E6
+        int_state%UZ0H(I,J)    =-1.E6
         int_state%VEGFRC(I,J)  =-1.E6
         int_state%VZ0(I,J)     =-1.E6
+        int_state%VZ0H(I,J)    =-1.E6
         int_state%Z0(I,J)      =-1.E6
         int_state%Z0BASE(I,J)  =-1.E6
         int_state%CROT(I,J)    = 0.

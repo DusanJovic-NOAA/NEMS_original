@@ -501,6 +501,7 @@
                  ,int_state%P_QV,int_state%P_QC,int_state%P_QR          &
                  ,int_state%P_QI,int_state%P_QS,int_state%P_QG)
 
+
 !
 !***  CHECK IF STARTING DATE/TIME IN INPUT DATA FILE AGREES WITH
 !***  THE CONFIGURE FILE.
@@ -1147,6 +1148,7 @@
 !
 !-----------------------------------------------------------------------
 !
+        
         IF(GLOBAL)THEN
 !
           btim=timef()
@@ -1167,6 +1169,7 @@
         btim=timef()
         CALL HALO_EXCH(int_state%T,LM                                   &
                       ,2,2)
+
         exch_dyn_tim=exch_dyn_tim+timef()-btim
 !
 !-----------------------------------------------------------------------
@@ -1176,7 +1179,7 @@
         btim=timef()
 !
         CALL PGFORCE                                                    &
-          (NTIMESTEP,int_state%FIRST,int_state%RESTART,LM,DT            &
+          (int_state%FIRST,int_state%RESTART,LM,DT            &
           ,RDYV,DSG2,PDSG1,RDXV,WPDAR,FIS                               &
           ,int_state%PD                                                 &
           ,int_state%T,int_state%Q,int_state%CW                         &
@@ -1187,6 +1190,7 @@
           ,int_state%PCX,int_state%PCY                                  &
           ,int_state%TCU,int_state%TCV)
 !
+
         pgforce_tim=pgforce_tim+timef()-btim
 !
 !-----------------------------------------------------------------------
@@ -1292,6 +1296,7 @@
          ,int_state%U,LM                                                &
          ,int_state%V,LM                                                &
          ,2,2)
+
         exch_dyn_tim=exch_dyn_tim+timef()-btim
 !
 !-----------------------------------------------------------------------
@@ -1316,17 +1321,6 @@
            ,value= HDIFF_ON                                            &
            ,rc=RC)
 
-	
-	do K=1,LM
-	do J=JTS,JTE
-	do I=ITS,ITE
-	if ( abs(int_state%T(I,J,K)) .lt. 350.) then
-	else
-	write(0,*) 'bad value......I,J,K, T: ', I,J,K, int_state%T(I,J,K)
-	endif
-	enddo
-	enddo
-	enddo
 
         btim=timef()
 !
@@ -1355,19 +1349,19 @@
 !
           CALL POAVHN                                                   &
             (IMS,IME,JMS,JME,LM                                         &
-            ,int_state%T,NTIMESTEP)
+            ,int_state%T)
 !
           CALL POAVHN                                                   &
             (IMS,IME,JMS,JME,LM                                         &
-            ,int_state%Q,NTIMESTEP)
+            ,int_state%Q)
 !
           CALL POAVHN                                                   &
             (IMS,IME,JMS,JME,LM                                         &
-            ,int_state%CW,NTIMESTEP)
+            ,int_state%CW)
 !
           CALL POAVHN                                                   &
             (IMS,IME,JMS,JME,LM                                         &
-            ,int_state%Q2,NTIMESTEP)
+            ,int_state%Q2)
 !
           poavhn_tim=poavhn_tim+timef()-btim
 !
@@ -1416,12 +1410,11 @@
 !-----------------------------------------------------------------------
 !
         bc_update: IF(.NOT.GLOBAL)THEN
-!
-          READBC=(NTIMESTEP==1.OR.MOD(NTIMESTEP,NBOCO)==0)
-!
+          READBC=(ABS(NTIMESTEP)==1.OR.MOD(ABS(NTIMESTEP),NBOCO)==0)
           IF(S_BDY.OR.N_BDY.OR.W_BDY.OR.E_BDY)THEN
             IF(READBC)THEN
-              CALL READ_BC(LM,LNSH,LNSV,NTIMESTEP,DT                    &
+              IF(.NOT.ESMF_ClockIsStopTime(clock=CLOCK_ATM,rc=RC))THEN
+              CALL READ_BC(LM,LNSH,LNSV,ABS(NTIMESTEP),DT                    &
                           ,RUNBC,IDATBC,IHRSTBC,TBOCO                   &
                           ,int_state%PDBS,int_state%PDBN                &
                           ,int_state%PDBW,int_state%PDBE                &
@@ -1437,6 +1430,7 @@
                           ,int_state%VBW,int_state%VBE)
             ENDIF
           ENDIF
+       ENDIF
 !
           btim=timef()
 !
@@ -1465,7 +1459,7 @@
         btim=timef()
 !
         CALL PGFORCE                                                    &
-          (NTIMESTEP,int_state%FIRST,int_state%RESTART,LM,DT            &
+          (int_state%FIRST,int_state%RESTART,LM,DT            &
           ,RDYV,DSG2,PDSG1,RDXV,WPDAR,FIS                               &
           ,int_state%PD                                                 &
           ,int_state%T,int_state%Q,int_state%CW                         &
@@ -1769,13 +1763,14 @@
         ,int_state%PFX,int_state%PFY                                    &
         ,int_state%TCT,int_state%TCU,int_state%TCV)
 !
+
       adv1_tim=adv1_tim+timef()-btim
 !
 !-----------------------------------------------------------------------
 !***  ADVECTION OF TRACERS
 !-----------------------------------------------------------------------
 ! 
-      tracers: IF(ADVECT_TRACERS.AND.MOD(NTIMESTEP,IDTADT)==0)THEN
+      tracers: IF(ADVECT_TRACERS.AND.MOD(ABS(NTIMESTEP),IDTADT)==0)THEN
 !
 !-----------------------------------------------------------------------
 !
@@ -2098,7 +2093,7 @@
 !
       CALL CDWDT                                                        &
         (GLOBAL,HYDRO,int_state%RESTART                                 &
-        ,INPES,JNPES,LM,NTIMESTEP                                       &
+        ,INPES,JNPES,LM,ABS(NTIMESTEP)                                  &
         ,DT,G,DSG2,PDSG1,FAH                                            &
         ,int_state%PD,int_state%PDO                                     &
         ,int_state%PSGDT                                                &
@@ -2156,7 +2151,7 @@
 !
       CALL VSOUND                                                       &
         (GLOBAL,HYDRO,int_state%RESTART                                 &
-        ,LM,NTIMESTEP                                                   &
+        ,LM,ABS(NTIMESTEP)                                                   &
         ,CP,DT,PT,DSG2,PDSG1                                            &
         ,int_state%PD                                                   &
         ,int_state%CW,int_state%Q,int_state%RTOP                        &
@@ -2174,13 +2169,13 @@
         btim=timef()
         CALL POAVHN                                                     &
           (IMS,IME,JMS,JME,LM                                           &
-          ,int_state%DWDT,NTIMESTEP)
+          ,int_state%DWDT)
         CALL POAVHN                                                     &
           (IMS,IME,JMS,JME,LM                                           &
-          ,int_state%W,NTIMESTEP)
+          ,int_state%W)
         CALL POAVHN                                                     &
           (IMS,IME,JMS,JME,LM                                           &
-          ,int_state%PINT,NTIMESTEP)
+          ,int_state%PINT)
         poavhn_tim=poavhn_tim+timef()-btim
 !
         btim=timef()
@@ -2214,7 +2209,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      passive_advec: IF(MOD(NTIMESTEP,IDTAD)==0.AND.OLD_PASSIVE)THEN
+      passive_advec: IF(MOD(ABS(NTIMESTEP),IDTAD)==0.AND.OLD_PASSIVE)THEN
 !
 !-----------------------------------------------------------------------
 !
@@ -2409,7 +2404,7 @@
         hadv2_micro_check: IF(int_state%MICROPHYSICS=='fer')THEN
 !
           CALL HADV2_SCAL                                               &
-            (GLOBAL,NTIMESTEP,INPES,JNPES                               &
+            (GLOBAL,INPES,JNPES                               &
             ,LM,IDTAD,DT,RDYH                                           &
             ,DSG2,PDSG1,PSGML1,SGML2                                    &
             ,DARE,RDXH                                                  &
@@ -2477,7 +2472,7 @@
         ELSE hadv2_micro_check
 !
           CALL HADV2_SCAL                                               &
-            (GLOBAL,NTIMESTEP,INPES,JNPES                               &
+            (GLOBAL,INPES,JNPES                               &
             ,LM,IDTAD,DT,RDYH                                           &
             ,DSG2,PDSG1,PSGML1,SGML2                                    &
             ,DARE,RDXH                                                  &
@@ -2487,7 +2482,7 @@
             ,1,1,int_state%INDX_Q2)
 !
           CALL HADV2_SCAL                                               &
-            (GLOBAL,NTIMESTEP,INPES,JNPES                               &
+            (GLOBAL,INPES,JNPES                               &
             ,LM,IDTAD,DT,RDYH                                           &
             ,DSG2,PDSG1,PSGML1,SGML2                                    &
             ,DARE,RDXH                                                  &
@@ -2592,7 +2587,7 @@
 !***  WRITE THE LAYER STATISTICS
 !-----------------------------------------------------------------------
 !
-      IF(MOD(NTIMESTEP+1,N_PRINT_STATS)==0)THEN
+      IF(MOD(ABS(NTIMESTEP)+1,N_PRINT_STATS)==0)THEN
 !
         CALL FIELD_STATS(INT_STATE%T,MYPE,MPI_COMM_COMP,LM              &
                         ,ITS,ITE,JTS,JTE                                &
@@ -2601,6 +2596,18 @@
       ENDIF
 !-----------------------------------------------------------------------
 !
+        do K=1,LM
+        do J=JTS,JTE
+        do I=ITS,ITE
+        if ( abs(int_state%T(I,J,K)) .lt. 350.) then
+        else
+        write(0,*) 'bad value......NTIMESTEP,I,J,K, T: ',NTIMESTEP,I,J,K, int_state%T(I,J,K)
+        endif
+        enddo
+        enddo
+        enddo
+
+
       IF(MYPE==0)THEN
         WRITE(0,25)NTIMESTEP,(NTIMESTEP+1)*DT/3600.
    25   FORMAT(' Finished Dyn Timestep ',i8,' ending at ',f10.3,' hours')

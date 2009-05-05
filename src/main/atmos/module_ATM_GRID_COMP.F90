@@ -1628,8 +1628,8 @@
                                   ,CURRTIME                             &
                                   ,STARTTIME                            &
 				  ,HALFDFIINTVAL                        &
-                                  ,TIMESTEP                             &
                                   ,FILTER_METHOD                        &
+                                  ,TIMESTEP                             &
                                   ,MYPE                                 &
                                   ,NUM_TRACERS_MET                      &
                                   ,NUM_TRACERS_CHEM                     &
@@ -1680,8 +1680,8 @@
                                   ,CURRTIME                             &
                                   ,STARTTIME                            &
                                   ,HALFDFIINTVAL                        &
-                                  ,TIMESTEP                             &
                                   ,FILTER_METHOD                        &
+                                  ,TIMESTEP                             &
                                   ,MYPE                                 &
                                   ,NUM_TRACERS_MET                      &
                                   ,NUM_TRACERS_CHEM                     &
@@ -1718,6 +1718,7 @@
                                   ,ATM_INT_STATE                        &
                                   ,CLOCK_ATM                            &
                                   ,CURRTIME                             &
+				  ,STARTTIME                            &
                                   ,TIMEINTERVAL_CLOCKTIME               &
                                   ,TIMEINTERVAL_HISTORY                 &
                                   ,TIMEINTERVAL_RESTART                 &

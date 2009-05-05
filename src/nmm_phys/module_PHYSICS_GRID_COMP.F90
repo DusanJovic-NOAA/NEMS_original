@@ -49,6 +49,7 @@
                                      ,WSM3INIT,MICRO_RESTART
       USE MODULE_H_TO_V       ,ONLY : H_TO_V,H_TO_V_TEND
       USE MODULE_GWD          ,ONLY : GWD_INIT
+      USE MODULE_PRECIP_ADJUST
 !
       USE MODULE_EXCHANGE
       USE MODULE_DIAGNOSE,ONLY: TWR,VWR
@@ -278,6 +279,7 @@
       radiation_tim=0.
       rdtemp_tim=0.
       turbl_tim=0.
+      adjppt_tim=0. 
 !
 !-----------------------------------------------------------------------
 !***  ALLOCATE THE PHYSICS INTERNAL STATE POINTER.
@@ -687,7 +689,8 @@
 !-----------------------------------------------------------------------
 !
       INTEGER(KIND=KINT) :: I,J,IRTN,ISTAT,JULDAY,JULYR,L               &
-                           ,N,NPRECIP,NSTEPS_PREC,NTIMESTEP,RC
+                           ,N,NPRECIP,NSTEPS_PREC,NTIMESTEP,RC          &
+			   ,NTIMESTEP_RAD
 !
       INTEGER(KIND=ESMF_KIND_I8) :: NTIMESTEP_ESMF
 !
@@ -730,6 +733,15 @@
       NTIMESTEP=NTIMESTEP_ESMF
       int_state%NTSD=NTIMESTEP
 !
+!-- Call radiation so that updated fields are written to the history files after 0 h.
+!
+      IF (NTIMESTEP == 0) THEN
+         NTIMESTEP_RAD=NTIMESTEP
+      ELSE
+         NTIMESTEP_RAD=NTIMESTEP+1
+      ENDIF
+!
+!
 !-----------------------------------------------------------------------
 !
       btim0=timef()
@@ -768,8 +780,8 @@
 !***  SET LOGICAL SWITCHES FOR CALLING EACH OF THE PHYSICS SCHEMES.
 !-----------------------------------------------------------------------
 !
-      CALL_SHORTWAVE=MOD(NTIMESTEP,int_state%NRADS)==0
-      CALL_LONGWAVE=MOD(NTIMESTEP,int_state%NRADL)==0
+      CALL_SHORTWAVE=MOD(NTIMESTEP_RAD,int_state%NRADS)==0
+      CALL_LONGWAVE=MOD(NTIMESTEP_RAD,int_state%NRADL)==0
       CALL_TURBULENCE=MOD(NTIMESTEP,int_state%NPHS)==0
       CALL_PRECIP=MOD(NTIMESTEP,NPRECIP)==0
 !
@@ -778,6 +790,28 @@
 !***  CALL THE INDIVIDUAL PHYSICAL PROCESSES
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!***
+!***      Call READPCP to
+!***            1) READ IN PRECIPITATION FOR HOURS 1, 2 and 3;
+!***            2) Initialize DDATA to 999. (this is the amount
+!***               of input precip allocated to each physics time step
+!***               in ADJPPT; TURBL/SURFCE, which uses DDATA, is called
+!***               before ADJPPT)
+!***            3) Initialize LSPA to zero
+!***
+!-----------------------------------------------------------------------
+      IF (int_state%NTSD==0) THEN
+        IF (int_state%PCPFLG) THEN
+          CALL READPCP(MYPE,int_state%PPTDAT,int_state%DDATA,int_state%LSPA  &
+     &      ,IDS,IDE,JDS,JDE,LM                                    &
+     &      ,IMS,IME,JMS,JME                                    &
+     &      ,ITS,ITE,JTS,JTE,int_state%PCPHR)
+        ENDIF
+      ENDIF
+!-----------------------------------------------------------------------
+!
+
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -813,7 +847,7 @@
           ENDDO
         ENDIF
 
-        CALL RADIATION(NTIMESTEP,int_state%DT,JULDAY,JULYR,XTIME,JULIAN &
+        CALL RADIATION(NTIMESTEP_RAD,int_state%DT,JULDAY,JULYR,XTIME,JULIAN &
                       ,START_HOUR,int_state%NPHS                        &
                       ,int_state%GLAT,int_state%GLON                    &
                       ,int_state%NRADS,int_state%NRADL                  &
@@ -982,6 +1016,7 @@
                   ,int_state%AKHS_OUT,int_state%AKMS_OUT               &
                   ,int_state%THZ0,int_state%QZ0                        &
                   ,int_state%UZ0,int_state%VZ0                         &
+                  ,int_state%UZ0H,int_state%VZ0H                       &
                   ,int_state%QSH,int_state%MAVAIL                      &
                   ,int_state%STC,int_state%SMC,int_state%CMC           &
                   ,int_state%SMSTAV,int_state%SMSTOT                   &
@@ -1033,7 +1068,7 @@
 !-----------------------------------------------------------------------
 !
         btim=timef()
-!
+        CALL HALO_EXCH(int_state%UZ0H,1,int_state%VZ0H,1,1,1)
         CALL HALO_EXCH(int_state%DUDT,LM,int_state%DVDT,LM,1,1)
 !
         exch_phy_tim=exch_phy_tim+timef()-btim
@@ -1045,6 +1080,8 @@
 !
         btim=timef()
 !
+        CALL H_TO_V(int_state%UZ0H,int_state%UZ0)
+        CALL H_TO_V(int_state%VZ0H,int_state%VZ0)
         CALL H_TO_V_TEND(int_state%DUDT,int_state%DT,int_state%NPHS,LM  &
                         ,int_state%U)
         CALL H_TO_V_TEND(int_state%DVDT,int_state%DT,int_state%NPHS,LM  &
@@ -1215,6 +1252,27 @@
                      ,ITS,ITE,JTS,JTE)
 !
         gsmdrive_tim=gsmdrive_tim+timef()-btim
+
+!-----------------------------------------------------------------------
+!---------PRECIPITATION ASSIMILATION------------------------------------
+!-----------------------------------------------------------------------
+!
+        IF (int_state%PCPFLG) THEN
+!
+        btim=timef()
+          CALL CHKSNOW(MYPE,int_state%NTSD,int_state%DT,int_state%NPHS,int_state%SR,int_state%PPTDAT                 &
+     &      ,IDS,IDE,JDS,JDE,LM                                    &
+     &      ,IMS,IME,JMS,JME                                    &
+     &      ,ITS,ITE,JTS,JTE,int_state%PCPHR)
+          CALL ADJPPT(MYPE,int_state%NTSD,int_state%DT,int_state%NPHS,int_state%PREC,int_state%LSPA,int_state%PPTDAT,int_state%DDATA     &
+     &      ,IDS,IDE,JDS,JDE,LM                                    &
+     &      ,IMS,IME,JMS,JME                                    &
+     &      ,ITS,ITE,JTS,JTE,int_state%PCPHR)
+!
+          adjppt_tim=adjppt_tim+timef()-btim
+        ENDIF
+!
+
 !
 !-----------------------------------------------------------------------
 !***  POLES AND EAST-WEST BOUNDARY.
@@ -1411,7 +1469,7 @@
       REAL,DIMENSION(IMS:IME,JMS:JME) :: EMISS
       REAL,DIMENSION(:,:),ALLOCATABLE :: TEMP1,TEMP_GWD
       REAL,DIMENSION(:,:,:),ALLOCATABLE :: TEMPSOIL
-      REAL,DIMENSION(LM)                :: SOIL1DIN
+      REAL,DIMENSION(NUM_SOIL_LAYERS)   :: SOIL1DIN
 !
       CHARACTER(ESMF_MAXSTR) :: INFILE
 !

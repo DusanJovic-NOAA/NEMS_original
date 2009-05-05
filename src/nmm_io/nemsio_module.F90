@@ -12,14 +12,16 @@ module nemsio_module
 !    2008-11-04    Jun Wang - Changes to NFRAME; users can output fewer
 !                             metadata records and update data fields in
 !                             existing files.
+!    2009-03-31    Jun Wang - use new bacio to handle >2gb file, changed
+!                             record name to 16 characters
 !
 ! Public Variables
 ! Public Defined Types
 !   nemsio_gfile
 !     private
-!        gtype:   character(nemsio_charkind*2)  NEMSIO file identifier
-!        gdatatype:character(nemsio_charkind) data format
-!        modelname:character(nemsio_charkind) modelname
+!        gtype:   character(nemsio_charkind8)  NEMSIO file identifier
+!        gdatatype:character(nemsio_charkind8) data format
+!        modelname:character(nemsio_charkind8) modelname
 !        version: integer(nemsio_intkind)   verion number
 !        nmeta:   integer(nemsio_intkind)   number of metadata rec
 !        lmeta:   integer(nemsio_intkind)   length of metadata rec 2 for model paramodels
@@ -60,7 +62,7 @@ module nemsio_module
 !        nmetaaryc:integer(nemsio_intkind)  number of extra meta data character arrays
 !
 !        recname: character(nemsio_charkind),allocatable    recname(:)
-!        reclevtyp: character(nemsio_charkind*2),allocatable    reclevtyp(:)
+!        reclevtyp: character(nemsio_charkind),allocatable    reclevtyp(:)
 !        reclev:  integer(nemsio_intkind),allocatable       reclev(:)
 !        vcoord:  real(nemsio_realkind),allocatable         vcoord(:,:,:)
 !        lat:  real(nemsio_realkind),allocatable         lat(:) lat for mess point
@@ -131,23 +133,27 @@ module nemsio_module
 !------------------------------------------------------------------------------
 ! private variables and type needed by nemsio_gfile
   integer,parameter:: nemsio_lmeta1=48,nemsio_lmeta3=32
-  integer,parameter:: nemsio_intkind=4,nemsio_realkind=4,nemsio_dblekind=8
-  integer,parameter:: nemsio_charkind=8, nemsio_charkind4=4
+  integer,parameter:: nemsio_intkind=4,nemsio_intkind8=8
+  integer,parameter:: nemsio_realkind=4,nemsio_dblekind=8
+  integer,parameter:: nemsio_charkind=16,nemsio_charkind8=8,nemsio_charkind4=4
   integer,parameter:: nemsio_logickind=4
-  real(nemsio_intkind),parameter     :: nemsio_intfill=-9999_nemsio_intkind
+  integer(nemsio_intkind),parameter     :: nemsio_intfill=-9999_nemsio_intkind
+  integer(nemsio_intkind8),parameter    :: nemsio_intfill8=-9999_nemsio_intkind8
   logical(nemsio_logickind),parameter:: nemsio_logicfill=.false.
   real(nemsio_intkind),parameter     :: nemsio_kpds_intfill=-1_nemsio_intkind
   real(nemsio_realkind),parameter    :: nemsio_realfill=-9999._nemsio_realkind
   real(nemsio_dblekind),parameter    :: nemsio_dblefill=-9999._nemsio_dblekind
+!for grib
+  real(nemsio_realkind),parameter    :: nemsio_undef_grb=9.E20_nemsio_realkind
 !
 !------------------------------------------------------------------------------
 !---  public types
   type,public :: nemsio_gfile
     private
-    character(nemsio_charkind) :: gtype=' '
+    character(nemsio_charkind8) :: gtype=' '
     integer(nemsio_intkind):: version=nemsio_intfill
-    character(nemsio_charkind):: gdatatype=' '
-    character(nemsio_charkind):: modelname=' '
+    character(nemsio_charkind8):: gdatatype=' '
+    character(nemsio_charkind8):: modelname=' '
     integer(nemsio_intkind):: nmeta=nemsio_intfill
     integer(nemsio_intkind):: lmeta=nemsio_intfill
     integer(nemsio_intkind):: nrec=nemsio_intfill
@@ -189,7 +195,7 @@ module nemsio_module
     integer(nemsio_intkind):: nmetaaryc=nemsio_intfill
 !
     character(nemsio_charkind),allocatable :: recname(:)
-    character(nemsio_charkind*2),allocatable :: reclevtyp(:)
+    character(nemsio_charkind),allocatable :: reclevtyp(:)
     integer(nemsio_intkind),allocatable    :: reclev(:)
 !
     real(nemsio_realkind),allocatable      :: vcoord(:,:,:)
@@ -224,8 +230,8 @@ module nemsio_module
     character(nemsio_charkind),allocatable :: arycval(:,:)
 !  
     character(255) :: gfname
-    character(nemsio_charkind) :: gaction
-    integer(nemsio_intkind)    :: tlmeta=nemsio_intfill
+    character(nemsio_charkind8) :: gaction
+    integer(nemsio_intkind8)    :: tlmeta=nemsio_intfill
     integer(nemsio_intkind)    :: fieldsize=nemsio_intfill
     integer(nemsio_intkind)    :: flunit=nemsio_intfill
     integer(nemsio_intkind)    :: headvarinum=nemsio_intfill
@@ -235,35 +241,35 @@ module nemsio_module
     integer(nemsio_intkind)    :: headaryinum=nemsio_intfill
     integer(nemsio_intkind)    :: headaryrnum=nemsio_intfill
     integer(nemsio_intkind)    :: headarycnum=nemsio_intfill
-    character(nemsio_charkind*2),allocatable :: headvarcname(:)
-    character(nemsio_charkind*2),allocatable :: headvariname(:)
-    character(nemsio_charkind*2),allocatable :: headvarrname(:)
-    character(nemsio_charkind*2),allocatable :: headvarlname(:)
-    character(nemsio_charkind*2),allocatable :: headaryiname(:)
-    character(nemsio_charkind*2),allocatable :: headaryrname(:)
-    character(nemsio_charkind*2),allocatable :: headarycname(:)
+    character(nemsio_charkind),allocatable :: headvarcname(:)
+    character(nemsio_charkind),allocatable :: headvariname(:)
+    character(nemsio_charkind),allocatable :: headvarrname(:)
+    character(nemsio_charkind),allocatable :: headvarlname(:)
+    character(nemsio_charkind),allocatable :: headaryiname(:)
+    character(nemsio_charkind),allocatable :: headaryrname(:)
+    character(nemsio_charkind),allocatable :: headarycname(:)
     integer(nemsio_intkind),allocatable    :: headvarival(:)
     real(nemsio_realkind),allocatable      :: headvarrval(:)
-    character(nemsio_charkind*2),allocatable :: headvarcval(:)
+    character(nemsio_charkind),allocatable :: headvarcval(:)
     logical(nemsio_logickind),allocatable  :: headvarlval(:)
     integer(nemsio_intkind),allocatable    :: headaryival(:,:)
     real(nemsio_realkind),allocatable      :: headaryrval(:,:)
-    character(nemsio_charkind*2),allocatable :: headarycval(:,:)
-    character,allocatable      :: cbuf(:)
+    character(nemsio_charkind),allocatable :: headarycval(:,:)
+    character,allocatable       :: cbuf(:)
     integer(nemsio_intkind):: mbuf=0,nlen,nnum,mnum
-    integer(nemsio_intkind)    :: tlmetalat=nemsio_intfill
-    integer(nemsio_intkind)    :: tlmetalon=nemsio_intfill
-    integer(nemsio_intkind)    :: tlmetadx=nemsio_intfill
-    integer(nemsio_intkind)    :: tlmetady=nemsio_intfill
+    integer(nemsio_intkind8)    :: tlmetalat=nemsio_intfill
+    integer(nemsio_intkind8)    :: tlmetalon=nemsio_intfill
+    integer(nemsio_intkind8)    :: tlmetadx=nemsio_intfill
+    integer(nemsio_intkind8)    :: tlmetady=nemsio_intfill
   end type nemsio_gfile
 !
 !------------------------------------------------------------------------------
 !--- private types
   type :: nemsio_meta1
     sequence
-     character(nemsio_charkind) :: gtype
-     character(nemsio_charkind) :: modelname
-     character(nemsio_charkind) :: gdatatype
+     character(nemsio_charkind8) :: gtype
+     character(nemsio_charkind8) :: modelname
+     character(nemsio_charkind8) :: gdatatype
      integer(nemsio_intkind) :: version,nmeta,lmeta
      integer(nemsio_intkind) :: reserve(3)
   end type nemsio_meta1
@@ -293,11 +299,17 @@ module nemsio_module
 !
   type :: nemsio_grbtbl_item
     character(nemsio_charkind)     :: shortname=' '
-    character(nemsio_charkind*4)   :: leveltype=' '
-    integer(nemsio_intkind)    :: precision,g1tbl,g1param,g1level 
+    character(nemsio_charkind*2)   :: leveltype=' '
+    integer(nemsio_intkind)    :: precision,g1lev,g1param,g1level 
   end type nemsio_grbtbl_item
 !
-  type(nemsio_grbtbl_item),save  :: gribtable(255)
+  type :: nemsio_grbtbl
+    integer                        :: iptv
+    type(nemsio_grbtbl_item)       :: item(255)
+  end type nemsio_grbtbl 
+!
+  type(nemsio_grbtbl),save  :: gribtable(10)
+!
 !----- interface
   interface nemsio_getheadvar
     module procedure nemsio_getfheadvari
@@ -379,6 +391,9 @@ module nemsio_module
   integer(nemsio_intkind),save   :: fileunit(600:699)=0
 !------------------------------------------------------------------------------
 !public mehtods
+  public nemsio_undef_grb
+  public nemsio_intkind,nemsio_intkind8,nemsio_realkind,nemsio_dblekind
+  public nemsio_charkind,nemsio_charkind8,nemsio_logickind
   public nemsio_init,nemsio_finalize,nemsio_open,nemsio_close
   public nemsio_readrec,nemsio_writerec,nemsio_readrecv,nemsio_writerecv
   public nemsio_readrecw34,nemsio_writerecw34,nemsio_readrecvw34,nemsio_writerecvw34
@@ -439,9 +454,9 @@ contains
     integer(nemsio_intkind),optional,intent(in)  :: version,nmeta,lmeta,nrec
     integer(nemsio_intkind),optional,intent(in)  :: idate(7),nfday,nfhour,    &
             nfminute, nfsecondn,nfsecondd
-    integer(nemsio_logickind),optional,intent(in):: dimx,dimy,dimz,nframe,    &
+    integer(nemsio_intkind),optional,intent(in)  :: dimx,dimy,dimz,nframe,    &
             nsoil,ntrac
-    integer(nemsio_logickind),optional,intent(in):: jcap,ncldt,idvc,idsl,     &
+    integer(nemsio_intkind),optional,intent(in)  :: jcap,ncldt,idvc,idsl,     &
             idvm,idrt
     real(nemsio_realkind),optional,intent(in)    :: rlat_min,rlat_max,   &
              rlon_min,rlon_max
@@ -483,8 +498,8 @@ contains
 ! open and read meta data for READ
 !------------------------------------------------------------
 !    print *,'in rcreate, gfname=',gfname,'gaction=',lowercase(gaction)
-    if ( lowercase(gaction) .eq. "read" .or. lowercase(gaction).eq.'rdwr') then
-      if ( lowercase(gaction) .eq. "read" ) then
+    if ( equal_str_nocase(trim(gaction),'read') .or. equal_str_nocase(trim(gaction),'rdwr')) then
+      if ( equal_str_nocase(trim(gaction),'read') )then
        call baopenr(gfile%flunit,gfname,ios)
        if ( ios.ne.0) then
         if ( present(iret))  then
@@ -530,7 +545,7 @@ contains
 !------------------------------------------------------------
 ! open and write meta data for WRITE
 !------------------------------------------------------------
-    elseif (gaction .eq. "write" .or. gaction .eq. "WRITE") then
+    elseif ( equal_str_nocase(trim(gaction),'write') ) then
       call baopenwt(gfile%flunit,gfname,ios)
       if ( ios.ne.0) then
        if ( present(iret))  then
@@ -655,22 +670,24 @@ contains
     type(nemsio_gfile),intent(inout)     :: gfile
     integer(nemsio_intkind),intent(out)  :: iret
 !local variables
-    integer(nemsio_intkind)      :: ios,iskip,iread,nread,nmeta
+    integer(nemsio_intkind)      :: ios,nmeta
+    integer(nemsio_intkind8)     :: iskip,iread,nread
     type(nemsio_meta1)           :: meta1
     type(nemsio_meta2)           :: meta2
     type(nemsio_meta3)           :: meta3
     integer(nemsio_intkind) :: i
+    character(nemsio_charkind8),allocatable :: char8var(:)
 !------------------------------------------------------------
 ! read first meta data record
 !------------------------------------------------------------
     iret=-3
     iskip=0
     iread=nemsio_lmeta1
-    call bafrread(gfile%flunit,iskip,iread,nread,meta1)
+    call bafrreadl(gfile%flunit,iskip,iread,nread,meta1)
 !    print *,'in rcreate, iread=',iread,'nread=',nread
     if(nread.lt.iread) return
     gfile%tlmeta=nread
-    print *,'tlmeta=',gfile%tlmeta
+!    print *,'tlmeta=',gfile%tlmeta
     gfile%gtype=meta1%gtype
     gfile%version=meta1%version
     gfile%nmeta=meta1%nmeta
@@ -695,7 +712,7 @@ contains
 !------------------------------------------------------------
     iskip=iskip+nread
     iread=gfile%lmeta
-    call bafrread(gfile%flunit,iskip,iread,nread,meta2)
+    call bafrreadl(gfile%flunit,iskip,iread,nread,meta2)
     if(nread.lt.iread) return
     gfile%tlmeta=gfile%tlmeta+nread
 !    print *,'tlmeta2 =',gfile%tlmeta,'iskip=',iskip,'iread=',iread,'nread=',nread
@@ -744,41 +761,48 @@ contains
     endif
     if(gfile%nmeta-2>0) then
       iskip=iskip+nread
-      iread=nemsio_charkind*size(gfile%recname)
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%recname)
-      if(nread.lt.iread) return
+      iread=len(gfile%recname)*size(gfile%recname)
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%recname)
+      if(nread.lt.iread)  then
+         iread=nemsio_charkind8*size(gfile%recname)
+         allocate(char8var(size(gfile%recname)))
+         call bafrreadl(gfile%flunit,iskip,iread,nread,char8var)
+         gfile%recname=char8var
+         deallocate(char8var)
+         if (nread.lt.iread) return
+      endif
       nmeta=nmeta-1
       gfile%tlmeta=gfile%tlmeta+nread
-      print *,'tlmetarecname =',gfile%tlmeta,'nread=',nread
+!      print *,'tlmetarecname =',gfile%tlmeta,'nread=',nread
     endif
 
     if (gfile%nmeta-3>0 ) then
 !meta4:reclevtyp
       iskip=iskip+nread
-      iread=2*nemsio_charkind*size(gfile%reclevtyp)
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%reclevtyp)
+      iread=len(gfile%reclevtyp)*size(gfile%reclevtyp)
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%reclevtyp)
       if(nread.lt.iread) return
       nmeta=nmeta-1
       gfile%tlmeta=gfile%tlmeta+nread
-      print *,'tlmetareclwvtyp =',gfile%tlmeta,'nread=',nread
+!      print *,'tlmetareclwvtyp =',gfile%tlmeta,'nread=',nread
     endif
 
     if (gfile%nmeta-4 >0 ) then
 !meta5:reclev
       iskip=iskip+nread
-      iread=nemsio_intkind*size(gfile%reclev)
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%reclev)
+      iread=kind(gfile%reclev)*size(gfile%reclev)
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%reclev)
       if(nread.lt.iread) return
       nmeta=nmeta-1
       gfile%tlmeta=gfile%tlmeta+nread
-      print *,'tlmetareclev =',gfile%tlmeta,'nread=',nread
+!      print *,'tlmetareclev =',gfile%tlmeta,'nread=',nread
     endif
 
     if (gfile%nmeta-5 >0 ) then
 !meta6:vcoord
       iskip=iskip+nread
-      iread=nemsio_realkind*size(gfile%vcoord)
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%vcoord)
+      iread=kind(gfile%vcoord)*size(gfile%vcoord)
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%vcoord)
       if(nread.lt.iread) return
       nmeta=nmeta-1
       gfile%tlmeta=gfile%tlmeta+nread
@@ -788,71 +812,71 @@ contains
     if ( gfile%nmeta-6>0 ) then
 !meta7:lat
       iskip=iskip+nread
-      iread=nemsio_realkind*size(gfile%lat)
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%lat)
+      iread=kind(gfile%lat)*size(gfile%lat)
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%lat)
       if(nread.lt.iread) return
       nmeta=nmeta-1
       gfile%tlmeta=gfile%tlmeta+nread
-      print *,'tlmetareclat =',gfile%tlmeta,'nread=',nread,   &
-         maxval(gfile%lat),minval(gfile%lat)
+!      print *,'tlmetareclat =',gfile%tlmeta,'nread=',nread,   &
+!         maxval(gfile%lat),minval(gfile%lat)
     endif
 
     if ( gfile%nmeta-7>0 ) then
 !meta8:lon
       iskip=iskip+nread
-      iread=nemsio_realkind*size(gfile%lon)
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%lon)
+      iread=kind(gfile%lon)*size(gfile%lon)
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%lon)
       if(nread.lt.iread) return
       nmeta=nmeta-1
       gfile%tlmeta=gfile%tlmeta+nread
-      print *,'tlmetareclon =',gfile%tlmeta,'nread=',nread,  &
-         maxval(gfile%lat),minval(gfile%lat)
+!      print *,'tlmetareclon =',gfile%tlmeta,'nread=',nread,  &
+!         maxval(gfile%lat),minval(gfile%lat)
     endif
 
     if ( gfile%nmeta-8>0 ) then
 !meta9:dx
       iskip=iskip+nread
-      iread=nemsio_realkind*size(gfile%dx)
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%dx)
+      iread=kind(gfile%dx)*size(gfile%dx)
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%dx)
       if(nread.lt.iread) return
       nmeta=nmeta-1
       gfile%tlmeta=gfile%tlmeta+nread
-      print *,'tlmetarecdx =',gfile%tlmeta,'nread=',nread,  &
-        maxval(gfile%dx),minval(gfile%dx)
+!      print *,'tlmetarecdx =',gfile%tlmeta,'nread=',nread,  &
+!        maxval(gfile%dx),minval(gfile%dx)
     endif
 
     if ( gfile%nmeta-9>0 ) then
 !meta10:dy
       iskip=iskip+nread
-      iread=nemsio_realkind*size(gfile%dy)
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%dy)
+      iread=kind(gfile%dy)*size(gfile%dy)
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%dy)
       if(nread.lt.iread) return
       nmeta=nmeta-1
       gfile%tlmeta=gfile%tlmeta+nread
-      print *,'tlmetarecdy =',gfile%tlmeta,'nread=',nread, &
-         maxval(gfile%dy),maxval(gfile%dy)
+!      print *,'tlmetarecdy =',gfile%tlmeta,'nread=',nread, &
+!         maxval(gfile%dy),maxval(gfile%dy)
     endif
 
      if ( gfile%nmeta-10>0 ) then
 !meta11:cpi
       iskip=iskip+nread
-      iread=nemsio_realkind*size(gfile%Cpi)
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%Cpi)
+      iread=kind(gfile%cpi)*size(gfile%Cpi)
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%Cpi)
       if(nread.lt.iread) return
       nmeta=nmeta-1
       gfile%tlmeta=gfile%tlmeta+nread
-      print *,'tlmetacpi =',gfile%tlmeta,'nread=',nread
+!      print *,'tlmetacpi =',gfile%tlmeta,'nread=',nread
     endif
 
     if ( gfile%nmeta-11>0 ) then
 !Ri
       iskip=iskip+nread
-      iread=nemsio_realkind*size(gfile%Ri)
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%Ri)
+      iread=kind(gfile%ri)*size(gfile%Ri)
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%Ri)
       if(nread.lt.iread) return
       nmeta=nmeta-1
       gfile%tlmeta=gfile%tlmeta+nread
-      print *,'tlmetri =',gfile%tlmeta,'nread=',nread
+!      print *,'tlmetri =',gfile%tlmeta,'nread=',nread
     endif
 !
     if ( gfile%nmeta-12>0 ) then
@@ -865,7 +889,7 @@ contains
 !------------------------------------------------------------
     iskip=iskip+nread
     iread=nemsio_lmeta3
-    call bafrread(gfile%flunit,iskip,iread,nread,meta3)
+    call bafrreadl(gfile%flunit,iskip,iread,nread,meta3)
     if(nread.lt.iread) return
     gfile%tlmeta=gfile%tlmeta+nread
     gfile%nmetavari=meta3%nmetavari
@@ -876,28 +900,38 @@ contains
     gfile%nmetaaryr=meta3%nmetaaryr
     gfile%nmetaaryl=meta3%nmetaaryl
     gfile%nmetaaryc=meta3%nmetaaryc
-      print *,'tlmeta3 =',gfile%tlmeta,'nread=',nread, &
-     'nmetavari=',gfile%nmetavari,'nvarr=',gfile%nmetavarr, &
-     'varl=',gfile%nmetavarl,'varc=',gfile%nmetavarc, &
-     gfile%nmetaaryi,gfile%nmetaaryr,gfile%nmetaaryl,gfile%nmetaaryc
+!      print *,'tlmeta3 =',gfile%tlmeta,'nread=',nread, &
+!     'nmetavari=',gfile%nmetavari,'nvarr=',gfile%nmetavarr, &
+!     'varl=',gfile%nmetavarl,'varc=',gfile%nmetavarc, &
+!     gfile%nmetaaryi,gfile%nmetaaryr,gfile%nmetaaryl,gfile%nmetaaryc
    
     call nemsio_alextrameta(gfile,ios)
     if ( ios .ne. 0 ) then
       iret=ios
       return
     endif
+!    print *,'after nemsio_alextrameta'
 
 !meta var integer
     if (gfile%nmetavari.gt.0) then
       iskip=iskip+nread
-      iread=nemsio_charkind*gfile%nmetavari
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%variname)
-      if(nread.lt.iread) return
+      iread=len(gfile%variname)*gfile%nmetavari
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%variname)
+!      print *,'after get varint name,iskip=',iskip,'iread=',iread,'nread=',nread
+      if(nread.lt.iread)  then
+         iread=nemsio_charkind8*gfile%nmetavari
+         allocate(char8var(gfile%nmetavari))
+         call bafrreadl(gfile%flunit,iskip,iread,nread,char8var)
+         gfile%variname=char8var
+         deallocate(char8var)
+!      print *,'after get varint name8,iskip=',iskip,'iread=',iread,'nread=',nread
+         if (nread.lt.iread) return
+      endif
       gfile%tlmeta=gfile%tlmeta+nread
-!      print *,'tlmetavari =',gfile%tlmeta,'nread=',nread
+!      print *,'tlmetavari =',gfile%tlmeta,'nread=',nread,'iread=',iread,gfile%nmetavari
       iskip=iskip+nread
       iread=nemsio_intkind*gfile%nmetavari
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%varival)
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%varival)
       if(nread.lt.iread) return
       gfile%tlmeta=gfile%tlmeta+nread 
 !      print *,'tlmetavarival =',gfile%tlmeta,'nread=',nread
@@ -905,14 +939,21 @@ contains
 !meta var real
     if (gfile%nmetavarr.gt.0) then
       iskip=iskip+nread
-      iread=nemsio_charkind*gfile%nmetavarr
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%varrname)
-      if(nread.lt.iread) return
+      iread=len(gfile%varrname)*gfile%nmetavarr
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%varrname)
+      if(nread.lt.iread)  then
+         iread=nemsio_charkind8*gfile%nmetavarr
+         allocate(char8var(gfile%nmetavarr))
+         call bafrreadl(gfile%flunit,iskip,iread,nread,char8var)
+         gfile%varrname=char8var
+         deallocate(char8var)
+         if (nread.lt.iread) return
+      endif
       gfile%tlmeta=gfile%tlmeta+nread
-!      print *,'tlmetavarr =',gfile%tlmeta,'nread=',nread
+!      print *,'tlmetavarr =',gfile%tlmeta,'nread=',nread,gfile%nmetavarr
       iskip=iskip+nread
-      iread=nemsio_realkind*gfile%nmetavarr
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%varrval)
+      iread=kind(gfile%varrval)*gfile%nmetavarr
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%varrval)
       if(nread.lt.iread) return
       gfile%tlmeta=gfile%tlmeta+nread
 !      print *,'tlmetavarrval =',gfile%tlmeta,'nread=',nread
@@ -920,84 +961,134 @@ contains
 !meta var logical
     if (gfile%nmetavarl.gt.0) then
       iskip=iskip+nread
-      iread=nemsio_charkind*gfile%nmetavarl
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%varlname)
-      if(nread.lt.iread) return
+      iread=len(gfile%varlname)*gfile%nmetavarl
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%varlname)
+      if(nread.lt.iread)  then
+         iread=nemsio_charkind8*gfile%nmetavarl
+         allocate(char8var(gfile%nmetavarl))
+         call bafrreadl(gfile%flunit,iskip,iread,nread,char8var)
+         gfile%varlname=char8var
+         deallocate(char8var)
+         if (nread.lt.iread) return
+      endif
       gfile%tlmeta=gfile%tlmeta+nread
-!      print *,'tlmetavarl =',gfile%tlmeta,'nread=',nread
+!      print *,'tlmetavarl =',gfile%tlmeta,'nread=',nread,gfile%nmetavarl
       iskip=iskip+nread
       iread=nemsio_logickind*gfile%nmetavarl
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%varlval)
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%varlval)
       if(nread.lt.iread) return
       gfile%tlmeta=gfile%tlmeta+nread
 !      print *,'tlmetavarlval =',gfile%tlmeta,'nread=',nread
     endif
+!meta var string
+    if (gfile%nmetavarc.gt.0) then
+      iskip=iskip+nread
+      iread=len(gfile%varcname)*gfile%nmetavarc
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%varcname)
+      if(nread.lt.iread)  then
+         iread=nemsio_charkind8*gfile%nmetavarc
+         allocate(char8var(gfile%nmetavarc))
+         call bafrreadl(gfile%flunit,iskip,iread,nread,char8var)
+         gfile%varcname=char8var
+         deallocate(char8var)
+         if (nread.lt.iread) return
+      endif
+      gfile%tlmeta=gfile%tlmeta+nread
+!      print *,'tlmetavarc =',gfile%tlmeta,'nread=',nread,gfile%nmetavarc
+      iskip=iskip+nread
+      iread=len(gfile%varcval)*gfile%nmetavarc
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%varcval)
+      if(nread.lt.iread) return
+      gfile%tlmeta=gfile%tlmeta+nread
+!      print *,'tlmetavarcval =',gfile%tlmeta,'nread=',nread
+    endif
 !meta arr integer
     if (gfile%nmetaaryi.gt.0) then
       iskip=iskip+nread
-      iread=nemsio_charkind*gfile%nmetaaryi
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%aryiname)
-      if(nread.lt.iread) return
+      iread=len(gfile%aryiname)*gfile%nmetaaryi
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryiname)
+      if(nread.lt.iread)  then
+         iread=nemsio_charkind8*gfile%nmetaaryi
+         allocate(char8var(gfile%nmetaaryi))
+         call bafrreadl(gfile%flunit,iskip,iread,nread,char8var)
+         gfile%aryiname=char8var
+         deallocate(char8var)
+         if (nread.lt.iread) return
+      endif
       gfile%tlmeta=gfile%tlmeta+nread
-      print *,'tlmetaaryinam =',gfile%tlmeta,'nread=',nread
+!      print *,'tlmetaaryinam =',gfile%tlmeta,'nread=',nread
       iskip=iskip+nread
-      iread=nemsio_intkind*gfile%nmetaaryi
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%aryilen)
+      iread=kind(gfile%nmetaaryi)*gfile%nmetaaryi
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryilen)
       if(nread.lt.iread) return
       gfile%tlmeta=gfile%tlmeta+nread
-      print *,'tlmetaaryilen =',gfile%tlmeta,'nread=',nread
+!      print *,'tlmetaaryilen =',gfile%tlmeta,'nread=',nread
       allocate(gfile%aryival(maxval(gfile%aryilen),gfile%nmetaaryi))
       do i=1,gfile%nmetaaryi
         iskip=iskip+nread
-        iread=nemsio_intkind*gfile%aryilen(i)
-        call bafrread(gfile%flunit,iskip,iread,nread,gfile%aryival(:,i))
+        iread=kind(gfile%aryival)*gfile%aryilen(i)
+        call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryival(:,i))
         if(nread.lt.iread) return
         gfile%tlmeta=gfile%tlmeta+nread
 
-      print *,'tlmetaaryival =',gfile%tlmeta,'nread=',nread
+!      print *,'tlmetaaryival =',gfile%tlmeta,'nread=',nread
       enddo
     endif
 !meta arr real
     if (gfile%nmetaaryr.gt.0) then
       iskip=iskip+nread
-      iread=nemsio_charkind*gfile%nmetaaryr
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%aryrname)
-      if(nread.lt.iread) return
+      iread=len(gfile%aryrname)*gfile%nmetaaryr
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryrname)
+      if(nread.lt.iread)  then
+         iread=nemsio_charkind8*gfile%nmetaaryr
+         allocate(char8var(gfile%nmetaaryr))
+         call bafrreadl(gfile%flunit,iskip,iread,nread,char8var)
+         gfile%aryrname=char8var
+         deallocate(char8var)
+         if (nread.lt.iread) return
+      endif
       gfile%tlmeta=gfile%tlmeta+nread
-      print *,'tlmetaaryrnam =',gfile%tlmeta,'nread=',nread
+!      print *,'tlmetaaryrnam =',gfile%tlmeta,'nread=',nread
       iskip=iskip+nread
-      iread=nemsio_intkind*gfile%nmetaaryr
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%aryrlen)
+      iread=kind(gfile%aryrlen)*gfile%nmetaaryr
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryrlen)
       if(nread.lt.iread) return
       gfile%tlmeta=gfile%tlmeta+nread
-      print *,'tlmetaaryrlen =',gfile%tlmeta,'nread=',nread
+!      print *,'tlmetaaryrlen =',gfile%tlmeta,'nread=',nread
       allocate(gfile%aryrval(maxval(gfile%aryrlen),gfile%nmetaaryr) )
       do i=1,gfile%nmetaaryr
         iskip=iskip+nread
-        iread=nemsio_realkind*gfile%aryrlen(i)
-        call bafrread(gfile%flunit,iskip,iread,nread,gfile%aryrval(:,i))
+        iread=kind(gfile%aryrval)*gfile%aryrlen(i)
+        call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryrval(:,i))
         if(nread.lt.iread) return
         gfile%tlmeta=gfile%tlmeta+nread
-      print *,'tlmetaaryrval =',gfile%tlmeta,'nread=',nread
+!      print *,'tlmetaaryrval =',gfile%tlmeta,'nread=',nread
       enddo
     endif
 !meta arr logical
     if (gfile%nmetaaryl.gt.0) then
       iskip=iskip+nread
-      iread=nemsio_charkind*gfile%nmetaaryl
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%arylname)
-      if(nread.lt.iread) return
+      iread=len(gfile%arylname)*gfile%nmetaaryl
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%arylname)
+      if(nread.lt.iread)  then
+         iread=nemsio_charkind8*gfile%nmetaaryl
+         allocate(char8var(gfile%nmetaaryl))
+         call bafrreadl(gfile%flunit,iskip,iread,nread,char8var)
+         gfile%arylname=char8var
+         deallocate(char8var)
+         if (nread.lt.iread) return
+      endif
       gfile%tlmeta=gfile%tlmeta+nread
       iskip=iskip+nread
-      iread=nemsio_intkind*gfile%nmetaaryl
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%aryllen)
+      iread=kind(gfile%aryllen)*gfile%nmetaaryl
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryllen)
       if(nread.lt.iread) return
       gfile%tlmeta=gfile%tlmeta+nread
       allocate(gfile%arylval(maxval(gfile%aryllen),gfile%nmetaaryl) )
       do i=1,gfile%nmetaaryl
         iskip=iskip+nread
-        iread=nemsio_logickind*gfile%aryllen(i)
-        call bafrread(gfile%flunit,iskip,iread,nread,gfile%arylval(:,i))
+        iread=kind(gfile%arylval)*gfile%aryllen(i)
+        call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%arylval(:,i))
         if(nread.lt.iread) return
         gfile%tlmeta=gfile%tlmeta+nread
       enddo
@@ -1005,20 +1096,27 @@ contains
 !meta arr char
     if (gfile%nmetaaryc.gt.0) then
       iskip=iskip+nread
-      iread=nemsio_charkind*gfile%nmetaaryc
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%arycname)
-      if(nread.lt.iread) return
+      iread=len(gfile%arycname)*gfile%nmetaaryc
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%arycname)
+      if(nread.lt.iread)  then
+         iread=nemsio_charkind8*gfile%nmetaaryc
+         allocate(char8var(gfile%nmetaaryc))
+         call bafrreadl(gfile%flunit,iskip,iread,nread,char8var)
+         gfile%arycname=char8var
+         deallocate(char8var)
+         if (nread.lt.iread) return
+      endif
       gfile%tlmeta=gfile%tlmeta+nread
       iskip=iskip+nread
-      iread=nemsio_intkind*gfile%nmetaaryc
-      call bafrread(gfile%flunit,iskip,iread,nread,gfile%aryclen)
+      iread=kind(gfile%aryclen)*gfile%nmetaaryc
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryclen)
       if(nread.lt.iread) return
       gfile%tlmeta=gfile%tlmeta+nread
       allocate(gfile%arycval(maxval(gfile%aryclen),gfile%nmetaaryc) )
       do i=1,gfile%nmetaaryc
         iskip=iskip+nread
-        iread=2*nemsio_charkind*gfile%aryclen(i)
-        call bafrread(gfile%flunit,iskip,iread,nread,gfile%arycval(:,i))
+        iread=len(gfile%arycval)*gfile%aryclen(i)
+        call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%arycval(:,i))
         if(nread.lt.iread) return
         gfile%tlmeta=gfile%tlmeta+nread
       enddo
@@ -1027,7 +1125,7 @@ contains
 !end if extrameta
    endif
 !
-   print *,'end of wcreate!'
+!   print *,'end of rcreate!'
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
    iret=0
   end subroutine nemsio_rcreate
@@ -1054,9 +1152,9 @@ contains
     integer(nemsio_intkind),optional,intent(in)  :: version,nmeta,lmeta,nrec
     integer(nemsio_intkind),optional,intent(in)  :: idate(7),nfday,nfhour,  &
             nfminute,nfsecondn,nfsecondd
-    integer(nemsio_logickind),optional,intent(in):: dimx,dimy,dimz,nframe,    &
+    integer(nemsio_intkind),optional,intent(in)  :: dimx,dimy,dimz,nframe,    &
             nsoil,ntrac
-    integer(nemsio_logickind),optional,intent(in):: jcap,ncldt,idvc,idsl,     &
+    integer(nemsio_intkind),optional,intent(in)  :: jcap,ncldt,idvc,idsl,     &
             idvm,idrt
     real(nemsio_realkind),optional,intent(in)    :: rlat_min,rlat_max,   &
              rlon_min,rlon_max
@@ -1083,11 +1181,11 @@ contains
 !---  local variables
 !
     real(nemsio_realkind) :: radi
-    integer(nemsio_intkind) :: iskip,iwrite,nwrite,n
+    integer(nemsio_intkind8) :: iskip,iwrite,nwrite
     type(nemsio_meta1)      :: meta1
     type(nemsio_meta2)      :: meta2
     type(nemsio_meta3)      :: meta3
-    integer(nemsio_intkind) :: i,ios,nummeta
+    integer(nemsio_intkind) :: i,n,ios,nummeta
     logical :: linit
 !------------------------------------------------------------
 ! set gfile meta data to operational model (default) if it's empty
@@ -1119,7 +1217,7 @@ contains
     if(present(lmeta)) gfile%lmeta=lmeta
     if(gfile%lmeta==nemsio_intfill)   &
       gfile%lmeta=25*nemsio_intkind+4*nemsio_realkind+nemsio_logickind
-    print *,'in wcreate, dim=',gfile%dimx,gfile%dimy,gfile%dimz,'nmeta=',gfile%nmeta,gfile%lmeta
+!    print *,'in wcreate, dim=',gfile%dimx,gfile%dimy,gfile%dimz,'nmeta=',gfile%nmeta,gfile%lmeta
     if(present(nsoil)) gfile%nsoil=nsoil
     if(gfile%nsoil.eq.nemsio_intfill) gfile%nsoil=4
     if(present(nframe)) gfile%nframe=nframe
@@ -1132,7 +1230,7 @@ contains
         gfile%idate(1)=1999+gfile%idate(1)
     endif
     if ( gfile%idate(1).eq.nemsio_intfill) then
-      print *,'idate=',gfile%idate,' WRONG: please provide idate(1:7)(yyyy/mm/dd/hh/min/secn/secd)!!!'
+!      print *,'idate=',gfile%idate,' WRONG: please provide idate(1:7)(yyyy/mm/dd/hh/min/secn/secd)!!!'
       call nemsio_stop()
     endif
 !
@@ -1147,7 +1245,7 @@ contains
         return
       endif
     endif
-!    print*,'before gfinit,gtype=',gfile%gtype,'lmeta=',gfile%lmeta
+!    print*,'after gfinit,gtype=',gfile%gtype,'nmeta=',gfile%nmeta,'linit=',linit
 !
 !------------------------------------------------------------
 ! set up basic gfile meta data variables from outsides to 
@@ -1336,28 +1434,32 @@ contains
     endif
 !lat
     if(present(lat) ) then
-       write(0,*)'gfile%fieldsize=',gfile%fieldsize,'size(lat)=',size(lat)
+!       write(0,*)'gfile%fieldsize=',gfile%fieldsize,'size(lat)=',size(lat)
        if (gfile%fieldsize.eq.size(lat)) then
-         gfile%lat=lat
+         if(.not.(all(lat==0.))) gfile%lat=lat
        else
          print *,'WRONG: the input size(lat) ',size(lat),' is not equal to: ',gfile%fieldsize
          return
        endif
     endif
+    gfile%rlat_max=maxval(gfile%lat)
+    gfile%rlat_min=minval(gfile%lat)
 !lon
     if(present(lon) ) then
        if (gfile%fieldsize.eq.size(lon)) then
-         gfile%lon=lon
+         if(.not.(all(lon==0.)) ) gfile%lon=lon
        else
          print *,'WRONG: the input size(lon) ',size(lon),' is not equal to: ',gfile%fieldsize
          return
        endif
     endif
+    gfile%rlon_max=maxval(gfile%lon)
+    gfile%rlon_min=minval(gfile%lon)
 !dx
     if(present(dx) ) then
-       write(0,*)'gfile%fieldsize=',gfile%fieldsize,'size(dx)=',size(dx)
+!       write(0,*)'gfile%fieldsize=',gfile%fieldsize,'size(dx)=',size(dx)
        if (gfile%fieldsize.eq.size(dx)) then
-         gfile%dx=dx
+         if(.not.(all(dx==0.)) ) gfile%dx=dx
        else
          print *,'WRONG: the input size(dx) ',size(dx),' is not equal to: ',gfile%fieldsize
          return
@@ -1366,7 +1468,7 @@ contains
 !dy
     if(present(dy) ) then
        if (gfile%fieldsize.eq.size(dy)) then
-         gfile%dy=dy
+         if(.not.(all(dy==0.)) ) gfile%dy=dy
        else
          print *,'WRONG: the input size(dy) ',size(dy),' is not equal to: ',gfile%fieldsize
          return
@@ -1375,22 +1477,26 @@ contains
 !Cpi
     if( present(Cpi) ) then
        if (gfile%ntrac+1.eq.size(gfile%Cpi)) then
-         gfile%Cpi = Cpi
+         if(.not.(all(cpi==0.))) gfile%Cpi = Cpi
        else
          print *,'WRONG: the input size(cpi) ',size(cpi),' is not equal to: ',gfile%ntrac+1
          return
        endif
+!       print *,'in wcreate,cpi=',maxval(cpi),minval(cpi),maxval(gfile%Cpi),minval(cpi),&
+!        'size(cpi)=',size(cpi),size(gfile%Cpi),'ntrac=',gfile%ntrac
 
     endif
 !Ri
     if( present(Ri) ) then
        if (gfile%ntrac+1.eq.size(gfile%Ri)) then
-         gfile%Ri = Ri
+         if(.not.(all(ri==0.))) gfile%Ri = Ri
        else
          print *,'WRONG: the input size(ri) ',size(ri),' is not equal to: ',gfile%ntrac+1
          return
        endif
     endif
+!       print *,'in wcreate,ri=',maxval(ri),minval(ri),maxval(gfile%ri),minval(ri),&
+!        'size(ri)=',size(ri),size(gfile%ri),'ntrac=',gfile%ntrac
 !
 !------------------------------------------------------------
 ! write out first meta data record
@@ -1404,7 +1510,7 @@ contains
     meta1%reserve=0
     iskip=0
     iwrite=nemsio_lmeta1
-    call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,meta1)
+    call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,meta1)
     if(nwrite.lt.iwrite) return
     gfile%tlmeta=nwrite
 !    print *,'tlmet1 =',gfile%tlmeta,'nwrite=',nwrite,meta1%gdatatype
@@ -1437,7 +1543,7 @@ contains
     meta2%extrameta=gfile%extrameta
     iskip=iskip+nwrite
     iwrite=gfile%lmeta
-    call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,meta2)
+    call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,meta2)
     if(nwrite.lt.iwrite) return
     gfile%tlmeta=gfile%tlmeta+nwrite
 !------------------------------------------------------------
@@ -1446,8 +1552,8 @@ contains
 !recname
     if ( gfile%nmeta-2>0 ) then
       iskip=iskip+nwrite
-      iwrite=nemsio_charkind*size(gfile%recname)
-      call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%recname)
+      iwrite=len(gfile%recname)*size(gfile%recname)
+      call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%recname)
       if(nwrite.lt.iwrite) return
       gfile%tlmeta=gfile%tlmeta+nwrite
 !      print *,'tlmetrecname =',gfile%tlmeta,'nwrite=',nwrite
@@ -1456,8 +1562,8 @@ contains
 !reclevtyp
     if ( gfile%nmeta-3>0 ) then
       iskip=iskip+nwrite
-      iwrite=2*nemsio_charkind*size(gfile%reclevtyp)
-      call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%reclevtyp)
+      iwrite=len(gfile%reclevtyp)*size(gfile%reclevtyp)
+      call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%reclevtyp)
       if(nwrite.lt.iwrite) return
       gfile%tlmeta=gfile%tlmeta+nwrite
 !      print *,'tlmetreclevty=',gfile%tlmeta,'nwrite=',nwrite
@@ -1466,8 +1572,8 @@ contains
 !reclev
     if ( gfile%nmeta-4>0 ) then
       iskip=iskip+nwrite
-      iwrite=nemsio_intkind*size(gfile%reclev)
-      call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%reclev)
+      iwrite=kind(gfile%reclev)*size(gfile%reclev)
+      call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%reclev)
       if(nwrite.lt.iwrite) return
       gfile%tlmeta=gfile%tlmeta+nwrite
 !      print *,'tlmetreclev=',gfile%tlmeta,'nwrite=',nwrite
@@ -1476,8 +1582,8 @@ contains
     nummeta=gfile%nmeta-5
     if ( nummeta.gt.0 ) then
       iskip=iskip+nwrite
-      iwrite=nemsio_realkind*size(gfile%vcoord)
-      call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%vcoord)
+      iwrite=kind(gfile%vcoord)*size(gfile%vcoord)
+      call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%vcoord)
       if(nwrite.lt.iwrite) return
       gfile%tlmeta=gfile%tlmeta+nwrite
 !      print *,'tlmetavcoord=',gfile%tlmeta,'nwrite=',nwrite,'nummeta=', &
@@ -1487,31 +1593,35 @@ contains
 !lat
     if ( nummeta.gt.0 ) then
       iskip=iskip+nwrite
-      iwrite=nemsio_realkind*size(gfile%lat)
-      call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%lat)
+      iwrite=kind(gfile%lat)*size(gfile%lat)
+      call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%lat)
       if(nwrite.lt.iwrite) return
       gfile%tlmetalat=gfile%tlmeta
       gfile%tlmeta=gfile%tlmeta+nwrite
-!      print *,'tlmetreclat=',gfile%tlmeta,'nwrite=',nwrite
+!      print *,'tlmetreclat=',gfile%tlmeta,'nwrite=',nwrite,  &
+!       maxval(gfile%lat),minval(gfile%lat)
       nummeta=nummeta-1
     endif
 !lon
     if ( nummeta.gt.0 ) then
       iskip=iskip+nwrite
-      iwrite=nemsio_realkind*size(gfile%lon)
-      call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%lon)
+      iwrite=kind(gfile%lon)*size(gfile%lon)
+      call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%lon)
       if(nwrite.lt.iwrite) return
       gfile%tlmetalon=gfile%tlmeta
       gfile%tlmeta=gfile%tlmeta+nwrite
-!      print *,'tlmetreclon=',gfile%tlmeta,'nwrite=',nwrite,'nummeta=',nummeta
+!      print *,'tlmetreclon=',gfile%tlmeta,'nwrite=',nwrite,'nummeta=',nummeta, &
+!         maxval(gfile%lon),minval(gfile%lon)
       nummeta=nummeta-1
     endif
 !dx
     if ( nummeta.gt.0 ) then
+      if(all(gfile%dx==0.)) gfile%dx=nemsio_realfill
       iskip=iskip+nwrite
-      iwrite=nemsio_realkind*size(gfile%dx)
-      call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%dx)
-!      print *,'tlmetrecdx=',gfile%tlmeta,'iwrite=',iwrite,'nwrite=',nwrite
+      iwrite=kind(gfile%dx)*size(gfile%dx)
+      call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%dx)
+!      print *,'tlmetrecdx=',gfile%tlmeta,'iwrite=',iwrite,'nwrite=',nwrite, &
+!         maxval(gfile%dx),minval(gfile%dx)
       if(nwrite.lt.iwrite) return
       gfile%tlmetadx=gfile%tlmeta
       gfile%tlmeta=gfile%tlmeta+nwrite
@@ -1521,9 +1631,10 @@ contains
     endif
 !dy
     if ( nummeta.gt.0 ) then
+      if(all(gfile%dy==0.)) gfile%dy=nemsio_realfill
       iskip=iskip+nwrite
-      iwrite=nemsio_realkind*size(gfile%dy)
-      call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%dy)
+      iwrite=kind(gfile%dy)*size(gfile%dy)
+      call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%dy)
       if(nwrite.lt.iwrite) return
       gfile%tlmetady=gfile%tlmeta
       gfile%tlmeta=gfile%tlmeta+nwrite
@@ -1532,22 +1643,26 @@ contains
     endif
 !Cpi
     if ( nummeta.gt.0 ) then
+      if(all(gfile%cpi==0.)) gfile%cpi=nemsio_realfill
       iskip=iskip+nwrite
-      iwrite=nemsio_realkind*size(gfile%Cpi)
-      call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%Cpi)
+      iwrite=kind(gfile%Cpi)*size(gfile%Cpi)
+      call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%Cpi)
       if(nwrite.lt.iwrite) return
       gfile%tlmeta=gfile%tlmeta+nwrite
-!      print *,'tlmetreccpi=',gfile%tlmeta,'nwrite=',nwrite
+!      print *,'tlmetreccpi=',gfile%tlmeta,'nwrite=',nwrite,  &
+!        'cpi=',maxval(gfile%cpi),minval(gfile%cpi)
       nummeta=nummeta-1
     endif
 !Ri
     if ( nummeta.gt.0 ) then
+      if(all(gfile%ri==0.)) gfile%ri=nemsio_realfill
       iskip=iskip+nwrite
-      iwrite=nemsio_realkind*size(gfile%Ri)
-      call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%Ri)
+      iwrite=kind(gfile%Ri)*size(gfile%Ri)
+      call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%Ri)
       if(nwrite.lt.iwrite) return
       gfile%tlmeta=gfile%tlmeta+nwrite
-!      print *,'tlmetrecri=',gfile%tlmeta,'nwrite=',nwrite
+!      print *,'tlmetrecri=',gfile%tlmeta,'nwrite=',nwrite,   &
+!        'ri=',maxval(gfile%ri),minval(gfile%ri)
       nummeta=nummeta-1
     endif
 !------------------------------------------------------------
@@ -1564,7 +1679,7 @@ contains
       meta3%nmetaaryc=gfile%nmetaaryc
       iskip=iskip+nwrite
       iwrite=nemsio_lmeta3
-      call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,meta3)
+      call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,meta3)
       if(nwrite.lt.iwrite) return
       gfile%tlmeta=gfile%tlmeta+nwrite
 !      print *,'tlmetameta3=',gfile%tlmeta
@@ -1572,69 +1687,69 @@ contains
 !-- write meta var integer
       if (gfile%nmetavari.gt.0) then
         iskip=iskip+nwrite
-        iwrite=nemsio_charkind*gfile%nmetavari
-        call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%variname)
+        iwrite=len(gfile%variname)*gfile%nmetavari
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%variname)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
         iskip=iskip+nwrite
-        iwrite=nemsio_intkind*gfile%nmetavari
-        call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%varival)
+        iwrite=kind(gfile%varival)*gfile%nmetavari
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varival)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
 !      print *,'rlmetavari=',gfile%tlmeta
       endif
       if (gfile%nmetavarr.gt.0) then
         iskip=iskip+nwrite
-        iwrite=nemsio_charkind*gfile%nmetavarr
-        call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%varrname)
+        iwrite=len(gfile%varrname)*gfile%nmetavarr
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varrname)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
         iskip=iskip+nwrite
-        iwrite=nemsio_realkind*gfile%nmetavarr
-        call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%varrval)
+        iwrite=kind(gfile%varrval)*gfile%nmetavarr
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varrval)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
       endif
       if (gfile%nmetavarl.gt.0) then
         iskip=iskip+nwrite
-        iwrite=nemsio_charkind*gfile%nmetavarl
-        call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%varlname)
+        iwrite=len(gfile%varlname)*gfile%nmetavarl
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varlname)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
         iskip=iskip+nwrite
-        iwrite=nemsio_logickind*gfile%nmetavarl
-        call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%varlval)
+        iwrite=kind(gfile%varlval)*gfile%nmetavarl
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varlval)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
       endif
       if (gfile%nmetavarc.gt.0) then
         iskip=iskip+nwrite
-        iwrite=nemsio_charkind*gfile%nmetavarc
-        call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%varcname)
+        iwrite=len(gfile%varcname)*gfile%nmetavarc
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varcname)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
         iskip=iskip+nwrite
-        iwrite=nemsio_charkind*gfile%nmetavarc
-        call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%varcval)
+        iwrite=len(gfile%varcval)*gfile%nmetavarc
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varcval)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
       endif
 !meta arr integer
       if (gfile%nmetaaryi.gt.0) then
         iskip=iskip+nwrite
-        iwrite=nemsio_charkind*gfile%nmetaaryi
-        call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%aryiname)
+        iwrite=len(gfile%aryiname)*gfile%nmetaaryi
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%aryiname)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
         iskip=iskip+nwrite
-        iwrite=nemsio_intkind*gfile%nmetaaryi
-        call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%aryilen)
+        iwrite=kind(gfile%aryilen)*gfile%nmetaaryi
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%aryilen)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
         do i=1,gfile%nmetaaryi
           iskip=iskip+nwrite
-          iwrite=nemsio_intkind*gfile%aryilen(i)
-          call bafrwrite(gfile%flunit,iskip,iwrite,nwrite, &
+          iwrite=kind(gfile%aryival)*gfile%aryilen(i)
+          call bafrwritel(gfile%flunit,iskip,iwrite,nwrite, &
                          gfile%aryival(1:gfile%aryilen(i),i))
           if(nwrite.lt.iwrite) return
           gfile%tlmeta=gfile%tlmeta+nwrite
@@ -1646,21 +1761,21 @@ contains
       if (gfile%nmetaaryr.gt.0) then
 !          print *,'before tlmetaryr'
         iskip=iskip+nwrite
-        iwrite=nemsio_charkind*gfile%nmetaaryr
-        call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%aryrname)
+        iwrite=len(gfile%aryrname)*gfile%nmetaaryr
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%aryrname)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
 !          print *,'before tlmetaryr 1'
         iskip=iskip+nwrite
-        iwrite=nemsio_intkind*gfile%nmetaaryr
-        call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%aryrlen)
+        iwrite=kind(gfile%aryrlen)*gfile%nmetaaryr
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%aryrlen)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
 !          print *,'before tlmetaryr 2'
         do i=1,gfile%nmetaaryr
           iskip=iskip+nwrite
-          iwrite=nemsio_intkind*gfile%aryrlen(i)
-          call bafrwrite(gfile%flunit,iskip,iwrite,nwrite, &
+          iwrite=kind(gfile%aryrval)*gfile%aryrlen(i)
+          call bafrwritel(gfile%flunit,iskip,iwrite,nwrite, &
                          gfile%aryrval(1:gfile%aryrlen(i),i))
           if(nwrite.lt.iwrite) return
           gfile%tlmeta=gfile%tlmeta+nwrite
@@ -1670,19 +1785,19 @@ contains
 !meta arr logical
       if (gfile%nmetaaryl.gt.0) then
         iskip=iskip+nwrite
-        iwrite=nemsio_charkind*gfile%nmetaaryl
-        call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%arylname)
+        iwrite=len(gfile%arylname)*gfile%nmetaaryl
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%arylname)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
         iskip=iskip+nwrite
-        iwrite=nemsio_intkind*gfile%nmetaaryl
-        call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%aryllen)
+        iwrite=kind(gfile%aryllen)*gfile%nmetaaryl
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%aryllen)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
         do i=1,gfile%nmetaaryl
           iskip=iskip+nwrite
-          iwrite=nemsio_logickind*gfile%aryllen(i)
-          call bafrwrite(gfile%flunit,iskip,iwrite,nwrite, &
+          iwrite=kind(gfile%arylval)*gfile%aryllen(i)
+          call bafrwritel(gfile%flunit,iskip,iwrite,nwrite, &
                          gfile%arylval(1:gfile%aryllen(i),i))
           if(nwrite.lt.iwrite) return
           gfile%tlmeta=gfile%tlmeta+nwrite
@@ -1692,19 +1807,19 @@ contains
 !meta arr logical
       if (gfile%nmetaaryc.gt.0) then
         iskip=iskip+nwrite
-        iwrite=nemsio_charkind*gfile%nmetaaryc
-        call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%arycname)
+        iwrite=len(gfile%arycname)*gfile%nmetaaryc
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%arycname)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
         iskip=iskip+nwrite
-        iwrite=nemsio_intkind*gfile%nmetaaryc
-        call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%aryclen)
+        iwrite=kind(gfile%aryclen)*gfile%nmetaaryc
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%aryclen)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
         do i=1,gfile%nmetaaryc
           iskip=iskip+nwrite
-          iwrite=nemsio_charkind*gfile%aryclen(i)
-          call bafrwrite(gfile%flunit,iskip,iwrite,nwrite, &
+          iwrite=len(gfile%arycval)*gfile%aryclen(i)
+          call bafrwritel(gfile%flunit,iskip,iwrite,nwrite, &
                          gfile%arycval(1:gfile%aryclen(i),i))
           if(nwrite.lt.iwrite) return
           gfile%tlmeta=gfile%tlmeta+nwrite
@@ -1731,7 +1846,7 @@ contains
     real(nemsio_realkind),optional,intent(in)    :: dx(:),dy(:)
 !
 !--- local vars
-    integer :: iskip,iwrite,nwrite
+    integer(nemsio_intkind8) :: iskip,iwrite,nwrite
 !
 !---
     if (present(iret)) iret=-3
@@ -1744,11 +1859,11 @@ contains
          call nemsio_stop
        else
          gfile%lat=lat
-         if(lowercase(gfile%gaction)(1:5)=="write".and.   &
-             gfile%tlmetalat/=nemsio_intfill) then
+         if(equal_str_nocase(trim(gfile%gaction),'write') .and. &
+             gfile%tlmetalat/=nemsio_intfill8) then
             iskip=gfile%tlmetalat
-            iwrite=nemsio_realkind*size(gfile%lat)
-            call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%lat)
+            iwrite=kind(gfile%lat)*size(gfile%lat)
+            call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%lat)
             if(nwrite.lt.iwrite) return
          endif
        endif
@@ -1760,29 +1875,29 @@ contains
          call nemsio_stop
        else
          gfile%lon=lon
-         if(lowercase(gfile%gaction)(1:5)=="write".and.   &
-             gfile%tlmetalon/=nemsio_intfill) then
+         if(equal_str_nocase(trim(gfile%gaction),'write').and.   &
+             gfile%tlmetalon/=nemsio_intfill8) then
             iskip=gfile%tlmetalon
-            iwrite=nemsio_realkind*size(gfile%lon)
-            call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%lon)
+            iwrite=kind(gfile%lon)*size(gfile%lon)
+            call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%lon)
             if(nwrite.lt.iwrite) return
          endif
        endif
     endif
 !--- dx
     if(present(dx) ) then
-       print *,'getfilehead, size(dx)=',size(dx),gfile%fieldsize,  &
-          maxval(gfile%dx),minval(gfile%dx)
+!       print *,'getfilehead, size(dx)=',size(dx),gfile%fieldsize,  &
+!          maxval(gfile%dx),minval(gfile%dx)
        if (size(dx).ne.gfile%fieldsize) then
          if ( present(iret))  return
          call nemsio_stop
        else
          gfile%dx=dx
-         if(lowercase(gfile%gaction)(1:5)=="write".and.   &
-             gfile%tlmetadx/=nemsio_intfill) then
+         if(equal_str_nocase(trim(gfile%gaction),'write').and.   &
+             gfile%tlmetadx/=nemsio_intfill8) then
             iskip=gfile%tlmetadx
-            iwrite=nemsio_realkind*size(gfile%dx)
-            call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%dx)
+            iwrite=kind(gfile%dx)*size(gfile%dx)
+            call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%dx)
             if(nwrite.lt.iwrite) return
          endif
        endif
@@ -1796,11 +1911,11 @@ contains
          call nemsio_stop
        else
          gfile%dy=dy
-         if(lowercase(gfile%gaction)(1:5)=="write".and.   &
-             gfile%tlmetady/=nemsio_intfill) then
+         if(equal_str_nocase(trim(gfile%gaction),'write').and.   &
+             gfile%tlmetady/=nemsio_intfill8) then
             iskip=gfile%tlmetady
-            iwrite=nemsio_realkind*size(gfile%dy)
-            call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,gfile%dy)
+            iwrite=kind(gfile%dy)*size(gfile%dy)
+            call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%dy)
             if(nwrite.lt.iwrite) return
          endif
        endif
@@ -1831,36 +1946,35 @@ contains
     character*(*),optional,intent(out)           :: gtype,gdatatype,gfname, &
                                                     gaction,modelname
     integer(nemsio_intkind),optional,intent(out) :: version,nmeta,lmeta
-    integer(nemsio_realkind),optional,intent(out):: nrec,idate(7),nfday,nfhour, &
+    integer(nemsio_intkind),optional,intent(out) :: nrec,idate(7),nfday,nfhour, &
                                                     nfminute,nfsecondn,nfsecondd
-    integer(nemsio_realkind),optional,intent(out):: dimx,dimy,dimz,nframe, &
+    integer(nemsio_intkind),optional,intent(out) :: dimx,dimy,dimz,nframe, &
                                                     nsoil,ntrac
-    integer(nemsio_realkind),optional,intent(out):: ncldt,jcap,idvc,idsl,idvm,idrt
+    integer(nemsio_intkind),optional,intent(out) :: ncldt,jcap,idvc,idsl,idvm,idrt
     real(nemsio_realkind),optional,intent(out)   :: rlon_min,rlon_max,rlat_min, &
                                                     rlat_max
-    integer(nemsio_realkind),optional,intent(out):: tlmeta
+    integer(nemsio_intkind),optional,intent(out)  :: tlmeta
     logical(nemsio_logickind),optional,intent(out):: extrameta
-    integer(nemsio_realkind),optional,intent(out):: nmetavari,nmetavarr, &
+    integer(nemsio_intkind),optional,intent(out)  :: nmetavari,nmetavarr, &
                                                     nmetavarl,nmetavarc,nmetaaryi, &
                                                     nmetaaryr,nmetaaryl,nmetaaryc
-    character(nemsio_charkind),optional,intent(out)           :: recname(:)
-    character(nemsio_charkind*2),optional,intent(out)         :: reclevtyp(:)
+    character(*),optional,intent(out)            :: recname(:)
+    character(*),optional,intent(out)            :: reclevtyp(:)
     integer(nemsio_intkind),optional,intent(out) :: reclev(:)
     real(nemsio_realkind),optional,intent(out)   :: vcoord(:,:,:)
     real(nemsio_realkind),optional,intent(out)   :: lat(:),lon(:)
     real(nemsio_realkind),optional,intent(out)   :: dx(:),dy(:)
     real(nemsio_realkind),optional,intent(out)   :: Cpi(:),Ri(:)
-    character(nemsio_charkind),optional,intent(out)            :: variname(:),varrname(:)
-    character(nemsio_charkind),optional,intent(out)            :: varlname(:),varcname(:)
-    character(nemsio_charkind),optional,intent(out)            :: aryiname(:),aryrname(:)
-    character(nemsio_charkind),optional,intent(out)            :: arylname(:),arycname(:)
+    character(*),optional,intent(out)            :: variname(:),varrname(:)
+    character(*),optional,intent(out)            :: varlname(:),varcname(:)
+    character(*),optional,intent(out)            :: aryiname(:),aryrname(:)
+    character(*),optional,intent(out)            :: arylname(:),arycname(:)
     integer(nemsio_intkind),optional,intent(out) :: aryilen(:),aryrlen(:)
     integer(nemsio_intkind),optional,intent(out) :: aryllen(:),aryclen(:)
     integer(nemsio_intkind),optional,intent(out) :: varival(:),aryival(:,:)
     real(nemsio_realkind),optional,intent(out)   :: varrval(:),aryrval(:,:)
     logical(nemsio_logickind),optional,intent(out):: varlval(:),arylval(:,:)
-    character(*),optional,intent(out):: varcval(:)
-    character(*),optional,intent(out):: arycval(:)
+    character(*),optional,intent(out)             :: varcval(:),arycval(:,:)
 !
     integer i,j
 !------------------------------------------------------------
@@ -1959,8 +2073,8 @@ contains
     endif
 !--- dx
     if(present(dx) ) then
-       print *,'getfilehead, size(dx)=',size(dx),gfile%fieldsize,  &
-          maxval(gfile%dx),minval(gfile%dx)
+!       print *,'getfilehead, size(dx)=',size(dx),gfile%fieldsize,  &
+!          maxval(gfile%dx),minval(gfile%dx)
        if (size(dx).ne.gfile%fieldsize) then
          print *,'WRONG: size(dX)=',size(dx),' is not equal to ',gfile%fieldsize
          if ( present(iret))  return
@@ -2008,9 +2122,11 @@ contains
       if (present(nmetavari) ) nmetavari=gfile%nmetavari
       if (present(nmetavarr) ) nmetavarr=gfile%nmetavarr
       if (present(nmetavarl) ) nmetavarl=gfile%nmetavarl
+      if (present(nmetavarc) ) nmetavarc=gfile%nmetavarc
       if (present(nmetaaryi) ) nmetaaryi=gfile%nmetaaryi
       if (present(nmetaaryr) ) nmetaaryr=gfile%nmetaaryr
       if (present(nmetaaryl) ) nmetaaryl=gfile%nmetaaryl
+      if (present(nmetaaryc) ) nmetaaryc=gfile%nmetaaryc
       if ( gfile%nmetavari.gt.0 ) then
          if (present(variname).and.size(variname).eq.gfile%nmetavari) &
              variname=gfile%variname
@@ -2028,6 +2144,12 @@ contains
              varlname=gfile%varlname
          if (present(varlval).and.size(varlval).eq.gfile%nmetavarl) &
              varlval=gfile%varlval
+      endif
+      if ( gfile%nmetavarc.gt.0 ) then
+         if (present(varcname).and.size(varcname).eq.gfile%nmetavarc) &
+             varcname=gfile%varcname
+         if (present(varcval).and.size(varcval).eq.gfile%nmetavarc) &
+             varcval=gfile%varcval
       endif
       if ( gfile%nmetaaryi.gt.0 ) then
          if (present(aryiname).and.size(aryiname).eq.gfile%nmetaaryi) &
@@ -2053,6 +2175,14 @@ contains
          if (present(arylval).and.size(arylval).eq.gfile%nmetaaryl*maxval(gfile%aryllen) ) &
              arylval=gfile%arylval
       endif
+      if ( gfile%nmetaaryc.gt.0 ) then
+         if (present(arycname).and.size(arycname).eq.gfile%nmetaaryc) &
+             arycname=gfile%arycname
+         if (present(aryclen).and.size(aryclen).eq.gfile%nmetaaryc) &
+             aryclen=gfile%aryclen
+         if (present(arycval).and.size(arycval).eq.gfile%nmetaaryc*maxval(gfile%aryclen) ) &
+             arycval=gfile%arycval
+      endif
     endif
 
 !    print *,'after getfilehead'
@@ -2069,14 +2199,11 @@ contains
     character(len=*),  intent(in)                 :: varname
     integer(nemsio_intkind),intent(out)           :: varval
     integer(nemsio_intkind),optional,intent(out)  :: iret
-    integer i,j,nlen
-    character(16) lowervarname
+    integer i,j
 !---
     if(present(iret) ) iret=-17
-    nlen=len(varname)
-    lowervarname=lowercase(trim(varname))
     do i=1,gfile%headvarinum
-      if(lowervarname(1:nlen).eq.lowercase(gfile%headvariname(i))(1:nlen) ) then
+      if(equal_str_nocase(trim(varname),trim(gfile%headvariname(i))) ) then
            varval=gfile%headvarival(i)
            if(present(iret) ) iret=0
            return
@@ -2085,7 +2212,7 @@ contains
 !---
     if(gfile%nmetavari.gt.0) then
       do i=1,gfile%nmetavari
-        if(lowervarname(1:nlen).eq.lowercase(trim(gfile%variname(i)))(1:nlen) ) then
+        if(equal_str_nocase(trim(varname),trim(gfile%variname(i))) ) then
            varval=gfile%varival(i)
            if(present(iret) ) iret=0
            return
@@ -2103,17 +2230,14 @@ contains
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
     implicit none
     type(nemsio_gfile),intent(in)                 :: gfile
-    character(len=*),  intent(in)                     :: varname
+    character(len=*),  intent(in)                 :: varname
     real(nemsio_realkind),intent(out)             :: varval
     integer(nemsio_intkind),optional,intent(out)  :: iret
-    integer i,j,nlen
-    character(16) lowervarname
+    integer i,j
 !---
     if(present(iret) ) iret=-17
-    nlen=len(varname)
-    lowervarname=lowercase(varname)
     do i=1,gfile%headvarrnum
-      if(lowervarname(1:nlen).eq.lowercase(gfile%headvarrname(i))(1:nlen)) then
+      if(equal_str_nocase(trim(varname),trim(gfile%headvarrname(i))) ) then
            varval=gfile%headvarrval(i)
            if(present(iret) ) iret=0
            return
@@ -2122,7 +2246,7 @@ contains
 !---
     if(gfile%nmetavarr.gt.0) then
       do i=1,gfile%nmetavarr
-        if(lowervarname(1:nlen).eq.lowercase(gfile%varrname(i))(1:nlen) ) then
+        if(equal_str_nocase(trim(varname),trim(gfile%varrname(i))) ) then
            varval=gfile%varrval(i)
            if(present(iret) ) iret=0
            return
@@ -2143,15 +2267,12 @@ contains
     character(*),  intent(in)                     :: varname
     logical(nemsio_logickind),intent(out)         :: varval
     integer(nemsio_intkind),optional,intent(out)  :: iret
-    integer i,j,nlen
-    character(16) lowervarname
+    integer i,j
 !---
     if(present(iret) ) iret=-17
-    nlen=len(varname)
-    lowervarname=lowercase(varname)
     if(gfile%nmetavarl.gt.0) then
       do i=1,gfile%nmetavarl
-        if(lowervarname(1:nlen).eq.lowercase(gfile%varlname(i))(1:nlen)) then
+        if(equal_str_nocase(trim(varname),trim(gfile%varlname(i))) ) then
            varval=gfile%varlval(i)
            if(present(iret) ) iret=0
            return
@@ -2172,14 +2293,11 @@ contains
     character(*),  intent(in)                     :: varname
     character(*),intent(out)                      :: varval
     integer(nemsio_intkind),optional,intent(out)  :: iret
-    integer i,j,nlen
-    character(16) lowervarname
+    integer i,j
 !---
     if(present(iret) ) iret=-17
-    nlen=len(varname)
-    lowervarname=lowercase(varname)
     do i=1,gfile%headvarcnum
-      if(lowervarname(1:nlen).eq.lowercase(gfile%headvarcname(i))(1:nlen)) then
+      if(equal_str_nocase(trim(varname),trim(gfile%headvarcname(i))) ) then
            varval=gfile%headvarcval(i)
            if(present(iret) ) iret=0
            return
@@ -2188,7 +2306,7 @@ contains
 !---
     if(gfile%nmetavarc.gt.0) then
       do i=1,gfile%nmetavarc
-        if(lowervarname(1:nlen).eq.lowercase(gfile%varcname(i))(1:nlen)) then
+        if(equal_str_nocase(trim(varname),trim(gfile%varcname(i))) ) then
            varval=gfile%varcval(i)
            if(present(iret) ) iret=0
            return
@@ -2209,15 +2327,20 @@ contains
     character(*),  intent(in)                     :: varname
     integer(nemsio_intkind),intent(out)           :: varval(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
-    integer i,j,ierr,nlen
-    character(16) lowervarname
+    integer i,j,ierr
 !---
     if(present(iret) ) iret=-17
-    nlen=len(varname)
-    lowervarname=lowercase(varname)
+    do i=1,gfile%headaryinum
+      if(equal_str_nocase(trim(varname),trim(gfile%headaryiname(i))) ) then
+           varval(:)=gfile%headaryival(1:gfile%aryilen(i),i)
+           if(present(iret) ) iret=0
+           return
+      endif
+    enddo
+!---
     if(gfile%nmetaaryi.gt.0) then
       do i=1,gfile%nmetaaryi
-        if(lowervarname(1:nlen).eq.lowercase(gfile%aryiname(i))(1:nlen)) then
+        if(equal_str_nocase(trim(varname),trim(gfile%aryiname(i))) ) then
            varval(:)=gfile%aryival(1:gfile%aryilen(i),i)
            if(present(iret) ) iret=0
            ierr=0
@@ -2239,15 +2362,22 @@ contains
     character(*),  intent(in)                     :: varname
     real(nemsio_realkind),intent(out)             :: varval(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
-    integer i,j,ierr,nlen
-    character(16) lowervarname
+    integer i,j,ierr
 !---
     if(present(iret) ) iret=-17
-    nlen=len(varname)
-    lowervarname=lowercase(varname)
+    if(gfile%headaryrnum>0) then
+     do i=1,gfile%headaryrnum
+      if(equal_str_nocase(trim(varname),trim(gfile%headaryrname(i))) ) then
+           varval(:)=gfile%headaryrval(1:gfile%aryrlen(i),i)
+           if(present(iret) ) iret=0
+           return
+      endif
+     enddo
+    endif
+!---
     if(gfile%nmetaaryr.gt.0) then
       do i=1,gfile%nmetaaryr
-        if(lowervarname(1:nlen).eq.lowercase(gfile%aryrname(i))(1:nlen)) then
+        if(equal_str_nocase(trim(varname),trim(gfile%aryrname(i)))) then
            varval(:)=gfile%aryrval(1:gfile%aryrlen(i),i)
            if(present(iret) ) iret=0
            ierr=0
@@ -2269,15 +2399,12 @@ contains
     character(*),  intent(in)                     :: varname
     logical(nemsio_logickind),intent(out)         :: varval(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
-    integer i,j,ierr,nlen
-    character(16) lowervarname
+    integer i,j,ierr
 !---
     if(present(iret) ) iret=-17
-    nlen=len(varname)
-    lowervarname=lowercase(varname)
     if(gfile%nmetaaryl.gt.0) then
       do i=1,gfile%nmetaaryl
-        if(lowervarname(1:nlen).eq.lowercase(gfile%arylname(i))(1:nlen)) then
+        if(equal_str_nocase(trim(varname),trim(gfile%arylname(i)))) then
            varval(:)=gfile%arylval(1:gfile%aryllen(i),i)
            if(present(iret) ) iret=0
            ierr=0
@@ -2299,15 +2426,22 @@ contains
     character(len=*),  intent(in)                     :: varname
     character(*),intent(out)                      :: varval(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
-    integer i,j,ierr,nlen
-    character(16) lowervarname
+    integer i,j,ierr
 !---
     if(present(iret) ) iret=-17
-    nlen=len(varname)
-    lowervarname=lowercase(varname)
+    if(gfile%headarycnum>0) then
+     do i=1,gfile%headarycnum
+      if(equal_str_nocase(trim(varname),trim(gfile%headarycname(i))) ) then
+           varval(:)=gfile%headarycval(1:gfile%aryclen(i),i)
+           if(present(iret) ) iret=0
+           return
+      endif
+     enddo
+    endif
+!---
     if(gfile%nmetaaryc.gt.0) then
       do i=1,gfile%nmetaaryc
-        if(lowervarname(1:nlen).eq.lowercase(gfile%arycname(i))(1:nlen)) then
+        if(equal_str_nocase(trim(varname),trim(gfile%arycname(i)))) then
            varval(:)=gfile%arycval(1:gfile%aryclen(i),i)
            if(present(iret) ) iret=0
            ierr=0
@@ -2567,13 +2701,12 @@ contains
     integer(nemsio_intkind),intent(in)            :: jrec
     real(nemsio_realkind),intent(inout)           :: data(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
-    integer :: iread,nread
-    integer(nemsio_intkind) :: iskip
+    integer(nemsio_intkind8) :: iskip,iread,nread
 
     iret=-11
-    iskip=gfile%tlmeta+(jrec-1)*(nemsio_realkind*gfile%fieldsize+8)
-    iread=nemsio_realkind*size(data)
-    call bafrread(gfile%flunit,iskip,iread,nread,data)
+    iskip=gfile%tlmeta+int(jrec-1,8)*int(kind(data)*gfile%fieldsize+8,8)
+    iread=int(nemsio_realkind,8)*int(size(data),8)
+    call bafrreadl(gfile%flunit,iskip,iread,nread,data)
     if(nread.lt.iread) return
     iret=0
 
@@ -2590,14 +2723,13 @@ contains
     real(nemsio_dblekind),intent(out)             :: data(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
     real(nemsio_realkind),allocatable        :: data4(:)
-    integer :: iread,nread
-    integer(nemsio_intkind) :: iskip
+    integer(nemsio_intkind8) :: iskip,iread,nread
 
     iret=-11
     allocate(data4(size(data)) )
-    iskip=gfile%tlmeta+(jrec-1)*(nemsio_realkind*gfile%fieldsize+8)
-    iread=nemsio_realkind*size(data4)
-    call bafrread(gfile%flunit,iskip,iread,nread,data4)
+    iskip=gfile%tlmeta+int(jrec-1,8)*int(kind(data4)*gfile%fieldsize+8,8)
+    iread=int(nemsio_realkind,8)*int(size(data4),8)
+    call bafrreadl(gfile%flunit,iskip,iread,nread,data4)
     if(nread.lt.iread) return
     data=data4
     iret=0
@@ -2616,16 +2748,15 @@ contains
     integer(nemsio_intkind),optional,intent(in)  :: lev
     real(nemsio_realkind),intent(out)             :: data(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
-    integer :: iread,nread
-    integer(nemsio_intkind) :: iskip
+    integer(nemsio_intkind8) :: iskip,iread,nread
     integer :: jrec, ierr
 
     iret=-12
     call nemsio_searchrecv(gfile,jrec,name,levtyp,lev,ierr)
     if ( ierr .ne. 0)  return
-    iskip=gfile%tlmeta+(jrec-1)*(nemsio_realkind*gfile%fieldsize+8)
-    iread=nemsio_realkind*size(data)
-    call bafrread(gfile%flunit,iskip,iread,nread,data)
+    iskip=gfile%tlmeta+int(jrec-1,8)*int(nemsio_realkind*gfile%fieldsize+8,8)
+    iread=int(kind(data),8)*int(size(data),8)
+    call bafrreadl(gfile%flunit,iskip,iread,nread,data)
     if(nread.lt.iread) return
     iret=0
 
@@ -2644,17 +2775,16 @@ contains
     real(nemsio_dblekind),intent(out)             :: data(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
     real(nemsio_realkind),allocatable        :: data4(:)
-    integer :: iread,nread
-    integer(nemsio_intkind) :: iskip
+    integer(nemsio_intkind8) :: iskip,iread,nread
     integer :: jrec, ierr
 
     iret=-11
     allocate(data4(size(data)) )
     call nemsio_searchrecv(gfile,jrec,name,levtyp,lev,ierr)
     if ( ierr .ne. 0) return
-    iskip=gfile%tlmeta+(jrec-1)*(nemsio_realkind*gfile%fieldsize+8)
-    iread=nemsio_realkind*size(data4)
-    call bafrread(gfile%flunit,iskip,iread,nread,data4)
+    iskip=gfile%tlmeta+int(jrec-1,8)*int(nemsio_realkind*gfile%fieldsize+8,8)
+    iread=int(kind(data4),8)*int(size(data4),8)
+    call bafrreadl(gfile%flunit,iskip,iread,nread,data4)
     if(nread.lt.iread) return
     data=data4
     iret=0
@@ -2672,14 +2802,13 @@ contains
     real(nemsio_realkind),intent(out)             :: data(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
     real(nemsio_dblekind),allocatable             :: data8(:)
-    integer :: iread,nread
-    integer(nemsio_intkind) :: iskip
+    integer(nemsio_intkind8) :: iskip,iread,nread
 
     iret=-11
     allocate(data8(size(data)) )
-    iskip=gfile%tlmeta+(jrec-1)*(nemsio_dblekind*gfile%fieldsize+8)
-    iread=nemsio_dblekind*size(data8)
-    call bafrread(gfile%flunit,iskip,iread,nread,data8)
+    iskip=gfile%tlmeta+int(jrec-1,8)*int(nemsio_dblekind*gfile%fieldsize+8,8)
+    iread=int(nemsio_dblekind,8)*int(size(data8),8)
+    call bafrreadl(gfile%flunit,iskip,iread,nread,data8)
     if(nread.lt.iread) return
     data=data8
     iret=0
@@ -2696,13 +2825,12 @@ contains
     integer(nemsio_intkind),intent(in)            :: jrec
     real(nemsio_dblekind),intent(out)             :: data(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
-    integer :: iread,nread
-    integer(nemsio_intkind) :: iskip
+    integer(nemsio_intkind8) :: iskip,iread,nread
 
     iret=-11
-    iskip=gfile%tlmeta+(jrec-1)*(nemsio_dblekind*gfile%fieldsize+8)
-    iread=nemsio_dblekind*size(data)
-    call bafrread(gfile%flunit,iskip,iread,nread,data)
+    iskip=gfile%tlmeta+int(jrec-1,8)*int(nemsio_dblekind*gfile%fieldsize+8,8)
+    iread=int(nemsio_dblekind,8)*int(size(data),8)
+    call bafrreadl(gfile%flunit,iskip,iread,nread,data)
     if(nread.lt.iread) return
     iret=0
 
@@ -2721,8 +2849,7 @@ contains
     real(nemsio_realkind),intent(out)             :: data(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
     real(nemsio_dblekind),allocatable        :: data8(:)
-    integer :: iread,nread
-    integer(nemsio_intkind) :: iskip
+    integer(nemsio_intkind8) :: iskip,iread,nread
     integer :: jrec, ierr
 
     iret=-11
@@ -2730,9 +2857,9 @@ contains
     call nemsio_searchrecv(gfile,jrec,name,levtyp,lev,ierr)
     if ( ierr .ne. 0) return
 !    print *,'name=',name,'levtyp=',levtyp,'lev=',lev,'jrec=',jrec
-    iskip=gfile%tlmeta+(jrec-1)*(nemsio_dblekind*gfile%fieldsize+8)
-    iread=nemsio_dblekind*size(data8)
-    call bafrread(gfile%flunit,iskip,iread,nread,data8)
+    iskip=gfile%tlmeta+int(jrec-1,8)*int(nemsio_dblekind*gfile%fieldsize+8,8)
+    iread=int(nemsio_dblekind,8)*int(size(data8),8)
+    call bafrreadl(gfile%flunit,iskip,iread,nread,data8)
     if(nread.lt.iread) return
     data=data8
     iret=0
@@ -2751,16 +2878,15 @@ contains
     integer(nemsio_intkind),optional,intent(in)  :: lev
     real(nemsio_dblekind),intent(out)             :: data(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
-    integer :: iread,nread
-    integer(nemsio_intkind) :: iskip
+    integer(nemsio_intkind8) :: iskip,iread,nread
     integer :: jrec, ierr
 
     iret=-11
     call nemsio_searchrecv(gfile,jrec,name,levtyp,lev,ierr)
     if ( ierr .ne. 0) return
-    iskip=gfile%tlmeta+(jrec-1)*(nemsio_dblekind*gfile%fieldsize+8)
-    iread=nemsio_dblekind*size(data)
-    call bafrread(gfile%flunit,iskip,iread,nread,data)
+    iskip=gfile%tlmeta+int(jrec-1,8)*int(nemsio_dblekind*gfile%fieldsize+8,8)
+    iread=int(nemsio_dblekind,8)*int(size(data),8)
+    call bafrreadl(gfile%flunit,iskip,iread,nread,data)
     if(nread.lt.iread) return
     iret=0
 
@@ -2781,23 +2907,16 @@ contains
     integer i, nsize,nlen,nlen1
 
     iret=-11
-    nlen=len(name)
-    if(nlen>8) then
-      print *,'data field name should be less then 8 characters'
-      return
-    endif
-    nlen1=len(levtyp)
-    if(nlen>16) then
-       print *,'Data field level type should be less then 16 characters'
-       return
-    endif
+    nlen=min(len(name),len(gfile%recname))
+    nlen1=min(len(levtyp),len(gfile%reclevtyp))
+!
     jrec=0
 !    print *,'in search rec, recname length=',gfile%recname,'nrec=',gfile%nrec
     if(size(gfile%recname)/=gfile%nrec) return
     if(.not.present(levtyp)) then
 !      print *,'in search rec, name=',lowercase(name)(1:nlen)
       do i=1,gfile%nrec
-        if ( lowercase(name)(1:nlen) .eq. lowercase(gfile%recname(i))(1:nlen)) then
+        if ( equal_str_nocase(trim(name),trim(gfile%recname(i))) ) then
            jrec=i
            exit
         endif
@@ -2805,16 +2924,16 @@ contains
     else if (size(gfile%reclevtyp).eq.gfile%nrec) then
       if(.not.present(lev)) then
        do i=1,gfile%nrec
-        if ( lowercase(name)(1:nlen).eq.lowercase(gfile%recname(i))(1:nlen) .and. &
-           lowercase(levtyp)(1:nlen1).eq.lowercase(gfile%reclevtyp(i))(1:nlen1)) then
+        if ( equal_str_nocase(trim(name),trim(gfile%recname(i))) .and. &
+           equal_str_nocase(trim(levtyp),trim(gfile%reclevtyp(i))) ) then
            jrec=i
            exit
         endif
        enddo
       else if(size(gfile%reclev).eq.gfile%nrec) then
        do i=1,gfile%nrec
-        if ( lowercase(name)(1:nlen).eq.lowercase(gfile%recname(i))(1:nlen) .and. &
-           lowercase(levtyp)(1:nlen1).eq.lowercase(gfile%reclevtyp(i))(1:nlen1) .and. &
+        if ( equal_str_nocase(trim(name),trim(gfile%recname(i))) .and. &
+           equal_str_nocase(trim(levtyp),trim(gfile%reclevtyp(i)) ) .and. &
            lev==gfile%reclev(i) ) then
            jrec=i
            exit
@@ -2868,14 +2987,16 @@ contains
 ! get data from getgb
 !------------------------------------------------------------
 !    print *,'in nemsio, before getgbm,mbuf=',gfile%mbuf,&
-!     'nlen=',gfile%nlen,'nnum=',gfile%nnum,'mnum=',gfile%mnum 
+!     'nlen=',gfile%nlen,'nnum=',gfile%nnum,'mnum=',gfile%mnum, &
+!     'jf=',grbmeta%jf,'jpds=',grbmeta%jpds(1:20),'jgds=', &
+!     grbmeta%jgds(1:20) 
     call getgbm(gfile%flunit,luidx,grbmeta%jf,N,grbmeta%jpds,grbmeta%jgds,&
       gfile%mbuf,gfile%cbuf,gfile%nlen,gfile%nnum,gfile%mnum, &
       kf,k,kpds,kgds,lbms,data,ios)
     deallocate(lbms,grbmeta%lbms)
     if(ios.ne.0) then
        if ( present(iret))  then
-         print *,'getgb_ios=',ios
+!         print *,'getgb_ios=',ios
          return
        else
          call nemsio_stop
@@ -2922,6 +3043,10 @@ contains
     data8=data
     allocate(lbms(grbmeta%jf))
     N=0
+!    print *,'getrecgrb4,in nemsio, before getgbm,mbuf=',gfile%mbuf,&
+!     'nlen=',gfile%nlen,'nnum=',gfile%nnum,'mnum=',gfile%mnum, &
+!     'jf=',grbmeta%jf,'jpds=',grbmeta%jpds(1:20),'jgds=', &
+!     grbmeta%jgds(1:20) 
     call getgbm(gfile%flunit,luidx,grbmeta%jf,N,grbmeta%jpds,grbmeta%jgds,&
       gfile%mbuf,gfile%cbuf,gfile%nlen,gfile%nnum,gfile%mnum, &
       kf,k,kpds,kgds,lbms,data8,ios)
@@ -2929,7 +3054,7 @@ contains
     deallocate(lbms,grbmeta%lbms)
     if(ios.ne.0) then
        if ( present(iret))  then
-         print *,'getgb_ios=',ios
+!         print *,'getgb_ios=',ios
          return
        else
          call nemsio_stop
@@ -2979,7 +3104,7 @@ contains
     deallocate(lbms,grbmeta%lbms)
     if(ios.ne.0) then
        if ( present(iret))  then
-         print *,'getgb_ios=',ios
+!         print *,'getgb_ios=',ios
          return
        else
          call nemsio_stop
@@ -2995,7 +3120,7 @@ contains
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
     implicit none
     type(nemsio_gfile),intent(in)                 :: gfile
-    character*(*),intent(in)                     :: vname,vlevtyp
+    character*(*),intent(in)                      :: vname,vlevtyp
     integer(nemsio_intkind),intent(in)            :: vlev
     real(nemsio_realkind),intent(out)             :: data(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
@@ -3032,7 +3157,7 @@ contains
     deallocate(lbms,grbmeta%lbms)
     if(ios.ne.0) then
        if ( present(iret))  then
-          print *,'getgb_ios=',ios
+!          print *,'getgb_ios=',ios
          return
        else
          call nemsio_stop
@@ -3048,7 +3173,7 @@ contains
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
     implicit none
     type(nemsio_gfile),intent(in)                 :: gfile
-    character*(*),intent(in)                     :: vname,vlevtyp
+    character*(*),intent(in)                      :: vname,vlevtyp
     integer(nemsio_intkind),intent(in)            :: vlev
     real(nemsio_realkind),intent(out)             :: data(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
@@ -3088,7 +3213,7 @@ contains
     deallocate(lbms,grbmeta%lbms)
     if(ios.ne.0) then
        if ( present(iret))  then
-          print *,'getgb_ios=',ios
+!          print *,'getgb_ios=',ios
          return
        else
          call nemsio_stop
@@ -3140,7 +3265,7 @@ contains
     deallocate(lbms,grbmeta%lbms)
     if(ios.ne.0) then
        if ( present(iret))  then
-          print *,'getgb_ios=',ios
+!          print *,'getgb_ios=',ios
          return
        else
          call nemsio_stop
@@ -3153,7 +3278,7 @@ contains
 !*****************   write data set :  ********************************
 
 !------------------------------------------------------------------------------
-  subroutine nemsio_writerec4(gfile,jrec,data,gdatatype,iret)
+  subroutine nemsio_writerec4(gfile,jrec,data,gdatatype,iret,itr,zhour)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: write nemsio a 2D 32 bits array data into bin file using record number
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
@@ -3162,6 +3287,8 @@ contains
     integer(nemsio_intkind),intent(in)            :: jrec
     real(nemsio_realkind),intent(in)              :: data(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
+    integer(nemsio_intkind),optional,intent(in)   :: itr 
+    real(nemsio_realkind),optional,intent(in)     :: zhour
     character(*), optional, intent(in)           :: gdatatype
 !
 !------------------------------------------------------------
@@ -3181,7 +3308,7 @@ contains
      call nemsio_writerecbin8d4(gfile,jrec,data,iret)
      if ( iret .ne.0 ) return
    else
-     call nemsio_writerecgrb4(gfile,jrec,data,iret)
+     call nemsio_writerecgrb4(gfile,jrec,data,iret,itr=itr,zhour=zhour)
      if ( iret .ne.0 ) return
    endif
    iret=0
@@ -3189,7 +3316,7 @@ contains
    return
   end subroutine nemsio_writerec4
 !------------------------------------------------------------------------------
-  subroutine nemsio_writerec8(gfile,jrec,data,gdatatype,iret)
+  subroutine nemsio_writerec8(gfile,jrec,data,gdatatype,iret,itr,zhour)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: write nemsio a 2D 64 bits array data into bin file using record number
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
@@ -3198,6 +3325,8 @@ contains
     integer(nemsio_intkind),intent(in)            :: jrec
     real(nemsio_dblekind),intent(in)              :: data(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
+    integer(nemsio_intkind),optional,intent(in)   :: itr 
+    real(nemsio_realkind),optional,intent(in)     :: zhour
     character(*), optional, intent(in)           :: gdatatype
 !------------------------------------------------------------
 ! read 4 byte rec
@@ -3216,7 +3345,7 @@ contains
      call nemsio_writerecbin8d8(gfile,jrec,data,iret)
      if ( iret .ne.0 ) return
    else
-     call nemsio_writerecgrb8(gfile,jrec,data,iret)
+     call nemsio_writerecgrb8(gfile,jrec,data,iret,itr=itr,zhour=zhour)
      if ( iret .ne.0 ) return
    endif
    iret=0
@@ -3224,7 +3353,8 @@ contains
    return
   end subroutine nemsio_writerec8
 !------------------------------------------------------------------------------
-  subroutine nemsio_writerecv4(gfile,name,levtyp,lev,data,gtype,gdatatype,iret)
+  subroutine nemsio_writerecv4(gfile,name,levtyp,lev,data,gtype,gdatatype,iret, &
+             itr,zhour)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: write nemsio a 2D 32 bits array data into bin file using record number
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
@@ -3235,6 +3365,8 @@ contains
     integer(nemsio_intkind),optional,intent(in)   :: lev
     real(nemsio_realkind),intent(in)              :: data(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
+    integer(nemsio_intkind),optional,intent(in)   :: itr 
+    real(nemsio_realkind),optional,intent(in)     :: zhour
     character(*), optional, intent(in)           :: gtype
     character(*), optional, intent(in)           :: gdatatype
 !------------------------------------------------------------
@@ -3260,7 +3392,8 @@ contains
      if ( iret .ne.0 ) return
    else
 !     print *,'call nemsio_writerecvgrb4'
-     call nemsio_writerecvgrb4(gfile,name,levtyp,lev,data,iret)
+     call nemsio_writerecvgrb4(gfile,name,levtyp,lev,data,iret,itr=itr,        &
+          zhour=zhour)
      if ( iret .ne.0 ) return
    endif
    iret=0
@@ -3268,7 +3401,8 @@ contains
    return
   end subroutine nemsio_writerecv4
 !------------------------------------------------------------------------------
-  subroutine nemsio_writerecv8(gfile,name,levtyp,lev,data,gtype,gdatatype,iret)
+  subroutine nemsio_writerecv8(gfile,name,levtyp,lev,data,gtype,gdatatype,iret, &
+             itr,zhour)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: write nemsio a 2D 32 bits array data into bin file using record number
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
@@ -3279,6 +3413,8 @@ contains
     integer(nemsio_intkind),optional,intent(in)   :: lev
     real(nemsio_dblekind),intent(in)              :: data(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
+    integer(nemsio_intkind),optional,intent(in)   :: itr 
+    real(nemsio_realkind),optional,intent(in)     :: zhour
     character(*), optional, intent(in)           :: gtype
     character(*), optional, intent(in)           :: gdatatype
 !------------------------------------------------------------
@@ -3302,7 +3438,8 @@ contains
      call nemsio_writerecvbin8d8(gfile,name,levtyp,lev,data,iret)
      if ( iret .ne.0 ) return
    else
-     call nemsio_writerecvgrb8(gfile,name,levtyp,lev,data,iret)
+     call nemsio_writerecvgrb8(gfile,name,levtyp,lev,data,iret,itr=itr,    &
+          zhour=zhour)
      if ( iret .ne.0 ) return
    endif
    iret=0
@@ -3323,8 +3460,7 @@ contains
     integer(nemsio_intkind),intent(in)            :: jrec
     real(nemsio_realkind),intent(in)              :: data(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
-    integer :: iwrite,nwrite
-    integer(nemsio_intkind) :: iskip
+    integer(nemsio_intkind8) :: iskip,iwrite,nwrite
 
 !
     real(8) timef,stime
@@ -3335,10 +3471,11 @@ contains
         gfile%fieldsize,'please check dimension and nframe'
       return
     endif
-    iskip=gfile%tlmeta+(jrec-1)*(nemsio_realkind*gfile%fieldsize+8)
-    iwrite=nemsio_realkind*size(data)
-    call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,data)
-     
+    iskip=gfile%tlmeta+int(jrec-1,8)*int(nemsio_realkind*gfile%fieldsize+8,8)
+    iwrite=int(nemsio_realkind,8)*int(size(data),8)
+    call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,data)
+!     write(0,'(a15,I13.0)')'writerec iskip=',iskip 
+!     print *,'in nemsio_writerecbin4d4,iwrite=',iwrite,'nwrite=',nwrite
     if(nwrite.lt.iwrite) return
     iret=0
 
@@ -3355,8 +3492,7 @@ contains
     real(nemsio_dblekind),intent(in)              :: data(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
     real(nemsio_realkind),allocatable             :: data4(:)
-    integer :: iwrite,nwrite
-    integer(nemsio_intkind) :: iskip
+    integer(nemsio_intkind8) :: iskip,iwrite,nwrite
 
     iret=-11
     if(size(data)/=gfile%fieldsize) then
@@ -3366,9 +3502,9 @@ contains
     endif
     allocate(data4(size(data)) )
     data4=data
-    iskip=gfile%tlmeta+(jrec-1)*(nemsio_realkind*gfile%fieldsize+8)
-    iwrite=nemsio_realkind*size(data4)
-    call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,data4)
+    iskip=gfile%tlmeta+int(jrec-1,8)*int(nemsio_realkind*gfile%fieldsize+8,8)
+    iwrite=int(nemsio_realkind,8)*int(size(data4),8)
+    call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,data4)
     if(nwrite.lt.iwrite) return
     iret=0
 
@@ -3387,8 +3523,7 @@ contains
     real(nemsio_realkind),intent(in)              :: data(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
     integer :: jrec, ierr
-    integer :: iwrite,nwrite
-    integer(nemsio_intkind) :: iskip
+    integer(nemsio_intkind8) :: iskip,iwrite,nwrite
 
     iret=-11
     call nemsio_searchrecv(gfile,jrec,name,levtyp,lev,ierr)
@@ -3398,9 +3533,9 @@ contains
         gfile%fieldsize,'please check dimension and nframe'
       return
     endif
-    iskip=gfile%tlmeta+(jrec-1)*(nemsio_realkind*gfile%fieldsize+8)
-    iwrite=nemsio_realkind*size(data)
-    call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,data)
+    iskip=gfile%tlmeta+int(jrec-1,8)*int(nemsio_realkind*gfile%fieldsize+8,8)
+    iwrite=int(nemsio_realkind,8)*int(size(data),8)
+    call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,data)
     if(nwrite.lt.iwrite) return
     iret=0
 
@@ -3420,8 +3555,7 @@ contains
     integer(nemsio_intkind),optional,intent(out)  :: iret
     real(nemsio_realkind),allocatable        :: data4(:)
     integer :: jrec, ierr
-    integer :: iwrite,nwrite
-    integer(nemsio_intkind) :: iskip
+    integer(nemsio_intkind8) :: iskip,iwrite,nwrite
 
     iret=-11
     allocate(data4(size(data)) )
@@ -3433,9 +3567,9 @@ contains
         gfile%fieldsize,'please check dimension and nframe'
       return
     endif
-    iskip=gfile%tlmeta+(jrec-1)*(nemsio_realkind*gfile%fieldsize+8)
-    iwrite=nemsio_realkind*size(data4)
-    call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,data4)
+    iskip=gfile%tlmeta+int(jrec-1,8)*int(nemsio_realkind*gfile%fieldsize+8,8)
+    iwrite=int(nemsio_realkind,8)*int(size(data4),8)
+    call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,data4)
     if(nwrite.lt.iwrite) return
     iret=0
 
@@ -3452,8 +3586,7 @@ contains
     real(nemsio_realkind),intent(in)              :: data(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
     real(nemsio_dblekind),allocatable        :: data8(:)
-    integer :: iwrite,nwrite
-    integer(nemsio_intkind) :: iskip
+    integer(nemsio_intkind8) :: iskip,iwrite,nwrite
 
     iret=-11
     if(size(data)/=gfile%fieldsize) then
@@ -3463,9 +3596,9 @@ contains
     endif
     allocate(data8(size(data)) )
     data8=data
-    iskip=gfile%tlmeta+(jrec-1)*(nemsio_dblekind*gfile%fieldsize+8)
-    iwrite=nemsio_dblekind*size(data8)
-    call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,data8)
+    iskip=gfile%tlmeta+int(jrec-1,8)*int(nemsio_dblekind*gfile%fieldsize+8,8)
+    iwrite=int(nemsio_dblekind,8)*int(size(data8),8)
+    call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,data8)
     if(nwrite.lt.iwrite) return
     iret=0
 
@@ -3481,8 +3614,7 @@ contains
     integer(nemsio_intkind),intent(in)            :: jrec
     real(nemsio_dblekind),intent(in)              :: data(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
-    integer :: iwrite,nwrite
-    integer(nemsio_intkind) :: iskip
+    integer(nemsio_intkind8) :: iskip,iwrite,nwrite
 
     iret=-11
     if(size(data)/=gfile%fieldsize) then
@@ -3490,9 +3622,9 @@ contains
         gfile%fieldsize,'please check dimension and nframe'
       return
     endif
-    iskip=gfile%tlmeta+(jrec-1)*(nemsio_dblekind*gfile%fieldsize+8)
-    iwrite=nemsio_dblekind*size(data)
-    call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,data)
+    iskip=gfile%tlmeta+int(jrec-1,8)*int(nemsio_dblekind*gfile%fieldsize+8,8)
+    iwrite=int(nemsio_dblekind,8)*int(size(data),8)
+    call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,data)
     if(nwrite.lt.iwrite) return
     iret=0
 
@@ -3512,8 +3644,7 @@ contains
     integer(nemsio_intkind),optional,intent(out)  :: iret
     real(nemsio_dblekind),allocatable        :: data8(:)
     integer :: jrec, ierr
-    integer :: iwrite,nwrite
-    integer(nemsio_intkind) :: iskip
+    integer(nemsio_intkind8) :: iskip,iwrite,nwrite
 
     iret=-11
     if(size(data)/=gfile%fieldsize) then
@@ -3525,9 +3656,9 @@ contains
     data8=data
     call nemsio_searchrecv(gfile,jrec,name,levtyp,lev,ierr)
     if ( ierr .ne. 0) return
-    iskip=gfile%tlmeta+(jrec-1)*(nemsio_dblekind*gfile%fieldsize+8)
-    iwrite=nemsio_dblekind*size(data8)
-    call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,data8)
+    iskip=gfile%tlmeta+int(jrec-1,8)*int(nemsio_dblekind*gfile%fieldsize+8,8)
+    iwrite=int(nemsio_dblekind,8)*int(size(data8),8)
+    call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,data8)
     if(nwrite.lt.iwrite) return
     iret=0
 
@@ -3547,8 +3678,7 @@ contains
     real(nemsio_dblekind),intent(in)              :: data(:)
     integer(nemsio_intkind),optional,intent(out)  :: iret
     integer :: jrec, ierr
-    integer :: iwrite,nwrite
-    integer(nemsio_intkind) :: iskip
+    integer(nemsio_intkind8) :: iskip,iwrite,nwrite
 
     iret=-11
     if(size(data)/=gfile%fieldsize) then
@@ -3558,9 +3688,9 @@ contains
     endif
     call nemsio_searchrecv(gfile,jrec,name,levtyp,lev,ierr)
     if ( ierr .ne. 0) return
-    iskip=gfile%tlmeta+(jrec-1)*(nemsio_dblekind*gfile%fieldsize+8)
-    iwrite=nemsio_dblekind*size(data)
-    call bafrwrite(gfile%flunit,iskip,iwrite,nwrite,data)
+    iskip=gfile%tlmeta+int(jrec-1,8)*int(nemsio_dblekind*gfile%fieldsize+8,8)
+    iwrite=int(nemsio_dblekind,8)*int(size(data),8)
+    call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,data)
     if(nwrite.lt.iwrite) return
     iret=0
 
@@ -3571,7 +3701,7 @@ contains
 !*****************   write out grb data set :  ********************************
 !
 !------------------------------------------------------------------------------
-  subroutine nemsio_writerecw34(gfile,jrec,data,iret,idrt)
+  subroutine nemsio_writerecw34(gfile,jrec,data,iret,idrt,itr,zhour)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: read nemsio data by record number into a 2D 32bits array, 
 !           using w3_4 library to compile
@@ -3582,21 +3712,31 @@ contains
     real(nemsio_realkind),intent(in)            :: data(:)
     integer(nemsio_intkind),optional,intent(out):: iret
     integer(nemsio_intkind),optional,intent(in) :: idrt
+    integer(nemsio_intkind),optional,intent(in) :: itr
+    real(nemsio_realkind),optional,intent(in)   :: zhour
     type(nemsio_grbmeta)         :: grbmeta
     integer(nemsio_intkind)      :: N=nemsio_kpds_intfill
     integer(nemsio_intkind)      :: nc,i
-    integer(nemsio_intkind)      :: ios,w34
+    integer(nemsio_intkind)      :: ios,w34,ibms
 !---
-    real(nemsio_realkind)      :: max,min
+    real(nemsio_realkind)      :: mymax
 !------------------------------------------------------------
 ! set up grib meta 
 !------------------------------------------------------------
     if(present(iret)) iret=-4
     w34=1
+!------------------------------------------------------------
+! set up grib meta lbms
+!------------------------------------------------------------
+    ibms=0
+    if(any(abs(data)>=nemsio_undef_grb)) ibms=1
+!
     if(present(idrt)) then
-      call nemsio_setrqst(gfile,grbmeta,ios,jrec=jrec,w34=w34,idrt=idrt)
+      call nemsio_setrqst(gfile,grbmeta,ios,jrec=jrec,w34=w34, &
+           idrt=idrt,itr=itr,zhour=zhour,ibms=ibms)
     else
-      call nemsio_setrqst(gfile,grbmeta,ios,jrec=jrec,w34=w34)
+      call nemsio_setrqst(gfile,grbmeta,ios,jrec=jrec,w34=w34, &
+           itr=itr,zhour=zhour,ibms=ibms)
     endif
     if (ios.ne.0) then
        if ( present(iret))  then
@@ -3606,15 +3746,21 @@ contains
          call nemsio_stop
        endif
     endif
+!
+    grbmeta%lbms=.true.
+    where(abs(data)>=nemsio_undef_grb) grbmeta%lbms=.false.
+    mymax=minval(data)
+    do i=1,gfile%fieldsize
+     if(abs(data(i))<nemsio_undef_grb) then
+       if(data(i) .gt.mymax) mymax=data(i)
+     endif
+    enddo
+!
 !------------------------------------------------------------
 ! check precision -- for pressure now
 !------------------------------------------------------------
-    max=data(1)
-    do i=1,gfile%dimy*gfile%dimx
-     if(data(i) .gt.max) max=data(i)
-    enddo
     if ( grbmeta%jpds(5).eq.1 .and. grbmeta%jpds(6).eq.109 ) then
-     grbmeta%jpds(22)=min(int(5-log10(max)),2)
+     grbmeta%jpds(22)=min(int(5-log10(mymax)),2)
     endif
 !------------------------------------------------------------
 ! get data from putgb _w34
@@ -3624,7 +3770,7 @@ contains
     deallocate(grbmeta%lbms)
     if(ios.ne.0) then
        if ( present(iret))  then
-          print *,'putgb_ios=',ios
+!          print *,'putgb_ios=',ios
          iret=ios
          return
        else
@@ -3634,7 +3780,7 @@ contains
     if(present(iret)) iret=0
   end subroutine nemsio_writerecw34
 !------------------------------------------------------------------------------
-  subroutine nemsio_writerecgrb4(gfile,jrec,data,iret,idrt)
+  subroutine nemsio_writerecgrb4(gfile,jrec,data,iret,idrt,itr,zhour)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: read nemsio data by record number into a 2D 32bits array, 
 !           using w3_d library to compile
@@ -3645,21 +3791,36 @@ contains
     real(nemsio_realkind),intent(in)            :: data(:)
     integer(nemsio_intkind),optional,intent(out):: iret
     integer(nemsio_intkind),optional,intent(in) :: idrt
+    integer(nemsio_intkind),optional,intent(in) :: itr
+    real(nemsio_realkind),optional,intent(in)   :: zhour
     real(nemsio_dblekind),allocatable        :: data8(:)
     type(nemsio_grbmeta)         :: grbmeta
     integer(nemsio_intkind)      :: N=nemsio_kpds_intfill
-    integer(nemsio_intkind)      :: nc,i
-    integer(nemsio_intkind)      :: ios
-    real(nemsio_intkind)         :: max
+    integer(nemsio_intkind)      :: nc,i,nc1
+    integer(nemsio_intkind)      :: ios,ibms
+    real(nemsio_intkind)         :: mymax
 !------------------------------------------------------------
 ! set up grib meta 
 !------------------------------------------------------------
     if(present(iret)) iret=-4
+!------------------------------------------------------------
+! set up grib meta ibms
+!------------------------------------------------------------
+    ibms=0
+!
     allocate(data8(size(data)) )
+    data8=data
+    if(any(abs(data8)>=nemsio_undef_grb))  ibms=1
+!
+!------------------------------------------------------------
+! set up grib meta data
+!------------------------------------------------------------
     if(present(idrt)) then
-      call nemsio_setrqst(gfile,grbmeta,ios,jrec=jrec,idrt=idrt)
+      call nemsio_setrqst(gfile,grbmeta,ios,jrec=jrec,idrt=idrt, &
+           itr=itr,zhour=zhour,ibms=ibms)
     else
-      call nemsio_setrqst(gfile,grbmeta,ios,jrec=jrec)
+      call nemsio_setrqst(gfile,grbmeta,ios,jrec=jrec, &
+           itr=itr,zhour=zhour,ibms=ibms)
     endif
     if (ios.ne.0) then
        if ( present(iret))  then
@@ -3669,26 +3830,41 @@ contains
          call nemsio_stop
        endif
     endif
+!
+!------------------------------------------------------------
+! set up lbms 
+!------------------------------------------------------------
+    grbmeta%lbms=.true.
+    where(abs(data8)>=nemsio_undef_grb) grbmeta%lbms=.false.
+    mymax=minval(data8)
+    do i=1,gfile%fieldsize
+     if(abs(data8(i))<nemsio_undef_grb) then
+        if(data8(i) .gt.mymax) mymax=data8(i)
+     endif
+    enddo
+!    if(jrec==6.and.ibms==1.and.gfile%nfhour==3)write(85,'(10f12.4)')data8
+!     write(0,*)'in writerecgrb4,max=',mymax,'nc=',nc,'nc1=',nc1,'imb=',ibms, &
+!      'size(data)=',size(data),'size(lbms)=',size(grbmeta%lbms), &
+!      grbmeta%lbms(1:15),data8(1:15)
+!
 !------------------------------------------------------------
 ! check precision -- for pressure now
 !------------------------------------------------------------
-    max=data(1)
-    do i=1,gfile%fieldsize
-     if(data(i) .gt.max) max=data(i)
-    enddo
     if ( grbmeta%jpds(5).eq.1 .and. grbmeta%jpds(6).eq.109 ) then
-     grbmeta%jpds(22)=min(int(5-log10(max)),2)
+     grbmeta%jpds(22)=min(int(5-log10(mymax)),2)
     endif
 !------------------------------------------------------------
 ! get data from putgb _w3d
 !------------------------------------------------------------
-    data8=data
+!    allocate(data8(size(data)) )
+!    data8=data
+!    write(0,*)'in writerecgrb4,before putgb=',grbmeta%lbms(1:15)
     call putgb(gfile%flunit,grbmeta%jf,grbmeta%jpds,grbmeta%jgds, &
       grbmeta%lbms,data8,ios)
     deallocate(grbmeta%lbms)
     if(ios.ne.0) then
        if ( present(iret))  then
-          print *,'putgb_ios=',ios
+!          print *,'putgb_ios=',ios
          iret=ios
          return
        else
@@ -3698,7 +3874,7 @@ contains
     if(present(iret)) iret=0
   end subroutine nemsio_writerecgrb4
 !------------------------------------------------------------------------------
-  subroutine nemsio_writerecgrb8(gfile,jrec,data8,iret,idrt)
+  subroutine nemsio_writerecgrb8(gfile,jrec,data8,iret,idrt,itr,zhour)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: read nemsio data by record number into a 2D 64bits array, 
 !           using w3_d library to compile
@@ -3709,20 +3885,30 @@ contains
     real(nemsio_dblekind),intent(in)            :: data8(:)
     integer(nemsio_intkind),optional,intent(out):: iret
     integer(nemsio_intkind),optional,intent(in) :: idrt
+    integer(nemsio_intkind),optional,intent(in) :: itr
+    real(nemsio_realkind),optional,intent(in)   :: zhour
     type(nemsio_grbmeta)         :: grbmeta
     integer(nemsio_intkind)      :: N=nemsio_kpds_intfill
     integer(nemsio_intkind)      :: nc,i
-    integer(nemsio_intkind)      :: ios
+    integer(nemsio_intkind)      :: ios,ibms
 !---
-    real(nemsio_realkind)      :: max,min
+    real(nemsio_realkind)      :: mymax
 !------------------------------------------------------------
 ! set up grib meta 
 !------------------------------------------------------------
     if(present(iret)) iret=-4
+!------------------------------------------------------------
+! set up grib meta lbms
+!------------------------------------------------------------
+    ibms=0
+    if(any(abs(data8)>=nemsio_undef_grb))  ibms=1
+!
     if(present(idrt)) then
-      call nemsio_setrqst(gfile,grbmeta,ios,jrec=jrec,idrt=idrt)
+      call nemsio_setrqst(gfile,grbmeta,ios,jrec=jrec,idrt=idrt, &
+           itr=itr,zhour=zhour,ibms=ibms)
     else
-      call nemsio_setrqst(gfile,grbmeta,ios,jrec=jrec)
+      call nemsio_setrqst(gfile,grbmeta,ios,jrec=jrec, &
+           itr=itr,zhour=zhour,ibms=ibms)
     endif
     if (ios.ne.0) then
        if ( present(iret))  then
@@ -3732,15 +3918,21 @@ contains
          call nemsio_stop
        endif
     endif
+!
+    grbmeta%lbms=.true.
+    where(abs(data8)>=nemsio_undef_grb) grbmeta%lbms=.false.
+    mymax=minval(data8)
+    do i=1,gfile%fieldsize
+     if(abs(data8(i))<nemsio_undef_grb) then
+        if(data8(i) .gt.mymax) mymax=data8(i)
+     endif
+    enddo
+!
 !------------------------------------------------------------
 ! check precision -- for pressure now
 !------------------------------------------------------------
-    max=data8(1)
-    do i=1,gfile%fieldsize
-     if(data8(i) .gt.max) max=data8(i)
-    enddo
     if ( grbmeta%jpds(5).eq.1 .and. grbmeta%jpds(6).eq.109 ) then
-     grbmeta%jpds(22)=min(int(5-log10(max)),2)
+     grbmeta%jpds(22)=min(int(5-log10(mymax)),2)
     endif
 !------------------------------------------------------------
 ! get data from putgb _w3d
@@ -3750,7 +3942,7 @@ contains
     deallocate(grbmeta%lbms)
     if(ios.ne.0) then
        if ( present(iret))  then
-          print *,'putgb_ios=',ios
+!          print *,'putgb_ios=',ios
          iret=ios
          return
        else
@@ -3760,34 +3952,45 @@ contains
     if(present(iret)) iret=0
   end subroutine nemsio_writerecgrb8
 !------------------------------------------------------------------------------
-  subroutine nemsio_writerecvw34(gfile,vname,vlevtyp,vlev,data,iret,idrt)
+  subroutine nemsio_writerecvw34(gfile,vname,vlevtyp,vlev,data,iret,idrt, &
+             itr,zhour)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: read nemsio data by field name into a 2D 32bits array, 
 !           using w3_4 library to compile
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
     implicit none
     type(nemsio_gfile),intent(in)               :: gfile
-    character*(*),intent(in)                   :: vname,vlevtyp
+    character*(*),intent(in)                    :: vname,vlevtyp
     integer(nemsio_intkind),intent(in)          :: vlev
     real(nemsio_realkind),intent(in)            :: data(:)
     integer(nemsio_intkind),optional,intent(out):: iret
     integer(nemsio_intkind),optional,intent(in) :: idrt
+    integer(nemsio_intkind),optional,intent(in) :: itr
+    real(nemsio_realkind),optional,intent(in)   :: zhour
     type(nemsio_grbmeta)         :: grbmeta
     integer(nemsio_intkind)      :: N=nemsio_kpds_intfill
     integer(nemsio_intkind)      :: nc,i
-    integer(nemsio_intkind)      :: ios,w34
-    real(nemsio_realkind)        :: max
+    integer(nemsio_intkind)      :: ios,w34,ibms
+    real(nemsio_realkind)        :: mymax
 !------------------------------------------------------------
 ! set up grib meta 
 !------------------------------------------------------------
     if(present(iret)) iret=-4
+!------------------------------------------------------------
+! set up grib meta lbms
+!------------------------------------------------------------
+    ibms=0
+    if(any(abs(data)>=nemsio_undef_grb))  ibms=1
+!
     w34=1
     if(present(idrt)) then
       call nemsio_setrqst(gfile,grbmeta,ios,vname=vname, &
-        vlevtyp=vlevtyp, vlev=vlev, w34=w34, idrt=idrt)
+        vlevtyp=vlevtyp, vlev=vlev, w34=w34, idrt=idrt,  &
+        itr=itr,zhour=zhour,ibms=ibms)
     else
       call nemsio_setrqst(gfile,grbmeta,ios,vname=vname, &
-        vlevtyp=vlevtyp, vlev=vlev, w34=w34)
+        vlevtyp=vlevtyp, vlev=vlev, w34=w34,itr=itr,     &
+        zhour=zhour,ibms=ibms)
     endif
     if (ios.ne.0) then
        if ( present(iret))  then
@@ -3797,15 +4000,21 @@ contains
          call nemsio_stop
        endif
     endif
+!
+    grbmeta%lbms=.true.
+    where(abs(data)>=nemsio_undef_grb) grbmeta%lbms=.false.
+    mymax=minval(data)
+    do i=1,gfile%fieldsize
+     if(abs(data(i))<nemsio_undef_grb) then
+        if(data(i) .gt.mymax) mymax=data(i)
+     endif
+    enddo
+!
 !------------------------------------------------------------
 ! check precision -- for pressure now
 !------------------------------------------------------------
-    max=data(1)
-    do i=1,gfile%fieldsize
-     if(data(i) .gt.max) max=data(i)
-    enddo
     if ( grbmeta%jpds(5).eq.1 .and. grbmeta%jpds(6).eq.109 ) then
-     grbmeta%jpds(22)=min(int(5-log10(max)),2)
+     grbmeta%jpds(22)=min(int(5-log10(mymax)),2)
     endif
 !------------------------------------------------------------
 ! get data from putgb _w34
@@ -3815,7 +4024,7 @@ contains
     deallocate(grbmeta%lbms)
     if(ios.ne.0) then
        if ( present(iret))  then
-          print *,'putgb_ios=',ios
+!          print *,'putgb_ios=',ios
          iret=ios
          return
        else
@@ -3825,7 +4034,8 @@ contains
     if(present(iret)) iret=0
   end subroutine nemsio_writerecvw34
 !------------------------------------------------------------------------------
-  subroutine nemsio_writerecvgrb4(gfile,vname,vlevtyp,vlev,data,iret,idrt)
+  subroutine nemsio_writerecvgrb4(gfile,vname,vlevtyp,vlev,data,iret,idrt, &
+             itr,zhour)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: read nemsio data by field name into a 2D 32bits array, 
 !           using w3_d library to compile
@@ -3837,23 +4047,31 @@ contains
     real(nemsio_realkind),intent(in)            :: data(:)
     integer(nemsio_intkind),optional,intent(out):: iret
     integer(nemsio_intkind),optional,intent(in) :: idrt
+    integer(nemsio_intkind),optional,intent(in) :: itr
+    real(nemsio_realkind),optional,intent(in)   :: zhour
     real(nemsio_dblekind),allocatable        :: data8(:)
     type(nemsio_grbmeta)         :: grbmeta
     integer(nemsio_intkind)      :: N=nemsio_kpds_intfill
     integer(nemsio_intkind)      :: nc,i
-    integer(nemsio_intkind)      :: ios
-    real(nemsio_realkind)        :: max
+    integer(nemsio_intkind)      :: ios,ibms
+    real(nemsio_realkind)        :: mymax
 !------------------------------------------------------------
 ! set up grib meta 
 !------------------------------------------------------------
     if(present(iret)) iret=-4
-    allocate(data8(size(data)) )
+!------------------------------------------------------------
+! set up grib meta lbms
+!------------------------------------------------------------
+    ibms=0
+    if(any(abs(data)>=nemsio_undef_grb))  ibms=1
+!
     if(present(idrt)) then
       call nemsio_setrqst(gfile,grbmeta,ios,vname=vname, &
-        vlevtyp=vlevtyp, vlev=vlev, idrt=idrt)
+        vlevtyp=vlevtyp, vlev=vlev, idrt=idrt,itr=itr,   &
+        zhour=zhour,ibms=ibms)
     else
       call nemsio_setrqst(gfile,grbmeta,ios,vname=vname, &
-        vlevtyp=vlevtyp, vlev=vlev)
+        vlevtyp=vlevtyp, vlev=vlev,itr=itr,zhour=zhour,ibms=ibms)
     endif
     if (ios.ne.0) then
        if ( present(iret))  then
@@ -3863,26 +4081,33 @@ contains
          call nemsio_stop
        endif
     endif
+!
+    grbmeta%lbms=.true.
+    where(abs(data)>=nemsio_undef_grb) grbmeta%lbms=.false.
+    mymax=minval(data)
+    do i=1,gfile%fieldsize
+     if(abs(data(i))<nemsio_undef_grb) then
+       if(data(i) .gt.mymax) mymax=data(i)
+     endif
+    enddo
+!
 !------------------------------------------------------------
 ! check precision -- for pressure now
 !------------------------------------------------------------
-    max=data(1)
-    do i=1,gfile%fieldsize
-     if(data(i) .gt.max) max=data(i)
-    enddo
     if ( grbmeta%jpds(5).eq.1 .and. grbmeta%jpds(6).eq.109 ) then
-     grbmeta%jpds(22)=min(int(5-log10(max)),2)
+     grbmeta%jpds(22)=min(int(5-log10(mymax)),2)
     endif
 !------------------------------------------------------------
 ! get data from putgb _w3d
 !------------------------------------------------------------
-    data8=data
+    allocate(data8(size(data)) )
+    daTa8=data
     call putgb(gfile%flunit,grbmeta%jf,grbmeta%jpds,grbmeta%jgds, &
       grbmeta%lbms,data8,ios)
     deallocate(grbmeta%lbms)
     if(ios.ne.0) then
        if ( present(iret))  then
-          print *,'putgb_ios=',ios
+!          print *,'putgb_ios=',ios
          iret=ios
          return
        else
@@ -3892,7 +4117,8 @@ contains
     if(present(iret)) iret=0
   end subroutine nemsio_writerecvgrb4
 !------------------------------------------------------------------------------
-  subroutine nemsio_writerecvgrb8(gfile,vname,vlevtyp,vlev,data8,iret,idrt)
+  subroutine nemsio_writerecvgrb8(gfile,vname,vlevtyp,vlev,data8,iret,idrt,itr, &
+       zhour)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: read nemsio data by field name into a 2D 64bits array, 
 !           using w3_d library to compile
@@ -3904,21 +4130,30 @@ contains
     real(nemsio_dblekind),intent(in)            :: data8(:)
     integer(nemsio_intkind),optional,intent(out):: iret
     integer(nemsio_intkind),optional,intent(in) :: idrt
+    integer(nemsio_intkind),optional,intent(in) :: itr
+    real(nemsio_realkind),optional,intent(in)   :: zhour
     type(nemsio_grbmeta)         :: grbmeta
     integer(nemsio_intkind)      :: N=nemsio_kpds_intfill
     integer(nemsio_intkind)      :: nc,i
-    integer(nemsio_intkind)      :: ios
-    real(nemsio_realkind)        :: max
+    integer(nemsio_intkind)      :: ios,ibms
+    real(nemsio_realkind)        :: mymax
 !------------------------------------------------------------
 ! set up grib meta 
 !------------------------------------------------------------
     if(present(iret)) iret=-4
+!------------------------------------------------------------
+! set up grib meta lbms
+!------------------------------------------------------------
+    ibms=0
+    if(any(abs(data8)>=nemsio_undef_grb))  ibms=1
+!
     if(present(idrt)) then
       call nemsio_setrqst(gfile,grbmeta,ios,vname=vname, &
-        vlevtyp=vlevtyp, vlev=vlev, idrt=idrt)
+        vlevtyp=vlevtyp, vlev=vlev, idrt=idrt,itr=itr,   &
+        zhour=zhour,ibms=ibms)
     else
       call nemsio_setrqst(gfile,grbmeta,ios,vname=vname, &
-        vlevtyp=vlevtyp, vlev=vlev)
+        vlevtyp=vlevtyp, vlev=vlev,itr=itr,zhour=zhour,ibms=ibms)
     endif
     if (ios.ne.0) then
        if ( present(iret))  then
@@ -3928,15 +4163,21 @@ contains
          call nemsio_stop
        endif
     endif
+!
+    grbmeta%lbms=.true.
+    where(abs(data8)>=nemsio_undef_grb) grbmeta%lbms=.false.
+    mymax=minval(data8)
+    do i=1,gfile%fieldsize
+     if(abs(data8(i))<nemsio_undef_grb) then
+        if(data8(i) .gt.mymax) mymax=data8(i)
+     endif
+    enddo
+!
 !------------------------------------------------------------
 ! check precision -- for pressure now
 !------------------------------------------------------------
-    max=data8(1)
-    do i=1,gfile%fieldsize
-     if(data8(i) .gt.max) max=data8(i)
-    enddo
     if ( grbmeta%jpds(5).eq.1 .and. grbmeta%jpds(6).eq.109 ) then
-     grbmeta%jpds(22)=min(int(5-log10(max)),2)
+     grbmeta%jpds(22)=min(int(5-log10(mymax)),2)
     endif
 !------------------------------------------------------------
 ! get data from putgb _w3d
@@ -3946,7 +4187,7 @@ contains
     deallocate(grbmeta%lbms)
     if(ios.ne.0) then
        if ( present(iret))  then
-          print *,'putgb_ios=',ios
+!          print *,'putgb_ios=',ios
          iret=ios
          return
        else
@@ -3956,7 +4197,8 @@ contains
     if(present(iret)) iret=0
   end subroutine nemsio_writerecvgrb8
 !----------------------------------------------------------------------------
-  subroutine nemsio_setrqst(gfile,grbmeta,iret,jrec,vname,vlevtyp,vlev,w34,idrt)
+  subroutine nemsio_setrqst(gfile,grbmeta,iret,jrec,vname,vlevtyp,vlev,w34,idrt, &
+                            itr,zhour,ibms)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: if given record number, find record name, lev typ, and levs or
 !           record name,lev type and lev can be got from argument list.
@@ -3972,9 +4214,12 @@ contains
     integer(nemsio_intkind),intent(out)          :: iret
     integer(nemsio_intkind),optional,intent(in)  :: w34
     integer(nemsio_intkind),optional,intent(in)  :: idrt
+    integer(nemsio_intkind),optional,intent(in)  :: itr
+    real(nemsio_realkind),optional,intent(in)    :: zhour
+    integer(nemsio_intkind),optional,intent(in)  :: ibms
     character(255) :: name,levtyp
-    integer :: icen,igrid,iptv,itl,ibms,iftu,ip2,itr,ina,inm,ios
-    integer :: i,il1,il2,lev,krec,idrt_in
+    integer :: icen,igrid,iptv,itl,jbms,jftu,jp1,jp2,jtr,jna,jnm,ios
+    integer :: i,lev,ktbl,krec,idrt_in
 !------------------------------------------------------------
 ! with record number, find record name, level type and level
 !------------------------------------------------------------
@@ -3994,25 +4239,33 @@ contains
     else 
        return
     endif
+!    write(0,*)'in searchrst,jrec=',jrec,'name=',trim(name),'levtyp=',levtyp,&
+!      'lev=',lev
 !------------------------------------------------------------
 ! find index in grib table according to recname and reclevtyp
 !------------------------------------------------------------
-    call nemsio_grbtbl_search(trim(name),trim(levtyp),krec,ios)
+    call nemsio_grbtbl_search(trim(name),trim(levtyp),ktbl,krec,ios)
     if(ios.ne.0) return
-!*** lev: for sfc
-    if ( gribtable(krec)%leveltype .eq.'sfc' ) then
+!*** lev: for special layer
+!    if ( gribtable(ktbl)%item(krec)%leveltype .eq.'sfc' ) then
+    if ( gribtable(ktbl)%item(krec)%leveltype .ne.'layer' .or. &
+         gribtable(ktbl)%item(krec)%leveltype .ne.'mid layer' ) then
         lev=0
     endif
 !------------------------------------------------------------
 ! for read, just need to set up jpds(05-07)
 !------------------------------------------------------------
 !--- read:set jpds5,6,7
-    if ( gfile%gaction .eq."read".or. gfile%gaction .eq."READ") then
-      grbmeta%jpds(05)=gribtable(krec)%g1param
-      grbmeta%jpds(06)=gribtable(krec)%g1level
+!    if ( lowercase(gfile%gaction)(1:4).eq."read") then
+    if ( equal_str_nocase(trim(gfile%gaction),"read") ) then
+      grbmeta%jpds(05)=gribtable(ktbl)%item(krec)%g1param
+      grbmeta%jpds(06)=gribtable(ktbl)%item(krec)%g1level
       grbmeta%jpds(07)=lev
       if ( grbmeta%jpds(06).eq.110 ) then
         grbmeta%jpds(07)=256*(lev-1)+lev
+      endif
+      if (gribtable(ktbl)%item(krec)%g1lev.ne.0) then
+        grbmeta%jpds(07)=gribtable(ktbl)%item(krec)%g1lev
       endif
     else
 !------------------------------------------------------------
@@ -4024,34 +4277,51 @@ contains
 !*** gfile idrt
         idrt_in=gfile%idrt
       endif
+!*** for itr
+      jftu=1
+      jtr=10
+      jp1=gfile%nfhour
+      jp2=0
+      if(present(itr) ) then
+        jtr=itr
+        if(itr==3.or.itr==2.or.itr==4) then   !avg
+           if(present(zhour)) then
+             jp1=nint(zhour)
+             jp2=gfile%nfhour
+           else
+             print *,'ERROR in nemsio gribfile,itr=',itr,'need to set zhour'
+           endif
+        endif
+      endif 
+      jbms=0
+      if(present(ibms)) jbms=ibms
+!
       icen=7
+!
       if ( present(w34) ) then
         call nemsio_makglgds(gfile,idrt_in,igrid,grbmeta%jgds,ios,w34)
       else
         call nemsio_makglgds(gfile,idrt_in,igrid,grbmeta%jgds,ios)
+!        write(0,*)'after nemsio_makglgds,idrt=',idrt_in,'ios=',ios,'igrid=',igrid, &
+!          'jbms=',jbms
       endif
       if(ios.ne.0) return
-      iptv=2
-      itl=1
-      il1=0
-      il2=0
-      ibms=0
-      iftu=1
-      ip2=0
-      itr=10
-      ina=0
-      inm=0
-      call nemsio_makglpds(gfile,iptv,icen,igrid,ibms,&
-                    iftu,ip2,itr,ina,inm,jrec,krec,lev,grbmeta%jpds,ios)
+      iptv=gribtable(ktbl)%iptv
+!      itl=1
+      jna=0
+      jnm=0
+!        write(0,*)'before nemsio_makglpds,lev=',lev
+      call nemsio_makglpds(gfile,iptv,icen,igrid,jbms,&
+           jftu,jp1,jp2,jtr,jna,jnm,jrec,ktbl,krec,lev,grbmeta%jpds,ios)
+!        write(0,*)'after nemsio_makglpds,jpds=',grbmeta%jpds(1:25),'ios=',ios,  &
+!           'lev=',lev
       if(ios.ne.0) return
     endif
 !------------------------------------------------------------
 ! set up grib meta lbms
 !------------------------------------------------------------
-    grbmeta%jf=gfile%dimy*gfile%dimx
+    grbmeta%jf=gfile%fieldsize
     allocate(grbmeta%lbms(grbmeta%jf))
-! ***** for sig 
-    grbmeta%lbms=.true.
     iret=0 
   end subroutine nemsio_setrqst    
 !------------------------------------------------------------------------------
@@ -4062,8 +4332,8 @@ contains
     implicit none
     type(nemsio_gfile),intent(in)                :: gfile
     integer(nemsio_intkind),intent(in)           :: jrec
-    character*(*),intent(out)                    :: name
-    character*(*),optional,intent(out)           :: levtyp
+    character(*),intent(inout)                   :: name
+    character(*),optional,intent(inout)          :: levtyp
     integer(nemsio_intkind),optional,intent(out) :: lev
     integer(nemsio_intkind),optional,intent(out) :: iret
     integer :: ios
@@ -4118,6 +4388,7 @@ contains
     if(idrt.eq.4.and.gfile%dimx.eq.384.and.gfile%dimy.eq.192) igrid=126
     if(idrt.eq.4.and.gfile%dimx.eq.512.and.gfile%dimy.eq.256) igrid=170
     if(idrt.eq.4.and.gfile%dimx.eq.768.and.gfile%dimy.eq.384) igrid=127
+!    write(0,*)'in nemsio_makdglgds,idrt=',idrt,'dimx=',gfile%dimx,'dimy=',gfile%dimy
     kgds(1)=modulo(idrt,256)
     kgds(2)=gfile%dimx
     kgds(3)=gfile%dimy
@@ -4157,18 +4428,19 @@ contains
     kgds(19)=0
     kgds(20)=255
     kgds(21:)=-1
+!    write(0,*)'in nemsio_makdglgds,kgds=',kgds(1:20)
     iret=0
   end subroutine nemsio_makglgds
 !------------------------------------------------------------------------------
   subroutine nemsio_makglpds(gfile,iptv,icen,igrid,ibms,&
-                    iftu,ip2,itr,ina,inm,jrec,krec,lev,kpds,iret)
+                    iftu,ip1,ip2,itr,ina,inm,jrec,ktbl,krec,lev,kpds,iret)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: set up gps for grib meta
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
     implicit none
     type(nemsio_gfile),intent(in)  :: gfile
-    integer,intent(in):: iptv,icen,igrid,ibms,&
-          iftu,ip2,itr,ina,inm,jrec,krec,lev
+    integer,intent(in):: iptv,icen,igrid,ibms
+    integer,intent(in):: iftu,ip1,ip2,itr,ina,inm,jrec,ktbl,krec,lev
    integer,intent(out):: kpds(200)
    integer(nemsio_intkind),intent(out)  :: iret
    integer :: i,igen,icen2
@@ -4177,17 +4449,32 @@ contains
 !
 !get igen icen2 
     call nemsio_getheadvar(gfile,'igen',igen,iret)
-    if (iret.ne.0 ) return
+    if (iret.ne.0 ) then
+      if(trim(gfile%modelname)=='GFS') igen=82
+    else
+      print *,'ERROR: please specify model generating flag'
+      return
+    endif
     call nemsio_getheadvar(gfile,'icen2',icen2,iret)
-    if (iret.ne.0 ) return
+    if (iret.ne.0 ) then
+      if(trim(gfile%modelname).eq.'GFS') then
+        icen2=0
+      else
+        print *,'ERROR: please specify subcenter id,modelname=',gfile%modelname
+        return
+      endif
+    endif
 !
     kpds(01)=icen
     kpds(02)=igen
     kpds(03)=igrid
     kpds(04)=128+64*ibms
-    kpds(05)=gribtable(krec)%g1param
-    kpds(06)=gribtable(krec)%g1level
+    kpds(05)=gribtable(ktbl)%item(krec)%g1param
+    kpds(06)=gribtable(ktbl)%item(krec)%g1level
     kpds(07)=lev
+    if(gribtable(ktbl)%item(krec)%g1lev/=0)then
+      kpds(07)=gribtable(ktbl)%item(krec)%g1lev
+    endif
 !*** deal with dpres 
     if ( kpds(06).eq.110 ) then
     kpds(07)=256*(lev-1)+lev
@@ -4199,45 +4486,52 @@ contains
     kpds(11)=gfile%idate(4)
     kpds(12)=0
     kpds(13)=iftu
-    kpds(14)=gfile%nfhour
+    kpds(14)=ip1
     kpds(15)=ip2
     kpds(16)=itr
     kpds(17)=ina
     kpds(18)=1
     kpds(19)=iptv
     kpds(20)=inm
-    kpds(21)=(gfile%idate(4)-1)/100+1
-    kpds(22)=gribtable(krec)%precision
+    kpds(21)=(gfile%idate(1)-1)/100+1
+    kpds(22)=gribtable(ktbl)%item(krec)%precision
     kpds(23)=icen2
     kpds(24)=0
     kpds(25)=0
     kpds(26:)=-1
+!    write(0,*)'in nemsio_makdglgds,kpds=',kpds(1:20),'lev=',lev
     iret=0
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   end subroutine nemsio_makglpds
 !------------------------------------------------------------------------------
-  subroutine nemsio_grbtbl_search(vname,vlevtyp,krec,iret)
+  subroutine nemsio_grbtbl_search(vname,vlevtyp,ktbl,krec,iret)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: given record name, levtyp and index number in grib table
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
     implicit none
     character(*),intent(in)   :: vname,vlevtyp
-    integer(nemsio_intkind),intent(out)   :: krec
+    integer(nemsio_intkind),intent(out)   :: ktbl,krec
     integer(nemsio_intkind),intent(out)   :: iret
-    integer  :: i,nlen,nlen1
+    integer  :: i,j,nlen,nlen1
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     iret=-5
     nlen=len(trim(vname))
     nlen1=len(trim(vlevtyp))
+    ktbl=0
     krec=0
-    do i=1,size(gribtable)
-      if(lowercase(vname)(1:nlen).eq.lowercase(gribtable(i)%shortname)(1:nlen) .and. &
-        lowercase(vlevtyp)(1:nlen).eq.lowercase(gribtable(i)%leveltype)(1:nlen) )then
+!    write(0,*)'vname=',vname,'vlevtyp=',vlevtyp,'nlen=',nlen,'nlen1=',nlen1
+    do j=1,size(gribtable)
+    do i=1,size(gribtable(j)%item)
+      if(equal_str_nocase(trim(vname),trim(gribtable(j)%item(i)%shortname)) .and. &
+        equal_str_nocase(trim(vlevtyp),trim(gribtable(j)%item(i)%leveltype)) )then
+        ktbl=j
         krec=i
         iret=0
         exit
       endif
     enddo 
+    enddo 
+!    write(0,*)'in grbtbl_search,krec=',krec,'ktbl=',ktbl
   end subroutine nemsio_grbtbl_search
 !------------------------------------------------------------------------------
   subroutine nemsio_chkgfary(gfile,iret)
@@ -4851,65 +5145,154 @@ contains
     integer(nemsio_intkind),intent(out)  :: iret
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     iret=-7
-    gribtable(1)=nemsio_grbtbl_item('hgt','sfc',1,0,7,1)
-    gribtable(2)=nemsio_grbtbl_item('pres','sfc',0,0,1,1)
-    gribtable(3)=nemsio_grbtbl_item('pres','layer',0,0,1,109)
-    gribtable(4)=nemsio_grbtbl_item('dpres','layer',2,0,1,110)
-    gribtable(5)=nemsio_grbtbl_item('tmp','layer',2,0,11,109)
-    gribtable(6)=nemsio_grbtbl_item('ugrd','layer',2,0,33,109)
-    gribtable(7)=nemsio_grbtbl_item('vgrd','layer',2,0,34,109)
-    gribtable(8)=nemsio_grbtbl_item('spfh','layer',7,0,51,109)
-    gribtable(9)=nemsio_grbtbl_item('o3mr','layer',9,0,154,109)
-    gribtable(10)=nemsio_grbtbl_item('clwmr','layer',7,0,153,109)
-    gribtable(11)=nemsio_grbtbl_item('vvel','layer',9,0,39,109)
-    gribtable(12)=nemsio_grbtbl_item('tmp','sfc',2,0,11,1)
-    gribtable(13)=nemsio_grbtbl_item('smc','slayer',3,0,144,112)
-    gribtable(14)=nemsio_grbtbl_item('weasd','sfc',0,0,65,1)
-    gribtable(15)=nemsio_grbtbl_item('stc','slayer',2,0,11,112)
-    gribtable(16)=nemsio_grbtbl_item('tg3','sfc',2,0,11,111)
-    gribtable(17)=nemsio_grbtbl_item('sfcr','sfc',3,0,83,1)
-    gribtable(18)=nemsio_grbtbl_item('tcdc','convectcldlayer',0,0,71,244)
-    gribtable(19)=nemsio_grbtbl_item('pres','convectcldbot',-1,0,1,242)
-    gribtable(20)=nemsio_grbtbl_item('pres','convectcldtop',-1,0,1,243)
-    gribtable(21)=nemsio_grbtbl_item('alvsf','sfc',3,0,176,1)
-    gribtable(22)=nemsio_grbtbl_item('alvwf','sfc',3,0,177,1)
-    gribtable(23)=nemsio_grbtbl_item('alnsf','sfc',3,0,178,1)
-    gribtable(24)=nemsio_grbtbl_item('alnwf','sfc',3,0,179,1)
-    gribtable(25)=nemsio_grbtbl_item('land','sfc',0,0,81,1)
-    gribtable(26)=nemsio_grbtbl_item('veg','sfc',1,0,87,1)
-    gribtable(27)=nemsio_grbtbl_item('cnwat','sfc',5,0,223,1)
-    gribtable(28)=nemsio_grbtbl_item('f10m','10mabovegnd',5,10,180,105)
-    gribtable(29)=nemsio_grbtbl_item('tmp','2mabovegnd',5,2,11,105)
-    gribtable(30)=nemsio_grbtbl_item('spfh','2mabovegnd',5,2,11,105)
-    gribtable(31)=nemsio_grbtbl_item('vtype','sfc',0,0,225,1)
-    gribtable(32)=nemsio_grbtbl_item('stype','sfc',0,0,224,1)
-    gribtable(33)=nemsio_grbtbl_item('facsf','sfc',3,0,207,1)
-    gribtable(34)=nemsio_grbtbl_item('facsf','sfc',3,0,208,1)
-    gribtable(35)=nemsio_grbtbl_item('uustar','sfc',3,0,253,1)
-    gribtable(36)=nemsio_grbtbl_item('ffmm','sfc',3,0,253,1)   !???
-    gribtable(37)=nemsio_grbtbl_item('ffhh','sfc',3,0,253,1)   !???
-    gribtable(38)=nemsio_grbtbl_item('icetk','sfc',2,0,92,1) 
-    gribtable(39)=nemsio_grbtbl_item('icec','sfc',3,0,91,1) 
-    gribtable(40)=nemsio_grbtbl_item('tisfc','sfc',2,0,171,1) 
-    gribtable(41)=nemsio_grbtbl_item('tprcp','sfc',2,0,171,1)  !tprc ???
-    gribtable(42)=nemsio_grbtbl_item('srflag','sfc',2,0,171,1)  !srflag ???
-    gribtable(43)=nemsio_grbtbl_item('snod','sfc',2,0,66,1)  
-    gribtable(44)=nemsio_grbtbl_item('slc','slayer',3,130,160,112)
-    gribtable(45)=nemsio_grbtbl_item('shdmin','sfc',3,0,189,1)
-    gribtable(46)=nemsio_grbtbl_item('shdmax','sfc',3,0,190,1)
-    gribtable(47)=nemsio_grbtbl_item('sltyp','sfc',3,0,222,1)
-    gribtable(48)=nemsio_grbtbl_item('salbd','sfc',1,0,194,1)
-    gribtable(49)=nemsio_grbtbl_item('orog','sfc',1,0,194,1)   !orog???
+    gribtable(1)%iptv=2
+    gribtable(1)%item(1)=nemsio_grbtbl_item('hgt','sfc',1,0,7,1)
+    gribtable(1)%item(2)=nemsio_grbtbl_item('pres','sfc',0,0,1,1)
+    gribtable(1)%item(3)=nemsio_grbtbl_item('pres','mid layer',0,0,1,109)
+    gribtable(1)%item(4)=nemsio_grbtbl_item('dpres','mid layer',2,0,1,110)
+    gribtable(1)%item(5)=nemsio_grbtbl_item('tmp','mid layer',2,0,11,109)
+    gribtable(1)%item(6)=nemsio_grbtbl_item('ugrd','mid layer',2,0,33,109)
+    gribtable(1)%item(7)=nemsio_grbtbl_item('vgrd','mid layer',2,0,34,109)
+    gribtable(1)%item(8)=nemsio_grbtbl_item('spfh','mid layer',7,0,51,109)
+    gribtable(1)%item(9)=nemsio_grbtbl_item('o3mr','mid layer',9,0,154,109)
+    gribtable(1)%item(10)=nemsio_grbtbl_item('clwmr','mid layer',7,0,153,109)
+!
+    gribtable(1)%item(11)=nemsio_grbtbl_item('vvel','mid layer',9,0,39,109)
+    gribtable(1)%item(12)=nemsio_grbtbl_item('tmp','sfc',3,0,11,1)
+    gribtable(1)%item(13)=nemsio_grbtbl_item('soilw','0-10 cm down',4,10,144,112)
+    gribtable(1)%item(14)=nemsio_grbtbl_item('soilw','10-40 cm down',4,2600,144,112)
+    gribtable(1)%item(15)=nemsio_grbtbl_item('soilw','40-100 cm down',4,10340,144,112)
+    gribtable(1)%item(16)=nemsio_grbtbl_item('soilw','100-200 cm down',4,25800,144,112)
+    gribtable(1)%item(17)=nemsio_grbtbl_item('tmp','0-10 cm down',3,10,11,112)
+    gribtable(1)%item(18)=nemsio_grbtbl_item('tmp','10-40 cm down',3,2600,11,112)
+    gribtable(1)%item(19)=nemsio_grbtbl_item('tmp','40-100 cm down',3,10340,11,112)
+    gribtable(1)%item(20)=nemsio_grbtbl_item('tmp','100-200 cm down',3,25800,11,112)
+!
+    gribtable(1)%item(21)=nemsio_grbtbl_item('weasd','sfc',5,0,65,1)
+    gribtable(1)%item(22)=nemsio_grbtbl_item('tg3','sfc',2,0,11,111)
+    gribtable(1)%item(23)=nemsio_grbtbl_item('sfcr','sfc',4,0,83,1)
+    gribtable(1)%item(24)=nemsio_grbtbl_item('tcdc','high cld lay',0,0,71,234)
+    gribtable(1)%item(25)=nemsio_grbtbl_item('pres','high cld top',-1,0,1,233)
+    gribtable(1)%item(26)=nemsio_grbtbl_item('pres','high cld bot',-1,0,1,232)
+    gribtable(1)%item(27)=nemsio_grbtbl_item('tmp','high cld top',3,0,11,233)
+    gribtable(1)%item(28)=nemsio_grbtbl_item('tcdc','mid cld lay',0,0,71,224)
+    gribtable(1)%item(29)=nemsio_grbtbl_item('pres','mid cld top',-1,0,1,223)
+    gribtable(1)%item(30)=nemsio_grbtbl_item('pres','mid cld bot',-1,0,1,222)
+!
+    gribtable(1)%item(31)=nemsio_grbtbl_item('tmp','mid cld top',3,0,11,223)
+    gribtable(1)%item(32)=nemsio_grbtbl_item('tcdc','low cld lay',0,0,71,214)
+    gribtable(1)%item(33)=nemsio_grbtbl_item('pres','low cld top',-1,0,1,213)
+    gribtable(1)%item(34)=nemsio_grbtbl_item('pres','low cld bot',-1,0,1,212)
+    gribtable(1)%item(35)=nemsio_grbtbl_item('tmp','low cld top',3,0,11,213)
+    gribtable(1)%item(36)=nemsio_grbtbl_item('tcdc','atmos col',0,0,71,200)   !orog???
+    gribtable(1)%item(37)=nemsio_grbtbl_item('tcdc','convect-cld laye',3,0,71,244)   !orog???
+    gribtable(1)%item(38)=nemsio_grbtbl_item('pres','convect-cld bot',-1,0,1,242)
+    gribtable(1)%item(39)=nemsio_grbtbl_item('pres','convect-cld top',-1,0,1,243)
+    gribtable(1)%item(40)=nemsio_grbtbl_item('tcdc','bndary-layer cld',3,0,71,211)   !orog???
+!
+    gribtable(1)%item(41)=nemsio_grbtbl_item('alvsf','sfc',3,0,176,1)
+    gribtable(1)%item(42)=nemsio_grbtbl_item('alvwf','sfc',3,0,177,1)
+    gribtable(1)%item(43)=nemsio_grbtbl_item('alnsf','sfc',3,0,178,1)
+    gribtable(1)%item(44)=nemsio_grbtbl_item('alnwf','sfc',3,0,179,1)
+    gribtable(1)%item(45)=nemsio_grbtbl_item('land','sfc',0,0,81,1)
+    gribtable(1)%item(46)=nemsio_grbtbl_item('veg','sfc',2,0,87,1)
+    gribtable(1)%item(47)=nemsio_grbtbl_item('cnwat','sfc',5,0,223,1)
+    gribtable(1)%item(48)=nemsio_grbtbl_item('f10m','10 m above gnd',5,10,180,105)
+    gribtable(1)%item(49)=nemsio_grbtbl_item('ugrd','10 m above gnd',2,10,33,105)
+    gribtable(1)%item(50)=nemsio_grbtbl_item('vgrd','10 m above gnd',2,10,34,105)
+!
+    gribtable(1)%item(51)=nemsio_grbtbl_item('tmp','2 m above gnd',3,2,11,105)
+    gribtable(1)%item(52)=nemsio_grbtbl_item('spfh','2 m above gnd',6,2,51,105)
+    gribtable(1)%item(53)=nemsio_grbtbl_item('vtype','sfc',1,0,225,1)
+    gribtable(1)%item(54)=nemsio_grbtbl_item('facsf','sfc',3,0,207,1)
+    gribtable(1)%item(55)=nemsio_grbtbl_item('facsf','sfc',3,0,208,1)
+    gribtable(1)%item(56)=nemsio_grbtbl_item('fricv','sfc',3,0,253,1)
+    gribtable(1)%item(57)=nemsio_grbtbl_item('ffmm','sfc',3,0,253,1)   !???
+    gribtable(1)%item(58)=nemsio_grbtbl_item('ffhh','sfc',3,0,253,1)   !???
+    gribtable(1)%item(59)=nemsio_grbtbl_item('icetk','sfc',2,0,92,1) 
+    gribtable(1)%item(60)=nemsio_grbtbl_item('icec','sfc',3,0,91,1) 
+!
+    gribtable(1)%item(61)=nemsio_grbtbl_item('tisfc','sfc',2,0,171,1) 
+    gribtable(1)%item(62)=nemsio_grbtbl_item('tprcp','sfc',2,0,171,1)  !tprc ???
+    gribtable(1)%item(63)=nemsio_grbtbl_item('crain','sfc',0,0,140,1)  !srflag ???
+    gribtable(1)%item(64)=nemsio_grbtbl_item('snod','sfc',6,0,66,1)  
+    gribtable(1)%item(65)=nemsio_grbtbl_item('slc','soil layer',3,130,160,112)
+    gribtable(1)%item(66)=nemsio_grbtbl_item('shdmin','sfc',3,0,189,1)
+    gribtable(1)%item(67)=nemsio_grbtbl_item('shdmax','sfc',3,0,190,1)
+    gribtable(1)%item(68)=nemsio_grbtbl_item('sotyp','sfc',1,0,224,1)
+    gribtable(1)%item(69)=nemsio_grbtbl_item('salbd','sfc',1,0,194,1)
+!jw    gribtable(1)%item(49)=nemsio_grbtbl_item('orog','sfc',1,0,194,1)   !orog???
+!flx
+    gribtable(1)%item(70)=nemsio_grbtbl_item('uflx','sfc',3,0,124,1)   
+!
+    gribtable(1)%item(71)=nemsio_grbtbl_item('vflx','sfc',3,0,125,1)   
+    gribtable(1)%item(72)=nemsio_grbtbl_item('shtfl','sfc',0,0,122,1)   
+    gribtable(1)%item(73)=nemsio_grbtbl_item('lhtfl','sfc',0,0,121,1)   
+    gribtable(1)%item(74)=nemsio_grbtbl_item('dlwrf','sfc',0,0,205,1)   
+    gribtable(1)%item(75)=nemsio_grbtbl_item('ulwrf','sfc',0,0,212,1)   
+    gribtable(1)%item(76)=nemsio_grbtbl_item('ulwrf','nom. top',0,0,212,8)   
+    gribtable(1)%item(77)=nemsio_grbtbl_item('uswrf','nom. top',0,0,211,8)  
+    gribtable(1)%item(78)=nemsio_grbtbl_item('uswrf','sfc',0,0,211,1)  
+    gribtable(1)%item(79)=nemsio_grbtbl_item('dswrf','sfc',0,0,204,1)   
+    gribtable(1)%item(80)=nemsio_grbtbl_item('prate','sfc',6,0,59,1)   
 
-    gribtable(50)=nemsio_grbtbl_item('nlat','sfc',2,0,176,1)
-    gribtable(51)=nemsio_grbtbl_item('elon','sfc',2,0,177,1)
-    gribtable(52)=nemsio_grbtbl_item('nlonb','sfc',2,0,177,1)   !vlat ???
-    gribtable(53)=nemsio_grbtbl_item('elonb','sfc',2,0,177,1)   !vlon ???
-    gribtable(54)=nemsio_grbtbl_item('wtend','sfc',6,0,236,1)   !wtend precision
-    gribtable(55)=nemsio_grbtbl_item('omgalf','sfc',6,0,154,1)   !wtend precision
-    gribtable(56)=nemsio_grbtbl_item('omgalf','sfc',6,0,154,1)   !wtend precision
-
-
+    gribtable(1)%item(81)=nemsio_grbtbl_item('soilm','0-200 cm down',4,200,86,112)   
+    gribtable(1)%item(82)=nemsio_grbtbl_item('vgtyp','sfc',1,0,225,1)   
+    gribtable(1)%item(83)=nemsio_grbtbl_item('cprat','sfc',6,0,214,1)   
+    gribtable(1)%item(84)=nemsio_grbtbl_item('gflux','sfc',0,0,155,1)  
+    gribtable(1)%item(85)=nemsio_grbtbl_item('tmax','2 m above gnd',1,2,15,105)   
+    gribtable(1)%item(86)=nemsio_grbtbl_item('tmin','2 m above gnd',1,2,16,105)  
+    gribtable(1)%item(87)=nemsio_grbtbl_item('watr','sfc',5,0,90,1)   
+    gribtable(1)%item(88)=nemsio_grbtbl_item('pevpr','sfc',0,0,145,1)   
+    gribtable(1)%item(89)=nemsio_grbtbl_item('cwork','atmos col',0,0,146,200)   
+    gribtable(1)%item(90)=nemsio_grbtbl_item('u-gwd','sfc',3,0,147,1)   
+!
+    gribtable(1)%item(91)=nemsio_grbtbl_item('v-gwd','sfc',3,0,148,1)  
+    gribtable(1)%item(92)=nemsio_grbtbl_item('hpbl','sfc',0,0,221,1)  
+    gribtable(1)%item(93)=nemsio_grbtbl_item('pwat','atmos col',1,0,54,200)   
+    gribtable(1)%item(94)=nemsio_grbtbl_item('albdo','sfc',1,0,84,1)   
+    gribtable(1)%item(95)=nemsio_grbtbl_item('cnwat','sfc',5,0,223,1)   
+    gribtable(1)%item(96)=nemsio_grbtbl_item('sfexc','sfc',4,0,208,1)   
+    gribtable(1)%item(97)=nemsio_grbtbl_item('pevpr','sfc',0,0,145,1)  
+    gribtable(1)%item(98)=nemsio_grbtbl_item('dlwrf','sfc',0,0,205,1)   
+    gribtable(1)%item(99)=nemsio_grbtbl_item('ulwrf','sfc',0,0,212,1)   
+    gribtable(1)%item(100)=nemsio_grbtbl_item('uswrf','sfc',0,0,211,1)  
+!
+    gribtable(1)%item(101)=nemsio_grbtbl_item('dswrf','sfc',0,0,204,1)   
+    gribtable(1)%item(102)=nemsio_grbtbl_item('ssrun','sfc',5,0,235,1)   
+    gribtable(1)%item(103)=nemsio_grbtbl_item('tmp','hybrid lev 1',3,1,11,109)   
+    gribtable(1)%item(104)=nemsio_grbtbl_item('spfh','hybrid lev 1',6,1,51,109)   
+    gribtable(1)%item(105)=nemsio_grbtbl_item('ugrd','hybrid lev 1',2,1,33,109)  
+    gribtable(1)%item(106)=nemsio_grbtbl_item('vgrd','hybrid lev 1',2,1,34,109)  
+    gribtable(1)%item(107)=nemsio_grbtbl_item('hgt','hybrid lev 1',2,1,7,109)   
+    gribtable(1)%item(108)=nemsio_grbtbl_item('evbs','sfc',0,0,199,1)   
+    gribtable(1)%item(109)=nemsio_grbtbl_item('evcw','sfc',0,0,200,1)   
+    gribtable(1)%item(110)=nemsio_grbtbl_item('trans','sfc',0,0,210,1)   
+    gribtable(1)%item(111)=nemsio_grbtbl_item('snowc','sfc',3,0,238,1)   
+!    
+!    gribtable(1)%item(50)=nemsio_grbtbl_item('nlat','sfc',2,0,176,1)
+!    gribtable(1)%item(51)=nemsio_grbtbl_item('elon','sfc',2,0,177,1)
+!    gribtable(1)%item(52)=nemsio_grbtbl_item('nlonb','sfc',2,0,177,1)   !vlat ???
+!    gribtable(1)%item(53)=nemsio_grbtbl_item('elonb','sfc',2,0,177,1)   !vlon ???
+!    gribtable(1)%item(54)=nemsio_grbtbl_item('wtend','sfc',6,0,236,1)   !wtend precision
+!    gribtable(1)%item(55)=nemsio_grbtbl_item('omgalf','sfc',6,0,154,1)   !wtend precision
+!    gribtable(1)%item(56)=nemsio_grbtbl_item('omgalf','sfc',6,0,154,1)   !wtend precision
+!
+!*** table 129
+    gribtable(2)%iptv=129
+    gribtable(2)%item(1)=nemsio_grbtbl_item('duvb','sfc',2,0,200,1)   
+    gribtable(2)%item(2)=nemsio_grbtbl_item('cduvb','sfc',2,0,201,1)   
+!
+!*** table 130
+    gribtable(3)%iptv=130
+    gribtable(3)%item(1)=nemsio_grbtbl_item('sltyp','sfc',0,0,222,1)
+    gribtable(3)%item(2)=nemsio_grbtbl_item('sbsno','sfc',0,0,198,1)   
+    gribtable(3)%item(3)=nemsio_grbtbl_item('soill','0-10 cm down',4,10,160,112)
+    gribtable(3)%item(4)=nemsio_grbtbl_item('soill','10-40 cm down',4,2600,160,112)
+    gribtable(3)%item(5)=nemsio_grbtbl_item('soill','40-100 cm down',4,10340,160,112)
+    gribtable(3)%item(6)=nemsio_grbtbl_item('soill','100-200 cm down',4,25800,160,112)
+    gribtable(3)%item(7)=nemsio_grbtbl_item('acond','sfc',4,0,179,1)   
+!
     iret=0
   end subroutine nemsio_setgrbtbl
 !------------------------------------------------------------------------------
@@ -4920,8 +5303,8 @@ contains
     implicit none
     type(nemsio_gfile),intent(inout)     :: gfile
     integer(nemsio_intkind),intent(out)  :: iret
-    character(nemsio_charkind),optional,intent(in)  :: recname(:)
-    character(nemsio_charkind*2),optional,intent(in):: reclevtyp(:)
+    character(*),optional,intent(in)  :: recname(:)
+    character(*),optional,intent(in)  :: reclevtyp(:)
     integer(nemsio_intkind),optional,intent(in)     :: reclev(:)
     integer  :: i,j,rec,rec3dopt
     real(nemsio_dblekind),allocatable :: slat(:),wlat(:)
@@ -4947,7 +5330,7 @@ contains
     gfile%nmetaaryr=0
     gfile%nmetaaryl=0
     gfile%nmetaaryc=0
-!    print *,'in gfinit, modelname=',gfile%modelname
+    write(0,*)'in gfinit, modelname=',gfile%modelname
 
     if ( gfile%modelname .eq. 'GFS') then
       if(gfile%dimy.eq.nemsio_intfill) gfile%dimy=576
@@ -4961,10 +5344,11 @@ contains
       gfile%idvm=0
       gfile%idrt=4
       linit=gfile%dimy==576.and.gfile%dimx==1152.and.gfile%dimz==64
+      gfile%extrameta=.True.
+      gfile%nmetavari=5
       if(linit) then
         gfile%jcap=382
         gfile%idvc=2
-        gfile%extrameta=.True.
         gfile%nmetavari=15
         gfile%nmetavarr=1
         gfile%nmetaaryi=1
@@ -5027,13 +5411,11 @@ contains
 !      size(gfile%variname), size(gfile%varrname),size(gfile%varlname),size(gfile%aryrname),&
 !      gfile%nmetavari,gfile%nmetavarr,gfile%nmetavarl,gfile%nmetaaryr,gfile%nmetaaryi
 !
-    gfile%dx = 0.
-    gfile%dy = 0.
-    gfile%Cpi=1003.
-    gfile%Ri=287.
 !
-    if ( gfile%modelname .eq. 'GFS' .and. linit) then
-      if (iret .ne.0) return
+    if ( gfile%modelname .eq. 'GFS' ) then
+      gfile%variname=(/'itrun  ','iorder ','irealf ','igen   ','icen2  '/ )
+      gfile%varival=(/1,2,1,82,0/)
+      if(linit) then
       gfile%variname=(/'itrun  ','iorder ','irealf ','igen   ','latf   ','lonf   ','latr   ','lonr   ', &
                       'icen2  ','idpp   ','idvt   ','idrun  ','idusr  ','ixgr   ','nvcoord'/)
       gfile%varival=(/1,2,1,82,576,1152,576,1152,0,21,0,0,0,0,2/)
@@ -5109,7 +5491,7 @@ contains
      gfile%reclevtyp(rec+7*gfile%dimz+2:rec+8*gfile%dimz+1)='mid layer'
      gfile%reclevtyp(rec+8*gfile%dimz+2:rec+9*gfile%dimz+1)='mid layer'
      rec=rec+9*gfile%dimz+36
-     gfile%reclevtyp(rec+1:rec+3*gfile%nsoil)='slayer'
+     gfile%reclevtyp(rec+1:rec+3*gfile%nsoil)='soil layer'
      endif
 !
      if(size(gfile%reclev).eq.2+9*gfile%dimz+35+3*gfile%nsoil) then
@@ -5129,6 +5511,8 @@ contains
      endif
 !
      endif
+    endif 
+!
 !lat:
      allocate(slat(gfile%dimy),wlat(gfile%dimy))
      call splat(gfile%idrt,gfile%dimy,slat,wlat)
@@ -5144,6 +5528,10 @@ contains
      do j=2,gfile%dimy
        gfile%lon((j-1)*gfile%dimx+1:j*gfile%dimx) = gfile%lon(1:gfile%dimx)
      enddo
+!     write(0,*)'in gfinit, lat=',maxval(gfile%lat(1:gfile%fieldsize)),  &
+!       minval(gfile%lat(1:gfile%fieldsize)),'lon=',&
+!       maxval(gfile%lon(1:gfile%fieldsize)), &
+!       minval(gfile%lon(1:gfile%fieldsize))
    else if ( gfile%modelname .eq. "NMMB" .and. linit) then
       gfile%variname=(/'mp_phys ','sfsfcphy','nphs    ','nclod   ', &
         'nheat   ','nprec   ','nrdlw   ','nrdsw   ','nsrfc   ' /)
@@ -5510,12 +5898,12 @@ contains
       gfile%recname(rec+8)='zorl'
       gfile%recname(rec+9)='stc'
       gfile%recname(rec+10)='smc'
-      gfile%reclevtyp(rec+9:rec+10)='slayer'
+      gfile%reclevtyp(rec+9:rec+10)='soil layer'
      endif
 !
     endif
    endif
-!   print *,' end of gfinit'
+!jw   print *,' end of gfinit'
 !
    iret=0
   end subroutine nemsio_gfinit
@@ -5862,6 +6250,42 @@ contains
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      end subroutine nemsio_splat8
 !------------------------------------------------------------------------------
+!
+     elemental function equal_str_nocase(str1,str2)
+!
+!-----------------------------------------------------------------------
+!
+! convert a word to lower case
+!
+      logical              :: equal_str_nocase
+      Character (len=*) , intent(in) :: str1
+      Character (len=*) , intent(in) :: str2
+      integer :: i,ic1,ic2,nlen
+      nlen = len(str2)
+!
+      if(len(str1)/=nlen)  then
+        equal_str_nocase=.false.
+        return
+      endif
+      equal_str_nocase=.false.
+      do i=1,nlen
+        ic1 = ichar(str1(i:i))
+        if (ic1 >= 65 .and. ic1 < 91) ic1 = ic1+32
+        ic2 = ichar(str2(i:i))
+        if (ic2 >= 65 .and. ic2 < 91) ic2 = ic2+32
+        if(ic1/=ic2) then
+           equal_str_nocase=.false.
+           return
+        endif
+      end do
+      equal_str_nocase=.true.
+!
+!k
+!-----------------------------------------------------------------------
+!
+      end function equal_str_nocase
+!
+!-----------------------------------------------------------------------
 ! 
      elemental function lowercase(word)
 !
@@ -5869,16 +6293,19 @@ contains
 !
 ! convert a word to lower case
 !
-      Character (len=16)              :: lowercase
+      Character (len=32)              :: lowercase
       Character (len=*) , intent(in) :: word
       integer :: i,ic,nlen
       nlen = len(word)
+      if(nlen >32) then
+        nlen=32
+      endif
       lowercase(1:nlen)=word(1:nlen)
       do i=1,nlen
         ic = ichar(word(i:i))
         if (ic >= 65 .and. ic < 91) lowercase(i:i) = char(ic+32)
       end do
-      if(nlen<16) lowercase(nlen+1:)=' '
+      if(nlen<32) lowercase(nlen+1:)=' '
 !
 !-----------------------------------------------------------------------
 !

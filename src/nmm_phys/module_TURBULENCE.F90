@@ -186,7 +186,7 @@
                       ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG                    &
                       ,FIS,Z0,Z0BASE,USTAR,PBLH,LPBL,XLEN_MIX,RMOL      &
                       ,EXCH_H,AKHS,AKMS,AKHS_OUT,AKMS_OUT               &
-                      ,THZ0,QZ0,UZ0,VZ0,QS,MAVAIL                       &
+                      ,THZ0,QZ0,UZ0,VZ0,UZ0H,VZ0H,QS,MAVAIL             &
                       ,STC,SMC,CMC,SMSTAV,SMSTOT,SSROFF,BGROFF          &
                       ,IVGTYP,ISLTYP,VEGFRC,SHDMIN,SHDMAX,GRNFLX        &
                       ,SFCEXC,ACSNOW,ACSNOM,SNOPCX,SICE,TG,SOILTB       &
@@ -318,7 +318,7 @@
                                                     ,ASWOUT,ASWTOA      &
                                                     ,PSHLTR,Q10,QSHLTR  &
                                                     ,TH10,TSHLTR        &
-                                                    ,U10,V10
+                                                    ,U10,UZ0H,V10,VZ0H
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: CWM         &
                                                            ,EXCH_H      &
@@ -347,9 +347,9 @@
 !  For precip assimilation:
 !
       LOGICAL,INTENT(IN) :: GWDFLG,PCPFLG
+      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: DDATA
       LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: DDATA
 !
 !-----------------------------------------------------------------------
 !***
@@ -526,6 +526,8 @@
 !
       DO J=JMS,JME
       DO I=IMS,IME
+        UZ0H(I,J)=0.
+        VZ0H(I,J)=0.
         ONE(I,J)=1.
         RMOL(I,J)=0.     !Reciprocal of Monin-Obukhov length
         SFCEVPX(I,J)=0.  !Dummy for accumulated latent energy, not flux
@@ -662,7 +664,7 @@
         SFCZ(I,J)=FIS(I,J)*G_INV
 !YL
 !       RAIN(I,J)=PREC(I,J)*RHOWATER
-        IF(PCPFLG.AND.DDATA(I,J)<100.)THEN
+        IF(PCPFLG.AND.DDATA(I,J).LT.100.)THEN
           RAIN(I,J)=DDATA(I,J)*RHOWATER
         ELSE
           RAIN(I,J)=PREC(I,J)*RHOWATER
@@ -678,11 +680,11 @@
 !*** modify z0 if snow on the ground
 !-----------------------------------------------------------------------
 !
-        if(snow(i,j).gt.0.) then  !zj
-          z0(i,j)=0.0013          !zj
-        else                      !zj
-          z0(i,j)=z0base(i,j)     !zj
-        endif                     !zj
+!        if(snow(i,j).gt.0.) then  !zj
+!          z0(i,j)=0.0013          !zj
+!        else                      !zj
+!          z0(i,j)=z0base(i,j)     !zj
+!        endif                     !zj
 !
 !-----------------------------------------------------------------------
 !*** LONG AND SHORTWAVE FLUX AT GROUND SURFACE
@@ -794,6 +796,12 @@
 !$omp& private(j,i,k,kflip)
 !.......................................................................
       DO J=JTS_B1,JTE_B1
+        DO I=ITS_B1,ITE_B1
+          UZ0H(I,J)=(UZ0(I,J  )+UZ0(I-1,J  )                            &
+                    +UZ0(I,J-1)+UZ0(I-1,J-1))*0.25
+          VZ0H(I,J)=(VZ0(I,J  )+VZ0(I-1,J  )                            &
+                    +VZ0(I,J-1)+VZ0(I-1,J-1))*0.25
+        ENDDO
         DO K=1,LM
           KFLIP=LM+1-K
           DO I=ITS_B1,ITE_B1
@@ -916,9 +924,9 @@
                 ,SST=SST,SST_UPDATE=SST_UPDATE                          &
                 ,TH10=TH10,TH2=TH2X,T2=T2,THZ0=THZ0,TH_PHY=TH_PHY       &
                 ,TMN=TG,TSHLTR=TSHLTR,TSK=TSFC,TSLB=STC_PHY,T_PHY=T_PHY &
-                ,U10=U10,UDRUNOFF=BGROFF,UST=USTAR,UZ0=UZ0              &
+                ,U10=U10,UDRUNOFF=BGROFF,UST=USTAR,UZ0=UZ0H             &
                 ,U_FRAME=U_FRAME,U_PHY=U_PHY,V10=V10,VEGFRA=VGFRCK      &
-                ,VZ0=VZ0,V_FRAME=V_FRAME,V_PHY=V_PHY                    &
+                ,VZ0=VZ0H,V_FRAME=V_FRAME,V_PHY=V_PHY                   &
                 ,WARM_RAIN=WARM_RAIN,WSPD=WSPD,XICE=SICE                &
                 ,XLAND=XLAND,Z=Z,ZNT=Z0,ZS=SLDPTH,CT=CT,TKE_MYJ=TKE     &
                 ,ALBBCK=ALBASE,LH=ELFLX,SH2O=SH2O_PHY,SHDMAX=SHDMAX     &
@@ -928,7 +936,6 @@
                 ,SF_SURFACE_PHYSICS=SURFACE_PHYSICS                     &
                 ,RA_LW_PHYSICS=LW_PHYSICS                               &
                 ,UCMCALL=UCMCALL                                        &
-                ,PCPFLG=PCPFLG                                          &
                 ,IDS=IDS,IDE=IDE,JDS=JDS,JDE=JDE,KDS=1,KDE=LM+1         &
                 ,IMS=IMS,IME=IME,JMS=JMS,JME=JME,KMS=1,KME=LM+1         &
                 ,I_START=I_START,I_END=I_END                            &
@@ -1002,7 +1009,7 @@
                      ,P_PHY=P_PHY,PI_PHY=PI_PHY,P8W=P8W,T_PHY=T_PHY   &
                      ,DZ8W=DZ,Z=Z,TKE_MYJ=TKE,EL_MYJ=EL_MYJ           &
                      ,EXCH_H=EXCH_H_PHY,AKHS=AKHS,AKMS=AKMS           &
-                     ,THZ0=THZ0,QZ0=QZ0,UZ0=UZ0,VZ0=VZ0               &
+                     ,THZ0=THZ0,QZ0=QZ0,UZ0=UZ0H,VZ0=VZ0H             &
                      ,QSFC=QS,LOWLYR=LOWLYR                           &
                      ,PSIM=PSIM,PSIH=PSIH,GZ1OZ0=GZ1OZ0               &
                      ,WSPD=WSPD,BR=BR,CHKLOWQ=CHKLOWQ                 &
@@ -1359,6 +1366,20 @@
       ENDDO
 !.......................................................................
 !$omp end parallel do
+!.......................................................................
+!.......................................................................
+!!$omp parallel do private(j,k,i)
+!.......................................................................
+!
+!      DO J=JMS,JME
+!      DO K=1,LM+1
+!      DO I=IMS,IME
+!        EXCH_H(I,J,K)=EXCH_H_PHY(I,K,J)
+!      ENDDO
+!      ENDDO
+!      ENDDO
+!.......................................................................
+!!$omp end parallel do
 !.......................................................................
 !
 !-----------------------------------------------------------------------

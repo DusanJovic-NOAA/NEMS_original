@@ -89,9 +89,9 @@
       TYPE(ESMF_TimeInterval),INTENT(INOUT)  :: HALFDFIINTVAL
       TYPE(ESMF_TimeInterval),INTENT(INOUT)  :: TIMESTEP
       TYPE(ESMF_Time)                        :: SDFITIME
-      TYPE(ESMF_Time)          :: HALFDFITIME
-      TYPE(ESMF_Time)          :: DFITIME
-      INTEGER(KIND=KINT)      :: NDFISTEP,FILTER_METHOD
+      TYPE(ESMF_Time)                        :: HALFDFITIME
+      TYPE(ESMF_Time)                        :: DFITIME
+      INTEGER(KIND=KINT)                     :: NDFISTEP,FILTER_METHOD
 !
 !
 !
@@ -304,7 +304,6 @@
 !
       IF (FILTER_METHOD .EQ. 1) THEN
 
-!        CURRTIME=CURRTIME-HALFDFIINTVAL
         CURRTIME=HALFDFITIME-TIMESTEP
         NTIMESTEP=NTIMESTEP-(HALFDFIINTVAL/TIMESTEP)-1
         NTIMESTEP_ESMF=NTIMESTEP

@@ -51,8 +51,8 @@
                                   ,CURRTIME                             &
 				  ,STARTTIME                            &
 				  ,HALFDFIINTVAL                        &
-                                  ,TIMESTEP                             &
                                   ,FILTER_METHOD                        &
+                                  ,TIMESTEP                             &
 				  ,MYPE                                 &
 				  ,NUM_TRACERS_MET                      &
 				  ,NUM_TRACERS_CHEM                     &
@@ -68,7 +68,6 @@
       USE MODULE_DIGITAL_FILTER_NMM
       USE MODULE_ATM_INTERNAL_STATE
       USE MODULE_CONTROL,ONLY: TIMEF
-      USE MODULE_WRITE_ROUTINES,ONLY: WRITE_ASYNC                         !<-- These are routines used only when asynchronous
 !
 !-----------------------------------------------------------------------
 !
@@ -87,8 +86,8 @@
 !
       TYPE(ESMF_Time),INTENT(INOUT)          :: CURRTIME                  !<-- The current forecast time
       TYPE(ESMF_Time),INTENT(INOUT)          :: STARTTIME
-      TYPE(ESMF_Time)          :: DFITIME
-      TYPE(ESMF_Time)          :: HALFDFITIME
+      TYPE(ESMF_Time)                        :: DFITIME
+      TYPE(ESMF_Time)                        :: HALFDFITIME
       TYPE(ESMF_TimeInterval),INTENT(INOUT)  :: HALFDFIINTVAL
       TYPE(ESMF_TimeInterval),INTENT(INOUT)  :: TIMESTEP
       INTEGER(KIND=KINT),INTENT(INOUT)       :: FILTER_METHOD
@@ -290,9 +289,6 @@
           ENDIF
         ENDIF
 !
-!
-!        IF( CURRTIME .NE. DFITIME) THEN
-!-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Advance the Timestep"
