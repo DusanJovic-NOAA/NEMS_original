@@ -135,10 +135,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_LOOP)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ESMF_ClockGet(clock   =CLOCK_ATM                           &
-                          ,stoptime=STOPTIME                            &
-                          ,rc      =RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
        MESSAGE_CHECK="ADUSTING ALARM RINGS"
        CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -157,9 +153,6 @@
        ALARM_RESTART_RING=STARTTIME+TIMEINTERVAL_RESTART
        ALARM_CLOCKTIME_RING=STARTTIME+TIMEINTERVAL_CLOCKTIME
        ENDIF
-
-
-
 
        call ESMF_TimeGet(ALARM_HISTORY_RING, yy=YY, mm=MM, dd=DD, h=H, m=M, s=S, rc=RC) 
         IF (M .ne. 0) THEN
