@@ -1,18 +1,17 @@
 #!/bin/ksh
 #
 # @ job_name = prep_atmos
-# @ job_type = parallel
+# @ job_type = serial
 # @ account_no = GFS-T2O
-# @ output = ../exp/gfs/out_prep
-# @ error = ../exp/gfs/err_prep 
-# @ resources = ConsumableMemory(4000MB) ConsumableCpus(1)
-# @ node_usage = not_shared
-# @ tasks_per_node = 1
-# @ node = 1
-# @ network.MPI=csss,shared,us
-# @ bulkxfer = yes
-# @ class = debug
-# @ group = dev
+# @ output = out_prep
+# @ error = err_prep 
+# @ resources = ConsumableMemory(3000MB) ConsumableCpus(1)
+## @ node_usage = shared
+## @ tasks_per_node = 1
+## @ node = 1
+## @ network.MPI=csss,shared,us
+# @ class = dev
+# @ group = all
 # @ wall_clock_limit = 00:10:00
 # @ queue
 #
@@ -70,7 +69,7 @@ export MALLOCMULTIHEAP=true
  export TOPDIR=/global/save
  export DUMPDIR=/meso/noscrub/wx22ec
  export MP_COREFILE_FORMAT=lite 
- export RUNDIR=/ptmp/${USER}/test
+ export RUNDIR=/ptmp/${USER}/gfs_test
  export SCRIPTS=/global/save/wx23sm/gsm/scripts
 
  export cold_sfc=NO
