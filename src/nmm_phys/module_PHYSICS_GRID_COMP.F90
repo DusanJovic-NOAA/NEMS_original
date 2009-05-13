@@ -1016,7 +1016,6 @@
                   ,int_state%AKHS_OUT,int_state%AKMS_OUT               &
                   ,int_state%THZ0,int_state%QZ0                        &
                   ,int_state%UZ0,int_state%VZ0                         &
-                  ,int_state%UZ0H,int_state%VZ0H                       &
                   ,int_state%QSH,int_state%MAVAIL                      &
                   ,int_state%STC,int_state%SMC,int_state%CMC           &
                   ,int_state%SMSTAV,int_state%SMSTOT                   &
@@ -1068,20 +1067,16 @@
 !-----------------------------------------------------------------------
 !
         btim=timef()
-        CALL HALO_EXCH(int_state%UZ0H,1,int_state%VZ0H,1,1,1)
         CALL HALO_EXCH(int_state%DUDT,LM,int_state%DVDT,LM,1,1)
 !
         exch_phy_tim=exch_phy_tim+timef()-btim
 !
 !-----------------------------------------------------------------------
-!***  NOW INTERPOLATE WIND TENDENCIES
-!***  FROM H TO V POINTS.
+!***  NOW INTERPOLATE WIND TENDENCIES FROM H TO V POINTS.
 !-----------------------------------------------------------------------
 !
         btim=timef()
 !
-        CALL H_TO_V(int_state%UZ0H,int_state%UZ0)
-        CALL H_TO_V(int_state%VZ0H,int_state%VZ0)
         CALL H_TO_V_TEND(int_state%DUDT,int_state%DT,int_state%NPHS,LM  &
                         ,int_state%U)
         CALL H_TO_V_TEND(int_state%DVDT,int_state%DT,int_state%NPHS,LM  &

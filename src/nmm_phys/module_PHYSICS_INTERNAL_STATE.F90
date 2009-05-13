@@ -167,7 +167,7 @@
 !zj                                                 ,SST,THS,THZ0,USTAR    &
                                                  ,SST,STDH              & !zj
                                                  ,THS,THZ0,USTAR        & !zj
-                                                 ,UZ0,UZ0H,VZ0,VZ0H     &
+                                                 ,UZ0,VZ0               &
                                                  ,Z0,Z0BASE
 !
         REAL(KIND=KFPT),DIMENSION(:,:),POINTER :: ALBASE,ALBEDO         &
@@ -540,7 +540,7 @@
       ENDDO
       ENDDO
   
-      DO L=1,3
+      DO L=1,int_state%PCPHR
       DO J=JMS,JME
       DO I=IMS,IME
         int_state%PPTDAT(I,J,L)=-1.E6
@@ -641,11 +641,9 @@
       ALLOCATE(int_state%TSNAV(IMS:IME,JMS:JME))    ! Average snow temperature  (K)
       ALLOCATE(int_state%TWBS(IMS:IME,JMS:JME))     ! Instantaneous sensible heat flux (W m-2)
       ALLOCATE(int_state%USTAR(IMS:IME,JMS:JME))    ! Friction velocity  (m s-1)
-      ALLOCATE(int_state%UZ0(IMS:IME,JMS:JME))      ! U component at top of viscous sublayer  (m s-1)
-      ALLOCATE(int_state%UZ0H(IMS:IME,JMS:JME))     ! UZ0 on mass points  (m s-1
+      ALLOCATE(int_state%UZ0(IMS:IME,JMS:JME))      ! U component at top of viscous sublayer  (m s-1) (H points)
       ALLOCATE(int_state%VEGFRC(IMS:IME,JMS:JME))   ! Vegetation fraction
-      ALLOCATE(int_state%VZ0(IMS:IME,JMS:JME))      ! V component at top of viscous sublayer  (m s-1)
-      ALLOCATE(int_state%VZ0H(IMS:IME,JMS:JME))     ! VZ0 on mass points  (m s-1
+      ALLOCATE(int_state%VZ0(IMS:IME,JMS:JME))      ! V component at top of viscous sublayer  (m s-1) (H points)
       ALLOCATE(int_state%Z0(IMS:IME,JMS:JME))       ! Roughness length  (m)
       ALLOCATE(int_state%Z0BASE(IMS:IME,JMS:JME))   ! Background roughness length  (m)
       ALLOCATE(int_state%CROT(IMS:IME,JMS:JME))     ! Cosine of the angle between Earth and model coordinates
@@ -755,10 +753,8 @@
         int_state%TWBS(I,J)    =-1.E6
         int_state%USTAR(I,J)   =-1.E6
         int_state%UZ0(I,J)     =-1.E6
-        int_state%UZ0H(I,J)    =-1.E6
         int_state%VEGFRC(I,J)  =-1.E6
         int_state%VZ0(I,J)     =-1.E6
-        int_state%VZ0H(I,J)    =-1.E6
         int_state%Z0(I,J)      =-1.E6
         int_state%Z0BASE(I,J)  =-1.E6
         int_state%CROT(I,J)    = 0.
