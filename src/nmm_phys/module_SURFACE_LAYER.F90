@@ -569,6 +569,7 @@
      REAL,  DIMENSION( ims:ime, jms:jme )  :: TH2_URB2D   !urban local var
      REAL,  DIMENSION( ims:ime, jms:jme )  :: Q2_URB2D    !urban local var
      REAL,  DIMENSION( ims:ime, jms:jme )  :: UST_URB2D  !urban local var
+     REAL,  DIMENSION( ims:ime, jms:jme )  :: RIB   ! Bulk Richardson Number
 
 !------------------------------------------------------------------
    CHARACTER*256 :: message
@@ -715,7 +716,7 @@
               ust,znt,z0,pblh,mavail,rmol,                         &
               akhs,akms,                                           &
               chs,chs2,cqs2,hfx,qfx,lh,flhc,flqc,qgh,cpm,ct,       &
-              u10,v10,t2,th2,tshltr,th10,q2,qshltr,q10,pshltr,               &
+              u10,v10,t2,th2,tshltr,th10,q2,qshltr,q10,pshltr,rib, &  ! Added Bulk Richardson No.
               ids,ide, jds,jde, kds,kde,                           &
               ims,ime, jms,jme, kms,kme,                           &
               i_start(ij),i_end(ij), j_start(ij),j_end(ij), kts,kte    )
@@ -871,7 +872,7 @@
                 snoalb,shdmin,shdmax,                           & !i
                 acsnom,acsnow,                                  & !o
                 snopcx,                                         & !o
-                potevp,                                         & !o
+                potevp, rib,                                    & !o Added Bulk Richardson No.
                 ids,ide, jds,jde, kds,kde,                      &
                 ims,ime, jms,jme, kms,kme,                      &
                 i_start(ij),i_end(ij), j_start(ij),j_end(ij), kts,kte,    &
@@ -1024,7 +1025,8 @@
      &                 ,AKHS,AKMS                                      &
      &                 ,CHS,CHS2,CQS2,HFX,QFX,FLX_LH,FLHC,FLQC         &
      &                 ,QGH,CPM,CT                                     &
-     &                 ,U10,V10,T02,TH02,TSHLTR,TH10,Q02,QSHLTR,Q10,PSHLTR          &
+     &                 ,U10,V10,T02,TH02,TSHLTR,TH10,Q02,QSHLTR,Q10    &
+     &                 ,PSHLTR,RIB                                     & ! Added Bulk Richardson No.
      &                 ,IDS,IDE,JDS,JDE,KDS,KDE                        &
      &                 ,IMS,IME,JMS,JME,KMS,KME                        &
      &                 ,ITS,ITE,JTS,JTE,KTS,KTE)
@@ -1056,7 +1058,7 @@
      &                                              ,U10,V10,TH02,Q02
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: AKHS,AKMS       &
-     &                                                ,PBLH,QSFC
+     &                                                ,PBLH,QSFC,RIB
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: QZ0,RMOL,THZ0   &
      &                                                ,USTAR,UZ0,VZ0   &
@@ -1267,7 +1269,7 @@
      &               ,QSHLTR(I,J),Q10(I,J),PSHLTR(I,J)                 &
      &               ,IDS,IDE,JDS,JDE,KDS,KDE                          &
      &               ,IMS,IME,JMS,JME,KMS,KME                          &
-     &               ,ITS,ITE,JTS,JTE,KTS,KTE,i,j,ZHK(LMH+1))
+     &               ,ITS,ITE,JTS,JTE,KTS,KTE,i,j,ZHK(LMH+1),RIB(I,J))   ! Added Bulk Richardson No.
 !
 !***  REMOVE SUPERATURATION AT 2M AND 10M
 !
@@ -1318,7 +1320,7 @@
      &                 ,U10,V10,TH02,TH10,Q02,Q10,PSHLTR               &
      &                 ,IDS,IDE,JDS,JDE,KDS,KDE                        &
      &                 ,IMS,IME,JMS,JME,KMS,KME                        &
-     &                 ,ITS,ITE,JTS,JTE,KTS,KTE,i,j,ZSFC)
+     &                 ,ITS,ITE,JTS,JTE,KTS,KTE,i,j,ZSFC,RIB)            ! Added Bulk Richardson No.
 !     ****************************************************************
 !     *                                                              *
 !     *                       SURFACE LAYER                          *
@@ -1340,7 +1342,7 @@
      &                  ,Z0BASE
 !
       REAL,INTENT(OUT) :: CHS,CHS2,CPM,CQS2,CT,FLHC,FLQC,FLX_LH,HFX    &
-     &                   ,PSHLTR,Q02,Q10,QFX,QGH,RLMO,TH02,TH10,U10,V10
+     &              ,RIB,PSHLTR,Q02,Q10,QFX,QGH,RLMO,TH02,TH10,U10,V10
 !
       REAL,INTENT(INOUT) :: AKHS,AKMS,QZ0,THZ0,USTAR,UZ0,VZ0,Z0,QS
 !----------------------------------------------------------------------
@@ -1351,7 +1353,7 @@
 !
       REAL :: A,B,BTGH,BTGX,CXCHL,CXCHS,DTHV,DU2,ELFC,FCT              &
      &       ,HLFLX,HSFLX,HV,PSH02,PSH10,PSHZ,PSHZL,PSM10,PSMZ,PSMZL   &
-     &       ,RDZ,RDZT,RIB,RLMA,RLMN,RLMP                              &
+     &       ,RDZ,RDZT,RLMA,RLMN,RLMP                                  &
      &       ,RLOGT,RLOGU,RWGH,RZ,RZST,RZSU,SIMH,SIMM,TEM,THM          &
      &       ,UMFLX,USTARK,VMFLX,WGHT,WGHTT,WGHTQ,WSTAR2               &
      &       ,X,XLT,XLT4,XLU,XLU4,XT,XT4,XU,XU4,ZETALT,ZETALU          &

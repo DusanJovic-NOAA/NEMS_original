@@ -202,7 +202,7 @@
                   ACSNOM,ACSNOW,                                & !O  
                   SNOPCX,                                       & !O  
 ! MEK JUL2007
-                  POTEVP,                                       & !O
+                  POTEVP,RIB,                                   & !O Added Bulk Richardson No.
                   ids,ide, jds,jde, kds,kde,                    &
                   ims,ime, jms,jme, kms,kme,                    &
                   its,ite, jts,jte, kts,kte,                    &
@@ -307,6 +307,7 @@
 !-- ACSNOW      accumulated snow fall (mm) (water equivalent)
 !-- SNOPCX      snow phase change heat flux (W/m^2)
 !-- POTEVP      accumulated potential evaporation (W/m^2)
+!-- RIB         bulk Richardson Number
 ! ----------------------------------------------------------------------
 !-- RUNOFF1     surface runoff (m s-1), not infiltrating the surface
 !-- RUNOFF2     subsurface runoff (m s-1), drainage out bottom of last
@@ -423,6 +424,7 @@
                                                         ACSNOW, &
                                                         SNOPCX, &
 ! MEK JUL2007
+                                                           RIB, &
                                                         POTEVP, &
                                                         ALBEDO, &
                                                            ZNT
@@ -430,7 +432,6 @@
    REAL,    DIMENSION( ims:ime, jms:jme )                     , &
                INTENT(OUT)    ::                        CHKLOWQ
    REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) ::        QZ0
-
 
 ! Local variables (moved here from driver to make routine thread safe, 20031007 jm)
 
@@ -470,6 +471,8 @@
 ! MEK MAY 2007
       REAL ::  FDTLIW
 ! MEK JUL2007 for pot. evap.
+      REAL ::  RIBB
+      REAL ::  Q2SATI
       REAL ::  FDTW
 
       REAL  :: EMISSI
@@ -738,6 +741,25 @@
           ENDIF                                                         
           DQSDT2=Q2SAT*A23M4/(SFCTMP-A4)**2                             
 
+         IF(SNOW(I,J).GT.0.0)THEN
+! snow on surface (use ice saturation properties)
+            SFCTSNO=SFCTMP
+            E2SAT=611.2*EXP(6174.*(1./273.15 - 1./SFCTSNO))
+            Q2SATI=0.622*E2SAT/(PSFC-E2SAT)
+            Q2SATI=Q2SATI/(1.0+Q2SATI)    ! spec. hum.
+            IF(T1 .GT. 273.14)THEN
+! warm ground temps, weight the saturation between ice and water according to SNOWC
+              Q2SAT=Q2SAT*(1.-SNOWC(I,J)) + Q2SATI*SNOWC(I,J)
+              DQSDT2=DQSDT2*(1.-SNOWC(I,J)) + Q2SATI*6174./(SFCTSNO**2)*SNOWC(I,J)
+            ELSE
+! cold ground temps, use ice saturation only
+              Q2SAT=Q2SATI
+              DQSDT2=Q2SATI*6174./(SFCTSNO**2)
+            ENDIF
+! for snow cover fraction at 0 C, ground temp will not change, so DQSDT2 effectively zero
+            IF(T1 .GT. 273.14 .AND. SNOWC(I,J) .GT. 0.)DQSDT2=DQSDT2*(1.-SNOWC(I,J))
+          ENDIF
+
 !BSF          IF(SNOW(I,J).GT.0.0)THEN
 !BSF! snow on surface (use ice saturation properties, limit to 0 C)
 !BSF            SFCTSNO=MIN(SFCTMP,273.15)
@@ -781,6 +803,7 @@
 !        SHMIN=0.00
         ALBBRD=ALBBCK(I,J)                  
         Z0BRD=Z0(I,J)
+        RIBB=RIB(I,J)
 !FEI: temporaray arrays above need to be changed later by using SI
       
           DO 70 NS=1,NSOIL                                              
@@ -858,7 +881,7 @@
                  RUNOFF1,RUNOFF2,RUNOFF3,                         &    !O
                  RC,PC,RSMIN,XLAI,RCS,RCT,RCQ,RCSOIL,             &    !O
                  SOILW,SOILM,Q1,                                  &    !D
-                 SMCWLT,SMCDRY,SMCREF,SMCMAX,NROOT)
+                 SMCWLT,SMCDRY,SMCREF,SMCMAX,NROOT,RIBB)   ! added Bulk Richardson No.
 
 
           IF(IPRINT) THEN 
@@ -1158,6 +1181,7 @@
                                 GRAV = 9.81, T0 = 273.15
    INTEGER                   :: errflag
 
+!bsf!   LOGICAL, PARAMETER        :: FNDSOILW=.true., FNDSNOWH=.true.
 !
 
 
@@ -1182,6 +1206,8 @@
    ENDDO
 
 ! initialize soil liquid water content SH2O
+
+!bsf!  IF(.NOT.FNDSOILW) THEN
 
         DO J = jts,jtf
         DO I = its,itf
@@ -1242,7 +1268,21 @@
           ENDDO
           ENDDO
    
-        ENDIF
+!bsf!      ENDIF   !-- IF(.NOT.FNDSOILW) THEN
+
+!bsf!! initialize physical snow height SNOWH
+!bsf!
+!bsf!        IF(.NOT.FNDSNOWH)THEN
+!bsf!! If no SNOWH do the following
+!bsf!          CALL wrf_message( 'SNOW HEIGHT NOT FOUND - VALUE DEFINED IN LSMINIT' )
+!bsf!          DO J = jts,jtf
+!bsf!          DO I = its,itf
+!bsf!            SNOWH(I,J)=SNOW(I,J)*0.005               ! SNOW in mm and SNOWH in m
+!bsf!          ENDDO
+!bsf!          ENDDO
+!bsf!        ENDIF
+
+      ENDIF     !-- IF(.not.restart)THEN
 !------------------------------------------------------------------------------
   END SUBROUTINE NOAH_LSM_INIT
 !------------------------------------------------------------------------------
@@ -1584,7 +1624,7 @@
                        RUNOFF1,RUNOFF2,RUNOFF3,                         &    !O  
                        RC,PC,RSMIN,XLAI,RCS,RCT,RCQ,RCSOIL,             &    !O  
                        SOILW,SOILM,Q1,                                  &    !D  
-                       SMCWLT,SMCDRY,SMCREF,SMCMAX,NROOT)                    !P  
+                       SMCWLT,SMCDRY,SMCREF,SMCMAX,NROOT,RIBB)               !P  
 ! ----------------------------------------------------------------------         
 ! SUBROUTINE SFLX - UNIFIED NOAHLSM VERSION 1.0 JULY 2007                                   
 ! ----------------------------------------------------------------------         
@@ -1791,7 +1831,7 @@
                             Q2,Q2SAT,SFCPRS,SFCSPD,SFCTMP, SNOALB,          & 
                             SOLDN,SOLNET,TBOT,TH2,ZLVL,                            &
                             EMISSI, FFROZP                                         
-      REAL, INTENT(INOUT):: COSZ, SOLARDIRECT,ALBEDO,CH,CM,                 &  
+      REAL, INTENT(INOUT):: COSZ, SOLARDIRECT,ALBEDO,CH,CM,RIBB,            &  
                             CMC,SNEQV,SNCOVR,SNOWH,T1,XLAI,SHDFAC,Z0BRD,ALB
       REAL, DIMENSION(1:NSOIL), INTENT(IN) :: SLDPTH      
       REAL, DIMENSION(1:NSOIL), INTENT(OUT):: ET          
@@ -2152,7 +2192,7 @@
                          RUNOFF2,RUNOFF3,EDIR,EC,ET,ETT,NROOT,SNOMLT,    & 
                          ICE,RTDIS,QUARTZ,FXEXP,CSOIL,                   & 
                          BETA,DRIP,DEW,FLX1,FLX2,FLX3,ESNOW,ETNS,EMISSI, &               
-                         VEGTYP)
+                         VEGTYP,RIBB,SOLDN)
             ETA_KINEMATIC =  ESNOW + ETNS                                        
          END IF                                                                  
                                                                                  
@@ -4017,7 +4057,7 @@
                           RUNOFF2,RUNOFF3,EDIR,EC,ET,ETT,NROOT,SNOMLT,  &        
                           ICE,RTDIS,QUARTZ,FXEXP,CSOIL,                 &        
                           BETA,DRIP,DEW,FLX1,FLX2,FLX3,ESNOW,ETNS,EMISSI,&             
-                          VEGTYP)                                       
+                          VEGTYP,RIBB,SOLDN)                                       
                                                                                  
 ! ----------------------------------------------------------------------         
 ! SUBROUTINE SNOPAC                                                              
@@ -4032,13 +4072,13 @@
       INTEGER               :: K
       LOGICAL, INTENT(IN)   :: SNOWNG
       REAL, INTENT(IN)      :: BEXP,CFACTR, CMCMAX,CSOIL,DF1,DKSAT,     &
-                               DT,DWSAT, EPSCA,ETP,FDOWN,F1,FXEXP,      &
+                               DT,DWSAT, EPSCA,FDOWN,F1,FXEXP,          &
                                FRZFACT,KDT,PC, PRCP,PSISAT,Q2,QUARTZ,   &
                                RCH,RR,SBETA,SFCPRS, SFCTMP, SHDFAC,     &
                                SLOPE,SMCDRY,SMCMAX,SMCREF,SMCWLT, T24,  &
-                               TBOT,TH2,ZBOT,EMISSI                      
+                               TBOT,TH2,ZBOT,EMISSI,SOLDN
       REAL, INTENT(INOUT)   :: CMC, BETA, ESD,FLX2,PRCPF,SNOWH,SNCOVR,  &
-                               SNDENS, T1  
+                               SNDENS, T1,RIBB,ETP
       REAL, INTENT(OUT)     :: DEW,DRIP,EC,EDIR, ETNS, ESNOW,ETT,       &
                                FLX1,FLX3, RUNOFF1,RUNOFF2,RUNOFF3,      &
                                SSOIL,SNOMLT
@@ -4093,17 +4133,23 @@
 ! CONVERT POTENTIAL EVAP (ETP) FROM KG M-2 S-1 TO ETP1 IN M S-1
 ! ----------------------------------------------------------------------                                                                                          
       PRCP1 = PRCPF *0.001                                                       
-      ETP1 = ETP * 0.001                                                                                                                                          
+!vck      ETP1 = ETP * 0.001                                                                                                                                          
 ! ----------------------------------------------------------------------         
 ! IF ETP<0 (DOWNWARD) THEN DEWFALL (=FROSTFALL IN THIS CASE).                    
 ! ----------------------------------------------------------------------         
       BETA = 1.0                                                                 
       IF (ETP <= 0.0) THEN                                                     
+!vckw
+         IF(RIBB.GE.0.1.AND.FDOWN.GT.150.0) &
+         ETP=(MIN(ETP*(1.0-RIBB),0.)*SNCOVR/0.980 + &
+             ETP*(0.980-SNCOVR))/0.980
         IF(ETP == 0.) BETA = 0.0                                                 
+         ETP1 = ETP * 0.001
          DEW = -ETP1
          ESNOW2 = ETP1*DT
          ETANRG = ETP*((1.-SNCOVR)*LSUBC + SNCOVR*LSUBS)
       ELSE                                                                       
+         ETP1 = ETP * 0.001
          IF (ICE /=  1) THEN                                                    
              IF (SNCOVR <  1.) THEN                                            
                CALL EVAPO (ETNS1,SMC,NSOIL,CMC,ETP1,DT,ZSOIL,           &        

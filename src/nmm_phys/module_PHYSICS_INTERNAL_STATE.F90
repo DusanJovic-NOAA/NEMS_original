@@ -60,7 +60,7 @@
         REAL(KIND=KFPT) :: DT,SBD,WBD,TPH0D,TLM0D
 !
         LOGICAL :: GLOBAL,GWDFLG,HYDRO,NESTED,PCPFLG,RESTART,SPECIFIED  &
-                  ,NHRS_UDEF
+                  ,NHRS_UDEF,NEMSIO_INPUT
 !
 !-----------------------------------------------------------------------
 !***  Distributed memory information.

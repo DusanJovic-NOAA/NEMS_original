@@ -3,17 +3,16 @@
 #@ output = out
 #@ error = err
 #@ job_type = parallel
-#@ tasks_per_node = 5
-#@ node = 1
-#@ task_affinity = core(1)
-#@ node_usage=not_shared
-#@ resources=ConsumableCPUs(1)ConsumableMemory(3000MB)
-##@ class = debug
+# @ parallel_threads = 1
+# @ task_affinity = cpu(1)
+# @ blocking = unlimited
+# @ node_usage = shared
+#@ total_tasks = 32
+#@ resources=ConsumableCPUs(1)ConsumableMemory(3500MB)
 #@ class = dev
-#@ wall_clock_limit = 02:00:00
+#@ wall_clock_limit = 04:00:00
 #@ preferences = Feature == "dev"
-#@ network.MPI = csss,shared,us
-#@ bulkxfer=yes
+#@ network.MPI = sn_all,shared,us
 #@ account_no=NAM-T2O
 #@ queue
 #
@@ -22,41 +21,37 @@ set -x
 #
 ### For MPI
 #
-export MP_I_BINDPROC=YES
+export BIND_TASKS=yes
 export MP_EAGER_LIMIT=65536
-export MP_SHARED_MEMORY=YES
-export MP_SINGLE_THREAD=YES
-export MP_LABELIO=YES
+export MP_SHARED_MEMORY=yes
+export MP_SINGLE_THREAD=yes
+export TARGET_CPU_RANGE=-1
+export OMP_MAX_THREADS=1
+export MP_LABELIO=yes
 export MP_STDOUTMODE=ordered
-export MEMORY_AFFINITY=MCM
 export MP_COREFILE_FORMAT=core.txt
 export TARGET_CPU_RANGE="-1"
-export XLSMPOPTS="parthds=2:stack=128000000"
+export XLSMPOPTS=parthds=1:spins=0:yields=0:stack=128000000:schedule=static
 export AIXTHREAD_SCOPE=S
 
 RUNDIR=/ptmp/${USER}/nmm.global.x
-DATADIR=/ptmp/wx22ec/nmm.global.0_a
-SRCDIR=/meso/save/wx22ec/trunk_assim
+DATADIR=/ptmp/${USER}/nmmb_init_global
+SRCDIR=/meso/save/${USER}/trunk
 
 mkdir -p $RUNDIR
 cd $RUNDIR
 
-rm -f $RUNDIR/*
-#cp $DATADIR/nmm_b_restart.024 restart_file
-cp $DATADIR/main_input_filename main_input_filename
-cp $SRCDIR/exp/configure_files/configfile_global_new configure_file
-
-#cp /meso/save/wx20zj/umo90/geodata/co2data/tr* .
+rm -f -r $RUNDIR/*
+cp $DATADIR/test_input_umo_global.nemsio main_input_filename_nemsio
+cp $SRCDIR/job/configfile_global_new configure_file
 cp $DATADIR/tr* .
-#cp $DATADIR/co2_trans .
-
 cp /nwprod/fix/nam_micro_lookup.dat ETAMPNEW_DATA
 cp /meso/save/wx22tb/WRF_repository/run/RRT* .
 cp /meso/noscrub/wx20rv/NOAH_wrf_data/*.TBL .
 
 echo "Model started:  " `date`
 
-poe hpmcount -o nmm.0.global_test $SRCDIR/exe/NMM_NEMS.x
+poe hpmcount -o nmm.global_test $SRCDIR/exe/NMM_NEMS.x
 echo "Model ended:    " `date`
 
 exit

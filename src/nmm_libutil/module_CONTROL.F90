@@ -12,6 +12,7 @@ use module_dm_parallel,only : ids,ide,jds,jde &
                              ,dstrb
 use module_exchange
 use module_constants
+use nemsio_module
 !-----------------------------------------------------------------------
 !
       implicit none
@@ -622,7 +623,7 @@ real(kind=kfpt),dimension(jds:jde):: &
 !	write(0,*) 'tboco: ', tboco
         rewind nbc
         close(unit=nbc)
-!        write(0,*)'*** Read tboco in consts from ',infile
+        write(0,*)'*** Read tboco in consts from ',infile
         nboco=nint(tboco/dt)
       endif
 !-----------------------------------------------------------------------
@@ -1236,7 +1237,7 @@ real(kind=kfpt),dimension(jds:jde):: &
       ,num_tracers_total,tracers &
       ,p_qv,p_qc,p_qr &
       ,p_qi,p_qs,p_qg &
-       )
+      ,dt,nhours_fcst)
 !
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1260,7 +1261,11 @@ integer(kind=kint),intent(in) :: &
 ,indx_q &
 ,indx_cw &
 ,indx_rrw &
-,indx_q2
+,indx_q2 &
+,nhours_fcst
+
+real(kind=kfpt),intent(in):: &
+dt
 
 integer(kind=kint),intent(out) :: &
  ihr &
@@ -1368,6 +1373,7 @@ real(kind=kfpt),allocatable,dimension(:,:) :: &
  temp1 
 
 logical(kind=klog) :: opened
+
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -1378,8 +1384,6 @@ logical(kind=klog) :: opened
       allocate(temp1(ids:ide,jds:jde),stat=i)
       allocate(stdh(ims:ime,jms:jme),stat=i)
 !
-!-----------------------------------------------------------------------
-      infile='                                                          '
 !-----------------------------------------------------------------------
 
       select_unit: do n=51,59
@@ -1410,7 +1414,7 @@ logical(kind=klog) :: opened
         enddo
 !
         read(nfcst)pt
-!        write(0,*)' PT from input file equals ',pt
+        write(0,*)' PT from input file equals ',pt
         rewind nfcst
       endif
       call mpi_bcast(pt,1,mpi_real,0,mpi_comm_comp,irtn)
@@ -1423,7 +1427,7 @@ logical(kind=klog) :: opened
 !     run=.true.
 
       if(mype==0)then
-!        write(0,*) 'run, idat,ntsd: ', run, idat, ntsd
+        write(0,*) 'run, idat,ntsd: ', run, idat, ntsd
       endif
 !
 !-----------------------------------------------------------------------
@@ -1584,16 +1588,16 @@ logical(kind=klog) :: opened
       tend=real(nhours_fcst)
       ntstm=nint(tend*3600./dt)+1
       if(.not.global)then
-!         write(0,*)' Max runtime is ',tend_max,' hours'
+         write(0,*)' Max runtime is ',tend_max,' hours'
       endif
       if(mype==0)then
-!        write(0,*)' Requested runtime is ',tend,' hours'
-!        write(0,*)' NTSTM=',ntstm
+        write(0,*)' Requested runtime is ',tend,' hours'
+        write(0,*)' NTSTM=',ntstm
       endif
       if(ntstm>ntstm_max.and..not.global)then
         if(mype==0)then
-!          write(0,*)' Requested fcst length exceeds maximum'
-!          write(0,*)' Resetting to maximum'
+          write(0,*)' Requested fcst length exceeds maximum'
+          write(0,*)' Resetting to maximum'
         endif
         ntstm=min(ntstm,ntstm_max)
       endif
@@ -1603,7 +1607,7 @@ logical(kind=klog) :: opened
       do l=1,lm
         pdsg1(l)=dsg1(l)*pdtop
         psgml1(l)=sgml1(l)*pdtop+pt
-!	write(0,*) 'L, pdsg1, psgml1: ', L, pdsg1(L), psgml1(L)
+	write(0,*) 'L, pdsg1, psgml1: ', L, pdsg1(L), psgml1(L)
       enddo
 !
       do l=1,lm+1
@@ -1716,6 +1720,7 @@ logical(kind=klog) :: opened
        enddo
        call dstrb(temp1,sice,1,1,1,1,1)
        call halo_exch(sice,1,2,2)
+
 !
 !-----------------------------------------------------------------------
 !
@@ -1727,7 +1732,7 @@ logical(kind=klog) :: opened
       endif
 !
       if(mype==0)read(nfcst)pt
-!	write(0,*) 'pt read again here...pt: ', pt
+      write(0,*) 'pt read again here...pt: ', pt
       call mpi_bcast(pt,1,mpi_real,0,mpi_comm_comp,irtn)
 !
 !-----------------------------------------------------------------------
@@ -2026,6 +2031,7 @@ logical(kind=klog) :: opened
         call dstrb(temp1,tct,1,1,1,lm,l)
       enddo
       call halo_exch(tct,lm,2,2)
+!      write(0,*)'min,max tct=',minval(tct),maxval(tct)
 !-----------------------------------------------------------------------
       do l=1,lm
         if(mype==0)then
@@ -2643,6 +2649,9 @@ logical(kind=klog) :: opened
         endif
       enddo
 !-----------------------------------------------------------------------
+      if (mype==0) then
+      write(0,*)'num_tracers_total=',num_tracers_total
+      endif
       do n=1,num_tracers_total
       do l=1,lm
         if(mype==0)then
@@ -2681,16 +2690,16 @@ logical(kind=klog) :: opened
       tend=real(nhours_fcst)
       ntstm=nint(tend*3600./dt)+1
       if(.not.global)then
-!         write(0,*)' Max runtime is ',tend_max,' hours'
+         write(0,*)' Max runtime is ',tend_max,' hours'
       endif
       if(mype==0)then
-!        write(0,*)' Requested runtime is ',tend,' hours'
-!        write(0,*)' NTSTM=',ntstm
+        write(0,*)' Requested runtime is ',tend,' hours'
+        write(0,*)' NTSTM=',ntstm
       endif
       if(ntstm>ntstm_max.and..not.global)then
         if(mype==0)then
-!          write(0,*)' Requested fcst length exceeds maximum'
-!          write(0,*)' Resetting to maximum'
+          write(0,*)' Requested fcst length exceeds maximum'
+          write(0,*)' Resetting to maximum'
         endif
         ntstm=min(ntstm,ntstm_max)
       endif
@@ -2723,7 +2732,7 @@ logical(kind=klog) :: opened
       deallocate(temp1)
       deallocate(stdh)
       if(mype==0)then
-!        write(0,*)' EXIT SUBROUTINE INIT pt=',pt
+        write(0,*)' EXIT SUBROUTINE INIT pt=',pt
       endif
 !-----------------------------------------------------------------------
 !
@@ -2732,6 +2741,1099 @@ logical(kind=klog) :: opened
 !-----------------------------------------------------------------------
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !-----------------------------------------------------------------------
+                        subroutine init_nemsio &
+      (global &
+      ,kss,kse &
+      ,pdtop,pt,lpt2 &
+      ,sg1,dsg1 &
+      ,psg1,pdsg1 &
+      ,sg2,dsg2,sgm &
+      ,sgml1,psgml1,sgml2 &
+      ,fis,sm,sice &
+      ,pd,pdo,pint &
+      ,u,v,q2,e2 &
+      ,t,q,cw &
+      ,tp,up,vp &
+      ,rrw,dwdt,w &
+      ,omgalf,div,z &
+      ,rtop &
+      ,tcu,tcv,tct &
+      ,sp,indx_q,indx_cw,indx_rrw,indx_q2 &
+      ,ntsti,ntstm &
+      ,ihr,ihrst,idat &
+      ,run,restart &
+      ,num_water,water &
+      ,num_tracers_total,tracers &
+      ,p_qv,p_qc,p_qr &
+      ,p_qi,p_qs,p_qg &
+      ,dt,nhours_fcst)
+!
+!-----------------------------------------------------------------------
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!-----------------------------------------------------------------------
+!
+      implicit none
+
+!-----------------------------------------------------------------------
+!
+integer(kind=kint),intent(in) :: &
+ kse &
+,kss &
+,num_water &
+,num_tracers_total &
+,p_qv &
+,p_qc &
+,p_qr &
+,p_qi &
+,p_qs &
+,p_qg &
+,indx_q &
+,indx_cw &
+,indx_rrw &
+,indx_q2 &
+,nhours_fcst
+
+real(kind=kfpt),intent(in):: &
+dt
+
+
+integer(kind=kint),intent(out) :: &
+ ihr &
+,ihrst &
+,lpt2 &
+,ntsti &
+,ntstm
+
+integer(kind=kint),dimension(3),intent(out) :: &
+ idat
+
+real(kind=kfpt),intent(out) :: &
+ pdtop &
+,pt
+
+real(kind=kfpt),dimension(1:lm),intent(out) :: &
+ dsg1 &
+,dsg2 &
+,pdsg1 &
+,psgml1 &
+,sgml1 &
+,sgml2
+
+real(kind=kfpt),dimension(1:lm+1),intent(out) :: &
+ psg1 &
+,sg1 &
+,sg2 &
+,sgm
+
+real(kind=kfpt),dimension(ims:ime,jms:jme),intent(out) :: &
+ fis &
+,pd &
+,pdo &
+,sice &
+,sm
+
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(out) :: &
+ cw &
+,dwdt &
+,q &
+,q2 &
+,rrw &
+,omgalf &
+,div &
+,z &
+,rtop &
+,tcu &
+,tcv &
+,tct &
+,t &
+,tp &
+,u &
+,up &
+,v &
+,vp &
+,e2 &
+,w
+
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm+1),intent(out) :: &
+ pint
+
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,1:num_water),intent(out) :: &
+ water
+
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,1:num_tracers_total),intent(out) :: &
+ tracers
+
+
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse),intent(out) :: &
+ sp
+
+logical(kind=klog),intent(in) :: &
+ global &
+,restart
+
+logical(kind=klog),intent(out) :: &
+ run
+!-----------------------------------------------------------------------
+!--local variables------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+integer(kind=kint) :: &
+ i &                         ! index in x direction
+,irtn &
+,j &                         ! index in y direction
+,k &                         ! index
+,ks &                        ! tracer index
+,l &                         ! index in p direction
+,n &
+,nrecs_skip_for_pt
+
+integer(kind=kint) :: &      ! number of soil levels
+ nsoil
+
+integer(kind=kint) :: &
+ iyear_fcst           &
+,imonth_fcst          &
+,iday_fcst            &
+,ihour_fcst
+!
+!jws
+integer(kind=kint) :: idate(7)
+integer(kind=kint) :: fcstdate(7)
+character(2)       ::tn
+!jwe
+real(kind=kfpt):: &
+ tend,tend_max
+
+real(kind=kfpt),allocatable,dimension(:) :: &
+ temp1
+
+
+logical(kind=klog) :: opened
+
+type(nemsio_gfile) :: gfile
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      mype=mype_share
+!
+      allocate(temp1((ide-ids+1)*(jde-jds+1)),stat=i)
+      allocate(stdh(ims:ime,jms:jme),stat=i)
+!
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!***  initiaizel nemsio_module
+!-----------------------------------------------------------------------
+!
+      call nemsio_init()
+!-----------------------------------------------------------------------
+!
+      if(.not.restart) then                     ! cold start
+!-----------------------------------------------------------------------
+!
+      infile='main_input_filename_nemsio'
+      call nemsio_open(gfile,infile,'read',iret=ierr)
+      if(ierr/=0) write(0,*)'ERROR: open file ',trim(infile),' has failed'
+!
+!-----------------------------------------------------------------------
+!***  First we need to extract the value of PT (pressure at top of domain)
+!-----------------------------------------------------------------------
+!
+      call nemsio_getheadvar(gfile,'PT',pt,ierr)
+!
+!-----------------------------------------------------------------------
+!*** get run,idat,ihrst,ihrend,ntsd
+!
+      call nemsio_getheadvar(gfile,'run',run,ierr)
+      call nemsio_getheadvar(gfile,'IDAT',idat,ierr)
+      call nemsio_getheadvar(gfile,'ihrst',ihrst,ierr)
+      call nemsio_getheadvar(gfile,'ihrend',ihrend,ierr)
+      call nemsio_getheadvar(gfile,'ntsd',ntsd,ierr)
+
+      if(mype==0)then
+        write(0,*) 'run, idat,ntsd: ', run, idat, ntsd
+      endif
+!
+!-----------------------------------------------------------------------
+!***  Print the time information.
+!-----------------------------------------------------------------------
+!
+      if(mype==0)then
+        write(0,*)' Start year =',idat(3)
+        write(0,*)' Start month=',idat(2)
+        write(0,*)' Start day  =',idat(1)
+        write(0,*)' Start hour =',ihrst
+        write(0,*)' Timestep   =',dt
+        write(0,*)' Steps/hour =',3600./dt
+        if(.not.global)write(0,*)' Max fcst hours=',ihrend
+      endif
+!
+!-----------------------------------------------------------------------
+!
+      call nemsio_getheadvar(gfile,'pt',pt,ierr)
+      call nemsio_getheadvar(gfile,'pdtop',pdtop,ierr)
+      call nemsio_getheadvar(gfile,'lpt2',lpt2,ierr)
+      call nemsio_getheadvar(gfile,'sgm',sgm,ierr)
+      call nemsio_getheadvar(gfile,'sg1',sg1,ierr)
+      call nemsio_getheadvar(gfile,'dsg1',dsg1,ierr)
+      call nemsio_getheadvar(gfile,'sgml1',sgml1,ierr)
+      call nemsio_getheadvar(gfile,'sg2',sg2,ierr)
+      call nemsio_getheadvar(gfile,'dsg2',dsg2,ierr)
+      call nemsio_getheadvar(gfile,'sgml2',sgml2,ierr)
+!
+      if(mype==0)then
+        call nemsio_readrecv(gfile,'fis','sfc',1,temp1,iret=ierr)
+!        write(0,*)'in init_nemsio,fis=',maxval(temp1),minval(temp1)
+      endif
+      do j=jms,jme
+      do i=ims,ime
+        fis(i,j)=0.
+      enddo
+      enddo
+      call dstrb(temp1,fis,1,1,1,1,1)
+      call halo_exch(fis,1,2,2)
+!-----------------------------------------------------------------------
+!
+      if(mype==0)then
+        call nemsio_readrecv(gfile,'stdh','sfc',1,temp1,iret=ierr)
+!        write(0,*)'in init_nemsio,stdh=',maxval(temp1),minval(temp1)
+      endif
+      do j=jms,jme
+      do i=ims,ime
+        stdh(i,j)=0.
+      enddo
+      enddo
+      call dstrb(temp1,stdh,1,1,1,1,1)
+      call halo_exch(stdh,1,2,2)
+
+!-----------------------------------------------------------------------
+!
+      if(mype==0)then
+        call nemsio_readrecv(gfile,'sm','sfc',1,temp1,iret=ierr)
+!        write(0,*)'in init_nemsio,sm=',maxval(temp1),minval(temp1)
+      endif
+      do j=jms,jme
+      do i=ims,ime
+        sm(i,j)=0.
+      enddo
+      enddo
+      call dstrb(temp1,sm,1,1,1,1,1)
+      call halo_exch(sm,1,2,2)
+
+!-----------------------------------------------------------------------
+!
+      if(mype==0)then
+        call nemsio_readrecv(gfile,'pd','sfc',1,temp1,iret=ierr)
+        write(0,*)'in init_nemsio,pd=',maxval(temp1),minval(temp1)
+      endif
+      do j=jms,jme
+      do i=ims,ime
+        pd(i,j)=0.
+      enddo
+      enddo
+      call dstrb(temp1,pd,1,1,1,1,1)
+      call halo_exch(pd,1,2,2)
+
+!-----------------------------------------------------------------------
+!
+      call mpi_barrier(mpi_comm_comp,ierr)
+      do l=1,lm
+        if(mype==0)then
+        call nemsio_readrecv(gfile,'ugrd','mid layer',l,temp1,iret=ierr)
+!        write(0,*)'in init_nemsio,ugrd=',maxval(temp1),minval(temp1)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          u(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,u,1,1,1,lm,l)
+      enddo
+      call halo_exch(u,lm,2,2)
+
+!-----------------------------------------------------------------------
+!
+      do l=1,lm
+        if(mype==0)then
+        call nemsio_readrecv(gfile,'vgrd','mid layer',l,temp1,iret=ierr)
+!        write(0,*)'in init_nemsio,vgrd=',maxval(temp1),minval(temp1)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          v(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,v,1,1,1,lm,l)
+      enddo
+      call halo_exch(v,lm,2,2)
+
+!-----------------------------------------------------------------------
+!
+      do l=1,lm
+        if(mype==0)then
+        call nemsio_readrecv(gfile,'tmp','mid layer',l,temp1,iret=ierr)
+          write(0,*) 'L, T extremes: ', L, minval(temp1),maxval(temp1)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          t(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,t,1,1,1,lm,l)
+      enddo
+      call halo_exch(t,lm,2,2)
+
+!-----------------------------------------------------------------------
+!
+      do l=1,lm
+        if(mype==0)then
+        call nemsio_readrecv(gfile,'spfh','mid layer',l,temp1,iret=ierr)
+!        write(0,*)'in init_nemsio,spfh=',maxval(temp1),minval(temp1)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          q(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,q,1,1,1,lm,l)
+      enddo
+      call halo_exch(q,lm,2,2)
+
+!
+      do l=1,lm
+      do j=jms,jme
+      do i=ims,ime
+        water(i,j,l,p_qv)=q(i,j,l)/(1.-q(i,j,l))    ! WRF water array uses mixing ratio for vapor
+      enddo
+      enddo
+      enddo
+!
+!-----------------------------------------------------------------------
+!
+      do l=1,lm
+        if(mype==0)then
+        call nemsio_readrecv(gfile,'clwmr','mid layer',l,temp1,iret=ierr)
+!        write(0,*)'in init_nemsio,cldmr=',maxval(temp1),minval(temp1)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          cw(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,cw,1,1,1,lm,l)
+      enddo
+      call halo_exch(cw,lm,2,2)
+
+!
+      print*,'*** Read initial conditions in init_nemsio from ',infile
+!
+!      close(unit=nfcst)
+!-----------------------------------------------------------------------
+      ntsti=ntsd+1
+!
+      tend_max=real(ihrend)
+      ntstm_max=nint(tend_max*3600./dt)+1
+      tend=real(nhours_fcst)
+      ntstm=nint(tend*3600./dt)+1
+      if(ntstm>ntstm_max.and..not.global)then
+        ntstm=min(ntstm,ntstm_max)
+      endif
+!
+      ihr=nint(ntsd*dt/3600.)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        pdsg1(l)=dsg1(l)*pdtop
+        psgml1(l)=sgml1(l)*pdtop+pt
+!       write(0,*) 'L, pdsg1, psgml1: ', L, pdsg1(L), psgml1(L)
+      enddo
+!
+      do l=1,lm+1
+        psg1(l)=sg1(l)*pdtop+pt
+      enddo
+!-----------------------------------------------------------------------
+      do j=jts,jte
+        do i=its,ite
+          pdo(i,j)=pd(i,j)
+        enddo
+      enddo
+      call halo_exch(pdo,1,2,2)
+!
+      do l=1,lm
+        do j=jts,jte
+          do i=its,ite
+            up(i,j,l)=u(i,j,l)
+            vp(i,j,l)=v(i,j,l)
+            tp(i,j,l)=t(i,j,l)
+          enddo
+        enddo
+      enddo
+      call halo_exch(tp,lm,up,lm,vp,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        do j=jts,jte
+          do i=its,ite
+            q2(i,j,l)=0.02
+            rrw(i,j,l)=0.
+            if(i.ge.ide  /2+1- 6.and.i.le.ide  /2+1+ 6.and. &
+               j.ge.jde*3/4+1- 6.and.j.le.jde*3/4+1+ 6.) then !global
+!               j.ge.jde  /2+1- 6.and.j.le.jde  /2+1+ 6.) then !regional
+              rrw(i,j,l)=10.
+            endif
+            dwdt(i,j,l)=1.
+            w(i,j,l)=0.
+          enddo
+        enddo
+      enddo
+      call halo_exch(dwdt,lm,2,2)
+!
+      do j=jts,jte
+        do i=its,ite
+          pint(i,j,1)=pt
+        enddo
+      enddo
+!
+      do l=1,lm
+        do j=jts,jte
+          do i=its,ite
+            pint(i,j,l+1)=pint(i,j,l)+dsg2(l)*pd(i,j)+pdsg1(l)
+          enddo
+        enddo
+      enddo
+      call halo_exch(pint,lm+1,2,2)
+!
+      call halo_exch(q2,lm,rrw,lm,2,2)
+      do l=1,lm
+        do j=jms,jme
+          do i=ims,ime
+            sp(i,j,l,indx_q  )=sqrt(max(q  (i,j,l),0.))
+            sp(i,j,l,indx_cw )=sqrt(max(cw (i,j,l),0.))
+            sp(i,j,l,indx_rrw)=sqrt(max(rrw(i,j,l),0.))
+            sp(i,j,l,indx_q2 )=sqrt(max(q2 (i,j,l),0.))
+          enddo
+        enddo
+      enddo
+!-----------------------------------------------------------------------
+
+!-----------------------------------------------------------------------
+!---reading surface data------------------------------------------------
+!-----------------------------------------------------------------------
+!
+      if(mype==0)then
+        call nemsio_readrecv(gfile,'albdo','sfc',1,temp1,iret=ierr)
+!        write(0,*)'in init_nemsio,albdo=',maxval(temp1),minval(temp1)
+!jw        read(nfcst)temp1
+      endif
+      if(mype==0)then
+        call nemsio_readrecv(gfile,'epsr','sfc',1,temp1,iret=ierr)
+!        write(0,*)'in init_nemsio,epsr=',maxval(temp1),minval(temp1)
+!jw        read(nfcst)temp1
+      endif
+      if(mype==0)then
+        call nemsio_readrecv(gfile,'mxsnal','sfc',1,temp1,iret=ierr)
+!        write(0,*)'in init_nemsio,maxsnal=',maxval(temp1),minval(temp1)
+!jw        read(nfcst)temp1
+      endif
+      if(mype==0)then
+        call nemsio_readrecv(gfile,'tmp','sfc',1,temp1,iret=ierr)
+!        write(0,*)'in init_nemsio,tmp=',maxval(temp1),minval(temp1)
+!jw        read(nfcst)temp1
+      endif
+      if(mype==0)then
+        call nemsio_readrecv(gfile,'sst','sfc',1,temp1,iret=ierr)
+!        write(0,*)'in init_nemsio,sst=',maxval(temp1),minval(temp1)
+!jw        read(nfcst)temp1
+      endif
+      if(mype==0)then
+        call nemsio_readrecv(gfile,'sno','sfc',1,temp1,iret=ierr)
+!        write(0,*)'in init_nemsio,sno=',maxval(temp1),minval(temp1)
+!jw        read(nfcst)temp1
+      endif
+      if(mype==0)then
+        call nemsio_readrecv(gfile,'si','sfc',1,temp1,iret=ierr)
+!        write(0,*)'in init_nemsio,si=',maxval(temp1),minval(temp1)
+!jw        read(nfcst)temp1
+      endif
+       if(mype==0)then
+        call nemsio_readrecv(gfile,'sice','sfc',1,temp1,iret=ierr)
+!        write(0,*)'in init_nemsio,sice=',maxval(temp1),minval(temp1)
+!jw         read(nfcst)temp1  ! SICE
+       endif
+       do j=jms,jme
+       do i=ims,ime
+         sice(i,j)=0.
+       enddo
+       enddo
+       call dstrb(temp1,sice,1,1,1,1,1)
+       call halo_exch(sice,1,2,2)
+!
+!-----------------------------------------------------------------------
+!
+       call nemsio_close(gfile,iret=ierr)
+!
+!-----------------------------------------------------------------------
+         else                                      ! restart
+!-----------------------------------------------------------------------
+!
+      infile='restart_file'
+      call nemsio_open(gfile,infile,'read',iret=ierr)
+      if(ierr/=0) write(0,*)'ERROR: open file ',trim(infile),' has failed'
+!
+!-----------------------------------------------------------------------
+!   READ FROM RESTART FILE: INGEGER SCALARS
+!-----------------------------------------------------------------------
+      call nemsio_getheadvar(gfile,'FCSTDATE',FCSTDATE,ierr)
+      iyear_fcst=FCSTDATE(1)
+      imonth_fcst=FCSTDATE(2)
+      iday_fcst=FCSTDATE(3)
+      ihour_fcst=FCSTDATE(4)
+      call nemsio_getheadvar(gfile,'IHRST',ihrst,ierr)
+      call nemsio_getheadvar(gfile,'LPT2',lpt2,ierr)
+!-----------------------------------------------------------------------
+!   READ FROM RESTART FILE: INTEGER 1D ARRAYS
+!-----------------------------------------------------------------------
+!      read(nfcst) idat
+      call nemsio_getheadvar(gfile,'IDAT',idat,ierr)
+!-----------------------------------------------------------------------
+!***  Print the time information.
+!-----------------------------------------------------------------------
+!
+      if(mype==0)then
+        write(0,*)'**** read in dynamics ***************'
+        write(0,*)' Restart year =',iyear_fcst
+        write(0,*)' Restart month=',imonth_fcst
+        write(0,*)' Restart day  =',iday_fcst
+        write(0,*)' Restart hour =',ihour_fcst
+        write(0,*)' Original start year =',idat(3)
+        write(0,*)' Original start month=',idat(2)
+        write(0,*)' Original start day  =',idat(1)
+        write(0,*)' Original start hour =',ihrst
+        write(0,*)' Timestep   =',dt
+        write(0,*)' Steps/hour =',3600./dt
+        write(0,*)'*************************************'
+      endif
+!
+!-----------------------------------------------------------------------
+!   READ FROM RESTART FILE: INTEGER SCALARS
+!-----------------------------------------------------------------------
+      call nemsio_getheadvar(gfile,'NSOIL',nsoil,ierr)
+!-----------------------------------------------------------------------
+!   READ FROM RESTART FILE: REAL SCALARS
+!-----------------------------------------------------------------------
+      call nemsio_getheadvar(gfile,'PDTOP',pdtop,ierr)
+!-----------------------------------------------------------------------
+      call nemsio_getheadvar(gfile,'PT',pt,ierr)
+!      write(0,*)' in rst,pdtop=',pdtop,'pt=',pt,'nsoil=',nsoil,'idat=', &
+!       idat,'ntsd=',ntsd,'fcstdate=',fcstdate,'ihrst=',ihrst,'lpt2=',lpt2
+!      read(nfcst) pt
+!-----------------------------------------------------------------------
+!   READ FROM RESTART FILE: REAL 1D ARRAYS
+!-----------------------------------------------------------------------
+      call nemsio_getheadvar(gfile,'SG1',sg1,ierr)
+      call nemsio_getheadvar(gfile,'SG2',sg2,ierr)
+      call nemsio_getheadvar(gfile,'DSG1',dsg1,ierr)
+      call nemsio_getheadvar(gfile,'DSG2',dsg2,ierr)
+      call nemsio_getheadvar(gfile,'SGML1',sgml1,ierr)
+      call nemsio_getheadvar(gfile,'SGML2',sgml2,ierr)
+      call nemsio_getheadvar(gfile,'SGM',sgm,ierr)
+!-----------------------------------------------------------------------
+!   READ FROM RESTART FILE: LOGICAL
+!-----------------------------------------------------------------------
+      call nemsio_getheadvar(gfile,'RUN',run,ierr)
+      if(mype==0)then
+        write(0,*) 'run, idat,ntsd: ', run, idat, ntsd
+      endif
+!-----------------------------------------------------------------------
+!   READ FROM RESTART FILE: REAL 2D ARRAYS
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        call nemsio_readrecv(gfile,'hgt','sfc',1,temp1,iret=ierr)
+        temp1=temp1*g
+
+        write(0,*)'in init restart,fis=',maxval(temp1),minval(temp1)
+      endif
+      do j=jms,jme
+      do i=ims,ime
+        fis(i,j)=0.
+      enddo
+      enddo
+      call dstrb(temp1,fis,1,1,1,1,1)
+      call halo_exch(fis,1,2,2)
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        call nemsio_readrecv(gfile,'pd','sfc',1,temp1,iret=ierr)
+        write(0,*)'in init restart,pd=',maxval(temp1),minval(temp1)
+      endif
+      do j=jms,jme
+      do i=ims,ime
+        pd(i,j)=0.
+      enddo
+      enddo
+      call dstrb(temp1,pd,1,1,1,1,1)
+      call halo_exch(pd,1,2,2)
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        call nemsio_readrecv(gfile,'pdo','sfc',1,temp1,iret=ierr)
+        write(0,*)'in init restart,pdo=',maxval(temp1),minval(temp1)
+      endif
+      do j=jms,jme
+      do i=ims,ime
+        pdo(i,j)=0.
+      enddo
+      enddo
+      call dstrb(temp1,pdo,1,1,1,1,1)
+      call halo_exch(pdo,1,2,2)
+!-----------------------------------------------------------------------
+
+!-----------------------------------------------------------------------
+!   READ FROM RESTART FILE: REAL 3D ARRAYS (only DYN)
+!-----------------------------------------------------------------------
+!     call mpi_barrier(mpi_comm_comp,ierr)
+      do l=1,lm
+        if(mype==0)then
+        call nemsio_readrecv(gfile,'vvel','mid layer',l,temp1,iret=ierr)
+        write(0,*)'in init restart,vvel=',maxval(temp1),minval(temp1)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          w(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,w,1,1,1,lm,l)
+      enddo
+      call halo_exch(w,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          call nemsio_readrecv(gfile,'dwdt','mid layer',l,temp1,iret=ierr)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          dwdt(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,dwdt,1,1,1,lm,l)
+      enddo
+      call halo_exch(dwdt,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm+1
+        if(mype==0)then
+          call nemsio_readrecv(gfile,'pres','layer',l,temp1,iret=ierr)
+        write(0,*)'in init restart,pres layer=',maxval(temp1),minval(temp1)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          pint(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,pint,1,1,1,lm+1,l)
+      enddo
+      call halo_exch(pint,lm+1,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          call nemsio_readrecv(gfile,'omgalf','mid layer',l,temp1,iret=ierr)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          omgalf(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,omgalf,1,1,1,lm,l)
+      enddo
+      call halo_exch(omgalf,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          call nemsio_readrecv(gfile,'rrw','mid layer',l,temp1,iret=ierr)
+          write(0,*)'in init restart,rrw layer=',maxval(temp1),minval(temp1)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          rrw(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,rrw,1,1,1,lm,l)
+      enddo
+      call halo_exch(rrw,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          call nemsio_readrecv(gfile,'div','mid layer',l,temp1,iret=ierr)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          div(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,div,1,1,1,lm,l)
+      enddo
+      call halo_exch(div,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          call nemsio_readrecv(gfile,'rtop','mid layer',l,temp1,iret=ierr)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          rtop(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,rtop,1,1,1,lm,l)
+      enddo
+      call halo_exch(rtop,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          call nemsio_readrecv(gfile,'tcu','mid layer',l,temp1,iret=ierr)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          tcu(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,tcu,1,1,1,lm,l)
+      enddo
+      call halo_exch(tcu,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          call nemsio_readrecv(gfile,'tcv','mid layer',l,temp1,iret=ierr)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          tcv(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,tcv,1,1,1,lm,l)
+      enddo
+      call halo_exch(tcv,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          call nemsio_readrecv(gfile,'tct','mid layer',l,temp1,iret=ierr)
+          write(0,*)'min,max tct=',minval(tct),maxval(tct)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          tct(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,tct,1,1,1,lm,l)
+      enddo
+      call halo_exch(tct,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          call nemsio_readrecv(gfile,'tp','mid layer',l,temp1,iret=ierr)
+        write(0,*)'in init restart,tp =',maxval(temp1),minval(temp1)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          tp(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,tp,1,1,1,lm,l)
+      enddo
+      call halo_exch(tp,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          call nemsio_readrecv(gfile,'up','mid layer',l,temp1,iret=ierr)
+        write(0,*)'in init restart,up =',maxval(temp1),minval(temp1)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          up(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,up,1,1,1,lm,l)
+      enddo
+      call halo_exch(up,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          call nemsio_readrecv(gfile,'vp','mid layer',l,temp1,iret=ierr)
+        write(0,*)'in init restart,vp =',maxval(temp1),minval(temp1)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          vp(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,vp,1,1,1,lm,l)
+      enddo
+      call halo_exch(vp,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          call nemsio_readrecv(gfile,'e2','mid layer',l,temp1,iret=ierr)
+        write(0,*)'in init restart,e2 =',maxval(temp1),minval(temp1)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          e2(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,e2,1,1,1,lm,l)
+      enddo
+      call halo_exch(e2,lm,2,2)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          call nemsio_readrecv(gfile,'z','mid layer',l,temp1,iret=ierr)
+        write(0,*)'in init restart,z =',maxval(temp1),minval(temp1)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          z(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,z,1,1,1,lm,l)
+      enddo
+      call halo_exch(z,lm,2,2)
+!-----------------------------------------------------------------------
+
+!-----------------------------------------------------------------------
+!   READ FROM RESTART FILE: REAL 2D ARRAYS (contd.)
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        call nemsio_readrecv(gfile,'sice','sfc',1,temp1,iret=ierr)
+        write(0,*)'in init restart,sice =',maxval(temp1),minval(temp1)
+      endif
+      do j=jms,jme
+      do i=ims,ime
+        sice(i,j)=0.
+      enddo
+      enddo
+      call dstrb(temp1,sice,1,1,1,1,1)
+      call halo_exch(sice,1,2,2)
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        call nemsio_readrecv(gfile,'sm','sfc',1,temp1,iret=ierr)
+        write(0,*)'in init restart,sm =',maxval(temp1),minval(temp1)
+      endif
+      do j=jms,jme
+      do i=ims,ime
+        sm(i,j)=0.
+      enddo
+      enddo
+      call dstrb(temp1,sm,1,1,1,1,1)
+      call halo_exch(sm,1,2,2)
+!-----------------------------------------------------------------------
+!   READ FROM RESTART FILE: REAL 3D ARRAYS
+!-----------------------------------------------------------------------
+      call mpi_barrier(mpi_comm_comp,ierr)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          call nemsio_readrecv(gfile,'clwmr','mid layer',l,temp1,iret=ierr)
+!          write(0,*)'in init restart,clwmr =',maxval(temp1),minval(temp1)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          cw(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,cw,1,1,1,lm,l)
+      enddo
+!      write(0,*)'in init restart after1,clwmr =',maxval(cw),minval(cw)
+      call halo_exch(cw,lm,2,2)
+      if (mype==0) then
+      write(0,*)'1. in init restart,clwmr =',maxval(cw),minval(cw)
+      endif
+
+!      write(0,*)'in init restart after2,clwmr =',maxval(cw),minval(cw)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          call nemsio_readrecv(gfile,'spfh','mid layer',l,temp1,iret=ierr)
+        write(0,*)'in init restart,spfh =',maxval(temp1),minval(temp1)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          q(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,q,1,1,1,lm,l)
+      enddo
+      call halo_exch(q,lm,2,2)
+      if (mype==0) then
+      write(0,*)'2. in init restart,clwmr =',maxval(cw),minval(cw)
+      endif
+
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          call nemsio_readrecv(gfile,'q2','mid layer',l,temp1,iret=ierr)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          q2(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,q2,1,1,1,lm,l)
+      enddo
+      call halo_exch(q2,lm,2,2)
+      if (mype==0) then
+      write(0,*)'3. in init restart,clwmr =',maxval(cw),minval(cw)
+      endif
+
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          call nemsio_readrecv(gfile,'tmp','mid layer',l,temp1,iret=ierr)
+        write(0,*)'in init restart,tmp =',maxval(temp1),minval(temp1)
+          write(0,*) 'L, T extremes: ', L, minval(temp1),maxval(temp1)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          t(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,t,1,1,1,lm,l)
+      enddo
+      call halo_exch(t,lm,2,2)
+      if (mype==0) then
+      write(0,*)'3a. in init restart,clwmr =',maxval(cw),minval(cw)
+      endif
+
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          call nemsio_readrecv(gfile,'ugrd','mid layer',l,temp1,iret=ierr)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          u(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,u,1,1,1,lm,l)
+      enddo
+      call halo_exch(u,lm,2,2)
+      if (mype==0) then
+      write(0,*)'3b. in init restart,clwmr =',maxval(cw),minval(cw)
+      endif
+
+!-----------------------------------------------------------------------
+      do l=1,lm
+        if(mype==0)then
+          call nemsio_readrecv(gfile,'vgrd','mid layer',l,temp1,iret=ierr)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          v(i,j,l)=0.
+        enddo
+        enddo
+        call dstrb(temp1,v,1,1,1,lm,l)
+      enddo
+      call halo_exch(v,lm,2,2)
+      if (mype==0) then
+      write(0,*)'4. in init restart,clwmr =',maxval(cw),minval(cw)
+      endif
+
+!-----------------------------------------------------------------------
+      do n=1,num_tracers_total
+      do l=1,lm
+        if(mype==0)then
+          write(tn,'(I2.2)')n
+          call nemsio_readrecv(gfile,'tracers_'//tn,'mid layer',l,temp1,iret=ierr)
+          write(0,*)'get tracer, name=','tracers_'//tn,maxval(temp1),minval(temp1)
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          tracers(i,j,l,n)=0.
+        enddo
+        enddo
+        call dstrb(temp1,tracers(:,:,:,n),1,1,1,lm,l)
+      enddo
+      enddo
+      if (mype==0) then
+      write(0,*)'4a. in init restart,clwmr =',maxval(cw),minval(cw)
+      endif
+
+!
+      do n=1,num_water
+      do l=1,lm
+        do j=jms,jme
+        do i=ims,ime
+          water(i,j,l,n)=tracers(i,j,l,n+num_tracers_total-num_water)
+        enddo
+        enddo
+      enddo
+      enddo
+      if (mype==0) then
+      write(0,*)'4b. in init restart,clwmr =',maxval(cw),minval(cw)
+      endif
+
+!
+!-----------------------------------------------------------------------
+!
+      call nemsio_close(gfile,iret=ierr)
+!
+!-----------------------------------------------------------------------
+      ntsti=ntsd+1
+!
+      tend_max=real(ihrend)
+      ntstm_max=nint(tend_max*3600./dt)+1
+      tend=real(nhours_fcst)
+      ntstm=nint(tend*3600./dt)+1
+      if(.not.global)then
+         write(0,*)' Max runtime is ',tend_max,' hours'
+      endif
+      if(mype==0)then
+        write(0,*)' Requested runtime is ',tend,' hours'
+        write(0,*)' NTSTM=',ntstm
+      endif
+      if(ntstm>ntstm_max.and..not.global)then
+        if(mype==0)then
+          write(0,*)' Requested fcst length exceeds maximum'
+          write(0,*)' Resetting to maximum'
+        endif
+        ntstm=min(ntstm,ntstm_max)
+      endif
+!
+      ihr=nint(ntsd*dt/3600.)
+!-----------------------------------------------------------------------
+      do l=1,lm
+        pdsg1(l)=dsg1(l)*pdtop
+        psgml1(l)=sgml1(l)*pdtop+pt
+      enddo
+!
+      do l=1,lm+1
+        psg1(l)=sg1(l)*pdtop+pt
+      enddo
+!-----------------------------------------------------------------------
+      do l=1,lm
+        do j=jms,jme
+          do i=ims,ime
+            sp(i,j,l,indx_q  )=sqrt(max(q  (i,j,l),0.))
+            sp(i,j,l,indx_cw )=sqrt(max(cw (i,j,l),0.))
+            sp(i,j,l,indx_rrw)=sqrt(max(rrw(i,j,l),0.))
+            sp(i,j,l,indx_q2 )=sqrt(max(q2 (i,j,l),0.))
+          enddo
+        enddo
+      enddo
+!-----------------------------------------------------------------------
+         endif                                     ! cold start /restart
+!-----------------------------------------------------------------------
+!
+      deallocate(temp1)
+      deallocate(stdh)
+      if(mype==0)then
+        write(0,*)' EXIT SUBROUTINE INIT pt=',pt
+      endif
+      if (mype==0) then
+      write(0,*)'in init restart,clwmr =',maxval(cw),minval(cw)
+      endif
+!-----------------------------------------------------------------------
+!
+                        end subroutine init_nemsio
+!
+!-----------------------------------------------------------------------
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!-----------------------------------------------------------------------
+
 !
                         subroutine exptbl
 !     ******************************************************************

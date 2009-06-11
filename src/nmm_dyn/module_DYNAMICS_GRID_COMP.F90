@@ -207,8 +207,7 @@
                                ,NHOURS_FCST,NPES                        &
                                ,READ_GLOBAL_SUMS,SBD,WBD                &
                                ,WRITE_GLOBAL_SUMS                       &
-!
-                               ,CONSTS,INIT
+                               ,CONSTS,INIT,INIT_NEMSIO
 !
 #ifdef IBM
       USE MODULE_FLTBNDS,ONLY : PREFFT
@@ -245,8 +244,9 @@
       TYPE(ESMF_TimeInterval)   :: DT_ESMF                                !<-- The ESMF fundamental timestep (s)
       TYPE(ESMF_Time)           :: STARTTIME                              !<-- The ESMF start time  
 !
+      TYPE(ESMF_TimeInterval)   :: RUNDURATION
       INTEGER :: IDENOMINATOR_DT,IERR,INTEGER_DT,KSE,KSS,L              &
-                ,N,NUMERATOR_DT,RC
+                ,N,NUMERATOR_DT,RC,run_duration
 !
       LOGICAL(KIND=KLOG) :: RUN_LOCAL
 !
@@ -448,6 +448,7 @@
 !
         CALL ESMF_ClockGet(clock   =CLOCK_ATM                           &
                           ,timeStep=DT_ESMF                             &
+                          ,runduration=RUNDURATION                      &
                           ,rc      =RC)
 !
         CALL ESMF_TimeIntervalGet(timeinterval=DT_ESMF                  &  !<-- the ESMF timestep
@@ -455,6 +456,10 @@
                                  ,sN          =NUMERATOR_DT             &  !<-- the numerator of the fractional second
                                  ,sD          =IDENOMINATOR_DT          &  !<-- the denominator of the fractional second
                                  ,rc          =RC)
+        CALL ESMF_TimeIntervalGet(timeinterval=RUNDURATION              &
+                                 ,s           =run_duration             &
+                                 ,rc          =RC)
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -463,6 +468,7 @@
         int_state%DT=REAL(INTEGER_DT)+REAL(NUMERATOR_DT)                &
                                      /REAL(IDENOMINATOR_DT)
         DT=int_state%DT
+        int_state%RUN_DURATION=REAL(run_duration)/3600.0
 !
 !-----------------------------------------------------------------------
 !***  PRIMARY INITIALIZATION OF SCALARS/ARRAYS.
@@ -473,6 +479,9 @@
 !
         btim=timef()
 !
+
+        if(.not.int_state%nemsio_input) then
+
 
         CALL INIT(int_state%GLOBAL                                      &
                  ,KSS,KSE                                               &
@@ -499,8 +508,82 @@
                  ,int_state%NUM_WATER,int_state%WATER                   &
                  ,int_state%NUM_TRACERS_TOTAL,int_state%TRACERS         &
                  ,int_state%P_QV,int_state%P_QC,int_state%P_QR          &
-                 ,int_state%P_QI,int_state%P_QS,int_state%P_QG)
-
+                 ,int_state%P_QI,int_state%P_QS,int_state%P_QG          &
+                 ,DT,int_state%NHOURS_FCST)
+         else
+         CALL INIT_NEMSIO(int_state%GLOBAL                          &
+                 ,KSS,KSE                                               &
+                 ,int_state%PDTOP,int_state%PT,int_state%LPT2           &
+                 ,int_state%SG1,int_state%DSG1                          &
+                 ,int_state%PSG1,int_state%PDSG1                        &
+                 ,int_state%SG2,int_state%DSG2,int_state%SGM            &
+                 ,int_state%SGML1,int_state%PSGML1,int_state%SGML2      &
+                 ,int_state%FIS,int_state%SM,int_state%SICE             &
+                 ,int_state%PD,int_state%PDO,int_state%PINT             &
+                 ,int_state%U,int_state%V,int_state%Q2,int_state%E2     &
+                 ,int_state%T,int_state%Q,int_state%CW                  &
+                 ,int_state%TP,int_state%UP,int_state%VP                &
+                 ,int_state%RRW,int_state%DWDT,int_state%W              &
+                 ,int_state%OMGALF,int_state%DIV,int_state%Z            &
+                 ,int_state%RTOP                                        &
+                 ,int_state%TCU,int_state%TCV,int_state%TCT             &
+                 ,int_state%TRACERS_PREV                                &
+                 ,int_state%INDX_Q,int_state%INDX_CW                    &
+                 ,int_state%INDX_RRW,int_state%INDX_Q2                  &
+                 ,int_state%NTSTI,int_state%NTSTM                       &
+                 ,int_state%IHR,int_state%IHRST,int_state%IDAT          &
+                 ,RUN_LOCAL,int_state%RESTART                           &
+                 ,int_state%NUM_WATER,int_state%WATER                   &
+                 ,int_state%NUM_TRACERS_TOTAL,int_state%TRACERS         &
+                 ,int_state%P_QV,int_state%P_QC,int_state%P_QR          &
+                 ,int_state%P_QI,int_state%P_QS,int_state%P_QG          &
+		 ,DT,int_state%NHOURS_FCST)
+         endif
+       if (mype==0) then
+      write(0,*)'dynamics'
+      write(0,*)'ihr,ihrst,lpt2,ntsti,ntstm=',int_state%ihr,int_state%ihrst,int_state%lpt2,int_state%ntsti,int_state%ntstm
+      write(0,*)'idat=',int_state%idat(1),int_state%idat(2),int_state%idat(3)
+      write(0,*)'dsg1=',minval(int_state%dsg1),maxval(int_state%dsg1)
+      write(0,*)'pdsg1=',minval(int_state%pdsg1),maxval(int_state%pdsg1)
+      write(0,*)'psgml1=',minval(int_state%psgml1),maxval(int_state%psgml1)
+      write(0,*)'sgml1=',minval(int_state%sgml1),maxval(int_state%sgml1)
+      write(0,*)'sgml2=',minval(int_state%sgml2),maxval(int_state%sgml2)
+      write(0,*)'psg1=',minval(int_state%psg1),maxval(int_state%psg1)
+      write(0,*)'sg1=',minval(int_state%sg1),maxval(int_state%sg1)
+      write(0,*)'sg2=',minval(int_state%sg2),maxval(int_state%sg2)
+      write(0,*)'fis=',minval(int_state%fis),maxval(int_state%fis)
+      write(0,*)'pd=',minval(int_state%pd),maxval(int_state%pd)
+      write(0,*)'pdo=',minval(int_state%pdo),maxval(int_state%pdo)
+      write(0,*)'sice=',minval(int_state%sice),maxval(int_state%sice)
+      write(0,*)'sm=',minval(int_state%sm),maxval(int_state%sm)
+      write(0,*)'cw=',minval(int_state%cw),maxval(int_state%cw)
+      write(0,*)'dwdt=',minval(int_state%dwdt),maxval(int_state%dwdt)
+      write(0,*)'q=',minval(int_state%q),maxval(int_state%q)
+      write(0,*)'q2=',minval(int_state%q2),maxval(int_state%q2)
+      write(0,*)'rrw=',minval(int_state%rrw),maxval(int_state%rrw)
+      write(0,*)'omgalf=',minval(int_state%omgalf),maxval(int_state%omgalf)
+      write(0,*)'div=',minval(int_state%div),maxval(int_state%div)
+      write(0,*)'z=',minval(int_state%z),maxval(int_state%z)
+      write(0,*)'rtop=',minval(int_state%rtop),maxval(int_state%rtop)
+      write(0,*)'tcu=',minval(int_state%tcu),maxval(int_state%tcu)
+      write(0,*)'tcv=',minval(int_state%tcv),maxval(int_state%tcv)
+      write(0,*)'tct=',minval(int_state%tct),maxval(int_state%tct)
+      write(0,*)'t=',minval(int_state%t),maxval(int_state%t)
+      write(0,*)'tp=',minval(int_state%tp),maxval(int_state%tp)
+      write(0,*)'u=',minval(int_state%u),maxval(int_state%u)
+      write(0,*)'up=',minval(int_state%up),maxval(int_state%up)
+      write(0,*)'v=',minval(int_state%v),maxval(int_state%v)
+      write(0,*)'vp=',minval(int_state%vp),maxval(int_state%vp)
+      write(0,*)'e2=',minval(int_state%e2),maxval(int_state%e2)
+      write(0,*)'w=',minval(int_state%w),maxval(int_state%w)
+      write(0,*)'pint=',minval(int_state%pint),maxval(int_state%pint)
+      write(0,*)'water=',minval(int_state%water),minval(int_state%water)
+      write(0,*)'tracers=',minval(int_state%tracers),maxval(int_state%tracers)
+!      write(0,*)'sp=',minval(int_state%sp),maxval(int_state%sp)
+      write(0,*)'run=',int_state%run 
+      endif
+     
+!
 
 !
 !***  CHECK IF STARTING DATE/TIME IN INPUT DATA FILE AGREES WITH
@@ -913,7 +996,7 @@
 !
       INTEGER(KIND=KINT),DIMENSION(3),SAVE :: IDATBC
 !
-      REAL(KIND=KFPT) :: FICE,FRAIN,QI,QR,QW,SECONDS_TOTAL,WC
+      REAL(KIND=KFPT) :: FICE,FRAIN,QI,QR,QW,SECONDS_TOTAL,WC,TIME_CHECK
 !
       REAL(KIND=KFPT),SAVE :: DDMPV,DT,DYH,DYV,EF4T,PDTOP,PT            &
                              ,RDYH,RDYV,TBOCO
@@ -982,6 +1065,7 @@
 !
       NTIMESTEP=NTIMESTEP_ESMF
       int_state%NTSD=NTIMESTEP
+      TIME_CHECK=(NTIMESTEP+1)*int_state%DT/3600.
 !
 !-----------------------------------------------------------------------
 !***  UPDATE THE CURRENT VALUES INSIDE THE DYNAMICS INTERNAL STATE
@@ -998,12 +1082,6 @@
       ENDIF 
 !
       update_dyn_int_state_tim=update_dyn_int_state_tim+timef()-btim
-!xxx
-!  if(MYPE==0) then
-!    call print_memory("MEMORY_USAGE"//char(0))
-!  endif
-!xxx
-!
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !***  THE MAIN DYNAMICS INTEGRATION LOOP.
@@ -1413,7 +1491,7 @@
           READBC=(ABS(NTIMESTEP)==1.OR.MOD(ABS(NTIMESTEP),NBOCO)==0)
           IF(S_BDY.OR.N_BDY.OR.W_BDY.OR.E_BDY)THEN
             IF(READBC)THEN
-              IF(.NOT.ESMF_ClockIsStopTime(clock=CLOCK_ATM,rc=RC))THEN
+              IF(TIME_CHECK .LE. int_state%RUN_DURATION)THEN
               CALL READ_BC(LM,LNSH,LNSV,ABS(NTIMESTEP),DT                    &
                           ,RUNBC,IDATBC,IHRSTBC,TBOCO                   &
                           ,int_state%PDBS,int_state%PDBN                &
@@ -1448,6 +1526,7 @@
              ,int_state%T,int_state%Q,int_state%CW                      &
              ,int_state%PINT)
 !
+
           bocoh_tim=bocoh_tim+timef()-btim
 !
         ENDIF bc_update
@@ -1471,6 +1550,7 @@
           ,int_state%TCU,int_state%TCV)
 !
         pgforce_tim=pgforce_tim+timef()-btim
+
 !
 !-----------------------------------------------------------------------
 !***  FILTERING AND BOUNDARY CONDITIONS FOR THE GLOBAL FORECAST.
@@ -1745,6 +1825,7 @@
 !-----------------------------------------------------------------------
 !
       btim=timef()
+    
 !
       CALL ADV1                                                         &
         (GLOBAL,SECADV                                                  &
@@ -1762,7 +1843,6 @@
         ,int_state%PFNE,int_state%PFNW                                  &
         ,int_state%PFX,int_state%PFY                                    &
         ,int_state%TCT,int_state%TCU,int_state%TCV)
-!
 
       adv1_tim=adv1_tim+timef()-btim
 !
@@ -1984,6 +2064,7 @@
       btim=timef()
 !
 
+
       CALL UPDATET                                                      &
         (LM                                                             &
         ,int_state%T                                                    &
@@ -1992,7 +2073,6 @@
 !
         ,int_state%TCT)
 
-!
       updatet_tim=updatet_tim+timef()-btim
 !
 !-----------------------------------------------------------------------
@@ -2014,6 +2094,7 @@
         polehn_tim=polehn_tim+timef()-btim
 !
       ENDIF
+
 !
 !-----------------------------------------------------------------------
 !
@@ -2077,6 +2158,7 @@
         polehn_tim=polehn_tim+timef()-btim
 !
       ENDIF
+
 !
 !-----------------------------------------------------------------------
 !
@@ -2135,6 +2217,7 @@
         polehn_tim=polehn_tim+timef()-btim
 !
       ENDIF
+
 !
 !-----------------------------------------------------------------------
 !
@@ -2193,6 +2276,7 @@
         polehn_tim=polehn_tim+timef()-btim
 !
       ENDIF
+
 !
 !-----------------------------------------------------------------------
 !
@@ -2375,6 +2459,7 @@
           polehn_tim=polehn_tim+timef()-btim
 !
         ENDIF
+
 !
 !-----------------------------------------------------------------------
 !
@@ -2609,7 +2694,7 @@
 
 
       IF(MYPE==0)THEN
-        WRITE(0,25)NTIMESTEP,(NTIMESTEP+1)*DT/3600.
+        WRITE(0,25)NTIMESTEP,TIME_CHECK
    25   FORMAT(' Finished Dyn Timestep ',i8,' ending at ',f10.3,' hours')
       ENDIF
 !

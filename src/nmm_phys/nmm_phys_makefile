@@ -45,6 +45,7 @@ MODULES=	\
 		module_LANDSURFACE.o \
 		module_PHYSICS_FIELDS.o \
 		module_PRECIP_ADJUST.o \
+		module_PHYSICS_INIT_READ.o \
 		module_PHYSICS_GRID_COMP.o \
 		module_PHYSICS_OUTPUT.o \
 		module_GWD.o 
@@ -106,7 +107,8 @@ module_PHYSICS_GRID_COMP.o:	\
 			   	module_SURFACE_LAYER.o \
 			   	module_TURBULENCE.o \
 				module_PRECIP_ADJUST.o \
-				module_GWD.o 
+				module_GWD.o \
+				module_PHYSICS_INIT_READ.o 
 
 module_GET_CONFIG_PHY.o:        \
 				module_PHYSICS_INTERNAL_STATE.o 
@@ -142,3 +144,6 @@ module_SURFACE_LAYER.o:	\
 module_LAND_SURFACE.o:	\
 			module_surface.o \
 			module_SF_URBAN.o 
+
+module_PHYSICS_INIT_READ.o: \
+			module_MICROPHYSICS.o

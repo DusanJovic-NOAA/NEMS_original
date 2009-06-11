@@ -100,13 +100,14 @@
       end subroutine digital_filter_dyn_init_nmm
 
 ! ---------------------------------------------------------------
-      subroutine digital_filter_dyn_sum_nmm(dyn_state,MEAN_ON,NUM_WATER,NUM_TRACERS)
+      subroutine digital_filter_dyn_sum_nmm(dyn_state,MEAN_FLAG,NUM_WATER,NUM_TRACERS)
       USE MODULE_DM_PARALLEL
 !
       implicit none
           
       type(esmf_state), intent(in)  :: dyn_state 
-      INTEGER, intent(in)          :: MEAN_ON,NUM_WATER,NUM_TRACERS
+      INTEGER(KIND=KINT), intent(in)          :: NUM_WATER,NUM_TRACERS
+      LOGICAL(KIND=KLOG), intent(in)          :: MEAN_FLAG
       INTEGER(KIND=KINT) :: I,II,J,JJ,L,N,P,RC,RC_UPD
       REAL(KIND=KFPT),DIMENSION(:,:)    ,POINTER :: HOLD_2D
       REAL(KIND=KFPT),DIMENSION(:,:,:)  ,POINTER :: HOLD_3D
@@ -131,7 +132,7 @@
         endif 
 
         
-        IF (MEAN_ON .GT. 0) THEN
+        IF (MEAN_FLAG) THEN
             digfil=1.
         ENDIF
    

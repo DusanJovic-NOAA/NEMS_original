@@ -57,7 +57,7 @@
                           ,SMAG2,SMAG4                                  &       
                           ,TPH0D,TLM0D                                  &
                           ,TSTART                                       &
-                          ,WBD,WCOR
+                          ,WBD,WCOR,RUN_DURATION
 !
         LOGICAL(KIND=KLOG) :: ADIABATIC                                 &
                              ,ADVECT_TRACERS                            &
@@ -66,7 +66,8 @@
                              ,RESTART                                   &
                              ,SECADV,SECDIF                             &
                              ,READ_GLOBAL_SUMS                          &
-                             ,WRITE_GLOBAL_SUMS
+                             ,WRITE_GLOBAL_SUMS                         &
+			     ,NEMSIO_INPUT
 !
         TYPE(ESMF_Logical) :: GLOBAL_E
 !

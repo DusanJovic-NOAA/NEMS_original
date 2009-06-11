@@ -130,7 +130,7 @@
      & ,N0rmin=1.E4                                                     &
      & ,NCW=100.E6                                                      &
      & ,FLARGE1=1.                                                      &
-     & ,FLARGE2=.2
+     & ,FLARGE2=.03
 !--- Other public variables passed to other routines:
       REAL,PUBLIC,SAVE ::  QAUT0
       REAL, PUBLIC,DIMENSION(MDImin:MDImax) :: MASSI

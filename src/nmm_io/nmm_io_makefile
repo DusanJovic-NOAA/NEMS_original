@@ -34,9 +34,6 @@
 include ../../ush/compile_settings
 TARGET=nmm_io.a
  
-MODULEIO=       \
-		nemsio_module.o
-
 MODULES=	\
 		module_BGRID_INTERP.o \
 		module_GET_CONFIG_WRITE.o \
@@ -49,11 +46,8 @@ MODULES=	\
 .F90.f90:
 	$(CPP) $(CPPFLAGS) $< > $*.f90
 
-$(LIBDIR)/lib/$(TARGET): $(MODULEIO) $(MODULES) 
-	$(AR) $(ARFLAGS) $(LIBDIR)/lib/$(TARGET) $(MODULEIO) $(MODULES) 
-
-$(MODULEIO):     $(DEPS)
-	$(FC) $(FFLAG_NMM_IO) -c $<
+$(LIBDIR)/lib/$(TARGET): $(MODULES) 
+	$(AR) $(ARFLAGS) $(LIBDIR)/lib/$(TARGET) $(MODULES) 
 
 $(MODULES):	$(DEPS)
 	$(FC) $(FFLAG_NMM_IO) -c $<
@@ -79,5 +73,4 @@ module_GET_CONFIG_WRITE.o:     	\
                                 module_WRITE_INTERNAL_STATE.o 
 
 module_WRITE_ROUTINES.o :       \
-                                module_WRITE_INTERNAL_STATE.o \
-				nemsio_module.o
+                                module_WRITE_INTERNAL_STATE.o 

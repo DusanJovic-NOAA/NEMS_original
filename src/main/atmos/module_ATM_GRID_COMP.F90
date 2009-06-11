@@ -49,6 +49,7 @@
       USE MODULE_GET_CONFIG_WRITE
       USE MODULE_CONTROL,ONLY: TIMEF
       USE MODULE_DIAGNOSE,ONLY : FIELD_STATS
+      USE NEMSIO_MODULE
 !
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
      
@@ -266,6 +267,8 @@
 !***  LOCAL VARIABLES
 !-----------------------------------------------------------------------
 !
+      CHARACTER(ESMF_MAXSTR)           :: INFILE
+      TYPE(NEMSIO_GFILE) :: GFILE
       TYPE(WRAP_ATM_INTERNAL_STATE)    :: WRAP                          !<-- The F90 wrap of the ATM internal state
       TYPE(ATM_INTERNAL_STATE),POINTER :: ATM_INT_STATE                 !<-- The ATM internal state pointer
 !
@@ -303,6 +306,7 @@
 !
 !
       LOGICAL                          :: DIST_MEM,PHYSICS_ON           !<-- Logical flag for distributed
+      LOGICAL                          :: NEMSIO_INPUT
       LOGICAL                          :: QUILTING                      !<-- Logical flag for quilting in
 !
       LOGICAL                          :: OPENED
@@ -335,6 +339,7 @@
       integer                      :: num_pes,num_pes_fcst,num_pes_tot
       integer                      :: mpi_intra,mpi_intra_b     ! the mpi intra-communicator!
       logical                      :: global
+      INTEGER :: FCSTDATE(7)
       RC     =ESMF_success
 
 
@@ -539,6 +544,29 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract NEMSIO FLAG Config File"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The config object
+                                  ,value =NEMSIO_INPUT                 &  !<-- The variable filled (logical restart or cold start)
+                                  ,label ='nemsio_input:'                    &  !<-- Give this label's value to the previous variable
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+
+!-----------------------------------------------------------------------
+!***  EXTRACT RESTART LOGICAL FROM CF;
+!***  IF RESTARTED RUN:
+!***     READ NTSD FROM restart_file
+!***     SET CURRTIME TO TIME WHEN RESTART FILE WAS WRITTEN
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract Restart Logical from Config File"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -555,9 +583,37 @@
 !-----------------------------------------------------------------------
 !
       NTSD_START=0
+      INFILE="restart_file"
 !
       IF(RESTARTED_RUN) THEN                                               !<-- If this is a restarted run, set the current time
 !
+        if (NEMSIO_INPUT) then
+!----------------------------------------------------------------------
+!*** read restart data
+!-----------------------------------------------------------------------
+!
+       CALL NEMSIO_INIT()
+!
+       CALL NEMSIO_OPEN(gfile,INFILE,'read',iret=irtn)
+!
+!-----------------------------------------------------------------------
+!              READ FROM RESTART FILE: INTEGER SCALARS
+!-----------------------------------------------------------------------
+!
+      CALL NEMSIO_GETHEADVAR(gfile,'FCSTDATE',FCSTDATE,iret=irtn)
+      IYEAR_FCST=FCSTDATE(1)
+      IMONTH_FCST=FCSTDATE(2)
+      IDAY_FCST=FCSTDATE(3)
+      IHOUR_FCST=FCSTDATE(4)
+      IMINUTE_FCST=FCSTDATE(5)
+      SECOND_FCST=0.
+      if(FCSTDATE(7)/=0) SECOND_FCST=FCSTDATE(6)/(FCSTDATE(7)*1.)
+      CALL NEMSIO_GETHEADVAR(gfile,'NTIMESTEP',NTSD,iret=irtn)
+
+      call nemsio_close(gfile,iret=ierr)
+!
+      else
+
         select_unit: DO N=51,59
           INQUIRE(N,OPENED=OPENED)
           IF(.NOT.OPENED)THEN
@@ -566,7 +622,7 @@
           ENDIF
         ENDDO select_unit
 !
-        OPEN(unit=NFCST,file='restart_file',status='old',form='unformatted')
+        OPEN(unit=NFCST,file=INFILE,status='old',form='unformatted')
 !
         READ(NFCST) IYEAR_FCST                                             !<-- Read time form restart file
         READ(NFCST) IMONTH_FCST                                            !
@@ -578,6 +634,8 @@
         READ(NFCST) NTSD                                                   !<-- Read timestep from restart file
 !
         CLOSE(NFCST)
+
+       endif
 !
        ISECOND_FCST=NINT(SECOND_FCST)                                      !<-- ESMF clock needs integer seconds
         NTSD_START=NTSD

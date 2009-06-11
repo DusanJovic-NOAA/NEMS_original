@@ -124,8 +124,8 @@
 !
       REAL, PARAMETER ::  &
      &   TRAD_ice=0.5*T_ice      & !--- Very tunable parameter
-     &,  ABSCOEF_W=800.          & !--- Very tunable parameter
-     &,  ABSCOEF_I=500.          & !--- Very tunable parameter
+     &,  ABSCOEF_W=1600.         & !--- Very tunable parameter
+     &,  ABSCOEF_I=1000.         & !--- Very tunable parameter
      &,  SECANG=-1.66            & !--- Very tunable parameter
      &,  CLDCOEF_LW=1.5          & !--- Enhance LW cloud depths
      &,  ABSCOEF_LW=SECANG*CLDCOEF_LW  & !--- Final factor for cloud emissivities

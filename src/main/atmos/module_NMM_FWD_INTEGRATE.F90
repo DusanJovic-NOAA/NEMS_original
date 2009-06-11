@@ -91,6 +91,7 @@
       TYPE(ESMF_Time)                        :: SDFITIME
       TYPE(ESMF_Time)                        :: HALFDFITIME
       TYPE(ESMF_Time)                        :: DFITIME
+      TYPE(ESMF_Logical)                     :: ESMF_HDIFF_DDAMP=ESMF_TRUE
       INTEGER(KIND=KINT)                     :: NDFISTEP,FILTER_METHOD
 !
 !
@@ -102,8 +103,7 @@
       INTEGER(KIND=ESMF_KIND_I8) :: NTIMESTEP_ESMF                        !<-- The current forecast timestep (ESMF_INT)
 !
       CHARACTER(ESMF_MAXSTR) :: CWRT                                      !<-- Restart/History label
-      INTEGER(KIND=KINT)       :: MEAN_ON = 0
-      INTEGER(KIND=KINT)       :: HDIFF_ON = 1
+      LOGICAL(KIND=KLOG)       :: MEAN_FLAG = .FALSE. 
 
 !
 !-----------------------------------------------------------------------
@@ -116,8 +116,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_AttributeSet(state    =atm_int_state%EXP_STATE_DYN    &  !<-- Dynamics impor
-                              ,name     ='HDIFF'   &  !<-- Insert this qu
-                              ,value= HDIFF_ON  &
+                              ,name     ='HDIFF_DDAMP'   &  !<-- Insert this qu
+                              ,value= ESMF_HDIFF_DDAMP  &
                               ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -245,7 +245,7 @@
 !
           IF (CURRTIME .GE. SDFITIME)THEN
           CALL DIGITAL_FILTER_DYN_SUM_NMM(atm_int_state%IMP_STATE_DYN   &
-                                         ,MEAN_ON                       &
+                                         ,MEAN_FLAG                       &
                                          ,NUM_TRACERS_MET               &
                                          ,NUM_TRACERS_CHEM)
           ENDIF

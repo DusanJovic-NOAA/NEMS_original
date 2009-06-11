@@ -47,8 +47,8 @@ TRAPS    =
 #
 # Assemble Options
 #
-FINCO    = -I/meso/save/${USER}/NEMS/mod/esmf_3_1_0rp2
-FINCP    = -I/meso/save/${USER}/NEMS/src/nmm_libutil
+FINCO    = -I/meso/save/${USER}/trunk/mod/esmf_3_1_0rp2
+FINCP    = -I/meso/save/${USER}/trunk/src/nmm_libutil
 FINCS	 = $(FINCO) $(FINCP)
 FFLAGS   = $(OPTS) $(FINCS) $(TRAPS)
 #

@@ -1,19 +1,22 @@
 #!/bin/ksh
 #
-# @ job_name = prep_atmos
+# @ job_name = run_atmos
 # @ job_type = parallel
 # @ account_no = GFS-T2O
-# @ output = ../exp/gfs/out_run
-# @ error = ../exp/gfs/err_run
-# @ resources = ConsumableMemory(4000MB) ConsumableCpus(1)
+# @ output = out2
+# @ error =  err2
+###### @ total_tasks = 96
+###### @ blocking = unlimited
+###### @ resources = ConsumableMemory(4000mb) ConsumableCpus(1)
 # @ node_usage = not_shared
-# @ tasks_per_node = 32
+## @ tasks_per_node = 16
+# @ tasks_per_node = 1
 # @ node = 1
 # @ network.MPI=csss,shared,us
-# @ bulkxfer = yes
 # @ class = dev
+### @ class = dev
 # @ group = dev
-# @ wall_clock_limit = 02:30:00
+# @ wall_clock_limit = 01:15:00
 # @ queue
 #
 set -x
@@ -21,6 +24,7 @@ set -x
  export CDATE=2007070200
 
 
+#export EXPLICIT=.true.
  export ADIAB=.false.
  export REDUCED_GRID=.false.
 
@@ -46,7 +50,9 @@ export RIlist="  286.05,   461.50, 173.2247,    0.0"
 #
 #    Set up horizontal and vertical resolution ; default will be T6264
 #
+#export wave=382 ; export lm=64 ; export lsoil=4
  export wave=62 ; export lm=64 ; export lsoil=4
+#export wave=62 ; export lm=64 ; export lsoil=2 ; export lsm=0
 #
 export NCP=cp
 export FTSFS=0.0
@@ -56,12 +62,15 @@ export FAISS=0.0
 #
  export ENS_NUM=1
 #
- tasks=32  ; export PE1=32 
+ tasks=1  ; export PE1=1 
+#tasks=1   ; export PE1=1
 #
 export MP_STDOUTMODE=ordered
+export MP_LABELIO=yes
 export MP_SHARED_MEMORY=yes
 export MEMORY_AFFINITY=MCM
-export NTHREADS=2
+##export BIND_TASKS=yes
+export NTHREADS=1
 export XLSMPOPTS="parthds=$NTHREADS:spins=0:yields=0:stack=512000000"
 export SPINLOOPTIME=500
 export YIELDLOOPTIME=500
@@ -72,17 +81,20 @@ export MALLOCMULTIHEAP=true
 #
 #    Set up experiment and directory names
 #
- export expt=gfs.1
+ export expt=gfs.0
 #
  export NSCDIR=/global/noscrub
  export TOPDIR=/global/save
- export DUMPDIR=/meso/noscrub/wx22ec
- export MP_COREFILE_FORMAT=lite
- export RUNDIR=/ptmp/${USER}/test
- export SCRIPTS=/global/save/wx23sm/gsm/scripts
- export fcst_begin=_FCSTBEGIN_
- export cold_sfc=NO
+ export DUMPDIR=/global/shared/dump
+ export MP_COREFILE_FORMAT=lite 
+ export RUNDIR=${RUNDIR:-/ptmp/$LOGNAME/$expt}
+ export SCRIPTS=${SCRIPTS:-$TOPDIR/wx23sm/gsm/scripts}
+
+ export fcst_begin=${fcst_begin:-YES}
+ export cold_sfc=${cold_sfc:-NO}
+ export hybrid=${hybrid:-NO}
 #
+ export NCP=${NCP:-/u/wx20mi/bin/ncp}
 #
 #
 #
@@ -95,7 +107,7 @@ if [[ ${fcst_begin} = YES ]] ; then
  export nhourb=0
 else
  if [[ -s $RUNDIR/sigr1$FM ]] ; then
-   export nhourb=/nwprod/exec/global_sighdr $RUNDIR/sigr1i$FM ifhr
+   export nhourb=`/nwprod/exec/global_sighdr $RUNDIR/sigr1$FM ifhr`
    export FHROT=${FHROT:-$nhourb}
  else
    nhourb=$((ndays*24))
@@ -107,7 +119,7 @@ export nhours=`expr $ndays \* 24`
 
 #
 # For two tracers
-  export ntrc=3  ; export varid=21 ; export numcld=1
+  export ntrc=3  ; export varid=21  ; export numcld=1
 #
 #
  export fmax=$nhours
@@ -120,15 +132,18 @@ export nhours=`expr $ndays \* 24`
 #    Forecast model : horizontal truncation  and vertical levels
 #                     ---------------------
 #
+export wave=${wave:-62}
+export lm=${lm:-64}
+export lsoil=${lsoil:-4}
 #
-export NTRAC=3
-export NTOZ=2
-export NTCW=3
-export NCLD=1
-export NMTVR=14
+export NTRAC=${NTRAC:-3}
+export NTOZ=${NTOZ:-2}
+export NTCW=${NTCW:-3}
+export NCLD=${NCLD:-1}
+export NMTVR=${NMTVR:-14}
 #
-export nsout=0
-export lsm-1
+export nsout=${nsout:-0}
+export lsm=${lsm:-1}
 #
 #   Control for post and time averaging  If "YES" then run
 #   -- Defaults to "NO" 
@@ -136,38 +151,41 @@ export lsm-1
  export gfsio_in=.true.
  export gfsio_out=.true.
 #
- export DYNVARS=_DYNVARS_
- export PHYVARS=liope=.F.,gfsio_in=$gfsio_in,gfsio_out=$gfsio_out
+ export DYNVARS="liope=.F.,gfsio_in=$gfsio_in,gfsio_out=$gfsio_out"
+ export PHYVARS="liope=.F.,gfsio_in=$gfsio_in,gfsio_out=$gfsio_out"
 
- export TRACERVARS=
+ export TRACERVARS="RI=$RIlist,CPI=$CPIlist,"
 #
+export NGPTC=12
 export NGPTC=${NGPTC:-$((wave/10))}
-export LEVR=_LEVR_
+export LEVR=${levr:-0}
 #
 #     Forecaset script and executable name
 #
- export FCSTSCRIPT=
- export FCSTEXEC=
+ export FCSTSCRIPT=/meso/save/${USER}/trunk/run/exglobal_fcst.sh.sms_nems
+ export FCSTEXEC=/meso/save/${USER}/trunk/MAIN_NEMS.x
+# export FCSTEXEC=/meso/save/${USER}/global_atmos.fd/nems_main_gfs.x
 #
 #
 # ***************************************************************
 #    Below here no change needed most of the time
 #    ____________________________________________
 #
-cp $FILE configure_file
+cp configfile_global_new configure_file
 cp configure_file $RUNDIR
 mkdir -p $RUNDIR
 cd $RUNDIR
  export COMOUT=$RUNDIR
 #
  export FIXGLOBAL=/nwprod/fix
- export FIX_RAD=_FIX_RAD_
+ export FIX_RAD=/global/save/wx23hh/00wkgfs/fix/fix_rad
 #
- export POSTGPDIR=_POSTGPDIR_
- export POSTGPEXEC=_POSTGPEXEC_
- export POSTGPSH=_POSTGPSH_
+ export POSTGPDIR=$TOPDIR/wx23hh/00wkgfs/src/global_postgp.fd
+ export POSTGPEXEC=$POSTGPDIR/global_postgp
+ export POSTGPSH=/nwprod/ush/global_postgp.sh
 #
- export LANDICE_OPT=2
+ export LANDICE_OPT=1
+#export CLIMO_FIELDS_OPT=3
  export CLIMO_FIELDS_OPT=2
 #
 if [[ $wave -eq 62 ]] ; then
@@ -218,7 +236,7 @@ fi
 #
   export SIGI=$RUNDIR/gfsanl.$CDATE
   export SFCI=$RUNDIR/sfcanl.$CDATE
-  export FHINI=_FHINI_
+  export FHINI=00
 #
 # ---------------------------------------- fcst ----------------------
 #
