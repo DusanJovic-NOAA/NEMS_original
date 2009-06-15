@@ -1141,7 +1141,7 @@
 !-----------------------------------------------------------------------
 !
       NSTEPS_PREC=int_state%NHRS_PREC*NSTEPS_PER_HOUR
-      IF(MOD(NTIMESTEP+1-int_state%NPRECIP,NSTEPS_PREC)==0)THEN
+      IF(MOD(NTIMESTEP,NSTEPS_PREC)==0)THEN
         DO J=JTS,JTE
         DO I=ITS,ITE
           int_state%ACPREC(I,J)=0.
