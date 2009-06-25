@@ -70,7 +70,7 @@ cmy bug fix on dimension of ls_node
       IPRINT = 0
 c$$$  IF ( ME .EQ. 0 ) IPRINT = 1
 !
-      if (me .eq. 0) print *,' cread=',cread
+      if (me .eq. 0) write(0,*)' cread=',cread,'ntoz=',ntoz
         CALL TREADEO_gfsio(FHOUR,IDATE,
      X               TRIE_LS(1,1,P_GZ ), TRIE_LS(1,1,P_QM ),
      X               TRIE_LS(1,1,P_TEM), TRIE_LS(1,1,P_DIM),
@@ -97,6 +97,9 @@ c$$$  IF ( ME .EQ. 0 ) IPRINT = 1
           grid_gr(jlonf+1:jlonf+lonf,g_uum+k-1) = uug(1:lonf,j,k)
           grid_gr(jlonf+1:jlonf+lonf,g_vvm+k-1) = vvg(1:lonf,j,k)
         enddo
+        write(0,*)'in input_fields,after treaddo k=',k,'t=',
+     &     maxval(ttg(:,1:lats_node_a,k)),
+     &     minval(ttg(:,1:lats_node_a,k))
       enddo
       do k=1,levh
         do j=1,lats_node_a
@@ -110,8 +113,10 @@ c$$$  IF ( ME .EQ. 0 ) IPRINT = 1
       if(me.eq.0) PRINT 9877, N1,FHOUR
  9877 FORMAT(1H ,'N1,FHOUR AFTER TREAD',1(I4,1X),F6.2)
  
-      if (me .eq. 0) print *,' fhini=',fhini
-      if (.NOT.LIOPE.or.icolor.ne.2) then
+      if (me .eq. 0) write(0,*)' fhini=',fhini,'last_fcst_pe=',
+     &     last_fcst_pe,'fhrot=',fhrot
+!jw      if (.NOT.LIOPE.or.icolor.ne.2) then
+      if (me<=last_fcst_pe) then 
 !sela   print*,'liope=',liope,' icolor=',icolor
         CALL RMS_spect(TRIE_LS(1,1,P_QM ), TRIE_LS(1,1,P_DIM),
      X             TRIE_LS(1,1,P_TEM), TRIE_LS(1,1,P_ZEM),
@@ -175,12 +180,15 @@ c$$$  IF ( ME .EQ. 0 ) IPRINT = 1
         grid_gr(:,g_vv:g_vv+levs-1)=grid_gr(:,g_vvm:g_vvm+levs-1)
         grid_gr(:,g_rq:g_rq+levh-1)=grid_gr(:,g_rm :g_rm +levh-1)
 
+        write(0,*)'in input_fields,t=',
+     &     maxval(grid_gr(:,g_tt:g_tt+levs-1)),
+     &     minval(grid_gr(:,g_tt:g_tt+levs-1))
 !--------------------------------------------------------
       else
 !--------------------------------------------------------
         IPRINT = 0
 c$$$      IF ( ME .EQ. 0 ) IPRINT = 1
-      if (me .eq. 0) print *,' cread2=',cread2
+      if (me .eq. 0) write(0,*)' cread2=',cread2
           CALL TREADEO_gfsio(FHOUR,IDATE,
      X                 TRIE_LS(1,1,P_GZ), TRIE_LS(1,1,P_Q ),
      X                 TRIE_LS(1,1,P_TE), TRIE_LS(1,1,P_DI),
@@ -192,7 +200,8 @@ c$$$      IF ( ME .EQ. 0 ) IPRINT = 1
      X                 LS_NODE,LS_NODES,MAX_LS_NODES,
      X                 SNNP1EV,SNNP1OD,PDRYINI,IPRINT,
      &                 global_lats_a,lats_nodes_a,lonsperlat, cread2,
-     &                 epse, epso, plnew_a, plnow_a, pwat, ptot)
+     &                 epse, epso, plnew_a, plnow_a, 
+     &                 plnev_a, plnod_a, pwat, ptot)
 
       do j=1,lats_node_a
         jlonf=(j-1)*lonf
@@ -226,6 +235,7 @@ c$$$      IF ( ME .EQ. 0 ) IPRINT = 1
         grid_gr(:,g_v :g_v +levs-1)=grid_gr(:,g_vv:g_vv+levs-1)
         grid_gr(:,g_rt:g_rt+levh-1)=grid_gr(:,g_rq:g_rq+levh-1)
      
+       write(0,*)'end of input fields'
 !--------------------------------------------------------
 !!
       RETURN

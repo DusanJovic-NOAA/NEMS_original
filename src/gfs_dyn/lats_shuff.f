@@ -22,15 +22,15 @@ cc
 cc
 cc
       OPT=1
-      if (liope) then
-         if (icolor.eq.2) then
-           nodesio=1
-         else
+!jw      if (liope) then
+!jw         if (icolor.eq.2) then
+!jw           nodesio=1
+!jw         else
            nodesio=nodes
-         endif
-      else
-         nodesio=nodes
-      endif
+!jw         endif
+!jw      else
+!jw         nodesio=nodes
+!jw      endif
 !!
       do node=1,nodesio
         if (nodesio.eq.1) then
@@ -156,15 +156,15 @@ cc
 cc
 cc
       OPT=1
-      if (liope) then
-         if (icolor.eq.2) then
-           nodesio=1
-         else
-           nodesio=nodes
-         endif
-      else
+!jw      if (liope) then
+!jw         if (icolor.eq.2) then
+!jw           nodesio=1
+!jw         else
+!jw           nodesio=nodes
+!jw         endif
+!jw      else
          nodesio=nodes
-      endif
+!jw      endif
 !!
       do node=1,nodesio
         if (nodesio.eq.1) then

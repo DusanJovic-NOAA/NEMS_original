@@ -1,10 +1,11 @@
       module gfs_dyn_mpi_def
       use gfs_dyn_machine
-      include '../../inc/mpif.h'
-      integer stat(MPI_STATUS_SIZE),info
-      INTEGER :: icolor
-      INTEGER :: MC_COMP, MC_IO, MPI_COMM_ALL, MPI_COMM_ALL_DUP
-      logical LIOPE
+      use module_gfs_mpi_def
+!jw      include '../../inc/mpif.h'
+!jw      integer stat(MPI_STATUS_SIZE),info
+!jw      INTEGER :: icolor
+!jw      INTEGER :: MC_COMP, MC_IO, MPI_COMM_ALL, MPI_COMM_ALL_DUP
+!jw      logical LIOPE
 
       integer MPI_R_IO, MPI_R_MPI, MPI_R_DEF, MPI_A_DEF
      &,       MPI_R_IO_R,MPI_R_MPI_R
@@ -33,6 +34,5 @@ ccmr  PARAMETER (kind_mpi=8,kind_sum=8)
 !    &,                                           buf_grd_r(:,:,:)
       REAL(KIND=KIND_io4) ,POINTER ::  buff_mult(:,:,:)
 !     REAL(KIND=KIND_io4) ,POINTER ::  buff_multg(:,:)
-      REAL(KIND=KIND_io4) ,allocatable ::  buff_multg(:,:)
       real tmm(10,10)
       end module gfs_dyn_mpi_def

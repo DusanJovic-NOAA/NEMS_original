@@ -27,15 +27,15 @@ cc
       iprint=0
       OPT=1
       lats_nodes_a=0
-      if (liope) then
-         if (icolor.eq.2) then
-           nodesio=1
-         else
+!jw      if (liope) then
+!jw         if (icolor.eq.2) then
+!jw           nodesio=1
+!jw         else
            nodesio=nodes
-         endif
-      else
-         nodesio=nodes
-      endif
+!jw         endif
+!jw      else
+!jw         nodesio=nodes
+!jw      endif
 cc
       ngrptg=0
       do lat=1,latg

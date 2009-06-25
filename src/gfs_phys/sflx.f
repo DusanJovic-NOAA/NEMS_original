@@ -2631,15 +2631,15 @@ c
 cmy moved lfirst block to gfs_init
 c      
       IF (SOILTYP .GT. DEFINED_SOIL) THEN
- 	WRITE(*,*) 'Warning: too many soil types'
+ 	WRITE(0,*) 'Warning: too many soil types'
  	STOP 333
       ENDIF
       IF (VEGTYP .GT. DEFINED_VEG) THEN
- 	WRITE(*,*) 'Warning: too many veg types'
+ 	WRITE(0,*) 'Warning: too many veg types'
  	STOP 333
       ENDIF
       IF (SLOPETYP .GT. DEFINED_SLOPE) THEN
- 	WRITE(*,*) 'Warning: too many slope types'
+ 	WRITE(0,*) 'Warning: too many slope types'
  	STOP 333
       ENDIF
 
@@ -2695,7 +2695,7 @@ C ----------------------------------------------------------------------
       IF (VEGTYP .EQ. BARE) SHDFAC = 0.0
 
       IF (NROOT .GT. NSOIL) THEN
- 	WRITE(*,*) 'Warning: too many root layers'
+ 	WRITE(0,*) 'Warning: too many root layers'
  	STOP 333
       ENDIF
 

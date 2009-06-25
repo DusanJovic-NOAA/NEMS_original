@@ -8,7 +8,11 @@ include ../../ush/compile_settings
 TARGET= gfs_libutil.a
 OBJS0	= \
 	  module_ERR_MSG.o           \
-	  module_include.o 		\
+	  module_gfs_machine.o          \
+	  module_include_gfs.o 		\
+	  module_gfs_mpi_def.o          \
+	  nemsio_module.o               \
+	  module_DM_PARALLEL_GFS.o      \
 	  module_export_import_data.o 	\
 	  module_digital_filter_gfs.o   \
 	  atmos_dyn_phy_cpl_comp_mod.o  
@@ -37,11 +41,23 @@ clean:
 module_ERR_MSG.o:     module_ERR_MSG.F90
 	$(FC) $(FFLAG_GFS_UTIL90) -c module_ERR_MSG.F90
                                                                                   
+module_gfs_machine.o:     module_gfs_machine.f
+	$(FC) $(FFLAG_GFS_UTIL) -c module_gfs_machine.f
+                                                                                  
+module_include_gfs.o:     module_include_gfs.F90
+	$(FC) $(FFLAG_GFS_UTIL) -c module_include_gfs.F90
+                                                                                  
+module_gfs_mpi_def.o:     module_gfs_mpi_def.F90
+	$(FC) $(FFLAG_GFS_UTIL) -c module_gfs_mpi_def.F90
+                                                                                  
+nemsio_module.o:     nemsio_module.F90
+	$(F90) $(FFLAG_GFS_UTIL) -c nemsio_module.F90
+                                                                                  
+module_DM_PARALLEL_GFS.o:     module_DM_PARALLEL_GFS.F90
+	$(FC) $(FFLAG_GFS_UTIL90) -c module_DM_PARALLEL_GFS.F90
+                                                                                  
 module_digital_filter_gfs.o:     module_digital_filter_gfs.F90
 	$(FC) $(FFLAG_GFS_UTIL90) -c module_digital_filter_gfs.F90
-                                                                                  
-module_include.o:     module_include.F90
-	$(FC) $(FFLAG_GFS_UTIL90) -c module_include.F90
                                                                                   
 module_export_import_data.o:     module_export_import_data.F90
 	$(FC) $(FFLAG_GFS_UTIL90) -c module_export_import_data.F90

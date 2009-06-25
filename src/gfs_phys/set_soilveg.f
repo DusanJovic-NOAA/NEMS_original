@@ -194,7 +194,7 @@ C READ NAMELIST FILE TO OVERRIDE DEFAULT PARAMETERS ONLY ONCE.
 C NAMELIST_NAME must be 50 characters or less.
 C ----------------------------------------------------------------------
 Clu: namelist is set up in run script
-         if (me .eq. 0) WRITE(*,*) 'READ NAMELIST SOIL_VEG'
+         if (me .eq. 0) WRITE(0,*) 'READ NAMELIST SOIL_VEG'
 c$$$         READ(5, SOIL_VEG)
          rewind(nlunit)
          READ(nlunit, SOIL_VEG)
@@ -202,7 +202,7 @@ c$$$         READ(5, SOIL_VEG)
 C 	 OPEN(58, FILE = 'namelist_filename.txt')
 C         READ(58,'(A)') NAMELIST_NAME
 C         CLOSE(58)
-C         WRITE(*,*) 'Namelist Filename is ', NAMELIST_NAME
+C         WRITE(0,*) 'Namelist Filename is ', NAMELIST_NAME
 C         OPEN(59, FILE = NAMELIST_NAME)
 C 50      CONTINUE
 C         READ(59, SOIL_VEG, END=100)
@@ -210,15 +210,15 @@ C         IF (LPARAM) GOTO 50
 C 100     CONTINUE
 C         CLOSE(59)
          IF (DEFINED_SOIL .GT. MAX_SOILTYP) THEN
-            WRITE(*,*) 'Warning: DEFINED_SOIL too large in namelist'
+            WRITE(0,*) 'Warning: DEFINED_SOIL too large in namelist'
             STOP 222
          ENDIF
          IF (DEFINED_VEG .GT. MAX_VEGTYP) THEN
-            WRITE(*,*) 'Warning: DEFINED_VEG too large in namelist'
+            WRITE(0,*) 'Warning: DEFINED_VEG too large in namelist'
             STOP 222
          ENDIF
          IF (DEFINED_SLOPE .GT. MAX_SLOPETYP) THEN
-            WRITE(*,*) 'Warning: DEFINED_SLOPE too large in namelist'
+            WRITE(0,*) 'Warning: DEFINED_SLOPE too large in namelist'
             STOP 222
          ENDIF
          

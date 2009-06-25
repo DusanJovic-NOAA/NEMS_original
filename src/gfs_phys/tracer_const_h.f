@@ -17,8 +17,8 @@
 c
       if( ntrac.ne.num_tracer ) then
         if( me.eq.0 ) then
-          write(*,*) ' Error ; inconsistent number of tracer '
-          write(*,*) ' ntrac=',ntrac,' num_tracer=',num_tracer
+          write(0,*) ' Error ; inconsistent number of tracer '
+          write(0,*) ' ntrac=',ntrac,' num_tracer=',num_tracer
         endif
         call abort
       endif
@@ -30,7 +30,7 @@ c
 
       rewind(nlunit)
       read(nlunit, tracer_constant)
-      write(*, tracer_constant)
+      write(0, tracer_constant)
 
       return
       end subroutine set_tracer_const

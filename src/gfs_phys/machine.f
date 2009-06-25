@@ -13,5 +13,6 @@
 !    &,                     kind_grid = selected_real_kind(13,60) ! the '60' maps to 64-bit real
 !
       real(kind=kind_evod), parameter :: mprec = 1.e-12           ! machine precision to restrict dep
+      real(kind=kind_evod), parameter :: grib_undef = 9.99e20     ! grib undefine value
 
       END MODULE MACHINE

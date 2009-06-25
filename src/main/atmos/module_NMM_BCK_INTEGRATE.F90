@@ -91,11 +91,11 @@
       TYPE(ESMF_TimeInterval),INTENT(INOUT)  :: HALFDFIINTVAL
       TYPE(ESMF_TimeInterval),INTENT(INOUT)  :: TIMESTEP
       INTEGER(KIND=KINT),INTENT(INOUT)       :: FILTER_METHOD
-      TYPE(ESMF_Logical)                     :: ESMF_HDIFF_DDAMP=ESMF_FALSE
 !
 !
       INTEGER(KIND=KINT)       :: NDFISTEP, I
-      LOGICAL(KIND=KLOG)       :: MEAN_FLAG
+      INTEGER(KIND=KINT)       :: MEAN_ON
+      INTEGER(KIND=KINT)       :: HDIFF_ON = 0
 
 !
 !
@@ -116,8 +116,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_AttributeSet(state    =atm_int_state%EXP_STATE_DYN    &  !<-- Dynamics impor
-                              ,name     ='HDIFF_DDAMP'                 &  !<-- The attribute'
-                              ,value= ESMF_HDIFF_DDAMP   &  !<-- Insert this qu
+                              ,name     ='HDIFF'                 &  !<-- The attribute'
+                              ,value= HDIFF_ON     &  !<-- Insert this qu
                               ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -129,9 +129,9 @@
           DFITIME = HALFDFITIME - HALFDFIINTVAL
 
          IF (FILTER_METHOD .EQ. 2) THEN
-         MEAN_FLAG=.TRUE.
+         MEAN_ON=1
          ELSE IF (FILTER_METHOD .EQ. 3) THEN
-         MEAN_FLAG=.FALSE.
+         MEAN_ON=0
          ENDIF
 
           CALL ESMF_ClockSet(CLOCK_ATM   &
@@ -263,7 +263,7 @@
 !
           IF (CURRTIME .LE. STARTTIME)THEN
           CALL DIGITAL_FILTER_DYN_SUM_NMM(atm_int_state%IMP_STATE_DYN   &
-                                         ,MEAN_FLAG                     &
+                                         ,MEAN_ON                       &
                                          ,NUM_TRACERS_MET               &
                                          ,NUM_TRACERS_CHEM)
           ENDIF

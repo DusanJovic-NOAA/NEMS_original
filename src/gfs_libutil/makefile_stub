@@ -1,72 +1,82 @@
-####  this is dependent grd component, needs elemetary grid components ###
- F77     = xlf
- EXEC    = gfs_util_stub.a
+################################################################################
+# 
+#     Makefile for Global NMM Model 
 #
- DIR_DYN = ../gfs_dyn
- DIR_PHY = ../gfs_phys
- GCINCS  = -I$(DIR_DYN) -I$(DIR_PHY) 
+#     Use:
+#     make         -  build the executable
+#     make clean   -  start with a clean slate
 #
- FINC0    = -I/meso/save/wx22ec/NEMS/mod/esmf_3_1_0rp2
- FINCS    = $(FINC0) $(GCINCS)
- DEBUG    = -qcheck -qsource -qlist
-
-#---------------
-# For non-debug.
-#---------------
-FFLAGM_DEBUG  = -O2
-
- OPTS     = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
- OPTS90   = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
- OPTS90A  = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
-
+#     The following macros will be of interest:
 #
- FFLAG90  = $(OPTS90) $(FINCS) -qfree -NS2048
- FFLAG90A = $(OPTS90A) $(FINCS) -qfree -NS2048
- FFLAGS   = $(OPTS) $(FINCS)
- FFLAGX   = $(OPTS) 
- FFLAGIO  = $(OPTS) 
- FFLAGY   = $(OPTS)
- FFLAGM   = $(OPTS) $(FINCS) $(FFLAGM_DEBUG) -NS2048
- FFLAGSF  = -qnosave -q free=f90 -qcheck $(FFLAGM_DEBUG)
- FFLAGSI  = -qnosave -q free=f90 $(FFLAGM_DEBUG)
- FFLAGB   = -qnosave -qfixed $(FFLAGM_DEBUG)
-
- AR = ar
- ARFLAGS = -r
-
-.SUFFIXES: .o .f .F90 .h
+#         TARGET   - name of the executable
+#         FC       - name of Fortran compiler
+#         CPP      - name of CPP
+#         ARCH     - architecture
+#         CPPFLAGS - CPP flags
+#         OPTS     - compiler code optimizations
+#         LIST     - source listing
+#         SMP      - threading
+#         TRAPS    - runtime traps for floating point exceptions
+#         PROFILE  - source code profiling ( -pg )
+#         DEBUG    - -g
+#         MEM      - user data area and stack size
+#         MAP      - load map
+#         W3LIB    - w3lib
+#         ESSL     - ESSL library
+#         MASS     - MASS library
+#         TRACE    - MPI tracing
 #
-# *****************************************************************
+#################################################################################
 #
-OBJS0	= \
-          module_digital_filter_gfs.o \
-          module_ERR_MSG.o            \
-	  atmos_dyn_phy_cpl_comp_mod_stub.o 
-
+# Define the name of the executable
 #
 #
-# *****************************************************************
+# CPP, Compiler, and Linker Options
+#
+TARGET     = gfs_libutil_stub.a
+UTIL     = gfs_util
+FC       = mpxlf_r
+PROF     = -g -pg
+PROF     =
+ARCH     = AIX
+CPP      = /lib/cpp -P
+CPPFLAGS = -DENABLE_SMP -DIBM
+OPTS     = -O2 -qmaxmem=-1 -qarch=auto -qtune=auto  -q free=f90 $(PROF) -NS2000
+#TRAPS    = -qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap -C
+TRAPS    = 
+#
+# Assemble Options
+#
+FINCO    = -I/climate/save/${USER}/esmf/nems/trunk_merge_gfswrt/trunk/mod/esmf_3_1_0rp2
+#FINCP    = -I/climate/save/${USER}/esmf/nems/trunk_merge_gfswrt/trunk/src/nmm_libutil
+FINCP    = 
+FINCS	 = $(FINCO) $(FINCP)
+FFLAGS   = $(OPTS) $(FINCS) $(TRAPS)
 #
 
-$(EXEC): $(OBJS0) 
-	$(AR) $(ARFLAGS) $(EXEC) $(OBJS0) 
-	echo " $(EXEC) is created! "
-clean:
-	rm -f *.o *.mod *.lst *.a $(EXEC)
+MODULES=	\
+	module_gfs_mpi_def.o \
+	atmos_dyn_phy_cpl_comp_mod_stub.o
 
-.F90.o:
-	$(F77) $(FFLAGS) -c -d $< 
-.f.o:
-	$(F77) $(FFLAGS) -c $< 
+#INCLUDES=	../../inc/kind.inc
 
-#
-# *****************************************************************
-module_err_msg.o:     module_err_msg.F90
-	$(F77) $(FFLAG90) -c module_err_msg.F90
-                                                                                  
-atmos_dyn_phy_cpl_comp_mod_stub.o:     atmos_dyn_phy_cpl_comp_mod_stub.F90
-	$(F77) $(FFLAG90) -c atmos_dyn_phy_cpl_comp_mod_stub.F90
+#DEPS= $(INCLUDES)
 
-module_digital_filter_gfs.o:     module_digital_filter_gfs.F90
-	$(F77) $(FFLAG90) -c module_digital_filter_gfs.F90
+AR = ar
+ARFLAGS = -r
+
+
+.SUFFIXES:	.F90 .f90 .o
+
+.F90.f90:
+	$(CPP) $(CPPFLAGS) $< > $*.f90
+
+$(TARGET): $(MODULEIO) $(MODULES) 
+	$(AR) $(ARFLAGS) $(TARGET) $(MODULEIO) $(MODULES) 
+
+$(MODULES):	$(DEPS)
+	$(FC) $(FFLAGS) -c $<
+
+clean:	
+	/bin/rm -f  $(TARGET) *.f90 *.lst *.o *.mod lm map
 

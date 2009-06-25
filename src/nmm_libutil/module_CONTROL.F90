@@ -3024,7 +3024,7 @@ type(nemsio_gfile) :: gfile
 !-----------------------------------------------------------------------
 !
       if(mype==0)then
-        call nemsio_readrecv(gfile,'pd','sfc',1,temp1,iret=ierr)
+        call nemsio_readrecv(gfile,'dpres','hybrid sig lev',1,temp1,iret=ierr)
         write(0,*)'in init_nemsio,pd=',maxval(temp1),minval(temp1)
       endif
       do j=jms,jme
@@ -3240,7 +3240,7 @@ type(nemsio_gfile) :: gfile
 !jw        read(nfcst)temp1
       endif
       if(mype==0)then
-        call nemsio_readrecv(gfile,'sst','sfc',1,temp1,iret=ierr)
+        call nemsio_readrecv(gfile,'tsea','sfc',1,temp1,iret=ierr)
 !        write(0,*)'in init_nemsio,sst=',maxval(temp1),minval(temp1)
 !jw        read(nfcst)temp1
       endif

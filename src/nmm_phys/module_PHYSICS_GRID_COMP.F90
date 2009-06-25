@@ -1471,7 +1471,7 @@
       CHARACTER(ESMF_MAXSTR) :: INFILE
 !
       LOGICAL,SAVE :: ALLOWED_TO_READ=.TRUE.
-      LOGICAL :: OPENED,RUN
+      LOGICAL :: OPENED
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -1549,7 +1549,7 @@
       INFILE='main_input_filename'
         CALL PHYSICS_READ_INPUT(INFILE,NFCST,MYPE,MPI_COMM_COMP,    &
         IDS,IDE,JDS,JDE,LM,IMS,IME,JMS,JME,NSOIL,                       &
-        run,idat,ihrst,pt,pdtop,lpt2,sgm,sg1,dsg1,sgml1,sg2,dsg2,sgml2, &
+        idat,ihrst,PT, &
         INT_STATE,irtn )
 !
      else
@@ -1557,24 +1557,17 @@
       INFILE='main_input_filename_nemsio'
         CALL  PHYSICS_READ_INPUT_NEMSIO(INFILE,NFCST,MYPE,           &
         MPI_COMM_COMP,IDS,IDE,JDS,JDE,LM,IMS,IME,JMS,JME,NSOIL,         &
-        run,idat,ihrst,pt,pdtop,lpt2,sgm,sg1,dsg1,sgml1,sg2,dsg2,sgml2, &
+        idat,ihrst,PT,                       &
         INT_STATE,irtn )
       endif
 
-!
-!-----------------------------------------------------------------------
-!***  FIRST WE NEED THE VALUE OF PT (PRESSURE AT TOP OF DOMAIN)
-!-----------------------------------------------------------------------
-!
-      PT=int_state%PT
-      PT_CB=PT*1.E-3   !<-- Convert pascals to centibars for GFDL initialization
-!
 !-----------------------------------------------------------------------
 !***  VERTICAL LAYER INFORMATION IS NEEDED IN ORDER TO SEND IT TO
 !***  SOME SPECIFIC SCHEMES' INITIALIZATION ROUTINES THAT FOLLOW
 !***  BELOW.
 !-----------------------------------------------------------------------
 !
+      PT_CB=PT_CB*1.0E-3
 
       IF(MYPE==0)THEN
 !
@@ -1588,8 +1581,8 @@
           WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
           WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
           WRITE(0,*)' DATES IN INPUT FILE AND CONFIGURE FILE DISAGREE!!'
-          WRITE(0,*)' INPUT: HOUR=',IHRST,' DAY=',IDAT(1)               &
-                    ,' MONTH=',IDAT(2),' YEAR=',IDAT(3)
+          WRITE(0,*)' INPUT: HOUR=',IHRST,' DAY=',IDAT(3)               &
+                    ,' MONTH=',IDAT(2),' YEAR=',IDAT(1)
           WRITE(0,*)' CONFIG: HOUR=',START_HOUR,' DAY=',START_DAY       &
                     ,' MONTH=',START_MONTH,' YEAR=',START_YEAR
           WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
@@ -1602,65 +1595,6 @@
       IDAY_FCST   = IDAT(1)
       IHOUR_FCST  = IHRST
 !
-!-----------------------------------------------------------------------
-!
-      DO L=1,LM
-        PDSG1(L)=DSG1(L)*PDTOP
-        PSGML1(L)=SGML1(L)*PDTOP+PT
-      ENDDO
-
-!
-!-----------------------------------------------------------------------
-!***  BEFORE MOVING ON, TRANSFER VALUES TO THE INTERNAL STATE.
-!-----------------------------------------------------------------------
-!
-!
-      DO L=1,LM
-        int_state%PDSG1(L)=PDSG1(L)
-        int_state%PSGML1(L)=PSGML1(L)
-      ENDDO
-!
-!
-!-----------------------------------------------------------------------
-!***  PROCEED WITH GETTING FIELDS FROM INPUT FILE.
-!***  NOTE: TWO RECORDS WERE ALREADY READ AT THE TOP OF THIS ROUTINE.
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------
-!***  I and J limits for tracer variables
-!-----------------------------------------
-!
-      LDIM1=LBOUND(int_state%Q,1)
-      UDIM1=UBOUND(int_state%Q,1)
-      LDIM2=LBOUND(int_state%Q,2)
-      UDIM2=UBOUND(int_state%Q,2)
-!
-!-----------------------------------------------------------------------
-!
-
-      DO K=1,LM
-        JJ=LDIM2-1
-        DO J=JMS,JME
-          JJ=JJ+1
-          II=LDIM1-1
-          DO I=IMS,IME
-            II=II+1
-            int_state%WATER(II,JJ,K,int_state%P_QV)=                      & ! WRF water array uses mixing ratio for vapor
-                      int_state%Q(II,JJ,K)/(1.-int_state%Q(II,JJ,K))     
-          ENDDO
-        ENDDO
-      ENDDO
-!
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!
-      DO N=1,NSOIL
-        int_state%SLDPTH(N)=SLDPTH(N)
-      ENDDO
-!
-!-----------------------------------------------------------------------
-!
 !
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -1671,33 +1605,30 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-     if(.not. int_state%nemsio_input) then                             !jw: nemsio_intput option
-!
+     INFILE='restart_file'    
 
-      INFILE='restart_file'
+
+     if(.not. int_state%nemsio_input) then                             !jw: nemsio_intput option
 !
       CALL PHYSICS_READ_RESTT(INFILE,NFCST,MYPE,MPI_COMM_COMP,    &
         IDS,IDE,JDS,JDE,LM,IMS,IME,JMS,JME,NSOIL,                       &
         IYEAR_FCST,IMONTH_FCST,IDAY_FCST,IHOUR_FCST,IMINUTE_FCST,       &
-        SECOND_FCST,IHRST,LPT2,IDAT,PDTOP,PT,                           &
-        SG1,SG2,DSG1,DSG2,SGML1,SGML2,SGM,SLDPTH,RUN,INT_STATE,IRTN)
+        SECOND_FCST,IHRST,IDAT,PT,            &
+        INT_STATE,IRTN)
 !
       else
-!
-      INFILE='restart_file'
 !
       CALL PHYSICS_READ_RESTT_NEMSIO(INFILE,NFCST,MYPE,           &
         MPI_COMM_COMP,IDS,IDE,JDS,JDE,LM,IMS,IME,JMS,JME,NSOIL,         &
         IYEAR_FCST,IMONTH_FCST,IDAY_FCST,IHOUR_FCST,IMINUTE_FCST,       &
-        SECOND_FCST,IHRST,LPT2,IDAT,PDTOP,PT,                           &
-        SG1,SG2,DSG1,DSG2,SGML1,SGML2,SGM,SLDPTH,RUN,INT_STATE,IRTN)
+        SECOND_FCST,IHRST,IDAT,PT,          &
+        INT_STATE,IRTN)
 !
        endif
 
+       PT_CB=PT*1.0E-3
+
 !-----------------------------------------------------------------------
-!***
-      PT_CB=PT*1.E-3   !<-- Convert pascals to centibars for GFDL initialization
-!
 !-----------------------------------------------------------------------
 !
          ENDIF                                     ! COLD START /RESTART
@@ -1716,8 +1647,8 @@
       DO J=JTS,JTE
       DO I=ITS,ITE
         int_state%THS(I,J)=int_state%TSKIN(I,J)                        &
-                          *(100000./(SG2 (LM+1)*int_state%PD(I,J)      &
-                                    +PSG1(LM+1)))**CAPPA
+                          *(100000./(int_state%SG2 (LM+1)*int_state%PD(I,J)      &
+                                    +int_state%PSG1(LM+1)))**CAPPA
       ENDDO
       ENDDO
 !
@@ -1729,7 +1660,7 @@
 !-----------------------------------------------------------------------
 !
       DO L=1,LM+1
-        SFULL(L)=SGM(L)
+        SFULL(L)=int_state%SGM(L)
       ENDDO
 !
       DO L=1,LM
@@ -1776,28 +1707,6 @@
         DLMD=-int_state%WBD*2./REAL(IDE-3)
         DPH=DPHD*DTR
         DLM=DLMD*DTR
-!        TPH_BASE=SB-DPH-DPH
-!
-!        DO J=J_LO,J_HI
-!          TPH=TPH_BASE+(J-JDS+1)*DPH
-!          STPH=SIN(TPH)
-!          CTPH=COS(TPH)
-!
-!          TLM_BASE=WB-DLM
-!          DO I=I_LO,I_HI
-!            TLM=TLM_BASE+(I-IDS+1)*DLM
-!            STLM=SIN(TLM)
-!            CTLM=COS(TLM)
-!            SPH=CTPH0*STPH+STPH0*CTPH*CTLM
-!            APH=ASIN(SPH)
-!            int_state%GLAT(I,J)=APH
-!            ANUM=CTPH*STLM
-!            DENOM=(CTLM*CTPH-STPH0*SPH)/CTPH0
-!            RELM=ATAN2(ANUM,DENOM)
-!            ALM=RELM+int_state%TLM0D*DTR
-!            IF(ALM>PI)ALM=ALM-PI-PI
-!            IF(ALM<-PI)ALM=ALM+PI+PI
-!            int_state%GLON(I,J)=ALM
          tph_base=sb-dph-dph
          do j=j_lo,j_hi
            tlm_base=wb-dlm-dlm

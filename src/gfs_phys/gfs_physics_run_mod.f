@@ -74,6 +74,9 @@
 ! ---------------------------------------------------------------------
         gis_phy%LSOUT=MOD(gis_phy%kdt ,NSOUT).EQ.0
 !
+        write(0,*)' end of common_to_physics_vars,kdt=',gis_phy%kdt,      &
+         'nsout=',nsout,'lsout=',gis_phy%LSOUT
+!
 ! ======================================================================
         call do_physics_one_step(                                         &
                  gis_phy%deltim,  gis_phy%kdt,     gis_phy%phour,         &

@@ -13,6 +13,7 @@
 !  may      2005 weiyu yang    for the updated gfs version.
 !  march    2006 s. moorthi    modified for the new gfs.
 !  january  2007 h. juang      modified for the gfs dynamics.
+!  May      2009 j. wang       modified for the gfs wrt grid comp
 !
 ! !interface:
 !
@@ -126,8 +127,17 @@
         write(pelab,'("pe_member",i2.2,":")') j
         call esmf_configgetattribute(cf, 				&
                              pe_member, label = pelab, rc = rc)
-        if (pe_member == 0) 						&
+!jw        if (pe_member == 0) 						&
+!jw            pe_member = tasks / int_state%nam_gfs_dyn%total_member
+!jws
+        if (pe_member == 0) then
+          if( j < mod(tasks,int_state%nam_gfs_dyn%total_member) ) then
+            pe_member = tasks / int_state%nam_gfs_dyn%total_member + 1
+          else
             pe_member = tasks / int_state%nam_gfs_dyn%total_member
+          endif
+        endif
+!jwe
 
 !       print *,' pe_member=',pe_member
 !       print *,' tasks=',tasks
@@ -153,7 +163,13 @@
       call gfs_dynamics_err_msg_var(rc1,				&
                'gfs dynamics getcf','nlunit',rcfinal)
 
-
+!jws
+      call esmf_configgetattribute(cf,                                  &
+                              int_state%adiabatic,                      &
+                              label = 'adiabatic:',  rc = rc1)
+      call gfs_dynamics_err_msg_var(rc1,                                &
+               'gfs dynamics getcf','adiabatic',rcfinal)
+!jwe
       call esmf_configgetattribute(cf, 					&
                               int_state%nam_gfs_dyn%gfs_dyn_namelist, 	&
                               label = 'namelist:',  rc = rc1)
@@ -175,7 +191,26 @@
         write(int_state%nam_gfs_dyn%sig_ini2,				&
               '("sig_ini2_",i2.2)') int_state%nam_gfs_dyn%member_id
       endif
-
+!
+!jws get output file name
+!--------------------------
+!
+      call esmf_configgetattribute(cf,                                  &
+                              int_state%num_file,                       &
+                              label = 'num_file:',    rc = rc1)
+      call gfs_dynamics_err_msg_var(rc1,                                &
+               'gfs dynamics getcf','num_file',rcfinal)
+!
+      allocate(int_state%filename_base(int_state%num_file))
+      call esmf_configFindLabel(CF,'filename_base:',RC)
+      Do I=1,int_state%num_file
+        call esmf_configgetattribute(cf,                                &
+                              int_state%filename_base(i),               &
+                              rc = rc1)
+      enddo
+      call gfs_dynamics_err_msg_var(rc1,                                &
+               'gfs dynamics getcf','filename_base',rcfinal)
+!jwe
 !
 ! for "esmf_state_namelist"
 !--------------------------

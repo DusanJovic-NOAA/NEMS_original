@@ -140,7 +140,8 @@ cc
       do L=1,ls_max_node
          ilat   = 1
          do node=1,nodes
-            if (node.ne.nodes.or..not.lslag) then
+!jw            if (node.ne.nodes.or..not.lslag) then
+            if (.not.lslag) then                                           !jwang
                ifin=lats_nodes(node)
             else
                ifin=lats_nodes(node)-jintmx

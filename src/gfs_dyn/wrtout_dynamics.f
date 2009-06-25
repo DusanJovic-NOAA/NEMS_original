@@ -10,8 +10,8 @@ c wrtout.
       use gfsio_def
       implicit none
 !
-      real(kind=kind_io4), allocatable :: buff_mult_pieceg(:,:,:),
-     1                                    buff_mult_piecesg(:,:,:,:)
+      real(kind=kind_io4), allocatable,target :: buff_mult_pieceg(:,:,:)
+      real(kind=kind_io4), allocatable :: buff_mult_piecesg(:)
 !
       real(kind=kind_io4), allocatable :: buff_mult_piece(:,:,:),
      1                                    buff_mult_pieces(:,:,:,:)
@@ -87,7 +87,7 @@ cc
       REAL(KIND=KIND_grid) grid_gr(lonf*lats_node_a_max,lotgr)
 !!
       character CFHOUR*40,CFORM*40
-      integer jdate(4),nzsig,ndigyr,ndig,kh,IOPROC
+      integer jdate(4),nzsig,ndigyr,ndig,kh,ioproc
 !!
       REAL (KIND=KIND_grid) pdryini
       INTEGER              GLOBAL_lats_a(latg),   lonsperlat(latg)
@@ -116,17 +116,17 @@ cc
       integer iret
 !
       t3=rtc()
-      call mpi_barrier(mpi_comm_all,ierr)
+!jw      call mpi_barrier(mpi_comm_all,ierr)
+      call mpi_barrier(mc_comp,ierr)
       t4=rtc()
       tba=t4-t3
-      if(nodes_comp .lt. 1 .or. nodes_comp .gt. nodes) then
-        print *, '  NODES_COMP UNDEFINED, CANNOT DO I.O '
-        call mpi_finalize()
-         stop 333
-      endif
+!jw      if(nodes_comp .lt. 1 .or. nodes_comp .gt. nodes) then
+!jw        print *, '  NODES_COMP UNDEFINED, CANNOT DO I.O '
+!jw        call mpi_finalize()
+!jw         stop 333
+!jw      endif
 !
       ioproc=nodes_comp-1
-      if(liope) ioproc=nodes_comp
       if(allocated ( trieo_ls_node)) then
         continue
       else
@@ -134,8 +134,9 @@ cc
      x                            2, 3*levs+1*levh+1 ) )
       endif
       t3=rtc()
-      call shapeset (ls_nodes,max_ls_nodes,pdryini)
-      call MPI_BARRIER(mpi_comm_all,ierr)
+!jw      call shapeset (ls_nodes,max_ls_nodes,pdryini)
+!jw      call MPI_BARRIER(mpi_comm_all,ierr)
+!jw      call MPI_BARRIER(mpi_comp,ierr)
       t4=rtc()
       tbb=t4-t3
        
@@ -310,39 +311,41 @@ c  send state to I/O task.  All tasks
 !
         call grid_collect (zsg,psg,uug,vvg,ttg,rqg,dpg,
      &                         global_lats_a,lonsperlat)
-        call atmgg_move(ioproc)
+      if (.not.quilting ) then
+         call atmgg_move(ioproc)
 !
 c ioproc only
-      CFHOUR1 = CFHOUR          !for the ESMF Export State Creation
-      ta=rtc()
-      if(me .eq. ioproc) then
-        CFORM = 'SIG.F'//CFHOUR
-        if (me .eq. ioproc) print *,' calling atmgg_wrt fhour=',fhour
+         CFHOUR1 = CFHOUR          !for the ESMF Export State Creation
+         ta=rtc()
+         if(me .eq. ioproc) then
+           CFORM = 'SIG.F'//CFHOUR
+           print *,' calling atmgg_wrt fhour=',fhour
      &,                     ' cform=',cform,' idate=',idate
-        call atmgg_wrt(IOPROC,CFORM,fhour,idate
+           call atmgg_wrt(IOPROC,CFORM,fhour,idate
      &,                global_lats_a,lonsperlat,pdryini)
-        if (me .eq. ioproc) print *,' returning fromatmgg_wrt=',fhour
+           print *,' returning fromatmgg_wrt=',fhour
+         endif
       endif
 !
-      tc=rtc()
-      if(me .eq. 0) t2=rtc()
+!jw      tc=rtc()
+!jw      if(me .eq. 0) t2=rtc()
 cgwv  t2=rtc()
-      t3=rtc()
-      if(MC_COMP   .ne. MPI_COMM_NULL) then
-        call mpi_barrier(mc_comp,info)
-      endif
+!jw      t3=rtc()
+!jw      if(MC_COMP   .ne. MPI_COMM_NULL) then
+!jw        call mpi_barrier(mc_comp,info)
+!jw      endif
 !
       if(me .eq. ioproc)  call wrtlog_dynamics(phour,fhour,idate)
-      tb=rtc()
-      tf=tb-ta
-      t2=rtc()
- 1011 format(' WRTOUT_DYNAMICS TIME ',f10.4)
-      timesum=timesum+(t2-t1)
- 1012 format(
-     1 ' WRTOUT_DYNAMICS TIME ALL TASKS  ',f10.4,f10.4,
-     1 ' state, send, io  iobarr, (beginbarr),
-     1 spectbarr,open, openbarr )  ' ,
-     1  8f9.4)
+!jw      tb=rtc()
+!jw      tf=tb-ta
+!jw      t2=rtc()
+!jw 1011 format(' WRTOUT_DYNAMICS TIME ',f10.4)
+!jw      timesum=timesum+(t2-t1)
+!jw 1012 format(
+!jw     1 ' WRTOUT_DYNAMICS TIME ALL TASKS  ',f10.4,f10.4,
+!jw     1 ' state, send, io  iobarr, (beginbarr),
+!jw     1 spectbarr,open, openbarr )  ' ,
+!jw     1  8f9.4)
 !
       return
       end
@@ -548,11 +551,11 @@ c  as a function of node. This will define how
 c  to assemble the few wavenumbers on each node
 c  into a full coefficient array.
 c
-      IF (icolor.eq.2) then
-         IOPROC=nodes-1
-      else
+!jw      IF (icolor.eq.2) then
+!jw         IOPROC=nodes-1
+!jw      else
          IOPROC=nodes
-      endif
+!jw      endif
        IF (LIOPE) then
  199    format(' GWVX MAX_LS_NODES ',i20)
         if (me.eq.0.or. me .eq. ioproc) then

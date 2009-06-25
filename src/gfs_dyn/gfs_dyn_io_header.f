@@ -4,10 +4,14 @@
       save
       integer              ifin
       integer              icen
-      integer              icen2
-      integer              ienst
-      integer              iensi
-      integer              itrun
+!jw      integer              icen2
+!jw      integer              ienst
+!jw      integer              iensi
+!jw      integer              itrun
+       integer,target  ::   icen2
+       integer,target  ::   ienst
+       integer,target  ::   iensi
+       integer,target  ::   itrun
 !
       integer lonb, latb, iens(5), idpp, idvt, idrun
      &,       idusr, ncldt, irealf, iorder

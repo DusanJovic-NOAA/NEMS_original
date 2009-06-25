@@ -3,7 +3,7 @@
      x                  lats_nodes_r,global_lats_r,
      x                  lonsperlar,
      x                  lats_nodes_ext,global_lats_ext,
-     x                  colat1)
+     x                  colat1,idrt)
 cc
       use resol_def,            ONLY: latr, jintmx, nypt, lonrx, lonr,
      &                                latr2                             
@@ -16,13 +16,13 @@ cc
       use gg_def,               ONLY: colrad_r, wgt_r, wgtcs_r, rcs2_r, 
      &                                sinlat_r, coslat_r
       use namelist_physics_def, ONLY: shuff_lats_r
-      use mpi_def,              ONLY: icolor, liope
+!jw      use mpi_def,              ONLY: icolor, liope
       USE machine,              ONLY: kind_dbl_prec, kind_evod
       implicit none
 cc
 !!
       integer              i,j,k,l,lat,lev
-      integer              n,n3,n4
+      integer              n,n3,n4,idrt
 cc
 cc
 cc
@@ -82,18 +82,21 @@ cc
       end do
 !     print *,' in getcon physics: lonsperlar ',lonsperlar
 cc
-      if (liope) then
-         if (icolor.eq.2) then
-           nodesio=1
-         else
-           nodesio=nodes
-         endif
-      else
+!jw
+      idrt=4                                            !INTEGER DATA REPRESENTATION TYPE :4 Gaussian ,0:LATLON
+!jw      if (liope) then
+!jw         if (icolor.eq.2) then
+!jw           nodesio=1
+!jw         else
+!jw           nodesio=nodes
+!jw         endif
+!jw      else
          nodesio=nodes
-      endif
+!jw      endif
 c
-      if (nodesio .eq. 1 .and. nodes .eq. 1
-     .    .or. (nodes .eq. 2 .and. nodesio .eq. 1) ) then
+!jw      if (nodesio .eq. 1 .and. nodes .eq. 1
+!jw     .    .or. (nodes .eq. 2 .and. nodesio .eq. 1) ) then
+      if (nodesio .eq. 1 .and. nodes .eq. 1) then
          shuff_lats_r = .false.
 !       print*,' NO SHUFFLING WITH 1 COMPUTE TASK - nodes = ',nodes
       endif
@@ -122,8 +125,8 @@ cmy
         gl_lats_index = 0
 cmy
         nodes_tmp = nodes
-        if (liope .and. icolor .eq. 2) nodes_tmp = nodes-1
-        if (liope .and. icolor .eq. 2) lats_nodes_r(nodes)=0
+!jw        if (liope .and. icolor .eq. 2) nodes_tmp = nodes-1
+!jw        if (liope .and. icolor .eq. 2) lats_nodes_r(nodes)=0
         do node=1,nodes_tmp
 !          print *,' node gl_lats_index ',gl_lats_index
            call get_lats_node_r( node-1, global_lats_r,
@@ -185,10 +188,10 @@ c
             ipt_lats_node_r = ipt_lats_node_r + lats_nodes_r(node)
          enddo
       endif
-      if (liope .and. icolor .eq. 2) then
-            ipt_lats_node_r = 1
-            ipt_lats_node_ext = 1
-      endif
+!jw      if (liope .and. icolor .eq. 2) then
+!jw            ipt_lats_node_r = 1
+!jw            ipt_lats_node_ext = 1
+!jw      endif
 !     print *,' getcon physics: ipt_lats_node_ext',ipt_lats_node_ext
 !     print *,' getcon physics: ipt_lats_node_r',ipt_lats_node_r
 c

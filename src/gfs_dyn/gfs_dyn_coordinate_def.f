@@ -3,10 +3,16 @@
       implicit none
       
        real(kind=kind_evod) , allocatable ::
-     . AK5(:),BK5(:),CK5(:),CK(:),DBK(:),bkl(:),   		! hmhj
+!jw     . AK5(:),BK5(:),CK5(:),CK(:),DBK(:),bkl(:),   		! hmhj
+     .                      CK(:),DBK(:),bkl(:),   		! hmhj
      . AMHYB(:,:),BMHYB(:,:),SVHYB(:),tor_hyb(:),
      . D_HYB_m(:,:,:),THREF(:),dm205_hyb(:,:,:)			! hmhj
-       real(kind=kind_evod) vertcoord_id,eps_si			! hmhj
+!jw       real(kind=kind_evod) vertcoord_id,eps_si			! hmhj
+!jws
+       real(kind=kind_evod) eps_si                              ! hmhj
+       integer(kind=kind_io4),target :: vertcoord_id            ! hmhj
+       real(kind=kind_evod),allocatable,target :: AK5(:),BK5(:),CK5(:)
+!jwe
 
 !
       real(kind=kind_evod) , allocatable :: vcoord(:,:)

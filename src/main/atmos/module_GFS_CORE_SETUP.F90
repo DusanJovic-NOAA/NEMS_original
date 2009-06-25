@@ -12,6 +12,8 @@
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
+!jw
+      USE module_DM_PARALLEL_GFS  ,only: SETUP_SERVERS_GFS
 !
 !-----------------------------------------------------------------------
 !
@@ -54,14 +56,21 @@
 !
 !
       USE MODULE_INCLUDE
-!
+!jw
+      USE module_gfs_mpi_def,ONLY : num_pes_fcst,last_fcst_pe         &
+                               ,first_fcst_pe                         &
+                               ,write_tasks_per_group                 &
+                               ,write_groups                          &
+                               ,petlist_fcst,petlist_write            &
+                               ,mpi_comm_inter                        &
+                               ,mpi_comm_inter_array                  &
+                               ,mc_comp,mpi_comm_comp                 &
+                               ,quilting
 
 
 !
       type(ESMF_gridcomp),intent(inout) :: gc_atm
       type(ESMF_grid),intent(out)  :: grid_atmos    ! the ESMF grid for the integration attached to
-
-
 
 !
 !-----------------------------------------------------------------------
@@ -83,7 +92,11 @@
       integer,dimension(ESMF_maxgriddim) :: counts
       INTEGER , DIMENSION(2)             :: i1
       INTEGER , DIMENSION(:, :), POINTER :: i2
-      integer                      :: num_pes_fcst,num_pes_tot,num_pes,im,jm,lm
+!jw
+      INTEGER , DIMENSION(1)             :: mypelocal
+      INTEGER , allocatable              :: petlistvm(:)
+      integer                      :: num_pes_tot,num_pes,im,jm,lm
+!jw      integer                      :: num_pes_fcst,num_pes_tot,num_pes,im,jm,lm
       integer                      :: mpi_intra,mpi_intra_b     ! the mpi intra-communicator
       integer                      :: rc,irtn,mype
       integer                      :: RC_RUN
@@ -99,9 +112,9 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      CALL ESMF_GridCompGet(gridcomp=gc_atm                      &  !<-- The ATM gridded component
-                           ,config  =cf                                 &  !<-- The config object (~namelist)
-                           ,rc      =RC)
+!jw      CALL ESMF_GridCompGet(gridcomp=gc_atm                      &  !<-- The ATM gridded component
+!jw                           ,config  =cf                                 &  !<-- The config object (~namelist)
+!jw                           ,rc      =RC)
 
 !-----------------------------------------------------------------------
 !***  RETRIEVE THE VM (VIRTUAL MACHINE) OF THE ATM GRIDDED COMPONENT.
@@ -133,16 +146,17 @@
                      ,rc      =RC)
 !
       num_pes_tot=num_pes
-
-! Allocate the local index array i2 to store the local size information of the
-! ditributed grid.  Information is based per dimension and per De.
-!-----------------------------------------------------------------------------
-      ALLOCATE(i2(2, num_pes))
-
+!
+      mypelocal(1)=mype
+      allocate(petlistvm(num_pes))
+      CALL ESMF_VMAllGather(vm,                    &
+                            sendData=mypelocal,    &
+                            recvData=petlistvm,    &
+                            count=1,               &
+                            rc=RC)
 !
 !***  note: at this point, num_pes is the total number of mpi tasks,
 !***        i.e., forecast tasks + quilt tasks.
-!
 !
 !-----------------------------------------------------------------------
 !***  establish the task layout including the quilt servers
@@ -166,8 +180,65 @@
                                   ,value =jnpes            &  !<-- # of fcst tasks in j direction
                                   ,label ='jnpes:'         &
                                   ,rc    =RC)
+!jw
+      CALL ESMF_configgetattribute(cf                      &
+                                  ,value =quilting         &  !<-- # of fcst tasks in j direction
+                                  ,label ='quilting:'      &
+                                  ,rc    =RC)
 
-      num_pes_fcst=num_pes
+!jw num_pes_fcst=num_pes
+!
+      write(0,*)'in gfs core set up, quilting=',quilting
+!
+      num_pes_fcst=inpes*jnpes
+      allocate(petlist_fcst(num_pes_fcst))
+      petlist_fcst(1:num_pes_fcst)=petlistvm(1:num_pes_fcst)
+      last_fcst_pe=maxval(petlist_fcst(1:num_pes_fcst) )
+      first_fcst_pe=minval(petlist_fcst(1:num_pes_fcst) )
+      write(0,*)'gfs_setup,first_fcst_pe=',first_fcst_pe,'last_fcst_pe=', &
+        last_fcst_pe
+!
+      if(quilting) then
+!
+!-----------------------------------------------------------------------
+!***  set up quilt/write task specifications
+!***  FIRST RETRIEVE THE TASK AND GROUP COUNTS FROM THE CONFIG FILE.
+!-----------------------------------------------------------------------
+      CALL ESMF_ConfigGetAttribute(CF                                   &  !<-- The configure file
+                                  ,WRITE_GROUPS                         &  !<-- Number of write groups from config file
+                                  ,label ='write_groups:'               &
+                                  ,rc    =RC)
+!
+      CALL ESMF_ConfigGetAttribute(CF                                   &  !<-- The configure file
+                                  ,WRITE_TASKS_PER_GROUP                &  !<-- Number of write tasks per group from config file
+                                  ,label ='write_tasks_per_group:'      &
+                                  ,rc    =RC)
+!-----------------------------------------------------------------------
+!***  SEGREGATE THE FORECAST TASKS FROM THE QUILT/WRITE TASKS.
+!-----------------------------------------------------------------------
+!
+      CALL SETUP_SERVERS_GFS(MYPE,INPES,JNPES,NUM_PES,last_fcst_pe      &
+                        ,WRITE_GROUPS,WRITE_TASKS_PER_GROUP             &
+                        ,mpi_intra_b)
+      write(0,*)'after setup_servers_gfs, inpes=',inpes,'jnpes=',jnpes, &
+        'write_groups=',write_groups,'WRITE_TASKS_PER_GROUP=',          &
+        WRITE_TASKS_PER_GROUP,'last_fcst_pe=',last_fcst_pe
+!if not quilt, for 1pe
+      else
+        NUM_PES=num_pes_fcst
+        mc_comp=mpi_intra_b
+        mpi_comm_comp=mc_comp
+      endif
+!***
+!***  NOTE: At this point, NUM_PES is the number of Forecast tasks only.
+!***
+!
+!-----------------------------------------------------------------------------
+! Allocate the local index array i2 to store the local size information of the
+! ditributed grid.  Information is based per dimension and per De.
+!-----------------------------------------------------------------------------
+!jw      ALLOCATE(i2(2, num_pes))
+      ALLOCATE(i2(2, num_pes_fcst))
 !-----------------------------------------------------------------------
 !***  create the ESMF grid.
 !-----------------------------------------------------------------------
@@ -220,8 +291,6 @@
       min(1)=1
       min(2)=1
 !
-!
-!
 !-----------------------------------------------------------------------
 !***  now create the main gridded component's ESMF grid.
 !-----------------------------------------------------------------------
@@ -243,8 +312,6 @@
       grid_atmos = ESMF_GridCreate(name     = "grid_atmos",   &
                                    distgrid = DistGrid_atmos, &
                                    rc       = rc)
-
-!
 !
 !-----------------------------------------------------------------------
 !***  get the local array sizes for the main grid.
@@ -261,7 +328,8 @@
 !***  PREVIOUS CALL, GENERATE ALL OF THE LOCAL TASK INDEX LIMITS
 !***  FOR ALL FORECAST TASKS.
 !***  THE USER, NOT ESMF, DOES THIS WORK.
-!-----------------------------------------------------------------------
+!------------------------------------------------- ----------------------
+       write(0,*)'end of GFS_SETUP'
 !
 !-----------------------------------------------------------------------
 !

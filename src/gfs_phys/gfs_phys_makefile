@@ -16,6 +16,7 @@ OBJS0   = \
 	  gfs_physics_start_time_get_mod.o     \
 	  gfs_physics_internal_state_mod.o     \
 	  gfs_physics_grid_create_mod.o        \
+	  gfs_physics_output.o        \
 	  gfs_physics_getcf_mod.o              \
  	  gfs_physics_initialize_mod.o         \
 	  gfs_physics_run_mod.o                \
@@ -45,7 +46,8 @@ OBJ_MOD	= \
 	  mersenne_twister.o	\
 	  mpi_def.o		\
 	  d3d_def.o        	\
-	  sfcio_module.o        
+	  sfcio_module.o        \
+          mod_state.o    
 
 OBJS	= \
 	  glats_physics.o               \
@@ -62,9 +64,9 @@ OBJS	= \
 	  hpmdummy.o
 
 OBJS_IO= \
-	  wrtout_physics.o   \
 	  fix_fields.o       \
 	  read_fix.o         \
+	  wrtout_physics.o   \
 	  gribit.o           \
 	  para_fixio_w.o     \
 	  sfcsub.o
@@ -310,6 +312,9 @@ progtm_module.o:	progtm_module.f
 machine.o:	machine.f
 		$(FC) $(FFLAGM) -c machine.f
 
+mpi_def.o:	mpi_def.f
+		$(FC) $(FFLAG_GFS_PHY) -c mpi_def.f
+
 #
 # *****************************************************************
 #
@@ -359,7 +364,7 @@ para_fixio_w.o:  para_fixio_w.f
 		$(FC) $(FFLAGIO) -c para_fixio_w.f
 
 wrtout_physics.o: wrtout_physics.f
-		$(FC) $(FFLAGIO) -c wrtout_physics.f
+		$(FC) $(FFLAG_GFS_PHY) -c wrtout_physics.f
 
 gfs_physics_err_msg_mod.o:      gfs_physics_err_msg_mod.f
 		$(FC) $(FFLAG90) -c gfs_physics_err_msg_mod.f
@@ -379,6 +384,9 @@ gfs_physics_start_time_get_mod.o:       gfs_physics_start_time_get_mod.f
 gfs_physics_grid_create_mod.o:  gfs_physics_grid_create_mod.f
 		$(FC) $(FFLAG90) -c gfs_physics_grid_create_mod.f
                                                                                 
+gfs_physics_output.o:   gfs_physics_output.f
+		$(FC) $(FFLAG90) -c gfs_physics_output.f
+
 gfs_physics_getcf_mod.o:        gfs_physics_getcf_mod.f
 		$(FC) $(FFLAG90) -c gfs_physics_getcf_mod.f
                 

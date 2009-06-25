@@ -141,6 +141,9 @@ csela - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         iret=1
         return
       endif
+      write(0,*)'lver=',levr,'deltim=',deltim,'nsout=',nsout,'fhout=',
+     & fhout,'fhres=',fhres,'gen_coord_hybrid=',gen_coord_hybrid, 
+     & 'ntoz=',ntoz
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  Compute nsout and check rule 2.
       if(nsout.gt.0) fhout=nsout*deltim/3600.
@@ -160,9 +163,9 @@ csela - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !!
       IF (NGPTC.GT.lonf) THEN
          NGPTC=lonf
-         WRITE(*,*) "NGPTC IS TOO BIG, RESET NGPTC TO lonf",NGPTC
+         WRITE(0,*) "NGPTC IS TOO BIG, RESET NGPTC TO lonf",NGPTC
       ENDIF
-      IF (ME.EQ.0)   WRITE(*,*) "NGPTC IS SET TO NGPTC :",NGPTC
+      IF (ME.EQ.0)   WRITE(0,*) "NGPTC IS SET TO NGPTC :",NGPTC
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  All checks are successful.
 !     print *,' done compns_dynamics '

@@ -16,18 +16,10 @@
 !-----------------------------------------------------------------------
 !
       use esmf_mod
-!      use module_dm_parallel,only : ids,ide,jds,jde                     &
-!                                   ,ims,ime,jms,jme                     &
-!                                   ,its,ite,jts,jte                     &
-!                                   ,mype_share
-!      use module_control,only : lm
-!      use module_export_import_data
-!      use atmos_err_msg_mod
 !
 !-----------------------------------------------------------------------
 !
       implicit none
-!      integer 	lm
 !
 !-----------------------------------------------------------------------
 !

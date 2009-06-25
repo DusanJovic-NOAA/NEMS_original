@@ -115,24 +115,31 @@ cc
          lonsperlat(latg+1-lat) = lonsperlat(lat)
       end do
 cc
-      if (liope) then
-         if (icolor.eq.2) then
-           nodesio=1
-         else
-           nodesio=nodes
-         endif
-      else
+!jw      if (liope) then
+!jw         if (icolor.eq.2) then
+!jw           nodesio=1
+!jw         else
+!jw           nodesio=nodes
+!jw         endif
+!jw      else
          nodesio=nodes
-      endif
+!jw      endif
 c
-      print*,'me,liope,nodes,nodesio = ',me,liope,nodes,nodesio
-      if (nodesio .eq. 1 .and. nodes .eq. 1
-     .    .or. (nodes .eq. 2 .and. nodesio .eq. 1) ) then
-         shuff_lats_a = .false.
+!jw with quilt, shuffle is not needed to be done on fcst processors; 
+!jw when without quilt, one processors will do the fcst and write, 
+!jw no shuffle is needed for one processor
+!jw      print*,'me,liope,nodes,nodesio = ',me,liope,nodes,nodesio
+!jw      if (nodesio .eq. 1 .and. nodes .eq. 1
+!jw     .    .or. (nodes .eq. 2 .and. nodesio .eq. 1) ) then
+!jw         shuff_lats_a = .false.
  
-        print*,' NO SHUFFLING WITH 1 COMPUTE TASK - nodes = ',nodes
+!jw        print*,' NO SHUFFLING WITH 1 COMPUTE TASK - nodes = ',nodes
+!jw      endif
+      if (num_pes_fcst==1) then
+         shuff_lats_a = .false.
+         print*,' NO SHUFFLING WITH 1 COMPUTE TASK - nodes = ',nodes
       endif
-      shuffled = shuff_lats_a 
+      shuffled = shuff_lats_a
  
       iprint = 0
 
@@ -161,8 +168,8 @@ cmy
 
       gl_lats_index = 0
       nodes_tmp = nodes
-      if (liope .and. icolor .eq. 2) nodes_tmp = nodes-1
-      if (liope .and. icolor .eq. 2) lats_nodes_a(nodes)=0
+!jw      if (liope .and. icolor .eq. 2) nodes_tmp = nodes-1
+!jw      if (liope .and. icolor .eq. 2) lats_nodes_a(nodes)=0
       do node=1,nodes_tmp
          call get_lats_node_a( node-1, global_lats_a,
      x                 lats_nodes_a(node),
@@ -255,10 +262,10 @@ c$$$          ipt_lats_node_ext = ipt_lats_node_ext + lats_nodes_ext(node)
 c$$$           print*,' node,ipt_lats_node_ext = ',node,ipt_lats_node_ext
          enddo
       endif
-      if (liope .and. icolor .eq. 2) then
-            ipt_lats_node_a = 1
-            ipt_lats_node_ext = 1
-      endif
+!jw      if (liope .and. icolor .eq. 2) then
+!jw            ipt_lats_node_a = 1
+!jw            ipt_lats_node_ext = 1
+!jw      endif
 
 c
       n3    = 51

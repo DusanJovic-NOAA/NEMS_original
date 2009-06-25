@@ -12,6 +12,7 @@
 !  january 2007 h. juang        change for dynamics only
 !  july    2007 s. moorthi      change for physics only
 !  november 2007 h. juang        continue for physics
+!  may      2009 j. wang         change for quilt
 !
 !
 ! !interface:
@@ -23,16 +24,23 @@
 !
       USE ESMF_Mod
       USE gfs_physics_internal_state_mod, ONLY: gfs_physics_internal_state
-      USE mpi_def,                        ONLY: icolor, mc_comp, mc_io, mpi_comm_all_dup,     &
-                                                mpi_comm_all, liope, buff_mult
+      USE mpi_def,                        ONLY: liope
+      USE mpi_def,                        ONLY: mc_comp, mc_io, mpi_comm_all_dup, mpi_comm_all
       USE resol_def,                      ONLY: g_dpdt, lotgr, g_p, g_dp, nrcm, g_q,          &
                                                 g_gz, g_u, g_v, g_ps, g_t, ntoz,              &
                                                 ntcw, lonr, latr, ncld, num_p3d, num_p2d,     &
                                                 lsoil, nmtvr, levr, nlunit, ntrac, nxpt,      &
                                                 jcap, levs, nypt, jintmx, ngrids_sfcc,        &
+!jw
+                                                ngrids_sfcc2d,ngrids_sfcc3d,                  &  !jwang
                                                 ngrids_flx, levp1, lonrx, nfxr, ngrids_gg,    &
                                                 levm1, ivssfc, thermodyn_id, sfcpress_id,     &
                                                 ivssfc_restart, latrd, latr2, ivsupa, levh
+!jw
+      use mod_state,                      ONLY: buff_mult_piecea2d,buff_mult_piecea3d,        &  !jwang
+                                                buff_mult_piecef                                 !jwang
+      use coordinate_def,                 ONLY: ak5,bk5,ck5                                      !jwang
+
       USE ozne_def,                       ONLY: levozc, latsozp, blatc, timeozc, timeoz,      &
                                                 kozpl, levozp, pl_time, pl_lat, pl_pres,      &
                                                 kozc, dphiozc, latsozc, pl_coeff
@@ -136,6 +144,9 @@
       lonrx  = lonr + 1 + 2*nxpt + 1
 !
       ngrids_sfcc = 32+LSOIL*3   ! No CV, CVB, CVT! includes T2M, Q2M, TISFC
+!jw
+      ngrids_sfcc2d = 32        ! No CV, CVB, CVT! includes T2M, Q2M, TISFC
+      ngrids_sfcc3d = LSOIL*3   ! for smc,stc,slc
       ngrids_flx  = 66+30        ! additional fields (most related to land surface)
       nfxr        = 27
       ngrids_gg   = 2+LEVS*(4+ntrac)
@@ -149,8 +160,6 @@
       allocate(rcs2_r(latr2), stat = ierr)
       allocate(sinlat_r(latr), stat = ierr)
       allocate(coslat_r(latr), stat = ierr)
-!
-      allocate(buff_mult(lonr,latr,ngrids_sfcc), stat = ierr)
 !
       allocate ( gis_phy%lats_nodes_r(nodes), stat = ierr )
       allocate ( gis_phy%lats_nodes_ext(nodes), stat = ierr )
@@ -263,37 +272,37 @@
 !!
 !!      create io communicator and comp communicator
 !!
-      if (me == 0) write(*,*) 'io option ,liope :',liope
+!      if (me == 0) write(*,*) 'io option ,liope :',liope
 !
-      call mpi_comm_dup(mpi_comm_all, mpi_comm_all_dup, ierr)
+!jw      call mpi_comm_dup(mpi_comm_all, mpi_comm_all_dup, ierr)
 !     call mpi_barrier (mpi_comm_all_dup,               ierr)
 
       if (nodes == 1) liope=.false.
-      if (liope) then
-        call mpi_comm_rank(mpi_comm_all_dup,nrank_all,ierr)
-        icolor=1
-        ikey=1
-        nodes_comp=nodes-1
-        if (nrank_all.eq.nodes-1) then
+!jw      if (liope) then
+!jw        call mpi_comm_rank(mpi_comm_all_dup,nrank_all,ierr)
+!jw        icolor=1
+!jw        ikey=1
+!jw        nodes_comp=nodes-1
+!jw        if (nrank_all.eq.nodes-1) then
 !!  io server
-          write(*,*) 'io server task'
-          icolor=2
-          gis_phy%kcolor=mpi_undefined
-          call mpi_comm_split(mpi_comm_all_dup,icolor,ikey,mc_io,ierr)
-          call mpi_comm_split(mpi_comm_all_dup,gis_phy%kcolor,ikey,mc_comp,ierr)
-        else
+!jw          write(*,*) 'io server task'
+!jw          icolor=2
+!jw          gis_phy%kcolor=mpi_undefined
+!jw          call mpi_comm_split(mpi_comm_all_dup,icolor,ikey,mc_io,ierr)
+!jw          call mpi_comm_split(mpi_comm_all_dup,gis_phy%kcolor,ikey,mc_comp,ierr)
+!jw        else
 !sela     write(*,*) 'compute server task '
-          icolor=mpi_undefined
-          gis_phy%kcolor=1
-          call mpi_comm_split(mpi_comm_all_dup,gis_phy%kcolor,ikey,mc_comp,ierr)
-          call mpi_comm_split(mpi_comm_all_dup,icolor,ikey,mc_io,ierr)
-          call mpi_comm_size(mc_comp,nodes,ierr)
-        endif
-      else
-        icolor=2
-        mc_comp=mpi_comm_all_dup
+!jw          icolor=mpi_undefined
+!jw          gis_phy%kcolor=1
+!jw          call mpi_comm_split(mpi_comm_all_dup,gis_phy%kcolor,ikey,mc_comp,ierr)
+!jw          call mpi_comm_split(mpi_comm_all_dup,icolor,ikey,mc_io,ierr)
+!jw          call mpi_comm_size(mc_comp,nodes,ierr)
+!jw        endif
+!jw      else
+!jw        icolor=2
+!jw        mc_comp=mpi_comm_all_dup
         nodes_comp=nodes
-      endif
+!jw      endif
 !!
 !c
 !     call f_hpminit(me,"evod")  !jjt hpm stuff
@@ -310,12 +319,12 @@
       print 100, jcap,levs
 100   format (' smf ',i3,i3,' in gfs physics initialize ')
       print*,'number of threads is ',num_parthds()
-        if (liope) then
+!jw        if (liope) then
+!jw          print*,'number of mpi procs is ',nodes
+!jw          print*,'number of mpi io procs is 1 (nodes)'
+!jw        else
           print*,'number of mpi procs is ',nodes
-          print*,'number of mpi io procs is 1 (nodes)'
-        else
-          print*,'number of mpi procs is ',nodes
-        endif
+!jw        endif
       endif
 !c
       gis_phy%cons0    =    0.0d0     !constant
@@ -341,7 +350,7 @@
            gis_phy%lats_nodes_r,gis_phy%global_lats_r,                  &
            gis_phy%lonsperlar,                                          &
            gis_phy%lats_nodes_ext,gis_phy%global_lats_ext,              &
-           gis_phy%colat1)
+           gis_phy%colat1,gis_phy%idrt)
 
       gis_phy%lats_node_r_max = lats_node_r_max
 
@@ -373,7 +382,8 @@
 !
       allocate (   gis_phy%fhour_idate(1,5), stat = ierr )
 !
-      print *,' check after lots allocates ' 
+      write(0,*) ' check after lots allocates,size(fhour_idate)= ' ,   &
+        size(gis_phy%fhour_idate,1),size(gis_phy%fhour_idate,2),ierr
 
       if (ldiag3d) then
         call d3d_init(ngptc,gis_phy%nblck,lonr,lats_node_r,levs,pl_coeff)
@@ -383,6 +393,22 @@
         if (num_p3d .gt. 0) gis_phy%phy_f3d = 0.0
         if (num_p2d .gt. 0) gis_phy%phy_f2d = 0.0
 !     endif
+!jw
+       allocate(ak5(levp1),bk5(levp1),ck5(levp1))
+       allocate(buff_mult_piecea2d(lonr,lats_node_r,1:ngrids_sfcc2d+1))
+       allocate(buff_mult_piecea3d(lonr,lats_node_r,1:ngrids_sfcc3d+1))
+       allocate(buff_mult_piecef(lonr,lats_node_r,1:ngrids_flx+1))
+       ak5=0.
+       bk5=0.
+       ck5=0.
+       buff_mult_piecea2d(1:lonr,1:lats_node_r,1:ngrids_sfcc2d+1)=0.
+       buff_mult_piecea3d(1:lonr,1:lats_node_r,1:ngrids_sfcc3d+1)=0.
+       buff_mult_piecef(1:lonr,1:lats_node_r,1:ngrids_flx+1)=0.
+       write(0,*)'in init,buff_mult_piecea2D=',maxval(buff_mult_piecea2D), &
+       minval(buff_mult_piecea2D),'buff_mult_piecea3D=',   &
+       maxval(buff_mult_piecea3d),minval(buff_mult_piecea3D) &
+       ,'ngrids_sfcc2d=',ngrids_sfcc2d,'ngrids_sfcc3d=',ngrids_sfcc3d, &
+       'ngrids_flx=',ngrids_flx
 !!
       call countperf(0,18,0.)
 !!
@@ -392,7 +418,7 @@
         gis_phy%OZPLIN,gis_phy%nam_gfs_phy%sfc_ini)
 
 !     print *,' GISXLAT=',gis_phy%XLAT(1,:)
-      print *,' finish fix_fields '
+      write(0,*)' finish fix_fields '
 !!
       call countperf(1,18,0.)
 !!
@@ -401,7 +427,10 @@
 !
       call flx_init(gis_phy%flx_fld, ierr)
 
-      print *,' finish fix_init '
+      write(0,*) ' after flx_init,size(fhour_idate)= ' ,   &
+        size(gis_phy%fhour_idate,1),size(gis_phy%fhour_idate,2),ierr
+
+      write(0,*)' finish fix_init '
 
       if (ldiag3d) then
         call d3d_zero

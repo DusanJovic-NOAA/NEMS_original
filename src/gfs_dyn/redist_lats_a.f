@@ -76,15 +76,15 @@ c
 cmy completed assembly of total times per lat
 cmy return if no redistribution required
  
-      if (liope) then
-         if (icolor.eq.2) then
-           nodesio=1
-         else
+!jw      if (liope) then
+!jw         if (icolor.eq.2) then
+!jw           nodesio=1
+!jw         else
            nodesio=nodes
-         endif
-      else
-         nodesio=nodes
-      endif
+!jw         endif
+!jw      else
+!jw         nodesio=nodes
+!jw      endif
 c
 cmy sort lats and reshuffle
 cmy sort the lat times in descending order

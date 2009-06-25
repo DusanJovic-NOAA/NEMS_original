@@ -23,6 +23,10 @@ cjfe        fi(lons+1:lonf,j)=-9999.e9
           else
             fi(:,j)=f(:,j)
           endif
+!jw          write(0,*)'in interpred,lat=',lat,'lons=',lons,'lonf=',
+!jw     &     lonf,'f=',maxval(f(:,j)),minval(f(:,j)),'fi=',
+!jw     &    maxval(fi(:,j)),minval(fi(:,j)),'loc=',minloc(fi(:,j))
+
         enddo
       end subroutine
 c
@@ -81,14 +85,16 @@ c
 !     maxfld=50
       ifld=ifld+1
 !!
-      IF (icolor.eq.2.and.me.eq.nodes-1) THEN
-        ta=timef()
-        t3=ta
-c        DO proc=1,nodes-1
-         do proc=1,1
+!jw      IF (icolor.eq.2.and.me.eq.nodes-1) THEN
+!jw        ta=timef()
+!jw        t3=ta
+!jwc        DO proc=1,nodes-1
+!jw         do proc=1,1
+      IF (me==0) THEN
 c
 c         Sending the data
 c         ----------------
+!jw do not need to send data, all processores read the data
          tmp=0.
          do j=1,latg
             do i=1,lonf
@@ -96,33 +102,39 @@ c         ----------------
             enddo
          enddo
 !Moor    msgtag=1000+proc*nodes*maxfld+ifld
-         t1=timef()
+!jw         t1=timef()
 !sela    print *,' GWVX BROADCASTING FROM ',nodes-1
-         call mpi_bcast
-     1 (tmp,lonf*latg,MPI_R_IO,nodes-1,MPI_COMM_ALL,info)
-         call mpi_comm_rank(MPI_COMM_ALL,i,info)
+!jw         call mpi_bcast
+!jw     1 (tmp,lonf*latg,MPI_R_IO,nodes-1,MPI_COMM_ALL,info)
+!jw         call mpi_comm_rank(MPI_COMM_ALL,i,info)
 c         CALL mpi_send(tmp,lonf*latg,MPI_R_IO,proc-1,msgtag,
 c     &                  MPI_COMM_ALL,info)
-         t2=timef()
+!jw         t2=timef()
 !sela    print 102,t2-t1
  
  102    format(' SEND TIME ',f10.5)
-        enddo
-        t4=timef()
-      ELSE
-        if (.NOT.LIOPE) then
-          nodesr=nodes
-        else
-          nodesr=nodes+1
-        endif
+!jw        enddo
+!jw        t4=timef()
+!jw      ELSE
+!jw        if (.NOT.LIOPE) then
+!jw          nodesr=nodes
+!jw        else
+!jw          nodesr=nodes+1
+!jw        endif
 !Moor   msgtag=1000+(me+1)*nodesr*maxfld+ifld
 !sela    print *,' GWVX BROADCASTREC  FROM ',nodesr-1
-         call mpi_bcast
-     1 (tmp,lonf*latg,MPI_R_IO,nodesr-1,MPI_COMM_ALL,info)
-         call mpi_comm_rank(MPI_COMM_ALL,i,info)
+!jw         call mpi_bcast
+!jw     1 (tmp,lonf*latg,MPI_R_IO,nodesr-1,MPI_COMM_ALL,info)
+!jw         call mpi_comm_rank(MPI_COMM_ALL,i,info)
 !sela    print *,'GWVX IPT ',ipt
 c        CALL mpi_recv(tmp,lonf*latg,MPI_R_IO,nodesr-1,
 c     &                msgtag,MPI_COMM_ALL,stat,info)
+!jw
+      ENDIF
+      call mpi_bcast
+     1 (tmp,lonf*latg,MPI_R_IO,0,MPI_COMM_ALL,info)
+       call mpi_barrier(mpi_comm_all,info)
+!jw get subdomain of data
         do j=1,lats_node_a
            lat=global_lats_a(ipt_lats_node_a-1+j)
            do i=1,lonf
@@ -130,19 +142,19 @@ c     &                msgtag,MPI_COMM_ALL,stat,info)
            enddo
         enddo
 !!
-      ENDIF
+!jw      ENDIF
 !!
 !!     for pes nodes-1
-      if (.NOT.LIOPE) then
-        if (me.eq.nodes-1) then
-          do j=1,lats_node_a
-             lat=global_lats_a(ipt_lats_node_a-1+j)
-             do i=1,lonf
-                xl(i,j)=X(i,lat)
-             enddo
-          enddo
-        endif
-      endif
+!jw      if (.NOT.LIOPE) then
+!jw        if (me.eq.nodes-1) then
+!jw          do j=1,lats_node_a
+!jw             lat=global_lats_a(ipt_lats_node_a-1+j)
+!jw             do i=1,lonf
+!jw                xl(i,j)=X(i,lat)
+!jw             enddo
+!jw          enddo
+!jw        endif
+!jw      endif
 !!
       tb=timef()
          call mpi_comm_rank(MPI_COMM_ALL,i,info)

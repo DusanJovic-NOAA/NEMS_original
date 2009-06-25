@@ -3,7 +3,7 @@
 cc
       use resol_def, ONLY: latr, jintmx, nypt, lonr
       use layout1,   ONLY: nodes
-      use mpi_def,   ONLY: icolor, liope
+!jw      use mpi_def,   ONLY: icolor, liope
       implicit none
 cc
       integer              lats_nodes_r(nodes)
@@ -29,15 +29,15 @@ cc
       iprint=0
       OPT=1
       lats_nodes_r=0
-      if (liope) then
-         if (icolor.eq.2) then
-           nodesio=1
-         else
-           nodesio=nodes
-         endif
-      else
+!jw      if (liope) then
+!jw         if (icolor.eq.2) then
+!jw           nodesio=1
+!jw         else
+!jw           nodesio=nodes
+!jw         endif
+!jw      else
          nodesio=nodes
-      endif
+!jw      endif
 cc
       ngrptg=0
       do lat=1,latr

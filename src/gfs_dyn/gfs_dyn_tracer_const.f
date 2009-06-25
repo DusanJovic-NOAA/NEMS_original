@@ -2,7 +2,8 @@
       use gfs_dyn_machine , only : kind_grid
       implicit none
 
-      real(kind=kind_grid) ri(0:20),cpi(0:20)
+!jw      real(kind=kind_grid) ri(0:20),cpi(0:20)
+      real(kind=kind_grid),target :: ri(0:20),cpi(0:20)
       integer, parameter :: num_tracer=3
 
       contains
@@ -18,8 +19,8 @@
 c
       if( ntrac.ne.num_tracer ) then
         if( me.eq.0 ) then
-          write(*,*) ' Error ; inconsistent number of tracer '
-          write(*,*) ' ntrac=',ntrac,' num_tracer=',num_tracer
+          write(0,*) ' Error ; inconsistent number of tracer '
+          write(0,*) ' ntrac=',ntrac,' num_tracer=',num_tracer
         endif
         call abort
       endif

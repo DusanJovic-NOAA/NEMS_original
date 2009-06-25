@@ -20,7 +20,10 @@
       use gfs_dynamics_initialize_mod
       use gfs_dynamics_run_mod
       use gfs_dynamics_finalize_mod
-
+!jws
+      use gfs_dyn_mpi_def
+      use gfs_dynamics_output, only : point_dynamics_output_gfs
+!jwe
       implicit none
 
 #include "../../inc/ESMF_LogMacros.inc"
@@ -172,6 +175,9 @@
       type(esmf_time)                    :: stoptime    
       type(esmf_time)                    :: currtime     
       type(esmf_timeinterval)            :: reftimeinterval 
+!jw
+      type(esmf_state)                   :: imp_state_write  !<-- The write gc import state
+
       integer(kind=esmf_kind_i4)         :: yy, mm, dd   ! time variables for date
       integer(kind=esmf_kind_i4)         :: hh, mns, sec ! time variables for time
       integer                            :: advancecount4, timestep_sec
@@ -206,7 +212,22 @@
       call gfs_dynamics_err_msg(rc1,' - allocate the internal state',rc)
 
       wrap%int_state => int_state
+!jws
+!-----------------------------------------------------------------------
+!***  RETRIEVE THE IMPORT STATE OF THE WRITE GRIDDED COMPONENT
+!***  FROM THE DYNAMICS EXPORT STATE.
+!-----------------------------------------------------------------------
+!
+      call esmf_logwrite("get write gc import state",                  &
+                        esmf_log_info, rc = rc1)
 
+      CALL ESMF_StateGet(state      =exp_gfs_dyn                        &  !<-- The Dynamics export state
+                        ,itemName   ='Write Import State'               &  !<-- Name of the state to get from Dynamics export state
+                        ,nestedState=IMP_STATE_WRITE                    &  !<-- Extract write component import state from Dynamics export
+                        ,rc         =RC)
+      call gfs_dynamics_err_msg(rc1,'get write gc import state',rc)
+!jwe
+!
 ! attach internal state to the gfs dynamics grid component.
 !-------------------------------------------------
       call esmf_logwrite("set up the internal state",                   &
@@ -319,6 +340,7 @@
                            rc       = rc1)
 
       call gfs_dynamics_err_msg(rc1,'get me and nodes from vm',rc)
+      write(0,*)'in dyn_gc,after vmget,npes=',int_state%nodes,'mpi_comm_all=',mpi_comm_all
 
 ! Allocate the local index array i2 to store the local size information of the
 ! ditributed grid1, grid3, etc..  Information is based per dimension and per De.
@@ -336,6 +358,8 @@
 ! ----------------- gfs dynamics related initialize --------------------
 ! ======================================================================
       call gfs_dynamics_initialize(int_state, rc1)
+      write(0,*)'in dyn_init, t=',maxval(int_state%grid_gr(:,int_state%g_t)), &
+       minval(int_state%grid_gr(:,int_state%g_t)),'quilting=',quilting
 ! ======================================================================
 ! ----------------------------------------------------------------------
 ! ======================================================================
@@ -481,6 +505,15 @@
 !          'transfor internal state to export state',rc)
 
       DEALLOCATE(i2)
+!
+!-------------------------------------------------------
+!##jw send all the head info to write tasks
+!-------------------------------------------------------
+!
+      if(quilting) then
+        write(0,*)'before point_dynamics_output_gfs'
+        call point_dynamics_output_gfs(int_state,IMP_STATE_WRITE)
+      endif
 !
 !*******************************************************************
 ! print out the final error signal variable and put it to rc.

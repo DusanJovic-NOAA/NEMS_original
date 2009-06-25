@@ -15,15 +15,15 @@ cc
       integer   l
       integer   node,nodesio
 cc
-      if (liope) then
-         if (icolor.eq.2) then
-           nodesio=1
-         else
+!jw      if (liope) then
+!jw         if (icolor.eq.2) then
+!jw           nodesio=1
+!jw         else
            nodesio=nodes
-         endif
-      else
-         nodesio=nodes
-      endif
+!jw         endif
+!jw      else
+!jw         nodesio=nodes
+!jw      endif
 !!
       ls_node = -1
 cc

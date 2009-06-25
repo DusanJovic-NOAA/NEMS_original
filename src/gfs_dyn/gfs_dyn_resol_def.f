@@ -6,13 +6,17 @@
       integer   levh,levm1,levp1,levs,lnt,lnt2,lnt22,levr
       integer   lnte,lnted,lnto,lntod,lnuv
       integer   lonf,lonfx
-      integer   ntrac
+!jw      integer   ntrac
       integer   nxpt,nypt,jintmx,latgd
       integer   ntoz,ntcw,ncld
-      integer   ngrids_gg
+!jw      integer   ngrids_gg
       integer   ivsupa, ivsinp
       integer   nlunit
-      integer   thermodyn_id, sfcpress_id			! hmhj
+!jw      integer   thermodyn_id, sfcpress_id			! hmhj
+      integer,target ::   ntrac
+      integer,target ::   ngrids_gg
+      integer,target ::   thermodyn_id, sfcpress_id             ! hmhj
+      logical,target ::   adiabatic
 !
       INTEGER   P_GZ,P_ZEM,P_DIM,P_TEM,P_RM,P_QM
       INTEGER   P_zslam,P_zsphi

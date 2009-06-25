@@ -49,6 +49,9 @@
 ! ---------------------------------------------------------------------
 ! change temperature and pressure back to model grid value at n+1  slot.
 !
+       write(0,*)' before of common_to_model_vars,kdt=',gis_dyn%kdt,      &
+         'nsout=',nsout,'lsout=',gis_dyn%LSOUT,'t=',  &
+         maxval(gis_dyn%grid_gr(:,gis_dyn%g_t)),minval(gis_dyn%grid_gr(:,gis_dyn%g_t))
       if( .not. gis_dyn% start_step ) then
 !       print *,' change common variables to model variables '
         gis_dyn%lsout = mod(gis_dyn%kdt,nsout).eq.0
@@ -124,6 +127,8 @@
                gis_dyn% colat1        ,gis_dyn% cfhour1	       ,	&
                gis_dyn% start_step    ,                                 &
                gis_dyn% reset_step    ,gis_dyn% end_step       )
+        write(0,*)'after gfs_dyn_oneloop_run, t=',  &
+         maxval(gis_dyn%grid_gr(:,gis_dyn%g_t)),minval(gis_dyn%grid_gr(:,gis_dyn%g_t))
 
 !
 ! ======================================================================
@@ -169,13 +174,17 @@
         stop
 
       endif
+!
+      write(0,*)'in gfs_dynamics,after one loop,grid_gr(zq)=',             &
+       maxval(gis_dyn%grid_gr(:,gis_dyn%g_zq)),minval(gis_dyn%grid_gr(:,gis_dyn%g_zq)), &
+       't=',maxval(gis_dyn%grid_gr(:,gis_dyn%g_t)),minval(gis_dyn%grid_gr(:,gis_dyn%g_t))
 ! =======================================================================
 !                   end of one- or two-loop computation
 ! =======================================================================
 !
 ! check whether wind speed is out of bound.
 !
-      if (.not.liope.or.icolor.ne.2) then
+!jw      if (.not.liope.or.icolor.ne.2) then
         do k=1,levs
           if(spdmax(k).gt.0. .and. spdmax(k).lt.1000.) then
             continue
@@ -185,7 +194,7 @@
             stop
           endif
         enddo
-      endif
+!jw      endif
 
 
 ! =======================================================================
@@ -207,6 +216,8 @@
                                  gis_dyn% grid_gr(1,gis_dyn%g_dpdt ),    & 
                                  gis_dyn%global_lats_a,	                   &
                                  gis_dyn%lonsperlat)
+      write(0,*)'after n+1grid value,t=',  &
+         maxval(gis_dyn%grid_gr(:,gis_dyn%g_t)),minval(gis_dyn%grid_gr(:,gis_dyn%g_t))
 
 !cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 !c

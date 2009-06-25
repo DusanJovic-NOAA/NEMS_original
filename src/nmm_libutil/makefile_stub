@@ -47,8 +47,8 @@ TRAPS    =
 #
 # Assemble Options
 #
-FINCO    = -I/meso/save/${USER}/NEMS/mod/esmf_3_1_0rp2
-FINCP    = -I/meso/save/${USER}/NEMS/lib/w3_d  
+FINCO    = -I/climate/save/${USER}/esmf/nems/trunk_merge_gfswrt/trunk/mod/esmf_3_1_0rp2
+FINCP    = -I/climate/save/${USER}/esmf/nems/trunk_merge_gfswrt/trunk/lib/w3_d  
 FINCS	 = $(FINCO) $(FINCP)
 FFLAGS   = $(OPTS) $(FINCS) $(TRAPS)
 #

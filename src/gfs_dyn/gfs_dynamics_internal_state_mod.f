@@ -54,6 +54,13 @@
       integer ntoz, ntcw, ncld, levr
 
       character(16)                     ::  cfhour1
+!jws
+      integer                           ::  num_file
+      character(32)        ,allocatable ::  filename_base(:)
+      integer                           ::  ipt_lats_node_a
+      integer                           ::  lats_node_a
+      logical                           ::  adiabatic
+!jwe
 
       integer                           ::  nblck,kdt
       real                              ::  deltim

@@ -259,7 +259,15 @@
 			          ,value = pe_member(i)                 & 
                                   ,label = pelab                        & 
 				  ,rc = RC)
-        if (pe_member(i) == 0) pe_member(i) = tasks / total_member
+        if (pe_member(i) == 0) then
+!jwstart
+          if( i < mod(tasks,total_member) ) then
+            pe_member(i) = tasks / total_member + 1
+          else
+            pe_member(i) = tasks / total_member
+          endif
+!jwend
+        endif
       enddo
       pe_max = 1
       do i=1,total_member

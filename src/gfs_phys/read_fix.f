@@ -5,7 +5,7 @@
 !
       use resol_def, ONLY: latr, lonr, nmtvr
       use layout1,   ONLY: me, nodes, lats_node_r
-      use mpi_def,   ONLY: icolor
+!jw      use mpi_def,   ONLY: icolor
       use ozne_def,  ONLY: latsozp, levozp, timeoz, pl_coeff
       USE machine,   ONLY: kind_io8, kind_io4
       implicit none
@@ -32,7 +32,8 @@
 !     ****************************
       nmtn=24
 !jfe  IF (me.eq.0) THEN
-      IF (icolor.eq.2.and.me.eq.nodes-1) THEN
+!jw      IF (icolor.eq.2.and.me.eq.nodes-1) THEN
+      IF (me.eq.0) THEN                                                  !jw
         READ(nmtn) buffm
 !!      do k=1,nmtvr
 !!        write(200) buffm(:,:,k)
@@ -63,8 +64,9 @@
 !
       if(needoro.eq.1) then
 
-      IF (icolor.eq.2.and.me.eq.nodes-1) print *,'read grb orography'
-      IF (icolor.eq.2.and.me.eq.nodes-1) THEN
+!jw      IF (icolor.eq.2.and.me.eq.nodes-1) print *,'read grb orography'
+!jw      IF (icolor.eq.2.and.me.eq.nodes-1) THEN
+      IF( me==0) then
         CALL ORORD(101,lonr,latr,buff1)
       endif
       call split2d(buff1,buffo,global_lats_r)
@@ -83,7 +85,7 @@
      &                        sfcio_srohdc, sfcio_axdata
       use resol_def,    ONLY: latr, latr2, lonr, lsoil
       use layout1,      ONLY: me, nodes, lats_node_r
-      use mpi_def,      ONLY: icolor
+!jw      use mpi_def,      ONLY: icolor
       use gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data
       use namelist_soilveg ,       only: salp_data, snupx
       use physcons,     only : tgice => con_tice
@@ -118,7 +120,8 @@
 
       print *,' nread=',nread,' cfile=',cfile
 
-      IF (icolor.eq.2.and.me.eq.nodes-1) THEN
+!jw      IF (icolor.eq.2.and.me.eq.nodes-1) THEN
+      IF (me==0) THEN
 
         call sfcio_srohdc(nread,cfile,head,data,iret)
 
@@ -137,35 +140,43 @@
 
       kmsk=0
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%tsea
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%tsea
+      if(me==0) buff1=data%tsea
+      if(me==0) write(0,*)'read_sfc,tsea=',maxval(buff1),minval(buff1)
+
       call split2d(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%TSEA,global_lats_r,lonsperlar)
 
       DO K=1, LSOIL
 
-        if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%smc(:,:,k)
+!jw        if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%smc(:,:,k)
+        if(me==0) buff1=data%smc(:,:,k)
         call split2d(buff1, buffo,global_lats_r)
         CALL interpred(1,kmsk,buffo,buff3,global_lats_r,lonsperlar)
         sfc_fld%SMC(k,:,:)=buff3(:,:)
       ENDDO
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%sheleg
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%sheleg
+      if(me==0) buff1=data%sheleg
       call split2d(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%SHELEG,
      &               global_lats_r,lonsperlar)
 
       DO K = 1, LSOIL
-        if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%stc(:,:,k)
+!jw        if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%stc(:,:,k)
+        if(me==0) buff1=data%stc(:,:,k)
         call split2d(buff1, buffo,global_lats_r)
         CALL interpred(1,kmsk,buffo,buff3,global_lats_r,lonsperlar)
         sfc_fld%STC(k,:,:)=buff3(:,:)
       ENDDO
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%tg3
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%tg3
+      if(me==0) buff1=data%tg3
       call split2d(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%TG3,global_lats_r,lonsperlar)
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%zorl
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%zorl
+      if(me==0) buff1=data%zorl
       call split2d(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%ZORL,global_lats_r,lonsperlar)
 
@@ -173,74 +184,89 @@
       sfc_fld%cvb = 0
       sfc_fld%cvt = 0
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%alvsf
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%alvsf
+      if(me==0) buff1=data%alvsf
       call split2d(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%ALVSF,
      &               global_lats_r,lonsperlar)
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%alvwf
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%alvwf
+      if(me==0) buff1=data%alvwf
       call split2d(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%ALVWF,
      &               global_lats_r,lonsperlar)
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%alnsf
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%alnsf
+      if(me==0) buff1=data%alnsf
       call split2d(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%ALNSF,
      &               global_lats_r,lonsperlar)
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%alnwf
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%alnwf
+      if(me==0) buff1=data%alnwf
       call split2d(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%ALNWF,
      &               global_lats_r,lonsperlar)
 
 !     The mask cannot be interpolated
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%slmsk
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%slmsk
+      if(me==0) buff1=data%slmsk
       call split2d(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%SLMSK,
      &               global_lats_r,lonsperlar)
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%vfrac
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%vfrac
+      if(me==0) buff1=data%vfrac
       call split2d(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%VFRAC,
      &               global_lats_r,lonsperlar)
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%canopy
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%canopy
+      if(me==0) buff1=data%canopy
       call split2d(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%CANOPY,
      &               global_lats_r,lonsperlar)
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%f10m
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%f10m
+      if(me==0) buff1=data%f10m
       call split2d(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%F10M,global_lats_r,lonsperlar)
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%vtype
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%vtype
+      if(me==0) buff1=data%vtype
       call split2d(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%VTYPE,
      &               global_lats_r,lonsperlar)
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%stype
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%stype
+      if(me==0) buff1=data%stype
       call split2d(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%STYPE,
      &               global_lats_r,lonsperlar)
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%facsf
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%facsf
+      if(me==0) buff1=data%facsf
       call split2d(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%FACSF,
      &               global_lats_r,lonsperlar)
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%facwf
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%facwf
+      if(me==0) buff1=data%facwf
       call split2d(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%FACWF,
      &               global_lats_r,lonsperlar)
 
 !szunyogh 06/16/99
-        if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%uustar
+!jw        if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%uustar
+        if(me==0) buff1=data%uustar
          call split2d(buff1, buffo,global_lats_r)
          CALL interpred(1,kmsk,buffo,sfc_fld%UUSTAR,
      &               global_lats_r,lonsperlar)
 
-        if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%ffmm
+!jw        if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%ffmm
+        if(me==0) buff1=data%ffmm
          call split2d(buff1, buffo,global_lats_r)
          CALL interpred(1,kmsk,buffo,sfc_fld%FFMM,
      &                  global_lats_r,lonsperlar)
 
-        if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%ffhh
+!jw        if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%ffhh
+        if(me==0) buff1=data%ffhh
          call split2d(buff1, buffo,global_lats_r)
          CALL interpred(1,kmsk,buffo,sfc_fld%FFHH,
      &                  global_lats_r,lonsperlar)
@@ -248,17 +274,20 @@
 !c-- XW: FOR SEA-ICE Nov04
 !    Sea-ice (hice/fice) was added to the surface files.
 
-         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%hice
+!jw         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%hice
+         if(me==0) buff1=data%hice
          call split2d(buff1, buffo,global_lats_r)
          CALL interpred(1,kmsk,buffo,sfc_fld%HICE,
      &                  global_lats_r,lonsperlar)
 
-         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%fice
+!jw         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%fice
+         if(me==0) buff1=data%fice
          call split2d(buff1, buffo,global_lats_r)
          CALL interpred(1,kmsk,buffo,sfc_fld%FICE,
      &                  global_lats_r,lonsperlar)
 
-         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%tisfc
+!jw         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%tisfc
+         if(me==0) buff1=data%tisfc
          call split2d(buff1, buffo,global_lats_r)
          CALL interpred(1,kmsk,buffo,sfc_fld%TISFC,
      &                  global_lats_r,lonsperlar)
@@ -282,51 +311,59 @@
 !*     surface files for GFS/Noah contain 8 additional records:
 !*     tprcp, srflag, snwdph, slc, shdmin, shdmax, slope, snoalb
 
-         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%tprcp
+!jw         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%tprcp
+         if(me==0) buff1=data%tprcp
          call split2d(buff1, buffo,global_lats_r)
          CALL interpred(1,kmsk,buffo,sfc_fld%TPRCP,
      &                  global_lats_r,lonsperlar)
 
 !* srflag
-         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%srflag
+!jw         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%srflag
+         if(me==0) buff1=data%srflag
          call split2d(buff1, buffo,global_lats_r)
          CALL interpred(1,kmsk,buffo,sfc_fld%SRFLAG,
      &                  global_lats_r,lonsperlar)
 
 !* snwdph
-         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%snwdph
+!jw         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%snwdph
+         if(me==0) buff1=data%snwdph
          call split2d(buff1, buffo,global_lats_r)
          CALL interpred(1,kmsk,buffo,sfc_fld%SNWDPH,
      &                  global_lats_r,lonsperlar)
 
 !* slc
          DO K=1, LSOIL
-         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%slc(:,:,k)
+!jw         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%slc(:,:,k)
+         if(me==0) buff1=data%slc(:,:,k)
          call split2d(buff1, buffo,global_lats_r)
          CALL interpred(1,kmsk,buffo,buff3,global_lats_r,lonsperlar)
          sfc_fld%SLC(k,:,:) = buff3(:,:)
          ENDDO
 
 !* shdmin
-         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%shdmin
+!jw         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%shdmin
+         if(me==0) buff1=data%shdmin
          call split2d(buff1, buffo,global_lats_r)
          CALL interpred(1,kmsk,buffo,sfc_fld%SHDMIN,
      &                  global_lats_r,lonsperlar)
 
 !* shdmax
-         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%shdmax
+!jw         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%shdmax
+         if(me==0) buff1=data%shdmax
          call split2d(buff1, buffo,global_lats_r)
          CALL interpred(1,kmsk,buffo,sfc_fld%SHDMAX,
      &                  global_lats_r,lonsperlar)
 
 !* slope
-         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%slope
+!jw         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%slope
+         if(me==0) buff1=data%slope
          call split2d(buff1, buffo,global_lats_r)
          CALL interpred(1,kmsk,buffo,sfc_fld%SLOPE,
      &                  global_lats_r,lonsperlar)
 
 !* snoalb
-         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%snoalb
+!jw         if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%snoalb
+         if(me==0) buff1=data%snoalb
          call split2d(buff1, buffo,global_lats_r)
          CALL interpred(1,kmsk,buffo,sfc_fld%SNOALB,
      &                  global_lats_r,lonsperlar)
@@ -334,7 +371,8 @@
 !lu [+67L]: the addition of 8 Noah records ends here .........................
 
        if(needoro.eq.1) then
-         if(icolor.eq.2.and.me.eq.nodes-1) then
+!jw         if(icolor.eq.2.and.me.eq.nodes-1) then
+         if(me==0) then
            buff1=data%orog
            needoro=1
            if(all(data%orog.ne.sfcio_realfill)) needoro=0
@@ -370,7 +408,8 @@
        ENDDO
 !
 
-       IF (icolor.eq.2.and.me.eq.nodes-1) then
+!jw       IF (icolor.eq.2.and.me.eq.nodes-1) then
+       IF (me==0) then
          call sfcio_axdata(data,iret)
          t2=timef()
          print *,'FIXIO TIME ',t2-t1,t1,t2
@@ -500,8 +539,8 @@ c***********************************************************************
 c
       use resol_def,     ONLY: latr, lonr
       use layout1,       ONLY: me, nodes, lats_node_r, ipt_lats_node_r
-      use mpi_def,       ONLY: icolor, liope, info, mpi_r_io, 
-     &                         mpi_comm_all
+!jw      use mpi_def,       ONLY: icolor, liope, info, mpi_r_io, 
+      use mpi_def,       ONLY: info, mpi_r_io, mpi_comm_all
       USE machine,       ONLY: kind_io4, kind_io8
       implicit none
 !!
@@ -524,7 +563,8 @@ c
 !     maxfld=50
       ifld=ifld+1
 !!
-      IF (icolor.eq.2.and.me.eq.nodes-1) THEN
+!jw      IF (icolor.eq.2.and.me.eq.nodes-1) THEN
+      if(me==0) then
         ta=timef()
         t3=ta
 c        DO proc=1,nodes-1
@@ -542,7 +582,8 @@ c         ----------------
          t1=timef()
 !sela    print *,' GWVX BROADCASTING FROM ',nodes-1
          call mpi_bcast
-     1 (tmp,lonr*latr,MPI_R_IO,nodes-1,MPI_COMM_ALL,info)
+!jw     1 (tmp,lonr*latr,MPI_R_IO,nodes-1,MPI_COMM_ALL,info)
+     1 (tmp,lonr*latr,MPI_R_IO,0,MPI_COMM_ALL,info)
          call mpi_comm_rank(MPI_COMM_ALL,i,info)
 c         CALL mpi_send(tmp,lonr*latr,MPI_R_IO,proc-1,msgtag,
 c     &                  MPI_COMM_ALL,info)
@@ -552,40 +593,44 @@ c     &                  MPI_COMM_ALL,info)
  102    format(' SEND TIME ',f10.5)
         enddo
         t4=timef()
-      ELSE
-        if (.NOT.LIOPE) then
-          nodesr=nodes
-        else
-          nodesr=nodes+1
-        endif
+!jw      ELSE
+!jw        if (.NOT.LIOPE) then
+!jw          nodesr=nodes
+!jw        else
+!jw          nodesr=nodes+1
+!jw        endif
 !Moor   msgtag=1000+(me+1)*nodesr*maxfld+ifld
 !sela    print *,' GWVX BROADCASTREC  FROM ',nodesr-1
-         call mpi_bcast
-     1 (tmp,lonr*latr,MPI_R_IO,nodesr-1,MPI_COMM_ALL,info)
-         call mpi_comm_rank(MPI_COMM_ALL,i,info)
+!jw         call mpi_bcast
+!jw     1 (tmp,lonr*latr,MPI_R_IO,nodesr-1,MPI_COMM_ALL,info)
+!jw         call mpi_comm_rank(MPI_COMM_ALL,i,info)
 !sela    print *,'GWVX IPT ',ipt
 c        CALL mpi_recv(tmp,lonr*latr,MPI_R_IO,nodesr-1,
 c     &                msgtag,MPI_COMM_ALL,stat,info)
-        do j=1,lats_node_r
+!jw
+      ENDIF
+      call mpi_barrier(mpi_comm_all,info)
+      write(0,*)'in split, tmp=',maxval(tmp),minval(tmp)
+      do j=1,lats_node_r
            lat=global_lats_r(ipt_lats_node_r-1+j)
            do i=1,lonr
               xl(i,j)=tmp(i,lat)
            enddo
-        enddo
+      enddo
 !!
-      ENDIF
+!jw      ENDIF
 !!
 !!     for pes nodes-1
-      if (.NOT.LIOPE) then
-        if (me.eq.nodes-1) then
-          do j=1,lats_node_r
-             lat=global_lats_r(ipt_lats_node_r-1+j)
-             do i=1,lonr
-                xl(i,j)=X(i,lat)
-             enddo
-          enddo
-        endif
-      endif
+!jw      if (.NOT.LIOPE) then
+!jw        if (me.eq.nodes-1) then
+!jw          do j=1,lats_node_r
+!jw             lat=global_lats_r(ipt_lats_node_r-1+j)
+!jw             do i=1,lonr
+!jw                xl(i,j)=X(i,lat)
+!jw             enddo
+!jw          enddo
+!jw        endif
+!jw      endif
 !!
       tb=timef()
          call mpi_comm_rank(MPI_COMM_ALL,i,info)
@@ -608,11 +653,12 @@ c*************************************************************************
  
       integer jump,ipe
  
-      IF (icolor.eq.2) then
-         ipe=nodes-1
-      else
-         ipe=nodes
-      endif
+!jw      IF (icolor.eq.2) then
+!jw         ipe=nodes-1
+!jw      else
+!jw         ipe=nodes
+!jw      endif
+      ipe=0
  
       CALL MPI_BCAST(jump,1,MPI_INTEGER,ipe,MPI_COMM_ALL,info)
  
@@ -746,74 +792,75 @@ c
       maxfld=50
       ifldu=ifldu+1
 !!
-      IF (me.ne.ioproc) THEN
+!jw all fcst node need to send data
+!jw IF (me.ne.ioproc) THEN
 c
 c         Sending the data
 c         ----------------
-         tmp=0.
-         tmp(lonr,latr+1)=ipt_lats_node_r
-         tmp(lonr,latr+2)=lats_node_r
-         do j=1,lats_node_r
-            do i=1,lonr
-              tmp(i,j)=XL(i,j)
-            enddo
-         enddo
-         if (.NOT.LIOPE) then
-           nodesr=nodes
-         else
-           nodesr=nodes+1
-         endif
-         msgtag=1000+(me+1)*nodesr*maxfld+ifldu
-          call MPI_SEND(tmp(lonr,latr+1),1,MPI_R_IO,ioproc,
-     &                  msgtag,MPI_COMM_ALL,info)
-          call MPI_SEND(tmp(lonr,latr+2),1,MPI_R_IO,ioproc,
-     &                  msgtag,MPI_COMM_ALL,info)
-         illen=tmp(lonr,latr+2)
+!jw         tmp=0.
+!jw         tmp(lonr,latr+1)=ipt_lats_node_r
+!jw         tmp(lonr,latr+2)=lats_node_r
+!jw         do j=1,lats_node_r
+!jw            do i=1,lonr
+!jw              tmp(i,j)=XL(i,j)
+!jw            enddo
+!jw         enddo
+!jw         if (.NOT.LIOPE) then
+!jw           nodesr=nodes
+!jw         else
+!jw           nodesr=nodes+1
+!jw         endif
+!jw         msgtag=1000+(me+1)*nodesr*maxfld+ifldu
+!jw          call MPI_SEND(tmp(lonr,latr+1),1,MPI_R_IO,ioproc,
+!jw     &                  msgtag,MPI_COMM_ALL,info)
+!jw          call MPI_SEND(tmp(lonr,latr+2),1,MPI_R_IO,ioproc,
+!jw     &                  msgtag,MPI_COMM_ALL,info)
+!jw         illen=tmp(lonr,latr+2)
 c send the local grid domain
-         CALL mpi_send(tmp(1,1),illen*lonr,MPI_R_IO,ioproc,
-     &                  msgtag,MPI_COMM_ALL,info)
-      ELSE
+!jw         CALL mpi_send(tmp(1,1),illen*lonr,MPI_R_IO,ioproc,
+!jw     &                  msgtag,MPI_COMM_ALL,info)
+!jw      ELSE
 !!
 !!     for pes ioproc
-        if (.NOT.LIOPE) then
-          nproct=nodes
-          do j=1,lats_node_r
-             lat=global_lats_r(ipt_lats_node_r-1+j)
-             do i=1,lonr
-                x(i,lat)=XL(i,j)
-             enddo
-          enddo
-        else
-          nproct=nodes-1
-        endif
-        DO proc=1,nproct
-         if (proc.ne.ioproc+1) then
-         msgtag=1000+proc*nodes*maxfld+ifldu
-          CALL mpi_recv(tmp(lonr,latr+1),1,MPI_R_IO,proc-1,
-     &                msgtag,MPI_COMM_ALL,stat,info)
-          CALL mpi_recv(tmp(lonr,latr+2),1,MPI_R_IO,proc-1,
-     &                msgtag,MPI_COMM_ALL,stat,info)
-         illen=tmp(lonr,latr+2)
-          CALL mpi_recv(tmp(1,1),illen*lonr ,MPI_R_IO,proc-1,
-     &                msgtag,MPI_COMM_ALL,stat,info)
-         if (.NOT.LIOPE) then
-           ipt_lats_node_rl=tmp(lonr,latr+1)
-           lats_nodes_rl=tmp(lonr,latr+2)
-         else
-           ipt_lats_node_rl=tmp(lonr,lats_node_r_max+1)
-           lats_nodes_rl=tmp(lonr,lats_node_r_max+2)
-         endif
-         do j=1,lats_nodes_rl
-           lat=global_lats_r(ipt_lats_node_rl-1+j)
-           do i=1,lonr
-              x(i,lat)=tmp(i,j)
-           enddo
-         enddo
-         endif   !(proc.ne.ioproc+1)
-        enddo
+!jw        if (.NOT.LIOPE) then
+!jw          nproct=nodes
+!jw          do j=1,lats_node_r
+!jw             lat=global_lats_r(ipt_lats_node_r-1+j)
+!jw             do i=1,lonr
+!jw                x(i,lat)=XL(i,j)
+!jw             enddo
+!jw          enddo
+!jw        else
+!jw          nproct=nodes-1
+!jw        endif
+!jw        DO proc=1,nproct
+!jw         if (proc.ne.ioproc+1) then
+!jw         msgtag=1000+proc*nodes*maxfld+ifldu
+!jw          CALL mpi_recv(tmp(lonr,latr+1),1,MPI_R_IO,proc-1,
+!jw     &                msgtag,MPI_COMM_ALL,stat,info)
+!jw          CALL mpi_recv(tmp(lonr,latr+2),1,MPI_R_IO,proc-1,
+!jw     &                msgtag,MPI_COMM_ALL,stat,info)
+!jw         illen=tmp(lonr,latr+2)
+!jw          CALL mpi_recv(tmp(1,1),illen*lonr ,MPI_R_IO,proc-1,
+!jw     &                msgtag,MPI_COMM_ALL,stat,info)
+!jw         if (.NOT.LIOPE) then
+!jw           ipt_lats_node_rl=tmp(lonr,latr+1)
+!jw           lats_nodes_rl=tmp(lonr,latr+2)
+!jw         else
+!jw           ipt_lats_node_rl=tmp(lonr,lats_node_r_max+1)
+!jw           lats_nodes_rl=tmp(lonr,lats_node_r_max+2)
+!jw         endif
+!jw         do j=1,lats_nodes_rl
+!jw           lat=global_lats_r(ipt_lats_node_rl-1+j)
+!jw           do i=1,lonr
+!jw              x(i,lat)=tmp(i,j)
+!jw           enddo
+!jw         enddo
+!jw         endif   !(proc.ne.ioproc+1)
+!jw        enddo
 !!
-      ENDIF
-         ncc=ncc+1
+!jw      ENDIF
+!jw         ncc=ncc+1
  
 !!
       return
@@ -850,15 +897,18 @@ c
 
 
 
-      subroutine uninterprez(iord,kmsk,f,fi,global_lats_r,lonsperlar)
+!jw      subroutine uninterprez(iord,kmsk,f,fi,global_lats_r,lonsperlar)
+      subroutine uninterprez(iord,kmsk,f,fi,global_lats_r,lonsperlar,  
+     &    buff_mult_piecea)
 !!
       use resol_def,   ONLY: latr, lonr
-      use mod_state,   ONLY: buff_mult_piecea, ngrid
+!jw      use mod_state,   ONLY: buff_mult_piecea, ngrid
+!jw      use mod_state,   ONLY: ngrid
       use layout1,     ONLY: lats_node_r, ipt_lats_node_r
-      USE machine,     ONLY: kind_io8
+      USE machine,     ONLY: kind_io4,kind_io8
       implicit none
 !!
-      integer              global_lats_r(latr)
+      integer,intent(in):: global_lats_r(latr)
       integer,intent(in):: iord
       integer,intent(in):: kmsk(lonr,lats_node_r)
       integer,intent(in):: lonsperlar(latr)
@@ -867,6 +917,9 @@ c
        real(kind=4) f4(lonr,lats_node_r)
       integer j,lons,lat
       integer i,ubound
+!jw
+      real(kind=kind_io4),intent(inout) :: buff_mult_piecea
+     &  (1:lonr,1:lats_node_r)
 !!
       do j=1,lats_node_r
           lat=global_lats_r(ipt_lats_node_r-1+j)
@@ -882,20 +935,21 @@ c
         enddo
       do j=1,lats_node_r
       do i=1,lonr
-      buff_mult_piecea(i,ngrid,j)=f (i,j)
+!jw      buff_mult_piecea(i,ngrid,j)=f (i,j)
+      buff_mult_piecea(i,j)=f (i,j)
       end do
       end do
-      ngrid=ngrid+1
+!jw      ngrid=ngrid+1
       end subroutine
 
 
 
-       subroutine unsplit2z(ioproc,x,global_lats_r)
+       subroutine unsplit2z(ioproc,ngridx,ngridt,x,global_lats_r)
 c
 c***********************************************************************
 c
       use resol_def,   ONLY: lonr,latr
-      use mod_state,   ONLY: ivar_global_a, buff_mult_piecesa, ngrid
+      use mod_state,   ONLY: ivar_global_a, buff_mult_pieces
       use layout1,     ONLY: me, nodes_comp
       use mpi_def,     ONLY: liope
       USE machine,     ONLY: kind_io4
@@ -903,19 +957,19 @@ c
 !!
       real(kind=kind_io4) x(lonr,latr)
       real(kind=kind_io4) tmp(lonr,latr+2)
-      integer global_lats_r(latr),ipt_lats_node_rl,nodesr
+      integer global_lats_r(latr),ipt_lats_node_rl,nodesr,ngridx,ngridt
       integer lats_nodes_rl
       integer maxfld,ioproc,nproct
       integer proc,j,lat,msgtag,nproc,i,msgtag1,buff,startlat,ierr
       integer ifldu/0/
       save ifldu
-      integer illen
+      integer illen,nd1,nd2
        character*8 cna
 c
 c@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 c
 !!
-      write(cna,985)600+ngrid
+      write(cna,985)600+ngridx
  985   format('fort.',i3)
       X=0.
       maxfld=50
@@ -926,36 +980,34 @@ c
       ELSE
 !!
 !!     for pes ioproc
-c        if (.NOT.LIOPE) then
-c            continue
-c        else
-c          nproct=nodes-1
-c        endif
-           nproct=nodes_comp
+        nproct=nodes_comp
+!jw        DO proc=1,nproct
+!jw          ipt_lats_node_rl=ivar_global_a(1,proc)
+!jw          lats_nodes_rl=ivar_global_a(2,proc)
+!jw          do j=1,lats_nodes_rl
+!jw           lat=global_lats_r(ipt_lats_node_rl-1+j)
+!jw           do i=1,lonr
+c              x(i,lat)=tmp(i,j)
+!jw              x(i,lat)=buff_mult_pieces(i,j,ngridx,proc)
+!jw           enddo
+!jw         enddo
+!jw        enddo
+        nd1=0
         DO proc=1,nproct
-c         if (proc.ne.ioproc+1) then
-c         if (.NOT.LIOPE) then
-c             continue
-c         else
-            ipt_lats_node_rl=ivar_global_a(1,proc)
-            lats_nodes_rl=ivar_global_a(2,proc)
-c         endif
-         do j=1,lats_nodes_rl
+          ipt_lats_node_rl=ivar_global_a(1,proc)
+          lats_nodes_rl=ivar_global_a(2,proc)
+          nd2=nd1+lonr*lats_nodes_rl*(ngridx-1)
+          do j=1,lats_nodes_rl
            lat=global_lats_r(ipt_lats_node_rl-1+j)
            do i=1,lonr
-c              x(i,lat)=tmp(i,j)
-              x(i,lat)=buff_mult_piecesa(i,ngrid,j,proc)
+             x(i,lat)=buff_mult_pieces(nd2+i+(j-1)*lonr)
            enddo
-         enddo
-c         endif   !(proc.ne.ioproc+1)
+          enddo
+          nd1=nd1+lonr*lats_nodes_rl*ngridt
         enddo
+
 !!
-c        call baclose(563,i)
-c         print *,cna,' UNSPLITFCLOSE  ',i
-c        call baopenw(563,cna,i)
-c         print *,cna,' UNSPLITF OPEN  ',i
       ENDIF
-        ngrid=ngrid+1
 !!
       return
       end
@@ -1076,8 +1128,8 @@ c***********************************************************************
 c
       use resol_def,      ONLY: latr, lonr
       use layout1,        ONLY: me, lats_node_r, ipt_lats_node_r, nodes
-      use mpi_def,        ONLY: liope, mpi_comm_all, info, icolor,
-     &                          mpi_r_io_r
+!jw      use mpi_def,        ONLY: liope, mpi_comm_all, info, icolor,
+      use mpi_def,        ONLY: liope, mpi_comm_all, info,mpi_r_io_r
       USE machine,        ONLY: kind_ior, kind_io8
       implicit none
 !!
@@ -1100,7 +1152,8 @@ c
 !     maxfld=50
       ifld=ifld+1
 !!
-      IF (icolor.eq.2.and.me.eq.nodes-1) THEN
+!jw      IF (icolor.eq.2.and.me.eq.nodes-1) THEN
+      IF (me.eq.0) THEN
         ta=timef()
         t3=ta
 c        DO proc=1,nodes-1
@@ -1184,7 +1237,7 @@ c     &                msgtag,MPI_COMM_ALL,stat,info)
      &                          sfcio_srohdc, sfcio_axdbta
       use resol_def,      ONLY: latr, lonr, latr2, lsoil
       use layout1,        ONLY: me, nodes, lats_node_r
-      use mpi_def,        ONLY: icolor, liope
+!jw      use mpi_def,        ONLY: icolor, liope
       USE machine,        ONLY: kind_ior, kind_io8
 
       use gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data
@@ -1220,7 +1273,8 @@ c$$$      common /comfixio/slmskful
       t1=timef()
 
 !
-      IF (icolor.eq.2.and.me.eq.nodes-1) THEN
+!jw      IF (icolor.eq.2.and.me.eq.nodes-1) THEN
+      IF (me==0) THEN
         
         call sfcio_srohdc(nread,cfile,head,data,iret)
 
@@ -1239,34 +1293,40 @@ c$$$      common /comfixio/slmskful
 
       kmsk=0
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%tsea
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%tsea
+      if(me==0) buff1=data%tsea
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%TSEA,global_lats_r,lonsperlar)
 
       DO K=1, LSOIL
-        if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%smc(:,:,k)
+!jw        if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%smc(:,:,k)
+      if(me==0) buff1=data%smc(:,:,k)
         call split2d_r(buff1, buffo,global_lats_r)
         CALL interpred(1,kmsk,buffo,buff3,global_lats_r,lonsperlar)
         sfc_fld%SMC(k,:,:) = buff3(:,:)
       ENDDO
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%sheleg
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%sheleg
+      if(me==0) buff1=data%sheleg
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%SHELEG,
      &               global_lats_r,lonsperlar)
 
       DO K = 1, LSOIL
-        if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%stc(:,:,k)
+!jw        if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%stc(:,:,k)
+      if(me==0) buff1=data%stc(:,:,k)
         call split2d_r(buff1, buffo,global_lats_r)
         CALL interpred(1,kmsk,buffo,buff3,global_lats_r,lonsperlar)
         sfc_fld%STC(k,:,:) = buff3(:,:)
       ENDDO
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%tg3
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%tg3
+      if(me==0) buff1=data%tg3
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%TG3,global_lats_r,lonsperlar)
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%zorl
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%zorl
+      if(me==0) buff1=data%zorl
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%ZORL,global_lats_r,lonsperlar)
 
@@ -1274,74 +1334,89 @@ c$$$      common /comfixio/slmskful
       sfc_fld%cvb = 0
       sfc_fld%cvt = 0
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%alvsf
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%alvsf
+      if(me==0) buff1=data%alvsf
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%ALVSF,
      &               global_lats_r,lonsperlar)
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%alvwf
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%alvwf
+      if(me==0) buff1=data%alvwf
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%ALVWF,
      &               global_lats_r,lonsperlar)
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%alnsf
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%alnsf
+      if(me==0) buff1=data%alnsf
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%ALNSF,
      &               global_lats_r,lonsperlar)
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%alnwf
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%alnwf
+      if(me==0) buff1=data%alnwf
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%ALNWF,
      &               global_lats_r,lonsperlar)
 
 !     The mask cannot be interpolated
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%slmsk
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%slmsk
+      if(me==0) buff1=data%slmsk
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%SLMSK,
      &               global_lats_r,lonsperlar)
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%vfrac
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%vfrac
+      if(me==0) buff1=data%vfrac
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%VFRAC,
      &               global_lats_r,lonsperlar)
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%canopy
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%canopy
+      if(me==0) buff1=data%canopy
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%CANOPY,
      &               global_lats_r,lonsperlar)
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%f10m
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%f10m
+      if(me==0) buff1=data%f10m
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%F10M,global_lats_r,lonsperlar)
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%vtype
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%vtype
+      if(me==0) buff1=data%vtype
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%VTYPE,
      &               global_lats_r,lonsperlar)
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%stype
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%stype
+      if(me==0) buff1=data%stype
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%STYPE,
      &               global_lats_r,lonsperlar)
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%facsf
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%facsf
+      if(me==0) buff1=data%facsf
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%FACSF,
      &               global_lats_r,lonsperlar)
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%facwf
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%facwf
+      if(me==0) buff1=data%facwf
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%FACWF,
      &               global_lats_r,lonsperlar)
 
 !szunyogh 06/16/99
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%uustar
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%uustar
+      if(me==0) buff1=data%uustar
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%UUSTAR,
      &               global_lats_r,lonsperlar)
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%ffmm
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%ffmm
+      if(me==0) buff1=data%ffmm
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%FFMM,
      &               global_lats_r,lonsperlar)
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%ffhh
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%ffhh
+      if(me==0) buff1=data%ffhh
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%FFHH,
      &               global_lats_r,lonsperlar)
@@ -1349,17 +1424,20 @@ c$$$      common /comfixio/slmskful
 !c-- XW: FOR SEA-ICE Nov04
 !    Sea-ice (hice/fice) was added to the surface files.
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%hice
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%hice
+      if(me==0) buff1=data%hice
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%HICE,
      &               global_lats_r,lonsperlar)
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%fice
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%fice
+      if(me==0) buff1=data%fice
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%FICE,
      &               global_lats_r,lonsperlar)
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%tisfc
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%tisfc
+      if(me==0) buff1=data%tisfc
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%tisfc,
      &               global_lats_r,lonsperlar)
@@ -1383,58 +1461,67 @@ c$$$      common /comfixio/slmskful
 !*     surface files for GFS/Noah contain 8 additional records:
 !*     tprcp, srflag, snwdph, slc, shdmin, shdmax, slope, snoalb
 
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%tprcp
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%tprcp
+      if(me==0) buff1=data%tprcp
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%TPRCP,
      &               global_lats_r,lonsperlar)
 
 !* srflag
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%srflag
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%srflag
+      if(me==0) buff1=data%srflag
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%SRFLAG,
      &               global_lats_r,lonsperlar)
 
 !* snwdph
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%snwdph
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%snwdph
+      if(me==0) buff1=data%snwdph
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%SNWDPH,
      &               global_lats_r,lonsperlar)
 
 !* slc
       DO K=1, LSOIL
-        if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%slc(:,:,k)
+!jw        if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%slc(:,:,k)
+      if(me==0) buff1=data%slc(:,:,k)
         call split2d_r(buff1, buffo,global_lats_r)
         CALL interpred(1,kmsk,buffo,buff3,global_lats_r,lonsperlar)
         sfc_fld%SLC(k,:,:) = buff3(:,:)
       ENDDO
 
 !* shdmin
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%shdmin
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%shdmin
+      if(me==0) buff1=data%shdmin
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%SHDMIN,
      &               global_lats_r,lonsperlar)
 
 !* shdmax
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%shdmax
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%shdmax
+      if(me==0) buff1=data%shdmax
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%SHDMAX,
      &               global_lats_r,lonsperlar)
 
 !* slope
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%slope
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%slope
+      if(me==0) buff1=data%slope
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%SLOPE,
      &               global_lats_r,lonsperlar)
 
 !* snoalb
-      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%snoalb
+!jw      if(icolor.eq.2.and.me.eq.nodes-1) buff1=data%snoalb
+      if(me==0) buff1=data%snoalb
       call split2d_r(buff1, buffo,global_lats_r)
       CALL interpred(1,kmsk,buffo,sfc_fld%SNOALB,
      &               global_lats_r,lonsperlar)
 !lu [+67L]: the addition of 8 Noah records ends here .........................
 
       if(needoro.eq.1) then
-        if(icolor.eq.2.and.me.eq.nodes-1) then
+!jw        if(icolor.eq.2.and.me.eq.nodes-1) then
+      if(me==0) then
           buff1=data%orog
           needoro=1
           if(all(data%orog.ne.sfcio_realfill)) needoro=0
@@ -1466,7 +1553,8 @@ c$$$      common /comfixio/slmskful
        ENDDO
 !
 
-       IF (icolor.eq.2.and.me.eq.nodes-1) then
+!jw       IF (icolor.eq.2.and.me.eq.nodes-1) then
+      if(me==0) then
          call sfcio_axdbta(data,iret)
          t2=timef()
          print *,'FIXIO TIME ',t2-t1,t1,t2

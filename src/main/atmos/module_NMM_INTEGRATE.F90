@@ -106,7 +106,6 @@
       TYPE(ESMF_Alarm) 	     :: ALARM_HISTORY             !<-- The ESMF Alarm for history output
       TYPE(ESMF_Alarm) 	     :: ALARM_RESTART             !<-- The ESMF Alarm for restart output
 !
-      TYPE(ESMF_Logical)     :: ESMF_HDIFF_DDAMP=ESMF_TRUE
       integer :: YY, MM, DD, H, M, S
 
       LOGICAL,INTENT(IN)                     :: PHYSICS_ON
@@ -119,6 +118,7 @@
       INTEGER(KIND=ESMF_KIND_I8) :: NTIMESTEP_ESMF                        !<-- The current forecast timestep (ESMF_INT)
 !
       CHARACTER(ESMF_MAXSTR) :: CWRT                                      !<-- Restart/History label
+      INTEGER(KIND=KINT)       :: HDIFF_ON = 1
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -128,8 +128,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_AttributeSet(state    =atm_int_state%EXP_STATE_DYN    &  !<-- Dynamics impor
-                              ,name     ='HDIFF_DDAMP'                 &  !<-- The attribute'
-                              ,value= ESMF_HDIFF_DDAMP     &  !<-- Insert this qu
+                              ,name     ='HDIFF'                 &  !<-- The attribute'
+                              ,value= HDIFF_ON     &  !<-- Insert this qu
                               ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

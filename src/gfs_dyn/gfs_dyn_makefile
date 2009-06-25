@@ -11,6 +11,7 @@ OBJS0	= \
 	  gfs_dynamics_start_time_get_mod.o	\
 	  gfs_dynamics_internal_state_mod.o	\
 	  gfs_dynamics_grid_create_mod.o	\
+	  gfs_dynamics_output.o          	\
 	  gfs_dynamics_getcf_mod.o		\
 	  gfs_dynamics_initialize_mod.o		\
 	  gfs_dynamics_run_mod.o		\
@@ -19,7 +20,6 @@ OBJS0	= \
 	  gfs_dynamics_states_mod.o		\
 	  gfs_dynamics_grid_comp_mod.o
 	  
-
 
 OBJ_MOD	= \
 	  gfs_dyn_machine.o             \
@@ -41,7 +41,8 @@ OBJ_MOD	= \
 	  gfs_dyn_bfilt_def.o   	\
 	  gfs_dyn_glats.o	 \
           gfsio_module.o                \
-	  gfsio_def.o	
+	  gfsio_def.o	                \
+	  wrtout_dynamics.o 
 
 OBJS   = \
 	get_cd_hyb.o \
@@ -54,7 +55,6 @@ OBJS   = \
 	redist_lats_a.o \
 	ifshuff.o \
 	shuffle_grid.o \
-	wrtout_dynamics.o \
 	grid_collect.o \
 	excha.o \
 	info.o \
@@ -162,6 +162,9 @@ clean:
 gfs_dyn_machine.o:	gfs_dyn_machine.f
 		$(FC) $(FFLAGM) -c gfs_dyn_machine.f
 
+gfs_dyn_mpi_def.o:	gfs_dyn_mpi_def.f
+		$(FC) $(FFLAG_GFS_DYN) -c gfs_dyn_mpi_def.f
+
 #
 # *****************************************************************
 #
@@ -195,6 +198,9 @@ spect_to_grid_inp.o:	spect_to_grid_inp.f
 grid_to_spec_inp.o:	grid_to_spec_inp.f
 		$(FC) $(FFLAGIO) -c grid_to_spec_inp.f
 
+grid_collect.o:	grid_collect.f
+		$(FC) $(FFLAG_GFS_DYN) -c grid_collect.f
+
 wrtout_dynamics.o:   wrtout_dynamics.f
 		$(FC) $(FFLAGIO) -c wrtout_dynamics.f
 
@@ -209,6 +215,9 @@ gfs_dynamics_start_time_get_mod.o:	 gfs_dynamics_start_time_get_mod.f
 
 gfs_dynamics_grid_create_mod.o:	 gfs_dynamics_grid_create_mod.f
 		$(FC) $(FFLAG90) -c gfs_dynamics_grid_create_mod.f
+
+gfs_dynamics_output.o:	 gfs_dynamics_output.f
+		$(FC) $(FFLAG90) -c gfs_dynamics_output.f
 
 gfs_dynamics_getcf_mod.o:	 gfs_dynamics_getcf_mod.f
 		$(FC) $(FFLAG90) -c gfs_dynamics_getcf_mod.f

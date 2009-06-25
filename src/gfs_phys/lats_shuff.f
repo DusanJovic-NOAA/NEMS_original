@@ -4,7 +4,7 @@
 cc
       use resol_def, ONLY: latr, jintmx, nypt
       use layout1,   ONLY: nodes
-      use mpi_def,   ONLY: icolor, liope
+!jw      use mpi_def,   ONLY: icolor, liope
       implicit none
 cc
       integer              lats_nodes_r(nodes)
@@ -22,15 +22,15 @@ cc
 cc
 cc
       OPT=1
-      if (liope) then
-         if (icolor.eq.2) then
-           nodesio=1
-         else
-           nodesio=nodes
-         endif
-      else
+!jw      if (liope) then
+!jw         if (icolor.eq.2) then
+!jw           nodesio=1
+!jw         else
+!jw           nodesio=nodes
+!jw         endif
+!jw      else
          nodesio=nodes
-      endif
+!jw      endif
 !!
       do node=1,nodesio
         if (nodesio.eq.1) then
@@ -138,7 +138,7 @@ c
 cc
       use resol_def, ONLY: latr, jintmx, nypt
       use layout1,   ONLY: nodes
-      use mpi_def,   ONLY: icolor, liope
+!jw      use mpi_def,   ONLY: icolor, liope
       implicit none
 cc
       integer              lats_nodes_r(nodes)
@@ -156,15 +156,15 @@ cc
 cc
 cc
       OPT=1
-      if (liope) then
-         if (icolor.eq.2) then
-           nodesio=1
-         else
-           nodesio=nodes
-         endif
-      else
+!jw      if (liope) then
+!jw         if (icolor.eq.2) then
+!jw           nodesio=1
+!jw         else
+!jw           nodesio=nodes
+!jw         endif
+!jw      else
          nodesio=nodes
-      endif
+!jw      endif
 !!
       do node=1,nodesio
         if (nodesio.eq.1) then

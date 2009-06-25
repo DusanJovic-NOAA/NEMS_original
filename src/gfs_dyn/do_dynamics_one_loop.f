@@ -143,7 +143,8 @@ c timings
       filtb = (cons1-filta)*cons0p5          !constant
 !
 !----------------------------------------------------------
-      if (.NOT.LIOPE.or.icolor.ne.2) then
+!jw      if (.NOT.LIOPE.or.icolor.ne.2) then
+      if (me<num_pes_fcst) then                                          !jwang
 !----------------------------------------------------------
 !
       if(zfirst) then
@@ -238,6 +239,7 @@ c timings
 ! -----------------------------------------------------------
 ! compute total tendency (linear and nonlinea, after physics if any)
 !
+        print *,'pdryini=',pdryini
         call do_dynamics_gridt2anl(grid_gr,anl_gr_a_2,rdt2,
      &                             global_lats_a,lonsperlat)
 !
@@ -542,7 +544,7 @@ c timings
 ! ------------------------------------------------
       endif 	! end not start_step
 ! ------------------------------------------------
-      endif 	!.NOT.LIOPE.or.icolor.ne.2
+      endif 	! only for fcst pes
 !--------------------------------------------
 ! =====================================================================
 !--------------------------------------------
@@ -561,6 +563,7 @@ c
      & COLAT1,CFHOUR1,
      & epsedn,epsodn,snnp1ev,snnp1od,plnev_a,plnod_a,
      & pdryini)
+       write(0,*)'in do_dyn_oneloop,after wrtout_dyn'
 !
         CALL f_hpmstop(32)
 CC
@@ -583,25 +586,25 @@ c
 ! =====================================================================
 cmy
 ! ----------------------------------
-      if (reshuff_lats_a) then  
+!jw      if (reshuff_lats_a) then  
 ! ----------------------------------
 c
-        tag = kdt
-        if (me .eq. 0) then
-          CALL MPI_isend(global_lats_a,latg,MPI_INTEGER,
-     &               nodes,tag,MPI_COMM_ALL,ireq1,IERR)
-        elseif (liope .and. icolor .eq. 2) then
-          CALL MPI_irecv(global_lats_a,latg,MPI_INTEGER,
-     &               0,tag,MPI_COMM_ALL,ireq2,IERR)     
-
-        endif
-        call mpi_barrier(MPI_COMM_ALL,ierr)
-          if (liope .and. icolor .eq. 2) 
-     &    print*,' after mpi_irecv global_lats_a for io node = ',
-     &     global_lats_a
+!jw        tag = kdt
+!jw        if (me .eq. 0) then
+!jw          CALL MPI_isend(global_lats_a,latg,MPI_INTEGER,
+!jw     &               nodes,tag,MPI_COMM_ALL,ireq1,IERR)
+!jw        elseif (liope .and. icolor .eq. 2) then
+!jw          CALL MPI_irecv(global_lats_a,latg,MPI_INTEGER,
+!jw     &               0,tag,MPI_COMM_ALL,ireq2,IERR)     
+!jw
+!jw        endif
+!jw        call mpi_barrier(MPI_COMM_ALL,ierr)
+!jw          if (liope .and. icolor .eq. 2) 
+!jw     &    print*,' after mpi_irecv global_lats_a for io node = ',
+!jw     &     global_lats_a
 
 ! ----------------------------------
-      endif ! reshuff_lats_a
+!jw      endif ! reshuff_lats_a
 ! ----------------------------------
 !
 !  finish integration, then return
@@ -629,7 +632,8 @@ c
 !
 ! =====================================================================
 !----------------------------------------------------------
-      if (.NOT.LIOPE.or.icolor.ne.2) then
+!jw      if (.NOT.LIOPE.or.icolor.ne.2) then
+      if (me<num_pes_fcst) then
 !----------------------------------------------------------
 !
 ! transform total tendency in grid to spectral
@@ -911,8 +915,9 @@ c
       if(zfirst) zfirst=.false.
 !!
 !--------------------------------------------
-      endif !.NOT.LIOPE.or.icolor.ne.2
+      endif ! only for forecast pes
 !--------------------------------------------
 c
+      write(0,*)'end in do_dyn_oneloop'
       RETURN
       END

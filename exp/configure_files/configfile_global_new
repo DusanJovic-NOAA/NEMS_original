@@ -1,4 +1,4 @@
-###############################
+##############################
 ######## Model Core ###########
 ###############################
 
@@ -28,8 +28,8 @@ sbd:  -90.0                 # Grid's southern boundary (rotated degrees)
 ##### Grid Decomposition #####
 ##############################
 
-inpes:  02                 # Number of compute tasks in the I direction
-jnpes:  02                  # Number of compute tasks in the J direction
+inpes:  05                 # Number of compute tasks in the I direction
+jnpes:  06                  # Number of compute tasks in the J direction
 
 
 ###############################
@@ -40,7 +40,7 @@ quilting:              true    # Do you want asynchronous quilting/history write
 read_groups:           0
 read_tasks_per_group:  0
 write_groups:          1
-write_tasks_per_group: 1
+write_tasks_per_group: 2
 
 
 ##########################################
@@ -57,8 +57,8 @@ dt_den: 1                   # Denominator of fractional second
 ###############################
 
 start_year:   2009  
-start_month:  04
-start_day:    08
+start_month:  05
+start_day:    10
 start_hour:   00
 start_minute: 0
 start_second: 0
@@ -111,6 +111,7 @@ nhours_restart: 03          # Frequency of restart output (hours)
 global:    true             # True--> Global ;      False--> Regional
 hydro:     false            # True--> Hydrostatic ; False--> Nonhydrostatic
 adiabatic: false            # True--> Adiabatic ;   False--> Diabatic
+nemsio_input: true  
 
 
 ##############################
@@ -157,7 +158,7 @@ write_global_sums: false    # Write out global summations or not
 ##################################
 
 pcpflg:  false              # True--> assimilation on ; False--> assimilation off
-
+pcphr: 6
 
 ###########################
 ### Gravity Wave Drag  ####
@@ -275,5 +276,5 @@ io_pad:                  ' '
 #######################################
 ####  timing info                  ####
 #######################################
-nhours_clocktime:   1        # Frequency in hours between clocktime diagnostic prints.
+nhours_clocktime:   3        # Frequency in hours between clocktime diagnostic prints.
 npe_print:         14        # The MPI task that will provide the clocktimes.

@@ -288,9 +288,9 @@ c
 !!
       IF (NGPTC.GT.LONR) THEN
          NGPTC=LONR
-         WRITE(*,*) "NGPTC IS TOO BIG, RESET NGPTC TO LONR",NGPTC
+         WRITE(0,*) "NGPTC IS TOO BIG, RESET NGPTC TO LONR",NGPTC
       ENDIF
-      IF (ME.EQ.0)   WRITE(*,*) "NGPTC IS SET TO NGPTC :",NGPTC
+      IF (ME.EQ.0)   WRITE(0,*) "NGPTC IS SET TO NGPTC :",NGPTC
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  All checks are successful.
       iret=0

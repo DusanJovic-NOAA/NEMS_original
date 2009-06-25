@@ -1388,9 +1388,9 @@ Clu [+11L]: update smc, stc, slc
 !
       if (lprnt) then
         if (KBOT(ipr).le.KTOP(ipr)) then
-          write(*,*) 'KBOT <= KTOP     for (lat,lon) = ',
+          write(0,*) 'KBOT <= KTOP     for (lat,lon) = ',
      &               xlon(ipr)*57.29578,xlat(ipr)*57.29578
-          write(*,*) 'kcnv KBOT KTOP QMAX DLENGTH  ',
+          write(0,*) 'kcnv KBOT KTOP QMAX DLENGTH  ',
      +    kcnv(ipr),kbot(ipr),ktop(ipr),(86400.*qmax(ipr)),dlength(ipr)
           write(*,9000) kdt
           do k=KTOP(ipr),KBOT(ipr),-1
@@ -1404,7 +1404,7 @@ Clu [+11L]: update smc, stc, slc
         print *,' Before GWDC in GBPHYS fhour ',fhour
         if (fhour >= fhourpr) then
           print *,' Before GWDC in GBPHYS start print'
-          write(*,*) 'FHOUR IX IM LEVS = ',fhour,ix,im,levs
+          write(0,*) 'FHOUR IX IM LEVS = ',fhour,ix,im,levs
           print *,'dtp  dtf  RCS = ',dtp,dtf,RCS(ipr)
 
           write(*,9100)

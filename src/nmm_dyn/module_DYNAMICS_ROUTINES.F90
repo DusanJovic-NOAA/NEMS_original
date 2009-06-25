@@ -2423,7 +2423,7 @@ real(kind=kfpt):: &
 ,sice,sm &
 ,hdacx,hdacy,hdacvx,hdacvy &
 ,w,z &
-,cw,q,q2,t,u,v,hdiff_on)
+,cw,q,q2,t,u,v)
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
@@ -2445,8 +2445,7 @@ integer(kind=kint),intent(in):: &
  inpes &                     ! w-e # of subdomains
 ,jnpes &                     ! n-s # of subdomains
 ,lm &                        ! total # of levels
-,lpt2 &                       ! # of levels in the pressure range
-,hdiff_on           
+,lpt2                        ! # of levels in the pressure range
 
 real(kind=kfpt),intent(in):: &
  dyh &                       !
@@ -2757,7 +2756,6 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 !-----------------------------------------------------------------------
 !-------------2-nd order diffusion--------------------------------------
 !-----------------------------------------------------------------------
-          if (hdiff_on .gt. 0) then
           do j=jts_b1,jte_b1
             do i=its_b1,ite_b1
               t (i,j,l)=t (i,j,l)+tdif (i,j)
@@ -2772,22 +2770,6 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
               v(i,j,l)=v(i,j,l)+vdif(i,j)
             enddo
           enddo
-          else
-          do j=jts_b1,jte_b1
-            do i=its_b1,ite_b1
-              t (i,j,l)=t (i,j,l)+0.
-              q (i,j,l)=q (i,j,l)+0.
-              cw(i,j,l)=cw(i,j,l)+0.
-              q2(i,j,l)=q2(i,j,l)+0.
-            enddo
-          enddo
-          do j=jts_b1,jte_b2
-            do i=its_b1,ite_b2
-              u(i,j,l)=u(i,j,l)+0.
-              v(i,j,l)=v(i,j,l)+0.
-            enddo
-          enddo
-          endif
 !-----------------------------------------------------------------------
 !
         enddo vertical_loop_3
@@ -2995,7 +2977,6 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
             enddo
           enddo
 !-----------------------------------------------------------------------
-          if (hdiff_on .gt. 0) then
           do j=jts_b1,jte_b1
             do i=its_b1,ite_b1
               t (i,j,l)=-(tx (i+1,j)-tx (i,j))*hdacx(i,j) &
@@ -3023,29 +3004,6 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
                       +v(i,j,l)
             enddo
           enddo
-          else
-          do j=jts_b1,jte_b1
-            do i=its_b1,ite_b1
-              t (i,j,l)= &
-                       t (i,j,l)+0.
-              q (i,j,l)= &
-                       q (i,j,l)+0.
-              cw(i,j,l)= &
-                       cw(i,j,l)+0.
-              q2(i,j,l)= &
-                       q2(i,j,l)+0.
-            enddo
-          enddo
-!-----------------------------------------------------------------------
-          do j=jts_b1,jte_b2
-            do i=its_b1,ite_b2
-              u(i,j,l)= &
-                      u(i,j,l)+0.
-              v(i,j,l)= &
-                      v(i,j,l)+0.
-            enddo
-          enddo
-        endif
 !-----------------------------------------------------------------------
       enddo vertical_loop_4
 !-----------------------------------------------------------------------

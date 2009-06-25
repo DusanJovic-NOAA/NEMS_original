@@ -21,20 +21,20 @@ cc
       integer nodes_tmp
 cc
 c
-      if (liope) then
-         if (icolor.eq.2) then
-           nodesio=1
-         else
+!jw      if (liope) then
+!jw         if (icolor.eq.2) then
+!jw           nodesio=1
+!jw         else
            nodesio=nodes
-         endif
-      else
-         nodesio=nodes
-      endif
+!jw         endif
+!jw      else
+!jw         nodesio=nodes
+!jw      endif
 !!
 cc
       lat = 1
       nodes_tmp = nodes
-      if (liope .and. icolor .eq. 2) nodes_tmp = nodes -1
+!jw      if (liope .and. icolor .eq. 2) nodes_tmp = nodes -1
  
       gl_start = gl_lats_index
 cc.............................................
@@ -65,7 +65,7 @@ cc
 cc
 cc.............................................
 cc
-      if (liope .and. icolor .eq. 2) gl_start = 0
+!jw      if (liope .and. icolor .eq. 2) gl_start = 0
          do node=1,nodes_tmp
             if (node.eq.me_fake+1) then
                lats_nodes_a_fake=gl_lats_index-gl_start

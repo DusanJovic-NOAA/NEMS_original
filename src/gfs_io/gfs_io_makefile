@@ -9,9 +9,10 @@ TARGET= gfs_io.a
 # *****************************************************************
 #
 OBJ_IO	= \
-		wrt3d.o            \
-		wrt3d_hyb.o        \
-		wrtsfc.o           
+	  module_WRITE_INTERNAL_STATE_GFS.o   \
+	  module_GET_CONFIG_WRITE_GFS.o       \
+	  module_WRITE_ROUTINES_GFS.o         \
+	  module_WRITE_GRID_COMP_GFS.o 
 
 
 
@@ -27,23 +28,45 @@ $(LIBDIR)/lib/$(TARGET):  $(OBJ_IO)
 	echo " $(TARGET) created!"
 
 clean:
-	/bin/rm -f $(OBJS_IO) 
+	/bin/rm -f $(OBJ_IO1) $(OBJS_IO) 
 	/bin/rm -f *.mod 
 	/bin/rm -f *.o
 	/bin/rm -f $(LIBDIR)/lib/$(TARGET)
 
-.F.o:
-	$(FC) $(FFLAGS) $(FFLAG_GFS_IO) -c -d $< 
-.f.o:
-	$(FC) $(FFLAGS) $(FFLAG_GFS_IO) -c $< 
+#.F.o:
+#	$(FC) $(FFLAGS) $(FFLAG_GFS_IO) -c -d $< 
+#.f.o:
+#	$(FC) $(FFLAGS) $(FFLAG_GFS_IO) -c $< 
 
+.SUFFIXES:      .F90 .f90 .o
+
+.F90.f90:
+	$(CPP) $(CPPFLAGS) $< > $*.f90
+
+$(OBJ_IO):     $(DEPS)
+	$(FC) $(FFLAG_GFS_IO) -c $<
+
+#
+# DEPENDENCIES :
+#
+module_WRITE_GRID_COMP_GFS.o:  \
+				module_WRITE_ROUTINES_GFS.o \
+				module_WRITE_INTERNAL_STATE_GFS.o
+
+module_GET_CONFIG_WRITE_GFS.o:      \
+				module_WRITE_INTERNAL_STATE_GFS.o
+
+module_WRITE_ROUTINES_GFS.o :       \
+				module_WRITE_INTERNAL_STATE_GFS.o 
 
 #
 # *****************************************************************
+
 #
-wrtsfc.o:       wrtsfc.f
-		$(FC) $(FFLAGS) $(FFLAG_GFS_IO) -c wrtsfc.f
-wrt3d.o:        wrt3d.f
-		$(FC) $(FFLAGS) $(FFLAG_GFS_IO) -c wrt3d.f
-wrt3d_hyb.o:    wrt3d_hyb.f
-		$(FC) $(FFLAGS) $(FFLAG_GFS_IO) -c wrt3d_hyb.f
+#wrtsfc.o:       wrtsfc.f
+#		$(FC) $(FFLAGS) $(FFLAG_GFS_IO) -c wrtsfc.f
+#wrt3d.o:        wrt3d.f
+#		$(FC) $(FFLAGS) $(FFLAG_GFS_IO) -c wrt3d.f
+#wrt3d_hyb.o:    wrt3d_hyb.f
+#		$(FC) $(FFLAGS) $(FFLAG_GFS_IO) -c wrt3d_hyb.f
+

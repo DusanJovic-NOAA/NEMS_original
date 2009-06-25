@@ -8,7 +8,11 @@
       real(kind=kind_evod) filta,ref_temp
       logical lsfwd
       logical shuff_lats_a,reshuff_lats_a
-      logical hybrid,gen_coord_hybrid,zflxtvd,explicit
+!jw      logical hybrid,gen_coord_hybrid,zflxtvd,explicit
+      logical,target :: hybrid,gen_coord_hybrid
+      logical zflxtvd,explicit
+
+
       logical gfsio_in, gfsio_out
       logical reduced_grid
       integer nislfv

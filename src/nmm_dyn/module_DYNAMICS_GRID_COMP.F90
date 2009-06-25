@@ -590,6 +590,7 @@
 !***  THE CONFIGURE FILE.
 !
         IF(.NOT.int_state%RESTART.AND.MYPE==0)THEN
+         if(.not.int_state%nemsio_input) then
           IF(int_state%START_HOUR /=int_state%IHRST.OR.                 &
              int_state%START_DAY  /=int_state%IDAT(1).OR.               &
              int_state%START_MONTH/=int_state%IDAT(2).OR.               &
@@ -608,6 +609,26 @@
             WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
             WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
           ENDIF
+         else
+          IF(int_state%START_HOUR /=int_state%IHRST.OR.                 &
+             int_state%START_DAY  /=int_state%IDAT(1).OR.               &
+             int_state%START_MONTH/=int_state%IDAT(2).OR.               &
+             int_state%START_YEAR /=int_state%IDAT(3))THEN
+            WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
+            WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
+            WRITE(0,*)' DATES IN INPUT AND CONFIGURE FILES DISAGREE!!'
+            WRITE(0,*)' INPUT: HOUR=',int_state%IHRST                   &
+                      ,       ' DAY=',int_state%IDAT(1)                 &
+                      ,     ' MONTH=',int_state%IDAT(2)                 &
+                      ,      ' YEAR=',int_state%IDAT(3)
+            WRITE(0,*)' CONFIG: HOUR=',int_state%START_HOUR             &
+                      ,        ' DAY=',int_state%START_DAY              &
+                      ,      ' MONTH=',int_state%START_MONTH            &
+                      ,       ' YEAR=',int_state%START_YEAR
+            WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
+            WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
+          ENDIF
+         endif
         ENDIF
 !
 !-----------------------------------------------------------------------
@@ -987,7 +1008,7 @@
 !
       INTEGER(KIND=ESMF_KIND_I8) :: NTIMESTEP_ESMF
 !
-      LOGICAL(KIND=KLOG) :: READBC,HDIFF_FLAG
+      LOGICAL(KIND=KLOG) :: READBC
 !
 !***  THE FOLLOWING SAVEs ARE FOR DEREFERENCED CONSTANT VARIABLES.
 !
@@ -1402,6 +1423,7 @@
 
         btim=timef()
 !
+        if (HDIFF_ON .gt. 0) then
         CALL HDIFF                                                      &
           (GLOBAL,HYDRO,SECDIF                                          &
           ,INPES,JNPES,LM,LPT2                                          &
@@ -1411,8 +1433,8 @@
           ,HDACX,HDACY,HDACVX,HDACVY                                    &
           ,int_state%W,int_state%Z                                      &
           ,int_state%CW,int_state%Q,int_state%Q2                        &
-          ,int_state%T,int_state%U,int_state%V                          &
-	  ,HDIFF_ON)
+          ,int_state%T,int_state%U,int_state%V)                          
+         endif
 !
         hdiff_tim=hdiff_tim+timef()-btim
 
@@ -1708,6 +1730,7 @@
 !
         btim=timef()
 !
+        if (HDIFF_ON .gt. 0) then
         CALL DDAMP                                                      &
           (LM                                                           &
           ,DDMPV,PDTOP                                                  &
@@ -1717,6 +1740,7 @@
           ,int_state%PD,int_state%PDO                                   &
           ,int_state%U,int_state%V                                      &
           ,int_state%DIV)
+         endif
 !
         ddamp_tim=ddamp_tim+timef()-btim
 !

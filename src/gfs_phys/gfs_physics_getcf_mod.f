@@ -31,6 +31,8 @@
                                                 esmf_config, esmf_success,           &
                                                 esmf_gridcompget, esmf_vmgetglobal,  &
                                                 esmf_vmget, esmf_configgetattribute, &
+!jw
+                                                esmf_configFindLabel,                &
                                                 esmf_vmgetcurrent
       USE gfs_physics_err_msg_mod,        ONLY: gfs_physics_err_msg_final,           &
                                                 gfs_physics_err_msg,                 &
@@ -171,6 +173,25 @@
               '("sfc_ini_",i2.2)') int_state%nam_gfs_phy%member_id
       endif
 
+!
+! get output file name
+!--------------------------
+!
+      call esmf_configgetattribute(cf,                                  &
+                              int_state%num_file,                       &
+                              label = 'num_file:',    rc = rc1)
+      call gfs_physics_err_msg_var(rc1,                                &
+               'gfs physics getcf','num_file',rcfinal)
+!
+      allocate(int_state%filename_base(int_state%num_file))
+      call esmf_configFindLabel(CF,'filename_base:',RC)
+      Do I=1,int_state%num_file
+        call esmf_configgetattribute(cf,                                &
+                              int_state%filename_base(i),               &
+                              rc = rc1)
+      enddo
+      call gfs_physics_err_msg_var(rc1,                                &
+               'gfs physics getcf','filename_base',rcfinal)
 !
 ! for "esmf_state_namelist"
 !--------------------------

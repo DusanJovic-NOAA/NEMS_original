@@ -178,12 +178,12 @@
       if (lprnt) then
         if (fhour.ge.fhourpr) then
           print *,' '
-          write(*,*) 'Inside GWDC raw input start print at fhour = ',
+          write(0,*) 'Inside GWDC raw input start print at fhour = ',
      &               fhour
-          write(*,*) 'IX  IM  KM  ',ix,im,km
-          write(*,*) 'KBOT KTOP QMAX DLENGTH KUO  ',
+          write(0,*) 'IX  IM  KM  ',ix,im,km
+          write(0,*) 'KBOT KTOP QMAX DLENGTH KUO  ',
      +     kbot(ipr),ktop(ipr),qmax(ipr),dlength(ipr),kuo(ipr)
-          write(*,*) 'g  cp  rd  RCS  ',g,cp,rd,RCS(ipr)
+          write(0,*) 'g  cp  rd  RCS  ',g,cp,rd,RCS(ipr)
 
 !-------- Pressure levels ----------
           write(*,9100)

@@ -4,7 +4,7 @@
 cc
       use resol_def, ONLY: latr
       use layout1,   ONLY: nodes
-      use mpi_def,   ONLY: icolor, liope
+!jw      use mpi_def,   ONLY: icolor, liope
       implicit none
 cc
       integer   gl_lats_index,gl_start
@@ -21,20 +21,20 @@ cc
       integer nodes_tmp
 cc
 c
-      if (liope) then
-         if (icolor.eq.2) then
-           nodesio=1
-         else
-           nodesio=nodes
-         endif
-      else
+!jw      if (liope) then
+!jw         if (icolor.eq.2) then
+!jw           nodesio=1
+!jw         else
+!jw           nodesio=nodes
+!jw         endif
+!jw      else
          nodesio=nodes
-      endif
+!jw      endif
 !!
 cc
       lat = 1
       nodes_tmp = nodes
-      if (liope .and. icolor .eq. 2) nodes_tmp = nodes -1
+!jw      if (liope .and. icolor .eq. 2) nodes_tmp = nodes -1
  
       gl_start = gl_lats_index
 cc.............................................
@@ -65,7 +65,7 @@ cc
 cc
 cc.............................................
 cc
-      if (liope .and. icolor .eq. 2) gl_start = 0
+!jw      if (liope .and. icolor .eq. 2) gl_start = 0
          do node=1,nodes_tmp
             if (node.eq.me_fake+1) then
                lats_nodes_r_fake=gl_lats_index-gl_start

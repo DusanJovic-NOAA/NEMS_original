@@ -49,6 +49,11 @@
       integer thermodyn_id, sfcpress_id
 
       character(16)                     ::  cfhour1
+!jws
+      integer                           ::  num_file
+      character(32)        ,allocatable ::  filename_base(:)
+      integer                           ::  idrt
+!jwe
 
       integer                           ::  nblck, kdt
       real                              ::  deltim

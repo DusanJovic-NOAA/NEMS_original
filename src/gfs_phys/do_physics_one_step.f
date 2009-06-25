@@ -62,7 +62,6 @@
       INTEGER   kdt,       IERR,J,K,L,LOCL,N
       integer iprint
       LOGICAL LSOUT,ex_out
-
 !
       real*8 rtc ,timer1,timer2
 !
@@ -88,7 +87,8 @@
 
 !
 !
-      if (.NOT.LIOPE.or.icolor.ne.2) then
+!jw now all the pes are fcst pe
+!jw if (.NOT.LIOPE.or.icolor.ne.2) then
           if (nscyc .gt. 0) then
             IF (mod(kdt,nscyc).eq.1) THEN
                CALL gcycle(me,LATS_NODE_R,LONSPERLAR,global_lats_r,
@@ -143,9 +143,10 @@
      &     global_times_r)
 !
 !!
-      endif !.NOT.LIOPE.or.icolor.ne.2
+!jw      endif !.NOT.LIOPE.or.icolor.ne.2
 !--------------------------------------------
 !
+      write(0,*)'in do one phys step, lsout=',lsout,'kdt=',kdt
       if( lsout.and.kdt.ne.0.0 ) then
       CALL WRTOUT_physics(phyhour,FHOUR,ZHOUR,IDATE,
      X            SL,SI,
