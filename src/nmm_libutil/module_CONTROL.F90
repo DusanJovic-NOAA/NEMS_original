@@ -1607,7 +1607,7 @@ logical(kind=klog) :: opened
       do l=1,lm
         pdsg1(l)=dsg1(l)*pdtop
         psgml1(l)=sgml1(l)*pdtop+pt
-	write(0,*) 'L, pdsg1, psgml1: ', L, pdsg1(L), psgml1(L)
+!       write(0,*) 'L, pdsg1, psgml1: ', L, pdsg1(L), psgml1(L)
       enddo
 !
       do l=1,lm+1

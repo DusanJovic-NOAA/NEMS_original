@@ -49,7 +49,11 @@ integer(kind=kint),private :: &
  mype
 integer(kind=kint),allocatable,dimension(:) :: &
  k1_fft &
-,k2_fft
+,k2_fft &
+,my_jrow_start_h &
+,my_jrow_start_v &
+,my_jrow_end_h &
+,my_jrow_end_v
 !
 real(kind=kfpt),allocatable,dimension(:,:,:) :: &
  hn &
@@ -64,6 +68,13 @@ logical(kind=klog) :: &
 logical(kind=klog),allocatable,dimension(:) :: &
  my_domain_has_fft_lats_h &
 ,my_domain_has_fft_lats_v
+!
+character(3) :: &
+ ide_char &
+,jde_char
+!
+character(6) :: &
+ fmt='(i3.3)'
 !
 !-----------------------------------------------------------------------
       contains
@@ -135,16 +146,32 @@ integer(kind=kint) :: &
 ,jmax_south &
 ,k &
 ,k2 &
+,kount_layers &
+,kount_pes &
 ,ks &
 ,l_remain &
 ,lyr_frac_north &
 ,lyr_frac_south &
 ,n &
+,n_factor &
+,n_group1 &
+,n_group2 &
+,n_remain &
 ,nnew &
 ,npe &
 ,npes &
+,npe_next &
 ,npes_north &
 ,npes_south &
+,nrow_x &
+,nrows_fft_north_h &
+,nrows_fft_south_h &
+,nrows_fft_north_v &
+,nrows_fft_south_v &
+,nrows_group1_h &
+,nrows_group2_h &
+,nrows_group1_v &
+,nrows_group2_v &
 ,nsmud
 
 real(kind=kfpt) :: &
@@ -475,67 +502,396 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
 !***  if there are more than 2*LM MPI tasks being used.
 !***  When there are "remainder" layers, give them one at a time
 !***  to each task in the row until they are used up.
+!
+!***  If there are more than LM MPI tasks in a hemisphere then
+!***  the layers themselves begin to be divided up to continue 
+!***  to ensure that all tasks will receive some of the FFT work.
 !-----------------------------------------------------------------------
 !
       allocate(k1_fft(0:npes-1),stat=istat)
       allocate(k2_fft(0:npes-1),stat=istat)
+      allocate(my_jrow_start_h(0:npes-1),stat=istat)
+      allocate(my_jrow_end_h(0:npes-1)  ,stat=istat)
+      allocate(my_jrow_start_v(0:npes-1),stat=istat)
+      allocate(my_jrow_end_v(0:npes-1)  ,stat=istat)
+!
+!-------------------------
+!***  Southern Hemisphere
+!-------------------------
 !
       npes_south=ipe_end_south-ipe_start_south+1
-      lyr_frac_south=lm/npes_south
-      l_remain=lm-npes_south*lyr_frac_south
 !
-      k2=0
-      do npe=0,ipe_end_south
-        k1_fft(npe)=k2+1
-        k2=k1_fft(npe)+lyr_frac_south-1
-        if(l_remain>0)then
-          k2=k2+1
-          l_remain=l_remain-1
+!----------------------------------------------------
+!***  There are at least as many tasks in the
+!***  hemisphere as there are model layers.
+!----------------------------------------------------
+!
+      limits_south: if(npes_south<=lm)then                  
+!
+        lyr_frac_south=lm/npes_south
+        l_remain=lm-npes_south*lyr_frac_south
+!
+        k2=0
+        do npe=0,ipe_end_south
+          k1_fft(npe)=k2+1
+          k2=k1_fft(npe)+lyr_frac_south-1
+          if(l_remain>0)then
+            k2=k2+1
+            l_remain=l_remain-1
+          endif
+          k2_fft(npe)=k2
+!
+          my_jrow_start_h(npe)=jh_start_fft_south
+          my_jrow_end_h(npe)=jh_end_fft_south
+          my_jrow_start_v(npe)=jv_start_fft_south
+          my_jrow_end_v(npe)=jv_end_fft_south
+        enddo
+!
+!----------------------------------------------------
+!***  If there are more tasks than model layers
+!***  divide layers of FFTs into n_factor pieces
+!***  for tasks in n_group1 and
+!***  divide remaining layers into n_factor+1 pieces
+!***  for tasks in n_group2.
+!----------------------------------------------------
+!
+      else                                   
+        lyr_frac_south=0
+        n_factor=npes_south/lm                      
+        n_remain=npes_south-n_factor*lm
+        n_group1=n_factor*(lm-n_remain)              !<-- This many tasks get layers divided into n_factor pieces
+        n_group2=npes_south-n_group1                 !<-- This many tasks get layers divided into n_factor+1 pieces
+!
+!----------------------------------------------------
+!***  Divide layers of FFTs into n_factor pieces
+!***  for tasks in n_group1.
+!***  Divide remaining layers into n_factor+1 pieces
+!***  for tasks in n_group2.
+!----------------------------------------------------
+!
+        nrows_fft_south_h=jh_end_fft_south-jh_start_fft_south+1
+        nrows_group1_h=nrows_fft_south_h/n_factor
+        nrows_group2_h=nrows_fft_south_h/(n_factor+1)
+!
+        nrows_fft_south_v=jv_end_fft_south-jv_start_fft_south+1
+        nrows_group1_v=nrows_fft_south_v/n_factor
+        nrows_group2_v=nrows_fft_south_v/(n_factor+1)
+!
+!---------------------------
+!*** Tasks in group 1 for H
+!---------------------------
+!
+        kount_pes=0
+        kount_layers=1
+        nrow_x=jh_start_fft_south
+!
+        do npe=0,ipe_end_south
+          my_jrow_start_h(npe)=nrow_x
+          my_jrow_end_h(npe)=min(nrow_x+nrows_group1_h-1,jh_end_fft_south)
+          k1_fft(npe)=kount_layers
+          k2_fft(npe)=kount_layers
+          kount_pes=kount_pes+1
+!
+          if(kount_pes==n_group1)then
+            npe_next=npe+1
+            kount_layers=kount_layers+1
+            exit
+          endif
+!
+          if(my_jrow_end_h(npe)==jh_end_fft_south)then
+            nrow_x=jh_start_fft_south
+            kount_layers=kount_layers+1
+          else
+            nrow_x=my_jrow_end_h(npe)+1
+          endif
+!
+        enddo
+!
+!---------------------------
+!*** Tasks in group 2 for H
+!---------------------------
+!
+        if(npe_next<=ipe_end_south)then
+          kount_pes=0
+          nrow_x=jh_start_fft_south
+!
+          do npe=npe_next,ipe_end_south
+            my_jrow_start_h(npe)=nrow_x
+            my_jrow_end_h(npe)=min(nrow_x+nrows_group2_h-1,jh_end_fft_south)
+            k1_fft(npe)=kount_layers
+            k2_fft(npe)=kount_layers
+            kount_pes=kount_pes+1
+            if(kount_pes==n_group2)then
+              exit
+            endif
+            if(my_jrow_end_h(npe)==jh_end_fft_south)then
+              nrow_x=jh_start_fft_south
+              kount_layers=kount_layers+1
+            else
+              nrow_x=my_jrow_end_h(npe)+1
+            endif
+          enddo
         endif
-        k2_fft(npe)=k2
-      enddo
+!
+!---------------------------
+!*** Tasks in group 1 for V
+!---------------------------
+!
+        kount_pes=0
+        kount_layers=1
+        nrow_x=jv_start_fft_south
+!
+        do npe=0,ipe_end_south
+          my_jrow_start_v(npe)=nrow_x
+          my_jrow_end_v(npe)=min(nrow_x+nrows_group1_v-1,jv_end_fft_south)
+          k1_fft(npe)=kount_layers
+          k2_fft(npe)=kount_layers
+          kount_pes=kount_pes+1
+!
+          if(kount_pes==n_group1)then
+            npe_next=npe+1
+            kount_layers=kount_layers+1
+            exit
+          endif
+!
+          if(my_jrow_end_v(npe)==jv_end_fft_south)then
+            nrow_x=jv_start_fft_south
+            kount_layers=kount_layers+1
+          else
+            nrow_x=my_jrow_end_v(npe)+1
+          endif
+!
+        enddo
+!
+!---------------------------
+!*** Tasks in group 2 for V
+!---------------------------
+!
+        if(npe_next<=ipe_end_south)then
+          kount_pes=0
+          nrow_x=jv_start_fft_south
+!
+          do npe=npe_next,ipe_end_south
+            my_jrow_start_v(npe)=nrow_x
+            my_jrow_end_v(npe)=min(nrow_x+nrows_group2_v-1,jv_end_fft_south)
+            k1_fft(npe)=kount_layers
+            k2_fft(npe)=kount_layers
+            kount_pes=kount_pes+1
+!
+            if(kount_pes==n_group2)then
+              exit
+            endif
+!
+            if(my_jrow_end_v(npe)==jv_end_fft_south)then
+              nrow_x=jv_start_fft_south
+              kount_layers=kount_layers+1
+            else
+              nrow_x=my_jrow_end_v(npe)+1
+            endif
+!
+          enddo
+        endif
+!
+      endif limits_south
+!
+!-------------------------
+!***  Northern Hemisphere
+!-------------------------
 !
       npes_north=ipe_end_north-ipe_start_north+1
-      lyr_frac_north=lm/npes_north
-      l_remain=lm-npes_north*lyr_frac_north
 !
-      k2=0
-      do npe=ipe_start_north,ipe_end_north
-        k1_fft(npe)=k2+1
-        k2=k1_fft(npe)+lyr_frac_north-1
-        if(l_remain>0)then
-          k2=k2+1
-          l_remain=l_remain-1
+!----------------------------------------------------
+!***  There are at least as many tasks in the
+!***  hemisphere as there are model layers.
+!----------------------------------------------------
+!
+      limits_north: if(npes_north<=lm)then
+!
+        lyr_frac_north=lm/npes_north
+        l_remain=lm-npes_north*lyr_frac_north
+!
+        k2=0
+        do npe=ipe_start_north,ipe_end_north
+          k1_fft(npe)=k2+1
+          k2=k1_fft(npe)+lyr_frac_north-1
+          if(l_remain>0)then
+            k2=k2+1
+            l_remain=l_remain-1
+          endif
+          k2_fft(npe)=k2
+!
+          my_jrow_start_h(npe)=jh_start_fft_north
+          my_jrow_end_h(npe)=jh_end_fft_north
+          my_jrow_start_v(npe)=jv_start_fft_north
+          my_jrow_end_v(npe)=jv_end_fft_north
+        enddo
+!
+!----------------------------------------------------
+!***  If there are more tasks than model layers
+!***  divide layers of FFTs into n_factor pieces
+!***  for tasks in n_group1 and
+!***  divide remaining layers into n_factor+1 pieces
+!***  for tasks in n_group2.
+!----------------------------------------------------
+!
+      else
+        lyr_frac_north=0
+        n_factor=npes_north/lm
+        n_remain=npes_north-n_factor*lm
+        n_group1=n_factor*(lm-n_remain)              !<-- This many tasks get layers divided into n_factor pieces
+        n_group2=npes_north-n_group1                 !<-- This many tasks get layers divided into n_factor+1 pieces
+!
+!----------------------------------------------------
+!***  Divide layers of FFTs into n_factor pieces
+!***  for tasks in n_group1.
+!***  Divide remaining layers into n_factor+1 pieces
+!***  for tasks in n_group2.
+!----------------------------------------------------
+!
+        nrows_fft_north_h=jh_end_fft_north-jh_start_fft_north+1
+        nrows_group1_h=nrows_fft_north_h/n_factor
+        nrows_group2_h=nrows_fft_north_h/(n_factor+1)
+!
+        nrows_fft_north_v=jv_end_fft_north-jv_start_fft_north+1
+        nrows_group1_v=nrows_fft_north_v/n_factor
+        nrows_group2_v=nrows_fft_north_v/(n_factor+1)
+!
+!---------------------------
+!*** Tasks in group 1 for H
+!---------------------------
+!
+        kount_pes=0
+        kount_layers=1
+        nrow_x=jh_start_fft_north
+!
+        do npe=ipe_start_north,ipe_end_north
+          my_jrow_start_h(npe)=nrow_x
+          my_jrow_end_h(npe)=min(nrow_x+nrows_group1_h-1,jh_end_fft_north)
+          k1_fft(npe)=kount_layers
+          k2_fft(npe)=kount_layers
+          kount_pes=kount_pes+1
+!
+          if(kount_pes==n_group1)then
+            npe_next=npe+1
+            kount_layers=kount_layers+1
+            exit
+          endif
+!
+          if(my_jrow_end_h(npe)==jh_end_fft_north)then
+            nrow_x=jh_start_fft_north
+            kount_layers=kount_layers+1
+          else
+            nrow_x=my_jrow_end_h(npe)+1
+          endif
+!
+        enddo
+!
+!---------------------------
+!*** Tasks in group 2 for H
+!---------------------------
+!
+        if(npe_next<=ipe_end_north)then
+          kount_pes=0
+          nrow_x=jh_start_fft_north
+!
+          do npe=npe_next,ipe_end_north
+            my_jrow_start_h(npe)=nrow_x
+            my_jrow_end_h(npe)=min(nrow_x+nrows_group2_h-1,jh_end_fft_north)
+            k1_fft(npe)=kount_layers
+            k2_fft(npe)=kount_layers
+            kount_pes=kount_pes+1
+!
+            if(kount_pes==n_group2)then
+              exit
+            endif
+!
+            if(my_jrow_end_h(npe)==jh_end_fft_north)then
+              nrow_x=jh_start_fft_north
+              kount_layers=kount_layers+1
+            else
+              nrow_x=my_jrow_end_h(npe)+1
+            endif
+!
+          enddo
         endif
-        k2_fft(npe)=k2
-      enddo
 !
-      lm_fft=max(lyr_frac_south,lyr_frac_north)+1
+!---------------------------
+!*** Tasks in group 1 for V
+!---------------------------
+!
+        kount_pes=0
+        kount_layers=1
+        nrow_x=jv_start_fft_north
+!
+        do npe=ipe_start_north,ipe_end_north
+          my_jrow_start_v(npe)=nrow_x
+          my_jrow_end_v(npe)=min(nrow_x+nrows_group1_v-1,jv_end_fft_north)
+          k1_fft(npe)=kount_layers
+          k2_fft(npe)=kount_layers
+          kount_pes=kount_pes+1
+!
+          if(kount_pes==n_group1)then
+            npe_next=npe+1
+            kount_layers=kount_layers+1
+            exit
+          endif
+!
+          if(my_jrow_end_v(npe)==jv_end_fft_north)then
+            nrow_x=jv_start_fft_north
+            kount_layers=kount_layers+1
+          else
+            nrow_x=my_jrow_end_v(npe)+1
+          endif
+!
+        enddo
+!
+!---------------------------
+!*** Tasks in group 2 for V
+!---------------------------
+!
+        if(npe_next<=ipe_end_north)then
+          kount_pes=0
+          nrow_x=jv_start_fft_north
+!
+          do npe=npe_next,ipe_end_north
+            my_jrow_start_v(npe)=nrow_x
+            my_jrow_end_v(npe)=min(nrow_x+nrows_group2_v-1,jv_end_fft_north)
+            k1_fft(npe)=kount_layers
+            k2_fft(npe)=kount_layers
+            kount_pes=kount_pes+1
+!
+            if(kount_pes==n_group2)then
+              exit
+            endif
+!
+            if(my_jrow_end_v(npe)==jv_end_fft_north)then
+              nrow_x=jv_start_fft_north
+              kount_layers=kount_layers+1
+            else
+              nrow_x=my_jrow_end_v(npe)+1
+            endif
+!
+          enddo
+        endif
+!
+      endif limits_north
 !
 !-----------------------------------------------------------------------
 !***  Allocate the working arrays for the FFTs depending on which
 !***  hemisphere this task is in.
 !-----------------------------------------------------------------------
 !
-      if(fft_south)then
-        allocate(hn(ids:ide,jh_start_fft_south:jh_end_fft_south,1:lm_fft) &
-                ,stat=istat)
-        allocate(wn(ids:ide,jv_start_fft_south:jv_end_fft_south,1:lm_fft) &
-                ,stat=istat)
-        allocate(un(ids:ide,jv_start_fft_south:jv_end_fft_south,1:lm_fft) &
-                ,stat=istat)
-        allocate(vn(ids:ide,jv_start_fft_south:jv_end_fft_south,1:lm_fft) &
-                ,stat=istat)
-      elseif(fft_north)then
-        allocate(hn(ids:ide,jh_start_fft_north:jh_end_fft_north,1:lm_fft) &
-                ,stat=istat)
-        allocate(wn(ids:ide,jv_start_fft_north:jv_end_fft_north,1:lm_fft) &
-                ,stat=istat)
-        allocate(un(ids:ide,jv_start_fft_north:jv_end_fft_north,1:lm_fft) &
-                ,stat=istat)
-        allocate(vn(ids:ide,jv_start_fft_north:jv_end_fft_north,1:lm_fft) &
-                ,stat=istat)
-      endif
+      mype=mype_share
+      lm_fft=max(lyr_frac_north,lyr_frac_south)+1
+!
+      allocate(hn(ids:ide,my_jrow_start_h(mype):my_jrow_end_h(mype),1:lm_fft) &
+              ,stat=istat)
+      allocate(wn(ids:ide,my_jrow_start_v(mype):my_jrow_end_v(mype),1:lm_fft) &
+              ,stat=istat)
+      allocate(un(ids:ide,my_jrow_start_v(mype):my_jrow_end_v(mype),1:lm_fft) &
+              ,stat=istat)
+      allocate(vn(ids:ide,my_jrow_start_v(mype):my_jrow_end_v(mype),1:lm_fft) &
+              ,stat=istat)
 !
 !-----------------------------------------------------------------------
 !***  Maximum size of dummy space for FFTs
@@ -675,7 +1031,9 @@ integer(kind=kint) :: &
                         ,lm_fft,k1_fft,k2_fft &
                         ,local_istart,local_iend &
                         ,local_jstart,local_jend &
-                        ,jh_start_fft,jh_end_fft &
+!!!                     ,jh_start_fft,jh_end_fft &
+                        ,my_jrow_start_h(mype),my_jrow_end_h(mype) &
+                        ,my_jrow_start_h,my_jrow_end_h &
                         ,ipe_start,ipe_end &
                         ,my_domain_has_fft_lats_h &
                         ,hn)
@@ -691,31 +1049,37 @@ integer(kind=kint) :: &
 !jaa        n=n+1
 !-----------------------------------------------------------------------
         if(fft_south)then
-        as=0.
 !-----------------------------------------------------------------------
-          do i=ids+1,ide-2
-            as=hn(i,jds+1,n)+as
-          enddo
+          as=0.
 !
-          as=as*rcycle
+          if(lbound(hn,2)==jds+1)then
+            do i=ids+1,ide-2
+              as=hn(i,jds+1,n)+as
+            enddo
 !
-          do i=ids,ide
-            hn(i,jds+1,n)=as
-          enddo
+            as=as*rcycle
+!
+            do i=ids,ide
+              hn(i,jds+1,n)=as
+            enddo
+          endif
 !
 !-----------------------------------------------------------------------
         elseif(fft_north)then
 !-----------------------------------------------------------------------
-        an=0.
-          do i=ids+1,ide-2
-            an=hn(i,jde-1,n)+an
-          enddo
+          an=0.
 !
-          an=an*rcycle
+          if(ubound(hn,2)==jde-1)then
+            do i=ids+1,ide-2
+              an=hn(i,jde-1,n)+an
+            enddo
 !
-          do i=ids,ide
-            hn(i,jde-1,n)=an
-          enddo
+            an=an*rcycle
+!
+            do i=ids,ide
+              hn(i,jde-1,n)=an
+            enddo
+          endif
 !
 !-----------------------------------------------------------------------
         endif   
@@ -729,8 +1093,8 @@ integer(kind=kint) :: &
 !***  will apply FFTs
 !-----------------------------------------------------------------------
 !
-      jstart=max(jh_start_fft,jds+2)
-      jend=min(jh_end_fft,jde-2)
+      jstart=max(my_jrow_start_h(mype),jds+2)
+      jend  =min(my_jrow_end_h(mype),jde-2)
 !
 !-----------------------------------------------------------------------
 !
@@ -780,6 +1144,7 @@ integer(kind=kint) :: &
 !-----------------------------------------------------------------------
 !
       enddo kloop2
+!
 !.......................................................................
 !$omp end parallel do
 !.......................................................................
@@ -793,7 +1158,9 @@ integer(kind=kint) :: &
                          ,lm_fft,k1_fft,k2_fft &
                          ,local_istart,local_iend &
                          ,local_jstart,local_jend &
-                         ,jh_start_fft,jh_end_fft &
+!!!                      ,jh_start_fft,jh_end_fft &
+                         ,my_jrow_start_h(mype),my_jrow_end_h(mype) &
+                         ,my_jrow_start_h,my_jrow_end_h &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_h &
                          ,field_h)
@@ -924,7 +1291,9 @@ integer(kind=kint) :: &
                         ,lm_fft,k1_fft,k2_fft &
                         ,local_istart,local_iend &
                         ,local_jstart,local_jend &
-                        ,jv_start_fft,jv_end_fft &
+!!!                     ,jv_start_fft,jv_end_fft &
+                        ,my_jrow_start_v(mype),my_jrow_end_v(mype) &
+                        ,my_jrow_start_v,my_jrow_end_v &
                         ,ipe_start,ipe_end &
                         ,my_domain_has_fft_lats_v &
                         ,wn)
@@ -934,8 +1303,8 @@ integer(kind=kint) :: &
 !***  will apply FFTs
 !-----------------------------------------------------------------------
 !
-      jstart=max(jv_start_fft,jds+1)
-      jend=min(jv_end_fft,jde-2)
+      jstart=max(my_jrow_start_v(mype),jds+1)
+      jend=min(my_jrow_end_v(mype),jde-2)
 !
 !-----------------------------------------------------------------------
 !
@@ -996,7 +1365,9 @@ integer(kind=kint) :: &
                          ,lm_fft,k1_fft,k2_fft &
                          ,local_istart,local_iend &
                          ,local_jstart,local_jend &
-                         ,jv_start_fft,jv_end_fft &
+!!!                      ,jv_start_fft,jv_end_fft &
+                         ,my_jrow_start_v(mype),my_jrow_end_v(mype) &
+                         ,my_jrow_start_v,my_jrow_end_v &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_v &
                          ,field_w)
@@ -1089,6 +1460,8 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
+      mype=mype_share
+!
 !-----------------------------------------------------------------------
       icycle=ide-3
       icyclc=icycle/2+1
@@ -1128,7 +1501,9 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
                         ,lm_fft,k1_fft,k2_fft &
                         ,local_istart,local_iend &
                         ,local_jstart,local_jend &
-                        ,jv_start_fft,jv_end_fft &
+!!!                     ,jv_start_fft,jv_end_fft &
+                        ,my_jrow_start_v(mype),my_jrow_end_v(mype) &
+                        ,my_jrow_start_v,my_jrow_end_v &
                         ,ipe_start,ipe_end &
                         ,my_domain_has_fft_lats_v &
                         ,un)
@@ -1136,7 +1511,9 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
                         ,lm_fft,k1_fft,k2_fft &
                         ,local_istart,local_iend &
                         ,local_jstart,local_jend &
-                        ,jv_start_fft,jv_end_fft &
+!!!                     ,jv_start_fft,jv_end_fft &
+                        ,my_jrow_start_v(mype),my_jrow_end_v(mype) &
+                        ,my_jrow_start_v,my_jrow_end_v &
                         ,ipe_start,ipe_end &
                         ,my_domain_has_fft_lats_v &
                         ,vn)
@@ -1193,8 +1570,8 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
 !***  will apply FFTs
 !-----------------------------------------------------------------------
 !
-      jstart=max(jv_start_fft,jds+1)
-      jend=min(jv_end_fft,jde-2)
+      jstart=max(my_jrow_start_v(mype),jds+1)
+      jend=min(my_jrow_end_v(mype),jde-2)
 !
 !-----------------------------------------------------------------------
 !
@@ -1254,7 +1631,9 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
                          ,lm_fft,k1_fft,k2_fft &
                          ,local_istart,local_iend &
                          ,local_jstart,local_jend &
-                         ,jv_start_fft,jv_end_fft &
+!!!                      ,jv_start_fft,jv_end_fft &
+                         ,my_jrow_start_v(mype),my_jrow_end_v(mype) &
+                         ,my_jrow_start_v,my_jrow_end_v &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_v &
                          ,u)
@@ -1262,7 +1641,9 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
                          ,lm_fft,k1_fft,k2_fft &
                          ,local_istart,local_iend &
                          ,local_jstart,local_jend &
-                         ,jv_start_fft,jv_end_fft &
+!!!                      ,jv_start_fft,jv_end_fft &
+                         ,my_jrow_start_v(mype),my_jrow_end_v(mype) &
+                         ,my_jrow_start_v,my_jrow_end_v &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_v &
                          ,v)
@@ -1335,11 +1716,25 @@ integer(kind=kint) :: &
 ,lyr_frac_north &
 ,lyr_frac_south &
 ,n &
+,n_factor &
+,n_group1 &
+,n_group2 &
+,n_remain &
 ,nnew &
 ,npe &
+,npe_next &
 ,npes &
 ,npes_north &
 ,npes_south &
+,nrow_x &
+,nrows_fft_north_h &
+,nrows_fft_south_h &
+,nrows_fft_north_v &
+,nrows_fft_south_v &
+,nrows_group1_h &
+,nrows_group2_h &
+,nrows_group1_v &
+,nrows_group2_v &
 ,nsmud
 
 real(kind=kfpt) :: &
@@ -1725,67 +2120,343 @@ real(kind=kfpt) :: &
 !***  if there are more than 2*LM MPI tasks being used.
 !***  When there are "remainder" layers, give them one at a time
 !***  to each task in the row until they are used up.
+!
+!***  If there are more than LM MPI tasks in a hemisphere then
+!***  the layers themselves begin to be divided up to continue
+!***  to ensure that all tasks will receive some of the FFT work.
 !-----------------------------------------------------------------------
 !
       allocate(k1_fft(0:npes-1),stat=istat)
       allocate(k2_fft(0:npes-1),stat=istat)
+      allocate(my_jrow_start_h(0:npes-1),stat=istat)
+      allocate(my_jrow_end_h(0:npes-1)  ,stat=istat)
+      allocate(my_jrow_start_v(0:npes-1),stat=istat)
+      allocate(my_jrow_end_v(0:npes-1)  ,stat=istat)
+!
+!-------------------------
+!***  Southern Hemisphere
+!-------------------------
 !
       npes_south=ipe_end_south-ipe_start_south+1
-      lyr_frac_south=lm/npes_south
-      l_remain=lm-npes_south*lyr_frac_south
 !
-      k2=0
-      do npe=0,ipe_end_south
-        k1_fft(npe)=k2+1
-        k2=k1_fft(npe)+lyr_frac_south-1
-        if(l_remain>0)then
-          k2=k2+1
-          l_remain=l_remain-1
+!----------------------------------------------------
+!***  There are at least as many tasks in the
+!***  hemisphere as there are model layers.
+!----------------------------------------------------
+!
+      limits_south: if(npes_south<=lm)then
+!
+        lyr_frac_south=lm/npes_south
+        l_remain=lm-npes_south*lyr_frac_south
+!
+        k2=0
+        do npe=0,ipe_end_south
+          k1_fft(npe)=k2+1
+          k2=k1_fft(npe)+lyr_frac_south-1
+          if(l_remain>0)then
+            k2=k2+1
+            l_remain=l_remain-1
+          endif
+          k2_fft(npe)=k2
+!
+          my_jrow_start_h(npe)=jh_start_fft_south
+          my_jrow_end_h(npe)=jh_end_fft_south
+          my_jrow_start_v(npe)=jv_start_fft_south
+          my_jrow_end_v(npe)=jv_end_fft_south
+        enddo
+!
+!----------------------------------------------------
+!***  If there are more tasks than model layers
+!***  divide layers of FFTs into n_factor pieces
+!***  for tasks in n_group1 and
+!***  divide remaining layers into n_factor+1 pieces
+!***  for tasks in n_group2.
+!----------------------------------------------------
+!
+      else
+        lyr_frac_south=0
+        n_factor=npes_south/lm
+        n_remain=npes_south-n_factor*lm
+        n_group1=lm-n_remain                         !<-- This many tasks get layers divided into n_factor pieces
+        n_group2=n_remain                            !<-- This many tasks get layers divided into n_factor+1 pieces
+!
+!----------------------------------------------------
+!***  Divide layers of FFTs into n_factor pieces
+!***  for tasks in n_group1.
+!***  Divide remaining layers into n_factor+1 pieces
+!***  for tasks in n_group2.
+!----------------------------------------------------
+!
+        nrows_fft_south_h=jh_end_fft_south-jh_start_fft_south+1
+        nrows_group1_h=nrows_fft_south_h/n_factor
+        nrows_group2_h=nrows_fft_south_h/(n_factor+1)
+!
+        nrows_fft_south_v=jv_end_fft_south-jv_start_fft_south+1
+        nrows_group1_v=nrows_fft_south_v/n_factor
+        nrows_group2_v=nrows_fft_south_v/(n_factor+1)
+!
+!---------------------------
+!*** Tasks in group 1 for H
+!---------------------------
+!
+        kount_pes=0
+        nrow_x=jh_start_fft_south
+!
+        do npe=0,ipe_end_south
+          my_jrow_start_h(npe)=nrow_x
+          my_jrow_end_h(npe)=min(nrow_x+nrows_group1_h-1,jh_end_fft_south)
+          kount_pes=kount_pes+1
+          if(kount_pes==n_group1)then
+            npe_next=npe+1
+            exit
+          endif
+          if(my_jrow_end_h(npe)==jh_end_fft_south)then
+            nrow_x=jh_start_fft_south
+          else
+            nrow_x=my_jrow_end_h(npe)+1
+          endif
+        enddo
+!
+!---------------------------
+!*** Tasks in group 2 for H
+!---------------------------
+!
+        if(npe_next<=ipe_end_south)then
+          kount_pes=0
+          nrow_x=jh_start_fft_south
+!
+          do npe=npe_next,ipe_end_south
+            my_jrow_start_h(npe)=nrow_x
+            my_jrow_end_h(npe)=min(nrow_x+nrows_group2_h-1,jh_end_fft_south)
+            kount_pes=kount_pes+1
+            if(kount_pes==n_group2)then
+              exit
+            endif
+            if(my_jrow_end_h(npe)==jh_end_fft_south)then
+              nrow_x=jh_start_fft_south
+            else
+              nrow_x=my_jrow_end_h(npe)+1
+            endif
+          enddo
         endif
-        k2_fft(npe)=k2
-      enddo
+!
+!---------------------------
+!*** Tasks in group 1 for V
+!---------------------------
+!
+        kount_pes=0
+        nrow_x=jv_start_fft_south
+!
+        do npe=0,ipe_end_south
+          my_jrow_start_v(npe)=nrow_x
+          my_jrow_end_v(npe)=min(nrow_x+nrows_group1_v-1,jv_end_fft_south)
+          kount_pes=kount_pes+1
+          if(kount_pes==n_group1)then
+            npe_next=npe+1
+            exit
+          endif
+          if(my_jrow_end_v(npe)==jv_end_fft_south)then
+            nrow_x=jv_start_fft_south
+          else
+            nrow_x=my_jrow_end_v(npe)+1
+          endif
+        enddo
+!
+!---------------------------
+!*** Tasks in group 2 for V
+!---------------------------
+!
+        if(npe_next<=ipe_end_south)then
+          kount_pes=0
+          nrow_x=jv_start_fft_south
+!
+          do npe=npe_next,ipe_end_south
+            my_jrow_start_v(npe)=nrow_x
+            my_jrow_end_v(npe)=min(nrow_x+nrows_group2_v-1,jv_end_fft_south)
+            kount_pes=kount_pes+1
+            if(kount_pes==n_group2)then
+              exit
+            endif
+            if(my_jrow_end_v(npe)==jv_end_fft_south)then
+              nrow_x=jv_start_fft_south
+            else
+              nrow_x=my_jrow_end_v(npe)+1
+            endif
+          enddo
+        endif
+!
+      endif limits_south
+!
+!-------------------------
+!***  Northern Hemisphere
+!-------------------------
 !
       npes_north=ipe_end_north-ipe_start_north+1
-      lyr_frac_north=lm/npes_north
-      l_remain=lm-npes_north*lyr_frac_north
 !
-      k2=0
-      do npe=ipe_start_north,ipe_end_north
-        k1_fft(npe)=k2+1
-        k2=k1_fft(npe)+lyr_frac_north-1
-        if(l_remain>0)then
-          k2=k2+1
-          l_remain=l_remain-1
+!----------------------------------------------------
+!***  There are at least as many tasks in the
+!***  hemisphere as there are model layers.
+!----------------------------------------------------
+!
+      limits_north: if(npes_north<=lm)then
+!
+        lyr_frac_north=lm/npes_north
+        l_remain=lm-npes_north*lyr_frac_north
+!
+        k2=0
+        do npe=ipe_start_north,ipe_end_north
+          k1_fft(npe)=k2+1
+          k2=k1_fft(npe)+lyr_frac_north-1
+          if(l_remain>0)then
+            k2=k2+1
+            l_remain=l_remain-1
+          endif
+          k2_fft(npe)=k2
+!
+          my_jrow_start_h(npe)=jh_start_fft_north
+          my_jrow_end_h(npe)=jh_end_fft_north
+          my_jrow_start_v(npe)=jv_start_fft_north
+          my_jrow_end_v(npe)=jv_end_fft_north
+        enddo
+!
+!----------------------------------------------------
+!***  If there are more tasks than model layers
+!***  divide layers of FFTs into n_factor pieces
+!***  for tasks in n_group1 and
+!***  divide remaining layers into n_factor+1 pieces
+!***  for tasks in n_group2.
+!----------------------------------------------------
+!
+      else
+        lyr_frac_north=0
+        n_factor=npes_north/lm
+        n_remain=npes_north-n_factor*lm
+        n_group1=lm-n_remain                         !<-- This many tasks get layers divided into n_factor pieces
+        n_group2=n_remain                            !<-- This many tasks get layers divided into n_factor+1 pieces
+!
+!----------------------------------------------------
+!***  Divide layers of FFTs into n_factor pieces
+!***  for tasks in n_group1.
+!***  Divide remaining layers into n_factor+1 pieces
+!***  for tasks in n_group2.
+!----------------------------------------------------
+!
+        nrows_fft_north_h=jh_end_fft_north-jh_start_fft_north+1
+        nrows_group1_h=nrows_fft_north_h/n_factor
+        nrows_group2_h=nrows_fft_north_h/(n_factor+1)
+!
+        nrows_fft_north_v=jv_end_fft_north-jv_start_fft_north+1
+        nrows_group1_v=nrows_fft_north_v/n_factor
+        nrows_group2_v=nrows_fft_north_v/(n_factor+1)
+!
+!---------------------------
+!*** Tasks in group 1 for H
+!---------------------------
+!
+        kount_pes=0
+        nrow_x=jh_start_fft_north
+!
+        do npe=ipe_start_north,ipe_end_north
+          my_jrow_start_h(npe)=nrow_x
+          my_jrow_end_h(npe)=min(nrow_x+nrows_group1_h-1,jh_end_fft_north)
+          kount_pes=kount_pes+1
+          if(kount_pes==n_group1)then
+            npe_next=npe+1
+            exit
+          endif
+          if(my_jrow_end_h(npe)==jh_end_fft_north)then
+            nrow_x=jh_start_fft_north
+          else
+            nrow_x=my_jrow_end_h(npe)+1
+          endif
+        enddo
+!
+!---------------------------
+!*** Tasks in group 2 for H
+!---------------------------
+!
+        if(npe_next<=ipe_end_north)then
+          kount_pes=0
+          nrow_x=jh_start_fft_north
+!
+          do npe=npe_next,ipe_end_north
+            my_jrow_start_h(npe)=nrow_x
+            my_jrow_end_h(npe)=min(nrow_x+nrows_group2_h-1,jh_end_fft_north)
+            kount_pes=kount_pes+1
+            if(kount_pes==n_group2)then
+              exit
+            endif
+            if(my_jrow_end_h(npe)==jh_end_fft_north)then
+              nrow_x=jh_start_fft_north
+            else
+              nrow_x=my_jrow_end_h(npe)+1
+            endif
+          enddo
         endif
-        k2_fft(npe)=k2
-      enddo
 !
-      lm_fft=max(lyr_frac_south,lyr_frac_north)+1
+!---------------------------
+!*** Tasks in group 1 for V
+!---------------------------
+!
+        kount_pes=0
+        nrow_x=jv_start_fft_north
+!
+        do npe=ipe_start_north,ipe_end_north
+          my_jrow_start_v(npe)=nrow_x
+          my_jrow_end_v(npe)=min(nrow_x+nrows_group1_v-1,jv_end_fft_north)
+          kount_pes=kount_pes+1
+          if(kount_pes==n_group1)then
+            npe_next=npe+1
+            exit
+          endif
+          if(my_jrow_end_v(npe)==jv_end_fft_north)then
+            nrow_x=jv_start_fft_north
+          else
+            nrow_x=my_jrow_end_v(npe)+1
+          endif
+        enddo
+!
+!---------------------------
+!*** Tasks in group 2 for V
+!---------------------------
+!
+        if(npe_next<=ipe_end_north)then
+          kount_pes=0
+          nrow_x=jv_start_fft_north
+!
+          do npe=npe_next,ipe_end_north
+            my_jrow_start_v(npe)=nrow_x
+            my_jrow_end_v(npe)=min(nrow_x+nrows_group2_v-1,jv_end_fft_north)
+            kount_pes=kount_pes+1
+            if(kount_pes==n_group2)then
+              exit
+            endif
+            if(my_jrow_end_v(npe)==jv_end_fft_north)then
+              nrow_x=jv_start_fft_north
+            else
+              nrow_x=my_jrow_end_v(npe)+1
+            endif
+          enddo
+        endif
+!
+      endif limits_north
 !
 !-----------------------------------------------------------------------
 !***  Allocate the working arrays for the FFTs depending on which
 !***  hemisphere this task is in.
 !-----------------------------------------------------------------------
 !
-      if(fft_south)then
-        allocate(hn(ids:ide,jh_start_fft_south:jh_end_fft_south,1:lm_fft) &
-                ,stat=istat)
-        allocate(wn(ids:ide,jv_start_fft_south:jv_end_fft_south,1:lm_fft) &
-                ,stat=istat)
-        allocate(un(ids:ide,jv_start_fft_south:jv_end_fft_south,1:lm_fft) &
-                ,stat=istat)
-        allocate(vn(ids:ide,jv_start_fft_south:jv_end_fft_south,1:lm_fft) &
-                ,stat=istat)
-      elseif(fft_north)then
-        allocate(hn(ids:ide,jh_start_fft_north:jh_end_fft_north,1:lm_fft) &
-                ,stat=istat)
-        allocate(wn(ids:ide,jv_start_fft_north:jv_end_fft_north,1:lm_fft) &
-                ,stat=istat)
-        allocate(un(ids:ide,jv_start_fft_north:jv_end_fft_north,1:lm_fft) &
-                ,stat=istat)
-        allocate(vn(ids:ide,jv_start_fft_north:jv_end_fft_north,1:lm_fft) &
-                ,stat=istat)
-      endif
+      mype=mype_share
+      lm_fft=max(lyr_frac_north,lyr_frac_south)+1
+!
+      allocate(hn(ids:ide,my_jrow_start_h(mype):my_jrow_end_h(mype),1:lm_fft) &
+              ,stat=istat)
+      allocate(wn(ids:ide,my_jrow_start_v(mype):my_jrow_end_v(mype),1:lm_fft) &
+              ,stat=istat)
+      allocate(un(ids:ide,my_jrow_start_v(mype):my_jrow_end_v(mype),1:lm_fft) &
+              ,stat=istat)
+      allocate(vn(ids:ide,my_jrow_start_v(mype):my_jrow_end_v(mype),1:lm_fft) &
+              ,stat=istat)
 !
 !-----------------------------------------------------------------------
 !***  Maximum size of dummy space for FFTs
@@ -1851,9 +2522,9 @@ integer(kind=kint) :: &
 ,ipe_start &
 ,j &
 ,jend &
+,jstart &
 ,jh_end_fft &
 ,jh_start_fft &
-,jstart &
 ,k1 &
 ,k2 &
 ,l &
@@ -1914,7 +2585,9 @@ integer :: ierr,ixx,jxx,kxx
                         ,lm_fft,k1_fft,k2_fft &
                         ,local_istart,local_iend &
                         ,local_jstart,local_jend &
-                        ,jh_start_fft,jh_end_fft &
+!!!                     ,jh_start_fft,jh_end_fft &
+                        ,my_jrow_start_h(mype),my_jrow_end_h(mype) &
+                        ,my_jrow_start_h,my_jrow_end_h &
                         ,ipe_start,ipe_end &
                         ,my_domain_has_fft_lats_h &
                         ,hn)
@@ -1931,28 +2604,34 @@ integer :: ierr,ixx,jxx,kxx
 !-----------------------------------------------------------------------
         if(fft_south)then
 !-----------------------------------------------------------------------
-          do i=ids+1,ide-2
-            as=hn(i,jds+1,n)+as
-          enddo
 !
-          as=as*rcycle
+          if(lbound(hn,2)==jds+1)then
+            do i=ids+1,ide-2
+              as=hn(i,jds+1,n)+as
+            enddo
 !
-          do i=ids,ide
-            hn(i,jds+1,n)=as
-          enddo
+            as=as*rcycle
+!
+            do i=ids,ide
+              hn(i,jds+1,n)=as
+            enddo
+          endif
 !
 !-----------------------------------------------------------------------
         elseif(fft_north)then
 !-----------------------------------------------------------------------
-          do i=ids+1,ide-2
-            an=hn(i,jde-1,n)+an
-          enddo
 !
-          an=an*rcycle
+          if(ubound(hn,2)==jde-1)then
+            do i=ids+1,ide-2
+              an=hn(i,jde-1,n)+an
+            enddo
 !
-          do i=ids,ide
-            hn(i,jde-1,n)=an
-          enddo
+            an=an*rcycle
+!
+            do i=ids,ide
+              hn(i,jde-1,n)=an
+            enddo
+          endif
 !
 !-----------------------------------------------------------------------
         endif   
@@ -1965,8 +2644,8 @@ integer :: ierr,ixx,jxx,kxx
 !***  will apply FFTs
 !-----------------------------------------------------------------------
 !
-      jstart=max(jh_start_fft,jds+2)
-      jend=min(jh_end_fft,jde-2)
+      jstart=max(my_jrow_start(mype),jds+2)
+      jend=min(my_jrow_end(mype),jde-2)
 !
 !-----------------------------------------------------------------------
 !
@@ -2019,6 +2698,7 @@ integer :: ierr,ixx,jxx,kxx
                          ,local_istart,local_iend &
                          ,local_jstart,local_jend &
                          ,jh_start_fft,jh_end_fft &
+                         ,my_jrow_start_h,my_jrow_end_h &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_h &
                          ,field_h)
@@ -2137,7 +2817,9 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                         ,lm_fft,k1_fft,k2_fft &
                         ,local_istart,local_iend &
                         ,local_jstart,local_jend &
-                        ,jv_start_fft,jv_end_fft &
+!!!                     ,jv_start_fft,jv_end_fft &
+                        ,my_jrow_start_v(mype),my_jrow_end_v(mype) &
+                        ,my_jrow_start_v,my_jrow_end_v &
                         ,ipe_start,ipe_end &
                         ,my_domain_has_fft_lats_v &
                         ,wn)
@@ -2147,8 +2829,8 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
 !***  will apply FFTs
 !-----------------------------------------------------------------------
 !
-      jstart=max(jv_start_fft,jds+1)
-      jend=min(jv_end_fft,jde-2)
+      jstart=max(my_jrow_start_v(mype),jds+1)
+      jend=min(my_jrow_end_v(mype),jde-2)
 !
 !-----------------------------------------------------------------------
 !
@@ -2197,6 +2879,7 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                          ,local_istart,local_iend &
                          ,local_jstart,local_jend &
                          ,jv_start_fft,jv_end_fft &
+                         ,my_jrow_start_v,my_jrow_end_v &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_v &
                          ,field_w)
@@ -2278,6 +2961,8 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
+      mype=mype_share
+!
 !-----------------------------------------------------------------------
       icycle=ide-3
       rcycle=1./icycle
@@ -2316,7 +3001,9 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                         ,lm_fft,k1_fft,k2_fft &
                         ,local_istart,local_iend &
                         ,local_jstart,local_jend &
-                        ,jv_start_fft,jv_end_fft &
+!!!                     ,jv_start_fft,jv_end_fft &
+                        ,my_jrow_start_v(mype),my_jrow_end_v(mype) &
+                        ,my_jrow_start_v,my_jrow_end_v &
                         ,ipe_start,ipe_end &
                         ,my_domain_has_fft_lats_v &
                         ,un)
@@ -2324,7 +3011,9 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                         ,lm_fft,k1_fft,k2_fft &
                         ,local_istart,local_iend &
                         ,local_jstart,local_jend &
-                        ,jv_start_fft,jv_end_fft &
+!!!                     ,jv_start_fft,jv_end_fft &
+                        ,my_jrow_start_v(mype),my_jrow_end_v(mype) &
+                        ,my_jrow_start_v,my_jrow_end_v &
                         ,ipe_start,ipe_end &
                         ,my_domain_has_fft_lats_v &
                         ,vn)
@@ -2381,8 +3070,8 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
 !***  will apply FFTs
 !-----------------------------------------------------------------------
 !
-      jstart=max(jv_start_fft,jds+1)
-      jend=min(jv_end_fft,jde-2)
+      jstart=max(my_jrow_start_v(mype),jds+1)
+      jend=min(my_jrow_end_v(mype),jde-2)
 !
 !-----------------------------------------------------------------------
 !
@@ -2438,6 +3127,7 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                          ,local_istart,local_iend &
                          ,local_jstart,local_jend &
                          ,jv_start_fft,jv_end_fft &
+                         ,my_jrow_start_v,my_jrow_end_v &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_v &
                          ,u)
@@ -2446,6 +3136,7 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                          ,local_istart,local_iend &
                          ,local_jstart,local_jend &
                          ,jv_start_fft,jv_end_fft &
+                         ,my_jrow_start_v,my_jrow_end_v &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_v &
                          ,v)
