@@ -33,7 +33,7 @@
       ALLOCATE(TEMP_GWD(IDS:IDE,JDS:JDE))      
 !-----------------------------------------------------------------------
         IF(MYPE==0)THEN
-          OPEN(unit=NFCST,file='GWD.bin',status='old',form='unformatted')
+          OPEN(unit=NFCST,file=INFILE,status='old',form='unformatted')
         ENDIF
 !-----------------------------------------------------------------------
         IF(MYPE==0)THEN
@@ -92,7 +92,6 @@
 !-----------------------------------------------------------------------
         IF(MYPE==0)THEN
           READ(NFCST)TEMP_GWD
-           READ(NFCST)TEMP_GWD
         ENDIF
 !
         CALL DSTRB(TEMP_GWD,int_state%HLENNW,1,1,1,1,1)
