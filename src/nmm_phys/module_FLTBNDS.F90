@@ -1711,6 +1711,7 @@ integer(kind=kint) :: &
 ,jmax_south &
 ,k &
 ,k2 &
+,kount_pes &
 ,ks &
 ,l_remain &
 ,lyr_frac_north &
@@ -2644,8 +2645,8 @@ integer :: ierr,ixx,jxx,kxx
 !***  will apply FFTs
 !-----------------------------------------------------------------------
 !
-      jstart=max(my_jrow_start(mype),jds+2)
-      jend=min(my_jrow_end(mype),jde-2)
+      jstart=max(my_jrow_start_h(mype),jds+2)
+      jend=min(my_jrow_end_h(mype),jde-2)
 !
 !-----------------------------------------------------------------------
 !
