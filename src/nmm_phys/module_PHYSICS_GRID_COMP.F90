@@ -17,6 +17,7 @@
 !   2008-10-    Vasic - Restart capability
 !   2008-08-23  Janjic - Removed uz0h, vz0h
 !   2008-08-23  Janjic - General hybrid coordinate
+!   2009-07-01  Vasic - Added GFS physics package
 !
 !-----------------------------------------------------------------------
 !
@@ -31,7 +32,7 @@
       USE MODULE_DM_PARALLEL,ONLY : IDS,IDE,JDS,JDE                     &
                                    ,IMS,IME,JMS,JME                     &
                                    ,ITS,ITE,JTS,JTE                     &
-                                   ,MYPE_SHARE                          &
+                                   ,MYPE_SHARE,IHALO,JHALO              &
                                    ,DSTRB,IDSTRB
 !
       USE MODULE_CONTROL,ONLY : CAPPA,TIMEF
@@ -282,6 +283,7 @@
       rdtemp_tim=0.
       turbl_tim=0.
       adjppt_tim=0. 
+      gfs_phy_tim=0.
 !
 !-----------------------------------------------------------------------
 !***  ALLOCATE THE PHYSICS INTERNAL STATE POINTER.
@@ -669,7 +671,23 @@
 !***  THROUGH THIS ROUTINE.
 !-----------------------------------------------------------------------
 !
-!!!   USE MODULE_INTEGRATE
+!-----------------------------------------------------------------------
+!***  Only for Gfs physics
+!-----------------------------------------------------------------------
+!
+      USE MODULE_CONSTANTS,           ONLY: R,CP,RHOWATER,XLV
+      USE NAMELIST_PHYSICS_DEF,       ONLY: ISOL,ICO2,IALB,IEMS,IAER       &
+                                           ,IOVR_SW,IOVR_LW,LSSAV,LDIAG3D  &
+                                           ,FHSWR,LSCCA,LSSWR,LSLWR,SASHAL &
+                                           ,PRE_RAD,RAS,LSM
+      USE LAYOUT1,                    ONLY : LATS_NODE_R, IPT_LATS_NODE_R
+      USE DATE_DEF,                   ONLY : FHOUR
+      USE MODULE_RADIATION_DRIVER,    ONLY : RADINIT, GRRAD
+      USE MODULE_RADIATION_ASTRONOMY, ONLY : ASTRONOMY
+      USE MERSENNE_TWISTER
+      USE RESOL_DEF,                  ONLY : NUM_P3D, NUM_P2D, NTOZ, NTCW  &
+                                           ,NCLD,NMTVR,NFXR,LONR,LATR
+      USE OZNE_DEF,                   ONLY : PL_PRES,LEVOZP,PL_COEFF
 !
 !-----------------------------------------------------------------------
 !
@@ -685,6 +703,70 @@
       TYPE(ESMF_Clock)   ,INTENT(IN)    :: CLOCK
 !
       INTEGER,OPTIONAL   ,INTENT(OUT)   :: RC_RUN
+!
+!-----------------------------------------------------------------------
+!***  GFS physics local variables
+!-----------------------------------------------------------------------
+!
+      TYPE(ESMF_Time)                              :: CURRTIME
+      LOGICAL,SAVE                                 :: FIRST=.true.
+      LOGICAL                                      :: LPRNT=.false.
+      LOGICAL                                      :: LSFWD,OPENED,FLIPV,CHANGE
+      INTEGER,PARAMETER                            :: IFLIP=1,NTRAC=3            !!!!!! later ntrac read form namelist
+      INTEGER                                      :: II, JJ, ICWP,IMJM, IDATE(4), JDAT(8)
+      INTEGER                                      :: KFLIP,ISEED
+      INTEGER ,SAVE                                :: ID,IDAY,IMON,MIDMON,MIDM,MIDP,K1OZ,K2OZ,SEED0
+      INTEGER ,DIMENSION(13)                       :: DAYS
+      INTEGER ,DIMENSION(JTS:JTE)                  :: LONSPERLAR, GLOBAL_LATS_R
+!
+      REAL (KIND=KDBL)                             :: T850,FACOZ,DTSW,DTLW,RTvR,CLSTP,DTP,DTF,SOLHR
+      REAL (KIND=KDBL) ,DIMENSION(1)               :: RCS2_V,XLAT,FLGMIN_L,CV,CVB,CVT  ! (cv, cvb, cvt not in use when ntcw-1 > 0)
+      REAL (KIND=KDBL) ,DIMENSION(1)               :: TSEA,TISFC,ZORL,SLMSK,SNWDPH,SHELEG,SNCOVR,SNOALB
+      REAL (KIND=KDBL) ,DIMENSION(1)               :: XSIHFCS,XSICFCS,XSLPFCS,XTG3FCS,XVEGFCS,XVETFCS,XSOTFCS
+      REAL (KIND=KDBL) ,DIMENSION(1)               :: ALVSF,ALNSF,ALVWF,ALNWF,FACSF,FACWF
+      REAL (KIND=KDBL) ,DIMENSION(1)               :: WRK, DPSHC, GQ, RANNUM_V
+      REAL (KIND=KDBL) ,DIMENSION(1)               :: ORO
+      REAL (KIND=KDBL) ,DIMENSION(LM)              :: CLDCOV_V,PRSL,PRSLK,GU,GV,GT,GR,VVEL,F_ICE,F_RAIN,R_RIME
+      REAL (KIND=KDBL) ,DIMENSION(LM)              :: ADT,ADU,ADV,PHIL
+      REAL (KIND=KDBL) ,DIMENSION(LM,NTRAC)        :: GR3,ADR
+      REAL (KIND=KDBL) ,DIMENSION(LM+1)            :: PRSI,PRSIK,RSGM,PHII
+      REAL (KIND=KDBL) ,DIMENSION(JTS:JTE)         :: SINLAT_R,COSLAT_R
+      REAL (KIND=KDBL) ,DIMENSION(ITS:ITE,JTS:JTE) :: XLON,COSZEN,COSZDG,XKT2
+      REAL (KIND=KDBL) ,DIMENSION((ITE-ITS+1)*(JTE-JTS+1)) :: RANNUM
+!
+      REAL (KIND=KDBL) ,DIMENSION(27)              :: FLUXR_V
+      REAL (KIND=KDBL) ,DIMENSION(1,LM,NTRAC-1)    :: GR1
+!
+      REAL (KIND=KDBL) ,DIMENSION(1)               :: SFCNSW, SFCDSW, SFALB, SFCDLW, TSFLW
+      REAL (KIND=KDBL) ,DIMENSION(LM)              :: SWH, HLW
+!--- gbphys ---
+      LOGICAL                                      :: OLD_MONIN, CNVGWD, NEWSAS
+      INTEGER ,DIMENSION(2)                        :: NCW
+      REAL (KIND=KDBL)                             :: CCWF
+      REAL (KIND=KDBL) ,DIMENSION(1)               :: BENGSH, GESHEM, TPRCP, SRFLAG, SHDMIN, SHDMAX, CANOPY
+      REAL (KIND=KDBL) ,DIMENSION(1)               :: ACV, ACVB, ACVT
+      REAL (KIND=KDBL) ,DIMENSION(2)               :: FLGMIN
+      REAL (KIND=KDBL) ,DIMENSION(3)               :: CRTRH
+      REAL (KIND=KDBL) ,DIMENSION(NUM_SOIL_LAYERS) :: SMC_V, STC_V, SLC_V
+      REAL (KIND=KDBL) ,DIMENSION(14)              :: HPRIME
+      REAL (KIND=KDBL) ,DIMENSION(LM)              :: UPD_MF, DWN_MF, DET_MF   !!!!!!!!!!! not in use
+      REAL (KIND=KDBL) ,DIMENSION(LM,9)            :: DQ3DT                    !!!!!!!!!!!  (9=5+pl_coeff)
+      REAL (KIND=KDBL) ,DIMENSION(LM,6)            :: DT3DT                    !!!!!!!!!!! while
+      REAL (KIND=KDBL) ,DIMENSION(LM,4)            :: DU3DT, DV3DT             !!!!!!!!!!! LDIAG3D =.FALSE.
+
+      REAL (KIND=KDBL) ,DIMENSION(:,:)  ,ALLOCATABLE :: OZPLOUT_V
+      REAL (KIND=KDBL) ,DIMENSION(:,:,:),ALLOCATABLE :: OZPLOUT
+
+      REAL (KIND=KDBL) ,DIMENSION(3)               :: PHY_F2DV   ! NUM_P2D for Zhao =3, Ferr=1 (fix later)
+      REAL (KIND=KDBL) ,DIMENSION(LM,4)            :: PHY_F3DV   ! NUM_P3D for Zhao =4, Ferr=3 (fix later)
+!--- gbphys output
+      REAL (KIND=KDBL) ,DIMENSION(1)               :: EVBSA, EVCWA, TRANSA, SBSNOA, SNOWCA, CLDWRK, PSMEAN
+      REAL (KIND=KDBL) ,DIMENSION(1)               :: CHH, CMM, EP, EPI, DLWSFCI, ULWSFCI, USWSFCI, DSWSFCI
+      REAL (KIND=KDBL) ,DIMENSION(1)               :: DLWSFC, ULWSFC, DTSFC, DQSFC, DUSFC, DVSFC, GFLUX
+      REAL (KIND=KDBL) ,DIMENSION(1)               :: DTSFCI, DQSFCI, GFLUXI, T1, Q1, U1, V1
+      REAL (KIND=KDBL) ,DIMENSION(1)               :: ZLVL, SOILM, RUNOFF, SRUNOFF
+      REAL (KIND=KDBL) ,DIMENSION(1)               :: F10M, UUSTAR, FFMM, FFHH
+      REAL (KIND=KDBL) ,DIMENSION(1)               :: PSURF, U10M, V10M, T2M, Q2M, HPBL, PWAT
 !
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES
@@ -705,9 +787,13 @@
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1) :: RQVBLTEN,RTHBLTEN  ! For WRF physics
 
 !
-      LOGICAL :: CALL_LONGWAVE,CALL_PRECIP,CALL_SHORTWAVE,CALL_TURBULENCE
+      LOGICAL :: CALL_LONGWAVE,CALL_PRECIP,CALL_SHORTWAVE,CALL_TURBULENCE &
+                ,CALL_GFS_PHY
 !
       TYPE(ESMF_Field)    :: HOLD_FIELD
+!
+      DATA DAYS / 31,28,31,30,31,30,31,31,30,31,30,31,30 /
+!
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -777,6 +863,12 @@
       btim=timef()
       CALL UPDATE_INTERNAL_STATE_PHY(IMP_STATE,INT_STATE)
       update_phy_int_state_tim=update_phy_int_state_tim+timef()-btim
+!
+!-----------------------------------------------------------------------
+!
+      IF ( .NOT. int_state%GFS ) THEN  ! ***  TRADITIONAL NMMB PHYSICS
+!
+!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !***  SET LOGICAL SWITCHES FOR CALLING EACH OF THE PHYSICS SCHEMES.
@@ -1328,6 +1420,750 @@
 !***         POINTERS ARE NEVER RE-DIRECTED.
 !-----------------------------------------------------------------------
 !
+      ELSE  ! ***  USE GFS PHYSICS
+!
+!-----------------------------------------------------------------------
+!
+!#######################################################################
+!#######################################################################
+!############ G F S   P H Y S I C S   D R I V E R ######################
+!#######################################################################
+!#######################################################################
+!
+        btim=timef()
+!
+      CALL ESMF_ClockGet(clock       =CLOCK                         &  !<-- The ESMF Clock
+                        ,currTime    =CURRTIME                      &  !<-- The current time (ESMF) on the clock
+                        ,rc          =RC)
+!
+      CALL ESMF_TimeGet(time=CURRTIME                               &  !<-- The cuurent forecast time (ESMF)
+                       ,yy  =JDAT(1)                                &  !<-- The current forecast year (integer)
+                       ,mm  =JDAT(2)                                &  !<-- The current forecast month (integer)
+                       ,dd  =JDAT(3)                                &  !<-- The current forecast day (integer)
+                       ,h   =JDAT(5)                                &  !<-- The current forecast hour (integer)
+                       ,m   =JDAT(6)                                &  !<-- The current forecast minute (integer)
+                       ,s   =JDAT(7)                                &  !<-- The current forecast second (integer)
+                       ,rc  =RC)
+      JDAT(4)=0
+      JDAT(8)=0
+!
+    DO J=JTS,JTE
+        GLOBAL_LATS_R(J) = J-JTS+1
+        LONSPERLAR(J)    = ITE-ITS+1
+        SINLAT_R(J)      = SIN(int_state%GLAT( (ITS+ITE)/2 ,J))
+        COSLAT_R(J)      = SQRT( 1.d0 - SINLAT_R(J)*SINLAT_R(J) )
+      DO I=ITS,ITE
+        XLON(I,J)        = int_state%GLON(I,J)
+      if(int_state%GLON(I,J) .lt. 0. ) &
+        XLON(I,J)        = 2.0d0*3.14159d0+XLON(I,J)
+        COSZEN(I,J)      = int_state%CZEN(I,J)
+        COSZDG(I,J)      = int_state%CZMEAN(I,J)
+      ENDDO
+    ENDDO
+
+
+!-----------------------------------------------------------------------
+!***              R A D I A T I O N
+!-----------------------------------------------------------------------
+
+      CALL_GFS_PHY    = MOD(NTIMESTEP,int_state%NPHS)==0
+
+      FHSWR           = FLOAT(int_state%NRADS)*int_state%DT/3600.   ! [h]
+      LSCCA           = MOD(NTIMESTEP+1,int_state%NRADS)==0    ! logical true during a step for which convective clouds
+                                                               ! are calculated from convective precipitation rates
+      LSSWR           = MOD(NTIMESTEP,int_state%NRADS)==0
+      LSLWR           = MOD(NTIMESTEP,int_state%NRADL)==0
+      DTLW            = FLOAT(int_state%NRADL)*int_state%DT   ! [s]
+      DTSW            = FLOAT(int_state%NRADS)*int_state%DT   ! [s]
+
+!-----------------------------------------------------------------------
+      IF( LSSWR .OR. LSLWR ) THEN
+!-----------------------------------------------------------------------
+!
+      DO L=1,LM+1
+       KFLIP=LM-L+2
+        RSGM(KFLIP)=int_state%SGM(L)
+      ENDDO
+! 
+      ICWP=0                  ! control flag for cloud generation schemes
+      IF (NTCW > 0) ICWP = 1  ! 0: use diagnostic cloud scheme
+                              ! 1: use prognostic cloud scheme (default)
+!
+! ----
+      CALL RADINIT ( RSGM, LM, IFLIP, NUM_P3D, ISOL, ICO2,  &
+                     ICWP, IALB, IEMS, IAER, JDAT, MYPE )
+! ----
+
+      IF (NTOZ .LE. 0) THEN                ! Climatological Ozone
+!
+        IDAY   = JDAT(3)
+        IMON   = JDAT(2)
+        MIDMON = DAYS(IMON)/2 + 1
+        CHANGE = FIRST .OR. ( (IDAY .EQ. MIDMON) .AND. (JDAT(5).EQ.0) )
+!
+        IF (CHANGE) THEN
+            IF (IDAY .LT. MIDMON) THEN
+               K1OZ = MOD(IMON+10,12) + 1
+               MIDM = DAYS(K1OZ)/2 + 1
+               K2OZ = IMON
+               MIDP = DAYS(K1OZ) + MIDMON
+        ELSE
+               K1OZ = IMON
+               MIDM = MIDMON
+               K2OZ = MOD(IMON,12) + 1
+               MIDP = DAYS(K2OZ)/2 + 1 + DAYS(K1OZ)
+            ENDIF
+        ENDIF
+!
+        IF (IDAY .LT. MIDMON) THEN
+           ID = IDAY + DAYS(K1OZ)
+        ELSE
+           ID = IDAY
+        ENDIF
+
+        FACOZ = REAL (ID-MIDM) / REAL (MIDP-MIDM)
+
+      ELSE
+
+        K1OZ = 0
+        K2OZ = 0
+        FACOZ = 1.0D0
+
+      ENDIF
+
+        FLGMIN_L(1)     = 0.2D0      ! --- for ferrier (for now, any number)
+
+! ----
+      CALL ASTRONOMY                                                    &
+!  ---  inputs:
+           ( LONSPERLAR, GLOBAL_LATS_R, SINLAT_R, COSLAT_R, XLON,       &
+             FHSWR, JDAT,                                               &
+             LONR, LATS_NODE_R, LATR, IPT_LATS_NODE_R, LSSWR, MYPE,     &
+!  ---  outputs:
+             int_state%SOLCON, int_state%SLAG, int_state%SDEC,          &
+             int_state%CDEC, COSZEN, COSZDG )
+!-----------------------------------------------------------------------
+      ENDIF ! LW or SW rad
+!-----------------------------------------------------------------------
+!---
+      IF (FIRST) THEN
+
+        SEED0 = JDAT(4) + JDAT(3) + JDAT(2) + JDAT(1)
+        CALL RANDOM_SETSEED(SEED0)
+        CALL RANDOM_NUMBER(WRK)
+        SEED0 = SEED0 + NINT(WRK(1)*1000.0)
+        FIRST = .FALSE.
+
+      ENDIF
+!---
+      FHOUR=NTIMESTEP*int_state%DT/3600.d0
+      ISEED = MOD(100.0*SQRT(FHOUR*3600),1.0d9) + 1 + SEED0
+      CALL RANDOM_SETSEED(ISEED)
+      CALL RANDOM_NUMBER(RANNUM)
+      N=0
+      DO J=JTS,JTE
+         DO I=ITS,ITE
+            N=N+1
+            XKT2(I,J) = RANNUM(N)
+         ENDDO
+      ENDDO
+!---
+      LSFWD=NTIMESTEP==0
+      DTP=2.*int_state%DT
+      DTF=int_state%DT
+      IF(LSFWD) DTP=DTF
+!---
+      SOLHR=MOD(FHOUR+START_HOUR,24.d0)
+!---
+!...  set switch for saving convective clouds
+      IF(LSCCA.AND.LSSWR) THEN
+        CLSTP=1100+MIN(FHSWR,FHOUR,99.d0)  !initialize,accumulate,convert
+      ELSEIF(LSCCA) THEN
+        CLSTP=0100+MIN(FHSWR,FHOUR,99.d0)  !accumulate,convert
+      ELSEIF(LSSWR) THEN
+        CLSTP=1100                         !initialize,accumulate
+      ELSE
+        CLSTP=0100                         !accumulate
+      ENDIF
+!---
+!---- OZONE ------------------------------------------------------------
+!
+      IF(.NOT.ALLOCATED(OZPLOUT_V)) &
+                           allocate (OZPLOUT_V(LEVOZP,        PL_COEFF))
+      IF(.NOT.ALLOCATED(OZPLOUT  )) &
+                           allocate (OZPLOUT  (LEVOZP,JTS:JTE,PL_COEFF))
+!
+      IDATE(1)=JDAT(5)
+      IDATE(2)=JDAT(2)
+      IDATE(3)=JDAT(3)
+      IDATE(4)=JDAT(1)
+!
+      IF (NTOZ .GT. 0) THEN
+       CALL OZINTERPOL(MYPE,LATS_NODE_R,LATS_NODE_R,IDATE,FHOUR,     &
+                       int_state%JINDX1,int_state%JINDX2,            &
+                       int_state%OZPLIN,OZPLOUT,int_state%DDY)
+      ENDIF
+!
+!---- OZONE ------------------------------------------------------------
+!-----------------------------------------------------------------------
+!***  Set diagnostics to 0.
+!-----------------------------------------------------------------------
+!
+      DT3DT=0.0d0
+      DU3DT=0.0d0
+      DV3DT=0.0d0
+      DQ3DT=0.0d0
+!
+      CV (1)          = 0.d0       !!!!! not in use if ntcw-1 > 0
+      CVB(1)          = 0.d0       !!!!! not in use if ntcw-1 > 0
+      CVT(1)          = 0.d0       !!!!! not in use if ntcw-1 > 0
+!
+!-----------------------------------------------------------------------
+!***  EMPTY THE RADIATION,FLUX AND PRECIPITATION ARRAYS IF IT IS TIME.
+!-----------------------------------------------------------------------
+!
+      IF(MOD(NTIMESTEP,int_state%NRDLW)==0)THEN
+!
+        DO J=JTS,JTE
+        DO I=ITS,ITE
+          int_state%ALWIN(I,J)=0.
+          int_state%ALWOUT(I,J)=0.
+          int_state%ALWTOA(I,J)=0.
+        ENDDO
+        ENDDO
+!
+      ENDIF
+!
+      IF(MOD(NTIMESTEP,int_state%NRDSW)==0)THEN
+!
+        DO J=JTS,JTE
+        DO I=ITS,ITE
+          int_state%ASWIN(I,J)=0.
+          int_state%ASWOUT(I,J)=0.
+          int_state%ASWTOA(I,J)=0.
+        ENDDO
+        ENDDO
+!
+      ENDIF
+!
+      IF(MOD(NTIMESTEP,int_state%NSRFC)==0)THEN
+!
+        DO J=JTS,JTE
+        DO I=ITS,ITE
+          int_state%POTEVP(I,J)=0.
+          int_state%SFCEVP(I,J)=0.
+          int_state%SFCLHX(I,J)=0.
+          int_state%SFCSHX(I,J)=0.
+          int_state%SUBSHX(I,J)=0.
+          int_state%BGROFF(I,J)=0.
+          int_state%SSROFF(I,J)=0.
+        ENDDO
+        ENDDO
+!
+      ENDIF
+!
+      NSTEPS_PREC=int_state%NHRS_PREC*NSTEPS_PER_HOUR
+      IF(MOD(NTIMESTEP,NSTEPS_PREC)==0)THEN
+        DO J=JTS,JTE
+        DO I=ITS,ITE
+          int_state%ACPREC(I,J)=0.
+          int_state%CUPREC(I,J)=0.
+        ENDDO
+        ENDDO
+      ENDIF
+!
+!-----------------------------------------------------------------------
+      gfs_physics: IF(CALL_GFS_PHY)THEN
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+! ***  MAIN GFS-PHYS DOMAIN LOOP
+!-----------------------------------------------------------------------
+!
+        DO J=JTS,JTE
+            JJ=J-JTS+1+JHALO   ! Pointer indices (Q & CW)
+          DO I=ITS,ITE
+            II=I-ITS+1+IHALO   ! Pointer indices (Q & CW)
+!
+             T1(1)           = 0.0D0        ! initialize all local variables
+             Q1(1)           = 0.0D0        ! used in gfs_physics
+             U1(1)           = 0.0D0
+             V1(1)           = 0.0D0
+             DUSFC(1)        = 0.0D0
+             DVSFC(1)        = 0.0D0
+             PSMEAN(1)       = 0.0D0
+             EPI(1)          = 0.0D0
+             EVBSA(1)        = 0.0D0
+             EVCWA(1)        = 0.0D0
+             TRANSA(1)       = 0.0D0
+             SBSNOA(1)       = 0.0D0
+             SNOWCA(1)       = 0.0D0
+             CLDWRK(1)       = 0.0D0
+             ZLVL(1)         = 0.0D0
+             PHII            = 0.0D0
+             PHIL            = 0.0D0
+             CHH(1)          = 0.0D0
+             HPBL(1)         = 0.0D0
+             PSURF(1)        = 100.0D0
+             T2M(1)          = 273.0D0
+             Q2M(1)          = 0.0D0
+             U10M(1)         = 0.0D0
+             V10M(1)         = 0.0D0
+             ADR             = 0.0D0
+             ADT             = 0.0D0
+             ADU             = 0.0D0
+             ADV             = 0.0D0
+
+         IF(int_state%TSKIN(I,J) .LT. 50. ) THEN
+             TSEA(1)         = int_state%SST(I,J)
+             TISFC(1)        = int_state%SST(I,J)
+         ELSE
+             TSEA(1)         = int_state%TSKIN(I,J)
+             TISFC(1)        = int_state%TSKIN(I,J)
+         ENDIF
+
+         IF(int_state%SICE(I,J) > 0.5 ) THEN                                ! slmsk - ocean  - 0
+             SLMSK(1)        = 2.0D0                                        !         land   - 1
+         ELSE                                                               !         seaice - 2
+             SLMSK(1)        = 1.0D0-int_state%SM(I,J)                      !
+         ENDIF
+
+         DO L=1,LM
+            KFLIP=LM+1-L
+             CLDCOV_V(KFLIP) = int_state%CLDFRA(I,J,L)
+             F_ICE(KFLIP)    = int_state%F_ICE(I,J,L)                       ! for ferrier phy, do init first
+             F_RAIN(KFLIP)   = int_state%F_RAIN(I,J,L)
+             R_RIME(KFLIP)   = int_state%F_RIMEF(I,J,L)
+         ENDDO
+
+             XLAT(1)         = int_state%GLAT(I,J)
+             ZORL(1)         = int_state%ZORFCS(I,J)
+             SNCOVR(1)       = int_state%SNO(I,J)/(int_state%SNO(I,J)+70.)  ! FORMULATION OF MARSHALL ET AL. 1994
+                                                                            ! change this later only initially, add new int_state
+             SNWDPH(1)       = int_state%SI(I,J)                            ! snwdph[mm]
+             SHELEG(1)       = int_state%SNO(I,J)                           ! snow water eq.[mm]
+             SNOALB(1)       = int_state%MXSNAL(I,J)
+             ALVSF(1)        = int_state%ALBFC1(I,J,1)                      ! VIS, direct
+             ALVWF(1)        = int_state%ALBFC1(I,J,2)                      ! VIS, diffuse
+             ALNSF(1)        = int_state%ALBFC1(I,J,3)                      ! NIR, direct
+             ALNWF(1)        = int_state%ALBFC1(I,J,4)                      ! NIR, diffuse
+             FACSF(1)        = int_state%ALFFC1(I,J,1)                      ! direct
+             FACWF(1)        = int_state%ALFFC1(I,J,2)                      ! diffuse
+!
+             PRSI (LM+1)     = int_state%PT/1000.                           ! [kPa]
+             PRSIK(LM+1)     = (PRSI(LM+1)*0.01d0)**(R/CP)
+         DO L=1,LM
+            KFLIP=LM+1-L
+             PRSI (KFLIP)    = PRSI(KFLIP+1) + &
+                                (DSG2(L)*int_state%PD(I,J)+PDSG1(L))/1000.d0 ! (pressure on interface) [kPa]
+             PRSIK(KFLIP)    = (PRSI(KFLIP)*0.01d0)**(R/CP)
+
+             PRSL (KFLIP)    = (PRSI(KFLIP)+PRSI(KFLIP+1))*0.5d0             ! (pressure on mid-layer) [kPa]
+             PRSLK(KFLIP)    = (PRSL(KFLIP)*0.01d0)**(R/CP)
+!
+             RTvR = 1. / ( R * (int_state%Q(II,JJ,L)*0.608+1.-int_state%CW(II,JJ,L) ) * int_state%T(I,J,L) )
+             VVEL(KFLIP)     = int_state%OMGALF(I,J,L) * 1000.d0*PRSL(KFLIP) * RTvR
+!
+             GU(KFLIP)       = (int_state%U(I,J  ,L) + int_state%U(I-1,J  ,L) +                    &
+                                int_state%U(I,J-1,L) + int_state%U(I-1,J-1,L))*COSLAT_R(J)*0.25d0
+             GV(KFLIP)       = (int_state%V(I,J  ,L) + int_state%V(I-1,J  ,L) +                    &
+                                int_state%V(I,J-1,L) + int_state%V(I-1,J-1,L))*COSLAT_R(J)*0.25d0
+             GT(KFLIP)       = int_state%T(I,J,L)
+             GR(KFLIP)       = int_state%Q(II,JJ,L)
+             GR3(KFLIP,1)    = int_state%Q(II,JJ,L)
+           IF (NTIMESTEP == 0 ) THEN
+             GR3(KFLIP,2)    = 0.0d0
+             GR3(KFLIP,3)    = 0.0d0
+           ELSE
+             GR3(KFLIP,2)    = int_state%RRW(II,JJ,L)
+             GR3(KFLIP,3)    = int_state%CW(II,JJ,L)
+           ENDIF
+             GR1(1,KFLIP,1)  = GR3(KFLIP,2)
+             GR1(1,KFLIP,2)  = int_state%CW(II,JJ,L)
+         ENDDO
+!---
+             DLWSFC(1)       = int_state%ALWIN(I,J)
+             ULWSFC(1)       = int_state%ALWOUT(I,J)
+             DLWSFCI(1)      = int_state%RLWIN(I,J)
+             ULWSFCI(1)      = int_state%RADOT(I,J)
+             DSWSFCI(1)      = int_state%RSWIN(I,J)
+             USWSFCI(1)      = int_state%RSWOUT(I,J)
+!---
+             DTSFC(1)        = int_state%SFCSHX(I,J)
+             DQSFC(1)        = int_state%SFCLHX(I,J)
+             GFLUX(1)        = int_state%SUBSHX(I,J)
+             DTSFCI(1)       = -int_state%TWBS(I,J)
+             DQSFCI(1)       = -int_state%QWBS(I,J)
+             GFLUXI(1)       = int_state%GRNFLX(I,J)
+             EP(1)           = int_state%POTEVP(I,J)
+!---
+             XSIHFCS(1)      = int_state%SIHFCS(I,J)
+             XSICFCS(1)      = int_state%SICFCS(I,J)
+             XSLPFCS(1)      = int_state%SLPFCS(I,J)
+             XTG3FCS(1)      = int_state%TG3FCS(I,J)
+             XVEGFCS(1)      = int_state%VEGFCS(I,J)
+             XVETFCS(1)      = int_state%VETFCS(I,J)
+             XSOTFCS(1)      = int_state%SOTFCS(I,J)
+!---
+             FLUXR_V         = 0.0D0
+             FLUXR_V(1)      = int_state%ALWTOA(I,J)*int_state%NHRS_RDLW*3600.
+             FLUXR_V(2)      = int_state%ASWTOA(I,J)*int_state%NHRS_RDSW*3600.
+!---
+             HPRIME (1)      = int_state%HSTDV(I,J)
+             HPRIME (2)      = int_state%HCNVX(I,J)
+             HPRIME (3)      = int_state%HASYW(I,J)
+             HPRIME (4)      = int_state%HASYS(I,J)
+             HPRIME (5)      = int_state%HASYSW(I,J)
+             HPRIME (6)      = int_state%HASYNW(I,J)
+             HPRIME (7)      = int_state%HLENW(I,J)
+             HPRIME (8)      = int_state%HLENS(I,J)
+             HPRIME (9)      = int_state%HLENSW(I,J)
+             HPRIME(10)      = int_state%HLENNW(I,J)
+             HPRIME(11)      = int_state%HANGL(I,J)*180.D0/3.14159D0
+             HPRIME(12)      = int_state%HANIS(I,J)
+             HPRIME(13)      = int_state%HSLOP(I,J)*0.2d0   ! calculated from different terrain file
+             HPRIME(14)      = int_state%HZMAX(I,J)
+!---
+             RUNOFF(1)       = int_state%BGROFF(I,J)
+             SRUNOFF(1)      = int_state%SSROFF(I,J)
+!---
+             SFCNSW(1)       = int_state%SFCNSW(I,J)
+             SFCDSW(1)       = int_state%SFCDSW(I,J)
+             SFALB(1)        = int_state%SFALB(I,J)
+             SFCDLW(1)       = int_state%SFCDLW(I,J)
+             TSFLW(1)        = int_state%TSFLW(I,J)
+           DO L=1,LM
+             SWH(L)          = int_state%SWH(I,J,L)
+             HLW(L)          = int_state%HLW(I,J,L)
+           ENDDO
+           DO N=1,3                                    ! for Zhao =3, Ferr=1
+             PHY_F2DV(N)     = int_state%PHY_F2DV (I,J,N)
+           ENDDO
+           DO N=1,4                                    ! for Zhao =4, Ferr=3
+           DO L=1,LM
+            PHY_F3DV(L,N)    = int_state%PHY_F3DV (I,J,L,N)
+           ENDDO
+           ENDDO
+!
+!-----------------------------------------------------------------------
+          CALL GRRAD                                                 &
+!-----------------------------------------------------------------------
+!  ---  inputs:
+           ( PRSI, PRSL, PRSLK, GT, GR, GR1, VVEL, SLMSK,            &
+             XLON(I,J), XLAT, TSEA,                                  &
+             SNWDPH, SNCOVR, SNOALB,                                 &
+             ZORL, HPRIME(1),                                        &
+             ALVSF, ALNSF, ALVWF,                                    &
+             ALNWF, FACSF, FACWF,                                    &
+             XSICFCS, TISFC,                                         &
+             int_state%SOLCON,                                       &
+             COSZEN(I,J), COSZDG(I,J), K1OZ, K2OZ, FACOZ,            &
+             CV, CVT, CVB,                                           &
+             IOVR_SW, IOVR_LW, F_ICE, F_RAIN, R_RIME, FLGMIN_L,      &
+             NUM_P3D, NTCW-1, NCLD, NTOZ-1, NTRAC-1, NFXR,           &
+             DTLW, DTSW, LSSWR, LSLWR, LSSAV, .TRUE. , SASHAL,       &
+!rrr         DTLW, DTSW, LSSWR, LSLWR, LSSAV, LDIAG3D, SASHAL,       &
+             1, 1, LM, IFLIP, MYPE, LPRNT,                           &
+!  ---  outputs:
+             SWH, SFCNSW, SFCDSW,                                    &
+             SFALB,                                                  &
+             HLW, SFCDLW, TSFLW,                                     &
+!  ---  input/output:
+             FLUXR_V,CLDCOV_V                                        &
+           )
+!-----------------------------------------------------------------------
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!  GBPHYS   !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!---
+          DPSHC(1)    = 0.3 * PRSI(1)
+          GQ(1)       = PRSI(1)
+!---
+          RANNUM_V(1) = XKT2(I,J)
+!---
+          RCS2_V(1)   = 1.0d0/(0.0001d0+COS(XLAT(1))*COS(XLAT(1))) ! fixed XLAT=+/-90
+!---
+          TPRCP(1)    = int_state%PREC(I,J)
+          BENGSH(1)   = int_state%CUPREC(I,J)
+          GESHEM(1)   = int_state%ACPREC(I,J)
+
+         DO L=1,NUM_SOIL_LAYERS
+          SMC_V(L)    = int_state%SMC(I,J,L)
+          STC_V(L)    = int_state%STC(I,J,L)
+          SLC_V(L)    = int_state%SH2O(I,J,L)
+         ENDDO
+
+         SHDMIN(1)   = int_state%SHDMIN(I,J)
+         SHDMAX(1)   = int_state%SHDMAX(I,J)
+
+         CANOPY(1)   = int_state%CMC(I,J)*1000.
+         FLGMIN      = 0.2d0 !!! put this in ferrier init
+         CRTRH       = 0.85d0
+         FLIPV       = .FALSE.
+         NCW(1)      = 50
+         NCW(2)      = 150
+         OLD_MONIN   = .TRUE.
+         CNVGWD      = .FALSE.
+         NEWSAS      = .FALSE.
+         CCWF        = 0.5d0  ! only for RAS scheme
+!
+! ---- ESTIMATE T850 FOR RAIN-SNOW DECISION ----------------------------
+!
+          T850 = GT(1)
+      DO L = 1, LM - 1
+        IF(PRSL(L) .GT. 85.d0 .AND. PRSL(L+1) .LE. 85.d0) THEN
+          T850 = GT(L) - (PRSL(L)-85.) / (PRSL(L)-PRSL(L+1)) * (GT(L)-GT(L+1))
+        ENDIF
+      ENDDO
+!
+      SRFLAG(1) = 0.0d0
+      IF(T850 .LE. 273.16d0) SRFLAG(1) = 1.0d0
+!
+!---- OZONE ------------------------------------------------------------
+      IF (NTOZ .GT. 0) THEN
+        DO N=1,PL_COEFF
+          DO L=1,LEVOZP
+              OZPLOUT_V(L,N) = OZPLOUT(L,j,N)
+          ENDDO
+        ENDDO
+      ELSE
+              OZPLOUT_V      = 0.0d0
+      ENDIF
+!-----------------------------------------------------------------------
+!
+      CALL GBPHYS(1, 1, LM, NUM_SOIL_LAYERS, LSM, NTRAC, NCLD,                 &
+           NTOZ, NTCW, NMTVR, LONR, LATR, 62, RAS, LONR, RANNUM_V, 1, PRE_RAD, &
+           GU, GV, GQ, GT, GR3, VVEL,                                          &
+           ADT, ADR, ADU, ADV, SINLAT_R(J), COSLAT_R(J), RCS2_V,               &
+           PRSI, PRSL, PRSLK, PRSIK, PHII, PHIL, DPSHC, FHOUR, LSSAV, SOLHR,   &
+           LSFWD, CLSTP, DTP, DTF, PL_PRES, OZPLOUT_V, LEVOZP, PL_COEFF,       &
+           XSIHFCS, XSICFCS, TISFC, SFCDSW,                                    &
+           TPRCP, SRFLAG,                                                      &
+           SLC_V, SNWDPH, XSLPFCS, SHDMIN, SHDMAX, SNOALB, SFALB,              &
+           CHH, CMM, EPI, DLWSFCI, ULWSFCI, USWSFCI, DSWSFCI, DTSFCI,          &
+           DQSFCI, GFLUXI,           SRUNOFF     , T1, Q1, U1, V1, ZLVL,       &
+           EVBSA, EVCWA,                                                       &
+           TRANSA, SBSNOA, SNOWCA,                                             &
+           SOILM, TSEA, SHELEG, SNCOVR, XTG3FCS, ZORL, CV, CVB, CVT,           &
+           SLMSK, XVEGFCS, CANOPY, F10M, XVETFCS, XSOTFCS, UUSTAR, FFMM, FFHH, &
+           int_state%TMPMIN(I,J), int_state%TMPMAX(I,J), GESHEM,               &
+           DUSFC, DVSFC, DTSFC, DQSFC, DLWSFC, ULWSFC, GFLUX,RUNOFF, EP,       &
+           CLDWRK, int_state%DUGWD(I,J), int_state%DVGWD(I,J),                 &
+           PSMEAN, BENGSH, XLON(I,J),                                          &
+           COSZEN(I,J), SFCNSW, XLAT,                                          &
+           SFCDLW, TSFLW, PSURF, U10M, V10M, T2M, Q2M,                         &
+           HPBL, PWAT, SWH, HLW, SMC_V, STC_V, HPRIME, int_state%SLAG,         &
+           int_state%SDEC, int_state%CDEC,                                     &
+           ACV, ACVB, ACVT,                                                    &
+           PHY_F3DV, PHY_F2DV, NUM_P3D, NUM_P2D, FLGMIN,                       &
+           DT3DT, DQ3DT, DU3DT, DV3DT, UPD_MF, DWN_MF, DET_MF, LDIAG3D,        &
+           FLIPV, MYPE, NTIMESTEP, J-JTS+1, ORO,                               &
+           CRTRH, NCW, OLD_MONIN, CNVGWD, CCWF, SASHAL, NEWSAS)
+!
+!-----------------------------------------------------------------------
+! ***     UPDATE AFTER PHYSICS
+!-----------------------------------------------------------------------
+             int_state%SIHFCS(I,J)        = XSIHFCS(1)
+             int_state%SICFCS(I,J)        = XSICFCS(1)
+
+             int_state%CZEN(I,J)          = COSZEN(I,J)
+             int_state%CZMEAN(I,J)        = COSZDG(I,J)
+
+             int_state%SFCNSW(I,J)        = SFCNSW(1)
+             int_state%SFCDSW(I,J)        = SFCDSW(1)
+             int_state%SFALB (I,J)        = SFALB(1)
+             int_state%SFCDLW(I,J)        = SFCDLW(1)
+             int_state%TSFLW (I,J)        = TSFLW(1)
+
+             int_state%SI(I,J)            = SNWDPH(1)
+             int_state%SNO(I,J)           = SHELEG(1)
+             int_state%MXSNAL(I,J)        = SNOALB(1)
+
+         DO L=1,NUM_SOIL_LAYERS
+             int_state%SMC(I,J,L)         = SMC_V(L)
+             int_state%STC(I,J,L)         = STC_V(L)
+             int_state%SH2O(I,J,L)        = SLC_V(L)
+         ENDDO
+             int_state%CMC(I,J)           = CANOPY(1)*0.001
+
+         DO L=1,LM
+             int_state%SWH(I,J,L)         = SWH(L)
+             int_state%HLW(I,J,L)         = HLW(L)
+         ENDDO
+
+         DO N=1,3                                    ! for Zhao =3, Ferr=1
+             int_state%PHY_F2DV (I,J,N)   = PHY_F2DV(N)
+         ENDDO
+         DO N=1,4                                    ! for Zhao =4, Ferr=3
+         DO L=1,LM
+             int_state%PHY_F3DV (I,J,L,N) = PHY_F3DV(L,N)
+         ENDDO
+         ENDDO
+
+             int_state%ALWIN(I,J)         = DLWSFC(1)
+             int_state%ALWOUT(I,J)        = ULWSFC(1)
+             int_state%ASWIN(I,J)         = DSWSFCI(1)
+             int_state%ASWOUT(I,J)        = USWSFCI(1)
+             int_state%RLWIN(I,J)         = DLWSFCI(1)
+             int_state%RADOT(I,J)         = ULWSFCI(1)
+             int_state%RSWIN(I,J)         = DSWSFCI(1)
+             int_state%RSWOUT(I,J)        = USWSFCI(1)
+
+             int_state%ALWTOA(I,J)        = FLUXR_V(1)/(int_state%NHRS_RDLW*3600.)
+             int_state%ASWTOA(I,J)        = FLUXR_V(2)/(int_state%NHRS_RDSW*3600.)
+             int_state%RLWTOA(I,J)        = FLUXR_V(1)
+             int_state%RSWTOA(I,J)        = FLUXR_V(2)
+
+             int_state%SFCSHX(I,J)        = DTSFC(1)
+             int_state%SFCLHX(I,J)        = DQSFC(1)
+             int_state%SUBSHX(I,J)        = GFLUX(1)
+             int_state%TWBS(I,J)          = -DTSFCI(1)
+             int_state%QWBS(I,J)          = -DQSFCI(1)
+             int_state%GRNFLX(I,J)        = GFLUXI(1)
+             int_state%POTEVP(I,J)        = EP(1)
+             int_state%POTFLX(I,J)        = -EP(1)*XLV*RHOWATER/(int_state%NPHS*int_state%DT)
+             int_state%SFCEVP(I,J)        = DQSFC(1)/(RHOWATER*int_state%DT*int_state%ASRFC)
+
+             int_state%SFCEXC(I,J)        = CHH(1)
+             int_state%PREC(I,J)          = TPRCP(1)
+             int_state%CUPPT(I,J)         = BENGSH(1)-int_state%CUPREC(I,J)
+             int_state%CPRATE(I,J)        = BENGSH(1)-int_state%CUPREC(I,J)
+             int_state%CUPREC(I,J)        = BENGSH(1)
+             int_state%ACPREC(I,J)        = GESHEM(1)
+             int_state%PBLH(I,J)          = HPBL(1)
+             int_state%PSFC(I,J)          = PSURF(1)*1000.
+
+             int_state%BGROFF(I,J)        = RUNOFF(1)
+             int_state%SSROFF(I,J)        = SRUNOFF(1)
+
+             int_state%TSKIN(I,J)         = TISFC(1)
+             int_state%SST(I,J)           = TSEA(1)
+             int_state%SOILTB(I,J)        = XTG3FCS(1)
+
+             int_state%PSHLTR(I,J)        = PSURF(1)*EXP(0.06823/T2M(1))*1000.
+             int_state%TSHLTR(I,J)        = T2M(1)
+             int_state%QSHLTR(I,J)        = Q2M(1)
+             int_state%QSH(I,J)           = ADR(1,1)    !!!!! cannot get QSS from gbphys :-(
+             int_state%T2(I,J)            = T2M(1)
+             int_state%TH02(I,J)          = T2M(1)*(100./PSURF(1))**(R/CP)
+             int_state%Q02(I,J)           = Q2M(1)
+             int_state%U10(I,J)           = U10M(1)
+             int_state%V10(I,J)           = V10M(1)
+             int_state%THS(I,J)           = TSFLW(1)*(100./PSURF(1))**(R/CP)
+ 
+         DO L=1,LM
+            KFLIP=LM+1-L
+             int_state%T(I,J,L)           = ADT(KFLIP)
+             int_state%DUDT(I,J,L)        = (ADU(KFLIP) - GU(KFLIP)) / (COSLAT_R(J) + 0.0001) / DTP
+             int_state%DVDT(I,J,L)        = (ADV(KFLIP) - GV(KFLIP)) / (COSLAT_R(J) + 0.0001) / DTP
+             int_state%CLDFRA(I,J,L)      = CLDCOV_V(KFLIP)
+             int_state%Q  (II,JJ,L)       = ADR(KFLIP,1)
+             int_state%RRW(II,JJ,L)       = ADR(KFLIP,2)
+             int_state%CW (II,JJ,L)       = ADR(KFLIP,3)
+         ENDDO
+!
+!-----------------------------------------------------------------------
+! ***     END UPDATE AFTER PHYSICS
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+! ***  END GFS-PHYS DOMAIN LOOP
+!-----------------------------------------------------------------------
+      ENDDO   ! --- end i loop
+    ENDDO     ! --- end j loop
+!-----------------------------------------------------------------------
+!
+        gfs_phy_tim=gfs_phy_tim+timef()-btim
+!
+!-----------------------------------------------------------------------
+!***  EXCHANGE WIND TENDENCIES
+!-----------------------------------------------------------------------
+!
+      btim=timef()
+!
+      CALL HALO_EXCH(int_state%DUDT,LM,int_state%DVDT,LM,3,3)
+!
+      exch_phy_tim=exch_phy_tim+timef()-btim
+!
+!-----------------------------------------------------------------------
+!***  NOW INTERPOLATE WIND TENDENCIES FROM H TO V POINTS.
+!-----------------------------------------------------------------------
+!
+      btim=timef()
+!
+      CALL H_TO_V_TEND(int_state%DUDT,int_state%DT,int_state%NPHS,LM  &
+                      ,int_state%U)
+      CALL H_TO_V_TEND(int_state%DVDT,int_state%DT,int_state%NPHS,LM  &
+                      ,int_state%V)
+!
+      h_to_v_tim=h_to_v_tim+timef()-btim
+!
+!-----------------------------------------------------------------------
+!***  POLES AND EAST-WEST BOUNDARY.
+!-----------------------------------------------------------------------
+!
+      IF(int_state%GLOBAL)THEN
+        btim=timef()
+!
+        CALL SWAPHN(int_state%T,IMS,IME,JMS,JME,LM,int_state%INPES)
+        CALL POLEHN(int_state%T,IMS,IME,JMS,JME,LM                      &
+                   ,int_state%INPES,int_state%JNPES)
+!
+        CALL SWAPHN(int_state%Q,IMS,IME,JMS,JME,LM,int_state%INPES)
+        CALL POLEHN(int_state%Q,IMS,IME,JMS,JME,LM                      &
+                   ,int_state%INPES,int_state%JNPES)
+!
+        CALL SWAPHN(int_state%CW,IMS,IME,JMS,JME,LM,int_state%INPES)
+        CALL POLEHN(int_state%CW,IMS,IME,JMS,JME,LM                     &
+                   ,int_state%INPES,int_state%JNPES)
+!
+        CALL SWAPHN(int_state%RRW,IMS,IME,JMS,JME,LM,int_state%INPES)
+        CALL POLEHN(int_state%RRW,IMS,IME,JMS,JME,LM                    &
+                   ,int_state%INPES,int_state%JNPES)
+!
+        CALL SWAPWN(int_state%U,IMS,IME,JMS,JME,LM,int_state%INPES)
+        CALL SWAPWN(int_state%V,IMS,IME,JMS,JME,LM,int_state%INPES)
+        CALL POLEWN(int_state%U,int_state%V,IMS,IME,JMS,JME,LM          &
+                   ,int_state%INPES,int_state%JNPES)
+!
+        pole_swap_phy_tim=pole_swap_phy_tim+timef()-btim
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!***  EXCHANGE U, V, T, Q and CW
+!-----------------------------------------------------------------------
+      btim=timef()
+!
+      CALL HALO_EXCH(int_state%T,LM                                     &
+                    ,3,3)
+!
+      CALL HALO_EXCH(int_state%Q,LM,int_state%CW,LM                     &
+                    ,3,3)
+!
+      CALL HALO_EXCH(int_state%RRW,LM                                   &
+                    ,3,3)
+!
+      CALL HALO_EXCH(int_state%U,LM,int_state%V,LM                      &
+                    ,3,3)
+!
+      exch_phy_tim=exch_phy_tim+timef()-btim
+!
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+      ENDIF gfs_physics
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+
+!#######################################################################
+!#######################################################################
+!######### E N D   O F   G F S   P H Y S I C S   D R I V E R ###########
+!#######################################################################
+!#######################################################################
+!-----------------------------------------------------------------------
+!
+      ENDIF  ! ***  TRADITIONAL NMMB / GFS PHYSICS
+!
+!-----------------------------------------------------------------------
+!
       IF(RC_RUN==ESMF_SUCCESS)THEN
 !       WRITE(0,*)'PHY RUN STEP SUCCEEDED'
       ELSE
@@ -1415,6 +2251,26 @@
 !
       USE MODULE_CONSTANTS,ONLY : A,CLIQ,CV,DTR,PI                      &
                                  ,RHOAIR0,RHOWATER,RHOSNOW
+!-----------------------------------------------------------------------
+!***  Only for Gfs physics
+!-----------------------------------------------------------------------
+!
+      USE FUNCPHYS
+      USE MERSENNE_TWISTER
+      USE LAYOUT1,          ONLY : LATS_NODE_R,IPT_LATS_NODE_R
+      USE TRACER_CONST,     ONLY : SET_TRACER_CONST
+      USE DATE_DEF,         ONLY : FHOUR
+      USE RESOL_DEF,        ONLY : LSOIL,LEVR,NXPT,JCAP,LEVS,NYPT       &
+                                ,JINTMX,THERMODYN_ID,SFCPRESS_ID        &
+                                ,NUM_P3D,NUM_P2D,NTOZ,NTCW,NCLD         &
+                                ,NMTVR,NFXR,LONR,LATR
+
+      USE OZNE_DEF,         ONLY: LEVOZC,LATSOZP,BLATC,TIMEOZC,TIMEOZ   &
+                                 ,KOZPL,LEVOZP,PL_TIME,PL_LAT,PL_PRES   &
+                                 ,KOZC,DPHIOZC,LATSOZC,PL_COEFF
+      USE NAMELIST_PHYSICS_DEF, ONLY: ISOL,ICO2,IALB,IEMS,IAER,IOVR_SW  &
+                                     ,IOVR_LW,LSSAV,LDIAG3D,FHCYC       &
+                                     ,SASHAL,PRE_RAD,RAS,LSM
 !
 !-----------------------------------------------------------------------
 !
@@ -1472,6 +2328,25 @@
 !
       LOGICAL,SAVE :: ALLOWED_TO_READ=.TRUE.
       LOGICAL :: OPENED
+!
+!-----------------------------------------------------------------------
+!***  Gfs physics local variables
+!-----------------------------------------------------------------------
+!
+      CHARACTER(80)        :: GFS_PHY_NAMELIST
+      INTEGER              :: JDAT(8),RC,NLUNIT,NTRAC,IRET,IMJM,NIJ
+      REAL(KIND=KDBL)      :: DELTIM,GAUL
+
+      REAL *4              :: BLATC4
+      REAL *4, ALLOCATABLE :: PL_LAT4(:), PL_PRES4(:), PL_TIME4(:), TEMPIN(:)
+
+      REAL(KIND=KDBL)  ,DIMENSION(:)  ,ALLOCATABLE ::                           &
+                     SIG1T, RLA, RLO, SLMASK, OROG, AISFCS,                     &
+                     SIHFCS, SICFCS, SITFCS, SWDFCS, VMNFCS, VMXFCS, SLPFCS,    &
+                     ABSFCS, TSFFCS, SNOFCS, ZORFCS, TG3FCS, CNPFCS, SLIFCS,    &
+                     F10MFCS, VEGFCS, VETFCS, SOTFCS, CVFCS, CVBFCS, CVTFCS
+      REAL(KIND=KDBL)  ,DIMENSION(:,:),ALLOCATABLE ::                           &
+                     ALFFC1, SMCFC1, STCFC1, SLCFC1, ALBFC1
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -1900,14 +2775,272 @@
 !----------------------------------------------------------------------
 !
       package: IF(GFS)THEN
-!!!!!!  CALL GFS_PHYSICS_INIT
+!
+!-----------------------------------------------------------------------
+!***  THE GFS PHYSICS SUITE IS CONSIDERED A SINGLE PACKAGE HERE.
+!----------------------------------------------------------------------
+!
+      namelist_unit: DO N=101,151
+        INQUIRE(N,OPENED=OPENED)
+        IF(.NOT.OPENED)THEN
+          NLUNIT=N
+          EXIT namelist_unit
+        ENDIF
+      ENDDO namelist_unit
+
+      GFS_PHY_NAMELIST = 'atm_namelist'
+      DELTIM           = int_state%DT
+      LEVS             = LM
+      CALL COMPNS_PHYSICS(DELTIM,    IRET,                   &
+                   NTRAC,   NXPT,    NYPT,  JINTMX,          &
+                   JCAP,    LEVS,    LEVR,    LONR,   LATR,  &
+                   NTOZ,    NTCW,    NCLD,                   &
+                   LSOIL,   NMTVR,   NUM_P3D, NUM_P2D,       &
+                   THERMODYN_ID,     SFCPRESS_ID,            &
+                   NLUNIT,  MYPE,    GFS_PHY_NAMELIST)
+!--------------
+        IALB            = 0
+        DELTIM          = int_state%DT
+        LONR            = ITE-ITS+1  ! this is changed in compns_physics from
+        LATR            = JTE-JTS+1  ! atm_namelist (restore it back)
+        LATS_NODE_R     = JTE-JTS+1
+        IPT_LATS_NODE_R = 1
+        NFXR            = 27
+        LSSAV           = .TRUE.   ! logical flag for store 3-d cloud field
+        LDIAG3D         = .FALSE.  ! logical flag for store 3-d diagnostic fields
+
+!--------------
+      CALL SET_SOILVEG(MYPE,NLUNIT)
+      CALL SET_TRACER_CONST(NTRAC,MYPE,NLUNIT)
+      CALL GFUNCPHYS
+!
+!-----------------------------------------------------------------------
+!***  INIT OZONE
+!-----------------------------------------------------------------------
+     IF( NTOZ .LE. 0 ) THEN        ! Diagnostic ozone
+!
+!!        rewind (kozc)            ! there is no header in global_o3clim.txt file
+!!        read   (kozc,end=101) latsozc, levozc, timeozc, blatc4
+!!101     if (levozc .lt. 10 .or. levozc .gt. 100) then
+!!          rewind (kozc)
+            levozc  = 17
+            latsozc = 18
+            blatc   = -85.0
+!!        else
+!!          blatc   = blatc4
+!!        endif
+          latsozp   = 2
+          levozp    = 1
+          timeoz    = 1
+          pl_coeff  = 1  !!!  0 (MUST set > 0, used in GBPHYS for allocation)
+          timeozc   = 12 !!!  this is not in header
+!
+     ELSE                          ! Prognostic Ozone
+!
+         rewind (kozpl)
+         read   (kozpl) pl_coeff, latsozp, levozp, timeoz
+       IF(.NOT.ALLOCATED(pl_lat))THEN
+         allocate (pl_lat (latsozp), pl_pres (levozp),pl_time (timeoz+1))
+       ENDIF
+       IF(.NOT.ALLOCATED(pl_lat4))THEN
+         allocate (pl_lat4(latsozp), pl_pres4(levozp),pl_time4(timeoz+1))
+       ENDIF
+       IF(.NOT.ALLOCATED(tempin)) allocate (tempin(latsozp))
+         rewind (kozpl)
+         read (kozpl) pl_coeff, latsozp, levozp, timeoz, pl_lat4, pl_pres4, pl_time4
+         pl_pres(:) = pl_pres4(:)
+         pl_lat(:)  = pl_lat4(:)
+         pl_time(:) = pl_time4(:)
+!
+         DO J=JTS,JTE
+
+           gaul=int_state%GLAT( (ITS+ITE)/2 ,J)*180.0d0/3.14159d0
+
+           int_state%jindx2(j) = latsozp + 1
+           do i=1,latsozp
+             if (gaul.lt. pl_lat(i)) then
+               int_state%jindx2(j) = i
+               exit
+             endif
+           enddo
+           int_state%jindx1(j) = max(int_state%jindx2(j)-1,1)
+           int_state%jindx2(j) = min(int_state%jindx2(j),latsozp)
+
+           if (int_state%jindx2(j) .ne. int_state%jindx1(j)) then
+             int_state%ddy(j) = (gaul                        - pl_lat(int_state%jindx1(j)))  &
+                              / (pl_lat(int_state%jindx2(j)) - pl_lat(int_state%jindx1(j)))
+           else
+             int_state%ddy(j) = 1.0
+           endif
+
+         ENDDO
+!
+         DO I=1,TIMEOZ
+           DO N=1,PL_COEFF
+             DO K=1,LEVOZP
+               READ(KOZPL) TEMPIN
+               int_state%OZPLIN(:,K,N,I) = TEMPIN(:)
+             ENDDO
+           ENDDO
+         ENDDO
+!
+     ENDIF                          ! Diagnostic/Prognostic Ozone
+!
+        dphiozc = -(blatc+blatc)/(latsozc-1)
+!-----------------------------------------------------------------------
+!***  END INIT OZONE
+!-----------------------------------------------------------------------
+!
+       IMJM=(ITE-ITS+1)*(JTE-JTS+1)
+       ALLOCATE(SIG1T(IMJM),RLA(IMJM),RLO(IMJM),SLMASK(IMJM),OROG(IMJM)   &
+               ,AISFCS(IMJM),SIHFCS(IMJM),SICFCS(IMJM),SITFCS(IMJM)       &
+               ,SWDFCS(IMJM),VMNFCS(IMJM),VMXFCS(IMJM),SLPFCS(IMJM)       &
+               ,ABSFCS(IMJM),TSFFCS(IMJM),SNOFCS(IMJM),ZORFCS(IMJM)       &
+               ,TG3FCS(IMJM),CNPFCS(IMJM),SLIFCS(IMJM),F10MFCS(IMJM)      &
+               ,VEGFCS(IMJM),VETFCS(IMJM),SOTFCS(IMJM),CVFCS(IMJM)        &
+               ,CVBFCS(IMJM),CVTFCS(IMJM),ALFFC1(IMJM,2),ALBFC1(IMJM,4)   &
+               ,SMCFC1(IMJM,NSOIL),STCFC1(IMJM,NSOIL),SLCFC1(IMJM,NSOIL) )
+
+       SIHFCS  = 0.0d0
+       SICFCS  = 0.0d0
+       SITFCS  = 0.0d0
+       SWDFCS  = 0.0d0
+       VMNFCS  = 0.0d0
+       VMXFCS  = 0.0d0
+       SLPFCS  = 0.0d0
+       ABSFCS  = 0.0d0
+       TSFFCS  = 0.0d0
+       SNOFCS  = 0.0d0
+       ZORFCS  = 0.0d0
+       TG3FCS  = 0.0d0
+       CNPFCS  = 0.0d0
+       SLIFCS  = 0.0d0
+       F10MFCS = 0.0d0
+       VEGFCS  = 0.0d0
+       VETFCS  = 0.0d0
+       SOTFCS  = 0.0d0
+       CVFCS   = 0.0d0
+       CVBFCS  = 0.0d0
+       CVTFCS  = 0.0d0
+       ALFFC1  = 0.0d0
+       ALBFC1  = 0.0d0
+       SMCFC1  = 0.0d0
+       STCFC1  = 0.0d0
+       SLCFC1  = 0.0d0
+
+
+       JDAT(1)=IDAT(3)
+       JDAT(2)=IDAT(2)
+       JDAT(3)=IDAT(1)
+       JDAT(4)=0
+       JDAT(5)=IHRST
+       JDAT(6)=0
+       JDAT(7)=0
+       JDAT(8)=0
+       FHOUR=FLOAT(IHRST)
+!
+    NIJ=0
+    DO J=JTS,JTE
+      DO I=ITS,ITE
+
+       NIJ=NIJ+1
+
+       SIG1T(NIJ)    = 0.d0
+       RLA(NIJ)      = int_state%GLAT(I,J)*180.0d0/3.14159d0
+       RLO(NIJ)      = int_state%GLON(I,J)*180.0d0/3.14159d0
+       SLMASK(NIJ)   = 1.0d0-int_state%SM(I,J)
+       OROG(NIJ)     = int_state%FIS(I,J)/9.81d0
+       AISFCS(NIJ)   = int_state%SICE(I,J)
+
+      ENDDO
+    ENDDO
+!
+      CALL SFCCYCLE(204,(ITE-ITS+1)*(JTE-JTS+1),4,SIG1T,FHCYC              &
+     &,             JDAT(1), JDAT(2), JDAT(3), JDAT(5), FHOUR              &
+     &,             RLA, RLO, SLMASK, OROG                                 &
+     &,             SIHFCS,   SICFCS, SITFCS                               &
+     &,             SWDFCS,   SLCFC1                                       &
+     &,             VMNFCS,   VMXFCS, SLPFCS, ABSFCS                       &
+     &,             TSFFCS,   SNOFCS, ZORFCS, ALBFC1, TG3FCS               &
+     &,             CNPFCS,   SMCFC1, STCFC1, SLIFCS, AISFCS, F10MFCS      &
+     &,             VEGFCS,   VETFCS, SOTFCS, ALFFC1                       &
+     &,             CVFCS,    CVBFCS, CVTFCS, MYPE, NLUNIT, IALB)
+!
+     NIJ=0
+     DO J=JTS,JTE
+       DO I=ITS,ITE
+        NIJ=NIJ+1
+
+        SIHFCS(NIJ) = int_state%SICE(I,J) * 1.0d0  ! initialize like this
+        SICFCS(NIJ) = int_state%SICE(I,J) * 0.9d0  ! initialize like this
+
+        int_state%ZORFCS(I,J)   = ZORFCS(NIJ)
+        int_state%SIHFCS(I,J)   = SIHFCS(NIJ)
+        int_state%SICFCS(I,J)   = SICFCS(NIJ)
+        int_state%SLPFCS(I,J)   = SLPFCS(NIJ)
+        int_state%TG3FCS(I,J)   = TG3FCS(NIJ)
+        int_state%VEGFCS(I,J)   = VEGFCS(NIJ)
+        int_state%VETFCS(I,J)   = VETFCS(NIJ)
+        int_state%SOTFCS(I,J)   = SOTFCS(NIJ)
+
+        int_state%ALBFC1(I,J,1) = ALBFC1(NIJ,1)
+        int_state%ALBFC1(I,J,2) = ALBFC1(NIJ,2)
+        int_state%ALBFC1(I,J,3) = ALBFC1(NIJ,3)
+        int_state%ALBFC1(I,J,4) = ALBFC1(NIJ,4)
+
+        int_state%ALFFC1(I,J,1) = ALFFC1(NIJ,1)
+        int_state%ALFFC1(I,J,2) = ALFFC1(NIJ,2)
+
+       ENDDO
+     ENDDO
+
+     DEALLOCATE(SIG1T,RLA,RLO,SLMASK,OROG     &
+               ,AISFCS,SIHFCS,SICFCS,SITFCS   &
+               ,SWDFCS,VMNFCS,VMXFCS,SLPFCS   &
+               ,ABSFCS,TSFFCS,SNOFCS,ZORFCS   &
+               ,TG3FCS,CNPFCS,SLIFCS,F10MFCS  &
+               ,VEGFCS,VETFCS,SOTFCS,CVFCS    &
+               ,CVBFCS,CVTFCS,ALFFC1,ALBFC1   &
+               ,SMCFC1,STCFC1,SLCFC1)
+!
+!----------------------------------------------------------------------
+!***  Set fluxes to zero
+!----------------------------------------------------------------------
+!
+             int_state%ALWIN(I,J)         = 0.
+             int_state%ALWOUT(I,J)        = 0.
+             int_state%ASWIN(I,J)         = 0.
+             int_state%ASWOUT(I,J)        = 0.
+             int_state%RLWIN(I,J)         = 0.
+             int_state%RADOT(I,J)         = 0.
+             int_state%RSWIN(I,J)         = 0.
+             int_state%RSWOUT(I,J)        = 0.
+
+             int_state%ALWTOA(I,J)        = 0.
+             int_state%ASWTOA(I,J)        = 0.
+             int_state%RLWTOA(I,J)        = 0.
+             int_state%RSWTOA(I,J)        = 0.
+
+             int_state%SFCSHX(I,J)        = 0.
+             int_state%SFCLHX(I,J)        = 0.
+             int_state%TWBS(I,J)          = 0.
+             int_state%QWBS(I,J)          = 0.
+
+             int_state%BGROFF(I,J)        = 0.
+             int_state%SSROFF(I,J)        = 0.
+
+             int_state%CUPPT(I,J)         = 0.
+!
+!----------------------------------------------------------------------
+!***  END GFS PACKAGE INIT
+!----------------------------------------------------------------------
+!
+      ELSE
 !
 !----------------------------------------------------------------------
 !***  IF NOT SELECTING THE GFS SUITE, EACH OF THE PHYSICS GROUPS IS
 !***  TREATED INDIVIDUALLY.
 !----------------------------------------------------------------------
-!
-      ELSE
 !
 !----------------------------------------------------------------------
 !***  LONGWAVE RADIATION

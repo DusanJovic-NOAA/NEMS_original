@@ -201,6 +201,24 @@
                                                ,TBPVS_STATE,TBPVS0_STATE
 !
 !-----------------------------------------------------------------------
+!***  Gfs physics additional arrays
+!-----------------------------------------------------------------------
+!
+        REAL(KIND=KDBL)                              :: SOLCON, SLAG, SDEC, CDEC
+        INTEGER        ,DIMENSION(:)      ,POINTER   :: JINDX1,JINDX2
+        REAL(KIND=KDBL),DIMENSION(:)      ,POINTER   :: DDY
+        REAL(KIND=KDBL),DIMENSION(:,:)    ,POINTER   :: TMPMIN,TMPMAX
+        REAL(KIND=KDBL),DIMENSION(:,:)    ,POINTER   :: DUGWD,DVGWD
+        REAL(KIND=KDBL),DIMENSION(:,:)    ,POINTER   :: SFCNSW,SFCDSW,SFALB,SFCDLW   &
+                                                       ,TSFLW
+        REAL(KIND=KDBL),DIMENSION(:,:)    ,POINTER   :: ZORFCS,SIHFCS,SICFCS,SLPFCS  &
+                                                       ,TG3FCS,VEGFCS,VETFCS,SOTFCS
+        REAL(KIND=KDBL),DIMENSION(:,:,:)  ,POINTER   :: ALBFC1,ALFFC1
+        REAL(KIND=KDBL),DIMENSION(:,:,:)  ,POINTER   :: SWH,HLW
+        REAL(KIND=KDBL),DIMENSION(:,:,:)  ,POINTER   :: PHY_F2DV   ! save last time step 2Ds
+        REAL(KIND=KDBL),DIMENSION(:,:,:,:),POINTER   :: PHY_F3DV   ! save last time step 3Ds
+!
+!-----------------------------------------------------------------------
 !***  Physics Options
 !-----------------------------------------------------------------------
 !
@@ -246,6 +264,12 @@
         REAL(KIND=KFPT),DIMENSION(:,:,:,:),POINTER :: TRACERS              !<-- Storage array for "tracer" variables.
 !
 !-----------------------------------------------------------------------
+!***  Ozone
+!-----------------------------------------------------------------------
+!
+        REAL*8, DIMENSION(:,:,:,:),POINTER :: OZPLIN
+!
+!-----------------------------------------------------------------------
 !
       END TYPE INTERNAL_STATE
 !
@@ -272,6 +296,12 @@
 !
       USE ESMF_MOD
       USE MODULE_CONSTANTS
+!
+!-----------------------------------------------------------------------
+!***  Only for Gfs physics
+!-----------------------------------------------------------------------
+      USE OZNE_DEF, ONLY: LATSOZP, TIMEOZ, KOZPL, LEVOZP, PL_COEFF
+!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !
@@ -425,6 +455,13 @@
       ENDDO
       ENDDO
       ENDDO
+!-----------------------------------------------------------------------
+!***  Only for Gfs physics
+!-----------------------------------------------------------------------
+      REWIND (KOZPL)
+      READ (KOZPL) PL_COEFF, LATSOZP, LEVOZP, TIMEOZ
+      ALLOCATE(int_state%OZPLIN(LATSOZP,LEVOZP,PL_COEFF,TIMEOZ))
+!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !***  THE TRACERS ARRAY HOLDS ALL GENERAL "TRACER" VARIABLES INCLUDING
@@ -817,6 +854,111 @@
         int_state%V10(I,J)   = 0.
       ENDDO
       ENDDO
+!
+!-----------------------------------------------------------------------
+!***  Gfs physics      vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+!-----------------------------------------------------------------------
+      ALLOCATE(int_state%DDY              (JTS:JTE))         !
+      ALLOCATE(int_state%JINDX1           (JTS:JTE))         !
+      ALLOCATE(int_state%JINDX2           (JTS:JTE))         !
+
+      ALLOCATE(int_state%DUGWD    (IMS:IME,JMS:JME))         ! U comp. GWD tend (m s-1)
+      ALLOCATE(int_state%DVGWD    (IMS:IME,JMS:JME))         ! V comp. GWD tend (m s-1)
+
+      ALLOCATE(int_state%TMPMIN   (IMS:IME,JMS:JME))         ! Max temp (K)
+      ALLOCATE(int_state%TMPMAX   (IMS:IME,JMS:JME))         ! Min temp (K)
+
+      ALLOCATE(int_state%SFCNSW   (IMS:IME,JMS:JME))         !
+      ALLOCATE(int_state%SFCDSW   (IMS:IME,JMS:JME))         !
+      ALLOCATE(int_state%SFALB    (IMS:IME,JMS:JME))         !
+      ALLOCATE(int_state%SFCDLW   (IMS:IME,JMS:JME))         !
+      ALLOCATE(int_state%TSFLW    (IMS:IME,JMS:JME))         !
+
+      ALLOCATE(int_state%ZORFCS   (IMS:IME,JMS:JME))         !
+      ALLOCATE(int_state%SIHFCS   (IMS:IME,JMS:JME))         !
+      ALLOCATE(int_state%SICFCS   (IMS:IME,JMS:JME))         !
+      ALLOCATE(int_state%SLPFCS   (IMS:IME,JMS:JME))         !
+      ALLOCATE(int_state%TG3FCS   (IMS:IME,JMS:JME))         !
+      ALLOCATE(int_state%VEGFCS   (IMS:IME,JMS:JME))         !
+      ALLOCATE(int_state%VETFCS   (IMS:IME,JMS:JME))         !
+      ALLOCATE(int_state%SOTFCS   (IMS:IME,JMS:JME))         !
+      ALLOCATE(int_state%ALBFC1   (IMS:IME,JMS:JME,4))       !
+      ALLOCATE(int_state%ALFFC1   (IMS:IME,JMS:JME,2))       !
+
+      ALLOCATE(int_state%SWH      (IMS:IME,JMS:JME,LM))      !
+      ALLOCATE(int_state%HLW      (IMS:IME,JMS:JME,LM))      !
+
+      ALLOCATE(int_state%PHY_F2DV (IMS:IME,JMS:JME,3))       ! for Zhao =3, Ferr=1
+      ALLOCATE(int_state%PHY_F3DV (IMS:IME,JMS:JME,LM,4))    ! for Zhao =4, Ferr=3
+
+         int_state%SOLCON      =0.0d0
+         int_state%SLAG        =0.0d0
+         int_state%SDEC        =0.0d0
+         int_state%CDEC        =0.0d0
+
+      DO J=JTS,JTE
+        int_state%DDY      (J)=0.0d0
+        int_state%JINDX1   (J)=0
+        int_state%JINDX2   (J)=0
+      ENDDO
+
+      DO J=JMS,JME
+      DO I=IMS,IME
+
+        int_state%DUGWD  (I,J)=0.0d0
+        int_state%DVGWD  (I,J)=0.0d0
+
+        int_state%TMPMIN (I,J)=373.0d0
+        int_state%TMPMAX (I,J)=173.0d0
+
+        int_state%SFCNSW (I,J)=0.0d0
+        int_state%SFCDSW (I,J)=0.0d0
+        int_state%SFALB  (I,J)=0.0d0
+        int_state%SFCDLW (I,J)=0.0d0
+        int_state%TSFLW  (I,J)=0.0d0
+        int_state%ZORFCS (I,J)=-1.D6
+        int_state%SIHFCS (I,J)=-1.D6
+        int_state%SICFCS (I,J)=-1.D6
+        int_state%SLPFCS (I,J)=-1.D6
+        int_state%TG3FCS (I,J)=-1.D6
+        int_state%VEGFCS (I,J)=-1.D6
+        int_state%VETFCS (I,J)=-1.D6
+        int_state%SOTFCS (I,J)=-1.D6
+       DO N=1,4
+        int_state%ALBFC1(I,J,N)=-1.D6
+       ENDDO
+       DO N=1,2
+        int_state%ALFFC1(I,J,N)=-1.D6
+       ENDDO
+       DO L=1,LM
+        int_state%SWH  (I,J,L)=-1.D6
+        int_state%HLW  (I,J,L)=-1.D6
+       ENDDO
+       DO N=1,3                                 ! for Zhao =3, Ferr=1 (fix later)
+        int_state%PHY_F2DV (I,J,N)=0.0D0
+       ENDDO
+       DO N=1,4                                 ! for Zhao =4, Ferr=3 (fix later)
+       DO L=1,LM
+        int_state%PHY_F3DV (I,J,L,N)=0.0D0
+       ENDDO
+       ENDDO
+
+      ENDDO
+      ENDDO
+
+      DO N=1,TIMEOZ
+      DO L=1,PL_COEFF
+      DO J=1,LEVOZP
+      DO I=1,LATSOZP
+        int_state%OZPLIN(I,J,L,N)=-1.D6
+      ENDDO
+      ENDDO
+      ENDDO
+      ENDDO
+!
+!-----------------------------------------------------------------------
+!***  Gfs physics      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+!-----------------------------------------------------------------------
 !
       int_state%AVRAIN=3600*int_state%NHRS_PREC/(int_state%NPRECIP*int_state%DT_INT)
       int_state%AVCNVC=3600*int_state%NHRS_CLOD/(int_state%NPRECIP*int_state%DT_INT)

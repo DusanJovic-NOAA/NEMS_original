@@ -36,7 +36,8 @@
       REAL :: cucnvc_tim,exch_phy_tim,gsmdrive_tim,h_to_v_tim           &
              ,phy_init_tim,phy_run_tim,phy_sum_tim                      &
              ,pole_swap_phy_tim,radiation_tim,rdtemp_tim                &
-             ,turbl_tim,update_phy_int_state_tim,adjppt_tim
+             ,turbl_tim,update_phy_int_state_tim,adjppt_tim             &
+             ,gfs_phy_tim
 !
 !-----------------------------------------------------------------------
 !***  ASSOCIATED WITH DYNAMICS-PHYSICS COUPLER
@@ -108,6 +109,7 @@
                   +radiation_tim                                    &
                   +rdtemp_tim                                       &
                   +turbl_tim                                        &
+                  +gfs_phy_tim                                      &
                   +update_phy_int_state_tim
 !
       totalsum_tim=totalsum_tim                                     &
@@ -221,6 +223,8 @@
         write(0,*)'   rdtemp=',rdtemp_tim*1.e-3 &
                  ,' pct=',rdtemp_tim/total_tim*100.
         write(0,*)'   turbl=',turbl_tim*1.e-3 &
+                 ,' pct=',gfs_phy_tim/total_tim*100.
+        write(0,*)'   gfs_phy=',gfs_phy_tim*1.e-3 &
                  ,' pct=',turbl_tim/total_tim*100.
         write(0,*)'   h_to_v=',h_to_v_tim*1.e-3 &
                  ,' pct=',h_to_v_tim/total_tim*100.

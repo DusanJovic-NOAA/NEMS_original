@@ -58,6 +58,16 @@ cp /nwprod/fix/nam_micro_lookup.dat ETAMPNEW_DATA
 cp /meso/save/wx22tb/WRF_repository/run/RRT* .
 cp /meso/noscrub/wx20rv/NOAH_wrf_data/*.TBL .
 
+################ GFS physics part ######################
+#
+cp /meso/noscrub/wx20rv/GFS_phys_data/atm_namelist .
+cp /meso/noscrub/wx20rv/GFS_phys_data/GWD.bin .
+
+ln -sf /nwprod/fix/global_o3prdlos.f77 fort.28
+ln -sf /nwprod/fix/global_o3clim.txt fort.48
+#
+########################################################
+
 echo "Model started:  " `date`
 
 poe hpmcount -o nmm.regional_test $SRCDIR/exe/NMM_NEMS.x
