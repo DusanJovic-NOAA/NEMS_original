@@ -3930,7 +3930,7 @@
       CHARACTER(6)                       :: MODEL_LEVEL
       CHARACTER(16)                       :: VLEVTYP
 !
-      CHARACTER(8),DIMENSION(:) ,POINTER :: ARYINAME                    &
+      CHARACTER(16),DIMENSION(:) ,POINTER :: ARYINAME                    &
                                            ,ARYRNAME                    &
                                            ,RECNAME                     &
                                            ,VARINAME                    &

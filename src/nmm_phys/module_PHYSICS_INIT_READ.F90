@@ -2788,7 +2788,7 @@
 !***  PD
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'pd','sfc',1,temp1,iret=irtn)
+        CALL NEMSIO_READRECV(gfile,'dpres','hybrid sig lev',1,temp1,iret=irtn)
         write(0,*)'read rst phys,pd=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF

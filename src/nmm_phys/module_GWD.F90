@@ -493,7 +493,6 @@ test=abs(dudt(i,k,j))+abs(dvdt(i,k,j))
      &,        CG=0.5, GMAX=1.0, CRITAC=5.0E-4, VELEPS=1.0            &
      &,        FACTOP=0.5, RLOLEV=500.0, HZERO=0., HONE=1.            & ! or RLOLEV=0.5
      &,        HE_4=.0001, HE_2=.01                                   & 
-     &,        PHY180=180.,RAD_TO_DEG=PHY180/PI,DEG_TO_RAD=PI/PHY180  & 
 !
 !-- Lott & Miller mountain blocking => aka "lm mtn blocking"
 !
@@ -742,8 +741,7 @@ rcs=1.
           J = ipt(i)
 
           DO K = iwklm(I), 1, -1
-!           PHIANG   =  atan2D(V1(J,K),U1(J,K))
-            PHIANG   =  atan2(V1(J,K),U1(J,K))*RAD_TO_DEG
+            PHIANG   =  atan2D(V1(J,K),U1(J,K))
             ANG(I,K) = ( THETA(J) - PHIANG )
             if ( ANG(I,K) .gt.  90. ) ANG(I,K) = ANG(I,K) - 180.
             if ( ANG(I,K) .lt. -90. ) ANG(I,K) = ANG(I,K) + 180.
@@ -760,8 +758,7 @@ rcs=1.
 ! --- Wind projected on the line perpendicular to mtn range, U(Zb(K)).
 ! --- kinetic energy is at the layer Zb
 ! --- THETA ranges from -+90deg |_ to the mtn "largest topo variations"
-!             UP(I)  =  UDS(I,K) * cosD(ANG(I,K))
-              UP(I)  =  UDS(I,K) * cos(ANG(I,K)*DEG_TO_RAD)
+              UP(I)  =  UDS(I,K) * cosD(ANG(I,K))
               EK(I)  = 0.5 *  UP(I) * UP(I) 
 
 ! --- Dividing Stream lime  is found when PE =exceeds EK.
@@ -790,15 +787,12 @@ rcs=1.
                 ZLEN = SQRT( ( PHIL(J,IDXZB(I))-PHIL(J,K) ) /           &
      &                       ( PHIL(J,K ) + G * hprime(J) ) )
 ! --- lm eq 14:
-!               R = (cosD(ANG(I,K))**2 + GAMMA(J) * sinD(ANG(I,K))**2) / &
-!    &              (gamma(J) * cosD(ANG(I,K))**2 + sinD(ANG(I,K))**2)
-                R = (cos(ANG(I,K)*DEG_TO_RAD)**2 + GAMMA(J) * sin(ANG(I,K)*DEG_TO_RAD)**2) / &
-     &              (gamma(J) * cos(ANG(I,K)*DEG_TO_RAD)**2 + sin(ANG(I,K)*DEG_TO_RAD)**2)
+                R = (cosD(ANG(I,K))**2 + GAMMA(J) * sinD(ANG(I,K))**2) / &
+     &              (gamma(J) * cosD(ANG(I,K))**2 + sinD(ANG(I,K))**2)
 ! --- (negative of DB -- see sign at tendency)
                 DBTMP = 0.25 *  CDmb *                                  &
      &                  MAX( 2. - 1. / R, HZERO ) * sigma(J) *          &
-!    &                  MAX(cosD(ANG(I,K)), gamma(J)*sinD(ANG(I,K))) *  &
-     &                  MAX(cos(ANG(I,K)*DEG_TO_RAD), gamma(J)*sin(ANG(I,K)*DEG_TO_RAD)) *  &
+     &                  MAX(cosD(ANG(I,K)), gamma(J)*sinD(ANG(I,K))) *  &
      &                  ZLEN / hprime(J) 
                 DB(I,K) =  DBTMP * UDS(I,K)    
 !

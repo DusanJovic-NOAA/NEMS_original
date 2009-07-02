@@ -12434,7 +12434,7 @@
 !mp	write(6,697)(TRANSA(I,J),I=5,105,10)
 !zj   	write(0,697)(TRANSA(I,J),I=5,105,10)
 !zj	enddo
- 697	format(11(f5.3,x))
+ 697	format(11(f5.3,1x))
 !mp
 !NOV89
       DO 4 I=1,IAP

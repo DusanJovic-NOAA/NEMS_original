@@ -5607,7 +5607,7 @@ contains
 !
 !
     if ( gfile%modelname .eq. 'GFS' ) then
-      gfile%variname=(/'itrun  ','iorder ','irealf ','igen   ','icen2  '/ )
+      gfile%variname=(/'itrun  ','iorder ','irealf ','igen   ','icen2  '/)
       gfile%varival=(/1,2,1,82,0/)
       if(linit) then
       gfile%variname=(/'itrun  ','iorder ','irealf ','igen   ','latf   ','lonf   ','latr   ','lonr   ', &

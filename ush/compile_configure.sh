@@ -16,21 +16,29 @@
 #
 #   Make sure that the settings used here are consistent with those set in prelaunch!!!
 #
-
 ###############################################################################################################
+set -e
+
+OS=`uname`
+echo "platform is "${OS}
+settings_file=compile_settings
+if [[ -a "$settings_file" ]]
+then
+echo "modifying compile settings file"
+rm $settings_file
+fi
+
 # ------ NCEP IBM SP ----------------
     if [[ $1 = 'nmm' ]]
     then
     echo "Setup for NMM core"
-    rm compile_settings
-    cat compile_options/gen_compile_options compile_options/nmm_compile_options > compile_settings
+    cat compile_options/gen_compile_options_${OS} compile_options/nmm_compile_options_${OS} > compile_settings
     cp -f makefile_templates/main_makefile_nmm ../src/main/Makefile_main
     cp -f makefile_templates/nmm_atmos_makefile ../src/main/atmos/atmos_makefile
     elif [[ $1 = 'gfs' ]]
     then
     echo "Setup for GFS core"
-    rm compile_settings
-    cat compile_options/gen_compile_options compile_options/gfs_compile_options > compile_settings
+    cat compile_options/gen_compile_options_${OS} compile_options/gfs_compile_options_${OS} > compile_settings
     cp -f makefile_templates/main_makefile_gfs ../src/main/Makefile_main
     cp -f makefile_templates/gfs_atmos_makefile ../src/main/atmos/atmos_makefile
     else

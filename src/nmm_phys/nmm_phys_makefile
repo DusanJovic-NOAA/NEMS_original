@@ -61,22 +61,20 @@ MODULE_SMP1=    \
 		module_SURFACE_LAYER.o \
 		module_TURBULENCE.o
 
-.SUFFIXES:	.F90 .f90 .o
-
-.F90.f90:
-	$(CPP) $(CPPFLAGS) $< > $*.f90
-
 $(LIBDIR)/lib/$(TARGET): $(MODULES) $(MODULE_SMP) $(MODULE_SMP1)
 	$(AR) $(ARFLAGS) $(LIBDIR)/lib/$(TARGET) $(MODULES) $(MODULE_SMP) $(MODULE_SMP1)
 
 $(MODULES):	$(DEPS)
-	$(FC) $(FFLAG_NMM_PHY) -c $<
+	$(CPP) $(CPPFLAGS) $*.F90 > $*.f90
+	$(FC) $(FFLAG_NMM_PHY) -c $*.f90
 
 $(MODULE_SMP):	$(DEPS)
-	$(FC) $(FFLAG_NMM_PHY) $(SMP) $(MAF) -qsource -qlist -c $<
+	$(CPP) $(CPPFLAGS) $*.F90 > $*.f90
+	$(FC) $(FFLAG_NMM_PHY) $(SMP) $(MAF) -c $*.f90
 
 $(MODULE_SMP1):	$(DEPS)
-	$(FC) $(FFLAG_NMM_PHY) $(SMP) -qsource -qlist -c $<
+	$(CPP) $(CPPFLAGS) $*.F90 > $*.f90
+	$(FC) $(FFLAG_NMM_PHY) $(SMP) -c $*.f90
 
 clean:	
 	/bin/rm -f  $(LIBDIR)/lib/$(TARGET) 

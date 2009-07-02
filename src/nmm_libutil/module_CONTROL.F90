@@ -3361,7 +3361,7 @@ type(nemsio_gfile) :: gfile
       call halo_exch(fis,1,2,2)
 !-----------------------------------------------------------------------
       if(mype==0)then
-        call nemsio_readrecv(gfile,'pd','sfc',1,temp1,iret=ierr)
+        call nemsio_readrecv(gfile,'dpres','hybrid sig lev',1,temp1,iret=ierr)
         write(0,*)'in init restart,pd=',maxval(temp1),minval(temp1)
       endif
       do j=jms,jme

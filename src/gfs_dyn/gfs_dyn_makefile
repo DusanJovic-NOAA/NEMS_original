@@ -1,5 +1,5 @@
 ##  This is an elementary grid component or say independent grid component ##
-.SUFFIXES: .o .f .F .h
+.SUFFIXES: .o .f .h
 #
 # *****************************************************************
 #
@@ -149,8 +149,6 @@ clean:
 	/bin/rm -f *.o
 	/bin/rm -f $(LIBDIR)/lib/$(TARGET)
 
-.F.o:
-	$(FC) $(FFLAGS) -c -d $< 
 .f.o:
 	$(FC) $(FFLAGS) -c $< 
 

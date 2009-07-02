@@ -19,7 +19,7 @@ OBJ_IO	= \
 INCS = \
 		$(INCDIR)/f_hpm.h mpi_inc.h $(INCDIR)/function2
 
-#
+
 # *****************************************************************
 #
 
@@ -28,23 +28,16 @@ $(LIBDIR)/lib/$(TARGET):  $(OBJ_IO)
 	echo " $(TARGET) created!"
 
 clean:
-	/bin/rm -f $(OBJ_IO1) $(OBJS_IO) 
+	/bin/rm -f $(OBJS_IO) 
+	/bin/rm -f *.f90       
 	/bin/rm -f *.mod 
 	/bin/rm -f *.o
 	/bin/rm -f $(LIBDIR)/lib/$(TARGET)
 
-#.F.o:
-#	$(FC) $(FFLAGS) $(FFLAG_GFS_IO) -c -d $< 
-#.f.o:
-#	$(FC) $(FFLAGS) $(FFLAG_GFS_IO) -c $< 
-
-.SUFFIXES:      .F90 .f90 .o
-
-.F90.f90:
-	$(CPP) $(CPPFLAGS) $< > $*.f90
 
 $(OBJ_IO):     $(DEPS)
-	$(FC) $(FFLAG_GFS_IO) -c $<
+	$(CPP) $(CPPFLAGS) $*.F90 > $*.f90
+	$(FC) $(FFLAG_GFS_IO) -c $*.f90
 
 #
 # DEPENDENCIES :
@@ -61,12 +54,5 @@ module_WRITE_ROUTINES_GFS.o :       \
 
 #
 # *****************************************************************
-
 #
-#wrtsfc.o:       wrtsfc.f
-#		$(FC) $(FFLAGS) $(FFLAG_GFS_IO) -c wrtsfc.f
-#wrt3d.o:        wrt3d.f
-#		$(FC) $(FFLAGS) $(FFLAG_GFS_IO) -c wrt3d.f
-#wrt3d_hyb.o:    wrt3d_hyb.f
-#		$(FC) $(FFLAGS) $(FFLAG_GFS_IO) -c wrt3d_hyb.f
 

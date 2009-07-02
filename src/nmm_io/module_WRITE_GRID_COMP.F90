@@ -666,13 +666,14 @@
                                                   ,FACT10TMPV
 !
       LOGICAL                               :: GLOBAL                   &
-                                              ,WRITE_LOGICAL
+                                              ,WRITE_LOGICAL            &
+                                              ,OPENED
 !
       LOGICAL,SAVE :: FIRST=.TRUE.                                      &
                      ,HST_FIRST=.TRUE.                                  &
                      ,RST_FIRST=.TRUE.
 !
-      CHARACTER(ESMF_MAXSTR) :: GFNAME,NAME
+      CHARACTER(ESMF_MAXSTR) :: GFNAME,NAME,FILENAME
       CHARACTER(2)           :: MODEL_LEVEL
 !
       TYPE(WRITE_WRAP)                   :: WRAP
@@ -2086,6 +2087,28 @@
 !
       ENDIF
 !
+!jw
+!-----------------
+!*** fcstdone file
+!-----------------
+      IF(wrt_int_state%WRITE_DONEFILEFLAG .and. wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
+        write(FILENAME,'(A8,I3.3)' ) 'fcstdone',NF_HOURS
+        DO N=51,99
+          INQUIRE(N,opened=OPENED)
+          IF(.NOT.OPENED)THEN
+            IO_HST_UNIT=N
+            EXIT
+          ENDIF
+        ENDDO
+        OPEN(unit  =IO_HST_UNIT                                         &
+          ,file  =trim(FILENAME)                                        &
+          ,form='formatted'                                             &
+          ,status='new')
+        WRITE(IO_HST_UNIT,'(A4)')'DONE'
+        CLOSE(IO_HST_UNIT)
+!
+      ENDIF
+!
 !-----------------------------------------------------------------------
 !
       ENDIF history_time
@@ -2760,6 +2783,28 @@
         WRITE(0,*)' Closed nemsio_restart file, ', gfname
 !
         CALL NEMSIO_FINALIZE()
+!
+      ENDIF
+!
+!jw
+!-----------------
+!*** restartdone file
+!-----------------
+      IF(wrt_int_state%WRITE_DONEFILEFLAG .and. wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
+        write(FILENAME,'(A11,I3.3)' ) 'restartdone',NF_HOURS
+        DO N=51,99
+          INQUIRE(N,opened=OPENED)
+          IF(.NOT.OPENED)THEN
+            IO_RST_UNIT=N
+            EXIT
+          ENDIF
+        ENDDO
+        OPEN(unit  =IO_RST_UNIT                                         &
+          ,file  =trim(FILENAME)                                        &
+          ,form='formatted'                                              &
+          ,status='new')
+        WRITE(IO_RST_UNIT,'(A4)')'DONE'
+        CLOSE(IO_RST_UNIT)
 !
       ENDIF
 !
