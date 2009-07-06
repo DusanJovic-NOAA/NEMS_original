@@ -216,6 +216,7 @@
       LOGICAL :: WRITE_HST_FLAG,WRITE_RST_FLAG
       LOGICAL :: WRITE_NEMSIOFLAG
       LOGICAL :: WRITE_NEMSIOCTL
+      LOGICAL :: WRITE_DONEFILEFLAG
  
 !-----------------------------------------------------------------------
 !

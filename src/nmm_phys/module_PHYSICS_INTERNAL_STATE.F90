@@ -201,7 +201,7 @@
                                                ,TBPVS_STATE,TBPVS0_STATE
 !
 !-----------------------------------------------------------------------
-!***  Gfs physics additional arrays
+!***  GFS physics additional arrays
 !-----------------------------------------------------------------------
 !
         REAL(KIND=KDBL)                              :: SOLCON, SLAG, SDEC, CDEC
@@ -217,6 +217,7 @@
         REAL(KIND=KDBL),DIMENSION(:,:,:)  ,POINTER   :: SWH,HLW
         REAL(KIND=KDBL),DIMENSION(:,:,:)  ,POINTER   :: PHY_F2DV   ! save last time step 2Ds
         REAL(KIND=KDBL),DIMENSION(:,:,:,:),POINTER   :: PHY_F3DV   ! save last time step 3Ds
+        REAL(KIND=KDBL),DIMENSION(:,:,:,:),POINTER   :: OZPLIN
 !
 !-----------------------------------------------------------------------
 !***  Physics Options
@@ -264,12 +265,6 @@
         REAL(KIND=KFPT),DIMENSION(:,:,:,:),POINTER :: TRACERS              !<-- Storage array for "tracer" variables.
 !
 !-----------------------------------------------------------------------
-!***  Ozone
-!-----------------------------------------------------------------------
-!
-        REAL*8, DIMENSION(:,:,:,:),POINTER :: OZPLIN
-!
-!-----------------------------------------------------------------------
 !
       END TYPE INTERNAL_STATE
 !
@@ -298,7 +293,7 @@
       USE MODULE_CONSTANTS
 !
 !-----------------------------------------------------------------------
-!***  Only for Gfs physics
+!***  Only for GFS physics
 !-----------------------------------------------------------------------
       USE OZNE_DEF, ONLY: LATSOZP, TIMEOZ, KOZPL, LEVOZP, PL_COEFF
 !-----------------------------------------------------------------------
@@ -455,12 +450,17 @@
       ENDDO
       ENDDO
       ENDDO
+!
 !-----------------------------------------------------------------------
-!***  Only for Gfs physics
+!***  Only for GFS physics
 !-----------------------------------------------------------------------
-      REWIND (KOZPL)
-      READ (KOZPL) PL_COEFF, LATSOZP, LEVOZP, TIMEOZ
-      ALLOCATE(int_state%OZPLIN(LATSOZP,LEVOZP,PL_COEFF,TIMEOZ))
+!
+      IF ( int_state%GFS ) THEN
+        REWIND (KOZPL)
+        READ (KOZPL) PL_COEFF, LATSOZP, LEVOZP, TIMEOZ
+        ALLOCATE(int_state%OZPLIN(LATSOZP,LEVOZP,PL_COEFF,TIMEOZ))
+      ENDIF
+!
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
@@ -856,8 +856,11 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  Gfs physics      vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+!***  GFS physics      vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 !-----------------------------------------------------------------------
+!
+    IF ( int_state%GFS ) THEN
+!
       ALLOCATE(int_state%DDY              (JTS:JTE))         !
       ALLOCATE(int_state%JINDX1           (JTS:JTE))         !
       ALLOCATE(int_state%JINDX2           (JTS:JTE))         !
@@ -934,10 +937,10 @@
         int_state%SWH  (I,J,L)=-1.D6
         int_state%HLW  (I,J,L)=-1.D6
        ENDDO
-       DO N=1,3                                 ! for Zhao =3, Ferr=1 (fix later)
+       DO N=1,3                                 ! for Zhao =3, Ferr=1
         int_state%PHY_F2DV (I,J,N)=0.0D0
        ENDDO
-       DO N=1,4                                 ! for Zhao =4, Ferr=3 (fix later)
+       DO N=1,4                                 ! for Zhao =4, Ferr=3
        DO L=1,LM
         int_state%PHY_F3DV (I,J,L,N)=0.0D0
        ENDDO
@@ -956,8 +959,10 @@
       ENDDO
       ENDDO
 !
+    ENDIF
+!
 !-----------------------------------------------------------------------
-!***  Gfs physics      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+!***  GFS physics      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 !-----------------------------------------------------------------------
 !
       int_state%AVRAIN=3600*int_state%NHRS_PREC/(int_state%NPRECIP*int_state%DT_INT)

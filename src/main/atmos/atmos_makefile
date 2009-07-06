@@ -47,27 +47,27 @@ MODULE=        \
 MODULE_AGC=    \
 		module_ATM_GRID_COMP.o
 
+.SUFFIXES:	.F90 .f90 .o
+
+.F90.f90:
+	$(CPP) $(CPPFLAGS) $< > $*.f90
+
 $(LIBDIR1)/lib/$(TARGET): $(MODULE) $(MODULE_AGC)
 	$(AR) $(ARFLAGS) $(LIBDIR1)/lib/$(TARGET) $(MODULE) $(MODULE_AGC)
 
 module_ATM_GRID_COMP.o: $(DEPS2)
-	$(CPP) $(CPPFLAGS) $*.F90 > $*.f90
 	$(FC) $(FFLAGSDB) -c module_ATM_GRID_COMP.F90
 
 module_NMM_CORE_SETUP.o: $(DEPS2)
-	$(CPP) $(CPPFLAGS) $*.F90 > $*.f90
 	$(FC) $(FFLAGSDB) -c module_NMM_CORE_SETUP.F90
 
 module_NMM_BCK_INTEGRATE.o: $(DEPS2)
-	$(CPP) $(CPPFLAGS) $*.F90 > $*.f90
 	$(FC) $(FFLAGSDB) -c module_NMM_BCK_INTEGRATE.F90
 
 module_NMM_FWD_INTEGRATE.o: $(DEPS2)
-	$(CPP) $(CPPFLAGS) $*.F90 > $*.f90
 	$(FC) $(FFLAGSDB) -c module_NMM_FWD_INTEGRATE.F90
 
 module_NMM_INTEGRATE.o: $(DEPS2)
-	$(CPP) $(CPPFLAGS) $*.F90 > $*.f90
 	$(FC) $(FFLAGSDB) -c module_NMM_INTEGRATE.F90
 
 clean:	
