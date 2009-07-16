@@ -820,17 +820,17 @@
       REAL(KIND=KFPT),DIMENSION(:,:,:)  ,POINTER :: HOLD_3D
       REAL(KIND=KFPT),DIMENSION(:,:,:,:),POINTER :: HOLD_4D
 !
-      CHARACTER(20)    :: ARRAY_NAME
+      CHARACTER(20) :: FIELD_NAME
 !
-      TYPE(ESMF_Array) :: HOLD_ARRAY
+      TYPE(ESMF_Field) :: HOLD_FIELD
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-!***  FOR EACH VARIABLE, EXTRACT ITS ESMF Array FROM THE IMPORT STATE.
-!***  EACH Array CONTAINS A POINTER THAT POINTS AT THAT VARIABLE IN THE
+!***  FOR EACH VARIABLE, EXTRACT ITS ESMF Field FROM THE IMPORT STATE.
+!***  EACH Field CONTAINS A POINTER THAT POINTS AT THAT VARIABLE IN THE
 !***  INTERNAL STATE OF THE DYNAMICS COMPONENT.
-!***  EXTRACT THE POINTER FROM THE ESMF Array AND USE IT TO UPDATE
+!***  EXTRACT THE POINTER FROM THE ESMF Field AND USE IT TO UPDATE
 !***  THE DYNAMICS COMPONENT'S INTERNAL STATE.
 !-----------------------------------------------------------------------
 !
@@ -851,17 +851,17 @@
 !- - - - - - - - - - - - - - - -   T   - - - - - - - - - - - - - - - - -
 !-----------------------------------------------------------------------
 !
-      ARRAY_NAME='T'
+      FIELD_NAME='T'
       NULLIFY(HOLD_3D)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract Temperature Array from Dynamics Import State"
+      MESSAGE_CHECK="Extract Temperature Field from Dynamics Import State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =IMP_STATE                             &  !<-- State that holds the Array
-                        ,itemName=ARRAY_NAME                            &  !<-- Name of the Array we want
-                        ,array   =HOLD_ARRAY                            &  !<-- Put extracted Array here
+      CALL ESMF_StateGet(state   =IMP_STATE                             &  !<-- State that holds the Field
+                        ,itemName=FIELD_NAME                            &  !<-- Name of the Field we want
+                        ,field   =HOLD_FIELD                            &  !<-- Put extracted Field here
                         ,rc      = RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -869,13 +869,13 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Dyn Update: Extract Temperature Pointer from Array"
+      MESSAGE_CHECK="Dyn Update: Extract Temperature Pointer from Field"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ArrayGet(array    =HOLD_ARRAY                           &  !<-- Array that holds the data pointer
+      CALL ESMF_FieldGet(field    =HOLD_FIELD                           &  !<-- Field that holds the data pointer
                         ,localDe  =0                                    &
-                        ,farrayPtr=HOLD_3D                              &  !<-- Put the pointer here
+                        ,farray   =HOLD_3D                              &  !<-- Put the pointer here
                         ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -898,17 +898,17 @@
 !- - - - - - - - - - - - - - - -   U   - - - - - - - - - - - - - - - - -
 !-----------------------------------------------------------------------
 !
-      ARRAY_NAME='U'
+      FIELD_NAME='U'
       NULLIFY(HOLD_3D)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract U Wind Array from Dynamics Import State"
+      MESSAGE_CHECK="Extract U Wind Field from Dynamics Import State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =IMP_STATE                             &  !<-- State that holds the Array
-                        ,itemName=ARRAY_NAME                            &  !<-- Name of the Array we want
-                        ,array   =HOLD_ARRAY                            &  !<-- Put extracted Array here
+      CALL ESMF_StateGet(state   =IMP_STATE                             &  !<-- State that holds the Field
+                        ,itemName=FIELD_NAME                            &  !<-- Name of the Field we want
+                        ,field   =HOLD_FIELD                            &  !<-- Put extracted Field here
                         ,rc      = RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -916,13 +916,13 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Dyn Update: Extract U Wind Pointer from Array"
+      MESSAGE_CHECK="Dyn Update: Extract U Wind Pointer from Field"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ArrayGet(array    =HOLD_ARRAY                           &  !<-- Array that holds the data pointer
+      CALL ESMF_FieldGet(field    =HOLD_FIELD                           &  !<-- Field that holds the data pointer
                         ,localDe  =0                                    &
-                        ,farrayPtr=HOLD_3D                              &  !<-- Put the pointer here
+                        ,farray   =HOLD_3D                              &  !<-- Put the pointer here
                         ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -945,17 +945,17 @@
 !- - - - - - - - - - - - - - - -   V   - - - - - - - - - - - - - - - - -
 !-----------------------------------------------------------------------
 !
-      ARRAY_NAME='V'
+      FIELD_NAME='V'
       NULLIFY(HOLD_3D)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract V Wind Array from Dynamics Import State"
+      MESSAGE_CHECK="Extract V Wind Field from Dynamics Import State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =IMP_STATE                             &  !<-- State that holds the Array
-                        ,itemName=ARRAY_NAME                            &  !<-- Name of the Array we want
-                        ,array   =HOLD_ARRAY                            &  !<-- Put extracted Array here
+      CALL ESMF_StateGet(state   =IMP_STATE                             &  !<-- State that holds the Field
+                        ,itemName=FIELD_NAME                            &  !<-- Name of the Field we want
+                        ,field   =HOLD_FIELD                            &  !<-- Put extracted Field here
                         ,rc      = RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -963,13 +963,13 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Dyn Update: Extract V Wind Pointer from Array"
+      MESSAGE_CHECK="Dyn Update: Extract V Wind Pointer from Field"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ArrayGet(array    =HOLD_ARRAY                           &  !<-- Array that holds the data pointer
+      CALL ESMF_FieldGet(field    =HOLD_FIELD                           &  !<-- Field that holds the data pointer
                         ,localDe  =0                                    &
-                        ,farrayPtr=HOLD_3D                              &  !<-- Put the pointer here
+                        ,farray   =HOLD_3D                              &  !<-- Put the pointer here
                         ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -992,17 +992,17 @@
 !- - - - - - - - - - - - - - -   Q2   - - - - - - - - - - - - - - - - -
 !-----------------------------------------------------------------------
 !
-      ARRAY_NAME='Q2'
+      FIELD_NAME='Q2'
       NULLIFY(HOLD_3D)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract TKE Array from Dynamics Import State"
+      MESSAGE_CHECK="Extract TKE Field from Dynamics Import State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =IMP_STATE                             &  !<-- State that holds the Array
-                        ,itemName=ARRAY_NAME                            &  !<-- Name of the Array we want
-                        ,array   =HOLD_ARRAY                            &  !<-- Put extracted Array here
+      CALL ESMF_StateGet(state   =IMP_STATE                             &  !<-- State that holds the Field
+                        ,itemName=FIELD_NAME                            &  !<-- Name of the Field we want
+                        ,field   =HOLD_FIELD                            &  !<-- Put extracted Field here
                         ,rc      = RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1010,13 +1010,13 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Dyn Update: Extract TKE Pointer from Array"
+      MESSAGE_CHECK="Dyn Update: Extract TKE Pointer from Field"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ArrayGet(array    =HOLD_ARRAY                           &  !<-- Array that holds the data pointer
+      CALL ESMF_FieldGet(field    =HOLD_FIELD                           &  !<-- Field that holds the data pointer
                         ,localDe  =0                                    &
-                        ,farrayPtr=HOLD_3D                              &  !<-- Put the pointer here
+                        ,farray   =HOLD_3D                              &  !<-- Put the pointer here
                         ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1036,7 +1036,7 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  NOW UPDATE THE 4-D TRACERS ARRAY.  
+!***  NOW UPDATE THE 4-D TRACERS FIELD.  
 !***  THE NUMBER OF 3-D QUANTITIES WITHIN IT IS KNOWN THROUGH THE
 !***  NUM_TRACERS_TOTAL VARIABLE.
 !-----------------------------------------------------------------------
@@ -1045,17 +1045,17 @@
 !- - - - - - - - - - - - - - TRACERS - - - - - - - - - - - - - - - - - -
 !-----------------------------------------------------------------------
 !
-      ARRAY_NAME='TRACERS'
+      FIELD_NAME='TRACERS'
       NULLIFY(HOLD_4D)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract 4-D Tracers Array from Dynamics Import State"
+      MESSAGE_CHECK="Extract 4-D Tracers Field from Dynamics Import State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =IMP_STATE                             &  !<-- State that holds the Array
-                        ,itemName=ARRAY_NAME                            &  !<-- Name of the Array we want
-                        ,array   =HOLD_ARRAY                            &  !<-- Put extracted Array here
+      CALL ESMF_StateGet(state   =IMP_STATE                             &  !<-- State that holds the Field
+                        ,itemName=FIELD_NAME                            &  !<-- Name of the Field we want
+                        ,field   =HOLD_FIELD                            &  !<-- Put extracted Field here
                         ,rc      = RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1063,13 +1063,13 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Dyn Update: Extract Tracer Pointer from Array"
+      MESSAGE_CHECK="Dyn Update: Extract Tracer Pointer from Field"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ArrayGet(array    =HOLD_ARRAY                           &  !<-- Array that holds the data pointer
+      CALL ESMF_FieldGet(field    =HOLD_FIELD                           &  !<-- Field that holds the data pointer
                         ,localDe  =0                                    &
-                        ,farrayPtr=HOLD_4D                              &  !<-- Put the pointer here
+                        ,farray   =HOLD_4D                              &  !<-- Put the pointer here
                         ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

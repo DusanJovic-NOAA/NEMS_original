@@ -24,11 +24,11 @@
       USE ESMF_MOD
       USE MODULE_DYNAMICS_INTERNAL_STATE                                  !<-- Horizontal loop limits obtained here
 !
-      USE MODULE_DYNAMICS_FIELDS,ONLY : ARRAY_T                         &
-                                       ,ARRAY_U,ARRAY_V                 &
-                                       ,ARRAY_Q2,ARRAY_PD               &
-                                       ,ARRAY_OMGALF                    &
-                                       ,ARRAY_TRACERS                   &
+      USE MODULE_DYNAMICS_FIELDS,ONLY : FIELD_T                         &
+                                       ,FIELD_U,FIELD_V                 &
+                                       ,FIELD_Q2,FIELD_PD               &
+                                       ,FIELD_OMGALF                    &
+                                       ,FIELD_TRACERS                   &
                                        ,ALLOC_FIELDS_DYN
 !
       USE MODULE_DM_PARALLEL,ONLY : IDS,IDE,JDS,JDE                     &
@@ -745,8 +745,8 @@
         CALL ALLOC_FIELDS_DYN(GRID,INT_STATE)
 !
 !-----------------------------------------------------------------------
-!***  ADD THE DESIRED ESMF Arrays TO THE DYNAMICS EXPORT STATE.
-!***  THE POINTERS INSIDE THE Arrays ARE POINTING AT THE APPROPRIATE
+!***  ADD THE DESIRED ESMF Fields TO THE DYNAMICS EXPORT STATE.
+!***  THE POINTERS INSIDE THE Fields ARE POINTING AT THE APPROPRIATE
 !***  VARIABLES INSIDE THE INTERNAL STATE (see ALLOC_FIELDS_DYN
 !***  in module_DYNAMICS_FIELDS.F).
 !-----------------------------------------------------------------------
@@ -761,31 +761,23 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateAdd(state=EXP_STATE                              &
-                          ,array=ARRAY_T                                &  !<-- Temperature
+                          ,field=FIELD_T                                &  !<-- Temperature
                           ,rc   =RC)
 !
         CALL ESMF_StateAdd(state=EXP_STATE                              &
-                          ,array=ARRAY_U                                &  !<-- U wind component
+                          ,field=FIELD_U                                &  !<-- U wind component
                           ,rc   =RC)
 !
         CALL ESMF_StateAdd(state=EXP_STATE                              &
-                          ,array=ARRAY_V                                &  !<-- V wind component
-                          ,rc   =RC)
-!
-!!      CALL ESMF_StateAdd(state=EXP_STATE                              &
-!!                        ,array=ARRAY_Q                                &  !<-- Specific humidity
-!!                        ,rc   =RC)
-!
-!!      CALL ESMF_StateAdd(state=EXP_STATE                              &
-!!                        ,array=ARRAY_CW                               &  !<-- Cloud condensate
-!!                        ,rc   =RC)
-!
-        CALL ESMF_StateAdd(state=EXP_STATE                              & 
-                          ,array=ARRAY_Q2                               &  !<-- TKE
+                          ,field=FIELD_V                                &  !<-- V wind component
                           ,rc   =RC)
 !
         CALL ESMF_StateAdd(state=EXP_STATE                              & 
-                          ,array=ARRAY_OMGALF                           &  !<-- Omega-alpha term
+                          ,field=FIELD_Q2                               &  !<-- TKE
+                          ,rc   =RC)
+!
+        CALL ESMF_StateAdd(state=EXP_STATE                              & 
+                          ,field=FIELD_OMGALF                           &  !<-- Omega-alpha term
                           ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -802,7 +794,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateAdd(state=EXP_STATE                              &
-                          ,array=ARRAY_PD                               &  !<-- Vertical pressure difference, sigma range
+                          ,field=FIELD_PD                               &  !<-- Vertical pressure difference, sigma range
                           ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -810,7 +802,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  ADD THE 4D TRACERS ARRAY TO THE EXPORT STATE.
+!***  ADD THE 4D TRACERS FIELD TO THE EXPORT STATE.
 !***  THE NUMBER OF 3D CONSTITUENTS IS GIVEN BY NUM_TRACERS_TOTAL.
 !-----------------------------------------------------------------------
 !
@@ -820,7 +812,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateAdd(state=EXP_STATE                              &
-                          ,array=ARRAY_TRACERS                          &  !<-- Tracer variables
+                          ,field=FIELD_TRACERS                          &  !<-- Tracer variables
                           ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -830,7 +822,7 @@
 !-----------------------------------------------------------------------
 !***  ALSO INSERT THE VALUE OF NUM_TRACERS_TOTAL INTO THE EXPORT STATE.
 !***  THIS WILL TELL THE Dyn-Phy Coupler HOW MANY CONSTITUENTS
-!***  THERE ARE TO TRANSFER IN THE 4-D TRACERS ARRAY.
+!***  THERE ARE TO TRANSFER IN THE 4-D TRACERS FIELD.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

@@ -4,7 +4,7 @@
 !
 !-----------------------------------------------------------------------
 !
-!***  THIS MODULE CREATES/DESTROYS ESMF Arrays FOR THE DYNAMICS
+!***  THIS MODULE CREATES/DESTROYS ESMF Fields FOR THE DYNAMICS
 !***  IMPORT/EXPORT STATES.
 !
 !-----------------------------------------------------------------------
@@ -14,7 +14,8 @@
       USE MODULE_DM_PARALLEL            ,ONLY : IDS,IDE,JDS,JDE         &
                                                ,IMS,IME,JMS,JME         &
                                                ,ITS,ITE,JTS,JTE         &
-                                               ,MYPE_SHARE
+                                               ,MYPE_SHARE,LM           &
+                                               ,IHALO,JHALO
 !
       USE MODULE_ERR_MSG                ,ONLY: ERR_MSG,MESSAGE_CHECK
 !
@@ -26,36 +27,38 @@
 !
       PRIVATE
 !
-      PUBLIC :: ARRAY_T                                                 &
-               ,ARRAY_U                                                 &
-               ,ARRAY_V                                                 &
-               ,ARRAY_Q2                                                &
-               ,ARRAY_OMGALF
+      PUBLIC :: FIELD_T                                                 &
+               ,FIELD_U                                                 &
+               ,FIELD_V                                                 &
+               ,FIELD_Q2                                                &
+               ,FIELD_OMGALF
 !
-      PUBLIC :: ARRAY_PD
+      PUBLIC :: FIELD_PD
 !
-      PUBLIC :: ARRAY_TRACERS
+      PUBLIC :: FIELD_TRACERS
 !
       PUBLIC :: ALLOC_FIELDS_DYN
 !
 !-----------------------------------------------------------------------
+!
+      TYPE(ESMF_CopyFlag) :: COPYFLAG=ESMF_DATA_REF
+!
+!-----------------------------------------------------------------------
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !-----------------------------------------------------------------------
-!***  LIST ESMF Arrays THAT ARE TO BE PART OF
+!***  LIST ESMF Fields THAT ARE TO BE PART OF
 !***  THE DYNAMICS IMPORT/EXPORT STATES.
 !-----------------------------------------------------------------------
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_Array),SAVE :: ARRAY_T                                  &
-                              ,ARRAY_U                                  &
-                              ,ARRAY_V                                  &
-                              ,ARRAY_Q2                                 &
-                              ,ARRAY_OMGALF
-!
-      TYPE(ESMF_Array),SAVE :: ARRAY_PD
-!
-      TYPE(ESMF_Array),SAVE :: ARRAY_TRACERS
+      TYPE(ESMF_Field) ,SAVE :: FIELD_T                                 &
+                               ,FIELD_U                                 &
+                               ,FIELD_V                                 &
+                               ,FIELD_Q2                                &
+                               ,FIELD_OMGALF                            &
+                               ,FIELD_PD                                &
+                               ,FIELD_TRACERS
 !
 !-----------------------------------------------------------------------
 !
@@ -68,10 +71,8 @@
       SUBROUTINE ALLOC_FIELDS_DYN(GRID,INT_STATE)
 !
 !-----------------------------------------------------------------------
-!***  CREATE ESMF Arrays FOR THE DYNAMICS IMPORT/EXPORT STATES.
+!***  CREATE ESMF Fields FOR THE DYNAMICS IMPORT/EXPORT STATES.
 !-----------------------------------------------------------------------
-!
-      TYPE(ESMF_DistGrid)          :: DISTGRID                           !<-- Information of the distributed ESMF Grid
 !
       TYPE(ESMF_Grid),INTENT(IN)   :: GRID                               !<-- The ESMF grid
 !
@@ -81,9 +82,9 @@
 !***  LOCAL VARIABLES
 !-----------------------------------------------------------------------
 !
-      INTEGER       :: I,ISTATUS,J,L,N,RC,RC_FINAL
+      INTEGER       :: I,ISTATUS,J,L,N,RC,RC_FINAL,NUM_TRAC
 !
-      CHARACTER(20) :: ARRAY_NAME
+      CHARACTER(20) :: FIELD_NAME
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -93,15 +94,7 @@
       RC_FINAL=ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
-!***  EXTRACT THE DISTRIBUTED GRID INFORMATION.
-!-----------------------------------------------------------------------
-!
-      CALL ESMF_GridGet(grid    =GRID                                   &  !<-- The ESMF Grid
-                       ,distgrid=DISTGRID                               &  !<-- ESMF distributed grid information
-                       ,rc      =RC)
-!
-!-----------------------------------------------------------------------
-!***  CREATE THE ESMF Arrays THAT WILL BE ADDED TO THE IMPORT/EXPORT
+!***  CREATE THE ESMF FIELDS THAT WILL BE ADDED TO THE IMPORT/EXPORT
 !***  STATES AND ASSOCIATE THE APPROPRIATE POINTERS.
 !-----------------------------------------------------------------------
 !
@@ -110,17 +103,21 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Create ARRAY_T"
+      MESSAGE_CHECK="Create FIELD_T"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      ARRAY_NAME='T'
+      FIELD_NAME='T'
 !
-      ARRAY_T=ESMF_ArrayCreate(farray  =int_state%T                     &  !<-- The F90 input array
-                              ,distgrid=DISTGRID                        &  !<-- ESMF distributed grid information 
-                              ,name    =ARRAY_NAME                      &  !<-- ESMF Array name
-                              ,indexFlag=ESMF_INDEX_DELOCAL             &
-                              ,rc      =RC)
+      FIELD_T=ESMF_FieldCreate(grid            =GRID                    &  !<-- The ESMF grid
+                              ,farray          =int_state%T             &  !<-- Insert this pointer into the Field
+                              ,maxHaloUWidth   =(/IHALO,JHALO/)         &  !<-- Upper bound of halo region
+                              ,maxHaloLWidth   =(/IHALO,JHALO/)         &  !<-- Lower bound of halo region
+                              ,ungriddedLBound =(/1/)                   &
+                              ,ungriddedUBound =(/LM/)                  &
+                              ,name            =FIELD_NAME              &  !<-- Name of the 2D real array
+                              ,indexFlag       =ESMF_INDEX_DELOCAL      &
+                              ,rc              =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
@@ -131,17 +128,21 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Create ARRAY_U"
+      MESSAGE_CHECK="Create FIELD_U"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      ARRAY_NAME='U'
+      FIELD_NAME='U'
 !
-      ARRAY_U=ESMF_ArrayCreate(farray  =int_state%U                     &  !<-- The F90 input array
-                              ,distgrid=DISTGRID                        &  !<-- ESMF distributed grid information
-                              ,name    =ARRAY_NAME                      &  !<-- ESMF Array name
-                              ,indexFlag=ESMF_INDEX_DELOCAL             &
-                              ,rc      =RC)
+      FIELD_U=ESMF_FieldCreate(grid            =GRID                    &  !<-- The ESMF grid
+                              ,farray          =int_state%U             &  !<-- Insert this pointer into the Field
+                              ,maxHaloUWidth   =(/IHALO,JHALO/)         &  !<-- Upper bound of halo region
+                              ,maxHaloLWidth   =(/IHALO,JHALO/)         &  !<-- Lower bound of halo region
+                              ,ungriddedLBound =(/1/)                   &
+                              ,ungriddedUBound =(/LM/)                  &
+                              ,name            =FIELD_NAME              &  !<-- Name of the 2D real array
+                              ,indexFlag       =ESMF_INDEX_DELOCAL      &
+                              ,rc              =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
@@ -152,17 +153,21 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Create ARRAY_V"
+      MESSAGE_CHECK="Create FIELD_V"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      ARRAY_NAME='V'
+      FIELD_NAME='V'
 !
-      ARRAY_V=ESMF_ArrayCreate(farray    =int_state%V                   &  !<-- The F90 input array
-                                ,distgrid=distgrid                      &  !<-- ESMF distributed grid information
-                                ,name    =ARRAY_NAME                    &  !<-- ESMF Array name
-                                ,indexFlag=ESMF_INDEX_DELOCAL           &
-                                ,rc      =RC)
+      FIELD_V=ESMF_FieldCreate(grid            =GRID                    &  !<-- The ESMF grid
+                              ,farray          =int_state%V             &  !<-- Insert this pointer into the Field
+                              ,maxHaloUWidth   =(/IHALO,JHALO/)         &  !<-- Upper bound of halo region
+                              ,maxHaloLWidth   =(/IHALO,JHALO/)         &  !<-- Lower bound of halo region
+                              ,ungriddedLBound =(/1/)                   &
+                              ,ungriddedUBound =(/LM/)                  &
+                              ,name            =FIELD_NAME              &  !<-- Name of the 2D real array
+                              ,indexFlag       =ESMF_INDEX_DELOCAL      &
+                              ,rc              =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
@@ -173,17 +178,21 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Create ARRAY_Q2"
+      MESSAGE_CHECK="Create FIELD_Q2"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      ARRAY_NAME='Q2'
+      FIELD_NAME='Q2'
 !
-      ARRAY_Q2=ESMF_ArrayCreate(farray  =int_state%Q2                   &  !<-- The F90 input array
-                               ,distgrid=distgrid                       &  !<-- ESMF distributed grid information
-                               ,name    =ARRAY_NAME                     &  !<-- ESMF Array name
-                               ,indexFlag=ESMF_INDEX_DELOCAL            &
-                               ,rc      =RC)
+      FIELD_Q2=ESMF_FieldCreate(grid            =GRID                   &  !<-- The ESMF grid
+                               ,farray          =int_state%Q2           &  !<-- Insert this pointer into the Field
+                               ,maxHaloUWidth   =(/IHALO,JHALO/)        &  !<-- Upper bound of halo region
+                               ,maxHaloLWidth   =(/IHALO,JHALO/)        &  !<-- Lower bound of halo region
+                               ,ungriddedLBound =(/1/)                  &
+                               ,ungriddedUBound =(/LM/)                 &
+                               ,name            =FIELD_NAME             &  !<-- Name of the 2D real array
+                               ,indexFlag       =ESMF_INDEX_DELOCAL     &
+                               ,rc              =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
@@ -194,17 +203,21 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Create ARRAY_OMGALF"
+      MESSAGE_CHECK="Create FIELD_OMGALF"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      ARRAY_NAME='OMGALF'
+      FIELD_NAME='OMGALF'
 !
-      ARRAY_OMGALF=ESMF_ArrayCreate(farray  =int_state%OMGALF           &  !<-- The F90 input array
-                                   ,distgrid=distgrid                   &  !<-- ESMF distributed grid information
-                                   ,name    =ARRAY_NAME                 &  !<-- ESMF Array name
-                                   ,indexFlag=ESMF_INDEX_DELOCAL        &
-                                   ,rc      =RC)
+      FIELD_OMGALF=ESMF_FieldCreate(grid            =GRID               &  !<-- The ESMF grid
+                                   ,farray          =int_state%OMGALF   &  !<-- Insert this pointer into the Field
+                                   ,maxHaloUWidth   =(/IHALO,JHALO/)    &  !<-- Upper bound of halo region
+                                   ,maxHaloLWidth   =(/IHALO,JHALO/)    &  !<-- Lower bound of halo region
+                                   ,ungriddedLBound =(/1/)              &
+                                   ,ungriddedUBound =(/LM/)             &
+                                   ,name            =FIELD_NAME         &  !<-- Name of the 2D real array
+                                   ,indexFlag       =ESMF_INDEX_DELOCAL &
+                                   ,rc              =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
@@ -219,24 +232,26 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Create ARRAY_PD"
+      MESSAGE_CHECK="Create FIELD_PD"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      ARRAY_NAME='PD'
+      FIELD_NAME='PD'
 !
-      ARRAY_PD=ESMF_ArrayCreate(farray  =int_state%PD                   &  !<-- The F90 input array
-                               ,distgrid=distgrid                       &  !<-- ESMF distributed grid information
-                               ,name    =ARRAY_NAME                     &  !<-- ESMF Array name
-                               ,indexFlag=ESMF_INDEX_DELOCAL            &
-                               ,rc      =RC)
+      FIELD_PD=ESMF_FieldCreate(grid          =GRID                     &  !<-- The ESMF grid
+                               ,farray        =int_state%PD             &  !<-- Insert this pointer into the Field
+                               ,maxHaloUWidth =(/IHALO,JHALO/)          &  !<-- Upper bound of halo region
+                               ,maxHaloLWidth =(/IHALO,JHALO/)          &  !<-- Lower bound of halo region
+                               ,name          =FIELD_NAME               &  !<-- Name of the 2D real array
+                               ,indexFlag     =ESMF_INDEX_DELOCAL       &
+                               ,rc            =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  CREATE AND FILL THE Arrays FOR THE 4-D TRACERS ARRAY.
+!***  CREATE AND FILL THE Fields FOR THE 4-D TRACERS FIELD.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
@@ -244,17 +259,23 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Create ARRAY_TRACERS"
+      MESSAGE_CHECK="Create FIELD_TRACERS"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      ARRAY_NAME='TRACERS'
+      FIELD_NAME='TRACERS'
 !
-      ARRAY_TRACERS=ESMF_ArrayCreate(farray  =int_state%TRACERS           &  !<-- The F90 input array
-                                    ,distgrid=distgrid                    &  !<-- ESMF distributed grid information
-                                    ,name    =ARRAY_NAME                  &  !<-- ESMF Array name
-                                    ,indexFlag=ESMF_INDEX_DELOCAL         &
-                                    ,rc      =RC)
+      NUM_TRAC=int_state%NUM_TRACERS_TOTAL
+!
+      FIELD_TRACERS=ESMF_FieldCreate(grid            =GRID              &  !<-- The ESMF grid
+                                    ,farray          =int_state%TRACERS &  !<-- Insert this pointer into the Field
+                                    ,maxHaloUWidth   =(/IHALO,JHALO/)   &  !<-- Upper bound of halo region
+                                    ,maxHaloLWidth   =(/IHALO,JHALO/)   &  !<-- Lower bound of halo region
+                                    ,ungriddedLBound =(/1,1/)           &
+                                    ,ungriddedUBound =(/LM,NUM_TRAC/)   &
+                                    ,name            =FIELD_NAME        &  !<-- Name of the 2D real array
+                                    ,indexFlag       =ESMF_INDEX_DELOCAL&
+                                    ,rc              =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
