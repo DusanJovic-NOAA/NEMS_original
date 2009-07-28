@@ -19,6 +19,7 @@
 !   2008-08     Colon - Added conditional checks multiple dynamics cores.
 !   2008-10-14  Vasic - Added restart Alarm.
 !   2009-05-29  Wang  - Added gfs write grid component
+!   2009-07-23  Lu    - Added gocart grid component
 !
 ! USAGE: ATM Gridded component parts CALLed from MAIN_ESMF.F90
 !
@@ -52,6 +53,9 @@
       USE MODULE_DIAGNOSE,ONLY : FIELD_STATS
       USE NEMSIO_MODULE
 !
+      use m_die, only: die
+      use Chem_RegistryMod                                      
+!
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
      
       
@@ -59,8 +63,9 @@
 
       USE gfs_physics_grid_comp_mod   ,only: gfs_phy_setservices
 
+      USE GOCART_GridCompMod,only: gocart_setservices => setservices 
+
       USE atmos_dyn_phy_cpl_comp_mod  ,only: atm_cpl_setservices
- 
 
 !
 !-----------------------------------------------------------------------
@@ -116,8 +121,12 @@
 !
       TYPE(ESMF_GridComp),SAVE :: GC_GFS_DYN
       TYPE(ESMF_GridComp),SAVE :: GC_GFS_PHY
+      TYPE(ESMF_GridComp),SAVE :: GC_GOCART    
       TYPE(ESMF_CplComp), SAVE :: GC_ATM_CPL
       TYPE(ESMF_GridComp),DIMENSION(:),POINTER,SAVE :: WRT_COMPS
+!
+      type(Chem_Registry), save :: reg
+      character(len=*), parameter ::  myname = 'ut_Registry'
 !
       TYPE(ESMF_State),SAVE :: IMP_GFS_DYN,EXP_GFS_DYN
       TYPE(ESMF_State),SAVE :: IMP_GFS_PHY,EXP_GFS_PHY
@@ -955,6 +964,19 @@
                                ,rc          =RC)
 !jw        endif
 !jwe
+
+!sarah lu
+
+!  No rc file name provided
+!  ------------------------
+        print *, 'Read Chem_Registry'
+        reg = Chem_RegistryCreate ( ierr )
+        if ( ierr /= 0 ) call die ( myname, 'cannot create registry' )
+        CALL Chem_RegistryPrint ( reg )
+        call Chem_RegistryDestroy ( reg, ierr )
+        if ( ierr /= 0 ) call die ( myname, 'cannot destroy registry' )
+
+
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -1164,6 +1186,13 @@
       call esmf_gridcompsetservices(gc_gfs_phy                   &
                                    ,gfs_phy_setservices             &
                                    ,rc)
+
+! setservice for gocart
+      call esmf_gridcompsetservices(gc_gocart               &  ! <-- The GOCART gridded component
+                                   ,gocart_setservices      &  ! <-- The user's subroutineName
+                                   ,rc)
+
+!
       ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
