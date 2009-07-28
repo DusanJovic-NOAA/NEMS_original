@@ -35,9 +35,6 @@
 # CPP, Compiler, and Linker Options
 #
 #
-## Sarah Lu: add NCEP_base.mk
-include ../../gocart/AIX/Config/NCEP_base.mk
-include ../../../ush/compile_settings
 TARGET= atmos.a
 
 MODULE=        \
@@ -55,9 +52,8 @@ MODULE_AGC=    \
 $(LIBDIR1)/lib/$(TARGET): $(MODULE) $(MODULE_AGC)
 	$(AR) $(ARFLAGS) $(LIBDIR1)/lib/$(TARGET) $(MODULE) $(MODULE_AGC)
 
-### Sarah Lu: add GOCART_INC
 module_ATM_GRID_COMP.o: $(DEPS2)
-	$(F90) $(FFLAGSDB) $(GOCART_INC) -c module_ATM_GRID_COMP.F90
+	$(F90) $(FFLAGSDB) -c module_ATM_GRID_COMP.F90
 
 module_GFS_CORE_SETUP.o: $(DEPS2)
 	$(F90) $(FFLAGSDB) -c module_GFS_CORE_SETUP.F90
