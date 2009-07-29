@@ -970,7 +970,7 @@ cat  > atm_namelist <<EOF
   $CYCLVARS /
 EOF
 
-eval $PGM $REDOUT$PGMOUT $REDERR$PGMERR
+eval hpmcount -o gfs_test $PGM $REDOUT$PGMOUT $REDERR$PGMERR
 
 export ERR=$?
 export err=$ERR

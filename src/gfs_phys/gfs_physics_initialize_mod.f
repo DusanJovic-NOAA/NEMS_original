@@ -382,8 +382,8 @@
 !
       allocate (   gis_phy%fhour_idate(1,5), stat = ierr )
 !
-      write(0,*) ' check after lots allocates,size(fhour_idate)= ' ,   &
-        size(gis_phy%fhour_idate,1),size(gis_phy%fhour_idate,2),ierr
+!      write(0,*) ' check after lots allocates,size(fhour_idate)= ' ,   &
+!        size(gis_phy%fhour_idate,1),size(gis_phy%fhour_idate,2),ierr
 
       if (ldiag3d) then
         call d3d_init(ngptc,gis_phy%nblck,lonr,lats_node_r,levs,pl_coeff)
@@ -394,21 +394,12 @@
         if (num_p2d .gt. 0) gis_phy%phy_f2d = 0.0
 !     endif
 !jw
-       allocate(ak5(levp1),bk5(levp1),ck5(levp1))
-       allocate(buff_mult_piecea2d(lonr,lats_node_r,1:ngrids_sfcc2d+1))
-       allocate(buff_mult_piecea3d(lonr,lats_node_r,1:ngrids_sfcc3d+1))
-       allocate(buff_mult_piecef(lonr,lats_node_r,1:ngrids_flx+1))
-       ak5=0.
-       bk5=0.
-       ck5=0.
-       buff_mult_piecea2d(1:lonr,1:lats_node_r,1:ngrids_sfcc2d+1)=0.
-       buff_mult_piecea3d(1:lonr,1:lats_node_r,1:ngrids_sfcc3d+1)=0.
-       buff_mult_piecef(1:lonr,1:lats_node_r,1:ngrids_flx+1)=0.
-       write(0,*)'in init,buff_mult_piecea2D=',maxval(buff_mult_piecea2D), &
-       minval(buff_mult_piecea2D),'buff_mult_piecea3D=',   &
-       maxval(buff_mult_piecea3d),minval(buff_mult_piecea3D) &
-       ,'ngrids_sfcc2d=',ngrids_sfcc2d,'ngrids_sfcc3d=',ngrids_sfcc3d, &
-       'ngrids_flx=',ngrids_flx
+       allocate(buff_mult_piecea2d(lonr,lats_node_r_max,1:ngrids_sfcc2d+1))
+       allocate(buff_mult_piecea3d(lonr,lats_node_r_max,1:ngrids_sfcc3d+1))
+       allocate(buff_mult_piecef(lonr,lats_node_r_max,1:ngrids_flx+1))
+       buff_mult_piecea2d(1:lonr,1:lats_node_r_max,1:ngrids_sfcc2d+1)=0.
+       buff_mult_piecea3d(1:lonr,1:lats_node_r_max,1:ngrids_sfcc3d+1)=0.
+       buff_mult_piecef(1:lonr,1:lats_node_r_max,1:ngrids_flx+1)=0.
 !!
       call countperf(0,18,0.)
 !!
@@ -418,7 +409,6 @@
         gis_phy%OZPLIN,gis_phy%nam_gfs_phy%sfc_ini)
 
 !     print *,' GISXLAT=',gis_phy%XLAT(1,:)
-      write(0,*)' finish fix_fields '
 !!
       call countperf(1,18,0.)
 !!
@@ -426,11 +416,6 @@
       gis_phy%FLUXR=0.
 !
       call flx_init(gis_phy%flx_fld, ierr)
-
-      write(0,*) ' after flx_init,size(fhour_idate)= ' ,   &
-        size(gis_phy%fhour_idate,1),size(gis_phy%fhour_idate,2),ierr
-
-      write(0,*)' finish fix_init '
 
       if (ldiag3d) then
         call d3d_zero

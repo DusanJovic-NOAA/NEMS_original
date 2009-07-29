@@ -14,14 +14,6 @@ NMM
 3) 45 processors, no threads, 3 nodes, cold start
 4) 15 processors, no threads, 1 node, initialized from restart.
 
-GFS
-
-0) 1 processors, no threads, 1 node, cold start
-1) 15 processors, no threads, 1 node, cold start
-2) 15 processors, 2 threads, 2 nodes, cold start
-3) 45 processors, no threads, 3 nodes, cold start
-
-
 ---------------------------------------------
 0) 0-Run (minimal processors)
 
@@ -233,13 +225,116 @@ Test 4:
         Threading: None
         Duration: 24 hours (starting from the 24th hour of Test 1 restart file)
 
+#############################################
+How to run GFS tests:
+#############################################
 
-Results
-        NMM-B: 		        GFS:
-0)      PASS                    PASS (1 processor) 
-I) 	Pass			Pass
-II)  	Pass			Pass
-III) 	Pass			Pass
-IV)     Pass                    -
+The following task decomposition is tested for gfs fields:
 
-		
+0) 1 processors, no threads, 0 write tasks cold start
+1) 32 processors, no threads,  2 write tasks cold start
+2) 32 processors, 2 threads,  4 write tasks cold start
+3) 60 processors, no threads, 2 write tasks  cold start
+
+
+The GFS regression tests are now controlled with a single script located in the directory /ush. To invoke the script
+the following command is executed:
+
+llsubmit run_gfs_regression_test.scr
+
+The loadleveler submission script then submits a series of jobs onto the queu that prepare the initial analysis files sfcanl.YYYYMMDDHH,
+gfsanl.YYYYMMDDHH, and siganl.YYYYMMDDHH. These jobs are designated: gfs_prep_test[1-4] and are submitted simulataneously. Once these jobs
+have completed the gfs run scripts are invoked and are designated gfs_runtest[1-4]. These jobs then execute the NEMS/GFS model based on the initial
+condition files created by the gfs_prep_test[1-4] loadleveler jobs and the NEMS/GFS configure file.
+
+The format of the run_gfs_regression_test.scr script is highlighted below:
+
+# @ job_name = run_gfs_regression_test
+# @ step_name = gfs_prep_testX
+# @ output = gfs_prep_outX
+# @ error = gfs_prep_errX
+# @ job_type = parallel
+# @ parallel_threads = 1
+# @ task_affinity = cpu(1)
+# @ blocking = unlimited
+# @ node_usage = shared
+# @ total_tasks = 1
+# @ resources=ConsumableCPUs(1)ConsumableMemory(3500MB)
+# @ class = dev
+# @ wall_clock_limit = 04:00:00
+# @ preferences = Feature == "dev"
+# @ network.MPI = sn_all,shared,us
+# @ account_no=NAM-T2O
+# @ arguments = CDATE RUNDIR
+# @ executable = regression_tests/gfs_prep_test
+# @ queue
+
+# @ dependency = (gfs_prep_testX == 0)
+# @ step_name = gfs_runtestX
+# @ output = gfs_run_outX
+# @ error = gfs_run_errX
+# @ job_type = parallel
+# @ parallel_threads = 1
+# @ task_affinity = cpu(1)
+# @ blocking = unlimited
+# @ node_usage = shared
+# @ total_tasks = TOTAL_TASKS
+# @ resources=ConsumableCPUs(1)ConsumableMemory(3500MB)
+# @ class = dev
+# @ wall_clock_limit = 04:00:00
+# @ preferences = Feature == "dev"
+# @ network.MPI = sn_all,shared,us
+# @ account_no=NAM-T2O
+# @ arguments = CDATE TOTAL_TASKS PROCESSING_TASKS NUMBER_OF_WRITE_GROUPS TASKS_PER_WRITE_GROUP NUMBER_OF_THREADS RUNDIR SRCDIR
+# @ executable = regression_tests/gfs_run_test
+# @ queue
+
+Where:
+
+X=EXPERIMENT NUMBER (INTEGER)
+CDATE=EXPERIMENTAL START DATE (YYYYMMDDHH)
+TOTAL_TASKS = TOTAL NUMBER OF TASKS REQUESTED FOR THE EXPERIMENTAL RUN
+PROCESSING_TASKS = TOTAL_TASKS-NUMBER_OF_WRITE_GROUPS*TASKS_PER_WRITE_GROUP
+NUMBER_OF_WRITE_GROUPS = NUMBER OF WRITE GROUPS ALLOCATED FOR GENERATING GFS OUTPUT FILES.
+TASKS_PER_WRITE_GROUP = TASKS DEVOTED FOR EACH WRITE GROUP
+NUMBER_OF_THREADS = NUMBER OF OPENMP THREADS UTILIZED
+RUNDIR = PATH OF THE DIRECTORY THAT WILL BE USED TO STORE THE NEMS/GFS RESULTS
+SRCDIR = PATH OF THE DIRECTORY CONTAINING THE NEMS/GFS SOURCE CODE
+
+The above fields may be changed to suit the needs of the user. These script arguments are ingested by two subscripts located in
+/ush/regression_tests called gfs_prep_test & gfs_run_test which resemble the scripts normally employed to run NEMS/GFS.
+
+Once all of the experimental runs have completed, an bitwise comparison loadleveler job is submitted which is designated gfs_cmptest_out
+which invokes a script located in /ush/regression_tests designated cmp_test. The arguments for this script number 1-5 in which the first
+argument is always a stored baseline gfs test result and the other argument refer to the 4 experimental runs. The format of the submission script is
+listed below and includes:
+
+# @ dependency = (gfs_runtest1==0)&&(gfs_runtest2==0)&&(gfs_runtest3==0)&&(gfs_runtest4==0)
+# @ step_name = gfs_cmptest
+# @ output = gfs_cmptest_out
+# @ error = gfs_cmptest_out
+# @ job_type = parallel
+# @ parallel_threads = 1
+# @ task_affinity = cpu(1)
+# @ blocking = unlimited
+# @ node_usage = shared
+# @ total_tasks = 1
+# @ resources=ConsumableCPUs(1)ConsumableMemory(3500MB)
+# @ class = dev
+# @ wall_clock_limit = 04:00:00
+# @ preferences = Feature == "dev"
+# @ network.MPI = sn_all,shared,us
+# @ account_no=NAM-T2O
+# @ arguments = /meso/noscrub/wx22ec/gfs.0 /ptmp/wx22ec/gfs.1 /ptmp/wx22ec/gfs.2 /ptmp/wx22ec/gfs.3 /ptmp/wx22ec/gfs.4
+# @ executable = regression_tests/cmp_test
+# @ queue
+
+In this instance, a baseline gfs regression test is stored at the location /meso/noscrub/wx22ec/gfs.0. All other experimental results
+are checked off of this baseline result. 
+
+A final output file designated cmp_results will be produced at the end of the regression test. It will list the results of the bitwise
+comparisons between the baseline sig, sfc, and flx files and the experimental results. A "PASS" indicates that the files were bitwise 
+identical and a "FAIL" indicates that they were not.
+
+Timing files with the format gfs_testXXXX are stored in each experimental RUNDIR and list the runtimes and resource allocations needed for each experiment.
+

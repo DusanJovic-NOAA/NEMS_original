@@ -1,0 +1,161 @@
+#!/bin/ksh
+#
+set -x
+t0=$1
+t1=$2
+t2=$3
+t3=$4
+t4=$5
+(( i=3 ))
+rm -f cmp_result
+while [[ $i -le 48 ]] ; do
+if [[ $i -le 10 ]] ; then
+cmp -s $t0/flxf00"$i"_nemsio $t1/flxf00"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/flxf00"$i"_nemsio  t1/flxf00"$i"_nemsio PASS" > cmp_result
+else
+  echo "$t0/flxf00"$i"_nemsio  $t1/flxf00"$i"_nemsio FAIL" > cmp_result
+fi
+cmp -s $t0/sfcf00"$i"_nemsio $t1/sfcf00"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/sfcf00"$i"_nemsio  $t1/sfcf00"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/sfcf00"$i"_nemsio  $t1/sfcf00"$i"_nemsio FAIL" >> cmp_result
+fi
+cmp -s $t0/sigf00"$i"_nemsio $t1/sigf00"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/sigf00"$i"_nemsio  $t1/sigf00"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/sigf00"$i"_nemsio  $t1/sigf00"$i"_nemsio FAIL" >> cmp_result
+fi
+cmp -s $t0/flxf00"$i"_nemsio $t2/flxf00"$i"_nemsio 
+if [ $? -eq 0 ]; then
+  echo "$t0/flxf00"$i"_nemsio  $t2/flxf00"$i"_nemsio PASS" > cmp_result
+else
+  echo "$t0/flxf00"$i"_nemsio  $t2/flxf00"$i"_nemsio FAIL" > cmp_result
+fi
+cmp -s $t0/sfcf00"$i"_nemsio $t2/sfcf00"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/sfcf00"$i"_nemsio  $t2/sfcf00"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/sfcf00"$i"_nemsio  $t2/sfcf00"$i"_nemsio FAIL" >> cmp_result
+fi
+cmp -s $t0/sigf00"$i"_nemsio $t2/sigf00"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/sigf00"$i"_nemsio  $t2/sigf00"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/sigf00"$i"_nemsio  $t2/sigf00"$i"_nemsio FAIL" >> cmp_result
+fi
+cmp -s $t0/flxf00"$i"_nemsio $t3/flxf00"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/flxf00"$i"_nemsio  $t3/flxf00"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/flxf00"$i"_nemsio  $t3/flxf00"$i"_nemsio FAIL" >> cmp_result
+fi
+cmp -s $t0/sfcf00"$i"_nemsio $t3/sfcf00"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/sfcf00"$i"_nemsio  $t3/sfcf00"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/sfcf00"$i"_nemsio  $t3/sfcf00"$i"_nemsio FAIL" >> cmp_result
+fi
+cmp -s $t0/sigf00"$i"_nemsio $t3/sigf00"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/sigf00"$i"_nemsio  $t3/sigf00"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/sigf00"$i"_nemsio  $t3/sigf00"$i"_nemsio FAIL" >> cmp_result
+fi
+cmp -s $t0/flxf00"$i"_nemsio $t4/flxf00"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/flxf00"$i"_nemsio  $t4/flxf00"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/flxf00"$i"_nemsio  $t4/flxf00"$i"_nemsio FAIL" >> cmp_result
+fi
+cmp -s $t0/sfcf00"$i"_nemsio $t4/sfcf00"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/sfcf00"$i"_nemsio  $t4/sfcf00"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/sfcf00"$i"_nemsio  $t4/sfcf00"$i"_nemsio FAIL" >> cmp_result
+fi
+cmp -s $t0/sigf00"$i"_nemsio $t4/sigf00"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/sigf00"$i"_nemsio  $t4/sigf00"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/sigf00"$i"_nemsio  $t4/sigf00"$i"_nemsio FAIL" >> cmp_result
+fi
+else
+cmp -s $t0/flxf0"$i"_nemsio $t1/flxf0"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/flxf0"$i"_nemsio  $t1/flxf0"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/flxf0"$i"_nemsio  $t1/flxf0"$i"_nemsio FAIL" >> cmp_result
+fi
+cmp -s $t0/sfcf0"$i"_nemsio $t1/sfcf0"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/sfcf0"$i"_nemsio  $t1/sfcf0"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/sfcf0"$i"_nemsio  $t1/sfcf0"$i"_nemsio FAIL" >> cmp_result
+fi
+cmp -s $t0/sigf0"$i"_nemsio $t1/sigf0"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/sigf0"$i"_nemsio  $t1/sigf0"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/sigf0"$i"_nemsio  $t1/sigf0"$i"_nemsio FAIL" >> cmp_result
+fi
+cmp -s $t0/flxf0"$i"_nemsio $t2/flxf0"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/flxf0"$i"_nemsio  $t2/flxf0"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/flxf0"$i"_nemsio  $t2/flxf0"$i"_nemsio FAIL" >> cmp_result
+fi
+cmp -s $t0/sfcf0"$i"_nemsio $t2/sfcf0"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/sfcf0"$i"_nemsio  $t2/sfcf0"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/sfcf0"$i"_nemsio  $t2/sfcf0"$i"_nemsio FAIL" >> cmp_result
+fi
+cmp -s $t0/sigf0"$i"_nemsio $t2/sigf0"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/sigf0"$i"_nemsio  $t2/sigf0"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/sigf0"$i"_nemsio  $t2/sigf0"$i"_nemsio FAIL" >> cmp_result
+fi
+cmp -s $t0/flxf0"$i"_nemsio $t3/flxf0"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/flxf0"$i"_nemsio  $t3/flxf0"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/flxf0"$i"_nemsio  $t3/flxf0"$i"_nemsio FAIL" >> cmp_result
+fi
+cmp -s $t0/sfcf0"$i"_nemsio $t3/sfcf0"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/sfcf0"$i"_nemsio  $t3/sfcf0"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/sfcf0"$i"_nemsio  $t3/sfcf0"$i"_nemsio FAIL" >> cmp_result
+fi
+cmp -s $t0/sigf0"$i"_nemsio $t3/sigf0"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/sigf0"$i"_nemsio  $t3/sigf0"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/sigf0"$i"_nemsio  $t3/sigf0"$i"_nemsio FAIL" >> cmp_result
+fi
+cmp -s $t0/flxf0"$i"_nemsio $t4/flxf0"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/flxf0"$i"_nemsio  $t4/flxf0"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/flxf0"$i"_nemsio  $t4/flxf0"$i"_nemsio FAIL" >> cmp_result
+fi
+cmp -s $t0/sfcf0"$i"_nemsio $t4/sfcf0"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/sfcf0"$i"_nemsio  $t4/sfcf0"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/sfcf0"$i"_nemsio  $t4/sfcf0"$i"_nemsio FAIL" >> cmp_result
+fi
+cmp -s $t0/sigf0"$i"_nemsio $t4/sigf0"$i"_nemsio
+if [ $? -eq 0 ]; then
+  echo "$t0/sigf0"$i"_nemsio  $t4/sigf0"$i"_nemsio PASS" >> cmp_result
+else
+  echo "$t0/sigf0"$i"_nemsio  $t4/sigf0"$i"_nemsio FAIL" >> cmp_result
+fi
+fi
+(( i += 3 ))
+done
+echo "regression test complete"

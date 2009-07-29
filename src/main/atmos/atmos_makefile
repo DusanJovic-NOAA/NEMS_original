@@ -35,6 +35,7 @@
 # CPP, Compiler, and Linker Options
 #
 #
+include ../../../ush/compile_settings
 TARGET= atmos.a
 
 MODULE=        \

@@ -2,7 +2,7 @@
 ######## Model Core ###########
 ###############################
 
-core: nmm                   # The dynamic core options:
+core: gfs                   # The dynamic core options:
                                 # nmm
                                 # gfs
                                 # fim
