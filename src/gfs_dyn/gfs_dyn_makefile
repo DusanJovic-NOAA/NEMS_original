@@ -1,9 +1,9 @@
 ##  This is an elementary grid component or say independent grid component ##
-.SUFFIXES: .o .f .h
 #
 # *****************************************************************
 #
-include ../../ush/compile_settings
+include ../../ush/compile_settings 
+MAKEFILE=gfs_dyn_makefile
 TARGET = gfs_dyn.a
 OBJS0	= \
 	  gfs_dynamics_err_msg_mod.o		\
@@ -135,10 +135,18 @@ INCS =  \
 #
 # *****************************************************************
 #
+.SUFFIXES:      .o .f .h
 
-$(LIBDIR)/lib/$(TARGET):  $(OBJ_MOD) $(OBJS0) $(OBJS) $(OBJS_IO) 
-	$(AR) $(ARFLAGS) $(LIBDIR)/lib/$(TARGET) $(OBJ_MOD) $(OBJS0) $(OBJS) $(OBJS_IO) 
-	echo " $(TARGET) created!"
+default:
+	@gmake -f $(MAKEFILE) all
+
+all: $(LIBDIR)/lib/$(TARGET)
+
+$(LIBDIR)/lib/$(TARGET):  $(OBJ_MOD) $(OBJS0) $(OBJS) $(OBJS_IO)
+	$(AR) $(ARFLAGS) $@ $?
+
+.f.o:
+	$(FC) $(FFLAGS) -c $*.f
 
 clean:
 	/bin/rm -f $(OBJ_MOD) 
@@ -148,10 +156,6 @@ clean:
 	/bin/rm -f *.mod 
 	/bin/rm -f *.o
 	/bin/rm -f $(LIBDIR)/lib/$(TARGET)
-
-.f.o:
-	$(FC) $(FFLAGS) -c $< 
-
 
 #
 # *****************************************************************

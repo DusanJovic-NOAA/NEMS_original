@@ -33,54 +33,36 @@
 #
 # CPP, Compiler, and Linker Options
 #
-TARGET     = nmm_phys_stub.a
-UTIL = nmm_util
-UTIL_LIB   = ../$(UTIL)/nmm_util.a
-GCLIBS  = $(UTIL_LIB)
-FC       = xlf
-PROF     = -g -pg
-PROF     =
-ARCH     = AIX
-CPP      = /lib/cpp -P
-#CPPFLAGS = -DIBM
-CPPFLAGS = -DENABLE_SMP -DIBM
-SMP      = -qsmp=omp
-#SMP      =
-MAF      = -qfloat=nomaf
-OPTS     = -O2 -qmaxmem=-1 -qarch=auto -qtune=auto $(PROF) -NS2000
-TRAPS    = 
-MAP      = -bmap:map -bloadmap:lm
-#
-# Assemble Options
-#
-FINCO    = -I/meso/save/${USER}/NEMS/mod/esmf_3_1_0rp2
-FINCS	 = $(FINCO)
-FFLAGS   = $(OPTS) $(FINCS) $(TRAPS)
+include ../../ush/compile_settings
+MAKEFILE = makefile_stub
+TARGET= nmm_phys_stub.a
 #
 
 MODULES=	\
-		module_PHYSICS_GRID_COMP_STUB.o 
+		module_PHYSICS_GRID_COMP_STUB.o \
 
-INCLUDES=	../../inc/kind.inc
-
-
-DEPS= $(INCLUDES)
-
-AR = ar
-ARFLAGS = -r
-
-
-.SUFFIXES:	.F90 .f90 .o
+.SUFFIXES:      .F90 .f90 .o
 
 .F90.f90:
 	$(CPP) $(CPPFLAGS) $< > $*.f90
 
-$(TARGET): $(MODULES) 
-	$(AR) $(ARFLAGS) $(TARGET) $(MODULES) 
+default:
+	@gmake -f $(MAKEFILE) all
+
+all: $(LIBDIR)/libstub/$(TARGET)
+
+$(LIBDIR)/libstub/$(TARGET): $(MODULES)
+	$(AR) $(ARFLAGS) $@ $?
 
 $(MODULES):	$(DEPS)
-	$(FC) $(FFLAGS) -c $<
+	$(F90) $(FFLAG_NMM_PHY) -c $*.f90
 
 clean:	
-	/bin/rm -f  $(TARGET) *.f90 *.lst *.o *.mod lm map
+	/bin/rm -f  $(LIBDIR)/libstub/$(TARGET) 
+	/bin/rm -f  *.f90 
+	/bin/rm -f  *.lst 
+	/bin/rm -f  *.o 
+	/bin/rm -f  *.mod 
+	/bin/rm -f  lm 
+	/bin/rm -f  map
 

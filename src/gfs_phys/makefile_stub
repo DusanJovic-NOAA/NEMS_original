@@ -1,64 +1,81 @@
 #### this is elementary grid component or independent grid component ####
- F77     = xlf
- F90     = xlf
- EXEC	 = gfs_phys_stub.a
-#
- FINC0    = -I/meso/save/${USER}/NEMS/mod/esmf_3_1_0rp2
- FINCS    = $(FINC0) -I/nwprod/lib/incmod/w3_d
-
- DEBUG    = -qcheck -qsource -qlist
 #---------------
 # For non-debug.
 #---------------
-FFLAGM_DEBUG  = -O2
-
- OPTS     = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
- OPTS90   = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
- OPTS90A  = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
-
- FFLAG90  = $(OPTS90) $(FINCS) -qfree -NS2048
- FFLAG90A = $(OPTS90A) $(FINCS) -qfree -NS2048
- FFLAGS   = $(OPTS) 
- FFLAGX   = $(OPTS)
- FFLAGIO  = $(OPTS) 
- FFLAGY   = $(OPTS)
- FFLAGM   = $(OPTS) $(FINCS) $(FFLAGM_DEBUG) -NS2048
- FFLAGSF  = -qnosave -q free=f90 -qcheck $(FFLAGM_DEBUG)
- FFLAGSI  = -qnosave -q free=f90 $(FFLAGM_DEBUG)
- FFLAGB   = -qnosave -qfixed $(FFLAGM_DEBUG)
-
- AR = ar
- ARFLAGS = -r
- 
-.SUFFIXES: .o .f .F .h
 #
+include ../../ush/compile_settings
+MAKEFILE=makefile_stub
+TARGET= gfs_phys_stub.a
 # *****************************************************************
 #
 OBJS0   = \
-	  gfs_physics_grid_comp_mod_stub.o
+		machine.o \
+		ozne_def.o \
+		layout1.o \
+		date_def.o \
+		namelist_physics_def.o \
+		resol_def.o \
+		mersenne_twister.o \
+		physcons_v.o \
+		funcphys_v.o \
+		iounitdef.o \
+		radiation_astronomy.o \
+		radiation_gases.o \
+		module_bfmicrophysics.o \
+		gfs_physics_grid_comp_mod_stub.o
 
 #
 # *****************************************************************
 #
-                                                                                
-$(EXEC):  $(OBJS0)
-	$(AR) $(ARFLAGS) $(EXEC) $(OBJS0)
-	echo " $(EXEC) created!"
+
+.SUFFIXES: .o .f
+
+default:
+	@gmake -f $(MAKEFILE) all
+
+all: $(LIBDIR)/libstub/$(TARGET)
+
+$(LIBDIR)/libstub/$(TARGET):  $(OBJS0) 
+	$(AR) $(ARFLAGS) $@ $?
 
 clean:
-	rm -f $(OBJS0) *.mod gfs_phys.a
+	/bin/rm -f $(OBJS0) 
+	/bin/rm -f *.mod 
+	/bin/rm -f *.o
+	/bin/rm -f $(LIBDIR)/libstub/$(TARGET)
 
-.F.o:
-	$(F77) $(FFLAGS) -c -d $< 
-	#$(F77) $(FFLAGS) -c -d -WF,-DCLR:${RASV} $< 
 .f.o:
-	$(F77) $(FFLAGS) -c $< 
-
+	$(F77) $(FFLAGS) -c $*.f
 
 #
 # *****************************************************************
 #
+machine.o : machine.f
+		$(F77) $(FFLAG90) -c machine.f
+ozne_def.o: ozne_def.f
+		$(F77) $(FFLAG90) -c ozne_def.f
+namelist_physics_def.o: namelist_physics_def.f
+		$(F77) $(FFLAG90) -c namelist_physics_def.f
+layout1.o: layout1.f
+		$(F77) $(FFLAG90) -c layout1.f
+date_def.o: date_def.f
+		$(F77) $(FFLAG90) -c date_def.f
+mersenne_twister.o: mersenne_twister.f
+		$(F77) $(FFLAG90) -c mersenne_twister.f
+resol_def.o: resol_def.f
+		$(F77) $(FFLAG90) -c resol_def.f
+physcons_v.o: physcons_v.f
+		$(F77) $(FFLAG90) -c physcons_v.f
+funcphys_v.o: funcphys_v.f
+		$(F77) $(FFLAG90) -c funcphys_v.f
+iounitdef.o: iounitdef.f
+		$(F77) $(FFLAG90) -c iounitdef.f
+radiation_astronomy.o: radiation_astronomy.f
+		$(F77) $(FFLAG90) -c radiation_astronomy.f
+radiation_gases.o: radiation_gases.f
+		$(F77) $(FFLAG90) -c radiation_gases.f
+module_bfmicrophysics.o: module_bfmicrophysics.f
+		$(F77) $(FFLAG90) -c module_bfmicrophysics.f
 gfs_physics_grid_comp_mod_stub.o:    gfs_physics_grid_comp_mod_stub.f
 		$(F77) $(FFLAG90) -c gfs_physics_grid_comp_mod_stub.f
                                                                                 
-

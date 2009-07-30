@@ -34,6 +34,7 @@
 # CPP, Compiler, and Linker Options
 #
 include ../../ush/compile_settings
+MAKEFILE=nmm_dyn_makefile
 TARGET= nmm_dyn.a
 #
 
@@ -52,22 +53,28 @@ MODULE_SMP=     \
 		module_DYNAMICS_ROUTINES.o \
                 module_FLTBNDS.o
 
+.SUFFIXES:	.F90 .f90 .o
+
+.F90.f90:
+	$(CPP) $(CPPFLAGS) $< > $*.f90
+
+default:
+	@gmake -f $(MAKEFILE) all
+
+all: $(LIBDIR)/lib/$(TARGET)
 
 
 $(LIBDIR)/lib/$(TARGET): $(MODULES) $(MODULE_DGC) $(MODULE_SMP) $(MODULE_SMP1)
-	$(AR) $(ARFLAGS) $(LIBDIR)/lib/$(TARGET) $(MODULES) $(MODULE_DGC) $(MODULE_SMP) $(MODULE_SMP1)
+	$(AR) $(ARFLAGS) $@ $?
 
 $(MODULES):	$(DEPS)
-	$(CPP) $(CPPFLAGS) $*.F90 > $*.f90
 	$(FC) $(FFLAG_NMM_DYN) -c $*.f90
 
 $(MODULE_DGC):	$(DEPS)
-	$(CPP) $(CPPFLAGS) $*.F90 > $*.f90
 	$(FC) $(FFLAG_NMM_DYN) -c $*.f90
 
 $(MODULE_SMP):  $(DEPS)
-	$(CPP) $(CPPFLAGS) $*.F90 > $*.f90
-	$(FC) $(FFLAG_NMM_DYN) $(SMP) $(MAF) -c $*.f90
+	$(FC) $(FFLAG_NMM_DYN) $(SMP) $(MAF) -qsource -qlist -c $*.f90
 
 clean:	
 	/bin/rm -f $(LIBDIR)/lib/$(TARGET) 
@@ -91,7 +98,7 @@ module_DYNAMICS_GRID_COMP.o:	\
 			   	module_DYNAMICS_INTERNAL_STATE.o \
 			   	module_DYNAMICS_FIELDS.o \
 			   	module_DYNAMICS_OUTPUT.o \
-			   	module_DYNAMICS_ROUTINES.o
+			   	module_DYNAMICS_ROUTINES.o 
 
 module_GET_CONFIG_DYN.o:     \
 				module_DYNAMICS_INTERNAL_STATE.o

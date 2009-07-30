@@ -31,77 +31,58 @@
 # Define the name of the executable
 #
 #
-# CPP, Compiler, and Linker Options
-#
-TARGET     = nmm_libutil_stub.a
-UTIL     = nmm_libutil
-FC       = xlf
-PROF     = -g -pg
-PROF     =
-ARCH     = AIX
-CPP      = /lib/cpp -P
-CPPFLAGS = -DENABLE_SMP -DIBM
-OPTS     = -O2 -qmaxmem=-1 -qarch=auto -qtune=auto $(PROF) -NS2000
-#TRAPS    = -qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap -C
-TRAPS    = 
-#
-# Assemble Options
-#
-FINCO    = -I/climate/save/${USER}/esmf/nems/trunk_merge_gfswrt/trunk/mod/esmf_3_1_0rp2
-FINCP    = -I/climate/save/${USER}/esmf/nems/trunk_merge_gfswrt/trunk/lib/w3_d  
-FINCS	 = $(FINCO) $(FINCP)
-FFLAGS   = $(OPTS) $(FINCS) $(TRAPS)
-#
-
+include ../../ush/compile_settings
+MAKEFILE=makefile_stub
+TARGET = nmm_libutil_stub.a
+ 
 MODULES=	\
 		module_ATM_INTERNAL_STATE.o  \
 		module_CLOCKTIMES.o \
-		module_CONSTANTS.o \
 		module_CONTROL.o \
 		module_DIAGNOSE.o \
 		module_DM_PARALLEL.o \
 		module_EXCHANGE.o \
 		module_INCLUDE.o \
-		module_DIGITAL_FILTER_NMM.o \
-		module_ERR_MSG.o \
-		looplimits.o
-
-INCLUDES=	../../inc/kind.inc
-
-DEPS= $(INCLUDES)
-
-AR = ar
-ARFLAGS = -r
-
+		module_ERR_MSG.o 
 
 .SUFFIXES:	.F90 .f90 .o
 
 .F90.f90:
 	$(CPP) $(CPPFLAGS) $< > $*.f90
 
-$(TARGET): $(MODULES) 
-	$(AR) $(ARFLAGS) $(TARGET) $(MODULES) 
+default:
+	@gmake -f $(MAKEFILE) all
+
+all: $(LIBDIR)/libstub/$(TARGET)
+
+$(LIBDIR)/libstub/$(TARGET): $(MODULES) 
+	$(AR) $(ARFLAGS) $@ $?
 
 $(MODULES):	$(DEPS)
-	$(FC) $(FFLAGS) -c $<
+	$(F90) $(FFLAG_NMM_UTIL) -c $*.f90
 
 clean:	
-	/bin/rm -f  $(TARGET) *.f90 *.lst *.o *.mod lm map
+	/bin/rm -f  $(LIBDIR)/libstub/$(TARGET) 
+	/bin/rm -f  *.f90 
+	/bin/rm -f  *.o 
+	/bin/rm -f  *.mod 
 
 #
 # DEPENDENCIES :
 #
-module_CONTROL.o :      module_INCLUDE.o \
-                        module_CONSTANTS.o \
-                        module_DM_PARALLEL.o \
-                        module_EXCHANGE.o
 
-module_DIGITAL_FILTER_NMM.o: module_INCLUDE.o \
-			     module_DM_PARALLEL.o
+module_CONTROL.o :   \
+				module_INCLUDE.o \
+				module_CONSTANTS.o \
+				module_DM_PARALLEL.o \
+				module_EXCHANGE.o \
 
-module_EXCHANGE.o :     module_INCLUDE.o \
-                        module_DM_PARALLEL.o
+module_EXCHANGE.o :  \
+				module_INCLUDE.o \
+                        	module_DM_PARALLEL.o
 
-module_DM_PARALLEL.o :  module_INCLUDE.o
+module_DM_PARALLEL.o : \
+				module_INCLUDE.o
 
-module_CONSTANTS.o :    module_INCLUDE.o
+module_CONSTANTS.o : \
+				module_INCLUDE.o

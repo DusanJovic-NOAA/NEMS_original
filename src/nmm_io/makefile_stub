@@ -31,70 +31,37 @@
 # Define the name of the executable
 #
 #
-# CPP, Compiler, and Linker Options
-#
-TARGET     = nmm_io_stub.a
-UTIL     = nmm_util
-FC       = xlf
-PROF     = -g -pg
-PROF     =
-ARCH     = AIX
-CPP      = /lib/cpp -P
-CPPFLAGS = -DENABLE_SMP -DIBM
-OPTS     = -O2 -qmaxmem=-1 -qarch=auto -qtune=auto $(PROF) -NS2000
-#TRAPS    = -qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap -C
-TRAPS    = 
-#
-# Assemble Options
-#
-FINCO    = -I/meso/save/${USER}/trunk/mod/esmf_3_1_0rp2
-FINCP    = -I/meso/save/${USER}/trunk/src/nmm_libutil
-FINCS	 = $(FINCO) $(FINCP)
-FFLAGS   = $(OPTS) $(FINCS) $(TRAPS)
-#
-
-MODULEIO=	\
-		nemsio_module.o
-
-
+include ../../ush/compile_settings
+MAKEFILE=makefile_stub
+TARGET=nmm_io_stub.a
+ 
 MODULES=	\
-		module_GET_CONFIG_WRITE.o \
 		module_WRITE_GRID_COMP_STUB.o \
-		module_WRITE_ROUTINES.o \
-		module_WRITE_INTERNAL_STATE.o 
-
-INCLUDES=	../../inc/kind.inc
-
-DEPS= $(INCLUDES)
-
-AR = ar
-ARFLAGS = -r
-
+		module_WRITE_ROUTINES_STUB.o \
+		module_WRITE_INTERNAL_STATE_STUB.o \
+		module_GET_CONFIG_WRITE_STUB.o
 
 .SUFFIXES:	.F90 .f90 .o
 
 .F90.f90:
 	$(CPP) $(CPPFLAGS) $< > $*.f90
 
-$(TARGET): $(MODULEIO) $(MODULES) 
-	$(AR) $(ARFLAGS) $(TARGET) $(MODULEIO) $(MODULES) 
+default:
+	@gmake -f $(MAKEFILE) all
+
+all: $(LIBDIR)/libstub/$(TARGET)
+
+$(LIBDIR)/libstub/$(TARGET): $(MODULES) 
+	$(AR) $(ARFLAGS) $@ $?
 
 $(MODULES):	$(DEPS)
-	$(FC) $(FFLAGS) -c $<
+	$(F90) $(FFLAG_NMM_IO) -c $*.f90
 
 clean:	
-	/bin/rm -f  $(TARGET) *.f90 *.lst *.o *.mod lm map
-
-#
-# DEPENDENCIES :
-#
-module_WRITE_GRID_COMP_STUB.o:  \
-				module_WRITE_ROUTINES.o \
-				module_WRITE_INTERNAL_STATE.o 
-
-module_GET_CONFIG_WRITE.o:     	\
-				module_WRITE_INTERNAL_STATE.o 
-
-module_WRITE_ROUTINES.o :       \
-				module_WRITE_INTERNAL_STATE.o \
-				nemsio_module.o
+	/bin/rm -f  $(LIBDIR)/libstub/$(TARGET) 
+	/bin/rm -f  *.f90 
+	/bin/rm -f  *.lst 
+	/bin/rm -f  *.o 
+	/bin/rm -f  *.mod 
+	/bin/rm -f  lm 
+	/bin/rm -f  map

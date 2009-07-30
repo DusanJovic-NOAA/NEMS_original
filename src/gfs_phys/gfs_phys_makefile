@@ -2,9 +2,9 @@
 #---------------
 # For non-debug.
 #---------------
-.SUFFIXES: .o .f .h
 #
 include ../../ush/compile_settings
+MAKEFILE=gfs_phys_makefile
 TARGET= gfs_phys.a
 # *****************************************************************
 #
@@ -133,10 +133,20 @@ SRC = 	\
 #
 # *****************************************************************
 #
-                                                                                
+
+.SUFFIXES:    .o .f
+
+default:
+	@gmake -f $(MAKEFILE) all
+
+all: $(LIBDIR)/lib/$(TARGET)
+
+
 $(LIBDIR)/lib/$(TARGET):  $(OBJ_MOD) $(OBJS0) $(OBJS) $(OBJS_RAD) $(OBJS_PHY) $(OBJS_IO)
-	$(AR) $(ARFLAGS) $(LIBDIR)/lib/$(TARGET) $(OBJ_MOD) $(OBJS0) $(OBJS) $(OBJS_RAD) $(OBJS_PHY) $(OBJS_IO)
-	echo " $(TARGET) created!"
+	$(AR) $(ARFLAGS) $@ $?
+
+.f.o:
+	$(FC) $(FFLAGS) -c $*.f
 
 clean:
 	/bin/rm -f $(OBJ_MOD) 
@@ -147,10 +157,6 @@ clean:
 	/bin/rm -f *.mod 
 	/bin/rm -f *.o
 	/bin/rm -f $(LIBDIR)/lib/$(TARGET)
-
-.f.o:
-	$(FC) $(FFLAGS) -c $< 
-
 
 #
 # *****************************************************************

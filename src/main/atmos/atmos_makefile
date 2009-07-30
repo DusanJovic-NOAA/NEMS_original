@@ -36,6 +36,7 @@
 #
 #
 include ../../../ush/compile_settings
+MAKEFILE=atmos_makefile
 TARGET= atmos.a
 
 MODULE=        \
@@ -50,17 +51,19 @@ MODULE_AGC=    \
 .F90.f90:
 	$(CPP) $(CPPFLAGS) $< > $*.f90
 
+default:
+	@gmake -f $(MAKEFILE) all
+
+all: $(LIBDIR1)/lib/$(TARGET)
+
 $(LIBDIR1)/lib/$(TARGET): $(MODULE) $(MODULE_AGC)
-	$(AR) $(ARFLAGS) $(LIBDIR1)/lib/$(TARGET) $(MODULE) $(MODULE_AGC)
+	$(AR) $(ARFLAGS) $@ $?
 
-module_ATM_GRID_COMP.o: $(DEPS2)
-	$(F90) $(FFLAGSDB) -c module_ATM_GRID_COMP.F90
+$(MODULE): $(DEPS2)
+	$(F90) $(FFLAGSDB) -c $*.f90
 
-module_GFS_CORE_SETUP.o: $(DEPS2)
-	$(F90) $(FFLAGSDB) -c module_GFS_CORE_SETUP.F90
-
-module_GFS_INTEGRATE.o: $(DEPS2)
-	$(F90) $(FFLAGSDB) -c module_GFS_INTEGRATE.F90
+$(MODULE_AGC): $(DEPS2)
+	$(F90) $(FFLAGSDB) -c $*.f90
 
 clean:	
 	/bin/rm -f  $(LIBDIR1)/lib/$(TARGET) 

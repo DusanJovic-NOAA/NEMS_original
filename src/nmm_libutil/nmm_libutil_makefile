@@ -8,7 +8,6 @@
 #
 #     The following macros will be of interest:
 #
-#         TARGET   - name of the executable
 #         FC       - name of Fortran compiler
 #         CPP      - name of CPP
 #         ARCH     - architecture
@@ -32,10 +31,13 @@
 #
 #
 include ../../ush/compile_settings
+MAKEFILE = nmm_libutil_makefile
 TARGET = nmm_libutil.a
  
+MODULEIO=       \
+		nemsio_module.o
+
 MODULES=	\
-		nemsio_module.o \
 		module_ATM_INTERNAL_STATE.o  \
 		module_CLOCKTIMES.o \
 		module_CONSTANTS.o \
@@ -48,11 +50,23 @@ MODULES=	\
 		module_ERR_MSG.o \
 		looplimits.o
 
-$(LIBDIR)/lib/$(TARGET): $(MODULEIO) $(MODULES) 
-	$(AR) $(ARFLAGS) $(LIBDIR)/lib/$(TARGET) $(MODULEIO) $(MODULES) 
+.SUFFIXES:	.F90 .f90 .o
 
-$(MODULES):
-	$(CPP) $(CPPFLAGS) $*.F90 > $*.f90
+.F90.f90:
+	$(CPP) $(CPPFLAGS) $< > $*.f90
+
+default:
+	@gmake -f $(MAKEFILE) all
+
+all: $(LIBDIR)/lib/$(TARGET)
+
+$(LIBDIR)/lib/$(TARGET): $(MODULEIO) $(MODULES) 
+	$(AR) $(ARFLAGS) $@ $?
+
+$(MODULEIO):     $(DEPS)
+	$(FC) $(FFLAG_NMM_UTIL) -c $*.f90
+
+$(MODULES):	$(DEPS)
 	$(FC) $(FFLAG_NMM_UTIL) -c $*.f90
 
 clean:	

@@ -2,9 +2,9 @@
 #---------------
 # For non-debug.
 #---------------
-.SUFFIXES: .o .f .F .h
 #
 include ../../ush/compile_settings
+MAKEFILE=gfs_io_makefile
 TARGET= gfs_io.a
 # *****************************************************************
 #
@@ -23,21 +23,29 @@ INCS = \
 # *****************************************************************
 #
 
-$(LIBDIR)/lib/$(TARGET):  $(OBJ_IO) 
-	$(AR) $(ARFLAGS) $(LIBDIR)/lib/$(TARGET) $(OBJ_IO)  
-	echo " $(TARGET) created!"
+.SUFFIXES: .F90 .f90 .o
 
-clean:
-	/bin/rm -f $(OBJS_IO) 
-	/bin/rm -f *.f90       
-	/bin/rm -f *.mod 
-	/bin/rm -f *.o
-	/bin/rm -f $(LIBDIR)/lib/$(TARGET)
+default:
+	@gmake -f $(MAKEFILE) all
 
+all: $(LIBDIR)/lib/$(TARGET)
+
+# *****************************************************************
+#
+
+$(LIBDIR)/lib/$(TARGET):  $(OBJ_IO)
+	$(AR) $(ARFLAGS) $@ $?
 
 $(OBJ_IO):     $(DEPS)
 	$(CPP) $(CPPFLAGS) $*.F90 > $*.f90
 	$(FC) $(FFLAG_GFS_IO) -c $*.f90
+
+clean:
+	/bin/rm -f $(OBJS_IO) 
+	/bin/rm -f *.mod 
+	/bin/rm -f *.f90
+	/bin/rm -f *.o
+	/bin/rm -f $(LIBDIR)/lib/$(TARGET)
 
 #
 # DEPENDENCIES :

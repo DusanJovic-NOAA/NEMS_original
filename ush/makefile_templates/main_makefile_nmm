@@ -5,11 +5,11 @@
 #
 include ../../ush/compile_settings
 all: 
-	cd $(NMM_UTIL) && $(NMM_UTIL_MAKEFILE_NEW) 
-	cd $(NMM_IO) && $(NMM_IO_MAKEFILE_NEW) 
-	cd $(NMM_DYN) && $(NMM_DYN_MAKEFILE_NEW) 
-	cd $(NMM_PHY) && $(NMM_PHY_MAKEFILE_NEW) 
-	cd $(ATM) && $(ATM_MAKEFILE_NEW) 
+	cd $(NMM_UTIL) && $(NMM_UTIL_MAKEFILE_NEW) all
+	cd $(NMM_IO) && $(NMM_IO_MAKEFILE_NEW) all
+	cd $(NMM_DYN) && $(NMM_DYN_MAKEFILE_NEW) all 
+	cd $(NMM_PHY) && $(NMM_PHY_MAKEFILE_NEW) all
+	cd $(ATM) && $(ATM_MAKEFILE_NEW) all
 	/bin/rm -f $(EXEDIR)/NMM_NEMS.x
 	/bin/rm -f *.o
 	/bin/rm -f *.mod

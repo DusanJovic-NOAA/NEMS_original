@@ -34,6 +34,7 @@
 # CPP, Compiler, and Linker Options
 #
 include ../../ush/compile_settings
+MAKEFILE = nmm_phys_makefile
 TARGET= nmm_phys.a
 #
 
@@ -61,20 +62,27 @@ MODULE_SMP1=    \
 		module_SURFACE_LAYER.o \
 		module_TURBULENCE.o
 
-$(LIBDIR)/lib/$(TARGET): $(MODULES) $(MODULE_SMP) $(MODULE_SMP1)
-	$(AR) $(ARFLAGS) $(LIBDIR)/lib/$(TARGET) $(MODULES) $(MODULE_SMP) $(MODULE_SMP1)
+.SUFFIXES:	.F90 .f90 .o
 
-$(MODULES):	$(DEPS)
-	$(CPP) $(CPPFLAGS) $*.F90 > $*.f90
+.F90.f90:
+	$(CPP) $(CPPFLAGS) $< > $*.f90
+
+default:
+	@gmake -f $(MAKEFILE) all
+
+all: $(LIBDIR)/lib/$(TARGET)
+
+$(LIBDIR)/lib/$(TARGET): $(MODULES) $(MODULE_SMP) $(MODULE_SMP1)
+	$(AR) $(ARFLAGS) $@ $?
+
+$(MODULES): $(DEPS)
 	$(FC) $(FFLAG_NMM_PHY) -c $*.f90
 
-$(MODULE_SMP):	$(DEPS)
-	$(CPP) $(CPPFLAGS) $*.F90 > $*.f90
-	$(FC) $(FFLAG_NMM_PHY) $(SMP) $(MAF) -c $*.f90
+$(MODULE_SMP): $(DEPS)
+	$(FC) $(FFLAG_NMM_PHY) $(SMP) $(MAF) -qsource -qlist -c $*.f90
 
-$(MODULE_SMP1):	$(DEPS)
-	$(CPP) $(CPPFLAGS) $*.F90 > $*.f90
-	$(FC) $(FFLAG_NMM_PHY) $(SMP) -c $*.f90
+$(MODULE_SMP1): $(DEPS)
+	$(FC) $(FFLAG_NMM_PHY) $(SMP) -qsource -qlist -c $*.f90
 
 clean:	
 	/bin/rm -f  $(LIBDIR)/lib/$(TARGET) 
