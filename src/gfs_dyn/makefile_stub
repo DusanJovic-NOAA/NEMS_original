@@ -15,7 +15,7 @@ INCS =  \
 # *****************************************************************
 #
 
-.SUFFIXES: .o .F90
+.SUFFIXES: .o .f
 
 default:
 	@gmake -f $(MAKEFILE) all
@@ -32,9 +32,5 @@ clean:
 	/bin/rm -f *.o
 	/bin/rm -f $(LIBDIR)/libstub/$(TARGET)
 
-.F90.o:
-	$(F77) $(FFLAGS) -c $*.F90
-
-gfs_dynamics_grid_comp_mod_stub.o:	 gfs_dynamics_grid_comp_mod_stub.F90
-		$(F77) $(FFLAG90) -c gfs_dynamics_grid_comp_mod_stub.F90
-
+$(OBJS0): %.o: %.f
+	$(F77) $(FFLAG90) -c $*.f

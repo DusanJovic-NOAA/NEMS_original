@@ -22,7 +22,7 @@
       use d3d_def
       use gfs_physics_sfc_flx_mod
       use mersenne_twister
-      include '../../inc/mpif.h'
+      include 'mpif.h'
       implicit none
 !
       real(kind=kind_grid) grid_gr(lonr*lats_node_r_max,lotgr)

@@ -57,7 +57,7 @@ $(LIBDIR)/lib/$(TARGET): $(MODULES)
 	$(AR) $(ARFLAGS) $@ $?
 
 
-$(MODULES):	$(DEPS)
+$(MODULES): %.o: %.f90	$(DEPS)
 	$(FC) $(FFLAG_NMM_IO) -c $*.f90
 
 clean:	

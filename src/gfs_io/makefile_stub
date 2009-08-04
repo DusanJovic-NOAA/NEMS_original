@@ -9,19 +9,18 @@ TARGET= gfs_io_stub.a
 # *****************************************************************
 #
 OBJ_IO	= \
+	  module_WRITE_INTERNAL_STATE_GFS_STUB.o   \
 	  module_WRITE_ROUTINES_GFS_STUB.o         \
 	  module_WRITE_GRID_COMP_GFS_STUB.o 
-
-
-
-INCS = \
-		$(INCDIR)/f_hpm.h mpi_inc.h $(INCDIR)/function2
 
 
 # *****************************************************************
 #
 
-.SUFFIXES: .o .f90
+.SUFFIXES: .F90 .f90 .o
+
+.F90.f90:
+	$(CPP) $(CPPFLAGS) $< > $*.f90
 
 default:
 	@gmake -f $(MAKEFILE) all
@@ -35,8 +34,9 @@ clean:
 	/bin/rm -f $(OBJS_IO) 
 	/bin/rm -f *.mod 
 	/bin/rm -f *.o
+	/bin/rm -f *.f90
 	/bin/rm -f $(LIBDIR)/libstub/$(TARGET)
 
 
-$(OBJ_IO):     $(DEPS)
+$(OBJ_IO): %.o: %.f90  $(DEPS)
 	$(FC) $(FFLAG_GFS_IO) -c $*.f90

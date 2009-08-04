@@ -27,7 +27,7 @@
       USE gfs_physics_internal_state_mod,ONLY: gfs_physics_internal_state 
       use gfs_physics_err_msg_mod,       ONLY: gfs_physics_err_msg
 !
-      include '../../inc/mpif.h'
+      include 'mpif.h'
 !
 !-----------------------------------------------------------------------
 !

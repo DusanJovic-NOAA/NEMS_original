@@ -54,7 +54,7 @@ all: $(LIBDIR)/libstub/$(TARGET)
 $(LIBDIR)/libstub/$(TARGET): $(MODULES) 
 	$(AR) $(ARFLAGS) $@ $?
 
-$(MODULES):	$(DEPS)
+$(MODULES): %.o: %.f90	$(DEPS)
 	$(F90) $(FFLAG_NMM_IO) -c $*.f90
 
 clean:	

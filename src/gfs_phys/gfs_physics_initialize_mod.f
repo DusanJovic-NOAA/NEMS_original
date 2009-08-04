@@ -57,7 +57,7 @@
       USE d3d_def,                        ONLY: d3d_init, d3d_zero
       use machine,                        ONLY : kind_io4
       USE sfcio_module,                   ONLY: sfcio_axdbta
-      include '../../inc/mpif.h'
+      include 'mpif.h'
 
       implicit none
 

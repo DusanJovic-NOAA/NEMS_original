@@ -35,38 +35,33 @@
 # CPP, Compiler, and Linker Options
 #
 #
-### Sarah Lu: add NCEP_base.mk
-include ../../gocart/AIX/Config/NCEP_base.mk
 include ../../../ush/compile_settings
-TARGET= atmos.a
+MAKEFILE=makefile_stub
+TARGET= atmos_gfs_stub.a
 
 MODULE=        \
-		module_GFS_CORE_SETUP.o \
-		module_GFS_INTEGRATE.o
-
-MODULE_AGC=    \
-		module_ATM_GRID_COMP.o
+		module_GFS_CORE_SETUP_STUB.o \
+		module_GFS_INTEGRATE_STUB.o
 
 .SUFFIXES:	.F90 .f90 .o
 
 .F90.f90:
 	$(CPP) $(CPPFLAGS) $< > $*.f90
 
-$(LIBDIR1)/lib/$(TARGET): $(MODULE) $(MODULE_AGC)
-	$(AR) $(ARFLAGS) $(LIBDIR1)/lib/$(TARGET) $(MODULE) $(MODULE_AGC)
+default:
+	@gmake -f $(MAKEFILE) all
 
-### Sarah Lu: add GOCART_INC
-module_ATM_GRID_COMP.o: $(DEPS2)
-	$(F90) $(FFLAGSDB)  $(GOCART_INC) -c module_ATM_GRID_COMP.F90
+all: $(LIBDIR1)/libstub/$(TARGET)
 
-module_GFS_CORE_SETUP.o: $(DEPS2)
-	$(F90) $(FFLAGSDB) -c module_GFS_CORE_SETUP.F90
+$(LIBDIR1)/libstub/$(TARGET): $(MODULE) 
+	$(AR) $(ARFLAGS) $@ $?
 
-module_GFS_INTEGRATE.o: $(DEPS2)
-	$(F90) $(FFLAGSDB) -c module_GFS_INTEGRATE.F90
+$(MODULE): %.o: %.f90 $(DEPS2)
+	$(F90) $(FFLAGSDB_STUB) -c $*.f90
 
 clean:	
-	/bin/rm -f  $(LIBDIR1)/lib/$(TARGET) 
+	/bin/rm -f  $(LIBDIR1)/libstub/$(TARGET) 
+	/bin/rm -f  $(MODDIR1)/modstub/gfs/*mod
 	/bin/rm -f *.f90 
 	/bin/rm -f *.lst 
 	/bin/rm -f *.o 

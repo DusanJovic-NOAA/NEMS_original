@@ -1,4 +1,5 @@
 ################################################################################
+################################################################################
 # 
 #     Makefile for Global NMM Model 
 #
@@ -27,54 +28,45 @@
 #         TRACE    - MPI tracing
 #
 #################################################################################
-#
+
 # Define the name of the executable
 #
 #
 # CPP, Compiler, and Linker Options
 #
-TARGET     = atmos_gfs_stub.a
-UTIL     = gfs_util
-FC       = mpxlf_r
-PROF     = -g -pg
-PROF     =
-ARCH     = AIX
-CPP      = /lib/cpp -P
-CPPFLAGS = -DENABLE_SMP -DIBM
-OPTS     = -O2 -qmaxmem=-1 -qarch=auto -qtune=auto  -q free=f90 $(PROF) -NS2000
-#TRAPS    = -qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap -C
-TRAPS    = 
 #
-# Assemble Options
-#
-FINCO    = -I/climate/save/${USER}/esmf/nems/trunk_merge_gfswrt/trunk/mod/esmf_3_1_0rp2
-#FINCP    = -I/climate/save/${USER}/esmf/nems/trunk_merge_gfswrt/trunk/src/nmm_libutil
-FINCP    = 
-FINCS	 = $(FINCO) $(FINCP)
-FFLAGS   = $(OPTS) $(FINCS) $(TRAPS)
-#
+include ../../../ush/compile_settings
+MAKEFILE=makefile_stub
+TARGET= atmos_nmm_stub.a
 
-MODULES= module_GFS_INTEGRATE_STUB.o \
-	 module_GFS_CORE_SETUP_STUB.o
-
-INCLUDES=	../../../inc/kind.inc
-
-DEPS= $(INCLUDES)
-
-AR = ar
-ARFLAGS = -r
-
+MODULE=        \
+		module_NMM_CORE_SETUP_STUB.o \
+		module_NMM_BCK_INTEGRATE_STUB.o \
+		module_NMM_FWD_INTEGRATE_STUB.o \
+		module_NMM_INTEGRATE_STUB.o 
 
 .SUFFIXES:	.F90 .f90 .o
 
 .F90.f90:
 	$(CPP) $(CPPFLAGS) $< > $*.f90
 
-$(TARGET): $(MODULEIO) $(MODULES) 
-	$(AR) $(ARFLAGS) $(TARGET) $(MODULEIO) $(MODULES) 
+default:
+	@gmake -f $(MAKEFILE) all
 
-$(MODULES):	$(DEPS)
-	$(FC) $(FFLAGS) -c $<
+all: $(LIBDIR1)/libstub/$(TARGET)
+
+$(LIBDIR1)/libstub/$(TARGET): $(MODULE)
+	$(AR) $(ARFLAGS) $@ $?
+
+$(MODULE): %.o: %.f90 $(DEPS2)
+	$(F90) $(FFLAGSDB_STUB) -c $*.f90
 
 clean:	
-	/bin/rm -f  $(TARGET) *.f90 *.lst *.o *.mod lm map
+	/bin/rm -f  $(LIBDIR1)/libstub/$(TARGET) 
+	/bin/rm -f  $(MODDIR1)/modstub/nmm/*mod
+	/bin/rm -f *.f90 
+	/bin/rm -f *.lst 
+	/bin/rm -f *.o 
+	/bin/rm -f *.mod 
+	/bin/rm -f lm 
+	/bin/rm -f map

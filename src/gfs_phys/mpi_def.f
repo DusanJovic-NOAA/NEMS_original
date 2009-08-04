@@ -2,7 +2,7 @@
 ! 
       use machine,   ONLY: KIND_io4, KIND_ior
       use module_gfs_mpi_def
-!jw      include '../../inc/mpif.h'
+!jw      include 'mpif.h'
 !jw      integer stat(MPI_STATUS_SIZE),info
 !jw      INTEGER :: icolor
 !jw      INTEGER :: MC_COMP, MC_IO, MPI_COMM_ALL, MPI_COMM_ALL_DUP

@@ -131,7 +131,7 @@
       
 
 !-----------------------------------------------------------------------
-      SUBROUTINE PHYSICS_READ_INPUT(INFILE,NFCST,MYPE,MPI_COMM_COMP,    &
+      SUBROUTINE PHYSICS_READ_INPUT_BINARY(INFILE,NFCST,MYPE,MPI_COMM_COMP,    &
         IDS,IDE,JDS,JDE,LM,IMS,IME,JMS,JME,NSOIL,                       &
         idat,ihrst,PT,                       &
         INT_STATE,irtn )
@@ -613,13 +613,13 @@
 !-----------------------------------------------------------------------
 !***********************************************************************
 
-      END SUBROUTINE PHYSICS_READ_INPUT
+      END SUBROUTINE PHYSICS_READ_INPUT_BINARY
 !-----------------------------------------------------------------------
 !
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE PHYSICS_READ_RESTT(INFILE,NFCST,MYPE,MPI_COMM_COMP,    &
+      SUBROUTINE PHYSICS_READ_RESTT_BINARY(INFILE,NFCST,MYPE,MPI_COMM_COMP,    &
         IDS,IDE,JDS,JDE,LM,IMS,IME,JMS,JME,NSOIL,                       &
         IYEAR_FCST,IMONTH_FCST,IDAY_FCST,IHOUR_FCST,IMINUTE_FCST,       &
         SECOND_FCST,IHRST,IDAT,PT,            &
@@ -2058,7 +2058,7 @@
 !----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 
-      END SUBROUTINE PHYSICS_READ_RESTT
+      END SUBROUTINE PHYSICS_READ_RESTT_BINARY
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !

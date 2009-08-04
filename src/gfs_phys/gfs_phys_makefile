@@ -145,7 +145,7 @@ all: $(LIBDIR)/lib/$(TARGET)
 $(LIBDIR)/lib/$(TARGET):  $(OBJ_MOD) $(OBJS0) $(OBJS) $(OBJS_RAD) $(OBJS_PHY) $(OBJS_IO)
 	$(AR) $(ARFLAGS) $@ $?
 
-.f.o:
+.f.o: %.o: %.f
 	$(FC) $(FFLAGS) -c $*.f
 
 clean:

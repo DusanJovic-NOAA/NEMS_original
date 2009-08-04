@@ -34,16 +34,21 @@ fi
     echo "Setup for NMM core"
     cat compile_options/gen_compile_options_${OS} compile_options/nmm_compile_options_${OS} > compile_settings
     cp -f makefile_templates/main_makefile_nmm ../src/main/Makefile_main
+    cp -f makefile_templates/main_makefile_nmm_stub ../src/main/Makefile_stub
     cp -f makefile_templates/nmm_atmos_makefile ../src/main/atmos/atmos_makefile
+    cp -f makefile_templates/makefile_nmm_stub ../src/main/atmos/makefile_stub 
     elif [[ $1 = 'gfs' ]]
     then
     echo "Setup for GFS core"
     cat compile_options/gen_compile_options_${OS} compile_options/gfs_compile_options_${OS} > compile_settings
     cp -f makefile_templates/main_makefile_gfs ../src/main/Makefile_main
+    cp -f makefile_templates/main_makefile_gfs_stub ../src/main/Makefile_stub
     cp -f makefile_templates/gfs_atmos_makefile ../src/main/atmos/atmos_makefile
+    cp -f makefile_templates/makefile_gfs_stub ../src/main/atmos/makefile_stub
     else
     echo "Invalid core selection"
     fi
-
+    ./clean_stub.sh
+    ./compile_stub.sh	
 #=======================================================================
 exit

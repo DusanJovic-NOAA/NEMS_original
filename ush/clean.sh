@@ -20,7 +20,6 @@
 #=======================================================================
 
     cd ../src/main && make -f Makefile_main clean
-
 echo 'NEMS cleaned'
 
 exit

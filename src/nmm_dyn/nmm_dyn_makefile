@@ -43,7 +43,8 @@ MODULES=	\
 		module_DYNAMICS_OUTPUT.o \
 		module_DYN_PHY_CPL_COMP.o \
 		module_DYN_PHY_CPL_DATA.o \
-		module_GET_CONFIG_DYN.o 
+		module_GET_CONFIG_DYN.o \
+		module_DYNAMICS_INIT_READ.o
 
 MODULE_DGC=	\
 		module_DYNAMICS_GRID_COMP.o
@@ -67,14 +68,14 @@ all: $(LIBDIR)/lib/$(TARGET)
 $(LIBDIR)/lib/$(TARGET): $(MODULES) $(MODULE_DGC) $(MODULE_SMP) $(MODULE_SMP1)
 	$(AR) $(ARFLAGS) $@ $?
 
-$(MODULES):	$(DEPS)
+$(MODULES): %.o: %.f90 $(DEPS)
 	$(FC) $(FFLAG_NMM_DYN) -c $*.f90
 
-$(MODULE_DGC):	$(DEPS)
+$(MODULE_DGC): %.o: %.f90 $(DEPS)
 	$(FC) $(FFLAG_NMM_DYN) -c $*.f90
 
-$(MODULE_SMP):  $(DEPS)
-	$(FC) $(FFLAG_NMM_DYN) $(SMP) $(MAF) -qsource -qlist -c $*.f90
+$(MODULE_SMP): %.o: %.f90  $(DEPS)
+	$(FC) $(FFLAG_NMM_DYN) $(SMP) $(MAF) -c $*.f90
 
 clean:	
 	/bin/rm -f $(LIBDIR)/lib/$(TARGET) 
@@ -98,7 +99,8 @@ module_DYNAMICS_GRID_COMP.o:	\
 			   	module_DYNAMICS_INTERNAL_STATE.o \
 			   	module_DYNAMICS_FIELDS.o \
 			   	module_DYNAMICS_OUTPUT.o \
-			   	module_DYNAMICS_ROUTINES.o 
+			   	module_DYNAMICS_ROUTINES.o \
+				module_DYNAMICS_INIT_READ.o
 
 module_GET_CONFIG_DYN.o:     \
 				module_DYNAMICS_INTERNAL_STATE.o

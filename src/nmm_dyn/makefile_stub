@@ -59,10 +59,10 @@ all: $(LIBDIR)/libstub/$(TARGET)
 $(LIBDIR)/libstub/$(TARGET): $(MODULES) $(MODULE_DGC) 
 	$(AR) $(ARFLAGS) $@ $?
 
-$(MODULES):	$(DEPS)
+$(MODULES): %.o: %.f90	$(DEPS)
 	$(F90) $(FFLAG_NMM_DYN) -c $*.f90
 
-$(MODULE_DGC):	$(DEPS)
+$(MODULE_DGC):	%.o: %.f90 $(DEPS)
 	$(F90) $(FFLAG_NMM_DYN) -c $*.f90
 clean:	
 	/bin/rm -f $(LIBDIR)/libstub/$(TARGET) 

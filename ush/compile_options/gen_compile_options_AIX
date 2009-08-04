@@ -108,8 +108,8 @@
   FFLAG_NMM_IO=$(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(NMM_UTIL)
   FFLAG_NMM_PHY=$(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(NMM_UTIL) -I$(NMM_IO) -I$(MODDIR)/modstub/gfs
   FFLAG_NMM_DYN=$(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(NMM_UTIL) -I$(NMM_IO)
-#  FFLAG_GFS_UTIL90=$(OPTS90) -I$(ESMF_MOD) -I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_IO) -qfree -NS2048
-#  FFLAG_GFS_UTIL=$(OPTS90) -I$(ESMF_MOD) -I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_IO)
+#  FFLAG_GFS_UTIL90=$(OPT_GFS) -I$(ESMF_MOD) -I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_IO) -qfree -NS2048
+#  FFLAG_GFS_UTIL=$(OPT_GFS) -I$(ESMF_MOD) -I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_IO)
 #  FFLAG_GFS_IO=-I$(GFS_DYN) -I$(GFS_PHY)
   FFLAG_GFS_UTIL=$(OPTS90) $(TRAPS)
   FFLAG_GFS_UTIL90=$(OPTS90) $(TRAPS) -I$(ESMF_MOD) -qfree -NS2048
@@ -128,6 +128,7 @@
   GFS_PHY_MAKEFILE=gfs_phys_makefile
   GFS_IO_MAKEFILE=gfs_io_makefile
   ATM_MAKEFILE=atmos_makefile
+  STUB=makefile_stub
 ###########################################################
 # Makefile Command Variables
 ###########################################################
@@ -140,6 +141,7 @@
   NMM_PHY_MAKEFILE_NEW=make -f $(NMM_PHY_MAKEFILE)
   NMM_IO_MAKEFILE_NEW=make -f $(NMM_IO_MAKEFILE)
   NMM_UTIL_MAKEFILE_NEW=make -f $(NMM_UTIL_MAKEFILE)
+  STUB_MAKEFILE=make -f $(STUB)
 ###########################################################
 # Local Include Files
 ###########################################################

@@ -39,7 +39,9 @@ TARGET= nmm_phys_stub.a
 #
 
 MODULES=	\
-		module_PHYSICS_GRID_COMP_STUB.o \
+		module_PHYSICS_INTERNAL_STATE_STUB.o \
+		module_GET_CONFIG_PHY_STUB.o \
+		module_PHYSICS_GRID_COMP_STUB.o 
 
 .SUFFIXES:      .F90 .f90 .o
 
@@ -54,7 +56,7 @@ all: $(LIBDIR)/libstub/$(TARGET)
 $(LIBDIR)/libstub/$(TARGET): $(MODULES)
 	$(AR) $(ARFLAGS) $@ $?
 
-$(MODULES):	$(DEPS)
+$(MODULES): %.o: %.f90	$(DEPS)
 	$(F90) $(FFLAG_NMM_PHY) -c $*.f90
 
 clean:	

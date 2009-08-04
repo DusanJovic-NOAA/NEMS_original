@@ -59,10 +59,10 @@ all: $(LIBDIR1)/lib/$(TARGET)
 $(LIBDIR1)/lib/$(TARGET): $(MODULE) $(MODULE_AGC)
 	$(AR) $(ARFLAGS) $@ $?
 
-$(MODULE): $(DEPS2)
+$(MODULE): %.o: %.f90 $(DEPS2)
 	$(F90) $(FFLAGSDB) -c $*.f90
 
-$(MODULE_AGC): $(DEPS2)
+$(MODULE_AGC): %.o: %.f90 $(DEPS2)
 	$(F90) $(FFLAGSDB) -c $*.f90
 
 clean:	

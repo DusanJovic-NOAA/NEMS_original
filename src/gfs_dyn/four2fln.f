@@ -6,7 +6,6 @@
      x                    flnev,flnod,
      x                    plnev,plnod,ls_node)
 cc
-!#include "f_hpm.h"
 cc
       use gfs_dyn_resol_def
       use gfs_dyn_layout1

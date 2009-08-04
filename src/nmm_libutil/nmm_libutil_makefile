@@ -63,10 +63,10 @@ all: $(LIBDIR)/lib/$(TARGET)
 $(LIBDIR)/lib/$(TARGET): $(MODULEIO) $(MODULES) 
 	$(AR) $(ARFLAGS) $@ $?
 
-$(MODULEIO):     $(DEPS)
+$(MODULEIO): %.o: %.f90    $(DEPS)
 	$(FC) $(FFLAG_NMM_UTIL) -c $*.f90
 
-$(MODULES):	$(DEPS)
+$(MODULES): %.o: %.f90	$(DEPS)
 	$(FC) $(FFLAG_NMM_UTIL) -c $*.f90
 
 clean:	

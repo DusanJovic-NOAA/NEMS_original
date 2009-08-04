@@ -36,14 +36,15 @@ MAKEFILE=makefile_stub
 TARGET = nmm_libutil_stub.a
  
 MODULES=	\
-		module_ATM_INTERNAL_STATE.o  \
-		module_CLOCKTIMES.o \
-		module_CONTROL.o \
-		module_DIAGNOSE.o \
-		module_DM_PARALLEL.o \
-		module_EXCHANGE.o \
-		module_INCLUDE.o \
-		module_ERR_MSG.o 
+		module_ATM_INTERNAL_STATE_STUB.o  \
+		module_CLOCKTIMES_STUB.o \
+		module_INCLUDE_STUB.o \
+		module_DM_PARALLEL_STUB.o \
+		module_EXCHANGE_STUB.o \
+		module_CONSTANTS_STUB.o \
+		module_CONTROL_STUB.o \
+		module_DIAGNOSE_STUB.o \
+		module_ERR_MSG_STUB.o
 
 .SUFFIXES:	.F90 .f90 .o
 
@@ -58,7 +59,7 @@ all: $(LIBDIR)/libstub/$(TARGET)
 $(LIBDIR)/libstub/$(TARGET): $(MODULES) 
 	$(AR) $(ARFLAGS) $@ $?
 
-$(MODULES):	$(DEPS)
+$(MODULES):  %.o: %.f90	$(DEPS)
 	$(F90) $(FFLAG_NMM_UTIL) -c $*.f90
 
 clean:	
@@ -70,19 +71,3 @@ clean:
 #
 # DEPENDENCIES :
 #
-
-module_CONTROL.o :   \
-				module_INCLUDE.o \
-				module_CONSTANTS.o \
-				module_DM_PARALLEL.o \
-				module_EXCHANGE.o \
-
-module_EXCHANGE.o :  \
-				module_INCLUDE.o \
-                        	module_DM_PARALLEL.o
-
-module_DM_PARALLEL.o : \
-				module_INCLUDE.o
-
-module_CONSTANTS.o : \
-				module_INCLUDE.o

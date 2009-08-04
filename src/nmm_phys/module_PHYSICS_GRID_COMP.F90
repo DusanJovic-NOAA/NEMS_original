@@ -2422,7 +2422,7 @@
      if(.not. int_state%nemsio_input) then                             !jw: nemsio_input
 
       INFILE='main_input_filename'
-        CALL PHYSICS_READ_INPUT(INFILE,NFCST,MYPE,MPI_COMM_COMP,    &
+        CALL PHYSICS_READ_INPUT_BINARY(INFILE,NFCST,MYPE,MPI_COMM_COMP,    &
         IDS,IDE,JDS,JDE,LM,IMS,IME,JMS,JME,NSOIL,                       &
         idat,ihrst,PT, &
         INT_STATE,irtn )
@@ -2485,7 +2485,7 @@
 
      if(.not. int_state%nemsio_input) then                             !jw: nemsio_intput option
 !
-      CALL PHYSICS_READ_RESTT(INFILE,NFCST,MYPE,MPI_COMM_COMP,    &
+      CALL PHYSICS_READ_RESTT_BINARY(INFILE,NFCST,MYPE,MPI_COMM_COMP,    &
         IDS,IDE,JDS,JDE,LM,IMS,IME,JMS,JME,NSOIL,                       &
         IYEAR_FCST,IMONTH_FCST,IDAY_FCST,IHOUR_FCST,IMINUTE_FCST,       &
         SECOND_FCST,IHRST,IDAT,PT,            &
@@ -3254,7 +3254,7 @@
 !----------------------------------------------------------------------
       IMPLICIT NONE
 !----------------------------------------------------------------------
-      INCLUDE "../../inc/mpif.h"
+      INCLUDE "mpif.h"
 !----------------------------------------------------------------------
       INTEGER,INTENT(IN) :: NTSD
 !

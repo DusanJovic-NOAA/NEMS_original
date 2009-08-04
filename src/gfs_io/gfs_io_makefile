@@ -14,16 +14,13 @@ OBJ_IO	= \
 	  module_WRITE_ROUTINES_GFS.o         \
 	  module_WRITE_GRID_COMP_GFS.o 
 
-
-
-INCS = \
-		$(INCDIR)/f_hpm.h mpi_inc.h $(INCDIR)/function2
-
-
 # *****************************************************************
 #
 
 .SUFFIXES: .F90 .f90 .o
+
+.F90.f90:
+	$(CPP) $(CPPFLAGS) $< > $*.f90
 
 default:
 	@gmake -f $(MAKEFILE) all
@@ -36,8 +33,7 @@ all: $(LIBDIR)/lib/$(TARGET)
 $(LIBDIR)/lib/$(TARGET):  $(OBJ_IO)
 	$(AR) $(ARFLAGS) $@ $?
 
-$(OBJ_IO):     $(DEPS)
-	$(CPP) $(CPPFLAGS) $*.F90 > $*.f90
+$(OBJ_IO): %.o: %.f90  $(DEPS)
 	$(FC) $(FFLAG_GFS_IO) -c $*.f90
 
 clean:

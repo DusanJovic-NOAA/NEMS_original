@@ -9,19 +9,22 @@ TARGET= gfs_phys_stub.a
 # *****************************************************************
 #
 OBJS0   = \
-		machine.o \
-		ozne_def.o \
-		layout1.o \
-		date_def.o \
-		namelist_physics_def.o \
-		resol_def.o \
-		mersenne_twister.o \
-		physcons_v.o \
-		funcphys_v.o \
-		iounitdef.o \
-		radiation_astronomy.o \
-		radiation_gases.o \
-		module_bfmicrophysics.o \
+		ozinterp_stub.o \
+		compns_physics_stub.o \
+		set_soilveg_stub.o \
+		gfuncphys_stub.o \
+		sfccycle_stub.o \
+		gbphys_v_stub.o \
+		layout1_stub.o \
+		date_def_stub.o \
+		namelist_physics_def_stub.o \
+		resol_def_stub.o \
+		mersenne_twister_stub.o \
+		physcons_v_stub.o \
+		funcphys_v_stub.o \
+		radiation_astronomy_stub.o \
+		tracer_const_h_stub.o \
+		grrad_stub.o \
 		gfs_physics_grid_comp_mod_stub.o
 
 #
@@ -44,38 +47,9 @@ clean:
 	/bin/rm -f *.o
 	/bin/rm -f $(LIBDIR)/libstub/$(TARGET)
 
-.f.o:
-	$(F77) $(FFLAGS) -c $*.f
+$(OBJS0): %.o: %.f
+	$(F77) $(FFLAG90) -c $*.f
 
 #
 # *****************************************************************
 #
-machine.o : machine.f
-		$(F77) $(FFLAG90) -c machine.f
-ozne_def.o: ozne_def.f
-		$(F77) $(FFLAG90) -c ozne_def.f
-namelist_physics_def.o: namelist_physics_def.f
-		$(F77) $(FFLAG90) -c namelist_physics_def.f
-layout1.o: layout1.f
-		$(F77) $(FFLAG90) -c layout1.f
-date_def.o: date_def.f
-		$(F77) $(FFLAG90) -c date_def.f
-mersenne_twister.o: mersenne_twister.f
-		$(F77) $(FFLAG90) -c mersenne_twister.f
-resol_def.o: resol_def.f
-		$(F77) $(FFLAG90) -c resol_def.f
-physcons_v.o: physcons_v.f
-		$(F77) $(FFLAG90) -c physcons_v.f
-funcphys_v.o: funcphys_v.f
-		$(F77) $(FFLAG90) -c funcphys_v.f
-iounitdef.o: iounitdef.f
-		$(F77) $(FFLAG90) -c iounitdef.f
-radiation_astronomy.o: radiation_astronomy.f
-		$(F77) $(FFLAG90) -c radiation_astronomy.f
-radiation_gases.o: radiation_gases.f
-		$(F77) $(FFLAG90) -c radiation_gases.f
-module_bfmicrophysics.o: module_bfmicrophysics.f
-		$(F77) $(FFLAG90) -c module_bfmicrophysics.f
-gfs_physics_grid_comp_mod_stub.o:    gfs_physics_grid_comp_mod_stub.f
-		$(F77) $(FFLAG90) -c gfs_physics_grid_comp_mod_stub.f
-                                                                                

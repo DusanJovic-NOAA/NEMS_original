@@ -207,7 +207,8 @@
                                ,NHOURS_FCST,NPES                        &
                                ,READ_GLOBAL_SUMS,SBD,WBD                &
                                ,WRITE_GLOBAL_SUMS                       &
-                               ,CONSTS,INIT,INIT_NEMSIO
+                               ,CONSTS
+      USE MODULE_DYNAMICS_INIT_READ
 !
 #ifdef IBM
       USE MODULE_FLTBNDS,ONLY : PREFFT
@@ -216,7 +217,8 @@
 #endif
 !
 !-----------------------------------------------------------------------
-      INCLUDE '../../inc/mpif.h'
+!      INCLUDE 'mpif.h'
+!      INCLUDE 'mpif.h'
 !-----------------------------------------------------------------------
 !***  ARGUMENT VARIABLES.
 !-----------------------------------------------------------------------
@@ -483,7 +485,7 @@
         if(.not.int_state%nemsio_input) then
 
 
-        CALL INIT(int_state%GLOBAL                                      &
+        CALL DYNAMICS_READ_BINARY(int_state%GLOBAL                      &
                  ,KSS,KSE                                               &
                  ,int_state%PDTOP,int_state%PT,int_state%LPT2           &
                  ,int_state%SG1,int_state%DSG1                          &
@@ -511,7 +513,7 @@
                  ,int_state%P_QI,int_state%P_QS,int_state%P_QG          &
                  ,DT,int_state%NHOURS_FCST)
          else
-         CALL INIT_NEMSIO(int_state%GLOBAL                          &
+         CALL DYNAMICS_READ_NEMSIO(int_state%GLOBAL                     &
                  ,KSS,KSE                                               &
                  ,int_state%PDTOP,int_state%PT,int_state%LPT2           &
                  ,int_state%SG1,int_state%DSG1                          &

@@ -75,14 +75,14 @@ all: $(LIBDIR)/lib/$(TARGET)
 $(LIBDIR)/lib/$(TARGET): $(MODULES) $(MODULE_SMP) $(MODULE_SMP1)
 	$(AR) $(ARFLAGS) $@ $?
 
-$(MODULES): $(DEPS)
+$(MODULES): %.o: %.f90 $(DEPS)
 	$(FC) $(FFLAG_NMM_PHY) -c $*.f90
 
-$(MODULE_SMP): $(DEPS)
-	$(FC) $(FFLAG_NMM_PHY) $(SMP) $(MAF) -qsource -qlist -c $*.f90
+$(MODULE_SMP): %.o: %.f90 $(DEPS)
+	$(FC) $(FFLAG_NMM_PHY) $(SMP) $(MAF) -c $*.f90
 
-$(MODULE_SMP1): $(DEPS)
-	$(FC) $(FFLAG_NMM_PHY) $(SMP) -qsource -qlist -c $*.f90
+$(MODULE_SMP1): %.o: %.f90 $(DEPS)
+	$(FC) $(FFLAG_NMM_PHY) $(SMP) -c $*.f90
 
 clean:	
 	/bin/rm -f  $(LIBDIR)/lib/$(TARGET) 

@@ -9,8 +9,6 @@
 !
 
 c
-!include "f_hpm.h" !  jjt include file for hpm
-!#include "f_hpm.h"
 !
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
