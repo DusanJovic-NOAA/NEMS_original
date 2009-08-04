@@ -53,8 +53,8 @@
       USE MODULE_DIAGNOSE,ONLY : FIELD_STATS
       USE NEMSIO_MODULE
 !
-      use Chem_RegistryMod                                      
-      use m_die, only: die
+!      use Chem_RegistryMod                                      
+!      use m_die, only: die
 !
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
      
@@ -63,7 +63,7 @@
 
       USE gfs_physics_grid_comp_mod   ,only: gfs_phy_setservices
 
-      USE GOCART_GridCompMod ,only: gocart_setservices => setservices 
+!      USE GOCART_GridCompMod ,only: gocart_setservices => setservices 
 
       USE atmos_dyn_phy_cpl_comp_mod  ,only: atm_cpl_setservices
 
@@ -125,7 +125,7 @@
       TYPE(ESMF_CplComp), SAVE :: GC_ATM_CPL
       TYPE(ESMF_GridComp),DIMENSION(:),POINTER,SAVE :: WRT_COMPS
 !
-      type(Chem_Registry), save :: reg
+!      type(Chem_Registry), save :: reg
       character(len=*), parameter ::  myname = 'ut_Registry'
 !
       TYPE(ESMF_State),SAVE :: IMP_GFS_DYN,EXP_GFS_DYN
@@ -967,12 +967,12 @@
 
 !  Read and print Chem_Registry (Sarah Lu)
 !  ------------------------
-        print *, 'Read Chem_Registry'
-        reg = Chem_RegistryCreate ( ierr )
-        if ( ierr /= 0 ) call die ( myname, 'cannot create registry' )
-        CALL Chem_RegistryPrint ( reg )
-        call Chem_RegistryDestroy ( reg, ierr )
-        if ( ierr /= 0 ) call die ( myname, 'cannot destroy registry' )
+!        print *, 'Read Chem_Registry'
+!        reg = Chem_RegistryCreate ( ierr )
+!        if ( ierr /= 0 ) call die ( myname, 'cannot create registry' )
+!        CALL Chem_RegistryPrint ( reg )
+!        call Chem_RegistryDestroy ( reg, ierr )
+!        if ( ierr /= 0 ) call die ( myname, 'cannot destroy registry' )
 
 
       ENDIF
@@ -1186,9 +1186,9 @@
                                    ,rc)
 
 ! setservice for gocart
-      call esmf_gridcompsetservices(gc_gocart               &  ! <-- The GOCART gridded component
-                                   ,gocart_setservices      &  ! <-- The user's subroutineName
-                                   ,rc)
+!      call esmf_gridcompsetservices(gc_gocart               &  ! <-- The GOCART gridded component
+!                                   ,gocart_setservices      &  ! <-- The user's subroutineName
+!                                   ,rc)
 
 !
       ENDIF

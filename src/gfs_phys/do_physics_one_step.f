@@ -7,7 +7,7 @@
      &                 phy_f3d,  phy_f2d, NBLCK,
      &                 ZHOUR, n3, n4, LSOUT,COLAT1,CFHOUR1)
 !!
-#include "../../inc/f_hpm.h"
+!!#include "../../inc/f_hpm.h"
       use resol_def
       use layout1
       use vert_def
