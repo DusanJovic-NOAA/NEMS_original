@@ -1195,6 +1195,6 @@ rm -f err out configfile_global configfile_regional runglobal runregional gfs_fc
 cd ${PATHTR}/ush
 ./clean.sh > /dev/null 2>&1
 
-date
+date >> RegressionTests.log
 
 exit
