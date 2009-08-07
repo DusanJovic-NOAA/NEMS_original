@@ -1720,6 +1720,15 @@
 !
       CALL MPI_BARRIER(MPI_COMM_COMP,IRTN)
 !
+!-----------------------------------------
+!***  I and J limits for tracer variables
+!-----------------------------------------
+!
+      LDIM1=LBOUND(int_state%Q,1)
+      UDIM1=UBOUND(int_state%Q,1)
+      LDIM2=LBOUND(int_state%Q,2)
+      UDIM2=UBOUND(int_state%Q,2)
+!
 !-----------------------------------------------------------------------
 !***  U, V, T, Q, Q2, CW, F_ICE, F_RIMEF, F_RAIN, RTHBLTEN, RQVBLTEN
 !-----------------------------------------------------------------------
@@ -1765,16 +1774,7 @@
 !
         CALL DSTRB(TEMP1,int_state%Q,1,1,1,LM,K)
       ENDDO
-      !
-!-----------------------------------------
-!***  I and J limits for tracer variables
-!-----------------------------------------
 !
-      LDIM1=LBOUND(int_state%Q,1)
-      UDIM1=UBOUND(int_state%Q,1)
-      LDIM2=LBOUND(int_state%Q,2)
-      UDIM2=UBOUND(int_state%Q,2)
-
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -2120,7 +2120,6 @@
 !-----------------------------------------------------------------------
 !
       CALL NEMSIO_GETHEADVAR(gfile,'PT',int_state%PT,iret=irtn)
-      int_state%PT=PT
       PT=int_state%PT
       CALL NEMSIO_GETHEADVAR(gfile,'RUN',run,iret=irtn)
       CALL NEMSIO_GETHEADVAR(gfile,'IHRST',ihrst,iret=irtn)
@@ -2352,8 +2351,8 @@
 !-----------------------------------------------------------------------
 !
       IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'albdo','sfc',1,temp1,iret=irtn)
-!      write(0,*)'in phys,albdo=',maxval(temp1),minval(temp1)
+        CALL NEMSIO_READRECV(gfile,'albedo','sfc',1,temp1,iret=irtn)
+!      write(0,*)'in phys,albedo=',maxval(temp1),minval(temp1)
       ENDIF
 !
       CALL DSTRB(TEMP1,int_state%ALBEDO,1,1,1,1,1)
@@ -2384,7 +2383,7 @@
 !-----------------------------------------------------------------------
 !
       IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'tmp','sfc',1,temp1,iret=irtn)
+        CALL NEMSIO_READRECV(gfile,'tskin','sfc',1,temp1,iret=irtn)
 !      write(0,*)'in phys,tsk=',maxval(temp1),minval(temp1)
       ENDIF
       CALL DSTRB(TEMP1,int_state%TSKIN,1,1,1,1,1)
@@ -2443,8 +2442,8 @@
       CALL DSTRB(TEMP1,int_state%USTAR,1,1,1,1,1)
 !
       IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'z0','sfc',1,temp1,iret=irtn)
-!        write(0,*) 'min, max for Z0: ', minval(TEMP1),maxval(TEMP1)
+        CALL NEMSIO_READRECV(gfile,'zorl','sfc',1,temp1,iret=irtn)
+!        write(0,*) 'min, max for zorl: ', minval(TEMP1),maxval(TEMP1)
       ENDIF
       CALL DSTRB(TEMP1,int_state%Z0,1,1,1,1,1)
       CALL HALO_EXCH(int_state%Z0,1,3,3)
@@ -2499,14 +2498,14 @@
 !
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'sltyp','sfc',1,temp1,iret=irtn)
-        ITEMP=NINT(temp1)
+        ITEMP=INT(temp1)
 !        write(0,*) 'min, max for ISLTYP: ', minval(ITEMP),maxval(ITEMP)
       ENDIF
       CALL IDSTRB(ITEMP,int_state%ISLTYP)
 !
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'vgtyp','sfc',1,temp1,iret=irtn)
-        ITEMP=NINT(temp1)
+        ITEMP=INT(temp1)
 !        write(0,*) 'min, max for IVGTYP: ', minval(ITEMP),maxval(ITEMP)
       ENDIF
       CALL IDSTRB(ITEMP,int_state%IVGTYP)

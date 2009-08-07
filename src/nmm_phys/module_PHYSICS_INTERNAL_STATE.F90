@@ -21,7 +21,7 @@
                                    ,IMS,IME,JMS,JME                     &
                                    ,ITS,ITE,JTS,JTE                    
 !
-      USE MODULE_LANDSURFACE ,ONLY: NUM_SOIL_LAYERS
+      USE MODULE_LANDSURFACE ,ONLY: NUM_SOIL_LAYERS,SLDPTH
       USE MODULE_MICROPHYSICS_NMM,ONLY: MICRO_RESTART
       USE MODULE_ERR_MSG     ,ONLY: ERR_MSG,MESSAGE_CHECK
 !
@@ -568,6 +568,7 @@
       ENDDO
 !
       DO L=1,NUM_SOIL_LAYERS
+        int_state%SLDPTH(L)=SLDPTH(L)
       DO J=JMS,JME
       DO I=IMS,IME
         int_state%SMC(I,J,L)=-1.E6

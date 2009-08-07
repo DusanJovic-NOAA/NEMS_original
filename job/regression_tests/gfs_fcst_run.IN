@@ -1,38 +1,29 @@
 #!/bin/ksh
 #
-# @ job_name = prep_atmos
-# @ job_type = serial
-# @ account_no = GFS-T2O
-# @ output = gfs_out/out1
-# @ error =  gfs_out/err1 
-###### @ total_tasks = 96
-###### @ blocking = unlimited
-###### @ resources = ConsumableMemory(4000mb) ConsumableCpus(1)
-# @ node_usage = not_shared
-## @ tasks_per_node = 1
-## @ node = 1
-## @ network.MPI=csss,shared,us
-# @ bulkxfer = yes
-# @ class = debug
-# @ group = dev
-# @ wall_clock_limit = 00:15:00
-# @ queue
-#
 set -x
 #
- export CDATE=2007070200
+#
+ export CDATE=2009072400
 
-# -------------------------------------------------------------
+
+#export EXPLICIT=.true.
+ export ADIAB=.false.
+ export REDUCED_GRID=.false.
+
 # SFCPRESS_ID=0 or 1 for ln(psfc), 2 for psfc
  export SFCPRESS_ID=2
 # THERMODYN_ID=3 for enthalphy, 0 or 1 for virtual T, 2 for T
  export THERMODYN_ID=3
+#
+ export IDVC=3
  export hybrid=NO
  export GEN_COORD_HYBRID=YES
+# SPECTRAL_LOOP       2 for old option, 1 is for one loop.
+ export SPECTRAL_LOOP=1
 #***************************************************************
 #                    N2 ,    H2O,     O3,        CLW,    O,      O2
-#export RIlist="  296.8034, 461.50, 173.2247,    0.0,  519.674, 259.837 "
 #export CPIlist=" 1039.645, 1846.0, 820.2391,    0.0, 1299.185, 918.0969"
+#export RIlist="  296.8034, 461.50, 173.2247,    0.0,  519.674, 259.837 "
 #***************************************************************
 #                   Dry ,    H2O,     O3,        CLW,    O,      O2
 export CPIlist=" 1004.6,   1846.0, 820.2391,    0.0"
@@ -53,45 +44,76 @@ export FAISS=0.0
 #
  export ENS_NUM=1
 #
- tasks=1 ; export PE1=1 
+ tasks=_TASKS_  ; export PE1=_PE1_
 #
+  export WRT_GROUP=1
+  export WRTPE_PER_GROUP=_WPG_
 export MP_STDOUTMODE=ordered
+export MP_LABELIO=yes
 export MP_SHARED_MEMORY=yes
 export MEMORY_AFFINITY=MCM
-##export BIND_TASKS=yes
-export NTHREADS=1
+export NTHREADS=_THRDS_
 export XLSMPOPTS="parthds=$NTHREADS:spins=0:yields=0:stack=512000000"
 export SPINLOOPTIME=500
 export YIELDLOOPTIME=500
 export AIXTHREAD_SCOPE=S
 export MALLOCMULTIHEAP=true
 #
+ export FHROT=0
 #
 #    Set up experiment and directory names
 #
- export expt=gfs.0
+ export expt=_RUNDIR_
+ 
 #
  export NSCDIR=/global/noscrub
  export TOPDIR=/global/save
  export DUMPDIR=/global/shared/dump
  export MP_COREFILE_FORMAT=lite 
- export RUNDIR=${RUNDIR:-/ptmp/${USER}/$expt}
+ export RUNDIR=${RUNDIR:-$expt}
  export SCRIPTS=${SCRIPTS:-$TOPDIR/wx23sm/gsm/scripts}
 
+ export fcst_begin=${fcst_begin:-YES}
  export cold_sfc=${cold_sfc:-NO}
  export hybrid=${hybrid:-NO}
 #
-export NCP=${NCP:-/u/wx20mi/bin/ncp}
+ export NCP=${NCP:-/u/wx20mi/bin/ncp}
 #
+#
+#
+#    nhourb is the beginig hour.  If nhourb=0, then initial condition
+#    needs to be specified. ndays is the Length of #orecast in days
+#    begining from nhourb
+#
+ export ndays=_NDAYS_
+if [[ ${fcst_begin} = YES ]] ; then
+ export nhourb=0
+else
+ if [[ -s $RUNDIR/sigr1$FM ]] ; then
+   export nhourb=`/nwprod/exec/global_sighdr $RUNDIR/sigr1$FM ifhr`
+   export FHROT=${FHROT:-$nhourb}
+ else
+   nhourb=$((ndays*24))
+ fi
+fi
+#
+#
+export nhours=`expr $ndays \* 24`
+
 #
 # For two tracers
   export ntrc=3  ; export varid=21  ; export numcld=1
 #
-  export change_res=YES
 #
-  export ic_type=prx
+ export fmax=$nhours
+ export fout=3  
+ export fzer=3  
+ export fcyc=0 
+ export fdfi=0 
+ export FHRES=$nhours
 #
 #    Forecast model : horizontal truncation  and vertical levels
+#                     ---------------------
 #
 export wave=${wave:-62}
 export lm=${lm:-64}
@@ -103,57 +125,51 @@ export NTCW=${NTCW:-3}
 export NCLD=${NCLD:-1}
 export NMTVR=${NMTVR:-14}
 #
+export nsout=${nsout:-0}
 export lsm=${lsm:-1}
 #
-export R=${wave}${lm}
-echo $R
-if [ $hybrid = YES ] ; then
- export SIGLEVEL=$TOPDIR/wx23sm/2jif/f2006/fix/global_hyblev.l$lm.txt
-elif [ $GEN_COORD_HYBRID = YES ] ; then
-# -- sigma-theta-pressure --
-# Apercent=${Apercent:-010}
-# ---- sigma-pressure ------
-  Apercent=${Apercent:-100}
-# ---- sigma-theta ---------
-# Apercent=${Apercent:-000}
-  export SIGLEVEL=$TOPDIR/wx23hh/00wkgfs/fix/global_hyblev3.ipa$Apercent.txt
-fi
+#   Control for post and time averaging  If "YES" then run
+#   -- Defaults to "NO" 
 #
-export IDVM=1 ; export IDSL=1
-if [ $hybrid = YES ] ; then
- export IDVC=2
- export nvcoord=2 ; export ivssfc=200509
-elif [ $GEN_COORD_HYBRID = YES ] ; then
- export IDVC=3 ; export IDSL=2 ; export ivssfc=200509
- export IDVM=$THERMODYN_ID$SFCPRESS_ID
- export ivssig=200509 ; export nvcoord=3 ; export LATCH=48
-else
- export IDVC=1 ; export ivssfc=200509
-fi
+ export gfsio_in=.true.
+ export gfsio_out=.true.
+#
+ export DYNVARS="liope=.F.,gfsio_in=$gfsio_in,gfsio_out=$gfsio_out"
+ export PHYVARS="liope=.F.,gfsio_in=$gfsio_in,gfsio_out=$gfsio_out"
+
+ export TRACERVARS="RI=$RIlist,CPI=$CPIlist,"
+#
+export NGPTC=12
+export NGPTC=${NGPTC:-$((wave/10))}
+export LEVR=${levr:-0}
+#
+#     Forecaset script and executable name
+#
+ srcdir=_PATHTR_
+ export FCSTSCRIPT=$srcdir/exp/configure_files/exglobal_fcst.sh.sms_nems
+ export FCSTEXEC=$srcdir/exe/GFS_NEMS.x
+#
 #
 # ***************************************************************
 #    Below here no change needed most of the time
 #    ____________________________________________
 #
 mkdir -p $RUNDIR
+cp configfile_global_gfs configure_file
+cp configure_file $RUNDIR
 cd $RUNDIR
-export COMOUT=$RUNDIR
+
+ export COMOUT=$RUNDIR
 #
-export FIXGLOBAL=/nwprod/fix
+ export FIXGLOBAL=/nwprod/fix
+ export FIX_RAD=/global/save/wx23hh/00wkgfs/fix/fix_rad
 #
-export kop=26
-if [[ $lm -eq 64 ]] ; then
-  export kop=46
-fi
+ export POSTGPDIR=$TOPDIR/wx23hh/00wkgfs/src/global_postgp.fd
+ export POSTGPEXEC=$POSTGPDIR/global_postgp
+ export POSTGPSH=/nwprod/ush/global_postgp.sh
 #
- export CHGRESDIR=$TOPDIR/wx23hh/00wkgfs/src/global_chgres-moorthi.fd
- export CHGRESEXEC=$CHGRESDIR/global_chgres
- export CHGRESSH=$TOPDIR/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh
-#
-export LANDICE_OPT=2
-export CLIMO_FIELDS_OPT=2
-#
-# ----------------- determine resolution related ----------------------
+ export LANDICE_OPT=1
+ export CLIMO_FIELDS_OPT=2
 #
 if [[ $wave -eq 62 ]] ; then
   export LONF=192 ; export LATG=94 ; export LONR=192 ; export LATR=94
@@ -193,47 +209,35 @@ elif [[ $wave -eq 510 ]] ; then
   export MTNVAR=$TOPDIR/wx23my/fix.all/global_mtnvar.t${wave}.f77
 fi
 #
-# ------------------ initial data ---------------------------
+# ------------------------ initial condition ----------------
 #
-  CDUMP=gfs
-# For parallel or other initial conditions
-  if [[ ${ic_type} = prx ]] ; then
-    export datic=$DUMPDIR/$CDATE/$CDUMP
-    export sig_fname=siganl.$CDUMP.$CDATE
-    export sfc_fname=sfcanl.$CDUMP.$CDATE
-  fi
+  export JCAP=$wave
+  export LEVS=$lm
+  export LONB=$im
+  export LATB=$jm
+  export VERBOSE=YES
 #
-# ----------------- change resolution or not ----------------
+  export SIGI=$RUNDIR/gfsanl.$CDATE
+  export SFCI=$RUNDIR/sfcanl.$CDATE
+  export FHINI=00
 #
-export JCAP=$wave
-export LEVS=$lm
-export LONB=$im
-export LATB=$jm
-export VERBOSE=YES
+# ---------------------------------------- fcst ----------------------
 #
+if [[ $nhourb -lt $nhours ]] ; then
 
-  export SIGINP=$datic/${sig_fname}
-  export SFCINP=$datic/${sfc_fname}
-# export SFCINP=
+  export FNTSFA=
+  export FNACNA=
 #
-  export GFSOUT=$RUNDIR/gfsanl.$CDATE
-  export SIGOUT=$RUNDIR/siganl.$CDATE
-  export SFCOUT=$RUNDIR/sfcanl.$CDATE
-# export SFCOUT=
+  export FHOUT=$fout
+  export FHZER=$fzer
+  export FHCYC=$fcyc
+  export FHDFI=$fdfi
+  export FHLWR=${FHLWR:-3}
+  export FHSWR=${FHSWR:-1}
+  export FHMAX=$nhours
+  export FHRES=${FHRES:-$FHMAX}
+  export FHROT=${FHROT:-0}
 #
-  echo ${change_res}
-  if [[ ${change_res} = YES ]] ; then
-    export CHGRESVARS="ntrac=$ntrc,idvt=$varid,ncldt=$numcld,idvc=$IDVC,IVSSIG=$ivssig,NVCOORD=$nvcoord,IVSSFC=$ivssfc,idvm=$IDVM,idsl=$IDSL,OUTTYP=1,"
-    export SIGLEVEL=${SIGLEVEL:-/nwprod/fix/global_siglevel.l$lm.txt}
-    export LONSPERLAT=$TOPDIR/wx20mi/newres/global_lonsperlat.t$JCAP.txt
-    export CHGRESSH=${CHGRESSH:-/nwprod/ush/global_chgres.sh}
-    export CHGRESVARS=$CHGRESVARS"RI=$RIlist,CPI=$CPIlist"
-    $CHGRESSH
-  else
-    ${NCP:-cp} $SIGINP $SIGOUT
-    ${NCP:-cp} $SFCINP $SFCOUT
-  fi
-  export SIGI=$SIGOUT
-  export GFSI=$GFSOUT
-  export SFCI=$SFCOUT
-
+  $FCSTSCRIPT || exit
+fi
+#

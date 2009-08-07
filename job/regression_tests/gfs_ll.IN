@@ -1,0 +1,19 @@
+#!/bin/ksh
+#
+# @ step_name = gfs_runtest
+# @ output = out
+# @ error = err
+# @ job_type = parallel
+# @ total_tasks = _TASKS_
+# @ parallel_threads = _THRDS_
+# @ task_affinity = cpu(_THRDS_)
+# @ blocking = unlimited
+# @ node_usage = shared
+# @ resources=ConsumableCPUs(1)ConsumableMemory(5GB)
+# @ class = dev
+# @ wall_clock_limit = 00:15:00
+# @ preferences = Feature == "dev"
+# @ network.MPI = sn_all,shared,us
+# @ account_no=NAM-T2O
+# @ executable = gfs_fcst_run
+# @ queue

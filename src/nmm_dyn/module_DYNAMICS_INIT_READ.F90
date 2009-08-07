@@ -1499,6 +1499,8 @@ logical(kind=klog) :: opened
       enddo
       enddo
 !
+      call halo_exch(tracers,lm,num_tracers_total,1,2,2)
+!
       do n=1,num_water
       do l=1,lm
         do j=jms,jme
