@@ -2055,45 +2055,8 @@ type(nemsio_gfile) :: gfile
 !---reading surface data------------------------------------------------
 !-----------------------------------------------------------------------
 !
-      if(mype==0)then
-        call nemsio_readrecv(gfile,'albdo','sfc',1,temp1,iret=ierr)
-!        write(0,*)'in init_nemsio,albdo=',maxval(temp1),minval(temp1)
-!jw        read(nfcst)temp1
-      endif
-      if(mype==0)then
-        call nemsio_readrecv(gfile,'epsr','sfc',1,temp1,iret=ierr)
-!        write(0,*)'in init_nemsio,epsr=',maxval(temp1),minval(temp1)
-!jw        read(nfcst)temp1
-      endif
-      if(mype==0)then
-        call nemsio_readrecv(gfile,'mxsnal','sfc',1,temp1,iret=ierr)
-!        write(0,*)'in init_nemsio,maxsnal=',maxval(temp1),minval(temp1)
-!jw        read(nfcst)temp1
-      endif
-      if(mype==0)then
-        call nemsio_readrecv(gfile,'tmp','sfc',1,temp1,iret=ierr)
-!        write(0,*)'in init_nemsio,tmp=',maxval(temp1),minval(temp1)
-!jw        read(nfcst)temp1
-      endif
-      if(mype==0)then
-        call nemsio_readrecv(gfile,'tsea','sfc',1,temp1,iret=ierr)
-!        write(0,*)'in init_nemsio,sst=',maxval(temp1),minval(temp1)
-!jw        read(nfcst)temp1
-      endif
-      if(mype==0)then
-        call nemsio_readrecv(gfile,'sno','sfc',1,temp1,iret=ierr)
-!        write(0,*)'in init_nemsio,sno=',maxval(temp1),minval(temp1)
-!jw        read(nfcst)temp1
-      endif
-      if(mype==0)then
-        call nemsio_readrecv(gfile,'si','sfc',1,temp1,iret=ierr)
-!        write(0,*)'in init_nemsio,si=',maxval(temp1),minval(temp1)
-!jw        read(nfcst)temp1
-      endif
        if(mype==0)then
         call nemsio_readrecv(gfile,'sice','sfc',1,temp1,iret=ierr)
-!        write(0,*)'in init_nemsio,sice=',maxval(temp1),minval(temp1)
-!jw         read(nfcst)temp1  ! SICE
        endif
        do j=jms,jme
        do i=ims,ime
@@ -2111,7 +2074,7 @@ type(nemsio_gfile) :: gfile
          else                                      ! restart
 !-----------------------------------------------------------------------
 !
-      infile='restart_file'
+      infile='restart_file_nemsio'
       call nemsio_open(gfile,infile,'read',iret=ierr)
       if(ierr/=0) write(0,*)'ERROR: open file ',trim(infile),' has failed'
 !
@@ -2183,9 +2146,7 @@ type(nemsio_gfile) :: gfile
 !   READ FROM RESTART FILE: REAL 2D ARRAYS
 !-----------------------------------------------------------------------
       if(mype==0)then
-        call nemsio_readrecv(gfile,'hgt','sfc',1,temp1,iret=ierr)
-        temp1=temp1*g
-
+        call nemsio_readrecv(gfile,'fis','sfc',1,temp1,iret=ierr)
         write(0,*)'in init restart,fis=',maxval(temp1),minval(temp1)
       endif
       do j=jms,jme
@@ -2588,7 +2549,8 @@ type(nemsio_gfile) :: gfile
       write(0,*)'4a. in init restart,clwmr =',maxval(cw),minval(cw)
       endif
 
-!
+      call halo_exch(tracers,lm,num_tracers_total,1,2,2)
+
       do n=1,num_water
       do l=1,lm
         do j=jms,jme

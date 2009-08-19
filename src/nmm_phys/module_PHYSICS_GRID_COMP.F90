@@ -2434,7 +2434,7 @@
         MPI_COMM_COMP,IDS,IDE,JDS,JDE,LM,IMS,IME,JMS,JME,NSOIL,         &
         idat,ihrst,PT,                       &
         INT_STATE,irtn )
-      endif
+     endif
 
 !-----------------------------------------------------------------------
 !***  VERTICAL LAYER INFORMATION IS NEEDED IN ORDER TO SEND IT TO
@@ -2480,26 +2480,27 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-     INFILE='restart_file'    
-
-
      if(.not. int_state%nemsio_input) then                             !jw: nemsio_intput option
 !
-      CALL PHYSICS_READ_RESTT_BINARY(INFILE,NFCST,MYPE,MPI_COMM_COMP,    &
+      INFILE='restart_file'
+!
+      CALL PHYSICS_READ_RESTT_BINARY(INFILE,NFCST,MYPE,MPI_COMM_COMP,   &
         IDS,IDE,JDS,JDE,LM,IMS,IME,JMS,JME,NSOIL,                       &
         IYEAR_FCST,IMONTH_FCST,IDAY_FCST,IHOUR_FCST,IMINUTE_FCST,       &
         SECOND_FCST,IHRST,IDAT,PT,            &
         INT_STATE,IRTN)
 !
-      else
+     else
 !
-      CALL PHYSICS_READ_RESTT_NEMSIO(INFILE,NFCST,MYPE,           &
+      INFILE='restart_file_nemsio'
+!
+      CALL PHYSICS_READ_RESTT_NEMSIO(INFILE,NFCST,MYPE,                 &
         MPI_COMM_COMP,IDS,IDE,JDS,JDE,LM,IMS,IME,JMS,JME,NSOIL,         &
         IYEAR_FCST,IMONTH_FCST,IDAY_FCST,IHOUR_FCST,IMINUTE_FCST,       &
         SECOND_FCST,IHRST,IDAT,PT,          &
         INT_STATE,IRTN)
 !
-       endif
+     endif
 
        PT_CB=PT*1.0E-3
 
@@ -2521,8 +2522,8 @@
 !
       DO J=JTS,JTE
       DO I=ITS,ITE
-        int_state%THS(I,J)=int_state%TSKIN(I,J)                        &
-                          *(100000./(int_state%SG2 (LM+1)*int_state%PD(I,J)      &
+        int_state%THS(I,J)=int_state%TSKIN(I,J)                             &
+                          *(100000./(int_state%SG2 (LM+1)*int_state%PD(I,J) &
                                     +int_state%PSG1(LM+1)))**CAPPA
       ENDDO
       ENDDO

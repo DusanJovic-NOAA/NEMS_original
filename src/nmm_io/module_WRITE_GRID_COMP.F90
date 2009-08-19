@@ -663,7 +663,8 @@
 !
       REAL(KIND=KFPT),DIMENSION(:,:),ALLOCATABLE:: FACT10               &
                                                   ,FACT10TMPU           &
-                                                  ,FACT10TMPV
+                                                  ,FACT10TMPV           &
+                                                  ,HGT
 !
       LOGICAL                               :: GLOBAL                   &
                                               ,WRITE_LOGICAL            &
@@ -2362,6 +2363,7 @@
                                       ,IHOUR_FCST                       &
                                       ,IMINUTE_FCST                     &
                                       ,SECOND_FCST                      &
+                                      ,NTIMESTEP                        &
                                       ,NF_HOURS                         &
                                       ,NF_MINUTES                       &
                                       ,NF_SECONDS                       &
@@ -2668,8 +2670,10 @@
               WRITE(0,*)'WRONG: data dimension ',IM*JM,                 &
                ' does not match data size in NEMSIO file,',FIELDSIZE
             ENDIF
-            IF(TRIM(NAME)=='FIS')wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)=   &
-                  wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)/G
+            IF(TRIM(NAME)=='FIS') THEN
+              IF(.NOT.ALLOCATED(HGT)) ALLOCATE(HGT(1:IM,1:JM))
+              HGT(1:IM,1:JM)=wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)/G
+            ENDIF
 !
             IF(TRIM(NAME)=='GLAT')THEN
                wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)=           &
@@ -2711,7 +2715,7 @@
       ENDDO rst_field_loop_real
 !
 !-----------------------------------------------------------------------
-!***  COMPLETE COMPUTATION OF 10-M WIND FACTOR AND WRITE IT OUT.
+!***  COMPLETE COMPUTATION OF 10-M WIND FACTOR, AND WRITE FACT10 and HGT OUT.
 !-----------------------------------------------------------------------
 !
       IF(MYPE==LEAD_WRITE_TASK) THEN
@@ -2751,6 +2755,14 @@
           DEALLOCATE(FACT10)
 
         ENDIF
+!
+        IF(wrt_int_state%WRITE_RST_FLAG .and. wrt_int_state%WRITE_NEMSIOFLAG)THEN
+          N=N+1
+          TMP=RESHAPE(HGT(1:IM,1:JM),(/FIELDSIZE/))
+          CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)
+          DEALLOCATE(HGT)
+        ENDIF
+!
       ENDIF
 !
       RST_FIRST=.FALSE.

@@ -16,12 +16,14 @@ Tests performed:
  1) NMMB, global, control version
  2) NMMB, global, test NEMSIO input file
  3) NMMB, global, test restart
- 4) NMMB, global, test different decompostition
- 5) NMMB, regional, control version
- 6) NMMB, regional, test NEMSIO input file
- 7) NMMB, regional, test restart
- 8) NMMB, regional, test different decompostition
- 9) GFS, control version (32 processors, 1 thread)
-10) GFS, different decompostition (60 processors, 1 thread)
-11) GFS, test threading (16 processors, 2 threads)
-12) GFS, test single processor version (1 processor)
+ 4) NMMB, global, test restart with NEMSIO file
+ 5) NMMB, global, test different decompostition
+ 6) NMMB, regional, control version
+ 7) NMMB, regional, test NEMSIO input file
+ 8) NMMB, regional, test restart
+ 9) NMMB, regional, test restart with NEMSIO file
+10) NMMB, regional, test different decompostition
+11) GFS, control version (32 processors, 1 thread)
+12) GFS, different decompostition (60 processors, 1 thread)
+13) GFS, test threading (16 processors, 2 threads)
+14) GFS, test single processor version (1 processor)

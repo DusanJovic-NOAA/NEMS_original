@@ -919,9 +919,9 @@
 !***  PDO
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
-        READ(NFCST) !VLAT
-        READ(NFCST) !VLON
-        READ(NFCST)TEMP1    ! PDO
+        READ(NFCST) ! VLAT
+        READ(NFCST) ! VLON
+        READ(NFCST) ! PDO
       ENDIF
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -2770,8 +2770,7 @@
 !***  FIS (Sfc Geopotential)
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'hgt','sfc',1,temp1,iret=irtn)
-        temp1=temp1*g
+        CALL NEMSIO_READRECV(gfile,'fis','sfc',1,temp1,iret=irtn)
         write(0,*)'read rst phys,fis=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
@@ -2798,14 +2797,6 @@
       ENDDO
       ENDDO
       CALL DSTRB(TEMP1,int_state%PD,1,1,1,1,1)
-!-----------------------------------------------------------------------
-!***  PDO
-!-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'pdo','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,pdo=',maxval(temp1),minval(temp1)
-!        READ(NFCST)TEMP1    ! PDO
-      ENDIF
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !              READ FROM RESTART FILE: REAL 2D ARRAYS (contd.)

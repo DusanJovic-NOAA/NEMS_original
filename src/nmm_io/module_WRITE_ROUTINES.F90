@@ -4586,6 +4586,7 @@
                                         ,IHOUR_FCST                     &
                                         ,IMINUTE_FCST                   &
                                         ,SECOND_FCST                    &
+                                        ,NTIMESTEP                      &
                                         ,NF_HOURS                       &
                                         ,NF_MINUTES                     &
                                         ,NF_SECONDS                     &
@@ -4607,7 +4608,8 @@
                             ,IMINUTE_FCST                               &
                             ,NF_HOURS                                   &
                             ,NF_MINUTES                                 &
-                            ,LEAD_WRITE_TASK
+                            ,LEAD_WRITE_TASK                            &
+                            ,NTIMESTEP
 
       INTEGER,INTENT(OUT) :: DIM1,DIM2,NFRAME         
       LOGICAL,INTENT(OUT) :: GLOBAL
@@ -4703,6 +4705,7 @@
 !
       ENDDO
 !
+      N2ISCALAR=N2ISCALAR+1
       N2IARY=N2IARY+1
       MAXLENGTH=MAX(MAXLENGTH,7)
       ALLOCATE(VARINAME(N2ISCALAR),VARIVAL(N2ISCALAR))
@@ -4755,6 +4758,15 @@
         ENDIF
 !
       ENDDO
+!
+!-----------------------------
+!***  Add ntimestep into VARI
+!-----------------------------
+!
+     N2ISCALAR= N2ISCALAR+1
+     VARINAME(N2ISCALAR)='NTIMESTEP'
+     VARIVAL(N2ISCALAR)=NTIMESTEP
+      write(0,*)'in I1D scalar,varival=',varival,'varname=',variname
 !
 !-----------------------------
 !***  Add fcst_date into ARYI
@@ -4909,7 +4921,8 @@
 !
 !for nmmb trimmed domain
       FIELDSIZE=IM*JM
-      NREC=wrt_int_state%RST_kount_I2D(1)+wrt_int_state%RST_kount_R2D(1)+1 !add fact10 for GSI
+      NREC=wrt_int_state%RST_kount_I2D(1)+wrt_int_state%RST_kount_R2D(1)+2 !add fact10 for GSI
+                                                                           !add hgt for unified code jw20090818
 !
 !vcoord
       ALLOCATE(VCOORD(LM+1,3,2))
@@ -5022,7 +5035,6 @@
           ENDIF
 !
           IF (RECNAME(NREC)=='SST') RECNAME(NREC)='tsea'
-          IF (RECNAME(NREC)=='FIS') RECNAME(NREC)='hgt'
           IF (RECNAME(NREC)=='USTAR') RECNAME(NREC)='uustar'
           IF (RECNAME(NREC)=='Z0') RECNAME(NREC)='zorl'
           IND4=IND4+1
@@ -5036,6 +5048,11 @@
       NREC=NREC+1
       RECNAME(NREC)='fact10'
       RECLEVTYP(NREC)='10 m above gnd'
+      RECLEV(NREC)=1
+!for hgt
+      NREC=NREC+1
+      RECNAME(NREC)='hgt'
+      RECLEVTYP(NREC)='sfc'
       RECLEV(NREC)=1
 !
 !glat1d and glon1d

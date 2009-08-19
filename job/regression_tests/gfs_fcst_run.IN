@@ -155,7 +155,7 @@ export LEVR=${levr:-0}
 #    ____________________________________________
 #
 mkdir -p $RUNDIR
-cp configfile_global_gfs configure_file
+cp gfs_configfile configure_file
 cp configure_file $RUNDIR
 cd $RUNDIR
 

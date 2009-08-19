@@ -408,7 +408,7 @@
 !***  FIXED SURFACE FIELDS
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(int_state%FIS(IMS:IME,JMS:JME))                           !<-- Surface geopotential
+      ALLOCATE(int_state%FIS(IMS:IME,JMS:JME))                           !<-- Surface geopotential (m2 s-2)
       ALLOCATE(int_state%SM(IMS:IME,JMS:JME))                            !<-- Sea mask
       ALLOCATE(int_state%SICE(IMS:IME,JMS:JME))                          !<-- Sea ice
 !

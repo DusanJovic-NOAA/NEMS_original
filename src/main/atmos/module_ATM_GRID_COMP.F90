@@ -616,59 +616,64 @@
 !-----------------------------------------------------------------------
 !
       NTSD_START=0
-      INFILE="restart_file"
 !
       IF(RESTARTED_RUN) THEN                                               !<-- If this is a restarted run, set the current time
 !
         if (NEMSIO_INPUT) then
+!
+          INFILE="restart_file_nemsio"
+!
 !----------------------------------------------------------------------
 !*** read restart data
 !-----------------------------------------------------------------------
 !
-       CALL NEMSIO_INIT()
+          CALL NEMSIO_INIT()
 !
-       CALL NEMSIO_OPEN(gfile,INFILE,'read',iret=irtn)
+          CALL NEMSIO_OPEN(gfile,INFILE,'read',iret=irtn)
 !
 !-----------------------------------------------------------------------
 !              READ FROM RESTART FILE: INTEGER SCALARS
 !-----------------------------------------------------------------------
 !
-      CALL NEMSIO_GETHEADVAR(gfile,'FCSTDATE',FCSTDATE,iret=irtn)
-      IYEAR_FCST=FCSTDATE(1)
-      IMONTH_FCST=FCSTDATE(2)
-      IDAY_FCST=FCSTDATE(3)
-      IHOUR_FCST=FCSTDATE(4)
-      IMINUTE_FCST=FCSTDATE(5)
-      SECOND_FCST=0.
-      if(FCSTDATE(7)/=0) SECOND_FCST=FCSTDATE(6)/(FCSTDATE(7)*1.)
-      CALL NEMSIO_GETHEADVAR(gfile,'NTIMESTEP',NTSD,iret=irtn)
+          CALL NEMSIO_GETHEADVAR(gfile,'FCSTDATE',FCSTDATE,iret=irtn)
+          IYEAR_FCST=FCSTDATE(1)
+          IMONTH_FCST=FCSTDATE(2)
+          IDAY_FCST=FCSTDATE(3)
+          IHOUR_FCST=FCSTDATE(4)
+          IMINUTE_FCST=FCSTDATE(5)
+          SECOND_FCST=0.
+          if(FCSTDATE(7)/=0) SECOND_FCST=FCSTDATE(6)/(FCSTDATE(7)*1.)
+          CALL NEMSIO_GETHEADVAR(gfile,'NTIMESTEP',NTSD,iret=irtn)
 
-      call nemsio_close(gfile,iret=ierr)
+          call nemsio_close(gfile,iret=ierr)
 !
-      else
+        else
+!
+          INFILE="restart_file"
+!
 
-        select_unit: DO N=51,59
-          INQUIRE(N,OPENED=OPENED)
-          IF(.NOT.OPENED)THEN
-            NFCST=N
-            EXIT select_unit
-          ENDIF
-        ENDDO select_unit
+          select_unit: DO N=51,59
+            INQUIRE(N,OPENED=OPENED)
+            IF(.NOT.OPENED)THEN
+              NFCST=N
+              EXIT select_unit
+            ENDIF
+          ENDDO select_unit
 !
-        OPEN(unit=NFCST,file=INFILE,status='old',form='unformatted')
+          OPEN(unit=NFCST,file=INFILE,status='old',form='unformatted')
 !
-        READ(NFCST) IYEAR_FCST                                             !<-- Read time form restart file
-        READ(NFCST) IMONTH_FCST                                            !
-        READ(NFCST) IDAY_FCST                                              !
-        READ(NFCST) IHOUR_FCST                                             !
-        READ(NFCST) IMINUTE_FCST                                           !
-        READ(NFCST) SECOND_FCST                                            !<--
+          READ(NFCST) IYEAR_FCST                                             !<-- Read time form restart file
+          READ(NFCST) IMONTH_FCST                                            !
+          READ(NFCST) IDAY_FCST                                              !
+          READ(NFCST) IHOUR_FCST                                             !
+          READ(NFCST) IMINUTE_FCST                                           !
+          READ(NFCST) SECOND_FCST                                            !<--
 !
-        READ(NFCST) NTSD                                                   !<-- Read timestep from restart file
+          READ(NFCST) NTSD                                                   !<-- Read timestep from restart file
 !
-        CLOSE(NFCST)
+          CLOSE(NFCST)
 
-       endif
+        endif
 !
        ISECOND_FCST=NINT(SECOND_FCST)                                      !<-- ESMF clock needs integer seconds
         NTSD_START=NTSD

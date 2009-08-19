@@ -9,7 +9,7 @@
 #@ node = 1
 #@ node_resources= ConsumableMemory(20GB)
 #@ class = dev
-#@ wall_clock_limit = 00:08:00
+#@ wall_clock_limit = 00:15:00
 #@ parallel_threads = 1
 #@ preferences = Feature == "dev"
 #@ network.MPI = sn_all,shared,us
@@ -38,13 +38,17 @@ mkdir -p $RUNDIR
 cd $RUNDIR
 rm -rf $RUNDIR/*
 
-cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_glob/test_input_umo_global          main_input_filename
-cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_glob/test_input_umo_global.nemsio   main_input_filename_nemsio
-cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_glob/nmm_b_restart.024              restart_file
-_GS_cp ../NMM_CNTRL/global_* .
+cp _RTPWD_/NMMB_reg/test_input_umo_regional.d01          main_input_filename
+cp _RTPWD_/NMMB_reg/test_input_umo_regional.nemsio.d01   main_input_filename_nemsio
+cp _RTPWD_/NMMB_reg/nmm_b_restart.024                    restart_file
+cp _RTPWD_/NMMB_reg/nmm_b_restart_nemsio.024             restart_file_nemsio
+cp _RTPWD_/NMMB_reg/boco.01.0* .
+_GS_cp ../NMM_REG_CTL/global_* .
 
-cp $SRCDIR/job/regression_tests/configfile_global configure_file
+cp $SRCDIR/job/regression_tests/configure_file .
 cp /meso/noscrub/wx20rv/REGRESSION_TEST/data/* .
+
+
 
 echo "Model started:  " `date`
 
