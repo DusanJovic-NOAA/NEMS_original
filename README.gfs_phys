@@ -12,30 +12,8 @@ How to run:
 
 1) Compile gfs core:
  a) cd ~trunk/ush/
- b) ./compile_configure.sh gfs
+ b) ./compile_configure.sh nmm gfs_physics
  c) ./compile.sh
-
-2) Update *.mod files to modstub/gfs directory
- a) cd ~trunk/src/
- b) cp gfs_*/*.mod ../mod/modstub/gfs/.
-
-3) Replace gfs stub libraries with real ones:
- a) cd ~trunk/lib/libstub/
- b) cp ../lib/gfs_phys.a gfs_phys_stub.a
-    cp ../lib/gfs_dyn.a gfs_dyn_stub.a
-    cp ../lib/gfs_io.a gfs_io_stub.a
-    cp ../lib/gfs_libutil.a gfs_libutil_stub.a
-
-4) Compile nmm core:
- a) cd ~trunk/ush
- b) ./clean.sh
- c) ./compile_configure.sh nmm
- d) ./compile.sh
-   
-5) Change appropriate settings in config file:
- a) configfile... set gwdflg flag to true
-                  set gfs flag to true 
-
 
 =====================
 Limitations:

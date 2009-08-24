@@ -129,6 +129,7 @@
   GFS_IO_MAKEFILE=gfs_io_makefile
   ATM_MAKEFILE=atmos_makefile
   STUB=makefile_stub
+  STUB_GFS_PHYSICS=makefile_stub_full_physics
 ###########################################################
 # Makefile Command Variables
 ###########################################################
@@ -142,6 +143,7 @@
   NMM_IO_MAKEFILE_NEW=make -f $(NMM_IO_MAKEFILE)
   NMM_UTIL_MAKEFILE_NEW=make -f $(NMM_UTIL_MAKEFILE)
   STUB_MAKEFILE=make -f $(STUB)
+  STUB_MAKEFILE_GFS_PHYSICS=make -f $(STUB_GFS_PHYSICS)
 ###########################################################
 # Local Include Files
 ###########################################################

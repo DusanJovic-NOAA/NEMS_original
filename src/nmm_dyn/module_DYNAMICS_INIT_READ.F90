@@ -1314,6 +1314,12 @@ logical(kind=klog) :: opened
       if(mype==0)then
         read(nfcst)temp1  ! z0base
       endif
+      if(mype==0)then
+        read(nfcst)temp1  ! tlmin
+      endif
+      if(mype==0)then
+        read(nfcst)temp1  ! tlmax
+      endif
 !-----------------------------------------------------------------------
 !   READ FROM RESTART FILE: REAL 3D ARRAYS
 !-----------------------------------------------------------------------
@@ -1482,10 +1488,7 @@ logical(kind=klog) :: opened
         endif
       enddo
 !-----------------------------------------------------------------------
-      if (mype==0) then
-      write(0,*)'num_tracers_total=',num_tracers_total
-      endif
-      do n=1,num_tracers_total
+      do n=indx_rrw+1,num_tracers_total
       do l=1,lm
         if(mype==0)then
           read(nfcst)temp1
@@ -2436,10 +2439,6 @@ type(nemsio_gfile) :: gfile
       enddo
 !      write(0,*)'in init restart after1,clwmr =',maxval(cw),minval(cw)
       call halo_exch(cw,lm,2,2)
-      if (mype==0) then
-      write(0,*)'1. in init restart,clwmr =',maxval(cw),minval(cw)
-      endif
-
 !      write(0,*)'in init restart after2,clwmr =',maxval(cw),minval(cw)
 !-----------------------------------------------------------------------
       do l=1,lm
@@ -2455,10 +2454,6 @@ type(nemsio_gfile) :: gfile
         call dstrb(temp1,q,1,1,1,lm,l)
       enddo
       call halo_exch(q,lm,2,2)
-      if (mype==0) then
-      write(0,*)'2. in init restart,clwmr =',maxval(cw),minval(cw)
-      endif
-
 !-----------------------------------------------------------------------
       do l=1,lm
         if(mype==0)then
@@ -2472,15 +2467,11 @@ type(nemsio_gfile) :: gfile
         call dstrb(temp1,q2,1,1,1,lm,l)
       enddo
       call halo_exch(q2,lm,2,2)
-      if (mype==0) then
-      write(0,*)'3. in init restart,clwmr =',maxval(cw),minval(cw)
-      endif
-
 !-----------------------------------------------------------------------
       do l=1,lm
         if(mype==0)then
           call nemsio_readrecv(gfile,'tmp','mid layer',l,temp1,iret=ierr)
-        write(0,*)'in init restart,tmp =',maxval(temp1),minval(temp1)
+!        write(0,*)'in init restart,tmp =',maxval(temp1),minval(temp1)
           write(0,*) 'L, T extremes: ', L, minval(temp1),maxval(temp1)
         endif
         do j=jms,jme
@@ -2491,9 +2482,6 @@ type(nemsio_gfile) :: gfile
         call dstrb(temp1,t,1,1,1,lm,l)
       enddo
       call halo_exch(t,lm,2,2)
-      if (mype==0) then
-      write(0,*)'3a. in init restart,clwmr =',maxval(cw),minval(cw)
-      endif
 
 !-----------------------------------------------------------------------
       do l=1,lm
@@ -2508,9 +2496,6 @@ type(nemsio_gfile) :: gfile
         call dstrb(temp1,u,1,1,1,lm,l)
       enddo
       call halo_exch(u,lm,2,2)
-      if (mype==0) then
-      write(0,*)'3b. in init restart,clwmr =',maxval(cw),minval(cw)
-      endif
 
 !-----------------------------------------------------------------------
       do l=1,lm
@@ -2525,17 +2510,14 @@ type(nemsio_gfile) :: gfile
         call dstrb(temp1,v,1,1,1,lm,l)
       enddo
       call halo_exch(v,lm,2,2)
-      if (mype==0) then
-      write(0,*)'4. in init restart,clwmr =',maxval(cw),minval(cw)
-      endif
 
 !-----------------------------------------------------------------------
-      do n=1,num_tracers_total
+      do n=indx_rrw+1,num_tracers_total
       do l=1,lm
         if(mype==0)then
           write(tn,'(I2.2)')n
           call nemsio_readrecv(gfile,'tracers_'//tn,'mid layer',l,temp1,iret=ierr)
-          write(0,*)'get tracer, name=','tracers_'//tn,maxval(temp1),minval(temp1)
+!          write(0,*)'get tracer, name=','tracers_'//tn,maxval(temp1),minval(temp1)
         endif
         do j=jms,jme
         do i=ims,ime
@@ -2545,12 +2527,8 @@ type(nemsio_gfile) :: gfile
         call dstrb(temp1,tracers(:,:,:,n),1,1,1,lm,l)
       enddo
       enddo
-      if (mype==0) then
-      write(0,*)'4a. in init restart,clwmr =',maxval(cw),minval(cw)
-      endif
-
       call halo_exch(tracers,lm,num_tracers_total,1,2,2)
-
+!
       do n=1,num_water
       do l=1,lm
         do j=jms,jme
@@ -2560,9 +2538,6 @@ type(nemsio_gfile) :: gfile
         enddo
       enddo
       enddo
-      if (mype==0) then
-      write(0,*)'4b. in init restart,clwmr =',maxval(cw),minval(cw)
-      endif
 
 !
 !-----------------------------------------------------------------------
@@ -2620,9 +2595,6 @@ type(nemsio_gfile) :: gfile
       deallocate(stdh)
       if(mype==0)then
         write(0,*)' EXIT SUBROUTINE INIT pt=',pt
-      endif
-      if (mype==0) then
-      write(0,*)'in init restart,clwmr =',maxval(cw),minval(cw)
       endif
 !-----------------------------------------------------------------------
 !

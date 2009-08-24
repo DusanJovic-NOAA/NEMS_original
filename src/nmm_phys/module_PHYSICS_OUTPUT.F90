@@ -285,11 +285,14 @@
                               ,'HBOT      ', '-         ', 'R         ' &
                               ,'HTOP      ', '-         ', 'R         ' &
                               ,'RSWTOA    ', '-         ', 'R         ' &
-                              ,'POTFLX    ', '-         ', 'R         ' &
+                              ,'POTFLX    ', 'H         ', 'R         ' &
                               ,'RMOL      ', '-         ', 'R         ' &
                               ,'T2        ', '-         ', 'R         ' &
                               ,'Z0BASE    ', '-         ', 'R         ' &
                               ,'PSFC      ', 'H         ', '-         ' &
+                              ,'TLMIN     ', 'H         ', 'R         ' &
+                              ,'TLMAX     ', 'H         ', 'R         ' &
+                              ,'LSPA      ', 'H         ', '-         ' &
 !
 !                              -----------------------------------------
 !
@@ -633,6 +636,9 @@
       R_2D(91)%NAME=>int_state%T2
       R_2D(92)%NAME=>int_state%Z0BASE
       R_2D(93)%NAME=>int_state%PSFC
+      R_2D(94)%NAME=>int_state%TLMIN
+      R_2D(95)%NAME=>int_state%TLMAX
+      R_2D(96)%NAME=>int_state%LSPA
 !        
 !--------------------
 !***  3D REAL ARRAYS
@@ -1345,7 +1351,7 @@
           LDIM4=LBOUND(R_4D(NFIND)%NAME,4)
           UDIM4=UBOUND(R_4D(NFIND)%NAME,4)
 !
-         DO N=LDIM4,UDIM4                                                  !<-- Loop through the tracers kind
+          DO N=int_state%INDX_RRW+1,UDIM4                                                  !<-- Loop through the tracers kind
           DO K=LDIM3,UDIM3                                                 !<-- Loop through the levels of the array
             WRITE(TRACERS_KIND,FMT)N
             WRITE(MODEL_LEVEL,FMT)K
@@ -1403,7 +1409,8 @@
           LDIM4=LBOUND(R_4D(NFIND)%NAME,4)
           UDIM4=UBOUND(R_4D(NFIND)%NAME,4)
 !
-         DO N=LDIM4,UDIM4                                                  !<-- Loop through the tracers kind
+!         DO N=LDIM4,UDIM4                                                  !<-- Loop through the tracers kind
+          DO N=int_state%INDX_RRW+1,UDIM4 
           DO K=LDIM3,UDIM3                                                 !<-- Loop through the levels of the array
             WRITE(TRACERS_KIND,FMT)N
             WRITE(MODEL_LEVEL,FMT)K

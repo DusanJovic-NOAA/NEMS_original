@@ -1181,7 +1181,7 @@
                                 GRAV = 9.81, T0 = 273.15
    INTEGER                   :: errflag
 
-!bsf!   LOGICAL, PARAMETER        :: FNDSOILW=.true., FNDSNOWH=.true.
+   LOGICAL, PARAMETER        :: FNDSOILW=.true., FNDSNOWH=.true.
 !
 
 
@@ -1207,7 +1207,8 @@
 
 ! initialize soil liquid water content SH2O
 
-!bsf!  IF(.NOT.FNDSOILW) THEN
+!er! reinstate for NEMS NDAS partial cycling
+  IF(.NOT.FNDSOILW) THEN
 
         DO J = jts,jtf
         DO I = its,itf
@@ -1268,7 +1269,7 @@
           ENDDO
           ENDDO
    
-!bsf!      ENDIF   !-- IF(.NOT.FNDSOILW) THEN
+      ENDIF   !-- IF(.NOT.FNDSOILW) THEN
 
 !bsf!! initialize physical snow height SNOWH
 !bsf!

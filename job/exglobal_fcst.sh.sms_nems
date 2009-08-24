@@ -670,6 +670,8 @@ INI_HOUR=$(echo $CDATE | cut -c9-10)
 
 cat << EOF > atm_namelist.rc
 
+core: gfs
+
 #nam_atm +++++++++++++++++++++++++++
 nlunit:                  35
 deltim:                  ${DELTIM}.0

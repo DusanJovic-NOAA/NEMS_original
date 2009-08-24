@@ -72,7 +72,8 @@
       INTEGER, PUBLIC,PARAMETER :: XMImax=1.e6*DMImax, XMIexp=.0536,    &
      &                             MDImin=XMImin, MDImax=XMImax
       REAL, PRIVATE,DIMENSION(MDImin:MDImax) ::                         &
-     &      ACCRI,SDENS,VSNOWI,VENTI1,VENTI2
+     &      ACCRI,VSNOWI,VENTI1,VENTI2
+      REAL, PUBLIC,DIMENSION(MDImin:MDImax) :: SDENS    !-- For RRTM
 !
       REAL, PRIVATE,PARAMETER :: DMRmin=.05e-3, DMRmax=.45e-3,          &
      &      DelDMR=1.e-6,XMRmin=1.e6*DMRmin, XMRmax=1.e6*DMRmax
@@ -382,7 +383,7 @@
 !
         F_ICE_PHY(I,LM+1,J)=0.
         F_RAIN_PHY(I,LM+1,J)=0.
-        F_RIMEF_PHY(I,LM+1,J)=0.
+        F_RIMEF_PHY(I,LM+1,J)=1.   !-- Nominal value =1
 !
       ENDDO
       ENDDO
@@ -2277,6 +2278,7 @@ SUBROUTINE microphysics_driver(                                          &
                   DUM=MAX(NLImin, MIN(NLImax, NLICE) )
                   IF (DUM.GE.NLImax .AND. INDEXS.GE.MDImax)             &
      &                RimeF1=RHO*(QTICE/NLImax-XSIMASS)/MASSI(INDEXS)
+
 !            WRITE(6,"(4(a12,g11.4,1x))") 
 !     & '{$ TC=',TC,'P=',.01*PP,'NLICE=',NLICE,'DUM=',DUM,
 !     & '{$ XLI=',XLI,'INDEXS=',FLOAT(INDEXS),'RHO=',RHO,'QTICE=',QTICE,
@@ -3319,8 +3321,10 @@ nsteps = 0
 !!       RHgrd=0.90 for dx=100 km, 0.98 for dx=5 km, where
 !        RHgrd=0.90+.08*((100.-DX)/95.)**.5
 !
-        DTPH=MAX(GSMDT*60.,DT)
-        DTPH=NINT(DTPH/DT)*DT
+!-- Old WRF and Eta code when input physics time step (GSMDT) was in minutes:
+!wrf        DTPH=MAX(GSMDT*60.,DT)
+!wrf        DTPH=NINT(DTPH/DT)*DT
+        DTPH=GSMDT     !-- Time step in s
 !
 !--- Create lookup tables for saturation vapor pressure w/r/t water & ice
 !
@@ -3573,6 +3577,7 @@ nsteps = 0
 !WRF
 !
 !-----------------------------------------------------------------------
+!-- 20090714: These values are in g and need to be converted to kg below
       DATA MY_600 /                                                     &
      & 5.5e-8, 1.4E-7, 2.8E-7, 6.E-7, 3.3E-6,                           & 
      & 2.E-6, 9.E-7, 8.8E-7, 8.2E-7, 9.4e-7,                            & 
@@ -3585,7 +3590,7 @@ nsteps = 0
 !-----------------------------------------------------------------------
 !
       DT_ICE=(DTPH/600.)**1.5
-      MY_GROWTH_NMM=DT_ICE*MY_600
+      MY_GROWTH_NMM=DT_ICE*MY_600*1.E-3    !-- 20090714: Convert from g to kg
 !
 !-----------------------------------------------------------------------
 !

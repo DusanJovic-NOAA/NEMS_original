@@ -1240,7 +1240,9 @@
                 WATER_TRANS(I,K,J,P_QV)=MAX(EPSQ,(WATER_TRANS(I,K,J,P_QV)+RQVBLTEN(I,J,K)*DTPHS))
               ELSEIF(I_M==P_QC)THEN
                 CWM(I,J,KFLIP)=MAX(0.,(CWM(I,J,KFLIP)+RQCBLTEN(I,K,J)*DTPHS))
-              ELSEIF(I_M==P_QI)THEN
+!              ELSEIF(I_M==P_QI)THEN
+               ELSEIF( (I_M==P_QI .and. TRIM(MICROPHYSICS)/='fer') .or.        &
+                       (I_M==P_QS .and. TRIM(MICROPHYSICS)=='fer') ) THEN
                 CWM(I,J,KFLIP)=MAX(0.,(CWM(I,J,KFLIP)+RQIBLTEN(I,K,J)*DTPHS))
               ENDIF
 !

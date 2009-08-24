@@ -13,6 +13,8 @@ cc
      x                  lats_node_ext,
      x                  ipt_lats_node_r,
      x                  ipt_lats_node_ext,
+     x			lonf, latg,
+     x                  len_trio_ls, len_trie_ls,
      x                  me_l_0
 cc
       integer ,allocatable :: lon_dims_r(:),lon_dims_ext(:)

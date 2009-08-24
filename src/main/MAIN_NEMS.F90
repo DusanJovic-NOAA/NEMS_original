@@ -206,9 +206,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       IF (CORE=='gfs') THEN
-      OPEN (unit=50, FILE = 'atm_namelist.rc',POSITION = 'append',STATUS = 'OLD')
-      WRITE(50,*)'core: ',CORE
-      CLOSE(50)
       CALL ESMF_ConfigDestroy(CF,RC)
       CF=ESMF_ConfigCreate(rc=RC)
       CALL ESMF_ConfigLoadFile(config  =CF                              & !<-- The Configure object

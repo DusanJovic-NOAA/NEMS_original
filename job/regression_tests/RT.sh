@@ -10,8 +10,6 @@ echo "Start Regression test" >> RegressionTests.log
 
 export RTPWD=/meso/noscrub/wx20rv/REGRESSION_TEST
 
-
-
 #########################################
 # PATHRT - regression test path
 #########################################

@@ -1357,7 +1357,8 @@
      &       ,RLOGT,RLOGU,RWGH,RZ,RZST,RZSU,SIMH,SIMM,TEM,THM          &
      &       ,UMFLX,USTARK,VMFLX,WGHT,WGHTT,WGHTQ,WSTAR2               &
      &       ,X,XLT,XLT4,XLU,XLU4,XT,XT4,XU,XU4,ZETALT,ZETALU          &
-     &       ,ZETAT,ZETAU,ZQ,ZSLT,ZSLU,ZT,ZU,TOPOTERM,ZZIL
+     &       ,ZETAT,ZETAU,ZQ,ZSLT,ZSLU,ZT,ZU,TOPOTERM,ZZIL,CZETMAX
+!vcw
 !
 !***  DIAGNOSTICS
 !
@@ -1637,16 +1638,31 @@
           ZSLT=ZSL+ZU ! u,v and t are at the same level
 !----------------------------------------------------------------------
 !
-!mp   Topo modification of ZILFC term
-!	
-          TOPOTERM=TOPOFAC*ZSFC**2.
-          TOPOTERM=MAX(TOPOTERM,3.0)
 !
+!mp   Remove Topo modification of ZILFC term
+!
+!         TOPOTERM=TOPOFAC*ZSFC**2.
+!         TOPOTERM=MAX(TOPOTERM,3.0)
+!
+!vcw
+!  RIB modification to ZILFC term
+!  7/29/2009 V Wong recommends 5, change pending
+!
+           CZETMAX = 10.
+!          CZETMAX = 5.
+! stable
           IF(DTHV>0.)THEN
-            ZZIL=ZILFC*TOPOTERM
+!            ZZIL=ZILFC*TOPOTERM
+            IF (RIB<RIC) THEN
+              ZZIL=ZILFC*(1.0+(RIB/RIC)*(RIB/RIC)*CZETMAX)
+            ELSE
+              ZZIL=ZILFC*(1.0+CZETMAX)
+            ENDIF
+! unstable
           ELSE
             ZZIL=ZILFC
           ENDIF
+
 !
 !----------------------------------------------------------------------
 !

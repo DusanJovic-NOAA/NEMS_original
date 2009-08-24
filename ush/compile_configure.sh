@@ -34,7 +34,13 @@ fi
     echo "Setup for NMM core"
     cat compile_options/gen_compile_options_${OS} compile_options/nmm_compile_options_${OS} > compile_settings
     cp -f makefile_templates/main_makefile_nmm ../src/main/Makefile_main
+    if [[ $2 = 'gfs_physics' ]]
+    then
+    echo 'ok'
+    cp -f makefile_templates/main_makefile_nmm_stub_ff ../src/main/Makefile_stub
+    else
     cp -f makefile_templates/main_makefile_nmm_stub ../src/main/Makefile_stub
+    fi
     cp -f makefile_templates/nmm_atmos_makefile ../src/main/atmos/atmos_makefile
     cp -f makefile_templates/makefile_nmm_stub ../src/main/atmos/makefile_stub 
     elif [[ $1 = 'gfs' ]]

@@ -1,0 +1,44 @@
+###########################################################
+# Compiler & Linker
+###########################################################
+  F77=mpif90 -Wno=155 -ffree-line-length-huge
+  F90=mpif90 -Wno=155 -ffree-line-length-huge
+  FC=$(F77)
+  CPP=/lib/cpp -P
+  LDR=$(F77)
+###########################################################
+# Source Code Libraries
+###########################################################
+  ATM_LIB=$(LIBDIR)/lib/atmos.a
+  GFS_UTIL_LIB=$(LIBDIR)/lib/gfs_libutil.a
+  GFS_PHY_LIB=$(LIBDIR)/lib/gfs_phys.a
+  GFS_DYN_LIB=$(LIBDIR)/lib/gfs_dyn.a
+  GFS_IO_LIB=$(LIBDIR)/lib/gfs_io.a
+###########################################################
+# Source Code Stub Libraries
+###########################################################
+  NMM_UTIL_LIB=$(LIBDIR)/libstub/nmm_libutil_stub.a
+  NMM_PHY_LIB=$(LIBDIR)/libstub/nmm_phys_stub.a
+  NMM_DYN_LIB=$(LIBDIR)/libstub/nmm_dyn_stub.a
+  NMM_IO_LIB=$(LIBDIR)/libstub/nmm_io_stub.a
+  ATMOS_STUB_LIB=$(LIBDIR)/libstub/atmos_nmm_stub.a
+###########################################################
+# Cumulative Core-Specific Compiler Flags
+###########################################################
+#jw  FFLAGSDB=$(OPTS_GFS) $(FINCS_GFS1)
+#jw  GC_LIB=$(NMM_UTIL_LIB) $(NMM_DYN_LIB) $(NMM_PHY_LIB) $(NMM_IO_LIB) $(ATM_LIB) $(GFS_DYN_LIB) $(GFS_PHY_LIB) $(GFS_IO_LIB) $(GFS_UTIL_LIB) $(ATMOS_STUB_LIB)
+  FFLAGSDB=$(OPTS_GFS) $(TRAPS) $(FINCS_GFS1)
+  FFLAGSDB_STUB=$(OPTS_NMM) $(TRAPS) $(FINCS_NMM1)
+  GC_LIB=$(GFS_DYN_LIB) $(GFS_PHY_LIB) $(GFS_IO_LIB) $(GFS_UTIL_LIB) $(ATMOS_STUB_LIB) $(NMM_UTIL_LIB) $(NMM_DYN_LIB) $(NMM_PHY_LIB) $(NMM_IO_LIB) $(ATM_LIB)
+###########################################################
+# Cumulative Core-Specific Libraries
+###########################################################
+  LIB=-lC $(GC_LIB) $(SYS_LIB)
+###########################################################
+# Core-Specific Linker Flags 
+###########################################################
+  LDFLAGS=$(ESMF_LIB)
+###########################################################
+# Core-Specific Executable
+###########################################################
+  EXEC=$(EXEDIR)/GFS_NEMS.x

@@ -164,7 +164,6 @@
                                                  ,RLWIN,RSWIN,RSWINC    &
                                                  ,RSWOUT,RLWTOA,RSWTOA  &
                                                  ,SICE,SIGT4,SM         &
-!zj                                                 ,SST,THS,THZ0,USTAR    &
                                                  ,SST,STDH              & !zj
                                                  ,THS,THZ0,USTAR        & !zj
                                                  ,UZ0,VZ0               &
@@ -194,7 +193,7 @@
                                                  ,PREC,PSHLTR,Q02,Q10   &
                                                  ,QSHLTR,PSFC           &
                                                  ,T2,TH02,TH10,TSHLTR   &
-                                                 ,U10,V10
+                                                 ,U10,V10,TLMIN,TLMAX
 !
         REAL(KIND=KFPT),DIMENSION(:),POINTER :: MP_RESTART_STATE        &
                                                ,SLDPTH                  &
@@ -730,7 +729,7 @@
         int_state%CZMEAN(I,J)  =-1.E6
         int_state%CZEN(I,J)    =-1.E6
         int_state%DDATA(I,J)   =-1.E6
-        int_state%LSPA(I,J)   =-1.E6
+        int_state%LSPA(I,J)    =-1.E6
         int_state%EPSR(I,J)    =-1.E6
         int_state%FIS(I,J)     =-1.E6
         int_state%HBOT(I,J)    =-1.E6
@@ -764,7 +763,7 @@
         int_state%RLWTOA(I,J)  = 0.
         int_state%RSWTOA(I,J)  = 0.
         int_state%SFCEVP(I,J)  =-1.E6
-        int_state%SFCEXC(I,J)  =-1.E6
+        int_state%SFCEXC(I,J)  =0.
         int_state%SFCLHX(I,J)  =-1.E6
         int_state%SFCSHX(I,J)  =-1.E6
 !        int_state%SH2O(I,J)   =-1.E6
@@ -831,6 +830,9 @@
       ALLOCATE(int_state%TSHLTR(IMS:IME,JMS:JME))  ! Theta at 2-m again  (K)
       ALLOCATE(int_state%U10(IMS:IME,JMS:JME))     ! U at 10-m  (m s-1)
       ALLOCATE(int_state%V10(IMS:IME,JMS:JME))     ! V at 10-m  (m s-1)
+      ALLOCATE(int_state%TLMIN(IMS:IME,JMS:JME))
+      ALLOCATE(int_state%TLMAX(IMS:IME,JMS:JME))
+
 !
       ALLOCATE(int_state%MP_RESTART_STATE(MICRO_RESTART))  ! For Ferrier restart
       ALLOCATE(int_state%TBPVS_STATE(MICRO_RESTART))       ! For Ferrier restart
@@ -853,6 +855,8 @@
         int_state%TSHLTR(I,J)= 0.
         int_state%U10(I,J)   = 0.
         int_state%V10(I,J)   = 0.
+        int_state%TLMIN(I,J) = 0.
+        int_state%TLMAX(I,J) = 0.
       ENDDO
       ENDDO
 !

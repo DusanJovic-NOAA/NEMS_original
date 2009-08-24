@@ -63,16 +63,19 @@
       TEMPG=999.
       IF(MYPE==0)THEN
       write(0,*)'PCPHR=',PCPHR
+      write(0,*)'IDS,IDE,JDS,JDE in ADJPCP=',IDS,IDE,JDS,JDE
       ENDIF
+      
 !
       DO IHR=1,PCPHR
         IF(MYPE==0)THEN
-          READ(40+IHR) ((TEMPG(I,J),I=IDS,IDE-1),J=JDS,JDE-1)
+          READ(40+IHR) ((TEMPG(I,J),I=IDS,IDE),J=JDS,JDE)
+          WRITE(60+IHR,*)((TEMPG(I,J),I=IDS,IDE),J=JDS,JDE)
           WRITE(0,*) 'IHR=', IHR, ' FINISHED READING PCP TO TEMPG'
           CLOSE(40+IHR)
 !
-          DO J=JDS,JDE-1
-            DO I=IDS,IDE-1
+          DO J=JDS,JDE
+            DO I=IDS,IDE
 ! In the binary version of the precip data, missing data are denoted as '999.'
 ! Convert the valid data from mm to m:
 

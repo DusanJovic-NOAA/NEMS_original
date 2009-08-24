@@ -1,25 +1,8 @@
 #!/bin/ksh
 #
-# @ job_name = prep_atmos
-# @ job_type = serial
-# @ account_no = GFS-T2O
-# @ output = out1
-# @ error =  err1 
-###### @ total_tasks = 96
-###### @ blocking = unlimited
-###### @ resources = ConsumableMemory(4000mb) ConsumableCpus(1)
-# @ node_usage = not_shared
-## @ tasks_per_node = 1
-## @ node = 1
-## @ network.MPI=csss,shared,us
-# @ class = debug
-# @ group = dev
-# @ wall_clock_limit = 00:15:00
-# @ queue
-#
 set -x
 #
- export CDATE=2007070200
+ export CDATE=2009071000
 
 # -------------------------------------------------------------
 # SFCPRESS_ID=0 or 1 for ln(psfc), 2 for psfc
@@ -68,7 +51,7 @@ export MALLOCMULTIHEAP=true
 #
 #    Set up experiment and directory names
 #
- export expt=gfs.0
+ export expt=gfs.1
 #
  export NSCDIR=/global/noscrub
  export TOPDIR=/global/save

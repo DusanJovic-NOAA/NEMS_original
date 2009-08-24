@@ -3902,7 +3902,7 @@
 !
       INTEGER :: FIELDSIZE,IM,JM,LM,IDATE(7),FCSTDATE(7)                &
                 ,INDX_2D,IRET,IND1,IND2,IND3,IND4,CNT                   &
- 		,INI1,INI2                                              &
+ 		,INI1,INI2,INI3                                         &
                 ,N2ISCALAR,N2IARY,N2RSCALAR,N2RARY,N2LSCALAR            &
                 ,NMETA,NSOIL,TLMETA,VLEV
 !
@@ -4215,8 +4215,9 @@
 !
       ALLOCATE(RECNAME(NREC),RECLEVTYP(NREC),RECLEV(NREC))
       NREC=0
-      INI1=0
-      INI2=0
+      INI1=0                                                             !# of 1 layer vars 
+      INI2=0                                                             !# of total layers of vars with lm layer
+      INI3=0                                                             !# of total layers of vars with lm+1 layer
 !
       DO NFIELD=1,wrt_int_state%KOUNT_I2D(1)
 !
@@ -4231,13 +4232,17 @@
           RECLEV(NREC)=(ICHAR(MODEL_LEVEL(1:1))-48)*10+ICHAR(MODEL_LEVEL(2:2))-48
           RECNAME(NREC)=NAME(1:INDX_2D-4)
           RECLEVTYP(NREC)='mid_layer'
-          IF (RECLEV(NREC)==LM+1) RECLEVTYP(NREC-LM:NREC)='layer'
-          INI1=INI1+1
+          IF (RECLEV(NREC)==LM+1) THEN 
+            RECLEVTYP(NREC-LM:NREC)='layer'
+            INI3=INI3+LM+1
+            INI2=INI2-(LM+1)
+          ENDIF
+          INI2=INI2+1
         ELSE
           RECNAME(NREC)=TRIM(NAME)
           RECLEV(NREC)=1
           RECLEVTYP(NREC)='sfc'
-          INI2=INI2+1
+          INI1=INI1+1
         ENDIF
 !
         IF (RECNAME(NREC)=='ISLTYP') RECNAME(NREC)='sltyp'
@@ -4254,10 +4259,10 @@
 !-----------------------------------------------------------------------
 !
       NSOIL=0
-      IND4=0
-      IND3=0
-      IND2=0
-      IND1=0
+      IND1=0                                                            !# of 1 layer vars
+      IND2=0                                                            !# of total layers for vars with lm laryers 
+      IND3=0                                                            !# of total layers for vars with lm+1 laryers
+      IND4=0                                                            !# of total layers for vars with nsoil layers
 !
       DO NFIELD=1,wrt_int_state%KOUNT_R2D(1)
 !
@@ -4272,7 +4277,6 @@
           RECLEV(NREC)=(ICHAR(MODEL_LEVEL(1:1))-48)*10+ICHAR(MODEL_LEVEL(2:2))-48
           RECNAME(NREC)=NAME(1:INDX_2D-4)
           RECLEVTYP(NREC)='mid layer'
-          IF (RECLEV(NREC)==LM+1) RECLEVTYP(NREC-LM:NREC)='layer'
           IF (RECNAME(NREC)=='SMC') NSOIL=NSOIL+1
           IF (RECNAME(NREC)=='W') RECNAME(NREC)='vvel'
           IF (RECNAME(NREC)=='CW') RECNAME(NREC)='clwmr'
@@ -4280,15 +4284,19 @@
           IF (RECNAME(NREC)=='V') RECNAME(NREC)='vgrd'
           IF (RECNAME(NREC)=='T') RECNAME(NREC)='tmp'
           IF (RECNAME(NREC)=='Q') RECNAME(NREC)='spfh'
+          IF (RECLEV(NREC)==LM+1) THEN
+            RECLEVTYP(NREC-LM:NREC)='layer'
+            IND3=IND3+LM+1
+            IND2=IND2-(LM+1)
+          ENDIF
           IF (RECNAME(NREC)=='PINT') THEN
           RECNAME(NREC)='pres'
-          IND1=IND1+1
           ELSE IF (RECNAME(NREC)=='SMC'.OR.RECNAME(NREC)=='SH2O'.or.RECNAME(NREC)=='STC') THEN 
              RECLEVTYP(NREC)='soil layer' 
-          IND2=IND2+1
-          ELSE
-          IND3=IND3+1
+             IND4=IND4+1
+             IND2=IND2-1
           ENDIF
+          IND2=IND2+1
         ELSE
           RECLEV(NREC)=1
           RECNAME(NREC)=TRIM(NAME)
@@ -4301,10 +4309,10 @@
           ENDIF
 !
           IF (RECNAME(NREC)=='SST') RECNAME(NREC)='tsea'
-          IF (RECNAME(NREC)=='FIS') RECNAME(NREC)='hgt'
+!          IF (RECNAME(NREC)=='FIS') RECNAME(NREC)='hgt'
           IF (RECNAME(NREC)=='USTAR') RECNAME(NREC)='uustar'
           IF (RECNAME(NREC)=='Z0') RECNAME(NREC)='zorl'
-          IND4=IND4+1
+          IND1=IND1+1
         ENDIF
 !
         CALL LOWERCASE(RECNAME(NREC))
@@ -4315,7 +4323,7 @@
       RECNAME(NREC)='fact10'
       RECLEVTYP(NREC)='10 m above gnd'
       RECLEV(NREC)=1
-    
+
 !glat1d and glon1d
       ALLOCATE(GLAT1D(FIELDSIZE),GLON1D(FIELDSIZE))
       DEGRAD=90./ASIN(1.)
@@ -4351,7 +4359,7 @@
       CALL NEMSIO_INIT(IRET=IRET)
 !
 !-----------------------------------------------------------------------
-!***  OPEN NEMSIO FILE
+!***  OPEN NEMSIO RUN HISTORY FILE
 !-----------------------------------------------------------------------
 !
       CALL NEMSIO_OPEN(NEMSIOFILE,trim(FILENAME),'write',iret,           &
@@ -4374,21 +4382,16 @@
 !***  GET VARIABLES NEEDED BY THE .ctl FILE.
 !-----------------------------------------------------------------------
 !
-      CALL NEMSIO_GETFILEHEAD(NEMSIOFILE,TLMETA=TLMETA)
-      DXCTL=MAXVAL(DX)*180./(A*PI)
-      DYCTL=MAXVAL(DY)*180./(A*PI)
-      IF (VARLVAL(3)) THEN
-      CNT=(IND1/(LM+1))+(IND3/LM)+IND4
-      ELSE
-      CNT=(INI1/LM)+INI2+(IND1/(LM+1))+(IND2/NSOIL)+(IND3/LM)+IND4
-      ENDIF
-
+      IF(wrt_int_state%WRITE_NEMSIOCTL.AND.wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
+        CALL NEMSIO_GETFILEHEAD(NEMSIOFILE,TLMETA=TLMETA)
+        DXCTL=MAXVAL(DX)*180./(A*PI)
+        DYCTL=MAXVAL(DY)*180./(A*PI)
+        CNT=INI1+(INI2/LM)+(INI3/(LM+1))+IND1+(IND2/LM)+(IND3/(LM+1))+(IND4/NSOIL)+1  !fact10 is calculated in write grid comp
 !
 !-----------------------------------------------------------------------
 !***  WRITE OUT NEMSIO CTL FILE
 !-----------------------------------------------------------------------
 !
-      IF(wrt_int_state%WRITE_NEMSIOCTL.AND.wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
         CALL WRITE_NEMSIOCTL(GLOBAL,IHOUR_FCST,IDAY_FCST,IMONTH_FCST,       &
           IYEAR_FCST,FILENAME,TLMETA,DIM1,DIM2,LM,NSOIL,TLM0D,TPH0D,DXCTL,  &
           DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP,CNT)
@@ -4609,7 +4612,7 @@
                             ,NF_HOURS                                   &
                             ,NF_MINUTES                                 &
                             ,LEAD_WRITE_TASK                            &
-                            ,NTIMESTEP
+			    ,NTIMESTEP
 
       INTEGER,INTENT(OUT) :: DIM1,DIM2,NFRAME         
       LOGICAL,INTENT(OUT) :: GLOBAL
@@ -4625,7 +4628,7 @@
 !
       INTEGER :: FIELDSIZE,IM,JM,LM,IDATE(7),FCSTDATE(7)                &
                 ,INDX_2D,IRET,IND1,IND2,IND3,IND4,CNT                   &
- 		,INI1,INI2                                              &
+ 		,INI1,INI2,INI3                                         &
                 ,N2ISCALAR,N2IARY,N2RSCALAR,N2RARY,N2LSCALAR            &
                 ,NMETA,NSOIL,TLMETA,VLEV    
 !
@@ -4758,7 +4761,6 @@
         ENDIF
 !
       ENDDO
-!
 !-----------------------------
 !***  Add ntimestep into VARI
 !-----------------------------
@@ -4767,6 +4769,7 @@
      VARINAME(N2ISCALAR)='NTIMESTEP'
      VARIVAL(N2ISCALAR)=NTIMESTEP
       write(0,*)'in I1D scalar,varival=',varival,'varname=',variname
+!
 !
 !-----------------------------
 !***  Add fcst_date into ARYI
@@ -4921,8 +4924,7 @@
 !
 !for nmmb trimmed domain
       FIELDSIZE=IM*JM
-      NREC=wrt_int_state%RST_kount_I2D(1)+wrt_int_state%RST_kount_R2D(1)+2 !add fact10 for GSI
-                                                                           !add hgt for unified code jw20090818
+      NREC=wrt_int_state%RST_kount_I2D(1)+wrt_int_state%RST_kount_R2D(1)+1 !add fact10 for GSI
 !
 !vcoord
       ALLOCATE(VCOORD(LM+1,3,2))
@@ -4949,8 +4951,9 @@
 !
       ALLOCATE(RECNAME(NREC),RECLEVTYP(NREC),RECLEV(NREC))
       NREC=0
-      INI1=0
-      INI2=0
+      INI1=0                                                             !# of 1 layer vars
+      INI2=0                                                             !# of total layes of vars with lm layer
+      INI3=0                                                             !# of total layes of vars with lm+1 layer
 !
       DO NFIELD=1,wrt_int_state%RST_KOUNT_I2D(1)
 !
@@ -4965,13 +4968,17 @@
           RECLEV(NREC)=(ICHAR(MODEL_LEVEL(1:1))-48)*10+ICHAR(MODEL_LEVEL(2:2))-48
           RECNAME(NREC)=NAME(1:INDX_2D-4)
           RECLEVTYP(NREC)='mid_layer'
-          IF (RECLEV(NREC)==LM+1) RECLEVTYP(NREC-LM:NREC)='layer'
-          INI1=INI1+1
+          IF (RECLEV(NREC)==LM+1) THEN
+            RECLEVTYP(NREC-LM:NREC)='layer'
+            INI3=INI3+LM+1
+            INI2=INI2-(LM+1)
+          ENDIF
+          INI2=INI2+1
         ELSE
           RECNAME(NREC)=TRIM(NAME)
           RECLEV(NREC)=1
           RECLEVTYP(NREC)='sfc'
-          INI2=INI2+1
+          INI1=INI1+1
         ENDIF
 !
         IF (RECNAME(NREC)=='ISLTYP') RECNAME(NREC)='sltyp'
@@ -4988,10 +4995,10 @@
 !-----------------------------------------------------------------------
 !
       NSOIL=0
-      IND4=0
-      IND3=0
-      IND2=0
-      IND1=0
+      IND1=0                                                            !# of 1 layer vars
+      IND2=0                                                            !# of total layers for vars with lm laryers 
+      IND3=0                                                            !# of total layers for vars with lm+1 laryers
+      IND4=0                                                            !# of total layers for vars with nsoil layers
 !
       DO NFIELD=1,wrt_int_state%RST_KOUNT_R2D(1)
 !
@@ -5006,7 +5013,6 @@
           RECLEV(NREC)=(ICHAR(MODEL_LEVEL(1:1))-48)*10+ICHAR(MODEL_LEVEL(2:2))-48
           RECNAME(NREC)=NAME(1:INDX_2D-4)
           RECLEVTYP(NREC)='mid layer'
-          IF (RECLEV(NREC)==LM+1) RECLEVTYP(NREC-LM:NREC)='layer'
           IF (RECNAME(NREC)=='SMC') NSOIL=NSOIL+1
           IF (RECNAME(NREC)=='W') RECNAME(NREC)='vvel'
           IF (RECNAME(NREC)=='CW') RECNAME(NREC)='clwmr'
@@ -5014,15 +5020,19 @@
           IF (RECNAME(NREC)=='V') RECNAME(NREC)='vgrd'
           IF (RECNAME(NREC)=='T') RECNAME(NREC)='tmp'
           IF (RECNAME(NREC)=='Q') RECNAME(NREC)='spfh'
-          IF (RECNAME(NREC)=='PINT') THEN
-          RECNAME(NREC)='pres'
-          IND1=IND1+1
-          ELSE IF (RECNAME(NREC)=='SMC'.OR.RECNAME(NREC)=='SH2O'.or.RECNAME(NREC)=='STC') THEN 
-             RECLEVTYP(NREC)='soil layer' 
-          IND2=IND2+1
-          ELSE
-          IND3=IND3+1
+          IF (RECLEV(NREC)==LM+1) THEN
+            RECLEVTYP(NREC-LM:NREC)='layer'
+            IND3=IND3+LM+1
+            IND2=IND2-(LM+1)
           ENDIF
+          IF (RECNAME(NREC)=='PINT') THEN
+            RECNAME(NREC)='pres'
+          ELSE IF (RECNAME(NREC)=='SMC'.OR.RECNAME(NREC)=='SH2O'.or.RECNAME(NREC)=='STC') THEN
+            RECLEVTYP(NREC)='soil layer'
+            IND4=IND4+1
+            IND2=IND2-1
+          ENDIF
+          IND2=IND2+1
         ELSE
           RECLEV(NREC)=1
           RECNAME(NREC)=TRIM(NAME)
@@ -5035,9 +5045,10 @@
           ENDIF
 !
           IF (RECNAME(NREC)=='SST') RECNAME(NREC)='tsea'
+!          IF (RECNAME(NREC)=='FIS') RECNAME(NREC)='hgt'
           IF (RECNAME(NREC)=='USTAR') RECNAME(NREC)='uustar'
           IF (RECNAME(NREC)=='Z0') RECNAME(NREC)='zorl'
-          IND4=IND4+1
+          IND1=IND1+1
         ENDIF
 !
         CALL LOWERCASE(RECNAME(NREC))
@@ -5048,11 +5059,6 @@
       NREC=NREC+1
       RECNAME(NREC)='fact10'
       RECLEVTYP(NREC)='10 m above gnd'
-      RECLEV(NREC)=1
-!for hgt
-      NREC=NREC+1
-      RECNAME(NREC)='hgt'
-      RECLEVTYP(NREC)='sfc'
       RECLEV(NREC)=1
 !
 !glat1d and glon1d
@@ -5110,6 +5116,26 @@
         varlval=VARLVAL,aryiname=ARYINAME,aryilen=ARYILEN,               &
         aryival=ARYIVAL,aryrname=ARYRNAME,aryrlen=ARYRLEN,               &
         aryrval=ARYRVAL,recname=RECNAME,reclevtyp=RECLEVTYP,reclev=RECLEV)
+!
+!-----------------------------------------------------------------------
+!***  GET VARIABLES NEEDED BY THE .ctl FILE.
+!-----------------------------------------------------------------------
+!
+      IF(wrt_int_state%WRITE_NEMSIOCTL.AND.wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
+        CALL NEMSIO_GETFILEHEAD(NEMSIOFILE,TLMETA=TLMETA)
+        DXCTL=MAXVAL(DX)*180./(A*PI)
+        DYCTL=MAXVAL(DY)*180./(A*PI)
+        CNT=INI1+(INI2/LM)+(INI3/(LM+1))+IND1+(IND2/LM)+(IND3/(LM+1))+(IND4/NSOIL)+1  !fact10 is calculated in write grid comp
+
+!
+!-----------------------------------------------------------------------
+!***  WRITE OUT NEMSIO CTL FILE
+!-----------------------------------------------------------------------
+!
+        CALL WRITE_NEMSIOCTL(GLOBAL,IHOUR_FCST,IDAY_FCST,IMONTH_FCST,       &
+          IYEAR_FCST,FILENAME,TLMETA,DIM1,DIM2,LM,NSOIL,TLM0D,TPH0D,DXCTL,  &
+          DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP,CNT)
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !***  CLEAN UP
@@ -5209,8 +5235,8 @@
  109  FORMAT('title EXP1')
 
  110  FORMAT('pdef ',I6,I6,' eta.u ',f8.1,f8.1,f12.6,f12.6)
- 111  FORMAT('xdef  320 linear  -137.000  0.25')
- 112  FORMAT('ydef  140 linear    19.000  0.25')
+ 111  FORMAT('xdef  920 linear   140.000  0.25')
+ 112  FORMAT('ydef  400 linear   -10.000  0.25')
  121  FORMAT('xdef  ',I6,' linear  -180.000 ',f12.6)
  122  FORMAT('ydef  ',I6,' linear   -90.000  ',f12.6)
 
@@ -5223,16 +5249,16 @@
 
       DO WHILE (N<=NREC)
         IF(RECLEVTYP(N)=='mid layer') THEN
-          WRITE(IO_UNIT,'(A8,I3,A)')RECNAME(N),LM,' 99 mid layer'
+          WRITE(IO_UNIT,'(A16,I3,A)')RECNAME(N),LM,' 99 mid layer'
           N=N+LM
         ELSEIF(RECLEVTYP(N)=='layer') THEN
-          WRITE(IO_UNIT,'(A8,I3,A)')RECNAME(N),LM+1,' 99 layer'
+          WRITE(IO_UNIT,'(A16,I3,A)')RECNAME(N),LM+1,' 99 layer'
           N=N+LM+1
         ELSEIF(RECLEVTYP(N)=='soil layer') THEN
-          WRITE(IO_UNIT,'(A8,I3,A)')RECNAME(N),NSOIL,' 99 soil layer'
+          WRITE(IO_UNIT,'(A16,I3,A)')RECNAME(N),NSOIL,' 99 soil layer'
           N=N+NSOIL
         ELSE
-          WRITE(IO_UNIT,'(A8,A)')RECNAME(N),'  0 99 sfc'
+          WRITE(IO_UNIT,'(A16,A)')RECNAME(N),'  0 99 sfc'
           N=N+1
         ENDIF
       ENDDO

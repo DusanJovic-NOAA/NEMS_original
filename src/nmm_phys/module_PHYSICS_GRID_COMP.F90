@@ -866,6 +866,31 @@
 !
 !-----------------------------------------------------------------------
 !
+      IF(MOD(NTIMESTEP*int_state%DT,3600.)==0)THEN
+        IF (MYPE==0) THEN
+         write(0,*)'NTIMESTEP inside clearing conditional=',NTIMESTEP
+         ENDIF
+        DO J=JTS,JTE
+        DO I=ITS,ITE
+          int_state%TLMAX(I,J)=-999.
+          int_state%TLMIN(I,J)=999.
+        ENDDO
+        ENDDO
+      ENDIF
+      DO J=JTS,JTE
+      DO I=ITS,ITE
+        int_state%TLMAX(I,J)=MAX(int_state%TLMAX(I,J),int_state%T(I,J,1))         !<--- Hourly max lowest layer T
+        int_state%TLMIN(I,J)=MIN(int_state%TLMIN(I,J),int_state%T(I,J,1))         !<--- Hourly min lowest layer T
+      ENDDO
+      ENDDO
+       IF (MYPE==0) THEN
+         write(0,*)'NTIMESTEP=',NTIMESTEP
+         write(0,*)'minval,maxval int_state%TLMIN=',minval(int_state%TLMIN),maxval(int_state%TLMIN)
+         write(0,*)'minval,maxval int_state%TLMAX=',minval(int_state%TLMAX),maxval(int_state%TLMAX)
+       ENDIF
+
+
+
       IF ( .NOT. int_state%GFS ) THEN  ! ***  TRADITIONAL NMMB PHYSICS
 !
 !-----------------------------------------------------------------------
@@ -879,6 +904,24 @@
       CALL_TURBULENCE=MOD(NTIMESTEP,int_state%NPHS)==0
       CALL_PRECIP=MOD(NTIMESTEP,NPRECIP)==0
 !
+!-----------------------------------------------------------------------
+!***  UPDATE WATER ARRAY FROM CWM, F_ICE, F_RAIN FOR FERRIER MICROPHYSICS,
+!     BUT ONLY IF ANY OF THE PHYSICS SUBROUTINES ARE CALLED (subroutine
+!     UPDATE_WATER is after subroutine PHYSICS_INITIALIZE in this module)
+!-----------------------------------------------------------------------
+!
+      update_wtr: IF (int_state%MICROPHYSICS=='fer' .AND.               &
+                        (CALL_SHORTWAVE .OR. CALL_LONGWAVE .OR.         &
+                         CALL_TURBULENCE .OR. CALL_PRECIP) ) THEN
+         CALL UPDATE_WATER(int_state%CW,int_state%F_ICE                 &
+                              ,int_state%F_RAIN                         &
+                          ,int_state%NUM_WATER,int_state%WATER          &
+                          ,int_state%P_QC,int_state%P_QR                &
+                              ,int_state%P_QS                           &
+                          ,IDS,IDE,JDS,JDE,LM                           &
+                          ,IMS,IME,JMS,JME                              &
+                          ,ITS,ITE,JTS,JTE)
+      ENDIF update_wtr
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !***  CALL THE INDIVIDUAL PHYSICAL PROCESSES
@@ -1282,6 +1325,7 @@
                    ,IDS,IDE,JDS,JDE,LM                                 &
                    ,IMS,IME,JMS,JME                                    &
                    ,ITS,ITE,JTS,JTE)
+
 !
         cucnvc_tim=cucnvc_tim+timef()-btim
 !
@@ -1395,6 +1439,7 @@
                       ,1,1)
 !
         exch_phy_tim=exch_phy_tim+timef()-btim
+
 !
 !-----------------------------------------------------------------------
 !
@@ -2434,7 +2479,7 @@
         MPI_COMM_COMP,IDS,IDE,JDS,JDE,LM,IMS,IME,JMS,JME,NSOIL,         &
         idat,ihrst,PT,                       &
         INT_STATE,irtn )
-     endif
+      endif
 
 !-----------------------------------------------------------------------
 !***  VERTICAL LAYER INFORMATION IS NEEDED IN ORDER TO SEND IT TO
@@ -2480,27 +2525,28 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
+     INFILE='restart_file'    
+
+
      if(.not. int_state%nemsio_input) then                             !jw: nemsio_intput option
 !
-      INFILE='restart_file'
-!
-      CALL PHYSICS_READ_RESTT_BINARY(INFILE,NFCST,MYPE,MPI_COMM_COMP,   &
+      CALL PHYSICS_READ_RESTT_BINARY(INFILE,NFCST,MYPE,MPI_COMM_COMP,    &
         IDS,IDE,JDS,JDE,LM,IMS,IME,JMS,JME,NSOIL,                       &
         IYEAR_FCST,IMONTH_FCST,IDAY_FCST,IHOUR_FCST,IMINUTE_FCST,       &
         SECOND_FCST,IHRST,IDAT,PT,            &
         INT_STATE,IRTN)
 !
-     else
-!
+      else
+
       INFILE='restart_file_nemsio'
 !
-      CALL PHYSICS_READ_RESTT_NEMSIO(INFILE,NFCST,MYPE,                 &
+      CALL PHYSICS_READ_RESTT_NEMSIO(INFILE,NFCST,MYPE,           &
         MPI_COMM_COMP,IDS,IDE,JDS,JDE,LM,IMS,IME,JMS,JME,NSOIL,         &
         IYEAR_FCST,IMONTH_FCST,IDAY_FCST,IHOUR_FCST,IMINUTE_FCST,       &
         SECOND_FCST,IHRST,IDAT,PT,          &
         INT_STATE,IRTN)
 !
-     endif
+       endif
 
        PT_CB=PT*1.0E-3
 
@@ -2522,13 +2568,25 @@
 !
       DO J=JTS,JTE
       DO I=ITS,ITE
-        int_state%THS(I,J)=int_state%TSKIN(I,J)                             &
-                          *(100000./(int_state%SG2 (LM+1)*int_state%PD(I,J) &
+        int_state%THS(I,J)=int_state%TSKIN(I,J)                        &
+                          *(100000./(int_state%SG2 (LM+1)*int_state%PD(I,J)      &
                                     +int_state%PSG1(LM+1)))**CAPPA
       ENDDO
       ENDDO
 !
       ENDIF
+
+!-----------------------------------------------------------------------
+!*** INITIALIZING TLMAX, TLMIN
+!-----------------------------------------------------------------------
+
+      DO J=JTS,JTE
+        DO I=ITS,ITE
+          int_state%TLMAX(I,J)=int_state%T(I,J,1)
+          int_state%TLMIN(I,J)=int_state%T(I,J,1)
+       ENDDO
+     ENDDO
+
 !
 !-----------------------------------------------------------------------
 !***  RECREATE SIGMA VALUES AT LAYER INTERFACES FOR THE FULL VERTICAL
@@ -3249,6 +3307,80 @@
       END SUBROUTINE PHYSICS_INITIALIZE
 !
 !-----------------------------------------------------------------------
+!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE UPDATE_WATER(CWM,F_ICE,F_RAIN                          &
+                             ,NUM_WATER,WATER                           &
+                             ,P_QC,P_QR,P_QS                            &
+                             ,IDS,IDE,JDS,JDE,LM                        &
+                             ,IMS,IME,JMS,JME                           &
+                             ,ITS,ITE,JTS,JTE)
+!***********************************************************************
+!$$$  SUBPROGRAM DOCUMENTATION BLOCK
+!                .      .    .
+! SUBPROGRAM:    UPDATE_WATER          UPDATE WATER ARRAY
+!   PRGRMMR: FERRIER         ORG: NP22     DATE: 3 AUG 2009
+!
+! ABSTRACT:
+!     UPDATE WATER ARRAY FOR FERRIER MICROPHYSICS
+!
+! PROGRAM HISTORY LOG (with changes to called routines) :
+!   2009-08     FERRIER     - Synchronize WATER array with CWM, F_rain, F_ice arrays
+!
+! USAGE: CALL UPDATE_WATER FROM PHY_RUN
+!
+! ATTRIBUTES:
+!   LANGUAGE: FORTRAN 90
+!   MACHINE : IBM
+!-----------------------------------------------------------------------
+      USE MODULE_CONSTANTS,ONLY : EPSQ
+!-----------------------------------------------------------------------
+      IMPLICIT NONE
+!-----------------------------------------------------------------------
+!-- INPUT FIELDS:
+!
+      INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                          &
+                           ,IMS,IME,JMS,JME                             &
+                           ,ITS,ITE,JTS,JTE                             &
+                           ,NUM_WATER                                   &
+                           ,P_QC,P_QR,P_QS
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: CWM            &
+                                                        ,F_ICE,F_RAIN
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM,NUM_WATER),INTENT(OUT) :: WATER
+!-----------------------------------------------------------------------
+!--  LOCAL VARIABLES
+!-----------------------------------------------------------------------
+      INTEGER :: I,J,K
+      REAL :: LIQW
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  UPDATE CONDENSATE FIELDS IN WATER ARRAY FOR FERRIER MICROPHYSICS ONLY
+!-----------------------------------------------------------------------
+!
+      DO K=1,LM
+        DO J=JMS,JME
+          DO I=IMS,IME
+             IF (CWM(I,J,K)>EPSQ) THEN
+                LIQW=(1.-F_ice(I,J,K))*CWM(I,J,K)
+                WATER(I,J,K,P_QC)=(1.-F_rain(I,J,K))*LIQW
+                WATER(I,J,K,P_QR)=F_rain(I,J,K)*LIQW
+                WATER(I,J,K,P_QS)=F_ice(I,J,K)*CWM(I,J,K)
+             ELSE
+                WATER(I,J,K,P_QC)=0.
+                WATER(I,J,K,P_QR)=0.
+                WATER(I,J,K,P_QS)=0.
+             ENDIF
+          ENDDO
+        ENDDO
+      ENDDO
+!
+!----------------------------------------------------------------------
+      END SUBROUTINE UPDATE_WATER
+!----------------------------------------------------------------------
       SUBROUTINE EXIT(NAME,T,Q,U,V,Q2,NTSD)
 !----------------------------------------------------------------------
 !**********************************************************************

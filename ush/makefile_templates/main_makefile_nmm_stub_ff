@@ -7,25 +7,13 @@ include ../../ush/compile_settings
 all: 
 	cd $(GFS_DYN) && $(STUB_MAKEFILE) 
 	cp $(GFS_DYN)/gfs_dynamics_grid_comp_mod.mod $(MODDIR)/modstub/gfs
-	cd $(GFS_PHY) && $(STUB_MAKEFILE) 
-	cp $(GFS_PHY)/layout1.mod $(MODDIR)/modstub/gfs
-	cp $(GFS_PHY)/date_def.mod $(MODDIR)/modstub/gfs
-	cp $(GFS_PHY)/namelist_physics_def.mod $(MODDIR)/modstub/gfs
-	cp $(GFS_PHY)/mersenne_twister.mod $(MODDIR)/modstub/gfs
-	cp $(GFS_PHY)/physcons.mod $(MODDIR)/modstub/gfs
-	cp $(GFS_PHY)/funcphys.mod $(MODDIR)/modstub/gfs
-	cp $(GFS_PHY)/module_radiation_astronomy.mod $(MODDIR)/modstub/gfs
-	cp $(GFS_PHY)/tracer_const.mod $(MODDIR)/modstub/gfs 
-	cp $(GFS_PHY)/ozne_def.mod $(MODDIR)/modstub/gfs
-	cp $(GFS_PHY)/resol_def.mod $(MODDIR)/modstub/gfs
-	cp $(GFS_PHY)/module_radiation_driver.mod $(MODDIR)/modstub/gfs
-	cp $(GFS_PHY)/gfs_physics_grid_comp_mod.mod $(MODDIR)/modstub/gfs
-	cp $(GFS_PHY)/ozinterp_stub.o $(MODDIR)/modstub/gfs
-	cp $(GFS_PHY)/compns_physics_stub.o $(MODDIR)/modstub/gfs
-	cp $(GFS_PHY)/set_soilveg_stub.o $(MODDIR)/modstub/gfs
-	cp $(GFS_PHY)/gfuncphys_stub.o $(MODDIR)/modstub/gfs
-	cp $(GFS_PHY)/sfccycle_stub.o $(MODDIR)/modstub/gfs
-	cp $(GFS_PHY)/gbphys_v_stub.o $(MODDIR)/modstub/gfs
+	cd $(GFS_PHY) && $(STUB_MAKEFILE_GFS_PHYSICS) 
+	cp $(GFS_PHY)/*.mod $(MODDIR)/modstub/gfs
+	cp $(GFS_PHY)/mpi_quit.o $(MODDIR)/modstub/gfs
+	cp $(GFS_PHY)/info.o $(MODDIR)/modstub/gfs
+	cp $(GFS_PHY)/mymaxmin.o $(MODDIR)/modstub/gfs
+	cp $(GFS_PHY)/sortrx.o $(MODDIR)/modstub/gfs
+	cp $(GFS_PHY)/coundummy.o $(MODDIR)/modstub/gfs
 	cd $(GFS_IO) && $(STUB_MAKEFILE) 
 	cp $(GFS_IO)/module_write_grid_comp_gfs.mod $(MODDIR)/modstub/gfs
 	cp $(GFS_IO)/module_write_routines_gfs.mod $(MODDIR)/modstub/gfs

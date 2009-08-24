@@ -35,4 +35,7 @@ clean:
 	/bin/rm -f *.lst
 	/bin/rm -f lm
 	/bin/rm -f map
+	rm -f $(MODDIR)/modstub/gfs/*
+	rm -f $(MODDIR)/modstub/nmm/*
+	rm -f $(LIBDIR)/libstub/*
 	echo "directories cleaned."

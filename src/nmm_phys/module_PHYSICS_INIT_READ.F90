@@ -919,8 +919,8 @@
 !***  PDO
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
-        READ(NFCST) ! VLAT
-        READ(NFCST) ! VLON
+        READ(NFCST) !VLAT
+        READ(NFCST) !VLON
         READ(NFCST) ! PDO
       ENDIF
 !-----------------------------------------------------------------------
@@ -1715,6 +1715,20 @@
       CALL DSTRB(TEMP1,int_state%Z0BASE,1,1,1,1,1)
 !
 !-----------------------------------------------------------------------
+!***  TLMIN
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%TLMIN,1,1,1,1,1)
+!-----------------------------------------------------------------------
+!***  TLMAX
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%TLMAX,1,1,1,1,1)
+!-----------------------------------------------------------------------
 !              READ FROM RESTART FILE: REAL 3D ARRAYS
 !-----------------------------------------------------------------------
 !
@@ -2028,7 +2042,7 @@
 !-----------------------------------------------------------------------
 !***  TRACERS
 !-----------------------------------------------------------------------
-      DO N=1,int_state%NUM_TRACERS_TOTAL
+      DO N=int_state%INDX_RRW+1,int_state%NUM_TRACERS_TOTAL
       DO K=1,LM
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1   ! TRACERS
@@ -2133,11 +2147,11 @@
       CALL NEMSIO_GETHEADVAR(gfile,'SG2',sg2,iret=irtn)
       CALL NEMSIO_GETHEADVAR(gfile,'DSG2',dsg2,iret=irtn)
       CALL NEMSIO_GETHEADVAR(gfile,'SGML2',sgml2,iret=irtn)
-      write(0,*)'in phys,pt=',pt,'run=',run,'ihrst=',ihrst,'idat=',idat,   &
-         'pdtop=',pdtop,'lpt2=',lpt2
-      write(0,*)'in phys,sgm=',sgm(1:10),'sg1=',sg1(1:10),maxval(sg1),minval(sg1),'sg2=',sg2(1:10), &
-         maxval(sg2),minval(sg2),'dsg1=',dsg1(1:10),'dsg2=',dsg2(1:10),'sgml1=',sgml1(1:10),  &
-         'sgml2=',sgml2(1:10)
+!      write(0,*)'in phys,pt=',pt,'run=',run,'ihrst=',ihrst,'idat=',idat,   &
+!         'pdtop=',pdtop,'lpt2=',lpt2
+!      write(0,*)'in phys,sgm=',sgm(1:10),'sg1=',sg1(1:10),maxval(sg1),minval(sg1),'sg2=',sg2(1:10), &
+!         maxval(sg2),minval(sg2),'dsg1=',dsg1(1:10),'dsg2=',dsg2(1:10),'sgml1=',sgml1(1:10),  &
+!         'sgml2=',sgml2(1:10)
 !
 !-----------------------------------------------------------------------
 !***  BEFORE MOVING ON, TRANSFER VALUES TO THE INTERNAL STATE.
@@ -2629,8 +2643,8 @@
 !              READ FROM RESTART FILE: INTEGER SCALARS
 !-----------------------------------------------------------------------
       CALL NEMSIO_GETHEADVAR(gfile,'NSOIL',NSOIL,iret=irtn)
-      write(0,*)'in rst, fcstdate=',fcstdate,'ihrst=',ihrst,'lpt2=',lpt2, &
-        'idat=',idat,'nsoil=',nsoil
+!      write(0,*)'in rst, fcstdate=',fcstdate,'ihrst=',ihrst,'lpt2=',lpt2, &
+!        'idat=',idat,'nsoil=',nsoil
       ALLOCATE(SLDPTH(1:NSOIL))
 !        READ(NFCST) NSOIL
 !-----------------------------------------------------------------------
@@ -2657,10 +2671,10 @@
       CALL NEMSIO_GETHEADVAR(gfile,'MP_RESTART',int_state%MP_RESTART_STATE,iret=irtn)
       CALL NEMSIO_GETHEADVAR(gfile,'TBPVS_STAT',int_state%TBPVS_STATE,iret=irtn)
       CALL NEMSIO_GETHEADVAR(gfile,'TBPVS0_STA',int_state%TBPVS0_STATE,iret=irtn)
-      write(0,*)'irtn=',irtn,'mp_rest=',maxval(int_state%MP_RESTART_STATE), &
-        minval(int_state%MP_RESTART_STATE),'tbpvs_st=',maxval(int_state%TBPVS_STATE), &
-        minval(int_state%TBPVS_STATE),'tbpvs0=',maxval(int_state%TBPVS0_STATE), &
-        minval(int_state%TBPVS0_STATE),'sg2=',sg2(1:10),maxval(sg2),minval(sg2)
+!      write(0,*)'irtn=',irtn,'mp_rest=',maxval(int_state%MP_RESTART_STATE), &
+!        minval(int_state%MP_RESTART_STATE),'tbpvs_st=',maxval(int_state%TBPVS_STATE), &
+!        minval(int_state%TBPVS_STATE),'tbpvs0=',maxval(int_state%TBPVS0_STATE), &
+!        minval(int_state%TBPVS0_STATE),'sg2=',sg2(1:10),maxval(sg2),minval(sg2)
 !
       DO N=1,NSOIL
         int_state%SLDPTH(N)=SLDPTH(N)
@@ -2728,7 +2742,7 @@
 !
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'SLTYP','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,sltyp=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,sltyp=',maxval(temp1),minval(temp1)
         itemp=nint(temp1)
 !        READ(NFCST) ITEMP
       ENDIF
@@ -2736,7 +2750,7 @@
 !
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'VGTYP','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,vgtyp=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,vgtyp=',maxval(temp1),minval(temp1)
         itemp=nint(temp1)
 !        READ(NFCST) ITEMP
       ENDIF
@@ -2744,7 +2758,7 @@
 !
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'cfrcv','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,cfrcv=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,cfrcv=',maxval(temp1),minval(temp1)
         itemp=nint(temp1)
 !        READ(NFCST) ITEMP
       ENDIF
@@ -2752,7 +2766,7 @@
 !
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'cfrst','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,cfrst=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,cfrst=',maxval(temp1),minval(temp1)
         itemp=nint(temp1)
 !        READ(NFCST) ITEMP
       ENDIF
@@ -2771,7 +2785,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'fis','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,fis=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,fis=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
 !
@@ -2787,7 +2801,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'dpres','hybrid sig lev',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,pd=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,pd=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
 !
@@ -2798,14 +2812,13 @@
       ENDDO
       CALL DSTRB(TEMP1,int_state%PD,1,1,1,1,1)
 !-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
 !              READ FROM RESTART FILE: REAL 2D ARRAYS (contd.)
 !-----------------------------------------------------------------------
 !***  ACFRCV
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'acfrcv','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,acfrcv=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,acfrcv=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
 !
@@ -2820,7 +2833,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'acfrst','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,acfrst=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,acfrst=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
 !
@@ -2835,7 +2848,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'acprec','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,acprec=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,acprec=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
 !
@@ -2850,7 +2863,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'acsnom','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,acsnom=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,acsnom=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
 !
@@ -2865,7 +2878,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'acsnow','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,acsnow=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,acsnow=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
 !
@@ -2880,7 +2893,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'akhs_out','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,akhs_out=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,akhs_out=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
 !
@@ -2896,7 +2909,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'akms_out','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,akms_out=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,akms_out=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
 !
@@ -2911,7 +2924,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'albase','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,albase=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,albase=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
 !
@@ -2926,7 +2939,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'albedo','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,albedo=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,albedo=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%ALBEDO,1,1,1,1,1)
@@ -2935,7 +2948,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'alwin','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,alwin=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,alwin=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%ALWIN,1,1,1,1,1)
@@ -2944,7 +2957,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'alwout','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,alwout=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,alwout=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%ALWOUT,1,1,1,1,1)
@@ -2953,7 +2966,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'alwtoa','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,alwtoa=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,alwtoa=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
 
 
@@ -2964,7 +2977,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'aswin','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,aswin=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,aswin=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%ASWIN,1,1,1,1,1)
@@ -2973,7 +2986,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'aswout','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,aswout=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,aswout=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%ASWOUT,1,1,1,1,1)
@@ -2991,7 +3004,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'bgroff','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,bgroff=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,bgroff=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%BGROFF,1,1,1,1,1)
@@ -3000,7 +3013,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'cfrach','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,cfrach=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,cfrach=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%CFRACH,1,1,1,1,1)
@@ -3009,7 +3022,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'cfracl','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,cfracl=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,cfracl=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%CFRACL,1,1,1,1,1)
@@ -3018,7 +3031,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'cfracm','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,cfracm=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,cfracm=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
 
 
@@ -3029,7 +3042,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'cldefi','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,cldefi=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,cldefi=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%CLDEFI,1,1,1,1,1)
@@ -3038,7 +3051,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'cmc','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,cmc=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,cmc=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%CMC,1,1,1,1,1)
@@ -3047,7 +3060,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'cnvbot','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,cnvbot=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,cnvbot=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%CNVBOT,1,1,1,1,1)
@@ -3056,7 +3069,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'cnvtop','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,cnvtop=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,cnvtop=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%CNVTOP,1,1,1,1,1)
@@ -3065,7 +3078,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'cprate','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,cnprate=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,cnprate=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%CPRATE,1,1,1,1,1)
@@ -3074,7 +3087,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'cuppt','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,cuppt=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,cuppt=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%CUPPT,1,1,1,1,1)
@@ -3083,7 +3096,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'cuprec','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,cuprec=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,cuprec=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
 
       ENDIF
@@ -3093,7 +3106,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'czen','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,czen=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,czen=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%CZEN,1,1,1,1,1)
@@ -3102,7 +3115,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'czmean','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,czmean=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,czmean=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%CZMEAN,1,1,1,1,1)
@@ -3111,7 +3124,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'epsr','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,epsr=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,epsr=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%EPSR,1,1,1,1,1)
@@ -3120,7 +3133,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'grnflx','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,grnflx=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,grnflx=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%GRNFLX,1,1,1,1,1)
@@ -3129,7 +3142,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'hbotd','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,hbotd=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,hbotd=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%HBOTD,1,1,1,1,1)
@@ -3138,7 +3151,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'hbots','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,hbots=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,hbots=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%HBOTS,1,1,1,1,1)
@@ -3147,7 +3160,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'htopd','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,htopd=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,htopd=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%HTOPD,1,1,1,1,1)
@@ -3156,7 +3169,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'htops','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,htops=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,htops=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%HTOPS,1,1,1,1,1)
@@ -3165,7 +3178,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'mxsnal','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,mxsnal=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,mxsnal=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%MXSNAL,1,1,1,1,1)
@@ -3174,7 +3187,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'pblh','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,pblh=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,pblh=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%PBLH,1,1,1,1,1)
@@ -3184,7 +3197,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'potevp','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,potevp=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,potevp=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%POTEVP,1,1,1,1,1)
@@ -3193,7 +3206,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'prec','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,prec=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,prec=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%PREC,1,1,1,1,1)
@@ -3202,7 +3215,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'pshltr','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,pshltr=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,pshltr=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%PSHLTR,1,1,1,1,1)
@@ -3211,7 +3224,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'q10','10 m above gnd',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,q10=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,q10=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%Q10,1,1,1,1,1)
@@ -3220,7 +3233,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'qsh','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,qsh=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,qsh=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%QSH,1,1,1,1,1)
@@ -3229,7 +3242,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'qshltr','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,qshltr=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,qshltr=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%QSHLTR,1,1,1,1,1)
@@ -3238,7 +3251,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'qwbs','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,qwbs=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,qwbs=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%QWBS,1,1,1,1,1)
@@ -3247,7 +3260,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'qz0','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,qz0=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,qz0=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%QZ0,1,1,1,1,1)
@@ -3256,7 +3269,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'radot','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,radot=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,radot=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%RADOT,1,1,1,1,1)
@@ -3265,7 +3278,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'rlwin','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,rlwin=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,rlwin=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%RLWIN,1,1,1,1,1)
@@ -3274,7 +3287,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'rlwtoa','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,rlwtoa=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,rlwtoa=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%RLWTOA,1,1,1,1,1)
@@ -3283,7 +3296,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'rswin','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,rswin=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,rswin=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%RSWIN,1,1,1,1,1)
@@ -3292,7 +3305,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'rswinc','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,rswinc=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,rswinc=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%RSWINC,1,1,1,1,1)
@@ -3301,7 +3314,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'rswout','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,rswout=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,rswout=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%RSWOUT,1,1,1,1,1)
@@ -3310,7 +3323,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'sfcevp','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,sfcevp=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,sfcevp=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%SFCEVP,1,1,1,1,1)
@@ -3319,7 +3332,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'sfcexc','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,sfcexc=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,sfcexc=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%SFCEXC,1,1,1,1,1)
@@ -3328,7 +3341,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'sfclhx','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,sfclhx=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,sfclhx=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%SFCLHX,1,1,1,1,1)
@@ -3337,7 +3350,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'sfcshx','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,sfcshx=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,sfcshx=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%SFCSHX,1,1,1,1,1)
@@ -3346,7 +3359,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'si','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,si=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,si=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%SI,1,1,1,1,1)
@@ -3355,7 +3368,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'sice','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,sice=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,sice=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%SICE,1,1,1,1,1)
@@ -3364,7 +3377,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'sigt4','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,sigt4=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,sigt4=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%SIGT4,1,1,1,1,1)
@@ -3373,7 +3386,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'sm','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,sm=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,sm=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
 !
@@ -3388,7 +3401,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'smstav','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,smstav=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,smstav=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%SMSTAV,1,1,1,1,1)
@@ -3397,7 +3410,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'smstot','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,smstot=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,smstot=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%SMSTOT,1,1,1,1,1)
@@ -3406,7 +3419,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'sno','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,sno=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,sno=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%SNO,1,1,1,1,1)
@@ -3415,7 +3428,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'snopcx','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,snopcx=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,snopcx=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%SNOPCX,1,1,1,1,1)
@@ -3424,7 +3437,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'soiltb','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,soiltb=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,soiltb=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%SOILTB,1,1,1,1,1)
@@ -3433,7 +3446,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'sr','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,sr=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,sr=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%SR,1,1,1,1,1)
@@ -3442,7 +3455,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'ssroff','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,ssroff=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,ssroff=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%SSROFF,1,1,1,1,1)
@@ -3451,7 +3464,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'tsea','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,sst=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,sst=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%SST,1,1,1,1,1)
@@ -3460,7 +3473,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'subshx','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,subshx=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,subshx=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%SUBSHX,1,1,1,1,1)
@@ -3469,7 +3482,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'tg','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,tg=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,tg=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%TG,1,1,1,1,1)
@@ -3478,7 +3491,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'th10','10 m above gnd',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,th10=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,th10=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%TH10,1,1,1,1,1)
@@ -3487,7 +3500,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'ths','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,ths=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,ths=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%THS,1,1,1,1,1)
@@ -3496,7 +3509,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'thz0','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,thz0=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,thz0=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%THZ0,1,1,1,1,1)
@@ -3505,7 +3518,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'tshltr','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,tshltr=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,tshltr=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%TSHLTR,1,1,1,1,1)
@@ -3514,7 +3527,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'twbs','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,twbs=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,twbs=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%TWBS,1,1,1,1,1)
@@ -3523,7 +3536,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'u10','10 m above gnd',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,u10=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,u10=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%U10,1,1,1,1,1)
@@ -3532,7 +3545,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'uustar','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,ustar=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,ustar=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%USTAR,1,1,1,1,1)
@@ -3541,7 +3554,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'uz0','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,uz0=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,uz0=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%UZ0,1,1,1,1,1)
@@ -3552,7 +3565,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'v10','10 m above gnd',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,v10=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,v10=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%V10,1,1,1,1,1)
@@ -3561,7 +3574,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'vegfrc','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,vegfrc=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,vegfrc=',maxval(temp1),minval(temp1)
 !        READ(NFCST) TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%VEGFRC,1,1,1,1,1)
@@ -3570,7 +3583,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'vz0','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,vz0=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,vz0=',maxval(temp1),minval(temp1)
 !        READ(NFCST) TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%VZ0,1,1,1,1,1)
@@ -3581,7 +3594,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'zorl','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,z0=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,z0=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%Z0,1,1,1,1,1)
@@ -3591,7 +3604,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'tskin','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,tskin=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,tskin=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%TSKIN,1,1,1,1,1)
@@ -3600,7 +3613,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'akhs','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,akhs=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,akhs=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%AKHS,1,1,1,1,1)
@@ -3609,7 +3622,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'akms','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,akms=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,akms=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%AKMS,1,1,1,1,1)
@@ -3618,7 +3631,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'hbot','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,hbot=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,hbot=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%HBOT,1,1,1,1,1)
@@ -3627,7 +3640,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'htop','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,htop=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,htop=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%HTOP,1,1,1,1,1)
@@ -3636,7 +3649,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'rswtoa','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,rswtoa=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,rswtoa=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%RSWTOA,1,1,1,1,1)
@@ -3646,7 +3659,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'potflx','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,potflx=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,potflx=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%POTFLX,1,1,1,1,1)
@@ -3656,7 +3669,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'rmol','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,rmol=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,rmol=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%RMOL,1,1,1,1,1)
@@ -3666,7 +3679,7 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'t2','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,t2=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,t2=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%T2,1,1,1,1,1)
@@ -3676,11 +3689,26 @@
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'z0base','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,z0base=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,z0base=',maxval(temp1),minval(temp1)
 !        READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%Z0BASE,1,1,1,1,1)
-!
+!-----------------------------------------------------------------------
+!***  TLMIN
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        CALL NEMSIO_READRECV(gfile,'tlmin','sfc',1,temp1,iret=irtn)
+!        write(0,*)'read rst phys,z0base=',maxval(temp1),minval(temp1)
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%TLMIN,1,1,1,1,1)
+!-----------------------------------------------------------------------
+!***  TLMAX
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        CALL NEMSIO_READRECV(gfile,'tlmax','sfc',1,temp1,iret=irtn)
+!        write(0,*)'read rst phys,z0base=',maxval(temp1),minval(temp1)
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%TLMAX,1,1,1,1,1)
 !-----------------------------------------------------------------------
 !              READ FROM RESTART FILE: REAL 3D ARRAYS
 !-----------------------------------------------------------------------
@@ -3694,7 +3722,7 @@
       DO K=1,LM
         IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'cldfra','mid layer',k,temp1,iret=irtn)
-        write(0,*)'read rst phys,cldfra=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,cldfra=',maxval(temp1),minval(temp1)
 !          READ(NFCST)TEMP1   ! CLDFRA
         ENDIF
 !
@@ -3711,7 +3739,7 @@
       DO K=1,LM
         IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'clwmr','mid layer',k,temp1,iret=irtn)
-        write(0,*)'read rst phys,clwmr=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,clwmr=',maxval(temp1),minval(temp1)
 !          READ(NFCST)TEMP1   ! CWM
         ENDIF
 !
@@ -3728,7 +3756,7 @@
       DO K=1,LM
         IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'spfh','mid layer',k,temp1,iret=irtn)
-        write(0,*)'read rst phys,spfh=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,spfh=',maxval(temp1),minval(temp1)
 !          READ(NFCST)TEMP1   ! Q
         ENDIF
 !
@@ -3745,7 +3773,7 @@
       DO K=1,LM
         IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'q2','mid layer',k,temp1,iret=irtn)
-        write(0,*)'read rst phys,q2=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,q2=',maxval(temp1),minval(temp1)
 !          READ(NFCST)TEMP1   ! Q2
         ENDIF
 !
@@ -3762,7 +3790,7 @@
       DO K=1,LM
         IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'rlwtt','mid layer',k,temp1,iret=irtn)
-        write(0,*)'read rst phys,rlwtt=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,rlwtt=',maxval(temp1),minval(temp1)
 !          READ(NFCST)TEMP1   ! RLWTT
         ENDIF
 !
@@ -3780,7 +3808,7 @@
         IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'rswtt','mid layer',k,temp1,iret=irtn)
 
-        write(0,*)'read rst phys,rswtt=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,rswtt=',maxval(temp1),minval(temp1)
 !          READ(NFCST)TEMP1   ! RSWTT
         ENDIF
 !
@@ -3797,7 +3825,7 @@
       DO K=1,LM
         IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'tmp','mid layer',k,temp1,iret=irtn)
-        write(0,*)'read rst phys,tmp=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,tmp=',maxval(temp1),minval(temp1)
 !          READ(NFCST)TEMP1  ! T
         ENDIF
 !
@@ -3814,7 +3842,7 @@
       DO K=1,LM
         IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'tcucn','mid layer',k,temp1,iret=irtn)
-        write(0,*)'read rst phys,tcucn=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,tcucn=',maxval(temp1),minval(temp1)
 !          READ(NFCST)TEMP1  ! TCUCN
         ENDIF
 !
@@ -3831,7 +3859,7 @@
       DO K=1,LM
         IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'train','mid layer',k,temp1,iret=irtn)
-        write(0,*)'read rst phys,train=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,train=',maxval(temp1),minval(temp1)
 !          READ(NFCST)TEMP1  ! TRAIN
         ENDIF
 !
@@ -3848,7 +3876,7 @@
       DO K=1,LM
         IF(MYPE==0)THEN
        CALL NEMSIO_READRECV(gfile,'ugrd','mid layer',k,temp1,iret=irtn)
-        write(0,*)'read rst phys,ugrd=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,ugrd=',maxval(temp1),minval(temp1)
 !          READ(NFCST)TEMP1   ! U
         ENDIF
 !
@@ -3865,7 +3893,7 @@
       DO K=1,LM
         IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'vgrd','mid layer',k,temp1,iret=irtn)
-        write(0,*)'read rst phys,vgrd=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,vgrd=',maxval(temp1),minval(temp1)
 !          READ(NFCST)TEMP1   ! V
         ENDIF
 !
@@ -3882,7 +3910,7 @@
       DO K=1,LM
         IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'xlen_mix','mid layer',k,temp1,iret=irtn)
-        write(0,*)'read rst phys,xlen_mix=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,xlen_mix=',maxval(temp1),minval(temp1)
 !          READ(NFCST)TEMP1   ! XLEN_MIX
         ENDIF
 !
@@ -3899,7 +3927,7 @@
       DO K=1,LM
         IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'f_ice','mid layer',k,temp1,iret=irtn)
-        write(0,*)'read rst phys,f_ice=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,f_ice=',maxval(temp1),minval(temp1)
 !          READ(NFCST)TEMP1   ! F_ICE
         ENDIF
 !
@@ -3916,7 +3944,7 @@
       DO K=1,LM
         IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'f_rimef','mid layer',k,temp1,iret=irtn)
-        write(0,*)'read rst phys,f_rimef=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,f_rimef=',maxval(temp1),minval(temp1)
 !          READ(NFCST)TEMP1   ! F_RIMEF
         ENDIF
 !
@@ -3933,7 +3961,7 @@
       DO K=1,LM
         IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'f_rain','mid layer',k,temp1,iret=irtn)
-        write(0,*)'read rst phys,f_rrain=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,f_rrain=',maxval(temp1),minval(temp1)
 !          READ(NFCST)TEMP1   ! F_RAIN
         ENDIF
 !
@@ -3950,7 +3978,7 @@
       DO K=1,LM+1
         IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'rthblten','layer',k,temp1,iret=irtn)
-        write(0,*)'read rst phys,rthblten=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,rthblten=',maxval(temp1),minval(temp1)
 !          READ(NFCST)TEMP1   ! RTHBLTEN
         ENDIF
 !
@@ -3960,14 +3988,14 @@
         ENDDO
         ENDDO
 !
-        CALL DSTRB(TEMP1,int_state%RTHBLTEN,1,1,1,LM,K)
+        CALL DSTRB(TEMP1,int_state%RTHBLTEN,1,1,1,LM+1,K)
       ENDDO
 !-----------------------------------------------------------------------
 !
       DO K=1,LM+1
         IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'rqvblten','layer',k,temp1,iret=irtn)
-        write(0,*)'read rst phys,rqvblten=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,rqvblten=',maxval(temp1),minval(temp1)
 !          READ(NFCST)TEMP1   ! RQVBLTEN
         ENDIF
 !
@@ -3977,7 +4005,7 @@
         ENDDO
         ENDDO
 !
-        CALL DSTRB(TEMP1,int_state%RQVBLTEN,1,1,1,LM,K)
+        CALL DSTRB(TEMP1,int_state%RQVBLTEN,1,1,1,LM+1,K)
       ENDDO
 !-----------------------------------------------------------------------
 !***  SH2O, SMC, STC
@@ -3987,7 +4015,7 @@
 !
         IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'sh2o','soil layer',k,temp1,iret=irtn)
-        write(0,*)'read rst phys,sh2o=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,sh2o=',maxval(temp1),minval(temp1)
 !          READ(NFCST)TEMP1
 !          write(0,*) 'lev, min, max for SH2O: ', k,minval(TEMP1),maxval(TEMP1)
         ENDIF
@@ -4000,7 +4028,7 @@
 !
         IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'smc','soil layer',k,temp1,iret=irtn)
-        write(0,*)'read rst phys,smc=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,smc=',maxval(temp1),minval(temp1)
 !          READ(NFCST)TEMP1
 !          write(0,*) 'lev, min, max for SMC: ', k,minval(TEMP1),maxval(TEMP1)
         ENDIF
@@ -4013,7 +4041,7 @@
 !
         IF(MYPE==0)THEN
         CALL NEMSIO_READRECV(gfile,'stc','soil layer',k,temp1,iret=irtn)
-        write(0,*)'read rst phys,stc=',maxval(temp1),minval(temp1)
+!        write(0,*)'read rst phys,stc=',maxval(temp1),minval(temp1)
 !          READ(NFCST)TEMP1
 !          write(0,*) 'lev, min, max for STC: ', k,minval(TEMP1),maxval(TEMP1)
         ENDIF
@@ -4025,12 +4053,12 @@
 !-----------------------------------------------------------------------
 !***  TRACERS
 !-----------------------------------------------------------------------
-      DO N=1,int_state%NUM_TRACERS_TOTAL
+      DO N=int_state%INDX_RRW+1,int_state%NUM_TRACERS_TOTAL
       DO K=1,LM
         IF(MYPE==0)THEN
         write(varname,'(a8,I2.2)')'tracers_',N
         CALL NEMSIO_READRECV(gfile,varname,'mid layer',k,temp1,iret=irtn)
-        write(0,*)'read rst,name=',varname,maxval(temp1),minval(temp1)
+!        write(0,*)'read rst,name=',varname,maxval(temp1),minval(temp1)
 !          READ(NFCST)TEMP1   ! TRACERS
         ENDIF
 !
