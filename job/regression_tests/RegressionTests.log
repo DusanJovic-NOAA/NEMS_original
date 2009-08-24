@@ -1,0 +1,274 @@
+Mon Aug 24 12:56:28 EDT 2009
+Start Regression test
+Test 1
+Compare results with previous trunk version
+NMMB, global case
+
+
+
+
+Checking test 1 results ....
+ Comparing nmm_b_history.000.........OK
+ Comparing nmm_b_history.003.........OK
+ Comparing nmm_b_history.006.........OK
+ Comparing nmm_b_history.012.........OK
+ Comparing nmm_b_history.024.........OK
+ Comparing nmm_b_history.048.........OK
+ Comparing nmm_b_restart.024.........OK
+ Comparing nmm_b_history_nemsio.000.........OK
+ Comparing nmm_b_history_nemsio.003.........OK
+ Comparing nmm_b_history_nemsio.006.........OK
+ Comparing nmm_b_history_nemsio.012.........OK
+ Comparing nmm_b_history_nemsio.024.........OK
+ Comparing nmm_b_history_nemsio.048.........OK
+ Comparing nmm_b_restart_nemsio.024.........OK
+ Test 1 passed 
+
+ Original timing:  196.4453278  , test1 timing:  209.8680115
+Test 2
+Test NEMSIO as input file
+NMMB, global case
+
+
+
+
+Checking test 2 results ....
+ Comparing nmm_b_history.000.........OK
+ Comparing nmm_b_history.003.........OK
+ Comparing nmm_b_history.006.........OK
+ Comparing nmm_b_history.012.........OK
+ Comparing nmm_b_history.024.........OK
+ Comparing nmm_b_history.048.........OK
+ Comparing nmm_b_restart.024.........OK
+ Comparing nmm_b_history_nemsio.000.........OK
+ Comparing nmm_b_history_nemsio.003.........OK
+ Comparing nmm_b_history_nemsio.006.........OK
+ Comparing nmm_b_history_nemsio.012.........OK
+ Comparing nmm_b_history_nemsio.024.........OK
+ Comparing nmm_b_history_nemsio.048.........OK
+ Comparing nmm_b_restart_nemsio.024.........OK
+ Test 2 passed 
+Test 3
+Test restart run
+NMMB, global case
+
+
+
+
+Checking test 3 results ....
+ Comparing nmm_b_history.027.........OK
+ Comparing nmm_b_history.030.........OK
+ Comparing nmm_b_history.036.........OK
+ Comparing nmm_b_history.048.........OK
+ Test 3 passed 
+Test 4
+Test restart run from NEMSIO file
+NMMB, global case
+
+
+
+
+Checking test 4 results ....
+ Comparing nmm_b_history.027.........OK
+ Comparing nmm_b_history.030.........OK
+ Comparing nmm_b_history.036.........OK
+ Comparing nmm_b_history.048.........OK
+ Test 4 passed 
+Test 5
+Test different decomposition
+NMMB, global case
+
+
+
+
+Checking test 5 results ....
+ Comparing nmm_b_history.000.........OK
+ Comparing nmm_b_history.003.........OK
+ Comparing nmm_b_history.006.........OK
+ Comparing nmm_b_history.012.........OK
+ Comparing nmm_b_history.024.........OK
+ Comparing nmm_b_history_nemsio.000.........OK
+ Comparing nmm_b_history_nemsio.003.........OK
+ Comparing nmm_b_history_nemsio.006.........OK
+ Comparing nmm_b_history_nemsio.012.........OK
+ Comparing nmm_b_history_nemsio.024.........OK
+ Test 5 passed 
+Test 6
+Compare results with previous trunk version
+NMMB, regional case
+
+
+
+
+Checking test 6 results ....
+ Comparing nmm_b_history.000.........OK
+ Comparing nmm_b_history.003.........OK
+ Comparing nmm_b_history.006.........OK
+ Comparing nmm_b_history.012.........OK
+ Comparing nmm_b_history.024.........OK
+ Comparing nmm_b_history.048.........OK
+ Comparing nmm_b_restart.024.........OK
+ Comparing nmm_b_history_nemsio.000.........OK
+ Comparing nmm_b_history_nemsio.003.........OK
+ Comparing nmm_b_history_nemsio.006.........OK
+ Comparing nmm_b_history_nemsio.012.........OK
+ Comparing nmm_b_history_nemsio.024.........OK
+ Comparing nmm_b_history_nemsio.048.........OK
+ Comparing nmm_b_restart_nemsio.024.........OK
+ Test 6 passed 
+
+ Original timing:  644.2672729  , test1 timing:  661.8560181
+Test 7
+Test NEMSIO as input file
+NMMB, regional case
+
+
+
+
+Checking test 7 results ....
+ Comparing nmm_b_history.000.........OK
+ Comparing nmm_b_history.003.........OK
+ Comparing nmm_b_history.006.........OK
+ Comparing nmm_b_history.009.........OK
+ Comparing nmm_b_history.012.........OK
+ Comparing nmm_b_history_nemsio.000.........OK
+ Comparing nmm_b_history_nemsio.003.........OK
+ Comparing nmm_b_history_nemsio.006.........OK
+ Comparing nmm_b_history_nemsio.009.........OK
+ Comparing nmm_b_history_nemsio.012.........OK
+ Test 7 passed 
+Test 8
+Test restart run
+NMMB, regional case
+
+
+
+
+Checking test 8 results ....
+ Comparing nmm_b_history.027.........OK
+ Comparing nmm_b_history.030.........OK
+ Comparing nmm_b_history.036.........OK
+ Comparing nmm_b_history.048.........OK
+ Test 8 passed 
+Test 9
+Test restart run with NEMSIO file 
+NMMB, regional case
+
+
+
+
+Checking test 9 results ....
+ Comparing nmm_b_history.027.........OK
+ Comparing nmm_b_history.030.........OK
+ Comparing nmm_b_history.036.........OK
+ Comparing nmm_b_history.048.........OK
+ Test 9 passed 
+Test 10
+Test different decomposition
+NMMB, regional case
+
+
+
+
+Checking test 10 results ....
+ Comparing nmm_b_history.000.........OK
+ Comparing nmm_b_history.003.........OK
+ Comparing nmm_b_history.006.........OK
+ Comparing nmm_b_history.009.........OK
+ Comparing nmm_b_history.012.........OK
+ Test 10 passed 
+Preparing GFS core for regression tests
+Test 11
+Compare results with previous trunk version
+GFS, 32 proc, 1 thread
+
+
+
+
+Checking test 11 results ....
+ Comparing sigf003_nemsio.........OK
+ Comparing sigf006_nemsio.........OK
+ Comparing sigf012_nemsio.........OK
+ Comparing sigf024_nemsio.........OK
+ Comparing sigf048_nemsio.........OK
+ Comparing sfcf003_nemsio.........OK
+ Comparing sfcf006_nemsio.........OK
+ Comparing sfcf012_nemsio.........OK
+ Comparing sfcf024_nemsio.........OK
+ Comparing sfcf048_nemsio.........OK
+ Comparing flxf003_nemsio.........OK
+ Comparing flxf006_nemsio.........OK
+ Comparing flxf012_nemsio.........OK
+ Comparing flxf024_nemsio.........OK
+ Comparing flxf048_nemsio.........OK
+ Test 11 passed 
+Test 12
+Test different decomposition
+GFS, 60 proc, 1 thread
+
+
+
+
+Checking test 12 results ....
+ Comparing sigf003_nemsio.........OK
+ Comparing sigf006_nemsio.........OK
+ Comparing sigf012_nemsio.........OK
+ Comparing sigf024_nemsio.........OK
+ Comparing sigf048_nemsio.........OK
+ Comparing sfcf003_nemsio.........OK
+ Comparing sfcf006_nemsio.........OK
+ Comparing sfcf012_nemsio.........OK
+ Comparing sfcf024_nemsio.........OK
+ Comparing sfcf048_nemsio.........OK
+ Comparing flxf003_nemsio.........OK
+ Comparing flxf006_nemsio.........OK
+ Comparing flxf012_nemsio.........OK
+ Comparing flxf024_nemsio.........OK
+ Comparing flxf048_nemsio.........OK
+ Test 12 passed 
+Test 13
+Test threads
+GFS, 16 proc, 2 threads
+
+
+
+
+Checking test 13 results ....
+ Comparing sigf003_nemsio.........OK
+ Comparing sigf006_nemsio.........OK
+ Comparing sigf012_nemsio.........OK
+ Comparing sigf024_nemsio.........OK
+ Comparing sigf048_nemsio.........OK
+ Comparing sfcf003_nemsio.........OK
+ Comparing sfcf006_nemsio.........OK
+ Comparing sfcf012_nemsio.........OK
+ Comparing sfcf024_nemsio.........OK
+ Comparing sfcf048_nemsio.........OK
+ Comparing flxf003_nemsio.........OK
+ Comparing flxf006_nemsio.........OK
+ Comparing flxf012_nemsio.........OK
+ Comparing flxf024_nemsio.........OK
+ Comparing flxf048_nemsio.........OK
+ Test 13 passed 
+Test 14
+Test single processor
+GFS, 1 proc, 1 threads
+
+
+
+
+Checking test 14 results ....
+ Comparing sigf003_nemsio.........OK
+ Comparing sigf006_nemsio.........OK
+ Comparing sigf012_nemsio.........OK
+ Comparing sigf024_nemsio.........OK
+ Comparing sfcf003_nemsio.........OK
+ Comparing sfcf006_nemsio.........OK
+ Comparing sfcf012_nemsio.........OK
+ Comparing sfcf024_nemsio.........OK
+ Comparing flxf003_nemsio.........OK
+ Comparing flxf006_nemsio.........OK
+ Comparing flxf012_nemsio.........OK
+ Comparing flxf024_nemsio.........OK
+ Test 14 passed 
+Mon Aug 24 14:38:39 EDT 2009
