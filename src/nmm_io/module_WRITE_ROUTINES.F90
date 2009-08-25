@@ -4309,7 +4309,7 @@
           ENDIF
 !
           IF (RECNAME(NREC)=='SST') RECNAME(NREC)='tsea'
-!          IF (RECNAME(NREC)=='FIS') RECNAME(NREC)='hgt'
+          IF (RECNAME(NREC)=='FIS') RECNAME(NREC)='hgt'
           IF (RECNAME(NREC)=='USTAR') RECNAME(NREC)='uustar'
           IF (RECNAME(NREC)=='Z0') RECNAME(NREC)='zorl'
           IND1=IND1+1
@@ -4393,7 +4393,7 @@
 !-----------------------------------------------------------------------
 !
         CALL WRITE_NEMSIOCTL(GLOBAL,IHOUR_FCST,IDAY_FCST,IMONTH_FCST,       &
-          IYEAR_FCST,FILENAME,TLMETA,DIM1,DIM2,LM,NSOIL,TLM0D,TPH0D,DXCTL,  &
+          IYEAR_FCST,FILENAME,TLMETA,IM,JM,LM,NSOIL,TLM0D,TPH0D,DXCTL,  &
           DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP,CNT)
       ENDIF
 !
@@ -4924,7 +4924,8 @@
 !
 !for nmmb trimmed domain
       FIELDSIZE=IM*JM
-      NREC=wrt_int_state%RST_kount_I2D(1)+wrt_int_state%RST_kount_R2D(1)+1 !add fact10 for GSI
+      NREC=wrt_int_state%RST_kount_I2D(1)+wrt_int_state%RST_kount_R2D(1)+2 !add fact10 for GSI
+                                                                           !add hgt for unified code
 !
 !vcoord
       ALLOCATE(VCOORD(LM+1,3,2))
@@ -5045,7 +5046,6 @@
           ENDIF
 !
           IF (RECNAME(NREC)=='SST') RECNAME(NREC)='tsea'
-!          IF (RECNAME(NREC)=='FIS') RECNAME(NREC)='hgt'
           IF (RECNAME(NREC)=='USTAR') RECNAME(NREC)='uustar'
           IF (RECNAME(NREC)=='Z0') RECNAME(NREC)='zorl'
           IND1=IND1+1
@@ -5059,6 +5059,11 @@
       NREC=NREC+1
       RECNAME(NREC)='fact10'
       RECLEVTYP(NREC)='10 m above gnd'
+      RECLEV(NREC)=1
+!for hgt
+      NREC=NREC+1
+      RECNAME(NREC)='hgt'
+      RECLEVTYP(NREC)='sfc'
       RECLEV(NREC)=1
 !
 !glat1d and glon1d
@@ -5125,7 +5130,8 @@
         CALL NEMSIO_GETFILEHEAD(NEMSIOFILE,TLMETA=TLMETA)
         DXCTL=MAXVAL(DX)*180./(A*PI)
         DYCTL=MAXVAL(DY)*180./(A*PI)
-        CNT=INI1+(INI2/LM)+(INI3/(LM+1))+IND1+(IND2/LM)+(IND3/(LM+1))+(IND4/NSOIL)+1  !fact10 is calculated in write grid comp
+        CNT=INI1+(INI2/LM)+(INI3/(LM+1))+IND1+(IND2/LM)+(IND3/(LM+1))+(IND4/NSOIL)+2  !fact10 is calculated in write grid comp
+                                                                                      !hgt
 
 !
 !-----------------------------------------------------------------------
@@ -5133,7 +5139,7 @@
 !-----------------------------------------------------------------------
 !
         CALL WRITE_NEMSIOCTL(GLOBAL,IHOUR_FCST,IDAY_FCST,IMONTH_FCST,       &
-          IYEAR_FCST,FILENAME,TLMETA,DIM1,DIM2,LM,NSOIL,TLM0D,TPH0D,DXCTL,  &
+          IYEAR_FCST,FILENAME,TLMETA,IM,JM,LM,NSOIL,TLM0D,TPH0D,DXCTL,  &
           DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP,CNT)
       ENDIF
 !

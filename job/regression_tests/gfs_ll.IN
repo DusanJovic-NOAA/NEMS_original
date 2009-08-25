@@ -8,12 +8,12 @@
 # @ parallel_threads = _THRDS_
 # @ task_affinity = cpu(_THRDS_)
 # @ blocking = unlimited
-# @ node_usage = shared
+# @ node_usage = not_shared
 # @ resources=ConsumableCPUs(1)ConsumableMemory(5GB)
 # @ class = dev
 # @ wall_clock_limit = 00:15:00
 # @ preferences = Feature == "dev"
-# @ network.MPI = sn_all,shared,us
+# @ network.MPI = sn_all,not_shared,us
 # @ account_no=NAM-T2O
 # @ executable = gfs_fcst_run
 # @ queue

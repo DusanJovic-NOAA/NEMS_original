@@ -4,7 +4,7 @@
 #@ error = err
 #@ job_type = parallel
 #@ task_affinity = core(1)
-#@ node_usage = shared
+#@ node_usage = not_shared
 #@ tasks_per_node = _TPN_
 #@ node = 1
 #@ node_resources= ConsumableMemory(20GB)
@@ -12,7 +12,7 @@
 #@ wall_clock_limit = 00:15:00
 #@ parallel_threads = 1
 #@ preferences = Feature == "dev"
-#@ network.MPI = sn_all,shared,us
+#@ network.MPI = sn_all,not_shared,us
 #@ account_no=NAM-T2O
 #@ queue
 #

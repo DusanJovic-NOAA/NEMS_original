@@ -239,8 +239,8 @@ nhrs_srfc:  3               # Frequency in hours between times when sfc evap/flu
  
 write_hst_flag:          .TRUE.      # True--> Yes write history files
 write_rst_flag:          .TRUE.      # True--> Yes write restart files
-write_nemsioflag:        .TRUE.       # True--> Yes write nemsio run history files
-write_nemsioctl:         .FALSE.       # True--> Yes write ctl for nemsio run history files
+write_nemsioflag:        .TRUE.      # True--> Yes write nemsio run history files
+write_nemsioctl:         .TRUE.      # True--> Yes write ctl for nemsio run history files
 write_donefileflag:      .FALSE.
 
 io_hst_unit:             -999
