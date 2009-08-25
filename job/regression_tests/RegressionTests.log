@@ -1,4 +1,4 @@
-Mon Aug 24 12:56:28 EDT 2009
+Tue Aug 25 13:22:49 EDT 2009
 Start Regression test
 Test 1
 Compare results with previous trunk version
@@ -24,7 +24,7 @@ Checking test 1 results ....
  Comparing nmm_b_restart_nemsio.024.........OK
  Test 1 passed 
 
- Original timing:  196.4453278  , test1 timing:  209.8680115
+ Original timing:  196.4453278  , test1 timing:  202.0480042
 Test 2
 Test NEMSIO as input file
 NMMB, global case
@@ -117,7 +117,7 @@ Checking test 6 results ....
  Comparing nmm_b_restart_nemsio.024.........OK
  Test 6 passed 
 
- Original timing:  644.2672729  , test1 timing:  661.8560181
+ Original timing:  644.2672729  , test1 timing:  660.9640503
 Test 7
 Test NEMSIO as input file
 NMMB, regional case
@@ -271,4 +271,4 @@ Checking test 14 results ....
  Comparing flxf012_nemsio.........OK
  Comparing flxf024_nemsio.........OK
  Test 14 passed 
-Mon Aug 24 14:38:39 EDT 2009
+Tue Aug 25 14:59:18 EDT 2009
