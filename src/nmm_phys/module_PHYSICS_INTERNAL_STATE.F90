@@ -12,6 +12,7 @@
 ! HISTORY LOG:
 !                   
 !   2008-07-28  Vasic - Precompute accumulation counters.
+!   2009-08-11  Ferrier - Changed accumulation counters to 2D arrays (ESMF issue)
 !
 !-----------------------------------------------------------------------
 !
@@ -117,14 +118,6 @@
                                                     ,LPBL               &
                                                     ,NCFRCV,NCFRST
 !
-        REAL(KIND=KFPT) :: ACUTIM                                       &  
-                          ,APHTIM                                       &
-                          ,ARDLW                                        &  !<-- Counter in summing LW radiation flux
-                          ,ARDSW                                        &  !<-- Counter in summing SW radiation flux
-                          ,ASRFC                                        &  !<-- Counter in summing sfc flux
-                          ,AVRAIN                                       &  !<-- Counter in summing latent heating from all precip
-                          ,AVCNVC                                          !<-- Counter in summing latent heating from cnvc precip
-!
         REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER :: T,U,V               &
                                                    ,DUDT,DVDT           &
                                                    ,Q,CW                &
@@ -194,6 +187,18 @@
                                                  ,QSHLTR,PSFC           &
                                                  ,T2,TH02,TH10,TSHLTR   &
                                                  ,U10,V10,TLMIN,TLMAX
+!
+!-- Ferrier: Changed ACUTIM,...,AVCNVC from scalars to 2D arrays to allow
+!            these quantities to change during the forecast (an ESMF issue)
+!
+        REAL(KIND=KFPT),DIMENSION(:,:),POINTER ::                       &
+                           ACUTIM                                       &  !<-- Counter for cloud processes, used by post0 code
+                          ,APHTIM                                       &  !<-- Counter for other processes, used by post0 code
+                          ,ARDLW                                        &  !<-- Counter in summing LW radiation flux
+                          ,ARDSW                                        &  !<-- Counter in summing SW radiation flux
+                          ,ASRFC                                        &  !<-- Counter in summing sfc flux
+                          ,AVRAIN                                       &  !<-- Counter in summing latent heating from grid microphysics
+                          ,AVCNVC                                          !<-- Counter in summing latent heating from convection
 !
         REAL(KIND=KFPT),DIMENSION(:),POINTER :: MP_RESTART_STATE        &
                                                ,SLDPTH                  &
@@ -741,7 +746,7 @@
         int_state%GLAT(I,J)    =-1.E6
         int_state%GLON(I,J)    =-1.E6
         int_state%GRNFLX(I,J)  = 0.
-        int_state%MAVAIL(I,J)  =-1.E6
+        int_state%MAVAIL(I,J)  = 1.
         int_state%MXSNAL(I,J)  =-1.E6
         int_state%PBLH(I,J)    =-1.E6
         int_state%MIXHT(I,J)   =-1.E6
@@ -754,7 +759,7 @@
         int_state%QVG(I,J)     =-1.E6
         int_state%QWBS(I,J)    =-1.E6
         int_state%QZ0(I,J)     = 0.
-        int_state%RADOT(I,J)   =-1.E6
+        int_state%RADOT(I,J)   = 0.
         int_state%RLWIN(I,J)   = 0.
         int_state%RMOL(I,J)    =-1.E6
         int_state%RSWIN(I,J)   = 0.
@@ -762,8 +767,8 @@
         int_state%RSWOUT(I,J)  = 0.
         int_state%RLWTOA(I,J)  = 0.
         int_state%RSWTOA(I,J)  = 0.
-        int_state%SFCEVP(I,J)  =-1.E6
-        int_state%SFCEXC(I,J)  =0.
+        int_state%SFCEVP(I,J)  = 0.
+        int_state%SFCEXC(I,J)  = 0.
         int_state%SFCLHX(I,J)  =-1.E6
         int_state%SFCSHX(I,J)  =-1.E6
 !        int_state%SH2O(I,J)   =-1.E6
@@ -788,10 +793,10 @@
         int_state%TSKIN(I,J)   =-1.E6
         int_state%TSNAV(I,J)   =-1.E6
         int_state%TWBS(I,J)    =-1.E6
-        int_state%USTAR(I,J)   =-1.E6
-        int_state%UZ0(I,J)     =-1.E6
+        int_state%USTAR(I,J)   = 0.1
+        int_state%UZ0(I,J)     = 0.
         int_state%VEGFRC(I,J)  =-1.E6
-        int_state%VZ0(I,J)     =-1.E6
+        int_state%VZ0(I,J)     = 0.
         int_state%Z0(I,J)      =-1.E6
         int_state%Z0BASE(I,J)  =-1.E6
         int_state%CROT(I,J)    = 0.
@@ -832,7 +837,14 @@
       ALLOCATE(int_state%V10(IMS:IME,JMS:JME))     ! V at 10-m  (m s-1)
       ALLOCATE(int_state%TLMIN(IMS:IME,JMS:JME))
       ALLOCATE(int_state%TLMAX(IMS:IME,JMS:JME))
-
+!
+      ALLOCATE(int_state%ACUTIM(IMS:IME,JMS:JME))  ! post0/bufr counter in summing cloud processes (conv, grid)
+      ALLOCATE(int_state%APHTIM(IMS:IME,JMS:JME))  ! post0/bufr counter in summing other physics (turb, land, rad)
+      ALLOCATE(int_state%ARDLW(IMS:IME,JMS:JME))   ! Counter in summing LW radiation flux
+      ALLOCATE(int_state%ARDSW(IMS:IME,JMS:JME))   ! Counter in summing SW radiation flux
+      ALLOCATE(int_state%ASRFC(IMS:IME,JMS:JME))   ! Counter in summing surface fluxes
+      ALLOCATE(int_state%AVRAIN(IMS:IME,JMS:JME))  ! Counter in summing latent heating from grid microphysics
+      ALLOCATE(int_state%AVCNVC(IMS:IME,JMS:JME))  ! Counter in summing latent heating from convection
 !
       ALLOCATE(int_state%MP_RESTART_STATE(MICRO_RESTART))  ! For Ferrier restart
       ALLOCATE(int_state%TBPVS_STATE(MICRO_RESTART))       ! For Ferrier restart
@@ -857,14 +869,22 @@
         int_state%V10(I,J)   = 0.
         int_state%TLMIN(I,J) = 0.
         int_state%TLMAX(I,J) = 0.
+!
+        int_state%ACUTIM(I,J) = 0.
+        int_state%APHTIM(I,J) = 0.
+        int_state%ARDLW(I,J)  = 0.
+        int_state%ARDSW(I,J)  = 0.
+        int_state%ASRFC(I,J)  = 0.
+        int_state%AVRAIN(I,J) = 0.
+        int_state%AVCNVC(I,J) = 0.
       ENDDO
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  GFS physics      vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+!***  GFS physics
 !-----------------------------------------------------------------------
 !
-    IF ( int_state%GFS ) THEN
+      gfs_physics:    IF ( int_state%GFS ) THEN
 !
       ALLOCATE(int_state%DDY              (JTS:JTE))         !
       ALLOCATE(int_state%JINDX1           (JTS:JTE))         !
@@ -964,18 +984,7 @@
       ENDDO
       ENDDO
 !
-    ENDIF
-!
-!-----------------------------------------------------------------------
-!***  GFS physics      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-!-----------------------------------------------------------------------
-!
-      int_state%AVRAIN=3600*int_state%NHRS_PREC/(int_state%NPRECIP*int_state%DT_INT)
-      int_state%AVCNVC=3600*int_state%NHRS_CLOD/(int_state%NPRECIP*int_state%DT_INT)
-      int_state%ASRFC =3600*int_state%NHRS_SRFC/(int_state%NPHS   *int_state%DT_INT)
-      int_state%ARDSW =3600*int_state%NHRS_RDSW/(int_state%NPHS   *int_state%DT_INT)
-      int_state%ARDLW =3600*int_state%NHRS_RDLW/(int_state%NPHS   *int_state%DT_INT)
-      int_state%APHTIM=3600*int_state%NHRS_HEAT/(int_state%NPHS   *int_state%DT_INT)
+    ENDIF  gfs_physics
 !
 !-----------------------------------------------------------------------
 !

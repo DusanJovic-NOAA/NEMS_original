@@ -773,8 +773,7 @@
 !-----------------------------------------------------------------------
 !
       INTEGER(KIND=KINT) :: I,J,IRTN,ISTAT,JULDAY,JULYR,L               &
-                           ,N,NPRECIP,NSTEPS_PREC,NTIMESTEP,RC          &
-			   ,NTIMESTEP_RAD
+                           ,N,NPRECIP,NTIMESTEP,RC,NTIMESTEP_RAD
 !
       INTEGER(KIND=ESMF_KIND_I8) :: NTIMESTEP_ESMF
 !
@@ -867,9 +866,6 @@
 !-----------------------------------------------------------------------
 !
       IF(MOD(NTIMESTEP*int_state%DT,3600.)==0)THEN
-        IF (MYPE==0) THEN
-         write(0,*)'NTIMESTEP inside clearing conditional=',NTIMESTEP
-         ENDIF
         DO J=JTS,JTE
         DO I=ITS,ITE
           int_state%TLMAX(I,J)=-999.
@@ -879,18 +875,11 @@
       ENDIF
       DO J=JTS,JTE
       DO I=ITS,ITE
-        int_state%TLMAX(I,J)=MAX(int_state%TLMAX(I,J),int_state%T(I,J,1))         !<--- Hourly max lowest layer T
-        int_state%TLMIN(I,J)=MIN(int_state%TLMIN(I,J),int_state%T(I,J,1))         !<--- Hourly min lowest layer T
+        int_state%TLMAX(I,J)=MAX(int_state%TLMAX(I,J),int_state%T(I,J,LM))         !<--- Hourly max lowest layer T
+        int_state%TLMIN(I,J)=MIN(int_state%TLMIN(I,J),int_state%T(I,J,LM))         !<--- Hourly min lowest layer T
       ENDDO
       ENDDO
-       IF (MYPE==0) THEN
-         write(0,*)'NTIMESTEP=',NTIMESTEP
-         write(0,*)'minval,maxval int_state%TLMIN=',minval(int_state%TLMIN),maxval(int_state%TLMIN)
-         write(0,*)'minval,maxval int_state%TLMAX=',minval(int_state%TLMAX),maxval(int_state%TLMAX)
-       ENDIF
-
-
-
+!
       IF ( .NOT. int_state%GFS ) THEN  ! ***  TRADITIONAL NMMB PHYSICS
 !
 !-----------------------------------------------------------------------
@@ -970,10 +959,11 @@
         btim=timef()
 !
 !-----------------------------------------------------------------------
-!***  EMPTY THE ACFRST AND ACFRCV ARRAYS IF IT IS TIME.
+!***  IF IT IS TIME, RESET CLOUD FRACTION ACCUMULATORS BEFORE THEY ARE
+!     UPDATED IN RADIATION.
 !-----------------------------------------------------------------------
 !
-        IF(MOD(NTIMESTEP,NSTEPS_HIST)==0)THEN
+        IF(MOD(NTIMESTEP,int_state%NCLOD)==0)THEN
           DO J=JTS,JTE
           DO I=ITS,ITE
             int_state%ACFRST(I,J)=0.
@@ -1060,59 +1050,57 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  EMPTY THE RADIATION,FLUX ARRAYS IF IT IS TIME.
+!***  IF IT IS TIME, RESET ACCUMULATORS OF SFC ENERGY FLUXES AND SURFACE
+!     HYDROLOGIC FIELDS BEFORE THEY ARE UPDATED IN TURBULENCE.
 !-----------------------------------------------------------------------
 !
       IF(MOD(NTIMESTEP,int_state%NRDLW)==0)THEN
-!
         DO J=JTS,JTE
         DO I=ITS,ITE
           int_state%ALWIN(I,J)=0.
           int_state%ALWOUT(I,J)=0.
           int_state%ALWTOA(I,J)=0.
+          int_state%ARDLW (I,J)=0.   !- was a scalar, now 2D for ESMF
         ENDDO
         ENDDO
-!
-!       int_state%ARDLW=0.   ! Precomputed
-!
       ENDIF
 !
       IF(MOD(NTIMESTEP,int_state%NRDSW)==0)THEN
-!
         DO J=JTS,JTE
         DO I=ITS,ITE
           int_state%ASWIN(I,J)=0.
           int_state%ASWOUT(I,J)=0.
           int_state%ASWTOA(I,J)=0.
+          int_state%ARDSW (I,J)=0.   !- was a scalar, now 2D for ESMF
         ENDDO
         ENDDO
-!
-!       int_state%ARDSW=0.   ! Precomputed
-!
       ENDIF
 !
       IF(MOD(NTIMESTEP,int_state%NSRFC)==0)THEN
-!
         DO J=JTS,JTE
         DO I=ITS,ITE
-          int_state%SNOPCX(I,J)=0.
-          int_state%POTEVP(I,J)=0.
-          int_state%SFCEVP(I,J)=0.
-          int_state%SFCLHX(I,J)=0.
           int_state%SFCSHX(I,J)=0.
+          int_state%SFCLHX(I,J)=0.
           int_state%SUBSHX(I,J)=0.
-          int_state%BGROFF(I,J)=0.
-          int_state%SSROFF(I,J)=0.
+          int_state%SNOPCX(I,J)=0.
+          int_state%POTFLX(I,J)=0.
+          int_state%ASRFC (I,J)=0.   !- was a scalar, now 2D for ESMF
         ENDDO
         ENDDO
-!
-!       int_state%ASRFC=0.   ! Precomputed
-!
       ENDIF
 !
-!     IF(MOD(NTIMESTEP,int_state%NPHS)==0)THEN
-!       int_state%APHTIM=0.  ! Precomputed
-!     ENDIF
+      IF(MOD(NTIMESTEP,int_state%NPREC)==0)THEN
+        DO J=JTS,JTE
+        DO I=ITS,ITE
+          int_state%ACSNOW(I,J)=0.
+          int_state%ACSNOM(I,J)=0.
+          int_state%SSROFF(I,J)=0.
+          int_state%BGROFF(I,J)=0.
+          int_state%SFCEVP(I,J)=0.
+          int_state%POTEVP(I,J)=0.
+        ENDDO
+        ENDDO
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -1272,11 +1260,11 @@
       ENDIF turbulence
 !
 !----------------------------------------------------------------------- 
-!***  EMPTY THE PRECIPITATION ARRAYS IF IT IS TIME.                      
+!***  RESET ACCUMULATORS OF PRECIPITATION AND LATENT HEATING BEFORE CONVECTION
+!     AND GRID MICROPHYSICS IF IT IS TIME.
 !-----------------------------------------------------------------------
 !
-      NSTEPS_PREC=int_state%NHRS_PREC*NSTEPS_PER_HOUR
-      IF(MOD(NTIMESTEP,NSTEPS_PREC)==0)THEN
+      IF(MOD(NTIMESTEP,int_state%NPREC)==0)THEN
         DO J=JTS,JTE
         DO I=ITS,ITE
           int_state%ACPREC(I,J)=0.
@@ -1284,6 +1272,23 @@
         ENDDO
         ENDDO
       ENDIF
+!
+      IF(MOD(NTIMESTEP,int_state%NHEAT)==0)THEN
+        DO J=JTS,JTE
+        DO I=ITS,ITE
+          int_state%AVCNVC(I,J)=0.   !- was a scalar, now 2D for ESMF
+          int_state%AVRAIN(I,J)=0.   !- was a scalar, now 2D for ESMF
+        ENDDO
+        ENDDO
+        DO L=1,LM
+        DO J=JTS,JTE
+        DO I=ITS,ITE
+          int_state%TRAIN(I,J,L)=0.
+          int_state%TCUCN(I,J,L)=0.
+        ENDDO
+        ENDDO
+        ENDDO
+      ENDIF    !-- IF(MOD(NTSD_BUCKET,NHEAT)==0)THEN
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -1674,6 +1679,7 @@
           int_state%ALWIN(I,J)=0.
           int_state%ALWOUT(I,J)=0.
           int_state%ALWTOA(I,J)=0.
+          int_state%ARDLW (I,J)=0.   !- was a scalar, now 2D for ESMF
         ENDDO
         ENDDO
 !
@@ -1686,6 +1692,7 @@
           int_state%ASWIN(I,J)=0.
           int_state%ASWOUT(I,J)=0.
           int_state%ASWTOA(I,J)=0.
+          int_state%ARDSW (I,J)=0.   !- was a scalar, now 2D for ESMF
         ENDDO
         ENDDO
 !
@@ -1702,13 +1709,13 @@
           int_state%SUBSHX(I,J)=0.
           int_state%BGROFF(I,J)=0.
           int_state%SSROFF(I,J)=0.
+          int_state%ASRFC (I,J)=0.   !- was a scalar, now 2D for ESMF
         ENDDO
         ENDDO
 !
       ENDIF
 !
-      NSTEPS_PREC=int_state%NHRS_PREC*NSTEPS_PER_HOUR
-      IF(MOD(NTIMESTEP,NSTEPS_PREC)==0)THEN
+      IF(MOD(NTIMESTEP,int_state%NPREC)==0)THEN
         DO J=JTS,JTE
         DO I=ITS,ITE
           int_state%ACPREC(I,J)=0.
@@ -2066,8 +2073,18 @@
              int_state%QWBS(I,J)          = -DQSFCI(1)
              int_state%GRNFLX(I,J)        = GFLUXI(1)
              int_state%POTEVP(I,J)        = EP(1)
+!
+!-- Ratko: Please verify that these are accumulations like with the NMM physics
+!
              int_state%POTFLX(I,J)        = -EP(1)*XLV*RHOWATER/(int_state%NPHS*int_state%DT)
-             int_state%SFCEVP(I,J)        = DQSFC(1)/(RHOWATER*int_state%DT*int_state%ASRFC)
+!
+!-- Ratko: SFCEVP was changed because it had ASRFC in the denonimator, and ASRFC was changed in
+!   module_PHYSICS_INTERNAL_STATE.F90.   Will need to reconcile these differences?
+!
+             int_state%SFCEVP(I,J)        = DQSFC(1)/(RHOWATER*int_state%DT*int_state%ASRFC(I,J))
+!
+!-- Ratko: Should the new 2D accumulators AVRAIN, etc. be included somewhere around here?
+!
 
              int_state%SFCEXC(I,J)        = CHH(1)
              int_state%PREC(I,J)          = TPRCP(1)
@@ -3255,7 +3272,6 @@
                              ,int_state%MP_RESTART_STATE               &
                              ,int_state%TBPVS_STATE                    &
                              ,int_state%TBPVS0_STATE                   &
-                             ,int_state%AVRAIN                         &
                              ,ALLOWED_TO_READ                          &
                              ,IDS,IDE,JDS,JDE,1,LM+1                   &
                              ,IMS,IME,JMS,JME,1,LM+1                   &

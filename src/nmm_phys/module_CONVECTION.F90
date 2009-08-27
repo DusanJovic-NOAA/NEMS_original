@@ -196,8 +196,6 @@
 !
       REAL,INTENT(IN) :: DT,DYH,PT
 !
-      REAL,INTENT(INOUT) :: ACUTIM,AVCNVC
-!
       REAL,DIMENSION(1:LM),INTENT(IN) :: DSG2,PDSG1,PSGML1,SGML2
 !
       REAL,DIMENSION(1:LM+1),INTENT(IN) :: PSG1,SG2 
@@ -211,7 +209,8 @@
                                                       ,HBOT,HTOP        &
                                                       ,HBOTD,HTOPD      &
                                                       ,HBOTS,HTOPS      &
-                                                      ,PREC,CPRATE
+                                                      ,PREC,CPRATE      &
+                                                      ,ACUTIM,AVCNVC       !<-- Were scalars
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: F_ICE          &
                                                         ,F_RAIN
@@ -374,8 +373,14 @@
 !***  GENERAL PREPARATION 
 !-----------------------------------------------------------------------
 !
-      AVCNVC=AVCNVC+1.
-      ACUTIM=ACUTIM+1.
+!-- AVCNVC,ACUTIM were scalars but changed to 2D arrays to allow for updates in ESMF
+!
+      DO J=JTS,JTE
+      DO I=ITS,ITE
+         AVCNVC(I,J)=AVCNVC(I,J)+1.
+         ACUTIM(I,J)=ACUTIM(I,J)+1.
+      ENDDO
+      ENDDO
 !
       DTCNVC=NCNVC*DT
       RDTCNVC=1./DTCNVC

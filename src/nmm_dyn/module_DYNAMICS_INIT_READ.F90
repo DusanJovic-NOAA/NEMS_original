@@ -656,12 +656,6 @@ logical(kind=klog) :: opened
       read(nfcst) sgml1
       read(nfcst) sgml2
       read(nfcst) sgm
-      read(nfcst) ! aphtim
-      read(nfcst) ! ardlw
-      read(nfcst) ! ardsw
-      read(nfcst) ! asrfc
-      read(nfcst) ! avcnvc
-      read(nfcst) ! avrain
       read(nfcst) ! sldpth
       read(nfcst) ! mp_restart_state
       read(nfcst) ! tbpvs_state
@@ -1314,11 +1308,41 @@ logical(kind=klog) :: opened
       if(mype==0)then
         read(nfcst)temp1  ! z0base
       endif
+!-----------------------------------------------------------------------
       if(mype==0)then
         read(nfcst)temp1  ! tlmin
       endif
+!-----------------------------------------------------------------------
       if(mype==0)then
         read(nfcst)temp1  ! tlmax
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! acutim
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! aphtim
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! ardlw
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! ardsw
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! asrfc
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! avrain
+      endif
+!-----------------------------------------------------------------------
+      if(mype==0)then
+        read(nfcst)temp1  ! avcnvc
       endif
 !-----------------------------------------------------------------------
 !   READ FROM RESTART FILE: REAL 3D ARRAYS

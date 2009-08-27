@@ -266,8 +266,6 @@
 !
       REAL,INTENT(IN) :: DT,PT
 !
-      REAL,INTENT(INOUT) :: APHTIM,ARDSW,ARDLW,ASRFC
-!
       REAL,DIMENSION(1:LM),INTENT(IN) :: DSG2,PDSG1,PSGML1,SGML2
 !
       REAL,DIMENSION(1:LM+1),INTENT(IN) :: PSG1,SG2
@@ -310,7 +308,9 @@
                                                       ,T2,THS,THZ0      &
                                                       ,TSFC,TSNAV       &
                                                       ,USTAR,UZ0,VZ0    &
-                                                      ,Z0,Z0BASE
+                                                      ,Z0,Z0BASE        &
+                                                      ,APHTIM,ARDSW     & !<-- Were scalars
+                                                      ,ARDLW,ASRFC        !<-- Were scalars
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: AKHS_OUT,AKMS_OUT  &
                                                     ,ALWIN,ALWOUT       &
@@ -374,8 +374,6 @@
              ,TL,TLMH,TLMH4,TNEW,TSFC2,U_FRAME,V_FRAME,WMSK,XLVRW
 !
       REAL :: APES,CKLQ,FACTOR,FFS,PQ0X,Q2SAT,QFC1,QLOWX,RLIVWV,THBOT
-!
-      REAL :: RAPHTIM,RARDSW,RARDLW,RASRFC
 !
       REAL,DIMENSION(IMS:IME,JMS:JME) :: BR,CHKLOWQ,CT,CWMLOW,ELFLX     &
                                         ,EMISS,EXNSFC,FACTRS,FLHC,FLQC  &
@@ -1149,22 +1147,23 @@
 !***  DIAGNOSTIC RADIATION ACCUMULATION
 !-----------------------------------------------------------------------
 !
-      RARDSW=1./ARDSW
-      RARDLW=1./ARDLW
 !.......................................................................
 !$omp parallel do private(j,i,tsfc2)
 !.......................................................................
       DO J=JTS_B1,JTE_B1
       DO I=ITS,ITE
-        ASWIN (I,J)=ASWIN (I,J)+RSWIN(I,J)*FACTRS(I,J)*RARDSW
-        ASWOUT(I,J)=ASWOUT(I,J)-RSWOUT(I,J)*FACTRS(I,J)*RARDSW
-        ASWTOA(I,J)=ASWTOA(I,J)+RSWTOA(I,J)*FACTRS(I,J)*RARDSW
-        ALWIN (I,J)=ALWIN (I,J)+RLW_DN_SFC(I,J)*RARDLW
-        ALWOUT(I,J)=ALWOUT(I,J)-RADOT (I,J)*RARDLW
-        ALWTOA(I,J)=ALWTOA(I,J)+RLWTOA(I,J)*RARDLW
-!
+!-- Remove the next 2 lines and uncomment "!was" lines below if not correct
         TSFC2=TSFC(I,J)*TSFC(I,J)
         RADOT(I,J)=EPSR(I,J)*STBOLT*TSFC2*TSFC2
+!
+        ASWIN (I,J)=ASWIN (I,J)+RSWIN(I,J)*FACTRS(I,J)
+        ASWOUT(I,J)=ASWOUT(I,J)-RSWOUT(I,J)*FACTRS(I,J)
+        ASWTOA(I,J)=ASWTOA(I,J)+RSWTOA(I,J)*FACTRS(I,J)
+        ALWIN (I,J)=ALWIN (I,J)+RLW_DN_SFC(I,J)
+        ALWOUT(I,J)=ALWOUT(I,J)-RADOT (I,J)
+        ALWTOA(I,J)=ALWTOA(I,J)+RLWTOA(I,J)
+!was        TSFC2=TSFC(I,J)*TSFC(I,J)
+!was        RADOT(I,J)=EPSR(I,J)*STBOLT*TSFC2*TSFC2
         THS(I,J)=TSFC(I,J)*EXNSFC(I,J)
         PREC(I,J)=0.
       ENDDO
@@ -1382,9 +1381,6 @@
 !***
 !-----------------------------------------------------------------------
 !
-      RASRFC=1./ASRFC
-      RAPHTIM=1./APHTIM
-!
 !.......................................................................
 !$omp parallel do private(j,i,xlvrw)
 !.......................................................................
@@ -1396,12 +1392,7 @@
 !-----------------------------------------------------------------------
 !
         TWBS(I,J)=-TWBS(I,J)
-!
-        IF ( SM(I,J) + SICE(I,J) <= 0.5 ) THEN
-          QWBS(I,J)= -QWBS(I,J)*XLV*CHKLOWQ(I,J) ! land
-        ELSE
-          QWBS(I,J)=QWBS(I,J)    *CHKLOWQ(I,J) ! ocean
-        ENDIF
+        QWBS(I,J)= -QWBS(I,J)*XLV*CHKLOWQ(I,J)
 !
 !-----------------------------------------------------------------------
 !***  ACCUMULATED QUANTITIES.
@@ -1410,13 +1401,12 @@
 !***  WRF MODULE AS KG/M**2.
 !-----------------------------------------------------------------------
 !
-        SFCSHX(I,J)=SFCSHX(I,J)+TWBS(I,J)*RASRFC
-        SFCLHX(I,J)=SFCLHX(I,J)+QWBS(I,J)*RASRFC
-        XLVRW=DTPHS/RHOWATER
-        SFCEVP(I,J)=SFCEVP(I,J)-QWBS(I,J)*XLVRW*RASRFC
-        POTEVP(I,J)=POTEVP(I,J)-QWBS(I,J)*SM(I,J)*XLVRW*RASRFC
+        SFCSHX(I,J)=SFCSHX(I,J)+TWBS(I,J)
+        SFCLHX(I,J)=SFCLHX(I,J)+QWBS(I,J)
+        SFCEVP(I,J)=SFCEVP(I,J)-QWBS(I,J)*XLVRW
+        POTEVP(I,J)=POTEVP(I,J)-QWBS(I,J)*SM(I,J)*XLVRW
         POTFLX(I,J)=POTEVP(I,J)*FACTOR
-        SUBSHX(I,J)=SUBSHX(I,J)+GRNFLX(I,J)*RASRFC
+        SUBSHX(I,J)=SUBSHX(I,J)+GRNFLX(I,J)
       ENDDO
       ENDDO
 !.......................................................................
@@ -1424,13 +1414,17 @@
 !.......................................................................
 !
 !-----------------------------------------------------------------------
-!***  COUNTERS
+!***  COUNTERS (need to make 2D arrays so fields can be updated in ESMF)
 !-----------------------------------------------------------------------
 !
-!     APHTIM=APHTIM+1.
-!     ARDSW =ARDSW +1.
-!     ARDLW =ARDLW +1.
-!     ASRFC =ASRFC +1.
+      DO J=JTS,JTE
+      DO I=ITS,ITE
+         APHTIM(I,J)=APHTIM(I,J)+1.
+         ARDSW(I,J) =ARDSW(I,J) +1.
+         ARDLW(I,J) =ARDLW(I,J) +1.
+         ASRFC(I,J) =ASRFC(I,J) +1.
+      ENDDO
+      ENDDO
 !-----------------------------------------------------------------------
 !
       END SUBROUTINE TURBL

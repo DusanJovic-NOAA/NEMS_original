@@ -217,7 +217,7 @@
 !***  OTHERWISE WRITE IT AT THE END OF THE APPROPRIATE TIMESTEPS.
 !-----------------------------------------------------------------------
 !
-       history_output_0: IF(NTIMESTEP==0)THEN
+       history_output_0: IF(NTIMESTEP==0 .and. .NOT.RESTARTED_RUN)THEN
 !
           IF(atm_int_state%QUILTING)THEN
             CWRT='History'

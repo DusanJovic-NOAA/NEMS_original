@@ -237,15 +237,14 @@
 !
       REAL,INTENT(IN) :: DT,DX,DY,PT
 !
-      REAL,INTENT(INOUT) :: AVRAIN
-!
       REAL,DIMENSION(1:LM),INTENT(IN) :: DSG2,PDSG1,PSGML1,SGML2
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: FIS,PD,SM
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: OMGALF
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: ACPREC,PREC
+      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: ACPREC,PREC      &
+                                                      ,AVRAIN             !<-- Was a scalar
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: CWM,Q,T     &
      &                                                     ,TRAIN
@@ -318,7 +317,14 @@
       RDTPHS=1./DTPHS
       CAPA=RD/CP
       RG=1./G
-      AVRAIN=AVRAIN+1.
+!
+!-- AVRAIN was a scalar but changed to a 2D array to allow for updates in ESMF
+!
+      DO J=JTS,JTE
+      DO I=ITS,ITE
+         AVRAIN(I,J)=AVRAIN(I,J)+1.
+      ENDDO
+      ENDDO
 !
 !-----------------------------------------------------------------------
 !***  NOTE:  THE NMMB HAS IJK STORAGE WITH LAYER 1 AT THE TOP.
@@ -3169,7 +3175,7 @@ nsteps = 0
 !!!   SUBROUTINE FERRIER_INIT (GSMDT,DT,DELX,DELY,LOWLYR,restart,       &
       SUBROUTINE FERRIER_INIT (GSMDT,DT,DELX,DELY,restart,              &
      &   F_ICE_PHY,F_RAIN_PHY,F_RIMEF_PHY,                              &
-     &   MP_RESTART_STATE,TBPVS_STATE,TBPVS0_STATE,AVRAIN,              &
+     &   MP_RESTART_STATE,TBPVS_STATE,TBPVS0_STATE,                     &
      &   ALLOWED_TO_READ,                                               &
      &   IDS,IDE,JDS,JDE,KDS,KDE,                                       &
      &   IMS,IME,JMS,JME,KMS,KME,                                       &
@@ -3256,7 +3262,6 @@ nsteps = 0
 !WRF
 !!!!   INTEGER, DIMENSION(ims:ime,jms:jme),INTENT(INOUT) :: LOWLYR
 !
-      real, INTENT(INOUT) ::  AVRAIN
       real, INTENT(IN) ::  DELX,DELY
       real,DIMENSION(*), INTENT(INOUT) :: MP_RESTART_STATE
       real,DIMENSION(NX), INTENT(INOUT) :: TBPVS_STATE,TBPVS0_STATE
@@ -3295,8 +3300,6 @@ nsteps = 0
 !     ENDDO
 !     ENDDO
 !    
-!     AVRAIN = 0. ! ratko - should we put only if not restart?
-!
       IF(.NOT.RESTART)THEN
         DO K = kts,kte
         DO J = jts,jte

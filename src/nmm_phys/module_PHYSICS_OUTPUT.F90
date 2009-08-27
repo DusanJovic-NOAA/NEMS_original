@@ -38,7 +38,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      INTEGER,PARAMETER :: MAX_KOUNT=100
+      INTEGER,PARAMETER :: MAX_KOUNT=200
 !
 !-----------------------------------------------------------------------
 !***  LIST THE VARIOUS QUANTITIES IN THE PHYSICS INTERNAL STATE 
@@ -91,13 +91,7 @@
        =RESHAPE((/                                                      &
 !                              -----------------------------------------
 !
-                               'APHTIM    ', 'H         ', 'R         ' &
-                              ,'ARDLW     ', 'H         ', 'R         ' &
-                              ,'ARDSW     ', 'H         ', 'R         ' &
-                              ,'ASRFC     ', 'H         ', 'R         ' &
-                              ,'AVCNVC    ', 'H         ', 'R         ' &
-                              ,'AVRAIN    ', 'H         ', 'R         ' &
-                              ,'PDTOP     ', '-         ', '-         ' &
+                               'PDTOP     ', '-         ', '-         ' &
 !
 !                              -----------------------------------------
 !
@@ -293,6 +287,13 @@
                               ,'TLMIN     ', 'H         ', 'R         ' &
                               ,'TLMAX     ', 'H         ', 'R         ' &
                               ,'LSPA      ', 'H         ', '-         ' &
+                              ,'ACUTIM    ', 'H         ', 'R         ' &
+                              ,'APHTIM    ', 'H         ', 'R         ' &
+                              ,'ARDLW     ', 'H         ', 'R         ' &
+                              ,'ARDSW     ', 'H         ', 'R         ' &
+                              ,'ASRFC     ', 'H         ', 'R         ' &
+                              ,'AVRAIN    ', 'H         ', 'R         ' &
+                              ,'AVCNVC    ', 'H         ', 'R         ' &
 !
 !                              -----------------------------------------
 !
@@ -505,13 +506,7 @@
 !***  REAL SCALARS
 !------------------
 !
-      R_SC(1)%NAME=>int_state%APHTIM
-      R_SC(2)%NAME=>int_state%ARDLW
-      R_SC(3)%NAME=>int_state%ARDSW
-      R_SC(4)%NAME=>int_state%ASRFC
-      R_SC(5)%NAME=>int_state%AVCNVC
-      R_SC(6)%NAME=>int_state%AVRAIN
-      R_SC(7)%NAME=>int_state%PDTOP
+      R_SC(1)%NAME=>int_state%PDTOP
 !        
 !-----------------------
 !***  1D INTEGER ARRAYS
@@ -639,6 +634,13 @@
       R_2D(94)%NAME=>int_state%TLMIN
       R_2D(95)%NAME=>int_state%TLMAX
       R_2D(96)%NAME=>int_state%LSPA
+      R_2D(97)%NAME=>int_state%ACUTIM
+      R_2D(98)%NAME=>int_state%APHTIM
+      R_2D(99)%NAME=>int_state%ARDLW
+      R_2D(100)%NAME=>int_state%ARDSW
+      R_2D(101)%NAME=>int_state%ASRFC
+      R_2D(102)%NAME=>int_state%AVCNVC
+      R_2D(103)%NAME=>int_state%AVRAIN
 !        
 !--------------------
 !***  3D REAL ARRAYS

@@ -775,12 +775,9 @@
         READ(NFCST) SGML1
         READ(NFCST) SGML2
         READ(NFCST) SGM
-        READ(NFCST) ! APHTIM
-        READ(NFCST) ! ARDLW
-        READ(NFCST) ! ARDSW
-        READ(NFCST) ! ASRFC
-        READ(NFCST) ! AVCNVC
-        READ(NFCST) ! AVRAIN
+!
+!-- APHTIM,ARDLW,ARDSW,ASRFC,AVCNVC,AVRAIN are now 2D arrays and not scalars (below)
+!
         READ(NFCST) SLDPTH
         READ(NFCST) int_state%MP_RESTART_STATE
         READ(NFCST) int_state%TBPVS_STATE
@@ -1729,6 +1726,56 @@
       ENDIF
       CALL DSTRB(TEMP1,int_state%TLMAX,1,1,1,1,1)
 !-----------------------------------------------------------------------
+!***  ACUTIM
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ACUTIM,1,1,1,1,1)
+!-----------------------------------------------------------------------
+!***  APHTIM
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%APHTIM,1,1,1,1,1)
+!-----------------------------------------------------------------------
+!***  ARDLW
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ARDLW,1,1,1,1,1)
+!-----------------------------------------------------------------------
+!***  ARDSW
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ARDSW,1,1,1,1,1)
+!-----------------------------------------------------------------------
+!***  ASRFC
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ASRFC,1,1,1,1,1)
+!-----------------------------------------------------------------------
+!***  AVRAIN
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%AVRAIN,1,1,1,1,1)
+!-----------------------------------------------------------------------
+!***  AVCNVC
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%AVCNVC,1,1,1,1,1)
+!
+!-----------------------------------------------------------------------
 !              READ FROM RESTART FILE: REAL 3D ARRAYS
 !-----------------------------------------------------------------------
 !
@@ -2671,10 +2718,6 @@
       CALL NEMSIO_GETHEADVAR(gfile,'MP_RESTART',int_state%MP_RESTART_STATE,iret=irtn)
       CALL NEMSIO_GETHEADVAR(gfile,'TBPVS_STAT',int_state%TBPVS_STATE,iret=irtn)
       CALL NEMSIO_GETHEADVAR(gfile,'TBPVS0_STA',int_state%TBPVS0_STATE,iret=irtn)
-!      write(0,*)'irtn=',irtn,'mp_rest=',maxval(int_state%MP_RESTART_STATE), &
-!        minval(int_state%MP_RESTART_STATE),'tbpvs_st=',maxval(int_state%TBPVS_STATE), &
-!        minval(int_state%TBPVS_STATE),'tbpvs0=',maxval(int_state%TBPVS0_STATE), &
-!        minval(int_state%TBPVS0_STATE),'sg2=',sg2(1:10),maxval(sg2),minval(sg2)
 !
       DO N=1,NSOIL
         int_state%SLDPTH(N)=SLDPTH(N)
@@ -3709,6 +3752,69 @@
 !        write(0,*)'read rst phys,z0base=',maxval(temp1),minval(temp1)
       ENDIF
       CALL DSTRB(TEMP1,int_state%TLMAX,1,1,1,1,1)
+!-----------------------------------------------------------------------
+!***  ACUTIM
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        CALL NEMSIO_READRECV(gfile,'acutim','sfc',1,temp1,iret=irtn)
+        write(0,*)'read rst phys,acutim=',maxval(temp1),minval(temp1)
+!        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ACUTIM,1,1,1,1,1)
+!-----------------------------------------------------------------------
+!***  APHTIM
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        CALL NEMSIO_READRECV(gfile,'aphtim','sfc',1,temp1,iret=irtn)
+        write(0,*)'read rst phys,aphtim=',maxval(temp1),minval(temp1)
+!        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%APHTIM,1,1,1,1,1)
+!-----------------------------------------------------------------------
+!***  ARDLW
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        CALL NEMSIO_READRECV(gfile,'ardlw','sfc',1,temp1,iret=irtn)
+        write(0,*)'read rst phys,ardlw=',maxval(temp1),minval(temp1)
+!        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ARDLW,1,1,1,1,1)
+!-----------------------------------------------------------------------
+!***  ARDSW
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        CALL NEMSIO_READRECV(gfile,'ardsw','sfc',1,temp1,iret=irtn)
+        write(0,*)'read rst phys,ardsw=',maxval(temp1),minval(temp1)
+!        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ARDSW,1,1,1,1,1)
+!-----------------------------------------------------------------------
+!***  ASRFC
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        CALL NEMSIO_READRECV(gfile,'asrfc','sfc',1,temp1,iret=irtn)
+        write(0,*)'read rst phys,asrfc=',maxval(temp1),minval(temp1)
+!        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ASRFC,1,1,1,1,1)
+!-----------------------------------------------------------------------
+!***  AVRAIN
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        CALL NEMSIO_READRECV(gfile,'avrain','sfc',1,temp1,iret=irtn)
+        write(0,*)'read rst phys,avrain=',maxval(temp1),minval(temp1)
+!        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%AVRAIN,1,1,1,1,1)
+!-----------------------------------------------------------------------
+!***  AVCNVC
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        CALL NEMSIO_READRECV(gfile,'avcnvc','sfc',1,temp1,iret=irtn)
+        write(0,*)'read rst phys,avcnvc=',maxval(temp1),minval(temp1)
+!        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%AVCNVC,1,1,1,1,1)
 !-----------------------------------------------------------------------
 !              READ FROM RESTART FILE: REAL 3D ARRAYS
 !-----------------------------------------------------------------------
