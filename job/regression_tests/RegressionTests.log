@@ -1,4 +1,4 @@
-Wed Aug 26 18:08:57 EDT 2009
+Wed Aug 26 16:18:58 EDT 2009
 Start Regression test
 Test 1
 Compare results with previous trunk version
@@ -271,4 +271,4 @@ Checking test 14 results ....
  Comparing flxf012_nemsio.........OK
  Comparing flxf024_nemsio.........OK
  Test 14 passed 
-Wed Aug 26 19:46:46 EDT 2009
+Wed Aug 26 17:56:43 EDT 2009
