@@ -7,8 +7,8 @@ include ../../ush/compile_settings
 all: 
 	cd $(GFS_DYN) && make -f makefile_stub 
 	cp $(GFS_DYN)/gfs_dynamics_grid_comp_mod.mod $(MODDIR)/modstub/gfs
-	cd $(GFS_PHY) && make -f makefile_stub
-	cp $(GFS_PHY)/gfs_physics_grid_comp_mod.mod $(MODDIR)/modstub/gfs
+	cd $(GFS_PHY) && make -f _GFS_PHY_MAKEFILE_
+	_GFS_PHY_LIB_LOC_
 	cd $(GFS_IO) && make -f makefile_stub 
 	cp $(GFS_IO)/module_write_grid_comp_gfs.mod $(MODDIR)/modstub/gfs
 	cp $(GFS_IO)/module_write_routines_gfs.mod $(MODDIR)/modstub/gfs
@@ -21,7 +21,7 @@ all:
 	echo "gfs stub libraries created."
 clean:
 	cd $(GFS_DYN) && make -f makefile_stub clean
-	cd $(GFS_PHY) && make -f makefile_stub clean
+	cd $(GFS_PHY) && make -f _GFS_PHY_MAKEFILE_ clean
 	cd $(GFS_IO) && make -f makefile_stub clean
 	cd $(GFS_UTIL) && make -f makefile_stub clean
 	cd $(ATM) && make -f makefile_stub clean

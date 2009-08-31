@@ -32,12 +32,11 @@
 #
 #
 include ../../ush/compile_settings
+MAKEFILE=makefile
 TARGET=nmm_io.a
  
-MODULEIO=       \
-		nemsio_module.o
-
 MODULES=	\
+		module_BGRID_INTERP.o \
 		module_GET_CONFIG_WRITE.o \
 		module_WRITE_GRID_COMP.o \
 		module_WRITE_ROUTINES.o \
@@ -48,14 +47,18 @@ MODULES=	\
 .F90.f90:
 	$(CPP) $(CPPFLAGS) $< > $*.f90
 
-$(LIBDIR)/lib/$(TARGET): $(MODULEIO) $(MODULES) 
-	$(AR) $(ARFLAGS) $(LIBDIR)/lib/$(TARGET) $(MODULEIO) $(MODULES) 
+default:
+	@gmake -f $(MAKEFILE) all
 
-$(MODULEIO):     $(DEPS)
-	$(FC) $(FFLAG_NMM_IO) -c $<
+all: $(LIBDIR)/lib/$(TARGET)
 
-$(MODULES):	$(DEPS)
-	$(FC) $(FFLAG_NMM_IO) -c $<
+
+$(LIBDIR)/lib/$(TARGET): $(MODULES) 
+	$(AR) $(ARFLAGS) $@ $?
+
+
+$(MODULES): %.o: %.f90	$(DEPS)
+	$(FC) $(FFLAG_NMM_IO) -c $*.f90
 
 clean:	
 	/bin/rm -f  $(LIBDIR)/lib/$(TARGET) 
@@ -71,11 +74,11 @@ clean:
 #
 module_WRITE_GRID_COMP.o:  \
                                 module_WRITE_ROUTINES.o \
+				module_BGRID_INTERP.o \
                                 module_WRITE_INTERNAL_STATE.o 
 
 module_GET_CONFIG_WRITE.o:     	\
                                 module_WRITE_INTERNAL_STATE.o 
 
 module_WRITE_ROUTINES.o :       \
-                                module_WRITE_INTERNAL_STATE.o \
-				nemsio_module.o
+                                module_WRITE_INTERNAL_STATE.o 

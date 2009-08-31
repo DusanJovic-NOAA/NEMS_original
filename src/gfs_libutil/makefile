@@ -4,7 +4,7 @@
 # *****************************************************************
 #
 include ../../ush/compile_settings
-MAKEFILE=gfs_libutil_makefile
+MAKEFILE=makefile
 TARGET= gfs_libutil.a
 
 OBJ=\

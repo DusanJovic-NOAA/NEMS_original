@@ -19,7 +19,6 @@
   INCDIR=$(DISK)/inc
   MODDIR=$(DISK)/mod
   MODDIR1=$(DISK1)/mod
-  MAKEFILES=$(EXPDIR)/makefiles
   TEMPLATES=$(USHDIR)/templates
 ###########################################################
 # Driver 
@@ -92,9 +91,9 @@
 # Cumulative Source Code Include File Compiler Flags
 ###########################################################
   GCINCS=-I$(NMM_UTIL) -I$(NMM_IO) -I$(NMM_DYN) -I$(NMM_PHY) -I$(ATM) -I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_UTIL) -I$(GFS_IO)
-  GCINCS_NMM=-I$(NMM_UTIL) -I$(NMM_IO) -I$(NMM_DYN) -I$(NMM_PHY) -I$(ATM) -I$(MODDIR)/modstub/gfs
+  GCINCS_NMM=-I$(NMM_UTIL) -I$(NMM_IO) -I$(NMM_DYN) -I$(NMM_PHY) -I$(ATM)  -I$(GFS_PHY) -I$(MODDIR)/modstub/gfs 
   GCINCS_GFS=-I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_UTIL) -I$(GFS_IO) -I$(ATM) -I$(MODDIR)/modstub/nmm
-  GCINCS_NMM1=-I$(NMM_UTIL1) -I$(NMM_IO1) -I$(NMM_DYN1) -I$(NMM_PHY1) -I$(MODDIR1)/modstub/gfs
+  GCINCS_NMM1=-I$(NMM_UTIL1) -I$(NMM_IO1) -I$(NMM_DYN1) -I$(NMM_PHY1) -I$(GFS_PHY1) -I$(MODDIR1)/modstub/gfs
   GCINCS_GFS1=-I$(GFS_DYN1) -I$(GFS_PHY1) -I$(GFS_UTIL1) -I$(GFS_IO1) -I$(MODDIR1)/modstub/nmm
   FINCS=-I$(ESMF_MOD) $(GCINCS)
   FINCS_NMM=-I$(ESMF_MOD) $(GCINCS_NMM)
@@ -106,44 +105,13 @@
   FFLAG_GFS_MAIN=$(OPT_GFS) $(FINCS_GFS) $(TRAPS) -qfree -NS2048
   FFLAG_NMM_UTIL=$(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(FINCP)
   FFLAG_NMM_IO=$(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(NMM_UTIL)
-  FFLAG_NMM_PHY=$(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(NMM_UTIL) -I$(NMM_IO) -I$(MODDIR)/modstub/gfs
+  FFLAG_NMM_PHY=$(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(NMM_UTIL) -I$(NMM_IO) -I$(GFS_PHY) -I$(MODDIR)/modstub/gfs
   FFLAG_NMM_DYN=$(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(NMM_UTIL) -I$(NMM_IO)
-#  FFLAG_GFS_UTIL90=$(OPT_GFS) -I$(ESMF_MOD) -I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_IO) -qfree -NS2048
-#  FFLAG_GFS_UTIL=$(OPT_GFS) -I$(ESMF_MOD) -I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_IO)
-#  FFLAG_GFS_IO=-I$(GFS_DYN) -I$(GFS_PHY)
   FFLAG_GFS_UTIL=$(OPTS90) $(TRAPS)
   FFLAG_GFS_UTIL90=$(OPTS90) $(TRAPS) -I$(ESMF_MOD) -qfree -NS2048
   FFLAG_GFS_DYN=$(OPTS90) $(TRAPS) -I$(GFS_UTIL)
   FFLAG_GFS_PHY=$(OPTS90) $(TRAPS) -I$(GFS_UTIL)
   FFLAG_GFS_IO=$(FFLAG90) -I$(GFS_UTIL) -I$(GFS_DYN) -I$(GFS_PHY)
-###########################################################
-# Makefile Labels (likely won't change)
-###########################################################
-  NMM_UTIL_MAKEFILE=nmm_libutil_makefile
-  NMM_DYN_MAKEFILE=nmm_dyn_makefile
-  NMM_PHY_MAKEFILE=nmm_phys_makefile
-  NMM_IO_MAKEFILE=nmm_io_makefile
-  GFS_UTIL_MAKEFILE=gfs_libutil_makefile
-  GFS_DYN_MAKEFILE=gfs_dyn_makefile
-  GFS_PHY_MAKEFILE=gfs_phys_makefile
-  GFS_IO_MAKEFILE=gfs_io_makefile
-  ATM_MAKEFILE=atmos_makefile
-  STUB=makefile_stub
-  STUB_GFS_PHYSICS=makefile_stub_full_physics
-###########################################################
-# Makefile Command Variables
-###########################################################
-  GFS_DYN_MAKEFILE_NEW=make -f $(GFS_DYN_MAKEFILE)
-  GFS_PHY_MAKEFILE_NEW=make -f $(GFS_PHY_MAKEFILE)
-  GFS_IO_MAKEFILE_NEW=make -f $(GFS_IO_MAKEFILE)
-  GFS_UTIL_MAKEFILE_NEW=make -f $(GFS_UTIL_MAKEFILE)
-  ATM_MAKEFILE_NEW=make -f $(ATM_MAKEFILE)
-  NMM_DYN_MAKEFILE_NEW=make -f $(NMM_DYN_MAKEFILE)
-  NMM_PHY_MAKEFILE_NEW=make -f $(NMM_PHY_MAKEFILE)
-  NMM_IO_MAKEFILE_NEW=make -f $(NMM_IO_MAKEFILE)
-  NMM_UTIL_MAKEFILE_NEW=make -f $(NMM_UTIL_MAKEFILE)
-  STUB_MAKEFILE=make -f $(STUB)
-  STUB_MAKEFILE_GFS_PHYSICS=make -f $(STUB_GFS_PHYSICS)
 ###########################################################
 # Local Include Files
 ###########################################################

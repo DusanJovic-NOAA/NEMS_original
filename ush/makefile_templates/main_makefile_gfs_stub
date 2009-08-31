@@ -1,55 +1,40 @@
-####   requires necessary grid components
+###   requires necessary grid components
 #
 #
 include ../../ush/compile_settings
 # *****************************************************************
 #
 all: 
-	cd $(NMM_UTIL) && $(STUB_MAKEFILE) 
+	cd $(NMM_UTIL) && make -f makefile_stub 
 	cp $(NMM_UTIL)/module_atm_internal_state.mod $(MODDIR)/modstub/nmm
 	cp $(NMM_UTIL)/module_clocktimes.mod $(MODDIR)/modstub/nmm
 	cp $(NMM_UTIL)/module_control.mod $(MODDIR)/modstub/nmm
 	cp $(NMM_UTIL)/module_diagnose.mod $(MODDIR)/modstub/nmm
 	cp $(NMM_UTIL)/module_dm_parallel.mod $(MODDIR)/modstub/nmm
 	cp $(NMM_UTIL)/module_include.mod $(MODDIR)/modstub/nmm
-	cd $(NMM_IO) && $(STUB_MAKEFILE) 
+	cd $(NMM_IO) && make -f makefile_stub 
 	cp $(NMM_IO)/module_write_grid_comp.mod $(MODDIR)/modstub/nmm
 	cp $(NMM_IO)/module_write_routines.mod $(MODDIR)/modstub/nmm
 	cp $(NMM_IO)/module_get_config_write.mod $(MODDIR)/modstub/nmm
-	cd $(NMM_DYN) && $(STUB_MAKEFILE) 
+	cd $(NMM_DYN) && make -f makefile_stub 
 	cp $(NMM_DYN)/module_dynamics_grid_comp.mod $(MODDIR)/modstub/nmm
 	cp $(NMM_DYN)/module_dyn_phy_cpl_comp.mod $(MODDIR)/modstub/nmm
 	cp $(NMM_DYN)/module_get_config_dyn.mod $(MODDIR)/modstub/nmm
-	cd $(NMM_PHY) && $(STUB_MAKEFILE) 
+	cd $(NMM_PHY) && make -f makefile_stub 
 	cp $(NMM_PHY)/module_get_config_phy.mod $(MODDIR)/modstub/nmm
 	cp $(NMM_PHY)/module_physics_grid_comp.mod $(MODDIR)/modstub/nmm
-	cd $(ATM) && $(STUB_MAKEFILE) 
+	cd $(ATM) && make -f makefile_stub 
 	cp $(ATM)/module_nmm_core_setup.mod ../../mod/modstub/nmm
 	cp $(ATM)/module_nmm_bck_integrate.mod ../../mod/modstub/nmm
 	cp $(ATM)/module_nmm_fwd_integrate.mod ../../mod/modstub/nmm
 	cp $(ATM)/module_nmm_integrate.mod ../../mod/modstub/nmm
 	echo "nmm stub libraries created."
-	rm -f $(NMM_UTIL)/*.mod
-	rm -f $(NMM_UTIL)/*.o
-	rm -f $(NMM_UTIL)/*.f90
-	rm -f $(NMM_IO)/*.mod
-	rm -f $(NMM_IO)/*.o
-	rm -f $(NMM_IO)/*.f90
-	rm -f $(NMM_DYN)/*.mod
-	rm -f $(NMM_DYN)/*.o
-	rm -f $(NMM_DYN)/*.f90
-	rm -f $(NMM_PHY)/*.mod
-	rm -f $(NMM_PHY)/*.o
-	rm -f $(NMM_PHY)/*.f90
-	rm -f $(ATM)/*.mod
-	rm -f $(ATM)/*.o
-	rm -f $(ATM)/*.f90
 clean:
-	cd $(NMM_UTIL) && $(STUB_MAKEFILE) clean
-	cd $(NMM_IO) && $(STUB_MAKEFILE) clean
-	cd $(NMM_DYN) && $(STUB_MAKEFILE) clean
-	cd $(NMM_PHY) && $(STUB_MAKEFILE) clean
-	cd $(ATM) && $(STUB_MAKEFILE) clean
+	cd $(NMM_UTIL) && make -f makefile_stub clean
+	cd $(NMM_IO) && make -f makefile_stub clean
+	cd $(NMM_DYN) && make -f makefile_stub clean
+	cd $(NMM_PHY) && make -f makefile_stub clean
+	cd $(ATM) && make -f makefile_stub clean
 	rm -f $(MODDIR)/modstub/gfs/*
 	rm -f $(MODDIR)/modstub/nmm/*
 	rm -f $(LIBDIR)/libstub/*

@@ -8,7 +8,6 @@
 #
 #     The following macros will be of interest:
 #
-#         TARGET   - name of the executable
 #         FC       - name of Fortran compiler
 #         CPP      - name of CPP
 #         ARCH     - architecture
@@ -32,8 +31,12 @@
 #
 #
 include ../../ush/compile_settings
+MAKEFILE = makefile
 TARGET = nmm_libutil.a
  
+MODULEIO=       \
+		nemsio_module.o
+
 MODULES=	\
 		module_ATM_INTERNAL_STATE.o  \
 		module_CLOCKTIMES.o \
@@ -52,11 +55,19 @@ MODULES=	\
 .F90.f90:
 	$(CPP) $(CPPFLAGS) $< > $*.f90
 
-$(LIBDIR)/lib/$(TARGET): $(MODULES) 
-	$(AR) $(ARFLAGS) $(LIBDIR)/lib/$(TARGET) $(MODULES) 
+default:
+	@gmake -f $(MAKEFILE) all
 
-$(MODULES):	$(DEPS)
-	$(FC) $(FFLAG_NMM_UTIL) -c $<
+all: $(LIBDIR)/lib/$(TARGET)
+
+$(LIBDIR)/lib/$(TARGET): $(MODULEIO) $(MODULES) 
+	$(AR) $(ARFLAGS) $@ $?
+
+$(MODULEIO): %.o: %.f90    $(DEPS)
+	$(FC) $(FFLAG_NMM_UTIL) -c $*.f90
+
+$(MODULES): %.o: %.f90	$(DEPS)
+	$(FC) $(FFLAG_NMM_UTIL) -c $*.f90
 
 clean:	
 	/bin/rm -f  $(LIBDIR)/lib/$(TARGET) 
@@ -73,9 +84,10 @@ clean:
 
 module_CONTROL.o :   \
 				module_INCLUDE.o \
-                        	module_CONSTANTS.o \
-                        	module_DM_PARALLEL.o \
-                        	module_EXCHANGE.o
+				module_CONSTANTS.o \
+				module_DM_PARALLEL.o \
+				module_EXCHANGE.o \
+				nemsio_module.o
 
 module_DIGITAL_FILTER_NMM.o: \
 				module_INCLUDE.o \

@@ -5,29 +5,23 @@
 #
 include ../../ush/compile_settings
 all: 
-	cd $(NMM_UTIL) && $(NMM_UTIL_MAKEFILE_NEW) 
-	cd $(NMM_IO) && $(NMM_IO_MAKEFILE_NEW) 
-	cd $(NMM_DYN) && $(NMM_DYN_MAKEFILE_NEW)  
-	cd $(NMM_PHY) && $(NMM_PHY_MAKEFILE_NEW) 
-	cd $(ATM) && $(ATM_MAKEFILE_NEW)
+	cd $(NMM_UTIL) && make
+	cd $(NMM_IO) && make 
+	cd $(NMM_DYN) && make  
+	cd $(NMM_PHY) && make 
+	cd $(ATM) && make
 	/bin/rm -f $(EXEDIR)/NMM_NEMS.x
-	/bin/rm -f *.o
-	/bin/rm -f *.mod
-	/bin/rm -f *.f90
-	/bin/rm -f *.lst
-	/bin/rm -f lm
-	/bin/rm -f map
 	$(CPP) $(CPPFLAGS) $(ROOT).F90 > $(ROOT).f90
 	$(F90) $(FFLAG_NMM_MAIN) -c $(ROOT).f90
 	$(LDR) $(LDFLAGS) -o ${EXEDIR}/NMM_NEMS.x $(OBJS) $(LIB)
 	echo "NMM_NEMS.x is created for NMM core."
 
 clean:
-	cd $(NMM_UTIL) && $(NMM_UTIL_MAKEFILE_NEW) clean
-	cd $(NMM_IO) && $(NMM_IO_MAKEFILE_NEW) clean 
-	cd $(NMM_DYN) && $(NMM_DYN_MAKEFILE_NEW) clean
-	cd $(NMM_PHY) && $(NMM_PHY_MAKEFILE_NEW) clean
-	cd $(ATM) && $(ATM_MAKEFILE_NEW) clean
+	cd $(NMM_UTIL) && make clean
+	cd $(NMM_IO) && make clean 
+	cd $(NMM_DYN) && make clean
+	cd $(NMM_PHY) && make clean
+	cd $(ATM) && make clean
 	/bin/rm -f $(EXEDIR)/NMM_NEMS.x
 	/bin/rm -f *.o
 	/bin/rm -f *.mod

@@ -4,7 +4,7 @@
 #---------------
 #
 include ../../ush/compile_settings
-MAKEFILE=gfs_io_makefile
+MAKEFILE=makefile
 TARGET= gfs_io.a
 # *****************************************************************
 #

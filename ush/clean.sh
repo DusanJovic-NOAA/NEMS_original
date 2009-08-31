@@ -22,7 +22,7 @@
     cd ../src/main && make -f Makefile_main clean
     rm -f Makefile_main
     rm -f Makefile_stub
-    rm -f atmos/atmos_makefile
+    rm -f atmos/makefile
     rm -f atmos/makefile_stub 
 echo 'NEMS cleaned'
 

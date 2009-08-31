@@ -3,7 +3,7 @@
 # *****************************************************************
 #
 include ../../ush/compile_settings 
-MAKEFILE=gfs_dyn_makefile
+MAKEFILE=makefile
 TARGET = gfs_dyn.a
 OBJS0	= \
 	  gfs_dynamics_err_msg_mod.o		\

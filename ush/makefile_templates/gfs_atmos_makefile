@@ -36,7 +36,7 @@
 #
 #
 include ../../../ush/compile_settings
-MAKEFILE=atmos_makefile
+MAKEFILE=makefile
 TARGET= atmos.a
 
 MODULE=        \

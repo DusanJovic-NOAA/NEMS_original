@@ -20,8 +20,8 @@ cd ../../
 #########################################
 export PATHTR=`pwd`
 
-export ME=`whoami`
-rm -rf /ptmp/${ME}/RT
+RUNDIR_ROOT=/ptmp/${LOGIN}/RT_$$
+rm -rf ${RUNDIR_ROOT}
 
 clear;echo;echo
 
@@ -32,8 +32,8 @@ echo "Preparing NMMB core for regression tests"
 printf %s "Compiling NMMB core (this will take ~10 minutes)......."
 cd ush
 
-./clean.sh                 >> ${PATHRT}/Compile.log 2>&1
-./clean_stub.sh            >> ${PATHRT}/Compile.log 2>&1
+./clean_stub.sh                 >> ${PATHRT}/Compile.log 2>&1
+./clean.sh            >> ${PATHRT}/Compile.log 2>&1
 ./compile_configure.sh nmm >> ${PATHRT}/Compile.log 2>&1
 ./compile.sh               >> ${PATHRT}/Compile.log 2>&1
 
@@ -51,14 +51,15 @@ cd $PATHRT
 # Submit test 1
 ####################################################################################################
 
+export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL
+
 rm -f err out configure_file nmm_glob_ll nmm_reg_ll  gfs_fcst_run  gfs_ll
 
 cat nmm_glob_ll.IN   | sed s:_TPN_:32:g         \
                      | sed s:_GS_:#:g           \
-                     | sed s:_ME_:${ME}:g       \
                      | sed s:_RTPWD_:${RTPWD}:g \
                      | sed s:_SRCD_:${PATHTR}:g \
-                     | sed s:_DIR_:NMM_CNTRL:g  >  nmm_glob_ll
+                     | sed s:_RUND_:${RUNDIR}:g  >  nmm_glob_ll
 
 cat nmm_glob_conf.IN | sed s:_INPES_:06:g       \
                      | sed s:_WTPG_:2:g         \
@@ -113,9 +114,9 @@ do
 printf %s " Comparing " $i "....." >> RegressionTests.log
 printf %s " Comparing " $i "....."
 
-if [ -f /ptmp/${ME}/RT/NMM_CNTRL/$i ] ; then
+if [ -f ${RUNDIR}/$i ] ; then
 
-  d=`cmp ${RTPWD}/NMMB_glob/$i /ptmp/${ME}/RT/NMM_CNTRL/$i | wc -l`
+  d=`cmp ${RTPWD}/NMMB_glob/$i ${RUNDIR}/$i | wc -l`
 
   if [[ $d -ne 0 ]] ; then
    (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> RegressionTests.log
@@ -127,8 +128,8 @@ if [ -f /ptmp/${ME}/RT/NMM_CNTRL/$i ] ; then
 
 else
 
-  echo "Missing " /ptmp/${ME}/RT/NMM_CNTRL/$i " output file" >> RegressionTests.log
-  echo "Missing " /ptmp/${ME}/RT/NMM_CNTRL/$i " output file"
+  echo "Missing " ${RUNDIR}/$i " output file" >> RegressionTests.log
+  echo "Missing " ${RUNDIR}/$i " output file"
  (echo;echo " Test 1 failed ")>> RegressionTests.log
   echo;echo " Test 1 failed "
   exit
@@ -151,14 +152,15 @@ clear;echo;echo
 # Submit test 2
 ####################################################################################################
 
+export RUNDIR=${RUNDIR_ROOT}/NMM_NEMSIO
+
 rm -f err out configure_file nmm_glob_ll nmm_reg_ll  gfs_fcst_run  gfs_ll
 
 cat nmm_glob_ll.IN   | sed s:_TPN_:32:g         \
                      | sed s:_GS_:#:g           \
-                     | sed s:_ME_:${ME}:g       \
                      | sed s:_RTPWD_:${RTPWD}:g \
                      | sed s:_SRCD_:${PATHTR}:g \
-                     | sed s:_DIR_:NMM_NEMSIO:g >  nmm_glob_ll
+                     | sed s:_RUND_:${RUNDIR}:g >  nmm_glob_ll
 
 cat nmm_glob_conf.IN | sed s:_INPES_:06:g       \
                      | sed s:_WTPG_:2:g         \
@@ -213,9 +215,9 @@ do
 printf %s " Comparing " $i "....." >> RegressionTests.log
 printf %s " Comparing " $i "....."
 
-if [ -f /ptmp/${ME}/RT/NMM_NEMSIO/$i ] ; then
+if [ -f ${RUNDIR}/$i ] ; then
 
-  d=`cmp ${RTPWD}/NMMB_glob/$i /ptmp/${ME}/RT/NMM_NEMSIO/$i | wc -l`
+  d=`cmp ${RTPWD}/NMMB_glob/$i ${RUNDIR}/$i | wc -l`
 
   if [[ $d -ne 0 ]] ; then
    (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> RegressionTests.log
@@ -227,8 +229,8 @@ if [ -f /ptmp/${ME}/RT/NMM_NEMSIO/$i ] ; then
 
 else
 
-  echo "Missing " /ptmp/${ME}/RT/NMM_NEMSIO/$i " output file" >> RegressionTests.log
-  echo "Missing " /ptmp/${ME}/RT/NMM_NEMSIO/$i " output file"
+  echo "Missing " ${RUNDIR}/$i " output file" >> RegressionTests.log
+  echo "Missing " ${RUNDIR}/$i " output file"
  (echo;echo " Test 2 failed ")>> RegressionTests.log
   echo;echo " Test 2 failed "
   exit
@@ -247,14 +249,15 @@ clear;echo;echo
 # Submit test 3
 ####################################################################################################
 
+export RUNDIR=${RUNDIR_ROOT}/NMM_REST
+
 rm -f err out configure_file nmm_glob_ll nmm_reg_ll  gfs_fcst_run  gfs_ll
 
 cat nmm_glob_ll.IN   | sed s:_TPN_:32:g         \
                      | sed s:_GS_:#:g           \
-                     | sed s:_ME_:${ME}:g       \
                      | sed s:_RTPWD_:${RTPWD}:g \
                      | sed s:_SRCD_:${PATHTR}:g \
-                     | sed s:_DIR_:NMM_REST:g   >  nmm_glob_ll
+                     | sed s:_RUND_:${RUNDIR}:g >  nmm_glob_ll
 
 cat nmm_glob_conf.IN | sed s:_INPES_:06:g       \
                      | sed s:_WTPG_:2:g         \
@@ -310,9 +313,9 @@ do
 printf %s " Comparing " $i "....." >> RegressionTests.log
 printf %s " Comparing " $i "....."
 
-if [ -f /ptmp/${ME}/RT/NMM_REST/$i ] ; then
+if [ -f ${RUNDIR}/$i ] ; then
 
-  d=`cmp ${RTPWD}/NMMB_glob/$i /ptmp/${ME}/RT/NMM_REST/$i | wc -l`
+  d=`cmp ${RTPWD}/NMMB_glob/$i ${RUNDIR}/$i | wc -l`
 
   if [[ $d -ne 0 ]] ; then
    (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> RegressionTests.log
@@ -324,8 +327,8 @@ if [ -f /ptmp/${ME}/RT/NMM_REST/$i ] ; then
 
 else
 
-  echo "Missing " /ptmp/${ME}/RT/NMM_REST/$i " output file" >> RegressionTests.log
-  echo "Missing " /ptmp/${ME}/RT/NMM_REST/$i " output file"
+  echo "Missing " ${RUNDIR}/$i " output file" >> RegressionTests.log
+  echo "Missing " ${RUNDIR}/$i " output file"
  (echo;echo " Test 3 failed ")>> RegressionTests.log
   echo;echo " Test 3 failed "
   exit
@@ -344,14 +347,15 @@ clear;echo;echo
 # Submit test 4
 ####################################################################################################
 
+export RUNDIR=${RUNDIR_ROOT}/NMM_REST_NIO
+
 rm -f err out configure_file nmm_glob_ll nmm_reg_ll  gfs_fcst_run  gfs_ll
 
 cat nmm_glob_ll.IN   | sed s:_TPN_:32:g            \
                      | sed s:_GS_:#:g              \
-                     | sed s:_ME_:${ME}:g          \
                      | sed s:_RTPWD_:${RTPWD}:g    \
                      | sed s:_SRCD_:${PATHTR}:g    \
-                     | sed s:_DIR_:NMM_REST_NIO:g  >  nmm_glob_ll
+                     | sed s:_RUND_:${RUNDIR}:g    >  nmm_glob_ll
 
 cat nmm_glob_conf.IN | sed s:_INPES_:06:g          \
                      | sed s:_WTPG_:2:g            \
@@ -407,9 +411,9 @@ do
 printf %s " Comparing " $i "....." >> RegressionTests.log
 printf %s " Comparing " $i "....."
 
-if [ -f /ptmp/${ME}/RT/NMM_REST_NIO/$i ] ; then
+if [ -f ${RUNDIR}/$i ] ; then
 
-  d=`cmp ${RTPWD}/NMMB_glob/$i /ptmp/${ME}/RT/NMM_REST_NIO/$i | wc -l`
+  d=`cmp ${RTPWD}/NMMB_glob/$i ${RUNDIR}/$i | wc -l`
 
   if [[ $d -ne 0 ]] ; then
    (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> RegressionTests.log
@@ -421,8 +425,8 @@ if [ -f /ptmp/${ME}/RT/NMM_REST_NIO/$i ] ; then
 
 else
 
-  echo "Missing " /ptmp/${ME}/RT/NMM_REST_NIO/$i " output file" >> RegressionTests.log
-  echo "Missing " /ptmp/${ME}/RT/NMM_REST_NIO/$i " output file"
+  echo "Missing " ${RUNDIR}/$i " output file" >> RegressionTests.log
+  echo "Missing " ${RUNDIR}/$i " output file"
  (echo;echo " Test 4 failed ")>> RegressionTests.log
   echo;echo " Test 4 failed "
   exit
@@ -441,14 +445,15 @@ clear;echo;echo
 # Submit test 5
 ####################################################################################################
 
+export RUNDIR=${RUNDIR_ROOT}/NMM_DECOMP
+
 rm -f err out configure_file nmm_glob_ll nmm_reg_ll  gfs_fcst_run  gfs_ll
 
 cat nmm_glob_ll.IN   | sed s:_TPN_:16:g         \
                      | sed s:_GS_::g            \
-                     | sed s:_ME_:${ME}:g       \
                      | sed s:_RTPWD_:${RTPWD}:g \
                      | sed s:_SRCD_:${PATHTR}:g \
-                     | sed s:_DIR_:NMM_DECOMP:g >  nmm_glob_ll
+                     | sed s:_RUND_:${RUNDIR}:g >  nmm_glob_ll
 
 cat nmm_glob_conf.IN | sed s:_INPES_:03:g       \
                      | sed s:_WTPG_:1:g         \
@@ -503,9 +508,9 @@ do
 printf %s " Comparing " $i "....." >> RegressionTests.log
 printf %s " Comparing " $i "....."
 
-if [ -f /ptmp/${ME}/RT/NMM_DECOMP/$i ] ; then
+if [ -f ${RUNDIR}/$i ] ; then
 
-  d=`cmp ${RTPWD}/NMMB_glob/$i /ptmp/${ME}/RT/NMM_DECOMP/$i | wc -l`
+  d=`cmp ${RTPWD}/NMMB_glob/$i ${RUNDIR}/$i | wc -l`
 
   if [[ $d -ne 0 ]] ; then
    (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> RegressionTests.log
@@ -517,8 +522,8 @@ if [ -f /ptmp/${ME}/RT/NMM_DECOMP/$i ] ; then
 
 else
 
-  echo "Missing " /ptmp/${ME}/RT/NMM_DECOMP/$i " output file" >> RegressionTests.log
-  echo "Missing " /ptmp/${ME}/RT/NMM_DECOMP/$i " output file"
+  echo "Missing " ${RUNDIR}/$i " output file" >> RegressionTests.log
+  echo "Missing " ${RUNDIR}/$i " output file"
  (echo;echo " Test 5 failed ")>> RegressionTests.log
   echo;echo " Test 5 failed "
   exit
@@ -538,14 +543,15 @@ clear;echo;echo
 # Submit test 6
 ####################################################################################################
 
+export RUNDIR=${RUNDIR_ROOT}/NMM_REG_CTL
+
 rm -f err out configure_file nmm_glob_ll nmm_reg_ll  gfs_fcst_run  gfs_ll
 
 cat nmm_reg_ll.IN   | sed s:_TPN_:32:g           \
                     | sed s:_GS_:#:g             \
-                    | sed s:_ME_:${ME}:g         \
                     | sed s:_RTPWD_:${RTPWD}:g   \
                     | sed s:_SRCD_:${PATHTR}:g   \
-                    | sed s:_DIR_:NMM_REG_CTL:g  >  nmm_reg_ll
+                    | sed s:_RUND_:${RUNDIR}:g   >  nmm_reg_ll
 
 cat nmm_reg_conf.IN | sed s:_INPES_:06:g         \
                     | sed s:_WTPG_:2:g           \
@@ -600,9 +606,9 @@ do
 printf %s " Comparing " $i "....." >> RegressionTests.log
 printf %s " Comparing " $i "....."
 
-if [ -f /ptmp/${ME}/RT/NMM_REG_CTL/$i ] ; then
+if [ -f ${RUNDIR}/$i ] ; then
 
-  d=`cmp ${RTPWD}/NMMB_reg/$i /ptmp/${ME}/RT/NMM_REG_CTL/$i | wc -l`
+  d=`cmp ${RTPWD}/NMMB_reg/$i ${RUNDIR}/$i | wc -l`
 
   if [[ $d -ne 0 ]] ; then
    (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> RegressionTests.log
@@ -614,8 +620,8 @@ if [ -f /ptmp/${ME}/RT/NMM_REG_CTL/$i ] ; then
 
 else
 
-  echo "Missing " /ptmp/${ME}/RT/NMM_REG_CTL/$i " output file" >> RegressionTests.log
-  echo "Missing " /ptmp/${ME}/RT/NMM_REG_CTL/$i " output file"
+  echo "Missing " ${RUNDIR}/$i " output file" >> RegressionTests.log
+  echo "Missing " ${RUNDIR}/$i " output file"
  (echo;echo " Test 6 failed ")>> RegressionTests.log
   echo;echo " Test 6 failed "
   exit
@@ -638,14 +644,15 @@ clear;echo;echo
 # Submit test 7
 ####################################################################################################
 
+export RUNDIR=${RUNDIR_ROOT}/NEM_REG_NEMSIO
+
 rm -f err out configure_file nmm_glob_ll nmm_reg_ll  gfs_fcst_run  gfs_ll
 
 cat nmm_reg_ll.IN   | sed s:_TPN_:32:g              \
                     | sed s:_GS_:#:g                \
-                    | sed s:_ME_:${ME}:g            \
                     | sed s:_RTPWD_:${RTPWD}:g      \
                     | sed s:_SRCD_:${PATHTR}:g      \
-                    | sed s:_DIR_:NMM_REG_NEMSIO:g  >  nmm_reg_ll
+                    | sed s:_RUND_:${RUNDIR}:g      >  nmm_reg_ll
 
 cat nmm_reg_conf.IN | sed s:_INPES_:06:g            \
                     | sed s:_WTPG_:2:g              \
@@ -700,9 +707,9 @@ do
 printf %s " Comparing " $i "....." >> RegressionTests.log
 printf %s " Comparing " $i "....."
 
-if [ -f /ptmp/${ME}/RT/NMM_REG_NEMSIO/$i ] ; then
+if [ -f ${RUNDIR}/$i ] ; then
 
-  d=`cmp ${RTPWD}/NMMB_reg/$i /ptmp/${ME}/RT/NMM_REG_NEMSIO/$i | wc -l`
+  d=`cmp ${RTPWD}/NMMB_reg/$i ${RUNDIR}/$i | wc -l`
 
   if [[ $d -ne 0 ]] ; then
    (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> RegressionTests.log
@@ -714,8 +721,8 @@ if [ -f /ptmp/${ME}/RT/NMM_REG_NEMSIO/$i ] ; then
 
 else
 
-  echo "Missing " /ptmp/${ME}/RT/NMM_REG_NEMSIO/$i " output file" >> RegressionTests.log
-  echo "Missing " /ptmp/${ME}/RT/NMM_REG_NEMSIO/$i " output file"
+  echo "Missing " ${RUNDIR}/$i " output file" >> RegressionTests.log
+  echo "Missing " ${RUNDIR}/$i " output file"
  (echo;echo " Test 7 failed ")>> RegressionTests.log
   echo;echo " Test 7 failed "
   exit
@@ -734,14 +741,15 @@ clear;echo;echo
 # Submit test 8
 ####################################################################################################
 
+export RUNDIR=${RUNDIR_ROOT}/NMM_REG_RST
+
 rm -f err out configure_file nmm_glob_ll nmm_reg_ll  gfs_fcst_run  gfs_ll
 
 cat nmm_reg_ll.IN   | sed s:_TPN_:32:g           \
                     | sed s:_GS_:#:g             \
-                    | sed s:_ME_:${ME}:g         \
                     | sed s:_RTPWD_:${RTPWD}:g   \
                     | sed s:_SRCD_:${PATHTR}:g   \
-                    | sed s:_DIR_:NMM_REG_RST:g  >  nmm_reg_ll
+                    | sed s:_RUND_:${RUNDIR}:g   >  nmm_reg_ll
 
 cat nmm_reg_conf.IN | sed s:_INPES_:06:g         \
                     | sed s:_WTPG_:2:g           \
@@ -797,9 +805,9 @@ do
 printf %s " Comparing " $i "....." >> RegressionTests.log
 printf %s " Comparing " $i "....."
 
-if [ -f /ptmp/${ME}/RT/NMM_REG_RST/$i ] ; then
+if [ -f ${RUNDIR}/$i ] ; then
 
-  d=`cmp ${RTPWD}/NMMB_reg/$i /ptmp/${ME}/RT/NMM_REG_RST/$i | wc -l`
+  d=`cmp ${RTPWD}/NMMB_reg/$i ${RUNDIR}/$i | wc -l`
 
   if [[ $d -ne 0 ]] ; then
    (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> RegressionTests.log
@@ -811,8 +819,8 @@ if [ -f /ptmp/${ME}/RT/NMM_REG_RST/$i ] ; then
 
 else
 
-  echo "Missing " /ptmp/${ME}/RT/NMM_REG_RST/$i " output file" >> RegressionTests.log
-  echo "Missing " /ptmp/${ME}/RT/NMM_REG_RST/$i " output file"
+  echo "Missing " ${RUNDIR}/$i " output file" >> RegressionTests.log
+  echo "Missing " ${RUNDIR}/$i " output file"
  (echo;echo " Test 8 failed ")>> RegressionTests.log
   echo;echo " Test 8 failed "
   exit
@@ -831,14 +839,15 @@ clear;echo;echo
 # Submit test 9
 ####################################################################################################
 
+export RUNDIR=${RUNDIR_ROOT}/NMM_REG_RST_NIO
+
 rm -f err out configure_file nmm_glob_ll nmm_reg_ll  gfs_fcst_run  gfs_ll
 
 cat nmm_reg_ll.IN   | sed s:_TPN_:32:g              \
                     | sed s:_GS_:#:g                \
-                    | sed s:_ME_:${ME}:g            \
                     | sed s:_RTPWD_:${RTPWD}:g      \
                     | sed s:_SRCD_:${PATHTR}:g      \
-                    | sed s:_DIR_:NMM_REG_RST_NIO:g >  nmm_reg_ll
+                    | sed s:_RUND_:${RUNDIR}:g      >  nmm_reg_ll
 
 cat nmm_reg_conf.IN | sed s:_INPES_:06:g            \
                     | sed s:_WTPG_:2:g              \
@@ -894,9 +903,9 @@ do
 printf %s " Comparing " $i "....." >> RegressionTests.log
 printf %s " Comparing " $i "....."
 
-if [ -f /ptmp/${ME}/RT/NMM_REG_RST_NIO/$i ] ; then
+if [ -f ${RUNDIR}/$i ] ; then
 
-  d=`cmp ${RTPWD}/NMMB_reg/$i /ptmp/${ME}/RT/NMM_REG_RST_NIO/$i | wc -l`
+  d=`cmp ${RTPWD}/NMMB_reg/$i ${RUNDIR}/$i | wc -l`
 
   if [[ $d -ne 0 ]] ; then
    (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> RegressionTests.log
@@ -908,8 +917,8 @@ if [ -f /ptmp/${ME}/RT/NMM_REG_RST_NIO/$i ] ; then
 
 else
 
-  echo "Missing " /ptmp/${ME}/RT/NMM_REG_RST_NIO/$i " output file" >> RegressionTests.log
-  echo "Missing " /ptmp/${ME}/RT/NMM_REG_RST_NIO/$i " output file"
+  echo "Missing " ${RUNDIR}/$i " output file" >> RegressionTests.log
+  echo "Missing " ${RUNDIR}/$i " output file"
  (echo;echo " Test 9 failed ")>> RegressionTests.log
   echo;echo " Test 9 failed "
   exit
@@ -928,14 +937,15 @@ clear;echo;echo
 # Submit test 10
 ####################################################################################################
 
+export RUNDIR=${RUNDIR_ROOT}/NMM_REG_DECOMP
+
 rm -f err out configure_file nmm_glob_ll nmm_reg_ll  gfs_fcst_run  gfs_ll
 
 cat nmm_reg_ll.IN   | sed s:_TPN_:16:g              \
                     | sed s:_GS_::g                 \
-                    | sed s:_ME_:${ME}:g            \
                     | sed s:_RTPWD_:${RTPWD}:g      \
                     | sed s:_SRCD_:${PATHTR}:g      \
-                    | sed s:_DIR_:NMM_REG_DECOMP:g  >  nmm_reg_ll
+                    | sed s:_RUND_:${RUNDIR}:g      >  nmm_reg_ll
 
 cat nmm_reg_conf.IN | sed s:_INPES_:03:g            \
                     | sed s:_WTPG_:1:g              \
@@ -988,9 +998,9 @@ do
 printf %s " Comparing " $i "....." >> RegressionTests.log
 printf %s " Comparing " $i "....."
 
-if [ -f /ptmp/${ME}/RT/NMM_REG_DECOMP/$i ] ; then
+if [ -f ${RUNDIR}/$i ] ; then
 
-  d=`cmp ${RTPWD}/NMMB_reg/$i /ptmp/${ME}/RT/NMM_REG_DECOMP/$i | wc -l`
+  d=`cmp ${RTPWD}/NMMB_reg/$i ${RUNDIR}/$i | wc -l`
 
   if [[ $d -ne 0 ]] ; then
    (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> RegressionTests.log
@@ -1002,8 +1012,8 @@ if [ -f /ptmp/${ME}/RT/NMM_REG_DECOMP/$i ] ; then
 
 else
 
-  echo "Missing " /ptmp/${ME}/RT/NMM_REG_DECOMP/$i " output file" >> RegressionTests.log
-  echo "Missing " /ptmp/${ME}/RT/NMM_REG_DECOMP/$i " output file"
+  echo "Missing " ${RUNDIR}/$i " output file" >> RegressionTests.log
+  echo "Missing " ${RUNDIR}/$i " output file"
  (echo;echo " Test 10 failed ")>> RegressionTests.log
   echo;echo " Test 10 failed "
   exit
@@ -1026,8 +1036,8 @@ echo "Preparing GFS core for regression tests"
 printf %s "Compiling GFS core (this will take ~10 minutes)......."
 cd ${PATHTR}/ush
 
-./clean.sh                 >> ${PATHRT}/Compile.log 2>&1
-./clean_stub.sh            >> ${PATHRT}/Compile.log 2>&1
+./clean_stub.sh                 >> ${PATHRT}/Compile.log 2>&1
+./clean.sh            >> ${PATHRT}/Compile.log 2>&1
 ./compile_configure.sh gfs >> ${PATHRT}/Compile.log 2>&1
 ./compile.sh               >> ${PATHRT}/Compile.log 2>&1
 
@@ -1045,7 +1055,7 @@ cd $PATHRT
 # Submit test 11
 ####################################################################################################
 
-export RUNDIR=/ptmp/${ME}/RT/GFS_32
+export RUNDIR=${RUNDIR_ROOT}/GFS_32
 mkdir -p ${RUNDIR}
 cp gfs_configfile ${RUNDIR}/configure_file
 cp ${RTPWD}/GFS/gfsanl.2009072400 ${RUNDIR}/.
@@ -1139,7 +1149,7 @@ clear;echo;echo
 # Submit test 12
 ####################################################################################################
 
-export RUNDIR=/ptmp/${ME}/RT/GFS_60
+export RUNDIR=${RUNDIR_ROOT}/GFS_60
 mkdir -p ${RUNDIR}
 cp gfs_configfile ${RUNDIR}/configure_file
 cp ${RTPWD}/GFS/gfsanl.2009072400 ${RUNDIR}/.
@@ -1233,7 +1243,7 @@ clear;echo;echo
 # Submit test 13
 ####################################################################################################
 
-export RUNDIR=/ptmp/${ME}/RT/GFS_16
+export RUNDIR=${RUNDIR_ROOT}/GFS_16
 mkdir -p ${RUNDIR}
 cp gfs_configfile ${RUNDIR}/configure_file
 cp ${RTPWD}/GFS/gfsanl.2009072400 ${RUNDIR}/.
@@ -1327,7 +1337,7 @@ clear;echo;echo
 # Submit test 14
 ####################################################################################################
 
-export RUNDIR=/ptmp/${ME}/RT/GFS_01
+export RUNDIR=${RUNDIR_ROOT}/GFS_01
 mkdir -p ${RUNDIR}
 cp gfs_configfile ${RUNDIR}/configure_file
 cp ${RTPWD}/GFS/gfsanl.2009072400 ${RUNDIR}/.
@@ -1427,4 +1437,5 @@ cd ${PATHTR}/ush
 
 date >> ${PATHRT}/RegressionTests.log
 
+rm -rf ${RUNDIR_ROOT}
 exit

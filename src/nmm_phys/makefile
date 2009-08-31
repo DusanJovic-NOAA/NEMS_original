@@ -34,7 +34,7 @@
 # CPP, Compiler, and Linker Options
 #
 include ../../ush/compile_settings
-MAKEFILE = nmm_phys_makefile
+MAKEFILE = makefile
 TARGET= nmm_phys.a
 #
 

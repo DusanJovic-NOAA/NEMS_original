@@ -31,7 +31,7 @@ export TARGET_CPU_RANGE="-1"
 export XLSMPOPTS=parthds=1:spins=0:yields=0:stack=128000000:schedule=static
 export AIXTHREAD_SCOPE=S
 
-RUNDIR=/ptmp/_ME_/RT/_DIR_
+RUNDIR=_RUND_
 SRCDIR=_SRCD_
 
 mkdir -p $RUNDIR
