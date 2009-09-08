@@ -527,7 +527,6 @@ contains
         endif
        endif
      endif
-!     print *,'open read file=',gfname
 !
 ! read  meta data for gfile
 !
@@ -563,25 +562,25 @@ contains
          call nemsio_stop
        endif
       endif
-      call nemsio_wcreate(gfile,ios,gdatatype=gdatatype, &
-        version=version, nmeta=nmeta,lmeta=lmeta,modelname=modelname,  &
-        nrec=nrec,idate=idate,nfday=nfday,nfhour=nfhour,nfminute=nfminute,&
-        nfsecondn=nfsecondn, nfsecondd=nfsecondd, &
-        dimx=dimx,dimy=dimy,dimz=dimz,nframe=nframe,nsoil=nsoil,   &
-        ntrac=ntrac,jcap=jcap,ncldt=ncldt,idvc=idvc,idsl=idsl,    &
-        idvm=idvm,idrt=idrt,                          &
-        rlon_min=rlon_min,rlon_max=rlon_max,rlat_min=rlat_min, &
-        rlat_max=rlat_max,extrameta=extrameta, &
-        nmetavari=nmetavari,nmetavarr=nmetavarr,  &
-        nmetavarl=nmetavarl,nmetaaryi=nmetaaryi,nmetaaryr=nmetaaryr,&
-        nmetaaryl=nmetaaryl,recname=recname,reclevtyp=reclevtyp,    &
-        reclev=reclev,vcoord=vcoord,lat=lat,lon=lon,dx=dx,dy=dy,    &
-        cpi=cpi,ri=ri,variname=variname,varival=varival,varrname=varrname,&
-        varrval=varrval,varlname=varlname,varlval=varlval, &
-        varcname=varcname,varcval=varcval, &
-        aryiname=aryiname,aryilen=aryilen,aryival=aryival, &
-        aryrname=aryrname,aryrlen=aryrlen,aryrval=aryrval, &
-        arylname=arylname,aryllen=aryllen,arylval=arylval, &
+      call nemsio_wcreate(gfile,ios,gdatatype=gdatatype,              &
+        version=version, nmeta=nmeta,lmeta=lmeta,modelname=modelname, &
+        nrec=nrec,idate=idate,nfday=nfday,nfhour=nfhour,              &
+        nfminute=nfminute,nfsecondn=nfsecondn, nfsecondd=nfsecondd,   &
+        dimx=dimx,dimy=dimy,dimz=dimz,nframe=nframe,nsoil=nsoil,      &
+        ntrac=ntrac,jcap=jcap,ncldt=ncldt,idvc=idvc,idsl=idsl,        &
+        idvm=idvm,idrt=idrt, rlon_min=rlon_min,rlon_max=rlon_max,     &
+        rlat_min=rlat_min, rlat_max=rlat_max,extrameta=extrameta,     &
+        nmetavari=nmetavari,nmetavarr=nmetavarr,nmetavarl=nmetavarl,  &
+        nmetavarc=nmetavarc,nmetaaryi=nmetaaryi,nmetaaryr=nmetaaryr,  &
+        nmetaaryl=nmetaaryl,nmetaaryc=nmetaaryc,recname=recname,      &
+        reclevtyp=reclevtyp,reclev=reclev,vcoord=vcoord,              &
+        lat=lat,lon=lon,dx=dx,dy=dy,cpi=cpi,ri=ri,                    &
+        variname=variname,varival=varival,varrname=varrname,          &
+        varrval=varrval,varlname=varlname,varlval=varlval,            &
+        varcname=varcname,varcval=varcval,                            &
+        aryiname=aryiname,aryilen=aryilen,aryival=aryival,            &
+        aryrname=aryrname,aryrlen=aryrlen,aryrval=aryrval,            &
+        arylname=arylname,aryllen=aryllen,arylval=arylval,            &
         arycname=arycname,aryclen=aryclen,arycval=arycval  )
       if ( ios.ne.0) then
        if ( present(iret))  then
@@ -722,6 +721,7 @@ contains
     iskip=iskip+nread
     iread=gfile%lmeta
     call bafrreadl(gfile%flunit,iskip,iread,nread,meta2)
+!    print *,'in rcreate,meta2 iskip=',iskip,'iread=',iread,'nread=',nread
     if(nread.lt.iread) return
     gfile%tlmeta=gfile%tlmeta+nread
 !    print *,'tlmeta2 =',gfile%tlmeta,'iskip=',iskip,'iread=',iread,'nread=',nread
@@ -889,7 +889,7 @@ contains
       if(nread.lt.iread) return
       nmeta=nmeta-1
       gfile%tlmeta=gfile%tlmeta+nread
-!      print *,'tlmetri =',gfile%tlmeta,'nread=',nread
+!     print *,'tlmetri =',gfile%tlmeta,'nread=',nread
     endif
 !
     if ( gfile%nmeta-12>0 ) then
@@ -903,6 +903,7 @@ contains
     iskip=iskip+nread
     iread=nemsio_lmeta3
     call bafrreadl(gfile%flunit,iskip,iread,nread,meta3)
+!    print *,'after meta3,iskip=',iskip,'iread=',iread,'nread=',nread
     if(nread.lt.iread) return
     gfile%tlmeta=gfile%tlmeta+nread
     gfile%nmetavari=meta3%nmetavari
@@ -913,17 +914,15 @@ contains
     gfile%nmetaaryr=meta3%nmetaaryr
     gfile%nmetaaryl=meta3%nmetaaryl
     gfile%nmetaaryc=meta3%nmetaaryc
-!      print *,'tlmeta3 =',gfile%tlmeta,'nread=',nread, &
-!     'nmetavari=',gfile%nmetavari,'nvarr=',gfile%nmetavarr, &
-!     'varl=',gfile%nmetavarl,'varc=',gfile%nmetavarc, &
-!     gfile%nmetaaryi,gfile%nmetaaryr,gfile%nmetaaryl,gfile%nmetaaryc
    
+!    print *,'before nemsio_alextramet,nvar=',gfile%nmetavari,gfile%nmetavarr,gfile%nmetavarl,&
+!      gfile%nmetavarc,'nary=',gfile%nmetaaryi,gfile%nmetaaryr,gfile%nmetaaryl,  &
+!      gfile%nmetaaryc
     call nemsio_alextrameta(gfile,ios)
     if ( ios .ne. 0 ) then
       iret=ios
       return
     endif
-!    print *,'after nemsio_alextrameta'
 
 !meta var integer
     if (gfile%nmetavari.gt.0) then
@@ -955,6 +954,7 @@ contains
       iskip=iskip+nread
       iread=len(gfile%varrname)*gfile%nmetavarr
       call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%varrname)
+!      print *,'tlmetavarr =',gfile%tlmeta,'nread=',nread,'iread=',iread,gfile%nmetavarr
       if(nread.lt.iread)  then
          iread=nemsio_charkind8*gfile%nmetavarr
          allocate(char8var(gfile%nmetavarr))
@@ -1069,7 +1069,7 @@ contains
       call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryrlen)
       if(nread.lt.iread) return
       gfile%tlmeta=gfile%tlmeta+nread
-      print *,'tlmetaaryrlen =',gfile%tlmeta,'nread=',nread
+!      print *,'tlmetaaryrlen =',gfile%tlmeta,'nread=',nread
       allocate(gfile%aryrval(maxval(gfile%aryrlen),gfile%nmetaaryr) )
       do i=1,gfile%nmetaaryr
         iskip=iskip+nread
@@ -1136,11 +1136,11 @@ contains
         gfile%tlmeta=gfile%tlmeta+nread
       enddo
     endif
+!    print *,'end of rcreate'
 !
 !end if extrameta
    endif
 !
-   print *,'end of rcreate!'
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
    iret=0
   end subroutine nemsio_rcreate
@@ -1232,7 +1232,6 @@ contains
     if(present(lmeta)) gfile%lmeta=lmeta
     if(gfile%lmeta==nemsio_intfill)   &
       gfile%lmeta=25*nemsio_intkind+4*nemsio_realkind+nemsio_logickind
-!    print *,'in wcreate, dim=',gfile%dimx,gfile%dimy,gfile%dimz,'nmeta=',gfile%nmeta,gfile%lmeta
     if(present(nsoil)) gfile%nsoil=nsoil
     if(gfile%nsoil.eq.nemsio_intfill) gfile%nsoil=4
     if(present(nframe)) gfile%nframe=nframe
@@ -1260,7 +1259,6 @@ contains
         return
       endif
     endif
-    print*,'after gfinit,gtype=',gfile%gtype,'nmeta=',gfile%nmeta,'linit=',linit
 !
 !------------------------------------------------------------
 ! set up basic gfile meta data variables from outsides to 
@@ -1288,107 +1286,121 @@ contains
        gfile%fieldsize=(gfile%dimx+2*gfile%nframe)*(gfile%dimy+2*gfile%nframe)
 !
     if( gfile%extrameta )then
-      if(present(nmetavari).and.nmetavari.gt.0.and.present(variname) &
-         .and.size(variname).eq.nmetavari .and. &
-         present(varival).and.size(varival).eq.nmetavari) then
+      if(present(nmetavari).and.present(variname).and.present(varival)) then
+        if(nmetavari.gt.0 .and.size(variname).eq.nmetavari .and. &
+          size(varival).eq.nmetavari) then
            gfile%nmetavari=nmetavari
            if(allocated(gfile%variname)) deallocate(gfile%variname)
            if(allocated(gfile%varival)) deallocate(gfile%varival)
            allocate(gfile%variname(nmetavari),gfile%varival(nmetavari))
            gfile%variname=variname
            gfile%varival=varival
+        endif
       endif
-      if(present(nmetavarr).and.nmetavarr.gt.0.and.present(varrname) &
-         .and.size(varrname).eq.nmetavarr .and. &
-         present(varrval).and.size(varrval).eq.nmetavarr) then
-           gfile%nmetavarr=nmetavarr
-           if(allocated(gfile%varrname)) deallocate(gfile%varrname)
-           if(allocated(gfile%varrval)) deallocate(gfile%varrval)
-           allocate(gfile%varrname(nmetavarr),gfile%varrval(nmetavarr))
-           gfile%varrname=varrname
-           gfile%varrval=varrval
+      if(present(nmetavarr).and.present(varrname).and.present(varrval)) then
+        if( nmetavarr.gt.0.and.size(varrname).eq.nmetavarr .and. &
+          size(varrval).eq.nmetavarr) then
+            gfile%nmetavarr=nmetavarr
+            if(allocated(gfile%varrname)) deallocate(gfile%varrname)
+            if(allocated(gfile%varrval)) deallocate(gfile%varrval)
+            allocate(gfile%varrname(nmetavarr),gfile%varrval(nmetavarr))
+            gfile%varrname=varrname
+            gfile%varrval=varrval
+        endif
       endif
-      if(present(nmetavarl).and.nmetavarl.gt.0.and.present(varlname) &
-         .and.size(varlname).eq.nmetavarl .and. &
-         present(varlval).and.size(varlval).eq.nmetavarl) then
-           gfile%nmetavarl=nmetavarl
-           if(allocated(gfile%varlname)) deallocate(gfile%varlname)
-           if(allocated(gfile%varlval)) deallocate(gfile%varlval)
-           allocate(gfile%varlname(nmetavarl),gfile%varlval(nmetavarl))
-           gfile%varlname=varlname
-           gfile%varlval=varlval
+      if(present(nmetavarl).and.present(varlname).and.present(varlval)) then
+        if( nmetavarl.gt.0.and.size(varlname).eq.nmetavarl .and. &
+          size(varlval).eq.nmetavarl) then
+            gfile%nmetavarl=nmetavarl
+            if(allocated(gfile%varlname)) deallocate(gfile%varlname)
+            if(allocated(gfile%varlval)) deallocate(gfile%varlval)
+            allocate(gfile%varlname(nmetavarl),gfile%varlval(nmetavarl))
+            gfile%varlname=varlname
+            gfile%varlval=varlval
+        endif
       endif
-      if(present(nmetavarc).and.nmetavarc.gt.0.and.present(varcname) &
-         .and.size(varcname).eq.nmetavarc .and. &
-         present(varcval).and.size(varcval).eq.nmetavarc) then
+      if(present(nmetavarc).and.present(varcname).and.present(varcval)) then
+        if( nmetavarc.gt.0.and.size(varcname).eq.nmetavarc .and. &
+          size(varcval).eq.nmetavarc) then
            gfile%nmetavarc=nmetavarc
            if(allocated(gfile%varcname)) deallocate(gfile%varcname)
            if(allocated(gfile%varcval)) deallocate(gfile%varcval)
            allocate(gfile%varcname(nmetavarc),gfile%varcval(nmetavarc))
            gfile%varcname=varcname
            gfile%varcval=varcval
+        endif
       endif
-      if(present(nmetaaryi).and.nmetaaryi.gt.0.and.present(aryiname) &
-         .and.size(aryiname).eq.nmetaaryi .and. &
-         present(aryilen).and.size(aryilen).eq.nmetaaryi) then
+      if(present(nmetaaryi).and.present(aryiname).and.present(aryilen)) then
+        if( nmetaaryi.gt.0.and.size(aryiname).eq.nmetaaryi .and. &
+          size(aryilen).eq.nmetaaryi) then
            gfile%nmetaaryi=nmetaaryi
            if(allocated(gfile%aryiname)) deallocate(gfile%aryiname)
            if(allocated(gfile%aryilen)) deallocate(gfile%aryilen)
            allocate(gfile%aryiname(nmetaaryi),gfile%aryilen(nmetaaryi))
            gfile%aryiname=aryiname
            gfile%aryilen=aryilen
-           if(present(aryival).and.size(aryival).eq.nmetaaryi*maxval(gfile%aryilen) ) then
-             if(allocated(gfile%aryival)) deallocate(gfile%aryival)
-             allocate(gfile%aryival(maxval(gfile%aryilen),nmetaaryi))
-             gfile%aryival=aryival
+           if(present(aryival)) then
+             if(size(aryival).eq.nmetaaryi*maxval(gfile%aryilen) ) then
+               if(allocated(gfile%aryival)) deallocate(gfile%aryival)
+               allocate(gfile%aryival(maxval(gfile%aryilen),nmetaaryi))
+               gfile%aryival=aryival
+             endif
            endif
+        endif
       endif
-      if(present(nmetaaryr).and.nmetaaryr.gt.0.and.present(aryrname) &
-         .and.size(aryrname).eq.nmetaaryr .and. &
-         present(aryrlen).and.size(aryrlen).eq.nmetaaryr) then
-           gfile%nmetaaryr=nmetaaryr
-           if(allocated(gfile%aryrname)) deallocate(gfile%aryrname)
-           if(allocated(gfile%aryrlen)) deallocate(gfile%aryrlen)
-           allocate(gfile%aryrname(nmetaaryr),gfile%aryrlen(nmetaaryr))
-           gfile%aryrname=aryrname
-           gfile%aryrlen=aryrlen
-!           print *,'in wcreate,gfile%aryrname=',gfile%aryrname
-!           print *,'in wcreate,gfile%aryrlen=',gfile%aryrlen
-           if(present(aryrval).and.size(aryrval).eq.nmetaaryr*maxval(gfile%aryrlen)) then
-             if(allocated(gfile%aryrval)) deallocate(gfile%aryrval)
-             allocate(gfile%aryrval(maxval(gfile%aryrlen),nmetaaryr))
-             gfile%aryrval=aryrval
-           endif
+      if(present(nmetaaryr).and.present(aryrname).and.present(aryrlen)) then
+        if( nmetaaryr.gt.0.and.size(aryrname).eq.nmetaaryr .and. &
+          size(aryrlen).eq.nmetaaryr) then
+            gfile%nmetaaryr=nmetaaryr
+            if(allocated(gfile%aryrname)) deallocate(gfile%aryrname)
+            if(allocated(gfile%aryrlen)) deallocate(gfile%aryrlen)
+            allocate(gfile%aryrname(nmetaaryr),gfile%aryrlen(nmetaaryr))
+            gfile%aryrname=aryrname
+            gfile%aryrlen=aryrlen
+            if(present(aryrval) ) then
+              if(size(aryrval).eq.nmetaaryr*maxval(gfile%aryrlen)) then
+                if(allocated(gfile%aryrval)) deallocate(gfile%aryrval)
+                allocate(gfile%aryrval(maxval(gfile%aryrlen),nmetaaryr))
+                gfile%aryrval=aryrval
+              endif
+            endif
+        endif
       endif
-      if(present(nmetaaryl).and.nmetaaryl.gt.0.and.present(arylname) &
-          .and.size(arylname).eq.nmetaaryl .and. &
-           present(aryllen).and.size(aryllen).eq.nmetaaryl) then
-           gfile%nmetaaryl=nmetaaryl
-           if(allocated(gfile%arylname)) deallocate(gfile%arylname)
-           if(allocated(gfile%aryllen)) deallocate(gfile%aryllen)
-           allocate(gfile%arylname(nmetaaryl),gfile%aryllen(nmetaaryl))
-           gfile%arylname=arylname
-           gfile%aryllen=aryllen
-           if(present(arylval).and.size(arylval).eq.nmetaaryl*maxval(gfile%aryllen)) then
-             if(allocated(gfile%arylval)) deallocate(gfile%arylval)
-             allocate(gfile%arylval(maxval(gfile%aryllen),nmetaaryl))
-             gfile%arylval=arylval
+      if(present(nmetaaryl).and.present(arylname).and.present(aryllen)) then
+        if( nmetaaryl.gt.0 .and.size(arylname).eq.nmetaaryl .and. &
+          size(aryllen).eq.nmetaaryl) then
+            gfile%nmetaaryl=nmetaaryl
+            if(allocated(gfile%arylname)) deallocate(gfile%arylname)
+            if(allocated(gfile%aryllen)) deallocate(gfile%aryllen)
+            allocate(gfile%arylname(nmetaaryl),gfile%aryllen(nmetaaryl))
+            gfile%arylname=arylname
+            gfile%aryllen=aryllen
+            if(present(arylval)) then
+              if(size(arylval).eq.nmetaaryl*maxval(gfile%aryllen)) then
+                if(allocated(gfile%arylval)) deallocate(gfile%arylval)
+                allocate(gfile%arylval(maxval(gfile%aryllen),nmetaaryl))
+                gfile%arylval=arylval
+             endif
            endif
+        endif
       endif
-      if(present(nmetaaryc).and.nmetaaryc.gt.0.and.present(arycname) &
-          .and.size(arycname).eq.nmetaaryc .and. &
-          present(aryclen).and.size(aryclen).eq.nmetaaryc) then
-           gfile%nmetaaryc=nmetaaryc
-           if(allocated(gfile%arycname)) deallocate(gfile%arycname)
-           if(allocated(gfile%aryclen)) deallocate(gfile%aryclen)
-           allocate(gfile%arycname(nmetaaryc),gfile%aryclen(nmetaaryc))
-           gfile%arycname=arycname
-           gfile%aryclen=aryclen
-           if(present(arycval).and.size(arycval).eq.nmetaaryc*maxval(gfile%aryclen)) then
-             if(allocated(gfile%arycval)) deallocate(gfile%arycval)
-             allocate(gfile%arycval(maxval(gfile%aryclen),nmetaaryc))
-             gfile%arycval=arycval
-           endif
+      if(present(nmetaaryc).and.present(arycname).and.present(aryclen)) then
+        if( nmetaaryc.gt.0 .and.size(arycname).eq.nmetaaryc .and. &
+          size(aryclen).eq.nmetaaryc) then
+            gfile%nmetaaryc=nmetaaryc
+            if(allocated(gfile%arycname)) deallocate(gfile%arycname)
+            if(allocated(gfile%aryclen)) deallocate(gfile%aryclen)
+            allocate(gfile%arycname(nmetaaryc),gfile%aryclen(nmetaaryc))
+            gfile%arycname=arycname
+            gfile%aryclen=aryclen
+            if(present(arycval)) then
+              if(size(arycval).eq.nmetaaryc*maxval(gfile%aryclen)) then
+                if(allocated(gfile%arycval)) deallocate(gfile%arycval)
+                allocate(gfile%arycval(maxval(gfile%aryclen),nmetaaryc))
+                gfile%arycval=arycval
+              endif
+            endif
+        endif
       endif
       if (gfile%nmetavari+gfile%nmetavarr+gfile%nmetavarl+gfile%nmetavarc+ &
            gfile%nmetaaryi+gfile%nmetaaryr+gfile%nmetaaryl+gfile%nmetaaryc &
@@ -1411,7 +1423,6 @@ contains
 !set gfile data type to bin/grb, default set to grb
 !recname
     if(present(recname) ) then
-!       print*,'gfile%nrec=',gfile%nrec,'size(recname)=',size(recname)
        if (gfile%nrec.eq.size(recname)) then
          gfile%recname=recname
        else
@@ -1457,8 +1468,10 @@ contains
          return
        endif
     endif
-    gfile%rlat_max=maxval(gfile%lat)
-    gfile%rlat_min=minval(gfile%lat)
+    if(allocated(gfile%lat)) then
+       gfile%rlat_max=maxval(gfile%lat)
+       gfile%rlat_min=minval(gfile%lat)
+    endif
 !lon
     if(present(lon) ) then
        if (gfile%fieldsize.eq.size(lon)) then
@@ -1468,8 +1481,10 @@ contains
          return
        endif
     endif
-    gfile%rlon_max=maxval(gfile%lon)
-    gfile%rlon_min=minval(gfile%lon)
+    if(allocated(gfile%lon)) then
+       gfile%rlon_max=maxval(gfile%lon)
+       gfile%rlon_min=minval(gfile%lon)
+    endif
 !dx
     if(present(dx) ) then
 !       write(0,*)'gfile%fieldsize=',gfile%fieldsize,'size(dx)=',size(dx)
@@ -1497,8 +1512,6 @@ contains
          print *,'WRONG: the input size(cpi) ',size(cpi),' is not equal to: ',gfile%ntrac+1
          return
        endif
-!       print *,'in wcreate,cpi=',maxval(cpi),minval(cpi),maxval(gfile%Cpi),minval(cpi),&
-!        'size(cpi)=',size(cpi),size(gfile%Cpi),'ntrac=',gfile%ntrac
 
     endif
 !Ri
@@ -1510,8 +1523,6 @@ contains
          return
        endif
     endif
-!       print *,'in wcreate,ri=',maxval(ri),minval(ri),maxval(gfile%ri),minval(ri),&
-!        'size(ri)=',size(ri),size(gfile%ri),'ntrac=',gfile%ntrac
 !
 !------------------------------------------------------------
 ! write out first meta data record
@@ -1561,6 +1572,7 @@ contains
     call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,meta2)
     if(nwrite.lt.iwrite) return
     gfile%tlmeta=gfile%tlmeta+nwrite
+!    print *,'tlmet2 =',gfile%tlmeta,'nwrite=',nwrite,meta1%gdatatype
 !------------------------------------------------------------
 ! write out 3rd-13th meta data record (arrays)
 !------------------------------------------------------------
@@ -1697,32 +1709,34 @@ contains
       call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,meta3)
       if(nwrite.lt.iwrite) return
       gfile%tlmeta=gfile%tlmeta+nwrite
-!      print *,'tlmetameta3=',gfile%tlmeta
 !
 !-- write meta var integer
       if (gfile%nmetavari.gt.0) then
         iskip=iskip+nwrite
         iwrite=len(gfile%variname)*gfile%nmetavari
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%variname)
+!      print *,'tlmetavari=',gfile%tlmeta,'iwrite=',iwrite,'nwrite=',nwrite
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
         iskip=iskip+nwrite
         iwrite=kind(gfile%varival)*gfile%nmetavari
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varival)
+!      print *,'tlmetavarival=',gfile%tlmeta,'iwrite=',iwrite,'nwrite=',nwrite
         if(nwrite.lt.iwrite) return
         gfile%tlmetavarival=gfile%tlmeta
         gfile%tlmeta=gfile%tlmeta+nwrite
-!      print *,'rlmetavari=',gfile%tlmeta
       endif
       if (gfile%nmetavarr.gt.0) then
         iskip=iskip+nwrite
         iwrite=len(gfile%varrname)*gfile%nmetavarr
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varrname)
+!      print *,'tlmetavarr=',gfile%tlmeta,'iwrite=',iwrite,'nwrite=',nwrite
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
         iskip=iskip+nwrite
         iwrite=kind(gfile%varrval)*gfile%nmetavarr
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varrval)
+!      print *,'tlmetavarrval=',gfile%tlmeta,'iwrite=',iwrite,'nwrite=',nwrite
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
       endif
@@ -1730,11 +1744,13 @@ contains
         iskip=iskip+nwrite
         iwrite=len(gfile%varlname)*gfile%nmetavarl
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varlname)
+!      print *,'tlmetavarl=',gfile%tlmeta,'iwrite=',iwrite,'nwrite=',nwrite
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
         iskip=iskip+nwrite
         iwrite=kind(gfile%varlval)*gfile%nmetavarl
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varlval)
+!      print *,'tlmetavarlval=',gfile%tlmeta,'iwrite=',iwrite,'nwrite=',nwrite
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
       endif
@@ -1742,11 +1758,13 @@ contains
         iskip=iskip+nwrite
         iwrite=len(gfile%varcname)*gfile%nmetavarc
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varcname)
+!      print *,'tlmetavarc=',gfile%tlmeta,'iwrite=',iwrite,'nwrite=',nwrite
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
         iskip=iskip+nwrite
         iwrite=len(gfile%varcval)*gfile%nmetavarc
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varcval)
+!      print *,'tlmetavarcval=',gfile%tlmeta,'iwrite=',iwrite,'nwrite=',nwrite
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
       endif
@@ -1818,7 +1836,6 @@ contains
                          gfile%arylval(1:gfile%aryllen(i),i))
           if(nwrite.lt.iwrite) return
           gfile%tlmeta=gfile%tlmeta+nwrite
-!          print *,'tlmetarylogic=',i,gfile%tlmeta,'nwrite=',nwrite
         enddo
       endif
 !meta arr logical
@@ -1840,11 +1857,9 @@ contains
                          gfile%arycval(1:gfile%aryclen(i),i))
           if(nwrite.lt.iwrite) return
           gfile%tlmeta=gfile%tlmeta+nwrite
-!          print *,'tlmetarycogic=',i,gfile%tlmeta,'nwrite=',nwrite
         enddo
       endif
     endif
-!    print *,'end of wcreate,nsoil=',gfile%nsoil,'nrec=',gfile%nrec,'tlmeta=',gfile%tlmeta
 
     iret=0
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -2082,8 +2097,6 @@ contains
     endif
 !--- dx
     if(present(dx) ) then
-       print *,'getfilehead, size(dx)=',size(dx),gfile%fieldsize,  &
-          maxval(gfile%dx),minval(gfile%dx)
        if (size(dx).ne.gfile%fieldsize) then
          if ( present(iret))  return
          call nemsio_stop
@@ -2212,9 +2225,6 @@ contains
     if(present(tlmeta)) tlmeta=gfile%tlmeta
     if(present(extrameta)) extrameta=gfile%extrameta
 !
-!    print *,'in getfilehead, 1extrameta=',gfile%extrameta,        &
-!     'nrec=',gfile%nrec,'size(recname)=',size(recname),           &
-!     size(reclevtyp),size(reclev)
 !--- rec
     if(present(recname) ) then
        if (gfile%nrec.ne.size(recname)) then
@@ -2271,8 +2281,6 @@ contains
     endif
 !--- dx
     if(present(dx) ) then
-       print *,'getfilehead, size(dx)=',size(dx),gfile%fieldsize,  &
-          maxval(gfile%dx),minval(gfile%dx)
        if (size(dx).ne.gfile%fieldsize) then
          print *,'WRONG: size(dX)=',size(dx),' is not equal to ',gfile%fieldsize
          if ( present(iret))  return
@@ -2326,64 +2334,87 @@ contains
       if (present(nmetaaryl) ) nmetaaryl=gfile%nmetaaryl
       if (present(nmetaaryc) ) nmetaaryc=gfile%nmetaaryc
       if ( gfile%nmetavari.gt.0 ) then
-         if (present(variname).and.size(variname).eq.gfile%nmetavari) &
-             variname=gfile%variname
-         if (present(varival).and.size(varival).eq.gfile%nmetavari) &
-             varival=gfile%varival
+         if (present(variname)) then
+           if( size(variname).eq.gfile%nmetavari) variname=gfile%variname
+         endif
+         if (present(varival)) then
+           if(size(varival).eq.gfile%nmetavari)  varival=gfile%varival
+         endif
       endif
       if ( gfile%nmetavarr.gt.0 ) then
-         if (present(varrname).and.size(varrname).eq.gfile%nmetavarr) &
-             varrname=gfile%varrname
-         if (present(varrval).and.size(varrval).eq.gfile%nmetavarr) &
-             varrval=gfile%varrval
+         if (present(varrname)) then
+           if(size(varrname).eq.gfile%nmetavarr) varrname=gfile%varrname
+         endif
+         if (present(varrval)) then
+           if(size(varrval).eq.gfile%nmetavarr)  varrval=gfile%varrval
+         endif
       endif
       if ( gfile%nmetavarl.gt.0 ) then
-         if (present(varlname).and.size(varlname).eq.gfile%nmetavarl) &
-             varlname=gfile%varlname
-         if (present(varlval).and.size(varlval).eq.gfile%nmetavarl) &
-             varlval=gfile%varlval
+         if (present(varlname)) then
+           if(size(varlname).eq.gfile%nmetavarl) varlname=gfile%varlname
+         endif
+         if (present(varlval)) then
+           if(size(varlval).eq.gfile%nmetavarl)  varlval=gfile%varlval
+         endif
       endif
       if ( gfile%nmetavarc.gt.0 ) then
-         if (present(varcname).and.size(varcname).eq.gfile%nmetavarc) &
-             varcname=gfile%varcname
-         if (present(varcval).and.size(varcval).eq.gfile%nmetavarc) &
-             varcval=gfile%varcval
+         if (present(varcname)) then
+           if(size(varcname).eq.gfile%nmetavarc)  varcname=gfile%varcname
+         endif
+         if (present(varcval)) then
+           if(size(varcval).eq.gfile%nmetavarc)  varcval=gfile%varcval
+         endif
       endif
       if ( gfile%nmetaaryi.gt.0 ) then
-         if (present(aryiname).and.size(aryiname).eq.gfile%nmetaaryi) &
-             aryiname=gfile%aryiname
-         if (present(aryilen).and.size(aryilen).eq.gfile%nmetaaryi) &
-             aryilen=gfile%aryilen
-         if (present(aryival).and.size(aryival).eq.gfile%nmetaaryi*maxval(gfile%aryilen) ) &
+         if (present(aryiname)) then
+           if(size(aryiname).eq.gfile%nmetaaryi)  aryiname=gfile%aryiname
+         endif
+         if (present(aryilen)) then
+           if(size(aryilen).eq.gfile%nmetaaryi) aryilen=gfile%aryilen
+         endif
+         if (present(aryival)) then
+           if(size(aryival).eq.gfile%nmetaaryi*maxval(gfile%aryilen) ) &
              aryival=gfile%aryival
+         endif
       endif
       if ( gfile%nmetaaryr.gt.0 ) then
-         if (present(aryrname).and.size(aryrname).eq.gfile%nmetaaryr) &
-             aryrname=gfile%aryrname
-         if (present(aryrlen).and.size(aryrlen).eq.gfile%nmetaaryr) &
-             aryrlen=gfile%aryrlen
-         if (present(aryrval).and.size(aryrval).eq.gfile%nmetaaryr*maxval(gfile%aryrlen) ) &
+         if (present(aryrname)) then
+           if( size(aryrname).eq.gfile%nmetaaryr)  aryrname=gfile%aryrname
+         endif
+         if (present(aryrlen)) then
+           if(size(aryrlen).eq.gfile%nmetaaryr)  aryrlen=gfile%aryrlen
+         endif
+         if (present(aryrval)) then
+           if(size(aryrval).eq.gfile%nmetaaryr*maxval(gfile%aryrlen) ) &
              aryrval=gfile%aryrval
+         endif
       endif
       if ( gfile%nmetaaryl.gt.0 ) then
-         if (present(arylname).and.size(arylname).eq.gfile%nmetaaryl) &
-             arylname=gfile%arylname
-         if (present(aryllen).and.size(aryllen).eq.gfile%nmetaaryl) &
-             aryllen=gfile%aryllen
-         if (present(arylval).and.size(arylval).eq.gfile%nmetaaryl*maxval(gfile%aryllen) ) &
+         if (present(arylname)) then
+           if(size(arylname).eq.gfile%nmetaaryl)  arylname=gfile%arylname
+         endif
+         if (present(aryllen)) then
+           if(size(aryllen).eq.gfile%nmetaaryl)  aryllen=gfile%aryllen
+         endif
+         if (present(arylval)) then
+           if(size(arylval).eq.gfile%nmetaaryl*maxval(gfile%aryllen) ) &
              arylval=gfile%arylval
+         endif
       endif
       if ( gfile%nmetaaryc.gt.0 ) then
-         if (present(arycname).and.size(arycname).eq.gfile%nmetaaryc) &
-             arycname=gfile%arycname
-         if (present(aryclen).and.size(aryclen).eq.gfile%nmetaaryc) &
-             aryclen=gfile%aryclen
-         if (present(arycval).and.size(arycval).eq.gfile%nmetaaryc*maxval(gfile%aryclen) ) &
+         if (present(arycname)) then
+           if(size(arycname).eq.gfile%nmetaaryc)  arycname=gfile%arycname
+         endif
+         if (present(aryclen)) then
+           if(size(aryclen).eq.gfile%nmetaaryc)  aryclen=gfile%aryclen
+         endif
+         if (present(arycval)) then
+           if(size(arycval).eq.gfile%nmetaaryc*maxval(gfile%aryclen) ) &
              arycval=gfile%arycval
+         endif
       endif
     endif
 
-!    print *,'after getfilehead'
     if ( present(iret)) iret=0
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   end subroutine nemsio_getfilehead
@@ -3054,7 +3085,6 @@ contains
     allocate(data8(size(data)) )
     call nemsio_searchrecv(gfile,jrec,name,levtyp,lev,ierr)
     if ( ierr .ne. 0) return
-!    print *,'name=',name,'levtyp=',levtyp,'lev=',lev,'jrec=',jrec
     iskip=gfile%tlmeta+int(jrec-1,8)*int(nemsio_dblekind*gfile%fieldsize+8,8)
     iread=int(nemsio_dblekind,8)*int(size(data8),8)
     call bafrreadl(gfile%flunit,iskip,iread,nread,data8)
@@ -3109,10 +3139,8 @@ contains
     nlen1=min(len(levtyp),len(gfile%reclevtyp))
 !
     jrec=0
-!    print *,'in search rec, recname length=',gfile%recname,'nrec=',gfile%nrec
     if(size(gfile%recname)/=gfile%nrec) return
     if(.not.present(levtyp)) then
-!      print *,'in search rec, name=',lowercase(name)(1:nlen)
       do i=1,gfile%nrec
         if ( equal_str_nocase(trim(name),trim(gfile%recname(i))) ) then
            jrec=i
@@ -3187,7 +3215,7 @@ contains
 !    print *,'in nemsio, before getgbm,mbuf=',gfile%mbuf,&
 !     'nlen=',gfile%nlen,'nnum=',gfile%nnum,'mnum=',gfile%mnum, &
 !     'jf=',grbmeta%jf,'jpds=',grbmeta%jpds(1:20),'jgds=', &
-!     grbmeta%jgds(1:20) 
+!     grbmeta%jgds(1:20),'modelname=',gfile%modelname
     call getgbm(gfile%flunit,luidx,grbmeta%jf,N,grbmeta%jpds,grbmeta%jgds,&
       gfile%mbuf,gfile%cbuf,gfile%nlen,gfile%nnum,gfile%mnum, &
       kf,k,kpds,kgds,lbms,data,ios)
@@ -3490,7 +3518,7 @@ contains
     character(*), optional, intent(in)           :: gdatatype
 !
 !------------------------------------------------------------
-! read 4 byte rec
+! write 4 byte rec
 !------------------------------------------------------------
    if ( present(gdatatype) ) then
       if (trim(gdatatype).ne.trim(gfile%gdatatype) ) then
@@ -3527,7 +3555,7 @@ contains
     real(nemsio_realkind),optional,intent(in)     :: zhour
     character(*), optional, intent(in)           :: gdatatype
 !------------------------------------------------------------
-! read 4 byte rec
+! write 4 byte rec
 !------------------------------------------------------------
    if ( present(gdatatype) ) then
       if (trim(gdatatype).ne.trim(gfile%gdatatype) ) then
@@ -3582,14 +3610,12 @@ contains
    endif 
 
    if ( gfile%gdatatype .eq. 'bin4') then
-!     print *,'call nemsio_writerecvbin4d4'
      call nemsio_writerecvbin4d4(gfile,name,levtyp,lev,data,iret)
      if ( iret .ne.0 ) return
    else if ( gfile%gdatatype .eq. 'bin8') then
      call nemsio_writerecvbin8d4(gfile,name,levtyp,lev,data,iret)
      if ( iret .ne.0 ) return
    else
-!     print *,'call nemsio_writerecvgrb4'
      call nemsio_writerecvgrb4(gfile,name,levtyp,lev,data,iret,itr=itr,        &
           zhour=zhour)
      if ( iret .ne.0 ) return
@@ -3618,9 +3644,11 @@ contains
 !------------------------------------------------------------
 ! read 4 byte rec
 !------------------------------------------------------------
-   if (present(gtype) .and. gfile%gtype.ne.trim(gtype) ) then
-     print *,'ERROR: the NEMSIO model type is ',gfile%gtype, 'input is',gtype
-     call nemsio_stop
+   if (present(gtype)) then
+     if( gfile%gtype.ne.trim(gtype) ) then
+       print *,'ERROR: the NEMSIO model type is ',gfile%gtype, 'input is',gtype
+       call nemsio_stop
+     endif
    endif
    if ( present(gdatatype) ) then
       if (trim(gdatatype).ne.trim(gfile%gdatatype) ) then
@@ -3672,8 +3700,6 @@ contains
     iskip=gfile%tlmeta+int(jrec-1,8)*int(nemsio_realkind*gfile%fieldsize+8,8)
     iwrite=int(nemsio_realkind,8)*int(size(data),8)
     call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,data)
-!     write(0,'(a15,I13.0)')'writerec iskip=',iskip 
-!     print *,'in nemsio_writerecbin4d4,iwrite=',iwrite,'nwrite=',nwrite
     if(nwrite.lt.iwrite) return
     iret=0
 
@@ -4549,7 +4575,6 @@ contains
         lev=gfile%reclev(jrec)
       endif
       if(present(iret)) iret=0
-!      print *,'in getrechead, nrec=',gfile%nrec,'name=',name,'levtyp=',levtyp,'lev=',lev
       return
     else
       if ( present(iret))  then
@@ -4751,13 +4776,13 @@ contains
       endif
     endif
     if(gfile%nmeta>6) then
-    if (.not.allocated(gfile%lat) .or. size(gfile%lat).ne.gfile%fieldsize .or.&
+      if (.not.allocated(gfile%lat) .or. size(gfile%lat).ne.gfile%fieldsize .or.&
         .not.allocated(gfile%lon) .or. size(gfile%lon).ne.gfile%fieldsize .or.&
         .not.allocated(gfile%dx) .or. size(gfile%dx).ne.gfile%fieldsize .or.&
         .not.allocated(gfile%dy) .or. size(gfile%dy).ne.gfile%fieldsize) then
         call nemsio_almeta2(gfile,ios)
         if (ios .ne. 0) return
-    endif
+      endif
     endif
     if(gfile%nmeta>10) then
       if(gfile%ntrac==nemsio_intfill) then
@@ -4772,8 +4797,8 @@ contains
     endif
 
     if(gfile%nmeta>2) then
-    if (allocated(gfile%recname) .and. size(gfile%recname).eq.gfile%nrec)&
-    then
+      if (allocated(gfile%recname) .and. size(gfile%recname).eq.gfile%nrec)&
+      then
         if (allocated(gfile%reclevtyp) .and. size(gfile%reclevtyp) &
         .eq.gfile%nrec) then
            if (allocated(gfile%reclev) .and. size(gfile%reclev).eq. &
@@ -4782,9 +4807,10 @@ contains
                return
            endif
          endif
-   endif
-   call  nemsio_almeta4(gfile,ios)
-   if (ios .ne. 0) return
+     endif
+
+     call  nemsio_almeta4(gfile,ios)
+     if (ios .ne. 0) return
    endif
    iret=0
   end subroutine nemsio_chkgfary
@@ -4857,7 +4883,6 @@ contains
       iret=iret+abs(iret4)
     endif
 
-!    print *,'iret1=',iret1,'iret2=',iret2,'dimx=',gfile%dimx,'dimy=',gfile%dimy,'nframe=',gfile%nframe
     if(iret.ne.0) iret=-6
   end subroutine nemsio_almeta
 !------------------------------------------------------------------------------
@@ -4939,7 +4964,6 @@ contains
     endif
 
     iret=0
-!    print *,'end of alextrameta'
   end subroutine nemsio_alextrameta
 !------------------------------------------------------------------------------
   subroutine nemsio_almeta1(gfile,iret)
@@ -5028,7 +5052,6 @@ contains
     if(allocated(gfile%reclev)) deallocate(gfile%reclev)
     allocate(gfile%recname(dimrecname),  gfile%reclevtyp(dimreclevtyp), &
              gfile%reclev(dimreclev), stat=iret)
-!    print *,'allocate recname,iert=',iret,'dim=',gfile%nrec
     if(iret.eq.0) then
       gfile%reclev=nemsio_intfill
       gfile%recname=' '
@@ -5182,7 +5205,6 @@ contains
       gfile%headarycnum=0
     endif
 !
-!    print*,'in setfhead,before headvariname,headvarival'
     allocate(gfile%headvariname(gfile%headvarinum),gfile%headvarival(gfile%headvarinum) )
     gfile%headvariname(1)='version'
     gfile%headvarival(1)=gfile%version
@@ -5266,7 +5288,6 @@ contains
     gfile%headvarlval(1)=gfile%extrameta
 !
 !--- gfile%head int ary
-!    print *,'before setfhead, headaryi,nrec=',gfile%nrec,gfile%headaryinum
     allocate(gfile%headaryiname(gfile%headaryinum) )
     allocate(gfile%headaryival(max(size(gfile%reclev),7),gfile%headaryinum))
     gfile%headaryiname(1)='idate'
@@ -5291,19 +5312,19 @@ contains
       enddo
       if(gfile%headaryrnum>1) then
         gfile%headaryrname(2)='lat'
-        gfile%headaryrval(:,2)=gfile%lat
+        gfile%headaryrval(1:size(gfile%lat),2)=gfile%lat
       endif
       if(gfile%headaryrnum>2) then
         gfile%headaryrname(3)='lon'
-        gfile%headaryrval(:,3)=gfile%lon
+        gfile%headaryrval(1:size(gfile%lon),3)=gfile%lon
       endif
       if(gfile%headaryrnum>3) then
         gfile%headaryrname(4)='dx'
-        gfile%headaryrval(:,4)=gfile%dx
+        gfile%headaryrval(1:size(gfile%dx),4)=gfile%dx
       endif
       if(gfile%headaryrnum>4) then
         gfile%headaryrname(5)='dy'
-        gfile%headaryrval(:,5)=gfile%dy
+        gfile%headaryrval(1:size(gfile%dy),5)=gfile%dy
       endif
       if(gfile%headaryrnum>5) then
         gfile%headaryrname(6)='cpi'
@@ -5316,15 +5337,14 @@ contains
     endif
 !
 !--- gfile%head char var
-!    print *,'before setfhead, headaryc,nrec=',gfile%nrec,gfile%headarycnum
     if(gfile%headarycnum >0) then
       allocate(gfile%headarycname(gfile%headarycnum) )
       allocate(gfile%headarycval(size(gfile%recname),gfile%headarycnum))
       gfile%headarycname(1)='recname'
-      gfile%headarycval(:,1)=gfile%recname
+      gfile%headarycval(1:size(gfile%recname),1)=gfile%recname
       if(gfile%headarycnum >1) then
         gfile%headarycname(2)='reclevtyp'
-        gfile%headarycval(:,2)=gfile%reclevtyp
+        gfile%headarycval(1:size(gfile%reclevtyp),2)=gfile%reclevtyp
       endif
     endif
 !
@@ -5567,7 +5587,6 @@ contains
         gfile%rlat_min=-89.49999237
         gfile%rlat_max=89.49999237
       endif
-!    print *,'in gfinit, nrec=',gfile%nrec
     else if (gfile%modelname.eq. "GSI" ) then
       if(gfile%dimx.eq.nemsio_intfill) gfile%dimx=1152
       if(gfile%dimy.eq.nemsio_intfill) gfile%dimy=576
@@ -6097,7 +6116,6 @@ contains
 !
     endif
    endif
-!jw   print *,' end of gfinit'
 !
    iret=0
   end subroutine nemsio_gfinit
@@ -6177,7 +6195,6 @@ contains
       integer jh,js,n,j
 !C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !C  GAUSSIAN LATITUDES
-!      print *,'nemsio_module,in SPLAT4',IDRT,JMAX
       IF(IDRT.EQ.4) THEN
         JH=JMAX/2
         JHE=(JMAX+1)/2
