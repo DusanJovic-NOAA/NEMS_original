@@ -2478,8 +2478,9 @@
 !
       DO J=JTS_B1,JTE_B1
         DO K=1,LM
+          KFLIP=LM+1-K ! 09/09/09 Ratko, flipped back to top-bottom direction 
           DO I=ITS_B1,ITE_B1
-            CLDFRA(I,J,K)=CLFR(I,K,J)
+            CLDFRA(I,J,KFLIP)=CLFR(I,K,J)
           ENDDO
         ENDDO
       ENDDO

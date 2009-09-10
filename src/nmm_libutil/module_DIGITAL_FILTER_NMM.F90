@@ -42,7 +42,7 @@
       type(esmf_state), intent(in) :: dyn_state   
       INTEGER, intent(in)          :: ndfistep
       INTEGER, intent(in)          :: NUM_WATER,NUM_TRACERS
-      type(esmf_array)             :: tmp_array
+      type(esmf_field)             :: tmp_field 
       integer                      :: tmp_rank,dyn_items
       integer                      :: SPEC_MAX,rc,N
       character(20), allocatable   :: dyn_name(:)
@@ -62,10 +62,10 @@
                         ,itemnamelist = dyn_name                        &
                         ,rc=rc)
       DO N=1,dyn_items
-        CALL ESMF_StateGet(dyn_state, dyn_name(N), tmp_array, rc=rc)
+        CALL ESMF_StateGet(dyn_state, dyn_name(N), tmp_field, rc=rc)
 
-        call esmf_arrayget(tmp_array                                    &
-                          ,rank              = tmp_rank                 &
+        call esmf_fieldget(tmp_field                                    &
+                          ,dimCount          = tmp_rank                 &
                           ,rc                = rc)
       IF (tmp_rank == 2) THEN
          tot_rank_2d=tot_rank_2d+1
@@ -112,9 +112,9 @@
       REAL(KIND=KFPT),DIMENSION(:,:,:)  ,POINTER :: HOLD_3D
       REAL(KIND=KFPT),DIMENSION(:,:,:,:),POINTER :: HOLD_4D
 !
-      CHARACTER(20)    :: ARRAY_NAME
+      CHARACTER(20)    :: FIELD_NAME
 !
-      TYPE(ESMF_Array) :: HOLD_ARRAY
+      TYPE(ESMF_Field) :: HOLD_FIELD
 !
       real                          :: sx, wx, digfil,prod
       integer			    :: NUM_SPEC
@@ -145,17 +145,17 @@
 
       IF (tot_rank_2d  .GT. 0) THEN
       DO N=1,tot_rank_2d
-      ARRAY_NAME=name_save_2d(N)
+      FIELD_NAME=name_save_2d(N)
       NULLIFY(HOLD_2D) 
 
-      CALL ESMF_StateGet(state   =DYN_STATE                             &  !<-- State that holds the Array
-                        ,itemName=ARRAY_NAME                            &  !<-- Name of the
-                        ,array   =HOLD_ARRAY                            &  !<-- Put extracted Array here
+      CALL ESMF_StateGet(state   =DYN_STATE                             &  !<-- State that holds the Field
+                        ,itemName=FIELD_NAME                            &  !<-- Name of the
+                        ,field   =HOLD_FIELD                            &  !<-- Put extracted Field here
                         ,rc      = RC)
       
-      CALL ESMF_ArrayGet(array    =HOLD_ARRAY                           &  !<-- Array that holds the data pointer
+      CALL ESMF_FieldGet(field    =HOLD_FIELD                           &  !<-- Field that holds the data pointer
                         ,localDe  =0                                    &
-                        ,farrayPtr=HOLD_2D                              &  !<-- Put the pointer here
+                        ,farray   =HOLD_2D                              &  !<-- Put the pointer here
                         ,rc       =RC)
 
         DO J=JTS,JTE
@@ -168,17 +168,17 @@
 
       IF (tot_rank_3d  .GT. 0 ) THEN
       DO N=1,tot_rank_3d
-      ARRAY_NAME=name_save_3d(N)
+      FIELD_NAME=name_save_3d(N)
       NULLIFY(HOLD_3D)
 
-      CALL ESMF_StateGet(state   =DYN_STATE                             &  !<-- State that holds the Array
-                        ,itemName=ARRAY_NAME                            &  !<-- Name of the
-                        ,array   =HOLD_ARRAY                            &  !<-- Put extracted Array here
+      CALL ESMF_StateGet(state   =DYN_STATE                             &  !<-- State that holds the Field
+                        ,itemName=FIELD_NAME                            &  !<-- Name of the
+                        ,field   =HOLD_FIELD                            &  !<-- Put extracted Field here
                         ,rc      = RC)
       
-      CALL ESMF_ArrayGet(array    =HOLD_ARRAY                           &  !<-- Array that holds the data pointer
+      CALL ESMF_FieldGet(field    =HOLD_FIELD                           &  !<-- Field that holds the data pointer
                         ,localDe  =0                                    &
-                        ,farrayPtr=HOLD_3D                              &  !<-- Put the pointer here
+                        ,farray   =HOLD_3D                              &  !<-- Put the pointer here
                         ,rc       =RC)
        
       DO L=1,LM  
@@ -193,22 +193,22 @@
 
       IF (tot_rank_4d  .GT. 0) THEN
       DO N=1,tot_rank_4d
-      ARRAY_NAME=name_save_4d(N)
+      FIELD_NAME=name_save_4d(N)
       NULLIFY(HOLD_4D)
-      IF (ARRAY_NAME == 'TRACERS') THEN
+      IF (FIELD_NAME == 'TRACERS') THEN
       NUM_SPEC=NUM_TRACERS
-      ELSE IF (ARRAY_NAME == 'WATER') THEN
+      ELSE IF (FIELD_NAME == 'WATER') THEN
       NUM_SPEC=NUM_WATER
       ENDIF
 
-      CALL ESMF_StateGet(state   =DYN_STATE                             &  !<-- State that holds the Array
-                        ,itemName=ARRAY_NAME                            &  !<-- Name of the
-                        ,array   =HOLD_ARRAY                            &  !<-- Put extracted Array here
+      CALL ESMF_StateGet(state   =DYN_STATE                             &  !<-- State that holds the Field
+                        ,itemName=FIELD_NAME                            &  !<-- Name of the
+                        ,field   =HOLD_FIELD                            &  !<-- Put extracted Field here
                         ,rc      = RC)
       
-      CALL ESMF_ArrayGet(array    =HOLD_ARRAY                           &  !<-- Array that holds the data pointer
+      CALL ESMF_FieldGet(field    =HOLD_FIELD                           &  !<-- Field that holds the data pointer
                         ,localDe  =0                                    &
-                        ,farrayPtr=HOLD_4D                              &  !<-- Put the pointer here
+                        ,farray   =HOLD_4D                              &  !<-- Put the pointer here
                         ,rc       =RC)
        
       DO P=1,NUM_SPEC
@@ -244,12 +244,11 @@
       REAL(KIND=KFPT),DIMENSION(:,:,:)  ,POINTER :: HOLD_3D
       REAL(KIND=KFPT),DIMENSION(:,:,:,:),POINTER :: HOLD_4D
 !
-      CHARACTER(20)    :: ARRAY_NAME
+      CHARACTER(20)    :: FIELD_NAME
 !
-      TYPE(ESMF_Array) :: HOLD_ARRAY
+      TYPE(ESMF_Field) :: HOLD_FIELD
 
-      TYPE(ESMF_Array)                :: tmp_array
-      TYPE(ESMF_DistGrid)             :: tmp_distgrid
+      TYPE(ESMF_Field)                :: tmp_field
       CHARACTER(ESMF_Maxstr)          :: name
       real, dimension(:,:), pointer   :: tmp_ptr
       real                            :: totalsumi
@@ -284,10 +283,10 @@
       ENDIF
       IF (tot_rank_4d  .GT. 0) THEN
       DO N=1,tot_rank_4d
-      ARRAY_NAME=name_save_4d(N)
-      IF (ARRAY_NAME == 'TRACERS') THEN
+      FIELD_NAME=name_save_4d(N)
+      IF (FIELD_NAME == 'TRACERS') THEN
       NUM_SPEC=NUM_TRACERS
-      ELSE IF (ARRAY_NAME == 'WATER') THEN
+      ELSE IF (FIELD_NAME == 'WATER') THEN
       NUM_SPEC=NUM_WATER
       ENDIF
       DO P=1,NUM_SPEC
@@ -305,16 +304,16 @@
 
       IF (tot_rank_2d  .GT. 0) THEN
       DO N=1,tot_rank_2d
-      ARRAY_NAME=name_save_2d(N)
+      FIELD_NAME=name_save_2d(N)
       NULLIFY(HOLD_2D)
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =DYN_STATE                             &  !<-- State that holds the Array
-                        ,itemName=ARRAY_NAME                            &  !<-- Name of the
-                        ,array   =HOLD_ARRAY                            &  !<-- Put extracted Array here
+      CALL ESMF_StateGet(state   =DYN_STATE                             &  !<-- State that holds the Field
+                        ,itemName=FIELD_NAME                            &  !<-- Name of the
+                        ,field   =HOLD_FIELD                            &  !<-- Put extracted Field here
                         ,rc      = RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -322,13 +321,13 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!      MESSAGE_CHECK="Dyn Update: Extract Temperature Pointer from Array"
+!      MESSAGE_CHECK="Dyn Update: Extract Temperature Pointer from Field"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ArrayGet(array    =HOLD_ARRAY                           &  !<-- Array that holds the data pointer
+      CALL ESMF_FieldGet(field    =HOLD_FIELD                           &  !<-- Field that holds the data pointer
                         ,localDe  =0                                    &
-                        ,farrayPtr=HOLD_2D                              &  !<-- Put the pointer here
+                        ,farray   =HOLD_2D                              &  !<-- Put the pointer here
                         ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -340,21 +339,21 @@
             HOLD_2D(I,J)=array_save_2d(I,J,N)
           ENDDO
         ENDDO
-        CALL ESMF_StateAdd(dyn_state,HOLD_ARRAY,rc) 
+        CALL ESMF_StateAdd(dyn_state,HOLD_FIELD,rc) 
       ENDDO
       ENDIF
       IF (tot_rank_3d  .GT. 0) THEN
       DO N=1,tot_rank_3d
-      ARRAY_NAME=name_save_3d(N)
+      FIELD_NAME=name_save_3d(N)
       NULLIFY(HOLD_3D)
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =DYN_STATE                             &  !<-- State that holds the Array
-                        ,itemName=ARRAY_NAME                            &  !<-- Name of the
-                        ,array   =HOLD_ARRAY                            &  !<-- Put extracted Array here
+      CALL ESMF_StateGet(state   =DYN_STATE                             &  !<-- State that holds the Field
+                        ,itemName=FIELD_NAME                            &  !<-- Name of the
+                        ,field   =HOLD_FIELD                            &  !<-- Put extracted Field here
                         ,rc      = RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -362,13 +361,13 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!      MESSAGE_CHECK="Dyn Update: Extract Temperature Pointer from Array"
+!      MESSAGE_CHECK="Dyn Update: Extract Temperature Pointer from Field"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ArrayGet(array    =HOLD_ARRAY                           &  !<-- Array that holds the data pointer
+      CALL ESMF_FieldGet(field    =HOLD_FIELD                           &  !<-- Field that holds the data pointer
                         ,localDe  =0                                    &
-                        ,farrayPtr=HOLD_3D                              &  !<-- Put the pointer here
+                        ,farray   =HOLD_3D                              &  !<-- Put the pointer here
                         ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -382,15 +381,15 @@
           ENDDO
         ENDDO
       ENDDO
-        CALL ESMF_StateAdd(dyn_state,HOLD_ARRAY,rc)
+        CALL ESMF_StateAdd(dyn_state,HOLD_FIELD,rc)
       ENDDO
       ENDIF
       IF (tot_rank_4d  .GT. 0) THEN 
       DO N=1,tot_rank_4d 
-      ARRAY_NAME=name_save_4d(N)
-      IF (ARRAY_NAME == 'TRACERS') THEN
+      FIELD_NAME=name_save_4d(N)
+      IF (FIELD_NAME == 'TRACERS') THEN
       NUM_SPEC=NUM_TRACERS
-      ELSE IF (ARRAY_NAME == 'WATER') THEN
+      ELSE IF (FIELD_NAME == 'WATER') THEN
       NUM_SPEC=NUM_WATER
       ENDIF
       NULLIFY(HOLD_4D)
@@ -398,9 +397,9 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =DYN_STATE                             &  !<-- State that holds the Array
-                        ,itemName=ARRAY_NAME                            &  !<-- Name of the
-                        ,array   =HOLD_ARRAY                            &  !<-- Put extracted Array here
+      CALL ESMF_StateGet(state   =DYN_STATE                             &  !<-- State that holds the Field
+                        ,itemName=FIELD_NAME                            &  !<-- Name of the
+                        ,field   =HOLD_FIELD                            &  !<-- Put extracted Field here
                         ,rc      = RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -408,13 +407,13 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!      MESSAGE_CHECK="Dyn Update: Extract Temperature Pointer from Array"
+!      MESSAGE_CHECK="Dyn Update: Extract Temperature Pointer from Field"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ArrayGet(array    =HOLD_ARRAY                           &  !<-- Array that holds the data pointer
+      CALL ESMF_FieldGet(field    =HOLD_FIELD                           &  !<-- Field that holds the data pointer
                         ,localDe  =0                                    &
-                        ,farrayPtr=HOLD_4D                              &  !<-- Put the pointer here
+                        ,farray   =HOLD_4D                              &  !<-- Put the pointer here
                         ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -430,7 +429,7 @@
         ENDDO
       ENDDO
       ENDDO
-        CALL ESMF_StateAdd(dyn_state,HOLD_ARRAY,rc)
+        CALL ESMF_StateAdd(dyn_state,HOLD_FIELD,rc)
       ENDDO
       ENDIF
 
@@ -476,13 +475,13 @@
       implicit none
       type(esmf_state), intent(in) :: phy_state
 !
-      TYPE(ESMF_Array)             :: tmp_array
+      TYPE(ESMF_Field)             :: tmp_field
       integer                      :: n, rc
 !
       do n=1,phy_items
-        CALL ESMF_StateGet(state=phy_state, itemName=phy_name(n), array=tmp_array, rc = rc)
+        CALL ESMF_StateGet(state=phy_state, itemName=phy_name(n), field=tmp_field, rc = rc)
 
-        CALL ESMF_StateAdd(phy_state_save, tmp_array, rc = rc)
+        CALL ESMF_StateAdd(phy_state_save, tmp_field, rc = rc)
       enddo
       end subroutine digital_filter_phy_save_nmm
 
@@ -492,13 +491,13 @@
       implicit none
       type(esmf_state), intent(inout) :: phy_state
 !
-      TYPE(ESMF_Array)                :: tmp_array
+      TYPE(ESMF_Field)                :: tmp_field
       integer                         :: n, rc
 !
       do n=1,phy_items
-        CALL ESMF_StateGet(state=phy_state_save, itemName=phy_name(n), array=tmp_array, rc = rc)
+        CALL ESMF_StateGet(state=phy_state_save, itemName=phy_name(n), field=tmp_field, rc = rc)
 
-        CALL ESMF_StateAdd(phy_state, tmp_array, rc = rc)
+        CALL ESMF_StateAdd(phy_state, tmp_field, rc = rc)
       enddo
       deallocate(phy_name)
 

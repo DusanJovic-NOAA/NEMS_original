@@ -333,8 +333,8 @@
                           ,'F_ICE       ', 'H           ', 'R           ' &
                           ,'F_RIMEF     ', 'H           ', 'R           ' &
                           ,'F_RAIN      ', 'H           ', 'R           ' &
-                          ,'RTHBLTEN    ', '-           ', 'R           ' &
-                          ,'RQVBLTEN    ', '-           ', 'R           ' &
+                          ,'RTHBLTEN    ', '-           ', '-           ' &
+                          ,'RQVBLTEN    ', '-           ', '-           ' &
                           ,'SH2O        ', 'H           ', 'R           ' &
                           ,'SMC         ', 'H           ', 'R           ' &
                           ,'STC         ', 'H           ', 'R           ' &

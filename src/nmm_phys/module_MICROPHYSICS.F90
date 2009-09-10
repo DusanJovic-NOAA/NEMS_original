@@ -2256,7 +2256,7 @@ SUBROUTINE microphysics_driver(                                          &
      &                .OR. IPASS.EQ.1) THEN
                   EXIT
                 ELSE
-                  IF (TC < 0) THEN
+!-- Enforce NLImin at all temperatures                  IF (TC < 0) THEN
                     XLI=RHO*(QTICE/DUM-XSIMASS)/RimeF1
                     IF (XLI .LE. MASSI(MDImin) ) THEN
                       INDEXS=MDImin
@@ -2269,7 +2269,7 @@ SUBROUTINE microphysics_driver(                                          &
                     ELSE
                       INDEXS=MDImax
                     ENDIF             ! End IF (XLI .LE. MASSI(MDImin) )
-                  ENDIF               ! End IF (TC < 0)
+!-- Enforce NLImin at all temperatures                  ENDIF               ! End IF (TC < 0)
         !
         !--- Reduce excessive accumulation of ice at upper levels
         !    associated with strong grid-resolved ascent

@@ -1482,18 +1482,6 @@ logical(kind=klog) :: opened
         endif
       enddo
 !-----------------------------------------------------------------------
-      do l=1,lm+1
-        if(mype==0)then
-          read(nfcst)temp1 ! rthblten
-        endif
-      enddo
-!-----------------------------------------------------------------------
-      do l=1,lm+1
-        if(mype==0)then
-          read(nfcst)temp1 ! rqvblten
-        endif
-      enddo
-!-----------------------------------------------------------------------
       do l=1,nsoil
         if(mype==0)then
           read(nfcst)temp1 ! sh2o

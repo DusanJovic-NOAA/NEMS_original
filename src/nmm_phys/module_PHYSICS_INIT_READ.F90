@@ -1791,7 +1791,7 @@
       UDIM2=UBOUND(int_state%Q,2)
 !
 !-----------------------------------------------------------------------
-!***  U, V, T, Q, Q2, CW, F_ICE, F_RIMEF, F_RAIN, RTHBLTEN, RQVBLTEN
+!***  U, V, T, Q, Q2, CW, F_ICE, F_RIMEF, F_RAIN
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -2017,36 +2017,6 @@
         ENDDO
 !
         CALL DSTRB(TEMP1,int_state%F_RAIN,1,1,1,LM,K)
-      ENDDO
-!-----------------------------------------------------------------------
-!
-      DO K=1,LM+1
-        IF(MYPE==0)THEN
-          READ(NFCST)TEMP1   ! RTHBLTEN
-        ENDIF
-!
-        DO J=JMS,JME
-        DO I=IMS,IME
-          int_state%RTHBLTEN(I,J,K)=0.
-        ENDDO
-        ENDDO
-!
-        CALL DSTRB(TEMP1,int_state%RTHBLTEN,1,1,1,LM+1,K)
-      ENDDO
-!-----------------------------------------------------------------------
-!
-      DO K=1,LM+1
-        IF(MYPE==0)THEN
-          READ(NFCST)TEMP1   ! RQVBLTEN
-        ENDIF
-!
-        DO J=JMS,JME
-        DO I=IMS,IME
-          int_state%RQVBLTEN(I,J,K)=0.
-        ENDDO
-        ENDDO
-!
-        CALL DSTRB(TEMP1,int_state%RQVBLTEN,1,1,1,LM+1,K)
       ENDDO
 !-----------------------------------------------------------------------
 !***  SH2O, SMC, STC
@@ -3822,7 +3792,7 @@
       CALL MPI_BARRIER(MPI_COMM_COMP,IRTN)
 !
 !-----------------------------------------------------------------------
-!***  U, V, T, Q, Q2, CW, F_ICE, F_RIMEF, F_RAIN, RTHBLTEN, RQVBLTEN
+!***  U, V, T, Q, Q2, CW, F_ICE, F_RIMEF, F_RAIN
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -4078,40 +4048,6 @@
         ENDDO
 !
         CALL DSTRB(TEMP1,int_state%F_RAIN,1,1,1,LM,K)
-      ENDDO
-!-----------------------------------------------------------------------
-!
-      DO K=1,LM+1
-        IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'rthblten','layer',k,temp1,iret=irtn)
-!        write(0,*)'read rst phys,rthblten=',maxval(temp1),minval(temp1)
-!          READ(NFCST)TEMP1   ! RTHBLTEN
-        ENDIF
-!
-        DO J=JMS,JME
-        DO I=IMS,IME
-          int_state%RTHBLTEN(I,J,K)=0.
-        ENDDO
-        ENDDO
-!
-        CALL DSTRB(TEMP1,int_state%RTHBLTEN,1,1,1,LM+1,K)
-      ENDDO
-!-----------------------------------------------------------------------
-!
-      DO K=1,LM+1
-        IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'rqvblten','layer',k,temp1,iret=irtn)
-!        write(0,*)'read rst phys,rqvblten=',maxval(temp1),minval(temp1)
-!          READ(NFCST)TEMP1   ! RQVBLTEN
-        ENDIF
-!
-        DO J=JMS,JME
-        DO I=IMS,IME
-          int_state%RQVBLTEN(I,J,K)=0.
-        ENDDO
-        ENDDO
-!
-        CALL DSTRB(TEMP1,int_state%RQVBLTEN,1,1,1,LM+1,K)
       ENDDO
 !-----------------------------------------------------------------------
 !***  SH2O, SMC, STC
