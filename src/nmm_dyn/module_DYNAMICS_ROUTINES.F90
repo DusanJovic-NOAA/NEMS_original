@@ -36,6 +36,20 @@ integer(kind=kint),private :: &
 !
 real(kind=kfpt),private :: &
  btim
+integer(kind=kint),private :: &
+ jstart &
+,jstop
+
+!-----------------
+#ifdef ENABLE_SMP
+!-----------------
+integer(kind=kint) :: &
+ nth &
+,omp_get_num_threads &
+,omp_get_thread_num &
+,tid
+external omp_get_num_threads,omp_get_thread_num
+#endif
 !
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                         contains
@@ -161,24 +175,6 @@ real(kind=kfpt),dimension(its_b1:ite_h1,jts:jte_h1):: &
 real(kind=kfpt),dimension(its:ite_h1,jts_b1:jte_h1):: &
  pgy                         ! scratch, pgf, y direction
 !-----------------
-#ifdef ENABLE_SMP
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop &
-,nth &
-,omp_get_num_threads &
-,omp_get_thread_num &
-,tid
-!-----------------
-#else
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop
-!-----------------
-#endif
-!-----------------
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -194,7 +190,7 @@ integer(kind=kint) :: &
 #ifdef ENABLE_SMP
 !-----------------
 !.......................................................................
-!$omp parallel private(nth,tid,i,j,l,jstart,jstop,apelp,fiup,dfdp,dfip)
+!$omp parallel private(nth,tid,i,j,l,jstart,jstop,apelp,dfdp,dfip,fiup)
 !.......................................................................
       nth = omp_get_num_threads()
       tid = omp_get_thread_num()
@@ -235,7 +231,7 @@ integer(kind=kint) :: &
 !-----------------
 !.......................................................................
 !$omp parallel do &
-!$omp private (l,j,i,fim,apel,dfi,ppx,pgx,ppy,pgy, &
+!$omp private (l,j,i,apel,fim,dfi,ppx,pgx,ppy,pgy, &
 !$omp          ppne,ppnw,pgne,pgnw,jcl,jch,wprp,rdv,rdu,apd,&
 !$omp          rpdp)
 !.......................................................................
@@ -495,25 +491,6 @@ real(kind=kfpt),dimension(its_b1:ite_h2,jts_b1:jte_h2):: &
 ,tx &                        ! temperature flux, x direction
 ,ty                          ! temperature flux, y direction
  
-!-----------------
-#ifdef ENABLE_SMP
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop &
-,nth &
-,omp_get_num_threads &
-,omp_get_thread_num &
-,tid
-!-----------------
-#else
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop
-!-----------------
-#endif
-!-----------------
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -757,25 +734,6 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 ,dive &                      !
 ,rddu &                      !
 ,rddv                        !
-!-----------------
-#ifdef ENABLE_SMP
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop &
-,nth &
-,omp_get_num_threads &
-,omp_get_thread_num &
-,tid
-!-----------------
-#else
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop
-!-----------------
-#endif
-!-----------------
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
@@ -975,25 +933,6 @@ integer(kind=kint):: &
  i &                         ! index in x direction
 ,j &                         ! index in y direction
 ,l                           ! index in p direction
-!-----------------
-#ifdef ENABLE_SMP
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop &
-,nth &
-,omp_get_num_threads &
-,omp_get_thread_num &
-,tid
-!-----------------
-#else
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop
-!-----------------
-#endif
-!-----------------
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -1002,7 +941,7 @@ integer(kind=kint) :: &
 !-----------------
 !.......................................................................
 !$omp parallel &
-!$omp private(nth,tid,i,j,jstart,jstop)
+!$omp private(nth,tid,i,j,l,jstart,jstop)
 !.......................................................................
       nth = omp_get_num_threads()
       tid = omp_get_thread_num()
@@ -1045,7 +984,7 @@ integer(kind=kint) :: &
 !-----------------
 !.......................................................................
 !$omp parallel &
-!$omp private(nth,tid,i,j,jstart,jstop)
+!$omp private(nth,tid,i,j,l,jstart,jstop)
 !.......................................................................
       nth = omp_get_num_threads()
       tid = omp_get_thread_num()
@@ -1278,25 +1217,6 @@ real(kind=kfpt),dimension(its_b1:ite_b2,jts_b1:jte_b2,1:lm):: &
 ,rcmw &                      ! vertical advection temporary
 ,rstu &                      ! vertical advection temporary
 ,rstv                        ! vertical advection temporary
-!-----------------
-#ifdef ENABLE_SMP
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop &
-,nth &
-,omp_get_num_threads &
-,omp_get_thread_num &
-,tid
-!-----------------
-#else
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop
-!-----------------
-#endif
-!-----------------
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -1315,7 +1235,7 @@ integer(kind=kint) :: &
 #ifdef ENABLE_SMP
 !-----------------
 !.......................................................................
-!$omp parallel private(nth, tid, i,j,l,jstart, jstop,rdp,pvvup,vvup,vvlo,cf,cmt)
+!$omp parallel private(nth, tid, i,j,l,jstart,jstop,vvlo,cmt,rdp,pvvup,vvup,cf)
 !.......................................................................
       nth = omp_get_num_threads()
       tid = omp_get_thread_num()
@@ -1401,7 +1321,7 @@ integer(kind=kint) :: &
 !.......................................................................
 !$omp parallel do &
 !$omp private (t1,tx,ty,tne,tnw,ibeg,iend,jbeg,jend,fahp,enhp,pp,qq, &
-!$omp         iap,jap,emhp,j,i)
+!$omp         iap,jap,emhp,j,i,l)
 !.......................................................................
 !-----------------------------------------------------------------------
       vertical_loop1: do l=1,lm
@@ -1589,7 +1509,7 @@ integer(kind=kint) :: &
 #ifdef ENABLE_SMP
 !-----------------
 !.......................................................................
-!$omp parallel private(nth,tid,i,j,l,jstart,jstop,vvlo,cmw,pvvup,vvup,cf,rdp)
+!$omp parallel private(nth,tid,i,j,l,jstart,jstop,vvlo,cmw,rdp,pvvup,vvup,cf)
 !.......................................................................
        nth = omp_get_num_threads()
        tid = omp_get_thread_num()
@@ -1691,9 +1611,8 @@ integer(kind=kint) :: &
 !$omp private (u1d,v1d,crv,fp,fpp,pfxx1,pfyx1,pfnex1,pfnwx1,pfxy1,pfyy1, &
 !$omp          pfney1,pfnwy1,u2d,v2d,ufxx1,ufyx1,ufnex1,ufnwx1,          &
 !$omp          ufxy1,ufyy1,ufney1,ufnwy1,vfxx1,vfyx1,vfnex1,vfnwx1,vfxy1, &
-!$omp          vfyy1,vfney1,vfnwy1,rdyp,ibeg,iend,jbeg,jend,fadp,rdxp,    &
-
-!$omp          fdpp,dux1,dvx1,duy1,dvy1,envp,emvp, pp,qq,iap,jap,j,i)
+!$omp          vfyy1,vfney1,vfnwy1,ibeg,iend,jbeg,jend,dxody,dyodx,fadp, &
+!$omp          fdpp,dux1,dvx1,duy1,dvy1,envp,emvp, pp,qq,iap,jap,j,i,l)
 !.......................................................................
 !-----------------------------------------------------------------------
 !
@@ -2125,25 +2044,6 @@ real(kind=kfpt):: &
 
 real(kind=kfpt),dimension(its:ite,jts:jte):: &
  tpm                         ! pressure temporary
-!-----------------
-#ifdef ENABLE_SMP
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop &
-,nth &
-,omp_get_num_threads &
-,omp_get_thread_num &
-,tid
-!-----------------
-#else
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop
-!-----------------
-#endif
-!-----------------
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------
@@ -3119,25 +3019,6 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1):: &
 real(kind=kfpt),dimension(its_h1:ite_h1,jts_h1:jte_h1):: &
  wlo &                       ! w wind component at lower interface
 ,zlo                         ! height at lower interface
-!-----------------
-#ifdef ENABLE_SMP
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop &
-,nth &
-,omp_get_num_threads &
-,omp_get_thread_num &
-,tid
-!-----------------
-#else
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop
-!-----------------
-#endif
-!-----------------
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -3247,26 +3128,15 @@ integer(kind=kint) :: &
           w(i,j,lm)=ttb(i,j)/(dsg2(lm)*pdo(i,j)+pdsg1(lm))+w(i,j,lm)
         enddo
       enddo
+!-----------------
+#ifdef ENABLE_SMP
+!!-----------------
+!$omp end parallel
+!$omp parallel do private(l,j,i,dpup,zx,zy,zne,znw,fahp)
+#endif
 !
 !-----------------------------------------------------------------------
 !---grand horizontal loop-----------------------------------------------
-!-----------------------------------------------------------------------
-!
-!-----------------
-#ifndef ENABLE_SMP
-!-----------------
-!.......................................................................
-!$omp parallel do private(l,j,i,dpup,zx,zy,zne,znw,fahp)
-!.......................................................................
-!-----------------
-#else
-!-----------------
-!.......................................................................
-!$omp do private(l,j,i,dpup,zx,zy,zne,znw,fahp)
-!.......................................................................
-!-----------------
-#endif
-!-----------------
 !-----------------------------------------------------------------------
 !
       vertical_loop: do l=1,lm
@@ -3340,19 +3210,8 @@ integer(kind=kint) :: &
 !-----------------------------------------------------------------------
       enddo vertical_loop
 !------------------
-#ifndef ENABLE_SMP
-!------------------
-!.......................................................................
+#ifdef ENABLE_SMP
 !$omp end parallel do
-!.......................................................................
-!------------------
-#else
-!------------------
-!.......................................................................
-!$omp end do
-!$omp end parallel
-!.......................................................................
-!------------------
 #endif
 !------------------
 !-----------------------------------------------------------------------
@@ -3912,25 +3771,6 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm+1):: &
 ,pnp1 &                      !
 ,pone &                      !
 ,pstr                        !
-!-----------------
-#ifdef ENABLE_SMP
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop &
-,nth &
-,omp_get_num_threads &
-,omp_get_thread_num &
-,tid
-!-----------------
-#else
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop
-!-----------------
-#endif
-!-----------------
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -4145,7 +3985,6 @@ integer(kind=kint) :: &
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
-include '../../inc/kind.inc'
 !-----------------------------------------------------------------------
 real(kind=kfpt),parameter:: &
  cfc=1.533 &                 ! adams-bashforth positioning in time
@@ -4254,25 +4093,6 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse):: &
  rsts                        ! vertical advection temporary
 
-!-----------------
-#ifdef ENABLE_SMP
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop &
-,nth &
-,omp_get_num_threads &
-,omp_get_thread_num &
-,tid
-!-----------------
-#else
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop
-!-----------------
-#endif
-!-----------------
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
@@ -4671,7 +4491,6 @@ integer(kind=kint) :: &
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
-include '../../inc/kind.inc'
 !-----------------------------------------------------------------------
 real(kind=kfpt),parameter:: &
  epsq=1.e-20 &               ! floor value for specific humidity
@@ -5768,24 +5587,6 @@ logical(kind=klog),save :: sum_file_is_open=.false.
 character(10) :: fstatus
 real(kind=kfpt),dimension(8,1:lm) :: gsums_single
 !-----------------
-#ifdef ENABLE_SMP
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop &
-,nth &
-,omp_get_num_threads &
-,omp_get_thread_num &
-,tid
-!-----------------
-#else
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop
-!-----------------
-#endif
-!-----------------
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -5799,8 +5600,8 @@ integer(kind=kint) :: &
       enhp=-addt*rdyh*0.25
 !
 !.......................................................................
-!$omp parallel do private (i,j,l,rdx,emhp,up4,vp4,pp,qq,iap,app,jap, &
-!$omp                      aqq,qfc,dqp,dwp,dgp,dep,darep,dvolp)
+!$omp parallel do private (i,j,l,enhp,rdx,emhp,up4,vp4,pp,qq,iap,app,jap, &
+!$omp                      aqq,qfc,darep,dvolp,dqp,dwp,dgp,dep)
 !.......................................................................
       do l=1,lm
         do j=jts_h1,jte_h1
@@ -6140,7 +5941,7 @@ integer(kind=kint) :: &
 !.......................................................................
 !$omp parallel do private (q1p,w1p,g1p,e1p,iap,jap,d2pqq,d2pqw,d2pqg,d2pqe, &
 !$omp                      qp,wp,gp,ep,q00,qp0,q0q,w00,wp0,w0q,g00,gp0,g0q, &
-!$omp                      e00,ep0,e0q,darep,dvolp,dqp,dwp,dgp,dep)
+!$omp                      e00,ep0,e0q,darep,dvolp,dqp,dwp,dgp,dep,l,j,i)
 !.......................................................................
        do l=1,lm
         do j=jts_b1,jte_b1
@@ -7363,25 +7164,6 @@ integer(kind=kint):: &
  i &                         ! index in x direction
 ,j &                         ! index in y direction
 ,l                           ! index in p direction
-!-----------------
-#ifdef ENABLE_SMP
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop &
-,nth &
-,omp_get_num_threads &
-,omp_get_thread_num &
-,tid
-!-----------------
-#else
-!-----------------
-integer(kind=kint) :: &
- jstart &
-,jstop
-!-----------------
-#endif
-!-----------------
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -7420,7 +7202,7 @@ integer(kind=kint) :: &
 !-----------------
 !.......................................................................
 !$omp parallel &
-!$omp private(nth,tid,i,j,jstart,jstop)
+!$omp private(nth,tid,jstart,jstop,j,i,l)
 !.......................................................................
       nth = omp_get_num_threads()
       tid = omp_get_thread_num()
@@ -7472,6 +7254,7 @@ integer(kind=kint) :: &
       else
       end if
 
+#undef ENABLE_SMP
                         endsubroutine aveq2
 !----------------------------------------------------------------------
 !
