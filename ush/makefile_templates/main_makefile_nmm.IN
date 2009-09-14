@@ -5,6 +5,7 @@
 #
 include ../../ush/compile_settings
 all: 
+	_GFS_PHYSICS_
 	cd $(NMM_UTIL) && make
 	cd $(NMM_IO) && make 
 	cd $(NMM_DYN) && make  
@@ -17,6 +18,7 @@ all:
 	echo "NMM_NEMS.x is created for NMM core."
 
 clean:
+	_GFS_PHYSICS_ clean
 	cd $(NMM_UTIL) && make clean
 	cd $(NMM_IO) && make clean 
 	cd $(NMM_DYN) && make clean

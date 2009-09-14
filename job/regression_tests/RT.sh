@@ -1432,8 +1432,8 @@ echo " Test 14 passed "
 
 rm -f err out configure_file nmm_glob_ll nmm_reg_ll gfs_fcst_run  gfs_ll
 cd ${PATHTR}/ush
-./clean.sh      > /dev/null 2>&1
-./clean_stub.sh > /dev/null 2>&1
+./clean_stub.sh      > /dev/null 2>&1
+./clean.sh > /dev/null 2>&1
 
 date >> ${PATHRT}/RegressionTests.log
 

@@ -37,16 +37,19 @@ fi
     then
     cat compile_options/nmm_compile_options_${OS}.IN | sed s:_GFS_PHY_LIB_:'$(LIBDIR)/lib/gfs_phys.a':g > compile_options/nmm_compile_options_${OS} 
     cat compile_options/gen_compile_options_${OS} compile_options/nmm_compile_options_${OS} > compile_settings
-    cat makefile_templates/main_makefile_nmm_stub.IN | sed s:_GFS_PHY_MAKEFILE_:makefile_gfs_full_physics:g \
+    cat makefile_templates/main_makefile_nmm_stub.IN | sed s:_GFS_PHYSICS_:#:g \
 	| sed s:_GFS_PHY_LIB_LOC_:#:g >  makefile_templates/main_makefile_nmm_stub
     cp -f makefile_templates/main_makefile_nmm_stub ../src/main/Makefile_stub
+    cat makefile_templates/main_makefile_nmm.IN | sed s:_GFS_PHYSICS_:'cd $(GFS_PHY) \&\& make -f makefile_gfs_full_physics':g > makefile_templates/main_makefile_nmm 
     else
     cat compile_options/nmm_compile_options_${OS}.IN | sed s:_GFS_PHY_LIB_:'$(LIBDIR)/libstub/gfs_phys_stub.a':g > compile_options/nmm_compile_options_${OS}
     cat compile_options/gen_compile_options_${OS} compile_options/nmm_compile_options_${OS} > compile_settings
-    cat makefile_templates/main_makefile_nmm_stub.IN | sed s:_GFS_PHY_MAKEFILE_:makefile_stub:g \
+    cat makefile_templates/main_makefile_nmm_stub.IN | sed s:_GFS_PHYSICS_:'cd $(GFS_PHY) \&\& make -f makefile_stub':g \
         | sed s:_GFS_PHY_LIB_LOC_:'cp $(GFS_PHY)/gfs_physics_grid_comp_mod.mod $(MODDIR)/modstub/gfs':g >  makefile_templates/main_makefile_nmm_stub
+    cat makefile_templates/main_makefile_nmm.IN | sed s:_GFS_PHYSICS_:#:g > makefile_templates/main_makefile_nmm
+    fi 
     cp -f makefile_templates/main_makefile_nmm_stub ../src/main/Makefile_stub
-    fi
+    cp -f makefile_templates/main_makefile_nmm ../src/main/Makefile_main
     cp -f makefile_templates/nmm_atmos_makefile ../src/main/atmos/makefile
     cp -f makefile_templates/makefile_nmm_stub ../src/main/atmos/makefile_stub 
     elif [[ $1 = 'gfs' ]]
