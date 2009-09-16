@@ -1,8 +1,4 @@
-<<<<<<< .mine
 Tue Sep 15 15:30:30 EDT 2009
-=======
-Tue Sep 15 14:52:00 EDT 2009
->>>>>>> .r4934
 Start Regression test
 Test 1
 Compare results with previous trunk version
@@ -28,11 +24,7 @@ Checking test 1 results ....
  Comparing nmm_b_restart_nemsio.024.........OK
  Test 1 passed 
 
-<<<<<<< .mine
  Original timing:  196.4453278  , test1 timing:  203.1800079
-=======
- Original timing:  196.4453278  , test1 timing:  201.3000031
->>>>>>> .r4934
 Test 2
 Test NEMSIO as input file
 NMMB, global case
@@ -124,11 +116,6 @@ Checking test 6 results ....
  Comparing nmm_b_history_nemsio.048.........OK
  Comparing nmm_b_restart_nemsio.024.........OK
  Test 6 passed 
-<<<<<<< .mine
-=======
-
- Original timing:  644.2672729  , test1 timing:  660.2320557
->>>>>>> .r4934
 Test 7
 Compare results with previous trunk version
 NMMB, regional case
@@ -329,10 +316,5 @@ Checking test 16 results ....
  Comparing flxf006_nemsio.........OK
  Comparing flxf012_nemsio.........OK
  Comparing flxf024_nemsio.........OK
-<<<<<<< .mine
  Test 16 passed 
 Tue Sep 15 17:28:37 EDT 2009
-=======
- Test 14 passed 
-Tue Sep 15 16:31:43 EDT 2009
->>>>>>> .r4934
