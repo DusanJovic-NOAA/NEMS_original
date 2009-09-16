@@ -1136,7 +1136,7 @@
 !jaa!$omp parallel do                                                       &
 !jaa!$omp& private(i,j)
       DO J=JTS_B1,JTE_B1
-      DO I=ITS,ITE
+      DO I=ITS_B1,ITE_B1
         SNO(I,J)=SNOW(I,J)
         SI(I,J)=SNOWH(I,J)*SNO_FACTR
         LPBL(I,J)=LM+1-KPBL(I,J)      !<--- Layer top of PBL counting downward
@@ -1151,7 +1151,7 @@
 !$omp parallel do private(j,i,tsfc2)
 !.......................................................................
       DO J=JTS_B1,JTE_B1
-      DO I=ITS,ITE
+      DO I=ITS_B1,ITE_B1
 !-- Remove the next 2 lines and uncomment "!was" lines below if not correct
         TSFC2=TSFC(I,J)*TSFC(I,J)
         RADOT(I,J)=EPSR(I,J)*STBOLT*TSFC2*TSFC2
@@ -1363,14 +1363,14 @@
 !.......................................................................
 !!$omp parallel do private(j,k,i)
 !.......................................................................
-!
-!      DO J=JMS,JME
-!      DO K=1,LM+1
-!      DO I=IMS,IME
-!        EXCH_H(I,J,K)=EXCH_H_PHY(I,K,J)
-!      ENDDO
-!      ENDDO
-!      ENDDO
+      DO J=JMS,JME
+      DO K=1,LM-1
+      KFLIP=LM-K
+      DO I=IMS,IME
+        EXCH_H(I,J,KFLIP)=EXCH_H_PHY(I,K,J)
+      ENDDO
+      ENDDO
+      ENDDO
 !.......................................................................
 !!$omp end parallel do
 !.......................................................................
@@ -2245,7 +2245,7 @@
             KFLIP=KTE+1-K
             Q2K(KFLIP)=AMAX1(Q2K(KFLIP),EPSQ2)
             TKE_MYJ(I,K,J)=0.5*Q2K(KFLIP)
-            IF(K<KTE)EL_MYJ(I,K,J)=EL(K)   ! EL IS NOT DEFINED AT KTE
+            IF(K>1)EL_MYJ(I,K,J)=EL(KFLIP)
           ENDDO
 !
         ENDDO

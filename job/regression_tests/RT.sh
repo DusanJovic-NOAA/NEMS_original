@@ -8,7 +8,7 @@ echo "Start Regression test" >> RegressionTests.log
 # RTPWD - path with previous stored data
 #########################################
 
-export RTPWD=/meso/noscrub/wx20rv/REGRESSION_TEST
+export RTPWD=/meso/noscrub/wx20du/REGRESSION_TEST
 
 #########################################
 # PATHRT - regression test path
