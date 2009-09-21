@@ -150,7 +150,7 @@ pcphr: 6
 ### Gravity Wave Drag  ####
 ###########################
 
-gwdflg:  false              # True--> GWD on ; False--> GWD off
+gwdflg:  true               # True--> GWD on ; False--> GWD off
 
 
 ##################################
@@ -204,7 +204,7 @@ ucmcall: 0                  # Use (1) or do not use (0) the Urban Canopy Model
 
 #---------------------------------
                                                                                                                                               
-gfs:  false                 # Select entire GFS physics suite
+gfs:  _gfsP_                 # Select entire GFS physics suite
 
 
 #############################

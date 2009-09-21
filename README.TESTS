@@ -6,9 +6,10 @@ How to run tests:
 
  - run RT.sh script
 
- - wait for at least an hour (progress should appear on the screen)
+ - wait about two hours (and growing)
+   progress should appear on the screen
 
- - look for results in RegressionTests.log for results
+ - look in RegressionTests.log for results
 
 
 Tests performed:
@@ -18,12 +19,18 @@ Tests performed:
  3) NMMB, global, test restart
  4) NMMB, global, test restart with NEMSIO file
  5) NMMB, global, test different decompostition
- 6) NMMB, regional, control version
- 7) NMMB, regional, test NEMSIO input file
- 8) NMMB, regional, test restart
- 9) NMMB, regional, test restart with NEMSIO file
-10) NMMB, regional, test different decompostition
-11) GFS, control version (32 processors, 1 thread)
-12) GFS, different decompostition (60 processors, 1 thread)
-13) GFS, test threading (16 processors, 2 threads)
-14) GFS, test single processor version (1 processor)
+ 6) NMMB, global, test threads
+ 7) NMMB, global, test with GFS physics
+
+ 8) NMMB, regional, control version
+ 9) NMMB, regional, test NEMSIO input file
+10) NMMB, regional, test restart
+11) NMMB, regional, test restart with NEMSIO file
+12) NMMB, regional, test different decompostition
+13) NMMB, regional, test threads
+14) NMMB, regional, test with GFS physics
+
+15) GFS, control version (32 processors, 1 thread)
+16) GFS, different decompostition (60 processors, 1 thread)
+17) GFS, test threading (16 processors, 2 threads)
+18) GFS, test single processor version (1 processor)

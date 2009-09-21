@@ -675,7 +675,7 @@
 !***  Only for Gfs physics
 !-----------------------------------------------------------------------
 !
-      USE MODULE_CONSTANTS,           ONLY: R,CP,RHOWATER,XLV
+      USE MODULE_CONSTANTS,           ONLY: R,CP,RHOWATER,XLV,STBOLT
       USE NAMELIST_PHYSICS_DEF,       ONLY: ISOL,ICO2,IALB,IEMS,IAER       &
                                            ,IOVR_SW,IOVR_LW,LSSAV,LDIAG3D  &
                                            ,FHSWR,LSCCA,LSSWR,LSLWR,SASHAL &
@@ -719,13 +719,14 @@
       INTEGER ,DIMENSION(13)                       :: DAYS
       INTEGER ,DIMENSION(JTS:JTE)                  :: LONSPERLAR, GLOBAL_LATS_R
 !
-      REAL (KIND=KDBL)                             :: T850,FACOZ,DTSW,DTLW,RTvR,CLSTP,DTP,DTF,SOLHR
+      REAL (KIND=KDBL)                             :: T850,FACOZ,DTLW,DTSW,DTLWI,DTSWI,RTvR,CLSTP,DTP,DTF,SOLHR
+      REAL (KIND=KDBL)                             :: XLVRW,XLVRWI,DTPHS,DTPHSI,RoCP,MINDT
       REAL (KIND=KDBL) ,DIMENSION(1)               :: RCS2_V,XLAT,FLGMIN_L,CV,CVB,CVT  ! (cv, cvb, cvt not in use when ntcw-1 > 0)
       REAL (KIND=KDBL) ,DIMENSION(1)               :: TSEA,TISFC,ZORL,SLMSK,SNWDPH,SHELEG,SNCOVR,SNOALB
       REAL (KIND=KDBL) ,DIMENSION(1)               :: XSIHFCS,XSICFCS,XSLPFCS,XTG3FCS,XVEGFCS,XVETFCS,XSOTFCS
       REAL (KIND=KDBL) ,DIMENSION(1)               :: ALVSF,ALNSF,ALVWF,ALNWF,FACSF,FACWF
       REAL (KIND=KDBL) ,DIMENSION(1)               :: WRK, DPSHC, GQ, RANNUM_V
-      REAL (KIND=KDBL) ,DIMENSION(1)               :: ORO
+      REAL (KIND=KDBL) ,DIMENSION(1)               :: ORO, EVAP, HFLX, CDQ, QSS
       REAL (KIND=KDBL) ,DIMENSION(LM)              :: CLDCOV_V,PRSL,PRSLK,GU,GV,GT,GR,VVEL,F_ICE,F_RAIN,R_RIME
       REAL (KIND=KDBL) ,DIMENSION(LM)              :: ADT,ADU,ADV,PHIL
       REAL (KIND=KDBL) ,DIMENSION(LM,NTRAC)        :: GR3,ADR
@@ -1179,8 +1180,6 @@
                   ,IDS,IDE,JDS,JDE,LM                                  &
                   ,IMS,IME,JMS,JME                                     &
                   ,ITS,ITE,JTS,JTE)
-
-
 !
         turbl_tim=turbl_tim+timef()-btim
 !
@@ -1520,8 +1519,6 @@
                                                                ! are calculated from convective precipitation rates
       LSSWR           = MOD(NTIMESTEP,int_state%NRADS)==0
       LSLWR           = MOD(NTIMESTEP,int_state%NRADL)==0
-      DTLW            = FLOAT(int_state%NRADL)*int_state%DT   ! [s]
-      DTSW            = FLOAT(int_state%NRADS)*int_state%DT   ! [s]
 
 !-----------------------------------------------------------------------
       IF( LSSWR .OR. LSLWR ) THEN
@@ -1699,6 +1696,7 @@
 !
         DO J=JTS,JTE
         DO I=ITS,ITE
+          int_state%ACSNOW(I,J)=0.
           int_state%POTEVP(I,J)=0.
           int_state%SFCEVP(I,J)=0.
           int_state%SFCLHX(I,J)=0.
@@ -1725,6 +1723,17 @@
       gfs_physics: IF(CALL_GFS_PHY)THEN
 !-----------------------------------------------------------------------
 !
+             DTLW    = FLOAT(int_state%NRADL)*int_state%DT   ! [s]
+             DTSW    = FLOAT(int_state%NRADS)*int_state%DT   ! [s]
+             DTLWI   = 1./DTLW
+             DTSWI   = 1./DTSW
+             MINDT   = 1./MIN(DTLW,DTSW)
+             DTPHS   = int_state%NPHS*int_state%DT
+             DTPHSI  = 1./DTPHS
+             XLVRW   = XLV*RHOWATER
+             XLVRWI  = 1./XLVRW
+             RoCP    = R/CP
+!
 !-----------------------------------------------------------------------
 ! ***  MAIN GFS-PHYS DOMAIN LOOP
 !-----------------------------------------------------------------------
@@ -1734,10 +1743,24 @@
           DO I=ITS,ITE
             II=I-ITS+1+IHALO   ! Pointer indices (Q & CW)
 !
+             int_state%ACUTIM(I,J) = int_state%ACUTIM(I,J) + 1.     ! advance counters
+             int_state%APHTIM(I,J) = int_state%APHTIM(I,J) + 1.
+             int_state%ARDLW(I,J)  = int_state%ARDLW(I,J)  + 1.
+             int_state%ARDSW(I,J)  = int_state%ARDSW(I,J)  + 1.
+             int_state%ASRFC(I,J)  = int_state%ASRFC(I,J)  + 1.
+             int_state%AVRAIN(I,J) = int_state%AVRAIN(I,J) + 1.
+             int_state%AVCNVC(I,J) = int_state%AVCNVC(I,J) + 1.
+!
              T1(1)           = 0.0D0        ! initialize all local variables
              Q1(1)           = 0.0D0        ! used in gfs_physics
              U1(1)           = 0.0D0
              V1(1)           = 0.0D0
+             QSS(1)          = 0.0D0
+             CDQ(1)          = 0.0D0
+             HFLX(1)         = 0.0D0
+             EVAP(1)         = 0.0D0
+             DTSFC(1)        = 0.0D0
+             DQSFC(1)        = 0.0D0
              DUSFC(1)        = 0.0D0
              DVSFC(1)        = 0.0D0
              PSMEAN(1)       = 0.0D0
@@ -1746,6 +1769,7 @@
              EVCWA(1)        = 0.0D0
              TRANSA(1)       = 0.0D0
              SBSNOA(1)       = 0.0D0
+             SOILM(1)        = 0.0D0
              SNOWCA(1)       = 0.0D0
              CLDWRK(1)       = 0.0D0
              ZLVL(1)         = 0.0D0
@@ -1779,7 +1803,7 @@
 
          DO L=1,LM
             KFLIP=LM+1-L
-             CLDCOV_V(KFLIP) = int_state%CLDFRA(I,J,L)
+             CLDCOV_V(KFLIP) = 0.0D0
              F_ICE(KFLIP)    = int_state%F_ICE(I,J,L)                       ! for ferrier phy, do init first
              F_RAIN(KFLIP)   = int_state%F_RAIN(I,J,L)
              R_RIME(KFLIP)   = int_state%F_RIMEF(I,J,L)
@@ -1800,15 +1824,15 @@
              FACWF(1)        = int_state%ALFFC1(I,J,2)                      ! diffuse
 !
              PRSI (LM+1)     = int_state%PT/1000.                           ! [kPa]
-             PRSIK(LM+1)     = (PRSI(LM+1)*0.01d0)**(R/CP)
+             PRSIK(LM+1)     = (PRSI(LM+1)*0.01d0)**RoCP
          DO L=1,LM
             KFLIP=LM+1-L
              PRSI (KFLIP)    = PRSI(KFLIP+1) + &
                                 (DSG2(L)*int_state%PD(I,J)+PDSG1(L))/1000.d0 ! (pressure on interface) [kPa]
-             PRSIK(KFLIP)    = (PRSI(KFLIP)*0.01d0)**(R/CP)
+             PRSIK(KFLIP)    = (PRSI(KFLIP)*0.01d0)**RoCP
 
              PRSL (KFLIP)    = (PRSI(KFLIP)+PRSI(KFLIP+1))*0.5d0             ! (pressure on mid-layer) [kPa]
-             PRSLK(KFLIP)    = (PRSL(KFLIP)*0.01d0)**(R/CP)
+             PRSLK(KFLIP)    = (PRSL(KFLIP)*0.01d0)**RoCP
 !
              RTvR = 1. / ( R * (int_state%Q(II,JJ,L)*0.608+1.-int_state%CW(II,JJ,L) ) * int_state%T(I,J,L) )
              VVEL(KFLIP)     = int_state%OMGALF(I,J,L) * 1000.d0*PRSL(KFLIP) * RTvR
@@ -1838,13 +1862,11 @@
              DSWSFCI(1)      = int_state%RSWIN(I,J)
              USWSFCI(1)      = int_state%RSWOUT(I,J)
 !---
-             DTSFC(1)        = int_state%SFCSHX(I,J)
-             DQSFC(1)        = int_state%SFCLHX(I,J)
-             GFLUX(1)        = int_state%SUBSHX(I,J)
+             GFLUX(1)        = 0.0D0
              DTSFCI(1)       = -int_state%TWBS(I,J)
              DQSFCI(1)       = -int_state%QWBS(I,J)
-             GFLUXI(1)       = int_state%GRNFLX(I,J)
-             EP(1)           = int_state%POTEVP(I,J)
+             GFLUXI(1)       = 0.0D0
+             EP(1)           = int_state%POTEVP(I,J)*XLVRW
 !---
              XSIHFCS(1)      = int_state%SIHFCS(I,J)
              XSICFCS(1)      = int_state%SICFCS(I,J)
@@ -1855,8 +1877,8 @@
              XSOTFCS(1)      = int_state%SOTFCS(I,J)
 !---
              FLUXR_V         = 0.0D0
-             FLUXR_V(1)      = int_state%ALWTOA(I,J)*int_state%NHRS_RDLW*3600.
-             FLUXR_V(2)      = int_state%ASWTOA(I,J)*int_state%NHRS_RDSW*3600.
+             IF(.NOT.LSLWR) FLUXR_V(1) = int_state%RLWTOA(I,J)*DTLW
+             IF(.NOT.LSSWR) FLUXR_V(2) = int_state%RSWTOA(I,J)*DTSW
 !---
              HPRIME (1)      = int_state%HSTDV(I,J)
              HPRIME (2)      = int_state%HCNVX(I,J)
@@ -1873,8 +1895,8 @@
              HPRIME(13)      = int_state%HSLOP(I,J)*0.2d0   ! calculated from different terrain file
              HPRIME(14)      = int_state%HZMAX(I,J)
 !---
-             RUNOFF(1)       = int_state%BGROFF(I,J)
-             SRUNOFF(1)      = int_state%SSROFF(I,J)
+             RUNOFF(1)       = int_state%BGROFF(I,J)*0.001D0
+             SRUNOFF(1)      = int_state%SSROFF(I,J)*0.001D0
 !---
              SFCNSW(1)       = int_state%SFCNSW(I,J)
              SFCDSW(1)       = int_state%SFCDSW(I,J)
@@ -1945,6 +1967,7 @@
          SHDMIN(1)   = int_state%SHDMIN(I,J)
          SHDMAX(1)   = int_state%SHDMAX(I,J)
 
+         UUSTAR(1)   = int_state%USTAR(I,J)
          CANOPY(1)   = int_state%CMC(I,J)*1000.
          FLGMIN      = 0.2d0 !!! put this in ferrier init
          CRTRH       = 0.85d0
@@ -2034,6 +2057,8 @@
              int_state%SH2O(I,J,L)        = SLC_V(L)
          ENDDO
              int_state%CMC(I,J)           = CANOPY(1)*0.001
+             int_state%USTAR(I,J)         = UUSTAR(1)
+             int_state%SMSTOT(I,J)        = SOILM(1)*1000.
 
          DO L=1,LM
              int_state%SWH(I,J,L)         = SWH(L)
@@ -2049,73 +2074,68 @@
          ENDDO
          ENDDO
 
-             int_state%ALWIN(I,J)         = DLWSFC(1)
-             int_state%ALWOUT(I,J)        = ULWSFC(1)
-             int_state%ASWIN(I,J)         = DSWSFCI(1)
-             int_state%ASWOUT(I,J)        = USWSFCI(1)
+             int_state%ALWIN(I,J)         = int_state%ALWIN(I,J)  + int_state%RLWIN(I,J)
+             int_state%ALWOUT(I,J)        = int_state%ALWOUT(I,J) - int_state%RADOT(I,J)
+             int_state%ASWIN(I,J)         = int_state%ASWIN(I,J)  + int_state%RSWIN(I,J)
+             int_state%ASWOUT(I,J)        = int_state%ASWOUT(I,J) - int_state%RSWOUT(I,J)
              int_state%RLWIN(I,J)         = DLWSFCI(1)
              int_state%RADOT(I,J)         = ULWSFCI(1)
              int_state%RSWIN(I,J)         = DSWSFCI(1)
              int_state%RSWOUT(I,J)        = USWSFCI(1)
+             int_state%RSWINC(I,J)        = int_state%RSWIN(I,J)/(1.-int_state%ALBEDO(I,J))
 
-             int_state%ALWTOA(I,J)        = FLUXR_V(1)/(int_state%NHRS_RDLW*3600.)
-             int_state%ASWTOA(I,J)        = FLUXR_V(2)/(int_state%NHRS_RDSW*3600.)
-             int_state%RLWTOA(I,J)        = FLUXR_V(1)
-             int_state%RSWTOA(I,J)        = FLUXR_V(2)
+             int_state%RLWTOA(I,J)        = FLUXR_V(1)*DTLWI
+             int_state%RSWTOA(I,J)        = FLUXR_V(2)*DTSWI
+             int_state%ALWTOA(I,J)        = int_state%ALWTOA(I,J) + FLUXR_V(1)*DTLWI
+             int_state%ASWTOA(I,J)        = int_state%ASWTOA(I,J) + FLUXR_V(2)*DTSWI
 
-             int_state%SFCSHX(I,J)        = DTSFC(1)
-             int_state%SFCLHX(I,J)        = DQSFC(1)
-             int_state%SUBSHX(I,J)        = GFLUX(1)
+             int_state%SFCSHX(I,J)        = int_state%SFCSHX(I,J) - HFLX(1)*1000.*PRSL(1)*RTvR*CP     !need HFLX from GFS
+             int_state%SFCLHX(I,J)        = int_state%SFCLHX(I,J) - EVAP(1)*1000.*PRSL(1)*RTvR*XLV    !need EVAP from GFS
+             int_state%SUBSHX(I,J)        = int_state%SUBSHX(I,J) + GFLUXI(1)
              int_state%TWBS(I,J)          = -DTSFCI(1)
              int_state%QWBS(I,J)          = -DQSFCI(1)
              int_state%GRNFLX(I,J)        = GFLUXI(1)
-             int_state%POTEVP(I,J)        = EP(1)
-!
-!-- Ratko: Please verify that these are accumulations like with the NMM physics
-!
-             int_state%POTFLX(I,J)        = -EP(1)*XLV*RHOWATER/(int_state%NPHS*int_state%DT)
-!
-!-- Ratko: SFCEVP was changed because it had ASRFC in the denonimator, and ASRFC was changed in
-!   module_PHYSICS_INTERNAL_STATE.F90.   Will need to reconcile these differences?
-!
-             int_state%SFCEVP(I,J)        = DQSFC(1)/(RHOWATER*int_state%DT*int_state%ASRFC(I,J))
-!
-!-- Ratko: Should the new 2D accumulators AVRAIN, etc. be included somewhere around here?
-!
+             int_state%POTEVP(I,J)        = EP(1)*XLVRWI
+             int_state%POTFLX(I,J)        = -EP(1)*DTPHSI
+             int_state%SFCEVP(I,J)        = int_state%SFCEVP(I,J) + DQSFCI(1)*DTPHS*XLVRWI
 
-             int_state%SFCEXC(I,J)        = CHH(1)
+             int_state%SFCEXC(I,J)        = CDQ(1)                                                    !need CDQ  from GFS
+             int_state%PBLH(I,J)          = HPBL(1)
+             int_state%PSFC(I,J)          = PSURF(1)*1000.
              int_state%PREC(I,J)          = TPRCP(1)
              int_state%CUPPT(I,J)         = BENGSH(1)-int_state%CUPREC(I,J)
              int_state%CPRATE(I,J)        = BENGSH(1)-int_state%CUPREC(I,J)
              int_state%CUPREC(I,J)        = BENGSH(1)
              int_state%ACPREC(I,J)        = GESHEM(1)
-             int_state%PBLH(I,J)          = HPBL(1)
-             int_state%PSFC(I,J)          = PSURF(1)*1000.
 
-             int_state%BGROFF(I,J)        = RUNOFF(1)
-             int_state%SSROFF(I,J)        = SRUNOFF(1)
+             int_state%BGROFF(I,J)        = RUNOFF(1)*1000.
+             int_state%SSROFF(I,J)        = SRUNOFF(1)*1000.
 
              int_state%TSKIN(I,J)         = TISFC(1)
              int_state%SST(I,J)           = TSEA(1)
              int_state%SOILTB(I,J)        = XTG3FCS(1)
+             IF( SRFLAG(1) >= 0.5 .AND. SLMSK(1) >= 0.5 ) &
+             int_state%ACSNOW(I,J)        = int_state%ACSNOW(I,J) + int_state%ACPREC(I,J)
 
              int_state%PSHLTR(I,J)        = PSURF(1)*EXP(0.06823/T2M(1))*1000.
              int_state%TSHLTR(I,J)        = T2M(1)
              int_state%QSHLTR(I,J)        = Q2M(1)
-             int_state%QSH(I,J)           = ADR(1,1)    !!!!! cannot get QSS from gbphys :-(
+             int_state%QSH(I,J)           = QSS(1)                                                    !need QSS  from GFS
              int_state%T2(I,J)            = T2M(1)
-             int_state%TH02(I,J)          = T2M(1)*(100./PSURF(1))**(R/CP)
+             int_state%TH02(I,J)          = T2M(1)*(100./PSURF(1))**RoCP
              int_state%Q02(I,J)           = Q2M(1)
              int_state%U10(I,J)           = U10M(1)
              int_state%V10(I,J)           = V10M(1)
-             int_state%THS(I,J)           = TSFLW(1)*(100./PSURF(1))**(R/CP)
+             int_state%THS(I,J)           = TSFLW(1)*(100./PSURF(1))**RoCP
+             int_state%SIGT4(I,J)         = int_state%T(I,J,LM)*int_state%T(I,J,LM) * &
+                                            int_state%T(I,J,LM)*int_state%T(I,J,LM) * STBOLT
  
          DO L=1,LM
             KFLIP=LM+1-L
              int_state%T(I,J,L)           = ADT(KFLIP)
              int_state%DUDT(I,J,L)        = (ADU(KFLIP) - GU(KFLIP)) / (COSLAT_R(J) + 0.0001) / DTP
              int_state%DVDT(I,J,L)        = (ADV(KFLIP) - GV(KFLIP)) / (COSLAT_R(J) + 0.0001) / DTP
-             int_state%CLDFRA(I,J,L)      = CLDCOV_V(KFLIP)
+             int_state%CLDFRA(I,J,L)      = CLDCOV_V(KFLIP) * MINDT
              int_state%Q  (II,JJ,L)       = ADR(KFLIP,1)
              int_state%RRW(II,JJ,L)       = ADR(KFLIP,2)
              int_state%CW (II,JJ,L)       = ADR(KFLIP,3)
@@ -3101,6 +3121,7 @@
 
              int_state%BGROFF(I,J)        = 0.
              int_state%SSROFF(I,J)        = 0.
+             int_state%ACSNOW(I,J)        = 0.
 
              int_state%CUPPT(I,J)         = 0.
 !

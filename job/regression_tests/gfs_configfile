@@ -147,7 +147,7 @@ pcphr: 6
 ### Gravity Wave Drag  ####
 ###########################
 
-gwdflg:  false              # True--> GWD on ; False--> GWD off
+gwdflg:  true               # True--> GWD on ; False--> GWD off
 
 
 ##################################

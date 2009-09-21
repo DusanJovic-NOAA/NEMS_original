@@ -1,4 +1,4 @@
-Tue Sep 15 15:30:30 EDT 2009
+Fri Sep 18 21:34:05 EDT 2009
 Start Regression test
 Test 1
 Compare results with previous trunk version
@@ -24,7 +24,7 @@ Checking test 1 results ....
  Comparing nmm_b_restart_nemsio.024.........OK
  Test 1 passed 
 
- Original timing:  196.4453278  , test1 timing:  203.1800079
+ Original timing:  196.4453278  , test1 timing:  207.4560089
 Test 2
 Test NEMSIO as input file
 NMMB, global case
@@ -117,13 +117,34 @@ Checking test 6 results ....
  Comparing nmm_b_restart_nemsio.024.........OK
  Test 6 passed 
 Test 7
+Test GFS physics package in NMMB
+NMMB, global case
+
+
+
+
+Checking test 7 results ....
+ Comparing nmm_b_history.000.........OK
+ Comparing nmm_b_history.003.........OK
+ Comparing nmm_b_history.006.........OK
+ Comparing nmm_b_history.012.........OK
+ Comparing nmm_b_history.024.........OK
+ Comparing nmm_b_restart.012.........OK
+ Comparing nmm_b_history_nemsio.000.........OK
+ Comparing nmm_b_history_nemsio.003.........OK
+ Comparing nmm_b_history_nemsio.006.........OK
+ Comparing nmm_b_history_nemsio.012.........OK
+ Comparing nmm_b_history_nemsio.024.........OK
+ Comparing nmm_b_restart_nemsio.012.........OK
+ Test 7 passed 
+Test 8
 Compare results with previous trunk version
 NMMB, regional case
 
 
 
 
-Checking test 7 results ....
+Checking test 8 results ....
  Comparing nmm_b_history.000.........OK
  Comparing nmm_b_history.003.........OK
  Comparing nmm_b_history.006.........OK
@@ -138,17 +159,17 @@ Checking test 7 results ....
  Comparing nmm_b_history_nemsio.024.........OK
  Comparing nmm_b_history_nemsio.048.........OK
  Comparing nmm_b_restart_nemsio.024.........OK
- Test 7 passed 
+ Test 8 passed 
 
- Original timing:  644.2672729  , test1 timing:  661.9400024
-Test 8
+ Original timing:  644.2672729  , test1 timing:  701.6320190
+Test 9
 Test NEMSIO as input file
 NMMB, regional case
 
 
 
 
-Checking test 8 results ....
+Checking test 9 results ....
  Comparing nmm_b_history.000.........OK
  Comparing nmm_b_history.003.........OK
  Comparing nmm_b_history.006.........OK
@@ -159,22 +180,9 @@ Checking test 8 results ....
  Comparing nmm_b_history_nemsio.006.........OK
  Comparing nmm_b_history_nemsio.009.........OK
  Comparing nmm_b_history_nemsio.012.........OK
- Test 8 passed 
-Test 9
-Test restart run
-NMMB, regional case
-
-
-
-
-Checking test 9 results ....
- Comparing nmm_b_history.027.........OK
- Comparing nmm_b_history.030.........OK
- Comparing nmm_b_history.036.........OK
- Comparing nmm_b_history.048.........OK
  Test 9 passed 
 Test 10
-Test restart run with NEMSIO file 
+Test restart run
 NMMB, regional case
 
 
@@ -187,27 +195,40 @@ Checking test 10 results ....
  Comparing nmm_b_history.048.........OK
  Test 10 passed 
 Test 11
-Test different decomposition
+Test restart run with NEMSIO file 
 NMMB, regional case
 
 
 
 
 Checking test 11 results ....
- Comparing nmm_b_history.000.........OK
- Comparing nmm_b_history.003.........OK
- Comparing nmm_b_history.006.........OK
- Comparing nmm_b_history.009.........OK
- Comparing nmm_b_history.012.........OK
+ Comparing nmm_b_history.027.........OK
+ Comparing nmm_b_history.030.........OK
+ Comparing nmm_b_history.036.........OK
+ Comparing nmm_b_history.048.........OK
  Test 11 passed 
 Test 12
-Test threading 
+Test different decomposition
 NMMB, regional case
 
 
 
 
 Checking test 12 results ....
+ Comparing nmm_b_history.000.........OK
+ Comparing nmm_b_history.003.........OK
+ Comparing nmm_b_history.006.........OK
+ Comparing nmm_b_history.009.........OK
+ Comparing nmm_b_history.012.........OK
+ Test 12 passed 
+Test 13
+Test threading 
+NMMB, regional case
+
+
+
+
+Checking test 13 results ....
  Comparing nmm_b_history.000.........OK
  Comparing nmm_b_history.003.........OK
  Comparing nmm_b_history.006.........OK
@@ -222,59 +243,32 @@ Checking test 12 results ....
  Comparing nmm_b_history_nemsio.024.........OK
  Comparing nmm_b_history_nemsio.048.........OK
  Comparing nmm_b_restart_nemsio.024.........OK
- Test 12 passed 
-Preparing GFS core for regression tests
-Test 13
-Compare results with previous trunk version
-GFS, 32 proc, 1 thread
-
-
-
-
-Checking test 13 results ....
- Comparing sigf003_nemsio.........OK
- Comparing sigf006_nemsio.........OK
- Comparing sigf012_nemsio.........OK
- Comparing sigf024_nemsio.........OK
- Comparing sigf048_nemsio.........OK
- Comparing sfcf003_nemsio.........OK
- Comparing sfcf006_nemsio.........OK
- Comparing sfcf012_nemsio.........OK
- Comparing sfcf024_nemsio.........OK
- Comparing sfcf048_nemsio.........OK
- Comparing flxf003_nemsio.........OK
- Comparing flxf006_nemsio.........OK
- Comparing flxf012_nemsio.........OK
- Comparing flxf024_nemsio.........OK
- Comparing flxf048_nemsio.........OK
  Test 13 passed 
 Test 14
-Test different decomposition
-GFS, 60 proc, 1 thread
+Test GFS physics package in NMMB
+NMMB, regional case
 
 
 
 
 Checking test 14 results ....
- Comparing sigf003_nemsio.........OK
- Comparing sigf006_nemsio.........OK
- Comparing sigf012_nemsio.........OK
- Comparing sigf024_nemsio.........OK
- Comparing sigf048_nemsio.........OK
- Comparing sfcf003_nemsio.........OK
- Comparing sfcf006_nemsio.........OK
- Comparing sfcf012_nemsio.........OK
- Comparing sfcf024_nemsio.........OK
- Comparing sfcf048_nemsio.........OK
- Comparing flxf003_nemsio.........OK
- Comparing flxf006_nemsio.........OK
- Comparing flxf012_nemsio.........OK
- Comparing flxf024_nemsio.........OK
- Comparing flxf048_nemsio.........OK
+ Comparing nmm_b_history.000.........OK
+ Comparing nmm_b_history.003.........OK
+ Comparing nmm_b_history.006.........OK
+ Comparing nmm_b_history.012.........OK
+ Comparing nmm_b_history.024.........OK
+ Comparing nmm_b_restart.012.........OK
+ Comparing nmm_b_history_nemsio.000.........OK
+ Comparing nmm_b_history_nemsio.003.........OK
+ Comparing nmm_b_history_nemsio.006.........OK
+ Comparing nmm_b_history_nemsio.012.........OK
+ Comparing nmm_b_history_nemsio.024.........OK
+ Comparing nmm_b_restart_nemsio.012.........OK
  Test 14 passed 
+Preparing GFS core for regression tests
 Test 15
-Test threads
-GFS, 16 proc, 2 threads
+Compare results with previous trunk version
+GFS, 32 proc, 1 thread
 
 
 
@@ -297,13 +291,61 @@ Checking test 15 results ....
  Comparing flxf048_nemsio.........OK
  Test 15 passed 
 Test 16
+Test different decomposition
+GFS, 60 proc, 1 thread
+
+
+
+
+Checking test 16 results ....
+ Comparing sigf003_nemsio.........OK
+ Comparing sigf006_nemsio.........OK
+ Comparing sigf012_nemsio.........OK
+ Comparing sigf024_nemsio.........OK
+ Comparing sigf048_nemsio.........OK
+ Comparing sfcf003_nemsio.........OK
+ Comparing sfcf006_nemsio.........OK
+ Comparing sfcf012_nemsio.........OK
+ Comparing sfcf024_nemsio.........OK
+ Comparing sfcf048_nemsio.........OK
+ Comparing flxf003_nemsio.........OK
+ Comparing flxf006_nemsio.........OK
+ Comparing flxf012_nemsio.........OK
+ Comparing flxf024_nemsio.........OK
+ Comparing flxf048_nemsio.........OK
+ Test 16 passed 
+Test 17
+Test threads
+GFS, 16 proc, 2 threads
+
+
+
+
+Checking test 17 results ....
+ Comparing sigf003_nemsio.........OK
+ Comparing sigf006_nemsio.........OK
+ Comparing sigf012_nemsio.........OK
+ Comparing sigf024_nemsio.........OK
+ Comparing sigf048_nemsio.........OK
+ Comparing sfcf003_nemsio.........OK
+ Comparing sfcf006_nemsio.........OK
+ Comparing sfcf012_nemsio.........OK
+ Comparing sfcf024_nemsio.........OK
+ Comparing sfcf048_nemsio.........OK
+ Comparing flxf003_nemsio.........OK
+ Comparing flxf006_nemsio.........OK
+ Comparing flxf012_nemsio.........OK
+ Comparing flxf024_nemsio.........OK
+ Comparing flxf048_nemsio.........OK
+ Test 17 passed 
+Test 18
 Test single processor
 GFS, 1 proc, 1 threads
 
 
 
 
-Checking test 16 results ....
+Checking test 18 results ....
  Comparing sigf003_nemsio.........OK
  Comparing sigf006_nemsio.........OK
  Comparing sigf012_nemsio.........OK
@@ -316,5 +358,5 @@ Checking test 16 results ....
  Comparing flxf006_nemsio.........OK
  Comparing flxf012_nemsio.........OK
  Comparing flxf024_nemsio.........OK
- Test 16 passed 
-Tue Sep 15 17:28:37 EDT 2009
+ Test 18 passed 
+Fri Sep 18 23:52:58 EDT 2009

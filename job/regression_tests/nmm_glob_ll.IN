@@ -42,10 +42,13 @@ cp _RTPWD_/NMMB_glob/test_input_umo_global          main_input_filename
 cp _RTPWD_/NMMB_glob/test_input_umo_global.nemsio   main_input_filename_nemsio
 cp _RTPWD_/NMMB_glob/nmm_b_restart.024              restart_file
 cp _RTPWD_/NMMB_glob/nmm_b_restart_nemsio.024       restart_file_nemsio
+cp _RTPWD_/NMMB_glob/GWD.bin                        GWD.bin
 _GS_cp ../NMM_CNTRL/global_* .
 
 cp $SRCDIR/job/regression_tests/configure_file .
 cp /meso/noscrub/wx20rv/REGRESSION_TEST/data/* .
+ln -sf /nwprod/fix/global_o3prdlos.f77 fort.28
+ln -sf /nwprod/fix/global_o3clim.txt fort.48
 
 echo "Model started:  " `date`
 

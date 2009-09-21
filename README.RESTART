@@ -22,9 +22,7 @@ Limitations:
 TODO:
 =====================
 
-1) Some of fields written in restart file might be unnecessary for the restart
-2) Allow writing restart file at any time in forecast
-3) Restart is already written in NEMSIO format, we should make I part for both
-   restart and original start
+1) Allow writing restart file at any time in forecast
+2) Some of fields written in restart file might be unnecessary for the restart
 
 
