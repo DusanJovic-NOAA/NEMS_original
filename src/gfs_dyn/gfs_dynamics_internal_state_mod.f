@@ -75,6 +75,10 @@
       integer              ,allocatable ::  lats_nodes_ext (:)
       integer              ,allocatable ::  global_lats_ext(:)
 
+! Add xlon, xlat, lats_nodes_a_fix for mGrid definition         
+      real (kind=kind_grid),allocatable ::  xlon(:,:),xlat(:,:) 
+      integer              ,allocatable ::  lats_nodes_a_fix (:)
+
       real(kind=kind_evod) ,allocatable ::        epse  (:)
       real(kind=kind_evod) ,allocatable ::        epso  (:)
       real(kind=kind_evod) ,allocatable ::        epsedn(:)

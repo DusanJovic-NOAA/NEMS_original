@@ -14,6 +14,7 @@
 !  december 2006 s. moorthi      gfsio included
 !  january 2007 h. juang         change for dynamics only
 !  May     2008 j. wang          change for gfs wrt grid component
+!  Oct     2009 sarah lu         init xlon, xlat, lats_nodes_a_fix
 !
 !
 ! !interface:
@@ -429,6 +430,8 @@
       allocate (      gis_dyn%ls_nodes(ls_dim,nodes) )
       allocate (  gis_dyn%max_ls_nodes(nodes) )
 !c
+      allocate (  gis_dyn%lats_nodes_a_fix(nodes))     ! added for mGrid 
+!c
       allocate (  gis_dyn%lats_nodes_a(nodes) )
       allocate ( gis_dyn%global_lats_a(latg) )
 !c
@@ -500,6 +503,16 @@
 !
 !!
       gis_dyn%nblck=lonf/ngptc+1
+
+!
+! initialize coord def (xlon,xlat) and lats_nodes_a_fix          
+!
+      gis_dyn%lats_nodes_a_fix(:) = gis_dyn%lats_node_a_max     
+      allocate ( gis_dyn%XLON(lonf,gis_dyn%lats_node_a) )     
+      allocate ( gis_dyn%XLAT(lonf,gis_dyn%lats_node_a) )     
+
+      call gfs_dyn_lonlat_para(gis_dyn%global_lats_a,        &   
+              gis_dyn%xlon, gis_dyn%xlat, gis_dyn%lonsperlat)  
 
       call countperf(0,18,0.)
 !!

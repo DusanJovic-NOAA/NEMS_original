@@ -6,6 +6,7 @@
 ! !revision history:
 !
 !  january 2007     hann-ming henry juang
+!  oct 2009         sarah lu, 3D Gaussian grid (DistGrid5) added
 !                           
 !
 ! !interface:
@@ -191,6 +192,7 @@
       TYPE(ESMF_DistGrid)                :: DistGrid2    ! the ESMF DistGrid.
       TYPE(ESMF_DistGrid)                :: DistGrid3    ! the ESMF DistGrid.
       TYPE(ESMF_DistGrid)                :: DistGrid4    ! the ESMF DistGrid.
+      TYPE(ESMF_DistGrid)                :: DistGrid5    ! the ESMF DistGrid.
 
       integer                            :: rc1 
       integer                            :: rcfinal, grib_inp
@@ -427,6 +429,15 @@
                                           DistGrid0, DistGrid3, DistGrid4, rc1)
 
       call gfs_dynamics_err_msg(rc1,'gfs_dynamics_grid_create_gauss',rc)
+
+!
+! create 3D Gaussian grid  (sarah lu)                                                 
+!-----------------------
+!
+      call gfs_dynamics_grid_create_Gauss3D(vm_local,int_state,DistGrid5,rc1) 
+
+      call gfs_dynamics_err_msg(rc1,'gfs_dynamics_grid_create_gauss3d',rc) 
+
 
 
 ! associate the grid3 with the esmf grid component gsgfs

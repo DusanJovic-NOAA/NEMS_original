@@ -5,6 +5,8 @@
 ! weiyu yang, 09/2005.
 ! updated by henry juang 04/2007
 ! weiyu yang, 02/2008, updated to use the ESMF 3.1.0 library.
+! Sarah Lu, 10/2009, add gfs_dynamics_grid_create_Gauss3D routine
+!                    that creates mGrid (3D gaussian grid)
 !-------------------------------------------------------------------
 !
 !!uses:
@@ -24,6 +26,7 @@
                                        ! for the single gaussian grid arrays.
       type(esmf_grid), save :: grid4   ! the esmf grid type array.
                                        ! for the multiple gaussian grid arrays.
+      type(ESMF_Grid), save :: mGrid   ! Mid-layer 3D gaussian grid: (im,jm,km)
 
 
       contains
@@ -349,5 +352,142 @@
       rc = rcfinal
 
       end subroutine gfs_dynamics_grid_create_gauss
+
+!..................................................................................
+!BOP
+!
+!    !IROUTINE: gfs_dynamics_grid_create_Gauss3D
+!
+!    !INTERFACE:
+!
+      subroutine gfs_dynamics_grid_create_Gauss3D(vm, iState, distGrid, rc ) 
+
+!     !ARGUMENTS:
+
+      type(ESMF_VM),                     intent(in)  :: vm   
+      type(gfs_dynamics_internal_state), intent(in)  :: iState
+      TYPE(ESMF_DistGrid),               intent(out) :: distGrid
+
+      integer,                           intent(out)  :: rc
+
+!     !DESCRIPTION:
+!
+!     This routine creates a 3D Gaussian grid on mid-layer vertical levels.
+!     The actual distribution has already been determined and such information
+!     is contained in the internal state *iState*.
+!
+!     Consistent with the current design, the actual grid is returned in 
+!     module-scoped variable *mGrid*.
+!
+!     !REVISION HISTORY:
+!      da Silva  05Feb2009  Based of similar MAPL routine
+!      Sarah Lu  28Jul2009  Remove MAPL exception handling; specify coord info
+!      Sarah Lu  02Oct2009  Port from local branch to the trunk
+!
+!EOP
+!                                      ---
+
+      integer                 :: I1, IN, J1, JN                            
+      integer                 :: rc1, i, j                              
+
+!     Local space for coordinate information
+!     --------------------------------------
+      real(kind=kind_grid), pointer :: centerX(:,:)                 
+      real(kind=kind_grid), pointer :: centerY(:,:)               
+
+! initialize the error signal variables.                        
+!---------------------------------------
+      rc1     = esmf_success                              
+
+      CALL ESMF_LogWrite('CreateGauss3D', ESMF_LOG_INFO, rc = rc1)            
+
+!     Create grid with index-space information from internal state
+!     ------------------------------------------------------------
+      mGrid = ESMF_GridCreateShapeTile ( name='mGrid',        &
+                   countsPerDEDim1=(/iState%lonf/),           &
+                   countsPerDEDim2=iState%lats_nodes_a_fix,   &            
+                   countsPerDEDim3=(/iState%levs/),           &           
+                   coordDep1 = (/1,2/),                       &
+                   coordDep2 = (/1,2/),                       &
+                   coordDep3 = (/3/),                         &
+                   gridEdgeLWidth = (/0,0,0/),                &
+                   gridEdgeUWidth = (/0,0,0/),                &
+                   indexflag = ESMF_INDEX_DELOCAL,            &           
+                   rc = rc1 )                                              
+
+!  Add coordinate information
+!  --------------------------
+   call ESMF_GridAddCoord(mGrid, rc = rc1 )                               
+
+!  Retrieve the coordinates so we can set them
+!  -------------------------------------------
+   call ESMF_GridGetCoord (mGrid, coordDim=1, localDE=0, &
+                           staggerloc=ESMF_STAGGERLOC_CENTER, &
+                           fptr=centerX, rc = rc1 )                         
+   
+   call ESMF_GridGetCoord (mGrid, coordDim=2, localDE=0, &
+                           staggerloc=ESMF_STAGGERLOC_CENTER, &
+                           fptr=centerY, rc = rc1 )                           
+
+   call GridGetInterior_ (mGrid,i1,in,j1,jn)
+   print *, 'LU_DYN: mGrid, i1,in,j1,jn ', i1,in,j1,jn        !chlu_debug
+ 
+   do i = 1, iState%lonf                                                 
+   do j = 1, iState%lats_node_a                                       
+     centerX(i,j) = iState%xlon(i,j)                                          
+     centerY(i,j) = iState%xlat(i,j)                                   
+   enddo                                                                    
+   enddo                                                                  
+
+!  Make sure we've got it right
+!  ----------------------------
+   call ESMF_GridValidate(mGrid, rc=rc1 )                                  
+
+   return
+   end subroutine gfs_dynamics_grid_create_Gauss3D
+
+!..................................................................................
+
+!  This routine came from MAPL...
+   subroutine GridGetInterior_(GRID,I1,IN,J1,JN)
+    type (ESMF_Grid), intent(IN) :: grid
+    integer, intent(OUT)         :: I1, IN, J1, JN
+
+! local vars
+    integer                               :: status
+    character(len=ESMF_MAXSTR)            :: IAm='MAPL_GridGetInterior'
+
+    type (ESMF_DistGrid)                  :: distGrid
+    type(ESMF_DELayout)                   :: LAYOUT
+    integer,               allocatable    :: AL(:,:)
+    integer,               allocatable    :: AU(:,:)
+    integer                               :: nDEs
+    integer                               :: deId
+    integer                               :: gridRank
+    integer                               :: deList(1)
+
+    integer                               :: ierr, rc1                    
+
+
+    CALL ESMF_LogWrite("GridGetInterior_", ESMF_LOG_INFO, rc=rc1)      
+
+    call ESMF_GridGet    (GRID, dimCount=gridRank, distGrid=distGrid, rc=rc1)
+    call ESMF_DistGridGet(distGRID, delayout=layout, rc=STATUS)
+    call ESMF_DELayoutGet(layout, deCount =nDEs, localDeList=deList, rc=rc1 ) 
+    deId = deList(1)
+
+    allocate (AL(gridRank,0:nDEs-1), stat = ierr )                           
+    allocate (AU(gridRank,0:nDEs-1), stat = ierr )                         
+
+    call ESMF_DistGridGet(distgrid, &
+         minIndexPDimPDe=AL, maxIndexPDimPDe=AU, rc=rc1 )                  
+
+    I1 = AL(1, deId)
+    IN = AU(1, deId)
+    J1 = AL(2, deId)
+    JN = AU(2, deId)
+    deallocate(AU, AL)
+
+  end subroutine GridGetInterior_
 
       end module gfs_dynamics_grid_create_mod

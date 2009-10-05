@@ -32,6 +32,7 @@ OBJ_MOD	= \
 	  gfs_dyn_layout1.o             \
 	  namelist_dynamics_def.o       \
 	  gfs_dyn_coordinate_def.o      \
+	  gfs_dyn_lon_lat_para.o	\
 	  gfs_dyn_tracer_const.o  	\
 	  gfs_dyn_reduce_lons_grid_module.o \
 	  gfs_dyn_matrix_sig_def.o      \
