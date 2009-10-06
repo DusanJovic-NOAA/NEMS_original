@@ -6,7 +6,8 @@
 ! !revision history:
 !
 !  january 2007     hann-ming henry juang
-!  oct 2009         sarah lu, 3D Gaussian grid (DistGrid5) added
+!  oct 4 2009       sarah lu, 3D Gaussian grid (DistGrid5) added
+!  oct 5 2009       sarah lu, grid_gr unfolded from 2D to 3D
 !                           
 !
 ! !interface:
@@ -359,9 +360,10 @@
 ! ======================================================================
 ! ----------------- gfs dynamics related initialize --------------------
 ! ======================================================================
+! grid_gr unfolded (sarah lu)
       call gfs_dynamics_initialize(int_state, rc1)
-      write(0,*)'in dyn_init, t=',maxval(int_state%grid_gr(:,int_state%g_t)), &
-       minval(int_state%grid_gr(:,int_state%g_t)),'quilting=',quilting
+      write(0,*)'in dyn_init, t=',maxval(int_state%grid_gr(:,:,int_state%g_t)), &
+       minval(int_state%grid_gr(:,:,int_state%g_t)),'quilting=',quilting
 ! ======================================================================
 ! ----------------------------------------------------------------------
 ! ======================================================================

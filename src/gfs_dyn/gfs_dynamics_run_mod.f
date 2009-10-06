@@ -9,6 +9,7 @@
 !  november 2004      weiyu yang initial code.
 !  may      2005      weiyu yang, updated to the new version of gfs.
 !  janusry  2007      hann-ming henry juang for gfs dynamics only
+!  oct 05 2009        sarah lu, grid_gr unfolded from 2D to 3D
 !
 !
 ! !interface:
@@ -51,15 +52,17 @@
 !
        write(0,*)' before of common_to_model_vars,kdt=',gis_dyn%kdt,      &
          'nsout=',nsout,'lsout=',gis_dyn%LSOUT,'t=',  &
-         maxval(gis_dyn%grid_gr(:,gis_dyn%g_t)),minval(gis_dyn%grid_gr(:,gis_dyn%g_t))
+         maxval(gis_dyn%grid_gr(:,:,gis_dyn%g_t)),    &
+         minval(gis_dyn%grid_gr(:,:,gis_dyn%g_t))
       if( .not. gis_dyn% start_step ) then
 !       print *,' change common variables to model variables '
         gis_dyn%lsout = mod(gis_dyn%kdt,nsout).eq.0
-        call common_to_model_vars (gis_dyn%grid_gr(1,gis_dyn%g_zq),      &
-                                   gis_dyn%grid_gr(1,gis_dyn%g_t ),      &
-                                   gis_dyn%grid_gr(1,gis_dyn%g_rt),      &
-                                   gis_dyn%grid_gr(1,gis_dyn%g_u ),      &
-                                   gis_dyn%grid_gr(1,gis_dyn%g_v ),      &
+!! grid_gr unfolded from 2D to 3D (Sarah Lu)
+        call common_to_model_vars (gis_dyn%grid_gr(1,1,gis_dyn%g_zq),      &
+                                   gis_dyn%grid_gr(1,1,gis_dyn%g_t ),      &
+                                   gis_dyn%grid_gr(1,1,gis_dyn%g_rt),      &
+                                   gis_dyn%grid_gr(1,1,gis_dyn%g_u ),      &
+                                   gis_dyn%grid_gr(1,1,gis_dyn%g_v ),      &
                                    gis_dyn%global_lats_a,	           &
                                    gis_dyn%lonsperlat,     		   &
                                    gis_dyn%pwat, gis_dyn%ptot )
@@ -98,10 +101,12 @@
 ! ---------------------------------------------------------------------
       if( gis_dyn% spectral_loop == 1 ) then
 !
+!! grid_gr unfolded from 2D to 3D (Sarah Lu)
         call  do_dynamics_one_loop(    gis_dyn% deltim         ,	&
                gis_dyn% kdt           ,gis_dyn% phour          ,	&
                gis_dyn% trie_ls       ,gis_dyn% trio_ls        ,	&
-               gis_dyn% grid_gr       ,					&
+!              gis_dyn% grid_gr       ,					&
+               gis_dyn% grid_gr(1,1,1)   ,				&
                gis_dyn% ls_node       ,gis_dyn% ls_nodes       ,	&
                gis_dyn% max_ls_nodes  ,					&
                gis_dyn% lats_nodes_a  ,gis_dyn% global_lats_a  ,	&
@@ -128,7 +133,8 @@
                gis_dyn% start_step    ,                                 &
                gis_dyn% reset_step    ,gis_dyn% end_step       )
         write(0,*)'after gfs_dyn_oneloop_run, t=',  &
-         maxval(gis_dyn%grid_gr(:,gis_dyn%g_t)),minval(gis_dyn%grid_gr(:,gis_dyn%g_t))
+         maxval(gis_dyn%grid_gr(:,:,gis_dyn%g_t)),  &
+         minval(gis_dyn%grid_gr(:,:,gis_dyn%g_t))
 
 !
 ! ======================================================================
@@ -139,7 +145,8 @@
         call  do_dynamics_two_loop(    gis_dyn% deltim         ,	&
                gis_dyn% kdt           ,gis_dyn% phour 	       ,	&
                gis_dyn% trie_ls       ,gis_dyn% trio_ls        ,	&
-               gis_dyn% grid_gr       ,	 				&
+!!             gis_dyn% grid_gr       ,	 				&
+               gis_dyn% grid_gr(1,1,1)  ,	  			&
                gis_dyn% ls_node       ,gis_dyn% ls_nodes       ,	&
                gis_dyn% max_ls_nodes  ,					&
                gis_dyn% lats_nodes_a  ,gis_dyn% global_lats_a  ,	&
@@ -176,8 +183,10 @@
       endif
 !
       write(0,*)'in gfs_dynamics,after one loop,grid_gr(zq)=',             &
-       maxval(gis_dyn%grid_gr(:,gis_dyn%g_zq)),minval(gis_dyn%grid_gr(:,gis_dyn%g_zq)), &
-       't=',maxval(gis_dyn%grid_gr(:,gis_dyn%g_t)),minval(gis_dyn%grid_gr(:,gis_dyn%g_t))
+       maxval(gis_dyn%grid_gr(:,:,gis_dyn%g_zq)), &
+       minval(gis_dyn%grid_gr(:,:,gis_dyn%g_zq)), &
+       't=',maxval(gis_dyn%grid_gr(:,:,gis_dyn%g_t)), &
+       minval(gis_dyn%grid_gr(:,:,gis_dyn%g_t))
 ! =======================================================================
 !                   end of one- or two-loop computation
 ! =======================================================================
@@ -206,18 +215,20 @@
 ! ---------------------------------------------------------------------
 ! prepare n+1 grid value back to common temperature and pressure
 !
-      call model_to_common_vars (gis_dyn% grid_gr(1,gis_dyn%g_zq),       &
-                                 gis_dyn% grid_gr(1,gis_dyn%g_t ),       &
-                                 gis_dyn% grid_gr(1,gis_dyn%g_rt),       &
-                                 gis_dyn% grid_gr(1,gis_dyn%g_u ),       &
-                                 gis_dyn% grid_gr(1,gis_dyn%g_v ),       & 
-                                 gis_dyn% grid_gr(1,gis_dyn%g_p ),       & 
-                                 gis_dyn% grid_gr(1,gis_dyn%g_dp ),      & 
-                                 gis_dyn% grid_gr(1,gis_dyn%g_dpdt ),    & 
+! grid_gr unfolded from 2D to 3D (Sarah Lu)  
+      call model_to_common_vars (gis_dyn% grid_gr(1,1,gis_dyn%g_zq),       &
+                                 gis_dyn% grid_gr(1,1,gis_dyn%g_t ),       &
+                                 gis_dyn% grid_gr(1,1,gis_dyn%g_rt),       &
+                                 gis_dyn% grid_gr(1,1,gis_dyn%g_u ),       &
+                                 gis_dyn% grid_gr(1,1,gis_dyn%g_v ),       & 
+                                 gis_dyn% grid_gr(1,1,gis_dyn%g_p ),       & 
+                                 gis_dyn% grid_gr(1,1,gis_dyn%g_dp ),      & 
+                                 gis_dyn% grid_gr(1,1,gis_dyn%g_dpdt ),    & 
                                  gis_dyn%global_lats_a,	                   &
                                  gis_dyn%lonsperlat)
       write(0,*)'after n+1grid value,t=',  &
-         maxval(gis_dyn%grid_gr(:,gis_dyn%g_t)),minval(gis_dyn%grid_gr(:,gis_dyn%g_t))
+         maxval(gis_dyn%grid_gr(:,:,gis_dyn%g_t)), &
+         minval(gis_dyn%grid_gr(:,:,gis_dyn%g_t))
 
 !cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 !c

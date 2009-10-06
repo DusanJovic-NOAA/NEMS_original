@@ -14,7 +14,8 @@
 !  december 2006 s. moorthi      gfsio included
 !  january 2007 h. juang         change for dynamics only
 !  May     2008 j. wang          change for gfs wrt grid component
-!  Oct     2009 sarah lu         init xlon, xlat, lats_nodes_a_fix
+!  Oct 04  2009 sarah lu         init xlon, xlat, lats_nodes_a_fix
+!  Oct 05  2009 sarah lu         grid_gr unfolded from 2D to 3D
 !
 !
 ! !interface:
@@ -521,7 +522,9 @@
       call countperf(0,15,0.)
       allocate (      gis_dyn%trie_ls(len_trie_ls,2,lotls) )
       allocate (      gis_dyn%trio_ls(len_trio_ls,2,lotls) )
-      allocate (      gis_dyn%grid_gr(lonf*lats_node_a_max,lotgr) )
+!! grid_gr unfolded (sarah lu)
+!!    allocate (      gis_dyn%grid_gr(lonf*lats_node_a_max,lotgr) )
+      allocate (      gis_dyn%grid_gr(lonf,lats_node_a_max,lotgr) )
       allocate (      gis_dyn%pwat   (lonf,lats_node_a) )
       allocate (      gis_dyn%ptot   (lonf,lats_node_a) )
 !c

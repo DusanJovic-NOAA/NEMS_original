@@ -12,6 +12,7 @@
 !  may 2005           weiyu yang for the updated gfs version.
 !  february 2006      shrinivas moorthi updated for the new version of gfs
 !  january 2007       hann-ming henry juang for gfs dynamics only
+!  oct 05 2009        sarah lu, grid_gr unfolded from 2D to 3D
 !
 ! !interface:
 !
@@ -103,7 +104,9 @@
       real(kind=kind_evod) ,allocatable ::      syn_ls_a(:,:,:)
       real(kind=kind_evod) ,allocatable ::      dyn_ls_a(:,:,:)
 
-      real(kind=kind_evod) ,allocatable ::       grid_gr(:,:)
+!! grid_gr unfolded (sarah lu)
+!*    real(kind=kind_evod) ,allocatable ::       grid_gr(:,:)
+      real(kind=kind_evod) ,pointer     ::       grid_gr(:,:,:)
       real(kind=kind_evod) ,allocatable ::    syn_gr_a_1(:,:)
       real(kind=kind_evod) ,allocatable ::    syn_gr_a_2(:,:)
       real(kind=kind_evod) ,allocatable ::    sym_gr_a_2(:,:)
