@@ -17,5 +17,7 @@ cc
      x                  len_trio_ls, len_trie_ls,
      x                  me_l_0
 cc
+      integer           idrt                                            !jw:for flx file outfile
+
       integer ,allocatable :: lon_dims_r(:),lon_dims_ext(:)
       end module layout1

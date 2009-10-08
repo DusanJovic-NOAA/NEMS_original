@@ -21,6 +21,7 @@ echo "Preparing NMMB core for baselines"
 printf %s "Compiling NMMB core (this will take ~10 minutes)......."
 cd ush
 
+./clean_stub.sh > /dev/null 2>&1
 ./clean.sh > /dev/null 2>&1
 ./compile_configure.sh nmm > 1.1 2>&1
 ./compile.sh > /dev/null 2>&1
@@ -35,8 +36,9 @@ cd $PATHRT
 rm -f err out configure_file nmm_glob_ll nmm_reg_ll  gfs_fcst_run  gfs_ll
 
 cat nmm_glob_ll.IN         | sed s:_TPN_:32:g         \
+                         | sed s:_THRD_:1:g         \
                          | sed s:_GS_:#:g           \
-                         | sed s:_ME_:${ME}:g       \
+                         | sed s:_RUND_:/ptmp/${ME}/RT/NMM_CNTRL:g           \
 			 | sed s:_RTPWD_:${RTPWD}:g \
                          | sed s:_SRCD_:${PATHTR}:g \
                          | sed s:_DIR_:NMM_CNTRL:g  >  nmm_glob_ll
@@ -46,6 +48,7 @@ cat nmm_glob_conf.IN     | sed s:_INPES_:06:g       \
                          | sed s:_FCSTL_:48:g       \
                          | sed s:_NEMSI_:false:g    \
                          | sed s:_RSTRT_:false:g    \
+                         | sed s:_gfsP_:false:g     \
                          | sed s:_RGS_:false:g      \
                          | sed s:_WGS_:true:g       >  configure_file
 
@@ -112,8 +115,9 @@ clear;echo;echo
 rm -f err out configure_file nmm_glob_ll nmm_reg_ll  gfs_fcst_run  gfs_ll
 
 cat nmm_reg_ll.IN         | sed s:_TPN_:32:g           \
+                          | sed s:_THRD_:1:g         \
                            | sed s:_GS_:#:g             \
-                           | sed s:_ME_:${ME}:g         \
+                           | sed s:_RUND_:/ptmp/${ME}/RT/NMM_REG_CTL:g           \
                            | sed s:_RTPWD_:${RTPWD}:g   \
                            | sed s:_SRCD_:${PATHTR}:g   \
                            | sed s:_DIR_:NMM_REG_CTL:g  > nmm_reg_ll
@@ -123,6 +127,7 @@ cat nmm_reg_conf.IN | sed s:_INPES_:06:g         \
                            | sed s:_FCSTL_:48:g         \
                            | sed s:_NEMSI_:false:g      \
                            | sed s:_RSTRT_:false:g      \
+                           | sed s:_gfsP_:false:g     \
                            | sed s:_RGS_:false:g        \
                            | sed s:_WGS_:true:g         >  configure_file
 
@@ -185,6 +190,7 @@ echo "Preparing GFS core for baselines"
 printf %s "Compiling GFS core (this will take ~10 minutes)......."
 cd ${PATHTR}/ush
 
+./clean_stub.sh > /dev/null 2>&1
 ./clean.sh > /dev/null 2>&1
 ./compile_configure.sh gfs > 1.1 2>&1
 ./compile.sh > /dev/null 2>&1
@@ -211,6 +217,8 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:32:g         \
                     | sed s:_PE1_:30:g           \
                     | sed s:_WPG_:2:g            \
                     | sed s:_THRDS_:1:g          \
+                    | sed s:_NSOUT_:1:g          \
+                    | sed s:_QUILTING_:.true.:g          \
                     | sed s:_RUNDIR_:${RUNDIR}:g \
                     | sed s:_PATHTR_:${PATHTR}:g \
                     | sed s:_NDAYS_:2:g          >  gfs_fcst_run
@@ -243,9 +251,9 @@ fi
 job_running=`llq | grep $job_id | wc -l`
   (( n=n+1 ))
 done
-for i in sigf003_nemsio sigf006_nemsio sigf012_nemsio sigf024_nemsio sigf048_nemsio \
-         sfcf003_nemsio sfcf006_nemsio sfcf012_nemsio sfcf024_nemsio sfcf048_nemsio \
-         flxf003_nemsio flxf006_nemsio flxf012_nemsio flxf024_nemsio flxf048_nemsio
+for i in sigf03 sigf06 sigf09 sigf12 sigf24 sigf48 \
+         sfcf03 sfcf06 sigf09 sfcf12 sfcf24 sfcf48 \
+         flxf03 flxf06 sigf09 flxf12 flxf24 flxf48
 
 do
 

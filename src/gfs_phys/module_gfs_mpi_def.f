@@ -15,5 +15,6 @@
       INTEGER,allocatable :: petlist_fcst(:),petlist_write(:,:)
       INTEGER,dimension(max_inter_groups) :: mpi_comm_inter_array
       logical QUILTING
+      character*20 ensmem_name
 
       end module module_gfs_mpi_def

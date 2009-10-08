@@ -100,8 +100,8 @@
        =RESHAPE((/                                                      &
 !                              -----------------------------------------
 !
-                               'fhour     ', 'OGFS_PHY  ', 'R         ' &
-                              ,'zhour     ', 'OGFS_FLX  ', 'R         ' &
+                              'zhour     ', 'OGFS_FLX  ', 'R         ' &
+!jw                              '-         ', '-         ', '-         ' &
 !
 !                              -----------------------------------------
 !
@@ -518,8 +518,8 @@
      minidx(2)=1
      maxidx(1)=size(buff_mult_piecea2d,1)*int_state%nodes
      maxidx(2)=size(buff_mult_piecea2d,2)
-     write(0,*)'in phys_output,lonr=',int_state%lonr,'lats_node_a_max=',int_state%lats_node_r_max, &
-       'minidx=',minidx,'maxidx=',maxidx
+!     write(0,*)'in phys_output,lonr=',int_state%lonr,'lats_node_a_max=',int_state%lats_node_r_max, &
+!       'minidx=',minidx,'maxidx=',maxidx
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create DISGRID for write Bundle"
@@ -533,7 +533,6 @@
       allocate(i2(2,int_state%nodes))
       i2=0
       CALL ESMF_DistGridGet(DistGrid, indexCountPDimPDe=i2, rc=rc)
-      write(0,*)'dist grid dimension,i2=',i2(1,:), '2d i2=',i2(2,:)
 !
 !-----------------------------------------------------------------------
 !*** create grid
@@ -617,11 +616,6 @@
 !flx
       R_3D(3)%NAME=>buff_mult_piecef
 !
-!--------------------
-!***  4D REAL ARRAYS
-!--------------------
-!
-!jw      R_4D( 1)%NAME=>int_state%TRACERS
 !
 !-----------------------------------------------------------------------
 !##jw
@@ -642,7 +636,6 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      write(0,*)'phys bundle name=',int_state%filename_base(2)
       GFS_SFC_BUNDLE=ESMF_FieldBundleCreate(grid=GRID                  &  !<-- The ESMF integration Grid
                                            ,name=int_state%filename_base(2) &  !<-- The Bundle's name
                                            ,rc  =RC)
@@ -661,6 +654,11 @@
       CALL ESMF_AttributeSet(state    =IMP_WRITE_STATE                  &  !<-- The Write component import state
                             ,name     ='jm_'//trim(int_state%filename_base(2)) &!<-- Name of the integer array
                             ,value    =int_state%latr                   &  !<-- The array being inserted into the import state
+                            ,rc       =RC)
+!
+      CALL ESMF_AttributeSet(state    =IMP_WRITE_STATE                  &  !<-- The Write component import state
+                            ,name     ='zhour'                          &!<-- Name of the integer array
+                            ,value    =int_state%zhour                  &  !<-- The array being inserted into the import state
                             ,rc       =RC)
 !
 !-----------------------------------------------------------------------
@@ -682,7 +680,6 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      write(0,*)'phys bundle name=',int_state%filename_base(3)
       GFS_FLX_BUNDLE=ESMF_FieldBundleCreate(grid=GRID                  &  !<-- The ESMF integration Grid
                                            ,name=int_state%filename_base(3) &  !<-- The Bundle's name
                                            ,rc  =RC)
@@ -698,7 +695,11 @@
                             ,name     ='jm_'//trim(int_state%filename_base(3)) &!<-- Name of the integer array
                             ,value    =int_state%latr                   &  !<-- The array being inserted into the import state
                             ,rc       =RC)
-
+!
+      CALL ESMF_AttributeSet(state    =IMP_WRITE_STATE                  &  !<-- The Write component import state
+                            ,name     ='zhour_'//trim(int_state%filename_base(3)) &!<-- Name of the integer array
+                            ,value    =int_state%zhour                   &  !<-- The array being inserted into the import state
+                            ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL gfs_physics_err_msg(RC,MESSAGE_CHECK,RC_PHY_OUT)
@@ -793,8 +794,6 @@
 
           VBL_NAME=TRIM(PHY_INT_STATE_ISCALAR(1,NFIND))
 !
-!          write(0,*)'phy_out,NFIND=',NFIND,'VBL_NAME=',trim(VBL_NAME),  &
-!             'NFIND=',NFIND,'value=',I_SC(NFIND)%NAME
           CALL ESMF_AttributeSet(bundle=FILE_BUNDLE                     &  !<-- The write component's output data Bundle
                                 ,name  =VBL_NAME                        &  !<-- Name of the integer scalar
                                 ,value =I_SC(NFIND)%NAME                &  !<-- The scalar being inserted into the output data Bundle
@@ -826,8 +825,6 @@
            trim(PHY_INT_STATE_RSCALAR(file_index,NFIND))==trim(file_gen) )THEN     !<-- Take real scalar data specified for history output
           VBL_NAME=TRIM(PHY_INT_STATE_RSCALAR(1,NFIND))
 !
-!          write(0,*)'phy_out,RSC NFIND=',NFIND,'VBL_NAME=',trim(VBL_NAME),  &
-!             'value=',R_SC(NFIND)%NAME
           CALL ESMF_AttributeSet(bundle=FILE_BUNDLE                     &  !<-- The write component's output data Bundle
                                 ,name  =VBL_NAME                        &  !<-- Name of the integer scalar
                                 ,value =R_SC(NFIND)%NAME                &  !<-- The scalar being inserted into the output data Bundle
@@ -975,7 +972,7 @@
         ENDIF
 !
       ENDDO
-      IF(MYPE==0)WRITE(0,*)' PHYSICS_OUTPUT: Number of 2-D Integer Fields=',NUM_2D_FIELDS_I
+!      IF(MYPE==0)WRITE(0,*)' PHYSICS_OUTPUT: Number of 2-D Integer Fields=',NUM_2D_FIELDS_I
 !
 !-----------------------------------------------------------------------
 !***  THE 2D REAL ARRAYS.
@@ -1076,8 +1073,6 @@
                'has not been specified!'
          endif
 !
-         write(0,*)'phys output,LDIM1=',LDIM1,'UDIM1=',UDIM1,'LDIM2=', &
-          LDIM2,'UDIM2=',UDIM2,'NDIM3=',NDIM3
           DO K=1,NDIM3                                                     !<-- Loop through the levels of the array
             WRITE(MODEL_LEVEL,FMT)K
 !
@@ -1085,8 +1080,6 @@
      &         //'_'//MODEL_LEVEL //'_2D'
             NULLIFY(TEMP_R2D)
             TEMP_R2D=>R_3D(2)%NAME(LDIM1:UDIM1,LDIM2:UDIM2,NLEVS+K)        !<-- Point at appropriate section of this IJK level 
-!          write(0,*)'phy_out,R3D NFIND=',NFIND,'VBL_NAME=',trim(VBL_NAME),  &
-!             'K=',NLEVS+K,'NLEVS=',NLEVS
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Fill 2-D Fields with Each Level of Physics 3-D Data"

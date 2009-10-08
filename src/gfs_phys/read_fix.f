@@ -610,7 +610,7 @@ c     &                msgtag,MPI_COMM_ALL,stat,info)
 !jw
       ENDIF
       call mpi_barrier(mpi_comm_all,info)
-      write(0,*)'in split, tmp=',maxval(tmp),minval(tmp)
+!      write(0,*)'in split, tmp=',maxval(tmp),minval(tmp)
       do j=1,lats_node_r
            lat=global_lats_r(ipt_lats_node_r-1+j)
            do i=1,lonr

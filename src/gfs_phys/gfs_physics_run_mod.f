@@ -11,6 +11,7 @@
 !  janusry  2007      hann-ming henry juang for gfs dynamics only
 !  july     2007      shrinivas moorthi for gfs physics only
 !  november 2007      hann-ming henry juang continue for gfs physics
+!  october  2009      jun wang add nsout option
 !
 !
 ! !interface:
@@ -72,10 +73,10 @@
 ! ======================================================================
 !                     do one physics time step
 ! ---------------------------------------------------------------------
-        gis_phy%LSOUT=MOD(gis_phy%kdt ,NSOUT).EQ.0
+        gis_phy%LSOUT=MOD(gis_phy%kdt ,NSOUT).EQ.0  .or. gis_phy%kdt==1
 !
-        write(0,*)' end of common_to_physics_vars,kdt=',gis_phy%kdt,      &
-         'nsout=',nsout,'lsout=',gis_phy%LSOUT
+!        write(0,*)' end of common_to_physics_vars,kdt=',gis_phy%kdt,      &
+!         'nsout=',nsout,'lsout=',gis_phy%LSOUT,'zhour=',gis_phy%ZHOUR
 !
 ! ======================================================================
         call do_physics_one_step(                                         &
@@ -92,12 +93,9 @@
                  gis_phy%phy_f3d, gis_phy%phy_f2d, gis_phy%NBLCK,         &
                  gis_phy%ZHOUR,   gis_phy%N3,      gis_phy%N4,            &
                  gis_phy%LSOUT,   gis_phy%COLAT1,  gis_phy%CFHOUR1)
-                        
-
-       print *,' end of do_physics_one_step '
-
+!                        
 ! =======================================================================
-
+!
 ! update hour
 !
       gis_phy%phour      = fhour
@@ -114,13 +112,10 @@
                                    gis_phy%global_lats_r,                &
                                    gis_phy%lonsperlar)
 ! --------------------------------------------------------------------------
-       print *,' end of physics_to_common_vars '
 !
       if(present(rc)) then
           rc = rc1
       end if
-
-      print *,' end of gfs_physics_run '
 
       end subroutine gfs_physics_run
 

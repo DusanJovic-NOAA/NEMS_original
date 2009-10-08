@@ -32,7 +32,7 @@
 !
       subroutine setup_servers_gfs(mype,inpes,jnpes,npes,last_fcst_pe       &
                               ,ngroups_write,write_tasks_per_group      &
-                              ,mpi_intra)
+                              ,mpi_intra,quilting)
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -74,6 +74,8 @@
 ,ngroups_write &            ! number of groups of write tasks
 ,write_tasks_per_group &    ! number of groups of write tasks per group
 ,mpi_intra                  ! global communicator
+!
+      logical,intent(in) :: quilting
 !
       integer(kind=kind_io4),intent(inout) :: &
  npes                       ! total number of tasks provided
@@ -201,7 +203,9 @@
 !             +ngroups_write*write_tasks_per_group
       iqserver=ngroups_write*write_tasks_per_group                         !<-- Total # of quilt tasks in all groups
 !junwang
-       write(0,*)'in setup_gfs,last_fcst_pe=',last_fcst_pe
+      if(.not.quilting) iqserver=0
+       write(0,*)'in setup_gfs,last_fcst_pe=',last_fcst_pe,'ngroup_write=', &
+         ngroups_write,'iqserver=',iqserver
       last_qserver=last_fcst_pe+iqserver
 !
       if(iqserver==0)then
@@ -212,7 +216,7 @@
         iquilt_group=0
       endif
 !
-      if(iquilt_group>iqserver)then
+      if(iqserver/=0 .and. iquilt_group>iqserver)then
         iquilt_group=iqserver
         write(0,*)' ***** NOT ENOUGH WRITE/QUILT TASKS'
         write(0,*)' ***** WE NEED TO REDUCE THE NUMBER OF WRITE GROUPS'
@@ -248,11 +252,8 @@
 !***  which they will belong.
 !-----------------------------------------------------------------------
 !
-!junwang      if(mype<npes_fcst)then
       if(mype<=last_fcst_pe)then
         icolor=0
-!junwang      elseif(mype<npes)then
-!junwang        istaxx=npes_fcst
       elseif(mype<=last_qserver)then
         istaxx=last_fcst_pe+1
         do i=1,iquilt_group
@@ -280,7 +281,8 @@
 !###
 !-----------------------------------------------------------------------
 !
-      ifntasks:  if(npes_fcst+iqserver>1) then
+!jw      ifntasks:  if( npes_fcst+iqserver>1) then
+      ifntasks:  if( quilting ) then
 !
       call mpi_comm_split(comdup,icolor,mype,mc_comp,ierr)
       mpi_comm_comp=mc_comp
@@ -394,7 +396,8 @@
                                    ,mpi_comm_inter_array(i)             & !<-- The new intercommunicator between the fcst tasks and
                                                                           !    the tasks in quilt group i
                                    ,ierr)
-          write(0,*)'after mpi_intercomm_create'
+          write(0,*)'after mpi_intercomm_create,mpi_comm(',i,')=',   &
+            mpi_comm_inter_array(i)
            mpi_comm_inter=mpi_comm_inter_array(i)
         endif
 !

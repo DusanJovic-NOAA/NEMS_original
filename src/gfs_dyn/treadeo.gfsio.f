@@ -109,7 +109,6 @@
 !       Input file is in grid-point space - use gfs_io package
 !
       call gfsio_open(gfile_in,trim(cfile),'read',iret)
-      write(0,*)'iret=',iret
       call gfsio_getfilehead(gfile_in,iret=iret,
      &  version=ivsupa,fhour=fhour4,idate=idate,
      &  latb=latb,lonb=lonb,levs=levsi,jcap=jcapi,itrun=itrun,
@@ -119,10 +118,11 @@
      &  idusr=idusr,pdryini=pdryini4,ncldt=ncldt,nvcoord=nvcoord)
 !
       if (me == 0) then
-        write(0,*)'iret=',iret,'idvt=',idvt,' nvcoord=',nvcoord,
+        print *,'iret=',iret,'idvt=',idvt,' nvcoord=',nvcoord,
      &     ' levsi=',levsi,'ntoz=',ntoz,
      &   'lonf=',lonf,'lonfi=',lonfi,'latg=',latg,'latgi=',latgi,
      &   'jcap=',jcap,'jcapi=',jcapi,'levs=',levs,'levsi=',levsi,
+     &   'idvc=',idvc,'idvm=',idvm,'idsl=',idsl,
      &   'gen_coord_hybrid=',gen_coord_hybrid,'pdryini4=',pdryini4
         if(lonf .ne. lonfi .or. latg .ne. latgi .or.
      &     jcap .ne. jcapi .or. levs .ne. levsi) then
@@ -240,7 +240,6 @@
      &,' iret=',iret
         call MPI_QUIT(333)
       endif
-      write(0,*)'after gen_coord'
 !
       FHOUR       = fhour4
       idate       = idate
@@ -256,7 +255,6 @@
       iensi       = iens(2)
 !     runid       = idrun
 !     usrid       = idusr
-      write(0,*)'after ntraci,ntrac=',ntrac,'pdryini=',pdryini
       if (pdryini .eq. 0.0) pdryini = pdryini4
       ntraci = ntrac
       if (idvt .gt. 0.0) then
@@ -288,34 +286,22 @@
       ENDIF
 !
         allocate (gfsio_data(lonb*latb))
-      write(0,*)'before read hgt'
 !  Read orog
       call gfsio_readrecv(gfile_in,'hgt','sfc',1,gfsio_data,iret)
-        write(0,*)'after readrecv  hgt, sfc,max=',maxval(gfsio_data),
-     & 'min=',minval(gfsio_data)
       call split2d(gfsio_data,buffo,global_lats_a)
-         write(0,*)'after split2d hgt, sfc'
       CALL interpred(1,kmsk,buffo,zsg,global_lats_a,lonsperlat)
-         write(0,*)'after interpred hgt, sfc,max=',
-     &  maxval(zsg(1:lonf,1:lats_node_a)),
-     &  'min=',minval(zsg(1:lonf,1:lats_node_a))
       ijm=lonf*lats_node_a
 !
 !  Read ps
       call gfsio_readrecv(gfile_in,'pres','sfc',1,gfsio_data,iret)
       call split2d(gfsio_data,buffo,global_lats_a)
       CALL interpred(1,kmsk,buffo,psg,global_lats_a,lonsperlat)
-         write(0,*)'after interpred pres, sfc,max=',
-     &  maxval(psg(1:lonf,1:lats_node_a)),
-     &  'min=',minval(psg(1:lonf,1:lats_node_a))
 !
 !  Read u
       do k=1,levs
         call gfsio_readrecv(gfile_in,'ugrd','layer',k,gfsio_data,iret)
         call split2d(gfsio_data,buffo,global_lats_a)
         CALL interpred(1,kmsk,buffo,uug(1,1,k),global_lats_a,lonsperlat)
-       write(0,*)'in tread,after intp k=',k,'u=',maxval(uug(:,:,k)),
-     &   minval(uug(:,:,k))
       enddo
 !  Read v
       do k=1,levs
@@ -324,17 +310,10 @@
         CALL interpred(1,kmsk,buffo,vvg(1,1,k),global_lats_a,lonsperlat)
       enddo
 !  Read T   -- this is real temperature
-      write(0,*)' in tread, lonperlat=',lonsperlat,' lonf=',lonf
       do k=1,levs
         call gfsio_readrecv(gfile_in,'tmp','layer',k,gfsio_data,iret)
-       write(0,*)'in tread,aft read k=',k,'tmp=',maxval(gfsio_data(:)),
-     &   minval(gfsio_data(:))
         call split2d(gfsio_data,buffo,global_lats_a)
-       write(0,*)'in tread,aft split k=',k,'tmp=',maxval(buffo),
-     &   minval(buffo)
         CALL interpred(1,kmsk,buffo,ttg(1,1,k),global_lats_a,lonsperlat)
-       write(0,*)'in tread,after intp k=',k,'t=',maxval(ttg(:,:,k)),
-     &   minval(ttg(:,:,k)), 'loc min=',minloc(ttg(:,:,k))
       enddo
 !
 !  Initial Tracers with zero
@@ -347,21 +326,19 @@
         call split2d(gfsio_data,buffo,global_lats_a)
         CALL interpred(1,kmsk,buffo,rqg(1,1,k),global_lats_a,lonsperlat)
       enddo
-      write(0,*)'after interpred q,levs=',levs,'levh=',levh,
-     &     'ntozi=',ntozi,ntoz,'ntcwi=',ntcwi
+!      write(0,*)'after interpred q,levs=',levs,'levh=',levh,
+!     &     'ntozi=',ntozi,ntoz,'ntcwi=',ntcwi
 !  Read O3
       if (ntozi .gt. 0) then
         do k=1,levs
           call gfsio_readrecv(gfile_in,'o3mr','layer',k,gfsio_data,
      &                                                  iret)
-!jw        write(0,*)'after readrecv o3mr, sfc,L=',k,'max=',
-!jw     &  maxval(gfsio_data),'min=',minval(gfsio_data),'iret=',iret
           call split2d(gfsio_data,buffo,global_lats_a)
           CALL interpred(1,kmsk,buffo,rqg(1,1,k+(ntozi-1)*levs),
      &                                global_lats_a,lonsperlat)
-       write(0,*)'after interpred o3mr, sfc,L=',k,'max=',
-     &  maxval(rqg(1:lonf,1:lats_node_a,k+(ntozi-1)*levs)),
-     &  'min=',maxval(rqg(1:lonf,1:lats_node_a,k+(ntozi-1)*levs))
+!       write(0,*)'after interpred o3mr, sfc,L=',k,'max=',
+!     &  maxval(rqg(1:lonf,1:lats_node_a,k+(ntozi-1)*levs)),
+!     &  'min=',maxval(rqg(1:lonf,1:lats_node_a,k+(ntozi-1)*levs))
         enddo
       endif
 !  Read clw
@@ -374,15 +351,12 @@
      &                                global_lats_a,lonsperlat)
         enddo
       endif
-       write(0,*)'after interpred clw,num_pes_fcst=',num_pes_fcst
 !
 !   Convert from Gaussian grid to spectral space
 !   including converting to model_uvtp if necessary
 !
-!jw      if(.not.LIOPE .or. icolor.ne.2) then
        if(me<num_pes_fcst) then
 
-       write(0,*)'before grid_to_spect'
       call grid_to_spect_inp
      &     (zsg,psg,uug,vvg,ttg,rqg,
      &      GZE,GZO,QE,QO,DIE,DIO,ZEE,ZEO,TEE,TEO,RQE,RQO,
@@ -390,7 +364,6 @@
      &      lats_nodes_a,global_lats_a,lonsperlat,
      &      epse,epso,SNNP1EV,SNNP1OD,
      &      plnew_a,plnow_a,plnev_a,plnod_a,pwat,ptot,fhour)
-       write(0,*)'after grid_to_spect'
 
 !
       endif

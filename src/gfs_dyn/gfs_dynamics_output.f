@@ -100,7 +100,6 @@
 !                              -----------------------------------------
 !
                                'pdryini        ', 'OGFS_SIG       ', 'R              ' &
-                              ,'fhour          ', 'OGFS_SIG       ', 'R              ' &
 !
 !                              -----------------------------------------
 !
@@ -211,7 +210,7 @@
 !                              -----------------------------------------
 !
                                'hgt       ', 'OGFS_SIG  ', 'R         ' &
-                              ,'pressfc   ', 'OGFS_SIG  ', 'R         ' &
+                              ,'pres      ', 'OGFS_SIG  ', 'R         ' &
 !
 !                              -----------------------------------------
 !
@@ -475,7 +474,6 @@
       L_SC(1)%NAME=>hybrid
       L_SC(2)%NAME=>gen_coord_hybrid
       L_SC(3)%NAME=>int_state%adiabatic
-      write(0,*)'gen_coord_hybrid=',gen_coord_hybrid
 !        
 !***  1D INTEGER ARRAYS
 !
@@ -489,8 +487,6 @@
       R_1D(4)%NAME=>si
       R_1D(5)%NAME=>cpi
       R_1D(6)%NAME=>ri
-      write(0,*)'in dyn output,cpi=',cpi(0:int_state%ntrac),'ri=',   &
-       ri(0:int_state%ntrac)
 !        
 !***  2D REAL ARRAYS
 !
@@ -515,7 +511,6 @@
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      write(0,*)'bundle name=',int_state%filename_base(1)
       GFS_DYN_BUNDLE=ESMF_FieldBundleCreate(grid=GRID                      &  !<-- The ESMF integration Grid
                                            ,name=int_state%filename_base(1) &  !<-- The Bundle's name
                                            ,rc  =RC)
@@ -570,17 +565,19 @@
                             ,rc       =RC)
 !
       CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
-                            ,name     ='zhour'                          &  !<-- Name of the integer array
+                            ,name     ='zhour_'//trim(int_state%filename_base(1)) &  !<-- Name of the integer array
                             ,value    =int_state%zhour                  &  !<-- The array being inserted into the import state
+                            ,rc       =RC)
+!
+      CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
+                            ,name     ='pdryini'                        &  !<-- Name of the integer array
+                            ,value    =int_state%pdryini                &  !<-- The array being inserted into the import state
                             ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL gfs_dynamics_err_msg(RC,MESSAGE_CHECK,RC_DYN_OUT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!jw       write(0,*)'indyn_output,ipt_lats_node_a=',int_state%ipt_lats_node_a, &
-!jw        'lats_node_a=',int_state%lats_node_a,'latg=',int_state%latg,'global_lats_a=', &
-!jw        int_state%global_lats_a(1:int_state%latg)
 !-----------------------------------------------------------------------
 !***  NOW INSERT INTO THE WRITE COMPONENTS' IMPORT STATE THE POINTERS
 !***  OF ONLY THOSE QUANTITIES THAT ARE SPECIFIED BY THE USER FOR
@@ -616,11 +613,9 @@
       TYPE(DYN_RSC),intent(in) :: R_SC(:)
       TYPE(DYN_LSC),intent(in) :: L_SC(:)
       TYPE(DYN_I1D),intent(in) :: I_1D(:)
-!jw      TYPE(DYN_I2D),intent(in) :: I_2D(:)
       TYPE(DYN_R1D),intent(in) :: R_1D(:)
       TYPE(DYN_R2D),intent(in) :: R_2D(:)
       TYPE(DYN_R3D),intent(in) :: R_3D(:)
-!jw      TYPE(DYN_R4D),intent(in) :: R_4D(:)
 !
 !--- local variables
 !
@@ -636,7 +631,7 @@
       REAL(KIND=kind_io4),DIMENSION(:,:),allocatable,target :: mytmp
 !
       CHARACTER(2)                :: MODEL_LEVEL
-      CHARACTER(2)                ::TRACERS_KIND
+      CHARACTER(2)                :: TRACERS_KIND
       CHARACTER(6)                :: FMT='(I2.2)'
       CHARACTER(ESMF_MAXSTR)      :: VBL_NAME
 !
@@ -666,8 +661,8 @@
                                 ,name  =VBL_NAME                        &  !<-- Name of the integer scalar
                                 ,value =I_SC(NFIND)%NAME                &  !<-- The scalar being inserted into the import state
                                 ,rc    =RC)
-          if(MYPE==0) write(0,*)'dyn_output,after VBL_NAME=',VBL_NAME,'NFIND=',NFIND,     &
-           'value=',I_SC(NFIND)%NAME
+!          if(MYPE==0) write(0,*)'dyn_output,after VBL_NAME=',VBL_NAME,'NFIND=',NFIND,     &
+!           'value=',I_SC(NFIND)%NAME
 !
         ENDIF
 !
@@ -678,7 +673,6 @@
 !
       ENDDO
 !
-!      write(0,*)'after INT scalar'
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL gfs_dynamics_err_msg(RC,MESSAGE_CHECK,RC_DYN_OUT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -696,8 +690,8 @@
         IF(trim(DYN_INT_STATE_RSCALAR(2,NFIND))=='OGFS_SIG')THEN                        !<-- Take real scalar data specified for history output
           VBL_NAME=TRIM(DYN_INT_STATE_RSCALAR(1,NFIND))
 !
-          write(0,*)'dyn_output,VBL_NAME=',VBL_NAME,'NFIND=',NFIND,     &
-           'value=',R_SC(NFIND)%NAME
+!          write(0,*)'dyn_output,VBL_NAME=',VBL_NAME,'NFIND=',NFIND,     &
+!           'value=',R_SC(NFIND)%NAME
           CALL ESMF_AttributeSet(bundle=file_bundle                     &  !<-- The Write component output history Bundle
                                 ,name  =VBL_NAME                        &  !<-- Name of the integer scalar
                                 ,value =R_SC(NFIND)%NAME                &  !<-- The scalar being inserted into the import state
@@ -711,7 +705,6 @@
         ENDIF
 !
       ENDDO
-!      write(0,*)'after REAL scalar'
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL gfs_dynamics_err_msg(RC,MESSAGE_CHECK,RC_DYN_OUT)
@@ -736,7 +729,7 @@
 !***  INTO THE HISTORY OUTPUT Bundle OF THE WRITE COMPONENT'S
 !***  IMPORT STATE.
 !
-          write(0,*)'dyn_output,log VBL_NAME=',VBL_NAME,'NFIND=',NFIND
+!          write(0,*)'dyn_output,log VBL_NAME=',VBL_NAME,'NFIND=',NFIND
           LOG_ESMF=ESMF_False
           if(L_SC(NFIND)%NAME) LOG_ESMF=ESMF_True
           CALL ESMF_AttributeSet(bundle=file_bundle                     &  !<-- The Write component output history Bundle
@@ -752,7 +745,6 @@
         ENDIF
 !
       ENDDO
-      write(0,*)'after LOGICAL scalar'
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL gfs_dynamics_err_msg(RC,MESSAGE_CHECK,RC_DYN_OUT)
@@ -772,8 +764,8 @@
           VBL_NAME=TRIM(DYN_INT_STATE_1D_I(1,NFIND))
           LENGTH=SIZE(I_1D(NFIND)%NAME)
 !
-          write(0,*)'dyn_output,1d int VBL_NAME=',VBL_NAME,'NFIND=',NFIND,     &
-           'LENGTH=',LENGTH,'value=',I_1D(NFIND)%NAME(1:LENGTH)
+!          write(0,*)'dyn_output,1d int VBL_NAME=',VBL_NAME,'NFIND=',NFIND,     &
+!           'LENGTH=',LENGTH,'value=',I_1D(NFIND)%NAME(1:LENGTH)
           CALL ESMF_AttributeSet(bundle   =file_bundle                  &  !<-- The Write component output history Bundle
                                 ,name     =VBL_NAME                     &  !<-- Name of the integer scalar
                                 ,count    =LENGTH                       &  !<-- # of elements in this attribute
@@ -788,7 +780,6 @@
         ENDIF
 !
       ENDDO
-!      write(0,*)'after I_1D scalar'
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL gfs_dynamics_err_msg(RC,MESSAGE_CHECK,RC_DYN_OUT)
@@ -809,8 +800,8 @@
           LENGTH=SIZE(R_1D(NFIND)%NAME)
           if(VBL_NAME=='CPI'.or.VBL_NAME=='RI')LENGTH=int_state%ntrac+1
 !
-          write(0,*)'dyn_output,1d real VBL_NAME=',VBL_NAME,'NFIND=',NFIND,     &
-           'LENGTH=',LENGTH,'value=',R_1D(NFIND)%NAME(1:LENGTH)
+!          write(0,*)'dyn_output,1d real VBL_NAME=',VBL_NAME,'NFIND=',NFIND,     &
+!           'LENGTH=',LENGTH,'value=',R_1D(NFIND)%NAME(1:LENGTH)
           CALL ESMF_AttributeSet(bundle   =file_bundle                  &  !<-- The Write component output history Bundle
                                 ,name     =VBL_NAME                     &  !<-- Name of the integer scalar
                                 ,count    =LENGTH                       &  !<-- # of elements in this attribute
@@ -825,7 +816,6 @@
         ENDIF
 !
       ENDDO
-!      write(0,*)'after R_1D scalar'
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL gfs_dynamics_err_msg(RC,MESSAGE_CHECK,RC_DYN_OUT)
@@ -850,8 +840,8 @@
           VBL_NAME=TRIM(DYN_INT_STATE_2D_R(1,NFIND))
            TEMP_R2D=>R_3D(1)%NAME(1:int_state%lonf,1:int_state%lats_node_a_max,NFIND)
 !
-          write(0,*)'dyn_output,2d real VBL_NAME=',VBL_NAME,'NFIND=',NFIND, &
-            maxval(temp_r2d),maxval(temp_r2d)
+!          write(0,*)'dyn_output,2d real VBL_NAME=',VBL_NAME,'NFIND=',NFIND, &
+!            maxval(temp_r2d),maxval(temp_r2d)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert Dynamics 2-D Real Data into Field"
@@ -889,7 +879,6 @@
         ENDIF
 !
       ENDDO
-      write(0,*)'after R_2D scalar,NUM_2D_FIELDS=',NUM_2D_FIELDS
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL gfs_dynamics_err_msg(RC,MESSAGE_CHECK,RC_DYN_OUT)
@@ -912,7 +901,7 @@
       UDIM1=UBOUND(R_3D(1)%NAME,1)
       LDIM2=LBOUND(R_3D(1)%NAME,2)
       UDIM2=UBOUND(R_3D(1)%NAME,2)
-      write(0,*)'LDIM1=',LDIM1,'UDIM1=',UDIM1,'LDIM2=',LDIM2,'UDIM2=',UDIM2
+!      write(0,*)'LDIM1=',LDIM1,'UDIM1=',UDIM1,'LDIM2=',LDIM2,'UDIM2=',UDIM2
 !
       DO NFIND=1,MAX_KOUNT                                                 
 !
@@ -922,16 +911,15 @@
          elseif(trim(DYN_INT_STATE_3D_R(3,NFIND))=='levsp1')then
            NDIM3=int_state%levs+1
          endif
-         print*,'NDIM3=',NDIM3
 !
           DO K=1,NDIM3
             WRITE(MODEL_LEVEL,FMT)K
             VBL_NAME=TRIM(DYN_INT_STATE_3D_R(1,NFIND))//'_'//MODEL_LEVEL//'_2D'
             TEMP_R2D=>R_3D(1)%NAME(LDIM1:UDIM1,LDIM2:UDIM2,NUM_2D_FIELDS+K)
 !
-          write(0,*)'dyn_output,3d real VBL_NAME=',VBL_NAME,'NFIND=',NFIND,     &
-           'value=',maxval(R_3D(1)%NAME(LDIM1:UDIM1,LDIM2:UDIM2,NUM_2D_FIELDS+K))&
-           ,minval(R_3D(1)%NAME(LDIM1:UDIM1,LDIM2:UDIM2,NUM_2D_FIELDS+K))
+!          write(0,*)'dyn_output,3d real VBL_NAME=',VBL_NAME,'NFIND=',NFIND,     &
+!           'value=',maxval(R_3D(1)%NAME(LDIM1:UDIM1,LDIM2:UDIM2,NUM_2D_FIELDS+K))&
+!           ,minval(R_3D(1)%NAME(LDIM1:UDIM1,LDIM2:UDIM2,NUM_2D_FIELDS+K))
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Fill 2-D Fields with Each Level of Dynamics 3-D Data"
@@ -966,8 +954,6 @@
 !
           NUM_2D_FIELDS=NUM_2D_FIELDS+NDIM3
 !
-!          WRITE(0,*)'NUM_2D_FIELD=',NUM_2D_FIELDS
-!
         ENDIF
 !
         IF(DYN_INT_STATE_3D_R(2,NFIND)=='*' .AND.                       &
@@ -976,7 +962,6 @@
         ENDIF
 !
       ENDDO
-      write(0,*)'after R_3D scalar'
 !
 !-----------------------------------------------------------------------
 !***  THE 4D REAL ARRAYS.
@@ -1069,7 +1054,6 @@
                         ,fieldbundle=file_bundle                        &  !<-- The ESMF Bundle holding all Dynamics history data
                         ,rc         =RC)
 !
-!      write(0,*)'after state add intp imp_state_write'
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL gfs_dynamics_err_msg(RC,MESSAGE_CHECK,RC_DYN_OUT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

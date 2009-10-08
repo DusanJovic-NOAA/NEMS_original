@@ -1,4 +1,4 @@
-Fri Sep 18 21:34:05 EDT 2009
+Wed Oct  7 10:06:32 EDT 2009
 Start Regression test
 Test 1
 Compare results with previous trunk version
@@ -24,7 +24,7 @@ Checking test 1 results ....
  Comparing nmm_b_restart_nemsio.024.........OK
  Test 1 passed 
 
- Original timing:  196.4453278  , test1 timing:  207.4560089
+ Original timing:  196.4453278  , test1 timing:  208.6920166
 Test 2
 Test NEMSIO as input file
 NMMB, global case
@@ -161,7 +161,7 @@ Checking test 8 results ....
  Comparing nmm_b_restart_nemsio.024.........OK
  Test 8 passed 
 
- Original timing:  644.2672729  , test1 timing:  701.6320190
+ Original timing:  644.2672729  , test1 timing:  682.2720337
 Test 9
 Test NEMSIO as input file
 NMMB, regional case
@@ -274,21 +274,24 @@ GFS, 32 proc, 1 thread
 
 
 Checking test 15 results ....
- Comparing sigf003_nemsio.........OK
- Comparing sigf006_nemsio.........OK
- Comparing sigf012_nemsio.........OK
- Comparing sigf024_nemsio.........OK
- Comparing sigf048_nemsio.........OK
- Comparing sfcf003_nemsio.........OK
- Comparing sfcf006_nemsio.........OK
- Comparing sfcf012_nemsio.........OK
- Comparing sfcf024_nemsio.........OK
- Comparing sfcf048_nemsio.........OK
- Comparing flxf003_nemsio.........OK
- Comparing flxf006_nemsio.........OK
- Comparing flxf012_nemsio.........OK
- Comparing flxf024_nemsio.........OK
- Comparing flxf048_nemsio.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf09.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sigf09.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing sigf09.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
  Test 15 passed 
 Test 16
 Test different decomposition
@@ -298,21 +301,24 @@ GFS, 60 proc, 1 thread
 
 
 Checking test 16 results ....
- Comparing sigf003_nemsio.........OK
- Comparing sigf006_nemsio.........OK
- Comparing sigf012_nemsio.........OK
- Comparing sigf024_nemsio.........OK
- Comparing sigf048_nemsio.........OK
- Comparing sfcf003_nemsio.........OK
- Comparing sfcf006_nemsio.........OK
- Comparing sfcf012_nemsio.........OK
- Comparing sfcf024_nemsio.........OK
- Comparing sfcf048_nemsio.........OK
- Comparing flxf003_nemsio.........OK
- Comparing flxf006_nemsio.........OK
- Comparing flxf012_nemsio.........OK
- Comparing flxf024_nemsio.........OK
- Comparing flxf048_nemsio.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf09.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sigf09.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing sigf09.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
  Test 16 passed 
 Test 17
 Test threads
@@ -322,41 +328,152 @@ GFS, 16 proc, 2 threads
 
 
 Checking test 17 results ....
- Comparing sigf003_nemsio.........OK
- Comparing sigf006_nemsio.........OK
- Comparing sigf012_nemsio.........OK
- Comparing sigf024_nemsio.........OK
- Comparing sigf048_nemsio.........OK
- Comparing sfcf003_nemsio.........OK
- Comparing sfcf006_nemsio.........OK
- Comparing sfcf012_nemsio.........OK
- Comparing sfcf024_nemsio.........OK
- Comparing sfcf048_nemsio.........OK
- Comparing flxf003_nemsio.........OK
- Comparing flxf006_nemsio.........OK
- Comparing flxf012_nemsio.........OK
- Comparing flxf024_nemsio.........OK
- Comparing flxf048_nemsio.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf09.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sigf09.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing sigf09.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
  Test 17 passed 
 Test 18
 Test single processor
-GFS, 1 proc, 1 threads
+GFS, 1 proc, 1 threads, no quilting
 
 
 
 
 Checking test 18 results ....
- Comparing sigf003_nemsio.........OK
- Comparing sigf006_nemsio.........OK
- Comparing sigf012_nemsio.........OK
- Comparing sigf024_nemsio.........OK
- Comparing sfcf003_nemsio.........OK
- Comparing sfcf006_nemsio.........OK
- Comparing sfcf012_nemsio.........OK
- Comparing sfcf024_nemsio.........OK
- Comparing flxf003_nemsio.........OK
- Comparing flxf006_nemsio.........OK
- Comparing flxf012_nemsio.........OK
- Comparing flxf024_nemsio.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf09.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sigf09.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing sigf09.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
  Test 18 passed 
-Fri Sep 18 23:52:58 EDT 2009
+Test 19
+Test single processor
+GFS, 1 proc, 1 threads,no quilting,nsout=1
+
+
+
+
+Checking test 19 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf09.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sigf09.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing sigf09.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Test 19 passed 
+Test 20
+Test threads
+GFS, 16 proc, 2 threads,no quilt, output every 2 time steps
+
+
+
+
+Checking test 20 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf09.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sigf09.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing sigf09.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
+ Test 20 passed 
+Test 21
+Test different decomposition
+GFS, 60 proc, 1 thread, no quilt
+
+
+
+
+Checking test 21 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf09.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sigf09.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing sigf09.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
+ Test 21 passed 
+Test 22
+Compare results with previous trunk version
+GFS, 32 proc, 1 thread, no quilt, output every 4 timestep
+
+
+
+
+Checking test 22 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf09.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sigf09.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing sigf09.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
+ Test 22 passed 
+Wed Oct  7 12:51:53 EDT 2009

@@ -12,9 +12,10 @@
        real(kind=kind_evod) eps_si                              ! hmhj
        integer(kind=kind_io4),target :: vertcoord_id            ! hmhj
        real(kind=kind_evod),allocatable,target :: AK5(:),BK5(:),CK5(:)
+       integer,target :: idsl, idvc, idvm
 !jwe
 
 !
       real(kind=kind_evod) , allocatable :: vcoord(:,:)
-      integer nvcoord, idsl, idvc, idvm
+      integer nvcoord
       end module gfs_dyn_coordinate_def

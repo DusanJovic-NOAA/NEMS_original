@@ -19,6 +19,8 @@
 !   2008-08     Colon - Added conditional checks multiple dynamics cores.
 !   2008-10-14  Vasic - Added restart Alarm.
 !   2009-05-29  Wang  - Added gfs write grid component
+!   2009-10-05  Wang  - Added gfs ensemble member name and output data at  
+!                       every nsout timeseteps
 !
 ! USAGE: ATM Gridded component parts CALLed from MAIN_ESMF.F90
 !
@@ -267,7 +269,7 @@
 !
       USE MODULE_NMM_CORE_SETUP
       USE MODULE_GFS_CORE_SETUP
-      use module_gfs_mpi_def, only: PETLIST_FCST,WRITE_GROUPS
+      use module_gfs_mpi_def, only: PETLIST_FCST,WRITE_GROUPS,ensmem_name
 !
 !-----------------------------------------------------------------------
 !***  ARGUMENT VARIABLES.
@@ -353,7 +355,9 @@
       integer                      :: num_pes,num_pes_fcst,num_pes_tot
       integer                      :: mpi_intra,mpi_intra_b     ! the mpi intra-communicator!
       logical                      :: global
-      INTEGER                      :: NFHOUT     
+      integer                      :: total_tasks,total_member,nens,modens,member_id
+      integer                      :: nfhout,nfmout,nfsout,nsout
+      real                         :: deltim
       INTEGER :: FCSTDATE(7)
 !
       RC     =ESMF_success
@@ -385,7 +389,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      write(0,*)'in atm_init, after get cf'
 !
 !-----------------------------------------------------------------------
 !***  EXTRACT THE DYNAMIC CORE NAME.
@@ -404,7 +407,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      write(0,*)'in atm_init, core=',core
 !-----------------------------------------------------------------------
 !***  ALLOCATE THE ATM COMPONENT'S INTERNAL STATE.
 !-----------------------------------------------------------------------
@@ -434,6 +436,38 @@
 !
 !jw
       ENDIF
+!-----------------------------------------------------------------------
+!***  RETRIEVE GLOBAL VM to get total_tasks for the whole system
+!-----------------------------------------------------------------------
+!
+      IF (CORE=='gfs') THEN
+!
+!*** for GFS find out the ensemble member id from total tasks and total member
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Retrieve global VM"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+        CALL ESMF_VMGetGlobal(vm, rc)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Obtain MPI Task IDs from VM"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_VMGet(vm      =VM                                       &  !<-- The virtual machine
+                     ,pecount =total_tasks                              &
+                     ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      ENDIF            !end of core gfs
+!
 !-----------------------------------------------------------------------
 !***  RETRIEVE THE VM (VIRTUAL MACHINE) OF THE ATM GRIDDED COMPONENT.
 !***  CALL ESMF_GridCompGet TO RETRIEVE THE VM ANYWHERE YOU NEED IT.
@@ -947,20 +981,57 @@
 !-----------------------------------------------------------------------
 
       ELSE IF (CORE=='gfs') THEN
-        CALL GFS_SETUP(ATM_GRID_COMP,grid_atmos)
 !jws
-!jw        if(QUILTING ) then
+        CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure object
+                                  ,value =total_member                    &  !<-- Fill this variable
+                                  ,label ='total_member:'                 &  !<-- Give the variable this label's value from the config file
+                                  ,rc    =RC)
+        nens=total_tasks/total_member
+        modens=total_tasks-nens*total_member
+        if(mype<modens*(nens+1)) then
+          member_id=mype/(nens+1)+1
+        else
+          member_id=modens+(mype-modens*nens)/nens+1
+        endif
+        if(total_member==1) then
+          ensmem_name=' '
+        else
+          write(ensmem_name,'("_",i2.2)') member_id
+        endif
+        CALL GFS_SETUP(ATM_GRID_COMP,grid_atmos)
+
         CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure object
                                   ,value =nfhout                          &  !<-- Fill this variable
                                   ,label ='nfhout:'                       &  !<-- Give the variable this label's value from the config file
                                   ,rc    =RC)
 !
+        CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure object
+                                  ,value =nsout                           &  !<-- Fill this variable bel's value from the config file
+                                  ,label ='nsout:'                        &  !<-- Give the variable this label's value from the config file
+                                  ,rc    =RC)
+!
+        CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure object
+                                  ,value =deltim                          &  !<-- Fill this variable
+                                  ,label ='deltim:'                       &  !<-- Give the variable this label's value from the config file
+                                  ,rc    =RC)
+
+        if(nsout.gt.0) then
+           nfhout=int(nsout*deltim/3600.)
+           nfmout=int((nsout*deltim-nfhout*3600.)/60.)
+           nfsout=int(nsout*deltim-nfhout*3600.-nfmout*60)
+        else
+           nfmout=0
+           nfsout=0
+        endif
+        write(0,*)'nfhout=',nfhout,'nfmout=',nfmout,'nfsout=',nfsout
+!
         CALL ESMF_TimeIntervalSet(timeinterval=TIMEINTERVAL_GFS_OUTPUT    &  !<-- Time interval between
                                ,h           =nfhout                       &  !<-- Hours between history
+                               ,m           =nfmout                       &  !<-- monute between history
+                               ,s           =nfsout                       &  !<-- second between history
                                ,rc          =RC)
-!jw        endif
 !jwe
-
+!
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -1000,7 +1071,6 @@
 !jw
                                      ,petList=PETLIST_FCST              &
                                      ,rc        =RC)
-      write(0,*)'in atm_init, after dyn comp created'
       ENDIF
 
 !
@@ -1146,7 +1216,6 @@
 !jw
                                      ,petList=PETLIST_FCST              &
                                      ,rc        =rc)
-      write(0,*)'in atm_init, after phys comp created,petlist_fcst=',petlist_fcst
       ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1307,19 +1376,15 @@
 !***  IN TURN PART OF THE ATM INTERNAL STATE.
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
-      IF(QUILTING)THEN
-        IF (CORE=='nmm') THEN
+      IF (CORE=='nmm') THEN
+        IF(QUILTING)THEN
           CALL WRITE_SETUP(ATM_GRID_COMP,ATM_INT_STATE,CLOCK_ATM)
-        ELSEIF (CORE=='gfs') THEN
-          write(0,*)'before write_setup_gfs, allocate,write_groups=',write_groups
+        ENDIF
+      ELSEIF (CORE=='gfs') THEN
           allocate(WRT_COMPS(WRITE_GROUPS))
-          write(0,*)'before write_setup_gfs call'
           CALL WRITE_SETUP_GFS(ATM_GRID_COMP,WRT_COMPS,          &
             EXP_GFS_DYN,EXP_GFS_PHY,IMP_GFS_WRT, EXP_GFS_WRT)
-      write(0,*)'in atm_init, after writesetup'
-        ENDIF
       ENDIF
-      
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -1339,21 +1404,21 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       IF (CORE=='nmm') THEN
-      CALL ESMF_GridCompInitialize(gridcomp   =atm_int_state%DYN_GRID_COMP  &  !<-- The dynamics gridded component
+        CALL ESMF_GridCompInitialize(gridcomp   =atm_int_state%DYN_GRID_COMP&  !<-- The dynamics gridded component
                                   ,importState=atm_int_state%IMP_STATE_DYN  &  !<-- The dynamics import state
                                   ,exportState=atm_int_state%EXP_STATE_DYN  &  !<-- The dynamics export state
                                   ,clock      =CLOCK_ATM                    &  !<-- The ATM clock
                                   ,phase      =ESMF_SINGLEPHASE             &
                                   ,rc         =RC)
       ELSE IF (CORE=='gfs') THEN
-      call ESMF_GridCompInitialize(gridcomp   =gc_gfs_dyn            &
+        call ESMF_GridCompInitialize(gridcomp   =gc_gfs_dyn          &
                                   ,importstate=imp_gfs_dyn           &
                                   ,exportstate=exp_gfs_dyn           &
                                   ,clock      =CLOCK_MAIN            &
                                   ,phase      =esmf_singlephase      &
                                   ,rc         =RC)
-      grid_gfs_dyn=grid_atmos
-      call esmf_gridcompset(         gc_gfs_dyn      &
+        grid_gfs_dyn=grid_atmos
+        call esmf_gridcompset(         gc_gfs_dyn    &
                            ,grid    =grid_gfs_dyn    &
                            ,rc      =rc)
       ENDIF
@@ -1442,13 +1507,13 @@
 !***  EXPORT STATES.
 !-----------------------------------------------------------------------
 !
-      IF(QUILTING)THEN
-        IF (CORE=='nmm') THEN
+      IF (CORE=='nmm') THEN
+        IF(QUILTING)THEN
           CALL WRITE_INIT(ATM_GRID_COMP,ATM_INT_STATE,CLOCK_ATM)
-        ELSEIF(CORE=='gfs') THEN
-          CALL WRITE_INIT_GFS(ATM_GRID_COMP,WRT_COMPS,IMP_GFS_WRT,          &
-            EXP_GFS_WRT,CLOCK_MAIN,WRITE_GROUP_READY_TO_GO)
         ENDIF
+      ELSEIF(CORE=='gfs') THEN
+        CALL WRITE_INIT_GFS(ATM_GRID_COMP,WRT_COMPS,IMP_GFS_WRT,          &
+          EXP_GFS_WRT,CLOCK_MAIN,WRITE_GROUP_READY_TO_GO)
       ENDIF
 !
 !-----------------------------------------------------------------------

@@ -3,21 +3,17 @@
      &        global_lats_a,lonsperlat)
 !
       use gfs_dyn_resol_def
-!jw
       use gfs_dyn_mod_state, only: buff_mult_pieceg,ngrid,ngridg
       use gfs_dyn_layout1
       use gfs_dyn_mpi_def
-!jw
       use gfs_dyn_coordinate_def, only: idvc,idvm
       use gfs_dyn_physcons, rk => con_rocp
       implicit none
 
-!jws
       real (kind=kind_grid), parameter :: rk1 = rk + 1.0, rkr = 1.0/rk
      &,                                   p0=100000.0, p0i=1.0/p0
       real (kind=kind_io4), parameter  :: zero4=0.0
       integer i,j
-!jwe
 !
 !!
       INTEGER              global_lats_a(latg)
@@ -31,12 +27,10 @@
       real(kind=kind_grid) rqg(lonf,lats_node_a,levh)
       real(kind=kind_grid) dpg(lonf,lats_node_a,levs)
 !
-!jws
       real(kind=kind_io4) :: pup(lonf,lats_node_a)
      &,                      pdn(lonf,lats_node_a)
      &,                      pupk(lonf,lats_node_a)
      &,                      pdnk(lonf,lats_node_a)
-!jwe
 !
       real(kind=kind_io8) buffo(lonf,lats_node_a)
       real(kind=kind_io8) buffi(lonf,lats_node_a)
@@ -55,60 +49,38 @@
       if(allocated(buff_mult_pieceg)) then
          continue
       else
-!jw         allocate(buff_mult_pieceg(lonf,ngrids_gg,lats_node_a))
          allocate(buff_mult_pieceg(lonf,lats_node_a_max,ngrids_gg))
       endif
 !
       kmsk = 0
 !
       buffi(:,:) = zsg(:,:)
-!jw      CALL uninterpreg(1,kmsk,buffo,buffi,global_lats_a,lonsperlat)
-!jw
       CALL uninterpreg(1,kmsk,buffo,buffi,global_lats_a,lonsperlat,
      &  buff_mult_pieceg(1,1,1) )
-      write(0,*)'in grid collect, buff_zsg=',
-     &  maxval(buff_mult_pieceg(1:lonf,1:lats_node_a,1)),
-     & minval(buff_mult_pieceg(1:lonf,1:lats_node_a,1))
+!      write(0,*)'in grid collect, buff_zsg=',
+!     &  maxval(buff_mult_pieceg(1:lonf,1:lats_node_a,1)),
+!     & minval(buff_mult_pieceg(1:lonf,1:lats_node_a,1))
 !
       buffi(:,:) = psg(:,:)
-!jw      CALL uninterpreg(1,kmsk,buffo,buffi,global_lats_a,lonsperlat)
       CALL uninterpreg(1,kmsk,buffo,buffi,global_lats_a,lonsperlat,
      & buff_mult_pieceg(1,1,2) )
-      write(0,*)'in grid collect, buff_psg=',
-     &  maxval(buff_mult_pieceg(1:lonf,1:lats_node_a,2)),
-     & minval(buff_mult_pieceg(1:lonf,1:lats_node_a,2))
-
 !
       do k=1,levs
         buffi(:,:) = dpg(:,:,k)
-!jw        CALL uninterpreg(1,kmsk,buffo,buffi,global_lats_a,lonsperlat)
         CALL uninterpreg(1,kmsk,buffo,buffi,global_lats_a,lonsperlat,
      & buff_mult_pieceg(1,1,2+k) )
-       write(0,*)'buff_dp layer=',k,
-     &  maxval(buff_mult_pieceg(1:lonf,1:lats_node_a,2+k)),
-     &  minval(buff_mult_pieceg(1:lonf,1:lats_node_a,2+k))
       enddo
 !!
 !***  write out the layer mean pressure
          pdn(1:lonf,1:lats_node_a) =
      &      buff_mult_pieceg(1:lonf,1:lats_node_a,2)
          pdnk   = (pdn*p0i) ** rk
-!         write(0,*)'before pup,size=', size(buff_mult_pieceg,1),
-!     &      size(buff_mult_pieceg,2),'pdn=',size(pdn,1),size(pdn,2),
-!     &  'pup=', minval(buff_mult_pieceg(1:lonf,1:lats_node_a,3)),
-!     &      maxval(buff_mult_pieceg(1:lonf,1:lats_node_a,3))
          do k=1,levs
            pup(1:lonf,1:lats_node_a) = max(pdn(1:lonf,1:lats_node_a)
      &       -buff_mult_pieceg(1:lonf,1:lats_node_a,2+k), zero4)
-!      write(0,*)'pup= pdn=',pdn(1,1),' k=',k,' pdnk=',
-!     &    pdnk(1,1),' dp=',buff_mult_pieceg(1,1,2+k),'idvc=',idvc,
-!     &    'idvm=',idvm,'pup=',maxval(pup(1:lonf,1:lats_node_a)),
-!     &    minval(pup(1:lonf,1:lats_node_a)),'pdn=',
-!     &     minval(pdn(1:lonf,1:lats_node_a)),
-!     &    maxval(pdn(1:lonf,1:lats_node_a))
            if (idvc == 3 .and. mod(idvm,10) == 2) then
              buff_mult_pieceg(1:lonf,1:lats_node_a,2+levs+k) = 
-     &    0.5 * (pup(1:lonf,1:lats_node_a) + pdn(1:lonf,1:lats_node_a))
+     &       0.5*(pup(1:lonf,1:lats_node_a)+pdn(1:lonf,1:lats_node_a))
              pdn(1:lonf,1:lats_node_a)  = pup(1:lonf,1:lats_node_a)
            else
              do j=1,lats_node_a
@@ -121,53 +93,36 @@
              enddo
              enddo
            endif
-       write(0,*)'buff_p layer=',k,
-     &  maxval(buff_mult_pieceg(1:lonf,1:lats_node_a,2+levs+k)),
-     &  minval(buff_mult_pieceg(1:lonf,1:lats_node_a,2+levs+k))
 !
          enddo
 !
       do k=1,levs
         buffi(:,:) = uug(:,:,k)
-!jw     CALL uninterpreg(1,kmsk,buffo,buffi,global_lats_a,lonsperlat)
         CALL uninterpreg(1,kmsk,buffo,buffi,global_lats_a,lonsperlat,
      & buff_mult_pieceg(1,1,2+2*levs+k) )
-       write(0,*)'buff_u layer=',k,
-     &  maxval(buff_mult_pieceg(1:lonf,1:lats_node_a,2+2*levs+k)),
-     &  minval(buff_mult_pieceg(1:lonf,1:lats_node_a,2+2*levs+k))
       enddo
 !
       do k=1,levs
         buffi(:,:) = vvg(:,:,k)
-!jw        CALL uninterpreg(1,kmsk,buffo,buffi,global_lats_a,lonsperlat)
         CALL uninterpreg(1,kmsk,buffo,buffi,global_lats_a,lonsperlat,
      & buff_mult_pieceg(1,1,2+3*levs+k) )
       enddo
 !
       do k=1,levs
         buffi(:,:) = teg(:,:,k)
-!jw        CALL uninterpreg(1,kmsk,buffo,buffi,global_lats_a,lonsperlat)
         CALL uninterpreg(1,kmsk,buffo,buffi,global_lats_a,lonsperlat,
      & buff_mult_pieceg(1,1,2+4*levs+k) )
-       write(0,*)'buff_t layer=',k,'teg=',maxval(teg(:,:,k)),
-     &  minval(teg(:,:,k)), 'buff=',
-     &  maxval(buff_mult_pieceg(1:lonf,1:lats_node_a,2+4*levs+k)),
-     &  minval(buff_mult_pieceg(1:lonf,1:lats_node_a,2+4*levs+k))
       enddo
 !
       if (levh .gt. 0) then
         do k=1,levh
           buffi(:,:) = rqg(:,:,k)
-!jw          CALL uninterpreg(1,kmsk,buffo,buffi,global_lats_a,lonsperlat)
           CALL uninterpreg(1,kmsk,buffo,buffi,global_lats_a,lonsperlat,
      & buff_mult_pieceg(1,1,2+5*levs+k) )
         enddo
       endif
 !
-      write(0,*)' finished gridc_collect for  ngridg=',ngridg
   999 continue
-!jw      ngrid=1
-!jw      ngridg=1
       return
       end
 
@@ -215,11 +170,9 @@ c
           endif
       endif
 cgwv watch this!!
-          write(0,*)' allocating ', lonf,maxlats_comp,nodes,ngridg
       if(me .eq. ioproc) then
-          allocate(buff_mult_piecesg(lonf*latg*ngrids_gg))
-!jw     1    (buff_mult_piecesg(lonf,ngrids_gg,maxlats_comp,nodes))
-          write(0,*)' allocated', lonf,ngrids_gg,maxlats_comp,nodes
+        if(.not.allocated(buff_mult_piecesg))
+     &    allocate(buff_mult_piecesg(lonf*latg*ngrids_gg))
       endif
 
 
@@ -327,8 +280,9 @@ cc
 !     integer iret, ks,irealf,iorder, idusr
       character * 16, allocatable :: recname(:), reclevtyp(:)
       integer,       allocatable :: reclev(:)
-!jws
+!
       integer j,ndim3,N2DR,kount,nrec
+      integer nfhour,nfminute,nfsecondn,nfsecondd
       integer ::nmetavari,nmetavarr,nmetavarl,nmetaaryi,nmetaaryr
       character(16),allocatable :: variname(:),varrname(:),
      &    varlname(:),aryiname(:),aryrname(:)
@@ -341,7 +295,7 @@ cc
       integer reclev1
       real(kind=kind_io4),allocatable :: tmp(:)
       type(nemsio_gfile) :: gfileout
-!jwe
+!
       logical first
       save first, recname, reclevtyp, reclev, vcoord4
       save nrec,nmetavari,nmetavarr,nmetavarl,nmetaaryi,nmetaaryr,
@@ -353,23 +307,21 @@ cc
 !
 !    Build upper air fields in to buff_mult
 !
-      allocate(buff_multg(lonf*latg,ngrids_gg))
-      do ngridgg=1,ngrids_gg
-!       print *,' inside atmgg_wrt calling unsp ngridgg=',ngridgg
-        call unsplit2g(ioproc,ngridgg,ngrids_gg,buff_multg(1,ngridgg),
+      if (me.eq.ioproc) then
+!
+        allocate(buff_multg(lonf*latg,ngrids_gg))
+        do ngridgg=1,ngrids_gg
+          call unsplit2g(ioproc,ngridgg,ngrids_gg,buff_multg(1,ngridgg),
      &        global_lats_a)
-      enddo
+        enddo
 !     print *,' finished ngrid loop ngrids_gg=',ngrids_gg
 !    Building upper air  field is done
 !
-      if (me.eq.ioproc) then
-!
-!     print *,' me=',me,' In the atmgg_wrt'
         if (first) then
           first = .false.
-!***jw
+!***
 !--- get names from module output 
-          nrec=4+ntrac
+          nrec=ngrids_gg
           kount=size(DYN_INT_STATE_ISCALAR,2)
 !for integer var::
           nmetavari=0
@@ -377,96 +329,121 @@ cc
            if(trim(DYN_INT_STATE_ISCALAR(2,i)).eq.'OGFS_SIG') 
      &     nmetavari=nmetavari+1
           enddo
-          allocate(variname(nmetavari),varival(nmetavari))
-          do i=1,kount
-           if(trim(DYN_INT_STATE_ISCALAR(2,i)).eq.'OGFS_SIG')then
-           variname(i)=trim(DYN_INT_STATE_ISCALAR(1,i))
-!jw ???
-           if(i==1) varival(i)=latg
-           if(i==2) varival(i)=lonf
-           if(i==3) varival(i)=levs
-           if(i==4) varival(i)=jcap
-           if(i==5) varival(i)=ntoz
-           if(i==6) varival(i)=ntcw
-           if(i==7) varival(i)=ncldt
-           if(i==8) varival(i)=vertcoord_id
-           if(i==9) varival(i)=thermodyn_id
-           if(i==10) varival(i)=sfcpress_id
-           if(i==11) varival(i)=ienst
-           if(i==12) varival(i)=iensi
-           if(i==13) varival(i)=itrun
-           if(i==14) varival(i)=icen2
-           endif
-          enddo
+          if(nmetavari>0) then
+            allocate(variname(nmetavari),varival(nmetavari))
+            j=0
+            do i=1,kount
+             if(trim(DYN_INT_STATE_ISCALAR(2,i)).eq.'OGFS_SIG')then
+               j=j+1
+               variname(j)=trim(DYN_INT_STATE_ISCALAR(1,i))
+               if(variname(j)=='latg') varival(j)=latg
+               if(variname(j)=='lonf') varival(j)=lonf
+               if(variname(j)=='levs') varival(j)=levs
+               if(variname(j)=='jcap') varival(j)=jcap
+               if(variname(j)=='ntoz') varival(j)=ntoz
+               if(variname(j)=='ntcw') varival(j)=ntcw
+               if(variname(j)=='ncld') varival(j)=ncld
+               if(variname(j)=='ntrac') varival(j)=ntrac
+               if(variname(j)=='vertcoord_id') varival(j)=vertcoord_id
+               if(variname(j)=='thermodyn_id') varival(j)=thermodyn_id
+               if(variname(j)=='sfcpress_id') varival(j)=sfcpress_id
+               if(variname(j)=='ienst') varival(j)=ienst
+               if(variname(j)=='iensi') varival(j)=iensi
+               if(variname(j)=='itrun') varival(j)=itrun
+               if(variname(j)=='icen2') varival(j)=icen2
+             endif
+            enddo
+          endif
 !for real var::
           nmetavarr=0
           do i=1,kount
            if(trim(DYN_INT_STATE_RSCALAR(2,i)).eq.'OGFS_SIG')
      &     nmetavarr=nmetavarr+1
           enddo
-          allocate(varrname(nmetavarr),varrval(nmetavarr))
-          do i=1,kount
-           if(trim(DYN_INT_STATE_RSCALAR(2,i)).eq.'OGFS_SIG')then
-            varrname(i)=trim(DYN_INT_STATE_RSCALAR(1,i))
-            if(i==1) varrval(i)=pdryini
-            if(i==2) varrval(i)=xhour
-           endif
-          enddo
+          if(nmetavarr>0) then
+            allocate(varrname(nmetavarr),varrval(nmetavarr))
+            j=0
+            do i=1,kount
+             if(trim(DYN_INT_STATE_RSCALAR(2,i)).eq.'OGFS_SIG')then
+              j=j+1
+              varrname(j)=trim(DYN_INT_STATE_RSCALAR(1,i))
+              if(varrname(j)=='pdryini') varrval(j)=pdryini
+              if(varrname(j)=='fhour') varrval(j)=xhour
+             endif
+            enddo
+         endif
+
 !for logical var::
           nmetavarl=0
           do i=1,kount
            if(trim(DYN_INT_STATE_LSCALAR(2,i)).eq.'OGFS_SIG')
      &     nmetavarl=nmetavarl+1
           enddo
-          allocate(varlname(nmetavarl),varlval(nmetavarl))
-          do i=1,kount
-           if(trim(DYN_INT_STATE_LSCALAR(2,i)).eq.'OGFS_SIG')then
-            varlname(i)=trim(DYN_INT_STATE_LSCALAR(1,i))
-            if(i==1) varlval(i)=hybrid
-            if(i==2) varlval(i)=gen_coord_hybrid
-            if(i==3) varlval(i)=adiabatic
-           endif
-          enddo
+          if(nmetavarl>0) then
+            allocate(varlname(nmetavarl),varlval(nmetavarl))
+            j=0
+            do i=1,kount
+            if(trim(DYN_INT_STATE_LSCALAR(2,i)).eq.'OGFS_SIG')then
+              j=j+1
+              varlname(j)=trim(DYN_INT_STATE_LSCALAR(1,i))
+              if(varlname(j)=='HYBRID') varlval(j)=hybrid
+              if(varlname(j)=='GEN_COORD_HYBRID') 
+     &         varlval(j)=gen_coord_hybrid
+              if(varlname(j)=='ADIABATIC') varlval(j)=adiabatic
+             endif
+            enddo
+         endif
 !for 1D integer array
           nmetaaryi=0
           do i=1,kount
            if(trim(DYN_INT_STATE_1D_I(2,i)).eq.'OGFS_SIG')
      &     nmetaaryi=nmetaaryi+1
           enddo
+!  Add fcst_date into ARYI
+!jw          nmetaaryi=nmetaaryi+1
           allocate(aryiname(nmetaaryi),aryilen(nmetaaryi))
+          j=0
           do i=1,kount
            if(trim(DYN_INT_STATE_1D_I(2,i)).eq.'OGFS_SIG') then
-            aryiname(i)=trim(DYN_INT_STATE_1D_I(1,i))
-            if(i==1) aryilen(i)=size(idate)
+            j=j+1
+            aryiname(j)=trim(DYN_INT_STATE_1D_I(1,i))
+            if(aryiname(j)=='IDATE') aryilen(j)=size(idate)
            endif
           enddo
+!jw          aryiname(nmetaaryi)='FCSTDATE'
+!jw          aryilen(nmetaaryi)=7
           allocate(aryival(maxval(aryilen),nmetaaryi))
-          aryival(:,1)=idate(:)
+          aryival(1:aryilen(1),1)=idate(1:aryilen(1))
+!jw          aryival(1:7,nmetaaryi)=FCSTDATE(1:7)
 !for 1D real array
           nmetaaryr=0
           do i=1,kount
            if(trim(DYN_INT_STATE_1D_R(2,i)).eq.'OGFS_SIG')
      &     nmetaaryr=nmetaaryr+1
           enddo
-          allocate(aryrname(nmetaaryr),aryrlen(nmetaaryr))
-          do i=1,kount
-           if(trim(DYN_INT_STATE_1D_R(2,i)).eq.'OGFS_SIG') then
-            aryrname(i)=trim(DYN_INT_STATE_1D_R(1,i))
-            if(i==1) aryrlen(i)=size(ak5)
-            if(i==2) aryrlen(i)=size(bk5)
-            if(i==3) aryrlen(i)=size(ck5)
-            if(i==4) aryrlen(i)=size(si)
-            if(i==5) aryrlen(i)=size(cpi)
-            if(i==6) aryrlen(i)=size(ri)
-           endif
-          enddo
-          allocate(aryrval(maxval(aryrlen),nmetaaryr))
-          aryrval(1:aryrlen(1),1)=ak5(:)
-          aryrval(1:aryrlen(2),2)=bk5(:)
-          aryrval(1:aryrlen(3),3)=ck5(:)
-          aryrval(1:aryrlen(4),4)=si(:)
-          aryrval(1:aryrlen(5),5)=cpi(:)
-          aryrval(1:aryrlen(6),6)=ri(:)
+          if(nmetaaryr>0) then
+            allocate(aryrname(nmetaaryr),aryrlen(nmetaaryr))
+            j=0
+            do i=1,kount
+             if(trim(DYN_INT_STATE_1D_R(2,i)).eq.'OGFS_SIG') then
+              j=j+1
+              aryrname(j)=trim(DYN_INT_STATE_1D_R(1,i))
+              if(aryrname(j)=='AK5') aryrlen(j)=size(ak5)
+              if(aryrname(j)=='BK5') aryrlen(j)=size(bk5)
+              if(aryrname(j)=='CK5') aryrlen(j)=size(ck5)
+              if(aryrname(j)=='SI') aryrlen(j)=size(si)
+              if(aryrname(j)=='CPI') aryrlen(j)=ntrac+1
+              if(aryrname(j)=='RI') aryrlen(j)=ntrac+1
+             endif
+            enddo
+            allocate(aryrval(maxval(aryrlen),nmetaaryr))
+            aryrval(1:aryrlen(1),1)=ak5(1:aryrlen(1))
+            aryrval(1:aryrlen(2),2)=bk5(1:aryrlen(2))
+            aryrval(1:aryrlen(3),3)=ck5(1:aryrlen(3))
+            aryrval(1:aryrlen(4),4)=si(1:aryrlen(4))
+            aryrval(1:aryrlen(5),5)=cpi(0:aryrlen(5)-1)
+            aryrval(1:aryrlen(6),6)=ri(0:aryrlen(6)-1)
+          endif
 !
 !for record name, levtyp and lev          
           allocate (recname(nrec),reclevtyp(nrec),reclev(nrec))
@@ -510,30 +487,33 @@ cc
             Endif
            enddo
           endif
-          write(0,*)'gfs sig file, total records=',nrec, 'N2DR=',N2DR
 !
           idpp  = 0
           idusr = 0
           idrun = 0
           ALLOCATE(VCOORD4(levs+1,3,2))
           vcoord4=0.
+!for output:
+!         idvm    = thermodyn_id*10 + sfcpress_id  
+          idvm    = 22                                 ! 1:  ln(ps) 2:ps   ! hmhj
+                                                       ! 1: Tv, 2: T, 3:Th
           if (gen_coord_hybrid) then                                      ! hmhj
-            idvc    = vertcoord_id
-            idvm    = thermodyn_id*10 + sfcpress_id    ! 1: ln(ps) 2:ps   ! hmhj
+            idvc    = 3
             idsl    = 2    ! idsl=2 for middle of layer                   ! hmhj
             nvcoord = 3
 !            allocate (vcoord4(levp1,nvcoord))
             do k=1,levp1                                                  ! hmhj
-              vcoord4(k,1,1) = ak5(k)*1000.                                 ! hmhj
-              vcoord4(k,2,1) = bk5(k)                                       ! hmhj
-              vcoord4(k,3,1) = ck5(k)*1000.                                 ! hmhj
+              vcoord4(k,1,1) = real(ak5(k),4)*1000.                       ! hmhj
+              vcoord4(k,2,1) = bk5(k)                                     ! hmhj
+              vcoord4(k,3,1) = ck5(k)*1000.                               ! hmhj
             enddo                                                         ! hmhj
+            write(0,*)'in atmgg_wrt,vcoord4(1,1)=',vcoord4(1:levp1,1,1)
           else if (hybrid) then                                           ! hmhj
             idvc    = 2                        ! for hybrid vertical coord.
             nvcoord = 2
 !            allocate (vcoord4(levp1,nvcoord))
             do k=1,levp1
-              vcoord4(k,1,1) = ak5(levp1+1-k)*1000.
+              vcoord4(k,1,1) = real(ak5(levp1+1-k),4)*1000.
               vcoord4(k,2,1) = bk5(levp1+1-k)
 !              print 190,k,vcoord4(k,1),vcoord4(k,2)
 190           format('in gfsio k=',i2,'  ak5r4=',f13.6,'  bk5r4=',e13.5)
@@ -541,7 +521,6 @@ cc
           else
             idvc    = 1    ! for sigma vertical coord. (default)
             nvcoord = 1
-!jw            allocate (vcoord4(levp1,nvcoord))
             vcoord4(:,1,1) = si (:)
           endif
 !end first
@@ -553,25 +532,35 @@ cc
         yhour    = xhour
         idvt    = (ntoz-1) + 10 * (ntcw-1)
         idate7=0
-        idate7(1:4)=idate(1:4)
-!       idusr    = usrid
+        idate7(1)=idate(4)
+        idate7(2)=idate(2)
+        idate7(3)=idate(3)
+        idate7(4)=idate(1)
+        idate7(7)=100
 !
-      print *,' calling gfsio_open lonf=',lonf,' latg=',latg
-     &,' idate=',idate,' yhour=',yhour
+        nfhour=int(yhour)
+        nfminute=int((yhour-nfhour)*60.)
+        nfsecondn=int(((yhour-nfhour)*3600.-nfminute*60)*100)
+        nfsecondd=100
+!
+!      write(0,*)' calling gfsio_open lonf=',lonf,' latg=',latg
+!     &,' idate=',idate,' yhour=',yhour
 !
         call nemsio_open(gfileout,trim(cfile),'write',iret=iret,
-     &    modelname='gfs',gdatatype='grib',version=ivsupa,
-     &    nfhour=int(yhour),idate=idate7,nrec=nrec,
-     &    dimx=latg,dimy=lonf,dimz=levs,ncldt=ncldt,
-     &    vcoord=vcoord4,extrameta=.true.,nmetavari=nmetavari,
+     &    modelname='GFS',gdatatype='grib',version=ivsupa,
+     &    idate=idate7,nrec=nrec,
+     &    nfhour=nfhour,nfminute=nfminute,nfsecondn=nfsecondn,
+     &    nfsecondd=nfsecondd,
+     &    dimx=lonf,dimy=latg,dimz=levs,jcap=jcap,ncldt=ncld,
+     &    idsl=idsl,idvc=idvc,idvm=idvm,
+     &    ntrac=ntrac,vcoord=vcoord4,cpi=real(cpi,4),ri=real(ri,4),
+     &    extrameta=.true.,nmetavari=nmetavari,
      &    nmetavarr=nmetavarr,nmetavarl=nmetavarl,
      &    nmetaaryi=nmetaaryi,nmetaaryr=nmetaaryr,
      &    variname=variname,varival=varival,varrname=varrname,
      &    varrval=varrval,varlname=varlname,varlval=varlval,
      &    aryiname=aryiname,aryilen=aryilen,aryival=aryival,
      &    aryrname=aryrname,aryrlen=aryrlen,aryrval=aryrval,
-     &    idsl=idsl,idvc=idvc,idvm=idvm,
-     &    ntrac=ntrac,
      &    recname=recname,reclevtyp=reclevtyp,
      &    reclev=reclev)
 !
@@ -584,10 +573,7 @@ cc
          call nemsio_getrechead(gfileout,k,recname1,reclevtyp1,
      &     reclev1,iret)
          tmp(1:lonf*latg)=buff_multg(1:lonf*latg,k)
-         call nemsio_writerec(gfileout,k,tmp,iret=ireT)
-         write(0,*)'ig file,k=',k,'recname=',recname1,'reclevtyp=',
-     &     reclevtyp1,'reclev=',reclev,'data=',maxval(buff_multg(:,k)),
-     &     minval(buff_multg(:,k))
+         call nemsio_writerec(gfileout,k,tmp,iret=iret)
        enddo
        deallocate(tmp)
        deallocate(buff_multg)
@@ -609,7 +595,6 @@ cc
      &    buff_mult)
 !!
       use gfs_dyn_resol_def
-!jw      use gfs_dyn_mod_state
       use gfs_dyn_layout1
       implicit none
 !!

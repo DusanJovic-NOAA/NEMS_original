@@ -9,6 +9,7 @@ echo "Start Regression test" >> RegressionTests.log
 #########################################
 
 export RTPWD=/meso/noscrub/wx20rv/REGRESSION_TEST
+#export RTPWD_GFS=/climate/noscrub/wx20wa/esmf/nems/REGRESSION_TEST
 
 #########################################
 # PATHRT - regression test path
@@ -1484,6 +1485,8 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:32:g         \
                     | sed s:_PE1_:30:g           \
                     | sed s:_WPG_:2:g            \
                     | sed s:_THRDS_:1:g          \
+                    | sed s:_NSOUT_:0:g          \
+                    | sed s:_QUILTING_:.true.:g  \
                     | sed s:_RUNDIR_:${RUNDIR}:g \
                     | sed s:_PATHTR_:${PATHTR}:g \
                     | sed s:_NDAYS_:2:g          >  gfs_fcst_run
@@ -1522,9 +1525,9 @@ done
 (echo;echo;echo "Checking test 15 results ....")>> RegressionTests.log
  echo;echo;echo "Checking test 15 results ...."
 
-for i in sigf003_nemsio sigf006_nemsio sigf012_nemsio sigf024_nemsio sigf048_nemsio \
-         sfcf003_nemsio sfcf006_nemsio sfcf012_nemsio sfcf024_nemsio sfcf048_nemsio \
-         flxf003_nemsio flxf006_nemsio flxf012_nemsio flxf024_nemsio flxf048_nemsio
+for i in sigf03 sigf06 sigf09 sigf12 sigf24 sigf48 \
+         sfcf03 sfcf06 sigf09 sfcf12 sfcf24 sfcf48 \
+         flxf03 flxf06 sigf09 flxf12 flxf24 flxf48
 
 do
 printf %s " Comparing " $i "....." >> RegressionTests.log
@@ -1578,6 +1581,8 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:60:g         \
                     | sed s:_PE1_:58:g           \
                     | sed s:_WPG_:2:g            \
                     | sed s:_THRDS_:1:g          \
+                    | sed s:_NSOUT_:0:g          \
+                    | sed s:_QUILTING_:.true.:g  \
                     | sed s:_RUNDIR_:${RUNDIR}:g \
                     | sed s:_PATHTR_:${PATHTR}:g \
                     | sed s:_NDAYS_:2:g          >  gfs_fcst_run
@@ -1616,9 +1621,9 @@ done
 (echo;echo;echo "Checking test 16 results ....")>> RegressionTests.log
  echo;echo;echo "Checking test 16 results ...."
 
-for i in sigf003_nemsio sigf006_nemsio sigf012_nemsio sigf024_nemsio sigf048_nemsio \
-         sfcf003_nemsio sfcf006_nemsio sfcf012_nemsio sfcf024_nemsio sfcf048_nemsio \
-         flxf003_nemsio flxf006_nemsio flxf012_nemsio flxf024_nemsio flxf048_nemsio
+for i in sigf03 sigf06 sigf09 sigf12 sigf24 sigf48 \
+         sfcf03 sfcf06 sigf09 sfcf12 sfcf24 sfcf48 \
+         flxf03 flxf06 sigf09 flxf12 flxf24 flxf48
 
 do
 printf %s " Comparing " $i "....." >> RegressionTests.log
@@ -1672,6 +1677,8 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:16:g         \
                     | sed s:_PE1_:14:g           \
                     | sed s:_WPG_:2:g            \
                     | sed s:_THRDS_:2:g          \
+                    | sed s:_NSOUT_:0:g          \
+                    | sed s:_QUILTING_:.true.:g  \
                     | sed s:_RUNDIR_:${RUNDIR}:g \
                     | sed s:_PATHTR_:${PATHTR}:g \
                     | sed s:_NDAYS_:2:g          >  gfs_fcst_run
@@ -1710,9 +1717,9 @@ done
 (echo;echo;echo "Checking test 17 results ....")>> RegressionTests.log
  echo;echo;echo "Checking test 17 results ...."
 
-for i in sigf003_nemsio sigf006_nemsio sigf012_nemsio sigf024_nemsio sigf048_nemsio \
-         sfcf003_nemsio sfcf006_nemsio sfcf012_nemsio sfcf024_nemsio sfcf048_nemsio \
-         flxf003_nemsio flxf006_nemsio flxf012_nemsio flxf024_nemsio flxf048_nemsio
+for i in sigf03 sigf06 sigf09 sigf12 sigf24 sigf48 \
+         sfcf03 sfcf06 sigf09 sfcf12 sfcf24 sfcf48 \
+         flxf03 flxf06 sigf09 flxf12 flxf24 flxf48
 
 do
 printf %s " Comparing " $i "....." >> RegressionTests.log
@@ -1764,8 +1771,10 @@ cat gfs_ll.IN       | sed s:_TASKS_:1:g          \
 
 cat gfs_fcst_run.IN | sed s:_TASKS_:1:g          \
                     | sed s:_PE1_:1:g            \
-                    | sed s:_WPG_:0:g            \
+                    | sed s:_WPG_:1:g            \
                     | sed s:_THRDS_:1:g          \
+                    | sed s:_NSOUT_:0:g          \
+                    | sed s:_QUILTING_:.false.:g  \
                     | sed s:_RUNDIR_:${RUNDIR}:g \
                     | sed s:_PATHTR_:${PATHTR}:g \
                     | sed s:_NDAYS_:1:g          >  gfs_fcst_run
@@ -1777,8 +1786,8 @@ echo "Test 18" >> RegressionTests.log
 echo "Test 18"
 echo "Test single processor" >> RegressionTests.log
 echo "Test single processor"
-(echo "GFS, 1 proc, 1 threads";echo;echo)>> RegressionTests.log
- echo "GFS, 1 proc, 1 threads";echo;echo
+(echo "GFS, 1 proc, 1 threads, no quilting";echo;echo)>> RegressionTests.log
+ echo "GFS, 1 proc, 1 threads, no quilting";echo;echo
 
 job_running=1
 
@@ -1804,9 +1813,9 @@ done
 (echo;echo;echo "Checking test 18 results ....")>> RegressionTests.log
  echo;echo;echo "Checking test 18 results ...."
 
-for i in sigf003_nemsio sigf006_nemsio sigf012_nemsio sigf024_nemsio \
-         sfcf003_nemsio sfcf006_nemsio sfcf012_nemsio sfcf024_nemsio \
-         flxf003_nemsio flxf006_nemsio flxf012_nemsio flxf024_nemsio
+for i in sigf03 sigf06 sigf09 sigf12 sigf24 \
+         sfcf03 sfcf06 sigf09 sfcf12 sfcf24 \
+         flxf03 flxf06 sigf09 flxf12 flxf24
 
 do
 printf %s " Comparing " $i "....." >> RegressionTests.log
@@ -1839,7 +1848,392 @@ done
 echo " Test 18 passed " >> RegressionTests.log
 echo " Test 18 passed "
 
+sleep 4
+clear;echo;echo
 
+####################################################################################################
+# Submit test 19
+####################################################################################################
+
+export RUNDIR=${RUNDIR_ROOT}/GFS_01_NSOUT
+mkdir -p ${RUNDIR}
+cp gfs_configfile ${RUNDIR}/configure_file
+cp ${RTPWD}/GFS/gfsanl.2009072400 ${RUNDIR}/.
+cp ${RTPWD}/GFS/sfcanl.2009072400 ${RUNDIR}/.
+rm -f err out configure_file nmm_glob_ll nmm_reg_ll gfs_fcst_run  gfs_ll
+
+cat gfs_ll.IN       | sed s:_TASKS_:1:g          \
+                    | sed s:_THRDS_:1:g          >  gfs_ll
+
+cat gfs_fcst_run.IN | sed s:_TASKS_:1:g          \
+                    | sed s:_PE1_:1:g            \
+                    | sed s:_WPG_:1:g            \
+                    | sed s:_THRDS_:1:g          \
+                    | sed s:_NSOUT_:1:g          \
+                    | sed s:_QUILTING_:.false.:g  \
+                    | sed s:_RUNDIR_:${RUNDIR}:g \
+                    | sed s:_PATHTR_:${PATHTR}:g \
+                    | sed s:_NDAYS_:1:g          >  gfs_fcst_run
+
+job_id=`llsubmit gfs_ll 2>&1 | grep submitted`
+job_id=`echo $job_id | cut -d\" -f2 | cut -d. -f1,5 `
+
+echo "Test 19" >> RegressionTests.log
+echo "Test 19"
+echo "Test single processor" >> RegressionTests.log
+echo "Test single processor"
+(echo "GFS, 1 proc, 1 threads,no quilting,nsout=1";echo;echo)>> RegressionTests.log
+ echo "GFS, 1 proc, 1 threads,no quilting,nsout=1";echo;echo
+
+job_running=1
+
+# wait for the job to finish and compare results
+n=1
+until [ $job_running -eq 0 ]
+do
+
+sleep 60
+export status=`llq| grep $job_id | awk '{ print$5}'` ; export status=${status:--}
+
+if   [ $status = 'I' ];  then echo $n "min. TEST 19 is waiting in a queue, ID: " $job_id " Status: " $status
+elif [ $status = 'R' ];  then echo $n "min. TEST 19 is running,            ID: " $job_id " Status: " $status
+elif [ $status = 'ST' ]; then echo $n "min. TEST 19 is ready to run,       ID: " $job_id " Status: " $status
+elif [ $status = 'C' ];  then echo $n "min. TEST 19 is finished,           ID: " $job_id " Status: " $status
+else                          echo $n "min. TEST 19 is finished,           ID: " $job_id " Status: " $status
+fi
+
+job_running=`llq | grep $job_id | wc -l`
+  (( n=n+1 ))
+done
+
+(echo;echo;echo "Checking test 19 results ....")>> RegressionTests.log
+ echo;echo;echo "Checking test 19 results ...."
+
+for i in sigf03 sigf06 sigf09 sigf12 sigf24 \
+         sfcf03 sfcf06 sigf09 sfcf12 sfcf24 \
+         flxf03 flxf06 sigf09 flxf12 flxf24
+
+do
+printf %s " Comparing " $i "....." >> RegressionTests.log
+printf %s " Comparing " $i "....."
+
+if [ -f ${RUNDIR}/$i ] ; then
+
+  d=`cmp ${RTPWD}/GFS/$i ${RUNDIR}/$i | wc -l`
+
+  if [[ $d -ne 0 ]] ; then
+   (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> RegressionTests.log
+    echo " ......NOT OK" ; echo ; echo "   $i differ!   " ; exit
+  fi
+
+  echo "....OK" >> RegressionTests.log
+  echo "....OK"
+
+else
+
+  echo "Missing " ${RUNDIR}/$i " output file" >> RegressionTests.log
+  echo "Missing " ${RUNDIR}/$i " output file"
+ (echo;echo " Test 19 failed ")>> RegressionTests.log
+  echo;echo " Test 19 failed "
+  exit
+
+fi
+
+done
+
+echo " Test 19 passed " >> RegressionTests.log
+echo " Test 19 passed "
+
+sleep 4
+clear;echo;echo
+
+####################################################################################################
+# Submit test 20
+####################################################################################################
+
+export RUNDIR=${RUNDIR_ROOT}/GFS_16_NOQUILT_NSOUT
+mkdir -p ${RUNDIR}
+cp gfs_configfile ${RUNDIR}/configure_file
+cp ${RTPWD}/GFS/gfsanl.2009072400 ${RUNDIR}/.
+cp ${RTPWD}/GFS/sfcanl.2009072400 ${RUNDIR}/.
+rm -f err out configure_file nmm_glob_ll nmm_reg_ll gfs_fcst_run  gfs_ll
+
+cat gfs_ll.IN       | sed s:_TASKS_:16:g         \
+                    | sed s:_THRDS_:2:g          >  gfs_ll
+
+cat gfs_fcst_run.IN | sed s:_TASKS_:16:g         \
+                    | sed s:_PE1_:16:g           \
+                    | sed s:_WPG_:1:g            \
+                    | sed s:_THRDS_:2:g          \
+                    | sed s:_NSOUT_:2:g          \
+                    | sed s:_QUILTING_:.false.:g  \
+                    | sed s:_RUNDIR_:${RUNDIR}:g \
+                    | sed s:_PATHTR_:${PATHTR}:g \
+                    | sed s:_NDAYS_:2:g          >  gfs_fcst_run
+
+job_id=`llsubmit gfs_ll 2>&1 | grep submitted`
+job_id=`echo $job_id | cut -d\" -f2 | cut -d. -f1,5 `
+
+echo "Test 20" >> RegressionTests.log
+echo "Test 20"
+echo "Test threads" >> RegressionTests.log
+echo "Test threads"
+(echo "GFS, 16 proc, 2 threads,no quilt, output every 2 time steps";echo;echo)>> RegressionTests.log
+ echo "GFS, 16 proc, 2 threads,no quilt, output every 2 time steps";echo;echo
+
+job_running=1
+
+# wait for the job to finish and compare results
+n=1
+until [ $job_running -eq 0 ]
+do
+
+sleep 60
+export status=`llq| grep $job_id | awk '{ print$5}'` ; export status=${status:--}
+
+if   [ $status = 'I' ];  then echo $n "min. TEST 20 is waiting in a queue, ID: " $job_id " Status: " $status
+elif [ $status = 'R' ];  then echo $n "min. TEST 20 is running,            ID: " $job_id " Status: " $status
+elif [ $status = 'ST' ]; then echo $n "min. TEST 20 is ready to run,       ID: " $job_id " Status: " $status
+elif [ $status = 'C' ];  then echo $n "min. TEST 20 is finished,           ID: " $job_id " Status: " $status
+else                          echo $n "min. TEST 20 is finished,           ID: " $job_id " Status: " $status
+fi
+
+job_running=`llq | grep $job_id | wc -l`
+  (( n=n+1 ))
+done
+
+(echo;echo;echo "Checking test 20 results ....")>> RegressionTests.log
+ echo;echo;echo "Checking test 20 results ...."
+
+for i in sigf03 sigf06 sigf09 sigf12 sigf24 sigf48 \
+         sfcf03 sfcf06 sigf09 sfcf12 sfcf24 sfcf48 \
+         flxf03 flxf06 sigf09 flxf12 flxf24 flxf48
+
+do
+printf %s " Comparing " $i "....." >> RegressionTests.log
+printf %s " Comparing " $i "....."
+
+if [ -f ${RUNDIR}/$i ] ; then
+
+  d=`cmp ${RTPWD}/GFS/$i ${RUNDIR}/$i | wc -l`
+
+  if [[ $d -ne 0 ]] ; then
+   (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> RegressionTests.log
+    echo " ......NOT OK" ; echo ; echo "   $i differ!   " ; exit
+  fi
+
+  echo "....OK" >> RegressionTests.log
+  echo "....OK"
+
+else
+
+  echo "Missing " ${RUNDIR}/$i " output file" >> RegressionTests.log
+  echo "Missing " ${RUNDIR}/$i " output file"
+ (echo;echo " Test 20 failed ")>> RegressionTests.log
+  echo;echo " Test 20 failed "
+  exit
+
+fi
+
+done
+
+echo " Test 20 passed " >> RegressionTests.log
+echo " Test 20 passed "
+
+sleep 4
+clear;echo;echo
+
+####################################################################################################
+# Submit test 21
+####################################################################################################
+
+export RUNDIR=${RUNDIR_ROOT}/GFS_60_NOQUILT
+mkdir -p ${RUNDIR}
+cp gfs_configfile ${RUNDIR}/configure_file
+cp ${RTPWD}/GFS/gfsanl.2009072400 ${RUNDIR}/.
+cp ${RTPWD}/GFS/sfcanl.2009072400 ${RUNDIR}/.
+rm -f err out configure_file nmm_glob_ll nmm_reg_ll gfs_fcst_run  gfs_ll
+
+cat gfs_ll.IN       | sed s:_TASKS_:60:g         \
+                    | sed s:_THRDS_:1:g          >  gfs_ll
+
+cat gfs_fcst_run.IN | sed s:_TASKS_:60:g         \
+                    | sed s:_PE1_:60:g           \
+                    | sed s:_WPG_:1:g            \
+                    | sed s:_THRDS_:1:g          \
+                    | sed s:_NSOUT_:0:g          \
+                    | sed s:_QUILTING_:.false.:g  \
+                    | sed s:_RUNDIR_:${RUNDIR}:g \
+                    | sed s:_PATHTR_:${PATHTR}:g \
+                    | sed s:_NDAYS_:2:g          >  gfs_fcst_run
+
+job_id=`llsubmit gfs_ll 2>&1 | grep submitted`
+job_id=`echo $job_id | cut -d\" -f2 | cut -d. -f1,5 `
+
+echo "Test 21" >> RegressionTests.log
+echo "Test 21"
+echo "Test different decomposition" >> RegressionTests.log
+echo "Test different decomposition"
+(echo "GFS, 60 proc, 1 thread, no quilt";echo;echo)>> RegressionTests.log
+ echo "GFS, 60 proc, 1 thread, no quilt";echo;echo
+
+job_running=1
+
+# wait for the job to finish and compare results
+n=1
+until [ $job_running -eq 0 ]
+do
+
+sleep 60
+export status=`llq| grep $job_id | awk '{ print$5}'` ; export status=${status:--}
+
+if   [ $status = 'I' ];  then echo $n "min. TEST 21 is waiting in a queue, ID: " $job_id " Status: " $status
+elif [ $status = 'R' ];  then echo $n "min. TEST 21 is running,            ID: " $job_id " Status: " $status
+elif [ $status = 'ST' ]; then echo $n "min. TEST 21 is ready to run,       ID: " $job_id " Status: " $status
+elif [ $status = 'C' ];  then echo $n "min. TEST 21 is finished,           ID: " $job_id " Status: " $status
+else                          echo $n "min. TEST 21 is finished,           ID: " $job_id " Status: " $status
+fi
+
+job_running=`llq | grep $job_id | wc -l`
+  (( n=n+1 ))
+done
+
+(echo;echo;echo "Checking test 21 results ....")>> RegressionTests.log
+ echo;echo;echo "Checking test 21 results ...."
+
+for i in sigf03 sigf06 sigf09 sigf12 sigf24 sigf48 \
+         sfcf03 sfcf06 sigf09 sfcf12 sfcf24 sfcf48 \
+         flxf03 flxf06 sigf09 flxf12 flxf24 flxf48
+
+do
+printf %s " Comparing " $i "....." >> RegressionTests.log
+printf %s " Comparing " $i "....."
+
+if [ -f ${RUNDIR}/$i ] ; then
+
+  d=`cmp ${RTPWD}/GFS/$i ${RUNDIR}/$i | wc -l`
+
+  if [[ $d -ne 0 ]] ; then
+   (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> RegressionTests.log
+    echo " ......NOT OK" ; echo ; echo "   $i differ!   " ; exit
+  fi
+
+  echo "....OK" >> RegressionTests.log
+  echo "....OK"
+
+else
+
+  echo "Missing " ${RUNDIR}/$i " output file" >> RegressionTests.log
+  echo "Missing " ${RUNDIR}/$i " output file"
+ (echo;echo " Test 21 failed ")>> RegressionTests.log
+  echo;echo " Test 21 failed "
+  exit
+
+fi
+
+done
+
+echo " Test 21 passed " >> RegressionTests.log
+echo " Test 21 passed "
+
+sleep 4
+clear;echo;echo
+#
+####################################################################################################
+# Submit test 22
+####################################################################################################
+
+export RUNDIR=${RUNDIR_ROOT}/GFS_32_NOQUILT
+mkdir -p ${RUNDIR}
+cp gfs_configfile ${RUNDIR}/configure_file
+cp ${RTPWD}/GFS/gfsanl.2009072400 ${RUNDIR}/.
+cp ${RTPWD}/GFS/sfcanl.2009072400 ${RUNDIR}/.
+rm -f err out configure_file nmm_glob_ll nmm_reg_ll gfs_fcst_run  gfs_ll
+
+cat gfs_ll.IN       | sed s:_TASKS_:32:g         \
+                    | sed s:_THRDS_:1:g          >  gfs_ll
+
+cat gfs_fcst_run.IN | sed s:_TASKS_:32:g         \
+                    | sed s:_PE1_:32:g           \
+                    | sed s:_WPG_:1:g            \
+                    | sed s:_THRDS_:1:g          \
+                    | sed s:_NSOUT_:4:g          \
+                    | sed s:_QUILTING_:.false.:g  \
+                    | sed s:_RUNDIR_:${RUNDIR}:g \
+                    | sed s:_PATHTR_:${PATHTR}:g \
+                    | sed s:_NDAYS_:2:g          >  gfs_fcst_run
+
+job_id=`llsubmit gfs_ll 2>&1 | grep submitted`
+job_id=`echo $job_id | cut -d\" -f2 | cut -d. -f1,5 `
+
+echo "Test 22" >> RegressionTests.log
+echo "Test 22"
+echo "Compare results with previous trunk version" >> RegressionTests.log
+echo "Compare results with previous trunk version"
+(echo "GFS, 32 proc, 1 thread, no quilt, output every 4 timestep";echo;echo)>> RegressionTests.log
+ echo "GFS, 32 proc, 1 thread, no quilt, output every 4 timestep";echo;echo
+
+job_running=1
+
+# wait for the job to finish and compare results
+n=1
+until [ $job_running -eq 0 ]
+do
+
+sleep 60
+export status=`llq| grep $job_id | awk '{ print$5}'` ; export status=${status:--}
+
+if   [ $status = 'I' ];  then echo $n "min. TEST 22 is waiting in a queue, ID: " $job_id " Status: " $status
+elif [ $status = 'R' ];  then echo $n "min. TEST 22 is running,            ID: " $job_id " Status: " $status
+elif [ $status = 'ST' ]; then echo $n "min. TEST 22 is ready to run,       ID: " $job_id " Status: " $status
+elif [ $status = 'C' ];  then echo $n "min. TEST 22 is finished,           ID: " $job_id " Status: " $status
+else                          echo $n "min. TEST 22 is finished,           ID: " $job_id " Status: " $status
+fi
+
+job_running=`llq | grep $job_id | wc -l`
+  (( n=n+1 ))
+done
+
+(echo;echo;echo "Checking test 22 results ....")>> RegressionTests.log
+ echo;echo;echo "Checking test 22 results ...."
+
+for i in sigf03 sigf06 sigf09 sigf12 sigf24 sigf48 \
+         sfcf03 sfcf06 sigf09 sfcf12 sfcf24 sfcf48 \
+         flxf03 flxf06 sigf09 flxf12 flxf24 flxf48
+
+do
+printf %s " Comparing " $i "....." >> RegressionTests.log
+printf %s " Comparing " $i "....."
+
+if [ -f ${RUNDIR}/$i ] ; then
+
+  d=`cmp ${RTPWD}/GFS/$i ${RUNDIR}/$i | wc -l`
+
+  if [[ $d -ne 0 ]] ; then
+   (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> RegressionTests.log
+    echo " ......NOT OK" ; echo ; echo "   $i differ!   " ; exit
+  fi
+
+  echo "....OK" >> RegressionTests.log
+  echo "....OK"
+
+else
+
+  echo "Missing " ${RUNDIR}/$i " output file" >> RegressionTests.log
+  echo "Missing " ${RUNDIR}/$i " output file"
+ (echo;echo " Test 22 failed ")>> RegressionTests.log
+  echo;echo " Test 22 failed "
+  exit
+
+fi
+
+done
+
+echo " Test 22 passed " >> RegressionTests.log
+echo " Test 22 passed "
+
+sleep 4
+clear;echo;echo
 ####################################################################################################
 ####################################################################################################
 ####################################################################################################

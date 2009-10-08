@@ -97,9 +97,6 @@ c$$$  IF ( ME .EQ. 0 ) IPRINT = 1
           grid_gr(jlonf+1:jlonf+lonf,g_uum+k-1) = uug(1:lonf,j,k)
           grid_gr(jlonf+1:jlonf+lonf,g_vvm+k-1) = vvg(1:lonf,j,k)
         enddo
-        write(0,*)'in input_fields,after treaddo k=',k,'t=',
-     &     maxval(ttg(:,1:lats_node_a,k)),
-     &     minval(ttg(:,1:lats_node_a,k))
       enddo
       do k=1,levh
         do j=1,lats_node_a
@@ -180,9 +177,6 @@ c$$$  IF ( ME .EQ. 0 ) IPRINT = 1
         grid_gr(:,g_vv:g_vv+levs-1)=grid_gr(:,g_vvm:g_vvm+levs-1)
         grid_gr(:,g_rq:g_rq+levh-1)=grid_gr(:,g_rm :g_rm +levh-1)
 
-        write(0,*)'in input_fields,t=',
-     &     maxval(grid_gr(:,g_tt:g_tt+levs-1)),
-     &     minval(grid_gr(:,g_tt:g_tt+levs-1))
 !--------------------------------------------------------
       else
 !--------------------------------------------------------
@@ -235,7 +229,6 @@ c$$$      IF ( ME .EQ. 0 ) IPRINT = 1
         grid_gr(:,g_v :g_v +levs-1)=grid_gr(:,g_vv:g_vv+levs-1)
         grid_gr(:,g_rt:g_rt+levh-1)=grid_gr(:,g_rq:g_rq+levh-1)
      
-       write(0,*)'end of input fields'
 !--------------------------------------------------------
 !!
       RETURN

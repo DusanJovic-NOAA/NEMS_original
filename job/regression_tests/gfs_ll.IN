@@ -11,7 +11,7 @@
 # @ node_usage = not_shared
 # @ resources=ConsumableCPUs(1)ConsumableMemory(5GB)
 # @ class = dev
-# @ wall_clock_limit = 00:15:00
+# @ wall_clock_limit = 00:25:00
 # @ preferences = Feature == "dev"
 # @ network.MPI = sn_all,not_shared,us
 # @ account_no=NAM-T2O

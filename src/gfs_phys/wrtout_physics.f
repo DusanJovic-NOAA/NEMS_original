@@ -6,6 +6,10 @@
      &                  lats_nodes_r,global_lats_r,lonsperlar,nblck,
      &                  colat1,cfhour1,pl_coeff)
 !!
+!
+! May 2009 Jun Wang, modified to use write grid component
+!
+
       use resol_def,               ONLY: latr, levs, levp1, lonr, nfxr
       use layout1,                 ONLY: me, nodes, lats_node_r, 
      &                                   nodes_comp
@@ -109,7 +113,6 @@
       ELSE
       CFHOUR = CFHOUR(1:nfill(CFHOUR)) // ens_nam(1:nfill(ens_nam))
       END IF
-!      write(0,*)' in wrtout_physics cfhour=',cfhour,'quilting=',quilting
 !jfe
       nosfc=62
       noflx=63
@@ -140,7 +143,6 @@
 ! the fluxes are handled by the original wrtsfc
 ! predating the I/O task updates.
 !
-!            write(0,*)' wrtout_physics call wrtflx_a '
             call   wrtflx_a
      &             (IOPROC,noflx,ZHOUR,FHOUR,IDATE,colat1,SECSWR,SECLWR,
      &              sfc_fld, flx_fld, fluxr, global_lats_r,lonsperlar)
@@ -154,20 +156,20 @@
 !  NODES (currently done with a send to the I/O task_
 !  send state to I/O task.  All tasks
 !
-      if(.not.quilting) then
-          print *,'---- start sfc.f section -----'
-          call SFC_ONLY_MOVE(ioproc)
-          cosfc='SFC.F'//CFHOUR
-          call sfc_wrt(ioproc,cosfc,fhour,jdate
-     &,                global_lats_r,lonsperlar)
+!jw      if(.not.quilting) then
+!jw          print *,'---- start sfc.f section -----'
+!jw          call sfc_only_move(ioproc)
+!jw          cosfc='SFC.F'//CFHOUR
+!jw          call sfc_wrt(ioproc,cosfc,fhour,jdate
+!jw     &,                global_lats_r,lonsperlar)
 !
-          print *,' wrtout_physics call wrtsfc to write out flx'
-          call FLX_ONLY_MOVE(ioproc)
-          cosfc='FLX.F'//CFHOUR
-          call  flx_wrt
-     &          (IOPROC,cosfc,ZHOUR,FHOUR,IDATE,colat1,SECSWR,SECLWR,
-     &           fluxr, global_lats_r,lonsperlar)
-      endif          !  quilting
+!jw          print *,' wrtout_physics call wrtsfc to write out flx'
+!jw          call FLX_ONLY_MOVE(ioproc)
+!jw          cosfc='FLX.F'//CFHOUR
+!jw          call  flx_wrt
+!jw     &          (IOPROC,cosfc,ZHOUR,FHOUR,IDATE,
+!jw     &           global_lats_r,lonsperlar)
+!jw      endif          !  quilting
 !
       t4=rtc()
       te=t4-t3
@@ -190,8 +192,7 @@
 !jw          endif
 !jw        ENDIF
 !
-!
-      if(me .eq. ioproc)  call wrtlog_physics(phour,fhour,idate)
+!      if(me .eq. ioproc)  call wrtlog_physics(phour,fhour,idate)
       tb=rtc()
       tf=tb-ta
       t2=rtc()
@@ -612,6 +613,7 @@
       integer illen,ubound,nd1
       integer icount
       data icount/0/
+      save icount
       integer maxlats_comp
 !  allocate the data structures
 !
@@ -622,7 +624,9 @@
          ivar_global(2)= lats_node_r
          ivar_global(3)=lats_node_r_max
          call mpi_gather(ivar_global,10,MPI_INTEGER,
-     1       ivar_global_a,10,MPI_INTEGER,ioproc,MPI_COMM_ALL,ierr)
+     1       ivar_global_a,10,MPI_INTEGER,ioproc,mc_comp,ierr)
+         if(me==ioproc) write(0,*)'in sfc_only_move, ivar_global_a=',
+     &     ivar_global_a(1:3,1:nodes)
          icount=icount+1
       endif
 !!
@@ -683,16 +687,16 @@ c  array copy
          else
 !
 !  END COMPUTE TASKS PORTION OF LOGIC
-!  receiving part of I/O task
+!  receiving part of I/O task, ioproc is the last fcst pe
 !
 !!
 !!      for pes ioproc
-        nd1=lonr*lats_node_r*ngrids_sfcc
+!jw        nd1=lonr*lats_node_r*ngrids_sfcc
+        nd1=0
         DO proc=1,nodes_comp
           illen=ivar_global_a(2,proc)
           if (proc.ne.ioproc+1) then
             msgtag=proc-1
-          print *,' pux target ',ubound(buff_mult_pieces)
             CALL mpi_recv(buff_mult_pieces(nd1+1),
      1        illen*lonr*ngrids_sfcc
      1        ,MPI_R_IO,proc-1,
@@ -704,19 +708,20 @@ c  array copy
           nd1=nd1+illen*lonr*ngrids_sfcc
         enddo
         endif
+
        Endif
 !end ioproc
       ENDIF
 !!
       return
       end
-      SUBROUTINE sfc_wrt(IOPROC,nw,cfile,xhour,idate
+      SUBROUTINE sfc_wrt(IOPROC,cfile,xhour,idate
      &,                  global_lats_r,lonsperlar)
 !!
       use nemsio_module
       use resol_def,    ONLY: lonr, latr, levs,ngrids_sfcc,
      &   ncld,ntrac,ntcw,ntoz,lsoil, ivssfc,thermodyn_id,sfcpress_id
-      use layout1,      ONLY: me
+      use layout1,      ONLY: me,idrt
       USE machine,      ONLY: kind_io8, kind_io4
 !jw
       use gfs_physics_output, only : PHY_INT_STATE_ISCALAR,
@@ -725,12 +730,13 @@ c  array copy
      &    PHY_INT_STATE_2D_R_SFC,PHY_INT_STATE_3D_R
       implicit none
 !!
-      integer nw,IOPROC
+      integer IOPROC
       character*16 cfile
       real(kind=kind_io8) xhour
       integer idate(4),k,il, ngridss
 !jws
       integer i,j,ndim3,N2DR,idate7(7),nrec,kount
+      integer nfhour,nfminute,nfsecondd,nfsecondn
       logical  :: outtest
       integer ::nmetavari,nmetavarr,nmetavarl,nmetaaryi,nmetaaryr
       character(16),allocatable :: recname(:),reclevtyp(:)
@@ -757,27 +763,24 @@ c  array copy
       save nrec,nmetavari,nmetavarr,nmetaaryi,nmetaaryr,
      &     variname,varrname,aryiname,
      &     varival,varrval,aryilen,aryival
-!jw     &     variname,varrname,aryiname,aryrname,
-!jw     &     varival,aryilen,aryrlen,aryival,aryrval,varrval
       data first /.true./
 !
 !@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 !
 !    Build surface fields in to buff_mult
 !
-      print *,' begin of sfc_wrt '
-
-      allocate(buff_mult(lonr,latr,ngrids_sfcc))
-      do ngridss=1,ngrids_sfcc
-       print *,' inside sfc_wrt calling unsp ngridss=',ngridss
-       call unsplit2z(ioproc,ngridss,ngrids_sfcc,buff_mult(1,1,ngridss),
-     &    global_lats_r)
-      enddo
-!    Building surface field is done
-!
       if (me.eq.ioproc) then
 !
-        if (first) then
+!
+         allocate(buff_mult(lonr,latr,ngrids_sfcc))
+         do ngridss=1,ngrids_sfcc
+           call unsplit2z(ioproc,ngridss,ngrids_sfcc,
+     &       buff_mult(1,1,ngridss),global_lats_r)
+         enddo
+!
+!    Building surface field is done
+!
+         if (first) then
 !write out nemsio sfc file:
           nrec=ngrids_sfcc
           kount=size(PHY_INT_STATE_ISCALAR,2)
@@ -787,21 +790,24 @@ c  array copy
      &        nmetavari=nmetavari+1
           enddo
           allocate(variname(nmetavari),varival(nmetavari))
+          j=0
           do i=1,kount
-           if(trim(PHY_INT_STATE_ISCALAR(2,i)).eq.'OGFS_SIG' .or.
+           if(trim(PHY_INT_STATE_ISCALAR(2,i)).eq.'OGFS_PHY' .or.
      &      trim(PHY_INT_STATE_ISCALAR(2,i)).eq.'OGFS_SFC' )then
-            variname(i)=trim(PHY_INT_STATE_ISCALAR(1,i))
-            if(i==1) varival(i)=latr
-            if(i==2) varival(i)=lonr
-            if(i==3) varival(i)=levs
-            if(i==4) varival(i)=ntoz
-            if(i==5) varival(i)=ntcw
-            if(i==6) varival(i)=ncld
-            if(i==7) varival(i)=ntrac
-            if(i==8) varival(i)=thermodyn_id
-            if(i==9) varival(i)=sfcpress_id
-            if(i==10) varival(i)=lsoil
-            if(i==11) varival(i)=ivssfc
+            j=j+1
+            variname(j)=trim(PHY_INT_STATE_ISCALAR(1,i))
+            if(trim(variname(j))=='latr') varival(j)=latr
+            if(trim(variname(j))=='lonr') varival(j)=lonr
+            if(trim(variname(j))=='levs') varival(j)=levs
+            if(trim(variname(j))=='ntoz') varival(j)=ntoz
+            if(trim(variname(j))=='ntcw') varival(j)=ntcw
+            if(trim(variname(j))=='ncld') varival(j)=ncld
+            if(trim(variname(j))=='ntrac') varival(j)=ntrac
+            if(trim(variname(j))=='thermodyn_id')varival(j)=thermodyn_id
+            if(trim(variname(j))=='sfcpress_id') varival(j)=sfcpress_id
+            if(trim(variname(j))=='lsoil') varival(j)=lsoil
+            if(trim(variname(j))=='idrt') varival(j)=idrt
+            if(trim(variname(j))=='ivssfc') varival(j)=ivssfc
            endif
           enddo
 !!for real var::
@@ -812,11 +818,13 @@ c  array copy
      &     nmetavarr=nmetavarr+1
           enddo
           allocate(varrname(nmetavarr),varrval(nmetavarr))
+          j=0
           do i=1,kount
            if(trim(PHY_INT_STATE_RSCALAR(2,i)).eq.'OGFS_PHY'
      &     .or.trim(PHY_INT_STATE_RSCALAR(2,i)).eq.'OGFS_SFC')then
-             varrname(i)=trim(PHY_INT_STATE_RSCALAR(1,i))
-             if(i==1) varrval(i)=xhour
+             j=j+1
+             varrname(j)=trim(PHY_INT_STATE_RSCALAR(1,i))
+             if(trim(varrname(j))=='fhour') varrval(j)=xhour
            endif
           enddo
 !!for 1D ary::
@@ -827,36 +835,17 @@ c  array copy
      &     nmetaaryi=nmetaaryi+1
           enddo
           allocate(aryiname(nmetaaryi),aryilen(nmetaaryi))
+          j=0
           do i=1,kount
            if(trim(PHY_INT_STATE_1D_I(2,i)).eq.'OGFS_PHY'
      &     .or.trim(PHY_INT_STATE_1D_I(2,i)).eq.'OGFS_SFC')then
-             aryiname(i)=trim(PHY_INT_STATE_1D_I(1,i))
-             if(i==1) aryilen(i)=size(idate)
+             j=j+1
+             aryiname(j)=trim(PHY_INT_STATE_1D_I(1,i))
+             if(aryiname(j)=='IDATE') aryilen(j)=size(idate)
            endif
           enddo
           allocate(aryival(maxval(aryilen),nmetaaryi) )
-          aryival(1:aryilen(1),1)=idate(:)
-!!!for 1D real ary::
-!          nmetaaryr=0
-!          do i=1,kount
-!           if(trim(PHY_INT_STATE_1D_R(2,i)).eq.'OGFS_PHY'
-!     &     .or.trim(PHY_INT_STATE_1D_R(2,i)).eq.'OGFS_SFC')
-!     &     nmetaaryr=nmetaaryr+1
-!          enddo
-!          allocate(aryrname(nmetaaryr),aryrlen(nmetaaryr))
-!          do i=1,kount
-!           if(trim(PHY_INT_STATE_1D_R(2,i)).eq.'OGFS_PHY')
-!     &     .or.trim(PHY_INT_STATE_1D_R(2,i)).eq.'OGFS_SFC')then
-!             aryrname(i)=trim(PHY_INT_STATE_1D_R(1,i))
-!             if(i==1) aryrlen(i)=size(ak5)
-!             if(i==2) aryrlen(i)=size(bk5)
-!             if(i==3) aryrlen(i)=size(ck5)
-!           endif
-!          enddo
-!          allocate(aryrval(maxval(aryrlen),nmetaaryr)
-!          aryrval(1:aryrlen(1),1)=ak5(:)
-!          aryrval(1:aryrlen(2),2)=bk5(:)
-!          aryrval(1:aryrlen(3),2)=ck5(:)
+          aryival(1:aryilen(1),1)=idate(1:aryilen(1))
 !
 !!for record name, levtyp and lev
           allocate (recname(nrec),reclevtyp(nrec),reclev(nrec))
@@ -881,31 +870,45 @@ c  array copy
               N2DR=N2DR+1
               recname(N2DR)=trim(PHY_INT_STATE_3D_R(1,i))
               reclevtyp(N2DR)=trim(trim(PHY_INT_STATE_3D_R(3,i)) )
-              reclev(N2DR)=1
+              if(trim(PHY_INT_STATE_3D_R(4,i)).eq.'lsoil') then
+                reclev(N2DR)=j
+              endif
              enddo
             endif
 !
            endif
           enddo
 !end first
+          first=.false.
          endif
-!          write(0,*)'in sfc_wrtm total field =',n2dr,' nrec=',nrec
      
+        idate7=0
+        idate7(1)=idate(4)
+        idate7(2)=idate(2)
+        idate7(3)=idate(3)
+        idate7(4)=idate(1)
+        idate7(7)=100           !denominator for second
+!
+        nfhour=int(xhour)
+        nfminute=int((xhour-nfhour)*60)
+        nfsecondn=int(((xhour-nfhour)*3600-nfminute*60)*100)
+        nfsecondd=100
 !
         call nemsio_init()
 !
         call nemsio_open(gfileout,trim(cfile),'write',iret,
-     &    modelname='gfs',gdatatype='bin4',
-     &    nfhour=int(xhour),idate=idate7,nrec=nrec,
-     &    dimx=latr,dimy=lonr,dimz=levs,ncldt=ncld,nmeta=5,
+     &    modelname='GFS',gdatatype='bin4',
+     &    idate=idate7,nrec=nrec,
+     &    dimx=lonr,dimy=latr,dimz=levs,ncldt=ncld,nmeta=5,
+     &    nfhour=nfhour,nfminute=nfminute,nfsecondn=nfsecondn,
+     &    nfsecondd=nfsecondd,
      &    extrameta=.true.,nmetavari=nmetavari,
      &    nmetavarr=nmetavarr,
      &    nmetaaryi=nmetaaryi,nmetaaryr=nmetaaryr,
      &    variname=variname,varival=varival,varrname=varrname,
      &    varrval=varrval,
      &    aryiname=aryiname,aryilen=aryilen,aryival=aryival,
-!jw     &    aryrname=aryrname,aryrlen=aryrlen,aryrval=aryrval,
-     &    ntrac=ntrac,nsoil=lsoil,
+     &    ntrac=ntrac,nsoil=lsoil,idrt=idrt,
      &    recname=recname,reclevtyp=reclevtyp,reclev=reclev)
 !
         allocate(tmp(lonr*latr))
@@ -920,7 +923,6 @@ c  array copy
 !end write pe
       endif
 !
-      print *,' end of sfc_wrt '
       return
       end
       SUBROUTINE wrtflx_a(IOPROC,noflx,ZHOUR,FHOUR,IDATE,colat1,
@@ -973,24 +975,17 @@ C
       integer kmskgrib(lonr,lats_node_r)
       real(kind=kind_io4) buff_max
 !jwe
-!jw      ngrid=ngrids_sfcc+1
 !
 !!
       kmsk=nint(sfc_fld%slmsk)
       kmsk0=0
-!jw
+!
       kmskgrib=0
       ngrid2d=1
-
-!       write(0,*)'before slmsk,kmsk=',maxval(kmsk),minval(kmsk)
+!
       CALL uninterprez(1,kmsk,glolal,sfc_fld%slmsk,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
-!       write(0,*)'after slmsk,buff=',
-!     &  maxval(buff_mult_piecef(:,:,ngrid2d)), 
-!     &  minval(buff_mult_piecef(:,:,ngrid2d)) 
-!jw     &                global_lats_r,lonsperlar)
       slmskloc=glolal
-!jw      slmskful=buff1l
       slmskful=buff_mult_piecef(1:lonr,1:lats_node_r,ngrid2d)
 c
       do k=1,nfxr
@@ -1020,18 +1015,13 @@ c
       RTIMER=RTIMSW
       RTIMER(1)=RTIMLW
       CL1=colat1
-!      write(0,*)'before DUSFC,fhour=',fhour,'zhour=',zhour
 !!
 !..........................................................
       glolal=flx_fld%DUSFC*RTIME
 !jw
-!      ngrid2d=ngrid2d+1
       ngrid2d=1
       CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &    buff_mult_piecef(1,1,ngrid2d))
-!       write(0,*)'after dusfc,buff=',
-!     &  maxval(buff_mult_piecef(:,:,ngrid2d)), 
-!     &  minval(buff_mult_piecef(:,:,ngrid2d)) 
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '01)Zonal compt of momentum flux (N/m**2) land and sea surface '
 
@@ -1047,9 +1037,6 @@ c
       ngrid2d=ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-!       write(0,*)'after dtsfc,buff=',
-!     &  maxval(buff_mult_piecef(:,:,ngrid2d)), 
-!     &  minval(buff_mult_piecef(:,:,ngrid2d)) 
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '03)Sensible heat flux (W/m**2) land and sea surface           '
 !..........................................................
@@ -1063,9 +1050,6 @@ c
       ngrid2d=ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,sfc_fld%tsea,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
-!       write(0,*)'after tsea,buff=',
-!     &  maxval(buff_mult_piecef(:,:,ngrid2d)), 
-!     &  minval(buff_mult_piecef(:,:,ngrid2d)) 
 !     if(ierr.ne.0)print*,'wrtsfc gribsn ierr=',ierr,'  ',
 !    x '05)Temperature (K) land and sea surface                       '
 !..........................................................
@@ -1092,8 +1076,6 @@ c
       ngrid2d=ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-!      write(0,*)'in wrtsfc_a, before sign undef=',
-!     &   maxval(buff_mult_piecef(1:lonr,1:lats_node_r,ngrid2d))
       where(nint(slmskful)/=1)
      &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
       nundef=0
@@ -1191,7 +1173,6 @@ c..........................................................
 !
 !..........................................................
 !..........................................................
-!      write(0,*)'before 813'
       DO 813 K=5,7
 !
        do j=1,LATS_NODE_R
@@ -1235,6 +1216,7 @@ c..........................................................
       ngrid2d=ngrid2d+1
       CALL uninterprez(2,kmskcv,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
+      where(kmskgrib==1) buff_mult_piecef(:,:,ngrid2d)=grib_undef
 !     if(ierr.ne.0.and.k.eq.5)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '20)Pressure (Pa) high cloud top level                         '
 !     if(ierr.ne.0.and.k.eq.6)print*,'wrtsfc gribit ierr=',ierr,'  ',
@@ -1255,6 +1237,7 @@ c..........................................................
       ngrid2d=ngrid2d+1
       CALL uninterprez(2,kmskcv,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
+      where(kmskgrib==1) buff_mult_piecef(:,:,ngrid2d)=grib_undef
 !     if(ierr.ne.0.and.k.eq.5)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '21)Pressure (Pa) high cloud bottom level                      '
 !     if(ierr.ne.0.and.k.eq.6)print*,'wrtsfc gribit ierr=',ierr,'  ',
@@ -1285,7 +1268,6 @@ c..........................................................
         L=K4+4
 !
   813 CONTINUE
-!      write(0,*)'after 813'
 !!
 !...................................................................
       glolal = flx_fld%GESHEM*1.E3*RTIME
@@ -1373,7 +1355,6 @@ c...................................................................
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '40)Pressure (Pa) land and sea surface                         '
 !...................................................................
-!      write(0,*)'after PSURF'
       ngrid2d=ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,flx_fld%tmpmax,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
@@ -1455,7 +1436,6 @@ c...................................................................
      &     buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '50)Albedo (percent) land and sea surface                      '
-!      write(0,*)'after ALbedo'
 !
        do j=1,LATS_NODE_R
         do i=1,lonr
@@ -1483,8 +1463,8 @@ c...................................................................
       kmskgrib=0
       where(buff_mult_piecef(:,:,ngrid2d)<0.5_kind_io8)
      &     kmskgrib=1
-      where(buff_mult_piecef(:,:,ngrid2d)<0.5_kind_io8)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+!      where(buff_mult_piecef(:,:,ngrid2d)<0.5_kind_io8)
+!     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
 !      write(0,*)'52after cloud cover,buff=',maxval(buff_mult_piecef(
 !     &   1:lonr,1:lats_node_r,ngrid2d)), minval(buff_mult_piecef(
 !     &   1:lonr,1:lats_node_r,ngrid2d)),'ngrid2d=',ngrid2d
@@ -1853,6 +1833,8 @@ c..........................................................
       ngrid2d=ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
+      where(nint(slmskful)/=1)
+     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '94)Snow Sublimation (W/m^2) land surface      '
 !..........................................................
@@ -1905,14 +1887,15 @@ Cwei: addition of 30 records ends here -------------------------------
       integer illen,ubound,nd1
        integer icount
        data icount/0/
-         integer maxlats_comp
-          save maxlats_comp
+       integer maxlats_comp
+       save maxlats_comp,icount
        integer kllen
 !
 !@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
          if(icount .eq. 0) then
-          allocate(ivar_global(10))
-          allocate(ivar_global_a(10,nodes))
+          if(.not.allocated(ivar_global)) allocate(ivar_global(10))
+          if(.not.allocated(ivar_global_a)) 
+     &       allocate(ivar_global_a(10,nodes))
          ivar_global(1)=ipt_lats_node_r
          ivar_global(2)= lats_node_r
          ivar_global(3)=lats_node_r_max
@@ -1946,7 +1929,8 @@ Cwei: addition of 30 records ends here -------------------------------
 ! send the local grid domain
          CALL mpi_send
      &(buff_mult_piecef,kllen,MPI_R_IO,ioproc,
-     &                  msgtag,MPI_COMM_ALL,info)
+     &                  msgtag,mc_comp,info)
+!jw     &                  msgtag,MPI_COMM_ALL,info)
       ELSE
          if( MC_COMP .ne. MPI_COMM_NULL) then
 ! iotask is also a compute task.  send is replaced with direct
@@ -1971,13 +1955,14 @@ Cwei: addition of 30 records ends here -------------------------------
            kllen=illen*lonr*ngrids_flx
            CALL mpi_recv
      1       (buff_mult_pieces(nd1+1),kllen,MPI_R_IO,proc-1,
-     &                msgtag,MPI_COMM_ALL,stat,info)
+     &                msgtag,mc_comp,stat,info)
+!     &                msgtag,MPI_COMM_ALL,stat,info)
          else
            buff_mult_pieces(nd1+1:nd1+lonr*illen*ngrids_flx)=
-     1   reshape(buff_mult_piecef(1:lonr,1:illen,1:ngrids_flx),
-     1     (/lonr*illen*ngrids_flx/) )
-          nd1=nd1+kllen
+     1      reshape(buff_mult_piecef(1:lonr,1:illen,1:ngrids_flx),
+     1       (/lonr*illen*ngrids_flx/) )
          endif
+         nd1=nd1+illen*lonr*ngrids_flx
         enddo
        endif
 
@@ -1996,7 +1981,7 @@ Cwei: addition of 30 records ends here -------------------------------
       use resol_def,    ONLY: lonr, latr, levs,ngrids_flx,
      & ncld,ntrac,ntcw,ntoz,lsoil, ivssfc,thermodyn_id,sfcpress_id
 !jw      use mod_state,    ONLY: ngrid,buff_mult
-      use layout1,      ONLY: me
+      use layout1,      ONLY: me,idrt
       USE machine,      ONLY: kind_io8, kind_io4
 !jw
       use gfs_physics_output, only : PHY_INT_STATE_ISCALAR,
@@ -2006,15 +1991,16 @@ Cwei: addition of 30 records ends here -------------------------------
       implicit none
 !!
       integer nw,IOPROC
-      character*16 cfile
+      character*16 cfile,NAME2D
       real(kind=kind_io8) zhour,fhour
       integer idate(4),k,il, ngridss
 !jws
-      integer i,j,ndim3,N2DR,idate7(7),kount,nrec
+      integer i,j,ndim3,N2DR,INDX,idate7(7),kount,nrec
+      integer nfhour,nfminute,nfsecondn,nfsecondd
       logical  :: outtest
       integer ::nmetavari,nmetavarr,nmetavarl,nmetaaryi,nmetaaryr
       character(16),allocatable :: recname(:),reclevtyp(:)
-      integer,allocatable :: reclev(:)
+      integer,allocatable :: reclev(:),itr(:)
       character(16),allocatable :: variname(:),varrname(:),
      &    aryiname(:),aryrname(:)
       integer,allocatable :: varival(:),aryilen(:),
@@ -2046,18 +2032,18 @@ Cwei: addition of 30 records ends here -------------------------------
 !
 !    Build surface fields in to buff_mult
 !
+      if (me.eq.ioproc) then
+!
       print *,' begin of flx_wrt '
 
-      allocate(buff_mult(lonr,latr,ngrids_flx))
-      buff_mult=0.
-      do ngridss=1,ngrids_flx
-        print *,' inside flx_wrt calling unsp ngridss=',ngridss
-        call unsplit2z(ioproc,ngridss,ngrids_flx,buff_mult(1,1,ngridss),
-     &    global_lats_r)
-      enddo
+        allocate(buff_mult(lonr,latr,ngrids_flx))
+        buff_mult=0.
+        do ngridss=1,ngrids_flx
+          print *,' inside flx_wrt calling unsp ngridss=',ngridss
+          call unsplit2z(ioproc,ngridss,ngrids_flx,
+     &      buff_mult(1,1,ngridss),global_lats_r)
+        enddo
 !    Building surface field is done
-!
-      if (me.eq.ioproc) then
 !
         if (first) then
 !write out nemsio sfc file:
@@ -2069,21 +2055,23 @@ Cwei: addition of 30 records ends here -------------------------------
      &        nmetavari=nmetavari+1
           enddo
           allocate(variname(nmetavari),varival(nmetavari))
+          j=0
           do i=1,kount
            if(trim(PHY_INT_STATE_ISCALAR(2,i)).eq.'OGFS_PHY' .or.
      &      trim(PHY_INT_STATE_ISCALAR(2,i)).eq.'OGFS_FLX' )then
-            variname(i)=trim(PHY_INT_STATE_ISCALAR(1,i))
-            if(i==1) varival(i)=latr
-            if(i==2) varival(i)=lonr
-            if(i==3) varival(i)=levs
-            if(i==4) varival(i)=ntoz
-            if(i==5) varival(i)=ntcw
-            if(i==6) varival(i)=ncld
-            if(i==7) varival(i)=ntrac
-            if(i==8) varival(i)=thermodyn_id
-            if(i==9) varival(i)=sfcpress_id
-            if(i==10) varival(i)=lsoil
-            if(i==11) varival(i)=ivssfc
+            j=j+1
+            variname(j)=trim(PHY_INT_STATE_ISCALAR(1,i))
+            if(trim(variname(j))=='latr') varival(j)=latr
+            if(trim(variname(j))=='lonr') varival(j)=lonr
+            if(trim(variname(j))=='levs') varival(j)=levs
+            if(trim(variname(j))=='ntoz') varival(j)=ntoz
+            if(trim(variname(j))=='ntcw') varival(j)=ntcw
+            if(trim(variname(j))=='ncld') varival(j)=ncld
+            if(trim(variname(j))=='ntrac') varival(j)=ntrac
+            if(trim(variname(j))=='thermodyn_id')varival(j)=thermodyn_id
+            if(trim(variname(j))=='sfcpress_id') varival(j)=sfcpress_id
+            if(trim(variname(j))=='lsoil') varival(j)=lsoil
+            if(trim(variname(j))=='idrt') varival(j)=idrt
            endif
           enddo
 !!for real var::
@@ -2093,14 +2081,19 @@ Cwei: addition of 30 records ends here -------------------------------
      &     .or.trim(PHY_INT_STATE_RSCALAR(2,i)).eq.'OGFS_FLX')
      &     nmetavarr=nmetavarr+1
           enddo
-          allocate(varrname(nmetavarr),varrval(nmetavarr))
-          do i=1,kount
-           if(trim(PHY_INT_STATE_RSCALAR(2,i)).eq.'OGFS_PHY'
-     &     .or.trim(PHY_INT_STATE_RSCALAR(2,i)).eq.'OGFS_FLX')then
-             varrname(i)=trim(PHY_INT_STATE_RSCALAR(1,i))
-             if(i==1) varrval(i)=fhour
-           endif
-          enddo
+          if(nmetavarr>0) then
+            allocate(varrname(nmetavarr),varrval(nmetavarr))
+            j=0
+            do i=1,kount
+             if(trim(PHY_INT_STATE_RSCALAR(2,i)).eq.'OGFS_PHY'
+     &       .or.trim(PHY_INT_STATE_RSCALAR(2,i)).eq.'OGFS_FLX')then
+               j=j+1
+               varrname(j)=trim(PHY_INT_STATE_RSCALAR(1,i))
+               if(trim(varrname(j))=='fhour') varrval(j)=fhour
+               if(trim(varrname(j))=='zhour') varrval(j)=zhour
+             endif
+            enddo
+          endif
 !!for 1D ary::
           nmetaaryi=0
           do i=1,kount
@@ -2109,11 +2102,13 @@ Cwei: addition of 30 records ends here -------------------------------
      &     nmetaaryi=nmetaaryi+1
           enddo
           allocate(aryiname(nmetaaryi),aryilen(nmetaaryi))
+          j=0
           do i=1,kount
            if(trim(PHY_INT_STATE_1D_I(2,i)).eq.'OGFS_PHY'
      &     .or.trim(PHY_INT_STATE_1D_I(2,i)).eq.'OGFS_FLX')then
-             aryiname(i)=trim(PHY_INT_STATE_1D_I(1,i))
-             if(i==1) aryilen(i)=size(idate)
+             j=j+1
+             aryiname(j)=trim(PHY_INT_STATE_1D_I(1,i))
+             if(trim(aryiname(j))=='IDATE') aryilen(j)=size(idate)
            endif
           enddo
           allocate(aryival(maxval(aryilen),nmetaaryi) )
@@ -2142,41 +2137,78 @@ Cwei: addition of 30 records ends here -------------------------------
 !
 !!for record name, levtyp and lev
           allocate (recname(nrec),reclevtyp(nrec),reclev(nrec))
+          allocate (itr(nrec))
           N2DR=0
+          itr=-99
           do i=1,kount
            if(trim(PHY_INT_STATE_2D_R_FLX(2,i)).eq.'OGFS_FLX')then
             N2DR=N2DR+1
-            recname(N2DR)=trim(PHY_INT_STATE_2D_R_FLX(1,i))
+            NAME2D=trim(PHY_INT_STATE_2D_R_FLX(1,i))
+            INDX=INDEX(NAME2D,"_")
+            if(indx>0) then
+              recname(N2DR)=NAME2D(1:INDX-1)
+            else
+              recname(N2DR)=NAME2D
+            endif
+!
             reclevtyp(N2DR)=trim(trim(PHY_INT_STATE_2D_R_FLX(3,i)))
             reclev(N2DR)=1
+!
+!check time average
+           if(INDEX(NAME2D,"_ave") >0) then
+               itr(N2DR)=3
+            elseif(INDEX(NAME2D,"_acc") >0) then
+               itr(N2DR)=4
+            elseif(INDEX(NAME2D,"_win") >0) then
+               itr(N2DR)=2
+            endif
+
            endif
           enddo
 !
 !end first
+          first=.false.
          endif
-!          write(0,*)'in flx_wrtm total field =',n2dr,' nrec=',nrec
-     
+!
+        idate7=0
+        idate7(1)=idate(4)
+        idate7(2)=idate(2)
+        idate7(3)=idate(3)
+        idate7(4)=idate(1)
+        idate7(7)=100           !denominator for second
+!
+        nfhour=int(fhour)     
+        nfminute=int((fhour-nfhour)*60)
+        nfsecondn=int(((fhour-nfhour)*3600-nfminute*60)*100)
+        nfsecondd=100
 !
         call nemsio_init()
 !
         call nemsio_open(gfileout,trim(cfile),'write',iret,
-     &    modelname='gfs',gdatatype='grib',
-     &    nfhour=int(fhour),idate=idate7,nrec=nrec,
-     &    dimx=latr,dimy=lonr,dimz=levs,ncldt=ncld,nmeta=5,
+     &    modelname='GFS',gdatatype='grib',
+     &    idate=idate7,nrec=nrec,
+     &    dimx=lonr,dimy=latr,dimz=levs,ncldt=ncld,nmeta=5,
+     &    nfhour=nfhour,nfminute=nfminute,nfsecondn=nfsecondn,
+     &    nfsecondd=nfsecondd,
      &    extrameta=.true.,nmetavari=nmetavari,
      &    nmetavarr=nmetavarr,
-     &    nmetaaryi=nmetaaryi,nmetaaryr=nmetaaryr,
+     &    nmetaaryi=nmetaaryi,
      &    variname=variname,varival=varival,varrname=varrname,
      &    varrval=varrval,
      &    aryiname=aryiname,aryilen=aryilen,aryival=aryival,
-     &    ntrac=ntrac,nsoil=lsoil,
+     &    ntrac=ntrac,nsoil=lsoil,idrt=idrt,
      &    recname=recname,reclevtyp=reclevtyp,reclev=reclev)
-!jw     &    aryrname=aryrname,aryrlen=aryrlen,aryrval=aryrval,
 !
         allocate(tmp(lonr*latr))
+        yhour=zhour
         do i=1,nrec
-         tmp(:)=reshape(buff_mult(:,:,i),(/lonr*latr/) )
-         call nemsio_writerec(gfileout,i,tmp,iret=iret)
+          tmp(:)=reshape(buff_mult(:,:,i),(/lonr*latr/) )
+          if(itr(i)==-99) then
+            call nemsio_writerec(gfileout,i,tmp,iret=iret)
+          else
+            call nemsio_writerec(gfileout,i,tmp,iret=iret,itr=itr(i),
+     &        zhour=yhour)
+          endif
         enddo
         deallocate(tmp)
         deallocate(buff_mult)

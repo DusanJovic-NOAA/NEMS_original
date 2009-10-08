@@ -56,19 +56,16 @@
 !--------------------
 !***  SUBDOMAIN SIZE
 !--------------------
-!--- NMM
-      INTEGER,DIMENSION(:),ALLOCATABLE :: LOCAL_ISTART                  &
-                                         ,LOCAL_IEND                    &
-                                         ,LOCAL_JSTART                  &
-                                         ,LOCAL_JEND
 !--- GFS
       INTEGER                          :: ipt_lats_node_a               &
                                          ,lats_node_a
       INTEGER,DIMENSION(:),ALLOCATABLE :: global_lats_a
-      INTEGER,DIMENSION(:),ALLOCATABLE :: fcst_lat_for_write_task       &
+      INTEGER,DIMENSION(:),ALLOCATABLE :: fcst_lat_to_write_task        &
                                          ,nwrttask_on_fcst              &
-                                         ,nlat_write_task               &
-                                         ,nstart_write_task             &
+                                         ,nlat_to_write_task            &
+                                         ,nstart_to_write_task          &
+                                         ,nlat_from_fcst_task           &
+                                         ,nstart_from_fcst_task         &
                                          ,fcst_lat_on_write_task
       INTEGER,DIMENSION(:),ALLOCATABLE :: JSTART_WRITE                  &
                                          ,JEND_WRITE
@@ -107,8 +104,6 @@
       INTEGER,DIMENSION(:,:),ALLOCATABLE :: OUTPUT_ARRAY_I2D
 !
       REAL   ,DIMENSION(:,:)  ,ALLOCATABLE :: ALL_DATA_R1D
-!jw      REAL   ,DIMENSION(:)  ,ALLOCATABLE :: ALL_DATA_R2D
-!jw      REAL   ,DIMENSION(:,:),ALLOCATABLE :: OUTPUT_ARRAY_R2D
       REAL(kind=4)   ,DIMENSION(:)  ,ALLOCATABLE :: ALL_DATA_R2D
       REAL(kind=4)   ,DIMENSION(:,:),ALLOCATABLE :: OUTPUT_ARRAY_R2D
 !
@@ -123,14 +118,8 @@
 !
       TYPE(ESMF_Logical),DIMENSION(:,:),ALLOCATABLE :: ALL_DATA_LOG 
 !
-!      CHARACTER(NAME_MAXSTR),DIMENSION(5000) :: FIELD_NAME
       CHARACTER(NAME_MAXSTR),DIMENSION(:,:),ALLOCATABLE :: FIELD_NAME
 !
-!jw      CHARACTER(ESMF_MAXSTR*MAX_DATA_I1D) :: NAMES_I1D_STRING
-!jw      CHARACTER(ESMF_MAXSTR*MAX_DATA_I2D) :: NAMES_I2D_STRING
-!jw      CHARACTER(ESMF_MAXSTR*MAX_DATA_R1D) :: NAMES_R1D_STRING
-!jw      CHARACTER(ESMF_MAXSTR*MAX_DATA_R2D) :: NAMES_R2D_STRING
-!jw      CHARACTER(ESMF_MAXSTR*MAX_DATA_LOG) :: NAMES_LOG_STRING
       CHARACTER(ESMF_MAXSTR*MAX_DATA_I1D),DIMENSION(:),ALLOCATABLE :: NAMES_I1D_STRING
       CHARACTER(ESMF_MAXSTR*MAX_DATA_I2D),DIMENSION(:),ALLOCATABLE :: NAMES_I2D_STRING
       CHARACTER(ESMF_MAXSTR*MAX_DATA_R1D),DIMENSION(:),ALLOCATABLE :: NAMES_R1D_STRING
@@ -147,13 +136,13 @@
       INTEGER                :: IO_RECL
       INTEGER                :: NFHOUR
       REAL(KIND=4)           :: ZHOUR
+      REAL(KIND=4)           :: PDRYINI
 !
 !jws
       INTEGER                :: NUM_FILE
       CHARACTER(ESMF_MAXSTR),DIMENSION(:),ALLOCATABLE :: FILENAME_BASE
       CHARACTER(ESMF_MAXSTR),DIMENSION(:),ALLOCATABLE :: IO_FORM
       CHARACTER(ESMF_MAXSTR),DIMENSION(:),ALLOCATABLE :: IO_FILE
-!         TYPE(ESMF_BUNDLE)      :: file_bundle(10)
 !jwe
       CHARACTER(ESMF_MAXSTR) :: IO_STATUS
       CHARACTER(ESMF_MAXSTR) :: IO_ACCESS
@@ -173,7 +162,7 @@
 !***  I/O direction flags (Read or Write)
 !-----------------------------------------
 !
-!jw      LOGICAL :: WRITE_HST_FLAG,WRITE_RST_FLAG
+      LOGICAL :: QUILTING
       LOGICAL :: WRITE_NEMSIOFLAG
       LOGICAL :: WRITE_NEMSIOCTL
 !

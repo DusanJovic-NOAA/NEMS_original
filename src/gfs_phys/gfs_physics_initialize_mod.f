@@ -24,7 +24,7 @@
 !
       USE ESMF_Mod
       USE gfs_physics_internal_state_mod, ONLY: gfs_physics_internal_state
-      USE mpi_def,                        ONLY: liope
+!      USE mpi_def,                        ONLY: liope
       USE mpi_def,                        ONLY: mc_comp, mc_io, mpi_comm_all_dup, mpi_comm_all
       USE resol_def,                      ONLY: g_dpdt, lotgr, g_p, g_dp, nrcm, g_q,          &
                                                 g_gz, g_u, g_v, g_ps, g_t, ntoz,              &
@@ -50,7 +50,7 @@
       USE gg_def,                         ONLY: sinlat_r, coslat_r, wgtcs_r, rcs2_r, wgt_r,   &
                                                 colrad_r
       USE layout1,                        ONLY: nodes_comp, lats_node_r_max, lats_node_r, me, &
-                                                nodes, lon_dims_ext, lon_dims_r
+                                                nodes, lon_dims_ext, lon_dims_r,idrt
       USE date_def,                       ONLY: fhour
       USE tracer_const,                   ONLY: set_tracer_const
       USE gfs_physics_sfc_flx_set_mod,    ONLY: sfcvar_aldata, flxvar_aldata, flx_init
@@ -277,7 +277,7 @@
 !jw      call mpi_comm_dup(mpi_comm_all, mpi_comm_all_dup, ierr)
 !     call mpi_barrier (mpi_comm_all_dup,               ierr)
 
-      if (nodes == 1) liope=.false.
+!      if (nodes == 1) liope=.false.
 !jw      if (liope) then
 !jw        call mpi_comm_rank(mpi_comm_all_dup,nrank_all,ierr)
 !jw        icolor=1
@@ -351,6 +351,7 @@
            gis_phy%lonsperlar,                                          &
            gis_phy%lats_nodes_ext,gis_phy%global_lats_ext,              &
            gis_phy%colat1,gis_phy%idrt)
+      idrt=gis_phy%idrt
 
       gis_phy%lats_node_r_max = lats_node_r_max
 

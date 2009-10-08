@@ -141,9 +141,9 @@ csela - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         iret=1
         return
       endif
-      write(0,*)'lver=',levr,'deltim=',deltim,'nsout=',nsout,'fhout=',
-     & fhout,'fhres=',fhres,'gen_coord_hybrid=',gen_coord_hybrid, 
-     & 'ntoz=',ntoz
+!      write(0,*)'lver=',levr,'deltim=',deltim,'nsout=',nsout,'fhout=',
+!     & fhout,'fhres=',fhres,'gen_coord_hybrid=',gen_coord_hybrid, 
+!     & 'ntoz=',ntoz
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  Compute nsout and check rule 2.
       if(nsout.gt.0) fhout=nsout*deltim/3600.

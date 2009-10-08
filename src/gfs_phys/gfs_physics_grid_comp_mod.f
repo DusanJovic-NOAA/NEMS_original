@@ -7,6 +7,8 @@
 !
 !  july     2007     shrinivas moorthi
 !  november 2007     hann-ming henry juang 
+!  may      2009     jun wang, add write grid component
+!  october  2009     jun wang, output every time step, add no quilting option 
 !                           
 !
 ! !interface:
@@ -364,11 +366,9 @@
 
 ! ----------------- gfs physics related initialize --------------------
 ! ----------------------------------------------------------------------
-      write(0,*)'in after init, size fhour_idate=',size(int_state%fhour_idate,1), &
-        size(int_state%fhour_idate,2),'idate size=',size(idate)
+!      write(0,*)'in after init, size fhour_idate=',size(int_state%fhour_idate,1), &
+!        size(int_state%fhour_idate,2),'idate size=',size(idate)
       call gfs_physics_initialize(int_state, rc1)
-      write(0,*)'in after init, size fhour_idate=',size(int_state%fhour_idate,1), &
-        size(int_state%fhour_idate,2),'idate size=',size(idate)
 ! ----------------------------------------------------------------------
 
       call gfs_physics_err_msg(rc1,'run the gfs_physics_initialize',rc)
@@ -486,11 +486,9 @@
 !     call esmf_logwrite("internal state link to esmf export state", 	&
 !                       esmf_log_info, rc = rc1)
 
-      write(0,*)'in grid, comp, size fhour_idate=',size(int_state%fhour_idate,1), &
-        size(int_state%fhour_idate,2),'idate size=',size(idate)
+!      write(0,*)'in grid, comp, size fhour_idate=',size(int_state%fhour_idate,1), &
+!        size(int_state%fhour_idate,2),'idate size=',size(idate)
       int_state%fhour_idate(1,1)=int_state%kfhour
-      write(0,*)'in grid, comp, size fhour_idate=',size(int_state%fhour_idate,1), &
-        size(int_state%fhour_idate,2),'idate size=',size(idate)
       int_state%fhour_idate(1,2:5)=idate(1:4)
 
 !      call gfs_physics_internal2export(gc_gfs_phy, int_state,  	&
@@ -504,10 +502,7 @@
 !jw send all the head info to write tasks
 !-------------------------------------------------------
 !
-      write(0,*)'in physics init,quilting=',quilting
-      if(quilting) then
         call point_physics_output_gfs(int_state,imp_wrt_state)
-      endif
 !
 !*******************************************************************
 ! print out the final error signal variable and put it to rc.
@@ -573,7 +568,10 @@
       type(gfs_physics_internal_state), pointer   :: int_state   
       integer                                     :: rc1          
       integer                                     :: rcfinal     
-
+!
+!jw
+      type(esmf_state)                   :: imp_wrt_state
+!
 ! initialize the error signal variables.
 !---------------------------------------
       rc1     = esmf_success
@@ -629,7 +627,27 @@
 !         print *,' currtime equals to stoptime '
 !         int_state%end_step=.true.
 !     endif
+!
+!-----------------------------------------------------------------------
+!***  retrieve the import state of the write gridded component
+!***  from the physics export state.
+!-----------------------------------------------------------------------
+      call esmf_logwrite("Retrieve Write Import State from Physics Export State", &
+                        esmf_log_info, rc = rc1)
 
+      CALL ESMF_StateGet(state      =exp_gfs_phy                        &  !<-- The Physics export state
+                        ,itemName   ='Write Import State'               &  !<-- Name of the state to get from Physics export state
+                        ,nestedState=imp_wrt_state                      &  !<-- Extract Write component import state from Physics export
+                        ,rc         =RC1)
+!
+      CALL gfs_physics_err_msg(rc1,"Retrieve Write Import State from Physics Export State",RC)
+!-----------------------------------------------------------------------
+      CALL ESMF_AttributeSet(state    =imp_wrt_state                    &  !<-- The Write component import state
+                            ,name     ='zhour'                          &  !<-- Name of the var
+                            ,value    =int_state%zhour                  &  !<-- The var being inserted into the import state
+                            ,rc       =RC)
+
+!
 ! run the gfs.
 !--------------------------
       call esmf_logwrite("run the gfs_physics_run", 			&
@@ -650,6 +668,25 @@
                                          exp_gfs_phy, rc = rc1)
 
      call gfs_physics_err_msg(rc1,'internal state to esmf export state',rc)
+!
+!-----------------------------------------------------------------------
+!***  retrieve the import state of the write gridded component
+!***  from the physics export state.
+!-----------------------------------------------------------------------
+!      call esmf_logwrite("Retrieve Write Import State from Physics Export State", &
+!                        esmf_log_info, rc = rc1)
+!
+!      CALL ESMF_StateGet(state      =exp_gfs_phy                        &  !<-- The Physics export state
+!                        ,itemName   ='Write Import State'               &  !<-- Name of the state to get from Physics export state
+!                        ,nestedState=imp_wrt_state                      &  !<-- Extract Write component import state from Physics export
+!                        ,rc         =RC1)
+!!
+!      CALL gfs_physics_err_msg(rc1,"Retrieve Write Import State from Physics Export State",RC)
+!-----------------------------------------------------------------------
+!      CALL ESMF_AttributeSet(state    =imp_wrt_state                    &  !<-- The Write component import state
+!                            ,name     ='zhour'                          &  !<-- Name of the var
+!                            ,value    =int_state%zhour                  &  !<-- The var being inserted into the import state
+!                            ,rc       =RC)
 !
 !*******************************************************************
 !

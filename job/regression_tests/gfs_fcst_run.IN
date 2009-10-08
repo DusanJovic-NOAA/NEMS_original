@@ -42,6 +42,8 @@ export FAISS=0.0
 #
 #  This script is NOT complete for running multiple ensemble members
 #
+ export QUILTING=_QUILTING_
+#
  export ENS_NUM=1
 #
  tasks=_TASKS_  ; export PE1=_PE1_
@@ -107,7 +109,7 @@ export nhours=`expr $ndays \* 24`
 #
  export fmax=$nhours
  export fout=3  
- export fzer=3  
+ export fzer=6  
  export fcyc=0 
  export fdfi=0 
  export FHRES=$nhours
@@ -125,7 +127,8 @@ export NTCW=${NTCW:-3}
 export NCLD=${NCLD:-1}
 export NMTVR=${NMTVR:-14}
 #
-export nsout=${nsout:-0}
+#export nsout=${nsout:-0}
+export nsout=_NSOUT_
 export lsm=${lsm:-1}
 #
 #   Control for post and time averaging  If "YES" then run

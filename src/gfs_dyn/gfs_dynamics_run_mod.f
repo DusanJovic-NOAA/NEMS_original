@@ -10,6 +10,7 @@
 !  may      2005      weiyu yang, updated to the new version of gfs.
 !  janusry  2007      hann-ming henry juang for gfs dynamics only
 !  oct 05 2009        sarah lu, grid_gr unfolded from 2D to 3D
+!  october  2009      jun wang, output data every time step        
 !
 !
 ! !interface:
@@ -50,13 +51,8 @@
 ! ---------------------------------------------------------------------
 ! change temperature and pressure back to model grid value at n+1  slot.
 !
-       write(0,*)' before of common_to_model_vars,kdt=',gis_dyn%kdt,      &
-         'nsout=',nsout,'lsout=',gis_dyn%LSOUT,'t=',  &
-         maxval(gis_dyn%grid_gr(:,:,gis_dyn%g_t)),    &
-         minval(gis_dyn%grid_gr(:,:,gis_dyn%g_t))
       if( .not. gis_dyn% start_step ) then
-!       print *,' change common variables to model variables '
-        gis_dyn%lsout = mod(gis_dyn%kdt,nsout).eq.0
+        gis_dyn%lsout = mod(gis_dyn%kdt,nsout).eq.0 .or. gis_dyn%kdt==1
 !! grid_gr unfolded from 2D to 3D (Sarah Lu)
         call common_to_model_vars (gis_dyn%grid_gr(1,1,gis_dyn%g_zq),      &
                                    gis_dyn%grid_gr(1,1,gis_dyn%g_t ),      &
@@ -102,6 +98,7 @@
       if( gis_dyn% spectral_loop == 1 ) then
 !
 !! grid_gr unfolded from 2D to 3D (Sarah Lu)
+!      write(0,*)'beforE do one loop'
         call  do_dynamics_one_loop(    gis_dyn% deltim         ,	&
                gis_dyn% kdt           ,gis_dyn% phour          ,	&
                gis_dyn% trie_ls       ,gis_dyn% trio_ls        ,	&
@@ -132,10 +129,6 @@
                gis_dyn% colat1        ,gis_dyn% cfhour1	       ,	&
                gis_dyn% start_step    ,                                 &
                gis_dyn% reset_step    ,gis_dyn% end_step       )
-        write(0,*)'after gfs_dyn_oneloop_run, t=',  &
-         maxval(gis_dyn%grid_gr(:,:,gis_dyn%g_t)),  &
-         minval(gis_dyn%grid_gr(:,:,gis_dyn%g_t))
-
 !
 ! ======================================================================
 !                     do one time step with two-loop
@@ -182,18 +175,15 @@
 
       endif
 !
-      write(0,*)'in gfs_dynamics,after one loop,grid_gr(zq)=',             &
-       maxval(gis_dyn%grid_gr(:,:,gis_dyn%g_zq)), &
-       minval(gis_dyn%grid_gr(:,:,gis_dyn%g_zq)), &
-       't=',maxval(gis_dyn%grid_gr(:,:,gis_dyn%g_t)), &
-       minval(gis_dyn%grid_gr(:,:,gis_dyn%g_t))
+!      write(0,*)'in gfs_dynamics,after one loop,zhour=',gis_dyn%zhour,'grid_gr(zq)=',   &
+!       maxval(gis_dyn%grid_gr(:,gis_dyn%g_zq)),minval(gis_dyn%grid_gr(:,gis_dyn%g_zq)), &
+!       't=',maxval(gis_dyn%grid_gr(:,gis_dyn%g_t)),minval(gis_dyn%grid_gr(:,gis_dyn%g_t))
 ! =======================================================================
 !                   end of one- or two-loop computation
 ! =======================================================================
 !
 ! check whether wind speed is out of bound.
 !
-!jw      if (.not.liope.or.icolor.ne.2) then
         do k=1,levs
           if(spdmax(k).gt.0. .and. spdmax(k).lt.1000.) then
             continue
@@ -203,9 +193,8 @@
             stop
           endif
         enddo
-!jw      endif
 
-
+!
 ! =======================================================================
 
 ! update hour
@@ -226,10 +215,7 @@
                                  gis_dyn% grid_gr(1,1,gis_dyn%g_dpdt ),    & 
                                  gis_dyn%global_lats_a,	                   &
                                  gis_dyn%lonsperlat)
-      write(0,*)'after n+1grid value,t=',  &
-         maxval(gis_dyn%grid_gr(:,:,gis_dyn%g_t)), &
-         minval(gis_dyn%grid_gr(:,:,gis_dyn%g_t))
-
+!
 !cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 !c
       if(present(rc)) then

@@ -378,7 +378,12 @@ export NTOZ=${NTOZ:-2}
 export NTCW=${NTCW:-3}
 export NCLD=${NCLD:-1}
 export NGPTC=${NGPTC:-30}
+#jw
 export ADIAB=${ADIAB:-.false.}
+export nsout=${nsout:-0}
+export NUM_FILE=${NUM_FILE:-3}
+export QUILTING=${QUILTING:-.true.}
+#
 export EXPLICIT=${EXPLICIT:-.false.}
 export NON_ITER_SEMI_LAGRANGIAN_FV=${NON_ITER_SEMI_LAGRANGIAN_FV:-.false.}
 export ZFLXTVD=${ZFLXTVD:-.false.}
@@ -588,10 +593,10 @@ if [[ $ENS_NUM -le 1 ]] ; then
 #        For output
   while [[ $FH -le $FHMAX ]] ; do
     if [ $FH -eq 00 ] ; then
-      eval ln -fs $SIGO SIG.F${FH}
+      eval ln -fs $SIGO SIG.F${FH}:${mins}:${secs}
       eval ln -fs $FLXO FLX.F${FH}:${mins}:${secs}
       eval ln -fs $SFCO SFC.F${FH}:${mins}:${secs}
-      eval ln -fs $LOGO LOG.F${FH}
+      eval ln -fs $LOGO LOG.F${FH}:${mins}:${secs}
       eval ln -fs $D3DO D3D.F${FH}:${mins}:${secs}
     else
       eval ln -fs $SIGO SIG.F${FH}
@@ -627,10 +632,12 @@ else
     fi
     while [[ $FH -le $FHMAX ]] ; do
       if [ $FH -eq 00 ] ; then
-        eval ln -fs $SIGO SIG.F${FH}${MN}
+#        eval ln -fs $SIGO SIG.F${FH}${MN}
+        eval ln -fs $SIGO SIG.F${FH}:${mins}:${secs}${MN}
         eval ln -fs $FLXO FLX.F${FH}:${mins}:${secs}${MN}
         eval ln -fs $SFCO SFC.F${FH}:${mins}:${secs}${MN}
-        eval ln -fs $LOGO LOG.F${FH}${MN}
+#        eval ln -fs $LOGO LOG.F${FH}${MN}
+        eval ln -fs $LOGO LOG.F${FH}:${mins}:${secs}${MN}
         eval ln -fs $D3DO D3D.F${FH}:${mins}:${secs}${MN}
       else
         eval ln -fs $SIGO SIG.F${FH}${MN}
@@ -715,8 +722,9 @@ jnpes:                ${PE1}
 im:                   ${LONB}
 jm:                   ${LATB}
 global:               .true.
-nhours_dfini:          0 
-adiabatic:            .false.
+nhours_dfini:         ${FHDFI}
+adiabatic:            ${ADIAB}
+lsoil:                ${LSOIL}
 
 #jwstart added quilt
 ###############################
@@ -724,18 +732,20 @@ adiabatic:            .false.
 ###############################
 
 
-quilting:              .true.    # Do you want asynchronous quilting/history writes?
+#quilting:              .true.    # Do you want asynchronous quilting/history writes?
+quilting:              ${QUILTING}   #Do you want asynchronous quilting/history writes?
 read_groups:           0
 read_tasks_per_group:  0
 write_groups:         ${WRT_GROUP}
 write_tasks_per_group:${WRTPE_PER_GROUP}
 
-num_file:      3                             #
-filename_base:      'sigf' 'sfcf' 'flxf'  #
+num_file:      ${NUM_FILE}                   #
+filename_base:      'SIG.F' 'SFC.F' 'FLX.F'  #
 file_io_form:       'grib' 'bin4' 'grib'     #
 file_io:            'DEFERRED' 'DEFERRED' 'DEFERRED'   #
 write_nemsioflag:   .TRUE.       # True--> Yes write nemsio run history files
 nfhout:             ${FHOUT}
+nsout:              ${nsout}
 
 io_recl:                 100
 io_position:             ' '
@@ -905,7 +915,7 @@ EOF
 cat  > atm_namelist <<EOF
  &nam_dyn
   FHOUT=$FHOUT, FHMAX=$FHMAX, IGEN=$IGEN, DELTIM=$DELTIM,
-  FHRES=$FHRES, FHROT=$FHROT, 
+  FHRES=$FHRES, FHROT=$FHROT, nsout=$nsout,
   spectral_loop=$SPECTRAL_LOOP, explicit=$EXPLICIT,
   nxpt=1, nypt=2, jintmx=2, lonf=$LONF, latg=$LATG,
   jcap=$JCAP, levs=$LEVS,  levr=$LEVR,
@@ -916,7 +926,7 @@ cat  > atm_namelist <<EOF
 &nam_phy
   FHOUT=$FHOUT, FHMAX=$FHMAX, IGEN=$IGEN, DELTIM=$DELTIM,
   FHRES=$FHRES, FHROT=$FHROT, FHCYC=$FHCYC,
-  FHZER=$FHZER, FHLWR=$FHLWR, FHSWR=$FHSWR,
+  FHZER=$FHZER, FHLWR=$FHLWR, FHSWR=$FHSWR,nsout=$nsout,
   nxpt=1, nypt=2, jintmx=2, lonr=$LONR, latr=$LATR,
   jcap=$JCAP, levs=$LEVS, levr=$LEVR,
   ntrac=$NTRAC, ntoz=$NTOZ, ntcw=$NTCW, ncld=$NCLD,

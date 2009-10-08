@@ -146,7 +146,9 @@
 !jw      endif !.NOT.LIOPE.or.icolor.ne.2
 !--------------------------------------------
 !
-      write(0,*)'in do one phys step, lsout=',lsout,'kdt=',kdt
+!      write(0,*)'in do one phys step, lsout=',lsout,'kdt=',kdt, 
+!     &   'nszer=',nszer,
+!     &   'fhour=',fhour,'zhour=',zhour
       if( lsout.and.kdt.ne.0.0 ) then
       CALL WRTOUT_physics(phyhour,FHOUR,ZHOUR,IDATE,
      X            SL,SI,

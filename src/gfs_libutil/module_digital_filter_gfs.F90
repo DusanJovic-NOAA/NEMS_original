@@ -101,7 +101,7 @@
       type(esmf_state), intent(in)  :: dyn_state
 !
       TYPE(ESMF_Array)		    :: tmp_array
-      real, dimension(:,:), pointer :: tmp_ptr
+      real(ESMF_KIND_R8), dimension(:,:), pointer :: tmp_ptr
       real                          :: sx, wx, digfil
       integer                       :: n, i, rc
 
@@ -142,7 +142,7 @@
       TYPE(ESMF_Array)                :: tmp_array
       TYPE(ESMF_DistGrid)             :: tmp_distgrid
       CHARACTER(ESMF_Maxstr)          :: name
-      real, dimension(:,:), pointer   :: tmp_ptr
+      real(ESMF_KIND_R8), dimension(:,:), pointer   :: tmp_ptr
       real                            :: totalsumi
       integer                         :: n, i, rc
 !

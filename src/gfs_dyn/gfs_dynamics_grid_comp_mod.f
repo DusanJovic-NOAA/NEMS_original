@@ -8,6 +8,7 @@
 !  january 2007     hann-ming henry juang
 !  oct 4 2009       sarah lu, 3D Gaussian grid (DistGrid5) added
 !  oct 5 2009       sarah lu, grid_gr unfolded from 2D to 3D
+!  oct 2009         Jun Wang, add not quilting option, add run time variables into wrt inport state
 !                           
 !
 ! !interface:
@@ -343,7 +344,7 @@
                            rc       = rc1)
 
       call gfs_dynamics_err_msg(rc1,'get me and nodes from vm',rc)
-      write(0,*)'in dyn_gc,after vmget,npes=',int_state%nodes,'mpi_comm_all=',mpi_comm_all
+!      write(0,*)'in dyn_gc,after vmget,npes=',int_state%nodes,'mpi_comm_all=',mpi_comm_all
 
 ! Allocate the local index array i2 to store the local size information of the
 ! ditributed grid1, grid3, etc..  Information is based per dimension and per De.
@@ -362,8 +363,8 @@
 ! ======================================================================
 ! grid_gr unfolded (sarah lu)
       call gfs_dynamics_initialize(int_state, rc1)
-      write(0,*)'in dyn_init, t=',maxval(int_state%grid_gr(:,:,int_state%g_t)), &
-       minval(int_state%grid_gr(:,:,int_state%g_t)),'quilting=',quilting
+!      write(0,*)'in dyn_init, t=',maxval(int_state%grid_gr(:,int_state%g_t)), &
+!       minval(int_state%grid_gr(:,int_state%g_t)),'quilting=',quilting
 ! ======================================================================
 ! ----------------------------------------------------------------------
 ! ======================================================================
@@ -439,7 +440,6 @@
       call gfs_dynamics_grid_create_Gauss3D(vm_local,int_state,DistGrid5,rc1) 
 
       call gfs_dynamics_err_msg(rc1,'gfs_dynamics_grid_create_gauss3d',rc) 
-
 
 
 ! associate the grid3 with the esmf grid component gsgfs
@@ -523,10 +523,7 @@
 !##jw send all the head info to write tasks
 !-------------------------------------------------------
 !
-      if(quilting) then
-        write(0,*)'before point_dynamics_output_gfs'
-        call point_dynamics_output_gfs(int_state,IMP_STATE_WRITE)
-      endif
+      call point_dynamics_output_gfs(int_state,IMP_STATE_WRITE)
 !
 !*******************************************************************
 ! print out the final error signal variable and put it to rc.
@@ -592,6 +589,8 @@
       type(gfs_dynamics_internal_state), pointer  :: int_state   
       integer                                     :: rc1          
       integer                                     :: rcfinal     
+!jw
+      type(esmf_state)                  :: imp_state_write  !<-- The write gc import state
 
 ! initialize the error signal variables.
 !---------------------------------------
@@ -643,6 +642,7 @@
       donetime = currtime-starttime
 
       int_state%kdt = nint(donetime/timeStep) 
+!      write(0,*)'dyn grid_comp,int_state%kdt=',int_state%kdt
 
       if( currtime .eq. stoptime ) then
           print *,' currtime equals to stoptime '
@@ -674,7 +674,31 @@
                                          exp_gfs_dyn, rc1)
 
      call gfs_dynamics_err_msg(rc1,'internal state to esmf export state',rc)
- 
+! ======================================================================
+!*jw------------- put run level variables into write_imp_state---------
+! ======================================================================
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+     call esmf_logwrite("get imp_state_write from esmf export state",   &
+                       esmf_log_info, rc = rc1)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateGet(state          =exp_gfs_dyn    &  !<-- The Dyn component's export state
+                        ,itemName       ="Write Import State"     &  !<-- Name of state to be extracted
+                        ,nestedState    =IMP_STATE_WRITE  &  !<-- The extracted state
+                        ,rc             =RC1)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+     call gfs_dynamics_err_msg(rc1,'get imp_state_write from esmf export state',rc)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+     call esmf_logwrite("set pdryini in imp_state_write",               &
+                       esmf_log_info, rc = rc1)
+     CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                   &  !<-- The Write component import state
+                            ,name     ='pdryini'                        &  !<-- Name of the var
+                            ,value    =int_state%pdryini                &  !<-- The var being inserted into the import state
+                            ,rc       =RC1)
+     call gfs_dynamics_err_msg(rc1,'set pdryini in imp_state_write',rc)
+!
 !*******************************************************************
 !
 ! print out the final error signal information and put it to rc.

@@ -74,10 +74,10 @@
                            gis_dyn%spectral_loop,               	&
                      me,   gis_dyn%nam_gfs_dyn%nlunit, 			&
                            gis_dyn%nam_gfs_dyn%gfs_dyn_namelist)
-      write(0,*)'after compns_dyn,me=',me,'ntoz=',gis_dyn%ntoz
+!      write(0,*)'after compns_dyn,me=',me,'ntoz=',gis_dyn%ntoz
 !
       call get_tracer_const(gis_dyn%ntrac,me,gis_dyn%nam_gfs_dyn%nlunit)
-      write(0,*)'after gettracer_con=',gis_dyn%ntrac
+!      write(0,*)'after gettracer_con=',gis_dyn%ntrac
 !
       ntrac   = gis_dyn%ntrac
       nxpt    = gis_dyn%nxpt
@@ -161,13 +161,9 @@
 
       allocate(spdmax(levs))
 
-!jw      if (gfsio_out .or. gfsio_in) then
       if (gfsio_in) then
         call gfsio_init(ierr)
       endif
-!jw      if (gfsio_out) then
-!jw        allocate(buff_multg(lonf*latg,ngrids_gg))
-!jw      endif
 
       allocate(lbasdz(4,2,levs),lbasiz(4,2,levs),detai(levp1), &
                detam(levs),etamid(levs),etaint(levp1),         &
@@ -499,8 +495,8 @@
 !jw
       gis_dyn%lats_node_a=gis_dyn%lats_nodes_a(me+1)
       gis_dyn%ipt_lats_node_a=ipt_lats_node_a
-      write(0,*)'after getcon_dynamics,lats_node_a=',gis_dyn%lats_node_a &
-       ,'ipt_lats_node_a=',gis_dyn%ipt_lats_node_a,'ngptc=',ngptc
+!      write(0,*)'after getcon_dynamics,lats_node_a=',gis_dyn%lats_node_a &
+!       ,'ipt_lats_node_a=',gis_dyn%ipt_lats_node_a,'ngptc=',ngptc
 !
 !!
       gis_dyn%nblck=lonf/ngptc+1
@@ -538,8 +534,8 @@
       allocate (   gis_dyn%dyn_gr_a_2(lonfx*gis_dyn%lotd,lats_dim_ext) )
       allocate (   gis_dyn%anl_gr_a_1(lonfx*gis_dyn%lota,lats_dim_ext) )
       allocate (   gis_dyn%anl_gr_a_2(lonfx*gis_dyn%lota,lats_dim_ext) )
-      write(0,*)'after allocate lonf=',lonf,'lats_node_a_max=',lats_node_a_max, &
-       'ngrids_gg=',ngrids_gg
+!      write(0,*)'after allocate lonf=',lonf,'lats_node_a_max=',lats_node_a_max, &
+!       'ngrids_gg=',ngrids_gg
 !!
 !jw      endif !(.not.liope.or.icolor.ne.2)
 !
@@ -551,7 +547,7 @@
 
 !!
       allocate (      gis_dyn%fhour_idate(1,5) )
-      write(0,*)'after allocate fhour_idate'
+!      write(0,*)'after allocate fhour_idate'
 !
      print*, ' lats_dim_a=', lats_dim_a, ' lats_node_a=', lats_node_a
      print*, ' lats_dim_ext=', lats_dim_ext,              &
@@ -567,11 +563,10 @@
 !c......................................................................
 !c
       call countperf(0,15,0.)
-      write(0,*)'before f_hpmstop'
       call f_hpmstop(25)
 !c
-      write(0,*) 'number of latitudes ext. :',lats_node_ext,              &
-                  lats_dim_ext,lats_node_a
+!      write(0,*) 'number of latitudes ext. :',lats_node_ext,              &
+!                  lats_dim_ext,lats_node_a
 !!
       call countperf(1,15,0.)
 !!
@@ -580,7 +575,6 @@
       call countperf(0,18,0.)
       gis_dyn%pdryini = 0.0
 
-      write(0,*)'before input_fields,ntoz=',ntoz
       call input_fields(gis_dyn%n1, gis_dyn%n2, gis_dyn%pdryini,           &
         gis_dyn%trie_ls, gis_dyn%trio_ls,  gis_dyn%grid_gr ,               &
         gis_dyn%ls_node, gis_dyn%ls_nodes, gis_dyn%max_ls_nodes,           &
@@ -590,7 +584,6 @@
         gis_dyn%plnew_a, gis_dyn%plnow_a, gis_dyn%lats_nodes_a,	           &
         gis_dyn%nam_gfs_dyn%sig_ini, gis_dyn%nam_gfs_dyn%sig_ini2,         &
         gis_dyn%pwat, gis_dyn%ptot)
-      write(0,*)'after input_fields,ntoz=',ntoz
 !!
         call countperf(1,18,0.)
 !!
@@ -609,7 +602,6 @@
                    gis_dyn%epso,gis_dyn%epso,gis_dyn%epso,      	& 
                    gis_dyn%cons0,sl,gis_dyn%ls_node,gis_dyn%epse,	&
                    0,hybrid,gen_coord_hybrid,nislfv)  
-      write(0,*)'after deldifs,ntoz=',ntoz
  
 !c
       call f_hpmstart(26,"step1")

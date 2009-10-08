@@ -90,9 +90,6 @@
             vvg(i,lan,k) = vvg(i,lan,k) * coslat_a(lat)
           enddo
         enddo
-!       call mymaxmin(uug(1,1,lan),lons_lat,lonf,1,' uug in com to mdl')
-!       call mymaxmin(vvg(1,1,lan),lons_lat,lonf,1,' vvg in com to mdl')
-!       call mymaxmin(ttg(1,1,lan),lons_lat,lonf,1,' ttg in com to mdl')
 !
 ! save surface pressure as mass for dry mass adjuctment
         do i=1,lons_lat
@@ -168,7 +165,7 @@
 !       call mymaxmin(pwat(1,lan),lons_lat,lonf,1,' pwat in com to mdl')
       enddo
 !
-!     print *,' exit common_to_model_vars '
+!      print *,' exit common_to_model_vars '
 !!
       return
       end

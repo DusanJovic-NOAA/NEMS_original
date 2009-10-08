@@ -1236,7 +1236,7 @@ contains
     if(gfile%nsoil.eq.nemsio_intfill) gfile%nsoil=4
     if(present(nframe)) gfile%nframe=nframe
     if(gfile%nframe.eq.nemsio_intfill) gfile%nframe=0
-    if(gfile%modelname=='GFS')gfile%nframe=0
+    if(equal_str_nocase(trim(gfile%modelname),'GFS'))gfile%nframe=0
     if(present(idate)) gfile%idate=idate
     if ( gfile%idate(1) .lt. 50) then
         gfile%idate(1)=2000+gfile%idate(1)
@@ -4066,7 +4066,7 @@ contains
         if(data8(i) .gt.mymax) mymax=data8(i)
      endif
     enddo
-!     write(0,*)'in writerecgrb4,max=',mymax,'nc=',nc,'nc1=',nc1,'imb=',ibms, &
+!     write(0,*)'in writerecgrb4,max=',mymax,'imb=',ibms, &
 !      'size(data)=',size(data),'size(lbms)=',size(grbmeta%lbms), &
 !      grbmeta%lbms(1:15),data8(1:15)
 !
@@ -4084,6 +4084,8 @@ contains
 !    write(0,*)'in writerecgrb4,before putgb=',grbmeta%lbms(1:15)
     call putgb(gfile%flunit,grbmeta%jf,grbmeta%jpds,grbmeta%jgds, &
       grbmeta%lbms,data8,ios)
+!    write(0,*)'in writerecgrb4,after putgb,iret=',ios,'jpds=',grbmeta%jpds(1:25), &
+!      'gds=',grbmeta%jgds(1:25),'data=',maxval(data8),minval(data8)
     deallocate(grbmeta%lbms)
     if(ios.ne.0) then
        if ( present(iret))  then
@@ -4462,6 +4464,7 @@ contains
     else 
        return
     endif
+!    write(0,*)'in setrqst,name=',trim(name),trim(levtyp),lev,'jrec=',jrec
 !------------------------------------------------------------
 ! find index in grib table according to recname and reclevtyp
 !------------------------------------------------------------
@@ -4473,7 +4476,7 @@ contains
          trim(gribtable(ktbl)%item(krec)%leveltype) .ne.'mid layer' ) then
         lev=0
     endif
-!    print *,'in searchrst,jrec=',jrec,'name=',trim(name),'levtyp=',trim(levtyp),&
+!    write(0,*)'in searchrst,jrec=',jrec,'name=',trim(name),'levtyp=',trim(levtyp),&
 !      'lev=',lev,'gribtb levtype=',gribtable(ktbl)%item(krec)%leveltype
 !------------------------------------------------------------
 ! for read, just need to set up jpds(05-07)
@@ -4670,14 +4673,16 @@ contains
 !get igen icen2 
     call nemsio_getheadvar(gfile,'igen',igen,iret)
     if (iret.ne.0 ) then
-      if(trim(gfile%modelname)=='GFS') igen=82
-    else
-      print *,'ERROR: please specify model generating flag'
-      return
+      if(equal_str_nocase(trim(gfile%modelname),'GFS')) then
+        igen=82
+      else
+        print *,'ERROR: please specify model generating flag'
+        return
+      endif
     endif
     call nemsio_getheadvar(gfile,'icen2',icen2,iret)
     if (iret.ne.0 ) then
-      if(trim(gfile%modelname).eq.'GFS') then
+      if(equal_str_nocase(trim(gfile%modelname),'GFS')) then
         icen2=0
       else
         print *,'ERROR: please specify subcenter id,modelname=',gfile%modelname
@@ -5546,7 +5551,7 @@ contains
     gfile%nmetaaryc=0
 !    write(0,*)'in gfinit, modelname=',gfile%modelname
 
-    if ( gfile%modelname .eq. 'GFS') then
+    if ( equal_str_nocase(trim(gfile%modelname),'GFS')) then
       if(gfile%dimy.eq.nemsio_intfill) gfile%dimy=576
       if(gfile%dimx.eq.nemsio_intfill) gfile%dimx=1152
       if(gfile%dimz.eq.nemsio_intfill) gfile%dimz=64
@@ -5567,7 +5572,7 @@ contains
         gfile%nmetavarr=1
         gfile%nmetaaryi=1
       endif
-    else if (gfile%modelname .eq. 'NMMB' ) then
+    else if (equal_str_nocase(trim(gfile%modelname),'NMMB')) then
       if(gfile%dimx.eq.nemsio_intfill) gfile%dimx=257
       if(gfile%dimy.eq.nemsio_intfill) gfile%dimy=181
       if(gfile%dimz.eq.nemsio_intfill) gfile%dimz=35
@@ -5587,7 +5592,7 @@ contains
         gfile%rlat_min=-89.49999237
         gfile%rlat_max=89.49999237
       endif
-    else if (gfile%modelname.eq. "GSI" ) then
+    else if (equal_str_nocase(trim(gfile%modelname),"GSI")) then
       if(gfile%dimx.eq.nemsio_intfill) gfile%dimx=1152
       if(gfile%dimy.eq.nemsio_intfill) gfile%dimy=576
       if(gfile%dimz.eq.nemsio_intfill) gfile%dimz=64
@@ -5625,7 +5630,7 @@ contains
 !      gfile%nmetavari,gfile%nmetavarr,gfile%nmetavarl,gfile%nmetaaryr,gfile%nmetaaryi
 !
 !
-    if ( gfile%modelname .eq. 'GFS' ) then
+    if ( equal_str_nocase(trim(gfile%modelname),'GFS')) then
       gfile%variname=(/'itrun  ','iorder ','irealf ','igen   ','icen2  '/)
       gfile%varival=(/1,2,1,82,0/)
       if(linit) then
@@ -5745,7 +5750,7 @@ contains
 !       minval(gfile%lat(1:gfile%fieldsize)),'lon=',&
 !       maxval(gfile%lon(1:gfile%fieldsize)), &
 !       minval(gfile%lon(1:gfile%fieldsize))
-   else if ( gfile%modelname .eq. "NMMB" .and. linit) then
+   else if ( equal_str_nocase(trim(gfile%modelname),"NMMB") .and. linit) then
       gfile%variname=(/'mp_phys ','sfsfcphy','nphs    ','nclod   ', &
         'nheat   ','nprec   ','nrdlw   ','nrdsw   ','nsrfc   ' /)
       gfile%varival=(/5,99,2,60,60,60,60,60,60/)
@@ -6047,7 +6052,7 @@ contains
      endif
 !
     endif
-   else if ( gfile%modelname.eq. "GSI" .and.linit) then
+   else if ( equal_str_nocase(trim(gfile%modelname),"GSI").and.linit) then
 !
     gfile%arycname(1)='recunit'
     gfile%aryclen(1)=gfile%nrec

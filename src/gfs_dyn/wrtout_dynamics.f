@@ -4,6 +4,8 @@ c new module to supply domain information
 c to the GFS output routines called by
 c wrtout.
 !
+! May 2009 Jun Wang, modified to use write grid component
+!
       use gfs_dyn_machine
       use gfs_dyn_resol_def
       use gfsio_module
@@ -159,7 +161,8 @@ cc
 
 csela set lfnhr to false for writing one step output etc.
       lfnhr=.true.    ! no output
-      lfnhr=3600*abs(fhour-nint(fhour)).le.1.or.phour.eq.0
+!      lfnhr=3600*abs(fhour-nint(fhour)).le.1.or.phour.eq.0
+      lfnhr=3600*abs(fhour-nint(fhour)).le.1
       IF(LFNHR) THEN
         KH=NINT(FHOUR)
         NDIG=MAX(LOG10(KH+0.5)+1.,2.)
@@ -311,21 +314,21 @@ c  send state to I/O task.  All tasks
 !
         call grid_collect (zsg,psg,uug,vvg,ttg,rqg,dpg,
      &                         global_lats_a,lonsperlat)
-      if (.not.quilting ) then
-         call atmgg_move(ioproc)
+!jw      if (.not.quilting ) then
+!jw         call atmgg_move(ioproc)
 !
 c ioproc only
-         CFHOUR1 = CFHOUR          !for the ESMF Export State Creation
-         ta=rtc()
-         if(me .eq. ioproc) then
-           CFORM = 'SIG.F'//CFHOUR
-           print *,' calling atmgg_wrt fhour=',fhour
-     &,                     ' cform=',cform,' idate=',idate
-           call atmgg_wrt(IOPROC,CFORM,fhour,idate
-     &,                global_lats_a,lonsperlat,pdryini)
-           print *,' returning fromatmgg_wrt=',fhour
-         endif
-      endif
+!jw         CFHOUR1 = CFHOUR          !for the ESMF Export State Creation
+!jw         ta=rtc()
+!jw         if(me .eq. ioproc) then
+!jw           CFORM = 'SIG.F'//CFHOUR
+!jw           print *,' calling atmgg_wrt fhour=',fhour
+!jw     &,                     ' cform=',cform,' idate=',idate
+!jw           call atmgg_wrt(IOPROC,CFORM,fhour,idate
+!jw     &,                global_lats_a,lonsperlat,pdryini)
+!jw           print *,' returning fromatmgg_wrt=',fhour
+!jw         endif
+!jw      endif
 !
 !jw      tc=rtc()
 !jw      if(me .eq. 0) t2=rtc()
@@ -335,6 +338,7 @@ cgwv  t2=rtc()
 !jw        call mpi_barrier(mc_comp,info)
 !jw      endif
 !
+!      write(0,*)'me=',me,'ioproc=',ioproc,'fhour=',fhour
       if(me .eq. ioproc)  call wrtlog_dynamics(phour,fhour,idate)
 !jw      tb=rtc()
 !jw      tf=tb-ta
@@ -480,7 +484,8 @@ c     CREATE CFHOUR
 csela set lfnhr to false for writing one step output etc.
       lfnhr=.true.    ! no output
 ccmr  lfnhr=.false.   !    output
-      lfnhr=3600*abs(fhour-nint(fhour)).le.1.or.phour.eq.0
+!      lfnhr=3600*abs(fhour-nint(fhour)).le.1.or.phour.eq.0
+      lfnhr=3600*abs(fhour-nint(fhour)).le.1
       IF(LFNHR) THEN
         KH=NINT(FHOUR)
         NDIG=MAX(LOG10(KH+0.5)+1.,2.)
@@ -503,6 +508,7 @@ ccmr  lfnhr=.false.   !    output
       else
       CFHOUR = CFHOUR(1:nfill(CFHOUR)) // ens_nam(1:nfill(ens_nam))
       endif
+!      print *,' in wrtlog_dynamics cfhour=',cfhour,' ens_nam=',ens_nam
 
       nolog=99
       OPEN(NOlog,FILE='LOG.F'//CFHOUR,FORM='FORMATTED')
@@ -551,11 +557,7 @@ c  as a function of node. This will define how
 c  to assemble the few wavenumbers on each node
 c  into a full coefficient array.
 c
-!jw      IF (icolor.eq.2) then
-!jw         IOPROC=nodes-1
-!jw      else
-         IOPROC=nodes
-!jw      endif
+       IOPROC=nodes
        IF (LIOPE) then
  199    format(' GWVX MAX_LS_NODES ',i20)
         if (me.eq.0.or. me .eq. ioproc) then

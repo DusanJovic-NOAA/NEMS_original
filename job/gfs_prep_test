@@ -2,7 +2,7 @@
 #
 set -x
 #
- export CDATE=2009071000
+ export CDATE=2009072400
 
 # -------------------------------------------------------------
 # SFCPRESS_ID=0 or 1 for ln(psfc), 2 for psfc
@@ -51,7 +51,7 @@ export MALLOCMULTIHEAP=true
 #
 #    Set up experiment and directory names
 #
- export expt=gfs.1
+ export expt=gfs.16pe.proc.noquilt
 #
  export NSCDIR=/global/noscrub
  export TOPDIR=/global/save

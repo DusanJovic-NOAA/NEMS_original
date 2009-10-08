@@ -238,7 +238,7 @@ c timings
 ! -----------------------------------------------------------
 ! compute total tendency (linear and nonlinea, after physics if any)
 !
-        print *,'pdryini=',pdryini
+!        print *,'in one loop,gridt2anl, me_l_0=',me_l_0
         call do_dynamics_gridt2anl(grid_gr,anl_gr_a_2,rdt2,
      &                             global_lats_a,lonsperlat)
 !
@@ -562,7 +562,6 @@ c
      & COLAT1,CFHOUR1,
      & epsedn,epsodn,snnp1ev,snnp1od,plnev_a,plnod_a,
      & pdryini)
-       write(0,*)'in do_dyn_oneloop,after wrtout_dyn'
 !
         CALL f_hpmstop(32)
 CC
@@ -917,6 +916,5 @@ c
       endif ! only for forecast pes
 !--------------------------------------------
 c
-      write(0,*)'end in do_dyn_oneloop'
       RETURN
       END
