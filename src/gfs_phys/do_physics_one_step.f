@@ -1,11 +1,17 @@
       SUBROUTINE do_physics_one_step(deltim,kdt,PHOUR, 
-     &                 grid_gr, sfc_fld, flx_fld,
+!*   &                 grid_gr, sfc_fld, flx_fld,
+     &                 grid_fld, sfc_fld, flx_fld,
      &                 lats_nodes_r,global_lats_r,lonsperlar,
      &                 XLON,XLAT,COSZDG, 
      &                 HPRIME,SWH,HLW, FLUXR,SFALB, SLAG,SDEC,CDEC,
      &                 OZPLIN,JINDX1,JINDX2, DDY,
      &                 phy_f3d,  phy_f2d, NBLCK,
      &                 ZHOUR, n3, n4, LSOUT,COLAT1,CFHOUR1)
+!!
+
+!!
+!! Code Revision:
+!! oct 11 2009     Sarah Lu,  grid_gr is replaced by grid_fld
 !!
 !!#include "../../inc/f_hpm.h"
       use resol_def
@@ -17,6 +23,7 @@
       use ozne_def
       use gfs_physics_sfc_flx_mod
       use gfs_physics_sfc_flx_set_mod
+      use gfs_physics_gridgr_mod,   ONLY: Grid_Var_Data
       use d3d_def, ONLY: d3d_zero
       USE machine, ONLY: KIND_GRID, KIND_GRID, KIND_RAD,
      &                   kind_phys
@@ -24,7 +31,8 @@
 !!     
       TYPE(Sfc_Var_Data)        :: sfc_fld
       TYPE(Flx_Var_Data)        :: flx_fld
-      REAL(KIND=KIND_GRID)      GRID_GR(lonr*lats_node_r_max,lotgr)
+      TYPE(Grid_Var_Data)       :: grid_fld 
+!*    REAL(KIND=KIND_GRID)      GRID_GR(lonr*lats_node_r_max,lotgr)
       CHARACTER(16)             :: CFHOUR1
 !!     
       REAL(KIND=KIND_EVOD),INTENT(IN):: deltim,PHOUR
@@ -119,7 +127,8 @@
 !!
 
         if (lsswr .or. lslwr) then         ! Radiation Call!
-          CALL GLOOPR ( grid_gr,
+!*        CALL GLOOPR ( grid_gr,
+          CALL GLOOPR ( grid_fld,
      &     LATS_NODES_R,GLOBAL_LATS_R,LONSPERLAR,phyhour,
      &     XLON,XLAT,COSZDG,flx_fld%COSZEN,
      &     sfc_fld%SLMSK,sfc_fld%SNWDPH,sfc_fld%SNCOVR,sfc_fld%SNOALB,
@@ -134,7 +143,8 @@
         endif
 !
 !!
-      call gloopb ( grid_gr,
+!*    call gloopb ( grid_gr,
+      call gloopb ( grid_fld,
      x     lats_nodes_r,global_lats_r,lonsperlar,
      &     phydt,phyhour,sfc_fld, flx_fld, SFALB,xlon,
      &     swh,hlw,hprime,slag,sdec,cdec,

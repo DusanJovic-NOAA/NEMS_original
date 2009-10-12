@@ -1,5 +1,6 @@
        subroutine gloopr
-     &    ( grid_gr,
+!*   &    ( grid_gr,
+     &    ( grid_fld,
      &     lats_nodes_r,global_lats_r, lonsperlar, phour,
      &     xlon,xlat,coszdg,COSZEN,
      &     SLMSK,SNWDPH,SNCOVR,SNOALB,ZORL,TSEA,HPRIME,SFALB,
@@ -8,6 +9,10 @@
      &     FICE ,TISFC, SFCDSW,            
      &     TSFLW,FLUXR, phy_f3d,slag,sdec,cdec,NBLCK,KDT,
      &     global_times_r)
+
+!! Code Revision:
+!! Oct 11 2009       Sarah Lu, grid_gr is replaced by grid_fld
+!!
 cc
 !#include "f_hpm.h"
 !
@@ -38,6 +43,7 @@ cc
      &                                iovr_lw, iovr_sw, isol, iems, 
      &                                ialb, fhlwr, fhswr, ico2, ngptc
       use d3d_def ,             ONLY: cldcov
+      use gfs_physics_gridgr_mod, ONLY: Grid_Var_Data
 !
       implicit none
 !
@@ -50,7 +56,8 @@ cc
       integer, intent(in) :: lats_nodes_r(nodes)
       integer, intent(in) :: global_lats_r(latr), lonsperlar(latr)
 
-      real(kind=kind_grid) grid_gr(lonr*lats_node_r_max,lotgr)
+!*    real(kind=kind_grid) grid_gr(lonr*lats_node_r_max,lotgr)
+      TYPE(Grid_Var_Data)       :: grid_fld 
 
       integer, intent(in) :: NBLCK
 
@@ -230,7 +237,8 @@ cc
 !
         si_loc(1)=1.0
         do k=1,levr-1
-          si_loc(k+1)=si_loc(k)-grid_gr(1,g_dp+k-1)/grid_gr(1,g_ps)
+!*        si_loc(k+1)=si_loc(k)-grid_gr(1,g_dp+k-1)/grid_gr(1,g_ps)
+          si_loc(k+1)=si_loc(k)-grid_fld%dp(1,1,k)/grid_fld%ps(1,1) 
         enddo
         si_loc(levr+1)=0.0
 
@@ -329,18 +337,25 @@ cc
 !
 
           do i = 1, njeff
-            ilan = jlonr + istrt+i-1
-            prsi(i,1) = grid_gr(ilan,g_ps)
+!           ilan = jlonr + istrt+i-1
+!           prsi(i,1) = grid_gr(ilan,g_ps)
+            prsi(i,1) = grid_fld%ps(lon+i-1,lan)
           enddo
           do k = 1, LEVS
             do i = 1, njeff
-              ilan = jlonr + istrt+i-1
-              gt(i,k)    = grid_gr(ilan,g_t+k-1)
-              gr(i,k)    = max(qmin,grid_gr(ilan,g_q+k-1))
-              prsl(i,k)  = grid_gr(ilan,g_p+k-1)
-              vvel(i,k)  = grid_gr(ilan,g_dpdt+k-1)
-              prsi(i,k+1)= prsi(i,k)-                                      &
-     &                     grid_gr(ilan,g_dp+k-1)
+!             ilan = jlonr + istrt+i-1
+!             gt(i,k)    = grid_gr(ilan,g_t+k-1)
+!             gr(i,k)    = max(qmin,grid_gr(ilan,g_q+k-1))
+!             prsl(i,k)  = grid_gr(ilan,g_p+k-1)
+!             vvel(i,k)  = grid_gr(ilan,g_dpdt+k-1)
+!             prsi(i,k+1)= prsi(i,k)-                                      &
+!     &                    grid_gr(ilan,g_dp+k-1)
+              gt(i,k)    = grid_fld%t(lon+i-1,lan,k)                           
+              gr(i,k)    = max(qmin,grid_fld%q(lon+i-1,lan,k))                 
+              prsl(i,k)  = grid_fld%p(lon+i-1,lan,k)                         
+              vvel(i,k)  = grid_fld%dpdt(lon+i-1,lan,k)                        
+              prsi(i,k+1)= prsi(i,k)-                                      &  
+     &                     grid_fld%dp(lon+i-1,lan,k)          
             enddo
           enddo
           do i = 1, njeff
@@ -356,15 +371,17 @@ cc
 !
 !       Remaining tracers
 !
-          do n = 1, NTRAC-1
-            kk = g_q + n*levs
+!         do n = 1, NTRAC-1
+!           kk = g_q + n*levs
             do k = 1, LEVS
               do i = 1, njeff
-                ilan = jlonr + istrt+i-1
-                gr1(i,k,n) = grid_gr(ilan,kk+k-1)
+!               ilan = jlonr + istrt+i-1
+!               gr1(i,k,n) = grid_gr(ilan,kk+k-1)
+                gr1(i,k,ntoz-1) = grid_fld%oz(lon+i-1,lan,k)  
+                gr1(i,k,ntcw-1) = grid_fld%cld(lon+i-1,lan,k) 
               enddo
             enddo
-          enddo
+!          enddo
 
 !!
 !.....

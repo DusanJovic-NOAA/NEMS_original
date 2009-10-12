@@ -13,7 +13,9 @@
 !  july    2007 s. moorthi      change for physics only
 !  november 2007 h. juang        continue for physics
 !  may      2009 j. wang         change for quilt
-!
+!  oct 09 2009  Sarah Lu        coord def initialized (lats_nodes_r_fix,
+!                               lats_node_r, ipt_lats_node_r)
+!  oct 11 2009  Sarah Lu        grid_gr is replaced by grid_fld
 !
 ! !interface:
 !
@@ -45,18 +47,21 @@
                                                 kozpl, levozp, pl_time, pl_lat, pl_pres,      &
                                                 kozc, dphiozc, latsozc, pl_coeff
       USE namelist_physics_def,           ONLY: ras, jo3, ldiag3d, ngptc, ens_nam,            &
-                                                reduced_grid
+                                                reduced_grid, grid_aldata  
       USE module_ras,                     ONLY: nrcmax
       USE gg_def,                         ONLY: sinlat_r, coslat_r, wgtcs_r, rcs2_r, wgt_r,   &
                                                 colrad_r
       USE layout1,                        ONLY: nodes_comp, lats_node_r_max, lats_node_r, me, &
-                                                nodes, lon_dims_ext, lon_dims_r,idrt
+                                                nodes, lon_dims_ext, lon_dims_r,idrt,         &
+                                                ipt_lats_node_r
       USE date_def,                       ONLY: fhour
       USE tracer_const,                   ONLY: set_tracer_const
       USE gfs_physics_sfc_flx_set_mod,    ONLY: sfcvar_aldata, flxvar_aldata, flx_init
       USE d3d_def,                        ONLY: d3d_init, d3d_zero
       use machine,                        ONLY : kind_io4
       USE sfcio_module,                   ONLY: sfcio_axdbta
+      USE gfs_physics_gridgr_mod,         ONLY: gridvar_aldata  
+
       include 'mpif.h'
 
       implicit none
@@ -166,6 +171,7 @@
       allocate ( gis_phy%global_lats_r(latr), stat = ierr )
       allocate ( gis_phy%global_lats_ext(latr), stat = ierr )
       allocate ( gis_phy%lonsperlar(latr), stat = ierr)
+      allocate ( gis_phy%lats_nodes_r_fix(nodes), stat = ierr )    !added for mGrid
 
       if( reduced_grid ) then
         print *,' run with reduced gaussian grid '
@@ -354,13 +360,24 @@
       idrt=gis_phy%idrt
 
       gis_phy%lats_node_r_max = lats_node_r_max
+      gis_phy%lats_nodes_r_fix(:) =  gis_phy%lats_node_r_max 
 
       call sfcvar_aldata(lonr, lats_node_r, lsoil, gis_phy%sfc_fld, ierr)
       call flxvar_aldata(lonr, lats_node_r, gis_phy%flx_fld, ierr)
 
       print *,' check after sfc flx var_aldata ' 
 
-      allocate (   gis_phy%grid_gr(lonr*lats_node_r_max,lotgr), stat = ierr )
+!! allocate grid_fld                      --- Sarah Lu                   
+      gis_phy%grid_aldata = grid_aldata                                  
+      if ( gis_phy%grid_aldata ) then                                    
+      print *,'LU_PHY: grid_fld allocated ; copy is used'                
+      call gridvar_aldata (lonr, lats_node_r_max, levs,  &               
+                           gis_phy%ntrac, gis_phy%grid_fld, ierr)  
+      else                                                            
+      print *,'LU_PHY: grid_fld not allocated ; pointer is used'     
+      endif                                                     
+
+!*    allocate (   gis_phy%grid_gr(lonr*lats_node_r_max,lotgr), stat = ierr )
       ALLOCATE (   gis_phy%XLON(LONR,LATS_NODE_R), stat = ierr)
       ALLOCATE (   gis_phy%XLAT(LONR,LATS_NODE_R), stat = ierr)
       ALLOCATE (   gis_phy%COSZDG(LONR,LATS_NODE_R), stat = ierr)
@@ -410,6 +427,10 @@
         gis_phy%OZPLIN,gis_phy%nam_gfs_phy%sfc_ini)
 
 !     print *,' GISXLAT=',gis_phy%XLAT(1,:)
+!!
+! coord def (lats_node_r, ipt_lats_node_r, and lats_nodes_a_fix)     
+      gis_phy%lats_node_r     = lats_node_r                      
+      gis_phy%ipt_lats_node_r = ipt_lats_node_r              
 !!
       call countperf(1,18,0.)
 !!

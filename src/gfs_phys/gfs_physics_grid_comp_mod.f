@@ -9,6 +9,7 @@
 !  november 2007     hann-ming henry juang 
 !  may      2009     jun wang, add write grid component
 !  october  2009     jun wang, output every time step, add no quilting option 
+!  oct 09   2009     sarah lu, 3D Gaussian grid (DistGrid5) added
 !                           
 !
 ! !interface:
@@ -198,6 +199,7 @@
       TYPE(ESMF_DistGrid)                :: DistGrid0    ! the ESMF DistGrid.
       TYPE(ESMF_DistGrid)                :: DistGrid3    ! the ESMF DistGrid.
       TYPE(ESMF_DistGrid)                :: DistGrid4    ! the ESMF DistGrid.
+      TYPE(ESMF_DistGrid)                :: DistGrid5    ! the ESMF DistGrid.
 
       integer                            :: rc1 
       integer                            :: rcfinal, grib_inp
@@ -430,6 +432,14 @@
                                          DistGrid0, DistGrid3, DistGrid4, rc1)
 
       call gfs_physics_err_msg(rc1,'gfs_physics_grid_create_gauss',rc)
+
+!
+! create 3D Gaussian grid  (sarah lu)                                          
+!-----------------------
+!
+      call gfs_physics_grid_create_Gauss3D(vm_local,int_state,DistGrid5,rc1) 
+
+      call gfs_physics_err_msg(rc1,'gfs_physics_grid_create_gauss',rc)     
 
 
 ! associate the grid3 with the esmf grid component gsgfs

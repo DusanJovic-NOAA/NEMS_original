@@ -14,6 +14,8 @@
 !  january 2007       hann-ming henry juang for gfs dynamics only
 !  july    2007       shrinivas moorthi for gfs physics only
 !  november 2007       hann-ming henry juang continue for gfs physics
+!  oct 09 2009        sarah lu, add lats_node_r,ipt_lats_node_r,lats_nodes_r_fix
+!  oct 11 2009        sarah lu, add grid_fld and grid_aldata
 !
 ! !interface:
 !
@@ -23,6 +25,7 @@
 !------
       use gfs_physics_namelist_mod, ONLY: nam_gfs_phy_namelist, gfs_phy_state_namelist
       use gfs_physics_sfc_flx_mod,  ONLY: Sfc_Var_Data, Flx_Var_Data
+      use gfs_physics_gridgr_mod,   ONLY: Grid_Var_Data    
 
       use machine, only: kind_phys, kind_rad, kind_evod
       implicit none
@@ -38,13 +41,16 @@
 
       TYPE(Sfc_Var_Data)        :: sfc_fld
       TYPE(Flx_Var_Data)        :: flx_fld
+      TYPE(Grid_Var_Data)       :: grid_fld  
 
+      logical                   :: grid_aldata  
       integer                   :: me, nodes
       INTEGER                   :: llgg_s, lonr_s, latr_s
 !     integer                   :: grib_inp
 
 !
       integer ntrac,nxpt,nypt,jintmx,jcap,levs,lonr,latr,lats_node_r_max
+      integer lats_node_r, ipt_lats_node_r  
       integer ntoz, ntcw, ncld, lsoil, nmtvr, num_p3d, num_p2d,levr
       integer thermodyn_id, sfcpress_id
 
@@ -63,6 +69,9 @@
       integer              ,allocatable ::  global_lats_r  (:)
       integer              ,allocatable ::  lats_nodes_ext (:)
       integer              ,allocatable ::  global_lats_ext(:)
+
+!  Add lats_nodes_r_fix for mGrid (sarah lu) 
+      integer              ,allocatable ::  lats_nodes_r_fix   (:) 
 
       real(kind=kind_evod) ,allocatable ::      grid_gr(:,:)
       integer   g_gz ,g_ps ,g_t ,g_u ,g_v ,g_q ,g_p ,g_dp ,g_dpdt

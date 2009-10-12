@@ -1,4 +1,8 @@
       module namelist_physics_def
+
+!! Code Revision
+!! oct 12 2009     Sarah Lu, add grid_aldata
+
       use machine, ONLY: kind_evod
       implicit none
       
@@ -17,4 +21,9 @@
 !     Radiation control parameters
 !
       integer isol, ico2, ialb, iems, iaer, iovr_sw, iovr_lw
+!
+!     Chemistry control parameters                       
+!
+      logical grid_aldata                               
+!
       end module namelist_physics_def

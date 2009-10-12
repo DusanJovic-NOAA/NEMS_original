@@ -1,11 +1,15 @@
       subroutine gloopb
-     &    ( grid_gr,
+!*   &    ( grid_gr,
+     &    ( grid_fld,
      x     lats_nodes_r,global_lats_r,lonsperlar,
      &     tstep,phour,sfc_fld, flx_fld, SFALB,xlon,
      &     swh,hlw,hprime,slag,sdec,cdec,
      &     ozplin,jindx1,jindx2,ddy,
      &     phy_f3d, phy_f2d,xlat,nblck,kdt,
      &     global_times_b)
+!!
+!! Code Revision:
+!! Oct 11 2009       Sarah Lu, grid_gr replaced by gri_fld
 !!
 ! #include "f_hpm.h"
 !!
@@ -21,11 +25,13 @@
       use ozne_def
       use d3d_def
       use gfs_physics_sfc_flx_mod
+      use gfs_physics_gridgr_mod, ONLY: Grid_Var_Data
       use mersenne_twister
       include 'mpif.h'
       implicit none
 !
-      real(kind=kind_grid) grid_gr(lonr*lats_node_r_max,lotgr)
+!*    real(kind=kind_grid) grid_gr(lonr*lats_node_r_max,lotgr)
+      TYPE(Grid_Var_Data)       :: grid_fld 
       TYPE(Sfc_Var_Data)        :: sfc_fld
       TYPE(Flx_Var_Data)        :: flx_fld
 
@@ -251,19 +257,27 @@ c
 !!
           do i = 1, njeff
             ilan=jlonr+istrt+i-1
-            prsi(i,1) = grid_gr(ilan,g_ps)
+!*          prsi(i,1) = grid_gr(ilan,g_ps)
+            prsi(i,1) = grid_fld%ps(lon+i-1,lan)
             gq(i)     = prsi(i,1)
           enddo
           do k = 1, LEVS
             do i = 1, njeff
-              ilan=jlonr+istrt+i-1
-              gu(i,k)    = grid_gr(ilan,g_u+k-1)
-              gv(i,k)    = grid_gr(ilan,g_v+k-1)
-              gt(i,k)    = grid_gr(ilan,g_t+k-1)
-              prsl(i,k)  = grid_gr(ilan,g_p+k-1)
-              vvel(i,k)  = grid_gr(ilan,g_dpdt+k-1)
-              prsi(i,k+1)= prsi(i,k)-
-     &                     grid_gr(ilan,g_dp+k-1)
+!             ilan=jlonr+istrt+i-1
+!             gu(i,k)    = grid_gr(ilan,g_u+k-1)
+!             gv(i,k)    = grid_gr(ilan,g_v+k-1)
+!             gt(i,k)    = grid_gr(ilan,g_t+k-1)
+!             prsl(i,k)  = grid_gr(ilan,g_p+k-1)
+!             vvel(i,k)  = grid_gr(ilan,g_dpdt+k-1)
+!             prsi(i,k+1)= prsi(i,k)-
+!     &                     grid_gr(ilan,g_dp+k-1)
+              gu(i,k)    = grid_fld%u(lon+i-1,lan,k)        
+              gv(i,k)    = grid_fld%v(lon+i-1,lan,k)        
+              gt(i,k)    = grid_fld%t(lon+i-1,lan,k)      
+              prsl(i,k)  = grid_fld%p(lon+i-1,lan,k)      
+              vvel(i,k)  = grid_fld%dpdt(lon+i-1,lan,k)   
+              prsi(i,k+1)= prsi(i,k)-                    
+     &                     grid_fld%dp(lon+i-1,lan,k)   
             enddo
           enddo
           do i = 1, njeff
@@ -276,15 +290,18 @@ c
               prsik(i,k) = (prsi(i,k)*pt01)**rk
             enddo
           enddo
-          do n = 1, NTRAC
-            kk = g_q + (n-1)*levs
+!         do n = 1, NTRAC
+!           kk = g_q + (n-1)*levs
             do k = 1, LEVS
               do i = 1, njeff
-                ilan=jlonr+istrt+i-1
-                gr(i,k,n) = grid_gr(ilan,kk+k-1)
+!               ilan=jlonr+istrt+i-1
+!               gr(i,k,n) = grid_gr(ilan,kk+k-1)
+                gr(i,k,1)    = grid_fld%q  (lon+i-1,lan,k)  
+                gr(i,k,ntoz) = grid_fld%oz (lon+i-1,lan,k)  
+                gr(i,k,ntcw) = grid_fld%cld(lon+i-1,lan,k) 
               enddo
             enddo
-          enddo
+!         enddo
 
       do i=1,ngptc
         phil(i,levs)  = 0.0 ! will force calculation of geopotential in gbphys.
@@ -446,21 +463,27 @@ c
 
        do k = 1, LEVS
          do i = 1, njeff
-           ilan=jlonr+istrt+i-1
-           grid_gr(ilan,g_u+k-1) = adu(i,k)
-           grid_gr(ilan,g_v+k-1) = adv(i,k)
-           grid_gr(ilan,g_t+k-1) = adt(i,k)
+!          ilan=jlonr+istrt+i-1
+!          grid_gr(ilan,g_u+k-1) = adu(i,k)
+!          grid_gr(ilan,g_v+k-1) = adv(i,k)
+!          grid_gr(ilan,g_t+k-1) = adt(i,k)
+           grid_fld%u(lon+i-1,lan,k) = adu(i,k)            
+           grid_fld%v(lon+i-1,lan,k) = adv(i,k)         
+           grid_fld%t(lon+i-1,lan,k) = adt(i,k)
          enddo
        enddo
-       do n = 1, NTRAC
-         kk = g_q + (n-1)*levs
+!      do n = 1, NTRAC
+!        kk = g_q + (n-1)*levs
          do k = 1, LEVS
            do i = 1, njeff
-             ilan=jlonr+istrt+i-1
-             grid_gr(ilan,kk+k-1) = adr(i,k,n)
+!            ilan=jlonr+istrt+i-1
+!            grid_gr(ilan,kk+k-1) = adr(i,k,n)
+             grid_fld%q  (lon+i-1,lan,k) = adr(i,k,1)      
+             grid_fld%oz (lon+i-1,lan,k) = adr(i,k,ntoz)  
+             grid_fld%cld(lon+i-1,lan,k) = adr(i,k,ntcw) 
            enddo
          enddo
-       enddo
+!      enddo
 !!
        enddo   !lon
 !

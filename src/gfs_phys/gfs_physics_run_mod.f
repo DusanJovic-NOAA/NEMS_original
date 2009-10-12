@@ -12,6 +12,7 @@
 !  july     2007      shrinivas moorthi for gfs physics only
 !  november 2007      hann-ming henry juang continue for gfs physics
 !  october  2009      jun wang add nsout option
+!  oct 11  2009       sarah lu, grid_gr replaced by grid_fld
 !
 !
 ! !interface:
@@ -55,14 +56,14 @@
 !
        rc1 = 0
 !
-       call common_to_physics_vars(gis_phy%grid_gr(1,gis_phy%g_ps),      &
-                                   gis_phy%grid_gr(1,gis_phy%g_t ),      &
-                                   gis_phy%grid_gr(1,gis_phy%g_q ),      &
-                                   gis_phy%grid_gr(1,gis_phy%g_u ),      &
-                                   gis_phy%grid_gr(1,gis_phy%g_v ),      &
-                                   gis_phy%grid_gr(1,gis_phy%g_p ),      &
-                                   gis_phy%grid_gr(1,gis_phy%g_dp ),     &
-                                   gis_phy%grid_gr(1,gis_phy%g_dpdt ),   &
+       call common_to_physics_vars(gis_phy%grid_fld%ps,      &
+                                   gis_phy%grid_fld%t ,      &
+                                   gis_phy%grid_fld%q ,      &
+                                   gis_phy%grid_fld%u ,      &
+                                   gis_phy%grid_fld%v ,      &
+                                   gis_phy%grid_fld%p ,      &
+                                   gis_phy%grid_fld%dp ,     &
+                                   gis_phy%grid_fld%dpdt ,   &
                                    gis_phy%global_lats_r,                &
                                    gis_phy%lonsperlar)
 
@@ -81,7 +82,8 @@
 ! ======================================================================
         call do_physics_one_step(                                         &
                  gis_phy%deltim,  gis_phy%kdt,     gis_phy%phour,         &
-                 gis_phy%grid_gr, gis_phy%sfc_fld, gis_phy%flx_fld,       &
+!*               gis_phy%grid_gr, gis_phy%sfc_fld, gis_phy%flx_fld,       &
+                 gis_phy%grid_fld, gis_phy%sfc_fld, gis_phy%flx_fld,      &
                  gis_phy%lats_nodes_r,   gis_phy%global_lats_r,           &
                  gis_phy%lonsperlar,                                      &
                  gis_phy%XLON,    gis_phy%XLAT,    gis_phy%COSZDG,        &
@@ -101,14 +103,14 @@
       gis_phy%phour      = fhour
 
 ! --------------------------------------------------------------------------
-       call physics_to_common_vars(gis_phy%grid_gr(1,gis_phy%g_ps),      &
-                                   gis_phy%grid_gr(1,gis_phy%g_t ),      &
-                                   gis_phy%grid_gr(1,gis_phy%g_q ),      &
-                                   gis_phy%grid_gr(1,gis_phy%g_u ),      &
-                                   gis_phy%grid_gr(1,gis_phy%g_v ),      &
-                                   gis_phy%grid_gr(1,gis_phy%g_p ),      &
-                                   gis_phy%grid_gr(1,gis_phy%g_dp ),     &
-                                   gis_phy%grid_gr(1,gis_phy%g_dpdt ),   &
+       call physics_to_common_vars(gis_phy%grid_fld%ps,      &
+                                   gis_phy%grid_fld%t ,      &
+                                   gis_phy%grid_fld%q ,      &
+                                   gis_phy%grid_fld%u ,      &
+                                   gis_phy%grid_fld%v ,      &
+                                   gis_phy%grid_fld%p ,      &
+                                   gis_phy%grid_fld%dp ,     &
+                                   gis_phy%grid_fld%dpdt ,   &
                                    gis_phy%global_lats_r,                &
                                    gis_phy%lonsperlar)
 ! --------------------------------------------------------------------------

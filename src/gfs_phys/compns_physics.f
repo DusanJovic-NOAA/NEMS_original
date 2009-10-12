@@ -41,6 +41,7 @@
 !
 ! Program History Log:
 !   1999-01-26  Iredell
+!   1999-10-12  Sarah Lu, add grid_aldata
 !
 ! Usage:    call compns(deltim,
 !    &                  fhout,fhswr,fhlwr,fhzer,fhres,fhcyc,
@@ -102,6 +103,7 @@ c     if output (fhout) more frequently than zeroing ,get partial rains
      & isol, ico2, ialb, iems, iaer, iovr_sw, iovr_lw,
      & ncw, crtrh,old_monin,flgmin,gfsio_in,gfsio_out,cnvgwd,
      & ccwf,sashal,newsas,zflxtvd
+     &,grid_aldata
 !
       shuff_lats_r   = .true.
       reshuff_lats_r = .false.
@@ -156,6 +158,8 @@ c     if output (fhout) more frequently than zeroing ,get partial rains
       iaer    = 1         ! default aerosol
       iovr_sw = 1         ! sw: max-random overlap clouds
       iovr_lw = 1         ! lw: max-random overlap clouds
+!
+      grid_aldata = .true.
 !
       print *,' nlunit=',nlunit,' gfs_phy_namelist=',gfs_phy_namelist
 c$$$      read(5,nam_phy)

@@ -4,6 +4,7 @@
 !  june 2005 		weiyu yang             initial code.
 !  february 2007 	hann-ming henry juang  
 !			for gfs physics and gaussian grid data.
+!  oct 11 2009          sarah lu, grid_gr replaced by grid_fld 
 !
 !!uses:
 !
@@ -91,7 +92,9 @@
           kstr=int_state%g_gz
           kend=int_state%g_gz
           call getf90arrayfromstate(imp_gfs_phy, 'hs', hold1, 0, rc = rc1)
-          int_state%grid_gr(:,kstr:kend)=hold1
+!*        int_state%grid_gr(:,kstr:kend)=hold1
+          int_state%grid_fld%z = reshape (hold1,        &
+              (/int_state%lonr,int_state%lats_node_r_max/)) 
           call gfs_physics_err_msg(rc1,"gete esmf state - hs_im",rcfinal)
 
       end if
@@ -104,7 +107,9 @@
           kstr=int_state%g_ps
           kend=int_state%g_ps
           call getf90arrayfromstate(imp_gfs_phy, 'ps', hold1, 0, rc = rc1)
-          int_state%grid_gr(:,kstr:kend)=hold1
+!*        int_state%grid_gr(:,kstr:kend)=hold1
+          int_state%grid_fld%ps = reshape(hold1,          &
+              (/int_state%lonr,int_state%lats_node_r_max/)) 
 
           call gfs_physics_err_msg(rc1,"gete esmf state - ps_im",rcfinal)
 
@@ -117,7 +122,10 @@
           call getf90arrayfromstate(imp_gfs_phy, 't', hold2, 0, rc = rc1)
           kstr = int_state%g_t
           kend = kstr + int_state%levs - 1
-          int_state%grid_gr(:,kstr:kend)=hold2
+!*        int_state%grid_gr(:,kstr:kend)=hold2
+          int_state%grid_fld%t = reshape(hold2,           &
+              (/int_state%lonr,int_state%lats_node_r_max, & 
+                int_state%levs/))          
 
           call gfs_physics_err_msg(rc1,"gete esmf state - t_im",rcfinal)
 
@@ -132,7 +140,10 @@
           call getf90arrayfromstate(imp_gfs_phy, 'u', hold2, 0, rc = rc1)
           kstr = int_state%g_u
           kend = kstr + int_state%levs - 1
-          int_state%grid_gr(:,kstr:kend)=hold2
+!*        int_state%grid_gr(:,kstr:kend)=hold2
+          int_state%grid_fld%u = reshape(hold2,           &
+              (/int_state%lonr,int_state%lats_node_r_max, & 
+                int_state%levs/))          
 
           call gfs_physics_err_msg(rc1,"gete esmf state - u_im",rcfinal)
 
@@ -146,8 +157,10 @@
           call getf90arrayfromstate(imp_gfs_phy, 'v', hold2, 0, rc = rc1)
           kstr = int_state%g_v
           kend = kstr + int_state%levs - 1
-          int_state%grid_gr(:,kstr:kend)=hold2
-
+!*        int_state%grid_gr(:,kstr:kend)=hold2
+          int_state%grid_fld%v =reshape(hold2,            &
+              (/int_state%lonr,int_state%lats_node_r_max, & 
+                int_state%levs/))          
           call gfs_physics_err_msg(rc1,"gete esmf state - v_im",rcfinal)
 
       end if
@@ -160,7 +173,10 @@
           call getf90arrayfromstate(imp_gfs_phy, 'shum', hold2,0, rc = rc1)
           kstr = krq
           kend = kstr + int_state%levs - 1
-          int_state%grid_gr(:,kstr:kend)=hold2
+!*        int_state%grid_gr(:,kstr:kend)=hold2
+          int_state%grid_fld%q = reshape(hold2,           &
+              (/int_state%lonr,int_state%lats_node_r_max, & 
+                int_state%levs/))          
 
           call gfs_physics_err_msg(rc1,"gete esmf state - shum_im",rcfinal)
 
@@ -174,7 +190,10 @@
           call getf90arrayfromstate(imp_gfs_phy, 'oz', hold2, 0, rc = rc1)
           kstr = krq
           kend = kstr + int_state%levs - 1
-          int_state%grid_gr(:,kstr:kend)=hold2
+!*        int_state%grid_gr(:,kstr:kend)=hold2
+          int_state%grid_fld%oz = reshape(hold2,          &
+              (/int_state%lonr,int_state%lats_node_r_max, & 
+                int_state%levs/))          
 
           call gfs_physics_err_msg(rc1,"gete esmf state - oz_im",rcfinal)
 
@@ -188,7 +207,10 @@
           call getf90arrayfromstate(imp_gfs_phy, 'cld', hold2, 0, rc = rc1)
           kstr = krq
           kend = kstr + int_state%levs - 1
-          int_state%grid_gr(:,kstr:kend)=hold2
+!*        int_state%grid_gr(:,kstr:kend)=hold2
+          int_state%grid_fld%cld = reshape(hold2,         &
+              (/int_state%lonr,int_state%lats_node_r_max, & 
+                int_state%levs/))          
 
           call gfs_physics_err_msg(rc1,"gete esmf state - cld_im",rcfinal)
 
@@ -201,7 +223,10 @@
           call getf90arrayfromstate(imp_gfs_phy, 'p', hold2, 0, rc = rc1)
           kstr = int_state%g_p
           kend = kstr + int_state%levs - 1
-          int_state%grid_gr(:,kstr:kend)=hold2
+!*        int_state%grid_gr(:,kstr:kend)=hold2
+          int_state%grid_fld%p = reshape(hold2,           &
+              (/int_state%lonr,int_state%lats_node_r_max, & 
+                int_state%levs/))          
 
           call gfs_physics_err_msg(rc1,"gete esmf state - p_im",rcfinal)
 
@@ -216,7 +241,10 @@
           call getf90arrayfromstate(imp_gfs_phy, 'dp', hold2, 0, rc = rc1)
           kstr = int_state%g_dp
           kend = kstr + int_state%levs - 1
-          int_state%grid_gr(:,kstr:kend)=hold2
+!*        int_state%grid_gr(:,kstr:kend)=hold2
+          int_state%grid_fld%dp = reshape(hold2,          &
+              (/int_state%lonr,int_state%lats_node_r_max, & 
+                int_state%levs/))          
 
           call gfs_physics_err_msg(rc1,"gete esmf state - dp_im",rcfinal)
 
@@ -230,7 +258,10 @@
           call getf90arrayfromstate(imp_gfs_phy, 'dpdt', hold2, 0, rc = rc1)
           kstr = int_state%g_dpdt
           kend = kstr + int_state%levs - 1
-          int_state%grid_gr(:,kstr:kend)=hold2
+!*        int_state%grid_gr(:,kstr:kend)=hold2
+          int_state%grid_fld%dpdt = reshape(hold2,        &
+              (/int_state%lonr,int_state%lats_node_r_max, & 
+                int_state%levs/))          
 
           call gfs_physics_err_msg(rc1,"gete esmf state - dpdt_im",rcfinal)
 
@@ -297,7 +328,8 @@
       IF(first) THEN
           ii1 =size(int_state%fhour_idate, dim=1)
           allocate(hold0(ii1, 5))
-          ii1 =size(int_state%grid_gr, dim=1)
+!*        ii1 =size(int_state%grid_gr, dim=1)
+          ii1 =size(int_state%grid_fld%t,dim=1)*size(int_state%grid_fld%t,dim=2)
           allocate(hold_z(ii1, 1))
           allocate(hold_ps(ii1, 1))
           allocate(hold_temp(ii1, int_state%levs))
@@ -356,7 +388,9 @@
 
           kstr=int_state%g_gz
           kend=int_state%g_gz
-          hold_z = int_state%grid_gr(:,kstr:kend)
+!*        hold_z = int_state%grid_gr(:,kstr:kend)
+          hold_z = reshape(int_state%grid_fld%z,              &
+                  (/int_state%lonr*int_state%lats_node_r_max,1/))   
           IF(first) THEN
               call addf90arraytostate(exp_gfs_phy, grid3, 'hs',             & 
                                       hold_z, rc = rc1)
@@ -372,7 +406,9 @@
 
           kstr=int_state%g_ps
           kend=int_state%g_ps
-          hold_ps = int_state%grid_gr(:,kstr:kend)
+!*        hold_ps = int_state%grid_gr(:,kstr:kend)
+          hold_ps = reshape(int_state%grid_fld%ps,            &
+                  (/int_state%lonr*int_state%lats_node_r_max,1/))   
           IF(first) THEN
               call addf90arraytostate(exp_gfs_phy, grid3, 'ps',             &
                                       hold_ps, rc = rc1)
@@ -390,7 +426,10 @@
 
           kstr = int_state%g_t
           kend = kstr + int_state%levs - 1
-          hold_temp = int_state%grid_gr(:,kstr:kend)
+!*        hold_temp = int_state%grid_gr(:,kstr:kend)
+          hold_temp = reshape(int_state%grid_fld%t,                 &
+                   (/int_state%lonr*int_state%lats_node_r_max,      &
+                     int_state%levs /)) 
           IF(first) THEN
               call addf90arraytostate(exp_gfs_phy, grid4, 't',             & 
                                       hold_temp, rc = rc1)
@@ -407,7 +446,10 @@
 
           kstr = int_state%g_u
           kend = kstr + int_state%levs - 1
-          hold_u = int_state%grid_gr(:,kstr:kend)
+!*        hold_u = int_state%grid_gr(:,kstr:kend)
+          hold_u = reshape(int_state%grid_fld%u,                    &
+                   (/int_state%lonr*int_state%lats_node_r_max,      &
+                     int_state%levs /)) 
           IF(first) THEN
               call addf90arraytostate(exp_gfs_phy, grid4, 'u',             & 
                                       hold_u, rc = rc1)
@@ -424,7 +466,10 @@
 
           kstr = int_state%g_v
           kend = kstr + int_state%levs - 1
-          hold_v = int_state%grid_gr(:,kstr:kend)
+!*        hold_v = int_state%grid_gr(:,kstr:kend)
+          hold_v = reshape(int_state%grid_fld%v,                    &
+                   (/int_state%lonr*int_state%lats_node_r_max,      &
+                     int_state%levs /)) 
           IF(first) THEN
               call addf90arraytostate(exp_gfs_phy, grid4, 'v',             & 
                                       hold_v, rc = rc1)
@@ -443,7 +488,10 @@
 
           kstr = krq
           kend = kstr + int_state%levs - 1
-          hold_q = int_state%grid_gr(:,kstr:kend)
+!*        hold_q = int_state%grid_gr(:,kstr:kend)
+          hold_q = reshape(int_state%grid_fld%q,                    &
+                   (/int_state%lonr*int_state%lats_node_r_max,      &
+                     int_state%levs /)) 
           IF(first) THEN
               call addf90arraytostate(exp_gfs_phy, grid4, 'shum',          & 
                                       hold_q, rc = rc1)
@@ -462,7 +510,10 @@
 
           kstr = krq
           kend = kstr + int_state%levs - 1
-          hold_oz = int_state%grid_gr(:,kstr:kend)
+!*        hold_oz = int_state%grid_gr(:,kstr:kend)
+          hold_oz = reshape(int_state%grid_fld%oz,                  &
+                   (/int_state%lonr*int_state%lats_node_r_max,      &
+                     int_state%levs /)) 
           IF(first) THEN
               call addf90arraytostate(exp_gfs_phy, grid4, 'oz',          & 
                                       hold_oz, rc = rc1)
@@ -481,7 +532,10 @@
 
           kstr = krq
           kend = kstr + int_state%levs - 1
-          hold_cld = int_state%grid_gr(:,kstr:kend)
+!*        hold_cld = int_state%grid_gr(:,kstr:kend)
+          hold_cld = reshape(int_state%grid_fld%cld,                &
+                   (/int_state%lonr*int_state%lats_node_r_max,      &
+                     int_state%levs /)) 
           IF(first) THEN
               call addf90arraytostate(exp_gfs_phy, grid4, 'cld',          & 
                                       hold_cld, rc = rc1)
@@ -498,7 +552,10 @@
 
           kstr = int_state%g_p
           kend = kstr + int_state%levs - 1
-          hold_p = int_state%grid_gr(:,kstr:kend)
+!*        hold_p = int_state%grid_gr(:,kstr:kend)
+          hold_p = reshape(int_state%grid_fld%p,                    &
+                   (/int_state%lonr*int_state%lats_node_r_max,      &
+                     int_state%levs /)) 
           IF(first) THEN
               call addf90arraytostate(exp_gfs_phy, grid4, 'p',          & 
                                       hold_p, rc = rc1)
@@ -517,7 +574,10 @@
 
           kstr = int_state%g_dp
           kend = kstr + int_state%levs - 1
-          hold_dp = int_state%grid_gr(:,kstr:kend)
+!*        hold_dp = int_state%grid_gr(:,kstr:kend)
+          hold_dp = reshape(int_state%grid_fld%dp,                  &
+                   (/int_state%lonr*int_state%lats_node_r_max,      &
+                     int_state%levs /)) 
           IF(first) THEN
               call addf90arraytostate(exp_gfs_phy, grid4, 'dp',          & 
                                       hold_dp, rc = rc1)
@@ -536,7 +596,10 @@
 
           kstr = int_state%g_dpdt
           kend = kstr + int_state%levs - 1
-          hold_dpdt = int_state%grid_gr(:,kstr:kend)
+!*        hold_dpdt = int_state%grid_gr(:,kstr:kend)
+          hold_dpdt = reshape(int_state%grid_fld%dpdt,              &
+                   (/int_state%lonr*int_state%lats_node_r_max,      &
+                     int_state%levs /)) 
           IF(first) THEN
               call addf90arraytostate(exp_gfs_phy, grid4, 'dpdt',          & 
                                       hold_dpdt, rc = rc1)
