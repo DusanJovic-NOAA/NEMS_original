@@ -10,6 +10,8 @@
 !  may      2009     jun wang, add write grid component
 !  october  2009     jun wang, output every time step, add no quilting option 
 !  oct 09   2009     sarah lu, 3D Gaussian grid (DistGrid5) added
+!  oct 12   2009     sarah lu, set the association between imp/exp states
+!                    and internal state grid_fld; reset start_step
 !                           
 !
 ! !interface:
@@ -34,6 +36,9 @@
       USE namelist_physics_def,           ONLY: fhini, fhmax
 !jw
       USE gfs_physics_output,             ONLY: point_physics_output_gfs
+!
+      use GFS_Phy_States_Mod,             ONLY: gfs_physics_import2internal_mgrid, &  
+                                                gfs_physics_internal2export_mgrid  
 !
       implicit none
 
@@ -541,6 +546,9 @@
 !  may      2005     weiyu yang for the updated gfs version.
 !  february 2006     moorthi
 !  december 2007     juang
+!  oct 12 2009       Sarah Lu, call gfs_physics_import2internal_mgrid and
+!                    gfs_physics_internal2export_mgrid to associate imp/exp
+!                    states with internal state grid_fld
 !
 ! !interface:
 !
@@ -582,6 +590,9 @@
 !jw
       type(esmf_state)                   :: imp_wrt_state
 !
+! these logic flags are used to handle pointer/copy options (Sarah Lu)
+      logical       :: imp2int, flag1, flag2 
+!
 ! initialize the error signal variables.
 !---------------------------------------
       rc1     = esmf_success
@@ -608,9 +619,26 @@
 !------------------------------------------------------------------
       call esmf_logwrite("esmf import state to internal state", 	&
                         esmf_log_info, rc = rc1)
+!
+! the pointer/copy option (Sarah Lu)
+!  get the esmf import state and over-write the gfs internal state         
+!  for one-copy option, import2internal is called once and for all        
+!  for two-copy option, import2internal is called every time step        
+!
+!*    call gfs_physics_import2internal(gc_gfs_phy, imp_gfs_phy, 	&
+!*                                        int_state, rc = rc1)
+!
 
-      call gfs_physics_import2internal(gc_gfs_phy, imp_gfs_phy, 	&
-                                          int_state, rc = rc1)
+      flag1  =  int_state%grid_aldata                                     
+      flag2  = .not. int_state%grid_aldata .and. int_state%start_step   
+      imp2int = flag1 .or. flag2                                    
+
+      if ( imp2int ) then
+        call gfs_physics_import2internal_mgrid( imp_gfs_phy,    &         
+                                            int_state, rc = rc1)      
+        call gfs_physics_err_msg(rc1,'import2internal_mgrid',rc)     
+      endif                                                         
+
       idate(1:4)=int_state%fhour_idate(1,2:5)
       fhour     =int_state%fhour_idate(1,1)
 
@@ -674,8 +702,20 @@
      call esmf_logwrite("internal state to esmf export state", 	&
                        esmf_log_info, rc = rc1)
 
-     call gfs_physics_internal2export(gc_gfs_phy, int_state,  	&
-                                         exp_gfs_phy, rc = rc1)
+! the pointer/copy option (Sarah Lu)
+!  point export state to internal state grid_fld            
+!  internal2export is called once and all                  
+
+!*   call gfs_physics_internal2export(gc_gfs_phy, int_state,  	&
+!*                                       exp_gfs_phy, rc = rc1)
+
+     if ( int_state%start_step ) then                             
+       call gfs_physics_internal2export_mgrid( int_state,        & 
+                                          exp_gfs_phy, rc = rc1)  
+       call gfs_physics_err_msg(rc1,'internal2export_mgrid',rc)  
+
+       int_state%start_step = .false. 
+     endif                                                     
 
      call gfs_physics_err_msg(rc1,'internal state to esmf export state',rc)
 !

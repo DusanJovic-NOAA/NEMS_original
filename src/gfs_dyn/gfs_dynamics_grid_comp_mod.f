@@ -9,6 +9,10 @@
 !  oct 4 2009       sarah lu, 3D Gaussian grid (DistGrid5) added
 !  oct 5 2009       sarah lu, grid_gr unfolded from 2D to 3D
 !  oct 2009         Jun Wang, add not quilting option, add run time variables into wrt inport state
+!  oct 12 2009      Sarah Lu, set up the association between imp/exp state and grid_gr
+!                   => export state is pointed to grid_gr in init step
+!                   => grid_gr is pointed to import state in run step
+!
 !                           
 !
 ! !interface:
@@ -132,6 +136,7 @@
 !  may      2005     weiyu yang for the updated gfs version.
 !  february 2006     moorthi
 !  february 2007     h.-m. h. juang
+!  oct 12 2009       Sarah Lu, export state is pointed to grid_gr once and for all
 !
 ! !interface:
 !
@@ -145,6 +150,8 @@
 ! user code, for computations related to the esmf interface states.
 !------------------------------------------------------------------
       use gfs_dynamics_states_mod
+      use gfs_dyn_states_mod, only : gfs_dynamics_import2internal_mgrid, &
+                                     gfs_dynamics_internal2export_mgrid    
       use gfs_dynamics_grid_create_mod
 !
 ! !input/output variables and parameters:
@@ -441,6 +448,12 @@
 
       call gfs_dynamics_err_msg(rc1,'gfs_dynamics_grid_create_gauss3d',rc) 
 
+!
+! Define Dynamics Export states    (Sarah Lu)                                         
+!
+     call gfs_dynamics_internal2export_mgrid(int_state, exp_gfs_dyn, rc1)    
+
+     call gfs_dynamics_err_msg(rc1,'gfs_dynamics_internal2export_mgrid',rc)  
 
 ! associate the grid3 with the esmf grid component gsgfs
 ! used at the begining of the run routine when read in
@@ -552,6 +565,7 @@
 !  may      2005     weiyu yang for the updated gfs version.
 !  february 2006     moorthi
 !  july     2007     hann-ming henry juang
+!  oct 12 2009       Sarah Lu, point grid_gr to import state once and for all
 !
 ! !interface:
 !
@@ -560,6 +574,7 @@
                             imp_gfs_dyn, exp_gfs_dyn, clock, rc)
 
       use gfs_dynamics_states_mod
+      use gfs_dyn_states_mod
 !
 ! !input variables and parameters:
 !---------------------------------
@@ -620,8 +635,13 @@
                         esmf_log_info, rc = rc1)
 
       if( .not. int_state%start_step ) then
-        call gfs_dynamics_import2internal(gc_gfs_dyn, imp_gfs_dyn, 	&
-                                          int_state, rc1)
+!*      call gfs_dynamics_import2internal(gc_gfs_dyn, imp_gfs_dyn, 	&
+!*                                        int_state, rc1)
+
+        call gfs_dynamics_import2internal_mgrid(imp_gfs_dyn, int_state, rc1)  
+
+        call gfs_dynamics_err_msg(rc1,'esmf import state to internal state',rc)
+
         idate(1:4)=int_state%fhour_idate(1,2:5)
       endif
 
@@ -670,10 +690,13 @@
      call esmf_logwrite("internal state to esmf export state", 	&
                        esmf_log_info, rc = rc1)
 
-     call gfs_dynamics_internal2export(gc_gfs_dyn, int_state,  	&
-                                         exp_gfs_dyn, rc1)
+!
+! export state is now pointed to grid_gr in init step (Sarah Lu)
 
-     call gfs_dynamics_err_msg(rc1,'internal state to esmf export state',rc)
+!*   call gfs_dynamics_internal2export(gc_gfs_dyn, int_state,  	&
+!*                                       exp_gfs_dyn, rc1)
+
+!*   call gfs_dynamics_err_msg(rc1,'internal state to esmf export state',rc)
 ! ======================================================================
 !*jw------------- put run level variables into write_imp_state---------
 ! ======================================================================

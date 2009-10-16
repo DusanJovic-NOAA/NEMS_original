@@ -41,7 +41,7 @@
 !
 ! Program History Log:
 !   1999-01-26  Iredell
-!   1999-10-12  Sarah Lu, add grid_aldata
+!   1999-10-12  Sarah Lu, add grid_aldata (default to F)
 !
 ! Usage:    call compns(deltim,
 !    &                  fhout,fhswr,fhlwr,fhzer,fhres,fhcyc,
@@ -159,7 +159,10 @@ c     if output (fhout) more frequently than zeroing ,get partial rains
       iovr_sw = 1         ! sw: max-random overlap clouds
       iovr_lw = 1         ! lw: max-random overlap clouds
 !
-      grid_aldata = .true.
+! The copy/pointer option (Sarah Lu)
+! 3D fields are allocated only in DYN;
+! pointer is used to associate 3D fields in PHY back to DYN 
+      grid_aldata = .false.
 !
       print *,' nlunit=',nlunit,' gfs_phy_namelist=',gfs_phy_namelist
 c$$$      read(5,nam_phy)

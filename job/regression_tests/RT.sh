@@ -413,6 +413,25 @@ export PE1=30      ; export WTPG=2       ; export NDAYS=2
 #---------------------
 
 ####################################################################################################
+export TEST_DESCR="Test GFS with 2-copy option"
+####################################################################################################
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/GFS_32_2copy
+export CNTL_PTH=${RTPWD}/GFS
+export LIST_FILES=" \
+       sigf03 sigf06 sigf12 sigf24 sigf48 \
+       sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+       flxf03 flxf06 flxf12 flxf24 flxf48"
+#---------------------
+export TASKS=32    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
+export PE1=30      ; export WTPG=2       ; export NDAYS=2
+#---------------------
+./rt_gfs_2copy.sh
+ if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+####################################################################################################
 export TEST_DESCR="Test GFS different decomposition"
 ####################################################################################################
 #---------------------

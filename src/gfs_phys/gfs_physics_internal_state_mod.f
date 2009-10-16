@@ -16,6 +16,7 @@
 !  november 2007       hann-ming henry juang continue for gfs physics
 !  oct 09 2009        sarah lu, add lats_node_r,ipt_lats_node_r,lats_nodes_r_fix
 !  oct 11 2009        sarah lu, add grid_fld and grid_aldata
+!  oct 12 2009        sarah lu, add start_step
 !
 ! !interface:
 !
@@ -44,6 +45,8 @@
       TYPE(Grid_Var_Data)       :: grid_fld  
 
       logical                   :: grid_aldata  
+      logical                   :: start_step
+
       integer                   :: me, nodes
       INTEGER                   :: llgg_s, lonr_s, latr_s
 !     integer                   :: grib_inp

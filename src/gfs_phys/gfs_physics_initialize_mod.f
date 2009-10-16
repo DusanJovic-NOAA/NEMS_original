@@ -16,6 +16,7 @@
 !  oct 09 2009  Sarah Lu        coord def initialized (lats_nodes_r_fix,
 !                               lats_node_r, ipt_lats_node_r)
 !  oct 11 2009  Sarah Lu        grid_gr is replaced by grid_fld
+!  oct 12 2009  Sarah Lu        initialize start_step
 !
 ! !interface:
 !
@@ -442,6 +443,10 @@
       if (ldiag3d) then
         call d3d_zero
       endif
+!
+! initialize start_step (Sarah Lu)
+      gis_phy% start_step  = .true.      
+!
 !
 !
       end subroutine gfs_physics_initialize

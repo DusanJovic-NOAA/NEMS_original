@@ -13,6 +13,9 @@
 !***  physics gridded components by transfering their export and
 !***  import states between the two.
 !
+!! Code Revision:
+!! Oct 12 2009        Sarah Lu, atm_cpl_run modified to move Fields and
+!!                    FieldBundle between import and export states
 !-----------------------------------------------------------------------
 !
       use esmf_mod
@@ -223,6 +226,18 @@
       character(20) :: array_name
       character(20) :: imp_item_name(20), exp_item_name(20)
 !
+! Additional variables are added, allowing the couple to handle array,
+! field, and/or field bundle  (Sarah Lu)
+!
+      TYPE(ESMF_Array)               :: ESMFArray          
+      TYPE(ESMF_Field)               :: ESMFField        
+      TYPE(ESMF_FieldBundle)         :: ESMFBundle      
+      integer                        :: rc2           
+      logical, save :: cpl_array = .false.         
+      logical, save :: cpl_field = .false.    
+      logical, save :: cpl_bundle = .false.  
+      logical, save :: first = .true.      
+!
       logical, save :: from_exp_dyn_to_imp_phy = .false.
       logical, save :: from_exp_phy_to_imp_dyn = .false.
       logical, save :: from_imp_dyn_to_exp_dyn = .false.
@@ -293,6 +308,52 @@
       call err_msg(rc,'retrieve state name in coupler',rcfinal)
 !
       rcfinal=rc
+
+!
+!-----------------------------------------------------------------------
+! check the data class in the imp/exp state (Sarah Lu)
+
+      if ( first ) then                                               
+!---> query ps as an ESMF Array
+      array_name=trim(datanames_2d(1))                               
+      CALL ESMF_StateGet(state   = imp_state                        & 
+                        ,itemName  = array_name                     & 
+                        ,array     = ESMFArray                      & 
+                        ,rc        = rc2)                          
+      if ( rc2 == esmf_success ) then                         
+         print *,' LU_CPL: ESMFArray found in imp state'          
+         cpl_array = .true.                                     
+      else                                                          
+         print *,' LU_CPL: ESMFArray not found in imp state'     
+         cpl_array = .false.                               
+      endif                                             
+!---> query ps as an ESMF Field
+      CALL ESMF_StateGet(state   = imp_state                        & 
+                        ,itemName  = array_name                     &
+                        ,field     = ESMFField                      & 
+                        ,rc        = rc2)                            
+      if ( rc2 == esmf_success ) then                               
+         print *,' LU_CPL: ESMFField found in imp state'         
+         cpl_field = .true.                                     
+      else                                                     
+         print *,' LU_CPL: ESMFField not found in imp state'    
+         cpl_field = .false.                                 
+      endif                                           
+!---> query tracer bundle
+      CALL ESMF_StateGet(state   = imp_state                        & 
+                        ,itemName  = 'Tracers'                      & 
+                        ,fieldbundle = ESMFBundle                   & 
+                        ,rc        = rc2)                          
+      if ( rc2 == esmf_success ) then                          
+         print *,' LU_CPL: ESMFBundle found in imp state'             
+         cpl_bundle = .true.                                       
+      else                                                        
+         print *,' LU_CPL: ESMFBundle not found in imp state'    
+         cpl_bundle = .false.                                  
+      endif                                              
+
+      first = .false.              
+      endif    
 !
 !-----------------------------------------------------------------------
 !***  the number of fields transferred from the dynamics to
@@ -394,7 +455,9 @@
 !-----------------------------------------------------------------------
 !***  do the 1-d arrays.
 !-----------------------------------------------------------------------
-!
+
+!    
+  lab_if_1d : if ( cpl_array ) then
       data_1d: do n=1,ndata1o
 !
 !-----------------------------------------------------------------------
@@ -418,6 +481,7 @@
 !-----------------------------------------------------------------------
 !
       enddo data_1d
+  endif  lab_if_1d
 !
 !-----------------------------------------------------------------------
 !***  now do the 2-d arrays.
@@ -425,12 +489,15 @@
 !
       data_2d: do n=1,ndata2o
 !
+
 !-----------------------------------------------------------------------
 !
         array_name=trim(datanames_2d(n))
 !
-!        print *,' get ',array_name
+!       print *,' get ',array_name
 !
+        lab_if_2darray : if ( cpl_array ) then     ! loop through 2d array
+
         CALL ESMF_StateGet(imp_state, array_name, hold_array, rc = rc)
 
 !
@@ -446,6 +513,22 @@
 !
 !-----------------------------------------------------------------------
 !
+        endif lab_if_2darray
+
+        lab_if_2dfield : if ( cpl_field ) then     ! loop through field
+          call ESMF_StateGet(state      = imp_state                  & 
+                           ,itemName   = array_name                  & 
+                           ,field      = ESMFField                   & 
+                           ,rc   =rc)                                 
+          call err_msg(rc,'retrieve field from cpl import',rcfinal)    
+
+          call ESMF_StateAdd(state      = exp_state                  & 
+                          ,field      = ESMFField                    & 
+                          ,rc   =rc)                                   
+          call err_msg(rc,'add field to cpl export',rcfinal)         
+
+        endif lab_if_2dfield                                       
+
       enddo data_2d
 !
 !-----------------------------------------------------------------------
@@ -477,6 +560,9 @@
 !
 !         print *,' get ',array_name
 !
+
+         lab_if_3darray : if ( cpl_array ) then   ! loop through 3d array
+
           CALL ESMF_StateGet(imp_state, array_name, hold_array, rc = rc)
 !
 !         call atmos_err_msg(rc,'retrieve array from cpl import',rcfinal)
@@ -489,6 +575,21 @@
 !
 !         call atmos_err_msg(rc,'add array to cpl export',rcfinal)
 !
+         endif lab_if_3darray   
+
+         lab_if_3dfield : if ( cpl_field ) then    ! loop through 3d fields
+          call ESMF_StateGet(state      = imp_state                    & 
+                             ,itemName  = array_name                   &
+                             ,field     = ESMFField                    & 
+                             ,rc   =rc)                                 
+          call err_msg(rc,'retrieve field from cpl import',rcfinal)   
+
+          call ESMF_StateAdd(state      = exp_state                    & 
+                            ,field      = ESMFField                    & 
+                            ,rc   =rc)                                 
+          call err_msg(rc,'add field to cpl export',rcfinal)        
+!
+         endif lab_if_3dfield                               
 !-----------------------------------------------------------------------
 !
         enddo data_3d
@@ -506,10 +607,12 @@
                         ,itemcount = exp_item                           &
                         ,itemnamelist = exp_item_name                   &
                         ,rc   =rc)
+
+! Sarah Lu, turn on debug prints
 !
-!      print *,' coupler is done for expor state '                       &
-!             ,' (',trim(export_statename),') with item =',exp_item      &
-!             ,' and item name is ',(exp_item_name(n),n=1,exp_item)
+      print *,' coupler is done for expor state '                       &
+             ,' (',trim(export_statename),') with item =',exp_item      &
+             ,' and item name is ',(exp_item_name(n),n=1,exp_item)
 !
       rcfinal=rc
 !

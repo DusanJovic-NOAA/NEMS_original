@@ -24,6 +24,7 @@ OBJS0   = \
 	  gfs_physics_finalize_mod.o           \
 	  gfs_physics_add_get_state_mod.o      \
 	  gfs_physics_states_mod.o             \
+	  gfs_phy_states_mod.o             \
 	  gfs_physics_grid_comp_mod.o
 
 OBJ_MOD	= \
@@ -407,6 +408,9 @@ gfs_physics_add_get_state_mod.o:        gfs_physics_add_get_state_mod.f
 gfs_physics_states_mod.o:       gfs_physics_states_mod.f
 		$(FC) $(FFLAG90) -c gfs_physics_states_mod.f
                                                                                 
+gfs_phy_states_mod.o:		gfs_phy_states_mod.f
+		$(FC) $(FFLAG90) -c gfs_phy_states_mod.f
+
 gfs_physics_initialize_mod.o:   gfs_physics_initialize_mod.f
 		$(FC) $(FFLAG90) -c gfs_physics_initialize_mod.f
                                                                                 

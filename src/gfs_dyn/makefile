@@ -18,6 +18,7 @@ OBJS0	= \
 	  gfs_dynamics_finalize_mod.o		\
 	  gfs_dynamics_add_get_state_mod.o	\
 	  gfs_dynamics_states_mod.o		\
+	  gfs_dyn_states_mod.o		\
 	  gfs_dynamics_grid_comp_mod.o
 	  
 
@@ -233,6 +234,9 @@ gfs_dynamics_add_get_state_mod.o:	 gfs_dynamics_add_get_state_mod.f
 
 gfs_dynamics_states_mod.o:	 gfs_dynamics_states_mod.f
 		$(FC) $(FFLAG90) -c gfs_dynamics_states_mod.f
+
+gfs_dyn_states_mod.o:		gfs_dyn_states_mod.f
+		$(FC) $(FFLAG90) -c gfs_dyn_states_mod.f
 
 gfs_dynamics_initialize_mod.o:	 gfs_dynamics_initialize_mod.f
 		$(FC) $(FFLAG90) -c gfs_dynamics_initialize_mod.f
