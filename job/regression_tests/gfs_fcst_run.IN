@@ -42,7 +42,7 @@ export FAISS=0.0
 #
 #  This script is NOT complete for running multiple ensemble members
 #
- export QUILTING=_QUILTING_
+ export QUILTING=_QUILT_
 #
  export ENS_NUM=1
 #

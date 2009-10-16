@@ -1,13 +1,13 @@
-Thu Oct 15 15:03:54 EDT 2009
+Fri Oct 16 10:53:58 EDT 2009
 Start Regression test
-Test 1
-Compare results with previous trunk version
-NMMB, global case
 
 
 
+Test 001
+Compare NMMB-global results with previous trunk version
 
-Checking test 1 results ....
+
+Checking test 001 results ....
  Comparing nmm_b_history.000.........OK
  Comparing nmm_b_history.003.........OK
  Comparing nmm_b_history.006.........OK
@@ -22,17 +22,18 @@ Checking test 1 results ....
  Comparing nmm_b_history_nemsio.024.........OK
  Comparing nmm_b_history_nemsio.048.........OK
  Comparing nmm_b_restart_nemsio.024.........OK
- Test 1 passed 
-
- Original timing:  196.4453278  , test1 timing:  211.8560028
-Test 2
-Test NEMSIO as input file
-NMMB, global case
+ Test 001 passed 
 
 
 
+ Original timing:  196.4453278  , test_glob timing:  208.9200134
 
-Checking test 2 results ....
+
+Test 002
+Test NMMB-global NEMSIO as input file
+
+
+Checking test 002 results ....
  Comparing nmm_b_history.000.........OK
  Comparing nmm_b_history.003.........OK
  Comparing nmm_b_history.006.........OK
@@ -47,41 +48,41 @@ Checking test 2 results ....
  Comparing nmm_b_history_nemsio.024.........OK
  Comparing nmm_b_history_nemsio.048.........OK
  Comparing nmm_b_restart_nemsio.024.........OK
- Test 2 passed 
-Test 3
-Test restart run
-NMMB, global case
+ Test 002 passed 
 
 
 
+Test 003
+Test NMMB-global restart run
 
-Checking test 3 results ....
+
+Checking test 003 results ....
  Comparing nmm_b_history.027.........OK
  Comparing nmm_b_history.030.........OK
  Comparing nmm_b_history.036.........OK
  Comparing nmm_b_history.048.........OK
- Test 3 passed 
-Test 4
-Test restart run from NEMSIO file
-NMMB, global case
+ Test 003 passed 
 
 
 
+Test 004
+Test NMMB-global restart run from NEMSIO file
 
-Checking test 4 results ....
+
+Checking test 004 results ....
  Comparing nmm_b_history.027.........OK
  Comparing nmm_b_history.030.........OK
  Comparing nmm_b_history.036.........OK
  Comparing nmm_b_history.048.........OK
- Test 4 passed 
-Test 5
-Test different decomposition
-NMMB, global case
+ Test 004 passed 
 
 
 
+Test 005
+Test NMMB-global different decomposition
 
-Checking test 5 results ....
+
+Checking test 005 results ....
  Comparing nmm_b_history.000.........OK
  Comparing nmm_b_history.003.........OK
  Comparing nmm_b_history.006.........OK
@@ -92,15 +93,15 @@ Checking test 5 results ....
  Comparing nmm_b_history_nemsio.006.........OK
  Comparing nmm_b_history_nemsio.012.........OK
  Comparing nmm_b_history_nemsio.024.........OK
- Test 5 passed 
-Test 6
-Test threading 
-NMMB, global case
+ Test 005 passed 
 
 
 
+Test 006
+Test NMMB-global threading
 
-Checking test 6 results ....
+
+Checking test 006 results ....
  Comparing nmm_b_history.000.........OK
  Comparing nmm_b_history.003.........OK
  Comparing nmm_b_history.006.........OK
@@ -115,15 +116,15 @@ Checking test 6 results ....
  Comparing nmm_b_history_nemsio.024.........OK
  Comparing nmm_b_history_nemsio.048.........OK
  Comparing nmm_b_restart_nemsio.024.........OK
- Test 6 passed 
-Test 7
-Test GFS physics package in NMMB
-NMMB, global case
+ Test 006 passed 
 
 
 
+Test 007
+Test NMMB-global with GFS physics package
 
-Checking test 7 results ....
+
+Checking test 007 results ....
  Comparing nmm_b_history.000.........OK
  Comparing nmm_b_history.003.........OK
  Comparing nmm_b_history.006.........OK
@@ -136,15 +137,15 @@ Checking test 7 results ....
  Comparing nmm_b_history_nemsio.012.........OK
  Comparing nmm_b_history_nemsio.024.........OK
  Comparing nmm_b_restart_nemsio.012.........OK
- Test 7 passed 
-Test 8
-Compare results with previous trunk version
-NMMB, regional case
+ Test 007 passed 
 
 
 
+Test 008
+Compare NMMB-regional results with previous trunk version
 
-Checking test 8 results ....
+
+Checking test 008 results ....
  Comparing nmm_b_history.000.........OK
  Comparing nmm_b_history.003.........OK
  Comparing nmm_b_history.006.........OK
@@ -159,17 +160,18 @@ Checking test 8 results ....
  Comparing nmm_b_history_nemsio.024.........OK
  Comparing nmm_b_history_nemsio.048.........OK
  Comparing nmm_b_restart_nemsio.024.........OK
- Test 8 passed 
-
- Original timing:  644.2672729  , test1 timing:  684.3440552
-Test 9
-Test NEMSIO as input file
-NMMB, regional case
+ Test 008 passed 
 
 
 
+ Original timing:  644.2672729  , test_reg timing:  679.6560059
 
-Checking test 9 results ....
+
+Test 009
+Test NMMB-regional NEMSIO as input file
+
+
+Checking test 009 results ....
  Comparing nmm_b_history.000.........OK
  Comparing nmm_b_history.003.........OK
  Comparing nmm_b_history.006.........OK
@@ -180,55 +182,55 @@ Checking test 9 results ....
  Comparing nmm_b_history_nemsio.006.........OK
  Comparing nmm_b_history_nemsio.009.........OK
  Comparing nmm_b_history_nemsio.012.........OK
- Test 9 passed 
-Test 10
-Test restart run
-NMMB, regional case
+ Test 009 passed 
 
 
 
+Test 010
+Test NMMB-regional restart run
 
-Checking test 10 results ....
+
+Checking test 010 results ....
  Comparing nmm_b_history.027.........OK
  Comparing nmm_b_history.030.........OK
  Comparing nmm_b_history.036.........OK
  Comparing nmm_b_history.048.........OK
- Test 10 passed 
-Test 11
-Test restart run with NEMSIO file 
-NMMB, regional case
+ Test 010 passed 
 
 
 
+Test 011
+Test NMMB-regional restart run with NEMSIO file
 
-Checking test 11 results ....
+
+Checking test 011 results ....
  Comparing nmm_b_history.027.........OK
  Comparing nmm_b_history.030.........OK
  Comparing nmm_b_history.036.........OK
  Comparing nmm_b_history.048.........OK
- Test 11 passed 
-Test 12
-Test different decomposition
-NMMB, regional case
+ Test 011 passed 
 
 
 
+Test 012
+Test NMMB-regional different decomposition
 
-Checking test 12 results ....
+
+Checking test 012 results ....
  Comparing nmm_b_history.000.........OK
  Comparing nmm_b_history.003.........OK
  Comparing nmm_b_history.006.........OK
  Comparing nmm_b_history.009.........OK
  Comparing nmm_b_history.012.........OK
- Test 12 passed 
-Test 13
-Test threading 
-NMMB, regional case
+ Test 012 passed 
 
 
 
+Test 013
+Test NMMB-regional threading
 
-Checking test 13 results ....
+
+Checking test 013 results ....
  Comparing nmm_b_history.000.........OK
  Comparing nmm_b_history.003.........OK
  Comparing nmm_b_history.006.........OK
@@ -243,15 +245,15 @@ Checking test 13 results ....
  Comparing nmm_b_history_nemsio.024.........OK
  Comparing nmm_b_history_nemsio.048.........OK
  Comparing nmm_b_restart_nemsio.024.........OK
- Test 13 passed 
-Test 14
-Test GFS physics package in NMMB
-NMMB, regional case
+ Test 013 passed 
 
 
 
+Test 014
+Test NMMB-regional with GFS physics package
 
-Checking test 14 results ....
+
+Checking test 014 results ....
  Comparing nmm_b_history.000.........OK
  Comparing nmm_b_history.003.........OK
  Comparing nmm_b_history.006.........OK
@@ -264,97 +266,112 @@ Checking test 14 results ....
  Comparing nmm_b_history_nemsio.012.........OK
  Comparing nmm_b_history_nemsio.024.........OK
  Comparing nmm_b_restart_nemsio.012.........OK
- Test 14 passed 
+ Test 014 passed 
+
+
+
 Preparing GFS core for regression tests
-Test 15
-Compare results with previous trunk version
+Test 015
+Compare GFS results with previous trunk version
 GFS, 32 proc, 1 thread
 
 
 
 
-Checking test 15 results ....
+Checking test 015 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
- Comparing sigf09.........OK
  Comparing sigf12.........OK
  Comparing sigf24.........OK
  Comparing sigf48.........OK
  Comparing sfcf03.........OK
  Comparing sfcf06.........OK
- Comparing sigf09.........OK
  Comparing sfcf12.........OK
  Comparing sfcf24.........OK
  Comparing sfcf48.........OK
  Comparing flxf03.........OK
  Comparing flxf06.........OK
- Comparing sigf09.........OK
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 15 passed 
-Test 16
-Test different decomposition
+ Test 015 passed 
+Test 016
+Test GFS different decomposition
 GFS, 60 proc, 1 thread
 
 
 
 
-Checking test 16 results ....
+Checking test 016 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
- Comparing sigf09.........OK
  Comparing sigf12.........OK
  Comparing sigf24.........OK
  Comparing sigf48.........OK
  Comparing sfcf03.........OK
  Comparing sfcf06.........OK
- Comparing sigf09.........OK
  Comparing sfcf12.........OK
  Comparing sfcf24.........OK
  Comparing sfcf48.........OK
  Comparing flxf03.........OK
  Comparing flxf06.........OK
- Comparing sigf09.........OK
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 16 passed 
-Test 17
-Test threads
-GFS, 16 proc, 2 threads
+ Test 016 passed 
+Test 017
+Test GFS threads
+GFS, 16 proc, 2 thread
 
 
 
 
-Checking test 17 results ....
+Checking test 017 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
- Comparing sigf09.........OK
  Comparing sigf12.........OK
  Comparing sigf24.........OK
  Comparing sigf48.........OK
  Comparing sfcf03.........OK
  Comparing sfcf06.........OK
- Comparing sigf09.........OK
  Comparing sfcf12.........OK
  Comparing sfcf24.........OK
  Comparing sfcf48.........OK
  Comparing flxf03.........OK
  Comparing flxf06.........OK
- Comparing sigf09.........OK
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 17 passed 
-Test 18
-Test single processor
-GFS, 1 proc, 1 threads, no quilting
+ Test 017 passed 
+Test 018
+Test GFS single processor
+GFS, 1 proc, 1 thread
 
 
 
 
-Checking test 18 results ....
+Checking test 018 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Test 018 passed 
+Test 019
+Test GFS, 1 proc, 1 threads,no quilting,nsout=1
+GFS, 1 proc, 1 thread
+
+
+
+
+Checking test 019 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
  Comparing sigf09.........OK
@@ -370,110 +387,77 @@ Checking test 18 results ....
  Comparing sigf09.........OK
  Comparing flxf12.........OK
  Comparing flxf24.........OK
- Test 18 passed 
-Test 19
-Test single processor
-GFS, 1 proc, 1 threads,no quilting,nsout=1
+ Test 019 passed 
+Test 020
+Test GFS, 16 proc, 2 threads,no quilt, output every 2 time steps
+GFS, 16 proc, 2 thread
 
 
 
 
-Checking test 19 results ....
+Checking test 020 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
- Comparing sigf09.........OK
- Comparing sigf12.........OK
- Comparing sigf24.........OK
- Comparing sfcf03.........OK
- Comparing sfcf06.........OK
- Comparing sigf09.........OK
- Comparing sfcf12.........OK
- Comparing sfcf24.........OK
- Comparing flxf03.........OK
- Comparing flxf06.........OK
- Comparing sigf09.........OK
- Comparing flxf12.........OK
- Comparing flxf24.........OK
- Test 19 passed 
-Test 20
-Test threads
-GFS, 16 proc, 2 threads,no quilt, output every 2 time steps
-
-
-
-
-Checking test 20 results ....
- Comparing sigf03.........OK
- Comparing sigf06.........OK
- Comparing sigf09.........OK
  Comparing sigf12.........OK
  Comparing sigf24.........OK
  Comparing sigf48.........OK
  Comparing sfcf03.........OK
  Comparing sfcf06.........OK
- Comparing sigf09.........OK
  Comparing sfcf12.........OK
  Comparing sfcf24.........OK
  Comparing sfcf48.........OK
  Comparing flxf03.........OK
  Comparing flxf06.........OK
- Comparing sigf09.........OK
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 20 passed 
-Test 21
-Test different decomposition
-GFS, 60 proc, 1 thread, no quilt
+ Test 020 passed 
+Test 021
+Test GFS, 60 proc, 1 thread, no quilt
+GFS, 60 proc, 1 thread
 
 
 
 
-Checking test 21 results ....
+Checking test 021 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
- Comparing sigf09.........OK
  Comparing sigf12.........OK
  Comparing sigf24.........OK
  Comparing sigf48.........OK
  Comparing sfcf03.........OK
  Comparing sfcf06.........OK
- Comparing sigf09.........OK
  Comparing sfcf12.........OK
  Comparing sfcf24.........OK
  Comparing sfcf48.........OK
  Comparing flxf03.........OK
  Comparing flxf06.........OK
- Comparing sigf09.........OK
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 21 passed 
-Test 22
-Compare results with previous trunk version
+ Test 021 passed 
+Test 022
 GFS, 32 proc, 1 thread, no quilt, output every 4 timestep
+GFS, 32 proc, 1 thread
 
 
 
 
-Checking test 22 results ....
+Checking test 022 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
- Comparing sigf09.........OK
  Comparing sigf12.........OK
  Comparing sigf24.........OK
  Comparing sigf48.........OK
  Comparing sfcf03.........OK
  Comparing sfcf06.........OK
- Comparing sigf09.........OK
  Comparing sfcf12.........OK
  Comparing sfcf24.........OK
  Comparing sfcf48.........OK
  Comparing flxf03.........OK
  Comparing flxf06.........OK
- Comparing sigf09.........OK
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 22 passed 
-Thu Oct 15 21:45:44 EDT 2009
+ Test 022 passed 
+Fri Oct 16 13:44:08 EDT 2009

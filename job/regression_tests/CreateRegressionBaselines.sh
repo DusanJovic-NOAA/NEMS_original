@@ -218,7 +218,7 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:32:g         \
                     | sed s:_WPG_:2:g            \
                     | sed s:_THRDS_:1:g          \
                     | sed s:_NSOUT_:1:g          \
-                    | sed s:_QUILTING_:.true.:g          \
+                    | sed s:_QUILT_:.true.:g     \
                     | sed s:_RUNDIR_:${RUNDIR}:g \
                     | sed s:_PATHTR_:${PATHTR}:g \
                     | sed s:_NDAYS_:2:g          >  gfs_fcst_run
