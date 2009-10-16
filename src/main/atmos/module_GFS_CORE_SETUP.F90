@@ -212,7 +212,7 @@
 !
         CALL SETUP_SERVERS_GFS(MYPE,INPES,JNPES,NUM_PES,last_fcst_pe    &
                         ,WRITE_GROUPS,WRITE_TASKS_PER_GROUP             &
-                        ,mpi_intra_b,quilting)
+                        ,mpi_intra_b)
 !      write(0,*)'after setup_servers_gfs, inpes=',inpes,'jnpes=',jnpes, &
 !        'write_groups=',write_groups,'WRITE_TASKS_PER_GROUP=',          &
 !        WRITE_TASKS_PER_GROUP,'last_fcst_pe=',last_fcst_pe

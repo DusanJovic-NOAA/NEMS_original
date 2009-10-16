@@ -32,7 +32,7 @@
 !
       subroutine setup_servers_gfs(mype,inpes,jnpes,npes,last_fcst_pe       &
                               ,ngroups_write,write_tasks_per_group      &
-                              ,mpi_intra,quilting)
+                              ,mpi_intra)
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -75,7 +75,7 @@
 ,write_tasks_per_group &    ! number of groups of write tasks per group
 ,mpi_intra                  ! global communicator
 !
-      logical,intent(in) :: quilting
+!      logical,intent(in) :: quilting
 !
       integer(kind=kind_io4),intent(inout) :: &
  npes                       ! total number of tasks provided
@@ -203,7 +203,7 @@
 !             +ngroups_write*write_tasks_per_group
       iqserver=ngroups_write*write_tasks_per_group                         !<-- Total # of quilt tasks in all groups
 !junwang
-      if(.not.quilting) iqserver=0
+!      if(.not.quilting) iqserver=0
        write(0,*)'in setup_gfs,last_fcst_pe=',last_fcst_pe,'ngroup_write=', &
          ngroups_write,'iqserver=',iqserver
       last_qserver=last_fcst_pe+iqserver
@@ -282,7 +282,7 @@
 !-----------------------------------------------------------------------
 !
 !jw      ifntasks:  if( npes_fcst+iqserver>1) then
-      ifntasks:  if( quilting ) then
+!      ifntasks:  if( quilting ) then
 !
       call mpi_comm_split(comdup,icolor,mype,mc_comp,ierr)
       mpi_comm_comp=mc_comp
@@ -414,7 +414,7 @@
 !###
 !-----------------------------------------------------------------------
 !
-      endif ifntasks
+!      endif ifntasks
 !
 !***
 !***  Set npes to the number of tasks working on the model integration.

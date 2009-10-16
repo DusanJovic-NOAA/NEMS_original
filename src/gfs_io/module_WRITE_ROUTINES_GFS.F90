@@ -596,9 +596,13 @@
            endif
          ELSE
            wrt_int_state%nlat_from_fcst_task(I)= wrt_int_state%nlat_to_write_task(1)
-           wrt_int_state%nstart_from_fcst_task(I)=                     &
-              wrt_int_state%nstart_from_fcst_task(I-1)+                &
-              wrt_int_state%nlat_from_fcst_task(I-1)
+           if(ntasks>1) then
+              wrt_int_state%nstart_from_fcst_task(I)=                  &
+                wrt_int_state%nstart_from_fcst_task(I-1)+              &
+                wrt_int_state%nlat_from_fcst_task(I-1)
+           else
+              wrt_int_state%nstart_from_fcst_task(I)=1
+           endif
            ISTART=wrt_int_state%nstart_from_fcst_task(I)
            NLAT=wrt_int_state%nlat_from_fcst_task(I)
            wrt_int_state%fcst_lat_on_write_task(ISTART:ISTART+NLAT-1)= &
