@@ -51,6 +51,7 @@ fi
 # CLASS       - job class/group (LoadLeveler)
 # ACCNR       - account number (LoadLeveler)
 # DISKNM      - disk name ( /meso or /mtb)
+# CP2         - 2-copy option
 #
 ################################################
 
@@ -406,7 +407,7 @@ export LIST_FILES=" \
        flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
 export TASKS=32    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
-export PE1=30      ; export WTPG=2       ; export NDAYS=2
+export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=#
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -425,9 +426,9 @@ export LIST_FILES=" \
        flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
 export TASKS=32    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
-export PE1=30      ; export WTPG=2       ; export NDAYS=2
+export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=''
 #---------------------
-./rt_gfs_2copy.sh
+./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
 #---------------------
 
@@ -444,7 +445,7 @@ export LIST_FILES=" \
        flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
 export TASKS=60    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
-export PE1=58      ; export WTPG=2       ; export NDAYS=2
+export PE1=58      ; export WTPG=2       ; export NDAYS=2     ; export CP2=#
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -463,7 +464,7 @@ export LIST_FILES=" \
        flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
 export TASKS=16    ; export THRD=2       ; export NSOUT=0     ; export QUILT=.true.
-export PE1=14      ; export WTPG=2       ; export NDAYS=2
+export PE1=14      ; export WTPG=2       ; export NDAYS=2     ; export CP2=#
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -482,7 +483,7 @@ export LIST_FILES=" \
          flxf03 flxf06 flxf12 flxf24"
 #---------------------
 export TASKS=1     ; export THRD=1       ; export NSOUT=0     ; export QUILT=.false.
-export PE1=1       ; export WTPG=1       ; export NDAYS=1
+export PE1=1       ; export WTPG=1       ; export NDAYS=1     ; export CP2=#
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -501,7 +502,7 @@ export LIST_FILES=" \
          flxf03 flxf06 sigf09 flxf12 flxf24"
 #---------------------
 export TASKS=1     ; export THRD=1       ; export NSOUT=1     ; export QUILT=.false.
-export PE1=1       ; export WTPG=1       ; export NDAYS=1
+export PE1=1       ; export WTPG=1       ; export NDAYS=1     ; export CP2=#
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -520,7 +521,7 @@ export LIST_FILES=" \
        flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
 export TASKS=16    ; export THRD=2       ; export NSOUT=2     ; export QUILT=.false.
-export PE1=16      ; export WTPG=1       ; export NDAYS=2
+export PE1=16      ; export WTPG=1       ; export NDAYS=2     ; export CP2=#
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -539,7 +540,7 @@ export LIST_FILES=" \
        flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
 export TASKS=60    ; export THRD=1       ; export NSOUT=1     ; export QUILT=.false.
-export PE1=60      ; export WTPG=1       ; export NDAYS=2
+export PE1=60      ; export WTPG=1       ; export NDAYS=2     ; export CP2=#
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -558,7 +559,7 @@ export LIST_FILES=" \
        flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
 export TASKS=32    ; export THRD=1       ; export NSOUT=4     ; export QUILT=.false.
-export PE1=32      ; export WTPG=1       ; export NDAYS=2
+export PE1=32      ; export WTPG=1       ; export NDAYS=2     ; export CP2=#
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi

@@ -139,6 +139,7 @@ export lsm=${lsm:-1}
 #
  export DYNVARS="liope=.F.,gfsio_in=$gfsio_in,gfsio_out=$gfsio_out"
  export PHYVARS="liope=.F.,gfsio_in=$gfsio_in,gfsio_out=$gfsio_out"
+_CP2_ export PHYVARS="liope=.F.,gfsio_in=$gfsio_in,gfsio_out=$gfsio_out,grid_aldata=.true."
 
  export TRACERVARS="RI=$RIlist,CPI=$CPIlist,"
 #
