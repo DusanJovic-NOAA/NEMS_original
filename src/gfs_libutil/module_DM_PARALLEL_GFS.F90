@@ -385,7 +385,7 @@
 !***  group they wish to communicate with.
 !-----------------------------------------------------------------------
 !
-        if(include_mype.and.npes_fcst>0)then                                              !<-- Select all fcst tasks plus the quilt tasks in group i
+        if(include_mype.and.npes_fcst>0)then                              !<-- Select all fcst tasks plus the quilt tasks in group i
           write(0,*)'before mpi_intercomm_create'
           call mpi_intercomm_create(mc_comp                             & !<-- Each task's local intracommunicator
                                    ,0                                   & !<-- Rank of lead task in each local intracommunicator

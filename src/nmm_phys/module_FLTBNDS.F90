@@ -3,8 +3,7 @@
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use module_include
 use module_control,only : im,jm,klog,kint,kfpt &
-                         ,s_bdy,n_bdy,w_bdy,e_bdy &
-                         ,read_global_sums,write_global_sums
+                         ,s_bdy,n_bdy,w_bdy,e_bdy 
 !
 use module_dm_parallel,only : ids,ide,jds,jde &
                              ,ims,ime,jms,jme &
@@ -4227,7 +4226,8 @@ real(kind=kfpt) :: &
 !-----------------------------------------------------------------------
 !
                         subroutine poavhn &
-(i_start,i_end,j_start,j_end,km,hn)
+(i_start,i_end,j_start,j_end,km,hn &
+,read_global_sums,write_global_sums)
 !-----------------------------------------------------------------------
 !
       implicit none
@@ -4245,6 +4245,10 @@ integer(kind=kint),intent(in) :: &
 !
 real(kind=kfpt),dimension(i_start:i_end,j_start:j_end,km),intent(inout):: &
  hn
+!
+logical(kind=klog),intent(in) :: &
+ read_global_sums &
+,write_global_sums
 !
 !-----------------------------------------------------------------------
 !***  Local Variables
@@ -4406,180 +4410,6 @@ character(10) :: fstatus
 !-----------------------------------------------------------------------
 !
                         endsubroutine poavhn
-!
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!
-                        subroutine nhpoav &
-(i_start,i_end,j_start,j_end,km,hn)
-!-----------------------------------------------------------------------
-!
-      implicit none
-!
-!-----------------------------------------------------------------------
-!include 'kind.inc'
-!-----------------------------------------------------------------------
-!
-integer(kind=kint),intent(in) :: &
- i_start &
-,i_end &
-,j_start &
-,j_end &
-,km 
-!
-real(kind=kfpt),dimension(i_start:i_end,j_start:j_end,km),intent(inout):: &
- hn
-!
-!-----------------------------------------------------------------------
-!***  Local Variables
-!-----------------------------------------------------------------------
-!
-integer(kind=kint) :: &
- i &
-,ierr &
-,irecv &
-,l
-!
-real(kind=kfpt) :: &
- rcycle
-!
-real(kind=kfpt),dimension(1:km) :: &
- an &
-,an_g &
-,as &
-,as_g
- 
-integer(kind=kint) :: istat
-logical(kind=klog) :: opened
-character(10) :: fstatus
-!-----------------------------------------------------------------------
-!***********************************************************************
-!-----------------------------------------------------------------------
-!
-      mype=mype_share
-!
-!-----------------------------------------------------------------------
-!
-      rcycle=1./(ide-3)
-      do l=1,km
-        as(l)=0.
-        an(l)=0.
-      enddo
-!
-!-----------------------------------------------------------------------
-!***  Sum the values two rows north of the southern boundary.
-!-----------------------------------------------------------------------
-!
-      if(s_bdy)then
-        do l=1,km
-          do i=its_b1,ite_b2
-            as(l)=hn(i,jts+2,l)+as(l)
-          enddo
-        enddo
-      endif
-!
-!-----------------------------------------------------------------------
-!***  Generate the global sum of the previous sums from each task
-!***  if they are not being read in.
-!-----------------------------------------------------------------------
-!
-      if(.not.read_global_sums)then
-!
-        call mpi_allreduce(as,as_g,km,mpi_real,mpi_sum,mpi_comm_comp &
-                          ,irecv)
-      endif
-!-----------------------------------------------------------------------
-!***  For bit reproducibility, read/write global sums.
-!-----------------------------------------------------------------------
-!
-      bits_1: if(read_global_sums.or.write_global_sums)then
-!
-!***  Read in south/north global sums.
-!
-        if(read_global_sums)then
-          if(mype==0)then
-            do l=1,km
-              read(iunit_pole_sums)as_g(l),an_g(l)
-            enddo
-          endif
-!
-          call mpi_bcast(as_g,km,mpi_real,0,mpi_comm_comp,ierr)
-          call mpi_bcast(an_g,km,mpi_real,0,mpi_comm_comp,ierr)
-!
-        endif
-!
-      endif bits_1
-!
-!-----------------------------------------------------------------------
-!***  Reset the array values one row north of the southern boundary row
-!***  to the global sum of values two rows north of the boundary.
-!-----------------------------------------------------------------------
-!
-      if(s_bdy)then
-        do l=1,km
-          as(l)=as_g(l)*rcycle
-          do i=its,ite
-            hn(i,jts+1,l)=as(l)
-          enddo
-        enddo
-      endif
-!
-!-----------------------------------------------------------------------
-!***  Now sum the values two rows south of the northern boundary.
-!-----------------------------------------------------------------------
-!
-      if(n_bdy)then
-        do l=1,km
-          do i=its_b1,ite_b2
-            an(l)=hn(i,jte-2,l)+an(l)
-          enddo
-        enddo
-      endif
-!
-!-----------------------------------------------------------------------
-!***  Generate the global sum of the previous sums from each task
-!***  if they are not being read in.
-!-----------------------------------------------------------------------
-!
-      if(.not.read_global_sums)then
-!
-        call mpi_allreduce(an,an_g,km,mpi_real,mpi_sum,mpi_comm_comp &
-                          ,irecv)
-      endif
-!-----------------------------------------------------------------------
-!***  For bit reproducibility, write global sums.
-!-----------------------------------------------------------------------
-!
-      bits_2: if(write_global_sums)then
-!
-        if(mype==0)then
-          do l=1,km
-            write(iunit_pole_sums)as_g(l),an_g(l)
-          enddo
-        endif
-!
-      endif bits_2
-!
-!-----------------------------------------------------------------------
-!***  Reset the array values one row south of the northern boundary row
-!***  to the global sum of values two rows south of the boundary.
-!-----------------------------------------------------------------------
-!
-      if(n_bdy)then
-        do l=1,km
-          an(l)=an_g(l)*rcycle
-          do i=its,ite
-            hn(i,jte-1,l)=an(l)
-          enddo
-        enddo
-      endif
-!
-!-----------------------------------------------------------------------
-!
-                        endsubroutine nhpoav
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------

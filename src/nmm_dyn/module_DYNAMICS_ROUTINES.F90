@@ -5,10 +5,21 @@
 use module_control,only:klog,kint,kfpt,kdbl &
                        ,adv_upstream,adv_standard &
                        ,e_bdy,n_bdy,s_bdy,w_bdy &
-                       ,read_global_sums,write_global_sums &
                        ,timef
 !
-use module_clocktimes
+use module_clocktimes,only : adv1_tim,adv2_tim,bocoh_tim,bocov_tim &
+                            ,cdwdt_tim,cdzdt_tim,consts_tim &
+                            ,ddamp_tim,dht_tim &
+                            ,dyn_init_tim,dyn_run_tim &
+                            ,exch_dyn_tim &
+                            ,fftfhn_tim,fftfwn_tim,hadv2_tim &
+                            ,hdiff_tim,init_tim,mono_tim &
+                            ,pdtsdt_tim,pgforce_tim,poavhn_tim &
+                            ,polehn_tim,polewn_tim &
+                            ,prefft_tim,presmud_tim &
+                            ,swaphn_tim,swapwn_tim &
+                            ,update_dyn_int_state_tim,updatet_tim &
+                            ,vadv2_tim,vsound_tim,vtoa_tim
 !
 use module_dm_parallel,only : ids,ide,jds,jde &
                              ,ims,ime,jms,jme &
@@ -32,14 +43,13 @@ integer(kind=kint),save :: &
  iunit_advec_sums 
 !
 integer(kind=kint),private :: &
- mype
-!
-real(kind=kfpt),private :: &
- btim
-integer(kind=kint),private :: &
  jstart &
-,jstop
-
+,jstop &
+,mype
+!
+real(kind=kdbl),private :: &
+ btim
+!
 !-----------------
 #ifdef ENABLE_SMP
 !-----------------
@@ -48,8 +58,11 @@ integer(kind=kint) :: &
 ,omp_get_num_threads &
 ,omp_get_thread_num &
 ,tid
+!
 external omp_get_num_threads,omp_get_thread_num
+!------
 #endif
+!------
 !
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                         contains
@@ -58,7 +71,7 @@ external omp_get_num_threads,omp_get_thread_num
                         subroutine pgforce &
 (first,restart &
 ,lm &
-,dt,rdyv &
+,dt,ntimestep,rdyv &
 ,dsg2,pdsg1 &
 ,rdxv,wpdar &
 ,fis,pd &
@@ -87,7 +100,8 @@ logical(kind=klog),intent(in):: &
 ,restart                     ! restart case
 
 integer(kind=kint),intent(in):: &
- lm                         ! total # of levels
+ lm &                        ! total # of levels
+,ntimestep                   ! the current timestep
 
 real(kind=kfpt),intent(in):: &
  dt &                        ! dynamics time step
@@ -174,7 +188,7 @@ real(kind=kfpt),dimension(its_b1:ite_h1,jts:jte_h1):: &
 
 real(kind=kfpt),dimension(its:ite_h1,jts_b1:jte_h1):: &
  pgy                         ! scratch, pgf, y direction
-!-----------------
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -190,7 +204,7 @@ real(kind=kfpt),dimension(its:ite_h1,jts_b1:jte_h1):: &
 #ifdef ENABLE_SMP
 !-----------------
 !.......................................................................
-!$omp parallel private(nth,tid,i,j,l,jstart,jstop,apelp,dfdp,dfip,fiup)
+!$omp parallel private(apelp,dfdp,dfip,fiup,i,j,jstart,jstop,l,nth,tid)
 !.......................................................................
       nth = omp_get_num_threads()
       tid = omp_get_thread_num()
@@ -231,9 +245,8 @@ real(kind=kfpt),dimension(its:ite_h1,jts_b1:jte_h1):: &
 !-----------------
 !.......................................................................
 !$omp parallel do &
-!$omp private (l,j,i,apel,fim,dfi,ppx,pgx,ppy,pgy, &
-!$omp          ppne,ppnw,pgne,pgnw,jcl,jch,wprp,rdv,rdu,apd,&
-!$omp          rpdp)
+!$omp private (apd,apel,dfi,fim,i,j,jch,jcl,l,pgne,pgnw,pgx,pgy, &
+!$omp          ppne,ppnw,ppx,ppy,rdu,rdv,rpdp,wprp)
 !.......................................................................
 !-----------------------------------------------------------------------
 !---vertical grand loop-------------------------------------------------
@@ -490,7 +503,7 @@ real(kind=kfpt),dimension(its_b1:ite_h2,jts_b1:jte_h2):: &
 ,tnw &                       ! temperature flux, nw direction
 ,tx &                        ! temperature flux, x direction
 ,ty                          ! temperature flux, y direction
- 
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -554,8 +567,8 @@ real(kind=kfpt),dimension(its_b1:ite_h2,jts_b1:jte_h2):: &
 !
 !.......................................................................
 !$omp parallel do                                                       &
-!$omp private (l,j,i,pdp,dxp1,dxp,pdxp,pdyp,pdnep,pdnwp,udy,vdx,udy1,vdx1,&
-!$omp          tx,ty,tne,tnw,fdp,fcpp)
+!$omp private (dxp,dxp1,fcpp,fdp,i,j,l,pdnep,pdnwp,pdp,pdxp,pdyp,       &
+!$omp          tne,tnw,tx,ty,udy,udy1,vdx,vdx1)
 !.......................................................................
 !-----------------------------------------------------------------------
       vertical_loop: do l=1,lm
@@ -734,6 +747,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 ,dive &                      !
 ,rddu &                      !
 ,rddv                        !
+!
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
@@ -933,6 +947,7 @@ integer(kind=kint):: &
  i &                         ! index in x direction
 ,j &                         ! index in y direction
 ,l                           ! index in p direction
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -941,7 +956,7 @@ integer(kind=kint):: &
 !-----------------
 !.......................................................................
 !$omp parallel &
-!$omp private(nth,tid,i,j,l,jstart,jstop)
+!$omp private(nth,tid,i,j,jstart,jstop,l)
 !.......................................................................
       nth = omp_get_num_threads()
       tid = omp_get_thread_num()
@@ -984,7 +999,7 @@ integer(kind=kint):: &
 !-----------------
 !.......................................................................
 !$omp parallel &
-!$omp private(nth,tid,i,j,l,jstart,jstop)
+!$omp private(nth,tid,i,j,jstart,jstop,l)
 !.......................................................................
       nth = omp_get_num_threads()
       tid = omp_get_thread_num()
@@ -1217,6 +1232,7 @@ real(kind=kfpt),dimension(its_b1:ite_b2,jts_b1:jte_b2,1:lm):: &
 ,rcmw &                      ! vertical advection temporary
 ,rstu &                      ! vertical advection temporary
 ,rstv                        ! vertical advection temporary
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -1235,7 +1251,8 @@ real(kind=kfpt),dimension(its_b1:ite_b2,jts_b1:jte_b2,1:lm):: &
 #ifdef ENABLE_SMP
 !-----------------
 !.......................................................................
-!$omp parallel private(nth, tid, i,j,l,jstart,jstop,vvlo,cmt,rdp,pvvup,vvup,cf)
+!$omp parallel private(cf,cmt,nth,i,j,jstart,jstop,l,pvvup,rdp,tid      &
+!$omp                  vvlo,vvup)
 !.......................................................................
       nth = omp_get_num_threads()
       tid = omp_get_thread_num()
@@ -1320,8 +1337,8 @@ real(kind=kfpt),dimension(its_b1:ite_b2,jts_b1:jte_b2,1:lm):: &
 
 !.......................................................................
 !$omp parallel do &
-!$omp private (t1,tx,ty,tne,tnw,ibeg,iend,jbeg,jend,fahp,enhp,pp,qq, &
-!$omp         iap,jap,emhp,j,i,l)
+!$omp private (emhp,enhp,fahp,i,iap,ibeg,iend,j,jap,jbeg,jend,l,        &
+!$omp          pp,qq,t1,tne,tnw,tx,ty)
 !.......................................................................
 !-----------------------------------------------------------------------
       vertical_loop1: do l=1,lm
@@ -1509,7 +1526,8 @@ real(kind=kfpt),dimension(its_b1:ite_b2,jts_b1:jte_b2,1:lm):: &
 #ifdef ENABLE_SMP
 !-----------------
 !.......................................................................
-!$omp parallel private(nth,tid,i,j,l,jstart,jstop,vvlo,cmw,rdp,pvvup,vvup,cf)
+!$omp parallel private(cf,cmw,i,j,jstart,jstop,l,nth,pvvup,rdp,tid,     &
+!$omp                  vvlo,vvup)
 !.......................................................................
        nth = omp_get_num_threads()
        tid = omp_get_thread_num()
@@ -1608,11 +1626,12 @@ real(kind=kfpt),dimension(its_b1:ite_b2,jts_b1:jte_b2,1:lm):: &
 !
 !.......................................................................
 !$omp parallel do &
-!$omp private (u1d,v1d,crv,fp,fpp,pfxx1,pfyx1,pfnex1,pfnwx1,pfxy1,pfyy1, &
-!$omp          pfney1,pfnwy1,u2d,v2d,ufxx1,ufyx1,ufnex1,ufnwx1,          &
-!$omp          ufxy1,ufyy1,ufney1,ufnwy1,vfxx1,vfyx1,vfnex1,vfnwx1,vfxy1, &
-!$omp          vfyy1,vfney1,vfnwy1,ibeg,iend,jbeg,jend,dxody,dyodx,fadp, &
-!$omp          fdpp,dux1,dvx1,duy1,dvy1,envp,emvp, pp,qq,iap,jap,j,i,l)
+!$omp private (crv,dux1,duy1,dvx1,dvy1,dxody,dyodx,emvp,envp,           &
+!$omp          fadp,fdpp,fp,fpp,i,iap,ibeg,iend,j,jap,jbeg,jend,l,      &
+!$omp          pfnex1,pfney1,pfnwx1,pfnwy1,pfxx1,pfxy1,pfyx1,pfyy1,pp,  &
+!$omp          qq,u1d,u2d,ufnex1,ufney1,ufnwx1,ufxx1,ufyx1,ufnwy1,      &
+!$omp          ufxy1,ufyy1,v1d,v2d,vfnex1,vfney1,vfnwx1,vfnwy1,         &
+!$omp          vfxx1,vfxy1,vfyx1,vfyy1)
 !.......................................................................
 !-----------------------------------------------------------------------
 !
@@ -1676,11 +1695,11 @@ real(kind=kfpt),dimension(its_b1:ite_b2,jts_b1:jte_b2,1:lm):: &
             btim=timef()
             call swapwn(u2d,ims,ime,jms,jme,1,inpes)
             call swapwn(v2d,ims,ime,jms,jme,1,inpes)
-            swapwn_tim=swapwn_tim+timef()-btim
+            swapwn_tim=swapwn_tim+(timef()-btim)
 !
             btim=timef()
             call polewn(u2d,v2d,ims,ime,jms,jme,1,inpes,jnpes)
-            polewn_tim=polewn_tim+timef()-btim
+            polewn_tim=polewn_tim+(timef()-btim)
           else
             if(s_bdy)then
               do i=ims,ime
@@ -2044,6 +2063,7 @@ real(kind=kfpt):: &
 
 real(kind=kfpt),dimension(its:ite,jts:jte):: &
  tpm                         ! pressure temporary
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------
@@ -2544,11 +2564,11 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
       if(global) then
         btim=timef()
         call swaphn(def3d,ims,ime,jms,jme,lm,inpes)
-        swaphn_tim=swaphn_tim+timef()-btim
+        swaphn_tim=swaphn_tim+(timef()-btim)
 !
         btim=timef()
         call polehn(def3d,ims,ime,jms,jme,lm,inpes,jnpes)
-        polehn_tim=polehn_tim+timef()-btim
+        polehn_tim=polehn_tim+(timef()-btim)
       endif
 !
 !     call halo_exch(def,1,1,1)
@@ -2778,23 +2798,23 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
             call swaphn(qdif,ims,ime,jms,jme,1,inpes)
             call swaphn(cdif,ims,ime,jms,jme,1,inpes)
             call swaphn(q2dif,ims,ime,jms,jme,1,inpes)
-            swaphn_tim=swaphn_tim+timef()-btim
+            swaphn_tim=swaphn_tim+(timef()-btim)
 !
             btim=timef()
             call polehn(tdif,ims,ime,jms,jme,1,inpes,jnpes)
             call polehn(qdif,ims,ime,jms,jme,1,inpes,jnpes)
             call polehn(cdif,ims,ime,jms,jme,1,inpes,jnpes)
             call polehn(q2dif,ims,ime,jms,jme,1,inpes,jnpes)
-            polehn_tim=polehn_tim+timef()-btim
+            polehn_tim=polehn_tim+(timef()-btim)
 !
             btim=timef()
             call swapwn(udif,ims,ime,jms,jme,1,inpes)
             call swapwn(vdif,ims,ime,jms,jme,1,inpes)
-            swapwn_tim=swapwn_tim+timef()-btim
+            swapwn_tim=swapwn_tim+(timef()-btim)
 !
             btim=timef()
             call polewn(udif,vdif,ims,ime,jms,jme,1,inpes,jnpes)
-            polewn_tim=polewn_tim+timef()-btim
+            polewn_tim=polewn_tim+(timef()-btim)
           else
             if(s_bdy)then
               do i=ims,ime
@@ -2849,7 +2869,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
           call halo_exch(q2dif,1,2,2)
           call halo_exch( udif,1,2,2)
           call halo_exch( vdif,1,2,2)
-          exch_dyn_tim=exch_dyn_tim+timef()-btim
+          exch_dyn_tim=exch_dyn_tim+(timef()-btim)
 !---contributions behind mass points------------------------------------
           do j=jts_b1,jte_h1
             do i=its_b1,ite_h1
@@ -3019,6 +3039,7 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1):: &
 real(kind=kfpt),dimension(its_h1:ite_h1,jts_h1:jte_h1):: &
  wlo &                       ! w wind component at lower interface
 ,zlo                         ! height at lower interface
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -3128,15 +3149,22 @@ real(kind=kfpt),dimension(its_h1:ite_h1,jts_h1:jte_h1):: &
           w(i,j,lm)=ttb(i,j)/(dsg2(lm)*pdo(i,j)+pdsg1(lm))+w(i,j,lm)
         enddo
       enddo
-!-----------------
-#ifdef ENABLE_SMP
-!!-----------------
-!$omp end parallel
-!$omp parallel do private(l,j,i,dpup,zx,zy,zne,znw,fahp)
-#endif
 !
 !-----------------------------------------------------------------------
 !---grand horizontal loop-----------------------------------------------
+!-----------------------------------------------------------------------
+!
+!-----------------
+#ifdef ENABLE_SMP
+!-----------------
+!.......................................................................
+!$omp end parallel
+!.......................................................................
+!$omp parallel do private(dpup,fahp,i,j,l,zne,znw,zx,zy)
+!.......................................................................
+!-----------------
+#endif
+!-----------------
 !-----------------------------------------------------------------------
 !
       vertical_loop: do l=1,lm
@@ -3211,7 +3239,11 @@ real(kind=kfpt),dimension(its_h1:ite_h1,jts_h1:jte_h1):: &
       enddo vertical_loop
 !------------------
 #ifdef ENABLE_SMP
+!------------------
+!.......................................................................
 !$omp end parallel do
+!.......................................................................
+!------------------
 #endif
 !------------------
 !-----------------------------------------------------------------------
@@ -3536,11 +3568,11 @@ real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
       if(global) then
         btim=timef()
         call swaphn(dwdt,ims,ime,jms,jme,lm,inpes)
-        swaphn_tim=swaphn_tim+timef()-btim
+        swaphn_tim=swaphn_tim+(timef()-btim)
 !
         btim=timef()
         call polehn(dwdt,ims,ime,jms,jme,lm,inpes,jnpes)
-        polehn_tim=polehn_tim+timef()-btim
+        polehn_tim=polehn_tim+(timef()-btim)
       endif
 !
 !-----------------------------------------------------------------------
@@ -3576,12 +3608,12 @@ real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
       if(global) then
         btim=timef()
         call swaphn(dwdt,ims,ime,jms,jme,lm,inpes)
-        swaphn_tim=swaphn_tim+timef()-btim
+        swaphn_tim=swaphn_tim+(timef()-btim)
 !!!   if(mype==23)write(0,*)' in cdwdt swaphn_tim=',swaphn_tim
 !
         btim=timef()
         call polehn(dwdt,ims,ime,jms,jme,lm,inpes,jnpes)
-        polehn_tim=polehn_tim+timef()-btim
+        polehn_tim=polehn_tim+(timef()-btim)
       endif
 !-----------------------------------------------------------------------
       rg=1./g
@@ -3771,6 +3803,7 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm+1):: &
 ,pnp1 &                      !
 ,pone &                      !
 ,pstr                        !
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -3983,6 +4016,7 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm+1):: &
 !---temporary arguments-------------------------------------------------
 ,pfne,pfnw,pfx,pfy,s1,tcs)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 implicit none
 
 !-----------------------------------------------------------------------
@@ -4092,9 +4126,9 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
 
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse):: &
  rsts                        ! vertical advection temporary
-
+!
 !-----------------------------------------------------------------------
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!***********************************************************************
 !-----------------------------------------------------------------------
 !
 !-----------------
@@ -4486,9 +4520,12 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse):: &
 ,pd &
 ,indx_q2 &
 ,s &
+,read_global_sums &
+,write_global_sums &
 !---temporary arguments-------------------------------------------------
 ,s1,tcs)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 implicit none
 
 !-----------------------------------------------------------------------
@@ -4515,6 +4552,10 @@ real(kind=kfpt),dimension(ims:ime,jms:jme),intent(in):: &
 
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse),intent(inout):: &
  s                           ! s at previous time level
+
+logical(kind=klog) :: &
+ read_global_sums &
+,write_global_sums
 
 !---temporary arguments-------------------------------------------------
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse),intent(inout):: &
@@ -4577,7 +4618,7 @@ character(10) :: &
 !-----------------------------------------------------------------------
 real(kind=kdbl),save :: sumdrrw=0.
 !-----------------------------------------------------------------------
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!***********************************************************************
 !-----------------------------------------------------------------------
       mype=mype_share
 !-----------------------------------------------------------------------
@@ -5411,6 +5452,8 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
 ,pd &
 ,u,v &
 ,cw,q,q2,rrw &
+,read_global_sums &
+,write_global_sums &
 !temporary argument passing
 ,e2)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -5432,7 +5475,9 @@ real(kind=kfpt),parameter:: &
 ,ff4=-0.12189                ! antifiltering weighting factor
 !-----------------------------------------------------------------------
 logical(kind=klog),intent(in):: &
- global                      ! global or regional
+ global &                    ! global or regional
+,read_global_sums &
+,write_global_sums
 
 integer(kind=kint),intent(in):: &
  idtad &                     ! timestep factor
@@ -5586,7 +5631,7 @@ logical(kind=klog) :: opened
 logical(kind=klog),save :: sum_file_is_open=.false.
 character(10) :: fstatus
 real(kind=kfpt),dimension(8,1:lm) :: gsums_single
-!-----------------
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -5600,8 +5645,9 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
       enhp=-addt*rdyh*0.25
 !
 !.......................................................................
-!$omp parallel do private (i,j,l,enhp,rdx,emhp,up4,vp4,pp,qq,iap,app,jap, &
-!$omp                      aqq,qfc,darep,dvolp,dqp,dwp,dgp,dep)
+!$omp parallel do private (app,aqq,darep,dep,dgp,dqp,dvolp,dwp,         &
+!$omp                      emhp,enhp,i,iap,j,jap,l,pp,qfc,qq,rdx,       &
+!$omp                      up4,vp4)
 !.......................................................................
       do l=1,lm
         do j=jts_h1,jte_h1
@@ -5905,14 +5951,14 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
           call swaphn(w1(ims,jms,l),ims,ime,jms,jme,1,inpes)
           call swaphn(g1(ims,jms,l),ims,ime,jms,jme,1,inpes)
           call swaphn(e1(ims,jms,l),ims,ime,jms,jme,1,inpes)
-          swaphn_tim=swaphn_tim+timef()-btim
+          swaphn_tim=swaphn_tim+(timef()-btim)
 !
           btim=timef()
           call polehn(q1(ims,jms,l),ims,ime,jms,jme,1,inpes,jnpes)
           call polehn(w1(ims,jms,l),ims,ime,jms,jme,1,inpes,jnpes)
           call polehn(g1(ims,jms,l),ims,ime,jms,jme,1,inpes,jnpes)
           call polehn(e1(ims,jms,l),ims,ime,jms,jme,1,inpes,jnpes)
-          polehn_tim=polehn_tim+timef()-btim
+          polehn_tim=polehn_tim+(timef()-btim)
 !-----------------------------------------------------------------------
         else
 !-----------------------------------------------------------------------
@@ -5932,16 +5978,17 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
 !
       btim=timef()
       call halo_exch(q1,lm,w1,lm,g1,lm,e1,lm,1,1)
-      exch_dyn_tim=exch_dyn_tim+timef()-btim
+      exch_dyn_tim=exch_dyn_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !--------------anti-filtering limiters----------------------------------
 !-----------------------------------------------------------------------
 !
 !.......................................................................
-!$omp parallel do private (q1p,w1p,g1p,e1p,iap,jap,d2pqq,d2pqw,d2pqg,d2pqe, &
-!$omp                      qp,wp,gp,ep,q00,qp0,q0q,w00,wp0,w0q,g00,gp0,g0q, &
-!$omp                      e00,ep0,e0q,darep,dvolp,dqp,dwp,dgp,dep,l,j,i)
+!$omp parallel do private (d2pqe,d2pqg,d2pqq,d2pqw,darep,dep,dgp,dqp,  &
+!$omp                      dvolp,dwp,e00,e0q,ep,ep0,q1p,w1p,g1p,e1p,   &
+!$omp                      g00,g0q,gp,gp0,i,iap,j,jap,l,               &
+!$omp                      q00,q0q,qp,qp0,w00,w0q,wp,wp0)
 !.......................................................................
        do l=1,lm
         do j=jts_b1,jte_b1
@@ -6629,7 +6676,9 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
 ,pd &
 ,u,v &
 ,scal &
-,num_scal,indx_start,indx_q2)
+,num_scal,indx_start,indx_q2 &
+,read_global_sums &
+,write_global_sums)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
 implicit none
@@ -6649,7 +6698,9 @@ real(kind=kfpt),parameter:: &
 ,ff4=-0.12189                ! antifiltering weighting factor
 !-----------------------------------------------------------------------
 logical(kind=klog),intent(in):: &
- global                      ! global or regional
+ global &                    ! global or regional
+,read_global_sums &
+,write_global_sums
 
 integer(kind=kint),intent(in):: &
  idtad &                     ! timestep factor
@@ -6723,8 +6774,6 @@ real(kind=kfpt):: &
 ,qq &                        !
 ,rdx &                       !
 ,rdy &                       !
-,sumnsl &                    ! sum of negative changes, scalar
-,sumpsl &                    ! sum of positive changes, scalar
 ,up4 &                       !
 ,vp4                         !
 
@@ -6733,6 +6782,10 @@ real(kind=kfpt):: &
 
 real(kind=kfpt),dimension(1:lm):: &
  sfacsp                      ! correction factor, scalar
+
+real(kind=kdbl):: &
+ sumnsl &                    ! sum of negative changes, scalar
+,sumpsl                      ! sum of positive changes, scalar
 
 real(kind=kdbl),dimension(2,1:lm):: &
  xsums &                     ! sum of neg/pos changes all local fields
@@ -6860,6 +6913,8 @@ real(kind=kfpt),dimension(2,1:lm) :: gsums_single
 !***  Global reductions
 !-----------------------------------------------------------------------
 !
+      global_reduce: if(global)then
+!
 !-----------------------------------------------------------------------
 !***  Skip computing the global reduction if they are to be read in
 !***  from another run to check bit reproducibility.
@@ -6930,6 +6985,8 @@ real(kind=kfpt),dimension(2,1:lm) :: gsums_single
 !
         enddo
 !
+      endif  global_reduce
+!
 !-----------------------------------------------------------------------
 !--------------impose conservation on global advection------------------
 !-----------------------------------------------------------------------
@@ -6954,11 +7011,11 @@ real(kind=kfpt),dimension(2,1:lm) :: gsums_single
 !
           btim=timef()
           call swaphn(s1(ims,jms,l),ims,ime,jms,jme,1,inpes)
-          swaphn_tim=swaphn_tim+timef()-btim
+          swaphn_tim=swaphn_tim+(timef()-btim)
 !
           btim=timef()
           call polehn(s1(ims,jms,l),ims,ime,jms,jme,1,inpes,jnpes)
-          polehn_tim=polehn_tim+timef()-btim
+          polehn_tim=polehn_tim+(timef()-btim)
 !-----------------------------------------------------------------------
         else
 !-----------------------------------------------------------------------
@@ -6975,7 +7032,7 @@ real(kind=kfpt),dimension(2,1:lm) :: gsums_single
 !
       btim=timef()
       call halo_exch(s1,lm,1,1)
-      exch_dyn_tim=exch_dyn_tim+timef()-btim
+      exch_dyn_tim=exch_dyn_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !--------------anti-filtering limiters----------------------------------
@@ -7050,6 +7107,22 @@ real(kind=kfpt),dimension(2,1:lm) :: gsums_single
 !-----------------------------------------------------------------------
 !
       bitsaf: if(read_global_sums.or.write_global_sums)then   !<--- NEVER SET BOTH READ AND WRITE TO .TRUE.
+!
+        if(.not.sum_file_is_open.and.mype==0)then
+          open_unit_anti: do l=51,59
+          inquire(l,opened=opened)
+          if(.not.opened)then
+            iunit_advec_sums=l
+              if(read_global_sums)fstatus='OLD'
+              if(write_global_sums)fstatus='REPLACE'
+              open(unit=iunit_advec_sums,file='global_sums',status=fstatus &
+                  ,form='UNFORMATTED',iostat=istat)
+              sum_file_is_open=.true.
+              exit open_unit_anti
+            endif
+          enddo open_unit_anti
+          write(0,*)' hadv2_scal opened iunit_advec_sums=',iunit_advec_sums
+        endif
 !
         if(write_global_sums.and.mype==0)then
           write(0,*)' hadv2_scal 2 writing to iunit_advec_sums=',iunit_advec_sums
@@ -7164,6 +7237,7 @@ integer(kind=kint):: &
  i &                         ! index in x direction
 ,j &                         ! index in y direction
 ,l                           ! index in p direction
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -7202,7 +7276,7 @@ integer(kind=kint):: &
 !-----------------
 !.......................................................................
 !$omp parallel &
-!$omp private(nth,tid,jstart,jstop,j,i,l)
+!$omp private(nth,tid,i,j,jstart,jstop,l)
 !.......................................................................
       nth = omp_get_num_threads()
       tid = omp_get_thread_num()
@@ -7253,12 +7327,17 @@ integer(kind=kint):: &
 !
       else
       end if
-
+!
+!-----------------
 #undef ENABLE_SMP
+!-----------------
+!
+!----------------------------------------------------------------------
+!
                         endsubroutine aveq2
+!
 !----------------------------------------------------------------------
 !
                         end module module_dynamics_routines
 !
-!-----------------------------------------------------------------------
 !-----------------------------------------------------------------------

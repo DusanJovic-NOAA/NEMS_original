@@ -1,23 +1,10 @@
 !---------------------------------------------------------------------------
 !
-! !MODULE: MODULE_ATM_INTERNAL_STATE --- Internal state definition of the
-!                                        ESMF NMM-B ATM gridded component.
-!
-! !DESCRIPTION: MODULE_ATM_INTERNAL_STATE --- Define the internal state of 
-!                                             the ESMF NMM-B ATM gridded
-!                                             component.
-!---------------------------------------------------------------------------
-!
-! !REVISION HISTORY:
-!
-!  2007-05 - Weiyu Yang:  Initial code.
-!
-!---------------------------------------------------------------------------
-!---------------------------------------------------------------------------
-!
       MODULE MODULE_ATM_INTERNAL_STATE
 !
 !---------------------------------------------------------------------------
+!***  DEFINE ALL QUANTITIES THAT LIE WITHIN THE ATM COMPONENT's
+!***  INTERNAL STATE.
 !---------------------------------------------------------------------------
 !
       USE ESMF_Mod
@@ -39,6 +26,8 @@
 !
 !---------------------------------------------------------------------------
 !
+        TYPE(ESMF_GridComp),ALLOCATABLE,DIMENSION(:) :: ATM_CHILD_COMP         !<-- ATM gridded components of child domains
+!
         TYPE(ESMF_GridComp) :: DYN_GRID_COMP                                   !<-- The Dynamics gridded component
         TYPE(ESMF_GridComp) :: PHY_GRID_COMP                                   !<-- The Physics gridded component
         TYPE(ESMF_CplComp)  :: COUPLER_DYN_PHY_COMP                            !<-- The Dynamics-Physics coupler component
@@ -51,6 +40,7 @@
         TYPE(ESMF_State) :: EXP_STATE_PHY                                      !<-- The export state of the Physics component
         TYPE(ESMF_State) :: EXP_STATE_WRITE                                    !<-- The export state of the write components
 !
+        INTEGER :: LEAD_TASK_DOMAIN                                            !<-- The first task on a given domain
         INTEGER :: NUM_PES_FCST                                                !<-- The number of forecast tasks
 !
 !---------------------------------------------------------------------------

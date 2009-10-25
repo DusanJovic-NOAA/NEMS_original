@@ -25,10 +25,10 @@
       CONTAINS
 !
 !-----------------------------------------------------------------------
-      SUBROUTINE READPCP(MYPE,PPTDAT,DDATA,LSPA                              &
-     &  ,IDS,IDE,JDS,JDE,LM                                        &
-     &  ,IMS,IME,JMS,JME                                        &
-     &  ,ITS,ITE,JTS,JTE,PCPHR)
+      SUBROUTINE READPCP(MYPE,PPTDAT,DDATA,LSPA,PCPHR                   &
+                        ,IDS,IDE,JDS,JDE,LM                             &
+                        ,IMS,IME,JMS,JME                                &
+                        ,ITS,ITE,JTS,JTE)
 !
 !     ****************************************************************
 !     *                                                              *
@@ -56,6 +56,7 @@
       REAL,DIMENSION(IMS:IME,JMS:JME,1:PCPHR),INTENT(OUT) :: PPTDAT
       INTEGER :: I, J, IHR
       CHARACTER*256 :: MESSAGE
+!-----------------------------------------------------------------------
 !
 ! Get the value of MYPE:
 !
@@ -111,10 +112,10 @@
 !
       END SUBROUTINE READPCP
 !
-      SUBROUTINE CHKSNOW(MYPE,NTSD,DT,NPHS,SR,PPTDAT                         &
+      SUBROUTINE CHKSNOW(MYPE,NTSD,DT,NPHS,SR,PPTDAT,PCPHR              &
      &  ,IDS,IDE,JDS,JDE,LM                                        &
      &  ,IMS,IME,JMS,JME                                        &
-     &  ,ITS,ITE,JTS,JTE,PCPHR)
+     &  ,ITS,ITE,JTS,JTE)
 !
 ! AT THE FIRST PHYSICS TIME STEP AFTER THE TOP OF EACH HOUR, CHECK THE SNOW
 ! ARRAY AGAINST THE SR (SNOW/TOTAL PRECIP RATIO).  IF SR .GE. 0.9, SET THIS
@@ -159,10 +160,10 @@
  10   CONTINUE
       END SUBROUTINE CHKSNOW
 !
-      SUBROUTINE ADJPPT(MYPE,NTSD,DT,NPHS,PREC,LSPA,PPTDAT,DDATA             &
+      SUBROUTINE ADJPPT(MYPE,NTSD,DT,NPHS,PREC,LSPA,PPTDAT,DDATA,PCPHR       &
      &  ,IDS,IDE,JDS,JDE,LM                                        &
      &  ,IMS,IME,JMS,JME                                        &
-     &  ,ITS,ITE,JTS,JTE,PCPHR)
+     &  ,ITS,ITE,JTS,JTE)
 
 !***********************************************************************
 !$$$  SUBPROGRAM DOCUMENTATION BLOCK

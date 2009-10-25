@@ -1,8 +1,8 @@
 !----------------------------------------------------------------------------
-module nemsio_module
+module module_nemsio
 !$$$ module document block
 !
-! module:   nemsio_module      API for NEMS input/output 
+! module:   module_nemsio      API for NEMS input/output 
 !
 ! Abstract: This module handles NEMS input/output
 !
@@ -6447,4 +6447,4 @@ contains
       end function lowercase
 !
 !----------------------------------------------------------------------
-  end module nemsio_module
+  end module module_nemsio

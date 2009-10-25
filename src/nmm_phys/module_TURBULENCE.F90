@@ -252,6 +252,10 @@
 !
 !-----------------------------------------------------------------------
 !
+!------------------------
+!***  Argument variables
+!------------------------
+!
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                          &
                            ,IMS,IME,JMS,JME                             &
                            ,ITS,ITE,JTS,JTE                             &
@@ -309,8 +313,8 @@
                                                       ,TSFC,TSNAV       &
                                                       ,USTAR,UZ0,VZ0    &
                                                       ,Z0,Z0BASE        &
-                                                      ,APHTIM,ARDSW     & !<-- Were scalars
-                                                      ,ARDLW,ASRFC        !<-- Were scalars
+                                                      ,APHTIM,ARDSW     &  !<-- Were scalars (ESMF cannot have evolving scalar Attributes)
+                                                      ,ARDLW,ASRFC         !<-- 
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: AKHS_OUT,AKMS_OUT  &
                                                     ,ALWIN,ALWOUT       &
@@ -327,7 +331,7 @@
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM,NUM_WATER),INTENT(INOUT) :: WATER
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) ::  F_ICE    &
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) ::  F_ICE      &
                                                             ,F_RAIN
 
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1),INTENT(INOUT) ::  RQVBLTEN &
@@ -344,18 +348,19 @@
       CHARACTER(99),INTENT(IN) :: LAND_SURFACE,LONGWAVE,MICROPHYSICS    &
                                  ,SFC_LAYER,TURBULENCE
 !
-!  For precip assimilation:
+!--------------------------
+!  For precip assimilation
+!--------------------------
 !
-      LOGICAL,INTENT(IN) :: GWDFLG,PCPFLG
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: DDATA
-      LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
 !
+      LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG               &
+                           ,GWDFLG,PCPFLG
 !
-!-----------------------------------------------------------------------
-!***
-!***  LOCAL VARIABLES
-!***
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local variables
+!---------------------
+!
       INTEGER :: I,I_M,IDUMMY,IEND,ISFFLX,ISTR,J,K,KFLIP,KOUNT_ALL      &
                 ,LENGTH_ROW,LLYR,N,SST_UPDATE
 !
@@ -1394,7 +1399,7 @@
 !-----------------------------------------------------------------------
 !
         TWBS(I,J)=-TWBS(I,J)
-        QWBS(I,J)= -QWBS(I,J)*XLV*CHKLOWQ(I,J)
+        QWBS(I,J)=-QWBS(I,J)*XLV*CHKLOWQ(I,J)
 !
 !-----------------------------------------------------------------------
 !***  ACCUMULATED QUANTITIES.

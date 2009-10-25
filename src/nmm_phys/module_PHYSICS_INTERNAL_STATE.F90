@@ -34,48 +34,49 @@
 !
       PRIVATE
 !
-      PUBLIC :: INTERNAL_STATE,SET_INTERNAL_STATE_PHY                   &
-               ,UPDATE_INTERNAL_STATE_PHY,WRAP_INTERNAL_STATE
+      PUBLIC :: PHYSICS_INTERNAL_STATE,SET_INTERNAL_STATE_PHY           &
+               ,UPDATE_INTERNAL_STATE_PHY,WRAP_PHY_INT_STATE
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      TYPE INTERNAL_STATE
+      TYPE PHYSICS_INTERNAL_STATE
 !
 !-----------------------------------------------------------------------
 !***  Begin with the namelist variables.
 !-----------------------------------------------------------------------
 !
-        INTEGER(KIND=KINT) :: IM,JM,LM                                  &
+        INTEGER(kind=KINT) :: IM,JM,LM                                  &
                              ,NHOURS_HISTORY                            &
                              ,NHOURS_RESTART                            &
-			     ,NSOIL                                     &
+                             ,NSOIL                                     &
                              ,NUM_TRACERS_MET                           &  !<-- Number of meteorological tracers (e.g. water)
                              ,NUM_TRACERS_CHEM                          &  !<-- Number of chem/aerosol tracers
                              ,START_YEAR,START_MONTH,START_DAY          &
                              ,START_HOUR,START_MINUTE,START_SECOND
 !
-        INTEGER(KIND=KINT) :: NPHS,NPRECIP,NRADL,NRADS,UCMCALL,DT_INT,PCPHR
+        INTEGER(kind=KINT) :: DT_INT,NPHS,NPRECIP,NRADL,NRADS           &
+                             ,PCPHR,UCMCALL
 !
-        REAL(KIND=KFPT) :: DT,SBD,WBD,TPH0D,TLM0D
+        REAL(kind=KFPT) :: DT,SBD,WBD,TPH0D,TLM0D
 !
-        LOGICAL :: GLOBAL,GWDFLG,HYDRO,NESTED,PCPFLG,RESTART,SPECIFIED  &
-                  ,NHRS_UDEF,NEMSIO_INPUT
+        LOGICAL :: GLOBAL,GWDFLG,HYDRO,NEMSIO_INPUT,NESTED,NHRS_UDEF    &
+                  ,PCPFLG,RESTART,SPECIFIED
 !
 !-----------------------------------------------------------------------
 !***  Distributed memory information.
 !-----------------------------------------------------------------------
 !
-        INTEGER(KIND=KINT) :: INPES                                     &  !<-- Forecast PE's in the E-W direction
+        INTEGER(kind=KINT) :: INPES                                     &  !<-- Forecast PE's in the E-W direction
                              ,JNPES                                     &  !<-- Forecast PE's in the N-S direction
                              ,MYPE                                      &  !<-- This task's ID
                              ,NUM_PES                                      !<-- Total number of forecast tasks
 !
-        INTEGER(KIND=KINT) :: ITS,ITE,JTS,JTE                           &
+        INTEGER(kind=KINT) :: ITS,ITE,JTS,JTE                           &
                              ,IMS,IME,JMS,JME
 !
-        INTEGER(KIND=KINT),DIMENSION(:),POINTER :: LOCAL_ISTART         &  !<-- Each task's local starting I
+        INTEGER(kind=KINT),DIMENSION(:),POINTER :: LOCAL_ISTART         &  !<-- Each task's local starting I
                                                   ,LOCAL_IEND           &  !<-- Each task's local ending I
                                                   ,LOCAL_JSTART         &  !<-- Each task's local starting J
                                                   ,LOCAL_JEND              !<-- Each task's local ending J
@@ -84,66 +85,71 @@
 !***  Horizontal/Vertical grid
 !-----------------------------------------------------------------------
 !
-        REAL(KIND=KFPT) :: DYH,DYV,RDYH,RDYV,PDTOP,PT
+        REAL(kind=KFPT) :: DLMD,DPHD                                    &
+                          ,DYH,DYV                                      &
+                          ,PDTOP,PT                                     &
+                          ,RDYH,RDYV
 !
-        REAL(KIND=KFPT),DIMENSION(:),POINTER :: DSG2,DXH,DXV,RDXH,RDXV  &
-                                                ,PDSG1,PSGML1,SGML2
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: DSG2,DXH,DXV            &
+                                               ,PDSG1,PSG1,PSGML1       &
+                                               ,RDXH,RDXV               &
+                                               ,SG1,SG2,SGM,SGML2
 !
-        REAL(KIND=KFPT),DIMENSION(:),POINTER :: PSG1,SG1,SG2,SGM
-
-!
-        REAL(KIND=KFPT),DIMENSION(:,:),POINTER :: GLAT,GLON
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: GLAT,GLON
 !
 !-----------------------------------------------------------------------
 !***  Integration quantities.
 !-----------------------------------------------------------------------
 !
-        INTEGER(KIND=KINT) :: NTSD                                         !<-- Internal timestep counter
+        INTEGER(kind=KINT) :: NTSD                                         !<-- Internal timestep counter
 !
-        INTEGER(KIND=KINT) :: NHRS_CLOD                                 &  !<-- Fcst hours cloud is accumulated
+        INTEGER(kind=KINT) :: NHRS_CLOD                                 &  !<-- Fcst hours cloud is accumulated
                              ,NHRS_HEAT                                 &  !<-- Fcst hours heating is accumulated
                              ,NHRS_PREC                                 &  !<-- Fcst hours precip is accumulated
                              ,NHRS_RDLW                                 &  !<-- Fcst hours LW radiation is accumulated
                              ,NHRS_RDSW                                 &  !<-- Fcst hours SW radiation is accumulated
                              ,NHRS_SRFC                                    !<-- Fcst hours sfc evap/flux is accumulated
 !
-        INTEGER(KIND=KINT) :: NCLOD                                     &  !<-- # of fundamental timesteps cloud is accumulated
+        INTEGER(kind=KINT) :: NCLOD                                     &  !<-- # of fundamental timesteps cloud is accumulated
                              ,NHEAT                                     &  !<-- # of fundamental timesteps latent heating is accumulated
                              ,NPREC                                     &  !<-- # of fundamental timesteps precip is accumulated
                              ,NRDLW                                     &  !<-- # of fundamental timesteps LW radiation is accumulated
                              ,NRDSW                                     &  !<-- # of fundamental timesteps SW radiation is accumulated
                              ,NSRFC                                        !<-- # of fundamental timesteps sfc evap/flux is accumulated
 !
-        INTEGER(KIND=KINT),DIMENSION(:,:),POINTER :: ISLTYP,IVGTYP      &
+        INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: ISLTYP,IVGTYP      &
                                                     ,LPBL               &
                                                     ,NCFRCV,NCFRST
 !
-        REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER :: T,U,V               &
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: T,U,V               &
                                                    ,DUDT,DVDT           &
                                                    ,Q,CW                &
                                                    ,Q2,OMGALF           &
                                                    ,RRW
 !
-        REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER :: RLWTT,RSWTT
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: RLWTT,RSWTT
 !
-        REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER :: EXCH_H,PPTDAT
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: EXCH_H,PPTDAT
 !
-        REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER :: TCUCN,W0AVG,WINT    &
-						    ,RQVBLTEN,RTHBLTEN   
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: RQVBLTEN,RTHBLTEN   &
+                                                   ,TCUCN,W0AVG,WINT
 !
-        REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER :: CLDFRA              &
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: CLDFRA              &
                                                    ,F_ICE,F_RAIN        &
                                                    ,F_RIMEF             &
                                                    ,TRAIN,XLEN_MIX
 !
-        REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER ::                     &
-                                                   SMC,STC,SH2O
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: SH2O,SMC,STC
 !
-        REAL(KIND=KFPT),DIMENSION(:,:),POINTER :: CROT,SROT             &
-                         ,HANGL,HANIS,HASYS,HASYSW,HASYNW,HASYW,HCNVX   &
-                         ,HLENNW,HLENSW,HLENW,HLENS,HSLOP,HSTDV,HZMAX
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: CROT,SROT             &
+                                                 ,HANGL,HANIS,HASYS     &
+                                                 ,HASYSW,HASYNW,HASYW   &
+                                                 ,HCNVX                 &
+                                                 ,HLENNW,HLENSW         &
+                                                 ,HLENW,HLENS           &
+                                                 ,HSLOP,HSTDV,HZMAX
 !
-        REAL(KIND=KFPT),DIMENSION(:,:),POINTER :: ACFRCV,ACFRST         &
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ACFRCV,ACFRST         &
                                                  ,AKHS,AKHS_OUT         &
                                                  ,AKMS,AKMS_OUT         &
                                                  ,CFRACH,CFRACL,CFRACM  &
@@ -162,7 +168,7 @@
                                                  ,UZ0,VZ0               &
                                                  ,Z0,Z0BASE
 !
-        REAL(KIND=KFPT),DIMENSION(:,:),POINTER :: ALBASE,ALBEDO         &
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ALBASE,ALBEDO         &
                                                  ,ALWIN,ALWOUT,ALWTOA   &
                                                  ,ASWIN,ASWOUT,ASWTOA   &
                                                  ,BGROFF,GRNFLX         &
@@ -172,7 +178,6 @@
                                                  ,RADOT,RMOL            &
                                                  ,SFCEVP,SFCEXC         &
                                                  ,SFCLHX,SFCSHX         &
-!                                                 ,SH2O,SHDMAX,SHDMIN    &
                                                  ,SHDMAX,SHDMIN         &
                                                  ,SI,SMSTAV,SMSTOT      &
                                                  ,SNO,SNOPCX            &
@@ -181,26 +186,26 @@
                                                  ,TG,TSKIN,TSNAV,TWBS   &
                                                  ,VEGFRC
 !
-        REAL(KIND=KFPT),DIMENSION(:,:),POINTER :: ACPREC,ACSNOM,ACSNOW  &
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ACPREC,ACSNOM,ACSNOW  &
                                                  ,CUPREC,CLDEFI         &
                                                  ,PREC,PSHLTR,Q02,Q10   &
                                                  ,QSHLTR,PSFC           &
                                                  ,T2,TH02,TH10,TSHLTR   &
                                                  ,U10,V10,TLMIN,TLMAX
 !
-!-- Ferrier: Changed ACUTIM,...,AVCNVC from scalars to 2D arrays to allow
-!            these quantities to change during the forecast (an ESMF issue)
+!***  The following are 2-D arrays needed only to hold scalars.
+!***  This is done since ESMF does not permit scalar Attributes
+!***  to evolve.
 !
-        REAL(KIND=KFPT),DIMENSION(:,:),POINTER ::                       &
-                           ACUTIM                                       &  !<-- Counter for cloud processes, used by post0 code
-                          ,APHTIM                                       &  !<-- Counter for other processes, used by post0 code
-                          ,ARDLW                                        &  !<-- Counter in summing LW radiation flux
-                          ,ARDSW                                        &  !<-- Counter in summing SW radiation flux
-                          ,ASRFC                                        &  !<-- Counter in summing sfc flux
-                          ,AVRAIN                                       &  !<-- Counter in summing latent heating from grid microphysics
-                          ,AVCNVC                                          !<-- Counter in summing latent heating from convection
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ACUTIM                &  !<-- Counter for cloud processes, used by post0 code
+                                                 ,APHTIM                &  !<-- Counter for other processes, used by post0 code
+                                                 ,ARDLW                 &  !<-- Counter in summing LW radiation flux
+                                                 ,ARDSW                 &  !<-- Counter in summing SW radiation flux
+                                                 ,ASRFC                 &  !<-- Counter in summing sfc flux
+                                                 ,AVRAIN                &  !<-- Counter in summing latent heating from grid microphysics
+                                                 ,AVCNVC                   !<-- Counter in summing latent heating from convection
 !
-        REAL(KIND=KFPT),DIMENSION(:),POINTER :: MP_RESTART_STATE        &
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: MP_RESTART_STATE        &
                                                ,SLDPTH                  &
                                                ,TBPVS_STATE,TBPVS0_STATE
 !
@@ -208,20 +213,20 @@
 !***  GFS physics additional arrays
 !-----------------------------------------------------------------------
 !
-        REAL(KIND=KDBL)                              :: SOLCON, SLAG, SDEC, CDEC
+        REAL(kind=KDBL)                              :: SOLCON, SLAG, SDEC, CDEC
         INTEGER        ,DIMENSION(:)      ,POINTER   :: JINDX1,JINDX2
-        REAL(KIND=KDBL),DIMENSION(:)      ,POINTER   :: DDY
-        REAL(KIND=KDBL),DIMENSION(:,:)    ,POINTER   :: TMPMIN,TMPMAX
-        REAL(KIND=KDBL),DIMENSION(:,:)    ,POINTER   :: DUGWD,DVGWD
-        REAL(KIND=KDBL),DIMENSION(:,:)    ,POINTER   :: SFCNSW,SFCDSW,SFALB,SFCDLW   &
+        REAL(kind=KDBL),DIMENSION(:)      ,POINTER   :: DDY
+        REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: TMPMIN,TMPMAX
+        REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: DUGWD,DVGWD
+        REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: SFCNSW,SFCDSW,SFALB,SFCDLW   &
                                                        ,TSFLW
-        REAL(KIND=KDBL),DIMENSION(:,:)    ,POINTER   :: ZORFCS,SIHFCS,SICFCS,SLPFCS  &
+        REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: ZORFCS,SIHFCS,SICFCS,SLPFCS  &
                                                        ,TG3FCS,VEGFCS,VETFCS,SOTFCS
-        REAL(KIND=KDBL),DIMENSION(:,:,:)  ,POINTER   :: ALBFC1,ALFFC1
-        REAL(KIND=KDBL),DIMENSION(:,:,:)  ,POINTER   :: SWH,HLW
-        REAL(KIND=KDBL),DIMENSION(:,:,:)  ,POINTER   :: PHY_F2DV   ! save last time step 2Ds
-        REAL(KIND=KDBL),DIMENSION(:,:,:,:),POINTER   :: PHY_F3DV   ! save last time step 3Ds
-        REAL(KIND=KDBL),DIMENSION(:,:,:,:),POINTER   :: OZPLIN
+        REAL(kind=KDBL),DIMENSION(:,:,:)  ,POINTER   :: ALBFC1,ALFFC1
+        REAL(kind=KDBL),DIMENSION(:,:,:)  ,POINTER   :: SWH,HLW
+        REAL(kind=KDBL),DIMENSION(:,:,:)  ,POINTER   :: PHY_F2DV   ! save last time step 2Ds
+        REAL(kind=KDBL),DIMENSION(:,:,:,:),POINTER   :: PHY_F3DV   ! save last time step 3Ds
+        REAL(kind=KDBL),DIMENSION(:,:,:,:),POINTER   :: OZPLIN
 !
 !-----------------------------------------------------------------------
 !***  Physics Options
@@ -239,7 +244,7 @@
 !***  Microphysics Indices and Water Substance Storage Array
 !-----------------------------------------------------------------------
 !
-        INTEGER(KIND=KINT) :: NUM_WATER                                 &  !<-- 1 + types of water substance in microphysics
+        INTEGER(kind=KINT) :: NUM_WATER                                 &  !<-- 1 + types of water substance in microphysics
                              ,P_QV                                      &  !<-- Index for water vapor in WATER array
                              ,P_QC                                      &  !<-- Index for cloud water in WATER array
                              ,P_QR                                      &  !<-- Index for rain in WATER array
@@ -247,10 +252,10 @@
                              ,P_QS                                      &  !<-- Index for snow in WATER array
                              ,P_QG                                         !<-- Index for graupel in WATER array
 !
-        INTEGER(KIND=KINT) :: INDX_WATER_START                          &  !<-- Start index of the water in tracers array
+        INTEGER(kind=KINT) :: INDX_WATER_START                          &  !<-- Start index of the water in tracers array
                              ,INDX_WATER_END                               !<-- End index of the water in tracers array
 !
-        REAL(KIND=KFPT),DIMENSION(:,:,:,:),POINTER :: WATER                !<-- Storage array for water substance
+        REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: WATER                !<-- Storage array for water substance
 !
 !
         LOGICAL :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
@@ -259,27 +264,27 @@
 !***  The general 4-D array of 3-D "tracers".
 !-----------------------------------------------------------------------
 !
-        INTEGER(KIND=KINT) :: NUM_TRACERS_TOTAL                            !<-- Total number of "tracer" variables.
+        INTEGER(kind=KINT) :: NUM_TRACERS_TOTAL                            !<-- Total number of "tracer" variables.
 !
-        INTEGER(KIND=KINT) :: INDX_Q                                    &  !<-- Location of Q in tracer arrays
+        INTEGER(kind=KINT) :: INDX_Q                                    &  !<-- Location of Q in tracer arrays
                              ,INDX_CW                                   &  !<-- Location of CW in tracer arrays
                              ,INDX_RRW                                  &  !<-- Location of RRW in tracer arrays
                              ,INDX_Q2                                      !<-- Location of Q2 in tracer arrays
 !
-        REAL(KIND=KFPT),DIMENSION(:,:,:,:),POINTER :: TRACERS              !<-- Storage array for "tracer" variables.
+        REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: TRACERS              !<-- Storage array for "tracer" variables.
 !
 !-----------------------------------------------------------------------
 !
-      END TYPE INTERNAL_STATE
+      END TYPE PHYSICS_INTERNAL_STATE
 !
 !-----------------------------------------------------------------------
 !***  THE INTERNAL_STATE TYPE IS SUPPORTED BY A C POINTER (NOT AN F90
 !***  POINTER) AND THEREFORE THE FOLLOWING TYPE IS NEEDED.
 !-----------------------------------------------------------------------
 !
-      TYPE WRAP_INTERNAL_STATE
-        TYPE(INTERNAL_STATE),POINTER :: INT_STATE
-      END TYPE WRAP_INTERNAL_STATE
+      TYPE WRAP_PHY_INT_STATE
+        TYPE(PHYSICS_INTERNAL_STATE),POINTER :: INT_STATE
+      END TYPE WRAP_PHY_INT_STATE
 !
 !-----------------------------------------------------------------------
 !
@@ -309,7 +314,7 @@
 !-----------------------------------------------------------------------
 !
       TYPE(ESMF_GridComp), INTENT(IN)    :: GRID_COMP                     !<-- The Physics gridded component
-      TYPE(INTERNAL_STATE),INTENT(INOUT) :: INT_STATE                     !<-- The Physics internal state
+      TYPE(PHYSICS_INTERNAL_STATE),INTENT(INOUT) :: INT_STATE             !<-- The Physics internal state
 !      
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES
@@ -320,9 +325,9 @@
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-!***  WE CAN RETRIEVE LM FROM THE INTERNAL STATE SINCE IT WAS 
-!***  PLACED THERE ALREADY FROM THE CONFIG FILE.
-!***  THE ARRAY MEMORY LIMITS NEED TO BE SET IN THE INTERNAL STATE.
+!***  We can retrieve LM from the internal state since it was 
+!***  placed there already from the config file.
+!***  The array memory limits need to be set in the internal state.
 !-----------------------------------------------------------------------
 !
       LM=int_state%LM
@@ -334,11 +339,11 @@
       int_state%NSOIL=NUM_SOIL_LAYERS
 !
 !-----------------------------------------------------------------------
-!***  INITIALIZE
+!***  Initialize
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  ALLOCATE THE ARRAYS OF THE INTERNAL STATE.
+!***  Allocate the arrays of the internal state.
 !-----------------------------------------------------------------------
 !
       ALLOCATE(int_state%DSG2(1:LM))     ! Delta sigma (bottom domain)
@@ -361,7 +366,7 @@
       ALLOCATE(int_state%GLON(IMS:IME,JMS:JME))    ! Geographic longitude (radians, positive east)
 !
 !-----------------------------------------------------------------------
-!***  LOCAL HORIZONTAL SUBDOMAIN LIMITS FOR ALL FORECAST TASKS.
+!***  Local horizontal subdomain limits for all forecast tasks.
 !-----------------------------------------------------------------------
 !
       NUM_PES=int_state%NUM_PES
@@ -371,7 +376,7 @@
       ALLOCATE(int_state%LOCAL_JEND  (0:NUM_PES-1))
 !
 !-----------------------------------------------------------------------
-!***  PROGNOSTIC ARRAYS
+!***  Prognostic arrays
 !-----------------------------------------------------------------------
 !
       ALLOCATE(int_state%Q2  (IMS:IME,JMS:JME,1:LM))      ! 2*tke  (m2 s-2)
@@ -409,10 +414,11 @@
       ALLOCATE(int_state%PPTDAT(IMS:IME,JMS:JME,1:int_state%PCPHR))
 !
 !-----------------------------------------------------------------------
-!***  THE ARRAY CALLED WATER IS A SPECIAL CASE NEEDED TO SATISFY
-!***  VARIOUS WRF PHYSICS OPTIONS.  THE IS SET TO 1+Number_of_species
-!***  INCLUDING VAPOR.  THE "1+" IS NEEDED BECAUSE WRF NEVER TOUCHES
-!***  THE FIRST LEVEL.
+!***  The array called WATER is a special case needed to satisfy
+!***  various WRF physics options.  The number of water-related arrays 
+!***  in its 4th dimension is set to 1+Number_of_species including
+!***  vapor.  The "1+" is needed because WRF never touches the
+!***  first level.
 !-----------------------------------------------------------------------
 !
       IF(TRIM(int_state%MICROPHYSICS)=='fer')THEN
@@ -468,10 +474,10 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  THE TRACERS ARRAY HOLDS ALL GENERAL "TRACER" VARIABLES INCLUDING
-!***  WATER.  PLACE THE DESIRED VARIABLES AT THE TOP OF THE TRACERS
-!***  ARRAY, LEVEL 1 THROUGH NUM_TRACERS_MET.  ALL OTHER SCALAR VARIABLES
-!***  (e.g., chemistry and aerosols) WILL FOLLOW.
+!***  The Tracers array holds all general "Tracer" variables including
+!***  Water.  Place the desired variables at the top of the Tracers
+!***  array, level 1 through NUM_TRACERS_MET.  All other scalar variables
+!***  (e.g., chemistry and aerosols) will follow.
 !-----------------------------------------------------------------------
 !
       int_state%NUM_TRACERS_TOTAL=                                      &  !<-- # of 3-D arrays in 4-D TRACERS array
@@ -492,7 +498,7 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  POINT Q AT LEVEL 1 OF THE TRACERS ARRAY.
+!***  Point Q at level 1 of the Tracers array.
 !-----------------------------------------------------------------------
 !
       int_state%INDX_Q=1                                                    !<-- Water vapor is always in location 1 of TRACERS array
@@ -590,7 +596,6 @@
       ENDDO
       ENDDO
 
-!
 !
       ALLOCATE(int_state%ISLTYP(IMS:IME,JMS:JME))   ! Soil type
       ALLOCATE(int_state%IVGTYP(IMS:IME,JMS:JME))   ! Vegetation type
@@ -857,7 +862,7 @@
         int_state%PREC(I,J)  = 0.
         int_state%CLDEFI(I,J)=-1.E6
         int_state%PSHLTR(I,J)=-1.E6
-        int_state%PSFC(I,J)=-1.E6
+        int_state%PSFC(I,J)  =-1.E6
         int_state%Q02(I,J)   = 0.
         int_state%Q10(I,J)   = 0.
         int_state%QSHLTR(I,J)= 0.
@@ -884,107 +889,112 @@
 !***  GFS physics
 !-----------------------------------------------------------------------
 !
-      gfs_physics:    IF ( int_state%GFS ) THEN
+      gfs_physics: IF(int_state%GFS)THEN
 !
-      ALLOCATE(int_state%DDY              (JTS:JTE))         !
-      ALLOCATE(int_state%JINDX1           (JTS:JTE))         !
-      ALLOCATE(int_state%JINDX2           (JTS:JTE))         !
-
-      ALLOCATE(int_state%DUGWD    (IMS:IME,JMS:JME))         ! U comp. GWD tend (m s-1)
-      ALLOCATE(int_state%DVGWD    (IMS:IME,JMS:JME))         ! V comp. GWD tend (m s-1)
-
-      ALLOCATE(int_state%TMPMIN   (IMS:IME,JMS:JME))         ! Max temp (K)
-      ALLOCATE(int_state%TMPMAX   (IMS:IME,JMS:JME))         ! Min temp (K)
-
-      ALLOCATE(int_state%SFCNSW   (IMS:IME,JMS:JME))         !
-      ALLOCATE(int_state%SFCDSW   (IMS:IME,JMS:JME))         !
-      ALLOCATE(int_state%SFALB    (IMS:IME,JMS:JME))         !
-      ALLOCATE(int_state%SFCDLW   (IMS:IME,JMS:JME))         !
-      ALLOCATE(int_state%TSFLW    (IMS:IME,JMS:JME))         !
-
-      ALLOCATE(int_state%ZORFCS   (IMS:IME,JMS:JME))         !
-      ALLOCATE(int_state%SIHFCS   (IMS:IME,JMS:JME))         !
-      ALLOCATE(int_state%SICFCS   (IMS:IME,JMS:JME))         !
-      ALLOCATE(int_state%SLPFCS   (IMS:IME,JMS:JME))         !
-      ALLOCATE(int_state%TG3FCS   (IMS:IME,JMS:JME))         !
-      ALLOCATE(int_state%VEGFCS   (IMS:IME,JMS:JME))         !
-      ALLOCATE(int_state%VETFCS   (IMS:IME,JMS:JME))         !
-      ALLOCATE(int_state%SOTFCS   (IMS:IME,JMS:JME))         !
-      ALLOCATE(int_state%ALBFC1   (IMS:IME,JMS:JME,4))       !
-      ALLOCATE(int_state%ALFFC1   (IMS:IME,JMS:JME,2))       !
-
-      ALLOCATE(int_state%SWH      (IMS:IME,JMS:JME,LM))      !
-      ALLOCATE(int_state%HLW      (IMS:IME,JMS:JME,LM))      !
-
-      ALLOCATE(int_state%PHY_F2DV (IMS:IME,JMS:JME,3))       ! for Zhao =3, Ferr=1
-      ALLOCATE(int_state%PHY_F3DV (IMS:IME,JMS:JME,LM,4))    ! for Zhao =4, Ferr=3
-
-         int_state%SOLCON      =0.0d0
-         int_state%SLAG        =0.0d0
-         int_state%SDEC        =0.0d0
-         int_state%CDEC        =0.0d0
-
-      DO J=JTS,JTE
-        int_state%DDY      (J)=0.0d0
-        int_state%JINDX1   (J)=0
-        int_state%JINDX2   (J)=0
-      ENDDO
-
-      DO J=JMS,JME
-      DO I=IMS,IME
-
-        int_state%DUGWD  (I,J)=0.0d0
-        int_state%DVGWD  (I,J)=0.0d0
-
-        int_state%TMPMIN (I,J)=373.0d0
-        int_state%TMPMAX (I,J)=173.0d0
-
-        int_state%SFCNSW (I,J)=0.0d0
-        int_state%SFCDSW (I,J)=0.0d0
-        int_state%SFALB  (I,J)=0.0d0
-        int_state%SFCDLW (I,J)=0.0d0
-        int_state%TSFLW  (I,J)=0.0d0
-        int_state%ZORFCS (I,J)=-1.D6
-        int_state%SIHFCS (I,J)=-1.D6
-        int_state%SICFCS (I,J)=-1.D6
-        int_state%SLPFCS (I,J)=-1.D6
-        int_state%TG3FCS (I,J)=-1.D6
-        int_state%VEGFCS (I,J)=-1.D6
-        int_state%VETFCS (I,J)=-1.D6
-        int_state%SOTFCS (I,J)=-1.D6
-       DO N=1,4
-        int_state%ALBFC1(I,J,N)=-1.D6
-       ENDDO
-       DO N=1,2
-        int_state%ALFFC1(I,J,N)=-1.D6
-       ENDDO
-       DO L=1,LM
-        int_state%SWH  (I,J,L)=-1.D6
-        int_state%HLW  (I,J,L)=-1.D6
-       ENDDO
-       DO N=1,3                                 ! for Zhao =3, Ferr=1
-        int_state%PHY_F2DV (I,J,N)=0.0D0
-       ENDDO
-       DO N=1,4                                 ! for Zhao =4, Ferr=3
-       DO L=1,LM
-        int_state%PHY_F3DV (I,J,L,N)=0.0D0
-       ENDDO
-       ENDDO
-
-      ENDDO
-      ENDDO
-
-      DO N=1,TIMEOZ
-      DO L=1,PL_COEFF
-      DO J=1,LEVOZP
-      DO I=1,LATSOZP
-        int_state%OZPLIN(I,J,L,N)=-1.D6
-      ENDDO
-      ENDDO
-      ENDDO
-      ENDDO
+        ALLOCATE(int_state%DDY              (JTS:JTE))         !
+        ALLOCATE(int_state%JINDX1           (JTS:JTE))         !
+        ALLOCATE(int_state%JINDX2           (JTS:JTE))         !
 !
-    ENDIF  gfs_physics
+        ALLOCATE(int_state%DUGWD    (IMS:IME,JMS:JME))         ! U comp. GWD tend (m s-1)
+        ALLOCATE(int_state%DVGWD    (IMS:IME,JMS:JME))         ! V comp. GWD tend (m s-1)
+!
+        ALLOCATE(int_state%TMPMIN   (IMS:IME,JMS:JME))         ! Max temp (K)
+        ALLOCATE(int_state%TMPMAX   (IMS:IME,JMS:JME))         ! Min temp (K)
+!
+        ALLOCATE(int_state%SFCNSW   (IMS:IME,JMS:JME))         !
+        ALLOCATE(int_state%SFCDSW   (IMS:IME,JMS:JME))         !
+        ALLOCATE(int_state%SFALB    (IMS:IME,JMS:JME))         !
+        ALLOCATE(int_state%SFCDLW   (IMS:IME,JMS:JME))         !
+        ALLOCATE(int_state%TSFLW    (IMS:IME,JMS:JME))         !
+!
+        ALLOCATE(int_state%ZORFCS   (IMS:IME,JMS:JME))         !
+        ALLOCATE(int_state%SIHFCS   (IMS:IME,JMS:JME))         !
+        ALLOCATE(int_state%SICFCS   (IMS:IME,JMS:JME))         !
+        ALLOCATE(int_state%SLPFCS   (IMS:IME,JMS:JME))         !
+        ALLOCATE(int_state%TG3FCS   (IMS:IME,JMS:JME))         !
+        ALLOCATE(int_state%VEGFCS   (IMS:IME,JMS:JME))         !
+        ALLOCATE(int_state%VETFCS   (IMS:IME,JMS:JME))         !
+        ALLOCATE(int_state%SOTFCS   (IMS:IME,JMS:JME))         !
+        ALLOCATE(int_state%ALBFC1   (IMS:IME,JMS:JME,4))       !
+        ALLOCATE(int_state%ALFFC1   (IMS:IME,JMS:JME,2))       !
+!
+        ALLOCATE(int_state%SWH      (IMS:IME,JMS:JME,LM))      !
+        ALLOCATE(int_state%HLW      (IMS:IME,JMS:JME,LM))      !
+!
+        ALLOCATE(int_state%PHY_F2DV (IMS:IME,JMS:JME,3))       ! for Zhao =3, Ferr=1
+        ALLOCATE(int_state%PHY_F3DV (IMS:IME,JMS:JME,LM,4))    ! for Zhao =4, Ferr=3
+!
+        int_state%SOLCON=0.0D0
+        int_state%SLAG  =0.0D0
+        int_state%SDEC  =0.0D0
+        int_state%CDEC  =0.0D0
+!
+        DO J=JTS,JTE
+          int_state%DDY   (J)=0.0D0
+          int_state%JINDX1(J)=0
+          int_state%JINDX2(J)=0
+        ENDDO
+!
+        DO J=JMS,JME
+        DO I=IMS,IME
+!
+          int_state%DUGWD  (I,J)=0.0D0
+          int_state%DVGWD  (I,J)=0.0D0
+!
+          int_state%TMPMIN (I,J)=373.0D0
+          int_state%TMPMAX (I,J)=173.0D0
+!
+          int_state%SFCNSW (I,J)=0.0D0
+          int_state%SFCDSW (I,J)=0.0D0
+          int_state%SFALB  (I,J)=0.0D0
+          int_state%SFCDLW (I,J)=0.0D0
+          int_state%TSFLW  (I,J)=0.0D0
+          int_state%ZORFCS (I,J)=-1.D6
+          int_state%SIHFCS (I,J)=-1.D6
+          int_state%SICFCS (I,J)=-1.D6
+          int_state%SLPFCS (I,J)=-1.D6
+          int_state%TG3FCS (I,J)=-1.D6
+          int_state%VEGFCS (I,J)=-1.D6
+          int_state%VETFCS (I,J)=-1.D6
+          int_state%SOTFCS (I,J)=-1.D6
+!
+          DO N=1,4
+            int_state%ALBFC1(I,J,N)=-1.D6
+          ENDDO
+!
+          DO N=1,2
+            int_state%ALFFC1(I,J,N)=-1.D6
+          ENDDO
+!
+          DO L=1,LM
+            int_state%SWH  (I,J,L)=-1.D6
+            int_state%HLW  (I,J,L)=-1.D6
+          ENDDO
+!
+          DO N=1,3                                 ! for Zhao =3, Ferr=1
+            int_state%PHY_F2DV (I,J,N)=0.0D0
+          ENDDO
+!
+          DO N=1,4                                 ! for Zhao =4, Ferr=3
+          DO L=1,LM
+            int_state%PHY_F3DV (I,J,L,N)=0.0D0
+          ENDDO
+          ENDDO
+!
+        ENDDO
+        ENDDO
+
+        DO N=1,TIMEOZ
+        DO L=1,PL_COEFF
+        DO J=1,LEVOZP
+        DO I=1,LATSOZP
+          int_state%OZPLIN(I,J,L,N)=-1.D6
+        ENDDO
+        ENDDO
+        ENDDO
+        ENDDO
+!
+      ENDIF  gfs_physics
 !
 !-----------------------------------------------------------------------
 !
@@ -1005,19 +1015,24 @@
 !
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_State)    ,INTENT(INOUT) :: IMP_STATE                     ! The Physics import state
-      TYPE(INTERNAL_STATE),INTENT(INOUT) :: INT_STATE                     ! The Physics internal state
+!------------------------
+!***  Argument variables
+!------------------------
 !
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                     ! The Physics import state
 !
-      INTEGER(KIND=KINT) :: I,II,J,JJ,L,N,RC,RC_UPD
-      INTEGER(KIND=KINT) :: IMS,IME,JMS,JME,LM
+      TYPE(PHYSICS_INTERNAL_STATE),INTENT(INOUT) :: INT_STATE             ! The Physics internal state
 !
-      REAL(KIND=KFPT),DIMENSION(:,:)    ,POINTER :: HOLD_2D
-      REAL(KIND=KFPT),DIMENSION(:,:,:)  ,POINTER :: HOLD_3D
-      REAL(KIND=KFPT),DIMENSION(:,:,:,:),POINTER :: HOLD_4D
+!---------------------
+!***  Local variables
+!---------------------
+!
+      INTEGER(kind=KINT) :: I,II,J,JJ,L,N,RC,RC_UPD
+      INTEGER(kind=KINT) :: IMS,IME,JMS,JME,LM
+!
+      REAL(kind=KFPT),DIMENSION(:,:)    ,POINTER :: HOLD_2D
+      REAL(kind=KFPT),DIMENSION(:,:,:)  ,POINTER :: HOLD_3D
+      REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: HOLD_4D
 !
       CHARACTER(20) :: FIELD_NAME
 !
@@ -1037,11 +1052,11 @@
       LM =int_state%LM
 !
 !-----------------------------------------------------------------------
-!***  FOR EACH VARIABLE, EXTRACT ITS ESMF Field FROM THE IMPORT STATE.
-!***  EACH Field CONTAINS A POINTER THAT POINTS AT THAT VARIABLE IN THE
-!***  INTERNAL STATE OF THE COMPONENT FROM WHICH THE IMPORT STATE CAME.
-!***  EXTRACT THE POINTER FROM THE ESMF Field AND USE IT TO UPDATE
-!***  THIS COMPONENT'S INTERNAL STATE.
+!***  For each variable, extract its ESMF Field from the import state.
+!***  Each Field contains a pointer that points at that variable in the
+!***  internal state of the component from which the import state came.
+!***  Extract the pointer from the ESMF Field and use it to update
+!***  this component's internal state.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
@@ -1053,6 +1068,7 @@
 !-----------------------------------------------------------------------
 !
       FIELD_NAME='T'
+      NULLIFY(HOLD_3D)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract Temperature Field from Physics Import State"
@@ -1062,7 +1078,7 @@
       CALL ESMF_StateGet(state   =IMP_STATE                             &  !<-- State that holds the Field
                         ,itemName=FIELD_NAME                            &  !<-- Name of the Field we want
                         ,field   =HOLD_FIELD                            &  !<-- Put extracted Field here
-                        ,rc      = RC)
+                        ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
@@ -1099,6 +1115,7 @@
 !-----------------------------------------------------------------------
 !
       FIELD_NAME='U'
+      NULLIFY(HOLD_3D)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract U Wind Field from Physics Import State"
@@ -1108,7 +1125,7 @@
       CALL ESMF_StateGet(state   =IMP_STATE                             &  !<-- State that holds the Field
                         ,itemName=FIELD_NAME                            &  !<-- Name of the Field we want
                         ,field   =HOLD_FIELD                            &  !<-- Put extracted Field here
-                        ,rc      = RC)
+                        ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
@@ -1145,6 +1162,7 @@
 !-----------------------------------------------------------------------
 !
       FIELD_NAME='V'
+      NULLIFY(HOLD_3D)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract V Wind Field from Physics Import State"
@@ -1154,7 +1172,7 @@
       CALL ESMF_StateGet(state   =IMP_STATE                             &  !<-- State that holds the Field
                         ,itemName=FIELD_NAME                            &  !<-- Name of the Field we want
                         ,field   =HOLD_FIELD                            &  !<-- Put extracted Field here
-                        ,rc      = RC)
+                        ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
@@ -1191,6 +1209,7 @@
 !-----------------------------------------------------------------------
 !
       FIELD_NAME='Q2'
+      NULLIFY(HOLD_3D)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract TKE Field from Physics Import State"
@@ -1236,6 +1255,7 @@
 !-----------------------------------------------------------------------
 !
       FIELD_NAME='OMGALF'
+      NULLIFY(HOLD_3D)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract Omega-alpha Field from Physics Import State"
@@ -1286,6 +1306,7 @@
 !-----------------------------------------------------------------------
 !
       FIELD_NAME='PD'
+      NULLIFY(HOLD_2D)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract Sigma Domain Pressure Depth Field from Physics import state"
@@ -1335,7 +1356,8 @@
 !- - - - - - - - - - - - - - TRACERS - - - - - - - - - - - - - - - - - -
 !-----------------------------------------------------------------------
 !
-          FIELD_NAME='TRACERS'
+      FIELD_NAME='TRACERS'
+      NULLIFY(HOLD_4D)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract 4-D Tracers Field from Physics Import State"
@@ -1386,9 +1408,6 @@
       ELSE
         WRITE(0,*)'PHYSICS UPDATE FAILED RC_UPD=',RC_UPD
       ENDIF
-!
-!-----------------------------------------------------------------------
-!
 !
 !-----------------------------------------------------------------------
 !

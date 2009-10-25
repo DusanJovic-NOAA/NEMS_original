@@ -32,50 +32,50 @@
 !
 !-----------------------------------------------------------------------
 
-      SUBROUTINE GFS_INTEGRATE(gc_gfs_dyn                               &
-                                 ,gc_gfs_phy                            &
-                                 ,gc_atm_cpl                            &
-                                 ,wrt_comps                             &
-                                 ,imp_gfs_dyn                           &
-                                 ,exp_gfs_dyn                           &
-                                 ,imp_gfs_phy                           &
-                                 ,exp_gfs_phy                           &
-                                 ,imp_gfs_wrt                           &
-                                 ,exp_gfs_wrt                           &
-                                 ,CLOCK_MAIN                            &
-                                 ,OUTPUT_INTERVAL                       &
-                                 ,quilting                              &
-                                 ,WRITE_GROUP_READY_TO_GO               &
-                                 ,CURRTIME                              &
-                                 ,STARTTIME                             &
-                                 ,NTIMESTEP                             &
-                                 ,TIMESTEP                              &
-                                 ,DFIHR                                 &
-                                 ,MYPE                                  &
-                                 ,PHYSICS_ON)
+      SUBROUTINE GFS_INTEGRATE(GC_GFS_DYN                               &
+                              ,GC_GFS_PHY                               &
+                              ,GC_ATM_CPL                               &
+                              ,WRT_COMPS                                &
+                              ,IMP_GFS_DYN                              &
+                              ,EXP_GFS_DYN                              &
+                              ,IMP_GFS_PHY                              &
+                              ,EXP_GFS_PHY                              &
+                              ,IMP_GFS_WRT                              &
+                              ,EXP_GFS_WRT                              &
+                              ,CLOCK_MAIN                               &
+                              ,OUTPUT_INTERVAL                          &
+                              ,QUILTING                                 &
+                              ,WRITE_GROUP_READY_TO_GO                  &
+                              ,CURRTIME                                 &
+                              ,STARTTIME                                &
+                              ,NTIMESTEP                                &
+                              ,TIMESTEP                                 &
+                              ,DFIHR                                    &
+                              ,MYPE                                     &
+                              ,PHYSICS_ON)
 
 !
 !-----------------------------------------------------------------------
 !
 !
 
-      TYPE(ESMF_GridComp),INTENT(INOUT)      :: gc_gfs_dyn
-      TYPE(ESMF_GridComp),INTENT(INOUT)	     :: gc_gfs_phy
-      TYPE(ESMF_CplComp),INTENT(INOUT)       :: gc_atm_cpl
-      TYPE(ESMF_GridComp),INTENT(INOUT)      :: wrt_comps(:)
-      TYPE(ESMF_State),INTENT(INOUT)         :: imp_gfs_dyn,exp_gfs_dyn
-      TYPE(ESMF_State),INTENT(INOUT)         :: imp_gfs_phy,exp_gfs_phy
-      TYPE(ESMF_State),INTENT(INOUT)         :: imp_gfs_wrt,exp_gfs_wrt
-      TYPE(ESMF_Clock),INTENT(INOUT)         :: CLOCK_MAIN                         !<-- The ATM Component's ESMF Clock
-      TYPE(ESMF_Time),INTENT(INOUT)             :: CURRTIME                           !<-- The current forecast time
-      TYPE(ESMF_Time),INTENT(INOUT)             :: STARTTIME
-      INTEGER(KIND=KINT),INTENT(INOUT)       :: DFIHR, NTIMESTEP
-      INTEGER(KIND=KINT),INTENT(IN)          :: MYPE
-      TYPE(ESMF_TimeInterval),INTENT(IN)          :: TIMESTEP                      !<-- The ESMF timestep (s)
-      LOGICAL,INTENT(IN)                     :: PHYSICS_ON
-      TYPE(ESMF_TimeInterval),INTENT(INOUT)  :: output_interval
-      LOGICAL,INTENT(IN)                     :: QUILTING
-      INTEGER(KIND=KINT),INTENT(INOUT)       :: WRITE_GROUP_READY_TO_GO
+      TYPE(ESMF_GridComp),INTENT(INOUT)      :: GC_GFS_DYN
+      TYPE(ESMF_GridComp),INTENT(INOUT)	     :: GC_GFS_PHY
+      TYPE(ESMF_CplComp),INTENT(INOUT)       :: GC_ATM_CPL
+      TYPE(ESMF_GridComp),INTENT(INOUT)      :: WRT_COMPS(:)
+      TYPE(ESMF_State),INTENT(INOUT)         :: IMP_GFS_DYN,EXP_GFS_DYN
+      TYPE(ESMF_State),INTENT(INOUT)         :: IMP_GFS_PHY,EXP_GFS_PHY
+      TYPE(ESMF_State),INTENT(INOUT)         :: IMP_GFS_WRT,EXP_GFS_WRT
+      TYPE(ESMF_Clock),INTENT(INOUT)         :: CLOCK_MAIN                  !<-- The ATM Component's ESMF Clock
+      TYPE(ESMF_Time),INTENT(INOUT)          :: CURRTIME                    !<-- The current forecast time
+      TYPE(ESMF_Time),INTENT(INOUT)          :: STARTTIME
+      INTEGER(kind=KINT),INTENT(INOUT)       :: DFIHR, NTIMESTEP
+      INTEGER(kind=KINT),INTENT(IN)          :: MYPE
+      TYPE(ESMF_TimeInterval),INTENT(IN)     :: TIMESTEP                    !<-- The ESMF timestep (s)
+      TYPE(ESMF_Logical),INTENT(IN)          :: PHYSICS_ON
+      TYPE(ESMF_TimeInterval),INTENT(INOUT)  :: OUTPUT_INTERVAL
+      LOGICAL(kind=KLOG),INTENT(IN)          :: QUILTING
+      INTEGER(kind=KINT),INTENT(INOUT)       :: WRITE_GROUP_READY_TO_GO
 !
       END SUBROUTINE GFS_INTEGRATE
 !

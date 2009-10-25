@@ -42,7 +42,7 @@
 !-----------------------------------------------------------------------
 !
       TYPE(ESMF_GridComp), INTENT(INOUT) :: GRID_COMP                     !<-- The Dynamics gridded component
-      TYPE(INTERNAL_STATE),INTENT(INOUT) :: INT_STATE                     !<-- The Dynamics internal state
+      TYPE(DYNAMICS_INTERNAL_STATE),INTENT(INOUT) :: INT_STATE            !<-- The Dynamics internal state
       INTEGER             ,INTENT(OUT)   :: RC_CONF                       !<-- Final return code
 !
 !-----------------------------------------------------------------------

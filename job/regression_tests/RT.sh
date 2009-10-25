@@ -60,10 +60,16 @@ date > RegressionTests.log
 echo "Start Regression test" >> RegressionTests.log
 (echo;echo;echo)             >> RegressionTests.log
 
-#########################################################################
-# Setup directory names
-#########################################################################
+############################################################
+# RTPWD - Path to previously stored regression test answers
+############################################################
+
 export RTPWD=/${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
+
+###################################
+# PATHRT - Path to regression test
+###################################
+
 export PATHRT=`pwd`
 cd ../../
 export PATHTR=`pwd`
@@ -97,8 +103,14 @@ fi
 cd $PATHRT
 
 ####################################################################################################
-export TEST_DESCR="Compare NMMB-global results with previous trunk version"
+#
+# TEST   - Global NMM-B with pure binary input
+#        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
+#
 ####################################################################################################
+
+export TEST_DESCR="Compare NMMB-global results with previous trunk version"
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL
@@ -116,14 +128,20 @@ export NEMSI=false ; export RSTRT=false ; export gfsP=false ; export RGS=false ;
  if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-export timing1=`grep total_tim $PATHRT/err | tail -1 | awk '{ print $5 }'`
+export timing1=`grep total_integration_tim $PATHRT/err | tail -1 | awk '{ print $5 }'`
 export timingc=`cat ${RTPWD}/NMMB_glob/timing.txt`
 (echo " Original timing: " $timingc " , test_glob timing: " $timing1;echo;echo)>> RegressionTests.log
  echo " Original timing: " $timingc " , test_glob timing: " $timing1;echo;echo
 
 ####################################################################################################
-export TEST_DESCR="Test NMMB-global NEMSIO as input file"
+#
+# TEST   - Global NMM-B with NEMSIO input
+#        - 6x5 compute tasks / 1 thread / opnl physics / free fcst / nemsio input
+#
 ####################################################################################################
+
+export TEST_DESCR="Test NMMB-global NEMSIO as input file"
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/NMM_NEMSIO
@@ -142,8 +160,14 @@ export NEMSI=true  ; export RSTRT=false ; export gfsP=false ; export RGS=false ;
 #---------------------
 
 ####################################################################################################
-export TEST_DESCR="Test NMMB-global restart run"
+#
+# TEST   - Global NMM-B restart from pure binary input
+#        - 6x5 compute tasks / 1 thread / opnl physics / restart / pure binary input
+#
 ####################################################################################################
+
+export TEST_DESCR="Test NMMB-global restart run"
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/NMM_REST
@@ -159,8 +183,14 @@ export NEMSI=false ; export RSTRT=true  ; export gfsP=false ; export RGS=false ;
 #---------------------
 
 ####################################################################################################
-export TEST_DESCR="Test NMMB-global restart run from NEMSIO file"
+#
+# TEST   - Global NMM-B restart from NEMSIO input
+#        - 6x5 compute tasks / 1 thread / opnl physics / restart / nemsio input
+#
 ####################################################################################################
+
+export TEST_DESCR="Test NMMB-global restart run from NEMSIO file"
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/NMM_REST_NIO
@@ -176,8 +206,14 @@ export NEMSI=true  ; export RSTRT=true  ; export gfsP=false ; export RGS=false ;
 #---------------------
 
 ####################################################################################################
-export TEST_DESCR="Test NMMB-global different decomposition"
+#
+# TEST   - Global NMM-B with different domain decomposition
+#        - 3x5 compute tasks / 1 thread / opnl physics / free fcst / pure binary input
+#
 ####################################################################################################
+
+export TEST_DESCR="Test NMMB-global different decomposition"
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/NMM_DECOMP
@@ -196,8 +232,14 @@ export NEMSI=false ; export RSTRT=false ; export gfsP=false ; export RGS=true  ;
 #---------------------
 
 ####################################################################################################
-export TEST_DESCR="Test NMMB-global threading "
+#
+# TEST   - Global NMM-B with multiple threads
+#        - 6x5 compute tasks / 2 threads / opnl physics / free fcst / pure binary input
+#
 ####################################################################################################
+
+export TEST_DESCR="Test NMMB-global threading "
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/NMM_THREAD
@@ -216,8 +258,14 @@ export NEMSI=false ; export RSTRT=false ; export gfsP=false ; export RGS=false ;
 #---------------------
 
 ####################################################################################################
-export TEST_DESCR="Test NMMB-global with GFS physics package "
+#
+# TEST   - Global NMM-B with GFS physics
+#        - 6x5 compute tasks / 1 thread / GFS physics / free fcst / pure binary input
+#
 ####################################################################################################
+ 
+export TEST_DESCR="Test NMMB-global with GFS physics package "
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/NMM_gfsP
@@ -236,8 +284,14 @@ export NEMSI=false ; export RSTRT=false ; export gfsP=true  ; export RGS=false ;
 #---------------------
 
 ####################################################################################################
-export TEST_DESCR="Compare NMMB-regional results with previous trunk version"
+#
+# TEST   - Regional NMM-B with pure binary input
+#        - 6x5 compute tasks / 1 thread / opnl physics / free fcst / pure binary input
+#
 ####################################################################################################
+
+export TEST_DESCR="Compare NMMB-regional results with previous trunk version"
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/NMM_REG_CTL
@@ -255,14 +309,20 @@ export NEMSI=false ; export RSTRT=false ; export gfsP=false ; export RGS=false ;
  if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-export timing1=`grep total_tim $PATHRT/err | tail -1 | awk '{ print $5 }'`
+export timing1=`grep total_integration_tim $PATHRT/err | tail -1 | awk '{ print $5 }'`
 export timingc=`cat ${RTPWD}/NMMB_reg/timing.txt`
 (echo " Original timing: " $timingc " , test_reg timing: " $timing1;echo;echo)>> RegressionTests.log
  echo " Original timing: " $timingc " , test_reg timing: " $timing1;echo;echo
 
 ####################################################################################################
-export TEST_DESCR="Test NMMB-regional NEMSIO as input file"
+# 
+# TEST   - Regional NMM-B with NEMSIO input
+#        - 6x5 compute tasks / 1 thread / opnl physics / free fcst / nemsio input
+# 
 ####################################################################################################
+
+export TEST_DESCR="Test NMMB-regional NEMSIO as input file"
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/NEM_REG_NEMSIO
@@ -281,8 +341,14 @@ export NEMSI=true  ; export RSTRT=false ; export gfsP=false ; export RGS=false ;
 #---------------------
 
 ####################################################################################################
-export TEST_DESCR="Test NMMB-regional restart run"
+#
+# TEST   - Regional NMM-B restart with pure binary input
+#        - 6x5 compute tasks / 1 thread / opnl physics / restart / pure binary input
+#
 ####################################################################################################
+
+export TEST_DESCR="Test NMMB-regional restart run"
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/NMM_REG_RST
@@ -298,8 +364,14 @@ export NEMSI=false ; export RSTRT=true  ; export gfsP=false ; export RGS=false ;
 #---------------------
 
 ####################################################################################################
-export TEST_DESCR="Test NMMB-regional restart run with NEMSIO file "
+#
+# TEST   - Regional NMM-B restart with NEMSIO input
+#        - 6x5 compute tasks / 1 thread / opnl physics / restart / nemsio input
+#
 ####################################################################################################
+
+export TEST_DESCR="Test NMMB-regional restart run with NEMSIO file "
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/NMM_REG_RST_NIO
@@ -315,8 +387,14 @@ export NEMSI=true  ; export RSTRT=true  ; export gfsP=false ; export RGS=false ;
 #---------------------
 
 ####################################################################################################
-export TEST_DESCR="Test NMMB-regional different decomposition"
+#
+# TEST   - Regional NMM-B with different domain decomposition
+#        - 3x5 compute tasks / 1 thread / opnl physics / free fcst / pure binary input
+#
 ####################################################################################################
+
+export TEST_DESCR="Test NMMB-regional different decomposition"
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/NMM_REG_DECOMP
@@ -332,8 +410,14 @@ export NEMSI=false ; export RSTRT=false ; export gfsP=false ; export RGS=true  ;
 #---------------------
 
 ####################################################################################################
-export TEST_DESCR="Test NMMB-regional threading "
+#
+# TEST   - Regional NMM-B with multiple threads
+#        - 6x5 compute tasks / 2 threads / opnl physics / free fcst / pure binary input
+#
 ####################################################################################################
+
+export TEST_DESCR="Test NMMB-regional threading "
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/NMM_REG_THREAD
@@ -352,8 +436,14 @@ export NEMSI=false ; export RSTRT=false ; export gfsP=false ; export RGS=false ;
 #---------------------
 
 ####################################################################################################
-export TEST_DESCR="Test NMMB-regional with GFS physics package "
+#
+# TEST   - Regional NMM-B with GFS physics
+#        - 6x5 compute tasks / 1 thread / GFS physics / free fcst / pure binary input
+#
 ####################################################################################################
+
+export TEST_DESCR="Test NMMB-regional with GFS physics package "
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/NMM_REG_gfsP
@@ -371,9 +461,11 @@ export NEMSI=false ; export RSTRT=false ; export gfsP=true  ; export RGS=false ;
  if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-#########################################################################
+
+####################################################################################################
 # Clean and compile GFS core
-#########################################################################
+####################################################################################################
+
 echo "Preparing GFS core for regression tests" >> RegressionTests.log
 echo "Preparing GFS core for regression tests"
 printf %s "Compiling GFS core (this will take some time)......."
@@ -395,8 +487,14 @@ fi
 cd $PATHRT
 
 ####################################################################################################
-export TEST_DESCR="Compare GFS results with previous trunk version"
+# 
+# TEST   - GFS 
+#        - 30 compute tasks / 1 thread 
+#
 ####################################################################################################
+
+export TEST_DESCR="Compare GFS results with previous trunk version"
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/GFS_32
@@ -414,8 +512,14 @@ export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=#
 #---------------------
 
 ####################################################################################################
-export TEST_DESCR="Test GFS with 2-copy option"
+#
+# TEST   - GFS as two copies
+#        - 30 compute tasks / 1 thread 
+#
 ####################################################################################################
+
+export TEST_DESCR="Test GFS with 2-copy option"
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/GFS_32_2copy
@@ -433,8 +537,14 @@ export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=''
 #---------------------
 
 ####################################################################################################
-export TEST_DESCR="Test GFS different decomposition"
+#
+# TEST   - GFS with different decomposition
+#        - 58 compute tasks / 1 thread 
+#
 ####################################################################################################
+
+export TEST_DESCR="Test GFS different decomposition"
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/GFS_60
@@ -452,8 +562,14 @@ export PE1=58      ; export WTPG=2       ; export NDAYS=2     ; export CP2=#
 #---------------------
 
 ####################################################################################################
-export TEST_DESCR="Test GFS threads"
+#
+# TEST   - GFS with multiple threads
+#        - 14 compute tasks / 2 threads
+#
 ####################################################################################################
+
+export TEST_DESCR="Test GFS threads"
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/GFS_16
@@ -471,8 +587,14 @@ export PE1=14      ; export WTPG=2       ; export NDAYS=2     ; export CP2=#
 #---------------------
 
 ####################################################################################################
-export TEST_DESCR="Test GFS single processor"
+#
+# TEST   - GFS on a single processor
+#        - 1 task / 1 thread
+#
 ####################################################################################################
+
+export TEST_DESCR="Test GFS single processor"
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/GFS_01
@@ -490,8 +612,14 @@ export PE1=1       ; export WTPG=1       ; export NDAYS=1     ; export CP2=#
 #---------------------
 
 ####################################################################################################
-export TEST_DESCR="Test GFS, 1 proc, 1 threads,no quilting,nsout=1"
+#
+# TEST   - GFS on a single processor with no quilting
+#        - 1 task / 1 thread
+#
 ####################################################################################################
+
+export TEST_DESCR="Test GFS, 1 proc, 1 thread, no quilting,nsout=1"
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/GFS_01_NSOUT
@@ -509,8 +637,14 @@ export PE1=1       ; export WTPG=1       ; export NDAYS=1     ; export CP2=#
 #---------------------
 
 ####################################################################################################
-export TEST_DESCR="Test GFS, 16 proc, 2 threads,no quilt, output every 2 time steps"
+#
+# TEST   - GFS with multiple threads, no quilting, and frequent output
+#        - 16 tasks / 2 threads
+#
 ####################################################################################################
+
+export TEST_DESCR="Test GFS, 16 proc, 2 threads,no quilt, output every 2 time steps"
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/GFS_16_NOQUILT_NSOUT
@@ -528,8 +662,14 @@ export PE1=16      ; export WTPG=1       ; export NDAYS=2     ; export CP2=#
 #---------------------
 
 ####################################################################################################
-export TEST_DESCR="Test GFS, 60 proc, 1 thread, no quilt"
+#
+# TEST   - GFS with multiple tasks and no quilting
+#        - 60 tasks / 1 thread
+#
 ####################################################################################################
+
+export TEST_DESCR="Test GFS, 60 proc, 1 thread, no quilt"
+
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/GFS_60_NOQUILT
@@ -545,6 +685,13 @@ export PE1=60      ; export WTPG=1       ; export NDAYS=2     ; export CP2=#
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
 #---------------------
+
+####################################################################################################
+#
+# TEST   - GFS with multiple tasks, no quilting, and frequent output
+#        - 32 tasks / 1 thread
+#
+####################################################################################################
 
 ####################################################################################################
 export TEST_DESCR="GFS, 32 proc, 1 thread, no quilt, output every 4 timestep"

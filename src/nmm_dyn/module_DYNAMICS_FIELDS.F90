@@ -10,7 +10,7 @@
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
-      USE MODULE_DYNAMICS_INTERNAL_STATE,ONLY : INTERNAL_STATE
+      USE MODULE_DYNAMICS_INTERNAL_STATE,ONLY : DYNAMICS_INTERNAL_STATE
       USE MODULE_DM_PARALLEL            ,ONLY : IDS,IDE,JDS,JDE         &
                                                ,IMS,IME,JMS,JME         &
                                                ,ITS,ITE,JTS,JTE         &
@@ -74,9 +74,9 @@
 !***  CREATE ESMF Fields FOR THE DYNAMICS IMPORT/EXPORT STATES.
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_Grid),INTENT(IN)   :: GRID                               !<-- The ESMF grid
+      TYPE(ESMF_Grid),INTENT(IN)   :: GRID                                !<-- The ESMF grid
 !
-      TYPE(INTERNAL_STATE),POINTER :: INT_STATE                          !<-- The Dynamics internal state
+      TYPE(DYNAMICS_INTERNAL_STATE),POINTER :: INT_STATE                  !<-- The Dynamics internal state
 !
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES

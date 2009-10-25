@@ -6,10 +6,11 @@ use module_include
 use module_dm_parallel,only : ids,ide,jds,jde &
                              ,ims,ime,jms,jme &
                              ,its,ite,jts,jte &
+                             ,its_h2,ite_h2,jts_h2,jte_h2 &
                              ,lm &
                              ,mype_share,npes,num_pts_max &
-                             ,mpi_comm_comp &
-                             ,dstrb
+                             ,mpi_comm_comp
+!
 use module_exchange
 use module_constants
 !-----------------------------------------------------------------------
@@ -60,9 +61,8 @@ real(kind=kfpt) :: &
 ,ztmax1 &                    ! upper bound for z/L for sea stab. functions
 ,ztmin1 &                    ! lower bound for z/L for sea stab. functions
 ,ztmax2 &                    ! upper bound for z/L for land stab. functions
-,ztmin2 &                    ! lower bound for z/L for land stab. functions
-,dphd &
-,dlmd
+,ztmin2                      ! lower bound for z/L for land stab. functions
+ 
 real(kind=kfpt),dimension(1:itb):: &
  sthe &                      ! range for equivalent potential temperature
 ,the0                        ! base for equivalent potential temperature           
@@ -99,11 +99,9 @@ logical(kind=klog):: &
 ,adv_upstream &              ! my task is in upstream advec region
 ,first &                     ! if true preparation for the first time step
 ,hydro &                     ! if true hydrostatic dynamics
-,read_global_sums &          ! read global sums in subroutine adv2 (bit identity)
 ,readbc &                    ! read regional boundary conditions
 ,run &                       ! initial data ready, start run
 ,runbc &                     ! boundary data ready, start run
-,write_global_sums  &         ! write global sums in subroutine adv2 (bit identity)
 ,global 
 integer(kind=kint):: &
  ierr &                      ! error code
@@ -177,15 +175,13 @@ real(kind=kfpt):: &
 ,rdyh &                      ! 1 / delta y, h points
 ,rdyv &                      ! 1 / delta y, v points
 ,sb &                        ! radians from center to southern boundary
-,sbd &                       ! degrees from center to southern boundary
 ,stph0 &                     ! sin(tph0)
 ,tboco &                     ! boundary conditions interval, hours
 ,tlm0 &                      ! radians grid rotated in lambda direction
 ,tlm0d &                     ! degrees grid rotated in lambda direction
 ,tph0 &                      ! radians grid rotated in phi direction
 ,tph0d &                     ! degrees grid rotated in phi direction
-,wb &                        ! radians from center to western boundary
-,wbd                         ! degrees from center to western boundary
+,wb                          ! radians from center to western boundary
 
 !real(kind=kfpt),allocatable,dimension(:):: &      !lm
 ! dsg1 &                      ! thicnesses of sigma layers in pressure range
@@ -315,17 +311,17 @@ real(kind=kfpt),allocatable,dimension(:,:,:,:):: &    !lnsh,jm,lm,2
 ,wbe &                       ! condensate at eastern boundary
 ,wbw                         ! condensate at western boundary
 
-real(kind=kfpt),allocatable,dimension(:,:,:,:):: &    !im,lnsv,lm,2
- ubn &                       ! u wind component at northern boundary
-,ubs &                       ! u wind component at southern boundary
-,vbn &                       ! v wind component at northern boundary
-,vbs                         ! v wind component at southern boundary
+!real(kind=kfpt),allocatable,dimension(:,:,:,:):: &    !im,lnsv,lm,2
+! ubn &                       ! u wind component at northern boundary
+!,ubs &                       ! u wind component at southern boundary
+!,vbn &                       ! v wind component at northern boundary
+!,vbs                         ! v wind component at southern boundary
 
-real(kind=kfpt),allocatable,dimension(:,:,:,:):: &    !lnsv,im,lm,2
- ube &                       ! u wind component at eastern boundary
-,ubw &                       ! u wind component at western boundary
-,vbe &                       ! v wind component at eastern boundary
-,vbw                         ! v wind component at western boundary
+!real(kind=kfpt),allocatable,dimension(:,:,:,:):: &    !lnsv,im,lm,2
+! ube &                       ! u wind component at eastern boundary
+!,ubw &                       ! u wind component at western boundary
+!,vbe &                       ! v wind component at eastern boundary
+!,vbw                         ! v wind component at western boundary
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
 !---atmospheric variables, hydrostatic----------------------------------
@@ -398,6 +394,7 @@ real(kind=kfpt),allocatable,dimension(:,:,:):: &      !im,jm,lm
       ,smag2,smag4,codamp,wcor &
       ,pt &
       ,tph0d,tlm0d &
+      ,sbd,wbd &
       ,dphd,dlmd &
       ,dxh,rdxh &
       ,dxv,rdxv &
@@ -415,7 +412,8 @@ real(kind=kfpt),allocatable,dimension(:,:,:):: &      !im,jm,lm
       ,hdacx,hdacy &
       ,hdacvx,hdacvy &
       ,lnsh,lnsad &
-      ,nboco,tboco)
+      ,nboco,tboco &
+      ,my_domain_id)
 !
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -425,28 +423,30 @@ real(kind=kfpt),allocatable,dimension(:,:,:):: &      !im,jm,lm
 !
 !-----------------------------------------------------------------------
 integer(kind=kint),intent(in) :: &
- lnsh
+ lnsh &
+,my_domain_id
 
 integer(kind=kint),intent(out) :: &
-lnsad &
+ lnsad &
 ,nboco
 
 real(kind=kfpt),intent(in) :: &
  codamp &    ! divergence damping coefficient
 ,pt &        ! Pressure at top of domain (Pa)
+,sbd &       ! degrees from center of domain to southern boundary
 ,smag2 &     ! Smagorinsky coefficient for 2nd order diffusion 
 ,smag4 &     ! Smagorinsky coefficient for 4th order diffusion
 ,tlm0d &
 ,tph0d &
+,wbd &       ! degrees from center of domain to western boundary
 ,wcor
 
-logical(kind=klog),intent(in) :: &
- global
- 
+real(kind=kfpt),intent(inout) :: &
+ dlmd &      ! grid increment, delta lambda, degrees
+,dphd        ! grid increment, delta phi, degrees
+
 real(kind=kfpt),intent(out) :: &
  ddmpv &
-,dlmd &
-,dphd &
 ,dyh &
 ,dyv &
 ,ef4t &
@@ -481,9 +481,11 @@ real(kind=kfpt),dimension(ims:ime,jms:jme),intent(out) :: &
 ,hdacy &
 ,hdacvx &
 ,hdacvy
-!
+ 
 logical(kind=klog),intent(in) :: &
- secdif
+ global &    ! global forecast if true
+,secdif
+ 
 !
 !-----------------------------------------------------------------------
 !--local variables------------------------------------------------------
@@ -531,6 +533,10 @@ real(kind=kfpt),dimension(jds:jde):: &
 !-----------------------------------------------------------------------
  1000 format(100a4)
 !
+      if(mype==0)then
+        write(0,*)' CONSTS ids=',ids,' ide=',ide,' jds=',jds,' jde=',jde 
+      endif
+!
 !-----------------------------------------------------------------------
 !***  Because subdomains that lie along the global domain boundary
 !***  may have haloes that extend beyond the global limits, create
@@ -551,8 +557,9 @@ real(kind=kfpt),dimension(jds:jde):: &
 !
         icycle=ide
 !
-        dlmd=-wbd*2./real(ide-3)
-        dphd=-sbd*2./real(jde-3)
+!!!     dlmd=-wbd*2./real(ide-3)
+!!!     dphd=-sbd*2./real(jde-3)
+        write(0,*)' CONSTS Global: dphd=',dphd,' dlmd=',dlmd
 !
         lnsbc=lnsh
         bofac=0.
@@ -565,8 +572,9 @@ real(kind=kfpt),dimension(jds:jde):: &
 !-----------------------------------------------------------------------
 ! 
         icycle=ide
-        dlmd=-wbd*2./real(ide-1)
-        dphd=-sbd*2./real(jde-1)
+!!!     dlmd=-wbd*2./real(ide-1)
+!!!     dphd=-sbd*2./real(jde-1)
+        write(0,*)' CONSTS Regional: dphd=',dphd,' dlmd=',dlmd
 !
         lnsbc=lnsh
         bofac=4.
@@ -610,9 +618,9 @@ real(kind=kfpt),dimension(jds:jde):: &
 !-----------------------------------------------------------------------
       dtq2=nphs*dt
 !
-      if(.not.global) then
+      if(.not.global.and.my_domain_id==1)then
         ihrbc=0
-        write(infile,'(a,i3.3)')'boco.01.',ihrbc
+        write(infile,'(a,i3.3,a,i2.2)')'boco.',ihrbc,'_',my_domain_id
         nbc=18
         open(unit=nbc,file=infile,status='old',form='unformatted')
         read (nbc) runbc,idatbc,ihrstbc,tboco
@@ -622,7 +630,7 @@ real(kind=kfpt),dimension(jds:jde):: &
 !	write(0,*) 'tboco: ', tboco
         rewind nbc
         close(unit=nbc)
-        write(0,*)'*** Read tboco in consts from ',infile
+        write(0,*)'*** Read tboco in CONSTS from ',infile
         nboco=nint(tboco/dt)
       endif
 !-----------------------------------------------------------------------
@@ -1210,7 +1218,292 @@ real(kind=kfpt),dimension(jds:jde):: &
 !-----------------------------------------------------------------------
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !-----------------------------------------------------------------------
+                        subroutine boundary_init &
+      (its,ite,jts,jte,lm &
+      ,ims,ime,jms,jme &
+      ,ids,ide,jds,jde &
+      ,lnsh,lnsv &
+      ,pd,pdbs,pdbn,pdbw,pdbe &
+      ,t,tbs,tbn,tbw,tbe &           
+      ,q,qbs,qbn,qbw,qbe &           
+      ,cw,cwbs,cwbn,cwbw,cwbe &
+      ,u,ubs,ubn,ubw,ube &
+      ,v,vbs,vbn,vbw,vbe &
+      ,restart &
+       )
 !
+!-----------------------------------------------------------------------
+!***  Initialize boundary variable arrays for nested domains.
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!-----------------------------------------------------------------------
+!
+integer(kind=kint),intent(in) :: &
+ ids &
+,ide &
+,ims &
+,ime &
+,its &
+,ite &
+,jds &
+,jde &
+,jms &
+,jme &
+,jts &
+,jte &
+,lm &
+,lnsh &
+,lnsv
+
+real(kind=kfpt),dimension(ims:ime,jms:jme),intent(in) :: &
+ pd 
+
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(in) :: &
+ t &
+,q &
+,cw &
+,u &
+,v
+
+real(kind=kfpt),dimension(ims:ime,1:lnsh,1:2),intent(out) :: &
+ pdbs &
+,pdbn
+
+real(kind=kfpt),dimension(1:lnsh,jms:jme,1:2),intent(out) :: &
+ pdbw &
+,pdbe
+
+real(kind=kfpt),dimension(ims:ime,1:lnsh,1:lm,1:2),intent(out) :: &
+ tbs &
+,qbs &
+,cwbs &
+,tbn &
+,qbn &
+,cwbn
+
+real(kind=kfpt),dimension(1:lnsh,jms:jme,1:lm,1:2),intent(out) :: &
+ tbw &
+,qbw &
+,cwbw &
+,tbe &
+,qbe &
+,cwbe
+
+real(kind=kfpt),dimension(ims:ime,1:lnsv,1:lm,1:2),intent(out) :: &
+ ubs &
+,vbs &
+,ubn &
+,vbn
+
+real(kind=kfpt),dimension(1:lnsv,jms:jme,1:lm,1:2),intent(out) :: &
+ ube &
+,vbe &
+,ubw &
+,vbw
+
+logical(kind=klog) :: &
+ restart
+!-----------------------------------------------------------------------
+!***  Local variables
+!-----------------------------------------------------------------------
+!
+integer(kind=kint) :: &
+ i &
+,j &
+,k &
+,n
+!
+logical(kind=klog) :: &
+ e_bdy &
+,n_bdy &
+,s_bdy &
+,w_bdy
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      w_bdy=(its==ids)  ! This task is on the western boundary
+      e_bdy=(ite==ide)  ! This task is on the eastern boundary
+      s_bdy=(jts==jds)  ! This task is on the southern boundary
+      n_bdy=(jte==jde)  ! This task is on the northern boundary
+!
+!-----------------------------------------------------------------------
+!***  South
+!-----------------------------------------------------------------------
+!
+      if(s_bdy)then
+!
+        n=0
+!
+        do j=1,lnsh
+          n=n+1
+          do i=ims,ime
+            pdbs(i,j,1)=pd(i,jds-1+n)
+          enddo
+        enddo
+!
+        do k=1,lm
+          n=0
+          do j=1,lnsh
+            n=n+1
+            do i=ims,ime
+              tbs(i,j,k,1) =t(i,jds-1+n,k)
+              qbs(i,j,k,1) =q(i,jds-1+n,k)
+              cwbs(i,j,k,1)=cw(i,jds-1+n,k)
+            enddo
+          enddo
+        enddo
+!
+        if(.not.restart)then
+          do k=1,lm
+            n=0
+            do j=1,lnsv
+              n=n+1
+              do i=ims,ime
+                ubs(i,j,k,1)=u(i,jds-1+n,k)
+                vbs(i,j,k,1)=v(i,jds-1+n,k)
+              enddo
+            enddo
+          enddo
+        endif
+!
+      endif
+!
+!-----------------------------------------------------------------------
+!***  North
+!-----------------------------------------------------------------------
+!
+      if(n_bdy)then
+!
+        n=0
+!
+        do j=1,lnsh
+          n=n+1
+          do i=ims,ime
+            pdbn(i,j,1)=pd(i,jde-lnsh+n)
+          enddo
+        enddo
+!
+        do k=1,lm
+          n=0
+          do j=1,lnsh
+            n=n+1
+            do i=ims,ime
+              tbn(i,j,k,1) =t(i,jde-lnsh+n,k)
+              qbn(i,j,k,1) =q(i,jde-lnsh+n,k)
+              cwbn(i,j,k,1)=cw(i,jde-lnsh+n,k)
+            enddo
+          enddo
+        enddo
+!
+        if(.not.restart)then
+          do k=1,lm
+            n=0
+            do j=1,lnsv
+              n=n+1
+              do i=ims,ime
+                ubn(i,j,k,1)=u(i,jde-1-lnsv+n,k)
+                vbn(i,j,k,1)=v(i,jde-1-lnsv+n,k)
+              enddo
+            enddo
+          enddo
+        endif
+!
+      endif
+!
+!-----------------------------------------------------------------------
+!***  West
+!-----------------------------------------------------------------------
+!
+      if(w_bdy)then
+!
+!
+        do j=jms,jme
+          n=0
+          do i=1,lnsh
+            n=n+1
+            pdbw(i,j,1)=pd(ids-1+n,j)
+          enddo
+        enddo
+!
+        do k=1,lm
+          do j=jms,jme
+            n=0
+            do i=1,lnsh
+              n=n+1
+              tbw(i,j,k,1) =t(ids-1+n,j,k)
+              qbw(i,j,k,1) =q(ids-1+n,j,k)
+              cwbw(i,j,k,1)=cw(ids-1+n,j,k)
+            enddo
+          enddo
+        enddo
+!
+        if(.not.restart)then
+          do k=1,lm
+            do j=jms,jme
+              n=0
+              do i=1,lnsv
+                n=n+1
+                ubw(i,j,k,1)=u(ids-1+n,j,k)
+                vbw(i,j,k,1)=v(ids-1+n,j,k)
+              enddo
+            enddo
+          enddo
+        endif
+!
+      endif
+!
+!-----------------------------------------------------------------------
+!***  East
+!-----------------------------------------------------------------------
+!
+      if(e_bdy)then
+!
+!
+        do j=jms,jme
+          n=0
+          do i=1,lnsh
+            n=n+1
+            pdbe(i,j,1)=pd(ide-lnsh+n,j)
+          enddo
+        enddo
+!
+        do k=1,lm
+          do j=jms,jme
+            n=0
+            do i=1,lnsh
+              n=n+1
+              tbe(i,j,k,1) =t(ide-lnsh+n,j,k)
+              qbe(i,j,k,1) =q(ide-lnsh+n,j,k)
+              cwbe(i,j,k,1)=cw(ide-lnsh+n,j,k)
+            enddo
+          enddo
+        enddo
+!
+        if(.not.restart)then
+          do k=1,lm
+            do j=jms,jme
+              n=0
+              do i=1,lnsv
+                n=n+1
+                ube(i,j,k,1)=u(ide-1-lnsv+n,j,k)
+                vbe(i,j,k,1)=v(ide-1-lnsv+n,j,k)
+              enddo
+            enddo
+          enddo
+        endif
+!
+      endif
+!
+!-----------------------------------------------------------------------
+!
+      end subroutine boundary_init
+!
+!-----------------------------------------------------------------------
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!-----------------------------------------------------------------------
 !
                         subroutine exptbl
 !     ******************************************************************
@@ -1720,13 +2013,17 @@ real(kind=kfpt):: &
 !
 !-----------------------------------------------------------------------
 !
+#ifdef IBM
+      REAL*8 TIMEF,rtc
+!
+      TIMEF=rtc()
+#else
       REAL*8 TIMEF
-      INTEGER :: IC,IR
+      INTEGER(kind=KINT) :: IC,IR
 !
-!-----------------------------------------------------------------------
-!
-      CALL SYSTEM_CLOCK(COUNT=IC,COUNT_RATE=IR)
+      CALL SYSTEM_CLOCK(count=IC,count_rate=IR)
       TIMEF=REAL(IC)/REAL(IR)*1000.
+#endif
 !
 !-----------------------------------------------------------------------
 !

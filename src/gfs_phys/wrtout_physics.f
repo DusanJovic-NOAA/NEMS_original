@@ -718,7 +718,7 @@ c  array copy
       SUBROUTINE sfc_wrt(IOPROC,cfile,xhour,idate
      &,                  global_lats_r,lonsperlar)
 !!
-      use nemsio_module
+      use module_nemsio
       use resol_def,    ONLY: lonr, latr, levs,ngrids_sfcc,
      &   ncld,ntrac,ntcw,ntoz,lsoil, ivssfc,thermodyn_id,sfcpress_id
       use layout1,      ONLY: me,idrt
@@ -1976,7 +1976,7 @@ Cwei: addition of 30 records ends here -------------------------------
       SUBROUTINE flx_wrt(IOPROC,cfile,ZHOUR,FHOUR,idate
      &,                  global_lats_r,lonsperlar)
 !!
-      use nemsio_module, only: nemsio_open,nemsio_writerec,nemsio_close
+      use module_nemsio, only: nemsio_open,nemsio_writerec,nemsio_close
      &  ,nemsio_gfile, nemsio_init,nemsio_finalize
       use resol_def,    ONLY: lonr, latr, levs,ngrids_flx,
      & ncld,ntrac,ntcw,ntoz,lsoil, ivssfc,thermodyn_id,sfcpress_id

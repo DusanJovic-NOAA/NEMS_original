@@ -48,9 +48,11 @@
       USE MODULE_PHYSICS_INTERNAL_STATE
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_GridComp), INTENT(INOUT) :: GRID_COMP                     !<-- The Physics gridded component
-      TYPE(INTERNAL_STATE),INTENT(INOUT) :: INT_STATE                     !<-- The Physics internal state
-      INTEGER             ,INTENT(OUT)   :: RC_CONF                       !<-- Final return code
+      TYPE(ESMF_GridComp), INTENT(INOUT) :: GRID_COMP                      !<-- The Physics gridded component
+!
+      TYPE(PHYSICS_INTERNAL_STATE),INTENT(INOUT) :: INT_STATE              !<-- The Physics internal state
+!
+      INTEGER             ,INTENT(OUT)   :: RC_CONF                        !<-- Final return code
 !
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES
@@ -244,7 +246,7 @@
 !
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
                                   ,value =MODE                          &  !<-- Put extracted quantity here
-                                  ,label ='nemsio_input:'                    &  !<-- The quantity's label in the configure file
+                                  ,label ='nemsio_input:'               &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
 !
       int_state%NEMSIO_INPUT=.FALSE.

@@ -43,6 +43,7 @@ MODULES=	\
 		module_EXCHANGE_STUB.o \
 		module_CONSTANTS_STUB.o \
 		module_CONTROL_STUB.o \
+		module_DIGITAL_FILTER_NMM_STUB.o \
 		module_DIAGNOSE_STUB.o \
 		module_ERR_MSG_STUB.o
 

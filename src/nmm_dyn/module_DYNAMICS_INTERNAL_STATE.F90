@@ -21,16 +21,16 @@
 !
       PRIVATE
 !
-      PUBLIC :: INTERNAL_STATE                                          &
+      PUBLIC :: DYNAMICS_INTERNAL_STATE                                 &
                ,SET_INTERNAL_STATE_DYN                                  &
                ,UPDATE_INTERNAL_STATE_DYN                               &
-               ,WRAP_INTERNAL_STATE
+               ,WRAP_DYN_INT_STATE 
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      TYPE INTERNAL_STATE
+      TYPE DYNAMICS_INTERNAL_STATE
 !
 !-----------------------------------------------------------------------
 !***  Begin with the Configure File variables.
@@ -41,6 +41,7 @@
                              ,NHOURS_FCST                               &
                              ,NHOURS_HISTORY                            &
                              ,NHOURS_RESTART                            &
+                             ,NSTEPS_BC_RESTART                         &
                              ,NUM_TRACERS_MET                           &  !<-- Number of meteorological tracers (e.g. water)
                              ,NUM_TRACERS_CHEM                          &  !<-- Number of chem/aerosol tracers
                              ,START_YEAR                                &
@@ -53,11 +54,12 @@
 !
         REAL(KIND=KFPT) :: CODAMP,DT                                    &
                           ,PWRC                                         &
+                          ,RUN_DURATION                                 &
                           ,SBD                                          &
                           ,SMAG2,SMAG4                                  &       
                           ,TPH0D,TLM0D                                  &
                           ,TSTART                                       &
-                          ,WBD,WCOR,RUN_DURATION
+                          ,WBD,WCOR
 !
         LOGICAL(KIND=KLOG) :: ADIABATIC                                 &
                              ,ADVECT_TRACERS                            &
@@ -67,7 +69,7 @@
                              ,SECADV,SECDIF                             &
                              ,READ_GLOBAL_SUMS                          &
                              ,WRITE_GLOBAL_SUMS                         &
-			     ,NEMSIO_INPUT
+                             ,NEMSIO_INPUT
 !
         TYPE(ESMF_Logical) :: GLOBAL_E
 !
@@ -79,7 +81,8 @@
                              ,WRITE_GROUPS,WRITE_TASKS_PER_GROUP        
 !
         INTEGER(KIND=KINT) :: ITS,ITE,JTS,JTE                           &
-                             ,IMS,IME,JMS,JME
+                             ,IMS,IME,JMS,JME                           &
+                             ,IDS,IDE,JDS,JDE
 !
         INTEGER(KIND=KINT),DIMENSION(:),POINTER :: LOCAL_ISTART         &
                                                   ,LOCAL_IEND           &
@@ -206,6 +209,21 @@
 !
         LOGICAL(KIND=KLOG) :: RUNBC
 !
+!----------------------------
+!***  For 1-D restart output
+!----------------------------
+!
+!
+      INTEGER :: NUM_WORDS_BC_SOUTH                                     &  !<-- Word counts of 1-D boundary data strings
+                ,NUM_WORDS_BC_NORTH                                     &  !    for each side of the domain.
+                ,NUM_WORDS_BC_WEST                                      &  !
+                ,NUM_WORDS_BC_EAST                                         !<--
+!
+      REAL,DIMENSION(:),ALLOCATABLE :: RST_BC_DATA_SOUTH                &  !<-- 1-D strings of boundary data
+                                      ,RST_BC_DATA_NORTH                &  !    for each side of the domain.
+                                      ,RST_BC_DATA_WEST                 &  !
+                                      ,RST_BC_DATA_EAST                    !<--
+!
 !-----------------------------------------------------------------------
 !***  FFT arrays.
 !-----------------------------------------------------------------------
@@ -243,9 +261,17 @@
         LOGICAL :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
 !
 !-----------------------------------------------------------------------
+!***  Nesting
 !-----------------------------------------------------------------------
 !
-      END TYPE INTERNAL_STATE
+        INTEGER(KIND=KINT) :: I_PAR_STA                                 &  !<-- SW corner of nest domain on this parent I
+                             ,J_PAR_STA                                 &  !<-- SW corner of nest domain on this parent J
+                             ,PARENT_CHILD_TIME_RATIO                      !<-- # of child timesteps per parent timestep
+!
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+      END TYPE DYNAMICS_INTERNAL_STATE
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -255,9 +281,9 @@
 !***  POINTER) AND THEREFORE THE FOLLOWING TYPE IS NEEDED.
 !-----------------------------------------------------------------------
 !
-      TYPE WRAP_INTERNAL_STATE
-        TYPE(INTERNAL_STATE),POINTER :: INT_STATE
-      END TYPE WRAP_INTERNAL_STATE
+      TYPE WRAP_DYN_INT_STATE
+        TYPE(DYNAMICS_INTERNAL_STATE),POINTER :: INT_STATE
+      END TYPE WRAP_DYN_INT_STATE
 !
 !-----------------------------------------------------------------------
 !
@@ -282,8 +308,8 @@
 !
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_GridComp), INTENT(IN)    :: GRID_COMP                     !<-- The Dynamics gridded component
-      TYPE(INTERNAL_STATE),INTENT(INOUT) :: INT_STATE                     !<-- The Dynamics internal state
+      TYPE(ESMF_GridComp)          ,INTENT(IN)    :: GRID_COMP             !<-- The Dynamics gridded component
+      TYPE(DYNAMICS_INTERNAL_STATE),INTENT(INOUT) :: INT_STATE             !<-- The Dynamics internal state
 !      
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES
@@ -291,7 +317,7 @@
 !
       INTEGER(KIND=KINT),PARAMETER :: LNSH_BC=1
 !
-      INTEGER(KIND=KINT) :: I,I_CYCLE,ISTAT,J,KS                        &
+      INTEGER(KIND=KINT) :: I,I_CYCLE,J,KS                              &
                            ,L,LL,LM,LNSH,LNSV,N,NUM_PES
 !
 !-----------------------------------------------------------------------
@@ -360,6 +386,7 @@
       ALLOCATE(int_state%WFFTRW(1:2*I_CYCLE))                             !<-- FFT working field, v points
       ALLOCATE(int_state%NFFTRH(1:15))                                    !<-- FFT working field, h points
       ALLOCATE(int_state%NFFTRW(1:15))                                    !<-- FFT working field, v points
+!
       ALLOCATE(int_state%F     (IMS:IME,JMS:JME))                         !<-- Coriolis parameter  (s-1)
       ALLOCATE(int_state%GLAT  (IMS:IME,JMS:JME))                         !<-- Latitudes of h points  (radians)
       ALLOCATE(int_state%GLON  (IMS:IME,JMS:JME))                         !<-- Longitudes of h points (radians)
@@ -400,6 +427,10 @@
       int_state%IME=IME
       int_state%JMS=JMS
       int_state%JME=JME
+      int_state%IDS=IDS
+      int_state%IDE=IDE
+      int_state%JDS=JDS
+      int_state%JDE=JDE
 !
       int_state%IHALO=IHALO
       int_state%JHALO=JHALO
@@ -422,10 +453,46 @@
 !***  REGIONAL BOUNDARY CONDITIONS.
 !-----------------------------------------------------------------------
 !
+      ALLOCATE(int_state%UBN(IMS:IME,1:LNSV,1:LM,1:2))                     !<-- U wind component at northern boundary  (m s-1)
+      ALLOCATE(int_state%UBS(IMS:IME,1:LNSV,1:LM,1:2))                     !<-- U wind component at southern boundary  (m s-1)
+      ALLOCATE(int_state%VBN(IMS:IME,1:LNSV,1:LM,1:2))                     !<-- V wind component at northern boundary  (m s-1)
+      ALLOCATE(int_state%VBS(IMS:IME,1:LNSV,1:LM,1:2))                     !<-- V wind component at southern boundary  (m s-1)
+!
+      DO N=1,2
+      DO L=1,LM
+      DO LL=1,LNSV
+      DO I=IMS,IME
+        int_state%UBN(I,LL,L,N)=-1.E6
+        int_state%UBS(I,LL,L,N)=-1.E6
+        int_state%VBN(I,LL,L,N)=-1.E6
+        int_state%VBS(I,LL,L,N)=-1.E6
+      ENDDO
+      ENDDO
+      ENDDO
+      ENDDO
+!
+      ALLOCATE(int_state%UBE(1:LNSV,JMS:JME,1:LM,1:2))                     !<-- U wind component at eastern boundary  (m s-1)
+      ALLOCATE(int_state%UBW(1:LNSV,JMS:JME,1:LM,1:2))                     !<-- U wind component at western boundary  (m s-1)
+      ALLOCATE(int_state%VBE(1:LNSV,JMS:JME,1:LM,1:2))                     !<-- V wind component at eastern boundary  (m s-1)
+      ALLOCATE(int_state%VBW(1:LNSV,JMS:JME,1:LM,1:2))                     !<-- V wind component at western boundary  (m s-1)
+!
+      DO N=1,2
+      DO L=1,LM
+      DO J=JMS,JME
+      DO LL=1,LNSV
+        int_state%UBE(LL,J,L,N)=-1.E6
+        int_state%UBW(LL,J,L,N)=-1.E6
+        int_state%VBE(LL,J,L,N)=-1.E6
+        int_state%VBW(LL,J,L,N)=-1.E6
+      ENDDO
+      ENDDO
+      ENDDO
+      ENDDO
+!
       IF(.NOT.int_state%GLOBAL)THEN
 !
-        ALLOCATE(int_state%PDBN(IMS:IME,1:LNSH,1:2))                     !<-- Pressure difference at northern boundary  (Pa)
-        ALLOCATE(int_state%PDBS(IMS:IME,1:LNSH,1:2))                     !<-- Pressure difference at southern boundary  (Pa)
+        ALLOCATE(int_state%PDBN(IMS:IME,1:LNSH,1:2))                       !<-- Pressure difference at northern boundary  (Pa)
+        ALLOCATE(int_state%PDBS(IMS:IME,1:LNSH,1:2))                       !<-- Pressure difference at southern boundary  (Pa)
 !
         DO N=1,2
         DO LL=1,LNSH
@@ -436,8 +503,8 @@
         ENDDO
         ENDDO
 !
-        ALLOCATE(int_state%PDBE(1:LNSH,JMS:JME,1:2))                     !<-- Pressure difference at eastern boundary  (Pa)
-        ALLOCATE(int_state%PDBW(1:LNSH,JMS:JME,1:2))                     !<-- Pressure difference at western boundary  (Pa)
+        ALLOCATE(int_state%PDBE(1:LNSH,JMS:JME,1:2))                       !<-- Pressure difference at eastern boundary  (Pa)
+        ALLOCATE(int_state%PDBW(1:LNSH,JMS:JME,1:2))                       !<-- Pressure difference at western boundary  (Pa)
 !
         DO N=1,2
         DO J=JMS,JME
@@ -448,12 +515,12 @@
         ENDDO
         ENDDO
 !
-        ALLOCATE(int_state%QBN(IMS:IME,1:LNSH,1:LM,1:2))                 !<-- Specific humidity at northern boundary  (kg kg-1)
-        ALLOCATE(int_state%QBS(IMS:IME,1:LNSH,1:LM,1:2))                 !<-- Specific humidity at southern boundary  (kg kg-1)
-        ALLOCATE(int_state%TBN(IMS:IME,1:LNSH,1:LM,1:2))                 !<-- Temperature at northern boundary  (K)
-        ALLOCATE(int_state%TBS(IMS:IME,1:LNSH,1:LM,1:2))                 !<-- Temperature at southern boundary  (K)
-        ALLOCATE(int_state%WBN(IMS:IME,1:LNSH,1:LM,1:2))                 !<-- Vertical velocity at northern boundary  (m s-1)
-        ALLOCATE(int_state%WBS(IMS:IME,1:LNSH,1:LM,1:2))                 !<-- Vertical velocity at southern boundary  (m s-1)
+        ALLOCATE(int_state%QBN(IMS:IME,1:LNSH,1:LM,1:2))                   !<-- Specific humidity at northern boundary  (kg kg-1)
+        ALLOCATE(int_state%QBS(IMS:IME,1:LNSH,1:LM,1:2))                   !<-- Specific humidity at southern boundary  (kg kg-1)
+        ALLOCATE(int_state%TBN(IMS:IME,1:LNSH,1:LM,1:2))                   !<-- Temperature at northern boundary  (K)
+        ALLOCATE(int_state%TBS(IMS:IME,1:LNSH,1:LM,1:2))                   !<-- Temperature at southern boundary  (K)
+        ALLOCATE(int_state%WBN(IMS:IME,1:LNSH,1:LM,1:2))                   !<-- Vertical velocity at northern boundary  (m s-1)
+        ALLOCATE(int_state%WBS(IMS:IME,1:LNSH,1:LM,1:2))                   !<-- Vertical velocity at southern boundary  (m s-1)
 !
         DO N=1,2
         DO L=1,LM
@@ -470,12 +537,12 @@
         ENDDO
         ENDDO
 !
-        ALLOCATE(int_state%QBE(1:LNSH,JMS:JME,1:LM,1:2))                 !<-- Specific humidity at eastern boundary  (kg kg-1)
-        ALLOCATE(int_state%QBW(1:LNSH,JMS:JME,1:LM,1:2))                 !<-- Specific humidity at western boundary  (kg kg-1)
-        ALLOCATE(int_state%TBE(1:LNSH,JMS:JME,1:LM,1:2))                 !<-- Temperature at eastern boundary  (K)
-        ALLOCATE(int_state%TBW(1:LNSH,JMS:JME,1:LM,1:2))                 !<-- Temperature at western boundary  (K)
-        ALLOCATE(int_state%WBE(1:LNSH,JMS:JME,1:LM,1:2))                 !<-- Vertical velocity at eastern boundary  (m s-1)
-        ALLOCATE(int_state%WBW(1:LNSH,JMS:JME,1:LM,1:2))                 !<-- Vertical velocity at western boundary  (m s-1)
+        ALLOCATE(int_state%QBE(1:LNSH,JMS:JME,1:LM,1:2))                   !<-- Specific humidity at eastern boundary  (kg kg-1)
+        ALLOCATE(int_state%QBW(1:LNSH,JMS:JME,1:LM,1:2))                   !<-- Specific humidity at western boundary  (kg kg-1)
+        ALLOCATE(int_state%TBE(1:LNSH,JMS:JME,1:LM,1:2))                   !<-- Temperature at eastern boundary  (K)
+        ALLOCATE(int_state%TBW(1:LNSH,JMS:JME,1:LM,1:2))                   !<-- Temperature at western boundary  (K)
+        ALLOCATE(int_state%WBE(1:LNSH,JMS:JME,1:LM,1:2))                   !<-- Vertical velocity at eastern boundary  (m s-1)
+        ALLOCATE(int_state%WBW(1:LNSH,JMS:JME,1:LM,1:2))                   !<-- Vertical velocity at western boundary  (m s-1)
 !
         DO N=1,2
         DO L=1,LM
@@ -492,41 +559,10 @@
         ENDDO
         ENDDO
 !
-        ALLOCATE(int_state%UBN(IMS:IME,1:LNSV,1:LM,1:2))                 !<-- U wind component at northern boundary  (m s-1)
-        ALLOCATE(int_state%UBS(IMS:IME,1:LNSV,1:LM,1:2))                 !<-- U wind component at southern boundary  (m s-1)
-        ALLOCATE(int_state%VBN(IMS:IME,1:LNSV,1:LM,1:2))                 !<-- V wind component at northern boundary  (m s-1)
-        ALLOCATE(int_state%VBS(IMS:IME,1:LNSV,1:LM,1:2))                 !<-- V wind component at southern boundary  (m s-1)
-!
-        DO N=1,2
-        DO L=1,LM
-        DO LL=1,LNSV
-        DO I=IMS,IME
-          int_state%UBN(I,LL,L,N)=-1.E6
-          int_state%UBS(I,LL,L,N)=-1.E6
-          int_state%VBN(I,LL,L,N)=-1.E6
-          int_state%VBS(I,LL,L,N)=-1.E6
-        ENDDO
-        ENDDO
-        ENDDO
-        ENDDO
-!
-        ALLOCATE(int_state%UBE(1:LNSV,JMS:JME,1:LM,1:2))                 !<-- U wind component at eastern boundary  (m s-1)
-        ALLOCATE(int_state%UBW(1:LNSV,JMS:JME,1:LM,1:2))                 !<-- U wind component at western boundary  (m s-1)
-        ALLOCATE(int_state%VBE(1:LNSV,JMS:JME,1:LM,1:2))                 !<-- V wind component at eastern boundary  (m s-1)
-        ALLOCATE(int_state%VBW(1:LNSV,JMS:JME,1:LM,1:2))                 !<-- V wind component at western boundary  (m s-1)
-!
-        DO N=1,2
-        DO L=1,LM
-        DO J=JMS,JME
-        DO LL=1,LNSV
-          int_state%UBE(LL,J,L,N)=-1.E6
-          int_state%UBW(LL,J,L,N)=-1.E6
-          int_state%VBE(LL,J,L,N)=-1.E6
-          int_state%VBW(LL,J,L,N)=-1.E6
-        ENDDO
-        ENDDO
-        ENDDO
-        ENDDO
+        int_state%NUM_WORDS_BC_SOUTH=-1                                    !<-- Word counts of 1-D boundary data strings
+        int_state%NUM_WORDS_BC_NORTH=-1                                    !
+        int_state%NUM_WORDS_BC_WEST =-1                                    !
+        int_state%NUM_WORDS_BC_EAST =-1                                    !<--
 !
       ENDIF
 !
@@ -534,9 +570,9 @@
 !***  ATMOSPHERIC VARIABLES, HYDROSTATIC (mostly)
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(int_state%PD  (IMS:IME,JMS:JME))                          !<-- Pressure difference, sigma range  (Pa)
-      ALLOCATE(int_state%PDO (IMS:IME,JMS:JME))                          !<-- Previous pressure difference, sigma range  (Pa)
-      ALLOCATE(int_state%PSDT(IMS:IME,JMS:JME))                          !<-- Hydrostatic surface pressure tendency  (Pa s-1)
+      ALLOCATE(int_state%PD  (IMS:IME,JMS:JME))                            !<-- Pressure difference, sigma range  (Pa)
+      ALLOCATE(int_state%PDO (IMS:IME,JMS:JME))                            !<-- Previous pressure difference, sigma range  (Pa)
+      ALLOCATE(int_state%PSDT(IMS:IME,JMS:JME))                            !<-- Hydrostatic surface pressure tendency  (Pa s-1)
 !
       DO J=JMS,JME
       DO I=IMS,IME
@@ -546,8 +582,8 @@
       ENDDO
       ENDDO
 !
-      ALLOCATE(int_state%PINT(IMS:IME,JMS:JME,1:LM+1))                   !<-- Nonhydrostatic interface pressure  (Pa)
-      ALLOCATE(int_state%PSGDT(IMS:IME,JMS:JME,1:LM-1))                  !<-- Specific volume  (m3 kg-1)
+      ALLOCATE(int_state%PINT(IMS:IME,JMS:JME,1:LM+1))                     !<-- Nonhydrostatic interface pressure  (Pa)
+      ALLOCATE(int_state%PSGDT(IMS:IME,JMS:JME,1:LM-1))                    !<-- Specific volume  (m3 kg-1)
 !
       DO L=1,LM-1
       DO J=JMS,JME
@@ -557,14 +593,14 @@
       ENDDO
       ENDDO
 !
-      ALLOCATE(int_state%OMGALF(IMS:IME,JMS:JME,1:LM))                   !<-- Omega-alpha  (K)
-      ALLOCATE(int_state%Q2    (IMS:IME,JMS:JME,1:LM))                   !<-- 2*tke  (m2 s-2)
-      ALLOCATE(int_state%T     (IMS:IME,JMS:JME,1:LM))                   !<-- Sensible temperature  (K)
-      ALLOCATE(int_state%TP    (IMS:IME,JMS:JME,1:LM))                   !<-- Sensible temperature, previous step  (K)
-      ALLOCATE(int_state%U     (IMS:IME,JMS:JME,1:LM))                   !<-- U wind component  (m s-1)
-      ALLOCATE(int_state%UP    (IMS:IME,JMS:JME,1:LM))                   !<-- U wind component, previous step  (m s-1)
-      ALLOCATE(int_state%V     (IMS:IME,JMS:JME,1:LM))                   !<-- V wind component  (m s-1)
-      ALLOCATE(int_state%VP    (IMS:IME,JMS:JME,1:LM))                   !<-- V wind component, previous step  (m s-1)
+      ALLOCATE(int_state%OMGALF(IMS:IME,JMS:JME,1:LM))                     !<-- Omega-alpha  (K)
+      ALLOCATE(int_state%Q2    (IMS:IME,JMS:JME,1:LM))                     !<-- 2*tke  (m2 s-2)
+      ALLOCATE(int_state%T     (IMS:IME,JMS:JME,1:LM))                     !<-- Sensible temperature  (K)
+      ALLOCATE(int_state%TP    (IMS:IME,JMS:JME,1:LM))                     !<-- Sensible temperature, previous step  (K)
+      ALLOCATE(int_state%U     (IMS:IME,JMS:JME,1:LM))                     !<-- U wind component  (m s-1)
+      ALLOCATE(int_state%UP    (IMS:IME,JMS:JME,1:LM))                     !<-- U wind component, previous step  (m s-1)
+      ALLOCATE(int_state%V     (IMS:IME,JMS:JME,1:LM))                     !<-- V wind component  (m s-1)
+      ALLOCATE(int_state%VP    (IMS:IME,JMS:JME,1:LM))                     !<-- V wind component, previous step  (m s-1)
 !
 !-----------------------------------------------------------------------
 !***  THE ARRAY CALLED WATER IS A SPECIAL CASE NEEDED TO SATISFY
@@ -695,8 +731,8 @@
       int_state%WATER=>int_state%TRACERS(IMS:IME,JMS:JME,1:LM,int_state%INDX_WATER_START:int_state%INDX_WATER_END)
 !
 !-----------------------------------------------------------------------
-!***  NOTE:  REMAINING SCALAR VARIABLES IN THE TRACER ARRAYS WILL 
-!***         BEGIN AT LOCATION NUM_TRACERS_MET+1.
+!***  NOTE:  Remaining scalar variables in the Tracer arrays will 
+!***         begin at location NUM_TRACERS_MET+1.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
@@ -717,7 +753,7 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  ATMOSPHERIC VARIABLES, NONHYDROSTATIC
+!***  Atmospheric variables, nonhydrostatic
 !-----------------------------------------------------------------------
 !
       ALLOCATE(int_state%DWDT (IMS:IME,JMS:JME,1:LM))                     !<-- Vertical acceleration, correction factor  (m s-2)
@@ -739,7 +775,7 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  WORKING ARRAYS PASSED AS ARGUMENTS BETWEEN SUBROUTINES.
+!***  Working arrays passed as arguments between subroutines.
 !-----------------------------------------------------------------------
 !
       ALLOCATE(int_state%DIV (IMS:IME,JMS:JME,1:LM))                      !<-- Horizontal mass divergence
@@ -777,7 +813,7 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  FFT ARRAYS
+!***  FFT arrays
 !-----------------------------------------------------------------------
 !
       ALLOCATE(INT_STATE%CRAUX1(1:25000))                                 !<-- FFT working field
@@ -786,6 +822,15 @@
       ALLOCATE(INT_STATE%RCAUX1(1:25000))                                 !<-- FFT working field
       ALLOCATE(INT_STATE%RCAUX2(1:20000))                                 !<-- FFT working field
       ALLOCATE(INT_STATE%RCAUX3(1:1    ))                                 !<-- FFT working field
+!
+!-----------------------------------------------------------------------
+!***  Initialize nesting quantities
+!-----------------------------------------------------------------------
+!
+      int_state%I_PAR_STA=0
+      int_state%J_PAR_STA=0
+!
+      int_state%PARENT_CHILD_TIME_RATIO=-999
 !
 !-----------------------------------------------------------------------
 !
@@ -806,8 +851,8 @@
 !
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_State),INTENT(INOUT)     :: IMP_STATE                     !<-- The Dynamics import state
-      TYPE(INTERNAL_STATE),INTENT(INOUT) :: INT_STATE                     !<-- The Dynamics internal state
+      TYPE(ESMF_State)             ,INTENT(INOUT) :: IMP_STATE             !<-- The Dynamics import state
+      TYPE(DYNAMICS_INTERNAL_STATE),INTENT(INOUT) :: INT_STATE             !<-- The Dynamics internal state
 !
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES

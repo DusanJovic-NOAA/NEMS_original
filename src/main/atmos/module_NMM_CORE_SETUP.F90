@@ -18,11 +18,7 @@
       USE MODULE_GET_CONFIG_PHY
       USE MODULE_GET_CONFIG_WRITE
 !
-      USE MODULE_CLOCKTIMES
-!
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
-!
-
 !
 !-----------------------------------------------------------------------
 !
@@ -32,36 +28,31 @@
 !
       PRIVATE
 !
-!
       PUBLIC :: NMM_SETUP       !<-- An NMM-specific routine to set up parallelism and ESMF Grid
 !
 !-----------------------------------------------------------------------
       INCLUDE '../../../inc/kind.inc'
 !-----------------------------------------------------------------------
 !
-!
-!
-!
-!-----------------------------------------------------------------------
-!***  FOR DETERMINING CLOCKTIMES OF VARIOUS PIECES OF THE DYNAMICS.
-!-----------------------------------------------------------------------
-!
-      REAL(KIND=KFPT) :: btim,btim0
-!
 !-----------------------------------------------------------------------
 !
       CONTAINS
-
 !
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-      SUBROUTINE NMM_SETUP(ATM_GRID_COMP,ATM_INT_STATE,GRID_ATM)
 !
+      SUBROUTINE NMM_SETUP(MYPE_IN                                      &
+                          ,MPI_INTRA                                    &
+                          ,CF                                           &
+                          ,ATM_GRID_COMP                                &
+                          ,ATM_INT_STATE                                &
+                          ,GRID_ATM)
+! 
 !-----------------------------------------------------------------------
 !***  THIS ROUTINE CONTAINS NMM-SPECIFIC CODE FOR THE ATM COMPONENT:
 !***    (1) SETTING UP DISTRIBUTED MEMORY PARALLELISM IN THE NMM;
-!***    (2) CREATING THE ESMF Grid FOR THE ATM COMPONENT;
+!***    (2) CREATING THE ESMF Grid FOR THE ATM COMPONENTS;
 !***    (3) SHARING LOCAL SUBDOMAIN INDEX LIMITS AMONG TASKS.
 !-----------------------------------------------------------------------
 !
@@ -74,128 +65,70 @@
 !
       USE MODULE_INCLUDE
 !
-!-----------------------------------------------------------------------
-!***  SET UP THE ESMF GRID FOR THE NMM AND ESTABLISH THE
-!***  DISTRIBUTED MEMORY PARALLELISM.
-!-----------------------------------------------------------------------
+!------------------------
+!***  Argument variables
+!------------------------
 !
-      TYPE(ESMF_GridComp)     ,INTENT(INOUT) :: ATM_GRID_COMP             !<-- The ATM gridded component
-      TYPE(ATM_INTERNAL_STATE),INTENT(INOUT) :: ATM_INT_STATE             !<-- The ATM Internal State
-      TYPE(ESMF_Grid)         ,INTENT(OUT)   :: GRID_ATM                  !<-- The ESMF GRID for the NMM integration grid
+      INTEGER(kind=KINT),INTENT(IN) :: MYPE_IN                          &  !<-- Each MPI task's rank
+                                      ,MPI_INTRA                           !<-- The communicator with the domain's fcst and quilt tasks.
 !
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+      TYPE(ESMF_Config)       ,INTENT(INOUT) :: CF                         !<-- This domain's configure object
+      TYPE(ESMF_GridComp)     ,INTENT(INOUT) :: ATM_GRID_COMP              !<-- The ATM gridded component
+      TYPE(ATM_INTERNAL_STATE),INTENT(INOUT) :: ATM_INT_STATE              !<-- The ATM Internal State
+      TYPE(ESMF_Grid)         ,INTENT(OUT)   :: GRID_ATM                   !<-- The ESMF GRID for the NMM integration grid
 !
-      TYPE(ESMF_Config)   :: CF                                           !<-- The config object
-      TYPE(ESMF_VM)       :: VM                                           !<-- The ESMF virtual machine.
-      TYPE(ESMF_DELayout) :: MY_DE_LAYOUT                                 !<-- The ESMF layout type array (for tasks).
+!---------------------
+!***  Local variables
+!---------------------
 !
-      INTEGER(KIND=KINT)  :: INPES,JNPES                                  !<-- MPI tasks in I and J directions
-      INTEGER             :: MPI_INTRA,MPI_INTRA_B                        !<-- The MPI intra-communicator
-      INTEGER(KIND=KINT)  :: NUM_PES_FCST                                 !<-- Number of MPI tasks applied to the forecast
-      INTEGER             :: NUM_PES_TOT                                  !<-- Total # of MPI tasks in the job
-      INTEGER             :: WRITE_GROUPS                               & !<-- Number of groups of write tasks
-                            ,WRITE_TASKS_PER_GROUP                        !<-- #of tasks in each write group
+      INTEGER(kind=KINT) :: I,IERR,J,K,N,NUM_PES,RC,RC_CORE
 !
-      INTEGER,DIMENSION(2)             :: NCOUNTS                         !<-- Parameter array to set up the
-                                                                          !    size of the 2-D ESMF grid.
-      INTEGER,DIMENSION(2)             :: I1                              !<-- # of I and J points in each fcst task's subdomain
+      INTEGER(kind=KINT) :: IM,JM                                       &  !<-- Horizontal dimensions of the full integration grid
+                           ,INPES,JNPES                                 &  !<-- MPI tasks in I and J directions
+                           ,LM                                          &  !<-- Number of atmospheric model layers
+                           ,MPI_INTRA_B                                 &  !<-- The MPI intra-communicator
+                           ,MYPE                                        &  !<-- My MPI task ID
+                           ,NUM_PES_FCST                                &  !<-- Number of MPI tasks applied to the forecast
+                           ,NUM_PES_TOT                                 &  !<-- Total # of MPI tasks in the job
+                           ,WRITE_GROUPS                                &  !<-- Number of groups of write tasks
+                           ,WRITE_TASKS_PER_GROUP                          !<-- #of tasks in each write group
 !
-      INTEGER,DIMENSION(2)  :: MIN,MAX                                    !<-- Parameter arrays to set up the
-                                                                          !    start number and the end number of
-                                                                          !    the ESMF grid in each dimension.
+      INTEGER(kind=KINT),DIMENSION(2) :: I1                             &  !<-- # of I and J points in each fcst task's subdomain
+                                        ,MIN,MAX                        &  !<-- Set start/end of each Grid dimension
+                                        ,NCOUNTS                           !<-- Array with I/J limits of MPI task subdomains
 !
-      CHARACTER(50)      :: MODE                                          !<-- Flag for global or regional run
+      CHARACTER(50) :: MODE                                                !<-- Flag for global or regional run
 !
-      LOGICAL            :: GLOBAL                                        !<-- .TRUE. => global ; .FALSE. => regional
+      LOGICAL(kind=KLOG) :: GLOBAL                                         !<-- .TRUE. => global ; .FALSE. => regional
 !
-      INTEGER :: I,J,K,N,NUM_PES,RC,RC_CORE,IM,JM,LM,MYPE
+      TYPE(ESMF_VM)       :: VM                                            !<-- The ESMF virtual machine.
+      TYPE(ESMF_DELayout) :: MY_DE_LAYOUT                                  !<-- The ESMF layout type array (for tasks).
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-!-----------------------------------------------------------------------
-!***  RETRIEVE THE VM (VIRTUAL MACHINE) OF THE ATM GRIDDED COMPONENT.
-!***  CALL ESMF_GridCompGet TO RETRIEVE THE VM ANYWHERE YOU NEED IT.
-!***  WE NEED VM NOW TO SET UP THE DE LAYOUT.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="CORE_SETUP: Retrieve VM from ATM Component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_GridCompGet(gridcomp=ATM_GRID_COMP                      &  !<-- The ATM gridded component
-                           ,vm      =VM                                 &  !<-- The ESMF Virtual Machine
-                           ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CORE)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MYPE=MYPE_IN
 !
 !-----------------------------------------------------------------------
-!***  SET UP PARAMETERS FOR MPI COMMUNICATIONS.
-!***  USE ESMF UTILITY TO GET PE IDENTIFICATION AND TOTAL NUMBER OF PEs
+!***  Set up parameters for MPI communications on this domain's grid.
 !-----------------------------------------------------------------------
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="CORE_SETUP: Get Task IDs and Count"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_VMGet(vm      =VM                                       &  !<-- The virtual machine
-                     ,localpet=MYPE                                     &  !<-- Local PE rank
-                     ,petcount=NUM_PES_TOT                              &  !<-- Total # of tasks (fcst + quilt)
-                     ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CORE)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL MPI_COMM_SIZE(MPI_INTRA,NUM_PES_TOT,IERR)
 !
       NUM_PES=NUM_PES_TOT
 !
 !-----------------------------------------------------------------------
-!***  RETRIEVE THE CONFIGURE OBJECT CF FROM THE ATM GRIDDED COMPONENT.
+!***  Establish the task layout including the Write tasks.
+!***  The MPI communicator was provided as input and
+!***  the forecast tasks in the I and J directions are
+!***  extracted from a configure file.
+!***  Give those to SETUP_SERVERS which will split the
+!***  communicator between Forecast and Quilt/Write tasks.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="CORE_SETUP: Retrieve Config Object from ATM Component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_GridCompGet(gridcomp=ATM_GRID_COMP                      &  !<-- The ATM gridded component
-                           ,config  =CF                                 &  !<-- The config object (~namelist)
-                           ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CORE)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  ESTABLISH THE TASK LAYOUT INCLUDING THE WRITE TASKS.
-!***  GET THE GLOBAL MPI COMMUNICATOR AND THE NUMBER OF
-!***  OF FORECAST TASKS IN THE I AND J DIRECTIONS AND
-!***  GIVE THOSE TO SETUP_SERVERS WHICH WILL SPLIT THE
-!***  COMMUNICATOR BETWEEN FORECAST AND QUILT/WRITE TASKS.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="CORE_SETUP: Retrieve Global Communicator"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_VMGet(vm             =VM                                &
-                     ,mpiCommunicator=MPI_INTRA                         &  !<-- The global communicator
-                     ,rc             =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CORE)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="CORE_SETUP: Get INPES/JNPES from Config File"
+      MESSAGE_CHECK="NMM_SETUP: Get INPES/JNPES from Config File"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -216,12 +149,12 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  SET UP QUILT/WRITE TASK SPECIFICATIONS.
-!***  FIRST RETRIEVE THE TASK AND GROUP COUNTS FROM THE CONFIG FILE.
+!***  Set up Quilt/Write task specifications.
+!***  First retrieve the task and group counts from the config file.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="CORE_SETUP: Get Write Task/Group Info from Config File"
+      MESSAGE_CHECK="NMM_SETUP: Get Write Task/Group Info from Config File"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -240,7 +173,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  SEGREGATE THE FORECAST TASKS FROM THE QUILT/WRITE TASKS.
+!***  Segregate the Forecast tasks from the Quilt/Write tasks.
 !-----------------------------------------------------------------------
 !
       CALL SETUP_SERVERS(MYPE,INPES,JNPES,NUM_PES                       &
@@ -252,12 +185,12 @@
 !***
 !-----------------------------------------------------------------------
 !
-      NUM_PES_FCST=INPES*JNPES                                           !<-- Number of forecast tasks
-      atm_int_state%NUM_PES_FCST=NUM_PES_FCST                            !<-- Save this for the ATM's Run step
+      NUM_PES_FCST=INPES*JNPES                                             !<-- Number of forecast tasks
+      atm_int_state%NUM_PES_FCST=NUM_PES_FCST                              !<-- Save this for the ATM's Run step
 !
 !-----------------------------------------------------------------------
-!***  ALLOCATE AND FILL THE TASK LIST THAT HOLDS THE IDs OF
-!***  THE FORECAST TASKS.
+!***  Allocate and fill the task list that holds the IDs of
+!***  the Forecast tasks.
 !-----------------------------------------------------------------------
 !
       ALLOCATE(atm_int_state%PETLIST_FCST(NUM_PES_FCST))                   !<-- Task IDs of the forecast tasks
@@ -267,9 +200,27 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  CREATE DE LAYOUT BASED ON THE I TASKS BY J TASKS SPECIFIED IN
-!***  THE CONFIG FILE.
-!***  THIS REFERS ONLY TO FORECAST TASKS.
+!***  Retrieve the VM (Virtual Machine) of the ATM gridded component.
+!***  We need VM now to set up the DE layout.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="NMM_SETUP: Retrieve VM from ATM Component"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_GridCompGet(gridcomp=ATM_GRID_COMP                      &  !<-- The ATM gridded component
+                           ,vm      =VM                                 &  !<-- The ESMF Virtual Machine
+                           ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CORE)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Create DE layout based on the I tasks by J tasks specified in
+!***  the config file.
+!***  This refers only to Forecast tasks.
 !-----------------------------------------------------------------------
 !
       IF(MYPE<NUM_PES_FCST)THEN                                            !<-- Select only the forecast tasks
@@ -279,15 +230,15 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  CREATE THE ESMF GRID.
+!***  Create the ESMF Grid.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  EXTRACT THE DIMENSIONS OF THE DOMAIN FROM THE CONFIGURE FILE.
+!***  Extract the dimensions of the domain from the configure file.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="CORE_SETUP: Get IM,JM,LM from Config File"
+      MESSAGE_CHECK="NMM_SETUP: Get IM,JM,LM from Config File"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -311,11 +262,11 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !------------------------------------------------------------
-!***  RETRIEVE THE FORECAST DOMAIN MODE FROM THE CONFIG FILE.
+!***  Retrieve the forecast domain mode from the config file.
 !------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="CORE_SETUP: Get GLOBAL/REGIONAL Mode from Config File"
+      MESSAGE_CHECK="NMM_SETUP: Get GLOBAL/REGIONAL Mode from Config File"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -329,17 +280,15 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       IF(TRIM(MODE)=='true')THEN
-        GLOBAL=.true.
-        print *,'Initialized as a global run.'
+        GLOBAL=.TRUE.
       ELSE
-        GLOBAL=.false.
-        print *,'Initialized as a regional run.'
+        GLOBAL=.FALSE.
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  IF THIS IS A GLOBAL MODE FORECAST, EXTEND IM AND JM.
-!***  THE FIRST DIMENSION OF NCOUNTS IS THE I DIMENSION FOR PARALLELIZATION.
-!***  THE SECOND DIMENSION OF NCOUNTS IS THE J DIMENSION.
+!***  If this is a global mode forecast, extend IM and JM.
+!***  The first dimension of NCOUNTS is the I dimension for parallelization.
+!***  The second dimension of NCOUNTS is the J dimension.
 !-----------------------------------------------------------------------
 !
       IF(GLOBAL)THEN      !<-- Global mode horizontal dimensions.
@@ -357,12 +306,12 @@
       MIN(2)=1
 !
 !-----------------------------------------------------------------------
-!***  NOW CREATE THE ATM GRIDDED COMPONENT's ESMF GRID
-!***  FOR THE NMM's INTEGRATION GRID.
+!***  Now create the ATM gridded component's ESMF Grid
+!***  for the NMM's integration grid.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="CORE_SETUP: Create the ESMF Grid"
+      MESSAGE_CHECK="NMM_SETUP: Create the ESMF Grid"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -379,14 +328,14 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  GET THE LOCAL ARRAY SIZES FOR THE ATM GRID.
-!***  ONLY FORECAST TASKS ARE RELEVANT HERE.
+!***  Get the local array sizes for the ATM Grid.
+!***  Only forecast tasks are relevant here.
 !-----------------------------------------------------------------------
 !
       IF(MYPE<NUM_PES_FCST)THEN                                              !<-- Select only fcst tasks
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="CORE_SETUP: Get EMSF Sizes of Local Subdomains"
+        MESSAGE_CHECK="NMM_SETUP: Get EMSF Sizes of Local Subdomains"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -403,10 +352,10 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  USING 'computationalCount' FROM ARRAY I1 OBTAINED IN THE
-!***  PREVIOUS CALL, GENERATE ALL OF THE LOCAL TASK INDEX LIMITS
-!***  FOR ALL FORECAST TASKS.
-!***  THE USER, NOT ESMF, DOES THIS WORK.
+!***  Using 'computationalCount' from array I1 obtained in the
+!***  previous call, generate all of the local task index limits
+!***  for all Forecast tasks.  
+!***  The user, not ESMF, does this work.
 !-----------------------------------------------------------------------
 !
       IF(MYPE<NUM_PES_FCST)THEN                                            !<-- Select only the forecast tasks
@@ -431,6 +380,7 @@
       END SUBROUTINE NMM_SETUP
 !
 !-----------------------------------------------------------------------
+!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 !
       END MODULE MODULE_NMM_CORE_SETUP

@@ -43,7 +43,9 @@ MODULE=        \
 		module_GFS_CORE_SETUP.o \
 		module_GFS_INTEGRATE.o
 
-MODULE_AGC=    \
+MODULE_ATM=    \
+		module_ATM_DRIVER_INTERNAL_STATE.o \
+		module_ATM_DRIVER_COMP.o \
 		module_ATM_GRID_COMP.o
 
 .SUFFIXES:	.F90 .f90 .o
@@ -56,13 +58,13 @@ default:
 
 all: $(LIBDIR1)/lib/$(TARGET)
 
-$(LIBDIR1)/lib/$(TARGET): $(MODULE) $(MODULE_AGC)
+$(LIBDIR1)/lib/$(TARGET): $(MODULE) $(MODULE_ATM)
 	$(AR) $(ARFLAGS) $@ $?
 
 $(MODULE): %.o: %.f90 $(DEPS2)
 	$(F90) $(FFLAGSDB) -c $*.f90
 
-$(MODULE_AGC): %.o: %.f90 $(DEPS2)
+$(MODULE_ATM): %.o: %.f90 $(DEPS2)
 	$(F90) $(FFLAGSDB) -c $*.f90
 
 clean:	
@@ -73,3 +75,10 @@ clean:
 	/bin/rm -f *.mod 
 	/bin/rm -f lm 
 	/bin/rm -f map
+
+#
+# DEPENDENCIES
+#
+
+module_ATM_DRIVER_COMP.o:	module_ATM_DRIVER_INTERNAL_STATE.o \
+                          	module_ATM_GRID_COMP.o 

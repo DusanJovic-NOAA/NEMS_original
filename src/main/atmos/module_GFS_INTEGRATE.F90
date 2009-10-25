@@ -4,15 +4,17 @@
 !
 !-----------------------------------------------------------------------
 !
-!***  THIS MODULE HOLDS THE DYNAMICS REGISTER, INIT, RUN, AND FINALIZE
-!***  ROUTINES.  THEY ARE CALLED FROM THE ATM GRIDDED COMPONENT
-!***  (ATM INITIALIZE CALLS DYNAMICS INITIALIZE, ETC.)
-!***  IN MODULE_MAIN_GRID_COMP.F.
+!***  THIS MODULE HOLDS THE PRIMARY INTEGRATION RUNSTREAM OF THE GFS
+!***  WITHIN SUBROUTINE GFS_INTEGRATE.
 !
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
       USE MODULE_ERR_MSG
+!
+      USE MODULE_DIGITAL_FILTER_GFS
+      USE MODULE_WRITE_ROUTINES_GFS,ONLY: WRITE_ASYNC_GFS
+      USE MODULE_CONTROL,ONLY: TIMEF
 !
 !-----------------------------------------------------------------------
 !
@@ -29,302 +31,361 @@
       INCLUDE '../../../inc/kind.inc'
 !-----------------------------------------------------------------------
 !
-!
-!
-!
-!-----------------------------------------------------------------------
-!***  FOR DETERMINING CLOCKTIMES OF VARIOUS PIECES OF THE DYNAMICS.
-!-----------------------------------------------------------------------
-!
-      REAL(KIND=KFPT) :: btim,btim0
-!
-!-----------------------------------------------------------------------
-!
-      LOGICAL,SAVE :: RESTARTED_RUN_FIRST=.TRUE.
-!
 !-----------------------------------------------------------------------
 !
       CONTAINS
 !
 !-----------------------------------------------------------------------
 
-      SUBROUTINE GFS_INTEGRATE(gc_gfs_dyn                               &
-                                 ,gc_gfs_phy                            &
-                                 ,gc_atm_cpl                            &
-                                 ,wrt_comps                             &
-                                 ,imp_gfs_dyn                           &
-                                 ,exp_gfs_dyn                           &
-                                 ,imp_gfs_phy                           &
-                                 ,exp_gfs_phy                           &
-                                 ,imp_gfs_wrt                           &
-                                 ,exp_gfs_wrt                           &
-                                 ,CLOCK_MAIN                            &
-                                 ,OUTPUT_INTERVAL                       &
-                                 ,quilting                              &
-                                 ,WRITE_GROUP_READY_TO_GO               &
-                                 ,CURRTIME                              &
-                                 ,STARTTIME                             &
-                                 ,NTIMESTEP                             &
-                                 ,TIMESTEP                              &
-                                 ,DFIHR                                 &
-                                 ,MYPE                                  &
-                                 ,PHYSICS_ON)
+      SUBROUTINE GFS_INTEGRATE(GC_GFS_DYN                               &
+                              ,GC_GFS_PHY                               &
+                              ,GC_ATM_CPL                               &
+                              ,WRT_COMPS                                &
+                              ,IMP_GFS_DYN                              &
+                              ,EXP_GFS_DYN                              &
+                              ,IMP_GFS_PHY                              &
+                              ,EXP_GFS_PHY                              &
+                              ,IMP_GFS_WRT                              &
+                              ,EXP_GFS_WRT                              &
+                              ,CLOCK_ATM                                &
+                              ,OUTPUT_INTERVAL                          &
+                              ,QUILTING                                 &
+                              ,WRITE_GROUP_READY_TO_GO                  &
+                              ,CURRTIME                                 &
+                              ,STARTTIME                                &
+                              ,NTIMESTEP                                &
+                              ,TIMESTEP                                 &
+                              ,DFIHR                                    &
+                              ,MYPE                                     &
+                              ,PHYSICS_ON)
 
 !
 !-----------------------------------------------------------------------
 !
-
-
-      USE MODULE_DIGITAL_FILTER_GFS
-!jw
-      USE MODULE_CONTROL,ONLY: TIMEF
-      USE MODULE_WRITE_ROUTINES_GFS,ONLY: WRITE_ASYNC_GFS
+!------------------
+!***  Arguments IN
+!------------------
 !
-
-      TYPE(ESMF_GridComp),INTENT(INOUT)      :: gc_gfs_dyn
-      TYPE(ESMF_GridComp),INTENT(INOUT)	     :: gc_gfs_phy
-      TYPE(ESMF_CplComp),INTENT(INOUT)       :: gc_atm_cpl
-!jw
-      TYPE(ESMF_GridComp),INTENT(INOUT)      :: wrt_comps(:)
-      TYPE(ESMF_State),INTENT(INOUT)         :: imp_gfs_dyn,exp_gfs_dyn
-      TYPE(ESMF_State),INTENT(INOUT)         :: imp_gfs_phy,exp_gfs_phy
-!jw
-      TYPE(ESMF_State),INTENT(INOUT)         :: imp_gfs_wrt,exp_gfs_wrt
-      TYPE(ESMF_Clock),INTENT(INOUT)         :: CLOCK_MAIN                         !<-- The ATM Component's ESMF Clock
-      TYPE(ESMF_Time),INTENT(INOUT)             :: CURRTIME                           !<-- The current forecast time
-      TYPE(ESMF_Time),INTENT(INOUT)             :: STARTTIME
-      INTEGER(KIND=KINT),INTENT(INOUT)       :: DFIHR, NTIMESTEP
-      INTEGER(KIND=KINT),INTENT(IN)          :: MYPE
-      TYPE(ESMF_TimeInterval),INTENT(IN)          :: TIMESTEP                      !<-- The ESMF timestep (s)
-      LOGICAL,INTENT(IN)                     :: PHYSICS_ON
-!jw
-      TYPE(ESMF_TimeInterval),INTENT(INOUT)  :: output_interval
-      LOGICAL,INTENT(IN)                     :: QUILTING
-      INTEGER(KIND=KINT),INTENT(INOUT)       :: WRITE_GROUP_READY_TO_GO
+      INTEGER(kind=KINT),INTENT(IN) :: MYPE                                !<-- The local task ID
 !
-      INTEGER(KIND=KINT)                     :: RC,RC_LOOP,I
-      INTEGER(KIND=ESMF_KIND_I8) :: NTIMESTEP_ESMF                        !<-- The current forecast timestep (ESMF_INT)
-      INTEGER(KIND=KINT)                     :: NDFISTEP
-      TYPE(ESMF_Time)                        :: HALFDFITIME
-      TYPE(ESMF_Time)                        :: DFITIME
-      TYPE(ESMF_TimeInterval)                :: HALFDFIINTVAL
-!jw
-      TYPE(ESMF_Time)                        :: ALARM_OUTPUT_RING
-      TYPE(ESMF_Alarm)                       :: ALARM_OUTPUT
-      integer :: YY, MM, DD, H, M, S, N_GROUP
+      LOGICAL,INTENT(IN) :: QUILTING                                       !<-- Are separate quilt tasks being used for output?
+!
+      TYPE(ESMF_Logical),INTENT(IN) :: PHYSICS_ON                          !<-- Is physics on (true) or off (false)?
+!
+      TYPE(ESMF_TimeInterval),INTENT(IN) :: TIMESTEP                       !<-- The ESMF timestep (s)
+!
+!---------------------
+!***  Arguments INOUT
+!---------------------
+!
+      INTEGER(kind=KINT),INTENT(INOUT) :: DFIHR                         &  !<-- Filter duration
+                                         ,NTIMESTEP                     &  !<-- The forecast timestep
+                                         ,WRITE_GROUP_READY_TO_GO          !<-- The number of the current Write group
+!
+      TYPE(ESMF_GridComp),INTENT(INOUT) :: GC_GFS_DYN                   &  !<-- The Dynamics component
+                                          ,GC_GFS_PHY                      !<-- The Physics component
+!
+      TYPE(ESMF_GridComp),INTENT(INOUT) :: WRT_COMPS(:)                    !<-- The Write components for output
+!
+      TYPE(ESMF_CplComp),INTENT(INOUT) :: GC_ATM_CPL                       !<-- The Dynamics-Physics coupler component
+!
+      TYPE(ESMF_State),INTENT(INOUT) :: IMP_GFS_DYN,EXP_GFS_DYN         &  !<-- The import/export states for Dynamics component
+                                       ,IMP_GFS_PHY,EXP_GFS_PHY         &  !<-- The import/export states for Physics component
+                                       ,IMP_GFS_WRT,EXP_GFS_WRT            !<-- The import/export states for Write components
+!
+      TYPE(ESMF_Clock),INTENT(INOUT) :: CLOCK_ATM                          !<-- The ATM Component's ESMF Clock
+!
+      TYPE(ESMF_Time),INTENT(INOUT) :: CURRTIME                         &  !<-- The current forecast time
+                                      ,STARTTIME                           !<-- The forecast start time
+!
+      TYPE(ESMF_TimeInterval),INTENT(INOUT) :: OUTPUT_INTERVAL             !<-- Frequency of history output
+!
+!---------------------
+!***  Local variables
+!---------------------
+!
+      INTEGER(kind=KINT) :: I,N_GROUP,NDFISTEP,RC,RC_LOOP
+      INTEGER(kind=KINT) :: YY,MM,DD,H,M,S
+!
+      INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF                         !<-- The current forecast timestep (ESMF_INT)
+!
+      TYPE(ESMF_Time) :: ALARM_OUTPUT_RING,DFITIME,HALFDFITIME
+!
+      TYPE(ESMF_TimeInterval) :: HALFDFIINTVAL
+!
+      TYPE(ESMF_Alarm) :: ALARM_OUTPUT
 !
 !-----------------------------------------------------------------------
-!jw*** set up alarm for output
+!***********************************************************************
 !-----------------------------------------------------------------------
 !
-       ALARM_OUTPUT_RING=STARTTIME+OUTPUT_INTERVAL
-       call ESMF_TimeGet(ALARM_OUTPUT_RING, yy=YY, mm=MM, dd=DD, h=H, m=M, s=S, rc=RC)
-        write(0,*)'alarm_output_ring,H=',H,'m=',m,'s=',s
+!-----------------------------------------------------------------------
+!***  Set up alarm for output.
+!-----------------------------------------------------------------------
 !
-       ALARM_OUTPUT =ESMF_AlarmCreate(name             ='ALARM_OUTPUT'      &
-                                    ,clock            =CLOCK_MAIN           &  !<-- ATM Clock
-                                    ,ringTime         =ALARM_OUTPUT_RING    &  !<-- Forecast/Restart start time (ESMF)
-                                    ,ringInterval     =OUTPUT_INTERVAL      &  !<-- Time interval between
-                                    ,ringTimeStepCount=1                    &  !<-- The Alarm rings for this many timesteps
-                                    ,sticky           =.false.              &  !<-- Alarm does not ring until turned off
-                                    ,rc               =RC)
-
+      ALARM_OUTPUT_RING=STARTTIME+OUTPUT_INTERVAL
 !
-      IF (DFIHR .GT. 0) THEN
-            CALL ESMF_TimeIntervalSet(HALFDFIINTVAL                    &
-                                 ,h=DFIHR,rc=RC)
-            NDFISTEP = HALFDFIINTVAL / TIMESTEP
-            HALFDFITIME = STARTTIME + HALFDFIINTVAL
-            DFITIME = HALFDFITIME + HALFDFIINTVAL
+      CALL ESMF_TimeGet(time=ALARM_OUTPUT_RING                          &
+                       ,yy  =YY                                         &
+                       ,mm  =MM                                         &
+                       ,dd  =DD                                         &
+                       ,h   =H                                          &
+                       ,m   =M                                          &
+                       ,s   =S                                          &
+                       ,rc  =RC)
+!
+      IF(M/=0)THEN
+        H=H+1
+        M=0
+        CALL ESMF_TimeSet(time=ALARM_OUTPUT_RING                        &
+                         ,yy  =YY                                       &
+                         ,mm  =MM                                       &
+                         ,dd  =DD                                       &
+                         ,h   =H                                        &
+                         ,m   =M                                        &
+                         ,s   =S                                        &
+                         ,rc  =RC)
+      ENDIF
+!
+      ALARM_OUTPUT=ESMF_AlarmCreate(name             ='ALARM_OUTPUT'    &
+                                   ,clock            =CLOCK_ATM         &  !<-- ATM Clock
+                                   ,ringTime         =ALARM_OUTPUT_RING &  !<-- Forecast/Restart start time (ESMF)
+                                   ,ringInterval     =OUTPUT_INTERVAL   &  !<-- Time interval between
+                                   ,ringTimeStepCount=1                 &  !<-- The Alarm rings for this many timesteps
+                                   ,sticky           =.false.           &  !<-- Alarm does not ring until turned off
+                                   ,rc               =RC)
+!
+      IF(DFIHR>0)THEN
+!
+        CALL ESMF_TimeIntervalSet(timeinterval=HALFDFIINTVAL            &
+                                 ,h           =DFIHR                    &
+                                 ,rc          =RC)
+!
+        NDFISTEP = HALFDFIINTVAL / TIMESTEP
+        HALFDFITIME = STARTTIME + HALFDFIINTVAL
+        DFITIME = HALFDFITIME + HALFDFIINTVAL
+!
       ENDIF
 !
 !-----------------------------------------------------------------------
-!jw*** run gfs_dyn
+!***  Execute the Run step of the Dynamics component
 !-----------------------------------------------------------------------
 !
-      do while (.not.esmf_clockisstoptime(CLOCK_MAIN,rc))
-
-          call esmf_logwrite("execute dynamics",esmf_log_info,rc=rc)
-          call esmf_gridcomprun(gridcomp   =gc_gfs_dyn                &
-                               ,importstate=imp_gfs_dyn               &
-                               ,exportstate=exp_gfs_dyn               &
-                               ,clock      =CLOCK_MAIN                &
-                               ,rc         =RC)
+      integrate: DO WHILE(.NOT.ESMF_ClockIsStopTime(CLOCK_ATM,RC))
 !
-
-          call err_msg(RC,'execute dynamics',RC_LOOP)
+!-----------------------------------------------------------------------
 !
-          call esmf_logwrite("couple dyn_exp-to-phy_imp",             &
-                             esmf_log_info,rc=rc)
-          CALL ESMF_ClockGet(clock       =CLOCK_MAIN                  &
-                          ,advanceCount=NTIMESTEP_ESMF                &  !<-- # of times the clock has advanced
+        CALL ESMF_LogWrite("Execute GFS Dynamics",ESMF_LOG_INFO,rc=RC)
+!
+        CALL ESMF_GridCompRun(gridcomp   =GC_GFS_DYN                    &
+                             ,importstate=IMP_GFS_DYN                   &
+                             ,exportstate=EXP_GFS_DYN                   &
+                             ,clock      =CLOCK_ATM                     &
+                             ,rc         =RC)
+!
+        CALL ERR_MSG(RC,'execute dynamics',RC_LOOP)
+!
+        CALL ESMF_LogWrite("couple dyn_exp-to-phy_imp"                  &
+                           ,esmf_log_info,rc=rc)
+!
+        CALL ESMF_ClockGet(clock       =CLOCK_ATM                       &
+                          ,advanceCount=NTIMESTEP_ESMF                  &  !<-- # of times the clock has advanced
                           ,rc          =RC)
 !
           NTIMESTEP=NTIMESTEP_ESMF
 !
-!jws for gfs_dyn write out
-!--------------------------------------------------------------------
-!
- outputdyn: IF(ESMF_AlarmIsRinging(alarm=ALARM_OUTPUT               &  !<-- The history output alarm
-                                      ,rc   =RC).or.ntimestep==1)THEN
-               CALL WRITE_ASYNC_GFS(WRT_COMPs,exp_gfs_dyn           &
-                                ,imp_gfs_wrt,exp_gfs_wrt            &
-                                ,CLOCK_MAIN                         &
-                                ,MYPE                               &
-                                ,WRITE_GROUP_READY_TO_GO)
-          ENDIF outputdyn
-
-!
-!cpl for gfs_dyn to gfs_phys
-!--------------------------------------------------------------------
-          call esmf_cplcomprun(cplcomp    =gc_atm_cpl          &
-                              ,importstate=exp_gfs_dyn         &
-                              ,exportstate=imp_gfs_phy         &
-                              ,clock      =CLOCK_MAIN          &
-                              ,rc         =RC)
-!
-          call err_msg(RC,'couple dyn-to-phy',RC_LOOP)
-!
-          IF (PHYSICS_ON) THEN
-            call esmf_logwrite("execute physics",esmf_log_info,rc=rc)
-            call esmf_gridcomprun(gridcomp   =gc_gfs_phy            &
-                                 ,importstate=imp_gfs_phy           &
-                                 ,exportstate=exp_gfs_phy           &
-                                 ,clock      =CLOCK_MAIN            &
-                                 ,rc         =RC)
-           call err_msg(RC,'execute physics',RC_LOOP)
-!check time step
-           CALL ESMF_ClockGet(clock       =CLOCK_MAIN                      &
-                          ,advanceCount=NTIMESTEP_ESMF                  &  !<-- # of times the clock has advanced
-                          ,rc          =RC)
-!
-           NTIMESTEP=NTIMESTEP_ESMF
-
-          ELSE
-           call esmf_logwrite("pass phy_imp to phy_exp ",       &
-                               esmf_log_info,rc=rc)
-!
-            call esmf_cplcomprun(            gc_atm_cpl          &
-                                ,importstate=imp_gfs_phy         &
-                                ,exportstate=exp_gfs_phy         &
-                                ,clock      =CLOCK_MAIN          &
-                                ,rc         =RC)
-!
-            call err_msg(RC,'pass phy_imp-to-phy_exp',RC_LOOP)
-          ENDIF
-
- !
-!
-!----------------
 !-----------------------------------------------------------------------
-!***  bring export data from the physics into the coupler
-!***  and export it to the dynamics.
+!***  Call the Write component if it is time.
 !-----------------------------------------------------------------------
 !
-          call esmf_logwrite("couple phy_exp-to-dyn_imp",         &
-                             esmf_log_info,rc=RC)
+        outputdyn: IF(ESMF_AlarmIsRinging(alarm=ALARM_OUTPUT            &  !<-- The history output alarm
+                                         ,rc   =RC))THEN
 !
-          call esmf_cplcomprun(cplcomp    =gc_atm_cpl             &
-                              ,importstate=exp_gfs_phy            &
-                              ,exportstate=imp_gfs_dyn            &
-                              ,clock      =CLOCK_MAIN             &
-                              ,rc         =RC)
-!
-          call err_msg(RC,'couple phy_exp-to-dyn_imp',RC_LOOP)
-!
-!-----------------------------------------------------------------------
-!***  RETRIEVE THE TIMESTEP FROM THE ATM CLOCK AND PRINT FORECAST TIME.
-!-----------------------------------------------------------------------
-!
-!
+          CALL WRITE_ASYNC_GFS(WRT_COMPS                                &
+                              ,EXP_GFS_DYN                              &
+                              ,IMP_GFS_WRT                              &
+                              ,EXP_GFS_WRT                              &
+                              ,CLOCK_ATM                                &
+                              ,MYPE                                     &
+                              ,WRITE_GROUP_READY_TO_GO)
+        ENDIF outputdyn
 !
 !-----------------------------------------------------------------------
-
-!        IF (MYPE==0) THEN
-        IF (DFIHR .GT. 0) THEN
-
-! --------------------- first stage -----------------------------------
-           IF ( CURRTIME .eq. STARTTIME ) THEN
-           CALL DIGITAL_FILTER_DYN_INIT_GFS(imp_gfs_dyn,NDFISTEP)
-
-! -------------------- inital summation  ------------------------------
+!***  Bring export data from the Dynamics into the coupler
+!***  and export it to the Physics.
+!-----------------------------------------------------------------------
 !
-                IF ( PHYSICS_ON ) THEN
-                        CALL DIGITAL_FILTER_PHY_INIT_GFS(imp_gfs_phy)
-                ENDIF
-             ENDIF
-
+        CALL ESMF_CplCompRun(cplcomp    =GC_ATM_CPL                     &
+                            ,importstate=EXP_GFS_DYN                    &
+                            ,exportstate=IMP_GFS_PHY                    &
+                            ,clock      =CLOCK_ATM                      &
+                            ,rc         =RC)
 !
-! -------------------- summation stage ---------------------------------
+        CALL ERR_MSG(RC,'couple dyn-to-phy',RC_LOOP)
 !
-              CALL DIGITAL_FILTER_DYN_SUM_GFS(imp_gfs_dyn)
+!-----------------------------------------------------------------------
+!***  Execute the Run step of the Physics Component
+!-----------------------------------------------------------------------
 !
-! ----------------------------------------------------------------------
+        IF (PHYSICS_ON==ESMF_True) THEN
+          CALL ESMF_LogWrite("execute physics",ESMF_LOG_INFO,rc=RC)
 !
-              IF( PHYSICS_ON ) then
-                IF( CURRTIME .eq. HALFDFITIME ) THEN
-                    CALL DIGITAL_FILTER_PHY_SAVE_GFS(imp_gfs_phy)
-                ENDIF
-              ENDIF
-!
-! ----------------------------------------------------------------------
-!
-! --------------------- final stage ------------------------------------
-!
-            IF( CURRTIME .eq. DFITIME ) then
-!                 print *,' dfi at finaldfitime '
-                CALL DIGITAL_FILTER_DYN_AVERAGE_GFS(imp_gfs_dyn)
-                IF( PHYSICS_ON ) then
-                  CALL DIGITAL_FILTER_PHY_RESTORE_GFS(imp_gfs_phy)
-                ENDIF
-!
-! ----------------------------------------------------------------------
-!
-              call ESMF_ClockSet(CLOCK_MAIN                             &
-                                ,currtime=HALFDFITIME                   &
-                                ,rc      =rc)
-
-              DFITIME = STARTTIME
-              DFIHR = 0
-              CALL ESMF_ClockPrint(clock=CLOCK_MAIN                      &
-                              ,options="currtime string"                &
-                              ,rc=RC)
-             ENDIF
-        ENDIF !< -- DFIHR
-!        ENDIF
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_ClockAdvance(clock=CLOCK_MAIN                          &
-                              ,rc   =RC)
-        CALL ESMF_ClockGet(clock       =CLOCK_MAIN                       &
-                          ,advanceCount=NTIMESTEP_ESMF                  &  !<-- # of times the clock has advanced
-                          ,rc          =RC)
-        NTIMESTEP=NTIMESTEP_ESMF
-        CALL ESMF_ClockGet(clock       =CLOCK_MAIN                       &
-                          ,currTime=CURRTIME                  &  !<-- # of times the clock has advanced
-                          ,rc          =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
- 
-       ENDDO
-
-                call esmf_gridcomprun(gridcomp=gc_gfs_dyn       &
-                               ,importstate=imp_gfs_dyn         &
-                               ,exportstate=exp_gfs_dyn         &
-                               ,clock      =CLOCK_MAIN          &
+          CALL ESMF_GridCompRun(gridcomp   =GC_GFS_PHY                  &
+                               ,importstate=IMP_GFS_PHY                 &
+                               ,exportstate=EXP_GFS_PHY                 &
+                               ,clock      =CLOCK_ATM                   &
                                ,rc         =RC)
-!jws
-    output2: IF(ESMF_AlarmIsRinging(alarm=ALARM_OUTPUT          &  !<-- The history output alarm
-                                      ,rc   =RC))THEN
-                    CALL WRITE_ASYNC_GFS(WRT_COMPs,exp_gfs_dyn  &
-                            ,imp_gfs_wrt,exp_gfs_wrt            &
-                            ,CLOCK_MAIN                         &
-                            ,MYPE                               &
+!
+          call err_msg(RC,'execute physics',RC_LOOP)
+!check time step
+          CALL ESMF_ClockGet(clock       =CLOCK_ATM                     &
+                            ,advanceCount=NTIMESTEP_ESMF                &  !<-- # of times the clock has advanced
+                            ,rc          =RC)
+!
+          NTIMESTEP=NTIMESTEP_ESMF
+          write(0,*)'after phys,ntimestep=',ntimestep,'fhour=',ntimestep/4.
+!
+!-----------------------------------------------------------------------
+!***  Skip the Physics is the user has turned it off. 
+!-----------------------------------------------------------------------
+!
+        ELSE
+          CALL ESMF_LogWrite("pass phy_imp to phy_exp "                 &
+                             ,ESMF_LOG_INFO,rc=rc)
+!
+          CALL ESMF_CplCompRun(cplcomp    =GC_ATM_CPL                   &
+                              ,importstate=IMP_GFS_PHY                  &
+                              ,exportstate=EXP_GFS_PHY                  &
+                              ,clock      =CLOCK_ATM                    &
+                              ,rc         =RC)
+!
+          CALL ERR_MSG(RC,'pass phy_imp-to-phy_exp',RC_LOOP)
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Bring export data from the Physics into the coupler
+!***  and export it to the Dynamics.
+!-----------------------------------------------------------------------
+!
+        CALL ESMF_LogWrite("couple phy_exp-to-dyn_imp"                  &
+                           ,ESMF_LOG_INFO,rc=RC)
+!
+        CALL ESMF_CplCompRun(cplcomp    =GC_ATM_CPL                     &
+                            ,importstate=EXP_GFS_PHY                    &
+                            ,exportstate=IMP_GFS_DYN                    &
+                            ,clock      =CLOCK_ATM                      &
+                            ,rc         =RC)
+!
+        CALL ERR_MSG(RC,'couple phy_exp-to-dyn_imp',RC_LOOP)
+!
+!-----------------------------------------------------------------------
+!***  Digital filter
+!-----------------------------------------------------------------------
+!
+        filter_block: IF(DFIHR>0)THEN
+!
+!--------------------------
+!***  Filter's first stage
+!--------------------------
+!
+          IF(CURRTIME==STARTTIME)THEN
+            CALL DIGITAL_FILTER_DYN_INIT_GFS(IMP_GFS_DYN,NDFISTEP)
+!
+!---------------------------
+!***  The initial summation
+!---------------------------
+!
+            IF(PHYSICS_ON==ESMF_True)THEN
+              CALL DIGITAL_FILTER_PHY_INIT_GFS(imp_gfs_phy)
+            ENDIF
+!
+          ENDIF
+!
+!-------------------------
+!***  The summation stage
+!-------------------------
+!
+          CALL DIGITAL_FILTER_DYN_SUM_GFS(IMP_GFS_DYN)
+!
+          IF(PHYSICS_ON==ESMF_True)THEN
+            IF(CURRTIME==HALFDFITIME)THEN
+              CALL DIGITAL_FILTER_PHY_SAVE_GFS(IMP_GFS_PHY)
+            ENDIF
+          ENDIF
+!
+!---------------------
+!***  The final stage
+!---------------------
+!
+          IF(CURRTIME==DFITIME)THEN
+            write(0,*)' DFI at final DFITIME '
+            CALL DIGITAL_FILTER_DYN_AVERAGE_GFS(imp_gfs_dyn)
+            IF(PHYSICS_ON==ESMF_True)THEN
+              CALL DIGITAL_FILTER_PHY_RESTORE_GFS(imp_gfs_phy)
+            ENDIF
+!
+            CALL ESMF_ClockSet(clock   =CLOCK_ATM                       &
+                              ,currtime=HALFDFITIME                     &
+                              ,rc      =RC)
+!
+            DFITIME = STARTTIME
+            DFIHR = 0
+            write(0,*)' DFI reset time to:'
+            CALL ESMF_ClockPrint(clock  =CLOCK_ATM                      &
+                                ,options="currtime string"              &
+                                ,rc     =RC)
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!
+        ENDIF  filter_block
+!
+!-----------------------------------------------------------------------
+!
+        CALL ESMF_ClockAdvance(clock=CLOCK_ATM                          &
+                              ,rc   =RC)
+!
+        CALL ESMF_ClockGet(clock       =CLOCK_ATM                       &
+                          ,advanceCount=NTIMESTEP_ESMF                  &  !<-- # of times the clock has advanced
+                          ,rc          =RC)
+!
+        NTIMESTEP=NTIMESTEP_ESMF
+!
+        CALL ESMF_ClockGet(clock   =CLOCK_ATM                           &
+                          ,currTime=CURRTIME                            &  !<-- The current forecast time
+                          ,rc      =RC)
+!
+!-----------------------------------------------------------------------
+! 
+      ENDDO  integrate
+!
+!-----------------------------------------------------------------------
+!
+      CALL ESMF_GridCompRun(gridcomp   =GC_GFS_DYN                      &
+                           ,importstate=IMP_GFS_DYN                     &
+                           ,exportstate=EXP_GFS_DYN                     &
+                           ,clock      =CLOCK_ATM                       &
+                           ,rc         =RC)
+!
+      outputdyn2: IF(ESMF_AlarmIsRinging(alarm=ALARM_OUTPUT             &  !<-- The history output alarm
+                                        ,rc   =RC))THEN
+!
+        CALL WRITE_ASYNC_GFS(WRT_COMPS                                  &
+                            ,EXP_GFS_DYN                                &
+                            ,IMP_GFS_WRT                                &
+                            ,EXP_GFS_WRT                                &
+                            ,CLOCK_ATM                                  &
+                            ,MYPE                                       &
                             ,WRITE_GROUP_READY_TO_GO)
-             ENDIF output2
-!jwe
+      ENDIF outputdyn2
+!
+!-----------------------------------------------------------------------
 !
       END SUBROUTINE GFS_INTEGRATE
 !
+!-----------------------------------------------------------------------
+!
       END MODULE MODULE_GFS_INTEGRATE
+!
+!-----------------------------------------------------------------------

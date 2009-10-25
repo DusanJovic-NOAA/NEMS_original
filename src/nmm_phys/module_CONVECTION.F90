@@ -8,6 +8,16 @@
 !
 !-----------------------------------------------------------------------
 !
+! HISTORY LOG:
+!
+!   02-03-21  Black      - Originator
+!   04-11-18  Black      - Threaded
+!   06-10-11  BLACK      - Built into NMM-B Physics component
+!   08-08     Janjic     - Synchronize WATER array and Q.
+!   08-11-23  Janjic     - Incorporated general hybrid coordinate.
+!
+!-----------------------------------------------------------------------
+!
       USE MODULE_INCLUDE
 !
 !     USE MODULE_DM_PARALLEL,ONLY : IDS,IDE,JDS,JDE                     &
@@ -62,38 +72,37 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-     REAL,PARAMETER ::                                                  &
-     &                  DSPC=-3000.                                     &
-     &                 ,DTTOP=0.,EFIFC=5.0,EFIMN=0.20,EFMNT=0.70        &
-     &                 ,ELIWV=2.683E6,ENPLO=20000.,ENPUP=15000.         &
-     &                 ,EPSDN=1.05,EPSDT=0.                             &
-     &                 ,EPSNTP=.0001,EPSNTT=.0001,EPSPR=1.E-7           &
-     &                 ,EPSUP=1.00                                      &
-     &                 ,FR=1.00,FSL=0.85,FSS=0.85                       &
-     &                 ,FUP=1./200000.                                  &
-     &                 ,PBM=13000.,PFRZ=15000.,PNO=1000.                &
-     &                 ,PONE=2500.,PQM=20000.                           &
-     &                 ,PSH=20000.,PSHU=45000.                          &
-     &                 ,RENDP=1./(ENPLO-ENPUP)                          &
-     &                 ,RHLSC=0.00,RHHSC=1.10                           &
-     &                 ,ROW=1.E3                                        &
-     &                 ,STABDF=0.90,STABDS=0.90                         &
-     &                 ,STABS=1.0,STRESH=1.10                           &
-     &                 ,DTSHAL=-1.0,TREL=2400.
+      REAL,PARAMETER :: DSPC=-3000.                                     &
+                       ,DTTOP=0.,EFIFC=5.0,EFIMN=0.20,EFMNT=0.70        &
+                       ,ELIWV=2.683E6,ENPLO=20000.,ENPUP=15000.         &
+                       ,EPSDN=1.05,EPSDT=0.                             &
+                       ,EPSNTP=.0001,EPSNTT=.0001,EPSPR=1.E-7           &
+                       ,EPSUP=1.00                                      &
+                       ,FR=1.00,FSL=0.85,FSS=0.85                       &
+                       ,FUP=1./200000.                                  &
+                       ,PBM=13000.,PFRZ=15000.,PNO=1000.                &
+                       ,PONE=2500.,PQM=20000.                           &
+                       ,PSH=20000.,PSHU=45000.                          &
+                       ,RENDP=1./(ENPLO-ENPUP)                          &
+                       ,RHLSC=0.00,RHHSC=1.10                           &
+                       ,ROW=1.E3                                        &
+                       ,STABDF=0.90,STABDS=0.90                         &
+                       ,STABS=1.0,STRESH=1.10                           &
+                       ,DTSHAL=-1.0,TREL=2400.
 !
       REAL,PARAMETER :: DTtrigr=-0.0                                    &
                        ,DTPtrigr=DTtrigr*PONE      !<-- Average parcel virtual temperature deficit over depth PONE.
                                                    !<-- NOTE: CAPEtrigr is scaled by the cloud base temperature (see below)
 !
-      REAL,PARAMETER :: DSPBFL=-3875.*FR                           &
-     &                 ,DSP0FL=-5875.*FR                           &
-     &                 ,DSPTFL=-1875.*FR                           &
-     &                 ,DSPBFS=-3875.                              &
-     &                 ,DSP0FS=-5875.                              &
-     &                 ,DSPTFS=-1875.
+      REAL,PARAMETER :: DSPBFL=-3875.*FR                                &
+                       ,DSP0FL=-5875.*FR                                &
+                       ,DSPTFL=-1875.*FR                                &
+                       ,DSPBFS=-3875.                                   &
+                       ,DSP0FS=-5875.                                   &
+                       ,DSPTFS=-1875.
 !
       REAL,PARAMETER :: PL=2500.,PLQ=70000.,PH=105000.                  &
-     &                 ,THL=210.,THH=365.,THHQ=325.
+                       ,THL=210.,THH=365.,THHQ=325.
 !
       INTEGER,PARAMETER :: ITB=76,JTB=134,ITBQ=152,JTBQ=440
 !
@@ -113,10 +122,10 @@
       REAL,DIMENSION(JTB) :: QS0_EXP,SQS_EXP
       REAL,DIMENSION(ITB,JTB) :: PTBL_EXP
 !
-      REAL,PARAMETER :: RDP=(ITB-1.)/(PH-PL),RDPQ=(ITBQ-1.)/(PH-PLQ)  &
-     &                 ,RDQ=ITB-1,RDTH=(JTB-1.)/(THH-THL)             &
-     &                 ,RDTHE=JTB-1.,RDTHEQ=JTBQ-1.                   &
-     &                 ,RSFCP=1./101300.
+      REAL,PARAMETER :: RDP=(ITB-1.)/(PH-PL),RDPQ=(ITBQ-1.)/(PH-PLQ)    &
+                       ,RDQ=ITB-1,RDTH=(JTB-1.)/(THH-THL)               &
+                       ,RDTHE=JTB-1.,RDTHEQ=JTBQ-1.                     &
+                       ,RSFCP=1./101300.
 !
       REAL,PARAMETER :: AVGEFI=(EFIMN+1.)*0.5
 !
@@ -157,27 +166,11 @@
                        ,IDS,IDE,JDS,JDE,LM                              &
                        ,IMS,IME,JMS,JME                                 &
                        ,ITS,ITE,JTS,JTE)
-!***********************************************************************
-!$$$  SUBPROGRAM DOCUMENTATION BLOCK
-!                .      .    .     
-! SUBPROGRAM:    CUCNVC      CONVECTIVE PRECIPITATION OUTER DRIVER
-!   PRGRMMR: BLACK           ORG: W/NP22     DATE: 02-03-21       
-!     
-! ABSTRACT:
-!     CUCVNC DRIVES THE WRF CONVECTION SCHEMES
-!     
-! PROGRAM HISTORY LOG:
-!   02-03-21  BLACK      - ORIGINATOR
-!   04-11-18  BLACK      - THREADED
-!   06-10-11  BLACK      - BUILT INTO UMO PHYSICS COMPONENT
-!   08-08     JANJIC     - Synchronize WATER array and Q.
-!     
-! USAGE: CALL CUCNVC FROM PHY_RUN
 !
-! ATTRIBUTES:
-!   LANGUAGE: FORTRAN 90
-!   MACHINE : IBM 
-!$$$  
+!-----------------------------------------------------------------------
+!     
+!***  CUCVNC DRIVES THE WRF CONVECTION SCHEMES
+!     
 !-----------------------------------------------------------------------
 !
       IMPLICIT NONE
@@ -272,7 +265,7 @@
 !-----------------------------------------------------------------------
 !***  FOR TEMPERATURE CHANGE CHECK ONLY.
 !-----------------------------------------------------------------------
-!zj      REAL :: DTEMP_CHECK=1.0
+!     REAL :: DTEMP_CHECK=1.0
       REAL :: TCHANGE
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -329,10 +322,11 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-      IF(MOD(NTSD,NCNVC)/=0.AND.                                      &
-     &   CONVECTION=='bmj')RETURN
-      IF(MOD(NTSD,NCNVC)/=0.AND.                                      &
-     &   CONVECTION=='sas')RETURN
+!
+      IF(MOD(NTSD,NCNVC)/=0.AND.CONVECTION=='bmj')RETURN
+!
+      IF(MOD(NTSD,NCNVC)/=0.AND.CONVECTION=='sas')RETURN
+!
 !-----------------------------------------------------------------------
 !
       NSTEP_CNV=NCNVC
@@ -574,36 +568,36 @@
 !-----------------------------------------------------------------------
 !
       CALL CUMULUS_DRIVER(                                              &
-     &                  IDS=IDS,IDE=IDE,JDS=JDS,JDE=JDE,KDS=1,KDE=LM+1  &
-     &                 ,IMS=IMS,IME=IME,JMS=JMS,JME=JME,KMS=1,KME=LM+1  &
-     &                 ,I_START=I_START,I_END=I_END                     &
-     &                 ,J_START=J_START,J_END=J_END                     &
-     &                 ,KTS=1,KTE=LM,NUM_TILES=NUM_TILES                &
+                        IDS=IDS,IDE=IDE,JDS=JDS,JDE=JDE,KDS=1,KDE=LM+1  &
+                       ,IMS=IMS,IME=IME,JMS=JMS,JME=JME,KMS=1,KME=LM+1  &
+                       ,I_START=I_START,I_END=I_END                     &
+                       ,J_START=J_START,J_END=J_END                     &
+                       ,KTS=1,KTE=LM,NUM_TILES=NUM_TILES                &
                   ! Prognostic
-     &                 ,U=U_PHY,V=V_PHY,TH=TH_PHY,T=T_PHY,W=WINT        &
-     &                 ,P=P_PHY,PI=PI_PHY,RHO=RR,W0AVG=W0AVG            &
+                       ,U=U_PHY,V=V_PHY,TH=TH_PHY,T=T_PHY,W=WINT        &
+                       ,P=P_PHY,PI=PI_PHY,RHO=RR,W0AVG=W0AVG            &
                   ! Others
-     &                 ,ITIMESTEP=NTSD,DT=DT,DX=DYH                     & ! Use DYH as the general grid increment
-     &                 ,RAINC=RAINC,RAINCV=RAINCV,NCA=NCA               &
-     &                 ,DZ8W=DZ,P8W=P8W                                 &
-     &                 ,CLDEFI=CLDEFI,LOWLYR=LOWLYR,XLAND=XLAND         &
-     &                 ,CU_ACT_FLAG=CU_ACT_FLAG,WARM_RAIN=WARM_RAIN     &
-     &                 ,STEPCU=NSTEP_CNV,GSW=GSW                        &
-     &                 ,HTOP=CUTOP,HBOT=CUBOT,KPBL=KPBL,HT=SFCZ         &   
-     &                 ,ENSDIM=ENSDIM,MAXIENS=1,MAXENS=1                &
-     &                 ,MAXENS2=1,MAXENS3=1                             &
-     &                 ,RTHCUTEN=RTHCUTEN ,RQVCUTEN=RQVCUTEN            &
-     &                 ,RQCCUTEN=RQCCUTEN ,RQRCUTEN=RQRCUTEN            &
-     &                 ,RQICUTEN=RQICUTEN ,RQSCUTEN=RQSCUTEN            &
+                       ,ITIMESTEP=NTSD,DT=DT,DX=DYH                     & ! Use DYH as the general grid increment
+                       ,RAINC=RAINC,RAINCV=RAINCV,NCA=NCA               &
+                       ,DZ8W=DZ,P8W=P8W                                 &
+                       ,CLDEFI=CLDEFI,LOWLYR=LOWLYR,XLAND=XLAND         &
+                       ,CU_ACT_FLAG=CU_ACT_FLAG,WARM_RAIN=WARM_RAIN     &
+                       ,STEPCU=NSTEP_CNV,GSW=GSW                        &
+                       ,HTOP=CUTOP,HBOT=CUBOT,KPBL=KPBL,HT=SFCZ         &   
+                       ,ENSDIM=ENSDIM,MAXIENS=1,MAXENS=1                &
+                       ,MAXENS2=1,MAXENS3=1                             &
+                       ,RTHCUTEN=RTHCUTEN ,RQVCUTEN=RQVCUTEN            &
+                       ,RQCCUTEN=RQCCUTEN ,RQRCUTEN=RQRCUTEN            &
+                       ,RQICUTEN=RQICUTEN ,RQSCUTEN=RQSCUTEN            &
                   ! Selection argument
-     &                 ,CU_PHYSICS=CU_PHYSICS                           &
+                       ,CU_PHYSICS=CU_PHYSICS                           &
                   ! Moisture tracer arguments
-     &                 ,QV_CURR=WATER_TRANS(IMS,1,JMS,P_QV),F_QV=F_QV   &
-     &                 ,QC_CURR=WATER_TRANS(IMS,1,JMS,P_QC),F_QC=F_QC   &
-     &                 ,QR_CURR=WATER_TRANS(IMS,1,JMS,P_QR),F_QR=F_QR   &
-     &                 ,QI_CURR=WATER_TRANS(IMS,1,JMS,P_QI),F_QI=F_QI   &
-     &                 ,QS_CURR=WATER_TRANS(IMS,1,JMS,P_QS),F_QS=F_QS   &
-     &                 ,QG_CURR=WATER_TRANS(IMS,1,JMS,P_QG),F_QG=F_QG  )
+                       ,QV_CURR=WATER_TRANS(IMS,1,JMS,P_QV),F_QV=F_QV   &
+                       ,QC_CURR=WATER_TRANS(IMS,1,JMS,P_QC),F_QC=F_QC   &
+                       ,QR_CURR=WATER_TRANS(IMS,1,JMS,P_QR),F_QR=F_QR   &
+                       ,QI_CURR=WATER_TRANS(IMS,1,JMS,P_QI),F_QI=F_QI   &
+                       ,QS_CURR=WATER_TRANS(IMS,1,JMS,P_QS),F_QS=F_QS   &
+                       ,QG_CURR=WATER_TRANS(IMS,1,JMS,P_QG),F_QG=F_QG  )
 !
 !-----------------------------------------------------------------------
 !

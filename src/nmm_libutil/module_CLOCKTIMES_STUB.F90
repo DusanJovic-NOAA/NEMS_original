@@ -9,7 +9,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      REAL :: total_tim,totalsum_tim
+      REAL :: total_integ_tim,total_tim,totalsum_tim
 !
 !-----------------------------------------------------------------------
 !***  ASSOCIATED WITH DYNAMICS
@@ -46,8 +46,15 @@
       REAL :: add_fld_tim,cpl_dyn_phy_tim,get_fld_tim
 !
 !-----------------------------------------------------------------------
-      CHARACTER(LEN=10) :: timer_name(50)
-!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+!***  ASSOCIATED WITH NESTING
+!-----------------------------------------------------------------------
+!
+      REAL :: cpl_nesting_tim
+!
+!-----------------------------------------------------------------------
+!
+!!!   CHARACTER(LEN=10) :: timer_name(50)
+!
 !-----------------------------------------------------------------------
 !
       CONTAINS
@@ -115,7 +122,8 @@
       totalsum_tim=totalsum_tim                                     &
                   +dyn_init_tim                                     &
                   +phy_init_tim                                     &
-                  +cpl_dyn_phy_tim
+                  +cpl_dyn_phy_tim                                  &
+                  +cpl_nesting_tim
 !
 !-----------------------------------------------------------------------
 !***  THE DESIGNATED MPI TASK WRITES CLOCKTIMES FOR ITS WORK.
@@ -241,6 +249,12 @@
                  ,' pct=',polehn_tim/total_tim*100.
         write(0,*)'  exch_dyn=',exch_dyn_tim*1.e-3 &
                   ,' pct=',exch_dyn_tim/total_tim*100.
+!
+        write(0,*)' NESTING'
+        if(cpl_nesting_tim/=0.)then
+          write(0,*)'   cpl_nesting=',cpl_nesting_tim*1.e-3 &
+                   ,' pct=',cpl_nesting_tim/total_tim*100.
+        endif
 !
       ENDIF
 !

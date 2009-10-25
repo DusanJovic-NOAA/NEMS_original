@@ -244,7 +244,7 @@
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: OMGALF
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: ACPREC,PREC      &
-                                                      ,AVRAIN             !<-- Was a scalar
+                                                      ,AVRAIN              !<-- Was a scalar (ESMF cannot have evolving scalar Attributes)
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: CWM,Q,T     &
      &                                                     ,TRAIN
@@ -1290,9 +1290,6 @@ SUBROUTINE microphysics_driver(                                          &
       DO i = its,ite
         t_phy(i,k,j) = th_phy(i,k,j)*pi_phy(i,k,j)
         qv(i,k,j)=qv(i,k,j)/(1.+qv(i,k,j)) !Convert to specific humidity
-!     if(i==101.and.j==163)then
-!       write(0,*)' enter etamp_new k=',k,' t=',t_phy(i,k,j),' th=',th_phy(i,k,j),' pii=',pi_phy(i,k,j)
-!     endif
       ENDDO
       ENDDO
       ENDDO
@@ -3886,9 +3883,6 @@ nsteps = 0
          DO k=kts,kte
          DO i=its,ite
             t(i,k)=th(i,k,j)*pii(i,k,j)
-!     if(i==101.and.j==163)then
-!       write(0,*)' enter wsm3 k=',k,' t=',t(i,k),' th=',th(i,k,j),' pii=',pii(i,k,j)
-!     endif
          ENDDO
          ENDDO
          CALL wsm32D(t, q(ims,kms,j), qci(ims,kms,j)               &
@@ -3909,9 +3903,6 @@ nsteps = 0
          DO K=kts,kte
          DO I=its,ite
             th(i,k,j)=t(i,k)/pii(i,k,j)
-!     if(i==101.and.j==163)then
-!       write(0,*)' exit wsm3 k=',k,' t=',t(i,k),' pii=',pii(i,k,j)
-!     endif
          ENDDO
          ENDDO
       ENDDO

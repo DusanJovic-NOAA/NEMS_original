@@ -10,7 +10,9 @@
 !
 !***  THE COUPLER PROVIDES 2-WAY COUPLING BETWEEN THE DYNAMICS AND
 !***  PHYSICS GRIDDED COMPONENTS BY TRANSFERING THEIR EXPORT AND
-!***  IMPORT STATES BETWEEN THE TWO.
+!***  IMPORT STATES BETWEEN THE TWO.  IT IS ALSO USED TO TRANSFER
+!***  THE DYNAMICS EXPORT STATE TO THE DYNAMICS IMPORT STATE WHEN
+!***  FORECASTS WITH NO PHYSICS ARE MADE.
 !
 !-----------------------------------------------------------------------
 !
@@ -21,9 +23,17 @@
                                    ,MYPE_SHARE
 !
       USE MODULE_DYNAMICS_GRID_COMP,ONLY : LM
-      USE MODULE_DYN_PHY_CPL_DATA
-      USE MODULE_CONTROL           ,ONLY : TIMEF
-      USE MODULE_ERR_MSG           ,ONLY : ERR_MSG,MESSAGE_CHECK
+!
+      USE MODULE_DYN_PHY_CPL_DATA,ONLY : DATANAMES_2D                   &
+                                        ,DATANAMES_3D                   &
+                                        ,NDATA_2D_FROM_DYN              &
+                                        ,NDATA_2D_FROM_PHY              &
+                                        ,NDATA_3D_FROM_DYN              &
+                                        ,NDATA_3D_FROM_PHY  
+!
+      USE MODULE_CONTROL,ONLY : TIMEF
+      USE MODULE_CLOCKTIMES,ONLY : add_fld_tim,cpl_dyn_phy_tim,get_fld_tim
+      USE MODULE_ERR_MSG,ONLY : ERR_MSG,MESSAGE_CHECK
 !
 !-----------------------------------------------------------------------
 !
@@ -39,9 +49,8 @@
       INCLUDE '../../inc/kind.inc'
 !-----------------------------------------------------------------------
 !
-      REAL(KIND=KFPT) :: btim,btim0
-      REAL(KIND=KFPT),PUBLIC :: cpl_dyn_phy_tim                         &
-                               ,get_fld_tim,add_fld_tim
+      REAL(KIND=KDBL) :: btim,btim0
+!
 !-----------------------------------------------------------------------
 !
       CONTAINS
@@ -57,15 +66,19 @@
 !***  ROUTINES.
 !-----------------------------------------------------------------------
 !
+!------------------------
+!***  Argument variables
+!------------------------
+!
       TYPE(ESMF_CplComp),INTENT(INOUT) :: CPL_COMP                        !<-- Coupler component
 !
-      INTEGER,INTENT(OUT)              :: RC_REG                          !<-- Return code for register
+      INTEGER(kind=KINT),INTENT(OUT) :: RC_REG                            !<-- Return code for register
 !
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local variables
+!---------------------
 !
-      INTEGER :: RC
+      INTEGER(kind=KINT) :: RC
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -75,17 +88,15 @@
       RC_REG=ESMF_SUCCESS
                                                                                                                                               
 !-----------------------------------------------------------------------
-!***  REGISTER THE COUPLER INITIALIZE SUBROUTINE.  SINCE IT IS JUST ONE
-!***  SUBROUTINE, USE ESMF_SINGLEPHASE.  THE SECOND ARGUMENT IS
-!***  A PRE-DEFINED SUBROUTINE TYPE, SUCH AS ESMF_SETINIT, ESMF_SETRUN,
-!***  OR ESMF_SETFINAL.
+!***  Register the Coupler Initialize subroutine.  Since it is just one
+!***  subroutine, use ESMF_SINGLEPHASE.  The second argument is
+!***  a pre-defined subroutine type, such as ESMF_SETINIT, ESMF_SETRUN,
+!***  or ESMF_SETFINAL.
 !-----------------------------------------------------------------------
 !
-      CALL ESMF_LogWrite("Set Entry Point for Coupler Initialize"       &
-                        ,ESMF_LOG_INFO,RC=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Set Entry Point for Coupler Initialize"
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Dyn-Phy Coupler Component
@@ -99,7 +110,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  REGISTER THE COUPLER RUN SUBROUTINE.
+!***  Register the coupler Run subroutine.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -118,7 +129,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  REGISTER THE COUPLER FINALIZE SUBROUTINE.
+!***  Register the Coupler Finalize subroutine.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -137,7 +148,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  CHECK THE ERROR SIGNAL VARIABLE.
+!***  Check the error signal variable.
 !-----------------------------------------------------------------------
 !
       IF(RC_REG==ESMF_SUCCESS)THEN
@@ -154,16 +165,19 @@
 !#######################################################################
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE CPL_INITIALIZE(CPL_COMP,IMP_STATE,EXP_STATE,CLOCK      &
+      SUBROUTINE CPL_INITIALIZE(CPL_COMP                                &
+                               ,IMP_STATE                               &
+                               ,EXP_STATE                               &
+                               ,CLOCK                                   &
                                ,RC_CPL)
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !***  SET UP THE COUPLER.
 !-----------------------------------------------------------------------
 !
-!-----------------------------------------------------------------------
-!***  ARGUMENT VARIABLES.
-!-----------------------------------------------------------------------
+!------------------------
+!***  Argument variables
+!------------------------
 !
       TYPE(ESMF_CplComp),INTENT(INOUT) :: CPL_COMP                        !<-- The Dyn-Phy Coupler Component
       TYPE(ESMF_State),  INTENT(INOUT) :: IMP_STATE                       !<-- The Coupler's Import State
@@ -172,9 +186,9 @@
 !
       INTEGER,OPTIONAL,  INTENT(OUT)   :: RC_CPL
 !
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local variables
+!---------------------
 !
       INTEGER          :: RC,RC_FINAL
       TYPE(ESMF_VM)    :: VM
@@ -189,7 +203,7 @@
       add_fld_tim=0.
 !
 !-----------------------------------------------------------------------
-!***  INITIALIZE THE ERROR SIGNAL VARIABLES.
+!***  Initialize the error signal variables.
 !-----------------------------------------------------------------------
 !
       RC      =ESMF_SUCCESS
@@ -197,6 +211,7 @@
       RC_CPL  =ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
+!
       IF(RC_FINAL==ESMF_SUCCESS)THEN
 !       WRITE(0,*)"CPL INITIALIZE STEP SUCCEEDED"
       ELSE
@@ -215,63 +230,62 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE CPL_RUN(CPL_COMP,IMP_STATE,EXP_STATE,CLOCK,RC_CPL)
+      SUBROUTINE CPL_RUN(CPL_COMP                                       &
+                        ,IMP_STATE                                      &
+                        ,EXP_STATE                                      &
+                        ,CLOCK                                          &
+                        ,RC_CPL)
 !
 !-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!***  RUN THE COUPLER TO TRANSFER DATA BETWEEN THE GRIDDED COMPONENTS.
-!-----------------------------------------------------------------------
-!
-      IMPLICIT NONE
 !
 !-----------------------------------------------------------------------
-!***  ARGUMENT VARIABLES
+!***  RUN THE COUPLER TO TRANSFER DATA BETWEEN EXPORT AND IMPORT STATES
+!***  OF THE DYNAMICS AND PHYSICS.
 !-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument variables
+!------------------------
 !
       TYPE(ESMF_CplComp),INTENT(INOUT) :: CPL_COMP                        !<-- The Dyn-Phy Coupler Component
       TYPE(ESMF_State),  INTENT(INOUT) :: IMP_STATE                       !<-- The Coupler's Import State
       TYPE(ESMF_State),  INTENT(INOUT) :: EXP_STATE                       !<-- The Coupler's Export State
       TYPE(ESMF_Clock),  INTENT(IN)    :: CLOCK                           !<-- The ESMF Clock
-      
 !
       INTEGER,OPTIONAL,INTENT(OUT)     :: RC_CPL
 !
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local variables
+!---------------------
 !
-      INTEGER :: L,N,NDATA2,NDATA3,NUM_TRACERS_TOTAL,RC,RC_FINAL
-      INTEGER :: NDATA1I,NDATA2I,NDATA3I,NDATA1O,NDATA2O,NDATA3O
-      INTEGER :: IMP_ITEM,EXP_ITEM
+      INTEGER(kind=KINT) :: L,N,NDATA_2D,NDATA_3D,NUM_TRACERS_TOTAL     &
+                           ,RC,RC_FINAL
 !
       CHARACTER(ESMF_MAXSTR) :: IMPORT_STATENAME,EXPORT_STATENAME
 !
-      TYPE(ESMF_Field)       :: HOLD_FIELD
+      TYPE(ESMF_Field) :: HOLD_FIELD
 !
-      CHARACTER(20)     :: FIELD_NAME,IMP_ITEM_NAME(20), EXP_ITEM_NAME(20)
+      CHARACTER(20) :: FIELD_NAME
 !
-      LOGICAL,SAVE :: POINT_PHY_AT_DYN=.FALSE.                           &  !<-- Has Physics Import pointed to Dynamics Export yet?
-                     ,POINT_DYN_AT_PHY=.FALSE.                              !<-- Has Dynamics Import pointed to Physics Export yet?
+      LOGICAL(kind=KLOG),SAVE :: FROM_DYN_EXP_TO_PHY_IMP=.FALSE.        &  !<-- Has Physics Import pointed to Dynamics Export?
+                                ,FROM_PHY_EXP_TO_DYN_IMP=.FALSE.        &  !<-- Has Dynamics Import pointed to Physics Export?
+                                ,FROM_DYN_EXP_TO_DYN_IMP=.FALSE.           !<-- Has Dynamics Import pointed to Dynamics Export?
 !
-      LOGICAL,SAVE :: FROM_EXP_DYN_TO_IMP_PHY=.FALSE.                    &
-                     ,FROM_EXP_PHY_TO_IMP_DYN=.FALSE.                    &
-                     ,FROM_IMP_DYN_TO_EXP_DYN=.FALSE.                    &
-                     ,FROM_IMP_PHY_TO_EXP_PHY=.FALSE.         
-!
-      LOGICAL,SAVE :: CHECK
+      LOGICAL(kind=KLOG),SAVE :: CHECK
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-!***  IF THE STATE Field POINTERS HAVE NOT ALREADY BEEN SET, 
-!***  THEN PROCEED WITH THE DIRECTING OF THE Field POINTERS. 
-!***  AFTER THEY HAVE BEEN SET ONCE, THEY DO NOT NEED TO BE
-!***  SET AGAIN.
+!***  If the State Field pointers have not already been set, 
+!***  then proceed with directing them.  After they have been
+!***  set once for a given combination they do not need to be
+!***  set again.
 !-----------------------------------------------------------------------
 !
       btim0=timef()
+!
 !-----------------------------------------------------------------------
-!***  INITIALIZE THE ERROR SIGNAL VARIABLES.
+!***  Initialize the error signal variables.
 !-----------------------------------------------------------------------
 !
       RC     =ESMF_SUCCESS
@@ -279,21 +293,21 @@
       RC_CPL  =ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
-!***  DETERMINE THE DIRECTION OF THE TRANSFER BY EXTRACTING
-!***  THE STATENAME FROM THE IMPORT STATE.
+!***  Determine the direction of the transfer and the states involved
+!***  by extracting the State name from the import and export states.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Retrieve State Name in Coupler"
+      MESSAGE_CHECK="Retrieve State Names in Dyn-Phy Coupler"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state=IMP_STATE                                &  !<-- The Dyn-Phy Coupler's Import State
-                        ,name =IMPORT_STATENAME                         &  !<-- The Import State's Name
+      CALL ESMF_StateGet(state=IMP_STATE                                &  !<-- The Dyn-Phy Coupler's import State
+                        ,name =IMPORT_STATENAME                         &  !<-- The import state's Name
                         ,rc   =RC)
 !
-      CALL ESMF_StateGet(state=EXP_STATE                                &  !<-- The Dyn-Phy Coupler's Imp
-                        ,name =EXPORT_STATENAME                         &  !<-- The Import State's Name
+      CALL ESMF_StateGet(state=EXP_STATE                                &  !<-- The Dyn-Phy Coupler's export state
+                        ,name =EXPORT_STATENAME                         &  !<-- The export State's Name
                         ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -302,167 +316,76 @@
 !
       IF(TRIM(IMPORT_STATENAME)=='Dynamics Export'.AND.                 &
          TRIM(EXPORT_STATENAME)=='Physics Import' .AND.                 &
-         FROM_EXP_DYN_TO_IMP_PHY ) RETURN
+         FROM_DYN_EXP_TO_PHY_IMP ) RETURN
 !
       IF(TRIM(IMPORT_STATENAME)=='Physics Export' .AND.                 &
          TRIM(EXPORT_STATENAME)=='Dynamics Import'.AND.                 &
-         FROM_EXP_PHY_TO_IMP_DYN ) RETURN
+         FROM_PHY_EXP_TO_DYN_IMP ) RETURN
 !
-      IF(TRIM(IMPORT_STATENAME)=='Dynamics Import'.AND.                 &
-         TRIM(EXPORT_STATENAME)=='Dynamics Export'.AND.                 &
-         FROM_IMP_DYN_TO_EXP_DYN ) RETURN
-!
-      IF(TRIM(IMPORT_STATENAME)=='Physics Import'.AND.                  &
-         TRIM(EXPORT_STATENAME)=='Physics Export'.AND.                  &
-         FROM_IMP_PHY_TO_EXP_PHY ) RETURN
-!
-      CALL ESMF_StateGet(state       =IMP_STATE                         &
-                        ,itemcount   =IMP_ITEM                          &
-                        ,itemnamelist=IMP_ITEM_NAME                     &
-                        ,rc          =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Retrieve State Name in Coupler"
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateGet(state       =EXP_STATE                         &
-                        ,itemcount   =EXP_ITEM                          &
-                        ,itemnamelist=EXP_ITEM_NAME                     &
-                        ,rc          =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      RC_FINAL=RC
+      IF(TRIM(IMPORT_STATENAME)=='Dynamics Export'.AND.                 &
+         TRIM(EXPORT_STATENAME)=='Dynamics Import'.AND.                 &
+         FROM_DYN_EXP_TO_DYN_IMP ) RETURN
 !
 !-----------------------------------------------------------------------
-!***  THE NUMBER OF FIELDS TRANSFERRED FROM THE DYNAMICS TO
-!***  THE PHYSICS MAY NOT EQUAL THE NUMBER OF FIELDS TRANSFERRED
-!***  IN THE OTHER DIRECTION.
-!-----------------------------------------------------------------------
+!***  What is the number of Fields to be transferred from 
+!***  the import state?
 !-----------------------------------------------------------------------
 !
-!------------------------------------
-!***  Get From Dynamics Import State
-!------------------------------------
+!-------------------------------------------------
+!***  Number of Fields from Dynamics export state
+!-------------------------------------------------
 !
-      IF(TRIM(IMPORT_STATENAME)=="Dynamics Import")THEN
-        NDATA3I=NDATA_3D_PHY_TO_DYN
-        NDATA2I=NDATA_2D_PHY_TO_DYN
-!
-!------------------------------------
-!***  Get From Dynamics Export State
-!------------------------------------
-!
-      ELSEIF(TRIM(IMPORT_STATENAME)=="Dynamics Export")THEN
-        NDATA3I=NDATA_3D_DYN_TO_PHY
-        NDATA2I=NDATA_2D_DYN_TO_PHY
-!
-!-----------------------------------
-!***  Get From Physics Import State
-!-----------------------------------
-!
-      ELSEIF(TRIM(IMPORT_STATENAME)=="Physics Import")THEN
-        NDATA3I=NDATA_3D_DYN_TO_PHY
-        NDATA2I=NDATA_2D_DYN_TO_PHY
-!
-!-----------------------------------
-!***  Get From Physics Export State
-!-----------------------------------
-!
-      ELSEIF(TRIM(IMPORT_STATENAME)=="Physics Export")THEN
-        NDATA3I=NDATA_3D_PHY_TO_DYN
-        NDATA2I=NDATA_2D_PHY_TO_DYN
+!!!   IF(TRIM(EXPORT_STATENAME)=="Dynamics Export")THEN
+      IF(TRIM(IMPORT_STATENAME)=="Dynamics Export")THEN
+        NDATA_3D=NDATA_3D_FROM_DYN
+        NDATA_2D=NDATA_2D_FROM_DYN
       ENDIF
-
-!-----------------------------------------------------------------------
 !
-!------------------------------------
-!***  Put Into Dynamics Import State
-!------------------------------------
+!------------------------------------------------
+!***  Number of Fields from Physics export state
+!------------------------------------------------
 !
-      IF(TRIM(EXPORT_STATENAME)=="Dynamics Import")THEN
-        NDATA3O=NDATA_3D_PHY_TO_DYN
-        NDATA2O=NDATA_2D_PHY_TO_DYN
-!
-!------------------------------------
-!***  Put Into Dynamics Export State
-!------------------------------------
-!
-      ELSEIF(TRIM(EXPORT_STATENAME)=="Dynamics Export")THEN
-        NDATA3O=NDATA_3D_DYN_TO_PHY
-        NDATA2O=NDATA_2D_DYN_TO_PHY
-!
-!-----------------------------------
-!***  Put Into Physics Import State
-!-----------------------------------
-!
-      ELSEIF(TRIM(EXPORT_STATENAME)=="Physics Import")THEN
-        NDATA3O=NDATA_3D_DYN_TO_PHY
-        NDATA2O=NDATA_2D_DYN_TO_PHY
-!
-!-----------------------------------
-!***  Put Into Physics Export State
-!-----------------------------------
-!
-      ELSEIF(TRIM(EXPORT_STATENAME)=="Physics Export")THEN
-        NDATA3O=NDATA_3D_PHY_TO_DYN
-        NDATA2O=NDATA_2D_PHY_TO_DYN
-!
-      ELSE
-        WRITE(6,*)' Error: No state name match, state_name='            &
-                 ,TRIM(EXPORT_STATENAME)
-        WRITE(0,*)' Error: No state name match, state_name='            &
-                 ,TRIM(EXPORT_STATENAME)
+!!!   IF(TRIM(EXPORT_STATENAME)=="Physics Export")THEN
+      IF(TRIM(IMPORT_STATENAME)=="Physics Export")THEN
+        NDATA_3D=NDATA_3D_FROM_PHY
+        NDATA_2D=NDATA_2D_FROM_PHY
       ENDIF
 !
 !-----------------------------------------------------------------------
-!
-      IF(NDATA2O>NDATA2I .OR. NDATA3O>NDATA3I)THEN
-        WRITE(6,*)' ERROR: Import data is too few for export data.'
-        WRITE(0,*)' ERROR: Import data is too few for export data.'
-        CALL ABORT
-      ENDIF
-!
+!***  Loop through the data names, extract the Fields from the
+!***  import state, and add them to the export state.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  LOOP THROUGH THE DATA NAMES, EXTRACT THOSE Fields FROM THE
-!***  IMPORT STATE, AND ADD THEM TO THE EXPORT STATE.
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!***  BEGIN WITH THE 3-D FIELDS.
+!***  Begin with the 3-D Fields.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !
-        data_3D: DO N=1,NDATA3I
+      data_3d: DO N=1,NDATA_3D
 !
 !-----------------------------------------------------------------------
 !
         btim=timef()
 !
         FIELD_NAME=TRIM(DATANAMES_3D(N))
-!       write(0,*)' FIELD_NAME=', FIELD_NAME
+!       write(0,*)' Dyn-Phy Cpl Run FIELD_NAME=', FIELD_NAME
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract 3-D Field from Dyn-Phy Cpl Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_StateGet(state   =IMP_STATE                           &  !<--- Import State that holds the Fields
-                          ,itemName=FIELD_NAME                          &  !<--- Extract Field with this name
-                          ,field   =HOLD_FIELD                          &  !<--- Put the extracted Field here
+        CALL ESMF_StateGet(state   =IMP_STATE                           &  !<-- Import State that holds the Fields
+                          ,itemName=FIELD_NAME                          &  !<-- Extract Field with this name
+                          ,field   =HOLD_FIELD                          &  !<-- Put the extracted Field here
                           ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        get_fld_tim=get_fld_tim+timef()-btim
+        get_fld_tim=get_fld_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !
@@ -473,31 +396,32 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_StateAdd(state=EXP_STATE                              &  !<--- Insert Field into this Export State
-                          ,field=HOLD_FIELD                             &  !<--- The Field to be inserted
+        CALL ESMF_StateAdd(state=EXP_STATE                              &  !<-- Insert Field into this Export State
+                          ,field=HOLD_FIELD                             &  !<-- The Field to be inserted
                           ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        add_fld_tim=add_fld_tim+timef()-btim
+        add_fld_tim=add_fld_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !
-        ENDDO data_3D
+      ENDDO data_3d
 !
 !-----------------------------------------------------------------------
-!***  NOW TRANSFER THE 2-D FIELDS.
+!***  Now transfer the 2-D Fields.
 !-----------------------------------------------------------------------
 !
-      data_2D: DO N=1,NDATA2I
+      data_2d: DO N=1,NDATA_2D
 !
 !-----------------------------------------------------------------------
 !
         btim=timef()
 !
         FIELD_NAME=TRIM(DATANAMES_2D(N))
+!       write(0,*)' Dyn-Phy Cpl Run FIELD_NAME=', FIELD_NAME
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract 2-D Field from Dyn-Phy Cpl Import State"
@@ -513,7 +437,7 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        get_fld_tim=get_fld_tim+timef()-btim
+        get_fld_tim=get_fld_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !
@@ -532,19 +456,20 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        add_fld_tim=add_fld_tim+timef()-btim
+        add_fld_tim=add_fld_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !
-      ENDDO data_2D
+      ENDDO data_2d
 !
 !-----------------------------------------------------------------------
-!***  TRANSFER THE 4-D TRACERS ARRAY
+!***  Transfer the 4-D Tracers Field.
 !-----------------------------------------------------------------------
 !
       btim=timef()
 !
       FIELD_NAME='TRACERS'
+!     write(0,*)' Dyn-Phy Cpl Run FIELD_NAME=', FIELD_NAME
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract Tracers Field from Dyn-Phy Import State"
@@ -560,7 +485,7 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      get_fld_tim=get_fld_tim+timef()-btim
+      get_fld_tim=get_fld_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !
@@ -579,31 +504,27 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      add_fld_tim=add_fld_tim+timef()-btim
+      add_fld_tim=add_fld_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  AFTER THE ESMF Fields IN THE EXPORT STATES ARE POINTED AT THE
-!***  CORRECT DATA IN THE IMPORT STATES, THEY REMAIN PROPERLY POINTED
-!***  THUS THE StateGet/StateAdd PROCEDURE DOES NOT NEED TO BE REPEATED.
-!***  SIGNAL THAT FACT WITH THE FOLLOWING LOGICAL FLAGS.
+!***  After the ESMF Fields in the export states are pointed at the
+!***  correct data in the import states, they remain properly pointed
+!***  thus the StateGet/StateAdd procedure does not need to be repeated.
+!***  Signal that fact with the following logical flags.
 !-----------------------------------------------------------------------
 !
-     IF(TRIM(IMPORT_STATENAME)=='Dynamics Export'.AND.                  &
-        TRIM(EXPORT_STATENAME)=='Physics Import')                       &
-       FROM_EXP_DYN_TO_IMP_PHY = .TRUE.
+      IF(TRIM(IMPORT_STATENAME)=='Dynamics Export'.AND.                 &
+         TRIM(EXPORT_STATENAME)=='Physics Import')                      &
+        FROM_DYN_EXP_TO_PHY_IMP = .TRUE.
 
-     IF(TRIM(IMPORT_STATENAME)=='Physics Export'.AND.                   &
-        TRIM(EXPORT_STATENAME)=='Dynamics Import')                      &
-       FROM_EXP_PHY_TO_IMP_DYN = .TRUE.
+      IF(TRIM(IMPORT_STATENAME)=='Physics Export'.AND.                  &
+         TRIM(EXPORT_STATENAME)=='Dynamics Import')                     &
+        FROM_PHY_EXP_TO_DYN_IMP = .TRUE.
 !
-     IF(TRIM(IMPORT_STATENAME)=='Dynamics Import'.AND.                  &
-        TRIM(EXPORT_STATENAME)=='Dynamics Export')                      &
-       FROM_IMP_DYN_TO_EXP_DYN = .TRUE.
+      IF(TRIM(IMPORT_STATENAME)=='Dynamics Export'.AND.                 &
+         TRIM(EXPORT_STATENAME)=='Dynamics Import')                     &
+        FROM_DYN_EXP_TO_DYN_IMP = .TRUE.
 !
-     IF(TRIM(IMPORT_STATENAME)=='Physics Import'.AND.                   &
-        TRIM(EXPORT_STATENAME)=='Physics Export')                       &
-       FROM_IMP_PHY_TO_EXP_PHY = .TRUE.
-
 !-----------------------------------------------------------------------
 !
       RC_FINAL=RC
@@ -622,7 +543,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      cpl_dyn_phy_tim=cpl_dyn_phy_tim+timef()-btim0
+      cpl_dyn_phy_tim=cpl_dyn_phy_tim+(timef()-btim0)
 !
 !-----------------------------------------------------------------------
 !

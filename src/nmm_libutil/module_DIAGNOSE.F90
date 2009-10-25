@@ -440,6 +440,108 @@
 !----------------------------------------------------------------------
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !-----------------------------------------------------------------------
+      SUBROUTINE EXIT_PHY(NAME,T,Q,U,V,Q2                              &
+                         ,NTSD,MYPE,MPI_COMM_COMP                      &
+                         ,IDS,IDE,JDS,JDE,LM                           &
+                         ,IMS,IME,JMS,JME                              &
+                         ,ITS,ITE,JTS,JTE)
+!----------------------------------------------------------------------
+!**********************************************************************
+!----------------------------------------------------------------------
+      IMPLICIT NONE
+!----------------------------------------------------------------------
+      INCLUDE "mpif.h"
+!----------------------------------------------------------------------
+      INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                         &
+                           ,IMS,IME,JMS,JME                            &
+                           ,ITS,ITE,JTS,JTE                            &
+                           ,MYPE,MPI_COMM_COMP,NTSD
+!
+      REAL,DIMENSION(IMS:IME,JMS:JME,LM),INTENT(IN) :: T,Q,U,V,Q2
+      CHARACTER(*),INTENT(IN) :: NAME
+!
+      INTEGER :: I,J,K,IEND,IERR,IRET
+      CHARACTER(256) :: ERRMESS
+      LOGICAL :: E_BDY,S_BDY
+!----------------------------------------------------------------------
+      IRET=0
+  100 FORMAT(' EXIT ',A,' AT NTSD=',I5)
+      IEND=ITE
+      S_BDY=(JTS==JDS)
+      E_BDY=(ITE==IDE-1)
+!
+      DO K=1,LM
+      DO J=JTS,JTE
+      IEND=ITE
+      IF(E_BDY.AND.MOD(J,2)==0)IEND=ITE-1
+!
+      DO I=ITS,IEND
+        IF(T(I,J,K)>330..OR.T(I,J,K)<180..OR.T(I,J,K)/=T(I,J,K))THEN
+          WRITE(0,100)NAME,NTSD
+          WRITE(0,200)I,J,K,T(I,J,K),MYPE,NTSD
+  200     FORMAT(' BAD VALUE I=',I3,' J=',I3,' K=',I2,' T=',E12.5      &
+                ,' MYPE=',I3,' NTSD=',I5)
+          IRET=666
+          return
+!         WRITE(ERRMESS,205)NAME,T(I,J,K),I,J,K,MYPE
+  205     FORMAT(' EXIT ',A,' TEMPERATURE=',E12.5                      &
+                ,' AT (',I3,',',I2,',',I3,')',' MYPE=',I3)
+!         CALL MPI_ABORT(MPI_COMM_WORLD,1,IERR)
+        ELSEIF(Q(I,J,K)<-1.E-4.OR.Q(I,J,K)>30.E-3                      &
+               .OR.Q(I,J,K)/=Q(I,J,K))THEN
+          WRITE(0,100)NAME,NTSD
+          WRITE(0,300)I,J,K,Q(I,J,K),MYPE,NTSD
+  300     FORMAT(' BAD VALUE I=',I3,' J=',I3,' K=',I2,' Q=',E12.5      &
+                ,' MYPE=',I3,' NTSD=',I5)
+          IRET=666
+          return
+!         WRITE(ERRMESS,305)NAME,Q(I,J,K),I,J,K,MYPE
+  305     FORMAT(' EXIT ',A,' SPEC HUMIDITY=',E12.5                    &
+                ,' AT (',I3,',',I2,',',I3,')',' MYPE=',I3)
+!         CALL MPI_ABORT(MPI_COMM_WORLD,1,IERR)
+        ELSEIF(Q2(I,J,K)<-1.E-4.OR.Q2(I,J,K)>100.                      &
+               .OR.Q2(I,J,K)/=Q2(I,J,K))THEN
+          WRITE(0,100)NAME,NTSD
+          WRITE(0,310)I,J,K,Q2(I,J,K),MYPE,NTSD
+  310     FORMAT(' BAD VALUE I=',I3,' J=',I3,' K=',I2,' Q2=',E12.5     &
+                ,' MYPE=',I3,' NTSD=',I5)
+          IRET=666
+          return
+!         WRITE(ERRMESS,315)NAME,Q2(I,J,K),I,J,K,MYPE
+  315     FORMAT(' EXIT ',A,' TKE=',E12.5                              &
+                ,' AT (',I3,',',I2,',',I3,')',' MYPE=',I3)
+!         CALL MPI_ABORT(MPI_COMM_WORLD,1,IERR)
+        ENDIF
+      ENDDO
+      ENDDO
+      ENDDO
+!
+      DO K=1,LM
+      DO J=JTS,JTE
+      IEND=ITE
+      IF(E_BDY.AND.MOD(J,2)==1)IEND=ITE-1
+      DO I=ITS,IEND
+        IF(ABS(U(I,J,K))>125..OR.ABS(V(I,J,K))>125.                    &
+               .OR.U(I,J,K)/=U(I,J,K).OR.V(I,J,K)/=V(I,J,K))THEN
+          WRITE(0,100)NAME,NTSD
+          WRITE(0,400)I,J,K,U(I,J,K),V(I,J,K),MYPE,NTSD
+  400     FORMAT(' BAD VALUE I=',I3,' J=',I3,' K=',I2,' U=',E12.5      &
+                ,' V=',E12.5,' MYPE=',I3,' NTSD=',I5)
+          IRET=666
+          return
+!         WRITE(ERRMESS,405)NAME,U(I,J,K),V(I,J,K),I,J,K,MYPE
+  405     FORMAT(' EXIT ',A,' U=',E12.5,' V=',E12.5                    &
+                ,' AT (',I3,',',I2,',',I3,')',' MYPE=',I3)
+!         CALL MPI_ABORT(MPI_COMM_WORLD,1,IERR)
+        ENDIF
+      ENDDO
+      ENDDO
+      ENDDO
+!----------------------------------------------------------------------
+      END SUBROUTINE EXIT_PHY
+!----------------------------------------------------------------------
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!-----------------------------------------------------------------------
       SUBROUTINE FIELD_STATS(FIELD,MYPE,MPI_COMM_COMP,LM &
                             ,ITS,ITE,JTS,JTE &
                             ,IMS,IME,JMS,JME &
@@ -483,8 +585,6 @@
         FMINK=1.E10
         SUMFK=0.
         SUMF2K=0.
-!        write(0,*) 'FIELD(ITS+5,JTS+5,K): ', ITS+5, JTS+5, K, FIELD(ITS+5,JTS+5,K)
-
 !
         DO J=JTS,JTE
           DO I=ITS,ITE
@@ -495,6 +595,7 @@
             SUMF2K=SUMF2K+FIJK*FIJK
           ENDDO
         ENDDO
+!     write(0,*)' k=',k,' FIELD min=',minval(field(its:ite,jts:jte,k)),' at ',minloc(field(its:ite,jts:jte,k))
 !
         FMAX(K)=FMAXK
         FMIN(K)=FMINK

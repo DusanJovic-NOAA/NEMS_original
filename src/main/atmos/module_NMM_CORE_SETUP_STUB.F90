@@ -33,7 +33,12 @@
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-      SUBROUTINE NMM_SETUP(ATM_GRID_COMP,ATM_INT_STATE,GRID_ATM)
+      SUBROUTINE NMM_SETUP(MYPE                                         &
+                          ,COMM_MY_DOMAIN                               &
+                          ,CF                                           &
+                          ,ATM_GRID_COMP                                &
+                          ,ATM_INT_STATE                                &
+                          ,GRID_NMM_ATM)
 !
 !-----------------------------------------------------------------------
 !***  THIS ROUTINE CONTAINS NMM-SPECIFIC CODE FOR THE ATM COMPONENT:
@@ -50,9 +55,13 @@
 !***  DISTRIBUTED MEMORY PARALLELISM.
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_GridComp)     ,INTENT(INOUT) :: ATM_GRID_COMP             !<-- The ATM gridded component
-      TYPE(ATM_INTERNAL_STATE),INTENT(INOUT) :: ATM_INT_STATE             !<-- The ATM Internal State
-      TYPE(ESMF_Grid)         ,INTENT(OUT)   :: GRID_ATM                  !<-- The ESMF GRID for the NMM integration grid
+      INTEGER,INTENT(IN) :: MYPE                                        &
+                           ,COMM_MY_DOMAIN
+!
+      TYPE(ESMF_Config)       ,INTENT(IN)    :: CF                         !<-- The configure object
+      TYPE(ESMF_GridComp)     ,INTENT(INOUT) :: ATM_GRID_COMP              !<-- The ATM gridded component
+      TYPE(ATM_INTERNAL_STATE),INTENT(INOUT) :: ATM_INT_STATE              !<-- The ATM Internal State
+      TYPE(ESMF_Grid)         ,INTENT(OUT)   :: GRID_NMM_ATM               !<-- The ESMF GRID for the NMM integration grid
 !
 !
 !-----------------------------------------------------------------------

@@ -23,7 +23,7 @@
 !-----------------------------------------------------------------------
 !
       USE ESMF_Mod
-      USE MODULE_PHYSICS_INTERNAL_STATE,ONLY: INTERNAL_STATE 
+      USE MODULE_PHYSICS_INTERNAL_STATE,ONLY: PHYSICS_INTERNAL_STATE 
       USE MODULE_ERR_MSG               ,ONLY: ERR_MSG,MESSAGE_CHECK
 !
 !-----------------------------------------------------------------------
@@ -388,10 +388,11 @@
 !***  OF THE WRITE COMPONENTS.
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_Grid)     ,INTENT(IN)    :: GRID                         !<-- The ESMF Grid
-      TYPE(ESMF_State)    ,INTENT(INOUT) :: IMP_STATE_WRITE              !<-- Import state for the write gridded components
+      TYPE(ESMF_Grid),INTENT(IN)    :: GRID                                !<-- The ESMF Grid
 !
-      TYPE(INTERNAL_STATE),POINTER       :: INT_STATE                    !<-- The physics internal state
+      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE_WRITE                    !<-- Import state for the Write gridded components
+!
+      TYPE(PHYSICS_INTERNAL_STATE),POINTER :: INT_STATE                    !<-- The Physics internal state
 !
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES
@@ -1353,7 +1354,7 @@
           LDIM4=LBOUND(R_4D(NFIND)%NAME,4)
           UDIM4=UBOUND(R_4D(NFIND)%NAME,4)
 !
-          DO N=int_state%INDX_RRW+1,UDIM4                                                  !<-- Loop through the tracers kind
+          DO N=int_state%INDX_RRW+1,UDIM4                                  !<-- Loop through the tracers (skip unallocated pointers)
           DO K=LDIM3,UDIM3                                                 !<-- Loop through the levels of the array
             WRITE(TRACERS_KIND,FMT)N
             WRITE(MODEL_LEVEL,FMT)K
@@ -1411,8 +1412,8 @@
           LDIM4=LBOUND(R_4D(NFIND)%NAME,4)
           UDIM4=UBOUND(R_4D(NFIND)%NAME,4)
 !
-!         DO N=LDIM4,UDIM4                                                  !<-- Loop through the tracers kind
-          DO N=int_state%INDX_RRW+1,UDIM4 
+!         DO N=LDIM4,UDIM4                                                 !<-- Loop through the tracers 
+          DO N=int_state%INDX_RRW+1,UDIM4                                  !<-- Loop through the tracers (skip unallocated pointers)
           DO K=LDIM3,UDIM3                                                 !<-- Loop through the levels of the array
             WRITE(TRACERS_KIND,FMT)N
             WRITE(MODEL_LEVEL,FMT)K

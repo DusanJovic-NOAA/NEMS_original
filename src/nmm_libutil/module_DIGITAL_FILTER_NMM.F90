@@ -1,9 +1,15 @@
-      module module_digital_filter_nmm
+!-----------------------------------------------------------------------
+!
+      MODULE module_DIGITAL_FILTER_NMM
+!
+!-----------------------------------------------------------------------
 !
 ! a generic digital filter for any model under ESMF 
 !
+!-----------------------------------------------------------------------
 ! March 2007	Hann-Ming Henry Juang
 ! February 2008 Weiyu Yang, updated to use the ESMF 3.1.0 library.
+!-----------------------------------------------------------------------
 !
       use esmf_mod
       use module_include
@@ -34,19 +40,28 @@
 
       contains
 
-! ---------------------------------------------------------------
-! subroutine for dynamics
-! ---------------------------------------------------------------
-      subroutine digital_filter_dyn_init_nmm(dyn_state,ndfistep,NUM_WATER,NUM_TRACERS)
-      USE MODULE_DM_PARALLEL
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+      subroutine digital_filter_dyn_init_nmm(dyn_state                  &
+                                            ,ndfistep                   &
+                                            ,num_water                  &
+                                            ,num_tracers)
+!-----------------------------------------------------------------------
+!
+      use module_dm_parallel
+!
       type(esmf_state), intent(in) :: dyn_state   
-      INTEGER, intent(in)          :: ndfistep
-      INTEGER, intent(in)          :: NUM_WATER,NUM_TRACERS
+      integer, intent(in)          :: ndfistep
+      integer, intent(in)          :: num_water,num_tracers
       type(esmf_field)             :: tmp_field 
       integer                      :: tmp_rank,dyn_items
-      integer                      :: SPEC_MAX,rc,N
+      integer                      :: spec_max,rc,N
       character(20), allocatable   :: dyn_name(:)
       character(20)                :: state_name
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
       nstep = ndfistep 
       kstep = - nstep -1
 
@@ -96,147 +111,159 @@
       array_save_3d=0.
       array_save_4d=0.
       totalsum=0.
+!-----------------------------------------------------------------------
 
       end subroutine digital_filter_dyn_init_nmm
 
-! ---------------------------------------------------------------
-      subroutine digital_filter_dyn_sum_nmm(dyn_state,MEAN_ON,NUM_WATER,NUM_TRACERS)
-      USE MODULE_DM_PARALLEL
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+      subroutine digital_filter_dyn_sum_nmm(dyn_state                   &
+                                           ,mean_on                     &
+                                           ,num_water                   &
+                                           ,num_tracers)
+!-----------------------------------------------------------------------
+      use module_dm_parallel
 !
-      implicit none
-          
-      type(esmf_state), intent(in)  :: dyn_state 
-      INTEGER, intent(in)          :: MEAN_ON,NUM_WATER,NUM_TRACERS
-      INTEGER(KIND=KINT) :: I,II,J,JJ,L,N,P,RC,RC_UPD
-      REAL(KIND=KFPT),DIMENSION(:,:)    ,POINTER :: HOLD_2D
-      REAL(KIND=KFPT),DIMENSION(:,:,:)  ,POINTER :: HOLD_3D
-      REAL(KIND=KFPT),DIMENSION(:,:,:,:),POINTER :: HOLD_4D
+      type(esmf_state),intent(in)  :: dyn_state 
+      integer(kind=kint),intent(in) :: mean_on,num_water,num_tracers
 !
-      CHARACTER(20)    :: FIELD_NAME
+      integer(kind=kint) :: i,ii,j,jj,l,n,num_spec,p,rc,rc_upd
+      real(kind=kfpt) :: digfil,prod,sx,wx
+      real(kind=kfpt),dimension(:,:)    ,pointer :: hold_2d
+      real(kind=kfpt),dimension(:,:,:)  ,pointer :: hold_3d
+      real(kind=kfpt),dimension(:,:,:,:),pointer :: hold_4d
 !
-      TYPE(ESMF_Field) :: HOLD_FIELD
+      character(20) :: field_name
 !
-      real                          :: sx, wx, digfil,prod
-      integer			    :: NUM_SPEC
-      RC    =ESMF_SUCCESS
-      RC_UPD=ESMF_SUCCESS
-        kstep = kstep + 1
-        sx     = acos(-1.)*kstep/nstep
-        wx     = acos(-1.)*kstep/(nstep+1)
+      type(ESMF_Field) :: hold_field
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      rc    =esmf_success
+      rc_upd=esmf_success
+!
+      kstep = kstep + 1
+      sx     = acos(-1.)*kstep/nstep
+      wx     = acos(-1.)*kstep/(nstep+1)
   
-        if( kstep.ne.0 ) then
-            digfil = sin(wx)/wx*sin(sx)/sx
-        else
-            digfil=1.
-        endif 
-
+      if( kstep/=0)then
+        digfil = sin(wx)/wx*sin(sx)/sx
+      else
+        digfil=1.
+      endif 
         
-        IF (MEAN_ON .GT. 0) THEN
-            digfil=1.
-        ENDIF
-   
-        print *,' in digital_filter_sum digfil = ',digfil
+      if(mean_on>0)then
+        digfil=1.
+      endif
+!
+      write(0,*)' In digital_filter_sum digfil = ',digfil
 
-        totalsum = totalsum + digfil
-  
+      totalsum = totalsum + digfil
+!
+      if(tot_rank_2d>0) then
+!
+        do n=1,tot_rank_2d
+          field_name=name_save_2d(N)
+          nullify(hold_2d) 
 
-        
-        
-
-      IF (tot_rank_2d  .GT. 0) THEN
-      DO N=1,tot_rank_2d
-      FIELD_NAME=name_save_2d(N)
-      NULLIFY(HOLD_2D) 
-
-      CALL ESMF_StateGet(state   =DYN_STATE                             &  !<-- State that holds the Field
-                        ,itemName=FIELD_NAME                            &  !<-- Name of the
-                        ,field   =HOLD_FIELD                            &  !<-- Put extracted Field here
-                        ,rc      = RC)
-      
-      CALL ESMF_FieldGet(field    =HOLD_FIELD                           &  !<-- Field that holds the data pointer
-                        ,localDe  =0                                    &
-                        ,farray   =HOLD_2D                              &  !<-- Put the pointer here
-                        ,rc       =RC)
-
-        DO J=JTS,JTE
-          DO I=ITS,ITE
-            array_save_2d(I,J,N)=array_save_2d(I,J,N)+digfil*HOLD_2D(I,J)
-          ENDDO
-        ENDDO
-      ENDDO
-      ENDIF
-
-      IF (tot_rank_3d  .GT. 0 ) THEN
-      DO N=1,tot_rank_3d
-      FIELD_NAME=name_save_3d(N)
-      NULLIFY(HOLD_3D)
-
-      CALL ESMF_StateGet(state   =DYN_STATE                             &  !<-- State that holds the Field
-                        ,itemName=FIELD_NAME                            &  !<-- Name of the
-                        ,field   =HOLD_FIELD                            &  !<-- Put extracted Field here
-                        ,rc      = RC)
-      
-      CALL ESMF_FieldGet(field    =HOLD_FIELD                           &  !<-- Field that holds the data pointer
-                        ,localDe  =0                                    &
-                        ,farray   =HOLD_3D                              &  !<-- Put the pointer here
-                        ,rc       =RC)
-       
-      DO L=1,LM  
-        DO J=JTS,JTE
-          DO I=ITS,ITE
-            array_save_3d(I,J,L,N)=array_save_3d(I,J,L,N)+digfil*HOLD_3D(I,J,L)
-          ENDDO
-        ENDDO
-       ENDDO
-      ENDDO
-      ENDIF
-
-      IF (tot_rank_4d  .GT. 0) THEN
-      DO N=1,tot_rank_4d
-      FIELD_NAME=name_save_4d(N)
-      NULLIFY(HOLD_4D)
-      IF (FIELD_NAME == 'TRACERS') THEN
-      NUM_SPEC=NUM_TRACERS
-      ELSE IF (FIELD_NAME == 'WATER') THEN
-      NUM_SPEC=NUM_WATER
-      ENDIF
-
-      CALL ESMF_StateGet(state   =DYN_STATE                             &  !<-- State that holds the Field
-                        ,itemName=FIELD_NAME                            &  !<-- Name of the
-                        ,field   =HOLD_FIELD                            &  !<-- Put extracted Field here
-                        ,rc      = RC)
-      
-      CALL ESMF_FieldGet(field    =HOLD_FIELD                           &  !<-- Field that holds the data pointer
-                        ,localDe  =0                                    &
-                        ,farray   =HOLD_4D                              &  !<-- Put the pointer here
-                        ,rc       =RC)
-       
-      DO P=1,NUM_SPEC
-       DO L=1,LM
-        DO J=JTS,JTE
-          DO I=ITS,ITE
-            array_save_4d(I,J,L,P,N)=array_save_4d(I,J,L,P,N)+digfil*HOLD_4D(I,J,L,P)
-          ENDDO
-        ENDDO
-       ENDDO
-       ENDDO
-      ENDDO
-      ENDIF
+          call ESMF_StateGet(state   =DYN_STATE                         &  !<-- State that holds the Field
+                            ,itemName=FIELD_NAME                        &  !<-- Name of the
+                            ,field   =HOLD_FIELD                        &  !<-- Put extracted Field here
+                            ,rc      = RC)
+!
+          call ESMF_FieldGet(field  =HOLD_FIELD                         &  !<-- Field that holds the data pointer
+                            ,localDe=0                                  &
+                            ,farray =HOLD_2D                            &  !<-- Put the pointer here
+                            ,rc     =RC)
+          do j=jts,jte
+          do i=its,ite
+            array_save_2d(i,j,n)=array_save_2d(i,j,n)+digfil*hold_2d(i,j)
+          enddo
+          enddo
+        enddo
+      endif
+!
+      if(tot_rank_3d>0)then
+        do n=1,tot_rank_3d
+          field_name=name_save_3d(N)
+          nullify(hold_3d)
+!
+          call ESMF_StateGet(state   =DYN_STATE                         &  !<-- State that holds the Array
+                            ,itemName=FIELD_NAME                        &  !<-- Name of the Field to extract
+                            ,field   =HOLD_FIELD                        &  !<-- Put extracted Field here
+                            ,rc      = RC)
+!
+          call ESMF_FieldGet(field  =HOLD_FIELD                         &  !<-- Field that holds the data pointer
+                            ,localDe=0                                  &
+                            ,farray =HOLD_3D                            &  !<-- Put the pointer here
+                            ,rc     =RC)
+!
+          do l=1,lm  
+            do j=jts,jte
+            do i=its,ite
+              array_save_3d(i,j,l,n)=array_save_3d(i,j,l,n)+digfil*hold_3d(i,j,l)
+            enddo
+            enddo
+         enddo
+        enddo
+!
+      endif
+!
+      if(tot_rank_4d>0)then
+        do n=1,tot_rank_4d
+          field_name=name_save_4d(N)
+          nullify(hold_4d)
+          if (field_name == 'TRACERS') then
+            num_spec=num_tracers
+          else if (field_name == 'WATER') then
+            num_spec=num_water
+          endif
+!
+          call ESMF_StateGet(state   =DYN_STATE                         &  !<-- State that holds the Field
+                            ,itemName=FIELD_NAME                        &  !<-- Name of the Field to extract
+                            ,field   =HOLD_FIELD                        &  !<-- Put extracted Field here
+                            ,rc      = RC)
+!
+          call ESMF_FieldGet(field  =HOLD_FIELD                         &  !<-- Field that holds the data pointer
+                            ,localDe=0                                  &
+                            ,farray =HOLD_4D                            &  !<-- Put the pointer here
+                            ,rc     =RC)
+!
+          do p=1,num_spec
+            do l=1,lm
+              do j=jts,jte
+              do i=its,ite
+                array_save_4d(i,j,l,p,n)=array_save_4d(i,j,l,p,n)+digfil*hold_4d(i,j,l,p)
+              enddo
+              enddo
+            enddo
+          enddo
+        enddo
+!
+      endif
 
 
-      IF(RC_UPD==ESMF_SUCCESS)THEN
-!       WRITE(0,*)'DYNAMICS UPDATE SUCCEEDED'
-      ELSE
-        WRITE(0,*)'DYNAMICS UPDATE FAILED RC_UPD=',RC_UPD
-      ENDIF
+      if(rc_upd==esmf_success)then
+!       write(0,*)'DYNAMICS UPDATE SUCCEEDED'
+      else
+        write(0,*)'DYNAMICS UPDATE FAILED RC_UPD=',rc_upd
+      endif
+!-----------------------------------------------------------------------
 
       end subroutine digital_filter_dyn_sum_nmm
 
-! ---------------------------------------------------------------
-      subroutine digital_filter_dyn_average_nmm(dyn_state,NUM_WATER,NUM_TRACERS)
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+      subroutine digital_filter_dyn_average_nmm(dyn_state               &
+                                               ,num_water               &
+                                               ,num_tracers)
+!-----------------------------------------------------------------------
 !
       USE MODULE_DM_PARALLEL
-      implicit none
       type(esmf_state), intent(inout) :: dyn_state
       INTEGER, intent(in)          :: NUM_WATER,NUM_TRACERS
       INTEGER(KIND=KINT) :: I,II,J,JJ,L,N,P,RC,RC_UPD
@@ -447,14 +474,20 @@
       nstep=0
 
 
+!-----------------------------------------------------------------------
       end subroutine digital_filter_dyn_average_nmm
-!----------------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
       subroutine digital_filter_phy_init_nmm(phy_state)
+!-----------------------------------------------------------------------
 !
-      implicit none
       type(esmf_state), intent(in) :: phy_state
 !
       integer 			rc
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
 
       call esmf_stateget(state     = phy_state,				&
                          itemcount = phy_items,				&
@@ -466,33 +499,46 @@
       phy_state_save=esmf_statecreate(statename="digital filter phy"	&
                                      ,statetype=esmf_state_unspecified	&
                                      ,rc       =rc)
+!-----------------------------------------------------------------------
 !
       end subroutine digital_filter_phy_init_nmm
 
-! ---------------------------------------------------------------
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
       subroutine digital_filter_phy_save_nmm(phy_state)
+!-----------------------------------------------------------------------
 !
-      implicit none
       type(esmf_state), intent(in) :: phy_state
 !
       TYPE(ESMF_Field)             :: tmp_field
       integer                      :: n, rc
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
 !
       do n=1,phy_items
         CALL ESMF_StateGet(state=phy_state, itemName=phy_name(n), field=tmp_field, rc = rc)
 
         CALL ESMF_StateAdd(phy_state_save, tmp_field, rc = rc)
       enddo
+!-----------------------------------------------------------------------
+!
       end subroutine digital_filter_phy_save_nmm
 
-! ---------------------------------------------------------------
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
       subroutine digital_filter_phy_restore_nmm(phy_state)
+!-----------------------------------------------------------------------
 !
-      implicit none
       type(esmf_state), intent(inout) :: phy_state
 !
       TYPE(ESMF_Field)                :: tmp_field
       integer                         :: n, rc
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
 !
       do n=1,phy_items
         CALL ESMF_StateGet(state=phy_state_save, itemName=phy_name(n), field=tmp_field, rc = rc)
@@ -501,6 +547,12 @@
       enddo
       deallocate(phy_name)
 
+!-----------------------------------------------------------------------
+
       end subroutine digital_filter_phy_restore_nmm
 
+!-----------------------------------------------------------------------
+!
       end module module_digital_filter_nmm
+!
+!-----------------------------------------------------------------------

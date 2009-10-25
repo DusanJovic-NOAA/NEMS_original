@@ -204,7 +204,7 @@ integer :: mpi_intra
 !
 !-----------------------------------------------------------------------
 !***  Compare the total number of MPI tasks (npes) to the number 
-!***  specified for the forecast integration (npes_fcst inpes*jnpes).
+!***  specified for the forecast integration (npes_fcst=inpes*jnpes).
 !***  Obviously the total number cannot be less than the number
 !***  used for the forecast.
 !-----------------------------------------------------------------------
@@ -243,7 +243,7 @@ integer :: mpi_intra
       iquilt_group=max(iquilt_group,one)
 !-----------------------------------------------------------------------
 !
-!***  ERROR CHECK FOR NUMBER OF GROUPS - MAXIMUM IS 100 - THAT IS ALOT!
+!***  ERROR CHECK FOR NUMBER OF GROUPS - MAXIMUM IS 100 - THAT IS A LOT!
 !
 !-----------------------------------------------------------------------
       if(iquilt_group>100)then
@@ -360,7 +360,7 @@ integer :: mpi_intra
 !-----------------------------------------------------------------------
 !
       allocate(irank(iqserver))                                          !<-- Dimension irank to the total # of quilt tasks
-                                                                         !<-- Dimension irank to the total # of quilt tasks
+!
       if(iqserver>0)then
         do i=1,iqserver
           irank(i)=-1                                                    !<-- Initialize irank to meaningless values

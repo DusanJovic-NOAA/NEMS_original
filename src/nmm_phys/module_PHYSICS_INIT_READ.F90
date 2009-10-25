@@ -1,160 +1,196 @@
+!----------------------------------------------------------------------
 !
       MODULE MODULE_PHYSICS_INIT_READ
 !
+!----------------------------------------------------------------------
+!
       USE ESMF_MOD
-      USE NEMSIO_MODULE
+      USE MODULE_NEMSIO
       USE MODULE_INCLUDE
-      USE MODULE_PHYSICS_INTERNAL_STATE,ONLY: INTERNAL_STATE
+      USE MODULE_PHYSICS_INTERNAL_STATE,ONLY: PHYSICS_INTERNAL_STATE
       USE MODULE_DM_PARALLEL,ONLY : IDS,IDE,JDS,JDE                     &
                                    ,IMS,IME,JMS,JME                     &
                                    ,ITS,ITE,JTS,JTE                     &
                                    ,DSTRB,IDSTRB                        &
                                    ,MYPE_SHARE,NUM_TILES
-
+!
       USE MODULE_MICROPHYSICS_NMM
       USE MODULE_CONSTANTS,ONLY : G
       USE MODULE_EXCHANGE
-
-      CONTAINS
-
-      SUBROUTINE PHYSICS_READ_GWD(INFILE,NFCST,MYPE,MPI_COMM_COMP,    &
-        IDS,IDE,JDS,JDE,INT_STATE)       
+!
 !----------------------------------------------------------------------
-!**********************************************************************
-!----------------------------------------------------------------------
+!
       IMPLICIT NONE
+!
 !----------------------------------------------------------------------
-      CHARACTER(ESMF_MAXSTR),INTENT(IN) :: INFILE
+!
+      CONTAINS
+!
+!----------------------------------------------------------------------
+!######################################################################
+!----------------------------------------------------------------------
+!
+      SUBROUTINE PHYSICS_READ_GWD(INFILE,NFCST,INT_STATE               &
+                                 ,MYPE,MPI_COMM_COMP                   &
+                                 ,IDS,IDE,JDS,JDE)
+!----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument variables
+!------------------------
+!
       INTEGER,INTENT(IN) :: NFCST,MYPE,MPI_COMM_COMP
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE                         
-      REAL,DIMENSION(:,:),ALLOCATABLE :: TEMP_GWD
-      TYPE(INTERNAL_STATE),POINTER  :: INT_STATE                    !<-- The physics internal state
-
-      ALLOCATE(TEMP_GWD(IDS:IDE,JDS:JDE))      
-!-----------------------------------------------------------------------
-        IF(MYPE==0)THEN
-          OPEN(unit=NFCST,file=INFILE,status='old',form='unformatted')
-        ENDIF
-!-----------------------------------------------------------------------
-        IF(MYPE==0)THEN
-          READ(NFCST)TEMP_GWD
-        ENDIF
-!
-        CALL DSTRB(TEMP_GWD,int_state%HSTDV,1,1,1,1,1)
-!-----------------------------------------------------------------------
-        IF(MYPE==0)THEN
-          READ(NFCST)TEMP_GWD
-        ENDIF
-!
-        CALL DSTRB(TEMP_GWD,int_state%HCNVX,1,1,1,1,1)
-!-----------------------------------------------------------------------
-        IF(MYPE==0)THEN
-          READ(NFCST)TEMP_GWD
-        ENDIF
-!
-        CALL DSTRB(TEMP_GWD,int_state%HASYW,1,1,1,1,1)
-!-----------------------------------------------------------------------
-        IF(MYPE==0)THEN
-          READ(NFCST)TEMP_GWD
-        ENDIF
-!
-        CALL DSTRB(TEMP_GWD,int_state%HASYS,1,1,1,1,1)
-!-----------------------------------------------------------------------
-        IF(MYPE==0)THEN
-          READ(NFCST)TEMP_GWD
-        ENDIF
-!
-        CALL DSTRB(TEMP_GWD,int_state%HASYSW,1,1,1,1,1)
-!-----------------------------------------------------------------------
-        IF(MYPE==0)THEN
-          READ(NFCST)TEMP_GWD
-        ENDIF
-!
-        CALL DSTRB(TEMP_GWD,int_state%HASYNW,1,1,1,1,1)
-!-----------------------------------------------------------------------
-        IF(MYPE==0)THEN
-          READ(NFCST)TEMP_GWD
-        ENDIF
-!
-        CALL DSTRB(TEMP_GWD,int_state%HLENW,1,1,1,1,1)
-!-----------------------------------------------------------------------
-        IF(MYPE==0)THEN
-          READ(NFCST)TEMP_GWD
-        ENDIF
-!
-        CALL DSTRB(TEMP_GWD,int_state%HLENS,1,1,1,1,1)
-!-----------------------------------------------------------------------
-        IF(MYPE==0)THEN
-          READ(NFCST)TEMP_GWD
-        ENDIF
-!
-        CALL DSTRB(TEMP_GWD,int_state%HLENSW,1,1,1,1,1)
-!-----------------------------------------------------------------------
-        IF(MYPE==0)THEN
-          READ(NFCST)TEMP_GWD
-        ENDIF
-!
-        CALL DSTRB(TEMP_GWD,int_state%HLENNW,1,1,1,1,1)
-!-----------------------------------------------------------------------
-        IF(MYPE==0)THEN
-          READ(NFCST)TEMP_GWD
-        ENDIF
-!
-        CALL DSTRB(TEMP_GWD,int_state%HANGL,1,1,1,1,1)
-!-----------------------------------------------------------------------
-        IF(MYPE==0)THEN
-          READ(NFCST)TEMP_GWD
-        ENDIF
-!
-        CALL DSTRB(TEMP_GWD,int_state%HANIS,1,1,1,1,1)
-!-----------------------------------------------------------------------
-        IF(MYPE==0)THEN
-          READ(NFCST)TEMP_GWD
-        ENDIF
-!
-        CALL DSTRB(TEMP_GWD,int_state%HSLOP,1,1,1,1,1)
-!-----------------------------------------------------------------------
-        IF(MYPE==0)THEN
-          READ(NFCST)TEMP_GWD
-        ENDIF
-!
-        CALL DSTRB(TEMP_GWD,int_state%HZMAX,1,1,1,1,1)
-!-----------------------------------------------------------------------
-!
-        IF(MYPE==0)THEN
-          CLOSE(NFCST)
-        ENDIF
-!
-        DEALLOCATE(TEMP_GWD)
-!-----------------------------------------------------------------------
-      END SUBROUTINE PHYSICS_READ_GWD 
-      
-
-!-----------------------------------------------------------------------
-      SUBROUTINE PHYSICS_READ_INPUT_BINARY(INFILE,NFCST,MYPE,MPI_COMM_COMP,    &
-        IDS,IDE,JDS,JDE,LM,IMS,IME,JMS,JME,NSOIL,                       &
-        idat,ihrst,PT,                       &
-        INT_STATE,irtn )
-!----------------------------------------------------------------------
-!**********************************************************************
-!----------------------------------------------------------------------
-      IMPLICIT NONE
-!----------------------------------------------------------------------
 !
       CHARACTER(ESMF_MAXSTR),INTENT(IN) :: INFILE
+!
+      TYPE(PHYSICS_INTERNAL_STATE),POINTER,INTENT(IN)  :: INT_STATE        !<-- The physics internal state
+!
+!---------------------
+!***  Local variables
+!---------------------
+!
+      REAL,DIMENSION(:,:),ALLOCATABLE :: TEMP_GWD
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      ALLOCATE(TEMP_GWD(IDS:IDE,JDS:JDE))      
+!
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        OPEN(unit=NFCST,file=INFILE,status='old',form='unformatted')
+      ENDIF
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP_GWD
+      ENDIF
+!
+      CALL DSTRB(TEMP_GWD,int_state%HSTDV,1,1,1,1,1)
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP_GWD
+      ENDIF
+!
+      CALL DSTRB(TEMP_GWD,int_state%HCNVX,1,1,1,1,1)
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP_GWD
+      ENDIF
+!
+      CALL DSTRB(TEMP_GWD,int_state%HASYW,1,1,1,1,1)
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP_GWD
+      ENDIF
+!
+      CALL DSTRB(TEMP_GWD,int_state%HASYS,1,1,1,1,1)
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP_GWD
+      ENDIF
+!
+      CALL DSTRB(TEMP_GWD,int_state%HASYSW,1,1,1,1,1)
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP_GWD
+      ENDIF
+!
+      CALL DSTRB(TEMP_GWD,int_state%HASYNW,1,1,1,1,1)
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP_GWD
+      ENDIF
+!
+      CALL DSTRB(TEMP_GWD,int_state%HLENW,1,1,1,1,1)
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP_GWD
+      ENDIF
+!
+      CALL DSTRB(TEMP_GWD,int_state%HLENS,1,1,1,1,1)
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP_GWD
+      ENDIF
+!
+      CALL DSTRB(TEMP_GWD,int_state%HLENSW,1,1,1,1,1)
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP_GWD
+      ENDIF
+!
+      CALL DSTRB(TEMP_GWD,int_state%HLENNW,1,1,1,1,1)
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP_GWD
+      ENDIF
+!
+      CALL DSTRB(TEMP_GWD,int_state%HANGL,1,1,1,1,1)
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP_GWD
+      ENDIF
+!
+      CALL DSTRB(TEMP_GWD,int_state%HANIS,1,1,1,1,1)
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP_GWD
+      ENDIF
+!
+      CALL DSTRB(TEMP_GWD,int_state%HSLOP,1,1,1,1,1)
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP_GWD
+      ENDIF
+!
+      CALL DSTRB(TEMP_GWD,int_state%HZMAX,1,1,1,1,1)
+!-----------------------------------------------------------------------
+!
+      IF(MYPE==0)THEN
+        CLOSE(NFCST)
+      ENDIF
+!
+      DEALLOCATE(TEMP_GWD)
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE PHYSICS_READ_GWD 
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE PHYSICS_READ_INPUT_BINARY(INFILE,NFCST                 &
+                                          ,MYPE,MPI_COMM_COMP           &
+                                          ,IDAT,IHRST,PT                &
+                                          ,INT_STATE                    &
+                                          ,NSOIL,LM                     &
+                                          ,IDS,IDE,JDS,JDE              &
+                                          ,IMS,IME,JMS,JME              &
+                                          ,IRTN )
+!----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument variables
+!------------------------
+!
+      CHARACTER(ESMF_MAXSTR),INTENT(IN) :: INFILE
+!
       INTEGER,INTENT(IN) :: NFCST,MYPE,MPI_COMM_COMP
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                          &
                            ,IMS,IME,JMS,JME,NSOIL
+!
+      INTEGER,INTENT(OUT) :: IHRST,IRTN
       INTEGER,DIMENSION(3),INTENT(OUT) :: IDAT
-      INTEGER,INTENT(OUT) :: IHRST
+!
       REAL,INTENT(OUT) :: PT
-      TYPE(INTERNAL_STATE),POINTER   :: INT_STATE                    !<-- The physics internal state
-      
 !
+      TYPE(PHYSICS_INTERNAL_STATE),POINTER :: INT_STATE                    !<-- The physics internal state
 !
-      INTEGER,INTENT(OUT) :: IRTN
-!
-!--- local vars
+!---------------------
+!***  Local variables
+!---------------------
 !
       INTEGER :: LDIM1,LDIM2,UDIM1,UDIM2
       INTEGER :: LPT2
@@ -164,7 +200,6 @@
       REAL,DIMENSION(LM) :: DSG1,DSG2,SGML1,SGML2
       REAL,DIMENSION(LM+1) :: SG1,SG2,SGM
       REAL,DIMENSION(LM) :: PDSG1,PSGML1
-     
 !
       INTEGER,DIMENSION(:,:),ALLOCATABLE :: ITEMP
       REAL,DIMENSION(:,:),ALLOCATABLE :: TEMP1
@@ -173,9 +208,14 @@
       LOGICAL :: RUN
 !
 !----------------------------------------------------------------------
-!***  FIRST WE NEED THE VALUE OF PT (PRESSURE AT TOP OF DOMAIN)
+!**********************************************************************
+!----------------------------------------------------------------------
+!
+!----------------------------------------------------------------------
+!***  First we need the value of PT (pressure at top of domain)
 !-----------------------------------------------------------------------
-       IF(MYPE==0)THEN
+!
+      IF(MYPE==0)THEN
         OPEN(unit=NFCST,file=INFILE,status='old',form='unformatted')
 !        NRECS_SKIP_FOR_PT=6+5*LM+21 !<-- For current WPS input
         NRECS_SKIP_FOR_PT=6+5*LM+23 !zj +21
@@ -194,17 +234,15 @@
       PT=int_state%PT
 !
 !-----------------------------------------------------------------------
-!***  VERTICAL LAYER INFORMATION IS NEEDED IN ORDER TO SEND IT TO
-!***  SOME SPECIFIC SCHEMES' INITIALIZATION ROUTINES THAT FOLLOW
-!***  BELOW.
+!***  Vertical layer information is needed in order to send it to
+!***  some specific schemes' initialization routines that follow
+!***  below.
 !-----------------------------------------------------------------------
 !
-
       IF(MYPE==0)THEN
         READ(NFCST)RUN,IDAT,IHRST
         READ(NFCST)PT,PDTOP,LPT2,SGM,SG1,DSG1,SGML1,SG2,DSG2,SGML2
       ENDIF
-
 !
       CALL MPI_BCAST(SGM(1),LM+1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
       CALL MPI_BCAST(SG1(1),LM+1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
@@ -222,6 +260,31 @@
       CALL MPI_BARRIER(MPI_COMM_COMP,IRTN)
 !
 !-----------------------------------------------------------------------
+!***  Now that the start data has been reasd from the input file,
+!***  check to see if it agrees with the start time from the
+!***  configure file.
+!-----------------------------------------------------------------------
+!
+      IF(MYPE==0)THEN
+        IF(IDAT(2)/=int_state%START_MONTH.OR.                           &
+           IDAT(1)/=int_state%START_DAY.OR.                             &
+           IDAT(3)/=int_state%START_YEAR.OR.                            &
+           IHRST  /=int_state%START_HOUR)THEN
+          WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
+          WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
+          WRITE(0,*)' DATES IN INPUT FILE AND CONFIGURE FILE DISAGREE!!'
+          WRITE(0,*)' INPUT: HOUR=',IHRST,' DAY=',IDAT(1)               &
+                    ,' MONTH=',IDAT(2),' YEAR=',IDAT(3)
+          WRITE(0,*)' CONFIG: HOUR=',int_state%START_HOUR               &
+                            ,' DAY=',int_state%START_DAY                &
+                          ,' MONTH=',int_state%START_MONTH              &
+                           ,' YEAR=',int_state%START_YEAR
+          WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
+          WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
+        ENDIF
+      ENDIF
+!
+!-----------------------------------------------------------------------
 !
       int_state%PDTOP=PDTOP
 !
@@ -234,9 +297,8 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  BEFORE MOVING ON, TRANSFER VALUES TO THE INTERNAL STATE.
+!***  Before moving on, transfer values to the internal state.
 !-----------------------------------------------------------------------
-!
 !
       DO L=1,LM
         int_state%DSG2(L)=DSG2(L)
@@ -255,8 +317,8 @@
       ALLOCATE(TEMP1(IDS:IDE,JDS:JDE),STAT=I)
 !
 !-----------------------------------------------------------------------
-!***  PROCEED WITH GETTING FIELDS FROM INPUT FILE.
-!***  NOTE: TWO RECORDS WERE ALREADY READ AT THE TOP OF THIS ROUTINE.
+!***  Proceed with getting fields from input file.
+!***  NOTE: Two records were already read at the top of this routine.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------
@@ -267,8 +329,6 @@
       UDIM1=UBOUND(int_state%Q,1)
       LDIM2=LBOUND(int_state%Q,2)
       UDIM2=UBOUND(int_state%Q,2)
-!
-!
 !
 !-----------------------------------------------------------------------
 !***  FIS (Sfc Geopotential)
@@ -335,6 +395,7 @@
 !
         CALL DSTRB(TEMP1,int_state%U,1,1,1,LM,K)
       ENDDO
+!
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -366,6 +427,7 @@
 !
         CALL DSTRB(TEMP1,int_state%T,1,1,1,LM,K)
       ENDDO
+!
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -422,7 +484,9 @@
       CALL DSTRB(TEMP1,int_state%ALBEDO,1,1,1,1,1)
       CALL DSTRB(TEMP1,int_state%ALBASE,1,1,1,1,1)
 !
-! **** EPSR
+!-----------------------------------------------------------------------
+!****  EPSR
+!-----------------------------------------------------------------------
 !
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
@@ -505,27 +569,21 @@
       ENDIF
       CALL DSTRB(TEMP1,int_state%Z0,1,1,1,1,1)
       CALL HALO_EXCH(int_state%Z0,1,3,3)
-
 !
-!zj      go to 11111  !<-- For current WPS input
-!
-      IF(MYPE==0)THEN !zj
-        READ(NFCST)TEMP1 !zj
+      IF(MYPE==0)THEN 
+        READ(NFCST)TEMP1 
 !        write(0,*) 'min, max for Z0BASE: ', minval(TEMP1),maxval(TEMP1) !zj
-      ENDIF !zj
-      CALL DSTRB(TEMP1,int_state%Z0BASE,1,1,1,1,1) !zj
-      CALL HALO_EXCH(int_state%Z0BASE,1,3,3) !zj
+      ENDIF 
+      CALL DSTRB(TEMP1,int_state%Z0BASE,1,1,1,1,1) 
+      CALL HALO_EXCH(int_state%Z0BASE,1,3,3) 
 
 !
-      IF(MYPE==0)THEN !zj
-        READ(NFCST)TEMP1 !zj
-!        write(0,*) 'min, max for STDH: ', minval(TEMP1),maxval(TEMP1) !zj
-      ENDIF !zj
-      CALL DSTRB(TEMP1,int_state%STDH,1,1,1,1,1) !zj
-      CALL HALO_EXCH(int_state%STDH,1,3,3) !zj
-
-!
-11111 continue
+      IF(MYPE==0)THEN 
+        READ(NFCST)TEMP1 
+!        write(0,*) 'min, max for STDH: ', minval(TEMP1),maxval(TEMP1) 
+      ENDIF 
+      CALL DSTRB(TEMP1,int_state%STDH,1,1,1,1,1) 
+      CALL HALO_EXCH(int_state%STDH,1,3,3) 
 !
       ALLOCATE(TEMPSOIL(1:NSOIL,IDS:IDE,JDS:JDE),STAT=I)
 !
@@ -567,14 +625,12 @@
 !        write(0,*) 'min, max for ISLTYP: ', minval(ITEMP),maxval(ITEMP)
       ENDIF
       CALL IDSTRB(ITEMP,int_state%ISLTYP)
-
 !
       IF(MYPE==0)THEN
         READ(NFCST) ITEMP
 !        write(0,*) 'min, max for IVGTYP: ', minval(ITEMP),maxval(ITEMP)
       ENDIF
       CALL IDSTRB(ITEMP,int_state%IVGTYP)
-
 !
       IF(MYPE==0)THEN
         READ(NFCST) TEMP1
@@ -583,8 +639,6 @@
       CALL DSTRB(TEMP1,int_state%VEGFRC,1,1,1,1,1)
       IF (MYPE==0) THEN
       ENDIF
-
-
 !
       IF(MYPE==0)THEN
         READ(NFCST) SOIL1DIN
@@ -595,12 +649,28 @@
         READ(NFCST) SOIL1DIN
 !        write(0,*) 'SOIL1DIN: ', SOIL1DIN
       ENDIF
-!
 !
       IF(MYPE==0)THEN
         READ(NFCST) PT
-!        write(0,*) 'read in ptop in PHYS: ', PT
+        READ(NFCST) ! I_PARENT_START,J_PARENT_START
+        READ(NFCST)int_state%DLMD,int_state%DPHD                       &
+                  ,int_state%WBD,int_state%SBD                         &
+                  ,int_state%TLM0D,int_state%TPH0D
+        write(0,11121)int_state%wbd,int_state%sbd
+        write(0,11122)int_state%dlmd,int_state%dphd
+        write(0,11123)int_state%tlm0d,int_state%tph0d
+11121   format(' physics input read in wbd=',e12.5,' sbd=',e12.5)
+11122   format(' dlmd=',e12.5,' dphd=',e12.5)
+11123   format(' tlm0d=',e12.5,' tph0d=',e12.5)
       ENDIF
+!
+      CALL MPI_BCAST(PT   ,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(int_state%SBD  ,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(int_state%WBD  ,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(int_state%DPHD ,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(int_state%DLMD ,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(int_state%TPH0D,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(int_state%TLM0D,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
 !
       CALL MPI_BARRIER(MPI_COMM_COMP,IRTN)
 !
@@ -611,24 +681,33 @@
       DEALLOCATE(TEMP1)
 !
 !-----------------------------------------------------------------------
-!***********************************************************************
-
+!
       END SUBROUTINE PHYSICS_READ_INPUT_BINARY
+!
+!-----------------------------------------------------------------------
+!#######################################################################
 !-----------------------------------------------------------------------
 !
-!***********************************************************************
+      SUBROUTINE PHYSICS_READ_RESTT_BINARY(INFILE,NFCST                 &
+                                          ,MYPE,MPI_COMM_COMP           &
+                                          ,IYEAR_FCST                   &
+                                          ,IMONTH_FCST                  &
+                                          ,IDAY_FCST                    &
+                                          ,IHOUR_FCST                   &
+                                          ,IMINUTE_FCST                 &
+                                          ,SECOND_FCST                  &
+                                          ,IHRST,IDAT,PT                &
+                                          ,INT_STATE                    &
+                                          ,NSOIL,LM                     &
+                                          ,IDS,IDE,JDS,JDE              &
+                                          ,IMS,IME,JMS,JME              &
+                                          ,IRTN )
+!
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE PHYSICS_READ_RESTT_BINARY(INFILE,NFCST,MYPE,MPI_COMM_COMP,    &
-        IDS,IDE,JDS,JDE,LM,IMS,IME,JMS,JME,NSOIL,                       &
-        IYEAR_FCST,IMONTH_FCST,IDAY_FCST,IHOUR_FCST,IMINUTE_FCST,       &
-        SECOND_FCST,IHRST,IDAT,PT,            &
-        INT_STATE,IRTN)
-
-!-----------------------------------------------------------------------
-!
-      IMPLICIT NONE
-!----------------------------------------------------------------------
+!-----------------------
+!*** Argument variables
+!-----------------------
 !
       CHARACTER(ESMF_MAXSTR),INTENT(IN) :: INFILE
       INTEGER,INTENT(IN) :: NFCST,MYPE,MPI_COMM_COMP
@@ -642,33 +721,32 @@
       INTEGER,DIMENSION(3),INTENT(OUT) :: IDAT
 !
       REAL,INTENT(OUT) :: PT
-      TYPE(INTERNAL_STATE),POINTER       :: INT_STATE                 
-!
+      TYPE(PHYSICS_INTERNAL_STATE),POINTER :: INT_STATE                 
 !
       INTEGER,INTENT(OUT) :: IRTN
 !
-!--- local vars
+!---------------------
+!***  Local variables
+!---------------------
 !
       INTEGER :: LDIM1,LDIM2,UDIM1,UDIM2
-      REAL,DIMENSION(LM+1) :: PSG1
       INTEGER :: NRECS_SKIP_FOR_PT,N,I,J,K,L,LPT2
-      REAL :: PDTOP
-      REAL,DIMENSION(LM) :: DSG1,DSG2,SGML1,SGML2
-      REAL,DIMENSION(LM+1) :: SG1,SG2,SGM
-      REAL,ALLOCATABLE,DIMENSION(:)  :: SLDPTH
-
-!
-      REAL,DIMENSION(LM) :: PDSG1,PSGML1
-      REAL,DIMENSION(:,:),ALLOCATABLE :: TEMP1
       INTEGER,DIMENSION(:,:),ALLOCATABLE :: ITEMP
+!
+      REAL :: PDTOP
+      REAL,DIMENSION(LM) :: DSG1,DSG2,PDSG1,PSGML1,SGML1,SGML2
+      REAL,DIMENSION(LM+1) :: PSG1,SG1,SG2,SGM
+      REAL,ALLOCATABLE,DIMENSION(:)  :: SLDPTH
+      REAL,DIMENSION(:,:),ALLOCATABLE :: TEMP1
+!
       LOGICAL :: RUN
 !
 !-----------------------------------------------------------------------
-!*** read restart data
-!-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-!***  FIRST WE NEED THE VALUE OF PT (PRESSURE AT TOP OF DOMAIN)
+!
+!-----------------------------------------------------------------------
+!***  First we need the value of PT (pressure at top of domain)
 !-----------------------------------------------------------------------
 !
       IF(MYPE==0)THEN
@@ -676,8 +754,9 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!              READ FROM RESTART FILE: INTEGER SCALARS
+!***  Read from restart file: Integer scalars
 !-----------------------------------------------------------------------
+!
       IF(MYPE==0)THEN
         READ(NFCST) IYEAR_FCST
         READ(NFCST) IMONTH_FCST
@@ -690,7 +769,10 @@
         READ(NFCST) ! JM
         READ(NFCST) ! LM
         READ(NFCST) IHRST
+        READ(NFCST) ! I_PAR_STA
+        READ(NFCST) ! J_PAR_STA
         READ(NFCST) LPT2
+        READ(NFCST) IDAT
       ENDIF
 !
       IF(MYPE==0)THEN
@@ -715,21 +797,15 @@
       CALL MPI_BCAST(IMINUTE_FCST ,1,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
       CALL MPI_BCAST(SECOND_FCST  ,1,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
       CALL MPI_BCAST(IHRST        ,1,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(IDAT,3,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
 !
 !-----------------------------------------------------------------------
-!              READ FROM RESTART FILE: INTEGER 1D ARRAYS
+!***  Read from restart file: Integer scalars
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        READ(NFCST) IDAT
-      ENDIF
-      CALL MPI_BCAST(IDAT,3,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
-!-----------------------------------------------------------------------
-!              READ FROM RESTART FILE: INTEGER SCALARS
-!-----------------------------------------------------------------------
+!
       IF(MYPE==0)THEN
         READ(NFCST) ! MP_PHYSICS
         READ(NFCST) ! SF_SURFACE_PHYSICS
-
         READ(NFCST) NSOIL
         READ(NFCST) ! NPHS
         READ(NFCST) ! NCLOD
@@ -739,11 +815,14 @@
         READ(NFCST) ! NRDSW
         READ(NFCST) ! NSRFC
       ENDIF
-      ALLOCATE(SLDPTH(1:NSOIL))
+!
       CALL MPI_BCAST(NSOIL,1,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
+      ALLOCATE(SLDPTH(1:NSOIL))
+!
 !-----------------------------------------------------------------------
-!              READ FROM RESTART FILE: REAL SCALARS
+!***  Read from restart file: Real scalars
 !-----------------------------------------------------------------------
+!
       IF(MYPE==0)THEN
         READ(NFCST) ! DT
         READ(NFCST) ! DYH
@@ -753,19 +832,35 @@
       IF(MYPE==0)THEN
         READ(NFCST)PT
         int_state%PT=PT
-        READ(NFCST) ! TLM0D
-        READ(NFCST) ! TPH0D
+        READ(NFCST)int_state%TLM0D
+        READ(NFCST)int_state%TPH0D
         READ(NFCST) ! TSTART
-        READ(NFCST) ! DPHD
-        READ(NFCST) ! DLMD
+        READ(NFCST)int_state%DPHD
+        READ(NFCST)int_state%DLMD
+        READ(NFCST)int_state%SBD
+        READ(NFCST)int_state%WBD
+        write(0,11131)int_state%wbd,int_state%sbd
+        write(0,11132)int_state%dlmd,int_state%dphd
+        write(0,11133)int_state%tlm0d,int_state%tph0d
+11131   format(' physics restart read wbd=',e12.5,' sbd=',e12.5)
+11132   format(' dlmd=',e12.5,' dphd=',e12.5)
+11133   format(' tlm0d=',e12.5,' tph0d=',e12.5)
       ENDIF
 !
       CALL MPI_BCAST(int_state%PT,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(int_state%DPHD,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(int_state%DLMD,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(int_state%TPH0D,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(int_state%TLM0D,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(int_state%SBD,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(int_state%WBD,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
+!
       PT=int_state%PT
 !
 !-----------------------------------------------------------------------
-!              READ FROM RESTART FILE: REAL 1D ARRAYS
+!***  Read from the restart file: Real 1D arrays
 !-----------------------------------------------------------------------
+!
       IF(MYPE==0)THEN
         READ(NFCST) ! DXH
         READ(NFCST) SG1
@@ -782,6 +877,7 @@
         READ(NFCST) int_state%MP_RESTART_STATE
         READ(NFCST) int_state%TBPVS_STATE
         READ(NFCST) int_state%TBPVS0_STATE
+        READ(NFCST) ! ALL_BC_DATA
       ENDIF
 !
       CALL MPI_BCAST(SGM(1)   ,LM+1  ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
@@ -791,12 +887,11 @@
       CALL MPI_BCAST(SG2(1)   ,LM+1  ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
       CALL MPI_BCAST(DSG2(1)  ,LM    ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
       CALL MPI_BCAST(SGML2(1) ,LM    ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
-
+!
       CALL MPI_BCAST(PDTOP    ,1     ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
       CALL MPI_BCAST(LPT2     ,1     ,MPI_INTEGER,0,MPI_COMM_COMP,IRTN)
       CALL MPI_BCAST(SLDPTH   ,NSOIL ,MPI_REAL   ,0,MPI_COMM_COMP,IRTN)
-
-
+!
       CALL MPI_BCAST(int_state%MP_RESTART_STATE(1) ,MICRO_RESTART ,MPI_REAL ,0,MPI_COMM_COMP,IRTN)
       CALL MPI_BCAST(int_state%TBPVS_STATE(1)      ,MICRO_RESTART ,MPI_REAL ,0,MPI_COMM_COMP,IRTN)
       CALL MPI_BCAST(int_state%TBPVS0_STATE(1)     ,MICRO_RESTART ,MPI_REAL ,0,MPI_COMM_COMP,IRTN)
@@ -806,7 +901,7 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!              READ FROM RESTART FILE: LOGICAL
+!***  Read from restart file: Logical
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST) ! GLOBAL
@@ -829,7 +924,7 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  BEFORE MOVING ON, TRANSFER VALUES TO THE INTERNAL STATE.
+!***  Before moving on, transfer values to the internal state.
 !-----------------------------------------------------------------------
 !
       int_state%PDTOP=PDTOP
@@ -850,7 +945,7 @@
 !
 !
 !-----------------------------------------------------------------------
-!              READ FROM RESTART FILE: INTEGER 2D ARRAYS
+!***  Read from restart file: Integer 2D arrays
 !-----------------------------------------------------------------------
 !
       ALLOCATE(ITEMP(IDS:IDE,JDS:JDE),STAT=I)
@@ -878,7 +973,7 @@
       DEALLOCATE(ITEMP)
 !
 !-----------------------------------------------------------------------
-!              READ FROM RESTART FILE: REAL 2D ARRAYS
+!***  Read from restart file: Real 2D arrays
 !-----------------------------------------------------------------------
 !
       ALLOCATE(TEMP1(IDS:IDE,JDS:JDE),STAT=I)
@@ -916,14 +1011,15 @@
 !***  PDO
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
-        READ(NFCST) !VLAT
-        READ(NFCST) !VLON
+        READ(NFCST) ! VLAT
+        READ(NFCST) ! VLON
         READ(NFCST) ! PDO
       ENDIF
+!
 !-----------------------------------------------------------------------
+!***  Skip from restart file: Real 3D arrays (only from DYN)
 !-----------------------------------------------------------------------
-!              SKIP FROM RESTART FILE: REAL 3D ARRAYS (only from DYN)
-!-----------------------------------------------------------------------
+!
       DO K=1,LM
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1   ! W
@@ -1020,9 +1116,11 @@
           READ(NFCST)TEMP1   ! Z
         ENDIF
       ENDDO
+!
 !-----------------------------------------------------------------------
+!***  Read from restart file: Real 2D arrays (contd.)
 !-----------------------------------------------------------------------
-!              READ FROM RESTART FILE: REAL 2D ARRAYS (contd.)
+!
 !-----------------------------------------------------------------------
 !***  ACFRCV
 !-----------------------------------------------------------------------
@@ -1042,6 +1140,7 @@
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
+!
       DO J=JMS,JME
       DO I=IMS,IME
         int_state%ACFRST(I,J)=0.
@@ -1106,6 +1205,7 @@
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
+!
       DO J=JMS,JME
       DO I=IMS,IME
         int_state%AKMS_OUT(I,J)=0.
@@ -1718,6 +1818,7 @@
         READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%TLMIN,1,1,1,1,1)
+!
 !-----------------------------------------------------------------------
 !***  TLMAX
 !-----------------------------------------------------------------------
@@ -1725,6 +1826,7 @@
         READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%TLMAX,1,1,1,1,1)
+!
 !-----------------------------------------------------------------------
 !***  ACUTIM
 !-----------------------------------------------------------------------
@@ -1776,7 +1878,7 @@
       CALL DSTRB(TEMP1,int_state%AVCNVC,1,1,1,1,1)
 !
 !-----------------------------------------------------------------------
-!              READ FROM RESTART FILE: REAL 3D ARRAYS
+!***  Read from restart file: Real 3D arrays
 !-----------------------------------------------------------------------
 !
       CALL MPI_BARRIER(MPI_COMM_COMP,IRTN)
@@ -1822,6 +1924,8 @@
 
         CALL DSTRB(TEMP1,int_state%CW,1,1,1,LM,K)
       ENDDO
+!-----------------------------------------------------------------------
+!
       DO K=1,LM
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1   ! Q
@@ -1887,7 +1991,6 @@
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1  ! T
         ENDIF
-
 !
         DO J=JMS,JME
         DO I=IMS,IME
@@ -1952,7 +2055,6 @@
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%V(I,J,K)=0.
-
         ENDDO
         ENDDO
 !
@@ -2051,7 +2153,6 @@
 !          write(0,*) 'lev, min, max for STC: ', k,minval(TEMP1),maxval(TEMP1)
         ENDIF
 !
-!
         CALL DSTRB(TEMP1,int_state%STC,1,1,1,NSOIL,K)
 !
       ENDDO
@@ -2059,7 +2160,7 @@
 !-----------------------------------------------------------------------
 !***  TRACERS
 !-----------------------------------------------------------------------
-      DO N=int_state%INDX_RRW+1,int_state%NUM_TRACERS_TOTAL
+      DO N=int_state%INDX_RRW+1,int_state%NUM_TRACERS_TOTAL                !<-- The first 'INDX_RRW' arrays are unallocated pointers
       DO K=1,LM
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1   ! TRACERS
@@ -2090,19 +2191,25 @@
 !-----------------------------------------------------------------------
 
       END SUBROUTINE PHYSICS_READ_RESTT_BINARY
+!
 !-----------------------------------------------------------------------
+!#######################################################################
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE PHYSICS_READ_INPUT_NEMSIO(INFILE,NFCST,MYPE,           &
-        MPI_COMM_COMP,IDS,IDE,JDS,JDE,LM,IMS,IME,JMS,JME,NSOIL,         &
-        idat,ihrst,PT,                       &
-        INT_STATE,irtn )
-
-!----------------------------------------------------------------------
-!**********************************************************************
-!----------------------------------------------------------------------
-      IMPLICIT NONE
-!----------------------------------------------------------------------
+      SUBROUTINE PHYSICS_READ_INPUT_NEMSIO(INFILE,NFCST                 &
+                                          ,MYPE,MPI_COMM_COMP           &
+                                          ,IDAT,IHRST,PT                &
+                                          ,INT_STATE                    &
+                                          ,NSOIL,LM                     &
+                                          ,IDS,IDE,JDS,JDE              &
+                                          ,IMS,IME,JMS,JME              &
+                                          ,IRTN )
+!
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument variables
+!------------------------
 !
       CHARACTER(ESMF_MAXSTR),INTENT(IN) :: INFILE
       INTEGER,INTENT(IN) :: NFCST,MYPE,MPI_COMM_COMP
@@ -2113,30 +2220,35 @@
       INTEGER,INTENT(OUT) :: IHRST
       REAL,INTENT(OUT) :: PT
 !
-      TYPE(INTERNAL_STATE),POINTER       :: INT_STATE                 
+      TYPE(PHYSICS_INTERNAL_STATE),POINTER :: INT_STATE                 
 !
       INTEGER,INTENT(OUT) :: IRTN
 !
-!--- local vars
+!---------------------
+!***  Local variables
+!---------------------
 !
       INTEGER :: LPT2
-      INTEGER :: NRECS_SKIP_FOR_PT,N,I,J,L,K,II,JJ
-      REAL,DIMENSION(LM+1) :: PSG1
-      REAL,DIMENSION(LM) :: DSG1,DSG2,SGML1,SGML2
-      REAL,DIMENSION(LM+1) :: SG1,SG2,SGM
-      REAL,DIMENSION(LM) :: PDSG1,PSGML1
-      REAL :: PDTOP
       INTEGER :: LDIM1,LDIM2,UDIM1,UDIM2
-
-!
+      INTEGER :: NRECS_SKIP_FOR_PT,N,I,J,L,K,II,JJ
       INTEGER,DIMENSION(:),ALLOCATABLE :: ITEMP
+!
+      REAL :: PDTOP
+      REAL,DIMENSION(LM+1) :: PSG1,SG1,SG2,SGM
+      REAL,DIMENSION(LM) :: DSG1,DSG2,PDSG1,PSGML1,SGML1,SGML2
+!
       REAL,DIMENSION(:),ALLOCATABLE :: TEMP1
+!
       LOGICAL :: RUN
 !
       TYPE(NEMSIO_GFILE) :: GFILE
 !
-!----------------------------------------------------------------------
-!***  FIRST WE NEED THE VALUE OF PT (PRESSURE AT TOP OF DOMAIN)
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  First we need the value of PT (pressure at top of domain)
 !-----------------------------------------------------------------------
 !
       CALL NEMSIO_INIT()
@@ -2145,9 +2257,8 @@
       if(irtn/=0) write(0,*)'ERROR: open file ',trim(infile),' has failed'
 !
 !---------------------------------------------------------------------
-!***  TICAL LAYER INFORMATION IS NEEDED IN ORDER TO SEND IT TO
-!***  SOME SPECIFIC SCHEMES' INITIALIZATION ROUTINES THAT FOLLOW
-!***  BELOW.
+!***  Vertical layer information is needed in order to send it to
+!***  some specific schemes' initialization routines.
 !-----------------------------------------------------------------------
 !
       CALL NEMSIO_GETHEADVAR(gfile,'PT',int_state%PT,iret=irtn)
@@ -2171,7 +2282,7 @@
 !         'sgml2=',sgml2(1:10)
 !
 !-----------------------------------------------------------------------
-!***  BEFORE MOVING ON, TRANSFER VALUES TO THE INTERNAL STATE.
+!***  Before moving on, transfer values to the internal state.
 !-----------------------------------------------------------------------
 !
 !
@@ -2182,10 +2293,6 @@
         PDSG1(L)=DSG1(L)*PDTOP
         PSGML1(L)=SGML1(L)*PDTOP+PT
       ENDDO
-!
-!-----------------------------------------------------------------------
-!***  BEFORE MOVING ON, TRANSFER VALUES TO THE INTERNAL STATE.
-!-----------------------------------------------------------------------
 !
       int_state%PDTOP=PDTOP
 !
@@ -2206,8 +2313,8 @@
       ALLOCATE(TEMP1((IDE-IDS+1)*(JDE-JDS+1)),STAT=I)
 !
 !-----------------------------------------------------------------------
-!***  PROCEED WITH GETTING FIELDS FROM INPUT FILE.
-!***  NOTE: TWO RECORDS WERE ALREADY READ AT THE TOP OF THIS ROUTINE.
+!***  Proceed with getting fields from input file.
+!***  NOTE: Two records were already read at the top of this routine.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------
@@ -2479,8 +2586,6 @@
       CALL DSTRB(TEMP1,int_state%Z0,1,1,1,1,1)
       CALL HALO_EXCH(int_state%Z0,1,3,3)
 !
-!      go to 11111  !<-- For current WPS input
-!
       IF(MYPE==0)THEN !zj
         CALL NEMSIO_READRECV(gfile,'z0base','sfc',1,temp1,iret=irtn)
 !        write(0,*) 'min, max for Z0BASE: ', minval(TEMP1),maxval(TEMP1) !zj
@@ -2494,37 +2599,32 @@
       ENDIF !zj
       CALL DSTRB(TEMP1,int_state%STDH,1,1,1,1,1) !zj
       CALL HALO_EXCH(int_state%STDH,1,3,3) !zj
+!
       DO L=1,NSOIL
-
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'stc','soil layer',l,temp1,iret=irtn)
-!        write(0,*) 'min, max for STC: ', minval(TEMP1),maxval(TEMP1)
-      ENDIF
-!
-      CALL DSTRB(TEMP1,int_state%STC(IMS:IME,JMS:JME,L),1,1,1,1,1)
-!
+        IF(MYPE==0)THEN
+          CALL NEMSIO_READRECV(gfile,'stc','soil layer',l,temp1,iret=irtn)
+!          write(0,*) 'min, max for STC: ', minval(TEMP1),maxval(TEMP1)
+        ENDIF
+        CALL DSTRB(TEMP1,int_state%STC(IMS:IME,JMS:JME,L),1,1,1,1,1)
       ENDDO
 !
 !
       DO L=1,NSOIL
-!
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'smc','soil layer',l,temp1,iret=irtn)
-!        write(0,*) 'min, max for SMC: ', minval(TEMP1),maxval(TEMP1)
-      ENDIF
-!
-      CALL DSTRB(TEMP1,int_state%SMC(IMS:IME,JMS:JME,L),1,1,1,1,1)
-!
+        IF(MYPE==0)THEN
+          CALL NEMSIO_READRECV(gfile,'smc','soil layer',l,temp1,iret=irtn)
+!          write(0,*) 'min, max for SMC: ', minval(TEMP1),maxval(TEMP1)
+        ENDIF
+        CALL DSTRB(TEMP1,int_state%SMC(IMS:IME,JMS:JME,L),1,1,1,1,1)
       ENDDO
+!
       DO L=1,NSOIL
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'sh2o','soil layer',l,temp1,iret=irtn)
-!        write(0,*) 'min, max for SH2O: ', minval(TEMP1),maxval(TEMP1)
-      ENDIF
-!
-      CALL DSTRB(TEMP1,int_state%SH2O(IMS:IME,JMS:JME,L),1,1,1,1,1)
-!
+        IF(MYPE==0)THEN
+          CALL NEMSIO_READRECV(gfile,'sh2o','soil layer',l,temp1,iret=irtn)
+!          write(0,*) 'min, max for SH2O: ', minval(TEMP1),maxval(TEMP1)
+        ENDIF
+        CALL DSTRB(TEMP1,int_state%SH2O(IMS:IME,JMS:JME,L),1,1,1,1,1)
       ENDDO
+!
       ALLOCATE(ITEMP((IDE-IDS+1)*(JDE-JDS+1)),STAT=I)
 !
       IF(MYPE==0)THEN
@@ -2546,7 +2646,17 @@
 !        write(0,*) 'min, max for vegfrc: ', minval(TEMP1),maxval(TEMP1)
       ENDIF
       CALL DSTRB(TEMP1,int_state%VEGFRC,1,1,1,1,1)
-
+!
+!----------------------------------------------------------------------
+!
+      CALL NEMSIO_GETHEADVAR(gfile,'SBD',int_state%SBD,iret=irtn)
+      CALL NEMSIO_GETHEADVAR(gfile,'WBD',int_state%WBD,iret=irtn)
+      CALL NEMSIO_GETHEADVAR(gfile,'DPHD',int_state%DPHD,iret=irtn)
+      CALL NEMSIO_GETHEADVAR(gfile,'DLMD',int_state%DLMD,iret=irtn)
+      CALL NEMSIO_GETHEADVAR(gfile,'TPH0D',int_state%TPH0D,iret=irtn)
+      CALL NEMSIO_GETHEADVAR(gfile,'TLM0D',int_state%TLM0D,iret=irtn)
+!
+!----------------------------------------------------------------------
 !
       CALL NEMSIO_CLOSE(gfile)
 !
@@ -2558,63 +2668,76 @@
       DEALLOCATE(TEMP1)
 !
 !-----------------------------------------------------------------------
-!***********************************************************************
-!-----------------------------------------------------------------------
 !
       END SUBROUTINE PHYSICS_READ_INPUT_NEMSIO
+!
 !-----------------------------------------------------------------------
-!***********************************************************************
+!#######################################################################
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE PHYSICS_READ_RESTT_NEMSIO(INFILE,NFCST,MYPE,           &
-        MPI_COMM_COMP,IDS,IDE,JDS,JDE,LM,IMS,IME,JMS,JME,NSOIL,         &
-        IYEAR_FCST,IMONTH_FCST,IDAY_FCST,IHOUR_FCST,IMINUTE_FCST,       &
-        SECOND_FCST,IHRST,IDAT,PT,           &
-        INT_STATE,IRTN)
+      SUBROUTINE PHYSICS_READ_RESTT_NEMSIO(INFILE,NFCST                 &
+                                          ,MYPE,MPI_COMM_COMP           &
+                                          ,IYEAR_FCST,IMONTH_FCST       &
+                                          ,IDAY_FCST,IHOUR_FCST         &
+                                          ,IMINUTE_FCST,SECOND_FCST     &
+                                          ,IHRST,IDAT,PT                &
+                                          ,INT_STATE                    &
+                                          ,NSOIL,LM                     &
+                                          ,IDS,IDE,JDS,JDE              &
+                                          ,IMS,IME,JMS,JME              &
+                                          ,IRTN )
+!
 !-----------------------------------------------------------------------
 !
-      IMPLICIT NONE
-!----------------------------------------------------------------------
+!------------------------
+!***  Argument variables
+!------------------------
 !
       CHARACTER(ESMF_MAXSTR),INTENT(IN) :: INFILE
+!
       INTEGER,INTENT(IN) :: NFCST,MYPE,MPI_COMM_COMP
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                          &
                            ,IMS,IME,JMS,JME
       INTEGER,INTENT(OUT) :: IYEAR_FCST,IMONTH_FCST,IDAY_FCST           &
                            ,IHOUR_FCST,IMINUTE_FCST,IHRST
       INTEGER,INTENT(OUT) :: NSOIL
+!
       REAL,INTENT(OUT) :: SECOND_FCST
 !
       INTEGER,DIMENSION(3),INTENT(OUT) :: IDAT
 !
       REAL,INTENT(OUT) :: PT
-      TYPE(INTERNAL_STATE),POINTER       :: INT_STATE
+!
+      TYPE(PHYSICS_INTERNAL_STATE),POINTER :: INT_STATE
 !
       INTEGER,INTENT(OUT) :: IRTN
 !
-!--- local vars
+!---------------------
+!***  Local variables
+!---------------------
 !
-      INTEGER :: DT
       INTEGER :: NRECS_SKIP_FOR_PT,N,I,J,K,L
       INTEGER :: LDIM1,LDIM2,UDIM1,UDIM2
+      INTEGER :: LPT2
+      INTEGER,DIMENSION(7) :: FCSTDATE
+      INTEGER,DIMENSION(:),ALLOCATABLE :: ITEMP
 !
+      REAL :: PDTOP
       REAL,DIMENSION(LM) :: DSG1,DSG2,SGML1,SGML2
       REAL,DIMENSION(LM+1) :: SG1,SG2,SGM
       REAL,ALLOCATABLE,DIMENSION(:) :: SLDPTH
-      INTEGER :: LPT2
       REAL,DIMENSION(LM) :: PDSG1,PSGML1
       REAL,DIMENSION(LM+1) :: PSG1
       REAL,DIMENSION(:),ALLOCATABLE :: TEMP1
-      INTEGER,DIMENSION(:),ALLOCATABLE :: ITEMP
-      LOGICAL :: RUN
-      REAL :: PDTOP
 !
-      TYPE(NEMSIO_GFILE) :: gfile
-      INTEGER :: FCSTDATE(7)
+      LOGICAL :: RUN
+!
       CHARACTER(10) :: VARNAME
 !
+      TYPE(NEMSIO_GFILE) :: GFILE
+!
 !-----------------------------------------------------------------------
-!*** read restart data
+!***********************************************************************
 !-----------------------------------------------------------------------
 !
        CALL NEMSIO_INIT()
@@ -2622,7 +2745,7 @@
        CALL NEMSIO_OPEN(gfile,INFILE,'read',iret=irtn)
 !
 !-----------------------------------------------------------------------
-!              READ FROM RESTART FILE: INTEGER SCALARS
+!***  Read from restart file: Integer scalars
 !-----------------------------------------------------------------------
 !
       CALL NEMSIO_GETHEADVAR(gfile,'FCSTDATE',FCSTDATE,iret=irtn)
@@ -2638,8 +2761,9 @@
       CALL NEMSIO_GETHEADVAR(gfile,'LPT2',LPT2,iret=irtn)
 !
 !-----------------------------------------------------------------------
-!              READ FROM RESTART FILE: INTEGER 1D ARRAYS
+!***  Read from restart file: Integer 1D arrays
 !-----------------------------------------------------------------------
+!
       CALL NEMSIO_GETHEADVAR(gfile,'IDAT',IDAT,iret=irtn)
 !
       IF(MYPE==0)THEN
@@ -2656,27 +2780,38 @@
         write(0,*)' Steps/hour =',3600./int_state%dt
         write(0,*)'*************************************'
       ENDIF
+!
 !-----------------------------------------------------------------------
-!              READ FROM RESTART FILE: INTEGER SCALARS
+!***  Read from restart file: Integer scalars
 !-----------------------------------------------------------------------
+!
       CALL NEMSIO_GETHEADVAR(gfile,'NSOIL',NSOIL,iret=irtn)
 !      write(0,*)'in rst, fcstdate=',fcstdate,'ihrst=',ihrst,'lpt2=',lpt2, &
 !        'idat=',idat,'nsoil=',nsoil
       ALLOCATE(SLDPTH(1:NSOIL))
 !        READ(NFCST) NSOIL
+!
 !-----------------------------------------------------------------------
-!              READ FROM RESTART FILE: REAL SCALARS
+!***  Read from restart file: Real scalars
 !-----------------------------------------------------------------------
+!
       CALL NEMSIO_GETHEADVAR(gfile,'PDTOP',PDTOP,iret=irtn)
 !        READ(NFCST) PDTOP
 !-----------------------------------------------------------------------
       CALL NEMSIO_GETHEADVAR(gfile,'PT',PT,iret=irtn)
       int_state%PT=PT
-      PT=int_state%PT
+!
+      CALL NEMSIO_GETHEADVAR(gfile,'TLM0D',int_state%TLM0D,iret=irtn)
+      CALL NEMSIO_GETHEADVAR(gfile,'TPH0D',int_state%TPH0D,iret=irtn)
+      CALL NEMSIO_GETHEADVAR(gfile,'DPHD',int_state%DPHD,iret=irtn)
+      CALL NEMSIO_GETHEADVAR(gfile,'DLMD',int_state%DLMD,iret=irtn)
+      CALL NEMSIO_GETHEADVAR(gfile,'SBD',int_state%SBD,iret=irtn)
+      CALL NEMSIO_GETHEADVAR(gfile,'WBD',int_state%WBD,iret=irtn)
 !
 !-----------------------------------------------------------------------
-!              READ FROM RESTART FILE: REAL 1D ARRAYS
+!***  Read from restart file: Real 1D arrays
 !-----------------------------------------------------------------------
+!
       CALL NEMSIO_GETHEADVAR(gfile,'SG1',SG1,iret=irtn)
       CALL NEMSIO_GETHEADVAR(gfile,'SG2',SG2,iret=irtn)
       CALL NEMSIO_GETHEADVAR(gfile,'DSG1',DSG1,iret=irtn)
@@ -2694,8 +2829,9 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!              READ FROM RESTART FILE: LOGICAL
+!*** Read from restart file: Logical
 !-----------------------------------------------------------------------
+!
       CALL NEMSIO_GETHEADVAR(gfile,'RUN',RUN,iret=irtn)
 !        READ(NFCST) RUN
 !-----------------------------------------------------------------------
@@ -2716,7 +2852,7 @@
 
 !
 !-----------------------------------------------------------------------
-!***  BEFORE MOVING ON, TRANSFER VALUES TO THE INTERNAL STATE.
+!***  Transfer values to the internal state.
 !-----------------------------------------------------------------------
 !
       int_state%PDTOP=PDTOP
@@ -2727,7 +2863,6 @@
         int_state%PSGML1(L)=PSGML1(L)
         int_state%SGML2(L)=SGML2(L)
       ENDDO
-!jw
 !
       DO L=1,LM+1
         int_state%SG1(L)=SG1(L)
@@ -2740,14 +2875,14 @@
 !-----------------------------------------
 !***  I and J limits for tracer variables
 !-----------------------------------------
+!
       LDIM1=LBOUND(int_state%Q,1)
       UDIM1=UBOUND(int_state%Q,1)
       LDIM2=LBOUND(int_state%Q,2)
       UDIM2=UBOUND(int_state%Q,2)
 !
 !-----------------------------------------------------------------------
-
-!              READ FROM RESTART FILE: INTEGER 2D ARRAYS
+!***  Read from restart file: Integer 2D arrays
 !-----------------------------------------------------------------------
 !
       ALLOCATE(TEMP1((IDE-IDS+1)*(JDE-JDS+1)),STAT=I)
@@ -2788,7 +2923,7 @@
       DEALLOCATE(ITEMP)
 !
 !-----------------------------------------------------------------------
-!              READ FROM RESTART FILE: REAL 2D ARRAYS
+!***  Read from restart file: Real 2D arrays
 !-----------------------------------------------------------------------
 !
 !      ALLOCATE(TEMP1(IDS:IDE,JDS:JDE),STAT=I)
@@ -2824,8 +2959,11 @@
       ENDDO
       ENDDO
       CALL DSTRB(TEMP1,int_state%PD,1,1,1,1,1)
+!
 !-----------------------------------------------------------------------
-!              READ FROM RESTART FILE: REAL 2D ARRAYS (contd.)
+!***  Read from restart file: Real 2D arrays (contd.)
+!-----------------------------------------------------------------------
+!
 !-----------------------------------------------------------------------
 !***  ACFRCV
 !-----------------------------------------------------------------------
@@ -3722,6 +3860,7 @@
 !        write(0,*)'read rst phys,z0base=',maxval(temp1),minval(temp1)
       ENDIF
       CALL DSTRB(TEMP1,int_state%TLMAX,1,1,1,1,1)
+!
 !-----------------------------------------------------------------------
 !***  ACUTIM
 !-----------------------------------------------------------------------
@@ -4095,7 +4234,7 @@
 !-----------------------------------------------------------------------
 !***  TRACERS
 !-----------------------------------------------------------------------
-      DO N=int_state%INDX_RRW+1,int_state%NUM_TRACERS_TOTAL
+      DO N=int_state%INDX_RRW+1,int_state%NUM_TRACERS_TOTAL                !<-- The first 'INDX_RRW' arrays are unallocated pointers
       DO K=1,LM
         IF(MYPE==0)THEN
         write(varname,'(a8,I2.2)')'tracers_',N
@@ -4132,9 +4271,11 @@
 !-----------------------------------------------------------------------
 
       END SUBROUTINE PHYSICS_READ_RESTT_NEMSIO
-!-----------------------------------------------------------------------
+!
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
- END MODULE MODULE_PHYSICS_INIT_READ
+!
+      END MODULE MODULE_PHYSICS_INIT_READ
+!
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&

@@ -18,6 +18,9 @@
 !   2008-08-23  Janjic - General pressure-sigma hybrid
 !               Janjic - Consistent nonhydrostatic correction in the
 !                        first term of the pressure gradient force
+!   2008-09-03  Black  - Added initialization of boundary arrays
+!                        for nests.
+!   2009-03-12  Black  - Changes for general hybrid coordinate.
 !
 !-----------------------------------------------------------------------
 !
@@ -47,7 +50,20 @@
 !
       USE MODULE_DYNAMICS_OUTPUT,ONLY: POINT_DYNAMICS_OUTPUT
 !
-      USE MODULE_CLOCKTIMES
+      USE MODULE_CLOCKTIMES,ONLY : adv1_tim,adv2_tim                    &
+                                  ,bocoh_tim,bocov_tim                  &
+                                  ,cdwdt_tim,cdzdt_tim,consts_tim       &
+                                  ,ddamp_tim,dht_tim                    &
+                                  ,dyn_init_tim,dyn_run_tim             &
+                                  ,exch_dyn_tim                         &
+                                  ,fftfhn_tim,fftfwn_tim,hadv2_tim      &
+                                  ,hdiff_tim,init_tim,mono_tim          &
+                                  ,pdtsdt_tim,pgforce_tim,poavhn_tim    &
+                                  ,polehn_tim,polewn_tim                &
+                                  ,prefft_tim,presmud_tim               &
+                                  ,swaphn_tim,swapwn_tim                &
+                                  ,update_dyn_int_state_tim,updatet_tim &
+                                  ,vadv2_tim,vsound_tim,vtoa_tim
 !
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !
@@ -61,26 +77,31 @@
 !
       PUBLIC :: DYN_REGISTER                                            
 !
-!
-!
 !-----------------------------------------------------------------------
       INCLUDE '../../inc/kind.inc'
 !-----------------------------------------------------------------------
 !
-      INTEGER(KIND=KINT),PUBLIC :: IM,JM,LM
-      INTEGER(KIND=KINT)        :: MYPE,NUM_PES
+      INTEGER(kind=KINT),PUBLIC :: IM,JM,LM  
+      INTEGER(kind=KINT) :: MY_DOMAIN_ID,MYPE,NUM_PES
 !
-      TYPE(INTERNAL_STATE),POINTER :: INT_STATE                           !<-- The Dynamics component internal state pointer.
+      LOGICAL(kind=KLOG) :: ADVECT_TRACERS                              &  !<-- Flag for advecting tracers
+                           ,I_AM_A_NEST                                 &  !<-- Flag indicating if ATM Component is a nest
+                           ,OLD_PASSIVE                                 &  !<-- Flag for old passive advection
+                           ,OPERATIONAL_PHYSICS                            !<-- Flag to designate use of operational physics suite
 !
-      LOGICAL :: ADVECT_TRACERS                                         & !<-- Flag for advecting tracers
-                ,OLD_PASSIVE                                            & !<-- Flag for old passive advection
-                ,OPERATIONAL_PHYSICS                                      !<-- Flag to designate use of operational physics suite
+      CHARACTER(2) :: DOMAIN_CHAR
+      CHARACTER(6) :: FMT='(I2.2)'
+!
+      TYPE(DYNAMICS_INTERNAL_STATE),POINTER :: INT_STATE                   !<-- The Dynamics component internal state pointer.
+!
+      TYPE(ESMF_Logical) :: INPUT_READY                                 &  !<-- Flag indicating if nest has its own input data
+                           ,NEST_FLAG                                      !<-- Flag indicating if ATM Component is a nest
 !
 !-----------------------------------------------------------------------
 !***  FOR DETERMINING CLOCKTIMES OF VARIOUS PIECES OF THE DYNAMICS.
 !-----------------------------------------------------------------------
 !
-      REAL(KIND=KFPT) :: btim,btim0
+      REAL(kind=KDBL) :: btim,btim0
 !
 !-----------------------------------------------------------------------
 !
@@ -192,23 +213,24 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE DYN_INITIALIZE(GRID_COMP                               &
-                               ,IMP_STATE,EXP_STATE                     &
+                               ,IMP_STATE                               &
+                               ,EXP_STATE                               &
                                ,CLOCK_ATM                               &
                                ,RC_INIT)
-!-----------------------------------------------------------------------
+!
 !-----------------------------------------------------------------------
 !***  CARRY OUT ALL NECESSARY SETUPS FOR THE MODEL DYNAMICS.
 !-----------------------------------------------------------------------
 !
 !     USE MODULE_ESMF_State
-!      USE MODULE_CONTROL
-      USE MODULE_CONTROL,ONLY : DLMD,DPHD,DT,GLOBAL,HYDRO               &
-                               ,ICYCLE                                  &
-                               ,NHOURS_FCST,NPES                        &
-                               ,READ_GLOBAL_SUMS,SBD,WBD                &
-                               ,WRITE_GLOBAL_SUMS                       &
-                               ,CONSTS
-      USE MODULE_DYNAMICS_INIT_READ
+      USE MODULE_CONTROL,ONLY : DT,HYDRO                                &  !  <--
+                               ,ICYCLE                                  &  !  <-- Variables
+                               ,NPES                                    &  !  <--
+!                                                                            
+                               ,BOUNDARY_INIT,CONSTS                       !  <-- Subroutines
+!
+      USE MODULE_DYNAMICS_INIT_READ,ONLY : DYNAMICS_READ_BINARY         &
+                                          ,DYNAMICS_READ_NEMSIO
 !
 #ifdef IBM
       USE MODULE_FLTBNDS,ONLY : PREFFT
@@ -217,11 +239,10 @@
 #endif
 !
 !-----------------------------------------------------------------------
-!      INCLUDE 'mpif.h'
-!      INCLUDE 'mpif.h'
-!-----------------------------------------------------------------------
-!***  ARGUMENT VARIABLES.
-!-----------------------------------------------------------------------
+!     INCLUDE 'mpif.h'
+!------------------------
+!***  Argument variables
+!------------------------
 !
       TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP                       !<-- The Dynamics gridded component
       TYPE(ESMF_State),   INTENT(INOUT) :: IMP_STATE                       !<-- The Dynamics Initialize step's import state
@@ -230,27 +251,32 @@
 !
       INTEGER,OPTIONAL,    INTENT(OUT)  :: RC_INIT
 !
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
-!***  WRAP_INTERNAL_STATE IS DEFINED IN THE INTERNAL STATE MODULE.
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local variables
+!---------------------
 !
-      TYPE(WRAP_INTERNAL_STATE) :: WRAP   ! This wrap is a derived type which contains
-                                          ! only a pointer to the internal state.  It is needed
-                                          ! for using different architectures or compilers.
+      INTEGER(kind=KINT) :: IDENOMINATOR_DT,IEND,IERR,INTEGER_DT,JEND   &
+                           ,KSE,KSS,L,N,NUMERATOR_DT,RC
 !
-      TYPE(ESMF_State)          :: IMP_STATE_WRITE                        !<-- The Dynamics import state  
-      TYPE(ESMF_Grid)           :: GRID                                   !<-- The ESMF Grid
-      TYPE(ESMF_VM)             :: VM                                     !<-- The ESMF Virtual Machine
-      TYPE(ESMF_TimeInterval)   :: DT_ESMF                                !<-- The ESMF fundamental timestep (s)
-      TYPE(ESMF_Time)           :: STARTTIME                              !<-- The ESMF start time  
+      LOGICAL(kind=KLOG) :: RUN_LOCAL
 !
-      TYPE(ESMF_TimeInterval)   :: RUNDURATION
-      INTEGER :: IDENOMINATOR_DT,IERR,INTEGER_DT,KSE,KSS,L              &
-                ,N,NUMERATOR_DT,RC,run_duration
+      CHARACTER(20) :: FIELD_NAME
 !
-      LOGICAL(KIND=KLOG) :: RUN_LOCAL
+      TYPE(WRAP_DYN_INT_STATE) :: WRAP                                     ! <-- This wrap is a derived type which contains
+                                                                           !     only a pointer to the internal state.  It is needed
+                                                                           !     for using different architectures or compilers.
+!
+      TYPE(ESMF_State) :: IMP_STATE_WRITE                                  !<-- The Dynamics import state  
+!
+      TYPE(ESMF_Grid) :: GRID                                              !<-- The ESMF Grid
+!
+      TYPE(ESMF_VM) :: VM                                                  !<-- The ESMF Virtual Machine
+!
+      TYPE(ESMF_TimeInterval) :: DT_ESMF                                   !<-- The ESMF fundamental timestep (s)
+!
+      TYPE(ESMF_Time) :: STARTTIME                                         !<-- The ESMF start time  
+!
+      TYPE(ESMF_Field) :: FIELD_FIS
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -259,14 +285,14 @@
       btim0=timef()
 !
 !-----------------------------------------------------------------------
-!***  INITIALIZE THE ERROR SIGNAL VARIABLES.
+!***  Initialize the error signal variables.
 !-----------------------------------------------------------------------
 !
       RC     =ESMF_SUCCESS
       RC_INIT=ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
-!***  INITIALIZE THE DYNAMICS TIMERS.
+!***  Initialize the Dynamics timers.
 !-----------------------------------------------------------------------
 !
       adv1_tim=0.
@@ -301,13 +327,13 @@
       vtoa_tim=0.
 !
 !-----------------------------------------------------------------------
-!***  ALLOCATE THE INTERNAL STATE POINTER.
+!***  Allocate the internal state pointer.
 !-----------------------------------------------------------------------
 !
       ALLOCATE(INT_STATE,STAT=RC)
 !
 !-----------------------------------------------------------------------
-!***  ATTACH THE INTERNAL STATE TO THE GRIDDED COMPONENT.
+!***  Attach the internal state to the gridded component.
 !-----------------------------------------------------------------------
 !
       WRAP%INT_STATE=>INT_STATE
@@ -326,8 +352,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  RETRIEVE THE IMPORT STATE OF THE WRITE GRIDDED COMPONENT
-!***  FROM THE DYNAMICS EXPORT STATE.
+!***  Retrieve the import state of the Write gridded component
+!***  from the Dynamics export state.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -345,8 +371,69 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  INSERT THE LOCAL DOMAIN STARTING LIMITS AND THE HALO WIDTH INTO
-!***  THE DYNAMICS INTERNAL STATE.
+!***  Retrieve the domain ID from the Dynamics import state.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Get Domain ID from Dynamics Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The Dynamics import state
+                            ,name ='DOMAIN_ID'                          &  !<-- Name of variable to get from Dynamics import state
+                            ,value=MY_DOMAIN_ID                         &  !<-- Put extracted value here
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Retrieve the Nest/Not_A_Nest flag from the Dynamics import state.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Get Nest/Not-a-Nest Flag from Dynamics Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The Dynamics import state
+                            ,name ='I-Am-A-Nest Flag'                   &  !<-- Name of variable to get from Dynamics import state
+                            ,value=NEST_FLAG                            &  !<-- Put extracted value here
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      I_AM_A_NEST=NEST_FLAG                                                !<-- Convert from ESMF_Logical to LOGICAL
+!
+!-----------------------------------------------------------------------
+!***  If this is a nest domain extract the flag indicating whether or
+!***  not the nest's input file already exists.
+!-----------------------------------------------------------------------
+!
+      IF(I_AM_A_NEST)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Get Input-Ready Flag from Dynamics Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The Dynamics import state
+                              ,name ='Input Ready'                      &  !<-- Name of variable to get from Dynamics import state
+                              ,value=INPUT_READY                        &  !<-- Put extracted value here
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Insert the local domain starting limits and the halo width into
+!***  the Dynamics internal state.
 !-----------------------------------------------------------------------
 !
       IF(IHALO==JHALO)THEN
@@ -367,21 +454,21 @@
       int_state%JME=JME
 !
 !-----------------------------------------------------------------------
-!***  USE ESMF UTILITIES TO GET INFORMATION FROM THE CONFIGURATION FILE.
-!***  THE FUNCTION IS SIMILAR TO READING A NAMELIST.  THE GET_CONFIG
-!***  ROUTINE IS THE USER'S.  IT EXTRACTS VALUES FROM THE CONFIG FILE
-!***  AND PLACES THEM IN THE NAMELIST COMPONENTS OF THE INTERNAL STATE.
+!***  Use ESMF utilities to get information from the configuration file.
+!***  The function is similar to reading a namelist.  The GET_CONFIG
+!***  routine is the user's.  It extracts values from the config file
+!***  and places them in the namelist components of the internal state.
 !-----------------------------------------------------------------------
 !
-      CALL GET_CONFIG_DYN(GRID_COMP,INT_STATE,RC)                              !<-- User's routine to extract config file information
+      CALL GET_CONFIG_DYN(GRID_COMP,INT_STATE,RC)                          !<-- User's routine to extract config file information
 !
       IM=int_state%IM
       JM=int_state%JM
       LM=int_state%LM
 !
 !-----------------------------------------------------------------------
-!***  RETRIEVE THE VM TO OBTAIN THE TASK ID AND TOTAL NUMBER OF TASKS
-!***  FOR THE INTERNAL STATE.
+!***  Retrieve the VM to obtain the task ID and total number of tasks
+!***  for the internal state.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -412,9 +499,9 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  int_state%NUM_PES TAKEN FROM VM IS THE TOTAL NUMBER OF TASKS 
-!***  IN THE RUN INCLUDING I/O TASKS.  ACTUALLY WE WANT JUST THE
-!***  NUMBER OF FORECAST TASKS.
+!***  int_state%NUM_PES taken from VM is the total number of tasks 
+!***  on this domain including Write/Quilt tasks.  We want only the
+!***  number of forecast tasks.
 !-----------------------------------------------------------------------
 !
       int_state%NUM_PES=int_state%INPES*int_state%JNPES
@@ -426,21 +513,21 @@
                                  ! MYPE_SHARE.
 !
 !-----------------------------------------------------------------------
-!***  ONLY FORECAST TASKS ARE NEEDED FOR THE REMAINING
-!***  INITIALIZATION PROCESS.
+!***  Only forecast tasks are needed for the remaining
+!***  initialization process.
 !-----------------------------------------------------------------------
 !
       fcst_tasks: IF(MYPE<NUM_PES)THEN
 !
 !-----------------------------------------------------------------------
-!***  SET UP THE DYNAMICS INTERNAL STATE VARIABLES 
-!***  AND ALLOCATE INTERNAL STATE ARRAYS.
+!***  Set up the Dynamics internal state variables 
+!***  and allocate internal state arrays.
 !-----------------------------------------------------------------------
 !
         CALL SET_INTERNAL_STATE_DYN(GRID_COMP,INT_STATE)
 !
 !-----------------------------------------------------------------------
-!***  ASSIGN THE FUNDAMENTAL TIMESTEP RETRIEVED FROM THE CLOCK.
+!***  Assign the fundamental timestep retrieved from the clock.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -450,7 +537,6 @@
 !
         CALL ESMF_ClockGet(clock   =CLOCK_ATM                           &
                           ,timeStep=DT_ESMF                             &
-                          ,runduration=RUNDURATION                      &
                           ,rc      =RC)
 !
         CALL ESMF_TimeIntervalGet(timeinterval=DT_ESMF                  &  !<-- the ESMF timestep
@@ -458,10 +544,6 @@
                                  ,sN          =NUMERATOR_DT             &  !<-- the numerator of the fractional second
                                  ,sD          =IDENOMINATOR_DT          &  !<-- the denominator of the fractional second
                                  ,rc          =RC)
-        CALL ESMF_TimeIntervalGet(timeinterval=RUNDURATION              &
-                                 ,s           =run_duration             &
-                                 ,rc          =RC)
-
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -470,10 +552,9 @@
         int_state%DT=REAL(INTEGER_DT)+REAL(NUMERATOR_DT)                &
                                      /REAL(IDENOMINATOR_DT)
         DT=int_state%DT
-        int_state%RUN_DURATION=REAL(run_duration)/3600.0
 !
 !-----------------------------------------------------------------------
-!***  PRIMARY INITIALIZATION OF SCALARS/ARRAYS.
+!***  Read the input file.
 !-----------------------------------------------------------------------
 !
         KSS=1        
@@ -481,118 +562,138 @@
 !
         btim=timef()
 !
-
-        if(.not.int_state%nemsio_input) then
-
-
-        CALL DYNAMICS_READ_BINARY(int_state%GLOBAL                      &
-                 ,KSS,KSE                                               &
-                 ,int_state%PDTOP,int_state%PT,int_state%LPT2           &
-                 ,int_state%SG1,int_state%DSG1                          &
-                 ,int_state%PSG1,int_state%PDSG1                        &
-                 ,int_state%SG2,int_state%DSG2,int_state%SGM            &
-                 ,int_state%SGML1,int_state%PSGML1,int_state%SGML2      &
-                 ,int_state%FIS,int_state%SM,int_state%SICE             &
-                 ,int_state%PD,int_state%PDO,int_state%PINT             &
-                 ,int_state%U,int_state%V,int_state%Q2,int_state%E2     &
-                 ,int_state%T,int_state%Q,int_state%CW                  &
-                 ,int_state%TP,int_state%UP,int_state%VP                &
-                 ,int_state%RRW,int_state%DWDT,int_state%W              &
-                 ,int_state%OMGALF,int_state%DIV,int_state%Z            &
-                 ,int_state%RTOP                                        &
-                 ,int_state%TCU,int_state%TCV,int_state%TCT             &
-                 ,int_state%TRACERS_PREV                                &
-                 ,int_state%INDX_Q,int_state%INDX_CW                    &
-                 ,int_state%INDX_RRW,int_state%INDX_Q2                  &
-                 ,int_state%NTSTI,int_state%NTSTM                       &
-                 ,int_state%IHR,int_state%IHRST,int_state%IDAT          &
-                 ,RUN_LOCAL,int_state%RESTART                           &
-                 ,int_state%NUM_WATER,int_state%WATER                   &
-                 ,int_state%NUM_TRACERS_TOTAL,int_state%TRACERS         &
-                 ,int_state%P_QV,int_state%P_QC,int_state%P_QR          &
-                 ,int_state%P_QI,int_state%P_QS,int_state%P_QG          &
-                 ,DT,int_state%NHOURS_FCST)
-         else
-         CALL DYNAMICS_READ_NEMSIO(int_state%GLOBAL                     &
-                 ,KSS,KSE                                               &
-                 ,int_state%PDTOP,int_state%PT,int_state%LPT2           &
-                 ,int_state%SG1,int_state%DSG1                          &
-                 ,int_state%PSG1,int_state%PDSG1                        &
-                 ,int_state%SG2,int_state%DSG2,int_state%SGM            &
-                 ,int_state%SGML1,int_state%PSGML1,int_state%SGML2      &
-                 ,int_state%FIS,int_state%SM,int_state%SICE             &
-                 ,int_state%PD,int_state%PDO,int_state%PINT             &
-                 ,int_state%U,int_state%V,int_state%Q2,int_state%E2     &
-                 ,int_state%T,int_state%Q,int_state%CW                  &
-                 ,int_state%TP,int_state%UP,int_state%VP                &
-                 ,int_state%RRW,int_state%DWDT,int_state%W              &
-                 ,int_state%OMGALF,int_state%DIV,int_state%Z            &
-                 ,int_state%RTOP                                        &
-                 ,int_state%TCU,int_state%TCV,int_state%TCT             &
-                 ,int_state%TRACERS_PREV                                &
-                 ,int_state%INDX_Q,int_state%INDX_CW                    &
-                 ,int_state%INDX_RRW,int_state%INDX_Q2                  &
-                 ,int_state%NTSTI,int_state%NTSTM                       &
-                 ,int_state%IHR,int_state%IHRST,int_state%IDAT          &
-                 ,RUN_LOCAL,int_state%RESTART                           &
-                 ,int_state%NUM_WATER,int_state%WATER                   &
-                 ,int_state%NUM_TRACERS_TOTAL,int_state%TRACERS         &
-                 ,int_state%P_QV,int_state%P_QC,int_state%P_QR          &
-                 ,int_state%P_QI,int_state%P_QS,int_state%P_QG          &
-		 ,DT,int_state%NHOURS_FCST)
-         endif
-       if (mype==0) then
-      write(0,*)'dynamics'
-      write(0,*)'ihr,ihrst,lpt2,ntsti,ntstm=',int_state%ihr,int_state%ihrst,int_state%lpt2,int_state%ntsti,int_state%ntstm
-      write(0,*)'idat=',int_state%idat(1),int_state%idat(2),int_state%idat(3)
-      write(0,*)'dsg1=',minval(int_state%dsg1),maxval(int_state%dsg1)
-      write(0,*)'pdsg1=',minval(int_state%pdsg1),maxval(int_state%pdsg1)
-      write(0,*)'psgml1=',minval(int_state%psgml1),maxval(int_state%psgml1)
-      write(0,*)'sgml1=',minval(int_state%sgml1),maxval(int_state%sgml1)
-      write(0,*)'sgml2=',minval(int_state%sgml2),maxval(int_state%sgml2)
-      write(0,*)'psg1=',minval(int_state%psg1),maxval(int_state%psg1)
-      write(0,*)'sg1=',minval(int_state%sg1),maxval(int_state%sg1)
-      write(0,*)'sg2=',minval(int_state%sg2),maxval(int_state%sg2)
-      write(0,*)'fis=',minval(int_state%fis),maxval(int_state%fis)
-      write(0,*)'pd=',minval(int_state%pd),maxval(int_state%pd)
-      write(0,*)'pdo=',minval(int_state%pdo),maxval(int_state%pdo)
-      write(0,*)'sice=',minval(int_state%sice),maxval(int_state%sice)
-      write(0,*)'sm=',minval(int_state%sm),maxval(int_state%sm)
-      write(0,*)'cw=',minval(int_state%cw),maxval(int_state%cw)
-      write(0,*)'dwdt=',minval(int_state%dwdt),maxval(int_state%dwdt)
-      write(0,*)'q=',minval(int_state%q),maxval(int_state%q)
-      write(0,*)'q2=',minval(int_state%q2),maxval(int_state%q2)
-      write(0,*)'rrw=',minval(int_state%rrw),maxval(int_state%rrw)
-      write(0,*)'omgalf=',minval(int_state%omgalf),maxval(int_state%omgalf)
-      write(0,*)'div=',minval(int_state%div),maxval(int_state%div)
-      write(0,*)'z=',minval(int_state%z),maxval(int_state%z)
-      write(0,*)'rtop=',minval(int_state%rtop),maxval(int_state%rtop)
-      write(0,*)'tcu=',minval(int_state%tcu),maxval(int_state%tcu)
-      write(0,*)'tcv=',minval(int_state%tcv),maxval(int_state%tcv)
-      write(0,*)'tct=',minval(int_state%tct),maxval(int_state%tct)
-      write(0,*)'t=',minval(int_state%t),maxval(int_state%t)
-      write(0,*)'tp=',minval(int_state%tp),maxval(int_state%tp)
-      write(0,*)'u=',minval(int_state%u),maxval(int_state%u)
-      write(0,*)'up=',minval(int_state%up),maxval(int_state%up)
-      write(0,*)'v=',minval(int_state%v),maxval(int_state%v)
-      write(0,*)'vp=',minval(int_state%vp),maxval(int_state%vp)
-      write(0,*)'e2=',minval(int_state%e2),maxval(int_state%e2)
-      write(0,*)'w=',minval(int_state%w),maxval(int_state%w)
-      write(0,*)'pint=',minval(int_state%pint),maxval(int_state%pint)
-      write(0,*)'water=',minval(int_state%water),minval(int_state%water)
-      write(0,*)'tracers=',minval(int_state%tracers),maxval(int_state%tracers)
-!      write(0,*)'sp=',minval(int_state%sp),maxval(int_state%sp)
-      write(0,*)'run=',int_state%run 
+        IF(.NOT.int_state%NEMSIO_INPUT)THEN
+!
+          CALL DYNAMICS_READ_BINARY(int_state%GLOBAL                    &
+                   ,KSS,KSE                                             &
+                   ,int_state%PDTOP,int_state%PT,int_state%LPT2         &
+                   ,int_state%SG1,int_state%DSG1                        &
+                   ,int_state%PSG1,int_state%PDSG1                      &
+                   ,int_state%SG2,int_state%DSG2,int_state%SGM          &
+                   ,int_state%SGML1,int_state%PSGML1,int_state%SGML2    &
+                   ,int_state%SBD,int_state%WBD                         &
+                   ,int_state%DPHD,int_state%DLMD                       &
+                   ,int_state%TPH0D,int_state%TLM0D                     &
+                   ,int_state%FIS,int_state%SM,int_state%SICE           &
+                   ,int_state%PD,int_state%PDO,int_state%PINT           &
+                   ,int_state%U,int_state%V,int_state%Q2,int_state%E2   &
+                   ,int_state%T,int_state%Q,int_state%CW                &
+                   ,int_state%TP,int_state%UP,int_state%VP              &
+                   ,int_state%RRW,int_state%DWDT,int_state%W            &
+                   ,int_state%OMGALF,int_state%DIV,int_state%Z          &
+                   ,int_state%RTOP                                      &
+                   ,int_state%TCU,int_state%TCV,int_state%TCT           &
+                   ,int_state%TRACERS_PREV                              &
+                   ,int_state%INDX_Q,int_state%INDX_CW                  &
+                   ,int_state%INDX_RRW,int_state%INDX_Q2                &
+                   ,int_state%NTSTI,int_state%NTSTM                     &
+                   ,int_state%IHR,int_state%IHRST,int_state%IDAT        &
+                   ,RUN_LOCAL,int_state%RESTART                         &
+                   ,int_state%NUM_WATER,int_state%WATER                 &
+                   ,int_state%NUM_TRACERS_TOTAL,int_state%TRACERS       &
+                   ,int_state%P_QV,int_state%P_QC,int_state%P_QR        &
+                   ,int_state%P_QI,int_state%P_QS,int_state%P_QG        &
+                   ,DT,int_state%NHOURS_FCST                            &
+                   ,int_state%LNSV                                      &
+                   ,int_state%UBS,int_state%UBN                         &
+                   ,int_state%UBW,int_state%UBE                         &
+                   ,int_state%VBS,int_state%VBN                         &
+                   ,int_state%VBW,int_state%VBE                         &
+                   ,MY_DOMAIN_ID                                        &
+                   ,int_state%I_PAR_STA,int_state%J_PAR_STA )
+!
+        ELSE
+!
+          CALL DYNAMICS_READ_NEMSIO(int_state%GLOBAL                    &
+                  ,KSS,KSE                                              &
+                  ,int_state%PDTOP,int_state%PT,int_state%LPT2          &
+                  ,int_state%SG1,int_state%DSG1                         &
+                  ,int_state%PSG1,int_state%PDSG1                       &
+                  ,int_state%SG2,int_state%DSG2,int_state%SGM           &
+                  ,int_state%SGML1,int_state%PSGML1,int_state%SGML2     &
+                  ,int_state%SBD,int_state%WBD                          &
+                  ,int_state%DPHD,int_state%DLMD                        &
+                  ,int_state%TPH0D,int_state%TLM0D                      &
+                  ,int_state%FIS,int_state%SM,int_state%SICE            &
+                  ,int_state%PD,int_state%PDO,int_state%PINT            &
+                  ,int_state%U,int_state%V,int_state%Q2,int_state%E2    &
+                  ,int_state%T,int_state%Q,int_state%CW                 &
+                  ,int_state%TP,int_state%UP,int_state%VP               &
+                  ,int_state%RRW,int_state%DWDT,int_state%W             &
+                  ,int_state%OMGALF,int_state%DIV,int_state%Z           &
+                  ,int_state%RTOP                                       &
+                  ,int_state%TCU,int_state%TCV,int_state%TCT            &
+                  ,int_state%TRACERS_PREV                               &
+                  ,int_state%INDX_Q,int_state%INDX_CW                   &
+                  ,int_state%INDX_RRW,int_state%INDX_Q2                 &
+                  ,int_state%NTSTI,int_state%NTSTM                      &
+                  ,int_state%IHR,int_state%IHRST,int_state%IDAT         &
+                  ,RUN_LOCAL,int_state%RESTART                          &
+                  ,int_state%NUM_WATER,int_state%WATER                  &
+                  ,int_state%NUM_TRACERS_TOTAL,int_state%TRACERS        &
+                  ,int_state%P_QV,int_state%P_QC,int_state%P_QR         &
+                  ,int_state%P_QI,int_state%P_QS,int_state%P_QG         &
+                  ,DT,int_state%NHOURS_FCST                             &
+                  ,int_state%LNSV                                       &
+                  ,int_state%UBS,int_state%UBN                          &
+                  ,int_state%UBW,int_state%UBE                          &
+                  ,int_state%VBS,int_state%VBN                          &
+                  ,int_state%VBW,int_state%VBE                          &
+                  ,MY_DOMAIN_ID                                         &
+                  ,int_state%I_PAR_STA,int_state%J_PAR_STA )
+!
+        ENDIF
+!
+      if (mype==0) then
+        write(0,*)'dynamics'
+        write(0,*)'ihr,ihrst,lpt2,ntsti,ntstm=',int_state%ihr,int_state%ihrst,int_state%lpt2,int_state%ntsti,int_state%ntstm
+        write(0,*)'idat=',int_state%idat(1),int_state%idat(2),int_state%idat(3)
+        write(0,*)'dsg1=',minval(int_state%dsg1),maxval(int_state%dsg1)
+        write(0,*)'pdsg1=',minval(int_state%pdsg1),maxval(int_state%pdsg1)
+        write(0,*)'psgml1=',minval(int_state%psgml1),maxval(int_state%psgml1)
+        write(0,*)'sgml1=',minval(int_state%sgml1),maxval(int_state%sgml1)
+        write(0,*)'sgml2=',minval(int_state%sgml2),maxval(int_state%sgml2)
+        write(0,*)'psg1=',minval(int_state%psg1),maxval(int_state%psg1)
+        write(0,*)'sg1=',minval(int_state%sg1),maxval(int_state%sg1)
+        write(0,*)'sg2=',minval(int_state%sg2),maxval(int_state%sg2)
+        write(0,*)'fis=',minval(int_state%fis),maxval(int_state%fis)
+        write(0,*)'pd=',minval(int_state%pd),maxval(int_state%pd)
+        write(0,*)'pdo=',minval(int_state%pdo),maxval(int_state%pdo)
+        write(0,*)'sice=',minval(int_state%sice),maxval(int_state%sice)
+        write(0,*)'sm=',minval(int_state%sm),maxval(int_state%sm)
+        write(0,*)'cw=',minval(int_state%cw),maxval(int_state%cw)
+        write(0,*)'dwdt=',minval(int_state%dwdt),maxval(int_state%dwdt)
+        write(0,*)'q=',minval(int_state%q),maxval(int_state%q)
+        write(0,*)'q2=',minval(int_state%q2),maxval(int_state%q2)
+        write(0,*)'rrw=',minval(int_state%rrw),maxval(int_state%rrw)
+        write(0,*)'omgalf=',minval(int_state%omgalf),maxval(int_state%omgalf)
+        write(0,*)'div=',minval(int_state%div),maxval(int_state%div)
+        write(0,*)'z=',minval(int_state%z),maxval(int_state%z)
+        write(0,*)'rtop=',minval(int_state%rtop),maxval(int_state%rtop)
+        write(0,*)'tcu=',minval(int_state%tcu),maxval(int_state%tcu)
+        write(0,*)'tcv=',minval(int_state%tcv),maxval(int_state%tcv)
+        write(0,*)'tct=',minval(int_state%tct),maxval(int_state%tct)
+        write(0,*)'t=',minval(int_state%t),maxval(int_state%t)
+        write(0,*)'tp=',minval(int_state%tp),maxval(int_state%tp)
+        write(0,*)'u=',minval(int_state%u),maxval(int_state%u)
+        write(0,*)'up=',minval(int_state%up),maxval(int_state%up)
+        write(0,*)'v=',minval(int_state%v),maxval(int_state%v)
+        write(0,*)'vp=',minval(int_state%vp),maxval(int_state%vp)
+        write(0,*)'e2=',minval(int_state%e2),maxval(int_state%e2)
+        write(0,*)'w=',minval(int_state%w),maxval(int_state%w)
+        write(0,*)'pint=',minval(int_state%pint),maxval(int_state%pint)
+        write(0,*)'water=',minval(int_state%water),minval(int_state%water)
+        write(0,*)'tracers=',minval(int_state%tracers),maxval(int_state%tracers)
+!       write(0,*)'sp=',minval(int_state%sp),maxval(int_state%sp)
+        write(0,*)'run=',int_state%run 
       endif
-     
 !
-
-!
-!***  CHECK IF STARTING DATE/TIME IN INPUT DATA FILE AGREES WITH
-!***  THE CONFIGURE FILE.
+!-----------------------------------------------------------------------
+!***  Check if starting Date/Time in input data file agrees with
+!***  the configure file.
+!-----------------------------------------------------------------------
 !
         IF(.NOT.int_state%RESTART.AND.MYPE==0)THEN
-         if(.not.int_state%nemsio_input) then
           IF(int_state%START_HOUR /=int_state%IHRST.OR.                 &
              int_state%START_DAY  /=int_state%IDAT(1).OR.               &
              int_state%START_MONTH/=int_state%IDAT(2).OR.               &
@@ -611,26 +712,6 @@
             WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
             WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
           ENDIF
-         else
-          IF(int_state%START_HOUR /=int_state%IHRST.OR.                 &
-             int_state%START_DAY  /=int_state%IDAT(1).OR.               &
-             int_state%START_MONTH/=int_state%IDAT(2).OR.               &
-             int_state%START_YEAR /=int_state%IDAT(3))THEN
-            WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
-            WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
-            WRITE(0,*)' DATES IN INPUT AND CONFIGURE FILES DISAGREE!!'
-            WRITE(0,*)' INPUT: HOUR=',int_state%IHRST                   &
-                      ,       ' DAY=',int_state%IDAT(1)                 &
-                      ,     ' MONTH=',int_state%IDAT(2)                 &
-                      ,      ' YEAR=',int_state%IDAT(3)
-            WRITE(0,*)' CONFIG: HOUR=',int_state%START_HOUR             &
-                      ,        ' DAY=',int_state%START_DAY              &
-                      ,      ' MONTH=',int_state%START_MONTH            &
-                      ,       ' YEAR=',int_state%START_YEAR
-            WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
-            WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
-          ENDIF
-         endif
         ENDIF
 !
 !-----------------------------------------------------------------------
@@ -641,22 +722,69 @@
           int_state%RUN=ESMF_FALSE
         ENDIF
 !
-        init_tim=init_tim+timef()-btim
+        init_tim=init_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  ASSIGN GRID-RELATED CONSTANTS AFTER DEREFERENCING NEEDED VARIABLES.
+!***  Nested domains do not have boundary condition files since the
+!***  boundary values come from their parents.  However the boundary
+!***  variable arrays need to contain initial values before tendencies
+!***  from the parent can be added.
+!-----------------------------------------------------------------------
+!
+        IF(I_AM_A_NEST)THEN
+!
+!-----------------------------------------------------------------------
+!
+          CALL BOUNDARY_INIT(ITS,ITE,JTS,JTE,LM                         &
+                            ,IMS,IME,JMS,JME                            &
+                            ,IDS,IDE,JDS,JDE                            &
+                            ,int_state%LNSH,int_state%LNSV              &
+                            ,int_state%PD                               &
+                            ,int_state%PDBS,int_state%PDBN              &
+                            ,int_state%PDBW,int_state%PDBE              &
+                            ,int_state%T                                &
+                            ,int_state%TBS,int_state%TBN                &
+                            ,int_state%TBW,int_state%TBE                &
+                            ,int_state%Q                                &
+                            ,int_state%QBS,int_state%QBN                &
+                            ,int_state%QBW,int_state%QBE                &
+                            ,int_state%CW                               &
+                            ,int_state%WBS,int_state%WBN                &
+                            ,int_state%WBW,int_state%WBE                &
+                            ,int_state%U                                &
+                            ,int_state%UBS,int_state%UBN                &
+                            ,int_state%UBW,int_state%UBE                &
+                            ,int_state%V                                &
+                            ,int_state%VBS,int_state%VBN                &
+                            ,int_state%VBW,int_state%VBE                &
+                            ,int_state%RESTART                          &
+                              )
+!-----------------------------------------------------------------------
+!***  Also we need to retrieve the Parent-Child timestep ratio in order
+!***  to know how often to update the boundary tendencies.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Get Parent-Child Time Ratio from Dynamics Import State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The Dynamics import state
+                                ,name ='Parent-Child Time Ratio'          &  !<-- Name of variable to get from Dynamics import state
+                                ,value=int_state%PARENT_CHILD_TIME_RATIO  &  !<-- Put extracted value here
+                                ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Assign grid-related constants after dereferencing needed variables.
 !-----------------------------------------------------------------------
 !
         btim=timef()
-!
-        DPHD=int_state%DPHD
-        DLMD=int_state%DLMD
-        SBD=int_state%SBD
-        WBD=int_state%WBD
-        NHOURS_FCST=int_state%NHOURS_FCST
-        GLOBAL=int_state%GLOBAL
-        READ_GLOBAL_SUMS=int_state%READ_GLOBAL_SUMS
-        WRITE_GLOBAL_SUMS=int_state%WRITE_GLOBAL_SUMS
 !
         CALL CONSTS(int_state%GLOBAL                                    &
                    ,int_state%SECDIF                                    &
@@ -664,6 +792,7 @@
                    ,int_state%CODAMP,int_state%WCOR                     &
                    ,int_state%PT                                        &
                    ,int_state%TPH0D,int_state%TLM0D                     &
+                   ,int_state%SBD,int_state%WBD                         &
                    ,int_state%DPHD,int_state%DLMD                       &
                    ,int_state%DXH,int_state%RDXH                        &
                    ,int_state%DXV,int_state%RDXV                        &
@@ -681,15 +810,16 @@
                    ,int_state%HDACX,int_state%HDACY                     &
                    ,int_state%HDACVX,int_state%HDACVY                   &
                    ,int_state%LNSH,int_state%LNSAD                      &
-                   ,int_state%NBOCO,int_state%TBOCO)
+                   ,int_state%NBOCO,int_state%TBOCO                     &
+                   ,MY_DOMAIN_ID)
 !
-        consts_tim=consts_tim+timef()-btim
+        consts_tim=consts_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  INITIALIZE THE FILTERS.
+!***  Initialize the FFT filters.
 !-----------------------------------------------------------------------
 !
-        IF(GLOBAL)THEN
+        IF(int_state%GLOBAL)THEN
           btim=timef()
 !
           CALL PREFFT(int_state%DLMD,int_state%DPHD,int_state%SBD,LM      &
@@ -704,7 +834,7 @@
 #endif
                      ,int_state%INPES,int_state%JNPES)
 !
-          prefft_tim=prefft_tim+timef()-btim
+          prefft_tim=prefft_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !
@@ -712,23 +842,23 @@
           btim=timef()
 !
 !-----------------------------------------------------------------------
-!***  INITIALIZE THE POLAR FILTER FOR UNFILTERED VARIABLES.
+!***  Initialize the polar filter for unfiltered variables.
 !-----------------------------------------------------------------------
 !
           CALL PRESMUD(int_state%DLMD,int_state%DPHD,int_state%SBD      &
                       ,int_state%NHSMUD)
 !
-          presmud_tim=presmud_tim+timef()-btim
+          presmud_tim=presmud_tim+(timef()-btim)
 #endif
 !
         ENDIF
 !
 !-----------------------------------------------------------------------
-!***  RETRIEVE THE ESMF Grid THEN CREATE THE ESMF FIELDS ON THAT GRID
-!***  FOR THE DYNAMICS IMPORT/EXPORT STATES.
-!***  SEND SUBROUTINE ALLOC_FIELDS_DYN THE ENTIRE DYNAMICS INTERNAL STATE
-!***  FROM WHICH THE DESIRED ARRAYS WILL BE EXTRACTED FOR
-!***  INSERTION INTO THE IMPORT/EXPORT STATES.
+!***  Retrieve the ESMF Grid then create the ESMF Fields on that Grid
+!***  for the Dynamics import/export states.
+!***  Send subroutine ALLOC_FIELDS_DYN the entire Dynamics internal
+!***  state from which the desired arrays will be extracted for
+!***  insertion into the import/export states.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -747,14 +877,14 @@
         CALL ALLOC_FIELDS_DYN(GRID,INT_STATE)
 !
 !-----------------------------------------------------------------------
-!***  ADD THE DESIRED ESMF Fields TO THE DYNAMICS EXPORT STATE.
-!***  THE POINTERS INSIDE THE Fields ARE POINTING AT THE APPROPRIATE
-!***  VARIABLES INSIDE THE INTERNAL STATE (see ALLOC_FIELDS_DYN
+!***  Add the desired ESMF Fields to the Dynamics export state.
+!***  The pointers inside the Fields are pointing at the appropriate
+!***  variables inside the internal state (see ALLOC_FIELDS_DYN
 !***  in module_DYNAMICS_FIELDS.F).
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------
-!***  ADD THE 3D QUANTITIES TO THE EXPORT STATE.
+!***  Add the 3D quantities to the export state.
 !-----------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -787,12 +917,12 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------
-!***  ADD THE 2D QUANTITIES TO THE EXPORT STATE.
+!***  Add the 2D quantities to the export state.
 !-----------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Add 2-D Data to Dynamics Export State"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+        MESSAGE_CHECK="Add 2-D Data to Dynamics Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateAdd(state=EXP_STATE                              &
@@ -804,8 +934,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  ADD THE 4D TRACERS FIELD TO THE EXPORT STATE.
-!***  THE NUMBER OF 3D CONSTITUENTS IS GIVEN BY NUM_TRACERS_TOTAL.
+!***  Add the 4D tracers Field to the export state.
+!***  The number of 3D constituents is given by NUM_TRACERS_TOTAL.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -822,9 +952,9 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  ALSO INSERT THE VALUE OF NUM_TRACERS_TOTAL INTO THE EXPORT STATE.
-!***  THIS WILL TELL THE Dyn-Phy Coupler HOW MANY CONSTITUENTS
-!***  THERE ARE TO TRANSFER IN THE 4-D TRACERS FIELD.
+!***  Also insert the value of NUM_TRACERS_TOTAL into the export state.
+!***  This will tell the Dyn-Phy Coupler how many constituents
+!***  there are to transfer in the 4-D Tracers Field.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -835,6 +965,181 @@
         CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Dynamics export state
                               ,name ='NUM_TRACERS_TOTAL'                &  !<-- The inserted quantity will have this name
                               ,value=int_state%NUM_TRACERS_TOTAL        &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Insert sfc geopotential (FIS) into the export state.  If there
+!***  are nests then their values of FIS will need to be sent to their
+!***  parents.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="DYN_Init: Create FIELD_FIS"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        FIELD_NAME='FIS'
+!
+        FIELD_FIS=ESMF_FieldCreate(grid            =GRID                &  !<-- The ESMF grid
+                                  ,farray          =int_state%FIS       &  !<-- Insert this pointer into the Field
+                                  ,maxHaloUWidth   =(/IHALO,JHALO/)     &  !<-- Upper bound of halo region
+                                  ,maxHaloLWidth   =(/IHALO,JHALO/)     &  !<-- Lower bound of halo region
+                                  ,name            =FIELD_NAME          &  !<-- Name of the Field
+                                  ,indexFlag       =ESMF_INDEX_DELOCAL  &
+                                  ,rc              =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Add FIS to Dynamics Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_StateAdd(state=EXP_STATE                              &
+                          ,field=FIELD_FIS                              &  !<-- Sfc geopotential
+                          ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  INSERT THIS TASK'S INTEGRATION INDEX LIMITS INTO THE
+!***  EXPORT STATE ALONG WITH THE FULL DOMAIN LIMITS.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Add Task Integration Limits to Dynamics Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Dynamics export state
+                              ,name ='ITS'                              &  !<-- The inserted quantity will have this name
+                              ,value=int_state%ITS                      &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Dynamics export state
+                              ,name ='ITE'                              &  !<-- The inserted quantity will have this name
+                              ,value=int_state%ITE                      &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Dynamics export state
+                              ,name ='JTS'                              &  !<-- The inserted quantity will have this name
+                              ,value=int_state%JTS                      &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Dynamics export state
+                              ,name ='JTE'                              &  !<-- The inserted quantity will have this name
+                              ,value=int_state%JTE                      &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Dynamics export state
+                              ,name ='LM'                               &  !<-- The inserted quantity will have this name
+                              ,value=int_state%LM                       &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Dynamics export state
+                              ,name ='NHALO'                            &  !<-- The inserted quantity will have this name
+                              ,value=int_state%NHALO                    &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Dynamics export state
+                              ,name ='IDS'                              &  !<-- The inserted quantity will have this name
+                              ,value=int_state%IDS                      &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Dynamics export state
+                              ,name ='IDE'                              &  !<-- The inserted quantity will have this name
+                              ,value=int_state%IDE                      &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Dynamics export state
+                              ,name ='JDS'                              &  !<-- The inserted quantity will have this name
+                              ,value=int_state%JDS                      &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Dynamics export state
+                              ,name ='JDE'                              &  !<-- The inserted quantity will have this name
+                              ,value=int_state%JDE                      &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  INSERT THE DOMAIN'S TOP PRESSURE, THE PRESSURE THICKNESS OF THE
+!***  PRESSURE DOMAIN, THE MID-LAYER PRESSURES IN THE PRESSURE DOMAIN
+!***  AND THE MID-LAYER SIGMAS IN THE SIGMA DOMAIN.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert PT into Dynamics Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Dynamics export state
+                              ,name ='PT'                               &  !<-- The inserted quantity will have this name
+                              ,value=int_state%PT                       &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Dynamics export state
+                              ,name ='PDTOP'                            &  !<-- The inserted quantity will have this name
+                              ,value=int_state%PDTOP                    &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeSet(state    =EXP_STATE                      &  !<-- The Dynamics export state
+                              ,name     ='PSGML1'                       &  !<-- The inserted quantity will have this name
+                              ,count    =LM                             &  !<-- The data has this many items
+                              ,valueList=int_state%PSGML1               &  !<-- The value of this is associated with the preceding name
+                              ,rc       =RC)
+!
+        CALL ESMF_AttributeSet(state    =EXP_STATE                      &  !<-- The Dynamics export state
+                              ,name     ='SGML2'                        &  !<-- The inserted quantity will have this name
+                              ,count    =LM                             &  !<-- The data has this many items
+                              ,valueList=int_state%SGML2                &  !<-- The value of this is associated with the preceding name
+                              ,rc       =RC)
+!
+        CALL ESMF_AttributeSet(state    =EXP_STATE                      &  !<-- The Dynamics export state
+                              ,name     ='SG1'                          &  !<-- The inserted quantity will have this name
+                              ,count    =LM+1                           &  !<-- The data has this many items
+                              ,valueList=int_state%SG1                  &  !<-- The value of this is associated with the preceding name
+                              ,rc       =RC)
+!
+        CALL ESMF_AttributeSet(state    =EXP_STATE                      &  !<-- The Dynamics export state
+                              ,name     ='SG2'                          &  !<-- The inserted quantity will have this name
+                              ,count    =LM+1                           &  !<-- The data has this many items
+                              ,valueList=int_state%SG2                  &  !<-- The value of this is associated with the preceding name
+                              ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  FINALLY INSERT THE VALUE OF LNSH AND LNSV (THE WIDTH OF THE
+!***  BLENDING REGION ALONG THE BOUNDARIES FOR H AND V POINTS).
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert LNSH, LNSV into Dynamics Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Dynamics export state
+                              ,name ='LNSH'                             &  !<-- The inserted quantity will have this name
+                              ,value=int_state%LNSH                     &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Dynamics export state
+                              ,name ='LNSV'                             &  !<-- The inserted quantity will have this name
+                              ,value=int_state%LNSV                     &  !<-- The value of this is associated with the preceding name
                               ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -892,6 +1197,63 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
+!***  THE RESTART OUTPUT FILE MUST CONTAIN THE WINDS FROM THE
+!***  BOUNDARY ARRAYS UBS,UBN,.... BUT:
+!***   (1) THEY MUST BE PASSED FROM THE DYNAMICS TO THE WRITE
+!***       COMPONENT AND SINCE THEY ARE NOT ON THE ESMF GRID
+!***       THEY MUST BE PASSED AS 1-D Attributes.
+!***   (2) WE DO NOT WANT TO WASTE CLOCKTIME INSERTING THESE
+!***       BC WINDS INTO THE 1-D ARRAYS EVERY TIMESTEP WHEN
+!***       THEY ARE ONLY NEEDED AT RESTART OUTPUT TIMES
+!***       SO WE MUST INFORM THE DYNAMICS WHEN TO FILL THOSE
+!***       ARRAYS.
+!
+!***  THE 1-D ARRAYS ARE PLACED INTO THE Write Component's
+!***  IMPORT STATE IN POINT_DYNAMICS_OUTPUT.  THEY ARE UNLOADED
+!***  IN WRT_RUN AND SENT TO THE LEAD FORECAST TASK TO ASSEMBLE
+!***  INTO A FULL-DOMAIN 1-D DATASTRING THAT CAN BE SENT TO THE
+!***  LEAD WRITE TASK FOR INSERTION INTO THE RESTART FILE.
+!-----------------------------------------------------------------------
+!
+        int_state%NSTEPS_BC_RESTART=NINT((int_state%NHOURS_RESTART*3600)  &  !<-- Timestep frequency for BC data insertion into
+                                         /int_state%DT)                      !    1-D local datastrings
+!
+        IEND=MIN(ITE,IDE-1)
+        JEND=MIN(JTE,JDE-1)
+!
+!       IF(JTS==1)THEN                                                       !<-- South boundary tasks
+          int_state%NUM_WORDS_BC_SOUTH=2*2*int_state%LNSV*LM*(IEND-ITS+1)
+          ALLOCATE(int_state%RST_BC_DATA_SOUTH(1:int_state%NUM_WORDS_BC_SOUTH))
+          DO N=1,int_state%NUM_WORDS_BC_SOUTH
+            int_state%RST_BC_DATA_SOUTH(N)=0.
+          ENDDO
+!       ENDIF
+!
+!       IF(JTE==JM)THEN                                                      !<-- North boundary tasks
+          int_state%NUM_WORDS_BC_NORTH=2*2*int_state%LNSV*LM*(IEND-ITS+1)
+          ALLOCATE(int_state%RST_BC_DATA_NORTH(1:int_state%NUM_WORDS_BC_NORTH))
+          DO N=1,int_state%NUM_WORDS_BC_NORTH
+            int_state%RST_BC_DATA_NORTH(N)=0.
+          ENDDO
+!       ENDIF
+!
+!       IF(ITS==1)THEN                                                       !<-- West boundary tasks
+          int_state%NUM_WORDS_BC_WEST=2*2*int_state%LNSV*LM*(JEND-JTS+1)
+          ALLOCATE(int_state%RST_BC_DATA_WEST(1:int_state%NUM_WORDS_BC_WEST))
+          DO N=1,int_state%NUM_WORDS_BC_WEST
+            int_state%RST_BC_DATA_WEST(N)=0.
+          ENDDO
+!       ENDIF
+!
+!       IF(ITE==IM)THEN                                                      !<-- East boundary tasks
+          int_state%NUM_WORDS_BC_EAST=2*2*int_state%LNSV*LM*(JEND-JTS+1)
+          ALLOCATE(int_state%RST_BC_DATA_EAST(1:int_state%NUM_WORDS_BC_EAST))
+          DO N=1,int_state%NUM_WORDS_BC_EAST
+            int_state%RST_BC_DATA_EAST(N)=0.
+          ENDDO
+!       ENDIF
+!
+!-----------------------------------------------------------------------
 !***  INSERT HISTORY DATA POINTERS INTO THE WRITE COMPONENT'S
 !***  IMPORT STATE.
 !-----------------------------------------------------------------------
@@ -943,7 +1305,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      dyn_init_tim=timef()-btim0
+      dyn_init_tim=(timef()-btim0)
 !
 !-----------------------------------------------------------------------
 !
@@ -954,7 +1316,8 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE DYN_RUN(GRID_COMP                                      &
-                        ,IMP_STATE,EXP_STATE                            &
+                        ,IMP_STATE                                      &
+                        ,EXP_STATE                                      &
                         ,CLOCK_ATM                                      &
                         ,RC_RUN)
 !
@@ -966,80 +1329,86 @@
       USE MODULE_CONTROL  ,ONLY : E_BDY,N_BDY,S_BDY,W_BDY
       USE MODULE_CONSTANTS,ONLY : CP,G
 !
-      USE MODULE_DYNAMICS_ROUTINES
-!     USE MODULE_DYNAMICS_ROUTINES,ONLY: DHT                            &
-!                                       ,IUNIT_ADVEC_SUMS               &
-!                                       ,IUNIT_POLE_SUMS                &
-!                                       ,PGFORCE,POLEHN_TIM             &
-!                                       ,SWAPHN_TIM,WRITE_GLOBAL_SUMS
+      USE MODULE_DYNAMICS_ROUTINES,ONLY: ADV1,ADV2,AVEQ2                &
+                                        ,CDWDT,CDZDT,DDAMP,DHT          &
+                                        ,HADV2,HADV2_SCAL,HDIFF         &
+                                        ,IUNIT_ADVEC_SUMS               &
+                                        ,IUNIT_POLE_SUMS                &
+                                        ,MONO,PDTSDT,PGFORCE            &
+                                        ,UPDATES,UPDATET,UPDATEUV       &
+                                        ,VADV2,VADV2_SCAL,VSOUND,VTOA
 !
       USE MODULE_EXCHANGE,ONLY: HALO_EXCH
-      USE MODULE_FLTBNDS
+!
+      USE MODULE_FLTBNDS,ONLY: BOCOH,BOCOV,FFTFHN,FFTFUVN               &
+                              ,POAVHN,POLEHN,POLEWN,READ_BC             &
+                              ,SWAPHN,SWAPWN
 !
 !-----------------------------------------------------------------------
 !
-      IMPLICIT NONE
+!------------------------
+!***  Argument variables
+!------------------------
 !
-!-----------------------------------------------------------------------
-!***  ARGUMENT VARIABLES
-!-----------------------------------------------------------------------
-!
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP                     !<-- The Dynamics gridded component
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE                     !<-- The Dynamics import state
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: EXP_STATE                     !<-- The Dynamics export state
-      TYPE(ESMF_Clock)   ,INTENT(IN)    :: CLOCK_ATM                     !<-- The ATM's ESMF Clock
+      TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP                       !<-- The Dynamics gridded component
+      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE                       !<-- The Dynamics import state
+      TYPE(ESMF_State)   ,INTENT(INOUT) :: EXP_STATE                       !<-- The Dynamics export state
+      TYPE(ESMF_Clock)   ,INTENT(IN)    :: CLOCK_ATM                       !<-- The ATM's ESMF Clock
 !
       INTEGER,OPTIONAL   ,INTENT(OUT)   :: RC_RUN
 !
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local variables
+!---------------------
 !
-      INTEGER(KIND=KINT) :: I,IER,INPES,IRTN,ISTAT,J,JNPES              &
+      INTEGER(kind=KINT) :: I,IER,INPES,IRTN,ISTAT,J,JNPES              &
                            ,K,KFLIP,KS,L,N,NSTEPS_HISTORY,NTIMESTEP,RC
 !
-      INTEGER(KIND=KINT),SAVE :: P_QV,P_QC,P_QR,P_QI,P_QS,P_QG
+      INTEGER(kind=KINT),SAVE :: HDIFF_ON                               &
+                                ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG          &
+                                ,PARENT_CHILD_TIME_RATIO
 !
-      INTEGER(KIND=ESMF_KIND_I8) :: NTIMESTEP_ESMF
+      INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF
 !
-      LOGICAL(KIND=KLOG) :: READBC
+      LOGICAL(kind=KLOG) :: READBC
 !
-!***  THE FOLLOWING SAVEs ARE FOR DEREFERENCED CONSTANT VARIABLES.
+!------------------------------------------------------------------
+!***  The following SAVEs are for dereferenced constant variables.
+!------------------------------------------------------------------
 !
-      INTEGER(KIND=KINT),SAVE :: IDTAD,IDTADT,IHRSTBC,KSE,KSS           &
+      INTEGER(kind=KINT),SAVE :: IDTAD,IDTADT,IHRSTBC,KSE,KSS           &
                                 ,LNSAD,LNSH,LNSV,LPT2,NBOCO
 !
-      INTEGER(KIND=KINT),DIMENSION(3),SAVE :: IDATBC
+      INTEGER(kind=KINT),DIMENSION(3),SAVE :: IDATBC
 !
-      REAL(KIND=KFPT) :: FICE,FRAIN,QI,QR,QW,SECONDS_TOTAL,WC,TIME_CHECK
+      REAL(kind=KFPT) :: FICE,FRAIN,QI,QR,QW,SECONDS_TOTAL,WC
 !
-      REAL(KIND=KFPT),SAVE :: DDMPV,DT,DYH,DYV,EF4T,PDTOP,PT            &
+      REAL(kind=KFPT),SAVE :: DDMPV,DT,DYH,DYV,EF4T,PDTOP,PT            &
                              ,RDYH,RDYV,TBOCO
 !
-      REAL(KIND=KFPT),DIMENSION(:),ALLOCATABLE,SAVE :: DSG2             &
+      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE,SAVE :: DSG2             &
                                                       ,PDSG1,PSGML1     &
                                                       ,SGML2
 !
-      REAL(KIND=KFPT),DIMENSION(:),ALLOCATABLE,SAVE :: SG1,SG2
+      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE,SAVE :: SG1,SG2
 !
-      REAL(KIND=KFPT),DIMENSION(:),ALLOCATABLE,SAVE :: CURV             &
+      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE,SAVE :: CURV             &
                                                       ,DARE,DDMPU,DXV   &
                                                       ,FAD,FAH          &
                                                       ,FCP,FDIV         &
                                                       ,RARE,RDXH,RDXV   &
                                                       ,WPDAR
 !
-      REAL(KIND=KFPT),DIMENSION(:,:),ALLOCATABLE,SAVE :: F,FIS          &
+      REAL(kind=KFPT),DIMENSION(:,:),ALLOCATABLE,SAVE :: F,FIS          &
                                                         ,HDACX,HDACY    &
                                                         ,HDACVX,HDACVY  &
                                                         ,SICE,SM
 !
-      LOGICAL(KIND=KLOG),SAVE :: GLOBAL,HYDRO,RUNBC,SECADV,SECDIF
-      LOGICAL(KIND=KLOG),SAVE :: FIRST_PASS=.TRUE.
+      LOGICAL(kind=KLOG),SAVE :: FIRST_PASS=.TRUE.
+      LOGICAL(kind=KLOG),SAVE :: GLOBAL,HYDRO,RUNBC,SECADV,SECDIF
+      LOGICAL(kind=KLOG)      :: COMPUTE_BC
 !
-      INTEGER(KIND=KINT),SAVE :: N_PRINT_STATS                            !<--- Timesteps between statistics prints
-      INTEGER(KIND=KINT),SAVE :: HDIFF_ON
-
+      INTEGER(kind=KINT),SAVE :: N_PRINT_STATS                            !<--- Timesteps between statistics prints
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -1052,7 +1421,7 @@
       RC_RUN=ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
-!***  THE TOTAL NUMBER OF FORECAST TASKS.
+!***  The total number of forecast tasks.
 !-----------------------------------------------------------------------
 !
       INPES=int_state%INPES   !<-- I fcst tasks
@@ -1062,15 +1431,15 @@
       MYPE=int_state%MYPE     !<-- the local PE
 !
 !-----------------------------------------------------------------------
-!***  EXTRACT THE TIMESTEP COUNT FROM THE CLOCK.
+!***  Extract the timestep count from the Clock.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Dyn_Run Gets ATM Clock"
+      MESSAGE_CHECK="Dyn_Run Gets Timestep from the ATM Clock"
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ClockGet(clock       =CLOCK_ATM                         &  !<-- The ESMF clock
+      CALL ESMF_ClockGet(clock       =CLOCK_ATM                         &  !<-- The ESMF Clock
                         ,advanceCount=NTIMESTEP_ESMF                    &  !<-- The number of times the clock has been advanced
                         ,rc          =RC)
 !
@@ -1080,14 +1449,12 @@
 !
       NTIMESTEP=NTIMESTEP_ESMF
       int_state%NTSD=NTIMESTEP
-      TIME_CHECK=(NTIMESTEP+1)*int_state%DT/3600.
 !
 !-----------------------------------------------------------------------
-!***  UPDATE THE CURRENT VALUES INSIDE THE DYNAMICS INTERNAL STATE
-!***  WITH THE IMPORT STATE CONTAINING DATA FROM THE PHYSICS.
-!***  IN THE FIRST TIMESTEP WE DO NOT NEED TO UPDATE SINCE
-!***  THE PHYSICS HAS NOT RUN YET, I.E., THE IMPORT STATE
-!***  IS EMPTY.
+!***  Update the current values inside the Dynamics internal state
+!***  with the import state containing data from the Physics.
+!***  In the first timestep we do not need to update since
+!***  the Physics has not run yet.
 !-----------------------------------------------------------------------
 !
       btim=timef()
@@ -1096,18 +1463,16 @@
         CALL UPDATE_INTERNAL_STATE_DYN(IMP_STATE,INT_STATE)
       ENDIF 
 !
-      update_dyn_int_state_tim=update_dyn_int_state_tim+timef()-btim
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!***  THE MAIN DYNAMICS INTEGRATION LOOP.
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
+      update_dyn_int_state_tim=update_dyn_int_state_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  DEREFERENCE SOME VARIABLES FOR CONVENIENCE.
+!***  Do some work that only needs to be done once at the start of
+!***  the Run step:  Dereference some variables and extract the
+!***  horizontal diffusion flag.
 !-----------------------------------------------------------------------
 !
       firstpass: IF(FIRST_PASS)THEN
+!
         FIRST_PASS=.FALSE.
 !
         DDMPV=int_state%DDMPV
@@ -1222,13 +1587,33 @@
 !
         N_PRINT_STATS=NINT(3600./DT)        !<-- Print layer statistics once per forecast hour
 !
+!-----------------------------------------------------------------------
+!***  Extract the horizontal diffusion flag from the import state.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Dyn_Run Extracts Horizontal Diffusion Flag "
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE                          &
+                              ,name ='HDIFF'                            &
+                              ,value=HDIFF_ON                           &
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
       ENDIF firstpass
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
-!***  BEGIN THE DYNAMICS CALLING SEQUENCE.
-!***  NOTE THAT THE FIRST TIMESTEP BEGINS DIFFERENTLY
-!***  THAN ALL SUBSEQUENT TIMESTEPS.
+!***  Begin the Dynamics calling sequence.
+!***  Note that the first timestep begins differently
+!***  than all subsequent timesteps.
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
@@ -1241,38 +1626,36 @@
 !
 !-----------------------------------------------------------------------
 !
-        
         IF(GLOBAL)THEN
 !
           btim=timef()
           CALL SWAPHN                                                   &
            (int_state%T,IMS,IME,JMS,JME,LM                              &
            ,INPES)
-          swaphn_tim=swaphn_tim+timef()-btim
+          swaphn_tim=swaphn_tim+(timef()-btim)
 !
           btim=timef()
           CALL POLEHN                                                   &
            (int_state%T                                                 &
            ,IMS,IME,JMS,JME,LM                                          &
            ,INPES,JNPES)
-          polehn_tim=polehn_tim+timef()-btim
+          polehn_tim=polehn_tim+(timef()-btim)
 !
         ENDIF
 !
         btim=timef()
         CALL HALO_EXCH(int_state%T,LM                                   &
                       ,2,2)
-
-        exch_dyn_tim=exch_dyn_tim+timef()-btim
+        exch_dyn_tim=exch_dyn_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  THE PRESSURE GRADIENT ROUTINE.
+!***  The pressure gradient routine.
 !-----------------------------------------------------------------------
 !
         btim=timef()
 !
         CALL PGFORCE                                                    &
-          (int_state%FIRST,int_state%RESTART,LM,DT            &
+          (int_state%FIRST,int_state%RESTART,LM,DT,NTIMESTEP            &
           ,RDYV,DSG2,PDSG1,RDXV,WPDAR,FIS                               &
           ,int_state%PD                                                 &
           ,int_state%T,int_state%Q,int_state%CW                         &
@@ -1284,7 +1667,7 @@
           ,int_state%TCU,int_state%TCV)
 !
 
-        pgforce_tim=pgforce_tim+timef()-btim
+        pgforce_tim=pgforce_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !
@@ -1294,10 +1677,10 @@
         CALL HALO_EXCH(int_state%U,LM                                   &
                       ,int_state%V,LM                                   &
                       ,2,2)
-        exch_dyn_tim=exch_dyn_tim+timef()-btim
+        exch_dyn_tim=exch_dyn_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  DIVERGENCE AND HORIZONTAL PRESSURE ADVECTION IN THERMO EQN
+!***  Divergence and horizontal pressure advection in thermo eqn
 !-----------------------------------------------------------------------
 !
         btim=timef()
@@ -1313,10 +1696,10 @@
           ,int_state%DIV,int_state%TDIV)
 
 !
-        dht_tim=dht_tim+timef()-btim
+        dht_tim=dht_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  FILTERING AND BOUNDARY CONDITIONS FOR THE GLOBAL FORECAST.
+!***  Filtering and boundary conditions for the global forecast.
 !-----------------------------------------------------------------------
 !
         IF(GLOBAL)THEN
@@ -1334,7 +1717,7 @@
            ,int_state%WFFTRH,int_state%NFFTRH                           &
 #endif
            ,NUM_PES)
-          fftfhn_tim=fftfhn_tim+timef()-btim
+          fftfhn_tim=fftfhn_tim+(timef()-btim)
 !
           btim=timef()
           CALL SWAPHN                                                   &
@@ -1346,7 +1729,7 @@
            (int_state%OMGALF                                            &
            ,IMS,IME,JMS,JME,LM                                          &
            ,INPES)
-          swaphn_tim=swaphn_tim+timef()-btim
+          swaphn_tim=swaphn_tim+(timef()-btim)
 !
           btim=timef()
           CALL POLEHN                                                   &
@@ -1358,7 +1741,7 @@
            (int_state%OMGALF                                            &
            ,IMS,IME,JMS,JME,LM                                          &
            ,INPES,JNPES)
-          polehn_tim=polehn_tim+timef()-btim
+          polehn_tim=polehn_tim+(timef()-btim)
 !
           btim=timef()
           CALL SWAPWN                                                   &
@@ -1370,14 +1753,14 @@
             (int_state%V                                                &
             ,IMS,IME,JMS,JME,LM                                         &
             ,INPES)
-          swapwn_tim=swapwn_tim+timef()-btim
+          swapwn_tim=swapwn_tim+(timef()-btim)
 !
           btim=timef()
           CALL POLEWN                                                   &
             (int_state%U,int_state%V                                    &
             ,IMS,IME,JMS,JME,LM                                         &
             ,INPES,JNPES)
-          polewn_tim=polewn_tim+timef()-btim
+          polewn_tim=polewn_tim+(timef()-btim)
 !
         ENDIF
 !
@@ -1389,8 +1772,7 @@
          ,int_state%U,LM                                                &
          ,int_state%V,LM                                                &
          ,2,2)
-
-        exch_dyn_tim=exch_dyn_tim+timef()-btim
+        exch_dyn_tim=exch_dyn_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !
@@ -1406,35 +1788,29 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  HORIZONTAL DIFFUSION (Internal halo exchange for 4th order)
+!***  Horizontal diffusion (internal halo exchange for 4th order)
 !-----------------------------------------------------------------------
 !
-         CALL ESMF_AttributeGet(state=EXP_STATE                          &
-           ,name='HDIFF'                                                 &
-           ,value= HDIFF_ON                                            &
-           ,rc=RC)
-
-
         btim=timef()
 !
-        if (HDIFF_ON .gt. 0) then
-        CALL HDIFF                                                      &
-          (GLOBAL,HYDRO,SECDIF                                          &
-          ,INPES,JNPES,LM,LPT2                                          &
-          ,DYH,RDYH                                                     &
-          ,DXV,RARE,RDXH                                                &
-          ,SICE,SM                                                      &
-          ,HDACX,HDACY,HDACVX,HDACVY                                    &
-          ,int_state%W,int_state%Z                                      &
-          ,int_state%CW,int_state%Q,int_state%Q2                        &
-          ,int_state%T,int_state%U,int_state%V)                          
-         endif
+        IF(HDIFF_ON>0)THEN
+          CALL HDIFF                                                    &
+            (GLOBAL,HYDRO,SECDIF                                        &
+            ,INPES,JNPES,LM,LPT2                                        &
+            ,DYH,RDYH                                                   &
+            ,DXV,RARE,RDXH                                              &
+            ,SICE,SM                                                    &
+            ,HDACX,HDACY,HDACVX,HDACVY                                  &
+            ,int_state%W,int_state%Z                                    &
+            ,int_state%CW,int_state%Q,int_state%Q2                      &
+            ,int_state%T,int_state%U,int_state%V)                          
+        ENDIF
 !
-        hdiff_tim=hdiff_tim+timef()-btim
+        hdiff_tim=hdiff_tim+(timef()-btim)
 
 !
 !-----------------------------------------------------------------------
-!***  FILTERING AND BOUNDARY CONDITIONS FOR THE GLOBAL FORECAST.
+!***  Filtering and boundary conditions for the global forecast.
 !-----------------------------------------------------------------------
 !
         IF(GLOBAL)THEN
@@ -1443,45 +1819,53 @@
 !
           CALL POAVHN                                                   &
             (IMS,IME,JMS,JME,LM                                         &
-            ,int_state%T)
+            ,int_state%T                                                &
+            ,int_state%READ_GLOBAL_SUMS                                 &
+            ,int_state%WRITE_GLOBAL_SUMS)
 !
           CALL POAVHN                                                   &
             (IMS,IME,JMS,JME,LM                                         &
-            ,int_state%Q)
+            ,int_state%Q                                                &
+            ,int_state%READ_GLOBAL_SUMS                                 &
+            ,int_state%WRITE_GLOBAL_SUMS)
 !
           CALL POAVHN                                                   &
             (IMS,IME,JMS,JME,LM                                         &
-            ,int_state%CW)
+            ,int_state%CW                                               &
+            ,int_state%READ_GLOBAL_SUMS                                 &
+            ,int_state%WRITE_GLOBAL_SUMS)
 !
           CALL POAVHN                                                   &
             (IMS,IME,JMS,JME,LM                                         &
-            ,int_state%Q2)
+            ,int_state%Q2                                               &
+            ,int_state%READ_GLOBAL_SUMS                                 &
+            ,int_state%WRITE_GLOBAL_SUMS)
 !
-          poavhn_tim=poavhn_tim+timef()-btim
+          poavhn_tim=poavhn_tim+(timef()-btim)
 !
           btim=timef()
           CALL SWAPHN(int_state%T,IMS,IME,JMS,JME,LM,INPES)
           CALL SWAPHN(int_state%Q,IMS,IME,JMS,JME,LM,INPES)
           CALL SWAPHN(int_state%CW,IMS,IME,JMS,JME,LM,INPES)
           CALL SWAPHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES)
-          swaphn_tim=swaphn_tim+timef()-btim
+          swaphn_tim=swaphn_tim+(timef()-btim)
 !
           btim=timef()
           CALL POLEHN(int_state%T,IMS,IME,JMS,JME,LM,INPES,JNPES)
           CALL POLEHN(int_state%Q,IMS,IME,JMS,JME,LM,INPES,JNPES)
           CALL POLEHN(int_state%CW,IMS,IME,JMS,JME,LM,INPES,JNPES)
           CALL POLEHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES,JNPES)
-          polehn_tim=polehn_tim+timef()-btim
+          polehn_tim=polehn_tim+(timef()-btim)
 !
           btim=timef()
           CALL SWAPWN(int_state%U,IMS,IME,JMS,JME,LM,INPES)
           CALL SWAPWN(int_state%V,IMS,IME,JMS,JME,LM,INPES)
-          swapwn_tim=swapwn_tim+timef()-btim
+          swapwn_tim=swapwn_tim+(timef()-btim)
 !
           btim=timef()
           CALL POLEWN(int_state%U,int_state%V                           &
                      ,IMS,IME,JMS,JME,LM,INPES,JNPES)
-          polewn_tim=polewn_tim+timef()-btim
+          polewn_tim=polewn_tim+(timef()-btim)
 !
         ENDIF
 !
@@ -1496,35 +1880,78 @@
         CALL HALO_EXCH(int_state%U,LM                                   &
                       ,int_state%V,LM                                   &
                       ,1,1)
-        exch_dyn_tim=exch_dyn_tim+timef()-btim
+        exch_dyn_tim=exch_dyn_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  READ BOUNDARY CONDITIONS FOR REGIONAL FORECAST
-!***  AND UPDATE THE MASS POINTS.
+!***  Update the boundary mass points.
+!
+!***  For non-nested regional domains, read new boundary tendencies
+!***  at the appropriate times.
+!
+!***  If this is a nested domain then unload the new boundary data
+!***  from the Dynamics import state and compute the time tendencies.
 !-----------------------------------------------------------------------
 !
         bc_update: IF(.NOT.GLOBAL)THEN
-          READBC=(ABS(NTIMESTEP)==1.OR.MOD(ABS(NTIMESTEP),NBOCO)==0)
-          IF(S_BDY.OR.N_BDY.OR.W_BDY.OR.E_BDY)THEN
-            IF(READBC)THEN
-              IF(TIME_CHECK .LE. int_state%RUN_DURATION)THEN
-              CALL READ_BC(LM,LNSH,LNSV,ABS(NTIMESTEP),DT                    &
-                          ,RUNBC,IDATBC,IHRSTBC,TBOCO                   &
-                          ,int_state%PDBS,int_state%PDBN                &
-                          ,int_state%PDBW,int_state%PDBE                &
-                          ,int_state%TBS,int_state%TBN                  &
-                          ,int_state%TBW,int_state%TBE                  &
-                          ,int_state%QBS,int_state%QBN                  &
-                          ,int_state%QBW,int_state%QBE                  &
-                          ,int_state%WBS,int_state%WBN                  &
-                          ,int_state%WBW,int_state%WBE                  &
-                          ,int_state%UBS,int_state%UBN                  &
-                          ,int_state%UBW,int_state%UBE                  &
-                          ,int_state%VBS,int_state%VBN                  &
-                          ,int_state%VBW,int_state%VBE)
+!
+          boundary_tendencies: IF(S_BDY.OR.N_BDY.OR.W_BDY.OR.E_BDY)THEN
+!
+!----------------------------------------------------------------
+!***  Nests update boundary tendencies based on data from parent
+!----------------------------------------------------------------
+!
+            IF(I_AM_A_NEST)THEN
+              COMPUTE_BC=(NTIMESTEP==1.OR.                              &
+                          MOD(NTIMESTEP,PARENT_CHILD_TIME_RATIO)==0)
+!
+              IF(COMPUTE_BC)THEN
+!     call print_memory()
+                CALL UPDATE_BC_TENDS(IMP_STATE                          &
+                                    ,LM,LNSH,LNSV                       &
+                                    ,PARENT_CHILD_TIME_RATIO,DT         &
+                                    ,int_state%PDBS,int_state%PDBN      &
+                                    ,int_state%PDBW,int_state%PDBE      &
+                                    ,int_state%TBS,int_state%TBN        &
+                                    ,int_state%TBW,int_state%TBE        &
+                                    ,int_state%QBS,int_state%QBN        &
+                                    ,int_state%QBW,int_state%QBE        &
+                                    ,int_state%WBS,int_state%WBN        &
+                                    ,int_state%WBW,int_state%WBE        &
+                                    ,int_state%UBS,int_state%UBN        &
+                                    ,int_state%UBW,int_state%UBE        &
+                                    ,int_state%VBS,int_state%VBN        &
+                                    ,int_state%VBW,int_state%VBE )
+!     call print_memory()
+              ENDIF
+!
+!---------------------------------------------------------------
+!***  Single/uppermost domain reads its own boundary input data
+!---------------------------------------------------------------
+!
+            ELSE
+              READBC=(NTIMESTEP==1.OR.MOD(NTIMESTEP,NBOCO)==0)
+!
+              IF(READBC)THEN
+                CALL READ_BC(LM,LNSH,LNSV,NTIMESTEP,DT                  &
+                            ,RUNBC,IDATBC,IHRSTBC,TBOCO                 &
+                            ,int_state%PDBS,int_state%PDBN              &
+                            ,int_state%PDBW,int_state%PDBE              &
+                            ,int_state%TBS,int_state%TBN                &
+                            ,int_state%TBW,int_state%TBE                &
+                            ,int_state%QBS,int_state%QBN                &
+                            ,int_state%QBW,int_state%QBE                &
+                            ,int_state%WBS,int_state%WBN                &
+                            ,int_state%WBW,int_state%WBE                &
+                            ,int_state%UBS,int_state%UBN                &
+                            ,int_state%UBW,int_state%UBE                &
+                            ,int_state%VBS,int_state%VBN                &
+                            ,int_state%VBW,int_state%VBE                &
+                            ,MY_DOMAIN_ID)
+              ENDIF
+!
             ENDIF
-          ENDIF
-       ENDIF
+!
+          ENDIF boundary_tendencies
 !
           btim=timef()
 !
@@ -1542,19 +1969,18 @@
              ,int_state%T,int_state%Q,int_state%CW                      &
              ,int_state%PINT)
 !
-
-          bocoh_tim=bocoh_tim+timef()-btim
+          bocoh_tim=bocoh_tim+(timef()-btim)
 !
         ENDIF bc_update
 !
 !-----------------------------------------------------------------------
-!***  THE PRESSURE GRADIENT ROUTINE.
+!***  The pressure gradient routine.
 !-----------------------------------------------------------------------
 !
         btim=timef()
 !
         CALL PGFORCE                                                    &
-          (int_state%FIRST,int_state%RESTART,LM,DT            &
+          (int_state%FIRST,int_state%RESTART,LM,DT,NTIMESTEP            &
           ,RDYV,DSG2,PDSG1,RDXV,WPDAR,FIS                               &
           ,int_state%PD                                                 &
           ,int_state%T,int_state%Q,int_state%CW                         &
@@ -1565,11 +1991,10 @@
           ,int_state%PCX,int_state%PCY                                  &
           ,int_state%TCU,int_state%TCV)
 !
-        pgforce_tim=pgforce_tim+timef()-btim
-
+        pgforce_tim=pgforce_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  FILTERING AND BOUNDARY CONDITIONS FOR THE GLOBAL FORECAST.
+!***  Filtering and boundary conditions for the global forecast.
 !-----------------------------------------------------------------------
 !
         IF(GLOBAL)THEN
@@ -1586,12 +2011,12 @@
             ,int_state%WFFTRW,int_state%NFFTRW                          &
 #endif
             ,NUM_PES)
-          fftfwn_tim=fftfwn_tim+timef()-btim
+          fftfwn_tim=fftfwn_tim+(timef()-btim)
 !
         ENDIF
 !
 !-----------------------------------------------------------------------
-!***  UPDATE THE WIND FIELD.
+!***  Update the wind field.
 !-----------------------------------------------------------------------
 !
         btim=timef()
@@ -1599,10 +2024,10 @@
          (LM                                                            &
          ,int_state%U,int_state%V                                       &
          ,int_state%TCU,int_state%TCV)
-        updatet_tim=updatet_tim+timef()-btim
+        updatet_tim=updatet_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  FILTERING AND BOUNDARY CONDITIONS FOR THE GLOBAL FORECAST.
+!***  Filtering and boundary conditions for the global forecast.
 !-----------------------------------------------------------------------
 !
         IF(GLOBAL)THEN
@@ -1610,12 +2035,12 @@
           btim=timef()
           CALL SWAPWN(int_state%U,IMS,IME,JMS,JME,LM,INPES)
           CALL SWAPWN(int_state%V,IMS,IME,JMS,JME,LM,INPES)
-          swapwn_tim=swapwn_tim+timef()-btim
+          swapwn_tim=swapwn_tim+(timef()-btim)
 !
           btim=timef()
           CALL POLEWN(int_state%U,int_state%V                           &
                      ,IMS,IME,JMS,JME,LM,INPES,JNPES)
-          polewn_tim=polewn_tim+timef()-btim
+          polewn_tim=polewn_tim+(timef()-btim)
 !
         ENDIF
 !
@@ -1627,10 +2052,10 @@
         CALL HALO_EXCH(int_state%U,LM                                   &
                       ,int_state%V,LM                                   &
                       ,2,2)
-        exch_dyn_tim=exch_dyn_tim+timef()-btim
+        exch_dyn_tim=exch_dyn_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  UPDATE THE BOUNDARY VELOCITY POINTS FOR THE REGIONAL FORECAST.
+!***  Update the boundary velocity points for the regional forecast.
 !-----------------------------------------------------------------------
 !
         IF(.NOT.GLOBAL)THEN
@@ -1641,12 +2066,32 @@
             ,int_state%UBE,int_state%UBN,int_state%UBS,int_state%UBW    &
             ,int_state%VBE,int_state%VBN,int_state%VBS,int_state%VBW    &
             ,int_state%U,int_state%V)
-          bocov_tim=bocov_tim+timef()-btim
+          bocov_tim=bocov_tim+(timef()-btim)
 !
         ENDIF
 !
 !-----------------------------------------------------------------------
-!***  DIVERGENCE AND HORIZONTAL PRESSURE ADVECTION IN THERMO EQN
+!***  The boundary winds have just been updated.  In order to replicate
+!***  the integration of a restarted run compared to its free-forecast
+!***  counterpart then we must save the wind data in the boundary
+!***  arrays for the restart files at this place in the runstream.
+!-----------------------------------------------------------------------
+!
+        IF(MOD(NTIMESTEP+1,int_state%NSTEPS_BC_RESTART)==0)THEN            !<-- Look ahead to the end of this timestep
+          CALL SAVE_BC_DATA                                             &
+            (LM,LNSV                                                    &
+            ,int_state%UBS,int_state%UBN,int_state%UBW,int_state%UBE    &
+            ,int_state%VBS,int_state%VBN,int_state%VBW,int_state%VBE    &
+            ,int_state%NUM_WORDS_BC_SOUTH,int_state%RST_BC_DATA_SOUTH   &
+            ,int_state%NUM_WORDS_BC_NORTH,int_state%RST_BC_DATA_NORTH   &
+            ,int_state%NUM_WORDS_BC_WEST ,int_state%RST_BC_DATA_WEST    &
+            ,int_state%NUM_WORDS_BC_EAST ,int_state%RST_BC_DATA_EAST    &
+            ,EXP_STATE )
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Divergence and horizontal pressure advection in thermo eqn
 !-----------------------------------------------------------------------
 !
         btim=timef()
@@ -1661,10 +2106,10 @@
           ,int_state%PFNE,int_state%PFNW,int_state%PFX,int_state%PFY    &
           ,int_state%DIV,int_state%TDIV)
 !
-        dht_tim=dht_tim+timef()-btim
+        dht_tim=dht_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  FILTERING AND BOUNDARY CONDITIONS FOR THE GLOBAL FORECAST.
+!***  Filtering and boundary conditions for the global forecast.
 !-----------------------------------------------------------------------
 !
         IF(GLOBAL)THEN
@@ -1682,7 +2127,7 @@
            ,int_state%WFFTRH,int_state%NFFTRH                           &
 #endif
            ,NUM_PES)
-          fftfhn_tim=fftfhn_tim+timef()-btim
+          fftfhn_tim=fftfhn_tim+(timef()-btim)
 !
           btim=timef()
           CALL SWAPHN                                                   &
@@ -1694,7 +2139,7 @@
            (int_state%OMGALF                                            &
            ,IMS,IME,JMS,JME,LM                                          &
            ,INPES)
-          swaphn_tim=swaphn_tim+timef()-btim
+          swaphn_tim=swaphn_tim+(timef()-btim)
 !
           btim=timef()
           CALL POLEHN                                                   &
@@ -1706,7 +2151,7 @@
            (int_state%OMGALF                                            &
            ,IMS,IME,JMS,JME,LM                                          &
            ,INPES,JNPES)
-          polehn_tim=polehn_tim+timef()-btim
+          polehn_tim=polehn_tim+(timef()-btim)
 !
         ENDIF
 !
@@ -1716,30 +2161,30 @@
         CALL HALO_EXCH(int_state%DIV,LM                                 &
                       ,int_state%OMGALF,LM                              &
                       ,2,2)
-        exch_dyn_tim=exch_dyn_tim+timef()-btim
+        exch_dyn_tim=exch_dyn_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  DIVERGENCE DAMPING
+!***  Divergence damping
 !-----------------------------------------------------------------------
 !
         btim=timef()
 !
-        if (HDIFF_ON .gt. 0) then
-        CALL DDAMP                                                      &
-          (LM                                                           &
-          ,DDMPV,PDTOP                                                  &
-          ,DSG2,PDSG1                                                   &
-          ,SG1,SG2                                                      &
-          ,DDMPU                                                        &
-          ,int_state%PD,int_state%PDO                                   &
-          ,int_state%U,int_state%V                                      &
-          ,int_state%DIV)
-         endif
+        IF(HDIFF_ON>0)THEN
+          CALL DDAMP                                                    &
+            (LM                                                         &
+            ,DDMPV,PDTOP                                                &
+            ,DSG2,PDSG1                                                 &
+            ,SG1,SG2                                                    &
+            ,DDMPU                                                      &
+            ,int_state%PD,int_state%PDO                                 &
+            ,int_state%U,int_state%V                                    &
+            ,int_state%DIV)
+        ENDIF
 !
-        ddamp_tim=ddamp_tim+timef()-btim
+        ddamp_tim=ddamp_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  FILTERING AND BOUNDARY CONDITIONS FOR THE GLOBAL FORECAST.
+!***  Filtering and boundary conditions for the global forecast.
 !-----------------------------------------------------------------------
 !
         IF(GLOBAL)THEN
@@ -1754,14 +2199,14 @@
             (int_state%V                                                &
             ,IMS,IME,JMS,JME,LM                                         &
             ,INPES)
-          swapwn_tim=swapwn_tim+timef()-btim
+          swapwn_tim=swapwn_tim+(timef()-btim)
 !
           btim=timef()
           CALL POLEWN                                                   &
             (int_state%U,int_state%V                                    &
             ,IMS,IME,JMS,JME,LM                                         &
             ,INPES,JNPES)
-          polewn_tim=polewn_tim+timef()-btim
+          polewn_tim=polewn_tim+(timef()-btim)
 !
         ENDIF
 !
@@ -1771,7 +2216,7 @@
         CALL HALO_EXCH(int_state%U,int_state%LM                         &
                       ,int_state%V,int_state%LM                         &
                       ,2,2)
-        exch_dyn_tim=exch_dyn_tim+timef()-btim
+        exch_dyn_tim=exch_dyn_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !
@@ -1779,16 +2224,15 @@
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
-!***  THE REMAINDER OF THE DYNAMICS INTEGRATION CALL SEQUENCE
-!***  IS THE SAME FOR ALL TIMESTEPS.
+!***  The remainder of the Dynamics integration call sequence
+!***  is the same for all timesteps.
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
       int_state%FIRST=.FALSE.
-
 !
 !-----------------------------------------------------------------------
-!***  UPDATE THE SURFACE PRESSURE.
+!***  Update the surface pressure.
 !-----------------------------------------------------------------------
 !
       btim=timef()
@@ -1803,30 +2247,30 @@
 !
        ,int_state%DIV,int_state%TDIV)
 !
-      pdtsdt_tim=pdtsdt_tim+timef()-btim
+      pdtsdt_tim=pdtsdt_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  FILTERING AND BOUNDARY CONDITIONS
+!***  Filtering and boundary conditions
 !-----------------------------------------------------------------------
 !
       IF(GLOBAL)THEN
         btim=timef()
         CALL SWAPHN(int_state%PD,IMS,IME,JMS,JME,1,INPES)
         CALL SWAPHN(int_state%PSDT,IMS,IME,JMS,JME,1,INPES)
-        swaphn_tim=swaphn_tim+timef()-btim
+        swaphn_tim=swaphn_tim+(timef()-btim)
 !
         btim=timef()
         CALL POLEHN(int_state%PD,IMS,IME,JMS,JME,1,INPES,JNPES)
         CALL POLEHN(int_state%PSDT,IMS,IME,JMS,JME,1,INPES,JNPES)
-        polehn_tim=polehn_tim+timef()-btim
+        polehn_tim=polehn_tim+(timef()-btim)
 !
         btim=timef()
         CALL SWAPHN(int_state%PSGDT,IMS,IME,JMS,JME,LM-1,INPES)
-        swaphn_tim=swaphn_tim+timef()-btim
+        swaphn_tim=swaphn_tim+(timef()-btim)
 !
         btim=timef()
         CALL POLEHN(int_state%PSGDT,IMS,IME,JMS,JME,LM-1,INPES,JNPES)
-        polehn_tim=polehn_tim+timef()-btim
+        polehn_tim=polehn_tim+(timef()-btim)
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -1836,14 +2280,13 @@
                     ,int_state%PSDT,1                                   &
                     ,int_state%PSGDT,LM-1                               &
                     ,2,2)
-      exch_dyn_tim=exch_dyn_tim+timef()-btim
+      exch_dyn_tim=exch_dyn_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  ADVECTION OF T, U, AND V
+!***  Advection of T, U, and V
 !-----------------------------------------------------------------------
 !
       btim=timef()
-    
 !
       CALL ADV1                                                         &
         (GLOBAL,SECADV                                                  &
@@ -1862,10 +2305,10 @@
         ,int_state%PFX,int_state%PFY                                    &
         ,int_state%TCT,int_state%TCU,int_state%TCV)
 
-      adv1_tim=adv1_tim+timef()-btim
+      adv1_tim=adv1_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  ADVECTION OF TRACERS
+!***  Advection of tracers
 !-----------------------------------------------------------------------
 ! 
       tracers: IF(ADVECT_TRACERS.AND.MOD(ABS(NTIMESTEP),IDTADT)==0)THEN
@@ -1884,18 +2327,20 @@
           ,int_state%PSGDT                                              &
           ,int_state%UP,int_state%VP                                    &
           ,int_state%Q2,int_state%INDX_Q2                               &
-          ,int_state%TRACERS,int_state%TRACERS_PREV                     &
+          ,int_state%TRACERS                                            &
+          ,int_state%TRACERS_PREV                                       &
 !
 !***  Temporary arguments
 !
           ,int_state%PFNE,int_state%PFNW                                &
           ,int_state%PFX,int_state%PFY                                  &
-          ,int_state%TRACERS_SQRT,int_state%TRACERS_TEND)
+          ,int_state%TRACERS_SQRT                                       &
+          ,int_state%TRACERS_TEND)
 !
-        adv2_tim=adv2_tim+timef()-btim
+        adv2_tim=adv2_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  FILTERING AND BOUNDARY CONDITIONS FOR GLOBAL FORECASTS
+!***  Filtering and boundary conditions for global forecasts
 !-----------------------------------------------------------------------
 !
           IF(GLOBAL)THEN
@@ -1912,16 +2357,17 @@
                   ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3   &
                   ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3   &
 #else
-          ,int_state%WFFTRH,int_state%NFFTRH                            &
+                  ,int_state%WFFTRH,int_state%NFFTRH                    &
 #endif
                   ,NUM_PES)
               ENDDO
 ! 
-            fftfhn_tim=fftfhn_tim+timef()-btim
+            fftfhn_tim=fftfhn_tim+(timef()-btim)
 !
           ENDIF
+!
 !-----------------------------------------------------------------------
-!***  TRACER MONOTONIZATION
+!***  Tracer monotonization
 !-----------------------------------------------------------------------
 !
         btim=timef()
@@ -1933,15 +2379,18 @@
           ,int_state%PD                                                 &
           ,int_state%INDX_Q2                                            &
           ,int_state%TRACERS                                            &
+          ,int_state%READ_GLOBAL_SUMS                                   &
+          ,int_state%WRITE_GLOBAL_SUMS                                  &
 !
 !***  Temporary arguments
 !
-          ,int_state%TRACERS_SQRT,int_state%TRACERS_TEND)
+          ,int_state%TRACERS_SQRT                                       &
+          ,int_state%TRACERS_TEND)
 !
-        mono_tim=mono_tim+timef()-btim
+        mono_tim=mono_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  UPDATE TRACERS
+!***  Update tracers
 !-----------------------------------------------------------------------
 !
         btim=timef()
@@ -1994,7 +2443,7 @@
 !
           ,int_state%TRACERS_TEND(IMS:IME,JMS:JME,1:LM,int_state%INDX_Q2))
 !
-        updatet_tim=updatet_tim+timef()-btim
+        updatet_tim=updatet_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !
@@ -2006,7 +2455,7 @@
           CALL SWAPHN(int_state%RRW,IMS,IME,JMS,JME,LM,INPES)
           CALL SWAPHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES)
 !
-          swaphn_tim=swaphn_tim+timef()-btim
+          swaphn_tim=swaphn_tim+(timef()-btim)
 !
           btim=timef()
           CALL POLEHN(int_state%Q,IMS,IME,JMS,JME,LM,INPES,JNPES)
@@ -2014,7 +2463,7 @@
           CALL POLEHN(int_state%RRW,IMS,IME,JMS,JME,LM,INPES,JNPES)
           CALL POLEHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES,JNPES)
 !
-          polehn_tim=polehn_tim+timef()-btim
+          polehn_tim=polehn_tim+(timef()-btim)
 !
         ENDIF
 !
@@ -2027,14 +2476,14 @@
                       ,int_state%Q2,LM                                  &
                       ,2,2)
 !
-        exch_dyn_tim=exch_dyn_tim+timef()-btim
+        exch_dyn_tim=exch_dyn_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !
       ENDIF tracers
 !
 !-----------------------------------------------------------------------
-!***  INTERFACE PRESSURES AND HORIZONTAL PART OF OMEGA-ALPHA TERM
+!***  Interface pressures and horizontal part of Omega-Alpha term
 !-----------------------------------------------------------------------
 !
       btim=timef()
@@ -2050,10 +2499,10 @@
 !
         ,int_state%TDIV,int_state%TCT)
 !
-      vtoa_tim=vtoa_tim+timef()-btim
+      vtoa_tim=vtoa_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  FILTERING AND BOUNDARY CONDITIONS FOR GLOBAL FORECASTS
+!***  Filtering and boundary conditions for global forecasts
 !-----------------------------------------------------------------------
 !
       IF(GLOBAL)THEN
@@ -2071,18 +2520,16 @@
           ,int_state%WFFTRH,int_state%NFFTRH                            &
 #endif
           ,NUM_PES)
-        fftfhn_tim=fftfhn_tim+timef()-btim
+        fftfhn_tim=fftfhn_tim+(timef()-btim)
 !
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  UPDATE THE TEMPERATURE FIELD.
+!***  Update the temperature field.
 !-----------------------------------------------------------------------
 !
       btim=timef()
 !
-
-
       CALL UPDATET                                                      &
         (LM                                                             &
         ,int_state%T                                                    &
@@ -2090,11 +2537,11 @@
 !***  Temporary argument
 !
         ,int_state%TCT)
-
-      updatet_tim=updatet_tim+timef()-btim
+!
+      updatet_tim=updatet_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  FILTERING AND BOUNDARY CONDITIONS FOR GLOBAL FORECASTS
+!***  Filtering and boundary conditions for global forecasts
 !-----------------------------------------------------------------------
 !
       IF(GLOBAL)THEN
@@ -2103,16 +2550,15 @@
         CALL SWAPHN(int_state%OMGALF,IMS,IME,JMS,JME,LM,INPES)
         CALL SWAPHN(int_state%PINT,IMS,IME,JMS,JME,LM+1,INPES)
         CALL SWAPHN(int_state%T,IMS,IME,JMS,JME,LM,INPES)
-        swaphn_tim=swaphn_tim+timef()-btim
+        swaphn_tim=swaphn_tim+(timef()-btim)
 !
         btim=timef()
         CALL POLEHN(int_state%OMGALF,IMS,IME,JMS,JME,LM,INPES,JNPES)
         CALL POLEHN(int_state%PINT,IMS,IME,JMS,JME,LM+1,INPES,JNPES)
         CALL POLEHN(int_state%T,IMS,IME,JMS,JME,LM,INPES,JNPES)
-        polehn_tim=polehn_tim+timef()-btim
+        polehn_tim=polehn_tim+(timef()-btim)
 !
       ENDIF
-
 !
 !-----------------------------------------------------------------------
 !
@@ -2122,10 +2568,10 @@
                     ,2,2)
       CALL HALO_EXCH(int_state%T,LM                                     &
                     ,2,2)
-      exch_dyn_tim=exch_dyn_tim+timef()-btim
+      exch_dyn_tim=exch_dyn_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  NONHYDROSTATIC ADVECTION OF HEIGHT
+!***  Nonhydrostatic advection of height
 !-----------------------------------------------------------------------
 !
       btim=timef()
@@ -2144,10 +2590,10 @@
 !
         ,int_state%PFNE,int_state%PFNW,int_state%PFX,int_state%PFY)
 !
-      cdzdt_tim=cdzdt_tim+timef()-btim
+      cdzdt_tim=cdzdt_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  FILTERING AND BOUNDARY CONDITIONS FOR GLOBAL FORECASTS
+!***  Filtering and boundary conditions for global forecasts
 !-----------------------------------------------------------------------
 !
       IF(GLOBAL)THEN
@@ -2165,28 +2611,27 @@
           ,int_state%WFFTRH,int_state%NFFTRH                            &
 #endif
           ,NUM_PES)
-        fftfhn_tim=fftfhn_tim+timef()-btim
+        fftfhn_tim=fftfhn_tim+(timef()-btim)
 !
         btim=timef()
         CALL SWAPHN(int_state%W,IMS,IME,JMS,JME,LM,INPES)
-        swaphn_tim=swaphn_tim+timef()-btim
+        swaphn_tim=swaphn_tim+(timef()-btim)
 !
         btim=timef()
         CALL POLEHN(int_state%W,IMS,IME,JMS,JME,LM,INPES,JNPES)
-        polehn_tim=polehn_tim+timef()-btim
+        polehn_tim=polehn_tim+(timef()-btim)
 !
       ENDIF
-
 !
 !-----------------------------------------------------------------------
 !
       btim=timef()
       CALL HALO_EXCH(int_state%W,LM                                     &
                     ,3,3)
-      exch_dyn_tim=exch_dyn_tim+timef()-btim
+      exch_dyn_tim=exch_dyn_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  ADVECTION OF W (WITH INTERNAL HALO EXCHANGE)
+!***  Advection of W (with internal halo exchange)
 !-----------------------------------------------------------------------
 !
       btim=timef()
@@ -2204,11 +2649,12 @@
 !
         ,int_state%PFX,int_state%PFY,int_state%PFNE,int_state%PFNW)
 !
-      cdwdt_tim=cdwdt_tim+timef()-btim
+      cdwdt_tim=cdwdt_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  FILTERING AND BOUNDARY CONDITIONS FOR GLOBAL FORECASTS
+!***  Filtering and boundary conditions for global forecasts
 !-----------------------------------------------------------------------
+!
       IF(GLOBAL)THEN
 !
         btim=timef()
@@ -2224,28 +2670,27 @@
           ,int_state%WFFTRH,int_state%NFFTRH                            &
 #endif
           ,NUM_PES)
-        fftfhn_tim=fftfhn_tim+timef()-btim
+        fftfhn_tim=fftfhn_tim+(timef()-btim)
 !
         btim=timef()
         CALL SWAPHN(int_state%DWDT,IMS,IME,JMS,JME,LM,INPES)
-        swaphn_tim=swaphn_tim+timef()-btim
+        swaphn_tim=swaphn_tim+(timef()-btim)
 !
         btim=timef()
         CALL POLEHN(int_state%DWDT,IMS,IME,JMS,JME,LM,INPES,JNPES)
-        polehn_tim=polehn_tim+timef()-btim
+        polehn_tim=polehn_tim+(timef()-btim)
 !
       ENDIF
-
 !
 !-----------------------------------------------------------------------
 !
       btim=timef()
       CALL HALO_EXCH(int_state%DWDT,LM                                  &
                     ,2,2)
-      exch_dyn_tim=exch_dyn_tim+timef()-btim
+      exch_dyn_tim=exch_dyn_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  VERTICALLY PROPAGATING FAST WAVES
+!***  Vertically propagating fast waves
 !-----------------------------------------------------------------------
 !
       btim=timef()
@@ -2259,10 +2704,10 @@
         ,int_state%DWDT,int_state%T,int_state%W                         &
         ,int_state%PINT)
 !
-      vsound_tim=vsound_tim+timef()-btim
+      vsound_tim=vsound_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  FILTERING AND BOUNDARY CONDITIONS FOR GLOBAL FORECASTS
+!***  Filtering and boundary conditions for global forecasts
 !-----------------------------------------------------------------------
 !
       IF(GLOBAL)THEN
@@ -2270,31 +2715,36 @@
         btim=timef()
         CALL POAVHN                                                     &
           (IMS,IME,JMS,JME,LM                                           &
-          ,int_state%DWDT)
+          ,int_state%DWDT                                               &
+          ,int_state%READ_GLOBAL_SUMS                                   &
+          ,int_state%WRITE_GLOBAL_SUMS)
         CALL POAVHN                                                     &
           (IMS,IME,JMS,JME,LM                                           &
-          ,int_state%W)
+          ,int_state%W                                                  &
+          ,int_state%READ_GLOBAL_SUMS                                   &
+          ,int_state%WRITE_GLOBAL_SUMS)
         CALL POAVHN                                                     &
           (IMS,IME,JMS,JME,LM                                           &
-          ,int_state%PINT)
-        poavhn_tim=poavhn_tim+timef()-btim
+          ,int_state%PINT                                               &
+          ,int_state%READ_GLOBAL_SUMS                                   &
+          ,int_state%WRITE_GLOBAL_SUMS)
+        poavhn_tim=poavhn_tim+(timef()-btim)
 !
         btim=timef()
         CALL SWAPHN(int_state%DWDT,IMS,IME,JMS,JME,LM,INPES)
         CALL SWAPHN(int_state%T,IMS,IME,JMS,JME,LM,INPES)
         CALL SWAPHN(int_state%W,IMS,IME,JMS,JME,LM,INPES)
         CALL SWAPHN(int_state%PINT,IMS,IME,JMS,JME,LM+1,INPES)
-        swaphn_tim=swaphn_tim+timef()-btim
+        swaphn_tim=swaphn_tim+(timef()-btim)
 !
         btim=timef()
         CALL POLEHN(int_state%DWDT,IMS,IME,JMS,JME,LM,INPES,JNPES)
         CALL POLEHN(int_state%T,IMS,IME,JMS,JME,LM,INPES,JNPES)
         CALL POLEHN(int_state%W,IMS,IME,JMS,JME,LM,INPES,JNPES)
         CALL POLEHN(int_state%PINT,IMS,IME,JMS,JME,LM+1,INPES,JNPES)
-        polehn_tim=polehn_tim+timef()-btim
+        polehn_tim=polehn_tim+(timef()-btim)
 !
       ENDIF
-
 !
 !-----------------------------------------------------------------------
 !
@@ -2305,7 +2755,7 @@
       CALL HALO_EXCH(int_state%W,LM                                     &
                     ,int_state%PINT,LM+1                                &
                     ,2,2)
-      exch_dyn_tim=exch_dyn_tim+timef()-btim
+      exch_dyn_tim=exch_dyn_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !
@@ -2316,7 +2766,7 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  VERTICAL ADVECTION OF PASSIVE QUANTITIES 
+!***  Vertical advection of passive quantities 
 !-----------------------------------------------------------------------
 !
         btim=timef()
@@ -2350,7 +2800,6 @@
             ,int_state%PD,int_state%PSGDT                               &
             ,int_state%WATER                                            &
             ,int_state%NUM_WATER,2,int_state%INDX_Q2)
-
 !
           DO K=1,LM
           DO J=JTS,JTE
@@ -2362,10 +2811,10 @@
           ENDDO
 !
         ENDIF vadv2_micro_check
-        vadv2_tim=vadv2_tim+timef()-btim
+        vadv2_tim=vadv2_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  FILTERING AND BOUNDARY CONDITIONS FOR GLOBAL FORECASTS
+!***  Filtering and boundary conditions for global forecasts
 !-----------------------------------------------------------------------
 !
         IF(GLOBAL)THEN
@@ -2442,7 +2891,7 @@
 !
           ENDIF
 !
-          fftfhn_tim=fftfhn_tim+timef()-btim
+          fftfhn_tim=fftfhn_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !
@@ -2459,7 +2908,7 @@
             ENDDO
           ENDIF
 !
-          swaphn_tim=swaphn_tim+timef()-btim
+          swaphn_tim=swaphn_tim+(timef()-btim)
 !
           btim=timef()
           CALL POLEHN(int_state%Q,IMS,IME,JMS,JME,LM,INPES,JNPES)
@@ -2474,10 +2923,9 @@
             ENDDO
           ENDIF
 !
-          polehn_tim=polehn_tim+timef()-btim
+          polehn_tim=polehn_tim+(timef()-btim)
 !
         ENDIF
-
 !
 !-----------------------------------------------------------------------
 !
@@ -2496,10 +2944,10 @@
                         ,2,2)
         ENDIF
 !
-        exch_dyn_tim=exch_dyn_tim+timef()-btim
+        exch_dyn_tim=exch_dyn_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  HORIZONTAL ADVECTION OF PASSIVE QUANTITIES (INTERNAL HALO EXCHANGE)
+!***  Horizontal advection of passive quantities (internal halo exchange)
 !-----------------------------------------------------------------------
 !
         btim=timef()
@@ -2507,14 +2955,16 @@
         hadv2_micro_check: IF(int_state%MICROPHYSICS=='fer')THEN
 !
           CALL HADV2_SCAL                                               &
-            (GLOBAL,INPES,JNPES                               &
+            (GLOBAL,INPES,JNPES                                         &
             ,LM,IDTAD,DT,RDYH                                           &
             ,DSG2,PDSG1,PSGML1,SGML2                                    &
             ,DARE,RDXH                                                  &
             ,int_state%PD                                               &
             ,int_state%U,int_state%V                                    &
             ,int_state%TRACERS                                          &
-            ,int_state%NUM_TRACERS_MET,1,int_state%INDX_Q2)
+            ,int_state%NUM_TRACERS_MET,1,int_state%INDX_Q2              &
+            ,int_state%READ_GLOBAL_SUMS                                 &
+            ,int_state%WRITE_GLOBAL_SUMS)
 !
           CALL AVEQ2                                                    &
             (LM                                                         &
@@ -2523,12 +2973,12 @@
             ,int_state%Q2,int_state%E2                                  &
             ,2)
 !
-!***  UPDATE WATER ARRAY.
-!***  REMEMBER THAT WATER IS USED WITH THE WRF PHYSICS AND THUS
-!***  THE P_QV SLOT (=2) IS MIXING RATIO, NOT SPECIFIC HUMIDITY.
-!***  ALTHOUGH WATER IS ONLY USED FOR PHYSICS IN OPERATIONS, IT IS
-!***  UPDATED HERE FROM Q EVERY ADVECTION TIMESTEP FOR NON-OPERATIONAL
-!***  CONFIGURATIONS WHERE IT MAY BE USED OUTSIDE OF THE PHYSICS.
+!***  Update the WATER array.
+!***  Remember that WATER is used with the WRF physics and thus
+!***  the P_QV slot (=2) is mixing ratio, not specific humidity.
+!***  Although WATER is only used for physics in operations, it is
+!***  updated here from Q every advection timestep for non-operational
+!***  configurations where it may be used outside of the physics.
 !
           IF(.NOT.OPERATIONAL_PHYSICS)THEN
             DO K=1,LM
@@ -2575,31 +3025,35 @@
         ELSE hadv2_micro_check
 !
           CALL HADV2_SCAL                                               &
-            (GLOBAL,INPES,JNPES                               &
+            (GLOBAL,INPES,JNPES                                         &
             ,LM,IDTAD,DT,RDYH                                           &
             ,DSG2,PDSG1,PSGML1,SGML2                                    &
             ,DARE,RDXH                                                  &
             ,int_state%PD                                               &
             ,int_state%U,int_state%V                                    &
             ,int_state%Q2                                               &
-            ,1,1,int_state%INDX_Q2)
+            ,1,1,int_state%INDX_Q2                                      &
+            ,int_state%READ_GLOBAL_SUMS                                 &
+            ,int_state%WRITE_GLOBAL_SUMS)
 !
           CALL HADV2_SCAL                                               &
-            (GLOBAL,INPES,JNPES                               &
+            (GLOBAL,INPES,JNPES                                         &
             ,LM,IDTAD,DT,RDYH                                           &
             ,DSG2,PDSG1,PSGML1,SGML2                                    &
             ,DARE,RDXH                                                  &
             ,int_state%PD                                               &
             ,int_state%U,int_state%V                                    &
             ,int_state%WATER                                            &
-            ,int_state%NUM_WATER,2,int_state%INDX_Q2)
+            ,int_state%NUM_WATER,2,int_state%INDX_Q2                    &
+            ,int_state%READ_GLOBAL_SUMS                                 &
+            ,int_state%WRITE_GLOBAL_SUMS)
 !
         ENDIF hadv2_micro_check
 !
-        hadv2_tim=hadv2_tim+timef()-btim
+        hadv2_tim=hadv2_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  FILTERING AND BOUNDARY CONDITIONS FOR GLOBAL FORECASTS
+!***  Filtering and boundary conditions for global forecasts
 !-----------------------------------------------------------------------
 !
         IF(GLOBAL)THEN
@@ -2617,7 +3071,7 @@
             ENDDO
           ENDIF
 !
-          swaphn_tim=swaphn_tim+timef()-btim
+          swaphn_tim=swaphn_tim+(timef()-btim)
 !
           btim=timef()
           CALL POLEHN(int_state%Q,IMS,IME,JMS,JME,LM,INPES,JNPES)
@@ -2632,7 +3086,7 @@
             ENDDO
           ENDIF
 !
-          polehn_tim=polehn_tim+timef()-btim
+          polehn_tim=polehn_tim+(timef()-btim)
 !
         ENDIF
 !
@@ -2650,44 +3104,44 @@
                         ,2,2)
         ENDIF
 !
-        exch_dyn_tim=exch_dyn_tim+timef()-btim
+        exch_dyn_tim=exch_dyn_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !
       ENDIF passive_advec
 !
 !-----------------------------------------------------------------------
-!***  CLOSE THE FILE UNITS USED FOR READS/WRITES OF GLOBAL SUMS
-!***  IF THE FORECAST IS FINISHED.
+!***  Close the file units used for Reads/Writes of global sums
+!***  if the forecast is finished.
 !-----------------------------------------------------------------------
 !
       IF(ESMF_ClockIsStopTime(clock=CLOCK_ATM,rc=RC))THEN
-        IF(WRITE_GLOBAL_SUMS.AND.MYPE==0)THEN
+        IF(int_state%WRITE_GLOBAL_SUMS.AND.MYPE==0)THEN
           CLOSE(IUNIT_ADVEC_SUMS)
           CLOSE(IUNIT_POLE_SUMS)
         ENDIF
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  NOTE:  THE DYNAMICS EXPORT STATE IS FULLY UPDATED NOW
-!***         BECAUSE SUBROUTINE DYN_INITIALIZE INSERTED THE 
-!***         APPROPRIATE ESMF Fields INTO IT.  THOSE FIELDS 
-!***         CONTAIN POINTERS TO THE ACTUAL DATA AND THOSE
-!***         POINTERS ARE NEVER RE-DIRECTED, I.E., NO EXPLICIT
-!***         ACTION IS NEEDED TO UPDATE THE DYNAMICS EXPORT STATE.
+!***  NOTE:  The Dynamics export state is fully updated now
+!***         because subroutine DYN_INITIALIZE inserted the 
+!***         appropriate ESMF Fields into it.  Those Fields 
+!***         contain pointers to the actual data and those
+!***         pointers are never re-directed, i.e., no explicit
+!***         action is needed to update the Dynamics export state.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !
 !     if(mod(ntimestep,20)==0.or.ntimestep<=5)then
-!       call twr(int_state%t,lm,'t',ntimestep,mype,num_pes,mpi_comm_comp &
+!       call twr(int_state%t,lm,'t_dyn',ntimestep,mype,num_pes,mpi_comm_comp &
 !               ,ids,ide,jds,jde &
 !               ,ims,ime,jms,jme &
 !               ,its,ite,jts,jte)
 !     endif
 !
 !-----------------------------------------------------------------------
-!***  WRITE THE LAYER STATISTICS
+!***  Write the layer statistics for temperature.
 !-----------------------------------------------------------------------
 !
       IF(MOD(ABS(NTIMESTEP)+1,N_PRINT_STATS)==0)THEN
@@ -2697,27 +3151,6 @@
                         ,IMS,IME,JMS,JME                                &
                         ,IDS,IDE,JDS,JDE)
       ENDIF
-!-----------------------------------------------------------------------
-!
-        do K=1,LM
-        do J=JTS,JTE
-        do I=ITS,ITE
-        if ( abs(int_state%T(I,J,K)) .lt. 350.) then
-        else
-        write(0,*) 'bad value......NTIMESTEP,I,J,K, T: ',NTIMESTEP,I,J,K, int_state%T(I,J,K)
-        endif
-        enddo
-        enddo
-        enddo
-
-
-      IF(MYPE==0)THEN
-        WRITE(0,25)NTIMESTEP,TIME_CHECK
-   25   FORMAT(' Finished Dyn Timestep ',i8,' ending at ',f10.3,' hours')
-      ENDIF
-!
-!-----------------------------------------------------------------------
-!
 !-----------------------------------------------------------------------
 !
       RC=0
@@ -2730,7 +3163,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      dyn_run_tim=dyn_run_tim+timef()-btim0
+      dyn_run_tim=dyn_run_tim+(timef()-btim0)
 !
 !-----------------------------------------------------------------------
 !
@@ -2744,7 +3177,7 @@
                              ,IMP_STATE_WRITE                           &
                              ,EXP_STATE_WRITE                           &
                              ,CLOCK_ATM                                 &
-                             ,RCFINAL)
+                             ,RC_FINALIZE)
 !
 !-----------------------------------------------------------------------
 !***  FINALIZE THE DYNAMICS COMPONENT.
@@ -2759,16 +3192,21 @@
       TYPE(ESMF_State),   INTENT(INOUT) :: EXP_STATE_WRITE                 !<-- The Dynamics export state
       TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_ATM                       !<-- The ATM component's ESMF Clock.
 !
-      INTEGER            ,INTENT(OUT)   :: RCFINAL
+      INTEGER            ,INTENT(OUT)   :: RC_FINALIZE
 !      
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES
 !-----------------------------------------------------------------------
 !
-      INTEGER(KIND=KINT) :: RC
+      INTEGER(kind=KINT) :: RC,RC_FINAL
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
+!-----------------------------------------------------------------------
+!
+      RC      =ESMF_SUCCESS
+      RC_FINAL=ESMF_SUCCESS
+!
 !-----------------------------------------------------------------------
 !
       MYPE=MYPE_SHARE
@@ -2786,8 +3224,764 @@
 !
 !-----------------------------------------------------------------------
 !
+      IF(RC_FINAL==ESMF_SUCCESS)THEN
+        WRITE(0,*)'DYNAMICS FINALIZE STEP SUCCEEDED'
+      ELSE
+        WRITE(0,*)'DYNAMICS FINALIZE STEP FAILED'
+      ENDIF
+!
+!     IF(PRESENT(RC_FINALIZE))THEN
+        RC_FINALIZE=RC_FINAL
+!     ENDIF
+!
+!-----------------------------------------------------------------------
+!
       END SUBROUTINE DYN_FINALIZE
 !
+!-----------------------------------------------------------------------
+!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE UPDATE_BC_TENDS(IMP_STATE                              &
+                                ,LM,LNSH,LNSV                           &
+                                ,PARENT_CHILD_TIME_RATIO,DT             &
+                                ,PDBS,PDBN,PDBW,PDBE                    &
+                                ,TBS,TBN,TBW,TBE                        &
+                                ,QBS,QBN,QBW,QBE                        &
+                                ,WBS,WBN,WBW,WBE                        &
+                                ,UBS,UBN,UBW,UBE                        &
+                                ,VBS,VBN,VBW,VBE )
+! 
+!-----------------------------------------------------------------------
+!***  THIS ROUTINE EXTRACTS BOUNDARY DATA FROM THE DYNAMICS IMPORT
+!***  STATE OF NESTED DOMAINS THAT WAS RECEIVED FROM THEIR PARENTS.
+!***  THIS DATA IS THEN USED TO UPDATE THE TIME TENDENCIES OF THE
+!***  BOUNDARY VARIABLES.  THOSE TENDENCIES ARE VALID THROUGH EACH
+!***  TIMESTEP OF THE NESTED DOMAIN'S PARENT.
+!***  NOTE THAT THIS DATA WAS FIRST LOADED INTO THE EXPORT STATE OF
+!***  THE PARENT-CHILD COUPLER IN SUBROUTINE EXPORT_CHILD_BOUNDARY.
+!-----------------------------------------------------------------------
+!
+      USE MODULE_CONTROL,ONLY : E_BDY,N_BDY,S_BDY,W_BDY
+!
+!-----------------------------------------------------------------------
+!
+!---------------
+!***  Arguments
+!---------------
+!
+      INTEGER,INTENT(IN) :: LM                                          &  !<-- # of model layers
+                           ,LNSH                                        &  !<-- # of boundary blending rows for H points
+                           ,LNSV                                        &  !<-- # of boundary blending rows for V points
+                           ,PARENT_CHILD_TIME_RATIO                        !<-- # of child timesteps per parent timestep
+!
+      REAL,INTENT(IN) :: DT                                                !<-- This domain's fundamental timestep
+!
+      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                          !<-- Dynamics import state
+!
+      REAL,DIMENSION(IMS:IME,1:LNSH,     1:2),INTENT(INOUT) :: PDBS,PDBN   !<-- South/North PD values/tendencies
+!
+      REAL,DIMENSION(IMS:IME,1:LNSH,1:LM,1:2),INTENT(INOUT) :: TBS,TBN  &  !<-- South/North temperature values/tendencies
+                                                              ,QBS,QBN  &  !<-- South/North specific humidity values/tendencies
+                                                              ,WBS,WBN     !<-- South/North cloud condensate values/tendencies
+!
+      REAL,DIMENSION(IMS:IME,1:LNSV,1:LM,1:2),INTENT(INOUT) :: UBS,UBN  &  !<-- South/North U wind values/tendencies
+                                                              ,VBS,VBN     !<-- South/North V wind values/tendencies
+!
+      REAL,DIMENSION(1:LNSH,JMS:JME,     1:2),INTENT(INOUT) :: PDBW,PDBE   !<-- West/East PD values/tendencies
+!
+      REAL,DIMENSION(1:LNSH,JMS:JME,1:LM,1:2),INTENT(INOUT) :: TBW,TBE  &  !<-- West/East temperature values/tendencies
+                                                              ,QBW,QBE  &  !<-- West/East specific humidity values/tendencies
+                                                              ,WBW,WBE     !<-- West/East cloud condensate values/tendencies
+!
+      REAL,DIMENSION(1:LNSV,JMS:JME,1:LM,1:2),INTENT(INOUT) :: UBW,UBE  &  !<-- West/East U wind values/tendencies
+                                                              ,VBW,VBE     !<-- West/East V wind values/tendencies
+!
+!-----------------------------------------------------------------------
+!***  Local Variables
+!-----------------------------------------------------------------------
+!
+      INTEGER,SAVE :: I1=-1,I2_H=-1,I2_V,J1=-1,J2_H=-1,J2_V
+!
+      INTEGER,SAVE :: KOUNT_S_H,KOUNT_S_V,KOUNT_N_H,KOUNT_N_V           &
+                     ,KOUNT_W_H,KOUNT_W_V,KOUNT_E_H,KOUNT_E_V
+!
+      INTEGER      :: I,J,K,KOUNT,RC,RC_BCT
+!
+      REAL,SAVE :: RECIP
+!
+      REAL,DIMENSION(:),POINTER,SAVE :: BND_DATA_S_H                    &
+                                       ,BND_DATA_S_V                    & 
+                                       ,BND_DATA_N_H                    & 
+                                       ,BND_DATA_N_V                    & 
+                                       ,BND_DATA_W_H                    & 
+                                       ,BND_DATA_W_V                    & 
+                                       ,BND_DATA_E_H                    & 
+                                       ,BND_DATA_E_V
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      RC    =ESMF_SUCCESS
+      RC_BCT=ESMF_SUCCESS
+!
+      IF(I1<0)THEN                                                         !<-- Compute/allocate work variables first time only
+!
+!-----------------------------------------------------------------------
+!***  GRIDPOINT INDEX LIMITS ALONG THE South/North AND West/East
+!***  BOUNDARIES FOR MASS (H) AND VELOCITY (V) POINTS.  NOTE THAT
+!***  THE BOUNDARY DATA GOES TWO POINTS INTO THE HALO.
+!-----------------------------------------------------------------------
+!
+        I1  =MAX(ITS-2,IDS)
+        I2_H=MIN(ITE+2,IDE)
+        I2_V=MIN(ITE+2,IDE-1)
+        J1  =MAX(JTS-2,JDS)
+        J2_H=MIN(JTE+2,JDE)
+        J2_V=MIN(JTE+2,JDE-1)
+!
+!-----------------------------------------------------------------------
+!***  THE FOLLOWING 'KOUNT' VARIABLES ARE THE NUMBER OF GRIDPOINTS
+!***  ON THE GIVEN TASK SUBDOMAIN'S South/North/West/East BOUNDARIES
+!***  FOR ALL QUANTITIES ON MASS AND VELOCITY POINTS.
+!-----------------------------------------------------------------------
+!
+        KOUNT_S_H=(3*LM+1)*(I2_H-I1+1)*LNSH
+        KOUNT_N_H=(3*LM+1)*(I2_H-I1+1)*LNSH
+        KOUNT_S_V=2*LM*(I2_V-I1+1)*LNSV
+        KOUNT_N_V=2*LM*(I2_V-I1+1)*LNSV
+        KOUNT_W_H=(3*LM+1)*(J2_H-J1+1)*LNSH
+        KOUNT_E_H=(3*LM+1)*(J2_H-J1+1)*LNSH
+        KOUNT_W_V=2*LM*(J2_V-J1+1)*LNSV
+        KOUNT_E_V=2*LM*(J2_V-J1+1)*LNSV
+!
+!-----------------------------------------------------------------------
+!***  ALLOCATE THE BOUNDARY POINTER ARRAYS INTO WHICH THE BOUBDARY
+!***  DATA FROM THE DYNAMICS IMPORT STATE WILL BE UNLOADED.
+!-----------------------------------------------------------------------
+!
+        ALLOCATE(BND_DATA_S_H(1:KOUNT_S_H))
+        ALLOCATE(BND_DATA_S_V(1:KOUNT_S_V))
+        ALLOCATE(BND_DATA_N_H(1:KOUNT_N_H))
+        ALLOCATE(BND_DATA_N_V(1:KOUNT_N_V))
+        ALLOCATE(BND_DATA_W_H(1:KOUNT_W_H))
+        ALLOCATE(BND_DATA_W_V(1:KOUNT_W_V))
+        ALLOCATE(BND_DATA_E_H(1:KOUNT_E_H))
+        ALLOCATE(BND_DATA_E_V(1:KOUNT_E_V))
+!
+        NULLIFY(BND_DATA_S_H)
+        NULLIFY(BND_DATA_S_V)
+        NULLIFY(BND_DATA_N_H)
+        NULLIFY(BND_DATA_N_V)
+        NULLIFY(BND_DATA_W_H)
+        NULLIFY(BND_DATA_W_V)
+        NULLIFY(BND_DATA_E_H)
+        NULLIFY(BND_DATA_E_V)
+!
+        RECIP=1./(DT*PARENT_CHILD_TIME_RATIO)
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!***  UNLOAD THE BOUNDARY DATA FROM THE IMPORT STATE AND COMPUTE
+!***  THE TIME TENDENCIES FOR THE TIME PERIOD SPANNING THE NUMBER
+!***  OF THIS NEST'S TIMESTEPS NEEDED TO REACH THE END OF ITS 
+!***  ITS PARENT'S TIMESTEP (FROM WHICH THE DATA WAS SENT).
+!-----------------------------------------------------------------------
+!
+      south: IF(S_BDY)THEN
+!
+!-------------
+!***  South H
+!-------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract South Boundary H Data in UPDATE_BC_TENDS"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
+                              ,name     ='SOUTH_H'                      &  !<-- Name of desired boundary data
+                              ,count    =KOUNT_S_H                      &  !<-- # of words in this boundary data
+                              ,valueList=BND_DATA_S_H                   &  !<-- The boundary data
+                              ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        KOUNT=0
+!
+        DO J=1,LNSH
+        DO I=I1,I2_H
+          KOUNT=KOUNT+1
+          PDBS(I,J,2)=(BND_DATA_S_H(KOUNT)-PDBS(I,J,1))*RECIP
+        ENDDO
+        ENDDO
+!
+        DO K=1,LM
+        DO J=1,LNSH
+        DO I=I1,I2_H
+          TBS(I,J,K,2)=(BND_DATA_S_H(KOUNT+1)-TBS(I,J,K,1))*RECIP
+          QBS(I,J,K,2)=(BND_DATA_S_H(KOUNT+2)-QBS(I,J,K,1))*RECIP
+          WBS(I,J,K,2)=(BND_DATA_S_H(KOUNT+3)-WBS(I,J,K,1))*RECIP
+          KOUNT=KOUNT+3
+        ENDDO
+        ENDDO
+        ENDDO
+!
+!-------------
+!***  South V
+!-------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract South Boundary V Data in UPDATE_BC_TENDS"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
+                              ,name     ='SOUTH_V'                      &  !<-- Name of desired boundary data
+                              ,count    =KOUNT_S_V                      &  !<-- # of words in this boundary data
+                              ,valueList=BND_DATA_S_V                   &  !<-- The boundary data
+                              ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        KOUNT=0
+!
+        DO K=1,LM
+        DO J=1,LNSV
+        DO I=I1,I2_V
+          UBS(I,J,K,2)=(BND_DATA_S_V(KOUNT+1)-UBS(I,J,K,1))*RECIP
+          VBS(I,J,K,2)=(BND_DATA_S_V(KOUNT+2)-VBS(I,J,K,1))*RECIP
+          KOUNT=KOUNT+2
+        ENDDO
+        ENDDO
+        ENDDO
+!
+      ENDIF south
+!
+!-----------------------------------------------------------------------
+!
+      north: IF(N_BDY)THEN
+!
+!-------------
+!***  North H
+!-------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract North Boundary H Data in UPDATE_BC_TENDS"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
+                              ,name     ='NORTH_H'                      &  !<-- Name of desired boundary data
+                              ,count    =KOUNT_N_H                      &  !<-- # of words in this boundary data
+                              ,valueList=BND_DATA_N_H                   &  !<-- The boundary data
+                              ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        KOUNT=0
+!
+        DO J=1,LNSH
+        DO I=I1,I2_H
+          KOUNT=KOUNT+1
+          PDBN(I,J,2)=(BND_DATA_N_H(KOUNT)-PDBN(I,J,1))*RECIP
+        ENDDO
+        ENDDO
+!
+        DO K=1,LM
+        DO J=1,LNSH
+        DO I=I1,I2_H
+          TBN(I,J,K,2)=(BND_DATA_N_H(KOUNT+1)-TBN(I,J,K,1))*RECIP
+          QBN(I,J,K,2)=(BND_DATA_N_H(KOUNT+2)-QBN(I,J,K,1))*RECIP
+          WBN(I,J,K,2)=(BND_DATA_N_H(KOUNT+3)-WBN(I,J,K,1))*RECIP
+          KOUNT=KOUNT+3
+        ENDDO
+        ENDDO
+        ENDDO
+!
+!-------------
+!***  North V
+!-------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract North Boundary V Data in UPDATE_BC_TENDS"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
+                              ,name     ='NORTH_V'                      &  !<-- Name of desired boundary data
+                              ,count    =KOUNT_N_V                      &  !<-- # of words in this boundary data
+                              ,valueList=BND_DATA_N_V                   &  !<-- The boundary data
+                              ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        KOUNT=0
+!
+        DO K=1,LM
+        DO J=1,LNSV
+        DO I=I1,I2_V
+          UBN(I,J,K,2)=(BND_DATA_N_V(KOUNT+1)-UBN(I,J,K,1))*RECIP
+          VBN(I,J,K,2)=(BND_DATA_N_V(KOUNT+2)-VBN(I,J,K,1))*RECIP
+          KOUNT=KOUNT+2
+        ENDDO
+        ENDDO
+        ENDDO
+!
+      ENDIF north
+!
+!-----------------------------------------------------------------------
+!
+      west: IF(W_BDY)THEN
+!
+!------------
+!***  West H
+!------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract West Boundary H Data in UPDATE_BC_TENDS"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
+                              ,name     ='WEST_H'                       &  !<-- Name of desired boundary data
+                              ,count    =KOUNT_W_H                      &  !<-- # of words in this boundary data
+                              ,valueList=BND_DATA_W_H                   &  !<-- The boundary data
+                              ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        KOUNT=0
+!
+        DO J=J1,J2_H
+        DO I=1,LNSH
+          KOUNT=KOUNT+1
+          PDBW(I,J,2)=(BND_DATA_W_H(KOUNT)-PDBW(I,J,1))*RECIP
+        ENDDO
+        ENDDO
+!
+        DO K=1,LM
+        DO J=J1,J2_H
+        DO I=1,LNSH
+          TBW(I,J,K,2)=(BND_DATA_W_H(KOUNT+1)-TBW(I,J,K,1))*RECIP
+          QBW(I,J,K,2)=(BND_DATA_W_H(KOUNT+2)-QBW(I,J,K,1))*RECIP
+          WBW(I,J,K,2)=(BND_DATA_W_H(KOUNT+3)-WBW(I,J,K,1))*RECIP
+          KOUNT=KOUNT+3
+        ENDDO
+        ENDDO
+        ENDDO
+!
+!------------
+!***  West V
+!------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract West Boundary V Data in UPDATE_BC_TENDS"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
+                              ,name     ='WEST_V'                       &  !<-- Name of desired boundary data
+                              ,count    =KOUNT_W_V                      &  !<-- # of words in this boundary data
+                              ,valueList=BND_DATA_W_V                   &  !<-- The boundary data
+                              ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        KOUNT=0
+!
+        DO K=1,LM
+        DO J=J1,J2_V
+        DO I=1,LNSV
+          UBW(I,J,K,2)=(BND_DATA_W_V(KOUNT+1)-UBW(I,J,K,1))*RECIP
+          VBW(I,J,K,2)=(BND_DATA_W_V(KOUNT+2)-VBW(I,J,K,1))*RECIP
+          KOUNT=KOUNT+2
+        ENDDO
+        ENDDO
+        ENDDO
+!
+      ENDIF west
+!
+!-----------------------------------------------------------------------
+!
+      east: IF(E_BDY)THEN
+!
+!------------
+!***  East H
+!------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract East Boundary H Data in UPDATE_BC_TENDS"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
+                              ,name     ='EAST_H'                       &  !<-- Name of desired boundary data
+                              ,count    =KOUNT_E_H                      &  !<-- # of words in this boundary data
+                              ,valueList=BND_DATA_E_H                   &  !<-- The boundary data
+                              ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        KOUNT=0
+!
+        DO J=J1,J2_H
+        DO I=1,LNSH
+          KOUNT=KOUNT+1
+          PDBE(I,J,2)=(BND_DATA_E_H(KOUNT)-PDBE(I,J,1))*RECIP
+        ENDDO
+        ENDDO
+!
+        DO K=1,LM
+        DO J=J1,J2_H
+        DO I=1,LNSH
+          TBE(I,J,K,2)=(BND_DATA_E_H(KOUNT+1)-TBE(I,J,K,1))*RECIP
+          QBE(I,J,K,2)=(BND_DATA_E_H(KOUNT+2)-QBE(I,J,K,1))*RECIP
+          WBE(I,J,K,2)=(BND_DATA_E_H(KOUNT+3)-WBE(I,J,K,1))*RECIP
+          KOUNT=KOUNT+3
+        ENDDO
+        ENDDO
+        ENDDO
+!
+!------------
+!***  East V
+!------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract East Boundary V Data in UPDATE_BC_TENDS"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
+                              ,name     ='EAST_V'                       &  !<-- Name of desired boundary data
+                              ,count    =KOUNT_E_V                      &  !<-- # of words in this boundary data
+                              ,valueList=BND_DATA_E_V                   &  !<-- The boundary data
+                              ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        KOUNT=0
+!
+        DO K=1,LM
+        DO J=J1,J2_V
+        DO I=1,LNSV
+          UBE(I,J,K,2)=(BND_DATA_E_V(KOUNT+1)-UBE(I,J,K,1))*RECIP
+          VBE(I,J,K,2)=(BND_DATA_E_V(KOUNT+2)-VBE(I,J,K,1))*RECIP
+          KOUNT=KOUNT+2
+        ENDDO
+        ENDDO
+        ENDDO
+!
+      ENDIF east
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE UPDATE_BC_TENDS
+!
+!-----------------------------------------------------------------------
+!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE SAVE_BC_DATA(LM,LNSV                                   &
+                             ,UBS,UBN,UBW,UBE                           &
+                             ,VBS,VBN,VBW,VBE                           &
+                             ,NUM_WORDS_BC_SOUTH,RST_BC_DATA_SOUTH      &
+                             ,NUM_WORDS_BC_NORTH,RST_BC_DATA_NORTH      &
+                             ,NUM_WORDS_BC_WEST ,RST_BC_DATA_WEST       &
+                             ,NUM_WORDS_BC_EAST ,RST_BC_DATA_EAST       &
+                             ,EXP_STATE_DYN                             &
+                               )
+! 
+!-----------------------------------------------------------------------
+!***  BOUNDARY ARRAY WINDS ARE NEEDED IN THE RESTART FILE IN ORDER TO
+!***  ACHIEVE BIT IDENTICAL ANSWERS BETWEEN RESTARTED RUNS AND THEIR
+!***  FREE-FORECAST ANALOGS.  THE BOUNDARY ARRAYS DO NOT SPAN THE
+!***  INTEGRATION GRID THUS THEY CAN ONLY BE TRANSMITTED THROUGH
+!***  ESMF STATES AS ATTRIBUTES.  NON-SCALAR ATTRIBUTES CAN ONLY
+!***  CONTAIN ONE DIMENSION THEREFORE THE BOUNDARY DATA IS MOVED
+!***  INTO 1-D ARRAYS IN THIS ROUTINE THEN INSERTED INTO THE
+!***  WRITE COMPONENT'S IMPORT STATE.
+!-----------------------------------------------------------------------
+!
+!---------------------
+!***  Input Arguments
+!---------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: LM                               &  !<-- # of model layers
+                                      ,LNSV                             &  !<-- # of boundary blending rows for V points
+                                      ,NUM_WORDS_BC_SOUTH               &  !<-- Total # of words in south bndry winds, this fcst task
+                                      ,NUM_WORDS_BC_NORTH               &  !<-- Total # of words in north bndry winds, this fcst task
+                                      ,NUM_WORDS_BC_WEST                &  !<-- Total # of words in west bndry winds, this fcst task
+                                      ,NUM_WORDS_BC_EAST                   !<-- Total # of words in east bndry winds, this fcst task
+!
+      REAL(kind=KFPT),DIMENSION(IMS:IME,1:LNSV,1:LM,1:2),INTENT(IN) ::  &
+                                                               UBS,UBN  &  !<-- South/north boundary U
+                                                              ,VBS,VBN     !<-- South/north boundary V
+!
+      REAL(kind=KFPT),DIMENSION(1:LNSV,JMS:JME,1:LM,1:2),INTENT(IN) ::  &
+                                                               UBW,UBE  &  !<-- West/east boundary U
+                                                              ,VBW,VBE     !<-- West/east boundary V
+!
+!---------------------
+!***  Inout Arguments
+!---------------------
+!
+      TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE_DYN                      !<-- The Dynamics export state
+!
+!----------------------
+!***  Output Arguments
+!----------------------
+!
+      REAL(kind=KFPT),DIMENSION(1:NUM_WORDS_BC_SOUTH),INTENT(OUT) ::    &
+                                                     RST_BC_DATA_SOUTH     !<-- All south bndry wind data on this fcst task
+      REAL(kind=KFPT),DIMENSION(1:NUM_WORDS_BC_NORTH),INTENT(OUT) ::    &
+                                                     RST_BC_DATA_NORTH     !<-- All north bndry wind data on this fcst task
+      REAL(kind=KFPT),DIMENSION(1:NUM_WORDS_BC_WEST ),INTENT(OUT) ::    &
+                                                     RST_BC_DATA_WEST      !<-- All west bndry wind data on this fcst task
+      REAL(kind=KFPT),DIMENSION(1:NUM_WORDS_BC_EAST ),INTENT(OUT) ::    &
+                                                     RST_BC_DATA_EAST      !<-- All east bndry wind data on this fcst task
+!
+!-----------------------------------------------------------------------
+!
+!---------------------
+!***  Local Variables
+!---------------------
+!
+      INTEGER(kind=KINT) :: IB,JB,KOUNT,L,RC,RC_SAVE
+!
+      TYPE(ESMF_State) :: IMP_STATE_WRITE
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  SOUTHERN BOUNDARY WINDS TO 1-D
+!-----------------------------------------------------------------------
+!
+      IF(JTS==JDS)THEN                                                     !<-- Tasks on south boundary
+        KOUNT=0
+!
+        DO L=1,LM
+          DO JB=1,LNSV
+            DO IB=ITS,MIN(ITE,IDE-1)
+              RST_BC_DATA_SOUTH(KOUNT+1)=UBS(IB,JB,L,1)
+              RST_BC_DATA_SOUTH(KOUNT+2)=UBS(IB,JB,L,2)
+              RST_BC_DATA_SOUTH(KOUNT+3)=VBS(IB,JB,L,1)
+              RST_BC_DATA_SOUTH(KOUNT+4)=VBS(IB,JB,L,2)
+              KOUNT=KOUNT+4
+            ENDDO
+          ENDDO
+        ENDDO
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Write Import State in SAVE_BC_DATA"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_StateGet(state      =EXP_STATE_DYN                    &  !<-- The Dynamics export state
+                          ,itemName   ='Write Import State'             &  !<-- Name of the state to get from Dynamics export state
+                          ,nestedState=IMP_STATE_WRITE                  &  !<-- Extract Write Component import state from Dynamics export
+                          ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SAVE)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Set BC South Data Attribute in SAVE_BC_DATA"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                &  !<-- The Write component import state
+                              ,name     ='RST_BC_DATA_SOUTH'            &  !<-- Name of 1-D string of south boundary values
+                              ,count    =NUM_WORDS_BC_SOUTH             &  !<-- # of south boundary words on this fcst task
+                              ,valueList=RST_BC_DATA_SOUTH              &  !<-- The 1-D data being inserted into the Write import state
+                              ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SAVE)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!***  NORTHERN BOUNDARY WINDS TO 1-D
+!-----------------------------------------------------------------------
+!
+      IF(JTE==JDE)THEN                                                     !<-- Tasks on north boundary
+        KOUNT=0
+!
+        DO L=1,LM
+          DO JB=1,LNSV
+            DO IB=ITS,MIN(ITE,IDE-1)
+              RST_BC_DATA_NORTH(KOUNT+1)=UBN(IB,JB,L,1)
+              RST_BC_DATA_NORTH(KOUNT+2)=UBN(IB,JB,L,2)
+              RST_BC_DATA_NORTH(KOUNT+3)=VBN(IB,JB,L,1)
+              RST_BC_DATA_NORTH(KOUNT+4)=VBN(IB,JB,L,2)
+              KOUNT=KOUNT+4
+            ENDDO
+          ENDDO
+        ENDDO
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Write Import State in SAVE_BC_DATA"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_StateGet(state      =EXP_STATE_DYN                    &  !<-- The Dynamics export state
+                          ,itemName   ='Write Import State'             &  !<-- Name of the state to get from Dynamics export state
+                          ,nestedState=IMP_STATE_WRITE                  &  !<-- Extract Write Component import state from Dynamics export
+                          ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SAVE)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Set BC North Data Attribute in SAVE_BC_DATA"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                &  !<-- The Write component import state
+                              ,name     ='RST_BC_DATA_NORTH'            &  !<-- Name of 1-D string of north boundary values
+                              ,count    =NUM_WORDS_BC_NORTH             &  !<-- # of north boundary words on this fcst task
+                              ,valueList=RST_BC_DATA_NORTH              &  !<-- The 1-D data being inserted into the Write import state
+                              ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SAVE)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!***  WESTERN BOUNDARY WINDS TO 1-D
+!-----------------------------------------------------------------------
+!
+      IF(ITS==IDS)THEN                                                     !<-- Tasks on west boundary
+        KOUNT=0
+!
+        DO L=1,LM
+          DO JB=JTS,MIN(JTE,JDE-1)
+            DO IB=1,LNSV
+              RST_BC_DATA_WEST(KOUNT+1)=UBW(IB,JB,L,1)
+              RST_BC_DATA_WEST(KOUNT+2)=UBW(IB,JB,L,2)
+              RST_BC_DATA_WEST(KOUNT+3)=VBW(IB,JB,L,1)
+              RST_BC_DATA_WEST(KOUNT+4)=VBW(IB,JB,L,2)
+              KOUNT=KOUNT+4
+            ENDDO
+          ENDDO
+        ENDDO
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Write Import State in SAVE_BC_DATA"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_StateGet(state      =EXP_STATE_DYN                    &  !<-- The Dynamics export state
+                          ,itemName   ='Write Import State'             &  !<-- Name of the state to get from Dynamics export state
+                          ,nestedState=IMP_STATE_WRITE                  &  !<-- Extract Write Component import state from Dynamics export
+                          ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SAVE)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Set BC West Data Attribute in SAVE_BC_DATA"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                &  !<-- The Write component import state
+                              ,name     ='RST_BC_DATA_WEST'             &  !<-- Name of 1-D string of west boundary values
+                              ,count    =NUM_WORDS_BC_WEST              &  !<-- # of west boundary words on this fcst task
+                              ,valueList=RST_BC_DATA_WEST               &  !<-- The 1-D data being inserted into the Write import state
+                              ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SAVE)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!***  EASTERN BOUNDARY WINDS TO 1-D
+!-----------------------------------------------------------------------
+!
+      IF(ITE==IDE)THEN                                                     !<-- Tasks on east boundary
+        KOUNT=0
+!
+        DO L=1,LM
+          DO JB=JTS,MIN(JTE,JDE-1)
+            DO IB=1,LNSV
+              RST_BC_DATA_EAST(KOUNT+1)=UBE(IB,JB,L,1)
+              RST_BC_DATA_EAST(KOUNT+2)=UBE(IB,JB,L,2)
+              RST_BC_DATA_EAST(KOUNT+3)=VBE(IB,JB,L,1)
+              RST_BC_DATA_EAST(KOUNT+4)=VBE(IB,JB,L,2)
+              KOUNT=KOUNT+4
+            ENDDO
+          ENDDO
+        ENDDO
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Write Import State in SAVE_BC_DATA"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_StateGet(state      =EXP_STATE_DYN                    &  !<-- The Dynamics export state
+                          ,itemName   ='Write Import State'             &  !<-- Name of the state to get from Dynamics export state
+                          ,nestedState=IMP_STATE_WRITE                  &  !<-- Extract Write Component import state from Dynamics export
+                          ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SAVE)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Set BC East Data Attribute in SAVE_BC_DATA"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                &  !<-- The Write component import state
+                              ,name     ='RST_BC_DATA_EAST'             &  !<-- Name of 1-D string of east boundary values
+                              ,count    =NUM_WORDS_BC_EAST              &  !<-- # of east boundary words on this fcst task
+                              ,valueList=RST_BC_DATA_EAST               &  !<-- The 1-D data being inserted into the Write import state
+                              ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SAVE)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE SAVE_BC_DATA
+!
+!-----------------------------------------------------------------------
+!#######################################################################
 !-----------------------------------------------------------------------
 !
       END MODULE MODULE_DYNAMICS_GRID_COMP

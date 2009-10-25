@@ -19,34 +19,34 @@
       IMPLICIT NONE
 !
 !-----------------------------------------------------------------------
-!***  SET THE NUMBER OF 2- and 3-DIMENSIONAL FIELD NAMES
-!***  AND HOW MANY TO BE TRANSFERRED BETWEEN COMPONENTS.
+!***  Set the number of 2- AND 3-dimensional Field names
+!***  and how many to be transferred between components.
 !-----------------------------------------------------------------------
 !
-!---------------------------------
-!***  TOTAL NUMBER OF FIELD NAMES
-!---------------------------------
+!----------------------------
+!***  Total number of Fields
+!----------------------------
 !
       INTEGER,PARAMETER :: NDATA_2D=1       ! Number of 2D variables handled by the coupler
       INTEGER,PARAMETER :: NDATA_3D=5       ! Number of 3D variables handled by the coupler
 !
-!-----------------------------------------------------
-!***  NUMBER OF FIELDS MOVED FROM DYNAMICS TO PHYSICS
-!-----------------------------------------------------
+!-------------------------------------------------
+!***  Number of Fields moved from Dynamics export
+!-------------------------------------------------
 !
-      INTEGER,PARAMETER :: NDATA_2D_DYN_TO_PHY=NDATA_2D
-      INTEGER,PARAMETER :: NDATA_3D_DYN_TO_PHY=NDATA_3D
+      INTEGER,PARAMETER :: NDATA_2D_FROM_DYN=NDATA_2D
+      INTEGER,PARAMETER :: NDATA_3D_FROM_DYN=NDATA_3D
 !
-!-----------------------------------------------------
-!***  NUMBER OF FIELDS MOVED FROM PHYSICS TO DYNAMICS
-!-----------------------------------------------------
+!------------------------------------------------
+!***  Number of Fields moved from Physics export
+!------------------------------------------------
 !
-      INTEGER,PARAMETER :: NDATA_2D_PHY_TO_DYN=NDATA_2D
-      INTEGER,PARAMETER :: NDATA_3D_PHY_TO_DYN=NDATA_3D-1        ! We know a priori that one 3D Field (OMGALF) is not changed by Physics
+      INTEGER,PARAMETER :: NDATA_2D_FROM_PHY=NDATA_2D
+      INTEGER,PARAMETER :: NDATA_3D_FROM_PHY=NDATA_3D-1        ! We know a priori that one 3D Field (OMGALF) is not changed by Physics
 !
 !----------------------------------------------------------------
-!***  THE NAMES OF THE FIELDS THAT WILL MOVE THROUGH THE
-!***  DYN-PHY COUPLER.
+!***  The names of the Fields that will move through the
+!***  Dyn-Phy Coupler.
 !----------------------------------------------------------------
 !
       CHARACTER(ESMF_MAXSTR),DIMENSION(NDATA_2D) :: DATANAMES_2D        &

@@ -45,7 +45,7 @@
       USE MODULE_GET_CONFIG_WRITE_GFS
       USE MODULE_ERR_MSG       ,ONLY : ERR_MSG,MESSAGE_CHECK
       USE MODULE_INCLUDE_GFS
-      USE NEMSIO_MODULE
+      USE MODULE_NEMSIO
 !
 !
 !-----------------------------------------------------------------------

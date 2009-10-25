@@ -35,7 +35,7 @@ MAKEFILE = makefile
 TARGET = nmm_libutil.a
  
 MODULEIO=       \
-		nemsio_module.o
+		module_NEMSIO.o
 
 MODULES=	\
 		module_ATM_INTERNAL_STATE.o  \
@@ -87,7 +87,7 @@ module_CONTROL.o :   \
 				module_CONSTANTS.o \
 				module_DM_PARALLEL.o \
 				module_EXCHANGE.o \
-				nemsio_module.o
+				module_NEMSIO.o
 
 module_DIGITAL_FILTER_NMM.o: \
 				module_INCLUDE.o \

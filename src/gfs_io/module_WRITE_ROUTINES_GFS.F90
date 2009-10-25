@@ -27,7 +27,7 @@
 !
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !
-      USE NEMSIO_MODULE
+      USE MODULE_NEMSIO
 !
 !-----------------------------------------------------------------------
 !
@@ -133,10 +133,10 @@
                                      ,LOCAL_JSTART                      &
                                      ,LOCAL_JEND
 !jw:gfs
-      INTEGER                      :: nbelt,nremain,istart,lat,nlat
+      INTEGER                      :: ISTART,LAT,NBELT,NLAT,NREMAIN
       INTEGER                      :: TARGET_WRT, MPI_COMMUN    
-      INTEGER,DIMENSION(:),allocatable :: fcst_lat_for_write_task
-      CHARACTER(NAME_MAXSTR),DIMENSION(:),allocatable :: field_name
+      INTEGER,DIMENSION(:),ALLOCATABLE :: FCST_LAT_FOR_WRITE_TASK
+      CHARACTER(NAME_MAXSTR),DIMENSION(:),ALLOCATABLE :: FIELD_NAME
       CHARACTER(NAME_MAXSTR*MAX_DATA_R2D)             :: NAMETMP
 !
       INTEGER,DIMENSION(:),POINTER :: NCHAR_I2D                         &
@@ -179,12 +179,12 @@
         LEAD_WRITE_TASK=LAST_FCST_TASK+1
         LAST_WRITE_TASK=NTASKS-1
         MYPE_LOCAL=MOD(MYPE-NUM_PES_FCST,NWTPG)
-      else                                                               !<-- for QUILTING=.false.,last pe will be the io pe
+      ELSE                                                               !<-- for QUILTING=.false.,last pe will be the io pe
         LAST_FCST_TASK =NTASKS-1
         LEAD_WRITE_TASK=LAST_FCST_TASK
         LAST_WRITE_TASK=LAST_FCST_TASK
         MYPE_LOCAL=0
-      endif
+      ENDIF
 !
 !      write(0,*)'in first pass, LAST_FCST_TASK=',LAST_FCST_TASK,  &
 !        'LEAD_WRITE_TASK=',LEAD_WRITE_TASK,'LAST_WRITE_TASK=',  &

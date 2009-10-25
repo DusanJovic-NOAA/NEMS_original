@@ -20,7 +20,7 @@
 !
       USE ESMF_Mod
       USE MODULE_INCLUDE
-      USE MODULE_DYNAMICS_INTERNAL_STATE,ONLY: INTERNAL_STATE 
+      USE MODULE_DYNAMICS_INTERNAL_STATE,ONLY: DYNAMICS_INTERNAL_STATE 
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !
 !-----------------------------------------------------------------------
@@ -60,6 +60,8 @@
                               ,'JM        ', 'H         ', 'R         ' &
                               ,'LM        ', 'H         ', 'R         ' &
                               ,'IHRST     ', 'H         ', 'R         ' &
+                              ,'I_PAR_STA ', 'H         ', 'R         ' &
+                              ,'J_PAR_STA ', 'H         ', 'R         ' &
                               ,'LPT2      ', '-         ', 'R         ' &
 !
 !                              -----------------------------------------
@@ -91,6 +93,8 @@
                               ,'TSTART    ', 'H         ', 'R         ' &
                               ,'DPHD      ', 'H         ', 'R         ' &
                               ,'DLMD      ', 'H         ', 'R         ' &
+                              ,'SBD       ', '-         ', 'R         ' &
+                              ,'WBD       ', '-         ', 'R         ' &
 !
 !                              -----------------------------------------
 !
@@ -305,22 +309,22 @@
 !***  OF THE WRITE COMPONENTS.
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_Grid)     ,INTENT(IN)    :: GRID                         !<-- The ESMF Grid
-      TYPE(ESMF_State)    ,INTENT(INOUT) :: IMP_STATE_WRITE              !<-- Import state for the Write components
-      TYPE(INTERNAL_STATE),POINTER       :: INT_STATE                    !<-- The dynamics internal state
+      TYPE(ESMF_Grid) ,INTENT(IN)           :: GRID                        !<-- The ESMF Grid
+      TYPE(ESMF_State),INTENT(INOUT)        :: IMP_STATE_WRITE             !<-- Import state for the Write components
+      TYPE(DYNAMICS_INTERNAL_STATE),POINTER :: INT_STATE                   !<-- The Dynamics internal state
 !
 !-----------------------------------------------------------------------
 !
-      INTEGER                     :: ITS,ITE,JTS,JTE                    &
-                                    ,IMS,IME,JMS,JME                    &
-                                    ,IHALO,JHALO
+      INTEGER :: ITS,ITE,JTS,JTE                                        &
+                ,IMS,IME,JMS,JME                                        &
+                ,IHALO,JHALO
 !
-      INTEGER                     :: K,LENGTH,MYPE                      &
-                                    ,N,NDIM3,NFIND,NUM_2D_FIELDS        &
-                                    ,RC,RC_DYN_OUT
+      INTEGER :: K,LENGTH,MYPE                                          &
+                ,N,NDIM3,NFIND,NUM_2D_FIELDS                            &
+                ,RC,RC_DYN_OUT
 !
-      INTEGER                     :: LDIM1,LDIM2                        &
-                                    ,UDIM1,UDIM2
+      INTEGER :: LDIM1,LDIM2                                            &
+                ,UDIM1,UDIM2
 !
       REAL(KIND=KFPT),DIMENSION(:,:),POINTER :: TEMP_R2D
 !
@@ -406,7 +410,9 @@
       I_SC(2)%NAME=>int_state%JM
       I_SC(3)%NAME=>int_state%LM
       I_SC(4)%NAME=>int_state%IHRST
-      I_SC(5)%NAME=>int_state%LPT2
+      I_SC(5)%NAME=>int_state%I_PAR_STA
+      I_SC(6)%NAME=>int_state%J_PAR_STA
+      I_SC(7)%NAME=>int_state%LPT2
 !        
 !***  REAL SCALARS
 !
@@ -419,6 +425,8 @@
       R_SC(7)%NAME=>int_state%TSTART
       R_SC(8)%NAME=>int_state%DPHD
       R_SC(9)%NAME=>int_state%DLMD
+      R_SC(10)%NAME=>int_state%SBD
+      R_SC(11)%NAME=>int_state%WBD
 !        
 !***  1D INTEGER ARRAYS
 !
@@ -604,6 +612,37 @@
       CALL ESMF_AttributeSet(state=IMP_STATE_WRITE                      &  !<-- The Write component import state
                             ,name ='WRITE_GROUPS'                       &  !<-- Name of the integer scalar
                             ,value=int_state%WRITE_GROUPS               &  !<-- The value being inserted into the import state
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_WRITE                      &  !<-- The Write component import state
+                            ,name ='LNSV'                               &  !<-- Name of the integer scalar
+                            ,value=int_state%LNSV                       &  !<-- The value being inserted into the import state
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
+                            ,name     ='LOCAL_JEND'                     &  !<-- Name of the integer array
+                            ,count    =int_state%NUM_PES                &  !<-- Length of array being inserted into the import state
+                            ,valueList=int_state%LOCAL_JEND             &  !<-- The array being inserted into the import state
+                            ,rc       =RC)
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_WRITE                      &  !<-- The Write component import state
+                            ,name ='IDS'                                &  !<-- Name of the integer scalar
+                            ,value=int_state%IDS                        &  !<-- The value being inserted into the import state
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_WRITE                      &  !<-- The Write component import state
+                            ,name ='IDE'                                &  !<-- Name of the integer scalar
+                            ,value=int_state%IDE                        &  !<-- The value being inserted into the import state
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_WRITE                      &  !<-- The Write component import state
+                            ,name ='JDS'                                &  !<-- Name of the integer scalar
+                            ,value=int_state%JDS                        &  !<-- The value being inserted into the import state
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_WRITE                      &  !<-- The Write component import state
+                            ,name ='JDE'                                &  !<-- Name of the integer scalar
+                            ,value=int_state%JDE                        &  !<-- The value being inserted into the import state
                             ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -880,7 +919,7 @@
                                 ,maxHaloUWidth=(/IHALO,JHALO/)          &
                                 ,maxHaloLWidth=(/IHALO,JHALO/)          &
                                 ,name         =VBL_NAME                 &  !<-- Name of the 2D real array
-                                ,indexFlag=ESMF_INDEX_DELOCAL           &
+                                ,indexFlag    =ESMF_INDEX_DELOCAL       &
                                 ,rc           =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -915,7 +954,7 @@
                                 ,maxHaloUWidth=(/IHALO,JHALO/)          &
                                 ,maxHaloLWidth=(/IHALO,JHALO/)          &
                                 ,name         =VBL_NAME                 &  !<-- Name of the 2D real array
-                                ,indexFlag=ESMF_INDEX_DELOCAL           &
+                                ,indexFlag    =ESMF_INDEX_DELOCAL       &
                                 ,rc           =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

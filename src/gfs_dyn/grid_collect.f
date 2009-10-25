@@ -252,7 +252,7 @@ cc
      & DYN_INT_STATE_2D_I,DYN_INT_STATE_1D_R,DYN_INT_STATE_2D_R,
      & DYN_INT_STATE_3D_R_DIAB,DYN_INT_STATE_3D_R_ADIAB,
      & DYN_INT_STATE_4D_R
-      use nemsio_module
+      use module_nemsio
 !
       implicit none
 !!

@@ -8,7 +8,7 @@ MAKEFILE=makefile
 TARGET= gfs_libutil.a
 
 OBJ=\
-	nemsio_module.o
+	module_nemsio.o
 
 OBJS01  = \
 	module_gfs_machine.o          \

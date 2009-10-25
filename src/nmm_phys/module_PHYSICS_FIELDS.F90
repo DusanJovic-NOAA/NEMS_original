@@ -10,7 +10,7 @@
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
-      USE MODULE_PHYSICS_INTERNAL_STATE,ONLY : INTERNAL_STATE
+      USE MODULE_PHYSICS_INTERNAL_STATE,ONLY : PHYSICS_INTERNAL_STATE
       USE MODULE_DM_PARALLEL           ,ONLY : IDS,IDE,JDS,JDE          &
                                               ,IMS,IME,JMS,JME          &
                                               ,ITS,ITE,JTS,JTE          &
@@ -75,17 +75,17 @@
 !***  CREATE FIELDS FOR THE PHYSICS IMPORT/EXPORT STATES.
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_Grid),INTENT(IN)   :: GRID                                !<-- The ESMF grid
+      TYPE(ESMF_Grid),INTENT(IN) :: GRID                                  !<-- The ESMF grid
 !
-      TYPE(INTERNAL_STATE),POINTER :: INT_STATE                           !<-- The Physics internal state
+      TYPE(PHYSICS_INTERNAL_STATE),POINTER :: INT_STATE                   !<-- The Physics internal state
 !
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES
 !-----------------------------------------------------------------------
 !
-      INTEGER             :: I,ISTATUS,J,L,N,RC,RC_FINAL,NUM_TRAC
+      INTEGER :: I,ISTATUS,J,L,N,RC,RC_FINAL,NUM_TRAC
 !
-      CHARACTER(20)       :: FIELD_NAME
+      CHARACTER(20) :: FIELD_NAME
 !
 !-----------------------------------------------------------------------
 !***********************************************************************

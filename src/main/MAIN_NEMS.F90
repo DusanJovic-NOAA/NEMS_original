@@ -12,7 +12,9 @@
 ! PROGRAM HISTORY LOG:
 !   2007-       Black - Modified from Wei-yu's version
 !   2007-09     Black - Create the Clock here.
-!   2009-08     Colon - Unified NEM-NMM & NEMS-GFS
+!   2008-08     Colon - Unified NEM-NMM & NEMS-GFS
+!   2009-06-29  Black - Modified for addition of NMM nesting;
+!                       added new ATM Driver Component.
 !   2009-09     Lu    - Add w3tage calls for resource statistics
 !
 !-----------------------------------------------------------------------
@@ -25,13 +27,13 @@
 !***  Run, and Finalize, only the Register routine is public.
 !-----------------------------------------------------------------------
 !
-       USE module_ATM_GRID_COMP
+       USE module_ATM_DRIVER_COMP,ONLY: ATM_DRIVER_REGISTER
 !
 !-----------------------------------------------------------------------
 !***  The following module contains error-checking.
 !-----------------------------------------------------------------------
 !
-       USE MODULE_ERR_MSG
+       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !
 !-----------------------------------------------------------------------
 !***  This is some information required by the ESMF Log error utility.
@@ -44,76 +46,63 @@
       IMPLICIT NONE
 !
 !-----------------------------------------------------------------------
+!
+      INCLUDE '../../inc/kind.inc'
+!
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
 !***  Local variables.
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_VM)       :: VM                                          !<-- The ESMF virtual machine,
-                                                                         !    which contains and manages
-                                                                         !    the computer CPU resource
-                                                                         !    for the ESMF grid components.
-      TYPE(ESMF_GridComp) :: ATM_GRID_COMP                               !<-- The ATM gridded component.
+      TYPE(ESMF_VM) :: VM                                                  !<-- The ESMF virtual machine,
+                                                                           !    which contains and manages
+                                                                           !    the computer CPU resource
+                                                                           !    for the ESMF grid components.
 !
-      TYPE(ESMF_State)    :: ATM_STATE                                   !<-- This state will be used
-                                                                         !    as both import and export
-                                                                         !    for the ATM component.
-      
-      TYPE(ESMF_GridComp), allocatable :: gc_atm(:)     ! grid component.
-      TYPE(ESMF_State)                 :: imp_atm       ! import state
-      TYPE(ESMF_State)                 :: exp_atm       ! import state
-
-
-
-
+      TYPE(ESMF_GridComp) :: ATM_DRIVER_COMP                               !<-- The ATM Driver gridded component.
 !
-      TYPE(ESMF_Clock)    :: CLOCK_MAIN                                  !<-- The ESMF time management clock
+      TYPE(ESMF_State) :: ATM_DRIVER_EXP_STATE                          &  !<-- The ATM Driver's export state
+                         ,ATM_DRIVER_IMP_STATE                             !<-- The ATM Driver's import state
 !
-      TYPE(ESMF_Clock)	  :: clock
-      TYPE(ESMF_Config)   :: CF                                          !<-- The Configure object
+      TYPE(ESMF_Clock) :: CLOCK_MAIN                                       !<-- The ESMF time management clock
 !
-      TYPE(ESMF_LOG)      :: LOG_ERROR                                   !<-- The ESMF Log Error object.
+      TYPE(ESMF_Config) :: CF_MAIN                                         !<-- The Configure object
+!
+      TYPE(ESMF_LOG) :: LOG_ERROR                                          !<-- The ESMF Log Error object.
 !
 !-----------------------------------------------------------------------
 !
-      INTEGER                 :: YY,MM,DD                                !<-- Time variables for date
-      INTEGER                 :: HH,MNS,SEC                              !<-- Time variables for time of day
-      INTEGER                 :: NHOURS_FCST                             !<-- Length of forecast in hours
-      INTEGER                 :: NSECONDS_FCST                           !<-- Length of forecast in seconds
+      INTEGER(kind=KINT) :: MYPE                                        &  !<-- The local MPI task ID
+                           ,YY,MM,DD                                    &  !<-- Time variables for date
+                           ,HH,MNS,SEC                                  &  !<-- Time variables for time of day
+                           ,NHOURS_FCST                                 &  !<-- Length of forecast in hours
+                           ,NSECONDS_FCST                               &  !<-- Length of forecast in seconds
+                           ,TIMESTEP_SEC_WHOLE                          &  !<-- Integer part of timestep
+                           ,TIMESTEP_SEC_NUMERATOR                      &  !<-- Numerator of fractional part
+                           ,TIMESTEP_SEC_DENOMINATOR                       !<-- Denominator of fractional part
 !
-      TYPE(ESMF_TimeInterval) :: RUNDURATION                             !<-- The ESMF time. The total forecast hours.
+      CHARACTER(3) :: CORE                                                 !<-- The dynamic core
 !
-      TYPE(ESMF_TimeInterval) :: TIMESTEP                                !<-- The ESMF timestep length (we only need a dummy here)
-      TYPE(ESMF_TimeInterval) :: BCK_DURATION
+      TYPE(ESMF_TimeInterval) :: RUNDURATION                               !<-- The ESMF time. The total forecast hours.
 !
-      TYPE(ESMF_Time)         :: STARTTIME                               !<-- The ESMF start time.
+      TYPE(ESMF_TimeInterval) :: TIMESTEP                                  !<-- The ESMF timestep length (we only need a dummy here)
 !
-      INTEGER                 :: RC=ESMF_SUCCESS                         !<-- The running error signal
+      TYPE(ESMF_Time) :: STARTTIME                                         !<-- The ESMF start time.
 !
-      INTEGER                 :: RC_MAIN                                 !<-- The final value of the
-      INTEGER,ALLOCATABLE     :: pe_member(:), petlist(:,:)
-      INTEGER                 :: member_id, i, j, ij, tasks, pe_max, me, total_member, mype, num_pes
-      INTEGER		      :: timestep_sec_whole, timestep_sec_numerator, timestep_sec_denominator
-      INTEGER                 :: FILTER_METHOD, HALF_BCK_DURATION
-!
-!-----------------------------------------------------------------------
-!***  Declare the ATM gridded component and state names.
-!-----------------------------------------------------------------------
-!
-      CHARACTER(ESMF_MAXSTR) :: ATM_GRID_COMP_NAME='ATM Gridded Component'  &
-                               ,ATM_STATE_NAME    ='ATM State'              &
-                               ,CF_NAME           ='Configure_File'
-      CHARACTER(ESMF_MAXSTR),ALLOCATABLE :: gridcompname(:)
-      CHARACTER(ESMF_MAXSTR) :: impstatename, expstatename
-      CHARACTER*20           :: pelab
-      CHARACTER(3)           :: CORE
+      INTEGER :: RC_MAIN,RC=ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-!!
+!     include 'fexcp.h'
+!     call signal(11, xl__trce)
+!
+!-----------------------------------------------------------------------
+!
       call w3tagb('nems     ',0000,0000,0000,'np23   ')
-!!
+!
 !-----------------------------------------------------------------------
 !***  Initialize the final error signal.
 !-----------------------------------------------------------------------
@@ -124,11 +113,24 @@
 !***  Initialize the ESMF framework. 
 !-----------------------------------------------------------------------
 ! 
-      CALL ESMF_Initialize(VM             =VM                           & !<-- The ESMF Virtual Machine
-                          ,defaultCalendar=ESMF_CAL_GREGORIAN           & !<-- Set up the default calendar.
-                          ,defaultlogtype =ESMF_LOG_MULTI               & !<-- Define multiple log error output file;
-                                                                          !    each task has its own log error output file.
+      CALL ESMF_Initialize(vm             =VM                           &  !<-- The ESMF Virtual Machine
+                          ,defaultCalendar=ESMF_CAL_GREGORIAN           &  !<-- Set up the default calendar.
+                          ,defaultlogtype =ESMF_LOG_MULTI               &  !<-- Define multiple log error output file;
+                                                                           !    each task has its own log error output file.
                           ,rc             =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="MAIN: Obtain the local task ID"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_VmGet(vm      =VM                                       &  !<-- The ESMF Virtual Machine
+                     ,localpet=MYPE                                     &  !<-- The local MPI task ID
+                     ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !***  Open the log error file and set log parameters.
@@ -138,13 +140,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Open the Log Error File"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_LogOpen(log=LOG_ERROR                                   &
+      CALL ESMF_LogOpen(log     =LOG_ERROR                              &
                        ,filename='Error_Log.txt'                        &
-                       ,logtype=ESMF_LOG_MULTI                          &
-                       ,rc=RC)
+                       ,logtype =ESMF_LOG_MULTI                         &
+                       ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
@@ -156,17 +158,17 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Set Up ESMF Log"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_LogSet(log        =LOG_ERROR                            &
                       ,verbose    =ESMF_TRUE                            &
                       ,flush      =ESMF_TRUE                            &
                       ,rootOnly   =ESMF_FALSE                           &
-                      ,halt       =ESMF_LOG_HALTERROR                   & ! It means that the job will be stopped
-                                                                          ! when error happens.
-                      ,maxElements=1                                    & ! Maximum number of elements in the log
-                                                                          ! before printing them to the log file.
+                      ,halt       =ESMF_LOG_HALTERROR                   & !<-- The job will be stopped when
+                                                                          !    an error occurs.
+                      ,maxElements=1                                    & !<-- Maximum number of elements in the log
+                                                                          !    before printing them to the log file.
                       ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -175,151 +177,78 @@
 !
 !-----------------------------------------------------------------------
 !***  Create and load the Configure object which will hold the contents
-!***  of the configure file.
+!***  of the primary configure file.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create/Load the Configure Object"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CF=ESMF_ConfigCreate(rc=RC)
+      CF_MAIN=ESMF_ConfigCreate(rc=RC)
 !
-      CALL ESMF_ConfigLoadFile(config  =CF                              & !<-- The Configure object
-                              ,filename='configure_file'   & !<-- The name of the configure file 
+      CALL ESMF_ConfigLoadFile(config  =CF_MAIN                         & !<-- The Configure object for the MAIN program
+                              ,filename='configure_file'                & !<-- The name of the configure file 
                               ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
 !-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!***  Create the ATM ESMF gridded component.
-!-----------------------------------------------------------------------
+!***  Extract the Dynamic core from the configure file.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      
-      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The config object
+      MESSAGE_CHECK="MAIN: Extract Dynamic core from Configure File"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF_MAIN                       &  !<-- The config object for the MAIN program
                                   ,value =CORE                          &  !<-- The variable filled (dynamic core name)
-                                  ,label ='core:'                       &  !<-- Give this label's value to
+                                  ,label ='core:'                       &  !<-- Label in config file
                                   ,rc    =RC)
-
-      MESSAGE_CHECK="Create the ATM Gridded Component"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      IF (CORE=='gfs') THEN
-      CALL ESMF_ConfigDestroy(CF,RC)
-      CF=ESMF_ConfigCreate(rc=RC)
-      CALL ESMF_ConfigLoadFile(config  =CF                              & !<-- The Configure object
-                              ,filename='atm_namelist.rc'   & !<-- The name of the configure file
-                              ,rc      =RC)
-      ENDIF
-
-      IF(CORE=='nmm') THEN
-      ATM_GRID_COMP=ESMF_GridCompCreate(name        =ATM_GRID_COMP_NAME & !<-- ATM gridded component name
-                                       ,gridcomptype=ESMF_ATM           & !<-- A Type that the user can query but it has
-                                                                          !    no meaning in the job run.  Can also be
-                                                                          !    ESMF_OCEAN, ESMF_LAND, etc.
-                                       ,configFile  ='configure_file'   & !<-- Link the user-created configure file to the 
-                                                                          !    ATM gridded component.
-                                       ,rc          =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      ELSE IF(CORE=='gfs') THEN
-!--------------------------------------------------
-! to get the total number of the ensemble members.
-!--------------------------------------------------
-      call ESMF_ConfigGetAttribute(config=CF                            &
-                                  ,value =total_member                  &
-                                  ,label = 'total_member:'              &
-                                  ,rc    = RC)
-
-!-----------------
-! allocate arrays.
-!-----------------
-      ALLOCATE(gc_atm(total_member))
-      ALLOCATE(gridcompname(total_member))
-      ALLOCATE(pe_member(total_member))
-      
-      call ESMF_VmGet(VM                                                &
-                     , pecount = tasks    			        &	 
-                     , localpet = me                                    &
-                     , rc = rc)
-
-      do i = 1, total_member
-        write(gridcompname(i), '("atm main grid component",i2.2)') i
-        write(impstatename   , '("atm import state")')
-        write(expstatename   , '("atm export state")')
-
-
-        call ESMF_ConfigGetAttribute(config=CF                          &
-			          ,value = pe_member(i)                 & 
-                                  ,label = pelab                        & 
-				  ,rc = RC)
-        if (pe_member(i) == 0) then
-!jwstart
-          if( i < mod(tasks,total_member) ) then
-            pe_member(i) = tasks / total_member + 1
-          else
-            pe_member(i) = tasks / total_member
-          endif
-!jwend
-        endif
-      enddo
-      pe_max = 1
-      do i=1,total_member
-        pe_max = max(pe_max,pe_member(i))
-      enddo
-
-!----------------------
-!  set up the pet list.
-!----------------------
-      ALLOCATE(petlist(pe_max, total_member))
-      ij = 0
-      do j = 1, total_member
-          do i = 1, pe_member(j)
-              petlist(i, j) = ij
-              if(me == ij) then
-                  member_id = j
-              end if
-              ij = ij+1
-          end do
-      end do
-
+!
 !-----------------------------------------------------------------------
-      do i = 1, total_member
-      gc_atm(i) = ESMF_GridCompCreate (                                  &
-                              name         = gridcompname(i)             &
-                             ,gridcomptype = esmf_atm                    &
-                             ,petlist      = petlist(1:pe_member(i),i)  &
-                             ,config       = CF                          &
-                             ,rc           = RC)
-      end do
-     CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
-     ENDIF 
-!
+!-----------------------------------------------------------------------
+!***  Create the ATM Driver gridded component which will create and
+!***  control the individual ATM forecast components.
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Register ATM Init, Run, Finalize"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+      MESSAGE_CHECK="Create the ATM Driver Component"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      IF (CORE=='nmm') THEN	
-      CALL ESMF_GridCompSetServices(ATM_GRID_COMP                        &  !<-- The ATM gridded component
-                                   ,ATM_REGISTER                         &  !<-- User's subroutineName 
+      ATM_DRIVER_COMP=ESMF_GridCompCreate(name        ='ATM DRIVER COMP'  & !<-- ATM Driver component name
+                                         ,gridcomptype=ESMF_ATM           & !<-- A Type that the user can query.
+                                         ,configFile  ='configure_file'   & !<-- Link the user-created configure file.
+                                         ,rc          =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!***  Register the ATM Driver component's initialize, run and finalize
+!***  routines.
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Register ATM_DRIVER Init, Run, Finalize"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_GridCompSetServices(ATM_DRIVER_COMP                       &  !<-- The ATM Driver component
+                                   ,ATM_DRIVER_REGISTER                   &  !<-- User's subroutineName
                                    ,RC)
-      ELSE IF (CORE=='gfs') THEN
-      RC   = ESMF_SUCCESS
-      do i = 1, total_member
-      CALL ESMF_GridCompSetServices(gc_atm(i)                            &  !<-- The ATM gridded component
-                                   ,ATM_REGISTER                         &  !<-- User's subroutineName
-                                   ,RC)
-      end do
-      ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
@@ -327,121 +256,45 @@
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
-!***  Create the ATM component's ESMF state.
-!***  It will be used for both import and export because 
-!***  it will not be required to perform an actual function.
-!***  When ATM is coupled to another component then the 
-!***  import/export states will actually be utilized.
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Create the ATM Import/Export State"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
-      IF (CORE=='nmm') THEN
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      ATM_STATE=ESMF_StateCreate(statename=ATM_STATE_NAME               &
-                                 ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      ELSE IF (CORE=='gfs') THEN
-
-      imp_atm = ESMF_StateCreate (statename = impstatename  &
-                                  ,statetype = esmf_state_import &
-                                  ,rc        = RC)
-
-      exp_atm = ESMF_StateCreate (statename = expstatename   &
-                                  ,statetype = esmf_state_export &
-                                  ,rc        = RC)
-      ENDIF
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
-!
-!-----------------------------------------------------------------------
-!***  Create the ESMF Clock which will control the timestepping.
+!***  Create the main ESMF Clock.
 !***  The Clock is needed for all calls to Init, Run, and Finalize.
 !
-!***  Obtain the simulation start and end times from the Configure File.
-!***  Each of the primary Components will create and use their own
-!***  clocks since the timestepping within those Components will in
-!***  general be different from each other but they will read the
-!***  start/end times from the main Clock.
+!***  A timestep is needed to create the Clock but actual timesteps
+!***  are handled by ATM_DRIVER because multiple Clocks may be needed
+!***  therefore a dummy value is used here.
+!
+!-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-      IF (CORE=='nmm') THEN
+      TIMESTEP_SEC_WHOLE      =1                                           !<-- Dummy timestep values 
+      TIMESTEP_SEC_NUMERATOR  =0                                           !
+      TIMESTEP_SEC_DENOMINATOR=1                                           !<--
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Create dummy Timestep in MAIN"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+      MESSAGE_CHECK="Set up Time Step Interval in Main Clock"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_TimeIntervalSet(timeinterval=TIMESTEP                   &  !<-- Dummy fundamental timestep (sec) (ESMF)
-                               ,s           =1                          &  !<-- Dummy whole seconds
-                               ,sn          =0                          &  !<-- Dummy numerator of timestep fraction
-                               ,sd          =1                          &  !<-- Dummy denominator of timestep fraction
+      CALL ESMF_TimeIntervalSet(timeinterval=TIMESTEP                   &  !<-- Main Clock's timestep
+                               ,s           =TIMESTEP_SEC_WHOLE         &  !<-- Whole part of timestep
+                               ,sn          =TIMESTEP_SEC_NUMERATOR     &  !<-- Numerator of fractional part
+                               ,sd          =TIMESTEP_SEC_DENOMINATOR   &  !<-- Denominator of fractional part
                                ,rc          =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      ELSE IF (CORE=='gfs')THEN
 !-----------------------------------------------------------------------
-!***  EXTRACT FUNDAMENTAL TIMESTEP INFORMATION FROM THE CONFIG FILE.
+!***  Set the start time in the Main Clock.
 !-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract Timestep Information from Config File"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The config object
-                                  ,value =TIMESTEP_SEC_WHOLE            &  !<-- The variable filled (integer part of timestep (sec))
-                                  ,label ='dt_int:'                     &  !<-- Give this label's value to the previous variable
-                                  ,rc    =RC)
-!
-      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The config object
-                                  ,value =TIMESTEP_SEC_NUMERATOR        &  !<-- The variable filled (numerator of timestep fraction)
-                                  ,label ='dt_num:'                     &  !<-- Give this label's value to the previous variable
-                                  ,rc    =RC)
-!
-      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The config object
-                                  ,value =TIMESTEP_SEC_DENOMINATOR      &  !<-- The variable filled (denominator of timestep fraction)
-                                  ,label ='dt_den:'                     &  !<-- Give this label's value to the previous variable
-                                  ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  ESTABLISH THE TIMESTEP.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Set up Time Step Interval"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_TimeIntervalSet(timeinterval=TIMESTEP                   &  !<-- The model's fundamental timestep (sec) (ESMF)
-                               ,s           =TIMESTEP_SEC_WHOLE         &
-                               ,sn          =TIMESTEP_SEC_NUMERATOR     &
-                               ,sd          =TIMESTEP_SEC_DENOMINATOR   &
-                               ,rc          =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-     ENDIF
-!---------------
-!***  Start Time
-!---------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="MAIN: Extract Starting Year from Config File"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ConfigGetAttribute(config=CF                            &
+      CALL ESMF_ConfigGetAttribute(config=CF_MAIN                       &
                                   ,value =YY                            &
                                   ,label ='start_year:'                 &
                                   ,rc    =RC)
@@ -452,10 +305,10 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="MAIN: Extract Starting Month from Config File"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ConfigGetAttribute(config=CF                            &
+      CALL ESMF_ConfigGetAttribute(config=CF_MAIN                       &
                                   ,value =MM                            &
                                   ,LABEL ='start_month:'                &
                                   ,rc    =RC)
@@ -466,10 +319,10 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="MAIN: Extract Starting Day from Config File"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ConfigGetAttribute(config=CF                            &
+      CALL ESMF_ConfigGetAttribute(config=CF_MAIN                       &
                                   ,value =DD                            &
                                   ,label ='start_day:'                  &
                                   ,rc    =RC)
@@ -480,10 +333,10 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="MAIN: Extract Starting Hour from Config File"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ConfigGetAttribute(config=CF                            &
+      CALL ESMF_ConfigGetAttribute(config=CF_MAIN                       &
                                   ,value =HH                            &
                                   ,label ='start_hour:'                 &
                                   ,rc    =RC)
@@ -494,10 +347,10 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="MAIN: Extract Starting Minute from Config File"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ConfigGetAttribute(config=CF                            &
+      CALL ESMF_ConfigGetAttribute(config=CF_MAIN                       &
                                   ,value =MNS                           &
                                   ,label ='start_minute:'               &
                                   ,rc    =RC)
@@ -508,10 +361,10 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="MAIN: Extract Starting Second from Config File"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ConfigGetAttribute(config=CF                            &
+      CALL ESMF_ConfigGetAttribute(config=CF_MAIN                       &
                                   ,value =SEC                           &
                                   ,label ='start_second:'               &
                                   ,rc    =RC)
@@ -522,7 +375,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="MAIN: Set the Forecast Start Time"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_TimeSet(time=STARTTIME                                  &  !<-- The start time of the forecast (ESMF)
@@ -538,16 +391,16 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!-----------------
-!***  Run Duration
-!-----------------
+!-----------------------------------------------------------------------
+!***  Set the run duration in the Main Clock.
+!-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="MAIN: Extract Forecast Length from Config File"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ConfigGetAttribute(config=CF                            &
+      CALL ESMF_ConfigGetAttribute(config=CF_MAIN                       &
                                   ,value =NHOURS_FCST                   &
                                   ,label ='nhours_fcst:'                &
                                   ,rc    =RC)
@@ -556,69 +409,13 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      NSECONDS_FCST=NHOURS_FCST*3600                                       !<-- The forecast length (s) (REAL)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      IF (CORE=='nmm') THEN
-      MESSAGE_CHECK="Checking if filtering employed"
-
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ESMF_ConfigGetAttribute(config=CF                            &
-                                  ,value =FILTER_METHOD                 &
-                                  ,label ='filter_method:'               &
-                                  ,rc    =RC)
-
+      NSECONDS_FCST=NHOURS_FCST*3600                                       !<-- The forecast length (sec) (REAL)
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      IF (FILTER_METHOD .eq. 2) THEN
-
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
-      MESSAGE_CHECK="DDFI employed so obtaining backward integration duration"
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
-      CALL ESMF_ConfigGetAttribute(config=CF                            &
-                                  ,value = HALF_BCK_DURATION             &
-                                  ,label ='nsecs_bckddfi:'            &
-                                  ,rc    =RC)
-      CALL ESMF_TimeIntervalSet(timeinterval= BCK_DURATION         &  !<-- Time interval between
-                               ,s           =  2*HALF_BCK_DURATION    &  !<-- Hours between history
-                               ,rc          =RC)
-
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      ELSE IF (FILTER_METHOD .eq. 3 ) THEN
-
-      CALL ESMF_ConfigGetAttribute(config=CF                            &
-                                  ,value = HALF_BCK_DURATION             &
-                                  ,label ='nsecs_bcktdfi:'            &
-                                  ,rc    =RC)
-      CALL ESMF_TimeIntervalSet(timeinterval= BCK_DURATION         &  !<-- Time interval between
-                               ,s           =  2*HALF_BCK_DURATION    &  !<-- Hours between history
-                               ,rc          =RC)
-
-      ELSE
-
-      HALF_BCK_DURATION=0
-
-      CALL ESMF_TimeIntervalSet(timeinterval= BCK_DURATION         &  !<-- Time interval between
-                               ,s           = HALF_BCK_DURATION     &  !<-- Hours between history
-                               ,rc          =RC)
-      ENDIF
-      ELSE IF (CORE=='gfs') THEN
-      HALF_BCK_DURATION=0
-      CALL ESMF_TimeIntervalSet(timeinterval= BCK_DURATION         &  !<-- Time interval between
-                               ,s           = HALF_BCK_DURATION     &  !<-- Hours between history
-                               ,rc          =RC)
-      ENDIF
- 
+!-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="MAIN: Set the Forecast Length"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_TimeIntervalSet(timeinterval=RUNDURATION                &  !<-- The forecast length (s) (ESMF)
@@ -629,21 +426,19 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      RUNDURATION=RUNDURATION+BCK_DURATION
 !-----------------------------------------------------------------------
 !***  Now the Main Clock can be created.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create the Main Clock"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      STARTTIME=STARTTIME-BCK_DURATION
-      CLOCK_MAIN=ESMF_ClockCreate(name       ='MAIN_CLOCK'              &  !<-- The top-level ESMF Clock
-                                 ,timestep   =TIMESTEP                  &  !<-- A dummy timestep needed by the Clock
-                                 ,starttime  =STARTTIME                 &  !<-- The forecast start time
-                                 ,runduration=RUNDURATION               &  !<-- The forecast duration
+      CLOCK_MAIN=ESMF_ClockCreate(name       ='CLOCK_MAIN'              &  !<-- The top-level ESMF Clock
+                                 ,timestep   =TIMESTEP                  &  !<-- Timestep needed by the Clock (ESMF)
+                                 ,starttime  =STARTTIME                 &  !<-- The integration start time (ESMF)
+                                 ,runduration=RUNDURATION               &  !<-- The integration duration (ESMF)
                                  ,rc         =RC)
 
 !
@@ -653,7 +448,31 @@
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
-!***  Execute the INITIALIZE step for the ATM gridded component.
+!***  Create the ATM Driver component's import/export states.
+!***  Currently they are not required to perform an actual function.
+!***  When ATM Driver is coupled to another component then the
+!***  import/export states will actually be utilized.
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Create the ATM Driver Import/Export States"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      ATM_DRIVER_IMP_STATE=ESMF_StateCreate(statename='ATM Driver Import State' &
+                                           ,rc       =RC)
+!
+      ATM_DRIVER_EXP_STATE=ESMF_StateCreate(statename='ATM Driver Export State' &
+                                           ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!***  Execute the INITIALIZE step for the ATM Driver component.
 !***  The initialize routine that is called here as well as the 
 !***  run and finalize routines invoked below are those specified
 !***  in the Register routine called in ESMF_GridCompSetServices above.
@@ -661,29 +480,16 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Execute the ATM Component Initialize Step"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+      MESSAGE_CHECK="Execute the ATM Driver Component Initialize Step"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      IF(CORE=='nmm') THEN 
-      CALL ESMF_GridCompInitialize(gridcomp   =ATM_GRID_COMP            &  !<-- the ATM gridded component
-                                  ,importstate=ATM_STATE                &  !<-- the ATM component's import state
-                                  ,exportstate=ATM_STATE                &  !<-- the ATM component's export state
-                                  ,clock      =CLOCK_MAIN               &  !<-- the ESMF clock
+      CALL ESMF_GridCompInitialize(gridcomp   =ATM_DRIVER_COMP          &  !<-- The ATM Driver component
+                                  ,importstate=ATM_DRIVER_IMP_STATE     &  !<-- The ATM Driver's import state
+                                  ,exportstate=ATM_DRIVER_EXP_STATE     &  !<-- The ATM Driver's export state
+                                  ,clock      =CLOCK_MAIN               &  !<-- The ESMF clock
                                   ,phase      =ESMF_SINGLEPHASE         &  
                                   ,rc         =RC)
-      ELSE IF (CORE=='gfs') THEN
-      do i = 1, total_member
-      if(member_id == i) then
-      CALL ESMF_GridCompInitialize(gridcomp   =gc_atm(i)                &  !<-- the ATM gridded component
-                                  ,importstate=imp_atm                  &  !<-- the ATM component's import state
-                                  ,exportstate=exp_atm                  &  !<-- the ATM component's export state
-                                  ,clock      =CLOCK_MAIN               &  !<-- the ESMF clock
-                                  ,phase      =ESMF_SINGLEPHASE         &
-                                  ,rc         =RC)
-      end if
-      end do
-      ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
@@ -691,35 +497,21 @@
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
-!***  Execute the RUN step for the ATM gridded component.
+!***  Execute the RUN step for the ATM Driver component.
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Execute the ATM Component Run Step"
+      MESSAGE_CHECK="Execute the ATM Driver Component Run Step"
 !      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      IF(CORE=='nmm') THEN
-      CALL ESMF_GridCompRun(gridcomp   =ATM_GRID_COMP                   &  !<-- the ATM gridded component
-                           ,importstate=ATM_STATE                       &  !<-- the ATM component's import state
-                           ,exportstate=ATM_STATE                       &  !<-- the ATM component's export state
-                           ,clock      =CLOCK_MAIN                      &  !<-- the ESMF clock
+      CALL ESMF_GridCompRun(gridcomp   =ATM_DRIVER_COMP                 &  !<-- The ATM Driver component
+                           ,importstate=ATM_DRIVER_IMP_STATE            &  !<-- The ATM Driver's import state
+                           ,exportstate=ATM_DRIVER_EXP_STATE            &  !<-- The ATM Driver's export state
+                           ,clock      =CLOCK_MAIN                      &  !<-- The ESMF clock
                            ,phase      =ESMF_SINGLEPHASE                &
                            ,rc         =RC)
-       ELSE IF (CORE=='gfs') THEN
-       do i = 1, total_member
-       if(member_id == i) then
-      CALL ESMF_GridCompRun(gridcomp   =gc_atm(i)                   &  !<-- the ATM gridded component
-                           ,importstate=imp_atm                       &  !<-- the ATM component's import state
-                           ,exportstate=exp_atm                       &  !<-- the ATM component's export state
-                           ,clock      =CLOCK_MAIN                      &  !<-- the ESMF clock
-                           ,phase      =ESMF_SINGLEPHASE                &
-                           ,rc         =RC)
-      end if
-      end do
-      ENDIF
-
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
@@ -727,41 +519,25 @@
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
-!***  Execute the FINALIZE step for the ATM gridded component.
+!***  Execute the FINALIZE step for the ATM Driver component.
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Execute the ATM Component Finalize Step"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+      MESSAGE_CHECK="Execute the ATM Driver Component Finalize Step"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      IF(CORE=='nmm') THEN
-      CALL ESMF_GridCompFinalize(gridcomp   =ATM_GRID_COMP              &  !<-- the ATM gridded component
-                                ,importstate=ATM_STATE                  &  !<-- the ATM component's import state
-                                ,exportstate=ATM_STATE                  &  !<-- the ATM component's export state
-                                ,clock      =CLOCK_MAIN                 &  !<-- the ESMF clock
+      CALL ESMF_GridCompFinalize(gridcomp   =ATM_DRIVER_COMP            &  !<-- The ATM Driver component
+                                ,importstate=ATM_DRIVER_IMP_STATE       &  !<-- The ATM Driver's import state
+                                ,exportstate=ATM_DRIVER_EXP_STATE       &  !<-- The ATM Driver's export state
+                                ,clock      =CLOCK_MAIN                 &  !<-- The ESMF clock
                                 ,phase      =ESMF_SINGLEPHASE           &
                                 ,rc         =RC)
-      ELSE IF (CORE=='gfs') THEN
-       do i = 1, total_member
-       if(member_id == i) then
-      CALL ESMF_GridCompFinalize(gridcomp   =gc_atm(i)              &  !<-- the ATM gridded component
-                                ,importstate=imp_atm                  &  !<-- the ATM component's import state
-                                ,exportstate=exp_atm                  &  !<-- the ATM component's export state
-                                ,clock      =CLOCK_MAIN                 &  !<-- the ESMF clock
-                                ,phase      =ESMF_SINGLEPHASE           &
-                                ,rc         =RC)
-      end if
-      end do
-      ENDIF
-
-
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
 !
 !-----------------------------------------------------------------------
 !***  Destroy the Main Clock.
@@ -769,11 +545,27 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Destroy the Main Clock"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ClockDestroy(clock=CLOCK_MAIN                           &
                             ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Destroy the Main Configure object.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Destroy the Main Configure Object"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigDestroy(config=CF_MAIN                            &
+                             ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
@@ -790,11 +582,10 @@
       ELSE
         WRITE(0,*)'MODEL FORECAST RUN FAILED  RC_MAIN=',RC_MAIN
       ENDIF
-
-!!
-      if( me.eq.0 ) call w3tage('nems     ')
-!!
-
+!
+!-----------------------------------------------------------------------
+!
+      if(mype==0)call w3tage('nems     ')
 !
 !-----------------------------------------------------------------------
 !

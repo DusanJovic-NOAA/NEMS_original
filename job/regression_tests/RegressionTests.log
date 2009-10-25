@@ -1,4 +1,4 @@
-Fri Oct 16 14:46:17 EDT 2009
+Fri Oct 23 06:40:58 EDT 2009
 Start Regression test
 
 
@@ -26,7 +26,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  196.4453278  , test_glob timing:  208.4760132
+ Original timing:  196.4453278  , test_glob timing:  177.24
 
 
 Test 002
@@ -164,7 +164,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  644.2672729  , test_reg timing:  679.6800537
+ Original timing:  644.2672729  , test_reg timing:  646.74
 
 
 Test 009
@@ -389,7 +389,7 @@ Checking test 019 results ....
  Comparing flxf24.........OK
  Test 019 passed 
 Test 020
-Test GFS, 1 proc, 1 threads,no quilting,nsout=1
+Test GFS, 1 proc, 1 thread, no quilting,nsout=1
 GFS, 1 proc, 1 thread
 
 
@@ -484,4 +484,4 @@ Checking test 023 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 023 passed 
-Fri Oct 16 17:38:57 EDT 2009
+Fri Oct 23 09:25:56 EDT 2009

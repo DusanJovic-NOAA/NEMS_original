@@ -8,7 +8,9 @@
 #@ node_usage = not_shared
 #@ tasks_per_node = _TPN_
 #@ node = 1
-#@ node_resources= ConsumableMemory(20GB)
+###@ node_resources= ConsumableMemory(20GB)
+#@ node_resources= ConsumableMemory(110GB)
+#@ task_affinity=core(1)
 #@ class = _CLASS_
 #@ group = _CLASS_
 #@ wall_clock_limit = 00:08:00
@@ -40,14 +42,15 @@ mkdir -p $RUNDIR
 cd $RUNDIR
 rm -rf $RUNDIR/*
 
-cp _RTPWD_/NMMB_glob/test_input_umo_global          main_input_filename
-cp _RTPWD_/NMMB_glob/test_input_umo_global.nemsio   main_input_filename_nemsio
-cp _RTPWD_/NMMB_glob/nmm_b_restart.024              restart_file
-cp _RTPWD_/NMMB_glob/nmm_b_restart_nemsio.024       restart_file_nemsio
+cp _RTPWD_/NMMB_glob/test_input_nmmb_global         input_domain_01
+cp _RTPWD_/NMMB_glob/test_input_nmmb_global.nemsio  input_domain_01_nemsio
+cp _RTPWD_/NMMB_glob/nmm_b_restart.024              restart_file_01
+cp _RTPWD_/NMMB_glob/nmm_b_restart_nemsio.024       restart_file_01_nemsio
 cp _RTPWD_/NMMB_glob/GWD.bin                        GWD.bin
 _GS_cp ../NMM_CNTRL/global_* .
 
 cp $SRCDIR/job/regression_tests/configure_file .
+cp configure_file configure_file_01
 cp _RTPWD_/data/* .
 ln -sf /nwprod/fix/global_o3prdlos.f77 fort.28
 ln -sf /nwprod/fix/global_o3clim.txt fort.48
