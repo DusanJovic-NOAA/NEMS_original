@@ -10,6 +10,7 @@
 !  november 2004      weiyu yang initial code.
 !  february 2006      took out model namelists
 !  january  2007      hann-ming henry juang for gfs dynamics only
+!  oct 2009           sarah lu, tracer added, (q, oz, cld) removed
 !
 ! !interface:
 !
@@ -35,9 +36,7 @@
            integer                :: u_import
            integer                :: v_import
            integer                :: temp_import
-           integer                :: q_import
-           integer                :: oz_import
-           integer                :: cld_import
+           integer                :: tracer_import
            integer                :: p_import
            integer                :: dp_import
            integer                :: dpdt_import
@@ -48,9 +47,7 @@
            integer                :: u_export
            integer                :: v_export
            integer                :: temp_export
-           integer                :: q_export
-           integer                :: oz_export
-           integer                :: cld_export
+           integer                :: tracer_export
            integer                :: p_export
            integer                :: dp_export
            integer                :: dpdt_export

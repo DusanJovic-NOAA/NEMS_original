@@ -16,6 +16,7 @@
 !  May     2008 j. wang          change for gfs wrt grid component
 !  Oct 04  2009 sarah lu         init xlon, xlat, lats_nodes_a_fix
 !  Oct 05  2009 sarah lu         grid_gr unfolded from 2D to 3D
+!  Oct 16  2009 sarah lu         initialize gfs_dyn_tracer
 !
 !
 ! !interface:
@@ -31,6 +32,8 @@
       use gfs_dyn_mod_state, only : buff_mult_pieceg
       use gfs_dyn_layout1, only : ipt_lats_node_a
       use gfs_dyn_resol_def, only : adiabatic
+      use gfs_dyn_tracer_config, only: gfs_dyn_tracer,     &
+                                       tracer_config_init
 
       implicit none
 
@@ -78,6 +81,22 @@
 !
       call get_tracer_const(gis_dyn%ntrac,me,gis_dyn%nam_gfs_dyn%nlunit)
 !      write(0,*)'after gettracer_con=',gis_dyn%ntrac
+!
+! met+chem tracer specification (Sarah Lu)
+!
+      call tracer_config_init( gis_dyn%gfs_dyn_tracer, gis_dyn%ntrac,   &
+                               gis_dyn%ntoz, gis_dyn%ntcw,              &
+                               gis_dyn%ncld,  me )          
+      gfs_dyn_tracer = gis_dyn%gfs_dyn_tracer               
+      if( me == 0) then
+       write(0,*)'LU_TRC, exit tracer_config_init in dyn'  
+       write(0,*)'LU_TRC, ntrac=     ',gfs_dyn_tracer%ntrac,ntrac
+       write(0,*)'LU_TRC, ntrac_met =',gfs_dyn_tracer%ntrac_met
+       write(0,*)'LU_TRC, ntrac_chem=',gfs_dyn_tracer%ntrac_chem
+       do n = 1, gfs_dyn_tracer%ntrac 
+        write(0,*)'LU_TRC, tracer_vname=',gfs_dyn_tracer%vname(n)
+       enddo
+      endif
 !
       ntrac   = gis_dyn%ntrac
       nxpt    = gis_dyn%nxpt

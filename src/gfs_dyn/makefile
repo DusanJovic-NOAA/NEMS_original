@@ -17,7 +17,6 @@ OBJS0	= \
 	  gfs_dynamics_run_mod.o		\
 	  gfs_dynamics_finalize_mod.o		\
 	  gfs_dynamics_add_get_state_mod.o	\
-	  gfs_dynamics_states_mod.o		\
 	  gfs_dyn_states_mod.o		\
 	  gfs_dynamics_grid_comp_mod.o
 	  
@@ -35,6 +34,7 @@ OBJ_MOD	= \
 	  gfs_dyn_coordinate_def.o      \
 	  gfs_dyn_lon_lat_para.o	\
 	  gfs_dyn_tracer_const.o  	\
+	  gfs_dyn_tracer_config.o	\
 	  gfs_dyn_reduce_lons_grid_module.o \
 	  gfs_dyn_matrix_sig_def.o      \
 	  gfs_dyn_mpi_def.o             \
@@ -231,9 +231,6 @@ gfs_dynamics_internal_state_mod.o:	 gfs_dynamics_internal_state_mod.f
 
 gfs_dynamics_add_get_state_mod.o:	 gfs_dynamics_add_get_state_mod.f
 		$(FC) $(FFLAG90) -c gfs_dynamics_add_get_state_mod.f
-
-gfs_dynamics_states_mod.o:	 gfs_dynamics_states_mod.f
-		$(FC) $(FFLAG90) -c gfs_dynamics_states_mod.f
 
 gfs_dyn_states_mod.o:		gfs_dyn_states_mod.f
 		$(FC) $(FFLAG90) -c gfs_dyn_states_mod.f

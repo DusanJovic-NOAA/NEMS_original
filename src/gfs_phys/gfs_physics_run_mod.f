@@ -13,6 +13,7 @@
 !  november 2007      hann-ming henry juang continue for gfs physics
 !  october  2009      jun wang add nsout option
 !  oct 11  2009       sarah lu, grid_gr replaced by grid_fld
+!  oct 17  2009       sarah lu, q is replaced by tracers(1)
 !
 !
 ! !interface:
@@ -58,7 +59,8 @@
 !
        call common_to_physics_vars(gis_phy%grid_fld%ps,      &
                                    gis_phy%grid_fld%t ,      &
-                                   gis_phy%grid_fld%q ,      &
+!*                                 gis_phy%grid_fld%q ,      &
+                                   gis_phy%grid_fld%tracers(1)%flds ,  &
                                    gis_phy%grid_fld%u ,      &
                                    gis_phy%grid_fld%v ,      &
                                    gis_phy%grid_fld%p ,      &
@@ -105,7 +107,8 @@
 ! --------------------------------------------------------------------------
        call physics_to_common_vars(gis_phy%grid_fld%ps,      &
                                    gis_phy%grid_fld%t ,      &
-                                   gis_phy%grid_fld%q ,      &
+!*                                 gis_phy%grid_fld%q ,      &
+                                   gis_phy%grid_fld%tracers(1)%flds, &
                                    gis_phy%grid_fld%u ,      &
                                    gis_phy%grid_fld%v ,      &
                                    gis_phy%grid_fld%p ,      &

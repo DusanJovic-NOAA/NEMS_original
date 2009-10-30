@@ -1,4 +1,4 @@
-Fri Oct 23 06:40:58 EDT 2009
+Thu Oct 29 21:26:45 EDT 2009
 Start Regression test
 
 
@@ -26,7 +26,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  196.4453278  , test_glob timing:  177.24
+ Original timing:  177.14  , test_glob timing:  176.81
 
 
 Test 002
@@ -164,7 +164,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  644.2672729  , test_reg timing:  646.74
+ Original timing:  646.74  , test_reg timing:  645.91
 
 
 Test 009
@@ -484,4 +484,4 @@ Checking test 023 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 023 passed 
-Fri Oct 23 09:25:56 EDT 2009
+Fri Oct 30 00:10:55 EDT 2009

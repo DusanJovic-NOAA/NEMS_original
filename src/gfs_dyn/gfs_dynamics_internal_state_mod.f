@@ -13,6 +13,7 @@
 !  february 2006      shrinivas moorthi updated for the new version of gfs
 !  january 2007       hann-ming henry juang for gfs dynamics only
 !  oct 05 2009        sarah lu, grid_gr unfolded from 2D to 3D
+!  oct 16 2009        sarah lu, add gfs_dyn_tracer
 !
 ! !interface:
 !
@@ -35,6 +36,7 @@
       use gfs_dyn_coordinate_def                                      ! hmhj
       use gfs_dyn_tracer_const                                        ! hmhj
       use gfs_dyn_matrix_sig_def
+      use gfs_dyn_tracer_config, only: gfs_dyn_tracer_type
 
       implicit none
 
@@ -44,6 +46,7 @@
 
       type(nam_gfs_dyn_namelist)   :: nam_gfs_dyn
       type(gfs_dyn_state_namelist) :: esmf_sta_list
+      type(gfs_dyn_tracer_type)    :: gfs_dyn_tracer 
 
       integer                   :: me, nodes
       integer                   :: lnt2_s, llgg_s
@@ -53,7 +56,7 @@
 !
       integer ntrac,nxpt,nypt,jintmx,jcap,levs,lonf,latg,lats_node_a_max
       integer ntoz, ntcw, ncld, levr
-
+!
       character(16)                     ::  cfhour1
 !jws
       integer                           ::  num_file

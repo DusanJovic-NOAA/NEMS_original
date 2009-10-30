@@ -14,6 +14,7 @@
 !  march    2006 s. moorthi    modified for the new gfs.
 !  january  2007 h. juang      modified for the gfs dynamics.
 !  May      2009 j. wang       modified for the gfs wrt grid comp
+!  Oct 2009 Sarah Lu           tracer added; (q, oz, cld) removed
 !
 ! !interface:
 !
@@ -252,22 +253,10 @@
                'gfs dynamics getcf','temp_import',rcfinal)
 !
       call esmf_configgetattribute(cf, 					&
-                              int_state%esmf_sta_list%q_import,		&
-                              label = 'q_import:',    rc = rc1)
+                              int_state%esmf_sta_list%tracer_import,    &		
+                              label = 'tracer_import:',    rc = rc1)
       call gfs_dynamics_err_msg_var(rc1,				&
-               'gfs dynamics getcf','q_import',rcfinal)
-!
-      call esmf_configgetattribute(cf, 					&
-                              int_state%esmf_sta_list%oz_import,	&
-                              label = 'oz_import:',    rc = rc1)
-      call gfs_dynamics_err_msg_var(rc1,				&
-               'gfs dynamics getcf','oz_import',rcfinal)
-!
-      call esmf_configgetattribute(cf, 					&
-                              int_state%esmf_sta_list%cld_import,	&
-                              label = 'cld_import:',    rc = rc1)
-      call gfs_dynamics_err_msg_var(rc1,				&
-               'gfs dynamics getcf','cld_import',rcfinal)
+               'gfs dynamics getcf','tracer_import',rcfinal)
 !
       call esmf_configgetattribute(cf, 					&
                               int_state%esmf_sta_list%p_import,	&
@@ -326,22 +315,10 @@
                'gfs dynamics getcf','temp_export',rcfinal)
 
       call esmf_configgetattribute(cf, 					&
-                              int_state%esmf_sta_list%q_export,		&
-                              label = 'q_export:',    rc = rc1)
+                              int_state%esmf_sta_list%tracer_export,	&
+                              label = 'tracer_export:',    rc = rc1)
       call gfs_dynamics_err_msg_var(rc1,				&
-               'gfs dynamics getcf','q_export',rcfinal)
-
-      call esmf_configgetattribute(cf, 					&
-                              int_state%esmf_sta_list%oz_export, 	&
-                              label = 'oz_export:',    rc = rc1)
-      call gfs_dynamics_err_msg_var(rc1,				&
-               'gfs dynamics getcf','oz_export',rcfinal)
-
-      call esmf_configgetattribute(cf, 					&
-                              int_state%esmf_sta_list%cld_export,	&
-                              label = 'cld_export:',    rc = rc1)
-      call gfs_dynamics_err_msg_var(rc1,				&
-               'gfs dynamics getcf','cld_export',rcfinal)
+               'gfs dynamics getcf','tracer_export',rcfinal)
 
       call esmf_configgetattribute(cf, 					&
                               int_state%esmf_sta_list%p_export,	&

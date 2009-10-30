@@ -23,7 +23,6 @@ OBJS0   = \
 	  gfs_physics_run_mod.o                \
 	  gfs_physics_finalize_mod.o           \
 	  gfs_physics_add_get_state_mod.o      \
-	  gfs_physics_states_mod.o             \
 	  gfs_phy_states_mod.o             \
 	  gfs_physics_grid_comp_mod.o
 
@@ -43,6 +42,7 @@ OBJ_MOD	= \
 	  namelist_soilveg.o    \
 	  coordinate_def.o      \
 	  tracer_const_h.o  	\
+	  gfs_phy_tracer_config.o  	\
 	  reduce_lons_grid_module.o	\
 	  module_bfmicrophysics.o	\
 	  mersenne_twister.o	\
@@ -405,9 +405,6 @@ gfs_physics_internal_state_mod.o:       gfs_physics_internal_state_mod.f
 gfs_physics_add_get_state_mod.o:        gfs_physics_add_get_state_mod.f
 		$(FC) $(FFLAG90) -c gfs_physics_add_get_state_mod.f
 
-gfs_physics_states_mod.o:       gfs_physics_states_mod.f
-		$(FC) $(FFLAG90) -c gfs_physics_states_mod.f
-                                                                                
 gfs_phy_states_mod.o:		gfs_phy_states_mod.f
 		$(FC) $(FFLAG90) -c gfs_phy_states_mod.f
 

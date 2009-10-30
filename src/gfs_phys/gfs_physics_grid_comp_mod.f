@@ -12,6 +12,7 @@
 !  oct 09   2009     sarah lu, 3D Gaussian grid (DistGrid5) added
 !  oct 12   2009     sarah lu, set the association between imp/exp states
 !                    and internal state grid_fld; reset start_step
+!  oct 17 2009      Sarah Lu, add debug print to check imp/exp state
 !                           
 !
 ! !interface:
@@ -156,7 +157,7 @@
 
 ! user code, for computations related to the esmf interface states.
 !------------------------------------------------------------------
-      use gfs_physics_states_mod
+!*    use gfs_physics_states_mod
       use gfs_physics_grid_create_mod
 !
 ! !input/output variables and parameters:
@@ -549,6 +550,8 @@
 !  oct 12 2009       Sarah Lu, call gfs_physics_import2internal_mgrid and
 !                    gfs_physics_internal2export_mgrid to associate imp/exp
 !                    states with internal state grid_fld
+!  oct 17 2009       Sarah Lu, debug print added to track imp/exp states
+
 !
 ! !interface:
 !
@@ -556,7 +559,7 @@
       subroutine gfs_phy_run(gc_gfs_phy, 				&
                             imp_gfs_phy, exp_gfs_phy, clock, rc)
 
-      use gfs_physics_states_mod
+!*     use gfs_physics_states_mod
 !
 ! !input variables and parameters:
 !---------------------------------
@@ -592,12 +595,25 @@
 !
 ! these logic flags are used to handle pointer/copy options (Sarah Lu)
       logical       :: imp2int, flag1, flag2 
+
+!! debug print for tracking import and export state (Sarah Lu)
+      TYPE(ESMF_Field)                   :: ESMFField             !chlu_debug
+      TYPE(ESMF_FieldBundle)             :: ESMFBundle            !chlu_debug
+      REAL , DIMENSION(:,:,:), POINTER   :: fArr3D                !chlu_debug
+      integer                            :: localPE,ii1,ii2,ii3   !chlu_debug
+      integer                            :: n, k, rc2             !chlu_debug
+      logical, parameter                 :: ckprnt = .true.       !chlu_debug
+      integer, parameter                 :: item_count = 4        !chlu_debug
+      character(5) :: item_name(item_count)                       !chlu_debug
+      character(20) :: vname                                      !chlu_debug
+      data item_name/'t','u','v','p'/                             !chlu_debug
+
+      localPE = 0                                                 !chlu_debug
 !
 ! initialize the error signal variables.
 !---------------------------------------
       rc1     = esmf_success
       rcfinal = esmf_success
-
 
 ! retrieve the esmf internal state.
 !---------------------------------- 
@@ -643,6 +659,51 @@
       fhour     =int_state%fhour_idate(1,1)
 
       call gfs_physics_err_msg(rc1,'esmf import state to internal state',rc)
+
+!! debug print starts here  (Sarah Lu) -----------------------------------
+      lab_if_ckprnt_im : if ( ckprnt .and. (int_state%me==0) ) then       !chlu_debug
+        do n = 1, item_count                                              !chlu_debug
+            vname = trim(item_name(n))                                    !chlu_debug
+            if(associated(fArr3D)) nullify(fArr3D)                        !chlu_debug
+            CALL ESMF_StateGet(state = imp_gfs_phy                      & !chlu_debug
+                        ,itemName  = vname                              & !chlu_debug
+                        ,field     = ESMFField                          & !chlu_debug
+                        ,rc        = rc1)                                 !chlu_debug
+            call gfs_physics_err_msg(rc1,'LU_PHY: get ESMFarray',rc)      !chlu_debug
+            CALL ESMF_FieldGet(field=ESMFField, localDe=0, &              !chlu_debug
+                               farray=fArr3D, rc = rc1)                   !chlu_debug
+            call gfs_physics_err_msg(rc1,'LU_PHY: get F90array',rc)       !chlu_debug
+            ii1 = size(fArr3D, dim=1)                                     !chlu_debug
+            ii2 = size(fArr3D, dim=2)                                     !chlu_debug
+            ii3 = size(fArr3D, dim=3)                                     !chlu_debug
+            if(n==1) print *, 'LU_PHY:',ii1, 'x', ii2, 'x', ii3           !chlu_debug
+            print *,' LU_PHY: imp_: ',vname,fArr3D(1,1,1),fArr3D(1,2,1),& !chlu_debug
+                         fArr3D(2,1,1),fArr3D(ii1,ii2,ii3)                !chlu_debug
+        enddo                                                             !chlu_debug
+
+        call ESMF_StateGet(state=imp_gfs_phy, ItemName='tracers', &       !chlu_debug
+                         fieldbundle=ESMFBundle, rc = rc1)                !chlu_debug
+        call gfs_physics_err_msg(rc1,'LU_PHY: get Bundle from imp',rc)    !chlu_debug
+        do n = 1, int_state%ntrac                                         !chlu_debug
+          vname = int_state%gfs_phy_tracer%vname(n)                       !chlu_debug
+          print *,'LU_PHY: ',trim(vname)                                  !chlu_debug
+          CALL ESMF_FieldBundleGet(bundle=ESMFBundle, &                   !chlu_debug
+                       name= vname, field=ESMFField, rc = rc1)            !chlu_debug
+          CALL ESMF_FieldGet(field=ESMFField, localDe=0, &                !chlu_debug
+                            farray=fArr3D, rc = rc1)                      !chlu_debug
+          if(n==1) then                                                   !chlu_debug
+             ii1 = size(fArr3D, dim=1)                                    !chlu_debug
+             ii2 = size(fArr3D, dim=2)                                    !chlu_debug
+             ii3 = size(fArr3D, dim=3)                                    !chlu_debug
+             print *,'LU_PHY:',ii1, 'x', ii2, 'x', ii3                    !chlu_debug
+          endif                                                           !chlu_debug
+          print *,'LU_PHY: imp_:',trim(vname),&                           !chlu_debug
+                 fArr3D(1,1,1),fArr3D(1,2,1), &                           !chlu_debug
+                 fArr3D(2,1,1),fArr3D(ii1,ii2,ii3)                        !chlu_debug
+        enddo                                                             !chlu_debug
+      endif lab_if_ckprnt_im                                              !chlu_debug
+!! -------------------------------------- debug print ends here  (Sarah Lu)
+
 
 !
 ! get clock times
@@ -718,6 +779,52 @@
      endif                                                     
 
      call gfs_physics_err_msg(rc1,'internal state to esmf export state',rc)
+
+!! debug print starts here  (Sarah Lu) -----------------------------------
+      lab_if_ckprnt_ex : if ( ckprnt .and. (int_state%me==0) ) then       !chlu_debug
+        do n = 1, item_count                                              !chlu_debug
+            vname = trim(item_name(n))                                    !chlu_debug
+            if(associated(fArr3D)) nullify(fArr3D)                        !chlu_debug
+            CALL ESMF_StateGet(state = exp_gfs_phy                      & !chlu_debug
+                        ,itemName  = vname                              & !chlu_debug
+                        ,field     = ESMFField                          & !chlu_debug
+                        ,rc        = rc1)                                 !chlu_debug
+            call gfs_physics_err_msg(rc1,'LU_PHY: get ESMFarray',rc)      !chlu_debug
+            CALL ESMF_FieldGet(field=ESMFField, localDe=0, &              !chlu_debug
+                               farray=fArr3D, rc = rc1)                   !chlu_debug
+            call gfs_physics_err_msg(rc1,'LU_PHY: get F90array',rc)       !chlu_debug
+            ii1 = size(fArr3D, dim=1)                                     !chlu_debug
+            ii2 = size(fArr3D, dim=2)                                     !chlu_debug
+            ii3 = size(fArr3D, dim=3)                                     !chlu_debug
+            if(n==1) print *, 'LU_PHY:',ii1, 'x', ii2, 'x', ii3           !chlu_debug
+            print *,' LU_PHY: exp_: ',vname,fArr3D(1,1,1),fArr3D(1,2,1),& !chlu_debug
+                         fArr3D(2,1,1),fArr3D(ii1,ii2,ii3)                !chlu_debug
+        enddo                                                             !chlu_debug
+
+        call ESMF_StateGet(state=exp_gfs_phy, ItemName='tracers', &       !chlu_debug
+                          fieldbundle=ESMFBundle, rc = rc1 )              !chlu_debug
+        call gfs_physics_err_msg(rc1,'LU_PHY: get Bundle from exp',rc)    !chlu_debug
+        do n = 1, int_state%ntrac                                         !chlu_debug
+          vname = int_state%gfs_phy_tracer%vname(n)                       !chlu_debug
+          print *,'LU_PHY:',trim(vname)                                   !chlu_debug
+          CALL ESMF_FieldBundleGet(bundle=ESMFBundle, &                   !chlu_debug
+                 name=vname, field=ESMFfield, rc = rc1)                   !chlu_debug
+          CALL ESMF_FieldGet(field=ESMFfield, localDe=0, &                !chlu_debug
+                          farray=fArr3D, rc = rc1)                        !chlu_debug
+          if(n==1) then                                                   !chlu_debug
+            ii1 = size(fArr3D, dim=1)                                     !chlu_debug
+            ii2 = size(fArr3D, dim=2)                                     !chlu_debug
+            ii3 = size(fArr3D, dim=3)                                     !chlu_debug
+            print *,'LU_PHY:',ii1, 'x', ii2, 'x', ii3                     !chlu_debug
+          endif                                                           !chlu_debug
+          print *,'LU_PHY: exp_:',trim(vname), &                          !chlu_debug
+               fArr3D(1,1,1),fArr3D(1,2,1),    &                          !chlu_debug
+               fArr3D(2,1,1),fArr3D(ii1,ii2,ii3)                          !chlu_debug
+        enddo                                                             !chlu_debug
+
+      endif lab_if_ckprnt_ex                                              !chlu_debug
+!! -------------------------------------- debug print ends here  (Sarah Lu)
+
 !
 !-----------------------------------------------------------------------
 !***  retrieve the import state of the write gridded component

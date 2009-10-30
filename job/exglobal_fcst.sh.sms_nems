@@ -21,6 +21,9 @@
 #                             The script can run up to 21 ENS members
 #                             concurrently.
 # 2006-06     Shrinivas Moorthi : Added default PE$n values to 0
+# 2009-10     Sarah Lu, ESMF_State_Namelist modified:
+#                       tracer added; (q, oz, cld) removed
+
 #
 # Usage:  global_forecast.sh SIGI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO
 #
@@ -770,9 +773,7 @@ vor_import:                       0
 u_import:                         1
 v_import:                         1
 temp_import:                      1
-q_import:                         1
-oz_import:                        1
-cld_import:                       1
+tracer_import:                    1
 p_import:                         0
 dp_import:                        0
 dpdt_import:                      0
@@ -785,9 +786,7 @@ vor_export:                       0
 u_export:                         1
 v_export:                         1
 temp_export:                      1
-q_export:                         1
-oz_export:                        1
-cld_export:                       1
+tracer_export:                    1
 p_export:                         1
 dp_export:                        1
 dpdt_export:                      1
@@ -806,9 +805,7 @@ vor_import:                       0
 u_import:                         1
 v_import:                         1
 temp_import:                      1
-q_import:                         1
-oz_import:                        1
-cld_import:                       1
+tracer_import:                    1
 p_import:                         1
 dp_import:                        1
 dpdt_import:                      1
@@ -821,9 +818,7 @@ vor_export:                       0
 u_export:                         1
 v_export:                         1
 temp_export:                      1
-q_export:                         1
-oz_export:                        1
-cld_export:                       1
+tracer_export:                    1
 p_export:                         0
 dp_export:                        0
 dpdt_export:                      0

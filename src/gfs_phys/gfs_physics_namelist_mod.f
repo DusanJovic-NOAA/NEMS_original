@@ -12,6 +12,7 @@
 !  january  2007      hann-ming henry juang for gfs dynamics only
 !  july     2007      shrinivas moorthi for gfs physics only
 !  november 2007      hann-ming henry juang for gfs physics
+!  oct 2009           sarah lu, tracer added; (q, oz, cld) removed
 !
 ! !interface:
 !
@@ -37,9 +38,7 @@
            integer                :: u_import
            integer                :: v_import
            integer                :: temp_import
-           integer                :: q_import
-           integer                :: oz_import
-           integer                :: cld_import
+           integer                :: tracer_import
            integer                :: p_import
            integer                :: dp_import
            integer                :: dpdt_import
@@ -50,9 +49,7 @@
            integer                :: u_export
            integer                :: v_export
            integer                :: temp_export
-           integer                :: q_export
-           integer                :: oz_export
-           integer                :: cld_export
+           integer                :: tracer_export
            integer                :: p_export
            integer                :: dp_export
            integer                :: dpdt_export

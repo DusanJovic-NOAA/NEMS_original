@@ -234,22 +234,10 @@
                'gfs physics getcf','temp_import',rcfinal)
 !
       call esmf_configgetattribute(cf,                                  &
-                              int_state%esmf_sta_list%q_import,         &
-                              label = 'q_import:',    rc = rc1)
+                              int_state%esmf_sta_list%tracer_import,    &
+                              label = 'tracer_import:',    rc = rc1)
       call gfs_physics_err_msg_var(rc1,                                &
-               'gfs physics getcf','q_import',rcfinal)
-!
-      call esmf_configgetattribute(cf,                                  &
-                              int_state%esmf_sta_list%oz_import,        &
-                              label = 'oz_import:',    rc = rc1)
-      call gfs_physics_err_msg_var(rc1,                                &
-               'gfs physics getcf','oz_import',rcfinal)
-!
-      call esmf_configgetattribute(cf,                                  &
-                              int_state%esmf_sta_list%cld_import,       &
-                              label = 'cld_import:',    rc = rc1)
-      call gfs_physics_err_msg_var(rc1,                                &
-               'gfs physics getcf','cld_import',rcfinal)
+               'gfs physics getcf','tracer_import',rcfinal)
 !
       call esmf_configgetattribute(cf,                                  &
                               int_state%esmf_sta_list%p_import, &
@@ -308,22 +296,10 @@
                'gfs physics getcf','temp_export',rcfinal)
                                                                                
       call esmf_configgetattribute(cf,                                  &
-                              int_state%esmf_sta_list%q_export,         &
-                              label = 'q_export:',    rc = rc1)
+                              int_state%esmf_sta_list%tracer_export,    &
+                              label = 'tracer_export:',    rc = rc1)
       call gfs_physics_err_msg_var(rc1,                                &
-               'gfs physics getcf','q_export',rcfinal)
-                                                                               
-      call esmf_configgetattribute(cf,                                  &
-                              int_state%esmf_sta_list%oz_export,        &
-                              label = 'oz_export:',    rc = rc1)
-      call gfs_physics_err_msg_var(rc1,                                &
-               'gfs physics getcf','oz_export',rcfinal)
-                                                                               
-      call esmf_configgetattribute(cf,                                  &
-                              int_state%esmf_sta_list%cld_export,       &
-                              label = 'cld_export:',    rc = rc1)
-      call gfs_physics_err_msg_var(rc1,                                &
-               'gfs physics getcf','cld_export',rcfinal)
+               'gfs physics getcf','tracer_export',rcfinal)
                                                                                
       call esmf_configgetattribute(cf,                                  &
                               int_state%esmf_sta_list%p_export, &

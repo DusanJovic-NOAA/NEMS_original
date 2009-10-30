@@ -10,6 +10,7 @@
 !!
 !! Code Revision:
 !! Oct 11 2009       Sarah Lu, grid_gr replaced by gri_fld
+!! Ott 16 2009       Sarah Lu, grid_fld%tracers used
 !!
 ! #include "f_hpm.h"
 !!
@@ -290,18 +291,19 @@ c
               prsik(i,k) = (prsi(i,k)*pt01)**rk
             enddo
           enddo
-!         do n = 1, NTRAC
+         do n = 1, NTRAC
 !           kk = g_q + (n-1)*levs
             do k = 1, LEVS
               do i = 1, njeff
 !               ilan=jlonr+istrt+i-1
 !               gr(i,k,n) = grid_gr(ilan,kk+k-1)
-                gr(i,k,1)    = grid_fld%q  (lon+i-1,lan,k)  
-                gr(i,k,ntoz) = grid_fld%oz (lon+i-1,lan,k)  
-                gr(i,k,ntcw) = grid_fld%cld(lon+i-1,lan,k) 
+!*              gr(i,k,1)    = grid_fld%q  (lon+i-1,lan,k)  
+!*              gr(i,k,ntoz) = grid_fld%oz (lon+i-1,lan,k)  
+!*              gr(i,k,ntcw) = grid_fld%cld(lon+i-1,lan,k) 
+                gr(i,k,n)= grid_fld%tracers(n)%flds(lon+i-1,lan,k)
               enddo
             enddo
-!         enddo
+         enddo
 
       do i=1,ngptc
         phil(i,levs)  = 0.0 ! will force calculation of geopotential in gbphys.
@@ -472,18 +474,19 @@ c
            grid_fld%t(lon+i-1,lan,k) = adt(i,k)
          enddo
        enddo
-!      do n = 1, NTRAC
+       do n = 1, NTRAC
 !        kk = g_q + (n-1)*levs
          do k = 1, LEVS
            do i = 1, njeff
 !            ilan=jlonr+istrt+i-1
 !            grid_gr(ilan,kk+k-1) = adr(i,k,n)
-             grid_fld%q  (lon+i-1,lan,k) = adr(i,k,1)      
-             grid_fld%oz (lon+i-1,lan,k) = adr(i,k,ntoz)  
-             grid_fld%cld(lon+i-1,lan,k) = adr(i,k,ntcw) 
+!*           grid_fld%q  (lon+i-1,lan,k) = adr(i,k,1)      
+!*           grid_fld%oz (lon+i-1,lan,k) = adr(i,k,ntoz)  
+!*           grid_fld%cld(lon+i-1,lan,k) = adr(i,k,ntcw) 
+             grid_fld%tracers(n)%flds(lon+i-1,lan,k)= adr(i,k,n)
            enddo
          enddo
-!      enddo
+       enddo
 !!
        enddo   !lon
 !

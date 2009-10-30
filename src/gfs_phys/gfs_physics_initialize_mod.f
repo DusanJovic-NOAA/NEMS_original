@@ -17,6 +17,7 @@
 !                               lats_node_r, ipt_lats_node_r)
 !  oct 11 2009  Sarah Lu        grid_gr is replaced by grid_fld
 !  oct 12 2009  Sarah Lu        initialize start_step
+!  oct 16 2009  Sarah Lu        initialize gfs_phy_tracer
 !
 ! !interface:
 !
@@ -62,6 +63,7 @@
       use machine,                        ONLY : kind_io4
       USE sfcio_module,                   ONLY: sfcio_axdbta
       USE gfs_physics_gridgr_mod,         ONLY: gridvar_aldata  
+      use gfs_phy_tracer_config,          ONLY: gfs_phy_tracer, tracer_config_init
 
       include 'mpif.h'
 
@@ -109,6 +111,26 @@
 !
       CALL set_soilveg(me,gis_phy%nam_gfs_phy%nlunit)
       call set_tracer_const(gis_phy%ntrac,me,gis_phy%nam_gfs_phy%nlunit)
+!
+! met+chem tracer specification (Sarah Lu)
+! NOTE: This config_init call repeats the init routine in dyc gc.  
+!       The redundant calls will be removed in a later revision.  
+!       The tracer specification will then be passed in from dyn dc
+!
+      call tracer_config_init( gis_phy%gfs_phy_tracer, gis_phy%ntrac,   &
+                               gis_phy%ntoz, gis_phy%ntcw,              &
+                               gis_phy%ncld,  me )
+      gfs_phy_tracer = gis_phy%gfs_phy_tracer
+      if( me == 0) then
+       write(0,*)'LU_TRC, exit tracer_config_init in phy'
+       write(0,*)'LU_TRC, ntrac=     ',gfs_phy_tracer%ntrac, gis_phy%ntrac
+       write(0,*)'LU_TRC, ntrac_met =',gfs_phy_tracer%ntrac_met
+       write(0,*)'LU_TRC, ntrac_chem=',gfs_phy_tracer%ntrac_chem
+       do n = 1, gfs_phy_tracer%ntrac
+       write(0,*)'LU_TRC, tracer_vname=',gfs_phy_tracer%vname(n)
+       enddo
+      endif
+
 !
       nlunit  = gis_phy%nam_gfs_phy%nlunit
       ntrac   = gis_phy%ntrac

@@ -12,6 +12,7 @@
 
 !! Code Revision:
 !! Oct 11 2009       Sarah Lu, grid_gr is replaced by grid_fld
+!! Oct 16 2009       Sarah Lu, grid_fld%tracers used
 !!
 cc
 !#include "f_hpm.h"
@@ -25,6 +26,7 @@ cc
 
       use module_radiation_driver,   only : radinit, grrad
       use module_radiation_astronomy,only : astronomy
+      USE gfs_phy_tracer_config,     only : gfs_phy_tracer
 !
 !! ---  for optional spectral band heating outputs
 !!    use module_radsw_parameters,   only : NBDSW
@@ -351,7 +353,8 @@ cc
 !             prsi(i,k+1)= prsi(i,k)-                                      &
 !     &                    grid_gr(ilan,g_dp+k-1)
               gt(i,k)    = grid_fld%t(lon+i-1,lan,k)                           
-              gr(i,k)    = max(qmin,grid_fld%q(lon+i-1,lan,k))                 
+!*            gr(i,k)    = max(qmin,grid_fld%q(lon+i-1,lan,k))                 
+              gr(i,k)= max(qmin,grid_fld%tracers(1)%flds(lon+i-1,lan,k))                 
               prsl(i,k)  = grid_fld%p(lon+i-1,lan,k)                         
               vvel(i,k)  = grid_fld%dpdt(lon+i-1,lan,k)                        
               prsi(i,k+1)= prsi(i,k)-                                      &  
@@ -371,17 +374,18 @@ cc
 !
 !       Remaining tracers
 !
-!         do n = 1, NTRAC-1
+         do n = 1, NTRAC-1
 !           kk = g_q + n*levs
             do k = 1, LEVS
               do i = 1, njeff
 !               ilan = jlonr + istrt+i-1
 !               gr1(i,k,n) = grid_gr(ilan,kk+k-1)
-                gr1(i,k,ntoz-1) = grid_fld%oz(lon+i-1,lan,k)  
-                gr1(i,k,ntcw-1) = grid_fld%cld(lon+i-1,lan,k) 
+!*              gr1(i,k,ntoz-1) = grid_fld%oz(lon+i-1,lan,k)  
+!*              gr1(i,k,ntcw-1) = grid_fld%cld(lon+i-1,lan,k) 
+                gr1(i,k,n) = grid_fld%tracers(n+1)%flds(lon+i-1,lan,k)
               enddo
             enddo
-!          enddo
+          enddo
 
 !!
 !.....

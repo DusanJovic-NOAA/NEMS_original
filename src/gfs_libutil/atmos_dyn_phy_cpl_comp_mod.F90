@@ -16,6 +16,7 @@
 !! Code Revision:
 !! Oct 12 2009        Sarah Lu, atm_cpl_run modified to move Fields and
 !!                    FieldBundle between import and export states
+!! Oct 16 2009        Sarah Lu, move tracer bundle between states
 !-----------------------------------------------------------------------
 !
       use esmf_mod
@@ -341,7 +342,7 @@
       endif                                           
 !---> query tracer bundle
       CALL ESMF_StateGet(state   = imp_state                        & 
-                        ,itemName  = 'Tracers'                      & 
+                        ,itemName  = 'tracers'                      & 
                         ,fieldbundle = ESMFBundle                   & 
                         ,rc        = rc2)                          
       if ( rc2 == esmf_success ) then                          
@@ -593,12 +594,38 @@
 !-----------------------------------------------------------------------
 !
         enddo data_3d
+
 !
 !-----------------------------------------------------------------------
 !
 #ifdef NMM_B
       enddo model_levels
 #endif
+
+!!
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!! Extract tracer field bundle from the import state and add them
+!! to the export state  (Sarah Lu)
+!! 
+         lab_if_bundle : if ( cpl_bundle ) then                          
+
+          call ESMF_StateGet(state      = imp_state                    & 
+                             ,itemName  = 'tracers'                    & 
+                             ,fieldbundle = ESMFBundle                 & 
+                             ,rc   =rc)                                
+          call err_msg(rc,'retrieve bundle from cpl import',rcfinal)
+
+          call ESMF_StateAdd(state      = exp_state                    & 
+                            ,fieldbundle = ESMFBundle                  & 
+                            ,rc   =rc)                                 
+          call err_msg(rc,'add bundle to cpl export',rcfinal)         
+
+         endif lab_if_bundle                                   
+!
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!
 !
 ! check the export state
 !

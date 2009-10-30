@@ -31,6 +31,7 @@
 !  Sarah Lu  2009-08-06  Add gfs_dynamics_import2internal_mgrid and
 !                        gfs_dynamics_internal2export_mgrid
 !  Sarah Lu  2009-10-12  Port to the latest trunk
+!  Sarah Lu  2009-10-17  Tracer bundle added; (shum, oz, cld) removed
 !                 
 !EOP
 
@@ -72,16 +73,14 @@
     print *, 'LU_DYN: call StateDefine for import state'        
     call StateDefine_ ( import, internal, mgrid,                       &
                         cf%z_import, cf%ps_import, cf%u_import,        &
-                        cf%v_import, cf%temp_import, cf%q_import,      &
-                        cf%oz_import, cf%cld_import,                   &
+                        cf%v_import, cf%temp_import, cf%tracer_import, &
                         cf%p_import, cf%dp_import, cf%dpdt_import, rc1)
     call gfs_dynamics_err_msg(rc1,"StateDefine for import state",rcfinal) 
 
     print *, 'LU_DYN: call StateDefine for export state'        
     call StateDefine_ ( export, internal, mgrid,                       &
                         cf%z_export, cf%ps_export, cf%u_export,        &
-                        cf%v_export, cf%temp_export, cf%q_export,      &
-                        cf%oz_export, cf%cld_export,                   &
+                        cf%v_export, cf%temp_export, cf%tracer_export, &
                         cf%p_export, cf%dp_export, cf%dpdt_export, rc1)
     call gfs_dynamics_err_msg(rc1,"StateDefine for export state",rcfinal) 
 
@@ -94,12 +93,12 @@
 
 ! ---
     subroutine StateDefine_ ( state, internal, mgrid,        &
-                              z, ps, u, v, temp, q, oz, cld, &
+                              z, ps, u, v, temp, tracer,     &
                               p, dp, dpdt, rc1 )               
 
     type(ESMF_Grid), intent(in) :: mGrid
 
-    integer,         intent(in) :: z, ps, u, v, temp, q, oz, cld, &
+    integer,         intent(in) :: z, ps, u, v, temp, tracer, &
                                    p, dp, dpdt 
 
     type(GFS_Dynamics_Internal_State), intent(in)    :: Internal
@@ -181,43 +180,6 @@
        call gfs_dynamics_err_msg(rc,"add to esmf state - v",rcfinal)     
     end if
 
-!   Moisture
-    if ( q == 1 ) then
-       i = internal%g_rt
-       j = internal%g_rt + internal%levs - 1
-       if(associated(fArr3D)) nullify(fArr3D)        
-       fArr3D => internal%grid_gr(:,:,i:j)
-       field = ESMF_FieldCreate(name='shum', grid=mgrid, fArray=fArr3D,&
-               indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
-       call gfs_dynamics_err_msg(rc,"add to esmf state - q",rcfinal)     
-    end if
-
-!   Ozone
-    if ( oz == 1 ) then
-       i = internal%g_rt + (internal%ntoz-1) * internal%levs
-       j = i + internal%levs - 1
-       if(associated(fArr3D)) nullify(fArr3D)        
-       fArr3D => internal%grid_gr(:,:,i:j)
-       field = ESMF_FieldCreate(name='oz', grid=mgrid, fArray=fArr3D,& 
-               indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-!*     call ESMF_AttributeSet(field, name='CPI', gfs_dyn_tracer%cpi(internal%ntoz),rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
-       call gfs_dynamics_err_msg(rc,"add to esmf state - oz",rcfinal)     
-    end if
-
-!   Cloud liquid water
-    if ( cld == 1 ) then
-       i = internal%g_rt + (internal%ntcw-1) * internal%levs
-       j = i + internal%levs - 1
-       if(associated(fArr3D)) nullify(fArr3D)        
-       fArr3D => internal%grid_gr(:,:,i:j)
-       field = ESMF_FieldCreate(name='cld', grid=mgrid, fArray=fArr3D,&
-               indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
-       call gfs_dynamics_err_msg(rc,"add to esmf state - cld",rcfinal)     
-    end if
-
 !   Pressure
     if ( p == 1 ) then
        i = internal%g_p
@@ -276,10 +238,11 @@
       integer                  :: rc1, rcfinal
 
       type(ESMF_Field)         :: Field
+      type(ESMF_FieldBundle)   :: Bundle
 
       real, pointer            :: fArr2D(:,:)
       real, pointer            :: fArr3D(:,:,:)
-      integer                  :: i, j 
+      integer                  :: i, j, k 
 
       cf = internal%esmf_sta_list
 
@@ -360,47 +323,26 @@
           call gfs_dynamics_err_msg(rc,'retrieve Farray from field -v',rcfinal)
       end if
 
-! get the moisture array from the esmf import state.
-!---------------------------------------------------
-      if(cf%q_import == 1) then
-          i = internal%g_rt
-          j = i + internal%levs - 1
-          call ESMF_StateGet(state=State, ItemName='shum',            & 
-                             field=Field, rc = rc )
-          call gfs_dynamics_err_msg(rc,'retrieve Efield from state -q',rcfinal)
-          CALL ESMF_FieldGet(field=field, localDe=0, &           
-                             farray=fArr3D, rc = rc)             
-          internal%grid_gr(:,:,i:j) = fArr3D                   
-          call gfs_dynamics_err_msg(rc,'retrieve Farray from field -q',rcfinal)
-      end if
-
-! get the ozone array from the esmf import state.
-!------------------------------------------------
-      if(cf%oz_import == 1) then
-          i = internal%g_rt + (internal%ntoz-1) * internal%levs
-          j = i + internal%levs - 1
-          call ESMF_StateGet(state=State, ItemName='oz',            & 
-                             field=Field, rc = rc )
-          call gfs_dynamics_err_msg(rc,'retrieve Efield from state -oz',rcfinal)
-          CALL ESMF_FieldGet(field=field, localDe=0, &           
-                             farray=fArr3D, rc = rc)             
-          internal%grid_gr(:,:,i:j) = fArr3D                   
-          call gfs_dynamics_err_msg(rc,'retrieve Farray from field -oz',rcfinal)
-      end if
-
-! get the cloud liquid water array from the esmf import state.
-!-------------------------------------------------------------
-      if(cf%cld_import == 1) then
-          i = internal%g_rt + (internal%ntcw-1) * internal%levs
-          j = i + internal%levs - 1
-          call ESMF_StateGet(state=State, ItemName='cld',            & 
-                             field=Field, rc = rc )
-          call gfs_dynamics_err_msg(rc,'retrieve Efield from state -cld',rcfinal)
-          CALL ESMF_FieldGet(field=field, localDe=0, &           
-                             farray=fArr3D, rc = rc)             
-          internal%grid_gr(:,:,i:j) = fArr3D                   
-          call gfs_dynamics_err_msg(rc,'retrieve Farray from field -cld',rcfinal)
-      end if
+! get the tracer array from the esmf import state.                           
+!-------------------------------------------------------------           
+      if(cf%tracer_import == 1) then
+          call ESMF_StateGet(state=State, ItemName='tracers',    &      
+                             fieldbundle=Bundle, rc = rc )                    
+          call gfs_dynamics_err_msg(rc,'retrieve Ebundle from state',rcfinal) 
+          do k = 1, internal%ntrac                   
+             i = internal%g_rt+ (k-1) * internal%levs                     
+             j = i + internal%levs - 1                                    
+             if(associated(fArr3D)) nullify(fArr3D)                         
+             CALL ESMF_FieldBundleGet(bundle=Bundle, &                       
+                             name=internal%gfs_dyn_tracer%vname(k),&     
+                             field=Field, rc = rc)                     
+             call gfs_dynamics_err_msg(rc,'retrieve Efield from bundle',rcfinal)
+             CALL ESMF_FieldGet(field=field, localDe=0, &                    
+                                farray=fArr3D, rc = rc)                  
+             call gfs_dynamics_err_msg(rc,'retrieve Farray from field',rcfinal)
+             internal%grid_gr(:,:,i:j) = fArr3D                         
+          end do                                                   
+      end if                                                
 
 ! get the pressure array from the esmf import state.
 !-------------------------------------------------------------
@@ -472,11 +414,12 @@
       integer                      :: rc1, rcfinal
 
       type(ESMF_Field)             :: Field
+      type(ESMF_FieldBundle)       :: Bundle
 
       real, pointer                :: fArr2D(:,:)
       real, pointer                :: fArr3D(:,:,:)
 
-      integer                      :: i, j
+      integer                      :: i, j, k
 
       cf = internal%esmf_sta_list
 
@@ -554,44 +497,25 @@
        call gfs_dynamics_err_msg(rc,"add to esmf export state -v",rcfinal)
       end if
 
-! put the moisture array to the esmf export state.
-!---------------------------------------------------
-      if(cf%q_export == 1) then
-       i = internal%g_rt
-       j = internal%g_rt + internal%levs - 1
-       if(associated(fArr3D)) nullify(fArr3D)                               
-       fArr3D => internal%grid_gr(:,:,i:j)
-       field = ESMF_FieldCreate(name='shum', grid=mgrid, fArray=fArr3D,&
-               indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
-       call gfs_dynamics_err_msg(rc,"add to esmf export state -q",rcfinal)
-      end if
-
-! put the ozone array to the esmf export state.
-!------------------------------------------------
-      if(cf%oz_export == 1) then
-       i = internal%g_rt + (internal%ntoz-1) * internal%levs
-       j = i + internal%levs - 1
-       if(associated(fArr3D)) nullify(fArr3D)                               
-       fArr3D => internal%grid_gr(:,:,i:j)
-       field = ESMF_FieldCreate(name='oz', grid=mgrid, fArray=fArr3D,&
-               indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
-       call gfs_dynamics_err_msg(rc,"add to esmf export state -oz",rcfinal)
-      end if
-
-! put the cloud liquid water array to the esmf export state.
-!-------------------------------------------------------------
-      if(cf%cld_export == 1) then
-       i = internal%g_rt + (internal%ntcw-1) * internal%levs
-       j = i + internal%levs - 1
-       if(associated(fArr3D)) nullify(fArr3D)                               
-       fArr3D => internal%grid_gr(:,:,i:j)
-       field = ESMF_FieldCreate(name='cld', grid=mgrid, fArray=fArr3D,&
-               indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
-       call gfs_dynamics_err_msg(rc,"add to esmf export state -cld",rcfinal)
-      end if
+! put the tracer array to the esmf export state.                            
+!-------------------------------------------------------------           
+      if(cf%tracer_export == 1) then
+       bundle = ESMF_FieldBundleCreate(name='tracers', grid=mgrid, rc=rc)
+       call gfs_dynamics_err_msg(rc,"create empty fieldbundle",rcfinal)     
+       do k = 1, internal%ntrac               
+           i = internal%g_rt+ (k-1) * internal%levs           
+           j = i + internal%levs - 1                        
+           if(associated(fArr3D)) nullify(fArr3D)                           
+           fArr3D => internal%grid_gr(:,:,i:j)                               
+           field = ESMF_FieldCreate(name=internal%gfs_dyn_tracer%vname(k),&  
+                   grid=mgrid, fArray=fArr3D, &                            
+                   indexFlag=ESMF_INDEX_DELOCAL, rc=rc)                  
+           call ESMF_FieldBundleAdd(bundle,field,rc=rc)                     
+           call gfs_dynamics_err_msg(rc,"add field to bundle",rcfinal)       
+       end do                                                                
+       call ESMF_StateAdd(state,Bundle,rc=rc)                               
+       call gfs_dynamics_err_msg(rc,"add to esmf state - tracer",rcfinal)   
+      end if                                                               
 
 ! put pressure array to the esmf export state.
 !-------------------------------------------------------------

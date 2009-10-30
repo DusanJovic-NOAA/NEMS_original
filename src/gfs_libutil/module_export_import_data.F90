@@ -9,6 +9,7 @@
 !***  integration.  these lists can then be used in simple do loops
 !***  to redirect the data's pointers.
 !
+! Oct 17 2009       Sarah Lu, remove shum, oz, cld; modify ndata count
 !-----------------------------------------------------------------------
 !
       use esmf_mod
@@ -28,7 +29,8 @@
 !
       integer,parameter :: ndata_1d=1
       integer,parameter :: ndata_2d=2
-      integer,parameter :: ndata_3d=9
+!*    integer,parameter :: ndata_3d=9
+      integer,parameter :: ndata_3d=6
 !
 !-----------------------------------------------------
 !***  number of fields moved from dynamics 
@@ -36,10 +38,12 @@
 !
       integer,parameter :: ndata_1d_dyn_imp=1
       integer,parameter :: ndata_2d_dyn_imp=2
-      integer,parameter :: ndata_3d_dyn_imp=6
+!*    integer,parameter :: ndata_3d_dyn_imp=6
+      integer,parameter :: ndata_3d_dyn_imp=3
       integer,parameter :: ndata_1d_dyn_exp=1
       integer,parameter :: ndata_2d_dyn_exp=2
-      integer,parameter :: ndata_3d_dyn_exp=9
+!*    integer,parameter :: ndata_3d_dyn_exp=9
+      integer,parameter :: ndata_3d_dyn_exp=6
 !
 !-----------------------------------------------------
 !***  number of fields moved from physics 
@@ -47,10 +51,12 @@
 !
       integer,parameter :: ndata_1d_phy_imp=1
       integer,parameter :: ndata_2d_phy_imp=2
-      integer,parameter :: ndata_3d_phy_imp=9
+!*    integer,parameter :: ndata_3d_phy_imp=9
+      integer,parameter :: ndata_3d_phy_imp=6
       integer,parameter :: ndata_1d_phy_exp=1
       integer,parameter :: ndata_2d_phy_exp=2
-      integer,parameter :: ndata_3d_phy_exp=6
+!*    integer,parameter :: ndata_3d_phy_exp=6
+      integer,parameter :: ndata_3d_phy_exp=3
 !
 !----------------------------------------------------------------
 !***  the names of the fields that will move through the coupler
@@ -68,9 +74,9 @@
                                                      =(/'t     '        &
                                                        ,'u     '        &
                                                        ,'v     '        &
-                                                       ,'shum  '        &
-                                                       ,'oz    '        &
-                                                       ,'cld   '        &
+!*                                                     ,'shum  '        &
+!*                                                     ,'oz    '        &
+!*                                                     ,'cld   '        &
                                                        ,'p     '        &
                                                        ,'dp    '        &
                                                        ,'dpdt  '        &

@@ -27,6 +27,7 @@
 ! !REVISION HISTORY:
 !  Sarah Lu  2009-08-04  First version
 !  Sarah Lu  2009-10-12  Port to the latest trunk
+!  Sarah Lu  2009-10-16  Tracer bundle added; (shum, oz, cld) removed
 !
 !EOP
 
@@ -53,12 +54,12 @@
       integer                  :: rc1, rcfinal
 
       type(ESMF_Field)         :: Field
-      type(ESMF_FieldBundle)   :: Bundle                        
+      type(ESMF_FieldBundle)   :: Bundle
 
       real, pointer            :: fArr2D(:,:)
       real, pointer            :: fArr3D(:,:,:)
 
-      integer                  :: i, j                  
+      integer                  :: i, j, k
 
       cf = internal%esmf_sta_list
 
@@ -156,56 +157,29 @@
           call gfs_physics_err_msg(rc,'retrieve Farray from field -v',rcfinal)
       end if
 
-! get the moisture array from the esmf import state.
-!---------------------------------------------------
-      if(cf%q_import == 1) then
-          if(associated(fArr3D)) nullify(fArr3D)
-          call ESMF_StateGet(state=State, ItemName='shum', &
-                             field=Field, rc=rc)
-          call gfs_physics_err_msg(rc,'retrieve Efield from state -q',rcfinal)
-          CALL ESMF_FieldGet(field=Field, localDe=0, &           
-                             farray=fArr3D, rc = rc)             
-          if(internal%grid_aldata) then
-           internal%grid_fld%q =  fArr3D                   
-          else
-           internal%grid_fld%q => fArr3D                   
-          endif
-          call gfs_physics_err_msg(rc,'retrieve Farray from field -q',rcfinal)
-      end if
-
-! get the ozone array from the esmf import state.
-!------------------------------------------------
-      if(cf%oz_import == 1) then
-          if(associated(fArr3D)) nullify(fArr3D)
-          call ESMF_StateGet(state=State, ItemName='oz', &
-                             field=Field, rc=rc)
-          call gfs_physics_err_msg(rc,'retrieve Efield from state -oz',rcfinal)
-          CALL ESMF_FieldGet(field=Field, localDe=0, &           
-                             farray=fArr3D, rc = rc)             
-          if(internal%grid_aldata) then
-           internal%grid_fld%oz =  fArr3D                   
-          else
-           internal%grid_fld%oz => fArr3D                   
-          endif
-          call gfs_physics_err_msg(rc,'retrieve Farray from field -oz',rcfinal)
-      end if
-
-! get the cloud liquid water array from the esmf import state.
+! get the tracer array from the esmf import state.                        
 !-------------------------------------------------------------
-      if(cf%cld_import == 1) then
-          if(associated(fArr3D)) nullify(fArr3D)
-          call ESMF_StateGet(state=State, ItemName='cld', &
-                             field=Field, rc=rc)
-          call gfs_physics_err_msg(rc,'retrieve Efield from state -cld',rcfinal)
-          CALL ESMF_FieldGet(field=Field, localDe=0, &           
-                             farray=fArr3D, rc = rc)             
-          if(internal%grid_aldata) then
-           internal%grid_fld%cld =  fArr3D                   
-          else
-           internal%grid_fld%cld => fArr3D                   
-          endif
-          call gfs_physics_err_msg(rc,'retrieve Farray from field -cld',rcfinal)
-      end if
+      if(cf%tracer_import == 1) then
+          call ESMF_StateGet(state=State, ItemName='tracers',    &   
+                             fieldbundle=Bundle, rc = rc )          
+          call gfs_physics_err_msg(rc,'retrieve bundle from state',rcfinal)
+          do i = 1, internal%ntrac                                 
+             if(associated(fArr3D)) nullify(fArr3D)           
+             CALL ESMF_FieldBundleGet(bundle=Bundle, &                    
+                                name=internal%gfs_phy_tracer%vname(i),&  
+                                field=field, rc = rc)                
+             call gfs_physics_err_msg(rc,'retrieve Efield from bundle',rcfinal)
+             CALL ESMF_FieldGet(field=field, localDe=0, &                  
+                                farray=fArr3D, rc = rc)                 
+             call gfs_physics_err_msg(rc,'retrieve Farray from field',rcfinal)
+             if(internal%grid_aldata) then                                 
+	      internal%grid_fld%tracers(i)%flds = fArr3D
+             else                                             
+              internal%grid_fld%tracers(i)%flds => fArr3D 
+             endif                                  
+          end do                            
+      end if                          
+
 
 ! get the pressure array from the esmf import state.
 !-------------------------------------------------------------
@@ -286,10 +260,12 @@
       integer                  :: rc1, rcfinal
 
       type(ESMF_Field)         :: Field
+      type(ESMF_FieldBundle)   :: Bundle
 
       real, pointer            :: fArr2D(:,:)
       real, pointer            :: fArr3D(:,:,:)
-
+    
+      integer                  :: i
 
       cf = internal%esmf_sta_list
 
@@ -359,38 +335,24 @@
        call gfs_physics_err_msg(rc,"add to esmf export state -v",rcfinal)
       end if
 
-! put the moisture array to the esmf export state.
-!---------------------------------------------------
-      if(cf%q_export == 1) then
-       if(associated(fArr3D)) nullify(fArr3D)                               
-       fArr3D => internal%grid_fld%q
-       field = ESMF_FieldCreate(name='shum', grid=mgrid, fArray=fArr3D,&
-               indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
-       call gfs_physics_err_msg(rc,"add to esmf export state -q",rcfinal)
-      end if
-
-! put the ozone array to the esmf export state.
-!------------------------------------------------
-      if(cf%oz_export == 1) then
-       if(associated(fArr3D)) nullify(fArr3D)                               
-       fArr3D => internal%grid_fld%oz
-       field = ESMF_FieldCreate(name='oz', grid=mgrid, fArray=fArr3D,&
-               indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
-       call gfs_physics_err_msg(rc,"add to esmf export state -oz",rcfinal)
-      end if
-
-! put the cloud liquid water array to the esmf export state.
+! put the tracer array to the esmf export state.                      
 !-------------------------------------------------------------
-      if(cf%cld_export == 1) then
-       if(associated(fArr3D)) nullify(fArr3D)                               
-       fArr3D => internal%grid_fld%cld
-       field = ESMF_FieldCreate(name='cld', grid=mgrid, fArray=fArr3D,&
-               indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
-       call gfs_physics_err_msg(rc,"add to esmf export state -cld",rcfinal)
-      end if
+      if(cf%tracer_export == 1) then
+       bundle = ESMF_FieldBundleCreate(name='tracers', &       
+                grid=mgrid, rc=rc)                            
+       call gfs_physics_err_msg(rc,"create empty fieldbundle",rcfinal)   
+       do i = 1, internal%ntrac                                     
+          if(associated(fArr3D)) nullify(fArr3D)                  
+          fArr3D => internal%grid_fld%tracers(i)%flds                
+          field = ESMF_FieldCreate(name=internal%gfs_phy_tracer%vname(i),&
+                  grid=mgrid, fArray=fArr3D, &                           
+                  indexFlag=ESMF_INDEX_DELOCAL, rc=rc)                
+          call ESMF_FieldBundleAdd(bundle,field,rc=rc)                
+          call gfs_physics_err_msg(rc,"add Efield to bundle",rcfinal)    
+       end do                                                         
+       call ESMF_StateAdd(state,Bundle,rc=rc)                            
+       call gfs_physics_err_msg(rc,"add to esmf state -tracer",rcfinal) 
+      end if                                                       
 
 ! put the pressure array to the esmf export state.
 !-------------------------------------------------------------

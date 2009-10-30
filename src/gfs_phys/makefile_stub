@@ -24,6 +24,7 @@ OBJS0   = \
 		funcphys_v_stub.o \
 		radiation_astronomy_stub.o \
 		tracer_const_h_stub.o \
+		tracer_config_stub.o \
 		grrad_stub.o \
 		gfs_physics_grid_comp_mod_stub.o
 

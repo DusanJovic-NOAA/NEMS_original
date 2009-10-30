@@ -11,6 +11,7 @@
 !  2009/05/20      Sarah Lu,  Updated to the latest trunk
 !  2009/08/09      Sarah Lu,  Add tracer field
 !  2009/10/12      Sarah Lu,  Port to the latest trunk
+!  2009/10/17      Sarah Lu,  Tracer allocation added
 !
 ! !INTERFACE:
 !
@@ -45,7 +46,7 @@
     real(kind=kind_grid),  pointer:: cld(:,:,:)
 
 ! chemical tracer fields
-    TYPE (PHY_R3D), DIMENSION (MAX_NTRAC)  :: ChemTracers
+    TYPE (PHY_R3D), DIMENSION (MAX_NTRAC)  :: tracers
    
  end type Grid_Var_Data
 
@@ -56,11 +57,11 @@
 !---------------------------------------------------------------------------
     subroutine gridvar_aldata(dim1, dim2, dim3, dim4, grid_fld, iret)
 
-    TYPE(Grid_Var_Data), INTENT(out)   :: grid_fld
-    integer, intent(in)                :: dim1, dim2, dim3, dim4
     implicit none
-
-    integer, intent(out)             :: iret
+    integer, intent(in)                :: dim1, dim2, dim3, dim4
+    TYPE(Grid_Var_Data), INTENT(out)   :: grid_fld
+    integer, intent(out)               :: iret
+    integer     n
 !
 allocate(                                    &
            grid_fld%z      (dim1,dim2),      &
@@ -71,11 +72,17 @@ allocate(                                    &
            grid_fld%p      (dim1,dim2,dim3), &
            grid_fld%dp     (dim1,dim2,dim3), &
            grid_fld%dpdt   (dim1,dim2,dim3), &
-           grid_fld%q      (dim1,dim2,dim3), &
-           grid_fld%oz     (dim1,dim2,dim3), &
-           grid_fld%cld    (dim1,dim2,dim3), &
+!*         grid_fld%q      (dim1,dim2,dim3), &
+!*         grid_fld%oz     (dim1,dim2,dim3), &
+!*         grid_fld%cld    (dim1,dim2,dim3), &
            stat=iret)
     if(iret.ne.0) iret=-3
+
+    do n = 1, dim4
+       allocate(grid_fld%tracers(n)%flds(dim1,dim2,dim3), &
+           stat=iret)
+       if(iret.ne.0) iret=-33
+    enddo
 
     return
   end subroutine

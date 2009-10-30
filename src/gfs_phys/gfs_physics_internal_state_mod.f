@@ -17,6 +17,7 @@
 !  oct 09 2009        sarah lu, add lats_node_r,ipt_lats_node_r,lats_nodes_r_fix
 !  oct 11 2009        sarah lu, add grid_fld and grid_aldata
 !  oct 12 2009        sarah lu, add start_step
+!  oct 16 2009        sarah lu, add gfs_phy_tracer
 !
 ! !interface:
 !
@@ -27,6 +28,7 @@
       use gfs_physics_namelist_mod, ONLY: nam_gfs_phy_namelist, gfs_phy_state_namelist
       use gfs_physics_sfc_flx_mod,  ONLY: Sfc_Var_Data, Flx_Var_Data
       use gfs_physics_gridgr_mod,   ONLY: Grid_Var_Data    
+      use gfs_phy_tracer_config,    ONLY: gfs_phy_tracer_type
 
       use machine, only: kind_phys, kind_rad, kind_evod
       implicit none
@@ -39,6 +41,7 @@
 
       type(nam_gfs_phy_namelist)   :: nam_gfs_phy
       type(gfs_phy_state_namelist) :: esmf_sta_list
+      type(gfs_phy_tracer_type)    :: gfs_phy_tracer
 
       TYPE(Sfc_Var_Data)        :: sfc_fld
       TYPE(Flx_Var_Data)        :: flx_fld
