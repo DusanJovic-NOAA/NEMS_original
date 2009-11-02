@@ -22,7 +22,7 @@
                                    ,IMS,IME,JMS,JME                     &
                                    ,ITS,ITE,JTS,JTE                    
 !
-      USE MODULE_LANDSURFACE ,ONLY: NUM_SOIL_LAYERS,SLDPTH
+      USE MODULE_LS_NOAHLSM  ,ONLY: NUM_SOIL_LAYERS,SLDPTH
       USE MODULE_MICROPHYSICS_NMM,ONLY: MICRO_RESTART
       USE MODULE_ERR_MSG     ,ONLY: ERR_MSG,MESSAGE_CHECK
 !

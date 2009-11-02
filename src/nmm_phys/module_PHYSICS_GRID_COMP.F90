@@ -44,11 +44,13 @@
 !
       USE MODULE_RADIATION    ,ONLY : GFDL_INIT,RADIATION,RDTEMP        &
                                      ,RRTMINIT,SWINIT,TIME_MEASURE
-      USE MODULE_TURBULENCE   ,ONLY : MYJPBL_INIT,TURBL
-      USE MODULE_SURFACE_LAYER,ONLY : MYJSFC_INIT
-      USE MODULE_LANDSURFACE  ,ONLY : DZSOIL,NOAH_LSM_INIT              &
+      USE MODULE_TURBULENCE   ,ONLY : TURBL
+      USE MODULE_SF_JSFC      ,ONLY : JSFC_INIT
+      USE MODULE_BL_MYJPBL    ,ONLY : MYJPBL_INIT
+      USE MODULE_LS_NOAHLSM   ,ONLY : DZSOIL,NOAH_LSM_INIT              &
                                      ,NUM_SOIL_LAYERS,SLDPTH
-      USE MODULE_CONVECTION   ,ONLY : BMJ_INIT,CUCNVC
+      USE MODULE_CU_BMJ       ,ONLY : BMJ_INIT
+      USE MODULE_CONVECTION   ,ONLY : CUCNVC
       USE MODULE_MICROPHYSICS_NMM ,ONLY : FERRIER_INIT,GSMDRIVE         &
                                      ,WSM3INIT,MICRO_RESTART
       USE MODULE_H_TO_V       ,ONLY : H_TO_V,H_TO_V_TEND
@@ -1307,7 +1309,7 @@
                     ,int_state%GWDFLG,int_state%PCPFLG                  &
                     ,int_state%DDATA,int_state%UCMCALL                  &
                     ,int_state%TURBULENCE,int_state%SFC_LAYER           &
-                    ,int_state%LAND_SURFACE,int_state%LONGWAVE          &
+                    ,int_state%LAND_SURFACE                             &
                     ,int_state%MICROPHYSICS                             &
                     ,IDS,IDE,JDS,JDE,LM                                 &
                     ,IMS,IME,JMS,JME                                    &
@@ -3402,14 +3404,14 @@
 !
         SELECT CASE (sfc_layer)
           CASE ('myj')
-            CALL MYJSFC_INIT(LOWLYR                                    &  !<-- Placeholder (computed in TURBULENCE)
-                            ,int_state%USTAR,int_state%Z0              &
-                            ,int_state%SM,int_state%SICE               &
-                            ,int_state%IVGTYP,int_state%RESTART        &            
-                            ,ALLOWED_TO_READ                           &
-                            ,IDS,IDE,JDS,JDE,1,LM+1                    &
-                            ,IMS,IME,JMS,JME,1,LM+1                    &
-                            ,ITS,ITE,JTS,JTE,1,LM)   
+            CALL JSFC_INIT(LOWLYR                                      &  !<-- Placeholder (computed in TURBULENCE)
+                          ,int_state%USTAR,int_state%Z0                &
+                          ,int_state%SM,int_state%SICE                 &
+                          ,int_state%IVGTYP,int_state%RESTART          &            
+                          ,ALLOWED_TO_READ                             &
+                          ,IDS,IDE,JDS,JDE,1,LM+1                      &
+                          ,IMS,IME,JMS,JME,1,LM+1                      &
+                          ,ITS,ITE,JTS,JTE,1,LM)   
 !!!       CASE ('mm5')
 !!!         CALL SFCLYR_INIT
           CASE DEFAULT

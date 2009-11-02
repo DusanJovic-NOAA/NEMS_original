@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------
 !
-      MODULE MODULE_LANDSURFACE
+      MODULE MODULE_LS_NOAHLSM
 !
 !-----------------------------------------------------------------------
 !***  THIS MODULE CONTAINS THE LAND SURFACE SCHEME.
@@ -17,14 +17,13 @@
       USE MODULE_INCLUDE
       USE MODULE_DM_PARALLEL,ONLY : MYPE_SHARE,MPI_COMM_COMP
       USE MODULE_CONTROL,ONLY : NMMB_FINALIZE
-      use module_surface,only: epssno,setsfc,runsfc
 !
 !-----------------------------------------------------------------------
 !
       PRIVATE
 !
       PUBLIC :: DZSOIL,NOAHLSM,NOAH_LSM_INIT,NUM_SOIL_LAYERS            &
-               ,SFCDIAGS,SLDPTH,liss
+               ,SFCDIAGS,SLDPTH
 !
 !-----------------------------------------------------------------------
 !nmmb
@@ -188,7 +187,8 @@
 ! Urban related variable are added to arguments - urban
 !----------------------------------------------------------------
    SUBROUTINE noahlsm(DZ8W,QV3D,P8W3D,T3D,TSK,                  &
-                  HFX,QFX,LH,GRDFLX, QGH,GSW,SWDOWN,GLW,SMSTAV,SMSTOT, &
+                  HFX,QFX,LH,GRDFLX, QGH,GSW,SWDOWN,GLW,        &
+                  SMSTAV,SMSTOT,                                &
                   SFCRUNOFF, UDRUNOFF,IVGTYP,ISLTYP,VEGFRA,     &          
                   ALBEDO,ALBBCK,ZNT,Z0,TMN,XLAND,XICE, EMISS,   & 
                   SNOWC,QSFC,RAINBL,                            &
@@ -376,11 +376,12 @@
                                                         SR
 
 
-   REAL,    DIMENSION( ims:ime, kms:kme, jms:jme )            , &
-            INTENT(IN   )    ::                           QV3D, &
-                                                         p8w3D, &
+   REAL,    DIMENSION( ims:ime, jms:jme, kms:kme )            , &
+            INTENT(IN   )    ::                          p8w3D, &
                                                           DZ8W, &
-                                                          T3D
+                                                           T3D, &
+                                                          QV3D
+
    REAL,     DIMENSION( ims:ime, jms:jme )                    , &
              INTENT(IN   )               ::               QGH,  &
                                                           CHS,   &
@@ -398,7 +399,7 @@
 
 ! IN and OUT
 
-   REAL,     DIMENSION( ims:ime , 1:num_soil_layers, jms:jme ), &
+   REAL,     DIMENSION( ims:ime , jms:jme, 1:num_soil_layers ), &
              INTENT(INOUT)   ::                          SMOIS, & ! total soil moisture
                                                          SH2O,  & ! new soil liquid
                                                          TSLB     ! TSLB     STEMP
@@ -508,8 +509,8 @@
      REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: COSZ_URB2D
      REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: OMG_URB2D
      REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: XLAT_URB2D
-     REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(IN) :: U_PHY
-     REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(IN) :: V_PHY
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme, kms:kme ), INTENT(IN) :: U_PHY
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme, kms:kme ), INTENT(IN) :: V_PHY
 
 ! input variables lsm --> urban
      INTEGER :: UTYPE_URB ! urban type [urban=1, suburban=2, rural=3]
@@ -644,9 +645,9 @@
             SMSTAV(I,J)=0.0                                             
             SMSTOT(I,J)=0.0                                             
             DO NS=1,NSOIL                                               
-              SMOIS(I,NS,J)=0.15                                         
-              SH2O (I,NS,J)=0.15                                         
-              TSLB(I,NS,J)=273.16                                          !STEMP
+              SMOIS(I,J,NS)=0.15                                         
+              SH2O (I,J,NS)=0.15                                         
+              TSLB(I,J,NS)=273.16                                          !STEMP
             ENDDO                                                       
           ELSE                                                          
             IF(XICE(I,J).GT.0.5)THEN                                     
@@ -654,8 +655,8 @@
               SMSTAV(I,J)=0.0                                           
               SMSTOT(I,J)=0.0                                           
               DO NS=1,NSOIL                                             
-                SMOIS(I,NS,J)=0.15                                       
-                SH2O (I,NS,J)=0.15                                       
+                SMOIS(I,J,NS)=0.15                                       
+                SH2O (I,J,NS)=0.15                                       
               ENDDO                                                     
             ENDIF                                                       
           ENDIF                                                         
@@ -666,11 +667,11 @@
 !-----------------------------------------------------------------------
       DO 100 I=its,ite                                                    
 ! surface pressure
-        PSFC=P8w3D(i,1,j)
+        PSFC=P8w3D(i,j,KTE+1)
 ! pressure in middle of lowest layer
-        SFCPRS=(P8W3D(I,KTS+1,j)+P8W3D(i,KTS,j))*0.5
+        SFCPRS=(P8W3D(I,j,KTE)+P8W3D(i,j,KTE+1))*0.5
 ! convert from mixing ratio to specific humidity
-         Q2K=QV3D(i,1,j)/(1.0+QV3D(i,1,j))
+         Q2K=QV3D(i,j,KTE)/(1.0+QV3D(i,j,KTE))
 !
 !         Q2SAT=QGH(I,j)
          Q2SAT=QGH(I,J)/(1.0+QGH(I,J))        ! Q2SAT is sp humidity 
@@ -684,8 +685,8 @@
           CHKLOWQ(I,J)=1.
         ENDIF
 
-        SFCTMP=T3D(i,1,j)
-        ZLVL=0.5*DZ8W(i,1,j)
+        SFCTMP=T3D(i,j,KTE)
+        ZLVL=0.5*DZ8W(i,j,KTE)
 
 !        TH2=SFCTMP+(0.0097545*ZLVL)
 ! calculate SFCTH2 via Exner function vs lapse-rate (above)
@@ -807,9 +808,9 @@
 !FEI: temporaray arrays above need to be changed later by using SI
       
           DO 70 NS=1,NSOIL                                              
-            SMC(NS)=SMOIS(I,NS,J)                                       
-            STC(NS)=TSLB(I,NS,J)                                          !STEMP
-            SWC(NS)=SH2O(I,NS,J)
+            SMC(NS)=SMOIS(I,J,NS)                                       
+            STC(NS)=TSLB(I,J,NS)                                          !STEMP
+            SWC(NS)=SH2O(I,J,NS)
    70     CONTINUE                                                      
 !
           if ( (SNEQV.ne.0..AND.SNOWHK.eq.0.).or.(SNOWHK.le.SNEQV) )THEN
@@ -937,9 +938,9 @@
            QSFC(I,J)= Q1/(1.0-Q1)
 !                                                                       
           DO 80 NS=1,NSOIL                                              
-           SMOIS(I,NS,J)=SMC(NS)                                       
-           TSLB(I,NS,J)=STC(NS)                                        !  STEMP
-           SH2O(I,NS,J)=SWC(NS)
+           SMOIS(I,J,NS)=SMC(NS)                                       
+           TSLB(I,J,NS)=STC(NS)                                        !  STEMP
+           SH2O(I,J,NS)=SWC(NS)
    80     CONTINUE                                                      
 !       ENDIF                                                           
 
@@ -960,9 +961,9 @@
 
             TA_URB    = SFCTMP           ! [K]
             QA_URB    = Q2K              ! [kg/kg]
-            UA_URB    = SQRT(U_PHY(I,1,J)**2.+V_PHY(I,1,J)**2.)
-            U1_URB    = U_PHY(I,1,J)
-            V1_URB    = V_PHY(I,1,J)
+            UA_URB    = SQRT(U_PHY(I,J,KTE)**2.+V_PHY(I,J,KTE)**2.)
+            U1_URB    = U_PHY(I,J,KTE)
+            V1_URB    = V_PHY(I,J,KTE)
             IF(UA_URB < 1.) UA_URB=1.    ! [m/s]
             SSG_URB   = SOLDN            ! [W/m/m]
             SSGD_URB  = 0.8*SOLDN        ! [W/m/m]
@@ -5627,663 +5628,7 @@
 ! ----------------------------------------------------------------------         
   END SUBROUTINE SFCDIAGS
 ! ----------------------------------------------------------------------         
-!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-!-----------------------------------------------------------------------
-      SUBROUTINE liss(DZ8W,QV3D,P8W3D,RHO3D,                            &
-     &               T3D,TH3D,TSK,CHS,                                  &
-     &               HFX,QFX,QGH,GSW,GLW,ELFLX,RMOL,                    & ! added for WRF CHEM
-     &               SMSTAV,SMSTOT,SFCRUNOFF,                           &
-     &               UDRUNOFF,IVGTYP,ISLTYP,VEGFRA,SFCEVP,POTEVP,       &
-     &               GRDFLX,SFCEXC,ACSNOW,ACSNOM,SNOPCX,                &
-     &               ALBSF,TMN,XLAND,XICE,QZ0,                          &
-     &               TH2,Q2,SNOWC,CHS2,QSFC,TBOT,CHKLOWQ,RAINBL,        &
-     &               NUM_SOIL_LAYERS,DT,DZS,ITIMESTEP,                  &
-     &               SMOIS,TSLB,SNOW,CANWAT,CPM,ROVCP,SR,               &
-     &               ALB,SNOALB,SMLIQ,SNOWH,                            &
-     &               IDS,IDE, JDS,JDE, KDS,KDE,                         &
-     &               IMS,IME, JMS,JME, KMS,KME,                         &
-     &               ITS,ITE, JTS,JTE, KTS,KTE                     )
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-    IMPLICIT NONE
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!-- DZ8W        thickness of layers (m)
-!-- T3D         temperature (K)
-!-- QV3D        3D water vapor mixing ratio (Kg/Kg)
-!-- P8W3D       3D pressure on layer interfaces (Pa)
-!-- FLHC        exchange coefficient for heat (m/s)
-!-- FLQC        exchange coefficient for moisture (m/s)
-!-- PSFC        surface pressure (Pa)
-!-- XLAND       land mask (1 for land, 2 for water)
-!-- TMN         soil temperature at lower boundary (K)
-!-- HFX         upward heat flux at the surface (W/m^2)
-!-- QFX         upward moisture flux at the surface (kg/m^2/s)
-!-- TSK         surface temperature (K)
-!-- GSW         NET downward short wave flux at ground surface (W/m^2)
-!-- GLW         downward long wave flux at ground surface (W/m^2)
-!-- ELFLX       actual latent heat flux (w m-2: positive, if up from surface)
-!-- SFCEVP      accumulated surface evaporation (W/m^2)
-!-- POTEVP      accumulated potential evaporation (W/m^2)
-!-- CAPG        heat capacity for soil (J/K/m^3)
-!-- THC         thermal inertia (Cal/cm/K/s^0.5)
-!-- TBOT        bottom soil temperature (local yearly-mean sfc air temperature)
-!-- SNOWC       flag indicating snow coverage (1 for snow cover)
-!-- EMISS       surface emissivity (between 0 and 1)
-!-- DELTSM      time step (second)
-!-- ROVCP       R/CP
-!-- SR          fraction of frozen precip (0.0 to 1.0)
-!-- XLV         latent heat of melting (J/kg)
-!-- DTMIN       time step (minute)
-!-- IFSNOW      ifsnow=1 for snow-cover effects
-!-- SVP1        constant for saturation vapor pressure (kPa)
-!-- SVP2        constant for saturation vapor pressure (dimensionless)
-!-- SVP3        constant for saturation vapor pressure (K)
-!-- SVPT0       constant for saturation vapor pressure (K)
-!-- EP1         constant for virtual temperature (R_v/R_d - 1) (dimensionless)
-!-- EP2         constant for specific humidity calculation
-!               (R_d/R_v) (dimensionless)
-!-- KARMAN      Von Karman constant
-!-- EOMEG       angular velocity of earth's rotation (rad/s)
-!-- STBOLT      Stefan-Boltzmann constant (W/m^2/K^4)
-!-- STEM        soil temperature in 5-layer model
-!-- ZS          depths of centers of soil layers
-!-- DZS         thicknesses of soil layers
-!-- num_soil_layers   the number of soil layers
-!-- ACSNOW      accumulated snowfall (water equivalent) (mm)
-!-- ACSNOM      accumulated snowmelt (water equivalent) (mm)
-!-- SNOPCX      snow phase change heat flux (W/m^2)
-!-- ids         start index for i in domain
-!-- ide         end index for i in domain
-!-- jds         start index for j in domain
-!-- jde         end index for j in domain
-!-- kds         start index for k in domain
-!-- kde         end index for k in domain
-!-- ims         start index for i in memory
-!-- ime         end index for i in memory
-!-- jms         start index for j in memory
-!-- jme         end index for j in memory
-!-- kms         start index for k in memory
-!-- kme         end index for k in memory
-!-- its         start index for i in tile
-!-- ite         end index for i in tile
-!-- jts         start index for j in tile
-!-- jte         end index for j in tile
-!-- kts         start index for k in tile
-!-- kte         end index for k in tile
-!-----------------------------------------------------------------------
-      INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,KDS,KDE,                    &
-     &                      IMS,IME,JMS,JME,KMS,KME,                    &
-     &                      ITS,ITE,JTS,JTE,KTS,KTE
 !
-      INTEGER,INTENT(IN) :: NUM_SOIL_LAYERS,ITIMESTEP
-!
-      REAL,INTENT(IN) :: DT,ROVCP
-!
-      REAL,DIMENSION(IMS:IME,1:NUM_SOIL_LAYERS,JMS:JME),                &
-     &     INTENT(INOUT) ::                                      SMOIS, & ! new
-                                                                 SMLIQ, & ! new
-                                                                 TSLB     !
-
-      REAL,DIMENSION(1:NUM_SOIL_LAYERS),INTENT(IN) :: DZS
-!
-      REAL,DIMENSION(ims:ime,jms:jme),INTENT(INOUT) ::                  &
-     &                                                             TSK, & !was TGB (temperature)
-     &                                                             HFX, &
-     &                                                             QFX, &
-     &                                                             QSFC,&
-     &                                                            SNOW, & !new
-     &                                                           SNOWH, & !new
-     &                                                             ALB, &
-     &                                                          SNOALB, &
-     &                                                           ALBSF, &
-     &                                                           SNOWC, &
-     &                                                          CANWAT, & ! new
-     &                                                          SMSTAV, &
-     &                                                          SMSTOT, &
-     &                                                       SFCRUNOFF, &
-     &                                                        UDRUNOFF, &
-     &                                                          SFCEVP, &
-     &                                                          POTEVP, &
-     &                                                          GRDFLX, &
-     &                                                          ACSNOW, &
-     &                                                          ACSNOM, &
-     &                                                          SNOPCX, &
-     &                                                              Q2, &
-     &                                                             TH2, &
-     &                                                          SFCEXC
-
-      integer,dimension(ims:ime,jms:jme),intent(in):: &
-       ivgtyp,isltyp
-
-      real,dimension(ims:ime,jms:jme),intent(in):: &
-       xice,xland,vegfra
-
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) ::                TMN, &
-                                                                   GSW, &
-                                                                   GLW, &
-                                                                   QZ0, &
-                                                                    SR
-
-      REAL,DIMENSION(IMS:IME,KMS:KME,JMS:JME),INTENT(IN) ::       QV3D, &
-                                                                 P8W3D, &
-                                                                 RHO3D, &
-                                                                  TH3D, &
-                                                                   T3D, &
-                                                                  DZ8W
-
-!
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) ::             RAINBL
-!
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) ::               CHS2, &
-                                                                   CHS, &
-                                                                   QGH, &
-                                                                   CPM
-!
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) ::              TBOT
-!
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) ::           CHKLOWQ, &
-                                                                 ELFLX
-! added for WRF-CHEM, 20041205, JM -- not used in this routine as yet
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) ::            RMOL
-
-! LOCAL VARS
-
-      REAL,DIMENSION(ITS:ITE) ::                                  QV1D, &
-     &                                                             T1D, &
-     &                                                            TH1D, &
-     &                                                            ZA1D, &
-     &                                                           P8W1D, &
-     &                                                          PSFC1D, &
-     &                                                           RHO1D, &
-     &                                                          PREC1D
-
-      INTEGER :: I,J
-      REAL :: RATIOMX
-!-----------------------------------------------------------------------
-!--first pass initialization--------------------------------------------
-      if(itimestep.eq.0) then
-!-----------------------------------------------------------------------
-        call setsfc
-!-----------------------------------------------------------------------
-      endif
-!-----------------------------------------------------------------------
-
-      DO J=JTS,JTE
-
-        DO I=ITS,ITE
-          T1D(I)    = T3D(I,1,J)
-          TH1D(I)   = TH3D(I,1,J)
-!!!       QV1D(I)   = QV3D(I,1,J)
-          RATIOMX   = QV3D(I,1,J)
-          QV1D(I)   = RATIOMX/(1.+RATIOMX)
-          P8W1D(I)  = (P8W3D(I,KTS+1,j)+P8W3D(i,KTS,j))*0.5
-          PSFC1D(I) = P8W3D(I,1,J)
-          ZA1D(I)   = 0.5*DZ8W(I,1,J)
-          RHO1D(I)  = RHO3D(I,1,J)
-          PREC1D(I) = RAINBL(I,J)/DT
-        ENDDO
-
-!FLHC = SFCEXC
-!-----------------------------------------------------------------------
-        call surface &
-        (j,za1d,qv1d,p8w1d,psfc1d,rho1d,t1d,th1d,tsk &
-        ,chs(ims,j),prec1d,hfx,qfx,qgh(ims,j),gsw,glw &
-        ,smstav,smstot,sfcrunoff &
-        ,udrunoff,ivgtyp,isltyp,vegfra,sfcevp,potevp,grdflx &
-        ,elflx,sfcexc,acsnow,acsnom,snopcx &
-        ,albsf,tmn,xland,xice,qz0 &
-        ,th2,q2,snowc,chs2(ims,j),qsfc,tbot,chklowq &
-        ,num_soil_layers,dt,dzs,itimestep &
-        ,smois,tslb,snow,canwat,cpm(ims,j),rovcp,sr &
-        ,alb,snoalb,smliq,snowh &
-        ,ims,ime,jms,jme,kms,kme &
-        ,its,ite,jts,jte,kts,kte)
-!
-      ENDDO
-
-   END SUBROUTINE liss
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine surface &
-(j,za,qv,p8w,psfc,rho,t,th,tsk,chs,prec,hfx,qfx &
-,qgh,gsw,glw,smstav,smstot,sfcrunoff,udrunoff &
-,ivgtyp,isltyp,vegfra,sfcevp,potevp,grdflx &
-,elflx,sfcexc,acsnow,acsnom,snopcx &
-,albsf,tmn,xland,xice,qz0 &
-,th2,q2,snowc,chs2,qsfc,tbot,chklowq &
-,num_soil_layers,dtphys,dzs,itimestep &
-,smois,tslb,snow,canwat,cpm,rovcp,sr &
-,alb,snoalb,tsno,snowh &
-,ims,ime,jms,jme,kms,kme &
-,its,ite,jts,jte,kts,kte)
-!-----------------------------------------------------------------------
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    zjsurface      calculate surface conditions
-!   prgrmmr: z. janjic         date: 05/19/2008
-!
-! abstract:
-!   this routine is the driver for computation of ground conditions
-!   by using a land surface model (lsm).
-!
-! program history log:
-!  xx-xx-95  janjic - originator
-!
-! references:
-!
-!   subprograms called:
-!     runsfc
-!
-!-----------------------------------------------------------------------
-implicit none
-!--local variables hardwired to comply with those in module_surface.f---
-integer,parameter:: &
- nwetc=4 &           ! number of moisture layers
-,ksnoc=nwetc-3 &     ! maximum number of snow layers
-,nosnoc=nwetc+1 &    ! number of ground/ice temperature layers
-,kmsc=nosnoc+ksnoc   ! maximum number of temperature layers
-!--constants------------------------------------------------------------
-real, parameter:: &
- r_d=287.04,cp=1004.6,capa=r_d/cp &
-,elwv=2.50e6 &      !
-,eliv=2.834e6 &     !
-,eliw=.334e6 &      !
-! use from liss ,epssno=0.0005 &    ! minimum depth of snow layer (m)
-,row=1000.,rosno=300.,rrosno=1./rosno &
-,rlivwv=eliv/elwv,rowliv=row*eliv,rowliw=row*eliw &
-,tice=271.15 &
-,tresh=.95e0
-
-integer,intent(in):: &
- ims,ime,jms,jme,kms,kme &
-,its,ite,jts,jte,kts,kte &
-,j,itimestep
-
-integer,intent(in):: &
- num_soil_layers
-
-real,intent(in):: &
- dtphys &
-,rovcp               ! unused
-
-real,dimension(1:num_soil_layers),intent(in):: &
- dzs                 ! unused
-
-real,dimension(its:ite),intent(in):: &
- p8w,prec,psfc,qv &
-,rho &               ! unused
-,t,th,za
-
-real,dimension(ims:ime),intent(in):: &
- chs &
-,chs2 &              ! unused
-,cpm &               ! unused
-,qgh
-
-integer,dimension(ims:ime,jms:jme),intent(in):: &
- ivgtyp,isltyp
-
-real,dimension(ims:ime,jms:jme ),intent(in):: &
- glw,gsw &
-,q2 &                ! unused
-,qz0,sr &
-,tmn &               ! unused
-,vegfra,xice,xland
-
-real,dimension(ims:ime,jms:jme),intent(inout):: &
- acsnom,acsnow,alb,albsf,canwat,grdflx,hfx,potevp,qfx,qsfc &
-,sfcevp,sfcexc,sfcrunoff &
-,smstav &            ! unused
-,smstot &            ! unused
-,snoalb,snopcx,snow,snowc,snowh &
-,tbot &              ! unused
-,th2,tsk,udrunoff
-
-real,dimension(ims:ime,1:num_soil_layers,jms:jme),intent(inout):: &
- smois,tslb &
-,tsno               ! smliq, stores snow layer temperatures and ksno
-
-real,dimension(ims:ime,jms:jme),intent(out):: &
- chklowq,elflx
-!--local variables------------------------------------------------------
-integer:: &
- i,insoil,inveg,k,kmpp,ksno
-
-real:: &
- akhs &
-,epsr &
-,fdtliw,fdtw,gflux &
-,pflux,plm,prra,prsn,ps &
-,qflux,qlm,qlmsat,qs &
-,radin,roff,rswin &
-,sice,sm,smelt,sno &
-,soilqm &            ! unused
-,soilqw &            ! unused
-,soldn,sst &
-,tflux,ths,tlbc,tlm,ts,vegfrc,wliq,rxnrlm,rxnrs
-
-real,dimension(1:nwetc):: &
- wg
-
-real,dimension(1:kmsc):: &
- tg
-!-----------------------------------------------------------------------
- 1010 format(' i,j=',i3,',',i3,' isltyp=',i3,' ivgtyp=',i3,' sst=',f6.2)
-!--first pass initialization--------------------------------------------
-      if(itimestep.eq.0) then
-!-----------------------------------------------------------------------
-!done outside the loop        call setsfc
-!-----------------------------------------------------------------------
-        do i=its,ite
-!---restore sea and ice masks-------------------------------------------
-          if(xland(i,j).gt.1.5) then
-            sm=1.
-          else
-            sm=0.
-          endif
-          sice=xice(i,j)
-!-----------------------------------------------------------------------
-          if(sice.gt.0.5) then ! sea-ice
-!-----------------------------------------------------------------------
-            snow(i,j)=0.
-            tg(kmsc)=tice
-!-----------------------------------------------------------------------
-          elseif(sm.gt.0.5) then ! liquid surface
-!-----------------------------------------------------------------------
-            snow(i,j)=0.
-!-----------------------------------------------------------------------
-          endif
-!---initialize snow temperature-----------------------------------------
-          do k=1,ksnoc
-            tsno(i,k,j)=tslb(i,1,j)
-          enddo
-!---initialize # of snow layers-----------------------------------------
-          if(snow(i,j).gt.0.) then
-            tsno(i,nwetc,j)=1.
-          else
-            tsno(i,nwetc,j)=0.
-          endif
-!-----------------------------------------------------------------------
-        enddo
-!-----------------------------------------------------------------------
-      endif ! end of land surface 1st step initialization
-!-----------------------------------------------------------------------
-!
-!*** beginning of normal time stepping
-!
-!-----------------------------------------------------------------------
-      fdtliw=dtphys/rowliw
-      fdtw=dtphys/(elwv*row)
-!---main loop-----------------------------------------------------------
-      do i=its,ite ! main driver loop
-!---restore sea and ice masks-------------------------------------------
-        if(xland(i,j).gt.1.5) then
-          sm=1.
-        else
-          sm=0.
-        endif
-        sice=xice(i,j)
-!---soil type, veg. type, veg. fraction---------------------------------
-        insoil=isltyp(i,j)
-!
-! *** to skip retuning use the ecmwf generic soil
-!        if(insoil.ne.16.or.insoil.ne.14) insoil=20
-! *** end of note
-!
-        inveg =ivgtyp(i,j)
-        vegfrc=vegfra(i,j)
-        epsr=1.0
-!---cross-check/reinitialize fixed surface data-------------------------
-!zjwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
-!zj*** this section should be moved to preprocessor
-        if(sice.gt.0.5) then ! sea-icee
-!-----------------------------------------------------------------------
-          sm=0.
-          insoil=16
-          inveg =24
-          vegfrc=0.
-          epsr  =0.95
-          alb(i,j)=0.65
-          albsf(i,j)=0.65
-!-----------------------------------------------------------------------
-        endif
-!-----------------------------------------------------------------------
-        if(sm.gt.0.5) then ! water surface
-!-----------------------------------------------------------------------
-          insoil=14
-          inveg =16
-          vegfrc=0.
-          epsr  =1.0
-          alb(i,j)=0.06
-          albsf(i,j)=0.06
-!-----------------------------------------------------------------------
-        endif
-!-----------------------------------------------------------------------
-        if(sice+sm.lt.0.5) then ! land
-!-------------standard mix----------------------------------------------
-          if(insoil.gt.20.or.insoil.lt.1) then
-            write(0,*   ) '*** Surface data conflict'
-            write(0,1010) i,j,insoil,inveg,vegfrc,tsk(i,j)
-            insoil=20
-            inveg =13
-            vegfrc=50.
-            epsr  =1.
-            alb(i,j)=0.20
-            albsf(i,j)=0.20
-          elseif(insoil.eq.16) then ! land ice
-            inveg =24
-            vegfrc=0.
-            epsr  =0.95
-            alb(i,j)=0.65
-            albsf(i,j)=0.65
-          elseif(insoil.eq.14) then ! change water soil type
-            write(0,*   ) '*** Surface data conflict'
-            write(0,1010) i,j,insoil,inveg,tsk(i,j)
-            insoil=20
-            inveg =13
-            vegfrc=50.
-            epsr  =0.95
-            alb(i,j)=0.20
-            albsf(i,j)=0.20
-          endif
-!
-          if(inveg.eq.0 ) inveg=13
-          if(inveg.eq.25) vegfrc=0.
-!-----------------------------------------------------------------------
-        endif
-!zjmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
-!---pressure variables--------------------------------------------------
-        plm=p8w(i)  ! pressure in the middle of the lowest layer
-        rxnrlm=(1.e5/plm)**capa ! 1./exner at lowest level
-        ps=psfc(i)  ! pressure at the surface
-        rxnrs=(1.e5/ps)**capa ! 1./exner at the surface
-!---temperature variables-----------------------------------------------
-        tlm=t(i)
-        sst=tsk(i,j)
-        ts =tsk(i,j)
-        ths=tsk(i,j)*rxnrs
-        tlbc=tmn(i,j)
-!---humidity variables--------------------------------------------------
-        qlmsat=qgh(i)
-        qlm=qv(i)
-        qs =qsfc(i,j)
-!---check for saturation at the lowest model level----------------------
-        if((qlm.ge.qlmsat*tresh).and.qlm.lt.qz0(i,j))then
-          chklowq(i,j)=0.
-        else
-          chklowq(i,j)=1.
-        endif
-!---finish water points-------------------------------------------------
-        if(sm.gt.0.5) then ! water points
-          hfx(i,j)=hfx(i,j)/rxnrs
-          qfx(i,j)=qfx(i,j)*chklowq(i,j)
-          sfcevp(i,j)=sfcevp(i,j)+qfx(i,j)*dtphys
-!---land/sea ice points-------------------------------------------------
-        else ! only solid surface processed here
-!---restore vegtetation fraction----------------------------------------
-          vegfrc=vegfra(i,j)*0.01
-!---sno water equivalent converted to m---------------------------------
-          sno=snow(i,j)*0.001
-          if(sno.lt.0.) sno=0.
-!---radiation input-----------------------------------------------------
-          soldn=gsw(i,j) ! shortwave total
-          rswin=soldn*(1.-alb(i,j))
-          radin=max(soldn*(1.-alb(i,j))+glw(i,j),100.)
-!---emissivity----------------------------------------------------------
-          epsr=1.
-          if(sice.gt.0.5.or.sno.gt.epssno) epsr=0.95
-!--liquid and snow precipitation----------------------------------------
-          prra=(1.-sr(i,j))*(prec(i)*dtphys*.001) ! liquid, m
-          prsn=sr(i,j)     *(prec(i)*dtphys*.001) ! snow water, m
-!---canopy water--------------------------------------------------------
-          wliq=canwat(i,j)
-!---bulk surface layer heat exchange coefficient divided by delta z-----
-          akhs=chs(i)
-!---surface runoff------------------------------------------------------
-          roff=sfcrunoff(i,j)*0.001 ! convert mm into m
-!---snow melt and surface fluxes----------------------------------------
-          smelt=0.
-          tflux=0.
-          gflux=0.
-          qflux=0.
-          pflux=0.
-!---loading temperature and moisture variables--------------------------
-          if(insoil.ne.16) then ! land with no ice cover
-            epsr=1.
-            do k=1,nwetc
-              wg(k)=smois(i,k,j)
-            enddo
-          else ! sea ice or land with ice cover
-            epsr=0.95
-            alb(i,j)=snoalb(i,j)
-            do k=1,nwetc
-              wg(k)=0.0
-            enddo
-          endif
-!
-          ksno=int(tsno(i,nwetc,j))
-          kmpp=nosnoc+ksno
-!
-          tg(1)=tsk(i,j)
-          if(sno.lt.epssno) then ! no snow cover
-            epsr=1.
-            alb(i,j)=albsf(i,j)
-!
-            do k=1,nwetc
-              tg(k+1)=tslb(i,k,j)
-            enddo
-            do k=nwetc+1,kmsc
-              tg(k)=tg(nosnoc)
-            enddo
-          else !snow cover
-            epsr=0.95
-            alb(i,j)=snoalb(i,j)
-!
-            do k=1,ksno
-              tg(k+1)=tsno(i,k,j)
-            enddo
-            do k=1,nwetc
-              tg(k+ksno+1)=tslb(i,k,j)
-            enddo
-            do k=ksno+nwetc+2,kmsc
-              tg(k)=tg(ksno+nwetc+1)
-            enddo
-          endif
-!-----------------------------------------------------------------------
-!if(inveg.eq.24.and.sno.gt.epssno) then
-!if(sno.lt.epssno.and.sm.lt.0.5.and.sice.lt.0.5) then
-!if(i.eq.562.and.j.eq.358) then
-!write(0,*) 'pre  ', i,j,insoil,inveg,sm,sst,sice,vegfrc
-!write(0,*) 'pre  ', kmpp,dtphys
-!write(0,*) 'pre  ', epsr,radin,rswin,akhs
-!write(0,*) 'pre  ', plm,rxnrlm,tlm,qlm,0.0
-!write(0,*) 'pre  ', ps,rxnrs,ths,qs
-!write(0,*) 'pre  ', prra,prsn,sno,smelt,roff
-!write(0,*) 'pre  ', tflux,gflux,qflux,pflux
-!write(0,*) 'pre  ', tg,wliq,wg
-!endif
-
-          call runsfc &
-          (insoil,inveg,sm,sst,sice,vegfrc &
-          ,kmpp,dtphys &
-          ,epsr,radin,rswin,akhs &
-          ,plm,rxnrlm,tlm,qlm,0.0 & ! clm for rho missing, set to 0.0
-          ,ps,rxnrs,ths,qs,tlbc &
-          ,prra,prsn,sno,smelt,roff &
-          ,tflux,gflux,qflux,pflux &
-          ,tg,wliq,wg)
-
-!if(inveg.eq.24.and.sno.gt.epssno) then
-!if(sno.lt.epssno.and.sm.lt.0.5.and.sice.lt.0.5) then
-!if(i.eq.562.and.j.eq.358) then
-!write(0,*) 'posle', i,j,insoil,inveg,sm,sst,sice,vegfrc
-!write(0,*) 'posle', kmpp,dtphys
-!write(0,*) 'posle', epsr,radin,rswin,akhs
-!write(0,*) 'posle', plm,rxnrlm,tlm,qlm,0.0
-!write(0,*) 'posle', ps,rxnrs,ths,qs
-!write(0,*) 'posle', prra,prsn,sno,smelt,roff
-!write(0,*) 'posle', tflux,gflux,qflux,pflux
-!write(0,*) 'posle', tg,wliq,wg
-!!stop
-!endif
-!---update basic variable arrays----------------------------------------
-          ksno=kmpp-nosnoc
-          tsno(i,nwetc,j)=float(ksno)
-!
-          tsk (i,j)=tg(1)
-          if    (kmpp.eq.nosnoc) then ! no sno
-            do k=1,nwetc
-              smois(i,k,j)=wg(k)
-              tslb (i,k,j)=tg(k+1)
-            enddo
-          elseif(kmpp.gt.nosnoc) then ! sno
-            do k=1,ksno
-              tsno(i,k,j)=tg(k+1)
-            enddo
-            do k=1,nwetc
-              smois(i,k,j)=wg(k)
-              tslb (i,k,j)=tg(k+ksno+1)
-            enddo
-          endif
-!---update diagnostic arrays--------------------------------------------
-          sfcrunoff(i,j)=roff*1000.0 ! water unit in mm
-          udrunoff (i,j)=udrunoff (i,j)+0.  *1000.0 ! water unit in mm
-          sfcexc   (i,j)=akhs ! copied from one array to another !??
-          acsnow   (i,j)=sno
-          acsnom   (i,j)=acsnom(i,j)+smelt*1000.  ! mm
-          snopcx   (i,j)=snopcx(i,j)-smelt/fdtliw ! fusion heat
-!---surface fluxes with wrong sign for compatibility with WRF-----------
-          potevp   (i,j)=potevp(i,j)-pflux*fdtw
-          grdflx(i,j)=-gflux
-          hfx   (i,j)=-tflux
-          elflx (i,j)=-qflux
-          qfx   (i,j)=-qflux/elwv
-          sfcevp(i,j)=sfcevp(i,j)+qfx(i,j)*dtphys
-          th2   (i,j)=tlm*rxnrlm
-!---snow----------------------------------------------------------------
-          snow  (i,j)=sno*1000.0 ! water unit in mm
-          snowh (i,j)=sno*row*rrosno*1000.0 ! in mm
-          canwat(i,j)=wliq
-          if(snow(i,j).gt.epssno) then
-            alb  (i,j)=snoalb(i,j)
-            snowc(i,j)=1.0
-          else
-            alb(i,j)=albsf(i,j)
-            snowc(i,j)=0.0
-          endif
-!---fixed fields--------------------------------------------------------
-          soilqw=9999. ! fixed soil moisture parameter
-          soilqm=9999. ! fixed soil moisture parameter
-          smstav(i,j)=soilqw !                   fixed value
-          smstot(i,j)=soilqm*1000. !water in mm, fixed value
-!-----------------------------------------------------------------------
-        endif ! end of solid surface points
-!-----------------------------------------------------------------------
-      enddo ! main driver loop
-!-----------------------------------------------------------------------
-endsubroutine surface
-!-----------------------------------------------------------------------         
-!
-      END MODULE MODULE_LANDSURFACE
+      END MODULE MODULE_LS_NOAHLSM
 !
 ! ----------------------------------------------------------------------         

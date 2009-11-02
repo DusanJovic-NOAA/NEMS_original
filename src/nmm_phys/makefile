@@ -42,8 +42,8 @@ MODULES=	\
 		module_GET_CONFIG_PHY.o \
 		module_H_TO_V.o \
 		module_SF_URBAN.o \
-		module_surface.o \
-		module_LANDSURFACE.o \
+		module_LS_NOAHLSM.o \
+		module_LS_LISS.o \
 		module_PHYSICS_FIELDS.o \
 		module_PRECIP_ADJUST.o \
 		module_PHYSICS_INIT_READ.o \
@@ -55,12 +55,11 @@ MODULE_SMP=     \
 		module_FLTBNDS.o
 
 MODULE_SMP1=    \
-		module_CONVECTION.o \
+		module_CU_BMJ.o module_CONVECTION.o \
 		module_MICROPHYSICS.o \
 		module_PHYSICS_INTERNAL_STATE.o \
 		module_RADIATION.o \
-		module_SURFACE_LAYER.o \
-		module_TURBULENCE.o
+		module_SF_JSFC.o module_BL_MYJPBL.o module_TURBULENCE.o
 
 .SUFFIXES:	.F90 .f90 .o
 
@@ -106,11 +105,10 @@ module_PHYSICS_GRID_COMP.o:	\
 			   	module_H_TO_V.o \
 			   	module_CONVECTION.o \
 				module_SF_URBAN.o \
-				module_surface.o \
-			   	module_LANDSURFACE.o \
+			   	module_LS_NOAHLSM.o \
+			   	module_LS_LISS.o \
 			   	module_MICROPHYSICS.o \
 			   	module_RADIATION.o \
-			   	module_SURFACE_LAYER.o \
 			   	module_TURBULENCE.o \
 				module_PRECIP_ADJUST.o \
 				module_GWD.o \
@@ -127,29 +125,24 @@ module_PHYSICS_OUTPUT.o:	\
 
 module_PHYSICS_INTERNAL_STATE.o:	\
 					module_SF_URBAN.o \
-					module_surface.o \
-					module_LANDSURFACE.o \
+					module_LS_NOAHLSM.o \
+					module_LS_LISS.o \
 					module_MICROPHYSICS.o 
+
+module_CONVECTION.o:	\
+		    	module_CU_BMJ.o
 
 module_TURBULENCE.o:	\
 		    	module_H_TO_V.o \
 			module_SF_URBAN.o \
-			module_surface.o \
-		    	module_LANDSURFACE.o \
-			module_SURFACE_LAYER.o \
+                        module_BL_MYJPBL.o \
+                        module_SF_JSFC.o \
+		    	module_LS_NOAHLSM.o \
+		    	module_LS_LISS.o \
 		    	module_GWD.o 
 
 module_RADIATION.o:	\
 		    	module_MICROPHYSICS.o
-
-module_SURFACE_LAYER.o:	\
-			module_SF_URBAN.o \
-			module_surface.o \
-		    	module_LANDSURFACE.o 
-
-module_LAND_SURFACE.o:	\
-			module_surface.o \
-			module_SF_URBAN.o 
 
 module_PHYSICS_INIT_READ.o: \
 			module_MICROPHYSICS.o
