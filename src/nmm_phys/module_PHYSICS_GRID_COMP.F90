@@ -13,12 +13,13 @@
 !
 ! HISTORY LOG:
 !
-!   2008-07-28  Vasic  - Removed counters (computed in SET_INTERNAL_STATE_PHY)
-!   2008-10-    Vasic  - Restart capability
-!   2008-08-23  Janjic - Removed uz0h, vz0h
-!   2008-08-23  Janjic - General hybrid coordinate
-!   2009-07-01  Vasic  - Added GFS physics package
-!   2009-08-10  Black  - Merge with nest code
+!   2008-07-28  Vasic   - Removed counters (computed in SET_INTERNAL_STATE_PHY)
+!   2008-10-    Vasic   - Restart capability
+!   2008-08-23  Janjic  - Removed uz0h, vz0h
+!   2008-08-23  Janjic  - General hybrid coordinate
+!   2009-07-01  Vasic   - Added GFS physics package
+!   2009-08-10  Black   - Merge with nest code
+!   2009-11-03  W. Wang - Remove WRF driver and flipping (for Ferrier)
 !
 !-----------------------------------------------------------------------
 !
@@ -3498,7 +3499,7 @@
                              ,int_state%TBPVS0_STATE                   &
                              ,ALLOWED_TO_READ                          &
                              ,IDS,IDE,JDS,JDE,1,LM+1                   &
-                             ,IMS,IME,JMS,JME,1,LM+1                   &
+                             ,IMS,IME,JMS,JME,1,LM                     &
                              ,ITS,ITE,JTS,JTE,1,LM)
 !
           CASE ('wsm3')

@@ -46,15 +46,6 @@
 !-----------------------------------------------------------------------
 !***  THE MICROPHYSICS OPTIONS
 !-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!
-      INTEGER(KIND=KINT),PARAMETER :: KESSLERSCHEME=1                   &
-                                     ,LINSCHEME=2                       &
-                                     ,WSM3SCHEME=3                      &
-                                     ,ETAMPNEW=5                        & !<--- (Ferrier, WRF)
-                                     ,THOMPSON=8
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
 !***  FOR FERRIER MICROPHYSICS
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -244,16 +235,16 @@
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: OMGALF
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: ACPREC,PREC      &
-                                                      ,AVRAIN              !<-- Was a scalar (ESMF cannot have evolving scalar Attributes)
+                                                      ,AVRAIN              !<-- Was a scalar
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: CWM,Q,T     &
-     &                                                     ,TRAIN
+                                                           ,TRAIN
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM,NUM_WATER),INTENT(INOUT) :: WATER
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: F_ICE     &
-     &                                                     ,F_RAIN    &
-     &                                                     ,F_RIMEF
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: F_ICE       &
+                                                           ,F_RAIN      &
+                                                           ,F_RIMEF
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: SR
 !
@@ -266,15 +257,18 @@
 !***  State Variables for ETAMPNEW Microphysics 
 !
       REAL,DIMENSION(:),INTENT(INOUT) :: MP_RESTART_STATE               &
-     &                                  ,TBPVS_STATE,TBPVS0_STATE
+                                        ,TBPVS_STATE,TBPVS0_STATE
 !
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES
 !-----------------------------------------------------------------------
 !
       INTEGER :: I,IJ,J,K,KFLIP,MP_PHYSICS,N,NTSD
+      INTEGER :: ITSLOC,ITELOC,JTSLOC,JTELOC 
 !
       INTEGER,DIMENSION(IMS:IME,JMS:JME) :: LOWLYR
+!
+      INTEGER,DIMENSION(NUM_TILES) :: I_START,I_END,J_START,J_END
 !
       REAL :: CAPA,DPL,DTPHS,FICE,FRAIN,PCPCOL,PDSL,PLYR,QI,QR,QW       &
              ,RDTPHS,RG,TNEW,WC
@@ -284,34 +278,16 @@
       REAL,DIMENSION(IMS:IME,JMS:JME) :: CUBOT,CUTOP,RAINNC,RAINNCV     &
                                         ,SNOWNC,SNOWNCV,XLAND 
 !
-      REAL,DIMENSION(IMS:IME,1:LM+1,JMS:JME) :: DZ,CWM_PHY              &
-                                               ,F_ICE_PHY               &
-                                               ,F_RAIN_PHY              &
-                                               ,F_RIMEF_PHY             &
-                                               ,P8W,P_PHY,PI_PHY        &
-                                               ,RR,T_PHY,TH_PHY,WMID
-!
-      REAL,DIMENSION(:,:,:,:),ALLOCATABLE :: WATER_TRANS
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM) :: DZ                        &
+                                             ,P_PHY,PI_PHY              &
+                                             ,RR,TH_PHY
 !
       LOGICAL :: WARM_RAIN,F_QT
-!
-!-----------------------------------------------------------------------
-!
-      INTEGER,DIMENSION(NUM_TILES) :: I_START,I_END,J_START,J_END
-!
-!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      IF(.NOT.ALLOCATED(WATER_TRANS))THEN
-        ALLOCATE(WATER_TRANS(IMS:IME,1:LM+1,JMS:JME,NUM_WATER))
-      ENDIF
-!
-!-----------------------------------------------------------------------
-!
-!!!   NTSD=ITIMESTEP-1
       NTSD=ITIMESTEP
       DTPHS=NPHS*DT
       RDTPHS=1./DTPHS
@@ -342,7 +318,6 @@
       DO I=ITS,ITE
 !
         PDSL=PD(I,J)
-        P8W(I,LM+1,J)=PT
         LOWLYR(I,J)=1
         XLAND(I,J)=SM(I,J)+1.
 !
@@ -360,39 +335,28 @@
 !-----------------------------------------------------------------------
 !
         DO K=LM,1,-1   ! We are moving down from the top in the flipped arrays
-          KFLIP=LM+1-K ! The flipped index will thus be for the NMMB arrays
+!
+          KFLIP=K  ! do not flip for the NMMB arrays
 !
           DPL=PDSG1(KFLIP)+DSG2(KFLIP)*PDSL
           PLYR=SGML2(KFLIP)*PDSL+PSGML1(KFLIP)
           TL(K)=T(I,J,KFLIP)
           QL(K)=AMAX1(Q(I,J,KFLIP),EPSQ)
 !
-          RR(I,K,J)=PLYR/(R_D*TL(K)*(P608*QL(K)+1.))
-          T_PHY(I,K,J)=TL(K)
-          CWM_PHY(I,K,J)=CWM(I,J,KFLIP)
-!zj flipped twice          WATER_TRANS(I,K,J,P_QV)=WATER(I,J,KFLIP,P_QV)
-          F_ICE_PHY(I,K,J)=F_ICE(I,J,KFLIP)
-          F_RAIN_PHY(I,K,J)=F_RAIN(I,J,KFLIP)
-          F_RIMEF_PHY(I,K,J)=F_RIMEF(I,J,KFLIP)
+          RR(I,J,K)=PLYR/(R_D*TL(K)*(P608*QL(K)+1.))
+          PI_PHY(I,J,K)=(PLYR*1.E-5)**CAPA
+          TH_PHY(I,J,K)=TL(K)/PI_PHY(I,J,K)
+          P_PHY(I,J,K)=PLYR
+          DZ(I,J,K)=DPL*RG/RR(I,J,K)
 !
-          PI_PHY(I,K,J)=(PLYR*1.E-5)**CAPA
-          TH_PHY(I,K,J)=TL(K)/PI_PHY(I,K,J)
-          P8W(I,K,J)=P8W(I,K+1,J)+PDSG1(KFLIP)+DSG2(KFLIP)*PDSL
-          P_PHY(I,K,J)=PLYR
-          DZ(I,K,J)=DPL*RG/RR(I,K,J)
-!
-          WMID(I,K,J)=-OMGALF(I,J,KFLIP)*CP/(G*DT)
-        ENDDO
-!
-        WMID(I,LM,J)=0.   !<---  W in the top model layer must equal zero for WSM3.
-        WMID(I,LM+1,J)=0.
-!
-        F_ICE_PHY(I,LM+1,J)=0.
-        F_RAIN_PHY(I,LM+1,J)=0.
-        F_RIMEF_PHY(I,LM+1,J)=1.   !-- Nominal value =1
-!
-      ENDDO
-      ENDDO
+!-- Arrays that may be needed by other schemes?
+!wang         T_PHY(I,J,K)=TL(K)
+!wang         P8W(I,K,J)=P8W(I,K+1,J)+PDSG1(KFLIP)+DSG2(KFLIP)*PDSL
+!wang         WMID(I,J,K)=-OMGALF(I,J,KFLIP)*CP/(G*DT)
+        ENDDO    !- DO K=LM,1,-1
+!wang        WMID(I,J,1)=0.   !<---  W in the top model layer must equal zero for WSM3.
+      ENDDO    !- DO I=ITS,ITE
+      ENDDO    !- DO J=JTS,JTE
 !.......................................................................
 !$omp end parallel do
 !.......................................................................
@@ -412,31 +376,6 @@
           ENDDO
         ENDDO
       ENDDO
-!.......................................................................
-!$omp end parallel do
-!.......................................................................
-!
-!-----------------------------------------------------------------------
-!***  TRANSPOSE THE MOIST ARRAY (IJK) FOR THE PHYSICS (IKJ).
-!-----------------------------------------------------------------------
-!
-!.......................................................................
-!$omp parallel do                                                       &
-!$omp& private(n,k,j,i,kflip)
-!.......................................................................
-      DO N=1,NUM_WATER
-        DO K=1,LM
-        KFLIP=LM+1-K
-        DO J=JMS,JME
-        DO I=IMS,IME
-          WATER_TRANS(I,K,J,N)=WATER(I,J,KFLIP,N)
-        ENDDO
-        ENDDO
-        ENDDO
-      ENDDO
-!.......................................................................
-!$omp end parallel do
-!.......................................................................
 !
 !-----------------------------------------------------------------------
 !
@@ -462,57 +401,65 @@
 !***  REMAINS UNTOUCHED.
 !-----------------------------------------------------------------------
 !
-      SELECT CASE (TRIM(MICROPHYSICS))
-        CASE ('fer')
-          MP_PHYSICS=5
-        CASE ('kes')
-          MP_PHYSICS=1
-        CASE ('lin')
-          MP_PHYSICS=2
-        CASE ('wsm3')
-          MP_PHYSICS=3
-        CASE ('tho')
-          MP_PHYSICS=8
-        CASE DEFAULT
-          WRITE(0,*)' User selected MICROPHYSICS=',MICROPHYSICS
-          WRITE(0,*)' Improper selection of Microphysics scheme in GSMDRIVE'
+!     SELECT CASE (TRIM(MICROPHYSICS))
+!       CASE ('fer')
+!          MP_PHYSICS=5
+!       CASE ('kes')
+!         MP_PHYSICS=1
+!       CASE ('lin')
+!         MP_PHYSICS=2
+!       CASE ('wsm3')
+!         MP_PHYSICS=3
+!       CASE ('tho')
+!         MP_PHYSICS=8
+!       CASE DEFAULT
+!         WRITE(0,*)' User selected MICROPHYSICS=',MICROPHYSICS
+!         WRITE(0,*)' Improper selection of Microphysics scheme in GSMDRIVE'
 !!!       CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-          CALL NMMB_FINALIZE
-      END SELECT
+!         CALL NMMB_FINALIZE
+!     END SELECT
 !
-      CALL MICROPHYSICS_DRIVER(                                         &
-     &                  TH=TH_PHY                                       &
-     &                 ,RHO=RR,PI_PHY=PI_PHY,P=P_PHY                    &
-     &                 ,RAINNC=RAINNC                                   &
-     &                 ,RAINNCV=RAINNCV                                 &
-     &                 ,SNOWNC=SNOWNC                                   &
-     &                 ,SNOWNCV=SNOWNCV                                 &
-     &                 ,DZ8W=DZ,P8W=P8W,W=WMID                          &
-     &                 ,DT=DTPHS,DX=DX,DY=DY                            &
-     &                 ,MP_PHYSICS=MP_PHYSICS                           &
-     &                 ,SPECIFIED=SPECIFIED.OR.NESTED                   &
-     &                 ,SPEC_ZONE=0,WARM_RAIN=WARM_RAIN                 &
-     &                 ,XLAND=XLAND,ITIMESTEP=NTSD                      &
-     &                 ,F_ICE_PHY=F_ICE_PHY                             &
-     &                 ,F_RAIN_PHY=F_RAIN_PHY                           &
-     &                 ,F_RIMEF_PHY=F_RIMEF_PHY                         &
-     &                 ,LOWLYR=LOWLYR,SR=SR                             &
-     &                 ,QV_CURR=WATER_TRANS(IMS,1,JMS,P_QV),F_QV=F_QV   &
-     &                 ,QC_CURR=WATER_TRANS(IMS,1,JMS,P_QC),F_QC=F_QC   &
-     &                 ,QR_CURR=WATER_TRANS(IMS,1,JMS,P_QR),F_QR=F_QR   &
-     &                 ,QI_CURR=WATER_TRANS(IMS,1,JMS,P_QI),F_QI=F_QI   &
-     &                 ,QS_CURR=WATER_TRANS(IMS,1,JMS,P_QS),F_QS=F_QS   &
-     &                 ,QG_CURR=WATER_TRANS(IMS,1,JMS,P_QG),F_QG=F_QG   &
-     &                 ,QT_CURR=CWM_PHY,F_QT=F_QT                       &
-     &                 ,MP_RESTART_STATE=MP_RESTART_STATE               &
-     &                 ,TBPVS_STATE=TBPVS_STATE                         &
-     &                 ,TBPVS0_STATE=TBPVS0_STATE                       &
-     &                 ,IDS=IDS,IDE=IDE,JDS=JDS,JDE=JDE,KDS=1,KDE=LM+1  &
-     &                 ,IMS=IMS,IME=IME,JMS=JMS,JME=JME,KMS=1,KME=LM+1  &
-     &                 ,I_START=I_START,I_END=I_END                     &
-     &                 ,J_START=J_START,J_END=J_END                     &
-     &                 ,KTS=1,KTE=LM,NUM_TILES=NUM_TILES                &
-     &                                                        )
+!---------------------------------------------------------------------
+!  Check for microphysics type.  We need a clean way to
+!  specify these things!
+!---------------------------------------------------------------------
+
+      DO IJ = 1 , NUM_TILES
+
+        ITSLOC = MAX(I_START(IJ),IDS)
+        ITELOC = MIN(I_END(IJ),IDE-1)
+        JTSLOC = MAX(J_START(IJ),JDS)
+        JTELOC = MIN(J_END(IJ),JDE-1)
+
+        micro_select: SELECT CASE (TRIM(MICROPHYSICS))
+!
+          CASE ('fer')
+!
+            CALL ETAMP_NEW(                                                   &
+                   ITIMESTEP=ntsd,DT=dtphs,DX=dx,DY=dy                        &
+                  ,DZ8W=dz,RHO_PHY=rr,P_PHY=p_phy,PI_PHY=pi_phy,TH_PHY=th_phy &
+                  ,QV=water(ims,jms,1,p_qv)                                   &
+                  ,QC=water(ims,jms,1,p_qc)                                   &
+                  ,QS=water(ims,jms,1,p_qs)                                   &
+                  ,QR=water(ims,jms,1,p_qr)                                   &
+                  ,QT=cwm                                                     &
+                  ,LOWLYR=LOWLYR,SR=SR                                        &
+                  ,F_ICE_PHY=F_ICE,F_RAIN_PHY=F_RAIN                          &
+                  ,F_RIMEF_PHY=F_RIMEF                                        &
+                  ,RAINNC=rainnc,RAINNCV=rainncv                              &
+                  ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=1,KDE=LM+1           &
+                  ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=1,KME=LM             &
+                  ,ITS=itsloc,ITE=iteloc, JTS=jtsloc,JTE=jteloc, KTS=1,KTE=LM &
+                  ,MP_RESTART_STATE=mp_restart_state                          &
+                  ,TBPVS_STATE=tbpvs_state,TBPVS0_STATE=tbpvs0_state          &
+                                                                            )
+          CASE DEFAULT
+            WRITE(0,*)' The microphysics option does not exist: MICROPHYSICS = ',TRIM(MICROPHYSICS)
+            CALL NMMB_FINALIZE
+
+        END SELECT micro_select
+
+      ENDDO
 !            
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -539,26 +486,18 @@
 !.......................................................................
       DO J=JTS_B1,JTE_B1
         DO K=1,LM
-        KFLIP=LM+1-K
+!wang    KFLIP=LM+1-K
+        KFLIP=K  ! no flip
         DO I=ITS_B1,ITE_B1
 !
 !-----------------------------------------------------------------------
 !***  UPDATE TEMPERATURE, SPECIFIC HUMIDITY, CLOUD WATER, AND HEATING.
 !-----------------------------------------------------------------------
 !
-          TNEW=TH_PHY(I,K,J)*PI_PHY(I,K,J)
+          TNEW=TH_PHY(I,J,K)*PI_PHY(I,J,K)
           TRAIN(I,J,KFLIP)=TRAIN(I,J,KFLIP)+(TNEW-T(I,J,KFLIP))*RDTPHS
           T(I,J,KFLIP)=TNEW
-          Q(I,J,KFLIP)=WATER_TRANS(I,K,J,P_QV)/(1.+WATER_TRANS(I,K,J,P_QV)) !To s.h.
-          CWM(I,J,KFLIP)=CWM_PHY(I,K,J)
-!
-!      THE FOLLOWING LINE IS NO LONGER NEEDED BECAUSE CWM IS NOT IN WATER
-!          CWM(I,J,KFLIP)=WATER_TRANS(I,K,J,P_QC)
-!
-        F_ICE(I,J,KFLIP)=F_ICE_PHY(I,K,J)
-        F_RAIN(I,J,KFLIP)=F_RAIN_PHY(I,K,J)
-        F_RIMEF(I,J,KFLIP)=F_RIMEF_PHY(I,K,J)
-!
+          Q(I,J,KFLIP)=WATER(I,J,K,P_QV)/(1.+WATER(I,J,K,P_QV)) !To s.h.
         ENDDO
         ENDDO
       ENDDO
@@ -585,615 +524,10 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  REFILL THE WATER ARRAY.
-!-----------------------------------------------------------------------
-!
-!.......................................................................
-!$omp parallel do                                                       &
-!$omp& private(n,j,k,i,kflip)
-!.......................................................................
-      DO N=2,NUM_WATER
-        DO J=JMS,JME
-        DO K=1,LM
-        KFLIP=LM+1-K
-        DO I=IMS,IME
-          WATER(I,J,KFLIP,N)=WATER_TRANS(I,K,J,N)
-        ENDDO
-        ENDDO
-        ENDDO
-      ENDDO
-!.......................................................................
-!$omp end parallel do
-!.......................................................................
-!
-!-----------------------------------------------------------------------
-!
-      DEALLOCATE(WATER_TRANS)
-!
-!-----------------------------------------------------------------------
 !
       END SUBROUTINE GSMDRIVE
 !
 !-----------------------------------------------------------------------
-!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-!-----------------------------------------------------------------------
-SUBROUTINE microphysics_driver(                                          &
-                       th, rho, pi_phy, p                                &
-                      ,ht, dz8w, p8w, dt,dx,dy                           &
-                      ,mp_physics, spec_zone                             &
-                      ,specified, channel_switch                         &
-                      ,warm_rain                                         &
-                      ,xland,itimestep                                   &
-                      ,f_ice_phy,f_rain_phy,f_rimef_phy                  &
-                      ,lowlyr,sr                                         &
-                      ,ids,ide, jds,jde, kds,kde                         &
-                      ,ims,ime, jms,jme, kms,kme                         &
-                      ,i_start,i_end,j_start,j_end,kts,kte,num_tiles     &
-                      ,qv_curr,qc_curr,qr_curr,qi_curr,qs_curr,qg_curr   &
-                      ,qni_curr                                          &
-                      ,f_qv,f_qc,f_qr,f_qi,f_qs,f_qg,f_qni               &
-                      ,qt_curr,f_qt                                      &
-                      ,mp_restart_state,tbpvs_state,tbpvs0_state          & ! for etampnew
-                      ,w ,z                                              &
-                      ,rainnc, rainncv                                   &
-                      ,snownc, snowncv                                   &
-                      ,graupelnc, graupelncv                             &
-                                                                         )
-! Framework
-!!!USE module_state_description, ONLY :                                  &
-!!!                  KESSLERSCHEME, LINSCHEME, WSM3SCHEME, WSM5SCHEME    &
-!!!                 ,WSM6SCHEME, ETAMPNEW, NCEPCLOUD3, NCEPCLOUD5, THOMPSON
-
-
-! Model Layer
-!!!USE module_model_constants
-!!!USE module_wrf_error
-
-! *** add new modules of schemes here
-
-!!!USE module_mp_kessler
-!!!USE module_mp_lin
-!!!USE module_mp_ncloud3
-!!!USE module_mp_ncloud5
-!!!USE module_mp_wsm3
-!!!USE module_mp_wsm5
-!!!USE module_mp_wsm6
-!!!USE module_mp_etanew
-!!!USE module_mp_thompson
-    
-!----------------------------------------------------------------------
-   ! This driver calls subroutines for the microphys.
-   !
-   ! Schemes
-   !
-   ! Kessler scheme
-   ! Lin et al. (1983), Rutledge and Hobbs (1984)
-   ! WRF Single-Moment 3-class, Hong, Dudhia and Chen (2004)
-   ! WRF Single-Moment 5-class, Hong, Dudhia and Chen (2004)
-   ! WRF Single-Moment 6-class, Lim and Hong (2003 WRF workshop)
-   ! Eta Grid-scale Cloud and Precipitation scheme (EGCP01, Ferrier)
-   ! NCEP cloud3, Hong et al. (1998) with some mod, Dudhia (1989)
-   ! NCEP cloud5, Hong et al. (1998) with some mod, Rutledge and Hobbs (1984)
-   ! 
-!----------------------------------------------------------------------
-   IMPLICIT NONE
-!======================================================================
-! Grid structure in physics part of WRF
-!----------------------------------------------------------------------  
-! The horizontal velocities used in the physics are unstaggered
-! relative to temperature/moisture variables. All predicted
-! variables are carried at half levels except w, which is at full
-! levels. Some arrays with names (*8w) are at w (full) levels.
-!
-!----------------------------------------------------------------------  
-! In WRF, kms (smallest number) is the bottom level and kme (largest 
-! number) is the top level.  In your scheme, if 1 is at the top level, 
-! then you have to reverse the order in the k direction.
-!                 
-!         kme      -   half level (no data at this level)
-!         kme    ----- full level
-!         kme-1    -   half level
-!         kme-1  ----- full level
-!         .
-!         .
-!         .
-!         kms+2    -   half level
-!         kms+2  ----- full level
-!         kms+1    -   half level
-!         kms+1  ----- full level
-!         kms      -   half level
-!         kms    ----- full level
-!
-!======================================================================
-! Definitions
-!-----------
-! Rho_d      dry density (kg/m^3)
-! Theta_m    moist potential temperature (K)
-! Qv         water vapor mixing ratio (kg/kg)
-! Qc         cloud water mixing ratio (kg/kg)
-! Qr         rain water mixing ratio (kg/kg)
-! Qi         cloud ice mixing ratio (kg/kg)
-! Qs         snow mixing ratio (kg/kg)
-! Qni        cloud ice number concentration (#/kg)
-!
-!----------------------------------------------------------------------
-!-- th        potential temperature    (K)
-!-- moist_new     updated moisture array   (kg/kg)
-!-- moist_old     Old moisture array       (kg/kg)
-!-- rho           density of air           (kg/m^3)
-!-- pi_phy        exner function           (dimensionless)
-!-- p             pressure                 (Pa)
-!-- RAINNC        grid scale precipitation (mm)
-!-- RAINNCV       one time step grid scale precipitation (mm/step)
-!-- SNOWNC        grid scale snow and ice (mm)
-!-- SNOWNCV       one time step grid scale snow and ice (mm/step)
-!-- GRAUPELNC     grid scale graupel (mm)
-!-- GRAUPELNCV    one time step grid scale graupel (mm/step)
-!-- SR            one time step mass ratio of snow to total precip
-!-- z             Height above sea level   (m)
-!-- dt            Time step              (s)
-!-- G             acceleration due to gravity  (m/s^2)
-!-- CP            heat capacity at constant pressure for dry air (J/kg/K)
-!-- R_d           gas constant for dry air (J/kg/K)
-!-- R_v           gas constant for water vapor (J/kg/K)
-!-- XLS           latent heat of sublimation   (J/kg)
-!-- XLV           latent heat of vaporization  (J/kg)
-!-- XLF           latent heat of melting       (J/kg)
-!-- rhowater      water density                      (kg/m^3)
-!-- rhosnow       snow density               (kg/m^3)
-!-- F_ICE_PHY     Fraction of ice.
-!-- F_RAIN_PHY    Fraction of rain.
-!-- F_RIMEF_PHY   Mass ratio of rimed ice (rime factor)
-!-- P_QV          species index for water vapor
-!-- P_QC          species index for cloud water
-!-- P_QR          species index for rain water
-!-- P_QI          species index for cloud ice
-!-- P_QS          species index for snow
-!-- P_QG          species index for graupel
-!-- P_QNI         species index for cloud ice number concentration
-!-- ids           start index for i in domain
-!-- ide           end index for i in domain
-!-- jds           start index for j in domain
-!-- jde           end index for j in domain
-!-- kds           start index for k in domain
-!-- kde           end index for k in domain
-!-- ims           start index for i in memory
-!-- ime           end index for i in memory
-!-- jms           start index for j in memory
-!-- jme           end index for j in memory
-!-- kms           start index for k in memory
-!-- kme           end index for k in memory
-!-- i_start       start indices for i in tile
-!-- i_end         end indices for i in tile
-!-- j_start       start indices for j in tile
-!-- j_end         end indices for j in tile
-!-- its           start index for i in tile
-!-- ite           end index for i in tile
-!-- jts           start index for j in tile
-!-- jte           end index for j in tile
-!-- kts           start index for k in tile
-!-- kte           end index for k in tile
-!-- num_tiles     number of tiles
-!
-!======================================================================
-
-   INTEGER,    INTENT(IN   )    :: mp_physics
-   LOGICAL,    INTENT(IN   )    :: specified
-!
-   INTEGER,      INTENT(IN   )    ::       ids,ide, jds,jde, kds,kde
-   INTEGER,      INTENT(IN   )    ::       ims,ime, jms,jme, kms,kme
-   INTEGER,      INTENT(IN   )    ::                         kts,kte
-   INTEGER,      INTENT(IN   )    ::     itimestep,num_tiles,spec_zone
-   INTEGER, DIMENSION(num_tiles), INTENT(IN) ::                       &
-     &           i_start,i_end,j_start,j_end
-
-   LOGICAL,      INTENT(IN   )    ::   warm_rain
-!
-   REAL, DIMENSION( ims:ime , kms:kme , jms:jme ),                    &
-         INTENT(INOUT) ::                                     th
-!
-
-!
-   REAL, DIMENSION( ims:ime , kms:kme , jms:jme ),                    &
-         INTENT(IN   ) ::                                             &
-                                                                 rho, &
-                                                                dz8w, &
-                                                                 p8w, &
-                                                              pi_phy, &
-                                                               p
-!
-
-   REAL, INTENT(INOUT),  DIMENSION(ims:ime, kms:kme, jms:jme ) ::     &
-                                     F_ICE_PHY,F_RAIN_PHY,F_RIMEF_PHY
-
-!
-
-   REAL , DIMENSION( ims:ime , jms:jme ) , INTENT(IN)   :: XLAND
-
-   REAL , DIMENSION( ims:ime , jms:jme ) , INTENT(OUT)   :: SR
-
-   REAL, INTENT(IN   ) :: dt,dx,dy
-
-   INTEGER, DIMENSION( ims:ime , jms:jme ), INTENT(INOUT) :: LOWLYR
-
-!
-! Optional
-!
-   LOGICAL,  OPTIONAL,   INTENT(IN   )    :: channel_switch
-   REAL, DIMENSION( ims:ime, kms:kme, jms:jme ),                  &
-         OPTIONAL,                                                &
-         INTENT(INOUT ) ::                                        &
-                  w, z                                            & 
-                 ,qv_curr,qc_curr,qr_curr,qi_curr,qs_curr,qg_curr &
-                 ,qt_curr,qni_curr
-
-!
-   REAL, DIMENSION( ims:ime , jms:jme ),                          &
-         INTENT(INOUT),                                           &
-         OPTIONAL   ::                                            &
-                                                           RAINNC &
-                                                         ,RAINNCV &
-                                                          ,SNOWNC &
-                                                         ,SNOWNCV &
-                                                       ,GRAUPELNC &
-                                                      ,GRAUPELNCV
-
-   REAL , DIMENSION( ims:ime , jms:jme ) , OPTIONAL ,             &
-         INTENT(IN)   ::                                       ht
-
-   REAL, DIMENSION (:), OPTIONAL, INTENT(INOUT) :: mp_restart_state &
-                                         ,tbpvs_state,tbpvs0_state
-!
-
-   LOGICAL, OPTIONAL ::      f_qv,f_qc,f_qr,f_qi,f_qs,f_qg,f_qni,f_qt
-
-
-! LOCAL  VAR
-
-   INTEGER :: i,j,k,its,ite,jts,jte,ij,sz,n
-   LOGICAL :: channel
-
-!---------------------------------------------------------------------
-!  check for microphysics type.  We need a clean way to 
-!  specify these things!
-!---------------------------------------------------------------------
-
-   channel = .FALSE.
-   IF ( PRESENT ( channel_switch ) ) channel = channel_switch
-
-   if (mp_physics .eq. 0) return
-   IF( specified ) THEN
-     sz = spec_zone
-   ELSE
-     sz = 0
-   ENDIF
-
-!jaa   !$OMP PARALLEL DO   &
-!jaa   !$OMP PRIVATE ( ij, its, ite, jts, jte, i,j,k,n )
-
-   DO ij = 1 , num_tiles
-
-       IF (channel) THEN
-         its = max(i_start(ij),ids)
-         ite = min(i_end(ij),ide-1)
-       ELSE
-         its = max(i_start(ij),ids+sz)
-         ite = min(i_end(ij),ide-1-sz)
-       ENDIF
-       jts = max(j_start(ij),jds+sz)
-       jte = min(j_end(ij),jde-1-sz)
-
-!-----------
-
-     micro_select: SELECT CASE(mp_physics)
-
-!!!     CASE (KESSLERSCHEME)
-!!!          CALL wrf_debug ( 100 , 'microphysics_driver: calling kessler' )
-!!!          IF ( PRESENT( QV_CURR ) .AND. PRESENT( QC_CURR ) .AND.  &
-!!!                                        PRESENT( QR_CURR ) .AND.  &
-!!!               PRESENT( RAINNC  ) .AND. PRESENT ( RAINNCV ) .AND.  &
-!!!                                        PRESENT( Z       ))  THEN
-!!!            CALL kessler(                                        &
-!!!               T=th                                              &
-!!!              ,QV=qv_curr                                        &
-!!!              ,QC=qc_curr                                        &
-!!!              ,QR=qr_curr                                        &
-!!!              ,RHO=rho, PII=pi_phy,DT_IN=dt, Z=z, XLV=xlv, CP=cp &
-!!!              ,EP2=ep_2,SVP1=svp1,SVP2=svp2                      &
-!!!              ,SVP3=svp3,SVPT0=svpt0,RHOWATER=rhowater           &
-!!!              ,DZ8W=dz8w                                         &
-!!!              ,RAINNC=rainnc,RAINNCV=rainncv                     &
-!!!              ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=kds,KDE=kde &
-!!!              ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=kms,KME=kme &
-!!!              ,ITS=its,ITE=ite, JTS=jts,JTE=jte, KTS=kts,KTE=kte &
-!!!                                                                 )
-!!!          ELSE 
-!!!             CALL wrf_error_fatal ( 'arguments not present for calling kessler' )
-!!!          ENDIF
-
-!
-!!!     CASE (THOMPSON)
-!!!          CALL wrf_debug ( 100 , 'microphysics_driver: calling thompson et al' )
-!!!          IF ( PRESENT( QV_CURR ) .AND. PRESENT ( QC_CURR ) .AND.  &
-!!!               PRESENT( QR_CURR ) .AND. PRESENT ( QI_CURR ) .AND.  &
-!!!               PRESENT( QS_CURR ) .AND. PRESENT ( QG_CURR ) .AND.  &
-!!!               PRESENT( QR_CURR ) .AND. PRESENT ( QI_CURR ) .AND.  &
-!!!                                        PRESENT ( QNI_CURR ).AND.  &
-!!!               PRESENT( RAINNC  ) .AND. PRESENT ( RAINNCV ) .AND.  &
-!!!               PRESENT( Z       ) .AND. PRESENT ( W       )  ) THEN
-!!!          CALL mp_thomp(                              &
-!!!                  ITIMESTEP=itimestep,                &
-!!!                  TH=th,                              &
-!!!                  QV=qv_curr,                         &
-!!!                  QL=qc_curr,                         &
-!!!                  QR=qr_curr,                         &
-!!!                  QI=qi_curr,                         &
-!!!                  QS=qs_curr,                         &
-!!!                  QG=qg_curr,                         &
-!!!                  QNI=qni_curr,                       &
-!!!                  RHO=rho,                            &
-!!!                  PII=pi_phy,                         &
-!!!                  P=p,                                &
-!!!                  DT_IN=dt,                           &
-!!!                  Z=z,                                &
-!!!                  HT=ht,                              &
-!!!                  DZ8W=dz8w,                          &
-!!!                  W=w                                 &
-!!!                 ,RAINNC=RAINNC                       &
-!!!                 ,RAINNCV=RAINNCV                     &
-!!!              ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=kds,KDE=kde &
-!!!              ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=kms,KME=kme &
-!!!              ,ITS=its,ITE=ite, JTS=jts,JTE=jte, KTS=kts,KTE=kte &
-!!!                                                                 )
-!!!          ELSE 
-!!!             CALL wrf_error_fatal ( 'arguments not present for calling thompson_et_al' )
-!!!          ENDIF
-!
-!!!     CASE (LINSCHEME)
-!!!          CALL wrf_debug ( 100 , 'microphysics_driver: calling lin_et_al' )
-!!!          IF ( PRESENT( QV_CURR ) .AND. PRESENT ( QC_CURR ) .AND.  &
-!!!               PRESENT( QR_CURR ) .AND. PRESENT ( QI_CURR ) .AND.  &
-!!!               PRESENT( QS_CURR )                           .AND.  &
-!!!               PRESENT( RAINNC  ) .AND. PRESENT ( RAINNCV ) .AND.  &
-!!!               PRESENT( Z       ) .AND. PRESENT ( W       )  ) THEN
-!!!            CALL lin_et_al(                                      &
-!!!               TH=th                                             &
-!!!              ,QV=qv_curr                                        &
-!!!              ,QL=qc_curr                                        &
-!!!              ,QR=qr_curr                                        &
-!!!              ,QI=qi_curr                                        &
-!!!              ,QS=qs_curr                                        &
-!!!              ,RHO=rho, PII=pi_phy, P=p, DT_IN=dt, Z=z           &
-!!!              ,HT=ht, DZ8W=dz8w, GRAV=G,  CP=cp                  &
-!!!              ,RAIR=r_d, RVAPOR=R_v                              &
-!!!              ,XLS=xls, XLV=xlv, XLF=xlf                         &
-!!!              ,RHOWATER=rhowater, RHOSNOW=rhosnow                &
-!!!              ,EP2=ep_2,SVP1=svp1,SVP2=svp2                      &
-!!!              ,SVP3=svp3,SVPT0=svpt0                             &
-!!!              ,RAINNC=rainnc, RAINNCV=rainncv                    &
-!!!              ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=kds,KDE=kde &
-!!!              ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=kms,KME=kme &
-!!!              ,ITS=its,ITE=ite, JTS=jts,JTE=jte, KTS=kts,KTE=kte &
-!!!              ,F_QG=f_qg                                         &
-!!!              ,QG=qg_curr                                        &
-!!!                                                                 )
-!!!          ELSE 
-!!!             CALL wrf_error_fatal ( 'arguments not present for calling lin_et_al' )
-!!!          ENDIF
-
-        CASE (WSM3SCHEME)
-!!!          CALL wrf_debug ( 100 , 'microphysics_driver: calling wsm3' )
-             IF ( PRESENT( QV_CURR ) .AND. PRESENT ( QC_CURR ) .AND.  &
-                  PRESENT( QR_CURR ) .AND.                            &
-                  PRESENT( RAINNC  ) .AND. PRESENT ( RAINNCV ) .AND.  &
-                  PRESENT( SNOWNC  ) .AND. PRESENT ( SNOWNCV ) .AND.  &
-                  PRESENT( W       )                            ) THEN
-             CALL wsm3(                                             &
-                  TH=th                                             &
-                 ,Q=qv_curr                                         &
-                 ,QCI=qc_curr                                       &
-                 ,QRS=qr_curr                                       &
-                 ,W=w,DEN=rho,PII=pi_phy,P=p,DELZ=dz8w              &
-                 ,DELT=dt,G=g,CPD=cp,CPV=cpv                        &
-                 ,RD=r_d,RV=r_v,T0C=svpt0                           &
-                 ,EP1=ep_1, EP2=ep_2, QMIN=epsilon                  &
-                 ,XLS=xls, XLV0=xlv, XLF0=xlf                       &
-                 ,DEN0=rhoair0, DENR=rhowater                       &
-                 ,CLIQ=cliq,CICE=cice,PSAT=psat                     &
-                 ,RAIN=rainnc ,RAINNCV=rainncv                      &
-                 ,SNOW=snownc ,SNOWNCV=snowncv                      &
-                 ,SR=sr                                             &
-                 ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=kds,KDE=kde &
-                 ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=kms,KME=kme &
-                 ,ITS=its,ITE=ite, JTS=jts,JTE=jte, KTS=kts,KTE=kte &
-                                                                    )
-             ELSE 
-!!!             CALL wrf_error_fatal ( 'arguments not present for calling wsm3' )
-                WRITE(0,*)'arguments not present for calling wsm3'
-             ENDIF
-
-!!!     CASE (WSM5SCHEME)
-!!!          CALL wrf_debug ( 100 , 'microphysics_driver: calling wsm5' )
-!!!          IF ( PRESENT( QV_CURR ) .AND. PRESENT ( QC_CURR ) .AND.  &
-!!!               PRESENT( QR_CURR ) .AND. PRESENT ( QI_CURR ) .AND.  &
-!!!               PRESENT( QS_CURR ) .AND.                            &
-!!!               PRESENT( RAINNC  ) .AND. PRESENT ( RAINNCV ) .AND.  &
-!!!               PRESENT( SNOWNC  ) .AND. PRESENT ( SNOWNCV ) .AND.  &
-!!!               PRESENT( W       )                            ) THEN
-!!!          CALL wsm5(                                             &
-!!!               TH=th                                             &
-!!!              ,Q=qv_curr                                         &
-!!!              ,QC=qc_curr                                        &
-!!!              ,QR=qr_curr                                        &
-!!!              ,QI=qi_curr                                        &
-!!!              ,QS=qs_curr                                        &
-!!!              ,W=w,DEN=rho,PII=pi_phy,P=p,DELZ=dz8w              &
-!!!              ,DELT=dt,G=g,CPD=cp,CPV=cpv                        &
-!!!              ,RD=r_d,RV=r_v,T0C=svpt0                           &
-!!!              ,EP1=ep_1, EP2=ep_2, QMIN=epsilon                  &
-!!!              ,XLS=xls, XLV0=xlv, XLF0=xlf                       &
-!!!              ,DEN0=rhoair0, DENR=rhowater                       &
-!!!              ,CLIQ=cliq,CICE=cice,PSAT=psat                     &
-!!!              ,RAIN=rainnc ,RAINNCV=rainncv                      &
-!!!              ,SNOW=snownc ,SNOWNCV=snowncv                      &
-!!!              ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=kds,KDE=kde &
-!!!              ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=kms,KME=kme &
-!!!              ,ITS=its,ITE=ite, JTS=jts,JTE=jte, KTS=kts,KTE=kte &
-!!!                                                                 )
-!!!          ELSE
-!!!             CALL wrf_error_fatal ( 'arguments not present for calling wsm5' )
-!!!          ENDIF
-
-!!!     CASE (WSM6SCHEME)
-!!!          CALL wrf_debug ( 100 , 'microphysics_driver: calling wsm6' )
-!!!          IF ( PRESENT( QV_CURR ) .AND. PRESENT ( QC_CURR ) .AND.  &
-!!!               PRESENT( QR_CURR ) .AND. PRESENT ( QI_CURR ) .AND.  &
-!!!               PRESENT( QS_CURR ) .AND. PRESENT ( QG_CURR ) .AND.  &
-!!!               PRESENT( RAINNC  ) .AND. PRESENT ( RAINNCV ) .AND.  &
-!!!               PRESENT( SNOWNC  ) .AND. PRESENT ( SNOWNCV ) .AND.  &
-!!!               PRESENT( GRAUPELNC  ) .AND. PRESENT ( GRAUPELNCV ) .AND.  &
-!!!               PRESENT( W       )                            ) THEN
-!!!          CALL wsm6(                                             &
-!!!               TH=th                                             &
-!!!              ,Q=qv_curr                                         &
-!!!              ,QC=qc_curr                                        &
-!!!              ,QR=qr_curr                                        &
-!!!              ,QI=qi_curr                                        &
-!!!              ,QS=qs_curr                                        &
-!!!              ,QG=qg_curr                                        &
-!!!              ,W=w,DEN=rho,PII=pi_phy,P=p,DELZ=dz8w              &
-!!!              ,DELT=dt,G=g,CPD=cp,CPV=cpv                        &
-!!!              ,RD=r_d,RV=r_v,T0C=svpt0                           &
-!!!              ,EP1=ep_1, EP2=ep_2, QMIN=epsilon                  &
-!!!              ,XLS=xls, XLV0=xlv, XLF0=xlf                       &
-!!!              ,DEN0=rhoair0, DENR=rhowater                       &
-!!!              ,CLIQ=cliq,CICE=cice,PSAT=psat                     &
-!!!              ,RAIN=rainnc ,RAINNCV=rainncv                      &
-!!!              ,SNOW=snownc ,SNOWNCV=snowncv                      &
-!!!              ,GRAUPEL=graupelnc ,GRAUPELNCV=graupelncv          &
-!!!              ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=kds,KDE=kde &
-!!!              ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=kms,KME=kme &
-!!!              ,ITS=its,ITE=ite, JTS=jts,JTE=jte, KTS=kts,KTE=kte &
-!!!                                                                 )
-!!!          ELSE
-!!!             CALL wrf_error_fatal ( 'arguments not present for calling wsm6' )
-!!!          ENDIF
-
-        CASE (ETAMPNEW)
-!!!          CALL wrf_debug ( 100 , 'microphysics_driver: calling etampnew')
-
-             IF ( PRESENT( qv_curr ) .AND. PRESENT( qt_curr ) .AND. &
-                  PRESENT( qc_curr ) .AND. PRESENT( qr_curr ) .AND. &
-                  PRESENT( qs_curr ) .AND.                          &
-                  PRESENT( RAINNC  ) .AND. PRESENT ( RAINNCV ) .AND.  &
-                  PRESENT( mp_restart_state )                  .AND. &
-                  PRESENT( tbpvs_state )                      .AND. &
-                  PRESENT( tbpvs0_state )                       ) THEN
-               CALL ETAMP_NEW(                                      &
-                  ITIMESTEP=itimestep,DT=dt,DX=dx,DY=dy             &
-                 ,DZ8W=dz8w,RHO_PHY=rho,P_PHY=p,PI_PHY=pi_phy,TH_PHY=th &
-                 ,QV=qv_curr                                        &
-                 ,QC=qc_curr                                        &
-                 ,QS=qs_curr                                        &
-                 ,QR=qr_curr                                        &
-                 ,QT=qt_curr                                        &
-                 ,LOWLYR=LOWLYR,SR=SR                               &
-                 ,F_ICE_PHY=F_ICE_PHY,F_RAIN_PHY=F_RAIN_PHY         &
-                 ,F_RIMEF_PHY=F_RIMEF_PHY                           &
-                 ,RAINNC=rainnc,RAINNCV=rainncv                     &
-                 ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=kds,KDE=kde &
-                 ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=kms,KME=kme &
-                 ,ITS=its,ITE=ite, JTS=jts,JTE=jte, KTS=kts,KTE=kte &
-                 ,MP_RESTART_STATE=mp_restart_state                 &
-                 ,TBPVS_STATE=tbpvs_state,TBPVS0_STATE=tbpvs0_state &
-                                                                    )
-             ELSE
-!!!             CALL wrf_error_fatal ( 'arguments not present for calling etampnew' )
-                WRITE(0,*)' arguments not present for calling etampnew'
-!!!             CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-                CALL NMMB_FINALIZE
-             ENDIF
-
-!!!     CASE (NCEPCLOUD3)
-!!!          CALL wrf_debug ( 100 , 'microphysics_driver: calling ncloud3' )
-!!!          IF ( PRESENT( QV_CURR ) .AND. PRESENT ( QC_CURR ) .AND.  &
-!!!               PRESENT( QR_CURR ) .AND.                            &
-!!!               PRESENT( RAINNC  ) .AND. PRESENT ( RAINNCV ) .AND.  &
-!!!               PRESENT( W       )                            ) THEN
-!!!          CALL ncloud3(                                          &
-!!!               TH=th                                             &
-!!!              ,Q=qv_curr                                         &
-!!!              ,QCI=qc_curr                                       &
-!!!              ,QRS=qr_curr                                       &
-!!!              ,W=w, DEN=rho, PII=pi_phy, P=p, DELZ=dz8w          &
-!!!              ,DELT=dt,G=g,CPD=cp,CPV=cpv                        &
-!!!              ,RD=r_d,RV=r_v,T0C=SVPT0                           &
-!!!              ,EP1=ep_1, EP2=ep_2, QMIN=epsilon                  &
-!!!              ,XLS=xls, XLV0=xlv, XLF0=xlf                       &
-!!!              ,DEN0=rhoair0, DENR=rhowater                       &
-!!!              ,CLIQ=cliq,CICE=cice,PSAT=psat                     &
-!!!              ,RAIN=RAINNC,RAINNCV=RAINNCV                       &
-!!!              ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=kds,KDE=kde &
-!!!              ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=kms,KME=kme &
-!!!              ,ITS=its,ITE=ite, JTS=jts,JTE=jte, KTS=kts,KTE=kte &
-!!!                                                                 )
-
-!!!          ELSE
-!!!             CALL wrf_error_fatal ( 'arguments not present for calling ncepcloud3' )
-!!!          ENDIF
-
-!!!     CASE (NCEPCLOUD5)
-!!!          CALL wrf_debug ( 100 , 'microphysics_driver: calling ncloud5' )
-!!!          IF ( PRESENT( QV_CURR ) .AND. PRESENT ( QC_CURR ) .AND.  &
-!!!               PRESENT( QR_CURR ) .AND. PRESENT ( QI_CURR ) .AND.  &
-!!!               PRESENT( QS_CURR ) .AND. PRESENT ( QG_CURR ) .AND.  &
-!!!               PRESENT( RAINNC  ) .AND. PRESENT ( RAINNCV ) .AND.  &
-!!!               PRESENT( W       )                            ) THEN
-!!!          CALL ncloud5(                                          &
-!!!               TH=th                                             &
-!!!              ,Q=qv_curr                                         &
-!!!              ,QC=qc_curr                                        &
-!!!              ,QR=qr_curr                                        &
-!!!              ,QI=qi_curr                                        &
-!!!              ,QS=qs_curr                                        &
-!!!              ,W=w, DEN=rho, PII=pi_phy, P=p, DELZ=dz8w          &
-!!!              ,DELT=dt,G=g,CPD=cp,CPV=cpv                        &
-!!!              ,RD=r_d,RV=r_v,T0C=SVPT0                           &
-!!!              ,EP1=ep_1, EP2=ep_2, QMIN=epsilon                  &
-!!!              ,XLS=xls, XLV0=xlv, XLF0=xlf                       &
-!!!              ,DEN0=rhoair0, DENR=rhowater                       &
-!!!              ,CLIQ=cliq,CICE=cice,PSAT=psat                     &
-!!!              ,RAIN=RAINNC,RAINNCV=RAINNCV                       &
-!!!              ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=kds,KDE=kde &
-!!!              ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=kms,KME=kme &
-!!!              ,ITS=its,ITE=ite, JTS=jts,JTE=jte, KTS=kts,KTE=kte &
-!!!                                                                 )
-!!!          ELSE
-!!!             CALL wrf_error_fatal ( 'arguments not present for calling ncepcloud5' )
-!!!          ENDIF
-
-
-      CASE DEFAULT 
-
-!!!      WRITE( wrf_err_message , * ) 'The microphysics option does not exist: mp_physics = ', mp_physics
-!!!      CALL wrf_error_fatal ( wrf_err_message )
-         WRITE(0,*)' The microphysics option does not exist: mp_physics = ', mp_physics
-!!!      CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-         CALL NMMB_FINALIZE
-
-      END SELECT micro_select 
-
-   ENDDO
-!jaa   !$OMP END PARALLEL DO
-
-!!!CALL wrf_debug ( 200 , 'microphysics_driver: returning from' )
-
-   RETURN
-
-   END SUBROUTINE microphysics_driver
-
-!!!END MODULE module_microphysics_driver
-
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
@@ -1218,13 +552,13 @@ SUBROUTINE microphysics_driver(                                          &
      &                     ,ITIMESTEP
 
       REAL, INTENT(IN) 	    :: DT,DX,DY
-      REAL, INTENT(IN),     DIMENSION(ims:ime, kms:kme, jms:jme)::      &
+      REAL, INTENT(IN),     DIMENSION(ims:ime, jms:jme, kms:kme)::      &
      &                      dz8w,p_phy,pi_phy,rho_phy
-      REAL, INTENT(INOUT),  DIMENSION(ims:ime, kms:kme, jms:jme)::      &
+      REAL, INTENT(INOUT),  DIMENSION(ims:ime, jms:jme, kms:kme)::      &
      &                      th_phy,qv,qt
-      REAL, INTENT(INOUT),  DIMENSION(ims:ime, kms:kme, jms:jme ) ::    &
+      REAL, INTENT(INOUT),  DIMENSION(ims:ime,jms:jme, kms:kme ) ::    &
      &                      qc,qr,qs
-      REAL, INTENT(INOUT),  DIMENSION(ims:ime, kms:kme, jms:jme ) ::    &
+      REAL, INTENT(INOUT),  DIMENSION(ims:ime, jms:jme,kms:kme) ::    &
      &                      F_ICE_PHY,F_RAIN_PHY,F_RIMEF_PHY
       REAL, INTENT(INOUT),  DIMENSION(ims:ime,jms:jme)           ::     &
      &                                                   RAINNC,RAINNCV
@@ -1254,13 +588,23 @@ SUBROUTINE microphysics_driver(                                          &
 !     the microphysics scheme. Instead, they will be used by Eta precip 
 !     assimilation.
 
-      REAL,  DIMENSION( ims:ime, kms:kme, jms:jme ) ::                  &
+      REAL,  DIMENSION( ims:ime, jms:jme,kms:kme ) ::                  &
      &       TLATGS_PHY,TRAIN_PHY
       REAL,  DIMENSION(ims:ime,jms:jme):: APREC,PREC,ACPREC
-      REAL,  DIMENSION(its:ite, kts:kte, jts:jte):: t_phy
+      REAL,  DIMENSION(its:ite, jts:jte, kts:kte):: t_phy
 
-      INTEGER :: I,J,K,KFLIP
-      REAL :: WC
+      INTEGER :: I,J,K
+      REAL :: wc
+!------------------------------------------------------------------------
+! For ECGP01
+!-----------------------------------------------------------------------
+      LOGICAL, PARAMETER :: PRINT_diag=.FALSE.
+      INTEGER :: LSFC,I_index,J_index,L
+      INTEGER,DIMENSION(its:ite,jts:jte) :: LMH
+      REAL :: TC,QI,QRdum,QW,Fice,Frain,DUM,ASNOW,ARAIN
+      REAL,DIMENSION(kts:kte) :: P_col,Q_col,T_col,QV_col,WC_col,       &
+         RimeF_col,QI_col,QR_col,QW_col, THICK_col,DPCOL
+      REAL,DIMENSION(2) :: PRECtot,PRECmax
 !
 !-----------------------------------------------------------------------
 !**********************************************************************
@@ -1288,8 +632,11 @@ SUBROUTINE microphysics_driver(                                          &
       DO j = jts,jte
       DO k = kts,kte
       DO i = its,ite
-        t_phy(i,k,j) = th_phy(i,k,j)*pi_phy(i,k,j)
-        qv(i,k,j)=qv(i,k,j)/(1.+qv(i,k,j)) !Convert to specific humidity
+        t_phy(i,j,k) = th_phy(i,j,k)*pi_phy(i,j,k)
+        qv(i,j,k)=qv(i,j,k)/(1.+qv(i,j,k)) !Convert to specific humidity
+!     if(i==101.and.j==163)then
+!       write(0,*)' enter etamp_new k=',k,' t=',t_phy(i,k,j),' th=',th_phy(i,k,j),' pii=',pi_phy(i,k,j)
+!     endif
       ENDDO
       ENDDO
       ENDDO
@@ -1332,66 +679,216 @@ SUBROUTINE microphysics_driver(                                          &
        ENDDO
        DO k = kts,kte
        DO i = its,ite
-	 TLATGS_PHY (i,k,j)=0.
-	 TRAIN_PHY  (i,k,j)=0.
+	 TLATGS_PHY (i,j,k)=0.
+	 TRAIN_PHY  (i,j,k)=0.
        ENDDO
        ENDDO
       ENDDO
+!
+!-----------------------------------------------------------------------
+!-- Start of original driver for EGCP01COLUMN
+!-----------------------------------------------------------------------
+!
 !.......................................................................
 !$omp end parallel do
 !.......................................................................
+!$omp parallel do                                                       &
+!$omp private (j,i,k,lsfc,dpcol,l,p_col,thick_col,t_col,tc,qv_col,      &
+!$omp          wc_col,wc,qi,QRdum,qw,fice,frain,rimef_col,qi_col,qr_col,   &
+!$omp          qw_col,i_index,j_index,arain,asnow,dum,prectot,precmax,  &
+!$omp          qmax,qtot,nstats),SCHEDULE(dynamic)  
+!.......................................................................
+       DO J=JTS,JTE    
+        DO I=ITS,ITE  
+          LSFC=KTE-LOWLYR(I,J)+1                      ! "L" of surface
+          DO K=KTS,KTE
+            DPCOL(K)=RHO_PHY(I,J,K)*GRAV*dz8w(I,J,K)
+          ENDDO
+!
+!--- Initialize column data (1D arrays)
+!
+        L=1
+!-- qt = CWM, total condensate
+        IF (qt(I,J,L) .LE. EPSQ) qt(I,J,L)=EPSQ
+          F_ice_phy(I,J,L)=1.
+          F_rain_phy(I,J,L)=0.
+          F_RimeF_phy(I,J,L)=1.
+          DO L=1,LSFC
+!
+!--- Pressure (Pa) = (Psfc-Ptop)*(ETA/ETA_sfc)+Ptop
+!
+            P_col(L)=P_phy(I,J,L)
+!
+!--- Layer thickness = RHO*DZ = -DP/G = (Psfc-Ptop)*D_ETA/(G*ETA_sfc)
+!
+            THICK_col(L)=DPCOL(L)*RGRAV
+            T_col(L)=T_phy(I,J,L)
+            TC=T_col(L)-T0C
+            QV_col(L)=max(EPSQ, qv(I,J,L))
+            IF (qt(I,J,L) .LE. EPSQ1) THEN
+              WC_col(L)=0.
+              IF (TC .LT. T_ICE) THEN
+                F_ice_phy(I,J,L)=1.
+              ELSE
+                F_ice_phy(I,J,L)=0.
+              ENDIF
+              F_rain_phy(I,J,L)=0.
+              F_RimeF_phy(I,J,L)=1.
+            ELSE
+              WC_col(L)=qt(I,J,L)
+            ENDIF
+!     !
+!     !--- Determine composition of condensate in terms of 
+!     !      cloud water, ice, & rain
+!     !
+            WC=WC_col(L)
+            QI=0.
+            QRdum=0.
+            QW=0.
+            Fice=F_ice_phy(I,J,L)
+            Frain=F_rain_phy(I,J,L)
+!
+            IF (Fice .GE. 1.) THEN
+              QI=WC
+            ELSE IF (Fice .LE. 0.) THEN
+              QW=WC
+            ELSE
+              QI=Fice*WC
+              QW=WC-QI
+            ENDIF
+!
+            IF (QW.GT.0. .AND. Frain.GT.0.) THEN
+              IF (Frain .GE. 1.) THEN
+                QRdum=QW
+                QW=0.
+              ELSE
+                QRdum=Frain*QW
+                QW=QW-QRdum
+              ENDIF
+            ENDIF
+            IF (QI .LE. 0.) F_RimeF_phy(I,J,L)=1.
+            RimeF_col(L)=F_RimeF_phy(I,J,L)               ! (real)
+            QI_col(L)=QI
+            QR_col(L)=QRdum
+            QW_col(L)=QW
+          ENDDO
+!
+!#######################################################################
+!
+!--- Perform the microphysical calculations in this column
+!
+          I_index=I
+          J_index=J
+       CALL EGCP01COLUMN ( ARAIN, ASNOW, DT, I_index, J_index, LSFC,  &
+     & P_col, QI_col, QR_col, QV_col, QW_col, RimeF_col, T_col,         &
+     & THICK_col, WC_col,KTS,KTE,NSTATS,QMAX,QTOT )
 
+!#######################################################################
+!
+!--- Update storage arrays
+!
+          DO L=1,LSFC
+            TRAIN_phy(I,J,L)=(T_col(L)-T_phy(I,J,L))/DT
+            TLATGS_phy(I,J,L)=T_col(L)-T_phy(I,J,L)
+            T_phy(I,J,L)=T_col(L)
+            qv(I,J,L)=QV_col(L)
+            qt(I,J,L)=WC_col(L)
+!
+!--- REAL*4 array storage
+!
+            IF (QI_col(L) .LE. EPSQ) THEN
+              F_ice_phy(I,J,L)=0.
+              IF (T_col(L) .LT. T_ICEK) F_ice_phy(I,J,L)=1.
+              F_RimeF_phy(I,J,L)=1.
+            ELSE
+              F_ice_phy(I,J,L)=MAX( 0., MIN(1., QI_col(L)/WC_col(L)) )
+              F_RimeF_phy(I,J,L)=MAX(1., RimeF_col(L))
+            ENDIF
+            IF (QR_col(L) .LE. EPSQ) THEN
+              DUM=0
+            ELSE
+              DUM=QR_col(L)/(QR_col(L)+QW_col(L))
+            ENDIF
+            F_rain_phy(I,J,L)=DUM
+          ENDDO
+!
+!--- Update accumulated precipitation statistics
+!
+!--- Surface precipitation statistics; SR is fraction of surface 
+!    precipitation (if >0) associated with snow
+!
+        APREC(I,J)=(ARAIN+ASNOW)*RRHOL       ! Accumulated surface precip (depth in m)  !<--- Ying
+        PREC(I,J)=PREC(I,J)+APREC(I,J)
+        ACPREC(I,J)=ACPREC(I,J)+APREC(I,J)
+        IF(APREC(I,J) .LT. 1.E-8) THEN
+          SR(I,J)=0.
+        ELSE
+          SR(I,J)=RRHOL*ASNOW/APREC(I,J)
+        ENDIF
+!
+!--- Debug statistics 
+!
+        IF (PRINT_diag) THEN
+          PRECtot(1)=PRECtot(1)+ARAIN
+          PRECtot(2)=PRECtot(2)+ASNOW
+          PRECmax(1)=MAX(PRECmax(1), ARAIN)
+          PRECmax(2)=MAX(PRECmax(2), ASNOW)
+        ENDIF
+!
+!#######################################################################
+!#######################################################################
+!
+    enddo                          ! End "I" loop
+    enddo                          ! End "J" loop
+!.......................................................................
+!$omp end parallel do
+!.......................................................................
+!
 !-----------------------------------------------------------------------
-
-      CALL EGCP01DRV(DT,LOWLYR,                                         &
-     &               APREC,PREC,ACPREC,SR,NSTATS,QMAX,QTOT,	        &
-     &               dz8w,rho_phy,qt,t_phy,qv,F_ICE_PHY,P_PHY,          &
-     &               F_RAIN_PHY,F_RIMEF_PHY,TLATGS_PHY,TRAIN_PHY,       &
-     &               ids,ide, jds,jde, kds,kde,		                &
-     &               ims,ime, jms,jme, kms,kme,		                &
-     &               its,ite, jts,jte, kts,kte		          )
+!-- End of original driver for EGCP01COLUMN
 !-----------------------------------------------------------------------
-
+!
 !.......................................................................
 !$omp parallel do private(j,k,i,wc)
 !.......................................................................
      DO j = jts,jte
         DO k = kts,kte
 	DO i = its,ite
-  	   th_phy(i,k,j) = t_phy(i,k,j)/pi_phy(i,k,j)
-           qv(i,k,j)=qv(i,k,j)/(1.-qv(i,k,j))  !Convert to mixing ratio
-           WC=qt(I,K,J)
-           QS(I,K,J)=0.
-           QR(I,K,J)=0.
-           QC(I,K,J)=0.
-           IF(F_ICE_PHY(I,K,J)>=1.)THEN
-             QS(I,K,J)=WC
-           ELSEIF(F_ICE_PHY(I,K,J)<=0.)THEN
-             QC(I,K,J)=WC
+           th_phy(i,j,k) = t_phy(i,j,k)/pi_phy(i,j,k)
+           qv(i,j,k)=qv(i,j,k)/(1.-qv(i,j,k))  !Convert to mixing ratio
+           WC=qt(I,J,K)
+           QS(I,J,K)=0.
+           QR(I,J,K)=0.
+           QC(I,J,K)=0.
+!
+           IF(F_ICE_PHY(I,J,K)>=1.)THEN
+             QS(I,J,K)=WC
+           ELSEIF(F_ICE_PHY(I,J,K)<=0.)THEN
+             QC(I,J,K)=WC
            ELSE
-             QS(I,K,J)=F_ICE_PHY(I,K,J)*WC
-             QC(I,K,J)=WC-QS(I,K,J)
+             QS(I,J,K)=F_ICE_PHY(I,J,K)*WC
+             QC(I,J,K)=WC-QS(I,J,K)
            ENDIF
 !
-           IF(QC(I,K,J)>0..AND.F_RAIN_PHY(I,K,J)>0.)THEN
-             IF(F_RAIN_PHY(I,K,J).GE.1.)THEN
-               QR(I,K,J)=QC(I,K,J)
-               QC(I,K,J)=0.
+           IF(QC(I,J,K)>0..AND.F_RAIN_PHY(I,J,K)>0.)THEN
+             IF(F_RAIN_PHY(I,J,K).GE.1.)THEN
+               QR(I,J,K)=QC(I,J,K)
+               QC(I,J,K)=0.
              ELSE
-               QR(I,K,J)=F_RAIN_PHY(I,K,J)*QC(I,K,J)
-               QC(I,K,J)=QC(I,K,J)-QR(I,K,J)
+               QR(I,J,K)=F_RAIN_PHY(I,J,K)*QC(I,J,K)
+               QC(I,J,K)=QC(I,J,K)-QR(I,J,K)
              ENDIF
            ENDIF
-	ENDDO
-        ENDDO
-     ENDDO
+!
+          ENDDO   !- i
+        ENDDO     !- k
+     ENDDO        !- j
 !.......................................................................
 !$omp end parallel do
 !.......................................................................
-
 ! 
-! update rain (from m to mm)
-
+!- Update rain (convert from m to kg/m**2, which is also equivalent to mm depth)
+! 
        DO j=jts,jte
        DO i=its,ite
           RAINNC(i,j)=APREC(i,j)*1000.+RAINNC(i,j)
@@ -1411,299 +908,12 @@ SUBROUTINE microphysics_driver(                                          &
 !
      TBPVS_STATE(1:NX) =TBPVS(1:NX)
      TBPVS0_STATE(1:NX)=TBPVS0(1:NX)
-
+!
 !-----------------------------------------------------------------------
-
+!
   END SUBROUTINE ETAMP_NEW
-
-!-----------------------------------------------------------------------
-      SUBROUTINE EGCP01DRV(                                             &
-     &  DTPH,LOWLYR,APREC,PREC,ACPREC,SR,                               &
-     &  NSTATS,QMAX,QTOT,                                               &
-     &  dz8w,RHO_PHY,CWM_PHY,T_PHY,Q_PHY,F_ICE_PHY,P_PHY,               &
-     &  F_RAIN_PHY,F_RIMEF_PHY,TLATGS_PHY,TRAIN_PHY,                    &
-     &  ids,ide, jds,jde, kds,kde,                                      &
-     &  ims,ime, jms,jme, kms,kme,                                      &
-     &  its,ite, jts,jte, kts,kte)
-!-----------------------------------------------------------------------
-! DTPH           Physics time step (s)
-! CWM_PHY (qt)   Mixing ratio of the total condensate. kg/kg
-! Q_PHY          Mixing ratio of water vapor. kg/kg
-! F_RAIN_PHY     Fraction of rain. 
-! F_ICE_PHY      Fraction of ice.
-! F_RIMEF_PHY    Mass ratio of rimed ice (rime factor).
-!
-!TLATGS_PHY,TRAIN_PHY,APREC,PREC,ACPREC,SR are not directly related the
-!micrphysics sechme. Instead, they will be used by Eta precip assimilation.
-!
-!NSTATS,QMAX,QTOT are used for diagnosis purposes.
 !
 !-----------------------------------------------------------------------
-!--- Variables APREC,PREC,ACPREC,SR are calculated for precip assimilation
-!    and/or ZHAO's scheme in Eta and are not required by this microphysics 
-!    scheme itself.  
-!--- NSTATS,QMAX,QTOT are used for diagnosis purposes only.  They will be 
-!    printed out when PRINT_diag is true.
-!
-!-----------------------------------------------------------------------
-      IMPLICIT NONE
-!-----------------------------------------------------------------------
-!
-      INTEGER, PARAMETER :: ITLO=-60, ITHI=40
-      LOGICAL, PARAMETER :: PRINT_diag=.FALSE.
-!     VARIABLES PASSED IN/OUT
-      INTEGER,INTENT(IN ) :: ids,ide, jds,jde, kds,kde                  &
-     &                      ,ims,ime, jms,jme, kms,kme                  &
-     &                      ,its,ite, jts,jte, kts,kte
-      REAL,INTENT(IN) :: DTPH
-      INTEGER, DIMENSION( ims:ime, jms:jme ),INTENT(INOUT) :: LOWLYR
-      INTEGER,DIMENSION(ITLO:ITHI,4),INTENT(INOUT) :: NSTATS
-      REAL,DIMENSION(ITLO:ITHI,5),INTENT(INOUT) :: QMAX
-      REAL,DIMENSION(ITLO:ITHI,22),INTENT(INOUT) :: QTOT
-      REAL,DIMENSION(ims:ime,jms:jme),INTENT(INOUT) ::                  &
-     &                         APREC,PREC,ACPREC,SR
-      REAL,DIMENSION( its:ite, kts:kte, jts:jte ),INTENT(INOUT) :: t_phy
-      REAL,DIMENSION( ims:ime, kms:kme, jms:jme ),INTENT(IN) ::         &
-     &                                             dz8w,P_PHY,RHO_PHY
-      REAL,DIMENSION( ims:ime, kms:kme, jms:jme ),INTENT(INOUT) ::      &
-     &   CWM_PHY, F_ICE_PHY,F_RAIN_PHY,F_RIMEF_PHY,TLATGS_PHY           &
-     &   ,Q_PHY,TRAIN_PHY
-!
-!-----------------------------------------------------------------------
-!LOCAL VARIABLES
-!-----------------------------------------------------------------------
-!
-#define CACHE_FRIENDLY_MP_ETANEW
-#ifdef CACHE_FRIENDLY_MP_ETANEW
-#  define TEMP_DIMS  kts:kte,its:ite,jts:jte
-#  define TEMP_DEX   L,I,J
-#else
-#  define TEMP_DIMS  its:ite,jts:jte,kts:kte
-#  define TEMP_DEX   I,J,L
-#endif
-!
-      INTEGER :: LSFC,I,J,I_index,J_index,L,K,KFLIP
-      REAL,DIMENSION(TEMP_DIMS) :: CWM,T,Q,TRAIN,TLATGS,P
-      REAL,DIMENSION(kts:kte,its:ite,jts:jte) :: F_ice,F_rain,F_RimeF       
-      INTEGER,DIMENSION(its:ite,jts:jte) :: LMH
-      REAL :: TC,WC,QI,QR,QW,Fice,Frain,DUM,ASNOW,ARAIN
-      REAL,DIMENSION(kts:kte) :: P_col,Q_col,T_col,QV_col,WC_col,       &
-         RimeF_col,QI_col,QR_col,QW_col, THICK_col,DPCOL 
-      REAL,DIMENSION(2) :: PRECtot,PRECmax
-!-----------------------------------------------------------------------
-!
-!.......................................................................
-!$omp parallel do private(j,i,l,kflip)
-!.......................................................................
-        DO J=JTS,JTE    
-         DO I=ITS,ITE  
-          LMH(I,J) = KTE-LOWLYR(I,J)+1
-           DO L=KTS,KTE
-             KFLIP=KTE+1-L
-             CWM(TEMP_DEX)=CWM_PHY(I,KFLIP,J)
-             T(TEMP_DEX)=T_PHY(I,KFLIP,J)
-             Q(TEMP_DEX)=Q_PHY(I,KFLIP,J)
-             P(TEMP_DEX)=P_PHY(I,KFLIP,J)
-             TLATGS(TEMP_DEX)=TLATGS_PHY(I,KFLIP,J)
-             TRAIN(TEMP_DEX)=TRAIN_PHY(I,KFLIP,J)
-             F_ice(L,I,J)=F_ice_PHY(I,KFLIP,J)
-             F_rain(L,I,J)=F_rain_PHY(I,KFLIP,J)
-             F_RimeF(L,I,J)=F_RimeF_PHY(I,KFLIP,J)
-           ENDDO
-         ENDDO
-        ENDDO
-!.......................................................................
-!$omp end parallel do
-!.......................................................................
-!
-!.......................................................................
-!$omp parallel do                                                       &
-!$omp private (j,i,k,lsfc,kflip,dpcol,l,p_col,thick_col,t_col,tc,qv_col,&
-!$omp          wc_col,wc,qi,qr,qw,fice,frain,rimef_col,qi_col,qr_col,   &
-!$omp          qw_col,i_index,j_index,arain,asnow,dum,prectot,precmax,  &
-!$omp          qmax,qtot,nstats),SCHEDULE(dynamic)  
-!.......................................................................
-       DO J=JTS,JTE    
-        DO I=ITS,ITE  
-          LSFC=LMH(I,J)                      ! "L" of surface
-!
-          DO K=KTS,KTE
-            KFLIP=KTE+1-K
-            DPCOL(K)=RHO_PHY(I,KFLIP,J)*GRAV*dz8w(I,KFLIP,J)
-          ENDDO
-!   
-   !
-   !--- Initialize column data (1D arrays)
-   !
-        L=1
-        IF (CWM(TEMP_DEX) .LE. EPSQ) CWM(TEMP_DEX)=EPSQ
-          F_ice(1,I,J)=1.
-          F_rain(1,I,J)=0.
-          F_RimeF(1,I,J)=1.
-          DO L=1,LSFC
-      !
-      !--- Pressure (Pa) = (Psfc-Ptop)*(ETA/ETA_sfc)+Ptop
-      !
-            P_col(L)=P(TEMP_DEX)
-      !
-      !--- Layer thickness = RHO*DZ = -DP/G = (Psfc-Ptop)*D_ETA/(G*ETA_sfc)
-      !
-            THICK_col(L)=DPCOL(L)*RGRAV
-            T_col(L)=T(TEMP_DEX)
-            TC=T_col(L)-T0C
-            QV_col(L)=max(EPSQ, Q(TEMP_DEX))
-            IF (CWM(TEMP_DEX) .LE. EPSQ1) THEN
-              WC_col(L)=0.
-              IF (TC .LT. T_ICE) THEN
-                F_ice(L,I,J)=1.
-              ELSE
-                F_ice(L,I,J)=0.
-              ENDIF
-              F_rain(L,I,J)=0.
-              F_RimeF(L,I,J)=1.
-            ELSE
-              WC_col(L)=CWM(TEMP_DEX)
-            ENDIF
-      !
-      !--- Determine composition of condensate in terms of 
-      !      cloud water, ice, & rain
-      !
-            WC=WC_col(L)
-            QI=0.
-            QR=0.
-            QW=0.
-            Fice=F_ice(L,I,J)
-            Frain=F_rain(L,I,J)
-            IF (Fice .GE. 1.) THEN
-              QI=WC
-            ELSE IF (Fice .LE. 0.) THEN
-              QW=WC
-            ELSE
-              QI=Fice*WC
-              QW=WC-QI
-            ENDIF
-            IF (QW.GT.0. .AND. Frain.GT.0.) THEN
-              IF (Frain .GE. 1.) THEN
-                QR=QW
-                QW=0.
-              ELSE
-                QR=Frain*QW
-                QW=QW-QR
-              ENDIF
-            ENDIF
-!ratko-wrf
-            IF (QI .LE. 0.) F_RimeF(L,I,J)=1.
-!ratko-wrf
-            RimeF_col(L)=F_RimeF(L,I,J)               ! (real)
-            QI_col(L)=QI
-            QR_col(L)=QR
-            QW_col(L)=QW
-          ENDDO
-!
-!#######################################################################
-   !
-   !--- Perform the microphysical calculations in this column
-   !
-          I_index=I
-          J_index=J
-       CALL EGCP01COLUMN ( ARAIN, ASNOW, DTPH, I_index, J_index, LSFC,  &
-     & P_col, QI_col, QR_col, QV_col, QW_col, RimeF_col, T_col,         &
-     & THICK_col, WC_col,KTS,KTE,NSTATS,QMAX,QTOT )
-
-
-   !
-!#######################################################################
-!
-   !
-   !--- Update storage arrays
-   !
-          DO L=1,LSFC
-            TRAIN(TEMP_DEX)=(T_col(L)-T(TEMP_DEX))/DTPH
-            TLATGS(TEMP_DEX)=T_col(L)-T(TEMP_DEX)
-            T(TEMP_DEX)=T_col(L)
-            Q(TEMP_DEX)=QV_col(L)
-            CWM(TEMP_DEX)=WC_col(L)
-      !
-      !--- REAL*4 array storage
-      !
-!ratko-wrf            F_RimeF(L,I,J)=MAX(1., RimeF_col(L))
-            IF (QI_col(L) .LE. EPSQ) THEN
-              F_ice(L,I,J)=0.
-              IF (T_col(L) .LT. T_ICEK) F_ice(L,I,J)=1.
-!ratko-wrf
-              F_RimeF(L,I,J)=1.
-!ratko-wrf
-            ELSE
-              F_ice(L,I,J)=MAX( 0., MIN(1., QI_col(L)/WC_col(L)) )
-!ratko-wrf
-              F_RimeF(L,I,J)=MAX(1., RimeF_col(L))
-!ratko-wrf
-            ENDIF
-            IF (QR_col(L) .LE. EPSQ) THEN
-              DUM=0
-            ELSE
-              DUM=QR_col(L)/(QR_col(L)+QW_col(L))
-            ENDIF
-            F_rain(L,I,J)=DUM
-      !
-          ENDDO
-   !
-   !--- Update accumulated precipitation statistics
-   !
-   !--- Surface precipitation statistics; SR is fraction of surface 
-   !    precipitation (if >0) associated with snow
-   !
-        APREC(I,J)=(ARAIN+ASNOW)*RRHOL       ! Accumulated surface precip (depth in m)  !<--- Ying
-        PREC(I,J)=PREC(I,J)+APREC(I,J)
-        ACPREC(I,J)=ACPREC(I,J)+APREC(I,J)
-        IF(APREC(I,J) .LT. 1.E-8) THEN
-          SR(I,J)=0.
-        ELSE
-          SR(I,J)=RRHOL*ASNOW/APREC(I,J)
-        ENDIF
-   !
-   !--- Debug statistics 
-   !
-        IF (PRINT_diag) THEN
-          PRECtot(1)=PRECtot(1)+ARAIN
-          PRECtot(2)=PRECtot(2)+ASNOW
-          PRECmax(1)=MAX(PRECmax(1), ARAIN)
-          PRECmax(2)=MAX(PRECmax(2), ASNOW)
-        ENDIF
-
-
-!#######################################################################
-!#######################################################################
-!
-    enddo                          ! End "I" loop
-    enddo                          ! End "J" loop
-!.......................................................................
-!$omp end parallel do
-!.......................................................................
-!
-!.......................................................................
-!$omp parallel do private(j,i,l,kflip)
-!.......................................................................
-        DO J=JTS,JTE    
-         DO I=ITS,ITE  
-           DO L=KTS,KTE
-              KFLIP=KTE+1-L
-             CWM_PHY(I,KFLIP,J)=CWM(TEMP_DEX)
-             T_PHY(I,KFLIP,J)=T(TEMP_DEX)
-             Q_PHY(I,KFLIP,J)=Q(TEMP_DEX)
-             TLATGS_PHY(I,KFLIP,J)=TLATGS(TEMP_DEX)
-             TRAIN_PHY(I,KFLIP,J)=TRAIN(TEMP_DEX)
-             F_ice_PHY(I,KFLIP,J)=F_ice(L,I,J)
-             F_rain_PHY(I,KFLIP,J)=F_rain(L,I,J)
-             F_RimeF_PHY(I,KFLIP,J)=F_RimeF(L,I,J)
-           ENDDO
-        enddo
-       enddo
-!.......................................................................
-!$omp end parallel do
-!.......................................................................
-!
-      END SUBROUTINE EGCP01DRV
 !
 !###############################################################################
 ! ***** VERSION OF MICROPHYSICS DESIGNED FOR HIGHER RESOLUTION MESO ETA MODEL
@@ -3883,6 +3093,9 @@ nsteps = 0
          DO k=kts,kte
          DO i=its,ite
             t(i,k)=th(i,k,j)*pii(i,k,j)
+!     if(i==101.and.j==163)then
+!       write(0,*)' enter wsm3 k=',k,' t=',t(i,k),' th=',th(i,k,j),' pii=',pii(i,k,j)
+!     endif
          ENDDO
          ENDDO
          CALL wsm32D(t, q(ims,kms,j), qci(ims,kms,j)               &
@@ -3903,6 +3116,9 @@ nsteps = 0
          DO K=kts,kte
          DO I=its,ite
             th(i,k,j)=t(i,k)/pii(i,k,j)
+!     if(i==101.and.j==163)then
+!       write(0,*)' exit wsm3 k=',k,' t=',t(i,k),' pii=',pii(i,k,j)
+!     endif
          ENDDO
          ENDDO
       ENDDO
