@@ -25,6 +25,7 @@
 !                       integration switches from backward to forward.
 !   2009-10-05  Wang  - Added GFS ensemble member name and output data at
 !                       every nsout timesteps.
+!   2009-11-03  Lu    - Add GOCART and ChemRegistry modules
 !
 ! USAGE: ATM Gridded component parts called from subroutines within
 !        module_ATM_DRIVER_COMP.F90.
@@ -68,10 +69,16 @@
                                           ,PETLIST_FCST                 &
                                           ,WRITE_GROUPS
 !
-!     USE GOCART_GridCompMod        ,ONLY: GOCART_SETSERVICES => SETSERVICES 
-!
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
       USE MODULE_CLOCKTIMES,ONLY: total_integ_tim
+!
+!-----------------------------------------------------------------------
+!***  LIST MODULES FOR GSFC CHEMISTRY PACKAGE
+!-----------------------------------------------------------------------
+!
+      USE GOCART_GridCompMod    , ONLY: GOCART_SETSERVICES => SETSERVICES 
+!
+      USE Chem_RegistryMod
 !
 !-----------------------------------------------------------------------
 !***  LIST OTHER MODULES WITH NON-GENERIC ROUTINES USED BY ATM.
@@ -109,15 +116,11 @@
 !
       CHARACTER(3),SAVE :: CORE                                            !<-- The name of the selected dynamic core
 !
-      CHARACTER(len=*),PARAMETER ::  MYNAME = 'ut_Registry'
-!
       CHARACTER(ESMF_MAXSTR) :: INFILE="restart_file"
 !
       LOGICAL(kind=KLOG) :: QUILTING                                    &  !<-- Is asynchronous quilting specified?
                            ,RESTARTED_RUN                               &  !<-- Original/restarted run logical flag
                            ,STANDALONE_POST                                !<-- Logical flag for running standalone post
-!
-!!!   TYPE(Chem_Registry),SAVE :: REG
 !
       TYPE(ESMF_Config),SAVE :: CF_1                                       !<-- The principal config object
 !
@@ -125,8 +128,6 @@
 !
       TYPE(ATM_INTERNAL_STATE),POINTER,SAVE :: ATM_INT_STATE               !<-- The NMM ATM internal state pointer
       TYPE(WRAP_ATM_INTERNAL_STATE)   ,SAVE :: WRAP                        !<-- The F90 wrap of the NMM ATM internal state
-!
-      TYPE(ESMF_GridComp),SAVE :: GC_GOCART                                !<-- The GOCART component 
 !
       TYPE(ESMF_Time),SAVE :: DFITIME                                   &
                              ,HALFDFITIME 
@@ -137,6 +138,18 @@
       TYPE(ESMF_TimeInterval),SAVE :: TIMEINTERVAL_CLOCKTIME               !<-- The ESMF time interval between NMM clocktime output
 !
       TYPE(ESMF_Logical),SAVE :: PHYSICS_ON                                !<-- Is physics active?
+!
+!-----------------------------------------------------------------------
+!***  FOR GSFC CHEMISTRY PACKAGE
+!-----------------------------------------------------------------------
+!
+      TYPE(ESMF_GridComp),SAVE :: GC_GFS_CHEM                              !<-- The GFS chemistry component 
+      TYPE(ESMF_State),   SAVE :: IMP_GFS_CHEM,EXP_GFS_CHEM                !<-- Import/export states for GFS Chemistry
+!
+      TYPE(Chem_Registry),SAVE :: REG                                      !<-- The GOCART Chem_Registry
+
+      TYPE(ESMF_Logical), SAVE :: CHEMISTRY_ON                             !<-- Is chemistry active?
+
 !
 !---------------------
 !***  For NMM Nesting
@@ -1730,7 +1743,7 @@
                            ,NFHOUT,NFMOUT,NFSOUT,NSOUT                  &
                            ,TOTAL_MEMBER,TOTAL_TASKS
 !
-      INTEGER(kind=KINT) :: RC,RC_INIT
+      INTEGER(kind=KINT) :: RC,RC_INIT,IERR
 !
       REAL(kind=KFPT) :: DELTIM
 !
@@ -1895,12 +1908,19 @@
 !***  Read and print Chem_Registry
 !-----------------------------------------------------------------------
 !
-!     write(0,*)'Read Chem_Registry'
-!     REG = Chem_RegistryCreate ( IERR )
-!     IF ( IERR /= 0 ) CALL DIE ( MYNAME, 'cannot create registry' )
-!     CALL Chem_RegistryPrint ( REG )
-!     CALL Chem_RegistryDestroy ( REG, IERR )
-!     IF ( IERR /= 0 ) CALL DIE ( MYNAME, 'cannot destroy registry' )
+      REG = Chem_RegistryCreate ( IERR )
+
+      IF(REG%doing_gocart)THEN                                             !<-- GOCART => Chemistry on
+        CHEMISTRY_ON=ESMF_True
+        write(0,*)' Initialize with gocart coupling '
+      ELSE                                                                 !<-- no GOCART => Chemistry off
+        CHEMISTRY_ON=ESMF_False
+        write(0,*)' Initialize without gocart coupling '
+      ENDIF
+
+      CALL Chem_RegistryPrint ( REG )
+
+      CALL Chem_RegistryDestroy ( REG, IERR )
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------

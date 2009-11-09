@@ -20,7 +20,7 @@ set +x
 #####
 # ------ NCEP IBM SP ----------------
 #=======================================================================
-    cd ../src/main/ && make -f Makefile_main
+    cd ../src/main/ && gmake -f Makefile_main
 
 echo 'NEMS built'
 

@@ -22,12 +22,14 @@
   GFS_DYN_LIB=$(LIBDIR)/libstub/gfs_dyn_stub.a
   GFS_IO_LIB=$(LIBDIR)/libstub/gfs_io_stub.a
   ATMOS_STUB_LIB=$(LIBDIR)/libstub/atmos_gfs_stub.a
+  GOCART_LIB=$(LIB_GOCART)           ### defined in NCEP_base.mk
 ###########################################################
 # Cumulative Core-Specific Compiler Flags
 ###########################################################
   FFLAGSDB=$(OPTS_NMM) $(FINCS_NMM1)
   FFLAGSDB_STUB=$(OPTS_NMM) $(FINCS_GFS1)
-  GC_LIB=$(NMM_UTIL_LIB) $(NMM_DYN_LIB) $(NMM_PHY_LIB) $(NMM_IO_LIB) $(ATM_LIB) $(GFS_DYN_LIB) $(GFS_PHY_LIB) $(GFS_IO_LIB) $(GFS_UTIL_LIB) $(ATMOS_STUB_LIB)
+###GC_LIB=$(NMM_UTIL_LIB) $(NMM_DYN_LIB) $(NMM_PHY_LIB) $(NMM_IO_LIB) $(ATM_LIB) $(GFS_DYN_LIB) $(GFS_PHY_LIB) $(GFS_IO_LIB) $(GFS_UTIL_LIB) $(ATMOS_STUB_LIB)
+  GC_LIB=$(NMM_UTIL_LIB) $(NMM_DYN_LIB) $(NMM_PHY_LIB) $(NMM_IO_LIB) $(ATM_LIB) $(GOCART_LIB) $(GFS_DYN_LIB) $(GFS_PHY_LIB) $(GFS_IO_LIB) $(GFS_UTIL_LIB) $(ATMOS_STUB_LIB)
 ###########################################################
 # Cumulative Core-Specific Libraries
 ###########################################################

@@ -6,11 +6,12 @@
 include ../../ush/compile_settings
 all: 
 	_GFS_PHYSICS_
-	cd $(NMM_UTIL) && make
-	cd $(NMM_IO) && make 
-	cd $(NMM_DYN) && make  
-	cd $(NMM_PHY) && make 
-	cd $(ATM) && make
+	cd $(NMM_UTIL) && gmake
+	cd $(NMM_IO) && gmake 
+	cd $(NMM_DYN) && gmake  
+	cd $(NMM_PHY) && gmake 
+	cd $(GOCART) && export ESMADIR=`pwd` && gmake -C src install GOCART_MODE=$(GOCART_MODE)
+	cd $(ATM) && gmake
 	/bin/rm -f $(EXEDIR)/NMM_NEMS.x
 	$(CPP) $(CPPFLAGS) $(ROOT).F90 > $(ROOT).f90
 	$(F90) $(FFLAG_NMM_MAIN) -c $(ROOT).f90
@@ -19,11 +20,12 @@ all:
 
 clean:
 	_GFS_PHYSICS_ clean
-	cd $(NMM_UTIL) && make clean
-	cd $(NMM_IO) && make clean 
-	cd $(NMM_DYN) && make clean
-	cd $(NMM_PHY) && make clean
-	cd $(ATM) && make clean
+	cd $(NMM_UTIL) && gmake clean
+	cd $(NMM_IO) && gmake clean 
+	cd $(NMM_DYN) && gmake clean
+	cd $(NMM_PHY) && gmake clean
+	cd $(GOCART) && export ESMADIR=`pwd` && gmake -C src realclean GOCART_MODE=$(GOCART_MODE)
+	cd $(ATM) && gmake clean
 	/bin/rm -f $(EXEDIR)/NMM_NEMS.x
 	/bin/rm -f *.o
 	/bin/rm -f *.mod

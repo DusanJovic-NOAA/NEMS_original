@@ -23,7 +23,7 @@
     rm -f ../mod/modstub/nmm/*.mod
     rm -f ../mod/modstub/gfs/*.o
     rm -f ../mod/modstub/nmm/*.o
-    cd ../src/main && make -f Makefile_stub clean
+    cd ../src/main && gmake -f Makefile_stub clean
 echo 'NEMS cleaned'
 
 exit

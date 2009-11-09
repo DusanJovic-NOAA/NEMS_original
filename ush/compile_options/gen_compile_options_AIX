@@ -1,8 +1,12 @@
 ###########################################################
 # NEMS Directories
 ###########################################################
-  DISK=../..
-  DISK1=../../..
+## Use absolute path to specify DISK and DISK1 (Sarah Lu)
+##DISK=../..
+##DISK1=../../..
+  DISK=$(NEMSTOPDIR)
+  DISK1=$(NEMSTOPDIR)
+
   SRCDIR=$(DISK)/src
   SRCDIR1=$(DISK1)/src
   EXEDIR=$(DISK)/exe
@@ -90,14 +94,26 @@
   GFS_PHY1=$(SRCDIR1)/gfs_phys
   GFS_DYN1=$(SRCDIR1)/gfs_dyn
   GFS_IO1=$(SRCDIR1)/gfs_io
+  GOCART=$(NEMSTOPDIR)/src/gocart
+
+###########################################################
+# interface to GOCART build
+###########################################################
+ESMADIR=$(GOCART)
+BASEDIR=/usr/local
+include $(GOCART)/src/Config/NCEP_base.mk
+GOCART_INC=$(INC_GOCART)           ### defined in NCEP_base.mk
+
 ###########################################################
 # Cumulative Source Code Include File Compiler Flags
 ###########################################################
   GCINCS=-I$(NMM_UTIL) -I$(NMM_IO) -I$(NMM_DYN) -I$(NMM_PHY) -I$(ATM) -I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_UTIL) -I$(GFS_IO)
   GCINCS_NMM=-I$(NMM_UTIL) -I$(NMM_IO) -I$(NMM_DYN) -I$(NMM_PHY) -I$(ATM)  -I$(GFS_PHY) -I$(MODDIR)/modstub/gfs 
   GCINCS_GFS=-I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_UTIL) -I$(GFS_IO) -I$(ATM) -I$(MODDIR)/modstub/nmm
-  GCINCS_NMM1=-I$(NMM_UTIL1) -I$(NMM_IO1) -I$(NMM_DYN1) -I$(NMM_PHY1) -I$(GFS_PHY1) -I$(MODDIR1)/modstub/gfs
-  GCINCS_GFS1=-I$(GFS_DYN1) -I$(GFS_PHY1) -I$(GFS_UTIL1) -I$(GFS_IO1) -I$(MODDIR1)/modstub/nmm
+##GCINCS_NMM1=-I$(NMM_UTIL1) -I$(NMM_IO1) -I$(NMM_DYN1) -I$(NMM_PHY1) -I$(GFS_PHY1) -I$(MODDIR1)/modstub/gfs
+  GCINCS_NMM1=-I$(NMM_UTIL1) -I$(NMM_IO1) -I$(NMM_DYN1) -I$(NMM_PHY1) -I$(GFS_PHY1) $(INC_GOCART) -I$(MODDIR1)/modstub/gfs
+##GCINCS_GFS1=-I$(GFS_DYN1) -I$(GFS_PHY1) -I$(GFS_UTIL1) -I$(GFS_IO1) -I$(MODDIR1)/modstub/nmm
+  GCINCS_GFS1=-I$(GFS_DYN1) -I$(GFS_PHY1) -I$(GFS_UTIL1) -I$(GFS_IO1) $(INC_GOCART) -I$(MODDIR1)/modstub/nmm
   FINCS=-I$(ESMF_MOD) $(GCINCS)
   FINCS_NMM=-I$(ESMF_MOD) $(GCINCS_NMM)
   FINCS_GFS=-I$(ESMF_MOD) $(GCINCS_GFS)

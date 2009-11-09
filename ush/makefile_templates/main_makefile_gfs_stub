@@ -5,7 +5,7 @@ include ../../ush/compile_settings
 # *****************************************************************
 #
 all: 
-	cd $(NMM_UTIL) && make -f makefile_stub 
+	cd $(NMM_UTIL) && gmake -f makefile_stub 
 	cp $(NMM_UTIL)/module_atm_internal_state.mod $(MODDIR)/modstub/nmm
 	cp $(NMM_UTIL)/module_control.mod $(MODDIR)/modstub/nmm
 	cp $(NMM_UTIL)/module_digital_filter_nmm.mod $(MODDIR)/modstub/nmm
@@ -13,29 +13,29 @@ all:
 	cp $(NMM_UTIL)/module_clocktimes.mod $(MODDIR)/modstub/nmm
 	cp $(NMM_UTIL)/module_dm_parallel.mod $(MODDIR)/modstub/nmm
 	cp $(NMM_UTIL)/module_include.mod $(MODDIR)/modstub/nmm
-	cd $(NMM_IO) && make -f makefile_stub 
+	cd $(NMM_IO) && gmake -f makefile_stub 
 	cp $(NMM_IO)/module_write_grid_comp.mod $(MODDIR)/modstub/nmm
 	cp $(NMM_IO)/module_write_routines.mod $(MODDIR)/modstub/nmm
 	cp $(NMM_IO)/module_get_config_write.mod $(MODDIR)/modstub/nmm
-	cd $(NMM_DYN) && make -f makefile_stub 
+	cd $(NMM_DYN) && gmake -f makefile_stub 
 	cp $(NMM_DYN)/module_dynamics_grid_comp.mod $(MODDIR)/modstub/nmm
 	cp $(NMM_DYN)/module_dyn_phy_cpl_comp.mod $(MODDIR)/modstub/nmm
 	cp $(NMM_DYN)/module_get_config_dyn.mod $(MODDIR)/modstub/nmm
-	cd $(NMM_PHY) && make -f makefile_stub 
+	cd $(NMM_PHY) && gmake -f makefile_stub 
 	cp $(NMM_PHY)/module_get_config_phy.mod $(MODDIR)/modstub/nmm
 	cp $(NMM_PHY)/module_physics_grid_comp.mod $(MODDIR)/modstub/nmm
-	cd $(ATM) && make -f makefile_stub 
+	cd $(ATM) && gmake -f makefile_stub 
 	cp $(ATM)/module_nmm_core_setup.mod ../../mod/modstub/nmm
 	cp $(ATM)/module_nesting.mod ../../mod/modstub/nmm
 	cp $(ATM)/module_parent_child_cpl_comp.mod ../../mod/modstub/nmm
 	cp $(ATM)/module_nmm_integrate.mod ../../mod/modstub/nmm
 	echo "nmm stub libraries created."
 clean:
-	cd $(NMM_UTIL) && make -f makefile_stub clean
-	cd $(NMM_IO) && make -f makefile_stub clean
-	cd $(NMM_DYN) && make -f makefile_stub clean
-	cd $(NMM_PHY) && make -f makefile_stub clean
-	cd $(ATM) && make -f makefile_stub clean
+	cd $(NMM_UTIL) && gmake -f makefile_stub clean
+	cd $(NMM_IO) && gmake -f makefile_stub clean
+	cd $(NMM_DYN) && gmake -f makefile_stub clean
+	cd $(NMM_PHY) && gmake -f makefile_stub clean
+	cd $(ATM) && gmake -f makefile_stub clean
 	rm -f $(MODDIR)/modstub/gfs/*
 	rm -f $(MODDIR)/modstub/nmm/*
 	rm -f $(LIBDIR)/libstub/*

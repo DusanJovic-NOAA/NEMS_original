@@ -19,7 +19,7 @@
 # ------ NCEP IBM SP ----------------
 #=======================================================================
 
-    cd ../src/main && make -f Makefile_main clean
+    cd ../src/main && gmake -f Makefile_main clean
     rm -f Makefile_main
     rm -f Makefile_stub
     rm -f atmos/makefile

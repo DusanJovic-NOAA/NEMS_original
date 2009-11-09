@@ -5,26 +5,26 @@ include ../../ush/compile_settings
 # *****************************************************************
 #
 all: 
-	cd $(GFS_DYN) && make -f makefile_stub 
+	cd $(GFS_DYN) && gmake -f makefile_stub 
 	cp $(GFS_DYN)/gfs_dynamics_grid_comp_mod.mod $(MODDIR)/modstub/gfs
 	_GFS_PHYSICS_
 	_GFS_PHY_LIB_LOC_
-	cd $(GFS_IO) && make -f makefile_stub 
+	cd $(GFS_IO) && gmake -f makefile_stub 
 	cp $(GFS_IO)/module_write_grid_comp_gfs.mod $(MODDIR)/modstub/gfs
 	cp $(GFS_IO)/module_write_routines_gfs.mod $(MODDIR)/modstub/gfs
-	cd $(GFS_UTIL) && make -f makefile_stub 
+	cd $(GFS_UTIL) && gmake -f makefile_stub 
 	cp $(GFS_UTIL)/atmos_dyn_phy_cpl_comp_mod.mod $(MODDIR)/modstub/gfs
 	cp $(GFS_UTIL)/module_gfs_mpi_def.mod $(MODDIR)/modstub/gfs
-	cd $(ATM) && make -f makefile_stub 
+	cd $(ATM) && gmake -f makefile_stub 
 	cp $(ATM)/module_gfs_core_setup.mod ../../mod/modstub/gfs
 	cp $(ATM)/module_gfs_integrate.mod ../../mod/modstub/gfs
 	echo "gfs stub libraries created."
 clean:
-	cd $(GFS_DYN) && make -f makefile_stub clean
+	cd $(GFS_DYN) && gmake -f makefile_stub clean
 	_GFS_PHYSICS_ clean
-	cd $(GFS_IO) && make -f makefile_stub clean
-	cd $(GFS_UTIL) && make -f makefile_stub clean
-	cd $(ATM) && make -f makefile_stub clean
+	cd $(GFS_IO) && gmake -f makefile_stub clean
+	cd $(GFS_UTIL) && gmake -f makefile_stub clean
+	cd $(ATM) && gmake -f makefile_stub clean
 	rm -f $(MODDIR)/modstub/gfs/*
 	rm -f $(MODDIR)/modstub/nmm/*
 	rm -f $(LIBDIR)/libstub/*

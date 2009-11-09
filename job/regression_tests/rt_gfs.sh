@@ -30,6 +30,7 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
 
 mkdir -p ${RUNDIR}
 cp gfs_configfile ${RUNDIR}/configure_file
+cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
 cp ${RTPWD}/GFS/gfsanl.2009072400 ${RUNDIR}/.
 cp ${RTPWD}/GFS/sfcanl.2009072400 ${RUNDIR}/.
 

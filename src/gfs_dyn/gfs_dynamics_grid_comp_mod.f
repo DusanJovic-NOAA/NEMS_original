@@ -615,11 +615,11 @@
       REAL , DIMENSION(:,:,:), POINTER   :: fArr3D                !chlu_debug
       integer                            :: localPE,ii1,ii2,ii3   !chlu_debug
       integer                            :: n, k, rc2             !chlu_debug
-      logical, parameter                 :: ckprnt = .true.       !chlu_debug 
-      integer, parameter                 :: item_count = 4        !chlu_debug
+      logical, parameter                 :: ckprnt = .false.      !chlu_debug 
+      integer, parameter                 :: item_count = 3        !chlu_debug
       character(5) :: item_name(item_count)                       !chlu_debug
       character(20) :: vname                                      !chlu_debug
-      data item_name/'t','u','v','p'/                 !chlu_debug
+      data item_name/'t','u','v'/                 !chlu_debug
 
       localPE = 0                                                 !chlu_debug
 
