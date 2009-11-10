@@ -144,7 +144,7 @@ ifeq ($(ARCH),AIX)
   ifeq ($(SITE),ncep_vapor)
      DIR_NETCDF = /usrx/local/netcdf.3.5.0
      DIR_ESMF = /mtb/save/wx20rv/ESMF/esmf_310rp2
-     BASEDIR ?= /usr/local# not really used
+     BASEDIR = /usr/local# not really used
      DEF_SDF = 
      ESMA_SDF = netcdf
      INC_NETCDF = $(DIR_NETCDF)/include
@@ -160,7 +160,7 @@ ifeq ($(ARCH),AIX)
   ifeq ($(SITE),ncep_cirrus)
      DIR_NETCDF = /usrx/local/netcdf.3.5.0
      DIR_ESMF = /meso/save/wx20rv/ESMF_libs/esmf_3_1_0rp2
-     BASEDIR = /usr/local # not really used
+     BASEDIR = /usr/local# not really used
      DEF_SDF = 
      ESMA_SDF = netcdf
      INC_NETCDF = $(DIR_NETCDF)/include
