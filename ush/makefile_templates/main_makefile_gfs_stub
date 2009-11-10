@@ -36,7 +36,8 @@ clean:
 	cd $(NMM_DYN) && gmake -f makefile_stub clean
 	cd $(NMM_PHY) && gmake -f makefile_stub clean
 	cd $(ATM) && gmake -f makefile_stub clean
-	rm -f $(MODDIR)/modstub/gfs/*
-	rm -f $(MODDIR)/modstub/nmm/*
-	rm -f $(LIBDIR)/libstub/*
+	/bin/rm -f $(MODDIR)/modstub/gfs/*
+	/bin/rm -f $(MODDIR)/modstub/nmm/*
+	/bin/rm -f $(LIBDIR)/libstub/*
+	/bin/rm -f $(USHDIR)/makefile_templates/main_makefile_nmm_stub
 	echo "nmm stub libraries erased"

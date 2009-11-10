@@ -25,7 +25,8 @@ clean:
 	cd $(GFS_IO) && gmake -f makefile_stub clean
 	cd $(GFS_UTIL) && gmake -f makefile_stub clean
 	cd $(ATM) && gmake -f makefile_stub clean
-	rm -f $(MODDIR)/modstub/gfs/*
-	rm -f $(MODDIR)/modstub/nmm/*
-	rm -f $(LIBDIR)/libstub/*
+	/bin/rm -f $(MODDIR)/modstub/gfs/*
+	/bin/rm -f $(MODDIR)/modstub/nmm/*
+	/bin/rm -f $(LIBDIR)/libstub/*
+	/bin/rm -f $(USHDIR)/makefile_templates/main_makefile_nmm_stub
 	echo "gfs stub libraries erased"
