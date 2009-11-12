@@ -33,7 +33,6 @@ clean:
 	/bin/rm -f *.lst
 	/bin/rm -f lm
 	/bin/rm -f map
-	/bin/rm -f $(JOBDIR)/regression_tests/*.log*
 	/bin/rm -f $(USHDIR)/makefile_templates/main_makefile_nmm
 	/bin/rm -f $(USHDIR)/compile_settings
 	echo "directories cleaned."
