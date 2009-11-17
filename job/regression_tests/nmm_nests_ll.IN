@@ -7,12 +7,12 @@
 #@ task_affinity = core(1)
 #@ node_usage = not_shared
 #@ tasks_per_node = _TPN_
-#@ node = 1
+#@ node = 4
 #@ node_resources= ConsumableMemory(110GB)
 #@ task_affinity=core(1)
 #@ class = _CLASS_
 #@ group = _CLASS_
-#@ wall_clock_limit = 00:15:00
+#@ wall_clock_limit = 00:30:00
 #@ parallel_threads = _THRD_
 #@ preferences = Feature == "dev"
 #@ network.MPI = sn_all,not_shared,us
@@ -41,17 +41,17 @@ mkdir -p $RUNDIR
 cd $RUNDIR
 rm -rf $RUNDIR/*
 
-cp _RTPWD_/NMMB_reg/input_nmmb_regional.d01         input_domain_01
-cp _RTPWD_/NMMB_reg/input_nmmb_regional.d01_nemsio  input_domain_01_nemsio
-cp _RTPWD_/NMMB_reg/nmm_b_restart.024               restart_file_01
-cp _RTPWD_/NMMB_reg/nmm_b_restart_nemsio.024        restart_file_01_nemsio
-cp _RTPWD_/NMMB_reg/GWD.bin                         GWD.bin
-cp _RTPWD_/NMMB_reg/boco.* .
+cp _RTPWD_/NMMB_nests/input_nmmb_regional.d01        input_domain_01
+cp _RTPWD_/NMMB_nests/input_nmmb_regional.d01_nemsio input_domain_01_nemsio
+cp _RTPWD_/NMMB_nests/boco.* .
 cp _RTPWD_/data/* .
-_GS_cp ../NMM_REG_CTL/global_* .
+cp _RTPWD_/NMMB_nests/GWD.bin GWD.bin
 
 cp $SRCDIR/job/regression_tests/configure_file .
 cp configure_file configure_file_01
+cp _RTPWD_/NMMB_nests/configure_regional_domain_02 configure_file_02
+cp _RTPWD_/NMMB_nests/configure_regional_domain_03 configure_file_03
+cp _RTPWD_/NMMB_nests/configure_regional_domain_04 configure_file_04
 
 ln -sf /nwprod/fix/global_o3prdlos.f77 fort.28
 ln -sf /nwprod/fix/global_o3clim.txt fort.48

@@ -547,7 +547,7 @@
       CHARACTER(6)  :: FMT='(I2.2)'
       CHARACTER(99) :: CONFIG_FILE_NAME
 !
-      TYPE(ESMF_Array) :: HOLD_ARRAY
+      TYPE(ESMF_Field) :: HOLD_FIELD
 !
       TYPE(ESMF_Config),DIMENSION(:),ALLOCATABLE :: CF
 !
@@ -877,13 +877,13 @@
 !--------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract PD from Parent-Child Coupler Import State"
+        MESSAGE_CHECK="Extract PD Field from Parent-Child Coupler Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateGet(state   =IMP_STATE                           &  !<-- The parent-child coupler import state
                           ,itemName='PD'                                &  !<-- Extract PD
-                          ,array   =HOLD_ARRAY                          &  !<-- Put the extracted Array here
+                          ,field   =HOLD_FIELD                          &  !<-- Put the extracted Field here
                           ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -891,14 +891,14 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract PD from ESMF Array in Parent-Child Coupler"
+        MESSAGE_CHECK="Extract PD from ESMF Field in Parent-Child Coupler"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_ArrayGet(array    =HOLD_ARRAY                         &  !<-- Array that holds the data pointer
-                          ,localDe  =0                                  &
-                          ,farrayPtr=PD                                 &  !<-- Put the pointer here
-                          ,rc       =RC)
+        CALL ESMF_FieldGet(field  =HOLD_FIELD                           &  !<-- Field that holds the data pointer
+                          ,localDe=0                                    &
+                          ,farray =PD                                   &  !<-- Put the pointer here
+                          ,rc     =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
@@ -909,13 +909,13 @@
 !-----------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract T from Parent-Child Coupler Import State"
+        MESSAGE_CHECK="Extract T Field from Parent-Child Coupler Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateGet(state   =IMP_STATE                           &  !<-- The parent-child coupler import state
                           ,itemName='T'                                 &  !<-- Extract temperature
-                          ,array   =HOLD_ARRAY                          &  !<-- Put the extracted Array here
+                          ,field   =HOLD_FIELD                          &  !<-- Put the extracted Field here
                           ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -923,14 +923,14 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract T from ESMF Array in Parent-Child Coupler"
+        MESSAGE_CHECK="Extract T from ESMF Field in Parent-Child Coupler"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_ArrayGet(array    =HOLD_ARRAY                         &  !<-- Array that holds the data pointer
-                          ,localDe  =0                                  &
-                          ,farrayPtr=T                                  &  !<-- Put the pointer here
-                          ,rc       =RC)
+        CALL ESMF_FieldGet(field  =HOLD_FIELD                           &  !<-- Field that holds the data pointer
+                          ,localDe=0                                    &
+                          ,farray =T                                    &  !<-- Put the pointer here
+                          ,rc     =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
@@ -941,13 +941,13 @@
 !------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract U from Parent-Child Coupler Import State"
+        MESSAGE_CHECK="Extract U Field from Parent-Child Coupler Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateGet(state   =IMP_STATE                           &  !<-- The parent-child coupler import state
                           ,itemName='U'                                 &  !<-- Extract U wind
-                          ,array   =HOLD_ARRAY                          &  !<-- Put the extracted Array here
+                          ,field   =HOLD_FIELD                          &  !<-- Put the extracted Field here
                           ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -955,14 +955,14 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract U from ESMF Array in Parent-Child Coupler"
+        MESSAGE_CHECK="Extract U from ESMF Field in Parent-Child Coupler"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_ArrayGet(array    =HOLD_ARRAY                         &  !<-- Array that holds the data pointer
-                          ,localDe  =0                                  &
-                          ,farrayPtr=U                                  &  !<-- Put the pointer here
-                          ,rc       =RC)
+        CALL ESMF_FieldGet(field  =HOLD_FIELD                           &  !<-- Field that holds the data pointer
+                          ,localDe=0                                    &
+                          ,farray =U                                    &  !<-- Put the pointer here
+                          ,rc     =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
@@ -973,13 +973,13 @@
 !------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract V from Parent-Child Coupler Import State"
+        MESSAGE_CHECK="Extract V Field from Parent-Child Coupler Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateGet(state   =IMP_STATE                           &  !<-- The parent-child coupler import state
                           ,itemName='V'                                 &  !<-- Extract V wind
-                          ,array   =HOLD_ARRAY                          &  !<-- Put the extracted Array here
+                          ,field   =HOLD_FIELD                          &  !<-- Put the extracted Field here
                           ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -987,14 +987,14 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract V from ESMF Array in Parent-Child Coupler"
+        MESSAGE_CHECK="Extract V from ESMF Field in Parent-Child Coupler"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_ArrayGet(array    =HOLD_ARRAY                         &  !<-- Array that holds the data pointer
-                          ,localDe  =0                                  &
-                          ,farrayPtr=V                                  &  !<-- Put the pointer here
-                          ,rc       =RC)
+        CALL ESMF_FieldGet(field  =HOLD_FIELD                           &  !<-- Field that holds the data pointer
+                          ,localDe=0                                    &
+                          ,farray =V                                    &  !<-- Put the pointer here
+                          ,rc     =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
@@ -1005,13 +1005,13 @@
 !-------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract Tracers from Parent-Child Coupler Import State"
+        MESSAGE_CHECK="Extract Tracers Field from Parent-Child Coupler Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateGet(state   =IMP_STATE                           &  !<-- The parent-child coupler import state
                           ,itemName='TRACERS'                           &  !<-- Extract tracers
-                          ,array   =HOLD_ARRAY                          &  !<-- Put the extracted Array here
+                          ,field   =HOLD_FIELD                          &  !<-- Put the extracted Field here
                           ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1019,14 +1019,14 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract Tracers from ESMF Array in Parent-Child Coupler"
+        MESSAGE_CHECK="Extract Tracers from ESMF Field in Parent-Child Coupler"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_ArrayGet(array    =HOLD_ARRAY                         &  !<-- Array that holds the data pointer
-                          ,localDe  =0                                  &
-                          ,farrayPtr=TRACERS                            &  !<-- Put the pointer here
-                          ,rc       =RC)
+        CALL ESMF_FieldGet(field  =HOLD_FIELD                           &  !<-- Field that holds the data pointer
+                          ,localDe=0                                    &
+                          ,farray =TRACERS                              &  !<-- Put the pointer here
+                          ,rc     =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
@@ -1037,13 +1037,13 @@
 !----------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract FIS from Parent-Child Coupler Import State"
+        MESSAGE_CHECK="Extract FIS Field from Parent-Child Coupler Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateGet(state   =IMP_STATE                           &  !<-- The parent-child coupler import state
                           ,itemName='FIS'                               &  !<-- Extract PD
-                          ,array   =HOLD_ARRAY                          &  !<-- Put the extracted Array here
+                          ,field   =HOLD_FIELD                          &  !<-- Put the extracted Field here
                           ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1051,14 +1051,14 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract FIS from ESMF Array in Parent-Child Coupler"
+        MESSAGE_CHECK="Extract FIS from ESMF Field in Parent-Child Coupler"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_ArrayGet(array    =HOLD_ARRAY                         &  !<-- Array that holds the data pointer
-                          ,localDe  =0                                  &
-                          ,farrayPtr=FIS                                &  !<-- Put the pointer here
-                          ,rc       =RC)
+        CALL ESMF_FieldGet(field  =HOLD_FIELD                           &  !<-- Field that holds the data pointer
+                          ,localDe=0                                    &
+                          ,farray =FIS                                  &  !<-- Put the pointer here
+                          ,rc     =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
@@ -3270,7 +3270,7 @@
 !
 !           call date_and_time(values=values)
 !           write(0,221)n,nt,childtask_bndry_h_ranks(n)%south(nt),values(5),values(6),values(7),values(8)
-! 221       format(' Ready to Send South_H to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
+! 221       format(' Ready to send South_H to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
             btim=timef()
             CALL MPI_SEND(CHILD_BOUND_H_SOUTH(N)%TASKS(NT)%DATA         &  !<-- Child south boundary data on child task NT
@@ -3647,7 +3647,7 @@
 !
 !!!!  TYPE(HANDLES_RECV),DIMENSION(:),POINTER :: HANDLES
 !
-      TYPE(ESMF_Array) :: HOLD_ARRAY
+      TYPE(ESMF_Field) :: HOLD_FIELD
 !
       integer :: nsize
 !-----------------------------------------------------------------------
@@ -4096,8 +4096,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_StateGet(state   =EXP_STATE_ATM                         &  !<-- The Parent's ATM export state
-                        ,itemName='FIS'                                 &  !<-- Extract FIS array
-                        ,array   =HOLD_ARRAY                            &  !<-- Put the extracted Array here
+                        ,itemName='FIS'                                 &  !<-- Extract FIS Field
+                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
                         ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4110,7 +4110,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_StateAdd(state=IMP_STATE_CPL_NEST                       &  !<-- The Nesting Coupler's import state
-                        ,array=HOLD_ARRAY                               &  !<-- The Array to be inserted
+                        ,field=HOLD_FIELD                               &  !<-- The Field to be inserted
                         ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4268,13 +4268,13 @@
 !-----------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract PD from Parent ATM Export State"
+        MESSAGE_CHECK="Extract PD Field from Parent ATM Export State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateGet(state   =EXP_STATE_ATM                       &  !<-- The Parent's ATM export state
-                          ,itemName='PD'                                &  !<-- Extract PD array
-                          ,array   =HOLD_ARRAY                          &  !<-- Put the extracted Array here
+                          ,itemName='PD'                                &  !<-- Extract PD Field
+                          ,field   =HOLD_FIELD                          &  !<-- Put the extracted Field here
                           ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4287,7 +4287,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateAdd(state=IMP_STATE_CPL_NEST                     &  !<-- The Nesting Coupler's import state
-                          ,array=HOLD_ARRAY                             &  !<-- The Array to be inserted
+                          ,field=HOLD_FIELD                             &  !<-- The Field to be inserted
                           ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4299,13 +4299,13 @@
 !--------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract T from Parent ATM Export State"
+        MESSAGE_CHECK="Extract T Field from Parent ATM Export State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateGet(state   =EXP_STATE_ATM                       &  !<-- The Parent's ATM export state
-                          ,itemName='T'                                 &  !<-- Extract T array
-                          ,array   =HOLD_ARRAY                          &  !<-- Put the extracted Array here
+                          ,itemName='T'                                 &  !<-- Extract T Field
+                          ,field   =HOLD_FIELD                          &  !<-- Put the extracted Field here
                           ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4318,7 +4318,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateAdd(state=IMP_STATE_CPL_NEST                     &  !<-- The Nesting Coupler's import state
-                          ,array=HOLD_ARRAY                             &  !<-- The Array to be inserted
+                          ,field=HOLD_FIELD                             &  !<-- The Field to be inserted
                           ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4330,13 +4330,13 @@
 !---------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract U Wind from Parent ATM Export State"
+        MESSAGE_CHECK="Extract U Wind Field from Parent ATM Export State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateGet(state   =EXP_STATE_ATM                       &  !<-- The Parent's ATM export state
-                          ,itemName='U'                                 &  !<-- Extract U array
-                          ,array   =HOLD_ARRAY                          &  !<-- Put the extracted Array here
+                          ,itemName='U'                                 &  !<-- Extract U Field
+                          ,field   =HOLD_FIELD                          &  !<-- Put the extracted Field here
                           ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4349,7 +4349,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateAdd(state=IMP_STATE_CPL_NEST                     &  !<-- The Nesting Coupler's import state
-                          ,array=HOLD_ARRAY                             &  !<-- The Array to be inserted
+                          ,field=HOLD_FIELD                             &  !<-- The Field to be inserted
                           ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4361,13 +4361,13 @@
 !---------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract V Wind from Parent ATM Export State"
+        MESSAGE_CHECK="Extract V Wind Field from Parent ATM Export State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateGet(state   =EXP_STATE_ATM                       &  !<-- The Parent's ATM export state
-                          ,itemName='V'                                 &  !<-- Extract V array
-                          ,array   =HOLD_ARRAY                          &  !<-- Put the extracted Array here
+                          ,itemName='V'                                 &  !<-- Extract V Field
+                          ,field   =HOLD_FIELD                          &  !<-- Put the extracted Field here
                           ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4380,7 +4380,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateAdd(state=IMP_STATE_CPL_NEST                     &  !<-- The Nesting Coupler's import state
-                          ,array=HOLD_ARRAY                             &  !<-- The Array to be inserted
+                          ,field=HOLD_FIELD                             &  !<-- The Field to be inserted
                           ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4388,17 +4388,17 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !----------------------------
-!***  Transfer TRACERS Array
+!***  Transfer TRACERS Field
 !----------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract Tracers from Parent ATM Export State"
+        MESSAGE_CHECK="Extract Tracers Field from Parent ATM Export State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateGet(state   =EXP_STATE_ATM                       &  !<-- The Parent's ATM export state
-                          ,itemName='TRACERS'                           &  !<-- Extract TRACERS array
-                          ,array   =HOLD_ARRAY                          &  !<-- Put the extracted Array here
+                          ,itemName='TRACERS'                           &  !<-- Extract TRACERS Field
+                          ,field   =HOLD_FIELD                          &  !<-- Put the extracted Field here
                           ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4411,7 +4411,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateAdd(state=IMP_STATE_CPL_NEST                     &  !<-- The Nesting Coupler's import state
-                          ,array=HOLD_ARRAY                             &  !<-- The Array to be inserted
+                          ,field=HOLD_FIELD                             &  !<-- The Field to be inserted
                           ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -5906,7 +5906,7 @@
 !
       REAL,DIMENSION(:),ALLOCATABLE :: FIS_SEND
 !
-      TYPE(ESMF_Array) :: HOLD_ARRAY
+      TYPE(ESMF_Field) :: HOLD_FIELD
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -7343,13 +7343,13 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract FIS from Parent-Child Coupler Import State"
+        MESSAGE_CHECK="Extract FIS Field from Parent-Child Coupler Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateGet(state   =IMP_STATE                           &  !<-- The parent-child coupler import state
-                          ,itemName='FIS'                               &  !<-- Extract FIS
-                          ,array   =HOLD_ARRAY                          &  !<-- Put the extracted Array here
+                          ,itemName='FIS'                               &  !<-- Extract FIS Field
+                          ,field   =HOLD_FIELD                          &  !<-- Put the extracted Field here
                           ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -7357,14 +7357,14 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract FIS from ESMF Array in Parent-Child Coupler"
+        MESSAGE_CHECK="Extract FIS from ESMF Field in Parent-Child Coupler"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_ArrayGet(array    =HOLD_ARRAY                         &  !<-- Array that holds the data pointer
-                          ,localDe  =0                                  &
-                          ,farrayPtr=FIS                                &  !<-- Put the pointer here
-                          ,rc       =RC)
+        CALL ESMF_FieldGet(field  =HOLD_FIELD                           &  !<-- Field that holds the data pointer
+                          ,localDe=0                                    &
+                          ,farray =FIS                                  &  !<-- Put the pointer here
+                          ,rc     =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PRELIM)

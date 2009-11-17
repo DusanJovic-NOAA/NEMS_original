@@ -18,13 +18,15 @@ cat nmm_${GBRG}_ll.IN   | sed s:_JBNME_:${JBNME}:g  \
                         | sed s:_RUND_:${RUNDIR}:g  >  nmm_ll
 
 cat nmm_${GBRG}_conf.IN | sed s:_INPES_:${INPES}:g  \
+                        | sed s:_JNPES_:${JNPES}:g  \
                         | sed s:_WTPG_:${WTPG}:g    \
                         | sed s:_FCSTL_:${FCSTL}:g  \
                         | sed s:_NEMSI_:${NEMSI}:g  \
                         | sed s:_RSTRT_:${RSTRT}:g  \
                         | sed s:_gfsP_:${gfsP}:g    \
                         | sed s:_RGS_:${RGS}:g      \
-                        | sed s:_WGS_:${WGS}:g      >  configure_file
+                        | sed s:_WGS_:${WGS}:g      \
+                        | sed s:_NCHILD_:${NCHILD}:g  >  configure_file
 
 ####################################################################################################
 # Submit test

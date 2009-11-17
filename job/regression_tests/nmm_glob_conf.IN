@@ -266,7 +266,7 @@ io_pad:                  ' '
 
 my_domain_id: 1
 my_parent_id: -999
-n_children:   0
+n_children:  _NCHILD_
 
 
 #######################################

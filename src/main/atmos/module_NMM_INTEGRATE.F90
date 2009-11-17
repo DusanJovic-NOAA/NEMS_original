@@ -55,8 +55,6 @@
 !
 !-----------------------------------------------------------------------
 !
-      INTEGER(kind=KINT),SAVE :: MYPE_SHARE
-!
       LOGICAL(kind=KLOG),SAVE :: RESTARTED_RUN_FIRST=.TRUE.
 !
       CHARACTER(ESMF_MAXSTR) :: CWRT                                       !<-- Restart/History label
@@ -222,7 +220,6 @@
 !
       RC        =ESMF_SUCCESS
       RC_RUN_DRV=ESMF_SUCCESS
-      MYPE_SHARE=MYPE
 !
       FMT='(I2.2)'
       WRITE(INT_TO_CHAR,FMT)MY_DOMAIN_ID

@@ -620,7 +620,7 @@ real(kind=kfpt),dimension(jds:jde):: &
 !
       if(.not.global.and.my_domain_id==1)then
         ihrbc=0
-        write(infile,'(a,i3.3,a,i2.2)')'boco.',ihrbc,'_',my_domain_id
+        write(infile,'(a,i3.3)')'boco.',ihrbc
         nbc=18
         open(unit=nbc,file=infile,status='old',form='unformatted')
         read (nbc) runbc,idatbc,ihrstbc,tboco

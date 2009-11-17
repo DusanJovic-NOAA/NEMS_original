@@ -492,8 +492,8 @@
       ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="WRITE_INITIALIZE: Extract Local Domain Limits"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+      MESSAGE_CHECK="WRITE_INITIALIZE: Extract Local Domain Limits"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       IF(MYPE<=LAST_FCST_TASK)THEN
@@ -2562,8 +2562,6 @@
 !-----------------------------------------------------------------------
 !
         ELSEIF(MYPE==LEAD_WRITE_TASK)THEN                                  !<-- The lead write task
-          write(0,*)'lead_write_task, send and recv,LAST_WRITE_TASK=',  &
-           'LEAD_WRITE_TASK=',LEAD_WRITE_TASK
 !
           JSTA_WRITE=wrt_int_state%LOCAL_JSTART(wrt_int_state%ID_FTASK_RECV_STA(MYPE))  !<-- Starting J of lead write task's subsection
           JEND_WRITE=wrt_int_state%LOCAL_JEND  (wrt_int_state%ID_FTASK_RECV_END(MYPE))  !<-- Ending J of lead write task's subsection
@@ -3348,8 +3346,8 @@
         ELSEIF(MYPE==LEAD_WRITE_TASK)THEN                                  !<-- The lead write task
 !-----------------------------------------------------------------------
 !
-          write(0,*)'RST lead_write_task, send and recv,LAST_WRITE_TASK=',  &
-           'LEAD_WRITE_TASK=',LEAD_WRITE_TASK
+!         write(0,*)'RST lead_write_task, send and recv,LAST_WRITE_TASK=',  &
+!          'LEAD_WRITE_TASK=',LEAD_WRITE_TASK
 !
           JSTA_WRITE=wrt_int_state%LOCAL_JSTART(wrt_int_state%ID_FTASK_RECV_STA(MYPE))  !<-- Starting J of lead write task's subsection
           JEND_WRITE=wrt_int_state%LOCAL_JEND  (wrt_int_state%ID_FTASK_RECV_END(MYPE))  !<-- Ending J of lead write task's subsection
@@ -4033,11 +4031,11 @@
         WRITE_NAME='write_GridComp_'//MY_WRITE_GROUP
 !
         atm_int_state%WRITE_COMPS(I)=ESMF_GridCompCreate(                       &
-                                name          =WRITE_NAME                       &  !<-- Name of this group's Write gridded component
-                               ,configFile    ='configure_file'                 &  !<-- The configure file for writes
-                               ,petList       =atm_int_state%PETLIST_WRITE(:,I) &  !<-- The task IDs of the write tasks in this group
+                                       name   =WRITE_NAME                       &  !<-- Name of this group's Write gridded component
+                                      ,config =CF                               &  !<-- The configure file for writes
+                                      ,petList=atm_int_state%PETLIST_WRITE(:,I) &  !<-- The task IDs of the write tasks in this group
                                                                                    !    provide the local VM information per component.
-                               ,rc            =RC)
+                                      ,rc     =RC)
 !
       ENDDO
 !

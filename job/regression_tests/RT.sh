@@ -121,8 +121,9 @@ nmm_b_restart.024 nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_histor
 nmm_b_history_nemsio.012 nmm_b_history_nemsio.024 nmm_b_history_nemsio.048 nmm_b_restart_nemsio.024"
 #---------------------
 export TPN=32      ; export THRD=1      ; export GS=#       ; export GBRG=glob
-export INPES=06    ; export WTPG=2      ; export FCSTL=48
+export INPES=06    ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
 export NEMSI=false ; export RSTRT=false ; export gfsP=false ; export RGS=false ; export WGS=true
+export NCHILD=0  
 #---------------------
 ./rt_nmm.sh
  if [ $? = 2 ]; then exit ; fi
@@ -152,8 +153,9 @@ nmm_b_restart.024 nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_histor
 nmm_b_history_nemsio.012 nmm_b_history_nemsio.024 nmm_b_history_nemsio.048 nmm_b_restart_nemsio.024"
 #---------------------
 export TPN=32      ; export THRD=1      ; export GS=#       ; export GBRG=glob
-export INPES=06    ; export WTPG=2      ; export FCSTL=48
+export INPES=06    ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
 export NEMSI=true  ; export RSTRT=false ; export gfsP=false ; export RGS=false ; export WGS=false
+export NCHILD=0  
 #---------------------
 ./rt_nmm.sh
  if [ $? = 2 ]; then exit ; fi
@@ -175,8 +177,9 @@ export CNTL_PTH=${RTPWD}/NMMB_glob
 export LIST_FILES="nmm_b_history.027 nmm_b_history.030 nmm_b_history.036 nmm_b_history.048"
 #---------------------
 export TPN=32      ; export THRD=1      ; export GS=#       ; export GBRG=glob
-export INPES=06    ; export WTPG=2      ; export FCSTL=48
+export INPES=06    ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
 export NEMSI=false ; export RSTRT=true  ; export gfsP=false ; export RGS=false ; export WGS=false
+export NCHILD=0  
 #---------------------
 ./rt_nmm.sh
  if [ $? = 2 ]; then exit ; fi
@@ -198,8 +201,9 @@ export CNTL_PTH=${RTPWD}/NMMB_glob
 export LIST_FILES="nmm_b_history.027 nmm_b_history.030 nmm_b_history.036 nmm_b_history.048"
 #---------------------
 export TPN=32      ; export THRD=1      ; export GS=#       ; export GBRG=glob
-export INPES=06    ; export WTPG=2      ; export FCSTL=48
+export INPES=06    ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
 export NEMSI=true  ; export RSTRT=true  ; export gfsP=false ; export RGS=false ; export WGS=false
+export NCHILD=0  
 #---------------------
 ./rt_nmm.sh
  if [ $? = 2 ]; then exit ; fi
@@ -224,8 +228,9 @@ nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_history_nemsio.006      
 nmm_b_history_nemsio.012 nmm_b_history_nemsio.024"
 #---------------------
 export TPN=16      ; export THRD=1      ; export GS=''      ; export GBRG=glob
-export INPES=03    ; export WTPG=1      ; export FCSTL=24
+export INPES=03    ; export JNPES=05    ; export WTPG=1     ; export FCSTL=24
 export NEMSI=false ; export RSTRT=false ; export gfsP=false ; export RGS=true  ; export WGS=false
+export NCHILD=0  
 #---------------------
 ./rt_nmm.sh
  if [ $? = 2 ]; then exit ; fi
@@ -250,8 +255,9 @@ nmm_b_restart.024 nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_histor
 nmm_b_history_nemsio.012 nmm_b_history_nemsio.024 nmm_b_history_nemsio.048 nmm_b_restart_nemsio.024"
 #---------------------
 export TPN=32      ; export THRD=1      ; export GS=''      ; export GBRG=glob
-export INPES=06    ; export WTPG=2      ; export FCSTL=48
+export INPES=06    ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
 export NEMSI=false ; export RSTRT=false ; export gfsP=false ; export RGS=false ; export WGS=false
+export NCHILD=0  
 #---------------------
 ./rt_nmm.sh
  if [ $? = 2 ]; then exit ; fi
@@ -276,8 +282,9 @@ nmm_b_restart.012 nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_histor
 nmm_b_history_nemsio.012 nmm_b_history_nemsio.024 nmm_b_restart_nemsio.012"
 #---------------------
 export TPN=32      ; export THRD=1      ; export GS=#       ; export GBRG=glob
-export INPES=06    ; export WTPG=2      ; export FCSTL=24
+export INPES=06    ; export JNPES=05    ; export WTPG=2     ; export FCSTL=24
 export NEMSI=false ; export RSTRT=false ; export gfsP=true  ; export RGS=false ; export WGS=false
+export NCHILD=0  
 #---------------------
 ./rt_nmm.sh
  if [ $? = 2 ]; then exit ; fi
@@ -302,8 +309,9 @@ nmm_b_restart.024 nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_histor
 nmm_b_history_nemsio.012 nmm_b_history_nemsio.024 nmm_b_history_nemsio.048 nmm_b_restart_nemsio.024"
 #---------------------
 export TPN=32      ; export THRD=1      ; export GS=#       ; export GBRG=reg
-export INPES=06    ; export WTPG=2      ; export FCSTL=48
+export INPES=06    ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
 export NEMSI=false ; export RSTRT=false ; export gfsP=false ; export RGS=false ; export WGS=true
+export NCHILD=0  
 #---------------------
 ./rt_nmm.sh
  if [ $? = 2 ]; then exit ; fi
@@ -333,8 +341,9 @@ nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_history_nemsio.006      
 nmm_b_history_nemsio.009 nmm_b_history_nemsio.012"
 #---------------------
 export TPN=32      ; export THRD=1      ; export GS=#       ; export GBRG=reg
-export INPES=06    ; export WTPG=2      ; export FCSTL=12
+export INPES=06    ; export JNPES=05    ; export WTPG=2     ; export FCSTL=12
 export NEMSI=true  ; export RSTRT=false ; export gfsP=false ; export RGS=false ; export WGS=false
+export NCHILD=0  
 #---------------------
 ./rt_nmm.sh
  if [ $? = 2 ]; then exit ; fi
@@ -356,8 +365,9 @@ export CNTL_PTH=${RTPWD}/NMMB_reg
 export LIST_FILES="nmm_b_history.027 nmm_b_history.030 nmm_b_history.036 nmm_b_history.048"
 #---------------------
 export TPN=32      ; export THRD=1      ; export GS=#       ; export GBRG=reg
-export INPES=06    ; export WTPG=2      ; export FCSTL=48
+export INPES=06    ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
 export NEMSI=false ; export RSTRT=true  ; export gfsP=false ; export RGS=false ; export WGS=false
+export NCHILD=0  
 #---------------------
 ./rt_nmm.sh
  if [ $? = 2 ]; then exit ; fi
@@ -379,8 +389,9 @@ export CNTL_PTH=${RTPWD}/NMMB_reg
 export LIST_FILES="nmm_b_history.027 nmm_b_history.030 nmm_b_history.036 nmm_b_history.048"
 #---------------------
 export TPN=32      ; export THRD=1      ; export GS=#       ; export GBRG=reg
-export INPES=06    ; export WTPG=2      ; export FCSTL=48
+export INPES=06    ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
 export NEMSI=true  ; export RSTRT=true  ; export gfsP=false ; export RGS=false ; export WGS=false
+export NCHILD=0  
 #---------------------
 ./rt_nmm.sh
  if [ $? = 2 ]; then exit ; fi
@@ -402,8 +413,9 @@ export CNTL_PTH=${RTPWD}/NMMB_reg
 export LIST_FILES="nmm_b_history.000 nmm_b_history.003 nmm_b_history.006 nmm_b_history.009 nmm_b_history.012"
 #---------------------
 export TPN=16      ; export THRD=1      ; export GS=''      ; export GBRG=reg
-export INPES=03    ; export WTPG=1      ; export FCSTL=12
+export INPES=03    ; export JNPES=05    ; export WTPG=1     ; export FCSTL=12
 export NEMSI=false ; export RSTRT=false ; export gfsP=false ; export RGS=true  ; export WGS=false
+export NCHILD=0  
 #---------------------
 ./rt_nmm.sh
  if [ $? = 2 ]; then exit ; fi
@@ -428,8 +440,9 @@ nmm_b_restart.024 nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_histor
 nmm_b_history_nemsio.012 nmm_b_history_nemsio.024 nmm_b_history_nemsio.048 nmm_b_restart_nemsio.024"
 #---------------------
 export TPN=32      ; export THRD=1      ; export GS=''      ; export GBRG=reg
-export INPES=06    ; export WTPG=2      ; export FCSTL=48
+export INPES=06    ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
 export NEMSI=false ; export RSTRT=false ; export gfsP=false ; export RGS=false ; export WGS=false
+export NCHILD=0  
 #---------------------
 ./rt_nmm.sh
  if [ $? = 2 ]; then exit ; fi
@@ -454,8 +467,46 @@ nmm_b_restart.012 nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_histor
 nmm_b_history_nemsio.012 nmm_b_history_nemsio.024 nmm_b_restart_nemsio.012"
 #---------------------
 export TPN=32      ; export THRD=1      ; export GS=#       ; export GBRG=reg
-export INPES=06    ; export WTPG=2      ; export FCSTL=24
+export INPES=06    ; export JNPES=05    ; export WTPG=2     ; export FCSTL=24
 export NEMSI=false ; export RSTRT=false ; export gfsP=true  ; export RGS=false ; export WGS=false
+export NCHILD=0  
+#---------------------
+./rt_nmm.sh
+ if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+####################################################################################################
+#
+# TEST   - NMM-B nesting: Regional parent with two children and one grandchild
+#        - Compute tasks - Upper parent 2x3 | Child #1 4x8 | Child #2 2x4 | Grandchild 7x10
+#        - 1 thread / opnl physics / free fcst / pure binary input
+#
+####################################################################################################
+
+export TEST_DESCR="Test NMMB-regional with nesting"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/NMM_nests
+export CNTL_PTH=${RTPWD}/NMMB_nests
+export LIST_FILES=" \
+nmm_b_history.000 nmm_b_history.003 nmm_b_history.006 nmm_b_history.012 nmm_b_history.024                \
+nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_history_nemsio.006                               \
+nmm_b_history_nemsio.012 nmm_b_history_nemsio.024                                                        \
+nmm_b_history.02.000 nmm_b_history.02.003 nmm_b_history.02.006 nmm_b_history.02.012 nmm_b_history.02.024 \
+nmm_b_history.02_nemsio.000 nmm_b_history.02_nemsio.003 nmm_b_history.02_nemsio.006                      \
+nmm_b_history.02_nemsio.012 nmm_b_history.02_nemsio.024                                                  \
+nmm_b_history.03.000 nmm_b_history.03.003 nmm_b_history.03.006 nmm_b_history.03.012 nmm_b_history.03.024 \
+nmm_b_history.03_nemsio.000 nmm_b_history.03_nemsio.003 nmm_b_history.03_nemsio.006                      \
+nmm_b_history.03_nemsio.012 nmm_b_history.03_nemsio.024                                                  \
+nmm_b_history.04.000 nmm_b_history.04.003 nmm_b_history.04.006 nmm_b_history.04.012 nmm_b_history.04.024 \
+nmm_b_history.04_nemsio.000 nmm_b_history.04_nemsio.003 nmm_b_history.04_nemsio.006                      \
+nmm_b_history.04_nemsio.012 nmm_b_history.04_nemsio.024"
+#---------------------
+export TPN=32      ; export THRD=1      ; export GS=#       ; export GBRG=nests
+export INPES=02    ; export JNPES=03    ; export WTPG=1     ; export FCSTL=24
+export NEMSI=false ; export RSTRT=false ; export gfsP=false ; export RGS=false ; export WGS=false
+export NCHILD=02  
 #---------------------
 ./rt_nmm.sh
  if [ $? = 2 ]; then exit ; fi

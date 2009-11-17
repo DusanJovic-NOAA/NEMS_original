@@ -614,7 +614,8 @@
 !-----------------------------------------------------------------------
 !***  Retrieve the VM (Virtual Machine) of the ATM gridded component.
 !***  Call ESMF_GridCompGet to retrieve the VM anywhere you need it.
-!***  We need VM now to obtain the MPI task IDs.
+!***  We need VM now to obtain the MPI task IDs and the local MPI
+!***  communicator.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -633,28 +634,12 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="NMM_ATM_INIT: Obtain MPI Task IDs from VM"
+      MESSAGE_CHECK="NMM_ATM_INIT: Obtain Task IDs and Communicator"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_VMGet(vm      =VM                                       &  !<-- The virtual machine
-                     ,localpet=MYPE                                     &  !<-- Each MPI task ID
-                     ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Extract this ATM component's MPI communicator.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Obtain MPI Communicator from VM"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_VMGET(vm             =VM                                &  !<-- The virtual machine
+      CALL ESMF_VMGet(vm             =VM                                &  !<-- The virtual machine
+                     ,localpet       =MYPE                              &  !<-- Each MPI task ID
                      ,mpiCommunicator=COMM_MY_DOMAIN                    &  !<-- This domain's communicator
                      ,rc             =RC)
 !
@@ -1063,7 +1048,7 @@
 !
       atm_int_state%DYN_GRID_COMP=ESMF_GridCompCreate(                  &
                                   name      ="Dynamics component"       &  !<-- Name of the new Dynamics gridded component
-                                 ,configFile='configure_file'           &  !<-- Attach this configure file to the component
+                                 ,config    =CF(MY_DOMAIN_ID)           &  !<-- Attach this configure file to the component
                                  ,petList   =atm_int_state%PETLIST_FCST &  !<-- The forecast task IDs
                                  ,rc        =RC)
 !
@@ -1181,7 +1166,7 @@
 !
         atm_int_state%PHY_GRID_COMP=ESMF_GridCompCreate(                  &
                                     name      ="Physics component"        &  !<-- Name of the new Physics gridded component
-                                   ,configFile='configure_file'           &  !<-- Attach this configure file to the component
+                                   ,config    =CF(MY_DOMAIN_ID)           &  !<-- Attach this configure file to the component
                                    ,petList   =atm_int_state%PETLIST_FCST &  !<-- The forecast task IDs
                                    ,rc        =RC)
 !
@@ -2545,7 +2530,6 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
-!     write(0,*)' NMM_ATM_RUN before Run CPL Comp mype=',mype,' integer_dt=',integer_dt
           CALL ESMF_CplCompRun(cplcomp    =atm_int_state%COUPLER_DYN_PHY_COMP &  !<-- The Dynamics-Physics coupler component
                               ,importState=atm_int_state%EXP_STATE_PHY        &  !<-- The Coupler import state = Physics export state
                               ,exportState=atm_int_state%IMP_STATE_DYN        &  !<-- The Coupler export state = Dynamics import state

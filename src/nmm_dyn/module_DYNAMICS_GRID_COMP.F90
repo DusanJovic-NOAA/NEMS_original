@@ -984,13 +984,13 @@
 !
         FIELD_NAME='FIS'
 !
-        FIELD_FIS=ESMF_FieldCreate(grid            =GRID                &  !<-- The ESMF grid
-                                  ,farray          =int_state%FIS       &  !<-- Insert this pointer into the Field
-                                  ,maxHaloUWidth   =(/IHALO,JHALO/)     &  !<-- Upper bound of halo region
-                                  ,maxHaloLWidth   =(/IHALO,JHALO/)     &  !<-- Lower bound of halo region
-                                  ,name            =FIELD_NAME          &  !<-- Name of the Field
-                                  ,indexFlag       =ESMF_INDEX_DELOCAL  &
-                                  ,rc              =RC)
+        FIELD_FIS=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
+                                  ,farray       =int_state%FIS          &  !<-- Insert this pointer into the Field
+                                  ,maxHaloUWidth=(/IHALO,JHALO/)        &  !<-- Upper bound of halo region
+                                  ,maxHaloLWidth=(/IHALO,JHALO/)        &  !<-- Lower bound of halo region
+                                  ,name         =FIELD_NAME             &  !<-- Name of the Field
+                                  ,indexFlag    =ESMF_INDEX_DELOCAL     &
+                                  ,rc           =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -1001,7 +1001,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_StateAdd(state=EXP_STATE                              &
+        CALL ESMF_StateAdd(state=EXP_STATE                              &  !<-- Dynamics export state
                           ,field=FIELD_FIS                              &  !<-- Sfc geopotential
                           ,rc   =RC)
 !
@@ -1508,6 +1508,8 @@
         P_QI=int_state%P_QI
         P_QS=int_state%P_QS
         P_QG=int_state%P_QG
+!
+        PARENT_CHILD_TIME_RATIO=int_state%PARENT_CHILD_TIME_RATIO
 !
         IF(.NOT.ALLOCATED(DSG2))THEN
           ALLOCATE(DSG2(1:LM),STAT=ISTAT)

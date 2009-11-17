@@ -5424,7 +5424,7 @@ logical(kind=klog) :: opened
       ihr=nint(ntsd*dt/3600.)
       ihrbc=ihr
 !     write(infile,'(a,i3.3)')'boco.01.',ihrbc
-      write(infile,'(a,i3.3,a,i2.2)')'boco.',ihrbc,'_',my_domain_id
+      write(infile,'(a,i3.3,a,i2.2)')'boco.',ihrbc
 !
       select_unit: do l=51,59
         inquire(l,opened=opened)

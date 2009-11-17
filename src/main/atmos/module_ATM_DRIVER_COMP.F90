@@ -928,7 +928,6 @@
 !
       ALLOCATE(atm_drv_int_state%IMP_STATE_ATM(1:NUM_DOMAINS),stat=ISTAT)
       ALLOCATE(atm_drv_int_state%EXP_STATE_ATM(1:NUM_DOMAINS),stat=ISTAT)
-      write(0,*)' NMM_ATM_DRIVER_INIT allocated EXP_STATE_ATM num_domains=',num_domains,' istat=',istat
 !
 !-----------------------------------------------------------------------
 !***  Create the ATM import/export states.
@@ -961,7 +960,6 @@
                                            statename='ATM Export State'  &  !<-- ATM export state name
                                           ,statetype= ESMF_STATE_EXPORT  &
                                           ,rc       = RC)
-      write(0,*)' created EXP_STATE_ATM id_dom=',id_dom,' rc=',rc
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NMM_DRV_INIT)
@@ -1298,10 +1296,10 @@
 !
         IF(TRIM(MODE)=='true')THEN
           PHYSICS_ON=ESMF_False
-          WRITE(0,*)' NMM will run without physics.'
+          IF(MYPE==0)WRITE(0,*)' NMM will run without physics.'
         ELSE
           PHYSICS_ON=ESMF_True
-          WRITE(0,*)' NMM will run with physics.'
+          IF(MYPE==0)WRITE(0,*)' NMM will run with physics.'
         ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1643,7 +1641,7 @@
 !***  Local variables
 !-----------------------------------------------------------------------
 !
-      INTEGER(kind=KINT) :: FILTER_METHOD,HDIFF_ON,NTIMESTEP
+      INTEGER(kind=KINT) :: FILTER_METHOD,HDIFF_ON,MYPE_LOCAL,NTIMESTEP
 !
       INTEGER(kind=KINT) :: RC,RC_NMM_ATM_DRIVER_RUN
 !
@@ -1695,6 +1693,38 @@
       NTIMESTEP=NTIMESTEP_ESMF
 !
 !-----------------------------------------------------------------------
+!***  We need the local MPI task ID on the given NMM domain.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="NMM_ATM_DRIVER_RUN: Retrieve VM from ATM Gridded Component"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_GridCompGet(gridcomp=ATM_GRID_COMP                      &  !<-- The ATM gridded component
+                           ,vm      =VM                                 &  !<-- Get the Virtual Machine from the ATM component
+                           ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NMM_ATM_DRIVER_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="NMM_ATM_DRIVER_RUN: Obtain the Local Task ID"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_VMGet(vm             =VM                                &  !<-- The virtual machine for current ATM component
+                     ,localpet       =MYPE_LOCAL                        &  !<-- Each MPI task ID
+                     ,rc             =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NMM_ATM_DRIVER_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
 !***  Do we want to run a digital filter?  Extract the flag.
 !-----------------------------------------------------------------------
 !
@@ -1735,7 +1765,7 @@
       HDIFF_ON=1
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Driver_Run: Set default Horizontal Diffusion Flag" 
+      MESSAGE_CHECK="Driver_Run: Put Horizontal Diffusion Flag intp ATM import state" 
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -1789,7 +1819,7 @@
                         ,imp_state_cpl_nest=IMP_STATE_CPL_NEST          &
                         ,exp_state_cpl_nest=EXP_STATE_CPL_NEST          &
                         ,par_chi_time_ratio=PARENT_CHILD_TIME_RATIO     &
-                        ,mype              =MYPE)
+                        ,mype              =MYPE_LOCAL)
 !
 !-----------------------------------------------------------------------
 !
