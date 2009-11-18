@@ -51,7 +51,6 @@
 !
       TYPE(ESMF_Config) :: CF
       INTEGER           :: RC
-      CHARACTER(50)     :: MODE
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -295,28 +294,18 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
-                                  ,value =MODE                          &  !<-- Put extracted quantity here
+                                  ,value =int_state%RESTART             &  !<-- Put extracted quantity here
                                   ,label ='restart:'                    &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
-!
-      int_state%RESTART=.FALSE.
-      IF(TRIM(MODE)=='true')THEN
-        int_state%RESTART=.TRUE.
-      ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
-                                  ,value =MODE                          &  !<-- Put extracted quantity here
+                                  ,value =int_state%NEMSIO_INPUT        &  !<-- Put extracted quantity here
                                   ,label ='nemsio_input:'                    &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
-!
-      int_state%NEMSIO_INPUT=.FALSE.
-      IF(TRIM(MODE)=='true')THEN
-        int_state%NEMSIO_INPUT=.TRUE.
-      ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
@@ -329,14 +318,9 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
-                                  ,value =MODE                          &  !<-- Put extracted quantity here
+                                  ,value =int_state%GLOBAL              &  !<-- Put extracted quantity here
                                   ,label ='global:'                     &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
-!
-      int_state%GLOBAL=.FALSE.
-      IF(TRIM(MODE)=='true')THEN
-        int_state%GLOBAL=.TRUE.
-      ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
@@ -350,14 +334,9 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
-                                  ,value =MODE                          &  !<-- Put extracted quantity here
+                                  ,value =int_state%HYDRO               &  !<-- Put extracted quantity here
                                   ,label ='hydro:'                      &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
-!
-      int_state%HYDRO=.FALSE.
-      IF(TRIM(MODE)=='true')THEN
-        int_state%HYDRO=.TRUE.
-      ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
@@ -707,14 +686,9 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
-                                  ,value =MODE                          &  !<-- Put extracted quantity here
+                                  ,value =int_state%READ_GLOBAL_SUMS    &  !<-- Put extracted quantity here
                                   ,label ='read_global_sums:'           &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
-!
-      int_state%READ_GLOBAL_SUMS=.FALSE.
-      IF(TRIM(MODE)=='true')THEN
-        int_state%READ_GLOBAL_SUMS=.TRUE.
-      ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
@@ -728,14 +702,9 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
-                                  ,value =MODE                          &  !<-- Put extracted quantity here
+                                  ,value =int_state%WRITE_GLOBAL_SUMS   &  !<-- Put extracted quantity here
                                   ,label ='write_global_sums:'          &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
-!
-      int_state%WRITE_GLOBAL_SUMS=.FALSE.
-      IF(TRIM(MODE)=='true')THEN
-        int_state%WRITE_GLOBAL_SUMS=.TRUE.
-      ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
@@ -845,14 +814,9 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF                            &
-                                  ,value =MODE                          &
+                                  ,value =int_state%ADIABATIC           &
                                   ,label ='adiabatic:'                  &
                                   ,rc    =RC)
-!
-      int_state%ADIABATIC=.FALSE.
-      IF(TRIM(MODE)=='true')THEN
-        int_state%ADIABATIC=.TRUE.
-      ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)

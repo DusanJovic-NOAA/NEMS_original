@@ -2701,7 +2701,7 @@
 !
         ELSE
           WRITE(INFILE,'(A,I2.2,A)')'input_domain_',MY_DOMAIN_ID,'_nemsio'
-          CALL PHYSICS_READ_INPUT_NEMSIO(INFILE,NFCST                   &
+          CALL PHYSICS_READ_INPUT_NEMSIO(INFILE                         &
                                         ,MYPE,MPI_COMM_COMP             &
                                         ,IDAT,IHRST,PT                  &
                                         ,INT_STATE                      &
@@ -2772,7 +2772,7 @@
 !
           WRITE(INFILE,'(A,I2.2,A)')'restart_file_',MY_DOMAIN_ID,'_nemsio'
 !
-          CALL PHYSICS_READ_RESTT_NEMSIO(INFILE,NFCST                   &
+          CALL PHYSICS_READ_RESTT_NEMSIO(INFILE                         &
                                         ,MYPE,MPI_COMM_COMP             &
                                         ,IYEAR_FCST,IMONTH_FCST         &
                                         ,IDAY_FCST,IHOUR_FCST           &

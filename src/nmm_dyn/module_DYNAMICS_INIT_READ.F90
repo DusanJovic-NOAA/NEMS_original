@@ -223,8 +223,7 @@ integer(kind=kint) :: &
 ,ks &                        ! tracer index
 ,l &                         ! index in p direction
 ,length &
-,n &
-,nrecs_skip_for_pt
+,n
 
 integer(kind=kint) :: &      ! number of soil levels
  nsoil
@@ -274,30 +273,9 @@ logical(kind=klog) :: opened
         open(unit=nfcst,file=infile,status='old',form='unformatted')
 !
 !-----------------------------------------------------------------------
-!***  First we need to extract the value of PT (pressure at top of domain)
-!-----------------------------------------------------------------------
-!
-        if(mype==0)then
-!         nrecs_skip_for_pt=6+5*lm+21 !<-- For current WPS input
-          nrecs_skip_for_pt=6+5*lm+23 !zj 21
-!
-          do n=1,nrecs_skip_for_pt
-            read(nfcst)
-          enddo
-!
-          read(nfcst)pt
-          write(0,*)' PT from input file equals ',pt
-          rewind nfcst
-        endif
-        call mpi_bcast(pt,1,mpi_real,0,mpi_comm_comp,irtn)
-!
-!-----------------------------------------------------------------------
 !
         read(nfcst) run,idat,ihrst,ihrend,ntsd
-!       read(nfcst)
-
-!       run=.true.
-
+!
         if(mype==0)then
           write(0,*) 'run, idat,ntsd: ', run, idat, ntsd
         endif
@@ -451,7 +429,6 @@ logical(kind=klog) :: opened
 !
         print*,'*** Read initial conditions in init from ',infile
 !
-!        close(unit=nfcst)
 !-----------------------------------------------------------------------
         ntsti=ntsd+1
 !
@@ -596,8 +573,7 @@ logical(kind=klog) :: opened
 !-----------------------------------------------------------------------
 !
         if(mype==0)then
-!          do n=1,13 !<-- For current WPS input
-          do n=1,15 !zj 13
+          do n=1,15
             read(nfcst)
           enddo
         endif
@@ -621,15 +597,12 @@ logical(kind=klog) :: opened
 !
 !-----------------------------------------------------------------------
 !
-        if(mype==0)then
-          close(nfcst)
-        endif
+        close(nfcst)
 !
 !-----------------------------------------------------------------------
       else  read_blocks                         ! restart
 !-----------------------------------------------------------------------
 !
-!!!     infile='restart_file'
         write(infile,'(a,i2.2)')'restart_file_',my_domain_id
         open(unit=nfcst,file=infile,status='old',form='unformatted')
 !
@@ -1663,9 +1636,7 @@ logical(kind=klog) :: opened
 !
 !-----------------------------------------------------------------------
 !
-        if(mype==0)then
-          close(nfcst)
-        endif
+        close(nfcst)
 !
 !-----------------------------------------------------------------------
         ntsti=ntsd+1
@@ -1903,7 +1874,6 @@ integer(kind=kint) :: &
 ,l &                         ! index in p direction
 ,length &
 ,n &
-,nrecs_skip_for_pt &
 ,ierr
 
 integer(kind=kint) :: &      ! number of soil levels
@@ -2148,7 +2118,6 @@ type(nemsio_gfile) :: gfile
 !
         print*,'*** Read initial conditions in init_nemsio from ',infile
 !
-!        close(unit=nfcst)
 !-----------------------------------------------------------------------
         ntsti=ntsd+1
 !
@@ -2279,7 +2248,6 @@ type(nemsio_gfile) :: gfile
       else read_blocks                          ! restart
 !-----------------------------------------------------------------------
 !
-!!!     infile='restart_file_nemsio'
         write(infile,'(a,i2.2,a)')'restart_file_',my_domain_id,'_nemsio'
         call nemsio_open(gfile,infile,'read',iret=ierr)
         if(ierr/=0) write(0,*)'ERROR: open file ',trim(infile),' has failed'
