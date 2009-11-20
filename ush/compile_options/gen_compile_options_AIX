@@ -6,7 +6,7 @@
 ##DISK1=../../..
   DISK=$(NEMSTOPDIR)
   DISK1=$(NEMSTOPDIR)
-
+  ESMFDIR=/meso/save/wx20rv/ESMF_libs/esmf_3_1_0rp2
   SRCDIR=$(DISK)/src
   SRCDIR1=$(DISK1)/src
   EXEDIR=$(DISK)/exe
@@ -55,9 +55,8 @@
 ###########################################################
 # ESMF Library & Include files
 ###########################################################
-  ESMF_LIB=$(LIBDIR)/esmf_3_1_0rp2/libesmf.a
-  ESMF_MOD=$(MODDIR)/esmf_3_1_0rp2
-  ESMF_MOD1=$(MODDIR1)/esmf_3_1_0rp2
+  ESMF_LIB=$(ESMFDIR)/lib/libO/AIX.default.64.mpi.default/libesmf.a
+  ESMF_MOD=$(ESMFDIR)/mod/modO/AIX.default.64.mpi.default
 ###########################################################
 # W3 Include files
 ###########################################################
@@ -117,8 +116,8 @@ GOCART_INC=$(INC_GOCART)           ### defined in NCEP_base.mk
   FINCS=-I$(ESMF_MOD) $(GCINCS)
   FINCS_NMM=-I$(ESMF_MOD) $(GCINCS_NMM)
   FINCS_GFS=-I$(ESMF_MOD) $(GCINCS_GFS)
-  FINCS_NMM1=-I$(ESMF_MOD1) $(GCINCS_NMM1)
-  FINCS_GFS1=-I$(ESMF_MOD1) $(GCINCS_GFS1)
+  FINCS_NMM1=-I$(ESMF_MOD) $(GCINCS_NMM1)
+  FINCS_GFS1=-I$(ESMF_MOD) $(GCINCS_GFS1)
   FFLAG=$(OPT_NMM) $(FINCS) $(TRAPS) -qfree -NS2048
   FFLAG_NMM_MAIN=$(OPT_NMM) $(FINCS_NMM) $(TRAPS) -qfree -NS2048
   FFLAG_GFS_MAIN=$(OPT_GFS) $(FINCS_GFS) $(TRAPS) -qfree -NS2048
