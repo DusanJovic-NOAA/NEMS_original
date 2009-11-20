@@ -5281,10 +5281,8 @@
 !***  THIS SAME NOTION APPLIES FOR ALL OTHER DIRECTIONS AND SIDES.
 !-----------------------------------------------------------------------
 !
-      R_ITS =REAL(ITS)-EPS                                                 !<-- REAL Istart of parent task's subdomain
       R_ITE =REAL(ITE)                                                     !<-- REAL Iend of parent task's subdomain
 !
-      R_JTS =REAL(JTS)-EPS                                                 !<-- REAL Jstart of parent task's subdomain
       R_JTE =REAL(JTE)                                                     !<-- REAL Jend of parent task's subdomain
 !
 !
@@ -5398,6 +5396,10 @@
         JM_END=JM_CHILD
         N_ADD=1                                                            !<-- Blending region along child's boundary
                                                                            !    increased by 1 row to allow 4-pt averaging of PD.
+        R_ITS =REAL(ITS)-EPS                                               !<-- REAL Istart of parent task's subdomain for H on B grid
+        R_JTS =REAL(JTS)-EPS                                               !<-- REAL Jstart of parent task's subdomain for H on B grid
+        R_JEND=REAL(MIN(JTE+1,JDE))-EPS                                    !<-- Allow search for child H boundary points to go into
+                                                                           !    the parent's halo.
 !
       ELSEIF(FLAG_H_OR_V=='V_POINTS')THEN
         PARENT_J_CHILD_SBND=REAL(J_PARENT_START)-0.5+RATIO*0.5             !<-- J index of parent V for child's south V boundary
@@ -5408,6 +5410,13 @@
         JM_END=JM_CHILD-1
         N_ADD=0                                                            !<-- Blending region along child's boundary
                                                                            !    increased only for mass points (for PD averaging)
+        R_ITS =REAL(ITS-0.5)-EPS                                           !<-- REAL Istart of parent task's subdomain for V on B grid
+                                                                           !    (-0.5 yields same location on grid as R_ITS for H).
+        R_JTS =REAL(JTS-0.5)-EPS                                           !<-- REAL Jstart of parent task's subdomain for V on B grid
+                                                                           !    (-0.5 yields same location on grid as R_JTS for H).
+        R_JEND=REAL(MIN(REAL(JTE+0.5),REAL(JDE)))-EPS                      !<-- Use JTE+0.5 to stop V search at the row of the
+                                                                           !    northernmost H that is searched; this ensures that
+                                                                           !    a parent will send both H and V boundary points.
 !
       ENDIF
 !
@@ -5444,8 +5453,6 @@
       ARG1=REAL(ITE)+ADD_INC
       ARG2=REAL(IDE)
       R_IEND=MIN(ARG1,ARG2)-EPS                                            !<-- REAL Iend of parent task's region for child N/S boundaries
-      R_JEND=REAL(MIN(JTE+1,JDE))-EPS                                      !<-- Allow search for child points to go into
-                                                                           !    the parent's halo
 !-----------------------------------------------------
 !
       REAL_I_START=PARENT_I_CHILD_WBND
@@ -5667,8 +5674,15 @@
       ARG2=REAL(JDE)
       R_JEND=MIN(ARG1,ARG2)-EPS                                            !<-- REAL Jend of parent task's region for child W/E boundaries
 !
-      R_IEND=REAL(MIN(ITE+1,IDE))-EPS                                      !<-- Allow search for child points to go into 
+      IF(FLAG_H_OR_V=='H_POINTS')THEN                         
+        R_IEND=REAL(MIN(ITE+1,IDE))-EPS                                    !<-- Allow search for child points to go into
                                                                            !    the parent's halo
+      ELSEIF(FLAG_H_OR_V=='H_POINTS')THEN                     
+        R_IEND=REAL(MIN(REAL(ITE+0.5),REAL(IDE)))-EPS                      !<-- Use ITE+0.5 to stop V search at the column of the
+                                                                           !    easternmost H that is searched; this ensures that
+                                                                           !    a parent will send both H and V boundary points.
+      ENDIF
+!
 !-----------------------------------------------------------------------
 !
       REAL_J_START=PARENT_J_CHILD_SBND

@@ -1004,7 +1004,7 @@
                            ,RST_KOUNT_R2D                               &
                            ,RST_KOUNT_R2D_DATA
 !
-      INTEGER(kind=KINT) :: LENGTH                                      &
+      INTEGER(kind=KINT) :: ID_DOMAIN,LENGTH                            &
                            ,MPI_COMM,MPI_COMM2
 !
       INTEGER(kind=KINT) :: IO_HST_UNIT,IO_RST_UNIT
@@ -2955,7 +2955,18 @@
           .AND.                                                         &
          wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
 !
-        WRITE(FILENAME,'(A8,I3.3)' ) 'fcstdone',NF_HOURS
+        CALL ESMF_ConfigGetAttribute(config=CF                          &  !<-- The configure file object
+                                    ,value =ID_DOMAIN                   &  !<-- Put extracted quantity here
+                                    ,label ='my_domain_id:'             &  !<-- The quantity's label in the configure file
+                                    ,rc    =RC)
+!
+	IF (ID_DOMAIN > 1) THEN                                   
+          WRITE(FILENAME,'(A8,I3.3,A1,I2.2)' ) 'fcstdone',NF_HOURS      &  
+                                              ,'_',ID_DOMAIN               !<-- Append the domain ID to flag for nests
+        ELSE
+          WRITE(FILENAME,'(A8,I3.3)' ) 'fcstdone',NF_HOURS                 !<-- Use plain flag name for uppermost domain
+        ENDIF
+!
         DO N=51,99
           INQUIRE(N,opened=OPENED)
           IF(.NOT.OPENED)THEN
@@ -2966,8 +2977,9 @@
 !
         OPEN(unit  =IO_HST_UNIT                                         &
             ,file  =trim(FILENAME)                                      &
-            ,form='formatted'                                           &
+            ,form  ='formatted'                                         &
             ,status='new')
+!
         WRITE(IO_HST_UNIT,'(A4)')'DONE'
         CLOSE(IO_HST_UNIT)
 !
@@ -3741,8 +3753,23 @@
 !***  Restartdone file
 !----------------------
 !
-      IF(wrt_int_state%WRITE_DONEFILEFLAG .and. wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
-        write(FILENAME,'(A11,I3.3)' ) 'restartdone',NF_HOURS
+!-----------------------------------------------------------------------
+      IF(wrt_int_state%WRITE_DONEFILEFLAG                               &
+           .and.                                                        &
+         wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
+!
+        CALL ESMF_ConfigGetAttribute(config=CF                          &  !<-- The configure file object
+                                    ,value =ID_DOMAIN                   &  !<-- Put extracted quantity here
+                                    ,label ='my_domain_id:'             &  !<-- The quantity's label in the configure file
+                                    ,rc    =RC)
+!
+	IF (ID_DOMAIN > 1) THEN
+          WRITE(FILENAME,'(A11,I3.3,A1,I2.2)' ) 'restartdone',NF_HOURS  &
+                                                ,'_',ID_DOMAIN             !<-- Append domain ID to flag for nests
+        ELSE
+          WRITE(FILENAME,'(A11,I3.3)' ) 'restartdone',NF_HOURS             !<-- Use plain flag name for uppermost domain
+        ENDIF
+!
         DO N=51,99
           INQUIRE(N,opened=OPENED)
           IF(.NOT.OPENED)THEN
@@ -3750,10 +3777,12 @@
             EXIT
           ENDIF
         ENDDO
+!
         OPEN(unit  =IO_RST_UNIT                                         &
-          ,file  =trim(FILENAME)                                        &
-          ,form='formatted'                                              &
-          ,status='new')
+            ,file  =trim(FILENAME)                                      &
+            ,form  ='formatted'                                         &
+            ,status='new')
+!
         WRITE(IO_RST_UNIT,'(A4)')'DONE'
         CLOSE(IO_RST_UNIT)
 !
