@@ -52,8 +52,12 @@
                                      ,NUM_SOIL_LAYERS,SLDPTH
       USE MODULE_CU_BMJ       ,ONLY : BMJ_INIT
       USE MODULE_CONVECTION   ,ONLY : CUCNVC
-      USE MODULE_MICROPHYSICS_NMM ,ONLY : FERRIER_INIT,GSMDRIVE         &
-                                     ,WSM3INIT,MICRO_RESTART
+!      USE MODULE_MICROPHYSICS_NMM ,ONLY : FERRIER_INIT,GSMDRIVE         &
+!                                         ,WSM3INIT,MICRO_RESTART
+      USE MODULE_MICROPHYSICS_NMM ,ONLY : GSMDRIVE                      &
+                                         ,MICRO_RESTART
+      USE MODULE_MP_ETANEW, ONLY : FERRIER_INIT
+
       USE MODULE_H_TO_V       ,ONLY : H_TO_V,H_TO_V_TEND
       USE MODULE_GWD          ,ONLY : GWD_INIT
       USE MODULE_PRECIP_ADJUST
@@ -3502,9 +3506,10 @@
                              ,IMS,IME,JMS,JME,1,LM                     &
                              ,ITS,ITE,JTS,JTE,1,LM)
 !
+!
           CASE ('wsm3')
-            CALL WSM3INIT(RHOAIR0,RHOWATER,RHOSNOW,CLIQ,CV             &
-                         ,ALLOWED_TO_READ )
+!            CALL WSM3INIT(RHOAIR0,RHOWATER,RHOSNOW,CLIQ,CV             &
+!                         ,ALLOWED_TO_READ )
 !!!       CASE ('kes')
 !!!         CALL KESSLER_INIT
 !!!       CASE ('tho')

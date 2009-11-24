@@ -56,7 +56,7 @@ MODULE_SMP=     \
 
 MODULE_SMP1=    \
 		module_CU_BMJ.o module_CONVECTION.o \
-		module_MICROPHYSICS.o \
+		module_MP_ETANEW.o module_MICROPHYSICS.o \
 		module_PHYSICS_INTERNAL_STATE.o \
 		module_RADIATION.o \
 		module_SF_JSFC.o module_BL_MYJPBL.o module_TURBULENCE.o
@@ -112,7 +112,8 @@ module_PHYSICS_GRID_COMP.o:	\
 			   	module_TURBULENCE.o \
 				module_PRECIP_ADJUST.o \
 				module_GWD.o \
-				module_PHYSICS_INIT_READ.o 
+				module_PHYSICS_INIT_READ.o \
+                                        module_MP_ETANEW.o
 
 module_GET_CONFIG_PHY.o:        \
 				module_PHYSICS_INTERNAL_STATE.o 
@@ -142,7 +143,11 @@ module_TURBULENCE.o:	\
 		    	module_GWD.o 
 
 module_RADIATION.o:	\
-		    	module_MICROPHYSICS.o
+		    	module_MICROPHYSICS.o \
+                              module_MP_ETANEW.o
 
 module_PHYSICS_INIT_READ.o: \
 			module_MICROPHYSICS.o
+
+module_MICROPHYSICS.o: \
+                              module_MP_ETANEW.o

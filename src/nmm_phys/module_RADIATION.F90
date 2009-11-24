@@ -23,9 +23,9 @@
                                    ,MPI_COMM_COMP                       &
                                    ,MYPE_SHARE,NUM_TILES
 !
-      USE MODULE_MICROPHYSICS_NMM,ONLY :                                    &
-       RHgrd,T_ICE,FPVS,QAUT0,XMImax,XMIexp,MDImin,MDImax,MASSI,        &
-       FLARGE1,FLARGE2,NLImin,NLImax
+      USE MODULE_MP_ETANEW,ONLY : RHgrd,T_ICE,FPVS,QAUT0,XMImax,XMIexp  &
+                                 ,MDImin,MDImax,MASSI,FLARGE1,FLARGE2   &
+                                 ,NLImin,NLImax
 !
       USE MODULE_CONTROL,ONLY : NMMB_FINALIZE
 !
