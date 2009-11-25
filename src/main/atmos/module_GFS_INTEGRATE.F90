@@ -125,28 +125,6 @@
 !
       ALARM_OUTPUT_RING=STARTTIME+OUTPUT_INTERVAL
 !
-      CALL ESMF_TimeGet(time=ALARM_OUTPUT_RING                          &
-                       ,yy  =YY                                         &
-                       ,mm  =MM                                         &
-                       ,dd  =DD                                         &
-                       ,h   =H                                          &
-                       ,m   =M                                          &
-                       ,s   =S                                          &
-                       ,rc  =RC)
-!
-      IF(M/=0)THEN
-        H=H+1
-        M=0
-        CALL ESMF_TimeSet(time=ALARM_OUTPUT_RING                        &
-                         ,yy  =YY                                       &
-                         ,mm  =MM                                       &
-                         ,dd  =DD                                       &
-                         ,h   =H                                        &
-                         ,m   =M                                        &
-                         ,s   =S                                        &
-                         ,rc  =RC)
-      ENDIF
-!
       ALARM_OUTPUT=ESMF_AlarmCreate(name             ='ALARM_OUTPUT'    &
                                    ,clock            =CLOCK_ATM         &  !<-- ATM Clock
                                    ,ringTime         =ALARM_OUTPUT_RING &  !<-- Forecast/Restart start time (ESMF)
@@ -199,7 +177,8 @@
 !-----------------------------------------------------------------------
 !
         outputdyn: IF(ESMF_AlarmIsRinging(alarm=ALARM_OUTPUT            &  !<-- The history output alarm
-                                         ,rc   =RC))THEN
+                                         ,rc   =RC) .or.                &
+                      NTIMESTEP==1) THEN
 !
           CALL WRITE_ASYNC_GFS(WRT_COMPS                                &
                               ,EXP_GFS_DYN                              &
@@ -290,7 +269,7 @@
 !--------------------------
 !
           IF(CURRTIME==STARTTIME)THEN
-            CALL DIGITAL_FILTER_DYN_INIT_GFS(IMP_GFS_DYN,NDFISTEP)
+            CALL DIGITAL_FILTER_DYN_INIT_GFS(EXP_GFS_DYN,NDFISTEP)
 !
 !---------------------------
 !***  The initial summation
@@ -306,7 +285,7 @@
 !***  The summation stage
 !-------------------------
 !
-          CALL DIGITAL_FILTER_DYN_SUM_GFS(IMP_GFS_DYN)
+          CALL DIGITAL_FILTER_DYN_SUM_GFS(EXP_GFS_DYN)
 !
           IF(PHYSICS_ON==ESMF_True)THEN
             IF(CURRTIME==HALFDFITIME)THEN
@@ -320,7 +299,7 @@
 !
           IF(CURRTIME==DFITIME)THEN
             write(0,*)' DFI at final DFITIME '
-            CALL DIGITAL_FILTER_DYN_AVERAGE_GFS(imp_gfs_dyn)
+            CALL DIGITAL_FILTER_DYN_AVERAGE_GFS(exp_gfs_dyn)
             IF(PHYSICS_ON==ESMF_True)THEN
               CALL DIGITAL_FILTER_PHY_RESTORE_GFS(imp_gfs_phy)
             ENDIF

@@ -549,7 +549,7 @@ export TEST_DESCR="Compare GFS results with previous trunk version"
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/GFS_32
-export CNTL_PTH=${RTPWD}/GFS
+export CNTL_PTH=${RTPWD}/GFS_NODFI
 export LIST_FILES=" \
        sigf03 sigf06 sigf12 sigf24 sigf48 \
        sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
@@ -557,6 +557,8 @@ export LIST_FILES=" \
 #---------------------
 export TASKS=32    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
 export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=#
+export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
+export NUMFILE=3
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -574,7 +576,7 @@ export TEST_DESCR="Test GFS with 2-copy option"
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/GFS_32_2copy
-export CNTL_PTH=${RTPWD}/GFS
+export CNTL_PTH=${RTPWD}/GFS_NODFI
 export LIST_FILES=" \
        sigf03 sigf06 sigf12 sigf24 sigf48 \
        sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
@@ -582,6 +584,8 @@ export LIST_FILES=" \
 #---------------------
 export TASKS=32    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
 export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=''
+export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
+export NUMFILE=3
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -599,7 +603,7 @@ export TEST_DESCR="Test GFS different decomposition"
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/GFS_60
-export CNTL_PTH=${RTPWD}/GFS
+export CNTL_PTH=${RTPWD}/GFS_NODFI
 export LIST_FILES=" \
        sigf03 sigf06 sigf12 sigf24 sigf48 \
        sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
@@ -607,6 +611,8 @@ export LIST_FILES=" \
 #---------------------
 export TASKS=60    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
 export PE1=58      ; export WTPG=2       ; export NDAYS=2     ; export CP2=#
+export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
+export NUMFILE=3
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -615,7 +621,7 @@ export PE1=58      ; export WTPG=2       ; export NDAYS=2     ; export CP2=#
 ####################################################################################################
 #
 # TEST   - GFS with multiple threads
-#        - 14 compute tasks / 2 threads
+#        - 12 compute tasks / 2 threads / 2WrtGrp & 2WrtPePerGrp
 #
 ####################################################################################################
 
@@ -624,14 +630,16 @@ export TEST_DESCR="Test GFS threads"
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/GFS_16
-export CNTL_PTH=${RTPWD}/GFS
+export CNTL_PTH=${RTPWD}/GFS_NODFI
 export LIST_FILES=" \
        sigf03 sigf06 sigf12 sigf24 sigf48 \
        sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
        flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
 export TASKS=16    ; export THRD=2       ; export NSOUT=0     ; export QUILT=.true.
-export PE1=14      ; export WTPG=2       ; export NDAYS=2     ; export CP2=#
+export PE1=12      ; export WTPG=2       ; export NDAYS=2     ; export CP2=#
+export WRTGP=2     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
+export NUMFILE=3
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -649,7 +657,7 @@ export TEST_DESCR="Test GFS single processor"
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/GFS_01
-export CNTL_PTH=${RTPWD}/GFS
+export CNTL_PTH=${RTPWD}/GFS_NODFI
 export LIST_FILES=" \
          sigf03 sigf06 sigf12 sigf24 \
          sfcf03 sfcf06 sfcf12 sfcf24 \
@@ -657,6 +665,8 @@ export LIST_FILES=" \
 #---------------------
 export TASKS=1     ; export THRD=1       ; export NSOUT=0     ; export QUILT=.false.
 export PE1=1       ; export WTPG=1       ; export NDAYS=1     ; export CP2=#
+export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
+export NUMFILE=3
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -674,7 +684,7 @@ export TEST_DESCR="Test GFS, 1 proc, 1 thread, no quilting,nsout=1"
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/GFS_01_NSOUT
-export CNTL_PTH=${RTPWD}/GFS
+export CNTL_PTH=${RTPWD}/GFS_NODFI
 export LIST_FILES=" \
          sigf03 sigf06 sigf09 sigf12 sigf24 \
          sfcf03 sfcf06 sigf09 sfcf12 sfcf24 \
@@ -682,6 +692,8 @@ export LIST_FILES=" \
 #---------------------
 export TASKS=1     ; export THRD=1       ; export NSOUT=1     ; export QUILT=.false.
 export PE1=1       ; export WTPG=1       ; export NDAYS=1     ; export CP2=#
+export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
+export NUMFILE=3
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -699,7 +711,7 @@ export TEST_DESCR="Test GFS, 16 proc, 2 threads,no quilt, output every 2 time st
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/GFS_16_NOQUILT_NSOUT
-export CNTL_PTH=${RTPWD}/GFS
+export CNTL_PTH=${RTPWD}/GFS_NODFI
 export LIST_FILES=" \
        sigf03 sigf06 sigf12 sigf24 sigf48 \
        sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
@@ -707,6 +719,8 @@ export LIST_FILES=" \
 #---------------------
 export TASKS=16    ; export THRD=2       ; export NSOUT=2     ; export QUILT=.false.
 export PE1=16      ; export WTPG=1       ; export NDAYS=2     ; export CP2=#
+export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
+export NUMFILE=3
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -724,7 +738,7 @@ export TEST_DESCR="Test GFS, 60 proc, 1 thread, no quilt"
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/GFS_60_NOQUILT
-export CNTL_PTH=${RTPWD}/GFS
+export CNTL_PTH=${RTPWD}/GFS_NODFI
 export LIST_FILES=" \
        sigf03 sigf06 sigf12 sigf24 sigf48 \
        sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
@@ -732,6 +746,8 @@ export LIST_FILES=" \
 #---------------------
 export TASKS=60    ; export THRD=1       ; export NSOUT=1     ; export QUILT=.false.
 export PE1=60      ; export WTPG=1       ; export NDAYS=2     ; export CP2=#
+export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
+export NUMFILE=3
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -750,7 +766,7 @@ export TEST_DESCR="GFS, 32 proc, 1 thread, no quilt, output every 4 timestep"
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/GFS_32_NOQUILT
-export CNTL_PTH=${RTPWD}/GFS
+export CNTL_PTH=${RTPWD}/GFS_NODFI
 export LIST_FILES=" \
        sigf03 sigf06 sigf12 sigf24 sigf48 \
        sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
@@ -758,6 +774,92 @@ export LIST_FILES=" \
 #---------------------
 export TASKS=32    ; export THRD=1       ; export NSOUT=4     ; export QUILT=.false.
 export PE1=32      ; export WTPG=1       ; export NDAYS=2     ; export CP2=#
+export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
+export NUMFILE=3
+#---------------------
+./rt_gfs.sh
+ if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+####################################################################################################
+#
+# TEST   - GFS digital filter
+#        - 30 compute tasks / 1 thread
+#
+####################################################################################################
+
+####################################################################################################
+export TEST_DESCR="GFS,32 proc, 1 thread, quilt, digital filter on reduced grid"
+####################################################################################################
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/GFS_32_dfi
+export CNTL_PTH=${RTPWD}/GFS_DFI_REDUCEDGRID
+export LIST_FILES=" \
+       sigf03 sigf06 sigf12 sigf24 sigf48 \
+       sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+       flxf03 flxf06 flxf12 flxf24 flxf48"
+#---------------------
+export TASKS=32    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
+export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=#
+export WRTGP=1     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
+export NUMFILE=3
+#---------------------
+./rt_gfs.sh
+ if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+####################################################################################################
+#
+# TEST   - GFS digital filter
+#        - 12 compute tasks / 2 thread ,2 WrtGrp x 2 WrtPePerGrp
+#
+####################################################################################################
+
+####################################################################################################
+export TEST_DESCR="GFS,16 proc, 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid"
+####################################################################################################
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/GFS_16_2copy_dfi
+export CNTL_PTH=${RTPWD}/GFS_DFI_REDUCEDGRID
+export LIST_FILES=" \
+       sigf03 sigf06 sigf12 sigf24 sigf48 \
+       sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+       flxf03 flxf06 flxf12 flxf24 flxf48"
+#---------------------
+export TASKS=16    ; export THRD=2       ; export NSOUT=0     ; export QUILT=.true.
+export PE1=12      ; export WTPG=2       ; export NDAYS=2     ; export CP2=''
+export WRTGP=2     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
+export NUMFILE=3
+#---------------------
+./rt_gfs.sh
+ if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+####################################################################################################
+#
+# TEST   - GFS digital filter
+#        - 1pe nsout=1
+#
+####################################################################################################
+
+####################################################################################################
+export TEST_DESCR="GFS,1 proc, no quilt, digital filter on reduced grid"
+####################################################################################################
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/GFS_1_dfi
+export CNTL_PTH=${RTPWD}/GFS_DFI_REDUCEDGRID
+export LIST_FILES=" \
+       sigf03 sigf06 sigf12 sigf24 \
+       sfcf03 sfcf06 sfcf12 sfcf24 \
+       flxf03 flxf06 flxf12 flxf24"
+#---------------------
+export TASKS=1     ; export THRD=1       ; export NSOUT=0     ; export QUILT=.false.
+export PE1=1       ; export WTPG=1       ; export NDAYS=1     ; export CP2=#
+export WRTGP=1     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
+export NUMFILE=3
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi

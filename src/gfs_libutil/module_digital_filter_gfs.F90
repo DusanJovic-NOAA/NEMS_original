@@ -4,6 +4,7 @@
 !
 ! March 2007	Hann-Ming Henry Juang
 ! February 2008 Weiyu Yang, updated to use the ESMF 3.1.0 library.
+! November 2009 Jun Wang, digital filter is done on n+1 time step.
 !
       use esmf_mod
 
@@ -12,10 +13,11 @@
 ! ---------
 ! dynamics
 ! ---------
-      real, allocatable, save :: dyn_array_save(:,:)
+      real, allocatable, save :: dyn_array_save(:,:,:,:)
       real             , save :: totalsum
       character(20), allocatable, save :: dyn_name(:)
-      integer,       allocatable, save :: dyn_dim(:)
+      integer,       allocatable, save :: dyn_dim(:,:)
+      integer,       allocatable, save :: dyn_items_ord(:)
       integer,                    save :: dyn_items, kstep, nstep
       character(20)	state_name
 ! ---------
@@ -38,60 +40,86 @@
       integer,          intent(in) ::   ndfistep
 !
       TYPE(ESMF_VM)                :: vm
-      type(esmf_array)             :: tmp_array
-      integer                      :: tmp_rank, dim, dim_max
-      integer                      :: m,n,rc
-      integer                      :: me, nodes
+      TYPE(ESMF_Field)             :: FIELD
+      type(esmf_Grid)              :: GRID
+      type(esmf_DistGrid)          :: distGRID
+      type(ESMF_DELayout)          :: LAYOUT
+      integer                      :: gridRank, dim_max(3)
+      integer                      :: m,n,rc,ierr,dyn_items_tmp
+      integer                      :: me, nodes,nDes,deId
+      integer                      :: deList(1)
 
-      INTEGER, DIMENSION(:, :), POINTER :: tmp_counts
+      INTEGER, DIMENSION(:, :), POINTER :: AL, AU
 !
-      CALL ESMF_VMGetCurrent(vm, rc = rc)
-      CALL ESMF_VMGet(vm, localpet = me, petcount = nodes, rc = rc)
-      ALLOCATE(tmp_counts(10, nodes))
+!      CALL ESMF_VMGetCurrent(vm, rc = rc)
+!      CALL ESMF_VMGet(vm, localpet = me, petcount = nodes, rc = rc)
 
       nstep = ndfistep 
       kstep = - nstep -1
       call esmf_stateget(state     = dyn_state 				&
                         ,name      = state_name 			&
-                        ,itemcount = dyn_items 				&
+                        ,itemcount = dyn_items_tmp 			&
                         ,rc=rc)
-      print *,' in digital_filter_dyn_init itemcount = ',dyn_items
-      allocate(dyn_name(dyn_items))
-      allocate(dyn_dim (dyn_items))
+!      print *,' in digital_filter_dyn_init itemcount = ',dyn_items_tmp
+      allocate(dyn_name(dyn_items_tmp))
+      allocate(dyn_items_ord(dyn_items_tmp))
+      allocate(dyn_dim (3,dyn_items_tmp))
 
       call esmf_stateget(state=dyn_state 				&
                         ,itemnamelist = dyn_name 			&
                         ,rc=rc)
-      print *,' in digital_filter_dyn_init itemname = ',dyn_name
+!      print *,' in digital_filter_dyn_init itemname = ',dyn_name
       dim_max=0
-      do n=1,dyn_items
-        CALL ESMF_StateGet(dyn_state, dyn_name(n), tmp_array, rc = rc)
+      dyn_items=0
+      do n=1,dyn_items_tmp
+        if(index(trim(dyn_name(n)),"_dfi")>0) then
+          dyn_items=dyn_items+1
+          dyn_items_ord(dyn_items)=n
 
-        call esmf_arrayget(tmp_array	   				&
-                          ,rank              = tmp_rank                 &
-                          ,indexCountPDimPDe = tmp_counts               &
+          CALL ESMF_StateGet(dyn_state, ItemName=dyn_name(n),           &
+               field=Field, rc = rc)
+!           print *,'dfi dyn name=',trim(dyn_name(n))
+!
+          call esmf_Fieldget(FIELD        				&
+                          ,grid              = grid                     &
                           ,rc                = rc)
-        dim=tmp_counts(1, me + 1)
-        if( dim.gt.1 ) then
-          do m=2,tmp_rank 
-            dim=dim*tmp_counts(m, me + 1)
+!
+          call ESMF_GridGet    (GRID, dimCount=gridRank, distGrid=distGrid, rc=rc)
+          call ESMF_DistGridGet(distGRID, delayout=layout, rc=rc)
+          call ESMF_DELayoutGet(layout, deCount =nDEs, localDeList=deList, rc=rc )
+          deId = deList(1)
+!          print *,'get grid info,gridRank=',gridRank,'ndes=',ndes,'deId=',deId
+          if(gridRank/=3) then
+            print *,'WARNING: the rank of digital filter variables is not 3!'
+            stop
+          endif
+!
+          allocate (AL(gridRank,0:nDEs-1), stat = ierr )
+          allocate (AU(gridRank,0:nDEs-1), stat = ierr )
+!
+          call ESMF_DistGridGet(distgrid, &
+           minIndexPDimPDe=AL, maxIndexPDimPDe=AU, rc=rc )
+
+          do m=1,gridRank
+            dyn_dim(m,dyn_items)=AU(m, deId)-AL(m, deId)+1
+            dim_max(m)=max(dyn_dim(m,dyn_items),dim_max(m))
           enddo
-          dyn_dim(n)=dim
-        else
-          dyn_dim(n)=1
+          if(trim(dyn_name(n))=='hs_dfi' .or. trim(dyn_name(n))=='ps_dfi') &
+             dyn_dim(3,dyn_items)=1
+
+!         print *,' in digital_filter_init itemname = ',trim(dyn_name(n)),'dim=', &
+!            dyn_dim(:,dyn_items),'dim_max=',dim_max
+!           
+          deallocate(AU, AL)
         endif
-        dim_max=max(dyn_dim(n),dim_max)
       enddo
 
-      print *,' in digital_filter_dyn_init max dimension = ',dyn_dim
-
-      allocate(dyn_array_save(dim_max,dyn_items))
+      if(minval(dim_max)>1) &
+      allocate(dyn_array_save(dim_max(1),dim_max(2),dim_max(3),dyn_items))
 
       totalsum=0.0
       dyn_array_save=0.0
-      
-     DEALLOCATE(tmp_counts)
-
+!      
       end subroutine digital_filter_dyn_init_gfs
 
 ! ---------------------------------------------------------------
@@ -100,10 +128,11 @@
       implicit none
       type(esmf_state), intent(in)  :: dyn_state
 !
-      TYPE(ESMF_Array)		    :: tmp_array
-      real(ESMF_KIND_R8), dimension(:,:), pointer :: tmp_ptr
+      TYPE(ESMF_Field)		    :: Field
+      real(ESMF_KIND_R8), dimension(:,:), pointer :: tmp_ptr2d
+      real(ESMF_KIND_R8), dimension(:,:,:), pointer :: tmp_ptr
       real                          :: sx, wx, digfil
-      integer                       :: n, i, rc
+      integer                       :: n, i, rc,item,dim1,dim2,dim3
 
         kstep = kstep + 1
         sx     = acos(-1.)*kstep/nstep
@@ -115,20 +144,37 @@
         endif 
 
 !        print *,' in digital_filter_sum digfil = ',digfil
-
         totalsum = totalsum + digfil
         
         do n=1,dyn_items
-          if( dyn_dim(n).gt.1 ) then
-          CALL ESMF_StateGet(dyn_state, dyn_name(n), tmp_array, rc = rc)
+          item=dyn_items_ord(n)
+          CALL ESMF_StateGet(dyn_state, ItemName=dyn_name(item),      &
+                 Field=FIELD, rc = rc)
+          dim1=dyn_dim(1,n)
+          dim2=dyn_dim(2,n)
+          dim3=dyn_dim(3,n)
+          if(dim3==1) then
+            nullify(tmp_ptr2D)
+            CALL ESMF_FieldGet(FIELD, localDe=0, farray=tmp_ptr2D, rc = rc)
 
-          nullify(tmp_ptr)
-          CALL ESMF_ArrayGet(tmp_array, 0, tmp_ptr, rc = rc)
+            dyn_array_save(1:dim1,1:dim2,1,n)=                     &
+               dyn_array_save(1:dim1,1:dim2,1,n)+                    &
+               digfil*tmp_ptr2D(1:dim1,1:dim2)
+!            print *,'dfi sum,2D dyn_name=',dyn_name(item),'rc=',rc,'value=', &
+!              maxval(tmp_ptr2D),minval(tmp_ptr2D),'dyn_dfy_save=',&
+!              maxval(dyn_array_save(1:dim1,1:dim2,1,n)),minval(dyn_array_save(1:dim1,1:dim2,1,n))
+          else
+            nullify(tmp_ptr)
+            CALL ESMF_FieldGet(FIELD, localDe=0, farray=tmp_ptr, rc = rc)
 
-          do i=1,dyn_dim(n)
-          dyn_array_save(i,n)=dyn_array_save(i,n)+digfil*tmp_ptr(i,1)
-          enddo
-          endif
+            dyn_array_save(1:dim1,1:dim2,1:dim3,n)=                     &
+               dyn_array_save(1:dim1,1:dim2,1:dim3,n)+                    &
+               digfil*tmp_ptr(1:dim1,1:dim2,1:dim3)
+!            print *,'dfi sum,dyn_name=',dyn_name(item),'rc=',rc,'value=', &
+!              maxval(tmp_ptr(1:dim1,1:dim2,1:dim3)),minval(tmp_ptr(1:dim1,1:dim2,1:dim3)), &
+!              'ydn_save=',maxval(dyn_array_save(1:dim1,1:dim2,1:dim3,n)), &
+!              minval(dyn_array_save(1:dim1,1:dim2,1:dim3,n))
+         endif
         enddo
 
       end subroutine digital_filter_dyn_sum_gfs
@@ -139,37 +185,54 @@
       implicit none
       type(esmf_state), intent(inout) :: dyn_state
 !
-      TYPE(ESMF_Array)                :: tmp_array
-      TYPE(ESMF_DistGrid)             :: tmp_distgrid
-      CHARACTER(ESMF_Maxstr)          :: name
-      real(ESMF_KIND_R8), dimension(:,:), pointer   :: tmp_ptr
+      TYPE(ESMF_Field)                :: FIELD
+      real(ESMF_KIND_R8), dimension(:,:,:), pointer :: tmp_ptr
+      real(ESMF_KIND_R8), dimension(:,:), pointer :: tmp_ptr2D
+      real(ESMF_KIND_R8), dimension(:,:,:), pointer :: tmp_ptr1
       real                            :: totalsumi
-      integer                         :: n, i, rc
+      integer                         :: n, i, rc,item
+      integer                         :: dim1,dim2,dim3
 !
       totalsumi = 1.0 / totalsum
 
       do n=1,dyn_items
-        if( dyn_dim(n).gt.1 ) then
-        do i=1,dyn_dim(n)
-        dyn_array_save(i,n)=dyn_array_save(i,n)*totalsumi
-        enddo
+!
+        dyn_array_save(:,:,:,n)=dyn_array_save(:,:,:,n)*totalsumi
+!
+        item=dyn_items_ord(n)
+        CALL ESMF_StateGet(dyn_state, ItemName=dyn_name(item),            &
+              Field=FIELD, rc = rc)
 
-        CALL ESMF_StateGet(dyn_state, dyn_name(n), tmp_array, rc = rc)
+        dim1=dyn_dim(1,n)
+        dim2=dyn_dim(2,n)
+        dim3=dyn_dim(3,n)
+        if(dim3==1) then
+          nullify(tmp_ptr2D)
+          CALL ESMF_FieldGet(FIELD, localDe=0, farray=tmp_ptr2D, rc = rc) 
+!          print *,'dfi dyn save field ',trim(dyn_name(item)),'rc=',rc,'value=',  &
+!           maxval(tmp_ptr2D),minval(tmp_ptr2D),'dyn_save=',  &
+!           maxval(dyn_array_save(1:dim1,1:dim2,1,n)), &
+!           minval(dyn_array_save(1:dim1,1:dim2,1,n))
+          tmp_ptr2D(1:dim1,1:dim2) = dyn_array_save(1:dim1,1:dim2,1,n)
+        else
+          nullify(tmp_ptr)
+          CALL ESMF_FieldGet(FIELD, localDe=0, farray=tmp_ptr, rc = rc)
+!          print *,'dfi dyn save field ',trim(dyn_name(item)),'=',  &
+!           maxval(tmp_ptr),minval(tmp_ptr)
+          tmp_ptr(1:dim1,1:dim2,1:dim3) = dyn_array_save(1:dim1,1:dim2,1:dim3,n)
+!
+!jun testing
+!          CALL ESMF_FieldGet(FIELD, localDe=0, farray=tmp_ptr1, rc = rc) 
+!          print *,'field is updated=',maxval(tmp_ptr1),minval(tmp_ptr1)
 
-        nullify(tmp_ptr)
-        CALL ESMF_ArrayGet(tmp_array, 0, tmp_ptr, rc = rc) 
-
-        do i=1,dyn_dim(n)
-        tmp_ptr(i,1) = dyn_array_save(i,n)
-        enddo
-
-        CALL ESMF_StateAdd(dyn_state, tmp_array, rc = rc)
         endif
+!
+!
       enddo
 
-      deallocate(dyn_name)
-      deallocate(dyn_dim)
-      deallocate(dyn_array_save)
+      if(allocated(dyn_name)) deallocate(dyn_name)
+      if(allocated(dyn_name)) deallocate(dyn_dim)
+      if(allocated(dyn_array_save)) deallocate(dyn_array_save)
 
       end subroutine digital_filter_dyn_average_gfs
 
@@ -190,6 +253,7 @@
       call esmf_stateget(state=phy_state,				&
                          itemnamelist = phy_name,			&
                          rc=rc)
+!       print *,'dfi phy init, phy_items=',phy_items,'names=',phy_name(1:phy_items)
       phy_state_save=esmf_statecreate(statename="digital filter phy"	&
                                      ,statetype=esmf_state_unspecified	&
                                      ,rc       =rc)
@@ -202,13 +266,33 @@
       implicit none
       type(esmf_state), intent(in) :: phy_state
 !
-      TYPE(ESMF_Array)             :: tmp_array
+!jw      TYPE(ESMF_Array)             :: tmp_array
+      TYPE(ESMF_Field)             :: tmp_field
+      TYPE(ESMF_FieldBUNDLE)       :: tmp_bundle
+      TYPE(ESMF_STATE)             :: tmp_state
+      type(ESMF_StateItemType)     :: itemtype
+
       integer                      :: n, rc
 !
       do n=1,phy_items
-        CALL ESMF_StateGet(phy_state, phy_name(n), tmp_array, rc = rc)
 
-        CALL ESMF_StateAdd(phy_state_save, tmp_array, rc = rc)
+        CALL ESMF_StateGet(phy_state, phy_name(n),itemtype,rc=rc)
+!        print *,'restor data,phy_name=',phy_name(n),'itemtype=',itemtype,'rc=',rc
+
+        if(itemtype==ESMF_STATEITEM_FIELDBUNDLE) then
+          CALL ESMF_StateGet(phy_state, phy_name(n), tmp_bundle, rc = rc)
+          CALL ESMF_StateAdd(phy_state_save, tmp_bundle, rc = rc)
+!        print *,'save bundle data,phy_name=',phy_name(n),'rc=',rc
+        else if(itemtype==ESMF_STATEITEM_FIELD) then
+          CALL ESMF_StateGet(phy_state, phy_name(n), tmp_field, rc = rc)
+          CALL ESMF_StateAdd(phy_state_save, tmp_field, rc = rc)
+!        print *,'save field data,phy_name=',phy_name(n),'rc=',rc
+        else if(itemtype==ESMF_STATEITEM_STATE) then
+          CALL ESMF_StateGet(phy_state, phy_name(n), tmp_state, rc = rc)
+          CALL ESMF_StateAdd(phy_state_save, tmp_state, rc = rc)
+!        print *,'save state data,phy_name=',phy_name(n),'rc=',rc
+        endif
+
       enddo
       end subroutine digital_filter_phy_save_gfs
 
@@ -218,13 +302,30 @@
       implicit none
       type(esmf_state), intent(inout) :: phy_state
 !
-      TYPE(ESMF_Array)                :: tmp_array
+      TYPE(ESMF_field)                :: tmp_field
+      TYPE(ESMF_FieldBundle)          :: tmp_bundle
+      TYPE(ESMF_STATE)                :: tmp_state
+      type(ESMF_StateItemType)        :: itemtype
       integer                         :: n, rc
 !
       do n=1,phy_items
-        CALL ESMF_StateGet(phy_state_save, phy_name(n), tmp_array, rc = rc)
 
-        CALL ESMF_StateAdd(phy_state, tmp_array, rc = rc)
+        CALL ESMF_StateGet(phy_state_save, phy_name(n),itemtype,rc=rc)
+!        print *,'restor data,phy_name=',phy_name(n),'itemtype=',itemtype,'rc=',rc
+
+        if(itemtype==ESMF_STATEITEM_FIELDBUNDLE) then
+          CALL ESMF_StateGet(phy_state_save, phy_name(n), tmp_bundle, rc = rc)
+          CALL ESMF_StateAdd(phy_state, tmp_bundle, rc = rc)
+!          print *,'restor bundle, ',trim(phy_name(n)),'rc=',rc
+        else if(itemtype==ESMF_STATEITEM_FIELD) then
+          CALL ESMF_StateGet(phy_state_save, phy_name(n), tmp_field, rc = rc)
+          CALL ESMF_StateAdd(phy_state, tmp_field, rc = rc)
+!          print *,'restor field, ',trim(phy_name(n)),'rc=',rc
+        else if(itemtype==ESMF_STATEITEM_STATE) then
+          CALL ESMF_StateGet(phy_state_save, phy_name(n), tmp_state, rc = rc)
+          CALL ESMF_StateAdd(phy_state, tmp_state, rc = rc)
+!          print *,'restor state, ',trim(phy_name(n)),'rc=',rc
+        endif
       enddo
       call esmf_statedestroy(phy_state_save,rc=rc)
 

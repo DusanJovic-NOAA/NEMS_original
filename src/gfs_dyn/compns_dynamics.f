@@ -3,7 +3,7 @@
      &  ntrac,nxpt,nypt,jintmx,jcap,
      &  levs,levr,lonf,latg, ntoz,
      &  ntcw,ncld, spectral_loop, me,
-     &  nlunit, gfs_dyn_namelist)
+     &  nlunit, gfs_dyn_namelist,ndfi)
 !$$$  Subprogram Documentation Block
 !
 ! Subprogram:  compns     Check and compute namelist frequencies
@@ -35,10 +35,12 @@
 !             8. the cycling frequency must be non-negative and
 !                a multiple of the timestep to within tolerance and
 !                a multiple of the longwave frequency.
+!             9. the difgital filter  must be non-negative and
 !
 ! Program History Log:
 !   1999-01-26  Iredell
 !   2007-02-01  H.-M. H. Juang modify to be used for dynamics only
+!   2009-11-09  Jun Wang       added ndfi 
 !
 ! Usage:    call compns(deltim,
 !    &                  fhout,fhres,
@@ -73,13 +75,13 @@
       real,intent(inout)            :: deltim
       integer,intent(out)           :: iret
       integer ntrac,nxpt,nypt,jintmx,jcap,levs,lonf,latg
-      integer levr,lsoil,nmtvr,lonr,latr
+      integer levr,lsoil,nmtvr,lonr,latr,ndfi
       integer ntoz,ntcw,ncld,spectral_loop,member_num
       real    tfiltc
 
 c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !
-      namelist /nam_dyn/FHMAX,FHOUT,FHRES,FHROT,DELTIM,IGEN,
+      namelist /nam_dyn/FHMAX,FHOUT,FHRES,FHROT,FHDFI,DELTIM,IGEN,
      & NGPTC,spectral_loop,nislfv,
      & shuff_lats_a,reshuff_lats_a,reduced_grid,
      & explicit,hybrid,gen_coord_hybrid,liope, 
@@ -93,6 +95,7 @@ c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       fhout=0
       fhres=0
       fhrot=0
+      fhdfi=0
       deltim=0
       igen=0
       tfiltc  = 0.92
@@ -159,6 +162,20 @@ csela - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         iret=6
         return
       endif
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+!  Compute ndfi and check rule 7.
+      if(fhdfi.eq.0.) then
+        ndfi=0
+      else
+        ndfi=nint(2*fhdfi*3600./deltim)
+        if(ndfi.le.0.or.abs(ndfi-2*fhdfi*3600./deltim).gt.tol.or.
+     &     ndfi.gt.nsres) then
+           print *,'ndfi=',ndfi,'is not equal to',2*fhdfi*3600./deltim
+          iret=7
+          return
+        endif
+      endif
+!
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !!
       IF (NGPTC.GT.lonf) THEN

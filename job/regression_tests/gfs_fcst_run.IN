@@ -7,8 +7,11 @@ set -x
 
 
 #export EXPLICIT=.true.
- export ADIAB=.false.
- export REDUCED_GRID=.false.
+ export ADIAB=_ADIAB_
+# reduced_grid default is true
+ export REDUCED_GRID=_REDUCEDGRID_
+# number of output files, default =3, for adiab num_file=1
+ export NUM_FILE=_NUMFILE_
 
 # SFCPRESS_ID=0 or 1 for ln(psfc), 2 for psfc
  export SFCPRESS_ID=2
@@ -48,7 +51,7 @@ export FAISS=0.0
 #
  tasks=_TASKS_  ; export PE1=_PE1_
 #
-  export WRT_GROUP=1
+  export WRT_GROUP=_WRTGP_
   export WRTPE_PER_GROUP=_WPG_
 export MP_STDOUTMODE=ordered
 export MP_LABELIO=yes
@@ -100,7 +103,7 @@ else
 fi
 #
 #
-export nhours=`expr $ndays \* 24`
+ export nhours=`expr $ndays \* 24`
 
 #
 # For two tracers
@@ -111,7 +114,7 @@ export nhours=`expr $ndays \* 24`
  export fout=3  
  export fzer=6  
  export fcyc=0 
- export fdfi=0 
+ export fdfi=_FDFI_ 
  export FHRES=$nhours
 #
 #    Forecast model : horizontal truncation  and vertical levels

@@ -32,6 +32,7 @@
 !                        gfs_dynamics_internal2export_mgrid
 !  Sarah Lu  2009-10-12  Port to the latest trunk
 !  Sarah Lu  2009-10-17  Tracer bundle added; (shum, oz, cld) removed
+!  Jun Wang  2009-11-09  set difital filter variables to export state
 !                 
 !EOP
 
@@ -70,14 +71,14 @@
 !    if ( .not. associated(Internal%grid_gr) ) &
 !         call die_gfs ('Dynamics internal state not initialized')
 
-    print *, 'LU_DYN: call StateDefine for import state'        
+!    print *, 'LU_DYN: call StateDefine for import state'        
     call StateDefine_ ( import, internal, mgrid,                       &
                         cf%z_import, cf%ps_import, cf%u_import,        &
                         cf%v_import, cf%temp_import, cf%tracer_import, &
                         cf%p_import, cf%dp_import, cf%dpdt_import, rc1)
     call gfs_dynamics_err_msg(rc1,"StateDefine for import state",rcfinal) 
 
-    print *, 'LU_DYN: call StateDefine for export state'        
+!    print *, 'LU_DYN: call StateDefine for export state'        
     call StateDefine_ ( export, internal, mgrid,                       &
                         cf%z_export, cf%ps_export, cf%u_export,        &
                         cf%v_export, cf%temp_export, cf%tracer_export, &
@@ -94,7 +95,7 @@
 ! ---
     subroutine StateDefine_ ( state, internal, mgrid,        &
                               z, ps, u, v, temp, tracer,     &
-                              p, dp, dpdt, rc1 )               
+                              p, dp, dpdt, rc1) 
 
     type(ESMF_Grid), intent(in) :: mGrid
 
@@ -227,11 +228,12 @@
 ! ========================================================================= 
 ! Update internal state (grid_gr) based on esmf import state                     
 !
-      subroutine gfs_dynamics_import2internal_mgrid(state, internal, rc)
+      subroutine gfs_dynamics_import2internal_mgrid(state, internal, rc,exp_gfs_dyn)
 
       type(esmf_state),                           intent(in)    :: state 
       type(gfs_dynamics_internal_state), pointer, intent(inout) :: internal
       integer, optional,                          intent(out)   :: rc     
+      type(esmf_state),optional,                  intent(in)    :: exp_gfs_dyn
 
       type(GFS_Dyn_State_Namelist) :: cf
 
@@ -258,7 +260,8 @@
 ! get the surface orography array from the esmf import state.
 !------------------------------------------------------------
       if(cf%z_import == 1) then
-          i = internal%g_gz
+        i = internal%g_gz
+        if(.not. present(exp_gfs_dyn)) then  
           call ESMF_StateGet(state=State, ItemName='hs',              & 
                              field=Field, rc = rc )
           call gfs_dynamics_err_msg(rc,'retrieve Efield from state -z',rcfinal)
@@ -266,12 +269,22 @@
                              farray=fArr2D, rc = rc)             
           internal%grid_gr(:,:,i) = fArr2D                   
           call gfs_dynamics_err_msg(rc,'retrieve Farray from field -z',rcfinal)
+        else
+          call ESMF_StateGet(state=exp_gfs_dyn, ItemName='hs_dfi',   &
+                             field=Field, rc = rc )
+          call gfs_dynamics_err_msg(rc,'retrieve Efield from expstate -z',rcfinal)
+          CALL ESMF_FieldGet(field=field, localDe=0, &
+                             farray=fArr2D, rc = rc)
+          internal%grid_gr(:,:,i) = fArr2D
+          call gfs_dynamics_err_msg(rc,'retrieve Farray from field -z',rcfinal)
+        endif
       end if
 
 ! get the surface pressure array from the esmf import state.
 !-----------------------------------------------------------
       if(cf%ps_import == 1) then
-          i = internal%g_zq
+        i = internal%g_zq
+        if(.not. present(exp_gfs_dyn)) then  
           call ESMF_StateGet(state=State, ItemName='ps',              & 
                              field=Field, rc = rc )
           call gfs_dynamics_err_msg(rc,'retrieve Efield from state -ps',rcfinal)
@@ -279,13 +292,25 @@
                              farray=fArr2D, rc = rc)             
           internal%grid_gr(:,:,i) = fArr2D                   
           call gfs_dynamics_err_msg(rc,'retrieve Farray from field -ps',rcfinal)
+        else
+          call ESMF_StateGet(state=exp_gfs_dyn, ItemName='ps_dfi',   &
+                             field=Field, rc = rc )
+          call gfs_dynamics_err_msg(rc,'retrieve Efield from expstate -ps',rcfinal)
+          CALL ESMF_FieldGet(field=field, localDe=0, &
+                             farray=fArr2D, rc = rc)
+          internal%grid_gr(:,:,i) = fArr2D
+!          print *,'from imp2int,ps=',maxval(internal%grid_gr(:,:,i)),   &
+!            minval(internal%grid_gr(:,:,i))
+          call gfs_dynamics_err_msg(rc,'retrieve Farray from field -ps',rcfinal)
+        endif
       end if
 
 ! get the temperature array from the esmf import state.
 !------------------------------------------------------
       if(cf%temp_import == 1) then
-          i = internal%g_t
-          j = i + internal%levs - 1
+        i = internal%g_t
+        j = i + internal%levs - 1
+        if(.not. present(exp_gfs_dyn)) then  
           call ESMF_StateGet(state=State, ItemName='t',              & 
                              field=Field, rc = rc )
           call gfs_dynamics_err_msg(rc,'retrieve Efield from state -t',rcfinal)
@@ -293,13 +318,25 @@
                              farray=fArr3D, rc = rc)             
           internal%grid_gr(:,:,i:j) = fArr3D                   
           call gfs_dynamics_err_msg(rc,'retrieve Farray from field -t',rcfinal)
+        else
+          call ESMF_StateGet(state=exp_gfs_dyn, ItemName='t_dfi',    &
+                             field=Field, rc = rc )
+          call gfs_dynamics_err_msg(rc,'retrieve Efield from expstate -t',rcfinal)
+          CALL ESMF_FieldGet(field=field, localDe=0, &
+                             farray=fArr3D, rc = rc)
+          internal%grid_gr(:,:,i:j) = fArr3D
+!          print *,'from imp2int,t=',maxval(internal%grid_gr(:,:,i:j)),   &
+!            minval(internal%grid_gr(:,:,i:j))
+          call gfs_dynamics_err_msg(rc,'retrieve Farray from field -t',rcfinal)
+        endif
       end if
 
 ! get the zonal-wind array from the esmf import state.
 !-----------------------------------------------------
       if(cf%u_import == 1) then
-          i = internal%g_u
-          j = i + internal%levs - 1
+        i = internal%g_u
+        j = i + internal%levs - 1
+        if(.not. present(exp_gfs_dyn)) then
           call ESMF_StateGet(state=State, ItemName='u',              & 
                              field=Field, rc = rc )
           call gfs_dynamics_err_msg(rc,'retrieve Efield from state -u',rcfinal)
@@ -307,13 +344,23 @@
                              farray=fArr3D, rc = rc)             
           internal%grid_gr(:,:,i:j) = fArr3D                   
           call gfs_dynamics_err_msg(rc,'retrieve Farray from field -u',rcfinal)
+        else
+          call ESMF_StateGet(state=exp_gfs_dyn, ItemName='u_dfi',   &
+                             field=Field, rc = rc )
+          call gfs_dynamics_err_msg(rc,'retrieve Efield from expstate -u',rcfinal)
+          CALL ESMF_FieldGet(field=field, localDe=0, &
+                             farray=fArr3D, rc = rc)
+          internal%grid_gr(:,:,i:j) = fArr3D
+          call gfs_dynamics_err_msg(rc,'retrieve Farray from field -u',rcfinal)
+        endif
       end if
 
 ! get the meridian-wind array from the esmf import state.
 !-----------------------------------------------------
       if(cf%v_import == 1) then
-          i = internal%g_v
-          j = i + internal%levs - 1
+        i = internal%g_v
+        j = i + internal%levs - 1
+        if(.not. present(exp_gfs_dyn)) then
           call ESMF_StateGet(state=State, ItemName='v',              & 
                              field=Field, rc = rc )
           call gfs_dynamics_err_msg(rc,'retrieve Efield from state -v',rcfinal)
@@ -321,11 +368,21 @@
                              farray=fArr3D, rc = rc)             
           internal%grid_gr(:,:,i:j) = fArr3D                   
           call gfs_dynamics_err_msg(rc,'retrieve Farray from field -v',rcfinal)
+        else
+          call ESMF_StateGet(state=exp_gfs_dyn, ItemName='v_dfi',   &
+                             field=Field, rc = rc )
+          call gfs_dynamics_err_msg(rc,'retrieve Efield from expstate -v',rcfinal)
+          CALL ESMF_FieldGet(field=field, localDe=0, &
+                             farray=fArr3D, rc = rc)
+          internal%grid_gr(:,:,i:j) = fArr3D
+          call gfs_dynamics_err_msg(rc,'retrieve Farray from field -v',rcfinal)
+        endif
       end if
 
 ! get the tracer array from the esmf import state.                           
 !-------------------------------------------------------------           
       if(cf%tracer_import == 1) then
+        if(.not. present(exp_gfs_dyn)) then
           call ESMF_StateGet(state=State, ItemName='tracers',    &      
                              fieldbundle=Bundle, rc = rc )                    
           call gfs_dynamics_err_msg(rc,'retrieve Ebundle from state',rcfinal) 
@@ -342,13 +399,32 @@
              call gfs_dynamics_err_msg(rc,'retrieve Farray from field',rcfinal)
              internal%grid_gr(:,:,i:j) = fArr3D                         
           end do                                                   
+        else
+          do k = 1, internal%ntrac
+             i = internal%g_rt+ (k-1) * internal%levs
+             j = i + internal%levs - 1
+             if(associated(fArr3D)) nullify(fArr3D)
+             CALL ESMF_StateGet(state=exp_gfs_dyn,                 &
+                      ItemName=trim(internal%gfs_dyn_tracer%vname(k))//'_dfi',  &
+                      field=Field, rc = rc )
+             call gfs_dynamics_err_msg(rc,'retrieve Efield from bundle',rcfinal)
+             CALL ESMF_FieldGet(field=field, localDe=0, &
+                                farray=fArr3D, rc = rc)
+             call gfs_dynamics_err_msg(rc,'retrieve Farray from field',rcfinal)
+             internal%grid_gr(:,:,i:j) = fArr3D
+!          print *,'from imp2int,tracert=',trim(internal%gfs_dyn_tracer%vname(k)), &
+!            maxval(internal%grid_gr(:,:,i:j)),   &
+!            minval(internal%grid_gr(:,:,i:j))
+          end do
+        endif 
       end if                                                
 
 ! get the pressure array from the esmf import state.
 !-------------------------------------------------------------
       if(cf%p_import == 1) then
-          i = internal%g_p
-          j = i + internal%levs - 1
+        i = internal%g_p
+        j = i + internal%levs - 1
+        if(.not. present(exp_gfs_dyn)) then
           call ESMF_StateGet(state=State, ItemName='p',            & 
                              field=Field, rc = rc )
           call gfs_dynamics_err_msg(rc,'retrieve Efield from state -p',rcfinal)
@@ -356,13 +432,23 @@
                              farray=fArr3D, rc = rc)             
           internal%grid_gr(:,:,i:j) = fArr3D                   
           call gfs_dynamics_err_msg(rc,'retrieve Farray from field -p',rcfinal)
+        else
+          call ESMF_StateGet(state=exp_gfs_dyn, ItemName='p_dfi',            &
+                             field=Field, rc = rc )
+          call gfs_dynamics_err_msg(rc,'retrieve Efield from expstate -p',rcfinal)
+          CALL ESMF_FieldGet(field=field, localDe=0, &
+                             farray=fArr3D, rc = rc)
+          internal%grid_gr(:,:,i:j) = fArr3D
+          call gfs_dynamics_err_msg(rc,'retrieve Farray from field -p',rcfinal)
+        endif
       end if
 
 ! get the pressure layer depth (dp) array from the esmf import state.
 !-------------------------------------------------------------
       if(cf%dp_import == 1) then
-          i = internal%g_dp
-          j = i + internal%levs - 1
+        i = internal%g_dp
+        j = i + internal%levs - 1
+        if(.not. present(exp_gfs_dyn)) then
           call ESMF_StateGet(state=State, ItemName='dp',            & 
                              field=Field, rc = rc )
           call gfs_dynamics_err_msg(rc,'retrieve Efield from state -dp',rcfinal)
@@ -370,14 +456,25 @@
                              farray=fArr3D, rc = rc)             
           internal%grid_gr(:,:,i:j) = fArr3D                   
           call gfs_dynamics_err_msg(rc,'retrieve Farray from field -dp',rcfinal)
+        else
+          call ESMF_StateGet(state=exp_gfs_dyn, ItemName='dp_dfi',            &
+                             field=Field, rc = rc )
+          call gfs_dynamics_err_msg(rc,'retrieve Efield from expstate -dp',rcfinal)
+          CALL ESMF_FieldGet(field=field, localDe=0, &
+                             farray=fArr3D, rc = rc)
+          internal%grid_gr(:,:,i:j) = fArr3D
+          call gfs_dynamics_err_msg(rc,'retrieve Farray from field -dp',rcfinal)
+        endif
       end if
 
 !
 ! get the omega (dpdt) array from the esmf import state.
 !-------------------------------------------------------------
       if(cf%dpdt_import == 1) then
-          i = internal%g_dpdt
-          j = i + internal%levs - 1
+        i = internal%g_dpdt
+        j = i + internal%levs - 1
+        if(.not. present(exp_gfs_dyn)) then
+        
           call ESMF_StateGet(state=State, ItemName='dpdt',            & 
                              field=Field, rc = rc )
           call gfs_dynamics_err_msg(rc,'retrieve Efield from state -dpdt',rcfinal)
@@ -385,6 +482,15 @@
                              farray=fArr3D, rc = rc)             
           internal%grid_gr(:,:,i:j) = fArr3D                   
           call gfs_dynamics_err_msg(rc,'retrieve Farray from field -dpdt',rcfinal)
+        else
+          call ESMF_StateGet(state=exp_gfs_dyn, ItemName='dpdt_dfi',            &
+                             field=Field, rc = rc )
+          call gfs_dynamics_err_msg(rc,'retrieve Efield from expstate -dpdt',rcfinal)
+          CALL ESMF_FieldGet(field=field, localDe=0, &
+                             farray=fArr3D, rc = rc)
+          internal%grid_gr(:,:,i:j) = fArr3D
+          call gfs_dynamics_err_msg(rc,'retrieve Farray from field -dpdt',rcfinal)
+        endif
       end if
 !
 !
@@ -420,7 +526,13 @@
       real, pointer                :: fArr3D(:,:,:)
 
       integer                      :: i, j, k
-
+!
+!jw test:
+       type(ESMF_Field)             :: Field1
+       type(ESMF_GRID)              :: mgrid1
+       integer :: gridrank,gridrank1
+!jw test end
+!
       cf = internal%esmf_sta_list
 
 ! initialize the error signal variables.
@@ -438,11 +550,22 @@
        i = internal%g_gz
        if(associated(fArr2D)) nullify(fArr2D)                              
        fArr2D => internal%grid_gr(:,:,i)
-       field = ESMF_FieldCreate(name='hs', grid=mgrid, fArray=fArr2D,&
+       field = ESMF_FieldCreate(name='hs', grid=mgrid, fArray=fArr2D, &
                gridToFieldMap=(/1,2,0/),                              &
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
        call ESMF_StateAdd(state,field,rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf export state -z",rcfinal)
+!
+       if(internal%ndfi>0 .and. cf%z_import==1) then
+         if(associated(fArr2D)) nullify(fArr2D)                              
+         i=1
+         fArr2D => internal%grid_gr_dfi%hs(:,:,i)
+         field = ESMF_FieldCreate(name='hs_dfi', grid=mgrid,          &
+               fArray=fArr2D,gridToFieldMap=(/1,2,0/),                &
+               indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
+         call ESMF_StateAdd(state,field,rc=rc)
+         call gfs_dynamics_err_msg(rc,"add to esmf export state -z-dfi",rcfinal)
+       endif
       end if
 
 ! put the surface pressure array to the esmf export state.
@@ -456,6 +579,18 @@
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
        call ESMF_StateAdd(state,field,rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf export state -ps",rcfinal)
+!      
+       if(internal%ndfi>0 .and. cf%ps_import==1) then
+         if(associated(fArr2D)) nullify(fArr2D)
+         i=1
+         fArr2D => internal%grid_gr_dfi%ps(:,:,i)
+         field = ESMF_FieldCreate(name='ps_dfi', grid=mgrid,          &
+               fArray=fArr2D,gridToFieldMap=(/1,2,0/),                &
+               indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
+         call ESMF_StateAdd(state,field,rc=rc)
+         call gfs_dynamics_err_msg(rc,"add to esmf export state -ps",rcfinal)
+       endif
+
       end if
 
 ! put the temperature array to the esmf export state.
@@ -469,6 +604,16 @@
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
        call ESMF_StateAdd(state,field,rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf export state -t",rcfinal)
+!      
+       if(internal%ndfi>0 .and. cf%temp_import==1) then
+         if(associated(fArr3D)) nullify(fArr3D)
+         fArr3D => internal%grid_gr_dfi%t(:,:,:)
+         field = ESMF_FieldCreate(name='t_dfi', grid=mgrid,          &
+               fArray=fArr3D,indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
+         call ESMF_StateAdd(state,field,rc=rc)
+         call gfs_dynamics_err_msg(rc,"add to esmf export state -ps",rcfinal)
+       endif
+
       end if
 
 ! put the zonal-wind array to the esmf export state.
@@ -482,6 +627,16 @@
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
        call ESMF_StateAdd(state,field,rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf export state -u",rcfinal)
+!      
+       if(internal%ndfi>0 .and. cf%u_import==1) then
+         if(associated(fArr3D)) nullify(fArr3D)
+         fArr3D => internal%grid_gr_dfi%u(:,:,:)
+         field = ESMF_FieldCreate(name='u_dfi', grid=mgrid,          &
+               fArray=fArr3D,indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
+         call ESMF_StateAdd(state,field,rc=rc)
+         call gfs_dynamics_err_msg(rc,"add to esmf export state -ps",rcfinal)
+       endif
+!
       end if
 
 ! put the meridian-wind array to the esmf export state.
@@ -495,6 +650,16 @@
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
        call ESMF_StateAdd(state,field,rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf export state -v",rcfinal)
+!      
+       if(internal%ndfi>0 .and. cf%v_import==1) then
+         if(associated(fArr3D)) nullify(fArr3D)
+         fArr3D => internal%grid_gr_dfi%v(:,:,:)
+         field = ESMF_FieldCreate(name='v_dfi', grid=mgrid,          &
+               fArray=fArr3D,indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
+         call ESMF_StateAdd(state,field,rc=rc)
+         call gfs_dynamics_err_msg(rc,"add to esmf export state -ps",rcfinal)
+       endif
+!
       end if
 
 ! put the tracer array to the esmf export state.                            
@@ -515,6 +680,23 @@
        end do                                                                
        call ESMF_StateAdd(state,Bundle,rc=rc)                               
        call gfs_dynamics_err_msg(rc,"add to esmf state - tracer",rcfinal)   
+!
+       if(internal%ndfi>0 .and. cf%tracer_import==1) then
+         do k = 1, internal%ntrac
+           i = (k-1) * internal%levs+1
+           j = i + internal%levs - 1    
+           if(associated(fArr3D)) nullify(fArr3D)
+           fArr3D => internal%grid_gr_dfi%tracer(:,:,i:j)
+           field = ESMF_FieldCreate(name=trim(internal%gfs_dyn_tracer%vname(k))//'_dfi',&
+                   grid=mgrid, fArray=fArr3D, &
+                   indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
+!           print *,'int2exp,k=',k,i,j,'name=',trim(internal%gfs_dyn_tracer%vname(k))//'_dfi', 'rc=',rc
+           call ESMF_StateAdd(state,field,rc=rc)
+!           print *,'add tracer field into state'
+           call gfs_dynamics_err_msg(rc,"add to esmf export state -ps",rcfinal)
+         enddo
+       endif
+!
       end if                                                               
 
 ! put pressure array to the esmf export state.
@@ -528,6 +710,16 @@
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
        call ESMF_StateAdd(state,field,rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf export state -p",rcfinal)
+!
+       if(internal%ndfi>0 .and. cf%p_import==1) then
+         if(associated(fArr3D)) nullify(fArr3D)
+         fArr3D => internal%grid_gr_dfi%p(:,:,:)
+         field = ESMF_FieldCreate(name='p_dfi', grid=mgrid,          &
+               fArray=fArr3D,indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
+         call ESMF_StateAdd(state,field,rc=rc)
+         call gfs_dynamics_err_msg(rc,"add to esmf export state -p",rcfinal)
+       endif
+!
       end if
 
 ! put the pressure layer depth (dp) array to the esmf export state.
@@ -541,6 +733,16 @@
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
        call ESMF_StateAdd(state,field,rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf export state -dp",rcfinal)
+!
+       if(internal%ndfi>0 .and. cf%dp_import==1) then
+         if(associated(fArr3D)) nullify(fArr3D)
+         fArr3D => internal%grid_gr_dfi%dp(:,:,:)
+         field = ESMF_FieldCreate(name='dp_dfi', grid=mgrid,          &
+               fArray=fArr3D,indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
+         call ESMF_StateAdd(state,field,rc=rc)
+         call gfs_dynamics_err_msg(rc,"add to esmf export state -dp",rcfinal)
+       endif
+!
       end if
 
 !
@@ -555,6 +757,16 @@
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
        call ESMF_StateAdd(state,field,rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf export state -dpdt",rcfinal)
+!
+       if(internal%ndfi>0 .and. cf%dpdt_import==1) then
+         if(associated(fArr3D)) nullify(fArr3D)
+         fArr3D => internal%grid_gr_dfi%dpdt(:,:,:)
+         field = ESMF_FieldCreate(name='dpdt_dfi', grid=mgrid,          &
+               fArray=fArr3D,indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
+         call ESMF_StateAdd(state,field,rc=rc)
+         call gfs_dynamics_err_msg(rc,"add to esmf export state -dpdt",rcfinal)
+       endif
+
       end if
 !
 !

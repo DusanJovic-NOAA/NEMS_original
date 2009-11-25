@@ -12,8 +12,10 @@
 !  may 2005           weiyu yang for the updated gfs version.
 !  february 2006      shrinivas moorthi updated for the new version of gfs
 !  january 2007       hann-ming henry juang for gfs dynamics only
+!  may 2009           jun wang for gfs write grid component
 !  oct 05 2009        sarah lu, grid_gr unfolded from 2D to 3D
 !  oct 16 2009        sarah lu, add gfs_dyn_tracer
+!  Nov 2009           jun wang, add digital filter variables into internal state
 !
 ! !interface:
 !
@@ -36,6 +38,7 @@
       use gfs_dyn_coordinate_def                                      ! hmhj
       use gfs_dyn_tracer_const                                        ! hmhj
       use gfs_dyn_matrix_sig_def
+      use gfs_dyn_dfi_mod, only : gfs_dfi_grid_gr                     ! jw
       use gfs_dyn_tracer_config, only: gfs_dyn_tracer_type
 
       implicit none
@@ -110,6 +113,9 @@
 !! grid_gr unfolded (sarah lu)
 !*    real(kind=kind_evod) ,allocatable ::       grid_gr(:,:)
       real(kind=kind_evod) ,pointer     ::       grid_gr(:,:,:)
+!* digital filter (jun wang)
+      type(gfs_dfi_grid_gr)             ::       grid_gr_dfi
+!
       real(kind=kind_evod) ,allocatable ::    syn_gr_a_1(:,:)
       real(kind=kind_evod) ,allocatable ::    syn_gr_a_2(:,:)
       real(kind=kind_evod) ,allocatable ::    sym_gr_a_2(:,:)
@@ -154,7 +160,7 @@
       integer              n1hyb, n2hyb
       integer              nges,ngpken,niter,nnmod,nradf,nradr
       integer              nsfcf,nsfci,nsfcs,nsigi,nsigs,nstep
-      integer              nznlf,nznli,nznls,id,iret,nsout
+      integer              nznlf,nznli,nznls,id,iret,nsout,ndfi          ! jw
 
       integer              ierr,iprint,k,l,locl,n
       integer              lan,lat
@@ -167,7 +173,7 @@
 
       logical start_step, reset_step, end_step
 
-      logical lsout
+      logical lsout,ldfi                                                  ! jw
 
       real(kind=kind_evod),allocatable :: tee1(:)
 

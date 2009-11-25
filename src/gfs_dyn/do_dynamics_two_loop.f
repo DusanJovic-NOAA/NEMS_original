@@ -1,5 +1,5 @@
       SUBROUTINE do_dynamics_two_loop(deltim,kdt,PHOUR,
-     &                 TRIE_LS,TRIO_LS,GRID_GR,
+     &                 TRIE_LS,TRIO_LS,GRID_GR,grid_gr_dfi,                 ! jw
      &                 LS_NODE,LS_NODES,MAX_LS_NODES,
      &                 LATS_NODES_A,GLOBAL_LATS_A,
      &                 LONSPERLAT,
@@ -14,7 +14,7 @@
      &                 SYN_GR_A_2,DYN_GR_A_2,ANL_GR_A_2,
      &                 LSLAG,pwat,ptot,
      &                 pdryini,nblck,ZHOUR,N1,N4,
-     &                 LSOUT,COLAT1,CFHOUR1,
+     &                 LSOUT,ldfi,COLAT1,CFHOUR1,                             ! jw
      &                 start_step,reset_step,end_step)
 cc
       use gfs_dyn_resol_def
@@ -26,6 +26,7 @@ cc
       use gfs_dyn_date_def
       use namelist_dynamics_def
       use gfs_dyn_mpi_def
+      use gfs_dyn_dfi_mod
 
       use do_dynamics_mod
 
@@ -35,6 +36,9 @@ cc
       INTEGER,INTENT(IN):: LONSPERLAT(LATG),N1,N4
       REAL(KIND=KIND_EVOD),INTENT(IN):: deltim,PHOUR
       REAL(KIND=KIND_EVOD),INTENT(INOUT):: ZHOUR
+!jw
+      type(gfs_dfi_grid_gr),intent(inout) :: grid_gr_dfi
+      logical,intent(in) :: ldfi
 !!     
       INTEGER NBLCK
 !!!   LOTALL=13*LEVS+3*LEVH+8
@@ -629,6 +633,14 @@ c timings
       endif 	! only for fcst node
 !--------------------------------------------
 ! =====================================================================
+!--------------------------------------------
+!**jw digital filter state collect
+!--------------------------------------------
+      print *,'in one loop,call gfs_dfi_coll,ldfi=',ldfi
+      IF (ldfi) THEN
+        call gfs_dficoll_dynamics(grid_gr,grid_gr_dfi)
+      ENDIF
+!
 !--------------------------------------------
       IF (lsout.and.kdt.ne.0) THEN
 !--------------------------------------------

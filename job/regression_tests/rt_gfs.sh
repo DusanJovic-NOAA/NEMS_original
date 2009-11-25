@@ -16,12 +16,17 @@ cat gfs_ll.IN       | sed s:_JBNME_:${JBNME}:g   \
 cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_PE1_:${PE1}:g       \
                     | sed s:_WPG_:${WTPG}:g      \
+                    | sed s:_WRTGP_:${WRTGP}:g   \
                     | sed s:_THRDS_:${THRD}:g    \
                     | sed s:_NSOUT_:${NSOUT}:g   \
                     | sed s:_QUILT_:${QUILT}:g   \
                     | sed s:_CP2_:${CP2}:g       \
                     | sed s:_RUNDIR_:${RUNDIR}:g \
                     | sed s:_PATHTR_:${PATHTR}:g \
+                    | sed s:_FDFI_:${FDFI}:g \
+                    | sed s:_REDUCEDGRID_:${REDUCEDGRID}:g \
+                    | sed s:_ADIAB_:${ADIAB}:g \
+                    | sed s:_NUMFILE_:${NUMFILE}:g \
                     | sed s:_NDAYS_:${NDAYS}:g   >  gfs_fcst_run
 
 ####################################################################################################

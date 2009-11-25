@@ -42,6 +42,7 @@ OBJ_MOD	= \
 	  gfs_dyn_deldifs_def.o         \
 	  gfs_dyn_bfilt_def.o   	\
 	  gfs_dyn_glats.o	 \
+	  gfs_dyn_dfi_mod.o	 \
           gfsio_module.o                \
 	  gfsio_def.o	                \
 	  wrtout_dynamics.o 
@@ -105,6 +106,7 @@ OBJS   = \
 	omega_hyb.o          	\
 	omega_gch.o          	\
 	do_dynamics_mod.o          \
+	gfs_dficoll_dynamics.o     \
 	do_dynamics_one_loop.o       \
 	do_dynamics_two_loop.o       \
 	model_to_common_vars.o      \

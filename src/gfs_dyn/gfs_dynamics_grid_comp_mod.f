@@ -13,6 +13,7 @@
 !                   => export state is pointed to grid_gr in init step
 !                   => grid_gr is pointed to import state in run step
 !  oct 17 2009      Sarah Lu, add debug print to check imp/exp state
+!  nov 09 2009      Jun Wang, add grid_gr_dfi for digital filter
 !
 !                           
 !
@@ -568,6 +569,7 @@
 !  july     2007     hann-ming henry juang
 !  oct 12 2009       Sarah Lu, point grid_gr to import state once and for all
 !  oct 17 2009       Sarah Lu, debug print added to track imp/exp states
+!  nov 09 2009       Jun Wang, get data from grid_gr_dfi to internal state for dfi
 !
 ! !interface:
 !
@@ -608,6 +610,7 @@
       integer                                     :: rcfinal     
 !jw
       type(esmf_state)                  :: imp_state_write  !<-- The write gc import state
+      logical,save                           :: first_reset=.true.
 
 !! debug print for tracking import and export state (Sarah Lu)
       TYPE(ESMF_Field)                   :: ESMFField             !chlu_debug
@@ -619,7 +622,7 @@
       integer, parameter                 :: item_count = 3        !chlu_debug
       character(5) :: item_name(item_count)                       !chlu_debug
       character(20) :: vname                                      !chlu_debug
-      data item_name/'t','u','v'/                 !chlu_debug
+      data item_name/'t','u','v','p'/                 !chlu_debug
 
       localPE = 0                                                 !chlu_debug
 
@@ -648,19 +651,33 @@
 !------------------------------------------------------------------
       call esmf_logwrite("esmf import state to internal state", 	&
                         esmf_log_info, rc = rc1)
+!jw
+      int_state%reset_step = .false.
+      if( int_state%ndfi>0 .and. int_state%kdt>int_state%ndfi .and.     &    
+          first_reset) then
+        int_state%reset_step = .true.
+        first_reset=.false.
+      endif
+      print *,'in grid comp,ndfi=',int_state%ndfi,'kdt=',int_state%kdt,  &
+       'ndfi=',int_state%ndfi,'first_reset=',first_reset
 
       if( .not. int_state%start_step ) then
 !*      call gfs_dynamics_import2internal(gc_gfs_dyn, imp_gfs_dyn, 	&
 !*                                        int_state, rc1)
-
-        call gfs_dynamics_import2internal_mgrid(imp_gfs_dyn, int_state, rc1)  
+        if(.not.int_state%reset_step) then
+          print *,'get internal from imp_gfs_dyn'
+          call gfs_dynamics_import2internal_mgrid(imp_gfs_dyn,          &
+               int_state, rc1)  
+        else
+          print *,'get internal from imp_gfs_dyn and exp_gfs_dyn'
+          call gfs_dynamics_import2internal_mgrid(imp_gfs_dyn,          &
+               int_state, rc1, exp_gfs_dyn)  
+        endif
 
         call gfs_dynamics_err_msg(rc1,'esmf import state to internal state',rc)
 
         idate(1:4)=int_state%fhour_idate(1,2:5)
       endif
-
-      call gfs_dynamics_err_msg(rc1,'esmf import state to internal state',rc)
 
 !! debug print starts here  (Sarah Lu) -----------------------------------
       lab_if_ckprnt_im : if ( ckprnt .and. (int_state%me ==0) ) then      !chlu_debug
@@ -829,6 +846,7 @@
                             ,name     ='pdryini'                        &  !<-- Name of the var
                             ,value    =int_state%pdryini                &  !<-- The var being inserted into the import state
                             ,rc       =RC1)
+      print *,'in run grid comp,pdryini=',int_state%pdryini,'kdt=',int_state%kdt
      call gfs_dynamics_err_msg(rc1,'set pdryini in imp_state_write',rc)
 !
 !*******************************************************************

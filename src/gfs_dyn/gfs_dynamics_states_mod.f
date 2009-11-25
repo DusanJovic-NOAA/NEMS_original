@@ -5,6 +5,8 @@
 !  february 2007 	hann-ming henry juang  
 !			for gfs dynamics and gaussian grid data.
 !  2009/10/05           Sarah Lu, grid_gr unfolded to 3D
+!  nov 2009             Jun wang 
+!                       set digital filter variables to export state
 !
 !!uses:
 !

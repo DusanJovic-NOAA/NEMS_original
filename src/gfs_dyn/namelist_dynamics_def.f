@@ -4,7 +4,7 @@
       implicit none
       
       integer nsres,nsout,igen,ngptc
-      real(kind=kind_evod) fhrot,fhmax,fhout,fhres,fhini
+      real(kind=kind_evod) fhrot,fhmax,fhout,fhres,fhini,fhdfi
       real(kind=kind_evod) filta,ref_temp
       logical lsfwd
       logical shuff_lats_a,reshuff_lats_a

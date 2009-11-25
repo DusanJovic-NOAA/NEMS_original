@@ -43,8 +43,6 @@
       data  icount/0/
       integer maxlats_comp
 !
-      print *,' enter grid collect '
-
       ngridg=1
       if(allocated(buff_mult_pieceg)) then
          continue
@@ -64,6 +62,8 @@
       buffi(:,:) = psg(:,:)
       CALL uninterpreg(1,kmsk,buffo,buffi,global_lats_a,lonsperlat,
      & buff_mult_pieceg(1,1,2) )
+!      print *,'in grid collect, buff_psg(135,23)=',
+!     &  buff_mult_pieceg(135,23,2)
 !
       do k=1,levs
         buffi(:,:) = dpg(:,:,k)

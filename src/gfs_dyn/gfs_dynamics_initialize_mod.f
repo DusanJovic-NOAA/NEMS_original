@@ -17,6 +17,7 @@
 !  Oct 04  2009 sarah lu         init xlon, xlat, lats_nodes_a_fix
 !  Oct 05  2009 sarah lu         grid_gr unfolded from 2D to 3D
 !  Oct 16  2009 sarah lu         initialize gfs_dyn_tracer
+!  november 2009 j. wang         grid_gr_dfi for digital filter
 !
 !
 ! !interface:
@@ -76,7 +77,8 @@
                            gis_dyn%ntoz,   gis_dyn%ntcw, gis_dyn%ncld, 	&
                            gis_dyn%spectral_loop,               	&
                      me,   gis_dyn%nam_gfs_dyn%nlunit, 			&
-                           gis_dyn%nam_gfs_dyn%gfs_dyn_namelist)
+                           gis_dyn%nam_gfs_dyn%gfs_dyn_namelist,        &
+                           gis_dyn%ndfi)                                     ! jw
 !      write(0,*)'after compns_dyn,me=',me,'ntoz=',gis_dyn%ntoz
 !
       call get_tracer_const(gis_dyn%ntrac,me,gis_dyn%nam_gfs_dyn%nlunit)
@@ -133,7 +135,6 @@
       lnted  = lnte 
       lntod  = lnto 
 
-!jw      ngrids_gg       = 2+levs*(4+ntrac)
       ngrids_gg       = 2+levs*(5+ntrac)
       gis_dyn%lnt2    = lnt2
 
@@ -556,13 +557,57 @@
 !      write(0,*)'after allocate lonf=',lonf,'lats_node_a_max=',lats_node_a_max, &
 !       'ngrids_gg=',ngrids_gg
 !!
-!jw      endif !(.not.liope.or.icolor.ne.2)
+!** jw allocate digital filter vars
+      print *,'in init, dfi,ntrac=',ntrac,'ntoz=',ntoz,'ntcw=',ntcw
+      gis_dyn%kdt=0
+      gis_dyn%grid_gr_dfi%z_imp=0;gis_dyn%grid_gr_dfi%ps_imp=0
+      gis_dyn%grid_gr_dfi%z_imp=0;gis_dyn%grid_gr_dfi%ps_imp=0
+      gis_dyn%grid_gr_dfi%temp_imp=0;gis_dyn%grid_gr_dfi%u_imp=0
+      gis_dyn%grid_gr_dfi%v_imp=0;gis_dyn%grid_gr_dfi%tracer_imp=0
+      gis_dyn%grid_gr_dfi%p_imp=0;gis_dyn%grid_gr_dfi%dp_imp=0
+      gis_dyn%grid_gr_dfi%dpdt_imp=0
+      if(gis_dyn%ndfi>0.and. gis_dyn%esmf_sta_list%z_import==1) then
+        gis_dyn%grid_gr_dfi%z_imp=1
+        allocate( gis_dyn%grid_gr_dfi%hs(lonf,lats_node_a_max,1))
+      endif
+      if(gis_dyn%ndfi>0.and. gis_dyn%esmf_sta_list%ps_import==1) then
+        gis_dyn%grid_gr_dfi%ps_imp=1
+        allocate( gis_dyn%grid_gr_dfi%ps(lonf,lats_node_a_max,1))
+      endif
+      if(gis_dyn%ndfi>0.and. gis_dyn%esmf_sta_list%temp_import==1) then
+        gis_dyn%grid_gr_dfi%temp_imp=1
+        allocate( gis_dyn%grid_gr_dfi%t(lonf,lats_node_a_max,levs))
+      endif
+      if(gis_dyn%ndfi>0.and. gis_dyn%esmf_sta_list%u_import==1) then
+        gis_dyn%grid_gr_dfi%u_imp=1
+        allocate( gis_dyn%grid_gr_dfi%u(lonf,lats_node_a_max,levs))
+      endif
+      if(gis_dyn%ndfi>0.and. gis_dyn%esmf_sta_list%v_import==1) then
+        gis_dyn%grid_gr_dfi%v_imp=1
+        allocate( gis_dyn%grid_gr_dfi%v(lonf,lats_node_a_max,levs))
+      endif
+      if(gis_dyn%ndfi>0.and. gis_dyn%esmf_sta_list%tracer_import==1) then
+        gis_dyn%grid_gr_dfi%tracer_imp=1
+        allocate( gis_dyn%grid_gr_dfi%tracer(lonf,lats_node_a_max,ntrac*levs))
+      endif
+      if(gis_dyn%ndfi>0.and. gis_dyn%esmf_sta_list%p_import==1) then
+        gis_dyn%grid_gr_dfi%p_imp=1
+        allocate( gis_dyn%grid_gr_dfi%p(lonf,lats_node_a_max,levs))
+      endif
+      if(gis_dyn%ndfi>0.and. gis_dyn%esmf_sta_list%dp_import==1) then
+        gis_dyn%grid_gr_dfi%dp_imp=1
+        allocate( gis_dyn%grid_gr_dfi%dp(lonf,lats_node_a_max,levs))
+      endif
+      if(gis_dyn%ndfi>0.and. gis_dyn%esmf_sta_list%dpdt_import==1) then
+        gis_dyn%grid_gr_dfi%dpdt_imp=1
+        allocate( gis_dyn%grid_gr_dfi%dpdt(lonf,lats_node_a_max,levs))
+      endif
 !
-!##jws allocate output vars
+!**jws allocate output vars
       allocate(buff_mult_pieceg(lonf,lats_node_a_max,ngrids_gg))
       buff_mult_pieceg=0.
       adiabatic=gis_dyn%adiabatic
-!##jwe
+!**jwe
 
 !!
       allocate (      gis_dyn%fhour_idate(1,5) )

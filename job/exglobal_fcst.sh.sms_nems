@@ -21,8 +21,10 @@
 #                             The script can run up to 21 ENS members
 #                             concurrently.
 # 2006-06     Shrinivas Moorthi : Added default PE$n values to 0
+# 2009-05     Jun Wang, add write grid component option
 # 2009-10     Sarah Lu, ESMF_State_Namelist modified:
 #                       tracer added; (q, oz, cld) removed
+# 2009-11     Jun Wang, activate reduced grid option and digital filter option
 
 #
 # Usage:  global_forecast.sh SIGI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO
@@ -386,6 +388,7 @@ export ADIAB=${ADIAB:-.false.}
 export nsout=${nsout:-0}
 export NUM_FILE=${NUM_FILE:-3}
 export QUILTING=${QUILTING:-.true.}
+export REDUCED_GRID=${REDUCED_GRID:-.true.}
 #
 export EXPLICIT=${EXPLICIT:-.false.}
 export NON_ITER_SEMI_LAGRANGIAN_FV=${NON_ITER_SEMI_LAGRANGIAN_FV:-.false.}
@@ -910,10 +913,10 @@ EOF
 cat  > atm_namelist <<EOF
  &nam_dyn
   FHOUT=$FHOUT, FHMAX=$FHMAX, IGEN=$IGEN, DELTIM=$DELTIM,
-  FHRES=$FHRES, FHROT=$FHROT, nsout=$nsout,
+  FHRES=$FHRES, FHROT=$FHROT, FHDFI=$FHDFI, nsout=$nsout,
   spectral_loop=$SPECTRAL_LOOP, explicit=$EXPLICIT,
   nxpt=1, nypt=2, jintmx=2, lonf=$LONF, latg=$LATG,
-  jcap=$JCAP, levs=$LEVS,  levr=$LEVR,
+  jcap=$JCAP, levs=$LEVS,  levr=$LEVR, reduced_grid=$REDUCED_GRID,
   ntrac=$NTRAC, ntoz=$NTOZ, ntcw=$NTCW, ncld=$NCLD,
   ngptc=$NGPTC, hybrid=$HYBRID, tfiltc=$TFILTC,
   gen_coord_hybrid=$GEN_COORD_HYBRID, zflxtvd=$ZFLXTVD,
@@ -923,7 +926,7 @@ cat  > atm_namelist <<EOF
   FHRES=$FHRES, FHROT=$FHROT, FHCYC=$FHCYC,
   FHZER=$FHZER, FHLWR=$FHLWR, FHSWR=$FHSWR,nsout=$nsout,
   nxpt=1, nypt=2, jintmx=2, lonr=$LONR, latr=$LATR,
-  jcap=$JCAP, levs=$LEVS, levr=$LEVR,
+  jcap=$JCAP, levs=$LEVS, levr=$LEVR, reduced_grid=$REDUCED_GRID,
   ntrac=$NTRAC, ntoz=$NTOZ, ntcw=$NTCW, ncld=$NCLD,
   lsoil=$LSOIL, nmtvr=$NMTVR,
   ngptc=$NGPTC, hybrid=$HYBRID, tfiltc=$TFILTC,

@@ -1,5 +1,5 @@
       SUBROUTINE do_dynamics_one_loop(deltim,kdt,PHOUR,
-     &                 TRIE_LS,TRIO_LS,GRID_GR,
+     &                 TRIE_LS,TRIO_LS,GRID_GR,grid_gr_dfi,              ! jw
      &                 LS_NODE,LS_NODES,MAX_LS_NODES,
      &                 LATS_NODES_A,GLOBAL_LATS_A,
      &                 LONSPERLAT,
@@ -14,7 +14,7 @@
      &                 SYN_GR_A_2,DYN_GR_A_2,ANL_GR_A_2,
      &                 LSLAG,pwat,ptot,
      &                 pdryini,nblck,ZHOUR,N1,N4,
-     &                 LSOUT,COLAT1,CFHOUR1,
+     &                 LSOUT,ldfi,COLAT1,CFHOUR1,                          ! jw
      &                 start_step,reset_step,end_step)
 cc
       use gfs_dyn_resol_def
@@ -24,6 +24,7 @@ cc
       use gfs_dyn_date_def
       use namelist_dynamics_def
       use gfs_dyn_mpi_def
+      use gfs_dyn_dfi_mod, only : gfs_dfi_grid_gr
 
       use do_dynamics_mod
 
@@ -33,6 +34,9 @@ cc
       INTEGER,INTENT(IN):: LONSPERLAT(LATG),N1,N4
       REAL(KIND=KIND_EVOD),INTENT(IN):: deltim,PHOUR
       REAL(KIND=KIND_EVOD),INTENT(INOUT):: ZHOUR
+!jw
+      type(gfs_dfi_grid_gr),intent(inout) :: grid_gr_dfi
+      logical,intent(in)  :: ldfi
 !!     
       INTEGER NBLCK
 !!!   LOTALL=13*LEVS+3*LEVH+8
@@ -157,7 +161,7 @@ c timings
 ! if the first step from internal state, prepare syn for nonlinear 
 ! ----- this section is called once only -------
 ! --------------------------------------------------------------
-!       print *,' start step from internal state '
+!       print *,' start step from internal state,kdt=',kdt 
 
         fwd_step = .true.
         dt  = deltim*0.5
@@ -186,7 +190,9 @@ c timings
 ! if it is reset step to reset internal state to be import state
 ! ----- this section is called once only -------
 ! --------------------------------------------------------------
-!       print *,' reset internal values by import for all '
+!       print *,' reset internal values by import for all,grid_gr= '
+!     &  ,'kdt=',kdt
+!     &  ,grid_gr(1:3,g_zq)
 
         fwd_step = .true.
         dt  = deltim*0.5
@@ -210,7 +216,6 @@ c timings
 !
 !set n and n-1 time level values as import
 ! spectral
-!       print *,' set time level n to time level n-1 '
         call do_dynamics_spectn2c(trie_ls,trio_ls)
         call do_dynamics_spectn2m(trie_ls,trio_ls)
 ! grid
@@ -238,7 +243,7 @@ c timings
 ! -----------------------------------------------------------
 ! compute total tendency (linear and nonlinea, after physics if any)
 !
-!        print *,'in one loop,gridt2anl, me_l_0=',me_l_0
+!        print *,'in one loop,gridt2anl, me_l_0=',me_l_0,'kdt=',kdt
         call do_dynamics_gridt2anl(grid_gr,anl_gr_a_2,rdt2,
      &                             global_lats_a,lonsperlat)
 !
@@ -547,7 +552,16 @@ c timings
 !--------------------------------------------
 ! =====================================================================
 !--------------------------------------------
-      IF (lsout.and.kdt.ne.0) THEN
+!**jw digital filter state collect
+!--------------------------------------------
+!      print *,'in one loop,call gfs_dfi_coll,ldfi=',ldfi,'kdt=',kdt
+      IF (ldfi) THEN
+        call gfs_dficoll_dynamics(grid_gr,grid_gr_dfi)
+      ENDIF
+!
+!--------------------------------------------
+!jw      IF (lsout.and.kdt.ne.0) THEN
+      IF (lsout) THEN
 !--------------------------------------------
 CC
         CALL f_hpmstart(32,"wrtout_dynamics")
