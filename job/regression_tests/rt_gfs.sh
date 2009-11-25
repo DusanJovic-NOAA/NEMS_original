@@ -5,7 +5,7 @@ set -ua
 # Make configure and run files
 ####################################################################################################
 
-JBNME=NEMS_RT_${TEST_NR}
+JBNME=NEMS_RT_${TEST_NR}_$$
 
 cat gfs_ll.IN       | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_CLASS_:${CLASS}:g   \
@@ -36,8 +36,8 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
 mkdir -p ${RUNDIR}
 cp gfs_configfile ${RUNDIR}/configure_file
 cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
-cp ${RTPWD}/GFS/gfsanl.2009072400 ${RUNDIR}/.
-cp ${RTPWD}/GFS/sfcanl.2009072400 ${RUNDIR}/.
+cp ${RTPWD}/GFS_NODFI/gfsanl.2009072400 ${RUNDIR}/.
+cp ${RTPWD}/GFS_NODFI/sfcanl.2009072400 ${RUNDIR}/.
 
 ####################################################################################################
 # Submit test
