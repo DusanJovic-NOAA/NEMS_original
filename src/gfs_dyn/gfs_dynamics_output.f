@@ -16,6 +16,10 @@
 !*    (1) THE APPROPRIATE DATA LIST PRECEDING THE 'CONTAINS' STATEMENT
 !*    (2) 'THE DYNAMICS INTERNAL STATE POINTER BLOCK'
 !*        IN SUBROUTINE POINT_DYNAMICS_OUPUT
+!
+!***  REVISION LOG:
+!***  Nov 23 2009, Sarah Lu   Add gocart species to DYN_INT_STATE_3D_R_DIAB
+!***
 !-----------------------------------------------------------------------
 !
       USE ESMF_Mod
@@ -23,6 +27,8 @@
       USE gfs_dynamics_internal_state_mod,ONLY: gfs_dynamics_internal_state 
 
       use gfs_dynamics_err_msg_mod
+      use gfs_dyn_tracer_config,  ONLY: gfs_dyn_tracer      ! generalized tracer
+
 !
 !-----------------------------------------------------------------------
 !
@@ -231,27 +237,38 @@
 !***  Diabatic forecast output
 !------------------------------
 !
+!  generalized tracer: 
+!  DYN_INT_STATE_3D_R_DIAB is determined in run-time
+!
       CHARACTER(10),DIMENSION(3,MAX_KOUNT),TARGET ::                    &  
 !
-                                            DYN_INT_STATE_3D_R_DIAB     &  
+                                             DYN_INT_STATE_3D_R_DIAB     
+!                                            DYN_INT_STATE_3D_R_DIAB     &  
+!!
+!       =RESHAPE((/                                                      &
+!!                              -----------------------------------------
+!!
+!                               'dpres     ', 'OGFS_SIG  ', 'levs      ' &  !<-- The physics counterparts of these variables
+!                              ,'pres      ', 'OGFS_SIG  ', 'levs      ' &  !<-- The physics counterparts of these variables
+!                              ,'ugrd      ', 'OGFS_SIG  ', 'levs      ' &  !    are being designated for history output.
+!                              ,'vgrd      ', 'OGFS_SIG  ', 'levs      ' &  !    This assumes that history output always
+!                              ,'tmp       ', 'OGFS_SIG  ', 'levs      ' &  !    immediately follows a call to the Physics.
+!                              ,'spfh      ', 'OGFS_SIG  ', 'levs      ' &  !
+!                              ,'o3mr      ', 'OGFS_SIG  ', 'levs      ' &  !<--
+!                              ,'clwmr     ', 'OGFS_SIG  ', 'levs      ' &
+!                              ,'du001     ', 'OGFS_SIG  ', 'levs      ' &  !<-- gocart species
+!                              ,'du002     ', 'OGFS_SIG  ', 'levs      ' &
+!                              ,'du003     ', 'OGFS_SIG  ', 'levs      ' &
+!                              ,'du004     ', 'OGFS_SIG  ', 'levs      ' &
+!                              ,'du005     ', 'OGFS_SIG  ', 'levs      ' &
 !
-       =RESHAPE((/                                                      &
-!                              -----------------------------------------
-!
-                               'dpres     ', 'OGFS_SIG  ', 'levs      ' &  !<-- The physics counterparts of these variables
-                              ,'pres      ', 'OGFS_SIG  ', 'levs      ' &  !<-- The physics counterparts of these variables
-                              ,'ugrd      ', 'OGFS_SIG  ', 'levs      ' &  !    are being designated for history output.
-                              ,'vgrd      ', 'OGFS_SIG  ', 'levs      ' &  !    This assumes that history output always
-                              ,'tmp       ', 'OGFS_SIG  ', 'levs      ' &  !    immediately follows a call to the Physics.
-                              ,'spfh      ', 'OGFS_SIG  ', 'levs      ' &  !
-                              ,'o3mr      ', 'OGFS_SIG  ', 'levs      ' &  !<--
-                              ,'clwmr     ', 'OGFS_SIG  ', 'levs      ' &
-!
-!                              -----------------------------------------
-!
-         /)                                                             &
-        ,(/3,MAX_KOUNT/)                                                &
-        ,(/'**********', '**********', '**********'/))
+!!
+!!                              -----------------------------------------
+!!
+!         /)                                                             &
+!        ,(/3,MAX_KOUNT/)                                                &
+!        ,(/'**********', '**********', '**********'/))
+
 !
 !-------------------------------
 !***  Adiabatic forecast output
@@ -378,6 +395,7 @@
       TYPE(ESMF_FieldBundle),SAVE :: GFS_DYN_BUNDLE
 !
       character(esmf_maxstr)      :: MESSAGE_CHECK
+
 !
 !-----------------------------------------------------------------------
 !***  ESMF VERSIONS OF THE LOGICALS IN THE DYNAMICS INTERNAL STATE
@@ -641,6 +659,9 @@
       TYPE(ESMF_CopyFlag)    :: COPYFLAG=ESMF_DATA_REF
       TYPE(ESMF_Logical),TARGET :: LOG_ESMF    
       character(esmf_maxstr)      :: MESSAGE_CHECK
+
+! add local variables for generalized tracer
+      integer                     :: ii, ij, ik   
 !
 !-----------------------------------------------------------------------
 !***  BEGIN WITH THE INTEGER SCALARS.
@@ -890,6 +911,35 @@
 !***  INTO 2D Fields.
 !-----------------------------------------------------------------------
 !
+
+!! generalized tracer:
+!! set up DYN_INT_STATE_3D_R_DIAB(1:3,1:MAX_KOUNT)
+
+      DO II =1,MAX_KOUNT                                                 
+         DYN_INT_STATE_3D_R_DIAB(1:3,II) = '**********'
+      ENDDO
+
+!  fill in met fields
+      DYN_INT_STATE_3D_R_DIAB(1,1) = 'dpres     '
+      DYN_INT_STATE_3D_R_DIAB(1,2) = 'pres      '
+      DYN_INT_STATE_3D_R_DIAB(1,3) = 'ugrd      '
+      DYN_INT_STATE_3D_R_DIAB(1,4) = 'vgrd      '
+      DYN_INT_STATE_3D_R_DIAB(1,5) = 'tmp       '
+
+!  fill in tracer fields
+      II = 5
+      DO IJ=1, gfs_dyn_tracer%ntrac
+        DYN_INT_STATE_3D_R_DIAB(1,II+IJ) = gfs_dyn_tracer%vname(IJ)
+      ENDDO                                        
+      IK = II  + gfs_dyn_tracer%ntrac     
+
+!  fill in file type and level type
+      DO II = 1, IK
+        DYN_INT_STATE_3D_R_DIAB(2,II) = 'OGFS_SIG  '
+        DYN_INT_STATE_3D_R_DIAB(3,II) = 'levs      '
+      ENDDO
+!    
+
       IF(.NOT.int_state%ADIABATIC)THEN
         DYN_INT_STATE_3D_R=>DYN_INT_STATE_3D_R_DIAB(1:3,1:MAX_KOUNT)       !<-- Select diabatic output
       ELSE

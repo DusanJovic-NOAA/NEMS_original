@@ -6,10 +6,10 @@ include ../../ush/compile_settings
 #
 all: 
 	cd $(GFS_UTIL) && gmake 
+	cd $(GOCART) && export ESMADIR=`pwd` && gmake -C src install GOCART_MODE=$(GOCART_MODE)
 	cd $(GFS_DYN) && gmake 
 	cd $(GFS_PHY) && gmake 
 	cd $(GFS_IO) && gmake 
-	cd $(GOCART) && export ESMADIR=`pwd` && gmake -C src install GOCART_MODE=$(GOCART_MODE)
 	cd $(ATM) && gmake 
 	/bin/rm -f $(EXEDIR)/GFS_NEMS.x 
 	$(CPP) $(CPPFLAGS) $(ROOT).F90 > $(ROOT).f90

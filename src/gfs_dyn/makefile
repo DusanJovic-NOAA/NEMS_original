@@ -249,3 +249,6 @@ gfs_dynamics_finalize_mod.o:	 gfs_dynamics_finalize_mod.f
 gfs_dynamics_grid_comp_mod.o:	 gfs_dynamics_grid_comp_mod.f
 		$(FC) $(FFLAG90) -c gfs_dynamics_grid_comp_mod.f
 
+### use FFLAGSDB compile option
+gfs_dyn_tracer_config.o:	 gfs_dyn_tracer_config.f
+		$(FC) $(FFLAGSDB) -c gfs_dyn_tracer_config.f

@@ -419,4 +419,8 @@ gfs_physics_finalize_mod.o:     gfs_physics_finalize_mod.f
                                                                                 
 gfs_physics_grid_comp_mod.o:    gfs_physics_grid_comp_mod.f
 		$(FC) $(FFLAG90) -c gfs_physics_grid_comp_mod.f
-                                                                                
+
+### use FFLAGSDB compile option
+gfs_phy_tracer_config.o:	gfs_phy_tracer_config.f
+		$(FC)  $(FFLAGSDB) -c gfs_phy_tracer_config.f
+               

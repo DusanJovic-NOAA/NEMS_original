@@ -5,12 +5,12 @@
 #
 include ../../ush/compile_settings
 all: 
+	cd $(GOCART) && export ESMADIR=`pwd` && gmake -C src install GOCART_MODE=$(GOCART_MODE)
 	_GFS_PHYSICS_
 	cd $(NMM_UTIL) && gmake
 	cd $(NMM_IO) && gmake 
 	cd $(NMM_DYN) && gmake  
 	cd $(NMM_PHY) && gmake 
-	cd $(GOCART) && export ESMADIR=`pwd` && gmake -C src install GOCART_MODE=$(GOCART_MODE)
 	cd $(ATM) && gmake
 	/bin/rm -f $(EXEDIR)/NMM_NEMS.x
 	$(CPP) $(CPPFLAGS) $(ROOT).F90 > $(ROOT).f90

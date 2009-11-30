@@ -7,6 +7,12 @@
      &                   global_lats_a,lats_nodes_a,lonsperlat,cfile,
      &                   epse,epso,plnew_a,plnow_a,
      &                   plnev_a,plnod_a,pwat,ptot)
+
+!!
+!! Revision history:
+!  Nov 23 2009    Sarah Lu, tracer read-in is generalized (loop through ntrac, with
+!                 tracer name specified in gfs_dyn_tracer_config)
+!  
  
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
@@ -20,6 +26,8 @@
      &,             cpd => con_cp
       use gfsio_module
       use gfsio_def
+      use gfs_dyn_tracer_config, ONLY : gfs_dyn_tracer   ! generalized tracer
+
 !
       IMPLICIT NONE
       character*(*) cfile
@@ -76,6 +84,12 @@
       REAL(KIND=KIND_IO4)   VTID,RUNID4,fhour4,pdryini4,XNCLD,xgf
       REAL(KIND=KIND_grid)  PDRYINI
       real(kind=kind_io4), allocatable ::  vcoord4(:,:)
+! for generalized tracers
+      integer                      nreci
+      character*8               :: vname
+      character*8, allocatable  :: recnamei(:)
+      character*8, allocatable  :: reclevtypi(:)
+      integer,     allocatable  :: reclevi(:)
 !     integer             idusr
 !
 !     type (gfsio_gfile) gfile
@@ -146,6 +160,20 @@
       vcoord(:,1:nvcoord) = vcoord4(:,1:nvcoord)
 !     if (me .eq. 0) print *,' vcoord=',vcoord(:,1:nvcoord)
       deallocate (vcoord4)
+!
+! for generalized tracers
+! retrieve nreci, recnamei, reclevtypi, and reclevi
+      call gfsio_getfilehead(gfile_in,iret=iret,nrec=nreci)
+      if (me == 0) then
+        print *, 'LU_TRC: nreci =', nreci, iret
+      endif
+
+      allocate (recnamei(nreci))
+      allocate (reclevtypi(nreci))
+      allocate (reclevi(nreci))
+      call gfsio_getfilehead(gfile_in,iret=iret,recname=recnamei,
+     &                       reclevtyp=reclevtypi,reclev=reclevi)
+
 !
       if (gen_coord_hybrid) then                                        ! hmhj
 
@@ -275,6 +303,7 @@
         ntcwi = 0
         ncldi = 0
       endif
+
 !
 !
       IF (me.eq.0) THEN
@@ -319,38 +348,60 @@
 !  Initial Tracers with zero
 !
       rqg(:,:,:) = 0.0
+
+!! Generalized tracers: 
+!! Loop through ntrac to read in met + chem tracers
+!*
+      do n = 1, ntrac
+        vname = trim(gfs_dyn_tracer%vname(n))
+        if(me==0) print *,'LU_TRC: initialize ',n,vname
+        do k=1,levs
+          call gfsio_readrecv(gfile_in,trim(vname),
+     &                       'layer',k,gfsio_data,iret=iret)
+          if(iret == 0) then
+            if(me==0) print *,'LU_TRC: tracer read in ok -',
+     &                gfs_dyn_tracer%vname(n),k
+            call split2d(gfsio_data,buffo,global_lats_a)
+            CALL interpred(1,kmsk,buffo,rqg(1,1,k+(n-1)*levs),
+     &                     global_lats_a,lonsperlat)
+          else
+            if(me==0) print *,'LU_TRC: tracer not found in input; ',
+     &         'set chem tracer to default values',me,k
+          endif
+        enddo
+      enddo       
 !
-!  Read q
-      do k=1,levs
-        call gfsio_readrecv(gfile_in,'spfh','layer',k,gfsio_data,iret)
-        call split2d(gfsio_data,buffo,global_lats_a)
-        CALL interpred(1,kmsk,buffo,rqg(1,1,k),global_lats_a,lonsperlat)
-      enddo
-!      write(0,*)'after interpred q,levs=',levs,'levh=',levh,
-!     &     'ntozi=',ntozi,ntoz,'ntcwi=',ntcwi
-!  Read O3
-      if (ntozi .gt. 0) then
-        do k=1,levs
-          call gfsio_readrecv(gfile_in,'o3mr','layer',k,gfsio_data,
-     &                                                  iret)
-          call split2d(gfsio_data,buffo,global_lats_a)
-          CALL interpred(1,kmsk,buffo,rqg(1,1,k+(ntozi-1)*levs),
-     &                                global_lats_a,lonsperlat)
-!       write(0,*)'after interpred o3mr, sfc,L=',k,'max=',
-!     &  maxval(rqg(1:lonf,1:lats_node_a,k+(ntozi-1)*levs)),
-!     &  'min=',maxval(rqg(1:lonf,1:lats_node_a,k+(ntozi-1)*levs))
-        enddo
-      endif
-!  Read clw
-      if (ntcwi .gt. 0) then
-        do k=1,levs
-          call gfsio_readrecv(gfile_in,'clwmr','layer',k,gfsio_data,
-     &                                                         iret)
-          call split2d(gfsio_data,buffo,global_lats_a)
-          CALL interpred(1,kmsk,buffo,rqg(1,1,k+(ntcwi-1)*levs),
-     &                                global_lats_a,lonsperlat)
-        enddo
-      endif
+!!  Read q
+!      do k=1,levs
+!        call gfsio_readrecv(gfile_in,'spfh','layer',k,gfsio_data,iret)
+!        call split2d(gfsio_data,buffo,global_lats_a)
+!        CALL interpred(1,kmsk,buffo,rqg(1,1,k),global_lats_a,lonsperlat)
+!      enddo
+!!      write(0,*)'after interpred q,levs=',levs,'levh=',levh,
+!!     &     'ntozi=',ntozi,ntoz,'ntcwi=',ntcwi
+!!  Read O3
+!      if (ntozi .gt. 0) then
+!        do k=1,levs
+!          call gfsio_readrecv(gfile_in,'o3mr','layer',k,gfsio_data,
+!     &                                                  iret)
+!          call split2d(gfsio_data,buffo,global_lats_a)
+!          CALL interpred(1,kmsk,buffo,rqg(1,1,k+(ntozi-1)*levs),
+!     &                                global_lats_a,lonsperlat)
+!!       write(0,*)'after interpred o3mr, sfc,L=',k,'max=',
+!!     &  maxval(rqg(1:lonf,1:lats_node_a,k+(ntozi-1)*levs)),
+!!     &  'min=',maxval(rqg(1:lonf,1:lats_node_a,k+(ntozi-1)*levs))
+!        enddo
+!      endif
+!!  Read clw
+!      if (ntcwi .gt. 0) then
+!        do k=1,levs
+!          call gfsio_readrecv(gfile_in,'clwmr','layer',k,gfsio_data,
+!     &                                                         iret)
+!          call split2d(gfsio_data,buffo,global_lats_a)
+!          CALL interpred(1,kmsk,buffo,rqg(1,1,k+(ntcwi-1)*levs),
+!     &                                global_lats_a,lonsperlat)
+!        enddo
+!      endif
 !
 !   Convert from Gaussian grid to spectral space
 !   including converting to model_uvtp if necessary

@@ -8,6 +8,7 @@
 ! !REVISION HISTORY:
 !
 !  March 2007      Shrinivas Moorthi Initial code.
+!  Nov 2009        Sarah Lu, add rain and rainc
 !
 ! !INTERFACE:
 !
@@ -131,6 +132,8 @@ allocate(                                  &
           flx_fld%SBSNOA  (dim1,dim2), &
           flx_fld%SNOWCA  (dim1,dim2), &
           flx_fld%SOILM   (dim1,dim2), &
+          flx_fld%RAIN    (dim1,dim2), &
+          flx_fld%RAINC   (dim1,dim2), &
           stat=iret)
 
     if(iret.ne.0) iret=-4

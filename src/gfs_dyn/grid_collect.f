@@ -1,7 +1,11 @@
       SUBROUTINE grid_collect
      &        (zsg,psg,uug,vvg,teg,rqg,dpg,
      &        global_lats_a,lonsperlat)
+!!
+!! Revision history:
+!  Nov 23 2009    Sarah Lu, comment out 4D tracer
 !
+
       use gfs_dyn_resol_def
       use gfs_dyn_mod_state, only: buff_mult_pieceg,ngrid,ngridg
       use gfs_dyn_layout1
@@ -468,25 +472,30 @@ cc
             endif
            endif
           enddo
-          if(ntrac>ntcw) then
-           do j=1,Kount
-            if(trim(DYN_INT_STATE_4D_R(2,j)).eq.'OGFS_SIG') then
-             if(trim(DYN_INT_STATE_4D_R(3,j))=='levs')then
-              NDIM3=levs
-             elseif(trim(DYN_INT_STATE_4D_R(3,j))=='levsp1')then
-              NDIM3=levs+1
-             endif
-             write(tracer,'("_",i2)') j
 
-             do i=1,NDIM3
-                recname(N2DR+1)=trim(DYN_INT_STATE_4D_R(1,i))//TRACER
-                reclevtyp(N2DR+1)='mid layer'
-                reclev(N2DR+1)=i
-                N2DR=N2DR+1
-             enddo
-            Endif
-           enddo
-          endif
+!! generalized tracers:
+!  comment out the DYN_INT_STATE_4D_R, the met+chem tracers are included
+!  in DYN_INT_STATE_3D_R_DIAB
+
+!          if(ntrac>ntcw) then
+!           do j=1,Kount
+!            if(trim(DYN_INT_STATE_4D_R(2,j)).eq.'OGFS_SIG') then
+!             if(trim(DYN_INT_STATE_4D_R(3,j))=='levs')then
+!              NDIM3=levs
+!             elseif(trim(DYN_INT_STATE_4D_R(3,j))=='levsp1')then
+!              NDIM3=levs+1
+!             endif
+!             write(tracer,'("_",i2)') j
+
+!             do i=1,NDIM3
+!                recname(N2DR+1)=trim(DYN_INT_STATE_4D_R(1,i))//TRACER
+!                reclevtyp(N2DR+1)='mid layer'
+!                reclev(N2DR+1)=i
+!                N2DR=N2DR+1
+!             enddo
+!            Endif
+!           enddo
+!          endif
 !
           idpp  = 0
           idusr = 0

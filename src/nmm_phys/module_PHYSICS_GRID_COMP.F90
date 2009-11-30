@@ -20,6 +20,7 @@
 !   2009-07-01  Vasic   - Added GFS physics package
 !   2009-08-10  Black   - Merge with nest code
 !   2009-11-03  W. Wang - Remove WRF driver and flipping (for Ferrier)
+!   2009-11-24  Sarah Lu -- RAIN and RAINC added to GBPHYS arguments
 !
 !-----------------------------------------------------------------------
 !
@@ -869,6 +870,7 @@
       INTEGER ,DIMENSION(2)                        :: NCW
       REAL (KIND=KDBL)                             :: CCWF
       REAL (KIND=KDBL) ,DIMENSION(1)               :: BENGSH, GESHEM, TPRCP, SRFLAG, SHDMIN, SHDMAX, CANOPY
+      REAL (KIND=KDBL) ,DIMENSION(1)               :: RAIN, RAINC
       REAL (KIND=KDBL) ,DIMENSION(1)               :: ACV, ACVB, ACVT
       REAL (KIND=KDBL) ,DIMENSION(2)               :: FLGMIN
       REAL (KIND=KDBL) ,DIMENSION(3)               :: CRTRH
@@ -2176,7 +2178,8 @@
            DQSFCI, GFLUXI,           SRUNOFF     , T1, Q1, U1, V1, ZLVL,       &
            EVBSA, EVCWA,                                                       &
            TRANSA, SBSNOA, SNOWCA,                                             &
-           SOILM, TSEA, SHELEG, SNCOVR, XTG3FCS, ZORL, CV, CVB, CVT,           &
+!          SOILM, TSEA, SHELEG, SNCOVR, XTG3FCS, ZORL, CV, CVB, CVT,           &
+           SOILM, RAIN, RAINC, TSEA, SHELEG, SNCOVR, XTG3FCS, ZORL, CV, CVB, CVT,&   
            SLMSK, XVEGFCS, CANOPY, F10M, XVETFCS, XSOTFCS, UUSTAR, FFMM, FFHH, &
            int_state%TMPMIN(I,J), int_state%TMPMAX(I,J), GESHEM,               &
            DUSFC, DVSFC, DTSFC, DQSFC, DLWSFC, ULWSFC, GFLUX,RUNOFF, EP,       &

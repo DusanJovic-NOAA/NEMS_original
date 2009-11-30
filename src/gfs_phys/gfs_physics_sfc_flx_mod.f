@@ -8,6 +8,7 @@
 ! !REVISION HISTORY:
 !
 !  March 2007      Shrinivas Moorthi Initial code.
+!  Nov 2009        Sarah Lu, add rain and rainc
 !
 ! !INTERFACE:
 !
@@ -109,5 +110,7 @@
     real(kind=kind_phys),pointer:: SBSNOA(:,:)=>null()
     real(kind=kind_phys),pointer:: SNOWCA(:,:)=>null()
     real(kind=kind_phys),pointer:: SOILM(:,:)=>null()
+    real(kind=kind_phys),pointer:: RAIN(:,:)=>null()
+    real(kind=kind_phys),pointer:: RAINC(:,:)=>null()
  end type Flx_Var_Data
  END MODULE gfs_physics_sfc_flx_mod

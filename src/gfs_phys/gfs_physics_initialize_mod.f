@@ -18,6 +18,7 @@
 !  oct 11 2009  Sarah Lu        grid_gr is replaced by grid_fld
 !  oct 12 2009  Sarah Lu        initialize start_step
 !  oct 16 2009  Sarah Lu        initialize gfs_phy_tracer
+!  nov 14 2009  Sarah Lu        flx_fld and sfc_fld allocation modified
 !
 ! !interface:
 !
@@ -385,8 +386,11 @@
       gis_phy%lats_node_r_max = lats_node_r_max
       gis_phy%lats_nodes_r_fix(:) =  gis_phy%lats_node_r_max 
 
-      call sfcvar_aldata(lonr, lats_node_r, lsoil, gis_phy%sfc_fld, ierr)
-      call flxvar_aldata(lonr, lats_node_r, gis_phy%flx_fld, ierr)
+!* change lats_node_r to lats_node_r_max to allow the pointer option
+!*    call sfcvar_aldata(lonr, lats_node_r, lsoil, gis_phy%sfc_fld, ierr)
+!*    call flxvar_aldata(lonr, lats_node_r, gis_phy%flx_fld, ierr)
+      call sfcvar_aldata(lonr, lats_node_r_max, lsoil, gis_phy%sfc_fld, ierr)
+      call flxvar_aldata(lonr, lats_node_r_max, gis_phy%flx_fld, ierr)
 
       print *,' check after sfc flx var_aldata ' 
 

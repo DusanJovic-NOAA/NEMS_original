@@ -11,6 +11,7 @@
 !! Code Revision:
 !! Oct 11 2009       Sarah Lu, grid_gr replaced by gri_fld
 !! Ott 16 2009       Sarah Lu, grid_fld%tracers used
+!! Nov 18 2009       Sarah Lu, rain/rainc added to gbphys call arg
 !!
 ! #include "f_hpm.h"
 !!
@@ -393,6 +394,7 @@ c
      +     flx_fld%evcwa(istrt,lan),flx_fld%transa(istrt,lan),
      +     flx_fld%sbsnoa(istrt,lan),flx_fld%snowca(istrt,lan),
      +     flx_fld%soilm(istrt,lan),
+     +     flx_fld%rain(istrt,lan),flx_fld%rainc(istrt,lan),   !added for gocart
      &     sfc_fld%tsea(istrt,lan),sfc_fld%sheleg(istrt,lan),
      &     sfc_fld%sncovr(istrt,lan),sfc_fld%tg3(istrt,lan),
      &     sfc_fld%zorl(istrt,lan),sfc_fld%cv(istrt,lan),

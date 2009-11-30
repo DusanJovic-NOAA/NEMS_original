@@ -15,6 +15,7 @@ module module_nemsio
 !    2009-03-31    Jun Wang - use new bacio to handle >2gb file, changed
 !                             record name to 16 characters
 !    2009-04-28    Jun Wang - allow user to update meta data for date, forecast time
+!    2009-11-23    Sarah Lu - GOCART species added to gribtable
 !
 ! Public Variables
 ! Public Defined Types
@@ -5511,6 +5512,26 @@ contains
     gribtable(3)%item(5)=nemsio_grbtbl_item('soill','40-100 cm down',4,10340,160,112)
     gribtable(3)%item(6)=nemsio_grbtbl_item('soill','100-200 cm down',4,25800,160,112)
     gribtable(3)%item(7)=nemsio_grbtbl_item('acond','sfc',4,0,179,1)   
+
+!*** table 141 (for Air Quality / GOCART)
+    gribtable(4)%iptv=141
+    gribtable(4)%item(1)=nemsio_grbtbl_item('du001','mid layer',9,0,240,109)
+    gribtable(4)%item(2)=nemsio_grbtbl_item('du002','mid layer',9,0,241,109)
+    gribtable(4)%item(3)=nemsio_grbtbl_item('du003','mid layer',9,0,242,109)
+    gribtable(4)%item(4)=nemsio_grbtbl_item('du004','mid layer',9,0,243,109)
+    gribtable(4)%item(5)=nemsio_grbtbl_item('du005','mid layer',9,0,244,109)
+    gribtable(4)%item(6)=nemsio_grbtbl_item('ss001','mid layer',9,0,245,109)
+    gribtable(4)%item(7)=nemsio_grbtbl_item('ss002','mid layer',9,0,246,109)
+    gribtable(4)%item(8)=nemsio_grbtbl_item('ss003','mid layer',9,0,247,109)
+    gribtable(4)%item(9)=nemsio_grbtbl_item('ss004','mid layer',9,0,248,109)
+    gribtable(4)%item(10)=nemsio_grbtbl_item('msa','mid layer',9,0,230,109)
+    gribtable(4)%item(11)=nemsio_grbtbl_item('so4','mid layer',9,0,231,109)
+    gribtable(4)%item(12)=nemsio_grbtbl_item('so2','mid layer',9,0,232,109)
+    gribtable(4)%item(13)=nemsio_grbtbl_item('dms','mid layer',9,0,233,109)
+    gribtable(4)%item(14)=nemsio_grbtbl_item('ocphobic','mid layer',9,0,249,109)
+    gribtable(4)%item(15)=nemsio_grbtbl_item('ocphilic','mid layer',9,0,250,109)
+    gribtable(4)%item(16)=nemsio_grbtbl_item('bcphobic','mid layer',9,0,251,109)
+    gribtable(4)%item(17)=nemsio_grbtbl_item('bcphilic','mid layer',9,0,252,109)
 !
     iret=0
   end subroutine nemsio_setgrbtbl
