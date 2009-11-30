@@ -10,7 +10,7 @@
      , CHH,CMM,EPI,DLWSFCI,ULWSFCI,USWSFCI,DSWSFCI,DTSFCI &
      , DQSFCI,GFLUXI,SRUNOFF,T1,Q1,U1,V1,ZLVL,EVBSA,EVCWA &
      , TRANSA,SBSNOA,SNOWCA,SOILM &
-     + RAIN,RAINC,                                              ! added for gocart
+     , RAIN,RAINC   &                                           ! added for gocart
      , TSEA  ,SHELEG,SNCOVR, TG3   ,ZORL  ,CV    ,CVB   ,CVT   &
      , SLMSK ,VFRAC ,CANOPY,F10M  ,VTYPE ,STYPE ,UUSTAR,FFMM  ,FFHH   &
      , TMPMIN,TMPMAX,GESHEM,DUSFC ,DVSFC ,DTSFC ,DQSFC ,DLWSFC,ULWSFC &
