@@ -17,6 +17,7 @@
 !                                 nested domains.
 !   2008-08-27  Black - Incorporated nested domain boundary data.
 !   2009-07-30  Black - Merged into NEMS trunk code.
+!   2009-11-30  Wang  - removed writing "core" into atm_namelist.rc
 !
 ! USAGE: ATM_DRIVER parts called from MAIN_ESMF.F90
 !
@@ -2370,14 +2371,6 @@
       RC_INIT_DRV=ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
-!
-      OPEN(unit=50                                                      &
-          ,FILE='atm_namelist.rc'                                       &  !<-- The GFS configure file
-          ,POSITION='append'                                            &
-          ,STATUS='OLD')
-!
-      WRITE(50,*)'core: ',CORE
-      CLOSE(50)
 !
       CALL ESMF_ConfigDestroy(config=CF_DRIVER                          &  !<-- We no longer need the original CF from ATM_DRIVER_INIT
                              ,rc    =RC)

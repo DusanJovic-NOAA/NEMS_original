@@ -205,7 +205,6 @@ cd $PATHRT
 
 export RUNDIR=/ptmp/${ME}/RT/GFS_32
 mkdir -p ${RUNDIR}
-cp gfs_configfile ${RUNDIR}/configure_file
 cp ${RTPWD}/GFS/gfsanl.2009072400 ${RUNDIR}/.
 cp ${RTPWD}/GFS/sfcanl.2009072400 ${RUNDIR}/.
 rm -f err out configure_file nmm_glob_ll nmm_reg_ll gfs_fcst_run  gfs_ll

@@ -162,8 +162,6 @@ export LEVR=${levr:-0}
 #    ____________________________________________
 #
 mkdir -p $RUNDIR
-cp gfs_configfile configure_file
-cp configure_file $RUNDIR
 cd $RUNDIR
 
  export COMOUT=$RUNDIR

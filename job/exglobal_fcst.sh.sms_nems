@@ -25,7 +25,8 @@
 # 2009-10     Sarah Lu, ESMF_State_Namelist modified:
 #                       tracer added; (q, oz, cld) removed
 # 2009-11     Jun Wang, activate reduced grid option and digital filter option
-
+# 2009-12     Jun Wang, link atm_namelist.rc to configure_file
+#
 #
 # Usage:  global_forecast.sh SIGI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO
 #
@@ -980,6 +981,7 @@ cat  > atm_namelist <<EOF
   $CYCLVARS /
 EOF
 
+ln -sf atm_namelist.rc ./configure_file
 eval hpmcount -o gfs_test $PGM $REDOUT$PGMOUT $REDERR$PGMERR
 
 export ERR=$?
