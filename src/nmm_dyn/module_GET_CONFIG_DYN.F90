@@ -441,22 +441,6 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="GET_CONFIG_DYN: Extract SECDIF from Config File"
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
-                                  ,value =int_state%SECDIF              &  !<-- Put extracted quantity here
-                                  ,label ='secdif:'                     &  !<-- The quantity's label in the configure file
-                                  ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="GET_CONFIG_DYN: Extract SMAG2 from Config File"
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -464,22 +448,6 @@
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
                                   ,value =int_state%SMAG2               &  !<-- Put extracted quantity here
                                   ,label ='smag2:'                      &  !<-- The quantity's label in the configure file
-                                  ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="GET_CONFIG_DYN: Extract SMAG4 from Config File"
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
-                                  ,value =int_state%SMAG4               &  !<-- Put extracted quantity here
-                                  ,label ='smag4:'                      &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -512,22 +480,6 @@
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
                                   ,value =int_state%WCOR                &  !<-- Put extracted quantity here
                                   ,label ='wcor:'                       &  !<-- The quantity's label in the configure file
-                                  ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="GET_CONFIG_DYN: Extract PWRC from Config File"
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
-                                  ,value =int_state%PWRC                &  !<-- Put extracted quantity here
-                                  ,label ='pwrc:'                       &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

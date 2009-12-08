@@ -1221,7 +1221,6 @@
 ! ----------------------------------------------------------------------
 !SH2O  <= SMOIS for T < 273.149K (-0.001C)
              IF (TSLB(I,J,NS) < 273.149) THEN
-!rv          IF (TSLB(I,NS,J) < 273.149) THEN
 ! ----------------------------------------------------------------------
 ! first guess following explicit solution for Flerchinger Eqn from Koren
 ! et al, JGR, 1999, Eqn 17 (KCOUNT=0 in FUNCTION FRH2O).
@@ -1232,31 +1231,25 @@
               IF ( BX >  BLIM ) BX = BLIM
               FK=(( (HLICE/(GRAV*(-PSISAT))) *                              &
                  ((TSLB(I,J,NS)-T0)/TSLB(I,J,NS)) )**(-1/BX) )*SMCMAX
-!rv              ((TSLB(I,NS,J)-T0)/TSLB(I,NS,J)) )**(-1/BX) )*SMCMAX
               IF (FK < 0.02) FK = 0.02
               SH2O(I,J,NS) = MIN( FK, SMOIS(I,J,NS) )
-!rv           SH2O(I,NS,J) = MIN( FK, SMOIS(I,NS,J) )
 ! ----------------------------------------------------------------------
 ! now use iterative solution for liquid soil water content using
 ! FUNCTION FRH2O with the initial guess for SH2O from above explicit
 ! first guess.
-!rv           CALL FRH2O (FREE,TSLB(I,NS,J),SMOIS(I,NS,J),SH2O(I,NS,J),    &
               CALL FRH2O (FREE,TSLB(I,J,NS),SMOIS(I,J,NS),SH2O(I,J,NS),    &
                  SMCMAX,BX,PSISAT)
               SH2O(I,J,NS) = FREE
-!rv           SH2O(I,NS,J) = FREE
              ELSE             ! of IF (TSLB(I,NS,J) 
 ! ----------------------------------------------------------------------
 ! SH2O = SMOIS ( for T => 273.149K (-0.001C)
               SH2O(I,J,NS)=SMOIS(I,J,NS)
-!rv           SH2O(I,NS,J)=SMOIS(I,NS,J)
 ! ----------------------------------------------------------------------
              ENDIF            ! of IF (TSLB(I,NS,J)
           END DO              ! of DO NS=1, num_soil_layers 
          else                 ! of if ((bx > 0.0)
           DO NS=1, num_soil_layers
            SH2O(I,J,NS)=SMOIS(I,J,NS)
-!rv        SH2O(I,NS,J)=SMOIS(I,NS,J)
           END DO
          endif                ! of if ((bx > 0.0) 
         ENDDO                 ! DO I = its,itf
@@ -2270,7 +2263,6 @@
               SOILW  = 0.0                                                          
               SOILM  = 0.0                                                          
             ELSE                                                                    
-!rv           SOILW = SOILWW / SOILWM                                               
               SOILW = MAX (SOILWW / SOILWM ,0.)
             END IF                                                                  
          ELSE                                                                    

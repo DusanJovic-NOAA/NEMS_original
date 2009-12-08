@@ -390,8 +390,8 @@ real(kind=kfpt),allocatable,dimension(:,:,:):: &      !im,jm,lm
 !-----------------------------------------------------------------------
 !
       subroutine consts &
-      (global,secdif &
-      ,smag2,smag4,codamp,wcor &
+      (global &
+      ,smag2,codamp,wcor &
       ,pt &
       ,tph0d,tlm0d &
       ,sbd,wbd &
@@ -435,7 +435,6 @@ real(kind=kfpt),intent(in) :: &
 ,pt &        ! Pressure at top of domain (Pa)
 ,sbd &       ! degrees from center of domain to southern boundary
 ,smag2 &     ! Smagorinsky coefficient for 2nd order diffusion 
-,smag4 &     ! Smagorinsky coefficient for 4th order diffusion
 ,tlm0d &
 ,tph0d &
 ,wbd &       ! degrees from center of domain to western boundary
@@ -483,8 +482,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme),intent(out) :: &
 ,hdacvy
  
 logical(kind=klog),intent(in) :: &
- global &    ! global forecast if true
-,secdif
+ global      ! global forecast if true
  
 !
 !-----------------------------------------------------------------------
@@ -636,17 +634,8 @@ real(kind=kfpt),dimension(jds:jde):: &
 !-----------------------------------------------------------------------
 !---to be read from a namelist in the future----------------------------
 !-----------------------------------------------------------------------
-      if(secdif) then
-        coac=smag2*smag2 !second order
-      else
-        coac=smag4*smag4 !fourth order
-      endif
 !
-!     if(global) then
-!       coac=0.01 !global
-!     else
-!       coac=0.16 !regional
-!     endif
+        coac=smag2*smag2 !second order
 !
 !-----------------------------------------------------------------------
 !--------------derived geometrical constants----------------------------

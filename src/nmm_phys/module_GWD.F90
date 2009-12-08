@@ -111,15 +111,12 @@
           SROT(I,J)=SIN(ROT)
         ENDDO    !-- I
       ENDDO      !-- J
-!rv   IF (.NOT.RESTRT) THEN
-!-- Convert from radians to degrees, input files only
+!-- Convert from radians to degrees
         DO J=JTS,JTE
           DO I=ITS,ITE
             HANGL(I,J)=DTR*HANGL(I,J)  !-- convert to degrees (+/-90 deg)
           ENDDO    !-- I
         ENDDO      !-- J
-!rv   ENDIF
-
 !
       END SUBROUTINE GWD_init
 !

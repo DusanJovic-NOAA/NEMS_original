@@ -53,10 +53,9 @@
                              ,FILTER_METHOD                             
 !
         REAL(KIND=KFPT) :: CODAMP,DT                                    &
-                          ,PWRC                                         &
                           ,RUN_DURATION                                 &
                           ,SBD                                          &
-                          ,SMAG2,SMAG4                                  &       
+                          ,SMAG2                                        &       
                           ,TPH0D,TLM0D                                  &
                           ,TSTART                                       &
                           ,WBD,WCOR
@@ -66,7 +65,7 @@
                              ,HYDRO                                     &
                              ,GLOBAL                                    &
                              ,RESTART                                   &
-                             ,SECADV,SECDIF                             &
+                             ,SECADV                                    &
                              ,READ_GLOBAL_SUMS                          &
                              ,WRITE_GLOBAL_SUMS                         &
                              ,NEMSIO_INPUT

@@ -1840,7 +1840,6 @@ real(kind=kfpt) :: &
                   hfilt(k2,j)=0.
                 enddo
 !
-!rv             if(mype.eq.0) print*,j,khfilt(j)
                 cycle h_filters
               endif
 !
@@ -1849,9 +1848,6 @@ real(kind=kfpt) :: &
 !
             hfilt(k  ,j)=flt
             hfilt(k+1,j)=flt
-!
-!rv    if(mype.eq.0.and.j.lt.10) &
-!rv    print*,'hfilt ',j,k,nsmud,hfilt(k,j),hfilt(k+1,j)
 !
           enddo
 !
@@ -1978,8 +1974,6 @@ real(kind=kfpt) :: &
                   vfilt(k2,j)=0.
                 enddo
 !
-!rv             if(mype.eq.0.and.j.lt.10) &
-!rv             print*,'vfilt ',j,k,nsmud,vfilt(k,j),vfilt(k+1,j)
                 cycle v_filters
               endif
 !
@@ -1988,9 +1982,6 @@ real(kind=kfpt) :: &
 !
             vfilt(k  ,j)=flt
             vfilt(k+1,j)=flt
-!
-!rv    if(mype.eq.0.and.j.lt.10) &
-!rv    print*,'vfilt ',j,k,nsmud,vfilt(k,j),vfilt(k+1,j)
 !
           enddo
 !

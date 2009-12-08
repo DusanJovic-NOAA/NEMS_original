@@ -2336,7 +2336,7 @@ real(kind=kfpt):: &
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++                            
 !-----------------------------------------------------------------------
                         subroutine hdiff &
-(global,hydro,secdif &
+(global,hydro &
 ,inpes,jnpes,lm,lpt2 &
 ,dyh,rdyh &
 ,dxv,rare,rdxh &
@@ -2358,8 +2358,7 @@ real(kind=kfpt),parameter:: &
 !-----------------------------------------------------------------------
 logical(kind=klog),intent(in):: &
  global &                    ! global or regional
-,hydro &                     ! logical switch for nonhydrostatic dynamics
-,secdif                      ! 2nd order diffusion
+,hydro                       ! logical switch for nonhydrostatic dynamics
            
 integer(kind=kint),intent(in):: &
  inpes &                     ! w-e # of subdomains
@@ -2561,6 +2560,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 !.......................................................................
 !
 !-----------------------------------------------------------------------
+!
       if(global) then
         btim=timef()
         call swaphn(def3d,ims,ime,jms,jme,lm,inpes)
@@ -2570,11 +2570,6 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
         call polehn(def3d,ims,ime,jms,jme,lm,inpes,jnpes)
         polehn_tim=polehn_tim+(timef()-btim)
       endif
-!
-!     call halo_exch(def,1,1,1)
-!-----------------------------------------------------------------------
-!
-      if(secdif) then ! 2nd order diffusion
 !
 !-----------------------------------------------------------------------
 !.......................................................................
@@ -2697,237 +2692,6 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 !$omp end parallel do
 !.......................................................................
 !
-!-----------------------------------------------------------------------
-
-!-----------------------------------------------------------------------
-        else ! 4th order diffusion
-!-----------------------------------------------------------------------
-!-------------4-th order diffusion--------------------------------------
-!-----------------------------------------------------------------------
-      vertical_loop_4: do l=1,lm
-!-----------------------------------------------------------------------
-        if(l.gt.lpt2.and..not.hydro) then
-          do j=jts_b1,jte_h2
-            do i=its_b1,ite_h2
-              cilinx=sice(i-1,j).ne.sice(i,j) &
-                 .or.sm  (i-1,j).ne.sm  (i,j)
-              ciliny=sice(i,j-1).ne.sice(i,j) &
-                 .or.sm  (i,j-1).ne.sm  (i,j)
-              slopx=abs((z(i,j,l)-z(i-1,j,l))*rdxh(j))
-              slopy=abs((z(i,j,l)-z(i,j-1,l))*rdyh   )
-!
-              if(slopx.le.slopec.or.cilinx) then
-                fmlx(i,j)=1.
-              else
-                fmlx(i,j)=0.
-              endif
-!
-              if(slopy.le.slopec.or.ciliny) then
-                fmly(i,j)=1.
-              else
-                fmly(i,j)=0.
-              endif
-!
-            enddo
-          enddo
-        else
-          do j=jts_b1,jte_h2
-            do i=its_b1,ite_h2
-              fmlx(i,j)=1.
-              fmly(i,j)=1.
-            enddo
-          enddo
-        endif
-!-----------------------------------------------------------------------
-!---contributions behind mass points------------------------------------
-!-----------------------------------------------------------------------
-        do j=jts_b1,jte_h2
-          do i=its_b1,ite_h2
-            hkx(i,j)=(def3d(i-1,j,l)+def3d(i,j,l))
-            hky(i,j)=(def3d(i,j-1,l)+def3d(i,j,l))
-            hkfx=hkx(i,j)*fmlx(i,j)
-            hkfy=hky(i,j)*fmly(i,j)
-!
-            tx (i,j)=(t (i,j,l)-t (i-1,j,l))*hkfx
-            qx (i,j)=(q (i,j,l)-q (i-1,j,l))*hkfx
-            cx (i,j)=(cw(i,j,l)-cw(i-1,j,l))*hkfx
-            q2x(i,j)=(q2(i,j,l)-q2(i-1,j,l))*hkfx
-!
-            ty (i,j)=(t (i,j,l)-t (i,j-1,l))*hkfy
-            qy (i,j)=(q (i,j,l)-q (i,j-1,l))*hkfy
-            cy (i,j)=(cw(i,j,l)-cw(i,j-1,l))*hkfy
-            q2y(i,j)=(q2(i,j,l)-q2(i,j-1,l))*hkfy
-          enddo
-        enddo
-!-----------------------------------------------------------------------
-!---u,v, contributions, behind v points---------------------------------
-!-----------------------------------------------------------------------
-        do j=jts_b1,jte_b1_h1
-          do i=its_b1,ite_b1_h1
-            ux(i,j)=(u(i,j,l)-u(i-1,j,l))*hky(i,j+1)
-            vx(i,j)=(v(i,j,l)-v(i-1,j,l))*hky(i,j+1)
-            uy(i,j)=(u(i,j,l)-u(i,j-1,l))*hkx(i+1,j)
-            vy(i,j)=(v(i,j,l)-v(i,j-1,l))*hkx(i+1,j)
-          enddo
-        enddo
-!-----------------------------------------------------------------------
-        do j=jts_b1,jte_b1
-          do i=its_b1,ite_b1
-            tdif (i,j)=(tx (i+1,j)-tx (i,j))*hdacx(i,j) &
-                      +(ty (i,j+1)-ty (i,j))*hdacy(i,j)
-            qdif (i,j)=(qx (i+1,j)-qx (i,j))*hdacx(i,j) &
-                      +(qy (i,j+1)-qy (i,j))*hdacy(i,j)
-            cdif (i,j)=(cx (i+1,j)-cx (i,j))*hdacx(i,j) &
-                      +(cy (i,j+1)-cy (i,j))*hdacy(i,j)
-            q2dif(i,j)=(q2x(i+1,j)-q2x(i,j))*hdacx(i,j) &
-                      +(q2y(i,j+1)-q2y(i,j))*hdacy(i,j)
-          enddo
-        enddo
-!-----------------------------------------------------------------------
-        do j=jts_b1,jte_b2
-          do i=its_b1,ite_b2
-            udif(i,j)=(ux(i+1,j)-ux(i,j))*hdacvx(i,j) &
-                     +(uy(i,j+1)-uy(i,j))*hdacvy(i,j)
-            vdif(i,j)=(vx(i+1,j)-vx(i,j))*hdacvx(i,j) &
-                     +(vy(i,j+1)-vy(i,j))*hdacvy(i,j)
-          enddo
-        enddo
-          if(global) then
-            btim=timef()
-            call swaphn(tdif,ims,ime,jms,jme,1,inpes)
-            call swaphn(qdif,ims,ime,jms,jme,1,inpes)
-            call swaphn(cdif,ims,ime,jms,jme,1,inpes)
-            call swaphn(q2dif,ims,ime,jms,jme,1,inpes)
-            swaphn_tim=swaphn_tim+(timef()-btim)
-!
-            btim=timef()
-            call polehn(tdif,ims,ime,jms,jme,1,inpes,jnpes)
-            call polehn(qdif,ims,ime,jms,jme,1,inpes,jnpes)
-            call polehn(cdif,ims,ime,jms,jme,1,inpes,jnpes)
-            call polehn(q2dif,ims,ime,jms,jme,1,inpes,jnpes)
-            polehn_tim=polehn_tim+(timef()-btim)
-!
-            btim=timef()
-            call swapwn(udif,ims,ime,jms,jme,1,inpes)
-            call swapwn(vdif,ims,ime,jms,jme,1,inpes)
-            swapwn_tim=swapwn_tim+(timef()-btim)
-!
-            btim=timef()
-            call polewn(udif,vdif,ims,ime,jms,jme,1,inpes,jnpes)
-            polewn_tim=polewn_tim+(timef()-btim)
-          else
-            if(s_bdy)then
-              do i=ims,ime
-                tdif(i,jds)=0.
-                qdif(i,jds)=0.
-                cdif(i,jds)=0.
-                q2dif(i,jds)=0.
-                udif(i,jds)=0.
-                vdif(i,jds)=0.
-              enddo
-            endif
-            if(n_bdy)then
-              do i=ims,ime
-                tdif(i,jde)=0.
-                qdif(i,jde)=0.
-                cdif(i,jde)=0.
-                q2dif(i,jde)=0.
-                udif(i,jde-1)=0.
-                vdif(i,jde-1)=0.
-                udif(i,jde)=0.
-                vdif(i,jde)=0.
-              enddo
-            endif
-            if(w_bdy)then
-              do j=jms,jme
-                tdif(ids,j)=0.
-                qdif(ids,j)=0.
-                cdif(ids,j)=0.
-                q2dif(ids,j)=0.
-                udif(ids,j)=0.
-                vdif(ids,j)=0.
-              enddo
-            endif
-            if(e_bdy)then
-              do j=jms,jme
-                tdif(ide,j)=0.
-                qdif(ide,j)=0.
-                cdif(ide,j)=0.
-                q2dif(ide,j)=0.
-                udif(ide-1,j)=0.
-                vdif(ide-1,j)=0.
-                udif(ide,j)=0.
-                vdif(ide,j)=0.
-              enddo
-            endif
-          endif
-!
-          btim=timef()
-          call halo_exch( tdif,1,2,2)
-          call halo_exch( qdif,1,2,2)
-          call halo_exch( cdif,1,2,2)
-          call halo_exch(q2dif,1,2,2)
-          call halo_exch( udif,1,2,2)
-          call halo_exch( vdif,1,2,2)
-          exch_dyn_tim=exch_dyn_tim+(timef()-btim)
-!---contributions behind mass points------------------------------------
-          do j=jts_b1,jte_h1
-            do i=its_b1,ite_h1
-              hkfx=hkx(i,j)*fmlx(i,j)
-              hkfy=hky(i,j)*fmly(i,j)
-!
-              tx (i,j)=(tdif (i,j)-tdif (i-1,j))*hkfx
-              qx (i,j)=(qdif (i,j)-qdif (i-1,j))*hkfx
-              cx (i,j)=(cdif (i,j)-cdif (i-1,j))*hkfx
-              q2x(i,j)=(q2dif(i,j)-q2dif(i-1,j))*hkfx
-!
-              ty (i,j)=(tdif (i,j)-tdif (i,j-1))*hkfy
-              qy (i,j)=(qdif (i,j)-qdif (i,j-1))*hkfy
-              cy (i,j)=(cdif (i,j)-cdif (i,j-1))*hkfy
-              q2y(i,j)=(q2dif(i,j)-q2dif(i,j-1))*hkfy
-            enddo
-          enddo
-!---u,v, contributions, behind v points---------------------------------
-          do j=jts_b1,jte_b1_h1
-            do i=its_b1,ite_b1_h1
-              ux(i,j)=(udif(i,j)-udif(i-1,j))*hky(i,j+1)
-              vx(i,j)=(vdif(i,j)-vdif(i-1,j))*hky(i,j+1)
-              uy(i,j)=(udif(i,j)-udif(i,j-1))*hkx(i+1,j)
-              vy(i,j)=(vdif(i,j)-vdif(i,j-1))*hkx(i+1,j)
-            enddo
-          enddo
-!-----------------------------------------------------------------------
-          do j=jts_b1,jte_b1
-            do i=its_b1,ite_b1
-              t (i,j,l)=-(tx (i+1,j)-tx (i,j))*hdacx(i,j) &
-                        -(ty (i,j+1)-ty (i,j))*hdacy(i,j) &
-                       +t (i,j,l)
-              q (i,j,l)=-(qx (i+1,j)-qx (i,j))*hdacx(i,j) &
-                        -(qy (i,j+1)-qy (i,j))*hdacy(i,j) &
-                       +q (i,j,l)
-              cw(i,j,l)=-(cx (i+1,j)-cx (i,j))*hdacx(i,j) &
-                        -(cy (i,j+1)-cy (i,j))*hdacy(i,j) &
-                       +cw(i,j,l)
-              q2(i,j,l)=-(q2x(i+1,j)-q2x(i,j))*hdacx(i,j) &
-                        -(q2y(i,j+1)-q2y(i,j))*hdacy(i,j) &
-                       +q2(i,j,l)
-            enddo
-          enddo
-!-----------------------------------------------------------------------
-          do j=jts_b1,jte_b2
-            do i=its_b1,ite_b2
-              u(i,j,l)=-(ux(i+1,j)-ux(i,j))*hdacx(i,j) &
-                       -(uy(i,j+1)-uy(i,j))*hdacy(i,j) &
-                      +u(i,j,l)
-              v(i,j,l)=-(vx(i+1,j)-vx(i,j))*hdacx(i,j) &
-                       -(vy(i,j+1)-vy(i,j))*hdacy(i,j) &
-                      +v(i,j,l)
-            enddo
-          enddo
-!-----------------------------------------------------------------------
-      enddo vertical_loop_4
-!-----------------------------------------------------------------------
-     endif
 !-----------------------------------------------------------------------
 !
                         endsubroutine hdiff

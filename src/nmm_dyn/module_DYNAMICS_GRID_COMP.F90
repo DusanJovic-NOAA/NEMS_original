@@ -787,8 +787,7 @@
         btim=timef()
 !
         CALL CONSTS(int_state%GLOBAL                                    &
-                   ,int_state%SECDIF                                    &
-                   ,int_state%SMAG2,int_state%SMAG4                     &
+                   ,int_state%SMAG2                                     &
                    ,int_state%CODAMP,int_state%WCOR                     &
                    ,int_state%PT                                        &
                    ,int_state%TPH0D,int_state%TLM0D                     &
@@ -1405,7 +1404,7 @@
                                                         ,SICE,SM
 !
       LOGICAL(kind=KLOG),SAVE :: FIRST_PASS=.TRUE.
-      LOGICAL(kind=KLOG),SAVE :: GLOBAL,HYDRO,RUNBC,SECADV,SECDIF
+      LOGICAL(kind=KLOG),SAVE :: GLOBAL,HYDRO,RUNBC,SECADV
       LOGICAL(kind=KLOG)      :: COMPUTE_BC
 !
       INTEGER(kind=KINT),SAVE :: N_PRINT_STATS                            !<--- Timesteps between statistics prints
@@ -1499,7 +1498,6 @@
         RDYV=int_state%RDYV
         RUNBC=int_state%RUNBC
         SECADV=int_state%SECADV
-        SECDIF=int_state%SECDIF
         TBOCO=int_state%TBOCO
 !
         P_QV=int_state%P_QV
@@ -1797,7 +1795,7 @@
 !
         IF(HDIFF_ON>0)THEN
           CALL HDIFF                                                    &
-            (GLOBAL,HYDRO,SECDIF                                        &
+            (GLOBAL,HYDRO                                               &
             ,INPES,JNPES,LM,LPT2                                        &
             ,DYH,RDYH                                                   &
             ,DXV,RARE,RDXH                                              &
