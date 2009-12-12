@@ -1,6 +1,6 @@
        subroutine gloopr
 !*   &    ( grid_gr,
-     &    ( grid_fld,
+     &    ( grid_fld, g3d_fld,
      &     lats_nodes_r,global_lats_r, lonsperlar, phour,
      &     xlon,xlat,coszdg,COSZEN,
      &     SLMSK,SNWDPH,SNCOVR,SNOALB,ZORL,TSEA,HPRIME,SFALB,
@@ -13,6 +13,12 @@
 !! Code Revision:
 !! Oct 11 2009       Sarah Lu, grid_gr is replaced by grid_fld
 !! Oct 16 2009       Sarah Lu, grid_fld%tracers used
+!! Dec 01 2009       Sarah Lu, update fcld (instant cloud cover) in addition
+!!                             to cldcov (cumulative cloud cover)
+!! Dec 09 2009       Sarah Lu, (1) g3d_fld added to calling argument; (2) grrad
+!!                   returns instant cloud cover (cldcov_v); the accumulative 
+!!                   and instant cloud cover fields are updated after grrad call
+!! Dec 11 2009       Sarah Lu, ldiag3d removed from grrad calling argument
 !!
 cc
 !#include "f_hpm.h"
@@ -35,17 +41,19 @@ cc
       use resol_def,            ONLY: levs, levr, latr, lonr, lotgr,
      &                                g_t, g_p, g_q, g_dp, g_ps, 
      &                                ntcw, ntoz, ncld, num_p3d, 
-     &                                nmtvr, ntrac, levp1, nfxr, g_dpdt
+     &                                nmtvr, ntrac, levp1, nfxr, g_dpdt,
+     &                                lgocart
       use layout1,              ONLY: me, nodes, lats_node_r, 
      &                                lats_node_r_max, ipt_lats_node_r
       use gg_def,               ONLY: coslat_r, sinlat_r
       use date_def,             ONLY: idate
       use namelist_physics_def, ONLY: lsswr, iaer, lslwr, sashal, 
-     &                                lssav, flgmin, ldiag3d, 
+     &                                lssav, flgmin, ldiag3d,
      &                                iovr_lw, iovr_sw, isol, iems, 
      &                                ialb, fhlwr, fhswr, ico2, ngptc
       use d3d_def ,             ONLY: cldcov
       use gfs_physics_gridgr_mod, ONLY: Grid_Var_Data
+      use gfs_physics_g3d_mod,    ONLY: G3D_Var_Data
 !
       implicit none
 !
@@ -60,6 +68,7 @@ cc
 
 !*    real(kind=kind_grid) grid_gr(lonr*lats_node_r_max,lotgr)
       TYPE(Grid_Var_Data)       :: grid_fld 
+      TYPE(G3D_Var_Data)        :: g3d_fld 
 
       integer, intent(in) :: NBLCK
 
@@ -114,7 +123,7 @@ cc
      &                        fluxr_v(NGPTC,NFXR), vvel(NGPTC,LEVS)
       real (kind=kind_phys) :: flgmin_l(ngptc), work1, work2
 
-      real (kind=kind_phys) :: rinc(5), dtsw, dtlw, solcon
+      real (kind=kind_phys) :: rinc(5), dtsw, dtlw, solcon, raddt
 
       real (kind=kind_phys), save :: facoz
 
@@ -258,6 +267,7 @@ cc
       dtsw  = 3600.0 * fhswr
       dtlw  = 3600.0 * fhlwr
 
+      raddt = min(dtsw, dtlw)
 
       call radinit                                                      &
 !  ---  input:
@@ -397,16 +407,6 @@ cc
               prslk(i,levr)   = fpkap(prsl(i,levr)*1000.0)
             enddo
           endif
-!
-          if (ldiag3d) then
-            do k=1,levr
-              do i=1,njeff
-!Moor           prslk(i,k)    = fpkap(prsl(i,k)*1000.0)
-                cldcov_v(i,k) = cldcov(k,istrt+i-1,lan)
-              enddo
-            enddo
-          endif
-!
           do i=1,njeff
             hprime_v(i) = hprime(1,istrt+i-1,lan)
           enddo
@@ -459,26 +459,40 @@ cc
      &       cv(lon,lan),cvt(lon,lan),cvb(lon,lan),                     &
      &       IOVR_SW,IOVR_LW,f_ice,f_rain,r_rime,flgmin_l,              &
      &       NUM_P3D,NTCW-1,NCLD,NTOZ-1,NTRAC-1,NFXR,                   &
-     &       dtlw,dtsw, lsswr,lslwr,lssav,ldiag3d,sashal,               &
+     &       dtlw,dtsw, lsswr,lslwr,lssav,sashal,                       &
      &       NGPTC,njeff,LEVR,IFLIP, me, lprnt,                         &
 !  ---  outputs:
      &       swh(1,1,iblk,lan),sfcnsw(lon,lan),sfcdsw(lon,lan),         & ! sfcdsw FOR SEA-ICE XW Nov04
      &       sfalb(lon,lan),                                            & ! lu [+1L]: add sfalb
-     &       hlw(1,1,iblk,lan),sfcdlw(lon,lan),tsflw(lon,lan),          &
+     &       hlw(1,1,iblk,lan),sfcdlw(lon,lan),tsflw(lon,lan),          & 
+     &       cldcov_v,                                                  & ! return instant cloud cover
 !  ---  input/output:
-     &       fluxr_v,cldcov_v                                           &
+     &       fluxr_v                                                    & 
 !! ---  optional outputs:
 !!   &,      HTRSWB=htrswb(1,1,1,iblk,lan),                             &
 !!   &,      HTRLWB=htrlwb(1,1,1,iblk,lan)                              &
      &     )
 !
+! grrad routine computes cldcov_v (instant 3D cloud cover)    -- Sarah Lu
+! if ldiag3d is T, update cldcov (accumulative 3D cloud cover)
+! if lgocart is T, update fcld (instant 3D cloud cover)
+
           if (ldiag3d) then
             do k=1,levr
               do i=1,njeff
-                cldcov(k,istrt+i-1,lan) = cldcov_v(i,k)
+                cldcov(k,istrt+i-1,lan) = cldcov(k,istrt+i-1,lan) +     &
+     &                                    cldcov_v(i,k) * raddt
               enddo
             enddo
           endif
+          if (lgocart) then
+            do k=1,levr
+              do i=1,njeff
+                g3d_fld%fcld(istrt+i-1,lan,k) = cldcov_v(i,k) 
+              enddo
+            enddo
+          endif
+
           do k=1,nfxr
             do i=1,njeff
               fluxr(k,istrt+i-1,lan) = fluxr_v(i,k)

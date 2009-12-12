@@ -6,6 +6,7 @@
 ! ! Revision history:
 !   Oct 16 2009   Sarah Lu, adopted from dyn fc
 !   Nov 21 2009   Sarah Lu, chem tracer specified from ChemRegistry
+!   Dec 10 2009   Sarah Lu, add doing_GOCART
 ! -------------------------------------------------------------------------
 !
       module gfs_phy_tracer_config
@@ -26,6 +27,7 @@
         logical                  :: doing_SS
         logical                  :: doing_OC
         logical                  :: doing_BC
+        logical                  :: doing_GOCART
       endtype gfs_phy_tracer_type
 
       type (gfs_phy_tracer_type), save     ::  gfs_phy_tracer
@@ -71,6 +73,7 @@ c
       gfs_phy_tracer%doing_DU = reg%doing_DU
       gfs_phy_tracer%doing_SS = reg%doing_SS
       gfs_phy_tracer%doing_SU = reg%doing_SU
+      gfs_phy_tracer%doing_GOCART = reg%doing_GOCART
 
 ! ntrac_met = number of met tracers
       if ( ntoz < ntcw ) then                       

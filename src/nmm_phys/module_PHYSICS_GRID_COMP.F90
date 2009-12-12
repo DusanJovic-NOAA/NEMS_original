@@ -21,6 +21,10 @@
 !   2009-08-10  Black   - Merge with nest code
 !   2009-11-03  W. Wang - Remove WRF driver and flipping (for Ferrier)
 !   2009-11-24  Sarah Lu -- RAIN and RAINC added to GBPHYS arguments
+!   2009-12-10  Sarah Lu -- GRRAD output instant cloud cover
+!   2009-12-11  Sarah Lu -- GRRAD calling argument modified: remove ldiag3d;
+!                           reverse flxur/cldcov sequence 
+! 
 !
 !-----------------------------------------------------------------------
 !
@@ -1965,7 +1969,7 @@
 
          DO L=1,LM
             KFLIP=LM+1-L
-             CLDCOV_V(KFLIP) = 0.0D0
+!            CLDCOV_V(KFLIP) = 0.0D0                      ! GRRAD now returns instant cloud cover (Sarah Lu)
              F_ICE(KFLIP)    = int_state%F_ICE(I,J,L)                       ! for ferrier phy, do init first
              F_RAIN(KFLIP)   = int_state%F_RAIN(I,J,L)
              R_RIME(KFLIP)   = int_state%F_RIMEF(I,J,L)
@@ -2094,15 +2098,16 @@
              CV, CVT, CVB,                                           &
              IOVR_SW, IOVR_LW, F_ICE, F_RAIN, R_RIME, FLGMIN_L,      &
              NUM_P3D, NTCW-1, NCLD, NTOZ-1, NTRAC-1, NFXR,           &
-             DTLW, DTSW, LSSWR, LSLWR, LSSAV, .TRUE. , SASHAL,       &
+             DTLW, DTSW, LSSWR, LSLWR, LSSAV, SASHAL,                &
 !rrr         DTLW, DTSW, LSSWR, LSLWR, LSSAV, LDIAG3D, SASHAL,       &
              1, 1, LM, IFLIP, MYPE, LPRNT,                           &
 !  ---  outputs:
              SWH, SFCNSW, SFCDSW,                                    &
              SFALB,                                                  &
              HLW, SFCDLW, TSFLW,                                     &
+             CLDCOV_V,                                               & 
 !  ---  input/output:
-             FLUXR_V,CLDCOV_V                                        &
+             FLUXR_V                                                 &
            )
 !-----------------------------------------------------------------------
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -2298,7 +2303,8 @@
              int_state%T(I,J,L)           = ADT(KFLIP)
              int_state%DUDT(I,J,L)        = (ADU(KFLIP) - GU(KFLIP)) / (COSLAT_R(J) + 0.0001) / DTP
              int_state%DVDT(I,J,L)        = (ADV(KFLIP) - GV(KFLIP)) / (COSLAT_R(J) + 0.0001) / DTP
-             int_state%CLDFRA(I,J,L)      = CLDCOV_V(KFLIP) * MINDT
+!*           int_state%CLDFRA(I,J,L)      = CLDCOV_V(KFLIP) * MINDT  ! scaling not needed (Sarah Lu)
+             int_state%CLDFRA(I,J,L)      = CLDCOV_V(KFLIP) 
              int_state%Q  (II,JJ,L)       = ADR(KFLIP,1)
              int_state%RRW(II,JJ,L)       = ADR(KFLIP,2)
              int_state%CW (II,JJ,L)       = ADR(KFLIP,3)

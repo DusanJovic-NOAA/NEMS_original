@@ -18,6 +18,7 @@
 !  oct 11 2009        sarah lu, add grid_fld and grid_aldata
 !  oct 12 2009        sarah lu, add start_step
 !  oct 16 2009        sarah lu, add gfs_phy_tracer
+!  dec 08 2009        sarah lu, add lgocart and g3d_fld
 !
 ! !interface:
 !
@@ -28,6 +29,7 @@
       use gfs_physics_namelist_mod, ONLY: nam_gfs_phy_namelist, gfs_phy_state_namelist
       use gfs_physics_sfc_flx_mod,  ONLY: Sfc_Var_Data, Flx_Var_Data
       use gfs_physics_gridgr_mod,   ONLY: Grid_Var_Data    
+      use gfs_physics_g3d_mod,      ONLY: G3D_Var_Data    
       use gfs_phy_tracer_config,    ONLY: gfs_phy_tracer_type
 
       use machine, only: kind_phys, kind_rad, kind_evod
@@ -46,8 +48,10 @@
       TYPE(Sfc_Var_Data)        :: sfc_fld
       TYPE(Flx_Var_Data)        :: flx_fld
       TYPE(Grid_Var_Data)       :: grid_fld  
+      TYPE(G3D_Var_Data)        :: g3d_fld  
 
       logical                   :: grid_aldata  
+      logical                   :: lgocart
       logical                   :: start_step
 
       integer                   :: me, nodes
@@ -91,7 +95,6 @@
       REAL(KIND=KIND_RAD) ,ALLOCATABLE :: SWH(:,:,:,:),HLW(:,:,:,:)
       REAL(KIND=KIND_RAD) ,ALLOCATABLE :: FLUXR(:,:,:)
 !!
-
       REAL(KIND=KIND_RAD) ,ALLOCATABLE :: phy_f3d(:,:,:,:,:)
       REAL(KIND=KIND_RAD) ,ALLOCATABLE :: phy_f2d(:,:,:)
 !

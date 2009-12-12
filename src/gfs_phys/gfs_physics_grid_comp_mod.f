@@ -13,6 +13,7 @@
 !  oct 12   2009     sarah lu, set the association between imp/exp states
 !                    and internal state grid_fld; reset start_step
 !  oct 17 2009      Sarah Lu, add debug print to check imp/exp state
+!  dec 10 2009      Sarah Lu, add debug print to chekc fcld
 !                           
 !
 ! !interface:
@@ -806,6 +807,7 @@
           print *,'LU_PHY: export item name :',(exp_item_name(n),n=1,exp_item)!chlu_debug
         endif                                                             !chlu_debug
 
+        lab_if_diag  : if ( int_state%lgocart ) then                      !chlu_debug
         do n = 1, nfld_2d                                                 !chlu_debug
             if(associated(fArr2D)) nullify(fArr2D)                        !chlu_debug
             vname = trim(vname_2d(n))                                     !chlu_debug
@@ -825,6 +827,25 @@
             print *,' LU_PHY: exp_: ',vname,fArr2D(1,1),fArr2D(1,2),    & !chlu_debug
                          fArr2D(2,1),fArr2D(ii1,ii2)                      !chlu_debug
         enddo                                                             !chlu_debug
+
+! check fcld
+            if(associated(fArr3D)) nullify(fArr3D)                        !chlu_debug
+            vname = 'fcld'                                                !chlu_debug
+            CALL ESMF_StateGet(state = exp_gfs_phy                      & !chlu_debug
+                        ,itemName  = vname                              & !chlu_debug
+                        ,field     = ESMFField                          & !chlu_debug
+                        ,rc        = rc1)                                 !chlu_debug
+            call gfs_physics_err_msg(rc1,'LU_PHY: get ESMFField',rc)      !chlu_debug
+            CALL ESMF_FieldGet(field=ESMFfield, localDe=0, &              !chlu_debug
+                          farray=fArr3D, rc = rc1)                        !chlu_debug
+            call gfs_physics_err_msg(rc1,'LU_PHY: get F90array',rc)       !chlu_debug
+            ii1 = size(fArr3D, dim=1)                                     !chlu_debug
+            ii2 = size(fArr3D, dim=2)                                     !chlu_debug
+            ii3 = size(fArr3D, dim=3)                                     !chlu_debug
+            print *, 'LU_PHY:',ii1, 'x', ii2, 'x', ii3                    !chlu_debug
+            print *,' LU_PHY: exp_: ',vname,fArr3D(1,1,1:6)               !chlu_debug
+
+        endif lab_if_diag                                                 !chlu_debug
 
         do n = 1, item_count                                              !chlu_debug
             vname = trim(item_name(n))                                    !chlu_debug

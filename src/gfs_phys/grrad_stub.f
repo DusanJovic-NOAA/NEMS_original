@@ -71,6 +71,8 @@
 !     04-10-07    yu-tai hou   - spectral band sw/lw heating rates     !
 !     05-04-07    yu-tai hou   - make options for clim based and modis !
 !                                based (h. wei and c. marshall) albedo !
+!     12-10-09    sarah lu     - grrad computes instant cloud cover    !
+!     12-11-09    sarah lu     - change grrad calling argument         !
 !                                                                      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
@@ -183,14 +185,13 @@
      &       solcon,coszen,coszdg,k1oz,k2oz,facoz,                      &
      &       cv,cvt,cvb,iovrsw,iovrlw,fcice,frain,rrime,flgmin,         &
      &       np3d,ntcw,ncld,ntoz, NTRAC,NFXR,                           &
-     &       dtlw,dtsw, lsswr,lslwr,lssav,ldiag3d,sashal,               &
-!    &       dtlw,dtsw, lsswr,lslwr,lssav,ldiag3d,                      &
+     &       dtlw,dtsw, lsswr,lslwr,lssav,sashal,                       &
      &       IX, IM, LM, iflip, me, lprnt,                              &
 !  ---  outputs:
      &       htrsw,sfcnsw,sfcdsw,sfalb,                                 &
-     &       htrlw,sfcdlw,tsflw,                                        &
+     &       htrlw,sfcdlw,tsflw,cldcov,                                 &
 !  ---  input/output:
-     &       fluxr,cldcov                                               &
+     &       fluxr                                                      &
 !! ---  optional outputs:
      &,      HTRSWB,HTRLWB                                              &
      &     )
@@ -413,14 +414,15 @@
      &       oz(IX,LM,NTRAC)
 
 !  ---  outputs: (horizontal dimensioned by IX)
-      real (kind=8), dimension(IX,LM),intent(out):: htrsw,htrlw
+      real (kind=8), dimension(IX,LM),intent(out):: htrsw,htrlw,  &
+     &                                              cldcov
 
       real (kind=8), dimension(IM),   intent(out):: sfcnsw,     &
      &       sfcdlw, tsflw, sfcdsw, sfalb
 
 !  ---  variables are for both input and output:
       real (kind=8),                  intent(inout) ::          &
-     &       fluxr(IX,NFXR), cldcov(IX,LM)
+     &                                          fluxr(IX,NFXR)
 
 !! ---  optional outputs:
       real (kind=8), dimension(IX,LM,1), optional,          &

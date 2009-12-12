@@ -19,6 +19,7 @@
 !  oct 12 2009  Sarah Lu        initialize start_step
 !  oct 16 2009  Sarah Lu        initialize gfs_phy_tracer
 !  nov 14 2009  Sarah Lu        flx_fld and sfc_fld allocation modified
+!  dec 10 2009  Sarah Lu        initialize lgocart and g3d_fld
 !
 ! !interface:
 !
@@ -40,7 +41,8 @@
                                                 ngrids_sfcc2d,ngrids_sfcc3d,                  &  !jwang
                                                 ngrids_flx, levp1, lonrx, nfxr, ngrids_gg,    &
                                                 levm1, ivssfc, thermodyn_id, sfcpress_id,     &
-                                                ivssfc_restart, latrd, latr2, ivsupa, levh
+                                                ivssfc_restart, latrd, latr2, ivsupa, levh,   &
+                                                lgocart
 !jw
       use mod_state,                      ONLY: buff_mult_piecea2d,buff_mult_piecea3d,        &  !jwang
                                                 buff_mult_piecef                                 !jwang
@@ -50,7 +52,7 @@
                                                 kozpl, levozp, pl_time, pl_lat, pl_pres,      &
                                                 kozc, dphiozc, latsozc, pl_coeff
       USE namelist_physics_def,           ONLY: ras, jo3, ldiag3d, ngptc, ens_nam,            &
-                                                reduced_grid, grid_aldata  
+                                                reduced_grid, grid_aldata
       USE module_ras,                     ONLY: nrcmax
       USE gg_def,                         ONLY: sinlat_r, coslat_r, wgtcs_r, rcs2_r, wgt_r,   &
                                                 colrad_r
@@ -64,6 +66,7 @@
       use machine,                        ONLY : kind_io4
       USE sfcio_module,                   ONLY: sfcio_axdbta
       USE gfs_physics_gridgr_mod,         ONLY: gridvar_aldata  
+      USE gfs_physics_g3d_mod,            ONLY: g3d_aldata
       use gfs_phy_tracer_config,          ONLY: gfs_phy_tracer, tracer_config_init
 
       include 'mpif.h'
@@ -122,11 +125,15 @@
                                gis_phy%ntoz, gis_phy%ntcw,              &
                                gis_phy%ncld,  me )
       gfs_phy_tracer = gis_phy%gfs_phy_tracer
+      write(0,*)'LU_TRC, reg%doing_GOCART = ', gfs_phy_tracer%doing_GOCART
+      gis_phy%lgocart = gfs_phy_tracer%doing_GOCART     ! for internal state
+      lgocart = gis_phy%lgocart                         ! for resol_def module
       if( me == 0) then
        write(0,*)'LU_TRC, exit tracer_config_init in phy'
-       write(0,*)'LU_TRC, ntrac=     ',gfs_phy_tracer%ntrac, gis_phy%ntrac
+       write(0,*)'LU_TRC, ntrac     =',gfs_phy_tracer%ntrac, gis_phy%ntrac
        write(0,*)'LU_TRC, ntrac_met =',gfs_phy_tracer%ntrac_met
        write(0,*)'LU_TRC, ntrac_chem=',gfs_phy_tracer%ntrac_chem
+       write(0,*)'LU_TRC, lgocart   =',gis_phy%lgocart,lgocart
        do n = 1, gfs_phy_tracer%ntrac
        write(0,*)'LU_TRC, tracer_vname=',gfs_phy_tracer%vname(n)
        enddo
@@ -408,7 +415,8 @@
       ALLOCATE (   gis_phy%XLON(LONR,LATS_NODE_R), stat = ierr)
       ALLOCATE (   gis_phy%XLAT(LONR,LATS_NODE_R), stat = ierr)
       ALLOCATE (   gis_phy%COSZDG(LONR,LATS_NODE_R), stat = ierr)
-      ALLOCATE (   gis_phy%CLDCOV(LEVS,LONR,LATS_NODE_R), stat = ierr)
+!*    ALLOCATE (   gis_phy%CLDCOV(LEVS,LONR,LATS_NODE_R), stat = ierr)
+      ALLOCATE (   gis_phy%CLDCOV(LEVS,LONR,LATS_NODE_R_MAX), stat = ierr)
       ALLOCATE (   gis_phy%SFALB(LONR,LATS_NODE_R), stat = ierr)
       ALLOCATE (   gis_phy%HPRIME(NMTVR,LONR,LATS_NODE_R), stat = ierr)
       ALLOCATE (   gis_phy%FLUXR(nfxr,LONR,LATS_NODE_R), stat = ierr)
@@ -431,7 +439,15 @@
 !        size(gis_phy%fhour_idate,1),size(gis_phy%fhour_idate,2),ierr
 
       if (ldiag3d) then
-        call d3d_init(ngptc,gis_phy%nblck,lonr,lats_node_r,levs,pl_coeff)
+!* change lats_node_r to lats_node_r_max for consistency
+!*      call d3d_init(ngptc,gis_phy%nblck,lonr,lats_node_r,levs,pl_coeff)
+        call d3d_init(ngptc,gis_phy%nblck,lonr,lats_node_r_max,levs,pl_coeff)
+      endif
+
+! allocate g3d_fld
+      if (lgocart) then
+        call g3d_aldata (lonr, lats_node_r_max, levs,  &               
+                         gis_phy%g3d_fld, ierr)  
       endif
 
 !     if (icolor /= 2 .or. .not. liope) then

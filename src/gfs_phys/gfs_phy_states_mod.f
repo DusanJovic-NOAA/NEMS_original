@@ -29,6 +29,7 @@
 !  Sarah Lu  2009-10-12  Port to the latest trunk
 !  Sarah Lu  2009-10-16  Tracer bundle added; (shum, oz, cld) removed
 !  Sarah Lu  2009-11-13  2D diag fields added to export state (for GOCART)
+!  Sarah Lu  2009-12-08  3D diag fields added to export state (for GOCART)
 !
 !EOP
 
@@ -59,8 +60,6 @@
 
       real, pointer     :: fArr2D(:,:)
       real, pointer     :: fArr3D(:,:,:)
-!      real(ESMF_KIND_R8), pointer     :: fArr2D(:,:)
-!      real(ESMF_KIND_R8), pointer     :: fArr3D(:,:,:)
 
       integer                  :: i, j, k
 
@@ -433,7 +432,10 @@
 !!****************************************************************************
 !!****************************************************************************
 !! add 2D diag fields (for GOCART) to esmf export state
+!! optioal -- check lgocart flag
 !!------------------------------------------------------------
+
+      lab_if_gocart :  if ( internal%lgocart ) then         !!! <======= optional
 
       lonr            = internal%lonr
       lats_node_r     = internal%lats_node_r
@@ -557,6 +559,25 @@
         call gfs_physics_err_msg(rc, msg ,rcfinal)
 
       ENDDO   lab_do_2D
+
+
+!! add FCLD
+        if(associated(fArr3D)) nullify(fArr3D)                              
+        vname = 'fcld'
+        fArr3D => internal%g3d_fld%fcld
+        if(internal%me == 0) then
+	print *, 'LU_FCLDx:', fArr3D(1,1,1:6)
+        endif
+        msg   = "Create ESMF Field from "//vname
+        field = ESMF_FieldCreate(name=vname, grid=mgrid,       &
+                fArray=fArr3D,indexFlag=ESMF_INDEX_DELOCAL,rc=rc)
+        call gfs_physics_err_msg(rc,msg,rcfinal)    
+
+        msg   = "Add to Physics Export State"
+        call ESMF_StateAdd(state, field, rc=rc)
+        call gfs_physics_err_msg(rc, msg ,rcfinal)
+
+      endif lab_if_gocart 
 
 !
 ! print out the final error signal message and put it to rc.

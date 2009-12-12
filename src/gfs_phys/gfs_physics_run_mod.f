@@ -14,6 +14,8 @@
 !  october  2009      jun wang add nsout option
 !  oct 11  2009       sarah lu, grid_gr replaced by grid_fld
 !  oct 17  2009       sarah lu, q is replaced by tracers(1)
+!  dec 08  2009       sarah lu, add g3d_fld to do_physics_one_step 
+!                     calling argument
 !
 !
 ! !interface:
@@ -86,6 +88,7 @@
                  gis_phy%deltim,  gis_phy%kdt,     gis_phy%phour,         &
 !*               gis_phy%grid_gr, gis_phy%sfc_fld, gis_phy%flx_fld,       &
                  gis_phy%grid_fld, gis_phy%sfc_fld, gis_phy%flx_fld,      &
+                 gis_phy%g3d_fld,                                         &
                  gis_phy%lats_nodes_r,   gis_phy%global_lats_r,           &
                  gis_phy%lonsperlar,                                      &
                  gis_phy%XLON,    gis_phy%XLAT,    gis_phy%COSZDG,        &

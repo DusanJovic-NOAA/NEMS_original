@@ -1,6 +1,6 @@
       SUBROUTINE do_physics_one_step(deltim,kdt,PHOUR, 
 !*   &                 grid_gr, sfc_fld, flx_fld,
-     &                 grid_fld, sfc_fld, flx_fld,
+     &                 grid_fld, sfc_fld, flx_fld, g3d_fld,
      &                 lats_nodes_r,global_lats_r,lonsperlar,
      &                 XLON,XLAT,COSZDG, 
      &                 HPRIME,SWH,HLW, FLUXR,SFALB, SLAG,SDEC,CDEC,
@@ -11,7 +11,9 @@
 
 !!
 !! Code Revision:
-!! oct 11 2009     Sarah Lu,  grid_gr is replaced by grid_fld
+!! oct 11 2009     Sarah Lu, grid_gr is replaced by grid_fld
+!! dec 01 2009     Sarah Lu, add CLDCOV/FCLD check print
+!! dec 08 2009     Sarah Lu, add g3d_fld
 !!
 !!#include "../../inc/f_hpm.h"
       use resol_def
@@ -24,7 +26,8 @@
       use gfs_physics_sfc_flx_mod
       use gfs_physics_sfc_flx_set_mod
       use gfs_physics_gridgr_mod,   ONLY: Grid_Var_Data
-      use d3d_def, ONLY: d3d_zero
+      use gfs_physics_g3d_mod,      ONLY: G3D_Var_Data
+      use d3d_def, ONLY: d3d_zero, CLDCOV
       USE machine, ONLY: KIND_GRID, KIND_GRID, KIND_RAD,
      &                   kind_phys
       IMPLICIT NONE
@@ -32,6 +35,7 @@
       TYPE(Sfc_Var_Data)        :: sfc_fld
       TYPE(Flx_Var_Data)        :: flx_fld
       TYPE(Grid_Var_Data)       :: grid_fld 
+      TYPE(G3D_Var_Data)        :: g3d_fld 
 !*    REAL(KIND=KIND_GRID)      GRID_GR(lonr*lats_node_r_max,lotgr)
       CHARACTER(16)             :: CFHOUR1
 !!     
@@ -128,7 +132,7 @@
 
         if (lsswr .or. lslwr) then         ! Radiation Call!
 !*        CALL GLOOPR ( grid_gr,
-          CALL GLOOPR ( grid_fld,
+          CALL GLOOPR ( grid_fld, g3d_fld,
      &     LATS_NODES_R,GLOBAL_LATS_R,LONSPERLAR,phyhour,
      &     XLON,XLAT,COSZDG,flx_fld%COSZEN,
      &     sfc_fld%SLMSK,sfc_fld%SNWDPH,sfc_fld%SNCOVR,sfc_fld%SNOALB,
@@ -140,6 +144,13 @@
      &     flx_fld%TSFLW,FLUXR,phy_f3d,SLAG,SDEC,CDEC,NBLCK,KDT,
      &     global_times_r)
            if (iprint .eq. 1) print*,' me = fin gloopr ',me
+
+! --- ckprint for cldcov/fcld
+           if (me == 0) then
+            if(ldiag3d) print *,'LU_CLDCOV=',(CLDCOV(n,1,1),n=1,6)
+            if(lgocart) print *,'LU_FCLD  =',(g3d_fld%FCLD(1,1,n),n=1,6)
+           endif
+
         endif
 !
 !!
@@ -183,6 +194,7 @@
         FLUXR = 0.
 !
         if (ldiag3d) then
+          if(me==0) print *, 'LU_CLDCOV: zero out d3d fields'
           call d3d_zero
         endif
       ENDIF

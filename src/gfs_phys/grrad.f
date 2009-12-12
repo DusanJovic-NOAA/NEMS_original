@@ -23,13 +23,13 @@
 !            solcon,coszen,coszdg,k1oz,k2oz,facoz,                     !
 !            cv,cvt,cvb,iovrsw,iovrlw,fcice,frain,rrime,               !
 !            np3d,ntcw,ncld,ntoz, NTRAC,NFXR,                          !
-!            dtlw,dtsw, lsswr,lslwr,lssav,ldiag3d,                     !
+!            dtlw,dtsw, lsswr,lslwr,lssav,                             !
 !            IX, IM, LM, iflip, me, lprnt,                             !
 !         output:                                                      !
 !            htrsw,sfcnsw,sfcdsw,sfalb,                                !
-!            htrlw,sfcdlw,tsflw,                                       !
+!            htrlw,sfcdlw,tsflw,cldcov,                                !
 !         input/output:                                                !
-!            fluxr,cldcov,                                             !
+!            fluxr,                                                    !
 !         optional output:                                             !
 !            HTRSWB,HTRLWB)                                            !
 !                                                                      !
@@ -71,6 +71,8 @@
 !     04-10-07    yu-tai hou   - spectral band sw/lw heating rates     !
 !     05-04-07    yu-tai hou   - make options for clim based and modis !
 !                                based (h. wei and c. marshall) albedo !
+!     12-09-09    sarah lu     - grrad computes instant cloud cover    !
+!                               (instead of accumulative fields)       !
 !                                                                      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
@@ -289,6 +291,11 @@
       subroutine grrad                                                  &
 !...................................
 
+!* Revisions for gocart coupling  (Sarah Lu)
+!* calling argument modifed: ldiag3 removed; cldcov/fluxr sequence changed
+!* cldcov (3D cloud cover) is changed from accumulative to instant field;
+!                                     from input/output to output field
+
 !  ---  inputs:
      &     ( prsi,prsl,prslk,tgrs,qgrs,oz,vvl,slmsk,                    &
      &       xlon,xlat,tsfc,snowd,sncovr,snoalb,zorl,hprim,             &
@@ -296,14 +303,14 @@
      &       solcon,coszen,coszdg,k1oz,k2oz,facoz,                      &
      &       cv,cvt,cvb,iovrsw,iovrlw,fcice,frain,rrime,flgmin,         &
      &       np3d,ntcw,ncld,ntoz, NTRAC,NFXR,                           &
-     &       dtlw,dtsw, lsswr,lslwr,lssav,ldiag3d,sashal,               &
-!    &       dtlw,dtsw, lsswr,lslwr,lssav,ldiag3d,                      &
+     &       dtlw,dtsw, lsswr,lslwr,lssav,sashal,                       &
      &       IX, IM, LM, iflip, me, lprnt,                              &
 !  ---  outputs:
      &       htrsw,sfcnsw,sfcdsw,sfalb,                                 &
      &       htrlw,sfcdlw,tsflw,                                        &
+     &       cldcov,                                                    &
 !  ---  input/output:
-     &       fluxr,cldcov                                               &
+     &       fluxr                                                      &
 !! ---  optional outputs:
      &,      HTRSWB,HTRLWB                                              &
      &     )
@@ -377,7 +384,6 @@
 !      dtlw, dtsw      : time duration for lw/sw radiation call in sec  !
 !      lsswr, lslwr    : logical flags for sw/lw radiation calls        !
 !      lssav           : logical flag for store 3-d cloud field         !
-!      ldiag3d         : logical flag for store 3-d diagnostic fields   !
 !      IX,IM           : horizontal dimention and num of used points    !
 !      LM              : vertical layer dimension                       !
 !      iflip           : control flag for in/out vertical indexing      !
@@ -394,10 +400,10 @@
 !      htrlw (IX,LM)   : total sky lw heating rate in k/sec             !
 !      sfcdlw(IM)      : total sky surface downward lw flux in w/m**2   !
 !      tsflw (IM)      : surface air temp during lw calculation in k    !
+!      cldcov(IX,LM)   : to save 3-d cloud fraction                     !
 !                                                                       !
 !    input and output variables:                                        !
 !      fluxr (IX,NFXR) : to save 2-d fields                             !
-!      cldcov(IX,LM)   : to save 3-d cloud fraction                     !
 !                                                                       !
 !    optional output variables:                                         !
 !      htrswb(IX,LM,NBDSW) : spectral band total sky sw heating rate    !
@@ -508,8 +514,7 @@
       integer,  intent(in) :: IX,IM, LM, NTRAC,NFXR, iflip, me,         &
      &       k1oz, k2oz, iovrsw, iovrlw, np3d, ntoz, ntcw, ncld
 
-      logical,  intent(in) :: lsswr, lslwr, lssav, ldiag3d, lprnt,      &
-     &                        sashal
+      logical,  intent(in) :: lsswr, lslwr, lssav, lprnt, sashal
 
       real (kind=kind_phys), dimension(IX,LM+1), intent(in) ::  prsi
 
@@ -526,14 +531,15 @@
      &       oz(IX,LM,NTRAC)
 
 !  ---  outputs: (horizontal dimensioned by IX)
-      real (kind=kind_phys), dimension(IX,LM),intent(out):: htrsw,htrlw
+      real (kind=kind_phys), dimension(IX,LM),intent(out):: htrsw,htrlw,&
+     &                                                      cldcov
 
       real (kind=kind_phys), dimension(IM),   intent(out):: sfcnsw,     &
      &       sfcdlw, tsflw, sfcdsw, sfalb
 
 !  ---  variables are for both input and output:
       real (kind=kind_phys),                  intent(inout) ::          &
-     &       fluxr(IX,NFXR), cldcov(IX,LM)
+     &       fluxr(IX,NFXR)
 
 !! ---  optional outputs:
       real (kind=kind_phys), dimension(IX,LM,NBDSW), optional,          &
@@ -1093,13 +1099,12 @@
           enddo
         endif
 
-        if (ldiag3d) then
+!! cldcov: 3D instant cloud cover
           do k = 1, LM
             do i = 1, IM
-              cldcov(i,k) = cldcov(i,k) + clouds(i,k,1) * raddt
+              cldcov(i,k) = clouds(i,k,1)
             enddo
           enddo
-        endif
 
       endif                                ! end_if_lssav
 !
