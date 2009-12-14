@@ -25,8 +25,8 @@
 ###########################################################
 # Cumulative Core-Specific Compiler Flags
 ###########################################################
-  FFLAGSDB=$(OPTS_NMM) $(FINCS_NMM1)
-  FFLAGSDB_STUB=$(OPTS_NMM) $(FINCS_GFS1)
+  FFLAGSDB=$(OPT_NMM) $(FINCS_NMM1) $(TRAPS)
+  FFLAGSDB_STUB=$(OPT_NMM) $(FINCS_GFS1) $(TRAPS)
   GC_LIB=$(NMM_UTIL_LIB) $(NMM_DYN_LIB) $(NMM_PHY_LIB) $(NMM_IO_LIB) $(ATM_LIB) $(GFS_DYN_LIB) $(GFS_PHY_LIB) $(GFS_IO_LIB) $(GFS_UTIL_LIB) $(ATMOS_STUB_LIB)
 ###########################################################
 # Cumulative Core-Specific Libraries
