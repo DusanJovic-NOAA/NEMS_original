@@ -617,7 +617,7 @@
 !***  LOCAL VARIABLES
 !-----------------------------------------------------------------------
 !
-      INTEGER :: I,J,L,M,N,NCHILD,NFCST,RC,RC_CHILD
+      INTEGER :: I,J,L,M,N,NCHILD,NFCST,RC,RC_CHILD,LNSH=1    ! Tom, change lnsh value later
       INTEGER :: INPES,JNPES
       INTEGER :: IDS,IDE,JDS,JDE
       INTEGER :: IMS,IME,JMS,JME
@@ -657,6 +657,8 @@
                                           ,WBD                          &
                                           ,WBD_CHILD                    &
                                           ,WBD_PARENT
+!
+      REAL,ALLOCATABLE,DIMENSION(:)     :: DUMMY_SOIL
 !
       REAL,ALLOCATABLE,DIMENSION(:,:)   :: SEA_MASK,SEA_ICE
 !
@@ -1038,6 +1040,7 @@
       ALLOCATE(DUMMY_2D_OUT(1:IM_CHILD,1:JM_CHILD,1:1))
       ALLOCATE(DUMMY_3D (1:IM_CHILD,1:JM_CHILD,1:LM))
       ALLOCATE(DUMMY_3DS(1:IM_CHILD,1:JM_CHILD,1:NUM_SOIL_LAYERS))
+      ALLOCATE(DUMMY_SOIL(1:NUM_SOIL_LAYERS))
       ALLOCATE(TEMPSOIL (1:NUM_SOIL_LAYERS,1:IM_CHILD,1:JM_CHILD))
 !
       ALLOCATE(PD_NEAREST (1:IM_CHILD,1:JM_CHILD,1:1))
@@ -1087,7 +1090,7 @@
                    ,IHREND                                              &
                    ,NTSD
 !
-        WRITE(NFCST)dyn_int_state%PT                                 &
+        WRITE(NFCST)dyn_int_state%PT                                    &
                    ,dyn_int_state%PDTOP                                 &
                    ,dyn_int_state%LPT2                                  &
                    ,dyn_int_state%SGM                                   &
@@ -1097,7 +1100,26 @@
                    ,dyn_int_state%SG2                                   &
                    ,dyn_int_state%DSG2                                  &
                    ,dyn_int_state%SGML2
-
+!
+        WRITE(NFCST)I_PARENT_START,J_PARENT_START
+!
+        DLMD=DLMD_PARENT*CHILD_PARENT_SPACE_RATIO
+        DPHD=DPHD_PARENT*CHILD_PARENT_SPACE_RATIO
+!
+        IF(GLOBAL)THEN
+          SBD=SBD_PARENT+(J_PARENT_START-2)*DPHD_PARENT
+          WBD=WBD_PARENT+(I_PARENT_START-2)*DLMD_PARENT
+        ELSE 
+          SBD=SBD_PARENT+(J_PARENT_START-1)*DPHD_PARENT
+          WBD=WBD_PARENT+(I_PARENT_START-1)*DLMD_PARENT
+        ENDIF
+!
+        WRITE(NFCST)DLMD,DPHD                                           &
+                   ,WBD,SBD                                             &
+                   ,TLM0D_PARENT,TPH0D_PARENT
+!
+        WRITE(NFCST)IM_CHILD,JM_CHILD,LM,LNSH
+!
 !-----------------------------------------------------------------------
 !
       ENDIF
@@ -1164,10 +1186,10 @@
 !-----------------------------------------------------------------------
 !***  Stnd Deviation of Sfc Height
 !-----------------------------------------------------------------------
-!
+
       DO J=JMS,JME
       DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=0.  ! This variable not in internal states
+        DUMMY_2D_IN(I,J,1)=phy_int_state%STDH(I,J)
       ENDDO
       ENDDO
 !
@@ -1177,7 +1199,7 @@
                                ,BILINEAR)
 !
       IF(MYPE==0)WRITE(NFCST)DUMMY_2D_OUT
-!     write(0,*)' after Stnd Dev'
+!     write(0,*)' after STDH'
 !
 !-----------------------------------------------------------------------
 !***  Sea Mask
@@ -1353,6 +1375,37 @@
         IF(MYPE==0)WRITE(NFCST)DUMMY_3D(:,:,L)
       ENDDO
 !     write(0,*)' after CW'
+!
+!-----------------------------------------------------------------------
+!***  O3
+!-----------------------------------------------------------------------
+!
+!     CALL PARENT_TO_CHILD_FILL(dyn_int_state%O3, LM                    &
+!                              ,'O3'                                    &
+!                              ,DUMMY_3D                                &
+!                              ,BILINEAR)
+!
+!     IF(MYPE==0)THEN
+!       CALL ADJUST_COLUMNS(PD_NEAREST                                  &
+!                          ,PD_BILINEAR                                 &
+!                          ,LOWER_TOPO                                  &
+!                          ,DUMMY_3D                                    &
+!                          ,dyn_int_state%PT                            &
+!                          ,dyn_int_state%PDTOP                         &
+!                          ,dyn_int_state%SG1                           &
+!                          ,dyn_int_state%SG2                           &
+!                          ,IM_CHILD,JM_CHILD)
+!     ENDIF
+!
+      DO L=1,LM
+        DO J=1,JM_CHILD
+        DO I=1,IM_CHILD
+          DUMMY_3D(I,J,L)=0.    ! for now keep O3 = 0.
+        ENDDO
+        ENDDO
+        IF(MYPE==0)WRITE(NFCST)DUMMY_3D(:,:,L)
+      ENDDO
+!     write(0,*)' after O3'
 !
 !-----------------------------------------------------------------------
 !***  ALBEDO
@@ -1633,24 +1686,6 @@
 !     write(0,*)' after Z0BASE'
 !
 !-----------------------------------------------------------------------
-!***  STDH
-!-----------------------------------------------------------------------
-!
-      DO J=JMS,JME
-      DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=phy_int_state%STDH(I,J)
-      ENDDO
-      ENDDO
-!
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                          &
-                               ,'STDH'                                  &
-                               ,DUMMY_2D_OUT                            &
-                               ,BILINEAR)
-!
-      IF(MYPE==0)WRITE(NFCST)DUMMY_2D_OUT
-!     write(0,*)' after STDH'
-!
-!-----------------------------------------------------------------------
 !***  STC
 !-----------------------------------------------------------------------
 !
@@ -1792,37 +1827,8 @@
 !
 !-----------------------------------------------------------------------
 !
-      IF(MYPE==0)WRITE(NFCST)DUMMY_2D_OUT
-      IF(MYPE==0)WRITE(NFCST)DUMMY_2D_OUT
-!
-!-----------------------------------------------------------------------
-!***  PT
-!-----------------------------------------------------------------------
-!
-      IF(MYPE==0)WRITE(NFCST)dyn_int_state%PT
-!
-!-----------------------------------------------------------------------
-!***  I_PARENT_START,J_PARENT_START
-!-----------------------------------------------------------------------
-!
-      IF(MYPE==0)WRITE(NFCST)I_PARENT_START,J_PARENT_START
-!
-!-----------------------------------------------------------------------
-!
-      DLMD=DLMD_PARENT*CHILD_PARENT_SPACE_RATIO
-      DPHD=DPHD_PARENT*CHILD_PARENT_SPACE_RATIO
-!
-      IF(GLOBAL)THEN
-        SBD=SBD_PARENT+(J_PARENT_START-2)*DPHD_PARENT
-        WBD=WBD_PARENT+(I_PARENT_START-2)*DLMD_PARENT
-      ELSE 
-        SBD=SBD_PARENT+(J_PARENT_START-1)*DPHD_PARENT
-        WBD=WBD_PARENT+(I_PARENT_START-1)*DLMD_PARENT
-      ENDIF
-!
-      IF(MYPE==0)WRITE(NFCST)DLMD,DPHD                                  &
-                            ,WBD,SBD                                    &
-                            ,TLM0D_PARENT,TPH0D_PARENT
+      IF(MYPE==0)WRITE(NFCST)DUMMY_SOIL
+      IF(MYPE==0)WRITE(NFCST)DUMMY_SOIL
 !
 !-----------------------------------------------------------------------
 !
@@ -1835,6 +1841,7 @@
       DEALLOCATE(DUMMY_2D_OUT)
       DEALLOCATE(DUMMY_3D)
       DEALLOCATE(DUMMY_3DS)
+      DEALLOCATE(DUMMY_SOIL)
       DEALLOCATE(TEMPSOIL)
       DEALLOCATE(SEA_MASK)
       DEALLOCATE(PD_BILINEAR)

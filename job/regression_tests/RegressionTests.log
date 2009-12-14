@@ -1,4 +1,4 @@
-Fri Dec 11 16:18:23 EST 2009
+Sat Dec 12 11:59:52 EST 2009
 Start Regression test
 
 
@@ -26,7 +26,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  177.14  , test_glob timing:  173.28
+ Original timing:  177.14  , test_glob timing:  173.81
 
 
 Test 002
@@ -164,7 +164,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  269.31  , test_reg timing:  268.35
+ Original timing:  269.31  , test_reg timing:  268.31
 
 
 Test 009
@@ -602,4 +602,4 @@ Checking test 027 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Test 027 passed 
-Fri Dec 11 19:43:17 EST 2009
+Sat Dec 12 14:55:00 EST 2009

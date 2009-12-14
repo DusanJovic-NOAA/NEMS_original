@@ -333,7 +333,7 @@ export TEST_DESCR="Test NMMB-regional NEMSIO as input file"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NEM_REG_NEMSIO
+export RUNDIR=${RUNDIR_ROOT}/NMM_REG_NEMSIO
 export CNTL_PTH=${RTPWD}/NMMB_reg
 export LIST_FILES=" \
 nmm_b_history.000 nmm_b_history.003 nmm_b_history.006 nmm_b_history.009 nmm_b_history.012    \

@@ -228,6 +228,12 @@ integer(kind=kint) :: &
 integer(kind=kint) :: &      ! number of soil levels
  nsoil
 
+integer(kind=kint) :: &      ! dimensions from input file
+ im &
+,jm &
+,lmm &
+,lnsh
+
 integer(kind=kint) :: &
  iyear_fcst           &
 ,imonth_fcst          &
@@ -268,23 +274,23 @@ logical(kind=klog) :: opened
       read_blocks: if(.not.restart) then                     ! cold start
 !-----------------------------------------------------------------------
 !
-!!!     infile='main_input_filename'
         write(infile,'(a,i2.2)')'input_domain_',my_domain_id
         open(unit=nfcst,file=infile,status='old',form='unformatted')
 !
 !-----------------------------------------------------------------------
 !
-        read(nfcst) run,idat,ihrst,ihrend,ntsd
+        read (nfcst) run,idat,ihrst,ihrend,ntsd
+        read (nfcst) pt,pdtop,lpt2,sgm,sg1,dsg1,sgml1,sg2,dsg2,sgml2
+        read (nfcst) i_parent_start,j_parent_start
+        read (nfcst) dlmd,dphd,wbd,sbd,tlm0d,tph0d
+        read (nfcst) im,jm,lmm,lnsh
+!
+!-----------------------------------------------------------------------
+!***  Print the time & domain information.
+!-----------------------------------------------------------------------
 !
         if(mype==0)then
           write(0,*) 'run, idat,ntsd: ', run, idat, ntsd
-        endif
-!
-!-----------------------------------------------------------------------
-!***  Print the time information.
-!-----------------------------------------------------------------------
-!
-        if(mype==0)then
           write(0,*)' Start year =',idat(3)
           write(0,*)' Start month=',idat(2)
           write(0,*)' Start day  =',idat(1)
@@ -292,14 +298,17 @@ logical(kind=klog) :: opened
           write(0,*)' Timestep   =',dt
           write(0,*)' Steps/hour =',3600./dt
           if(.not.global)write(0,*)' Max fcst hours=',ihrend
+          write(0,*) 'nmm_dyn reads of PT, PDTOP: ',PT,PDTOP
+          write(0,*) 'nmm_dyn reads of I_PARENT_START, J_PARENT_START: ',i_parent_start,j_parent_start
+          write(0,*) 'nmm_dyn reads of TLM0D, TPH0D: ',tlm0d,tph0d
+          write(0,*) 'nmm_dyn reads of DLMD, DPHD: ',dlmd,dphd
+          write(0,*) 'nmm_dyn reads of WBD, SBD: ',wbd,sbd
+          write(0,*) 'nmm_dyn reads of IM, JM, LM, LNSH: ',im,jm,lmm,lnsh
         endif
 !
 !-----------------------------------------------------------------------
 !
-        read (nfcst) pt,pdtop,lpt2,sgm,sg1,dsg1,sgml1,sg2,dsg2,sgml2
-!
         if(mype==0)then
-          write(0,*) 'nmm_libutil reads of PT, PDTOP: ', PT, PDTOP
           read(nfcst)temp1
         endif
         do j=jms,jme
@@ -427,11 +436,25 @@ logical(kind=klog) :: opened
         enddo
         call halo_exch(cw,lm,2,2)
 !
+!-----------------------------------------------------------------------
+!
+        do l=1,lm
+          if(mype==0)then
+            read(nfcst)temp1   ! here O3 will replace RRW
+          endif
+!         do j=jms,jme
+!         do i=ims,ime
+!           o3(i,j,l)=0.
+!         enddo
+!         enddo
+!         call dstrb(temp1,o3,1,1,1,lm,l)
+        enddo
+!       call halo_exch(o3,lm,2,2)
+!
         print*,'*** Read initial conditions in init from ',infile
 !
 !-----------------------------------------------------------------------
         ntsti=ntsd+1
-!
 !
         tend_max=real(ihrend)
         ntstm_max=nint(tend_max*3600./dt)+1
@@ -457,7 +480,6 @@ logical(kind=klog) :: opened
         do l=1,lm
           pdsg1(l)=dsg1(l)*pdtop
           psgml1(l)=sgml1(l)*pdtop+pt
-!         write(0,*) 'L, pdsg1, psgml1: ', L, pdsg1(L), psgml1(L)
         enddo
 !
         do l=1,lm+1
@@ -561,7 +583,6 @@ logical(kind=klog) :: opened
         if(mype==0)then
           read(nfcst)temp1  ! SICE
         endif
-!       write(0,*) 'maxval(sice): ', maxval(temp1)
         do j=jms,jme
         do i=ims,ime
           sice(i,j)=0.
@@ -573,27 +594,66 @@ logical(kind=klog) :: opened
 !-----------------------------------------------------------------------
 !
         if(mype==0)then
-          do n=1,15
-            read(nfcst)
-          enddo
+          read(nfcst) temp1  ! TG
         endif
 !
         if(mype==0)then
-          read(nfcst)pt
-          write(0,*) 'pt read again here...pt: ', pt
-          read(nfcst)i_parent_start,j_parent_start
-          read(nfcst)dlmd,dphd,wbd,sbd,tlm0d,tph0d
+          read(nfcst) temp1  ! CMC
         endif
 !
-        call mpi_bcast(pt,1,mpi_real,0,mpi_comm_comp,irtn)
-        call mpi_bcast(i_parent_start,1,mpi_integer,0,mpi_comm_comp,irtn)
-        call mpi_bcast(j_parent_start,1,mpi_integer,0,mpi_comm_comp,irtn)
-        call mpi_bcast(dlmd,1,mpi_real,0,mpi_comm_comp,irtn)
-        call mpi_bcast(dphd,1,mpi_real,0,mpi_comm_comp,irtn)
-        call mpi_bcast(wbd,1,mpi_real,0,mpi_comm_comp,irtn)
-        call mpi_bcast(sbd,1,mpi_real,0,mpi_comm_comp,irtn)
-        call mpi_bcast(tlm0d,1,mpi_real,0,mpi_comm_comp,irtn)
-        call mpi_bcast(tph0d,1,mpi_real,0,mpi_comm_comp,irtn)
+        if(mype==0)then
+          read(nfcst) temp1  ! SR
+        endif
+!
+        if(mype==0)then
+          read(nfcst) temp1  ! USTAR
+        endif
+!
+        if(mype==0)then
+          read(nfcst) temp1  ! Z0
+        endif
+!
+        if(mype==0)then
+          read(nfcst) temp1  ! Z0BASE
+        endif
+!
+        if(mype==0)then
+          read(nfcst) temp1  ! STC
+        endif
+!
+        if(mype==0)then
+          read(nfcst) temp1  ! SMC
+        endif
+!
+        if(mype==0)then
+          read(nfcst) temp1  ! SH2O
+        endif
+!
+        if(mype==0)then
+          read(nfcst) temp1  ! ISLTYP
+        endif
+!
+        if(mype==0)then
+          read(nfcst) temp1  ! IVGTYP
+        endif
+!
+        if(mype==0)then
+          read(nfcst) temp1  ! VEGFRC
+        endif
+!
+        if(mype==0)then
+          read(nfcst) ! temp1  ! DZSOIL
+        endif
+!
+        if(mype==0)then
+          read(nfcst) ! temp1  ! SLDPTH
+        endif
+!
+!       if(mype==0)then               ! here will be 14 orography fields for GWD
+!         do n=1,14
+!           read(nfcst) temp1
+!         enddo
+!       endif
 !
 !-----------------------------------------------------------------------
 !

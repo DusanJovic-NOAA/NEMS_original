@@ -5595,7 +5595,7 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
           endif
 !
           if(write_global_sums.and.mype==0)then
-            write(0,*)' hadv2 writing to iunit_advec_sums=',iunit_advec_sums
+!           write(0,*)' hadv2 writing to iunit_advec_sums=',iunit_advec_sums
             do l=1,lm
               write(iunit_advec_sums)gsums_single(1,l),gsums_single(2,l) &
                                     ,gsums_single(3,l),gsums_single(4,l) &
@@ -5905,7 +5905,7 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
       bitsaf: if(read_global_sums.or.write_global_sums)then   !<--- NEVER SET BOTH READ AND WRITE TO .TRUE.
 !
         if(write_global_sums.and.mype==0)then
-          write(0,*)' hadv2 2 writing to iunit_advec_sums=',iunit_advec_sums
+!         write(0,*)' hadv2 2 writing to iunit_advec_sums=',iunit_advec_sums
           do l=1,lm
             write(iunit_advec_sums)gsums_single(1,l),gsums_single(2,l) &
                                   ,gsums_single(3,l),gsums_single(4,l) &
@@ -6716,7 +6716,7 @@ real(kind=kfpt),dimension(2,1:lm) :: gsums_single
           endif
 !
           if(write_global_sums.and.mype==0)then
-            write(0,*)' hadv2_scal writing to iunit_advec_sums=',iunit_advec_sums
+!           write(0,*)' hadv2_scal writing to iunit_advec_sums=',iunit_advec_sums
             do l=1,lm
               write(iunit_advec_sums)gsums_single(1,l),gsums_single(2,l)
             enddo
@@ -6889,7 +6889,7 @@ real(kind=kfpt),dimension(2,1:lm) :: gsums_single
         endif
 !
         if(write_global_sums.and.mype==0)then
-          write(0,*)' hadv2_scal 2 writing to iunit_advec_sums=',iunit_advec_sums
+!         write(0,*)' hadv2_scal 2 writing to iunit_advec_sums=',iunit_advec_sums
           do l=1,lm
             write(iunit_advec_sums)gsums_single(1,l),gsums_single(2,l)
           enddo

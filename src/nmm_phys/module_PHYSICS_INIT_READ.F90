@@ -193,6 +193,7 @@
 !---------------------
 !
       INTEGER :: LDIM1,LDIM2,UDIM1,UDIM2
+      INTEGER :: IM,JM,LMM,LNSH
       INTEGER :: LPT2
       INTEGER :: N,I,J,L,K,II,JJ
       REAL,DIMENSION(LM+1) :: PSG1
@@ -215,30 +216,45 @@
         OPEN(unit=NFCST,file=INFILE,status='old',form='unformatted')
       ENDIF
 !
-!-----------------------------------------------------------------------
-!***  Vertical layer information is needed in order to send it to
-!***  some specific schemes' initialization routines that follow
-!***  below.
-!-----------------------------------------------------------------------
-!
       IF(MYPE==0)THEN
         READ(NFCST)RUN,IDAT,IHRST
         READ(NFCST)PT,PDTOP,LPT2,SGM,SG1,DSG1,SGML1,SG2,DSG2,SGML2
+        READ(NFCST) ! I_PARENT_START,J_PARENT_START
+        READ(NFCST)int_state%DLMD,int_state%DPHD                       &
+                  ,int_state%WBD,int_state%SBD                         &
+                  ,int_state%TLM0D,int_state%TPH0D
+        READ(NFCST)IM,JM,LMM,LNSH
       ENDIF
 !
-      CALL MPI_BCAST(IDAT     ,3    ,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(IHRST    ,1    ,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(IDAT           ,3    ,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(IHRST          ,1    ,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
 !
-      CALL MPI_BCAST(PT       ,1    ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(PDTOP    ,1    ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(LPT2     ,1    ,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(SGM(1)   ,LM+1 ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(SG1(1)   ,LM+1 ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(DSG1(1)  ,LM   ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(SGML1(1) ,LM   ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(SG2(1)   ,LM+1 ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(DSG2(1)  ,LM   ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(SGML2(1) ,LM   ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(PT             ,1    ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(PDTOP          ,1    ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(LPT2           ,1    ,MPI_INTEGER ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(SGM(1)         ,LM+1 ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(SG1(1)         ,LM+1 ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(DSG1(1)        ,LM   ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(SGML1(1)       ,LM   ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(SG2(1)         ,LM+1 ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(DSG2(1)        ,LM   ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(SGML2(1)       ,LM   ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
+!
+      CALL MPI_BCAST(int_state%SBD  ,1    ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(int_state%WBD  ,1    ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(int_state%DPHD ,1    ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(int_state%DLMD ,1    ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(int_state%TPH0D,1    ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
+      CALL MPI_BCAST(int_state%TLM0D,1    ,MPI_REAL    ,0,MPI_COMM_COMP,IRTN)
+!
+      IF(MYPE==0)THEN
+        write(0,11121)int_state%wbd,int_state%sbd
+        write(0,11122)int_state%dlmd,int_state%dphd
+        write(0,11123)int_state%tlm0d,int_state%tph0d
+11121   format(' physics input read in wbd=',e12.5,' sbd=',e12.5)
+11122   format(' dlmd=',e12.5,' dphd=',e12.5)
+11123   format(' tlm0d=',e12.5,' tph0d=',e12.5)
+      ENDIF
 !
       CALL MPI_BARRIER(MPI_COMM_COMP,IRTN)
 !
@@ -328,14 +344,29 @@
       ENDDO
       ENDDO
       CALL DSTRB(TEMP1,int_state%FIS,1,1,1,1,1)
-      CALL HALO_EXCH(int_state%FIS,1,3,3) !zj
+      CALL HALO_EXCH(int_state%FIS,1,3,3)
+!
+!-----------------------------------------------------------------------
+!***  STDH (Standard Deviation of the Height)
+!-----------------------------------------------------------------------
+!
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+!
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%STDH(I,J)=0.
+      ENDDO
+      ENDDO
+      CALL DSTRB(TEMP1,int_state%STDH,1,1,1,1,1)
+      CALL HALO_EXCH(int_state%STDH,1,3,3)
 !
 !-----------------------------------------------------------------------
 !***  SM (Seamask)
 !-----------------------------------------------------------------------
 !
       IF(MYPE==0)THEN
-        READ(NFCST)
         READ(NFCST)TEMP1
       ENDIF
 !
@@ -458,6 +489,22 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
+!
+      DO K=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1   ! O3
+        ENDIF
+!
+        DO J=LDIM2,UDIM2
+        DO I=LDIM1,UDIM1
+!         int_state%O3(I,J,K)=0.
+        ENDDO
+        ENDDO
+!
+!       CALL DSTRB(TEMP1,int_state%O3,1,1,1,LM,K)
+      ENDDO
+!
+!-----------------------------------------------------------------------
 !***  ALBEDO
 !-----------------------------------------------------------------------
 !
@@ -560,14 +607,6 @@
       ENDIF 
       CALL DSTRB(TEMP1,int_state%Z0BASE,1,1,1,1,1) 
       CALL HALO_EXCH(int_state%Z0BASE,1,3,3) 
-
-!
-      IF(MYPE==0)THEN 
-        READ(NFCST)TEMP1 
-!        write(0,*) 'min, max for STDH: ', minval(TEMP1),maxval(TEMP1) 
-      ENDIF 
-      CALL DSTRB(TEMP1,int_state%STDH,1,1,1,1,1) 
-      CALL HALO_EXCH(int_state%STDH,1,3,3) 
 !
       ALLOCATE(TEMPSOIL(1:NSOIL,IDS:IDE,JDS:JDE),STAT=I)
 !
@@ -621,40 +660,20 @@
 !        write(0,*) 'min, max for VEGFRC: ', minval(TEMP1),maxval(TEMP1) !zj
       ENDIF
       CALL DSTRB(TEMP1,int_state%VEGFRC,1,1,1,1,1)
-      IF (MYPE==0) THEN
+!
+      IF(MYPE==0)THEN
+        READ(NFCST) SOIL1DIN ! DZSOIL
       ENDIF
 !
       IF(MYPE==0)THEN
-        READ(NFCST) SOIL1DIN
-!        write(0,*) 'SOIL1DIN: ', SOIL1DIN
+        READ(NFCST) SOIL1DIN ! SLDPTH
       ENDIF
 !
-      IF(MYPE==0)THEN
-        READ(NFCST) SOIL1DIN
-!        write(0,*) 'SOIL1DIN: ', SOIL1DIN
-      ENDIF
-!
-      IF(MYPE==0)THEN
-        READ(NFCST) PT
-        READ(NFCST) ! I_PARENT_START,J_PARENT_START
-        READ(NFCST)int_state%DLMD,int_state%DPHD                       &
-                  ,int_state%WBD,int_state%SBD                         &
-                  ,int_state%TLM0D,int_state%TPH0D
-        write(0,11121)int_state%wbd,int_state%sbd
-        write(0,11122)int_state%dlmd,int_state%dphd
-        write(0,11123)int_state%tlm0d,int_state%tph0d
-11121   format(' physics input read in wbd=',e12.5,' sbd=',e12.5)
-11122   format(' dlmd=',e12.5,' dphd=',e12.5)
-11123   format(' tlm0d=',e12.5,' tph0d=',e12.5)
-      ENDIF
-!
-      CALL MPI_BCAST(PT   ,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(int_state%SBD  ,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(int_state%WBD  ,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(int_state%DPHD ,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(int_state%DLMD ,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(int_state%TPH0D,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
-      CALL MPI_BCAST(int_state%TLM0D,1,MPI_REAL,0,MPI_COMM_COMP,IRTN)
+!     IF(MYPE==0)THEN        ! here will be 14 orography fields for GWD
+!       DO N=1,14
+!         READ(NFCST) TEMP1
+!       ENDDO
+!     ENDIF
 !
       CALL MPI_BARRIER(MPI_COMM_COMP,IRTN)
 !
