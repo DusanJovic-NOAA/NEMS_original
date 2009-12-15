@@ -3448,6 +3448,8 @@
 !***  Now loop through all the real Fields.
 !-----------------------------------------------------------------------
 !
+      WRITE(MODEL_LEVEL,'(I2.2)')wrt_int_state%LM(1)
+!
 !-----------------------------------------------------------------------
 !
       rst_field_loop_real: DO NFIELD=1,wrt_int_state%RST_KOUNT_R2D(1)      !<-- Loop through all 2D real gridded restart data
