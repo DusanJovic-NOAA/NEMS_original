@@ -24,6 +24,7 @@
 !   2009-12-10  Sarah Lu -- GRRAD output instant cloud cover
 !   2009-12-11  Sarah Lu -- GRRAD calling argument modified: remove ldiag3d;
 !                           reverse flxur/cldcov sequence 
+!   2009-12-15  Sarah Lu -- GBPHYS calling argument modified: add dqdt
 ! 
 !
 !-----------------------------------------------------------------------
@@ -881,6 +882,7 @@
       REAL (KIND=KDBL) ,DIMENSION(NUM_SOIL_LAYERS) :: SMC_V, STC_V, SLC_V
       REAL (KIND=KDBL) ,DIMENSION(14)              :: HPRIME
       REAL (KIND=KDBL) ,DIMENSION(LM)              :: UPD_MF, DWN_MF, DET_MF   !!!!!!!!!!! not in use
+      REAL (KIND=KDBL) ,DIMENSION(LM)              :: DQDT                     !!!!!!!!!!! not in use
       REAL (KIND=KDBL) ,DIMENSION(LM,9)            :: DQ3DT                    !!!!!!!!!!!  (9=5+pl_coeff)
       REAL (KIND=KDBL) ,DIMENSION(LM,6)            :: DT3DT                    !!!!!!!!!!! while
       REAL (KIND=KDBL) ,DIMENSION(LM,4)            :: DU3DT, DV3DT             !!!!!!!!!!! LDIAG3D =.FALSE.
@@ -2196,7 +2198,8 @@
            int_state%SDEC, int_state%CDEC,                                     &
            ACV, ACVB, ACVT,                                                    &
            PHY_F3DV, PHY_F2DV, NUM_P3D, NUM_P2D, FLGMIN,                       &
-           DT3DT, DQ3DT, DU3DT, DV3DT, UPD_MF, DWN_MF, DET_MF, LDIAG3D,        &
+!          DT3DT, DQ3DT, DU3DT, DV3DT, UPD_MF, DWN_MF, DET_MF, LDIAG3D,        &  
+           DT3DT, DQ3DT, DU3DT, DV3DT, DQDT, UPD_MF, DWN_MF, DET_MF, LDIAG3D,  &  
            FLIPV, MYPE, NTIMESTEP, J-JTS+1, ORO,                               &
            CRTRH, NCW, OLD_MONIN, CNVGWD, CCWF, SASHAL, NEWSAS)
 !

@@ -1,6 +1,6 @@
       subroutine gloopb
 !*   &    ( grid_gr,
-     &    ( grid_fld,
+     &    ( grid_fld, g3d_fld,                               
      x     lats_nodes_r,global_lats_r,lonsperlar,
      &     tstep,phour,sfc_fld, flx_fld, SFALB,xlon,
      &     swh,hlw,hprime,slag,sdec,cdec,
@@ -12,6 +12,8 @@
 !! Oct 11 2009       Sarah Lu, grid_gr replaced by gri_fld
 !! Ott 16 2009       Sarah Lu, grid_fld%tracers used
 !! Nov 18 2009       Sarah Lu, rain/rainc added to gbphys call arg
+!! Dec 14 2009       Sarah Lu, add g3d_fld to calling argument,
+!!                             update dqdt after gbphys returns dqdt_v
 !!
 ! #include "f_hpm.h"
 !!
@@ -28,6 +30,7 @@
       use d3d_def
       use gfs_physics_sfc_flx_mod
       use gfs_physics_gridgr_mod, ONLY: Grid_Var_Data
+      use gfs_physics_g3d_mod,    ONLY: G3D_Var_Data            
       use mersenne_twister
       include 'mpif.h'
       implicit none
@@ -36,6 +39,7 @@
       TYPE(Grid_Var_Data)       :: grid_fld 
       TYPE(Sfc_Var_Data)        :: sfc_fld
       TYPE(Flx_Var_Data)        :: flx_fld
+      TYPE(G3D_Var_Data)        :: g3d_fld 		
 
       integer nlons_v(ngptc)
 !
@@ -127,6 +131,9 @@ c for nasa ozone production and distruction rates:(input throu fixio)
 !    &  dq3dt(ngptc,levs,5+pl_coeff,nblck,lats_node_r),
 !    &  du3dt(ngptc,levs,3,nblck,lats_node_r),
 !    &  dv3dt(ngptc,levs,3,nblck,lats_node_r)
+
+! local working array for moisture tendency 
+      real(kind=kind_phys) dqdt_v(ngptc,LEVS,nblck,lats_node_r) 
 
       real(kind=kind_evod) sinlat_v(ngptc),coslat_v(ngptc),rcs2_v(ngptc)
       real(kind=kind_evod) smc_v(ngptc,lsoil),stc_v(ngptc,lsoil)
@@ -431,6 +438,7 @@ c
 
      &     dt3dt(1,1,1,iblk,lan), dq3dt(1,1,1,iblk,lan),
      &     du3dt(1,1,1,iblk,lan), dv3dt(1,1,1,iblk,lan),
+     &     dqdt_v(1,1,iblk,lan),               ! added for GOCART  
      &     upd_mf(1,1,iblk,lan), dwn_mf(1,1,iblk,lan),
      &     det_mf(1,1,iblk,lan), ldiag3d,
      &     flipv,me,kdt,lat,sfc_fld%oro(istrt,lan),
@@ -451,6 +459,16 @@ c
           sfc_fld%slc(k,istrt+i-1,lan) = slc_v(i,k)
         enddo
       enddo
+!!
+!! total moist tendency (kg/kg/s): from local to global array
+!!
+      if (lgocart) then
+        do k=1,levs
+          do i=1,njeff
+            g3d_fld%dqdt(istrt+i-1,lan,k) = dqdt_v(i,k,iblk,lan) 
+          enddo        
+        enddo         
+      endif          
 !!
       do j=1,num_p3d
         do k=1,levs

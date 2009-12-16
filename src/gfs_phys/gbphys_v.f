@@ -20,7 +20,9 @@
      & HPBL  ,PWAT  ,SWH,HLW,SMC,STC,HPRIME,slag,sdec,cdec,
      & acv,acvb,acvt,
      & phy_f3d, phy_f2d, num_p3d, num_p2d, flgmin,
-     & DT3DT, DQ3DT, DU3DT, DV3DT, upd_mf, dwn_mf, det_mf, LDIAG3D,
+!*   & DT3DT, DQ3DT, DU3DT, DV3DT, upd_mf, dwn_mf, det_mf, LDIAG3D, 
+     & DT3DT, DQ3DT, DU3DT, DV3DT, DQDT_V,                     
+     & upd_mf, dwn_mf, det_mf, LDIAG3D,                       
      & flipv, me,kdt,lat,oro, 
 ! Coupling insertion->
 !    > lssav_cc_dummy,DLWSFC_cc_dummy,ULWSFC_cc_dummy,SWSFC_cc_dummy,
@@ -121,6 +123,9 @@ Cwei added 10/24/2006
 !    &,                    cumflx(ix,levs)
      &,                    upd_mf(ix,levs), dwn_mf(ix,levs)
      &,                    det_mf(ix,levs)
+
+! add local working array for total moisture tendency   
+      real(kind=kind_phys) dqdt_v(IX,levs)    
 !
       integer me, kdt
       logical RAS,LDIAG3D,pre_rad,sashal,newsas
@@ -914,6 +919,13 @@ Clu [+11L]: update smc, stc, slc
             enddo
           endif
         ENDIF
+
+! update dqdt_v to include moisture tendency due to vertical diffusion 
+        DO K=1,LEVS 
+          do i=1,im
+            DQDT_V(i,k) = DQDT(i,K,1) * DTF  
+          enddo 
+        enddo 
       endif
 !
       if (NMTVR .eq. 6) then
@@ -1336,7 +1348,16 @@ Clu [+11L]: update smc, stc, slc
               det_mf(i,k)  = det_mf(i,k)  + dt_mf(i,k) * (grav*FRAIN)
             enddo
           ENDDO
+!
         ENDIF
+
+! update dqdt_v to include moisture tendency due to deep convection 
+        DO K=1,LEVS 
+          do i=1,im 
+            DQDT_V(i,k) = DQDT_V(i,k) + (gq0(i,k,1)-dqdt(i,k,1))  
+     &                                         * FRAIN  
+          enddo 
+        enddo 
       endif
 !
       do i=1,im
@@ -1574,6 +1595,13 @@ Clu [+11L]: update smc, stc, slc
             enddo
           enddo
         ENDIF
+! update dqdt_v to include moisture tendency due to shallow convection 
+        DO K=1,LEVS 
+          do i=1,im 
+            DQDT_V(i,k) = DQDT_V(i,k) + (gq0(i,k,1)-dqdt(i,k,1)) 
+     &                                         * FRAIN  
+          enddo 
+        enddo 
       endif
 !
 !
@@ -1840,6 +1868,15 @@ Clu [+11L]: update smc, stc, slc
             enddo
           ENDDO
         ENDIF
+! update dqdt_v to include moisture tendency due to surface processes 
+! scale total moisture tendency from (g/kg) to (kg/kg/s)
+        DO K=1,LEVS 
+          do i=1,im 
+            DQDT_V(i,k) = DQDT_V(i,k) + (gq0(i,k,1)-dqdt(i,k,1))  
+     &                                         * FRAIN  
+            DQDT_V(i,k) = 1000.* DQDT_V(i,k) / DTF     
+          enddo 
+        enddo 
       endif
 !
 !  ESTIMATE T850 FOR RAIN-SNOW DECISION

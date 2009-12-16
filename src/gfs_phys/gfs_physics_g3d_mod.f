@@ -8,6 +8,7 @@
 ! !REVISION HISTORY:
 !
 !  2009/12/08      Sarah Lu,  Initial code.
+!  2009/12/14      Sarah Lu, dqdt type changed from kind_rad to kind_phys;
 !
 ! !INTERFACE:
 !
@@ -20,7 +21,7 @@
 
 ! 3D diag fields
     real(kind=kind_rad),  pointer :: fcld(:,:,:)
-    real(kind=kind_rad),  pointer :: dqdt(:,:,:)
+    real(kind=kind_phys),  pointer :: dqdt(:,:,:)
    
  end type G3D_Var_Data
 

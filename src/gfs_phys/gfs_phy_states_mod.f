@@ -29,7 +29,8 @@
 !  Sarah Lu  2009-10-12  Port to the latest trunk
 !  Sarah Lu  2009-10-16  Tracer bundle added; (shum, oz, cld) removed
 !  Sarah Lu  2009-11-13  2D diag fields added to export state (for GOCART)
-!  Sarah Lu  2009-12-08  3D diag fields added to export state (for GOCART)
+!  Sarah Lu  2009-12-08  FCLD added to export state (for GOCART)
+!  Sarah Lu  2009-12-15  DQDT added to export state (for GOCART)
 !
 !EOP
 
@@ -306,7 +307,7 @@
                      'rain', 'dtsfci', 'tsea', 'stc1',   &
                      'u10m', 'v10m',  'ustar','zorl'/
 
-      data vname_3d /'cldcov','dqdt'/
+      data vname_3d /'fcld','dqdt'/
  
       cf = internal%esmf_sta_list
 
@@ -561,12 +562,25 @@
       ENDDO   lab_do_2D
 
 
-!! add FCLD
+! loop through the 3D diag fields 
+
+      lab_do_3d : DO i = 1, nfld_3d 
+
+        vname  = trim(vname_3d(i))
         if(associated(fArr3D)) nullify(fArr3D)                              
-        vname = 'fcld'
-        fArr3D => internal%g3d_fld%fcld
+        
+        SELECT CASE (vname)
+
+          CASE ('fcld')   ! cloud cover
+            fArr3D => internal%g3d_fld%fcld
+
+          CASE ('dqdt')   ! total moisture tendency
+            fArr3D => internal%g3d_fld%dqdt
+        
+        END SELECT 
+
         if(internal%me == 0) then
-	print *, 'LU_FCLDx:', fArr3D(1,1,1:6)
+	print *, 'LU_x:',vname, fArr3D(1,1,1:6)
         endif
         msg   = "Create ESMF Field from "//vname
         field = ESMF_FieldCreate(name=vname, grid=mgrid,       &
@@ -576,6 +590,10 @@
         msg   = "Add to Physics Export State"
         call ESMF_StateAdd(state, field, rc=rc)
         call gfs_physics_err_msg(rc, msg ,rcfinal)
+
+      ENDDO   lab_do_3D
+
+
 
       endif lab_if_gocart 
 

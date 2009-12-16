@@ -125,7 +125,6 @@
                                gis_phy%ntoz, gis_phy%ntcw,              &
                                gis_phy%ncld,  me )
       gfs_phy_tracer = gis_phy%gfs_phy_tracer
-      write(0,*)'LU_TRC, reg%doing_GOCART = ', gfs_phy_tracer%doing_GOCART
       gis_phy%lgocart = gfs_phy_tracer%doing_GOCART     ! for internal state
       lgocart = gis_phy%lgocart                         ! for resol_def module
       if( me == 0) then

@@ -20,7 +20,8 @@
      , HPBL  ,PWAT  ,SWH,HLW,SMC,STC,HPRIME,slag,sdec,cdec &
      , acv,acvb,acvt &
      , phy_f3d, phy_f2d, num_p3d, num_p2d, flgmin &
-     , DT3DT, DQ3DT, DU3DT, DV3DT, upd_mf, dwn_mf, det_mf, LDIAG3D &
+     , DT3DT, DQ3DT, DU3DT, DV3DT, DQDT_V                          &           
+     , upd_mf, dwn_mf, det_mf, LDIAG3D                             &
      , flipv, me,kdt,lat,oro &
      , crtrh, ncw, old_monin,cnvgwd,ccwf, sashal,newsas )
 
@@ -97,6 +98,9 @@
 !    ,                    cumflx(ix,levs) &
      ,                    upd_mf(ix,levs), dwn_mf(ix,levs) &
      ,                    det_mf(ix,levs)
+
+! add local working array for total moisture tendency   
+      real(kind=8) dqdt_v(IX,levs)   
 !
       integer me, kdt
       logical RAS,LDIAG3D,pre_rad,sashal,newsas

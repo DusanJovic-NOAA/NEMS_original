@@ -13,7 +13,9 @@
 !! Code Revision:
 !! oct 11 2009     Sarah Lu, grid_gr is replaced by grid_fld
 !! dec 01 2009     Sarah Lu, add CLDCOV/FCLD check print
-!! dec 08 2009     Sarah Lu, add g3d_fld
+!! dec 08 2009     Sarah Lu, add g3d_fld to gloopr calling argument
+!! dec 15 2009     Sarah Lu, add g3d_fld to gloopb calling argument;
+!!                           add DQDT check print
 !!
 !!#include "../../inc/f_hpm.h"
       use resol_def
@@ -155,7 +157,7 @@
 !
 !!
 !*    call gloopb ( grid_gr,
-      call gloopb ( grid_fld,
+      call gloopb ( grid_fld, g3d_fld,
      x     lats_nodes_r,global_lats_r,lonsperlar,
      &     phydt,phyhour,sfc_fld, flx_fld, SFALB,xlon,
      &     swh,hlw,hprime,slag,sdec,cdec,
@@ -163,6 +165,10 @@
      &     phy_f3d, phy_f2d,xlat,nblck,kdt,
      &     global_times_r)
 !
+! --- ckprint for dqdt
+           if (me == 0) then
+            if(lgocart) print *,'LU_DQDT =',(g3d_fld%DQDT(1,1,n),n=1,6)
+           endif
 !!
 !jw      endif !.NOT.LIOPE.or.icolor.ne.2
 !--------------------------------------------

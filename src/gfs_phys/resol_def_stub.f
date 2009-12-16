@@ -31,6 +31,9 @@
 !     For Ensemble concurrency run. Weiyu
 !     INTEGER :: Ensemble_Id, Total_member
 
+!     The option to add 2d/3d diag fields to physics export state
+      logical :: lgocart
+
       end module resol_def
 !
       module ozne_def
