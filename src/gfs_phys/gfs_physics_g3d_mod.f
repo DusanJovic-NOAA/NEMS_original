@@ -14,7 +14,7 @@
 !
  MODULE gfs_physics_g3d_mod
 
- use machine , only : kind_rad
+ use machine , only : kind_rad, kind_phys
  IMPLICIT none
 
  TYPE G3D_Var_Data
