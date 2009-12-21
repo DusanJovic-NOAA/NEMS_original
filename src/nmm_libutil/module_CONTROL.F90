@@ -709,11 +709,11 @@ real(kind=kfpt),dimension(jds:jde):: &
 !
         hdacxj(jds+1)=0.
         hdacyj(jds+1)=acdt*dyh**2 &
-                  /(4.*sqrt(2.)*dxv(jds+1)*dyv*0.5*fpole)
+                  /(4.*dxv(jds+1)*dyv*0.5*fpole)
         hdacvxj(jds+1)=acdt*dyv**2 &
-                  /(4.*sqrt(2.)*dxv(jds+1)*dyv)
+                  /(4.*dxv(jds+1)*dyv)
         hdacvyj(jds+1)=acdt*dyv**2 &
-                  /(4.*sqrt(2.)*dxv(jds+1)*dyv)
+                  /(4.*dxv(jds+1)*dyv)
 !
 !        ddmpu(jds+1)=cddamp*dxv(jds+1)/(2.*dxv(jds+1))
         ddmpu(jds+1)=cddamp*dyv/(2.*dxv(jds+1))
@@ -741,10 +741,10 @@ real(kind=kfpt),dimension(jds:jde):: &
           fcp(j)= dt/(3.*dxh(j)*dyh*cp)
           fdiv(j)=2./(3.*dxh(j)*dyh)
 !
-          hdacxj(j)= acdt*dyh*max(dxh(j),dyh)/(4.*sqrt(2.)*dxh(j)*dyh)
-          hdacyj(j)= acdt*dyh*max(dxh(j),dyh)/(4.*sqrt(2.)*dxh(j)*dyh)
-          hdacvxj(j)=acdt*dyv*max(dxv(j),dyv)/(4.*sqrt(2.)*dxv(j)*dyv)
-          hdacvyj(j)=acdt*dyv*max(dxv(j),dyv)/(4.*sqrt(2.)*dxv(j)*dyv)
+          hdacxj(j)= acdt*dyh*max(dxh(j),dyh)/(4.*dxh(j)*dyh)
+          hdacyj(j)= acdt*dyh*max(dxh(j),dyh)/(4.*dxh(j)*dyh)
+          hdacvxj(j)=acdt*dyv*max(dxv(j),dyv)/(4.*dxv(j)*dyv)
+          hdacvyj(j)=acdt*dyv*max(dxv(j),dyv)/(4.*dxv(j)*dyv)
 !
 !          ddmpu(j)=cddamp*dxv(j)/(2.*dxv(j))
           ddmpu(j)=cddamp*dyv/(2.*dxv(j))
@@ -785,7 +785,7 @@ real(kind=kfpt),dimension(jds:jde):: &
         fdiv(jde-1)=2./(3.*dxv(jde-2)*dyv*0.5*fpole)
         hdacxj(jde-1)=0.
         hdacyj(jde-1)=acdt*dyh**2 &
-                    /(4.*sqrt(2.)*dxv(jde-2)*dyv*0.5*fpole)
+                    /(4.*dxv(jde-2)*dyv*0.5*fpole)
 !-----------------------------------------------------------------------
 !-------------ghost line beyond north pole------------------------------
 !-----------------------------------------------------------------------
@@ -1003,10 +1003,10 @@ real(kind=kfpt),dimension(jds:jde):: &
           fcp(j)= dt/(3.*dxh(j)*dyh*cp)
           fdiv(j)=2./(3.*dxh(j)*dyh)
 !
-          hdacxj(j)= acdt*dyh*max(dxh(j),dyh)/(4.*sqrt(2.)*dxh(j)*dyh)
-          hdacyj(j)= acdt*dyh*max(dxh(j),dyh)/(4.*sqrt(2.)*dxh(j)*dyh)
-          hdacvxj(j)=acdt*dyv*max(dxv(j),dyv)/(4.*sqrt(2.)*dxv(j)*dyv)
-          hdacvyj(j)=acdt*dyv*max(dxv(j),dyv)/(4.*sqrt(2.)*dxv(j)*dyv)
+          hdacxj(j)= acdt*dyh*max(dxh(j),dyh)/(4.*dxh(j)*dyh)
+          hdacyj(j)= acdt*dyh*max(dxh(j),dyh)/(4.*dxh(j)*dyh)
+          hdacvxj(j)=acdt*dyv*max(dxv(j),dyv)/(4.*dxv(j)*dyv)
+          hdacvyj(j)=acdt*dyv*max(dxv(j),dyv)/(4.*dxv(j)*dyv)
 !
 !          ddmpu(j)=cddamp*dxv(j)/(2.*dxv(j))
           ddmpu(j)=cddamp*dyv/(2.*dxv(j))

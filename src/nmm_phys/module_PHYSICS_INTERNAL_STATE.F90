@@ -543,7 +543,7 @@
       DO L=1,LM
       DO J=JMS,JME
       DO I=IMS,IME
-        int_state%Q2(I,J,L)=-1.E6
+        int_state%Q2(I,J,L)=0.02
         int_state%T(I,J,L)=-1.E6
         int_state%U(I,J,L)=-1.E6
         int_state%V(I,J,L)=-1.E6
