@@ -6,6 +6,7 @@
 # REVISION HISTORY:
 #
 # 23jul09  da Silva  First Crack
+# 17Dec09  Lu        Include libDU_GridComp.a in GOCART_LIBS
 #
 #--------------------------------------------------------------------------
 
@@ -39,6 +40,7 @@ ifeq ($(GOCART_MODE),stub)
 else
 
   GOCART_LIBS = libGOCART_GridComp.a libCARMA_GridComp.a \
+              libDU_GridComp.a  \
               libCO2_GridComp.a libCO_GridComp.a libCFC_GridComp.a \
               libO3_GridComp.a libOC_GridComp.a libBC_GridComp.a \
               libSS_GridComp.a libSU_GridComp.a libRn_GridComp.a \

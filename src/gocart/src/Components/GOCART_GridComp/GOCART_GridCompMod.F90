@@ -109,7 +109,7 @@ CONTAINS
     integer                       :: n, nq, i_XX, j_XX
 
 !                              ------------
-
+    RC = ESMF_success
 
 !   Get my name and set-up traceback handle
 !   ---------------------------------------
@@ -146,17 +146,23 @@ CONTAINS
          CALL Chem_RegistryPrint(state%chemReg)
         END IF
 
-        call MAPL_GridCompSetEntryPoint ( GC, ESMF_SETINIT,  Initialize_, &
+!*      call MAPL_GridCompSetEntryPoint ( GC, ESMF_SETINIT,  Initialize_, &
+        call MAPL_GridCompSetEntryPoint ( GC, ESMF_SETINIT,  Initialize_Test, &
              RC=STATUS)
         VERIFY_(STATUS)
+        print *, 'LU_MAPL: register Initialize_Test', STATUS, RC
+
+!*      call MAPL_GridCompSetEntryPoint ( GC,  ESMF_SETRUN,  Run_,        &
+        call MAPL_GridCompSetEntryPoint ( GC,  ESMF_SETRUN,  Run_Test,    &
+             RC=STATUS)
+        VERIFY_(STATUS)
+        print *, 'LU_MAPL: register Run_Test', STATUS, RC
+
         
-        call MAPL_GridCompSetEntryPoint ( GC,  ESMF_SETRUN,  Run_,        &
-             RC=STATUS)
-        VERIFY_(STATUS)
-        
-        call MAPL_GridCompSetEntryPoint ( GC,  ESMF_SETFINAL,  Finalize_,  &
-             RC=STATUS)
-        VERIFY_(STATUS)
+!*      call MAPL_GridCompSetEntryPoint ( GC,  ESMF_SETFINAL,  Finalize_,  &
+!*           RC=STATUS)
+!*      VERIFY_(STATUS)
+        print *, 'LU_MAPL: skip Finalize register', STATUS, RC
         
 !       Store internal state in GC
 !       --------------------------
@@ -875,6 +881,103 @@ end if ! doing GOCART
 
 
 !-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+   subroutine Initialize_Test ( gc, impChem, expChem, clock, rc )
+
+! !USES:
+
+   implicit NONE
+
+! !INPUT PARAMETERS:
+
+   type(ESMF_Clock),  intent(inout) :: clock      ! The clock
+
+! !OUTPUT PARAMETERS:
+
+   type(ESMF_GridComp), intent(inout)  :: gc      ! Grid Component
+   type(ESMF_State), intent(inout) :: impChem     ! Import State
+   type(ESMF_State), intent(inout) :: expChem     ! Export State
+   integer, intent(out) ::  rc                    ! Error return code:
+                                                  !  0 - all is well
+                                                  !  1 - 
+
+!  ErrLog Variables
+!  ----------------
+   character(len=ESMF_MAXSTR)      :: IAm = 'Initialize_'
+   integer                         :: STATUS
+   character(len=ESMF_MAXSTR)      :: COMP_NAME
+
+   type(Chem_Registry), pointer    :: chemReg
+   type(Aero_GridComp), pointer    :: gcChem      ! Grid Component
+   type(Chem_Bundle), pointer      :: w_c         ! Chemical tracer fields     
+   integer                         :: nymd, nhms  ! time
+   real                            :: cdt         ! chemistry timestep (secs)
+
+   type(ESMF_Grid)                 :: grid        
+ 
+   integer                         :: i1=1, i2, ig=0, im  ! dist grid indices
+   integer                         :: j1=1, j2, jg=0, jm  ! dist grid indices
+   integer                         :: km, nq              ! dist grid indices
+   integer                         :: n, dims(3), l
+
+   type(Chem_Array), pointer       :: q(:)          ! array of pointers
+   type(MAPL_MetaComp), pointer :: ggState      ! GEOS Generic State
+   type(ESMF_State)                 :: internal
+   type(ESMF_Field)                 :: field
+   type(ESMF_FieldBundle)           :: bundle
+   type(MAPL_VarSpec), pointer      :: InternalSpec(:)
+
+   real(ESMF_KIND_R4), pointer, dimension(:,:)  :: LATS
+   real(ESMF_KIND_R4), pointer, dimension(:,:)  :: LONS
+
+   character(len=ESMF_MAXSTR)       :: short_name
+
+   real, parameter :: one = 1.0
+
+   RC = ESMF_success
+
+   print *,'LU_MAPL:enter GOCART_Initialize_Test'
+
+!  Get my name and set-up traceback handle
+!  ---------------------------------------
+   print *,'LU_MAPL:before GridCompGet'
+   call ESMF_GridCompGet( GC, NAME=COMP_NAME, __RC__ )
+   print *,'LU_MAPL:exit GridCompGet'
+
+   Iam = trim(COMP_NAME) // '::' // 'Initialize_'
+
+!  Get my internal MAPL_Generic state
+!  -----------------------------------
+   print *,'LU_MAPL:before MAPL_GetObjectFromGC'
+   call MAPL_GetObjectFromGC ( GC, ggState, __RC__ )
+   print *,'LU_MAPL:exit MAPL_GetObjectFromGC'
+
+!   Initialize GEOS Generic
+!   ------------------------
+   print *,'LU_MAPL: skip MAPL_GenericInitialize'
+!   print *,'LU_MAPL: call MAPL_GenericInitialize'
+!   call MAPL_GenericInitialize ( gc, impChem, expChem, clock,  __RC__ )
+!   print *,'LU_MAPL: exit MAPL_GenericInitialize'
+
+
+!   print state
+!   ------------------------
+!   print *,'LU_MAPL: Printstate (ckprint) '
+!   if (MAPL_AM_I_ROOT()) then
+!       print *, trim(Iam)//': INTERNAL State during Initialize():'
+!       call ESMF_StatePrint ( internal )
+!       print *, trim(Iam)//': IMPORT   State during Initialize():'
+!       call ESMF_StatePrint ( impChem  )
+!       print *, trim(Iam)//': EXPORT   State during Initialize():'
+!       call ESMF_StatePrint ( expChem  )
+!    end if
+
+    RETURN_(ESMF_SUCCESS)
+
+
+   end subroutine Initialize_Test
+
+!-------------------------------------------------------------------------
 !     NASA/GSFC, Global Modeling and Assimilation Office, Code 610.1     !
 !-------------------------------------------------------------------------
 !BOP
@@ -901,7 +1004,8 @@ end if ! doing GOCART
    type(ESMF_State), intent(inout) :: expChem     ! Export State
    integer, intent(out) ::  rc                    ! Error return code:
                                                   !  0 - all is well
-                                                  !  1 - 
+                                                  !  1 -
+
 
 ! !DESCRIPTION: This is a simple ESMF wrapper.
 !
@@ -1028,6 +1132,77 @@ end if ! doing GOCART
 
    end subroutine Run_
 
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+   subroutine Run_Test ( gc, impChem, expChem, clock, rc )
+
+! !USES:
+
+  implicit NONE
+
+! !INPUT PARAMETERS:
+
+   type(ESMF_Clock),  intent(inout) :: clock      ! The clock
+
+! !OUTPUT PARAMETERS:
+
+   type(ESMF_GridComp), intent(inout)  :: gc      ! Grid Component
+   type(ESMF_State), intent(inout) :: impChem     ! Import State
+   type(ESMF_State), intent(inout) :: expChem     ! Export State
+   integer, intent(out) ::  rc                    ! Error return code:
+                                                  !  0 - all is well
+                                                  !  1 - 
+
+!  ErrLog Variables
+!  ----------------
+   character(len=ESMF_MAXSTR)      :: IAm = 'Run_'
+   integer                         :: STATUS
+   character(len=ESMF_MAXSTR)      :: COMP_NAME
+
+   type(Chem_Registry), pointer    :: chemReg
+   type(Aero_GridComp), pointer    :: gcChem      ! Grid Component
+   type(Chem_Bundle), pointer      :: w_c         ! Chemical tracer fields     
+   integer                         :: nymd, nhms  ! time
+   real                            :: cdt         ! chemistry timestep (secs)
+   real, pointer                   :: var(:,:,:)
+   integer                         :: n
+
+   type(ESMF_Config)               :: CF
+   type(ESMF_Grid)                 :: grid
+   type(ESMF_Time)                 :: TIME
+
+   type(MAPL_MetaComp), pointer :: ggState      ! GEOS Generic State
+
+   real(ESMF_KIND_R4), pointer, dimension(:,:)  :: LATS
+   real(ESMF_KIND_R4), pointer, dimension(:,:)  :: LONS
+
+   type (MAPL_SunOrbit)            :: ORBIT
+   real, allocatable, target        :: ZTH(:,:) ! can be R8
+   real(ESMF_KIND_R4), allocatable :: r4ZTH(:,:)
+   real(ESMF_KIND_R4), allocatable :: SLR(:,:)
+
+   real, pointer                   :: rh2(:,:,:)
+   integer                         :: in, jn
+   integer                         :: iLeft, iRight, jBottom, jTop
+
+   REAL :: dayOfYear
+   REAL(ESMF_KIND_R8) :: dayOfYear_r8
+!                               ---
+   RC = ESMF_success
+
+!  Get my name and set-up traceback handle
+!  ---------------------------------------
+   call ESMF_GridCompGet( GC, NAME=COMP_NAME, CONFIG=CF, __RC__ )
+   Iam = trim(COMP_NAME) // '::' // 'Run_'
+
+!! No-Opt for the first try
+   print *,'LU_MAPL: No-Opt for GOCART Run routine'
+
+   print *,'LU_MAPL:run_before_return',STATUS,RC
+
+   RETURN_(ESMF_SUCCESS)
+
+   end subroutine Run_Test
 
 !-------------------------------------------------------------------------
 !     NASA/GSFC, Global Modeling and Assimilation Office, Code 610.1     !

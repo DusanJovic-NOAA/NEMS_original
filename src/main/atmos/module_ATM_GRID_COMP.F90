@@ -26,6 +26,8 @@
 !   2009-10-05  Wang  - Added GFS ensemble member name and output data at
 !                       every nsout timesteps.
 !   2009-11-03  Lu    - Add GOCART and ChemRegistry modules
+!   2009-12-17  Lu    - Modify GFS_ATM_INIT routine to create, register,
+!                       and initialize GOCART grid component
 !
 ! USAGE: ATM Gridded component parts called from subroutines within
 !        module_ATM_DRIVER_COMP.F90.
@@ -1740,8 +1742,14 @@
                                                                            !     the GFS dynamics gridded component.
       TYPE(ESMF_Grid) :: GRID_GFS_PHY                                      !<-- The ESMF grid for the integration attached to
                                                                            !     the GFS physics gridded component.
-      TYPE(ESMF_Grid) :: GRID_GFS_ATM                                      !<-- The ESMF grid for the integration attached to
+
+!* GOCART Grid is pointed to ATM Grid
+!*    TYPE(ESMF_Grid) :: GRID_GFS_ATM                                      !<-- The ESMF grid for the integration attached to
+      TYPE(ESMF_Grid), target :: GRID_GFS_ATM                              !<-- The ESMF grid for the integration attached to
                                                                            !     the GFS ATM gridded component.
+
+      TYPE(ESMF_Grid), pointer :: GRID_GFS_CHEM                            !<-- The ESMF grid for the integration attached to
+                                                                           !     the GFS chemistry gridded component.
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -1890,24 +1898,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  Read and print Chem_Registry
-!-----------------------------------------------------------------------
-!
-      REG = Chem_RegistryCreate ( IERR )
-
-      IF(REG%doing_gocart)THEN                                             !<-- GOCART => Chemistry on
-        CHEMISTRY_ON=ESMF_True
-        write(0,*)' Initialize with gocart coupling '
-      ELSE                                                                 !<-- no GOCART => Chemistry off
-        CHEMISTRY_ON=ESMF_False
-        write(0,*)' Initialize without gocart coupling '
-      ENDIF
-
-      CALL Chem_RegistryPrint ( REG )
-
-      CALL Chem_RegistryDestroy ( REG, IERR )
-!
-!-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !***  Create the Dynamics gridded subcomponent.
 !***  Register the Initialize, Run, and Finalize steps for it.
@@ -1995,6 +1985,28 @@
         PHYSICS_ON=ESMF_True
         write(0,*)' Initialize with physics coupling '
       ENDIF
+
+!-----------------------------------------------------------------------
+!***  Is this an atmosphere-only (no chemistry) run?
+!-----------------------------------------------------------------------
+!
+      REG = Chem_RegistryCreate ( IERR )                    !<-- read Chem_Registry
+
+      CALL Chem_RegistryPrint ( REG )
+
+      IF(REG%doing_gocart)THEN                              !<-- GOCART => Chemistry on
+
+         CHEMISTRY_ON=ESMF_True                                         
+         write(0,*)' Initialize with gocart coupling '
+
+      ELSE                                                  !<-- no  GOCART => Chemistry off
+
+         CHEMISTRY_ON=ESMF_False                                     
+         write(0,*)' Initialize without gocart coupling '    
+      ENDIF
+
+      CALL Chem_RegistryDestroy ( REG, IERR ) 
+
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -2064,6 +2076,87 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!***  Create the chemistry gridded subcomponent if chemistry is turned on.
+!***  Register the Initialize, Run, and Finalize steps for it.
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+      IF(CHEMISTRY_ON==ESMF_True)THEN
+!
+!-------------------------------
+!***  Create Chemistry component
+!-------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Create the GFS Chemistry Component"
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        GRID_GFS_CHEM => GRID_GFS_ATM
+
+        GC_GFS_CHEM=ESMF_GridCompCreate(name      ="chemistry component"   &
+                                      ,configfile='MAPL.rc'                &
+                                      ,grid      =GRID_GFS_CHEM            &
+                                      ,petList   =PETLIST_FCST             &
+                                      ,rc        =RC)
+        write(0,*)'in GFS_ATM_INIT after chem comp created, petlist_fcst=',petlist_fcst
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-------------------------------------------------
+!***  Register the Init, Run, and Finalize steps.
+!-------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Register Chemistry Init, Run, Finalize"
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_GridCompSetServices(GC_GFS_CHEM                       &
+                                     ,GOCART_SETSERVICES               &
+                                     ,RC=RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      ENDIF
+!
+!------------------------------------------------------------------------
+!***  Create empty Import and Export states for the Chemistry subcomponent.
+!------------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Create Empty Import/Export States for GFS Chemistry"
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      IMP_GFS_CHEM=ESMF_StateCreate(statename="chemistry import"        &
+                                  ,statetype=ESMF_STATE_IMPORT          &
+                                  ,rc       =RC)
+!
+      EXP_GFS_CHEM=ESMF_StateCreate(statename="chemistry export"        &
+                                  ,statetype=ESMF_STATE_EXPORT          &
+                                  ,rc       =RC)
+
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!***  Create the Dynamics-Physics coupler subcomponent.
+!***  Register the Initialize, Run, and Finalize steps for it.
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+!----------------------------
+!***  Create Dyn-Phy Coupler
+!----------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !***  Create the Dynamics-Physics coupler subcomponent.
