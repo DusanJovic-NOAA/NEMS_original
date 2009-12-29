@@ -5223,9 +5223,12 @@
 !***  LOCAL VARIABLES
 !-----------------------------------------------------------------------
 !
-      INTEGER :: I_CHILD,J_CHILD,KOUNT_I,KOUNT_J                        &
-                ,IM_END,JM_END,N,N_ADD,NC                               &
-                ,NC_LAST_S,NC_LAST_N,NC_LAST_W,NC_LAST_E
+      INTEGER :: I_CHILD,IM_END                                         &
+                ,J_CHILD,JM_END                                         &
+                ,KOUNT_I,KOUNT_J                                        &
+                ,N,N_ADD,NC                                             &
+                ,NC_LAST_S,NC_LAST_N,NC_LAST_W,NC_LAST_E                &
+                ,RATIO_P_C
 !
       INTEGER,DIMENSION(1:NUM_CHILD_TASKS) :: I_LIMIT_LO                &
                                              ,I_LIMIT_HI                &
@@ -5247,7 +5250,9 @@
 !
       REAL :: PARENT_I_CHILD_EBND,PARENT_I_CHILD_WBND                   &
              ,PARENT_J_CHILD_NBND,PARENT_J_CHILD_SBND                   &
-             ,RATIO                                                     &
+             ,PARENT_S_TASK_LIM_ON_NEST                                 &
+             ,PARENT_W_TASK_LIM_ON_NEST                                 &
+             ,RATIO_C_P                                                 &
              ,REAL_I_PARENT,REAL_I_START                                &
              ,REAL_J_PARENT,REAL_J_START                                &
              ,RECIP_SUM
@@ -5258,7 +5263,8 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      RATIO=CHILD_PARENT_SPACE_RATIO                                       !<-- Child-to-Parent gridspace ratio
+      RATIO_C_P=CHILD_PARENT_SPACE_RATIO                                   !<-- Child-to-Parent gridspace ratio
+      RATIO_P_C=NINT(1./RATIO_C_P)                                         !<-- Parent-to-Child gridspace ratio
 !
 !-----------------------------------------------------------------------
 !***  CREATE THE REAL INDEX LIMITS ON THE PARENT GRID ACROSS WHICH
@@ -5284,7 +5290,6 @@
       R_ITE =REAL(ITE)                                                     !<-- REAL Iend of parent task's subdomain
 !
       R_JTE =REAL(JTE)                                                     !<-- REAL Jend of parent task's subdomain
-!
 !
 !-----------------------------------------------------------------------
 !***  BECAUSE EACH PARENT GRIDPOINT COVERS THE GAP TO THE NEXT PARENT
@@ -5345,7 +5350,7 @@
 !
       IF(FLAG_H_OR_V=='H_POINTS')THEN
 !       ADD_INC=1.5
-        ADD_INC=1.5+0.5*RATIO+EPS
+        ADD_INC=1.5+0.5*RATIO_C_P+EPS
 
       ELSE
         ADD_INC=1.0
@@ -5389,9 +5394,9 @@
 !
       IF(FLAG_H_OR_V=='H_POINTS')THEN
         PARENT_J_CHILD_SBND=REAL(J_PARENT_START)                           !<-- J index of parent H for child's south H boundary
-        PARENT_J_CHILD_NBND=PARENT_J_CHILD_SBND+(JM_CHILD-1)*RATIO         !<-- J index of parent H for child's north H boundary
+        PARENT_J_CHILD_NBND=PARENT_J_CHILD_SBND+(JM_CHILD-1)*RATIO_C_P     !<-- J index of parent H for child's north H boundary
         PARENT_I_CHILD_WBND=REAL(I_PARENT_START)                           !<-- I index of parent H for child's west H boundary
-        PARENT_I_CHILD_EBND=PARENT_I_CHILD_WBND+(IM_CHILD-1)*RATIO         !<-- I index of parent H for child's east H boundary
+        PARENT_I_CHILD_EBND=PARENT_I_CHILD_WBND+(IM_CHILD-1)*RATIO_C_P     !<-- I index of parent H for child's east H boundary
         IM_END=IM_CHILD
         JM_END=JM_CHILD
         N_ADD=1                                                            !<-- Blending region along child's boundary
@@ -5402,10 +5407,10 @@
                                                                            !    the parent's halo.
 !
       ELSEIF(FLAG_H_OR_V=='V_POINTS')THEN
-        PARENT_J_CHILD_SBND=REAL(J_PARENT_START)-0.5+RATIO*0.5             !<-- J index of parent V for child's south V boundary
-        PARENT_J_CHILD_NBND=PARENT_J_CHILD_SBND+(JM_CHILD-2)*RATIO         !<-- J index of parent V for child's north V boundary
-        PARENT_I_CHILD_WBND=REAL(I_PARENT_START)-0.5+RATIO*0.5             !<-- I index of parent V for child's west V boundary
-        PARENT_I_CHILD_EBND=PARENT_I_CHILD_WBND+(IM_CHILD-2)*RATIO         !<-- I index of parent V for child's east V boundary
+        PARENT_J_CHILD_SBND=REAL(J_PARENT_START)-0.5+RATIO_C_P*0.5         !<-- J index of parent V for child's south V boundary
+        PARENT_J_CHILD_NBND=PARENT_J_CHILD_SBND+(JM_CHILD-2)*RATIO_C_P     !<-- J index of parent V for child's north V boundary
+        PARENT_I_CHILD_WBND=REAL(I_PARENT_START)-0.5+RATIO_C_P*0.5         !<-- I index of parent V for child's west V boundary
+        PARENT_I_CHILD_EBND=PARENT_I_CHILD_WBND+(IM_CHILD-2)*RATIO_C_P     !<-- I index of parent V for child's east V boundary
         IM_END=IM_CHILD-1
         JM_END=JM_CHILD-1
         N_ADD=0                                                            !<-- Blending region along child's boundary
@@ -5433,6 +5438,28 @@
         J_LIMIT_LO(N)=MAX(JTS_CHILD(N)-2,1)                                !<-- Starting J's for each child task on W/E bndries (2-pt halo)
 !!!     J_LIMIT_HI(N)=MIN(JTE_CHILD(N)+2,JM_END)                           !<-- Ending J's for each child task on W/E bndries (2-pt halo)
         J_LIMIT_HI(N)=MIN(JTE_CHILD(N)+2+N_ADD,JM_END)                     !<-- Ending J's for each child task on W/E bndries (2-pt halo)
+!
+!-----------------------------------------------------------------------
+!***  If the northernmost/easternmost extra row of H bndry points
+!***  on a nest task coincides with the southern/western boundary 
+!***  of a parent task then that parent task will not be associated
+!***  with the nest since no bndry V points would be seen by the
+!***  parent task.
+!-----------------------------------------------------------------------
+!
+        IF(FLAG_H_OR_V=='H_POINTS')THEN
+!
+          PARENT_S_TASK_LIM_ON_NEST=REAL(JTS-J_PARENT_START)*RATIO_P_C+1   !<-- South limit of parent task w/r to nest J
+          IF(J_LIMIT_HI(N)-PARENT_S_TASK_LIM_ON_NEST<=0.5)THEN
+            J_LIMIT_HI(N)=J_LIMIT_HI(N)-1
+          ENDIF
+!
+          PARENT_W_TASK_LIM_ON_NEST=REAL(ITS-I_PARENT_START)*RATIO_P_C+1   !<-- West limit of parent task w/r to nest I
+          IF(I_LIMIT_HI(N)-PARENT_W_TASK_LIM_ON_NEST<=0.5)THEN
+            I_LIMIT_HI(N)=I_LIMIT_HI(N)-1
+          ENDIF
+        ENDIF
+!
       ENDDO
 !
 !-----------------------------------------------------
@@ -5453,6 +5480,7 @@
       ARG1=REAL(ITE)+ADD_INC
       ARG2=REAL(IDE)
       R_IEND=MIN(ARG1,ARG2)-EPS                                            !<-- REAL Iend of parent task's region for child N/S boundaries
+!
 !-----------------------------------------------------
 !
       REAL_I_START=PARENT_I_CHILD_WBND
@@ -5461,16 +5489,10 @@
       i_loop: DO I_CHILD=1,IM_END                                          !<-- Loop over child I's across its South/North boundaries
 !-----------------------------------------------------------------------
 !
-        REAL_I_PARENT=REAL_I_START+(I_CHILD-1)*RATIO                       !<-- Parent I index coinciding with child domain point
-!     write(0,*)' real_i_start=',real_i_start,' real_i_parent=',real_i_parent,' r_its=',r_its,' r_ite=',r_ite
+        REAL_I_PARENT=REAL_I_START+(I_CHILD-1)*RATIO_C_P                   !<-- Parent I index coinciding with child domain point
 !
 !       i_block: IF(REAL_I_PARENT>=R_ITS.AND.REAL_I_PARENT<=R_IEND)THEN    !<-- Column (I) of child's S/N bndry point lies on parent task?
         i_block: IF(REAL_I_PARENT>=R_ITS.AND.REAL_I_PARENT< R_IEND)THEN    !<-- Column (I) of child's S/N bndry point lies on parent task?
-!     if(flag_h_or_v=='H_POINTS')then
-!       write(0,*)' okay this H i_child=',i_child,' at parent i=',real_i_parent,' lies on parent task'
-!     else
-!       write(0,*)' okay this V i_child=',i_child,' at parent i=',real_i_parent,' lies on parent task'
-!     endif
 !
 !-----------
 !-----------
@@ -5526,7 +5548,7 @@
             j_south: DO J_CHILD=1,N_BLEND+N_ADD                            !<-- Blending region along child's southern boundary
 !
               KOUNT_J=KOUNT_J+1
-              REAL_J_PARENT=REAL_J_START+(KOUNT_J-1)*RATIO                 !<-- REAL parent J for this child's J
+              REAL_J_PARENT=REAL_J_START+(KOUNT_J-1)*RATIO_C_P             !<-- REAL parent J for this child's J
 !
               I_INDX_SBND(I_CHILD,J_CHILD,1)=INT(REAL_I_PARENT+EPS)        !<-- Parent I west of child's south boundary point
               I_INDX_SBND(I_CHILD,J_CHILD,2)=INT(REAL_I_PARENT+EPS)+1      !<-- Parent I east of child's south boundary point
@@ -5562,7 +5584,7 @@
 !-----------
 !-----------
 !
-          REAL_J_START=PARENT_J_CHILD_NBND-(N_BLEND-1+N_ADD)*RATIO         !<-- N_ADD accounts for the additional row for H points
+          REAL_J_START=PARENT_J_CHILD_NBND-(N_BLEND-1+N_ADD)*RATIO_C_P     !<-- N_ADD accounts for the additional row for H points
           KOUNT_J=0
 !
 !-----------------------------------------------------------------------
@@ -5582,28 +5604,21 @@
 !
             DO NC=1,NUM_CHILD_TASKS                                        !<-- Loop through all tasks on child domain
 !
-!     write(0,*)' real_j_start=',real_j_start,' nc=',nc
               IF(I_CHILD>=I_LIMIT_LO(NC).AND.                           &  !<-- Does current child boundary point on this
                  I_CHILD<=I_LIMIT_HI(NC)                                &  !    parent task lie on child task "NC"?
                  .AND.                                                  &  !
                  J_CHILD>=JTS_CHILD(NC).AND.                            &  !
                  J_CHILD<=JTE_CHILD(NC))THEN
-!     write(0,*)' i_child=',i_child,' i_limit_lo=',i_limit_lo(nc),' i_limit_hi=',i_limit_hi(nc) &
-!              ,' nc=',nc,' nc_last_n=',nc_last_n
 !
                 IF(NC>NC_LAST_N)THEN                                       !<-- Have we encountered a new child task holding this N bndry?
                   NUM_TASKS_SEND_N=NUM_TASKS_SEND_N+1                      !<-- Then increment the N bndry counter of the child tasks
                   LOCAL_TASK_RANK_N(NUM_TASKS_SEND_N)=NC-1                 !<-- Save this child task's local rank
                   NC_LAST_N=NC
                   NC_HOLD_N(NC)=NUM_TASKS_SEND_N
-!     write(0,*)' inner block num_tasks_send_n=',num_tasks_send_n,' local_task_rank_n=',nc-1 &
-!              ,' nc_last_n=',nc,' nc_hold_n=',num_tasks_send_n
                 ENDIF
 !
-!     write(0,*)' i_save_lo_north=',i_save_lo_north(nc_hold_n(nc)),' nc_hold_n=',nc_hold_n(nc),' nc=',nc
                 IF(I_SAVE_LO_NORTH(NC_HOLD_N(NC))<0)THEN
                   I_SAVE_LO_NORTH(NC_HOLD_N(NC))=I_CHILD                   !<-- Save the starting I index on this child task's segment
-!     write(0,*)' save new i_save_lo_north=',i_save_lo_north(nc_hold_n(nc)),' nc_hold_n=',nc_hold_n(nc),' nc=',nc
                 ENDIF
                 I_SAVE_HI_NORTH(NC_HOLD_N(NC))=I_CHILD                     !<-- Save the ending I index on this child task's segment
 ! 
@@ -5618,7 +5633,7 @@
 !-----------------------------------------------------------------------
 !
               KOUNT_J=KOUNT_J+1
-              REAL_J_PARENT=REAL_J_START+(KOUNT_J-1)*RATIO                 !<-- REAL parent J for this child's J
+              REAL_J_PARENT=REAL_J_START+(KOUNT_J-1)*RATIO_C_P             !<-- REAL parent J for this child's J
 !
               I_INDX_NBND(I_CHILD,J_CHILD,1)=INT(REAL_I_PARENT+EPS)        !<-- Parent I west of child's north boundary point
               I_INDX_NBND(I_CHILD,J_CHILD,2)=INT(REAL_I_PARENT+EPS)+1      !<-- Parent I east of child's north boundary point
@@ -5691,7 +5706,7 @@
       j_loop: DO J_CHILD=1,JM_END                                          !<-- Loop through child J's across its W/E boundaries
 !-----------------------------------------------------------------------
 
-        REAL_J_PARENT=REAL_J_START+(J_CHILD-1)*RATIO                       !<-- Parent J index coinciding with child domain point
+        REAL_J_PARENT=REAL_J_START+(J_CHILD-1)*RATIO_C_P                   !<-- Parent J index coinciding with child domain point
 !
 !       j_block: IF(REAL_J_PARENT>=R_JTS.AND.REAL_J_PARENT<=R_JEND)THEN    !<-- Row (J) of child's W/E bndry point lies on parent task?
         j_block: IF(REAL_J_PARENT>=R_JTS.AND.REAL_J_PARENT< R_JEND)THEN    !<-- Row (J) of child's W/E bndry point lies on parent task?
@@ -5749,7 +5764,7 @@
 !-------------------------------------------------------------
 !
               KOUNT_I=KOUNT_I+1
-              REAL_I_PARENT=REAL_I_START+(KOUNT_I-1)*RATIO                 !<-- REAL parent I for this child's I
+              REAL_I_PARENT=REAL_I_START+(KOUNT_I-1)*RATIO_C_P             !<-- REAL parent I for this child's I
 !
               I_INDX_WBND(I_CHILD,J_CHILD,1)=INT(REAL_I_PARENT+EPS)        !<-- Parent I west of child's west boundary point
               I_INDX_WBND(I_CHILD,J_CHILD,2)=INT(REAL_I_PARENT+EPS)+1      !<-- Parent I east of child's west boundary point
@@ -5784,7 +5799,7 @@
 !----------
 !----------
 !
-          REAL_I_START=PARENT_I_CHILD_EBND-(N_BLEND-1+N_ADD)*RATIO
+          REAL_I_START=PARENT_I_CHILD_EBND-(N_BLEND-1+N_ADD)*RATIO_C_P
           KOUNT_I=0
 !
 !-----------------------------------------------------------------------
@@ -5839,7 +5854,7 @@
             i_east: DO I_CHILD=IM_END-N_BLEND+1-N_ADD,IM_END               !<-- Blending region of child's eastern boundary
 !
               KOUNT_I=KOUNT_I+1
-              REAL_I_PARENT=REAL_I_START+(KOUNT_I-1)*RATIO                 !<-- REAL parent I for this child's I
+              REAL_I_PARENT=REAL_I_START+(KOUNT_I-1)*RATIO_C_P             !<-- REAL parent I for this child's I
 !
               I_INDX_EBND(I_CHILD,J_CHILD,1)=INT(REAL_I_PARENT+EPS)        !<-- Parent I west of child's east boundary point
               I_INDX_EBND(I_CHILD,J_CHILD,2)=INT(REAL_I_PARENT+EPS)+1      !<-- Parent I east of child's east boundary point

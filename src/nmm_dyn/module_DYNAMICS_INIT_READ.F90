@@ -2281,8 +2281,8 @@ type(nemsio_gfile) :: gfile
 !
 !-----------------------------------------------------------------------
 !
-        call nemsio_getheadvar(gfile,'i_parent_start',i_parent_start,ierr)
-        call nemsio_getheadvar(gfile,'j_parent_start',j_parent_start,ierr)
+        call nemsio_getheadvar(gfile,'i_par_sta',i_parent_start,ierr)
+        call nemsio_getheadvar(gfile,'j_par_sta',j_parent_start,ierr)
         call nemsio_getheadvar(gfile,'dlmd',dlmd,ierr)
         call nemsio_getheadvar(gfile,'dphd',dphd,ierr)
         call nemsio_getheadvar(gfile,'wbd',wbd,ierr)
@@ -2321,8 +2321,8 @@ type(nemsio_gfile) :: gfile
         iday_fcst=FCSTDATE(3)
         ihour_fcst=FCSTDATE(4)
         call nemsio_getheadvar(gfile,'IHRST',ihrst,ierr)
-        call nemsio_getheadvar(gfile,'i_parent_start',i_parent_start,ierr)
-        call nemsio_getheadvar(gfile,'j_parent_start',j_parent_start,ierr)
+        call nemsio_getheadvar(gfile,'i_par_sta',i_parent_start,ierr)
+        call nemsio_getheadvar(gfile,'j_par_sta',j_parent_start,ierr)
         write(0,*)' INIT restart i_parent_start=',i_parent_start,' j_parent_start=',j_parent_start
         call nemsio_getheadvar(gfile,'LPT2',lpt2,ierr)
 !-----------------------------------------------------------------------
