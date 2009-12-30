@@ -28,6 +28,10 @@
 !   2009-11-03  Lu    - Add GOCART and ChemRegistry modules
 !   2009-12-17  Lu    - Modify GFS_ATM_INIT routine to create, register,
 !                       and initialize GOCART grid component
+!   2009-12-22  Lu    - Modify GFS_ATM_INIT routine to create and register 
+!                       dyn2chem and phy2chem coupler components
+!   2009-12-23  Lu    - Modify GFS_INTEGRATE routine to loop thru dyn, phy,  
+!                       and chem gridded component
 !
 ! USAGE: ATM Gridded component parts called from subroutines within
 !        module_ATM_DRIVER_COMP.F90.
@@ -79,6 +83,9 @@
 !-----------------------------------------------------------------------
 !
       USE GOCART_GridCompMod    , ONLY: GOCART_SETSERVICES => SETSERVICES 
+!
+      USE ATMOS_DYN_CHEM_CPL_COMP_MOD, ONLY: DYN2CHEM_SETSERVICES => SETSERVICES
+      USE ATMOS_PHY_CHEM_CPL_COMP_MOD, ONLY: PHY2CHEM_SETSERVICES => SETSERVICES
 !
       USE Chem_RegistryMod
 !
@@ -147,6 +154,9 @@
 !
       TYPE(ESMF_GridComp),SAVE :: GC_GFS_CHEM                              !<-- The GFS chemistry component 
       TYPE(ESMF_State),   SAVE :: IMP_GFS_CHEM,EXP_GFS_CHEM                !<-- Import/export states for GFS Chemistry
+!
+      TYPE(ESMF_CplComp), SAVE :: GC_PHY2CHEM_CPL                      & !<-- GFS Phy to Chem coupler gridded component
+                                 ,GC_DYN2CHEM_CPL                        !<-- GFS Dyn to Chem coupler gridded component
 !
       TYPE(Chem_Registry),SAVE :: REG                                      !<-- The GOCART Chem_Registry
 
@@ -2083,7 +2093,7 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-      IF(CHEMISTRY_ON==ESMF_True)THEN
+      chemistry_1: IF(CHEMISTRY_ON==ESMF_True)THEN
 !
 !-------------------------------
 !***  Create Chemistry component
@@ -2122,7 +2132,7 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      ENDIF
+      ENDIF chemistry_1
 !
 !------------------------------------------------------------------------
 !***  Create empty Import and Export states for the Chemistry subcomponent.
@@ -2198,10 +2208,84 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!***  Create the Dynamics-Physics-Chemistry coupler subcomponent.
+!***  Register the Init and Run steps for it.
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+!----------------------------
+!***  Create Dyn-Chem Coupler
+!----------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Create the GFS Dyn2Chem Coupler Component"
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      GC_DYN2CHEM_CPL=ESMF_CplCompCreate(name   ="dyn2chem component"   &
+                                   ,petList=PETLIST_FCST                &
+                                   ,rc     =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-------------------------------------------------
+!***  Register the dyn-to-chem coupler Run steps.
+!-------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Register the Dyn2Chem Coupler's Init and Run"
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_CplCompSetServices(GC_DYN2CHEM_CPL                &  !<-- The GFS Dyn-to-Chem coupler component
+                                  ,DYN2CHEM_SETSERVICES           &  !<-- The user's subroutine name for Register
+                                  ,RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+!----------------------------
+!***  Create Phy-Chem Coupler
+!----------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Create the GFS Phy2Chem Coupler Component"
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      GC_PHY2CHEM_CPL=ESMF_CplCompCreate(name   ="phy2chem component" &
+                                   ,petList=PETLIST_FCST                &
+                                   ,rc     =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+!
+!-------------------------------------------------
+!***  Register the phy-to-chem coupler Run steps.
+!-------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Register the Phy2Chem Coupler's Init and Run"
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_CplCompSetServices(GC_PHY2CHEM_CPL               &  !<-- The GFS Phys-to-Chem coupler component
+                                  ,PHY2CHEM_SETSERVICES          &  !<-- The user's subroutine name for Register
+                                  ,RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+!
 !-----------------------------------------------------------------------
 !***  Will the Write components with asynchronous quilting be used?
 !-----------------------------------------------------------------------
-!
+! 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract Quilting Flag from GFS Config File"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
@@ -2772,12 +2856,17 @@
 !
       CALL GFS_INTEGRATE(GC_GFS_DYN                                     &
                         ,GC_GFS_PHY                                     &
+                        ,GC_GFS_CHEM                                    &
                         ,GC_ATM_CPL                                     &
+                        ,GC_DYN2CHEM_CPL                                &
+                        ,GC_PHY2CHEM_CPL                                &
                         ,WRT_COMPS                                      &
                         ,IMP_GFS_DYN                                    &
                         ,EXP_GFS_DYN                                    &
                         ,IMP_GFS_PHY                                    &
                         ,EXP_GFS_PHY                                    &
+                        ,IMP_GFS_CHEM                                   &
+                        ,EXP_GFS_CHEM                                   &
                         ,IMP_GFS_WRT                                    &
                         ,EXP_GFS_WRT                                    &
                         ,CLOCK_ATM                                      &
@@ -2790,7 +2879,8 @@
                         ,TIMESTEP                                       &
                         ,DFIHR                                          &
                         ,MYPE                                           &
-                        ,PHYSICS_ON)
+                        ,PHYSICS_ON                                     &
+                        ,CHEMISTRY_ON)
 !
 !-----------------------------------------------------------------------
 !

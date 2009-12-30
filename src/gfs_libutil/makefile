@@ -20,7 +20,10 @@ OBJS02  = \
 	module_DM_PARALLEL_GFS.o      \
 	module_digital_filter_gfs.o   \
 	module_export_import_data.o   \
-	atmos_dyn_phy_cpl_comp_mod.o
+	atmos_dyn_phy_cpl_comp_mod.o \
+	atmos_dyn_chem_cpl_comp_mod.o \
+	atmos_phy_chem_cpl_comp_mod.o
+
 
 
 #

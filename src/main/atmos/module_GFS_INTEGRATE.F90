@@ -9,6 +9,12 @@
 !
 !-----------------------------------------------------------------------
 !
+! PROGRAM HISTORY LOG:
+!   2009-12-23  Lu    - GFS_INTEGRATE modified to loop thru dyn, phy, &
+!                       chem gridded component
+!-----------------------------------------------------------------------
+
+!
       USE ESMF_MOD
       USE MODULE_ERR_MSG
 !
@@ -39,12 +45,17 @@
 
       SUBROUTINE GFS_INTEGRATE(GC_GFS_DYN                               &
                               ,GC_GFS_PHY                               &
+                              ,GC_GFS_CHEM                              &
                               ,GC_ATM_CPL                               &
+                              ,GC_DYN2CHEM_CPL                          &
+                              ,GC_PHY2CHEM_CPL                          &
                               ,WRT_COMPS                                &
                               ,IMP_GFS_DYN                              &
                               ,EXP_GFS_DYN                              &
                               ,IMP_GFS_PHY                              &
                               ,EXP_GFS_PHY                              &
+                              ,IMP_GFS_CHEM                             &
+                              ,EXP_GFS_CHEM                             &
                               ,IMP_GFS_WRT                              &
                               ,EXP_GFS_WRT                              &
                               ,CLOCK_ATM                                &
@@ -57,7 +68,8 @@
                               ,TIMESTEP                                 &
                               ,DFIHR                                    &
                               ,MYPE                                     &
-                              ,PHYSICS_ON)
+                              ,PHYSICS_ON                               &
+                              ,CHEMISTRY_ON)
 
 !
 !-----------------------------------------------------------------------
@@ -71,6 +83,7 @@
       LOGICAL,INTENT(IN) :: QUILTING                                       !<-- Are separate quilt tasks being used for output?
 !
       TYPE(ESMF_Logical),INTENT(IN) :: PHYSICS_ON                          !<-- Is physics on (true) or off (false)?
+      TYPE(ESMF_Logical),INTENT(IN) :: CHEMISTRY_ON                        !<-- Is chemistry on (true) or off (false)?
 !
       TYPE(ESMF_TimeInterval),INTENT(IN) :: TIMESTEP                       !<-- The ESMF timestep (s)
 !
@@ -83,14 +96,18 @@
                                          ,WRITE_GROUP_READY_TO_GO          !<-- The number of the current Write group
 !
       TYPE(ESMF_GridComp),INTENT(INOUT) :: GC_GFS_DYN                   &  !<-- The Dynamics component
-                                          ,GC_GFS_PHY                      !<-- The Physics component
+                                          ,GC_GFS_PHY                   &  !<-- The Physics component
+                                          ,GC_GFS_CHEM                     !<-- The Chemistry component
 !
       TYPE(ESMF_GridComp),INTENT(INOUT) :: WRT_COMPS(:)                    !<-- The Write components for output
 !
       TYPE(ESMF_CplComp),INTENT(INOUT) :: GC_ATM_CPL                       !<-- The Dynamics-Physics coupler component
+      TYPE(ESMF_CplComp),INTENT(INOUT) :: GC_DYN2CHEM_CPL                  !<-- The Dyn-to-Chem coupler component
+      TYPE(ESMF_CplComp),INTENT(INOUT) :: GC_PHY2CHEM_CPL                  !<-- The Phy-to-Chem coupler component
 !
       TYPE(ESMF_State),INTENT(INOUT) :: IMP_GFS_DYN,EXP_GFS_DYN         &  !<-- The import/export states for Dynamics component
                                        ,IMP_GFS_PHY,EXP_GFS_PHY         &  !<-- The import/export states for Physics component
+                                       ,IMP_GFS_CHEM,EXP_GFS_CHEM       &  !<-- The import/export states for Chemistry component
                                        ,IMP_GFS_WRT,EXP_GFS_WRT            !<-- The import/export states for Write components
 !
       TYPE(ESMF_Clock),INTENT(INOUT) :: CLOCK_ATM                          !<-- The ATM Component's ESMF Clock
@@ -201,6 +218,7 @@
                             ,rc         =RC)
 !
         CALL ERR_MSG(RC,'couple dyn-to-phy',RC_LOOP)
+
 !
 !-----------------------------------------------------------------------
 !***  Execute the Run step of the Physics Component
@@ -241,6 +259,52 @@
           CALL ERR_MSG(RC,'pass phy_imp-to-phy_exp',RC_LOOP)
 !
         ENDIF
+
+!-----------------------------------------------------------------------
+!***  Execute DYN-to-CHEM and PHY-to-CHEM coupler components and
+!***  CHEM gridded component (optional)
+!-----------------------------------------------------------------------
+
+        lab_if_chemistry : IF (CHEMISTRY_ON==ESMF_True) THEN
+
+!-----------------------------------------------------------------------
+!***  Couple Dynamics export state to Chemistry import State
+!-----------------------------------------------------------------------
+          CALL ESMF_CplCompRun(cplcomp     = GC_DYN2CHEM_CPL            &
+                               ,importstate= EXP_GFS_DYN                &
+                               ,exportstate= IMP_GFS_CHEM               &
+                               ,clock      = CLOCK_ATM                  &
+                               ,rc         = RC)
+!
+          CALL ERR_MSG(RC,'couple dyn_exp-to-chem_imp',RC_LOOP)
+
+!-----------------------------------------------------------------------
+!***  Couple Physics export state to Chemistry import State
+!-----------------------------------------------------------------------
+          CALL ESMF_CplCompRun(cplcomp     = GC_PHY2CHEM_CPL            &
+                               ,importstate= EXP_GFS_PHY                &
+                               ,exportstate= IMP_GFS_CHEM               &
+                               ,clock      = CLOCK_ATM                  &
+                               ,rc         = RC)
+!
+          CALL ERR_MSG(RC,'couple phy_exp-to-chem_imp',RC_LOOP)
+
+!-----------------------------------------------------------------------
+!***  Execute the Run step of the Chemistry Component
+!-----------------------------------------------------------------------
+          CALL ESMF_GridCompRun(gridcomp   =GC_GFS_CHEM                 &
+                               ,importstate=IMP_GFS_CHEM                &
+                               ,exportstate=EXP_GFS_CHEM                &
+                               ,clock      =CLOCK_ATM                   &
+                               ,rc         =RC)
+!
+          CALL ERR_MSG(RC,'execute chemistry',RC_LOOP)
+
+!-----------------------------------------------------------------------
+!***  The chem-to-dyn coupler is not needed, exit now
+!-----------------------------------------------------------------------
+
+        ENDIF lab_if_chemistry
 !
 !-----------------------------------------------------------------------
 !***  Bring export data from the Physics into the coupler
