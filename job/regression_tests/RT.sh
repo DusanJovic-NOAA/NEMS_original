@@ -254,7 +254,7 @@ nmm_b_history.000 nmm_b_history.003 nmm_b_history.006 nmm_b_history.012 nmm_b_hi
 nmm_b_restart.024 nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_history_nemsio.006                \
 nmm_b_history_nemsio.012 nmm_b_history_nemsio.024 nmm_b_history_nemsio.048 nmm_b_restart_nemsio.024"
 #---------------------
-export TPN=32      ; export THRD=1      ; export GS=''      ; export GBRG=glob
+export TPN=32      ; export THRD=2      ; export GS=''      ; export GBRG=glob
 export INPES=06    ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
 export NEMSI=false ; export RSTRT=false ; export gfsP=false ; export RGS=false ; export WGS=false
 export NCHILD=0  
@@ -439,7 +439,7 @@ nmm_b_history.000 nmm_b_history.003 nmm_b_history.006 nmm_b_history.012 nmm_b_hi
 nmm_b_restart.024 nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_history_nemsio.006                \
 nmm_b_history_nemsio.012 nmm_b_history_nemsio.024 nmm_b_history_nemsio.048 nmm_b_restart_nemsio.024"
 #---------------------
-export TPN=32      ; export THRD=1      ; export GS=''      ; export GBRG=reg
+export TPN=32      ; export THRD=2      ; export GS=''      ; export GBRG=reg
 export INPES=06    ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
 export NEMSI=false ; export RSTRT=false ; export gfsP=false ; export RGS=false ; export WGS=false
 export NCHILD=0  
