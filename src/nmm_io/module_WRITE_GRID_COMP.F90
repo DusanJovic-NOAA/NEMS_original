@@ -1407,7 +1407,7 @@
             JSTART=LBOUND(WORK_ARRAY_I2D,2)
             JEND  =UBOUND(WORK_ARRAY_I2D,2)
 !
-            IF(NN_INTEGER+IEND*JEND>wrt_int_state%NUM_WORDS_SEND_I2D_HST)THEN
+            IF(NN_INTEGER+(IEND-ISTART+1)*(JEND-JSTART+1)>wrt_int_state%NUM_WORDS_SEND_I2D_HST)THEN
               WRITE(0,*)' WARNING:  THE NUMBER OF INTEGER WORDS YOU'    &
                        ,' ARE SENDING FROM FCST TO WRITE TASKS HAS'     &
                        ,' EXCEEDED THE ORIGINAL COUNT WHICH SHOULD'     &
@@ -1446,7 +1446,7 @@
             JSTART=LBOUND(WORK_ARRAY_R2D,2)
             JEND  =UBOUND(WORK_ARRAY_R2D,2)
 !
-            IF(NN_REAL+IEND*JEND>wrt_int_state%NUM_WORDS_SEND_R2D_HST)THEN
+            IF(NN_REAL+(IEND-ISTART+1)*(JEND-JSTART+1)>wrt_int_state%NUM_WORDS_SEND_R2D_HST)THEN
               WRITE(0,*)' WARNING:  THE NUMBER OF REAL WORDS YOU'       &
                        ,' ARE SENDING FROM FCST TO WRITE TASKS HAS'     &
                        ,' EXCEEDED THE ORIGINAL COUNT WHICH SHOULD'     &
@@ -1635,7 +1635,7 @@
             JSTART=LBOUND(WORK_ARRAY_I2D,2)
             JEND  =UBOUND(WORK_ARRAY_I2D,2)
 !
-            IF(NN_INTEGER+IEND*JEND>wrt_int_state%NUM_WORDS_SEND_I2D_RST)THEN
+            IF(NN_INTEGER+(IEND-ISTART+1)*(JEND-JSTART+1)>wrt_int_state%NUM_WORDS_SEND_I2D_RST)THEN
               WRITE(0,*)' WARNING:  THE NUMBER OF INTEGER WORDS YOU'    &
                        ,' ARE SENDING FROM FCST TO WRITE TASKS HAS'     &
                        ,' EXCEEDED THE ORIGINAL COUNT WHICH SHOULD'     &
@@ -1676,7 +1676,7 @@
             JSTART=LBOUND(WORK_ARRAY_R2D,2)
             JEND  =UBOUND(WORK_ARRAY_R2D,2)
 !
-            IF(NN_REAL+IEND*JEND>wrt_int_state%NUM_WORDS_SEND_R2D_RST)THEN
+            IF(NN_REAL+(IEND-ISTART+1)*(JEND-JSTART+1)>wrt_int_state%NUM_WORDS_SEND_R2D_RST)THEN
               WRITE(0,*)' WARNING:  THE NUMBER OF REAL WORDS YOU'       &
                        ,' ARE SENDING FROM FCST TO WRITE TASKS HAS'     &
                        ,' EXCEEDED THE ORIGINAL COUNT WHICH SHOULD'     &

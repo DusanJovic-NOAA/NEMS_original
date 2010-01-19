@@ -1,0 +1,175 @@
+# Name       History Restart Owned  Import eXport Description
+#------------------------------------------------------------
+
+
+###    0D integer (scalar)
+
+'NSOIL'      -       R       O      -      -      ''
+'NPHS'       H       R       O      -      -      ''
+'NCLOD'      H       R       O      -      -      ''
+'NHEAT'      H       R       O      -      -      ''
+'NPREC'      H       R       O      -      -      ''
+'NRDLW'      H       R       O      -      -      ''
+'NRDSW'      H       R       O      -      -      ''
+'NSRFC'      H       R       O      -      -      ''
+
+
+###    0D real (scalar)
+
+
+###    1D integer
+
+
+###    1D real
+
+'SLDPTH'     H       R       O      -      -      'Thickness of soil layers (m) from top'
+'MP_RESTART' -       R       O      -      -      ''
+'TBPVS_STAT' -       R       O      -      -      ''
+'TBPVS0_STA' -       R       O      -      -      ''
+
+
+###    2D integer
+
+'ISLTYP'     H       R       O      -      -      'Soil type'
+'IVGTYP'     H       R       O      -      -      'Vegetation type'
+'NCFRCV'     H       R       O      -      -      'Number of times convective cloud fraction >0 between outputs'
+'NCFRST'     H       R       O      -      -      'Number of times stratiform cloud fraction >0 between outputs'
+
+
+###    2D real
+
+'ACFRCV'     H       R       O      -      -      'Accumulated convective cloud fractions between outputs'
+'ACFRST'     H       R       O      -      -      'Accumulated statiform cloud fractions between outputs'
+'ACPREC'     H       R       O      -      -      'Accumulated precip  (m)'
+'ACSNOM'     H       R       O      -      -      'Accumulated melted snow  (?)'
+'ACSNOW'     H       R       O      -      -      'Accumulated snow  (?)'
+'AKHS_OUT'   H       R       O      -      -      'Sfc exch coeff T and q  (m2 s-1)'
+'AKMS_OUT'   H       R       O      -      -      'Sfc exch coeff momentum  (m2 s-1)'
+'ALBASE'     H       R       O      -      -      'Base albedo'
+'ALBEDO'     H       R       O      -      -      'Dynamic albedo'
+'ALWIN'      H       R       O      -      -      'Accumulated LW down at surface  (W m-2)'
+'ALWOUT'     H       R       O      -      -      'Accumulated LW from the ground  (W m-2)'
+'ALWTOA'     H       R       O      -      -      'Accumulated LW at top of atmosphere  (W m-2)'
+'ASWIN'      H       R       O      -      -      'Accumulated SW down at surface  (W m-2)'
+'ASWOUT'     H       R       O      -      -      'Accumulated SW up at ground  (W m-2)'
+'ASWTOA'     H       R       O      -      -      'Accumulated SW at top of atmosphere  (W m-2)'
+'BGROFF'     H       R       O      -      -      'Subsurface runoff  (mm)'
+'CFRACH'     H       R       O      -      -      'High atmosphere cloud fraction'
+'CFRACL'     H       R       O      -      -      'Low atmosphere cloud fraction'
+'CFRACM'     H       R       O      -      -      'Mid atmosphere cloud fraction'
+'CLDEFI'     H       R       O      -      -      'Convective cloud efficiency'
+'CMC'        H       R       O      -      -      'Canopy moisture  (m)'
+'CNVBOT'     H       R       O      -      -      'Lowest convec cloud bottom model lyr between outputs'
+'CNVTOP'     H       R       O      -      -      'Highest convec cloud top model lyr between outputs'
+'CPRATE'     H       R       O      -      -      'Instantaneous convective precipitation'
+'CUPPT'      H       R       O      -      -      'Convective precip between radiation calls  (m)'
+'CUPREC'     H       R       O      -      -      'Conv precip  (m)'
+'CZEN'       H       R       O      -      -      'Current cosine of solar zenith angle'
+'CZMEAN'     H       R       O      -      -      'Mean cosine of solar zenith angle between radiation calls'
+'EPSR'       H       R       O      -      -      ''
+'FIS'        -       -       O      -      -      'Surface geopotential  (m2 s-2)'
+'GRNFLX'     H       R       O      -      -      'Deep soil heat flux  (W m-2)'
+'HBOTD'      H       R       O      -      -      'Bottom model layer of deep convective cloud for output'
+'HBOTS'      H       R       O      -      -      'Bottom model layer of shallow convective cloud for output'
+'HTOPD'      H       R       O      -      -      'Top model layer of deep convective cloud for output'
+'HTOPS'      H       R       O      -      -      'Top model layer of shallow convective cloud for output'
+'MXSNAL'     H       R       O      -      -      'Maximum deep snow albedo'
+'PBLH'       H       R       O      -      -      'PBL height  (m)'
+'PD'         -       -       -      I      -      'Mass in the sigma domain  (Pa)'
+'POTEVP'     H       R       O      -      -      'Accumulated potential evaporation (m)'
+'PREC'       H       R       O      -      -      'Precip within physics timestep  (m)'
+'PSHLTR'     H       R       O      -      -      'Pressure at 2-m  (Pa)'
+'Q10'        H       R       O      -      -      'Specific humidity at 10-m  (kg k-1)'
+'QSH'        H       R       O      -      -      'Surface specific humidity  (kg kg-1)'
+'QSHLTR'     H       R       O      -      -      'Specific humidity at 2-m  (kg kg-1)'
+'QWBS'       H       R       O      -      -      'Instantaneous latent heat flux (W m-2)'
+'QZ0'        H       R       O      -      -      'Specific humidity at top of viscous sublayer  (kg kg-1)'
+'RADOT'      H       R       O      -      -      'Longwave from the ground  (W m-2)'
+'RLWIN'      H       R       O      -      -      'Longwave down at ground  (W m-2)'
+'RLWTOA'     H       R       O      -      -      'Longwave at top of atmosphere  (W m-2)'
+'RSWIN'      H       R       O      -      -      'Shortwave down at ground  (W m-2)'
+'RSWINC'     H       R       O      -      -      'Clear-sky shortwave down at ground  (W m-2)'
+'RSWOUT'     H       R       O      -      -      'Shortwave up at ground  (W m-2)'
+'SFCEVP'     H       R       O      -      -      'Surface evaporation  (?)'
+'SFCEXC'     H       R       O      -      -      'Another surface exchange coefficient for T and q (?) (m2 s-1) (see AKHS_OUT)'
+'SFCLHX'     H       R       O      -      -      'Accumulated sfc latent heat flux (W m-2)'
+'SFCSHX'     H       R       O      -      -      'Accumulated sfc sensible heat flux (W m-2)'
+'SI'         H       R       O      -      -      'Snow depth  (m)'
+'SICE'       H       R       O      -      -      'Sea ice fraction'
+'SIGT4'      H       R       O      -      -      'Sigma*T**4  (W m-2)'
+'SM'         H       R       O      -      -      'Sea mask (1=>sea ; 0=>land)'
+'SMSTAV'     H       R       O      -      -      'Soil moisture availability for evapotranspiration'
+'SMSTOT'     H       R       O      -      -      'Total soil moisture  (?)'
+'SNO'        H       R       O      -      -      'Liquid water snow amount  (m)'
+'SNOPCX'     H       R       O      -      -      'Snow phase change heat flux  (W m-2)'
+'SOILTB'     H       R       O      -      -      'Deep ground soil temperature  (K)'
+'SR'         H       R       O      -      -      'Timestep mass ratio of snow:precip'
+'SSROFF'     H       R       O      -      -      'Surface runoff  (mm)'
+'SST'        H       R       O      -      -      'Sea sfc temperature  (K)'
+'SUBSHX'     H       R       O      -      -      'Accumulated deep soil heat flux (W m-2)'
+'TG'         H       R       O      -      -      'Deep ground soil temperature  (K)'
+'TH10'       H       R       O      -      -      'Theta at 10-m  (K)'
+'THS'        H       R       O      -      -      'Surface theta  (K)'
+'THZ0'       H       R       O      -      -      'Theta at top of viscous sublayer  (K)'
+'TSHLTR'     H       R       O      -      -      'Theta at 2-m again  (K)'
+'TWBS'       H       R       O      -      -      'Instantaneous sensible heat flux (W m-2)'
+'U10'        H       R       O      -      -      'U at 10-m  (m s-1)'
+'USTAR'      H       R       O      -      -      'Friction velocity  (m s-1)'
+'UZ0'        H       R       O      -      -      'U component at top of viscous sublayer  (m s-1) (H points)'
+'V10'        H       R       O      -      -      'V at 10-m  (m s-1)'
+'VEGFRC'     H       R       O      -      -      'Vegetation fraction'
+'VZ0'        H       R       O      -      -      'V component at top of viscous sublayer  (m s-1) (H points)'
+'Z0'         H       R       O      -      -      'Roughness length  (m)'
+'TSKIN'      -       R       O      -      -      'Skin temperature  (K)'
+'AKHS'       -       R       O      -      -      'Sfc exch coeff T and q divided by delta Z  (m s-1)'
+'AKMS'       -       R       O      -      -      'Sfc exch coeff momentum divided by delta Z  (m s-1)'
+'HBOT'       -       R       O      -      -      'Bottom model layer of convective cloud for radiation'
+'HTOP'       -       R       O      -      -      'Top model layer of convective cloud for radiation'
+'RSWTOA'     -       R       O      -      -      'Shortwave at top of atmosphere  (W m-2)'
+'POTFLX'     H       R       O      -      -      'Energy equivalent of POTEVP (W m-2)'
+'RMOL'       -       R       O      -      -      'Reciprocal of Monin-Obukhov length  (m-1)'
+'T2'         -       R       O      -      -      'Temperature 2-m  (K)'
+'Z0BASE'     -       R       O      -      -      'Background roughness length  (m)'
+'PSFC'       H       -       O      -      -      'Surface Pressure (Pa)'
+'TLMIN'      H       R       O      -      -      ''
+'TLMAX'      H       R       O      -      -      ''
+'LSPA'       H       -       O      -      -      ''
+'ACUTIM'     H       R       O      -      -      'post0/bufr counter in summing cloud processes (conv, grid)'
+'APHTIM'     H       R       O      -      -      'post0/bufr counter in summing other physics (turb, land, rad)'
+'ARDLW'      H       R       O      -      -      'Counter in summing LW radiation flux'
+'ARDSW'      H       R       O      -      -      'Counter in summing SW radiation flux'
+'ASRFC'      H       R       O      -      -      'Counter in summing surface fluxes'
+'AVRAIN'     H       R       O      -      -      'Counter in summing latent heating from grid microphysics'
+'AVCNVC'     H       R       O      -      -      'Counter in summing latent heating from convection'
+
+
+###    3D real
+
+'CLDFRA'     H       R       O      -      -      'Cloud fraction'
+'CW'         H       R       -      -      -      ''
+'EXCH_H'     H       -       O      -      -      'Turbulent exchange coefficient for heat  (m2 s-1)'
+'Q'          H       R       -      -      -      ''
+'Q2'         H       R       -      I      -      '2*tke  (m2 s-2)'
+'RLWTT'      H       R       O      -      -      'Radiative T tendency, longwave  (K s-1)'
+'RSWTT'      H       R       O      -      -      'Radiative T tendency, shortwave (K s-1)'
+'T'          H       R       -      I      -      'Sensible temperature  (K)'
+'TCUCN'      H       R       O      -      -      'Accumulated convective T tendency  (K s-1)'
+'TRAIN'      H       R       O      -      -      'Accumulated stratiform T tendency  (K s-1)'
+'U'          H       R       -      I      -      'U wind component  (m s-1)'
+'V'          H       R       O      -      X      'V wind component  (m s-1)'
+'XLEN_MIX'   H       R       O      -      -      'Mixing length  (m)'
+'F_ICE'      H       R       O      -      -      'Fraction of condensate that is ice'
+'F_RIMEF'    H       R       O      -      -      'Rime factor'
+'F_RAIN'     H       R       O      -      -      'Rain fraction of liquid part of CWM'
+'SH2O'       H       R       O      -      -      ''
+'SMC'        H       R       O      -      -      ''
+'STC'        H       R       O      -      -      ''
+'OMGALF'     -       -       -      I      -      'Omega alpha from the dynamics  (K)'
+'RRW'        -       -       -      -      -      ''
+
+
+###    4D real                          
+
+'TRACERS'    -       R       -      I      -      'All tracer variables'
+
+#EOF

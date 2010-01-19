@@ -1,0 +1,85 @@
+# Name        History Restart Owned  Import eXport 
+#---------------------------------------------------
+
+
+###    0D integer (scalar)
+
+'IM'         H       R       O      -      -      ''
+'JM'         H       R       O      -      -      ''
+'LM'         H       R       O      -      -      ''
+'IHRST'      H       R       O      -      -      ''
+'I_PAR_STA'  H       R       O      -      -      ''
+'J_PAR_STA'  H       R       O      -      -      ''
+'LPT2'       -       R       O      -      -      ''
+
+
+###    0D real (scalar)
+
+'DT'         H       R       O      -      -      ''
+'DYH'        H       R       O      -      -      ''
+'PDTOP'      H       R       O      -      -      ''
+'PT'         H       R       O      -      -      ''
+'TLM0D'      H       R       O      -      -      ''
+'TPH0D'      H       R       O      -      -      ''
+'TSTART'     H       R       O      -      -      ''
+'DPHD'       H       R       O      -      -      ''
+'DLMD'       H       R       O      -      -      ''
+'SBD'        -       R       O      -      -      ''
+'WBD'        -       R       O      -      -      ''
+
+###    1D integer
+
+'IDAT'       H       R       O      -      -      ''
+
+
+###    1D real
+
+'DXH'        H       R       O      -      -      'Delta x, h points  (m)'
+'SG1'        H       R       O      -      -      'Sigma at interfaces in pressure range'
+'SG2'        H       R       O      -      -      'Sigma at interfaces in sigma range'
+'DSG1'       H       R       O      -      -      'Thicknesses of sigma layers in pressure range'
+'DSG2'       H       R       O      -      -      'Thicknesses of sigma layers in sigma range'
+'SGML1'      H       R       O      -      -      'Sigma at midlayers in pressure range'
+'SGML2'      H       R       O      -      -      'Sigma at midlayers in sigma range'
+'SGM'        -       R       O      -      -      'Sigma at interfaces'
+
+###    2D real
+
+'FIS'        H       R       O      -      X      'Surface geopotential (m2 s-2)'
+'GLAT'       H       R       O      -      -      'Latitudes of h points  (radians)'
+'GLON'       H       R       O      -      -      'Longitudes of h points (radians)'
+'PD'         H       R       O      -      X      'Pressure difference, sigma range  (Pa)'
+'VLAT'       H       R       O      -      -      'Latitudes of V points  (radians)'
+'VLON'       H       R       O      -      -      'Longitudes of V points (radians)'
+'PDO'        -       R       O      -      -      'Previous pressure difference, sigma range  (Pa)'
+
+###    3D real
+
+'T'          -       -       O      -      X      'Sensible temperature  (K)'
+'Q'          -       -       -      -      -      ''
+'U'          -       -       O      -      X      'U wind component  (m s-1)'
+'V'          -       -       -      I      -      'V wind component  (m s-1)'
+'Q2'         -       -       O      -      X      '2*tke  (m2 s-2)'
+'CW'         -       -       -      -      -      ''
+'W'          H       R       O      -      -      'Vertical velocity at midlayers  (m s-1)'
+'DWDT'       H       R       O      -      -      'Vertical acceleration, correction factor  (m s-2)'
+'PINT'       H       R       O      -      -      'Nonhydrostatic interface pressure  (Pa)'
+'OMGALF'     H       R       O      -      X      'Omega-alpha  (K)'
+'RRW'        H       R       -      -      -      ''
+'DIV'        -       R       O      -      -      'Horizontal mass divergence'
+'RTOP'       -       R       O      -      -      'RT/P, specific volume  (m3 kg-1)'
+'TCU'        -       R       O      -      -      'Time change of T (K s-1)'
+'TCV'        -       R       O      -      -      'Time change of U (m s-2)'
+'TCT'        -       R       O      -      -      'Time change of V (m s-2)'
+'TP'         -       R       O      -      -      'Sensible temperature, previous step  (K)'
+'UP'         -       R       O      -      -      'U wind component, previous step  (m s-1)'
+'VP'         -       R       O      -      -      'V wind component, previous step  (m s-1)'
+'E2'         -       R       -      -      -      ''
+'PSGDT'      -       R       O      -      -      'Specific volume  (m3 kg-1)'
+'Z'          -       R       O      -      -      'Height at midlayers  (m)'
+
+###    4D real
+
+'TRACERS'    -       -       O      -      X      'All tracer variables'
+
+#EOF

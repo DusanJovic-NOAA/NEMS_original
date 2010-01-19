@@ -22,8 +22,6 @@
                                    ,ITS,ITE,JTS,JTE                     &
                                    ,MYPE_SHARE
 !
-      USE MODULE_DYNAMICS_GRID_COMP,ONLY : LM
-!
       USE MODULE_DYN_PHY_CPL_DATA,ONLY : DATANAMES_2D                   &
                                         ,DATANAMES_3D                   &
                                         ,NDATA_2D_FROM_DYN              &
@@ -190,17 +188,19 @@
 !***  Local variables
 !---------------------
 !
-      INTEGER          :: RC,RC_FINAL
-      TYPE(ESMF_VM)    :: VM
-      TYPE(ESMF_Field) :: SRC_FIELD,DST_FIELD
+      INTEGER          :: RC, RC_FINAL, I, itemCount
+      CHARACTER(ESMF_MAXSTR) :: IMPORT_STATENAME,EXPORT_STATENAME
+      TYPE(ESMF_Field)       :: HOLD_FIELD
+      CHARACTER(LEN=10), DIMENSION(100) :: itemNameList
+
+      LOGICAL,SAVE :: FROM_EXP_DYN_TO_IMP_PHY=.FALSE.
+      LOGICAL,SAVE :: FROM_EXP_PHY_TO_IMP_DYN=.FALSE.
+      LOGICAL,SAVE :: FROM_IMP_DYN_TO_EXP_DYN=.FALSE.
+      LOGICAL,SAVE :: FROM_IMP_PHY_TO_EXP_PHY=.FALSE.
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-!
-      cpl_dyn_phy_tim=0.
-      get_fld_tim=0.
-      add_fld_tim=0.
 !
 !-----------------------------------------------------------------------
 !***  Initialize the error signal variables.
@@ -212,6 +212,54 @@
 !
 !-----------------------------------------------------------------------
 !
+      CALL ESMF_StateGet(state=IMP_STATE ,name =IMPORT_STATENAME ,rc   =RC)
+      CALL ESMF_StateGet(state=EXP_STATE ,name =EXPORT_STATENAME ,rc   =RC)
+
+      IF(TRIM(IMPORT_STATENAME)=='Dynamics Export'.AND.                 &
+         TRIM(EXPORT_STATENAME)=='Physics Import' .AND.                 &
+         FROM_EXP_DYN_TO_IMP_PHY ) RETURN
+
+      IF(TRIM(IMPORT_STATENAME)=='Physics Export' .AND.                 &
+         TRIM(EXPORT_STATENAME)=='Dynamics Import'.AND.                 &
+         FROM_EXP_PHY_TO_IMP_DYN ) RETURN
+!
+!-----------------------------------------------------------------------
+!***  Move all Field pointers from the Import State to the Export State.
+!
+!***  NOTE:  This is a fundamental step in handling the ownership of
+!***         variables between Dynamics and Physics.  In the following
+!***         DO loop those variables that are exported and thus owned 
+!***         by a given component have their allocated pointers taken
+!***         from the export state and moved to the other component's
+!***         import state.  Then in the 2nd phases os the Dynamics/
+!***         Physics Init steps those allocated pointers are unloaded
+!***         from the import states and the unowned variables are
+!***         pointed at them.
+!-----------------------------------------------------------------------
+!
+      CALL ESMF_StateGet(state=IMP_STATE,itemCount=itemCount,itemNameList=itemNameList, rc=RC)
+      DO i=1,itemCount  
+        write(0,*) TRIM(IMPORT_STATENAME),' -> ',TRIM(EXPORT_STATENAME),' Field     : ',i,itemNameList(i)
+        CALL ESMF_StateGet(state=IMP_STATE ,itemName=itemNameList(i) ,field=HOLD_FIELD ,rc=RC)
+        CALL ESMF_StateAdd(state=EXP_STATE ,field=HOLD_FIELD ,rc=RC)
+      END DO
+
+! DYN -> PHY
+     IF(TRIM(IMPORT_STATENAME)=='Dynamics Export' .AND.                 &
+        TRIM(EXPORT_STATENAME)=='Physics Import') THEN
+       FROM_EXP_DYN_TO_IMP_PHY = .TRUE.
+     ENDIF
+
+! PHY -> DYN
+      IF(TRIM(IMPORT_STATENAME)=='Physics Export'.AND.                 &
+         TRIM(EXPORT_STATENAME)=='Dynamics Import') THEN
+       FROM_EXP_PHY_TO_IMP_DYN = .TRUE.
+     ENDIF
+
+      ! Call CPL_RUN to exchange State Attributes
+!d      CALL CPL_RUN(CPL_COMP,IMP_STATE,EXP_STATE,CLOCK,RC_CPL)
+
+
       IF(RC_FINAL==ESMF_SUCCESS)THEN
 !       WRITE(0,*)"CPL INITIALIZE STEP SUCCEEDED"
       ELSE
@@ -291,6 +339,7 @@
       RC     =ESMF_SUCCESS
       RC_FINAL=ESMF_SUCCESS
       RC_CPL  =ESMF_SUCCESS
+#if 0
 !
 !-----------------------------------------------------------------------
 !***  Determine the direction of the transfer and the states involved
@@ -537,6 +586,7 @@
         WRITE(0,*)"CPL RUN STEP FAILED"
       ENDIF
 !
+#endif
       IF(PRESENT(RC_CPL))THEN
         RC_CPL=RC_FINAL
       ENDIF

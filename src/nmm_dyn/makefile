@@ -39,7 +39,6 @@ TARGET= nmm_dyn.a
 #
 
 MODULES=	\
-		module_DYNAMICS_FIELDS.o \
 		module_DYNAMICS_OUTPUT.o \
 		module_DYN_PHY_CPL_COMP.o \
 		module_DYN_PHY_CPL_DATA.o \
@@ -53,6 +52,8 @@ MODULE_SMP=     \
 		module_DYNAMICS_INTERNAL_STATE.o \
 		module_DYNAMICS_ROUTINES.o \
                 module_FLTBNDS.o
+
+#		module_DYNAMICS_FIELDS.o \
 
 .SUFFIXES:	.F90 .f90 .o
 

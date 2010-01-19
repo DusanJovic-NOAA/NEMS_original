@@ -56,6 +56,8 @@ cp _RTPWD_/NMMB_nests/configure_regional_domain_04 configure_file_04
 ln -sf /nwprod/fix/global_o3prdlos.f77 fort.28
 ln -sf /nwprod/fix/global_o3clim.txt fort.48
 
+cp $SRCDIR/job/regression_tests/dyn_state.txt .
+cp $SRCDIR/job/regression_tests/phy_state.txt .
 
 echo "Model started:  " `date`
 

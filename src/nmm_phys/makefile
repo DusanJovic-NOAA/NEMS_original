@@ -44,7 +44,6 @@ MODULES=	\
 		module_SF_URBAN.o \
 		module_LS_NOAHLSM.o \
 		module_LS_LISS.o \
-		module_PHYSICS_FIELDS.o \
 		module_PRECIP_ADJUST.o \
 		module_PHYSICS_INIT_READ.o \
 		module_PHYSICS_GRID_COMP.o \

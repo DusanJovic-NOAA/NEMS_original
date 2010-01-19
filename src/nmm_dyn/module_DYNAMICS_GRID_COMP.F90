@@ -7,7 +7,7 @@
 !***  THIS MODULE HOLDS THE DYNAMICS REGISTER, INIT, RUN, AND FINALIZE 
 !***  ROUTINES.  THEY ARE CALLED FROM THE ATM GRIDDED COMPONENT
 !***  (ATM INITIALIZE CALLS DYNAMICS INITIALIZE, ETC.) 
-!***  IN MODULE_MAIN_GRID_COMP.F.
+!***  IN MODULE_ATM_GRID_COMP.F.
 !
 !-----------------------------------------------------------------------
 !
@@ -21,25 +21,19 @@
 !   2008-09-03  Black  - Added initialization of boundary arrays
 !                        for nests.
 !   2009-03-12  Black  - Changes for general hybrid coordinate.
+!   2009-11     Jovic  - Modified for ownership/import/export specification
 !
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
+      USE MODULE_VARS_STATE
       USE MODULE_DYNAMICS_INTERNAL_STATE                                  !<-- Horizontal loop limits obtained here
-!
-      USE MODULE_DYNAMICS_FIELDS,ONLY : FIELD_T                         &
-                                       ,FIELD_U,FIELD_V                 &
-                                       ,FIELD_Q2,FIELD_PD               &
-                                       ,FIELD_OMGALF                    &
-                                       ,FIELD_TRACERS                   &
-                                       ,ALLOC_FIELDS_DYN
 !
       USE MODULE_DM_PARALLEL,ONLY : IDS,IDE,JDS,JDE                     &
                                    ,IMS,IME,JMS,JME                     &
                                    ,ITS,ITE,JTS,JTE                     &
                                    ,IHALO,JHALO                         &  
                                    ,MPI_COMM_COMP                       &
-                                   ,MPI_COMM_INTER_ARRAY                &
                                    ,MYPE_SHARE
 
       USE MODULE_GET_CONFIG_DYN
@@ -118,7 +112,11 @@
 !***  SUBROUTINE NAMES.
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP                      !<-- The Dynamics gridded component
+!------------------------
+!***  Argument variables
+!------------------------
+!
+      TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP                      !<-- The Dynamics Gridded Component
 !
       INTEGER,INTENT(OUT) :: RC_REG                                       !<-- Return code for Dyn register
 !
@@ -132,6 +130,7 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
+      RC    =ESMF_SUCCESS
       RC_REG=ESMF_SUCCESS                                                 !<-- Initialize error signal variable
                                                                                                                                               
 !-----------------------------------------------------------------------
@@ -142,14 +141,29 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Set Entry Point for Dynamics Initialize"
+      MESSAGE_CHECK="Set Entry Point for Dynamics Initialize phase 1"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- The gridded component
                                      ,ESMF_SETINIT                      &  !<-- Predefined subroutine type
-                                     ,DYN_INITIALIZE                    &  !<-- User's subroutineName
-                                     ,ESMF_SINGLEPHASE                  &  !<-- phase
+                                     ,DYN_INITIALIZE_1                  &  !<-- User's subroutineName
+                                     ,1                                 &  !<-- phase
+                                     ,RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Set Entry Point for Dynamics Initialize phase 2"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- The gridded component
+                                     ,ESMF_SETINIT                      &  !<-- Predefined subroutine type
+                                     ,DYN_INITIALIZE_2                  &  !<-- User's subroutineName
+                                     ,2                                 &  !<-- phase
                                      ,RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -212,34 +226,16 @@
 !#######################################################################
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE DYN_INITIALIZE(GRID_COMP                               &
-                               ,IMP_STATE                               &
-                               ,EXP_STATE                               &
-                               ,CLOCK_ATM                               &
-                               ,RC_INIT)
+      SUBROUTINE DYN_INITIALIZE_1(GRID_COMP                             &
+                                 ,IMP_STATE                             &
+                                 ,EXP_STATE                             &
+                                 ,CLOCK_ATM                             &
+                                 ,RC_INIT)
 !
 !-----------------------------------------------------------------------
 !***  CARRY OUT ALL NECESSARY SETUPS FOR THE MODEL DYNAMICS.
 !-----------------------------------------------------------------------
 !
-!     USE MODULE_ESMF_State
-      USE MODULE_CONTROL,ONLY : DT,HYDRO                                &  !  <--
-                               ,ICYCLE                                  &  !  <-- Variables
-                               ,NPES                                    &  !  <--
-!                                                                            
-                               ,BOUNDARY_INIT,CONSTS                       !  <-- Subroutines
-!
-      USE MODULE_DYNAMICS_INIT_READ,ONLY : DYNAMICS_READ_BINARY         &
-                                          ,DYNAMICS_READ_NEMSIO
-!
-#ifdef IBM
-      USE MODULE_FLTBNDS,ONLY : PREFFT
-#else
-      USE MODULE_FLTBNDS,ONLY : PREFFT, PRESMUD
-#endif
-!
-!-----------------------------------------------------------------------
-!     INCLUDE 'mpif.h'
 !------------------------
 !***  Argument variables
 !------------------------
@@ -255,28 +251,14 @@
 !***  Local variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: IDENOMINATOR_DT,IEND,IERR,INTEGER_DT,JEND   &
-                           ,KSE,KSS,L,N,NUMERATOR_DT,RC
-!
-      LOGICAL(kind=KLOG) :: RUN_LOCAL
-!
-      CHARACTER(20) :: FIELD_NAME
+      INTEGER(kind=KINT) :: RC
 !
       TYPE(WRAP_DYN_INT_STATE) :: WRAP                                     ! <-- This wrap is a derived type which contains
                                                                            !     only a pointer to the internal state.  It is needed
                                                                            !     for using different architectures or compilers.
 !
-      TYPE(ESMF_State) :: IMP_STATE_WRITE                                  !<-- The Dynamics import state  
-!
       TYPE(ESMF_Grid) :: GRID                                              !<-- The ESMF Grid
-!
       TYPE(ESMF_VM) :: VM                                                  !<-- The ESMF Virtual Machine
-!
-      TYPE(ESMF_TimeInterval) :: DT_ESMF                                   !<-- The ESMF fundamental timestep (s)
-!
-      TYPE(ESMF_Time) :: STARTTIME                                         !<-- The ESMF start time  
-!
-      TYPE(ESMF_Field) :: FIELD_FIS
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -327,19 +309,19 @@
       vtoa_tim=0.
 !
 !-----------------------------------------------------------------------
-!***  Allocate the internal state pointer.
+!***  Allocate the Dynamics internal state pointer.
 !-----------------------------------------------------------------------
 !
       ALLOCATE(INT_STATE,STAT=RC)
 !
 !-----------------------------------------------------------------------
-!***  Attach the internal state to the gridded component.
+!***  Attach the internal state to the Dynamics gridded component.
 !-----------------------------------------------------------------------
 !
       WRAP%INT_STATE=>INT_STATE
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Attach Internal State to Dynamics Component"
+      MESSAGE_CHECK="Attach Dynamics Internal State to the Gridded Component"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -350,87 +332,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Retrieve the import state of the Write gridded component
-!***  from the Dynamics export state.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Write Import State from Dynamics Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateGet(state      =EXP_STATE                          &  !<-- The Dynamics export state
-                        ,itemName   ='Write Import State'               &  !<-- Name of the state to get from Dynamics export state
-                        ,nestedState=IMP_STATE_WRITE                    &  !<-- Extract write component import state from Dynamics export
-                        ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Retrieve the domain ID from the Dynamics import state.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Get Domain ID from Dynamics Import State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The Dynamics import state
-                            ,name ='DOMAIN_ID'                          &  !<-- Name of variable to get from Dynamics import state
-                            ,value=MY_DOMAIN_ID                         &  !<-- Put extracted value here
-                            ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Retrieve the Nest/Not_A_Nest flag from the Dynamics import state.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Get Nest/Not-a-Nest Flag from Dynamics Import State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The Dynamics import state
-                            ,name ='I-Am-A-Nest Flag'                   &  !<-- Name of variable to get from Dynamics import state
-                            ,value=NEST_FLAG                            &  !<-- Put extracted value here
-                            ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      I_AM_A_NEST=NEST_FLAG                                                !<-- Convert from ESMF_Logical to LOGICAL
-!
-!-----------------------------------------------------------------------
-!***  If this is a nest domain extract the flag indicating whether or
-!***  not the nest's input file already exists.
-!-----------------------------------------------------------------------
-!
-      IF(I_AM_A_NEST)THEN
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Get Input-Ready Flag from Dynamics Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The Dynamics import state
-                              ,name ='Input Ready'                      &  !<-- Name of variable to get from Dynamics import state
-                              ,value=INPUT_READY                        &  !<-- Put extracted value here
-                              ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      ENDIF
-!
 !-----------------------------------------------------------------------
 !***  Insert the local domain starting limits and the halo width into
 !***  the Dynamics internal state.
@@ -460,11 +361,22 @@
 !***  and places them in the namelist components of the internal state.
 !-----------------------------------------------------------------------
 !
-      CALL GET_CONFIG_DYN(GRID_COMP,INT_STATE,RC)                          !<-- User's routine to extract config file information
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Get Configure File Parameters for Dynamics"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      IM=int_state%IM
-      JM=int_state%JM
-      LM=int_state%LM
+      CALL GET_CONFIG_DYN_DIMS(GRID_COMP                                &
+                              ,int_state%INPES,int_state%JNPES          &
+                              ,LM                                       &
+                              ,int_state%NUM_TRACERS_MET                &
+                              ,int_state%NUM_TRACERS_CHEM               &
+                              ,int_state%MICROPHYSICS                   &
+                              ,RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !***  Retrieve the VM to obtain the task ID and total number of tasks
@@ -472,12 +384,12 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Retrieve VM for Dynamics Initialize"
+      MESSAGE_CHECK="Get VM from the Dynamics Gridded Component"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompGet(gridcomp=GRID_COMP                          &  !<-- The Dynamics gridded component
-                           ,vm      =VM                                 &
+                           ,vm      =VM                                 &  !<-- The ESMF Virtual Machine
                            ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -485,7 +397,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Get MPI Task IDs and Number from VM"
+      MESSAGE_CHECK="Get Task IDs and Number of MPI Tasks from VM"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -505,8 +417,9 @@
 !-----------------------------------------------------------------------
 !
       int_state%NUM_PES=int_state%INPES*int_state%JNPES
-      NUM_PES=int_state%NUM_PES
-      MYPE=int_state%MYPE
+!
+      NUM_PES=int_state%NUM_PES                                            !<-- The number of forecast tasks
+      MYPE=int_state%MYPE                                                  !<-- The local task ID
 !
       MYPE_SHARE=int_state%MYPE  ! This statement passes MYPE to
                                  ! module_DM_PARALLEL using
@@ -517,14 +430,174 @@
 !***  initialization process.
 !-----------------------------------------------------------------------
 !
-      fcst_tasks: IF(MYPE<NUM_PES)THEN
+      fcst_tasks: IF(MYPE<NUM_PES)THEN                                     !<-- Select only forecast tasks
 !
 !-----------------------------------------------------------------------
-!***  Set up the Dynamics internal state variables 
-!***  and allocate internal state arrays.
+!***  Allocate all necessary internal state variables.  Those that
+!***  are owned/exported are pointed into allocated memory within
+!***  the Dynamics' composite VARS array.  
 !-----------------------------------------------------------------------
 !
-        CALL SET_INTERNAL_STATE_DYN(GRID_COMP,INT_STATE)
+        CALL SET_INTERNAL_STATE_DYN_1(INT_STATE,LM)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract the ESMF Grid from the Dynamics Component"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_GridCompGet(gridcomp=GRID_COMP                        &  !<-- The Dynamics gridded component
+                             ,grid    =GRID                             &  !<-- The ESMF Grid
+                             ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Put the allocated pointers of all export variables (they must be
+!***  owned) into the Dynamics export state.  
+!-----------------------------------------------------------------------
+!
+        CALL PUT_VARS_IN_STATE(int_state%VARS,int_state%NUM_VARS,'X',GRID,EXP_STATE)
+!
+      ENDIF fcst_tasks
+!
+!-----------------------------------------------------------------------
+!
+      RC=0
+!
+      IF(RC_INIT==ESMF_SUCCESS)THEN
+!       WRITE(0,*)'DYN INITIALIZE STEP SUCCEEDED'
+      ELSE
+        WRITE(0,*)'DYN INITIALIZE STEP FAILED RC_INIT=',RC_INIT
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      dyn_init_tim=(timef()-btim0)
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE DYN_INITIALIZE_1
+!
+!-----------------------------------------------------------------------
+!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE DYN_INITIALIZE_2(GRID_COMP                             &
+                                 ,IMP_STATE                             &
+                                 ,EXP_STATE                             &
+                                 ,CLOCK                                 &
+                                 ,RC_INIT)
+!
+!-----------------------------------------------------------------------
+!***  Point all unowned internal state variables at allocated memory,
+!***  get time information, read input data, compute variety of 
+!***  constant quantities.
+!-----------------------------------------------------------------------
+!
+      USE MODULE_CONTROL,ONLY : DT,HYDRO                                &  !  <--
+                               ,ICYCLE                                  &  !  <-- Variables
+                               ,NPES                                    &  !  <--
+!                                                                            
+                               ,BOUNDARY_INIT,CONSTS                       !  <-- Subroutines
+!
+      USE MODULE_DYNAMICS_INIT_READ,ONLY : DYNAMICS_READ_BINARY         &
+                                          ,DYNAMICS_READ_NEMSIO
+!
+#ifdef IBM
+      USE MODULE_FLTBNDS,ONLY : PREFFT
+#else
+      USE MODULE_FLTBNDS,ONLY : PREFFT, PRESMUD
+#endif
+
+!------------------------
+!***  Argument variables
+!------------------------
+!
+      TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP                       !<-- The Dynamics gridded component
+      TYPE(ESMF_State),   INTENT(INOUT) :: IMP_STATE                       !<-- The Dynamics Initialize step's import state
+      TYPE(ESMF_State),   INTENT(INOUT) :: EXP_STATE                       !<-- The Dynamics Initialize step's export state
+      TYPE(ESMF_Clock),   INTENT(IN)    :: CLOCK                           !<-- The ATM's ESMF Clock
+!
+      INTEGER,OPTIONAL,    INTENT(OUT)  :: RC_INIT
+!
+!---------------------
+!***  Local variables
+!---------------------
+!
+      INTEGER(kind=KINT) :: IDENOMINATOR_DT,IEND,IERR,INTEGER_DT,JEND   &
+                           ,KSE,KSS,L,N,NUMERATOR_DT,RC
+!
+      LOGICAL(kind=KLOG) :: RUN_LOCAL
+!
+      CHARACTER(20) :: FIELD_NAME
+!
+      TYPE(ESMF_State) :: IMP_STATE_WRITE                                  !<-- The Dynamics import state  
+      TYPE(ESMF_Grid) :: GRID                                              !<-- The ESMF Grid
+      TYPE(ESMF_TimeInterval) :: DT_ESMF                                   !<-- The ESMF fundamental timestep (s)
+!
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Initialize the error signal variables.
+!-----------------------------------------------------------------------
+!
+      RC     =ESMF_SUCCESS
+      RC_INIT=ESMF_SUCCESS
+!
+!-----------------------------------------------------------------------
+!***  For unowned (unallocated) internal state variables, point their
+!***  appropriate corresponding locations in the composite VARS array
+!***  at allocated memory from the owned Physics variable seen in the
+!***  Dynamics import state.
+!***  For owned (allocated) variables that are also owned/exported by
+!***  the Physics, transfer the data into them from the import state.
+!-----------------------------------------------------------------------
+!
+      CALL GET_VARS_FROM_STATE(int_state%VARS, int_state%NUM_VARS, IMP_STATE)
+!
+!-----------------------------------------------------------------------
+!***  Now re-point the internal state variables associated with the
+!***  VARS array into that array.  Unowned variables will now point 
+!***  to allocated memory in the Physics.
+!-----------------------------------------------------------------------
+!
+      CALL SET_INTERNAL_STATE_DYN_2(INT_STATE,LM)
+!
+!-----------------------------------------------------------------------
+!***  Use ESMF utilities to get information from the configuration file.
+!***  The function is similar to reading a namelist.  The GET_CONFIG
+!***  routine is the user's.  It extracts values from the config file
+!***  and places them in the namelist components of the internal state.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Get Configure File Parameters for Dynamics"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL GET_CONFIG_DYN(GRID_COMP,INT_STATE,RC)                          !<-- User's routine to extract config file information
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      IM=int_state%IM
+      JM=int_state%JM
+!d      LM=int_state%LM
+!
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Only forecast tasks are needed for the remaining
+!***  initialization process.
+!-----------------------------------------------------------------------
+!
+      fcst_tasks: IF(int_state%MYPE<int_state%NUM_PES)THEN                  !<-- Select only forecast tasks
 !
 !-----------------------------------------------------------------------
 !***  Assign the fundamental timestep retrieved from the clock.
@@ -535,10 +608,20 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_ClockGet(clock   =CLOCK_ATM                           &
-                          ,timeStep=DT_ESMF                             &
+        CALL ESMF_ClockGet(clock   =CLOCK                               &  !<-- The ATM Clock
+                          ,timeStep=DT_ESMF                             &  !<-- Fundamental timestep (s) (ESMF)
                           ,rc      =RC)
 !
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Get Real Timestep from ESMF Timestep"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+
         CALL ESMF_TimeIntervalGet(timeinterval=DT_ESMF                  &  !<-- the ESMF timestep
                                  ,s           =INTEGER_DT               &  !<-- the integer part of the timestep in seconds
                                  ,sN          =NUMERATOR_DT             &  !<-- the numerator of the fractional second
@@ -549,9 +632,46 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        int_state%DT=REAL(INTEGER_DT)+REAL(NUMERATOR_DT)                &
+        int_state%DT=REAL(INTEGER_DT)+REAL(NUMERATOR_DT)                &  !<-- Fundamental tiemstep (s) (REAL)
                                      /REAL(IDENOMINATOR_DT)
         DT=int_state%DT
+!
+!-----------------------------------------------------------------------
+!***  Retrieve the domain ID from the Dynamics import state.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Get Domain ID from Dynamics Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The Dynamics import state
+                              ,name ='DOMAIN_ID'                        &  !<-- Name of variable to get from Dynamics import state
+                              ,value=MY_DOMAIN_ID                       &  !<-- Put extracted value here
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Retrieve the import state of the Write gridded component
+!***  from the Dynamics export state.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Write Import State from Dynamics Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_StateGet(state      =EXP_STATE                        &  !<-- The Dynamics export state
+                          ,itemName   ='Write Import State'             &  !<-- Name of the state to get from Dynamics export state
+                          ,nestedState=IMP_STATE_WRITE                  &  !<-- Extract write component import state from Dynamics export
+                          ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !***  Read the input file.
@@ -731,6 +851,27 @@
 !***  from the parent can be added.
 !-----------------------------------------------------------------------
 !
+!
+!-----------------------------------------------------------------------
+!***  Retrieve the Nest/Not_A_Nest flag from the Dynamics import state.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Get Nest/Not-a-Nest Flag from Dynamics Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The Dynamics import state
+                              ,name ='I-Am-A-Nest Flag'                 &  !<-- Name of variable to get from Dynamics import state
+                              ,value=NEST_FLAG                          &  !<-- Put extracted value here
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        I_AM_A_NEST=NEST_FLAG                                              !<-- Convert from ESMF_Logical to LOGICAL
+
         IF(I_AM_A_NEST)THEN
 !
 !-----------------------------------------------------------------------
@@ -873,82 +1014,6 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ALLOC_FIELDS_DYN(GRID,INT_STATE)
-!
-!-----------------------------------------------------------------------
-!***  Add the desired ESMF Fields to the Dynamics export state.
-!***  The pointers inside the Fields are pointing at the appropriate
-!***  variables inside the internal state (see ALLOC_FIELDS_DYN
-!***  in module_DYNAMICS_FIELDS.F).
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------
-!***  Add the 3D quantities to the export state.
-!-----------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Add 3-D Data to Dynamics Export State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_StateAdd(state=EXP_STATE                              &
-                          ,field=FIELD_T                                &  !<-- Temperature
-                          ,rc   =RC)
-!
-        CALL ESMF_StateAdd(state=EXP_STATE                              &
-                          ,field=FIELD_U                                &  !<-- U wind component
-                          ,rc   =RC)
-!
-        CALL ESMF_StateAdd(state=EXP_STATE                              &
-                          ,field=FIELD_V                                &  !<-- V wind component
-                          ,rc   =RC)
-!
-        CALL ESMF_StateAdd(state=EXP_STATE                              & 
-                          ,field=FIELD_Q2                               &  !<-- TKE
-                          ,rc   =RC)
-!
-        CALL ESMF_StateAdd(state=EXP_STATE                              & 
-                          ,field=FIELD_OMGALF                           &  !<-- Omega-alpha term
-                          ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------
-!***  Add the 2D quantities to the export state.
-!-----------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Add 2-D Data to Dynamics Export State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_StateAdd(state=EXP_STATE                              &
-                          ,field=FIELD_PD                               &  !<-- Vertical pressure difference, sigma range
-                          ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Add the 4D tracers Field to the export state.
-!***  The number of 3D constituents is given by NUM_TRACERS_TOTAL.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Add 4-D Tracer Data to Dynamics Export State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_StateAdd(state=EXP_STATE                              &
-                          ,field=FIELD_TRACERS                          &  !<-- Tracer variables
-                          ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !***  Also insert the value of NUM_TRACERS_TOTAL into the export state.
@@ -965,44 +1030,6 @@
                               ,name ='NUM_TRACERS_TOTAL'                &  !<-- The inserted quantity will have this name
                               ,value=int_state%NUM_TRACERS_TOTAL        &  !<-- The value of this is associated with the preceding name
                               ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Insert sfc geopotential (FIS) into the export state.  If there
-!***  are nests then their values of FIS will need to be sent to their
-!***  parents.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="DYN_Init: Create FIELD_FIS"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        FIELD_NAME='FIS'
-!
-        FIELD_FIS=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
-                                  ,farray       =int_state%FIS          &  !<-- Insert this pointer into the Field
-                                  ,maxHaloUWidth=(/IHALO,JHALO/)        &  !<-- Upper bound of halo region
-                                  ,maxHaloLWidth=(/IHALO,JHALO/)        &  !<-- Lower bound of halo region
-                                  ,name         =FIELD_NAME             &  !<-- Name of the Field
-                                  ,indexFlag    =ESMF_INDEX_DELOCAL     &
-                                  ,rc           =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Add FIS to Dynamics Export State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_StateAdd(state=EXP_STATE                              &  !<-- Dynamics export state
-                          ,field=FIELD_FIS                              &  !<-- Sfc geopotential
-                          ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -1290,11 +1317,12 @@
 !
 !-----------------------------------------------------------------------
 !
+
+        if (mype==0)        CALL ESMF_StatePrint(EXP_STATE)
+
       ENDIF fcst_tasks
 !
 !-----------------------------------------------------------------------
-!
-      RC=0
 !
       IF(RC_INIT==ESMF_SUCCESS)THEN
 !       WRITE(0,*)'DYN INITIALIZE STEP SUCCEEDED'
@@ -1304,11 +1332,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      dyn_init_tim=(timef()-btim0)
-!
-!-----------------------------------------------------------------------
-!
-      END SUBROUTINE DYN_INITIALIZE
+      END SUBROUTINE DYN_INITIALIZE_2
 !
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
@@ -1408,6 +1432,7 @@
       LOGICAL(kind=KLOG)      :: COMPUTE_BC
 !
       INTEGER(kind=KINT),SAVE :: N_PRINT_STATS                            !<--- Timesteps between statistics prints
+      LOGICAL(kind=KLOG),SAVE :: written=.false.
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -1456,13 +1481,14 @@
 !***  the Physics has not run yet.
 !-----------------------------------------------------------------------
 !
-      btim=timef()
+!d      btim=timef()
+      CALL GET_VARS_FROM_STATE(int_state%VARS, int_state%NUM_VARS, IMP_STATE)
 !
-      IF(.NOT.int_state%FIRST)THEN
-        CALL UPDATE_INTERNAL_STATE_DYN(IMP_STATE,INT_STATE)
-      ENDIF 
+!d      IF(.NOT.int_state%FIRST)THEN
+!d        CALL UPDATE_INTERNAL_STATE_DYN(IMP_STATE,INT_STATE)
+!d      ENDIF 
 !
-      update_dyn_int_state_tim=update_dyn_int_state_tim+(timef()-btim)
+!d      update_dyn_int_state_tim=update_dyn_int_state_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  Do some work that only needs to be done once at the start of
@@ -1921,6 +1947,17 @@
                                     ,int_state%UBW,int_state%UBE        &
                                     ,int_state%VBS,int_state%VBN        &
                                     ,int_state%VBW,int_state%VBE )
+
+!d          if (mype==7) then
+!d          DO J=JMS,JME
+!d          write(301,*)J,int_state%PDBW(1,J,1),int_state%PDBW(1,J,2)
+!d          END DO
+!d          write(302,'(5F20.10)')int_state%TBW
+!d          call flush_(301)
+!d          call flush_(302)
+!d          written=.true.
+!d          end if
+
 !     call print_memory()
               ENDIF
 !
@@ -3174,8 +3211,8 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE DYN_FINALIZE(GRID_COMP                                 &
-                             ,IMP_STATE_WRITE                           &
-                             ,EXP_STATE_WRITE                           &
+                             ,IMP_STATE                                 &
+                             ,EXP_STATE                                 &
                              ,CLOCK_ATM                                 &
                              ,RC_FINALIZE)
 !
@@ -3188,8 +3225,8 @@
 !-----------------------------------------------------------------------
 !
       TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP                       !<-- The Dynamics gridded component
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE_WRITE                 !<-- The Dynamics import state
-      TYPE(ESMF_State),   INTENT(INOUT) :: EXP_STATE_WRITE                 !<-- The Dynamics export state
+      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE                       !<-- The Dynamics import state
+      TYPE(ESMF_State),   INTENT(INOUT) :: EXP_STATE                       !<-- The Dynamics export state
       TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_ATM                       !<-- The ATM component's ESMF Clock.
 !
       INTEGER            ,INTENT(OUT)   :: RC_FINALIZE

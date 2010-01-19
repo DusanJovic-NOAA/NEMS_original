@@ -5,7 +5,7 @@
 !-----------------------------------------------------------------------
 !
 !***  THIS MODULE HOLDS THE PHYSICS REGISTER, INIT, RUN, AND FINALIZE 
-!***  ROUTINES.  THEY ARE CALLED FROM THE MAIN GRIDDED COMPONENT
+!***  ROUTINES.  THEY ARE CALLED FROM THE ATM GRIDDED COMPONENT
 !***  (ATM INITIALIZE CALLS PHYSICS INITIALIZE, ETC.) 
 !***  IN MODULE_ATM_GRID_COMP.F.
 !
@@ -13,29 +13,26 @@
 !
 ! HISTORY LOG:
 !
-!   2008-07-28  Vasic   - Removed counters (computed in SET_INTERNAL_STATE_PHY)
-!   2008-10-    Vasic   - Restart capability
-!   2008-08-23  Janjic  - Removed uz0h, vz0h
-!   2008-08-23  Janjic  - General hybrid coordinate
-!   2009-07-01  Vasic   - Added GFS physics package
-!   2009-08-10  Black   - Merge with nest code
-!   2009-11-03  W. Wang - Remove WRF driver and flipping (for Ferrier)
-!   2009-11-24  Sarah Lu -- RAIN and RAINC added to GBPHYS arguments
-!   2009-12-10  Sarah Lu -- GRRAD output instant cloud cover
-!   2009-12-11  Sarah Lu -- GRRAD calling argument modified: remove ldiag3d;
+!   2008-07-28  Vasic    - Removed counters (computed in SET_INTERNAL_STATE_PHY)
+!   2008-10-    Vasic    - Restart capability
+!   2008-08-23  Janjic   - Removed uz0h, vz0h
+!   2008-08-23  Janjic   - General hybrid coordinate
+!   2009-07-01  Vasic    - Added GFS physics package
+!   2009-08-10  Black    - Merge with nest code
+!   2009-11-03  W. Wang  - Remove WRF driver and flipping (for Ferrier)
+!   2009-11-24  Sarah Lu - RAIN and RAINC added to GBPHYS arguments
+!   2009-12-10  Sarah Lu - GRRAD output instant cloud cover
+!   2009-12-11  Sarah Lu - GRRAD calling argument modified: remove ldiag3d;
 !                           reverse flxur/cldcov sequence 
-!   2009-12-15  Sarah Lu -- GBPHYS calling argument modified: add dqdt
+!   2009-12-15  Sarah Lu - GBPHYS calling argument modified: add dqdt
+!   2009-11     Jovic    - Modified for ownership/import/export specification
 ! 
 !
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
+      USE MODULE_VARS_STATE
       USE MODULE_PHYSICS_INTERNAL_STATE
-      USE MODULE_PHYSICS_FIELDS,ONLY : FIELD_T                          &
-                                      ,FIELD_U,FIELD_V                  &
-                                      ,FIELD_Q2,FIELD_PD                &
-                                      ,FIELD_TRACERS                    &
-                                      ,ALLOC_FIELDS_PHY
 !
       USE MODULE_DM_PARALLEL,ONLY : IDS,IDE,JDS,JDE                     &
                                    ,IMS,IME,JMS,JME                     &
@@ -113,11 +110,7 @@
 !
       REAL(KIND=KDBL) :: btim,btim0
 !
-      LOGICAL(KIND=KLOG) :: I_AM_A_NEST                                   !<-- Flag indicating if ATM Component is a nest
-!
       TYPE(PHYSICS_INTERNAL_STATE),POINTER :: INT_STATE                   !<-- The Physics internal state pointer
-!
-      TYPE(ESMF_Logical) :: NEST_FLAG                                     !<-- Flag indicating if ATM Component is a nest
 !
 !-----------------------------------------------------------------------
 !
@@ -140,7 +133,7 @@
 !
       TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP                      !<-- The Physics Gridded Component
 !
-      INTEGER,INTENT(OUT) :: RC_REG                                       !<-- Return code for Register
+      INTEGER,INTENT(OUT) :: RC_REG                                       !<-- Return code for Phy Register
 !
 !---------------------
 !***  Local variables
@@ -163,14 +156,29 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Set Entry Point for Physics Initialize"
+      MESSAGE_CHECK="Set Entry Point for Physics Initialize phase 1"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- Physics gridcomp
                                      ,ESMF_SETINIT                      &  !<-- Subroutine type
-                                     ,PHY_INITIALIZE                    &  !<-- User's subroutine name
-                                     ,ESMF_SINGLEPHASE                  &  !<-- Phase
+                                     ,PHY_INITIALIZE_1                  &  !<-- User's subroutine name
+                                     ,1                                 &  !<-- Phase
+                                     ,RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Set Entry Point for Physics Initialize phase 2"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- Physics gridcomp
+                                     ,ESMF_SETINIT                      &  !<-- Subroutine type
+                                     ,PHY_INITIALIZE_2                  &  !<-- User's subroutine name
+                                     ,2                                 &  !<-- Phase
                                      ,RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -233,26 +241,24 @@
 !#######################################################################
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE PHY_INITIALIZE(GRID_COMP                               &
-                               ,IMP_STATE                               &
-                               ,EXP_STATE                               &
-                               ,CLOCK                                   &
-                               ,RC_INIT)
+      SUBROUTINE PHY_INITIALIZE_1(GRID_COMP                             &
+                                 ,IMP_STATE                             &
+                                 ,EXP_STATE                             &
+                                 ,CLOCK_ATM                             &
+                                 ,RC_INIT)
 !
 !-----------------------------------------------------------------------
-!***  SET UP THE MODEL PHYSICS.
+!***  CARRY OUT ALL NECESSARY SETUPS FOR THE MODEL PHYSICS.
 !-----------------------------------------------------------------------
-!
-!     USE MODULE_ESMF_State
 !
 !------------------------
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: EXP_STATE
-      TYPE(ESMF_Clock)   ,INTENT(IN)    :: CLOCK
+      TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP			   !<-- The Physics gridded component
+      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE			   !<-- The Physics Initialize step's import state
+      TYPE(ESMF_State)   ,INTENT(INOUT) :: EXP_STATE			   !<-- The Physics Initialize step's export state
+      TYPE(ESMF_Clock)   ,INTENT(IN)    :: CLOCK_ATM			   !<-- The ATM's ESMF Clock
 !
       INTEGER,OPTIONAL   ,INTENT(OUT)   :: RC_INIT
 !
@@ -260,24 +266,20 @@
 !***  Local variables
 !---------------------
 !
-      INTEGER(KIND=KINT) :: L,N,RC                                      &
-                           ,IDENOMINATOR_DT,INTEGER_DT,NUMERATOR_DT
+      INTEGER(KIND=KINT) :: L,N,RC
 !
       TYPE(WRAP_PHY_INT_STATE) :: WRAP                                     !<-- This wrap is a derived type which contains
                                                                            !    only a pointer to the internal state.  It is needed
                                                                            !    for using different architectures or compilers.
 !
-      TYPE(ESMF_State)        :: IMP_STATE_WRITE         
       TYPE(ESMF_Grid)         :: GRID
       TYPE(ESMF_VM)           :: VM                                        !<-- The virtual machine
-      TYPE(ESMF_TimeInterval) :: DT_ESMF                                   !<-- The timestep from the ATM Clock
-      TYPE(ESMF_Logical)      :: INPUT_READY                               !<-- Does a nest's input file exist already?
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      btim=timef()
+      btim0=timef()
 !
 !-----------------------------------------------------------------------
 !***  Initialize the error signal variables.
@@ -329,87 +331,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Retrieve the domain ID from the Physics import state.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Get Domain ID from Physics Import State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeGet(state=IMP_STATE                             &  !<-- The Physics import state
-                            ,name ='DOMAIN_ID'                           &  !<-- Name of variable to get from Physics import state
-                            ,value=MY_DOMAIN_ID                          &  !<-- Put extracted value here
-                            ,rc =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Retrieve the Nest/Not_a_Nest flag from the Physics import state.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Get Nest/Not-a-Nest Flag from Physics Import State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The Physics import state
-                            ,name ='I-Am-A-Nest Flag'                   &  !<-- Name of variable to get from Physics import state
-                            ,value=NEST_FLAG                            &  !<-- Put extracted value here
-                            ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      I_AM_A_NEST=NEST_FLAG                                                !<-- Convert from ESMF_Logical to LOGICAL
-!
-!-----------------------------------------------------------------------
-!***  If this is a nested domain, does its input file already exist
-!***  or does its parent need to create it?
-!-----------------------------------------------------------------------
-!
-      IF(I_AM_A_NEST)THEN
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Get Nest/Not-a-Nest Flag from Physics Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The Physics import state
-                              ,name ='Input Ready'                        &  !<-- Name of variable to get from Physics import state
-                              ,value=INPUT_READY                          &  !<-- Put extracted value here
-                              ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      ENDIF
-!
-!-----------------------------------------------------------------------
-!***  Retrieve the import state of the Write gridded component
-!***  from the Physics export state.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Retrieve Write Import State from Physics Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateGet(state      =EXP_STATE                          &  !<-- The Physics export state
-                        ,itemName   ='Write Import State'               &  !<-- Name of the state to get from Physics export state
-                        ,nestedState=IMP_STATE_WRITE                    &  !<-- Extract Write component import state from Physics export
-                        ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
 !-----------------------------------------------------------------------
 !***  Insert the local domain starting limits and the halo width into
 !***  the Physics internal state.
@@ -418,9 +340,9 @@
 !     IF(IHALO==JHALO)THEN
 !       int_state%NHALO=IHALO
 !     ELSE
-!       RC_INIT=ESMF_FAILURE
-!       WRITE(0,*)'Error due to ihalo /= jhalo'
-!     ENDIF
+!        RC_INIT=ESMF_FAILURE
+!        WRITE(0,*)'Error due to ihalo /= jhalo'
+!      ENDIF
 !
       int_state%ITS=ITS
       int_state%ITE=ITE
@@ -439,10 +361,14 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL GET_CONFIG_PHY(GRID_COMP,INT_STATE,RC)
-      IM=int_state%IM
-      JM=int_state%JM
-      LM=int_state%LM
+      CALL GET_CONFIG_PHY_DIMS(GRID_COMP                                &
+                              ,int_state%INPES,int_state%JNPES          &
+                              ,LM                                       &
+                              ,int_state%NUM_TRACERS_MET                &
+                              ,int_state%NUM_TRACERS_CHEM               &
+                              ,int_state%GFS                            &
+                              ,int_state%MICROPHYSICS                   &
+                              ,RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -499,17 +425,155 @@
       fcst_tasks: IF(MYPE<NUM_PES)THEN                                     !<-- Select only forecast tasks
 !
 !-----------------------------------------------------------------------
-!***  Set up the Physics internal state variables.
+!***  Allocate all necessary internal state variables.  Those that
+!***  are owned/exported are pointed into allocated memory within
+!***  the Physics' composite VARS array.
 !-----------------------------------------------------------------------
 !
-        CALL SET_INTERNAL_STATE_PHY(GRID_COMP,INT_STATE)
+        CALL SET_INTERNAL_STATE_PHY_1(INT_STATE,LM)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract the ESMF Grid from the Physics Component"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_GridCompGet(gridcomp=GRID_COMP                        &  !<-- The Physics gridded component
+                             ,grid    =GRID                             &  !<-- The ESMF Grid
+                             ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Put the allocated pointers of all export variables (they must be
+!***  owned) into the Physics export state.
+!-----------------------------------------------------------------------
+!
+        CALL PUT_VARS_IN_STATE(int_state%VARS,int_state%NUM_VARS,'X',GRID,EXP_STATE)
+!
+      ENDIF fcst_tasks
+!
+!-----------------------------------------------------------------------
+!
+      RC=0
+!
+      IF(RC_INIT==ESMF_SUCCESS)THEN
+!       WRITE(0,*)'PHY INITIALIZE STEP SUCCEEDED'
+      ELSE
+        WRITE(0,*)'PHY INITIALIZE STEP FAILED  RC_INIT=',RC_INIT
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      phy_init_tim=(timef()-btim0)
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE PHY_INITIALIZE_1
+!
+!-----------------------------------------------------------------------
+!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE PHY_INITIALIZE_2(GRID_COMP                             &
+                                 ,IMP_STATE                             &
+                                 ,EXP_STATE                             &
+                                 ,CLOCK                                 &
+                                 ,RC_INIT)
+!
+!-----------------------------------------------------------------------
+!***  Point all unowned internal state variables at allocated memory,
+!***  get time information, read input data.
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument variables
+!------------------------
+!
+      TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP                       !<-- The Physics gridded component
+      TYPE(ESMF_State),   INTENT(INOUT) :: IMP_STATE                       !<-- The Physics Initialize step's import state
+      TYPE(ESMF_State),   INTENT(INOUT) :: EXP_STATE                       !<-- The Physics Initialize step's export state
+      TYPE(ESMF_Clock),   INTENT(IN)    :: CLOCK                           !<-- The ATM's ESMF Clock
+!
+      INTEGER,OPTIONAL,    INTENT(OUT)  :: RC_INIT
+!
+!---------------------
+!***  Local variables
+!---------------------
+!
+      INTEGER(KIND=KINT) :: L,N,RC                                      &
+                           ,IDENOMINATOR_DT,INTEGER_DT,NUMERATOR_DT
+!
+      TYPE(ESMF_State)        :: IMP_STATE_WRITE
+      TYPE(ESMF_Grid)         :: GRID
+      TYPE(ESMF_TimeInterval) :: DT_ESMF                                   !<-- The timestep from the ATM Clock
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Initialize the error signal variables.
+!-----------------------------------------------------------------------
+!
+      RC     =ESMF_SUCCESS
+      RC_INIT=ESMF_SUCCESS
+!
+!-----------------------------------------------------------------------
+!***  For unowned (unallocated) internal state variables, point their
+!***  appropriate corresponding locations in the composite VARS array
+!***  at allocated memory from the owned Dynamics variable seen in the
+!***  Physics import state.
+!***  For owned (allocated) variables that are also owned/exported by
+!***  the Dynamics, transfer the data into them from the import state.
+!-----------------------------------------------------------------------
+!
+      CALL GET_VARS_FROM_STATE(int_state%VARS, int_state%NUM_VARS, IMP_STATE)
+!
+!-----------------------------------------------------------------------
+!***  Now re-point the internal state variables associated with the
+!***  VARS array into that array.  Unowned variables will now point
+!***  to allocated memory in the Physics.
+!-----------------------------------------------------------------------
+!
+      CALL SET_INTERNAL_STATE_PHY_2(INT_STATE,LM)
+!
+!-----------------------------------------------------------------------
+!***  Use ESMF utilities to get information from the configuration file.
+!***  The function is similar to reading a namelist.  The GET_CONFIG
+!***  routine is the user's.  It extracts values fron the config file
+!***  and places them in the namelist components of the internal state.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Get Configure File Parameters for Physics"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL GET_CONFIG_PHY(GRID_COMP,INT_STATE,RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      IM=int_state%IM
+      JM=int_state%JM
+!d      LM=int_state%LM
+!
+!-----------------------------------------------------------------------
+!***  Only forecast tasks are needed for the remaining
+!***  initialization process.
+!-----------------------------------------------------------------------
+!
+      fcst_tasks: IF(int_state%MYPE<int_state%NUM_PES)THEN                 !<-- Select only forecast tasks
 !
 !-----------------------------------------------------------------------
 !***  Assign the fundamental timestep retrieved from the Clock.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Get Fundamental Timestep ffrom ATM Clock" 
+        MESSAGE_CHECK="Extract Fundamental Timestep from ATM's Clock"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -542,6 +606,24 @@
 !
         NSTEPS_PER_HOUR=NINT(3600./DT)
         NSTEPS_HIST=int_state%NHOURS_HISTORY*NSTEPS_PER_HOUR
+!
+!-----------------------------------------------------------------------
+!***  Retrieve the domain ID from the Physics import state.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Get Domain ID from Physics Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE                           &  !<-- The Physics import state
+                              ,name ='DOMAIN_ID'                         &  !<-- Name of variable to get from Physics import state
+                              ,value=MY_DOMAIN_ID                        &  !<-- Put extracted value here
+                              ,rc =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !***  INITIALIZE THE PHYSICS SCHEMES. 
@@ -587,78 +669,6 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ALLOC_FIELDS_PHY(GRID,INT_STATE)
-!
-!-----------------------------------------------------------------------
-!***  Add the desired ESMF Fields to the Physics export state.
-!***  The pointers inside the Fields are pointing to the appropriate
-!***  variables inside the internal state (see ALLOC_FIELDS_PHY
-!***  IN module_PHYSICS_FIELDS.F).
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!***  Add the 3D quantities to the export state.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Add 3-D Fields to Physics Export State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_StateAdd(state=EXP_STATE                              &
-                          ,field=FIELD_T                                &  !<-- Temperature
-                          ,rc   =RC)
-!
-        CALL ESMF_StateAdd(state=EXP_STATE                              &
-                          ,field=FIELD_U                                &  !<-- U wind component
-                          ,rc   =RC)
-!
-        CALL ESMF_StateAdd(state=EXP_STATE                              &
-                          ,field=FIELD_V                                &  !<-- V wind component
-                          ,rc   =RC)
-!
-        CALL ESMF_StateAdd(state=EXP_STATE                              &
-                          ,field=FIELD_Q2                               &  !<-- TKE
-                          ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Add the 2D quantities to the export state.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Add 2-D Fields to Physics Export State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_StateAdd(state=EXP_STATE                              &
-                          ,field=FIELD_PD                               &  !<-- Vertical pressure difference, sigma range
-                          ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Add the 4D Tracers Field to the export state.
-!***  The number of 3D constituents is given by NUM_TRACERS_TOTAL.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Add 4-D Tracer Data to Physics Export State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_StateAdd(state=EXP_STATE                              &
-                          ,field=FIELD_TRACERS                          &  !<-- Tracer variables
-                          ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !***  Also insert the value of NUM_TRACERS_TOTAL into the export state.
@@ -758,28 +768,43 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
+!***  Retrieve the import state of the Write gridded component
+!***  from the Physics export state.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Retrieve Write Import State from Physics Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_StateGet(state      =EXP_STATE                        &  !<-- The Physics export state
+                          ,itemName   ='Write Import State'             &  !<-- Name of the state to get from Physics export state
+                          ,nestedState=IMP_STATE_WRITE                  &  !<-- Extract Write component import state from Physics export
+                          ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL POINT_PHYSICS_OUTPUT(GRID,INT_STATE,IMP_STATE_WRITE)
 !
 !-----------------------------------------------------------------------
 !
-      ENDIF fcst_tasks
+        if (mype==0)        CALL ESMF_StatePrint(EXP_STATE)
 !
 !-----------------------------------------------------------------------
 !
-      RC=0
-!
+      ENDIF fcst_tasks
+
       IF(RC_INIT==ESMF_SUCCESS)THEN
 !       WRITE(0,*)'PHY INITIALIZE STEP SUCCEEDED'
       ELSE
-        WRITE(0,*)'PHY INITIALIZE STEP FAILED  RC_INIT=',RC_INIT
+        WRITE(0,*)'PHY INITIALIZE STEP FAILED RC_INIT=',RC_INIT
       ENDIF
-!
-      phy_init_tim=(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !
-      END SUBROUTINE PHY_INITIALIZE
+      END SUBROUTINE PHY_INITIALIZE_2
 !
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
@@ -994,9 +1019,10 @@
 !***  since the temperature is updated every timestep.
 !-----------------------------------------------------------------------
 !
-      btim=timef()
-      CALL UPDATE_INTERNAL_STATE_PHY(IMP_STATE,INT_STATE)
-      update_phy_int_state_tim=update_phy_int_state_tim+(timef()-btim)
+!d      btim=timef()
+      CALL GET_VARS_FROM_STATE(int_state%VARS, int_state%NUM_VARS, IMP_STATE)
+!d      CALL UPDATE_INTERNAL_STATE_PHY(IMP_STATE,INT_STATE)
+!d      update_phy_int_state_tim=update_phy_int_state_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  Update the max/min values of the Temperature in the lowest
@@ -2445,8 +2471,8 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE PHY_FINALIZE(GRID_COMP                                 &
-                             ,IMP_STATE_WRITE                           &
-                             ,EXP_STATE_WRITE                           &
+                             ,IMP_STATE                                 &
+                             ,EXP_STATE                                 &
                              ,CLOCK_ATM                                 &
                              ,RCFINAL)
 !
@@ -2459,8 +2485,8 @@
 !-----------------------------------------------------------------------
 !
       TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP                       !<-- The Physics gridded component
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE_WRITE                 !<-- The Physics import state
-      TYPE(ESMF_State),   INTENT(INOUT) :: EXP_STATE_WRITE                 !<-- The Physics export state
+      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE                       !<-- The Physics import state
+      TYPE(ESMF_State),   INTENT(INOUT) :: EXP_STATE                       !<-- The Physics export state
       TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_ATM                       !<-- The ATM component's ESMF Clock.
 !
       INTEGER            ,INTENT(OUT)   :: RCFINAL

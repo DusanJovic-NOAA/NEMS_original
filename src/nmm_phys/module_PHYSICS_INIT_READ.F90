@@ -4,7 +4,6 @@
 !
 !----------------------------------------------------------------------
 !
-      USE ESMF_MOD
       USE MODULE_NEMSIO
       USE MODULE_INCLUDE
       USE MODULE_PHYSICS_INTERNAL_STATE,ONLY: PHYSICS_INTERNAL_STATE
@@ -42,7 +41,7 @@
       INTEGER,INTENT(IN) :: NGWD,MYPE,MPI_COMM_COMP
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE                         
 !
-      CHARACTER(ESMF_MAXSTR),INTENT(IN) :: INFILE
+      CHARACTER(LEN=*),INTENT(IN) :: INFILE
 !
       TYPE(PHYSICS_INTERNAL_STATE),POINTER,INTENT(IN)  :: INT_STATE        !<-- The physics internal state
 !
@@ -175,7 +174,7 @@
 !***  Argument variables
 !------------------------
 !
-      CHARACTER(ESMF_MAXSTR),INTENT(IN) :: INFILE
+      CHARACTER(LEN=*),INTENT(IN) :: INFILE
 !
       INTEGER,INTENT(IN) :: NFCST,MYPE,MPI_COMM_COMP
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                          &
@@ -297,8 +296,8 @@
 !***  Before moving on, transfer values to the internal state.
 !-----------------------------------------------------------------------
 !
-        int_state%PT=PT
-        int_state%PDTOP=PDTOP
+      int_state%PT=PT
+      int_state%PDTOP=PDTOP
 !
       DO L=1,LM
         int_state%DSG2(L)=DSG2(L)
@@ -391,6 +390,7 @@
       ENDDO
       ENDDO
       CALL DSTRB(TEMP1,int_state%PD,1,1,1,1,1)
+      CALL HALO_EXCH(int_state%PD,1,2,2)
 !
 !-----------------------------------------------------------------------
 !***  U, V, T, Q, CW
@@ -410,6 +410,7 @@
 !
         CALL DSTRB(TEMP1,int_state%U,1,1,1,LM,K)
       ENDDO
+      CALL HALO_EXCH(int_state%U,LM,2,2)
 !
 !-----------------------------------------------------------------------
 !
@@ -426,12 +427,12 @@
 !
         CALL DSTRB(TEMP1,int_state%V,1,1,1,LM,K)
       ENDDO
+      CALL HALO_EXCH(int_state%V,LM,2,2)
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1  ! T
-!        write(0,*) 'min max of T read in: ', K, minval(TEMP1), maxval(TEMP1)
         ENDIF
 !
         DO J=JMS,JME
@@ -442,6 +443,7 @@
 !
         CALL DSTRB(TEMP1,int_state%T,1,1,1,LM,K)
       ENDDO
+      CALL HALO_EXCH(int_state%T,LM,2,2)
 !
 !-----------------------------------------------------------------------
 !
@@ -459,6 +461,8 @@
         CALL DSTRB(TEMP1,int_state%Q,1,1,1,LM,K)
 !
       ENDDO
+      CALL HALO_EXCH(int_state%Q,LM,2,2)
+
       DO K=1,LM
         JJ=LDIM2-1
         DO J=JMS,JME
@@ -466,8 +470,8 @@
           II=LDIM1-1
           DO I=IMS,IME
             II=II+1
-            int_state%WATER(II,JJ,K,int_state%P_QV)=                      & ! WR F water array uses mixing ratio for vapor
-                      int_state%Q(II,JJ,K)/(1.-int_state%Q(II,JJ,K))
+!d            int_state%WATER(II,JJ,K,int_state%P_QV)=                      & ! WR F water array uses mixing ratio for vapor
+!d                      int_state%Q(II,JJ,K)/(1.-int_state%Q(II,JJ,K))
           ENDDO
         ENDDO
       ENDDO
@@ -714,7 +718,7 @@
 !*** Argument variables
 !-----------------------
 !
-      CHARACTER(ESMF_MAXSTR),INTENT(IN) :: INFILE
+      CHARACTER(LEN=*),INTENT(IN) :: INFILE
       INTEGER,INTENT(IN) :: NFCST,MYPE,MPI_COMM_COMP
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                          &
                            ,IMS,IME,JMS,JME
@@ -1012,6 +1016,7 @@
       ENDDO
       ENDDO
       CALL DSTRB(TEMP1,int_state%PD,1,1,1,1,1)
+      CALL HALO_EXCH(int_state%PD,1,2,2)
 !-----------------------------------------------------------------------
 !***  PDO
 !-----------------------------------------------------------------------
@@ -1923,11 +1928,11 @@
 !
         DO J=LDIM2,UDIM2
         DO I=LDIM1,UDIM1
-          int_state%CW(I,J,K)=0.
+!d          int_state%CW(I,J,K)=0.
         ENDDO
         ENDDO
 
-        CALL DSTRB(TEMP1,int_state%CW,1,1,1,LM,K)
+!d        CALL DSTRB(TEMP1,int_state%CW,1,1,1,LM,K)
       ENDDO
 !-----------------------------------------------------------------------
 !
@@ -1938,12 +1943,13 @@
 !
         DO J=LDIM2,UDIM2
         DO I=LDIM1,UDIM1
-          int_state%Q(I,J,K)=0.
+!d          int_state%Q(I,J,K)=0.
         ENDDO
         ENDDO
 !
-        CALL DSTRB(TEMP1,int_state%Q,1,1,1,LM,K)
+!d        CALL DSTRB(TEMP1,int_state%Q,1,1,1,LM,K)
       ENDDO
+!d      CALL HALO_EXCH(int_state%Q,LM,2,2)
 !
 !-----------------------------------------------------------------------
 !
@@ -1960,6 +1966,7 @@
 !
         CALL DSTRB(TEMP1,int_state%Q2,1,1,1,LM,K)
       ENDDO
+      CALL HALO_EXCH(int_state%Q2,LM,2,2)
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -2005,6 +2012,7 @@
 !
         CALL DSTRB(TEMP1,int_state%T,1,1,1,LM,K)
       ENDDO
+      CALL HALO_EXCH(int_state%T,LM,2,2)
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -2050,6 +2058,7 @@
 !
         CALL DSTRB(TEMP1,int_state%U,1,1,1,LM,K)
       ENDDO
+      CALL HALO_EXCH(int_state%U,LM,2,2)
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -2065,6 +2074,7 @@
 !
         CALL DSTRB(TEMP1,int_state%V,1,1,1,LM,K)
       ENDDO
+      CALL HALO_EXCH(int_state%V,LM,2,2)
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -2180,7 +2190,17 @@
         CALL DSTRB(TEMP1,int_state%TRACERS(:,:,:,N),1,1,1,LM,K)
       ENDDO
       ENDDO
-!rv do not use HALO_EXCH
+      CALL HALO_EXCH(int_state%TRACERS,LM,int_state%NUM_TRACERS_TOTAL,1,2,2)
+
+        do n=1,int_state%num_water
+        do l=1,lm
+          do j=jms,jme
+          do i=ims,ime
+!d            int_state%water(i,j,l,n)=int_state%tracers(i,j,l,n+int_state%num_tracers_total-int_state%num_water)
+          enddo
+          enddo
+        enddo
+        enddo
 !-----------------------------------------------------------------------
 !
       DEALLOCATE(TEMP1)
@@ -2216,7 +2236,7 @@
 !***  Argument variables
 !------------------------
 !
-      CHARACTER(ESMF_MAXSTR),INTENT(IN) :: INFILE
+      CHARACTER(LEN=*),INTENT(IN) :: INFILE
       INTEGER,INTENT(IN) :: MYPE,MPI_COMM_COMP
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                          &
                            ,IMS,IME,JMS,JME,NSOIL
@@ -2379,6 +2399,7 @@
       ENDDO
       ENDDO
       CALL DSTRB(TEMP1,int_state%PD,1,1,1,1,1)
+      CALL HALO_EXCH(int_state%PD,1,2,2)
 !
 !-----------------------------------------------------------------------
 !***  U, V, T, Q, CW
@@ -2398,6 +2419,7 @@
 !
         CALL DSTRB(TEMP1,int_state%U,1,1,1,LM,K)
       ENDDO
+      CALL HALO_EXCH(int_state%U,LM,2,2)
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -2409,12 +2431,12 @@
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%V(I,J,K)=0.
-
         ENDDO
         ENDDO
 !
         CALL DSTRB(TEMP1,int_state%V,1,1,1,LM,K)
       ENDDO
+      CALL HALO_EXCH(int_state%V,LM,2,2)
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -2431,6 +2453,7 @@
 !
         CALL DSTRB(TEMP1,int_state%T,1,1,1,LM,K)
       ENDDO
+      CALL HALO_EXCH(int_state%T,LM,2,2)
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -2442,12 +2465,13 @@
 
         DO J=LDIM2,UDIM2
         DO I=LDIM1,UDIM1
-          int_state%Q(I,J,K)=0.
+!d          int_state%Q(I,J,K)=0.
         ENDDO
         ENDDO
 !
-        CALL DSTRB(TEMP1,int_state%Q,1,1,1,LM,K)
+!d        CALL DSTRB(TEMP1,int_state%Q,1,1,1,LM,K)
       ENDDO
+!d      CALL HALO_EXCH(int_state%Q,LM,2,2)
 !-----------------------------------------
 !***  I and J limits for tracer variables
 !-----------------------------------------
@@ -2465,8 +2489,8 @@
           II=LDIM1-1
           DO I=IMS,IME
             II=II+1
-            int_state%WATER(II,JJ,K,int_state%P_QV)=                      & ! WRF water array uses mixing ratio for vapor
-                      int_state%Q(II,JJ,K)/(1.-int_state%Q(II,JJ,K))
+!d            int_state%WATER(II,JJ,K,int_state%P_QV)=                      & ! WRF water array uses mixing ratio for vapor
+!d                      int_state%Q(II,JJ,K)/(1.-int_state%Q(II,JJ,K))
           ENDDO
         ENDDO
       ENDDO
@@ -2482,11 +2506,11 @@
 !
         DO J=LDIM2,UDIM2
         DO I=LDIM1,UDIM1
-          int_state%CW(I,J,K)=0.
+!d          int_state%CW(I,J,K)=0.
         ENDDO
         ENDDO
 !
-        CALL DSTRB(TEMP1,int_state%CW,1,1,1,LM,K)
+!d        CALL DSTRB(TEMP1,int_state%CW,1,1,1,LM,K)
       ENDDO
 !
 !-----------------------------------------------------------------------
@@ -2697,7 +2721,7 @@
 !***  Argument variables
 !------------------------
 !
-      CHARACTER(ESMF_MAXSTR),INTENT(IN) :: INFILE
+      CHARACTER(LEN=*),INTENT(IN) :: INFILE
 !
       INTEGER,INTENT(IN) :: MYPE,MPI_COMM_COMP
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                          &
@@ -2956,6 +2980,7 @@
       ENDDO
       ENDDO
       CALL DSTRB(TEMP1,int_state%PD,1,1,1,1,1)
+      CALL HALO_EXCH(int_state%PD,1,2,2)
 !
 !-----------------------------------------------------------------------
 !***  Read from restart file: Real 2D arrays (contd.)
@@ -3858,11 +3883,11 @@
 !
         DO J=LDIM2,UDIM2
         DO I=LDIM1,UDIM1
-          int_state%CW(I,J,K)=0.
+!d          int_state%CW(I,J,K)=0.
         ENDDO
         ENDDO
 !
-        CALL DSTRB(TEMP1,int_state%CW,1,1,1,LM,K)
+!d        CALL DSTRB(TEMP1,int_state%CW,1,1,1,LM,K)
       ENDDO
 !-----------------------------------------------------------------------
 !
@@ -3874,12 +3899,13 @@
 !
         DO J=LDIM2,UDIM2
         DO I=LDIM1,UDIM1
-          int_state%Q(I,J,K)=0.
+!d          int_state%Q(I,J,K)=0.
         ENDDO
         ENDDO
 !
-        CALL DSTRB(TEMP1,int_state%Q,1,1,1,LM,K)
+!d        CALL DSTRB(TEMP1,int_state%Q,1,1,1,LM,K)
       ENDDO
+!d      CALL HALO_EXCH(int_state%Q,LM,2,2)
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -3896,6 +3922,7 @@
 !
         CALL DSTRB(TEMP1,int_state%Q2,1,1,1,LM,K)
       ENDDO
+      CALL HALO_EXCH(int_state%Q2,LM,2,2)
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -3945,6 +3972,7 @@
 !
         CALL DSTRB(TEMP1,int_state%T,1,1,1,LM,K)
       ENDDO
+      CALL HALO_EXCH(int_state%T,LM,2,2)
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -3993,6 +4021,7 @@
 !
         CALL DSTRB(TEMP1,int_state%U,1,1,1,LM,K)
       ENDDO
+      CALL HALO_EXCH(int_state%U,LM,2,2)
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -4009,6 +4038,7 @@
 !
         CALL DSTRB(TEMP1,int_state%V,1,1,1,LM,K)
       ENDDO
+      CALL HALO_EXCH(int_state%V,LM,2,2)
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -4133,7 +4163,8 @@
         CALL DSTRB(TEMP1,int_state%TRACERS(:,:,:,N),1,1,1,LM,K)
       ENDDO
       ENDDO
-!rv do not use HALO_EXCH
+      CALL HALO_EXCH(int_state%TRACERS,LM,int_state%NUM_TRACERS_TOTAL,1,2,2)
+
 !-----------------------------------------------------------------------
 !
       DEALLOCATE(TEMP1)

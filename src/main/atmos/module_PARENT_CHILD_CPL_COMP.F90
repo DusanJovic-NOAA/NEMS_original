@@ -7409,6 +7409,8 @@
 !!!     J_OFFSET=JMS+NHALO                                                 !<-- Offset of J in unloaded FIS vs. original FIS
         I_OFFSET=IMS-1+NHALO                                               !<-- Offset of I in unloaded FIS vs. original FIS
         J_OFFSET=JMS-1+NHALO                                               !<-- Offset of J in unloaded FIS vs. original FIS
+        I_OFFSET=0   !dusan
+        J_OFFSET=0   !dusan
 !
 !------------------------------
 !***  Child South Boundary FIS
@@ -7489,6 +7491,8 @@
 !
         I_OFFSET=IMS-1+NHALO                                               !<-- Offset of I in unloaded FIS vs. original FIS
         J_OFFSET=JMS-1+NHALO                                               !<-- Offset of J in unloaded FIS vs. original FIS
+        I_OFFSET=0   !dusan
+        J_OFFSET=0   !dusan
 !
 !-----------------------------
 !***  Child West Boundary FIS

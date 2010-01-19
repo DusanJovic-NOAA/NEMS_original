@@ -1165,7 +1165,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      physics_1: IF(PHYSICS_ON==ESMF_True)THEN
+      physics_0: IF(PHYSICS_ON==ESMF_True)THEN
 !
 !-------------------------------
 !***  Create Physics component
@@ -1223,7 +1223,7 @@
 !
 !------------------------------------------------------------------------
 !
-      ENDIF physics_1
+      ENDIF physics_0
 !
 !------------------------------------------------------------------------
 !***  Create empty Import and Export states for the Physics subcomponent
@@ -1447,7 +1447,7 @@
 !--------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Initialize the NMM Dynamics Component"
+      MESSAGE_CHECK="Initialize the NMM Dynamics Component phase 1"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -1455,7 +1455,7 @@
                                   ,importState=atm_int_state%IMP_STATE_DYN  &  !<-- The dynamics import state
                                   ,exportState=atm_int_state%EXP_STATE_DYN  &  !<-- The dynamics export state
                                   ,clock      =CLOCK_ATM                    &  !<-- The ATM clock
-                                  ,phase      =ESMF_SINGLEPHASE             &
+                                  ,phase      =1                            &
                                   ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1464,7 +1464,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      physics_2: IF(PHYSICS_ON==ESMF_True)THEN
+      physics_1: IF(PHYSICS_ON==ESMF_True)THEN
 !
 !-----------------------------------------------------------------------
 !
@@ -1473,7 +1473,7 @@
 !-------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Initialize Physics Component"
+        MESSAGE_CHECK="Initialize Physics Component phase 1"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -1481,7 +1481,7 @@
                                     ,importState=atm_int_state%IMP_STATE_PHY  &  !<-- The physics import state
                                     ,exportState=atm_int_state%EXP_STATE_PHY  &  !<-- The physics export state
                                     ,clock      =CLOCK_ATM                    &  !<-- The ATM clock
-                                    ,phase      =ESMF_SINGLEPHASE             &
+                                    ,phase      =1                            &
                                     ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1490,7 +1490,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      ENDIF physics_2
+      ENDIF physics_1
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -1514,6 +1514,69 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_CplCompInitialize(cplcomp    =atm_int_state%COUPLER_DYN_PHY_COMP &  !<-- The dyn_phy coupler component
+                                 ,importState=atm_int_state%EXP_STATE_PHY        &  !<-- The dyn-phy coupler import state
+                                 ,exportState=atm_int_state%IMP_STATE_DYN        &  !<-- The dyn-phy coupler export state
+                                 ,clock      =CLOCK_ATM                          &  !<-- The ATM Clock
+                                 ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!
+!--------------
+!***  Dynamics
+!--------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Initialize the NMM Dynamics Component phase 2"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_GridCompInitialize(gridcomp   =atm_int_state%DYN_GRID_COMP  &  !<-- The dynamics gridded component
+                                  ,importState=atm_int_state%IMP_STATE_DYN  &  !<-- The dynamics import state
+                                  ,exportState=atm_int_state%EXP_STATE_DYN  &  !<-- The dynamics export state
+                                  ,clock      =CLOCK_ATM                    &  !<-- The ATM clock
+                                  ,phase      =2                            &
+                                  ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+      physics_2: IF(PHYSICS_ON==ESMF_True)THEN
+!
+!-----------------------------------------------------------------------
+!
+!-------------
+!***  Physics
+!-------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Initialize Physics Component phase 2"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_GridCompInitialize(gridcomp   =atm_int_state%PHY_GRID_COMP  &  !<-- The physics gridded component
+                                    ,importState=atm_int_state%IMP_STATE_PHY  &  !<-- The physics import state
+                                    ,exportState=atm_int_state%EXP_STATE_PHY  &  !<-- The physics export state
+                                    ,clock      =CLOCK_ATM                    &  !<-- The ATM clock
+                                    ,phase      =2                            &
+                                    ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+      ENDIF physics_2
+!
+!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !***  If quilting was selected for the generation of output,

@@ -38,6 +38,9 @@ MODULEIO=       \
 		module_NEMSIO.o
 
 MODULES=	\
+		module_ERR_MSG.o \
+		module_VARS.o \
+		module_VARS_STATE.o \
 		module_ATM_INTERNAL_STATE.o  \
 		module_CLOCKTIMES.o \
 		module_CONSTANTS.o \
@@ -47,7 +50,6 @@ MODULES=	\
 		module_EXCHANGE.o \
 		module_INCLUDE.o \
 		module_DIGITAL_FILTER_NMM.o \
-		module_ERR_MSG.o \
 		looplimits.o
 
 .SUFFIXES:	.F90 .f90 .o
