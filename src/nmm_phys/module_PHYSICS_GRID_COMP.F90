@@ -366,6 +366,7 @@
                               ,LM                                       &
                               ,int_state%NUM_TRACERS_MET                &
                               ,int_state%NUM_TRACERS_CHEM               &
+                              ,int_state%PCPHR                          &
                               ,int_state%GFS                            &
                               ,int_state%MICROPHYSICS                   &
                               ,RC)

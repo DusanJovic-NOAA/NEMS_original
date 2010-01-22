@@ -41,6 +41,7 @@
                                     ,LM                                 &
                                     ,NUM_TRACERS_MET                    &
                                     ,NUM_TRACERS_CHEM                   &
+                                    ,PCPHR                              &
                                     ,GFS                                &
                                     ,MICROPHYSICS                       &
                                     ,RC_CONF)
@@ -49,7 +50,8 @@
       INTEGER,             INTENT(OUT)   :: INPES,JNPES                 &
                                            ,LM                          &
                                            ,NUM_TRACERS_MET             &
-                                           ,NUM_TRACERS_CHEM
+                                           ,NUM_TRACERS_CHEM            &
+                                           ,PCPHR
       LOGICAL,             INTENT(OUT)   :: GFS
       CHARACTER(LEN=*),    INTENT(OUT)   :: MICROPHYSICS
       INTEGER,             INTENT(OUT)   :: RC_CONF                       !<-- Final return code
@@ -170,6 +172,19 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="GET_CONFIG_PHY: Extract PCP Assim duration from Config File"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
+                                  ,value =PCPHR                         &  !<-- Put extracted quantity here
+                                  ,label ='pcphr:'                      &  !<-- The quantity's label in the configure file
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !-----------------------------------------------------------------------
 !***  PHYSICS OPTIONS
 !-----------------------------------------------------------------------
