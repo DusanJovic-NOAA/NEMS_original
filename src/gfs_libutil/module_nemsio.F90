@@ -16,6 +16,7 @@ module module_nemsio
 !                             record name to 16 characters
 !    2009-04-28    Jun Wang - allow user to update meta data for date, forecast time
 !    2009-11-23    Sarah Lu - GOCART species added to gribtable
+!    2010-01-21    Sarah Lu - 550nm AOD added to gribtable
 !
 ! Public Variables
 ! Public Defined Types
@@ -5532,6 +5533,14 @@ contains
     gribtable(4)%item(15)=nemsio_grbtbl_item('ocphilic','mid layer',9,0,250,109)
     gribtable(4)%item(16)=nemsio_grbtbl_item('bcphobic','mid layer',9,0,251,109)
     gribtable(4)%item(17)=nemsio_grbtbl_item('bcphilic','mid layer',9,0,252,109)
+!
+    gribtable(4)%item(18)=nemsio_grbtbl_item('aod','atmos col',3,0,255,200)
+    gribtable(4)%item(19)=nemsio_grbtbl_item('duaod','atmos col',3,0,220,200)
+    gribtable(4)%item(20)=nemsio_grbtbl_item('bcaod','atmos col',3,0,254,200)
+    gribtable(4)%item(21)=nemsio_grbtbl_item('ocaod','atmos col',3,0,237,200)
+    gribtable(4)%item(22)=nemsio_grbtbl_item('suaod','atmos col',3,0,234,200)
+    gribtable(4)%item(23)=nemsio_grbtbl_item('ssaod','atmos col',3,0,239,200)
+
 !
     iret=0
   end subroutine nemsio_setgrbtbl

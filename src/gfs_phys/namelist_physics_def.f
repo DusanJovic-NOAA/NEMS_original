@@ -2,6 +2,7 @@
 
 !! Code Revision
 !! oct 12 2009     Sarah Lu, add grid_aldata
+!! Jan 12 2010     Sarah Lu, add fdaer
 
       use machine, ONLY: kind_evod
       implicit none
@@ -24,6 +25,7 @@
 !
 !     Chemistry control parameters                       
 !
-      logical grid_aldata                               
+      logical grid_aldata           ! option to allocate grid_fld
+      real(kind=kind_evod)  fdaer   ! relaxation time in days to gocart anal/clim
 !
       end module namelist_physics_def

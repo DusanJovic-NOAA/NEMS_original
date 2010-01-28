@@ -7,6 +7,7 @@
 !   Oct 16 2009   Sarah Lu, adopted from dyn fc
 !   Nov 21 2009   Sarah Lu, chem tracer specified from ChemRegistry
 !   Dec 10 2009   Sarah Lu, add doing_GOCART
+!   Jan 12 2010   Sarah Lu, add trcindx
 ! -------------------------------------------------------------------------
 !
       module gfs_phy_tracer_config
@@ -38,7 +39,7 @@
 !
 
 ! --- public interface
-      public     tracer_config_init
+      public     tracer_config_init, trcindx
 
       contains
 
@@ -117,6 +118,69 @@ c
 999   print *,'LU_TRC: error in allocate gfs_phy_tracer :',status,me
 
       end subroutine tracer_config_init
+
+! -------------------------------------------------------------------
+! -------------------------------------------------------------------
+      function trcindx( specname, tracer )
+      implicit none
+
+      character*(*), intent(in)  ::  specname
+      type (gfs_phy_tracer_type), intent(in)    ::  tracer
+
+      character*10  ::  name1, name2
+      integer       ::  i, trcindx
+
+! -- set default value
+      trcindx = -999
+
+! -- convert specname to upper case
+      call fixchar(specname, name1, 1)
+      do i = 1, tracer%ntrac
+        call fixchar(tracer%vname(i), name2, 1)
+        if( name1 == name2 ) then
+          trcindx = i 
+          exit
+        endif
+      enddo
+
+      return
+      end function trcindx
+
+! -------------------------------------------------------------------
+      subroutine fixchar(name_in, name_out, option)
+      implicit none
+
+      character*(*), intent(in)   ::  name_in
+      character*(*), intent(out)  ::  name_out
+      integer, intent(in)         ::  option
+
+      character*10                :: temp
+      integer                     :: i, ic
+
+      name_out= '          '
+      temp = trim(adjustl(name_in))
+      do i = 1, len_trim(temp)
+        ic = IACHAR(temp(i:i))
+        if(option == 1 ) then             !<--- convert to upper case
+          if(ic .ge. 97 .and. ic .le. 122) then
+            name_out(i:i) = CHAR( IC-32 )
+          else
+            name_out(i:i) = temp(i:i)
+          endif
+        endif
+        if(option == 2 ) then             !<--- convert to lower case
+          if(ic .ge. 65 .and. ic .le. 90) then
+            name_out(i:i) = CHAR( IC+32 )
+          else
+            name_out(i:i) = temp(i:i)
+          endif
+        endif
+
+      enddo
+      name_out=trim(name_out)
+      return
+
+      end subroutine fixchar
 
 ! ========================================================================= 
 

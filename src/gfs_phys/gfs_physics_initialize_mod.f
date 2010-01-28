@@ -20,6 +20,7 @@
 !  oct 16 2009  Sarah Lu        initialize gfs_phy_tracer
 !  nov 14 2009  Sarah Lu        flx_fld and sfc_fld allocation modified
 !  dec 10 2009  Sarah Lu        initialize lgocart and g3d_fld
+!  jan 22 2010  Sarah Lu        increase ngrids_flx and nfxr to include aod 
 !
 ! !interface:
 !
@@ -182,8 +183,10 @@
 !jw
       ngrids_sfcc2d = 32        ! No CV, CVB, CVT! includes T2M, Q2M, TISFC
       ngrids_sfcc3d = LSOIL*3   ! for smc,stc,slc
-      ngrids_flx  = 66+30        ! additional fields (most related to land surface)
-      nfxr        = 27
+!     ngrids_flx  = 66+30        ! additional fields (most related to land surface)
+      ngrids_flx  = 66+30+6      ! additional fields (aod)
+!     nfxr        = 27
+      nfxr        = 27 + 6      ! Add AOD
       ngrids_gg   = 2+LEVS*(4+ntrac)
 !
       allocate ( lon_dims_r(latr), stat = ierr )
@@ -212,7 +215,6 @@
           gis_phy%lonsperlar(j) = lonr
         enddo
       endif
-
 !
       g_gz   = 1
       g_ps   = g_gz  + 1

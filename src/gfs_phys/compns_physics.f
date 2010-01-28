@@ -41,7 +41,8 @@
 !
 ! Program History Log:
 !   1999-01-26  Iredell
-!   1999-10-12  Sarah Lu, add grid_aldata (default to F)
+!   2009-10-12  Sarah Lu, add grid_aldata (default to F)
+!   2010-01-12  Sarah Lu, add fdaer (default to 0)
 !
 ! Usage:    call compns(deltim,
 !    &                  fhout,fhswr,fhlwr,fhzer,fhres,fhcyc,
@@ -101,6 +102,7 @@ c     if output (fhout) more frequently than zeroing ,get partial rains
      & ntrac,nxpt,nypt,jintmx,jcap,levs,lonr,latr,levr,
      & ntoz,ntcw,ncld,lsoil,nmtvr,zhao_mic,nsout,lsm,tfiltc,
      & isol, ico2, ialb, iems, iaer, iovr_sw, iovr_lw,
+     & fdaer,
      & ncw, crtrh,old_monin,flgmin,gfsio_in,gfsio_out,cnvgwd,
      & ccwf,sashal,newsas,zflxtvd
      &,grid_aldata
@@ -163,6 +165,10 @@ c     if output (fhout) more frequently than zeroing ,get partial rains
 ! 3D fields are allocated only in DYN;
 ! pointer is used to associate 3D fields in PHY back to DYN 
       grid_aldata = .false.
+!
+! The relaxation time in days to gocart forecast (Sarah Lu)
+! default is 0 (use clim/anal fields)
+      fdaer = 0.          
 !
       print *,' nlunit=',nlunit,' gfs_phy_namelist=',gfs_phy_namelist
 c$$$      read(5,nam_phy)

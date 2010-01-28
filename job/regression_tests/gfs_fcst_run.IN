@@ -32,6 +32,7 @@ set -x
 export CPIlist=" 1004.6,   1846.0, 820.2391,    0.0"
 export RIlist="  286.05,   461.50, 173.2247,    0.0"
 #***************************************************************
+
 #
 #    Set up horizontal and vertical resolution ; default will be T6264
 #
@@ -133,6 +134,9 @@ export NMTVR=${NMTVR:-14}
 #export nsout=${nsout:-0}
 export nsout=_NSOUT_
 export lsm=${lsm:-1}
+
+## IAER=0 (no aerosols); 11 (opac for sw/lw) and 22 (gocart for sw/lw)
+ export IAER=_IAER_
 #
 #   Control for post and time averaging  If "YES" then run
 #   -- Defaults to "NO" 
@@ -157,6 +161,7 @@ export LEVR=${levr:-0}
  export FCSTEXEC=$srcdir/exe/GFS_NEMS.x
 #
 #
+#
 # ***************************************************************
 #    Below here no change needed most of the time
 #    ____________________________________________
@@ -168,6 +173,9 @@ cd $RUNDIR
 #
  export FIXGLOBAL=/nwprod/fix
  export FIX_RAD=/global/save/wx23hh/00wkgfs/fix/fix_rad
+ export GOCARTDIR=$srcdir/fix
+ export GOCART_CLIM=$GOCARTDIR/gocart_clim
+ export GOCART_LUTS=$GOCARTDIR/gocart_luts
 #
  export POSTGPDIR=$TOPDIR/wx23hh/00wkgfs/src/global_postgp.fd
  export POSTGPEXEC=$POSTGPDIR/global_postgp

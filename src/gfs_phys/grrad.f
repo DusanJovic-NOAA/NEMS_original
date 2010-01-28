@@ -73,6 +73,8 @@
 !                                based (h. wei and c. marshall) albedo !
 !     12-09-09    sarah lu     - grrad computes instant cloud cover    !
 !                               (instead of accumulative fields)       !
+!     01-09-10    sarah lu     - add gocart option                     !
+!     01-24-10    sarah lu     - add aod to fluxr                      !
 !                                                                      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
@@ -93,7 +95,9 @@
       use module_radiation_gases,   only : NF_VGAS, getgases, getozn,   &
      &                                     gasinit
       use module_radiation_aerosols,only : NF_AESW, aerinit, setaer,    &
-     &                                     NF_AELW
+     &                                     NF_AELW,                     &
+! --- add nv_aod for aerosol diag (Sarah Lu)
+     &                                     nv_aod
       use module_radiation_surface, only : NF_ALBD, sfcinit, setalb,    &
      &                                     setemis
       use module_radiation_clouds,  only : NF_CLDS, cldinit,            &
@@ -509,6 +513,7 @@
       implicit none
  
 !  ---  constant parameter
+      integer, parameter :: NSPC = 6   
 
 !  ---  inputs: (horizontal dimensioned by IX)
       integer,  intent(in) :: IX,IM, LM, NTRAC,NFXR, iflip, me,         &
@@ -556,12 +561,15 @@
       real (kind=kind_phys), dimension(IM) :: tsfa, cvt1, cvb1, tem1d,  &
      &       sfcemis
 
+      real (kind=kind_phys), dimension(IM,NSPC)       :: aod
+
       real (kind=kind_phys), dimension(IM,LM,NF_CLDS) :: clouds
       real (kind=kind_phys), dimension(IM,LM,NF_VGAS) :: gasvmr
       real (kind=kind_phys), dimension(IM,   NF_ALBD) :: sfcalb
 
       real (kind=kind_phys), dimension(IM,LM,NBDSW,NF_AESW) :: faersw
       real (kind=kind_phys), dimension(IM,LM,NBDLW,NF_AELW) :: faerlw
+      real (kind=kind_phys), dimension(IM,LM,NSPC-1) :: tau_gocart
 
       real (kind=kind_phys), dimension(IM,LM) :: htswc
       real (kind=kind_phys), dimension(IM,LM) :: htlwc
@@ -798,19 +806,52 @@
       faersw(:,:,:,:) = 0.0
       faerlw(:,:,:,:) = 0.0
 
+      aod       (:,:)   = 0.0
+      tau_gocart(:,:,:) = 0.0
+
       if (iaersw==1 .or. iaerlw==1) then
+
+!  --- ...  prslk -> tem2da (added for gocart coupling)                                    
+        do k = 1, LM                                     
+          do i = 1, IM                             
+            tem2da(i,k) = prslk(i,k)              
+          enddo                                
+        enddo         
 
 !check  print *,' in grrad : calling setaer '
 
+!add tem2da and oz to setaer input argument(for gocart coupling)
+!add tau_gocart to setaer output argument(for aerosol diag)
         call setaer                                                     &
 !  ---  inputs:
      &     ( xlon,xlat,plvl,plyr,tlyr,qlyr,rhly,                        &
+     &       tem2da, oz,                                                &
      &       IM,LM,LP1, iflip, lsswr,lslwr,                             &
 !  ---  outputs:
      &       faersw,faerlw                                              &
+     &,      tau_gocart                                                 &
      &     )
 
       endif           ! end_if_iaersw_iaerlw
+
+      if ( iaersw==1 ) then
+!
+!  --- ...  update aod (column integrated aerosol optical depth)
+        do i = 1, IM                             
+          do j = 1, NSPC
+            do k = 1, LM
+              if ( j == NSPC ) then
+                aod(i,j) = aod(i,j) + faersw(i,k,nv_aod,1)
+              else                                     
+                aod(i,j) = aod(i,j) + tau_gocart(i,k,j)
+              endif
+            enddo         
+          enddo         
+        enddo         
+
+
+      endif           ! end_if_iaersw_iaerlw
+
 
 !  --- ...  obtain cloud information for radiation calculations
 
@@ -1047,6 +1088,17 @@
 !        ratio of the time-mean of the sfcsw fluxes .. kac+mi dec98
 
       if (lssav) then
+
+        if ( iaersw==1 ) then
+          do i = 1, IM
+            fluxr(i,28) = fluxr(i,28) + dtsw*aod(i,1)  ! DU aod at 550nm
+            fluxr(i,29) = fluxr(i,29) + dtsw*aod(i,2)  ! BC aod at 550nm
+            fluxr(i,30) = fluxr(i,30) + dtsw*aod(i,3)  ! OC aod at 550nm
+            fluxr(i,31) = fluxr(i,31) + dtsw*aod(i,4)  ! SU aod at 550nm
+            fluxr(i,32) = fluxr(i,32) + dtsw*aod(i,5)  ! SS aod at 550nm
+            fluxr(i,33) = fluxr(i,33) + dtsw*aod(i,6)  ! total aod at 550nm
+          enddo
+        endif
 
         if (lslwr) then
           do i = 1, IM

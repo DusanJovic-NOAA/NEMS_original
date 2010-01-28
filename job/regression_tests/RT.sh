@@ -558,7 +558,7 @@ export LIST_FILES=" \
 export TASKS=32    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
 export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=#
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3
+export NUMFILE=3   ; export IAER=0
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -585,7 +585,7 @@ export LIST_FILES=" \
 export TASKS=32    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
 export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=''
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3
+export NUMFILE=3   ; export IAER=0
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -612,7 +612,7 @@ export LIST_FILES=" \
 export TASKS=60    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
 export PE1=58      ; export WTPG=2       ; export NDAYS=2     ; export CP2=#
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3
+export NUMFILE=3   ; export IAER=0
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -639,7 +639,7 @@ export LIST_FILES=" \
 export TASKS=16    ; export THRD=2       ; export NSOUT=0     ; export QUILT=.true.
 export PE1=12      ; export WTPG=2       ; export NDAYS=2     ; export CP2=#
 export WRTGP=2     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3
+export NUMFILE=3   ; export IAER=0
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -666,7 +666,7 @@ export LIST_FILES=" \
 export TASKS=1     ; export THRD=1       ; export NSOUT=0     ; export QUILT=.false.
 export PE1=1       ; export WTPG=1       ; export NDAYS=1     ; export CP2=#
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3
+export NUMFILE=3   ; export IAER=0
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -693,7 +693,7 @@ export LIST_FILES=" \
 export TASKS=1     ; export THRD=1       ; export NSOUT=1     ; export QUILT=.false.
 export PE1=1       ; export WTPG=1       ; export NDAYS=1     ; export CP2=#
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3
+export NUMFILE=3   ; export IAER=0
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -720,7 +720,7 @@ export LIST_FILES=" \
 export TASKS=16    ; export THRD=2       ; export NSOUT=2     ; export QUILT=.false.
 export PE1=16      ; export WTPG=1       ; export NDAYS=2     ; export CP2=#
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3
+export NUMFILE=3   ; export IAER=0
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -747,7 +747,7 @@ export LIST_FILES=" \
 export TASKS=60    ; export THRD=1       ; export NSOUT=1     ; export QUILT=.false.
 export PE1=60      ; export WTPG=1       ; export NDAYS=2     ; export CP2=#
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3
+export NUMFILE=3   ; export IAER=0
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -775,7 +775,7 @@ export LIST_FILES=" \
 export TASKS=32    ; export THRD=1       ; export NSOUT=4     ; export QUILT=.false.
 export PE1=32      ; export WTPG=1       ; export NDAYS=2     ; export CP2=#
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3
+export NUMFILE=3   ; export IAER=0
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -803,7 +803,7 @@ export LIST_FILES=" \
 export TASKS=32    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
 export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=#
 export WRTGP=1     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3
+export NUMFILE=3   ; export IAER=0
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -831,7 +831,7 @@ export LIST_FILES=" \
 export TASKS=16    ; export THRD=2       ; export NSOUT=0     ; export QUILT=.true.
 export PE1=12      ; export WTPG=2       ; export NDAYS=2     ; export CP2=''
 export WRTGP=2     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3
+export NUMFILE=3   ; export IAER=0
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi
@@ -859,7 +859,34 @@ export LIST_FILES=" \
 export TASKS=1     ; export THRD=1       ; export NSOUT=0     ; export QUILT=.false.
 export PE1=1       ; export WTPG=1       ; export NDAYS=1     ; export CP2=#
 export WRTGP=1     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3
+export NUMFILE=3   ; export IAER=0
+#---------------------
+./rt_gfs.sh
+ if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+####################################################################################################
+# 
+# TEST   - GFS 
+#        - OPAC aerosols
+#
+####################################################################################################
+
+export TEST_DESCR="GFS, use the OPAC climo scheme for SW and LW"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/GFS_OPAC
+export CNTL_PTH=${RTPWD}/GFS_OPAC
+export LIST_FILES=" \
+       sigf03 sigf06 sigf12 sigf24 sigf48 \
+       sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+       flxf03 flxf06 flxf12 flxf24 flxf48"
+#---------------------
+export TASKS=32    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
+export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=#
+export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
+export NUMFILE=3   ; export IAER=11
 #---------------------
 ./rt_gfs.sh
  if [ $? = 2 ]; then exit ; fi

@@ -1,4 +1,4 @@
-Wed Jan 20 11:41:55 EST 2010
+Thu Jan 28 12:03:32 EST 2010
 Start Regression test
 
 
@@ -26,7 +26,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  177.14  , test_glob timing:  170.63
+ Original timing:  177.14  , test_glob timing:  170.58
 
 
 Test 002
@@ -164,7 +164,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  269.31  , test_reg timing:  262.79
+ Original timing:  269.31  , test_reg timing:  263.29
 
 
 Test 009
@@ -602,4 +602,32 @@ Checking test 027 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Test 027 passed 
-Wed Jan 20 18:07:44 EST 2010
+Test 028
+GFS, use the OPAC climo scheme for SW and LW
+GFS, 32 proc, 1 thread
+
+
+
+
+Checking test 028 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
+ Test 028 passed 
+Test 029
+GFS, use the GOCART climo scheme for SW and LW
+GFS, 32 proc, 1 thread
+
+

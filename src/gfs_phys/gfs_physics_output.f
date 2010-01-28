@@ -45,7 +45,8 @@
 !
 !-----------------------------------------------------------------------
 !
-      INTEGER,PARAMETER :: MAX_KOUNT=100
+!     INTEGER,PARAMETER :: MAX_KOUNT=100
+      INTEGER,PARAMETER :: MAX_KOUNT=150      
       character(esmf_maxstr)      :: MESSAGE_CHECK
 !
 !-----------------------------------------------------------------------
@@ -396,6 +397,12 @@
                     ,'sbsno_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !94
                     ,'snowc_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !95
                     ,'soilm           ', 'OGFS_FLX        ', '0-200 cm down   ' &   !96
+                    ,'duaod           ', 'OGFS_FLX        ', 'atmos col       ' &   !97
+                    ,'bcaod           ', 'OGFS_FLX        ', 'atmos col       ' &   !98
+                    ,'ocaod           ', 'OGFS_FLX        ', 'atmos col       ' &   !99
+                    ,'suaod           ', 'OGFS_FLX        ', 'atmos col       ' &   !100
+                    ,'ssaod           ', 'OGFS_FLX        ', 'atmos col       ' &   !101
+                    ,'aod             ', 'OGFS_FLX        ', 'atmos col       ' &   !102
 !
 !                              -----------------------------------------
 !

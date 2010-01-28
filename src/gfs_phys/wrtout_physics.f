@@ -8,6 +8,7 @@
 !!
 !
 ! May 2009 Jun Wang, modified to use write grid component
+! Jan 2010 Sarah Lu, AOD added to flx files
 !
 
       use resol_def,               ONLY: latr, levs, levp1, lonr, nfxr
@@ -945,7 +946,8 @@ c  array copy
 !!
       integer LEN,NFLD
       integer j,i,k,itop,ibot,k4,l,noflx,nundef,ngrid2d
-      PARAMETER(NFLD=18)
+!*    PARAMETER(NFLD=18)
+      PARAMETER(NFLD=18+6)      ! 550nm AOD added
        integer ilpds,iyr,imo,ida,ihr,ifhr,ithr,lg,ierr
        real (kind=kind_io8) RTIMER(NFLD),rtime,rtimsw,rtimlw
        real (kind=kind_io8) colat1
@@ -961,7 +963,9 @@ C
       real (kind=kind_io8) SI(LEVP1)
 !
 !sela..................................................................
-      real (kind=kind_io8)   rflux(lonr,LATS_NODE_R,27)
+!* change rflux 3rd dimension from 27 to nfxr (Sarah Lu)
+!*    real (kind=kind_io8)   rflux(lonr,LATS_NODE_R,27)     
+      real (kind=kind_io8)   rflux(lonr,LATS_NODE_R,nfxr)
       real (kind=kind_io8)   glolal(lonr,LATS_NODE_R)
       real (kind=kind_io8)   buffo(lonr,LATS_NODE_R)
       real (kind=kind_io4)   buff1(lonr,latr)
@@ -1856,9 +1860,34 @@ c..........................................................
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '96)Total column soil moisture (Kg/m^2) land surface      '
 
-
-
 Cwei: addition of 30 records ends here -------------------------------
+
+Clu: addition of 6 aod fields starts here ---------------------------
+       do k = nfxr-5, nfxr
+         do j=1,LATS_NODE_R
+           do i=1,lonr
+             glolal(i,j) = rflux(i,j,k)*RTIMER(k-9)
+           enddo
+         enddo
+       ngrid2d=ngrid2d+1
+       CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
+     &     buff_mult_piecef(1,1,ngrid2d))
+!     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '97)DU Aerosol optical depth at 550nm land sea surface'
+!     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '98)BC Aerosol optical depth at 550nm land sea surface'
+!     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '99)OC Aerosol optical depth at 550nm land sea surface'
+!     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '100)SU Aerosol optical depth at 550nm land sea surface'
+!     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '101)SS Aerosol optical depth at 550nm land sea surface'
+!     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '102)Total Aerosol optical depth at 550nm land sea surface'
+       enddo
+Clu: addition of 6 aod fields ends here -----------------------------
+
+
       if(me.eq.ioproc)
      &   PRINT *,'(wrtflx_a) GRIB FLUX FILE WRITTEN ',FHOUR,IDATE,noflx
 !!

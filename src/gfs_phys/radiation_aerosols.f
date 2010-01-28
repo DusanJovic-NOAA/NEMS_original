@@ -16,9 +16,10 @@
 !      'setaer'     -- mapping aeros profile, compute aeros opticals   !
 !         inputs:                                                      !
 !           (xlon,xlat,prsi,prsl,tlay,qlay,rhlay,                      !
+!            prslk,oz,                                                 !
 !            IMAX,NLAY,NLP1,iflip,lsswr,lslwr)                         !
 !         outputs:                                                     !
-!           (aerosw,aerolw)                                            !
+!           (aerosw,aerolw,tau_gocart)                                 !
 !                                                                      !
 !                                                                      !
 !   internal subroutine called:                                        !
@@ -54,14 +55,14 @@
 !                   interpolation for sw aerosol optical properties    !
 !     mar     2007  ---  y.-t. hou     add generalized spectral band   !
 !                   interpolation for lw aerosol optical properties    !
-!                                                                      !
+!     jan     2010  ---  sarah lu      add gocart option               !
 !                                                                      !
 !   references for opac climatological aerosols:                       !
 !     hou et al. 2002  (ncep office note 441)                          !
 !     hess et al. 1998 - bams v79 831-844                              !
 !                                                                      !
-!   references for glcart interactive aerosols:                        !
-!                                                                      !
+!   references for gocart interactive aerosols:                        !
+!     chin et al., 2000 - jgr, v105, 24671-24687                       !
 !                                                                      !
 !   references for stratosperic volcanical aerosols:                   !
 !     sato et al. 1993 - jgr, v98, d12, 22987-22994                    !
@@ -77,7 +78,7 @@
       module module_radiation_aerosols   !
 !........................................!
 !
-      use machine,      only : kind_io8, kind_phys
+      use machine,      only : kind_io8, kind_phys, kind_io4
       use physcons,     only : con_pi, con_rd, con_fvirt, con_g,        &
      &                         con_t0c, con_c, con_boltz, con_plnk
 
@@ -85,6 +86,9 @@
       use module_radsw_parameters, only : NBDSW, NSWSTR, wvnum1, wvnum2
       use module_radlw_parameters, only : NBDLW, wvnlw1, wvnlw2
       use module_radlw_cntr_para,  only : iaerlw
+      use funcphys,                only : fpkap    
+      use namelist_physics_def,    only : fhlwr, fhswr, fdaer
+      use gfs_phy_tracer_config,   only : gfs_phy_tracer, trcindx
 !
       implicit   none
 !
@@ -287,6 +291,173 @@
       logical, save :: lclmin = .true.
 
 
+! =======================================================================
+! GOCART code modification starts here (Sarah lu)  ---------------------!
+
+! --------------------------------------------------------------------- !
+!   section-4 : module variables for gocart aerosol optical properties  !
+! --------------------------------------------------------------------- !
+
+!  ---  parameters and constants: 
+!   - KCM, KCM1, KCM2 are determined from subroutine 'set_aerspc'
+      integer, parameter :: KAERBND=61 ! num of bands for aer data (gocart)
+      integer, parameter :: KRHLEV =36 ! num of rh levels for rh-dep components
+!*    integer, parameter :: KCM1 = 8   ! num of rh independent aer species
+!*    integer, parameter :: KCM2 = 5   ! num of rh dependent aer species
+!*    integer, parameter :: KCM  = KCM1 + KCM2
+      integer, save      :: KCM1, KCM2, KCM
+
+      real (kind=kind_phys), dimension(KRHLEV) :: rhlev_grt
+      data  rhlev_grt (:)/ .00, .05, .10, .15, .20, .25, .30, .35,
+     &                     .40, .45, .50, .55, .60, .65, .70, .75,
+     &                     .80, .81, .82, .83, .84, .85, .86, .87,
+     &                     .88, .89, .90, .91, .92, .93, .94, .95,
+     &                     .96, .97, .98, .99/
+
+!  --- tabulated aerosol optical properties (input dataset)
+!  --- allocated and read in subroutine 'rd_gocart_luts'
+!
+!   - spectral band structure:
+!      iendwv_grt(KAERBND)      - ending wavenumber (cm**-1) for each band
+!   - relative humidity independent aerosol optical properties:
+!   ===> species : dust (8 bins)
+!      rhidext0_grt(KAERBND,KCM1) - extinction coefficient
+!      rhidssa0_grt(KAERBND,KCM1) - single scattering albedo
+!      rhidasy0_grt(KAERBND,KCM1) - asymmetry parameter
+!   - relative humidity dependent aerosol optical properties:
+!   ===> species : soot, suso, waso, ssam, sscm
+!      rhdpext0_grt(KAERBND,KRHLEV,KCM2) - extinction coefficient
+!      rhdpssa0_grt(KAERBND,KRHLEV,KCM2) - single scattering albedo
+!      rhdpasy0_grt(KAERBND,KRHLEV,KCM2) - asymmetry parameter
+
+      integer,               allocatable, dimension(:) :: iendwv_grt
+      real (kind=kind_phys), allocatable, dimension(:,:)  :: 
+     &                       rhidext0_grt, rhidssa0_grt, rhidasy0_grt
+      real (kind=kind_phys), allocatable, dimension(:,:,:):: 
+     &                       rhdpext0_grt, rhdpssa0_grt, rhdpasy0_grt
+
+!  --- aerosol optical properties mapped onto scheme-specific spectral bands
+!  --- allocated and computed in subroutine 'optavg_grt'
+
+!   - relative humidity independent aerosol optical properties:
+!      extrhi_grt(KCM1,NBDSWLW) - extinction coefficient for sw+lw spectral band
+!      ssarhi_grt(KCM1,NBDSWLW) - single scattering albedo for sw+lw spectral band
+!      asyrhi_grt(KCM1,NBDSWLW) - asymmetry parameter for sw+lw spectral band
+!   - relative humidity dependent aerosol optical properties:
+!      extrhd_grt(KRHLEV,KCM2,NBDSWLW) - extinction coefficient for sw+lw band
+!      ssarhd_grt(KRHLEV,KCM2,NBDSWLW) - single scattering albedo for sw+lw band
+!      asyrhd_grt(KRHLEV,KCM2,NBDSWLW) - asymmetry parameter for sw+lw band
+
+      real (kind=kind_phys), allocatable, save, dimension(:,:)   ::     &
+     &       extrhi_grt, ssarhi_grt, asyrhi_grt
+      real (kind=kind_phys), allocatable, save, dimension(:,:,:) ::     &
+     &       extrhd_grt, ssarhd_grt, asyrhd_grt
+
+! --------------------------------------------------------------------- !
+!   section-5 : module variables for gocart aerosol climo data set      !
+! --------------------------------------------------------------------- !
+!
+!     This version only supports geos3-gocart data set as of Jan 2010
+!
+      integer, parameter :: IMXG = 144 ! num of lon-points in geos3 dataset
+      integer, parameter :: JMXG = 91  ! num of lat-points in geos3 dataset
+      integer, parameter :: KMXG = 30  ! num of vertical layers in geos3 dataset
+!*    integer, parameter :: NMXG = 12  ! num of gocart aer spec for opt calc
+      integer, save      :: NMXG       ! to be determined by set_aerspc
+
+      real (kind=kind_phys), parameter :: dltx = 360.0 / float(IMXG)
+      real (kind=kind_phys), parameter :: dlty = 180.0 / float(JMXG-1)
+
+!  --- the following arrays are allocated and setup in 'rd_gocart_clim'
+!   - geos3-gocart climo data (input dataset)
+!     psclmg  - pressure in cb                   IMXG*JMXG*KMXG         
+!     dmclmg  - aerosol dry mass in g/m3         IMXG*JMXG*KMXG*NMXG   
+
+      real (kind=kind_phys),allocatable, save:: psclmg(:,:,:),         
+     &                                          dmclmg(:,:,:,:)       
+
+!   - geos3-gocart lat/lon arrays
+      real (kind=kind_phys), allocatable, save, dimension(:)   ::
+     &                       geos3_rlon, geos3_rlat
+
+! --------------------------------------------------------------------- !
+!   section-6 : module variables for gocart aerosol scheme options      !
+! --------------------------------------------------------------------- !
+
+!  ---  logical parameter for gocart initialization control
+      logical, save :: lgrtint = .true.
+
+!  ---  logical parameter for gocart debug print control
+      logical, save :: lckprnt = .true.
+
+!  --- the following index/flag/weight are set up 'set_aerspc'
+!   - merging coefficients for fcst/clim fields; determined from fdaer
+      real (kind=kind_phys), save :: ctaer       ! user specified wgt
+
+!   - option to get fcst or clim gocart aerosol fields
+      logical, save :: get_fcst, get_clim
+
+!  ------  gocart aerosol specification    ------
+!  =>  transported aerosol species:
+!      DU (5-bins)
+!      SS (4 bins for climo mode and 5 bins for fcst mode)
+!      SU (dms, so2, so4, msa)
+!      OC (phobic, philic) and BC (phobic, philic)
+!  =>  species and lumped species for aerosol optical properties
+!      DU (5-bins, with 4 sub-groups in the submicron bin )
+!      SS (ssam for submicron, sscm for coarse mode)
+!      SU (so4)
+!      OC (phobic, philic) and BC (phobic, philic)
+!  =>  specification used for aerosol optical properties luts
+!      DU (8 bins)
+!      SS (ssam, sscm)
+!      SU (suso)
+!      OC (waso) and BC (soot)
+!
+
+!   - index for rh dependent aerosol optical properties (2nd 
+!     dimension for extrhd_grt, ssarhd_grt, and asyrhd_grt)
+      integer, save :: isoot, iwaso, isuso, issam, isscm
+
+!   - index for rh independent aerosol optical properties (1st
+!     dimension for extrhi_grt, ssarhi_grt, and asyrhi_grt) is 
+!     not needed ===> hardwired to dust (8-bins)
+
+!   - index for gocart aerosol species to be included in the 
+!     calculations of aerosol optical properties (ext, ssa, asy)
+      type  gocart_index_type
+         integer :: dust1, dust2, dust3, dust4, dust5,    ! dust
+     &              ssam,  sscm,                          ! sea salt
+     &              suso,                                 ! sulfate
+     &              waso_phobic, waso_philic,             ! oc
+     &              soot_phobic, soot_philic              ! bc
+      endtype
+      type (gocart_index_type), save :: dm_indx
+
+!   - index for gocart aerosols from prognostic tracer fields
+      type  tracer_index_type
+         integer :: du001, du002, du003, du004, du005,    ! dust
+     &              ss001, ss002, ss003, ss004, ss005,    ! sea salt
+     &              so4,                                  ! sulfate
+     &              ocphobic, ocphilic,                   ! oc
+     &              bcphobic, bcphilic                    ! bc
+      endtype
+      type (tracer_index_type), save :: dmfcs_indx
+
+!   - grid components to be included in the aeropt calculations
+      integer, save                  :: num_gridcomp 
+      character, allocatable , save  :: gridcomp(:)*2
+
+!   - spectral band for 550nm 
+      integer, public, save       :: nv_aod
+
+!  --- default full-package setting 
+      integer, parameter          :: max_num_gridcomp = 5
+      character*2                 :: max_gridcomp(max_num_gridcomp)
+      data max_gridcomp  /'DU', 'BC', 'OC', 'SU', 'SS'/
+
+! GOCART code modification end here (Sarah Lu)  ------------------------!
+! =======================================================================
 
 !  ---  public interfaces
 
@@ -314,6 +485,8 @@
 !     iyear   - 4-digit calender year                 1                !
 !     imon    - month of the year                     1                !
 !     IAER    - 3-digit aerosol flag (volc,lw,sw)     1                !
+!             (a) opac - vol option implemented by Y-T Hou             !
+!             (b) gocart option implemented by C-H Lu                  !
 !               =  0: turn all aeros effects off (sw,lw,volc)          !
 !               =  1: use clim tropspheric aerosol for sw only         !
 !               = 10: use clim tropspheric aerosol for lw only         !
@@ -322,22 +495,26 @@
 !               =101: volc and clim trops aerosol for sw only          !
 !               =110: volc and clim trops aerosol for lw only          !
 !               =111: volc and clim trops aerosol for both sw and lw   !
-!not-yet        =  2: gocart tropspheric aerosol for sw only           !
-!  ''           = 20: gocart tropspheric aerosol for lw only           !
-!  ''           = 22: gocart tropspheric aerosol for both sw and lw    !
-!  ''           =102: volc and gocart trops aerosol for sw only        !
-!  ''           =120: volc and gocart trops aerosol for lw only        !
-!not-yet        =122: volc and gocart trops aerosol for both sw and lw !
+!               =  2: gocart tropspheric aerosol for sw only           !
+!               = 20: gocart tropspheric aerosol for lw only           !
+!               = 22: gocart tropspheric aerosol for both sw and lw    !
+!not available  =102: volc and gocart trops aerosol for sw only        !
+!not available  =120: volc and gocart trops aerosol for lw only        !
+!not available  =122: volc and gocart trops aerosol for both sw and lw !
 !     me      - print message control flag            1                !
 !                                                                      !
 !  outputs: (to the module variables)                                  !
 !    ( none )                                                          !
 !                                                                      !
 !  module variables:                                                   !
+!     * opac climo *                                                   !
 !     kprfg   - aerosols profile index                IMXAE*JMXAE      !
 !     idxcg   - aerosols component index              NXC*IMXAE*JMXAE  !
 !     cmixg   - aerosols component mixing ratio       NXC*IMXAE*JMXAE  !
 !     denng   - aerosols number density               NXC*IMXAE*JMXAE  !
+!     * geos3-gocart climo (from sfc to toa) *                         !
+!     psclmg  - pressure in cb                      IMXG*JMXG*KMXG     !
+!     dmclmg  - aerosol dry mass in g/m3            IMXG*JMXG*KMXG*NMXG!
 !                                                                      !
 !     ivolae  - stratosphere volcanic aerosol optical depth (fac 1.e4) !
 !                                                     12*4*10          !
@@ -345,6 +522,7 @@
 !  usage:    call aerinit                                              !
 !                                                                      !
 !  subprograms called:  clim_aerinit                                   !
+!                       gocart_init                                    !
 !                                                                      !
 !  ==================================================================  !
 !
@@ -391,13 +569,17 @@
       endif
       NBDSWLW = NBDSW + NBDIR
 
+      if ( lckprnt .and. (me==0) ) 
+     &  print *,'RAD_NBDSW,NBDIR,NBDSWLW:', NBDSW,NBDIR,NBDSWLW
+
 !  --- ...  define the one wavenumber solar fluxes based on toa solar
 !           spectral distribution
 
       nmax = min( NWVTOT, nint( maxval(wvnum2) ))
       nmin = max( 1,      nint( minval(wvnum1) ))
 
-!     print *,' MINWVN, MAXWVN = ',nmin, nmax
+      if ( lckprnt .and. (me==0) ) 
+     &     print *,' MINWVN, MAXWVN = ',nmin, nmax
 
 !     soltot1 = f_zero
       soltot  = f_zero
@@ -461,9 +643,9 @@
 
             print *,' - Using OPAC climatology for tropospheric aerosol'
 
-!gocart!  elseif ( iaerflg == 2 ) then  ! opac tropospheric climatological
+          elseif ( iaerflg == 2 ) then  ! opac tropospheric climatological
 
-!gocart!    print *,' - Using GOCART scheme for tropospheric aerosol'
+            print *,' - Using GOCART scheme for tropospheric aerosol'
 
           endif                         ! end if_iaerflg_block
         
@@ -495,7 +677,8 @@
 
       elseif ( IAER /= 100 ) then
 
-        if ( iaerflg == 1 ) then      ! opac tropospheric climatology
+!* imon_check applies to both opac and gocart aerosol schemes (Sarah Lu)
+!*      if ( iaerflg == 1 ) then      ! opac tropospheric climatology
 
           if ( imon < 1 .or. imon > 12 ) then
             print *,' ***** ERROR in specifying requested month!!! ',   &
@@ -504,18 +687,21 @@
             stop
           endif
 
+        if ( iaerflg == 1 ) then      ! opac tropospheric climatology
           call clim_aerinit                                             &
 !  ---  inputs:
      &     ( NWVTOT,solfwv,soltot,NWVTIR,eirfwv,                        &
-     &       NBDSW,NBDIR,NBDSWLW, imon, me                              &
+     &       NBDSW,NBDIR,NBDSWLW,imon,me                                &
 !  ---  outputs:  (none)
      &     )
 
-!!!     elseif ( iaerflg == 2 ) then  ! gocart prognostic aerosols
-
-!!!       call gocart aerosol initialization routine here   !!!
-!!!
-!!!       call gocart_aerinit
+        elseif ( iaerflg == 2 ) then  ! gocart prognostic aerosols
+          call gocart_init                                              &
+!  ---  inputs:                                                
+     &     ( NWVTOT,solfwv,soltot,NWVTIR,eirfwv,                        & 
+     &       NBDSW,NBDIR,NBDSWLW,imon,me                                &
+!  ---  outputs:  (none)                              
+     &     )                                     
 
         else
           print *,'   ERROR in aerosols specification! IAER =',iaer
@@ -545,8 +731,10 @@
           kyrsav = iyear
           kyrstr = iyear - mod(iyear,10)
           kyrend = kyrstr + 9
-!check    print *,'  kyrstr, kyrend, kyrsav, kmonsav =',                &
-!    &            kyrstr,kyrend,kyrsav,kmonsav
+          if ( lckprnt .and. (me==0) )  then
+          print *,'  kyrstr, kyrend, kyrsav, kmonsav =',                &
+     &            kyrstr,kyrend,kyrsav,kmonsav
+          endif
 
           if ( iyear < MINVYR .or. iyear > MAXVYR ) then
             ivolae(:,:,:) = 1            ! set as lowest value
@@ -612,9 +800,11 @@
 
 !  ---  inputs:
      &     ( xlon,xlat,prsi,prsl,tlay,qlay,rhlay,                       &
+     &       prslk, ozlay,                                              &
      &       IMAX,NLAY,NLP1, iflip, lsswr,lslwr,                        &
 !  ---  outputs:
      &       aerosw,aerolw                                              &
+     &,      tau_gocart                                                 &
      &     )
 
 !  ==================================================================  !
@@ -630,6 +820,8 @@
 !     tlay    - layer mean temperature             k    IMAX*NLAY      !
 !     qlay    - layer mean specific humidity       g/g  IMAX*NLAY      !
 !     rhlay   - layer mean relative humidity            IMAX*NLAY      !
+!     prslk   - pressure                           cb   IMAX*NLAY      !
+!     ozlay   - layer tracer mass mixing ratio g/g IMAX*NLAY*NTRAC     !
 !     IMAX    - horizontal dimension of arrays                  1      !
 !     NLAY,NLP1-vertical dimensions of arrays                   1      !
 !     iflip   - control flag for direction of vertical index    1      !
@@ -647,7 +839,7 @@
 !               (:,:,:,1): optical depth                               !
 !               (:,:,:,2): single scattering albedo                    !
 !               (:,:,:,3): asymmetry parameter                         !
-!                                                                      !
+!     tau_gocart - 550nm aeros opt depth     IMAX*NLAY*MAX_NUM_GRIDCOMP!
 !                                                                      !
 !                                                                      !
 !  module variable: (set by subroutine aerinit)                        !
@@ -671,6 +863,7 @@
 !  usage:    call setaer                                               !
 !                                                                      !
 !  subprograms called:  setclimaer                                     !
+!                       setgocartaer                                   !
 !                                                                      !
 !  ==================================================================  !
 !
@@ -684,9 +877,16 @@
       real (kind=kind_phys), dimension(:),   intent(in) :: xlon, xlat
       logical, intent(in) :: lsswr, lslwr
 
+!     added for gocart coupling
+      real (kind=kind_phys), dimension(:,:), intent(in) :: prslk
+      real (kind=kind_phys), dimension(:,:,:), intent(in) :: ozlay 
+
 !  ---  outputs:
       real (kind=kind_phys), dimension(:,:,:,:), intent(out) ::         &
      &       aerosw, aerolw
+
+!     added for aerosol diag
+      real (kind=kind_phys), dimension(:,:,:), intent(out) :: tau_gocart
 
 !  ---  locals:
       real (kind=kind_phys), dimension(IMAX) :: alon, alat, volcae, delp
@@ -787,32 +987,43 @@
      &       aerosw,aerolw                                              &
      &     )
 
-!!!   elseif ( iaerflg == 2 )       ! use gocart aerosol scheme
+      elseif ( iaerflg == 2 )   then    ! use gocart aerosol scheme
 
+        call setgocartaer                                               &                                         
+!  ---  inputs:                                              
+     &     ( alon,alat,prslk,rhlay,dz,hz,NBDSWLW,                       & 
+     &       prsl,tlay,qlay,ozlay,                                      &
+     &       IMAX,NLAY,NLP1, iflip, lsswr,lslwr,                        & 
+!  ---  outputs:                              
+     &       aerosw,aerolw                                              &
+     &,      tau_gocart                                                 &
+     &     )                   
 
       endif     ! end if_iaerflg_block
 
-!  ---  check print
-!     do m = 1, NBDSW
-!       print *,'  ***  CHECK AEROSOLS PROPERTIES FOR SW BAND =',m,     &
-!    &          ' ***'
-!       do k = 1, 10
-!         print *,'  LEVEL :',k
-!         print *,'  TAUAER:',aerosw(:,k,m,1)
-!         print *,'  SSAAER:',aerosw(:,k,m,2)
-!         print *,'  ASYAER:',aerosw(:,k,m,3)
-!       enddo
-!     enddo
-!     do m = 1, NBDIR
-!       print *,'  ***  CHECK AEROSOLS PROPERTIES FOR LW BAND =',m,     &
-!    &          ' ***'
-!       do k = 1, 10
-!         print *,'  LEVEL :',k
-!         print *,'  TAUAER:',aerolw(:,k,m,1)
-!         print *,'  SSAAER:',aerolw(:,k,m,2)
-!         print *,'  ASYAER:',aerolw(:,k,m,3)
-!       enddo
-!     enddo
+!  ---  check print 
+      if ( lckprnt )  then
+        do m = 1, NBDSW
+         print *,'  ***  CHECK AEROSOLS PROPERTIES FOR SW BAND =',m,     &
+     &          ' ***'
+         do k = 1, 10
+           print *,'  LEVEL :',k
+           print *,'  TAUAER:',aerosw(:,k,m,1)
+           print *,'  SSAAER:',aerosw(:,k,m,2)
+           print *,'  ASYAER:',aerosw(:,k,m,3)
+         enddo
+        enddo
+        do m = 1, NBDIR
+         print *,'  ***  CHECK AEROSOLS PROPERTIES FOR LW BAND =',m,     &
+     &          ' ***'
+         do k = 1, 10
+           print *,'  LEVEL :',k
+           print *,'  TAUAER:',aerolw(:,k,m,1)
+           print *,'  SSAAER:',aerolw(:,k,m,2)
+           print *,'  ASYAER:',aerolw(:,k,m,3)
+         enddo
+        enddo
+      endif
 
 
 !  ---  ...  stratosphere volcanic forcing
@@ -918,17 +1129,16 @@
             enddo      ! end do_m_block
 
 !  ---  check print
-
-!           do i = 1, IMAX
-!             print *,' LEV  PRESS    TAUSAV    NEWTAU    FOR PROFILE:',&
-!    &                i,'  KCUTH, KCUTL =',kcuth(i),kcutl(i)
-!             kh = kcuth(i) - 1
-!             kl = kcutl(i) + 10
-!             do k = kh, kl
-!               write(6,71) k, prsl(i,k), aersav(i,k), aerosw(i,k,1,1)
-! 71            format(i3,f9.3,2e11.4)
-!             enddo
-!           enddo
+!              do i = 1, IMAX
+!            print *,' LEV  PRESS    TAUSAV    NEWTAU    FOR PROFILE:',
+!     &                i,'  KCUTH, KCUTL =',kcuth(i),kcutl(i)
+!               kh = kcuth(i) - 1
+!               kl = kcutl(i) + 10
+!               do k = kh, kl
+!                 write(6,71) k, prsl(i,k), aersav(i,k), aerosw(i,k,1,1)
+! 71              format(i3,f9.3,2e11.4)
+!               enddo
+!              enddo
           endif        ! end if_laddsw_block
 
 !  ---  lw: add volcanic aerosol optical depth to the background value
@@ -1035,16 +1245,15 @@
             enddo      ! end do_m_block
 
 !  ---  check print
-
-!           do i = 1, IMAX
-!             print *,' LEV  PRESS    TAUSAV    NEWTAU    FOR PROFILE:',&
-!    &                i,'  KCUTH, KCUTL =',kcuth(i),kcutl(i)
-!             kh = kcuth(i) + 1
-!             kl = kcutl(i) - 10
-!             do k = kh, kl, -1
-!               write(6,71) NLP1-k,prsl(i,k),aersav(i,k),aerosw(i,k,1,1)
-!             enddo
-!           enddo
+!             do i = 1, IMAX
+!              print *,' LEV  PRESS    TAUSAV    NEWTAU    FOR PROFILE:',&
+!     &                i,'  KCUTH, KCUTL =',kcuth(i),kcutl(i)
+!              kh = kcuth(i) + 1
+!              kl = kcutl(i) - 10
+!              do k = kh, kl, -1
+!                write(6,71) NLP1-k,prsl(i,k),aersav(i,k),aerosw(i,k,1,1)
+!              enddo
+!            enddo
           endif        ! end if_laddsw_block
 
 !  ---  lw: add volcanic aerosol optical depth to the background value
@@ -1373,11 +1582,21 @@
         solbnd (:)   = f_zero
         solwaer(:,:) = f_zero
 
+        nv_aod = 1
+
         do ib = 1, NBDSW
           mb = ib + NSWSTR - 1
           ii = 1
           iw1 = nint(wvnum1(mb))
           iw2 = nint(wvnum2(mb))
+
+!
+! ---  locate the spectral band for 550nm (for aod diag)
+!
+          if (10000./iw1 >= 0.55 .and.
+     &        10000./iw2 <=0.55 )  then
+              nv_aod =  ib
+          endif
 
           Lab_swdowhile : do while ( iw1 > iendwv(ii) )
             if ( ii == NAERBND ) exit Lab_swdowhile
@@ -2314,6 +2533,1893 @@
 !...................................
       end subroutine setclimaer
 !-----------------------------------
+
+
+! =======================================================================
+! GOCART code modification starts here (Sarah lu)  ---------------------!
+!!
+!! gocart_init : set_aerspc, rd_gocart_clim, rd_gocart_luts, optavg_grt
+!! setgocartaer: aeropt_grt, map_aermr
+
+!-----------------------------------
+      subroutine gocart_init                                            &
+!...................................
+!  ---  inputs:
+     &     ( NWVTOT,solfwv,soltot,NWVTIR,eirfwv,                        &
+     &       NBDSW,NBDIR,NBDSWLW,imon,me                                &
+!  ---  outputs: ( none )
+     &     )
+
+!  ==================================================================  !
+!                                                                      !
+!  subprogram : gocart_init                                            !
+!                                                                      !
+!    this is the initialization program for gocart aerosols            !
+!                                                                      !
+!    - determine weight and index for aerosol composition/luts         !
+!    - read in monthly global distribution of gocart aerosols          !
+!    - read and map the tabulated aerosol optical spectral data        !
+!        onto corresponding sw/lw radiation spectral bands.            !
+!                                                                      !
+!  ====================  defination of variables  ===================  !
+!                                                                      !
+!  inputs:                                                             !
+!   NWVTOT           - total num of wave numbers used in sw spectrum   !
+!   solfwv(NWVTOT)   - solar flux for each individual wavenumber (w/m2)!
+!   soltot           - total solar flux for the spectrual range  (w/m2)!
+!   NWVTIR           - total num of wave numbers used in the ir region !
+!   eirfwv(NWVTIR)   - ir flux(273k) for each individual wavenum (w/m2)!
+!   NBDSW            - num of bands calculated for sw aeros opt prop   !
+!   NBDIR            - num of bands calculated for lw aeros opt prop   !
+!   NBDSWLW          - total num of bands calc for sw+lw aeros opt prop!
+!   imon             - month of the year                               !
+!   me               - print message control flag                      !
+!                                                                      !
+!  outputs: (to the module variables)                                  !
+!                                                                      !
+!  module variables:                                                   !
+!     NBDSW   - total number of sw spectral bands                      !
+!     wvnum1,wvnum2 (NSWSTR:NSWEND)                                    !
+!             - start/end wavenumbers for each of sw bands             !
+!     NBDLW   - total number of lw spectral bands                      !
+!     wvnlw1,wvnlw2 (NBDLW)                                            !
+!             - start/end wavenumbers for each of lw bands             !
+!     NBDSWLW - total number of sw+lw bands used in this version       !
+!     extrhi_grt  - extinction coef for rh-indep aeros  KCM1*NBDSWLW   !
+!     ssarhi_grt  - single-scat-alb for rh-indep aeros  KCM1*NBDSWLW   !
+!     asyrhi_grt  - asymmetry factor for rh-indep aeros KCM1*NBDSWLW   !
+!     extrhd_grt  - extinction coef for rh-dep aeros    KRHLEV*KCM2*NBDSWLW!
+!     ssarhd_grt  - single-scat-alb for rh-dep aeros    KRHLEV*KCM2*NBDSWLW!
+!     asyrhd_grt  - asymmetry factor for rh-dep aeros   KRHLEV*KCM2*NBDSWLW!
+!     ctaer       - merging coefficients for fcst/clim fields          !
+!     get_fcst    - option to get fcst aerosol fields                  !
+!     get_clim    - option to get clim aerosol fields                  !
+!     dm_indx  - index for aer spec to be included in aeropt calculations  !
+!     dmfcs_indx  - index for prognostic aerosol fields                !
+!     psclmg      - geos3-gocart pressure              IMXG*JMXG*KMXG  !
+!     dmclmg      - geos3-gocart aerosol dry mass   IMXG*JMXG*KMXG*NMXG!
+!                                                                      !
+!  usage:    call gocart_init                                          !
+!                                                                      !
+!  subprograms called:  set_aerspc, rd_gocart_clim,                    !
+!                       rd_gocart_luts, optavg_grt                     !
+!                                                                      !
+!  ==================================================================  !
+
+      implicit none
+
+!  ---  inputs:
+      integer, intent(in) :: NWVTOT,NWVTIR,NBDSW,NBDIR,NBDSWLW,imon,me
+
+      real (kind=kind_phys), intent(in) :: solfwv(:),soltot, eirfwv(:)
+
+!  ---  output: ( none )
+
+!  ---  locals:
+
+      real (kind=kind_phys), dimension(NBDSW,KAERBND) :: solwaer
+      real (kind=kind_phys), dimension(NBDSW)         :: solbnd
+      real (kind=kind_phys), dimension(NBDIR,KAERBND) :: eirwaer
+      real (kind=kind_phys), dimension(NBDIR)         :: eirbnd
+      real (kind=kind_phys) :: sumsol, sumir
+
+      integer, dimension(NBDSW) :: nv1, nv2
+      integer, dimension(NBDIR) :: nr1, nr2
+
+      integer :: i, mb, ib, ii, iw, iw1, iw2
+
+!===>  ...  begin here
+
+!--------------------------------------------------------------------------
+!  (1) determine aerosol index and merging coefficients
+!--------------------------------------------------------------------------
+
+      if ( .not. lgrtint ) then                                  
+
+!  --- ...  already done aerspc initialization, continue 
+
+        continue                                                
+
+      else                                                  
+
+!  --- ...  set aerosol specification index and merging coefficients
+
+        call set_aerspc
+!  ---  inputs:  (in scope variables)
+!  ---  outputs: (in scope variables)
+
+      endif  ! end if_lgrtinit_block
+
+!
+!--------------------------------------------------------------------------
+!  (2) read gocart climatological data
+!--------------------------------------------------------------------------
+
+!  --- ...  read geos3-gocart climatological data, if needed
+
+      if ( get_clim ) then
+
+        call rd_gocart_clim
+!  ---  inputs:  (in scope variables)
+!  ---  outputs: (in scope variables)
+
+      endif
+
+!
+!--------------------------------------------------------------------------
+!  (3) read and map the tabulated aerosol optical spectral data    
+!           onto corresponding radiation spectral bands
+!--------------------------------------------------------------------------
+
+      if ( .not. lgrtint ) then                                  
+
+!  --- ...  already done optical property interpolation, exit
+
+        return                                                
+
+      else                                                  
+
+!  --- ...  reset lgrtint
+
+        lgrtint = .false.
+
+!  --- ...  read tabulated aerosol optical input data
+        call rd_gocart_luts
+!  ---  inputs:  (in scope variables)
+!  ---  outputs: (in scope variables)
+
+!  --- ...  compute solar flux weights and interval indices for mapping
+!           spectral bands between sw radiation and aerosol data
+
+        solbnd (:)   = f_zero
+        solwaer(:,:) = f_zero
+
+        nv_aod = 1
+
+        do ib = 1, NBDSW
+          mb = ib + NSWSTR - 1
+          ii = 1
+          iw1 = nint(wvnum1(mb))
+          iw2 = nint(wvnum2(mb))
+!
+! ---  locate the spectral band for 550nm (for aod diag)
+!
+          if (10000./iw1 >= 0.55 .and.
+     &        10000./iw2 <=0.55 )  then
+              nv_aod =  ib
+          endif
+
+          Lab_swdowhile : do while ( iw1 > iendwv_grt(ii) )
+            if ( ii == KAERBND ) exit Lab_swdowhile
+            ii = ii + 1
+          enddo  Lab_swdowhile
+
+          sumsol = f_zero
+          nv1(ib) = ii
+
+          do iw = iw1, iw2
+            solbnd(ib) = solbnd(ib) + solfwv(iw)
+            sumsol = sumsol + solfwv(iw)
+
+            if ( iw == iendwv_grt(ii) ) then
+              solwaer(ib,ii) = sumsol
+
+              if ( ii < KAERBND ) then
+                sumsol = f_zero
+                ii = ii + 1
+              endif
+            endif
+          enddo
+
+          if ( iw2 /= iendwv_grt(ii) ) then
+            solwaer(ib,ii) = sumsol
+          endif
+
+          nv2(ib) = ii
+
+          if((me==0) .and. lckprnt) print *,'RAD-nv1,nv2:', 
+     &        ib,iw1,iw2,nv1(ib),iendwv_grt(nv1(ib)),     
+     &        nv2(ib),iendwv_grt(nv2(ib)),
+     &        10000./iw1, 10000./iw2
+        enddo     ! end do_ib_block for sw 
+
+! --- check the spectral range for the nv_550 band
+        mb = nv_aod + NSWSTR - 1
+        iw1 = nint(wvnum1(mb))
+        iw2 = nint(wvnum2(mb))
+        if((me==0) .and. lckprnt) print *,'RAD-nv_aod:', 
+     &      nv_aod, iw1, iw2, 10000./iw1, 10000./iw2
+!
+
+!  --- ...  compute ir flux weights and interval indices for mapping
+!           spectral bands between lw radiation and aerosol data
+
+        eirbnd (:)   = f_zero
+        eirwaer(:,:) = f_zero
+
+        do ib = 1, NBDIR
+          ii = 1
+          if ( NBDIR == 1 ) then
+            iw1 = 400                   ! corresponding 25 mu
+            iw2 = 2500                  ! corresponding 4  mu
+          else
+            iw1 = nint(wvnlw1(ib))
+            iw2 = nint(wvnlw2(ib))
+          endif
+
+          Lab_lwdowhile : do while ( iw1 > iendwv_grt(ii) )
+            if ( ii == KAERBND ) exit Lab_lwdowhile
+            ii = ii + 1
+          enddo  Lab_lwdowhile
+
+          sumir = f_zero
+          nr1(ib) = ii
+
+          do iw = iw1, iw2
+            eirbnd(ib) = eirbnd(ib) + eirfwv(iw)
+            sumir  = sumir  + eirfwv(iw)
+
+            if ( iw == iendwv_grt(ii) ) then
+              eirwaer(ib,ii) = sumir
+
+              if ( ii < KAERBND ) then
+                sumir = f_zero
+                ii = ii + 1
+              endif
+            endif
+          enddo
+
+          if ( iw2 /= iendwv_grt(ii) ) then
+            eirwaer(ib,ii) = sumir
+          endif
+
+          nr2(ib) = ii
+
+          if(me==0 .and. lckprnt) print *,'RAD-nr1,nr2:',     
+     &        ib,iw1,iw2,nr1(ib),iendwv_grt(nr1(ib)),    
+     &        nr2(ib),iendWV_grt(nr2(ib)),
+     &        10000./iw1, 10000./iw2
+        enddo     ! end do_ib_block for lw
+
+!  ---  compute spectral band mean properties for each species
+
+        call optavg_grt
+!  ---  inputs:  (in scope variables)
+!  ---  outputs: (in scope variables)
+
+        if(me==0 .and. lckprnt) then                             
+          print *, 'RAD -After optavg_grt, sw band info'          
+          do ib = 1, NBDSW                                     
+           mb = ib + NSWSTR - 1                                  
+           print *,'RAD -wvnum1,wvnum2: ',ib,wvnum1(mb),wvnum2(mb)
+           print *,'RAD -lamda1,lamda2: ',ib,10000./wvnum1(mb),  
+     &                                   10000./wvnum2(mb)     
+           print *,'RAD -extrhi_grt:', extrhi_grt(:,ib)      
+!          do i = 1, KRHLEV                               
+           do i = 1, KRHLEV, 10                               
+             print *, 'RAD -extrhd_grt:',i,rhlev_grt(i),    
+     &                                extrhd_grt(i,:,ib)   
+           enddo                                        
+          enddo                                              
+          print *, 'RAD -After optavg_grt, lw band info'  
+          do ib = 1, NBDIR                              
+           ii = NBDSW + ib                        
+           print *,'RAD -wvnlw1,wvnlw2: ',ib,wvnlw1(ib),wvnlw2(ib)
+           print *,'RAD -lamda1,lamda2: ',ib,10000./wvnlw1(ib),  
+     &                                   10000./wvnlw2(ib)     
+           print *,'RAD -extrhi_grt:', extrhi_grt(:,ii)       
+           do i = 1, KRHLEV                                  
+             print *, 'RAD -extrhd_grt:',i,rhlev_grt(i),    
+     &                                extrhd_grt(i,:,ii)   
+           enddo                                    
+          enddo                           
+        endif                    
+
+!  --- ...  dealoocate input data arrays no longer needed
+        deallocate ( iendwv_grt   )
+        if ( allocated(rhidext0_grt) ) then
+          deallocate ( rhidext0_grt )
+          deallocate ( rhidssa0_grt )
+          deallocate ( rhidasy0_grt )
+        endif
+        if ( allocated(rhdpext0_grt) ) then
+          deallocate ( rhdpext0_grt )
+          deallocate ( rhdpssa0_grt )
+          deallocate ( rhdpasy0_grt )
+        endif
+
+      endif  ! end if_lgrtinit_block
+
+! =================
+      contains
+! =================
+
+!-----------------------------
+      subroutine set_aerspc
+!.............................
+!  ---  inputs:  (in scope variables)
+!  ---  outputs: (in scope variables)
+
+! ==================================================================== !
+!                                                                      !
+! subprogram: set_aerspc                                               !
+!                                                                      !
+! determine merging coefficients ctaer;                                !
+! set up aerosol specification: num_gridcomp, gridcomp, dm_indx,       !
+!                       dmfcs_indx, isoot, iwaso, isuso, issam, isscm  !
+!                                                                      !
+! Aerosol optical properties (ext, ssa, asy) are determined from       !
+! NMGX (<=12) aerosol species                                          !
+! ==> DU: dust1 (4 sub-micron bins), dust2, dust3, dust4, dust5        !
+!     BC: soot_phobic, soot_philic                                     !
+!     OC: waso_phobic, waso_philic                                     !
+!     SU: suso (=so4)                                                  !
+!     SS: ssam (accumulation mode), sscm (coarse mode)                 !
+!                                                                      !
+! The current version only supports prognostic aerosols (from GOCART   !
+! in-line calculations) and climo aerosols (from GEOS3-GOCART runs)    !
+!                                                                      !
+! In pricipal, aerosol loading can be determined from prognostic       !
+! aerosols, analysis fields, climatology, or hybrid (merged from       !
+! fcst, anal, and clim) fields                                         !
+!                                                                      !
+!  ==================================================================  !
+!
+      implicit none
+
+!  ---  inputs:
+!  ---  output:
+
+!  ---  local:
+      real (kind=kind_phys)     :: raddt
+      integer                   :: i, indxr
+      character*2               :: tp, gridcomp_tmp(max_num_gridcomp)
+
+!! ---  initialization
+      NUM_GRIDCOMP = 0  ! number of aerosol grid components 
+      NMXG         = 0  ! number of gocart aer spec for opt calc
+      KCM1         = 0  ! number of rh independent aerosols 
+      KCM2         = 0  ! number of rh dependent aerosols 
+
+!! ===> determine ctaer (user specified weight for fcst field)
+      raddt = min(fhswr,fhlwr) / 24.
+      ctaer = f_zero
+      if( fdaer >= 99999. ) ctaer = f_one
+      if((fdaer>0.).and.(fdaer<99999.)) ctaer=exp(-raddt/fdaer)
+
+      if(me==0 .and. lckprnt) then
+        print *, 'RAD -raddt, fhaer,ctaer: ', raddt, fdaer, ctaer
+        if (ctaer == f_one ) then
+          print *, 'LU -aerosol fields determined from fcst'
+        elseif (ctaer == f_zero) then
+          print *, 'LU -aerosol fields determined from clim'
+        else
+          print *, 'LU -aerosol fields determined from fcst/clim'
+        endif
+      endif
+
+!! ===> determine get_fcst and get_clim
+!!    if fcst is chosen, set get_clim to F
+!!    if clim is chosen, set get_fcst to F
+      get_fcst = .true.
+      get_clim = .true.
+      if ( ctaer == f_zero )  get_fcst = .false.
+      if ( ctaer == f_one  )  get_clim = .false.
+
+!! ===> determine aerosol species to be included in the calculations
+!!      of aerosol optical properties (ext, ssa, asy)
+
+!!    NOTE: The aerosol composition is determined from tracer_config 
+!!    on-the-fly (full package or subset) unless climo option is
+!!    chosen (full package only)
+
+      lab_if_fcst : if ( get_fcst ) then
+
+!!      use tracer_config to determine num_gridcomp and gridcomp
+        if ( gfs_phy_tracer%doing_GOCART )  then
+         if ( gfs_phy_tracer%doing_DU )  then
+            num_gridcomp  =  num_gridcomp  + 1
+            gridcomp_tmp(num_gridcomp) = 'DU'
+         endif
+         if ( gfs_phy_tracer%doing_SU ) then
+            num_gridcomp  =  num_gridcomp  + 1
+            gridcomp_tmp(num_gridcomp) = 'SU'
+         endif
+         if ( gfs_phy_tracer%doing_SS ) then
+            num_gridcomp  =  num_gridcomp  + 1
+            gridcomp_tmp(num_gridcomp) = 'SS'
+         endif
+         if ( gfs_phy_tracer%doing_OC ) then
+            num_gridcomp  =  num_gridcomp  + 1
+            gridcomp_tmp(num_gridcomp) = 'OC'
+         endif
+         if ( gfs_phy_tracer%doing_BC ) then
+            num_gridcomp  =  num_gridcomp  + 1
+            gridcomp_tmp(num_gridcomp) = 'BC'
+         endif
+!
+         if ( num_gridcomp > 0 ) then
+           allocate ( gridcomp(num_gridcomp) )
+           gridcomp(1:num_gridcomp) = gridcomp_tmp(1:num_gridcomp)
+         else
+           print *,'ERROR: prognostic aerosols not found,abort',me
+           stop 333
+         endif
+        else
+
+         print *,'ERROR: prognostic aerosols option off, abort',me
+         stop 333
+
+        endif
+
+      else lab_if_fcst
+
+!!      set to full package (max_num_gridcomp and max_gridcomp)
+        num_gridcomp = max_num_gridcomp
+        allocate ( gridcomp(num_gridcomp) )
+        gridcomp(1:num_gridcomp) = max_gridcomp(1:num_gridcomp)
+
+      endif lab_if_fcst
+
+!! 
+!! Aerosol specification used in the gocart package is determined as such:
+!! For LUTS, (waso, soot, ssam, sscm, suso, dust) is used, based on the 
+!!   the OPAC climo aerosol scheme (implemented by Yu-Tai Hou)
+!! For radiation-aerosol feedback, the specification is based on the aeropt
+!!   routine from Mian Chin and Hongbin Yu (hydrophobic and hydrophilic for OC/BC;
+!!   submicron and supermicron groups for SS, 8-bins (with 4 subgroups for the 
+!!   the submicron bin) for DU, and SO4 only for SU)
+!! For transport, the specification is determined from GOCART in-line module
+
+!!
+!! ===> determine dm_indx and NMXG
+!!    NOTE: aerosol specification used for radiation attenuation may
+!!    differ from aerosol specification used for transport
+!!    SS: considers only two groups: submicron and supermicron
+!!    SU: considers only sulfate (so4)
+
+      indxr = 0                        
+      dm_indx%waso_phobic = -999
+      dm_indx%soot_phobic = -999
+      dm_indx%ssam = -999
+      dm_indx%suso = -999
+      dm_indx%dust1 = -999
+      do i = 1, num_gridcomp
+         tp = gridcomp(i)
+         select case ( tp )
+         case ( 'OC')    ! consider hydrophobic and hydrophilic
+           dm_indx%waso_phobic = indxr + 1
+           dm_indx%waso_philic = indxr + 2
+           indxr = indxr + 2
+         case ( 'BC')    ! consider hydrophobic and hydrophilic
+           dm_indx%soot_phobic = indxr + 1
+           dm_indx%soot_philic = indxr + 2
+           indxr = indxr + 2
+         case ( 'SS')    ! consider submicron and supermicron groups only
+           dm_indx%ssam = indxr + 1
+           dm_indx%sscm = indxr + 2
+           indxr = indxr + 2
+         case ( 'SU')    ! consider SO4 only
+           dm_indx%suso = indxr + 1
+           indxr = indxr + 1
+         case ( 'DU')    ! consider all 5 bins
+           dm_indx%dust1 = indxr + 1
+           dm_indx%dust2 = indxr + 2
+           dm_indx%dust3 = indxr + 3
+           dm_indx%dust4 = indxr + 4
+           dm_indx%dust5 = indxr + 5
+           indxr = indxr + 5
+         case default
+           print *,'ERROR: aerosol species not supported, abort',me
+           stop
+         end select
+      enddo
+!!
+      NMXG       = indxr      ! num of gocart aer spec for opt cal
+!!
+
+!! ===> determine dmfcs_indx 
+!!    Again, note the differences between aerosol specification for
+!!    radiation feedback and aerosol specification for transport
+!!    SS: 5-bins are considered for transport while only two groups
+!!        (accumulation/coarse modes) are considered for radiation
+!!    DU: 5-bins are considered for transport while 8 bins (with the
+!!        submicorn bin exptended to 4 bins) are considered for radiation
+!!    SU: DMS, SO2, and MSA are not considered for radiation
+
+      if ( get_fcst ) then
+         if ( gfs_phy_tracer%doing_OC )  then
+            dmfcs_indx%ocphobic = trcindx ('ocphobic', gfs_phy_tracer)
+            dmfcs_indx%ocphilic = trcindx ('ocphilic', gfs_phy_tracer)
+         endif
+         if ( gfs_phy_tracer%doing_BC )  then
+            dmfcs_indx%bcphobic = trcindx ('bcphobic', gfs_phy_tracer)
+            dmfcs_indx%bcphilic = trcindx ('bcphilic', gfs_phy_tracer)
+         endif
+         if ( gfs_phy_tracer%doing_SS )  then
+            dmfcs_indx%ss001 = trcindx ('ss001', gfs_phy_tracer)
+            dmfcs_indx%ss002 = trcindx ('ss002', gfs_phy_tracer)
+            dmfcs_indx%ss003 = trcindx ('ss003', gfs_phy_tracer)
+            dmfcs_indx%ss004 = trcindx ('ss004', gfs_phy_tracer)
+            dmfcs_indx%ss005 = trcindx ('ss005', gfs_phy_tracer)
+         endif
+         if ( gfs_phy_tracer%doing_SU )  then
+            dmfcs_indx%so4 = trcindx ('so4', gfs_phy_tracer)
+         endif
+         if ( gfs_phy_tracer%doing_DU )  then
+            dmfcs_indx%du001 = trcindx ('du001', gfs_phy_tracer)
+            dmfcs_indx%du002 = trcindx ('du002', gfs_phy_tracer)
+            dmfcs_indx%du003 = trcindx ('du003', gfs_phy_tracer)
+            dmfcs_indx%du004 = trcindx ('du004', gfs_phy_tracer)
+            dmfcs_indx%du005 = trcindx ('du005', gfs_phy_tracer)
+         endif
+      endif
+
+!! 
+! ===> determin KCM, KCM1, KCM2
+!!    Again, note the differences between aerosol specification for
+!!    radiation feedback and aerosol specification for luts
+!!
+!!    DU: submicron bin (dust1) contains 4 sub-groups (e.g., hardwire
+!!        8 bins for aerosol optical properties luts)
+!!    OC/BC: while hydrophobic aerosols are rh-independent, the same luts 
+!!        for hydrophilic aeroeols are used (e.g., use these coeff 
+!!        corresponding to rh=0)
+!!
+      indxr = 1                     
+      isoot = -999
+      iwaso = -999
+      isuso = -999
+      issam = -999
+      isscm = -999
+      do i = 1, num_gridcomp
+         tp = gridcomp(i)
+         if ( tp /= 'DU' ) then  !<--- non-dust aerosols
+           select case ( tp )
+           case ( 'OC ')
+             iwaso = indxr
+           case ( 'BC ')
+             isoot = indxr
+           case ( 'SU ')
+             isuso = indxr
+           case ( 'SS ')
+             issam = indxr
+             isscm = indxr + 1
+           end select
+           if ( tp /= 'SS' ) then
+             indxr = indxr + 1
+           else
+             indxr = indxr + 2
+           endif
+         else                   !<--- dust aerosols  
+           KCM1 =  8            ! num of rh independent aer species     
+         endif
+      enddo
+      KCM2 = indxr - 1          ! num of rh dependent aer species
+      KCM  = KCM1 + KCM2        ! total num of aer species
+!!
+!! check print starts here
+      if( me == 0 .and. lckprnt) then
+       print *, 'RAD -num_gridcomp:', num_gridcomp
+       print *, 'RAD -gridcomp    :', gridcomp(:)
+       print *, 'RAD -NMXG:',  NMXG
+       print *, 'RAD -dm_indx ===> '
+       print *, 'RAD -aerspc: dust1=', dm_indx%dust1
+       print *, 'RAD -aerspc: dust2=', dm_indx%dust2
+       print *, 'RAD -aerspc: dust3=', dm_indx%dust3
+       print *, 'RAD -aerspc: dust4=', dm_indx%dust4
+       print *, 'RAD -aerspc: dust5=', dm_indx%dust5
+       print *, 'RAD -aerspc: ssam=',  dm_indx%ssam
+       print *, 'RAD -aerspc: sscm=',  dm_indx%sscm
+       print *, 'RAD -aerspc: suso=',  dm_indx%suso
+       print *, 'RAD -aerspc: waso_phobic=',dm_indx%waso_phobic
+       print *, 'RAD -aerspc: waso_philic=',dm_indx%waso_philic
+       print *, 'RAD -aerspc: soot_phobic=',dm_indx%soot_phobic
+       print *, 'RAD -aerspc: soot_philic=',dm_indx%soot_philic
+
+       print *, 'RAD -KCM1 =', KCM1
+       print *, 'RAD -KCM2 =', KCM2
+       print *, 'RAD -KCM  =', KCM
+       if ( KCM2 > 0 ) then
+         print *, 'RAD -aerspc: issam=', issam
+         print *, 'RAD -aerspc: isscm=', isscm
+         print *, 'RAD -aerspc: isuso=', isuso
+         print *, 'RAD -aerspc: iwaso=', iwaso
+         print *, 'RAD -aerspc: isoot=', isoot
+       endif
+
+       if ( get_fcst ) then
+         print *, 'RAD -dmfcs_indx ===> '
+         print *, 'RAD -trc_du001=',dmfcs_indx%du001
+         print *, 'RAD -trc_du002=',dmfcs_indx%du002
+         print *, 'RAD -trc_du003=',dmfcs_indx%du003
+         print *, 'RAD -trc_du004=',dmfcs_indx%du004
+         print *, 'RAD -trc_du005=',dmfcs_indx%du005
+         print *, 'RAD -trc_so4  =',dmfcs_indx%so4
+         print *, 'RAD -trc_ocphobic=',dmfcs_indx%ocphobic
+         print *, 'RAD -trc_ocphilic=',dmfcs_indx%ocphilic
+         print *, 'RAD -trc_bcphobic=',dmfcs_indx%bcphobic
+         print *, 'RAD -trc_bcphilic=',dmfcs_indx%bcphilic
+         print *, 'RAD -trc_ss001=',dmfcs_indx%ss001
+         print *, 'RAD -trc_ss002=',dmfcs_indx%ss002
+         print *, 'RAD -trc_ss003=',dmfcs_indx%ss003
+         print *, 'RAD -trc_ss004=',dmfcs_indx%ss004
+         print *, 'RAD -trc_ss005=',dmfcs_indx%ss005
+       endif
+      endif
+!! check print ends here
+
+      return
+!                                                                      !
+      end subroutine set_aerspc
+
+!-----------------------------------
+!-----------------------------
+      subroutine rd_gocart_luts
+!.............................
+!  ---  inputs:  (in scope variables)
+!  ---  outputs: (in scope variables)
+
+! ==================================================================== !
+! subprogram: rd_gocart_luts                                           !
+!   read input gocart aerosol optical data from Mie code calculations  !
+!                                                                      !
+! Remarks (Quanhua (Mark) Liu, JCSDA, June 2008)                       !
+!  The LUT is for NCEP selected 61 wave numbers and 6 aerosols         !
+!  (dust, soot, suso, waso, ssam, and sscm) and 36 aerosol effective   !
+!  size in microns.                                                    !
+!                                                                      !
+!  The LUT is computed using Mie code with a logorithm size            !
+!  distribution for each of 36 effective sizes. The standard deviation !
+!  sigma of the size, and min/max size follows Chin et al. 2000        !
+!  For each effective size, it corresponds a relative humidity value.  !
+!                                                                      !
+!  The LUT contains the density, sigma, relative humidity, mean mode   !
+!  radius, effective size, mass extinction coefficient, single         !
+!  scattering albedo, asymmetry factor, and phase function             !
+!                                                                      !
+!  ==================================================================  !
+!
+      implicit none
+
+!  ---  inputs:
+!  ---  output:
+
+!  ---  locals:
+      INTEGER, PARAMETER :: NP = 100, NP2 = 2*NP, nWave=100, 
+     &                      nAero=6, n_p=36
+      INTEGER :: NW, NS, nH, n_bin
+      real (kind=kind_io8), Dimension( NP2 ) :: Angle, Cos_Angle, 
+     &                                          Cos_Weight
+      real (kind=kind_io8), Dimension(n_p,nAero) :: RH, rm, reff
+      real (kind=kind_io8), Dimension(nWave,n_p,nAero) :: 
+     &                      ext0, sca0, asy0
+      real (kind=kind_io8), Dimension(NP2,n_p,nWave,nAero) :: ph0
+      real (kind=kind_io8) :: wavelength(nWave), density(nAero), 
+     &                        sigma(nAero), wave,n_fac,PI,t1,s1,g1
+      CHARACTER(len=80) :: AerosolName(nAero)
+      INTEGER    :: i, j, k, l, ij
+
+      character  :: aerosol_file*30                        
+      logical    :: file_exist
+      integer    :: indx_dust(8)          ! map 36 dust bins to gocart size bins
+
+      data aerosol_file  /"NCEP_AEROSOL.bin"/                    
+      data AerosolName/ ' Dust ', ' Soot ', ' SUSO ', ' WASO ',
+     &                  ' SSAM ', ' SSCM '/
+
+!! 8 dust bins
+!!  1       2       3       4       5       6       7       8
+!! .1-.18, .18-.3, .3-.6, 0.6-1.0, 1.0-1.8, 1.8-3, 3-6,  6-10  <-- def
+!!  0.1399  0.2399  0.4499 0.8000 1.3994  2.3964 4.4964  7.9887 <-- reff 
+      data indx_dust/4, 8, 12, 18, 21, 24, 30, 36/
+
+      PI = acos(-1.d0)
+
+! -- allocate aerosol optical data
+      if (.not. allocated(rhidext0_grt) .and. KCM1 > 0 ) then
+        allocate ( rhidext0_grt(KAERBND,KCM1))
+        allocate ( rhidssa0_grt(KAERBND,KCM1))
+        allocate ( rhidasy0_grt(KAERBND,KCM1))
+      endif
+      if (.not. allocated(rhdpext0_grt) .and. KCM2 > 0 ) then
+        allocate ( rhdpext0_grt(KAERBND,KRHLEV,KCM2))
+        allocate ( rhdpssa0_grt(KAERBND,KRHLEV,KCM2))
+        allocate ( rhdpasy0_grt(KAERBND,KRHLEV,KCM2))
+      endif
+
+      if ( .not. allocated( iendwv_grt ) ) then
+        allocate ( iendwv_grt (KAERBND) )
+      endif
+
+! -- read luts
+      inquire (file = aerosol_file, exist = file_exist)
+
+      if ( file_exist ) then
+        if(me==0 .and. lckprnt) print *,'RAD -open :',aerosol_file   
+        close (NIAERCM)
+        open (unit=NIAERCM,file=aerosol_file,status='OLD',              &
+     &        form='UNFORMATTED')
+      else
+        print *,'    Requested aerosol data file "',aerosol_file,       &
+     &          '" not found!', me
+        print *,'    *** Stopped in subroutine RD_GOCART_LUTS !!'
+        stop
+      endif              ! end if_file_exist_block
+
+      READ(NIAERCM) (Cos_Angle(i),i=1,NP)
+      READ(NIAERCM) (Cos_Weight(i),i=1,NP)
+      READ(NIAERCM)
+      READ(NIAERCM)
+      READ(NIAERCM) NW,NS
+      READ(NIAERCM)
+      READ(NIAERCM) (wavelength(i),i=1,NW)
+
+! --- check nAero and NW
+      if (NW /= KAERBND) then
+        print *, "Incorrect spectral band, abort ", NW
+        stop 222
+      endif
+
+! --- convert wavelength to wavenumber
+      do i = 1, KAERBND
+       iendwv_grt(i) = 10000. / wavelength(i) 
+       if(me==0 .and. lckprnt) print *,'RAD -wn,lamda:',       
+     &           i,iendwv_grt(i),wavelength(i)              
+      enddo
+
+      DO j = 1, nAero
+        if(me==0 .and. lckprnt) print *,'RAD -read LUTs:',   
+     &            j,AerosolName(j)                  
+        READ(NIAERCM)
+        READ(NIAERCM)
+        READ(NIAERCM) n_bin, density(j), sigma(j)
+        READ(NIAERCM)
+        READ(NIAERCM) (RH(i,j),i=1, n_bin)
+        READ(NIAERCM)
+        READ(NIAERCM) (rm(i,j),i=1, n_bin)
+        READ(NIAERCM)
+        READ(NIAERCM) (reff(i,j),i=1, n_bin)
+
+! --- check n_bin 
+        if (n_bin /= KRHLEV ) then
+          print *, "Incorrect rh levels, abort ", n_bin
+          stop 222
+        endif
+
+! --- read luts
+        DO k = 1, NW
+          READ(NIAERCM) wave,(ext0(k,L,j),L=1,n_bin)
+          READ(NIAERCM) (sca0(k,L,j),L=1,n_bin)
+          READ(NIAERCM) (asy0(k,L,j),L=1,n_bin)
+          READ(NIAERCM) (ph0(1:NP2,L,k,j),L=1,n_bin)
+        END DO
+
+! --- map luts input to module variables
+
+        if (AerosolName(j) == ' Dust ' ) then
+         if ( KCM1 > 0) then    !<-- only if rh independent aerosols are needed
+!         if(me==0 .and. lckprnt) print *,'RAD -fill in ',AerosolName(j)  
+          do i = 1, KCM1
+           rhidext0_grt(1:KAERBND,i)=ext0(1:KAERBND,indx_dust(i),j)
+           rhidssa0_grt(1:KAERBND,i)=sca0(1:KAERBND,indx_dust(i),j)
+           rhidasy0_grt(1:KAERBND,i)=asy0(1:KAERBND,indx_dust(i),j)
+          enddo
+         endif
+        else                  
+         if ( KCM2 > 0) then    !<-- only if rh dependent aerosols are needed
+          if (AerosolName(j) == ' Soot ') ij = isoot
+          if (AerosolName(j) == ' SUSO ') ij = isuso
+          if (AerosolName(j) == ' WASO ') ij = iwaso
+          if (AerosolName(j) == ' SSAM ') ij = issam
+          if (AerosolName(j) == ' SSCM ') ij = isscm
+          if ( ij .ne. -999 ) then  
+          if(me==0 .and. lckprnt) print *,'RAD -fill in ',AerosolName(j)  
+             rhdpext0_grt(1:KAERBND,1:KRHLEV,ij) = 
+     &               ext0(1:KAERBND,1:KRHLEV,j)
+             rhdpssa0_grt(1:KAERBND,1:KRHLEV,ij) = 
+     &               sca0(1:KAERBND,1:KRHLEV,j)
+             rhdpasy0_grt(1:KAERBND,1:KRHLEV,ij) = 
+     &               asy0(1:KAERBND,1:KRHLEV,j)
+          endif
+         endif
+        endif
+      END DO
+
+      return
+!...................................
+      end subroutine rd_gocart_luts
+!-----------------------------------
+!                                                                      !
+!-----------------------------
+      subroutine optavg_grt
+!.............................
+!  ---  inputs:  (in scope variables)
+!  ---  outputs: (in scope variables)
+
+! ==================================================================== !
+!                                                                      !
+! subprogram: optavg_grt                                               !
+!                                                                      !
+!   compute mean aerosols optical properties over each sw/lw radiation !
+!   spectral band for each of the species components.  This program    !
+!   follows gfdl's approach for thick cloud opertical property in      !
+!   sw radiation scheme (2000).                                        !
+!                                                                      !
+!  ====================  defination of variables  ===================  !
+!                                                                      !
+! input arguments:                                                     !
+!   nv1,nv2 (NBDSW)  - start/end spectral band indices of aerosol data !
+!                      for each sw radiation spectral band             !
+!   nr1,nr2 (NBDIR)  - start/end spectral band indices of aerosol data !
+!                      for each ir radiation spectral band             !
+!   solwaer (NBDSW,KAERBND)                                            !
+!                    - solar flux weight over each sw radiation band   !
+!                      vs each aerosol data spectral band              !
+!   eirwaer (NBDIR,KAERBND)                                            !
+!                    - ir flux weight over each lw radiation band      !
+!                      vs each aerosol data spectral band              !
+!   solbnd  (NBDSW)  - solar flux weight over each sw radiation band   !
+!   eirbnd  (NBDIR)  - ir flux weight over each lw radiation band      !
+!   NBDSW            - total number of sw spectral bands               !
+!   NBDIR            - total number of lw spectral bands               !
+!   NBDSWLW          - total number of sw+lw spectral bands            !
+!                                                                      !
+! output arguments: (to module variables)                              !
+!                                                                      !
+!  ==================================================================  !
+!
+      implicit none
+
+!  ---  inputs:
+!  ---  output:
+
+!  ---  locals:
+      real (kind=kind_phys) :: sumk, sumok, sumokg, sumreft,            &
+     &       sp, refb, reft, rsolbd, rirbd
+
+      integer :: ib, nb, ni, nh, nc
+!
+!===> ...  begin here
+
+!  --- ...  allocate aerosol optical data
+      if (.not. allocated(extrhd_grt) .and. KCM2 > 0 ) then
+        allocate ( extrhd_grt(KRHLEV,KCM2,NBDSWLW) )
+        allocate ( ssarhd_grt(KRHLEV,KCM2,NBDSWLW) )
+        allocate ( asyrhd_grt(KRHLEV,KCM2,NBDSWLW) )
+      endif
+      if (.not. allocated(extrhi_grt) .and. KCM1 > 0 ) then
+        allocate ( extrhi_grt(KCM1,NBDSWLW) )
+        allocate ( ssarhi_grt(KCM1,NBDSWLW) )
+        allocate ( asyrhi_grt(KCM1,NBDSWLW) )
+      endif
+!
+!  --- ...  loop for each sw radiation spectral band
+
+      do nb = 1, NBDSW
+        rsolbd = f_one / solbnd(nb)
+
+!  ---  for rh independent aerosol species
+
+        lab_rhi: if (KCM1 >  0 ) then
+        do nc = 1, KCM1
+          sumk    = f_zero
+          sumok   = f_zero
+          sumokg  = f_zero
+          sumreft = f_zero
+
+          do ni = nv1(nb), nv2(nb)
+
+            sp   = sqrt( (f_one - rhidssa0_grt(ni,nc))                  &
+     &           / (f_one - rhidssa0_grt(ni,nc)*rhidasy0_grt(ni,nc)) )
+            reft = (f_one - sp) / (f_one + sp)
+            sumreft = sumreft + reft*solwaer(nb,ni)
+
+            sumk    = sumk    + rhidext0_grt(ni,nc)*solwaer(nb,ni)
+            sumok   = sumok   + rhidssa0_grt(ni,nc)*solwaer(nb,ni)      &
+     &              * rhidext0_grt(ni,nc)
+            sumokg  = sumokg  + rhidssa0_grt(ni,nc)*solwaer(nb,ni)      &
+     &              * rhidext0_grt(ni,nc)*rhidasy0_grt(ni,nc)
+          enddo
+
+          refb = sumreft * rsolbd
+
+          extrhi_grt(nc,nb) = sumk   * rsolbd
+          asyrhi_grt(nc,nb) = sumokg / (sumok + 1.0e-10)
+          ssarhi_grt(nc,nb) = 4.0*refb                                  &
+     &      / ( (f_one+refb)**2 - asyrhi_grt(nc,nb)*(f_one-refb)**2 )
+
+        enddo   ! end do_nc_block for rh-ind aeros
+        endif lab_rhi
+
+!  ---  for rh dependent aerosols species
+
+        lab_rhd: if (KCM2 > 0 ) then
+        do nc = 1, KCM2
+          do nh = 1, KRHLEV
+            sumk    = f_zero
+            sumok   = f_zero
+            sumokg  = f_zero
+            sumreft = f_zero
+
+            do ni = nv1(nb), nv2(nb)
+              sp   = sqrt( (f_one - rhdpssa0_grt(ni,nh,nc))             &
+     &        /(f_one-rhdpssa0_grt(ni,nh,nc)*rhdpasy0_grt(ni,nh,nc)))
+              reft = (f_one - sp) / (f_one + sp)
+              sumreft = sumreft + reft*solwaer(nb,ni)
+
+              sumk    = sumk   + rhdpext0_grt(ni,nh,nc)*solwaer(nb,ni)
+              sumok   = sumok  + rhdpssa0_grt(ni,nh,nc)*solwaer(nb,ni)  &
+     &                * rhdpext0_grt(ni,nh,nc)
+              sumokg  = sumokg + rhdpssa0_grt(ni,nh,nc)*solwaer(nb,ni)  &
+     &                * rhdpext0_grt(ni,nh,nc)*rhdpasy0_grt(ni,nh,nc)
+            enddo
+
+            refb = sumreft * rsolbd
+
+            extrhd_grt(nh,nc,nb) = sumk   * rsolbd
+            asyrhd_grt(nh,nc,nb) = sumokg / (sumok + 1.0e-10)
+            ssarhd_grt(nh,nc,nb) = 4.0*refb                             &
+     &      /((f_one+refb)**2 - asyrhd_grt(nh,nc,nb)*(f_one-refb)**2)
+          enddo   ! end do_nh_block
+
+        enddo   ! end do_nc_block for rh-dep aeros
+        endif lab_rhd
+
+      enddo   !  end do_nb_block for sw
+
+!  --- ...  loop for each lw radiation spectral band
+
+      do nb = 1, NBDIR
+
+        ib = NBDSW + nb
+        rirbd = f_one / eirbnd(nb)
+
+!  ---  for rh independent aerosol species
+
+        lab_rhi_lw: if (KCM1 > 0 ) then
+        do nc = 1, KCM1
+          sumk    = f_zero
+          sumok   = f_zero
+          sumokg  = f_zero
+          sumreft = f_zero
+
+          do ni = nr1(nb), nr2(nb)
+            sp   = sqrt( (f_one - rhidssa0_grt(ni,nc))                  &
+     &      / (f_one - rhidssa0_grt(ni,nc)*rhidasy0_grt(ni,nc)) )
+            reft = (f_one - sp) / (f_one + sp)
+            sumreft = sumreft + reft*eirwaer(nb,ni)
+
+            sumk    = sumk    + rhidext0_grt(ni,nc)*eirwaer(nb,ni)
+            sumok   = sumok   + rhidssa0_grt(ni,nc)*eirwaer(nb,ni)      &
+     &              * rhidext0_grt(ni,nc)
+            sumokg  = sumokg  + rhidssa0_grt(ni,nc)*eirwaer(nb,ni)      &
+     &              * rhidext0_grt(ni,nc)*rhidasy0_grt(ni,nc)
+          enddo
+
+          refb = sumreft * rirbd
+
+          extrhi_grt(nc,ib) = sumk   * rirbd
+          asyrhi_grt(nc,ib) = sumokg / (sumok + 1.0e-10)
+          ssarhi_grt(nc,ib) = 4.0*refb                                  &
+     &    / ( (f_one+refb)**2 - asyrhi_grt(nc,ib)*(f_one-refb)**2 )
+        enddo   ! end do_nc_block for rh-ind aeros
+        endif lab_rhi_lw
+
+!  ---  for rh dependent aerosols species
+
+        lab_rhd_lw: if (KCM2 > 0 ) then
+        do nc = 1, KCM2
+          do nh = 1, KRHLEV
+            sumk    = f_zero
+            sumok   = f_zero
+            sumokg  = f_zero
+            sumreft = f_zero
+
+            do ni = nr1(nb), nr2(nb)
+              sp   = sqrt( (f_one - rhdpssa0_grt(ni,nh,nc))             &
+     &        /(f_one - rhdpssa0_grt(ni,nh,nc)*rhdpasy0_grt(ni,nh,nc)) )
+              reft = (f_one - sp) / (f_one + sp)
+              sumreft = sumreft + reft*eirwaer(nb,ni)
+
+              sumk    = sumk  + rhdpext0_grt(ni,nh,nc)*eirwaer(nb,ni)
+              sumok   = sumok + rhdpssa0_grt(ni,nh,nc)*eirwaer(nb,ni)   &
+     &                * rhdpext0_grt(ni,nh,nc)
+              sumokg  = sumokg+ rhdpssa0_grt(ni,nh,nc)*eirwaer(nb,ni)   &
+     &                * rhdpext0_grt(ni,nh,nc)*rhdpasy0_grt(ni,nh,nc)
+            enddo
+
+            refb = sumreft * rirbd
+
+            extrhd_grt(nh,nc,ib) = sumk   * rirbd
+            asyrhd_grt(nh,nc,ib) = sumokg / (sumok + 1.0e-10)
+            ssarhd_grt(nh,nc,ib) = 4.0*refb                             &
+     &      /((f_one+refb)**2 - asyrhd_grt(nh,nc,ib)*(f_one-refb)**2 )
+
+          enddo   ! end do_nh_block
+        enddo   ! end do_nc_block for rh-dep aeros
+        endif lab_rhd_lw
+
+      enddo   !  end do_nb_block for lw
+
+!
+      return
+!................................
+      end subroutine optavg_grt
+!--------------------------------
+!
+!-----------------------------------
+      subroutine rd_gocart_clim                                         &
+!...................................
+!  ---  inputs:  (in scope variables)
+!  ---  outputs: (in scope variables)
+
+!  ==================================================================  !
+!                                                                      !
+! subprogram: rd_gocart_clim                                           !
+!                                                                      !
+!   1. read in aerosol dry mass and surface pressure from GEOS3-GOCART !
+!      C3.1 2000 monthly data set                                      !
+!   2. compute goes3 lat/lon array (for horizontal mapping)            !
+!                                                                      !
+!  ====================  defination of variables  ===================  !
+!                                                                      !
+! inputs arguments:                                                    !
+!     imon    - month of the year                                      !
+!     me      - print message control flag                             !
+!                                                                      !
+! outputs arguments: (to the module variables)                         !
+!     psclmg   - pressure (sfc to toa)    cb   IMXG*JMXG*KMXG          !
+!     dmclmg   - aerosol dry mass (sfc to toa) g/m3 IMXG*JMXG*KMXG*NMXG!
+!     geos3_rlon - goes3 longitude        deg  IMXG                    !
+!     geos3_rlat - goes3 latitude         deg  JMXG                    !
+!                                                                      !
+!  usage:    call rd_gocart_clim                                       !
+!                                                                      !
+!  ==================================================================  !
+!
+      implicit none
+
+!  ---  inputs:
+!  ---  output: 
+
+!  ---  locals:
+      integer, parameter :: MAXSPC = 5  
+      real (kind=kind_io4), parameter  :: PINT = 0.01
+      real (kind=kind_io4), parameter  :: EPSQ = 0.0
+
+      integer         :: i, j, k, numspci, ii
+      integer         :: icmp, nrecl, nt1, nt2, nn(MAXSPC)
+      character       :: yr*4, ymd*6, tp*2, fname*18, aerosol_file*40
+      logical         :: file_exist
+
+      real (kind=kind_io4), dimension(KMXG)             :: sig
+      real (kind=kind_io4), dimension(IMXG,JMXG)        :: ps
+      real (kind=kind_io4), dimension(IMXG,JMXG,KMXG,MAXSPC):: buff
+      real (kind=kind_phys)   :: pstmp
+
+      data yr /'2000'/           !!<=== use 2000 as the climo proxy
+
+      data SIG  /
+     &     9.98547E-01,9.94147E-01,9.86350E-01,9.74300E-01,9.56950E-01,
+     &     9.33150E-01,9.01750E-01,8.61500E-01,8.11000E-01,7.50600E-01,
+     &     6.82900E-01,6.10850E-01,5.37050E-01,4.63900E-01,3.93650E-01,
+     &     3.28275E-01,2.69500E-01,2.18295E-01,1.74820E-01,1.38840E-01,
+     &     1.09790E-01,8.66900E-02,6.84150E-02,5.39800E-02,4.25750E-02,
+     &     3.35700E-02,2.39900E-02,1.36775E-02,5.01750E-03,5.30000E-04 /
+
+!===>  ...  begin here
+
+! --- initialize
+    
+!  --- ...  allocate geos3-gocart climatological data
+
+      if ( .not. allocated (dmclmg) ) then                   
+        allocate ( dmclmg(IMXG,JMXG,KMXG,NMXG) )          
+        allocate ( psclmg(IMXG,JMXG,KMXG) )           
+      endif                                         
+
+      dmclmg    = f_zero                                      
+      psclmg    = f_zero                                   
+      
+! --- read ps (surface pressure) 
+      write(ymd,'(a4,i2.2)') yr, imon
+      aerosol_file = ymd//'.PS.avg'                          
+      inquire (file = aerosol_file, exist = file_exist)
+
+      if ( file_exist ) then
+
+        nrecl = 4 * (IMXG * JMXG)
+        close(NIAERCM)
+        open(NIAERCM, file=trim(aerosol_file),
+     &       access='direct',recl=nrecl) 
+        read(NIAERCM, rec=1) ps
+
+        if(me == 0 .and. lckprnt) then                        
+          print *,'RADx -Reading GEOS3-GOCART PS data file, ', 
+     &             trim(aerosol_file),', nrecl=',nrecl    
+          i = 1
+          print *, 'RADx -ps:', i, ps(i,1), ps(i,JMXG)       
+          i = IMXG
+          print *, 'RADx -ps:', i, ps(i,1), ps(i,JMXG)       
+        endif                                 
+
+! --- compute prs (3-D pressure) 
+        do k = 1, KMXG
+          do j = 1, JMXG
+            do i = 1, IMXG
+             pstmp = pint + sig(k) * (ps(i,j) - pint)
+             psclmg(i,j,k) = 0.1 * pstmp       ! convert mb to cb 
+            enddo
+          enddo
+        enddo
+
+      else
+        print *,' *** Requested aerosol data file "',
+     &          trim(aerosol_file),  '" not found!'
+        print *,' *** Stopped in subroutine RD_GOCART_CLIM !!', me
+        stop 222
+      endif              ! end if_file_exist_block
+
+! --- read aerosol dry mass
+      lab_do_icmp : do icmp = 1, num_gridcomp
+
+         tp = gridcomp(icmp)
+         if(tp == 'DU')   fname='.DU.STD.tv20.g.avg'
+         if(tp == 'SS')   fname='.SS.STD.tv17.g.avg'
+         if(tp == 'SU')   fname='.SU.STD.tv15.g.avg'
+         if(tp == 'OC')   fname='.CC.STD.tv15.g.avg'
+         if(tp == 'BC')   fname='.CC.STD.tv15.g.avg'
+
+         numspci = 4
+         if(tp == 'DU')   numspci = 5
+   
+         aerosol_file=ymd//trim(fname)                         
+         inquire (file=trim(aerosol_file), exist = file_exist)
+
+         if ( file_exist ) then
+
+          nrecl = 4 * numspci * (IMXG * JMXG * KMXG + 3)
+          close(NIAERCM)
+          open (NIAERCM, file=trim(aerosol_file),
+     &         access='direct', recl=nrecl)
+          read(NIAERCM,rec=1)(nt1,nt2,nn(i),buff(:,:,:,i),i=1,numspci)
+
+          if(me == 0 .and. lckprnt)  print *,                 
+     &      'RAD - Reading GEOS3-GOCART aerosol data file, ', 
+     &      trim(aerosol_file),', nrecl=',nrecl         
+
+          select case ( tp )
+
+! fill in DU from DU: du1, du2, du3, du4, du5
+          case ('DU' ) 
+           if ( dm_indx%dust1 /= -999) then
+            do ii = 1, 5
+             dmclmg(:,:,:,dm_indx%dust1+ii-1) = buff(:,:,:,ii)
+            enddo
+           else
+            print *, 'ERROR: invalid DU aerosol index, abort',me
+            stop 333 
+           endif
+
+! fill in BC from CC: bc_phobic, oc_phobic, bc_philic, oc_philic
+          case ('BC' ) 
+           if ( dm_indx%soot_phobic /= -999) then
+            dmclmg(:,:,:,dm_indx%soot_phobic)=buff(:,:,:,1)
+            dmclmg(:,:,:,dm_indx%soot_philic)=buff(:,:,:,3)
+           else
+            print *, 'ERROR: invalid BC aerosol index, abort',me
+            stop 333 
+           endif
+
+! fill in SU from SU: dms, so2, so4, msa
+          case ('SU' ) 
+           if ( dm_indx%suso /= -999) then
+            dmclmg(:,:,:,dm_indx%suso) = buff(:,:,:,3)
+           else
+            print *, 'ERROR: invalid SU aerosol index, abort',me
+            stop 333 
+           endif
+
+! fill in OC from CC: bc_phobic, oc_phobic, bc_philic, oc_philic
+          case ('OC' ) 
+           if ( dm_indx%waso_phobic /= -999) then
+            dmclmg(:,:,:,dm_indx%waso_phobic) = 
+     &                           1.4*buff(:,:,:,2)
+            dmclmg(:,:,:,dm_indx%waso_philic) =
+     &                           1.4*buff(:,:,:,4)
+           else
+            print *, 'ERROR: invalid OC aerosol index, abort',me
+            stop 333 
+           endif
+
+! fill in SS from SS: ss1, ss2, ss3, ss4
+          case ('SS' ) 
+           if ( dm_indx%ssam /= -999) then
+            dmclmg(:,:,:,dm_indx%ssam) = buff(:,:,:,1)
+            dmclmg(:,:,:,dm_indx%sscm) = buff(:,:,:,2) + 
+     +                     buff(:,:,:,3)+buff(:,:,:,4)
+           else
+            print *, 'ERROR: invalid SS aerosol index, abort',me
+            stop 333 
+           endif
+
+          case default
+
+            print *, 'ERROR: invalid aerosol species, abort ',tp
+            stop 333
+
+          end select
+
+         else
+          print *,' *** Requested aerosol data file "',aerosol_file,
+     &            '" not found!'
+          print *,' *** Stopped in RD_GOCART_CLIM ! ', me
+          stop 222
+         endif              ! end if_file_exist_block
+
+       enddo lab_do_icmp 
+
+! ---  allocate and initialize geos3 lon and lat arrays
+       if ( .not. allocated ( geos3_rlon  )) then
+          allocate (geos3_rlon(IMXG))
+          allocate (geos3_rlat(JMXG))
+       endif
+
+       geos3_rlon(:) = f_zero
+       geos3_rlat(:) = f_zero
+
+! ---  compute geos3 lon and lat arrays
+       do i = 1, IMXG
+         geos3_rlon(i)     = -180. + (i-1)* dltx
+       end do
+       do j = 2, JMXG-1
+         geos3_rlat(j)     = -90. + (j-1)* dlty
+       end do
+       geos3_rlat(1)      = -89.5
+       geos3_rlat(JMXG)   =  89.5
+
+      return
+!...................................
+      end subroutine rd_gocart_clim
+!-----------------------------------
+!
+!...................................
+      end subroutine gocart_init
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine setgocartaer                                           &
+!...................................
+
+!  ---  inputs:
+     &     ( alon,alat,prslk,rhlay,dz,hz,NBDSWLW,                       &
+     &       prsl,tlay,qlay,ozlay,                                      &
+     &       IMAX,NLAY,NLP1, iflip, lsswr,lslwr,                        &
+!  ---  outputs:
+     &       aerosw,aerolw                                              &
+     &,      tau_gocart                                                 &
+     &     )
+
+!  ==================================================================  !
+!                                                                      !
+!  setgocartaer computes sw + lw aerosol optical properties for gocart !
+!  aerosol species (merged from fcst and clim fields)                  !
+!                                                                      !
+!  inputs:                                                             !
+!     alon, alat                                             IMAX      !
+!             - longitude and latitude of given points in degree       !
+!     prslk   - pressure                           cb   IMAX*NLAY      !
+!     rhlay   - layer mean relative humidity            IMAX*NLAY      !
+!     dz      - layer thickness                    m    IMAX*NLAY      !
+!     hz      - level high                         m    IMAX*NLP1      !
+!     NBDSWLW - total number of sw+ir bands for aeros opt prop  1      !
+!     prsl    - layer mean pressure                mb   IMAX*NLAY      !
+!     tlay    - layer mean temperature             k    IMAX*NLAY      !
+!     qlay    - layer mean specific humidity       g/g  IMAX*NLAY      !
+!     ozlay   - layer mean specific tracer         g/g  IMAX*NLAY*NTRAC!
+!     IMAX    - horizontal dimension of arrays                  1      !
+!     NLAY,NLP1-vertical dimensions of arrays                   1      !
+!     iflip   - control flag for direction of vertical index    1      !
+!               =0: index from toa to surface                          !
+!               =1: index from surface to toa                          !
+!     lsswr,lslwr                                                      !
+!             - logical flag for sw/lw radiation calls          1      !
+!                                                                      !
+!  outputs:                                                            !
+!     aerosw - aeros opt properties for sw      IMAX*NLAY*NBDSW*NF_AESW!
+!               (:,:,:,1): optical depth                               !
+!               (:,:,:,2): single scattering albedo                    !
+!               (:,:,:,3): asymmetry parameter                         !
+!     aerolw - aeros opt properties for lw      IMAX*NLAY*NBDLW*NF_AELW!
+!               (:,:,:,1): optical depth                               !
+!               (:,:,:,2): single scattering albedo                    !
+!               (:,:,:,3): asymmetry parameter                         !
+!     tau_gocart - 550nm aeros opt depth     IMAX*NLAY*MAX_NUM_GRIDCOMP!
+!                                                                      !
+!  module parameters and constants:                                    !
+!     NBDSW   - total number of sw bands for aeros opt prop     1      !
+!     NBDIR   - total number of ir bands for aeros opt prop     1      !
+!                                                                      !
+!  module variable: (set by subroutine gocart_init)                    !
+!     dmclmg  - aerosols dry mass       g/m3      IMXG*JMXG*KMXG*NMXG  !
+!     psclmg  - pressure                cb        IMXG*JMXG*KMXG       !
+!                                                                      !
+!  usage:    call setgocartaer                                         !
+!                                                                      !
+!  subprograms called:  map_aermr, aeropt_grt                          !
+!                                                                      !
+!  ==================================================================  !
+!
+      implicit none
+
+!  ---  inputs:
+      integer, intent(in) :: IMAX,NLAY,NLP1,iflip,NBDSWLW
+      logical, intent(in) :: lsswr, lslwr
+
+      real (kind=kind_phys), dimension(:,:), intent(in) :: prslk,       &
+     &       prsl, rhlay, tlay, qlay, dz, hz
+      real (kind=kind_phys), dimension(:),   intent(in) :: alon, alat
+      real (kind=kind_phys), dimension(:,:,:), intent(in) :: ozlay
+!  ---  outputs:
+      real (kind=kind_phys), dimension(:,:,:,:), intent(out) ::         &
+     &       aerosw, aerolw
+      real (kind=kind_phys), dimension(:,:,:), intent(out) :: tau_gocart
+
+!  ---  locals:
+      real (kind=kind_phys), dimension(NLAY) :: rh1, dz1
+
+      real (kind=kind_phys), dimension(NLAY,NBDSWLW)::tauae,ssaae,asyae
+
+      real (kind=kind_phys), dimension(NLAY,max_num_gridcomp) ::
+     &                       tauae_gocart
+
+      real (kind=kind_phys) :: tmp1, tmp2
+
+      integer               :: i, i1, i2, j1, j2, k, m, m1, kp
+
+! prognostic aerosols (already on gfs grids)
+      real (kind=kind_phys), dimension(:,:,:),allocatable:: aermr,dmfcs
+
+! aerosol (dry mass) on gfs grids/levels
+      real (kind=kind_phys), dimension(:,:), allocatable :: dmanl,dmclm,
+     &                                                      dmclmx
+      real (kind=kind_phys), dimension(KMXG)     :: pstmp, pkstr
+      real (kind=kind_phys) :: ptop, psfc, tem, plv, tv, rho
+
+!  ---  conversion constants
+      real (kind=kind_phys), parameter :: hdltx = 0.5 * dltx
+      real (kind=kind_phys), parameter :: hdlty = 0.5 * dlty
+
+!===>  ...  begin here
+!
+
+      if ( .not. allocated(dmanl) ) then
+        allocate ( dmclmx(KMXG,NMXG) )
+        allocate ( dmanl(NLAY,NMXG) )
+        allocate ( dmclm(NLAY,NMXG) )
+
+        allocate ( aermr(IMAX,NLAY,NMXG) )
+        allocate ( dmfcs(IMAX,NLAY,NMXG) )
+      endif
+!
+! map input tracer array (ozlay) to local tracer array (aermr -> dmfcs)
+!
+      dmfcs(:,:,:) = f_zero
+      lab_if_fcst : if ( get_fcst ) then
+
+        call map_aermr
+!  ---  inputs:  (in scope variables)
+!  ---  outputs: (in scope variables)
+
+!  ---  convert from mixing ratio to dry mass
+        do i = 1, IMAX
+        do k = 1, NLAY
+          plv = 100. * prsl(i,k)       ! convert pressure from mb to Pa
+          tv  = tlay(i,k) * (f_one+con_fvirt*qlay(i,k))  ! virtual temp in K
+          rho = plv / (con_rd * tv)    ! air density in kg/m3
+          do m = 1,  NMXG              ! aerosol dry mass (g/m3)
+            dmfcs(i,k,m) = max(1000.*(rho*aermr(i,k,m)),f_zero)
+          enddo     ! m_do_loop
+        enddo       ! k_do_loop
+        enddo       ! i_do_loop
+
+      endif       lab_if_fcst
+
+!
+! map geos3-gocart climo (dmclmg) to gfs grids (dmclm)
+!
+      lab_do_IMAX : do i = 1, IMAX
+
+        dmclm(:,:) = f_zero
+
+        lab_if_clim : if ( get_clim ) then
+!  ---  map grid in longitude direction
+          i2 = 1
+          j2 = 1
+          tmp1 = alon(i)
+          if (tmp1 > 180.) tmp1 = tmp1 - 360.0
+          lab_do_IMXG : do i1 = 1, IMXG
+            tmp2 = geos3_rlon(i1)
+            if (tmp2 > 180.) tmp2 = tmp2 - 360.0
+            if (abs(tmp1-tmp2) <= hdltx) then
+              i2 = i1
+              exit lab_do_IMXG
+            endif
+          enddo  lab_do_IMXG
+
+!  ---  map grid in latitude direction
+
+          lab_do_JMXG : do j1 = 1, JMXG
+            if (abs(alat(i)-geos3_rlat(j1)) <= hdlty) then
+              j2 = j1
+              exit lab_do_JMXG
+            endif
+          enddo  lab_do_JMXG
+
+!  ---  update local arrays pstmp and dmclmx
+
+          pstmp(:)= psclmg(i2,j2,:)*1000.0      ! cb to Pa
+          dmclmx(:,:) = dmclmg(i2,j2,:,:)
+
+!  ---  map geos3-gocart climo (dmclmx) to gfs level (dmclm)
+          pkstr(:)=fpkap(pstmp(:))
+          psfc = pkstr(1)                       ! pressure at sfc
+          ptop = pkstr(KMXG)                    ! pressure at toa
+
+!  ---  map grid in verical direction (follow how ozone is mapped
+!       in radiation_gases routine)
+          do k = 1, NLAY
+           kp = k                              ! from sfc to toa
+           if(iflip==0) kp = NLAY - k + 1      ! from toa to sfc
+           tmp1 = prslk(i,kp)
+
+           do m1 = 1, KMXG - 1                 ! from sfc to toa
+             if(tmp1 > pkstr(m1+1) .and. tmp1 <= pkstr(m1)) then
+               tmp2 = f_one / (pkstr(m1)-pkstr(m1+1))
+               tem = (pkstr(m1) - tmp1) * tmp2
+               dmclm(kp,:) = tem * dmclmx(m1+1,:)+           
+     &                   (f_one-tem) * dmclmx(m1,:)
+             endif
+           enddo
+
+           if(tmp1 > psfc) dmclm(kp,:) = dmclmx(1,:)        
+           if(tmp1 < ptop) dmclm(kp,:) = dmclmx(KMXG,:)   
+
+          enddo
+        endif    lab_if_clim
+
+!
+!  ---  compute fcst/clim merged aerosol loading (dmanl) and the 
+!       radiation optical properties (aerosw, aerolw)
+!
+        do k = 1, NLAY
+
+!  ---  map global to local arrays (rh1 and dz1)
+          rh1(k) = rhlay(i,k)
+          dz1(k) = dz   (i,k)
+
+!  ---  determine dmanl from dmclm and dmfcs
+          do m = 1, NMXG
+             dmanl(k,m)= ctaer*dmfcs(i,k,m) +
+     &                 ( f_one-ctaer)*dmclm(k,m)
+          enddo
+        enddo
+
+!  ---  calculate sw/lw aerosol optical properties for the
+!       corresponding frequency bands
+
+        call aeropt_grt                                                 &
+!  ---  inputs:  (in scope variables)
+!  ---  outputs: (in scope variables)
+
+        if ( lsswr ) then
+
+          if ( laswflg ) then
+
+            do m = 1, NBDSW
+              do k = 1, NLAY
+                aerosw(i,k,m,1) = tauae(k,m)
+                aerosw(i,k,m,2) = ssaae(k,m)
+                aerosw(i,k,m,3) = asyae(k,m)
+              enddo
+            enddo
+!
+            do k = 1, NLAY
+              do m = 1, max_num_gridcomp
+               tau_gocart(i,k,m) = tauae_gocart(k,m)
+              enddo
+            enddo
+
+
+          else
+
+            aerosw(:,:,:,:) = f_zero
+
+          endif
+
+        endif     ! end if_lsswr_block
+
+        if ( lslwr ) then
+
+          if ( lalwflg ) then
+
+            if ( NBDIR == 1 ) then
+              m1 = NBDSW + 1
+              do m = 1, NBDLW
+                do k = 1, NLAY
+                  aerolw(i,k,m,1) = tauae(k,m1)
+                  aerolw(i,k,m,2) = ssaae(k,m1)
+                  aerolw(i,k,m,3) = asyae(k,m1)
+                enddo
+              enddo
+            else
+              do m = 1, NBDLW
+                m1 = NBDSW + m
+                do k = 1, NLAY
+                  aerolw(i,k,m,1) = tauae(k,m1)
+                  aerolw(i,k,m,2) = ssaae(k,m1)
+                  aerolw(i,k,m,3) = asyae(k,m1)
+                enddo
+              enddo
+            endif
+
+          else
+
+            aerolw(:,:,:,:) = f_zero
+
+          endif
+        endif     ! end if_lslwr_block
+
+      enddo  lab_do_IMAX
+
+! =================
+      contains
+! =================
+
+!-----------------------------
+      subroutine map_aermr
+!.............................
+!  ---  inputs:  (in scope variables)
+!  ---  outputs: (in scope variables)
+
+! ==================================================================== !
+!                                                                      !
+! subprogram: map_aermr                                                !
+!                                                                      !
+!   map input tracer fields (ozlay) to local tracer array (aermr)      !
+!                                                                      !
+!  ====================  defination of variables  ===================  !
+!                                                                      !
+! input arguments:                                                     !
+!     IMAX    - horizontal dimension of arrays                  1      !
+!     NLAY    - vertical dimensions of arrays                   1      !
+!     ozlay   - layer tracer mass mixing ratio     g/g  IMAX*NLAY*NTRAC!
+! output arguments: (to module variables)                              !
+!     aermr   - layer aerosol mass mixing ratio    g/g  IMAX*NLAY*NMXG !
+!                                                                      !
+! note:                                                                !
+!  NTRAC is the number of tracers excluding water vapor                !
+!  NMXG is the number of prognostic aerosol species                    !
+!  ==================================================================  !
+!
+      implicit none
+
+!  ---  inputs:
+!  ---  output:
+
+!  ---  local:
+      integer    :: i, indx, ii
+      character  :: tp*2
+
+! initialize
+      aermr(:,:,:) = f_zero
+      ii = 1        !! <---- ozlay does not contain q 
+
+! ==>  DU: du1 (submicron bins), du2, du3, du4, du5              
+       if( gfs_phy_tracer%doing_DU ) then
+         aermr(:,:,dm_indx%dust1) = ozlay(:,:,dmfcs_indx%du001-ii)
+         aermr(:,:,dm_indx%dust2) = ozlay(:,:,dmfcs_indx%du002-ii)
+         aermr(:,:,dm_indx%dust3) = ozlay(:,:,dmfcs_indx%du003-ii)
+         aermr(:,:,dm_indx%dust4) = ozlay(:,:,dmfcs_indx%du004-ii)
+         aermr(:,:,dm_indx%dust5) = ozlay(:,:,dmfcs_indx%du005-ii)
+       endif
+
+! ==>  OC: oc_phobic, oc_philic                                 
+       if( gfs_phy_tracer%doing_OC ) then
+         aermr(:,:,dm_indx%waso_phobic) = 
+     &                     ozlay(:,:,dmfcs_indx%ocphobic-ii)
+         aermr(:,:,dm_indx%waso_philic) =
+     &                     ozlay(:,:,dmfcs_indx%ocphilic-ii)
+       endif
+
+! ==>  BC: bc_phobic, bc_philic                                  
+       if( gfs_phy_tracer%doing_BC ) then
+         aermr(:,:,dm_indx%soot_phobic) =                     
+     &                     ozlay(:,:,dmfcs_indx%bcphobic-ii)
+         aermr(:,:,dm_indx%soot_philic) =                     
+     &                     ozlay(:,:,dmfcs_indx%bcphilic-ii)
+       endif
+
+! ==>  SS: ss1, ss2 (submicron bins), ss3, ss4, ss5                  
+       if( gfs_phy_tracer%doing_SS ) then
+          aermr(:,:,dm_indx%ssam)=ozlay(:,:,dmfcs_indx%ss001-ii) 
+     &                          + ozlay(:,:,dmfcs_indx%ss002-ii) 
+          aermr(:,:,dm_indx%sscm)=ozlay(:,:,dmfcs_indx%ss003-ii) 
+     &                          + ozlay(:,:,dmfcs_indx%ss004-ii) 
+     &                          + ozlay(:,:,dmfcs_indx%ss005-ii)
+       endif
+
+! ==>  SU: so4                                                   
+       if( gfs_phy_tracer%doing_SU ) then
+          aermr(:,:,dm_indx%suso) = ozlay(:,:,dmfcs_indx%so4-ii)
+       endif
+
+      return
+!...................................
+      end subroutine map_aermr
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine aeropt_grt                                             &
+!...................................
+!  ---  inputs:  (in scope variables)
+!  ---  outputs: (in scope variables)
+
+!  ==================================================================  !
+!                                                                      !
+!  subprogram: aeropt_grt                                              !
+!                                                                      !
+!  compute aerosols optical properties in NBDSWLW sw/lw bands.         !
+!  Aerosol distribution at each grid point is composed from up to      !
+!  NMXG aerosol species (from NUM_GRIDCOMP components).                !
+!                                                                      !
+!  input variables:                                                    !
+!     dmanl  - aerosol dry mass                     g/m3   NLAY*NMXG   !
+!     rh1    - relative humidity                     %     NLAY        !
+!     dz1    - layer thickness                       km    NLAY        !
+!     NLAY   - vertical dimensions                   -     1           !
+!     iflip  - control flag for direction of vertical index            !
+!               =0: index from toa to surface                          !
+!               =1: index from surface to toa                          !
+!                                                                      !
+!  output variables:                                                   !
+!     tauae  - aerosol optical depth                 -   NLAY*NBDSWLW  !
+!     ssaae  - aerosol single scattering albedo      -   NLAY*NBDSWLW  !
+!     asyae  - aerosol asymmetry parameter           -   NLAY*NBDSWLW  !
+!                                                                      !
+!  ==================================================================  !
+!
+      implicit none
+
+!  ---  inputs:
+!  ---  outputs:
+
+!  ---  locals:
+      real (kind=kind_phys) :: aerdm
+      real (kind=kind_phys) :: ext1, ssa1, asy1, ex00, ss00, as00,
+     &                         ex01, ss01, as01, exint
+      real (kind=kind_phys) :: tau, ssa, asy, 
+     &                         sum_tau, sum_ssa, sum_asy
+
+!  ---  subgroups for sub-micron dust
+!  ---  corresponds to 0.1-0.18, 0.18-0.3, 0.3-0.6, 0.6-1.0 micron
+
+      real (kind=kind_phys) ::   fd(4)
+      data fd  / 0.01053,0.08421,0.25263,0.65263 /
+
+      character    :: tp*2
+      integer      :: icmp, n, kk, ib, ih2, ih1, ii, ij, ijk
+      real (kind=kind_phys) :: drh0, drh1, rdrh
+
+      real (kind=kind_phys) :: qmin  !<--lower bound for opt calc 
+      data qmin  / 1.e-20 /
+
+!===>  ...  begin here
+
+! --- initialize (assume no aerosols)
+      tauae = f_zero
+      ssaae = f_one
+      asyae = f_zero
+
+      tauae_gocart = f_zero
+
+!===> ... loop over vertical layers 
+!
+      lab_do_layer : do kk = 1, NLAY
+
+! --- linear interp coeffs for rh-dep species
+
+        ih2 = 1
+        do while ( rh1(kk) > rhlev_grt(ih2) )
+          ih2 = ih2 + 1
+          if ( ih2 > KRHLEV ) exit
+        enddo
+        ih1 = max( 1, ih2-1 )
+        ih2 = min( KRHLEV, ih2 )
+
+        drh0 = rhlev_grt(ih2) - rhlev_grt(ih1)
+        drh1 = rh1(kk) - rhlev_grt(ih1)
+        if ( ih1 == ih2 ) then
+          rdrh = f_zero
+        else
+          rdrh = drh1 / drh0
+        endif
+
+! --- loop through sw/lw spectral bands
+   
+        lab_do_ib : do ib = 1, NBDSWLW
+          sum_tau = f_zero
+          sum_ssa = f_zero
+          sum_asy = f_zero
+
+! --- loop through aerosol grid components
+          lab_do_icmp : do icmp = 1, NUM_GRIDCOMP
+            ext1 = f_zero
+            ssa1 = f_zero
+            asy1 = f_zero
+
+            tp = gridcomp(icmp)
+
+            select case ( tp )
+
+! -- dust aerosols: no humidification effect
+            case ( 'DU')  
+              do n = 1, KCM1
+
+                if (n <= 4) then
+                  aerdm = dmanl(kk,dm_indx%dust1) * fd(n)     
+                else
+                  aerdm = dmanl(kk,dm_indx%dust1+n-4 )        
+                endif
+
+                if (aerdm < qmin) aerdm = f_zero
+                ex00 = extrhi_grt(n,ib)*(1000.*dz1(kk))*aerdm
+                ss00 = ssarhi_grt(n,ib)
+                as00 = asyrhi_grt(n,ib)
+                ext1 = ext1 + ex00
+                ssa1 = ssa1 + ex00 * ss00
+                asy1 = asy1 + ex00 * ss00 * as00
+
+              enddo 
+
+! -- suso aerosols: with humidification effect
+            case ( 'SU')  
+              ij = isuso
+              exint = extrhd_grt(ih1,ij,ib)                            
+     &          + rdrh*(extrhd_grt(ih2,ij,ib) - extrhd_grt(ih1,ij,ib))
+              ss00 = ssarhd_grt(ih1,ij,ib)                             
+     &          + rdrh*(ssarhd_grt(ih2,ij,ib) - ssarhd_grt(ih1,ij,ib))
+              as00 = asyrhd_grt(ih1,ij,ib)                             
+     &          + rdrh*(asyrhd_grt(ih2,ij,ib) - asyrhd_grt(ih1,ij,ib))
+  
+              aerdm = dmanl(kk, dm_indx%suso)              
+              if (aerdm < qmin) aerdm = f_zero
+              ex00 = exint*(1000.*dz1(kk))*aerdm
+              ext1 = ex00
+              ssa1 = ex00 * ss00
+              asy1 = ex00 * ss00 * as00
+
+! -- seasalt aerosols: with humidification effect
+            case ( 'SS')  
+              do n = 1, 2                  !<---- ssam, sscm
+                ij = issam + (n-1)
+                exint = extrhd_grt(ih1,ij,ib)                          
+     &          + rdrh*(extrhd_grt(ih2,ij,ib) - extrhd_grt(ih1,ij,ib))
+                ss00 = ssarhd_grt(ih1,ij,ib)                           
+     &          + rdrh*(ssarhd_grt(ih2,ij,ib) - ssarhd_grt(ih1,ij,ib))
+                as00 = asyrhd_grt(ih1,ij,ib)                           
+     &          + rdrh*(asyrhd_grt(ih2,ij,ib) - asyrhd_grt(ih1,ij,ib))
+  
+                aerdm = dmanl(kk, dm_indx%ssam+n-1)         
+                if (aerdm < qmin) aerdm = f_zero
+                ex00 = exint*(1000.*dz1(kk))*aerdm
+                ext1 = ext1 + ex00
+                ssa1 = ssa1 + ex00 * ss00
+                asy1 = asy1 + ex00 * ss00 * as00
+
+              enddo
+
+! -- organic carbon/black carbon:
+!    using 'waso' and 'soot' for hydrophilic OC and BC   
+!    using 'waso' and 'soot' at RH=0 for hydrophobic OC and BC
+            case ( 'OC', 'BC')  
+              if(tp == 'OC') then
+                 ii = dm_indx%waso_phobic
+                 ij = iwaso
+              else
+                 ii = dm_indx%soot_phobic
+                 ij = isoot
+              endif
+  
+! --- hydrophobic
+              aerdm = dmanl(kk, ii)                   
+              if (aerdm < qmin) aerdm = f_zero
+              ex00 = extrhd_grt(1,ij,ib)*(1000.*dz1(kk))*aerdm
+              ss00 = ssarhd_grt(1,ij,ib)
+              as00 = asyrhd_grt(1,ij,ib)
+! --- hydrophilic
+              aerdm = dmanl(kk, ii+1)                 
+              if (aerdm < qmin) aerdm = f_zero
+              exint = extrhd_grt(ih1,ij,ib)                            
+     &         + rdrh*(extrhd_grt(ih2,ij,ib) - extrhd_grt(ih1,ij,ib))
+              ex01 = exint*(1000.*dz1(kk))*aerdm
+              ss01 = ssarhd_grt(ih1,ij,ib)                             
+     &          + rdrh*(ssarhd_grt(ih2,ij,ib) - ssarhd_grt(ih1,ij,ib))
+              as01 = asyrhd_grt(ih1,ij,ib)                             
+     &          + rdrh*(asyrhd_grt(ih2,ij,ib) - asyrhd_grt(ih1,ij,ib))
+
+              ext1 = ex00 + ex01
+              ssa1 = (ex00 * ss00) + (ex01 * ss01)
+              asy1 = (ex00 * ss00 * as00) + (ex01 * ss01 * as01)
+
+            end select
+
+! --- determine tau, ssa, asy for each grid component
+            tau = ext1
+            if (ext1 > f_zero) ssa=min(f_one,ssa1/ext1)
+            if (ssa1 > f_zero) asy=min(f_one,asy1/ssa1)
+
+! --- save tau at 550 nm for each grid component
+            if ( ib == nv_aod ) then 
+              do ijk = 1, max_num_gridcomp
+                if ( tp == max_gridcomp(ijk) )  then
+                   tauae_gocart(kk,ijk) = tau
+                endif
+              enddo
+            endif
+
+! --- update sum_tau, sum_ssa, sum_asy 
+            sum_tau = sum_tau + tau
+            sum_ssa = sum_ssa + tau * ssa
+            sum_asy = sum_asy + tau * ssa * asy
+
+          enddo lab_do_icmp
+
+
+! --- determine total tau, ssa, asy for aerosol mixture
+          tauae(kk,ib) = sum_tau
+          if (sum_tau > f_zero) ssaae(kk,ib) = sum_ssa / sum_tau
+          if (sum_ssa > f_zero) asyae(kk,ib) = sum_asy / sum_ssa
+
+        enddo   lab_do_ib
+    
+      enddo lab_do_layer
+
+!
+      return
+!...................................
+      end subroutine aeropt_grt
+!--------------------------------
+
+!................................
+      end subroutine setgocartaer
+!--------------------------------
+!
+! GOCART code modification end here (Sarah Lu)  ------------------------!
+! =======================================================================
 
 
 !..........................................!

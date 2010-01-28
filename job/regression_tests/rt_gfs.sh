@@ -21,6 +21,7 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_NSOUT_:${NSOUT}:g   \
                     | sed s:_QUILT_:${QUILT}:g   \
                     | sed s:_CP2_:${CP2}:g       \
+                    | sed s:_IAER_:${IAER}:g       \
                     | sed s:_RUNDIR_:${RUNDIR}:g \
                     | sed s:_PATHTR_:${PATHTR}:g \
                     | sed s:_FDFI_:${FDFI}:g \

@@ -26,6 +26,7 @@
 #                       tracer added; (q, oz, cld) removed
 # 2009-11     Jun Wang, activate reduced grid option and digital filter option
 # 2009-12     Jun Wang, link atm_namelist.rc to configure_file
+# 2010-01-14  Sarah Lu : Added GOCART_CLIM and GOCART_LUTS
 #
 #
 # Usage:  global_forecast.sh SIGI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO
@@ -162,7 +163,11 @@
 #                   defaults to ${FIX_RAD} - export ICO2=1 or 2 to activate
 #                   ICO2=1 gives annual mean and ICO2=2 uses monthly 2D data
 ##########################################################################
-#
+#     GOCART_CLIM   Directory for gocart climo files
+#                   Defaults to $${FIXGLOBAL}
+#     GOCARTC_LUTS  Directory for gocart luts files
+#                   Defaults to $${FIXGLOBAL}
+##########################################################################
 #     SIGR1         Output first time level sigma restart file
 #                   defaults to ${DATA}/sigr1 which is deleted
 #     SIGR2         Output second time level sigma restart file
@@ -431,6 +436,8 @@ export EMISDIR=${EMISDIR:-${FIX_RAD}}
 export SOLCDIR=${SOLCDIR:-${FIX_RAD}}
 export VOLCDIR=${VOLCDIR:-${FIX_RAD}}
 export CO2DIR=${CO2DIR:-${FIX_RAD}}
+export GOCART_CLIM=${GOCART_CLIM:-${FIX_RAD}}
+export GOCART_LUTS=${GOCART_LUTS:-${FIX_RAD}}
 #export ALBDIR=${ALBDIR:-${FIX_RAD}}
 export IEMS=${IEMS:-0}
 export ISOL=${ISOL:-0}
@@ -569,6 +576,13 @@ if [ $IAER -gt 0 ] ; then
  for file in `ls | grep volcanic_aerosols` ; do
   ${NCP:-cp} $file $DATA/$(echo $file |sed -e "s/global_//g")
  done
+ cd $DATA
+ ${NCP:-cp} $GOCART_CLIM/2000*.PS.avg $DATA
+ ${NCP:-cp} $GOCART_CLIM/2000*.DU.*.g.avg $DATA
+ ${NCP:-cp} $GOCART_CLIM/2000*.CC.*.g.avg $DATA
+ ${NCP:-cp} $GOCART_CLIM/2000*.SS.*.g.avg $DATA
+ ${NCP:-cp} $GOCART_CLIM/2000*.SU.*.g.avg $DATA
+ ${NCP:-cp} $GOCART_LUTS/NCEP_AEROSOL.bin $DATA
 fi
 if [ $ICO2 -gt 0 ] ; then
  cd $CO2DIR
