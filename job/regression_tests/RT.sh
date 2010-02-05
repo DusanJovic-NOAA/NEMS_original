@@ -416,9 +416,9 @@ export TEST_DESCR="Test NMMB-regional NEMSIO as input file"
 export RUNDIR=${RUNDIR_ROOT}/NMM_REG_NEMSIO
 export CNTL_DIR=NMMB_reg
 export LIST_FILES=" \
-nmm_b_history.000 nmm_b_history.003 nmm_b_history.006 nmm_b_history.009 nmm_b_history.012    \
-nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_history_nemsio.006                   \
-nmm_b_history_nemsio.009 nmm_b_history_nemsio.012"
+nmm_b_history.000 nmm_b_history.003 nmm_b_history.006 nmm_b_history.012      \
+nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_history_nemsio.006   \
+nmm_b_history_nemsio.012"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=reg
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=12
@@ -502,7 +502,7 @@ export TEST_DESCR="Test NMMB-regional different decomposition"
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/NMM_REG_DECOMP
 export CNTL_DIR=NMMB_reg
-export LIST_FILES="nmm_b_history.000 nmm_b_history.003 nmm_b_history.006 nmm_b_history.009 nmm_b_history.012"
+export LIST_FILES="nmm_b_history.000 nmm_b_history.003 nmm_b_history.006 nmm_b_history.012"
 #---------------------
 export TPN=16       ; export THRD=1      ; export GS=''      ; export GBRG=reg
 export INPES=03     ; export JNPES=05    ; export WTPG=1     ; export FCSTL=12
@@ -851,9 +851,9 @@ export TEST_DESCR="Test GFS, 1 proc, 1 thread, no quilting,nsout=1"
 export RUNDIR=${RUNDIR_ROOT}/GFS_01_NSOUT
 export CNTL_DIR=GFS_NODFI
 export LIST_FILES=" \
-         sigf03 sigf06 sigf09 sigf12 sigf24 \
-         sfcf03 sfcf06 sigf09 sfcf12 sfcf24 \
-         flxf03 flxf06 sigf09 flxf12 flxf24"
+         sigf03 sigf06 sigf12 sigf24 \
+         sfcf03 sfcf06 sfcf12 sfcf24 \
+         flxf03 flxf06 flxf12 flxf24"
 #---------------------
 export TASKS=1     ; export THRD=1       ; export NSOUT=1     ; export QUILT=.false.
 export PE1=1       ; export WTPG=1       ; export NDAYS=1     ; export CP2=#
