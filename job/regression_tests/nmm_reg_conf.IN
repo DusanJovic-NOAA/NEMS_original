@@ -73,7 +73,7 @@ tstart:       0.            # The starting forecast hour
 nhours_fcst:    _FCSTL_     # Length of the forecast (hours)
 nhours_history: 03          # Frequency of history output (hours)
 nhours_dfini:   0
-                                                                                                                                              
+
 restart:        _RSTRT_     # True--> A restarted run
 nhours_restart: 12          # Frequency of restart output (hours)
 
@@ -132,8 +132,9 @@ write_global_sums: _WGS_     # Write out global summations or not
 ### Precipitation Assimilation####
 ##################################
 
-pcpflg:  false              # True--> assimilation on ; False--> assimilation off
+pcpflg:  _PCPFLG_             # True--> assimilation on ; False--> assimilation off
 pcphr: 6
+write_prec_adj: _WPREC_       # True--> create baseline prec. files ; False--> regular run
 
 
 ###########################
@@ -171,6 +172,7 @@ microphysics:  fer          # Microphysics scheme
                                 # kes--> Kessler
                                 # lin--> Lin
                                 # tho--> Thompson
+                                # wsm3--> WSM3
                                                                                                                                               
 #---------------------------------
 turbulence:  myj            # Turbulence schemes

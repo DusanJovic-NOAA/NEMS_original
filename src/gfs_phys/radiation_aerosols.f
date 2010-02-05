@@ -388,7 +388,7 @@
       logical, save :: lgrtint = .true.
 
 !  ---  logical parameter for gocart debug print control
-      logical, save :: lckprnt = .true.
+      logical, save :: lckprnt = .false.
 
 !  --- the following index/flag/weight are set up 'set_aerspc'
 !   - merging coefficients for fcst/clim fields; determined from fdaer

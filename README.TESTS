@@ -6,31 +6,57 @@ How to run tests:
 
  - run RT.sh script
 
- - wait about two hours (and growing)
+ - wait about three hours (and growing)
    progress should appear on the screen
 
  - look in RegressionTests.log for results
 
+#############################################
+How to create new baselines :
+#############################################
 
+ - use RT.sh script with one argument: nmm, gfs or all
+   ./RT.sh nmm - will create baselines for NMMB
+   ./RT.sh gfs - will create baselines for GFS
+   ./RT.sh all - will create baselines for both GFS & NMMB
+
+ - results will be stored on /stmp/${LOGIN}/REGRESSION_TEST directory
+   (new /stmp/${LOGIN}/REGRESSION_TEST directory will be ready to
+    replace current REGRESSION_TEST directory)
+
+#############################################
 Tests performed:
+#############################################
 
- 1) NMMB, global, control version
- 2) NMMB, global, test NEMSIO input file
- 3) NMMB, global, test restart
- 4) NMMB, global, test restart with NEMSIO file
- 5) NMMB, global, test different decompostition
- 6) NMMB, global, test threads
- 7) NMMB, global, test with GFS physics
+    NMMB, global, control version
+    NMMB, global, test NEMSIO input file
+    NMMB, global, test restart
+    NMMB, global, test restart with NEMSIO file
+    NMMB, global, test different decompostition
+    NMMB, global, test threads
+    NMMB, global, test with GFS physics
 
- 8) NMMB, regional, control version
- 9) NMMB, regional, test NEMSIO input file
-10) NMMB, regional, test restart
-11) NMMB, regional, test restart with NEMSIO file
-12) NMMB, regional, test different decompostition
-13) NMMB, regional, test threads
-14) NMMB, regional, test with GFS physics
+    NMMB, regional, control version
+    NMMB, regional, test NEMSIO input file
+    NMMB, regional, test restart
+    NMMB, regional, test restart with NEMSIO file
+    NMMB, regional, test different decompostition
+    NMMB, regional, test threads
+    NMMB, regional, test with GFS physics
+    NMMB, regional, test nesting
+    NMMB, regional, test precipitation adjustment
 
-15) GFS, control version (32 processors, 1 thread)
-16) GFS, different decompostition (60 processors, 1 thread)
-17) GFS, test threading (16 processors, 2 threads)
-18) GFS, test single processor version (1 processor)
+    GFS, control version (32 processors, 1 thread)
+    GFS, 2-copy option
+    GFS, different decompostition (60 processors, 1 thread)
+    GFS, test threading (16 processors, 2 threads)
+    GFS, test single processor version (1 processor)
+    GFS,  1 proc, 1 thread, no quilt, nsout=1
+    GFS, 16 proc, 2 threads,no quilt, output every 2 time steps
+    GFS, 60 proc, 1 thread, no quilt
+    GFS, 32 proc, 1 thread, no quilt, output every 4 timestep
+    GFS, 32 proc, 1 thread,    quilt, digital filter on reduced grid
+    GFS, 16 proc, 2 thread,    quilt, 2x2 wrt pe, digital filter on reduced grid
+    GFS,  1 proc,           no quilt, digital filter on reduced grid
+    GFS, use the OPAC climo scheme for SW and LW
+

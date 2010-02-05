@@ -53,6 +53,16 @@ echo ${TEST_DESCR}
 (echo "GFS, ${TASKS} proc, ${THRD} thread";echo;echo)>> RegressionTests.log
  echo "GFS, ${TASKS} proc, ${THRD} thread";echo;echo
 
+
+# wait for the job to enter the queue
+job_running=0
+until [ $job_running -eq 1 ]
+do
+echo "TEST is waiting to enter the queue"
+job_running=`llq -u ${LOGIN} -f %st %jn | grep ${JBNME} | wc -l`;sleep 1
+done
+
+
 job_running=1
 
 # wait for the job to finish and compare results
@@ -60,7 +70,6 @@ n=1
 until [ $job_running -eq 0 ]
 do
 
-sleep 60
 export status=`llq -u ${LOGIN} -f %st %jn | grep ${JBNME} | awk '{ print $1}'` ; export status=${status:--}
 
 if   [ $status = 'I' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
@@ -70,6 +79,7 @@ elif [ $status = 'C' ];  then echo $n "min. TEST ${TEST_NR} is finished,        
 else                          echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status
 fi
 
+sleep 60
 job_running=`llq -u ${LOGIN} -f %st %jn | grep ${JBNME} | wc -l`
   (( n=n+1 ))
 done
@@ -81,6 +91,12 @@ done
 (echo;echo;echo "Checking test ${TEST_NR} results ....")>> RegressionTests.log
  echo;echo;echo "Checking test ${TEST_NR} results ...."
 
+#
+     if [ ${CREATE_BASELINE} = false ]; then
+#
+# --- regression test comparison ----
+#
+
 for i in ${LIST_FILES}
 
 do
@@ -89,7 +105,7 @@ printf %s " Comparing " $i "....."
 
 if [ -f ${RUNDIR}/$i ] ; then
 
-  d=`cmp ${CNTL_PTH}/$i ${RUNDIR}/$i | wc -l`
+  d=`cmp ${RTPWD}/${CNTL_DIR}/$i ${RUNDIR}/$i | wc -l`
 
   if [[ $d -ne 0 ]] ; then
    (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> RegressionTests.log
@@ -110,6 +126,32 @@ else
 fi
 
 done
+
+#
+     else
+#
+# --- create baselines
+#
+
+#mkdir -p /stmp/${LOGIN}/REGRESSION_TEST/${CNTL_DIR}
+
+ echo;echo;echo "Moving set ${TEST_NR} files ...."
+
+for i in ${LIST_FILES}
+do
+  printf %s " Moving " $i "....."
+  if [ -f ${RUNDIR}/$i ] ; then
+    mv ${RUNDIR}/${i} /stmp/${LOGIN}/REGRESSION_TEST/${CNTL_DIR}/${i}
+  else
+    echo "Missing " ${RUNDIR}/$i " output file"
+    echo;echo " Set ${TEST_NR} failed "
+    exit 2
+  fi
+done
+
+# ---
+     fi
+# ---
 
 echo " Test ${TEST_NR} passed " >> RegressionTests.log
 echo " Test ${TEST_NR} passed "

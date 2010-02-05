@@ -66,7 +66,7 @@
       USE MODULE_PRECIP_ADJUST
 !
       USE MODULE_EXCHANGE
-      USE MODULE_DIAGNOSE,ONLY: TWR,VWR,EXIT,EXIT_PHY
+      USE MODULE_DIAGNOSE,ONLY: TWR,VWR,EXIT,EXIT_PHY,WRT_2D
 !
       USE MODULE_PHYSICS_OUTPUT,ONLY: POINT_PHYSICS_OUTPUT
 !
@@ -80,7 +80,8 @@
 !
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !
-      USE MODULE_PHYSICS_INIT_READ
+      USE MODULE_PHYSICS_INIT_READ_BIN
+      USE MODULE_PHYSICS_INIT_READ_NEMSIO
 !
 !-----------------------------------------------------------------------
 !
@@ -2445,6 +2446,21 @@
 !
       ENDIF  gfs_phys_test 
 !
+!-----------------------------------------------------------------------
+!***  Write precipitation files for ADJPPT regression test
+!-----------------------------------------------------------------------
+!
+      IF( int_state%WRITE_PREC_ADJ   .AND.                              &
+          MOD(XTIME,60.) <= 0.001    .AND.                              &
+          INT(XTIME/60.) <= int_state%PCPHR ) THEN
+        CALL WRT_2D(int_state%PREC,MYPE,NUM_PES,MPI_COMM_COMP           &
+                ,INT(XTIME/60.)+1                                       &
+                ,IDS,IDE,JDS,JDE                                        &
+                ,IMS,IME,JMS,JME                                        &
+                ,ITS,ITE,JTS,JTE)
+      ENDIF
+!
+!-----------------------------------------------------------------------
 !     if(ntimestep<=5)then
 !       call twr(int_state%t,lm,'t_phy',ntimestep,mype,num_pes,mpi_comm_comp &
 !               ,ids,ide,jds,jde &

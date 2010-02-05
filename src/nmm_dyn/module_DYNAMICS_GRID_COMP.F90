@@ -502,8 +502,8 @@
 !                                                                            
                                ,BOUNDARY_INIT,CONSTS                       !  <-- Subroutines
 !
-      USE MODULE_DYNAMICS_INIT_READ,ONLY : DYNAMICS_READ_BINARY         &
-                                          ,DYNAMICS_READ_NEMSIO
+      USE MODULE_DYNAMICS_INIT_READ_BIN,ONLY : DYNAMICS_READ_BINARY
+      USE MODULE_DYNAMICS_INIT_READ_NEMSIO,ONLY : DYNAMICS_READ_NEMSIO
 !
 #ifdef IBM
       USE MODULE_FLTBNDS,ONLY : PREFFT

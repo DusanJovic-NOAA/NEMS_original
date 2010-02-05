@@ -35,9 +35,10 @@ MAKEFILE = makefile
 TARGET = nmm_libutil.a
  
 MODULEIO=       \
-		module_NEMSIO.o
 
 MODULES=	\
+		module_NEMSIO.o \
+		module_INCLUDE.o \
 		module_ERR_MSG.o \
 		module_VARS.o \
 		module_VARS_STATE.o \
@@ -48,7 +49,6 @@ MODULES=	\
 		module_DIAGNOSE.o \
 		module_DM_PARALLEL.o \
 		module_EXCHANGE.o \
-		module_INCLUDE.o \
 		module_DIGITAL_FILTER_NMM.o \
 		looplimits.o
 
@@ -62,11 +62,8 @@ default:
 
 all: $(LIBDIR)/lib/$(TARGET)
 
-$(LIBDIR)/lib/$(TARGET): $(MODULEIO) $(MODULES) 
+$(LIBDIR)/lib/$(TARGET): $(MODULES) 
 	$(AR) $(ARFLAGS) $@ $?
-
-$(MODULEIO): %.o: %.f90    $(DEPS)
-	$(FC) $(FFLAG_NMM_UTIL) -c $*.f90
 
 $(MODULES): %.o: %.f90	$(DEPS)
 	$(FC) $(FFLAG_NMM_UTIL) -c $*.f90

@@ -20,9 +20,8 @@
 !----------------------------------------------------------------------
 !**********************************************************************
 !----------------------------------------------------------------------
+      USE MODULE_INCLUDE
       IMPLICIT NONE
-      INCLUDE "mpif.h"
-      INCLUDE "../../inc/kind.inc"
 !----------------------------------------------------------------------
 !----------------------------------------------------------------------
       INTEGER(KIND=KINT),INTENT(IN) :: IDS,IDE,JDS,JDE                 &
@@ -181,9 +180,8 @@
 !----------------------------------------------------------------------
 !**********************************************************************
 !----------------------------------------------------------------------
+      USE MODULE_INCLUDE
       IMPLICIT NONE
-      INCLUDE "mpif.h"
-      INCLUDE "../../inc/kind.inc"
 !----------------------------------------------------------------------
 !----------------------------------------------------------------------
       INTEGER(KIND=KINT),INTENT(IN) :: IDS,IDE,JDS,JDE                 &
@@ -551,10 +549,8 @@
 !***  GENERATE STANDARD STATISTICS FOR THE DESIRED FIELD.
 !***
 !----------------------------------------------------------------------
+      USE MODULE_INCLUDE
       IMPLICIT NONE
-!----------------------------------------------------------------------
-      INCLUDE "../../inc/kind.inc"
-      INCLUDE "mpif.h"
 !----------------------------------------------------------------------
 !
       INTEGER(KIND=KINT),INTENT(IN) :: LM,MPI_COMM_COMP,MYPE
@@ -633,6 +629,116 @@
 !----------------------------------------------------------------------
 !
       END SUBROUTINE FIELD_STATS
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+      SUBROUTINE WRT_2D(ARRAY,MYPE,NPES,MPI_COMM_COMP                  &
+                    ,IHOUR                                             &
+                    ,IDS,IDE,JDS,JDE                                   &
+                    ,IMS,IME,JMS,JME                                   &
+                    ,ITS,ITE,JTS,JTE)
+!----------------------------------------------------------------------
+!**********************************************************************
+!----------------------------------------------------------------------
+      USE MODULE_INCLUDE
+      IMPLICIT NONE
+!----------------------------------------------------------------------
+!----------------------------------------------------------------------
+      INTEGER(KIND=KINT),INTENT(IN) :: IDS,IDE,JDS,JDE                 &
+                                      ,IMS,IME,JMS,JME                 &
+                                      ,ITS,ITE,JTS,JTE                 &
+                                      ,MPI_COMM_COMP,MYPE,NPES,IHOUR
+!
+      REAL(KIND=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: ARRAY
+!
+!*** LOCAL VARIABLES
+!
+      INTEGER,DIMENSION(MPI_STATUS_SIZE) :: JSTAT
+      INTEGER(KIND=KINT),DIMENSION(2)    :: IT_REM,JT_REM
+!
+      INTEGER(KIND=KINT) :: I,J,N,IPE,IRECV,ISEND,NSIZE
+      INTEGER(KIND=KINT) :: ITS_REM,ITE_REM,JTS_REM,JTE_REM
+!
+      REAL(KIND=KFPT),DIMENSION(IDS:IDE,JDS:JDE) :: TWRITE
+      REAL(KIND=KFPT),ALLOCATABLE,DIMENSION(:)   :: VALUES
+!----------------------------------------------------------------------
+!**********************************************************************
+!----------------------------------------------------------------------
+!
+      IF(MYPE==0)THEN
+        DO J=JTS,JTE
+        DO I=ITS,ITE
+          TWRITE(I,J)=ARRAY(I,J)
+        ENDDO
+        ENDDO
+!
+        DO IPE=1,NPES-1
+          CALL MPI_RECV(IT_REM,2,MPI_INTEGER,IPE,IPE                    &
+                       ,MPI_COMM_COMP,JSTAT,IRECV)
+          CALL MPI_RECV(JT_REM,2,MPI_INTEGER,IPE,IPE                    &
+                       ,MPI_COMM_COMP,JSTAT,IRECV)
+!
+          ITS_REM=IT_REM(1)
+          ITE_REM=IT_REM(2)
+          JTS_REM=JT_REM(1)
+          JTE_REM=JT_REM(2)
+!
+          NSIZE=(ITE_REM-ITS_REM+1)*(JTE_REM-JTS_REM+1)
+          ALLOCATE(VALUES(1:NSIZE))
+!
+          CALL MPI_RECV(VALUES,NSIZE,MPI_REAL,IPE,IPE                   &
+                       ,MPI_COMM_COMP,JSTAT,IRECV)
+          N=0
+          DO J=JTS_REM,JTE_REM
+            DO I=ITS_REM,ITE_REM
+              N=N+1
+              TWRITE(I,J)=VALUES(N)
+            ENDDO
+          ENDDO
+!
+          DEALLOCATE(VALUES)
+!
+        ENDDO
+!
+        WRITE(40+IHOUR)((TWRITE(I,J)*1000.,I=IDS,IDE),J=JDS,JDE)
+        CLOSE(40+IHOUR)
+!
+      ELSE
+!
+        NSIZE=(ITE-ITS+1)*(JTE-JTS+1)
+        ALLOCATE(VALUES(1:NSIZE))
+!
+        N=0
+        DO J=JTS,JTE
+        DO I=ITS,ITE
+          N=N+1
+          VALUES(N)=ARRAY(I,J)
+        ENDDO
+        ENDDO
+!
+        IT_REM(1)=ITS
+        IT_REM(2)=ITE
+        JT_REM(1)=JTS
+        JT_REM(2)=JTE
+!
+        CALL MPI_SEND(IT_REM,2,MPI_INTEGER,0,MYPE                       &
+                     ,MPI_COMM_COMP,ISEND)
+        CALL MPI_SEND(JT_REM,2,MPI_INTEGER,0,MYPE                       &
+                     ,MPI_COMM_COMP,ISEND)
+!
+        CALL MPI_SEND(VALUES,NSIZE,MPI_REAL,0,MYPE                      &
+                     ,MPI_COMM_COMP,ISEND)
+!
+        DEALLOCATE(VALUES)
+!
+      ENDIF
+!
+!----------------------------------------------------------------------
+!
+!----------------------------------------------------------------------
+!
+      END SUBROUTINE WRT_2D
 !
 !----------------------------------------------------------------------
 !

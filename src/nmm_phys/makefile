@@ -45,7 +45,7 @@ MODULES=	\
 		module_LS_NOAHLSM.o \
 		module_LS_LISS.o \
 		module_PRECIP_ADJUST.o \
-		module_PHYSICS_INIT_READ.o \
+		module_PHYSICS_INIT_READ_BIN.o module_PHYSICS_INIT_READ_NEMSIO.o \
 		module_PHYSICS_GRID_COMP.o \
 		module_PHYSICS_OUTPUT.o \
 		module_GWD.o 
@@ -111,7 +111,8 @@ module_PHYSICS_GRID_COMP.o:	\
 			   	module_TURBULENCE.o \
 				module_PRECIP_ADJUST.o \
 				module_GWD.o \
-				module_PHYSICS_INIT_READ.o \
+				module_PHYSICS_INIT_READ_BIN.o \
+				module_PHYSICS_INIT_READ_NEMSIO.o \
                                         module_MP_ETANEW.o
 
 module_GET_CONFIG_PHY.o:        \

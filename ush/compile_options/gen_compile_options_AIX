@@ -33,7 +33,8 @@
 # Compile & Archive Options
 ###########################################################
 ###NMMB optimization####
-  OPT_NMM=-O2 -qmaxmem=-1 -qarch=auto -qtune=auto -NS2000
+# OPT_NMM=-O2 -qmaxmem=-1 -qarch=auto -qtune=auto -NS2000
+  OPT_NMM=-O3 -qnostrict -qmaxmem=-1 -qarch=auto -qtune=auto -NS2000
   SMP=-qsmp=omp
 # SMP=
   MAF=-qfloat=nomaf
