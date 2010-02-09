@@ -17,6 +17,9 @@ module module_nemsio
 !    2009-04-28    Jun Wang - allow user to update meta data for date, forecast time
 !    2009-11-23    Sarah Lu - GOCART species added to gribtable
 !    2010-01-21    Sarah Lu - 550nm AOD added to gribtable
+!    2010-01-25    Jun Wang - support 8 bytes real variables or aryays in the header
+!    2010-02-04    Jun Wang - set all real numbers in 8 byte real numbers when
+!                             calculating default latitude for GFS model
 !
 ! Public Variables
 ! Public Defined Types
@@ -135,7 +138,7 @@ module module_nemsio
   private
 !------------------------------------------------------------------------------
 ! private variables and type needed by nemsio_gfile
-  integer,parameter:: nemsio_lmeta1=48,nemsio_lmeta3=32
+  integer,parameter:: nemsio_lmeta1=48,nemsio_lmeta3=40
   integer,parameter:: nemsio_intkind=4,nemsio_intkind8=8
   integer,parameter:: nemsio_realkind=4,nemsio_dblekind=8
   integer,parameter:: nemsio_charkind=16,nemsio_charkind8=8,nemsio_charkind4=4
@@ -192,10 +195,12 @@ module module_nemsio
     integer(nemsio_intkind):: nmetavarr=nemsio_intfill
     integer(nemsio_intkind):: nmetavarl=nemsio_intfill
     integer(nemsio_intkind):: nmetavarc=nemsio_intfill
+    integer(nemsio_intkind):: nmetavarr8=nemsio_intfill
     integer(nemsio_intkind):: nmetaaryi=nemsio_intfill
     integer(nemsio_intkind):: nmetaaryr=nemsio_intfill
     integer(nemsio_intkind):: nmetaaryl=nemsio_intfill
     integer(nemsio_intkind):: nmetaaryc=nemsio_intfill
+    integer(nemsio_intkind):: nmetaaryr8=nemsio_intfill
 !
     character(nemsio_charkind),allocatable :: recname(:)
     character(nemsio_charkind),allocatable :: reclevtyp(:)
@@ -214,6 +219,8 @@ module module_nemsio
     integer(nemsio_intkind),allocatable    :: varival(:)
     character(nemsio_charkind),allocatable :: varrname(:)
     real(nemsio_realkind),allocatable      :: varrval(:)
+    character(nemsio_charkind),allocatable :: varr8name(:)
+    real(nemsio_dblekind),allocatable      :: varr8val(:)
     character(nemsio_charkind),allocatable :: varlname(:)
     logical(nemsio_logickind),allocatable  :: varlval(:)
     character(nemsio_charkind),allocatable :: varcname(:)
@@ -231,6 +238,10 @@ module module_nemsio
     character(nemsio_charkind),allocatable :: arycname(:)
     integer(nemsio_intkind),allocatable    :: aryclen(:)
     character(nemsio_charkind),allocatable :: arycval(:,:)
+    character(nemsio_charkind),allocatable :: aryr8name(:)
+    integer(nemsio_intkind),allocatable    :: aryr8len(:)
+    real(nemsio_dblekind),allocatable      :: aryr8val(:,:)
+
 !  
     character(255) :: gfname
     character(nemsio_charkind8) :: gaction
@@ -257,6 +268,7 @@ module module_nemsio
     logical(nemsio_logickind),allocatable  :: headvarlval(:)
     integer(nemsio_intkind),allocatable    :: headaryival(:,:)
     real(nemsio_realkind),allocatable      :: headaryrval(:,:)
+    logical(nemsio_logickind),allocatable  :: headarylval(:)
     character(nemsio_charkind),allocatable :: headarycval(:,:)
     character,allocatable       :: cbuf(:)
     integer(nemsio_intkind):: mbuf=0,nlen,nnum,mnum
@@ -291,7 +303,8 @@ module module_nemsio
 !
   type :: nemsio_meta3
     integer(nemsio_intkind) :: nmetavari,nmetavarr,nmetavarl,nmetavarc, &
-                               nmetaaryi,nmetaaryr,nmetaaryl,nmetaaryc
+                               nmetaaryi,nmetaaryr,nmetaaryl,nmetaaryc, &
+                               nmetavarr8,nmetaaryr8
   end type nemsio_meta3
 !
   type  :: nemsio_grbmeta
@@ -319,10 +332,12 @@ module module_nemsio
   interface nemsio_getheadvar
     module procedure nemsio_getfheadvari
     module procedure nemsio_getfheadvarr
+    module procedure nemsio_getfheadvarr8
     module procedure nemsio_getfheadvarl
     module procedure nemsio_getfheadvarc
     module procedure nemsio_getfheadaryi
     module procedure nemsio_getfheadaryr
+    module procedure nemsio_getfheadaryr8
     module procedure nemsio_getfheadaryl
     module procedure nemsio_getfheadaryc
   end interface nemsio_getheadvar
@@ -446,10 +461,13 @@ contains
       rlon_min,rlon_max,rlat_min,rlat_max,extrameta,           &
       nmetavari,nmetavarr,nmetavarl,nmetavarc,                              &
       nmetaaryi,nmetaaryr,nmetaaryl,nmetaaryc,                              &
+      nmetavarr8,nmetaaryr8,                                                &
       recname,reclevtyp,reclev,vcoord,lat,lon,dx,dy,cpi,ri,                 &
       variname,varival,varrname,varrval,varlname,varlval,varcname,varcval,  &
+      varr8name,varr8val,                                                   &
       aryiname,aryilen,aryival,aryrname,aryrlen,aryrval,                    &
-      arylname,aryllen,arylval,arycname,aryclen,arycval  )
+      arylname,aryllen,arylval,arycname,aryclen,arycval,                    &
+      aryr8name,aryr8len,aryr8val  )
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ! abstract: open nemsio file, and read/write the meta data
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -473,7 +491,8 @@ contains
              rlon_min,rlon_max
     logical(nemsio_logickind),optional,intent(in):: extrameta
     integer(nemsio_intkind),optional,intent(in)  :: nmetavari,nmetavarr, &   
-            nmetavarl,nmetavarc,nmetaaryi,nmetaaryr,nmetaaryl,nmetaaryc
+            nmetavarl,nmetavarc,nmetavarr8,nmetaaryi,nmetaaryr,nmetaaryl,&
+            nmetaaryc,nmetaaryr8
 !
     character*(*),optional,intent(in)            :: recname(:),reclevtyp(:)
     integer(nemsio_intkind),optional,intent(in)  :: reclev(:)
@@ -483,11 +502,13 @@ contains
     real(nemsio_realkind),optional,intent(in)    :: Cpi(:),Ri(:)
 !
     character*(*),optional,intent(in)            :: variname(:),varrname(:),&
-          varlname(:),varcname(:),aryiname(:),aryrname(:),arylname(:),arycname(:)
+          varlname(:),varcname(:),varr8name(:),aryiname(:),aryrname(:),     &
+          arylname(:),arycname(:),aryr8name(:)
     integer(nemsio_intkind),optional,intent(in)  :: aryilen(:),aryrlen(:),  &
-          aryllen(:),aryclen(:)
+          aryllen(:),aryclen(:),aryr8len(:)
     integer(nemsio_intkind),optional,intent(in)  :: varival(:),aryival(:,:)
     real(nemsio_realkind),optional,intent(in)    :: varrval(:),aryrval(:,:)
+    real(nemsio_dblekind),optional,intent(in)    :: varr8val(:),aryr8val(:,:)
     logical(nemsio_logickind),optional,intent(in):: varlval(:),arylval(:,:)
     character(*),optional,intent(in)             :: varcval(:),arycval(:,:)
 !
@@ -572,16 +593,19 @@ contains
         ntrac=ntrac,jcap=jcap,ncldt=ncldt,idvc=idvc,idsl=idsl,        &
         idvm=idvm,idrt=idrt, rlon_min=rlon_min,rlon_max=rlon_max,     &
         rlat_min=rlat_min, rlat_max=rlat_max,extrameta=extrameta,     &
-        nmetavari=nmetavari,nmetavarr=nmetavarr,nmetavarl=nmetavarl,  &
-        nmetavarc=nmetavarc,nmetaaryi=nmetaaryi,nmetaaryr=nmetaaryr,  &
+        nmetavari=nmetavari,nmetavarr=nmetavarr,nmetavarr8=nmetavarr8,&
+        nmetavarl=nmetavarl, nmetavarc=nmetavarc,nmetaaryi=nmetaaryi, &
+        nmetaaryr=nmetaaryr, nmetaaryr8=nmetaaryr8,                   &
         nmetaaryl=nmetaaryl,nmetaaryc=nmetaaryc,recname=recname,      &
         reclevtyp=reclevtyp,reclev=reclev,vcoord=vcoord,              &
         lat=lat,lon=lon,dx=dx,dy=dy,cpi=cpi,ri=ri,                    &
         variname=variname,varival=varival,varrname=varrname,          &
         varrval=varrval,varlname=varlname,varlval=varlval,            &
         varcname=varcname,varcval=varcval,                            &
+        varr8name=varr8name,varr8val=varr8val,                        &
         aryiname=aryiname,aryilen=aryilen,aryival=aryival,            &
         aryrname=aryrname,aryrlen=aryrlen,aryrval=aryrval,            &
+        aryr8name=aryr8name,aryr8len=aryr8len,aryr8val=aryr8val,      &
         arylname=arylname,aryllen=aryllen,arylval=arylval,            &
         arycname=arycname,aryclen=aryclen,arycval=arycval  )
       if ( ios.ne.0) then
@@ -906,7 +930,15 @@ contains
     iread=nemsio_lmeta3
     call bafrreadl(gfile%flunit,iskip,iread,nread,meta3)
 !    print *,'after meta3,iskip=',iskip,'iread=',iread,'nread=',nread
-    if(nread.lt.iread) return
+    if(nread.lt.iread) then
+!when no r8 var and ary
+      iread=nemsio_lmeta3-8
+      call bafrreadl(gfile%flunit,iskip,iread,nread,meta3)
+      if(nread.lt.iread) return
+    else
+      gfile%nmetavarr8=meta3%nmetavarr8
+      gfile%nmetaaryr8=meta3%nmetaaryr8
+    endif
     gfile%tlmeta=gfile%tlmeta+nread
     gfile%nmetavari=meta3%nmetavari
     gfile%nmetavarr=meta3%nmetavarr
@@ -917,9 +949,6 @@ contains
     gfile%nmetaaryl=meta3%nmetaaryl
     gfile%nmetaaryc=meta3%nmetaaryc
    
-!    print *,'before nemsio_alextramet,nvar=',gfile%nmetavari,gfile%nmetavarr,gfile%nmetavarl,&
-!      gfile%nmetavarc,'nary=',gfile%nmetaaryi,gfile%nmetaaryr,gfile%nmetaaryl,  &
-!      gfile%nmetaaryc
     call nemsio_alextrameta(gfile,ios)
     if ( ios .ne. 0 ) then
       iret=ios
@@ -1018,7 +1047,31 @@ contains
       gfile%tlmeta=gfile%tlmeta+nread
 !      print *,'tlmetavarcval =',gfile%tlmeta,'nread=',nread
     endif
-!meta arr integer
+!meta var real 8
+    if (gfile%nmetavarr8.gt.0) then
+      iskip=iskip+nread
+      iread=len(gfile%varr8name)*gfile%nmetavarr8
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%varr8name)
+!      print *,'tlmetavarr8=',gfile%tlmeta,'nread=',nread,'iread=',iread,gfile%nmetavarr8
+      if(nread.lt.iread)  then
+         iread=nemsio_charkind8*gfile%nmetavarr8
+         allocate(char8var(gfile%nmetavarr8))
+         call bafrreadl(gfile%flunit,iskip,iread,nread,char8var)
+         gfile%varr8name=char8var
+         deallocate(char8var)
+         if (nread.lt.iread) return
+      endif
+      gfile%tlmeta=gfile%tlmeta+nread
+!      print *,'tlmetavarr =',gfile%tlmeta,'nread=',nread,gfile%nmetavarr8
+      iskip=iskip+nread
+      iread=kind(gfile%varr8val)*gfile%nmetavarr8
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%varr8val)
+      if(nread.lt.iread) return
+      gfile%tlmeta=gfile%tlmeta+nread
+!      print *,'tlmetavarr8val =',gfile%tlmeta,'nread=',nread
+    endif
+!
+!meta arr integeryy
     if (gfile%nmetaaryi.gt.0) then
       iskip=iskip+nread
       iread=len(gfile%aryiname)*gfile%nmetaaryi
@@ -1051,7 +1104,7 @@ contains
 !      print *,'tlmetaaryival =',gfile%tlmeta,'nread=',nread
       enddo
     endif
-!meta arr real
+!meta arr real4
     if (gfile%nmetaaryr.gt.0) then
       iskip=iskip+nread
       iread=len(gfile%aryrname)*gfile%nmetaaryr
@@ -1138,6 +1191,37 @@ contains
         gfile%tlmeta=gfile%tlmeta+nread
       enddo
     endif
+!meta arr real8
+    if (gfile%nmetaaryr8.gt.0) then
+      iskip=iskip+nread
+      iread=len(gfile%aryr8name)*gfile%nmetaaryr8
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryr8name)
+      if(nread.lt.iread)  then
+         iread=nemsio_charkind8*gfile%nmetaaryr8
+         allocate(char8var(gfile%nmetaaryr8))
+         call bafrreadl(gfile%flunit,iskip,iread,nread,char8var)
+         gfile%aryr8name=char8var
+         deallocate(char8var)
+         if (nread.lt.iread) return
+      endif
+      gfile%tlmeta=gfile%tlmeta+nread
+!      print *,'tlmetaaryrnam =',gfile%tlmeta,'nread=',nread
+      iskip=iskip+nread
+      iread=kind(gfile%aryr8len)*gfile%nmetaaryr8
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryr8len)
+      if(nread.lt.iread) return
+      gfile%tlmeta=gfile%tlmeta+nread
+!      print *,'tlmetaaryrlen =',gfile%tlmeta,'nread=',nread
+      allocate(gfile%aryr8val(maxval(gfile%aryr8len),gfile%nmetaaryr8) )
+      do i=1,gfile%nmetaaryr8
+        iskip=iskip+nread
+        iread=kind(gfile%aryr8val)*gfile%aryr8len(i)
+        call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryr8val(:,i))
+        if(nread.lt.iread) return
+        gfile%tlmeta=gfile%tlmeta+nread
+!      print *,'tlmetaaryr8val =',gfile%tlmeta,'nread=',nread
+      enddo
+    endif
 !    print *,'end of rcreate'
 !
 !end if extrameta
@@ -1152,12 +1236,14 @@ contains
       nfhour,nfminute,nfsecondn,nfsecondd,                 &
       dimx,dimy,dimz,nframe,nsoil,ntrac,jcap,ncldt,idvc,idsl,idvm,idrt,     &
       rlon_min,rlon_max,rlat_min,rlat_max,extrameta,                        &
-      nmetavari,nmetavarr,nmetavarl,nmetavarc,                              &
-      nmetaaryi,nmetaaryr,nmetaaryl,nmetaaryc,                              &
+      nmetavari,nmetavarr,nmetavarl,nmetavarc,nmetavarr8,                   &
+      nmetaaryi,nmetaaryr,nmetaaryl,nmetaaryc,nmetaaryr8,                   &
       recname,reclevtyp,reclev,vcoord,lat,lon,dx,dy,cpi,ri,                 &
       variname,varival,varrname,varrval,varlname,varlval,varcname,varcval,  &
+      varr8name,varr8val,                                                   &
       aryiname,aryilen,aryival,aryrname,aryrlen,aryrval,                    &
-      arylname,aryllen,arylval,arycname,aryclen,arycval  )
+      arylname,aryllen,arylval,arycname,aryclen,arycval,                    &
+      aryr8name,aryr8len,aryr8val )
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: write nemsio meta data
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
@@ -1177,7 +1263,8 @@ contains
              rlon_min,rlon_max
     logical(nemsio_logickind),optional,intent(in):: extrameta
     integer(nemsio_intkind),optional,intent(in)  :: nmetavari,nmetavarr, &
-            nmetavarl,nmetavarc,nmetaaryi,nmetaaryr,nmetaaryl,nmetaaryc
+            nmetavarl,nmetavarc,nmetaaryi,nmetaaryr,nmetaaryl,nmetaaryc, &
+            nmetavarr8,nmetaaryr8
 !
     character*(*),optional,intent(in)            :: recname(:),reclevtyp(:)
     integer(nemsio_intkind),optional,intent(in)  :: reclev(:)
@@ -1187,17 +1274,18 @@ contains
     real(nemsio_realkind),optional,intent(in)    :: Cpi(:),Ri(:)
 !
     character*(*),optional,intent(in)            :: variname(:),varrname(:),&
-          varlname(:),varcname(:),aryiname(:),aryrname(:),arylname(:),arycname(:)
+          varlname(:),varcname(:),varr8name(:),aryiname(:),aryrname(:),     &
+          arylname(:),arycname(:),aryr8name(:)
     integer(nemsio_intkind),optional,intent(in)  :: aryilen(:),aryrlen(:),  &
-          aryllen(:),aryclen(:)
+          aryllen(:),aryclen(:),aryr8len(:)
     integer(nemsio_intkind),optional,intent(in)  :: varival(:),aryival(:,:)
     real(nemsio_realkind),optional,intent(in)    :: varrval(:),aryrval(:,:)
+    real(nemsio_dblekind),optional,intent(in)    :: varr8val(:),aryr8val(:,:)
     logical(nemsio_logickind),optional,intent(in):: varlval(:),arylval(:,:)
     character(*),optional,intent(in)             :: varcval(:),arycval(:,:)
 !
 !---  local variables
 !
-    real(nemsio_realkind) :: radi
     integer(nemsio_intkind8) :: iskip,iwrite,nwrite
     type(nemsio_meta1)      :: meta1
     type(nemsio_meta2)      :: meta2
@@ -1332,6 +1420,17 @@ contains
            gfile%varcval=varcval
         endif
       endif
+      if(present(nmetavarr8).and.present(varr8name).and.present(varr8val)) then
+        if( nmetavarr8.gt.0.and.size(varr8name).eq.nmetavarr8 .and. &
+          size(varr8val).eq.nmetavarr8) then
+            gfile%nmetavarr8=nmetavarr8
+            if(allocated(gfile%varr8name)) deallocate(gfile%varr8name)
+            if(allocated(gfile%varr8val)) deallocate(gfile%varr8val)
+            allocate(gfile%varr8name(nmetavarr8),gfile%varr8val(nmetavarr8))
+            gfile%varr8name=varr8name
+            gfile%varr8val=varr8val
+        endif
+      endif
       if(present(nmetaaryi).and.present(aryiname).and.present(aryilen)) then
         if( nmetaaryi.gt.0.and.size(aryiname).eq.nmetaaryi .and. &
           size(aryilen).eq.nmetaaryi) then
@@ -1404,9 +1503,27 @@ contains
             endif
         endif
       endif
+      if(present(nmetaaryr8).and.present(aryr8name).and.present(aryr8len)) then
+        if( nmetaaryr8.gt.0.and.size(aryr8name).eq.nmetaaryr8 .and. &
+          size(aryr8len).eq.nmetaaryr8) then
+            gfile%nmetaaryr8=nmetaaryr8
+            if(allocated(gfile%aryr8name)) deallocate(gfile%aryr8name)
+            if(allocated(gfile%aryr8len)) deallocate(gfile%aryr8len)
+            allocate(gfile%aryr8name(nmetaaryr8),gfile%aryr8len(nmetaaryr8))
+            gfile%aryr8name=aryr8name
+            gfile%aryr8len=aryr8len
+            if(present(aryr8val) ) then
+              if(size(aryr8val).eq.nmetaaryr8*maxval(gfile%aryr8len)) then
+                if(allocated(gfile%aryr8val)) deallocate(gfile%aryr8val)
+                allocate(gfile%aryr8val(maxval(gfile%aryr8len),nmetaaryr8))
+                gfile%aryr8val=aryr8val
+              endif
+            endif
+        endif
+      endif
       if (gfile%nmetavari+gfile%nmetavarr+gfile%nmetavarl+gfile%nmetavarc+ &
-           gfile%nmetaaryi+gfile%nmetaaryr+gfile%nmetaaryl+gfile%nmetaaryc &
-           .lt.8*nemsio_intfill )then
+          gfile%nmetaaryi+gfile%nmetaaryr+gfile%nmetaaryl+gfile%nmetaaryc+ &
+          gfile%nmetavarr8+gfile%nmetaaryr8 .lt.10*nemsio_intfill )then
            print *,'WRONG: gfile%extrameta is not compatiable with input extra meta!'
            return
       endif
@@ -1706,8 +1823,14 @@ contains
       meta3%nmetaaryr=gfile%nmetaaryr
       meta3%nmetaaryl=gfile%nmetaaryl
       meta3%nmetaaryc=gfile%nmetaaryc
+      meta3%nmetavarr8=gfile%nmetavarr8
+      meta3%nmetaaryr8=gfile%nmetaaryr8
       iskip=iskip+nwrite
-      iwrite=nemsio_lmeta3
+      if(gfile%nmetavarr8>0.or.gfile%nmetaaryr8>0) then
+        iwrite=nemsio_lmeta3
+      else
+        iwrite=nemsio_lmeta3-8
+      endif
       call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,meta3)
       if(nwrite.lt.iwrite) return
       gfile%tlmeta=gfile%tlmeta+nwrite
@@ -1728,6 +1851,7 @@ contains
         gfile%tlmetavarival=gfile%tlmeta
         gfile%tlmeta=gfile%tlmeta+nwrite
       endif
+!var real4
       if (gfile%nmetavarr.gt.0) then
         iskip=iskip+nwrite
         iwrite=len(gfile%varrname)*gfile%nmetavarr
@@ -1742,6 +1866,7 @@ contains
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
       endif
+!var logical
       if (gfile%nmetavarl.gt.0) then
         iskip=iskip+nwrite
         iwrite=len(gfile%varlname)*gfile%nmetavarl
@@ -1756,6 +1881,7 @@ contains
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
       endif
+!var character
       if (gfile%nmetavarc.gt.0) then
         iskip=iskip+nwrite
         iwrite=len(gfile%varcname)*gfile%nmetavarc
@@ -1767,6 +1893,21 @@ contains
         iwrite=len(gfile%varcval)*gfile%nmetavarc
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varcval)
 !      print *,'tlmetavarcval=',gfile%tlmeta,'iwrite=',iwrite,'nwrite=',nwrite
+        if(nwrite.lt.iwrite) return
+        gfile%tlmeta=gfile%tlmeta+nwrite
+      endif
+!var real8
+      if (gfile%nmetavarr8.gt.0) then
+        iskip=iskip+nwrite
+        iwrite=len(gfile%varr8name)*gfile%nmetavarr8
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varr8name)
+!      print *,'tlmetavarr8=',gfile%tlmeta,'iwrite=',iwrite,'nwrite=',nwrite
+        if(nwrite.lt.iwrite) return
+        gfile%tlmeta=gfile%tlmeta+nwrite
+        iskip=iskip+nwrite
+        iwrite=kind(gfile%varr8val)*gfile%nmetavarr8
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varr8val)
+!      print *,'tlmetavarr8val=',gfile%tlmeta,'iwrite=',iwrite,'nwrite=',nwrite
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
       endif
@@ -1840,7 +1981,7 @@ contains
           gfile%tlmeta=gfile%tlmeta+nwrite
         enddo
       endif
-!meta arr logical
+!meta arr character array
       if (gfile%nmetaaryc.gt.0) then
         iskip=iskip+nwrite
         iwrite=len(gfile%arycname)*gfile%nmetaaryc
@@ -1861,6 +2002,32 @@ contains
           gfile%tlmeta=gfile%tlmeta+nwrite
         enddo
       endif
+!meta arr real8
+      if (gfile%nmetaaryr8.gt.0) then
+!          print *,'before tlmetaryr8'
+        iskip=iskip+nwrite
+        iwrite=len(gfile%aryr8name)*gfile%nmetaaryr8
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%aryr8name)
+        if(nwrite.lt.iwrite) return
+        gfile%tlmeta=gfile%tlmeta+nwrite
+!          print *,'before tlmetaryr 1'
+        iskip=iskip+nwrite
+        iwrite=kind(gfile%aryr8len)*gfile%nmetaaryr8
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%aryr8len)
+        if(nwrite.lt.iwrite) return
+        gfile%tlmeta=gfile%tlmeta+nwrite
+!          print *,'before tlmetaryr 2'
+        do i=1,gfile%nmetaaryr8
+          iskip=iskip+nwrite
+          iwrite=kind(gfile%aryr8val)*gfile%aryr8len(i)
+          call bafrwritel(gfile%flunit,iskip,iwrite,nwrite, &
+                         gfile%aryr8val(1:gfile%aryr8len(i),i))
+          if(nwrite.lt.iwrite) return
+          gfile%tlmeta=gfile%tlmeta+nwrite
+!          print *,'tlmetaryreal=',i,gfile%tlmeta,'nwrite=',nwrite
+        enddo
+      endif
+
     endif
 
     iret=0
@@ -2143,12 +2310,14 @@ contains
       modelname,version,nmeta,lmeta,nrec,idate,nfday,nfhour,nfminute, &
       nfsecondn,nfsecondd,dimx,dimy,dimz,nframe,nsoil,ntrac,ncldt,jcap,&
       idvc,idsl,idvm,idrt, rlon_min,rlon_max,rlat_min,rlat_max,tlmeta, &
-      extrameta,nmetavari,nmetavarr,nmetavarl,nmetavarc,nmetaaryi,nmetaaryr, &
-      nmetaaryl,nmetaaryc,    &
+      extrameta,nmetavari,nmetavarr,nmetavarl,nmetavarc,nmetavarr8,    &
+      nmetaaryi,nmetaaryr,nmetaaryl,nmetaaryc,nmetaaryr8,   &
       recname,reclevtyp,reclev,vcoord,lon,lat,dx,dy,cpi,ri, &
       variname,varival,varrname,varrval,varlname,varlval,varcname,varcval, &
+      varr8name,varr8val,                                   &
       aryiname,aryilen,aryival,aryrname,aryrlen,aryrval,    &
-      arylname,aryllen,arylval,arycname,aryclen,arycval    )
+      arylname,aryllen,arylval,arycname,aryclen,arycval,    &
+      aryr8name,aryr8len,aryr8val    )
 
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: get nemsio meta data information from outside
@@ -2169,8 +2338,9 @@ contains
     integer(nemsio_intkind),optional,intent(out)  :: tlmeta
     logical(nemsio_logickind),optional,intent(out):: extrameta
     integer(nemsio_intkind),optional,intent(out)  :: nmetavari,nmetavarr, &
-                                                    nmetavarl,nmetavarc,nmetaaryi, &
-                                                    nmetaaryr,nmetaaryl,nmetaaryc
+                                                    nmetavarl,nmetavarc,nmetavarr8, &
+                                                    nmetaaryi,nmetaaryr,nmetaaryl,  &
+                                                    nmetaaryc,nmetaaryr8
     character(*),optional,intent(out)            :: recname(:)
     character(*),optional,intent(out)            :: reclevtyp(:)
     integer(nemsio_intkind),optional,intent(out) :: reclev(:)
@@ -2180,12 +2350,16 @@ contains
     real(nemsio_realkind),optional,intent(out)   :: Cpi(:),Ri(:)
     character(*),optional,intent(out)            :: variname(:),varrname(:)
     character(*),optional,intent(out)            :: varlname(:),varcname(:)
+    character(*),optional,intent(out)            :: varr8name(:)
     character(*),optional,intent(out)            :: aryiname(:),aryrname(:)
     character(*),optional,intent(out)            :: arylname(:),arycname(:)
+    character(*),optional,intent(out)            :: aryr8name(:)
     integer(nemsio_intkind),optional,intent(out) :: aryilen(:),aryrlen(:)
     integer(nemsio_intkind),optional,intent(out) :: aryllen(:),aryclen(:)
+    integer(nemsio_intkind),optional,intent(out) :: aryr8len(:)
     integer(nemsio_intkind),optional,intent(out) :: varival(:),aryival(:,:)
     real(nemsio_realkind),optional,intent(out)   :: varrval(:),aryrval(:,:)
+    real(nemsio_dblekind),optional,intent(out)   :: varr8val(:),aryr8val(:,:)
     logical(nemsio_logickind),optional,intent(out):: varlval(:),arylval(:,:)
     character(*),optional,intent(out)             :: varcval(:),arycval(:,:)
 !
@@ -2331,10 +2505,12 @@ contains
       if (present(nmetavarr) ) nmetavarr=gfile%nmetavarr
       if (present(nmetavarl) ) nmetavarl=gfile%nmetavarl
       if (present(nmetavarc) ) nmetavarc=gfile%nmetavarc
+      if (present(nmetavarr8) ) nmetavarr8=gfile%nmetavarr8
       if (present(nmetaaryi) ) nmetaaryi=gfile%nmetaaryi
       if (present(nmetaaryr) ) nmetaaryr=gfile%nmetaaryr
       if (present(nmetaaryl) ) nmetaaryl=gfile%nmetaaryl
       if (present(nmetaaryc) ) nmetaaryc=gfile%nmetaaryc
+      if (present(nmetaaryr8) ) nmetaaryr8=gfile%nmetaaryr8
       if ( gfile%nmetavari.gt.0 ) then
          if (present(variname)) then
            if( size(variname).eq.gfile%nmetavari) variname=gfile%variname
@@ -2365,6 +2541,14 @@ contains
          endif
          if (present(varcval)) then
            if(size(varcval).eq.gfile%nmetavarc)  varcval=gfile%varcval
+         endif
+      endif
+      if ( gfile%nmetavarr8.gt.0 ) then
+         if (present(varr8name)) then
+           if(size(varr8name).eq.gfile%nmetavarr8) varr8name=gfile%varr8name
+         endif
+         if (present(varr8val)) then
+           if(size(varr8val).eq.gfile%nmetavarr8)  varr8val=gfile%varr8val
          endif
       endif
       if ( gfile%nmetaaryi.gt.0 ) then
@@ -2413,6 +2597,18 @@ contains
          if (present(arycval)) then
            if(size(arycval).eq.gfile%nmetaaryc*maxval(gfile%aryclen) ) &
              arycval=gfile%arycval
+         endif
+      endif
+      if ( gfile%nmetaaryr8.gt.0 ) then
+         if (present(aryr8name)) then
+           if( size(aryr8name).eq.gfile%nmetaaryr8)  aryr8name=gfile%aryr8name
+         endif
+         if (present(aryr8len)) then
+           if(size(aryr8len).eq.gfile%nmetaaryr8)  aryr8len=gfile%aryr8len
+         endif
+         if (present(aryr8val)) then
+           if(size(aryr8val).eq.gfile%nmetaaryr8*maxval(gfile%aryr8len) ) &
+             aryr8val=gfile%aryr8val
          endif
       endif
     endif
@@ -2549,6 +2745,33 @@ contains
     return
   end subroutine nemsio_getfheadvarc
 !------------------------------------------------------------------------------
+   subroutine nemsio_getfheadvarr8(gfile,varname,varval,iret)
+!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
+! abstract: get meta data var value from file header
+!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
+    implicit none
+    type(nemsio_gfile),intent(in)                 :: gfile
+    character(len=*),  intent(in)                 :: varname
+    real(nemsio_dblekind),intent(out)             :: varval
+    integer(nemsio_intkind),optional,intent(out)  :: iret
+    integer i,j
+!---
+    if(present(iret) ) iret=-17
+!---
+    if(gfile%nmetavarr8.gt.0) then
+      do i=1,gfile%nmetavarr8
+        if(equal_str_nocase(trim(varname),trim(gfile%varr8name(i))) ) then
+           varval=gfile%varr8val(i)
+           if(present(iret) ) iret=0
+           return
+        endif
+      enddo
+    endif
+
+    if(.not.present(iret) ) call nemsio_stop
+    return
+  end subroutine nemsio_getfheadvarr8
+!------------------------------------------------------------------------------
   subroutine nemsio_getfheadaryi(gfile,varname,varval,iret)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: get meta data var value from file header
@@ -2684,6 +2907,34 @@ contains
     if(.not.present(iret) ) call nemsio_stop
     return
   end subroutine nemsio_getfheadaryc
+!------------------------------------------------------------------------------
+   subroutine nemsio_getfheadaryr8(gfile,varname,varval,iret)
+!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
+! abstract: get meta data var value from file header
+!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
+    implicit none
+    type(nemsio_gfile),intent(in)                 :: gfile
+    character(*),  intent(in)                     :: varname
+    real(nemsio_dblekind),intent(out)             :: varval(:)
+    integer(nemsio_intkind),optional,intent(out)  :: iret
+    integer i,j,ierr
+!---
+    if(present(iret) ) iret=-17
+!---
+    if(gfile%nmetaaryr8.gt.0) then
+      do i=1,gfile%nmetaaryr8
+        if(equal_str_nocase(trim(varname),trim(gfile%aryr8name(i)))) then
+           varval(:)=gfile%aryr8val(1:gfile%aryr8len(i),i)
+           if(present(iret) ) iret=0
+           ierr=0
+           return
+        endif
+      enddo
+    endif
+!---
+    if(.not.present(iret) ) call nemsio_stop
+    return
+  end subroutine nemsio_getfheadaryr8
 !------------------------------------------------------------------------------
   subroutine nemsio_readrec4(gfile,jrec,data,gdatatype,nframe,iret)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
@@ -4936,6 +5187,13 @@ contains
                   gfile%varcval(gfile%nmetavarc), stat=iret1 )
          if(iret1.ne.0) return
       endif
+      if(gfile%nmetavarr8.gt.0) then
+         if(allocated(gfile%varr8name)) deallocate(gfile%varr8name)
+         if(allocated(gfile%varr8val)) deallocate(gfile%varr8val)
+         allocate(gfile%varr8name(gfile%nmetavarr8), &
+                  gfile%varr8val(gfile%nmetavarr8), stat=iret1 )
+         if(iret1.ne.0) return
+      endif
       if(gfile%nmetaaryi.gt.0) then
          if(allocated(gfile%aryiname)) deallocate(gfile%aryiname)
          if(allocated(gfile%aryilen)) deallocate(gfile%aryilen)
@@ -4966,6 +5224,14 @@ contains
          if(allocated(gfile%arycval)) deallocate(gfile%arycval)
          allocate(gfile%arycname(gfile%nmetaaryc), &
                   gfile%aryclen(gfile%nmetaaryc), stat=iret1 )
+         if(iret1.ne.0) return
+      endif
+      if(gfile%nmetaaryr8.gt.0) then
+         if(allocated(gfile%aryr8name)) deallocate(gfile%aryr8name)
+         if(allocated(gfile%aryr8len)) deallocate(gfile%aryr8len)
+         if(allocated(gfile%aryr8val)) deallocate(gfile%aryr8val)
+         allocate(gfile%aryr8name(gfile%nmetaaryr8), &
+                  gfile%aryr8len(gfile%nmetaaryr8), stat=iret1 )
          if(iret1.ne.0) return
       endif
     endif
@@ -5111,10 +5377,12 @@ contains
     gfile%nmetavarr=nemsio_intfill
     gfile%nmetavarl=nemsio_intfill
     gfile%nmetavarc=nemsio_intfill
+    gfile%nmetavarr8=nemsio_intfill
     gfile%nmetaaryi=nemsio_intfill
     gfile%nmetaaryr=nemsio_intfill
     gfile%nmetaaryl=nemsio_intfill
     gfile%nmetaaryc=nemsio_intfill
+    gfile%nmetaaryr8=nemsio_intfill
     gfile%tlmeta=nemsio_intfill
     gfile%tlmetalat=nemsio_intfill
     gfile%tlmetalon=nemsio_intfill
@@ -5177,7 +5445,7 @@ contains
     integer(nemsio_intkind) i,j,k
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     iret=-17
-    gfile%headvarinum=29
+    gfile%headvarinum=31
     gfile%headvarrnum=4
     gfile%headvarlnum=1
     gfile%headvarcnum=3
@@ -5271,6 +5539,10 @@ contains
     gfile%headvarival(28)=gfile%nmetaaryl
     gfile%headvariname(29)='nmetaaryc'
     gfile%headvarival(29)=gfile%nmetaaryc
+    gfile%headvariname(30)='nmetavarr8'
+    gfile%headvarival(30)=gfile%nmetavarr8
+    gfile%headvariname(31)='nmetaaryr8'
+    gfile%headvarival(31)=gfile%nmetaaryr8
 !
     allocate(gfile%headvarrname(gfile%headvarrnum),gfile%headvarrval(gfile%headvarrnum) )
     gfile%headvarrname(1)='rlon_min'
@@ -5540,7 +5812,6 @@ contains
     gribtable(4)%item(21)=nemsio_grbtbl_item('ocaod','atmos col',3,0,237,200)
     gribtable(4)%item(22)=nemsio_grbtbl_item('suaod','atmos col',3,0,234,200)
     gribtable(4)%item(23)=nemsio_grbtbl_item('ssaod','atmos col',3,0,239,200)
-
 !
     iret=0
   end subroutine nemsio_setgrbtbl
@@ -5575,10 +5846,12 @@ contains
     gfile%nmetavarr=0
     gfile%nmetavarl=0
     gfile%nmetavarc=0
+    gfile%nmetavarr8=0
     gfile%nmetaaryi=0
     gfile%nmetaaryr=0
     gfile%nmetaaryl=0
     gfile%nmetaaryc=0
+    gfile%nmetaaryr8=0
 !    write(0,*)'in gfinit, modelname=',gfile%modelname
 
     if ( equal_str_nocase(trim(gfile%modelname),'GFS')) then
@@ -5764,7 +6037,7 @@ contains
 !lat:
      allocate(slat(gfile%dimy))
      call splat(gfile%idrt,gfile%dimy,slat)
-     radi=180.0/(4.*atan(1.))
+     radi=180.0d0/(4.d0*atan(1.d0))
      do  i=1,gfile%dimy
        gfile%lat((i-1)*gfile%dimx+1:i*gfile%dimx) = asin(slat(i)) * radi
      enddo
@@ -6207,33 +6480,33 @@ contains
       real(4),intent(out) :: ASLAT(JMAX)
       INTEGER(nemsio_intkind),PARAMETER:: KD=SELECTED_REAL_KIND(15,45)
       REAL(KIND=KD):: PK(JMAX/2),PKM1(JMAX/2),PKM2(JMAX/2)
-      REAL(KIND=KD):: ASLATD(JMAX/2),SP,SPMAX,EPS=10.*EPSILON(SP)
+      REAL(KIND=KD):: ASLATD(JMAX/2),SP,SPMAX,EPS=10.d0*EPSILON(SP)
       integer,PARAMETER:: JZ=50
       REAL(nemsio_dblekind) BZ(JZ)
-      DATA BZ        / 2.4048255577,  5.5200781103, &
-       8.6537279129, 11.7915344391, 14.9309177086, 18.0710639679, &
-      21.2116366299, 24.3524715308, 27.4934791320, 30.6346064684, &
-      33.7758202136, 36.9170983537, 40.0584257646, 43.1997917132, &
-      46.3411883717, 49.4826098974, 52.6240518411, 55.7655107550, &
-      58.9069839261, 62.0484691902, 65.1899648002, 68.3314693299, &
-      71.4729816036, 74.6145006437, 77.7560256304, 80.8975558711, &
-      84.0390907769, 87.1806298436, 90.3221726372, 93.4637187819, &
-      96.6052679510, 99.7468198587, 102.888374254, 106.029930916, &
-      109.171489649, 112.313050280, 115.454612653, 118.596176630, &
-      121.737742088, 124.879308913, 128.020877005, 131.162446275, &
-      134.304016638, 137.445588020, 140.587160352, 143.728733573, &
-      146.870307625, 150.011882457, 153.153458019, 156.295034268 /
-      REAL(8):: DLT,D1=1.
+      DATA BZ        / 2.4048255577d0,  5.5200781103d0, &
+       8.6537279129d0, 11.7915344391d0, 14.9309177086d0, 18.0710639679d0, &
+      21.2116366299d0, 24.3524715308d0, 27.4934791320d0, 30.6346064684d0, &
+      33.7758202136d0, 36.9170983537d0, 40.0584257646d0, 43.1997917132d0, &
+      46.3411883717d0, 49.4826098974d0, 52.6240518411d0, 55.7655107550d0, &
+      58.9069839261d0, 62.0484691902d0, 65.1899648002d0, 68.3314693299d0, &
+      71.4729816036d0, 74.6145006437d0, 77.7560256304d0, 80.8975558711d0, &
+      84.0390907769d0, 87.1806298436d0, 90.3221726372d0, 93.4637187819d0, &
+      96.6052679510d0, 99.7468198587d0, 102.888374254d0, 106.029930916d0, &
+      109.171489649d0, 112.313050280d0, 115.454612653d0, 118.596176630d0, &
+      121.737742088d0, 124.879308913d0, 128.020877005d0, 131.162446275d0, &
+      134.304016638d0, 137.445588020d0, 140.587160352d0, 143.728733573d0, &
+      146.870307625d0, 150.011882457d0, 153.153458019d0, 156.295034268d0 /
+      REAL(8):: DLT,D1=1.d0
       INTEGER(4):: JHE,JHO,J0=0
-      real,PARAMETER :: PI=3.14159265358979,C=(1.-(2./PI)**2)*0.25
-      real r
+      real(8),PARAMETER :: PI=3.14159265358979d0,C=(1.d0-(2.d0/PI)**2)*0.25d0
+      real(8) r
       integer jh,js,n,j
 !C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !C  GAUSSIAN LATITUDES
       IF(IDRT.EQ.4) THEN
         JH=JMAX/2
         JHE=(JMAX+1)/2
-        R=1./SQRT((JMAX+0.5)**2+C)
+        R=1.d0/SQRT((JMAX+0.5d0)**2+C)
         DO J=1,MIN(JH,JZ)
           ASLATD(J)=COS(BZ(J)*R)
         ENDDO
@@ -6244,7 +6517,7 @@ contains
         DO WHILE(SPMAX.GT.EPS)
           SPMAX=0.
           DO J=1,JH
-            PKM1(J)=1.
+            PKM1(J)=1.d0
             PK(J)=ASLATD(J)
           ENDDO
           DO N=2,JMAX
@@ -6255,7 +6528,7 @@ contains
             ENDDO
           ENDDO
           DO J=1,JH
-            SP=PK(J)*(1.-ASLATD(J)**2)/(JMAX*(PKM1(J)-ASLATD(J)*PK(J)))
+            SP=PK(J)*(1.d0-ASLATD(J)**2)/(JMAX*(PKM1(J)-ASLATD(J)*PK(J)))
             ASLATD(J)=ASLATD(J)-SP
             SPMAX=MAX(SPMAX,ABS(SP))
           ENDDO
@@ -6275,7 +6548,7 @@ contains
         JHE=(JMAX+1)/2
         JHO=JHE-1
         DLT=PI/(JMAX-1)
-        ASLAT(1)=1.
+        ASLAT(1)=1.d0
         DO J=2,JH
           ASLAT(J)=COS((J-1)*DLT)
         ENDDO
@@ -6293,16 +6566,16 @@ contains
         JHE=(JMAX+1)/2
         JHO=JHE
         DLT=PI/JMAX
-        ASLAT(1)=1.
+        ASLAT(1)=1.d0
         DO J=1,JH
-          ASLAT(J)=COS((J-0.5)*DLT)
+          ASLAT(J)=COS((J-0.5d0)*DLT)
         ENDDO
 !CDIR$ IVDEP
         DO J=1,JH
           ASLAT(JMAX+1-J)=-ASLAT(J)
         ENDDO
         IF(JHE.GT.JH) THEN
-          ASLAT(JHE)=0.
+          ASLAT(JHE)=0.d0
         ENDIF
       ENDIF
 !C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -6315,25 +6588,25 @@ contains
       real(nemsio_dblekind),intent(out) :: ASLAT(JMAX)
       INTEGER(nemsio_intkind),PARAMETER:: KD=SELECTED_REAL_KIND(15,45)
       REAL(KIND=KD):: PK(JMAX/2),PKM1(JMAX/2),PKM2(JMAX/2)
-      REAL(KIND=KD):: ASLATD(JMAX/2),SP,SPMAX,EPS=10.*EPSILON(SP)
+      REAL(KIND=KD):: ASLATD(JMAX/2),SP,SPMAX,EPS=10.d0*EPSILON(SP)
       integer,PARAMETER:: JZ=50
       REAL(nemsio_dblekind) BZ(JZ)
-      DATA BZ        / 2.4048255577,  5.5200781103, &
-       8.6537279129, 11.7915344391, 14.9309177086, 18.0710639679, &
-      21.2116366299, 24.3524715308, 27.4934791320, 30.6346064684, &
-      33.7758202136, 36.9170983537, 40.0584257646, 43.1997917132, &
-      46.3411883717, 49.4826098974, 52.6240518411, 55.7655107550, &
-      58.9069839261, 62.0484691902, 65.1899648002, 68.3314693299, &
-      71.4729816036, 74.6145006437, 77.7560256304, 80.8975558711, &
-      84.0390907769, 87.1806298436, 90.3221726372, 93.4637187819, &
-      96.6052679510, 99.7468198587, 102.888374254, 106.029930916, &
-      109.171489649, 112.313050280, 115.454612653, 118.596176630, &
-      121.737742088, 124.879308913, 128.020877005, 131.162446275, &
-      134.304016638, 137.445588020, 140.587160352, 143.728733573, &
-      146.870307625, 150.011882457, 153.153458019, 156.295034268 /
-      REAL(8):: DLT,D1=1.
+      DATA BZ        / 2.4048255577d0,  5.5200781103d0, &
+       8.6537279129d0, 11.7915344391d0, 14.9309177086d0, 18.0710639679d0, &
+      21.2116366299d0, 24.3524715308d0, 27.4934791320d0, 30.6346064684d0, &
+      33.7758202136d0, 36.9170983537d0, 40.0584257646d0, 43.1997917132d0, &
+      46.3411883717d0, 49.4826098974d0, 52.6240518411d0, 55.7655107550d0, &
+      58.9069839261d0, 62.0484691902d0, 65.1899648002d0, 68.3314693299d0, &
+      71.4729816036d0, 74.6145006437d0, 77.7560256304d0, 80.8975558711d0, &
+      84.0390907769d0, 87.1806298436d0, 90.3221726372d0, 93.4637187819d0, &
+      96.6052679510d0, 99.7468198587d0, 102.888374254d0, 106.029930916d0, &
+      109.171489649d0, 112.313050280d0, 115.454612653d0, 118.596176630d0, &
+      121.737742088d0, 124.879308913d0, 128.020877005d0, 131.162446275d0, &
+      134.304016638d0, 137.445588020d0, 140.587160352d0, 143.728733573d0, &
+      146.870307625d0, 150.011882457d0, 153.153458019d0, 156.295034268d0 /
+      REAL(8):: DLT,D1=1.d0
       INTEGER(4):: JHE,JHO,J0=0
-      real(nemsio_dblekind),PARAMETER :: PI=3.14159265358979,C=(1.-(2./PI)**2)*0.25
+      real(nemsio_dblekind),PARAMETER :: PI=3.14159265358979d0,C=(1.d0-(2.d0/PI)**2)*0.25d0
       real(nemsio_dblekind) r
       integer jh,js,n,j
 !C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -6341,18 +6614,18 @@ contains
       IF(IDRT.EQ.4) THEN
         JH=JMAX/2
         JHE=(JMAX+1)/2
-        R=1./SQRT((JMAX+0.5)**2+C)
+        R=1.d0/SQRT((JMAX+0.5d0)**2+C)
         DO J=1,MIN(JH,JZ)
           ASLATD(J)=COS(BZ(J)*R)
         ENDDO
         DO J=JZ+1,JH
           ASLATD(J)=COS((BZ(JZ)+(J-JZ)*PI)*R)
         ENDDO
-        SPMAX=1.
+        SPMAX=1.d0
         DO WHILE(SPMAX.GT.EPS)
-          SPMAX=0.
+          SPMAX=0.d0
           DO J=1,JH
-            PKM1(J)=1.
+            PKM1(J)=1.d0
             PK(J)=ASLATD(J)
           ENDDO
           DO N=2,JMAX
@@ -6363,7 +6636,7 @@ contains
             ENDDO
           ENDDO
           DO J=1,JH
-            SP=PK(J)*(1.-ASLATD(J)**2)/(JMAX*(PKM1(J)-ASLATD(J)*PK(J)))
+            SP=PK(J)*(1.d0-ASLATD(J)**2)/(JMAX*(PKM1(J)-ASLATD(J)*PK(J)))
             ASLATD(J)=ASLATD(J)-SP
             SPMAX=MAX(SPMAX,ABS(SP))
           ENDDO
@@ -6374,7 +6647,7 @@ contains
           ASLAT(JMAX+1-J)=-ASLAT(J)
         ENDDO
         IF(JHE.GT.JH) THEN
-          ASLAT(JHE)=0.
+          ASLAT(JHE)=0.d0
         ENDIF
 !C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !C  EQUALLY-SPACED LATITUDES INCLUDING POLES
@@ -6383,7 +6656,7 @@ contains
         JHE=(JMAX+1)/2
         JHO=JHE-1
         DLT=PI/(JMAX-1)
-        ASLAT(1)=1.
+        ASLAT(1)=1.d0
         DO J=2,JH
           ASLAT(J)=COS((J-1)*DLT)
         ENDDO
@@ -6392,7 +6665,7 @@ contains
           ASLAT(JMAX+1-J)=-ASLAT(J)
         ENDDO
         IF(JHE.GT.JH) THEN
-          ASLAT(JHE)=0.
+          ASLAT(JHE)=0.d0
         ENDIF
 !C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !C  EQUALLY-SPACED LATITUDES EXCLUDING POLES
@@ -6401,16 +6674,16 @@ contains
         JHE=(JMAX+1)/2
         JHO=JHE
         DLT=PI/JMAX
-        ASLAT(1)=1.
+        ASLAT(1)=1.d0
         DO J=1,JH
-          ASLAT(J)=COS((J-0.5)*DLT)
+          ASLAT(J)=COS((J-0.5d0)*DLT)
         ENDDO
 !DIR$ IVDEP
         DO J=1,JH
           ASLAT(JMAX+1-J)=-ASLAT(J)
         ENDDO
         IF(JHE.GT.JH) THEN
-          ASLAT(JHE)=0.
+          ASLAT(JHE)=0.d0
         ENDIF
       ENDIF
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

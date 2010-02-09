@@ -132,7 +132,7 @@ OBJS_PHY = \
 	gsmddrive_v.o 
 
 OBJS_NEMSIO	= \
-	module_nemsio.o
+	module_NEMSIO.o
 
 SRC = 	\
 	$(OBJS0:.o=.f) 		\
@@ -175,8 +175,8 @@ clean:
 # *****************************************************************
 #
 
-module_nemsio.o: ../gfs_libutil/module_nemsio.F90
-		$(F90) $(FFLAGM) -c ../gfs_libutil/module_nemsio.F90
+module_NEMSIO.o: ../gfs_libutil/module_NEMSIO.F90
+		$(F90) $(FFLAGM) -c ../gfs_libutil/module_NEMSIO.F90
 
 cnvcld_v.o:	cnvcld_v.f
 		$(F77) $(FFLAGM) -c cnvcld_v.f
