@@ -9,11 +9,11 @@
 # @ parallel_threads = _THRDS_
 # @ task_affinity = cpu(_THRDS_)
 # @ blocking = unlimited
-# @ node_usage = not_shared
+# @ node_usage = shared
 # @ resources=ConsumableCPUs(1)ConsumableMemory(5GB)
 # @ class = _CLASS_
 # @ group = _CLASS_
-# @ wall_clock_limit = 00:25:00
+# @ wall_clock_limit = 00:30:00
 # @ preferences = Feature == "dev"
 # @ network.MPI = sn_all,not_shared,us
 # @ account_no=_ACCNR_

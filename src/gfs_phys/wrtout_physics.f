@@ -9,6 +9,7 @@
 !
 ! May 2009 Jun Wang, modified to use write grid component
 ! Jan 2010 Sarah Lu, AOD added to flx files
+! Feb 2010 Jun Wang, write out restart file
 !
 
       use resol_def,               ONLY: latr, levs, levp1, lonr, nfxr
@@ -18,7 +19,6 @@
      &                                   hybrid, fhlwr, fhswr, ens_nam
       use mpi_def,                 ONLY: liope, info, mpi_comm_all, 
      &                                   mc_comp, mpi_comm_null,quilting
-!jw     &                                   mc_comp, mpi_comm_null, icolor
       use gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data, Flx_Var_Data
       USE machine,                 ONLY: kind_evod, kind_io8
       implicit none
@@ -53,15 +53,6 @@
       INTEGER              GLOBAL_LATS_R(LATR),   lonsperlar(LATR)
 !
       REAL (KIND=kind_io8) fluxr(nfxr,LONR,LATS_NODE_R)
-
-!!
-!     real(kind=kind_rad) zsg(lonr,lats_node_r)
-!     real(kind=kind_rad) psg(lonr,lats_node_r)
-!     real(kind=kind_rad) uug(lonr,lats_node_r,levs)
-!     real(kind=kind_rad) vvg(lonr,lats_node_r,levs)
-!     real(kind=kind_rad) teg(lonr,lats_node_r,levs)
-!     real(kind=kind_rad) rqg(lonr,lats_node_r,levh)
-!     real(kind=kind_rad) dpg(lonr,lats_node_r,levs)
 !!
       real(kind=kind_evod) secphy,secswr,seclwr
       real(kind=8) tba,tbb,tbc,tbd
@@ -79,7 +70,6 @@
       endif
 !
       ioproc=nodes_comp-1
-!jw      if(liope) ioproc=nodes_comp
        
       t1=rtc()
 !!
@@ -137,7 +127,6 @@
       if(mc_comp .ne. MPI_COMM_NULL) then
         print *,' wrtout_physics call sfc_collect '
         CALL sfc_collect(sfc_fld,global_lats_r,lonsperlar)
-!jw        IF(LIOPE) then
 !
 ! collect flux grids as was done with sfc grids above.
 ! but only if liope is true.  If liope is false,
@@ -147,7 +136,6 @@
             call   wrtflx_a
      &             (IOPROC,noflx,ZHOUR,FHOUR,IDATE,colat1,SECSWR,SECLWR,
      &              sfc_fld, flx_fld, fluxr, global_lats_r,lonsperlar)
-!jw        endif             ! liope
       endif                 ! comp node
       t4=rtc()
       td=t4-t3
@@ -200,7 +188,6 @@
       print 1011,tf
  1011 format(' WRTOUT_PHYSICS TIME ',f10.4)
       timesum=timesum+(t2-t1)
-!jw      print 1012,timesum,t2-t1,td,te,tf,t4-t3,tba,tbb,tbd
 !     print 1012,timesum,t2-t1,td,te,tf,t4-t3,tba,tbb,tbc,tbd
  1012 format(
      1 ' WRTOUT_PHYSICS TIME ALL TASKS  ',f10.4,f10.4,
@@ -211,23 +198,19 @@
       return
       end
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      SUBROUTINE wrt_restart_physics(
-     &        sfc_fld,
-     &        SI,SL,fhour,idate,
-     &        igen,
-     &        global_lats_r,lonsperlar,
+      SUBROUTINE wrtout_restart_physics(
+     &        sfc_fld, fhour,idate,
+     &        lats_nodes_r,global_lats_r,lonsperlar,
      &        phy_f3d, phy_f2d, ngptc, nblck, ens_nam)
 !!
-      use resol_def,               ONLY: latr, levp1, levs, lonr, 
+      use resol_def,               ONLY: latr, levp1, levs, lonr,
      &                                   num_p2d, num_p3d
       use layout1,                 ONLY: me, nodes, lats_node_r
-!jw      use mpi_def,                 ONLY: icolor
       use gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data, Flx_Var_Data
       USE machine,                 ONLY: kind_evod, kind_phys
       implicit none
 !!
       TYPE(Sfc_Var_Data)        :: sfc_fld
-      TYPE(Flx_Var_Data)        :: flx_fld
       real(kind=kind_evod) fhour
       character (len=*)  :: ens_nam
 !!
@@ -243,60 +226,34 @@
 !!
       integer igen
 !!
+      INTEGER              lats_nodes_r(nodes)
       INTEGER              GLOBAL_LATS_R(LATR)
       INTEGER              lonsperlar(LATR)
       integer IOPROC, IPRINT
       integer needoro, iret, nfill
 !
 !!
-      real runid,usrid
       integer n3,n4,nflop
-      character*20 cflop
+      character*20 cfile
       integer nn
 !!
       IPRINT = 0
 !
-      print *,' cflop=',cflop,'ens_nam=',ens_nam(1:nfill(ens_nam))
+      cfile='SFCR'
+      print *,' cfile=',cfile,'ens_nam=',ens_nam(1:nfill(ens_nam))
 !
-!     print *,' in rest write fhour=',fhour
-!jw      IF (icolor.eq.2) then
-!jw         IOPROC=nodes-1
-!jw      else
-         IOPROC=nodes
-!jw      endif
+      print *,' in rest write fhour=',fhour,
+     &  'idate=',idate,' before para_fixio_w'
 !
-      ixgr = 0
-        if (num_p3d .eq. 4) then          ! Zhao microphysics
-!         ixgr = 2
-          ixgr = 4
-        elseif (num_p3d .eq. 3) then      ! Ferrier microphysics
-!         ixgr = 3
-          ixgr = 5
-        endif
-!     xgf = ixgf
-!
-!jw      IF (icolor.eq.2.and.me.eq.ioproc) print *,' closed ',n3
-!
-!jw      IF (icolor.eq.2) then
-!jw         IOPROC=nodes-1
-!jw      else
-         IOPROC=nodes
-!jw      endif
-
-      ixgr = 0
-
-      nflop=53
-!     cflop='fort.53'
-!jw      IF (icolor.eq.2) then
-!jw         IOPROC=nodes-1
-!jw      else
-         IOPROC=nodes
-!jw      endif
-        CALL para_fixio_w(ioproc,sfc_fld, nflop,cflop,fhour,idate,
-     &                    global_lats_r,lonsperlar)
+      IOPROC=nodes-1
+      CALL para_fixio_w(ioproc,sfc_fld,cfile,fhour,idate,
+     &  lats_nodes_r,global_lats_r,lonsperlar,
+     &  phy_f3d, phy_f2d, ngptc, nblck, ens_nam)
+      print *,'leave restart'
 !
       return
       end
+!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       SUBROUTINE wrtlog_physics(phour,fhour,idate)
       use namelist_physics_def, ONLY: ens_nam
@@ -351,7 +308,6 @@
       SUBROUTINE sfc_collect (sfc_fld,global_lats_r,lonsperlar)
 !!
       use resol_def,               ONLY: latr, lonr, ngrids_sfcc, 
-!jw
      &                                   ngrids_sfcc2d,ngrids_sfcc3d,
      &                                   ngrids_flx, lsoil
       use mod_state,               ONLY:
@@ -735,7 +691,7 @@ c  array copy
       character*16 cfile
       real(kind=kind_io8) xhour
       integer idate(4),k,il, ngridss
-!jws
+!
       integer i,j,ndim3,N2DR,idate7(7),nrec,kount
       integer nfhour,nfminute,nfsecondd,nfsecondn
       logical  :: outtest
@@ -745,11 +701,10 @@ c  array copy
       character(16),allocatable :: variname(:),varrname(:),
      &    aryiname(:),aryrname(:)
       integer,allocatable :: varival(:),aryilen(:),aryival(:,:)
-      real,allocatable    :: varrval(:),aryrval(:,:)
+      real(kind_io4),allocatable    :: varrval(:),aryrval(:,:)
       real(kind_io4),allocatable :: buff_mult(:,:,:),tmp(:)
       type(nemsio_gfile) gfileout
-!jwe
-
+!
 !!
       CHARACTER*8 labfix(4)
       real(kind=kind_io4) yhour
@@ -2009,10 +1964,9 @@ Clu: addition of 6 aod fields ends here -----------------------------
      &  ,nemsio_gfile, nemsio_init,nemsio_finalize
       use resol_def,    ONLY: lonr, latr, levs,ngrids_flx,
      & ncld,ntrac,ntcw,ntoz,lsoil, ivssfc,thermodyn_id,sfcpress_id
-!jw      use mod_state,    ONLY: ngrid,buff_mult
       use layout1,      ONLY: me,idrt
       USE machine,      ONLY: kind_io8, kind_io4
-!jw
+!
       use gfs_physics_output, only : PHY_INT_STATE_ISCALAR,
      &    PHY_INT_STATE_RSCALAR,
      &    PHY_INT_STATE_1D_I,PHY_INT_STATE_1D_R,
@@ -2023,7 +1977,7 @@ Clu: addition of 6 aod fields ends here -----------------------------
       character*16 cfile,NAME2D
       real(kind=kind_io8) zhour,fhour
       integer idate(4),k,il, ngridss
-!jws
+!
       integer i,j,ndim3,N2DR,INDX,idate7(7),kount,nrec
       integer nfhour,nfminute,nfsecondn,nfsecondd
       logical  :: outtest
@@ -2034,10 +1988,10 @@ Clu: addition of 6 aod fields ends here -----------------------------
      &    aryiname(:),aryrname(:)
       integer,allocatable :: varival(:),aryilen(:),
      &    aryival(:,:)
-      real,allocatable    :: varrval(:)
+      real(kind=kind_io4),allocatable    :: varrval(:)
       real(kind=kind_io4),allocatable    :: buff_mult(:,:,:),tmp(:)
       type(nemsio_gfile) gfileout
-!jwe
+!
 
 !!
       CHARACTER*8 labfix(4)

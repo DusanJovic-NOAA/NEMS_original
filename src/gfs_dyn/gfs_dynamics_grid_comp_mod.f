@@ -14,6 +14,7 @@
 !                   => grid_gr is pointed to import state in run step
 !  oct 17 2009      Sarah Lu, add debug print to check imp/exp state
 !  nov 09 2009      Jun Wang, add grid_gr_dfi for digital filter
+!  Feb 05 2010      Jun Wang, add restart step
 !
 !                           
 !
@@ -29,10 +30,8 @@
       use gfs_dynamics_initialize_mod
       use gfs_dynamics_run_mod
       use gfs_dynamics_finalize_mod
-!jws
       use gfs_dyn_mpi_def
       use gfs_dynamics_output, only : point_dynamics_output_gfs
-!jwe
       implicit none
 
 #include "../../inc/ESMF_LogMacros.inc"
@@ -289,8 +288,8 @@
       call gfs_dynamics_start_time_get(					&
                         yy, mm, dd, hh, mns, sec, int_state%kfhour,     &
                         int_state%n1,int_state%n2,int_state%grib_inp,   &
-                        fhrot, int_state%nam_gfs_dyn%sig_ini,           &
-                        int_state%nam_gfs_dyn%sig_ini2, rc1)
+                        int_state%nam_gfs_dyn%grid_ini,                 &
+                        int_state%nam_gfs_dyn%grid_ini2, rc1)
  
       call gfs_dynamics_err_msg(rc1,'getting the start time',rc)
  
@@ -299,7 +298,12 @@
       int_state%phour  = advancecount4 * 				&
                          int_state%nam_gfs_dyn%deltim / 3600.0
       int_state%kfhour = nint(int_state%phour)
-
+!
+      int_state%kdt    = advancecount4
+      print *,'in dyn_grid_comp,advancecount4=',advancecount4,          &
+        'phour=',int_state%phour,'kfhour=',int_state%kfhour,'kdt=',     &
+         int_state%kdt
+!
 ! initialize the clock with the start time based on the information
 ! from calling starttimeget.
 !------------------------------------------
@@ -319,7 +323,7 @@
 
 ! re-set up the start time based on the kfhour value in the sigma file.
 !----------------------------------------------------------------------
-      starttime = starttime + reftimeinterval
+!      starttime = starttime + reftimeinterval
 
 !     call gfs_dynamics_err_msg(rc1,					&
 !                        'set up the reference time interval',rc)
@@ -401,9 +405,9 @@
           call esmf_timeintervalset(runduration,                        &
                                     h = runduration_hour, rc = rc1)
       end if
-      if (runduration_hour < 0) then
-        print *,' fhini=',fhini, ' > fhmax=',fhmax,' job aborted'
-        call mpi_quit(444)
+      if (runduration_hour <= 0) then
+        write(0,*)'WRONG: fhini=',fhini, ' >= fhmax=',fhmax,' job aborted'
+        if(me.eq.0)  call mpi_quit(444)
       endif
       stoptime = currtime  + runduration
                            
@@ -496,46 +500,16 @@
 
       call gfs_dynamics_err_msg(rc1,'grid get info - llgg_s',rc)
 
-! get the size of grid0.  it is just for testing and can be removed.
-!-------------------------------------------------------------------
-!     i2 = 0
-!     CALL ESMF_DistGridGet(DistGrid0, indexCountPDimPDe = i2, rc = rc1)
-
-!     print*, 'local number of the grid0', i2(:, Int_State%me + 1)
-
-!     call gfs_dynamics_err_msg(rc1,'grid get info - grid0',rc)
-
-! allocate points of import/export state in internal module
+! set fhour_date
 !-------------------------------------------------------
-!     call esmf_logwrite("allocate internal state for import/export", 	&
-!                       esmf_log_info, rc = rc1)
-
-!     call gfs_dynamics_states_allocate(gc_gfs_dyn, int_state, 	        &
-!                                        rc = rc1)
-
-!     call gfs_dynamics_err_msg(rc1,                                    &
-!          'allocate internal state to import/export',rc)
-
-! transfer the gfs fields in the internal state 
-! to the esmf export state which is the public interface
-! for other esmf grid components.
-!-------------------------------------------------------
-!     call esmf_logwrite("transfor internal state to export state ", 	&
-!                       esmf_log_info, rc = rc1)
 
       int_state%fhour_idate(1,1)=fhour
       int_state%fhour_idate(1,2:5)=idate(1:4)
-!
-!      call gfs_dynamics_internal2export(gc_gfs_dyn, int_state,         &
-!                                       exp_gfs_dyn, rc1)
-
-!     call gfs_dynamics_err_msg(rc1,                                    &
-!          'transfor internal state to export state',rc)
 
       DEALLOCATE(i2)
 !
 !-------------------------------------------------------
-!##jw send all the head info to write tasks
+! send all the head info to write tasks
 !-------------------------------------------------------
 !
       call point_dynamics_output_gfs(int_state,IMP_STATE_WRITE)
@@ -570,6 +544,7 @@
 !  oct 12 2009       Sarah Lu, point grid_gr to import state once and for all
 !  oct 17 2009       Sarah Lu, debug print added to track imp/exp states
 !  nov 09 2009       Jun Wang, get data from grid_gr_dfi to internal state for dfi
+!  feb 05 2010       Jun Wang, set restart step
 !
 ! !interface:
 !
@@ -577,8 +552,8 @@
       subroutine gfs_dyn_run(gc_gfs_dyn, 				&
                             imp_gfs_dyn, exp_gfs_dyn, clock, rc)
 
-!*    use gfs_dynamics_states_mod
       use gfs_dyn_states_mod
+      use gfs_dyn_date_def
 !
 ! !input variables and parameters:
 !---------------------------------
@@ -608,7 +583,7 @@
       type(gfs_dynamics_internal_state), pointer  :: int_state   
       integer                                     :: rc1          
       integer                                     :: rcfinal     
-!jw
+!
       type(esmf_state)                  :: imp_state_write  !<-- The write gc import state
       logical,save                           :: first_reset=.true.
 
@@ -622,7 +597,7 @@
       integer, parameter                 :: item_count = 3        !chlu_debug
       character(5) :: item_name(item_count)                       !chlu_debug
       character(20) :: vname                                      !chlu_debug
-      data item_name/'t','u','v','p'/                 !chlu_debug
+!     data item_name/'t','u','v','p'/                 !chlu_debug
 
       localPE = 0                                                 !chlu_debug
 
@@ -644,15 +619,16 @@
 ! pointing the local internal state pointer to the esmf internal state pointer.
 !------------------------------------------------------------------------------
       int_state => wrap%int_state
-
+!
 ! get the esmf import state and over-write the gfs internal state.
 ! update the initial condition arrays in the internal state based on
 ! the information of the esmf import state. 
 !------------------------------------------------------------------
       call esmf_logwrite("esmf import state to internal state", 	&
                         esmf_log_info, rc = rc1)
-!jw
+!
       int_state%reset_step = .false.
+      if(int_state%restart_step ) first_reset=.false.
       if( int_state%ndfi>0 .and. int_state%kdt>int_state%ndfi .and.     &    
           first_reset) then
         int_state%reset_step = .true.
@@ -660,10 +636,9 @@
       endif
       print *,'in grid comp,ndfi=',int_state%ndfi,'kdt=',int_state%kdt,  &
        'ndfi=',int_state%ndfi,'first_reset=',first_reset
-
-      if( .not. int_state%start_step ) then
-!*      call gfs_dynamics_import2internal(gc_gfs_dyn, imp_gfs_dyn, 	&
-!*                                        int_state, rc1)
+!
+      if( .not. int_state%restart_step .and. .not. int_state%start_step ) then
+!
         if(.not.int_state%reset_step) then
           print *,'get internal from imp_gfs_dyn'
           call gfs_dynamics_import2internal_mgrid(imp_gfs_dyn,          &
@@ -678,55 +653,6 @@
 
         idate(1:4)=int_state%fhour_idate(1,2:5)
       endif
-
-!! debug print starts here  (Sarah Lu) -----------------------------------
-      lab_if_ckprnt_im : if ( ckprnt .and. (int_state%me ==0) ) then      !chlu_debug
-      if( .not. int_state%start_step ) then
-        do n = 1, item_count                                              !chlu_debug
-            vname = trim(item_name(n))                                    !chlu_debug
-            print *, 'LU_DYN: vname =',n,vname                            !chlu_debug
-            if(associated(fArr3D)) nullify(fArr3D)                        !chlu_debug
-            CALL ESMF_StateGet(state = imp_gfs_dyn                      & !chlu_debug
-                        ,itemName  = vname                              & !chlu_debug
-                        ,field     = ESMFField                          & !chlu_debug
-                        ,rc        = rc1)                                 !chlu_debug
-            call gfs_dynamics_err_msg(rc1,'LU_DYN: get ESMFarray',rc)     !chlu_debug
-            CALL ESMF_FieldGet(field=ESMFField, localDe=0, &              !chlu_debug
-                               farray=fArr3D, rc = rc1)                   !chlu_debug
-            call gfs_dynamics_err_msg(rc1,'LU_DYN: get F90array',rc)      !chlu_debug
-            ii1 = size(fArr3D, dim=1)                                     !chlu_debug
-            ii2 = size(fArr3D, dim=2)                                     !chlu_debug
-            ii3 = size(fArr3D, dim=3)                                     !chlu_debug
-            if(n==1) print *, 'LU_DYN:',ii1, 'x', ii2, 'x', ii3           !chlu_debug
-            print *,' LU_DYN: imp_: ',vname,fArr3D(1,1,1),fArr3D(1,2,1),& !chlu_debug
-                         fArr3D(2,1,1),fArr3D(ii1,ii2,ii3)                !chlu_debug
-        enddo                                                             !chlu_debug
-
-        call ESMF_StateGet(state=imp_gfs_dyn, ItemName='tracers', &       !chlu_debug
-                         fieldbundle=ESMFBundle, rc = rc1)                !chlu_debug
-        call gfs_dynamics_err_msg(rc1,'LU_DYN: get Bundle from imp',rc)   !chlu_debug
-        do n = 1, int_state%ntrac                                         !chlu_debug
-          vname = int_state%gfs_dyn_tracer%vname(n)                       !chlu_debug
-          print *,'LU_DYN: ',trim(vname)                                  !chlu_debug
-          CALL ESMF_FieldBundleGet(bundle=ESMFBundle, &                   !chlu_debug
-                       name= vname, field=ESMFField, rc = rc1)            !chlu_debug
-          CALL ESMF_FieldGet(field=ESMFField, localDe=0, &                !chlu_debug
-                            farray=fArr3D, rc = rc1)                      !chlu_debug
-          if(n==1) then                                                   !chlu_debug
-             ii1 = size(fArr3D, dim=1)                                    !chlu_debug
-             ii2 = size(fArr3D, dim=2)                                    !chlu_debug
-             ii3 = size(fArr3D, dim=3)                                    !chlu_debug
-             print *,'LU_DYN:',ii1, 'x', ii2, 'x', ii3                    !chlu_debug
-          endif                                                           !chlu_debug
-          print *,'LU_DYN: imp_:',trim(vname),&                           !chlu_debug
-                 fArr3D(1,1,1),fArr3D(1,2,1), &                           !chlu_debug
-                 fArr3D(2,1,1),fArr3D(ii1,ii2,ii3)                        !chlu_debug
-        enddo                                                             !chlu_debug
-
-      endif
-      endif lab_if_ckprnt_im                                              !chlu_debug
-!! -------------------------------------- debug print ends here  (Sarah Lu)  
-
 !
 ! get clock times
 ! ------------------
@@ -742,7 +668,6 @@
       donetime = currtime-starttime
 
       int_state%kdt = nint(donetime/timeStep) 
-!      write(0,*)'dyn grid_comp,int_state%kdt=',int_state%kdt
 
       if( currtime .eq. stoptime ) then
           print *,' currtime equals to stoptime '
@@ -750,7 +675,19 @@
       else
           int_state%end_step=.false.
       endif
-
+!
+! get nfcstdate
+      call esmf_timeget(currtime,                                         &
+                        yy=int_state%nfcstdate7(1),                       &
+                        mm=int_state%nfcstdate7(2),                       &
+                        dd=int_state%nfcstdate7(3),                       &
+                        h =int_state%nfcstdate7(4),                       &
+                        m =int_state%nfcstdate7(5),                       &
+                        s =int_state%nfcstdate7(6),                       &
+                        rc=rc1)
+      call gfs_dynamics_err_msg(rc1,'esmf timeget',rc)
+      print *,'before gfs_dyn_run, nfcsttime=',int_state%nfcstdate7(1:6)
+!
 ! ======================================================================
 ! --------------- run the gfs dynamics related -------------------------
 ! ======================================================================
@@ -772,11 +709,6 @@
 
 !
 ! export state is now pointed to grid_gr in init step (Sarah Lu)
-
-!*   call gfs_dynamics_internal2export(gc_gfs_dyn, int_state,  	&
-!*                                       exp_gfs_dyn, rc1)
-
-!*   call gfs_dynamics_err_msg(rc1,'internal state to esmf export state',rc)
 
 !! debug print starts here  (Sarah Lu) -----------------------------------
       lab_if_ckprnt_ex : if ( ckprnt .and. (int_state%me ==0) ) then      !chlu_debug
@@ -824,7 +756,7 @@
 !! -------------------------------------- debug print ends here  (Sarah Lu)
 
 ! ======================================================================
-!*jw------------- put run level variables into write_imp_state---------
+! ------------ put run level variables into write_imp_state---------
 ! ======================================================================
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
      call esmf_logwrite("get imp_state_write from esmf export state",   &

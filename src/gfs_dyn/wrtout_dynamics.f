@@ -354,119 +354,99 @@ cgwv  t2=rtc()
       return
       end
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!     SUBROUTINE wrt_restart_dynamics(TRIE_LS,TRIO_LS,grid_gr,
-!    &        SI,SL,fhour,idate,
-!    &        igen,pdryini,
-!    x        ls_node,ls_nodes,max_ls_nodes,
-!    &        global_lats_a,lonsperlat,SNNP1EV,SNNP1OD,
-!    &        ngptc, nblck, ens_nam)
+       SUBROUTINE wrt_restart_dynamics(TRIE_LS,TRIO_LS,grid_gr,
+     &        SI,fhour,idate,igen,pdryini,
+     x        ls_node,ls_nodes,max_ls_nodes,
+     &        global_lats_a,lonsperlat,lats_nodes_a,ens_nam,
+     &        kdt,nfcstdate7)
+!
+      use gfs_dyn_resol_def
+      use gfs_dyn_layout1
+      use gfs_dyn_mpi_def
+!
+      implicit none
+!
+      real(kind=kind_evod) fhour
+      real(kind=kind_evod) pdryini
+      character (len=*)  :: ens_nam
+      character (255)  :: filename
+!
+      integer              idate(4), igen
+      INTEGER              LS_NODE (LS_DIM*3)
+      integer              ls_nodes(ls_dim,nodes)
+      integer              max_ls_nodes(nodes)
+      integer kdt,nfcstdate7(7)
+ 
+      real(kind=kind_evod) si(levp1)
 !c
-!     use gfs_dyn_resol_def
-!     use gfs_dyn_layout1
-!     use gfs_dyn_mpi_def
-!     use sigio_module
-!     use sigio_r_module
-!     implicit none
-!c
-!     real(kind=kind_evod) fhour
-!     character (len=*)  :: ens_nam
-cc
-!     integer              idate(4), ixgr
-!     INTEGER              LS_NODE (LS_DIM*3)
-!     integer              ls_nodes(ls_dim,nodes)
-!     integer              max_ls_nodes(nodes)
-!
-!     REAL(KIND=KIND_EVOD) SNNP1EV(LEN_TRIE_LS)
-!     REAL(KIND=KIND_EVOD) SNNP1OD(LEN_TRIO_LS)
+      REAL(KIND=KIND_EVOD) TRIE_LS(LEN_TRIE_LS,2,lotls)
+      REAL(KIND=KIND_EVOD) TRIO_LS(LEN_TRIO_LS,2,lotls)
+      REAL(KIND=KIND_grid) grid_gr(lonf,lats_node_a_max,lotgr)
 !!
-!     integer              ngptc, nblck
+      INTEGER              GLOBAL_lats_a(latg)
+      INTEGER              lonsperlat(latg)
+      INTEGER              lats_nodes_a(nodes)
+!
+!-- local variables
+      integer IOPROC, IPRINT
+      integer needoro, iret, nfill
 !!
-!     real(kind=kind_evod) sl(levs)
-!     real(kind=kind_evod) si(levp1)
-!c
-!     REAL(KIND=KIND_EVOD) TRIE_LS(LEN_TRIE_LS,2,lotls)
-!     REAL(KIND=KIND_EVOD) TRIO_LS(LEN_TRIO_LS,2,lotls)
-!     REAL(KIND=KIND_grid) grid_gr(lonf*lats_node_a_max,lotgr)
-!!
-!     integer igen
-!!!
-!     INTEGER              GLOBAL_lats_a(latg)
-!     INTEGER              lonsperlat(latg)
-!     integer IOPROC, IPRINT
-!     integer needoro, iret, nfill
+      IPRINT = 0
+      IOPROC=nodes-1
 !
-!c
-!!
-!     real runid,usrid
-!     integer n3,n4,nflop
-!     character*20 cflop,sigr51, sigr52
-!     real pdryini
-!     integer nn
-!!
-!     IPRINT = 0
+      print *,'in restart,lonsperlat=',lonsperlat
+! n time step spectral file
 !
-!     sigr51 = 'SIGR1' // ens_nam(1:nfill(ens_nam))
-!     sigr52 = 'SIGR2' // ens_nam(1:nfill(ens_nam))
-!     print *,' sigr51=',sigr51,' sigr52=',sigr52
-!    &,'ens_nam=',ens_nam(1:nfill(ens_nam))
+      filename='SIGR1'
+      CALL TWRITES_rst(filename,ioproc,FHOUR,idate,
+     X                SI,LS_NODES,MAX_LS_NODES,
+     X                TRIE_LS(1,1,P_GZ), TRIE_LS(1,1,P_QM ),
+     X                TRIE_LS(1,1,P_TEM), TRIE_LS(1,1,P_DIM),
+     X                TRIE_LS(1,1,P_ZEM), TRIE_LS(1,1,P_RM),
+     X                TRIO_LS(1,1,P_GZ),TRIO_LS(1,1,P_QM ),
+     X                TRIO_LS(1,1,P_TEM), TRIO_LS(1,1,P_DIM),
+     X                TRIO_LS(1,1,P_ZEM), TRIO_LS(1,1,P_RM) )
+!      print *,'1 end of twritero_rst,',trim(filename)
 !
-!     n3=51
-!     call sigio_rwopen(n3,sigr51,iret)
-!     rewind(n3)
-!     IF (icolor.eq.2) then
-!        IOPROC=nodes-1
-!     else
-!        IOPROC=nodes
-!     endif
+! n+1 time step spectral file
 !
+      filename='SIGR2'
+      CALL TWRITES_rst(filename,ioproc,FHOUR,idate,
+     X                SI,LS_NODES,MAX_LS_NODES,
+     X                TRIE_LS(1,1,P_GZ), TRIE_LS(1,1,P_Q ),
+     X                TRIE_LS(1,1,P_TE), TRIE_LS(1,1,P_DI),
+     X                TRIE_LS(1,1,P_ZE), TRIE_LS(1,1,P_RQ),
+     X                TRIO_LS(1,1,P_GZ), TRIO_LS(1,1,P_Q ),
+     X                TRIO_LS(1,1,P_TE), TRIO_LS(1,1,P_DI),
+     X                TRIO_LS(1,1,P_ZE), TRIO_LS(1,1,P_RQ) )
+!      print *,'2 end of twritero_rst for ',trim(filename)
+
+! n time step grid file
 !
-!       CALL TWRITEEO(n3,ioproc,FHOUR,idate,
-!    X                TRIE_LS(1,1,P_ZQ), TRIE_LS(1,1,P_QM ),
-!    X                TRIE_LS(1,1,P_TEM), TRIE_LS(1,1,P_DIM),
-!    X                TRIE_LS(1,1,P_ZEM), TRIE_LS(1,1,P_RM),
-!    X                TRIE_LS(1,1,P_GZ),
-!    X                TRIO_LS(1,1,P_ZQ), TRIO_LS(1,1,P_QM ),
-!    X                TRIO_LS(1,1,P_TEM), TRIO_LS(1,1,P_DIM),
-!    X                TRIO_LS(1,1,P_ZEM), TRIO_LS(1,1,P_RM),
-!    X                TRIO_LS(1,1,P_GZ),
-!    X                SL,SI,pdryini,
-!    X                LS_NODES,MAX_LS_NODES,ixgr,
-!    &                global_lats_a,lonsperlat,nblck)
+       filename='GRDR1'
+       CALL TWRITEG_rst(filename,ioproc,FHOUR,idate,
+     X                SI,pdryini,global_lats_a,lonsperlat,lats_nodes_a,
+     &                grid_gr(1,1,g_qm),grid_gr(1,1,g_ttm),
+     &                grid_gr(1,1,g_uum),grid_gr(1,1,g_vvm),
+     &                grid_gr(1,1,g_rm),grid_gr(1,1,g_gz),
+     &    kdt,nfcstdate7 )
+!       print *,'1 end twriteg_rst,',trim(filename)
 !
-!     IF (icolor.eq.2.and.me.eq.ioproc) print *,' closed ',n3
+! n+1 time step grid file
 !
-!     n4=52
-!     call sigio_rwopen(n4,sigr52,iret)
-!     rewind(n4)
-!     IF (icolor.eq.2) then
-!        IOPROC=nodes-1
-!     else
-!        IOPROC=nodes
-!     endif
-!     ixgr = 0
-!       CALL TWRITEEO(n4,ioproc,FHOUR,idate,
-!    X                TRIE_LS(1,1,P_ZQ), TRIE_LS(1,1,P_Q ),
-!    X                TRIE_LS(1,1,P_TE), TRIE_LS(1,1,P_DI),
-!    X                TRIE_LS(1,1,P_ZE), TRIE_LS(1,1,P_RQ),
-!    X                TRIE_LS(1,1,P_GZ),
-!    X                TRIO_LS(1,1,P_ZQ), TRIO_LS(1,1,P_Q ),
-!    X                TRIO_LS(1,1,P_TE), TRIO_LS(1,1,P_DI),
-!    X                TRIO_LS(1,1,P_ZE), TRIO_LS(1,1,P_RQ),
-!    X                TRIO_LS(1,1,P_GZ),
-!    X                SL,SI,pdryini,
-!    X                LS_NODES,MAX_LS_NODES,ixgr,
-!    &                global_lats_a,lonsperlat,nblck)
-!jfe
+      filename='GRDR2'
+      CALL TWRITEG_rst(filename,ioproc,FHOUR,idate,
+     X                SI,pdryini,global_lats_a,lonsperlat,lats_nodes_a,
+     &                grid_gr(1,1,g_q),grid_gr(1,1,g_tt),
+     &                grid_gr(1,1,g_uu),grid_gr(1,1,g_vv),
+     &                grid_gr(1,1,g_rq),grid_gr(1,1,g_gz),
+     &    kdt,nfcstdate7 )
+!       print *,'2 end twriteg_rst,',trim(filename)
+      call mpi_barrier(mpi_comm_all,iret)
 !
-!     nflop=53
-!     IF (icolor.eq.2) then
-!        IOPROC=nodes-1
-!     else
-!        IOPROC=nodes
-!     endif
-!
-!     return
-!     end
+
+      return
+      end
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       SUBROUTINE wrtlog_dynamics(phour,fhour,idate)
       use gfs_dyn_resol_def

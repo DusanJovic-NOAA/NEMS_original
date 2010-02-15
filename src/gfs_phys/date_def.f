@@ -6,7 +6,7 @@
 !jw      real(kind=kind_evod) fhour,shour,thour,z00
        real(kind=kind_evod) shour,thour,z00
        real(kind=kind_evod),target :: fhour
-       integer,target :: idate(4)
+       integer,target :: idate(4),idate7(7)
 !
       REAL(KIND=KIND_EVOD) ,ALLOCATABLE :: spdmax(:)
 

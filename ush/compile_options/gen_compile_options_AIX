@@ -129,7 +129,9 @@ GOCART_INC=$(INC_GOCART)           ### defined in NCEP_base.mk
   FFLAG_GFS_UTIL=$(OPTS90) $(TRAPS)
   FFLAG_GFS_UTIL90=$(OPTS90) $(TRAPS) -I$(ESMF_MOD) -qfree -NS2048
   FFLAG_GFS_DYN=$(OPTS90) $(TRAPS) -I$(GFS_UTIL)
-  FFLAG_GFS_PHY=$(OPTS90) $(TRAPS) -I$(GFS_UTIL)
+  FFLAG_GFS_DYN90=$(FFLAG90) $(TRAPS) -I$(GFS_UTIL)
+  FFLAG_GFS_PHY=$(FFLAGIO) $(TRAPS) -I$(GFS_UTIL)
+  FFLAG_GFS_PHY90=$(FFLAG90) $(TRAPS) -I$(GFS_UTIL)
   FFLAG_GFS_IO=$(FFLAG90) -I$(GFS_UTIL) -I$(GFS_DYN) -I$(GFS_PHY)
 ###########################################################
 # Local Include Files

@@ -16,6 +16,7 @@
 !! dec 08 2009     Sarah Lu, add g3d_fld to gloopr calling argument
 !! dec 15 2009     Sarah Lu, add g3d_fld to gloopb calling argument;
 !!                           add DQDT check print
+!! Feb 05 2010     J. Wang, write out restart file
 !!
 !!#include "../../inc/f_hpm.h"
       use resol_def
@@ -183,17 +184,17 @@
      &            fluxr,
      &            lats_nodes_r,global_lats_r,lonsperlar,nblck,
      &            COLAT1,CFHOUR1,pl_coeff)
-        IF (mod(kdt,nsres).eq.0) THEN
-          print *,' skip wrt_restart_physics for next implementation '
-!         CALL wrt_restart_physics(
-!    &        sfc_fld,
-!    &        SI,SL,fhour,idate,
-!    &        igen,
-!    &        global_lats_r,lonsperlar,
-!    &        phy_f3d, phy_f2d, ngptc, nblck, ens_nam)
-        endif
       endif ! if ls_out
-
+!
+       IF (kdt>0 .and. mod(kdt,nsres).eq.0) THEN
+           write(0,*)'wrt_restart_physics,kdt=',kdt,'nsres=',nsres
+           CALL wrtout_restart_physics(
+     &        sfc_fld, fhour,idate,
+     &        lats_nodes_r,global_lats_r,lonsperlar,
+     &        phy_f3d, phy_f2d, ngptc, nblck, ens_nam)
+          write(0,*)'after wrtout_restart_physics'
+       endif
+!
       IF (mod(kdt,nszer).eq.0 .and. lsout.and.kdt.ne.0) THEN
         call flx_init(flx_fld,ierr)
         zhour = fhour

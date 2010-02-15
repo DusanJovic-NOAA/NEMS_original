@@ -16,6 +16,7 @@
 !  oct 05 2009        sarah lu, grid_gr unfolded from 2D to 3D
 !  oct 16 2009        sarah lu, add gfs_dyn_tracer
 !  Nov 2009           jun wang, add digital filter variables into internal state
+!  Feb 2010           jun wang, add logical restart
 !
 ! !interface:
 !
@@ -160,7 +161,7 @@
       integer              n1hyb, n2hyb
       integer              nges,ngpken,niter,nnmod,nradf,nradr
       integer              nsfcf,nsfci,nsfcs,nsigi,nsigs,nstep
-      integer              nznlf,nznli,nznls,id,iret,nsout,ndfi          ! jw
+      integer              nznlf,nznli,nznls,id,iret,nsout,ndfi  
 
       integer              ierr,iprint,k,l,locl,n
       integer              lan,lat
@@ -170,10 +171,12 @@
       real(kind=kind_evod) ,allocatable ::  fhour_idate(:,:)
       real(kind=kind_evod) chour
       real(kind=kind_evod) zhour
+      integer              nfcstdate7(7)
 
-      logical start_step, reset_step, end_step
+      logical restart_run
+      logical start_step, reset_step, end_step, restart_step
 
-      logical lsout,ldfi                                                  ! jw
+      logical lsout,ldfi                                        
 
       real(kind=kind_evod),allocatable :: tee1(:)
 

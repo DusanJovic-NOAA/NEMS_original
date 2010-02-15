@@ -12,6 +12,7 @@
 !  oct 05 2009        sarah lu, grid_gr unfolded from 2D to 3D
 !  october  2009      jun wang, output data every time step        
 !  november 2009      jun wang, set digital filter variables 
+!  febrary  2010      jun wang, add restart step
 !
 !
 ! !interface:
@@ -54,17 +55,15 @@
 !
       gis_dyn%ldfi = gis_dyn%ndfi>0 .and. gis_dyn%kdt<=gis_dyn%ndfi  &
            .and. kdt_save<=gis_dyn%ndfi
-!      print *,'in dyn_run, ldfi=',gis_dyn%ldfi,'kdt=', gis_dyn%kdt,   &
-!       'ndfi=',gis_dyn%ndfi,'nsout=',nsout,'kdt_save=',kdt_save, &
-!         'psg=',gis_dyn%grid_gr(135,23,gis_dyn%g_qm), &
-!        gis_dyn%grid_gr(135,23,gis_dyn%g_q),gis_dyn%grid_gr(135,23,gis_dyn%g_zq)
 ! ---------------------------------------------------------------------
 ! change temperature and pressure back to model grid value at n+1  slot.
 !
-!jetest        gis_dyn%lsout = .true.
+      if( .not. gis_dyn% start_step .and. .not. gis_dyn% reset_step       &
+        .and. .not. gis_dyn%restart_step ) then
 !
-      if( .not. gis_dyn% start_step .and. .not. gis_dyn% reset_step ) then
         gis_dyn%lsout = mod(gis_dyn%kdt,nsout).eq.0 .or. gis_dyn%kdt==1
+!
+! ---------------------------------------------------------------------
 !! grid_gr unfolded from 2D to 3D (Sarah Lu)
         call common_to_model_vars (gis_dyn%grid_gr(1,1,gis_dyn%g_zq),      &
                                    gis_dyn%grid_gr(1,1,gis_dyn%g_t ),      &
@@ -72,15 +71,22 @@
                                    gis_dyn%grid_gr(1,1,gis_dyn%g_u ),      &
                                    gis_dyn%grid_gr(1,1,gis_dyn%g_v ),      &
                                    gis_dyn%global_lats_a,	           &
-                                   gis_dyn%lonsperlat,     		   &
-                                   gis_dyn%pwat, gis_dyn%ptot )
+                                   gis_dyn%lonsperlat) 
 !       lsfwd=.false.
       else
         print *,' the first time step, model running from internal state.'
 !       lsfwd=.true.
       endif
-!      print *,'after common_modelvars,start_step=',gis_dyn% start_step,'lsout=',gis_dyn%lsout,'psg=',      &
-!         gis_dyn%grid_gr(135,23,gis_dyn%g_q),gis_dyn%grid_gr(135,23,gis_dyn%g_zq)
+!
+! ---------------------------------------------------------------------
+!! get pwat and ptot
+      call getpwatptot(gis_dyn%grid_gr(1,1,gis_dyn%g_zq),      &
+                       gis_dyn%grid_gr(1,1,gis_dyn%g_t ),      &
+                       gis_dyn%grid_gr(1,1,gis_dyn%g_rt),      &
+                       gis_dyn%global_lats_a,                  &
+                       gis_dyn%lonsperlat,                     &
+                       gis_dyn%pwat, gis_dyn%ptot )
+
 !
 ! ---------------------------------------------------------------------
 ! check whether time step is changes to update matrix
@@ -101,9 +107,6 @@
 ! ---------------------------------------------------------------------
 ! check whether reset step due to dfi
 !
-!jw      if( gis_dyn%kdt .lt. kdt_save ) then
-!jw        gis_dyn%reset_step = .true.
-!jw      endif
       kdt_save = kdt_save+1
 
 ! ======================================================================
@@ -112,12 +115,10 @@
       if( gis_dyn% spectral_loop == 1 ) then
 !
 !! grid_gr unfolded from 2D to 3D (Sarah Lu)
-      write(0,*)'beforE do one loop,grid_grps=',gis_dyn% grid_gr(1:3,1,g_zq)
         call  do_dynamics_one_loop(    gis_dyn% deltim         ,	&
                gis_dyn% kdt           ,gis_dyn% phour          ,	&
                gis_dyn% trie_ls       ,gis_dyn% trio_ls        ,	&
-!              gis_dyn% grid_gr       ,					&
-               gis_dyn% grid_gr(1,1,1),gis_dyn% grid_gr_dfi    ,        &        ! jw
+               gis_dyn% grid_gr(1,1,1),gis_dyn% grid_gr_dfi    ,        &        
                gis_dyn% ls_node       ,gis_dyn% ls_nodes       ,	&
                gis_dyn% max_ls_nodes  ,					&
                gis_dyn% lats_nodes_a  ,gis_dyn% global_lats_a  ,	&
@@ -139,10 +140,11 @@
                gis_dyn% pdryini       ,gis_dyn% nblck          ,	&
                gis_dyn% zhour         ,					&
                gis_dyn% n1            ,gis_dyn% n4             ,	&
-               gis_dyn% lsout	      ,gis_dyn% ldfi           ,        &         ! jw
+               gis_dyn% lsout	      ,gis_dyn% ldfi           ,        &        
                gis_dyn% colat1        ,gis_dyn% cfhour1	       ,	&
-               gis_dyn% start_step    ,                                 &
-               gis_dyn% reset_step    ,gis_dyn% end_step       )
+               gis_dyn% start_step    ,gis_dyn% restart_step   ,        &
+               gis_dyn% reset_step    ,gis_dyn% end_step       ,        &
+               gis_dyn% nfcstdate7)
 !
 ! ======================================================================
 !                     do one time step with two-loop
@@ -152,8 +154,7 @@
         call  do_dynamics_two_loop(    gis_dyn% deltim         ,	&
                gis_dyn% kdt           ,gis_dyn% phour 	       ,	&
                gis_dyn% trie_ls       ,gis_dyn% trio_ls        ,	&
-!!             gis_dyn% grid_gr       ,	 				&
-               gis_dyn% grid_gr(1,1,1),gis_dyn% grid_gr_dfi    ,        &        ! jw
+               gis_dyn% grid_gr(1,1,1),gis_dyn% grid_gr_dfi    ,        &       
                gis_dyn% ls_node       ,gis_dyn% ls_nodes       ,	&
                gis_dyn% max_ls_nodes  ,					&
                gis_dyn% lats_nodes_a  ,gis_dyn% global_lats_a  ,	&
@@ -175,10 +176,11 @@
                gis_dyn% pdryini       ,gis_dyn% nblck          ,	&
                gis_dyn% zhour         ,					&
                gis_dyn% n1            ,gis_dyn% n4             ,	&
-               gis_dyn% lsout	      ,gis_dyn% ldfi           ,        &         ! jw
+               gis_dyn% lsout	      ,gis_dyn% ldfi           ,        &     
                gis_dyn% colat1        ,gis_dyn% cfhour1	,		&	
-               gis_dyn%start_step     ,                                 &
-               gis_dyn%reset_step     ,gis_dyn% end_step       )
+               gis_dyn%start_step     ,gis_dyn% restart_step   ,        &
+               gis_dyn%reset_step     ,gis_dyn% end_step       ,        &
+               gis_dyn% nfcstdate7)
 
       else
 
@@ -189,9 +191,6 @@
 
       endif
 !
-!      write(0,*)'in gfs_dynamics,after one loop,zhour=',gis_dyn%zhour,'grid_gr(zq)=',   &
-!       maxval(gis_dyn%grid_gr(:,gis_dyn%g_zq)),minval(gis_dyn%grid_gr(:,gis_dyn%g_zq)), &
-!       't=',maxval(gis_dyn%grid_gr(:,gis_dyn%g_t)),minval(gis_dyn%grid_gr(:,gis_dyn%g_t))
 ! =======================================================================
 !                   end of one- or two-loop computation
 ! =======================================================================

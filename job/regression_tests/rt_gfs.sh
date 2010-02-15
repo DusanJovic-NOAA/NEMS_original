@@ -25,6 +25,7 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_RUNDIR_:${RUNDIR}:g \
                     | sed s:_PATHTR_:${PATHTR}:g \
                     | sed s:_FDFI_:${FDFI}:g \
+                    | sed s:_FHRES_:${FHRES}:g \
                     | sed s:_REDUCEDGRID_:${REDUCEDGRID}:g \
                     | sed s:_ADIAB_:${ADIAB}:g \
                     | sed s:_NUMFILE_:${NUMFILE}:g \

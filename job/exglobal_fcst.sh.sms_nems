@@ -27,12 +27,13 @@
 # 2009-11     Jun Wang, activate reduced grid option and digital filter option
 # 2009-12     Jun Wang, link atm_namelist.rc to configure_file
 # 2010-01-14  Sarah Lu : Added GOCART_CLIM and GOCART_LUTS
+# 2010-02     Jun Wang  Add restart
 #
 #
-# Usage:  global_forecast.sh SIGI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO
+# Usage:  global_forecast.sh GRDI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO
 #
 #   Input script positional parameters:
-#     1             Input sigma file 1
+#     1             Input grd file 1
 #                   defaults to $SIGI; one or the other is required
 #     2             Input surface file
 #                   defaults to $SFCI; one or the other is required
@@ -356,7 +357,8 @@ fi
 #  Command line arguments.
 export ENS_NUM=${ENS_NUM:-1}
 export FM=${FM}
-export SIGI=${1:-${SIGI:-?}}
+#export SIGI=${1:-${SIGI:-?}}
+export GRDI=${1:-${GRDI:-?}}
 export SFCI=${2:-${SFCI:-?}}
 export SIGO=${3:-${SIGO}}
 export FLXO=${4:-${FLXO}}
@@ -395,6 +397,7 @@ export nsout=${nsout:-0}
 export NUM_FILE=${NUM_FILE:-3}
 export QUILTING=${QUILTING:-.true.}
 export REDUCED_GRID=${REDUCED_GRID:-.true.}
+export nemsioget=${nemsioget:-/climate/save/wx20wa/gfsio/nems/nemsio_get}
 #
 export EXPLICIT=${EXPLICIT:-.false.}
 export NON_ITER_SEMI_LAGRANGIAN_FV=${NON_ITER_SEMI_LAGRANGIAN_FV:-.false.}
@@ -402,6 +405,8 @@ export ZFLXTVD=${ZFLXTVD:-.false.}
 export pre_rad=${pre_rad:-.false.}
 export random_xkt2=${random_xkt2:-.true.}
 export FCSTEXEC=${FCSTEXEC:-${EXECGLOBAL}/global_fcst$XC}
+export GRDI2=${GRDI2:-NULL}
+export SIGI1=${SIGI1:-NULL}
 export SIGI2=${SIGI2:-NULL}
 export CO2CON=${CO2CON:-${FIXGLOBAL}/global_co2con.l${LEVS}.f77}
 export MTNVAR=${MTNVAR:-${FIXGLOBAL}/global_mtnvar.t${JCAP}.f77}
@@ -445,6 +450,8 @@ export IAER=${IAER:-0}
 export ICO2=${ICO2:-0}
 #export IALB=${IALB:-0}
 #
+export GRDR1=${GRDR1:-${DATA}/grdr1}
+export GRDR2=${GRDR2:-${DATA}/grdr2}
 export SIGR1=${SIGR1:-${DATA}/sigr1}
 export SIGR2=${SIGR2:-${DATA}/sigr2}
 export SFCR=${SFCR:-${DATA}/sfcr}
@@ -530,7 +537,11 @@ export pgm=$PGM
 $LOGSCRIPT
 ${NCP:-cp} $FCSTEXEC $DATA
 rm -f NULL
-FH=$((10#$FHINI))
+if [ $FHINI -lt 10 ]; then
+  FH=$((10#$FHINI))
+else
+  FH=$FHINI
+fi
 [[ $FH -lt 10 ]]&&FH=0$FH
 if [[ $FHINI -gt 0 ]]
 then
@@ -608,9 +619,18 @@ if [[ $ENS_NUM -le 1 ]] ; then
     [[ $FH -lt 10 ]]&&FH=0$FH
   fi
 #        For Initial Conditions
-  ln -fs $SIGI sig_ini
-  ln -fs $SFCI sfc_ini
-  ln -fs $SIGI2 sig_ini2
+  if [ $FHINI = $FHROT ]; then
+    ln -fs $GRDI grid_ini
+    ln -fs $SFCI sfc_ini
+    export RESTART=.false.
+  else
+    ln -fs $GRDI grid_ini
+    ln -fs $GRDI2 grid_ini2
+    ln -fs $SIGI sig_ini
+    ln -fs $SIGI2 sig_ini2
+    ln -fs $SFCI sfc_ini
+    export RESTART=.true.
+  fi
 #        For output
   while [[ $FH -le $FHMAX ]] ; do
     if [ $FH -eq 00 ] ; then
@@ -629,6 +649,8 @@ if [[ $ENS_NUM -le 1 ]] ; then
     ((FH=10#$FH+10#$FHOUT))
     [[ $FH -lt 10 ]]&&FH=0$FH
   done
+  ln -fs $GRDR1 GRDR1
+  ln -fs $GRDR2 GRDR2
   ln -fs $SIGR1 SIGR1
   ln -fs $SIGR2 SIGR2
   ln -fs $SFCR  SFCR
@@ -641,6 +663,8 @@ else
 #   ${NCP:-cp} $SFCI  ${SFCI}${MN}
 #   ${NCP:-cp} $SIGI2 ${SIGI2}${MN}
 #        For Initial Conditions
+    ln -fs ${GRDI}${MN} grd_ini${MN}
+    ln -fs ${GRDI2}${MN} grd_ini2${MN}
     ln -fs ${SIGI}${MN} sig_ini${MN}
     ln -fs ${SFCI}${MN} sfc_ini${MN}
     ln -fs ${SIGI2}${MN} sig_ini2${MN}
@@ -688,13 +712,23 @@ while [ $c -le $ENS_NUM ] ; do
 done
 
 export wgrib=${wgrib:-/nwprod/util/exec/wgrib}
-CDATE=$($wgrib -4yr $SIGI | grep -i hgt |awk -F: '{print $3}' |awk -F= '{print $2}')
-INI_YEAR=$(echo $CDATE | cut -c1-4)
-echo "now"
-echo ${INI_YEAR}
-INI_MONTH=$(echo $CDATE | cut -c5-6)
-INI_DAY=$(echo $CDATE | cut -c7-8)
-INI_HOUR=$(echo $CDATE | cut -c9-10)
+if [ $FHINI -eq 0 ]; then
+  CDATE=$($wgrib -4yr $GRDI | grep -i hgt |awk -F: '{print $3}' |awk -F= '{print $2}')
+  INI_YEAR=$(echo $CDATE | cut -c1-4)
+  echo "now"
+  echo ${INI_YEAR}
+  INI_MONTH=$(echo $CDATE | cut -c5-6)
+  INI_DAY=$(echo $CDATE | cut -c7-8)
+  INI_HOUR=$(echo $CDATE | cut -c9-10)
+else
+  CDATE=$($nemsioget $GRDI idate | grep -i "idate" |awk -F= '{print $2}')
+  INI_YEAR=$(echo $CDATE | awk -F" " '{print $1}')
+  echo "now"
+  echo ${INI_YEAR}
+  INI_MONTH=$(echo $CDATE | awk -F" " '{print $2}')
+  INI_DAY=$(echo $CDATE | awk -F" " '{print $3}')
+  INI_HOUR=$(echo $CDATE | awk -F" " '{print $4}')
+fi
 
 cat << EOF > atm_namelist.rc
 
@@ -738,6 +772,7 @@ start_hour:           ${INI_HOUR}
 start_minute:         0.0
 start_second:         0.0
 nhours_fcst:          ${FHMAX}
+restart:              ${RESTART}
 inpes:                1
 jnpes:                ${PE1}
 im:                   ${LONB}

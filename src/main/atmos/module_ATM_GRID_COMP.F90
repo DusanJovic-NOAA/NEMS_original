@@ -32,6 +32,7 @@
 !                       dyn2chem and phy2chem coupler components
 !   2009-12-23  Lu    - Modify GFS_INTEGRATE routine to loop thru dyn, phy,  
 !                       and chem gridded component
+!   2010-02-05  Wang  - Added restart file for GFS
 !
 ! USAGE: ATM Gridded component parts called from subroutines within
 !        module_ATM_DRIVER_COMP.F90.
@@ -1800,7 +1801,7 @@
 !
 !-----------------------------------------------------------------------
       INTEGER(kind=KINT) :: MEMBER_ID,MODENS,NENS                       &
-                           ,NFHOUT,NFMOUT,NFSOUT,NSOUT                  &
+                           ,NFHOUT,NFMOUT,NFSOUT,NSOUT,NTSD,IRTN        &
                            ,TOTAL_MEMBER,TOTAL_TASKS
 !
       INTEGER(kind=KINT) :: RC,RC_INIT,IERR
@@ -1817,12 +1818,31 @@
                                                                            !     the GFS physics gridded component.
 
 !* GOCART Grid is pointed to ATM Grid
-!*    TYPE(ESMF_Grid) :: GRID_GFS_ATM                                      !<-- The ESMF grid for the integration attached to
       TYPE(ESMF_Grid), target :: GRID_GFS_ATM                              !<-- The ESMF grid for the integration attached to
                                                                            !     the GFS ATM gridded component.
 
       TYPE(ESMF_Grid), pointer :: GRID_GFS_CHEM                            !<-- The ESMF grid for the integration attached to
                                                                            !     the GFS chemistry gridded component.
+!* restart file
+!
+      TYPE(ESMF_Time) :: CURRTIME                                       &  !<-- The ESMF current time.
+                        ,STARTTIME                                         !<-- The ESMF start time.
+!
+      INTEGER(kind=KINT) :: IYEAR_FCST                                  &  !<-- Current year from restart file
+                           ,IMONTH_FCST                                 &  !<-- Current month from restart file
+                           ,IDAY_FCST                                   &  !<-- Current day from restart file
+                           ,IHOUR_FCST                                  &  !<-- Current hour from restart file
+                           ,IMINUTE_FCST                                &  !<-- Current minute from restart file
+                           ,ISECOND_FCST                                   !<-- Current second from restart file
+!
+      INTEGER(kind=KINT),DIMENSION(7) :: FCSTDATE
+!
+      INTEGER(ESMF_KIND_I8) :: NTSD_START                                  !<-- Timestep count (>0 for restarted runs)
+!
+      REAL(kind=KFPT) :: SECOND_FCST                                       !<-- Current second from restart file
+      CHARACTER(64) :: RESTART_FILENAME
+!
+      TYPE(NEMSIO_GFILE) :: GFILE
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -1970,6 +1990,121 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!-----------------------------------------------------------------------
+!***  Extract the start time from the clock.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="NMM_ATM_INIT: Start Time from Driver Clock"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ClockGet(clock    =CLOCK_ATM                            &  !<-- The ESMF Clock of this domain
+                        ,startTime=STARTTIME                            &  !<-- The simulation start time
+                        ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CURRTIME=STARTTIME
+      NTSD_START=0
+!
+!-----------------------------------------------------------------------
+!***  Extract the RESTART flag from the configure file.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Restart Flag from Config File"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The config object
+                                  ,value =RESTARTED_RUN                 &  !<-- True => restart; False => cold start
+                                  ,label ='restart:'                    &  !<-- Give this label's value to the previous variable
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      if(restarted_run)print *,'restart_run is true'
+!
+!-----------------------------------------------------------------------
+!***  If this is a restarted run then read:
+!***    (1) The forecast time that the file was written.
+!***    (2) The forecast timestep at which the file was written.
+!-----------------------------------------------------------------------
+!
+      restart: IF(RESTARTED_RUN)THEN                                       !<-- If this is a restarted run, set the current time
+!
+        RESTART_FILENAME='grid_ini'
+        CALL NEMSIO_INIT()
+        CALL NEMSIO_OPEN(GFILE,trim(RESTART_FILENAME),'read',iret=IRTN)
+         print *,'after ensmio open restartfile, irtn=',irtn
+!
+        CALL NEMSIO_GETHEADVAR(GFILE,'FCSTDATE',FCSTDATE,iret=irtn)
+!
+        IYEAR_FCST  =FCSTDATE(1)
+        IMONTH_FCST =FCSTDATE(2)
+        IDAY_FCST   =FCSTDATE(3)
+        IHOUR_FCST  =FCSTDATE(4)
+        IMINUTE_FCST=FCSTDATE(5)
+        SECOND_FCST =0.
+!
+        IF(FCSTDATE(7)/=0)THEN
+          SECOND_FCST=FCSTDATE(6)/(FCSTDATE(7)*1.)
+        ENDIF
+!
+        CALL NEMSIO_GETHEADVAR(gfile,'NTIMESTEP',NTSD,iret=irtn)
+        print *,'in rerestart.ntsd=',ntsd,'irtn=',irtn
+!
+        CALL NEMSIO_CLOSE(GFILE,iret=IERR)
+        CALL NEMSIO_finalize()
+!
+        ISECOND_FCST=NINT(SECOND_FCST)                                     !<-- ESMF clock needs integer seconds
+        NTSD_START=NTSD
+!
+!~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="RESTART: Set the Current Time of the Forecast"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_TimeSet(time=CURRTIME                                 &  !<-- Current time of the forecast (ESMF)
+                         ,yy  =IYEAR_FCST                               &  !<-- Year from restart file
+                         ,mm  =IMONTH_FCST                              &  !<-- Month from restart file
+                         ,dd  =IDAY_FCST                                &  !<-- Day from restart file
+                         ,h   =IHOUR_FCST                               &  !<-- Hour from restart file
+                         ,m   =IMINUTE_FCST                             &  !<-- Minute from restart file
+                         ,s   =ISECOND_FCST                             &  !<-- Second from restart file
+                         ,rc  =RC)
+         print *,'in gfs_atm_init, currtime,IYEAR_FCST=',IYEAR_FCST,   &
+        IMONTH_FCST,IDAY_FCST ,IHOUR_FCST,IMINUTE_FCST,ISECOND_FCST,  &
+        'ntsd=',ntsd
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+      ENDIF restart
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Set the Current Time on the ATM Clock"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ClockSet(clock       =CLOCK_ATM                         &  !<-- The ATM Component's Clock
+                        ,currtime    =CURRTIME                          &  !<-- Current time of simulation
+                        ,advanceCount=NTSD_START                        &  !<-- Timestep at this current time
+                        ,rc          =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      IF( ESMF_ClockIsStopTime(CLOCK_ATM,RC)) then
+         print *,'in GFS_ATM_INIT, It is stop time'
+      ENDIF
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !***  Create the Dynamics gridded subcomponent.

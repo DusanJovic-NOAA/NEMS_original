@@ -1,5 +1,5 @@
       SUBROUTINE do_dynamics_one_loop(deltim,kdt,PHOUR,
-     &                 TRIE_LS,TRIO_LS,GRID_GR,grid_gr_dfi,              ! jw
+     &                 TRIE_LS,TRIO_LS,GRID_GR,grid_gr_dfi,             
      &                 LS_NODE,LS_NODES,MAX_LS_NODES,
      &                 LATS_NODES_A,GLOBAL_LATS_A,
      &                 LONSPERLAT,
@@ -14,8 +14,9 @@
      &                 SYN_GR_A_2,DYN_GR_A_2,ANL_GR_A_2,
      &                 LSLAG,pwat,ptot,
      &                 pdryini,nblck,ZHOUR,N1,N4,
-     &                 LSOUT,ldfi,COLAT1,CFHOUR1,                          ! jw
-     &                 start_step,reset_step,end_step)
+     &                 LSOUT,ldfi,COLAT1,CFHOUR1,                          
+     &                 start_step,restart_step,reset_step,end_step,
+     &                 nfcstdate7)
 cc
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
@@ -31,10 +32,10 @@ cc
       IMPLICIT NONE
 !!     
       CHARACTER(16)                     :: CFHOUR1
-      INTEGER,INTENT(IN):: LONSPERLAT(LATG),N1,N4
+      INTEGER,INTENT(IN):: LONSPERLAT(LATG),N1,N4,nfcstdate7(7)
       REAL(KIND=KIND_EVOD),INTENT(IN):: deltim,PHOUR
       REAL(KIND=KIND_EVOD),INTENT(INOUT):: ZHOUR
-!jw
+!
       type(gfs_dfi_grid_gr),intent(inout) :: grid_gr_dfi
       logical,intent(in)  :: ldfi
 !!     
@@ -43,16 +44,16 @@ cc
       REAL(KIND=KIND_EVOD) TRIE_LS(LEN_TRIE_LS,2,LOTls)
       REAL(KIND=KIND_EVOD) TRIO_LS(LEN_TRIO_LS,2,LOTls)
       REAL(KIND=KIND_GRID) GRID_GR(lonf*lats_node_a_max,lotgr)
-cc
+! 
       integer          ls_node(ls_dim,3)
-cc
+!
       INTEGER          LS_NODES(LS_DIM,NODES)
       INTEGER          MAX_LS_NODES   (NODES)
       INTEGER          LATS_NODES_A   (NODES)
       INTEGER          LATS_NODES_EXT (NODES)
       INTEGER          GLOBAL_LATS_A(LATG)
       INTEGER          GLOBAL_LATS_EXT(LATG+2*JINTMX+2*NYPT*(NODES-1))
-c
+!
       real(kind=kind_evod) colat1
 
       REAL(KIND=KIND_EVOD)      EPSE(LEN_TRIE_LS)
@@ -107,7 +108,8 @@ c
       logical , parameter :: repro = .false.
       include 'function2'
       LOGICAL               LSLAG,LSOUT,ex_out
-      LOGICAL               start_step,reset_step,end_step
+      lOGICAL               start_step,reset_step,end_step
+      LOGICAL               restart_step
 !!     
       LOGICAL, save               :: fwd_step = .true.
       REAL (KIND=KIND_grid), save :: dt,dt2,rdt2
@@ -127,8 +129,8 @@ c
       real(kind=kind_evod) spdmax_nodes(levs,nodes)
       real(kind=kind_mpi) spdmax_nodesm(levs,nodes)
 !
-c
-c timings
+!
+! timings
       real(kind=kind_evod) global_times_a(latg,nodes)
       integer tag,ireq1,ireq2
       real*8 rtc ,timer1,timer2
@@ -146,8 +148,7 @@ c timings
       filtb = (cons1-filta)*cons0p5          !constant
 !
 !----------------------------------------------------------
-!jw      if (.NOT.LIOPE.or.icolor.ne.2) then
-      if (me<num_pes_fcst) then                                          !jwang
+      if (me<num_pes_fcst) then            
 !----------------------------------------------------------
 !
       if(zfirst) then
@@ -190,9 +191,6 @@ c timings
 ! if it is reset step to reset internal state to be import state
 ! ----- this section is called once only -------
 ! --------------------------------------------------------------
-!       print *,' reset internal values by import for all,grid_gr= '
-!     &  ,'kdt=',kdt
-!     &  ,grid_gr(1:3,g_zq)
 
         fwd_step = .true.
         dt  = deltim*0.5
@@ -235,6 +233,32 @@ c timings
      &       snnp1ev,snnp1od,plnev_a,plnod_a)
 !
         reset_step = .false.
+! -------------------------------------------------------
+!### for restart step
+      elseif(restart_step) then
+!
+        fwd_step = .false.
+        dt = deltim
+        dt2=cons2*dt
+        rdt2=1./dt2
+        if(hybrid)then
+          call get_cd_hyb(dt)
+        else if( gen_coord_hybrid ) then
+          call get_cd_hyb_gc(dt)
+        else
+          call get_cd_sig(am,bm,dt,tov,sv)
+        endif
+!
+        zfirst=.false.
+
+        call spect_to_grid
+     &      (trie_ls,trio_ls,
+     &       syn_gr_a_1,syn_gr_a_2,
+     &       ls_node,ls_nodes,max_ls_nodes,
+     &       lats_nodes_a,global_lats_a,lonsperlat,
+     &       epse,epso,epsedn,epsodn,
+     &       snnp1ev,snnp1od,plnev_a,plnod_a)
+
 ! -------------------------------------------------------
       else	! end start_step, begin not start_step 
 ! ------------------------------------------------------
@@ -549,18 +573,19 @@ c timings
       endif 	! end not start_step
 ! ------------------------------------------------
       endif 	! only for fcst pes
+!
 !--------------------------------------------
-! =====================================================================
-!--------------------------------------------
-!**jw digital filter state collect
+!-- digital filter state collect
 !--------------------------------------------
 !      print *,'in one loop,call gfs_dfi_coll,ldfi=',ldfi,'kdt=',kdt
       IF (ldfi) THEN
         call gfs_dficoll_dynamics(grid_gr,grid_gr_dfi)
       ENDIF
 !
+! =====================================================================
+      if(.not.restart_step) then
+!
 !--------------------------------------------
-!jw      IF (lsout.and.kdt.ne.0) THEN
       IF (lsout) THEN
 !--------------------------------------------
 CC
@@ -578,46 +603,32 @@ c
      & pdryini)
 !
         CALL f_hpmstop(32)
-CC
+!!
         CALL countperf(1,18,0.)
-CC
 !!
-!       IF (mod(kdt,nsres).eq.0.and.kdt.ne.0) THEN
-!!
-!         CALL wrt_restart_dynamics(TRIE_LS,TRIO_LS,grid_gr,
-!    &        SI,SL,fhour,idate,
-!    &        igen,pdryini,
-!    &        ls_node,ls_nodes,max_ls_nodes,
-!    &        global_lats_a,lonsperlat,SNNP1EV,SNNP1OD,
-!    &        ngptc,  nblck, ens_nam)
-c
-!       ENDIF
 ! ----------------------------------
       ENDIF ! if ls_out
 ! ----------------------------------
-! =====================================================================
-cmy
-! ----------------------------------
-!jw      if (reshuff_lats_a) then  
-! ----------------------------------
-c
-!jw        tag = kdt
-!jw        if (me .eq. 0) then
-!jw          CALL MPI_isend(global_lats_a,latg,MPI_INTEGER,
-!jw     &               nodes,tag,MPI_COMM_ALL,ireq1,IERR)
-!jw        elseif (liope .and. icolor .eq. 2) then
-!jw          CALL MPI_irecv(global_lats_a,latg,MPI_INTEGER,
-!jw     &               0,tag,MPI_COMM_ALL,ireq2,IERR)     
-!jw
-!jw        endif
-!jw        call mpi_barrier(MPI_COMM_ALL,ierr)
-!jw          if (liope .and. icolor .eq. 2) 
-!jw     &    print*,' after mpi_irecv global_lats_a for io node = ',
-!jw     &     global_lats_a
+!!
+       print *,'kdt=',kdt,'nsres=',nsres,'write=',mod(kdt,nsres),
+     &   'lonsperlat=',lonsperlat
+!
+       IF (mod(kdt,nsres).eq.0.and.kdt.ne.0) THEN
+!!
+         CALL wrt_restart_dynamics(TRIE_LS,TRIO_LS,grid_gr,
+     &        SI,fhour,idate,igen,pdryini,
+     &        ls_node,ls_nodes,max_ls_nodes,
+     &        global_lats_a,lonsperlat,lats_nodes_a,ens_nam,
+     &    kdt,nfcstdate7)
+!
+       ENDIF
+!
+!-- end of restart step
+       else
+          restart_step=.false.
+       endif
 
-! ----------------------------------
-!jw      endif ! reshuff_lats_a
-! ----------------------------------
+! =====================================================================
 !
 !  finish integration, then return
 ! -----------------------------------
@@ -644,7 +655,6 @@ c
 !
 ! =====================================================================
 !----------------------------------------------------------
-!jw      if (.NOT.LIOPE.or.icolor.ne.2) then
       if (me<num_pes_fcst) then
 !----------------------------------------------------------
 !

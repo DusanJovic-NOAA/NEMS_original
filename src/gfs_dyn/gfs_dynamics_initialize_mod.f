@@ -18,6 +18,7 @@
 !  Oct 05  2009 sarah lu         grid_gr unfolded from 2D to 3D
 !  Oct 16  2009 sarah lu         initialize gfs_dyn_tracer
 !  november 2009 j. wang         grid_gr_dfi for digital filter
+!  Feb 05  2010 j. wang          add option to read in  restart file
 !
 !
 ! !interface:
@@ -29,10 +30,11 @@
       use gfs_dynamics_getcf_mod
       use gfs_dyn_machine, only : kind_io4
       use gfsio_module , only : gfsio_init
-!jw
+!
       use gfs_dyn_mod_state, only : buff_mult_pieceg
       use gfs_dyn_layout1, only : ipt_lats_node_a
       use gfs_dyn_resol_def, only : adiabatic
+      use namelist_dynamics_def, only : fhrot,fhini
       use gfs_dyn_tracer_config, only: gfs_dyn_tracer,     &
                                        tracer_config_init
 
@@ -66,6 +68,7 @@
 ! set up gfs internal state dimension and values for dynamics etc
 !-------------------------------------------------------------------
       me     = gis_dyn%me
+      write(0,*)'in initial,nbefore allocate lonsperlat,',allocated(gis_dyn%lonsperlat),'latg=',latg
 !
       nodes  = gis_dyn%nodes
       nlunit = gis_dyn%nam_gfs_dyn%nlunit
@@ -78,11 +81,9 @@
                            gis_dyn%spectral_loop,               	&
                      me,   gis_dyn%nam_gfs_dyn%nlunit, 			&
                            gis_dyn%nam_gfs_dyn%gfs_dyn_namelist,        &
-                           gis_dyn%ndfi)                                     ! jw
-!      write(0,*)'after compns_dyn,me=',me,'ntoz=',gis_dyn%ntoz
+                           gis_dyn%ndfi)                           ! jw
 !
       call get_tracer_const(gis_dyn%ntrac,me,gis_dyn%nam_gfs_dyn%nlunit)
-!      write(0,*)'after gettracer_con=',gis_dyn%ntrac
 !
 ! met+chem tracer specification (Sarah Lu)
 !
@@ -199,8 +200,9 @@
 !hmhj allocate(z(lnt2))	! not used
 !hmhj allocate(z_r(lnt2))	! not used
 !
+      write(0,*)'before allocate lonsperlat,',allocated(gis_dyn%lonsperlat),'latg=',latg
       allocate(gis_dyn%lonsperlat(latg))
-
+!
       if( reduced_grid ) then
         print *,' run with reduced gaussian grid '
         call set_lonsgg(gis_dyn%lonsperlat)
@@ -369,37 +371,7 @@
 !!      create io communicator and comp communicator
 !!
       if (me == 0) write(0,*) 'io option ,liope :',liope
-!
-!##jw      call mpi_comm_dup(mpi_comm_all, mpi_comm_all_dup, ierr)
-!##jw      call mpi_barrier (mpi_comm_all_dup,               ierr)
-
-!##jw      if (nodes == 1) liope=.false.
-!##jw      if (liope) then
-!##jw        call mpi_comm_rank(mpi_comm_all_dup,nrank_all,ierr)
-!##jw        icolor=1
-!##jw        ikey=1
-!##jw        nodes_comp=nodes-1
-!##jw        if (nrank_all.eq.nodes-1) then
-!!  io server
-!##jw          write(*,*) 'io server task'
-!##jw         icolor=2
-!##jw        gis_dyn%kcolor=mpi_undefined
-!##jw          call mpi_comm_split(mpi_comm_all_dup,icolor,ikey,mc_io,ierr)
-!##jw          call mpi_comm_split(mpi_comm_all_dup,gis_dyn%kcolor,ikey,mc_comp,ierr)
-!##jw        else
-!sela     write(*,*) 'compute server task '
-!##jw          icolor=mpi_undefined
-!##jw          gis_dyn%kcolor=1
-!##jw          call mpi_comm_split(mpi_comm_all_dup,gis_dyn%kcolor,ikey,mc_comp,ierr)
-!##jw          call mpi_comm_split(mpi_comm_all_dup,icolor,ikey,mc_io,ierr)
-!##jw          call mpi_comm_size(mc_comp,nodes,ierr)
-!##jw        endif
-!##jw      else
-!##jw        icolor=2
-!##jw        mc_comp=mpi_comm_all_dup
-!##jw        nodes_comp=nodes
-!##jw      endif
-!!jw
+!!
       nodes_comp=nodes
 !c
       call f_hpminit(me,"evod")  !jjt hpm stuff
@@ -413,15 +385,10 @@
 !jfe  call countperf(0,15,0.)
 !
       if (me.eq.0) then
-      print 100, jcap,levs
+        print 100, jcap,levs
 100   format (' smf ',i3,i3,' created august 2000 ev od ri ')
-      print*,'number of threads is ',num_parthds()
-!jw        if (liope) then
-!jw          print*,'number of mpi procs is ',nodes
-!jw          print*,'number of mpi io procs is 1 (nodes)'
-!jw        else
-          print*,'number of mpi procs is ',nodes
-!jw        endif
+        print*,'number of threads is',num_parthds()
+        print*,'number of mpi procs is',nodes
       endif
 !c
       gis_dyn%cons0    =    0.0d0     !constant
@@ -429,20 +396,12 @@
       gis_dyn%cons1200 = 1200.d0      !constant
       gis_dyn%cons3600 = 3600.d0      !constant
 !c
-!jw      if (liope) then
-!jw         if (icolor.eq.2) then
-!jw           ls_dim = jcap1
-!jw         else
-!jw           ls_dim = (jcap1-1)/nodes+1
-!jw         endif
-!jw      else
-         ls_dim = (jcap1-1)/nodes+1
-!jw      endif
+      ls_dim = (jcap1-1)/nodes+1
 !!
-!c
 !cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 !c
-!c
+      write(0,*)'befpre allocate ls_nodes,',allocated(gis_dyn%ls_nodes),'ls_dim=', &
+        ls_dim,'nodes=',nodes
       allocate (      gis_dyn%ls_node (ls_dim*3) )
       allocate (      gis_dyn%ls_nodes(ls_dim,nodes) )
       allocate (  gis_dyn%max_ls_nodes(nodes) )
@@ -469,6 +428,9 @@
          len_trie_ls=len_trie_ls+(jcap+3-l)/2
          len_trio_ls=len_trio_ls+(jcap+2-l)/2
       enddo
+      print *,'ls_node=',gis_dyn%ls_node(1:ls_dim),'2dim=',  &
+         gis_dyn%ls_node(ls_dim+1:2*ls_dim),'3dim=',  &
+         gis_dyn%ls_node(2*ls_dim+1:3*ls_dim)
 !c
 !c
       allocate (       gis_dyn%epse  (len_trie_ls) )
@@ -512,12 +474,13 @@
            gis_dyn%plnev_a,gis_dyn%plnod_a,				&
            gis_dyn%pddev_a,gis_dyn%pddod_a, 				&
            gis_dyn%plnew_a,gis_dyn%plnow_a,gis_dyn%colat1)
-!jw
+!
       gis_dyn%lats_node_a=gis_dyn%lats_nodes_a(me+1)
       gis_dyn%ipt_lats_node_a=ipt_lats_node_a
-!      write(0,*)'after getcon_dynamics,lats_node_a=',gis_dyn%lats_node_a &
-!       ,'ipt_lats_node_a=',gis_dyn%ipt_lats_node_a,'ngptc=',ngptc
+      write(0,*)'after getcon_dynamics,lats_node_a=',gis_dyn%lats_node_a &
+       ,'ipt_lats_node_a=',gis_dyn%ipt_lats_node_a,'ngptc=',ngptc
 !
+      print *,'ls_nodes=',gis_dyn%ls_nodes(1:ls_dim,me+1)
 !!
       gis_dyn%nblck=lonf/ngptc+1
 
@@ -532,8 +495,6 @@
               gis_dyn%xlon, gis_dyn%xlat, gis_dyn%lonsperlat)  
 
       call countperf(0,18,0.)
-!!
-!jw      if (.not.liope.or.icolor.ne.2) then
 !!
       call countperf(0,15,0.)
       allocate (      gis_dyn%trie_ls(len_trie_ls,2,lotls) )
@@ -557,9 +518,7 @@
 !      write(0,*)'after allocate lonf=',lonf,'lats_node_a_max=',lats_node_a_max, &
 !       'ngrids_gg=',ngrids_gg
 !!
-!** jw allocate digital filter vars
-      print *,'in init, dfi,ntrac=',ntrac,'ntoz=',ntoz,'ntcw=',ntcw
-      gis_dyn%kdt=0
+!** allocate digital filter vars
       gis_dyn%grid_gr_dfi%z_imp=0;gis_dyn%grid_gr_dfi%ps_imp=0
       gis_dyn%grid_gr_dfi%z_imp=0;gis_dyn%grid_gr_dfi%ps_imp=0
       gis_dyn%grid_gr_dfi%temp_imp=0;gis_dyn%grid_gr_dfi%u_imp=0
@@ -603,11 +562,11 @@
         allocate( gis_dyn%grid_gr_dfi%dpdt(lonf,lats_node_a_max,levs))
       endif
 !
-!**jws allocate output vars
+!** allocate output vars
       allocate(buff_mult_pieceg(lonf,lats_node_a_max,ngrids_gg))
       buff_mult_pieceg=0.
       adiabatic=gis_dyn%adiabatic
-!**jwe
+!**
 
 !!
       allocate (      gis_dyn%fhour_idate(1,5) )
@@ -638,16 +597,40 @@
 !              ' sig_ini2=',gis_dyn%nam_gfs_dyn%sig_ini2 
       call countperf(0,18,0.)
       gis_dyn%pdryini = 0.0
+      print *,' grid_ini=',gis_dyn%nam_gfs_dyn%grid_ini,'fhrot=',fhrot,   &
+       'fhini=',fhini,'restart_run=',gis_dyn%restart_run
 
-      call input_fields(gis_dyn%n1, gis_dyn%n2, gis_dyn%pdryini,           &
-        gis_dyn%trie_ls, gis_dyn%trio_ls,  gis_dyn%grid_gr ,               &
-        gis_dyn%ls_node, gis_dyn%ls_nodes, gis_dyn%max_ls_nodes,           &
-        gis_dyn%snnp1ev, gis_dyn%snnp1od,                                  &
-        gis_dyn%global_lats_a,  gis_dyn%nblck,   gis_dyn%lonsperlat,       &
-        gis_dyn%epse, gis_dyn%epso, gis_dyn%plnev_a, gis_dyn%plnod_a,      &
-        gis_dyn%plnew_a, gis_dyn%plnow_a, gis_dyn%lats_nodes_a,	           &
-        gis_dyn%nam_gfs_dyn%sig_ini, gis_dyn%nam_gfs_dyn%sig_ini2,         &
-        gis_dyn%pwat, gis_dyn%ptot)
+      if( .not. gis_dyn%restart_run) then
+        call input_fields(gis_dyn%nam_gfs_dyn%grid_ini, gis_dyn%pdryini,     &
+          gis_dyn%trie_ls, gis_dyn%trio_ls,  gis_dyn%grid_gr ,               &
+          gis_dyn%ls_node, gis_dyn%ls_nodes, gis_dyn%max_ls_nodes,           &
+          gis_dyn%snnp1ev, gis_dyn%snnp1od,                                  &
+          gis_dyn%global_lats_a, gis_dyn%lonsperlat,                         &
+          gis_dyn%epse, gis_dyn%epso, gis_dyn%plnev_a, gis_dyn%plnod_a,      &
+          gis_dyn%plnew_a, gis_dyn%plnow_a, gis_dyn%lats_nodes_a,	     &
+          gis_dyn%pwat, gis_dyn%ptot)
+!
+          gis_dyn% start_step  = .true.
+          gis_dyn% reset_step  = .false.
+          gis_dyn% restart_step  = .false.
+      else
+        print *,'restart,filename=',trim(gis_dyn%nam_gfs_dyn%grid_ini), &
+          trim(gis_dyn%nam_gfs_dyn%grid_ini2),trim(gis_dyn%nam_gfs_dyn%sig_ini), &
+          trim(gis_dyn%nam_gfs_dyn%sig_ini2)
+        call input_fields_rst(gis_dyn%nam_gfs_dyn%grid_ini,                  &
+          gis_dyn%nam_gfs_dyn%grid_ini2,gis_dyn%nam_gfs_dyn%sig_ini,         &
+          gis_dyn%nam_gfs_dyn%sig_ini2, gis_dyn%pdryini,                     &
+          gis_dyn%trie_ls, gis_dyn%trio_ls,  gis_dyn%grid_gr ,               &
+          gis_dyn%ls_node, gis_dyn%ls_nodes, gis_dyn%max_ls_nodes,           &
+          gis_dyn%snnp1ev, gis_dyn%snnp1od,                                  &
+          gis_dyn%global_lats_a,  gis_dyn%lonsperlat,       &
+          gis_dyn%epse, gis_dyn%epso, gis_dyn%plnev_a, gis_dyn%plnod_a,      &
+          gis_dyn%plnew_a, gis_dyn%plnow_a, gis_dyn%lats_nodes_a)
+!
+          gis_dyn% start_step  = .false.
+          gis_dyn% reset_step  = .false.
+          gis_dyn% restart_step  = .true.
+      endif
 !!
         call countperf(1,18,0.)
 !!
@@ -674,8 +657,6 @@
       call countperf(1,18,0.)
 !!
       gis_dyn%zhour        = fhour
-      gis_dyn% start_step  = .true.
-      gis_dyn% reset_step  = .false.
 !
 !
       end subroutine gfs_dynamics_initialize

@@ -1,254 +1,230 @@
-       SUBROUTINE PARA_FIXIO_W(IOPROC,sfc_fld, nw,cfile,xhour,idate,
-     &                         global_lats_r,lonsperlar)
+       SUBROUTINE PARA_FIXIO_W(IOPROC,sfc_fld, cfile,xhour,idate,
+     &         lats_nodes_r,global_lats_r,lonsperlar,
+     &         phy_f3d,phy_f2d,ngptc,nblck,ens_nam)
 !!
-      use resol_def,     ONLY: latr, lonr, lsoil, ivssfc_restart
-      use layout1,       ONLY: lats_node_r, me
-      use sfcio_module,  ONLY: sfcio_head, sfcio_dbta, sfcio_axdbta,
-     &                         sfcio_swohdc, sfcio_alhead, sfcio_axdbta
-      use gfs_physics_sfc_flx_mod
-      USE machine,   ONLY: kind_io4, kind_ior, kind_io8
+      use resol_def,     ONLY: latr, lonr, levs, lsoil, ivssfc_restart,
+     &                         num_p2d, num_p3d
+      use layout1,       ONLY: lats_node_r, me,ipt_lats_node_r,nodes
+      use module_nemsio
+      use gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data
+      USE machine,   ONLY: kind_io4, kind_ior, kind_io8,kind_phys
       implicit none
 !!
-      TYPE(Sfc_Var_Data)        :: sfc_fld
+      TYPE(Sfc_Var_Data),intent(in)    :: sfc_fld
+      integer,intent(in)               :: idate(4),ioproc
+      real(kind=kind_io8),intent(in)   :: xhour
+      character*(*),intent(in)         :: cfile,ens_nam
+      INTEGER,intent(in)               :: lats_nodes_r(nodes)
+      INTEGER,intent(in)               :: GLOBAL_LATS_R(latr)
+      INTEGER,intent(in)               :: lonsperlar(latr)
 !
-      integer nw,IOPROC
-      character*(*) cfile
-      real(kind=kind_io8) xhour
-      INTEGER              GLOBAL_LATS_R(latr)
-      INTEGER              lonsperlar(latr)
+      integer,intent(in) :: ngptc, nblck
+      REAL (KIND=KIND_phys),intent(in) ::
+     &            phy_f3d(ngptc,levs,nblck,LATS_NODE_R,num_p3d)
+     &,           phy_f2d(LONR,LATS_NODE_R,num_p2d)
+!
 !!
+      real(kind=kind_io8),allocatable:: bfo(:,:)
+      integer k,lan,i,nphyfld,fieldsize
 !!
-!mi   real(kind=kind_io4) buff4(lonr,latr,4)
-      real(kind=kind_ior) buff4(lonr,latr)
-      real(kind=kind_io8) bfo(lonr,lats_node_r)
-      real(kind=kind_io8) buffi(lonr,lats_node_r)
-      integer kmsk(lonr,lats_node_r),kmskcv(lonr,lats_node_r)
-      integer idate(4),k,il
-!!
-!     CHARACTER*8 labfix(4)
-!     real(kind=kind_io4) yhour
       integer,save:: version
-!CluX data version/200004/
-!mi   data version/200412/
 !
-      type(sfcio_head) head
-      type(sfcio_dbta) data
-      integer iret
+      CHARACTER*2 nump3d,nump2d
+      type(nemsio_gfile)  :: gfile
+!
+      integer iret,nrec,nmetavari,nmetavarr8,nmetaaryi,nmetaaryr8,
+     &    idate7(7),nmeta,jrec,l,nsfcrec,nrecs,nrecs1
+      integer nfhour,nfminute,nfsecondn,nfsecondd,nsoil
+      character(16),allocatable :: variname(:),varr8name(:)
+      character(16),allocatable :: aryiname(:),aryr8name(:)
+      integer,allocatable :: varival(:),aryilen(:),aryr8len(:),
+     &     aryival(:,:)
+      real(kind=kind_io8),allocatable :: varr8val(:),aryr8val(:,:)
+      character(16),allocatable :: recname(:),reclevtyp(:)
+      integer,allocatable :: reclev(:)
       logical first
-      save head, first
+      sAve first,nsoil,nmetavari,variname,varival,
+     &     nmetavarr8,varr8name,varr8val,nmetaaryi,aryiname,aryilen,
+     &     aryival,nmetaaryr8,aryr8name,aryr8len,aryr8val,
+     &     nmeta,nrec,nrecs,nrecs1,recname,reclevtyp,reclev
       data first /.true./
 !
 !@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 !
+      print *,'in para_fix_w'
+      nsfcrec=31
+      fieldsize=sum(lonsperlar)
+      nphyfld=nsfcrec+3*lsoil+num_p2d+num_p3d*levs
+      allocate(bfo(fieldsize,nphyfld))
+!
+      call fld_collect(sfc_fld,phy_f2d,phy_f3d,ngptc,nblck,
+     &  fieldsize,nphyfld,bfo,lats_nodes_r,global_lats_r,lonsperlar,
+     &  ioproc,nsfcrec)
+       write(0,*)'after fld_collect'
+!
       if (me.eq.ioproc) then
         if (first) then
-          head%clabsfc = CHAR(0)//CHAR(0)//CHAR(0)//CHAR(0)//
-     &                   CHAR(0)//CHAR(0)//CHAR(0)//CHAR(0)
-          head%latb    = latr
-          head%lonb    = lonr
-          head%ivs     = ivssfc_restart
-          head%irealf  = 2
-          head%lsoil   = lsoil
-          call sfcio_alhead(head,iret)
-          head%lpl     = lonsperlar(1:latr/2)
+          nsoil   = lsoil
+          nmeta=5
+
+          nmetavari=2
+          allocate(variname(nmetavari),varival(nmetavari))
+          variname=(/'ivs   ','irealf'/)
+          varival=(/ivssfc_restart, 2/)
+          print *,'after vari'
+
+          nmetaaryi=1
+          allocate(aryiname(nmetaaryi),aryilen(nmetaaryi))
+          aryiname(1)='lpl'
+          aryilen(1)=latr/2
+          allocate(aryival(maxval(aryilen),nmetaaryi))
+          aryival(1:latr/2,1)=lonsperlar(1:latr/2)
+          print *,'after aryi'
+!
+          nmetaaryr8=1
+          allocate(aryr8name(nmetaaryr8),aryr8len(nmetaaryr8))
+          aryr8name(1)='zsoil'
+          aryr8len(1)=lsoil
+          allocate(aryr8val(maxval(aryr8len),nmetaaryr8))
           if (lsoil .eq. 4) then
-            head%zsoil   = (/-0.1,-0.4,-1.0,-2.0/)
+            aryr8val(1:lsoil,1) = (/-0.1,-0.4,-1.0,-2.0/)
           elseif (lsoil .eq. 2) then
-            head%zsoil   = (/-0.1,-2.0/)
+            aryr8val(1:lsoil,1) = (/-0.1,-2.0/)
           endif
-          first = .false.
+          print *,'after aryr8'
+!
+          nmetavarr8=1
+          allocate(varr8name(nmetavarr8),varr8val(nmetavarr8))
+          varr8name=(/'fhour'/)
+          print *,'after varr'
+!
+          nrecs=nsfcrec
+          nrecs1=nrecs+1
+          nrec=nrecs+3*nsoil+num_p3d*levs+num_p2d
+          write(0,*)'after nrec=',nrec,'nsoil=',nsoil,'num_p3d=',
+     &      num_p3d,'num_p2d=',num_p2d
+          allocate(recname(nrec),reclevtyp(nrec),reclev(nrec))
+!record name
+          RECNAME(1)='tmp'
+          RECNAME(2)='weasd'
+          RECNAME(3)='tg3'
+          RECNAME(4)='sfcr'
+!          RECNAME(5)='tcdc'
+!          RECNAME(6)='pres'
+!          RECNAME(7)='pres'
+          RECNAME(5)='alvsf'
+          RECNAME(6)='alvwf'
+          RECNAME(7)='alnsf'
+          RECNAME(8)='alnwf'
+          RECNAME(9)='land'
+          RECNAME(10)='veg'
+          RECNAME(11)='cnwat'
+          RECNAME(12)='f10m'
+!          RECNAME(13)='tmp'
+!          RECNAME(14)='spfh'
+          RECNAME(13)='vtype'
+          RECNAME(14)='sotyp'
+          RECNAME(15)='facsf'
+          RECNAME(16)='facwf'
+          RECNAME(17)='fricv'
+          RECNAME(18)='ffhh'
+          RECNAME(19)='ffmm'
+          RECNAME(20)='icetk'
+          RECNAME(21)='icec'
+          RECNAME(22)='tisfc'
+          RECNAME(23)='tprcp'
+          RECNAME(24)='crain'
+          RECNAME(25)='snod'
+          RECNAME(26)='shdmin'
+          RECNAME(27)='shdmax'
+          RECNAME(28)='slope'
+          RECNAME(29)='salbd'
+          RECNAME(30)='orog'
+          RECNAME(31)='sncovr'
+!
+          RECNAME(nrecs1:nrecs+NSOIL)='smc'
+          RECNAME(NSOIL+nrecs1:nrecs+2*NSOIL)='stc'
+          RECNAME(2*NSOIL+nrecs1:nrecs+3*NSOIL)='slc'
+          DO k=1,num_p2d
+            write(nump2d,'(I2.2)')k
+            RECNAME(3*NSOIL+nrecs+k)='phyf2d_'//nump2d
+          enddo
+          DO k=1,num_p3d
+            write(nump3d,'(I2.2)')k
+            RECNAME(3*NSOIL+num_p2d+nrecs1+(k-1)*levs:
+     &        nrecs+3*NSOIL+num_p2d+k*levs)='phyf3d_'//nump3d
+          enddo
+          print *,'after recname=',recname(36:40),recname(46:50)
+!
+          RECLEVTYP(1:nrecs)='sfc'
+          RECLEVTYP(12)='10 m above gnd'
+          RECLEVTYP(nrecs1:nrecs+3*nsoil)='soil layer'
+          RECLEVTYP(nrecs1+3*nsoil:nrecs+3*nsoil+num_p2d)='sfc'
+          RECLEVTYP(nrecs1+3*nsoil+num_p2d:nrecs+
+     &       3*nsoil+num_p3d*levs+num_p2d)='mid layer'
+          print *,'after reclevtyp=',reclevtyp(36:40),reclevtyp(46:50)
+!
+          RECLEV(1:nrecs)=1
+          DO K=1,NSOIL
+            RECLEV(K+nrecs)=K
+            RECLEV(NSOIL+K+nrecs)=K
+            RECLEV(2*NSOIL+K+nrecs)=K
+          ENDDO
+          RECLEV(nrecs1+3*nsoil:nrecs+3*nsoil+num_p2d)=1
+          do l=1,num_p3d
+          DO K=1,levs
+            RECLEV(nrecs+3*nsoil+num_p2d+(l-1)*levs+k)=k
+          enddo
+          enddo
+          print *,'after reclev=',reclev(36:40),reclev(46:50)
+!
+!endif first 
         endif
-        head%fhour   = xhour
-        head%idate   = idate
 !
-        PRINT 99,nw,xhour,IDATE
-99      FORMAT(1H ,'in fixio nw=',i7,2x,'HOUR=',f8.2,3x,'IDATE=',
+        varr8val(1)=xhour
+!
+        idate7(1:6)=0;idate7(7)=1
+        idate7(1)=idate(4)
+        idate7(2:3)=idate(2:3)
+        idate7(4)=idate(1)
+        nfhour=int(xhour)
+        nfminute=int((xhour-nfhour)*60.)
+        nfsecondn=int((xhour-nfhour)*3600.-nfminute*60.)
+        nfsecondd=1
+!
+        PRINT 99,xhour,IDATE
+99      FORMAT(1H ,'in fixio HOUR=',f8.2,3x,'IDATE=',
      &  4(1X,I4))
-        call sfcio_aldbta(head,data,iret)
-      ENDIF
 !!
-      kmsk= nint(sfc_fld%slmsk)
+! open nemsio sfc restart file
+        call nemsio_init()
 !
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%tsea,global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%tsea=buff4
-!
-      DO k=1,LSOIL
-      buffi(:,:) = sfc_fld%SMC(k,:,:)
-      CALL uninterpred(1,kmsk,bfo,buffi,global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%smc(:,:,k)=buff4
-      ENDDO
-!
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%SHELEG,
-     &                 global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%sheleg=buff4
-!
-      DO k=1,LSOIL
-      buffi(:,:) = sfc_fld%STC(k,:,:)
-      CALL uninterpred(1,kmsk,bfo,buffi,global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%stc(:,:,k)=buff4
-      ENDDO
-!
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%TG3,global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%tg3=buff4
-!
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%ZORL,global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%zorl=buff4
-!
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%ALVSF,
-     &                 global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%alvsf=buff4
-!
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%ALVWF,
-     &                 global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%alvwf=buff4
-!
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%ALNSF,
-     &                 global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%alnsf=buff4
-!
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%ALNWF,
-     &                 global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%alnwf=buff4
-!
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%SLMSK,
-     &                 global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%slmsk=buff4
-!
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%VFRAC,
-     &                 global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%vfrac=buff4
-!
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%CANOPY,
-     &                 global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%canopy=buff4
-!
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%F10M,global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%f10m=buff4
+        write(0,*)'before nemsio_open for restart file'
+        call nemsio_open(gfile,trim(cfile),'write',iret,   
+     & modelname='GFS',gdatatype='bin8',idate=idate7,nfhour=nfhour, 
+     & nfminute=nfminute,nfsecondn=nfsecondn,nfsecondd=nfsecondd,   
+     & dimx=fieldsize,dimy=1,dimz=levs,nsoil=nsoil,nrec=nrec,         
+     & nmeta=5,recname=recname,reclevtyp=reclevtyp,reclev=reclev,   
+     & extrameta=.true.,nmetavari=nmetavari,nmetaaryi=nmetaaryi,    
+     & nmetaaryr8=nmetaaryr8,nmetavarr8=nmetavarr8,variname=variname,   
+     & varival=varival,varr8name=varr8name,varr8val=varr8val,         
+     & aryiname=aryiname,aryilen=aryilen,aryival=aryival, 
+     & aryr8name=aryr8name,aryr8len=aryr8len,aryr8val=aryr8val) 
 
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%T2M,global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%t2m=buff4
+       print *,'after restart nemsio_open, iret=',iret
 
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%Q2M,global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%q2m=buff4
-
+        do jrec=1,nrec
+          call nemsio_writerec(gfile,jrec,bfo(:,jrec),iret=iret)
+        enddo
+        deallocate(bfo)
 !
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%VTYPE,
-     &                 global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%vtype=buff4
+        call nemsio_close(gfile)
+        call nemsio_finalize()
 !
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%STYPE,
-     &                 global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%stype=buff4
+! endof ioproc
+      ENDIF
 !
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%FACSF,
-     &                 global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%facsf=buff4
-!
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%FACWF,
-     &                 global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%facwf=buff4
-!
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%UUSTAR,
-     &                 global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%uustar=buff4
-!
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%FFMM,global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%ffmm=buff4
-!
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%FFHH,global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%ffhh=buff4
-!
-!c-- XW: FOR SEA-ICE Nov04
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%HICE,global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%hice=buff4
-!
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%FICE,global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%fice=buff4
-
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%TISFC,
-     &                 global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%tisfc=buff4
-!c-- XW: END SEA-ICE Nov04
-!
-!lu: the addition of 8 Noah-related records starts here ........................
-!tprcp
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%TPRCP,
-     &                 global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%tprcp=buff4
-!srflag
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%SRFLAG,
-     &                 global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%srflag=buff4
-!snwdph
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%SNWDPH,
-     &                 global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%snwdph=buff4
-!slc
-      DO k=1,LSOIL
-      buffi(:,:) = sfc_fld%SLC(k,:,:)
-      CALL uninterpred(1,kmsk,bfo,buffi,global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%slc(:,:,k)=buff4
-      ENDDO
-!shdmin
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%SHDMIN,
-     &                 global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%shdmin=buff4
-!shdmax
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%SHDMAX,
-     &                 global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%shdmax=buff4
-!slope
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%SLOPE,
-     &                 global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%slope=buff4
-!snoalb
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%SNOALB,
-     &                 global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%snoalb=buff4
-!lu: the addition of 8 Noah records ends here .........................
-
-      CALL uninterpred(1,kmsk,bfo,sfc_fld%ORO,global_lats_r,lonsperlar)
-      call unsplit2d_r(ioproc,buff4,bfo,global_lats_r)
-      if(me.eq.ioproc) data%orog=buff4
-
-      if(me.eq.ioproc) then
-        call sfcio_swohdc(nw,cfile,head,data,iret)
-        call sfcio_axdbta(data,iret)
-      endif
-!
+      if(first) first=.false.
+         
       return
       end

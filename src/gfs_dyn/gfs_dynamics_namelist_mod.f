@@ -23,7 +23,7 @@
            integer                :: nlunit, total_member, member_id
            real                   :: deltim
            character(80)          :: gfs_dyn_namelist
-           character(20)          :: sig_ini, sig_ini2, sfc_ini
+           character(20)          :: grid_ini,grid_ini2,sig_ini, sig_ini2
       end type nam_gfs_dyn_namelist
 !
       type gfs_dyn_state_namelist

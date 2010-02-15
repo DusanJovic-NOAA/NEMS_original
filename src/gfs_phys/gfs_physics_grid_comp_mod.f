@@ -15,6 +15,7 @@
 !  oct 17 2009      Sarah Lu, add debug print to check imp/exp state
 !  dec 10 2009      Sarah Lu, add debug print to chekc fcld
 !  dec 15 2009      Sarah Lu, add debug print to chekc 3d diag fld (fcld, dqdt)
+!  Feb 05 2010      Jun Wang, set init time for restart 
 !                           
 !
 ! !interface:
@@ -292,6 +293,8 @@
 
       call gfs_physics_start_time_get(					&
                         yy, mm, dd, hh, mns, sec, int_state%kfhour,     &
+!--get init time
+                        fhini,                                          &
                         int_state%n3, int_state%nam_gfs_phy%sfc_ini,rc1)
  
       call gfs_physics_err_msg(rc1,'getting the start time',rc)

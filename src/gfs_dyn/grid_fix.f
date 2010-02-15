@@ -23,9 +23,6 @@ cjfe        fi(lons+1:lonf,j)=-9999.e9
           else
             fi(:,j)=f(:,j)
           endif
-!jw          write(0,*)'in interpred,lat=',lat,'lons=',lons,'lonf=',
-!jw     &     lonf,'f=',maxval(f(:,j)),minval(f(:,j)),'fi=',
-!jw     &    maxval(fi(:,j)),minval(fi(:,j)),'loc=',minloc(fi(:,j))
 
         enddo
       end subroutine
@@ -84,57 +81,25 @@ c
       XL=0.
 !     maxfld=50
       ifld=ifld+1
-!!
-!jw      IF (icolor.eq.2.and.me.eq.nodes-1) THEN
-!jw        ta=timef()
-!jw        t3=ta
-!jwc        DO proc=1,nodes-1
-!jw         do proc=1,1
+!          ta=timef()
+!          t3=ta
       IF (me==0) THEN
-c
-c         Sending the data
-c         ----------------
-!jw do not need to send data, all processores read the data
+!
+!         Sending the data
+!         ----------------
+!-- do not need to send data, all processores read the data
          tmp=0.
          do j=1,latg
             do i=1,lonf
               tmp(i,j)=X(i,j)
             enddo
          enddo
-!Moor    msgtag=1000+proc*nodes*maxfld+ifld
-!jw         t1=timef()
-!sela    print *,' GWVX BROADCASTING FROM ',nodes-1
-!jw         call mpi_bcast
-!jw     1 (tmp,lonf*latg,MPI_R_IO,nodes-1,MPI_COMM_ALL,info)
-!jw         call mpi_comm_rank(MPI_COMM_ALL,i,info)
-c         CALL mpi_send(tmp,lonf*latg,MPI_R_IO,proc-1,msgtag,
-c     &                  MPI_COMM_ALL,info)
-!jw         t2=timef()
-!sela    print 102,t2-t1
  
- 102    format(' SEND TIME ',f10.5)
-!jw        enddo
-!jw        t4=timef()
-!jw      ELSE
-!jw        if (.NOT.LIOPE) then
-!jw          nodesr=nodes
-!jw        else
-!jw          nodesr=nodes+1
-!jw        endif
-!Moor   msgtag=1000+(me+1)*nodesr*maxfld+ifld
-!sela    print *,' GWVX BROADCASTREC  FROM ',nodesr-1
-!jw         call mpi_bcast
-!jw     1 (tmp,lonf*latg,MPI_R_IO,nodesr-1,MPI_COMM_ALL,info)
-!jw         call mpi_comm_rank(MPI_COMM_ALL,i,info)
-!sela    print *,'GWVX IPT ',ipt
-c        CALL mpi_recv(tmp,lonf*latg,MPI_R_IO,nodesr-1,
-c     &                msgtag,MPI_COMM_ALL,stat,info)
-!jw
       ENDIF
       call mpi_bcast
      1 (tmp,lonf*latg,MPI_R_IO,0,MPI_COMM_ALL,info)
        call mpi_barrier(mpi_comm_all,info)
-!jw get subdomain of data
+!-- get subdomain of data
         do j=1,lats_node_a
            lat=global_lats_a(ipt_lats_node_a-1+j)
            do i=1,lonf
@@ -142,22 +107,62 @@ c     &                msgtag,MPI_COMM_ALL,stat,info)
            enddo
         enddo
 !!
-!jw      ENDIF
-!!
-!!     for pes nodes-1
-!jw      if (.NOT.LIOPE) then
-!jw        if (me.eq.nodes-1) then
-!jw          do j=1,lats_node_a
-!jw             lat=global_lats_a(ipt_lats_node_a-1+j)
-!jw             do i=1,lonf
-!jw                xl(i,j)=X(i,lat)
-!jw             enddo
-!jw          enddo
-!jw        endif
-!jw      endif
-!!
       tb=timef()
          call mpi_comm_rank(MPI_COMM_ALL,i,info)
+ 
+!sela  if(icolor.eq.2.and.me.eq.nodes-1)print 103,tb-ta,t4-t3
+ 103  format(' GLOBAL AND SEND TIMES  SPLIT2D',2f10.5)
+      return
+      end
+!
+!**********************************************************************
+!
+      subroutine split2d_rdgrd(x,xl,fieldsize,global_lats_a,
+     &  lonsperlat)
+!
+!***********************************************************************
+!
+      use gfs_dyn_resol_def
+      use gfs_dyn_layout1
+      use gfs_dyn_mpi_def
+      implicit none
+!!
+      integer fieldsize
+      real(kind=kind_io8) x(fieldsize)
+      real (kind=kind_io8) xl(lonf,lats_node_a)
+      integer global_lats_a(latg)
+      integer lonsperlat(latg)
+      real(kind=kind_io8) tmp(fieldsize)
+      integer j,lat,i,lon
+      real t1,t2,t3,t4,timef,ta,tb
+!
+!@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+!
+!!
+      XL=0.
+!!
+!
+!  Setting the data
+!  ----------------
+         tmp=0.
+         do i=1,fieldsize
+            tmp(i)=X(i)
+         enddo
+!
+!--- get subdomain of data
+      do j=1,lats_node_a
+         lat=global_lats_a(ipt_lats_node_a-1+j)
+         if(lat/=1) then
+           lon=sum(lonsperlat(1:lat-1))
+         else
+           lon=0
+         endif
+         do i=1,lonsperlat(lat)
+            xl(i,j)=tmp(lon+i)
+         enddo
+!         if(me==0)print *,'j=',j,'lat=',lat,'lonsperlat(lat)=',
+!     &     lonsperlat(lat),'lon=',lon,'tmp=',tmp(lon)
+      enddo
  
 !sela  if(icolor.eq.2.and.me.eq.nodes-1)print 103,tb-ta,t4-t3
  103  format(' GLOBAL AND SEND TIMES  SPLIT2D',2f10.5)

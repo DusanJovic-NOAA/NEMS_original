@@ -21,6 +21,7 @@
 !  nov 14 2009  Sarah Lu        flx_fld and sfc_fld allocation modified
 !  dec 10 2009  Sarah Lu        initialize lgocart and g3d_fld
 !  jan 22 2010  Sarah Lu        increase ngrids_flx and nfxr to include aod 
+!  feb 05 2010  J. Wang         put phy_f3d and phy_f2d into restart file
 !
 ! !interface:
 !
@@ -468,7 +469,8 @@
       call fix_fields(gis_phy%LONSPERLAR,gis_phy%GLOBAL_LATS_R,           &
         gis_phy%XLON,gis_phy%XLAT,gis_phy%sfc_fld,                        &
         gis_phy%HPRIME,gis_phy%JINDX1,gis_phy%JINDX2,gis_phy%DDY,         &
-        gis_phy%OZPLIN,gis_phy%nam_gfs_phy%sfc_ini)
+        gis_phy%OZPLIN,gis_phy%nam_gfs_phy%sfc_ini,                       &
+        gis_phy%nblck,gis_phy%phy_f3d,gis_phy%phy_f2d )
 
 !     print *,' GISXLAT=',gis_phy%XLAT(1,:)
 !!
@@ -478,7 +480,7 @@
 !!
       call countperf(1,18,0.)
 !!
-      gis_phy%zhour=fhour
+      gis_phy%zhour=gis_phy%phour
       gis_phy%FLUXR=0.
 !
       call flx_init(gis_phy%flx_fld, ierr)

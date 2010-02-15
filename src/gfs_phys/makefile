@@ -71,6 +71,7 @@ OBJS_IO= \
 	  read_fix.o         \
 	  wrtout_physics.o   \
 	  gribit.o           \
+	  fld_collect.o      \
 	  para_fixio_w.o     \
 	  sfcsub.o
 
@@ -367,8 +368,14 @@ getaer.o:	getaer.f
 gribit.o:	gribit.f
 		$(FC) $(FFLAGIO) -c gribit.f
 
+fld_collect.o:  fld_collect.f
+	        $(FC) $(FFLAG_GFS_PHY) -c fld_collect.f
+
+read_fix.o: read_fix.f
+	        $(FC) $(FFLAG_GFS_PHY) -c read_fix.f
+
 para_fixio_w.o:  para_fixio_w.f
-		$(FC) $(FFLAGIO) -c para_fixio_w.f
+		$(FC) $(FFLAG_GFS_PHY) -c para_fixio_w.f
 
 wrtout_physics.o: wrtout_physics.f
 		$(FC) $(FFLAG_GFS_PHY) -c wrtout_physics.f
@@ -392,7 +399,7 @@ gfs_physics_namelist_mod.o:     gfs_physics_namelist_mod.f
 		$(FC) $(FFLAG90) -c gfs_physics_namelist_mod.f
                                                                                 
 gfs_physics_start_time_get_mod.o:       gfs_physics_start_time_get_mod.f
-		$(FC) $(FFLAG90) -c gfs_physics_start_time_get_mod.f
+		$(FC) $(FFLAG_GFS_PHY90) -c gfs_physics_start_time_get_mod.f
                                                                                 
 gfs_physics_grid_create_mod.o:  gfs_physics_grid_create_mod.f
 		$(FC) $(FFLAG90) -c gfs_physics_grid_create_mod.f

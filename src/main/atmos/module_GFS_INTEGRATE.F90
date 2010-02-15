@@ -12,6 +12,7 @@
 ! PROGRAM HISTORY LOG:
 !   2009-12-23  Lu    - GFS_INTEGRATE modified to loop thru dyn, phy, &
 !                       chem gridded component
+!   2010-02-05  WANG  - change alarm set up for restart option of GFS
 !-----------------------------------------------------------------------
 
 !
@@ -137,10 +138,10 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  Set up alarm for output.
+!***  Set up alarm for output,alarm starts from current time
 !-----------------------------------------------------------------------
 !
-      ALARM_OUTPUT_RING=STARTTIME+OUTPUT_INTERVAL
+      ALARM_OUTPUT_RING=CURRTIME+OUTPUT_INTERVAL
 !
       ALARM_OUTPUT=ESMF_AlarmCreate(name             ='ALARM_OUTPUT'    &
                                    ,clock            =CLOCK_ATM         &  !<-- ATM Clock

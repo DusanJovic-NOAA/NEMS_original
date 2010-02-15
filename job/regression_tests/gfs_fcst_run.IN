@@ -12,6 +12,12 @@ set -x
  export REDUCED_GRID=_REDUCEDGRID_
 # number of output files, default =3, for adiab num_file=1
  export NUM_FILE=_NUMFILE_
+# restart default is coldstart
+#export RESTART=_RESTART_
+#read one time step input data
+# export FHROT=_FHROT_
+# restart file output frequency
+ export FHRES=_FHRES_
 
 # SFCPRESS_ID=0 or 1 for ln(psfc), 2 for psfc
  export SFCPRESS_ID=2
@@ -65,8 +71,6 @@ export YIELDLOOPTIME=500
 export AIXTHREAD_SCOPE=S
 export MALLOCMULTIHEAP=true
 #
- export FHROT=0
-#
 #    Set up experiment and directory names
 #
  export expt=_RUNDIR_
@@ -85,6 +89,7 @@ export MALLOCMULTIHEAP=true
 #
  export NCP=${NCP:-/u/wx20mi/bin/ncp}
 #
+export nemsioget=${nemsioget:-/climate/save/wx20wa/gfsio/nems/nemsio_trunk16_get}
 #
 #
 #    nhourb is the beginig hour.  If nhourb=0, then initial condition
@@ -95,8 +100,8 @@ export MALLOCMULTIHEAP=true
 if [[ ${fcst_begin} = YES ]] ; then
  export nhourb=0
 else
- if [[ -s $RUNDIR/sigr1$FM ]] ; then
-   export nhourb=`/nwprod/exec/global_sighdr $RUNDIR/sigr1$FM ifhr`
+ if [[ -s $RUNDIR/grdr1 ]] ; then
+   export nhourb=`$nemsioget $RUNDIR/grdr1 nfhour`
    export FHROT=${FHROT:-$nhourb}
  else
    nhourb=$((ndays*24))
@@ -105,7 +110,6 @@ fi
 #
 #
  export nhours=`expr $ndays \* 24`
-
 #
 # For two tracers
   export ntrc=3  ; export varid=21  ; export numcld=1
@@ -116,7 +120,6 @@ fi
  export fzer=6  
  export fcyc=0 
  export fdfi=_FDFI_ 
- export FHRES=$nhours
 #
 #    Forecast model : horizontal truncation  and vertical levels
 #                     ---------------------
@@ -230,9 +233,20 @@ fi
   export LATB=$jm
   export VERBOSE=YES
 #
-  export SIGI=$RUNDIR/gfsanl.$CDATE
-  export SFCI=$RUNDIR/sfcanl.$CDATE
-  export FHINI=00
+  export FHROT=00
+  if [ -f $RUNDIR/grdr1 -a -f $RUNDIR/grdr2 -a -f $RUNDIR/sigr1 -a -f $RUNDIR/sigr2 -a -f $RUNDIR/sfcr ]; then
+    export GRDI=$RUNDIR/grdr1
+    export GRDI2=$RUNDIR/grdr2
+    export SIGI=$RUNDIR/sigr1
+    export SIGI2=$RUNDIR/sigr2
+    export SFCI=$RUNDIR/sfcr
+    export FHINI=`$nemsioget $GRDI nfhour |grep -i "nfhour"|awk -F" " '{print $2}'`
+  else
+    export GRDI=$RUNDIR/gfsanl.$CDATE
+    export SIGI=$RUNDIR/gfsanl.$CDATE
+    export SFCI=$RUNDIR/sfcanl.$CDATE
+    export FHINI=00
+  fi
 #
 # ---------------------------------------- fcst ----------------------
 #

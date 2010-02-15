@@ -67,6 +67,7 @@ OBJS   = \
 	damp_speed.o \
 	deldifs.o \
 	input_fields.o \
+	input_fields_rst.o \
 	delnpe.o \
 	delnpo.o \
 	dezouv.o \
@@ -99,6 +100,7 @@ OBJS   = \
 	sicdif_hyb.o                 \
 	sicdif_hyb_gc.o              \
 	common_to_model_vars.o      \
+	getpwatptot.o      \
         sig2press.o          	\
 	hyb2press.o          	\
 	gch2press.o          	\
@@ -128,6 +130,10 @@ OBJS_PORT = \
 OBJS_IO= \
 	grid_fix.o         \
 	treadeo.gfsio.o    \
+	treadg_nemsio.o    \
+	treads_nemsio.o    \
+	twrites_rst.o     \
+	twriteg_rst.o     \
 	grid_to_spect_inp.o    \
 	spect_to_grid_inp.o    \
 	setsig.o           \
@@ -198,6 +204,18 @@ getaer.o:	getaer.f
 treadeo.gfsio.o:	treadeo.gfsio.f
 		$(FC) $(FFLAGIO) -c treadeo.gfsio.f
 
+treadg_nemsio.o:	treadg_nemsio.f
+		$(FC) $(FFLAG_GFS_DYN) -c treadg_nemsio.f
+
+treads_nemsio.o:	treads_nemsio.f
+		$(FC) $(FFLAG_GFS_DYN) -c treads_nemsio.f
+
+twriteg_rst.o:	twriteg_rst.f
+		$(FC) $(FFLAG_GFS_DYN) -c twriteg_rst.f
+
+twrites_rst.o:	twrites_rst.f
+		$(FC) $(FFLAG_GFS_DYN) -c twrites_rst.f
+
 spect_to_grid_inp.o:	spect_to_grid_inp.f
 		$(FC) $(FFLAGIO) -c spect_to_grid_inp.f
 
@@ -217,7 +235,7 @@ gfs_dynamics_namelist_mod.o:	 gfs_dynamics_namelist_mod.f
 		$(FC) $(FFLAG90) -c gfs_dynamics_namelist_mod.f
 
 gfs_dynamics_start_time_get_mod.o:	 gfs_dynamics_start_time_get_mod.f
-		$(FC) $(FFLAG90) -c gfs_dynamics_start_time_get_mod.f
+		$(FC) $(FFLAG_GFS_DYN90) -c gfs_dynamics_start_time_get_mod.f
 
 gfs_dynamics_grid_create_mod.o:	 gfs_dynamics_grid_create_mod.f
 		$(FC) $(FFLAG90) -c gfs_dynamics_grid_create_mod.f

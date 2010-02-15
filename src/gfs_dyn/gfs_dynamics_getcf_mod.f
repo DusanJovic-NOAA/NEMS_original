@@ -170,6 +170,9 @@
                               label = 'adiabatic:',  rc = rc1)
       call gfs_dynamics_err_msg_var(rc1,                                &
                'gfs dynamics getcf','adiabatic',rcfinal)
+      call esmf_configgetattribute(cf,                                  &
+                              int_state%restart_run,                      &
+                              label = 'restart:',  rc = rc1)
 !jwe
       call esmf_configgetattribute(cf, 					&
                               int_state%nam_gfs_dyn%gfs_dyn_namelist, 	&
@@ -184,9 +187,15 @@
                'gfs dynamics getcf','deltim',rcfinal)
 
       if (int_state%nam_gfs_dyn%total_member <= 1) then
+        int_state%nam_gfs_dyn%grid_ini  = 'grid_ini'
+        int_state%nam_gfs_dyn%grid_ini2 = 'grid_ini2'
         int_state%nam_gfs_dyn%sig_ini  = 'sig_ini'
         int_state%nam_gfs_dyn%sig_ini2 = 'sig_ini2'
       else
+        write(int_state%nam_gfs_dyn%grid_ini, 				&
+              '("grid_ini",i2.2)') int_state%nam_gfs_dyn%member_id
+        write(int_state%nam_gfs_dyn%grid_ini2,				&
+              '("grid_ini2",i2.2)') int_state%nam_gfs_dyn%member_id
         write(int_state%nam_gfs_dyn%sig_ini, 				&
               '("sig_ini_",i2.2)') int_state%nam_gfs_dyn%member_id
         write(int_state%nam_gfs_dyn%sig_ini2,				&

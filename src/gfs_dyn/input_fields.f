@@ -1,8 +1,8 @@
-      SUBROUTINE input_fields(n1,n2, PDRYINI,TRIE_LS,TRIO_LS,grid_gr,
+      SUBROUTINE input_fields(cread, PDRYINI,TRIE_LS,TRIO_LS,grid_gr,
      &                 LS_NODE,LS_NODES,MAX_LS_NODES,SNNP1EV,SNNP1OD,
-     &                 global_lats_a,nblck,lonsperlat,
+     &                 global_lats_a,lonsperlat,
      &                 epse,epso,plnev_a,plnod_a,plnew_a,plnow_a,
-     &                 lats_nodes_a, cread, cread2,pwat,ptot)
+     &                 lats_nodes_a, pwat,ptot)
 !!
 !
       use gfs_dyn_resol_def
@@ -20,8 +20,7 @@
 cmy fix pdryini type
 cmy      REAL(KIND=KIND_EVOD) PDRYINI
       REAL(KIND=kind_grid) PDRYINI
-      INTEGER              N1,N2
-      CHARACTER (len=*)   :: CREAD, CREAD2
+      CHARACTER (len=*)   :: CREAD
       REAL(KIND=KIND_EVOD) TRIE_LS(LEN_TRIE_LS,2,LOTLS)
       REAL(KIND=KIND_EVOD) TRIO_LS(LEN_TRIO_LS,2,LOTLS)
       REAL(KIND=KIND_GRID) GRID_GR(lonf*lats_node_a_max,lotgr)
@@ -45,7 +44,6 @@ cmy      REAL(KIND=KIND_EVOD) PDRYINI
       REAL(KIND=KIND_GRID) pwat   (lonf,lats_node_a)
       REAL(KIND=KIND_GRID) ptot   (lonf,lats_node_a)
 !
-      integer nblck
       integer global_lats_a(latg), lonsperlat(latg)
  
 cmy bug fix on dimension of ls_node
@@ -64,13 +62,13 @@ cmy bug fix on dimension of ls_node
       LOGICAL LSLAG
       integer		lan, lat, lons_lat, jlonf
 !
-      if(me.eq.0) PRINT  9876,N1,N2,FHOUR,idate
- 9876 FORMAT(1H ,'N1,N2,FHOUR IN input_fields ',2(I4,1X),F6.2,
+      if(me.eq.0) PRINT  9876,FHOUR,idate
+ 9876 FORMAT(1H ,'FHOUR IN input_fields ',F6.2,
      & ' idate no yet read in',4(1x,i4))
       IPRINT = 0
 c$$$  IF ( ME .EQ. 0 ) IPRINT = 1
 !
-      if (me .eq. 0) write(0,*)' cread=',cread,'ntoz=',ntoz
+      if (me .eq. 0) write(0,*)'input field, cread=',cread,'ntoz=',ntoz
         CALL TREADEO_gfsio(FHOUR,IDATE,
      X               TRIE_LS(1,1,P_GZ ), TRIE_LS(1,1,P_QM ),
      X               TRIE_LS(1,1,P_TEM), TRIE_LS(1,1,P_DIM),
@@ -107,12 +105,11 @@ c$$$  IF ( ME .EQ. 0 ) IPRINT = 1
 
  
       fhini=fhour
-      if(me.eq.0) PRINT 9877, N1,FHOUR
- 9877 FORMAT(1H ,'N1,FHOUR AFTER TREAD',1(I4,1X),F6.2)
+      if(me.eq.0) PRINT 9877, FHOUR
+ 9877 FORMAT(1H ,'FHOUR AFTER TREAD',F6.2)
  
       if (me .eq. 0) write(0,*)' fhini=',fhini,'last_fcst_pe=',
      &     last_fcst_pe,'fhrot=',fhrot
-!jw      if (.NOT.LIOPE.or.icolor.ne.2) then
       if (me<=last_fcst_pe) then 
 !sela   print*,'liope=',liope,' icolor=',icolor
         CALL RMS_spect(TRIE_LS(1,1,P_QM ), TRIE_LS(1,1,P_DIM),
@@ -177,48 +174,6 @@ c$$$  IF ( ME .EQ. 0 ) IPRINT = 1
         grid_gr(:,g_vv:g_vv+levs-1)=grid_gr(:,g_vvm:g_vvm+levs-1)
         grid_gr(:,g_rq:g_rq+levh-1)=grid_gr(:,g_rm :g_rm +levh-1)
 
-!--------------------------------------------------------
-      else
-!--------------------------------------------------------
-        IPRINT = 0
-c$$$      IF ( ME .EQ. 0 ) IPRINT = 1
-      if (me .eq. 0) write(0,*)' cread2=',cread2
-          CALL TREADEO_gfsio(FHOUR,IDATE,
-     X                 TRIE_LS(1,1,P_GZ), TRIE_LS(1,1,P_Q ),
-     X                 TRIE_LS(1,1,P_TE), TRIE_LS(1,1,P_DI),
-     X                 TRIE_LS(1,1,P_ZE), TRIE_LS(1,1,P_RQ),
-     X                 TRIO_LS(1,1,P_GZ), TRIO_LS(1,1,P_Q ),
-     X                 TRIO_LS(1,1,P_TE), TRIO_LS(1,1,P_DI),
-     X                 TRIO_LS(1,1,P_ZE), TRIO_LS(1,1,P_RQ),
-     &                 zsg, psg, ttg, uug, vvg, rqg,
-     X                 LS_NODE,LS_NODES,MAX_LS_NODES,
-     X                 SNNP1EV,SNNP1OD,PDRYINI,IPRINT,
-     &                 global_lats_a,lats_nodes_a,lonsperlat, cread2,
-     &                 epse, epso, plnew_a, plnow_a, 
-     &                 plnev_a, plnod_a, pwat, ptot)
-
-      do j=1,lats_node_a
-        jlonf=(j-1)*lonf
-!       grid_gr(jlonf+1:jlonf+lonf,g_gz) = zsg(1:lonf,j)
-        grid_gr(jlonf+1:jlonf+lonf,g_q ) = psg(1:lonf,j)
-      enddo
-      do k=1,levs
-        do j=1,lats_node_a
-          jlonf=(j-1)*lonf
-          grid_gr(jlonf+1:jlonf+lonf,g_tt +k-1) = ttg(1:lonf,j,k)
-          grid_gr(jlonf+1:jlonf+lonf,g_uu +k-1) = uug(1:lonf,j,k)
-          grid_gr(jlonf+1:jlonf+lonf,g_vv +k-1) = vvg(1:lonf,j,k)
-        enddo
-      enddo
-      do k=1,levh
-        do j=1,lats_node_a
-          jlonf=(j-1)*lonf
-          grid_gr(jlonf+1:jlonf+lonf,g_rq +k-1) = rqg(1:lonf,j,k)
-        enddo
-      enddo
-
-        if(me.eq.0) PRINT 9878, N2,FHOUR
- 9878   FORMAT(1H ,'N2,FHOUR AFTER TREAD',1(I4,1X),F6.2)
       endif
 !
 ! fill up n+1 grid_gr in case of internal2export used.
