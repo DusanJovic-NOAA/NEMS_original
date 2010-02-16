@@ -4538,7 +4538,7 @@ real(kind=kdbl),save :: sumdrrw=0.
           endif
 !
           call mpi_bcast(gsums,(kse-kss+1)*2*lm &
-                        ,mpi_real,0,mpi_comm_comp,ierr)
+                        ,mpi_double_precision,0,mpi_comm_comp,ierr)
 !
         endif
 !

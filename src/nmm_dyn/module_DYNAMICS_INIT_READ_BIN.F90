@@ -1093,6 +1093,22 @@ ihrend &                    ! maximum forecast length, hours
           call dstrb(temp1,z,1,1,1,lm,l)
         enddo
         call halo_exch(z,lm,2,2)
+!-----------------------------------------------------------------------
+        do n=1,indx_rrw
+          do l=1,lm
+            if(mype==0)then
+              read(nfcst)temp1
+            endif
+            do j=jms,jme
+            do i=ims,ime
+              sp(i,j,l,n)=0.
+            enddo
+            enddo
+            call dstrb(temp1,sp(:,:,:,n),1,1,1,lm,l)
+          enddo
+        enddo
+        call halo_exch(sp,lm,indx_rrw,1,2,2)
+!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !***  Read from restart file: Real 2D arrays (contd.)
@@ -1723,17 +1739,6 @@ ihrend &                    ! maximum forecast length, hours
 !
         do l=1,lm+1
           psg1(l)=sg1(l)*pdtop+pt
-        enddo
-!-----------------------------------------------------------------------
-        do l=1,lm
-          do j=jms,jme
-            do i=ims,ime
-              sp(i,j,l,indx_q  )=sqrt(max(q  (i,j,l),0.))
-              sp(i,j,l,indx_cw )=sqrt(max(cw (i,j,l),0.))
-              sp(i,j,l,indx_rrw)=sqrt(max(rrw(i,j,l),0.))
-              sp(i,j,l,indx_q2 )=sqrt(max(q2 (i,j,l),0.))
-            enddo
-          enddo
         enddo
 !-----------------------------------------------------------------------
       endif  read_blocks                        ! cold start /restart

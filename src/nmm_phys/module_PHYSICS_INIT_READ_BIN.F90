@@ -1125,6 +1125,15 @@
           READ(NFCST)TEMP1   ! Z
         ENDIF
       ENDDO
+!-----------------------------------------------------------------------
+      DO N=1,int_state%INDX_RRW
+      DO K=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1   ! TRACERS_PREV
+        ENDIF
+      ENDDO
+      ENDDO
+!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !***  Read from restart file: Real 2D arrays (contd.)

@@ -100,8 +100,8 @@ wcor:    0.2                # Divergence correction factor
  
 idtad:   2                  # Number of adjustment timesteps between passive advection calls
 
-advect_tracers:  false      # Will tracers be advected?
-idtadt:  4                  # Number of adjustment timesteps between tracer advection calls (normally 1)
+advect_tracers:  true       # Will tracers be advected?
+idtadt:  2                  # Number of adjustment timesteps between tracer advection calls (normally 1)
 
 num_tracers_met:   4        # Number of specified meterological "tracer" scalars (e.g., water)
 num_tracers_chem:  0        # Number of specified chem/aerosol "tracer" scalars

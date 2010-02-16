@@ -752,7 +752,13 @@
           LDIM4=LBOUND(VARS(N)%R4D,4)
           UDIM4=UBOUND(VARS(N)%R4D,4)
 !
-          DO M=INDX_RRW+1,UDIM4                                            !<-- Loop through the tracers (skip unallocated pointers)
+          IF(TRIM(VARS(N)%VBL_NAME)=='TRACERS_PREV') THEN
+            UDIM4=INDX_RRW                                                 !<-- TRACERS_PREV bounds: LDIM4      - INDX_RRW
+          ELSE
+            LDIM4=INDX_RRW+1                                               !<-- TRACERS bounds:      INDX_RRW+1 - UDIM4
+          ENDIF
+!
+          DO M=LDIM4,UDIM4                                                 !<-- Loop through the tracers (skip unallocated pointers)
           DO K=LDIM3,UDIM3                                                 !<-- Loop through the levels of the array
             WRITE(TRACERS_KIND,FMT)M
             WRITE(MODEL_LEVEL,FMT)K
