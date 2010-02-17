@@ -1955,8 +1955,8 @@
         ENDDO
 !
 !-----------------------------------------------------------------------
-!***  Allocate the handles to be used by the parent task when it ISends
-!***  data to the individual child tasks.
+!***  Allocate the handles to be used by parent tasks when they ISend
+!***  data to the individual child boundary tasks.
 !-----------------------------------------------------------------------
 !
         ALLOCATE(HANDLE_H_SOUTH(1:NUM_CHILDREN))
@@ -2731,7 +2731,7 @@
       IMPLICIT NONE
 !
 !-----------------------------------------------------------------------
-!***  ARGUMENT VARIABLES
+!***  Argument Variables
 !-----------------------------------------------------------------------
 !
       TYPE(ESMF_CplComp),INTENT(INOUT) :: CPL_COMP                        !<-- The Parent-Child Coupler Component
@@ -2742,7 +2742,7 @@
       INTEGER,OPTIONAL,INTENT(OUT)     :: RC_FINAL
 !
 !-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
+!***  Local Variables
 !-----------------------------------------------------------------------
 !
 !     type(boundary_data),dimension(:),pointer :: ctasks_work_s         &
@@ -2783,7 +2783,113 @@
       child_loop: DO N=1,NUM_CHILDREN
 !
 !-----------------------------------------------------------------------
-!***  FIRST THE PARENTS COMPUTE THE NEW SURFACE PRESSURE ON THE
+!***  First we must check to be sure the previous set of ISend's
+!***  from the parent tasks to the children's boundary tasks
+!***  have completed.
+!-----------------------------------------------------------------------
+!
+        btim=timef()
+!
+!-------------
+!***  South H
+!-------------
+!
+        IF(NUM_TASKS_SEND_H_S(N)>0)THEN                                    !<-- Parent task has Sbndry H data to send to child tasks?
+          DO NT=1,NUM_TASKS_SEND_H_S(N)
+            CALL MPI_WAIT(HANDLE_H_SOUTH(N)%NTASKS_TO_RECV(NT)          &  !<-- Handle for ISend from parent task to child N's task NT
+                         ,ISTAT                                         &  !<-- MPI status
+                         ,IERR )
+          ENDDO
+        ENDIF
+!
+!-------------
+!***  South V
+!-------------
+!
+        IF(NUM_TASKS_SEND_V_S(N)>0)THEN                                    !<-- Parent task has Sbndry V data to send to child tasks?
+          DO NT=1,NUM_TASKS_SEND_V_S(N)
+            CALL MPI_WAIT(HANDLE_V_SOUTH(N)%NTASKS_TO_RECV(NT)          &  !<-- Handle for ISend from parent task to child N's task NT
+                         ,ISTAT                                         &  !<-- MPI status
+                         ,IERR )
+          ENDDO
+        ENDIF
+!
+!-------------
+!***  North H
+!-------------
+!
+        IF(NUM_TASKS_SEND_H_N(N)>0)THEN                                    !<-- Parent task has Nbndry H data to send to child tasks?
+          DO NT=1,NUM_TASKS_SEND_H_N(N)
+            CALL MPI_WAIT(HANDLE_H_NORTH(N)%NTASKS_TO_RECV(NT)          &  !<-- Handle for ISend from parent task to child N's task NT
+                         ,ISTAT                                         &  !<-- MPI status
+                         ,IERR )
+          ENDDO
+        ENDIF
+!
+!-------------
+!***  North V
+!-------------
+!
+        IF(NUM_TASKS_SEND_V_N(N)>0)THEN                                    !<-- Parent task has Nbndry V data to send to child tasks?
+          DO NT=1,NUM_TASKS_SEND_V_N(N)
+            CALL MPI_WAIT(HANDLE_V_NORTH(N)%NTASKS_TO_RECV(NT)          &  !<-- Handle for ISend from parent task to child N's task NT
+                         ,ISTAT                                         &  !<-- MPI status
+                         ,IERR )
+          ENDDO
+        ENDIF
+!
+!------------
+!***  West H
+!------------
+!
+        IF(NUM_TASKS_SEND_H_W(N)>0)THEN                                    !<-- Parent task has Wbndry H data to send to child tasks?
+          DO NT=1,NUM_TASKS_SEND_H_W(N)
+            CALL MPI_WAIT(HANDLE_H_WEST(N)%NTASKS_TO_RECV(NT)           &  !<-- Handle for ISend from parent task to child N's task NT
+                         ,ISTAT                                         &  !<-- MPI status
+                         ,IERR )
+          ENDDO
+        ENDIF
+!
+!------------
+!***  West V
+!------------
+!
+        IF(NUM_TASKS_SEND_V_W(N)>0)THEN                                    !<-- Parent task has Wbndry V data to send to child tasks?
+          DO NT=1,NUM_TASKS_SEND_V_W(N)
+            CALL MPI_WAIT(HANDLE_V_WEST(N)%NTASKS_TO_RECV(NT)           &  !<-- Handle for ISend from parent task to child N's task NT
+                         ,ISTAT                                         &  !<-- MPI status
+                         ,IERR )
+          ENDDO
+        ENDIF
+!
+!------------
+!***  East H
+!------------
+!
+        IF(NUM_TASKS_SEND_H_E(N)>0)THEN                                    !<-- Parent task has Ebndry H data to send to child tasks?
+          DO NT=1,NUM_TASKS_SEND_H_E(N)
+            CALL MPI_WAIT(HANDLE_H_EAST(N)%NTASKS_TO_RECV(NT)           &  !<-- Handle for ISend from parent task to child N's task NT
+                         ,ISTAT                                         &  !<-- MPI status
+                         ,IERR )
+          ENDDO
+        ENDIF
+!
+!------------
+!***  East V
+!------------
+!
+        IF(NUM_TASKS_SEND_V_E(N)>0)THEN                                    !<-- Parent task has Ebndry V data to send to child tasks?
+          DO NT=1,NUM_TASKS_SEND_V_E(N)
+            CALL MPI_WAIT(HANDLE_V_EAST(N)%NTASKS_TO_RECV(NT)           &  !<-- Handle for ISend from parent task to child N's task NT
+                         ,ISTAT                                         &  !<-- MPI status
+                         ,IERR )
+          ENDDO
+        ENDIF
+!
+        cpl2_wait_tim=cpl2_wait_tim+(timef()-btim)
+!
+!-----------------------------------------------------------------------
+!***  THE PARENTS CAN NOW COMPUTE THE NEW SURFACE PRESSURE ON THE
 !***  NESTS' BOUNDARY POINTS.
 !-----------------------------------------------------------------------
 !
@@ -3273,13 +3379,14 @@
 ! 221       format(' Ready to send South_H to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
             btim=timef()
-            CALL MPI_SEND(CHILD_BOUND_H_SOUTH(N)%TASKS(NT)%DATA         &  !<-- Child south boundary data on child task NT
-                         ,WORDS_BOUND_H_SOUTH(N)%TASKS(NT)              &  !<-- # of words in the data string
-                         ,MPI_REAL                                      &  !<-- Datatype
-                         ,CHILDTASK_BNDRY_H_RANKS(N)%SOUTH(NT)          &  !<-- Local rank of child to recv data 
-                         ,NTAG                                          &  !<-- MPI tag
-                         ,COMM_TO_MY_CHILDREN(N)                        &  !<-- MPI communicator
-                         ,IERR )
+            CALL MPI_ISEND(CHILD_BOUND_H_SOUTH(N)%TASKS(NT)%DATA        &  !<-- Child south boundary data on child task NT
+                          ,WORDS_BOUND_H_SOUTH(N)%TASKS(NT)             &  !<-- # of words in the data string
+                          ,MPI_REAL                                     &  !<-- Datatype
+                          ,CHILDTASK_BNDRY_H_RANKS(N)%SOUTH(NT)         &  !<-- Local rank of child to recv data 
+                          ,NTAG                                         &  !<-- MPI tag
+                          ,COMM_TO_MY_CHILDREN(N)                       &  !<-- MPI communicator
+                          ,HANDLE_H_SOUTH(N)%NTASKS_TO_RECV(NT)         &  !<-- Handle for ISend to child N's task NT
+                          ,IERR )
             cpl2_send_tim=cpl2_send_tim+(timef()-btim)
 !
 !           call date_and_time(values=values)
@@ -3300,13 +3407,14 @@
 ! 125       format(' Ready to send South_V to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
             btim=timef()
-            CALL MPI_SEND(CHILD_BOUND_V_SOUTH(N)%TASKS(NT)%DATA         &  !<-- Child south boundary data on child task NT
-                         ,WORDS_BOUND_V_SOUTH(N)%TASKS(NT)              &  !<-- # of words in the data string
-                         ,MPI_REAL                                      &  !<-- Datatype
-                         ,CHILDTASK_BNDRY_V_RANKS(N)%SOUTH(NT)          &  !<-- Local rank of child to recv data 
-                         ,NTAG                                          &  !<-- MPI tag
-                         ,COMM_TO_MY_CHILDREN(N)                        &  !<-- MPI communicator
-                         ,IERR )
+            CALL MPI_ISEND(CHILD_BOUND_V_SOUTH(N)%TASKS(NT)%DATA        &  !<-- Child south boundary data on child task NT
+                          ,WORDS_BOUND_V_SOUTH(N)%TASKS(NT)             &  !<-- # of words in the data string
+                          ,MPI_REAL                                     &  !<-- Datatype
+                          ,CHILDTASK_BNDRY_V_RANKS(N)%SOUTH(NT)         &  !<-- Local rank of child to recv data 
+                          ,NTAG                                         &  !<-- MPI tag
+                          ,COMM_TO_MY_CHILDREN(N)                       &  !<-- MPI communicator
+                          ,HANDLE_V_SOUTH(N)%NTASKS_TO_RECV(NT)         &  !<-- Handle for ISend to child N's task NT
+                          ,IERR )
             cpl2_send_tim=cpl2_send_tim+(timef()-btim)
 !
 !           call date_and_time(values=values)
@@ -3326,13 +3434,14 @@
           DO NT=1,NUM_TASKS_SEND_H_N(N)                                    !<-- Send to all appropriate child tasks
 !
             btim=timef()
-            CALL MPI_SEND(CHILD_BOUND_H_NORTH(N)%TASKS(NT)%DATA         &  !<-- Child north boundary data on child task NT
-                         ,WORDS_BOUND_H_NORTH(N)%TASKS(NT)              &  !<-- # of words in the data string
-                         ,MPI_REAL                                      &  !<-- Datatype
-                         ,CHILDTASK_BNDRY_H_RANKS(N)%NORTH(NT)          &  !<-- Local rank of child to recv data 
-                         ,NTAG                                          &  !<-- MPI tag
-                         ,COMM_TO_MY_CHILDREN(N)                        &  !<-- MPI communicator
-                         ,IERR )
+            CALL MPI_ISEND(CHILD_BOUND_H_NORTH(N)%TASKS(NT)%DATA        &  !<-- Child north boundary data on child task NT
+                          ,WORDS_BOUND_H_NORTH(N)%TASKS(NT)             &  !<-- # of words in the data string
+                          ,MPI_REAL                                     &  !<-- Datatype
+                          ,CHILDTASK_BNDRY_H_RANKS(N)%NORTH(NT)         &  !<-- Local rank of child to recv data 
+                          ,NTAG                                         &  !<-- MPI tag
+                          ,COMM_TO_MY_CHILDREN(N)                       &  !<-- MPI communicator
+                          ,HANDLE_H_NORTH(N)%NTASKS_TO_RECV(NT)         &  !<-- Handle for ISend to child N's task NT
+                          ,IERR )
             cpl2_send_tim=cpl2_send_tim+(timef()-btim)
 !
           ENDDO 
@@ -3346,13 +3455,14 @@
           DO NT=1,NUM_TASKS_SEND_V_N(N)                                    !<-- Send to all appropriate child tasks
 !
             btim=timef()
-            CALL MPI_SEND(CHILD_BOUND_V_NORTH(N)%TASKS(NT)%DATA         &  !<-- Child north boundary data on child task NT
-                         ,WORDS_BOUND_V_NORTH(N)%TASKS(NT)              &  !<-- # of words in the data string
-                         ,MPI_REAL                                      &  !<-- Datatype
-                         ,CHILDTASK_BNDRY_V_RANKS(N)%NORTH(NT)          &  !<-- Local rank of child to recv data 
-                         ,NTAG                                          &  !<-- MPI tag
-                         ,COMM_TO_MY_CHILDREN(N)                        &  !<-- MPI communicator
-                         ,IERR )
+            CALL MPI_ISEND(CHILD_BOUND_V_NORTH(N)%TASKS(NT)%DATA        &  !<-- Child north boundary data on child task NT
+                          ,WORDS_BOUND_V_NORTH(N)%TASKS(NT)             &  !<-- # of words in the data string
+                          ,MPI_REAL                                     &  !<-- Datatype
+                          ,CHILDTASK_BNDRY_V_RANKS(N)%NORTH(NT)         &  !<-- Local rank of child to recv data 
+                          ,NTAG                                         &  !<-- MPI tag
+                          ,COMM_TO_MY_CHILDREN(N)                       &  !<-- MPI communicator
+                          ,HANDLE_V_NORTH(N)%NTASKS_TO_RECV(NT)         &  !<-- Handle for ISend to child N's task NT
+                          ,IERR )
             cpl2_send_tim=cpl2_send_tim+(timef()-btim)
 !
           ENDDO 
@@ -3368,13 +3478,14 @@
           DO NT=1,NUM_TASKS_SEND_H_W(N)                                    !<-- Send to all appropriate child tasks
 !
             btim=timef()
-            CALL MPI_SEND(CHILD_BOUND_H_WEST(N)%TASKS(NT)%DATA          &  !<-- Child west boundary data on child task NT
-                         ,WORDS_BOUND_H_WEST(N)%TASKS(NT)               &  !<-- # of words in the data string
-                         ,MPI_REAL                                      &  !<-- Datatype
-                         ,CHILDTASK_BNDRY_H_RANKS(N)%WEST(NT)           &  !<-- Local rank of child to recv data 
-                         ,NTAG                                          &  !<-- MPI tag
-                         ,COMM_TO_MY_CHILDREN(N)                        &  !<-- MPI communicator
-                         ,IERR )
+            CALL MPI_ISEND(CHILD_BOUND_H_WEST(N)%TASKS(NT)%DATA         &  !<-- Child west boundary data on child task NT
+                          ,WORDS_BOUND_H_WEST(N)%TASKS(NT)              &  !<-- # of words in the data string
+                          ,MPI_REAL                                     &  !<-- Datatype
+                          ,CHILDTASK_BNDRY_H_RANKS(N)%WEST(NT)          &  !<-- Local rank of child to recv data 
+                          ,NTAG                                         &  !<-- MPI tag
+                          ,COMM_TO_MY_CHILDREN(N)                       &  !<-- MPI communicator
+                          ,HANDLE_H_WEST(N)%NTASKS_TO_RECV(NT)          &  !<-- Handle for ISend to child N's task NT
+                          ,IERR )
             cpl2_send_tim=cpl2_send_tim+(timef()-btim)
 !
           ENDDO 
@@ -3388,13 +3499,14 @@
           DO NT=1,NUM_TASKS_SEND_V_W(N)                                    !<-- Send to all appropriate child tasks
 !
             btim=timef()
-            CALL MPI_SEND(CHILD_BOUND_V_WEST(N)%TASKS(NT)%DATA          &  !<-- Child west boundary data on child task NT
-                         ,WORDS_BOUND_V_WEST(N)%TASKS(NT)               &  !<-- # of words in the data string
-                         ,MPI_REAL                                      &  !<-- Datatype
-                         ,CHILDTASK_BNDRY_V_RANKS(N)%WEST(NT)           &  !<-- Local rank of child to recv data 
-                         ,NTAG                                          &  !<-- MPI tag
-                         ,COMM_TO_MY_CHILDREN(N)                        &  !<-- MPI communicator
-                         ,IERR )
+            CALL MPI_ISEND(CHILD_BOUND_V_WEST(N)%TASKS(NT)%DATA         &  !<-- Child west boundary data on child task NT
+                          ,WORDS_BOUND_V_WEST(N)%TASKS(NT)              &  !<-- # of words in the data string
+                          ,MPI_REAL                                     &  !<-- Datatype
+                          ,CHILDTASK_BNDRY_V_RANKS(N)%WEST(NT)          &  !<-- Local rank of child to recv data 
+                          ,NTAG                                         &  !<-- MPI tag
+                          ,COMM_TO_MY_CHILDREN(N)                       &  !<-- MPI communicator
+                          ,HANDLE_V_WEST(N)%NTASKS_TO_RECV(NT)          &  !<-- Handle for ISend to child N's task NT
+                          ,IERR )
             cpl2_send_tim=cpl2_send_tim+(timef()-btim)
 !
           ENDDO 
@@ -3410,13 +3522,14 @@
           DO NT=1,NUM_TASKS_SEND_H_E(N)                                    !<-- Send to all appropriate child tasks
 !
             btim=timef()
-            CALL MPI_SEND(CHILD_BOUND_H_EAST(N)%TASKS(NT)%DATA          &  !<-- Child east boundary data on child task NT
-                         ,WORDS_BOUND_H_EAST(N)%TASKS(NT)               &  !<-- # of words in the data string
-                         ,MPI_REAL                                      &  !<-- Datatype
-                         ,CHILDTASK_BNDRY_H_RANKS(N)%EAST(NT)           &  !<-- Local rank of child to recv data 
-                         ,NTAG                                          &  !<-- MPI tag
-                         ,COMM_TO_MY_CHILDREN(N)                        &  !<-- MPI communicator
-                         ,IERR )
+            CALL MPI_ISEND(CHILD_BOUND_H_EAST(N)%TASKS(NT)%DATA         &  !<-- Child east boundary data on child task NT
+                          ,WORDS_BOUND_H_EAST(N)%TASKS(NT)              &  !<-- # of words in the data string
+                          ,MPI_REAL                                     &  !<-- Datatype
+                          ,CHILDTASK_BNDRY_H_RANKS(N)%EAST(NT)          &  !<-- Local rank of child to recv data 
+                          ,NTAG                                         &  !<-- MPI tag
+                          ,COMM_TO_MY_CHILDREN(N)                       &  !<-- MPI communicator
+                          ,HANDLE_H_EAST(N)%NTASKS_TO_RECV(NT)          &  !<-- Handle for ISend to child N's task NT
+                          ,IERR )
             cpl2_send_tim=cpl2_send_tim+(timef()-btim)
 !
           ENDDO 
@@ -3430,13 +3543,14 @@
           DO NT=1,NUM_TASKS_SEND_V_E(N)                                    !<-- Send to all appropriate child tasks
 !
             btim=timef()
-            CALL MPI_SEND(CHILD_BOUND_V_EAST(N)%TASKS(NT)%DATA          &  !<-- Child east boundary data on child task NT
-                         ,WORDS_BOUND_V_EAST(N)%TASKS(NT)               &  !<-- # of words in the data string
-                         ,MPI_REAL                                      &  !<-- Datatype
-                         ,CHILDTASK_BNDRY_V_RANKS(N)%EAST(NT)           &  !<-- Local rank of child to recv data 
-                         ,NTAG                                          &  !<-- MPI tag
-                         ,COMM_TO_MY_CHILDREN(N)                        &  !<-- MPI communicator
-                         ,IERR )
+            CALL MPI_ISEND(CHILD_BOUND_V_EAST(N)%TASKS(NT)%DATA         &  !<-- Child east boundary data on child task NT
+                          ,WORDS_BOUND_V_EAST(N)%TASKS(NT)              &  !<-- # of words in the data string
+                          ,MPI_REAL                                     &  !<-- Datatype
+                          ,CHILDTASK_BNDRY_V_RANKS(N)%EAST(NT)          &  !<-- Local rank of child to recv data 
+                          ,NTAG                                         &  !<-- MPI tag
+                          ,COMM_TO_MY_CHILDREN(N)                       &  !<-- MPI communicator
+                          ,HANDLE_V_EAST(N)%NTASKS_TO_RECV(NT)          &  !<-- Handle for ISend to child N's task NT
+                          ,IERR )
             cpl2_send_tim=cpl2_send_tim+(timef()-btim)
 !
           ENDDO 

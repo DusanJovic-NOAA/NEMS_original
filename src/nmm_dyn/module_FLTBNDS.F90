@@ -152,10 +152,15 @@ integer(kind=kint) :: &
 ,lyr_frac_north &
 ,lyr_frac_south &
 ,n &
+,n_extra &
 ,n_factor &
 ,n_group1 &
 ,n_group2 &
 ,n_remain &
+,n_remainder_h_group1 &
+,n_remainder_h_group2 &
+,n_remainder_v_group1 &
+,n_remainder_v_group2 &
 ,nnew &
 ,npe &
 ,npes &
@@ -521,8 +526,8 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
       npes_south=ipe_end_south-ipe_start_south+1
 !
 !----------------------------------------------------
-!***  There are at least as many tasks in the
-!***  hemisphere as there are model layers.
+!***  The number of tasks in the Southern Hemisphere
+!***  does not exceed the number of model layers.
 !----------------------------------------------------
 !
       limits_south: if(npes_south<=lm)then                  
@@ -547,19 +552,19 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
         enddo
 !
 !----------------------------------------------------
-!***  If there are more tasks than model layers
-!***  divide layers of FFTs into n_factor pieces
-!***  for tasks in n_group1 and
-!***  divide remaining layers into n_factor+1 pieces
-!***  for tasks in n_group2.
+!***  If there are more tasks in the hemisphere
+!***  than there are model layers then divide the
+!***  layers into n_factor pieces for tasks in 
+!***  n_group1 and divide the remaining layers into
+!***  n_factor+1 pieces for tasks in n_group2.
 !----------------------------------------------------
 !
       else                                   
         lyr_frac_south=0
         n_factor=npes_south/lm                      
         n_remain=npes_south-n_factor*lm
-        n_group1=n_factor*(lm-n_remain)              !<-- This many tasks get layers divided into n_factor pieces
-        n_group2=npes_south-n_group1                 !<-- This many tasks get layers divided into n_factor+1 pieces
+        n_group1=n_factor*(lm-n_remain)                                   !<-- This many tasks get layers divided into n_factor pieces
+        n_group2=npes_south-n_group1                                      !<-- This many tasks get layers divided into n_factor+1 pieces
 !
 !----------------------------------------------------
 !***  Divide layers of FFTs into n_factor pieces
@@ -569,12 +574,20 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
 !----------------------------------------------------
 !
         nrows_fft_south_h=jh_end_fft_south-jh_start_fft_south+1
-        nrows_group1_h=nrows_fft_south_h/n_factor
-        nrows_group2_h=nrows_fft_south_h/(n_factor+1)
+!
+        nrows_group1_h=nrows_fft_south_h/n_factor                          !<-- Each task in group 1 handles this many H lat rows 
+        n_remainder_h_group1=nrows_fft_south_h-nrows_group1_h*n_factor     !    or one additional row to take care of remainders.
+!
+        nrows_group2_h=nrows_fft_south_h/(n_factor+1)                      !<-- Each task in group 2 handles this many H lat rows
+        n_remainder_h_group2=nrows_fft_south_h-nrows_group2_h*(n_factor+1) !    or one additional row to take care of remainders.
 !
         nrows_fft_south_v=jv_end_fft_south-jv_start_fft_south+1
-        nrows_group1_v=nrows_fft_south_v/n_factor
-        nrows_group2_v=nrows_fft_south_v/(n_factor+1)
+!
+        nrows_group1_v=nrows_fft_south_v/n_factor                          !<-- Each task in group 1 handles this many V lat rows
+        n_remainder_v_group1=nrows_fft_south_v-nrows_group1_v*n_factor     !    or one additional row to take care of remainders.
+!
+        nrows_group2_v=nrows_fft_south_v/(n_factor+1)                      !<-- Each task in group 2 handles this many V lat rows
+        n_remainder_v_group2=nrows_fft_south_v-nrows_group2_v*(n_factor+1) !    or one additional row to take care of remainders.
 !
 !---------------------------
 !*** Tasks in group 1 for H
@@ -583,24 +596,32 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
         kount_pes=0
         kount_layers=1
         nrow_x=jh_start_fft_south
+        n_extra=n_remainder_h_group1
 !
         do npe=0,ipe_end_south
           my_jrow_start_h(npe)=nrow_x
           my_jrow_end_h(npe)=min(nrow_x+nrows_group1_h-1,jh_end_fft_south)
+!
+          if(n_extra>0)then                                               !<-- Use up remainder H lat rows.
+            my_jrow_end_h(npe)=my_jrow_end_h(npe)+1
+            n_extra=n_extra-1
+          endif
+!
           k1_fft(npe)=kount_layers
           k2_fft(npe)=kount_layers
           kount_pes=kount_pes+1
 !
-          if(kount_pes==n_group1)then
+          if(kount_pes==n_group1)then 
             npe_next=npe+1
             kount_layers=kount_layers+1
-            exit
+            exit                                                          !<-- Now move on to group 2 tasks
           endif
 !
-          if(my_jrow_end_h(npe)==jh_end_fft_south)then
+          if(my_jrow_end_h(npe)==jh_end_fft_south)then                    !<-- Ready to move down to next model layer.
             nrow_x=jh_start_fft_south
             kount_layers=kount_layers+1
-          else
+            n_extra=n_remainder_h_group1
+          else                                                            !<-- Still divvying up this model layer.
             nrow_x=my_jrow_end_h(npe)+1
           endif
 !
@@ -613,20 +634,28 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
         if(npe_next<=ipe_end_south)then
           kount_pes=0
           nrow_x=jh_start_fft_south
+          n_extra=n_remainder_h_group2
 !
           do npe=npe_next,ipe_end_south
             my_jrow_start_h(npe)=nrow_x
             my_jrow_end_h(npe)=min(nrow_x+nrows_group2_h-1,jh_end_fft_south)
+!
+            if(n_extra>0)then                                             !<-- Use up remainder H lat rows.
+              my_jrow_end_h(npe)=my_jrow_end_h(npe)+1
+              n_extra=n_extra-1
+            endif
+!
             k1_fft(npe)=kount_layers
             k2_fft(npe)=kount_layers
             kount_pes=kount_pes+1
-            if(kount_pes==n_group2)then
-              exit
+            if(kount_pes==n_group2)then                                   !<-- All Southern Hemisphere tasks are assigned to FFT's
+              exit                                                        !    for H points.
             endif
-            if(my_jrow_end_h(npe)==jh_end_fft_south)then
+            if(my_jrow_end_h(npe)==jh_end_fft_south)then                  !<-- Ready to move down to next model layer.
               nrow_x=jh_start_fft_south
               kount_layers=kount_layers+1
-            else
+              n_extra=n_remainder_h_group2
+            else                                                          !<-- Still divvying up this model layer.
               nrow_x=my_jrow_end_h(npe)+1
             endif
           enddo
@@ -639,10 +668,17 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
         kount_pes=0
         kount_layers=1
         nrow_x=jv_start_fft_south
+        n_extra=n_remainder_v_group1
 !
         do npe=0,ipe_end_south
           my_jrow_start_v(npe)=nrow_x
           my_jrow_end_v(npe)=min(nrow_x+nrows_group1_v-1,jv_end_fft_south)
+!
+          if(n_extra>0)then                                               !<-- Use up remainder V lat rows.
+            my_jrow_end_v(npe)=my_jrow_end_v(npe)+1
+            n_extra=n_extra-1
+          endif
+!
           k1_fft(npe)=kount_layers
           k2_fft(npe)=kount_layers
           kount_pes=kount_pes+1
@@ -650,13 +686,14 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
           if(kount_pes==n_group1)then
             npe_next=npe+1
             kount_layers=kount_layers+1
-            exit
+            exit                                                          !<-- Move on to group 2 tasks.
           endif
 !
-          if(my_jrow_end_v(npe)==jv_end_fft_south)then
+          if(my_jrow_end_v(npe)==jv_end_fft_south)then                    !<-- Ready to move down to next model layer.
             nrow_x=jv_start_fft_south
             kount_layers=kount_layers+1
-          else
+            n_extra=n_remainder_v_group1
+          else                                                            !<-- Still divvying up this model layer.
             nrow_x=my_jrow_end_v(npe)+1
           endif
 !
@@ -669,22 +706,30 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
         if(npe_next<=ipe_end_south)then
           kount_pes=0
           nrow_x=jv_start_fft_south
+          n_extra=n_remainder_v_group2
 !
           do npe=npe_next,ipe_end_south
             my_jrow_start_v(npe)=nrow_x
             my_jrow_end_v(npe)=min(nrow_x+nrows_group2_v-1,jv_end_fft_south)
+!
+            if(n_extra>0)then                                             !<-- Use up remainder V lat rows.
+              my_jrow_end_v(npe)=my_jrow_end_v(npe)+1
+              n_extra=n_extra-1
+            endif
+!
             k1_fft(npe)=kount_layers
             k2_fft(npe)=kount_layers
             kount_pes=kount_pes+1
 !
-            if(kount_pes==n_group2)then
-              exit
+            if(kount_pes==n_group2)then                                   !<-- All Southern Hemisphere tasks are assigned to FFTs
+              exit                                                        !    for V points.
             endif
 !
-            if(my_jrow_end_v(npe)==jv_end_fft_south)then
+            if(my_jrow_end_v(npe)==jv_end_fft_south)then                  !<-- Ready to move down to next model layer.
               nrow_x=jv_start_fft_south
               kount_layers=kount_layers+1
-            else
+              n_extra=n_remainder_v_group2
+            else                                                          !<-- Still divvying up this model layer.
               nrow_x=my_jrow_end_v(npe)+1
             endif
 !
@@ -700,8 +745,8 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
       npes_north=ipe_end_north-ipe_start_north+1
 !
 !----------------------------------------------------
-!***  There are at least as many tasks in the
-!***  hemisphere as there are model layers.
+!***  The number of tasks in the Northern Hemisphere
+!***  does not exceed the number of model layers.
 !----------------------------------------------------
 !
       limits_north: if(npes_north<=lm)then
@@ -726,19 +771,19 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
         enddo
 !
 !----------------------------------------------------
-!***  If there are more tasks than model layers
-!***  divide layers of FFTs into n_factor pieces
-!***  for tasks in n_group1 and
-!***  divide remaining layers into n_factor+1 pieces
-!***  for tasks in n_group2.
+!***  If there are more tasks in the hemisphere
+!***  than there are model layers then divide the
+!***  layers into n_factor pieces for tasks in
+!***  n_group1 and divide the remaining layers into
+!***  n_factor+1 pieces for tasks in n_group2.
 !----------------------------------------------------
 !
       else
         lyr_frac_north=0
         n_factor=npes_north/lm
         n_remain=npes_north-n_factor*lm
-        n_group1=n_factor*(lm-n_remain)              !<-- This many tasks get layers divided into n_factor pieces
-        n_group2=npes_north-n_group1                 !<-- This many tasks get layers divided into n_factor+1 pieces
+        n_group1=n_factor*(lm-n_remain)                                   !<-- This many tasks get layers divided into n_factor pieces
+        n_group2=npes_north-n_group1                                      !<-- This many tasks get layers divided into n_factor+1 pieces
 !
 !----------------------------------------------------
 !***  Divide layers of FFTs into n_factor pieces
@@ -748,12 +793,20 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
 !----------------------------------------------------
 !
         nrows_fft_north_h=jh_end_fft_north-jh_start_fft_north+1
-        nrows_group1_h=nrows_fft_north_h/n_factor
-        nrows_group2_h=nrows_fft_north_h/(n_factor+1)
+!
+        nrows_group1_h=nrows_fft_north_h/n_factor                          !<-- Each task in group 1 handles this many H lat rows
+        n_remainder_h_group1=nrows_fft_north_h-nrows_group1_h*n_factor     !    or one additional row to take care of remainders.
+!
+        nrows_group2_h=nrows_fft_north_h/(n_factor+1)                      !<-- Each task in group 2 handles this many H lat rows
+        n_remainder_h_group2=nrows_fft_north_h-nrows_group2_h*(n_factor+1) !    or one additional row to take care of remainders.
 !
         nrows_fft_north_v=jv_end_fft_north-jv_start_fft_north+1
-        nrows_group1_v=nrows_fft_north_v/n_factor
-        nrows_group2_v=nrows_fft_north_v/(n_factor+1)
+!
+        nrows_group1_v=nrows_fft_north_v/n_factor                          !<-- Each task in group 1 handles this many V lat rows
+        n_remainder_v_group1=nrows_fft_north_v-nrows_group1_v*n_factor     !    or one additional row to take care of remainders.
+!
+        nrows_group2_v=nrows_fft_north_v/(n_factor+1)                      !<-- Each task in group 2 handles this many V lat rows
+        n_remainder_v_group2=nrows_fft_north_v-nrows_group2_v*(n_factor+1) !    or one additional row to take care of remainders
 !
 !---------------------------
 !*** Tasks in group 1 for H
@@ -762,25 +815,33 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
         kount_pes=0
         kount_layers=1
         nrow_x=jh_start_fft_north
+        n_extra=n_remainder_h_group1
 !
         do npe=ipe_start_north,ipe_end_north
           my_jrow_start_h(npe)=nrow_x
           my_jrow_end_h(npe)=min(nrow_x+nrows_group1_h-1,jh_end_fft_north)
+!
+          if(n_extra>0)then                                               !<-- Use up remainder H lat rows.
+            my_jrow_end_h(npe)=my_jrow_end_h(npe)+1
+            n_extra=n_extra-1
+          endif
+!
           k1_fft(npe)=kount_layers
           k2_fft(npe)=kount_layers
           kount_pes=kount_pes+1
 !
-          if(kount_pes==n_group1)then
+          if(kount_pes==n_group1)then 
             npe_next=npe+1
             kount_layers=kount_layers+1
-            exit
+            exit                                                          !<-- Now move on to group 2 tasks.
           endif
 !
-          if(my_jrow_end_h(npe)==jh_end_fft_north)then
+          if(my_jrow_end_h(npe)==jh_end_fft_north)then                    !<-- Ready to move down to next model layer.
             nrow_x=jh_start_fft_north
             kount_layers=kount_layers+1
+            n_extra=n_remainder_h_group1
           else
-            nrow_x=my_jrow_end_h(npe)+1
+            nrow_x=my_jrow_end_h(npe)+1                                   !<-- Still divvying up this model layer.
           endif
 !
         enddo
@@ -792,23 +853,31 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
         if(npe_next<=ipe_end_north)then
           kount_pes=0
           nrow_x=jh_start_fft_north
+          n_extra=n_remainder_h_group2
 !
           do npe=npe_next,ipe_end_north
             my_jrow_start_h(npe)=nrow_x
             my_jrow_end_h(npe)=min(nrow_x+nrows_group2_h-1,jh_end_fft_north)
+!
+            if(n_extra>0)then                                             !<-- Use up remainder H lat rows.
+              my_jrow_end_h(npe)=my_jrow_end_h(npe)+1
+              n_extra=n_extra-1
+            endif
+!
             k1_fft(npe)=kount_layers
             k2_fft(npe)=kount_layers
             kount_pes=kount_pes+1
 !
-            if(kount_pes==n_group2)then
-              exit
+            if(kount_pes==n_group2)then                                   !<-- All Northern Hemisphere tasks are assigned to FFT's
+              exit                                                        !    for H points.
             endif
 !
             if(my_jrow_end_h(npe)==jh_end_fft_north)then
               nrow_x=jh_start_fft_north
-              kount_layers=kount_layers+1
+              kount_layers=kount_layers+1                                 !<-- Ready to move down to next model layer.
+              n_extra=n_remainder_h_group2
             else
-              nrow_x=my_jrow_end_h(npe)+1
+              nrow_x=my_jrow_end_h(npe)+1                                 !<-- Still divvying up rows in this model layer.                
             endif
 !
           enddo
@@ -821,10 +890,17 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
         kount_pes=0
         kount_layers=1
         nrow_x=jv_start_fft_north
+        n_extra=n_remainder_v_group1
 !
         do npe=ipe_start_north,ipe_end_north
           my_jrow_start_v(npe)=nrow_x
           my_jrow_end_v(npe)=min(nrow_x+nrows_group1_v-1,jv_end_fft_north)
+!
+          if(n_extra>0)then                                               !<-- Use up remainder H lat rows.
+            my_jrow_end_v(npe)=my_jrow_end_v(npe)+1                       
+            n_extra=n_extra-1
+          endif
+!
           k1_fft(npe)=kount_layers
           k2_fft(npe)=kount_layers
           kount_pes=kount_pes+1
@@ -832,14 +908,15 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
           if(kount_pes==n_group1)then
             npe_next=npe+1
             kount_layers=kount_layers+1
-            exit
+            exit                                                          !<-- Now move on to group 2 tasks.
           endif
 !
           if(my_jrow_end_v(npe)==jv_end_fft_north)then
             nrow_x=jv_start_fft_north
-            kount_layers=kount_layers+1
+            kount_layers=kount_layers+1                                   !<-- Ready to move down to next model layer.
+            n_extra=n_remainder_v_group1
           else
-            nrow_x=my_jrow_end_v(npe)+1
+            nrow_x=my_jrow_end_v(npe)+1                                   !<-- Still divvying up rows in this model layer.
           endif
 !
         enddo
@@ -851,23 +928,31 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
         if(npe_next<=ipe_end_north)then
           kount_pes=0
           nrow_x=jv_start_fft_north
+          n_extra=n_remainder_v_group2
 !
           do npe=npe_next,ipe_end_north
             my_jrow_start_v(npe)=nrow_x
             my_jrow_end_v(npe)=min(nrow_x+nrows_group2_v-1,jv_end_fft_north)
+!
+            if(n_extra>0)then                                             !<-- Use up remainder H lat rows.
+              my_jrow_end_v(npe)=my_jrow_end_v(npe)+1
+              n_extra=n_extra-1
+            endif
+!
             k1_fft(npe)=kount_layers
             k2_fft(npe)=kount_layers
             kount_pes=kount_pes+1
 !
-            if(kount_pes==n_group2)then
-              exit
+            if(kount_pes==n_group2)then                                   !<-- All Northern Hemisphere tasks are assigned to FFTs
+              exit                                                        !    for V points.
             endif
 !
             if(my_jrow_end_v(npe)==jv_end_fft_north)then
               nrow_x=jv_start_fft_north
-              kount_layers=kount_layers+1
+              kount_layers=kount_layers+1                                 !<-- Ready to move down to next model layer.
+              n_extra=n_remainder_v_group2
             else
-              nrow_x=my_jrow_end_v(npe)+1
+              nrow_x=my_jrow_end_v(npe)+1                                 !<-- Still divvying up rows in this model layer.
             endif
 !
           enddo
@@ -1974,6 +2059,7 @@ real(kind=kfpt) :: &
                   vfilt(k2,j)=0.
                 enddo
 !
+                cycle v_filters
               endif
 !
               flt=min(cxn*rcycle,rcycle)
