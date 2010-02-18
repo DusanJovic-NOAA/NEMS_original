@@ -31,7 +31,7 @@
 !   2009-12-22  Lu    - Modify GFS_ATM_INIT routine to create and register 
 !                       dyn2chem and phy2chem coupler components
 !   2009-12-23  Lu    - Modify GFS_INTEGRATE routine to loop thru dyn, phy,  
-!                       and chem gridded component
+!   2010-02-01  Lu    - Remove dyn2chem coupler component 
 !   2010-02-05  Wang  - Added restart file for GFS
 !
 ! USAGE: ATM Gridded component parts called from subroutines within
@@ -85,7 +85,6 @@
 !
       USE GOCART_GridCompMod    , ONLY: GOCART_SETSERVICES => SETSERVICES 
 !
-      USE ATMOS_DYN_CHEM_CPL_COMP_MOD, ONLY: DYN2CHEM_SETSERVICES => SETSERVICES
       USE ATMOS_PHY_CHEM_CPL_COMP_MOD, ONLY: PHY2CHEM_SETSERVICES => SETSERVICES
 !
       USE Chem_RegistryMod
@@ -156,8 +155,7 @@
       TYPE(ESMF_GridComp),SAVE :: GC_GFS_CHEM                              !<-- The GFS chemistry component 
       TYPE(ESMF_State),   SAVE :: IMP_GFS_CHEM,EXP_GFS_CHEM                !<-- Import/export states for GFS Chemistry
 !
-      TYPE(ESMF_CplComp), SAVE :: GC_PHY2CHEM_CPL                      & !<-- GFS Phy to Chem coupler gridded component
-                                 ,GC_DYN2CHEM_CPL                        !<-- GFS Dyn to Chem coupler gridded component
+      TYPE(ESMF_CplComp), SAVE :: GC_PHY2CHEM_CPL                          !<-- GFS Phy to Chem coupler gridded component
 !
       TYPE(Chem_Registry),SAVE :: REG                                      !<-- The GOCART Chem_Registry
 
@@ -2303,12 +2301,15 @@
 !
         GRID_GFS_CHEM => GRID_GFS_ATM
 
+	print *,'LU_TST: GFS_ATM_INIT create chem comp'
         GC_GFS_CHEM=ESMF_GridCompCreate(name      ="chemistry component"   &
-                                      ,configfile='MAPL.rc'                &
-                                      ,grid      =GRID_GFS_CHEM            &
+                                      ,ConfigFile='MAPL.rc'                &
+                                      ,Grid      =GRID_GFS_CHEM            &
+                                      ,GridCompType = ESMF_ATM             &
                                       ,petList   =PETLIST_FCST             &
                                       ,rc        =RC)
         write(0,*)'in GFS_ATM_INIT after chem comp created, petlist_fcst=',petlist_fcst
+	print *,'LU_TST: GFS_ATM_INIT  chem comp created,', RC
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -2322,9 +2323,13 @@
         MESSAGE_CHECK="Register Chemistry Init, Run, Finalize"
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+	print *,'LU_TST: GFS_ATM_INIT register chem comp'
         CALL ESMF_GridCompSetServices(GC_GFS_CHEM                       &
                                      ,GOCART_SETSERVICES               &
                                      ,RC=RC)
+	print *,'LU_TST: GFS_ATM_INIT  chem comp registered', RC
+
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -2407,45 +2412,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!***  Create the Dynamics-Physics-Chemistry coupler subcomponent.
-!***  Register the Init and Run steps for it.
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!
-!----------------------------
-!***  Create Dyn-Chem Coupler
-!----------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Create the GFS Dyn2Chem Coupler Component"
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      GC_DYN2CHEM_CPL=ESMF_CplCompCreate(name   ="dyn2chem component"   &
-                                   ,petList=PETLIST_FCST                &
-                                   ,rc     =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-------------------------------------------------
-!***  Register the dyn-to-chem coupler Run steps.
-!-------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Register the Dyn2Chem Coupler's Init and Run"
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_CplCompSetServices(GC_DYN2CHEM_CPL                &  !<-- The GFS Dyn-to-Chem coupler component
-                                  ,DYN2CHEM_SETSERVICES           &  !<-- The user's subroutine name for Register
-                                  ,RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
 !----------------------------
 !***  Create Phy-Chem Coupler
 !----------------------------
@@ -2577,6 +2543,36 @@
 !
       ENDIF
 !
+!-------------
+!***  CHEMISTRY
+!-------------
+!
+      IF(CHEMISTRY_ON==ESMF_True)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Initialize GFS Chemistry Component"
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        print *,'LU_TST: GFS_ATM_INIT initialize chem comp'
+        CALL ESMF_GridCompInitialize(gridcomp   =GC_GFS_CHEM            &
+                                    ,importstate=IMP_GFS_CHEM           &
+                                    ,exportstate=EXP_GFS_CHEM           &
+                                    ,clock      =CLOCK_ATM              &
+                                    ,phase      =ESMF_SINGLEPHASE       &
+                                    ,rc         =RC)
+        print *,'LU_TST: GFS_ATM_INIT chem comp initialized', RC
+
+!  check the state here
+	print *,'LU_TST: GFS_ATM_INIT print state'
+        CALL ESMF_StatePrint (IMP_GFS_CHEM)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      ENDIF
+
+!
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !***  Initialize the Dyn-Phy Coupler subcomponent.
@@ -2598,6 +2594,28 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!***  Initialize the Phy-Chem Coupler subcomponent.
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!      MESSAGE_CHECK="Initialize Phy-Chem Coupler"
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+!      CALL ESMF_CplCompInitialize(cplcomp    =GC_PHY2CHEM_CPL           &
+!                                 ,importstate=EXP_GFS_PHY               &
+!                                 ,exportstate=IMP_GFS_CHEM              &
+!                                 ,clock      =CLOCK_ATM                 &
+!                                 ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+
 !-----------------------------------------------------------------------
 !***  Execute the Initialize step of the Write component(s).
 !-----------------------------------------------------------------------
@@ -3056,7 +3074,6 @@
                         ,GC_GFS_PHY                                     &
                         ,GC_GFS_CHEM                                    &
                         ,GC_ATM_CPL                                     &
-                        ,GC_DYN2CHEM_CPL                                &
                         ,GC_PHY2CHEM_CPL                                &
                         ,WRT_COMPS                                      &
                         ,IMP_GFS_DYN                                    &

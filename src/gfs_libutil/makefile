@@ -7,24 +7,24 @@ include ../../ush/compile_settings
 MAKEFILE=makefile
 TARGET= gfs_libutil.a
 
-OBJ=\
-	module_NEMSIO.o
-
 OBJS01  = \
 	module_gfs_machine.o          \
 	module_include_gfs.o            \
 	module_gfs_mpi_def.o          
 
-OBJS02  = \
+OBJS02=\
+	module_NEMSIO.o			\
+	module_gfs_physcons.o		\
+ 	module_gfs_funcphys.o		\
+	module_gfs_tropp.o		
+
+OBJS03  = \
 	module_ERR_MSG.o           \
 	module_DM_PARALLEL_GFS.o      \
 	module_digital_filter_gfs.o   \
 	module_export_import_data.o   \
 	atmos_dyn_phy_cpl_comp_mod.o \
-	atmos_dyn_chem_cpl_comp_mod.o \
 	atmos_phy_chem_cpl_comp_mod.o
-
-
 
 #
 #
@@ -37,16 +37,16 @@ default:
 
 all: $(LIBDIR)/lib/$(TARGET)
 
-$(LIBDIR)/lib/$(TARGET): $(OBJ) $(OBJS01) $(OBJS02)
+$(LIBDIR)/lib/$(TARGET): $(OBJS01) $(OBJS02) $(OBJS03)
 	$(AR) $(ARFLAGS) $@ $?
-
-$(OBJ): %.o: %.F90
-	$(F90) $(FFLAG_GFS_UTIL) -c  $*.F90
 
 $(OBJS01): %.o: %.F90
 	$(FC) $(FFLAG_GFS_UTIL) -c $*.F90
 
 $(OBJS02): %.o: %.F90
+	$(F90) $(FFLAG_GFS_UTIL) -c  $*.F90
+
+$(OBJS03): %.o: %.F90
 	$(FC) $(FFLAG_GFS_UTIL90) -c $*.F90
 
 clean:

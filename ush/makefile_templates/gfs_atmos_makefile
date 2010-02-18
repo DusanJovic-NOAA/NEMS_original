@@ -41,6 +41,7 @@ TARGET= atmos.a
 
 MODULE=        \
 		module_GFS_CORE_SETUP.o \
+		module_GOCART_INTEGRATE.o \
 		module_GFS_INTEGRATE.o
 
 MODULE_ATM=    \

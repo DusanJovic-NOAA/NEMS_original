@@ -10,6 +10,7 @@
 !***  to redirect the data's pointers.
 !
 ! Oct 17 2009       Sarah Lu, remove shum, oz, cld; modify ndata count
+! Feb 20 2010       Sarah Lu, p, dp added to phy export state
 !-----------------------------------------------------------------------
 !
       use esmf_mod
@@ -56,7 +57,8 @@
       integer,parameter :: ndata_1d_phy_exp=1
       integer,parameter :: ndata_2d_phy_exp=2
 !*    integer,parameter :: ndata_3d_phy_exp=6
-      integer,parameter :: ndata_3d_phy_exp=3
+!*    integer,parameter :: ndata_3d_phy_exp=3     ! q,cld,o3 removed
+      integer,parameter :: ndata_3d_phy_exp=5     ! p, dp added
 !
 !----------------------------------------------------------------
 !***  the names of the fields that will move through the coupler

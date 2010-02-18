@@ -2,8 +2,15 @@
       use gfs_dyn_machine , only : kind_grid
       implicit none
 
+! !revision history:
+!
+!  09Feb2010   Sarah Lu, ri/cpi dimension increased
+
+      integer, parameter :: max_num_tracer=50
 !jw      real(kind=kind_grid) ri(0:20),cpi(0:20)
-      real(kind=kind_grid),target :: ri(0:20),cpi(0:20)
+!     real(kind=kind_grid),target :: ri(0:20),cpi(0:20)
+      real(kind=kind_grid),target ::  ri(0:max_num_tracer)
+      real(kind=kind_grid),target :: cpi(0:max_num_tracer)
       integer, parameter :: num_tracer=3
 
       contains
@@ -17,6 +24,10 @@
 
 !     print *,' enter get_tracer_const',ntrac,num_tracer
 c
+! Remark (09Feb2010) by Sarah Lu
+! This routine reads ri/cpi for meteorological tracers;
+! Number of met tracers (num_tracer) is hardwired to 3 
+
       if( ntrac.ne.num_tracer ) then
         if( me.eq.0 ) then
           write(0,*) ' Error ; inconsistent number of tracer '

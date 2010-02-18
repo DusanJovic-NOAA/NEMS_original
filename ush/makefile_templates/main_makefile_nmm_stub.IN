@@ -14,7 +14,6 @@ all:
 	cp $(GFS_IO)/module_write_routines_gfs.mod $(MODDIR)/modstub/gfs
 	cd $(GFS_UTIL) && gmake -f makefile_stub 
 	cp $(GFS_UTIL)/atmos_dyn_phy_cpl_comp_mod.mod $(MODDIR)/modstub/gfs
-	cp $(GFS_UTIL)/atmos_dyn_chem_cpl_comp_mod.mod $(MODDIR)/modstub/gfs
 	cp $(GFS_UTIL)/atmos_phy_chem_cpl_comp_mod.mod $(MODDIR)/modstub/gfs
 	cp $(GFS_UTIL)/module_gfs_mpi_def.mod $(MODDIR)/modstub/gfs
 	cd $(ATM) && gmake -f makefile_stub 

@@ -3,6 +3,7 @@
 !
 ! ! Revision history:
 !   Oct 17 2009   Sarah Lu, First version
+!   Feb 08 2009   Sarah Lu, ri/cpi added to gfs_phy_tracer_type
 ! -------------------------------------------------------------------------
 !
       module gfs_phy_tracer_config
@@ -10,6 +11,8 @@
 
       type    gfs_phy_tracer_type
         character*20,    pointer     :: vname(:)    ! variable name
+        real*8, pointer      :: ri(:)
+        real*8, pointer      :: cpi(:)
         integer                  :: ntrac
         integer                  :: ntrac_met
         integer                  :: ntrac_chem

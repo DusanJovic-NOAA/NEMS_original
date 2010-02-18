@@ -18,7 +18,7 @@
 # Source Code Stub Libraries
 ###########################################################
   GFS_UTIL_LIB=$(LIBDIR)/libstub/gfs_libutil_stub.a
-  GFS_PHY_LIB=$(LIBDIR)/lib/gfs_phys.a
+  GFS_PHY_LIB=$(LIBDIR)/libstub/gfs_phys_stub.a
   GFS_DYN_LIB=$(LIBDIR)/libstub/gfs_dyn_stub.a
   GFS_IO_LIB=$(LIBDIR)/libstub/gfs_io_stub.a
   ATMOS_STUB_LIB=$(LIBDIR)/libstub/atmos_gfs_stub.a

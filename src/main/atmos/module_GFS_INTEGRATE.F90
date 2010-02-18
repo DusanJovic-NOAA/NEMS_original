@@ -12,6 +12,7 @@
 ! PROGRAM HISTORY LOG:
 !   2009-12-23  Lu    - GFS_INTEGRATE modified to loop thru dyn, phy, &
 !                       chem gridded component
+!   2010-02-04  Lu    - GOCART_INTEGRATE added
 !   2010-02-05  WANG  - change alarm set up for restart option of GFS
 !-----------------------------------------------------------------------
 
@@ -21,6 +22,7 @@
 !
       USE MODULE_DIGITAL_FILTER_GFS
       USE MODULE_WRITE_ROUTINES_GFS,ONLY: WRITE_ASYNC_GFS
+      USE MODULE_GOCART_INTEGRATE, ONLY: GOCART_INTEGRATE
       USE MODULE_CONTROL,ONLY: TIMEF
 !
 !-----------------------------------------------------------------------
@@ -48,7 +50,6 @@
                               ,GC_GFS_PHY                               &
                               ,GC_GFS_CHEM                              &
                               ,GC_ATM_CPL                               &
-                              ,GC_DYN2CHEM_CPL                          &
                               ,GC_PHY2CHEM_CPL                          &
                               ,WRT_COMPS                                &
                               ,IMP_GFS_DYN                              &
@@ -103,7 +104,6 @@
       TYPE(ESMF_GridComp),INTENT(INOUT) :: WRT_COMPS(:)                    !<-- The Write components for output
 !
       TYPE(ESMF_CplComp),INTENT(INOUT) :: GC_ATM_CPL                       !<-- The Dynamics-Physics coupler component
-      TYPE(ESMF_CplComp),INTENT(INOUT) :: GC_DYN2CHEM_CPL                  !<-- The Dyn-to-Chem coupler component
       TYPE(ESMF_CplComp),INTENT(INOUT) :: GC_PHY2CHEM_CPL                  !<-- The Phy-to-Chem coupler component
 !
       TYPE(ESMF_State),INTENT(INOUT) :: IMP_GFS_DYN,EXP_GFS_DYN         &  !<-- The import/export states for Dynamics component
@@ -244,6 +244,25 @@
           write(0,*)'after phys,ntimestep=',ntimestep,'fhour=',ntimestep/4.
 !
 !-----------------------------------------------------------------------
+!***  Invoke GOCART 
+!-----------------------------------------------------------------------
+          IF (CHEMISTRY_ON==ESMF_True) THEN
+
+              MESSAGE_CHECK="Execute GOCART module"
+
+              CALL GOCART_INTEGRATE(                                    &
+                                   GC_GFS_CHEM,                         &
+                                   GC_PHY2CHEM_CPL,                     &
+                                   EXP_GFS_PHY,                         &
+                                   IMP_GFS_CHEM, EXP_GFS_CHEM,          &
+                                   CLOCK_ATM, RC                    )
+
+             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_LOOP)
+
+          ENDIF
+!
+!
+!-----------------------------------------------------------------------
 !***  Skip the Physics is the user has turned it off. 
 !-----------------------------------------------------------------------
 !
@@ -261,51 +280,6 @@
 !
         ENDIF
 
-!-----------------------------------------------------------------------
-!***  Execute DYN-to-CHEM and PHY-to-CHEM coupler components and
-!***  CHEM gridded component (optional)
-!-----------------------------------------------------------------------
-
-        lab_if_chemistry : IF (CHEMISTRY_ON==ESMF_True) THEN
-
-!-----------------------------------------------------------------------
-!***  Couple Dynamics export state to Chemistry import State
-!-----------------------------------------------------------------------
-          CALL ESMF_CplCompRun(cplcomp     = GC_DYN2CHEM_CPL            &
-                               ,importstate= EXP_GFS_DYN                &
-                               ,exportstate= IMP_GFS_CHEM               &
-                               ,clock      = CLOCK_ATM                  &
-                               ,rc         = RC)
-!
-          CALL ERR_MSG(RC,'couple dyn_exp-to-chem_imp',RC_LOOP)
-
-!-----------------------------------------------------------------------
-!***  Couple Physics export state to Chemistry import State
-!-----------------------------------------------------------------------
-          CALL ESMF_CplCompRun(cplcomp     = GC_PHY2CHEM_CPL            &
-                               ,importstate= EXP_GFS_PHY                &
-                               ,exportstate= IMP_GFS_CHEM               &
-                               ,clock      = CLOCK_ATM                  &
-                               ,rc         = RC)
-!
-          CALL ERR_MSG(RC,'couple phy_exp-to-chem_imp',RC_LOOP)
-
-!-----------------------------------------------------------------------
-!***  Execute the Run step of the Chemistry Component
-!-----------------------------------------------------------------------
-          CALL ESMF_GridCompRun(gridcomp   =GC_GFS_CHEM                 &
-                               ,importstate=IMP_GFS_CHEM                &
-                               ,exportstate=EXP_GFS_CHEM                &
-                               ,clock      =CLOCK_ATM                   &
-                               ,rc         =RC)
-!
-          CALL ERR_MSG(RC,'execute chemistry',RC_LOOP)
-
-!-----------------------------------------------------------------------
-!***  The chem-to-dyn coupler is not needed, exit now
-!-----------------------------------------------------------------------
-
-        ENDIF lab_if_chemistry
 !
 !-----------------------------------------------------------------------
 !***  Bring export data from the Physics into the coupler

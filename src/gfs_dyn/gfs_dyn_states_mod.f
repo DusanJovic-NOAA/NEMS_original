@@ -6,7 +6,7 @@
 
 ! !USES:
 !
-  use ESMF_Mod
+
   use gfs_dyn_machine,              only: kind_evod
   use gfs_dynamics_err_msg_mod                     
 
@@ -33,6 +33,8 @@
 !  Sarah Lu  2009-10-12  Port to the latest trunk
 !  Sarah Lu  2009-10-17  Tracer bundle added; (shum, oz, cld) removed
 !  Jun Wang  2009-11-09  set difital filter variables to export state
+!  Sarah Lu  2010-02-09  set cpi, ri attributes to export state
+!  Sarah Lu  2010-02-11  add set_dynexp_attribute subprogram for ri/cpi
 !                 
 !EOP
 
@@ -71,14 +73,12 @@
 !    if ( .not. associated(Internal%grid_gr) ) &
 !         call die_gfs ('Dynamics internal state not initialized')
 
-!    print *, 'LU_DYN: call StateDefine for import state'        
     call StateDefine_ ( import, internal, mgrid,                       &
                         cf%z_import, cf%ps_import, cf%u_import,        &
                         cf%v_import, cf%temp_import, cf%tracer_import, &
                         cf%p_import, cf%dp_import, cf%dpdt_import, rc1)
     call gfs_dynamics_err_msg(rc1,"StateDefine for import state",rcfinal) 
 
-!    print *, 'LU_DYN: call StateDefine for export state'        
     call StateDefine_ ( export, internal, mgrid,                       &
                         cf%z_export, cf%ps_export, cf%u_export,        &
                         cf%v_export, cf%temp_export, cf%tracer_export, &
@@ -299,8 +299,6 @@
           CALL ESMF_FieldGet(field=field, localDe=0, &
                              farray=fArr2D, rc = rc)
           internal%grid_gr(:,:,i) = fArr2D
-!          print *,'from imp2int,ps=',maxval(internal%grid_gr(:,:,i)),   &
-!            minval(internal%grid_gr(:,:,i))
           call gfs_dynamics_err_msg(rc,'retrieve Farray from field -ps',rcfinal)
         endif
       end if
@@ -325,8 +323,6 @@
           CALL ESMF_FieldGet(field=field, localDe=0, &
                              farray=fArr3D, rc = rc)
           internal%grid_gr(:,:,i:j) = fArr3D
-!          print *,'from imp2int,t=',maxval(internal%grid_gr(:,:,i:j)),   &
-!            minval(internal%grid_gr(:,:,i:j))
           call gfs_dynamics_err_msg(rc,'retrieve Farray from field -t',rcfinal)
         endif
       end if
@@ -412,9 +408,6 @@
                                 farray=fArr3D, rc = rc)
              call gfs_dynamics_err_msg(rc,'retrieve Farray from field',rcfinal)
              internal%grid_gr(:,:,i:j) = fArr3D
-!          print *,'from imp2int,tracert=',trim(internal%gfs_dyn_tracer%vname(k)), &
-!            maxval(internal%grid_gr(:,:,i:j)),   &
-!            minval(internal%grid_gr(:,:,i:j))
           end do
         endif 
       end if                                                
@@ -678,6 +671,12 @@
            call ESMF_FieldBundleAdd(bundle,field,rc=rc)                     
            call gfs_dynamics_err_msg(rc,"add field to bundle",rcfinal)       
        end do                                                                
+
+!  --- set attributes for ri and cpi to be exported to physics
+       call set_dynexp_attribute
+!  ---  inputs:  (in scope variables)
+!  ---  outputs: (in scope variables)
+
        call ESMF_StateAdd(state,Bundle,rc=rc)                               
        call gfs_dynamics_err_msg(rc,"add to esmf state - tracer",rcfinal)   
 !
@@ -690,9 +689,7 @@
            field = ESMF_FieldCreate(name=trim(internal%gfs_dyn_tracer%vname(k))//'_dfi',&
                    grid=mgrid, fArray=fArr3D, &
                    indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-!           print *,'int2exp,k=',k,i,j,'name=',trim(internal%gfs_dyn_tracer%vname(k))//'_dfi', 'rc=',rc
            call ESMF_StateAdd(state,field,rc=rc)
-!           print *,'add tracer field into state'
            call gfs_dynamics_err_msg(rc,"add to esmf export state -ps",rcfinal)
          enddo
        endif
@@ -775,7 +772,46 @@
       call gfs_dynamics_err_msg_final(rcfinal,				&
                             "gfs_dynamics_internal2export_mgrid",rc)
 
+      contains
+! =================
+
+
+!-----------------------------
+      subroutine set_dynexp_attribute
+!.............................
+!  ---  inputs:  (in scope variables)
+!  ---  outputs: (in scope variables)
+
+! ---  Set attributes for ri and cpi
+       CALL ESMF_AttributeSet(Bundle                         &  !<-- Dyn export state tracer bundle
+               ,name ='cpi_dryair'                           &  !<-- Name of the attribute to insert
+               ,value = internal%gfs_dyn_tracer%cpi(0)       &  !<-- Value of the attribute
+               ,rc   =RC)
+       call gfs_dynamics_err_msg(rc,"insert cpi(0) attribute to dyn_exp",rcfinal)
+
+       CALL ESMF_AttributeSet(Bundle                         &  !<-- Dyn export state tracer bundle
+               ,name ='ri_dryair'                            &  !<-- Name of the attribute to insert
+               ,value = internal%gfs_dyn_tracer%ri(0)        &  !<-- Value of the attribute
+               ,rc   =RC)
+       call gfs_dynamics_err_msg(rc,"insert ri(0) attribute to dyn_exp",rcfinal)
+
+       CALL ESMF_AttributeSet(Bundle                         &  !<-- Dyn export state tracer bundle
+               ,name ='cpi'                                  &  !<-- Name of the attribute array
+               ,count= internal%ntrac                        &  !<-- Length of array being inserted
+               ,valueList = internal%gfs_dyn_tracer%cpi(1:internal%ntrac)  &!<-- The array being inserted
+               ,rc   =RC)
+       call gfs_dynamics_err_msg(rc,"insert cpi(:) attribute to dyn_exp",rcfinal)
+
+       CALL ESMF_AttributeSet(Bundle                         &  !<-- Dyn export state tracer bundle
+               ,name ='ri'                                   &  !<-- Name of the attribute array
+               ,count= internal%ntrac                        &  !<-- Length of array being inserted
+               ,valueList = internal%gfs_dyn_tracer%ri(1:internal%ntrac)  &!<-- The array being inserted
+               ,rc   =RC)
+       call gfs_dynamics_err_msg(rc,"insert ri(:) attribute to dyn_exp",rcfinal)
+
+      RETURN
+      end subroutine set_dynexp_attribute
+
       end subroutine gfs_dynamics_internal2export_mgrid
- 
 
   end module GFS_Dyn_States_Mod

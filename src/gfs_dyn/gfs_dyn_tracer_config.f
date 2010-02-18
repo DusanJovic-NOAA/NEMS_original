@@ -10,10 +10,12 @@
 !   Oct 16 2009   Sarah Lu, remove ChemRegistry; hardwire tracer specification 
 !                           for testing; port to the latest trunk
 !   Nov 19 2009   Sarah Lu, chem tracer specified from ChemRegistry
+!   Feb 09 2009   Sarah Lu, ri/cpi added to gfs_dyn_tracer_type
 ! -------------------------------------------------------------------------
 !
       module gfs_dyn_tracer_config
       use gfs_dyn_machine , only : kind_grid
+      use gfs_dyn_tracer_const, only : cpi,ri
       use Chem_RegistryMod
       implicit none
       SAVE
@@ -21,7 +23,9 @@
 ! tracer specification
 !
       type    gfs_dyn_tracer_type
-        character*20,    pointer     :: vname(:)    ! variable name
+        character*20        , pointer      :: vname(:)    ! variable name
+        real(kind=kind_grid), pointer      :: ri(:)
+        real(kind=kind_grid), pointer      :: cpi(:)
         integer                  :: ntrac
         integer                  :: ntrac_met
         integer                  :: ntrac_chem
@@ -30,6 +34,7 @@
         logical                  :: doing_SS
         logical                  :: doing_OC
         logical                  :: doing_BC
+        logical                  :: doing_GOCART
       endtype gfs_dyn_tracer_type
 
       type (gfs_dyn_tracer_type), save     ::  gfs_dyn_tracer
@@ -73,6 +78,7 @@ c
       gfs_dyn_tracer%doing_DU = reg%doing_DU
       gfs_dyn_tracer%doing_SS = reg%doing_SS
       gfs_dyn_tracer%doing_SU = reg%doing_SU
+      gfs_dyn_tracer%doing_GOCART = reg%doing_GOCART
 
 ! ntrac_met = number of met tracers
       if ( ntoz < ntcw ) then                       
@@ -91,17 +97,30 @@ c
      &                       gfs_dyn_tracer%ntrac_chem
       ntrac = gfs_dyn_tracer%ntrac
 
-! Set up tracer name
+! Set up tracer name, cpi, and ri
       if ( gfs_dyn_tracer%ntrac > 0 ) then      
        allocate(gfs_dyn_tracer%vname(ntrac), stat=status)
            if( status .ne. 0 ) go to 999         
+       allocate(gfs_dyn_tracer%ri(0:ntrac),  stat=status)
+           if( status .ne. 0 ) go to 999         
+       allocate(gfs_dyn_tracer%cpi(0:ntrac), stat=status)
+           if( status .ne. 0 ) go to 999         
+
 !--- fill in met tracers
-      gfs_dyn_tracer%vname(1) = 'spfh'   
+      gfs_dyn_tracer%vname(   1) = 'spfh'   
       gfs_dyn_tracer%vname(ntoz) = 'o3mr'  
       gfs_dyn_tracer%vname(ntcw) = 'clwmr' 
+
+      gfs_dyn_tracer%cpi(0:gfs_dyn_tracer%ntrac_met) = 
+     &               cpi(0:gfs_dyn_tracer%ntrac_met) 
+      gfs_dyn_tracer%ri(0:gfs_dyn_tracer%ntrac_met) = 
+     &               ri(0:gfs_dyn_tracer%ntrac_met) 
+
 !--- fill in chem tracers
       do i = 1,gfs_dyn_tracer%ntrac_chem
        gfs_dyn_tracer%vname(i+gfs_dyn_tracer%ntrac_met)=reg%vname(i)
+       gfs_dyn_tracer%cpi(i+gfs_dyn_tracer%ntrac_met) = 0.
+       gfs_dyn_tracer%ri(i+gfs_dyn_tracer%ntrac_met) = 0.
       enddo
 
       endif

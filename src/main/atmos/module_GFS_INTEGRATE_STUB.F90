@@ -36,7 +36,6 @@
                               ,GC_GFS_PHY                               &
                               ,GC_GFS_CHEM                              &
                               ,GC_ATM_CPL                               &
-                              ,GC_DYN2CHEM_CPL                          &
                               ,GC_PHY2CHEM_CPL                          &
                               ,WRT_COMPS                                &
                               ,IMP_GFS_DYN                              &
@@ -69,7 +68,6 @@
       TYPE(ESMF_GridComp),INTENT(INOUT)	     :: GC_GFS_PHY
       TYPE(ESMF_GridComp),INTENT(INOUT)	     :: GC_GFS_CHEM
       TYPE(ESMF_CplComp),INTENT(INOUT)       :: GC_ATM_CPL
-      TYPE(ESMF_CplComp),INTENT(INOUT)       :: GC_DYN2CHEM_CPL
       TYPE(ESMF_CplComp),INTENT(INOUT)       :: GC_PHY2CHEM_CPL
       TYPE(ESMF_GridComp),INTENT(INOUT)      :: WRT_COMPS(:)
       TYPE(ESMF_State),INTENT(INOUT)         :: IMP_GFS_DYN,EXP_GFS_DYN

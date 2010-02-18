@@ -28,6 +28,7 @@
 # 2009-12     Jun Wang, link atm_namelist.rc to configure_file
 # 2010-01-14  Sarah Lu : Added GOCART_CLIM and GOCART_LUTS
 # 2010-02     Jun Wang  Add restart
+# 2010-02-06  Sarah Lu : modify phy_namelist.rc (set p_export/dp_export to 1)
 #
 #
 # Usage:  global_forecast.sh GRDI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO
@@ -872,8 +873,8 @@ u_export:                         1
 v_export:                         1
 temp_export:                      1
 tracer_export:                    1
-p_export:                         0
-dp_export:                        0
+p_export:                         1 
+dp_export:                        1 
 dpdt_export:                      0
 
 # Surface state.

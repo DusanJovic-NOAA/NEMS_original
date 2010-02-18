@@ -2,7 +2,13 @@
       use machine , only : kind_phys
       implicit none
 
-      real(kind=kind_phys) ri(0:20),cpi(0:20)
+! !revision history:
+!
+!  09Feb2010   Sarah Lu, ri/cpi changed to allocatable
+
+
+!     real(kind=kind_phys) ri(0:20),cpi(0:20)
+      real(kind=kind_phys), allocatable ::  ri(:),cpi(:)
       integer, parameter :: num_tracer=3
 
       contains
@@ -23,6 +29,15 @@ c
         call abort
       endif
 
+!
+!! This routine is now called by NMMB only                   (Sarah Lu)
+!! For GFS core, CPI/RI is passed in from DYN export state
+!! The allocation below is to support NMMB+GFS_physics package
+      if (.not. allocated(ri)) then
+        allocate( ri(0:num_tracer))
+        allocate(cpi(0:num_tracer))
+      endif
+!
       ri=0.0
       cpi=0.0
       ri(0)=rd

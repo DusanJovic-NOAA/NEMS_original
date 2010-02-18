@@ -13,6 +13,8 @@
   use gfs_physics_internal_state_mod    ! Physics internal state 
   use gfs_physics_namelist_mod          ! Physics configuration
   use gfs_physics_grid_create_mod, only: mgrid   
+  use tracer_const, only : cpi, ri
+
 
   implicit none
 
@@ -31,6 +33,9 @@
 !  Sarah Lu  2009-11-13  2D diag fields added to export state (for GOCART)
 !  Sarah Lu  2009-12-08  FCLD added to export state (for GOCART)
 !  Sarah Lu  2009-12-15  DQDT added to export state (for GOCART)
+!  Sarah Lu  2010-02-09  Get ri, cpi attribute from import tracer bundle
+!  Sarah Lu  2010-02-11  add set_phy_attribute to insert tracer_config to export state;
+!                        add get_phy_attribute to retreive ri, cpi from import state
 !
 !EOP
 
@@ -62,7 +67,7 @@
       real, pointer     :: fArr2D(:,:)
       real, pointer     :: fArr3D(:,:,:)
 
-      integer                  :: i, j, k
+      integer                  :: i, j, k, status
 
       cf = internal%esmf_sta_list
 
@@ -181,6 +186,14 @@
               internal%grid_fld%tracers(i)%flds => fArr3D 
              endif                                  
           end do                            
+
+!  --- Retrieve ri/cpi from import state; fill in tracer_const local arrays
+          if ( internal%start_step ) then
+            call get_phy_attribute
+!  ---      inputs:  (in scope variables)
+!  ---      outputs: (in scope variables)
+          endif
+
       end if                          
 
 
@@ -242,6 +255,55 @@
       call gfs_physics_err_msg_final(rcfinal,				&
                             "gfs_physics_import2internal_mgrid",rc)
 
+     contains
+! =================
+
+!-----------------------------
+      subroutine get_phy_attribute
+
+!  ---  inputs:  (in scope variables)
+!  ---  outputs: (in scope variables)
+
+! ---  Retrieve ri and cpi
+       CALL ESMF_AttributeGet(Bundle                         &  !<-- Tracer bundle
+               ,name ='cpi_dryair'                           &  !<-- Name of the attribute to retrieve
+               ,value = internal%gfs_phy_tracer%cpi(0)       &  !<-- Value of the attribute
+               ,rc   =RC)
+       call gfs_physics_err_msg(rc,'retrieve cpi(0) attribute from phy_imp',rcfinal)
+
+       CALL ESMF_AttributeGet(Bundle                         &  !<-- Tracer bundle
+               ,name ='ri_dryair'                            &  !<-- Name of the attribute to retrieve
+               ,value = internal%gfs_phy_tracer%ri(0)        &  !<-- Value of the attribute
+               ,rc   =RC)
+       call gfs_physics_err_msg(rc,'retrieve ri(0) attribute from phy_imp',rcfinal)
+
+       CALL ESMF_AttributeGet(Bundle                         &  !<-- Tracer bundle
+               ,name ='cpi'                                  &  !<-- Name of the attribute to retrieve
+               ,count= internal%ntrac                        &  !<-- Number of values in the attribute
+               ,valueList = internal%gfs_phy_tracer%cpi(1:internal%ntrac)  &!<-- Value of the attribute
+               ,rc   =RC)
+       call gfs_physics_err_msg(rc,'retrieve cpi(:) attribute from phy_imp',rcfinal)
+
+       CALL ESMF_AttributeGet(Bundle                         &  !<-- Tracer bundle
+               ,name ='ri'                                   &  !<-- Name of the attribute to retrieve
+               ,count= internal%ntrac                        &  !<-- Number of values in the attribute
+               ,valueList = internal%gfs_phy_tracer%ri(1:internal%ntrac)  &!<-- Value of the attribute
+               ,rc   =RC)
+       call gfs_physics_err_msg(rc,'retrieve ri(:) attribute from phy_imp',rcfinal)
+
+! ---  Fill in ri/cpi local array
+       allocate(ri(0:internal%ntrac), stat=status)
+         if( status .ne. 0 ) print *, 'ERROR: Fail to allocate ri'
+       allocate(cpi(0:internal%ntrac), stat=status)
+         if( status .ne. 0 ) print *, 'ERROR: Fail to allocate cpi'
+       cpi(0:internal%ntrac) =                                       &
+              internal%gfs_phy_tracer%cpi(0:internal%ntrac)
+       ri(0:internal%ntrac) =                                        &
+              internal%gfs_phy_tracer%ri(0:internal%ntrac)
+
+      return
+      end subroutine get_phy_attribute
+
       end subroutine gfs_physics_import2internal_mgrid
 
 ! ========================================================================= 
@@ -267,7 +329,7 @@
 
       real, pointer            :: fArr2D(:,:)
       real, pointer            :: fArr3D(:,:,:)
-    
+
       integer                  :: i, j
 !
 !*  2-D/3-D quantities for GOCART gridded component
@@ -392,6 +454,12 @@
           call ESMF_FieldBundleAdd(bundle,field,rc=rc)                
           call gfs_physics_err_msg(rc,"add Efield to bundle",rcfinal)    
        end do                                                         
+
+!  --- Insert tracer_config to tracer bundle (to be exported to other component)
+       call set_phy_attribute
+!  ---  inputs:  (in scope variables)
+!  ---  outputs: (in scope variables)
+
        call ESMF_StateAdd(state,Bundle,rc=rc)                            
        call gfs_physics_err_msg(rc,"add to esmf state -tracer",rcfinal) 
       end if                                                       
@@ -450,11 +518,6 @@
           lonsperlar_r(i) =  internal%lonsperlar(ilat)                        
         enddo
       endif
-
-      print *, 'LU_TST: lonr            = ', lonr
-      print *, 'LU_TST: lats_node_r     = ', lats_node_r
-      print *, 'LU_TST: lats_node_r_max = ', lats_node_r_max
-      print *, 'LU_TST: lonsperlar_r    = ', lonsperlar_r(:)
 
       CALL ESMF_AttributeSet(state=state                   &  !<-- The physics export state
                             ,name ='lats_node_r'           &  !<-- Name of the attribute to insert
@@ -579,9 +642,6 @@
         
         END SELECT 
 
-        if(internal%me == 0) then
-	print *, 'LU_x:',vname, fArr3D(1,1,1:6)
-        endif
         msg   = "Create ESMF Field from "//vname
         field = ESMF_FieldCreate(name=vname, grid=mgrid,       &
                 fArray=fArr3D,indexFlag=ESMF_INDEX_DELOCAL,rc=rc)
@@ -603,7 +663,109 @@
       call gfs_physics_err_msg_final(rcfinal,				&
                             "gfs_physics_internal2export_mgrid",rc)
 
+      contains
+! =================
+
+!-----------------------------
+      subroutine set_phy_attribute
+!.............................
+!  ---  inputs:  (in scope variables)
+!  ---  outputs: (in scope variables)
+
+!  ---  locals:
+       TYPE(ESMF_Logical)      :: doing_SU, doing_SS, & 
+                                  doing_DU, doing_OC, doing_BC
+ 
+! ---  Set attributes for ri and cpi
+       msg   = "insert cpi(0) attribute to phy_exp"
+       CALL ESMF_AttributeSet(Bundle                         &  !<-- Phy export state tracer bundle
+               ,name ='cpi_dryair'                           &  !<-- Name of the attribute to insert
+               ,value = internal%gfs_phy_tracer%cpi(0)       &  !<-- Value of the attribute
+               ,rc   =RC)
+       call gfs_physics_err_msg(rc,msg,rcfinal)    
+
+       msg   = "inset ri(0) attribute to phy_exp"
+       CALL ESMF_AttributeSet(Bundle                         &  !<-- Phy export state tracer bundle
+               ,name ='ri_dryair'                            &  !<-- Name of the attribute to insert
+               ,value = internal%gfs_phy_tracer%ri(0)        &  !<-- Value of the attribute
+               ,rc   =RC)
+       call gfs_physics_err_msg(rc,msg,rcfinal)    
+
+       msg   = "insert cpi(:) attribute to phy_exp"
+       CALL ESMF_AttributeSet(Bundle                         &  !<-- Phy export state tracer bundle
+               ,name ='cpi'                                  &  !<-- Name of the attribute array
+               ,count= internal%ntrac                        &  !<-- Length of array being inserted
+               ,valueList = internal%gfs_phy_tracer%cpi(1:internal%ntrac)  &!<-- The array being inserted
+               ,rc   =RC)
+       call gfs_physics_err_msg(rc,msg,rcfinal)    
+
+       msg   = "insert ri(:) attribute to phy_exp"
+       CALL ESMF_AttributeSet(Bundle                         &  !<-- Phy export state tracer bundle
+               ,name ='ri'                                   &  !<-- Name of the attribute array
+               ,count= internal%ntrac                        &  !<-- Length of array being inserted
+               ,valueList = internal%gfs_phy_tracer%ri(1:internal%ntrac)  &!<-- The array being inserted
+               ,rc   =RC)
+       call gfs_physics_err_msg(rc,msg,rcfinal)    
+
+! ---  Set attribute for ntrac
+       msg   = "insert ntrac attribute to phy_exp"
+       CALL ESMF_AttributeSet(Bundle                         &  !<-- Phy export state tracer bundle
+               ,name ='ntrac'                                &  !<-- Name of the attribute to insert
+               ,value = internal%gfs_phy_tracer%ntrac        &  !<-- Value of the attribute
+               ,rc   =RC)
+       call gfs_physics_err_msg(rc,msg,rcfinal)    
+
+! ---  Set attributes for doing_[DU,SS,SU,OC,BC]
+       doing_DU = ESMF_False
+       if ( internal%gfs_phy_tracer%doing_DU ) doing_DU = ESMF_True
+       msg   = "insert logical doing_DU attribute to phy_exp"
+       CALL ESMF_AttributeSet(Bundle                          &  !<-- Phy export state tracer bundle
+               ,name  ='doing_DU'                             &  !<-- Name of the logical
+               ,value = doing_DU                              &  !<-- The logical being inserted into the Bundle
+               ,rc   =RC)
+       call gfs_physics_err_msg(rc,msg,rcfinal)    
+
+       doing_SU = ESMF_False
+       if ( internal%gfs_phy_tracer%doing_SU ) doing_SU = ESMF_True
+       msg   = "insert logical doing_SU attribute to phy_exp"
+       CALL ESMF_AttributeSet(Bundle                          &  !<-- Phy export state tracer bundle
+               ,name  ='doing_SU'                             &  !<-- Name of the logical
+               ,value = doing_SU                              &  !<-- The logical being inserted into the Bundle
+               ,rc   =RC)
+       call gfs_physics_err_msg(rc,msg,rcfinal)    
+
+       doing_SS = ESMF_False
+       if ( internal%gfs_phy_tracer%doing_SS ) doing_SS = ESMF_True
+       msg   = "insert logical doing_SS attribute to phy_exp"
+       CALL ESMF_AttributeSet(Bundle                          &  !<-- Phy export state tracer bundle
+               ,name  ='doing_SS'                             &  !<-- Name of the logical
+               ,value = doing_SS                              &  !<-- The logical being inserted into the Bundle
+               ,rc   =RC)
+       call gfs_physics_err_msg(rc,msg,rcfinal)    
+
+       doing_OC = ESMF_False
+       if ( internal%gfs_phy_tracer%doing_OC ) doing_OC = ESMF_True
+       msg   = "insert logical doing_OC attribute to phy_exp"
+       CALL ESMF_AttributeSet(Bundle                          &  !<-- Phy export state tracer bundle
+               ,name  ='doing_OC'                             &  !<-- Name of the logical
+               ,value = doing_OC                              &  !<-- The logical being inserted into the Bundle
+               ,rc   =RC)
+       call gfs_physics_err_msg(rc,msg,rcfinal)    
+
+       doing_BC = ESMF_False
+       if ( internal%gfs_phy_tracer%doing_BC ) doing_BC = ESMF_True
+       msg   = "insert logical doing_BC attribute to phy_exp"
+       CALL ESMF_AttributeSet(Bundle                          &  !<-- Phy export state tracer bundle
+               ,name  ='doing_BC'                             &  !<-- Name of the logical
+               ,value = doing_BC                              &  !<-- The logical being inserted into the Bundle
+               ,rc   =RC)
+       call gfs_physics_err_msg(rc,msg,rcfinal)    
+
+      RETURN
+      end subroutine set_phy_attribute
+
       end subroutine gfs_physics_internal2export_mgrid
+
 
 ! =========================================================================
 

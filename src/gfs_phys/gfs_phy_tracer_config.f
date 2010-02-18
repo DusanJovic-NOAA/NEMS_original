@@ -8,10 +8,13 @@
 !   Nov 21 2009   Sarah Lu, chem tracer specified from ChemRegistry
 !   Dec 10 2009   Sarah Lu, add doing_GOCART
 !   Jan 12 2010   Sarah Lu, add trcindx
+!   Feb 08 2009   Sarah Lu, ri/cpi added to gfs_phy_tracer_type
 ! -------------------------------------------------------------------------
 !
       module gfs_phy_tracer_config
       use machine , only : kind_phys
+      use tracer_const, only : cpi,ri
+
       use Chem_RegistryMod
       implicit none
       SAVE
@@ -19,7 +22,9 @@
 ! tracer specification
 !
       type    gfs_phy_tracer_type
-        character*20,    pointer     :: vname(:)    ! variable name
+        character*20        , pointer      :: vname(:)    ! variable name
+        real(kind=kind_phys), pointer      :: ri(:)
+        real(kind=kind_phys), pointer      :: cpi(:)
         integer                  :: ntrac
         integer                  :: ntrac_met
         integer                  :: ntrac_chem
@@ -97,6 +102,11 @@ c
       if ( gfs_phy_tracer%ntrac > 0 ) then      
        allocate(gfs_phy_tracer%vname(ntrac), stat=status)
            if( status .ne. 0 ) go to 999         
+       allocate(gfs_phy_tracer%ri(0:ntrac), stat=status)
+           if( status .ne. 0 ) go to 999         
+       allocate(gfs_phy_tracer%cpi(0:ntrac), stat=status)
+           if( status .ne. 0 ) go to 999         
+
 !--- fill in met tracers
       gfs_phy_tracer%vname(1) = 'spfh'   
       gfs_phy_tracer%vname(ntoz) = 'o3mr'  

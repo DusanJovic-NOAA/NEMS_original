@@ -21,6 +21,7 @@
 !  nov 14 2009  Sarah Lu        flx_fld and sfc_fld allocation modified
 !  dec 10 2009  Sarah Lu        initialize lgocart and g3d_fld
 !  jan 22 2010  Sarah Lu        increase ngrids_flx and nfxr to include aod 
+!  feb 09 2010  Sarah Lu        set tracer_const (ri,cpi) from import state
 !  feb 05 2010  J. Wang         put phy_f3d and phy_f2d into restart file
 !
 ! !interface:
@@ -62,7 +63,7 @@
                                                 nodes, lon_dims_ext, lon_dims_r,idrt,         &
                                                 ipt_lats_node_r
       USE date_def,                       ONLY: fhour
-      USE tracer_const,                   ONLY: set_tracer_const
+!*    USE tracer_const,                   ONLY: set_tracer_const
       USE gfs_physics_sfc_flx_set_mod,    ONLY: sfcvar_aldata, flxvar_aldata, flx_init
       USE d3d_def,                        ONLY: d3d_init, d3d_zero
       use machine,                        ONLY : kind_io4
@@ -116,7 +117,9 @@
                           gis_phy%nam_gfs_phy%gfs_phy_namelist)
 !
       CALL set_soilveg(me,gis_phy%nam_gfs_phy%nlunit)
-      call set_tracer_const(gis_phy%ntrac,me,gis_phy%nam_gfs_phy%nlunit)
+
+!* ri/cpi is filled from dyn export state attributes (Sarah Lu)
+!*      call set_tracer_const(gis_phy%ntrac,me,gis_phy%nam_gfs_phy%nlunit)
 !
 ! met+chem tracer specification (Sarah Lu)
 ! NOTE: This config_init call repeats the init routine in dyc gc.  
