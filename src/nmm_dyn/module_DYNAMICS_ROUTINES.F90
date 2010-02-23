@@ -516,7 +516,7 @@ real(kind=kfpt),dimension(its_b1:ite_h2,jts_b1:jte_h2):: &
 !-----------------
 !.......................................................................
 !$omp parallel &
-!$omp private(nth,tid,i,j,jstart,jstop)
+!$omp private(i,j,jstart,jstop,nth,tid)
 !.......................................................................
       nth = omp_get_num_threads()
       tid = omp_get_thread_num()
@@ -637,7 +637,7 @@ real(kind=kfpt),dimension(its_b1:ite_h2,jts_b1:jte_h2):: &
 !-----------------
 !.......................................................................
 !$omp parallel &
-!$omp private(nth,tid,i,j,jstart,jstop)
+!$omp private(i,j,jstart,jstop,nth,tid)
 !.......................................................................
       nth = omp_get_num_threads()
       tid = omp_get_thread_num()
@@ -780,7 +780,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 #ifdef ENABLE_SMP
 !-----------------
 !.......................................................................
-!$omp parallel private(nth,tid, i,j,l,jstart,jstop)
+!$omp parallel private(i,j,l,jstart,jstop,nth,tid)
 !.......................................................................
         nth = omp_get_num_threads()
         tid = omp_get_thread_num()
@@ -829,7 +829,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
         jstart = jts_b1
         jstop = jte_b2
 !.......................................................................
-!$omp parallel do private(l,dpl,fcim,j,i,dud,rdpd)
+!$omp parallel do private(dpl,dud,fcim,i,j,l,rdpd)
 !.......................................................................
         do l=1,lm
           dpl=sg1(l+1)*pdtop+sg2(l+1)*10000.
@@ -864,7 +864,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 !---divergence damping--------------------------------------------------
 !-----------------------------------------------------------------------
 !.......................................................................
-!$omp parallel do private(l,dpl,fcim,j,i,dvd,dud,rdpd)
+!$omp parallel do private(dpl,dud,dvd,fcim,i,j,l,rdpd)
 !.......................................................................
         do l=1,lm
           dpl=sg1(l+1)*pdtop+sg2(l+1)*10000.
@@ -956,7 +956,7 @@ integer(kind=kint):: &
 !-----------------
 !.......................................................................
 !$omp parallel &
-!$omp private(nth,tid,i,j,jstart,jstop,l)
+!$omp private(i,j,jstart,jstop,l,nth,tid)
 !.......................................................................
       nth = omp_get_num_threads()
       tid = omp_get_thread_num()
@@ -999,7 +999,7 @@ integer(kind=kint):: &
 !-----------------
 !.......................................................................
 !$omp parallel &
-!$omp private(nth,tid,i,j,jstart,jstop,l)
+!$omp private(i,j,jstart,jstop,l,nth,tid)
 !.......................................................................
       nth = omp_get_num_threads()
       tid = omp_get_thread_num()
@@ -1251,7 +1251,7 @@ real(kind=kfpt),dimension(its_b1:ite_b2,jts_b1:jte_b2,1:lm):: &
 #ifdef ENABLE_SMP
 !-----------------
 !.......................................................................
-!$omp parallel private(cf,cmt,nth,i,j,jstart,jstop,l,pvvup,rdp,tid      &
+!$omp parallel private(cf,cmt,i,j,jstart,jstop,l,nth,pvvup,rdp,tid,     &
 !$omp                  vvlo,vvup)
 !.......................................................................
       nth = omp_get_num_threads()
@@ -2070,7 +2070,7 @@ real(kind=kfpt),dimension(its:ite,jts:jte):: &
 #ifdef ENABLE_SMP
 !-----------------
 !.......................................................................
-!$omp parallel private(nth, tid, i,j,l,jstart,jstop,dwdtp,toa)
+!$omp parallel private(dwdtp,i,j,jstart,jstop,l,nth,tid,toa)
 !.......................................................................
       nth = omp_get_num_threads()
       tid = omp_get_thread_num()
@@ -2193,7 +2193,7 @@ integer(kind=kint):: &
 !***********************************************************************
 !-----------------------------------------------------------------------
 !.......................................................................
-!$omp parallel do private(l,j,i)
+!$omp parallel do private(i,j,l)
 !.......................................................................
       do l=1,lm
         do j=jts_b1,jte_b1
@@ -2244,7 +2244,7 @@ integer(kind=kint):: &
 !***********************************************************************
 !-----------------------------------------------------------------------
 !.......................................................................
-!$omp parallel do private(l,j,i)
+!$omp parallel do private(i,j,l)
 !.......................................................................
       do l=1,lm
         do j=jts_b1,jte_b1
@@ -2305,7 +2305,7 @@ real(kind=kfpt):: &
 !***********************************************************************
 !-----------------------------------------------------------------------
 !.......................................................................
-!$omp parallel do private (l,j,i,cflc,rcflc)
+!$omp parallel do private (cflc,i,j,l,rcflc)
 !.......................................................................
       do l=1,lm
         do j=jts_b1,jte_b2
@@ -2491,7 +2491,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 !
 !.......................................................................
 !$omp parallel do &
-!$omp private(l,defc,j,i,deft,defs,def1,def2,def3,def4,q2trm,defp)
+!$omp private(def1,def2,def3,def4,defc,defp,defs,deft,i,j,l,q2trm)
 !.......................................................................
 !-----------------------------------------------------------------------
 !
@@ -2574,9 +2574,10 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 !-----------------------------------------------------------------------
 !.......................................................................
 !$omp parallel do &
-!$omp private(l,j,i,cilinx,ciliny,slopx,slopy,fmlx,fmly,hkx,hky,hkfx,hkfy, &
-!$omp         tx,qx,cx,q2x,ty,qy,cy,q2y,ux,vx,uy,vy,tdif,qdif,cdif,q2dif,  &
-!$omp         udif,vdif)
+!$omp private(cdif,cilinx,ciliny,cx,cy,fmlx,fmly, &
+!$omp         hkfx,hkfy,hkx,hky,i,j,l, &
+!$omp         q2dif,q2x,q2y,qdif,qx,qy,slopx,slopy, &
+!$omp         tdif,tx,ty,udif,ux,uy,vdif,vx,vy)
 !.......................................................................
 !-----------------------------------------------------------------------
       vertical_loop_3: do l=1,lm
@@ -2817,7 +2818,7 @@ real(kind=kfpt),dimension(its_h1:ite_h1,jts_h1:jte_h1):: &
 #ifdef ENABLE_SMP
 !-----------------
 !.......................................................................
-!$omp parallel private(nth, tid, i,j,l,jstart,jstop,dz,dw,zup,wup)
+!$omp parallel private(dw,dz,i,j,l,jstart,jstop,nth,tid,wup,zup)
         nth = omp_get_num_threads()
         tid = omp_get_thread_num()
         call looplimits(tid, nth, jts_h1,jte_h1,jstart,jstop)
@@ -2877,7 +2878,7 @@ real(kind=kfpt),dimension(its_h1:ite_h1,jts_h1:jte_h1):: &
 #ifdef ENABLE_SMP
 !-----------------
 !.......................................................................
-!$omp parallel private(nth, tid, i,j,l,jstart,jstop)
+!$omp parallel private(i,j,l,jstart,jstop,nth,tid)
 !.......................................................................
       nth = omp_get_num_threads()
       tid = omp_get_thread_num()
@@ -3250,7 +3251,7 @@ real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
       rdt=1./dt
 !
 !.......................................................................
-!$omp parallel do private(l,j,i)
+!$omp parallel do private(i,j,l)
 !.......................................................................
       do l=1,lm
         do j=jts,jte
@@ -3291,7 +3292,7 @@ real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
 !-----------------------------------------------------------------------
 !
 !.......................................................................
-!$omp parallel do private (l,j,i,wx,wy,wne,wnw,fahp)
+!$omp parallel do private (fahp,i,j,l,wne,wnw,wx,wy)
 !.......................................................................
 !-----------------------------------------------------------------------
       do l=1,lm
@@ -3346,7 +3347,7 @@ real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
       if(wad.gt.0.) then
 !
 !.......................................................................
-!$omp parallel do private (l,j,i,ww)
+!$omp parallel do private (i,j,l,ww)
 !.......................................................................
         do l=1,lm
           do j=jts_b1,jte_b1
@@ -3586,8 +3587,7 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm+1):: &
 !-----------------
 !.......................................................................
 !$omp parallel &
-!$omp private(nth,tid,i,j,l,jstart,jstop,dppl,dpstr,pp1,dp,tfc,fcc,&
-!$omp         cofl,rdpdn,rdpup,tmp,dptl,delp )
+!$omp private(i,j,jstart,jstop,nth,tid)
 !.......................................................................
          nth = omp_get_num_threads()
          tid = omp_get_thread_num()
@@ -3600,14 +3600,27 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm+1):: &
 !-----------------
 #endif
 !-----------------
- 
-       do j=jstart,jstop
+!
+      do j=jstart,jstop
         do i=its_b1,ite_b1
           pone(i,j,1)=pt
           pstr(i,j,1)=pt
           pnp1(i,j,1)=pt
         enddo
       enddo
+!
+!-----------------
+#ifdef ENABLE_SMP
+!-----------------
+!.......................................................................
+!$omp end parallel
+!.......................................................................
+!-----------------
+#endif
+!-----------------
+!
+      jstart = jts_b1
+      jstop  = jte_b1
 !
       do l=2,lm+1
         do j=jstart,jstop
@@ -3631,6 +3644,25 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm+1):: &
         enddo
       enddo
 !-----------------------------------------------------------------------
+!-----------------
+#ifdef ENABLE_SMP
+!-----------------
+!.......................................................................
+!$omp parallel &
+!$omp private(delp,dptl,i,j,jstart,jstop,l,nth,rdpdn,rdpup,tid,tmp)
+!.......................................................................
+         nth = omp_get_num_threads()
+         tid = omp_get_thread_num()
+         call looplimits(tid, nth, jts_b1, jte_b1, jstart, jstop)
+!-----------------
+#else
+!-----------------
+      jstart = jts_b1
+      jstop  = jte_b1
+!-----------------
+#endif
+!-----------------
+! 
       do l=2,lm
         do j=jstart,jstop
           do i=its_b1,ite_b1
@@ -3899,7 +3931,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse):: &
 #ifdef ENABLE_SMP
 !-----------------
 !.......................................................................
-!$omp parallel private(nth,tid,i,j,l,ks,jstart,jstop)
+!$omp parallel private(i,j,jstart,jstop,ks,l,nth,tid)
 !.......................................................................
       nth = omp_get_num_threads()
       tid = omp_get_thread_num()
@@ -3962,8 +3994,8 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse):: &
 #ifdef ENABLE_SMP
 !-----------------
 !.......................................................................
-!$omp parallel private(nth,tid,i,j,l,jstart,jstop,dtq,vvlo,cms,rdp,&
-!$omp                  vvup,cf,pvvup)
+!$omp parallel private(cf,cms,dtq,i,j,jstart,jstop,l,nth,pvvup,rdp, &
+!$omp                  tid,vvlo,vvup)
 !.......................................................................
       nth = omp_get_num_threads()
       tid = omp_get_thread_num()
@@ -4064,8 +4096,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse):: &
 !-----------------------------------------------------------------------
 !.......................................................................
 !$omp parallel do &
-!$omp private(ks,l,j,i,ss1,ssx,ssy,ssne,ssnw,ibeg,iend, &
-!$omp         jbeg,jend,fahp)   
+!$omp private(fahp,i,ibeg,iend,j,jbeg,jend,ks,l,ss1,ssne,ssnw,ssx,ssy)
 !.......................................................................
 !-----------------------------------------------------------------------
 !
@@ -4390,7 +4421,7 @@ real(kind=kdbl),save :: sumdrrw=0.
       steep=1.-0.040*idtadt
 !.......................................................................
 !$omp parallel 
-!$omp do private(l,j,i)
+!$omp do private(i,j,l)
 !.......................................................................
       do l=1,lm
         do j=jts_b1,jte_b1
@@ -4409,8 +4440,7 @@ real(kind=kdbl),save :: sumdrrw=0.
 !-----------------------------------------------------------------------
 !
 !.......................................................................
-!$omp do private (ks,l,j,i,s1p,sminh,smaxh,sminv,smaxv,smin, &
-!$omp             smax,sn,dsp)
+!$omp do private (dsp,i,j,ks,l,s1p,smax,smaxh,smaxv,smin,sminh,sminv,sn)
 !.......................................................................
 !-----------------------------------------------------------------------
       do ks=kss,kse ! loop by species
@@ -4556,7 +4586,7 @@ real(kind=kdbl),save :: sumdrrw=0.
       enddo
 !----------------------------------------------------------------------
 !.......................................................................
-!$omp parallel do private (ks,l,j,i,sumps,sumns,sfacs,rfacs,dsp)
+!$omp parallel do private (dsp,i,j,ks,l,rfacs,sfacs,sumns,sumps)
 !.......................................................................
       do ks=kss,kse
         sumps=vgsums(2*ks-1)
@@ -4833,7 +4863,7 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
 !
 !.......................................................................
 !$omp parallel 
-!$omp do private(l,j,i)
+!$omp do private(i,j,l)
 !.......................................................................
       do l=1,lm
         do j=jts,jte
@@ -4858,7 +4888,7 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
 !-----------------------------------------------------------------------
 !
 !.......................................................................
-!$omp do private (l,j,i,psgdtp,rr,lap,llap)
+!$omp do private (i,j,l,lap,llap,psgdtp,rr)
 !.......................................................................
       do l=1,lm
         do j=jts_b1,jte_b1
@@ -4961,9 +4991,9 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
 !
 !.......................................................................
 !$omp parallel do &
-!$omp private (l,j,i,q1p,w1p,g1p,e1p,lap,dpdn,dpup,afrp,rdpdn,rdpup, &
-!$omp          d2pqq,d2pqw,d2pqg,d2pqe,qp,wp,gp,ep,q00,qp0,w00,wp0,  &
-!$omp          g00,gp0,e00,ep0)
+!$omp private (afrp,d2pqe,d2pqg,d2pqq,d2pqw,dpdn,dpup, &
+!$omp          e00,e1p,ep,ep0,g00,g1p,gp,gp0,i,j,l,lap, &
+!$omp          q00,q1p,qp,qp0,rdpdn,rdpup,w00,w1p,wp,wp0)
 !.......................................................................
       do l=2,lm-1
         do j=jts_b1,jte_b1
@@ -5125,7 +5155,7 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
 !
 !.......................................................................
 !$omp parallel do &
-!$omp private (l,j,i,dqp,dwp,dgp,dep)
+!$omp private (dep,dgp,dqp,dwp,i,j,l)
 !.......................................................................
       do l=1,lm
         do j=jts_b1,jte_b1
@@ -5935,8 +5965,8 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
 !-----------------------------------------------------------------------
 !
 !.......................................................................
-!$omp parallel do private(sumpql,sumnql,sumpwl,sumnwl,sumpgl,sumngl,sumpel, &
-!$omp                     sumnel,dqp,dwp,dgp,dep)
+!$omp parallel do private(dep,dgp,dqp,dwp,sumnel,sumngl,sumnql,sumnwl, &
+!$omp                     sumpel,sumpgl,sumpql,sumpwl)
 !.......................................................................
       do l=1,lm
         sumpql=gsums_single(1,l)
@@ -7010,7 +7040,7 @@ integer(kind=kint):: &
 !
 !.......................................................................
 !$omp parallel
-!$omp do private(j,i)
+!$omp do private(i,j)
 !.......................................................................
       do j=jts_h1,jte_h1
         do i=its_h1,ite_h1
@@ -7019,7 +7049,7 @@ integer(kind=kint):: &
       enddo
 !.......................................................................
 !$omp end do
-!$omp do private(l,j,i)
+!$omp do private(i,j,l)
 !.......................................................................
       do l=2,lm
         do j=jts_h1,jte_h1
@@ -7040,7 +7070,7 @@ integer(kind=kint):: &
 !-----------------
 !.......................................................................
 !$omp parallel &
-!$omp private(nth,tid,i,j,jstart,jstop,l)
+!$omp private(i,j,jstart,jstop,l,nth,tid)
 !.......................................................................
       nth = omp_get_num_threads()
       tid = omp_get_thread_num()

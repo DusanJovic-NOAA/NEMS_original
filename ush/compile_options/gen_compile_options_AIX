@@ -48,8 +48,8 @@
 # TRAPS=-qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap -C
   TRAPS=
 ###CPP Flags###
+# CPPFLAGS=-DIBM
   CPPFLAGS=-DENABLE_SMP -DIBM
-  CPPFLAGS=-DIBM
 ###Archive settings###
   AR=ar
   ARFLAG=-r
