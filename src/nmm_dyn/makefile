@@ -98,7 +98,6 @@ module_DYNAMICS_GRID_COMP.o:	\
 			   	module_FLTBNDS.o \
 			   	module_GET_CONFIG_DYN.o \
 			   	module_DYNAMICS_INTERNAL_STATE.o \
-			   	module_DYNAMICS_FIELDS.o \
 			   	module_DYNAMICS_OUTPUT.o \
 			   	module_DYNAMICS_ROUTINES.o \
 				module_DYNAMICS_INIT_READ_BIN.o module_DYNAMICS_INIT_READ_NEMSIO.o

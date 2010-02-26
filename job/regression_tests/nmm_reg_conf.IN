@@ -154,17 +154,18 @@ longwave:  gfdl
                                 # gfdl--> GFDL (shortwave and longwave)
                                 # gsfc--> Goddard shortwave
                                 # dudh--> Dudhia shortwave
-                                # rrtm--> RRTM longwave
+                                # rrtm--> RRTM (shortwave and longwave)
 
 co2tf:  1                       # co2tf--> Read (0) or generate internally (1)
                                 #          the GFDL CO2 transmission functions
 
 #---------------------------------
 convection:  bmj            # Convection scheme
-                                # bmj--> Betts-Miller-Janjic
-                                #  kf--> Kain-Fritsch
-                                # sas--> Simplified Arakawa-Schubert
-                                #  gd--> Grell-Devenyi
+                                # bmj    --> Betts-Miller-Janjic
+                                # bmj_dev--> BMJ (development)
+                                #  kf    --> Kain-Fritsch
+                                # sas    --> Simplified Arakawa-Schubert
+                                #  gd    --> Grell-Devenyi
 
 #---------------------------------
 microphysics:  fer          # Microphysics scheme

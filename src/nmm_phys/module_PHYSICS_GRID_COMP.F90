@@ -48,6 +48,7 @@
 !
       USE MODULE_RADIATION    ,ONLY : GFDL_INIT,RADIATION,RDTEMP        &
                                      ,RRTMINIT,SWINIT,TIME_MEASURE
+      USE MODULE_RADIATION_RRTM,ONLY: RADIATION_RRTM,RRTMNEW_INIT
       USE MODULE_TURBULENCE   ,ONLY : TURBL
       USE MODULE_SF_JSFC      ,ONLY : JSFC_INIT
       USE MODULE_BL_MYJPBL    ,ONLY : MYJPBL_INIT
@@ -55,6 +56,10 @@
                                      ,NUM_SOIL_LAYERS,SLDPTH
       USE MODULE_CU_BMJ       ,ONLY : BMJ_INIT
       USE MODULE_CONVECTION   ,ONLY : CUCNVC
+!rv
+      USE MODULE_CU_BMJ_DEV       ,ONLY : BMJ_INIT_DEV
+      USE MODULE_CONVECTION_DEV   ,ONLY : CUCNVC_DEV
+!rv
 !      USE MODULE_MICROPHYSICS_NMM ,ONLY : FERRIER_INIT,GSMDRIVE         &
 !                                         ,WSM3INIT,MICRO_RESTART
       USE MODULE_MICROPHYSICS_NMM ,ONLY : GSMDRIVE                      &
@@ -1156,6 +1161,61 @@
             ENDDO
           ENDIF
 !
+!-----------------------------------------------------------------------
+!***  Temporary switch between radiation schemes placed in PHY_RUN
+!***  rather than inside RADIATION_DRIVER (will be done later)
+!-----------------------------------------------------------------------
+!
+          IF(TRIM(int_state%SHORTWAVE)=='rrtm'.AND.TRIM(int_state%LONGWAVE)=='rrtm')THEN
+!
+          CALL ESMF_ClockGet(clock       =CLOCK                         &  !<-- The ESMF Clock
+                            ,currTime    =CURRTIME                      &  !<-- The current time (ESMF) on the clock
+                            ,rc          =RC)
+!
+          CALL ESMF_TimeGet(time=CURRTIME                               &  !<-- The cuurent forecast time (ESMF)
+                           ,yy  =JDAT(1)                                &  !<-- The current forecast year (integer)
+                           ,mm  =JDAT(2)                                &  !<-- The current forecast month (integer)
+                           ,dd  =JDAT(3)                                &  !<-- The current forecast day (integer)
+                           ,h   =JDAT(5)                                &  !<-- The current forecast hour (integer)
+                           ,m   =JDAT(6)                                &  !<-- The current forecast minute (integer)
+                           ,s   =JDAT(7)                                &  !<-- The current forecast second (integer)
+                           ,rc  =RC)
+          JDAT(4)=0
+          JDAT(8)=0
+!
+          CALL RADIATION_RRTM(NTIMESTEP_RAD,int_state%DT_INT,JDAT       &
+                         ,int_state%NPHS,int_state%GLAT,int_state%GLON  &
+                         ,int_state%NRADS,int_state%NRADL               &
+                         ,DSG2,SGML2,PDSG1,PSGML1                       &
+                         ,int_state%PT,int_state%PD                     &
+                         ,int_state%T,int_state%Q                       &
+                         ,int_state%CW,int_state%RRW                    &
+                         ,int_state%ALBEDO                              &
+                         ,int_state%F_ICE,int_state%F_RAIN              &
+                         ,int_state%P_QV,int_state%P_QC,int_state%P_QR  &
+                         ,int_state%P_QI,int_state%P_QS,int_state%P_QG  &
+                         ,int_state%SM,int_state%CLDFRA                 &
+                         ,int_state%NUM_WATER,int_state%WATER           &
+                         ,int_state%RLWTT,int_state%RSWTT               &
+                         ,int_state%RLWIN,int_state%RSWIN               &
+                         ,int_state%RSWINC,int_state%RSWOUT             &
+                         ,int_state%RLWTOA,int_state%RSWTOA             &
+                         ,int_state%CZMEAN,int_state%SIGT4              &
+                         ,int_state%CFRACL,int_state%CFRACM             &
+                         ,int_state%CFRACH                              &
+                         ,int_state%ACFRST,int_state%NCFRST             &
+                         ,int_state%ACFRCV,int_state%NCFRCV             &
+                         ,int_state%CUPPT,int_state%SNO                 &
+                         ,int_state%SI                                  &
+                         ,int_state%HTOP,int_state%HBOT                 &
+                         ,int_state%TSKIN,int_state%Z0,int_state%SICE   &
+                         ,int_state%F_RIMEF                             &
+                         ,int_state%MXSNAL,int_state%SGM,int_state%STDH &
+                         ,int_state%OMGALF                              &
+                         ,LM)
+
+          ELSE
+
           CALL RADIATION(NTIMESTEP_RAD                                  &
                         ,int_state%DT,JULDAY,JULYR,XTIME,JULIAN         &
                         ,START_HOUR,int_state%NPHS                      &
@@ -1185,6 +1245,8 @@
                         ,int_state%HTOP,int_state%HBOT                  &
                         ,int_state%SHORTWAVE,int_state%LONGWAVE         &
                         ,LM)
+!
+          ENDIF
 !
           radiation_tim=radiation_tim+(timef()-btim)
 !
@@ -1472,6 +1534,12 @@
 !
           btim=timef()
 !
+!-----------------------------------------------------------------------
+!***  Temporary switch between two convection schemes (bmj & bmj_dev)
+!***  placed here in PHY_RUN
+!-----------------------------------------------------------------------
+          IF(int_state%CONVECTION=='bmj')THEN
+!
           CALL CUCNVC(NTIMESTEP,int_state%DT,int_state%NPRECIP          &
                      ,int_state%NRADS,int_state%NRADL                   &
                      ,int_state%NHOURS_HISTORY                          &
@@ -1498,11 +1566,48 @@
                      ,int_state%AVCNVC,int_state%ACUTIM                 &
                      ,int_state%RSWIN,int_state%RSWOUT                  &
                      ,int_state%CONVECTION                              &
-!mep                 ,IDS,IDE-1,JDS,JDE-1,LM                            &
                      ,IDS,IDE,JDS,JDE,LM                                &
                      ,IMS,IME,JMS,JME                                   &
                      ,ITS,ITE,JTS,JTE)
-
+!
+          ELSEIF(int_state%CONVECTION=='bmj_dev')THEN
+!
+          CALL CUCNVC_DEV(NTIMESTEP,int_state%DT,int_state%NPRECIP      &
+                     ,int_state%NRADS,int_state%NRADL                   &
+                     ,int_state%NHOURS_HISTORY                          &
+                     ,int_state%DYH,int_state%RESTART,int_state%HYDRO   &
+                     ,int_state%CLDEFI,int_state%NUM_WATER              &
+                     ,int_state%F_ICE,int_state%F_RAIN                  &
+                     ,int_state%P_QV,int_state%P_QC,int_state%P_QR      &
+                     ,int_state%P_QI,int_state%P_QS,int_state%P_QG      &
+                     ,int_state%F_QV,int_state%F_QC,int_state%F_QR      &
+                     ,int_state%F_QI,int_state%F_QS,int_state%F_QG      &
+                     ,DSG2,SGML2,SG2,PDSG1,PSGML1,PSG1                  &
+                     ,int_state%PT,int_state%PD                         &
+                     ,int_state%T,int_state%Q                           &
+                     ,int_state%CW,int_state%TCUCN,int_state%WATER      &
+                     ,int_state%OMGALF                                  &
+                     ,int_state%U,int_state%V                           &
+                     ,int_state%FIS,int_state%W0AVG                     &
+                     ,int_state%PREC,int_state%ACPREC,int_state%CUPREC  &
+                     ,int_state%CUPPT,int_state%CPRATE                  &
+                     ,int_state%CNVBOT,int_state%CNVTOP                 &
+                     ,int_state%SM,int_state%LPBL                       &
+                     ,int_state%HTOP,int_state%HTOPD,int_state%HTOPS    &
+                     ,int_state%HBOT,int_state%HBOTD,int_state%HBOTS    &
+                     ,int_state%AVCNVC,int_state%ACUTIM                 &
+                     ,int_state%RSWIN,int_state%RSWOUT                  &
+                     ,int_state%CONVECTION                              &
+                     ,IDS,IDE,JDS,JDE,LM                                &
+                     ,IMS,IME,JMS,JME                                   &
+                     ,ITS,ITE,JTS,JTE)
+!
+          ELSE
+!
+          write(0,*)'Wrong convection scheme choice'
+          STOP
+!
+          ENDIF
 !
           cucnvc_tim=cucnvc_tim+(timef()-btim)
 !
@@ -3426,13 +3531,27 @@
                           ,IMS,IME,JMS,JME,1,LM+1                      &
                           ,ITS,ITE,JTS,JTE,1,LM)
           CASE ('rrtm')
-!!!         CALL RRTMINIT(RTHRATEN,RTHRATENLW                          &
-!!!                      ,int_state%CLDFRA,RESTART                     &
-            CALL RRTMINIT(int_state%RESTART                            &
-                         ,ALLOWED_TO_READ                              &
-                         ,IDS,IDE,JDS,JDE,1,LM+1                       &
-                         ,IMS,IME,JMS,JME,1,LM+1                       &
-                         ,ITS,ITE,JTS,JTE,1,LM)
+!           CALL RRTMINIT(int_state%RESTART                            &
+!                        ,ALLOWED_TO_READ                              &
+!                        ,IDS,IDE,JDS,JDE,1,LM+1                       &
+!                        ,IMS,IME,JMS,JME,1,LM+1                       &
+!                        ,ITS,ITE,JTS,JTE,1,LM)
+            DO K=1,LM
+              KFLIP=LM+1-K
+              SFULL_FLIP(KFLIP)=SFULL(K+1)
+              SMID_FLIP(KFLIP)=SMID(K)
+            ENDDO
+            SFULL_FLIP(LM+1)=SFULL(1)
+!
+            GMT=REAL(IHOUR_FCST)
+
+            CALL RRTMNEW_INIT(EMISS,SFULL_FLIP,SMID_FLIP,PT_CB         &
+                          ,JULYR,START_MONTH,START_DAY,GMT             &
+                          ,CO2TF                                       &
+                          ,IDS,IDE,JDS,JDE,1,LM+1                      &
+                          ,IMS,IME,JMS,JME,1,LM+1                      &
+                          ,ITS,ITE,JTS,JTE,1,LM)
+!
           CASE DEFAULT
             WRITE(0,*)' BAD SELECTION OF LONGWAVE SCHEME: INIT '
         END SELECT
@@ -3527,6 +3646,13 @@
                          ,IDS,IDE,JDS,JDE,1,LM+1                       &
                          ,IMS,IME,JMS,JME,1,LM+1                       &
                          ,ITS,ITE,JTS,JTE,1,LM)
+!rv
+          CASE ('bmj_dev')
+            CALL BMJ_INIT_DEV(int_state%CLDEFI,int_state%RESTART       &
+                         ,IDS,IDE,JDS,JDE,1,LM+1                       &
+                         ,IMS,IME,JMS,JME,1,LM+1                       &
+                         ,ITS,ITE,JTS,JTE,1,LM)
+!rv
 !
 !!!       CASE('kf')
 !!!         CALL KF_INIT

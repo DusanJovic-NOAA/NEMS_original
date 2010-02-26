@@ -8,7 +8,6 @@
 #@ node_usage = not_shared
 #@ tasks_per_node = _TPN_
 #@ node = 1
-###@ node_resources= ConsumableMemory(20GB)
 #@ node_resources= ConsumableMemory(110GB)
 #@ task_affinity=core(1)
 #@ class = _CLASS_
