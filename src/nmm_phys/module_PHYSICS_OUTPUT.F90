@@ -167,6 +167,8 @@
         MP_PHYSICS=8
       ELSEIF(int_state%MICROPHYSICS=='wsm3')THEN
         MP_PHYSICS=3
+      ELSEIF(int_state%MICROPHYSICS=='wsm6')THEN
+        MP_PHYSICS=6
       ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

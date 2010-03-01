@@ -2841,11 +2841,17 @@
           DO K=1,LM
           DO J=JTS,JTE
           DO I=ITS,ITE
-            int_state%Q=int_state%WATER(I,J,K,P_QV)                     &
-                       /(1.+int_state%WATER(I,J,K,P_QV))
+     !       int_state%Q=int_state%WATER(I,J,K,P_QV)                     &
+     !                  /(1.+int_state%WATER(I,J,K,P_QV))
+     !       int_state%Q(i,j,k)=int_state%WATER(I,J,K,P_QV)                     &
+     !                  /(1.+int_state%WATER(I,J,K,P_QV))
           ENDDO
           ENDDO
           ENDDO
+          int_state%Q(:,:,:)=int_state%WATER(:,:,:,P_QV)                     &
+                      /(1.+int_state%WATER(:,:,:,P_QV))
+           
+
 !
         ENDIF vadv2_micro_check
         vadv2_tim=vadv2_tim+(timef()-btim)
@@ -3018,12 +3024,14 @@
 !***  configurations where it may be used outside of the physics.
 !
           IF(.NOT.OPERATIONAL_PHYSICS)THEN
+              int_state%WATER(:,:,:,P_QV)=int_state%Q(:,:,:)/(1.-int_state%Q(:,:,:))
             DO K=1,LM
             KFLIP=LM+1-K
             DO J=JTS,JTE
             DO I=ITS,ITE
-              int_state%WATER(I,J,K,P_QV)=int_state%Q(I,J,K)/(1.-int_state%Q(I,J,K))
-              WC = int_state%CW(I,J,K)
+         !     int_state%WATER(I,J,K,P_QV)=int_state%Q(I,J,K)/(1.-int_state%Q(I,J,K))
+         !     WC = int_state%CW(I,J,K)
+              WC = int_state%CW(I-its+1,J-jts+1,K)
               QI = 0.
               QR = 0.
               QW = 0.
@@ -3048,12 +3056,18 @@
                   QW=QW-QR
                 ENDIF
               ENDIF
+                
 !
-              int_state%WATER(I,J,K,P_QC)=QW
-              int_state%WATER(I,J,K,P_QR)=QR
-              int_state%WATER(I,J,K,P_QI)=0.
-              int_state%WATER(I,J,K,P_QS)=QI
-              int_state%WATER(I,J,K,P_QG)=0.
+  !            int_state%WATER(I,J,K,P_QC)=QW
+  !            int_state%WATER(I,J,K,P_QR)=QR
+  !            int_state%WATER(I,J,K,P_QI)=0.
+  !            int_state%WATER(I,J,K,P_QS)=QI
+  !            int_state%WATER(I,J,K,P_QG)=0.
+              int_state%WATER(I-its+1,J-jts+1,K,P_QC)=QW
+              int_state%WATER(I-its+1,J-jts+1,K,P_QR)=QR
+              int_state%WATER(I-its+1,J-jts+1,K,P_QI)=0.
+              int_state%WATER(I-its+1,J-jts+1,K,P_QS)=QI
+              int_state%WATER(I-its+1,J-jts+1,K,P_QG)=0.
             ENDDO
             ENDDO
             ENDDO

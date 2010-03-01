@@ -23,9 +23,10 @@
                                    ,MPI_COMM_COMP                       &
                                    ,MYPE_SHARE,NUM_TILES
 !
+!      USE MODULE_MICROPHYSICS_NMM,ONLY :                                    &
       USE MODULE_MP_ETANEW,ONLY : RHgrd,T_ICE,FPVS,QAUT0,XMImax,XMIexp  &
                                  ,MDImin,MDImax,MASSI,FLARGE1,FLARGE2   &
-                                 ,NLImin,NLImax
+                                 ,NLImin,NLImax,GPVS
 !
       USE MODULE_CONTROL,ONLY : NMMB_FINALIZE
 !
@@ -3526,6 +3527,16 @@
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
+! ADD initialization of FPVS FPVS0
+      INTEGER,PARAMETER :: NX=7501
+      REAL, PARAMETER :: XMIN=180.0,XMAX=330.0
+      REAL, DIMENSION(NX),PRIVATE,SAVE :: TBPVS,TBPVS0
+      REAL, PRIVATE,SAVE :: C1XPVS0,C2XPVS0,C1XPVS,C2XPVS
+!
+!--- Create lookup tables for saturation vapor pressure w/r/t water & ice
+!
+        CALL GPVS
+
 !
       MYPE=MYPE_SHARE
 !
@@ -12330,7 +12341,7 @@
 !CC   REWIND 15
 !CC   REWIND 20
 !NOV89
-      IF (MYPE==0) REWIND ITAPE
+      IF (MYPE==0)REWIND ITAPE
 !NOV89
 !CC   REWIND 22
 !

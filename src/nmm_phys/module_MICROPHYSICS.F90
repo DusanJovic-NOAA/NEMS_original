@@ -5,7 +5,9 @@
 !-----------------------------------------------------------------------
 !
 !***  THE MICROPHYSICS DRIVERS AND PACKAGES
-!
+
+!      11-06-2009 W. Wang put NAM micorphysics into a single module   
+!      02-10-2010 W. Wang added wsm6 
 !-----------------------------------------------------------------------
 !
 ! HISTORY LOG:
@@ -29,11 +31,15 @@
                                    ,MPI_COMM_COMP                       &
                                    ,MYPE_SHARE,NUM_TILES
 !
-      USE MODULE_CONSTANTS,ONLY : CAPPA,CP,EPSQ,G,P608,R_D
+      USE MODULE_CONSTANTS,ONLY : CICE,CLIQ,CPV,EP_1,EP_2,EPSILON,G     &
+                                 ,P608,PSAT,R_D,R_V,RHOAIR0,RHOWATER    &
+                                 ,SVPT0,XLF,XLV                         &
+                                 ,CAPPA,CP,EPSQ
 !
       USE MODULE_CONTROL,ONLY : NMMB_FINALIZE
 ! MP options
       USE MODULE_MP_ETANEW
+      USE MODULE_MP_WSM6
 !
 !-----------------------------------------------------------------------
 !
@@ -49,11 +55,11 @@
 !-----------------------------------------------------------------------
 !
       INTEGER :: MYPE
-      REAL, PRIVATE,PARAMETER :: R_G=1./G
+      REAL, PRIVATE,PARAMETER ::                                     &
+!--- Physical constants follow:
+           XLS=2.834E6,R_G=1./G
 !
       INTEGER,PUBLIC,PARAMETER :: MICRO_RESTART=7501
-!
-!-----------------------------------------------------------------------
 !
       CONTAINS
 !
@@ -160,7 +166,8 @@
       REAL,DIMENSION(1:LM) :: QL,TL
 !
       REAL,DIMENSION(IMS:IME,JMS:JME) :: CUBOT,CUTOP,RAINNC,RAINNCV     &
-                                        ,SNOWNC,SNOWNCV,XLAND 
+                                        ,SNOWNC,SNOWNCV,XLAND           & 
+                                        ,graupelnc,graupelncv
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM) :: DZ                        &
                                              ,P_PHY,PI_PHY              &
@@ -211,6 +218,7 @@
 !
         RAINNC(I,J)=0.
         SNOWNC(I,J)=0.
+        graupelnc(i,j) = 0.0   ! ??
 !
 !-----------------------------------------------------------------------
 !***  FILL THE SINGLE-COLUMN INPUT
@@ -316,7 +324,6 @@
         micro_select: SELECT CASE (TRIM(MICROPHYSICS))
 !
           CASE ('fer')
-!
             CALL ETAMP_NEW(                                                   &
                    ITIMESTEP=ntsd,DT=dtphs,DX=dx,DY=dy                        &
                   ,DZ8W=dz,RHO_PHY=rr,P_PHY=p_phy,PI_PHY=pi_phy,TH_PHY=th_phy &
@@ -335,6 +342,31 @@
                   ,MP_RESTART_STATE=mp_restart_state                          &
                   ,TBPVS_STATE=tbpvs_state,TBPVS0_STATE=tbpvs0_state          &
                                                                             )
+          CASE ('wsm6')
+      !       write(0,*)'call wsm6'
+             CALL wsm6(                                             &
+                  TH=th_phy                                         &
+                 ,Q=water(ims,jms,1,p_qv)                           &
+                 ,QC=water(ims,jms,1,p_qc)                          &
+                 ,QR=water(ims,jms,1,p_qr)                          &
+                 ,QI=water(ims,jms,1,p_qi)                          &
+                 ,QS=water(ims,jms,1,p_qs)                          &
+                 ,QG=water(ims,jms,1,p_qg)                          &
+                 ,DEN=rr,PII=pi_phy,P=p_phy,DELZ=dz                  &
+                 ,DELT=dtphs,G=g,CPD=cp,CPV=cpv                        &
+                 ,RD=r_d,RV=r_v,T0C=svpt0                           &
+                 ,EP1=ep_1, EP2=ep_2, QMIN=epsilon                  &
+                 ,XLS=xls, XLV0=xlv, XLF0=xlf                       &
+                 ,DEN0=rhoair0, DENR=rhowater                       &
+                 ,CLIQ=cliq,CICE=cice,PSAT=psat                     &
+                 ,RAIN=rainnc ,RAINNCV=rainncv                      &
+                 ,SNOW=snownc ,SNOWNCV=snowncv                      &
+                 ,SR=sr                                             &
+                 ,GRAUPEL=graupelnc ,GRAUPELNCV=graupelncv          &
+                 ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=1,KDE=LM+1  &
+                 ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=1,KME=LM    &
+                 ,ITS=itsloc,ITE=iteloc, JTS=jtsloc,JTE=jteloc, KTS=1,KTE=LM &
+                                                                    )
           CASE DEFAULT
             WRITE(0,*)' The microphysics option does not exist: MICROPHYSICS = ',TRIM(MICROPHYSICS)
             CALL NMMB_FINALIZE
