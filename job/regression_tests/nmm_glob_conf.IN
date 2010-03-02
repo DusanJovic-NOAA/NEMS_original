@@ -198,6 +198,17 @@ ucmcall: 0                  # Use (1) or do not use (0) the Urban Canopy Model
 gfs:  _gfsP_                 # Select entire GFS physics suite
 
 
+######################################
+##### Shallow Convection Switches ####
+######################################
+
+entrain:    .false.         ! entrainment
+newall:     .true.          ! new cloud used at all shallow points
+newswap:    .true.          ! new clouds at swap shallow points
+newupup:    .true.          ! new cloud used for both heat and moisture up shallow pts.
+nodeep:     .false.         ! all deep convection diverted to shallow swap algorythm
+
+
 #############################
 ##### Physics Timesteps #####
 #############################

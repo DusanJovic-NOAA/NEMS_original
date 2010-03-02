@@ -110,6 +110,7 @@
      &                  IDS,IDE,JDS,JDE,KDS,KDE                         &
      &                 ,IMS,IME,JMS,JME,KMS,KME                         &
      &                 ,ITS,ITE,JTS,JTE,KTS,KTE                         &
+     &                 ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP           &
      &                 ,DT,NTSD,NCNVC                                   &
      &                 ,RAINCV,CUTOP,CUBOT,KPBL                         &
      &                 ,TH,T,QV                                         &
@@ -122,6 +123,9 @@
 !-----------------------------------------------------------------------
       IMPLICIT NONE
 !-----------------------------------------------------------------------
+!
+      LOGICAL(kind=klog),INTENT(IN):: &
+       ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP
 !
       LOGICAL(kind=klog),DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT):: &
        CU_ACT_FLAG
@@ -260,6 +264,7 @@
 !***  End debugging convection
 !-----------------------------------------------------------------------
           CALL BMJ_DEV(ntsd,I,J,DTCNVC,LMH,seamask,CLDEFI(I,J)          &
+     &            ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP                &
      &            ,DPCOL,PCOL,QCOL,TCOL,PSFC,PTOP                       &
      &            ,DQDT,DTDT,PCPCOL,LBOT,LTOP,LPBL                      &
      &            ,CP,R,ELWV,ELIV,G,TFRZ,D608                           &   
@@ -343,7 +348,8 @@
 !-----------------------------------------------------------------------
                           SUBROUTINE BMJ_DEV                            &
 !-----------------------------------------------------------------------
-     & (ntsd,I,J,DTCNVC,LMH,SM,CLDEFI                              &
+     & (ntsd,I,J,DTCNVC,LMH,SM,CLDEFI                                   &
+     & ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP                           &
      & ,DPRS,PRSMID,Q,T,PSFC,PT                                         &
      & ,DQDT,DTDT,PCPCOL,LBOT,LTOP,LPBL                                 &
      & ,CP,R,ELWV,ELIV,G,TFRZ,D608                                      &
@@ -359,6 +365,10 @@
 !-----------------------------------------------------------------------
       IMPLICIT NONE
 !-----------------------------------------------------------------------
+!
+      LOGICAL(kind=klog),INTENT(IN):: &
+       ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP
+!
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,KDS,KDE                     &
                            ,IMS,IME,JMS,JME,KMS,KME                     &
                            ,ITS,ITE,JTS,JTE,KTS,KTE                     &
@@ -393,7 +403,7 @@
        dpk,rhk,thmak,thvmk
 !
       LOGICAL(kind=klog):: &
-       DEEP,entrain,newall,newswap,newupup,nodeep,SHALLOW
+       DEEP,SHALLOW
 !
 !***  Begin debugging convection
       LOGICAL :: PRINT_DIAG
@@ -475,16 +485,16 @@
       RDTCNVC=1./DTCNVC
       DEPMIN=PSH*PSFC*RSFCP
 !--shallow convection switches------------------------------------------
-      nodeep=.false.  ! all deep convection diverted to shallow swap algorythm
-      newall=.true.  ! new cloud used at all shallow points
-      newupup=.true. ! new cloud used for both heat and moisture up shallow pts.
-      newswap=.true. ! new clouds at swap shallow points
+!rv   nodeep=.false.  ! all deep convection diverted to shallow swap algorythm
+!rv   newall=.true.  ! new cloud used at all shallow points
+!rv   newupup=.true. ! new cloud used for both heat and moisture up shallow pts.
+!rv   newswap=.true. ! new clouds at swap shallow points
       
       DEEP=.FALSE.
       SHALLOW=.FALSE.
 !-----------------------------------------------------------------------
-      entrain=.true.
-      entrain=.false.
+!rv   entrain=.true.
+!rv   entrain=.false.
 !
       DSP0=0.
       DSPB=0.

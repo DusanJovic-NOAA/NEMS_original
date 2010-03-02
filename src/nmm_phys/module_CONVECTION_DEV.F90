@@ -55,6 +55,7 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
       SUBROUTINE CUCNVC_DEV(NTSD,DT,NCNVC,NRADS,NRADL,NHOURS_HISTORY    &
+                       ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP           &
                        ,DYH,RESTRT,HYDRO                                &
                        ,CLDEFI,NUM_WATER                                &
                        ,F_ICE,F_RAIN                                    &
@@ -105,7 +106,8 @@
        CONVECTION
 !
       LOGICAL(kind=klog),INTENT(IN):: &
-       HYDRO,RESTRT
+       HYDRO,RESTRT &
+      ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP
 !
       LOGICAL(kind=klog),INTENT(IN):: &
        F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
@@ -392,6 +394,9 @@
             CASE (BMJSCHEME)
 
               CALL BMJDRV_DEV(TH=th,T=t ,RAINCV=raincv                  &
+                         ,ENTRAIN=ENTRAIN ,NEWALL=NEWALL                &
+                         ,NEWSWAP=NEWSWAP ,NEWUPUP=NEWUPUP              &
+                         ,NODEEP=NODEEP                                 &
                          ,DT=dt ,ntsd=NTSD ,NCNVC=NCNVC                 &
                          ,CUTOP=CUTOP, CUBOT=CUBOT, KPBL=kpbl           &
                          ,PINT=PINT, PMID=pmid, exner=exner             &

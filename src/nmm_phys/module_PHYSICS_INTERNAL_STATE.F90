@@ -69,7 +69,8 @@
         REAL(kind=KFPT) :: DT,SBD,WBD,TPH0D,TLM0D
 !
         LOGICAL :: GLOBAL,GWDFLG,HYDRO,NEMSIO_INPUT,NESTED,NHRS_UDEF    &
-                  ,PCPFLG,RESTART,SPECIFIED,WRITE_PREC_ADJ
+                  ,PCPFLG,RESTART,SPECIFIED,WRITE_PREC_ADJ              &
+                  ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP
 !
 !-----------------------------------------------------------------------
 !***  Distributed memory information.
@@ -385,20 +386,6 @@
         int_state%F_QS=.FALSE.
         int_state%F_QI=.FALSE.
         int_state%F_QG=.FALSE.
-      ELSEIF(TRIM(int_state%MICROPHYSICS)=='wsm6')THEN
-        int_state%NUM_WATER=1+6
-        int_state%P_QV=2
-        int_state%P_QC=3
-        int_state%P_QR=4
-        int_state%P_QS=5
-        int_state%P_QI=6
-        int_state%P_QG=7
-        int_state%F_QV=.TRUE.
-        int_state%F_QC=.TRUE.
-        int_state%F_QR=.TRUE.
-        int_state%F_QS=.TRUE.
-        int_state%F_QI=.TRUE.
-        int_state%F_QG=.TRUE.
       ENDIF
 
       int_state%NUM_TRACERS_TOTAL=                                      &  !<-- # of 3-D arrays in 4-D TRACERS array
@@ -486,7 +473,6 @@
       ALLOCATE(int_state%PPTDAT(IMS:IME,JMS:JME,1:int_state%PCPHR))
 !
 !-----------------------------------------------------------------------
-!
 !***  Only for GFS physics
 !-----------------------------------------------------------------------
 !

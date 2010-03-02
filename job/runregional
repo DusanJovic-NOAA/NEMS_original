@@ -49,7 +49,7 @@ cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg/GWD.bin                        
 cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg/boco.* .
 cp /meso/noscrub/wx20rv/REGRESSION_TEST/data/* .
 
-cp $SRCDIR/job/regression_tests/configure_file .
+cp $SRCDIR/job/configfile_regional_new configure_file
 cp configure_file configure_file_01
 
 ln -sf /nwprod/fix/global_o3prdlos.f77 fort.28

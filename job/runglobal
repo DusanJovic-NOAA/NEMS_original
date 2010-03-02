@@ -12,7 +12,7 @@
 #@ task_affinity=core(1)
 #@ class = dev
 #@ group = dev
-#@ wall_clock_limit = 00:08:00
+#@ wall_clock_limit = 00:15:00
 #@ parallel_threads = 1
 #@ preferences = Feature == "dev"
 #@ network.MPI = sn_all,not_shared,us
@@ -44,7 +44,7 @@ rm -rf $RUNDIR/*
 cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_glob/test_input_nmmb_global         input_domain_01
 cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_glob/GWD.bin                        GWD.bin
 
-cp $SRCDIR/job/regression_tests/configure_file .
+cp $SRCDIR/job/configfile_global_new configure_file
 cp configure_file configure_file_01
 cp /meso/noscrub/wx20rv/REGRESSION_TEST/data/* .
 

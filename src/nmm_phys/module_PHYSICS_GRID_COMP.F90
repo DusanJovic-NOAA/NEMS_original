@@ -26,7 +26,7 @@
 !                           reverse flxur/cldcov sequence 
 !   2009-12-15  Sarah Lu - GBPHYS calling argument modified: add dqdt
 !   2009-11     Jovic    - Modified for ownership/import/export specification
-!   2010-02-08  W. Wang  - Add wsm6 microphysics 
+! 
 !
 !-----------------------------------------------------------------------
 !
@@ -56,14 +56,15 @@
                                      ,NUM_SOIL_LAYERS,SLDPTH
       USE MODULE_CU_BMJ       ,ONLY : BMJ_INIT
       USE MODULE_CONVECTION   ,ONLY : CUCNVC
+!rv
       USE MODULE_CU_BMJ_DEV       ,ONLY : BMJ_INIT_DEV
       USE MODULE_CONVECTION_DEV   ,ONLY : CUCNVC_DEV
+!rv
 !      USE MODULE_MICROPHYSICS_NMM ,ONLY : FERRIER_INIT,GSMDRIVE         &
 !                                         ,WSM3INIT,MICRO_RESTART
       USE MODULE_MICROPHYSICS_NMM ,ONLY : GSMDRIVE                      &
                                          ,MICRO_RESTART
       USE MODULE_MP_ETANEW, ONLY : FERRIER_INIT
-      USE MODULE_MP_WSM6,   ONLY : WSM6INIT 
 
       USE MODULE_H_TO_V       ,ONLY : H_TO_V,H_TO_V_TEND
       USE MODULE_GWD          ,ONLY : GWD_INIT
@@ -85,7 +86,7 @@
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !
       USE MODULE_PHYSICS_INIT_READ_BIN
-      USE MODULE_PHYSICS_INIT_READ_NEMSIO     
+      USE MODULE_PHYSICS_INIT_READ_NEMSIO
 !
 !-----------------------------------------------------------------------
 !
@@ -937,7 +938,7 @@
 !---------------------------
 !
       INTEGER(KIND=KINT) :: I,J,IRTN,ISTAT,JULDAY,JULYR,L               &
-                           ,N,NPRECIP,NTIMESTEP,RC,NTIMESTEP_RAD,IMICRO
+                           ,N,NPRECIP,NTIMESTEP,RC,NTIMESTEP_RAD
 !
       INTEGER(KIND=ESMF_KIND_I8) :: NTIMESTEP_ESMF
 !
@@ -1071,39 +1072,23 @@
 !***  microphysics but only if any of the Physics subroutines 
 !***  are called (subroutine UPDATE_WATER is after subroutine
 !***  PHYSICS_INITIALIZE in this module).
-!
-!***  Expanded to also update CWM, F_ICE, F_RAIN, F_RIMEF for non-Ferrier
-!     microphysics
 !-----------------------------------------------------------------------
 !
-       update_wtr:  IF (CALL_SHORTWAVE .OR. CALL_LONGWAVE .OR.        &
-                           CALL_TURBULENCE .OR. CALL_PRECIP ) THEN
-           SELECT CASE (trim(int_state%MICROPHYSICS))
-           CASE ('wsm6')
-              IMICRO=1
-           CASE ('wsm3')
-              IMICRO=2
-           CASE DEFAULT
-              IMICRO=0
-           END SELECT
+        update_wtr: IF (int_state%MICROPHYSICS=='fer' .AND.             &
+                          (CALL_SHORTWAVE .OR. CALL_LONGWAVE .OR.       &
+                           CALL_TURBULENCE .OR. CALL_PRECIP) ) THEN
            CALL UPDATE_WATER(int_state%CW                               &
                             ,int_state%F_ICE                            &
                             ,int_state%F_RAIN                           &
-                            ,int_state%F_RIMEF                          &
                             ,int_state%NUM_WATER                        &
                             ,int_state%WATER                            &
-                            ,int_state%T                                &
                             ,int_state%P_QC                             &
                             ,int_state%P_QR                             &
                             ,int_state%P_QS                             &
-                            ,int_state%P_QI                             &
-                            ,int_state%P_QG                             &
-                            ,IMICRO                                     &
                             ,IDS,IDE,JDS,JDE,LM                         &
                             ,IMS,IME,JMS,JME                            &
                             ,ITS,ITE,JTS,JTE)
-
-         ENDIF update_wtr
+        ENDIF update_wtr
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -1164,7 +1149,7 @@
 !***  Empty the ACFRST and ACFRCV accumulation arrays if it is time
 !***  to do so prior to their being updated by the radiation.
 !-----------------------------------------------------------------------
-!a
+!
           IF(MOD(NTIMESTEP,int_state%NCLOD)==0)THEN
             DO J=JTS,JTE
             DO I=ITS,ITE
@@ -1358,7 +1343,6 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-
         turbulence: IF(CALL_TURBULENCE)THEN
 !
           btim=timef()
@@ -1508,8 +1492,6 @@
 !-----------------------------------------------------------------------
 !
         ENDIF turbulence
-
-
 !
 !----------------------------------------------------------------------- 
 !***  Empty the accumulators of precipitation and latent heating if is
@@ -1593,6 +1575,9 @@
           CALL CUCNVC_DEV(NTIMESTEP,int_state%DT,int_state%NPRECIP      &
                      ,int_state%NRADS,int_state%NRADL                   &
                      ,int_state%NHOURS_HISTORY                          &
+                     ,int_state%ENTRAIN,int_state%NEWALL                &
+                     ,int_state%NEWSWAP,int_state%NEWUPUP               &
+                     ,int_state%NODEEP                                  &
                      ,int_state%DYH,int_state%RESTART,int_state%HYDRO   &
                      ,int_state%CLDEFI,int_state%NUM_WATER              &
                      ,int_state%F_ICE,int_state%F_RAIN                  &
@@ -2575,7 +2560,7 @@
 !
       IF( int_state%WRITE_PREC_ADJ   .AND.                              &
           MOD(XTIME,60.) <= 0.001    .AND.                              &
-         INT(XTIME/60.) <= int_state%PCPHR ) THEN
+          INT(XTIME/60.) <= int_state%PCPHR ) THEN
         CALL WRT_2D(int_state%PREC,MYPE,NUM_PES,MPI_COMM_COMP           &
                 ,INT(XTIME/60.)+1                                       &
                 ,IDS,IDE,JDS,JDE                                        &
@@ -2583,6 +2568,7 @@
                 ,ITS,ITE,JTS,JTE)
       ENDIF
 !
+!-----------------------------------------------------------------------
 !     if(ntimestep<=5)then
 !       call twr(int_state%t,lm,'t_phy',ntimestep,mype,num_pes,mpi_comm_comp &
 !               ,ids,ide,jds,jde &
@@ -3580,6 +3566,8 @@
         SELECT CASE (shortwave)
           CASE ('gfdl')
 !           WRITE(0,*)' Already called GFDL_INIT from LONGWAVE'
+          CASE ('rrtm')
+!           WRITE(0,*)' Already called RRTMNEW_INIT from LONGWAVE'
 !!!       CASE ('gsfc')
 !!!         CALL GSFC_INIT
           CASE ('dudh')
@@ -3704,9 +3692,7 @@
                              ,IMS,IME,JMS,JME,1,LM                     &
                              ,ITS,ITE,JTS,JTE,1,LM)
 !
-          CASE ('wsm6')
-             CALL WSM6INIT(RHOAIR0,RHOWATER,RHOSNOW,CLIQ,CV             &
-                          ,ALLOWED_TO_READ )
+!
           CASE ('wsm3')
 !            CALL WSM3INIT(RHOAIR0,RHOWATER,RHOSNOW,CLIQ,CV             &
 !                         ,ALLOWED_TO_READ )
@@ -3756,9 +3742,9 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE UPDATE_WATER(CWM,F_ICE,F_RAIN,F_RIMEF                  &
-                             ,NUM_WATER,WATER,T                         &
-                             ,P_QC,P_QR,P_QS,P_QI,P_QG, IMICRO     &
+      SUBROUTINE UPDATE_WATER(CWM,F_ICE,F_RAIN                          &
+                             ,NUM_WATER,WATER                           &
+                             ,P_QC,P_QR,P_QS                            &
                              ,IDS,IDE,JDS,JDE,LM                        &
                              ,IMS,IME,JMS,JME                           &
                              ,ITS,ITE,JTS,JTE)
@@ -3780,7 +3766,7 @@
 !   LANGUAGE: FORTRAN 90
 !   MACHINE : IBM
 !-----------------------------------------------------------------------
-      USE MODULE_CONSTANTS,ONLY : EPSQ,TIW
+      USE MODULE_CONSTANTS,ONLY : EPSQ
 !-----------------------------------------------------------------------
       IMPLICIT NONE
 !-----------------------------------------------------------------------
@@ -3790,12 +3776,10 @@
                            ,IMS,IME,JMS,JME                             &
                            ,ITS,ITE,JTS,JTE                             &
                            ,NUM_WATER                                   &
-                           ,P_QC,P_QR,P_QS,P_QI,P_QG, IMICRO
-     ! REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: CWM,T          &
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: CWM,T          &
-                                                  ,F_ICE,F_RAIN,F_RIMEF
-     ! REAL,DIMENSION(IMS:IME,JMS:JME,1:LM,NUM_WATER),INTENT(OUT) :: WATER
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM,NUM_WATER),INTENT(INOUT) :: WATER
+                           ,P_QC,P_QR,P_QS
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: CWM            &
+                                                        ,F_ICE,F_RAIN
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM,NUM_WATER),INTENT(OUT) :: WATER
 !-----------------------------------------------------------------------
 !--  LOCAL VARIABLES
 !-----------------------------------------------------------------------
@@ -3805,83 +3789,26 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      micro_update:  IF (IMICRO <= 0) THEN
 !-----------------------------------------------------------------------
 !***  UPDATE CONDENSATE FIELDS IN WATER ARRAY FOR FERRIER MICROPHYSICS ONLY
 !-----------------------------------------------------------------------
-         DO K=1,LM
-           DO J=JMS,JME
-             DO I=IMS,IME
-                IF (CWM(I,J,K)>EPSQ) THEN
-                   LIQW=(1.-F_ice(I,J,K))*CWM(I,J,K)
-                   WATER(I,J,K,P_QC)=(1.-F_rain(I,J,K))*LIQW
-                   WATER(I,J,K,P_QR)=F_rain(I,J,K)*LIQW
-                   WATER(I,J,K,P_QS)=F_ice(I,J,K)*CWM(I,J,K)
-                ELSE
-                   WATER(I,J,K,P_QC)=0.
-                   WATER(I,J,K,P_QR)=0.
-                   WATER(I,J,K,P_QS)=0.
-                ENDIF
-             ENDDO
-           ENDDO
-         ENDDO
-      ELSE IF (IMICRO == 1) then micro_update
-!-----------------------------------------------------------------------
-!***  UPDATE CWM, F_rain, F_ice, F_RIMEF from WATER array for WSM6 microphysics
-!-----------------------------------------------------------------------
-         DO K=1,LM
-           DO J=JMS,JME
-             DO I=IMS,IME
-                CWM(I,J,K)=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)+WATER(I,J,K,P_QI)  &
-                          +WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG)
-                IF (CWM(I,J,K) > EPSQ) THEN
-                   LIQW=WATER(I,J,K,P_QI)+WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG)
-                   F_ICE(I,J,K)=LIQW/CWM(I,J,K)
-                ELSE
-                   F_ICE(I,J,K)=0. 
-                ENDIF
-                IF (WATER(I,J,K,P_QR) > EPSQ) THEN
-                   LIQW=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)
-                   F_RAIN(I,J,K)=WATER(I,J,K,P_QR)/LIQW
-                ELSE
-                   F_RAIN(I,J,K)=0. 
-                ENDIF
-                IF (WATER(I,J,K,P_QG) > EPSQ) THEN
-!-- Crudely update F_RIMEF based on a factor of 5 higher density graupel (500 kg/m**3) 
-!   over unrimed snow (100 kg/m**3)
-                   LIQW=5.*WATER(I,J,K,P_QG)+WATER(I,J,K,P_QS)
-                   F_RIMEF(I,J,K)=LIQW/(WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG))
-                ELSE
-                   F_RIMEF(I,J,K)=1. 
-                ENDIF
-             ENDDO
-           ENDDO
-         ENDDO
-      ELSE IF (IMICRO == 2) then micro_update
-!-----------------------------------------------------------------------
-!***  UPDATE CWM, F_rain, F_ice, F_RIMEF from WATER array for WSM3 microphysics
-!-----------------------------------------------------------------------
-         DO K=1,LM
-           DO J=JMS,JME
-             DO I=IMS,IME
-                CWM(I,J,K)=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)
-                F_RIMEF(I,J,K)=1. 
-                IF (T(I,J,K) >= TIW) THEN
-                   F_ICE(I,J,K)=0.
-                   IF (WATER(I,J,K,P_QR) > EPSQ) THEN
-                      LIQW=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)
-                      F_RAIN(I,J,K)=WATER(I,J,K,P_QR)/LIQW
-                   ELSE
-                      F_RAIN(I,J,K)=0.
-                   ENDIF
-                ELSE
-                   F_ICE(I,J,K)=1. 
-                   F_RAIN(I,J,K)=0.
-                ENDIF
-             ENDDO
-           ENDDO
-         ENDDO
-      ENDIF  micro_update
+!
+      DO K=1,LM
+        DO J=JMS,JME
+          DO I=IMS,IME
+             IF (CWM(I,J,K)>EPSQ) THEN
+                LIQW=(1.-F_ice(I,J,K))*CWM(I,J,K)
+                WATER(I,J,K,P_QC)=(1.-F_rain(I,J,K))*LIQW
+                WATER(I,J,K,P_QR)=F_rain(I,J,K)*LIQW
+                WATER(I,J,K,P_QS)=F_ice(I,J,K)*CWM(I,J,K)
+             ELSE
+                WATER(I,J,K,P_QC)=0.
+                WATER(I,J,K,P_QR)=0.
+                WATER(I,J,K,P_QS)=0.
+             ENDIF
+          ENDDO
+        ENDDO
+      ENDDO
 !
 !----------------------------------------------------------------------
 !
