@@ -192,6 +192,7 @@
       CHARACTER(ESMF_MAXSTR) :: IMPORT_STATENAME,EXPORT_STATENAME
       TYPE(ESMF_Field)       :: HOLD_FIELD
       CHARACTER(LEN=10), DIMENSION(100) :: itemNameList
+      TYPE(ESMF_StateItemType) :: stateItemType
 
       LOGICAL,SAVE :: FROM_EXP_DYN_TO_IMP_PHY=.FALSE.
       LOGICAL,SAVE :: FROM_EXP_PHY_TO_IMP_DYN=.FALSE.
@@ -239,9 +240,12 @@
 !
       CALL ESMF_StateGet(state=IMP_STATE,itemCount=itemCount,itemNameList=itemNameList, rc=RC)
       DO i=1,itemCount  
-        write(0,*) TRIM(IMPORT_STATENAME),' -> ',TRIM(EXPORT_STATENAME),' Field     : ',i,itemNameList(i)
-        CALL ESMF_StateGet(state=IMP_STATE ,itemName=itemNameList(i) ,field=HOLD_FIELD ,rc=RC)
-        CALL ESMF_StateAdd(state=EXP_STATE ,field=HOLD_FIELD ,rc=RC)
+        CALL ESMF_StateGet(state=IMP_STATE ,name=itemNameList(i) ,stateitemtype=stateItemType, rc=RC)
+        IF (stateItemType == ESMF_STATEITEM_FIELD) THEN
+          write(0,*) TRIM(IMPORT_STATENAME),' -> ',TRIM(EXPORT_STATENAME),' Field     : ',i,itemNameList(i)
+          CALL ESMF_StateGet(state=IMP_STATE ,itemName=itemNameList(i) ,field=HOLD_FIELD ,rc=RC)
+          CALL ESMF_StateAdd(state=EXP_STATE ,field=HOLD_FIELD ,rc=RC)
+        END IF
       END DO
 
 ! DYN -> PHY

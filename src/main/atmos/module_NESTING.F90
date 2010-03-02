@@ -4050,6 +4050,8 @@
 !
       REAL,DIMENSION(:),ALLOCATABLE :: ARRAY_1D
 !
+      TYPE(ESMF_StateItemType) :: STATEITEMTYPE
+!
       TYPE(ESMF_Field) :: HOLD_FIELD
 !
       integer :: n
@@ -4062,46 +4064,81 @@
       RC_TRANS=ESMF_SUCCESS
 !
 #if 1
-      EXP_FIELD = (/ 'PD      ', 'T       ', 'U       ', 'V       ', 'TRACERS ' /)
-      DO N=1,SIZE(EXP_FIELD)
+      EXP_FIELD = (/ 'PD      '                                         &
+                    ,'T       '                                         &
+                    ,'U       '                                         &
+                    ,'V       '                                         &
+                    ,'TRACERS '                                         &
+                               /)
+!
+!-----------------------------------------------------------------------
+!
+      item_loop: DO N=1,SIZE(EXP_FIELD)
+!
+!-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract PD from Dynamics or Physics Export State"
+      MESSAGE_CHECK="Test the presence of "//TRIM(EXP_FIELD(N))//" in Dynamics Export State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =EXP_STATE_DYN                     &  !<-- The Dynamics export state
-                        ,itemName=TRIM(EXP_FIELD(N))                &  !<-- Extract field
-                        ,field   =HOLD_FIELD                        &  !<-- Put the extracted Field here
-                        ,rc      =RC)
-!
-      IF ( RC /= ESMF_SUCCESS ) THEN
-!
-      CALL ESMF_StateGet(state   =EXP_STATE_PHY                     &  !<-- The Physics export state
-                        ,itemName=TRIM(EXP_FIELD(N))                &  !<-- Extract field
-                        ,field   =HOLD_FIELD                        &  !<-- Put the extracted Field here
-                        ,rc      =RC)
+        CALL ESMF_StateGet(state        =EXP_STATE_DYN                  &  !<-- The Dynamics export state
+                          ,name         =TRIM(EXP_FIELD(N))             &  !<-- Check presence of this Field
+                          ,stateItemType=STATEITEMTYPE                  &  !<-- ESMF Type of the Field
+                          ,rc           =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      END IF
+        IF (STATEITEMTYPE /= ESMF_STATEITEM_NOTFOUND) THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract "//TRIM(EXP_FIELD(N))//" from Dynamics Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_StateGet(state   =EXP_STATE_DYN                     &  !<-- The Dynamics export state
+                            ,itemName=TRIM(EXP_FIELD(N))                &  !<-- Extract this Field
+                            ,field   =HOLD_FIELD                        &  !<-- Put the extracted Field here
+                            ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        ELSE
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract "//TRIM(EXP_FIELD(N))//" from Physics Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_StateGet(state   =EXP_STATE_PHY                     &  !<-- The Physics export state
+                            ,itemName=TRIM(EXP_FIELD(N))                &  !<-- Extract this Field
+                            ,field   =HOLD_FIELD                        &  !<-- Put the extracted Field here
+                            ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        END IF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert PD into ATM Export State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(state=EXP_STATE_ATM                            &  !<-- Insert PD into ATM export state
-                        ,field=HOLD_FIELD                               &  !<-- The Field to be inserted
-                        ,rc   =RC)
+        CALL ESMF_StateAdd(state=EXP_STATE_ATM                          &  !<-- Insert PD into ATM export state
+                          ,field=HOLD_FIELD                             &  !<-- The Field to be inserted
+                          ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      END DO
+      END DO  item_loop
 #else
 !-----------------
 !***  Transfer PD 
@@ -4112,9 +4149,9 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =EXP_STATE_DYN                     &  !<-- The Dynamics export state
-                        ,itemName='PD'                              &  !<-- Extract PD
-                        ,field   =HOLD_FIELD                        &  !<-- Put the extracted Field here
+      CALL ESMF_StateGet(state   =EXP_STATE_DYN                         &  !<-- The Dynamics export state
+                        ,itemName='PD'                                  &  !<-- Extract PD
+                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
                         ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4139,13 +4176,11 @@
 !--------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!d      MESSAGE_CHECK="Extract T from Physics Export State"
       MESSAGE_CHECK="Extract T from Dynamics Export State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!d      CALL ESMF_StateGet(state   =EXP_STATE_PHY                         &  !<-- The Physics export state
-      CALL ESMF_StateGet(state   =EXP_STATE_DYN                         &  !<-- The Physics export state
+      CALL ESMF_StateGet(state   =EXP_STATE_DYN                         &  !<-- The Dynamics export state
                         ,itemName='T'                                   &  !<-- Extract T
                         ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
                         ,rc      =RC)
@@ -4172,13 +4207,11 @@
 !---------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!d      MESSAGE_CHECK="Extract U from Physics Export State"
       MESSAGE_CHECK="Extract U from Dynamics Export State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!d      CALL ESMF_StateGet(state   =EXP_STATE_PHY                         &  !<-- The Physics export state
-      CALL ESMF_StateGet(state   =EXP_STATE_DYN                         &  !<-- The Physics export state
+      CALL ESMF_StateGet(state   =EXP_STATE_DYN                         &  !<-- The Dynamics export state
                         ,itemName='U'                                   &  !<-- Extract U
                         ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
                         ,rc      =RC)
@@ -4205,13 +4238,11 @@
 !---------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!d      MESSAGE_CHECK="Extract V from Physics Export State"
       MESSAGE_CHECK="Extract V from Dynamics Export State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!d      CALL ESMF_StateGet(state   =EXP_STATE_PHY                         &  !<-- The Physics export state
-      CALL ESMF_StateGet(state   =EXP_STATE_DYN                         &  !<-- The Physics export state
+      CALL ESMF_StateGet(state   =EXP_STATE_DYN                         &  !<-- The Dynamics export state
                         ,itemName='V'                                   &  !<-- Extract V
                         ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
                         ,rc      =RC)
@@ -4238,13 +4269,11 @@
 !---------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!d      MESSAGE_CHECK="Extract TRACERS from Physics Export State"
       MESSAGE_CHECK="Extract TRACERS from Dynamics Export State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!d      CALL ESMF_StateGet(state   =EXP_STATE_PHY                         &  !<-- The Physics export state
-      CALL ESMF_StateGet(state   =EXP_STATE_DYN                         &  !<-- The Physics export state
+      CALL ESMF_StateGet(state   =EXP_STATE_DYN                         &  !<-- The Dynamics export state
                         ,itemName='TRACERS'                             &  !<-- Extract Tracers
                         ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
                         ,rc      =RC)

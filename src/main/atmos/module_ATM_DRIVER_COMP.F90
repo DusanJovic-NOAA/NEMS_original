@@ -739,8 +739,10 @@
       INTEGER(kind=KINT) :: INPES,JNPES,LENGTH,N_TASKS                  &
                            ,WRITE_GROUPS,WRITE_TASKS_PER_GROUP
 !
-      INTEGER,DIMENSION(:),POINTER :: CHILD_ID                          &
-                                     ,PETLIST
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: CHILD_ID               &
+                                                ,PETLIST
+!
+      LOGICAL(kind=KLOG) :: CFILE_EXIST
 !
       CHARACTER(2)  :: INT_TO_CHAR
       CHARACTER(6)  :: FMT='(I2.2)'
@@ -772,16 +774,47 @@
 !-----------------------------------------------------------------------
 !
       DO N=1,99                                                            !<-- Number of config files must not exceed 99
-        CF(N)=ESMF_ConfigCreate(rc=RC)
 !
         WRITE(INT_TO_CHAR,FMT)N
         CONFIG_FILE_NAME='configure_file_'//INT_TO_CHAR                    !<-- Each configure file has a unique number.
 !
-        CALL ESMF_ConfigLoadFile(config  =CF(N)                         &
-                                ,filename=CONFIG_FILE_NAME              &
-                                ,rc      =RC)
-        IF(RC/=0)EXIT                                                      !<-- Exit loop after running out of config files
-        NUM_DOMAINS=NUM_DOMAINS+1
+        CFILE_EXIST = .FALSE.
+        INQUIRE(FILE=CONFIG_FILE_NAME,EXIST=CFILE_EXIST)
+!
+        IF (CFILE_EXIST) THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Create the Nest Configure Object"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CF(N)=ESMF_ConfigCreate(rc=RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NMM_DRV_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Load the Nest Configure Object"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_ConfigLoadFile(config  =CF(N)                       &
+                                  ,filename=CONFIG_FILE_NAME            &
+                                  ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NMM_DRV_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          NUM_DOMAINS=NUM_DOMAINS+1
+!
+        ELSE
+!
+          EXIT
+!
+        ENDIF
+!
       ENDDO
 !
       NESTING_NMM=.FALSE.

@@ -548,7 +548,8 @@
 !
       REAL(kind=KFPT) :: SECOND_FCST                                       !<-- Current second from restart file
 !
-      LOGICAL(kind=KLOG) :: INPUT_READY_FLAG                            &
+      LOGICAL(kind=KLOG) :: CFILE_EXIST                                 &
+                           ,INPUT_READY_FLAG                            &
                            ,INPUT_READY_MY_CHILD                        &
                            ,NEMSIO_INPUT                                &
                            ,OPENED
@@ -586,15 +587,45 @@
 !-----------------------------------------------------------------------
 !
       DO N=1,99                                                            !<-- The number of config files cannot exceed 99
-        CF(N)=ESMF_ConfigCreate(rc=RC)
 !
         WRITE(INT_TO_CHAR,FMT)N
         CONFIG_FILE_NAME='configure_file_'//INT_TO_CHAR                    !<-- Prepare the config file names
 !
-        CALL ESMF_ConfigLoadFile(config  =CF(N)                         &
-                                ,filename=CONFIG_FILE_NAME              &
-                                ,rc      =RC)
-        IF(RC/=0)EXIT                                                      !<-- Exit loop after running out of config files
+        CFILE_EXIST = .FALSE.
+        INQUIRE(FILE=CONFIG_FILE_NAME,EXIST=CFILE_EXIST)
+!
+        IF (CFILE_EXIST) THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Create the Nest Configure Object"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CF(N)=ESMF_ConfigCreate(rc=RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Load the Nest Configure Object"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_ConfigLoadFile(config  =CF(N)                       &
+                                  ,filename=CONFIG_FILE_NAME            &
+                                  ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        ELSE
+!
+          EXIT
+!
+        ENDIF
+!
       ENDDO
 !
 !-----------------------------------------------------------------------

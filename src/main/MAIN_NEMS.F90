@@ -69,8 +69,6 @@
 !
       TYPE(ESMF_Config) :: CF_MAIN                                         !<-- The Configure object
 !
-      TYPE(ESMF_LOG) :: LOG_ERROR                                          !<-- The ESMF Log Error object.
-!
 !-----------------------------------------------------------------------
 !
       INTEGER(kind=KINT) :: MYPE                                        &  !<-- The local MPI task ID
@@ -133,27 +131,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  Open the log error file and set log parameters.
-!***  When the user does not want to use the ESMF default log,
-!***  use it to open a user defined log.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Open the Log Error File"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_LogOpen(log     =LOG_ERROR                              &
-                       ,filename='Error_Log.txt'                        &
-                       ,logtype =ESMF_LOG_MULTI                         &
-                       ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Set up the user defined log.
+!***  Set up the default log.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -161,12 +139,11 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_LogSet(log        =LOG_ERROR                            &
-                      ,verbose    =ESMF_TRUE                            &
+      CALL ESMF_LogSet(verbose    =ESMF_TRUE                            &
                       ,flush      =ESMF_TRUE                            &
                       ,rootOnly   =ESMF_FALSE                           &
-                      ,halt       =ESMF_LOG_HALTERROR                   & !<-- The job will be stopped when
-                                                                          !    an error occurs.
+                      ,halt       =ESMF_LOG_HALTNEVER                   & !<-- The job will not stop automatically
+                                                                          !    when an ESMF error occurs.
                       ,maxElements=1                                    & !<-- Maximum number of elements in the log
                                                                           !    before printing them to the log file.
                       ,rc         =RC)

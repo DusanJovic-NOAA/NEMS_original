@@ -214,9 +214,9 @@
 !-----------------------------------------------------------------------
 !
       IF(RC_WRT==ESMF_SUCCESS)THEN
-        WRITE(6,*)"PASS: Write_Register."
+!       WRITE(6,*)"PASS: Write_Register."
       ELSE
-        WRITE(6,*)"FAIL: Write_Register."
+        WRITE(0,*)"FAIL: Write_Register."
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -2848,10 +2848,10 @@
 !
             CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)
 !
-            IF(HST_FIRST)THEN
-              WRITE(0,*)'Wrote ',TRIM(NAME),' to nemsio history file iret=',ierr
-            ENDIF
-
+!           IF(HST_FIRST)THEN
+!             WRITE(0,*)'Wrote ',TRIM(NAME),' to nemsio history file iret=',ierr
+!           ENDIF
+!
           ENDIF
 !
         ENDIF
@@ -2897,7 +2897,7 @@
 !           write(0,*)'WRITE_HST_FLAG=',wrt_int_state%WRITE_HST_FLAG,'rc=',rc
             IF(HST_FIRST)THEN
               WRITE(0,*)'Wrote FACT10 to history file unit ',wrt_int_state%IO_HST_UNIT &
-                       ,maxval(fact10),minval(fact10)
+                        ,maxval(fact10),minval(fact10)
             ENDIF
           ENDIF
 !
@@ -2922,7 +2922,7 @@
 !
       IF(wrt_int_state%WRITE_HST_FLAG.and.MYPE==LEAD_WRITE_TASK)THEN
         CLOSE(wrt_int_state%IO_HST_UNIT)
-        write(0,*)' Closed history file with unit=',wrt_int_state%IO_HST_UNIT
+!       write(0,*)' Closed history file with unit=',wrt_int_state%IO_HST_UNIT
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -2941,7 +2941,7 @@
         DEALLOCATE(TMP)
 !
         CALL NEMSIO_CLOSE(NEMSIOFILE)
-        WRITE(0,*)' Closed nemsio_history file, ', gfname
+!       WRITE(0,*)' Closed nemsio_history file, ', gfname
 !
         CALL NEMSIO_FINALIZE()
 !
@@ -3602,12 +3602,12 @@
 !
             WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)wrt_int_state%RST_OUTPUT_ARRAY_R2D   !<-- Lead write task writes out the 2D real data
 !
-            IF(RST_FIRST)THEN
-              WRITE(0,*)'Wrote ',TRIM(NAME)                                &
-                       ,' to restart file unit ',wrt_int_state%IO_RST_UNIT &
-                       ,MAXVAL(wrt_int_state%RST_OUTPUT_ARRAY_R2D)         &
-                       ,MINVAL(wrt_int_state%RST_OUTPUT_ARRAY_R2D)
-            ENDIF
+!           IF(RST_FIRST)THEN
+!             WRITE(0,*)'Wrote ',TRIM(NAME)                                &
+!                      ,' to restart file unit ',wrt_int_state%IO_RST_UNIT &
+!                      ,MAXVAL(wrt_int_state%RST_OUTPUT_ARRAY_R2D)         &
+!                      ,MINVAL(wrt_int_state%RST_OUTPUT_ARRAY_R2D)
+!           ENDIF
 !
           ENDIF
 !
@@ -3651,9 +3651,9 @@
 !
             CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)
 !
-            IF(RST_FIRST)THEN
-              WRITE(0,*)'Wrote ',TRIM(NAME),' to nemsio restart file iret=',ierr
-            ENDIF
+!           IF(RST_FIRST)THEN
+!             WRITE(0,*)'Wrote ',TRIM(NAME),' to nemsio restart file iret=',ierr
+!           ENDIF
 
           ENDIF
 !
@@ -3691,10 +3691,10 @@
 !
           IF(wrt_int_state%WRITE_RST_FLAG)THEN
             WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)FACT10                !<-- Lead write task writes out the 2D real data
-            IF(RST_FIRST)THEN
-              WRITE(0,*)'Wrote FACT10 to restart file unit ',wrt_int_state%IO_RST_UNIT &
-                       ,MAXVAL(fact10),MINVAL(fact10)
-            ENDIF
+!           IF(RST_FIRST)THEN
+!             WRITE(0,*)'Wrote FACT10 to restart file unit ',wrt_int_state%IO_RST_UNIT &
+!                       ,MAXVAL(fact10),MINVAL(fact10)
+!           ENDIF
           ENDIF
 
           IF(wrt_int_state%WRITE_NEMSIOFLAG)THEN
@@ -3702,7 +3702,7 @@
             TMP=RESHAPE(FACT10(1:IM,1:JM),(/FIELDSIZE/))
             CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)
 !           write(0,*)'after nemsio_writerec,n=',n,'fact10=',maxval(tmp),minval(tmp),'iret=',ierr
-            WRITE(0,*)'Wrote FACT10 to nemsio restart file iret=',ierr
+!           WRITE(0,*)'Wrote FACT10 to nemsio restart file iret=',ierr
           ENDIF
 !
           DEALLOCATE(FACT10)
@@ -3726,7 +3726,7 @@
 !
       IF(wrt_int_state%WRITE_RST_FLAG.and.MYPE==LEAD_WRITE_TASK)THEN
         CLOSE(wrt_int_state%IO_RST_UNIT)
-        write(0,*)' Closed restart file with unit=',wrt_int_state%IO_RST_UNIT
+!       write(0,*)' Closed restart file with unit=',wrt_int_state%IO_RST_UNIT
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -3745,7 +3745,7 @@
         DEALLOCATE(TMP)
 !
         CALL NEMSIO_CLOSE(NEMSIOFILE)
-        WRITE(0,*)' Closed nemsio_restart file, ', gfname
+!       WRITE(0,*)' Closed nemsio_restart file, ', gfname
 !
         CALL NEMSIO_FINALIZE()
 !
@@ -3797,7 +3797,7 @@
 !-----------------------------------------------------------------------
 !
       IF(RC_RUN==ESMF_SUCCESS)THEN
-        WRITE(0,*)"PASS: WRITE_RUN"
+!       WRITE(0,*)"PASS: WRITE_RUN"
       ELSE
         WRITE(0,*)"FAIL: WRITE_RUN"
       ENDIF
@@ -3856,7 +3856,7 @@
 !-----------------------------------------------------------------------
 !
       IF(RCFINAL==ESMF_SUCCESS)THEN
-        WRITE(0,*)'PASS: Write_Finalize.'
+!       WRITE(0,*)'PASS: Write_Finalize.'
       ELSE
         WRITE(0,*)'FAIL: Write_Finalize.'
       ENDIF
@@ -4368,7 +4368,7 @@
 !-----------------------------------------------------------------------
 !
       IF(RC_DES==ESMF_SUCCESS)THEN
-        WRITE(0,*)'ATM FINALIZE STEP SUCCEEDED'
+!       WRITE(0,*)'ATM FINALIZE STEP SUCCEEDED'
       ELSE
         WRITE(0,*)'ATM FINALIZE STEP FAILED  RC_DES=',RC_DES
       ENDIF
