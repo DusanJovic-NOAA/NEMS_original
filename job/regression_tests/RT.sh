@@ -23,7 +23,6 @@ fi
 ############################################################
 
 export RTPWD=/${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
-export RTPWD=/stmp/wx20rv/REGRESSION_TEST
 
 #########################################################################
 # Check if running regression test or creating baselines.
