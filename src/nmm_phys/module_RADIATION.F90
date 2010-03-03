@@ -3527,16 +3527,12 @@
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-! ADD initialization of FPVS FPVS0
-      INTEGER,PARAMETER :: NX=7501
-      REAL, PARAMETER :: XMIN=180.0,XMAX=330.0
-      REAL, DIMENSION(NX),PRIVATE,SAVE :: TBPVS,TBPVS0
-      REAL, PRIVATE,SAVE :: C1XPVS0,C2XPVS0,C1XPVS,C2XPVS
 !
-!--- Create lookup tables for saturation vapor pressure w/r/t water & ice
+!--- In case Ferrier microphysics is not called, initialize lookup tables for 
+!    saturation vapor pressures (only FPVS is used in radiation, which calculates
+!    vapor pressure w/r/t water for T>=0C and w/r/t ice for T<0C).
 !
         CALL GPVS
-
 !
       MYPE=MYPE_SHARE
 !
