@@ -53,13 +53,13 @@
       character(16),allocatable :: variname(:),varr8name(:),aryiname(:)
       integer,allocatable :: reclev(:)
       integer,allocatable :: varival(:),aryilen(:),aryival(:,:)
-      real,allocatable :: vcoord4(:,:,:)
+      real(kind=kind_io4),allocatable :: vcoord4(:,:,:)
       real(8),allocatable :: varr8val(:)
       integer iret, ipt_lats
       integer  il,ilen,i,msgtag,ls_diml,nodesl,ij
       logical first
       save first,nmetavari,nmetavarr8,nmetaaryi,recname,reclevtyp, 
-     &     reclev,variname,varr8name,aryiname,varival,
+     &     reclev,variname,varr8name,aryiname,varival,varr8val,
      &     aryilen,aryival,vcoord4,nmeta,nrec,GZ
       data first /.true./
 !

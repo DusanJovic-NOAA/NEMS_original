@@ -13,8 +13,8 @@
 ! ---------
 ! dynamics
 ! ---------
-      real, allocatable, save :: dyn_array_save(:,:,:,:)
-      real             , save :: totalsum
+      real(8), allocatable, save :: dyn_array_save(:,:,:,:)
+      real(8)             , save :: totalsum
       character(20), allocatable, save :: dyn_name(:)
       integer,       allocatable, save :: dyn_dim(:,:)
       integer,       allocatable, save :: dyn_items_ord(:)
@@ -131,7 +131,7 @@
       TYPE(ESMF_Field)		    :: Field
       real(ESMF_KIND_R8), dimension(:,:), pointer :: tmp_ptr2d
       real(ESMF_KIND_R8), dimension(:,:,:), pointer :: tmp_ptr
-      real                          :: sx, wx, digfil
+      real(8)                          :: sx, wx, digfil
       integer                       :: n, i, rc,item,dim1,dim2,dim3
 
         kstep = kstep + 1
@@ -189,7 +189,7 @@
       real(ESMF_KIND_R8), dimension(:,:,:), pointer :: tmp_ptr
       real(ESMF_KIND_R8), dimension(:,:), pointer :: tmp_ptr2D
       real(ESMF_KIND_R8), dimension(:,:,:), pointer :: tmp_ptr1
-      real                            :: totalsumi
+      real(8)                         :: totalsumi
       integer                         :: n, i, rc,item
       integer                         :: dim1,dim2,dim3
 !

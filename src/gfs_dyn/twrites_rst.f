@@ -58,17 +58,17 @@
       real(kind=kind_ior)   tmpr(3+nodes+jcap1*(nodes-1))
 !
       type(nemsio_gfile) gfile
-      integer nmetavarr
+      integer nmetavarr8
       character(16),allocatable :: recname(:),reclevtyp(:)
       integer,allocatable :: reclev(:)
-      character(16),allocatable :: varrname(:)
-      real,allocatable :: varrval(:)
+      character(16),allocatable :: varr8name(:)
+      real(kind_ior),allocatable :: varr8val(:)
       integer iret, idvt
       integer il,ilen,i,msgtag,ls_diml,nrec
       integer nfhour,nfminute,nfsecondn,nfsecondd,nframe,jrec,nmeta
       logical first
-      save first,nmetavarr,recname,reclevtyp, 
-     &     reclev,varrname,varrval,nmeta,nrec
+      save first,nmetavarr8,recname,reclevtyp, 
+     &     reclev,varr8name,varr8val,nmeta,nrec
       save Z_R
       data first /.true./
 !
@@ -284,9 +284,9 @@
             reclev(i+2+3*levs)=i
           enddo
 !
-          nmetavarr=1
-          allocate(varrname(nmetavarr),varrval(nmetavarr))
-          varrname(1:nmetavarr)=(/'fhour  '/)
+          nmetavarr8=1
+          allocate(varr8name(nmetavarr8),varr8val(nmetavarr8))
+          varr8name(1:nmetavarr8)=(/'fhour  '/)
 !
 !endof first
         endif
@@ -300,7 +300,7 @@
         nfsecondn=int(((fhour-nfhour)*60-nfminute)*60)
         nfsecondd=1
 !
-        varrval(1)=fhour
+        varr8val(1)=fhour
 !
         call nemsio_init()
 !
@@ -310,7 +310,7 @@
      &    dimz=levs,nmeta=nmeta,nrec=nrec,jcap=jcap,ntrac=ntrac,
      &    recname=recname,reclevtyp=reclevtyp,reclev=reclev,
      &    extrameta=.true.,
-     &    nmetavarr=nmetavarr,varrname=varrname,varrval=varrval)
+     &    nmetavarr8=nmetavarr8,varr8name=varr8name,varr8val=varr8val)
 !        print *,'after nemsio_open,',trim(fname),'iret=',iret
 !
 !--- write out data

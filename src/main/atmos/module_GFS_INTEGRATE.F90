@@ -125,13 +125,16 @@
       INTEGER(kind=KINT) :: I,N_GROUP,NDFISTEP,RC,RC_LOOP
       INTEGER(kind=KINT) :: YY,MM,DD,H,M,S
 !
-      INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF                         !<-- The current forecast timestep (ESMF_INT)
+      INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF                       & !<-- The current forecast timestep (ESMF_INT)
+                                   ,NTIMESTEPH                             !<-- The timestep at fdfi
 !
-      TYPE(ESMF_Time) :: ALARM_OUTPUT_RING,DFITIME,HALFDFITIME
+      TYPE(ESMF_Time) :: ALARM_OUTPUT_RING,DFITIME,HALFDFITIME,CurrentTime
 !
       TYPE(ESMF_TimeInterval) :: HALFDFIINTVAL
 !
       TYPE(ESMF_Alarm) :: ALARM_OUTPUT
+!
+      LOGICAL :: first=.true.
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -186,16 +189,24 @@
 !
         CALL ESMF_ClockGet(clock       =CLOCK_ATM                       &
                           ,advanceCount=NTIMESTEP_ESMF                  &  !<-- # of times the clock has advanced
+                          ,currTime    =currentTime                     &  !<-- # of times the clock has advanced
                           ,rc          =RC)
 !
-          NTIMESTEP=NTIMESTEP_ESMF
+         NTIMESTEP=NTIMESTEP_ESMF
+         IF(DFIHR>0 .and. currentTime>HALFDFITIME .and.                 &
+           currentTime<=DFITIME .and. first) THEN
+           call ESMF_AlarmDisable(ALARM_OUTPUT,rc=rc)
+           first=.false.
+         ENDIF
+         print *,'in gfsintg, NTIMESTEP=',NTIMESTEP,'alarmenable=',   &
+          ESMF_AlarmISEnabled(ALARM_OUTPUT,rc=rc)
 !
 !-----------------------------------------------------------------------
 !***  Call the Write component if it is time.
 !-----------------------------------------------------------------------
 !
-        outputdyn: IF(ESMF_AlarmIsRinging(alarm=ALARM_OUTPUT            &  !<-- The history output alarm
-                                         ,rc   =RC) .or.                &
+        outputdyn: IF((ESMF_AlarmIsEnabled(alarm=ALARM_OUTPUT,rc=RC).and.&
+                      ESMF_AlarmIsRinging(alarm=ALARM_OUTPUT,rc=rc)) .or.& !<-- The history output alarm
                       NTIMESTEP==1) THEN
 !
           CALL WRITE_ASYNC_GFS(WRT_COMPS                                &
@@ -241,7 +252,6 @@
                             ,rc          =RC)
 !
           NTIMESTEP=NTIMESTEP_ESMF
-          write(0,*)'after phys,ntimestep=',ntimestep,'fhour=',ntimestep/4.
 !
 !-----------------------------------------------------------------------
 !***  Invoke GOCART 
@@ -329,6 +339,7 @@
           IF(PHYSICS_ON==ESMF_True)THEN
             IF(CURRTIME==HALFDFITIME)THEN
               CALL DIGITAL_FILTER_PHY_SAVE_GFS(IMP_GFS_PHY)
+              NTIMESTEPH=NTIMESTEP_ESMF
             ENDIF
           ENDIF
 !
@@ -343,15 +354,19 @@
               CALL DIGITAL_FILTER_PHY_RESTORE_GFS(imp_gfs_phy)
             ENDIF
 !
-            CALL ESMF_ClockSet(clock   =CLOCK_ATM                       &
-                              ,currtime=HALFDFITIME                     &
-                              ,rc      =RC)
+            CALL ESMF_ClockSet(clock       =CLOCK_ATM                   &
+                              ,currtime    =HALFDFITIME                 &
+                              ,advanceCount=NTIMESTEPH                  &
+                              ,rc          =RC)
 !
             DFITIME = STARTTIME
             DFIHR = 0
             write(0,*)' DFI reset time to:'
             CALL ESMF_ClockPrint(clock  =CLOCK_ATM                      &
                                 ,options="currtime string"              &
+                                ,rc     =RC)
+!
+            CALL ESMF_AlarmEnable(alarm=ALARM_OUTPUT                    &
                                 ,rc     =RC)
           ENDIF
 !
