@@ -36,16 +36,19 @@
 # OPT_NMM=-O2 -qmaxmem=-1 -qarch=auto -qtune=auto -NS2000
   OPT_NMM=-O3 -qstrict -qmaxmem=-1 -qarch=auto -qtune=auto -NS2000
   SMP=-qsmp=omp
-# SMP=
   MAF=-qfloat=nomaf
 ###GFS optimization###
-  FFLAGM_DEBUG=-O2
-  OPT_GFS=-qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
+DEBUG    = -qcheck -qsource -qlist
+#FFLAGM_DEBUG  = -g -fullpath -O0 -qinitauto=FF911299 -qflttrap=enable:overflow:zerodivide:invalid -qsigtrap=xl__trcedump -NS2048 $(DEBUG)
+
+  FFLAGM_DEBUG=-O3
+  OPT_GFS=-qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG) -I$(ESMF_MOD)
+ OPTS90=$(OPT_GFS)
   FFLAGSF=-qnosave -q free=f90 -qcheck $(FFLAGM_DEBUG)
   FFLAGSI=-qnosave -q free=f90 $(FFLAGM_DEBUG)
-  FFLAGB=-qnosave -qfixed $(FFLAGM_DEBUG)
+  FFLAGB= -qnosave -qfixed $(FFLAGM_DEBUG)
 ###Traps setting###
-# TRAPS=-qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap -C
+#  TRAPS=-qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap -C
   TRAPS=
 ###CPP Flags###
 # CPPFLAGS=-DIBM
@@ -86,6 +89,7 @@
   GFS_PHY=$(SRCDIR)/gfs_phys
   GFS_DYN=$(SRCDIR)/gfs_dyn
   GFS_IO=$(SRCDIR)/gfs_io
+  GFS_GEFSCPL=$(SRCDIR)/GEFS_Cpl
   NMM_UTIL1=$(SRCDIR1)/nmm_libutil
   NMM_PHY1=$(SRCDIR1)/nmm_phys
   NMM_DYN1=$(SRCDIR1)/nmm_dyn
@@ -107,9 +111,9 @@ GOCART_INC=$(INC_GOCART)           ### defined in NCEP_base.mk
 ###########################################################
 # Cumulative Source Code Include File Compiler Flags
 ###########################################################
-  GCINCS=-I$(NMM_UTIL) -I$(NMM_IO) -I$(NMM_DYN) -I$(NMM_PHY) -I$(ATM) -I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_UTIL) -I$(GFS_IO)
-  GCINCS_NMM=-I$(NMM_UTIL) -I$(NMM_IO) -I$(NMM_DYN) -I$(NMM_PHY) -I$(ATM)  -I$(GFS_PHY) -I$(MODDIR)/modstub/gfs 
-  GCINCS_GFS=-I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_UTIL) -I$(GFS_IO) -I$(ATM) -I$(MODDIR)/modstub/nmm
+  GCINCS=-I$(NMM_UTIL) -I$(NMM_IO) -I$(NMM_DYN) -I$(NMM_PHY) -I$(ATM) -I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_UTIL) -I$(GFS_IO) -I$(GFS_GEFSCPL)
+  GCINCS_NMM=-I$(NMM_UTIL) -I$(NMM_IO) -I$(NMM_DYN) -I$(NMM_PHY) -I$(ATM)  -I$(GFS_PHY) -I$(MODDIR)/modstub/gfs
+  GCINCS_GFS=-I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_UTIL) -I$(GFS_IO) -I$(GFS_GEFSCPL) -I$(ATM) -I$(MODDIR)/modstub/nmm
 ##GCINCS_NMM1=-I$(NMM_UTIL1) -I$(NMM_IO1) -I$(NMM_DYN1) -I$(NMM_PHY1) -I$(GFS_PHY1) -I$(MODDIR1)/modstub/gfs
   GCINCS_NMM1=-I$(NMM_UTIL1) -I$(NMM_IO1) -I$(NMM_DYN1) -I$(NMM_PHY1) -I$(GFS_PHY1) $(INC_GOCART) -I$(MODDIR1)/modstub/gfs
 ##GCINCS_GFS1=-I$(GFS_DYN1) -I$(GFS_PHY1) -I$(GFS_UTIL1) -I$(GFS_IO1) -I$(MODDIR1)/modstub/nmm
@@ -128,10 +132,11 @@ GOCART_INC=$(INC_GOCART)           ### defined in NCEP_base.mk
   FFLAG_NMM_DYN=$(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(NMM_UTIL) -I$(NMM_IO)
   FFLAG_GFS_UTIL=$(OPT_GFS) $(TRAPS)
   FFLAG_GFS_UTIL90=$(OPT_GFS) $(TRAPS) -I$(ESMF_MOD) -qfree -NS2048
-  FFLAG_GFS_DYN=$(OPT_GFS) $(TRAPS) -I$(GFS_UTIL)
+  FFLAG_GFS_DYN=$(OPT_GFS) $(TRAPS) -I$(GFS_UTIL)  -I$(ESMF_MOD)
   FFLAG_GFS_DYN90=$(FFLAG90) $(TRAPS) -I$(GFS_UTIL)
   FFLAG_GFS_PHY=$(FFLAGIO) $(TRAPS) -I$(GFS_UTIL)
   FFLAG_GFS_PHY90=$(FFLAG90) $(TRAPS) -I$(GFS_UTIL)
+  FFLAG_GFS_GEFSCPL=$(OPTS90) $(TRAPS) -I$(GFS_UTIL)
   FFLAG_GFS_IO=$(FFLAG90) -I$(GFS_UTIL) -I$(GFS_DYN) -I$(GFS_PHY)
 ###########################################################
 # Local Include Files

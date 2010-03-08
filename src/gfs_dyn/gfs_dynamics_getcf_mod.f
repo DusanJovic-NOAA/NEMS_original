@@ -15,6 +15,7 @@
 !  january  2007 h. juang      modified for the gfs dynamics.
 !  May      2009 j. wang       modified for the gfs wrt grid comp
 !  Oct 2009 Sarah Lu           tracer added; (q, oz, cld) removed
+!  November 2009 weiyu yang    modified for the ensemble NEMS run.
 !
 ! !interface:
 !
@@ -45,7 +46,6 @@
       type(esmf_gridcomp),                intent(inout) :: gc_gfs_dyn 
       type(gfs_dynamics_internal_state),  intent(inout) :: int_state 
       type(esmf_vm)                                     :: vm           
-      type(esmf_vm)                                     :: vm_local    
       integer,                            intent(out)   :: rc  
 !
 ! !description: load run parameters from the resource file into internal
@@ -111,13 +111,25 @@
 
       call esmf_configgetattribute(cf, 					&
                              int_state%nam_gfs_dyn%total_member,   	&
-                             label = 'total_member:', rc    = rc)
+                             label = 'total_member:', rc    = rc1)
+
+      IF(int_state%nam_gfs_dyn%total_member == 1) THEN
+          int_state%ENS = .FALSE.
+      ELSE
+          int_state%ENS = .TRUE.
+      END IF
+
+      call gfs_dynamics_err_msg_var(rc1,                                &
+                 'gfs dynamics getcf','total_member',rcfinal)
+
 !      print *,' total_member=',int_state%nam_gfs_dyn%total_member
 !      print *,' total tasks=',tasks
 
       call esmf_configgetattribute(cf, 					&
                              int_state%grib_inp,                	&
-                             label = 'grib_input:', rc    = rc)
+                             label = 'grib_input:', rc    = rc1)
+      call gfs_dynamics_err_msg_var(rc1,                                &
+                 'gfs dynamics getcf','grib_input',rcfinal)
 
       totpe = 0
       i1 = 0
@@ -125,20 +137,13 @@
 !     print *,' before j loop up to ',1,int_state%nam_gfs_dyn%total_member
 
       do j=1,int_state%nam_gfs_dyn%total_member
-        write(pelab,'("pe_member",i2.2,":")') j
+        write(pelab,'("PE_MEMBER",i2.2,":")') j
         call esmf_configgetattribute(cf, 				&
-                             pe_member, label = pelab, rc = rc)
-!jw        if (pe_member == 0) 						&
-!jw            pe_member = tasks / int_state%nam_gfs_dyn%total_member
-!jws
-        if (pe_member == 0) then
-          if( j < mod(tasks,int_state%nam_gfs_dyn%total_member) ) then
-            pe_member = tasks / int_state%nam_gfs_dyn%total_member + 1
-          else
+                             pe_member, label = pelab, rc = rc1)
+        call gfs_dynamics_err_msg_var(rc1,                              &
+                 'gfs dynamics getcf',pelab,rcfinal)
+        if (pe_member == 0) 						&
             pe_member = tasks / int_state%nam_gfs_dyn%total_member
-          endif
-        endif
-!jwe
 
 !       print *,' pe_member=',pe_member
 !       print *,' tasks=',tasks
@@ -151,12 +156,11 @@
           i1 = i1+1
         end do
       end do
+
       if (totpe /= tasks) then
        print *,' totpe=',totpe,' and tasks=',tasks, ' do not match'
        stop 9999
       endif
-
-      call esmf_vmgetcurrent(vm_local, rc = rc1)
 
       call esmf_configgetattribute(cf, 					&
                               int_state%nam_gfs_dyn%nlunit,         	&
@@ -174,6 +178,7 @@
                               int_state%restart_run,                      &
                               label = 'restart:',  rc = rc1)
 !jwe
+
       call esmf_configgetattribute(cf, 					&
                               int_state%nam_gfs_dyn%gfs_dyn_namelist, 	&
                               label = 'namelist:',  rc = rc1)
@@ -192,15 +197,16 @@
         int_state%nam_gfs_dyn%sig_ini  = 'sig_ini'
         int_state%nam_gfs_dyn%sig_ini2 = 'sig_ini2'
       else
-        write(int_state%nam_gfs_dyn%grid_ini, 				&
-              '("grid_ini",i2.2)') int_state%nam_gfs_dyn%member_id
-        write(int_state%nam_gfs_dyn%grid_ini2,				&
-              '("grid_ini2",i2.2)') int_state%nam_gfs_dyn%member_id
+        write(int_state%nam_gfs_dyn%grid_ini,                          &
+              '("grid_ini_",i2.2)') int_state%nam_gfs_dyn%member_id
+        write(int_state%nam_gfs_dyn%grid_ini2,                         &
+              '("grid_ini2_",i2.2)') int_state%nam_gfs_dyn%member_id
         write(int_state%nam_gfs_dyn%sig_ini, 				&
               '("sig_ini_",i2.2)') int_state%nam_gfs_dyn%member_id
         write(int_state%nam_gfs_dyn%sig_ini2,				&
               '("sig_ini2_",i2.2)') int_state%nam_gfs_dyn%member_id
       endif
+
 !
 !jws get output file name
 !--------------------------
@@ -221,6 +227,7 @@
       call gfs_dynamics_err_msg_var(rc1,                                &
                'gfs dynamics getcf','filename_base',rcfinal)
 !jwe
+
 !
 ! for "esmf_state_namelist"
 !--------------------------
@@ -261,14 +268,14 @@
       call gfs_dynamics_err_msg_var(rc1,				&
                'gfs dynamics getcf','temp_import',rcfinal)
 !
-      call esmf_configgetattribute(cf, 					&
-                              int_state%esmf_sta_list%tracer_import,    &		
+      call esmf_configgetattribute(cf,                                  &
+                              int_state%esmf_sta_list%tracer_import,    &
                               label = 'tracer_import:',    rc = rc1)
-      call gfs_dynamics_err_msg_var(rc1,				&
+      call gfs_dynamics_err_msg_var(rc1,                                &
                'gfs dynamics getcf','tracer_import',rcfinal)
 !
       call esmf_configgetattribute(cf, 					&
-                              int_state%esmf_sta_list%p_import,	&
+                              int_state%esmf_sta_list%p_import,	        &
                               label = 'p_import:',    rc = rc1)
       call gfs_dynamics_err_msg_var(rc1,				&
                'gfs dynamics getcf','p_import',rcfinal)
@@ -323,14 +330,14 @@
       call gfs_dynamics_err_msg_var(rc1,				&
                'gfs dynamics getcf','temp_export',rcfinal)
 
-      call esmf_configgetattribute(cf, 					&
-                              int_state%esmf_sta_list%tracer_export,	&
+      call esmf_configgetattribute(cf,                                  &
+                              int_state%esmf_sta_list%tracer_export,    &
                               label = 'tracer_export:',    rc = rc1)
-      call gfs_dynamics_err_msg_var(rc1,				&
+      call gfs_dynamics_err_msg_var(rc1,                                &
                'gfs dynamics getcf','tracer_export',rcfinal)
 
       call esmf_configgetattribute(cf, 					&
-                              int_state%esmf_sta_list%p_export,	&
+                              int_state%esmf_sta_list%p_export,	        &
                               label = 'p_export:',    rc = rc1)
       call gfs_dynamics_err_msg_var(rc1,				&
                'gfs dynamics getcf','p_export',rcfinal)

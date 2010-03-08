@@ -16,15 +16,18 @@ all:
 	cp $(GFS_UTIL)/atmos_dyn_phy_cpl_comp_mod.mod $(MODDIR)/modstub/gfs
 	cp $(GFS_UTIL)/atmos_phy_chem_cpl_comp_mod.mod $(MODDIR)/modstub/gfs
 	cp $(GFS_UTIL)/module_gfs_mpi_def.mod $(MODDIR)/modstub/gfs
+	cd $(GFS_GEFSCPL) && gmake -f makefile_stub 
+	cp $(GFS_GEFSCPL)/*.mod $(MODDIR)/modstub/gfs
 	cd $(ATM) && gmake -f makefile_stub 
-	cp $(ATM)/module_gfs_core_setup.mod ../../mod/modstub/gfs
-	cp $(ATM)/module_gfs_integrate.mod ../../mod/modstub/gfs
+	cp $(ATM)/module_gfs_core_setup.mod $(MODDIR)/modstub/gfs
+	cp $(ATM)/module_gfs_integrate.mod $(MODDIR)/modstub/gfs
 	echo "gfs stub libraries created."
 clean:
 	cd $(GFS_DYN) && gmake -f makefile_stub clean
 	_GFS_PHYSICS_ clean
 	cd $(GFS_IO) && gmake -f makefile_stub clean
 	cd $(GFS_UTIL) && gmake -f makefile_stub clean
+	cd $(GFS_GEFSCPL) && rm -f *.o *.mod *.a
 	cd $(ATM) && gmake -f makefile_stub clean
 	/bin/rm -f $(MODDIR)/modstub/gfs/*
 	/bin/rm -f $(MODDIR)/modstub/nmm/*

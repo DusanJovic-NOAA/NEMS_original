@@ -9,12 +9,13 @@
 ! !revision history:
 !
 !  november 2004      weiyu yang initial code.
-!  may 2005           weiyu yang for the updated gfs version.
+!  may      2005      weiyu yang for the updated gfs version.
 !  february 2006      shrinivas moorthi updated for the new version of gfs
-!  january 2007       hann-ming henry juang for gfs dynamics only
+!  january  2007      hann-ming henry juang for gfs dynamics only
 !  may 2009           jun wang for gfs write grid component
-!  oct 05 2009        sarah lu, grid_gr unfolded from 2D to 3D
-!  oct 16 2009        sarah lu, add gfs_dyn_tracer
+!  oct 05   2009      sarah lu, grid_gr unfolded from 2D to 3D
+!  oct 16   2009      sarah lu, add gfs_dyn_tracer
+!  Nov 2009           weiyu yang, modified for the GEFS ensemble system.
 !  Nov 2009           jun wang, add digital filter variables into internal state
 !  Feb 2010           jun wang, add logical restart
 !
@@ -24,10 +25,9 @@
 
 !!uses:
 !------
-      use esmf_mod
-      use gfs_dynamics_namelist_mod
-
-      use gfs_dyn_machine, only: kind_grid, kind_io4, kind_evod
+      USE esmf_mod,                  ONLY: ESMF_LOGICAL
+      USE gfs_dynamics_namelist_mod
+      USE gfs_dyn_machine, only: kind_grid, kind_evod
       use gfs_dyn_layout1
       use gfs_dyn_gg_def
       use gfs_dyn_vert_def
@@ -50,7 +50,7 @@
 
       type(nam_gfs_dyn_namelist)   :: nam_gfs_dyn
       type(gfs_dyn_state_namelist) :: esmf_sta_list
-      type(gfs_dyn_tracer_type)    :: gfs_dyn_tracer 
+      type(gfs_dyn_tracer_type)    :: gfs_dyn_tracer
 
       integer                   :: me, nodes
       integer                   :: lnt2_s, llgg_s
@@ -60,7 +60,7 @@
 !
       integer ntrac,nxpt,nypt,jintmx,jcap,levs,lonf,latg,lats_node_a_max
       integer ntoz, ntcw, ncld, levr
-!
+
       character(16)                     ::  cfhour1
 !jws
       integer                           ::  num_file
@@ -83,8 +83,8 @@
       integer              ,allocatable ::  lats_nodes_ext (:)
       integer              ,allocatable ::  global_lats_ext(:)
 
-! Add xlon, xlat, lats_nodes_a_fix for mGrid definition         
-      real (kind=kind_grid),allocatable ::  xlon(:,:),xlat(:,:) 
+! Add xlon, xlat, lats_nodes_a_fix for mGrid definition
+      real (kind=kind_grid),allocatable ::  xlon(:,:),xlat(:,:)
       integer              ,allocatable ::  lats_nodes_a_fix (:)
 
       real(kind=kind_evod) ,allocatable ::        epse  (:)
@@ -111,9 +111,8 @@
       real(kind=kind_evod) ,allocatable ::      syn_ls_a(:,:,:)
       real(kind=kind_evod) ,allocatable ::      dyn_ls_a(:,:,:)
 
-!! grid_gr unfolded (sarah lu)
-!*    real(kind=kind_evod) ,allocatable ::       grid_gr(:,:)
-      real(kind=kind_evod) ,pointer     ::       grid_gr(:,:,:)
+      real(kind=kind_evod) ,allocatable ::      grid_gr (:, :, :)
+      real(kind=kind_evod) ,allocatable ::      grid_gr6(:, :, :)
 !* digital filter (jun wang)
       type(gfs_dfi_grid_gr)             ::       grid_gr_dfi
 !
@@ -161,7 +160,7 @@
       integer              n1hyb, n2hyb
       integer              nges,ngpken,niter,nnmod,nradf,nradr
       integer              nsfcf,nsfci,nsfcs,nsigi,nsigs,nstep
-      integer              nznlf,nznli,nznls,id,iret,nsout,ndfi  
+      integer              nznlf,nznli,nznls,id,iret,nsout,ndfi
 
       integer              ierr,iprint,k,l,locl,n
       integer              lan,lat
@@ -176,7 +175,7 @@
       logical restart_run
       logical start_step, reset_step, end_step, restart_step
 
-      logical lsout,ldfi                                        
+      logical lsout,ldfi
 
       real(kind=kind_evod),allocatable :: tee1(:)
 
@@ -186,6 +185,9 @@
       real(kind=kind_evod) cons0                        !constant
 
       logical lslag
+
+      TYPE(ESMF_LOGICAL) :: Cpl_flag
+      LOGICAL ENS
 !
 ! -----------------------------------------------------
       end type gfs_dynamics_internal_state		! end type define

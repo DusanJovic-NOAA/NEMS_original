@@ -2,6 +2,7 @@
 #---------------
 # For non-debug.
 #---------------
+.SUFFIXES: .o .f .F .h
 #
 include ../../ush/compile_settings
 MAKEFILE=makefile
@@ -12,18 +13,18 @@ OBJS0   = \
 	  gfs_physics_err_msg_mod.o            \
 	  gfs_physics_sfc_flx_mod.o	       \
 	  gfs_physics_sfc_flx_set_mod.o	       \
-	  gfs_physics_gridgr_mod.o      	\
-	  gfs_physics_g3d_mod.o      		\
+	  gfs_physics_gridgr_mod.o              \
+	  gfs_physics_g3d_mod.o                 \
 	  gfs_physics_namelist_mod.o           \
 	  gfs_physics_start_time_get_mod.o     \
 	  gfs_physics_internal_state_mod.o     \
 	  gfs_physics_grid_create_mod.o        \
-	  gfs_physics_output.o        \
+          gfs_physics_output.o        \
 	  gfs_physics_getcf_mod.o              \
  	  gfs_physics_initialize_mod.o         \
 	  gfs_physics_run_mod.o                \
 	  gfs_physics_finalize_mod.o           \
-	  gfs_physics_add_get_state_mod.o      \
+	  gfs_physics_add_get_state_ESMFField_mod.o      \
 	  gfs_phy_states_mod.o             \
 	  gfs_physics_grid_comp_mod.o
 
@@ -43,14 +44,14 @@ OBJ_MOD	= \
 	  namelist_soilveg.o    \
 	  coordinate_def.o      \
 	  tracer_const_h.o  	\
-	  gfs_phy_tracer_config.o  	\
+	  gfs_phy_tracer_config.o       \
 	  reduce_lons_grid_module.o	\
 	  module_bfmicrophysics.o	\
 	  mersenne_twister.o	\
 	  mpi_def.o		\
 	  d3d_def.o        	\
 	  sfcio_module.o        \
-          mod_state.o    
+          mod_state.o
 
 OBJS	= \
 	  glats_physics.o               \
@@ -67,9 +68,9 @@ OBJS	= \
 	  hpmdummy.o
 
 OBJS_IO= \
+	  wrtout_physics.o   \
 	  fix_fields.o       \
 	  read_fix.o         \
-	  wrtout_physics.o   \
 	  gribit.o           \
 	  fld_collect.o      \
 	  para_fixio_w.o     \
@@ -137,17 +138,15 @@ SRC = 	\
 #
 # *****************************************************************
 #
-
-.SUFFIXES:    .o .f
-
 default:
 	@gmake -f $(MAKEFILE) all
 
 all: $(LIBDIR)/lib/$(TARGET)
 
-
+                                                                                
 $(LIBDIR)/lib/$(TARGET):  $(OBJ_MOD) $(OBJS0) $(OBJS) $(OBJS_RAD) $(OBJS_PHY) $(OBJS_IO)
-	$(AR) $(ARFLAGS) $@ $?
+	$(AR) $(ARFLAGS) $(LIBDIR)/lib/$(TARGET) $(OBJ_MOD) $(OBJS0) $(OBJS) $(OBJS_RAD) $(OBJS_PHY) $(OBJS_IO)
+	echo " $(TARGET) created!"
 
 .f.o: %.o: %.f
 	$(FC) $(FFLAGS) -c $*.f
@@ -320,8 +319,8 @@ progtm_module.o:	progtm_module.f
 machine.o:	machine.f
 		$(FC) $(FFLAGM) -c machine.f
 
-mpi_def.o:	mpi_def.f
-		$(FC) $(FFLAG_GFS_PHY) -c mpi_def.f
+mpi_def.o:      mpi_def.f
+	        $(FC) $(FFLAG_GFS_PHY) -c mpi_def.f
 
 #
 # *****************************************************************
@@ -375,7 +374,7 @@ read_fix.o: read_fix.f
 	        $(FC) $(FFLAG_GFS_PHY) -c read_fix.f
 
 para_fixio_w.o:  para_fixio_w.f
-		$(FC) $(FFLAG_GFS_PHY) -c para_fixio_w.f
+	        $(FC) $(FFLAG_GFS_PHY) -c para_fixio_w.f
 
 wrtout_physics.o: wrtout_physics.f
 		$(FC) $(FFLAG_GFS_PHY) -c wrtout_physics.f
@@ -383,11 +382,11 @@ wrtout_physics.o: wrtout_physics.f
 gfs_physics_err_msg_mod.o:      gfs_physics_err_msg_mod.f
 		$(FC) $(FFLAG90) -c gfs_physics_err_msg_mod.f
 
-gfs_physics_gridgr_mod.o:	gfs_physics_gridgr_mod.f
-		$(FC) $(FFLAG90) -c gfs_physics_gridgr_mod.f
+gfs_physics_gridgr_mod.o:       gfs_physics_gridgr_mod.f
+	        $(FC) $(FFLAG90) -c gfs_physics_gridgr_mod.f
 
-gfs_physics_g3d_mod.o:		gfs_physics_g3d_mod.f
-		$(FC) $(FFLAG90) -c gfs_physics_g3d_mod.f
+gfs_physics_g3d_mod.o:          gfs_physics_g3d_mod.f
+	        $(FC) $(FFLAG90) -c gfs_physics_g3d_mod.f
 
 gfs_physics_sfc_flx_mod.o:      gfs_physics_sfc_flx_mod.f
 		$(FC) $(FFLAG90) -c gfs_physics_sfc_flx_mod.f
@@ -403,22 +402,22 @@ gfs_physics_start_time_get_mod.o:       gfs_physics_start_time_get_mod.f
                                                                                 
 gfs_physics_grid_create_mod.o:  gfs_physics_grid_create_mod.f
 		$(FC) $(FFLAG90) -c gfs_physics_grid_create_mod.f
-                                                                                
-gfs_physics_output.o:   gfs_physics_output.f
-		$(FC) $(FFLAG90) -c gfs_physics_output.f
 
+gfs_physics_output.o:   gfs_physics_output.f
+	        $(FC) $(FFLAG90) -c gfs_physics_output.f
+                                                                                
 gfs_physics_getcf_mod.o:        gfs_physics_getcf_mod.f
 		$(FC) $(FFLAG90) -c gfs_physics_getcf_mod.f
                 
 gfs_physics_internal_state_mod.o:       gfs_physics_internal_state_mod.f
 		$(FC) $(FFLAG90) -c gfs_physics_internal_state_mod.f
                 
-gfs_physics_add_get_state_mod.o:        gfs_physics_add_get_state_mod.f
-		$(FC) $(FFLAG90) -c gfs_physics_add_get_state_mod.f
+gfs_physics_add_get_state_ESMFField_mod.o:        gfs_physics_add_get_state_ESMFField_mod.f
+		$(FC) $(FFLAG90) -c gfs_physics_add_get_state_ESMFField_mod.f
 
-gfs_phy_states_mod.o:		gfs_phy_states_mod.f
+gfs_phy_states_mod.o:       gfs_phy_states_mod.f
 		$(FC) $(FFLAG90) -c gfs_phy_states_mod.f
-
+                                                                                
 gfs_physics_initialize_mod.o:   gfs_physics_initialize_mod.f
 		$(FC) $(FFLAG90) -c gfs_physics_initialize_mod.f
                                                                                 
@@ -432,6 +431,6 @@ gfs_physics_grid_comp_mod.o:    gfs_physics_grid_comp_mod.f
 		$(FC) $(FFLAG90) -c gfs_physics_grid_comp_mod.f
 
 ### use FFLAGSDB compile option
-gfs_phy_tracer_config.o:	gfs_phy_tracer_config.f
-		$(FC)  $(FFLAGSDB) -c gfs_phy_tracer_config.f
-               
+gfs_phy_tracer_config.o:        gfs_phy_tracer_config.f
+	        $(FC)  $(FFLAGSDB) -c gfs_phy_tracer_config.f
+

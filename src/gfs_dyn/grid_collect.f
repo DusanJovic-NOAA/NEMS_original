@@ -650,7 +650,6 @@ c
       implicit none
 !!
       real(kind=kind_io4) x(lonf*latg)
-      real(kind=kind_io4) tmp(lonf,latg+2)
       integer global_lats_a(latg),ipt_lats_node_al,nodesr
       integer lats_nodes_al
       integer maxfld,ioproc,nproct,ngridx,ngridt

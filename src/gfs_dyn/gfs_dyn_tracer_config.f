@@ -9,6 +9,7 @@
 !   Aug 10 2009   Sarah Lu, gfs_dyn_tracer is determined from ChemRegistry
 !   Oct 16 2009   Sarah Lu, remove ChemRegistry; hardwire tracer specification 
 !                           for testing; port to the latest trunk
+!   Nov 13, 2009  Weiyu Yang, modified for the ensemble GEFS code.
 !   Nov 19 2009   Sarah Lu, chem tracer specified from ChemRegistry
 !   Feb 09 2009   Sarah Lu, ri/cpi added to gfs_dyn_tracer_type
 ! -------------------------------------------------------------------------
@@ -23,7 +24,7 @@
 ! tracer specification
 !
       type    gfs_dyn_tracer_type
-        character*20        , pointer      :: vname(:)    ! variable name
+        character*20,         pointer      :: vname(:, :)    ! variable name
         real(kind=kind_grid), pointer      :: ri(:)
         real(kind=kind_grid), pointer      :: cpi(:)
         integer                  :: ntrac
@@ -99,26 +100,41 @@ c
 
 ! Set up tracer name, cpi, and ri
       if ( gfs_dyn_tracer%ntrac > 0 ) then      
-       allocate(gfs_dyn_tracer%vname(ntrac), stat=status)
+       allocate(gfs_dyn_tracer%vname(ntrac, 5), stat=status)
            if( status .ne. 0 ) go to 999         
        allocate(gfs_dyn_tracer%ri(0:ntrac),  stat=status)
-           if( status .ne. 0 ) go to 999         
+           if( status .ne. 0 ) go to 999
        allocate(gfs_dyn_tracer%cpi(0:ntrac), stat=status)
-           if( status .ne. 0 ) go to 999         
-
+           if( status .ne. 0 ) go to 999
 !--- fill in met tracers
-      gfs_dyn_tracer%vname(   1) = 'spfh'   
-      gfs_dyn_tracer%vname(ntoz) = 'o3mr'  
-      gfs_dyn_tracer%vname(ntcw) = 'clwmr' 
+      gfs_dyn_tracer%vname(1,    1) = 'spfh'   
+      gfs_dyn_tracer%vname(1,    2) = 'spfh_q'   
+      gfs_dyn_tracer%vname(1,    3) = 'spfh_m'   
+      gfs_dyn_tracer%vname(1,    4) = 'spfh_q6'   
+      gfs_dyn_tracer%vname(1,    5) = 'spfh_m6'   
+      gfs_dyn_tracer%vname(ntoz, 1) = 'o3mr'  
+      gfs_dyn_tracer%vname(ntoz, 2) = 'o3mr_q'  
+      gfs_dyn_tracer%vname(ntoz, 3) = 'o3mr_m'  
+      gfs_dyn_tracer%vname(ntoz, 4) = 'o3mr_q6'  
+      gfs_dyn_tracer%vname(ntoz, 5) = 'o3mr_m6'  
+      gfs_dyn_tracer%vname(ntcw, 1) = 'clwmr' 
+      gfs_dyn_tracer%vname(ntcw, 2) = 'clwmr_q' 
+      gfs_dyn_tracer%vname(ntcw, 3) = 'clwmr_m' 
+      gfs_dyn_tracer%vname(ntcw, 4) = 'clwmr_q6' 
+      gfs_dyn_tracer%vname(ntcw, 5) = 'clwmr_m6' 
 
-      gfs_dyn_tracer%cpi(0:gfs_dyn_tracer%ntrac_met) = 
-     &               cpi(0:gfs_dyn_tracer%ntrac_met) 
-      gfs_dyn_tracer%ri(0:gfs_dyn_tracer%ntrac_met) = 
-     &               ri(0:gfs_dyn_tracer%ntrac_met) 
+      gfs_dyn_tracer%cpi(0:gfs_dyn_tracer%ntrac_met) =
+     &               cpi(0:gfs_dyn_tracer%ntrac_met)
+      gfs_dyn_tracer%ri(0:gfs_dyn_tracer%ntrac_met) =
+     &               ri(0:gfs_dyn_tracer%ntrac_met)
 
 !--- fill in chem tracers
       do i = 1,gfs_dyn_tracer%ntrac_chem
-       gfs_dyn_tracer%vname(i+gfs_dyn_tracer%ntrac_met)=reg%vname(i)
+       gfs_dyn_tracer%vname(i+gfs_dyn_tracer%ntrac_met, 1)=reg%vname(i)
+       gfs_dyn_tracer%vname(i+gfs_dyn_tracer%ntrac_met, 2)=reg%vname(i) // '_q'
+       gfs_dyn_tracer%vname(i+gfs_dyn_tracer%ntrac_met, 3)=reg%vname(i) // '_m'
+       gfs_dyn_tracer%vname(i+gfs_dyn_tracer%ntrac_met, 4)=reg%vname(i) // '_q6'
+       gfs_dyn_tracer%vname(i+gfs_dyn_tracer%ntrac_met, 5)=reg%vname(i) // '_m6'
        gfs_dyn_tracer%cpi(i+gfs_dyn_tracer%ntrac_met) = 0.
        gfs_dyn_tracer%ri(i+gfs_dyn_tracer%ntrac_met) = 0.
       enddo

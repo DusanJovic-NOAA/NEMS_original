@@ -1,5 +1,6 @@
       SUBROUTINE do_dynamics_one_loop(deltim,kdt,PHOUR,
-     &                 TRIE_LS,TRIO_LS,GRID_GR,grid_gr_dfi,             
+     &                 TRIE_LS,TRIO_LS,GRID_GR, GRID_GR6,
+     &                 grid_gr_dfi,   
      &                 LS_NODE,LS_NODES,MAX_LS_NODES,
      &                 LATS_NODES_A,GLOBAL_LATS_A,
      &                 LONSPERLAT,
@@ -14,10 +15,16 @@
      &                 SYN_GR_A_2,DYN_GR_A_2,ANL_GR_A_2,
      &                 LSLAG,pwat,ptot,
      &                 pdryini,nblck,ZHOUR,N1,N4,
-     &                 LSOUT,ldfi,COLAT1,CFHOUR1,                          
+     &                 LSOUT,ldfi,COLAT1,CFHOUR1,
      &                 start_step,restart_step,reset_step,end_step,
-     &                 nfcstdate7)
+     &                 nfcstdate7,
+     &                 Cpl_flag, imp_gfs_dyn)
 cc
+
+! March 2009, Weiyu Yang modified for GEFS run.
+!----------------------------------------------
+
+      USE ESMF_Mod
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
       use gfs_dyn_gg_def
@@ -31,6 +38,8 @@ cc
 
       IMPLICIT NONE
 !!     
+      TYPE(ESMF_State),   INTENT(inout) :: imp_gfs_dyn
+
       CHARACTER(16)                     :: CFHOUR1
       INTEGER,INTENT(IN):: LONSPERLAT(LATG),N1,N4,nfcstdate7(7)
       REAL(KIND=KIND_EVOD),INTENT(IN):: deltim,PHOUR
@@ -43,8 +52,9 @@ cc
 !!!   LOTALL=13*LEVS+3*LEVH+8
       REAL(KIND=KIND_EVOD) TRIE_LS(LEN_TRIE_LS,2,LOTls)
       REAL(KIND=KIND_EVOD) TRIO_LS(LEN_TRIO_LS,2,LOTls)
-      REAL(KIND=KIND_GRID) GRID_GR(lonf*lats_node_a_max,lotgr)
-! 
+      REAL(KIND=KIND_EVOD) GRID_GR (lonf*lats_node_a_max,lotgr    )
+      REAL(KIND=KIND_EVOD) GRID_GR6(lonf*lats_node_a_max,lota * 2 )
+!
       integer          ls_node(ls_dim,3)
 !
       INTEGER          LS_NODES(LS_DIM,NODES)
@@ -108,8 +118,10 @@ cc
       logical , parameter :: repro = .false.
       include 'function2'
       LOGICAL               LSLAG,LSOUT,ex_out
-      lOGICAL               start_step,reset_step,end_step
+      LOGICAL               start_step,reset_step,end_step
       LOGICAL               restart_step
+
+      TYPE(ESMF_LOGICAL), INTENT(inout) :: Cpl_flag
 !!     
       LOGICAL, save               :: fwd_step = .true.
       REAL (KIND=KIND_grid), save :: dt,dt2,rdt2
@@ -121,6 +133,7 @@ cc
       logical,save:: zfirst=.true.
 !
       integer              iter_max
+      integer              rc1
 !
       real(kind=kind_evod) , allocatable :: spdlat(:,:)
 !
@@ -146,15 +159,26 @@ cc
       cons2=2.0d0
       cons0p5 = 0.5d0                        !constant
       filtb = (cons1-filta)*cons0p5          !constant
-!
-!----------------------------------------------------------
-      if (me<num_pes_fcst) then            
-!----------------------------------------------------------
-!
+
+      if (me<num_pes_fcst) then                                         
+
       if(zfirst) then
         allocate (szdrdt(lonfx*levh,lats_dim_a))
         szdrdt=0.
       endif
+	if(CPl_flag == ESMF_FALSE) i=0
+	if(CPl_flag == ESMF_true) i=1
+      end if
+
+! If input from the ensemble coupler ESMF state, skip the first linear
+! computation part.
+!---------------------------------------------------------------------
+      IF(CPl_flag == ESMF_FALSE) THEN
+!
+!----------------------------------------------------------
+      if (me<num_pes_fcst) then                                          
+!----------------------------------------------------------
+!
 !!
 ! -----------------------------------
       if( start_step ) then
@@ -162,7 +186,7 @@ cc
 ! if the first step from internal state, prepare syn for nonlinear 
 ! ----- this section is called once only -------
 ! --------------------------------------------------------------
-!       print *,' start step from internal state,kdt=',kdt 
+!       print *,' start step from internal state '
 
         fwd_step = .true.
         dt  = deltim*0.5
@@ -203,10 +227,9 @@ cc
         else
           call get_cd_sig(am,bm,dt,tov,sv)
         endif
-
         call do_dynamics_gridn2anl(grid_gr,anl_gr_a_2,
      &                             global_lats_a,lonsperlat)
-        call grid_to_spect(trie_ls,trio_ls,
+        call griD_to_spect(trie_ls,trio_ls,
      &       anl_gr_a_1,anl_gr_a_2,
      &       ls_node,ls_nodes,max_ls_nodes,
      &       lats_nodes_a,global_lats_a,lonsperlat,
@@ -214,6 +237,7 @@ cc
 !
 !set n and n-1 time level values as import
 ! spectral
+!       print *,' set time level n to time level n-1 '
         call do_dynamics_spectn2c(trie_ls,trio_ls)
         call do_dynamics_spectn2m(trie_ls,trio_ls)
 ! grid
@@ -266,8 +290,24 @@ cc
 ! do after physics, not from input 
 ! -----------------------------------------------------------
 ! compute total tendency (linear and nonlinea, after physics if any)
-!
-!        print *,'in one loop,gridt2anl, me_l_0=',me_l_0,'kdt=',kdt
+        IF(kdt == 1) THEN
+            grid_gr6 = grid_gr(:, 2 : lota * 2 + 1)
+            call model_to_common_vars_1
+     &          (grid_gr6(1,g_uum - 1), 
+     &           grid_gr6(1,g_vvm - 1), 
+     &           grid_gr6(1,g_ttm - 1), 
+     &           grid_gr6(1,g_rm  - 1),  
+     &           grid_gr6(1,g_qm  - 1),  
+     &           global_lats_a, lonsperlat)
+
+            call model_to_common_vars_1
+     &          (grid_gr6(1,g_uu - 1), 
+     &           grid_gr6(1,g_vv - 1), 
+     &           grid_gr6(1,g_tt - 1), 
+     &           grid_gr6(1,g_rq - 1),  
+     &           grid_gr6(1,g_q  - 1),   
+     &           global_lats_a, lonsperlat)
+        END IF
         call do_dynamics_gridt2anl(grid_gr,anl_gr_a_2,rdt2,
      &                             global_lats_a,lonsperlat)
 !
@@ -316,7 +356,6 @@ cc
           print *,' pdryini pdryg pcorr = ',pdryini,pdryg,pcorr
           trie_ls(1,1,p_zq)=trie_ls(1,1,p_zq)+pcorr/dt2
         endif
-!
 !----------------------------------------------------------
 ! update in spectral for vorticity and tracers in explicit way       
 !
@@ -339,7 +378,6 @@ cc
       endif	! repro
 !
         call do_dynamics_spectupdatewrt(trie_ls,trio_ls,dt2)
-
         do locl=1,ls_max_node
                 l=ls_node(locl,1)
            jbasev=ls_node(locl,2)
@@ -479,7 +517,6 @@ cc
      &                dt,SL,LS_NODE,coef00,k,hybrid,                
      &                gen_coord_hybrid,nislfv)                                 
       enddo
-!
 ! ----------------------------------------------------------------------
 !$omp parallel do shared(TRIE_LS,NDEXEV,TRIO_LS,NDEXOD)
 !$omp+shared(SL,SPDMAX,dt,LS_NODE)
@@ -528,6 +565,7 @@ cc
         call do_dynamics_spectn2c(trie_ls,trio_ls)
 !--------------------------------------------
       endif	! end fwd_step
+
 !--------------------------------------------
 ! ---------------------------------------------------------------------
 ! transform new spectral into grid, then do filter in grid-point values
@@ -540,10 +578,8 @@ cc
      &       lats_nodes_a,global_lats_a,lonsperlat,
      &       epse,epso,epsedn,epsodn,
      &       snnp1ev,snnp1od,plnev_a,plnod_a)
-!
       call do_dynamics_syn2gridn(syn_gr_a_2,grid_gr,
      &                           global_lats_a,lonsperlat,nislfv)
-!
 !
 ! do filter in the grid point values and advance time with update
 ! ---------------------------
@@ -554,7 +590,7 @@ cc
         call do_dynamics_gridn2c(grid_gr,
      &                           global_lats_a,lonsperlat)
       endif	! end fwd_step
-!
+
       if( fwd_step ) then
         fwd_step = .false.
         dt = deltim
@@ -577,7 +613,7 @@ cc
 !--------------------------------------------
 !-- digital filter state collect
 !--------------------------------------------
-!      print *,'in one loop,call gfs_dfi_coll,ldfi=',ldfi,'kdt=',kdt
+      print *,'in one loop,call gfs_dfi_coll,ldfi=',ldfi,'kdt=',kdt
       IF (ldfi) THEN
         call gfs_dficoll_dynamics(grid_gr,grid_gr_dfi)
       ENDIF
@@ -610,8 +646,8 @@ c
       ENDIF ! if ls_out
 ! ----------------------------------
 !!
-       print *,'kdt=',kdt,'nsres=',nsres,'write=',mod(kdt,nsres),
-     &   'lonsperlat=',lonsperlat
+!       print *,'kdt=',kdt,'nsres=',nsres,'write=',mod(kdt,nsres),
+!     &   'lonsperlat=',lonsperlat
 !
        IF (mod(kdt,nsres).eq.0.and.kdt.ne.0) THEN
 !!
@@ -627,15 +663,73 @@ c
        else
           restart_step=.false.
        endif
-
 ! =====================================================================
 !
 !  finish integration, then return
 ! -----------------------------------
-      if( end_step ) return
+      IF(end_step) THEN
+          Cpl_flag = ESMF_TRUE
+          CALL ESMF_AttributeSet(imp_gfs_dyn, 'Cpl_flag', 
+     &        Cpl_flag, rc = rc1)
+          RETURN
+      END IF
+! run for Cpl_flag == .true.
+!---------------------------
+      ELSE 
+          grid_gr6 = grid_gr(:, 2 : lota + 1)
+
+! This causes problem? Weiyu.
+! Causing T, q, clw just one physics step, only 3-5 digits same.
+!	grid_gr(:, g_qm) =  grid_gr(:, g_qm) * 1000.0
+!	grid_gr(:, g_q) =  grid_gr(:, g_q) * 1000.0
+
+!	grid_gr(:, g_qm) =  grid_gr(:, g_qm) * 0.001
+!	grid_gr(:, g_q) =  grid_gr(:, g_q) * 0.001
+! This causes problem?
+! This causes much smaller problem?
+!	grid_gr(:, g_qm) =  grid_gr(:, g_qm) * 1000.0D0
+!	grid_gr(:, g_q) =  grid_gr(:, g_q) * 1000.0D0
+
+!	grid_gr(:, g_qm) =  grid_gr(:, g_qm) * 0.001D0
+!	grid_gr(:, g_q) =  grid_gr(:, g_q) * 0.001D0
+! This causes much smaller problem?
+
+          CALL grid_to_spect_inp_1
+     &        (grid_gr(1, g_qm), 
+     &         grid_gr(1, g_uum),    grid_gr(1, g_vvm), 
+     &         grid_gr(1, g_ttm),    grid_gr(1, g_rm),
+     &         trie_ls(1, 1, p_qm),  trio_ls(1, 1, p_qm),
+     &         trie_ls(1, 1, p_dim), trio_ls(1, 1, p_dim),
+     &         trie_ls(1, 1, p_zem), trio_ls(1, 1, p_zem),
+     &         trie_ls(1, 1, p_tem), trio_ls(1, 1, p_tem),
+     &         trie_ls(1, 1, p_rm),  trio_ls(1, 1, p_rm),
+     &         ls_node,      ls_nodes,      max_ls_nodes,
+     &         lats_nodes_a, global_lats_a, lonsperlat,
+     &         epse, epso, plnew_a, plnow_a, pwat, ptot)
+
+          CALL grid_to_spect_inp_1
+     &        (grid_gr(1, g_q), 
+     &         grid_gr(1, g_uu),     grid_gr(1, g_vv), 
+     &         grid_gr(1, g_tt),     grid_gr(1, g_rq),
+     &         trie_ls(1, 1, p_q),   trio_ls(1, 1, p_q),
+     &         trie_ls(1, 1, p_di),  trio_ls(1, 1, p_di),
+     &         trie_ls(1, 1, p_ze),  trio_ls(1, 1, p_ze),
+     &         trie_ls(1, 1, p_te),  trio_ls(1, 1, p_te),
+     &         trie_ls(1, 1, p_rq),  trio_ls(1, 1, p_rq),
+     &         ls_node,      ls_nodes,      max_ls_nodes,
+     &         lats_nodes_a, global_lats_a, lonsperlat,
+     &         epse, epso, plnew_a, plnow_a, pwat, ptot)
+
+          call do_dynamics_gridc2n(grid_gr, global_lats_a, lonsperlat)
+
+          call do_dynamics_spectc2n(trie_ls,trio_ls)
+
+          Cpl_flag = ESMF_FALSE
+          CALL ESMF_AttributeSet(imp_gfs_dyn, 'Cpl_flag', 
+     &        Cpl_flag, rc = rc1)
+      END IF
 
       kdt = kdt + 1
-
 ! ===================================================================
 ! ===================================================================
 ! start nonlinear computation for dynamics 
@@ -681,7 +775,6 @@ c
      &                             global_lats_a,lonsperlat)
 !
 !----------------------------------------------------------
-
       do lan=1,lats_node_a  
 !
         lat = global_lats_a(ipt_lats_node_a-1+lan)
@@ -698,7 +791,6 @@ c
             enddo
           enddo
         endif                                   
-
 ! --------------------------------------------------------------------
         if(hybrid.or.gen_coord_hybrid) then !-----  hybrid ----------- 
 ! --------------------------------------------------------------------
@@ -716,6 +808,7 @@ c
           endif
 !
           CALL countperf(0,10,0.)
+
           if( gen_coord_hybrid ) then                                    ! hmhj
             if( thermodyn_id.eq.3 ) then                                 ! hmhj
               call gfidi_hyb_gc_h(lon_dim, njeff, lat,                   ! hmhj
@@ -939,6 +1032,5 @@ c
 !--------------------------------------------
       endif ! only for forecast pes
 !--------------------------------------------
-c
       RETURN
       END

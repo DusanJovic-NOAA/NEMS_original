@@ -1,4 +1,5 @@
-      subroutine common_to_physics_vars(psg,ttg,rqg,uug,vvg,
+!      subroutine common_to_physics_vars(psg,ttg,rqg,uug,vvg,
+      subroutine common_to_physics_vars(psg,ttg,uug,vvg,
      &                                  ppg,dpg,dpdtg,
      &                                  global_lats_r,lonsperlar)
 !!
@@ -23,7 +24,7 @@
       REAL(KIND=KIND_GRID) ttg    (lonr,lats_node_r_max,levs)
       REAL(KIND=KIND_GRID) uug    (lonr,lats_node_r_max,levs)
       REAL(KIND=KIND_GRID) vvg    (lonr,lats_node_r_max,levs)
-      REAL(KIND=KIND_GRID) rqg    (lonr,lats_node_r_max,levh)
+!      REAL(KIND=KIND_GRID) rqg    (lonr,lats_node_r_max,levh)
       REAL(KIND=KIND_GRID)   ppg  (lonr,lats_node_r_max,levs)
       REAL(KIND=KIND_GRID)   dpg  (lonr,lats_node_r_max,levs)
       REAL(KIND=KIND_GRID) dpdtg  (lonr,lats_node_r_max,levs)

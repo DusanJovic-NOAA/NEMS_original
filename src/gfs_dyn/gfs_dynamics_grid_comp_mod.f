@@ -6,16 +6,16 @@
 ! !revision history:
 !
 !  january 2007     hann-ming henry juang
-!  oct 4 2009       sarah lu, 3D Gaussian grid (DistGrid5) added
-!  oct 5 2009       sarah lu, grid_gr unfolded from 2D to 3D
-!  oct 2009         Jun Wang, add not quilting option, add run time variables into wrt inport state
+!  March   2009     Weiyu Yang, modified for the ensemble NEMS run.
+!  oct 4   2009     sarah lu, 3D Gaussian grid (DistGrid5) added
+!  oct 5   2009     sarah lu, grid_gr unfolded from 2D to 3D
+!  oct     2009     Jun Wang, add not quilting option, add run time variables into wrt inport state
 !  oct 12 2009      Sarah Lu, set up the association between imp/exp state and grid_gr
 !                   => export state is pointed to grid_gr in init step
 !                   => grid_gr is pointed to import state in run step
 !  oct 17 2009      Sarah Lu, add debug print to check imp/exp state
 !  nov 09 2009      Jun Wang, add grid_gr_dfi for digital filter
 !  Feb 05 2010      Jun Wang, add restart step
-!
 !                           
 !
 ! !interface:
@@ -30,8 +30,10 @@
       use gfs_dynamics_initialize_mod
       use gfs_dynamics_run_mod
       use gfs_dynamics_finalize_mod
+
       use gfs_dyn_mpi_def
       use gfs_dynamics_output, only : point_dynamics_output_gfs
+
       implicit none
 
 #include "../../inc/ESMF_LogMacros.inc"
@@ -138,6 +140,7 @@
 !  february 2006     moorthi
 !  february 2007     h.-m. h. juang
 !  oct 12 2009       Sarah Lu, export state is pointed to grid_gr once and for all
+!  November 2009     Weiyu Yang, Ensemble GEFS.
 !
 ! !interface:
 !
@@ -150,10 +153,10 @@
 
 ! user code, for computations related to the esmf interface states.
 !------------------------------------------------------------------
-!*    use gfs_dynamics_states_mod
-      use gfs_dyn_states_mod, only : gfs_dynamics_import2internal_mgrid, &
-                                     gfs_dynamics_internal2export_mgrid    
+      use gfs_dyn_states_mod, only : gfs_dynamics_import2internal, &
+                                     gfs_dynamics_internal2export
       use gfs_dynamics_grid_create_mod
+      USE GFS_AddParameterToStateMod
 !
 ! !input/output variables and parameters:
 !----------------------------------------
@@ -195,13 +198,6 @@
       integer                            :: atm_timestep_s, dyn_timestep_s
       integer(esmf_kind_i8)              :: advancecount
 
-      INTEGER , DIMENSION(:, :), POINTER :: i2
-
-      TYPE(ESMF_DistGrid)                :: DistGrid0    ! the ESMF DistGrid.
-      TYPE(ESMF_DistGrid)                :: DistGrid1    ! the ESMF DistGrid.
-      TYPE(ESMF_DistGrid)                :: DistGrid2    ! the ESMF DistGrid.
-      TYPE(ESMF_DistGrid)                :: DistGrid3    ! the ESMF DistGrid.
-      TYPE(ESMF_DistGrid)                :: DistGrid4    ! the ESMF DistGrid.
       TYPE(ESMF_DistGrid)                :: DistGrid5    ! the ESMF DistGrid.
 
       integer                            :: rc1 
@@ -216,7 +212,7 @@
 
 ! allocate the internal state pointer.
 !-------------------------------------
-      call esmf_logwrite("allocate the internal state",                 &
+      call esmf_logwrite("allocate the dyn internal state",                 &
                          esmf_log_info, rc = rc1)
 
       allocate(int_state, stat = rc1)
@@ -239,7 +235,7 @@
                         ,rc         =RC)
       call gfs_dynamics_err_msg(rc1,'get write gc import state',rc)
 !jwe
-!
+
 ! attach internal state to the gfs dynamics grid component.
 !-------------------------------------------------
       call esmf_logwrite("set up the internal state",                   &
@@ -259,31 +255,10 @@
 
       call gfs_dynamics_err_msg(rc1,'get configure file information',rc)
 
-! initialize time interval to the parameter from the configure file.
-!-------------------------------------------------------------------
-!     call esmf_logwrite("set up time step interval",                   &
-!                       esmf_log_info, rc = rc1)
-
-!     call esmf_clockget(clock,            				&
-!                        timestep    = timestep,                	&
-!                        rc          = rc1)
-
-!     call esmf_timeintervalget(timestep,                               &
-!                               s  = atm_timestep_s,                    &
-!                               rc = rc1)
-
-!     dyn_timestep_s = nint(int_state%nam_gfs_dyn%deltim)
-
-!     int_state%nam_gfs_dyn%deltim = atm_timestep_s /			&
-!           min( 1, atm_timestep_s / dyn_timestep_s  )
-
-!     call gfs_dynamics_err_msg(rc1,'set up time step interval',rc)
-
 ! get the start time from reading the sigma file.
 !----------------------------------------------------------
       call esmf_logwrite("getting the start time",                      &
                          esmf_log_info, rc = rc1)
-
 
       call gfs_dynamics_start_time_get(					&
                         yy, mm, dd, hh, mns, sec, int_state%kfhour,     &
@@ -359,11 +334,6 @@
       call gfs_dynamics_err_msg(rc1,'get me and nodes from vm',rc)
 !      write(0,*)'in dyn_gc,after vmget,npes=',int_state%nodes,'mpi_comm_all=',mpi_comm_all
 
-! Allocate the local index array i2 to store the local size information of the
-! ditributed grid1, grid3, etc..  Information is based per dimension and per De.
-!-------------------------------------------------------------------------------
-      ALLOCATE(i2(2, Int_State%NODES))
-
 ! initialize the gfs, including set up the internal state
 ! variables and some local parameter short names, aloocate
 ! internal state arrays.
@@ -431,88 +401,38 @@
 !
       call synchro
 !
-! create the esmf grids. 
-!-----------------------
-      call esmf_logwrite("creat the esmf grid and delayout.", 		&
-                         esmf_log_info, rc = rc1)
-
-      call gfs_dynamics_grid_create_spect(vm_local,int_state, &
-                                          DistGrid0, DistGrid1, DistGrid2, rc1)
-
-      call gfs_dynamics_err_msg(rc1,'gfs_dynamics_grid_create_spect',rc)
-
-      call gfs_dynamics_grid_create_gauss(vm_local,int_state, &
-                                          DistGrid0, DistGrid3, DistGrid4, rc1)
-
-      call gfs_dynamics_err_msg(rc1,'gfs_dynamics_grid_create_gauss',rc)
-
-!
-! create 3D Gaussian grid  (sarah lu)                                                 
+! create 3D Gaussian grid  (sarah lu)
 !-----------------------
 !
-      call gfs_dynamics_grid_create_Gauss3D(vm_local,int_state,DistGrid5,rc1) 
+      call gfs_dynamics_grid_create_Gauss3D(vm_local,int_state,DistGrid5,rc1)
 
-      call gfs_dynamics_err_msg(rc1,'gfs_dynamics_grid_create_gauss3d',rc) 
-
-!
-! Define Dynamics Export states    (Sarah Lu)                                         
-!
-     call gfs_dynamics_internal2export_mgrid(int_state, exp_gfs_dyn, rc1)    
-
-     call gfs_dynamics_err_msg(rc1,'gfs_dynamics_internal2export_mgrid',rc)  
-
-! associate the grid3 with the esmf grid component gsgfs
-! used at the begining of the run routine when read in
-! the surface arrays of the esmf import state.
-!-------------------------------------------------------
-      call esmf_logwrite(						&
-                   "attach the esmf grids to the esmf grid component.", &
-                   esmf_log_info, rc = rc1)
-
-      call esmf_gridcompset(gc_gfs_dyn, grid = grid3, rc = rc1)
-
-      call gfs_dynamics_err_msg(rc1,'esmf_gridcompset - set grid3',rc)
-
-! get the local array size of the grid1, the single level spectral arrays.
-!-------------------------------------------------------------------------
-      i2 = 0
-      CALL ESMF_DistGridGet(DistGrid1, indexCountPDimPDe = i2, rc = rc1)
-
-      call gfs_dynamics_err_msg(rc1,'get grid1 info for lnt2_s ',rc)
-
-! put the grid1 local array size into the internal state and print it out.
-!-------------------------------------------------------------------------
-      Int_State%lnt2_s = i2(1, Int_State%me + 1)
-
-      print*, 'local number of the grid1', i2(1, Int_State%me + 1)
-
-! ======================================================================
-! get the local array size of the grid3, the gaussian grid arrays.
-!-----------------------------------------------------------------
-      i2 = 0
-      CALL ESMF_DistGridGet(DistGrid3, indexCountPDimPDe = i2, rc = rc1)
-
-! put the grid3 local array size into the internal state and print it out.
-!-------------------------------------------------------------------------
-      int_state%llgg_s = i2(1, Int_State%me + 1)
-
-      print*, 'local number of the grid3', i2(:, Int_State%me + 1)
-
-      call gfs_dynamics_err_msg(rc1,'grid get info - llgg_s',rc)
-
-! set fhour_date
-!-------------------------------------------------------
+      call gfs_dynamics_err_msg(rc1,'gfs_dynamics_grid_create_gauss3d',rc)
 
       int_state%fhour_idate(1,1)=fhour
       int_state%fhour_idate(1,2:5)=idate(1:4)
+!
+      IF(int_state%ENS) THEN
+          int_state%end_step = .true.
 
-      DEALLOCATE(i2)
+          CALL AddParameterToState(exp_gfs_dyn, int_state, rc = rc1)
+
+          call gfs_dynamics_err_msg(rc1,                                    &
+               'Add Parameter To export State',rc)
+      END IF
+
+!
+! Define Dynamics Export states    (Sarah Lu)
+!
+      call gfs_dynamics_internal2export(int_state, exp_gfs_dyn, rc1)
+
+      call gfs_dynamics_err_msg(rc1,'gfs_dynamics_internal2export',rc)
 !
 !-------------------------------------------------------
 ! send all the head info to write tasks
 !-------------------------------------------------------
 !
       call point_dynamics_output_gfs(int_state,IMP_STATE_WRITE)
+
 !
 !*******************************************************************
 ! print out the final error signal variable and put it to rc.
@@ -543,6 +463,7 @@
 !  july     2007     hann-ming henry juang
 !  oct 12 2009       Sarah Lu, point grid_gr to import state once and for all
 !  oct 17 2009       Sarah Lu, debug print added to track imp/exp states
+!  November 2009     Weiyu Yang, Ensemble GEFS.
 !  nov 09 2009       Jun Wang, get data from grid_gr_dfi to internal state for dfi
 !  feb 05 2010       Jun Wang, set restart step
 !
@@ -558,7 +479,7 @@
 ! !input variables and parameters:
 !---------------------------------
       type(esmf_gridcomp), intent(inout) :: gc_gfs_dyn   
-      type(esmf_state),    intent(in)    :: imp_gfs_dyn 
+      type(esmf_state),    intent(inout) :: imp_gfs_dyn 
  
 ! !output variables and parameters:
 !----------------------------------
@@ -593,11 +514,11 @@
       REAL , DIMENSION(:,:,:), POINTER   :: fArr3D                !chlu_debug
       integer                            :: localPE,ii1,ii2,ii3   !chlu_debug
       integer                            :: n, k, rc2             !chlu_debug
-      logical, parameter                 :: ckprnt = .false.      !chlu_debug 
+      logical, parameter                 :: ckprnt = .false.      !chlu_debug
       integer, parameter                 :: item_count = 3        !chlu_debug
       character(5) :: item_name(item_count)                       !chlu_debug
       character(20) :: vname                                      !chlu_debug
-!     data item_name/'t','u','v','p'/                 !chlu_debug
+      data item_name/'t','u','v'/                                 !chlu_debug
 
       localPE = 0                                                 !chlu_debug
 
@@ -622,37 +543,33 @@
 !
 ! get the esmf import state and over-write the gfs internal state.
 ! update the initial condition arrays in the internal state based on
-! the information of the esmf import state. 
+! the information of the esmf import state.
 !------------------------------------------------------------------
-      call esmf_logwrite("esmf import state to internal state", 	&
+      call esmf_logwrite("esmf import state to internal state",         &
                         esmf_log_info, rc = rc1)
 !
       int_state%reset_step = .false.
       if(int_state%restart_step ) first_reset=.false.
-      if( int_state%ndfi>0 .and. int_state%kdt>int_state%ndfi .and.     &    
+      if( int_state%ndfi>0 .and. int_state%kdt>int_state%ndfi .and.     &
           first_reset) then
         int_state%reset_step = .true.
         first_reset=.false.
       endif
       print *,'in grid comp,ndfi=',int_state%ndfi,'kdt=',int_state%kdt,  &
        'ndfi=',int_state%ndfi,'first_reset=',first_reset
-!
-      if( .not. int_state%restart_step .and. .not. int_state%start_step ) then
-!
-        if(.not.int_state%reset_step) then
-          print *,'get internal from imp_gfs_dyn'
-          call gfs_dynamics_import2internal_mgrid(imp_gfs_dyn,          &
-               int_state, rc1)  
-        else
-          print *,'get internal from imp_gfs_dyn and exp_gfs_dyn'
-          call gfs_dynamics_import2internal_mgrid(imp_gfs_dyn,          &
-               int_state, rc1, exp_gfs_dyn)  
-        endif
+      IF(.NOT. int_state%restart_step .AND. .NOT. int_state%start_step ) THEN
+          IF(.NOT. int_state%reset_step) THEN
+              PRINT *, 'get internal from imp_gfs_dyn'
+              CALL gfs_dynamics_import2internal(imp_gfs_dyn, int_state, rc1)
+          ELSE
+              PRINT *, 'get internal from imp_gfs_dyn and exp_gfs_dyn'
+              CALL gfs_dynamics_import2internal(imp_gfs_dyn,          &
+                  int_state, rc = rc1, exp_gfs_dyn = exp_gfs_dyn)
+          END IF 
 
-        call gfs_dynamics_err_msg(rc1,'esmf import state to internal state',rc)
-
-        idate(1:4)=int_state%fhour_idate(1,2:5)
-      endif
+          CALL gfs_dynamics_err_msg(rc1, 'esmf import state to internal state', rc)
+          idate(1 : 4) = int_state%fhour_idate(1, 2 : 5)
+      END IF
 !
 ! get clock times
 ! ------------------
@@ -662,16 +579,19 @@
                          currtime    = currtime,                 	&
                          stoptime    = stoptime,                	&
                          rc          = rc1)
-
       call gfs_dynamics_err_msg(rc1,'esmf clockget',rc)
 
       donetime = currtime-starttime
 
       int_state%kdt = nint(donetime/timeStep) 
 
+! Set up the ensemble coupling time flag.
+!----------------------------------------
+      CALL ESMF_AttributeGet(imp_gfs_dyn, 'Cpl_flag', int_state%Cpl_flag, rc = rc1)
+
       if( currtime .eq. stoptime ) then
           print *,' currtime equals to stoptime '
-          int_state%end_step=.true.
+          int_state%end_step = .true.
       else
           int_state%end_step=.false.
       endif
@@ -694,8 +614,7 @@
       call esmf_logwrite("run the gfs_dynamics_run", 			&
                          esmf_log_info, rc = rc1)
 
-      call gfs_dynamics_run(int_state, rc = rc1)
-
+      call gfs_dynamics_run(int_state, imp_gfs_dyn, rc = rc1)
       call gfs_dynamics_err_msg(rc1,'run the gfs_dynamics_run',rc)
 ! ======================================================================
 ! ======================================================================
@@ -707,8 +626,11 @@
      call esmf_logwrite("internal state to esmf export state", 	&
                        esmf_log_info, rc = rc1)
 
-!
-! export state is now pointed to grid_gr in init step (Sarah Lu)
+! Need to check it?  Should be removed?
+!--------------------------------------
+     call gfs_dynamics_internal2export(int_state, exp_gfs_dyn, rc = rc1)
+
+     call gfs_dynamics_err_msg(rc1,'internal state to esmf export state',rc)
 
 !! debug print starts here  (Sarah Lu) -----------------------------------
       lab_if_ckprnt_ex : if ( ckprnt .and. (int_state%me ==0) ) then      !chlu_debug
@@ -735,7 +657,7 @@
                           fieldbundle=ESMFBundle, rc = rc1 )              !chlu_debug
         call gfs_dynamics_err_msg(rc1,'LU_DYN: get Bundle from exp',rc)   !chlu_debug
         do n = 1, int_state%ntrac                                         !chlu_debug
-          vname = int_state%gfs_dyn_tracer%vname(n)                       !chlu_debug
+          vname = int_state%gfs_dyn_tracer%vname(n, 1)                    !chlu_debug
           print *,'LU_DYN:',trim(vname)                                   !chlu_debug
           CALL ESMF_FieldBundleGet(bundle=ESMFBundle, &                   !chlu_debug
                  name=vname, field=ESMFfield, rc = rc1)                   !chlu_debug
@@ -756,7 +678,7 @@
 !! -------------------------------------- debug print ends here  (Sarah Lu)
 
 ! ======================================================================
-! ------------ put run level variables into write_imp_state---------
+!------------- put run level variables into write_imp_state---------
 ! ======================================================================
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
      call esmf_logwrite("get imp_state_write from esmf export state",   &
@@ -780,14 +702,12 @@
                             ,rc       =RC1)
       print *,'in run grid comp,pdryini=',int_state%pdryini,'kdt=',int_state%kdt
      call gfs_dynamics_err_msg(rc1,'set pdryini in imp_state_write',rc)
-!
 !*******************************************************************
 !
 ! print out the final error signal information and put it to rc.
 !---------------------------------------------------------------
       call gfs_dynamics_err_msg_final(rcfinal,				&
                         'run from gfs dynamics grid comp.',rc)
-
       end subroutine gfs_dyn_run
 
 

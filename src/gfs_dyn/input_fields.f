@@ -69,7 +69,7 @@ cmy bug fix on dimension of ls_node
 c$$$  IF ( ME .EQ. 0 ) IPRINT = 1
 !
       if (me .eq. 0) write(0,*)'input field, cread=',cread,'ntoz=',ntoz
-        CALL TREADEO_gfsio(FHOUR,IDATE,
+        CALL TREADEO_gfsio(IDATE,
      X               TRIE_LS(1,1,P_GZ ), TRIE_LS(1,1,P_QM ),
      X               TRIE_LS(1,1,P_TEM), TRIE_LS(1,1,P_DIM),
      X               TRIE_LS(1,1,P_ZEM), TRIE_LS(1,1,P_RM ),

@@ -26,10 +26,10 @@
 #                       tracer added; (q, oz, cld) removed
 # 2009-11     Jun Wang, activate reduced grid option and digital filter option
 # 2009-12     Jun Wang, link atm_namelist.rc to configure_file
+# 2010-01     Weiyu Yang, modified for the ensemble GEFS.
 # 2010-01-14  Sarah Lu : Added GOCART_CLIM and GOCART_LUTS
 # 2010-02     Jun Wang  Add restart
 # 2010-02-06  Sarah Lu : modify phy_namelist.rc (set p_export/dp_export to 1)
-#
 #
 # Usage:  global_forecast.sh GRDI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO
 #
@@ -169,7 +169,6 @@
 #                   Defaults to $${FIXGLOBAL}
 #     GOCARTC_LUTS  Directory for gocart luts files
 #                   Defaults to $${FIXGLOBAL}
-##########################################################################
 #     SIGR1         Output first time level sigma restart file
 #                   defaults to ${DATA}/sigr1 which is deleted
 #     SIGR2         Output second time level sigma restart file
@@ -659,16 +658,33 @@ else
 #
 #   For Ensemble runs (members > 1)
   for MN in $MEMBER_NAMES ; do
+    IMN=`echo $MN|cut -c2-3`
+    if (( IMN == 0 )); then
+      IMN=$ENS_NUM
+    if (( IMN <= 9 )); then
+      IMN=0$IMN
+    fi
+    fi
+    echo 'IMN=' $IMN
+
 #      This is just faking the ensemble ICs.
 #   ${NCP:-cp} $SIGI  ${SIGI}${MN}
 #   ${NCP:-cp} $SFCI  ${SFCI}${MN}
 #   ${NCP:-cp} $SIGI2 ${SIGI2}${MN}
 #        For Initial Conditions
-    ln -fs ${GRDI}${MN} grd_ini${MN}
-    ln -fs ${GRDI2}${MN} grd_ini2${MN}
-    ln -fs ${SIGI}${MN} sig_ini${MN}
-    ln -fs ${SFCI}${MN} sfc_ini${MN}
-    ln -fs ${SIGI2}${MN} sig_ini2${MN}
+    eval ln -fs ${GRDI}${MN} grid_ini_${IMN}
+    eval ln -fs ${GRDI2}${MN} grid_ini2_${IMN}
+    eval ln -fs ${SIGI}${MN} sig_ini_${IMN}
+    eval ln -fs ${SFCI}${MN} sfc_ini_${IMN}
+    eval ln -fs ${SIGI2}${MN} sig_ini2_${IMN}
+    if [ $FHINI = ${FHROT}0 ]; then
+       export RESTART=.false.
+    else
+       export RESTART=.true.
+    fi
+echo 'wy, RESTART=' $RESTART ############################????????????????????????
+echo 'wy, FHINI=' $FHINI ############################????????????????????????
+echo 'wy, FHROT=' $FHROT ############################????????????????????????
 #        For output
     FH=$((10#$FHINI))
     [[ $FH -lt 10 ]]&&FH=0$FH
@@ -678,11 +694,9 @@ else
     fi
     while [[ $FH -le $FHMAX ]] ; do
       if [ $FH -eq 00 ] ; then
-#        eval ln -fs $SIGO SIG.F${FH}${MN}
         eval ln -fs $SIGO SIG.F${FH}:${mins}:${secs}${MN}
         eval ln -fs $FLXO FLX.F${FH}:${mins}:${secs}${MN}
         eval ln -fs $SFCO SFC.F${FH}:${mins}:${secs}${MN}
-#        eval ln -fs $LOGO LOG.F${FH}${MN}
         eval ln -fs $LOGO LOG.F${FH}:${mins}:${secs}${MN}
         eval ln -fs $D3DO D3D.F${FH}:${mins}:${secs}${MN}
       else
@@ -712,9 +726,22 @@ while [ $c -le $ENS_NUM ] ; do
  c=$((c+1))
 done
 
+# DHOU 02/28/2008 Modified for general case
+# DHOU 01/07/2008 Added two input for the Cpl module:i
+# FH_FST is the FHMAX for the integration before the first stop
+# FH_INC is the FHMAX_increase for the integration before next stop
+export FH_INC=${FH_INC:-6}
+export ENS_SPS=${ENS_SPS:-.false.}
+export ADVANCECOUNT_SETUP=${ADVANCECOUNT_SETUP:-0}
+
 export wgrib=${wgrib:-/nwprod/util/exec/wgrib}
 if [ $FHINI -eq 0 ]; then
-  CDATE=$($wgrib -4yr $GRDI | grep -i hgt |awk -F: '{print $3}' |awk -F= '{print $2}')
+  if [[ $ENS_NUM -le 1 ]] ; then
+     CDATE=$($wgrib -4yr $GRDI | grep -i hgt |awk -F: '{print $3}' |awk -F= '{print $2}')
+  else
+     MN=c00
+     CDATE=$($wgrib -4yr ${GRDI}${MN} | grep -i hgt |awk -F: '{print $3}' |awk -F= '{print $2}')
+  fi
   INI_YEAR=$(echo $CDATE | cut -c1-4)
   echo "now"
   echo ${INI_YEAR}
@@ -722,6 +749,12 @@ if [ $FHINI -eq 0 ]; then
   INI_DAY=$(echo $CDATE | cut -c7-8)
   INI_HOUR=$(echo $CDATE | cut -c9-10)
 else
+  if [[ $ENS_NUM -le 1 ]] ; then
+     CDATE=$($nemsioget $GRDI idate | grep -i "idate" |awk -F= '{print $2}')
+  else
+     MN=c00
+     CDATE=$($nemsioget ${GRDI}${MN} idate | grep -i "idate" |awk -F= '{print $2}')
+  fi
   CDATE=$($nemsioget $GRDI idate | grep -i "idate" |awk -F= '{print $2}')
   INI_YEAR=$(echo $CDATE | awk -F" " '{print $1}')
   echo "now"
@@ -755,13 +788,31 @@ PE_MEMBER11:             $PE11
 PE_MEMBER12:             $PE12
 PE_MEMBER13:             $PE13
 PE_MEMBER14:             $PE14
-PE_MEMBER14:             $PE15
+PE_MEMBER15:             $PE15
 PE_MEMBER16:             $PE16
 PE_MEMBER17:             $PE17
 PE_MEMBER18:             $PE18
 PE_MEMBER19:             $PE19
 PE_MEMBER20:             $PE20
 PE_MEMBER21:             $PE21
+
+# DHOU, 05/28/2008, added ENS_SPS, logical control for application of stochastic perturbation scheme
+# DHOU, 02/21/2008, added HH_START, the start hour of forecast, and modified ADVANCECOUNT_SETUP
+# DHOU and WYANG, 01/07/2008, added HH_INCREASE and HH_FINAL for Concurrence-Coupler run
+# where HH_INCREASE defines fcst hour increment and HH_FINAL defines the end hour of forecast
+# ADVANCECOUNT_SETUP is an integer indicating the number of time steps between integrtion_start
+# and the time when model state is saved for the _ini of the GEFS_Coupling, cerrently is 0h.
+HH_INCREASE:             $FH_INC
+HH_FINAL:                24
+#HH_FINAL:                384
+#HH_FINAL:                $FHMAX
+HH_START:                $FHINI
+ADVANCECOUNT_SETUP:      0
+
+#ESMF_State_Namelist +++++++++++++++
+# DHOU + WYANG, 01/07/2008, added TRIEO_IMPORT/EXPORT, changed types to logical
+ENS_SPS:                          $ENS_SPS
+
 #
 dt_int:               ${DELTIM}
 dt_num:               0
@@ -774,8 +825,7 @@ start_minute:         0.0
 start_second:         0.0
 nhours_fcst:          ${FHMAX}
 restart:              ${RESTART}
-inpes:                1
-jnpes:                ${PE1}
+nhours_fcst1:         6
 im:                   ${LONB}
 jm:                   ${LATB}
 global:               .true.
@@ -789,7 +839,6 @@ lsoil:                ${LSOIL}
 ###############################
 
 
-#quilting:              .true.    # Do you want asynchronous quilting/history writes?
 quilting:              ${QUILTING}   #Do you want asynchronous quilting/history writes?
 read_groups:           0
 read_tasks_per_group:  0
@@ -873,8 +922,8 @@ u_export:                         1
 v_export:                         1
 temp_export:                      1
 tracer_export:                    1
-p_export:                         1 
-dp_export:                        1 
+p_export:                         1
+dp_export:                        1
 dpdt_export:                      0
 
 # Surface state.

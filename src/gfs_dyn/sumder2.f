@@ -6,7 +6,6 @@
      x                   lats_node,ipt_lats_node,lon_dims,dimg,
      x                   lons_lat,londi,latl)
 cc
-cc
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
       use gfs_dyn_mpi_def
@@ -87,6 +86,7 @@ cc
       real(kind=kind_evod) cons0     !constant
       real(kind=kind_evod) cons1     !constant
 cc
+
       cons0 = 0.d0     !constant
       cons1 = 1.d0     !constant
 cc
@@ -381,6 +381,7 @@ cc
       include 'function2'
       real(kind=kind_evod) cons0     !constant
       real(kind=kind_evod) cons1     !constant
+
       cons0 = 0.d0     !constant
       cons1 = 1.d0     !constant
       num_threads=num_parthds()
@@ -493,6 +494,7 @@ cc
       call mpi_alltoallv(works,sendcounts,sdispls,mpi_r_mpi,
      x                   workr,recvcounts,sdispls,mpi_r_mpi,
      x                   mc_comp,ierr)
+      four_gr = 0.0
 !$omp parallel do private(j,lat,lmax,nvar,ndisp,lval)
       do j=1,lats_node
          lat = global_lats(ipt_lats_node-1+j)

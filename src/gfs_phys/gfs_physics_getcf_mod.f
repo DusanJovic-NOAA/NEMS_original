@@ -127,7 +127,7 @@
       totpe = 0
       i1 = 0
       do j=1,int_state%nam_gfs_phy%total_member
-        write(pelab,'("pe_member",i2.2,":")') j
+        write(pelab,'("PE_MEMBER",i2.2,":")') j
         call esmf_configgetattribute(cf, 				&
                              pe_member, label = pelab, rc = rc)
         if (pe_member == 0) 						&

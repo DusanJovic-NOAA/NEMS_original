@@ -13,10 +13,10 @@ OBJS01  = \
 	module_gfs_mpi_def.o          
 
 OBJS02=\
-	module_NEMSIO.o			\
-	module_gfs_physcons.o		\
- 	module_gfs_funcphys.o		\
-	module_gfs_tropp.o		
+	module_NEMSIO.o                 \
+	module_gfs_physcons.o           \
+	module_gfs_funcphys.o           \
+	module_gfs_tropp.o
 
 OBJS03  = \
 	module_ERR_MSG.o           \
@@ -25,6 +25,8 @@ OBJS03  = \
 	module_export_import_data.o   \
 	atmos_dyn_phy_cpl_comp_mod.o \
 	atmos_phy_chem_cpl_comp_mod.o
+
+
 
 #
 #
@@ -40,17 +42,23 @@ all: $(LIBDIR)/lib/$(TARGET)
 $(LIBDIR)/lib/$(TARGET): $(OBJS01) $(OBJS02) $(OBJS03)
 	$(AR) $(ARFLAGS) $@ $?
 
-$(OBJS01): %.o: %.F90
-	$(FC) $(FFLAG_GFS_UTIL) -c $*.F90
+.SUFFIXES:      .F90 .f90 .o
 
-$(OBJS02): %.o: %.F90
-	$(F90) $(FFLAG_GFS_UTIL) -c  $*.F90
+.F90.f90:
+	$(CPP) $(CPPFLAGS) $< > $*.f90
 
-$(OBJS03): %.o: %.F90
-	$(FC) $(FFLAG_GFS_UTIL90) -c $*.F90
+$(OBJS01): %.o: %.f90 $(DEPS)
+	$(F77) $(FFLAG_GFS_UTIL) -c  $*.f90
+
+$(OBJS02): %.o: %.f90 $(DEPS)
+	$(F90) $(FFLAG_GFS_UTIL90) -c $*.f90
+
+$(OBJS03): %.o: %.f90 $(DEPS)
+	$(F90) $(FFLAG_GFS_UTIL90) -c $*.f90
 
 clean:
 	/bin/rm -f *.o 
+	/bin/rm -f *.f90
 	/bin/rm -f *.mod 
 	/bin/rm -f *.lst 
 	/bin/rm -f $(LIBDIR)/lib/$(TARGET)

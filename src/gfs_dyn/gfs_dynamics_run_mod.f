@@ -9,9 +9,10 @@
 !  november 2004      weiyu yang initial code.
 !  may      2005      weiyu yang, updated to the new version of gfs.
 !  janusry  2007      hann-ming henry juang for gfs dynamics only
-!  oct 05 2009        sarah lu, grid_gr unfolded from 2D to 3D
-!  october  2009      jun wang, output data every time step        
-!  november 2009      jun wang, set digital filter variables 
+!  March    2009      Weiyu Yang, modified for the ensmeble NEMS run.
+!  oct 05   2009      sarah lu, grid_gr unfolded from 2D to 3D
+!  october  2009      jun wang, output data every time step
+!  november 2009      jun wang, set digital filter variables
 !  febrary  2010      jun wang, add restart step
 !
 !
@@ -21,20 +22,23 @@
 !
 !!uses:
 !
+      USE ESMF_Mod
       use gfs_dynamics_internal_state_mod
 
       implicit none
 
       contains
 
-      subroutine gfs_dynamics_run(gis_dyn, rc)
+      subroutine gfs_dynamics_run(gis_dyn, imp_gfs_dyn, rc)
 
       type(gfs_dynamics_internal_state), pointer, intent(inout) :: gis_dyn
+      TYPE(ESMF_State),                           INTENT(inout) :: imp_gfs_dyn
       integer, optional,                          intent(out)   :: rc
 
 !     real , save	:: timestep=0.0
       integer, save     :: kdt_save=0
       integer		rc1, k 
+
 !***********************************************************************
 !
 !     lsfwd      logical true during a first forward step
@@ -65,13 +69,16 @@
 !
 ! ---------------------------------------------------------------------
 !! grid_gr unfolded from 2D to 3D (Sarah Lu)
-        call common_to_model_vars (gis_dyn%grid_gr(1,1,gis_dyn%g_zq),      &
-                                   gis_dyn%grid_gr(1,1,gis_dyn%g_t ),      &
-                                   gis_dyn%grid_gr(1,1,gis_dyn%g_rt),      &
-                                   gis_dyn%grid_gr(1,1,gis_dyn%g_u ),      &
-                                   gis_dyn%grid_gr(1,1,gis_dyn%g_v ),      &
-                                   gis_dyn%global_lats_a,	           &
-                                   gis_dyn%lonsperlat) 
+        IF(.NOT. (gis_dyn%ENS .AND. gis_dyn%Cpl_flag == ESMF_TRUE)) THEN
+            call common_to_model_vars (gis_dyn%grid_gr(1,1,gis_dyn%g_zq),  &
+                                       gis_dyn%grid_gr(1,1,gis_dyn%g_t ),  &
+                                       gis_dyn%grid_gr(1,1,gis_dyn%g_rt),  &
+                                       gis_dyn%grid_gr(1,1,gis_dyn%g_u ),  &
+                                       gis_dyn%grid_gr(1,1,gis_dyn%g_v ),  &
+                                       gis_dyn%global_lats_a,	           &
+                                       gis_dyn%lonsperlat)
+        END IF
+
 !       lsfwd=.false.
       else
         print *,' the first time step, model running from internal state.'
@@ -118,7 +125,8 @@
         call  do_dynamics_one_loop(    gis_dyn% deltim         ,	&
                gis_dyn% kdt           ,gis_dyn% phour          ,	&
                gis_dyn% trie_ls       ,gis_dyn% trio_ls        ,	&
-               gis_dyn% grid_gr(1,1,1),gis_dyn% grid_gr_dfi    ,        &        
+               gis_dyn% grid_gr       ,gis_dyn% grid_gr6       ,        &
+               gis_dyn% grid_gr_dfi   ,                                 & 
                gis_dyn% ls_node       ,gis_dyn% ls_nodes       ,	&
                gis_dyn% max_ls_nodes  ,					&
                gis_dyn% lats_nodes_a  ,gis_dyn% global_lats_a  ,	&
@@ -140,11 +148,12 @@
                gis_dyn% pdryini       ,gis_dyn% nblck          ,	&
                gis_dyn% zhour         ,					&
                gis_dyn% n1            ,gis_dyn% n4             ,	&
-               gis_dyn% lsout	      ,gis_dyn% ldfi           ,        &        
+               gis_dyn% lsout	      ,gis_dyn% ldfi           ,        &
                gis_dyn% colat1        ,gis_dyn% cfhour1	       ,	&
                gis_dyn% start_step    ,gis_dyn% restart_step   ,        &
                gis_dyn% reset_step    ,gis_dyn% end_step       ,        &
-               gis_dyn% nfcstdate7)
+               gis_dyn% nfcstdate7,                                     &
+               gis_dyn%Cpl_flag       ,imp_gfs_dyn )
 !
 ! ======================================================================
 !                     do one time step with two-loop
@@ -154,7 +163,7 @@
         call  do_dynamics_two_loop(    gis_dyn% deltim         ,	&
                gis_dyn% kdt           ,gis_dyn% phour 	       ,	&
                gis_dyn% trie_ls       ,gis_dyn% trio_ls        ,	&
-               gis_dyn% grid_gr(1,1,1),gis_dyn% grid_gr_dfi    ,        &       
+               gis_dyn% grid_gr(1,1,1),gis_dyn% grid_gr_dfi    ,        & 
                gis_dyn% ls_node       ,gis_dyn% ls_nodes       ,	&
                gis_dyn% max_ls_nodes  ,					&
                gis_dyn% lats_nodes_a  ,gis_dyn% global_lats_a  ,	&
@@ -176,7 +185,7 @@
                gis_dyn% pdryini       ,gis_dyn% nblck          ,	&
                gis_dyn% zhour         ,					&
                gis_dyn% n1            ,gis_dyn% n4             ,	&
-               gis_dyn% lsout	      ,gis_dyn% ldfi           ,        &     
+               gis_dyn% lsout         ,gis_dyn% ldfi           ,        &         ! jw
                gis_dyn% colat1        ,gis_dyn% cfhour1	,		&	
                gis_dyn%start_step     ,gis_dyn% restart_step   ,        &
                gis_dyn%reset_step     ,gis_dyn% end_step       ,        &
@@ -207,7 +216,7 @@
           endif
         enddo
 
-!
+
 ! =======================================================================
 
 ! update hour
@@ -217,18 +226,34 @@
 ! ---------------------------------------------------------------------
 ! prepare n+1 grid value back to common temperature and pressure
 !
-! grid_gr unfolded from 2D to 3D (Sarah Lu)  
-      call model_to_common_vars (gis_dyn% grid_gr(1,1,gis_dyn%g_zq),       &
-                                 gis_dyn% grid_gr(1,1,gis_dyn%g_t ),       &
-                                 gis_dyn% grid_gr(1,1,gis_dyn%g_rt),       &
-                                 gis_dyn% grid_gr(1,1,gis_dyn%g_u ),       &
-                                 gis_dyn% grid_gr(1,1,gis_dyn%g_v ),       & 
-                                 gis_dyn% grid_gr(1,1,gis_dyn%g_p ),       & 
-                                 gis_dyn% grid_gr(1,1,gis_dyn%g_dp ),      & 
-                                 gis_dyn% grid_gr(1,1,gis_dyn%g_dpdt ),    & 
-                                 gis_dyn%global_lats_a,	                   &
-                                 gis_dyn%lonsperlat)
-!
+! grid_gr unfolded from 2D to 3D (Sarah Lu)
+     IF(gis_dyn%ENS .AND. gis_dyn%end_step) THEN
+         call model_to_common_vars_1(gis_dyn% grid_gr(1,1,gis_dyn%g_uum), &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_vvm), & 
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_ttm), &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_rm),  &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_qm),  &
+                                     gis_dyn%global_lats_a,	          &
+                                     gis_dyn%lonsperlat, gis_dyn%ptot)
+         call model_to_common_vars_1(gis_dyn% grid_gr(1,1,gis_dyn%g_uu ), &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_vv ), & 
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_tt ), &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_rq),  &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_q),   &
+                                     gis_dyn%global_lats_a,	          &
+                                     gis_dyn%lonsperlat, gis_dyn%ptot)
+      ELSE
+          call model_to_common_vars (gis_dyn% grid_gr(1,1,gis_dyn%g_zq),    &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_t ),    &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_rt),    &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_u ),    &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_v ),    & 
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_p ),    & 
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_dp ),   & 
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_dpdt ), & 
+                                     gis_dyn%global_lats_a,	            &
+                                     gis_dyn%lonsperlat)
+     END IF
 !cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 !c
       if(present(rc)) then

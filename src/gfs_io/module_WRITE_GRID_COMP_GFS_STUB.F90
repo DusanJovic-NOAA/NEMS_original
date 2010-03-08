@@ -46,8 +46,6 @@
 !
       PUBLIC :: WRITE_REGISTER_GFS
 !
-      PUBLIC :: WRITE_SETUP_GFS,WRITE_DESTROY_GFS
-!
 !-----------------------------------------------------------------------
 !
       CONTAINS
@@ -183,60 +181,6 @@
 !-----------------------------------------------------------------------
 !
       END SUBROUTINE WRT_FINALIZE_GFS
-!
-!-----------------------------------------------------------------------
-!#######################################################################
-!-----------------------------------------------------------------------
-!
-      SUBROUTINE WRITE_SETUP_GFS(ATM_GRID_COMP,WRT_COMPS           &
-        ,exp_state_dyn,exp_state_phy                  &
-        ,imp_state_write,exp_state_write)
-! 
-!-----------------------------------------------------------------------
-!***  SET UP THE WRITE COMPONENTS WITH THE FORECAST TASKS AND
-!***  THE GROUPS OF WRITE TASKS NEEDED FOR QUILTING THE OUTPUT
-!***  AND WRITING IT TO HISTORY FILES.
-!-----------------------------------------------------------------------
-!
-!
-      TYPE(ESMF_GridComp),INTENT(INOUT)      :: ATM_GRID_COMP             !<-- The ATM gridded component
-      TYPE(ESMF_GridComp),INTENT(inOUT)      :: WRT_COMPS(:)  !<-- The ATM gridded component
-      TYPE(ESMF_State),INTENT(INOUT)         :: EXP_state_DYN
-      TYPE(ESMF_State),INTENT(INOUT)         :: EXP_state_PHY
-      TYPE(ESMF_State),INTENT(INOUT)         :: IMP_state_WRITE
-      TYPE(ESMF_State),INTENT(INOUT)         :: EXP_state_WRITE
-!
-!
-!-----------------------------------------------------------------------
-!
-      END SUBROUTINE WRITE_SETUP_GFS
-!
-!-----------------------------------------------------------------------
-!#######################################################################
-!-----------------------------------------------------------------------
-!
-      SUBROUTINE WRITE_DESTROY_GFS(ATM_GRID_COMP,WRT_COMPS,             &
-        IMP_STATE_WRITE,EXP_STATE_WRITE,CLOCK_ATM)
-! 
-!-----------------------------------------------------------------------
-!***  DESTROY ALL OBJECTS RELATED TO THE WRITE COMPONENTS.
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!
-      TYPE(ESMF_GridComp),INTENT(INOUT)      :: ATM_GRID_COMP             !<-- The ATM gridded component
-      TYPE(ESMF_GridComp),DIMENSION(:),INTENT(INOUT)      ::WRT_COMPS
-      TYPE(ESMF_State),INTENT(INOUT)         :: IMP_STATE_WRITE
-      TYPE(ESMF_State),INTENT(INOUT)         :: EXP_STATE_WRITE
-      TYPE(ESMF_Clock),INTENT(INOUT)         :: CLOCK_ATM                 !<-- The ATM Component's ESMF Clock
-!
-!-----------------------------------------------------------------------
-!
-      END SUBROUTINE WRITE_DESTROY_GFS
-!
-!-----------------------------------------------------------------------
-!#######################################################################
-!-----------------------------------------------------------------------
 !
       END MODULE MODULE_WRITE_GRID_COMP_GFS
 !

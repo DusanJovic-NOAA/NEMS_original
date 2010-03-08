@@ -17,6 +17,7 @@
 !                                 nested domains.
 !   2008-08-27  Black - Incorporated nested domain boundary data.
 !   2009-07-30  Black - Merged into NEMS trunk code.
+!   2009-11-03  Weiyu - Modified for the ensemble GEFS.
 !   2009-11-30  Wang  - removed writing "core" into atm_namelist.rc
 !
 ! USAGE: ATM_DRIVER parts called from MAIN_ESMF.F90
@@ -143,9 +144,10 @@
 !***  For GFS Ensemble Members
 !------------------------------
 !
-      INTEGER(kind=KINT) :: MEMBER_ID,TOTAL_MEMBER
+      INTEGER(kind=KINT)  :: MEMBER_ID, TOTAL_MEMBER, MYPE_GLOBAL
+      TYPE(ESMF_VM), SAVE :: VM_GLOBAL
 !
-      INTEGER(kind=KINT),DIMENSION(:)  ,ALLOCATABLE :: PE_MEMBER           !<-- Tasks for each member
+      INTEGER(kind=KINT),DIMENSION(:),  ALLOCATABLE :: PE_MEMBER           !<-- Tasks for each member
       INTEGER(kind=KINT),DIMENSION(:,:),ALLOCATABLE :: PETLIST             !<-- Task list for each member
 !
       CHARACTER(ESMF_MAXSTR) :: IMPSTATENAME                            &  !<-- Import state name of the ATM components
@@ -314,7 +316,8 @@
 !***  Local variables
 !---------------------
 !
-      INTEGER :: RC,RC_FINAL
+      TYPE(ESMF_LOGICAL)      :: Cpl_flag  
+      INTEGER                 :: RC,RC_FINAL
 !
       LOGICAL :: ATM_INIT_SUCCESS=.FALSE.
 !
@@ -373,21 +376,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
 !-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-      MESSAGE_CHECK="Obtain MPI Task IDs from VM"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-!
-      CALL ESMF_VMGet(vm      =VM                                       &  !<-- The virtual machine
-                     ,localpet=MYPE                                     &  !<-- Each MPI task ID
-                     ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT_DRV)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-!
-!-----------------------------------------------------------------------
 !***  The different cores handle configure files differently
 !***  but to begin we will read the core name from the leading
 !***  configure file.
@@ -429,11 +417,28 @@
 !
       IF(CORE=='nmm')THEN
 !
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+        MESSAGE_CHECK="Obtain MPI Task IDs from VM"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+!
+        CALL ESMF_VMGet(vm      =VM                                       &  !<-- The virtual machine
+                       ,localpet=MYPE                                     &  !<-- Each MPI task ID
+                       ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT_DRV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+!
         CALL NMM_ATM_DRIVER_INIT(CLOCK_MAIN)
 !
       ELSEIF(CORE=='gfs')THEN
 !
-        CALL GFS_ATM_DRIVER_INIT(CLOCK_MAIN)
+        CALL GFS_ATM_DRIVER_INIT(CLOCK_MAIN,     &
+                                 IMP_STATE,      &
+                                 EXP_STATE)
 !
       ENDIF
 !
@@ -1330,10 +1335,10 @@
 !
         IF(TRIM(MODE)=='true')THEN
           PHYSICS_ON=ESMF_False
-          IF(MYPE==0)WRITE(0,*)' NMM will run without physics.'
+          IF(MYPE==0) WRITE(0,*)' NMM will run without physics.'
         ELSE
           PHYSICS_ON=ESMF_True
-          IF(MYPE==0)WRITE(0,*)' NMM will run with physics.'
+          IF(MYPE==0) WRITE(0,*)' NMM will run with physics.'
         ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1799,7 +1804,7 @@
       HDIFF_ON=1
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Driver_Run: Put Horizontal Diffusion Flag intp ATM import state" 
+      MESSAGE_CHECK="Driver_Run: Put Horizontal Diffusion Flag intp ATM import state"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -2377,24 +2382,28 @@
 !#######################################################################
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE GFS_ATM_DRIVER_INIT(CLOCK_MAIN)
+      SUBROUTINE GFS_ATM_DRIVER_INIT(CLOCK_MAIN,     &
+                                     IMP_STATE,      &
+                                     EXP_STATE)
 !
 !-----------------------------------------------------------------------
 !***  THIS ROUTINE CREATES THE CONFIGURE OBJECT AND THE
 !***  INDIVIDUAL ATM COMPONENTS FOR ALL GFS MEMBERS.
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_Clock),INTENT(INOUT) :: CLOCK_MAIN                         !<-- The main program's ESMF Clock
+      TYPE(ESMF_Clock), INTENT(INOUT) :: CLOCK_MAIN                      !<-- The main program's ESMF Clock
+      TYPE(ESMF_State), INTENT(INOUT) :: IMP_STATE, EXP_STATE            !<-- The ATM Driver import/export sta
 !
 !-----------------------------------------------------------------------
 !***  Local variables
 !-----------------------------------------------------------------------
 !
-      INTEGER :: I,IJ,J,ME,PE_MAX,TASKS
+      INTEGER            :: I,IJ,J,ME,PE_MAX,TASKS
 !
-      CHARACTER(20) :: PELAB
+      CHARACTER(20)      :: PELAB
+      TYPE(ESMF_LOGICAL) :: Cpl_flag
 !
-      INTEGER :: RC,RC_INIT_DRV
+      INTEGER            :: RC,RC_INIT_DRV
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -2439,33 +2448,27 @@
 !***  Obtain the total task count and local ID from the VM.
 !-----------------------------------------------------------------------
 !
-      CALL ESMF_VmGet(vm      =VM                                       &
-                     ,pecount =TASKS                                    &
-                     ,localpet=ME                                       &
-                     ,rc      =RC)
+      CALL ESMF_VMGetGlobal(VM_GLOBAL, rc = RC)
+      CALL ESMF_VmGet(VM_GLOBAL,              &
+                      pecount  = TASKS,       &
+                      localpet = MYPE_GLOBAL, &
+                      rc       = RC)
 !
 !-----------------------------------------------------------------------
 !***  For each member create the ATM component and state names 
 !***  and fill in the task information.
 !-----------------------------------------------------------------------
 !
+      WRITE(IMPSTATENAME   , '("atm import state")')
+      WRITE(EXPSTATENAME   , '("atm export state")')
+
+      PE_MEMBER = 0
       DO I=1,TOTAL_MEMBER
-        WRITE(GRIDCOMPNAME(I), '("atm main grid component",I2.2)') I
-        WRITE(IMPSTATENAME   , '("atm import state")')
-        WRITE(EXPSTATENAME   , '("atm export state")')
+          WRITE(GRIDCOMPNAME(I), '("atm main grid component",I2.2)') I
 !
-        CALL ESMF_ConfigGetAttribute(config=CF_DRIVER                   &
-                                    ,value =PE_MEMBER(I)                &
-                                    ,label =PELAB                       &
-                                    ,rc    =RC)
-!
-        IF(PE_MEMBER(I) == 0 ) THEN
-          IF(I < MOD(TASKS,TOTAL_MEMBER) ) THEN
-            PE_MEMBER(I)=TASKS/TOTAL_MEMBER+1
-          ELSE
-            PE_MEMBER(I)=TASKS/TOTAL_MEMBER
-          ENDIF
-        ENDIF
+          WRITE(PELAB, '("PE_MEMBER", I2.2, ":")') I
+          CALL ESMF_ConfigGetAttribute(CF_DRIVER, PE_MEMBER(I), label = PELAB, rc = RC)
+          IF(PE_MEMBER(I) == 0) PE_MEMBER(I) = TASKS / TOTAL_MEMBER
       ENDDO
 !
       PE_MAX = 1
@@ -2483,7 +2486,7 @@
       DO J = 1, TOTAL_MEMBER
         DO I = 1, PE_MEMBER(J)
           PETLIST(I, J) = IJ
-          IF(ME == IJ) THEN
+          IF(MYPE_GLOBAL == IJ) THEN
             MEMBER_ID = J
           END IF
           IJ = IJ+1
@@ -2547,6 +2550,12 @@
       EXP_ATM = ESMF_StateCreate(statename = EXPSTATENAME               &
                                 ,statetype = ESMF_STATE_EXPORT          &
                                 ,rc        = RC)
+      CALL ESMF_StateAdd(IMP_STATE, IMP_ATM, rc = RC)
+      CALL ESMF_StateAdd(EXP_STATE, EXP_ATM, rc = RC)
+
+      CALL ESMF_AttributeGet(IMP_STATE, 'Cpl_flag', Cpl_flag, rc = rc)
+      CALL ESMF_AttributeSet(IMP_ATM,   'Cpl_flag', Cpl_flag, rc = rc)
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT_DRV)
@@ -2623,23 +2632,24 @@
 !***  Create the Driver Clock.
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(CLOCK_ATM_DRV(1))                                           !<-- GFS ensemble members need only one Clock
+!      ALLOCATE(CLOCK_ATM_DRV(1))                                           !<-- GFS ensemble members need only one Clock
 !
-      CLOCK_ATM_DRV_NAME='CLOCK_ATM_DRV'
+!      CLOCK_ATM_DRV_NAME='CLOCK_ATM_DRV'
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Create the Clock for the ATM DRIVER Component"
+!      MESSAGE_CHECK="Create the Clock for the ATM DRIVER Component"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CLOCK_ATM_DRV(1)=ESMF_ClockCreate(name       =CLOCK_ATM_DRV_NAME  &  !<-- The ATM_DRIVER Clock's name
-                                       ,timeStep   =TIMESTEP(1)         &  !<-- The fundamental timestep in this component
-                                       ,startTime  =STARTTIME           &  !<-- Start time of simulation
-                                       ,runDuration=RUNDURATION         &  !<-- Duration of simulation
-                                       ,rc         =RC)
+!      CLOCK_ATM_DRV(1)=ESMF_ClockCreate(name       =CLOCK_ATM_DRV_NAME  &  !<-- The ATM_DRIVER Clock's name
+!                                       ,timeStep   =TIMESTEP(1)         &  !<-- The fundamental timestep in this component
+!                                       ,startTime  =STARTTIME           &  !<-- Start time of simulation
+!                                       ,runDuration=RUNDURATION         &  !<-- Duration of simulation
+!                                       ,rc         =RC)
+       CALL ESMF_ClockSet(CLOCK_MAIN, timeStep = TIMESTEP(1), rc = rc)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT_DRV)
+!      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT_DRV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !
@@ -2652,7 +2662,7 @@
           CALL ESMF_GridCompInitialize(gridcomp   =GC_ATM(I)            &  !<-- The ATM gridded component
                                       ,importstate=IMP_ATM              &  !<-- The ATM component's import state
                                       ,exportstate=EXP_ATM              &  !<-- The ATM component's export state
-                                      ,clock      =CLOCK_ATM_DRV(1)     &  !<-- The ESMF clock
+                                      ,clock      =CLOCK_MAIN           &  !<-- The ESMF clock
                                       ,phase      =ESMF_SINGLEPHASE     &
                                       ,rc         =RC)
         ENDIF
@@ -2695,7 +2705,7 @@
           CALL ESMF_GridCompRun(gridcomp   =GC_ATM(I)                   &  !<-- The ATM gridded component of this GFS member
                                ,importstate=IMP_ATM                     &  !<-- The ATM component's import state
                                ,exportstate=EXP_ATM                     &  !<-- The ATM component's export state
-                               ,clock      =CLOCK_ATM_DRV(1)            &  !<-- The ESMF clock
+                               ,clock      =CLOCK_MAIN                  &  !<-- The ESMF clock
                                ,phase      =ESMF_SINGLEPHASE            &
                                ,rc         =RC)
         END IF

@@ -13,6 +13,7 @@
 !***
 !       07 May 2009:  J. Wang - adopt write _routine from NMMB_io
 !                                modified for GFS
+!       03 Sep 2009:  W. Yang - Ensemble GEFS.
 !
 !-----------------------------------------------------------------------
 !
@@ -38,8 +39,6 @@
       PRIVATE
 !
       PUBLIC :: FIRST_PASS_GFS                                          &
-               ,WRITE_ASYNC_GFS                                         &
-               ,WRITE_INIT_GFS                                          &
                ,WRITE_NEMSIO_OPEN                                       
 !
 !-----------------------------------------------------------------------
@@ -93,7 +92,7 @@
                                      ,N,NN,NUM_ATTRIB,NWTPG             &
                                      ,RC,RC_WRT
 !
-      INTEGER,DIMENSION(:),POINTER :: INPES,JNPES,ITMP
+      INTEGER,DIMENSION(:),POINTER :: ITMP
       REAL,DIMENSION(:),POINTER    :: RTMP
       TYPE(ESMF_Logical),DIMENSION(:),POINTER :: LTMP
 !
@@ -108,6 +107,7 @@
                                      ,NCHAR_LOG
 !
       INTEGER                      :: JEND_WRITE,JSTA_WRITE
+      INTEGER                      :: NUM_PES_FCST 
 !
       INTEGER                      :: KOUNT_I1D                         &
                                      ,KOUNT_I2D                         &
@@ -123,7 +123,6 @@
       INTEGER                      :: NPOSN_START,NPOSN_END
 !
       INTEGER                      :: NUM_FIELD_NAMES                   &
-                                     ,NUM_PES_FCST                      &
                                      ,MYPE_LOCAL   
 !
       INTEGER,DIMENSION(MPI_STATUS_SIZE) :: JSTAT
@@ -133,10 +132,10 @@
                                      ,LOCAL_JSTART                      &
                                      ,LOCAL_JEND
 !jw:gfs
-      INTEGER                      :: ISTART,LAT,NBELT,NLAT,NREMAIN
-      INTEGER                      :: TARGET_WRT, MPI_COMMUN    
-      INTEGER,DIMENSION(:),ALLOCATABLE :: FCST_LAT_FOR_WRITE_TASK
-      CHARACTER(NAME_MAXSTR),DIMENSION(:),ALLOCATABLE :: FIELD_NAME
+      INTEGER                      :: nbelt,nremain,istart,lat,nlat
+      INTEGER                      :: TARGET_WRT, MPI_COMMUN
+      INTEGER,DIMENSION(:),allocatable :: fcst_lat_for_write_task
+      CHARACTER(NAME_MAXSTR),DIMENSION(:),allocatable :: field_name
       CHARACTER(NAME_MAXSTR*MAX_DATA_R2D)             :: NAMETMP
 !
       INTEGER,DIMENSION(:),POINTER :: NCHAR_I2D                         &
@@ -171,34 +170,25 @@
 !***  FIRST WE NEED THE NUMBER OF WRITE TASKS IN EACH GROUP.
 !-----------------------------------------------------------------------
 !
-      NWTPG=wrt_int_state%WRITE_TASKS_PER_GROUP
-      NUM_PES_FCST=wrt_int_state%INPES*wrt_int_state%JNPES               !<-- Number of fcst tasks
+      NUM_PES_FCST = wrt_int_state%NUM_PES_FCST
+      NWTPG        = wrt_int_state%WRITE_TASKS_PER_GROUP
 !
       IF(wrt_int_state%quilting) then
         LAST_FCST_TASK =NTASKS-NWTPG-1
         LEAD_WRITE_TASK=LAST_FCST_TASK+1
         LAST_WRITE_TASK=NTASKS-1
         MYPE_LOCAL=MOD(MYPE-NUM_PES_FCST,NWTPG)
-      ELSE                                                               !<-- for QUILTING=.false.,last pe will be the io pe
+      else                                                               !<-- for QUILTING=.false.,last pe will be the io pe
         LAST_FCST_TASK =NTASKS-1
         LEAD_WRITE_TASK=LAST_FCST_TASK
         LAST_WRITE_TASK=LAST_FCST_TASK
         MYPE_LOCAL=0
-      ENDIF
+      endif
 !
 !      write(0,*)'in first pass, LAST_FCST_TASK=',LAST_FCST_TASK,  &
 !        'LEAD_WRITE_TASK=',LEAD_WRITE_TASK,'LAST_WRITE_TASK=',  &
 !        LAST_WRITE_TASK,'NWTPG=',NWTPG,'NUM_PES_FCST=',NUM_PES_FCST
-!
-!-----------------------------------------------------------------------
-!***  THE INTEGER QUANTITIES 'INPES' AND 'JNPES' MUST BE POINTERS
-!***  OF LENGTH 1 SINCE THEY WILL BE PASSED THROUGH ESMF Send/Recv.
-!***  LIKEWISE WITH THE TOTAL LENGTH OF ALL NAMES OF 2D DATA 
-!***  AND THE HALO DEPTHS.
-!-----------------------------------------------------------------------
-!
-      ALLOCATE(INPES(1))
-      ALLOCATE(JNPES(1))
+
       ALLOCATE(ITMP(10000))
       ALLOCATE(RTMP(50000))
       ALLOCATE(LTMP(5000))
@@ -240,13 +230,13 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeGet(bundle    =FILE_BUNDLE                &  !<-- The Bundle of history data
+        CALL ESMF_AttributeGet(bundle    =FILE_BUNDLE                   &  !<-- The Bundle of history data
                               ,name      ='lonf'                        &  !<-- Name of the Attribute to extract
                               ,count     =1                             &  !<-- Length of Attribute
                               ,valueList =wrt_int_state%IM              &  !<-- Extract this Attribute from History Bundle
                               ,rc        =RC)
 !
-        CALL ESMF_AttributeGet(bundle    =FILE_BUNDLE                &  !<-- The Bundle of history data
+        CALL ESMF_AttributeGet(bundle    =FILE_BUNDLE                   &  !<-- The Bundle of history data
                               ,name      ='levs'                        &  !<-- Name of the Attribute to extract
                               ,count     =1                             &  !<-- Length of Attribute
                               ,valueList =wrt_int_state%LM              &  !<-- Extract this Attribute from History Bundle
@@ -283,7 +273,7 @@
 !
 !-----------------------------------------------------------------------
 !
-        if1tasks:  if(NTASKS>=1 ) then
+        if1tasks:  if(NTASKS >= 1 ) then
 !
 !-----------------------------------------------------------------------
 !*** set up an array of the write_tasks for each fcst task to send data so
@@ -296,7 +286,7 @@
           allocate(wrt_int_state%fcst_lat_to_write_task(wrt_int_state%lats_node_a))
           allocate(wrt_int_state%nwrttask_on_fcst(wrt_int_state%lats_node_a))
         endif
-!
+
         allocate(fcst_lat_for_write_task(wrt_int_state%lats_node_a))
         NBELT=wrt_int_state%jm(1)/NWTPG
         Nremain=mod(wrt_int_state%jm(1),NWTPG)
@@ -313,8 +303,8 @@
 !         wrt_int_state%lats_node_a,'ipt_lats_node_a=',wrt_int_state%ipt_lats_node_a, &
 !         'global_lats_a=', &
 !         wrt_int_state%global_lats_a(wrt_int_state%ipt_lats_node_a: &
-!         wrt_int_state%ipt_lats_node_a-1+wrt_int_state%lats_node_a),'fcst_lat_for_write_task=',  &
-!         fcst_lat_for_write_task
+!         wrt_int_state%ipt_lats_node_a-1+wrt_int_state%lats_node_a),'fcst_lat_to_write_task=',  &
+!         fcst_lat_to_write_task
 !
 !*** on each forecast task, specify the starting point and the number of lats in global_lat_a to
 !*** to each write task, which will decide the position of lat on write tasks
@@ -338,9 +328,9 @@
                         wrt_int_state%nlat_to_write_task(i-1)
           endif
        enddo
-!       write(0,*)'nstart_write_task=',wrt_int_state%nstart_to_write_task(1:NWTPG),'nlat_write_task=', &
-!          wrt_int_state%nlat_to_write_task(1:nwtpg),'fcst_lat_to_write_task=', &
-!          wrt_int_state%fcst_lat_to_write_task(1:wrt_int_state%lats_node_a), &
+!       write(0,*)'nstart_write_task=',wrt_int_state%nstart_write_task(1:NWTPG),'nlat_write_task=', &
+!          wrt_int_state%nlat_write_task(1:nwtpg),'fcst_lat_for_write_task=', &
+!          wrt_int_state%fcst_lat_for_write_task(1:wrt_int_state%lats_node_a), &
 !          'nwrttask_on_fcst=',wrt_int_state%nwrttask_on_fcst(1:wrt_int_state%lats_node_a)
 !
         deallocate(fcst_lat_for_write_task)
@@ -353,6 +343,8 @@
 !
       ENDIF domain_limits
 !
+!
+!-----------------------------------------------------------------------
 !----------------------------------------------------------------------
 !***  FORECAST TASK 0 SENDS THE DOMAIN SIZE INFORMATION
 !***  TO THE FIRST WRITE TASK IN EACH WRITE GROUP BECAUSE 
@@ -477,9 +469,7 @@
       ENDIF
 !
       endif if1task1
-!
-!-----------------------------------------------------------------------
-!
+
       IM=wrt_int_state%IM(1)
       JM=wrt_int_state%JM(1)
 !
@@ -498,7 +488,7 @@
 !
        nbelt=jm/NWTPG
        nremain=mod(jm,NWTPG)
-!
+
        DO I=1,NWTPG
          if(mod(i-1,NWTPG)<nremain) then
              wrt_int_state%JSTART_WRITE(i)=(i-1)*(nbelt+1) +1
@@ -526,13 +516,12 @@
      ELSE
        MPI_COMMUN=MPI_COMM_COMP
      ENDIF
-!
+
      IF(MYPE<NUM_PES_FCST .and. MYPE/=LEAD_WRITE_TASK) THEN
-!
         DO N=0,NWTPG-1
           TARGET_WRT=N
           IF(.not.wrt_int_state%quilting) TARGET_WRT=LEAD_WRITE_TASK
-          CALL MPI_SEND(wrt_int_state%nlat_to_write_task(N+1)           &  !<-- Send this data
+          CALL MPI_SEND(wrt_int_state%nlat_to_write_task(N+1)              &  !<-- Send this data
                        ,1                                               &  !<-- Number of words sent
                        ,MPI_INTEGER                                     &  !<-- Datatype
                        ,TARGET_WRT                                      &  !<-- Send to each of the write tasks (local IDs)
@@ -543,17 +532,17 @@
           if (wrt_int_state%nlat_to_write_task(N+1)>0) then
             ISTART=wrt_int_state%nstart_to_write_task(N+1)
             CALL MPI_SEND(wrt_int_state%fcst_lat_to_write_task(ISTART)  &  !<-- Send this data
-                       ,wrt_int_state%nlat_to_write_task(N+1)              &  !<-- Number of words sent
+                       ,wrt_int_state%nlat_to_write_task(N+1)            &  !<-- Number of words sent
                        ,MPI_INTEGER                                     &  !<-- Datatype
                        ,TARGET_WRT                                      &  !<-- Send to each of the write tasks (local IDs)
                        ,mype+1001                                       &  !<-- An MPI tag
                        ,MPI_COMMUN                                      &  !<-- MPI communicator
                        ,IERR)
-!            write(0,*)'nlat on fcst=',wrt_int_state%nlat_to_write_task(N+1), &
-!             'nstart=',wrt_int_state%nstart_to_write_task(N+1),&
-!             'fcst_lat=',wrt_int_state%fcst_lat_to_write_task( &
-!             wrt_int_state%nstart_to_write_task(N+1):wrt_int_state%nstart_to_write_task(N+1)+ &
-!             wrt_int_state%nlat_to_write_task(N+1)-1)
+!            write(0,*)'nlat on fcst=',wrt_int_state%nlat_write_task(N+1), &
+!             'nstart=',wrt_int_state%nstart_write_task(N+1),&
+!             'fcst_lat=',wrt_int_state%fcst_lat_for_write_task( &
+!             wrt_int_state%nstart_write_task(N+1):wrt_int_state%nstart_write_task(N+1)+ &
+!             wrt_int_state%nlat_write_task(N+1)-1)
 !
             IF(IERR/=0)WRITE(0,*)' Failed to send IM from fcst task0 to write tasks'
           endif
@@ -592,8 +581,8 @@
                      ,IERR) 
 !
             IF(IERR/=0)WRITE(0,*)' Failed to send IM from fcst task0 to write tasks'
-!
-           endif
+
+          endif
          ELSE
            wrt_int_state%nlat_from_fcst_task(I)= wrt_int_state%nlat_to_write_task(1)
            if(ntasks>1) then
@@ -712,7 +701,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
 !-----------------------------------------------------------------------
 !                 -- SCALAR AND 1D INTEGER HISTORY DATA --
 !-----------------------------------------------------------------------
@@ -1110,7 +1098,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      if1task3:   if(wrt_int_state%quilting) then
+        if1task3:   if(wrt_int_state%quilting) then
 !-----------------------------------------------------------------------
 !***  FORECAST TASK 0 SENDS ALL THE WRITE TASKS THE NUMBER OF
 !***  REAL AND INTEGER 2D GRIDDED QUANTITIES PLUS ALL OF THE
@@ -1119,7 +1107,7 @@
 !***  DATA THEY RECEIVE FROM THE FORECAST TASKS.
 !-----------------------------------------------------------------------
 !
-       IF(MYPE==0)THEN                                                      !<-- Forecast task 0 sends
+       IF(MYPE==0)THEN                                                     !<-- Forecast task 0 sends
 !
         LAST_WRITE_TASK=NTASKS-1                                           !<-- The last write task in this group
 !
@@ -1493,7 +1481,7 @@
             LTMP(I)=ESMF_FALSE
           endif
         ENDDO
-!
+
         CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
                         ,sendData=LTMP                                  &  !<-- Send the full string of all logical history data
                         ,count   =wrt_int_state%LENGTH_SUM_LOG(NBDL)    &  !<-- Words sent
@@ -1674,7 +1662,6 @@
                         ,rc      =RC)
         wrt_int_state%ALL_DATA_LOG(1:wrt_int_state%LENGTH_SUM_LOG(NBDL),NBDL)= &
          LTMP(1:wrt_int_state%LENGTH_SUM_LOG(NBDL))
-!
         ENDIF
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1696,7 +1683,6 @@
 !
 !-----------------------------------------------------------------------
 !
-      DEALLOCATE(INPES,JNPES)
       DEALLOCATE(ITMP)
       DEALLOCATE(RTMP)
       DEALLOCATE(LTMP)
@@ -1707,250 +1693,6 @@
 !
 !-----------------------------------------------------------------------
 !$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!#######################################################################
-!-----------------------------------------------------------------------
-!
-      SUBROUTINE WRITE_INIT_GFS(ATM_GRID_COMP,wrt_comps,imp_state_write, &
-        exp_state_write,CLOCK_ATM,WRITE_GROUP_READY_TO_GO)
-
-      use module_gfs_mpi_def, only: num_pes_fcst,write_tasks_per_group,    &
-          write_groups,petlist_write
-! 
-!-----------------------------------------------------------------------
-!***  EXECUTE THE INITIALIZE STEP OF THE WRITE COMPONENTS.
-!-----------------------------------------------------------------------
-!
-      TYPE(ESMF_GridComp),INTENT(INOUT)      :: ATM_GRID_COMP             !<-- The ATM gridded component
-      TYPE(ESMF_GRIDComp),INTENT(INOUT)      :: wrt_comps(:)              !<-- The ATM Internal State
-      TYPE(ESMF_STATE),INTENT(INOUT)         :: imp_state_write           !<-- The ATM Internal State
-      TYPE(ESMF_STATE),INTENT(INOUT)         :: exp_state_write           !<-- The ATM Internal State
-      TYPE(ESMF_Clock),INTENT(INOUT)         :: CLOCK_ATM                 !<-- The ATM Component's ESMF Clock
-      INTEGER, INTENT(INOUT)                 :: WRITE_GROUP_READY_TO_GO
-!
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
-!
-      TYPE(ESMF_Config)      :: CF                                        !<-- The config object
-      TYPE(ESMF_VM)          :: VM                                        !<-- The ESMF virtual machine.
-      TYPE(ESMF_Time)        :: CURRTIME
-      TYPE(ESMF_TimeInterval):: TIMEINTERVAL_OUTPUT
-!
-      INTEGER :: I,INPES,J,JNPES,RC,RC_INIT,NFHOUT
-!
-!-----------------------------------------------------------------------
-!***********************************************************************
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!***  RETRIEVE THE CONFIG OBJECT CF FROM THE ATM GRIDDED COMPONENT.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Get Config Object from ATM Component in Write Init"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_GridCompGet(gridcomp=ATM_GRID_COMP                      &  !<-- The ATM gridded component
-                           ,config  =CF                                 &  !<-- The config object (~namelist)
-                           ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  EXECUTE THE INITIALIZE STEP FOR THE WRITE COMPONENTS.
-!***  THESE ARE THE INITIALIZE SUBROUTINES SPECIFIED IN THE
-!***  REGISTER ROUTINES CALLED IN ESMF_GridCompSetServices.
-!-----------------------------------------------------------------------
-!
-      DO J=1,WRITE_GROUPS
-!
-        DO I=1,NUM_PES_FCST+WRITE_TASKS_PER_GROUP
-          IF(MYPE==PETLIST_WRITE(I,J))THEN                   !<--  Forecast tasks plus the Write tasks in each write group
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Execute Initialize Step of Write Component"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-            N_GROUP=J
-            CALL ESMF_GridCompInitialize(WRT_COMPS(J)                 &  !<-- The Write gridded components
-                                        ,importstate=IMP_STATE_WRITE  &  !<-- The Write import state
-                                        ,exportstate=EXP_STATE_WRITE  &  !<-- The Write export state
-                                        ,clock      =CLOCK_ATM                      &  !<-- The ESMF clock of the ATM component
-                                        ,phase      =ESMF_SINGLEPHASE               &
-                                        ,rc         =RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          ENDIF
-        ENDDO
-      ENDDO
-!
-!-----------------------------------------------------------------------
-!***  SET THE FIRST WRITE GROUP AS THE FIRST ONE TO ACT.
-!-----------------------------------------------------------------------
-!
-      WRITE_GROUP_READY_TO_GO=1
-      N_GROUP=WRITE_GROUP_READY_TO_GO
-!
-!-----------------------------------------------------------------------
-!
-      END SUBROUTINE WRITE_INIT_GFS
-!
-!-----------------------------------------------------------------------
-!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-!-----------------------------------------------------------------------
-!
-      SUBROUTINE WRITE_ASYNC_GFS(WRT_COMPS,EXP_STATE,IMP_STATE_WRITE     &
-                            ,EXP_STATE_WRITE,CLOCK_ATM,MYPE              &
-                            ,WRITE_GROUP_READY_TO_GO)
-
-      use module_gfs_mpi_def, only: NUM_PES_FCST,NUM_PES_WRT,            &
-          write_groups, write_tasks_per_group,PETLIST_WRITE
-!
-!-----------------------------------------------------------------------
-!***  WRITE OUT A HISTORY FILE USING THE ASYNCHRONOUS QUILTING.
-!-----------------------------------------------------------------------
-!
-      TYPE(ESMF_GridComp)     ,INTENT(INOUT) :: WRT_COMPS(:)               !<-- The write_comp
-      TYPE(ESMF_STATE)        ,INTENT(INOUT) :: EXP_STATE                  !<-- The export state dyn
-      TYPE(ESMF_STATE)        ,INTENT(INOUT) :: IMP_STATE_WRITE            !<-- The import state of write
-      TYPE(ESMF_STATE)        ,INTENT(INOUT) :: EXP_STATE_WRITE            !<-- The export state of write
-      TYPE(ESMF_Clock)        ,INTENT(INOUT) :: CLOCK_ATM                 !<-- The ATM Component's ESMF Clock
-      INTEGER,INTENT(IN) :: MYPE
-      INTEGER,INTENT(INOUT) :: WRITE_GROUP_READY_TO_GO
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
-!
-      TYPE(ESMF_Config) :: CF                                             !<-- The configure object (~namelist)
-      TYPE(ESMF_Time)   :: CURRTIME                                       !<-- The current forecast time (ESMF)
-!
-      INTEGER :: YY,MM,DD,H,M,S                                           !<-- Year, Month, Day, Hour, Minute, Second (integer)
-!
-      INTEGER :: I,INPES,JNPES                                          &
-                ,RC,RC_ASYNC
-!
-      CHARACTER(ESMF_MAXSTR) :: filename                                  !<-- Restart/History label
-!
-!-----------------------------------------------------------------------
-!***********************************************************************
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!***  WHAT IS THE CURRENT FORECAST TIME?
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="WRITE_ASYNC: Get Current Time from ATM Clock"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_ClockGet(clock   =CLOCK_ATM                             &  !<-- The ATM component's ESMF Clock
-                        ,currTime=CURRTIME                              &  !<-- The current forecast time (ESMF)
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_ASYNC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="WRITE_ASYNC: Convert ESMF Time to Real Time"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_TimeGet (time=CURRTIME                                  &  !<-- The current forecast time (ESMF)
-                        ,yy  =YY                                        &  !<-- The current year (integer)
-                        ,mm  =MM                                        &  !<-- The current month (integer)
-                        ,dd  =DD                                        &  !<-- The current day (integer)
-                        ,h   =H                                         &  !<-- The current hour (integer)
-                        ,m   =M                                         &  !<-- The current minute (integer)
-                        ,s   =S                                         &  !<-- The current second (integer)
-                        ,rc  =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_ASYNC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  THE EXPORT STATE OF THE DYNAMICS COMPONENT LIES WITHIN THE
-!***  INTERNAL STATE OF THE ATM GRIDDED COMPONENT AND HOLDS THE
-!***  IMPORT STATE OF THE WRITE COMPONENT.
-!***  EXTRACT THAT WRITE COMPONENT'S IMPORT STATE SINCE WE ARE 
-!***  ABOUT TO EXECUTE THE RUN STEP OF THE WRITE COMPONENT.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="WRITE_ASYNC: Extract Write Import State from Dyn Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateGet(state          =EXP_STATE    &  !<-- The Dyn component's export state
-                        ,itemName       ="Write Import State"     &  !<-- Name of state to be extracted
-                        ,nestedState    =IMP_STATE_WRITE  &  !<-- The extracted state
-                        ,rc             =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_ASYNC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  ALL FORECAST TASKS PLUS THOSE WRITE TASKS IN THE APPROPRIATE
-!***  WRITE GROUP EXECUTE THE RUN STEP OF A WRITE COMPONENT.
-!-----------------------------------------------------------------------
-!
-     N_GROUP=WRITE_GROUP_READY_TO_GO                          !<-- The active write group
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="WRITE_ASYNC: Execute Run Step of Write Components" 
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      DO I=1,NUM_PES_WRT
-        IF(MYPE==PETLIST_WRITE(I,N_GROUP))THEN
-          CALL ESMF_GridCompRun(WRT_COMPS(N_GROUP)          &  !<-- The write gridded component
-                               ,importState=IMP_STATE_WRITE &  !<-- Its import state
-                               ,exportState=EXP_STATE_WRITE &  !<-- Its export state
-                               ,clock      =CLOCK_ATM                     &  !<-- The ATM Clock
-                               ,phase      =ESMF_SINGLEPHASE              &
-                               ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_ASYNC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          IF(I==NUM_PES_FCST+1)THEN                                          !<-- The first write task tells us the history output time
-            WRITE(0,101)YY,MM,DD,H,M,S
-  101       FORMAT(' Wrote File at ',I4.4,'_',I2.2,'_',I2.2,'_',I2.2,':',I2.2,':',I2.2)
-          ENDIF
-!
-        ENDIF
-!
-      ENDDO
-!
-!-----------------------------------------------------------------------
-!***  PREPARE TO USE THE NEXT WRITE GROUP AT THE NEXT OUTPUT TIME.
-!***  RETURN TO THE 1ST GROUP IF WE HAVE CYCLED THROUGH ALL OF THEM.
-!-----------------------------------------------------------------------
-!
-      IF(WRITE_GROUP_READY_TO_GO==WRITE_GROUPS)THEN
-        WRITE_GROUP_READY_TO_GO=1
-      ELSE
-        WRITE_GROUP_READY_TO_GO=WRITE_GROUP_READY_TO_GO+1
-      ENDIF
-!
-!-----------------------------------------------------------------------
-!
-      END SUBROUTINE WRITE_ASYNC_GFS
-!
-!-----------------------------------------------------------------------
-!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 !
       SUBROUTINE WRITE_NEMSIO_OPEN(WRT_INT_STATE             &
@@ -2340,8 +2082,6 @@
 !
         N=LEN_TRIM(wrt_int_state%FILENAME_BASE(NBDL))
         FILENAME=wrt_int_state%FILENAME_BASE(NBDL)(1:n)//trim(CFHOUR)
-  100   FORMAT(A4,I3.3)
-
       ELSE
         FILENAME=wrt_int_state%FILENAME_BASE(NBDL)//'_nemsio'
       ENDIF
@@ -2378,7 +2118,7 @@
 !        idvm    = Nthermodyn_id*10 + Nsfcpress_id    in model
 !for output:
         idvm    = 22                                 ! 1:  ln(ps) 2:ps   ! hmhj
-                                                     ! 1: Tv, 2: T, 3:Th 
+                                                     ! 1: Tv, 2: T, 3:Th
         IF(gen_coord_hybrid) then
           idvc    = 3
           idsl    = 2    ! idsl=2 for middle of layer                   ! hmhj
@@ -2605,6 +2345,7 @@
       NULLIFY(ARYRNAME)
       NULLIFY(ARYRLEN)
       NULLIFY(ARYRVAL)
+      write(0,*)'end of write_nemsio_open'
 !
 !-----------------------------------------------------------------------
 !

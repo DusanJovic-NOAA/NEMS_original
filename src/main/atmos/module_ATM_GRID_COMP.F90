@@ -25,13 +25,14 @@
 !                       integration switches from backward to forward.
 !   2009-10-05  Wang  - Added GFS ensemble member name and output data at
 !                       every nsout timesteps.
+!   2009-10-08  W Yang - Ensemble GEFS.
 !   2009-11-03  Lu    - Add GOCART and ChemRegistry modules
 !   2009-12-17  Lu    - Modify GFS_ATM_INIT routine to create, register,
 !                       and initialize GOCART grid component
-!   2009-12-22  Lu    - Modify GFS_ATM_INIT routine to create and register 
+!   2009-12-22  Lu    - Modify GFS_ATM_INIT routine to create and register
 !                       dyn2chem and phy2chem coupler components
-!   2009-12-23  Lu    - Modify GFS_INTEGRATE routine to loop thru dyn, phy,  
-!   2010-02-01  Lu    - Remove dyn2chem coupler component 
+!   2009-12-23  Lu    - Modify GFS_INTEGRATE routine to loop thru dyn, phy,
+!   2010-02-01  Lu    - Remove dyn2chem coupler component
 !   2010-02-05  Wang  - Added restart file for GFS
 !
 ! USAGE: ATM Gridded component parts called from subroutines within
@@ -83,8 +84,8 @@
 !***  LIST MODULES FOR GSFC CHEMISTRY PACKAGE
 !-----------------------------------------------------------------------
 !
-      USE GOCART_GridCompMod    , ONLY: GOCART_SETSERVICES => SETSERVICES 
-!
+      USE GOCART_GridCompMod    , ONLY: GOCART_SETSERVICES => SETSERVICES
+
       USE ATMOS_PHY_CHEM_CPL_COMP_MOD, ONLY: PHY2CHEM_SETSERVICES => SETSERVICES
 !
       USE Chem_RegistryMod
@@ -93,13 +94,12 @@
 !***  LIST OTHER MODULES WITH NON-GENERIC ROUTINES USED BY ATM.
 !-----------------------------------------------------------------------
 !
+      USE MODULE_GFS_WRITE      ,ONLY: WRITE_INIT_GFS                   & !<-- These are routines used only when asynchronous
+                                      ,WRITE_SETUP_GFS                  & !    quilting is specified by the user in the
+                                      ,WRITE_DESTROY_GFS                  !    configure file for history output.
       USE MODULE_WRITE_ROUTINES ,ONLY: WRITE_INIT,WRITE_ASYNC             !<-- These are routines used only when asynchronous
       USE MODULE_WRITE_GRID_COMP,ONLY: WRITE_SETUP                      & !    quilting is specified by the user in the
-                                      ,WRITE_DESTROY                      !    configure file for NMM output.
-!
-      USE MODULE_WRITE_GRID_COMP_GFS,ONLY: WRITE_SETUP_GFS              & !<-- These are routines used only when asynchronous
-                                          ,WRITE_DESTROY_GFS              !    quilting is specified by the user in the
-      USE MODULE_WRITE_ROUTINES_GFS ,ONLY: WRITE_INIT_GFS                 !    configure file for GFS output.
+                                      ,WRITE_DESTROY                      !    configure file for history output.
 
 !
 !-----------------------------------------------------------------------
@@ -116,33 +116,27 @@
 !
 !-----------------------------------------------------------------------
 !
-      INTEGER(kind=KINT) :: INPES,JNPES                                 &  !<-- MPI tasks in I and J directions
-                           ,MYPE                                        &  !<-- Each MPI task ID
+      INTEGER(kind=KINT) :: MYPE                                        &  !<-- Each MPI task ID
                            ,NPE_PRINT                                   &
                            ,NUM_TRACERS_CHEM                            &  !<-- Number of chemistry tracer variables
                            ,NUM_TRACERS_MET                             &  !<-- Number of meteorological tracer variables
                            ,WRITE_GROUP_READY_TO_GO                        !<-- The write group to use
+      INTEGER(KIND=KINT) :: MYPE_GLOBAL                                    !<-- Each MPI task ID
 !
       CHARACTER(3),SAVE :: CORE                                            !<-- The name of the selected dynamic core
 !
-      CHARACTER(ESMF_MAXSTR) :: INFILE="restart_file"
-!
       LOGICAL(kind=KLOG) :: QUILTING                                    &  !<-- Is asynchronous quilting specified?
-                           ,RESTARTED_RUN                               &  !<-- Original/restarted run logical flag
-                           ,STANDALONE_POST                                !<-- Logical flag for running standalone post
+                           ,RESTARTED_RUN                                  !<-- Original/restarted run logical flag
 !
       TYPE(ESMF_Config),SAVE :: CF_1                                       !<-- The principal config object
 !
-      TYPE(ESMF_VM),SAVE :: VM                                             !<-- The ESMF virtual machine.
+      TYPE(ESMF_VM),SAVE :: VM, VM_LOCAL                                   !<-- The ESMF virtual machine.
 !
       TYPE(ATM_INTERNAL_STATE),POINTER,SAVE :: ATM_INT_STATE               !<-- The NMM ATM internal state pointer
       TYPE(WRAP_ATM_INTERNAL_STATE)   ,SAVE :: WRAP                        !<-- The F90 wrap of the NMM ATM internal state
 !
       TYPE(ESMF_Time),SAVE :: DFITIME                                   &
                              ,HALFDFITIME 
-!
-      TYPE(ESMF_TimeInterval),SAVE :: HALFDFIINTVAL_BCK                 &
-                                     ,HALFDFIINTVAL_FWD
 !
       TYPE(ESMF_TimeInterval),SAVE :: TIMEINTERVAL_CLOCKTIME               !<-- The ESMF time interval between NMM clocktime output
 !
@@ -152,9 +146,8 @@
 !***  FOR GSFC CHEMISTRY PACKAGE
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_GridComp),SAVE :: GC_GFS_CHEM                              !<-- The GFS chemistry component 
+      TYPE(ESMF_GridComp),SAVE :: GC_GFS_CHEM                              !<-- The GFS chemistry component
       TYPE(ESMF_State),   SAVE :: IMP_GFS_CHEM,EXP_GFS_CHEM                !<-- Import/export states for GFS Chemistry
-!
       TYPE(ESMF_CplComp), SAVE :: GC_PHY2CHEM_CPL                          !<-- GFS Phy to Chem coupler gridded component
 !
       TYPE(Chem_Registry),SAVE :: REG                                      !<-- The GOCART Chem_Registry
@@ -194,6 +187,9 @@
                               ,IMP_GFS_WRT,EXP_GFS_WRT                     !<-- Import/export states for GFS Write
 !
       TYPE(ESMF_TimeInterval),SAVE :: TIMEINTERVAL_GFS_OUTPUT              !<-- The ESMF time interval between GFS history output
+
+      TYPE(ESMF_LOGICAL)           :: Cpl_flag
+
 !
 !---------------------------------
 !***  For determining clocktimes.
@@ -466,6 +462,8 @@
       ELSEIF(CORE=='gfs')THEN
 !
         CALL GFS_ATM_INIT(ATM_GRID_COMP                                 &
+                         ,IMP_STATE                                     &
+                         ,EXP_STATE                                     &
                          ,CLOCK_ATM )
 !
       ENDIF
@@ -1803,6 +1801,8 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE GFS_ATM_INIT(ATM_GRID_COMP                             &
+                             ,IMP_STATE                                 &
+                             ,EXP_STATE                                 &
                              ,CLOCK_ATM )
 !
 !-----------------------------------------------------------------------
@@ -1821,7 +1821,8 @@
 !------------------------
 !
       TYPE(ESMF_GridComp),INTENT(INOUT) :: ATM_GRID_COMP                   !<-- The ATM gridded component
-!
+      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE                    &  !<-- The ATM component's import state
+                                          ,EXP_STATE                       !<-- The ATM component's export state
       TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_ATM                       !<-- The ESMF Clock from the ATM Driver component.
 !
 !---------------------
@@ -1845,10 +1846,8 @@
                                                                            !     the GFS dynamics gridded component.
       TYPE(ESMF_Grid) :: GRID_GFS_PHY                                      !<-- The ESMF grid for the integration attached to
                                                                            !     the GFS physics gridded component.
-
 !* GOCART Grid is pointed to ATM Grid
-      TYPE(ESMF_Grid), target :: GRID_GFS_ATM                              !<-- The ESMF grid for the integration attached to
-                                                                           !     the GFS ATM gridded component.
+      TYPE(ESMF_Grid), target :: GRID_GFS_ATM                                      !<-- The ESMF grid for the integration attached to
 
       TYPE(ESMF_Grid), pointer :: GRID_GFS_CHEM                            !<-- The ESMF grid for the integration attached to
                                                                            !     the GFS chemistry gridded component.
@@ -1872,6 +1871,10 @@
       CHARACTER(64) :: RESTART_FILENAME
 !
       TYPE(NEMSIO_GFILE) :: GFILE
+                                                                           !     the GFS ATM gridded component.
+      INTEGER, DIMENSION(100)      :: pe_member
+      CHARACTER(12)                :: PELAB
+      INTEGER(kind=KINT)           :: i, j, i1
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -1889,9 +1892,10 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_GridCompGet(gridcomp=ATM_GRID_COMP                      &  !<-- The ATM gridded component
-                           ,config  =CF                                 &  !<-- The config object (~namelist)
-                           ,rc      =RC)
+      CALL ESMF_GridCompGet(gridcomp = ATM_GRID_COMP                      &  !<-- The ATM gridded component
+                           ,config   = CF                                 &  !<-- The config object (~namelist)
+                           ,VM       = VM_LOCAL                           &
+                           ,rc       = RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -1919,10 +1923,14 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_VMGet(vm     =VM                                        &  !<-- The virtual machine
-                     ,pecount=TOTAL_TASKS                               &  !<-- # of MPI tasks for entire GFS system
-                     ,localpet=MYPE                                     &  !<-- Each MPI task ID
-                     ,rc     =RC)
+      CALL ESMF_VMGet(vm       = VM                                     &  !<-- The virtual machine
+                     ,pecount  = TOTAL_TASKS                            &  !<-- # of MPI tasks for entire GFS system
+                     ,localpet = MYPE_GLOBAL                            &  !<-- Each MPI task ID
+                     ,rc       = RC)
+
+      CALL ESMF_VMGet(vm       = VM_LOCAL                               &  !<-- The virtual machine
+                     ,localpet = MYPE                                   &  !<-- Each MPI task ID
+                     ,rc       = RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -1937,21 +1945,29 @@
                                   ,value =TOTAL_MEMBER                  &  !<-- Fill this variable 
                                   ,label ='total_member:'               &  !<-- Give the variable this label's value from the config file
                                   ,rc    =RC)
-!
-      NENS=TOTAL_TASKS/TOTAL_MEMBER
-      MODENS=TOTAL_TASKS-NENS*TOTAL_MEMBER
-!
-      IF(MYPE<MODENS*(NENS+1)) THEN
-        MEMBER_ID=MYPE/(NENS+1)+1
+
+      pe_member = 0
+      DO i = 1, TOTAL_MEMBER
+          WRITE(PELAB, '("PE_MEMBER", I2.2, ":")') i
+          CALL ESMF_ConfigGetAttribute(Cf, pe_member(i), label = PELAB, rc = RC)
+          IF(pe_member(i) == 0) pe_member(i) = TOTAL_TASKS / TOTAL_MEMBER
+      END DO
+
+      i1 = 0
+      DO j = 1, TOTAL_MEMBER
+          DO i = 1, pe_member(j)
+              IF(MYPE_GLOBAL == i1) THEN
+                  member_id = j
+              END IF
+              i1 = i1 + 1
+          END DO
+      END DO
+
+      IF(total_member == 1) THEN
+          ENSMEM_NAME = ' '
       ELSE
-        MEMBER_ID=MODENS+(MYPE-MODENS*NENS)/NENS+1
-      ENDIF
-!
-      IF(TOTAL_MEMBER==1) THEN
-        ENSMEM_NAME=' '
-      ELSE
-        WRITE(ENSMEM_NAME,'("_",i2.2)') MEMBER_ID
-      ENDIF
+          WRITE(ENSMEM_NAME, '("_",i2.2)') MEMBER_ID
+      END IF
 !
 !-----------------------------------------------------------------------
 !***  Model-specific routines must be invoked in order to establish
@@ -2016,6 +2032,10 @@
                                ,rc          =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -2106,9 +2126,6 @@
                          ,m   =IMINUTE_FCST                             &  !<-- Minute from restart file
                          ,s   =ISECOND_FCST                             &  !<-- Second from restart file
                          ,rc  =RC)
-         print *,'in gfs_atm_init, currtime,IYEAR_FCST=',IYEAR_FCST,   &
-        IMONTH_FCST,IDAY_FCST ,IHOUR_FCST,IMINUTE_FCST,ISECOND_FCST,  &
-        'ntsd=',ntsd
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC)
@@ -2192,6 +2209,16 @@
       EXP_GFS_DYN=ESMF_StateCreate(statename="dynamics export"          &
                                   ,statetype=esmf_state_export          &
                                   ,rc       =RC)
+! Add the GFS dynamics ESMF states as the nested states into the ATM parent states.
+!----------------------------------------------------------------------------------
+      CALL ESMF_StateAdd(IMP_STATE, IMP_GFS_DYN, rc = RC)
+      CALL ESMF_StateAdd(EXP_STATE, EXP_GFS_DYN, rc = RC)
+
+      MESSAGE_CHECK = "GFS set Cpl_flag"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+      CALL ESMF_AttributeGet(IMP_STATE,   'Cpl_flag', Cpl_flag, rc = RC)
+      CALL ESMF_AttributeSet(IMP_GFS_DYN, 'Cpl_flag', Cpl_flag, rc = RC)
+      CALL ERR_MSG(RC, MESSAGE_CHECK, RC_INIT)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -2222,7 +2249,6 @@
         PHYSICS_ON=ESMF_True
         write(0,*)' Initialize with physics coupling '
       ENDIF
-
 !-----------------------------------------------------------------------
 !***  Is this an atmosphere-only (no chemistry) run?
 !-----------------------------------------------------------------------
@@ -2233,16 +2259,16 @@
 
       IF(REG%doing_gocart)THEN                              !<-- GOCART => Chemistry on
 
-         CHEMISTRY_ON=ESMF_True                                         
+         CHEMISTRY_ON=ESMF_True
          write(0,*)' Initialize with gocart coupling '
 
       ELSE                                                  !<-- no  GOCART => Chemistry off
 
-         CHEMISTRY_ON=ESMF_False                                     
-         write(0,*)' Initialize without gocart coupling '    
+         CHEMISTRY_ON=ESMF_False
+         write(0,*)' Initialize without gocart coupling '
       ENDIF
 
-      CALL Chem_RegistryDestroy ( REG, IERR ) 
+      CALL Chem_RegistryDestroy ( REG, IERR )
 
 !
 !-----------------------------------------------------------------------
@@ -2332,7 +2358,7 @@
 !
         GRID_GFS_CHEM => GRID_GFS_ATM
 
-	print *,'LU_TST: GFS_ATM_INIT create chem comp'
+       print *,'LU_TST: GFS_ATM_INIT create chem comp'
         GC_GFS_CHEM=ESMF_GridCompCreate(name      ="chemistry component"   &
                                       ,ConfigFile='MAPL.rc'                &
                                       ,Grid      =GRID_GFS_CHEM            &
@@ -2340,7 +2366,7 @@
                                       ,petList   =PETLIST_FCST             &
                                       ,rc        =RC)
         write(0,*)'in GFS_ATM_INIT after chem comp created, petlist_fcst=',petlist_fcst
-	print *,'LU_TST: GFS_ATM_INIT  chem comp created,', RC
+       print *,'LU_TST: GFS_ATM_INIT  chem comp created,', RC
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -2354,13 +2380,11 @@
         MESSAGE_CHECK="Register Chemistry Init, Run, Finalize"
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-	print *,'LU_TST: GFS_ATM_INIT register chem comp'
+       print *,'LU_TST: GFS_ATM_INIT register chem comp'
         CALL ESMF_GridCompSetServices(GC_GFS_CHEM                       &
                                      ,GOCART_SETSERVICES               &
                                      ,RC=RC)
-	print *,'LU_TST: GFS_ATM_INIT  chem comp registered', RC
-
-
+       print *,'LU_TST: GFS_ATM_INIT  chem comp registered', RC
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -2389,18 +2413,6 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!***  Create the Dynamics-Physics coupler subcomponent.
-!***  Register the Initialize, Run, and Finalize steps for it.
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!
-!----------------------------
-!***  Create Dyn-Phy Coupler
-!----------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !***  Create the Dynamics-Physics coupler subcomponent.
@@ -2442,7 +2454,6 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!
 !----------------------------
 !***  Create Phy-Chem Coupler
 !----------------------------
@@ -2480,7 +2491,7 @@
 !-----------------------------------------------------------------------
 !***  Will the Write components with asynchronous quilting be used?
 !-----------------------------------------------------------------------
-! 
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract Quilting Flag from GFS Config File"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
@@ -2594,7 +2605,7 @@
         print *,'LU_TST: GFS_ATM_INIT chem comp initialized', RC
 
 !  check the state here
-	print *,'LU_TST: GFS_ATM_INIT print state'
+        print *,'LU_TST: GFS_ATM_INIT print state'
         CALL ESMF_StatePrint (IMP_GFS_CHEM)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2602,7 +2613,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       ENDIF
-
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -2625,7 +2635,6 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !***  Initialize the Phy-Chem Coupler subcomponent.
@@ -2647,6 +2656,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 
+
 !-----------------------------------------------------------------------
 !***  Execute the Initialize step of the Write component(s).
 !-----------------------------------------------------------------------
@@ -2657,6 +2667,16 @@
                          ,EXP_GFS_WRT                                   &
                          ,CLOCK_ATM                                     &
                          ,WRITE_GROUP_READY_TO_GO)
+!
+!-----------------------------------------------------------------------
+!***  WRITE THE FINAL ERROR SIGNAL.
+!-----------------------------------------------------------------------
+!
+      IF(RC_INIT==ESMF_SUCCESS)THEN
+          WRITE(0, *)'GFS ATM INITIALIZE STEP SUCCEEDED'
+      ELSE
+          WRITE(0, *)'GFS ATM INITIALIZE STEP FAILED RC_INIT=', RC_INIT
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !
@@ -2713,6 +2733,7 @@
       ELSEIF(CORE=='gfs')THEN
 !
         CALL GFS_ATM_RUN(ATM_GRID_COMP                                  &
+                        ,IMP_STATE                                      &
                         ,CLOCK_ATM)
 !
       ENDIF
@@ -2954,6 +2975,7 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
+!     write(0,*)' NMM_ATM_RUN before Run CPL Comp mype=',mype,' integer_dt=',integer_dt
           CALL ESMF_CplCompRun(cplcomp    =atm_int_state%COUPLER_DYN_PHY_COMP &  !<-- The Dynamics-Physics coupler component
                               ,importState=atm_int_state%EXP_STATE_PHY        &  !<-- The Coupler import state = Physics export state
                               ,exportState=atm_int_state%IMP_STATE_DYN        &  !<-- The Coupler export state = Dynamics import state
@@ -3026,6 +3048,7 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE GFS_ATM_RUN(ATM_GRID_COMP                              &
+                            ,IMP_STATE                                  &
                             ,CLOCK_ATM)
 !
 !-----------------------------------------------------------------------
@@ -3033,8 +3056,10 @@
 !-----------------------------------------------------------------------
 !
       TYPE(ESMF_GridComp),INTENT(INOUT) :: ATM_GRID_COMP                   !<-- ATM gridded component
+
+      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE                       !<-- The ATM import state
 !
-      TYPE(ESMF_Clock),INTENT(INOUT) :: CLOCK_ATM                          !<-- The ATM ESMF Clock
+      TYPE(ESMF_Clock),INTENT(INOUT)    :: CLOCK_ATM                       !<-- The ATM ESMF Clock
 !
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES
@@ -3088,6 +3113,9 @@
 !***  from the ATM component and then obtain the filter duration.
 !-----------------------------------------------------------------------
 !
+      MESSAGE_CHECK = "GFS get DFIHR from CF"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+
       CALL ESMF_GridCompGet(gridcomp=ATM_GRID_COMP                      &  !<-- Tha ATM component
                            ,config  =CF                                 &  !<-- The configure object
                            ,rc      =RC)
@@ -3096,6 +3124,8 @@
                                   ,value =DFIHR                         &  !<-- The DFI filter duration
                                   ,label ='nhours_dfini:'               &  !<-- Give this label's value to the previous variable
                                   ,rc    =RC)
+
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 !
 !-----------------------------------------------------------------------
 !***  Execute the GFS forecast runstream.
@@ -3128,6 +3158,16 @@
                         ,PHYSICS_ON                                     &
                         ,CHEMISTRY_ON)
 !
+!
+!-----------------------------------------------------------------------
+!***  WRITE THE FINAL ERROR SIGNAL.
+!-----------------------------------------------------------------------
+!
+      IF(RC_RUN == ESMF_SUCCESS) THEN
+          WRITE(0, *) 'GFS ATM RUN STEP SUCCEEDED'
+      ELSE
+          WRITE(0, *) 'GFS ATM RUN STEP FAILED RC_INIT=', RC_RUN
+      ENDIF
 !-----------------------------------------------------------------------
 !
       END SUBROUTINE GFS_ATM_RUN
@@ -3181,7 +3221,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Retrieve Config Object from ATM Component"
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompGet(gridcomp=ATM_GRID_COMP                      &  !<-- The ATM gridded component
@@ -3193,7 +3233,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract Dynamic Core Name"
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The config object

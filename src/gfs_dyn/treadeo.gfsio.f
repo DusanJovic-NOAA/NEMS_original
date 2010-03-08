@@ -1,4 +1,4 @@
-      SUBROUTINE TREADEO_gfsio(FHOUR,IDATE,
+      SUBROUTINE TREADEO_gfsio(IDATE,
      &                   GZE,QE,TEE,DIE,ZEE,RQE,
      &                   GZO,QO,TEO,DIO,ZEO,RQO,
      &                   zsg,psg,ttg,uug,vvg,rqg,
@@ -26,12 +26,12 @@
      &,             cpd => con_cp
       use gfsio_module
       use gfsio_def
+      USE gfs_dyn_date_def, ONLY: FHOUR
       use gfs_dyn_tracer_config, ONLY : gfs_dyn_tracer   ! generalized tracer
 
 !
       IMPLICIT NONE
       character*(*) cfile
-      REAL(KIND=KIND_EVOD) FHOUR
       INTEGER              IDATE(4),NTRACI, ntozi, ntcwi, ncldi
      &,                    latbi, lonbi, levsi, jcapi,
      &                     latgi, lonfi, latri, lonri
@@ -353,14 +353,14 @@
 !! Loop through ntrac to read in met + chem tracers
 !*
       do n = 1, ntrac
-        vname = trim(gfs_dyn_tracer%vname(n))
+        vname = trim(gfs_dyn_tracer%vname(n, 1))
         if(me==0) print *,'LU_TRC: initialize ',n,vname
         do k=1,levs
           call gfsio_readrecv(gfile_in,trim(vname),
      &                       'layer',k,gfsio_data,iret=iret)
           if(iret == 0) then
             if(me==0) print *,'LU_TRC: tracer read in ok -',
-     &                gfs_dyn_tracer%vname(n),k
+     &                gfs_dyn_tracer%vname(n, 1),k
             call split2d(gfsio_data,buffo,global_lats_a)
             CALL interpred(1,kmsk,buffo,rqg(1,1,k+(n-1)*levs),
      &                     global_lats_a,lonsperlat)
@@ -414,7 +414,7 @@
      &      ls_node,ls_nodes,max_ls_nodes,
      &      lats_nodes_a,global_lats_a,lonsperlat,
      &      epse,epso,SNNP1EV,SNNP1OD,
-     &      plnew_a,plnow_a,plnev_a,plnod_a,pwat,ptot,fhour)
+     &      plnew_a,plnow_a,plnev_a,plnod_a,pwat,ptot)
 
 !
       endif

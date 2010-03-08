@@ -1,17 +1,20 @@
 #!/bin/ksh
 set -ua
 
+export GEFS_ENSEMBLE=${GEFS_ENSEMBLE:-0}
+echo "GEFS_ENSEMBLE=" $GEFS_ENSEMBLE
+
+mkdir -p ${RUNDIR}
+
+if [ $GEFS_ENSEMBLE = 0 ] ; then
+
+####################################################################################################
+# For the stand alone GFS regression tests.
+####################################################################################################
+
 ####################################################################################################
 # Make configure and run files
 ####################################################################################################
-
-JBNME=NEMS_RT_${TEST_NR}_$$
-
-cat gfs_ll.IN       | sed s:_JBNME_:${JBNME}:g   \
-                    | sed s:_CLASS_:${CLASS}:g   \
-                    | sed s:_ACCNR_:${ACCNR}:g   \
-                    | sed s:_TASKS_:${TASKS}:g   \
-                    | sed s:_THRDS_:${THRD}:g    >  gfs_ll
 
 cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_PE1_:${PE1}:g       \
@@ -20,8 +23,12 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_THRDS_:${THRD}:g    \
                     | sed s:_NSOUT_:${NSOUT}:g   \
                     | sed s:_QUILT_:${QUILT}:g   \
-                    | sed s:_CP2_:${CP2}:g       \
                     | sed s:_IAER_:${IAER}:g       \
+                    | sed s:_wave_:${wave}:g     \
+                    | sed s:_lm_:${lm}:g         \
+                    | sed s:_lsoil_:${lsoil}:g   \
+                    | sed s:_MEMBER_NAMES_:${MEMBER_NAMES}:g   \
+                    | sed s:_CP2_:${CP2}:g       \
                     | sed s:_RUNDIR_:${RUNDIR}:g \
                     | sed s:_PATHTR_:${PATHTR}:g \
                     | sed s:_FDFI_:${FDFI}:g \
@@ -35,15 +42,41 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
 # Copy init files
 ####################################################################################################
 
-mkdir -p ${RUNDIR}
 cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
 cp MAPL.rc ${RUNDIR}/MAPL.rc
 cp ${RTPWD}/GFS_NODFI/gfsanl.2009072400 ${RUNDIR}/.
 cp ${RTPWD}/GFS_NODFI/sfcanl.2009072400 ${RUNDIR}/.
 
+else
+
+
+####################################################################################################
+# For the concurrency ensemble GEFS regression test.
+####################################################################################################
+
+cd $PATHRT
+
+echo 'RUNDIR=' $RUNDIR
+
+cp ${RTPWD}/GEFS_data_2008082500/* $RUNDIR
+
+cat gfs_fcst_run_GEFS.IN \
+                    | sed s:_SRCDIR_:${PATHTR}:g \
+                    | sed s:_RUNDIR_:${RUNDIR}:g > gfs_fcst_run
+
+fi
+
 ####################################################################################################
 # Submit test
 ####################################################################################################
+
+JBNME=NEMS_RT_${TEST_NR}_$$
+
+cat gfs_ll.IN       | sed s:_JBNME_:${JBNME}:g   \
+                    | sed s:_CLASS_:${CLASS}:g   \
+                    | sed s:_ACCNR_:${ACCNR}:g   \
+                    | sed s:_TASKS_:${TASKS}:g   \
+                    | sed s:_THRDS_:${THRD}:g    >  gfs_ll
 
 llsubmit gfs_ll 2>&1 | grep submitted > /dev/null
 
@@ -54,7 +87,6 @@ echo ${TEST_DESCR}
 (echo "GFS, ${TASKS} proc, ${THRD} thread";echo;echo)>> RegressionTests.log
  echo "GFS, ${TASKS} proc, ${THRD} thread";echo;echo
 
-
 # wait for the job to enter the queue
 job_running=0
 until [ $job_running -eq 1 ]
@@ -62,7 +94,6 @@ do
 echo "TEST is waiting to enter the queue"
 job_running=`llq -u ${LOGIN} -f %st %jn | grep ${JBNME} | wc -l`;sleep 1
 done
-
 
 job_running=1
 
@@ -81,6 +112,7 @@ else                          echo $n "min. TEST ${TEST_NR} is finished,        
 fi
 
 sleep 60
+
 job_running=`llq -u ${LOGIN} -f %st %jn | grep ${JBNME} | wc -l`
   (( n=n+1 ))
 done

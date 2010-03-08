@@ -929,7 +929,7 @@
 !  fill in tracer fields
       II = 5
       DO IJ=1, gfs_dyn_tracer%ntrac
-        DYN_INT_STATE_3D_R_DIAB(1,II+IJ) = gfs_dyn_tracer%vname(IJ)
+        DYN_INT_STATE_3D_R_DIAB(1,II+IJ) = gfs_dyn_tracer%vname(IJ, 1)
       ENDDO                                        
       IK = II  + gfs_dyn_tracer%ntrac     
 

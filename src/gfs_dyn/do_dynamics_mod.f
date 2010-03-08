@@ -18,6 +18,7 @@ cc
       public do_dynamics_gridomega
       public do_dynamics_gridfilter
       public do_dynamics_gridn2c
+      public do_dynamics_gridc2n
       public do_dynamics_gridn2m
       public do_dynamics_gridupdate
       public do_dynamics_gridpdp
@@ -626,6 +627,45 @@ cc
       return
       end subroutine do_dynamics_gridn2c
 
+!-------------------------------------------------------------------
+      subroutine do_dynamics_gridc2n(grid_gr,
+     &                               global_lats_a,lonsperlat)
+
+      real(kind=kind_grid) grid_gr(lonf*lats_node_a_max,lotgr)
+      integer,intent(in):: global_lats_a(latg)
+      integer,intent(in):: lonsperlat(latg)
+
+      integer	lan,lat,lons_lat,k,i
+      integer   jlonf,ilan
+
+      do lan=1,lats_node_a
+        lat = global_lats_a(ipt_lats_node_a-1+lan)
+        lons_lat = lonsperlat(lat)
+        jlonf = (lan-1)*lonf
+        do k=1,levs
+          do i=1,lons_lat
+            ilan=i+jlonf
+            grid_gr(ilan,G_u+k-1)=grid_gr(ilan,G_uu +k-1)
+            grid_gr(ilan,G_v+k-1)=grid_gr(ilan,G_vv +k-1)
+            grid_gr(ilan,G_t+k-1)=grid_gr(ilan,G_tt +k-1)
+          enddo
+        enddo
+        do k=1,levh
+          do i=1,lons_lat
+            ilan=i+jlonf
+            grid_gr(ilan,G_rt +k-1)=grid_gr(ilan,G_rq +k-1)
+          enddo
+        enddo
+        do i=1,lons_lat
+          ilan=i+jlonf
+          grid_gr(ilan,G_zq)=grid_gr(ilan,G_q)
+        enddo
+      enddo
+
+      return
+      end subroutine do_dynamics_gridc2n
+
+! -------------------------------------------------------------------
 !-------------------------------------------------------------------
       subroutine do_dynamics_gridn2m(grid_gr,
      &                               global_lats_a,lonsperlat)

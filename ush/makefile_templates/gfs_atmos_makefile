@@ -40,14 +40,15 @@ MAKEFILE=makefile
 TARGET= atmos.a
 
 MODULE=        \
-		module_GFS_CORE_SETUP.o \
-		module_GOCART_INTEGRATE.o \
-		module_GFS_INTEGRATE.o
+	        module_GFS_WRITE.o \
+	        module_GFS_CORE_SETUP.o \
+	        module_GOCART_INTEGRATE.o \
+	        module_GFS_INTEGRATE.o
 
 MODULE_ATM=    \
-		module_ATM_DRIVER_INTERNAL_STATE.o \
-		module_ATM_DRIVER_COMP.o \
-		module_ATM_GRID_COMP.o
+	        module_ATM_DRIVER_INTERNAL_STATE.o \
+	        module_ATM_DRIVER_COMP.o \
+	        module_ATM_GRID_COMP.o
 
 .SUFFIXES:	.F90 .f90 .o
 
@@ -81,5 +82,6 @@ clean:
 # DEPENDENCIES
 #
 
-module_ATM_DRIVER_COMP.o:	module_ATM_DRIVER_INTERNAL_STATE.o \
-                          	module_ATM_GRID_COMP.o 
+module_ATM_DRIVER_COMP.o:       module_ATM_DRIVER_INTERNAL_STATE.o \
+	                        module_ATM_GRID_COMP.o
+

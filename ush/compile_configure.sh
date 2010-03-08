@@ -10,6 +10,7 @@
 # 06Nov2009   Sarah Lu, change make to gmake
 # 06Nov2009   Sarah Lu, NEMSTOPDIR passed onto compile_settings
 # 06Nov2009   Sarah Lu,   GOCART_MODE passed onto compile_settings
+# 01/21/2010  Weiyu Yang Modified for GEFS.
 ################################################################################
 #
 #  Used to set the following Load Leveler commands in serial batch jobs in the
@@ -47,24 +48,23 @@ echo "NEMSTOPDIR = ${NEMSTOPDIR}" > temp.mk
 
     if [[ $2 = 'gfs_physics' ]]
     then
-    cat compile_options/nmm_compile_options_${OS}.IN | sed s:_GFS_PHY_LIB_:'$(LIBDIR)/lib/gfs_phys.a':g > compile_options/nmm_compile_options_${OS} 
-####cat compile_options/gen_compile_options_${OS} compile_options/nmm_compile_options_${OS} > compile_settings
+    cat compile_options/nmm_compile_options_${OS}.IN | sed s:_GFS_PHY_LIB_:'$(LIBDIR)/lib/gfs_phys.a':g > compile_options/nmm_compile_options_${OS}
+###cat compile_options/gen_compile_options_${OS} compile_options/nmm_compile_options_${OS} > compile_settings
     cat temp.mk compile_options/gen_compile_options_${OS} compile_options/nmm_compile_options_${OS} > compile_settings
     cat makefile_templates/main_makefile_nmm_stub.IN | sed s:_GFS_PHYSICS_:#:g \
-	| sed s:_GFS_PHY_LIB_LOC_:#:g >  makefile_templates/main_makefile_nmm_stub
+        | sed s:_GFS_PHY_LIB_LOC_:#:g >  makefile_templates/main_makefile_nmm_stub
     cp -f makefile_templates/main_makefile_nmm_stub ../src/main/Makefile_stub
-###cat makefile_templates/main_makefile_nmm.IN | sed s:_GFS_PHYSICS_:'cd $(GFS_PHY) \&\& make -f makefile_gfs_full_physics':g > makefile_templates/main_makefile_nmm 
-    cat makefile_templates/main_makefile_nmm.IN | sed s:_GFS_PHYSICS_:'cd $(GFS_PHY) \&\& gmake -f makefile_gfs_full_physics':g > makefile_templates/main_makefile_nmm 
-    else 
+    cat makefile_templates/main_makefile_nmm.IN | sed s:_GFS_PHYSICS_:'cd $(GFS_PHY) \&\& gmake -f makefile_gfs_full_physics':g > makefile_templates/main_makefile_nmm
+    else
     echo 'ok'
     cat compile_options/nmm_compile_options_${OS}.IN | sed s:_GFS_PHY_LIB_:'$(LIBDIR)/libstub/gfs_phys_stub.a':g > compile_options/nmm_compile_options_${OS}
 ####cat compile_options/gen_compile_options_${OS} compile_options/nmm_compile_options_${OS} > compile_settings
     cat temp.mk compile_options/gen_compile_options_${OS} compile_options/nmm_compile_options_${OS} > compile_settings
 ####cat makefile_templates/main_makefile_nmm_stub.IN | sed s:_GFS_PHYSICS_:'cd $(GFS_PHY) \&\& make -f makefile_stub':g \
     cat makefile_templates/main_makefile_nmm_stub.IN | sed s:_GFS_PHYSICS_:'cd $(GFS_PHY) \&\& gmake -f makefile_stub':g \
-        | sed s:_GFS_PHY_LIB_LOC_:'cp $(GFS_PHY)/gfs_physics_grid_comp_mod.mod $(MODDIR)/modstub/gfs':g >  makefile_templates/main_makefile_nmm_stub
+	| sed s:_GFS_PHY_LIB_LOC_:'cp $(GFS_PHY)/gfs_physics_grid_comp_mod.mod $(MODDIR)/modstub/gfs':g >  makefile_templates/main_makefile_nmm_stub
     cat makefile_templates/main_makefile_nmm.IN | sed s:_GFS_PHYSICS_:#:g > makefile_templates/main_makefile_nmm
-    fi 
+    fi
     cp -f makefile_templates/main_makefile_nmm_stub ../src/main/Makefile_stub
     cp -f makefile_templates/main_makefile_nmm ../src/main/Makefile_main
     cp -f makefile_templates/nmm_atmos_makefile ../src/main/atmos/makefile

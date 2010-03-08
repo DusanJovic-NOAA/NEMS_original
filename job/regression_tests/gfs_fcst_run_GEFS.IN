@@ -1,32 +1,22 @@
 #!/bin/ksh
 #
-# @ job_name = run_atmos
-# @ job_type = parallel
-# @ account_no = GFS-T2O
-# @ output = out2
-# @ error =  err2
-###### @ total_tasks = 96
-###### @ blocking = unlimited
-###### @ resources = ConsumableMemory(4000mb) ConsumableCpus(1)
-# @ node_usage = not_shared
-## @ tasks_per_node = 16
-# @ tasks_per_node = 1
-# @ node = 1
-# @ network.MPI=csss,shared,us
-# @ class = dev
-### @ class = dev
-# @ group = dev
-# @ wall_clock_limit = 01:15:00
-# @ queue
-#
 set -x
 #
- export CDATE=2007070200
+ export CDATE=2008082500
 
-
-#export EXPLICIT=.true.
+ export EXPLICIT=.false.
  export ADIAB=.false.
- export REDUCED_GRID=.false.
+
+# The old Henry's version required.
+#----------------------------------
+ export HORI_DIFF=.true.
+ export DAMP_WIND=.true.
+
+ export QUILTING=.false.
+ export WRT_GROUP=1
+ export WRTPE_PER_GROUP=1
+
+ export REDUCED_GRID=.true.
 
 # SFCPRESS_ID=0 or 1 for ln(psfc), 2 for psfc
  export SFCPRESS_ID=2
@@ -51,20 +41,26 @@ export RIlist="  286.05,   461.50, 173.2247,    0.0"
 #    Set up horizontal and vertical resolution ; default will be T6264
 #
 #export wave=382 ; export lm=64 ; export lsoil=4
- export wave=62 ; export lm=64 ; export lsoil=4
+ export wave=190 ; export lm=28 ; export lsoil=4
+# export wave=62 ; export lm=64 ; export lsoil=4
 #export wave=62 ; export lm=64 ; export lsoil=2 ; export lsm=0
 #
-export NCP=cp
+#export NCP=cp
 export FTSFS=0.0
 export FAISS=0.0
 #
 #  This script is NOT complete for running multiple ensemble members
 #
- export ENS_NUM=1
+ export ENS_NUM=4
+ export ENS_SPS=.true.
 #
- tasks=1  ; export PE1=1 
-#tasks=1   ; export PE1=1
-#
+
+c=1
+while [ $c -le $ENS_NUM ] ; do
+ eval export PE$c=\${PE$c:-0}
+ c=$((c+1))
+done
+
 export MP_STDOUTMODE=ordered
 export MP_LABELIO=yes
 export MP_SHARED_MEMORY=yes
@@ -81,14 +77,10 @@ export MALLOCMULTIHEAP=true
 #
 #    Set up experiment and directory names
 #
- export expt=gfs.0
-#
  export NSCDIR=/global/noscrub
  export TOPDIR=/global/save
  export DUMPDIR=/global/shared/dump
- export MP_COREFILE_FORMAT=lite 
- export RUNDIR=${RUNDIR:-/ptmp/$LOGNAME/$expt}
- export SCRIPTS=${SCRIPTS:-$TOPDIR/wx23sm/gsm/scripts}
+# export MP_COREFILE_FORMAT=lite 
 
  export fcst_begin=${fcst_begin:-YES}
  export cold_sfc=${cold_sfc:-NO}
@@ -102,12 +94,12 @@ export MALLOCMULTIHEAP=true
 #    needs to be specified. ndays is the Length of #orecast in days
 #    begining from nhourb
 #
- export ndays=2
+ export ndays=1
 if [[ ${fcst_begin} = YES ]] ; then
  export nhourb=0
 else
- if [[ -s $RUNDIR/sigr1$FM ]] ; then
-   export nhourb=`/nwprod/exec/global_sighdr $RUNDIR/sigr1$FM ifhr`
+ if [[ -s _RUNDIR_/sigr1$FM ]] ; then
+   export nhourb=`/nwprod/exec/global_sighdr _RUNDIR_/sigr1$FM ifhr`
    export FHROT=${FHROT:-$nhourb}
  else
    nhourb=$((ndays*24))
@@ -115,7 +107,10 @@ else
 fi
 #
 #
-export nhours=`expr $ndays \* 24`
+
+export nhours=6
+
+#export nhours=`expr $ndays \* 24`
 
 #
 # For two tracers
@@ -123,11 +118,12 @@ export nhours=`expr $ndays \* 24`
 #
 #
  export fmax=$nhours
- export fout=3  
- export fzer=3  
+ export fout=6  
+ export fzer=6  
  export fcyc=0 
  export fdfi=0 
- export FHRES=$nhours
+ export FHRES=12
+# export FHRES=$nhours
 #
 #    Forecast model : horizontal truncation  and vertical levels
 #                     ---------------------
@@ -142,6 +138,9 @@ export NTCW=${NTCW:-3}
 export NCLD=${NCLD:-1}
 export NMTVR=${NMTVR:-14}
 #
+export MEMBER_NAMES="p01 p02 p03 c00"
+# export MEMBER_NAMES="p01 p02 p03 p04 p05 p06 p07 p08 p09 p10 p11 p12 p13 p14 p15 p16 p17 p18 p19 p20 c00"
+
 export nsout=${nsout:-0}
 export lsm=${lsm:-1}
 #
@@ -162,20 +161,23 @@ export LEVR=${levr:-0}
 #
 #     Forecaset script and executable name
 #
- export FCSTSCRIPT=/meso/save/${USER}/trunk/run/exglobal_fcst.sh.sms_nems
- export FCSTEXEC=/meso/save/${USER}/trunk/MAIN_NEMS.x
-# export FCSTEXEC=/meso/save/${USER}/global_atmos.fd/nems_main_gfs.x
+# export FCSTSCRIPT=$TOPDIR/wx20wy/tskf/D/e/nwgelz/scripts/nems/exglobal_fcst_atm_gfsio.sh.sms_co2
+
+ export FCSTSCRIPT=_SRCDIR_/job/exglobal_fcst.sh.sms_nems
+echo 'FCSTSCRIPT=' $FCSTSCRIPT
+ export FCSTEXEC=_SRCDIR_/exe/GFS_NEMS.x
+echo 'FCSTEXEC=' $FCSTEXEC
 #
 #
 # ***************************************************************
 #    Below here no change needed most of the time
 #    ____________________________________________
 #
-cp configfile_global_new configure_file
-cp configure_file $RUNDIR
-mkdir -p $RUNDIR
-cd $RUNDIR
- export COMOUT=$RUNDIR
+
+cp /global/save/wx20wy/svn_nems_trunk/trunk_work3/job/regression_tests/gfs_configfile_190 _RUNDIR_/configure_file
+
+cd _RUNDIR_
+ export COMOUT=_RUNDIR_
 #
  export FIXGLOBAL=/nwprod/fix
  export FIX_RAD=/global/save/wx23hh/00wkgfs/fix/fix_rad
@@ -234,8 +236,9 @@ fi
   export LATB=$jm
   export VERBOSE=YES
 #
-  export SIGI=$RUNDIR/gfsanl.$CDATE
-  export SFCI=$RUNDIR/sfcanl.$CDATE
+  export SIGI=_RUNDIR_/gfsanl.$CDATE
+  export GRDI=_RUNDIR_/gfsanl.$CDATE
+  export SFCI=_RUNDIR_/sfcanl.$CDATE
   export FHINI=00
 #
 # ---------------------------------------- fcst ----------------------

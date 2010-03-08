@@ -6,7 +6,7 @@
      &     ls_node,ls_nodes,max_ls_nodes,
      &     lats_nodes_a,global_lats_a,lonsperlat,
      &     epse,epso,snnp1ev,snnp1od,
-     &     plnew_a,plnow_a,plnev_a,plnod_a,pwat,ptot,fhour)
+     &     plnew_a,plnow_a,plnev_a,plnod_a,pwat,ptot)
 !!
 !! hmhj - this routine do spectral to grid transform 
 !!        from gfsio read in field, to model fields
@@ -38,7 +38,6 @@
       REAL(KIND=KIND_GRID) tki    (lonf,levp1)
       REAL(KIND=KIND_GRID) prsi   (lonf,levp1)
 
-      real(kind=kind_evod)  fhour
       real(kind=kind_evod)  tkrt0
       real(kind=kind_evod), parameter :: rkappa = cp / rd
 !

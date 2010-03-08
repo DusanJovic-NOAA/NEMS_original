@@ -58,7 +58,6 @@
       integer 		:: j, l, n, ilat, locl, ikey, nrank_all
 !!
       integer 		nf0, nf1
-      real 		fd2
       integer           indlsev,jbasev,indev
       integer           indlsod,jbasod,indod
 !!
@@ -89,15 +88,15 @@
 !
       call tracer_config_init( gis_dyn%gfs_dyn_tracer, gis_dyn%ntrac,   &
                                gis_dyn%ntoz, gis_dyn%ntcw,              &
-                               gis_dyn%ncld,  me )          
-      gfs_dyn_tracer = gis_dyn%gfs_dyn_tracer               
+                               gis_dyn%ncld,  me )
+      gfs_dyn_tracer = gis_dyn%gfs_dyn_tracer
       if( me == 0) then
-       write(0,*)'LU_TRC, exit tracer_config_init in dyn'  
+       write(0,*)'LU_TRC, exit tracer_config_init in dyn'
        write(0,*)'LU_TRC, ntrac=     ',gfs_dyn_tracer%ntrac,ntrac
        write(0,*)'LU_TRC, ntrac_met =',gfs_dyn_tracer%ntrac_met
        write(0,*)'LU_TRC, ntrac_chem=',gfs_dyn_tracer%ntrac_chem
-       do n = 1, gfs_dyn_tracer%ntrac 
-        write(0,*)'LU_TRC, tracer_vname=',gfs_dyn_tracer%vname(n)
+       do n = 1, gfs_dyn_tracer%ntrac
+        write(0,*)'LU_TRC, tracer_vname=',gfs_dyn_tracer%vname(n, :)
        enddo
       endif
 !
@@ -136,6 +135,7 @@
       lnted  = lnte 
       lntod  = lnto 
 
+!jw      ngrids_gg       = 2+levs*(4+ntrac)
       ngrids_gg       = 2+levs*(5+ntrac)
       gis_dyn%lnt2    = lnt2
 
@@ -149,6 +149,7 @@
       allocate(rcs2_a(latg2))
       allocate(sinlat_a(latg))
       allocate(coslat_a(latg))
+      coslat_a = 0
 
       allocate(am(levs,levs))
       allocate(bm(levs,levs))
@@ -197,12 +198,12 @@
          d_m  =444444444.
 !
 
-!hmhj allocate(z(lnt2))	! not used
-!hmhj allocate(z_r(lnt2))	! not used
+!hmhj allocate(z(lnt2))        ! not used
+!hmhj allocate(z_r(lnt2))      ! not used
 !
       write(0,*)'before allocate lonsperlat,',allocated(gis_dyn%lonsperlat),'latg=',latg
       allocate(gis_dyn%lonsperlat(latg))
-!
+
       if( reduced_grid ) then
         print *,' run with reduced gaussian grid '
         call set_lonsgg(gis_dyn%lonsperlat)
@@ -402,11 +403,12 @@
 !c
       write(0,*)'befpre allocate ls_nodes,',allocated(gis_dyn%ls_nodes),'ls_dim=', &
         ls_dim,'nodes=',nodes
+!c
       allocate (      gis_dyn%ls_node (ls_dim*3) )
       allocate (      gis_dyn%ls_nodes(ls_dim,nodes) )
       allocate (  gis_dyn%max_ls_nodes(nodes) )
 !c
-      allocate (  gis_dyn%lats_nodes_a_fix(nodes))     ! added for mGrid 
+      allocate (  gis_dyn%lats_nodes_a_fix(nodes))     ! added for mGrid
 !c
       allocate (  gis_dyn%lats_nodes_a(nodes) )
       allocate ( gis_dyn%global_lats_a(latg) )
@@ -485,25 +487,24 @@
       gis_dyn%nblck=lonf/ngptc+1
 
 !
-! initialize coord def (xlon,xlat) and lats_nodes_a_fix          
+! initialize coord def (xlon,xlat) and lats_nodes_a_fix
 !
-      gis_dyn%lats_nodes_a_fix(:) = gis_dyn%lats_node_a_max     
-      allocate ( gis_dyn%XLON(lonf,gis_dyn%lats_node_a) )     
-      allocate ( gis_dyn%XLAT(lonf,gis_dyn%lats_node_a) )     
+      gis_dyn%lats_nodes_a_fix(:) = gis_dyn%lats_node_a_max
+      allocate ( gis_dyn%XLON(lonf,gis_dyn%lats_node_a) )
+      allocate ( gis_dyn%XLAT(lonf,gis_dyn%lats_node_a) )
 
-      call gfs_dyn_lonlat_para(gis_dyn%global_lats_a,        &   
-              gis_dyn%xlon, gis_dyn%xlat, gis_dyn%lonsperlat)  
+      call gfs_dyn_lonlat_para(gis_dyn%global_lats_a,        &
+              gis_dyn%xlon, gis_dyn%xlat, gis_dyn%lonsperlat)
 
       call countperf(0,18,0.)
 !!
       call countperf(0,15,0.)
       allocate (      gis_dyn%trie_ls(len_trie_ls,2,lotls) )
       allocate (      gis_dyn%trio_ls(len_trio_ls,2,lotls) )
-!! grid_gr unfolded (sarah lu)
-!!    allocate (      gis_dyn%grid_gr(lonf*lats_node_a_max,lotgr) )
-      allocate (      gis_dyn%grid_gr(lonf,lats_node_a_max,lotgr) )
-      allocate (      gis_dyn%pwat   (lonf,lats_node_a) )
-      allocate (      gis_dyn%ptot   (lonf,lats_node_a) )
+      allocate (      gis_dyn%grid_gr (lonf,lats_node_a_max,lotgr    ) )
+      allocate (      gis_dyn%grid_gr6(lonf,lats_node_a_max,lota * 2 ) )
+      allocate (      gis_dyn%pwat    (lonf,lats_node_a) )
+      allocate (      gis_dyn%ptot    (lonf,lats_node_a) )
 !c
       allocate (     gis_dyn%syn_ls_a(4*ls_dim,gis_dyn%lots,latg2) )
       allocate (     gis_dyn%dyn_ls_a(4*ls_dim,gis_dyn%lotd,latg2) )
@@ -562,11 +563,11 @@
         allocate( gis_dyn%grid_gr_dfi%dpdt(lonf,lats_node_a_max,levs))
       endif
 !
-!** allocate output vars
+!## allocate output vars
       allocate(buff_mult_pieceg(lonf,lats_node_a_max,ngrids_gg))
       buff_mult_pieceg=0.
       adiabatic=gis_dyn%adiabatic
-!**
+!##
 
 !!
       allocate (      gis_dyn%fhour_idate(1,5) )
@@ -576,6 +577,11 @@
      print*, ' lats_dim_ext=', lats_dim_ext,              &
               ' lats_node_ext=', lats_node_ext
 !c
+      gis_dyn%grid_gr  = 0.0
+      gis_dyn%grid_gr6 = 0.0
+      gis_dyn%ptot     = 0.0
+      gis_dyn%pwat     = 0.0
+
       if (gis_dyn%lslag) then
         ilat=lats_node_ext
       else
@@ -607,7 +613,7 @@
           gis_dyn%snnp1ev, gis_dyn%snnp1od,                                  &
           gis_dyn%global_lats_a, gis_dyn%lonsperlat,                         &
           gis_dyn%epse, gis_dyn%epso, gis_dyn%plnev_a, gis_dyn%plnod_a,      &
-          gis_dyn%plnew_a, gis_dyn%plnow_a, gis_dyn%lats_nodes_a,	     &
+          gis_dyn%plnew_a, gis_dyn%plnow_a, gis_dyn%lats_nodes_a,           &
           gis_dyn%pwat, gis_dyn%ptot)
 !
           gis_dyn% start_step  = .true.

@@ -1,4 +1,4 @@
-Thu Mar  4 12:41:50 EST 2010
+Mon Mar  8 13:43:38 EST 2010
 Start Regression test
 
 
@@ -29,7 +29,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  146.92  , test_glob timing:  147.54
+ Original timing:  146.92  , test_glob timing:  147.87
 
 
 Test 002
@@ -170,7 +170,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  235.58  , test_reg timing:  235.36
+ Original timing:  235.58  , test_reg timing:  235.08
 
 
 Test 009
@@ -652,4 +652,61 @@ Checking test 029 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 029 passed 
-Thu Mar  4 15:21:02 EST 2010
+Test 030
+Concurrency GEFS, stochastic perturbations, 4 members, T190L28.
+GFS, 64 proc, 1 thread
+
+
+
+
+Checking test 030 results ....
+ Comparing SIG.F06_01.........OK
+ Comparing SIG.F06_02.........OK
+ Comparing SIG.F06_03.........OK
+ Comparing SIG.F06_04.........OK
+ Comparing SIG.F12_01.........OK
+ Comparing SIG.F12_02.........OK
+ Comparing SIG.F12_03.........OK
+ Comparing SIG.F12_04.........OK
+ Comparing SIG.F18_01.........OK
+ Comparing SIG.F18_02.........OK
+ Comparing SIG.F18_03.........OK
+ Comparing SIG.F18_04.........OK
+ Comparing SIG.F24_01.........OK
+ Comparing SIG.F24_02.........OK
+ Comparing SIG.F24_03.........OK
+ Comparing SIG.F24_04.........OK
+ Comparing SFC.F06_01.........OK
+ Comparing SFC.F06_02.........OK
+ Comparing SFC.F06_03.........OK
+ Comparing SFC.F06_04.........OK
+ Comparing SFC.F12_01.........OK
+ Comparing SFC.F12_02.........OK
+ Comparing SFC.F12_03.........OK
+ Comparing SFC.F12_04.........OK
+ Comparing SFC.F18_01.........OK
+ Comparing SFC.F18_02.........OK
+ Comparing SFC.F18_03.........OK
+ Comparing SFC.F18_04.........OK
+ Comparing SFC.F24_01.........OK
+ Comparing SFC.F24_02.........OK
+ Comparing SFC.F24_03.........OK
+ Comparing SFC.F24_04.........OK
+ Comparing FLX.F06_01.........OK
+ Comparing FLX.F06_02.........OK
+ Comparing FLX.F06_03.........OK
+ Comparing FLX.F06_04.........OK
+ Comparing FLX.F12_01.........OK
+ Comparing FLX.F12_02.........OK
+ Comparing FLX.F12_03.........OK
+ Comparing FLX.F12_04.........OK
+ Comparing FLX.F18_01.........OK
+ Comparing FLX.F18_02.........OK
+ Comparing FLX.F18_03.........OK
+ Comparing FLX.F18_04.........OK
+ Comparing FLX.F24_01.........OK
+ Comparing FLX.F24_02.........OK
+ Comparing FLX.F24_03.........OK
+ Comparing FLX.F24_04.........OK
+ Test 030 passed 
+Mon Mar  8 16:42:21 EST 2010

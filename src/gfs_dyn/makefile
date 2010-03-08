@@ -13,11 +13,12 @@ OBJS0	= \
 	  gfs_dynamics_grid_create_mod.o	\
 	  gfs_dynamics_output.o          	\
 	  gfs_dynamics_getcf_mod.o		\
+	  GFS_AddParameterToStateMod.o          \
 	  gfs_dynamics_initialize_mod.o		\
 	  gfs_dynamics_run_mod.o		\
 	  gfs_dynamics_finalize_mod.o		\
-	  gfs_dynamics_add_get_state_mod.o	\
-	  gfs_dyn_states_mod.o		\
+	  gfs_dynamics_add_get_state_ESMFField_mod.o	\
+	  gfs_dyn_states_mod.o                  \
 	  gfs_dynamics_grid_comp_mod.o
 	  
 
@@ -32,17 +33,17 @@ OBJ_MOD	= \
 	  gfs_dyn_layout1.o             \
 	  namelist_dynamics_def.o       \
 	  gfs_dyn_coordinate_def.o      \
-	  gfs_dyn_lon_lat_para.o	\
+	  gfs_dyn_lon_lat_para.o        \
 	  gfs_dyn_tracer_const.o  	\
-	  gfs_dyn_tracer_config.o	\
+	  gfs_dyn_tracer_config.o       \
 	  gfs_dyn_reduce_lons_grid_module.o \
 	  gfs_dyn_matrix_sig_def.o      \
 	  gfs_dyn_mpi_def.o             \
 	  semi_lag_def.o        	\
 	  gfs_dyn_deldifs_def.o         \
 	  gfs_dyn_bfilt_def.o   	\
-	  gfs_dyn_glats.o	 \
-	  gfs_dyn_dfi_mod.o	 \
+	  gfs_dyn_glats.o	        \
+	  gfs_dyn_dfi_mod.o             \
           gfsio_module.o                \
 	  gfsio_def.o	                \
 	  wrtout_dynamics.o 
@@ -108,10 +109,11 @@ OBJS   = \
 	omega_hyb.o          	\
 	omega_gch.o          	\
 	do_dynamics_mod.o          \
-	gfs_dficoll_dynamics.o     \
+	gfs_dficoll_dynamics.o       \
 	do_dynamics_one_loop.o       \
 	do_dynamics_two_loop.o       \
 	model_to_common_vars.o      \
+	model_to_common_vars_1.o     \
 	gather_times.o               \
 	four2fln.o                   \
 	sortrx.o                     \
@@ -135,6 +137,7 @@ OBJS_IO= \
 	twrites_rst.o     \
 	twriteg_rst.o     \
 	grid_to_spect_inp.o    \
+	grid_to_spect_inp_1.o  \
 	spect_to_grid_inp.o    \
 	setsig.o           \
 	bafrio.o
@@ -204,23 +207,26 @@ getaer.o:	getaer.f
 treadeo.gfsio.o:	treadeo.gfsio.f
 		$(FC) $(FFLAGIO) -c treadeo.gfsio.f
 
-treadg_nemsio.o:	treadg_nemsio.f
-		$(FC) $(FFLAG_GFS_DYN) -c treadg_nemsio.f
+treadg_nemsio.o:       treadg_nemsio.f
+	        $(FC) $(FFLAG_GFS_DYN) -c treadg_nemsio.f
 
-treads_nemsio.o:	treads_nemsio.f
-		$(FC) $(FFLAG_GFS_DYN) -c treads_nemsio.f
+treads_nemsio.o:       treads_nemsio.f
+	        $(FC) $(FFLAG_GFS_DYN) -c treads_nemsio.f
 
-twriteg_rst.o:	twriteg_rst.f
-		$(FC) $(FFLAG_GFS_DYN) -c twriteg_rst.f
+twriteg_rst.o: twriteg_rst.f
+	       $(FC) $(FFLAG_GFS_DYN) -c twriteg_rst.f
 
-twrites_rst.o:	twrites_rst.f
-		$(FC) $(FFLAG_GFS_DYN) -c twrites_rst.f
+twrites_rst.o: twrites_rst.f
+	        $(FC) $(FFLAG_GFS_DYN) -c twrites_rst.f
 
 spect_to_grid_inp.o:	spect_to_grid_inp.f
 		$(FC) $(FFLAGIO) -c spect_to_grid_inp.f
 
 grid_to_spec_inp.o:	grid_to_spec_inp.f
 		$(FC) $(FFLAGIO) -c grid_to_spec_inp.f
+
+grid_to_spec_inp_1.o:   grid_to_spec_inp_1.f
+	        $(FC) $(FFLAGIO) -c grid_to_spec_inp_1.f
 
 grid_collect.o:	grid_collect.f
 		$(FC) $(FFLAG_GFS_DYN) -c grid_collect.f
@@ -249,10 +255,13 @@ gfs_dynamics_getcf_mod.o:	 gfs_dynamics_getcf_mod.f
 gfs_dynamics_internal_state_mod.o:	 gfs_dynamics_internal_state_mod.f
 		$(FC) $(FFLAG90) -c gfs_dynamics_internal_state_mod.f
 
-gfs_dynamics_add_get_state_mod.o:	 gfs_dynamics_add_get_state_mod.f
-		$(FC) $(FFLAG90) -c gfs_dynamics_add_get_state_mod.f
+GFS_AddParameterToStateMod.o:    GFS_AddParameterToStateMod.f
+	        $(FC) $(FFLAG90) -c GFS_AddParameterToStateMod.f
 
-gfs_dyn_states_mod.o:		gfs_dyn_states_mod.f
+gfs_dynamics_add_get_state_ESMFField_mod.o:	 gfs_dynamics_add_get_state_ESMFField_mod.f
+		$(FC) $(FFLAG90) -c gfs_dynamics_add_get_state_ESMFField_mod.f
+
+gfs_dyn_states_mod.o:	 gfs_dyn_states_mod.f
 		$(FC) $(FFLAG90) -c gfs_dyn_states_mod.f
 
 gfs_dynamics_initialize_mod.o:	 gfs_dynamics_initialize_mod.f
@@ -266,7 +275,7 @@ gfs_dynamics_finalize_mod.o:	 gfs_dynamics_finalize_mod.f
 
 gfs_dynamics_grid_comp_mod.o:	 gfs_dynamics_grid_comp_mod.f
 		$(FC) $(FFLAG90) -c gfs_dynamics_grid_comp_mod.f
-
 ### use FFLAGSDB compile option
-gfs_dyn_tracer_config.o:	 gfs_dyn_tracer_config.f
-		$(FC) $(FFLAGSDB) -c gfs_dyn_tracer_config.f
+gfs_dyn_tracer_config.o:         gfs_dyn_tracer_config.f
+	        $(FC) $(FFLAGSDB) -c gfs_dyn_tracer_config.f
+

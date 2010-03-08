@@ -73,14 +73,14 @@
 !
 !---------------------------------------------------------------------
 !
-!      print *,' enter twriteg_rst ' 
-!      print *,'lonf=',lonf,'lats_node_a_max=',lats_node_a_max,
+!       print *,' enter twriteg_rst ' 
+!       print *,'lonf=',lonf,'lats_node_a_max=',lats_node_a_max,
 !     &  'total_levels=',3*levs+1*levh+1,'lonsperlat=',lonsperlat
 
       allocate ( grid_node ( lonf,lats_node_a_max,3*levs+1*levh+1 ) )
 !
       fieldsize=sum(lonsperlat)
-      print *,'fieldsize=',fieldsize
+!      print *,'fieldsize=',fieldsize
 !
 !collect data 
       kps=1
@@ -132,7 +132,7 @@
         lenrec = lonf*lats_node_a_max * (3*levs+1*levh+1)
 !
         t1=rtc()
-        print *,'after allocate grid_nodes,lenrec=',lenrec
+!        print *,'after allocate grid_nodes,lenrec=',lenrec
         call mpi_gather( grid_node , lenrec, MPI_R_MPI_R,
      x                 grid_nodes, lenrec, MPI_R_MPI_R,
      x                 ioproc, MPI_COMM_ALL, ierr)

@@ -15,7 +15,7 @@
 !  oct 17 2009      Sarah Lu, add debug print to check imp/exp state
 !  dec 10 2009      Sarah Lu, add debug print to chekc fcld
 !  dec 15 2009      Sarah Lu, add debug print to chekc 3d diag fld (fcld, dqdt)
-!  Feb 05 2010      Jun Wang, set init time for restart 
+!  Feb 05 2010      Jun Wang, set init time for restart
 !                           
 !
 ! !interface:
@@ -41,8 +41,8 @@
 !jw
       USE gfs_physics_output,             ONLY: point_physics_output_gfs
 !
-      use GFS_Phy_States_Mod,             ONLY: gfs_physics_import2internal_mgrid, &  
-                                                gfs_physics_internal2export_mgrid  
+      use GFS_Phy_States_Mod,             ONLY: gfs_physics_import2internal, &  
+                                                gfs_physics_internal2export  
 !
       implicit none
 
@@ -203,11 +203,6 @@
       integer                            :: atm_timestep_s, phy_timestep_s
       integer(esmf_kind_i8)              :: advancecount
 
-      INTEGER , DIMENSION(:, :), POINTER :: i2
-
-      TYPE(ESMF_DistGrid)                :: DistGrid0    ! the ESMF DistGrid.
-      TYPE(ESMF_DistGrid)                :: DistGrid3    ! the ESMF DistGrid.
-      TYPE(ESMF_DistGrid)                :: DistGrid4    ! the ESMF DistGrid.
       TYPE(ESMF_DistGrid)                :: DistGrid5    ! the ESMF DistGrid.
 
       integer                            :: rc1 
@@ -365,11 +360,6 @@
 
       call gfs_physics_err_msg(rc1,'get me and nodes from vm',rc)
 
-! Allocate the local index array i2 to store the local size information of the
-! ditributed grid1, grid3, etc..  Information is based per dimension and per De.
-!-------------------------------------------------------------------------------
-      ALLOCATE(i2(2, Int_State%NODES))
-
 ! initialize the gfs, including set up the internal state
 ! variables and some local parameter short names, aloocate
 ! internal state arrays.
@@ -433,18 +423,6 @@
 !
       call synchro
 !
-! create the esmf grids and distribute the grids into 
-! the esmf delayout (mydelayout).
-!-----------------------------------------------------------------
-      call esmf_logwrite("creat the esmf grid and delayout.", 		&
-                         esmf_log_info, rc = rc1)
-
-      call gfs_physics_grid_create_gauss(vm_local,int_state, &
-                                         DistGrid0, DistGrid3, DistGrid4, rc1)
-
-      call gfs_physics_err_msg(rc1,'gfs_physics_grid_create_gauss',rc)
-
-!
 ! create 3D Gaussian grid  (sarah lu)                                          
 !-----------------------
 !
@@ -452,54 +430,6 @@
 
       call gfs_physics_err_msg(rc1,'gfs_physics_grid_create_gauss',rc)     
 
-
-! associate the grid3 with the esmf grid component gsgfs
-! used at the begining of the run routine when read in
-! the surface arrays of the esmf import state.
-!-------------------------------------------------------
-      call esmf_logwrite(						&
-                   "attach the esmf grids to the esmf grid component.", &
-                   esmf_log_info, rc = rc1)
-
-      call esmf_gridcompset(gc_gfs_phy, grid = grid3, rc = rc1)
-
-      call gfs_physics_err_msg(rc1,'esmf_gridcompset - set grid3',rc)
-
-! get the local array size of the grid3, the gaussian grid arrays.
-!-----------------------------------------------------------------
-      i2 = 0
-      CALL ESMF_DistGridGet(DistGrid3, indexCountPDimPDe = i2, rc = rc1)
-
-! put the grid3 local array size into the internal state and print it out.
-!-------------------------------------------------------------------------
-      int_state%llgg_s = i2(1, Int_State%me + 1)
-
-      print*, 'local number of the grid3', i2(:, Int_State%me + 1)
-
-      call gfs_physics_err_msg(rc1,'grid get info - llgg_s',rc)
-
-! get the size of grid0.  it is just for testing and can be removed.
-!-------------------------------------------------------------------
-!     i2 = 0
-!     CALL ESMF_DistGridGet(DistGrid0, indexCountPDimPDe = i2, rc = rc1)
-
-!     print*, 'local number of the grid0', i2(:, Int_State%me + 1)
-
-!     call gfs_physics_err_msg(rc1,'grid get info - grid0',rc)
-
-! transfer the gfs fields in the internal state 
-! to the esmf import state which is the public interface
-! for other esmf grid components.
-!-------------------------------------------------------
-!     call esmf_logwrite("allocate internal state for import/export", 	&
-!                       esmf_log_info, rc = rc1)
-
-!     call gfs_physics_states_allocate(gc_gfs_phy, int_state, 	        &
-!                                        rc = rc1)
-
-!     call gfs_physics_err_msg(rc1,                                    &
-!          'allocate internal state to import/export',rc)
-!
 ! set pointer the gfs export fields in the internal state 
 ! to the esmf exprot state which is the public interface
 ! for other esmf grid components.
@@ -507,8 +437,6 @@
 !     call esmf_logwrite("internal state link to esmf export state", 	&
 !                       esmf_log_info, rc = rc1)
 
-!      write(0,*)'in grid, comp, size fhour_idate=',size(int_state%fhour_idate,1), &
-!        size(int_state%fhour_idate,2),'idate size=',size(idate)
       int_state%fhour_idate(1,1)=int_state%kfhour
       int_state%fhour_idate(1,2:5)=idate(1:4)
 
@@ -517,8 +445,6 @@
 
 !     call gfs_physics_err_msg(rc1,'internal state to esmf export state',rc)
 
-      DEALLOCATE(i2)
-!
 !-------------------------------------------------------
 !jw send all the head info to write tasks
 !-------------------------------------------------------
@@ -619,7 +545,6 @@
       character(8)                       :: vname_3d(nfld_3d)*8   !chlu_debug
       character(20)                      :: vname                 !chlu_debug
 
-
       data item_name/'t','u','v'/                                 !chlu_debug
 
       data vname_2d /'slmsk', 'fice', 'hpbl', 'smc1',     &       !chlu_debug
@@ -628,6 +553,7 @@
                      'u10m', 'v10m',  'ustar','zorl'/             !chlu_debug
 
       data vname_3d /'fcld', 'dqdt' /                             !chlu_debug
+
 
       localPE = 0                                                 !chlu_debug
 !
@@ -671,9 +597,9 @@
       imp2int = flag1 .or. flag2                                    
 
       if ( imp2int ) then
-        call gfs_physics_import2internal_mgrid( imp_gfs_phy,    &         
+        call gfs_physics_import2internal( imp_gfs_phy,    &         
                                             int_state, rc = rc1)      
-        call gfs_physics_err_msg(rc1,'import2internal_mgrid',rc)     
+        call gfs_physics_err_msg(rc1,'import2internal',rc)     
       endif                                                         
 
       idate(1:4)=int_state%fhour_idate(1,2:5)
@@ -683,6 +609,57 @@
 
 !! debug print starts here  (Sarah Lu) -----------------------------------
       lab_if_ckprnt_im : if ( ckprnt .and. (int_state%me==0) ) then       !chlu_debug
+
+        if (int_state%kdt == 1) then                                      !chlu_debug
+          call esmf_stateget(exp_gfs_phy                               &  !chlu_debug
+                            ,itemcount = exp_item                      &  !chlu_debug
+                            ,itemnamelist = exp_item_name              &  !chlu_debug
+                            ,rc   =rc)                                    !chlu_debug
+
+          print *,'LU_PHY: export item count:',exp_item                   !chlu_debug
+          print *,'LU_PHY: export item name :',(exp_item_name(n),n=1,exp_item)!chlu_debug
+        endif                                                             !chlu_debug
+
+        lab_if_diag  : if ( int_state%lgocart ) then                      !chlu_debug
+        do n = 1, nfld_2d                                                 !chlu_debug
+            if(associated(fArr2D)) nullify(fArr2D)                        !chlu_debug
+            vname = trim(vname_2d(n))                                     !chlu_debug
+            CALL ESMF_StateGet(state = exp_gfs_phy                      & !chlu_debug
+                        ,itemName  = vname                              & !chlu_debug
+                        ,field     = ESMFField                          & !chlu_debug
+                        ,rc        = rc1)                                 !chlu_debug
+            call gfs_physics_err_msg(rc1,'LU_PHY: get ESMFField',rc)      !chlu_debug
+            CALL ESMF_FieldGet(field=ESMFfield, localDe=0, &              !chlu_debug
+                          farray=fArr2D, rc = rc1)                        !chlu_debug
+            call gfs_physics_err_msg(rc1,'LU_PHY: get F90array',rc)       !chlu_debug
+            if ( n == 1 ) then                                            !chlu_debug
+             ii1 = size(fArr2D, dim=1)                                    !chlu_debug
+             ii2 = size(fArr2D, dim=2)                                    !chlu_debug
+             print *, 'LU_PHY:',ii1, 'x', ii2                             !chlu_debug
+            endif                                                         !chlu_debug
+            print *,' LU_PHY: exp_: ',vname,fArr2D(1,1),fArr2D(1,2),    & !chlu_debug
+                         fArr2D(2,1),fArr2D(ii1,ii2)                      !chlu_debug
+        enddo                                                             !chlu_debug
+
+! check fcld
+            if(associated(fArr3D)) nullify(fArr3D)                        !chlu_debug
+            vname = 'fcld'                                                !chlu_debug
+            CALL ESMF_StateGet(state = exp_gfs_phy                      & !chlu_debug
+                        ,itemName  = vname                              & !chlu_debug
+                        ,field     = ESMFField                          & !chlu_debug
+                        ,rc        = rc1)                                 !chlu_debug
+            call gfs_physics_err_msg(rc1,'LU_PHY: get ESMFField',rc)      !chlu_debug
+            CALL ESMF_FieldGet(field=ESMFfield, localDe=0, &              !chlu_debug
+                          farray=fArr3D, rc = rc1)                        !chlu_debug
+            call gfs_physics_err_msg(rc1,'LU_PHY: get F90array',rc)       !chlu_debug
+            ii1 = size(fArr3D, dim=1)                                     !chlu_debug
+            ii2 = size(fArr3D, dim=2)                                     !chlu_debug
+            ii3 = size(fArr3D, dim=3)                                     !chlu_debug
+            print *, 'LU_PHY:',ii1, 'x', ii2, 'x', ii3                    !chlu_debug
+            print *,' LU_PHY: exp_: ',vname,fArr3D(1,1,1:6)               !chlu_debug
+
+        endif lab_if_diag                                                 !chlu_debug
+
         do n = 1, item_count                                              !chlu_debug
             vname = trim(item_name(n))                                    !chlu_debug
             if(associated(fArr3D)) nullify(fArr3D)                        !chlu_debug
@@ -788,13 +765,10 @@
 !  point export state to internal state grid_fld            
 !  internal2export is called once and all                  
 
-!*   call gfs_physics_internal2export(gc_gfs_phy, int_state,  	&
-!*                                       exp_gfs_phy, rc = rc1)
-
      if ( int_state%start_step ) then                             
-       call gfs_physics_internal2export_mgrid( int_state,        & 
+       call gfs_physics_internal2export( int_state,             & 
                                           exp_gfs_phy, rc = rc1)  
-       call gfs_physics_err_msg(rc1,'internal2export_mgrid',rc)  
+       call gfs_physics_err_msg(rc1,'internal2export',rc)  
 
        int_state%start_step = .false. 
      endif                                                     
@@ -803,61 +777,6 @@
 
 !! debug print starts here  (Sarah Lu) -----------------------------------
       lab_if_ckprnt_ex : if ( ckprnt .and. (int_state%me==0) ) then       !chlu_debug
-
-        if (int_state%kdt == 1) then                                      !chlu_debug
-          call esmf_stateget(exp_gfs_phy                               &  !chlu_debug
-                            ,itemcount = exp_item                      &  !chlu_debug
-                            ,itemnamelist = exp_item_name              &  !chlu_debug
-                            ,rc   =rc)                                    !chlu_debug
-
-          print *,'LU_PHY: export item count:',exp_item                   !chlu_debug
-          print *,'LU_PHY: export item name :',(exp_item_name(n),n=1,exp_item)!chlu_debug
-        endif                                                             !chlu_debug
-
-        lab_if_diag  : if ( int_state%lgocart ) then                      !chlu_debug
-        do n = 1, nfld_2d                                                 !chlu_debug
-            if(associated(fArr2D)) nullify(fArr2D)                        !chlu_debug
-            vname = trim(vname_2d(n))                                     !chlu_debug
-            CALL ESMF_StateGet(state = exp_gfs_phy                      & !chlu_debug
-                        ,itemName  = vname                              & !chlu_debug
-                        ,field     = ESMFField                          & !chlu_debug
-                        ,rc        = rc1)                                 !chlu_debug
-            call gfs_physics_err_msg(rc1,'LU_PHY: get ESMFField',rc)      !chlu_debug
-            CALL ESMF_FieldGet(field=ESMFfield, localDe=0, &              !chlu_debug
-                          farray=fArr2D, rc = rc1)                        !chlu_debug
-            call gfs_physics_err_msg(rc1,'LU_PHY: get F90array',rc)       !chlu_debug
-            if ( n == 1 ) then                                            !chlu_debug
-             ii1 = size(fArr2D, dim=1)                                    !chlu_debug
-             ii2 = size(fArr2D, dim=2)                                    !chlu_debug
-             print *, 'LU_PHY:',ii1, 'x', ii2                             !chlu_debug
-            endif                                                         !chlu_debug
-            print *,' LU_PHY: exp_: ',vname,fArr2D(1,1),fArr2D(1,2),    & !chlu_debug
-                         fArr2D(2,1),fArr2D(ii1,ii2)                      !chlu_debug
-        enddo                                                             !chlu_debug
-
-! check fcld and dqdt
-        do n = 1, nfld_3d                                                 !chlu_debug
-            if(associated(fArr3D)) nullify(fArr3D)                        !chlu_debug
-            vname = trim(vname_3d(n))                                     !chlu_debug
-            CALL ESMF_StateGet(state = exp_gfs_phy                      & !chlu_debug
-                        ,itemName  = vname                              & !chlu_debug
-                        ,field     = ESMFField                          & !chlu_debug
-                        ,rc        = rc1)                                 !chlu_debug
-            call gfs_physics_err_msg(rc1,'LU_PHY: get ESMFField',rc)      !chlu_debug
-            CALL ESMF_FieldGet(field=ESMFfield, localDe=0, &              !chlu_debug
-                          farray=fArr3D, rc = rc1)                        !chlu_debug
-            call gfs_physics_err_msg(rc1,'LU_PHY: get F90array',rc)       !chlu_debug
-            if ( n == 1 ) then                                            !chlu_debug
-            ii1 = size(fArr3D, dim=1)                                     !chlu_debug
-            ii2 = size(fArr3D, dim=2)                                     !chlu_debug
-            ii3 = size(fArr3D, dim=3)                                     !chlu_debug
-            endif                                                         !chlu_debug
-            print *, 'LU_PHY:',ii1, 'x', ii2, 'x', ii3                    !chlu_debug
-            print *,' LU_PHY: exp_: ',vname,fArr3D(1,1,1:6)               !chlu_debug
-        enddo                                                             !chlu_debug
-
-        endif lab_if_diag                                                 !chlu_debug
-
         do n = 1, item_count                                              !chlu_debug
             vname = trim(item_name(n))                                    !chlu_debug
             if(associated(fArr3D)) nullify(fArr3D)                        !chlu_debug

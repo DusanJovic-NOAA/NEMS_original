@@ -82,8 +82,6 @@
       arrayend(1)      = counts(1)
       arrayend(2)      = counts(2)
 
-      print *,' gfs_dyn grid1 dimension ',counts
-
 ! Create the ESMF DistGrid1 using the 1-D default decomposition.
 !---------------------------------------------------------------
       CALL ESMF_LogWrite("Create DistGrid1", ESMF_LOG_INFO, rc = rc1)
@@ -121,8 +119,6 @@
       arrayend(1)      = counts(1)
       arrayend(2)      = counts(2)
 
-      print *,' gfs_dyn grid2 dimension ',counts
-
 ! Create the ESMF DistGrid2 using the 1-D default decomposition.
 !---------------------------------------------------------------
       CALL ESMF_LogWrite("Create DistGrid2", ESMF_LOG_INFO, rc = rc1)
@@ -157,8 +153,6 @@
       arraystr(2)      = 1
       arrayend(1)    = counts(1)
       arrayend(2)    = counts(2)
-
-      print *,' gfs_dyn grid0 dimension ',counts
 
 ! Create the ESMF DistGrid0 using the 1-D default decomposition.
 !---------------------------------------------------------------
@@ -241,8 +235,6 @@
       arrayend(1)    = counts(1)
       arrayend(2)    = counts(2)
                                                                                 
-      print *,' gfs_dyn grid3 dimension ',counts
-
 ! Create the ESMF DistGrid3 using the 1-D default decomposition.
 !---------------------------------------------------------------
       CALL ESMF_LogWrite("Create DistGrid3", ESMF_LOG_INFO, rc = rc1)
@@ -280,8 +272,6 @@
       arraystr(2)    = 1
       arrayend(1)    = counts(1)
       arrayend(2)    = counts(2)
-
-      print *,' gfs_dyn grid4 dimension ',counts
 
 ! Create the ESMF DistGrid4 using the 1-D default decomposition.
 !---------------------------------------------------------------
@@ -353,6 +343,7 @@
 
       end subroutine gfs_dynamics_grid_create_gauss
 
+
 !..................................................................................
 !BOP
 !
@@ -360,11 +351,11 @@
 !
 !    !INTERFACE:
 !
-      subroutine gfs_dynamics_grid_create_Gauss3D(vm, iState, distGrid, rc ) 
+      subroutine gfs_dynamics_grid_create_Gauss3D(vm, iState, distGrid, rc )
 
 !     !ARGUMENTS:
 
-      type(ESMF_VM),                     intent(in)  :: vm   
+      type(ESMF_VM),                     intent(in)  :: vm
       type(gfs_dynamics_internal_state), intent(in)  :: iState
       TYPE(ESMF_DistGrid),               intent(out) :: distGrid
 
@@ -376,7 +367,7 @@
 !     The actual distribution has already been determined and such information
 !     is contained in the internal state *iState*.
 !
-!     Consistent with the current design, the actual grid is returned in 
+!     Consistent with the current design, the actual grid is returned in
 !     module-scoped variable *mGrid*.
 !
 !     !REVISION HISTORY:
@@ -387,61 +378,61 @@
 !EOP
 !                                      ---
 
-      integer                 :: I1, IN, J1, JN                            
-      integer                 :: rc1, i, j                              
+      integer                 :: I1, IN, J1, JN
+      integer                 :: rc1, i, j
 
 !     Local space for coordinate information
 !     --------------------------------------
-      real(kind=kind_grid), pointer :: centerX(:,:)                 
-      real(kind=kind_grid), pointer :: centerY(:,:)               
+      real(kind=kind_grid), pointer :: centerX(:,:)
+      real(kind=kind_grid), pointer :: centerY(:,:)
 
-! initialize the error signal variables.                        
+! initialize the error signal variables.
 !---------------------------------------
-      rc1     = esmf_success                              
+      rc1     = esmf_success
 
-      CALL ESMF_LogWrite('CreateGauss3D', ESMF_LOG_INFO, rc = rc1)            
+      CALL ESMF_LogWrite('CreateGauss3D', ESMF_LOG_INFO, rc = rc1)
 
 !     Create grid with index-space information from internal state
 !     ------------------------------------------------------------
       mGrid = ESMF_GridCreateShapeTile ( name='mGrid',        &
                    countsPerDEDim1=(/iState%lonf/),           &
-                   countsPerDEDim2=iState%lats_nodes_a_fix,   &            
-                   countsPerDEDim3=(/iState%levs/),           &           
+                   countsPerDEDim2=iState%lats_nodes_a_fix,   &
+                   countsPerDEDim3=(/iState%levs/),           &
                    coordDep1 = (/1,2/),                       &
                    coordDep2 = (/1,2/),                       &
                    coordDep3 = (/3/),                         &
                    gridEdgeLWidth = (/0,0,0/),                &
                    gridEdgeUWidth = (/0,0,0/),                &
-                   indexflag = ESMF_INDEX_DELOCAL,            &           
-                   rc = rc1 )                                              
+                   indexflag = ESMF_INDEX_DELOCAL,            &
+                   rc = rc1 )
 
 !  Add coordinate information
 !  --------------------------
-   call ESMF_GridAddCoord(mGrid, rc = rc1 )                               
+   call ESMF_GridAddCoord(mGrid, rc = rc1 )
 
 !  Retrieve the coordinates so we can set them
 !  -------------------------------------------
    call ESMF_GridGetCoord (mGrid, coordDim=1, localDE=0, &
                            staggerloc=ESMF_STAGGERLOC_CENTER, &
-                           fptr=centerX, rc = rc1 )                         
-   
+                           fptr=centerX, rc = rc1 )
+
    call ESMF_GridGetCoord (mGrid, coordDim=2, localDE=0, &
                            staggerloc=ESMF_STAGGERLOC_CENTER, &
-                           fptr=centerY, rc = rc1 )                           
+                           fptr=centerY, rc = rc1 )
 
    call GridGetInterior_ (mGrid,i1,in,j1,jn)
    print *, 'LU_DYN: mGrid, i1,in,j1,jn ', i1,in,j1,jn        !chlu_debug
- 
-   do i = 1, iState%lonf                                                 
-   do j = 1, iState%lats_node_a                                       
-     centerX(i,j) = iState%xlon(i,j)                                          
-     centerY(i,j) = iState%xlat(i,j)                                   
-   enddo                                                                    
-   enddo                                                                  
+
+   do i = 1, iState%lonf
+   do j = 1, iState%lats_node_a
+     centerX(i,j) = iState%xlon(i,j)
+     centerY(i,j) = iState%xlat(i,j)
+   enddo
+   enddo
 
 !  Make sure we've got it right
 !  ----------------------------
-   call ESMF_GridValidate(mGrid, rc=rc1 )                                  
+   call ESMF_GridValidate(mGrid, rc=rc1 )
 
    return
    end subroutine gfs_dynamics_grid_create_Gauss3D
@@ -466,21 +457,21 @@
     integer                               :: gridRank
     integer                               :: deList(1)
 
-    integer                               :: ierr, rc1                    
+    integer                               :: ierr, rc1
 
 
-    CALL ESMF_LogWrite("GridGetInterior_", ESMF_LOG_INFO, rc=rc1)      
+    CALL ESMF_LogWrite("GridGetInterior_", ESMF_LOG_INFO, rc=rc1)
 
     call ESMF_GridGet    (GRID, dimCount=gridRank, distGrid=distGrid, rc=rc1)
     call ESMF_DistGridGet(distGRID, delayout=layout, rc=STATUS)
-    call ESMF_DELayoutGet(layout, deCount =nDEs, localDeList=deList, rc=rc1 ) 
+    call ESMF_DELayoutGet(layout, deCount =nDEs, localDeList=deList, rc=rc1 )
     deId = deList(1)
 
-    allocate (AL(gridRank,0:nDEs-1), stat = ierr )                           
-    allocate (AU(gridRank,0:nDEs-1), stat = ierr )                         
+    allocate (AL(gridRank,0:nDEs-1), stat = ierr )
+    allocate (AU(gridRank,0:nDEs-1), stat = ierr )
 
     call ESMF_DistGridGet(distgrid, &
-         minIndexPDimPDe=AL, maxIndexPDimPDe=AU, rc=rc1 )                  
+         minIndexPDimPDe=AL, maxIndexPDimPDe=AU, rc=rc1 )
 
     I1 = AL(1, deId)
     IN = AU(1, deId)

@@ -32,8 +32,6 @@
 !
 !
 !
-!-----------------------------------------------------------------------
-!
       CONTAINS
 
 !-----------------------------------------------------------------------
@@ -84,14 +82,12 @@
       integer,dimension(ESMF_maxgriddim) :: counts
       INTEGER , DIMENSION(2)             :: i1
       INTEGER , DIMENSION(:, :), POINTER :: i2
-!jw
       INTEGER , DIMENSION(1)             :: mypelocal
       INTEGER , allocatable              :: petlistvm(:)
       integer                      :: num_pes_tot,num_pes,im,jm,lm
       integer                      :: mpi_intra,mpi_intra_b     ! the mpi intra-communicator
       integer                      :: rc,irtn,mype
       integer                      :: RC_RUN
-      integer                      :: inpes,jnpes  ! mpi tasks in i and j
       logical                      :: global
       character(50)                :: mode
       rc     =ESMF_success
@@ -127,9 +123,9 @@
 !
       CALL ESMF_logwrite("get mype and nodes from vm",ESMF_log_info,rc=RC)
 !
-      CALL ESMF_vmget(vm                           &  !<-- the virtual machine
-                     ,localpet=mype                &  !<-- local pe rank
-                     ,petcount=num_pes             &  !<-- total # of tasks
+      CALL ESMF_vmget(vm                        &  !<-- the virtual machine
+                     ,localpet=mype             &  !<-- local pe rank
+                     ,petcount=num_pes          &  !<-- total # of tasks
                      ,rc      =RC)
 !
       num_pes_tot=num_pes
@@ -152,35 +148,17 @@
 !***  split it between forecast and quilt tasks.
 !-----------------------------------------------------------------------
 !
-      CALL ESMF_vmget(vm                                   &
-                     ,mpicommunicator=mpi_intra            &  !<-- the global communicator
+      CALL ESMF_vmget(vm                                  &
+                     ,mpicommunicator=mpi_intra           &  !<-- the global communicator
                      ,rc             =RC)
 !
       CALL mpi_comm_dup(mpi_intra,mpi_intra_b,rc)
-!
-      CALL ESMF_configgetattribute(cf                      &
-                                  ,value =inpes            &  !<-- # of fcst tasks in i direction
-                                  ,label ='inpes:'         &
-                                  ,rc    =RC)
-!
-      CALL ESMF_configgetattribute(cf                      &
-                                  ,value =jnpes            &  !<-- # of fcst tasks in j direction
-                                  ,label ='jnpes:'         &
-                                  ,rc    =RC)
 !jw
       CALL ESMF_configgetattribute(cf                      &
                                   ,value =quilting         &  !<-- # of fcst tasks in j direction
                                   ,label ='quilting:'      &
                                   ,rc    =RC)
 
-!
-      num_pes_fcst=inpes*jnpes
-      allocate(petlist_fcst(num_pes_fcst))
-      petlist_fcst(1:num_pes_fcst)=petlistvm(1:num_pes_fcst)
-      last_fcst_pe=maxval(petlist_fcst(1:num_pes_fcst) )
-      first_fcst_pe=minval(petlist_fcst(1:num_pes_fcst) )
-      write(0,*)'gfs_setup,first_fcst_pe=',first_fcst_pe,'last_fcst_pe=', &
-        last_fcst_pe,'num_pes_fcst=',num_pes_fcst
 !
 !-----------------------------------------------------------------------
 !***  set up quilt/write task specifications
@@ -195,21 +173,32 @@
                                   ,WRITE_TASKS_PER_GROUP                &  !<-- Number of write tasks per group from config file
                                   ,label ='write_tasks_per_group:'      &
                                   ,rc    =RC)
-!      write(0,*)'get attr from CF, inpes=',inpes,'jnpes=',jnpes, &
-!        'write_groups=',write_groups,'WRITE_TASKS_PER_GROUP=',          &
-!        WRITE_TASKS_PER_GROUP,'quilting=',quilting
+      IF(quilting) THEN
+          num_pes_fcst = num_pes_tot - WRITE_GROUPS * WRITE_TASKS_PER_GROUP
+      ELSE
+          num_pes_fcst = num_pes_tot
+      END IF
+      
+      allocate(petlist_fcst(num_pes_fcst))
+      petlist_fcst(1:num_pes_fcst)=petlistvm(1:num_pes_fcst)
+      last_fcst_pe=maxval(petlist_fcst(1:num_pes_fcst) )
+      first_fcst_pe=minval(petlist_fcst(1:num_pes_fcst) )
+      write(0,*)'gfs_setup,first_fcst_pe=',first_fcst_pe,'last_fcst_pe=', &
+        last_fcst_pe
+
+      if(quilting) then
+
 !-----------------------------------------------------------------------
 !***  SEGREGATE THE FORECAST TASKS FROM THE QUILT/WRITE TASKS.
 !-----------------------------------------------------------------------
 !
-      if(quilting) then
-!
-        CALL SETUP_SERVERS_GFS(MYPE,INPES,JNPES,NUM_PES,last_fcst_pe    &
+      CALL SETUP_SERVERS_GFS(MYPE,NUM_PES,last_fcst_pe                  &
                         ,WRITE_GROUPS,WRITE_TASKS_PER_GROUP             &
                         ,mpi_intra_b)
-!      write(0,*)'after setup_servers_gfs, inpes=',inpes,'jnpes=',jnpes, &
-!        'write_groups=',write_groups,'WRITE_TASKS_PER_GROUP=',          &
-!        WRITE_TASKS_PER_GROUP,'last_fcst_pe=',last_fcst_pe
+      write(0,*)'after setup_servers_gfs, write_groups=',write_groups,  &
+        'WRITE_TASKS_PER_GROUP=', WRITE_TASKS_PER_GROUP,                &
+        'last_fcst_pe=', last_fcst_pe
+
 !if not quilt, for 1pe
       else
         NUM_PES=num_pes_fcst
@@ -285,9 +274,9 @@
 !--------------------------------
 !      CALL ESMF_LogWrite("Create DistGrid_atmos", ESMF_LOG_INFO, rc = rc)
 
-      DistGrid_atmos = ESMF_DistGridCreate(minIndex  = min,              &
-                                           maxIndex  = max,              &
-                                           regDecomp = (/inpes, jnpes/), &
+      DistGrid_atmos = ESMF_DistGridCreate(minIndex  = min,                 &
+                                           maxIndex  = max,                 &
+                                           regDecomp = (/1, num_pes_fcst/), &
                                            rc        = rc)
 
 
@@ -315,9 +304,6 @@
 !***  FOR ALL FORECAST TASKS.
 !***  THE USER, NOT ESMF, DOES THIS WORK.
 !------------------------------------------------- ----------------------
-!       write(0,*)'end of GFS_SETUP'
-!
-!-----------------------------------------------------------------------
 !
       END SUBROUTINE GFS_SETUP
 !

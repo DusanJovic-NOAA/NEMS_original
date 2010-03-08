@@ -12,6 +12,7 @@
 !       11 Sep 2007:  T. Black - Updates for quilting
 !       15 Aug 2008:  J. Wang  - Add NEMSIO variables
 !       16 Sep 2008:  J. Wang  - 3-D output arrays revert to 2-D
+!       03 Sep 2009:  W. Yang  - Ensemble GEFS.
 !
 !-----------------------------------------------------------------------
 !
@@ -39,7 +40,7 @@
 !--------------------------------
 !
       INTEGER :: MYPE
-      INTEGER :: INPES,JNPES
+      INTEGER :: NUM_PES_FCST
       INTEGER :: IHALO,JHALO
       INTEGER :: NTASKS
       INTEGER :: WRITE_GROUPS,WRITE_TASKS_PER_GROUP

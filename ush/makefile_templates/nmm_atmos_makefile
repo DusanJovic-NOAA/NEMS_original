@@ -43,8 +43,8 @@ MODULE=        \
 		module_NMM_CORE_SETUP.o \
 		module_NESTING.o \
 		module_NMM_INTEGRATE.o \
-		module_PARENT_CHILD_CPL_COMP.o
-
+		module_PARENT_CHILD_CPL_COMP.o \
+	
 MODULE_ATM=    \
 		module_ATM_DRIVER_INTERNAL_STATE.o \
 		module_ATM_DRIVER_COMP.o \

@@ -7,6 +7,8 @@ set -x
 
 
 #export EXPLICIT=.true.
+ export EXPLICIT=.false.
+
  export ADIAB=_ADIAB_
 # reduced_grid default is true
  export REDUCED_GRID=_REDUCEDGRID_
@@ -38,13 +40,10 @@ set -x
 export CPIlist=" 1004.6,   1846.0, 820.2391,    0.0"
 export RIlist="  286.05,   461.50, 173.2247,    0.0"
 #***************************************************************
-
 #
 #    Set up horizontal and vertical resolution ; default will be T6264
 #
-#export wave=382 ; export lm=64 ; export lsoil=4
- export wave=62 ; export lm=64 ; export lsoil=4
-#export wave=62 ; export lm=64 ; export lsoil=2 ; export lsm=0
+ export wave=_wave_ ; export lm=_lm_ ; export lsoil=_lsoil_
 #
 export NCP=cp
 export FTSFS=0.0
@@ -56,7 +55,15 @@ export FAISS=0.0
 #
  export ENS_NUM=1
 #
- tasks=_TASKS_  ; export PE1=_PE1_
+ tasks=_TASKS_  
+
+ export MEMBER_NAMES=_MEMBER_NAMES_
+
+c=1
+while [ $c -le $ENS_NUM ] ; do
+ eval export PE$c=\${PE$c:-0}
+ c=$((c+1))
+done
 #
   export WRT_GROUP=_WRTGP_
   export WRTPE_PER_GROUP=_WPG_
@@ -79,7 +86,7 @@ export MALLOCMULTIHEAP=true
  export NSCDIR=/global/noscrub
  export TOPDIR=/global/save
  export DUMPDIR=/global/shared/dump
- export MP_COREFILE_FORMAT=lite 
+# export MP_COREFILE_FORMAT=lite 
  export RUNDIR=${RUNDIR:-$expt}
  export SCRIPTS=${SCRIPTS:-$TOPDIR/wx23sm/gsm/scripts}
 
@@ -110,6 +117,7 @@ fi
 #
 #
  export nhours=`expr $ndays \* 24`
+
 #
 # For two tracers
   export ntrc=3  ; export varid=21  ; export numcld=1
@@ -162,7 +170,6 @@ export LEVR=${levr:-0}
  srcdir=_PATHTR_
  export FCSTSCRIPT=$srcdir/job/exglobal_fcst.sh.sms_nems
  export FCSTEXEC=$srcdir/exe/GFS_NEMS.x
-#
 #
 #
 # ***************************************************************

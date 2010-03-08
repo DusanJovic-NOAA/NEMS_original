@@ -5,13 +5,14 @@ include ../../ush/compile_settings
 # *****************************************************************
 #
 all: 
-	cd $(GFS_UTIL) && gmake 
+	cd $(GFS_UTIL) && gmake
 	cd $(GOCART) && export ESMADIR=`pwd` && gmake -C src install GOCART_MODE=$(GOCART_MODE)
-	cd $(GFS_DYN) && gmake 
-	cd $(GFS_PHY) && gmake 
-	cd $(GFS_IO) && gmake 
-	cd $(ATM) && gmake 
-	/bin/rm -f $(EXEDIR)/GFS_NEMS.x 
+	cd $(GFS_DYN) && gmake
+	cd $(GFS_PHY) && gmake
+	cd $(GFS_IO) && gmake
+	cd $(GFS_GEFSCPL) && gmake
+	cd $(ATM) && gmake
+	/bin/rm -f $(EXEDIR)/GFS_NEMS.x
 	$(CPP) $(CPPFLAGS) $(ROOT).F90 > $(ROOT).f90
 	$(F90) $(FFLAG_GFS_MAIN) -c $(ROOT).f90
 	$(LDR) $(LDFLAGS) -o $(EXEDIR)/GFS_NEMS.x $(OBJS) $(LIB)
@@ -21,6 +22,8 @@ clean:
 	cd $(GFS_DYN) && gmake clean
 	cd $(GFS_PHY) && gmake clean
 	cd $(GFS_IO) && gmake clean
+	cd $(GFS_GEFSCPL) && rm -f *.o *.mod *.a
+	cd $(GFS_GEFSCPL) && rm -f ../../lib/lib/GEFS_Cpl.a
 	cd $(GFS_UTIL) && gmake clean
 	cd $(GOCART) && export ESMADIR=`pwd` && gmake -C src realclean GOCART_MODE=$(GOCART_MODE)
 	cd $(ATM) && gmake clean

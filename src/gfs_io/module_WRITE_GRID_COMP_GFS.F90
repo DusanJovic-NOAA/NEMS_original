@@ -31,6 +31,7 @@
 !       15 Aug 2008:  J. Wang  - Revised for addition of NEMS-IO
 !       16 Sep 2008:  J. Wang  - Output array reverts from 3-D to 2-D
 !       14 Oct 2008:  R. Vasic - Add restart capability
+!       03 Sep 2009:  W. Yang  - Ensemble GEFS.
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
@@ -58,8 +59,6 @@
 !
       PUBLIC :: WRITE_REGISTER_GFS
 !
-      PUBLIC :: WRITE_SETUP_GFS,WRITE_DESTROY_GFS
-!
 !-----------------------------------------------------------------------
 !
       INTEGER,PARAMETER :: MAX_LENGTH_I1D=5000                            !<-- Max words in all 1-D integer history variables
@@ -74,8 +73,6 @@
       INTEGER,SAVE      :: LAST_WRITE_TASK                                !<-- Rank of the last write task the write group
       INTEGER,SAVE      :: NTASKS                                         !<-- # of write tasks in the current group + all forecast tasks
       INTEGER,SAVE      :: NWTPG                                          !<-- # of write tasks (servers) per group 
-      LOGICAL,SAVE      :: QUILTING                                       !<-- # of write tasks (servers) per group 
-!
       INTEGER,SAVE      :: MAXSIZE_I2D=MAX_LENGTH_I2D*MAX_DATA_I2D        !<-- Max size of the 2D integer history array on each task 
 !
       INTEGER,SAVE      :: MAXSIZE_R2D=MAX_LENGTH_R2D*MAX_DATA_R2D        !<-- Max size of the 2D real history array on each task 
@@ -119,6 +116,7 @@
 !       xx Feb 2007:  W. Yang  - Originator
 !       30 Jun 2007:  T. Black - Modified to share same traits as
 !                                rest of code.
+!       03 Sep 2009:  W. Yang  - Ensemble GEFS.
 !
 !-----------------------------------------------------------------------
 !
@@ -330,7 +328,8 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      NTASKS=wrt_int_state%NTASKS
+      NTASKS                              = wrt_int_state%NTASKS
+      wrt_int_state%NUM_PES_FCST          = NUM_PES_FCST
 !
 !-----------------------------------------------------------------------
 !***  RETRIEVE INFORMATION REGARDING OUTPUT FROM THE CONFIGURATION FILE.
@@ -341,7 +340,7 @@
       CALL GET_CONFIG_WRITE_GFS(WRT_COMP,WRT_INT_STATE,RC)              !<-- User's routine to extract configfile data
 !
       NWTPG          =wrt_int_state%WRITE_TASKS_PER_GROUP
-      IF(QUILTING) THEN
+      IF(wrt_int_state%QUILTING) THEN
         LAST_FCST_TASK =NTASKS-NWTPG-1
         LEAD_WRITE_TASK=LAST_FCST_TASK+1
         LAST_WRITE_TASK=NTASKS-1
@@ -710,7 +709,7 @@
 !-----------------------------------------------------------------------
 !
       NCURRENT_GROUP(1)=N_GROUP
-!jw      IF(QUILTING) THEN
+!jw      IF(wrt_int_state%QUILTING) THEN
 !jw        LAST_FCST_TASK =NTASKS-NWTPG-1
 !jw       LEAD_WRITE_TASK=LAST_FCST_TASK+1
 !jw       LAST_WRITE_TASK=NTASKS-1
@@ -1867,457 +1866,6 @@
 !-----------------------------------------------------------------------
 !
       END SUBROUTINE WRT_FINALIZE_GFS
-!
-!-----------------------------------------------------------------------
-!#######################################################################
-!-----------------------------------------------------------------------
-!
-      SUBROUTINE WRITE_SETUP_GFS(ATM_GRID_COMP,WRT_COMPS           &
-        ,exp_state_dyn,exp_state_phy                               &
-        ,imp_state_write,exp_state_write)
-! 
-      use module_gfs_mpi_def, only : last_fcst_pe
-!-----------------------------------------------------------------------
-!***  SET UP THE WRITE COMPONENTS WITH THE FORECAST TASKS AND
-!***  THE GROUPS OF WRITE TASKS NEEDED FOR QUILTING THE OUTPUT
-!***  AND WRITING IT TO HISTORY FILES.
-!-----------------------------------------------------------------------
-!
-!
-      TYPE(ESMF_GridComp),INTENT(INOUT)      :: ATM_GRID_COMP             !<-- The ATM gridded component
-      TYPE(ESMF_GridComp),INTENT(inOUT)      :: WRT_COMPS(:)              !<-- The ATM gridded component
-      TYPE(ESMF_State),INTENT(INOUT)         :: EXP_state_DYN
-      TYPE(ESMF_State),INTENT(INOUT)         :: EXP_state_PHY
-      TYPE(ESMF_State),INTENT(INOUT)         :: IMP_state_WRITE
-      TYPE(ESMF_State),INTENT(INOUT)         :: EXP_state_WRITE
-!
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
-!
-      TYPE(ESMF_Config)      :: CF                                        !<-- The config object
-      TYPE(ESMF_VM)          :: VM                                        !<-- The ESMF virtual machine.
-!
-      INTEGER                :: INPES,JNPES                             & !<-- Number of fcst tasks in I and J directions
-                               ,MYPE                                    & !<-- PE ID
-                               ,WRITE_GROUPS                            & !<-- Number of groups of write tasks
-                               ,WRITE_TASKS_PER_GROUP                     !<-- #of tasks in each write group
-      INTEGER,ALLOCATABLE    :: ITMP(:)
-      LOGICAL                :: STANDALONE_POST
-!
-      CHARACTER( 2)          :: MY_WRITE_GROUP
-      CHARACTER(6)           :: FMT='(I2.2)'
-      CHARACTER(ESMF_MAXSTR) :: WRITE_NAME
-!
-      INTEGER :: I,J,K,RC,RC_SETUP
-!
-!-----------------------------------------------------------------------
-!***********************************************************************
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!***  RETRIEVE THE CONFIG OBJECT CF FROM THE ATM GRIDDED COMPONENT.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Get Config Object for Write Setup"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_GridCompGet(gridcomp=ATM_GRID_COMP                      &  !<-- The ATM gridded component
-                           ,config  =CF                                 &  !<-- The config object (~namelist)
-                           ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  RETRIEVE TASK AND GROUP COUNTS FROM THE CONFIG FILE.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Write Tasks and Groups from Config File"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_ConfigGetAttribute(CF                                   &  !<-- The configure file
-                                  ,QUILTING                             &  !<-- Number of write groups from config file
-                                  ,label ='quilting:'                   &
-                                  ,rc    =RC)
-
-      CALL ESMF_ConfigGetAttribute(CF                                   &  !<-- The configure file
-                                  ,WRITE_GROUPS                         &  !<-- Number of write groups from config file
-                                  ,label ='write_groups:'               &
-                                  ,rc    =RC)
-!
-      CALL ESMF_ConfigGetAttribute(CF                                   &  !<-- The configure file
-                                  ,WRITE_TASKS_PER_GROUP                &  !<-- Number of write tasks per group from config file
-                                  ,label ='write_tasks_per_group:'      &
-                                  ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  HOW MANY FORECAST TASKS DO WE HAVE?
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="INPES/JNPES from Config Object for Write Setup"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The ESMF configure object
-                                  ,value =INPES                         &  !<-- # of fcst tasks in I direction
-                                  ,label ='inpes:'                      &  !<-- Give the value of this label to INPES
-                                  ,rc    =RC)
-!
-      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The ESMF configure object
-                                  ,value =JNPES                         &  !<-- # of fcst tasks in J direction
-                                  ,label ='jnpes:'                      &  !<-- Give the value of this label to JNPES
-                                  ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      NUM_PES_FCST=INPES*JNPES                                             !<-- Total number of forecast tasks
-!
-!-----------------------------------------------------------------------
-!***  RETRIEVE THE CURRENT VM.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Retrieve the Local VM"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_VMGetCurrent(vm=VM                                      &  !<-- The ESMF virtual machine
-                            ,rc=RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  WHAT IS MY MPI TASK ID?
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Get MPI Task IDs for Write Setup"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_VMGet(vm      =VM                                       &  !<-- The virtual machine
-                     ,localpet=MYPE                                     &  !<-- Local PE rank
-                     ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  ASSOCIATE ALL OF THE FORECAST TASKS WITH THE WRITE TASKS
-!***  IN EACH WRITE GROUP.
-!-----------------------------------------------------------------------
-!
-      IF(QUILTING) THEN
-        NUM_PES_WRT=NUM_PES_FCST+WRITE_TASKS_PER_GROUP
-      ELSE
-        NUM_PES_WRT=NUM_PES_FCST
-      ENDIF
-      ALLOCATE(PETLIST_WRITE(NUM_PES_WRT,WRITE_GROUPS))                        !<-- Task IDs of all wrt tasks
-                                                                               !    plus the write tasks
-                                                                               !    by write group
-!
-!-----------------------------------------------------------------------
-!***  COLLECT THE TASK IDs FOR THE WRITE TASKS AND THE ASSOCIATED
-!***  FORECAST-WRITE TASKS.
-!-----------------------------------------------------------------------
-!
-      DO I=0,NUM_PES_FCST-1
-        DO J=1,WRITE_GROUPS
-          PETLIST_WRITE(I+1,J)=I+last_fcst_pe+1-num_pes_fcst            !<-- Collect forecast task IDs to be associated with
-                                                                        !    write tasks by write group
-        ENDDO
-!
-      ENDDO
-!
-      IF(NUM_PES_WRT>NUM_PES_FCST) THEN 
-        K=NUM_PES_FCST
-!
-        DO J=1,WRITE_GROUPS
-          DO I=1,WRITE_TASKS_PER_GROUP
-            PETLIST_WRITE(NUM_PES_FCST+I,J)=K                           !<-- Append write task IDs to associated forecast task IDs by group
-            K=K+1
-          ENDDO
-        ENDDO
-      ENDIF
-!      write(0,*)'in write setup, last_fcst_pe=',last_fcst_pe,'num_pes_fcst=', &
-!        num_pes_fcst,'WRITE_GROUPS=',WRITE_GROUPS,'petlist_write=',  &
-!         PETLIST_WRITE(:,1)
-!
-!-----------------------------------------------------------------------
-!***  CREATE THE WRITE GRIDDED COMPONENT(S).
-!***  THERE ARE AS MANY WRITE COMPONENTS AS THERE ARE GROUPS OF
-!***  WRITE TASKS SPECIFIED IN THE CONFIGURE FILE.
-!***  REGISTER THEIR INIT, RUN, AND FINALIZE STEPS.
-!-----------------------------------------------------------------------
-!
-!---------------------------------
-!***  Create the Write components
-!---------------------------------
-!
-      allocate(ITMP(NUM_PES_WRT))
-      DO I=1,WRITE_GROUPS
-        ITMP(1:NUM_PES_WRT)=PETLIST_WRITE(1:NUM_PES_WRT,I)
-        WRITE(MY_WRITE_GROUP,FMT)I
-        WRITE_NAME='write_GridComp_'//MY_WRITE_GROUP
-!
-        WRT_COMPS(I)=ESMF_GridCompCreate(                         &
-                                name          =WRITE_NAME         &  !<-- Name of this group's Write gridded component
-                               ,configFile    ='atm_namelist.rc'  &  !<-- The configure file for writes
-                               ,petList       =ITMP               &  !<-- The task IDs of the write tasks in this group
-                                                                     !    provide the local VM information per component.
-                               ,rc            =RC)
-!
-      ENDDO
-      deallocate(itmp)
-!
-!-----------------------------------
-!***  Register the Write components
-!-----------------------------------
-!
-      DO I=1,WRITE_GROUPS
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Register Write Components"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_GridCompSetServices(WRT_COMPS(I)         &  !<-- The Write gridded components
-                                     ,WRITE_REGISTER_GFS   &  !<-- The user's subroutine name
-                                     ,RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      ENDDO
-!
-!------------------------------------------------------------------------
-!***  Create empty Import and Export states for the Write subcomponent(s)
-!------------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Create Empty Import/Export States for Write Components"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      IMP_STATE_WRITE=ESMF_StateCreate(statename='Write Import State' &  !<-- Import state name for writes
-                                      ,statetype= ESMF_STATE_IMPORT   &
-                                      ,rc       = RC)
-!
-      EXP_STATE_WRITE=ESMF_StateCreate(statename='Write Export State' &  !<-- Export state names for writes
-                                      ,statetype= ESMF_STATE_EXPORT   &
-                                      ,rc       = RC) 
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  INSERT THE WRITE COMPONENTS' IMPORT STATE INTO THE
-!***  DYNAMICS' AND PHYSICS' EXPORT STATES SINCE HISTORY
-!***  DATA ITSELF MUST COME FROM THE DYNAMICS AND PHYSICS.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert Write Import State into Dynamics Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateAdd(state      =EXP_STATE_DYN        & !<-- Dynamics export state receives a state
-                        ,nestedState=IMP_STATE_WRITE      & !<-- Add the write components' import state
-                        ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert Write Import State into Physics Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateAdd(state      =EXP_STATE_PHY        & !<-- Physics export state receives a state
-                        ,nestedState=IMP_STATE_WRITE      & !<-- Add the write components' import state
-                        ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-      END SUBROUTINE WRITE_SETUP_GFS
-!
-!-----------------------------------------------------------------------
-!#######################################################################
-!-----------------------------------------------------------------------
-!
-      SUBROUTINE WRITE_DESTROY_GFS(ATM_GRID_COMP,WRT_COMPS,             &
-        IMP_STATE_WRITE,EXP_STATE_WRITE,CLOCK_ATM)
-! 
-!-----------------------------------------------------------------------
-!***  DESTROY ALL OBJECTS RELATED TO THE WRITE COMPONENTS.
-!-----------------------------------------------------------------------
-!
-      USE module_gfs_mpi_def, only: WRITE_GROUPS, WRITE_TASKS_PER_GROUP
-!
-!-----------------------------------------------------------------------
-!
-      TYPE(ESMF_GridComp),INTENT(INOUT)      :: ATM_GRID_COMP             !<-- The ATM gridded component
-      TYPE(ESMF_GridComp),DIMENSION(:),INTENT(INOUT)      ::WRT_COMPS
-      TYPE(ESMF_State),INTENT(INOUT)         :: IMP_STATE_WRITE
-      TYPE(ESMF_State),INTENT(INOUT)         :: EXP_STATE_WRITE
-      TYPE(ESMF_Clock),INTENT(INOUT)         :: CLOCK_ATM                 !<-- The ATM Component's ESMF Clock
-!
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
-!
-      INTEGER :: I,J,MYPE,N,RC,RC_DES
-!
-      TYPE(ESMF_VM)                          :: VM
-!
-!-----------------------------------------------------------------------
-!***********************************************************************
-!-----------------------------------------------------------------------
-!
-      RC    =ESMF_SUCCESS
-      RC_DES=ESMF_SUCCESS
-!
-!-----------------------------------------------------------------------
-!***  RETRIEVE THE CURRENT VM.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Retrieve the Local VM in Write Destroy"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_VMGetCurrent(vm=VM                                      &  !<-- The ESMF virtual machine
-                            ,rc=RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DES)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  WHAT IS MY MPI TASK ID?
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Get MPI Task IDs for Write Destroy"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_VMGet(vm      =VM                                       &  !<-- The virtual machine
-                     ,localpet=MYPE                                     &  !<-- Local PE rank
-                     ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DES)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  FINALIZE THE WRITE GRIDDED COMPONENTS IN EACH WRITE GROUP.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Finalize Write Components"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      DO N=1,WRITE_GROUPS              
-        IF(MYPE>=PETLIST_WRITE(1,N).AND.                          &
-           MYPE<=PETLIST_WRITE(NUM_PES_WRT,N))THEN
-!
-           CALL ESMF_GridCompFinalize(gridcomp   =WRT_COMPS(N)    &
-                                     ,importstate=IMP_STATE_WRITE &
-                                     ,exportstate=EXP_STATE_WRITE &
-                                     ,clock      =CLOCK_ATM       &
-                                     ,phase      =ESMF_SINGLEPHASE &
-                                     ,rc         =RC)
-        ENDIF
-      ENDDO
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DES)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  DESTROY THE WRITE COMPONENTS' IMPORT/EXPORT STATES.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Destroy Write Component Import/Export States"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateDestroy(IMP_STATE_WRITE,rc=RC)
-      CALL ESMF_StateDestroy(EXP_STATE_WRITE,rc=RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DES)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  DESTROY THE WRITE COMPONENTS.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Destroy Write Components"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      DO J=1,WRITE_GROUPS
-!
-        CALL ESMF_VMBarrier(vm=VM,rc=RC)
-!
-        DO I=1,NUM_PES_WRT
-          IF(MYPE==PETLIST_WRITE(I,J))THEN
-            CALL ESMF_GridCompDestroy(gridcomp=WRT_COMPS(J) &
-                                     ,rc      =RC)
-          ENDIF
-        ENDDO
-!
-      ENDDO
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DES)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  THE FINAL ERROR SIGNAL INFORMATION.
-!-----------------------------------------------------------------------
-!
-      IF(RC_DES==ESMF_SUCCESS)THEN
-        WRITE(0,*)'ATM FINALIZE STEP SUCCEEDED'
-      ELSE
-        WRITE(0,*)'ATM FINALIZE STEP FAILED  RC_DES=',RC_DES
-      ENDIF
-!
-!-----------------------------------------------------------------------
-!
-      END SUBROUTINE WRITE_DESTROY_GFS
-!
-!-----------------------------------------------------------------------
-!#######################################################################
-!-----------------------------------------------------------------------
 !
       END MODULE MODULE_WRITE_GRID_COMP_GFS
 !

@@ -225,7 +225,7 @@
       character(3) :: model_level
       character(6) :: format
       character(20) :: array_name
-      character(20) :: imp_item_name(20), exp_item_name(20)
+      character(20) :: imp_item_name(100), exp_item_name(100)
 !
 ! Additional variables are added, allowing the couple to handle array,
 ! field, and/or field bundle  (Sarah Lu)
@@ -368,32 +368,32 @@
         ndata3i=ndata_3d_dyn_imp
         ndata2i=ndata_2d_dyn_imp
         ndata1i=ndata_1d_dyn_imp
-        print *,' import state is from dynamics_import_state '
-        print *,' ndata1i ndata2i ndata3i are ',ndata1i,ndata2i,ndata3i
+!       print *,' import state is from dynamics_import_state '
+!       print *,' ndata1i ndata2i ndata3i are ',ndata1i,ndata2i,ndata3i
 !
 ! get from dynamics export state
       elseif(trim(import_statename)=="dynamics export")then 
         ndata3i=ndata_3d_dyn_exp
         ndata2i=ndata_2d_dyn_exp
         ndata1i=ndata_1d_dyn_exp
-        print *,' import state is from dynamics_export_state '
-        print *,' ndata1i ndata2i ndata3i are ',ndata1i,ndata2i,ndata3i
+!       print *,' import state is from dynamics_export_state '
+!       print *,' ndata1i ndata2i ndata3i are ',ndata1i,ndata2i,ndata3i
 !
 ! get from physics import state
       elseif(trim(import_statename)=="physics import")then 
         ndata3i=ndata_3d_phy_imp
         ndata2i=ndata_2d_phy_imp
         ndata1i=ndata_1d_phy_imp
-        print *,' import state is from physics_import_state '
-        print *,' ndata1i ndata2i ndata3i are ',ndata1i,ndata2i,ndata3i
+!       print *,' import state is from physics_import_state '
+!       print *,' ndata1i ndata2i ndata3i are ',ndata1i,ndata2i,ndata3i
 !
 ! get from physics export state
       elseif(trim(import_statename)=="physics export")then 
         ndata3i=ndata_3d_phy_exp
         ndata2i=ndata_2d_phy_exp
         ndata1i=ndata_1d_phy_exp
-        print *,' import state is from physics_export_state '
-        print *,' ndata1i ndata2i ndata3i are ',ndata1i,ndata2i,ndata3i
+!       print *,' import state is from physics_export_state '
+!       print *,' ndata1i ndata2i ndata3i are ',ndata1i,ndata2i,ndata3i
 !
       else
         print *,' Error: no state name match, state_name='         &
@@ -406,32 +406,32 @@
         ndata3o=ndata_3d_dyn_imp
         ndata2o=ndata_2d_dyn_imp
         ndata1o=ndata_1d_dyn_imp
-        print *,' export state is for dynamics_import_state '
-        print *,' ndata1o ndata2o ndata3o are ',ndata1o,ndata2o,ndata3o
+!       print *,' export state is for dynamics_import_state '
+!       print *,' ndata1o ndata2o ndata3o are ',ndata1o,ndata2o,ndata3o
 !
 ! put to dynamics export state
       elseif(trim(export_statename)=="dynamics export")then 
         ndata3o=ndata_3d_dyn_exp
         ndata2o=ndata_2d_dyn_exp
         ndata1o=ndata_1d_dyn_exp
-        print *,' export state is for dynamics_export_state '
-        print *,' ndata1o ndata2o ndata3o are ',ndata1o,ndata2o,ndata3o
+!       print *,' export state is for dynamics_export_state '
+!       print *,' ndata1o ndata2o ndata3o are ',ndata1o,ndata2o,ndata3o
 !
 ! put to physics import state
       elseif(trim(export_statename)=="physics import")then 
         ndata3o=ndata_3d_phy_imp
         ndata2o=ndata_2d_phy_imp
         ndata1o=ndata_1d_phy_imp
-        print *,' export state is for physics_import_state '
-        print *,' ndata1o ndata2o ndata3o are ',ndata1o,ndata2o,ndata3o
+!       print *,' export state is for physics_import_state '
+!       print *,' ndata1o ndata2o ndata3o are ',ndata1o,ndata2o,ndata3o
 !
 ! put to physics export state
       elseif(trim(export_statename)=="physics export")then 
         ndata3o=ndata_3d_phy_exp
         ndata2o=ndata_2d_phy_exp
         ndata1o=ndata_1d_phy_exp
-        print *,' export state is for physics_export_state '
-        print *,' ndata1o ndata2o ndata3o are ',ndata1o,ndata2o,ndata3o
+!       print *,' export state is for physics_export_state '
+!       print *,' ndata1o ndata2o ndata3o are ',ndata1o,ndata2o,ndata3o
 !
       else
         print *,' Error: no state name match, state_name='         &

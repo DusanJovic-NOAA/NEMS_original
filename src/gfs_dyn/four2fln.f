@@ -6,7 +6,6 @@
      x                    flnev,flnod,
      x                    plnev,plnod,ls_node)
 cc
-cc
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
       use gfs_dyn_mpi_def
@@ -85,6 +84,13 @@ ccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 cc
       cons0 = 0.d0     !constant
       cons1 = 1.d0     !constant
+
+      flnev = cons0
+      flnod = cons0
+      works = 0.0
+      workr = 0.0
+      fp    = 0.0
+      fm    = 0.0
 cc
       call f_hpmstart(22,"1st_four2fln")
 cc

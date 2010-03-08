@@ -72,18 +72,6 @@ cc
 cc
       real(kind=kind_evod) cons0,cons0p5     !constant
 cc
-!      print *,'qe_ls=',qe_ls
-!      print *,'xe_ls=',xe_ls
-!      print *,'we_ls=',we_ls
-!      print *,'re_ls=',re_ls
-!      print *,'qo_ls=',qo_ls
-!      print *,'xo_ls=',xo_ls
-!      print *,'yo_ls=',yo_ls
-!      print *,'wo_ls=',wo_ls
-!      print *,'ro_ls=',ro_ls
-!      print *,'ls_nodes=',ls_nodes
-!      print *,'max_ls_nodes=',max_ls_nodes
-
       cons0   = 0.d0      !constant
       cons0p5 = 0.5d0     !constant
 cc

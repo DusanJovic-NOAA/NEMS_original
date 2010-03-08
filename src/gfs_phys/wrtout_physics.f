@@ -852,7 +852,8 @@ c  array copy
 !
         call nemsio_init()
 !
-        call nemsio_open(gfileout,trim(cfile),'write',iret,
+        call nemsio_open(gfileout,trim(cfile),'write',
+     &    iret = iret,
      &    modelname='GFS',gdatatype='bin4',
      &    idate=idate7,nrec=nrec,
      &    dimx=lonr,dimy=latr,dimz=levs,ncldt=ncld,nmeta=5,
@@ -2167,7 +2168,8 @@ Clu: addition of 6 aod fields ends here -----------------------------
 !
         call nemsio_init()
 !
-        call nemsio_open(gfileout,trim(cfile),'write',iret,
+        call nemsio_open(gfileout,trim(cfile),'write',
+     &    iret = iret,
      &    modelname='GFS',gdatatype='grib',
      &    idate=idate7,nrec=nrec,
      &    dimx=lonr,dimy=latr,dimz=levs,ncldt=ncld,nmeta=5,

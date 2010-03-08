@@ -2,6 +2,9 @@
                         module module_dm_parallel_gfs
 !-----------------------------------------------------------------------
 !
+! 09/2009  Weiyu Yang   -  Ensemble GEFS.
+!----------------------------------------
+!
 !***  This module contains all codes directly related to distributed
 !***  memory issues except for halo exchange although note that the
 !***  halo widths must be set here.
@@ -13,7 +16,8 @@
                                    ,mc_comp                      &
                                    ,mpi_comm_comp                &
                                    ,mpi_comm_inter               &
-                                   ,max_inter_groups
+                                   ,max_inter_groups             &
+                                   ,num_pes_fcst
 !
 !-----------------------------------------------------------------------
 !
@@ -30,7 +34,7 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-      subroutine setup_servers_gfs(mype,inpes,jnpes,npes,last_fcst_pe       &
+      subroutine setup_servers_gfs(mype,npes,last_fcst_pe       &
                               ,ngroups_write,write_tasks_per_group      &
                               ,mpi_intra)
 !
@@ -44,12 +48,10 @@
 !
 !   input argument list:
 !    mype          - My task ID
-!    inpes         - Number of mpi tasks in the X direction
-!    jnpes         - Number of mpi tasks in the Y direction
 !    npes          - Total number of mpi tasks provided to the job.  As input 
 !                    to SETUP_SERVERS it includes the forecast tasks plus all
 !                    write tasks in all groups of write tasks.  npes must at least
-!                    equal the product of inpes*jnpes otherwise the integration
+!                    equal the forecast pes otherwise the integration
 !                    cannot proceed. The difference between the product npes_fcst
 !                    and npes is the number of mpi tasks that are available
 !                    for i/o serving. This can be zero, in which case output will
@@ -68,14 +70,10 @@
 !
       integer(kind=kind_io4),intent(in) :: &
  mype &                     ! each task's ID
-,inpes &                    ! number of compute tasks in X direction
-,jnpes &                    ! number of compute tasks in Y direction
 ,last_fcst_pe  &            ! last fcst pe ID
 ,ngroups_write &            ! number of groups of write tasks
 ,write_tasks_per_group &    ! number of groups of write tasks per group
 ,mpi_intra                  ! global communicator
-!
-!      logical,intent(in) :: quilting
 !
       integer(kind=kind_io4),intent(inout) :: &
  npes                       ! total number of tasks provided
@@ -101,9 +99,8 @@
 !
 !-----------------------------------------------------------------------
 !
-!***  Let npes_fcst be the product of inpes and jnpes (namelist variables).
 !***  This is the number of mpi tasks the executable has been built for.
-!***  npes, returned from mpi_comm_size, must be at least this size
+!***  npes, returned from mpi_comm_size, must be at least the npes_fcst size
 !***  otherwise the integration cannot proceed. The difference between
 !***  npes_fcst and npes is the number of mpi tasks that are available
 !***  for quilt/write serving. This can be zero, in which case output will
@@ -115,7 +112,7 @@
 !-----------------------------------------------------------------------
 !
 !!!   mype=mype_share
-      npes_fcst=inpes*jnpes
+      npes_fcst=num_pes_fcst
       mc_comp=mpi_intra                                            !<-- Set mpi_comm_comp to the global communicator
       mpi_comm_comp=mpi_intra 
 !
@@ -130,7 +127,7 @@
 !
 !-----------------------------------------------------------------------
 !***  Compare the total number of MPI tasks (npes) to the number 
-!***  specified for the forecast integration (npes_fcst inpes*jnpes).
+!***  specified for the forecast integration (npes_fcst).
 !***  Obviously the total number cannot be less than the number
 !***  used for the forecast.
 !-----------------------------------------------------------------------
@@ -203,7 +200,6 @@
 !             +ngroups_write*write_tasks_per_group
       iqserver=ngroups_write*write_tasks_per_group                         !<-- Total # of quilt tasks in all groups
 !junwang
-!      if(.not.quilting) iqserver=0
        write(0,*)'in setup_gfs,last_fcst_pe=',last_fcst_pe,'ngroup_write=', &
          ngroups_write,'iqserver=',iqserver
       last_qserver=last_fcst_pe+iqserver
@@ -280,9 +276,6 @@
 !***  if ntasks >0 then mmunicator - The new intracommunicator for all tasks
 !###
 !-----------------------------------------------------------------------
-!
-!jw      ifntasks:  if( npes_fcst+iqserver>1) then
-!      ifntasks:  if( quilting ) then
 !
       call mpi_comm_split(comdup,icolor,mype,mc_comp,ierr)
       mpi_comm_comp=mc_comp
@@ -385,7 +378,7 @@
 !***  group they wish to communicate with.
 !-----------------------------------------------------------------------
 !
-        if(include_mype.and.npes_fcst>0)then                              !<-- Select all fcst tasks plus the quilt tasks in group i
+        if(include_mype.and.npes_fcst>0)then                                              !<-- Select all fcst tasks plus the quilt tasks in group i
           write(0,*)'before mpi_intercomm_create'
           call mpi_intercomm_create(mc_comp                             & !<-- Each task's local intracommunicator
                                    ,0                                   & !<-- Rank of lead task in each local intracommunicator
@@ -413,8 +406,6 @@
 !***  if ntasks >0 then mmunicator - The new intracommunicator for all tasks
 !###
 !-----------------------------------------------------------------------
-!
-!      endif ifntasks
 !
 !***
 !***  Set npes to the number of tasks working on the model integration.

@@ -14,7 +14,7 @@
 !  october  2009      jun wang add nsout option
 !  oct 11  2009       sarah lu, grid_gr replaced by grid_fld
 !  oct 17  2009       sarah lu, q is replaced by tracers(1)
-!  dec 08  2009       sarah lu, add g3d_fld to do_physics_one_step 
+!  dec 08  2009       sarah lu, add g3d_fld to do_physics_one_step
 !                     calling argument
 !
 !
@@ -39,6 +39,7 @@
 
       real , save	:: timestep=0.0
       integer		rc1, k 
+
 !***********************************************************************
 !
 !     lsfwd      logical true during a first forward step
@@ -61,8 +62,7 @@
 !
        call common_to_physics_vars(gis_phy%grid_fld%ps,      &
                                    gis_phy%grid_fld%t ,      &
-!*                                 gis_phy%grid_fld%q ,      &
-                                   gis_phy%grid_fld%tracers(1)%flds ,  &
+!                                   gis_phy%grid_fld%tracers(1)%flds ,  &
                                    gis_phy%grid_fld%u ,      &
                                    gis_phy%grid_fld%v ,      &
                                    gis_phy%grid_fld%p ,      &

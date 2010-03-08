@@ -22,11 +22,11 @@
       integer              global_lats_a(latg)
       integer                 lonsperlat(latg)
 !
-      REAL(KIND=KIND_GRID) psg    (lonf,lats_node_a_max)
-      REAL(KIND=KIND_GRID) ttg    (lonf,lats_node_a_max,levs)
-      REAL(KIND=KIND_GRID) uug    (lonf,lats_node_a_max,levs)
-      REAL(KIND=KIND_GRID) vvg    (lonf,lats_node_a_max,levs)
-      REAL(KIND=KIND_GRID) rqg    (lonf,lats_node_a_max,levh)
+      REAL(KIND=KIND_EVOD) psg    (lonf,lats_node_a_max)
+      REAL(KIND=KIND_EVOD) ttg    (lonf,lats_node_a_max,levs)
+      REAL(KIND=KIND_EVOD) uug    (lonf,lats_node_a_max,levs)
+      REAL(KIND=KIND_EVOD) vvg    (lonf,lats_node_a_max,levs)
+      REAL(KIND=KIND_EVOD) rqg    (lonf,lats_node_a_max,levh)
 !
       real(kind=kind_evod)   tfac(lonf,levs), sumq(lonf,levs), tkrt0
 !
