@@ -5,8 +5,8 @@ include ../../ush/compile_settings
 # *****************************************************************
 #
 all: 
-	cd $(GFS_UTIL) && gmake
 	cd $(GOCART) && export ESMADIR=`pwd` && gmake -C src install GOCART_MODE=$(GOCART_MODE)
+	cd $(GFS_UTIL) && gmake
 	cd $(GFS_DYN) && gmake
 	cd $(GFS_PHY) && gmake
 	cd $(GFS_IO) && gmake

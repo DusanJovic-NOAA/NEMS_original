@@ -184,7 +184,7 @@ cd $RUNDIR
  export FIXGLOBAL=/nwprod/fix
 #export FIX_RAD=/global/save/wx23hh/00wkgfs/fix/fix_rad
  export FIX_RAD=/global/save/wx23lu/NEMS/fix/fix_rad
- export GOCARTDIR=$FIX_RAD
+ export GOCARTDIR=/global/save/wx23lu/NEMS/fix
  export GOCART_CLIM=$GOCARTDIR/gocart_clim
  export GOCART_LUTS=$GOCARTDIR/gocart_luts
 #

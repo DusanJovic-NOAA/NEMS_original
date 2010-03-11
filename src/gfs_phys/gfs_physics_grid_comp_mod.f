@@ -1,4 +1,4 @@
-! !module: gfs_physics_grid_comp_mod --- 
+!! !module: gfs_physics_grid_comp_mod --- 
 !                       esmf gridded component of gfs physics
 !
 ! !description: gfs physics gridded component main module.
@@ -16,6 +16,7 @@
 !  dec 10 2009      Sarah Lu, add debug print to chekc fcld
 !  dec 15 2009      Sarah Lu, add debug print to chekc 3d diag fld (fcld, dqdt)
 !  Feb 05 2010      Jun Wang, set init time for restart
+!  Mar 02 2010      Sarah Lu, associate export state with internal state in init
 !                           
 !
 ! !interface:
@@ -422,13 +423,27 @@
 !
 !
       call synchro
+
 !
-! create 3D Gaussian grid  (sarah lu)                                          
+! Create 3D Gaussian grid                                   
 !-----------------------
 !
       call gfs_physics_grid_create_Gauss3D(vm_local,int_state,DistGrid5,rc1) 
 
       call gfs_physics_err_msg(rc1,'gfs_physics_grid_create_gauss',rc)     
+
+!
+! Define Physics Import and Export states   
+!
+      if ( .not. int_state%grid_aldata ) then
+        call gfs_physics_import2internal( imp_gfs_phy,    &         
+                                          int_state, rc = rc1)      
+        call gfs_physics_err_msg(rc1,'PHY INIT-call import2internal',rc)
+      endif
+
+      call gfs_physics_internal2export ( int_state,        &
+                                         exp_gfs_phy, rc = rc1)
+      call gfs_physics_err_msg(rc1,'PHY INIT-call internal2export',rc)
 
 ! set pointer the gfs export fields in the internal state 
 ! to the esmf exprot state which is the public interface
@@ -482,7 +497,7 @@
 !                    gfs_physics_internal2export_mgrid to associate imp/exp
 !                    states with internal state grid_fld
 !  oct 17 2009       Sarah Lu, debug print added to track imp/exp states
-
+!  mar 05 2010       Sarah Lu, internal2export_mgrid is called in init step
 !
 ! !interface:
 !
@@ -524,9 +539,6 @@
 !jw
       type(esmf_state)                   :: imp_wrt_state
 !
-! these logic flags are used to handle pointer/copy options (Sarah Lu)
-      logical       :: imp2int, flag1, flag2 
-
 !! debug print for tracking import and export state (Sarah Lu)
       TYPE(ESMF_Field)                   :: ESMFField             !chlu_debug
       TYPE(ESMF_FieldBundle)             :: ESMFBundle            !chlu_debug
@@ -585,18 +597,14 @@
 !
 ! the pointer/copy option (Sarah Lu)
 !  get the esmf import state and over-write the gfs internal state         
-!  for one-copy option, import2internal is called once and for all        
+!  for one-copy option, import2internal is called in the init step
 !  for two-copy option, import2internal is called every time step        
 !
 !*    call gfs_physics_import2internal(gc_gfs_phy, imp_gfs_phy, 	&
 !*                                        int_state, rc = rc1)
 !
 
-      flag1  =  int_state%grid_aldata                                     
-      flag2  = .not. int_state%grid_aldata .and. int_state%start_step   
-      imp2int = flag1 .or. flag2                                    
-
-      if ( imp2int ) then
+      if ( int_state%grid_aldata ) then
         call gfs_physics_import2internal( imp_gfs_phy,    &         
                                             int_state, rc = rc1)      
         call gfs_physics_err_msg(rc1,'import2internal',rc)     
@@ -762,18 +770,17 @@
                        esmf_log_info, rc = rc1)
 
 ! the pointer/copy option (Sarah Lu)
-!  point export state to internal state grid_fld            
-!  internal2export is called once and all                  
+!  point export state to internal state grid_fld in init step
 
-     if ( int_state%start_step ) then                             
-       call gfs_physics_internal2export( int_state,             & 
-                                          exp_gfs_phy, rc = rc1)  
-       call gfs_physics_err_msg(rc1,'internal2export',rc)  
+!     if ( int_state%start_step ) then                             
+!       call gfs_physics_internal2export( int_state,             & 
+!                                          exp_gfs_phy, rc = rc1)  
+!       call gfs_physics_err_msg(rc1,'internal2export',rc)  
+!
+!       int_state%start_step = .false. 
+!     endif                                                     
 
-       int_state%start_step = .false. 
-     endif                                                     
-
-     call gfs_physics_err_msg(rc1,'internal state to esmf export state',rc)
+!     call gfs_physics_err_msg(rc1,'internal state to esmf export state',rc)
 
 !! debug print starts here  (Sarah Lu) -----------------------------------
       lab_if_ckprnt_ex : if ( ckprnt .and. (int_state%me==0) ) then       !chlu_debug

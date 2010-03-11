@@ -17,6 +17,8 @@
 !! Oct 12 2009        Sarah Lu, atm_cpl_run modified to move Fields and
 !!                    FieldBundle between import and export states
 !! Oct 16 2009        Sarah Lu, move tracer bundle between states
+!! Mar 05 2010        Sarah Lu, modify init routine (associate export state
+!!                    to import state) 
 !-----------------------------------------------------------------------
 !
       use esmf_mod
@@ -132,19 +134,26 @@
 !
       end subroutine atm_cpl_setservices
 !
+!
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-!
-      subroutine atm_cpl_initialize(gc_atm_cpl,imp_state,exp_state         &
-                               ,clock,rc_cpl)
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!***  set up the coupler.
-!-----------------------------------------------------------------------
+      subroutine atm_cpl_initialize(gc_atm_cpl,imp_state,exp_state      &
+                             ,clock,rc_cpl)
 !
 !-----------------------------------------------------------------------
-!***  argument variables.
+!-----------------------------------------------------------------------
+!***
+!***  The init routine was an no-opt place holder before the GOCART plug-in
+!***  To enable GOCART initialization, the init routine now associates
+!***  fields between import state and export state  (Mar 2010, Sarah Lu)
+!***  
+!-----------------------------------------------------------------------
+!
+      implicit none
+!
+!-----------------------------------------------------------------------
+!***  argument variables
 !-----------------------------------------------------------------------
 !
       type(esmf_cplcomp),intent(inout) :: gc_atm_cpl
@@ -158,28 +167,180 @@
 !***  local variables
 !-----------------------------------------------------------------------
 !
-      integer :: rc,rcfinal
-      type(esmf_vm) :: vm
+      integer                        :: rc,n
+      integer                        :: ndata2i,ndata3i,ndata2o,ndata3o
 !
-!-----------------------------------------------------------------------
-!***********************************************************************
-!-----------------------------------------------------------------------
+      character(esmf_maxstr)         :: import_statename
+      character(esmf_maxstr)         :: export_statename
+!
+      character(20)                  :: array_name
+      character(50)                  :: msg
+!
+      TYPE(ESMF_Field)               :: Field      
+      TYPE(ESMF_FieldBundle)         :: Bundle      
 !
 !-----------------------------------------------------------------------
 !***  initialize the error signal variables.
 !-----------------------------------------------------------------------
 !
       rc     =esmf_success
-      rcfinal=esmf_success
-      rc_cpl =esmf_success
 !
 !-----------------------------------------------------------------------
-      call err_msg(rc,'main cpl initialize step',rcfinal)
-!
-      rc_cpl=rcfinal
-!
+!***  determine the direction of the transfer by extracting
+!***  the statename from the import state.
 !-----------------------------------------------------------------------
 !
+      call esmf_logwrite("retrieve state name in coupler"               &
+                         ,esmf_log_info,rc=rc)
+!
+      msg = 'retrieve state name from cpl import state'
+      call esmf_stateget(imp_state                                      &
+                        ,name =import_statename                         &
+                        ,rc   =rc)
+      call err_msg(rc,msg,rc_cpl)
+
+      msg = 'retrieve state name from cpl export state'
+      call esmf_stateget(exp_state                                      &
+                        ,name =export_statename                         &
+                        ,rc   =rc)
+      call err_msg(rc,msg,rc_cpl)
+!
+      print *,'ATM_CPL INIT is to associate data from '                &
+             ,' (',trim(import_statename),') with '                     &
+             ,' (',trim(export_statename),') '
+
+! -- check cpl import state
+      print *,'ATM_CPL INIT print imp_state ',trim(import_statename)
+      CALL ESMF_StatePrint (imp_state)
+!
+!-----------------------------------------------------------------------
+!***  the number of fields transferred from the dynamics to
+!***  the physics may not equal the number of fields transferred
+!***  in the other direction.  these values are specified in
+!***  module_export_import_data.
+!-----------------------------------------------------------------------
+!
+! get from dynamics import state
+      if(trim(import_statename)=="dynamics import")then     
+        ndata3i=ndata_3d_dyn_imp
+        ndata2i=ndata_2d_dyn_imp
+!
+! get from dynamics export state
+      elseif(trim(import_statename)=="dynamics export")then 
+        ndata3i=ndata_3d_dyn_exp
+        ndata2i=ndata_2d_dyn_exp
+!
+! get from physics import state
+      elseif(trim(import_statename)=="physics import")then 
+        ndata3i=ndata_3d_phy_imp
+        ndata2i=ndata_2d_phy_imp
+!
+! get from physics export state
+      elseif(trim(import_statename)=="physics export")then 
+        ndata3i=ndata_3d_phy_exp
+        ndata2i=ndata_2d_phy_exp
+!
+      else
+        print *,' Error: no state name match, state_name='         &
+               , trim(import_statename)
+      endif
+      print *,'ATM_CPL INIT import state is ',trim(import_statename)
+      print *,'ATM_CPL INIT ndata2i ndata3i are ',ndata2i,ndata3i
+!
+! ---------------------------------------------------------------------
+! put to dynamics import state
+      if(trim(export_statename)=="dynamics import")then     
+        ndata3o=ndata_3d_dyn_imp
+        ndata2o=ndata_2d_dyn_imp
+!
+! put to dynamics export state
+      elseif(trim(export_statename)=="dynamics export")then 
+        ndata3o=ndata_3d_dyn_exp
+        ndata2o=ndata_2d_dyn_exp
+!
+! put to physics import state
+      elseif(trim(export_statename)=="physics import")then 
+        ndata3o=ndata_3d_phy_imp
+        ndata2o=ndata_2d_phy_imp
+!
+! put to physics export state
+      elseif(trim(export_statename)=="physics export")then 
+        ndata3o=ndata_3d_phy_exp
+        ndata2o=ndata_2d_phy_exp
+!
+      else
+        print *,' Error: no state name match, state_name='         &
+               , trim(export_statename)
+      endif
+      print *,'ATM_CPL INIT export state is ',trim(export_statename)
+      print *,'ATM_CPL INIT ndata2o ndata3o are ',ndata2o,ndata3o
+!
+! --  check item member
+      if ( ndata2o.gt.ndata2i .or. ndata3o.gt.ndata3i ) then
+        print *,' ERROR: import data is too few for export data '
+        call abort
+      endif
+!
+!-----------------------------------------------------------------------
+!***  loop through the field data names, extract those fields from the
+!***  import state, and add them to the export state.
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  do 2-d arrays.
+!-----------------------------------------------------------------------
+!
+      data_2d: do n=1,ndata2o
+
+        array_name=trim(datanames_2d(n))
+        print *, 'ATM_CPL INIT transfer ', array_name
+!
+        msg = 'retrieve field '//array_name//' from cpl import'
+        call ESMF_StateGet(imp_state, array_name, Field, rc=rc)
+        call err_msg(rc,msg,rc_cpl)    
+
+        msg = 'add field to cpl export'
+        call ESMF_StateAdd(exp_state, Field, rc=rc)
+        call err_msg(rc,msg,rc_cpl)    
+!
+      enddo data_2d
+!
+!-----------------------------------------------------------------------
+!***  do 3-d arrays.
+!-----------------------------------------------------------------------
+!
+      data_3d: do n=1,ndata3o
+
+        array_name=trim(datanames_3d(n))
+        print *, 'ATM_CPL INIT transfer ', array_name
+!
+        msg = 'retrieve field '//array_name//' from cpl import'
+        call ESMF_StateGet(imp_state, array_name, Field, rc=rc)
+        call err_msg(rc,msg,rc_cpl)    
+
+        msg = 'add field to cpl export'
+        call ESMF_StateAdd(exp_state, Field, rc=rc)
+        call err_msg(rc,msg,rc_cpl)    
+!
+      enddo data_3d
+
+!-----------------------------------------------------------------------
+!***  do tracer arrays.
+!-----------------------------------------------------------------------
+!
+      print *, 'ATM_CPL INIT transfer tracer bundle'
+      msg = 'retrieve tracer bundle from cpl import'
+      call ESMF_StateGet(imp_state, 'tracers', Bundle, rc=rc)
+      call err_msg(rc,msg,rc_cpl)    
+
+      msg = 'add bundle to cpl export'
+      call ESMF_StateAdd(exp_state, Bundle, rc=rc)
+      call err_msg(rc,msg,rc_cpl)    
+!
+! -- check cpl export state
+      print *,'ATM_CPL INIT print exp_state ',trim(export_statename)
+      CALL ESMF_StatePrint (exp_state)
+
       end subroutine atm_cpl_initialize
 !
 !-----------------------------------------------------------------------

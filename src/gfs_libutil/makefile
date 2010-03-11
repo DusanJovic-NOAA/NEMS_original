@@ -24,7 +24,8 @@ OBJS03  = \
 	module_digital_filter_gfs.o   \
 	module_export_import_data.o   \
 	atmos_dyn_phy_cpl_comp_mod.o \
-	atmos_phy_chem_cpl_comp_mod.o
+	atmos_phy_chem_cpl_comp_mod.o \
+	atmos_chem_phy_cpl_comp_mod.o
 
 
 
@@ -54,7 +55,7 @@ $(OBJS02): %.o: %.f90 $(DEPS)
 	$(F90) $(FFLAG_GFS_UTIL90) -c $*.f90
 
 $(OBJS03): %.o: %.f90 $(DEPS)
-	$(F90) $(FFLAG_GFS_UTIL90) -c $*.f90
+	$(F90) $(FFLAG_GFS_UTIL90) $(FINCS_GFS1) -c $*.f90
 
 clean:
 	/bin/rm -f *.o 

@@ -14,6 +14,7 @@
 !                       chem gridded component
 !   2010-02-04  Lu    - GOCART_INTEGRATE added
 !   2010-02-05  WANG  - change alarm set up for restart option of GFS
+!   2010-03-09  Lu    - Add CHEM2PHY CPL
 !-----------------------------------------------------------------------
 
       USE ESMF_MOD
@@ -21,7 +22,7 @@
 
       USE MODULE_DIGITAL_FILTER_GFS
       USE MODULE_GFS_WRITE,        ONLY: WRITE_ASYNC_GFS
-      USE MODULE_GOCART_INTEGRATE, ONLY: GOCART_INTEGRATE
+      USE MODULE_GOCART_ROUTINES,  ONLY: GOCART_INTEGRATE
       USE MODULE_CONTROL,          ONLY: TIMEF
 !
 !-----------------------------------------------------------------------
@@ -49,6 +50,7 @@
                                  ,GC_GFS_CHEM                           &
                                  ,gc_atm_cpl                            &
                                  ,GC_PHY2CHEM_CPL                       &
+                                 ,GC_CHEM2PHY_CPL                       &
                                  ,wrt_comps                             &
                                  ,imp_gfs_dyn                           &
                                  ,exp_gfs_dyn                           &
@@ -80,6 +82,7 @@
                                           ,GC_GFS_CHEM                     !<-- The Chemistry component
       TYPE(ESMF_CplComp),INTENT(INOUT)       :: gc_atm_cpl
       TYPE(ESMF_CplComp),INTENT(INOUT) :: GC_PHY2CHEM_CPL                  !<-- The Phy-to-Chem coupler component
+      TYPE(ESMF_CplComp),INTENT(INOUT) :: GC_CHEM2PHY_CPL                  !<-- The Chem-to-Phy coupler component
 
 !jw
       TYPE(ESMF_GridComp),INTENT(INOUT)      :: wrt_comps(:)
@@ -265,6 +268,7 @@
               CALL GOCART_INTEGRATE(                                    &
                                    GC_GFS_CHEM,                         &
                                    GC_PHY2CHEM_CPL,                     &
+                                   GC_CHEM2PHY_CPL,                     &
                                    EXP_GFS_PHY,                         &
                                    IMP_GFS_CHEM, EXP_GFS_CHEM,          &
                                    CLOCK_ATM, RC                    )

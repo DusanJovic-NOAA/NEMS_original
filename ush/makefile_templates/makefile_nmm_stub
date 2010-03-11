@@ -42,6 +42,7 @@ TARGET= atmos_gfs_stub.a
 MODULE=        \
 	        module_GFS_WRITE_STUB.o      \
 		module_GFS_CORE_SETUP_STUB.o \
+		module_GOCART_ROUTINES_STUB.o \
 		module_GFS_INTEGRATE_STUB.o
 
 .SUFFIXES:	.F90 .f90 .o

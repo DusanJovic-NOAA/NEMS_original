@@ -19,17 +19,19 @@
 !! 11Feb 2010     Sarah Lu, Add get_attribute subroutine to retrieve tracer
 !!                          specification 
 !! 12Feb 2010     Sarah Lu, Include chemical tracers
+!! 06Mar 2010     Sarah Lu, Flip vertical profile index from top-down to
+!!                          bottom-up; add Init routine
 !-----------------------------------------------------------------------
 
       use ESMF_MOD
 
       USE MODULE_ERR_MSG, ONLY: ERR_MSG, MESSAGE_CHECK
       use MODULE_gfs_machine,  ONLY: kind_phys
-      use MODULE_gfs_funcphys, ONLY: fpvs, krealfp
       use MODULE_gfs_physcons, ONLY: con_rd,  con_fvirt, con_g, &
                                      con_eps, con_epsm1
       use MODULE_gfs_tropp,    ONLY: tpause
-
+      use MODULE_gfs_funcphys
+      USE Chem_RegistryMod
 
 !-----------------------------------------------------------------------
 !
@@ -48,8 +50,9 @@
       integer, save   :: ntrac
       logical, save   :: run_DU, run_SU, run_SS, run_OC, run_BC
       real(kind_phys), allocatable :: ri(:), cpi(:)
-      
-   
+!
+      TYPE(Chem_Registry),SAVE :: chemReg             !<-- The GOCART Chem_Registry
+!   
       public :: setservices
 
       contains
@@ -86,6 +89,20 @@
       integer :: rc=ESMF_success                     ! the error signal variable
 
 !-----------------------------------------------------------------------
+!***  register the coupler component's init routine
+!-----------------------------------------------------------------------
+!
+      MESSAGE_CHECK="Set Entry Point for phy2chem coupler init"
+
+      call ESMF_CplCompSetEntryPoint(GC                        & !<-- The gridded component
+                                    ,ESMF_SETINIT              & !<-- Predefined subroutine type
+                                    ,INIT                      & !<-- User's subroutineName
+                                    ,ESMF_SINGLEPHASE          &
+                                    ,rc)
+
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
+
+!-----------------------------------------------------------------------
 !***  register the coupler component's run routine
 !-----------------------------------------------------------------------
 !
@@ -115,6 +132,99 @@
 !
       end subroutine setservices
 
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
+      subroutine init(GC, PHY_EXP_STATE, CHEM_IMP_STATE, CLOCK, RC_CPL)
+!
+!-----------------------------------------------------------------------
+!!
+!! This routine associates tracer arrays in chem import state (iAERO bundle)
+!! to phy export state (tracers bundle)
+!!
+!! Code Revision:
+!! 06Mar 2010     Sarah Lu, First Crack
+!-----------------------------------------------------------------------
+
+      implicit none
+!
+!-----------------------------------------------------------------------
+!***  argument variables
+!-----------------------------------------------------------------------
+
+      type(ESMF_cplcomp),intent(inout) :: GC
+      type(ESMF_state),  intent(inout) :: PHY_EXP_STATE
+      type(ESMF_state),  intent(inout) :: CHEM_IMP_STATE
+      type(ESMF_clock),  intent(in)    :: CLOCK
+!
+      integer,           intent(out)   :: RC_CPL
+!
+!-----------------------------------------------------------------------
+!***  local variables
+!-----------------------------------------------------------------------
+
+      integer                       :: rc=ESMF_success  ! the error signal variable
+      integer                       :: IERR, N, L
+      type(ESMF_FieldBundle)        :: Bundle, iBundle
+      type(ESMF_Field)              :: Field
+      real, pointer                 :: fArr3D(:,:,:)
+!
+      print *, 'LU_CPLX: enter phy2chem init ', RC
+!-----------------------------------------------------------------------
+!***  Read Chem_Registry to retrive tracer name
+!-----------------------------------------------------------------------
+
+      print *, 'LU_CPLX: phy2chem init - get chemReg'
+      chemReg = Chem_RegistryCreate ( IERR )             !<-- read Chem_Registry
+
+      print *, 'LU_CPLX: phy2chem init - print chemReg'
+      CALL Chem_RegistryPrint ( chemReg)
+
+!-----------------------------------------------------------------------
+!***  Pass tracer bundle from physics to chemistry
+!-----------------------------------------------------------------------
+
+      MESSAGE_CHECK="PHY2CHEM_INIT: Get tracer bundle from phy exp"
+      print *, 'LU_CPLX: phy2chem init - get tracer bundle'
+      call ESMF_StateGet(PHY_EXP_STATE, 'tracers', iBundle, RC=RC)
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
+      MESSAGE_CHECK="PHY2CHEM_INIT: get iAERO bundle from chem imp"
+      call ESMF_StateGet(CHEM_IMP_STATE, 'iAERO', Bundle, RC=RC)
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
+      do L = 1, chemReg%n_GOCART
+
+         N = chemReg%i_GOCART + L - 1
+
+         MESSAGE_CHECK="PHY2CHEM_INIT: get field from tracers: "//chemReg%vname(N)
+         call ESMF_FieldBundleGet(iBundle, NAME=chemReg%vname(N), &
+                                  FIELD=Field, rc = RC )
+         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
+         MESSAGE_CHECK="PHY2CHEM_INIT: add field to iAero: "//chemReg%vname(N)
+         call ESMF_FieldBundleAdd(Bundle,Field,rc=rc)
+         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
+      end do
+!
+!
+!     Compute all physics function tables
+!
+      WRITE(0,*)'PHY2CHEM CPL INIT: Compute all physics function tables'
+      call gfuncphys      
+!
+      IF(RC_CPL==ESMF_SUCCESS)THEN
+        WRITE(0,*)'PHY2CHEM CPL INIT SUCCEEDED'
+      ELSE
+        WRITE(0,*)'PHY2CHEM CPL INIT FAILED RC_CPL=',RC_CPL
+      ENDIF
+!
+      print *, 'LU_CPLX: exit phy2chem init ', RC_CPL
+!
+      end subroutine init
+
 
 !-----------------------------------------------------------------------
 !#######################################################################
@@ -132,6 +242,9 @@
 !! 01Feb 2010     Sarah Lu, Transfer/convert fields from phy export state 
 !!                          to GOCART import state
 !! 11Feb 2010     Sarah Lu, Add get_attribute
+!! 06Mar 2010     Sarah Lu, Flip vertical profile index from top-down to
+!!                          bottom-up
+!!
 !-----------------------------------------------------------------------
 !
       implicit none
@@ -152,11 +265,20 @@
 !-----------------------------------------------------------------------
 !
       integer                 :: rc=ESMF_success  ! the error signal variable
-      integer                 :: i, j, k, item_count_phys, item_count_chem
+      integer                 :: i, j, k, kp
+      integer                 :: item_count_phys, item_count_chem
       character(20)           :: item_name(200)
       logical, save           :: first =  .true.
       real(ESMF_KIND_R8), pointer     :: Array(:,:,:)
       type(ESMF_Field)                :: Field
+!
+! deubg
+      integer, parameter                 :: nfld_2d = 18          !chlu_debug
+      integer, parameter                 :: nfld_3d = 10          !chlu_debug
+      character(8)                       :: vname_2d(nfld_2d)     !chlu_debug
+      character(8)                       :: vname_3d(nfld_3d)     !chlu_debug
+      character(8)                       :: NAME                  !chlu_debug
+
 
 ! Fortran array for phy export state
       real(ESMF_KIND_R8), pointer, dimension(:,:) ::                    &
@@ -199,7 +321,7 @@
 !
 ! local variables for conversion
       real                    :: hs, ps, ptp, utp, vtp, ttp, htp, shrtp, &
-                                 tv1, dz, tem
+                                 tv1, dz, tem, es
       real,  allocatable, dimension(:)  :: prsln, prslk, prsik, &
                                  pm, pd, sh, t, u, v, rh, shs, rho, pi, h
 
@@ -212,6 +334,18 @@
       data MAXSMC /0.421, 0.464, 0.468, 0.434, 0.406, 0.465,     &
                    0.404, 0.439, 0.421 /
 
+!
+      data vname_2d /'TROPP', 'LWI', 'ZPBL', 'FRLAKE',     &       !chlu_debug
+                     'FRACI', 'WET1', 'LAI', 'GRN', 'TA',  &       !chlu_debug
+                     'CN_PRCP', 'NCN_PRCP', 'PS', 'SH',    &       !chlu_debug
+                     'TSOIL1', 'U10M',  'V10M','USTAR','Z0H'/             !chlu_debug
+
+      data vname_3d /'PLE', 'ZLE' , 'AIRDENS', 'FCLD', 'DQDT', &  !chlu_debug
+                     'T', 'U', 'V', 'O3', 'RH2' /                 !chlu_debug
+
+
+!
+      print *, 'LU_CPLX: enter phy2chem_run step ', RC
 !---------------------------------------------
 !* Determine dimension and allocate local array
 !---------------------------------------------
@@ -225,6 +359,7 @@
 !  ---  outputs: (in scope variables)
 
 !
+        MESSAGE_CHECK = 'Retrive field t from phy export'
         call ESMF_StateGet(state      = PHY_EXP_STATE       &
                           ,itemName   = 't'                &
                           ,field      = Field               &
@@ -407,22 +542,22 @@
 
       else
        WRITE(0,*)'Get Fortran array from chem import state'
-       call GetPointer_(CHEM_IMP_STATE,'lwi'   ,c_lwi  , rc)
-       call GetPointer_(CHEM_IMP_STATE,'zpbl'  ,c_zpbl , rc)
-       call GetPointer_(CHEM_IMP_STATE,'frlake',c_frlake,rc)
-       call GetPointer_(CHEM_IMP_STATE,'fraci' ,c_fraci, rc)
-       call GetPointer_(CHEM_IMP_STATE,'wet1'  ,c_wet1 , rc)
-       call GetPointer_(CHEM_IMP_STATE,'lai'   ,c_lai  , rc)
-       call GetPointer_(CHEM_IMP_STATE,'grn'   ,c_grn  , rc)
-       call GetPointer_(CHEM_IMP_STATE,'cn_prcp',c_cn_prcp,rc)
-       call GetPointer_(CHEM_IMP_STATE,'ncn_prcp',c_ncn_prcp,rc)
-       call GetPointer_(CHEM_IMP_STATE,'sh'    ,c_sh   , rc)
-       call GetPointer_(CHEM_IMP_STATE,'ta'    ,c_ta   , rc)
-       call GetPointer_(CHEM_IMP_STATE,'tsoil1',c_tsoil1,rc)
-       call GetPointer_(CHEM_IMP_STATE,'u10m'  ,c_u10m , rc)
-       call GetPointer_(CHEM_IMP_STATE,'v10m'  ,c_v10m , rc)
-       call GetPointer_(CHEM_IMP_STATE,'ustar' ,c_ustar, rc)
-       call GetPointer_(CHEM_IMP_STATE,'z0h'   ,c_z0h  , rc)
+       call GetPointer_(CHEM_IMP_STATE,'LWI'   ,c_lwi  , rc)
+       call GetPointer_(CHEM_IMP_STATE,'ZPBL'  ,c_zpbl , rc)
+       call GetPointer_(CHEM_IMP_STATE,'FRLAKE',c_frlake,rc)
+       call GetPointer_(CHEM_IMP_STATE,'FRACI' ,c_fraci, rc)
+       call GetPointer_(CHEM_IMP_STATE,'WET1'  ,c_wet1 , rc)
+       call GetPointer_(CHEM_IMP_STATE,'LAI'   ,c_lai  , rc)
+       call GetPointer_(CHEM_IMP_STATE,'GRN'   ,c_grn  , rc)
+       call GetPointer_(CHEM_IMP_STATE,'CN_PRCP',c_cn_prcp,rc)
+       call GetPointer_(CHEM_IMP_STATE,'NCN_PRCP',c_ncn_prcp,rc)
+       call GetPointer_(CHEM_IMP_STATE,'SH'    ,c_sh   , rc)
+       call GetPointer_(CHEM_IMP_STATE,'TA'    ,c_ta   , rc)
+       call GetPointer_(CHEM_IMP_STATE,'TSOIL1',c_tsoil1,rc)
+       call GetPointer_(CHEM_IMP_STATE,'U10M'  ,c_u10m , rc)
+       call GetPointer_(CHEM_IMP_STATE,'V10M'  ,c_v10m , rc)
+       call GetPointer_(CHEM_IMP_STATE,'USTAR' ,c_ustar, rc)
+       call GetPointer_(CHEM_IMP_STATE,'Z0H'   ,c_z0h  , rc)
        call GetPointer_(CHEM_IMP_STATE,'TROPP' ,c_tropp, rc)
        call GetPointer_(CHEM_IMP_STATE,'PS'    ,c_ps   , rc)
 
@@ -433,9 +568,44 @@
        call GetPointer_3D_(CHEM_IMP_STATE,'U'  , c_u   , rc)
        call GetPointer_3D_(CHEM_IMP_STATE,'V'  , c_v   , rc)
        call GetPointer_3D_(CHEM_IMP_STATE,'O3' , c_o3  , rc)
-       call GetPointer_3D_(CHEM_IMP_STATE,'RH' , c_rh  , rc)
+       call GetPointer_3D_(CHEM_IMP_STATE,'RH2' , c_rh  , rc)
        call GetPointer_3D_(CHEM_IMP_STATE,'FCLD', c_fcld , rc)
        call GetPointer_3D_(CHEM_IMP_STATE,'DQDT', c_dqdt , rc)
+
+! get chem tracers
+       if ( run_DU ) then
+        call GetPointer_tracer_(CHEM_IMP_STATE,'du001', c_du001, rc)
+        call GetPointer_tracer_(CHEM_IMP_STATE,'du002', c_du002, rc)
+        call GetPointer_tracer_(CHEM_IMP_STATE,'du003', c_du003, rc)
+        call GetPointer_tracer_(CHEM_IMP_STATE,'du004', c_du004, rc)
+        call GetPointer_tracer_(CHEM_IMP_STATE,'du005', c_du005, rc)
+       endif
+
+       if ( run_SS ) then
+        call GetPointer_tracer_(CHEM_IMP_STATE,'ss001', c_ss001, rc)
+        call GetPointer_tracer_(CHEM_IMP_STATE,'ss002', c_ss002, rc)
+        call GetPointer_tracer_(CHEM_IMP_STATE,'ss003', c_ss003, rc)
+        call GetPointer_tracer_(CHEM_IMP_STATE,'ss004', c_ss004, rc)
+        call GetPointer_tracer_(CHEM_IMP_STATE,'ss005', c_ss005, rc)
+       endif
+
+       if ( run_SU ) then
+        call GetPointer_tracer_(CHEM_IMP_STATE,'msa', c_msa, rc)
+        call GetPointer_tracer_(CHEM_IMP_STATE,'so4', c_so4, rc)
+        call GetPointer_tracer_(CHEM_IMP_STATE,'so2', c_so2, rc)
+        call GetPointer_tracer_(CHEM_IMP_STATE,'dms', c_dms, rc)
+       endif
+
+       if ( run_OC ) then
+        call GetPointer_tracer_(CHEM_IMP_STATE,'ocphobic', c_ocphobic, rc)
+        call GetPointer_tracer_(CHEM_IMP_STATE,'ocphilic', c_ocphilic, rc)
+       endif
+
+       if ( run_BC ) then
+        call GetPointer_tracer_(CHEM_IMP_STATE,'bcphobic', c_bcphobic, rc)
+        call GetPointer_tracer_(CHEM_IMP_STATE,'bcphilic', c_bcphilic, rc)
+       endif
+
 
       endif
 
@@ -481,18 +651,31 @@
 ! 
         c_lwi    = p_slmsk             ! land-ocean-ice mask  (1)
         c_ps     = p_ps                ! surface pressure (Pa)
-        c_t      = p_t                 ! air temp at mid-layer (K)
-        c_u      = p_u                 ! zonal wind at mid-layer (m/s)
-        c_v      = p_v                 ! meridian wind at mid-layer (m/s)
-        c_o3     = p_o3mr              ! ozone mixing ratio at mid-layer (kg/kg)
-        c_fcld   = p_fcld              ! cloud cover  (1)
-        c_dqdt   = p_dqdt              ! total moisture tendency (kg/kg/s)
+!
+! --- flip virtical profile index
+!*      c_t      = p_t                 ! air temp at mid-layer (K)
+!*      c_u      = p_u                 ! zonal wind at mid-layer (m/s)
+!*      c_v      = p_v                 ! meridian wind at mid-layer (m/s)
+!*      c_o3     = p_o3mr              ! ozone mixing ratio at mid-layer (kg/kg)
+!*      c_fcld   = p_fcld              ! cloud cover  (1)
+!*      c_dqdt   = p_dqdt              ! total moisture tendency (kg/kg/s)
+        do k = 1, km
+          kp = km - k + 1
+          c_t(:,:,kp)      = p_t(:,:,k)        ! air temp at mid-layer (K)
+          c_u(:,:,kp)      = p_u(:,:,k)        ! zonal wind at mid-layer (m/s)
+          c_v(:,:,kp)      = p_v(:,:,k)        ! meridian wind at mid-layer (m/s)
+          c_o3(:,:,kp)     = p_o3mr(:,:,k)     ! ozone mixing ratio at mid-layer (kg/kg)
+          c_fcld(:,:,kp)   = p_fcld(:,:,k)     ! cloud cover  (1)
+          c_dqdt(:,:,kp)   = p_dqdt(:,:,k)     ! total moisture tendency (kg/kg/s)
+        enddo
+
 !
 !
 ! ---  derive chem import from phy export
 !
 !       do i = 1, im         ! <-- only loop through valid points
 !       do j = 1, jm
+
         do j = 1, lats_node_r
         do i = 1, lonsperlar_r(j)
 
@@ -530,21 +713,27 @@
 !         compute h (interface height in m)
 !     
 !      
+          do k = 1, km                           ! from SFC to TOA
+            prsln(k) = log(0.01*pi(k))      ! convert from Pa to mb
+            if ( k == km ) prsln(k+1)=log(0.01*pm(k)) ! Pa to mb
+          enddo
+
           h(1) =  hs
           do k = 1, km                           ! from SFC to TOA
             tv1 = t(k) * (f_one + con_fvirt * sh(k))   ! virtual temp (k)
             rho(k) = pm(k) /(con_rd * tv1)       ! air density (kg/m3)
-
-            prsln(k) = log(pi(k))
-            if ( k == km ) prsln(k+1)=log(pm(k))
-            dz = rovg * (prsln(k+1)-prsln(k)) * tv1  ! thickness (m)
+            dz = rovg * (prsln(k)-prsln(k+1)) * tv1  ! thickness (m)
             if ( k == km ) dz = 2.0 * dz
             h(k+1) = h(k) + dz        ! geopotential height at interface (m)
+!
+            es=min(fpvs( t(k) ), pm(k))
+            shs(k)=con_eps*es/(pm(k)+con_epsm1*es)
+            rh(k)=1.e2*min(max(sh(k)/shs(k),0.),1.)
           enddo
 
 !         call getrh to compute saturation humidity and relative humidity
 !         rh : relative humidity (percent)
-          call getrh(km,pm,sh,t,shs,rh)
+!         call getrh(km,pm,sh,t,shs,rh)
 
 !         call tpause to compute tropopause level fields
 !         ptp: tropopause pressure (Pa)
@@ -553,21 +742,62 @@
 !         pass local variables to chem import state
           c_airdens(i,j,:) =  rho(:)   ! air density at mid-layer (kg/m3)
           c_tropp(i,j) = ptp           ! tropopause (Pa)
-          c_ple(i,j,:) = pi(:)         ! air pressure at interface (Pa)
-          c_zle(i,j,:) = h(:)          ! geopotential height at interface (m)
-          c_rh(i,j,:)  = 0.01* rh(:)   ! relative humidity at mid-layer (0-1)
+!*        c_ple(i,j,:) = pi(:)         ! air pressure at interface (Pa)
+!*        c_zle(i,j,:) = h(:)          ! geopotential height at interface (m)
+!*        c_rh(i,j,:)  = 0.01* rh(:)   ! relative humidity at mid-layer (0-1)
+
+! --- flip virtical profile index
+          do k = 1, km
+           kp = km - k + 1
+           c_airdens(i,j,kp) =  rho(k)   ! air density at mid-layer (kg/m3)
+           c_rh(i,j,kp)  = 0.01* rh(k)   ! relative humidity at mid-layer (0-1)
+          enddo
+! for fields at interface: 0:km for GOCART; 1:km+1 for GFS
+          do k = 1, km+1
+           kp = km - k + 1
+           c_ple(i,j,kp) = pi(k)       ! air pressure at interface (Pa)
+           c_zle(i,j,kp) = h(k)        ! geopotential height at interface (m)
+          enddo
 
         enddo
         enddo
 
        endif
+       print *, 'LU_CPLX: t(phys_exp):', p_t(1,1,1),p_t(2,1,1)
+       print *, 'LU_CPLX: t(chem_imp):', c_t(1,1,km),c_t(2,1,km)
+!
+       print *, 'LU_CPLX: t(phys_exp):', p_t(1,1,1:km)
+       print *, 'LU_CPLX: t(chem_imp):', c_t(1,1,1:km)
 
       ELSE
 
        WRITE(0,*)'Coupling phy_exp with chem_imp skipped, RC_CPL=',RC_CPL
 
       ENDIF
+!
+      IF(RC_CPL==ESMF_SUCCESS)THEN
+        WRITE(0,*)'PHY2CHEM CPL RUN SUCCEEDED'
+      ELSE
+        WRITE(0,*)'PHY2CHEM CPL RUN FAILED RC_CPL=',RC_CPL
+      ENDIF
+!
+      print *, 'LU_CPLX: check gocart import state'
 
+      print *, 'LU_CPLX: o3mr(phy_exp):', p_o3mr(1,1,1:km)
+      print *, 'LU_CPLX: o3(chem_imp):', c_o3(1,1,1:km)
+
+      DO I = 1, nfld_2d
+        NAME = vname_2d(I)
+        call CkPointer_(CHEM_IMP_STATE, NAME  , rc)
+      ENDDO
+
+      DO I = 1, nfld_3d
+        NAME = vname_3d(I)
+        call CkPointer_3D_ (CHEM_IMP_STATE, NAME  , rc)
+      ENDDO
+
+!
+      print *, 'LU_CPLX: exit phy2chem_run step ', RC_CPL
 !
 !! 
       contains 
@@ -709,6 +939,69 @@
        RETURN
       end subroutine get_attribute
 
+!!! ```````````````````````````````````````````````````````````````````````````
+      subroutine CkPointer_(STATE,NAME,rc)
+! --- input/output arguments
+        type(ESMF_State), intent(IN)    :: State
+        character(len=*), intent(IN)    :: Name
+        integer, intent (OUT)           :: rc
+
+! --- locals
+        integer                         :: rc1
+        type(ESMF_Field)                :: Field
+        real(ESMF_KIND_R8), pointer     :: Array(:,:)
+
+!
+        MESSAGE_CHECK = 'Extract '//NAME//' from chem_imp'
+        call ESMF_StateGet(state      = STATE               &
+                          ,itemName   = NAME                &
+                          ,field      = Field               &
+                          ,rc   =rc1)
+        CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+
+        nullify(Array)
+        MESSAGE_CHECK = 'Get Fortran data pointer from '//NAME
+        CALL ESMF_FieldGet(field=Field, localDe=0, &
+                           farray=Array, rc = rc1)
+        CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+!
+        print*, NAME,':', Array(1,1),Array(1,2),Array(2,1)
+        return
+!
+      end subroutine CkPointer_
+
+      subroutine CkPointer_3D_(STATE,NAME,rc)
+! --- input/output arguments
+        type(ESMF_State), intent(IN)    :: State
+        character(len=*), intent(IN)    :: Name
+        integer, intent (OUT)           :: rc
+
+! --- locals
+        integer                         :: rc1
+        type(ESMF_Field)                :: Field
+        real(ESMF_KIND_R8), pointer     :: Array(:,:,:)
+
+!
+        MESSAGE_CHECK = 'Extract '//NAME//' from chem_imp'
+        call ESMF_StateGet(state      = STATE               &
+                          ,itemName   = NAME                &
+                          ,field      = Field               &
+                          ,rc   =rc1)
+        CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+
+        nullify(Array)
+        MESSAGE_CHECK = 'Get Fortran data pointer from '//NAME
+        CALL ESMF_FieldGet(field=Field, localDe=0, &
+                           farray=Array, rc = rc1)
+        CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+!
+        print*, NAME,':', Array(1,1,:)
+!
+        return
+      end subroutine CkPointer_3D_
+
+
+
         subroutine GetPointer_ (STATE, NAME, Array, RC)
 
 ! --- input/output arguments
@@ -724,7 +1017,9 @@
 !
 !===>  ...  begin here
 !
-        call ESMF_StateGet(state=State, name=statename, rc=rc )
+        MESSAGE_CHECK = 'Retrive statename'
+        call ESMF_StateGet(state=State, name=statename, rc=rc1 )
+        CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 
         MESSAGE_CHECK = 'Extract '//NAME//' from '//statename
         call ESMF_StateGet(state      = STATE               &
@@ -739,7 +1034,7 @@
                            farray=Array, rc = rc1)
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !
-        print *,'LU_TST:',trim(statename),Name,Array(1,1),Array(1,2),Array(2,1)
+        print *,'LU_TST:',trim(statename),' ',Name,Array(1,1),Array(1,2),Array(2,1)
 ! 
 !       check im and jm for physics export
         if (statename == 'Physics Export') then
@@ -761,6 +1056,7 @@
 
        end subroutine GetPointer_
 !!!
+!!! ```````````````````````````````````````````````````````````````````````````
         subroutine GetPointer_3D_ (STATE, NAME, Array, RC)
 
 ! --- input/output arguments
@@ -776,7 +1072,9 @@
 !
 !===>  ...  begin here
 !
-        call ESMF_StateGet(state=State, name=statename, rc=rc )
+        MESSAGE_CHECK = 'Retrive statename'
+        call ESMF_StateGet(state=State, name=statename, rc=rc1 )
+        CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !
         MESSAGE_CHECK = 'Extract '//NAME//' from '//statename
         call ESMF_StateGet(state      = STATE               &
@@ -791,7 +1089,7 @@
                            farray=Array, rc = rc1)
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 
-        print *, 'LU_TST:',trim(statename),Name,Array(1,1,1),Array(1,2,1), &
+        print *, 'LU_TST:',trim(statename),' ',Name,Array(1,1,1),Array(1,2,1), &
                                           Array(im,jm,km)
 
 !       check im, jm, km for physics export
@@ -819,6 +1117,7 @@
        end subroutine GetPointer_3D_
 
 !!!!
+!!! ```````````````````````````````````````````````````````````````````````````
         subroutine GetPointer_tracer_ (STATE, NAME, Array, RC)
 
 ! --- input/output arguments
@@ -832,15 +1131,24 @@
         type(ESMF_FieldBundle)          :: Bundle
         integer                         :: i, j, k, rc1
         character(esmf_maxstr)          :: statename
+        character(10)                   :: BundleName
 !
 !===>  ...  begin here
+
+        MESSAGE_CHECK = 'Extract statename'
+        call ESMF_StateGet(state=State, name=statename, rc=rc1 )
+        CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+
+        if (statename == 'physics export') BundleName='tracers'
+        if (statename == 'chemistry import') BundleName='iAERO'
+        print *, 'LU_TST: BundleName=',BundleName
 !
         MESSAGE_CHECK = 'Extract tracer bundle from '//statename
-        call ESMF_StateGet(state=State, ItemName='tracers', &
+        call ESMF_StateGet(state=State, ItemName=BundleName, &
                            fieldbundle=Bundle, rc = rc1)
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !
-        MESSAGE_CHECK = 'Extract '//NAME//' from tracer bundle'
+        MESSAGE_CHECK = 'Extract '//NAME//' from '//BundleName
         CALL ESMF_FieldBundleGet(bundle=Bundle, &
                       name=NAME, field=Field, rc = rc1)
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
@@ -851,16 +1159,30 @@
                            farray=Array, rc = rc1)
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 
-        print *, 'LU_TST',trim(statename),Name,Array(1,1,1), &
+        print *, 'LU_TST',trim(statename),' ',Name,Array(1,1,1), &
                           Array(1,2,1), Array(im,jm,km)
 !
-! check im and jm
-        if ( lonr .ne. size ( Array, dim=1) )  print *, 'ERROR !',       &
+!       check im, jm, km for physics export
+        if (statename == 'Physics Export') then
+          if ( lonr .ne. size ( Array, dim=1) )  print *, 'ERROR !',       &
              'Invalid lonr:',  lonr, size(Array,dim=1)
-        if (lats_node_r_max .ne. size ( Array, dim=2) ) print *, 'ERROR !', &
+          if (lats_node_r_max .ne. size ( Array, dim=2) ) print *, 'ERROR !', &
              'Invalid lats_node_r_max',  lats_node_r_max, size(Array,dim=2)
-        if (km .ne. size ( Array, dim=3) ) print *, 'ERROR !', &
+          if (km .ne. size ( Array, dim=3) ) print *, 'ERROR !', &
              'Invalid km',  km, size(Array,dim=3)
+        endif
+
+!       patch the array with valid values
+        if (statename == 'Chemistry Import') then
+          do k = 1, km
+          do j = 1, lats_node_r_max
+            if (lonsperlar_r(j) < lonr ) then
+              Array(lonsperlar_r(j)+1:lonr,j,k) = Array(1,1,k)
+              if(NAME=='t') print *,'LU_TST: fill t:',i,lonr,Array(1,1,1)
+             endif
+          enddo 
+          enddo 
+        endif
 
        end subroutine GetPointer_tracer_
 
@@ -918,6 +1240,7 @@
          es=fpvs(tr)
          es=min(es,pr)
          shs(k)=con_eps*es/(pr+con_epsm1*es)
+	write(555,*) 'rh ', fpvs(tr), tr, pr, es, sh(k), shs(k), sh(k)/shs(k)
          rh(k)=1.e2*min(max(sh(k)/shs(k),0.),1.)
        enddo
        end subroutine
