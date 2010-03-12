@@ -527,8 +527,10 @@
                            ,I_END_TRANSFER,J_END_TRANSFER               &
                            ,NBASE,NBASE_3D,NBASE_EXP,NT
 !
-      INTEGER(kind=KINT) :: CHILD_ID,IERR,ITE_CHILD_X,JTE_CHILD_X       &
+      INTEGER(kind=KINT) :: CHILD_ID,CONFIG_ID                          &
+                           ,ITE_CHILD_X,JTE_CHILD_X                     &
                            ,LIM1_H,LIM1_V,LIM2_H,LIM2_V                 &
+                           ,MAX_DOMAINS                                 &
                            ,N,NN,N_START,N_END                          &
                            ,N_H_EAST_WEST,N_H_NORTH_SOUTH               &
                            ,N_V_EAST_WEST,N_V_NORTH_SOUTH               &
@@ -539,7 +541,9 @@
                            ,NUM_TASKS_MINE,NUM_TASKS_PARENT             &
                            ,NWORDS
 !
-      INTEGER(kind=KINT) :: RC,RC_CPL_INIT
+      INTEGER(kind=KINT) :: IERR,RC,RC_CPL_INIT
+!
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: N_CONFIGURE
 !
       REAL(kind=KFPT) :: DIST_NESTV_SOUTH_TO_PARENTV_SOUTH
 !
@@ -549,6 +553,7 @@
 !
       TYPE(ESMF_Field) :: HOLD_FIELD
 !
+      TYPE(ESMF_Config) :: CF_X
       TYPE(ESMF_Config),DIMENSION(:),ALLOCATABLE :: CF
 !
       INTEGER(KIND=ESMF_KIND_I8) :: NTIMESTEP_ESMF
@@ -571,6 +576,24 @@
 !***  Extract key variables from the import state.
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
+!
+!-------------------------------
+!***  Maximum number of domains
+!-------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Maximum Number of Domains"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The parent-child coupler import state
+                            ,name ='MAX_DOMAINS'                        &  !<-- Name of the attribute to extract
+                            ,value=MAX_DOMAINS                          &  !<-- Maximum # of domains
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------
 !***  Current Domain ID
@@ -662,6 +685,27 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!----------------------------------------------------------
+!***  The association of domains and their configure files
+!----------------------------------------------------------
+!
+      ALLOCATE(N_CONFIGURE(1:MAX_DOMAINS))
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Assocaition of Domains and Config Files"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state    =IMP_STATE                        &  !<-- The parent-child coupler import state
+                            ,name     ='N_CONFIGURE'                    &  !<-- Name of the attribute to extract
+                            ,count    =MAX_DOMAINS                      &  !<-- Name of the attribute to extract
+                            ,valueList=N_CONFIGURE                      &  !<-- Array associating domains and config files
+                            ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
 !-----------------------------------
 !***  Forecast Tasks On Each Domain
 !-----------------------------------
@@ -676,7 +720,7 @@
       CALL ESMF_AttributeGet(state    =IMP_STATE                        &  !<-- The parent-child coupler import state
                             ,name     ='FTASKS_DOMAIN'                  &  !<-- Name of the attribute to extract
                             ,count    =NUM_DOMAINS                      &  !<-- # of items in the Attribute
-                            ,valuelist=FTASKS_DOMAIN                    &  !<-- # of forecast tasks on each domain
+                            ,valueList=FTASKS_DOMAIN                    &  !<-- # of forecast tasks on each domain
                             ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -697,7 +741,7 @@
       CALL ESMF_AttributeGet(state    =IMP_STATE                        &  !<-- The parent-child coupler import state
                             ,name     ='ID_PARENTS'                     &  !<-- Name of the attribute to extract
                             ,count    =NUM_DOMAINS                      &  !<-- # of items in the Attribute
-                            ,valuelist=ID_PARENTS                       &  !<-- Domain IDs of parents 
+                            ,valueList=ID_PARENTS                       &  !<-- Domain IDs of parents 
                             ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -821,8 +865,8 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  FIRST THE PARENT TASKS EXTRACT RELEVANT DATA ABOUT THEMSELVES
-!***  FROM THE COUPLER IMPORT STATE.
+!***  First the parent tasks extract relevant data about themselves
+!***  from the coupler import state.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------
@@ -860,7 +904,7 @@
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The parent-child coupler import state
                               ,name     ='CHILD_IDs'                    &  !<-- Name of the attribute to extract
                               ,count    =NUM_CHILDREN                   &  !<-- # of items in the Attribute
-                              ,valuelist=MY_CHILDREN_ID                 &  !<-- The domain IDs of the current domain's children
+                              ,valueList=MY_CHILDREN_ID                 &  !<-- The domain IDs of the current domain's children
                               ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -868,8 +912,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  UNLOAD THE PARENTS'S OWN PROGNOSTIC DATA SO IT CAN BE USED
-!***  TO INTERPOLATE TO ITS CHILDREN.
+!***  Unload the parents's own prognostic data so it can be used
+!***  to interpolate to its children.
 !-----------------------------------------------------------------------
 !
 !--------
@@ -1211,7 +1255,8 @@
           CF(N)=ESMF_ConfigCreate(rc=RC)
 !
           CHILD_ID=MY_CHILDREN_ID(N)
-          WRITE(INT_TO_CHAR,FMT)CHILD_ID 
+          CONFIG_ID=N_CONFIGURE(CHILD_ID)
+          WRITE(INT_TO_CHAR,FMT)CONFIG_ID
           CONFIG_FILE_NAME='configure_file_'//INT_TO_CHAR                  !<-- Prepare the config file names
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1301,8 +1346,8 @@
         ENDDO
 !
 !-----------------------------------------------------------------------
-!***  EXTRACT THE RATIO OF THE PARENT GRID INCREMENT TO THE CHILDREN'S
-!***  FROM THE CONFIGURE FILES.
+!***  Extract the ratio of the parent grid increment to the children's
+!***  from the configure files.
 !-----------------------------------------------------------------------
 !
         ALLOCATE(PARENT_CHILD_SPACE_RATIO(1:NUM_CHILDREN))
@@ -1326,13 +1371,13 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  USE THIS RATIO TO COMPUTE AN INCREMENT THAT IS NEEDED FOR
-!***  SELECTING THE APPROPRIATE NEST TASKS AS MASS VALUES ON THE
-!***  NEST BOUNDARIES ARE AVERAGED TO THE V POINTS.  ITS VALUES
-!***  ARE BASED ON THE NEST GRID INCREMENT DISTANCE FROM THE
-!***  SOUTHERNMOST V POINT ON A NEST's SOUTHERNMOST TASKS TO
-!***  THE NEAREST PARENT V POINT TO THE NORTH.  FRACTIONAL VALUES
-!***  ARE INCREASED TO THE NEXT INTEGER.
+!***  Use this ratio to compute an increment that is needed for
+!***  selecting the appropriate nest tasks as mass values on the
+!***  nest boundaries are averaged to the V points.  Its values
+!***  are based on the nest grid increment distance from the
+!***  southernmost V point on a nest's southernmost tasks to
+!***  the nearest parent V point to the north.  Fractional values
+!***  are increased to the next integer.
 !-----------------------------------------------------------------------
 !
           DIST_NESTV_SOUTH_TO_PARENTV_SOUTH=                            &
@@ -2053,6 +2098,8 @@
 !
       ENDIF child_block
 !
+      DEALLOCATE(N_CONFIGURE)
+!
 !-----------------------------------------------------------------------
 !***  Now the children need to obtain a few pieces of information
 !***  from their parents in order to be prepared to receive boundary
@@ -2171,19 +2218,19 @@
       RC_CPL_RUN=ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
-!***  EACH CHILD TASK THAT HOLDS PART OF THE DOMAIN BOUNDARY RECEIVES
-!***  DATA FROM THE PARENT TASKS WITH WHICH IT SHARES THAT BOUNDARY. 
-!***  THE PARENT IS SENDING THE DATA FROM THE END OF ITS TIMESTEP. 
-!***  THE CHILD WILL RECEIVE THE DATA FROM THE FUTURE, COMPUTE THE 
-!***  TIME TENDENCIES FOR THE BOUNDARY VARIABLES AND THEN PROCEED AS
-!***  ANY STAND ALONE DOMAIN WOULD UNTIL IT REACHES THE SAME POINT
-!***  IN TIME FROM WHICH THE PARENT SENT THE DATA.  THE BOUNDARY
-!***  DATA EXCHANGE PROCESS THEN REPEATS.
+!***  Each child task that holds part of the domain boundary receives
+!***  data from the parent tasks that cover its boundary points.
+!***  The parent is sending the data from the end of its timestep.
+!***  The child will receive the data from the future, compute the
+!***  time tendencies for the boundary variables and then proceed as
+!***  any stand alone domain would until it reaches the same point
+!***  in time from which the parent sent the data.  The boundary
+!***  data exchange process then repeats.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !
-!***  NOW FOR EACH SIDE OF THE NESTS' BOUNDARIES:
+!***  Now for each side of the nests' boundaries:
 !
 !***   (a) Each child task receives all boundary data from the
 !***       relevant parent task(s).  Note that more than one 
@@ -2750,7 +2797,7 @@
 !                                                ,ctasks_work_w         &
 !                                                ,ctasks_work_e
 !
-      INTEGER :: ID_DOM,IERR,N,NT,NTAG,NUM_CHILD_TASKS
+      INTEGER :: IERR,N,NT,NTAG,NUM_CHILD_TASKS
       INTEGER :: RC,RC_CPL_RUN
 !
       INTEGER,DIMENSION(MPI_STATUS_SIZE) :: ISTAT
@@ -2769,7 +2816,7 @@
       btim0=timef()
 !
 !-----------------------------------------------------------------------
-!***  INITIALIZE THE ERROR SIGNAL VARIABLES.
+!***  Initialize the error signal variables.
 !-----------------------------------------------------------------------
 !
       RC        =ESMF_SUCCESS
@@ -2777,7 +2824,7 @@
       RC_CPL_RUN=ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
-!***  PARENT GENERATES BOUNDARY DATA FOR ITS CHILDREN. 
+!***  Parent generates boundary data for its children. 
 !-----------------------------------------------------------------------
 !
       child_loop: DO N=1,NUM_CHILDREN
@@ -2972,8 +3019,8 @@
                                      ,PD_B_EAST(N)%TASKS )                 !
 !
 !-----------------------------------------------------------------------
-!***  NOW COMPUTE THE NEW MASS VARIABLE VALUES IN THE COLUMNS ABOVE
-!***  THE NEST BOUNDARY POINTS.
+!***  Now compute the new mass variable values in the columns above
+!***  the nest boundary points.
 !-----------------------------------------------------------------------
 !
 !-----------------
@@ -3171,10 +3218,10 @@
                                       ,CW_B_EAST(N)%TASKS )                !<-- 
 !
 !-----------------------------------------------------------------------
-!***  BEFORE WE CAN LET THE PARENT PROCEED TO COMPUTE WIND COMPONENT
-!***  UPDATES ON THE NESTS' BOUNDARIES, WE MUST GENERATE THE PRESSURE
-!***  ON THE PARENT'S V POINTS AND AT THE NEST BOUNDARY V POINTS.
-!***  THIS IS BEGUN BY SIMPLE 4-PT AVERAGING.  
+!***  Before we can let the parent proceed to compute wind component
+!***  updates on the nests' boundaries, we must generate the pressure
+!***  on the parent's V points and at the nest boundary V points.
+!***  This is begun by simple 4-pt averaging.  
 !-----------------------------------------------------------------------
 !
         CALL PRESSURE_ON_NEST_BNDRY_V(PD                                &  !<-- Sigma domain pressure (Pa) on parent mass points
@@ -3353,12 +3400,12 @@
         cpl2_comp_tim=cpl2_comp_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  PARENT TASKS SEND DATA DIRECTLY TO CHILD TASKS WHOSE BOUNDARY
-!***  POINTS THE PARENT TASKS CONTAIN. 
+!***  Parent tasks send data directly to child tasks whose boundary
+!***  points the parent tasks contain. 
 !***
-!***  MAKE SURE THE BOUNDARY DATA FROM THE PREVIOUS STEP HAS BEEN
-!***  RECEIVED BY THE CHILDREN.  ONLY THEN CAN WE OVERWRITE IT WITH
-!***  NEW DATA.  
+!***  Make sure the boundary data from the previous step has been
+!***  received by the children.  Only then can we overwrite it with
+!***  new data.  
 !-----------------------------------------------------------------------
 !
 !
@@ -3692,9 +3739,11 @@
                                            ,CHILD_ID                    &  !     ^
                                            ,EXP_STATE_ATM               &  !     |
                                            ,FTASKS_DOMAIN               &  !     |  
-                                           ,ID_PARENTS                  &  !   INPUT 
+                                           ,ID_PARENTS_IN               &  !     |
+                                           ,N_CONFIGURE                 &  !     |
+                                           ,MAX_DOMAINS                 &  !   Input
 !                                                                           -----------
-                                           ,IMP_STATE_CPL_NEST          &  !   OUTPUT
+                                           ,IMP_STATE_CPL_NEST          &  !   Output
                                            ,EXP_STATE_CPL_NEST          &  !     |
                                            ,PARENT_CHILD_COUPLER_COMP )    !     v
 !
@@ -3706,18 +3755,25 @@
 !***  NEED IN ORDER TO GENERATE BOUDARY DATA FOR ITS CHILDREN.
 !-----------------------------------------------------------------------
 !
-      INTEGER,INTENT(IN) :: COMM_MY_DOMAIN                              &  !<-- MPI communicator for each individual domain
-                           ,COMM_TO_MY_PARENT                           &  !<-- Current domain's MPI communicator to its parent
-                           ,MY_DOMAIN_ID                                &  !<-- ID of current domain
-                           ,NUM_CHILDREN                                &  !<-- Current domain's number of children
-                           ,NUM_DOMAINS                                    !<-- Total number of domains
+!-----------------------------------------------------------------------
+!***  Argument Variables
+!-----------------------------------------------------------------------
 !
-      INTEGER,DIMENSION(:),POINTER,INTENT(IN) :: CHILD_ID               &  !<-- Domain IDs of current domain's children
-                                                ,COMM_TO_MY_CHILDREN    &  !<-- Current domain's MPI communicators to its children
-                                                ,FTASKS_DOMAIN          &  !<-- # of forecast tasks on each domain
-                                                ,ID_PARENTS                !<-- IDs of parents of nested domains
+      INTEGER(kind=KINT),INTENT(IN) :: COMM_MY_DOMAIN                   &  !<-- MPI communicator for each individual domain
+                                      ,COMM_TO_MY_PARENT                &  !<-- Current domain's MPI communicator to its parent
+                                      ,MAX_DOMAINS                      &  !<-- Maximum # of domains 
+                                      ,MY_DOMAIN_ID                     &  !<-- ID of current domain
+                                      ,NUM_CHILDREN                     &  !<-- Current domain's number of children
+                                      ,NUM_DOMAINS                         !<-- Total number of domains
 !
-      REAL,DIMENSION(1:NUM_DOMAINS),INTENT(IN) :: DT                       !<-- Timesteps for all domains (ATM Components)
+      INTEGER(kind=KINT),DIMENSION(:),POINTER,INTENT(IN) :: CHILD_ID             &  !<-- Domain IDs of current domain's children
+                                                           ,COMM_TO_MY_CHILDREN  &  !<-- Current domain's MPI communicators to its children
+                                                           ,FTASKS_DOMAIN        &  !<-- # of forecast tasks on each domain
+                                                           ,ID_PARENTS_IN           !<-- IDs of parents of nested domains
+!
+      INTEGER(kind=KINT),DIMENSION(MAX_DOMAINS),INTENT(IN) :: N_CONFIGURE  !<-- Configure file associated with each domain
+!
+      REAL(kind=KFPT),DIMENSION(1:NUM_DOMAINS),INTENT(IN) :: DT            !<-- Timesteps for all domains (ATM Components)
 !
       TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE_ATM                      !<-- Export state of the current ATM Component
 !
@@ -3727,7 +3783,7 @@
       TYPE(ESMF_CplComp),INTENT(OUT) :: PARENT_CHILD_COUPLER_COMP          !<-- Parent-Child Coupler Component
 !
 !-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
+!***  Local Variables
 !-----------------------------------------------------------------------
 !
 !!    TYPE CHILD_TASKS
@@ -3772,7 +3828,7 @@
       RC_NESTSET=ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
-!***  CREATE IMPORT/EXPORT STATES FOR THE PARENT-CHILD COUPLER
+!***  Create import/export states for the parent-child coupler.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3793,7 +3849,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  CREATE THE PARENT-CHILD COUPLER
+!***  Create the parent-child coupler.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3809,7 +3865,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  REGISTER THE COUPLER'S INIT, RUN, AND FINALIZE STEPS
+!***  Register the coupler's Init, Run, and Finalize steps.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3826,9 +3882,9 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  WE WANT THE WRITE TASKS TO SEE THE PARENT-CHILD COUPLER BUT THEY
-!***  SHOULD NEVER ACTUALLY USE IT THEREFORE THEY MAY RETURN NOW.
-!***  THE SAME IS TRUE FOR DOMAINS THAT HAVE NO CHILDREN.
+!***  We want the write tasks to see the Parent-Child coupler but they
+!***  should never actually use it therefore they may return now.
+!***  The same is true for domains that have no children.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3863,8 +3919,26 @@
       IF(I_AM_A_FCST_TASK==ESMF_FALSE)RETURN
 !
 !-----------------------------------------------------------------------
-!***  LOAD KEY VARIABLES INTO THE COUPLER'S IMPORT STATE.
+!***  Load key variables into the coupler's import state.
 !-----------------------------------------------------------------------
+!
+!-------------------------------
+!***  Maximum number of domains
+!-------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Add Max # of Domains to the Parent-Child Cpl Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                   &  !<-- The Parent-Child Coupler's import state
+                            ,name ='MAX_DOMAINS'                        &  !<-- Maximum # of domains
+                            ,value=MAX_DOMAINS                          &  !<-- Insert this into the import state
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-------------------------
 !***  Current Domain's ID 
@@ -3903,6 +3977,25 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!----------------------------------------------------------
+!***  The association of domains and their configure files
+!----------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Add Domain/ConfigFile Association to the Parent-Child Cpl Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST                   &  !<-- The Parent-Child Coupler's import state
+                            ,name     ='N_CONFIGURE'                        &  !<-- The association of domains and their config files
+                            ,count    =MAX_DOMAINS                          &  !<-- Maximum # of domains
+                            ,valueList=N_CONFIGURE                          &  !<-- Insert this into the import state
+                            ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
 !-------------------------------------
 !***  Number of Fcst Tasks on Domains
 !-------------------------------------
@@ -3915,7 +4008,7 @@
       CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
                             ,name     ='FTASKS_DOMAIN'                  &  !<-- Number of forecast tasks on each domain
                             ,count    =NUM_DOMAINS                      &  !<-- Number of domains
-                            ,valuelist=FTASKS_DOMAIN                    &  !<-- Insert this into the import state
+                            ,valueList=FTASKS_DOMAIN                    &  !<-- Insert this into the import state
                             ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3934,7 +4027,7 @@
       CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
                             ,name     ='ID_PARENTS'                     &  !<-- IDs of parent domain
                             ,count    =NUM_DOMAINS                      &  !<-- Number of domains
-                            ,valuelist=ID_PARENTS                       &  !<-- Insert this into the import state
+                            ,valueList=ID_PARENTS_IN                    &  !<-- Insert this into the import state
                             ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4372,9 +4465,9 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  NOW TRANSFER THE PARENT'S PROGNOSTIC ARRAYS FROM THE ATM EXPORT
-!***  STATE TO THE PARENT-CHILD COUPLER IMPORT STATE THAT WILL BE
-!***  REQUIRED FOR THE CHILDREN'S BOUNDARY DATA.
+!***  Now transfer the parent's prognostic arrays from the ATM export
+!***  state to the Parent-Child coupler import state that will be
+!***  required for the children's boundary data.
 !-----------------------------------------------------------------------
 !
 !-----------------
@@ -4601,8 +4694,8 @@
       ENDIF child_block
 !
 !-----------------------------------------------------------------------
-!***  ALL PARENT TASKS NEED TO KNOW THE LOCAL SUBDOMAIN LIMITS OF EACH
-!***  TASK ON THEIR CHILDREN.  
+!***  All parent tasks need to know the local subdomain limits of each
+!***  task on their children.  
 !-----------------------------------------------------------------------
 !
       LIMITS(1)=ITS
@@ -4611,7 +4704,7 @@
       LIMITS(4)=JTE
 !
 !-----------------------------------------------------------------------
-!***  CHILD TASKS SEND THEIR SUBDOMAIN LIMITS TO PARENT TASK 0.
+!***  Child tasks send their subdomain limits to parent task 0.
 !-----------------------------------------------------------------------
 !
       IHANDLE_SEND=MPI_REQUEST_NULL
@@ -4625,7 +4718,7 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  RANK 0 PARENT TASKS RECV THEIR CHILDREN'S TASKS' SUBDOMAIN LIMITS.
+!***  Rank 0 parent tasks recv their children's tasks' subdomain limits.
 !-----------------------------------------------------------------------
 !
       IF(NUM_CHILDREN>0)THEN
@@ -4653,8 +4746,8 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  DO NOT PROCEED UNTIL WE ARE CERTAIN THE PRECEDING COMMUNICATIONS
-!***  COMPLETED SUCCESSFULLY.
+!***  Do not proceed until we are certain the preceding communications
+!***  completed successfully.
 !-----------------------------------------------------------------------
 !
       IF(COMM_TO_MY_PARENT>0)THEN                                          !<-- Child tasks satisfy ISends
@@ -4662,9 +4755,9 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  FOR EACH CHILD, PARENT TASK 0 SENDS ALL OF THE OTHER PARENT TASKS
-!***  THE LOCAL SUBDOMAIN LIMITS OF EACH CHILD TASK SO THE PARENT TASKS
-!***  WILL KNOW HOW TO DIVVY UP THE CHILD DOMAIN BOUNDARY DATA.
+!***  For each child, parent task 0 sends all of the other parent tasks
+!***  the local subdomain limits of each child task so the parent tasks
+!***  will know how to divvy up the child domain boundary data.
 !-----------------------------------------------------------------------
 !
       IF(NUM_CHILDREN>0)THEN
@@ -4725,6 +4818,10 @@
 !
 !-----------------------------------------------------------------------
 !
+!------------------------
+!***  Argument Variables
+!------------------------
+!
       INTEGER,INTENT(IN) :: ITS,ITE,JTS,JTE                             &
                            ,IDS,IDE,JDS,JDE                             &
                            ,N_BLEND_H,N_BLEND_V,NUM_CHILDREN
@@ -4739,9 +4836,9 @@
 !
       TYPE(ESMF_Config),DIMENSION(1:NUM_CHILDREN),INTENT(INOUT) :: CF
 !
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local Variables
+!---------------------
 !
       INTEGER :: N,N_CHILD_TASKS,NUM_CHILD_TASKS,THIS_CHILD_ID
 !
@@ -4765,26 +4862,26 @@
       RC_SET=ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
-!***  ALLOCATE THE POINTERS THAT HOLD THE FOUR H AND V PARENT POINTS
-!***  THAT SURROUND EACH CHILD POINT IN THE CHILD'S BOUNDARY REGION.
+!***  Allocate the pointers that hold the four H and V parent points
+!***  that surround each child point in the child's boundary region.
 !-----------------------------------------------------------------------
 !
       ALLOCATE(PARENT_4_INDICES_H(1:NUM_CHILDREN))
       ALLOCATE(PARENT_4_INDICES_V(1:NUM_CHILDREN))
 !
 !-----------------------------------------------------------------------
-!***  ALLOCATE THE POINTERS THAT HOLD THE WEIGHTS OF THE FOUR H AND V 
-!***  PARENT POINTS THAT SURROUND EACH CHILD POINT IN THE CHILD'S 
-!***  CHILD'S BOUNDARY REGION.
+!***  Allocate the pointers that hold the weights of the four H and V 
+!***  parent points that surround each child point in the child's 
+!***  child's boundary region.
 !-----------------------------------------------------------------------
 !
       ALLOCATE(PARENT_4_WEIGHTS_H(1:NUM_CHILDREN))
       ALLOCATE(PARENT_4_WEIGHTS_V(1:NUM_CHILDREN))
 !
 !-----------------------------------------------------------------------
-!***  ALLOCATE THE ARRAYS THAT HOLD THE NUMBER OF CHILD TASKS 
-!***  ON EACH SIDE OF THE CHILD BOUNDARIES THAT WILL BE SENT
-!***  DATA FROM THE PARENT TASKS.
+!***  Allocate the arrays that hold the number of child tasks 
+!***  on each side of the child boundaries that will be sent
+!***  data from the parent tasks.
 !-----------------------------------------------------------------------
 !
       ALLOCATE(NUM_TASKS_SEND_H_S(1:NUM_CHILDREN)                       &
@@ -4797,24 +4894,24 @@
               ,NUM_TASKS_SEND_V_E(1:NUM_CHILDREN) )
 !
 !-----------------------------------------------------------------------
-!***  ALLOCATE THE POINTERS THAT WILL HOLD THE RANKS OF ALL CHILD TASKS 
-!***  ON EACH SIDE OF THE CHILD BOUNDARIES THAT WILL BE SENT DATA
-!***  FROM THE PARENT TASKS.
+!***  Allocate the pointers that will hold the ranks of all child tasks 
+!***  on each side of the child boundaries that will be sent data
+!***  from the parent tasks.
 !-----------------------------------------------------------------------
 !
       ALLOCATE(CHILDTASK_BNDRY_H_RANKS(1:NUM_CHILDREN))
       ALLOCATE(CHILDTASK_BNDRY_V_RANKS(1:NUM_CHILDREN))
 !
 !-----------------------------------------------------------------------
-!***  ALLOCATE THE POINTERS FOR STARTING/ENDING I's AND J's ON EACH
-!***  PARENT TASK FOR EACH SIDE OF THE BOUNDARY.
+!***  Allocate the pointers for starting/ending I's and J's on each
+!***  parent task for each side of the boundary.
 !-----------------------------------------------------------------------
 !
       ALLOCATE(CHILDTASK_H_SAVE(1:NUM_CHILDREN))
       ALLOCATE(CHILDTASK_V_SAVE(1:NUM_CHILDREN))
 !
 !-----------------------------------------------------------------------
-!***  EXTRACT RELEVANT INFORMATION FROM THE CHILDREN'S CONFIGURE FILES.
+!***  Extract relevant information from the children's configure files.
 !-----------------------------------------------------------------------
 !
       child_loop_0: DO N=1,NUM_CHILDREN
@@ -4850,29 +4947,29 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  INVERT THE PARENT-TO-CHILD SPACE RATIO FOR COMPUTATION.
+!***  Invert the Parent-to-Child space ratio for computation.
 !-----------------------------------------------------------------------
 !
         CHILD_PARENT_SPACE_RATIO(N)=1./REAL(PARENT_CHILD_SPACE_RATIO(N))
 !
 !-----------------------------------------------------------------------
-!***  ALLOCATE THE INDIVIDUAL POINTERS HOLDING THE FOUR H POINTS OF
-!***  THE PARENT THAT SURROUND THIS CHILD'S BOUNDARY REGION H POINTS
-!***  AND THE BILINEAR INTERPOLATION WEIGHTS OF THE FOUR PARENT POINTS
-!***  SURROUNDING THOSE SAME CHILD POINTS.
+!***  Allocate the individual pointers holding the four H points of
+!***  the parent that surround this child's boundary region H points
+!***  and the bilinear interpolation weights of the four parent points
+!***  surrounding those same child points.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !   ***************************  NOTE  *****************************
 !-----------------------------------------------------------------------
-!     ALTHOUGH THE H POINTS IN THE NESTS' BOUNDARY REGION COVER ONLY
-!     N_BLEND ROWS, WE ACTUALLY NEED TO DO HAVE THE NESTS' PD VALUES
-!     ONE ROW FURTHER.  THAT IS BECAUSE WE ALSO NEED PD VALUES AT THE 
-!     V POINTS IN THE NESTS' BOUNDARY REGION TO PERFORM THE PROPER
-!     HYDROSTATIC UPDATING OF THE WINDS BY THE PARENTS THERE.  TO
-!     DO THE 4-POINT AVERAGE NEEDED TO OBTAIN PD ON V POINTS, WE
-!     OBVIOUSLY MUST HAVE THEM ON MASS POINTS ONE ROW BEYOND WHERE 
-!     THEY ARE NEEDED FOR THE MASS POINTS ALONE.
+!     Although the H points in the nests' boundary region cover only
+!     N_BLEND rows, we actually need to do have the nests' PD values
+!     one row further.  That is because we also need PD values at the 
+!     V points in the nests' boundary region to perform the proper
+!     hydrostatic updating of the winds by the parents there.  To
+!     do the 4-point average needed to obtain PD on V points, we
+!     obviously must have them on mass points one row beyond where 
+!     they are needed for the mass points alone.
 !-----------------------------------------------------------------------
 !   ***************************  NOTE  *****************************
 !-----------------------------------------------------------------------
@@ -4946,8 +5043,8 @@
                                                    ,1:4))                         !     1:4 indicates SW, SE, NW, NE of child point.
 !
 !-----------------------------------------------------------------------
-!***  ALLOCATE THE INDIVIDUAL POINTERS HOLDING THE FOUR V POINTS OF
-!***  THE PARENT THAT SURROUND THIS CHILD'S BOUNDARY REGION V POINTS.
+!***  Allocate the individual pointers holding the four V points of
+!***  the parent that surround this child's boundary region V points.
 !-----------------------------------------------------------------------
 !
         SOUTH_LIMIT1=1
@@ -5019,14 +5116,14 @@
                                                    ,1:4))                         !     1:4 indicates SW, SE, NW, NE of child point.
 !
 !-----------------------------------------------------------------------
-!***  WHAT IS THE NUMBER OF FORECAST TASKS ON THE CHILD DOMAIN?
+!***  What is the number of forecast tasks on the child domain?
 !-----------------------------------------------------------------------
 !
         NUM_CHILD_TASKS=FTASKS_DOMAIN(THIS_CHILD_ID)
 !
 !-----------------------------------------------------------------------
-!***  ALLOCATE THE POINTERS FOR STARTING/ENDING I's AND J's ON EACH
-!***  PARENT TASK FOR EACH SIDE OF THE BOUNDARY.
+!***  Allocate the pointers for starting/ending I's and J's on each
+!***  parent task for each side of the boundary.
 !-----------------------------------------------------------------------
 !
         ALLOCATE(CHILDTASK_H_SAVE(N)%I_LO_SOUTH   (1:NUM_CHILD_TASKS))
@@ -5056,9 +5153,9 @@
         ALLOCATE(CHILDTASK_V_SAVE(N)%J_HI_EAST_TRANSFER(1:NUM_CHILD_TASKS))
 !
 !-----------------------------------------------------------------------
-!***  ALLOCATE THE POINTERS FOR THE CHILD TASK ID's THAT CONTAIN
-!***  SEGMENTS OF THE CHILD BOUNDARY WITHIN A PARENT TASK FOR
-!***  EACH SIDE OF THE BOUNDARY.
+!***  Allocate the pointers for the child task ID's that contain
+!***  segments of the child boundary within a parent task for
+!***  each side of the boundary.
 !-----------------------------------------------------------------------
 !
         ALLOCATE(CHILDTASK_BNDRY_H_RANKS(N)%SOUTH(1:NUM_CHILD_TASKS))
@@ -5073,9 +5170,9 @@
 !
 !-----------------------------------------------------------------------
 !
-!***  NOW THE PARENT SETS UP QUANTITIES TO BE USED FOR GENERAL
-!***  BILINEAR INTERPOLATION FROM THE PARENT TO ITS CHILDREN'S
-!***  BOUNDARY REGIONS.  THESE QUANTITIES ARE:
+!***  Now the parent sets up quantities to be used for general
+!***  bilinear interpolation from the parent to its children's
+!***  boundary regions.  These quantities are:
 !
 !  (1a) The westernmost/eastermost I's of children's south/north
 !       boundary region points on this parent task's subdomain.
@@ -5195,10 +5292,10 @@
                                    ,PARENT_4_WEIGHTS_V(N)%WEIGHTS_EBND)
 !
 !-----------------------------------------------------------------------
-!***  FOR V POINT VARIABLES, THE NUMBER OF POINTS TO BE TRANSFERRED
-!***  FROM PARENTS TO THEIR CHILDREN'S BOUNDARIES IS THE SAME AS
-!***  THE NUMBER OF COMPUTATION POINTS (NO EXTENSIONS AS IS NEEDED
-!***  FOR PDB).
+!***  For V point variables, the number of points to be transferred
+!***  from parents to their children's boundaries is the same as
+!***  the number of computation points (no extensions as is needed
+!***  for PDB).
 !-----------------------------------------------------------------------
 !
         DO N_CHILD_TASKS=1,NUM_CHILD_TASKS
@@ -5285,6 +5382,10 @@
 !***  ONLY PARENT TASKS EXECUTE THIS ROUTINE.
 !-----------------------------------------------------------------------
 !
+!------------------------
+!***  Argument Variables 
+!------------------------
+!
       INTEGER,INTENT(IN) :: I_PARENT_START,J_PARENT_START               &  !<-- SW corner of nest lies on this I,J of parent
                            ,IM_CHILD,JM_CHILD                           &  !<-- Horizontal dimensions of nest domain
                            ,N_BLEND                                     &  !<-- Width (in rows) of boundary's blending region
@@ -5333,9 +5434,9 @@
                                                   ,WEIGHTS_WBND         &  !<-- Wbndry bilinear interp wghts for 4 surrounding parent points
                                                   ,WEIGHTS_EBND            !<-- Ebndry bilinear interp wghts for 4 surrounding parent points
 !
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local Variables
+!---------------------
 !
       INTEGER :: I_CHILD,IM_END                                         &
                 ,J_CHILD,JM_END                                         &
@@ -5381,24 +5482,24 @@
       RATIO_P_C=NINT(1./RATIO_C_P)                                         !<-- Parent-to-Child gridspace ratio
 !
 !-----------------------------------------------------------------------
-!***  CREATE THE REAL INDEX LIMITS ON THE PARENT GRID ACROSS WHICH
-!***  THE CHILDREN'S BOUNDARY POINT VALUES WILL BE COMPUTED.
+!***  Create the Real index limits on the parent grid across which
+!***  the children's boundary point values will be computed.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !***                      !!!!! NOTE !!!!!
 !
-!***  FOR THE PURPOSE OF HANDLING CHILD BOUNDARIES, PARENT TASKS WILL
-!***  "BEGIN" DIRECTLY ON THEIR SOUTHERNMOST/WESTERNMOST H OR V POINTS.
-!***  EACH PARENT TASK COVERS THE GAP BETWEEN ITSELF AND THE NEXT TASK
-!***  ON THE PARENT GRID IN EACH DIRECTION.
-!***  THIS MEANS THAT IF A CHILD SOUTH BOUNDARY POINT LIES EXACTLY ON 
-!***  A PARENT TASK POINT THAT ITSELF IS ON THE WESTERNMOST SIDE OF
-!***  THAT PARENT TASK'S INTEGRATION SUBDOMAIN THEN THAT CHILD POINT
-!***  WILL BE CONSIDERED TO LIE ON BOTH THAT PARENT TASK AND THE
-!***  PARENT TASK TO THE WEST SIMPLY BECAUSE IT IS THE INTERSECTION
-!***  OF THE REGIONS MANAGED BY BOTH OF THOSE PARENT TASKS.
-!***  THIS SAME NOTION APPLIES FOR ALL OTHER DIRECTIONS AND SIDES.
+!***  For the purpose of handling child boundaries, parent tasks will
+!***  "BEGIN" directly on their southernmost/westernmost H or V points.
+!***  Each parent task covers the gap between itself and the next task
+!***  on the parent grid in each direction.
+!***  This means that if a child south boundary point lies exactly on
+!***  a parent task point that itself is on the westernmost side of
+!***  that parent task's integration subdomain then that child point
+!***  will be considered to lie on both that parent task and the
+!***  parent task to the west simply because it is the intersection
+!***  of the regions managed by both of those parent tasks.
+!***  this same notion applies for all other directions and sides.
 !-----------------------------------------------------------------------
 !
       R_ITE =REAL(ITE)                                                     !<-- REAL Iend of parent task's subdomain
@@ -5406,21 +5507,21 @@
       R_JTE =REAL(JTE)                                                     !<-- REAL Jend of parent task's subdomain
 !
 !-----------------------------------------------------------------------
-!***  BECAUSE EACH PARENT GRIDPOINT COVERS THE GAP TO THE NEXT PARENT
-!***  GRIDPOINT AS EXPLAINED ABOVE, INCREASE THE SEARCH LIMIT FOR
-!***  CHILD BOUNDARY POINTS.  THAT INCREASE WOULD BE 1 FOR BOTH H AND V
-!***  BUT DUE TO THE NATURE OF THE B-GRID LAYOUT AND THE FACT THAT
-!***  THE I INDEX OF CHILD V POINTS ON THE WEST BOUNDARY AND THE 
-!***  J INDEX OF THE CHILD V POINTS ON THE SOUTH BOUNDARY HAVE SMALLER
-!***  GRID INDEX VALUES IN TERMS OF THE PARENT INDICES, WE MUST SEARCH
-!***  FOR CHILD H POINTS 1/2+0.5*(space_ratio) GRID INCREMENTS FURTHER
-!***  THAN FOR CHILD V POINTS IN ORDER TO REACH THE SAME ACTUAL POSITION.
+!***  Because each parent gridpoint covers the gap to the next parent
+!***  gridpoint as explained above, increase the search limit for
+!***  child boundary points.  That increase would be 1 for both H and V
+!***  but due to the nature of the B-Grid layout and the fact that
+!***  the I index of child V points on the west boundary and the
+!***  J index of the child V points on the south boundary have smaller
+!***  grid index values in terms of the parent indices, we must search
+!***  for child H points 1/2+0.5*(space_ratio) grid increments further
+!***  than for child V points in order to reach the same actual position.
 !-----------------------------------------------------------------------
 !
 !***  In this diagram the H's and V's are points on the parent task's
 !***  subdomain while the h's and v's are points on a nest.  It shows
 !***  how each parent point must look eastward.  The same goes for
-!***  looking northwward.  A parent/nest ratio of 1/3 is used in this
+!***  looking northwward.  A parent/nest ratio of 3:1 is used in this
 !***  diagram.
 !
 !-----------------------------------------------------------------------
@@ -5485,17 +5586,17 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  WHAT ARE THE CHILD I AND J INDEX LIMITS OF ANY SECTIONS OF ITS
-!***  BOUNDARY THAT LIE WITHIN A PARENT TASK'S SUBDOMAIN?
+!***  What are the child I and J index limits of any sections of its
+!***  (the child's) boundary that lie within a parent task's subdomain?
 !
-!***  WHAT ARE THE INDICES OF THE FOUR PARENT GRIDPOINTS SURROUNDING
-!***  EACH CHILD BOUNDARY POINT?
+!***  What are the indices of the four parent gridpoints surrounding
+!***  each child boundary point?
 !
-!***  WHAT ARE THE BILINEAR WEIGHTS ASSOCIATED WITH EACH OF THE FOUR
-!***  SURROUNDING PARENT POINTS TO OBTAIN THE CHILD BOUNDARY POINT?
+!***  What are the bilinear weights associated with each of the four
+!***  surrounding parent points to obtain the child boundary point?
 !
-!***  THE PARENT WILL USE THESE PIECES OF INFORMATION TO INTERPOLATE
-!***  FROM ITS GRID TO ITS CHILDREN'S BOUNDARY POINTS.
+!***  The parent will use these pieces of information to interpolate
+!***  from its grid to its children's boundary points.
 !----------------------------------------------------------------------- 
 !
 !-----------------------------------------------------------
@@ -6023,17 +6124,17 @@
 !***  FROM THAT OF THE PARENT.
 !-----------------------------------------------------------------------
 !
-!--------------
-!*** Arguments
-!--------------
+!-----------------------
+!*** Argument Variables
+!-----------------------
 !
       TYPE(ESMF_State),INTENT(IN)    :: IMP_STATE                           !<-- Parent-Child Coupler import state
 !
       TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE                           !<-- Parent-Child Coupler export state
 !
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local Variables
+!---------------------
 !
       INTEGER :: ID_CHILDTASK,ID_DOM,IERR,ISTAT,KOUNT,LENGTH,MYPE       &
                 ,N,N1,N2,NBASE,NT,NTX,NUM_WORDS,RC,RC_PRELIM
@@ -6056,18 +6157,18 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  PARENTS SEND THREE PIECES OF INFORMATION TO CHILD TASKS 
-!***  ON CHILD DOMAIN BOUNDARIES SO THOSE CHILD TASKS WILL BE
-!***  ABLE TO RECEIVE BOUNDARY DATA AND USE IT PROPERLY:
+!***  Parents send three pieces of information to child tasks 
+!***  on child domain boundaries so those child tasks will be
+!***  able to receive boundary data and use it properly:
 !
 !     (1) The parent task's local rank
 !     (2) The starting index on the child's boundary
 !     (3) The ending index on the child's boundary
 !
-!***  THE CHILD TASK MUST BE ABLE TO KNOW IF THE DATA IT RECEIVES
-!***  PERTAINS TO SOUTH BOUNDARY H OR V POINTS, NORTH BOUNDARY
-!***  H OR V, POINTS, ETC.  THUS THE MPI TAG WILL INDICATE
-!***  THE BOUNDARY'S SIDE AND VARIABLE TYPE.
+!***  The child task must be able to know if the data it receives
+!***  pertains to south boundary H or V points, north boundary
+!***  H or V, points, etc.  Thus the MPI tag will indicate
+!***  the boundary's side and variable type.
 !
 !      101 --> South H
 !      102 --> South V
@@ -6078,9 +6179,9 @@
 !      107 --> East H  
 !      108 --> East V
 !
-!*** (THE CHILD TASKS KNOW WHICH SIDE OF THEIR DOMAIN'S BOUNDARY THEY
-!***  ARE ON BUT SINCE A CORNER TASK IS ON MORE THAN ONE SIDE, THE
-!***  CODE INDICATING THE SIDE IS USED FOR ALL CHILD TASKS.)
+!*** (The child tasks know which side of their domain's boundary they
+!***  are on but since a corner task is on more than one side, the
+!***  code indicating the side is used for all child tasks.)
 !-----------------------------------------------------------------------
 !
       parent_sends: IF(NUM_CHILDREN>0)THEN                                 !<-- Consider the parent tasks
@@ -6369,24 +6470,24 @@
       ENDIF parent_sends
 !
 !-----------------------------------------------------------------------
-!***  THE CHILD TASKS RECEIVE THE KEY INFORMATION FROM THEIR
-!***  PARENT TASKS.  AT THIS POINT THE CHILD TASKS DO NOT KNOW
-!***  THE LOCAL RANKS OF THE PARENT TASKS THAT WILL BE SENDING
-!***  INFORMATION TO THEM THUS MPI_ANY_SOURCE IS USED IN THE
-!***  RECEIVE.  HOWEVER THIS MEANS THAT WHEN THERE ARE TWO
-!***  PARENT TASKS SENDING TO A NEST TASK (RATHER THAN ONLY ONE)
-!***  THEN THE TWO OVERLAP POINTS ON THE NEST BOUNDARY SEGMENT
-!***  COMPUTED BY THE PARENT TASKS WILL ULTIMATELY HAVE VALUES
-!***  DEPENDING ON WHICH PARENT TASK'S PRELIMINARY INFORMATION
-!***  IS RECEIVED LAST IN THE MPI_ANY_SOURCE RECV BELOW.  SINCE
-!***  THE VALUES IN THOSE OVERLAP POINTS ARE NOT BIT IDENTICAL
-!***  THEN ANY SUCCESSIVE RUNS CAN HAVE SLIGHTLY DIFFERENT ANSWERS.
-!***  TO AVOID THAT HAPPENING WHEN TWO PARENT TASKS ARE SENDING
-!***  THE CHILD TASK WILL RECEIVE THEIR RANKS AND THEN PUT THEM
-!***  IN ASCENDING ORDER SO THAT ALL SUBSEQENT UPDATES OF THE
-!***  NEST BOUNDARY OVERLAP POINTS ARE ALWAYS DONE IN THE SAME
-!***  WAY REGARDLESS OF THE ORDER THE PRELIMINARY INFORMATION
-!***  IS RECEIVED WITH MPI_ANY_SOURCE.
+!***  The child tasks receive the key information from their
+!***  parent tasks.  At this point the child tasks do not know
+!***  the local ranks of the parent tasks that will be sending
+!***  information to them thus MPI_ANY_SOURCE is used in the
+!***  receive.  However this means that when there are two
+!***  parent tasks sending to a nest task (rather than only one)
+!***  then the two overlap points on the nest boundary segment
+!***  computed by the parent tasks will ultimately have values
+!***  depending on which parent task's preliminary information
+!***  is received last in the MPI_ANY_SOURCE Recv below.  Since
+!***  the values in those overlap points are not bit identical
+!***  then any successive runs can have slightly different answers.
+!***  To avoid that happening when two parent tasks are sending,
+!***  the child task will receive their ranks and then put them
+!***  in ascending order so that all subsequent updates of the
+!***  nest boundary overlap points are always done in the same
+!***  way regardless of the order the preliminary information
+!***  is received with MPI_ANY_SOURCE.
 !-----------------------------------------------------------------------
 !
       child_recvs: IF(COMM_TO_MY_PARENT>0)THEN                             !<-- Only children will receive
@@ -7470,19 +7571,19 @@
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
-!***  NOW THE CHILDREN SEND THEIR SFC GEOPOTENTIAL TO THEIR PARENTS
-!***  SO THE PARENTS CAN PROPERLY BALANCE THEIR OWN DATA THAT THEY
-!***  INTERPOLATE TO CHILD GRIDPOINTS.
+!***  Now the children send their sfc geopotential to their parents
+!***  so the parents can properly balance their own data that they
+!***  interpolate to child gridpoints.
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
       child_sends: IF(COMM_TO_MY_PARENT>0)THEN                             !<-- Select the nests' tasks
 !
 !-----------------------------------------------------------------------
-!***  EXTRACT THE SFC GEOPOTENTIAL FROM THE COUPLER'S IMPORT STATE.
-!***  IF THIS CHILD DOMAIN IS ALSO A PARENT THEN IT ALREADY EXTRACTED
-!***  ITS FIS IN child_block of PARENT_CHILD_CPL_INITIALIZE BUT WE
-!***  NOW EXTRACT FIS AGAIN IN CASE THIS CHILD DOMAIN IS NOT A PARENT.
+!***  Extract the sfc geopotential from the coupler's import state.
+!***  If this child domain is also a parent then it already extracted
+!***  its FIS in child_block of PARENT_CHILD_CPL_INITIALIZE but we
+!***  now extract FIS again in case this child domain is not a parent.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -7685,16 +7786,16 @@
       ENDIF child_sends
 !
 !-----------------------------------------------------------------------
-!***  FINALLY THE PARENT TASKS RECEIVE SFC GEOPOTENTIALS FROM THE
-!***  CHILD BOUNDARY TASKS.
+!***  Finally the parent tasks receive sfc geopotentials from the
+!***  child boundary tasks.
 !-----------------------------------------------------------------------
 !
       parent_recvs: IF(NUM_CHILDREN>0)THEN                                 !<-- Select the parents' tasks
 !
 !-----------------------------------------------------------------------
-!***  ALLOCATE THE POINTERS THAT WILL HOLD THE SURFACE GEOPOTENTIAL
-!***  OF CHILD TASKS ON EACH SIDE OF THE CHILD BOUNDARIES THAT WILL
-!***  BE SENT TO THE APPROPRIATE PARENT TASKS.
+!***  Allocate the pointers that will hold the surface geopotential
+!***  of child tasks on each side of the child boundaries that will
+!***  be sent to the appropriate parent tasks.
 !-----------------------------------------------------------------------
 !
         ALLOCATE(FIS_CHILD_SOUTH(1:NUM_CHILDREN))
@@ -7920,9 +8021,9 @@
 !***  SURROUNDING PARENT POINTS.
 !-----------------------------------------------------------------------
 !
-!-----------
-!***  Input
-!-----------
+!------------------------
+!***  Argument Variables
+!------------------------
 !
       INTEGER,INTENT(IN) :: IMS,IME,JMS,JME                             &  !<-- Parent task's memory limits
                            ,IM_CHILD_X,JM_CHILD_X                       &  !<-- Index limits of the nest domain
@@ -7986,10 +8087,6 @@
                                                         ,FIS_CHILD_WBND &  !<-- Sfc geopot on Wbndry points of each child task
                                                         ,FIS_CHILD_EBND    !<-- Sfc geopot on Ebndry points of each child task
 !
-!------------
-!***  Output
-!------------
-!
       TYPE(REAL_DATA),DIMENSION(:),POINTER,INTENT(OUT) :: CHILD_H_SBND  &  !<-- All H point data for child Sbndry to be sent by parent
                                                          ,CHILD_H_NBND  &  !<-- All H point data for child Nbndry to be sent by parent
                                                          ,CHILD_H_WBND  &  !<-- All H point data for child Wbndry to be sent by parent
@@ -8000,9 +8097,9 @@
                                                          ,PDB_WBND      &  !<-- Child boundary PD (Pa) on child domain Wbndry
                                                          ,PDB_EBND         !<-- Child boundary PD (Pa) on child domain Ebndry
 !
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local Variables
+!---------------------
 !
       INTEGER :: I,J,L                                                  &
                 ,I_EAST,I_WEST,J_SOUTH,J_NORTH                          &
@@ -8043,9 +8140,9 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  LOOP THROUGH THE FOUR SIDES OF THE NEST DOMAIN BOUNDARY (S,N,W,E).
-!***  WE USE SOME DUMMY VARIABLES/POINTERS GENERICALLY FOR ALL FOUR
-!***  OF THE SIDES.
+!***  Loop through the four sides of the nest domain boundary (S,N,W,E).
+!***  We use some dummy variables/pointers generically for all four
+!***  of the sides.
 !-----------------------------------------------------------------------
 !
       loop_sides: DO N_SIDE=1,4                                              !<-- Loop through the 4 lateral boundaries (S,N,W,E)
@@ -8175,8 +8272,8 @@
           ENDIF
 !
 !-----------------------------------------------------------------------
-!***  ALLOCATE THE WORKING NEST ARRAYS VALID FOR THE CURRENT CHILD TASK
-!***  ON THE CHILD'S GRID.
+!***  Allocate the nest working arrays valid for the current child task
+!***  on the child's grid.
 !-----------------------------------------------------------------------
 !
           ALLOCATE(PINT_INTERP(I_START:I_END,J_START:J_END,1:LM+1))
@@ -8185,12 +8282,12 @@
           ALLOCATE(   LOG_PBOT(I_START:I_END,J_START:J_END))
 !
 !-----------------------------------------------------------------------
-!***  COMPUTE PARENT HEIGHTS OF LAYER INTERFACES AT THE FOUR POINTS
-!***  SURROUNDING EACH CHILD BOUNDARY POINT.
+!***  Compute parent heights of layer interfaces at the four points
+!***  surrounding each child boundary point.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  FIRST THE BOTTOM LAYER (L=NLEV)
+!***  First the bottom layer (L=NLEV).
 !-----------------------------------------------------------------------
 !
           DO J=J_START,J_END                                               !<-- J limits of child task bndry region on parent task
@@ -8228,10 +8325,10 @@
           ENDDO
 !
 !-----------------------------------------------------------------------
-!***  NOW THAT WE HAVE THE PARENT'S SFC PRESSURE AND SFC GEOPOTENTIAL
-!***  AT THE CHILD BOUNDARY POINTS (I,J), COMPUTE THE INTERFACE HEIGHTS
-!***  BASED ON THE HORIZONTALLY INTERPOLATED INTERFACE PRESSURE AND 
-!***  THE T AND Q.
+!***  Now that we have the parent's Sfc Pressure and Sfc Geopotential
+!***  at the child boundary points (I,J), compute the interface heights
+!***  based on the horizontally interpolated interface pressure and
+!***  the T and Q.
 !-----------------------------------------------------------------------
 !
           DO L=NLEV,1,-1                                                   !<-- Work upward to obtain interface geopotentials
@@ -8288,15 +8385,15 @@
           ENDDO
 !
 !-----------------------------------------------------------------------
-!***  USE THE CHILD'S ACTUAL SFC GEOPOTENTIAL TO DERIVE THE VALUE OF
-!***  PD AT THE CHILD BOUNDARY POINTS BASED ON THE PARENT'S HEIGHTS 
-!***  AND PRESSURES AT ITS (THE PARENT'S) LAYER INTERFACES OVER THE
-!***  CHILD'S BOUNDARY POINTS.
+!***  Use the child's actual Sfc Geopotential to derive the value of
+!***  PD at the child boundary points based on the parent's heights
+!***  and pressures at its (the parent's) layer interfaces over the
+!***  child's boundary points.
 !
-!***  IF THE CHILD'S TERRAIN IS LOWER THAN THE VALUE OF THE PARENT'S
-!***  TERRAIN INTERPOLATED TO THE CHILD POINT THEN EXTRAPOLATE THE
-!***  PARENT'S INTERPOLATED SFC PRESSURE DOWN TO THE CHILD'S TERRAIN
-!***  QUADRATICALLY.
+!***  If the child's terrain is lower than the value of the parent's
+!***  terrain interpolated to the child point then extrapolate the
+!***  parent's interpolated Sfc Pressure down to the child's terrain
+!***  quadratically.
 !-----------------------------------------------------------------------
 !
           KOUNT_PTS=0
@@ -8342,13 +8439,13 @@
             PDB(NTX)%DATA(KOUNT_PTS)=PSFC_CHILD-PT                         !<-- Parent's approximation of child's PD on child's boundary
 !
 !-----------------------------------------------------------------------
-!***  SAVE ONLY THE PD's THAT ARE ON THE NESTS' BOUNDARY REGION'S 
-!***  MASS POINTS INTO THE DATASTRING THAT WILL BE TRANSFERRED FROM
-!***  THE PARENT TO THE NESTS.  THE EXTRA POINTS IN THE PDB POINTER
-!***  ARE FOR 4-PT AVERAGING ONTO V POINTS.
-!***  RECALL THAT THE CHILD_BOUND_* POINTER IS THE 1-D STRING OF ALL
-!***  DATA SENT FROM PARENT TASKS TO CHILD BOUNDARY TASKS AND PDB IS
-!***  THE FIRST DATA IN THAT STRING.
+!***  Save only the PD's that are on the nests' boundary region's
+!***  mass points into the datastring that will be transferred from
+!***  the parent to the nests.  The extra points in the PDB pointer
+!***  are for 4-PT averaging onto V points.
+!***  Recall that the CHILD_BOUND_* pointer is the 1-D string of all
+!***  data sent from parent tasks to child boundary tasks and PDB is
+!***  the first data in that string.
 !-----------------------------------------------------------------------
 !
             IF(I>=I_START_TRANSFER.AND.I<=I_END_TRANSFER                &
@@ -8447,9 +8544,9 @@
 !***  TO CHILD GRID POINTS. 
 !-----------------------------------------------------------------------
 !
-!-----------
-!***  Input
-!-----------
+!------------------------
+!***  Argument Variables
+!------------------------
 !
       INTEGER,INTENT(IN) :: IMS,IME,JMS,JME                             &  !<-- Parent task's memory limits
                            ,IM_CHILD_X,JM_CHILD_X                       &  !<-- Index limits of the nest domain
@@ -8507,18 +8604,14 @@
                                                         ,PD_WBND        &  !
                                                         ,PD_EBND           !
 !
-!------------
-!***  Output
-!------------
-!
       TYPE(REAL_DATA),DIMENSION(:),POINTER,INTENT(OUT) :: VBL_CHILD_SBND &  !<-- Mass variable in child bndry region as computed
                                                          ,VBL_CHILD_NBND &  !<-- by parent.
                                                          ,VBL_CHILD_WBND &  !
                                                          ,VBL_CHILD_EBND    !
 !
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local Variables
+!---------------------
 !
       INTEGER :: I,J,L                                                  &
                 ,I_EAST,I_WEST,J_SOUTH,J_NORTH                          &
@@ -8538,15 +8631,14 @@
       REAL :: COEFF_1,DELP_EXTRAP                                       &
              ,PDTOP_PT,R_DELP
 !
-      REAL :: WGHT_NE,WGHT_NW,WGHT_SE,WGHT_SW
+      REAL(kind=KFPT) :: PX_NE,PX_NW,PX_SE,PX_SW                        &
+                        ,WGHT_NE,WGHT_NW,WGHT_SE,WGHT_SW
 !
       REAL,DIMENSION(1:LM) :: PMID_CHILD
 !
       REAL,DIMENSION(1:LM+1) :: P_INPUT                                 &
                                ,SEC_DERIV                               &
                                ,VBL_INPUT
-!
-      REAL,DIMENSION(IMS:IME,JMS:JME) :: PX
 !
       REAL,DIMENSION(:,:),ALLOCATABLE :: PINT_INTERP_HI                 &
                                         ,PINT_INTERP_LO                 &
@@ -8569,9 +8661,9 @@
       N_EXP=1-N_REMOVE                                                     !<-- Handles expansion of PDB range (H->1; V->0)
 !
 !-----------------------------------------------------------------------
-!***  LOOP THROUGH THE FOUR SIDES OF THE NEST DOMAIN BOUNDARY (S,N,W,E).
-!***  WE USE SOME DUMMY VARIABLES/POINTERS GENERICALLY FOR ALL FOUR
-!***  OF THE SIDES.
+!***  Loop through the four sides of the nest domain boundary (S,N,W,E).
+!***  We use some dummy variables/pointers generically for all four
+!***  of the sides.
 !-----------------------------------------------------------------------
 !
       loop_sides: DO N_SIDE=1,4                                            
@@ -8699,16 +8791,16 @@
           ALLOCATE(PINT_INTERP_LO(I_START:I_END,J_START:J_END))
 !
 !-----------------------------------------------------------------------
-!***  WE NEED THE MID-LAYER PRESSURE VALUES IN THE PARENT LAYERS 
-!***  OVER THE CHILD BOUNDARY POINT LOCATIONS SINCE THOSE ARE
-!***  REQUIRED FOR THE VERTICAL INTERPOLATION OF VARIABLES
-!***  TO THE MID-LAYERS IN THE CHILD.
-!***  COMPUTE THE INTERFACE PRESSURES OF THE PARENT LAYERS 
-!***  THEN TAKE THE MEANS TO GET THE MID-LAYER VALUES.
+!***  We need the mid-layer pressure values in the parent layers
+!***  over the child boundary point locations since those are
+!***  required for the vertical interpolation of variables
+!***  to the mid-layers in the child.
+!***  Compute the interface pressures of the parent layers
+!***  then take the means to get the mid-layer values.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  START WITH THE BOTTOM LAYER (L=NLEV).
+!***  Start with the bottom layer (L=NLEV).
 !-----------------------------------------------------------------------
 !
           DO J=J_START,J_END                                               !<-- J limits of child task bndry region on parent task
@@ -8724,23 +8816,23 @@
             WGHT_NW=WEIGHT_BND(I,J,INDX_NW)                                !<-- Bilinear weight for parent's point NW of nest's point
             WGHT_NE=WEIGHT_BND(I,J,INDX_NE)                                !<-- Bilinear weight for parent's point NE of nest's point
 !
-            PX(I_WEST,J_SOUTH)=PD(I_WEST,J_SOUTH)+PT                       !<-- Sfc pressure on parent point SW of nest point
-            PX(I_EAST,J_SOUTH)=PD(I_EAST,J_SOUTH)+PT                       !<-- Sfc pressure on parent point SE of nest point
-            PX(I_WEST,J_NORTH)=PD(I_WEST,J_NORTH)+PT                       !<-- Sfc pressure on parent point NW of nest point
-            PX(I_EAST,J_NORTH)=PD(I_EAST,J_NORTH)+PT                       !<-- Sfc pressure on parent point NE of nest point
+            PX_SW=PD(I_WEST,J_SOUTH)+PT                                    !<-- Sfc pressure on parent point SW of nest point
+            PX_SE=PD(I_EAST,J_SOUTH)+PT                                    !<-- Sfc pressure on parent point SE of nest point
+            PX_NW=PD(I_WEST,J_NORTH)+PT                                    !<-- Sfc pressure on parent point NW of nest point
+            PX_NE=PD(I_EAST,J_NORTH)+PT                                    !<-- Sfc pressure on parent point NE of nest point
 !
-            PINT_INTERP_LO(I,J)=WGHT_SW*PX(I_WEST,J_SOUTH)              &  !<-- Parent's surface pressure interp'd to this child's 
-                               +WGHT_SE*PX(I_EAST,J_SOUTH)              &  !    gridpoint (I,J) along child's boundary for
-                               +WGHT_NW*PX(I_WEST,J_NORTH)              &  !    child task NTX.
-                               +WGHT_NE*PX(I_EAST,J_NORTH)
+            PINT_INTERP_LO(I,J)=WGHT_SW*PX_SW                           &  !<-- Parent's surface pressure interp'd to this child's
+                               +WGHT_SE*PX_SE                           &  !    gridpoint (I,J) along child's boundary for
+                               +WGHT_NW*PX_NW                           &  !    child task NTX.
+                               +WGHT_NE*PX_NE
 !
           ENDDO
           ENDDO
 !
 !-----------------------------------------------------------------------
-!***  NOW COMPUTE THOSE MID-LAYER PRESSURES IN THE PARENT LAYERS
-!***  AS WELL AS THE VALUES OF THE PARENT'S VARIABLE AT THOSE
-!***  PRESSURE LEVELS.
+!***  Now compute those mid-layer pressures in the parent layers
+!***  as well as the values of the parent's variable at those
+!***  pressure levels.
 !-----------------------------------------------------------------------
 !
           DO L=NLEV,1,-1                                                   !<-- Work upward to get geopotentials on child layer interfaces
@@ -8756,20 +8848,20 @@
               J_SOUTH=J_INDX_PARENT_BND(I,J,1)                             !<-- Parent J index on or south of child's boundary point
               J_NORTH=J_INDX_PARENT_BND(I,J,2)                             !<-- Parent J index north of child's boundary point
 !
-              PX(I_WEST,J_SOUTH)=SG2(L)*PD(I_WEST,J_SOUTH)+PDTOP_PT        !<-- Pressure, top of layer L, parent point SW of nest point
-              PX(I_EAST,J_SOUTH)=SG2(L)*PD(I_EAST,J_SOUTH)+PDTOP_PT        !<-- Pressure, top of layer L, parent point SE of nest point
-              PX(I_WEST,J_NORTH)=SG2(L)*PD(I_WEST,J_NORTH)+PDTOP_PT        !<-- Pressure, top of layer L, parent point NW of nest point
-              PX(I_EAST,J_NORTH)=SG2(L)*PD(I_EAST,J_NORTH)+PDTOP_PT        !<-- Pressure, top of layer L, parent point NE of nest point
+              PX_SW=SG2(L)*PD(I_WEST,J_SOUTH)+PDTOP_PT                     !<-- Pressure, top of layer L, parent point SW of nest point
+              PX_SE=SG2(L)*PD(I_EAST,J_SOUTH)+PDTOP_PT                     !<-- Pressure, top of layer L, parent point SE of nest point
+              PX_NW=SG2(L)*PD(I_WEST,J_NORTH)+PDTOP_PT                     !<-- Pressure, top of layer L, parent point NW of nest point
+              PX_NE=SG2(L)*PD(I_EAST,J_NORTH)+PDTOP_PT                     !<-- Pressure, top of layer L, parent point NE of nest point
 !
               WGHT_SW=WEIGHT_BND(I,J,INDX_SW)                              !<-- Bilinear weight for parent's point SW of child's point
               WGHT_SE=WEIGHT_BND(I,J,INDX_SE)                              !<-- Bilinear weight for parent's point SE of child's point
               WGHT_NW=WEIGHT_BND(I,J,INDX_NW)                              !<-- Bilinear weight for parent's point NW of child's point
               WGHT_NE=WEIGHT_BND(I,J,INDX_NE)                              !<-- Bilinear weight for parent's point NE of child's point
 !
-              PINT_INTERP_HI(I,J)=WGHT_SW*PX(I_WEST,J_SOUTH)            &  !<-- Top interface pressure interp'd to child gridpoint
-                                 +WGHT_SE*PX(I_EAST,J_SOUTH)            &  !    in child's boundary region on child task NTX
-                                 +WGHT_NW*PX(I_WEST,J_NORTH)            &
-                                 +WGHT_NE*PX(I_EAST,J_NORTH)
+              PINT_INTERP_HI(I,J)=WGHT_SW*PX_SW                         &  !<-- Top interface pressure interp'd to child gridpoint
+                                 +WGHT_SE*PX_SE                         &  !    in child's boundary region on child task NTX
+                                 +WGHT_NW*PX_NW                         &
+                                 +WGHT_NE*PX_NE
 !
               KNT_PTS=KNT_PTS+1
 !
@@ -8793,9 +8885,9 @@
           ENDDO
 !
 !-----------------------------------------------------------------------
-!***  COMPUTE VALUES OF THE VARIABLE AT MID-LAYERS OF THE CHILD
-!***  OVER NEST BOUNDARY REGION POINTS BASED ON THE PARENT'S
-!***  INTERPOLATED VALUES.
+!***  Compute values of the variable at mid-layers of the child
+!***  over nest boundary region points based on the parent's
+!***  interpolated values.
 !-----------------------------------------------------------------------
 !
           KNT_PTS  =0
@@ -8804,15 +8896,15 @@
           N_ADD=(LM-1)*N_STRIDE
 !
 !-----------------------------------------------------------------------
-!***  RECALL THAT THE PDB_H POINTER CONTAINS DATA FOR ONE EXTRA ROW
-!***  BEYOND THE CHILD BOUNDARY ON ALL SIDES SINCE WE NEED THE
-!***  ABILITY TO DO 4-PT AVERAGES OF PD TO V POINTS.   THE PDB_V 
-!***  POINTER DID NOT NEED THE EXTRA ROW AND SO DOES NOT HAVE IT.
-!***  HERE WE MUST USE PDB BUT THE VALUES FOR THE PROGNOSTIC VARIABLES
-!***  ARE ONLY GENERATED ON THE TRUE BOUNDARY POINTS.  TO ADDRESS 
-!***  PDB CORRECTLY WE LOOP OVER THE POTENTIALLY EXPANDED BOUNDARY
-!***  REGION BUT CYCLE WHEN WE ARE AT POINTS NOT WITHIN THE TRUE
-!***  BOUNDARY REGION OF THE CHILD.
+!***  Recall that the PDB_H pointer contains data for one extra row
+!***  beyond the child boundary on all sides since we need the
+!***  ability to do 4-PT averages of PD to V points.   The PDB_V
+!***  pointer did not need the extra row and so does not have it.
+!***  Here we must use PDB but the values for the prognostic variables
+!***  are only generated on the true boundary points.  To address
+!***  PDB correctly we loop over the potentially expanded boundary
+!***  region but CYCLE when we are at points not within the true
+!***  boundary region of the child.
 !-----------------------------------------------------------------------
 !
           main_loop: DO J=J_START_EXPAND,J_END_EXPAND                      !<-- J limits of expanded child task bndry region on parent task
@@ -8831,7 +8923,7 @@
             KNT_PTS=KNT_PTS+1                                              !<-- Location in 1-D datastring of child bndry variable
 !
 !-----------------------------------------------------------------------
-!***  MIDLAYER PRESSURES FOR THE NEST POINTS.
+!***  Midlayer pressures for the nest points.
 !-----------------------------------------------------------------------
 !
             DO L=1,LM                                 
@@ -8839,18 +8931,18 @@
             ENDDO
 ! 
 !-----------------------------------------------------------------------
-!***  USE SPLINE INTERPOLATION TO MOVE VARIABLES FROM THEIR 
-!***  VERTICAL LOCATIONS IN THE COLUMN AFTER HORIZONTAL INTERPOLATION
-!***  FROM THE SURROUNDING PARENT POINTS TO CHILD BOUNDARY POINT LEVELS.
-!***  THE TARGET LOCATIONS ARE THE NEW MIDLAYER PRESSURES IN THE
-!***  NEST BOUNDARY POINT COLUMNS BASED ON THE NEW SURFACE PRESSURE 
-!***  FOR THE NEST'S TERRAIN.
+!***  Use spline interpolation to move variables from their
+!***  vertical locations in the column after horizontal interpolation
+!***  from the surrounding parent points to child boundary point levels.
+!***  The target locations are the new midlayer pressures in the
+!***  nest boundary point columns based on the new surface pressure
+!***  for the nest's terrain.
 !
-!***  IF THE TARGET LOCATION LIES BELOW THE MIDDLE OF THE LOWEST PARENT
-!***  LAYER IN THE NEWLY CREATED CHILD COLUMN THEN EXTRAPOLATE LINEARLY
-!***  IN PRESSURE TO OBTAIN A VALUE AT THE LOWEST CHILD MID-LAYER AND 
-!***  FILL IN THE REMAINING 'UNDERGROUND' LEVELS USING THE CALL TO 
-!***  'SPLINE' JUST AS WITH ALL THE OTHER HIGHER LEVELS.
+!***  If the target location lies below the middle of the lowest parent
+!***  layer in the newly created child column then extrapolate linearly
+!***  in pressure to obtain a value at the lowest child mid-layer and
+!***  fill in the remaining 'underground' levels using the call to
+!***  'SPLINE' just as with all the other higher levels.
 !-----------------------------------------------------------------------
 !
             DO L=1,LM                                                      !<-- Extract mid-layer values of parent in nest column
@@ -8965,9 +9057,9 @@
 !***  VALUES ON H POINTS.
 !-----------------------------------------------------------------------
 !
-!-----------
-!***  Input
-!-----------
+!------------------------
+!***  Argument Variables
+!------------------------
 !
       INTEGER,INTENT(IN) :: IMS,IME,JMS,JME                             &  !<-- Parent task's memory limits
                            ,IM_CHILD,JM_CHILD                           &  !<-- Nest domain limits
@@ -9004,10 +9096,6 @@
                                                         ,PDB_W_H        &  !
                                                         ,PDB_E_H           !<--
 !
-!------------
-!***  Output
-!------------
-!
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: PD_V                  !<-- Parent PD (Pa) (column mass in sigma domain) on V points
 !
       TYPE(REAL_DATA),DIMENSION(:),POINTER,INTENT(OUT) :: PDB_S_V       &  !<-- Child boundary PD (Pa) on child domain Sbndry V points
@@ -9015,10 +9103,8 @@
                                                          ,PDB_W_V       &  !<-- Child boundary PD (Pa) on child domain Wbndry V points
                                                          ,PDB_E_V          !<-- Child boundary PD (Pa) on child domain Ebndry V points
 !
-!-----------------------------------------------------------------------
-!
 !---------------------
-!***  Local variables
+!***  Local Variables
 !---------------------
 !
       INTEGER :: DIFF_START,DIFF_START_PTS                              &
@@ -9048,7 +9134,7 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  FIRST OBTAIN PD ON THE PARENT'S V POINTS.
+!***  First obtain PD on the parent's V points.
 !-----------------------------------------------------------------------
 !
       DO J=JMS,JME-1
@@ -9058,8 +9144,8 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  NOW AVERAGE VALUES OF PD ON AND ADJACENT TO THE NESTS' BOUNDARY
-!***  TO OBTAIN PD ON THE NESTS' BOUNDARY V POINTS.
+!***  Now average values of PD on and adjacent to the nests' boundary
+!***  to obtain pd on the nests' boundary V points.
 !-----------------------------------------------------------------------
 !
       loop_sides: DO N_SIDE=1,4                                            !<-- Loop through the 4 lateral boundaries (S,N,W,E)
@@ -9211,24 +9297,24 @@
           ENDIF
 !
 !-----------------------------------------------------------------------
-!***  READY TO AVERAGE NEST BOUNDARY PD ON H TO PD ON V.
+!***  Ready to average nest boundary PD on H to PD on V.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  RECALL THAT THE PDB_H POINTER CONTAINS DATA FOR ONE EXTRA ROW
-!***  BEYOND THE CHILD BOUNDARY ON ALL SIDES SINCE WE NEED THE
-!***  ABILITY TO DO 4-PT AVERAGES OF PD TO V POINTS.
-!***  HERE WE MUST USE PDB_H BUT THE VALUES FOR PDB_V (AND THUS U,V)
-!***  ARE ONLY GENERATED ON THE TRUE BOUNDARY POINTS.  TO ADDRESS PDB_H
-!***  CORRECTLY WE MUST TAKE INTO ACCOUNT THOSE EXTRA POINTS IN PDB_H
-!***  AS WE MARCH THROUGH THE V POINT LOCATIONS.
+!***  Recall that the PDB_H pointer contains data for one extra row
+!***  beyond the child boundary on all sides since we need the
+!***  ability to do 4-pt averages of PD to V points.
+!***  Here we must use PDB_H but the values for PDB_v (and thus U,V)
+!***  are only generated on the true boundary points.  To address PDB_H
+!***  correctly we must take into account those extra points in PDB_H
+!***  as we march through the V point locations.
 !
-!***  ALSO WE MUST BE AWARE THAT THE NEST BOUNDARY V SEGMENTS THAT ARE
-!***  BEING CONSIDERED FOR EACH NEST TASK MUST CORRESPOND TO THE SAME
-!***  NEST TASK H POINT VALUES OF PDB.  BECAUSE OF OVERLAP THAT CAN
-!***  OCCUR DUE TO THE SEGMENTS OF PDB ON H BEING LARGER THAN PBD ON
-!***  V WE MUST EXPLICITLY CHECK TO BE SURE NEST PDB ON V IS BEING
-!***  FILLED BY NEST PDB ON H FOR THE SAME NEST TASK.
+!***  Also we must be aware that the nest boundary V segments that are
+!***  being considered for each nest task must correspond to the same
+!***  nest task H point values of PDB.  Because of overlap that can
+!***  occur due to the segments of PDB on H being larger than PBD on
+!***  V we must explicitly check to be sure that nest PDB on V is
+!***  being filled by nest PDB on H for the same nest task.
 !-----------------------------------------------------------------------
 !
           KNT_V=0
@@ -9281,9 +9367,9 @@
 !***  WHICH CASE THE PIECES ARE BE COMBINED.
 !-----------------------------------------------------------------------
 !
-!---------------
-!***  Arguments
-!---------------
+!------------------------
+!***  Argument Variables
+!------------------------
 !
       INTEGER,INTENT(IN) :: LENGTH_DATA                                 &  !<-- # of words in datastring
                            ,I_START                                     &  !<-- Starting I of data segment in string on child's grid
@@ -9321,13 +9407,13 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  EXTRACT THE APPROPRIATE BOUNDARY VARIABLES FROM THE DATASTRING
-!***  PROVIDED BY THE PARENT.
-!***  HERE WE TRANSFER FROM THE 1-D STRING TO THE 2-D AND 3-D ARRAYS.
-!***  THIS EASILY ALLOWS FOR PROPER COMBINING OF SEPARATE STRINGS
-!***  WHOSE ENDS MAY OVERLAP THAT ARE ARRIVING FROM DIFFERENT PARENT
-!***  TASKS.  TO EXPORT THESE BOUNDARY ARRAYS OUT OF THE COUPLER
-!***  THOUGH THE DATA MUST BE PUT BACK INTO 1-D.
+!***  Extract the appropriate boundary variables from the datastring
+!***  provided by the parent.
+!***  Here we transfer from the 1-D string to the 2-D and 3-D arrays.
+!***  This easily allows for proper combining of separate strings
+!***  whose ends may overlap that are arriving from different parent
+!***  tasks.  To export these boundary arrays out of the coupler
+!***  though the data must be put back into 1-D.
 !-----------------------------------------------------------------------
 !
       N=0
@@ -9419,9 +9505,9 @@
 !***  INTO THE PARENT-CHILD COUPLER EXPORT STATE.
 !-----------------------------------------------------------------------
 !
-!---------------
-!***  Arguments
-!---------------
+!------------------------
+!***  Argument Variables
+!------------------------
 !
       INTEGER,INTENT(IN) :: ILIM_LO                                     &  !<-- Lower I limit of full boundary segment
                            ,ILIM_HI                                     &  !<-- Upper I limit of full boundary segment
@@ -9461,11 +9547,11 @@
       RC_EXP_BNDRY=ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
-!***  THE CHILDREN'S FINAL BOUNDARY DATA WILL BE LOADED INTO THE
-!***  PARENT-CHILD COUPLER'S EXPORT STATE AS 1-D ARRAYS (Attributes)
-!***  SINCE THEY ARE NOT SPANNING THE CHILDRENS' ESMF Grids (as Fields).
-!***  BUT BECAUSE THEY ARE ATTRIBUTES AND NOT FIELDS, THEY WILL NEED
-!***  TO BE RESET EVERY TIME.
+!***  The children's final boundary data will be loaded into the
+!***  Parent-Child Coupler's export state as 1-D arrays (Attributes)
+!***  since they are not spanning the childrens' ESMF Grids (as Fields).
+!***  But because they are Attributes and not Fields, they will need
+!***  to be reset every time.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------

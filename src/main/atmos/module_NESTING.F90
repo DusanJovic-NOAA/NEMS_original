@@ -122,7 +122,6 @@
                 ,GROUP_NEW                                              &
                 ,I_COLOR                                                &
                 ,ID_CHILD                                               &
-                ,ID_DOM                                                 &
                 ,ID_DOMX                                                &
                 ,INPES                                                  &
                 ,JNPES                                                  &
@@ -170,41 +169,29 @@
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
-!***  INCOMING TASKS EXTRACT RELEVANT INFORMATION FROM ALL CONFIG FILES.
+!***  Incoming tasks extract relevant information from all config files.
 !
-!***  THIS LOOP IS GENERAL THUS THE DOMAIN IDs DO NOT NEED TO CORRESPOND
-!***  TO THE NUMBER IN THE CONFIGURE FILE NAME.  THE USER MAY ASSIGN
-!***  IDs (MONOTONIC STARTING WITH 1) TO THE DOMAINS IN ANY ORDER
-!***  DESIRED.
+!***  This loop is general thus the domain IDs do not need to correspond
+!***  to the number in the configure file name.  The user may assign
+!***  IDs monotonic starting with 1 to the domains in any order
+!***  desired except that the uppermost parent must have an ID of 1.
+!***  However the rank/element of each domain in the CF array is equal
+!***  to the given domain's ID.
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-      read_configs: DO N=1,NUM_DOMAINS                                     !<-- Loop through configure files (using the number in the names)
+      read_configs: DO N=1,NUM_DOMAINS                                     !<-- Loop through all configure objects
 !
 !-----------------------------------------------------------------------
-!***  SAVE THE DOMAIN IDs.
-!***  THESE ARE SIMPLY INTEGERS EACH DOMAIN WILL USE TO KEEP TRACK
-!***  OF ITSELF WITH RESPECT TO OTHERS.
+!***  Save the domain IDs.
+!***  These are simply integers each domain will use to keep track
+!***  of itself with respect to others.
 !-----------------------------------------------------------------------
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract ID of this Domain"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_ConfigGetAttribute(config=CF(N)                       &  !<-- The config object
-                                    ,value =ID_DOMAINS(N)               &  !<-- The IDs of each domain
-                                    ,label ='my_domain_id:'             &  !<-- Take value from this config label 
-                                    ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_COMMS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        ID_DOM=ID_DOMAINS(N)
+        ID_DOMAINS(N)=N
 !
 !-----------------------------------------------------------------------
-!***  WHO IS THE PARENT OF EACH DOMAIN?
+!***  Who is the parent of each domain?
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -213,7 +200,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_ConfigGetAttribute(config=CF(N)                       &  !<-- The config object
-                                    ,value =ID_PARENTS(ID_DOM)          &  !<-- The ID of the parent of this domain
+                                    ,value =ID_PARENTS(N)               &  !<-- The ID of the parent of this domain
                                     ,label ='my_parent_id:'             &  !<-- Take values from this config label 
                                     ,rc    =RC)
 !
@@ -230,7 +217,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_ConfigGetAttribute(config=CF(N)                       &  !<-- The config object
-                                    ,value =NUM_CHILDREN(ID_DOM)        &  !<-- # of children on this domain
+                                    ,value =NUM_CHILDREN(N)             &  !<-- # of children on this domain
                                     ,label ='n_children:'               &  !<-- Take value from this config label 
                                     ,rc    =RC)
 !
@@ -300,12 +287,12 @@
 !
 !-----------------------------------------------------------------------
 !
-        FTASKS_DOMAIN(ID_DOM)=INPES*JNPES                                  !<-- # of forecast tasks on each domain
+        FTASKS_DOMAIN(N)=INPES*JNPES                                       !<-- # of forecast tasks on each domain
 !
-        NTASKS_DOMAIN(ID_DOM)=INPES*JNPES+                              &  !<-- Total # of tasks on each domain
-                              WRITE_GROUPS*WRITE_TASKS_PER_GROUP
+        NTASKS_DOMAIN(N)=INPES*JNPES+                                   &  !<-- Total # of tasks on each domain
+                         WRITE_GROUPS*WRITE_TASKS_PER_GROUP
 !
-        TOTAL_TASKS=TOTAL_TASKS+NTASKS_DOMAIN(ID_DOM)                      !<-- Sum the total task count among all domains
+        TOTAL_TASKS=TOTAL_TASKS+NTASKS_DOMAIN(N)                           !<-- Sum the total task count among all domains
 !
 !-----------------------------------------------------------------------
 !
@@ -318,7 +305,6 @@
 !-----------------------------------------------------------------------
 !
       DO N=1,NUM_DOMAINS
-        ID_DOM=ID_DOMAINS(N)
 !
 !-----------------------------------------------------------------------
 !***  WE MUST ASSIGN A "COLOR" TO EACH TASK.
@@ -329,22 +315,22 @@
 !-----------------------------------------------------------------------
 !
         IF(N==1)THEN
-          LEAD_TASK(ID_DOM)=0                                              !<-- Task 0 is first in line
+          LEAD_TASK(N)=0                                                   !<-- Task 0 is first in line
         ELSE
-          LEAD_TASK(ID_DOM)=LAST_TASK(ID_DOMAINS(N-1))+1                   !<-- Lead task on domain follows last task on previous domain
+          LEAD_TASK(N)=LAST_TASK(ID_DOMAINS(N-1))+1                        !<-- Lead task on domain follows last task on previous domain
         ENDIF
 !
-        LAST_TASK(ID_DOM)=LEAD_TASK(ID_DOM)+NTASKS_DOMAIN(ID_DOM)-1        !<-- The last task on each domain
+        LAST_TASK(N)=LEAD_TASK(N)+NTASKS_DOMAIN(N)-1                       !<-- The last task on each domain
 !
-        IF(MYPE>=LEAD_TASK(ID_DOM).AND.MYPE<=LAST_TASK(ID_DOM))THEN        !<-- Associate tasks with each domain              
-          I_COLOR=ID_DOM                                                   !<-- Set color to domain ID
-          MY_DOMAIN_ID=ID_DOM                                              !<-- Tell this task the ID of the domain it is on 
+        IF(MYPE>=LEAD_TASK(N).AND.MYPE<=LAST_TASK(N))THEN                  !<-- Associate tasks with each domain              
+          I_COLOR=N                                                        !<-- Set color to domain ID
+          MY_DOMAIN_ID=N                                                   !<-- Tell this task the ID of the domain it is on 
         ENDIF
 !
         KOUNT_TASKS=0
-        DO N2=LEAD_TASK(ID_DOM),LAST_TASK(ID_DOM)
+        DO N2=LEAD_TASK(N),LAST_TASK(N)     
           KOUNT_TASKS=KOUNT_TASKS+1
-          PETLIST_ATM(KOUNT_TASKS,ID_DOM)=N2
+          PETLIST_ATM(KOUNT_TASKS,N)=N2
         ENDDO
 !
       ENDDO
@@ -382,13 +368,11 @@
 !
 !-----------------------------------------------------------------------
 !
-        ID_DOM=ID_DOMAINS(N)
-      
-        N_CHILDREN=NUM_CHILDREN(ID_DOM)                                    !<-- The # of children on this domain
+        N_CHILDREN=NUM_CHILDREN(N)                                         !<-- The # of children on this domain
 !
         IF(N_CHILDREN==0)CYCLE main_loop                                   !<-- If this domain has no children, move on
 !
-        NTASKS_PARENT=NTASKS_DOMAIN(ID_DOM)                                !<-- Total # of fcst and write tasks on this domain
+        NTASKS_PARENT=NTASKS_DOMAIN(N)                                     !<-- Total # of fcst and write tasks on this domain
 !
 !-----------------------------------------------------------------------
 !***  ALL DOMAIN IDs WILL BE SEARCHED IN THE CONFIGURE FILES TO FIND 
@@ -402,9 +386,9 @@
         DO N2=1,NUM_DOMAINS                                                !<-- Search for children who have this parent
           ID_CHILD=ID_DOMAINS(N2)
 !
-          IF(ID_PARENTS(ID_CHILD)==ID_DOM)THEN                             !<-- If yes then we found a nest that is this domain's child
+          IF(ID_PARENTS(ID_CHILD)==N)THEN                                  !<-- If yes then we found a nest that is this domain's child
             NN=NN+1
-            ID_CHILDREN(NN,ID_DOM)=ID_CHILD                                !<-- IDs of this parent's children
+            ID_CHILDREN(NN,N)=ID_CHILD                                     !<-- IDs of this parent's children
           ENDIF
 !
           IF(NN==N_CHILDREN)EXIT                                           !<-- We have found all of this domain's children 
@@ -426,7 +410,7 @@
 !
         I_AM_PARENT=.FALSE.
 !
-        IF(MYPE>=LEAD_TASK(ID_DOM).AND.MYPE<=LAST_TASK(ID_DOM))THEN        !<-- Select parent tasks              
+        IF(MYPE>=LEAD_TASK(N).AND.MYPE<=LAST_TASK(N))THEN                  !<-- Select parent tasks              
           ALLOCATE(COMM_TO_MY_CHILDREN(1:N_CHILDREN))                      !<-- Parent allocates parent-to-child intercommunicators
           I_AM_PARENT=.TRUE.
 !
@@ -467,7 +451,7 @@
 !
           exclude: IF(NUM_DOMAINS>2)THEN
 !
-            ID_CHILD=ID_CHILDREN(N2,ID_DOM)
+            ID_CHILD=ID_CHILDREN(N2,N)
             NUM_EXCLUDE=TOTAL_TASKS-NTASKS_PARENT-NTASKS_DOMAIN(ID_CHILD)  !<-- Task count of non-parent non-child tasks
             ALLOCATE(EXCLUDE_TASKS(1:NUM_EXCLUDE))                         !<-- This will hold excluded tasks
 !
@@ -479,7 +463,7 @@
             DO NN=1,NUM_DOMAINS                                            !<-- Loop through all domains
               ID_DOMX=ID_DOMAINS(NN)
 !
-              IF(ID_DOMX/=ID_DOM.AND.ID_DOMX/=ID_CHILD)THEN                !<-- Select tasks of all domains who are not parent/child
+              IF(ID_DOMX/=N.AND.ID_DOMX/=ID_CHILD)THEN                     !<-- Select tasks of all domains who are not parent/child
                 TASK_EXCLUDE=TASK_X
 !
                 DO I=1,NTASKS_DOMAIN(NN)                                   !<-- Loop through tasks of domain that is not child "N" or parent
@@ -3757,6 +3741,12 @@
 !-----------------------------------------------------------------------
 !***  FIRST LOAD ALL OF THE DOMAINS' CONFIGURE FILES.
 !-----------------------------------------------------------------------
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!*******  See NMM_ATM_INIT where
+!*******  CF(N) is made to be
+!*******  CF(ID of domain).
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
       DO N=1,MAX_DOMAINS
         CF(N)=ESMF_ConfigCreate(rc=RC)

@@ -527,7 +527,7 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: IERR,IRTN,N,NFCST,NTSD
+      INTEGER(kind=KINT) :: CONFIG_ID,MAX_DOMAINS,N,NFCST,NTSD
 !
       INTEGER(kind=KINT) :: IYEAR_FCST                                  &  !<-- Current year from restart file
                            ,IMONTH_FCST                                 &  !<-- Current month from restart file
@@ -538,11 +538,13 @@
 !
       INTEGER(kind=KINT) :: NHOURS_CLOCKTIME                               !<-- Hours between clocktime prints
 !
-      INTEGER(kind=KINT) :: RC,RC_INIT
+      INTEGER(kind=KINT) :: IERR,IRTN,RC,RC_INIT
+!
+      INTEGER(ESMF_KIND_I8) :: NTSD_START                                  !<-- Timestep count (>0 for restarted runs)
 !
       INTEGER(kind=KINT),DIMENSION(7) :: FCSTDATE
 !
-      INTEGER(ESMF_KIND_I8) :: NTSD_START                                  !<-- Timestep count (>0 for restarted runs)
+      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: N_CONFIGURE           !<-- Associate configure file IDs with domains
 !
       REAL(kind=KFPT) :: SECOND_FCST                                       !<-- Current second from restart file
 !
@@ -576,55 +578,6 @@
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!***  Load configure files for all domains into memory.
-!***  The file name of the uppermost domain is 'configure_file_01'
-!***  and is identical to the primary file called 'configure_file'
-!***  which is needed in some early parts of the setup.
-!-----------------------------------------------------------------------
-!
-      DO N=1,99                                                            !<-- The number of config files cannot exceed 99
-!
-        WRITE(INT_TO_CHAR,FMT)N
-        CONFIG_FILE_NAME='configure_file_'//INT_TO_CHAR                    !<-- Prepare the config file names
-!
-        CFILE_EXIST = .FALSE.
-        INQUIRE(FILE=CONFIG_FILE_NAME,EXIST=CFILE_EXIST)
-!
-        IF (CFILE_EXIST) THEN
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Create the Nest Configure Object"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CF(N)=ESMF_ConfigCreate(rc=RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Load the Nest Configure Object"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_ConfigLoadFile(config  =CF(N)                       &
-                                  ,filename=CONFIG_FILE_NAME            &
-                                  ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        ELSE
-!
-          EXIT
-!
-        ENDIF
-!
-      ENDDO
 !
 !-----------------------------------------------------------------------
 !***  Allocate the NMM ATM component's internal state.
@@ -688,6 +641,24 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
+!***  Extract the maximum number of domains from the import state.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract MAX_DOMAINS from Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The ATM import state
+                            ,name ='MAX_DOMAINS'                        &  !<-- Name of the attribute to extract
+                            ,value=MAX_DOMAINS                          &  !<-- Maximum # of domains
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
 !***  Extract this ATM component's domain ID from the import state.
 !-----------------------------------------------------------------------
 !
@@ -704,6 +675,78 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Extract the configure file IDs assocaited with each domain.
+!-----------------------------------------------------------------------
+!
+      ALLOCATE(N_CONFIGURE(1:MAX_DOMAINS))
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Association of Configure Files with Domains"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state    =IMP_STATE                        &  !<-- The ATM import state
+                            ,name     ='N_CONFIGURE'                    &  !<-- Name of the attribute to extract
+                            ,count    =MAX_DOMAINS                      &  !<-- Name of the attribute to extract
+                            ,valueList=N_CONFIGURE                      &  !<-- The ID of this domain
+                            ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Now we can load configure files for all domains into memory.
+!***  The file name of the uppermost domain is 'configure_file_01'
+!***  and is identical to the primary file called 'configure_file'
+!***  which is needed in some early parts of the setup.
+!-----------------------------------------------------------------------
+!
+      DO N=1,MAX_DOMAINS                                                   !<-- The number of config files cannot exceed 99
+!
+        CONFIG_ID=N_CONFIGURE(N)
+        WRITE(INT_TO_CHAR,FMT)CONFIG_ID 
+        CONFIG_FILE_NAME='configure_file_'//INT_TO_CHAR                    !<-- Prepare the config file names
+!
+        CFILE_EXIST=.FALSE.
+        INQUIRE(file=CONFIG_FILE_NAME,exist=CFILE_EXIST)
+!
+        IF(CFILE_EXIST)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Create the Nest Configure Object"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CF(N)=ESMF_ConfigCreate(rc=RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Load the Nest Configure Object"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_ConfigLoadFile(config  =CF(N)                       &
+                                  ,filename=CONFIG_FILE_NAME            &
+                                  ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        ELSE
+!
+          EXIT
+!
+        ENDIF
+!
+      ENDDO
 !
 !-----------------------------------------------------------------------
 !***  Will the Write components with asynchronous quilting be used?

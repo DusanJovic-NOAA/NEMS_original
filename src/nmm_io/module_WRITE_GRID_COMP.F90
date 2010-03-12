@@ -1082,22 +1082,22 @@
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
-!***  IT IS IMPORTANT TO NOTE THAT WHILE THE TASKS EXECUTING THIS
-!***  STEP INCLUDE ALL FORECAST TASKS PLUS THOSE WRITE TASKS IN
-!***  THIS WRITE GROUP, THE IMPORT STATE WAS FILLED IN THE DYNAMICS
-!***  AND PHYSICS STEPS (DYN_INITIALIZE AND PHY_INITIALIZE) ONLY BY
-!***  THE FORECAST TASKS.  THEREFORE ANY INFORMATION EXTRACTED FROM
-!***  THE IMPORT STATE THAT IS NEEDED BY THE WRITE TASKS MUST BE
-!***  SENT TO THEM VIA ESMF_Send/Recv.
+!***  It is important to note that while the tasks executing this
+!***  step include all forecast tasks plus those write tasks in
+!***  this write group, the import state was filled in the Dynamics
+!***  and Physics steps (DYN_INITIALIZE and PHY_INITIALIZE) only by
+!***  the forecast tasks.  Therefore any information extracted from
+!***  the import state that is needed by the write tasks must be
+!***  sent to them by the forecast tasks.
 !
-!***  ALSO NOTE THAT HISTORY DATA CONSISTING OF SCALARS OR 1D ARRAYS
-!***  ARE PRESENT IN THE WRITE COMPONENT'S IMPORT STATE AS Attributes.
-!***  ALL 2D (GRIDDED) HISTORY DATA ARE PRESENT AS Fields.
+!***  Also note that history data consisting of scalars or 1D arrays
+!***  are present in the Write component's import state as Attributes.
+!***  All 2D (gridded) history data are present as Fields.
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  RETRIEVE THE WRITE COMPONENT'S ESMF INTERNAL STATE.
+!***  Retrieve the Write component's ESMF internal state.
 !-----------------------------------------------------------------------
 !
       btim=timef()
@@ -1118,9 +1118,9 @@
       WRT_INT_STATE=>wrap%WRITE_INT_STATE                                  !<-- Local working pointer to internal state
 !
 !-----------------------------------------------------------------------
-!***  GET THE CURRENT LOCAL VM.
-!***  THIS COMES FROM THE PetList USED TO CREATE
-!***  THE WRITE COMPONENTS IN ATM_INITIALIZE.
+!***  Get the current local VM.
+!***  This comes from the PetList used to create
+!***  the Write components in ATM_INITIALIZE.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1137,12 +1137,12 @@
       MYPE=wrt_int_state%MYPE
 !
 !-----------------------------------------------------------------------
-!***  INCREMENT THE WRITE GROUP SO WE KNOW WHICH ONE IS ACTIVE.
-!***  ONLY THE FORECAST TASKS ENTER THIS RUN STEP OF THE WRITE
-!***  COMPONENT EVERY OUTPUT TIME THEREFORE ONLY THEY CAN PROPERLY
-!***  INCREMENT THE NUMBER OF THE CURRENT WRITE GROUP. 
-!***  LET FORECAST TASK 0 BROADCAST THE CURRENT GROUP NUMBER
-!***  TO ALL TASKS IN THE GROUP INCLUDING THE CURRENT WRITE TASKS.
+!***  Increment the write group so we know which one is active.
+!***  Only the forecast tasks enter this Run step of the Write
+!***  component every output time therefore only they can properly
+!***  increment the number of the current write group. 
+!***  Let forecast task 0 broadcast the current group number
+!***  to all tasks in the group including the current write tasks.
 !-----------------------------------------------------------------------
 !
       NCURRENT_GROUP(1)=NCURRENT_GROUP(1)+1
@@ -1166,23 +1166,23 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  THE WRITE COMPONENT IS EXECUTED AT EACH HISTORY OUTPUT TIME
-!***  BY ALL FORECAST TASKS PLUS BY ALL WRITE TASKS IN THE ACTIVE
-!***  WRITE GROUP.  A 'FIRST' SWITCH IS EMPLOYED BELOW SO THAT THE
-!***  FORECAST TASKS EXTRACT FUNDAMENTAL GRID INFORMATION AND SEND IT
-!***  TO THE WRITE TASKS ONLY THE FIRST TIME THAT EACH OF THE WRITE
-!***  GROUPS EXECUTES THIS ROUTINE.  FOR EXAMPLE, ASSUME THERE ARE
-!***  TWO WRITE GROUPS.  AT THE 1ST OUTPUT TIME, THE FORECAST TASKS
-!***  EXTRACT CERTAIN INFORMATION FROM THE IMPORT STATE THAT DOES NOT
-!***  CHANGE WITH TIME AND TASK 0 SENDS THAT INFORMATION TO EACH OF 
-!***  THE WRITE TASKS IN THE 1ST WRITE GROUP.  AT THE 2ND OUTPUT TIME
-!***  THE FORECAST TASKS EXTRACT THAT SAME INFORMATION AND TASK 0
-!***  SENDS IT TO THE WRITE TASKS IN THE 2ND WRITE GROUP SINCE THE
-!***  WRITE GROUPS ARE CYCLING.  AT THE 3RD OUTPUT TIME AND ALL
-!***  SUBSEQUENT OUTPUT TIMES THE EXTRACTION AND SENDING/RECEIVING
-!***  OF THIS INFORMATION IS SKIPPED SINCE ALL OF THE WRITE TASKS
-!***  (OR AT LEAST THE FIRST WRITE TASK IN EACH WRITE GROUP) ALREADY
-!***  HAVE THE INFORMATION.
+!***  The Write component is executed at each history output time
+!***  by all forecast tasks plus by all write tasks in the active
+!***  write group.  A 'FIRST' switch is employed below so that the
+!***  forecast tasks extract fundamental grid information and send it
+!***  to the write tasks only the first time that each of the write
+!***  groups executes this routine.  For example, assume there are
+!***  two write groups.  At the 1st output time, the forecast tasks
+!***  extract certain information from the import state that does not
+!***  change with time and task 0 sends that information to each of 
+!***  the write tasks in the 1st write group.  At the 2nd output time
+!***  the forecast tasks extract that same information and task 0
+!***  sends it to the write tasks in the 2nd write group since the
+!***  write groups are cycling.  At the 3rd output time and all
+!***  subsequent output times the extraction and sending/receiving
+!***  of this information is skipped since all of the write tasks
+!***  (or at least the first write task in each write group) already
+!***  have the information.
 !-----------------------------------------------------------------------
 !
       ALLOCATE(FIRST_IO_PE(1))                                            !<-- A flag indicating that this is or is not
@@ -1196,10 +1196,10 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  HERE THE LEAD WRITE TASK IS TELLING ALL TASKS INCLUDING THE
-!***  FORECAST TASKS WHO EXTRACT INFORMATION FROM THE IMPORT STATE
-!***  THAT THIS IS OR IS NOT THIS SET OF WRITE TASKS' FIRST PASS
-!***  THROUGH THE WRITE COMPONENT.
+!***  Here the lead write task is telling all tasks including the
+!***  forecast tasks who extract information from the import state
+!***  that this is or is not this set of write tasks' first pass
+!***  through the Write component.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1228,10 +1228,10 @@
       DEALLOCATE(FIRST_IO_PE)
 !
 !-----------------------------------------------------------------------
-!***  CERTAIN WORK NEEDS TO BE DONE ONLY THE FIRST TIME THAT EACH
-!***  GROUP OF WRITE TASKS IS INVOKED.  THIS MOSTLY CONSISTS OF
-!***  THE FORECAST TASKS' SENDING THE WRITE TASKS HISTORY DATA
-!***  FROM THE IMPORT STATE THAT DOES NOT CHANGE WITH FORECAST TIME.
+!***  Certain work needs to be done only the first time that each
+!***  group of write tasks is invoked.  This mostly consists of
+!***  the forecast tasks' sending the write tasks history data
+!***  from the import state that does not change with forecast time.
 !-----------------------------------------------------------------------
 !
       first_block: IF(FIRST)THEN                                           !<-- Execute this routine only if this is the 
@@ -1248,11 +1248,11 @@
                            ,NCURRENT_GROUP(1))
 !
 !-----------------------------------------------------------------------
-!***  ALL FORECAST TASKS PLUS THE WRITE TASKS IN THIS WRITE GROUP
-!***  NOW TURN OFF THEIR 'FIRST' SWITCH.  HOWEVER THIS ONLY MATTERS
-!***  FOR THE WRITE TASKS SINCE IT IS THEIR VALUE OF 'FIRST' THAT
-!***  IS TRANSMITTED TO THE FORECAST TASKS JUST PRIOR TO THIS BLOCK
-!***  BY THE 1ST WRITE TASK IN THE WRITE GROUP THAT IS PRESENT.
+!***  All forecast tasks plus the write tasks in this write group
+!***  Now turn off their 'FIRST' switch.  However this only matters
+!***  for the write tasks since it is their value of 'FIRST' that
+!***  is transmitted to the forecast tasks just prior to this block
+!***  by the 1st write task in the write group that is present.
 !-----------------------------------------------------------------------
 !
         FIRST=.FALSE.
@@ -1264,8 +1264,8 @@
       write_first_tim=write_first_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  THE ELAPSED FORECAST TIME (HOURS) WILL BE APPENDED TO THE NAME
-!***  OF EACH HISTORY OUTPUT FILE.  EXTRACT THAT VALUE NOW.
+!***  The elapsed forecast time (hours) will be appended to the name
+!***  of each history output file.  Extract that value now.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1282,7 +1282,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  ESMF TIME DIFFERENCE BETWEEN START TIME AND CURRENT TIME
+!***  The ESMF time difference between start time and current time.
 !-----------------------------------------------------------------------
 !
       wrt_int_state%IO_CURRTIMEDIFF=CURRTIME-wrt_int_state%IO_BASETIME
@@ -1309,9 +1309,9 @@
       KOUNT_R2D=wrt_int_state%KOUNT_R2D(1)
 !
 !-----------------------------------------------------------------------
-!***  NOW PULL THE 2D HISTORY DATA FROM THE IMPORT STATE.
-!***  THIS INCLUDES ALL INDIVIDUAL 2D HISTORY QUANTITIES AS WELL AS
-!***  ALL MODEL LEVELS OF THE 3D REAL HISTORY ARRAYS.
+!***  Now pull the 2d history data from the import state.
+!***  This includes all individual 2D history quantities as well as
+!***  all model levels of the 3D Real history arrays.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
@@ -1330,7 +1330,7 @@
         JHALO=wrt_int_state%JHALO                                          !<-- Halo depth in J
 !
 !-----------------------------------------------------------------------
-!***  BE SURE THE INTEGER AND REAL BUFFERS ARE AVAILABLE FOR ISENDs
+!***  Be sure the Integer and Real buffers are available for ISends.
 !-----------------------------------------------------------------------
 !
         btim=timef()
@@ -1366,7 +1366,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  DOES THIS EXTRACTED Field HOLD INTEGER OR REAL DATA?
+!***  Does this extracted Field hold Integer or Real data?
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1471,8 +1471,8 @@
         btim=timef()
 !
 !-----------------------------------------------------------------------
-!***  ALL FORECAST TASKS NOW SEND THEIR STRINGS OF 2D HISTORY DATA
-!***  TO THE APPROPRIATE WRITE TASKS.
+!***  All forecast tasks now send their strings of 2D history data
+!***  to the appropriate write tasks.
 !-----------------------------------------------------------------------
 !
         KOUNT_I2D_DATA=wrt_int_state%NUM_WORDS_SEND_I2D_HST                !<-- Total #of words in 2D integer history data on this fcst task
@@ -1490,7 +1490,7 @@
           IF(MYPE_ROW>=JROW_FIRST.AND.MYPE_ROW<=JROW_LAST)THEN             !<-- This fcst task associated with this write task
 !
 !-----------------------------------------------------------------------
-!***  FIRST THE 2-D INTEGER DATA.
+!***  First the 2-D Integer data.
 !-----------------------------------------------------------------------
 !
             IF(KOUNT_I2D>0)THEN
@@ -1507,7 +1507,7 @@
             ENDIF
 !
 !-----------------------------------------------------------------------
-!***  THEN THE 2-D REAL DATA.
+!***  Then the 2-D Real data.
 !-----------------------------------------------------------------------
 !
             IF(KOUNT_R2D>0)THEN
@@ -1534,9 +1534,9 @@
       ENDIF hst_fcst_tasks
 !
 !-----------------------------------------------------------------------
-!***  NOW PULL THE 2D RESTART DATA FROM THE IMPORT STATE.
-!***  THIS INCLUDES ALL INDIVIDUAL 2D RESTART QUANTITIES AS WELL AS
-!***  ALL MODEL LEVELS OF THE 3D REAL RESTART ARRAYS.
+!***  Now pull the 2D restart data from the import state.
+!***  This includes all individual 2D restart quantities as well as
+!***  all model levels of the 3D Real restart arrays.
 !-----------------------------------------------------------------------
 !
       RST_KOUNT_I2D=wrt_int_state%RST_KOUNT_I2D(1)
@@ -1558,7 +1558,7 @@
         JHALO=wrt_int_state%JHALO                                          !<-- Halo depth in J
 !
 !-----------------------------------------------------------------------
-!***  BE SURE THE INTEGER AND REAL BUFFERS ARE AVAILABLE FOR ISENDs
+!***  Be sure the Integer and Real buffers are available for ISends.
 !-----------------------------------------------------------------------
 !
         btim=timef()
@@ -1594,7 +1594,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  DOES THIS EXTRACTED Field HOLD INTEGER OR REAL DATA?
+!***  Does this extracted Field hold Integer or Real restart data?
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1701,8 +1701,8 @@
         btim=timef()
 !
 !-----------------------------------------------------------------------
-!***  ALL FORECAST TASKS NOW SEND THEIR STRINGS OF 2D RESTART DATA
-!***  TO THE APPROPRIATE WRITE TASKS.
+!***  All forecast tasks now send their strings of 2D restart data
+!***  to the appropriate write tasks.
 !-----------------------------------------------------------------------
 !
         RST_KOUNT_I2D_DATA=wrt_int_state%NUM_WORDS_SEND_I2D_RST            !<-- # of words in 2D integer restart data on this fcst task
@@ -1720,12 +1720,12 @@
           IF(MYPE_ROW>=JROW_FIRST.AND.MYPE_ROW<=JROW_LAST)THEN             !<-- This fcst task associated with this write task
 !
 !-----------------------------------------------------------------------
-!***  FIRST THE 2-D INTEGER DATA.
+!***  First the 2-D Integer restart data.
 !-----------------------------------------------------------------------
 !
             IF(RST_KOUNT_I2D>0)THEN
               CALL MPI_ISEND(wrt_int_state%RST_ALL_DATA_I2D             &  !<-- Fcst tasks' string of 2D integer restart data
-                            ,RST_KOUNT_I2D_DATA                         &  !<-- #of words in the data string
+                            ,RST_KOUNT_I2D_DATA                         &  !<-- # of words in the data string
                             ,MPI_INTEGER                                &  !<-- The datatype
                             ,NPE_WRITE                                  &  !<-- The target write task
                             ,wrt_int_state%NFHOUR                       &  !<-- An MPI tag
@@ -1737,12 +1737,12 @@
             ENDIF
 !
 !-----------------------------------------------------------------------
-!***  THEN THE 2-D REAL DATA.
+!***  Then the 2-D Real restart data.
 !-----------------------------------------------------------------------
 !
             IF(RST_KOUNT_R2D>0)THEN
               CALL MPI_ISEND(wrt_int_state%RST_ALL_DATA_R2D               &  !<-- Fcst tasks' string of 2D real restart data
-                            ,RST_KOUNT_R2D_DATA                           &  !<-- #of words in the data string
+                            ,RST_KOUNT_R2D_DATA                           &  !<-- # of words in the data string
                             ,MPI_REAL                                     &  !<-- The datatype
                             ,NPE_WRITE                                    &  !<-- The target write task
                             ,wrt_int_state%NFHOUR                         &  !<-- An MPI tag
@@ -1760,12 +1760,12 @@
         write_send_outp_tim=write_send_outp_tim+timef()-btim
 !
 !-----------------------------------------------------------------------
-!***  THE RESTART FILES NEED TO CONTAIN THE FULL-DOMAIN BC WIND DATA
-!***  IN ORDER FOR NESTS TO PRODUCE BITWISE IDENTICAL RESULTS WHEN
-!***  RESTARTING AS COMPARED TO THEIR FREE FORECASTS.
-!***  THUS ALL BOUNDARY FORECAST TASKS NEED TO UNLOAD THEIR PIECES 
-!***  OF THE DATA FROM THE WRITE IMPORT STATE AND SEND THEM TO TASK 0 
-!***  FOR ASSEMBLY.
+!***  The restart files need to contain the full-domain BC wind data
+!***  in order for nests to produce bitwise identical results when
+!***  restarting as compared to their free forecasts.
+!***  Thus all boundary forecast tasks need to unload their pieces 
+!***  of the data from the Write import state and send them to task 0 
+!***  for assembly.
 !-----------------------------------------------------------------------
 !
 !--------------------------
@@ -1901,8 +1901,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  FORECAST TASK 0 RECEIVES THE BOUNDARY WIND DATA FROM THE
-!***  BOUNDARY TASKS AND ASSEMBLES IT INTO FULL-DOMAIN ARRAYS.
+!***  Forecast task 0 receives the boundary wind data from the
+!***  boundary tasks and assembles it into full-domain arrays.
 !-----------------------------------------------------------------------
 !
         fcst_task0: IF(MYPE==0)THEN
@@ -2086,7 +2086,7 @@
           ENDIF recv_east
 !
 !-----------------------------------------------------------------------
-!***  FORECAST TASK 0'S OWN BC DATA
+!***  Forecast task 0's own BC data.
 !-----------------------------------------------------------------------
 !
           IF(JTS==1)THEN                                                   !<-- Fcst task 0's south boundary data    
@@ -2154,8 +2154,8 @@
           ENDIF
 !
 !-----------------------------------------------------------------------
-!***  FORECAST TASK 0 RENDERS ALL THE BOUNDARY WIND DATA INTO 
-!***  A SINGLE 1-D STRING TO SEND TO THE LEAD WRITE TASK.
+!***  Forecast task 0 renders all the boundary wind data into 
+!***  a single 1-D string to send to the lead write task.
 !-----------------------------------------------------------------------
 !
           KOUNT=0
@@ -2225,13 +2225,13 @@
           ENDDO
 !
 !-----------------------------------------------------------------------
-!***  NOW FORECAST TASK 0 MUST SEND THE FULL-DOMAIN BOUNDARY WIND DATA
-!***  TO THE LEAD WRITE TASK FOR INSERTING IT INTO THE RESTART FILE.
+!***  Now forecast task 0 must send the full-domain boundary wind data
+!***  to the lead write task for inserting it into the restart file.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  BE SURE THE BC DATA BUFFER IS AVAILABLE FOR ISEND TO
-!***  THE LEAD WRITE TASK.
+!***  Be sure the BC data buffer is available for ISend to
+!***  the lead write task.
 !-----------------------------------------------------------------------
 !
           CALL MPI_WAIT(RST_IH_BC,JSTAT,IERR) 
@@ -2258,9 +2258,9 @@
       write_run_tim=write_run_tim+(timef()-btim0)
 !
 !-----------------------------------------------------------------------
-!***  THE FORECAST TASKS ARE COMPLETELY FINISHED WITH HISTORY AND
-!***  RESTART OUTPUT NOW SO THEY WILL EXIT THE ROUTINE AND RESUME
-!***  THE INTEGRATION.
+!***  The forecast tasks are completely finished with history and
+!***  restart output now so they will exit the routine and resume
+!***  the integration.
 !-----------------------------------------------------------------------
 !
       IF(MYPE<=LAST_FCST_TASK)RETURN
@@ -2272,8 +2272,8 @@
       history_time: IF(TIME_FOR_HISTORY) THEN
 !
 !-----------------------------------------------------------------------
-!***  EACH WRITE TASK IN THE ACTIVE WRITE GROUP RECEIVES THE
-!***  STRINGS OF 2D HISTORY DATA FROM THE APPROPRIATE FCST TASKS.
+!***  Each write task in the active write group receives the
+!***  strings of 2D history data from the appropriate fcst tasks.
 !-----------------------------------------------------------------------
 !
       ID_START=wrt_int_state%ID_FTASK_RECV_STA(MYPE)                       !<-- First fcst task that sends to this write task
@@ -2287,7 +2287,7 @@
         ID_RECV=ID_START+N-1
 !
 !-----------------------------------------------------------------------
-!***  RECEIVE 2-D INTEGER DATA IF THERE IS ANY.
+!***  Receive 2-D Integer history data if there is any.
 !-----------------------------------------------------------------------
 !
         IF(KOUNT_I2D>0)THEN
@@ -2304,7 +2304,7 @@
         ENDIF
 !
 !-----------------------------------------------------------------------
-!***  RECEIVE 2-D REAL DATA IF THERE IS ANY.
+!***  Receive 2-D Real history data if there is any.
 !-----------------------------------------------------------------------
 !
         IF(KOUNT_R2D>0)THEN
@@ -2322,15 +2322,15 @@
         write_recv_outp_tim=write_recv_outp_tim+timef()-btim
 !
 !-----------------------------------------------------------------------
-!***  EACH WRITE TASK NEEDS TO INSERT THE PIECES OF THE VARIOUS
-!***  2D HISTORY ARRAYS RECEIVED FROM THE INDIVIDUAL FCST TASKS
-!***  INTO ARRAYS THAT SPAN THE WRITE TASKS' OWN SUBSECTION OF
-!***  THE FULL 2D DOMAIN.  THAT SUBSECTION ALWAYS SPANS THE 
-!***  ENTIRE EAST-WEST DIMENSION OF THE FULL DOMAIN (SINCE FULL
-!***  ROWS OF FCST TASKS ALWAYS SEND TO WRITE TASKS, NEVER 
-!***  PARTIAL ROWS) AND AS MUCH OF THE NORTH-SOUTH DIMENSION OF
-!***  THE FULL DOMAIN AS COVERED BY THOSE FCST TASKS SENDING TO
-!***  A GIVEN WRITE TASK.
+!***  Each write task needs to insert the pieces of the various
+!***  2D history arrays received from the individual fcst tasks
+!***  into arrays that span the write tasks' own subsection of
+!***  the full 2D domain.  That subsection always spans the 
+!***  entire east-west dimension of the full domain (since full
+!***  rows of fcst tasks always send to write tasks, never 
+!***  partial rows) and as much of the north-south dimension of
+!***  the full domain as covered by those fcst tasks sending to
+!***  a given write task.
 !-----------------------------------------------------------------------
 !
         ITS=wrt_int_state%LOCAL_ISTART(ID_RECV)                            !<-- Local domain integration limits of sending fcst task
@@ -2377,14 +2377,14 @@
       ENDDO hst_from_fcst_tasks
 !            
 !-----------------------------------------------------------------------
-!***  AT THIS POINT, ALL WRITE TASKS HAVE RECEIVED ALL OF THE HISTORY
-!***  DATA FROM THEIR ASSOCIATED FCST TASKS AND ASSEMBLED IT ONTO 
-!***  THEIR OWN SUBSECTIONS OF THE FULL 2D DOMAIN.
+!***  At this point, all write tasks have received all of the history
+!***  data from their associated fcst tasks and assembled it onto 
+!***  their own subsections of the full 2D domain.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  THE LEAD WRITE TASK OBTAINS THE CURRENT FORECAST TIME AND
-!***  THE ELAPSED FORECAST TIME FOR ITS WRITING OF OUTPUT.
+!***  The lead write task obtains the current forecast time and
+!***  the elapsed forecast time for its writing of output.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
@@ -2408,7 +2408,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  THE CURRENT FORECAST TIME.
+!***  The current forecast time.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2434,7 +2434,7 @@
           SECOND_FCST=ISECOND_FCST+REAL(ISECOND_NUM)/REAL(ISECOND_DEN)     !<-- Current forecast seconds (real)
 !
 !-----------------------------------------------------------------------
-!***  ELAPSED FORECAST TIME.
+!***  The elapsed forecast time.
 !-----------------------------------------------------------------------
 !
           wrt_int_state%IO_CURRTIMEDIFF=CURRTIME-wrt_int_state%IO_BASETIME
@@ -2621,7 +2621,7 @@
           ENDIF
 !
 !-----------------------------------------------------------------------
-!***  For the NEMSIO history file
+!***  For the NEMSIO history file.
 !-----------------------------------------------------------------------
 !
           IF(wrt_int_state%WRITE_NEMSIOFLAG)THEN
