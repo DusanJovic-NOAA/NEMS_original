@@ -6261,7 +6261,7 @@ contains
      gfile%recname(rec+gfile%dimz+1:rec+2*gfile%dimz)='dwdt'
      gfile%recname(rec+2*gfile%dimz+1:rec+3*gfile%dimz+1)='pres'
      gfile%recname(rec+3*gfile%dimz+2:rec+4*gfile%dimz+1)='omgalf'
-     gfile%recname(rec+4*gfile%dimz+2:rec+5*gfile%dimz+1)='rrw'
+     gfile%recname(rec+4*gfile%dimz+2:rec+5*gfile%dimz+1)='o3mr'
      gfile%recname(rec+5*gfile%dimz+2:rec+6*gfile%dimz+1)='cldfra'
      gfile%recname(rec+6*gfile%dimz+2:rec+7*gfile%dimz+1)='clwmr'
      gfile%recname(rec+7*gfile%dimz+2:rec+8*gfile%dimz+1)='exch_h'

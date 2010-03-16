@@ -283,7 +283,7 @@
       TYPE(ESMF_CopyFlag)    :: COPYFLAG=ESMF_DATA_REF
 !     TYPE(ESMF_CopyFlag)    :: COPYFLAG=ESMF_DATA_COPY
 
-      INTEGER :: INDX_RRW  !! FIXME
+      INTEGER :: INDX_O3  !! FIXME
 
 !-----------------------------------------------------------------------
 !***  BEGIN WITH THE INTEGER SCALARS.
@@ -682,7 +682,7 @@
 !
 !!!!!!!!! FIX this later
 !!!!!!!!! FIX this later
-      INDX_RRW = 4
+      INDX_O3 = 4
 !!!!!!!!! FIX this later
 !!!!!!!!! FIX this later
 
@@ -698,7 +698,7 @@
           LDIM4=LBOUND(VARS(N)%R4D,4)
           UDIM4=UBOUND(VARS(N)%R4D,4)
 !
-          DO M=INDX_RRW+1,UDIM4                                            !<-- Loop through the tracers (skip unallocated pointers)
+          DO M=INDX_O3+1,UDIM4                                             !<-- Loop through the tracers (skip unallocated pointers)
           DO K=LDIM3,UDIM3                                                 !<-- Loop through the levels of the array
             WRITE(TRACERS_KIND,FMT)M
             WRITE(MODEL_LEVEL,FMT)K
@@ -753,9 +753,9 @@
           UDIM4=UBOUND(VARS(N)%R4D,4)
 !
           IF(TRIM(VARS(N)%VBL_NAME)=='TRACERS_PREV') THEN
-            UDIM4=INDX_RRW                                                 !<-- TRACERS_PREV bounds: LDIM4      - INDX_RRW
+            UDIM4=INDX_O3                                                  !<-- TRACERS_PREV bounds: LDIM4     - INDX_O3
           ELSE
-            LDIM4=INDX_RRW+1                                               !<-- TRACERS bounds:      INDX_RRW+1 - UDIM4
+            LDIM4=INDX_O3+1                                                !<-- TRACERS bounds:      INDX_O3+1 - UDIM4
           ENDIF
 !
           DO M=LDIM4,UDIM4                                                 !<-- Loop through the tracers (skip unallocated pointers)

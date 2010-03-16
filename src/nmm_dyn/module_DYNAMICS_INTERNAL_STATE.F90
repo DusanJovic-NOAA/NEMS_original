@@ -144,7 +144,7 @@
 !
         REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER :: PINT,RTOP           &
                                                    ,T,U,V               &
-                                                   ,Q,CW,RRW            &
+                                                   ,Q,CW,O3             &
                                                    ,Q2,E2               &
                                                    ,DIV                 &
                                                    ,TDIV                &
@@ -173,7 +173,7 @@
 !
         INTEGER(KIND=KINT) :: INDX_Q                                    &  !<-- Location of Q in tracer arrays
                              ,INDX_CW                                   &  !<-- Location of CW in tracer arrays
-                             ,INDX_RRW                                  &  !<-- Location of RRW in tracer arrays
+                             ,INDX_O3                                   &  !<-- Location of O3 in tracer arrays
                              ,INDX_Q2                                      !<-- Location of Q2 in tracer arrays
 !
         REAL(KIND=KFPT),DIMENSION(:,:,:,:),POINTER :: TRACERS           &  !<-- Storage array for "tracer" variables.
@@ -682,10 +682,10 @@
 !***  General tracer for testing
 !--------------------------------
 !
-      int_state%INDX_RRW=4
-      CALL FIND_VAR_INDX('RRW',int_state%VARS,int_state%NUM_VARS,I)
-      int_state%VARS(I)%R3D=>int_state%TRACERS(:,:,:,int_state%INDX_RRW)
-      int_state%RRW=>int_state%VARS(I)%R3D
+      int_state%INDX_O3=4
+      CALL FIND_VAR_INDX('O3',int_state%VARS,int_state%NUM_VARS,I)
+      int_state%VARS(I)%R3D=>int_state%TRACERS(:,:,:,int_state%INDX_O3)
+      int_state%O3=>int_state%VARS(I)%R3D
 !
 !--------------------------------
 !***  Water tracers
@@ -972,7 +972,7 @@
       CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'DWDT'      ,int_state%DWDT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'PINT'      ,int_state%PINT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM+1 /) )
       CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'OMGALF'    ,int_state%OMGALF  ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'RRW'       ,int_state%RRW     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'O3'        ,int_state%O3      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'DIV'       ,int_state%DIV     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'RTOP'      ,int_state%RTOP    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TCU'       ,int_state%TCU     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )

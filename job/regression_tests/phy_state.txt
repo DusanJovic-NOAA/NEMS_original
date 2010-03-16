@@ -165,7 +165,7 @@
 'SMC'        H       R       O      -      -      ''
 'STC'        H       R       O      -      -      ''
 'OMGALF'     -       -       -      I      -      'Omega alpha from the dynamics  (K)'
-'RRW'        -       -       -      -      -      ''
+'O3'         -       -       -      -      -      'Ozone'
 
 
 ###    4D real                          

@@ -1206,7 +1206,7 @@
                          ,DSG2,SGML2,PDSG1,PSGML1                       &
                          ,int_state%PT,int_state%PD                     &
                          ,int_state%T,int_state%Q                       &
-                         ,int_state%CW,int_state%RRW                    &
+                         ,int_state%CW,int_state%O3                     &
                          ,int_state%ALBEDO                              &
                          ,int_state%F_ICE,int_state%F_RAIN              &
                          ,int_state%P_QV,int_state%P_QC,int_state%P_QR  &
@@ -2169,7 +2169,7 @@
              GR3(KFLIP,2)    = 0.0d0
              GR3(KFLIP,3)    = 0.0d0
            ELSE
-             GR3(KFLIP,2)    = int_state%RRW(II,JJ,L)
+             GR3(KFLIP,2)    = int_state%O3(II,JJ,L)
              GR3(KFLIP,3)    = int_state%CW(II,JJ,L)
            ENDIF
              GR1(1,KFLIP,1)  = GR3(KFLIP,2)
@@ -2461,9 +2461,9 @@
              int_state%DVDT(I,J,L)        = (ADV(KFLIP) - GV(KFLIP)) / (COSLAT_R(J) + 0.0001) / DTP
 !*           int_state%CLDFRA(I,J,L)      = CLDCOV_V(KFLIP) * MINDT  ! scaling not needed (Sarah Lu)
              int_state%CLDFRA(I,J,L)      = CLDCOV_V(KFLIP) 
-             int_state%Q  (II,JJ,L)       = ADR(KFLIP,1)
-             int_state%RRW(II,JJ,L)       = ADR(KFLIP,2)
-             int_state%CW (II,JJ,L)       = ADR(KFLIP,3)
+             int_state%Q (II,JJ,L)        = ADR(KFLIP,1)
+             int_state%O3(II,JJ,L)        = ADR(KFLIP,2)
+             int_state%CW(II,JJ,L)        = ADR(KFLIP,3)
          ENDDO
 !
 !-----------------------------------------------------------------------
@@ -2524,8 +2524,8 @@
             CALL POLEHN(int_state%CW,IMS,IME,JMS,JME,LM                 &
                        ,int_state%INPES,int_state%JNPES)
 !
-            CALL SWAPHN(int_state%RRW,IMS,IME,JMS,JME,LM,int_state%INPES)
-            CALL POLEHN(int_state%RRW,IMS,IME,JMS,JME,LM                &
+            CALL SWAPHN(int_state%O3,IMS,IME,JMS,JME,LM,int_state%INPES)
+            CALL POLEHN(int_state%O3,IMS,IME,JMS,JME,LM                 &
                        ,int_state%INPES,int_state%JNPES)
 !
             CALL SWAPWN(int_state%U,IMS,IME,JMS,JME,LM,int_state%INPES)
@@ -2548,7 +2548,7 @@
           CALL HALO_EXCH(int_state%Q,LM,int_state%CW,LM                 &
                         ,3,3)
 !
-          CALL HALO_EXCH(int_state%RRW,LM                               &
+          CALL HALO_EXCH(int_state%O3,LM                                &
                         ,3,3)
 !
           CALL HALO_EXCH(int_state%U,LM,int_state%V,LM                  &

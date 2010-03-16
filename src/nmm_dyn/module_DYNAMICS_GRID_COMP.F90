@@ -699,13 +699,13 @@
                    ,int_state%U,int_state%V,int_state%Q2,int_state%E2   &
                    ,int_state%T,int_state%Q,int_state%CW                &
                    ,int_state%TP,int_state%UP,int_state%VP              &
-                   ,int_state%RRW,int_state%DWDT,int_state%W            &
+                   ,int_state%O3,int_state%DWDT,int_state%W             &
                    ,int_state%OMGALF,int_state%DIV,int_state%Z          &
                    ,int_state%RTOP                                      &
                    ,int_state%TCU,int_state%TCV,int_state%TCT           &
                    ,int_state%TRACERS_PREV                              &
                    ,int_state%INDX_Q,int_state%INDX_CW                  &
-                   ,int_state%INDX_RRW,int_state%INDX_Q2                &
+                   ,int_state%INDX_O3,int_state%INDX_Q2                 &
                    ,int_state%NTSTI,int_state%NTSTM                     &
                    ,int_state%IHR,int_state%IHRST,int_state%IDAT        &
                    ,RUN_LOCAL,int_state%RESTART                         &
@@ -739,13 +739,13 @@
                   ,int_state%U,int_state%V,int_state%Q2,int_state%E2    &
                   ,int_state%T,int_state%Q,int_state%CW                 &
                   ,int_state%TP,int_state%UP,int_state%VP               &
-                  ,int_state%RRW,int_state%DWDT,int_state%W             &
+                  ,int_state%O3,int_state%DWDT,int_state%W              &
                   ,int_state%OMGALF,int_state%DIV,int_state%Z           &
                   ,int_state%RTOP                                       &
                   ,int_state%TCU,int_state%TCV,int_state%TCT            &
                   ,int_state%TRACERS_PREV                               &
                   ,int_state%INDX_Q,int_state%INDX_CW                   &
-                  ,int_state%INDX_RRW,int_state%INDX_Q2                 &
+                  ,int_state%INDX_O3,int_state%INDX_Q2                  &
                   ,int_state%NTSTI,int_state%NTSTM                      &
                   ,int_state%IHR,int_state%IHRST,int_state%IDAT         &
                   ,RUN_LOCAL,int_state%RESTART                          &
@@ -785,7 +785,7 @@
         write(0,*)'dwdt=',minval(int_state%dwdt),maxval(int_state%dwdt)
         write(0,*)'q=',minval(int_state%q),maxval(int_state%q)
         write(0,*)'q2=',minval(int_state%q2),maxval(int_state%q2)
-        write(0,*)'rrw=',minval(int_state%rrw),maxval(int_state%rrw)
+        write(0,*)'o3=',minval(int_state%o3),maxval(int_state%o3)
         write(0,*)'omgalf=',minval(int_state%omgalf),maxval(int_state%omgalf)
         write(0,*)'div=',minval(int_state%div),maxval(int_state%div)
         write(0,*)'z=',minval(int_state%z),maxval(int_state%z)
@@ -2457,16 +2457,16 @@
           ,int_state%TRACERS_TEND(IMS:IME,JMS:JME,1:LM,int_state%INDX_CW))
 !
 !---------
-!***  RRW
+!***  O3
 !---------
 !
         CALL UPDATES                                                    &
           (LM                                                           &
-          ,int_state%RRW                                                &
+          ,int_state%O3                                                 &
 !
 !***  Temporary argument
 !
-          ,int_state%TRACERS_TEND(IMS:IME,JMS:JME,1:LM,int_state%INDX_RRW))
+          ,int_state%TRACERS_TEND(IMS:IME,JMS:JME,1:LM,int_state%INDX_O3))
 !
 !---------
 !***  Q2
@@ -2489,7 +2489,7 @@
           btim=timef()
           CALL SWAPHN(int_state%Q,IMS,IME,JMS,JME,LM,INPES)
           CALL SWAPHN(int_state%CW,IMS,IME,JMS,JME,LM,INPES)
-          CALL SWAPHN(int_state%RRW,IMS,IME,JMS,JME,LM,INPES)
+          CALL SWAPHN(int_state%O3,IMS,IME,JMS,JME,LM,INPES)
           CALL SWAPHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES)
 !
           swaphn_tim=swaphn_tim+(timef()-btim)
@@ -2497,7 +2497,7 @@
           btim=timef()
           CALL POLEHN(int_state%Q,IMS,IME,JMS,JME,LM,INPES,JNPES)
           CALL POLEHN(int_state%CW,IMS,IME,JMS,JME,LM,INPES,JNPES)
-          CALL POLEHN(int_state%RRW,IMS,IME,JMS,JME,LM,INPES,JNPES)
+          CALL POLEHN(int_state%O3,IMS,IME,JMS,JME,LM,INPES,JNPES)
           CALL POLEHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES,JNPES)
 !
           polehn_tim=polehn_tim+(timef()-btim)
@@ -2509,7 +2509,7 @@
         btim=timef()
         CALL HALO_EXCH(int_state%Q,LM                                   &
                       ,int_state%CW,LM                                  &
-                      ,int_state%RRW,LM                                 &
+                      ,int_state%O3,LM                                  &
                       ,int_state%Q2,LM                                  &
                       ,2,2)
 !
@@ -2906,7 +2906,7 @@
             (LM                                                         &
             ,int_state%KHFILT                                           &
             ,int_state%HFILT                                            &
-            ,int_state%RRW                                              &
+            ,int_state%O3                                               &
 #ifdef IBM
             ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3         &
             ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3         &
@@ -2941,7 +2941,7 @@
           btim=timef()
           CALL SWAPHN(int_state%Q,IMS,IME,JMS,JME,LM,INPES)
           CALL SWAPHN(int_state%CW,IMS,IME,JMS,JME,LM,INPES)
-          CALL SWAPHN(int_state%RRW,IMS,IME,JMS,JME,LM,INPES)
+          CALL SWAPHN(int_state%O3,IMS,IME,JMS,JME,LM,INPES)
           CALL SWAPHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES)
 !
           IF(int_state%MICROPHYSICS/='fer')THEN
@@ -2956,7 +2956,7 @@
           btim=timef()
           CALL POLEHN(int_state%Q,IMS,IME,JMS,JME,LM,INPES,JNPES)
           CALL POLEHN(int_state%CW,IMS,IME,JMS,JME,LM,INPES,JNPES)
-          CALL POLEHN(int_state%RRW,IMS,IME,JMS,JME,LM,INPES,JNPES)
+          CALL POLEHN(int_state%O3,IMS,IME,JMS,JME,LM,INPES,JNPES)
           CALL POLEHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES,JNPES)
 !
           IF(int_state%MICROPHYSICS/='fer')THEN
@@ -2975,7 +2975,7 @@
         btim=timef()
         CALL HALO_EXCH(int_state%Q,LM                                   &
                       ,int_state%CW,LM                                  &
-                      ,int_state%RRW,LM                                 &
+                      ,int_state%O3,LM                                  &
                       ,int_state%Q2,LM                                  &
                       ,2,2)
 !
@@ -3112,7 +3112,7 @@
           btim=timef()
           CALL SWAPHN(int_state%Q,IMS,IME,JMS,JME,LM,INPES)
           CALL SWAPHN(int_state%CW,IMS,IME,JMS,JME,LM,INPES)
-          CALL SWAPHN(int_state%RRW,IMS,IME,JMS,JME,LM,INPES)
+          CALL SWAPHN(int_state%O3,IMS,IME,JMS,JME,LM,INPES)
           CALL SWAPHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES)
 !
           IF(int_state%MICROPHYSICS/='fer')THEN
@@ -3127,7 +3127,7 @@
           btim=timef()
           CALL POLEHN(int_state%Q,IMS,IME,JMS,JME,LM,INPES,JNPES)
           CALL POLEHN(int_state%CW,IMS,IME,JMS,JME,LM,INPES,JNPES)
-          CALL POLEHN(int_state%RRW,IMS,IME,JMS,JME,LM,INPES,JNPES)
+          CALL POLEHN(int_state%O3,IMS,IME,JMS,JME,LM,INPES,JNPES)
           CALL POLEHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES,JNPES)
 !
           IF(int_state%MICROPHYSICS/='fer')THEN
@@ -3146,7 +3146,7 @@
         btim=timef()
         CALL HALO_EXCH(int_state%Q,LM                                   &
                       ,int_state%CW,LM                                  &
-                      ,int_state%RRW,LM                                 &
+                      ,int_state%O3,LM                                  &
                       ,int_state%Q2,LM                                  &
                       ,2,2)
 !

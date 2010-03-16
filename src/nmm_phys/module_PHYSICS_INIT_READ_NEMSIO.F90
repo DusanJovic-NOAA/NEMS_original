@@ -1954,7 +1954,7 @@
 !-----------------------------------------------------------------------
 !***  TRACERS
 !-----------------------------------------------------------------------
-      DO N=int_state%INDX_RRW+1,int_state%NUM_TRACERS_TOTAL                !<-- The first 'INDX_RRW' arrays are unallocated pointers
+      DO N=int_state%INDX_O3+1,int_state%NUM_TRACERS_TOTAL                !<-- The first 'INDX_O3' arrays are unallocated pointers
       DO K=1,LM
         IF(MYPE==0)THEN
         write(varname,'(a8,I2.2)')'tracers_',N

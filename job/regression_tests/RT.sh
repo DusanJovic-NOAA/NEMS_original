@@ -51,9 +51,11 @@ if [ $argn -eq 1 ]; then
   cp -r /${DISKNM}/noscrub/wx20rv/REGRESSION_TEST_baselines \
 	/stmp/${LOGIN}/REGRESSION_TEST
   if [ ${CB_arg} = nmm ]; then
-    cp ${RTPWD}/GFS_DFI_REDUCEDGRID/* /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID/.
-    cp ${RTPWD}/GFS_NODFI/*           /stmp/${LOGIN}/REGRESSION_TEST/GFS_NODFI/.
-    cp ${RTPWD}/GFS_OPAC/*            /stmp/${LOGIN}/REGRESSION_TEST/GFS_OPAC/.
+    cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*  /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID/.
+    cp ${RTPWD}/GFS_NODFI/*            /stmp/${LOGIN}/REGRESSION_TEST/GFS_NODFI/.
+    cp ${RTPWD}/GFS_OPAC/*             /stmp/${LOGIN}/REGRESSION_TEST/GFS_OPAC/.
+    cp ${RTPWD}/GEFS_data_2008082500/* /stmp/${LOGIN}/REGRESSION_TEST/GEFS_data_2008082500/.
+    cp ${RTPWD}/GEFS_m4/*              /stmp/${LOGIN}/REGRESSION_TEST/GEFS_m4/.
   elif [ ${CB_arg} = gfs ]; then
     cp ${RTPWD}/NMMB_gfsP_glob/*      /stmp/${LOGIN}/REGRESSION_TEST/NMMB_gfsP_glob/.
     cp ${RTPWD}/NMMB_gfsP_reg/*       /stmp/${LOGIN}/REGRESSION_TEST/NMMB_gfsP_reg/.
@@ -643,7 +645,7 @@ nmm_b_history.003  nmm_b_history_nemsio.000  nmm_b_history_nemsio.012           
 nmm_b_history.006  nmm_b_history_nemsio.003  nmm_b_restart.012"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=reg
-export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
+export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=12
 export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export RGS=false ; export WGS=false
 export PCPFLG=true  ; export WPREC=false ; export CPPCP=''   ; export NCHILD=0
 #---------------------

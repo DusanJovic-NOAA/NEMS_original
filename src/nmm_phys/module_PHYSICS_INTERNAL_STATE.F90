@@ -133,7 +133,7 @@
                                                    ,DUDT,DVDT           &
                                                    ,Q,CW                &
                                                    ,Q2,OMGALF           &
-                                                   ,RRW
+                                                   ,O3
 !
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: RLWTT,RSWTT
 !
@@ -276,7 +276,7 @@
 !
         INTEGER(kind=KINT) :: INDX_Q                                    &  !<-- Location of Q in tracer arrays
                              ,INDX_CW                                   &  !<-- Location of CW in tracer arrays
-                             ,INDX_RRW                                  &  !<-- Location of RRW in tracer arrays
+                             ,INDX_O3                                   &  !<-- Location of O3 in tracer arrays
                              ,INDX_Q2                                      !<-- Location of Q2 in tracer arrays
 !
         REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: TRACERS              !<-- Storage array for "tracer" variables.
@@ -705,10 +705,10 @@
 !***  General tracer for testing
 !--------------------------------
 !
-      int_state%INDX_RRW=4
-      CALL FIND_VAR_INDX('RRW',int_state%VARS,int_state%NUM_VARS,I)
-      int_state%VARS(I)%R3D=>int_state%TRACERS(:,:,:,int_state%INDX_RRW)
-      int_state%RRW=>int_state%VARS(I)%R3D
+      int_state%INDX_O3=4
+      CALL FIND_VAR_INDX('O3',int_state%VARS,int_state%NUM_VARS,I)
+      int_state%VARS(I)%R3D=>int_state%TRACERS(:,:,:,int_state%INDX_O3)
+      int_state%O3=>int_state%VARS(I)%R3D
 !
 !--------------------------------
 !***  Water tracers
@@ -1099,7 +1099,7 @@
       CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SMC'        ,int_state%SMC      ,(/ IMS,JMS,1 /),(/ IME,JME,NUM_SOIL_LAYERS /))
       CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'STC'        ,int_state%STC      ,(/ IMS,JMS,1 /),(/ IME,JME,NUM_SOIL_LAYERS /))
       CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SH2O'       ,int_state%SH2O     ,(/ IMS,JMS,1 /),(/ IME,JME,NUM_SOIL_LAYERS /))
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'RRW'        ,int_state%RRW      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'O3'         ,int_state%O3       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
 
       CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TRACERS'    ,int_state%TRACERS,(/ IMS,JMS,1,1 /),(/ IME,JME,LM,int_state%NUM_TRACERS_TOTAL /) )
 

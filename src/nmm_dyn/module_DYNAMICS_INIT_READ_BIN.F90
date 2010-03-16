@@ -42,11 +42,11 @@ use module_constants
       ,u,v,q2,e2 &
       ,t,q,cw &
       ,tp,up,vp &
-      ,rrw,dwdt,w &
+      ,o3,dwdt,w &
       ,omgalf,div,z &
       ,rtop &
       ,tcu,tcv,tct &
-      ,sp,indx_q,indx_cw,indx_rrw,indx_q2 &
+      ,sp,indx_q,indx_cw,indx_o3,indx_q2 &
       ,ntsti,ntstm &
       ,ihr,ihrst,idat &
       ,run,restart &
@@ -85,7 +85,7 @@ integer(kind=kint),intent(in) :: &
 ,p_qg &
 ,indx_q &
 ,indx_cw &
-,indx_rrw &
+,indx_o3 &
 ,indx_q2 &
 ,nhours_fcst
 
@@ -140,7 +140,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(out) :: &
 ,dwdt &
 ,q &
 ,q2 &
-,rrw &
+,o3 &
 ,omgalf &
 ,div &
 ,z &
@@ -434,7 +434,7 @@ ihrend &                    ! maximum forecast length, hours
 !
         do l=1,lm
           if(mype==0)then
-            read(nfcst)temp1   ! here O3 will replace RRW
+            read(nfcst)temp1   ! O3
           endif
 !         do j=jms,jme
 !         do i=ims,ime
@@ -502,11 +502,11 @@ ihrend &                    ! maximum forecast length, hours
           do j=jts,jte
             do i=its,ite
               q2(i,j,l)=0.02
-              rrw(i,j,l)=0.
+              o3(i,j,l)=0.
               if(i.ge.ide  /2+1- 6.and.i.le.ide  /2+1+ 6.and. &
                  j.ge.jde*3/4+1- 6.and.j.le.jde*3/4+1+ 6.) then !global
 !                 j.ge.jde  /2+1- 6.and.j.le.jde  /2+1+ 6.) then !regional
-                rrw(i,j,l)=10.
+                o3(i,j,l)=10.
               endif
               dwdt(i,j,l)=1.
               w(i,j,l)=0.
@@ -530,14 +530,14 @@ ihrend &                    ! maximum forecast length, hours
         enddo
         call halo_exch(pint,lm+1,2,2)
 !
-        call halo_exch(q2,lm,rrw,lm,2,2)
+        call halo_exch(q2,lm,o3,lm,2,2)
         do l=1,lm
           do j=jms,jme
             do i=ims,ime
-              sp(i,j,l,indx_q  )=sqrt(max(q  (i,j,l),0.))
-              sp(i,j,l,indx_cw )=sqrt(max(cw (i,j,l),0.))
-              sp(i,j,l,indx_rrw)=sqrt(max(rrw(i,j,l),0.))
-              sp(i,j,l,indx_q2 )=sqrt(max(q2 (i,j,l),0.))
+              sp(i,j,l,indx_q )=sqrt(max(q (i,j,l),0.))
+              sp(i,j,l,indx_cw)=sqrt(max(cw(i,j,l),0.))
+              sp(i,j,l,indx_o3)=sqrt(max(o3(i,j,l),0.))
+              sp(i,j,l,indx_q2)=sqrt(max(q2(i,j,l),0.))
             enddo
           enddo
         enddo
@@ -950,12 +950,12 @@ ihrend &                    ! maximum forecast length, hours
           endif
           do j=jms,jme
           do i=ims,ime
-            rrw(i,j,l)=0.
+            o3(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,rrw,1,1,1,lm,l)
+          call dstrb(temp1,o3,1,1,1,lm,l)
         enddo
-        call halo_exch(rrw,lm,2,2)
+        call halo_exch(o3,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then
@@ -1094,7 +1094,7 @@ ihrend &                    ! maximum forecast length, hours
         enddo
         call halo_exch(z,lm,2,2)
 !-----------------------------------------------------------------------
-        do n=1,indx_rrw
+        do n=1,indx_o3
           do l=1,lm
             if(mype==0)then
               read(nfcst)temp1
@@ -1107,7 +1107,7 @@ ihrend &                    ! maximum forecast length, hours
             call dstrb(temp1,sp(:,:,:,n),1,1,1,lm,l)
           enddo
         enddo
-        call halo_exch(sp,lm,indx_rrw,1,2,2)
+        call halo_exch(sp,lm,indx_o3,1,2,2)
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
@@ -1678,7 +1678,7 @@ ihrend &                    ! maximum forecast length, hours
           endif
         enddo
 !-----------------------------------------------------------------------
-        do n=indx_rrw+1,num_tracers_total                                  !<-- The first 'indx_rrw' arrays are unallocated pointers
+        do n=indx_o3+1,num_tracers_total                                   !<-- The first 'indx_o3' arrays are unallocated pointers
           do l=1,lm
             if(mype==0)then
               read(nfcst)temp1

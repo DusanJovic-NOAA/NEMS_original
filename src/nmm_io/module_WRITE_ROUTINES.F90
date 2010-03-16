@@ -4378,6 +4378,7 @@
           IF (RECNAME(NREC)=='V') RECNAME(NREC)='vgrd'
           IF (RECNAME(NREC)=='T') RECNAME(NREC)='tmp'
           IF (RECNAME(NREC)=='Q') RECNAME(NREC)='spfh'
+          IF (RECNAME(NREC)=='O3') RECNAME(NREC)='o3mr'
           IF (RECLEV(NREC)==LM+1) THEN
             RECLEVTYP(NREC-LM:NREC)='layer'
             IND3=IND3+LM+1
@@ -5116,6 +5117,7 @@
           IF (RECNAME(NREC)=='V') RECNAME(NREC)='vgrd'
           IF (RECNAME(NREC)=='T') RECNAME(NREC)='tmp'
           IF (RECNAME(NREC)=='Q') RECNAME(NREC)='spfh'
+          IF (RECNAME(NREC)=='O3') RECNAME(NREC)='o3mr'
           IF (RECLEV(NREC)==LM+1) THEN
             RECLEVTYP(NREC-LM:NREC)='layer'
             IND3=IND3+LM+1

@@ -65,7 +65,7 @@
 'DWDT'       H       R       O      -      -      'Vertical acceleration, correction factor  (m s-2)'
 'PINT'       H       R       O      -      -      'Nonhydrostatic interface pressure  (Pa)'
 'OMGALF'     H       R       O      -      X      'Omega-alpha  (K)'
-'RRW'        H       R       -      -      -      ''
+'O3'         H       R       -      -      -      'Ozone'
 'DIV'        -       R       O      -      -      'Horizontal mass divergence'
 'RTOP'       -       R       O      -      -      'RT/P, specific volume  (m3 kg-1)'
 'TCU'        -       R       O      -      -      'Time change of T (K s-1)'

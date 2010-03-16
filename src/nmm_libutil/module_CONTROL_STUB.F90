@@ -339,7 +339,7 @@ real(kind=kfpt),allocatable,dimension(:,:,:,:):: &    !lnsv,im,lm,2
 !,omgalf &                    ! omega-alpha
 !,q &                         ! specific humidity
 !,q2 &                        ! 2tke
-!,rrw &                       ! condensate species mixing ratio
+!,o3 &                        ! ozone
 !,t &                         ! temperature
 !,tp &                        ! previous temperature
 !,u &                         ! u wind component

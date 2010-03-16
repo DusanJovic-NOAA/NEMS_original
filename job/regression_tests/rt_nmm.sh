@@ -48,7 +48,7 @@ job_running=0
 until [ $job_running -eq 1 ]
 do
 echo "TEST is waiting to enter the queue"
-job_running=`llq -u ${LOGIN} -f %st %jn | grep ${JBNME} | wc -l`;sleep 1
+job_running=`llq -u ${LOGIN} -f %st %jn | grep ${JBNME} | wc -l`;sleep 5
 done
 
 

@@ -4411,7 +4411,7 @@ logical(kind=klog),save :: &
 character(10) :: &
  fstatus
 !-----------------------------------------------------------------------
-real(kind=kdbl),save :: sumdrrw=0.
+real(kind=kdbl),save :: sumdo3=0.
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -4697,11 +4697,11 @@ real(kind=kdbl),save :: sumdrrw=0.
         enddo
       enddo
 !
-      sumdrrw=vgsums(6)+sumdrrw
+      sumdo3=vgsums(6)+sumdo3
 !
       if(mype.eq.0) then
         write(0,1000) (vgsums(ks),ks=2*kss-1,2*kse) &
-                      ,gsump,sumdrrw
+                      ,gsump,sumdo3
       endif
  1000 format('global vol sums ',10d13.5)
 !zjmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
@@ -4718,7 +4718,7 @@ real(kind=kdbl),save :: sumdrrw=0.
 ,dsg2,pdsg1,psgml1,sgml2 &
 ,pd &
 ,psgdt &
-,cw,q,q2,rrw &
+,cw,q,q2,o3 &
 !temporary argument passing
 ,e2)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -4765,7 +4765,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
  cw &                        ! condensate
 ,q &                         ! specific humidity
 ,q2 &                        ! 2tke
-,rrw                         ! rt/p
+,o3                          ! ozone
 !-----------------------------------------------------------------------
 !---temporary arguments-------------------------------------------------
 !-----------------------------------------------------------------------
@@ -4782,7 +4782,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
 !
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm) :: &
  e1 &                        ! scratch, 2tke
-,g1 &                        ! scratch, rrw
+,g1 &                        ! scratch, o3
 ,q1 &                        ! scratch, specific humidity
 ,w1                          ! scratch, condensate
 !
@@ -4834,15 +4834,15 @@ logical(kind=klog),dimension(its_b1:ite_b1,jts_b1:jte_b1):: &
 
 real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1):: &
  sface &                     ! scratch, correction factor, 2tke
-,sfacg &                     ! scratch, correction factor, rrw
+,sfacg &                     ! scratch, correction factor, o3
 ,sfacq &                     ! scratch, correction factor, spec. hum.
 ,sfacw &                     ! scratch, correction factor, condensate
 ,sumne &                     ! scratch, sum of negative changes, 2tke
-,sumng &                     ! scratch, sum of negative changes, rrw
+,sumng &                     ! scratch, sum of negative changes, o3
 ,sumnq &                     ! scratch, sum of negative changes, spec. hum.
 ,sumnw &                     ! scratch, sum of negative changes, cond.
 ,sumpe &                     ! scratch, sum of positive changes, 2tke
-,sumpg &                     ! scratch, sum of positive changes, rrw
+,sumpg &                     ! scratch, sum of positive changes, o3
 ,sumpq &                     ! scratch, sum of positive changes, spec. hum.
 ,sumpw                       ! scratch, sum of positive changes, cond.
 
@@ -4852,7 +4852,7 @@ integer(kind=kint),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
 real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
  afr &                       ! antifiltering factor,horizontal
 ,de &                        ! scratch, 2tke change
-,dg &                        ! scratch, rrw change
+,dg &                        ! scratch, o3 change
 ,dq &                        ! scratch, specific humidity change
 ,dw                          ! scratch, condensate change
 !-----------------------------------------------------------------------
@@ -4868,14 +4868,14 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
       do l=1,lm
         do j=jts,jte
           do i=its,ite
-            q  (i,j,l)=max(q  (i,j,l),epsq)
-            cw (i,j,l)=max(cw (i,j,l),epsq)
-            rrw(i,j,l)=max(rrw(i,j,l),epsq)
-            e2 (i,j,l)=max(e2 (i,j,l),epsq2)
-            q1 (i,j,l)=q  (i,j,l)
-            w1 (i,j,l)=cw (i,j,l)
-            g1 (i,j,l)=rrw(i,j,l)
-            e1 (i,j,l)=e2 (i,j,l)
+            q (i,j,l)=max(q (i,j,l),epsq)
+            cw(i,j,l)=max(cw(i,j,l),epsq)
+            o3(i,j,l)=max(o3(i,j,l),epsq)
+            e2(i,j,l)=max(e2(i,j,l),epsq2)
+            q1(i,j,l)=q (i,j,l)
+            w1(i,j,l)=cw(i,j,l)
+            g1(i,j,l)=o3(i,j,l)
+            e1(i,j,l)=e2(i,j,l)
           enddo
         enddo
       enddo
@@ -4936,20 +4936,20 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
                  +(psgml1(llap)-psgml1(l))))
               if(rr.gt.0.999) rr=0.999
               afr(i,j,l)=(((ff4*rr+ff3)*rr+ff2)*rr+ff1)*rr
-              dq(i,j,l)=(q  (i,j,llap)-q  (i,j,l))*rr
-              dw(i,j,l)=(cw (i,j,llap)-cw (i,j,l))*rr
-              dg(i,j,l)=(rrw(i,j,llap)-rrw(i,j,l))*rr
-              de(i,j,l)=(e2 (i,j,llap)-e2 (i,j,l))*rr
+              dq(i,j,l)=(q (i,j,llap)-q (i,j,l))*rr
+              dw(i,j,l)=(cw(i,j,llap)-cw(i,j,l))*rr
+              dg(i,j,l)=(o3(i,j,llap)-o3(i,j,l))*rr
+              de(i,j,l)=(e2(i,j,llap)-e2(i,j,l))*rr
             elseif(llap.eq.lm+1) then
               bot(i,j)=.true.
               rr=abs(rr &
                 /((1.-sgml2(l))*pd(i,j)))
               if(rr.gt.0.999) rr=0.999
               afr(i,j,l)=0.
-!              dq(i,j,l)=-q  (i,j,l)*rr
-!              dw(i,j,l)=-cw (i,j,l)*rr
-!              dg(i,j,l)=-rrw(i,j,l)*rr
-!              de(i,j,l)=-e2 (i,j,l)*rr
+!              dq(i,j,l)=-q (i,j,l)*rr
+!              dw(i,j,l)=-cw(i,j,l)*rr
+!              dg(i,j,l)=-o3(i,j,l)*rr
+!              de(i,j,l)=-e2(i,j,l)*rr
               dq(i,j,l)=0.
               dw(i,j,l)=0.
               dg(i,j,l)=0.
@@ -4959,10 +4959,10 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
                 /(pdsg1(l)*0.5))
               if(rr.gt.0.999) rr=0.999
               afr(i,j,l)=0.
-!              dq(i,j,l)=-q  (i,j,l)*rr
-!              dw(i,j,l)=-cw (i,j,l)*rr
-!              dg(i,j,l)=-rrw(i,j,l)*rr
-!              de(i,j,l)=-e2 (i,j,l)*rr
+!              dq(i,j,l)=-q (i,j,l)*rr
+!              dw(i,j,l)=-cw(i,j,l)*rr
+!              dg(i,j,l)=-o3(i,j,l)*rr
+!              de(i,j,l)=-e2(i,j,l)*rr
               dq(i,j,l)=0.
               dw(i,j,l)=0.
               dg(i,j,l)=0.
@@ -4973,10 +4973,10 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
 !
         do j=jts_b1,jte_b1
           do i=its_b1,ite_b1
-            q1(i,j,l)=q  (i,j,l)+dq(i,j,l)
-            w1(i,j,l)=cw (i,j,l)+dw(i,j,l)
-            g1(i,j,l)=rrw(i,j,l)+dg(i,j,l)
-            e1(i,j,l)=e2 (i,j,l)+de(i,j,l)
+            q1(i,j,l)=q (i,j,l)+dq(i,j,l)
+            w1(i,j,l)=cw(i,j,l)+dw(i,j,l)
+            g1(i,j,l)=o3(i,j,l)+dg(i,j,l)
+            e1(i,j,l)=e2(i,j,l)+de(i,j,l)
           enddo
         enddo
       enddo
@@ -5040,8 +5040,8 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
               w00=cw(i,j,l)
               wp0=cw(i,j,l+lap)
 !
-              g00=rrw(i,j,l)
-              gp0=rrw(i,j,l+lap)
+              g00=o3(i,j,l)
+              gp0=o3(i,j,l+lap)
 !
               e00=e2(i,j,l)
               ep0=e2(i,j,l+lap)
@@ -5198,7 +5198,7 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
               dgp=0.
             endif
 !
-            rrw(i,j,l)=g1(i,j,l)+dgp
+            o3(i,j,l)=g1(i,j,l)+dgp
 !
             dep=de(i,j,l)
             if(sface(i,j).gt.0.) then
@@ -5222,7 +5222,7 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
           do i=its_b1,ite_b1
             q (i,j,l)=max(q (i,j,l),epsq)
             cw(i,j,l)=max(cw(i,j,l),epsq)
-            rrw(i,j,l)=max(rrw(i,j,l),epsq)
+            o3(i,j,l)=max(o3(i,j,l),epsq)
             e2(i,j,l)=max(e2(i,j,l),epsq2)
           enddo
         enddo
@@ -5245,7 +5245,7 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
 ,dare,rdxh &
 ,pd &
 ,u,v &
-,cw,q,q2,rrw &
+,cw,q,q2,o3 &
 ,read_global_sums &
 ,write_global_sums &
 !temporary argument passing
@@ -5305,7 +5305,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
  cw &                        ! condensate
 ,q &                         ! specific humidity
 ,q2 &                        ! 2tke
-,rrw                         ! rt/p
+,o3                         ! rt/p
 !-----------------------------------------------------------------------
 !---temporary arguments-------------------------------------------------
 !-----------------------------------------------------------------------
@@ -5322,7 +5322,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
 !
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm) :: &
  e1 &                        ! scratch, 2tke
-,g1 &                        ! scratch, rrw
+,g1 &                        ! scratch, o3
 ,q1 &                        ! scratch, specific humidity
 ,w1                          ! scratch, condensate
 
@@ -5378,8 +5378,8 @@ real(kind=kfpt):: &
 ,rdy &                       !
 ,sumnel &                    ! sum of negative changes, 2tke
 ,sumpel &                    ! sum of positive changes, 2tke
-,sumngl &                    ! sum of negative changes, rrw
-,sumpgl &                    ! sum of positive changes, rrw
+,sumngl &                    ! sum of negative changes, o3
+,sumpgl &                    ! sum of positive changes, o3
 ,sumnql &                    ! sum of negative changes, spec. hum.
 ,sumpql &                    ! sum of positive changes, spec. hum.
 ,sumnwl &                    ! sum of negative changes, condensate
@@ -5389,7 +5389,7 @@ real(kind=kfpt):: &
 
 real(kind=kfpt),dimension(1:lm):: &
  sfacep &                    ! correction factor, 2tke
-,sfacgp &                    ! correction factor, rrw
+,sfacgp &                    ! correction factor, o3
 ,sfacqp &                    ! correction factor, spec. hum.
 ,sfacwp                      ! correction factor, condensate
 
@@ -5414,7 +5414,7 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
 
 real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
  de &                        ! scratch, 2tke change
-,dg &                        ! scratch, rrw change
+,dg &                        ! scratch, o3 change
 ,dq &                        ! scratch, specific humidity change
 ,dw &                        ! scratch, condensate change
 ,dvol                        !
@@ -5446,14 +5446,14 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
       do l=1,lm
         do j=jts_h1,jte_h1
           do i=its_h1,ite_h1
-            q  (i,j,l)=max(q  (i,j,l),epsq)
-            cw (i,j,l)=max(cw (i,j,l),epsq)
-            rrw(i,j,l)=max(rrw(i,j,l),epsq)
-            e2 (i,j,l)=max(e2 (i,j,l),epsq2)
-            q1 (i,j,l)=q  (i,j,l)
-            w1 (i,j,l)=cw (i,j,l)
-            g1 (i,j,l)=rrw(i,j,l)
-            e1 (i,j,l)=e2 (i,j,l)
+            q (i,j,l)=max(q (i,j,l),epsq)
+            cw(i,j,l)=max(cw(i,j,l),epsq)
+            o3(i,j,l)=max(o3(i,j,l),epsq)
+            e2(i,j,l)=max(e2(i,j,l),epsq2)
+            q1(i,j,l)=q (i,j,l)
+            w1(i,j,l)=cw(i,j,l)
+            g1(i,j,l)=o3(i,j,l)
+            e1(i,j,l)=e2(i,j,l)
           enddo
         enddo
 !
@@ -5502,22 +5502,22 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
             endif
             afq(i,j,l)=(((ff4*aqq+ff3)*aqq+ff2)*aqq+ff1)*aqq
 !
-            dq(i,j,l)=(q  (i+iap,j,l)-q  (i,j,l))*app &
-                     +(q  (i,j+jap,l)-q  (i,j,l))*aqq &
-                     +(q  (i+1,j+1,l)-q  (i-1,j+1,l) &
-                      -q  (i+1,j-1,l)+q  (i-1,j-1,l))*qfc
-            dw(i,j,l)=(cw (i+iap,j,l)-cw (i,j,l))*app &
-                     +(cw (i,j+jap,l)-cw (i,j,l))*aqq &
-                     +(cw (i+1,j+1,l)-cw (i-1,j+1,l) &
-                      -cw (i+1,j-1,l)+cw (i-1,j-1,l))*qfc
-            dg(i,j,l)=(rrw(i+iap,j,l)-rrw(i,j,l))*app &
-                     +(rrw(i,j+jap,l)-rrw(i,j,l))*aqq &
-                     +(rrw(i+1,j+1,l)-rrw(i-1,j+1,l) &
-                      -rrw(i+1,j-1,l)+rrw(i-1,j-1,l))*qfc
-            de(i,j,l)=(e2 (i+iap,j,l)-e2 (i,j,l))*app &
-                     +(e2 (i,j+jap,l)-e2 (i,j,l))*aqq &
-                     +(e2 (i+1,j+1,l)-e2 (i-1,j+1,l) &
-                      -e2 (i+1,j-1,l)+e2 (i-1,j-1,l))*qfc
+            dq(i,j,l)=(q (i+iap,j,l)-q (i,j,l))*app &
+                     +(q (i,j+jap,l)-q (i,j,l))*aqq &
+                     +(q (i+1,j+1,l)-q (i-1,j+1,l) &
+                      -q (i+1,j-1,l)+q (i-1,j-1,l))*qfc
+            dw(i,j,l)=(cw(i+iap,j,l)-cw(i,j,l))*app &
+                     +(cw(i,j+jap,l)-cw(i,j,l))*aqq &
+                     +(cw(i+1,j+1,l)-cw(i-1,j+1,l) &
+                      -cw(i+1,j-1,l)+cw(i-1,j-1,l))*qfc
+            dg(i,j,l)=(o3(i+iap,j,l)-o3(i,j,l))*app &
+                     +(o3(i,j+jap,l)-o3(i,j,l))*aqq &
+                     +(o3(i+1,j+1,l)-o3(i-1,j+1,l) &
+                      -o3(i+1,j-1,l)+o3(i-1,j-1,l))*qfc
+            de(i,j,l)=(e2(i+iap,j,l)-e2(i,j,l))*app &
+                     +(e2(i,j+jap,l)-e2(i,j,l))*aqq &
+                     +(e2(i+1,j+1,l)-e2(i-1,j+1,l) &
+                      -e2(i+1,j-1,l)+e2(i-1,j-1,l))*qfc
 !
           enddo
         enddo
@@ -5725,7 +5725,7 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
               else
                 if(dgp.gt.0.) dgp=dgp*sfacgp(l)
               endif
-              g1(i,j,l)=rrw(i,j,l)+dgp
+              g1(i,j,l)=o3(i,j,l)+dgp
 !
               dep=de(i,j,l)
               if(sfacep(l).eq.0.) then
@@ -5758,10 +5758,10 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
 !-----------------------------------------------------------------------
           do j=jts_b1,jte_b1
             do i=its_b1,ite_b1
-              q1(i,j,l)=q  (i,j,l)+dq(i,j,l)
-              w1(i,j,l)=cw (i,j,l)+dw(i,j,l)
-              g1(i,j,l)=rrw(i,j,l)+dg(i,j,l)
-              e1(i,j,l)=e2 (i,j,l)+de(i,j,l)
+              q1(i,j,l)=q (i,j,l)+dq(i,j,l)
+              w1(i,j,l)=cw(i,j,l)+dw(i,j,l)
+              g1(i,j,l)=o3(i,j,l)+dg(i,j,l)
+              e1(i,j,l)=e2(i,j,l)+de(i,j,l)
             enddo
           enddo
 !-----------------------------------------------------------------------
@@ -5825,9 +5825,9 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
             wp0=cw(i+iap,j,l)
             w0q=cw(i,j+jap,l)
 !
-            g00=rrw(i,j,l)
-            gp0=rrw(i+iap,j,l)
-            g0q=rrw(i,j+jap,l)
+            g00=o3(i,j,l)
+            gp0=o3(i+iap,j,l)
+            g0q=o3(i,j+jap,l)
 !
             e00=e2(i,j,l)
             ep0=e2(i+iap,j,l)
@@ -6048,8 +6048,8 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
             else
               if(dgp.gt.0.) dgp=dgp*sfacgp(l)
             endif
-!            rrw(i,j,l)=rrw(i,j,l)+dgp
-            rrw(i,j,l)=g1(i,j,l)+dgp
+!            o3(i,j,l)=o3(i,j,l)+dgp
+            o3(i,j,l)=g1(i,j,l)+dgp
 !
             dep=de(i,j,l)
             if(sfacep(l).eq.0.) then
@@ -6071,7 +6071,7 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
           do i=its_b1,ite_b1
             q (i,j,l)=max(q (i,j,l),epsq)
             cw(i,j,l)=max(cw(i,j,l),epsq)
-            rrw(i,j,l)=max(rrw(i,j,l),epsq)
+            o3(i,j,l)=max(o3(i,j,l),epsq)
             e2(i,j,l)=max(e2(i,j,l),epsq2)
           enddo
         enddo
@@ -6091,7 +6091,7 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
 !
         do j=jts_b1,jte_b1
           do i=its_b1,ite_b1
-            xsumr(l)=rrw(i,j,l)*dvol(i,j,l)+xsumr(l)
+            xsumr(l)=o3(i,j,l)*dvol(i,j,l)+xsumr(l)
           enddo
         enddo
       enddo

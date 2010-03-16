@@ -339,7 +339,7 @@ real(kind=kfpt),allocatable,dimension(:,:,:,:):: &    !lnsv,im,lm,2
 !,omgalf &                    ! omega-alpha
 !,q &                         ! specific humidity
 !,q2 &                        ! 2tke
-!,rrw &                       ! condensate species mixing ratio
+!,o3 &                        ! ozone
 !,t &                         ! temperature
 !,tp &                        ! previous temperature
 !,u &                         ! u wind component
@@ -1216,11 +1216,11 @@ real(kind=kfpt),dimension(jds:jde):: &
       ,u,v,q2,e2 &
       ,t,q,cw &
       ,tp,up,vp &
-      ,rrw,dwdt,w &
+      ,o3,dwdt,w &
       ,omgalf,div,z &
       ,rtop &
       ,tcu,tcv,tct &
-      ,sp,indx_q,indx_cw,indx_rrw,indx_q2 &
+      ,sp,indx_q,indx_cw,indx_o3,indx_q2 &
       ,ntsti,ntstm &
       ,ihr,ihrst,idat &
       ,run,restart &
@@ -1251,7 +1251,7 @@ integer(kind=kint),intent(in) :: &
 ,p_qg &
 ,indx_q &
 ,indx_cw &
-,indx_rrw &
+,indx_o3 &
 ,indx_q2
 
 integer(kind=kint),intent(out) :: &
@@ -1294,7 +1294,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(out) :: &
 ,dwdt &
 ,q &
 ,q2 &
-,rrw &
+,o3 &
 ,omgalf &
 ,div &
 ,z &
@@ -1624,11 +1624,11 @@ logical(kind=klog) :: opened
         do j=jts,jte
           do i=its,ite
             q2(i,j,l)=0.02
-            rrw(i,j,l)=0.
+            o3(i,j,l)=0.
             if(i.ge.ide  /2+1- 6.and.i.le.ide  /2+1+ 6.and. &
                j.ge.jde*3/4+1- 6.and.j.le.jde*3/4+1+ 6.) then !global
 !               j.ge.jde  /2+1- 6.and.j.le.jde  /2+1+ 6.) then !regional
-              rrw(i,j,l)=10.
+              o3(i,j,l)=10.
             endif
             dwdt(i,j,l)=1.
             w(i,j,l)=0.
@@ -1652,14 +1652,14 @@ logical(kind=klog) :: opened
       enddo
       call halo_exch(pint,lm+1,2,2)
 !
-      call halo_exch(q2,lm,rrw,lm,2,2)
+      call halo_exch(q2,lm,o3,lm,2,2)
       do l=1,lm
         do j=jms,jme
           do i=ims,ime
-            sp(i,j,l,indx_q  )=sqrt(max(q  (i,j,l),0.))
-            sp(i,j,l,indx_cw )=sqrt(max(cw (i,j,l),0.))
-            sp(i,j,l,indx_rrw)=sqrt(max(rrw(i,j,l),0.))
-            sp(i,j,l,indx_q2 )=sqrt(max(q2 (i,j,l),0.))
+            sp(i,j,l,indx_q )=sqrt(max(q (i,j,l),0.))
+            sp(i,j,l,indx_cw)=sqrt(max(cw(i,j,l),0.))
+            sp(i,j,l,indx_o3)=sqrt(max(o3(i,j,l),0.))
+            sp(i,j,l,indx_q2)=sqrt(max(q2(i,j,l),0.))
           enddo
         enddo
       enddo
@@ -1947,12 +1947,12 @@ logical(kind=klog) :: opened
         endif
         do j=jms,jme
         do i=ims,ime
-          rrw(i,j,l)=0.
+          o3(i,j,l)=0.
         enddo
         enddo
-        call dstrb(temp1,rrw,1,1,1,lm,l)
+        call dstrb(temp1,o3,1,1,1,lm,l)
       enddo
-      call halo_exch(rrw,lm,2,2)
+      call halo_exch(o3,lm,2,2)
 !-----------------------------------------------------------------------
       do l=1,lm
         if(mype==0)then
@@ -2701,10 +2701,10 @@ logical(kind=klog) :: opened
       do l=1,lm
         do j=jms,jme
           do i=ims,ime
-            sp(i,j,l,indx_q  )=sqrt(max(q  (i,j,l),0.))
-            sp(i,j,l,indx_cw )=sqrt(max(cw (i,j,l),0.))
-            sp(i,j,l,indx_rrw)=sqrt(max(rrw(i,j,l),0.))
-            sp(i,j,l,indx_q2 )=sqrt(max(q2 (i,j,l),0.))
+            sp(i,j,l,indx_q )=sqrt(max(q (i,j,l),0.))
+            sp(i,j,l,indx_cw)=sqrt(max(cw(i,j,l),0.))
+            sp(i,j,l,indx_o3)=sqrt(max(o3(i,j,l),0.))
+            sp(i,j,l,indx_q2)=sqrt(max(q2(i,j,l),0.))
           enddo
         enddo
       enddo
