@@ -6,6 +6,15 @@
 !
 !***  THE RADIATION DRIVERS AND PACKAGES
 !
+!---------------------
+!--- Modifications ---
+!---------------------
+!--- 24 Feb 2010 - Ferrier 
+! 1) Removed EQUIVALENCE for 2D saved arrays (TABLE1, etc.), made them 
+!    local in subroutine TABLE, and used results to define 1D saved arrays 
+!    (T1, etc.) for use in other subroutines (produced upper-level warm bias).
+! 2) Removed "mep-test" block in RADFS (comment not correct).
+! 3) 
 !-----------------------------------------------------------------------
 !
       USE MODULE_INCLUDE
@@ -82,9 +91,7 @@
       REAL   , SAVE, DIMENSION(NL)    :: PRGFDL
       REAL   , SAVE                   :: AB15WD,SKO2D,SKC1R,SKO3R
 
-      REAL   , SAVE :: EM1(28,180),EM1WDE(28,180),TABLE1(28,180),     &
-                           TABLE2(28,180),TABLE3(28,180),             &
-                           SOURCE(28,NBLY), DSRCE(28,NBLY)
+      REAL   , SAVE :: SOURCE(28,NBLY), DSRCE(28,NBLY)
 
       REAL   ,SAVE, DIMENSION(5040):: T1,T2,T4,EM1V,EM1VW,EM3V
       REAL   ,SAVE                 :: R1,RSIN1,RCOS1,RCOS2
@@ -107,9 +114,6 @@
       REAL   ,SAVE, DIMENSION(109,109) :: TRANSA
       REAL   ,SAVE  :: CORE,UEXP,SEXP
 
-      EQUIVALENCE (EM1V(1),EM1(1,1)),(EM1VW(1),EM1WDE(1,1)) 
-      EQUIVALENCE (T1(1),TABLE1(1,1)),(T2(1),TABLE2(1,1)), &
-                  (T4(1),TABLE3(1,1))
       REAL,SAVE,DIMENSION(4) :: PTOPC
 !
 !--- Used for Gaussian look up tables
@@ -4015,7 +4019,6 @@
      &                                                         PFLIP,   &
      &                                                         P8WFLIP
 
-!     REAL, INTENT(IN), DIMENSION(28,180) :: TABLE1,TABLE2,TABLE3,EM3,EM1,EM1WDE
       REAL, INTENT(OUT), DIMENSION(ims:ime, jms:jme):: GLW,GSW,CZMEAN   &
      &                                                ,RSWIN,RSWINC     & !Added
      &                                                ,CFRACL,CFRACM    &
@@ -5899,7 +5902,6 @@
       SUBROUTINE LWR88(HEATRA,GRNFLX,TOPFLX,                         &
                        PRESS,TEMP,RH2O,QO3,CLDFAC,                   &
                        CAMT,NCLDS,KTOP,KBTM,                         &
-!                      BO3RND,AO3RND,T1,T2,T4,EM1V,EM1VW,EM3V,       &
                        BO3RND,AO3RND, &
                        APCM,BPCM,ATPCM,BTPCM,ACOMB,BCOMB,BETACM,     &
                        ZERO,ONE,H18E3,P0INV,H6P08108,DIFFCTR,        &
@@ -5933,8 +5935,6 @@
       REAL,    INTENT(IN) :: RADCON1,H16E1, H28E1,H44194M2,H1P41819
 !----------------------------------------------------------------------
       REAL, INTENT(IN), DIMENSION(3) :: BO3RND,AO3RND
-!     REAL,INTENT(IN),DIMENSION(5040):: T1,T2,T4,EM1V,EM1VW
-!     REAL, INTENT(IN), DIMENSION(5040) :: EM3V
       REAL,INTENT(IN),DIMENSION(NBLY) :: APCM,BPCM,ATPCM,BTPCM,ACOMB, &
                                          BCOMB,BETACM
 
@@ -6303,7 +6303,6 @@
                  EMX1,EMX2,EMPL, &
 !
                  BO3RND,AO3RND, &
-!                T1,T2,T4 , EM1V,EM1VW, EM3V, &
                  APCM,BPCM,ATPCM,BTPCM,ACOMB,BCOMB,BETACM,     &
                  TEN,HP1,HAF,ONE,FOUR,HM1EZ,       &
                  RADCON,QUARTR,TWO,  &
@@ -6344,7 +6343,6 @@
                        TOTO3,TPHIO3,TOTPHI,TOTVO2, &
                        EMX1,EMX2,EMPL, &
                        BO3RND,AO3RND, &
-!                      T1,T2,T4 , EM1V,EM1VW, EM3V, &
                        APCM,BPCM,ATPCM,BTPCM,ACOMB,BCOMB,BETACM,     &
                        TEN,HP1,HAF,ONE,FOUR,HM1EZ,       &
                        RADCON,QUARTR,TWO, &
@@ -6375,8 +6373,6 @@
       REAL,INTENT(IN),DIMENSION(NBLY) :: APCM,BPCM,ATPCM,BTPCM,ACOMB, &
                                          BCOMB,BETACM
 
-!     REAL, INTENT(IN), DIMENSION(5040) :: T1,T2,T4,EM1V,EM1VW
-!     REAL, INTENT(IN), DIMENSION(5040) :: EM3V
       REAL, INTENT(IN), DIMENSION(its:ite,kts:kte*2+1) :: EMPL
       REAL, INTENT(IN), DIMENSION(its:ite,kts:kte+1) :: TOTO3,TPHIO3,TOTPHI,CNTVAL,&
                                                         CO2SP1,CO2SP2   
@@ -6681,7 +6677,6 @@
 !   COMPUTE FLUXES FOR K=1
       CALL E1E290(E1CTS1,E1CTS2,E1FLX,E1CTW1,E1CTW2,EMISS, &
                   FXO,DT,FXOE2,DTE2,AVEPHI,TEMP,T,         &
-!                 T1,T2,T4 ,EM1V,EM1VW,                    &
                   H16E1,TEN,HP1,H28E1,HAF,                 &
                   ids,ide, jds,jde, kds,kde,               &
                   ims,ime, jms,jme, kms,kme,               &
@@ -6813,7 +6808,6 @@
 !    THEIR FLUXES SEPARASTELY.
 !
       CALL E290(EMISSB,EMISS,AVEPHI,KLEN,FXOE2,DTE2,  &
-!                      T1,T2,T4,                      &
                        H16E1,HP1,H28E1,HAF,TEN,       &
                        ids,ide, jds,jde, kds,kde,     &
                        ims,ime, jms,jme, kms,kme,     &
@@ -6888,7 +6882,6 @@
       AVEPHI(I,2)=VAR2(I,L)+EMPL(I,L)
 833   CONTINUE
       CALL E2SPEC(EMISS,AVEPHI,FXOSP,DTSP,                          &
-!                     T1,T2,T4, &
                       H16E1,TEN,H28E1,HP1,                          &
                       ids,ide, jds,jde, kds,kde,                    &
                       ims,ime, jms,jme, kms,kme,                    &
@@ -6896,7 +6889,6 @@
 
 !
 !     CALL E3V88 FOR NBL H2O TRANSMISSIVITIES
-!          CALL E3V88(EMD,TPL,EMPL,EM3V, &
            CALL E3V88(EMD,TPL,EMPL, &
                       TEN,HP1,H28E1,H16E1,  &
                       ids,ide, jds,jde, kds,kde,                    &
@@ -7171,7 +7163,6 @@
 
   SUBROUTINE E1E290(G1,G2,G3,G4,G5,EMISS,FXOE1,DTE1,FXOE2,DTE2,      &
                        AVEPHI,TEMP,T,                                &
-!                      T1,T2,T4,EM1V,EM1VW,                          &
                        H16E1,TEN,HP1,H28E1,HAF,                      &
                        ids,ide, jds,jde, kds,kde,                    &
                        ims,ime, jms,jme, kms,kme,                    &
@@ -7188,17 +7179,10 @@
       REAL,INTENT(IN),DIMENSION(its:ite,kts:kte+1) :: FXOE1,DTE1,FXOE2,DTE2
       REAL,INTENT(IN),DIMENSION(its:ite,kts:kte+1) :: AVEPHI,TEMP,T
       REAL,INTENT(OUT),DIMENSION(its:ite,kts:kte)   :: G2,G5
-!     REAL,INTENT(IN),DIMENSION(5040):: T1,T2,T4 ,EM1V,EM1VW
 
       REAL,DIMENSION(its:ite,kts:kte+1) :: TMP3,DU,FYO,WW1,WW2
       INTEGER,DIMENSION(its:ite,kts:kte*3+2)   :: IT1
       INTEGER,DIMENSION(its:ite,kts:kte+1) :: IVAL
-
-!     REAL,DIMENSION(28,180):: EM1,EM1WDE,TABLE1,TABLE2, &
-!                              TABLE3
-!     EQUIVALENCE (EM1V(1),EM1(1,1)),(EM1VW(1),EM1WDE(1,1))
-!     EQUIVALENCE (T1(1),TABLE1(1,1)),(T2(1),TABLE2(1,1)), &
-!      (T4(1),TABLE3(1,1))
 
       INTEGER :: K, I,KP,LLM2,J1,J3,KMAX,KMIN,KCLDS,ICNT,LLM1
       INTEGER :: L,LP1,LP2,LP3,LM1,LM2,LM3,MYIS,MYIE,LLP1,LL,KK,KLEN
@@ -8116,7 +8100,6 @@
 !----------------------------------------------------------------------
 
  SUBROUTINE E290(EMISSB,EMISS,AVEPHI,KLEN,FXOE2,DTE2, &
-!                      T1,T2,T4,                                     &
                        H16E1,HP1,H28E1,HAF,TEN,                      &
                        ids,ide, jds,jde, kds,kde,                    &
                        ims,ime, jms,jme, kms,kme,                    &
@@ -8132,17 +8115,10 @@
       REAL, INTENT(OUT),DIMENSION(its:ite,kts:kte+1) :: EMISSB
       REAL, INTENT(IN ),DIMENSION(its:ite,kts:kte+1) :: AVEPHI,FXOE2,DTE2
 
-!     REAL, INTENT(IN ), DIMENSION(5040) :: T1,T2,T4
-
       REAL, INTENT(INOUT), DIMENSION(its:ite,kts:kte+1) :: EMISS
 
       REAL, DIMENSION(its:ite,kts:kte+1) :: TMP3,DT,FYO,DU
       INTEGER, DIMENSION(its:ite,kts:kte+1) :: IVAL
-
-!     REAL,    DIMENSION(28,180) :: TABLE1,TABLE2,TABLE3
-!     EQUIVALENCE (T1(1),TABLE1(1,1)),(T2(1),TABLE2(1,1)), &
-!                 (T4(1),TABLE3(1,1))
-!     EQUIVALENCE (TMP3,DT)
 
       INTEGER :: K, I,KP,LLM2,J1,J3,KMAX,KMIN,KCLDS,ICNT,LLM1
       INTEGER :: L,LP1,LP2,LP3,LM1,LM2,LM3,MYIS,MYIE,LLP1,LL,KK
@@ -8204,7 +8180,6 @@
 !---------------------------------------------------------------------
 
   SUBROUTINE E2SPEC(EMISS,AVEPHI,FXOSP,DTSP,                         &
-!                      T1,T2,T4,                                     &
                        H16E1,TEN,H28E1,HP1,                          &
                        ids,ide, jds,jde, kds,kde,                    &
                        ims,ime, jms,jme, kms,kme,                    &
@@ -8219,12 +8194,6 @@
       REAL,INTENT(INOUT),DIMENSION(its:ite,kts:kte+1) :: EMISS
       REAL,INTENT(IN ),DIMENSION(its:ite,kts:kte+1) :: AVEPHI
       REAL,INTENT(IN ),DIMENSION(its:ite,2) :: FXOSP,DTSP
-
-!     REAL, INTENT(IN ),DIMENSION(5040) :: T1,T2,T4
-
-!     REAL, DIMENSION(28,180) :: TABLE1,TABLE2,TABLE3
-!     EQUIVALENCE (T1(1),TABLE1(1,1)),(T2(1),TABLE2(1,1)), &
-!                 (T4(1),TABLE3(1,1))
 
       INTEGER :: K,I,MYIS,MYIE
 
@@ -8248,7 +8217,6 @@
 
 !---------------------------------------------------------------------
 
-! SUBROUTINE E3V88(EMV,TV,AV,EM3V,            &
   SUBROUTINE E3V88(EMV,TV,AV, &
                        TEN,HP1,H28E1,H16E1,  &
                        ids,ide, jds,jde, kds,kde,                    &
@@ -8264,13 +8232,9 @@
 !-----------------------------------------------------------------------
       REAL, INTENT(OUT), DIMENSION(its:ite,kts:kte*2+1) :: EMV
       REAL, INTENT(IN),  DIMENSION(its:ite,kts:kte*2+1) :: TV,AV
-!     REAL, INTENT(IN),  DIMENSION(5040) :: EM3V
 
       REAL,DIMENSION(its:ite,kts:kte*2+1) ::FXO,TMP3,DT,WW1,WW2,DU,&
                                             FYO
-!     REAL, DIMENSION(5040) :: EM3V
-
-!     EQUIVALENCE (EM3V(1),EM3(1,1))
 
       INTEGER,DIMENSION(its:ite,kts:kte*2+1) ::IT
 
@@ -9578,8 +9542,6 @@
       INTEGER, INTENT(IN), DIMENSION(its:ite,kts:kte+1):: KTOP,KBTM
       REAL,    INTENT(INOUT), DIMENSION(its:ite,NB,kts:kte+1):: TTCL,RRCL
       REAL, intent(IN), DIMENSION(its:ite,kts:kte):: O3QO3
-!     REAL,  INTENT(IN),  DIMENSION(5040):: T1,T2,T4,EM1V,EM1VW
-!     REAL,  INTENT(IN),  DIMENSION(5040) :: EM3V
 
 !     REAL, DIMENSION(its:ite)::ALVBR,ALNBR, ALVDR,ALNDR
 
@@ -9828,12 +9790,6 @@
 !.....  NOW PUT TEMP,PRESSURES, INTO SW COMMON BLOCK..........
         TEMP(I,K) = TT(IR,K)
 
-!mep-test
-        if (K .eq. L) then
-        TEMP(I,K+1)=TT(IR,K)   ! TEMP @ LM+1 passed as zero into LWR88
-        endif
-!mep-endtest
-
 !     if(i==174.and.jndx==123.and.k==33)then
 !       write(0,*)' RADTN ir=',ir,' tt=',tt(ir,k),' temp=',temp(i,k)
 !     endif
@@ -9993,7 +9949,6 @@
                  PRESS,TEMP,RH2O,QO3,CLDFAC,   &
                  EQCMT,NCLDS,KTOP,KBTM,        &
 !
-!                BO3RND,AO3RND,T1,T2,T4,EM1V,EM1VW,EM3V, &
                  BO3RND,AO3RND, &
                  APCM,BPCM,ATPCM,BTPCM,ACOMB,BCOMB,BETACM,     &
                  ZERO,ONE,H18E3,P0INV,H6P08108,DIFFCTR,        &
@@ -10026,9 +9981,10 @@
       DO 280 I=MYIS,MYIE
         IR = I + IBEG - 1
         FLWUP(IR) = .001*TOPFLX(I)
-!        TDUM=TEMP(I,LP1)
+        TDUM=TEMP(I,LP1)
 !--- Use an average of the skin & lowest model level temperature
-        TDUM=.5*(TEMP(I,LP1)+TEMP(I,L))
+!    (Remove LW modification for June 2006 NAM implementation)
+!        TDUM=.5*(TEMP(I,LP1)+TEMP(I,L))
         FLWUPS(IR)=HSIGMA*TDUM*TDUM*TDUM*TDUM
 	if (IR .eq. 50) then
 !	write(0,*) 'TDUM, FLWUPS: ', TDUM, FLWUPS(IR)
@@ -10561,8 +10517,6 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !---------------------------------------------------------------------
       SUBROUTINE TABLE 
-!                     (TABLE1,TABLE2,TABLE3,EM1,EM1WDE,EM3,          &
-!                      SOURCE,DSRCE                                  )
 !---------------------------------------------------------------------
  IMPLICIT NONE
 !----------------------------------------------------------------------
@@ -10826,11 +10780,6 @@
  REAL, PARAMETER:: BETAWD = 0.347839E+02
  REAL, PARAMETER:: BETINW = 0.766811E+01
 
-
-!     REAL, INTENT(OUT) :: EM1(28,180),EM1WDE(28,180),TABLE1(28,180), &
-!                          TABLE2(28,180),TABLE3(28,180),EM3(28,180), &
-!                          SOURCE(28,NBLY), DSRCE(28,NBLY)
-
 !
       REAL :: ARNDM(NBLW),BRNDM(NBLW),BETAD(NBLW)
       REAL :: BANDLO(NBLW),BANDHI(NBLW)
@@ -10875,6 +10824,8 @@
                   (BRNDM3(1),BRNDM(129))
       EQUIVALENCE (BETAD1(1),BETAD(1)),(BETAD2(1),BETAD(65)), &
                   (BETAD3(1),BETAD(129))
+
+      REAL,DIMENSION(28,180) :: TABLE1,TABLE2,TABLE3,EM1,EM1WDE,EM3
 
 !---------------------------------------------------------------
       REAL    :: CENT,DEL,BDLO,BDHI,C1,ANU,tmp
@@ -11392,8 +11343,7 @@
 431   CONTINUE
       DO 433 J=121,180
       DO 433 I=1,28
-        N = 28*(J-1)+I
-        EM3V(N)=SUM3(I,J)/FORTCU(I)
+        EM3(I,J)=SUM3(I,J)/FORTCU(I)
 433   CONTINUE
       DO 441 J=1,179
       DO 441 I=1,28
@@ -11415,13 +11365,11 @@
 449   CONTINUE
       DO 451 J=1,120
       DO 451 I=1,28
-        N = 28*(J-1)+I
-        EM3V(N)=R2(I)/TWO-S2(I)*SQRT(ZMASS(J))/THREE+T3(I)*ZMASS(J)/EIGHT
+      EM3(I,J)=R2(I)/TWO-S2(I)*SQRT(ZMASS(J))/THREE+T3(I)*ZMASS(J)/EIGHT
 451   CONTINUE
       DO 453 J=121,180
       DO 453 I=1,28
-       N = 28*(J-1)+I
-       EM3V(N)=EM3V(N)/ZMASS(J)
+      EM3(I,J)=EM3(I,J)/ZMASS(J)
 453   CONTINUE
 !***NOW COMPUTE E1 TABLES FOR 160-560 CM-1 BANDS ONLY.
 !   WE USE R1WD AND SUMWDE OBTAINED ABOVE.
@@ -11434,6 +11382,20 @@
       EM1WDE(I,J)=R1WD(I)
 503   CONTINUE
    
+!-- Store calculations in 1D arrays for use in other routines
+
+      DO J=1,180
+        DO I=1,28
+          N=28*(J-1)+I
+          T1(N)=TABLE1(I,J)
+          T2(N)=TABLE2(I,J)
+          T4(N)=TABLE3(I,J)
+          EM1V(N)=EM1(I,J)
+          EM1VW(N)=EM1WDE(I,J)
+          EM3V(N)=EM3(I,J)
+        ENDDO
+      ENDDO
+
       END SUBROUTINE TABLE
 !---------------------------------------------------------------------
 !*********************************************************************

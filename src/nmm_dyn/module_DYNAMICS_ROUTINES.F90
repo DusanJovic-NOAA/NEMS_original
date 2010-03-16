@@ -723,8 +723,12 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
  div                         ! horizontal mass divergence
 
 !--local variables------------------------------------------------------
-logical(kind=klog):: &
- extmod                      ! external mode divergence damping
+logical(kind=klog),parameter:: &
+ freerun=.true. &
+,extmod=.true.
+
+real(kind=kfpt),parameter:: &
+ assimfc=5.0
 
 integer(kind=kint):: &
  i &                         ! index in x direction
@@ -751,7 +755,6 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
-      fcim=1.
       dfac=9.
       dpb=1500.
       fint=(1.-dfac)/dpb
@@ -771,10 +774,12 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 !---external mode-------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-      extmod=.false.
-      extmod=.true.
       if(extmod) then
-        fcxm=1.0
+        if(freerun) then
+          fcxm=1.0
+        else
+          fcxm=assimfc
+        endif
 !
 !-----------------
 #ifdef ENABLE_SMP
@@ -832,11 +837,15 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 !$omp parallel do private(dpl,dud,fcim,i,j,l,rdpd)
 !.......................................................................
         do l=1,lm
-          dpl=sg1(l+1)*pdtop+sg2(l+1)*10000.
-          if(dpl.lt.dpb) then
-            fcim=fint*dpl+dfac
+          if(freerun) then
+            dpl=sg1(l+1)*pdtop+sg2(l+1)*10000.
+            if(dpl.lt.dpb) then
+              fcim=fint*dpl+dfac
+            else
+              fcim=1.
+            endif
           else
-            fcim=1.
+            fcim=assimfc
           endif
 !
           do j=jstart,jstop
@@ -867,11 +876,15 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 !$omp parallel do private(dpl,dud,dvd,fcim,i,j,l,rdpd)
 !.......................................................................
         do l=1,lm
-          dpl=sg1(l+1)*pdtop+sg2(l+1)*10000.
-          if(dpl.lt.dpb) then
-            fcim=fint*dpl+dfac
+          if(freerun) then
+            dpl=sg1(l+1)*pdtop+sg2(l+1)*10000.
+            if(dpl.lt.dpb) then
+              fcim=fint*dpl+dfac
+            else
+              fcim=1.
+            endif
           else
-            fcim=1.
+            fcim=assimfc
           endif
 !
           dvd=ddmpv
@@ -5305,7 +5318,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
  cw &                        ! condensate
 ,q &                         ! specific humidity
 ,q2 &                        ! 2tke
-,o3                         ! rt/p
+,o3                          ! ozone
 !-----------------------------------------------------------------------
 !---temporary arguments-------------------------------------------------
 !-----------------------------------------------------------------------

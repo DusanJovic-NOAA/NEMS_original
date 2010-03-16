@@ -166,8 +166,6 @@ done
 # --- create baselines
 #
 
-#mkdir -p /stmp/${LOGIN}/REGRESSION_TEST/${CNTL_DIR}
-
  echo;echo;echo "Moving set ${TEST_NR} files ...."
 
 for i in ${LIST_FILES}
