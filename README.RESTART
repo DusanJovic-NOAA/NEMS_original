@@ -23,5 +23,6 @@ TODO:
 =====================
 
 1) Allow writing restart file at any time in forecast
+2) Some of fields written in restart file might be unnecessary for the restart
 
 

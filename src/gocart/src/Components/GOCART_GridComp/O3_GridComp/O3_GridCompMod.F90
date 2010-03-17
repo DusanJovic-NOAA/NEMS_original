@@ -763,10 +763,10 @@ CONTAINS
   END IF
 
   101 FORMAT(/,'PC6: Date and weights:',/, &
-     	  &  ' Year Month Day Hour Minute Second CalDay Midmonth ' &
-     	  &  'Month 1 Weight Month 2 Weight',/, &
-     	  &  ' ---- ----- --- ---- ------ ------ ------ -------- ' &
-     	  &  '------- ------ ------- ------')
+     	    ' Year Month Day Hour Minute Second CalDay Midmonth ' &
+     	    'Month 1 Weight Month 2 Weight',/, &
+     	    ' ---- ----- --- ---- ------ ------ ------ -------- ' &
+     	    '------- ------ ------- ------')
   102 FORMAT(' ',i4,i6,i4,i5,i7,i7,1x,f6.3,1x,f8.2,2(1x,i7,1x,f6.3))
 
   RETURN

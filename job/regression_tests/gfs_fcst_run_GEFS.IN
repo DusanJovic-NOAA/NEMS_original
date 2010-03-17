@@ -165,7 +165,7 @@ export LEVR=${levr:-0}
 
  export FCSTSCRIPT=_SRCDIR_/job/exglobal_fcst.sh.sms_nems
 echo 'FCSTSCRIPT=' $FCSTSCRIPT
- export FCSTEXEC=_SRCDIR_/exe/GFS_NEMS.x
+ export FCSTEXEC=_SRCDIR_/exe/NEMS.x
 echo 'FCSTEXEC=' $FCSTEXEC
 #
 #

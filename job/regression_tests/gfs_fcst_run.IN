@@ -169,7 +169,7 @@ export LEVR=${levr:-0}
 #
  srcdir=_PATHTR_
  export FCSTSCRIPT=$srcdir/job/exglobal_fcst.sh.sms_nems
- export FCSTEXEC=$srcdir/exe/GFS_NEMS.x
+ export FCSTEXEC=$srcdir/exe/NEMS.x
 #
 #
 # ***************************************************************

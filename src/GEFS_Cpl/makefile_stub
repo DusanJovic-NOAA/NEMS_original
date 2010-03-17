@@ -1,38 +1,9 @@
 ##  This is an elementary grid component or say independent grid component ##
- F77     = mpxlf
- F90     = mpxlf90
- EXEC    = ../../lib/libstub/GEFS_Cpl.a
 #
- FINCS    = -I/meso/save/wx20rv/ESMF_libs/esmf_3_1_0rp2/mod/modO/AIX.default.64.mpi.default
+include ../../../../build/compile_settings
+MAKEFILE=makefile_stub
+TARGET= GEFS_Cpl_stub.a
 
-DEBUG    = -qcheck -qsource -qlist
-#FFLAGM_DEBUG  = -g -fullpath -O0 -qinitauto=FF911299 -qflttrap=enable:overflow:zerodivide:invalid -qsigtrap=xl__trcedump -NS2048 $(DEBUG)
-
-#---------------
-# For non-debug.
-#---------------
-FFLAGM_DEBUG  = -O3
-
- OPTS     = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
- OPTS90   = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave $(FFLAGM_DEBUG)
- OPTS90A  = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave$(FFLAGM_DEBUG)
-#TRAPS    = -qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap
-#
- FFLAG90  = $(OPTS90) $(FINCS) -qfree -NS2048
- FFLAG90A = $(OPTS90A) $(FINCS) -qfree -NS2048
- FFLAGS   = $(OPTS) $(TRAPS)
- FFLAGX   = $(OPTS) $(TRAPS)
- FFLAGIO  = $(OPTS) $(TRAPS)
- FFLAGY   = $(OPTS)
- FFLAGM   = $(OPTS) $(FINCS) $(TRAPS) $(FFLAGM_DEBUG) -NS2048
- FFLAGSF  = -qrealsize=8 -qnosave -q free=f90 -qcheck $(FFLAGM_DEBUG)
- FFLAGSI  = -qrealsize=8 -qnosave -q free=f90 $(FFLAGM_DEBUG)
- FFLAGB   = -qrealsize=8 -qnosave -qfixed $(FFLAGM_DEBUG)
-
- AR = ar
- ARFLAGS = -r
-
-.SUFFIXES: .o .f .F .h
 #
 # *****************************************************************
 #
@@ -60,14 +31,23 @@ OBJS =  Lib_ESMFStateAddGetMod_STUB.o            \
 #
 # *****************************************************************
 #
-GEFS_Cpl: $(EXEC)
 
-$(EXEC):  $(OBJS)
-	$(AR) $(ARFLAGS) $(EXEC) $(OBJS)
-	echo " $(EXEC) created!"
+.SUFFIXES: .o .f .F .h
+
+default:
+	@gmake -f $(MAKEFILE) all
+
+all: $(LIBDIR)/libstub/$(TARGET)
+
+
+$(LIBDIR)/libstub/$(TARGET):  $(OBJS) $(OBJS_90)
+	$(AR) $(ARFLAGS) $@ $?
 
 clean:
-	rm -f $(OBJS) *.mod *.a
+	rm -f $(OBJS) 
+	rm -f *.mod 
+	rm -f *.o
+	rm -f $(LIBDIR)/libstub/$(TARGET)
 
 .F.o:
 	$(F77) $(FFLAGS) -c -d $< 

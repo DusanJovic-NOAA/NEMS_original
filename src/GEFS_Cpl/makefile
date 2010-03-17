@@ -1,9 +1,7 @@
 ##  This is an elementary grid component or say independent grid component ##
-include ../../ush/compile_settings
+include ../../../../build/compile_settings
 MAKEFILE=makefile
 TARGET = GEFS_Cpl.a
-
- ARFLAGS = -r
 
 .SUFFIXES: .o .f .F .h
 #
@@ -40,10 +38,11 @@ all: $(LIBDIR)/lib/$(TARGET)
 
 $(LIBDIR)/lib/$(TARGET):  $(OBJS)
 	$(AR) $(ARFLAGS) $@ $?
-	echo " $(TARGET) created!"
 
 clean:
-	rm -f *.o *.mod *.a
+	rm -f  $(LIBDIR)/lib/$(TARGET)
+	rm -f *.o 
+	rm -f *.mod 
 
 .F.o:
 	$(F77) $(FFLAGS) -c -d $< 

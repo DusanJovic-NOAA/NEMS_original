@@ -1,4 +1,4 @@
-Tue Mar 16 00:28:13 EDT 2010
+Tue Mar 16 12:15:11 EDT 2010
 Start Regression test
 
 
@@ -29,7 +29,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  146.92  , test_glob timing:  147.90
+ Original timing:  146.92  , test_glob timing:  148.30
 
 
 Test 002
@@ -170,7 +170,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  235.58  , test_reg timing:  235.81
+ Original timing:  235.58  , test_reg timing:  235.02
 
 
 Test 009
@@ -357,7 +357,6 @@ Checking test 016 results ....
 
 
 
-Preparing GFS core for regression tests
 Test 017
 Compare GFS results with previous trunk version
 GFS, 32 proc, 1 thread
@@ -708,5 +707,5 @@ Checking test 030 results ....
  Comparing FLX.F24_02.........OK
  Comparing FLX.F24_03.........OK
  Comparing FLX.F24_04.........OK
- Test 030 passed 
-Tue Mar 16 03:53:34 EDT 2010
+ Test 030 passed
+Tue Mar 16 18:10:51 EDT 2010

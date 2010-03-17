@@ -1,0 +1,293 @@
+##  This is an elementary grid component or say independent grid component ##
+#
+# *****************************************************************
+#
+include  ../../../../build/compile_settings
+MAKEFILE=makefile
+TARGET = gfs_dyn.a
+OBJS0	= \
+	  gfs_dynamics_err_msg_mod.o		\
+	  gfs_dynamics_namelist_mod.o		\
+	  gfs_dynamics_start_time_get_mod.o	\
+	  gfs_dynamics_internal_state_mod.o	\
+	  gfs_dynamics_grid_create_mod.o	\
+	  gfs_dynamics_output.o          	\
+	  gfs_dynamics_getcf_mod.o		\
+	  GFS_AddParameterToStateMod.o          \
+	  gfs_dynamics_initialize_mod.o		\
+	  gfs_dynamics_run_mod.o		\
+	  gfs_dynamics_finalize_mod.o		\
+	  gfs_dynamics_add_get_state_ESMFField_mod.o	\
+	  gfs_dyn_states_mod.o                  \
+	  gfs_dynamics_grid_comp_mod.o
+	  
+
+OBJ_MOD	= \
+	  gfs_dyn_machine.o             \
+	  gfs_dyn_physcons.o          	\
+	  gfs_dyn_resol_def.o           \
+	  gfs_dyn_gg_def.o              \
+	  gfs_dyn_vert_def.o            \
+	  gfs_dyn_io_header.o           \
+	  gfs_dyn_date_def.o            \
+	  gfs_dyn_layout1.o             \
+	  namelist_dynamics_def.o       \
+	  gfs_dyn_coordinate_def.o      \
+	  gfs_dyn_lon_lat_para.o        \
+	  gfs_dyn_tracer_const.o  	\
+	  gfs_dyn_tracer_config.o       \
+	  gfs_dyn_reduce_lons_grid_module.o \
+	  gfs_dyn_matrix_sig_def.o      \
+	  gfs_dyn_mpi_def.o             \
+	  semi_lag_def.o        	\
+	  gfs_dyn_deldifs_def.o         \
+	  gfs_dyn_bfilt_def.o   	\
+	  gfs_dyn_glats.o	        \
+	  gfs_dyn_dfi_mod.o             \
+          gfsio_module.o                \
+	  gfsio_def.o	                \
+	  wrtout_dynamics.o 
+
+OBJS   = \
+	get_cd_hyb.o \
+	get_am_bm_hyb.o \
+	get_cd_hyb_gc.o \
+	get_am_bm_hyb_gc.o \
+	setlats.o \
+	getysk.o \
+	getysk_gc.o \
+	redist_lats_a.o \
+	ifshuff.o \
+	shuffle_grid.o \
+	grid_collect.o \
+	excha.o \
+	info.o \
+	four2grid_thread.o \
+	hpmdummy.o \
+	coundummy.o \
+	damp_speed.o \
+	deldifs.o \
+	input_fields.o \
+	input_fields_rst.o \
+	delnpe.o \
+	delnpo.o \
+	dezouv.o \
+	impadj_sig.locl.o \
+	impadj_hyb.locl.o \
+	impadj_hyb.locl_gc.o \
+	dozeuv.o \
+	epslon.o \
+	filtereo.o \
+	filter1eo.o \
+	filter2eo.o  \
+	get_ls_node.o \
+	get_lats_node_shuff_a_fix.o \
+	getcon_dynamics.o \
+	gfidi_sig.o \
+	gfidi_hyb.o \
+	gfidi_hyb_gc.o \
+	gfidi_hyb_gc_h.o \
+	grid_to_spect.o \
+	spect_to_grid.o \
+	spect_to_gridxy.o \
+	compns_dynamics.o \
+	gozrineo.o \
+	pln2eo.o \
+	rms_spect.o \
+	lats_shuff.o \
+	uvoedz.o                     \
+	mpi_quit.o                   \
+	sicdif_sig.o                 \
+	sicdif_hyb.o                 \
+	sicdif_hyb_gc.o              \
+	common_to_model_vars.o      \
+	getpwatptot.o      \
+        sig2press.o          	\
+	hyb2press.o          	\
+	gch2press.o          	\
+	omega_sig.o          	\
+	omega_hyb.o          	\
+	omega_gch.o          	\
+	do_dynamics_mod.o          \
+	gfs_dficoll_dynamics.o       \
+	do_dynamics_one_loop.o       \
+	do_dynamics_two_loop.o       \
+	model_to_common_vars.o      \
+	model_to_common_vars_1.o     \
+	gather_times.o               \
+	four2fln.o                   \
+	sortrx.o                     \
+	sumfln.o                     \
+	sumder2.o                    \
+	triseori.o                   \
+	uveodz.o                     \
+	ysminv.o                     \
+	ver_sig.o       
+
+OBJS_PORT = \
+	fftpack.o \
+	four2grid_thread.fftpack.o \
+	noblas.o
+
+OBJS_IO= \
+	grid_fix.o         \
+	treadeo.gfsio.o    \
+	treadg_nemsio.o    \
+	treads_nemsio.o    \
+	twrites_rst.o     \
+	twriteg_rst.o     \
+	grid_to_spect_inp.o    \
+	grid_to_spect_inp_1.o  \
+	spect_to_grid_inp.o    \
+	setsig.o           \
+	bafrio.o
+
+INCS =  \
+	$(INCDIR)/f_hpm.h mpi_inc.h $(INCDIR)/function2
+
+#
+# *****************************************************************
+#
+OBJS0_f = ${OBJS0:.o=.f}
+OBJ_MOD_f = ${OBJ_MOD:.o=.f}
+OBJS_f = ${OBJS:.o=.f}
+OBJS_PORT_f = ${OBJS_PORT:.o=.f}
+OBJS_IO_f = ${OBJS_IO:.o=.f}
+
+.SUFFIXES:      .o .f .h
+
+default:
+	@gmake -f $(MAKEFILE) all
+
+all: $(LIBDIR)/lib/$(TARGET)
+
+$(LIBDIR)/lib/$(TARGET):  $(OBJ_MOD) $(OBJS0) $(OBJS) $(OBJS_IO)
+	$(AR) $(ARFLAGS) $@ $?
+
+.f.o: %.o: %.f
+	$(FC) $(FFLAGS) -c $*.f
+
+depend: $(OBJS0_f) $(OBJ_MOD_f) $(OBJS_f) $(OBJS_PORT_f) $(OBJS_IO_f)
+	$(MAKEDEPEXEC)
+
+clean:
+	/bin/rm -f $(OBJ_MOD) 
+	/bin/rm -f $(OBJS0) 
+	/bin/rm -f $(OBJS) 
+	/bin/rm -f $(OBJS_IO)
+	/bin/rm -f *.mod 
+	/bin/rm -f *.o
+	/bin/rm -f depend
+	/bin/rm -f $(LIBDIR)/lib/$(TARGET)
+
+#
+# *****************************************************************
+#
+
+gfs_dyn_machine.o:	gfs_dyn_machine.f
+		$(FC) $(FFLAGM) -c gfs_dyn_machine.f
+
+gfs_dyn_mpi_def.o:	gfs_dyn_mpi_def.f
+		$(FC) $(FFLAG_GFS_DYN) -c gfs_dyn_mpi_def.f
+
+#
+# *****************************************************************
+#
+gfs_dyn_physcons.o:	gfs_dyn_physcons.f
+		$(FC) $(FFLAG90) -c gfs_dyn_physcons.f
+
+gfsio_def.o:    gfsio_def.f
+		$(FC) $(FFLAGSI) -c gfsio_def.f
+
+gfsio_module.o: gfsio_module.f
+		$(FC) $(FFLAGSI) -c gfsio_module.f
+
+bafrio.o:	bafrio.f
+		$(FC) $(FFLAGB) -c bafrio.f
+
+read_fix.o:	read_fix.f
+		$(FC) $(FFLAGX) -c read_fix.f
+
+softcount.o:	softcount.f
+		$(FC) $(FFLAGX) -c softcount.f
+
+getaer.o:	getaer.f
+		$(FC) $(FFLAGIO) -c getaer.f
+
+treadeo.gfsio.o:	treadeo.gfsio.f
+		$(FC) $(FFLAGIO) -c treadeo.gfsio.f
+
+treadg_nemsio.o:       treadg_nemsio.f
+	        $(FC) $(FFLAG_GFS_DYN) -c treadg_nemsio.f
+
+treads_nemsio.o:       treads_nemsio.f
+	        $(FC) $(FFLAG_GFS_DYN) -c treads_nemsio.f
+
+twriteg_rst.o: twriteg_rst.f
+	       $(FC) $(FFLAG_GFS_DYN) -c twriteg_rst.f
+
+twrites_rst.o: twrites_rst.f
+	        $(FC) $(FFLAG_GFS_DYN) -c twrites_rst.f
+
+spect_to_grid_inp.o:	spect_to_grid_inp.f
+		$(FC) $(FFLAGIO) -c spect_to_grid_inp.f
+
+grid_to_spec_inp.o:	grid_to_spec_inp.f
+		$(FC) $(FFLAGIO) -c grid_to_spec_inp.f
+
+grid_to_spec_inp_1.o:   grid_to_spec_inp_1.f
+	        $(FC) $(FFLAGIO) -c grid_to_spec_inp_1.f
+
+grid_collect.o:	grid_collect.f
+		$(FC) $(FFLAG_GFS_DYN) -c grid_collect.f
+
+wrtout_dynamics.o:   wrtout_dynamics.f
+		$(FC) $(FFLAGIO) -c wrtout_dynamics.f
+
+gfs_dynamics_err_msg_mod.o:	 gfs_dynamics_err_msg_mod.f
+		$(FC) $(FFLAG90) -c gfs_dynamics_err_msg_mod.f
+
+gfs_dynamics_namelist_mod.o:	 gfs_dynamics_namelist_mod.f
+		$(FC) $(FFLAG90) -c gfs_dynamics_namelist_mod.f
+
+gfs_dynamics_start_time_get_mod.o:	 gfs_dynamics_start_time_get_mod.f
+		$(FC) $(FFLAG_GFS_DYN90) -c gfs_dynamics_start_time_get_mod.f
+
+gfs_dynamics_grid_create_mod.o:	 gfs_dynamics_grid_create_mod.f
+		$(FC) $(FFLAG90) -c gfs_dynamics_grid_create_mod.f
+
+gfs_dynamics_output.o:	 gfs_dynamics_output.f
+		$(FC) $(FFLAG90) -c gfs_dynamics_output.f
+
+gfs_dynamics_getcf_mod.o:	 gfs_dynamics_getcf_mod.f
+		$(FC) $(FFLAG90) -c gfs_dynamics_getcf_mod.f
+
+gfs_dynamics_internal_state_mod.o:	 gfs_dynamics_internal_state_mod.f
+		$(FC) $(FFLAG90) -c gfs_dynamics_internal_state_mod.f
+
+GFS_AddParameterToStateMod.o:    GFS_AddParameterToStateMod.f
+	        $(FC) $(FFLAG90) -c GFS_AddParameterToStateMod.f
+
+gfs_dynamics_add_get_state_ESMFField_mod.o:	 gfs_dynamics_add_get_state_ESMFField_mod.f
+		$(FC) $(FFLAG90) -c gfs_dynamics_add_get_state_ESMFField_mod.f
+
+gfs_dyn_states_mod.o:	 gfs_dyn_states_mod.f
+		$(FC) $(FFLAG90) -c gfs_dyn_states_mod.f
+
+gfs_dynamics_initialize_mod.o:	 gfs_dynamics_initialize_mod.f
+		$(FC) $(FFLAG90) -c gfs_dynamics_initialize_mod.f
+
+gfs_dynamics_run_mod.o:	 gfs_dynamics_run_mod.f
+		$(FC) $(FFLAG90) -c gfs_dynamics_run_mod.f
+
+gfs_dynamics_finalize_mod.o:	 gfs_dynamics_finalize_mod.f
+		$(FC) $(FFLAG90) -c gfs_dynamics_finalize_mod.f
+
+gfs_dynamics_grid_comp_mod.o:	 gfs_dynamics_grid_comp_mod.f
+		$(FC) $(FFLAG90) -c gfs_dynamics_grid_comp_mod.f
+### use FFLAGSDB compile option
+gfs_dyn_tracer_config.o:         gfs_dyn_tracer_config.f
+	        $(FC) $(FFLAGSDB) -c gfs_dyn_tracer_config.f
+
+include depend
+

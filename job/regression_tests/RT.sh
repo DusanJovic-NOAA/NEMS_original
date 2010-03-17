@@ -128,14 +128,13 @@ clear;echo;echo
 if [ ${CB_arg} != gfs ]; then
   echo "Preparing NMMB core for regression tests"
   printf %s "Compiling NMMB core (this will take some time)......."
-  cd ${PATHTR}/ush
+  cd ${PATHTR}/build
 
   ./clean_stub.sh                        >> ${PATHRT}/Compile.log 2>&1
   ./clean.sh                             >> ${PATHRT}/Compile.log 2>&1
-  ./compile_configure.sh nmm gfs_physics >> ${PATHRT}/Compile.log 2>&1
-  ./compile.sh                           >> ${PATHRT}/Compile.log 2>&1
+  ./build.sh                           >> ${PATHRT}/Compile.log 2>&1
 
-  if [ -f ../exe/NMM_NEMS.x ] ; then
+  if [ -f ../exe/NEMS.x ] ; then
     echo "   NMMB core Compiled";echo;echo
   else
     echo "   NMMB core is NOT compiled" >> ${PATHRT}/RegressionTests.log
@@ -655,31 +654,6 @@ export PCPFLG=true  ; export WPREC=false ; export CPPCP=''   ; export NCHILD=0
 
 fi
 
-####################################################################################################
-# Clean and compile GFS core
-####################################################################################################
-
-if [ ${CB_arg} != nmm ]; then
-
-  echo "Preparing GFS core for regression tests" >> RegressionTests.log
-  echo "Preparing GFS core for regression tests"
-  printf %s "Compiling GFS core (this will take some time)......."
-  cd ${PATHTR}/ush
-
-  ./clean_stub.sh            >> ${PATHRT}/Compile.log 2>&1
-  ./clean.sh                 >> ${PATHRT}/Compile.log 2>&1
-  ./compile_configure.sh gfs >> ${PATHRT}/Compile.log 2>&1
-  ./compile.sh               >> ${PATHRT}/Compile.log 2>&1
-
-  if [ -f ../exe/GFS_NEMS.x ] ; then
-    echo "   GFS core Compiled";echo;echo
-  else
-    echo "   GFS core is NOT compiled" >> ${PATHRT}/RegressionTests.log
-    echo "   GFS core is NOT compiled"
-    exit
-  fi
-fi
-
 cd $PATHRT
 
 ####################################################################################################
@@ -1142,7 +1116,7 @@ fi
 ####################################################################################################
 
 rm -f err out configure_file nmm_ll gfs_fcst_run  gfs_ll
-cd ${PATHTR}/ush
+cd ${PATHTR}/build
 ./clean_stub.sh      > /dev/null 2>&1
 ./clean.sh           > /dev/null 2>&1
 rm -rf ${RUNDIR_ROOT}

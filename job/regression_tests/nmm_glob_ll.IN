@@ -60,7 +60,7 @@ cp $SRCDIR/job/regression_tests/phy_state.txt .
 echo "Model started:  " `date`
 
 LDR_CNTRL=DATAPSIZE=64K@TEXTPSIZE=64K@STACKPSIZE=64K \
-poe $SRCDIR/exe/NMM_NEMS.x
+poe $SRCDIR/exe/NEMS.x
 
 echo "Model ended:    " `date`
 

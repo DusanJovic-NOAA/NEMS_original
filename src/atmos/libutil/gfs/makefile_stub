@@ -1,0 +1,38 @@
+####  this is dependent grd component, needs elemetary grid components ###
+#
+#
+# *****************************************************************
+#
+include ../../../../build/compile_settings
+MAKEFILE=makefile_stub
+TARGET= gfs_libutil_stub.a
+OBJS0	= \
+		atmos_dyn_phy_cpl_comp_mod_stub.o \
+		atmos_dyn_chem_cpl_comp_mod_stub.o \
+		atmos_phy_chem_cpl_comp_mod_stub.o \
+	 	module_gfs_mpi_def_stub.o
+
+
+#
+#
+# *****************************************************************
+#
+.SUFFIXES:  .o .F90 .h
+
+default:
+	@gmake -f $(MAKEFILE) all
+
+all: $(LIBDIR)/libstub/$(TARGET)
+
+$(LIBDIR)/libstub/$(TARGET): $(OBJS0) 
+	$(AR) $(ARFLAGS) $(LIBDIR)/libstub/$(TARGET) $(OBJS0) 
+clean:
+	/bin/rm -f *.o 
+	/bin/rm -f *.mod 
+	/bin/rm -f $(LIBDIR)/libstub/$(TARGET)
+
+$(OBJS0): %.o: %.F90
+	$(F77) $(FFLAG_GFS_UTIL90) -c $*.F90 
+
+#
+# *****************************************************************
