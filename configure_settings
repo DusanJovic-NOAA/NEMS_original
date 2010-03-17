@@ -1,0 +1,14 @@
+MS dynamics packages (1-ON, 0-OFF)
+-----------------------------
+nmm_dyn 1
+gfs_dyn 1
+fim_dyn 0
+
+NEMS physics packages 
+----------------------------
+nmm_phys 1
+gfs_phys 1
+
+supplemental chemistry packages
+------------------------------
+gocart 1
