@@ -4,6 +4,7 @@ include ../../../../build/compile_settings
 MAKEFILE=makefile_stub
 TARGET= GEFS_Cpl_stub.a
 
+
 #
 # *****************************************************************
 #
@@ -20,22 +21,24 @@ OBJS =  Lib_ESMFStateAddGetMod_STUB.o            \
 	GEFS_Cpl_ESMFMod_STUB.o                  \
 	GEFS_GetParameterFromStateMod_STUB.o     \
 	GEFS_CplComp_ESMFMod_STUB.o              \
-	GEFS_Sto_Per_Scheme_Step1_STUB.o         \
-	kinds_STUB.o                             \
+	GEFS_Sto_Per_Scheme_Step1_STUB.o         
+
+OBJS_90=kinds_STUB.o                             \
 	peuc_STUB.o                              \
 	pran_STUB.o                              \
-	prana_STUB.o 
-#	Cal_Sto_Coef_STUB.o
+	prana_STUB.o                             
 
 #
 #
 # *****************************************************************
 #
 
-.SUFFIXES: .o .f .F .h
+.SUFFIXES: .o .f .f90
+
 
 default:
 	@gmake -f $(MAKEFILE) all
+
 
 all: $(LIBDIR)/libstub/$(TARGET)
 
@@ -44,16 +47,8 @@ $(LIBDIR)/libstub/$(TARGET):  $(OBJS) $(OBJS_90)
 	$(AR) $(ARFLAGS) $@ $?
 
 clean:
-	rm -f $(OBJS) 
-	rm -f *.mod 
-	rm -f *.o
-	rm -f $(LIBDIR)/libstub/$(TARGET)
-
-.F.o:
-	$(F77) $(FFLAGS) -c -d $< 
-	#$(F77) $(FFLAGS) -c -d -WF,-DCLR:${RASV} $< 
-.f.o:
-	$(F77) $(FFLAGS) -c $< 
+	rm -f $(OBJS) *.mod *.a
+	rm -f $(OBJS_90) *.mod *.a
 
 Lib_ESMFStateAddGetMod_STUB.o: Lib_ESMFStateAddGetMod_STUB.f
 	$(F77) $(FFLAG90) -c Lib_ESMFStateAddGetMod_STUB.f
@@ -79,7 +74,7 @@ GEFS_Sto_Per_Scheme_Step2_STUB.o: GEFS_Sto_Per_Scheme_Step2_STUB.f
 GEFS_bcst_global_STUB.o: GEFS_bcst_global_STUB.f
 	$(F77) $(FFLAG90) -c GEFS_bcst_global_STUB.f
 
-GEFS_Cpl_Run_ESMFMod_STUB.o:	GEFS_Cpl_Run_ESMFMod_STUB.f
+GEFS_Cpl_Run_ESMFMod_STUB.o:    GEFS_Cpl_Run_ESMFMod_STUB.f
 	$(F77) $(FFLAG90) -c GEFS_Cpl_Run_ESMFMod_STUB.f
 
 GEFS_Cpl_ESMFMod_STUB.o: GEFS_Cpl_ESMFMod_STUB.f
@@ -88,23 +83,22 @@ GEFS_Cpl_ESMFMod_STUB.o: GEFS_Cpl_ESMFMod_STUB.f
 GEFS_GetParameterFromStateMod_STUB.o: GEFS_GetParameterFromStateMod_STUB.f
 	$(F77) $(FFLAG90) -c GEFS_GetParameterFromStateMod_STUB.f
 
-GEFS_CplComp_ESMFMod_STUB.o:	GEFS_CplComp_ESMFMod_STUB.f
+GEFS_CplComp_ESMFMod_STUB.o:    GEFS_CplComp_ESMFMod_STUB.f
 	$(F77) $(FFLAG90) -c GEFS_CplComp_ESMFMod_STUB.f
 
-Ensemble_sub_STUB.o:	Ensemble_sub_STUB.f
+Ensemble_sub_STUB.o:    Ensemble_sub_STUB.f
 	$(F77) $(FFLAG90) -c Ensemble_sub_STUB.f
 
-kinds_STUB.o: GEFS_Cpl_Cal_Sto_Coef.fd/kinds_STUB.f90
-	$(F90) $(FFLAG90) -c GEFS_Cpl_Cal_Sto_Coef.fd/kinds_STUB.f90
+kinds_STUB.o: kinds_STUB.f90
+	$(F90) $(FFLAG90) -c kinds_STUB.f90
 
-peuc_STUB.o: GEFS_Cpl_Cal_Sto_Coef.fd/peuc_STUB.f90
-	$(F90) $(FFLAG90) -c GEFS_Cpl_Cal_Sto_Coef.fd/peuc_STUB.f90
+peuc_STUB.o: peuc_STUB.f90
+	$(F90) $(FFLAG90) -c peuc_STUB.f90
 
-pran_STUB.o: GEFS_Cpl_Cal_Sto_Coef.fd/pran_STUB.f90
-	$(F90) $(FFLAG90) -c GEFS_Cpl_Cal_Sto_Coef.fd/pran_STUB.f90
+pran_STUB.o: pran_STUB.f90
+	$(F90) $(FFLAG90) -c pran_STUB.f90
 
-prana_STUB.o: GEFS_Cpl_Cal_Sto_Coef.fd/prana_STUB.f90
-	$(F90) $(FFLAG90) -c GEFS_Cpl_Cal_Sto_Coef.fd/prana_STUB.f90
+prana_STUB.o: prana_STUB.f90
+	$(F90) $(FFLAG90) -c prana_STUB.f90
 
-Cal_Sto_Coef_STUB.o: GEFS_Cpl_Cal_Sto_Coef.fd/Cal_Sto_Coef_STUB.f90
-	$(F90) $(FFLAG90) -c GEFS_Cpl_Cal_Sto_Coef.fd/Cal_Sto_Coef_STUB.f90
+

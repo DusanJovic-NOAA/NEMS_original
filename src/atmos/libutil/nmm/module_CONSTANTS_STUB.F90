@@ -4,14 +4,14 @@
 !
 !-----------------------------------------------------------------------
 !
-      use module_include
+!      use module_include
 !
 !-----------------------------------------------------------------------
       implicit none
 !-----------------------------------------------------------------------
 !***  Physical constants
 !-----------------------------------------------------------------------
-real(kind=kfpt),parameter:: &
+real,parameter:: &
  a=6376000. &                ! radius of earth
 ,a2=17.2693882 &             ! saturation spec. humidity formula coeff.
 ,a3=273.15 &                 ! saturation spec. humidity formula coeff.
@@ -56,7 +56,7 @@ real(kind=kfpt),parameter:: &
 !-----------------------------------------------------------------------
 !***  Soil layers
 !-----------------------------------------------------------------------
-integer(kind=kint),parameter :: &
+integer,parameter :: &
  kmsc=6 &                    ! max # of LSM layers
 ,ksnoc=1 &                   ! number of snow layers in LSM scheme
 ,nosnoc=kmsc-ksnoc &         ! # of soil layers without sno

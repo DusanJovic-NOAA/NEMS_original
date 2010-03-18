@@ -8,7 +8,6 @@
 #
 #     The following macros will be of interest:
 #
-#         TARGET   - name of the executable
 #         FC       - name of Fortran compiler
 #         CPP      - name of CPP
 #         ARCH     - architecture
@@ -31,19 +30,16 @@
 # Define the name of the executable
 #
 #
-include ../../../../build/compile_settings
-MAKEFILE=makefile_stub
-TARGET = nmm_libutil_stub.a
+include ../../../build/compile_settings
+MAKEFILE = makefile
+TARGET = share.a
  
 MODULES=	\
-		module_ATM_INTERNAL_STATE_STUB.o  \
-		module_CLOCKTIMES_STUB.o \
-		module_DM_PARALLEL_STUB.o \
-		module_EXCHANGE_STUB.o \
-		module_CONSTANTS_STUB.o \
-		module_CONTROL_STUB.o \
-		module_DIGITAL_FILTER_NMM_STUB.o \
-		module_DIAGNOSE_STUB.o 
+		module_NEMSIO.o \
+		module_INCLUDE.o \
+		module_ERR_MSG.o 
+
+MODULES_f90 = ${MODULES:.o=.f90}
 
 .SUFFIXES:	.F90 .f90 .o
 
@@ -53,17 +49,28 @@ MODULES=	\
 default:
 	@gmake -f $(MAKEFILE) all
 
-all: $(LIBDIR)/libstub/$(TARGET)
+all: $(LIBDIR)/lib/$(TARGET)
 
-$(LIBDIR)/libstub/$(TARGET): $(MODULES) 
+$(LIBDIR)/lib/$(TARGET): $(MODULES) 
 	$(AR) $(ARFLAGS) $@ $?
 
-$(MODULES):  %.o: %.f90	$(DEPS)
+$(MODULES): %.o: %.f90	$(DEPS)
 	$(F90) $(FFLAG_NMM_UTIL) -c $*.f90
 
+depend: $(MODULES_f90) 
+	$(MAKEDEPEXEC)
+
 clean:	
-	/bin/rm -f  $(LIBDIR)/libstub/$(TARGET) 
+	/bin/rm -f  $(LIBDIR)/lib/$(TARGET) 
 	/bin/rm -f  *.f90 
+	/bin/rm -f  *.lst 
 	/bin/rm -f  *.o 
 	/bin/rm -f  *.mod 
+	/bin/rm -f  lm 
+	/bin/rm -f  map
+	/bin/rm -f depend
 
+#
+# DEPENDENCIES :
+#
+include depend

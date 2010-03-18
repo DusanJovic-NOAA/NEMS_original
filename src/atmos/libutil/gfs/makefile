@@ -13,13 +13,11 @@ OBJS01  = \
 	module_gfs_mpi_def.o
 
 OBJS02=\
-	module_NEMSIO.o                 \
 	module_gfs_physcons.o           \
 	module_gfs_funcphys.o           \
 	module_gfs_tropp.o
 
 OBJS03  = \
-	module_ERR_MSG.o           \
 	module_DM_PARALLEL_GFS.o      \
 	module_digital_filter_gfs.o   \
 	module_export_import_data.o   \

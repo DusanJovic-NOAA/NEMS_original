@@ -22,9 +22,9 @@
 !
       USE ESMF_MOD
 !
-      USE MODULE_INCLUDE
+!      USE MODULE_INCLUDE
 !
-      USE MODULE_CONTROL,ONLY: TIMEF
+!      USE MODULE_CONTROL,ONLY: TIMEF
 !
 !-----------------------------------------------------------------------
 !
@@ -58,7 +58,7 @@
 !
       TYPE(ESMF_CplComp),INTENT(INOUT) :: CPL_COMP                        !<-- Coupler component
 !
-      INTEGER(kind=KINT),INTENT(OUT)   :: RC_NEST_REG                     !<-- Return code for register
+      INTEGER,INTENT(OUT)   :: RC_NEST_REG                     !<-- Return code for register
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -102,21 +102,21 @@
 !***  NEED IN ORDER TO GENERATE BOUDARY DATA FOR ITS CHILDREN.
 !-----------------------------------------------------------------------
 !
-      INTEGER(kind=KINT),INTENT(IN) :: COMM_MY_DOMAIN                   &  !<-- MPI communicator for each individual domain
+      INTEGER,INTENT(IN) :: COMM_MY_DOMAIN                   &  !<-- MPI communicator for each individual domain
                                       ,COMM_TO_MY_PARENT                &  !<-- Current domain's MPI communicator to its parent
                                       ,MAX_DOMAINS                      &  !<-- Maximum # of domains  
                                       ,MY_DOMAIN_ID                     &  !<-- ID of current domain
                                       ,NUM_CHILDREN                     &  !<-- Current domain's number of children
                                       ,NUM_DOMAINS                         !<-- Total number of domains
 !
-      INTEGER(kind=KINT),DIMENSION(:),POINTER,INTENT(IN) :: CHILD_ID             &  !<-- Domain IDs of current domain's children
+      INTEGER,DIMENSION(:),POINTER,INTENT(IN) :: CHILD_ID             &  !<-- Domain IDs of current domain's children
                                                            ,COMM_TO_MY_CHILDREN  &  !<-- Current domain's MPI communicators to its children
                                                            ,FTASKS_DOMAIN        &  !<-- # of forecast tasks on each domain
                                                            ,ID_PARENTS              !<-- IDs of parents of nested domains
 !
-      INTEGER(kind=KINT),DIMENSION(MAX_DOMAINS),INTENT(IN) :: N_CONFIGURE  !<-- Association of domains with configure file IDs
+      INTEGER,DIMENSION(MAX_DOMAINS),INTENT(IN) :: N_CONFIGURE  !<-- Association of domains with configure file IDs
 !
-      REAL(kind=KFPT),DIMENSION(1:NUM_DOMAINS),INTENT(IN) :: DT            !<-- Timesteps for all domains (ATM Components)
+      REAL,DIMENSION(1:NUM_DOMAINS),INTENT(IN) :: DT            !<-- Timesteps for all domains (ATM Components)
 !
       TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE_ATM                      !<-- Export state of the current ATM Component
 !

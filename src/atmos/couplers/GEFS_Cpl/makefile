@@ -3,12 +3,9 @@ include ../../../../build/compile_settings
 MAKEFILE=makefile
 TARGET = GEFS_Cpl.a
 
-.SUFFIXES: .o .f .F .h
 #
 # *****************************************************************
 #
-
-
 OBJS =  Lib_ESMFStateAddGetMod.o            \
 	machine.o                           \
 	GEFS_Cpl_InternalState_ESMFMod.o    \
@@ -20,8 +17,9 @@ OBJS =  Lib_ESMFStateAddGetMod.o            \
 	GEFS_Cpl_ESMFMod.o                  \
 	GEFS_GetParameterFromStateMod.o     \
 	GEFS_CplComp_ESMFMod.o              \
-	GEFS_Sto_Per_Scheme_Step1.o         \
-	kinds.o                             \
+	GEFS_Sto_Per_Scheme_Step1.o         
+
+OBJS_90=kinds.o                             \
 	peuc.o                              \
 	pran.o                              \
 	prana.o                             \
@@ -31,24 +29,35 @@ OBJS =  Lib_ESMFStateAddGetMod.o            \
 #
 # *****************************************************************
 #
+
+OBJS_f = ${OBJS:.o=.f}
+OBJS_90_f90 = ${OBJS_90:.o=.f90}
+
+.SUFFIXES:    .o .f .f90
+
 default:
 	@gmake -f $(MAKEFILE) all
 
 all: $(LIBDIR)/lib/$(TARGET)
 
-$(LIBDIR)/lib/$(TARGET):  $(OBJS)
+$(LIBDIR)/lib/$(TARGET):  $(OBJS) $(OBJS_90)
 	$(AR) $(ARFLAGS) $@ $?
+
+.f.o: %.o: %.f
+	$(F77) $(FFLAGS) -c $*.f
+
+.f90.o: %.o: %.f90
+	$(F90) $(FFLAGS) -c $*.f90
+
+depend: $(OBJS_f) $(OBJS_90_f90)
+	$(MAKEDEPEXEC)
 
 clean:
 	rm -f  $(LIBDIR)/lib/$(TARGET)
 	rm -f *.o 
 	rm -f *.mod 
+	rm -f depend
 
-.F.o:
-	$(F77) $(FFLAGS) -c -d $< 
-	#$(F77) $(FFLAGS) -c -d -WF,-DCLR:${RASV} $< 
-.f.o:
-	$(F77) $(FFLAGS) -c $< 
 
 Lib_ESMFStateAddGetMod.o: Lib_ESMFStateAddGetMod.f
 	$(F77) $(FFLAG90) -c Lib_ESMFStateAddGetMod.f
@@ -86,17 +95,17 @@ GEFS_GetParameterFromStateMod.o: GEFS_GetParameterFromStateMod.f
 GEFS_CplComp_ESMFMod.o:	GEFS_CplComp_ESMFMod.f
 	$(F77) $(FFLAG90) -c GEFS_CplComp_ESMFMod.f
 
-kinds.o: GEFS_Cpl_Cal_Sto_Coef.fd/kinds.f90
-	$(F90) $(FFLAG90) -c GEFS_Cpl_Cal_Sto_Coef.fd/kinds.f90
+kinds.o: kinds.f90
+	$(F90) $(FFLAG90) -c kinds.f90
 
-peuc.o: GEFS_Cpl_Cal_Sto_Coef.fd/peuc.f90
-	$(F90) $(FFLAG90) -c GEFS_Cpl_Cal_Sto_Coef.fd/peuc.f90
+peuc.o: peuc.f90
+	$(F90) $(FFLAG90) -c peuc.f90
 
-pran.o: GEFS_Cpl_Cal_Sto_Coef.fd/pran.f90
-	$(F90) $(FFLAG90) -c GEFS_Cpl_Cal_Sto_Coef.fd/pran.f90
+pran.o: pran.f90
+	$(F90) $(FFLAG90) -c pran.f90
 
-prana.o: GEFS_Cpl_Cal_Sto_Coef.fd/prana.f90
-	$(F90) $(FFLAG90) -c GEFS_Cpl_Cal_Sto_Coef.fd/prana.f90
+prana.o: prana.f90
+	$(F90) $(FFLAG90) -c prana.f90
 
-Cal_Sto_Coef.o: GEFS_Cpl_Cal_Sto_Coef.fd/Cal_Sto_Coef.f90
-	$(F90) $(FFLAG90) -c GEFS_Cpl_Cal_Sto_Coef.fd/Cal_Sto_Coef.f90
+Cal_Sto_Coef.o: Cal_Sto_Coef.f90
+	$(F90) $(FFLAG90) -c Cal_Sto_Coef.f90

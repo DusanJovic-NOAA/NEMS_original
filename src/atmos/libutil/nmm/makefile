@@ -35,9 +35,6 @@ MAKEFILE = makefile
 TARGET = nmm_libutil.a
  
 MODULES=	\
-		module_NEMSIO.o \
-		module_INCLUDE.o \
-		module_ERR_MSG.o \
 		module_VARS.o \
 		module_VARS_STATE.o \
 		module_ATM_INTERNAL_STATE.o  \

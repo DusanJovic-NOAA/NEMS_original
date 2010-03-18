@@ -28,9 +28,9 @@
 !
       USE ESMF_MOD
 !
-      USE MODULE_INCLUDE
+!      USE MODULE_INCLUDE
 !
-      USE MODULE_ERR_MSG    ,ONLY: ERR_MSG,MESSAGE_CHECK
+!      USE MODULE_ERR_MSG    ,ONLY: ERR_MSG,MESSAGE_CHECK
 !
 !-----------------------------------------------------------------------
 !

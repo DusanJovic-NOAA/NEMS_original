@@ -38,13 +38,13 @@ YACC = yacc
 YFLAGS = 
 
 # Where to install stuff
-prefix = /meso/save/wx22ec/trunk_commit/util/makedepf90-2.8.8/util/makedepf90-2.8.8
+prefix = /meso/save/wx22ec/trunk/util/makedepf90-2.8.8/util/makedepf90-2.8.8
 exec_prefix = ${prefix}
-bindir = /meso/save/wx22ec/trunk_commit/util/makedepf90-2.8.8
-mandir = /meso/save/wx22ec/trunk_commit/util/makedepf90-2.8.8/util/makedepf90-2.8.8
+bindir = /meso/save/wx22ec/trunk/util/makedepf90-2.8.8
+mandir = /meso/save/wx22ec/trunk/util/makedepf90-2.8.8/util/makedepf90-2.8.8
 
 # How to install stuff
-INSTALL=/meso/save/wx22ec/trunk_commit/util/makedepf90-2.8.8/install-sh -c
+INSTALL=/meso/save/wx22ec/trunk/util/makedepf90-2.8.8/install-sh -c
 INSTALL_PROGRAM=${INSTALL}
 INSTALL_DATA=${INSTALL} -m 644
 

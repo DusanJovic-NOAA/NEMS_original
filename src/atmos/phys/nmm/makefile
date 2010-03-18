@@ -109,7 +109,7 @@ $(MODULE_SMP): %.o: %.f90 $(DEPS)
 	$(F90) $(FFLAG_NMM_PHY) $(SMP) -c $*.f90
 
 $(MODULE_RRTM): %.o: %.f90 $(DEPS)
-	$(F90) $(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(NMM_UTIL) -I$(NMM_IO) $(SMP) -c $*.f90
+	$(F90) $(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(SHARE) -I$(NMM_UTIL) -I$(NMM_IO) $(SMP) -c $*.f90
 
 $(MODULE_RRTM_77): %.o: %.f $(DEPS)
 	$(F77) $(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -qxlf77=leadzero -qrealsize=4 -qnolm -qsmp=noauto -qnosave -c $*.f

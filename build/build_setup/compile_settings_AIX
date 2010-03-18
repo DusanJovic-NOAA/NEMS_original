@@ -64,6 +64,7 @@ NEMSTOPDIR=_NEMSTOPDIR_
 # Source Code Include Files
 ###########################################################
   ATM=$(SRCDIR)/atmos/drivers
+  SHARE=$(SRCDIR)/atmos/share
   NMM_UTIL=$(SRCDIR)/atmos/libutil/nmm
   NMM_PHY=$(SRCDIR)/atmos/phys/nmm
   NMM_DYN=$(SRCDIR)/atmos/dyn/nmm
@@ -84,9 +85,9 @@ GOCART_INC=$(INC_GOCART)           ### defined in NCEP_base.mk
 ###########################################################
 # Cumulative Source Code Include File Compiler Flags
 ###########################################################
-  GCINCS=-I$(NMM_UTIL) -I$(NMM_IO) -I$(NMM_DYN) -I$(NMM_PHY) -I$(ATM) -I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_UTIL) -I$(GFS_IO) -I$(GEFS_CPL) -I$(GOCART_INC)
-  GCINCS_NMM=-I$(NMM_UTIL) -I$(NMM_IO) -I$(NMM_DYN) -I$(NMM_PHY) -I$(ATM)  -I$(GFS_PHY) -I$(GFS_UTIL) -I$(GOCART_INC) -I$(MODDIR)/modstub/gfs 
-  GCINCS_GFS=-I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_UTIL) -I$(GFS_IO) -I$(GEFS_CPL) -I$(ATM) -I$(GOCART_INC) -I$(MODDIR)/modstub/nmm
+  GCINCS=-I$(SHARE) -I$(NMM_UTIL) -I$(NMM_IO) -I$(NMM_DYN) -I$(NMM_PHY) -I$(ATM) -I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_UTIL) -I$(GFS_IO) -I$(GEFS_CPL) -I$(GOCART_INC)
+  GCINCS_NMM=-I$(SHARE) -I$(NMM_UTIL) -I$(NMM_IO) -I$(NMM_DYN) -I$(NMM_PHY) -I$(ATM)  -I$(GFS_PHY) -I$(GFS_UTIL) -I$(GOCART_INC) -I$(MODDIR)/modstub/gfs 
+  GCINCS_GFS=-I$(SHARE) -I$(GFS_DYN) -I$(GFS_PHY) -I$(GFS_UTIL) -I$(GFS_IO) -I$(GEFS_CPL) -I$(ATM) -I$(GOCART_INC) -I$(MODDIR)/modstub/nmm
   FINCS=-I$(ESMF_MOD) $(GCINCS)
   FINCS_NMM=-I$(ESMF_MOD) $(GCINCS_NMM)
   FINCS_GFS=-I$(ESMF_MOD) $(GCINCS_GFS)
@@ -94,18 +95,18 @@ GOCART_INC=$(INC_GOCART)           ### defined in NCEP_base.mk
   FFLAG_NMM_MAIN=$(OPT_NMM) $(FINCS_NMM) $(TRAPS) -qfree -NS2048
   FFLAG_GFS_MAIN=$(OPT_GFS) $(FINCS_GFS) $(TRAPS) -qfree -NS2048
   FFLAG_MAIN=$(OPT_NMM) $(FINCS) $(TRAPS) -qfree -NS2048
-  FFLAG_NMM_UTIL=$(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(FINCP)
-  FFLAG_NMM_IO=$(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(NMM_UTIL)
-  FFLAG_NMM_PHY=$(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(NMM_UTIL) -I$(NMM_IO) -I$(GFS_PHY) -I$(GFS_UTIL) -I$(MODDIR)/modstub/gfs
-  FFLAG_NMM_DYN=$(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(NMM_UTIL) -I$(NMM_IO)
-  FFLAG_GFS_DYN90=$(FFLAG90) $(TRAPS) -I$(GFS_UTIL)
-  FFLAG_GFS_UTIL=$(OPTS90) $(TRAPS)
-  FFLAG_GFS_UTIL90=$(OPTS90) $(TRAPS) -I$(ESMF_MOD) -I$(GOCART_INC) -qfree -NS2048
-  FFLAG_GFS_DYN=$(OPTS90) $(TRAPS) -I$(GFS_UTIL)
-  FFLAG_GFS_PHY=$(OPTS90) $(TRAPS) -I$(GFS_UTIL)
-  FFLAG_GFS_PHY90=$(FFLAG90) $(TRAPS) -I$(GFS_UTIL)
-  FFLAG_GFS_GEFSCPL=$(OPTS90) $(TRAPS) -I$(GFS_UTIL)
-  FFLAG_GFS_IO=$(FFLAG90) -I$(GFS_UTIL) -I$(GFS_DYN) -I$(GFS_PHY)
+  FFLAG_NMM_UTIL=$(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(FINCP) -I$(SHARE)
+  FFLAG_NMM_IO=$(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(SHARE) -I$(NMM_UTIL) 
+  FFLAG_NMM_PHY=$(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(SHARE) -I$(NMM_UTIL) -I$(NMM_IO) -I$(GFS_PHY) -I$(GFS_UTIL) -I$(MODDIR)/modstub/gfs
+  FFLAG_NMM_DYN=$(OPT_NMM) -I$(ESMF_MOD) $(TRAPS) -I$(SHARE) -I$(NMM_UTIL) -I$(NMM_IO)
+  FFLAG_GFS_DYN90=$(FFLAG90) $(TRAPS) -I$(SHARE) -I$(GFS_UTIL)
+  FFLAG_GFS_UTIL=$(OPTS90) $(TRAPS) -I$(SHARE)
+  FFLAG_GFS_UTIL90=$(OPTS90) $(TRAPS) -I$(ESMF_MOD) -I$(GOCART_INC) -I$(SHARE) -qfree -NS2048
+  FFLAG_GFS_DYN=$(OPTS90) $(TRAPS)  -I$(SHARE) -I$(GFS_UTIL)
+  FFLAG_GFS_PHY=$(OPTS90) $(TRAPS)  -I$(SHARE) -I$(GFS_UTIL)
+  FFLAG_GFS_PHY90=$(FFLAG90) $(TRAPS)  -I$(SHARE) -I$(GFS_UTIL)
+  FFLAG_GFS_GEFSCPL=$(OPTS90) $(TRAPS)  -I$(SHARE) -I$(GFS_UTIL)
+  FFLAG_GFS_IO=$(FFLAG90)  -I$(SHARE) -I$(GFS_UTIL) -I$(GFS_DYN) -I$(GFS_PHY)
 ###########################################################
 # Local Include Files
 ###########################################################
@@ -132,13 +133,14 @@ GOCART_INC=$(INC_GOCART)           ### defined in NCEP_base.mk
   GFS_IO_LIB=_GFSIOLIB_
   GEFS_CPL_LIB=_GEFSCPL_
   ATMOS_STUB_LIB=_ATMOSSTUBLIB_
-  GOCART_LIB=$(LIB_GOCART)     
+  GOCART_LIB=$(LIB_GOCART)    
+  SHARE_LIB=$(LIBDIR)/lib/share.a 
 ###########################################################
 # Cumulative Core-Specific Compiler Flags
 ###########################################################
   FFLAGSDB=_OPTS1_ _FINCS1_
   FFLAGSDB_STUB=_OPTS2_ _FINCS2_
-  GC_LIB=$(GOCART_LIB) $(GFS_DYN_LIB) $(GFS_PHY_LIB) $(GFS_IO_LIB) $(GFS_UTIL_LIB) $(GEFS_CPL_LIB) $(ATMOS_STUB_LIB) $(NMM_UTIL_LIB) $(NMM_DYN_LIB) $(NMM_PHY_LIB) $(NMM_IO_LIB) $(ATM_LIB)
+  GC_LIB=$(SHARE_LIB) $(GOCART_LIB) $(GFS_DYN_LIB) $(GFS_PHY_LIB) $(GFS_IO_LIB) $(GFS_UTIL_LIB) $(GEFS_CPL_LIB) $(ATMOS_STUB_LIB) $(NMM_UTIL_LIB) $(NMM_DYN_LIB) $(NMM_PHY_LIB) $(NMM_IO_LIB) $(ATM_LIB)
 ###########################################################
 # Cumulative Core-Specific Libraries
 ###########################################################

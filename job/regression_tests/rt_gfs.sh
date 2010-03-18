@@ -64,6 +64,8 @@ cat gfs_fcst_run_GEFS.IN \
                     | sed s:_SRCDIR_:${PATHTR}:g \
                     | sed s:_RUNDIR_:${RUNDIR}:g > gfs_fcst_run
 
+cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
+
 fi
 
 ####################################################################################################
