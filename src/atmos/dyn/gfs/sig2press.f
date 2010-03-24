@@ -10,13 +10,15 @@
       real(kind=kind_grid)  pgr(nsize_ar)
       real(kind=kind_grid) prsl(nsize_ar,levs)
       real(kind=kind_grid) dprs(nsize_ar,levs)
+      real(kind=kind_grid) pressfc
 
       integer i,k
  
       do k=1,levs
         do i=1,njeff
-          prsl(i,k)  = sl(k)*pgr(i)
-          dprs(i,k)  = (si(k)-si(k+1))*pgr(i)
+          pressfc    = exp(pgr(i))
+          prsl(i,k)  = sl(k)*pressfc
+          dprs(i,k)  = (si(k)-si(k+1))*pressfc
         enddo
       enddo
  

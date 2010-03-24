@@ -2,10 +2,13 @@
      &                                   ppg,dpg,dpdtg,
      &                                   global_lats_r,lonsperlar)
 !!
+!! program log:
+!!
 !! hmhj - this routine change variables from model usage to common
 !!        common usage are t=dry temperature (k), p is pascal, real winds
 !!        model  usage are t=virtal temperature (k) or enthalpy, 
 !!                         p is centibar, mapping winds
+!! Mar, 2010 J.WANG - compute mdl phys psg to common variables psg in pascal
 !!
       use resol_def,            ONLY: levh, lonr, latr, levs
       use layout1,              ONLY: ipt_lats_node_r, lats_node_r,
@@ -48,15 +51,10 @@
           enddo
         enddo
 !
-        if (gen_coord_hybrid) then   ! Ps is the prognostic variable
-          do i=1,lons_lat
-            psg(i,lan) =  psg(i,lan) * cb2pa 
-          enddo
-        else                         ! ln(Ps) is the prognostic variable
-          do i=1,lons_lat
-            psg(i,lan) = exp( psg(i,lan) ) * cb2pa
-          enddo
-        endif
+!-- psg from nems gfs in pascal
+        do i=1,lons_lat
+          psg(i,lan) =  psg(i,lan) * cb2pa 
+        enddo
 !
         do k=1,levs
           do i=1,lons_lat

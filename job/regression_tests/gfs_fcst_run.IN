@@ -22,15 +22,21 @@ set -x
  export FHRES=_FHRES_
 
 # SFCPRESS_ID=0 or 1 for ln(psfc), 2 for psfc
- export SFCPRESS_ID=2
+# export SFCPRESS_ID=2
 # THERMODYN_ID=3 for enthalphy, 0 or 1 for virtual T, 2 for T
- export THERMODYN_ID=3
+# export THERMODYN_ID=3
 #
- export IDVC=3
- export hybrid=NO
- export GEN_COORD_HYBRID=YES
+# export IDVC=3
+# export hybrid=NO
+# export GEN_COORD_HYBRID=YES
 # SPECTRAL_LOOP       2 for old option, 1 is for one loop.
- export SPECTRAL_LOOP=1
+# export SPECTRAL_LOOP=1
+###
+ export SFCPRESS_ID=_SFCPRESSID_
+ export THERMODYN_ID=_THERMODYNID_
+ export IDVC=_IDVC_
+ export SPECTRAL_LOOP=_SPECTRALLOOP_
+#
 #***************************************************************
 #                    N2 ,    H2O,     O3,        CLW,    O,      O2
 #export CPIlist=" 1039.645, 1846.0, 820.2391,    0.0, 1299.185, 918.0969"

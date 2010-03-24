@@ -14,7 +14,7 @@
       integer njeff,nsize_ar
       real(kind=kind_grid) pgr(nsize_ar)
       real(kind=kind_grid) prsl(nsize_ar,levs), dprs(nsize_ar,levs)
-      real(kind=kind_grid) tem
+      real(kind=kind_grid) tem,pressfc
  
       real(kind=kind_grid) ppi(njeff,levs+1),ppik(njeff,levs+1)
       integer iq,ilat,me
@@ -22,7 +22,8 @@
  
       do k=1,levp1
         do i=1,njeff
-          ppi(i,levs+2-k) = ak5(k) + bk5(k)*pgr(i) ! prsi are now pressures
+          pressfc = exp(pgr(i))
+          ppi(i,levs+2-k) = ak5(k) + bk5(k)*pressfc ! prsi are now pressures
         enddo
       enddo
  

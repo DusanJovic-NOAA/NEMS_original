@@ -36,6 +36,10 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_REDUCEDGRID_:${REDUCEDGRID}:g \
                     | sed s:_ADIAB_:${ADIAB}:g \
                     | sed s:_NUMFILE_:${NUMFILE}:g \
+                    | sed s:_SFCPRESSID_:${SFCPRESS_ID}:g \
+                    | sed s:_THERMODYNID_:${THERMODYN_ID}:g \
+                    | sed s:_IDVC_:${IDVC}:g \
+                    | sed s:_SPECTRALLOOP_:${SPECTRALLOOP}:g \
                     | sed s:_NDAYS_:${NDAYS}:g   >  gfs_fcst_run
 
 ####################################################################################################
@@ -44,8 +48,14 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
 
 cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
 cp MAPL.rc ${RUNDIR}/MAPL.rc
-cp ${RTPWD}/GFS_NODFI/gfsanl.2009072400 ${RUNDIR}/.
-cp ${RTPWD}/GFS_NODFI/sfcanl.2009072400 ${RUNDIR}/.
+
+if [ $IDVC = 2 ] ; then
+  cp ${RTPWD}/GFS_NODFI_HYB/gfsanl.2009072400 ${RUNDIR}/.
+  cp ${RTPWD}/GFS_NODFI_HYB/sfcanl.2009072400 ${RUNDIR}/.
+elif [ $IDVC = 3 ] ; then
+  cp ${RTPWD}/GFS_NODFI/gfsanl.2009072400 ${RUNDIR}/.
+  cp ${RTPWD}/GFS_NODFI/sfcanl.2009072400 ${RUNDIR}/.
+fi
 
 else
 

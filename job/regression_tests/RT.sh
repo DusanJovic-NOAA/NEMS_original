@@ -51,6 +51,7 @@ if [ $argn -eq 1 ]; then
   cp -r /${DISKNM}/noscrub/wx20rv/REGRESSION_TEST_baselines \
 	/stmp/${LOGIN}/REGRESSION_TEST
   if [ ${CB_arg} = nmm ]; then
+    cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/*  /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_HYB/.
     cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*  /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID/.
     cp ${RTPWD}/GFS_NODFI/*            /stmp/${LOGIN}/REGRESSION_TEST/GFS_NODFI/.
     cp ${RTPWD}/GFS_OPAC/*             /stmp/${LOGIN}/REGRESSION_TEST/GFS_OPAC/.
@@ -654,6 +655,7 @@ export PCPFLG=true  ; export WPREC=false ; export CPPCP=''   ; export NCHILD=0
 
 fi
 
+
 cd $PATHRT
 
 ####################################################################################################
@@ -681,6 +683,7 @@ export PE1=30      ; export WTPG=2       ; export NDAYS=1     ; export CP2=#
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export NUMFILE=3   ; export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
+export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -713,6 +716,7 @@ export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=''
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export NUMFILE=3   ; export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
+export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -745,6 +749,7 @@ export PE1=58      ; export WTPG=2       ; export NDAYS=1     ; export CP2=#
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export NUMFILE=3   ; export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
+export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -777,6 +782,7 @@ export PE1=12      ; export WTPG=2       ; export NDAYS=2     ; export CP2=#
 export WRTGP=2     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export NUMFILE=3   ; export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
+export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -809,6 +815,7 @@ export PE1=1       ; export WTPG=1       ; export NDAYS=1     ; export CP2=#
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export NUMFILE=3   ; export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
+export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -841,6 +848,7 @@ export PE1=1       ; export WTPG=1       ; export NDAYS=2     ; export CP2=#
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export NUMFILE=3   ; export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
+export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -873,6 +881,7 @@ export PE1=16      ; export WTPG=1       ; export NDAYS=1     ; export CP2=#
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export NUMFILE=3   ; export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
+export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -905,6 +914,7 @@ export PE1=60      ; export WTPG=1       ; export NDAYS=2     ; export CP2=#
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export NUMFILE=3   ; export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
+export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -937,6 +947,7 @@ export PE1=32      ; export WTPG=1       ; export NDAYS=2     ; export CP2=#
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export NUMFILE=3   ; export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
+export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -969,6 +980,7 @@ export PE1=30      ; export WTPG=2       ; export NDAYS=1     ; export CP2=#
 export WRTGP=1     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export NUMFILE=3   ; export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
+export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1001,6 +1013,7 @@ export PE1=12      ; export WTPG=2       ; export NDAYS=2     ; export CP2=''
 export WRTGP=2     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export NUMFILE=3   ; export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
+export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1033,6 +1046,7 @@ export PE1=1       ; export WTPG=1       ; export NDAYS=1     ; export CP2=#
 export WRTGP=1     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export NUMFILE=3   ; export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
+export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1065,6 +1079,40 @@ export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=#
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export NUMFILE=3   ; export IAER=11      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
+export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
+#---------------------
+  ./rt_gfs.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi
+
+####################################################################################################
+#
+# TEST   - GFS digital filter  HYb
+#        - 12 compute tasks / 2 thread ,2 WrtGrp x 2 WrtPePerGrp
+#
+####################################################################################################
+
+if [ ${CREATE_BASELINE} = false ]; then
+
+export TEST_DESCR="GFS,16 proc, 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/GFS_16_dfi_hyb
+export CNTL_DIR=GFS_DFI_REDUCEDGRID_HYB
+export LIST_FILES=" \
+        sigf03 sigf06 sigf12 sigf24 sigf48 \
+        sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+        flxf03 flxf06 flxf12 flxf24 flxf48"
+#---------------------
+export TASKS=16    ; export THRD=2       ; export NSOUT=0     ; export QUILT=.true.
+export PE1=12      ; export WTPG=2       ; export NDAYS=2     ; export CP2=''
+export WRTGP=2     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
+export NUMFILE=3   ; export IAER=0      ; export FHRES=24
+export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
+export IDVC=2      ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALLOOP=1
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi

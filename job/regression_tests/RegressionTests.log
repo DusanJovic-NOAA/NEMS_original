@@ -1,4 +1,4 @@
-Thu Mar 18 13:05:54 EDT 2010
+Tue Mar 23 10:33:21 EDT 2010
 Start Regression test
 
 
@@ -29,7 +29,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  146.92  , test_glob timing:  148.28
+ Original timing:  146.92  , test_glob timing:  147.67
 
 
 Test 002
@@ -170,7 +170,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  235.58  , test_reg timing:  235.92
+ Original timing:  235.58  , test_reg timing:  236.30
 
 
 Test 009
@@ -652,13 +652,37 @@ Checking test 029 results ....
  Comparing flxf48.........OK
  Test 029 passed 
 Test 030
+GFS,hybrid,16 proc, 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid
+GFS, 16 proc, 2 thread
+
+
+
+
+Checking test 030 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
+ Test 030 passed
+Test 031
 Concurrency GEFS, stochastic perturbations, 4 members, T190L28.
 GFS, 64 proc, 1 thread
 
 
 
 
-Checking test 030 results ....
+Checking test 031 results ....
  Comparing SIG.F06_01.........OK
  Comparing SIG.F06_02.........OK
  Comparing SIG.F06_03.........OK
@@ -707,5 +731,6 @@ Checking test 030 results ....
  Comparing FLX.F24_02.........OK
  Comparing FLX.F24_03.........OK
  Comparing FLX.F24_04.........OK
- Test 030 passed 
-Thu Mar 18 17:41:22 EDT 2010
+ Test 031 passed
+Tue Mar 23 20:32:28 EDT 2010
+

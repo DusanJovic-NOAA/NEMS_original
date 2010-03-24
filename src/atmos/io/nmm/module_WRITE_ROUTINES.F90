@@ -5331,7 +5331,7 @@
       WRITE(IO_UNIT,113)LM
       WRITE(IO_UNIT,114)1,TRIM(DATE)
 !
- 105  FORMAT('dset ^',A24)
+ 105  FORMAT('dset ^',A)
  106  FORMAT('undef -9.E+20')
  107  FORMAT('options big_endian sequential')
  108  FORMAT('fileheader',I12.0)
