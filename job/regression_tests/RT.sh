@@ -131,9 +131,9 @@ if [ ${CB_arg} != gfs ]; then
   printf %s "Compiling NMMB core (this will take some time)......."
   cd ${PATHTR}/build
 
-#  ./clean_stub.sh                        >> ${PATHRT}/Compile.log 2>&1
-#  ./clean.sh                             >> ${PATHRT}/Compile.log 2>&1
-#  ./build.sh                           >> ${PATHRT}/Compile.log 2>&1
+  ./clean_stub.sh                        >> ${PATHRT}/Compile.log 2>&1
+  ./clean.sh                             >> ${PATHRT}/Compile.log 2>&1
+  ./build.sh                           >> ${PATHRT}/Compile.log 2>&1
 
   if [ -f ../exe/NEMS.x ] ; then
     echo "   NMMB core Compiled";echo;echo
