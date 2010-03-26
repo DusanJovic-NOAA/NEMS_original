@@ -50,8 +50,8 @@ cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
 cp MAPL.rc ${RUNDIR}/MAPL.rc
 
 if [ $IDVC = 2 ] ; then
-  cp ${RTPWD}/GFS_NODFI_HYB/gfsanl.2009072400 ${RUNDIR}/.
-  cp ${RTPWD}/GFS_NODFI_HYB/sfcanl.2009072400 ${RUNDIR}/.
+  cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/gfsanl.2009072400 ${RUNDIR}/.
+  cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/sfcanl.2009072400 ${RUNDIR}/.
 elif [ $IDVC = 3 ] ; then
   cp ${RTPWD}/GFS_NODFI/gfsanl.2009072400 ${RUNDIR}/.
   cp ${RTPWD}/GFS_NODFI/sfcanl.2009072400 ${RUNDIR}/.

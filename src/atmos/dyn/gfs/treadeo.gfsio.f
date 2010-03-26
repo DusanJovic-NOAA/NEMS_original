@@ -225,6 +225,7 @@
 !       idsl=slid  !=2,pk=0.5*(p(k+1/2)+p(k-1/2)) check alfa(1)  am_bm
 !   ak bk order in "sigma" file is bottom to top !!!!!!!!!!!!!!!!!!
         psurfff = 101.3
+        ck5=0.
         do k=1,levp1
           ak5(k) = vcoord(levp1+1-k,1)/1000.
           bk5(k) = vcoord(levp1+1-k,2)
