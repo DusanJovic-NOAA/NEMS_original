@@ -1748,7 +1748,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      child_init_block: IF(NUM_CHILDREN>0.AND..NOT.RESTARTED_RUN)THEN      !<-- Only parents participate                              
+      child_init_block: IF(NUM_CHILDREN>0)THEN                             !<-- Only parents participate                              
 !
         I_AM_A_PARENT=ESMF_TRUE
 !

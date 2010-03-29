@@ -1720,7 +1720,8 @@
             DO NT=1,NCHILD_TASKS
               NBASE=CHILDTASK_V_SAVE(N)%I_HI_NORTH(NT)                   &
                    -CHILDTASK_V_SAVE(N)%I_LO_NORTH(NT)+1
-              NWORDS=2*LM*NBASE*N_BLEND_V                                   !<-- Total number of V boundary words for child task's segment
+              NBASE_3D=LM*NBASE*N_BLEND_V
+              NWORDS=2*NBASE_3D                                             !<-- Total number of V boundary words for child task's segment
               WORDS_BOUND_V_NORTH(N)%TASKS(NT)=NWORDS                       !<-- Save total number of words
 !
               ALLOCATE(CHILD_BOUND_V_NORTH(N)%TASKS(NT)%DATA(1:NWORDS))     !<-- 1-D bndry data string for child tasks with Nbndry V points
@@ -1728,11 +1729,11 @@
               ALLOCATE(PD_B_NORTH_V(N)%TASKS(NT)%DATA(1:NBASE*N_BLEND_V))
 !
               NLOC_1=1
-              NLOC_2=NLOC_1+LM*NBASE-1
+              NLOC_2=NLOC_1+NBASE_3D-1
               U_B_NORTH(N)%TASKS(NT)%DATA=>CHILD_BOUND_V_NORTH(N)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- U_B_NORTH storage location
 !
               NLOC_1=NLOC_2+1
-              NLOC_2=NLOC_1+LM*NBASE-1
+              NLOC_2=NLOC_1+NBASE_3D-1
               V_B_NORTH(N)%TASKS(NT)%DATA=>CHILD_BOUND_V_NORTH(N)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- V_B_NORTH storage location
 !
             ENDDO
@@ -1832,7 +1833,8 @@
             DO NT=1,NCHILD_TASKS
               NBASE=CHILDTASK_V_SAVE(N)%J_HI_WEST(NT)                   &
                    -CHILDTASK_V_SAVE(N)%J_LO_WEST(NT)+1
-              NWORDS=2*LM*NBASE*N_BLEND_V                                   !<-- Total number of V boundary words for child task's segment
+              NBASE_3D=LM*NBASE*N_BLEND_V
+              NWORDS=2*NBASE_3D                                             !<-- Total number of V boundary words for child task's segment
               WORDS_BOUND_V_WEST(N)%TASKS(NT)=NWORDS                        !<-- Save total number of words
 !
               ALLOCATE(CHILD_BOUND_V_WEST(N)%TASKS(NT)%DATA(1:NWORDS))      !<-- 1-D bndry data string for child tasks with Wbndry V points
@@ -1840,11 +1842,11 @@
               ALLOCATE(PD_B_WEST_V(N)%TASKS(NT)%DATA(1:NBASE*N_BLEND_V))
 !
               NLOC_1=1
-              NLOC_2=NLOC_1+LM*NBASE-1
+              NLOC_2=NLOC_1+NBASE_3D-1
               U_B_WEST(N)%TASKS(NT)%DATA=>CHILD_BOUND_V_WEST(N)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- U_B_WEST storage location
 !
               NLOC_1=NLOC_2+1
-              NLOC_2=NLOC_1+LM*NBASE-1
+              NLOC_2=NLOC_1+NBASE_3D-1
               V_B_WEST(N)%TASKS(NT)%DATA=>CHILD_BOUND_V_WEST(N)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- V_B_WEST storage location
 !
             ENDDO
@@ -1944,7 +1946,8 @@
             DO NT=1,NCHILD_TASKS
               NBASE=CHILDTASK_V_SAVE(N)%J_HI_EAST(NT)                   &
                    -CHILDTASK_V_SAVE(N)%J_LO_EAST(NT)+1
-              NWORDS=2*LM*NBASE*N_BLEND_V                                   !<-- Total number of V boundary words for child task's segment
+              NBASE_3D=LM*NBASE*N_BLEND_V
+              NWORDS=2*NBASE_3D                                             !<-- Total number of V boundary words for child task's segment
               WORDS_BOUND_V_EAST(N)%TASKS(NT)=NWORDS                        !<-- Save total number of words
 !
               ALLOCATE(CHILD_BOUND_V_EAST(N)%TASKS(NT)%DATA(1:NWORDS))      !<-- 1-D bndry data string for child tasks with Ebndry V points
@@ -1952,11 +1955,11 @@
               ALLOCATE(PD_B_EAST_V(N)%TASKS(NT)%DATA(1:NBASE*N_BLEND_V))
 !
               NLOC_1=1
-              NLOC_2=NLOC_1+LM*NBASE-1
+              NLOC_2=NLOC_1+NBASE_3D-1
               U_B_EAST(N)%TASKS(NT)%DATA=>CHILD_BOUND_V_EAST(N)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- U_B_EAST storage location
 !
               NLOC_1=NLOC_2+1
-              NLOC_2=NLOC_1+LM*NBASE-1
+              NLOC_2=NLOC_1+NBASE_3D-1
               V_B_EAST(N)%TASKS(NT)%DATA=>CHILD_BOUND_V_EAST(N)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- V_B_EAST storage location
 !
             ENDDO
@@ -8116,11 +8119,10 @@
 !
       REAL :: COEFF_1,COEFF_2,D_LNP_DFI,FIS_CHILD                       &
              ,LOG_P1_PARENT,PDTOP_PT,PHI_DIFF,PSFC_CHILD                &
+             ,PX_NE,PX_NW,PX_SE,PX_SW                                   &
              ,Q_INTERP,T_INTERP
 !
       REAL :: WGHT_NE,WGHT_NW,WGHT_SE,WGHT_SW
-!
-      REAL,DIMENSION(IMS:IME,JMS:JME) :: PX
 !
       REAL,DIMENSION(:,:),ALLOCATABLE :: LOG_PBOT                       &
                                         ,LOG_PTOP
@@ -8303,15 +8305,15 @@
             WGHT_NW=WEIGHT_BND(I,J,INDX_NW)                                !<-- Bilinear weight for parent's point NW of nest's point
             WGHT_NE=WEIGHT_BND(I,J,INDX_NE)                                !<-- Bilinear weight for parent's point NE of nest's point
 !
-            PX(I_WEST,J_SOUTH)=PD(I_WEST,J_SOUTH)+PT                 !<-- Sfc pressure on parent point SW of nest point
-            PX(I_EAST,J_SOUTH)=PD(I_EAST,J_SOUTH)+PT                 !<-- Sfc pressure on parent point SE of nest point
-            PX(I_WEST,J_NORTH)=PD(I_WEST,J_NORTH)+PT                 !<-- Sfc pressure on parent point NW of nest point
-            PX(I_EAST,J_NORTH)=PD(I_EAST,J_NORTH)+PT                 !<-- Sfc pressure on parent point NE of nest point
+            PX_SW=PD(I_WEST,J_SOUTH)+PT                                    !<-- Sfc pressure on parent point SW of nest point
+            PX_SE=PD(I_EAST,J_SOUTH)+PT                                    !<-- Sfc pressure on parent point SE of nest point
+            PX_NW=PD(I_WEST,J_NORTH)+PT                                    !<-- Sfc pressure on parent point NW of nest point
+            PX_NE=PD(I_EAST,J_NORTH)+PT                                    !<-- Sfc pressure on parent point NE of nest point
 !
-            PINT_INTERP(I,J,LM+1)=WGHT_SW*PX(I_WEST,J_SOUTH)            &  !<-- Parent's surface pressure interp'd to this child's 
-                                 +WGHT_SE*PX(I_EAST,J_SOUTH)            &  !    gridpoint (I,J) along child's boundary 
-                                 +WGHT_NW*PX(I_WEST,J_NORTH)            &  !    on child task NTX.
-                                 +WGHT_NE*PX(I_EAST,J_NORTH)
+            PINT_INTERP(I,J,LM+1)=WGHT_SW*PX_SW                         &  !<-- Parent's surface pressure interp'd to this child's 
+                                 +WGHT_SE*PX_SE                         &  !    gridpoint (I,J) along child's boundary 
+                                 +WGHT_NW*PX_NW                         &  !    on child task NTX.
+                                 +WGHT_NE*PX_NE              
 !
             LOG_PBOT(I,J)=LOG(PINT_INTERP(I,J,LM+1))                       !<-- Log of parent's horizontally interpolated sfc pressure 
                                                                            !    at child boundary point (I,J)
@@ -8343,20 +8345,20 @@
               J_SOUTH=J_INDX_PARENT_BND(I,J,1)                             !<-- Parent J index on or south of child's boundary point
               J_NORTH=J_INDX_PARENT_BND(I,J,2)                             !<-- Parent J index north of child's boundary point
 !
-              PX(I_WEST,J_SOUTH)=SG2(L)*PD(I_WEST,J_SOUTH)+PDTOP_PT        !<-- Pressure, top of layer L, parent point SW of nest point
-              PX(I_EAST,J_SOUTH)=SG2(L)*PD(I_EAST,J_SOUTH)+PDTOP_PT        !<-- Pressure, top of layer L, parent point SE of nest point
-              PX(I_WEST,J_NORTH)=SG2(L)*PD(I_WEST,J_NORTH)+PDTOP_PT        !<-- Pressure, top of layer L, parent point NW of nest point
-              PX(I_EAST,J_NORTH)=SG2(L)*PD(I_EAST,J_NORTH)+PDTOP_PT        !<-- Pressure, top of layer L, parent point NE of nest point
+              PX_SW=SG2(L)*PD(I_WEST,J_SOUTH)+PDTOP_PT                     !<-- Pressure, top of layer L, parent point SW of nest point
+              PX_SE=SG2(L)*PD(I_EAST,J_SOUTH)+PDTOP_PT                     !<-- Pressure, top of layer L, parent point SE of nest point
+              PX_NW=SG2(L)*PD(I_WEST,J_NORTH)+PDTOP_PT                     !<-- Pressure, top of layer L, parent point NW of nest point
+              PX_NE=SG2(L)*PD(I_EAST,J_NORTH)+PDTOP_PT                     !<-- Pressure, top of layer L, parent point NE of nest point
 !
               WGHT_SW=WEIGHT_BND(I,J,INDX_SW)                              !<-- Bilinear weight for parent's point SW of child's point
               WGHT_SE=WEIGHT_BND(I,J,INDX_SE)                              !<-- Bilinear weight for parent's point SE of child's point
               WGHT_NW=WEIGHT_BND(I,J,INDX_NW)                              !<-- Bilinear weight for parent's point NW of child's point
               WGHT_NE=WEIGHT_BND(I,J,INDX_NE)                              !<-- Bilinear weight for parent's point NE of child's point
 !
-              PINT_INTERP(I,J,L)=WGHT_SW*PX(I_WEST,J_SOUTH)             &  !<-- Top interface pressure interp'd to child gridpoint
-                                +WGHT_SE*PX(I_EAST,J_SOUTH)             &  !    along child's boundary for child task NTX
-                                +WGHT_NW*PX(I_WEST,J_NORTH)             &
-                                +WGHT_NE*PX(I_EAST,J_NORTH)
+              PINT_INTERP(I,J,L)=WGHT_SW*PX_SW                          &  !<-- Top interface pressure interp'd to child gridpoint
+                                +WGHT_SE*PX_SE                          &  !    along child's boundary for child task NTX
+                                +WGHT_NW*PX_NW                          &
+                                +WGHT_NE*PX_NE               
 !
               LOG_PTOP(I,J)=LOG(PINT_INTERP(I,J,L))                        !<-- Log of parent (top) interface pressure at child bndry point
 !
@@ -8375,9 +8377,6 @@
                                *(LOG_PBOT(I,J)-LOG_PTOP(I,J))
 !
               LOG_PBOT(I,J)=LOG_PTOP(I,J)                                  !<--- Move Log(Ptop) to bottom of next model layer up
-              LOG_PBOT(I,J)=LOG_PTOP(I,J)                                  ! 
-              LOG_PBOT(I,J)=LOG_PTOP(I,J)                                  ! 
-              LOG_PBOT(I,J)=LOG_PTOP(I,J)                                  !<--
 !
             ENDDO
             ENDDO
@@ -9323,7 +9322,7 @@
             IF(N_SIDE<=2)THEN
               N_OFFSET_H=(DIFF_START+1)*(J-J_START_V+1)-1
             ELSEIF(N_SIDE>=3)THEN
-              N_OFFSET_H=(J-J_START_V)*N_BLEND_H+DIFF_START_PTS
+              N_OFFSET_H=J-J_START_V+DIFF_START_PTS
             ENDIF
 !
             DO I=I_START_V,I_END_V

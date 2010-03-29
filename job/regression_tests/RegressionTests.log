@@ -1,4 +1,4 @@
-Fri Mar 26 07:53:50 EDT 2010
+Fri Mar 26 13:18:13 EDT 2010
 Start Regression test
 
 
@@ -29,7 +29,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  146.92  , test_glob timing:  148.22
+ Original timing:  146.92  , test_glob timing:  147.90
 
 
 Test 002
@@ -170,7 +170,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  235.58  , test_reg timing:  236.22
+ Original timing:  235.58  , test_reg timing:  235.91
 
 
 Test 009
@@ -652,7 +652,7 @@ Checking test 029 results ....
  Comparing flxf48.........OK
  Test 029 passed 
 Test 030
-GFS,16 proc, 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid
+GFS,16 proc, 2 thread, quilt,2x2 wrt pe, HYB digital filter on reduced grid
 GFS, 16 proc, 2 thread
 
 
@@ -732,4 +732,4 @@ Checking test 031 results ....
  Comparing FLX.F24_03.........OK
  Comparing FLX.F24_04.........OK
  Test 031 passed 
-Fri Mar 26 11:49:51 EDT 2010
+Fri Mar 26 18:31:40 EDT 2010
