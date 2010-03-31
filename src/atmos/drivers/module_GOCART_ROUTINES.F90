@@ -15,6 +15,7 @@
 !
 ! PROGRAM HISTORY LOG:
 !   2010-03-05  Lu    - Create the module
+!   2010-03-05  Lu    - Change chemistry_on from out to inout
 !
 !-----------------------------------------------------------------------
 !
@@ -76,7 +77,7 @@
       TYPE(ESMF_State),   INTENT(INOUT) :: EXP_GFS_CHEM                    !<-- The gocart export state
       TYPE(ESMF_CplComp), INTENT(INOUT) :: GC_PHY2CHEM_CPL                 !<-- Phy to Chem coupler component
       TYPE(ESMF_CplComp), INTENT(INOUT) :: GC_CHEM2PHY_CPL                 !<-- Chem to Phy coupler component
-      TYPE(ESMF_Logical), INTENT(OUT)   :: CHEMISTRY_ON                    !<-- The option to activate gocart
+      TYPE(ESMF_Logical), INTENT(INOUT) :: CHEMISTRY_ON                    !<-- The option to activate gocart
       INTEGER,OPTIONAL,   INTENT(OUT)   :: RC_SETUP                        !<-- Return code for the SETUP step
 !
 !---------------------

@@ -30,6 +30,7 @@
 # 2010-01-14  Sarah Lu : Added GOCART_CLIM and GOCART_LUTS
 # 2010-02     Jun Wang  Add restart
 # 2010-02-06  Sarah Lu : modify phy_namelist.rc (set p_export/dp_export to 1)
+# 2010-03-23  Sarah Lu : add passive_tracer to atm_namelist.rc 
 #
 # Usage:  global_forecast.sh GRDI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO
 #
@@ -387,6 +388,7 @@ export NTRAC=${NTRAC:-$(echo ntrac|$SIGHDR ${SIGI}$FM)}
 export IDVC=${IDVC:-$(echo idvc|$SIGHDR ${SIGI}$FM)}
 export NMTVR=${NMTVR:-14}
 export LSOIL=${LSOIL:-4}
+export PASSIVE_TRACER=${PASSIVE_TRACER:-.false.}
 export NTOZ=${NTOZ:-2}
 export NTCW=${NTCW:-3}
 export NCLD=${NCLD:-1}
@@ -832,6 +834,8 @@ global:               .true.
 nhours_dfini:         ${FHDFI}
 adiabatic:            ${ADIAB}
 lsoil:                ${LSOIL}
+passive_tracer:       ${PASSIVE_TRACER}
+
 
 #jwstart added quilt
 ###############################

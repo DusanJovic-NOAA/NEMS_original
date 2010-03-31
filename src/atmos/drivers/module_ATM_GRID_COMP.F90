@@ -38,6 +38,7 @@
 !                       DYN-PHY-CPL to DYN-CPL-PHY)
 !   2010-03-05  Lu    - Add GOCART_SETUP (to create and register GOCART) and
 !                       GOCART_INIT (to initialize GOCART)
+!   2010-03-23  Lu    - Add passive_tracer option
 
 !
 ! USAGE: ATM Gridded component parts called from subroutines within
@@ -2291,6 +2292,33 @@
         write(0,*)' Initialize with physics coupling '
       ENDIF
 !
+
+!-----------------------------------------------------------------------
+!***  Is this a passive_tracer (no chemistry) run?
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Chemistry On/Off Switch from GFS Config Object"
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &
+                                  ,value =MODE                          &
+                                  ,label ='passive_tracer:'             &
+                                  ,rc    =rc)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      IF(TRIM(MODE)=='.true.')THEN                                         !<-- passive tracer => chemistry off
+        CHEMISTRY_ON=ESMF_False
+        write(0,*)' Initialize without chemistry coupling '
+      ELSE                                                                 !<-- non-passive tracer => chemistry on
+        CHEMISTRY_ON=ESMF_True
+        write(0,*)' Initialize with chemistry coupling '
+      ENDIF
+
+                                         
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !***  Create the Physics gridded subcomponent if physics is turned on.
@@ -2407,7 +2435,12 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-      CALL GOCART_SETUP ( GC_GFS_CHEM                                  &
+
+      IF(CHEMISTRY_ON==ESMF_True)THEN
+
+       MESSAGE_CHECK="Setup GOCART and PHY-CHEM/CHEM-PHY coupler"
+
+       CALL GOCART_SETUP ( GC_GFS_CHEM                                 &
                          ,IMP_GFS_CHEM                                 &
                          ,EXP_GFS_CHEM                                 &
                          ,GC_PHY2CHEM_CPL                              &
@@ -2416,6 +2449,8 @@
                          ,RC                                           &
                           )
 
+       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Will the Write components with asynchronous quilting be used?
