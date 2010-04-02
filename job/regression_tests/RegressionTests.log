@@ -1,4 +1,4 @@
-Tue Mar 30 11:41:54 EDT 2010
+Thu Apr  1 11:17:19 EDT 2010
 Start Regression test
 
 
@@ -29,7 +29,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  146.92  , test_glob timing:  148.28
+ Original timing:  146.92  , test_glob timing:  156.90
 
 
 Test 002
@@ -170,7 +170,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  235.58  , test_reg timing:  236.28
+ Original timing:  235.58  , test_reg timing:  243.93
 
 
 Test 009
@@ -732,4 +732,4 @@ Checking test 031 results ....
  Comparing FLX.F24_03.........OK
  Comparing FLX.F24_04.........OK
  Test 031 passed 
-Tue Mar 30 19:22:03 EDT 2010
+Thu Apr  1 16:38:41 EDT 2010

@@ -56,6 +56,7 @@ ln -sf /nwprod/fix/global_o3clim.txt fort.48
 
 cp $SRCDIR/job/regression_tests/dyn_state.txt .
 cp $SRCDIR/job/regression_tests/phy_state.txt .
+cp $SRCDIR/job/regression_tests/ts_locations.nml .
 
 echo "Model started:  " `date`
 

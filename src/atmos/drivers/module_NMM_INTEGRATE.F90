@@ -118,6 +118,12 @@
 !
 !-----------------------------------------------------------------------
 !
+      USE MODULE_DYNAMICS_INTERNAL_STATE, ONLY: DYNAMICS_INTERNAL_STATE &
+                                               ,WRAP_DYN_INT_STATE
+      USE MODULE_PHYSICS_INTERNAL_STATE, ONLY: PHYSICS_INTERNAL_STATE   &
+                                             , WRAP_PHY_INT_STATE
+      USE MODULE_TIMESERIES
+!
 !-----------------
 !*** Arguments IN
 !-----------------
@@ -206,6 +212,12 @@
 !
       TYPE(WRAP_ATM_INTERNAL_STATE) :: WRAP
 !
+      TYPE(WRAP_DYN_INT_STATE) :: WRAP_DYN
+      TYPE(WRAP_PHY_INT_STATE) :: WRAP_PHY
+      TYPE(DYNAMICS_INTERNAL_STATE),POINTER :: DYN_INT_STATE
+      TYPE(PHYSICS_INTERNAL_STATE),POINTER :: PHY_INT_STATE
+      INTEGER :: IERR
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -257,6 +269,27 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       ATM_INT_STATE=>wrap%ATM_INT_STATE
+!
+!-----------------------------------------------------------------------
+!***  Forecast tasks extract the Dynamics and Phsyics internal states
+!***  needed for timeseries output.
+!-----------------------------------------------------------------------
+!
+      IF(MYPE<atm_int_state%NUM_PES_FCST)THEN
+!
+        CALL ESMF_GridCompGetInternalState(atm_int_state%DYN_GRID_COMP    &  !<-- The Dynamics component
+                                          ,WRAP_DYN                       &  !<-- The F90 wrap of the Dynamics internal state
+                                          ,RC)
+!
+        DYN_INT_STATE => WRAP_DYN%INT_STATE
+!
+        CALL ESMF_GridCompGetInternalState(atm_int_state%PHY_GRID_COMP    &  !<-- The Physics component
+                                          ,WRAP_PHY                       &  !<-- The F90 wrap of the Physics internal state
+                                          ,RC)
+!
+        PHY_INT_STATE => WRAP_PHY%INT_STATE
+!
+      END IF
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -358,6 +391,38 @@
         ENDIF  history_output_0_b
 !
 !-----------------------------------------------------------------------
+!***  Initialize the timeseries output and write timestep 0 data
+!***  for this domain.
+!-----------------------------------------------------------------------
+!
+        time_series_0: IF(NTIMESTEP==0) THEN
+!
+          IF(MYPE<atm_int_state%NUM_PES_FCST)THEN
+!
+            CALL TIMESERIES_INITIALIZE(DYN_INT_STATE                    &
+                                      ,PHY_INT_STATE                    &
+                                      ,MY_DOMAIN_ID                     &
+                                      ,IERR)
+!
+            IF (IERR /= 0) THEN
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            END IF
+!
+            CALL TIMESERIES_RUN(DYN_INT_STATE                           &
+                               ,PHY_INT_STATE                           &
+                               ,MY_DOMAIN_ID                            &
+                               ,NTIMESTEP                               &
+                               ,IERR)
+!
+            IF (IERR /= 0) THEN
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            END IF
+!
+          END IF
+!
+        END IF time_series_0
+!
+!-----------------------------------------------------------------------
 !***  Execute the Run step of the ATM components.
 !-----------------------------------------------------------------------
 !
@@ -441,6 +506,24 @@
           WRITE(0,25)NTIMESTEP-1,NTIMESTEP*DT/3600.
    25     FORMAT(' Finished Timestep ',i5,' ending at ',f7.3,' hours')
         ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Write timeseries data for this timestep on this domain.
+!-----------------------------------------------------------------------
+!
+        IF(MYPE<atm_int_state%NUM_PES_FCST)THEN
+!
+          CALL TIMESERIES_RUN(DYN_INT_STATE                             &
+                             ,PHY_INT_STATE                             &
+                             ,MY_DOMAIN_ID                              &
+                             ,NTIMESTEP                                 &
+                             ,IERR)
+!
+          IF (IERR /= 0) THEN
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          END IF
+!
+        END IF
 !
 !-----------------------------------------------------------------------
 !***  Call the 2nd Phase of the Parent_Child coupler where parents
@@ -747,12 +830,12 @@
       SUBROUTINE RESET_ALARMS           
 !
 !-----------------------------------------------------------------------
-!***  FOR NORMAL FORECAST INTEGRATION SET THE ALARM RING TIMES
-!***  WHILE ACCOUNTING FOR RESTARTS AND DIGITAL FILTERING.
+!***  For normal forecast integration set the Alarm ring times
+!***  while accounting for restarts and digital filtering.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
+!***  Local Variables
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------

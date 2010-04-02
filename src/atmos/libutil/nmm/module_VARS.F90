@@ -34,6 +34,7 @@
         LOGICAL                            :: OWNED    = .FALSE.
         LOGICAL                            :: IMPORT   = .FALSE.
         LOGICAL                            :: EXPORT   = .FALSE.
+        LOGICAL                            :: TSERIES  = .FALSE.
         CHARACTER(LEN=128)                 :: DESCRIPTION = ''
 
         INTEGER                            :: TKR      = 0
@@ -88,7 +89,7 @@
 
         INTEGER :: N,IOS,NVARS
         CHARACTER(LEN=256) :: STRING
-        CHARACTER(LEN=1) :: CH_H,CH_R,CH_O,CH_I,CH_X
+        CHARACTER(LEN=1) :: CH_H,CH_R,CH_O,CH_I,CH_X,CH_T
 
 !-----------------------------------------------------------------------
 
@@ -112,7 +113,7 @@
 !***  Read the text line containing the specifications for variable N
 !---------------------------------------------------------------------
 !
-          READ(UNIT=STRING,FMT=*,IOSTAT=ios) VARS(N)%VBL_NAME,CH_H,CH_R,CH_O,CH_I,CH_X,VARS(N)%DESCRIPTION
+          READ(UNIT=STRING,FMT=*,IOSTAT=ios) VARS(N)%VBL_NAME,CH_H,CH_R,CH_O,CH_I,CH_X,CH_T,VARS(N)%DESCRIPTION
 
           IF (IOS/=0) THEN
             IF (IOS>0) THEN
@@ -135,6 +136,7 @@
           IF (CH_O=='O') VARS(N)%OWNED  =.TRUE.
           IF (CH_I=='I') VARS(N)%IMPORT =.TRUE.
           IF (CH_X=='X') VARS(N)%EXPORT =.TRUE.
+          IF (CH_T=='T') VARS(N)%TSERIES=.TRUE.
 
         END DO  read_specs
 
