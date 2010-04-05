@@ -46,9 +46,9 @@
       USE MODULE_GET_CONFIG_PHY
       USE MODULE_FLTBNDS,ONLY : POLEHN,POLEWN,SWAPHN,SWAPWN
 !
-      USE MODULE_RADIATION    ,ONLY : GFDL_INIT,RADIATION,RDTEMP        &
-                                     ,RRTMINIT,SWINIT,TIME_MEASURE
-      USE MODULE_RADIATION_RRTM,ONLY: RADIATION_RRTM,RRTMNEW_INIT
+      USE MODULE_RADIATION    ,ONLY : RADIATION
+      USE MODULE_RA_GFDL      ,ONLY : GFDL_INIT,RDTEMP,TIME_MEASURE
+      USE MODULE_RA_RRTM      ,ONLY : RRTM_INIT
       USE MODULE_TURBULENCE   ,ONLY : TURBL
       USE MODULE_SF_JSFC      ,ONLY : JSFC_INIT
       USE MODULE_BL_MYJPBL    ,ONLY : MYJPBL_INIT
@@ -1183,8 +1183,6 @@
 !***  rather than inside RADIATION_DRIVER (will be done later)
 !-----------------------------------------------------------------------
 !
-          IF(TRIM(int_state%SHORTWAVE)=='rrtm'.AND.TRIM(int_state%LONGWAVE)=='rrtm')THEN
-!
           CALL ESMF_ClockGet(clock       =CLOCK                         &  !<-- The ESMF Clock
                             ,currTime    =CURRTIME                      &  !<-- The current time (ESMF) on the clock
                             ,rc          =RC)
@@ -1200,39 +1198,6 @@
           JDAT(4)=0
           JDAT(8)=0
 !
-          CALL RADIATION_RRTM(NTIMESTEP_RAD,int_state%DT_INT,JDAT       &
-                         ,int_state%NPHS,int_state%GLAT,int_state%GLON  &
-                         ,int_state%NRADS,int_state%NRADL               &
-                         ,DSG2,SGML2,PDSG1,PSGML1                       &
-                         ,int_state%PT,int_state%PD                     &
-                         ,int_state%T,int_state%Q                       &
-                         ,int_state%CW,int_state%O3                     &
-                         ,int_state%ALBEDO                              &
-                         ,int_state%F_ICE,int_state%F_RAIN              &
-                         ,int_state%P_QV,int_state%P_QC,int_state%P_QR  &
-                         ,int_state%P_QI,int_state%P_QS,int_state%P_QG  &
-                         ,int_state%SM,int_state%CLDFRA                 &
-                         ,int_state%NUM_WATER,int_state%WATER           &
-                         ,int_state%RLWTT,int_state%RSWTT               &
-                         ,int_state%RLWIN,int_state%RSWIN               &
-                         ,int_state%RSWINC,int_state%RSWOUT             &
-                         ,int_state%RLWTOA,int_state%RSWTOA             &
-                         ,int_state%CZMEAN,int_state%SIGT4              &
-                         ,int_state%CFRACL,int_state%CFRACM             &
-                         ,int_state%CFRACH                              &
-                         ,int_state%ACFRST,int_state%NCFRST             &
-                         ,int_state%ACFRCV,int_state%NCFRCV             &
-                         ,int_state%CUPPT,int_state%SNO                 &
-                         ,int_state%SI                                  &
-                         ,int_state%HTOP,int_state%HBOT                 &
-                         ,int_state%TSKIN,int_state%Z0,int_state%SICE   &
-                         ,int_state%F_RIMEF                             &
-                         ,int_state%MXSNAL,int_state%SGM,int_state%STDH &
-                         ,int_state%OMGALF                              &
-                         ,LM)
-
-          ELSE
-
           CALL RADIATION(NTIMESTEP_RAD                                  &
                         ,int_state%DT,JULDAY,JULYR,XTIME,JULIAN         &
                         ,START_HOUR,int_state%NPHS                      &
@@ -1240,9 +1205,8 @@
                         ,int_state%NRADS,int_state%NRADL                &
                         ,DSG2,SGML2,PDSG1,PSGML1                        &
                         ,int_state%PT,int_state%PD                      &
-                        ,int_state%T,int_state%Q,int_state%CW           &
-                        ,int_state%THS,int_state%ALBEDO,int_state%EPSR  &
-                        ,int_state%F_ICE,int_state%F_RAIN               &
+                        ,int_state%T,int_state%Q                        &
+                        ,int_state%THS,int_state%ALBEDO                 &
                         ,int_state%P_QV,int_state%P_QC,int_state%P_QR   &
                         ,int_state%P_QI,int_state%P_QS,int_state%P_QG   &
                         ,int_state%F_QV,int_state%F_QC,int_state%F_QR   &
@@ -1258,12 +1222,20 @@
                         ,int_state%CFRACH                               &
                         ,int_state%ACFRST,int_state%NCFRST              &
                         ,int_state%ACFRCV,int_state%NCFRCV              &
-                        ,int_state%CUPPT,int_state%VEGFRC,int_state%SNO &
+                        ,int_state%CUPPT,int_state%SNO                  &
                         ,int_state%HTOP,int_state%HBOT                  &
                         ,int_state%SHORTWAVE,int_state%LONGWAVE         &
+!---- RRTM part ---------------------------------------------------------
+                        ,int_state%DT_INT,JDAT                          &
+                        ,int_state%CW,int_state%O3                      &
+                        ,int_state%F_ICE,int_state%F_RAIN               &
+                        ,int_state%F_RIMEF                              &
+                        ,int_state%SI,int_state%TSKIN                   &
+                        ,int_state%Z0,int_state%SICE                    &
+                        ,int_state%MXSNAL,int_state%SGM                 &
+                        ,int_state%STDH,int_state%OMGALF                &
+!------------------------------------------------------------------------
                         ,LM)
-!
-          ENDIF
 !
           radiation_tim=radiation_tim+(timef()-btim)
 !
@@ -2254,7 +2226,6 @@
              IOVR_SW, IOVR_LW, F_ICE, F_RAIN, R_RIME, FLGMIN_L,      &
              NUM_P3D, NTCW-1, NCLD, NTOZ-1, NTRAC-1, NFXR,           &
              DTLW, DTSW, LSSWR, LSLWR, LSSAV, SASHAL,                &
-!rrr         DTLW, DTSW, LSSWR, LSLWR, LSSAV, LDIAG3D, SASHAL,       &
              1, 1, LM, IFLIP, MYPE, LPRNT,                           &
 !  ---  outputs:
              SWH, SFCNSW, SFCDSW,                                    &
@@ -3565,7 +3536,7 @@
 !
             GMT=REAL(IHOUR_FCST)
 
-            CALL RRTMNEW_INIT(EMISS,SFULL_FLIP,SMID_FLIP,PT_CB         &
+            CALL RRTM_INIT(EMISS,SFULL_FLIP,SMID_FLIP,PT_CB            &
                           ,JULYR,START_MONTH,START_DAY,GMT             &
                           ,CO2TF                                       &
                           ,IDS,IDE,JDS,JDE,1,LM+1                      &
@@ -3584,15 +3555,15 @@
           CASE ('gfdl')
 !           WRITE(0,*)' Already called GFDL_INIT from LONGWAVE'
           CASE ('rrtm')
-!           WRITE(0,*)' Already called RRTMNEW_INIT from LONGWAVE'
+!           WRITE(0,*)' Already called RRTM_INIT from LONGWAVE'
 !!!       CASE ('gsfc')
 !!!         CALL GSFC_INIT
           CASE ('dudh')
-            CALL SWINIT(SWRAD_SCAT,int_state%RESTART                   &
-                       ,ALLOWED_TO_READ                                &
-                       ,IDS,IDE,JDS,JDE,1,LM+1                         &
-                       ,IMS,IME,JMS,JME,1,LM+1                         &
-                       ,ITS,ITE,JTS,JTE,1,LM)
+!!!         CALL SWINIT(SWRAD_SCAT,int_state%RESTART                   &
+!!!                    ,ALLOWED_TO_READ                                &
+!!!                    ,IDS,IDE,JDS,JDE,1,LM+1                         &
+!!!                    ,IMS,IME,JMS,JME,1,LM+1                         &
+!!!                    ,ITS,ITE,JTS,JTE,1,LM)
           CASE DEFAULT
             WRITE(0,*)' BAD SELECTION OF SHORTWAVE SCHEME: INIT'
         END SELECT

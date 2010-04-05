@@ -55,11 +55,11 @@ MODULE_SMP=    \
 		module_CU_BMJ_DEV.o module_CONVECTION_DEV.o \
 		module_MP_ETANEW.o module_MP_WSM6.o module_MICROPHYSICS.o \
 		module_PHYSICS_INTERNAL_STATE.o \
-		module_RADIATION.o \
+		module_RADIATION.o module_RA_GFDL.o\
 		module_SF_JSFC.o module_BL_MYJPBL.o module_TURBULENCE.o
 
 MODULE_RRTM=    \
-		module_RADIATION_RRTM.o
+		module_RA_RRTM.o
 
 MODULE_RRTM_77= \
 		machine.o \

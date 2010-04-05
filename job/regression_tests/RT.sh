@@ -124,11 +124,11 @@ export TEST_NR=0
 clear;echo;echo
 
 #########################################################################
-# Clean and compile NMMB core
+# Clean and compile both NMMB & GFS cores
 #########################################################################
-if [ ${CB_arg} != gfs ]; then
-  echo "Preparing NMMB core for regression tests"
-  printf %s "Compiling NMMB core (this will take some time)......."
+
+  echo "Compiling NEMS for regression tests"
+  printf %s "Compiling NEMS (this will take some time)......."
   cd ${PATHTR}/build
 
   ./clean_stub.sh                        >> ${PATHRT}/Compile.log 2>&1
@@ -142,7 +142,6 @@ if [ ${CB_arg} != gfs ]; then
     echo "   NMMB core is NOT compiled"
     exit
   fi
-fi
 
 cd $PATHRT
 

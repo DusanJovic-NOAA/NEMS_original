@@ -1,6 +1,6 @@
 
 !
-      MODULE MODULE_RADIATION_RRTM
+      MODULE MODULE_RA_RRTM
 !
 !-----------------------------------------------------------------------
 !
@@ -33,7 +33,7 @@
 !
       PRIVATE
 !
-      PUBLIC :: RADIATION_RRTM,RRTMNEW_INIT
+      PUBLIC :: RRTM,RRTM_INIT
 !
 !-----------------------------------------------------------------------
 !
@@ -55,11 +55,8 @@
       REAL, PARAMETER ::  &
      &   TRAD_ice=0.5*T_ice      & !--- Very tunable parameter
      &,  ABSCOEF_W=800.          & !--- Very tunable parameter
-!zj     &,  ABSCOEF_I=500.          & !--- Very tunable parameter
      &,  ABSCOEF_I=0.            & !--- Very tunable parameter
-!zj     &,  Qconv=0.1e-3            & !--- Very tunable parameter
      &,  Qconv=0.01e-3            & !--- Very tunable parameter
-!zj     &,  Qconv=0.0                & !--- Very tunable parameter
 
      &,  CTauCW=ABSCOEF_W*Qconv  &
      &,  CTauCI=ABSCOEF_I*Qconv
@@ -76,7 +73,7 @@
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
-      SUBROUTINE RADIATION_RRTM (NTIMESTEP,DT_INT,JDAT                  &
+      SUBROUTINE RRTM (NTIMESTEP,DT_INT,JDAT                            &
      &                    ,NPHS,GLAT,GLON                               &
      &                    ,NRADS,NRADL                                  &
      &                    ,DSG2,SGML2,PDSG1,PSGML1                      &
@@ -174,7 +171,7 @@
 !
       REAL*8,SAVE :: FACOZ
 !
-      REAL*8,DIMENSION(1) :: FLGMIN_L, CV, CVB, CVT,XLAT, HPRIME_V, TSEA, &                  ! (cv, cvb, cvt not in use when ntcw-1 > 0)
+      REAL*8,DIMENSION(1) :: FLGMIN_L, CV, CVB, CVT,XLAT, HPRIME_V, TSEA, &
                              TISFC, FICE, ZORL, SLMSK, SNWDPH, SNCOVR,    &
                              SNOALB, ALVSF1, ALNSF1, ALVWF1, ALNWF1,      &
                              FACSF1, FACWF1, SFCNSW, SFCDSW, SFALB,       &
@@ -725,10 +722,6 @@
                   IXSD=INT(ARG/DXSD+HALF)
                   IXSD=MIN(NXSD, MAX(IXSD,1))
                   CLFR=HALF+AXSD(IXSD)
-!                  if (SDprint)                                          &
-!     & write(6,"(a,3i3,i4,f8.4,f7.4,2f6.3,f7.3,f6.1,f6.0)")                 &
-!     & 'I,LL,J,IXSD,ARG,SDM,CLFR,RHtot,QSAT,T,P=', I,LL,J,IXSD,ARG,SDM,CLFR,RHtot     &
-!     & ,1000.*QSAT,TCLD,.01*PMID(I,LL)
                ENDIF              !--- End IF (ARG .GE. XSDmax)
             ELSE
                IF (ARG .LE. XSDmin) THEN
@@ -737,10 +730,6 @@
                   IXSD=INT(ARG/DXSD1+HALF)
                   IXSD=MIN(NXSD, MAX(IXSD,1))
                   CLFR=HALF-AXSD(IXSD)
-!                  if (SDprint)                                          &
-!     & write(6,"(a,3i3,i4,f8.4,f7.4,2f6.3,f7.3,f6.1,f6.0)")                 &
-!     & 'I,LL,J,IXSD,ARG,SDM,CLFR,RHtot,QSAT,T,P=', I,LL,J,IXSD,ARG,SDM,CLFR,RHtot     &
-!     & ,1000.*QSAT,TCLD,.01*PMID(I,LL)
                   IF (CLFR .LT. CLFRmin) CLFR=H0
                ENDIF        !--- End IF (ARG .LE. XSDmin)
             ENDIF           !--- IF (ARG.LE.DXSD2 .AND. ARG.GE.DXSD2N)
@@ -936,8 +925,6 @@
 
             TAUTOTAL(I,J,L)=CTau*DELP                          !Total model level cloud optical depth
             CLDFRA(I,J,L)=MAX(CCMID(I,J,LL),CSMID(I,J,LL))     !Cloud fraction at model level           
-!            CLDFRA(I,J,L)=CAMT(I,J,NC)                        !Cloud fraction at model level
-!
             TauC=TauC+DELP*CTau                                !Total cloud optical depth as in GFDL
 !
           ENDIF      !--- End IF(LL.GE.KTOP(I,NC) ....
@@ -1232,8 +1219,7 @@
 
       ENDDO ! End DO I=ITS,ITE
       ENDDO ! End DO J=ITS,JTE
-!
-!
+!!
       DO J=JTS,JTE
       DO I=ITS,ITE
 
@@ -1258,10 +1244,6 @@
           ACFRST(I,J)=ACFRST(I,J)+CFRAVG
           NCFRST(I,J)=NCFRST(I,J)+1
         ENDIF
-
-!        DO L=1,LM
-!          CLDFRA(I,J,L)=MAX(CCMID(I,J,L),CSMID(I,J,L))
-!        ENDDO
 
       ENDDO  !  DO I=ITS,ITE
       ENDDO  !  DO J=JTS,JTE
@@ -1293,11 +1275,11 @@
 
 !-----------------------------------------------------------------------
 !
-      END SUBROUTINE RADIATION_RRTM
+      END SUBROUTINE RRTM
 !
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
-      SUBROUTINE RRTMNEW_INIT(EMISS,SFULL,SHALF,PPTOP,                  &
+      SUBROUTINE RRTM_INIT(EMISS,SFULL,SHALF,PPTOP,                     &
      &                     JULYR,MONTH,IDAY,GMT,                        &
      &                     CO2TF,                                       &
      &                     IDS, IDE, JDS, JDE, KDS, KDE,                &
@@ -1345,7 +1327,6 @@
       PTOPC(2)=PTOP_LO*100.
       PTOPC(3)=PTOP_MID*100.
       PTOPC(4)=PTOP_HI*100.
-!      print*,'PTOPC=',PTOPC,'LTOP=',LTOP
 !
 !***  FOR NOW, GFDL RADIATION ASSUMES EMISSIVITY = 1.0
 !
@@ -1364,19 +1345,10 @@
       DO I=1,NXSD
         XSD=REAL(I)*DXSD
         AXSD(I)=GAUSIN(XSD)
-!      print *,'I, XSD, AXSD =',I,XSD,AXSD(I)
       ENDDO
-!! !***
-!! !***  MESO STANDARD DEVIATION OF EK AND MAHRT'S CLOUD COVER ALOGRITHM
-!! !***
-!!         SDM=-0.03-0.00015*DX+0.02*LOG(DX)  ! meso SD
-!!         if (SDprint) print *,'DX, SDM=',DX,SDM
-!       if (SDprint) print *,                                            &
-!     & 'RHgrd,T_ICE,NLImin,NLImax,FLARGE1,FLARGE2,MDImin,MDImax=',&
-!     &  RHgrd,T_ICE,NLImin,NLImax,FLARGE1,FLARGE2,MDImin,MDImax
 !
 !-----------------------------------------------------------------------
-      END SUBROUTINE RRTMNEW_INIT
+      END SUBROUTINE RRTM_INIT
 !-----------------------------------------------------------------------
 !----------------------------------------------------------------------
 !
@@ -1407,5 +1379,7 @@
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
-      END MODULE MODULE_RADIATION_RRTM
-
+!
+      END MODULE MODULE_RA_RRTM
+!
+!-----------------------------------------------------------------------
