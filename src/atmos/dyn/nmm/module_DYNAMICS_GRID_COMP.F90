@@ -372,6 +372,7 @@
                               ,int_state%NUM_TRACERS_MET                &
                               ,int_state%NUM_TRACERS_CHEM               &
                               ,int_state%MICROPHYSICS                   &
+                              ,int_state%LNSH, int_state%LNSV           &
                               ,RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

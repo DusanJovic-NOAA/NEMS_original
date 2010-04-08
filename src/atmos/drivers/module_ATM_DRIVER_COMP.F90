@@ -87,11 +87,11 @@
       TYPE(ESMF_Time),SAVE :: STARTTIME                                    !<-- The ESMF start time.
 !
       TYPE(ESMF_TimeInterval),SAVE :: INTERVAL_CLOCKTIME                &  !<-- ESMF time interval between clocktime prints (h)
-                                     ,INTERVAL_HISTORY                  &  !<-- ESMF time interval between history prints (h)
-                                     ,INTERVAL_RESTART                  &  !<-- ESMF time interval between restart prints (h)
                                      ,RUNDURATION                          !<-- The ESMF simulation length (sec)
 !
-      TYPE(ESMF_TimeInterval),DIMENSION(:),ALLOCATABLE :: TIMESTEP         !<-- The ESMF timestep (s)
+      TYPE(ESMF_TimeInterval),DIMENSION(:),ALLOCATABLE :: INTERVAL_HISTORY &  !<-- ESMF time interval between history output (h)
+                                                         ,INTERVAL_RESTART &  !<-- ESMF time interval between restart output (h)
+                                                         ,TIMESTEP            !<-- The ESMF timestep (s)
 !
       TYPE(ESMF_Clock),DIMENSION(:),ALLOCATABLE :: CLOCK_ATM_DRV           !<-- The ATM_DRIVER ESMF Clocks
 !
@@ -734,7 +734,7 @@
 !***  Local variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: ID_X,ISTAT,N
+      INTEGER(kind=KINT) :: ID_DOM,ID_X,ISTAT,N
 !
       INTEGER(kind=KINT) :: NHOURS_FCST                                 &  !<-- Length of forecast in hours
                            ,NHOURS_HISTORY                              &  !<-- Hours between history output
@@ -744,7 +744,8 @@
       INTEGER(kind=KINT) :: INPES,JNPES,LENGTH,N_TASKS                  &
                            ,WRITE_GROUPS,WRITE_TASKS_PER_GROUP
 !
-      INTEGER(kind=KINT),DIMENSION(MAX_DOMAINS) :: N_CONFIGURE=0           !<-- The configure file associated with each domain
+      INTEGER(kind=KINT),DIMENSION(MAX_DOMAINS) :: DOMAIN_ID_TO_RANK=0  &  !<-- The configure file associated with each domain ID
+                                                  ,RANK_TO_DOMAIN_ID=0     !<-- The domain ID associated with each configure file
 !
       INTEGER(kind=KINT),DIMENSION(:),POINTER :: CHILD_ID               &
                                                 ,PETLIST
@@ -857,7 +858,8 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NMM_DRV_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          N_CONFIGURE(ID_X)=N                                              !<-- The configure file for a given domain ID 
+          DOMAIN_ID_TO_RANK(ID_X)=N                                         !<-- The configure file rank for a given domain ID 
+          RANK_TO_DOMAIN_ID(N)=ID_X                                         !<-- The domain ID for a given configure file rank
 !
           NUM_DOMAINS=NUM_DOMAINS+1
 !
@@ -1021,12 +1023,14 @@
 !
       DO N=1,NUM_DOMAINS
 !
+        ID_DOM=RANK_TO_DOMAIN_ID(N)
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Create the ATM Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        atm_drv_int_state%IMP_STATE_ATM(N)=ESMF_StateCreate(             &  !<-- ATM import state
+        atm_drv_int_state%IMP_STATE_ATM(ID_DOM)=ESMF_StateCreate(        &  !<-- ATM import state
                                            statename='ATM Import State'  &  !<-- ATM import state name
                                           ,statetype= ESMF_STATE_IMPORT  &
                                           ,rc       = RC)
@@ -1058,7 +1062,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ConfigGetAttribute(config=CF(1)                       &  !<-- The config object
+      CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)            &  !<-- The config object
                                   ,value =RESTARTED_RUN               &  !<-- Logical flag indicating if this is a restarted run
                                   ,label ='restart:'                  &  !<-- Give this label's value to the previous variable
                                   ,rc    =RC)
@@ -1081,12 +1085,17 @@
       ALLOCATE(TIMESTEP     (1:NUM_DOMAINS))
       ALLOCATE(DT           (1:NUM_DOMAINS))
 !
+      ALLOCATE(INTERVAL_HISTORY(1:NUM_DOMAINS))
+      ALLOCATE(INTERVAL_RESTART(1:NUM_DOMAINS))
+!
 !-----------------------------------------------------------------------
 !***  Extract timestep information and history/restart output frequency 
 !***  from the config files of all domains.
 !-----------------------------------------------------------------------
 !
       timeinfo_loop: DO N=1,NUM_DOMAINS
+!
+        ID_DOM=RANK_TO_DOMAIN_ID(N)
 !
 !-----------------------------------------------------------------------
 !
@@ -1095,17 +1104,17 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_ConfigGetAttribute(config=CF(N)                       &  !<-- The config object for primary domain (#1)
+        CALL ESMF_ConfigGetAttribute(config=CF(ID_DOM)                  &  !<-- The config object for this domain
                                     ,value =TIMESTEP_SEC_WHOLE          &  !<-- The variable filled (integer part of timestep (sec))
                                     ,label ='dt_int:'                   &  !<-- Give this label's value to the previous variable
                                     ,rc    =RC)
 !
-        CALL ESMF_ConfigGetAttribute(config=CF(N)                       &  !<-- The config object for primary domain (#1)
+        CALL ESMF_ConfigGetAttribute(config=CF(ID_DOM)                  &  !<-- The config object for this domain
                                     ,value =TIMESTEP_SEC_NUMERATOR      &  !<-- The variable filled (numerator of timestep fraction)
                                     ,label ='dt_num:'                   &  !<-- Give this label's value to the previous variable
                                     ,rc    =RC)
 !
-        CALL ESMF_ConfigGetAttribute(config=CF(N)                       &  !<-- The config object for primary domain (#1)
+        CALL ESMF_ConfigGetAttribute(config=CF(ID_DOM)                  &  !<-- The config object for this domain
                                     ,value =TIMESTEP_SEC_DENOMINATOR    &  !<-- The variable filled (denominator of timestep fraction)
                                     ,label ='dt_den:'                   &  !<-- Give this label's value to the previous variable
                                     ,rc    =RC)
@@ -1123,19 +1132,19 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_TimeIntervalSet(timeinterval=TIMESTEP(N)                &  !<-- The fundamental timestep on domain N (sec) (ESMF)
-                                 ,s           =TIMESTEP_SEC_WHOLE         &
-                                 ,sn          =TIMESTEP_SEC_NUMERATOR     &
-                                 ,sd          =TIMESTEP_SEC_DENOMINATOR   &
+        CALL ESMF_TimeIntervalSet(timeinterval=TIMESTEP(ID_DOM)         &  !<-- The fundamental timestep on domain N (sec) (ESMF)
+                                 ,s           =TIMESTEP_SEC_WHOLE       &
+                                 ,sn          =TIMESTEP_SEC_NUMERATOR   &
+                                 ,sd          =TIMESTEP_SEC_DENOMINATOR &
                                  ,rc          =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NMM_DRV_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        DT(N)=TIMESTEP_SEC_WHOLE+                                       &  !<-- The domain's fundamental timestep (sec) (REAL)
-              REAL(TIMESTEP_SEC_NUMERATOR)                              &
-             /REAL(TIMESTEP_SEC_DENOMINATOR)
+        DT(ID_DOM)=TIMESTEP_SEC_WHOLE+                                  &  !<-- The domain's fundamental timestep (sec) (REAL)
+                   REAL(TIMESTEP_SEC_NUMERATOR)                         &
+                  /REAL(TIMESTEP_SEC_DENOMINATOR)
 !
 !-----------------------------------------------------------------------
 !***  Get the NMM history output interval (hours) from the config file.
@@ -1146,7 +1155,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_ConfigGetAttribute(config=CF(N)                       &  !<-- The configure object of this domain
+        CALL ESMF_ConfigGetAttribute(config=CF(ID_DOM)                  &  !<-- The configure object of this domain
                                     ,value =NHOURS_HISTORY              &  !<-- Fill this variable
                                     ,label ='nhours_history:'           &  !<-- Give the variable this label's value from the config file
                                     ,rc    =RC)
@@ -1164,7 +1173,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_TimeIntervalSet(timeinterval=INTERVAL_HISTORY         &  !<-- Time interval between
+        CALL ESMF_TimeIntervalSet(timeinterval=INTERVAL_HISTORY(ID_DOM) &  !<-- Time interval between
                                  ,h           =NHOURS_HISTORY           &  !<-- Hours between history
                                  ,rc          =RC)
 !
@@ -1181,7 +1190,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_ConfigGetAttribute(config=CF(N)                       &  !<-- The configure object of this domain
+        CALL ESMF_ConfigGetAttribute(config=CF(ID_DOM)                  &  !<-- The configure object of this domain
                                     ,value =NHOURS_RESTART              &  !<-- Fill this variable
                                     ,label ='nhours_restart:'           &  !<-- Give the variable this label's value from the config file
                                     ,rc    =RC)
@@ -1199,15 +1208,13 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_TimeIntervalSet(timeinterval=INTERVAL_RESTART         &  !<-- Time interval between restart output (ESMF)
+        CALL ESMF_TimeIntervalSet(timeinterval=INTERVAL_RESTART(ID_DOM) &  !<-- Time interval between restart output (ESMF)
                                  ,h           =NHOURS_RESTART           &  !<-- Hours between restart output (integer)
                                  ,rc          =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NMM_DRV_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
 !
       ENDDO timeinfo_loop
 !
@@ -1233,8 +1240,10 @@
 !
       clock_loop: DO N=1,NUM_DOMAINS
 !
+        ID_DOM=RANK_TO_DOMAIN_ID(N)
+!
 !-----------------------------------------------------------------------
-!***  Obtain the forecast length time from the configure file(s).
+!***  Obtain the forecast length time from the configure file.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1242,9 +1251,9 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_ConfigGetAttribute(config=CF(N)                         &
-                                    ,value =NHOURS_FCST                   &
-                                    ,label ='nhours_fcst:'                &
+        CALL ESMF_ConfigGetAttribute(config=CF(ID_DOM)                  &
+                                    ,value =NHOURS_FCST                 &
+                                    ,label ='nhours_fcst:'              &
                                     ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1273,7 +1282,7 @@
 !***  step of ATM_GRID_COMP.
 !-----------------------------------------------------------------------
 !
-        WRITE(INT_TO_CHAR,FMT)N
+        WRITE(INT_TO_CHAR,FMT)ID_DOM
         CLOCK_ATM_DRV_NAME='CLOCK_ATM_DRV_'//INT_TO_CHAR 
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1281,11 +1290,11 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CLOCK_ATM_DRV(N)=ESMF_ClockCreate(name       =CLOCK_ATM_DRV_NAME  &  !<-- The ATM_DRIVER Clock's name
-                                         ,timeStep   =TIMESTEP(N)         &  !<-- The fundamental timestep in this component 
-                                         ,startTime  =STARTTIME           &  !<-- Start time of simulation
-                                         ,runDuration=RUNDURATION         &  !<-- Duration of simulation
-                                         ,rc         =RC)
+        CLOCK_ATM_DRV(ID_DOM)=ESMF_ClockCreate(name       =CLOCK_ATM_DRV_NAME  &  !<-- The ATM_DRIVER Clock's name
+                                              ,timeStep   =TIMESTEP(ID_DOM)    &  !<-- The fundamental timestep in this component 
+                                              ,startTime  =STARTTIME           &  !<-- Start time of simulation
+                                              ,runDuration=RUNDURATION         &  !<-- Duration of simulation
+                                              ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NMM_DRV_INIT)
@@ -1294,8 +1303,6 @@
 !-----------------------------------------------------------------------
 !
       ENDDO clock_loop
-!
-!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !***  Allocate the ATM gridded component(s).
@@ -1318,9 +1325,10 @@
 !
 !-----------------------------------------------------------------------
 !
-        WRITE(INT_TO_CHAR,FMT)N      
+        ID_DOM=RANK_TO_DOMAIN_ID(N)
+        WRITE(INT_TO_CHAR,FMT)ID_DOM 
         ATM_GRID_COMP_NAME=ATM_GRID_COMP_BASE//INT_TO_CHAR                 !<-- Append domain ID to ATM Grid Comp name
-        N_TASKS=NTASKS_DOMAIN(N)                                           !<-- # of tasks on this domain
+        N_TASKS=NTASKS_DOMAIN(ID_DOM)                                      !<-- # of tasks on this domain
         PETLIST=>PETLIST_ATM(1:N_TASKS,N)                                  !<-- The PETlist for this domain
 !
 !-----------------------------------------------------------------------
@@ -1330,7 +1338,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        atm_drv_int_state%ATM_GRID_COMP(N)=ESMF_GridCompCreate(         &  !<-- The ATM Component for this domain
+        atm_drv_int_state%ATM_GRID_COMP(ID_DOM)=ESMF_GridCompCreate(    &  !<-- The ATM Component for this domain
                                             name   =ATM_GRID_COMP_NAME  &  !<-- Name of the new ATM gridded component
                                            ,config =CF(N)               &  !<-- This domain's configure file
                                            ,petList=PETLIST             &  !<-- The IDs of tasks that will run on this domain
@@ -1351,15 +1359,15 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_GridCompSetServices(atm_drv_int_state%ATM_GRID_COMP(N)  &  !<-- The ATM gridded component
-                                     ,ATM_REGISTER                        &  !<-- User's subroutineName
+        CALL ESMF_GridCompSetServices(atm_drv_int_state%ATM_GRID_COMP(ID_DOM)  &  !<-- The ATM gridded component
+                                     ,ATM_REGISTER                             &  !<-- User's subroutineName
                                      ,RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NMM_DRV_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        IF(N/=MY_DOMAIN_ID)CYCLE                                           !<-- Only need to load Import State properly for my domain
+        IF(ID_DOM/=MY_DOMAIN_ID)CYCLE                                      !<-- Only need to load Import State properly for my domain
 !
 !-----------------------------------------------------------------------
 !***  Check the configure flag indicating whether or not to run
@@ -1385,9 +1393,9 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeSet(state=atm_drv_int_state%IMP_STATE_ATM(N) &  !<-- This ATM component's import state
-                              ,name ='PHYSICS_ON'                       &  !<-- The flag indicating if physics is active
-                              ,value=PHYSICS_ON                         &  !<-- The value being inserted into the import state
+        CALL ESMF_AttributeSet(state=atm_drv_int_state%IMP_STATE_ATM(MY_DOMAIN_ID) &  !<-- This ATM component's import state
+                              ,name ='PHYSICS_ON'                                  &  !<-- The flag indicating if physics is active
+                              ,value=PHYSICS_ON                                    &  !<-- The value being inserted into the import state
                               ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1403,9 +1411,9 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeSet(state=atm_drv_int_state%IMP_STATE_ATM(N) &  !<-- This ATM component's import state
-                              ,name ='MAX_DOMAINS'                      &  !<-- Maximum # of domains
-                              ,value=MAX_DOMAINS                        &  !<-- The scalar being inserted into the import state
+        CALL ESMF_AttributeSet(state=atm_drv_int_state%IMP_STATE_ATM(MY_DOMAIN_ID) &  !<-- This ATM component's import state
+                              ,name ='MAX_DOMAINS'                                 &  !<-- Maximum # of domains
+                              ,value=MAX_DOMAINS                                   &  !<-- The scalar being inserted into the import state
                               ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1426,9 +1434,9 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeSet(state=atm_drv_int_state%IMP_STATE_ATM(N) &  !<-- This ATM component's import state
-                              ,name ='DOMAIN_ID'                        &  !<-- This ATM Component's domain ID
-                              ,value=N                                  &  !<-- The scalar being inserted into the import state
+        CALL ESMF_AttributeSet(state=atm_drv_int_state%IMP_STATE_ATM(MY_DOMAIN_ID) &  !<-- This ATM component's import state
+                              ,name ='DOMAIN_ID'                                   &  !<-- This ATM Component's domain ID
+                              ,value=N                                             &  !<-- The scalar being inserted into the import state
                               ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1444,10 +1452,10 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeSet(state    =atm_drv_int_state%IMP_STATE_ATM(N) &  !<-- This ATM component's import state
-                              ,name     ='N_CONFIGURE'                      &  !<-- Adding Attribute with this name
-                              ,count    =MAX_DOMAINS                        &  !<-- Total # of domains
-                              ,valueList=N_CONFIGURE                        &  !<-- Configure file IDs linked to each domain
+        CALL ESMF_AttributeSet(state    =atm_drv_int_state%IMP_STATE_ATM(MY_DOMAIN_ID) &  !<-- This ATM component's import state
+                              ,name     ='DOMAIN_ID_TO_RANK'                           &  !<-- Adding Attribute with this name
+                              ,count    =MAX_DOMAINS                                   &  !<-- Total # of domains
+                              ,valueList=DOMAIN_ID_TO_RANK                             &  !<-- Configure file IDs linked to each domain
                               ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1459,9 +1467,9 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeSet(state=atm_drv_int_state%IMP_STATE_ATM(N) &  !<-- This ATM component's import state
-                              ,name ='NUM_CHILDREN'                     &  !<-- This ATM Component's # of children
-                              ,value=NUM_CHILDREN(N)                    &  !<-- Insert this into the import state
+        CALL ESMF_AttributeSet(state=atm_drv_int_state%IMP_STATE_ATM(MY_DOMAIN_ID) &  !<-- This ATM component's import state
+                              ,name ='NUM_CHILDREN'                                &  !<-- This ATM Component's # of children
+                              ,value=NUM_CHILDREN(MY_DOMAIN_ID)                    &  !<-- Insert this into the import state
                               ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1479,9 +1487,9 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeSet(state=atm_drv_int_state%IMP_STATE_ATM(N) &  !<-- This ATM component import state
-                              ,name ='I-Am-A-Nest Flag'                 &  !<-- Name of Attribute
-                              ,value=I_AM_A_NEST                        &  !<-- Logical nest flag
+        CALL ESMF_AttributeSet(state=atm_drv_int_state%IMP_STATE_ATM(MY_DOMAIN_ID) &  !<-- This ATM component import state
+                              ,name ='I-Am-A-Nest Flag'                            &  !<-- Name of Attribute
+                              ,value=I_AM_A_NEST                                   &  !<-- Logical nest flag
                               ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1498,10 +1506,10 @@
           LENGTH=MAX(1,NUM_CHILDREN(N))
           CHILD_ID=>ID_CHILDREN(1:LENGTH,N)                                !<-- Select only the IDs of this Component's children
 !
-          CALL ESMF_AttributeSet(state    =atm_drv_int_state%IMP_STATE_ATM(N) &  !<-- This ATM component import state
-                                ,name     ='CHILD_IDs'                        &  !<-- The children's IDs of this ATM Component
-                                ,count    =LENGTH                             &  !<-- Length of inserted array
-                                ,valueList=CHILD_ID                           &  !<-- Insert this into the import state
+          CALL ESMF_AttributeSet(state    =atm_drv_int_state%IMP_STATE_ATM(MY_DOMAIN_ID) &  !<-- This ATM component import state
+                                ,name     ='CHILD_IDs'                                   &  !<-- The children's IDs of this ATM Component
+                                ,count    =LENGTH                                        &  !<-- Length of inserted array
+                                ,valueList=CHILD_ID                                      &  !<-- Insert this into the import state
                                 ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1510,16 +1518,16 @@
 !
           IF(I_AM_A_NEST==ESMF_TRUE)THEN
 !
-            PARENT_CHILD_TIME_RATIO=NINT(DT(ID_PARENTS(N))/DT(N))          !<-- Ratio of parent's timestep to this nest's
+            PARENT_CHILD_TIME_RATIO=NINT(DT(ID_PARENTS(ID_DOM))/DT(ID_DOM))      !<-- Ratio of parent's timestep to this nest's
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Add Parent-Child Time Ratio to ATM Import State"
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL ESMF_AttributeSet(state=atm_drv_int_state%IMP_STATE_ATM(N) &  !<-- This ATM component import state
-                                  ,name ='Parent-Child Time Ratio'          &  !<-- Name of Attribute
-                                  ,value=PARENT_CHILD_TIME_RATIO            &  !<-- # of child timesteps per parent timestep
+            CALL ESMF_AttributeSet(state=atm_drv_int_state%IMP_STATE_ATM(MY_DOMAIN_ID) &  !<-- This ATM component import state
+                                  ,name ='Parent-Child Time Ratio'                     &  !<-- Name of Attribute
+                                  ,value=PARENT_CHILD_TIME_RATIO                       &  !<-- # of child timesteps per parent timestep
                                   ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1568,9 +1576,9 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=atm_drv_int_state%EXP_STATE_ATM(MY_DOMAIN_ID) &  !<-- The ATM component export state
-                            ,name ='Fcst-or-Write Flag'                          &  !<-- Name of the attribute to extract
-                            ,value=I_AM_A_FCST_TASK                              &  !<-- Am I a forecast task?
+      CALL ESMF_AttributeGet(state=atm_drv_int_state%EXP_STATE_ATM(MY_DOMAIN_ID)   &  !<-- The ATM component export state
+                            ,name ='Fcst-or-Write Flag'                            &  !<-- Name of the attribute to extract
+                            ,value=I_AM_A_FCST_TASK                                &  !<-- Am I a forecast task?
                             ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1597,7 +1605,7 @@
                                        ,atm_drv_int_state%EXP_STATE_ATM(MY_DOMAIN_ID) &  !     |  
                                        ,FTASKS_DOMAIN                                 &  !     |  
                                        ,ID_PARENTS                                    &  !     |
-                                       ,N_CONFIGURE                                   &  !     |
+                                       ,DOMAIN_ID_TO_RANK                             &  !     |
                                        ,MAX_DOMAINS                                   &  !   Input
 !                                                                                          ----------
                                        ,IMP_STATE_CPL_NEST                            &  !   Output
@@ -1910,32 +1918,32 @@
 !***  Execute the normal forecast integration.
 !-----------------------------------------------------------------------
 !
-      CALL NMM_INTEGRATE(atm_grid_comp     =ATM_GRID_COMP               &
-                        ,imp_state_atm     =IMP_STATE_ATM               &
-                        ,exp_state_atm     =EXP_STATE_ATM               &
-                        ,clock_integrate   =CLOCK_ATM_DRV(MY_DOMAIN_ID) &
-                        ,clock_direction   ='Forward'                   &
-                        ,currtime          =CURRTIME                    &
-                        ,starttime         =STARTTIME                   &
-                        ,timestep          =TIMESTEP(MY_DOMAIN_ID)      &
-                        ,ntimestep         =NTIMESTEP                   &
-                        ,dt                =DT(MY_DOMAIN_ID)            &
-                        ,interval_clocktime=INTERVAL_CLOCKTIME          &
-                        ,interval_history  =INTERVAL_HISTORY            &
-                        ,interval_restart  =INTERVAL_RESTART            &
-                        ,filter_method     =FILTER_METHOD               &
-                        ,npe_print         =NPE_PRINT                   &
-                        ,restarted_run     =RESTARTED_RUN               &
-                        ,i_am_a_fcst_task  =I_AM_A_FCST_TASK            &
-                        ,nesting           =NESTING_NMM                 &
-                        ,i_am_a_nest       =I_AM_A_NEST                 &
-                        ,my_domain_id      =MY_DOMAIN_ID                &
-                        ,comm_to_my_parent =COMM_TO_MY_PARENT           &
-                        ,num_children      =NUM_CHILDREN(MY_DOMAIN_ID)  &
-                        ,parent_child_cpl  =PARENT_CHILD_COUPLER_COMP   &
-                        ,imp_state_cpl_nest=IMP_STATE_CPL_NEST          &
-                        ,exp_state_cpl_nest=EXP_STATE_CPL_NEST          &
-                        ,par_chi_time_ratio=PARENT_CHILD_TIME_RATIO     &
+      CALL NMM_INTEGRATE(atm_grid_comp     =ATM_GRID_COMP                  &
+                        ,imp_state_atm     =IMP_STATE_ATM                  &
+                        ,exp_state_atm     =EXP_STATE_ATM                  &
+                        ,clock_integrate   =CLOCK_ATM_DRV(MY_DOMAIN_ID)    &
+                        ,clock_direction   ='Forward'                      &
+                        ,currtime          =CURRTIME                       &
+                        ,starttime         =STARTTIME                      &
+                        ,timestep          =TIMESTEP(MY_DOMAIN_ID)         &
+                        ,ntimestep         =NTIMESTEP                      &
+                        ,dt                =DT(MY_DOMAIN_ID)               &
+                        ,interval_clocktime=INTERVAL_CLOCKTIME             &
+                        ,interval_history  =INTERVAL_HISTORY(MY_DOMAIN_ID) &
+                        ,interval_restart  =INTERVAL_RESTART(MY_DOMAIN_ID) & 
+                        ,filter_method     =FILTER_METHOD                  &
+                        ,npe_print         =NPE_PRINT                      &
+                        ,restarted_run     =RESTARTED_RUN                  &
+                        ,i_am_a_fcst_task  =I_AM_A_FCST_TASK               &
+                        ,nesting           =NESTING_NMM                    &
+                        ,i_am_a_nest       =I_AM_A_NEST                    &
+                        ,my_domain_id      =MY_DOMAIN_ID                   &
+                        ,comm_to_my_parent =COMM_TO_MY_PARENT              &
+                        ,num_children      =NUM_CHILDREN(MY_DOMAIN_ID)     &
+                        ,parent_child_cpl  =PARENT_CHILD_COUPLER_COMP      &
+                        ,imp_state_cpl_nest=IMP_STATE_CPL_NEST             &
+                        ,exp_state_cpl_nest=EXP_STATE_CPL_NEST             &
+                        ,par_chi_time_ratio=PARENT_CHILD_TIME_RATIO        &
                         ,mype              =MYPE_LOCAL)
 !
 !-----------------------------------------------------------------------

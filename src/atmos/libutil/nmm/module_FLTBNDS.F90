@@ -16,6 +16,9 @@ use module_dm_parallel,only : ids,ide,jds,jde &
                              ,gather_layers,scatter_layers &
                              ,mpi_comm_comp,mpi_intra &
                              ,mype_share
+
+use module_exchange, only: halo_exch
+
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
 real(kind=kfpt),parameter:: &
@@ -5727,13 +5730,14 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
 !***********************************************************************
 !-----------------------------------------------------------------------
       lines=lnsh
-      nsmud=lines-1
+!     nsmud=lines-1
+      nsmud=0
 !-----------------------------------------------------------------------
       wh(1)=1.
       wq(1)=1.
       do k=2,lnsh
-        wh(k)=exp(-(real(k)-1.)/(real(lnsh)-1.)*7.)
-        wq(k)=exp(-(real(k)-1.)/(real(lnsh)-1.)*7.)
+         wh(k)=1.-(0.9/real(lnsh-1))*(k-1)
+         wq(k)=1.-(0.9/real(lnsh-1))*(k-1)
       enddo
 !-----------------------------------------------------------------------
 !-------------update of boundary values at h points---------------------
@@ -6073,7 +6077,9 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
       if(nsmud>=1)then
 !
         smooth: do ks=1,nsmud
+!
 !-----------------------------------------------------------------------
+!
           if(s_bdy)then
             do j=jts+1,jts-1+lines
               do i=max(its_h2,ids+1),min(ite_h2,ide-1)
@@ -6134,6 +6140,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
 !
             do l=1,lm
               do j=max(jts,jds+lines),min(jte,jde-lines)
+!fixversion            do j=max(jts_h2,jds+lines),min(jte_h2,jde-lines)
                 do i=its+1,its-1+lines
                   tr(i,j,l)=(t(i,j-1,l)+t(i-1,j,l) &
                             +t(i+1,j,l)+t(i,j+1,l))*w1 &
@@ -6246,9 +6253,18 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
             enddo
           endif
 !-----------------------------------------------------------------------
+!
+          call halo_exch(pd,1,1,1)
+          call halo_exch(t,lm,1,1)
+          call halo_exch(q,lm,1,1)
+          call halo_exch(pint,lm+1,1,1)
+!
+!-----------------------------------------------------------------------
+!
         enddo smooth
 !
       endif
+!
 !-----------------------------------------------------------------------
 !
                         endsubroutine bocoh
@@ -6324,11 +6340,12 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
 !***********************************************************************
 !-----------------------------------------------------------------------
       lines=lnsv
-      nsmud=lines-1
+!     nsmud=lines-1
+      nsmud=0
 !-----------------------------------------------------------------------
       wv(1)=1.
       do k=2,lnsv
-        wv(k)=exp(-(real(k)-1.)/(real(lnsv)-1.)*7.)
+        wv(k)=1.-(0.9/real(lnsv-1))*(k-1)
       enddo
 !-----------------------------------------------------------------------
 !-------------update boundary values at v points------------------------
@@ -6552,7 +6569,16 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
               enddo
             enddo
           endif
+!
+!-----------------------------------------------------------------------
+!
+          call halo_exch(u,lm,1,1)
+          call halo_exch(v,lm,1,1)
+!
+!-----------------------------------------------------------------------
+!
         enddo smooth
+!
 !-----------------------------------------------------------------------
       endif
 !-----------------------------------------------------------------------

@@ -279,10 +279,6 @@
       END TYPE DYNAMICS_INTERNAL_STATE
 !
 !-----------------------------------------------------------------------
-
-      INTEGER(KIND=KINT),PARAMETER :: LNSH_BC=1
-!
-!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !***  THE INTERNAL_STATE TYPE IS SUPPORTED BY A C POINTER (NOT AN F90
@@ -321,27 +317,32 @@
 !
 !-----------------------------------------------------------------------
 !
+!------------------------
+!***  Argument Variables
+!------------------------
+!
       TYPE(DYNAMICS_INTERNAL_STATE),INTENT(INOUT) :: INT_STATE             !<-- The Dynamics internal state
-      INTEGER, INTENT(IN) :: LM
+!
+      INTEGER, INTENT(IN) :: LM                                            !<-- Number of model layers
 !      
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local Variables
+!---------------------
 !
       INTEGER(KIND=KINT) :: I,I_CYCLE,J                                 &
                            ,L,LNSH,LNSV,N
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
-!
-
 !-----------------------------------------------------------------------
-!***  THE ARRAY CALLED WATER IS A SPECIAL CASE NEEDED TO SATISFY
-!***  VARIOUS WRF PHYSICS OPTIONS.  THE IS SET TO 1+Number_of_species
-!***  INCLUDING VAPOR.  THE "1+" IS NEEDED BECAUSE WRF NEVER TOUCHES
-!***  THE FIRST LEVEL.
 !
-!***  SET THE P_ and F_ VARIABLES.
+!-----------------------------------------------------------------------
+!***  The array called WATER is a special case needed to satisfy
+!***  various WRF physics options.  The 4th dimension is set to
+!***  1+Number_of_species including vapor.  The "1+" is needed
+!***  because WRF never touches the first level.
+!
+!***  Set the P_ and F_ variables.
 !***  V=>vapor; C=>cloudwater; R=>rain; I=>cloudice; S=>snow; G=>graupel
 !***  Set the appropriate value for the logical F_ variables.
 !***  For each species that is .TRUE., set the integer P_ variable
@@ -403,9 +404,9 @@
 !***  internal state variable listed by the user
 !***  in the Dynamics text file. 
 !------------------------------------------------
-
+!
       CALL READ_CONFIG('dyn_state.txt',int_state%VARS,int_state%NUM_VARS)
-
+!
 !-------------------------------------------------------------------
 !***  Allocate appropriate memory within the Dynamics' composite 
 !***  VARS array for all internal state variables that are 'Owned'
@@ -413,7 +414,7 @@
 !***  In this step, all unowned variables will be pointed at NULL
 !***  for the moment.
 !-------------------------------------------------------------------
-
+!
       CALL SET_DYN_VAR_PTR(INT_STATE, .TRUE., LM)
 !
 !-----------------------------------------------------------------------
@@ -423,21 +424,19 @@
 !
       I_CYCLE=IDE-3
 !
-      LNSH=LNSH_BC
-      int_state%LNSH=LNSH
-      int_state%LNSV=LNSH
+      LNSH=int_state%LNSH
       LNSV=int_state%LNSV
 !
 !!!   int_state%NBOCO=NBOCO   !<-- Set later in call to CONSTS
 !!!   int_state%TBOCO=TBOCO   !<-- Set later in call to CONSTS
 !
 !-----------------------------------------------------------------------
-!***  EXPLICITLY ALLOCATE THE ARRAYS OF THE DYNAMICS INTERNAL STATE
-!***  THAT ARE NEVER OUTSIDE OF THE DYNAMICS COMPONENT.
+!***  Explicitly allocate the arrays of the Dynamics internal state
+!***  that are never outside of the Dynamics component.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  GRID-RELATED CONSTANTS.
+!***  Grid-related constants.
 !-----------------------------------------------------------------------
 !
       ALLOCATE(int_state%PDSG1 (1:LM))                                    !<-- Thicknesses of pressure layers in press. range
@@ -479,7 +478,7 @@
       ALLOCATE(int_state%HDACVY(IMS:IME,JMS:JME))                         !<-- Lateral diffusion coefficient, v points  (s m-1)
 !
 !-----------------------------------------------------------------------
-!***  LOCAL HORIZONTAL SUBDOMAIN LIMITS FOR ALL FORECAST TASKS.
+!***  Local horizontal subdomain limits for all forecast tasks.
 !-----------------------------------------------------------------------
 !
       ALLOCATE(int_state%LOCAL_ISTART(0:int_state%NUM_PES-1))
@@ -500,14 +499,14 @@
       int_state%JHALO=JHALO
 !
 !-----------------------------------------------------------------------
-!***  FIXED SURFACE FIELDS
+!***  Fixed surface fields
 !-----------------------------------------------------------------------
 !
       ALLOCATE(int_state%SM(IMS:IME,JMS:JME))                            !<-- Sea mask
       ALLOCATE(int_state%SICE(IMS:IME,JMS:JME))                          !<-- Sea ice
 !
 !-----------------------------------------------------------------------
-!***  REGIONAL BOUNDARY CONDITIONS.
+!***  Regional boundary conditions.
 !-----------------------------------------------------------------------
 !
       ALLOCATE(int_state%UBN(IMS:IME,1:LNSV,1:LM,1:2))                     !<-- U wind component at northern boundary  (m s-1)
@@ -545,7 +544,7 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  ATMOSPHERIC VARIABLES, HYDROSTATIC (mostly)
+!***  Atmospheric variables, hydrostatic (mostly)
 !-----------------------------------------------------------------------
 !
       ALLOCATE(int_state%PSDT(IMS:IME,JMS:JME))                            !<-- Hydrostatic surface pressure tendency  (Pa s-1)
@@ -620,17 +619,19 @@
 !
 !-----------------------------------------------------------------------
 !
-      TYPE(DYNAMICS_INTERNAL_STATE),INTENT(INOUT) :: INT_STATE
-      INTEGER, INTENT(IN) :: LM
-!      
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+!------------------------
+!***  Argument Variables
+!------------------------
 !
-      INTEGER(KIND=KINT) :: I,I_CYCLE,J                                 &
-                           ,L,LL,N
-
-      INTEGER(KIND=KINT) :: INDX
+      TYPE(DYNAMICS_INTERNAL_STATE),INTENT(INOUT) :: INT_STATE             !<-- Dynamics internal state
+!
+      INTEGER, INTENT(IN) :: LM                                            !<-- Number of model layers
+!      
+!---------------------
+!***  Local Variables
+!---------------------
+!
+      INTEGER(KIND=KINT) :: I,I_CYCLE,INDX,J,L,LL,N
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -648,7 +649,7 @@
       CALL SET_DYN_VAR_PTR(INT_STATE, .FALSE., LM)
 !
 !-----------------------------------------------------------------------
-!***  POINT Q AT LEVEL 1 OF THE TRACERS ARRAY.
+!***  Point Q at level 1 of the TRACERS array.
 !-----------------------------------------------------------------------
 !
       int_state%INDX_Q=1
@@ -657,7 +658,7 @@
       int_state%Q=>int_state%VARS(I)%R3D
 !
 !-----------------------------------------------------------------------
-!***  ADDITIONAL TRACERS.
+!***  Additional tracers.
 !-----------------------------------------------------------------------
 !
 !--------------------------------
@@ -891,7 +892,9 @@
       int_state%J_PAR_STA=0
 !
       int_state%PARENT_CHILD_TIME_RATIO=-999
-
+!
+!-----------------------------------------------------------------------
+!
       END SUBROUTINE SET_INTERNAL_STATE_DYN_2
 !
 !-----------------------------------------------------------------------
@@ -910,17 +913,27 @@
 !***  unowned variables will be pointing at allocated memory
 !***  for the owned variable in Physics.
 !---------------------------------------------------------------
-
+!
       USE MODULE_DM_PARALLEL,ONLY: IMS,IME,JMS,JME,JDS,JDE
-
+!
       IMPLICIT NONE
-
-      TYPE(DYNAMICS_INTERNAL_STATE),INTENT(INOUT) :: INT_STATE
-      LOGICAL, INTENT(IN) :: ALLOC_FLAG
-      INTEGER, INTENT(IN) :: LM
-
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      TYPE(DYNAMICS_INTERNAL_STATE),INTENT(INOUT) :: INT_STATE             !<-- Dynamics internal state
+      LOGICAL, INTENT(IN) :: ALLOC_FLAG                                    !<-- Do we want to allocate the variables?
+      INTEGER, INTENT(IN) :: LM                                            !<-- Number of model layers
+!
+!---------------------
+!***  Local Variables
+!---------------------
+!
       INTEGER :: N
-
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
 !-----------------------------------------------------------------------
 
       CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'IM'        ,int_state%IM        )
@@ -995,7 +1008,9 @@
           STOP 
         END IF
       END DO
-
+!
+!-----------------------------------------------------------------------
+!
       END SUBROUTINE SET_DYN_VAR_PTR
 !
 !-----------------------------------------------------------------------

@@ -106,6 +106,9 @@ idtadt:  2                  # Number of adjustment timesteps between tracer adve
 num_tracers_met:   4        # Number of specified meterological "tracer" scalars (e.g., water)
 num_tracers_chem:  0        # Number of specified chem/aerosol "tracer" scalars
 
+lnsh:  1                    # Number of boundary blending rows for H points
+lnsv:  1                    # Number of boundary blending rows for V points
+
 
 ###################################
 ##### Digital Filtering options ###

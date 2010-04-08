@@ -87,7 +87,7 @@
                                            ,EXP_STATE_ATM               &  !     |
                                            ,FTASKS_DOMAIN               &  !     |  
                                            ,ID_PARENTS                  &  !     |   
-                                           ,N_CONFIGURE                 &  !     |   
+                                           ,DOMAIN_ID_TO_RANK           &  !     |   
                                            ,MAX_DOMAINS                 &  !   Input 
 !                                                                           -----------
                                            ,IMP_STATE_CPL_NEST          &  !   Output
@@ -102,21 +102,21 @@
 !***  NEED IN ORDER TO GENERATE BOUDARY DATA FOR ITS CHILDREN.
 !-----------------------------------------------------------------------
 !
-      INTEGER,INTENT(IN) :: COMM_MY_DOMAIN                   &  !<-- MPI communicator for each individual domain
+      INTEGER,INTENT(IN) :: COMM_MY_DOMAIN                              &  !<-- MPI communicator for each individual domain
                                       ,COMM_TO_MY_PARENT                &  !<-- Current domain's MPI communicator to its parent
                                       ,MAX_DOMAINS                      &  !<-- Maximum # of domains  
                                       ,MY_DOMAIN_ID                     &  !<-- ID of current domain
                                       ,NUM_CHILDREN                     &  !<-- Current domain's number of children
                                       ,NUM_DOMAINS                         !<-- Total number of domains
 !
-      INTEGER,DIMENSION(:),POINTER,INTENT(IN) :: CHILD_ID             &  !<-- Domain IDs of current domain's children
-                                                           ,COMM_TO_MY_CHILDREN  &  !<-- Current domain's MPI communicators to its children
-                                                           ,FTASKS_DOMAIN        &  !<-- # of forecast tasks on each domain
-                                                           ,ID_PARENTS              !<-- IDs of parents of nested domains
+      INTEGER,DIMENSION(:),POINTER,INTENT(IN) :: CHILD_ID               &  !<-- Domain IDs of current domain's children
+                                                ,COMM_TO_MY_CHILDREN    &  !<-- Current domain's MPI communicators to its children
+                                                ,FTASKS_DOMAIN          &  !<-- # of forecast tasks on each domain
+                                                ,ID_PARENTS                !<-- IDs of parents of nested domains
 !
-      INTEGER,DIMENSION(MAX_DOMAINS),INTENT(IN) :: N_CONFIGURE  !<-- Association of domains with configure file IDs
+      INTEGER,DIMENSION(MAX_DOMAINS),INTENT(IN) :: DOMAIN_ID_TO_RANK       !<-- Association of domains with configure file IDs
 !
-      REAL,DIMENSION(1:NUM_DOMAINS),INTENT(IN) :: DT            !<-- Timesteps for all domains (ATM Components)
+      REAL,DIMENSION(1:NUM_DOMAINS),INTENT(IN) :: DT                       !<-- Timesteps for all domains (ATM Components)
 !
       TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE_ATM                      !<-- Export state of the current ATM Component
 !

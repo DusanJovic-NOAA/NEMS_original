@@ -528,7 +528,7 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: CONFIG_ID,MAX_DOMAINS,N,NFCST,NTSD
+      INTEGER(kind=KINT) :: CONFIG_ID,ISTAT,MAX_DOMAINS,N,NFCST,NTSD
 !
       INTEGER(kind=KINT) :: IYEAR_FCST                                  &  !<-- Current year from restart file
                            ,IMONTH_FCST                                 &  !<-- Current month from restart file
@@ -545,7 +545,7 @@
 !
       INTEGER(kind=KINT),DIMENSION(7) :: FCSTDATE
 !
-      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: N_CONFIGURE           !<-- Associate configure file IDs with domains
+      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: DOMAIN_ID_TO_RANK     !<-- Associate configure file IDs with domains
 !
       REAL(kind=KFPT) :: SECOND_FCST                                       !<-- Current second from restart file
 !
@@ -681,7 +681,7 @@
 !***  Extract the configure file IDs assocaited with each domain.
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(N_CONFIGURE(1:MAX_DOMAINS))
+      ALLOCATE(DOMAIN_ID_TO_RANK(1:MAX_DOMAINS),stat=ISTAT)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract Association of Configure Files with Domains"
@@ -689,9 +689,9 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeGet(state    =IMP_STATE                        &  !<-- The ATM import state
-                            ,name     ='N_CONFIGURE'                    &  !<-- Name of the attribute to extract
+                            ,name     ='DOMAIN_ID_TO_RANK'              &  !<-- Name of the attribute to extract
                             ,count    =MAX_DOMAINS                      &  !<-- Name of the attribute to extract
-                            ,valueList=N_CONFIGURE                      &  !<-- The ID of this domain
+                            ,valueList=DOMAIN_ID_TO_RANK                &  !<-- The IDs of all domains
                             ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -707,7 +707,7 @@
 !
       DO N=1,MAX_DOMAINS                                                   !<-- The number of config files cannot exceed 99
 !
-        CONFIG_ID=N_CONFIGURE(N)
+        CONFIG_ID=DOMAIN_ID_TO_RANK(N)
         WRITE(INT_TO_CHAR,FMT)CONFIG_ID 
         CONFIG_FILE_NAME='configure_file_'//INT_TO_CHAR                    !<-- Prepare the config file names
 !
