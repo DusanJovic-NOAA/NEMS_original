@@ -4,10 +4,10 @@
 !-----------------------------------------------------------------------
 !
 !** This module holds the phy-to-chem coupler's register and run routines
-!** setservices (only registers run step) is called by GFS_ATM_INIT
-!** run transfer/convert data from phy export state to chem import state
-!** chem-to-phy coupler is not needed (chem gridded component will update
-!** 3D aerosol mixing ratios which are owned by dyn gridded component)
+!** -> setservices (registers init and run) is called by GOCART_SETUP
+!** -> init associates tracer bundle in phy export state with iAERO bundle 
+!**    in chem import state;
+!** -> run transfers/converts data from phy export state to chem import state
 !
 !! Code Revision:
 !! 11Nov 2009     Sarah Lu, First Crack
@@ -19,8 +19,14 @@
 !! 11Feb 2010     Sarah Lu, Add get_attribute subroutine to retrieve tracer
 !!                          specification 
 !! 12Feb 2010     Sarah Lu, Include chemical tracers
-!! 06Mar 2010     Sarah Lu, Flip vertical profile index from top-down to
-!!                          bottom-up; add Init routine
+!! 06Mar 2010     Sarah Lu, Flip vertical profile index from bottom-up to
+!!                          top-down; add Init routine
+!! 12Mar 2010     Sarah Lu, Clean up phy2chem run
+!! 13Mar 2010     Sarah Lu, Use m_chars: set statename to lower case
+!! 16Mar 2010     Sarah Lu, Add FillDefault_ and patch_; Make dimension and
+!!                          tracer specification public (to chem2phy coupler)
+!! 23Mar 2010     Sarah Lu, Call rtc to track run-time-clock; debug print optional
+!! 09Apr 2010     Sarah Lu, Clean up the code
 !-----------------------------------------------------------------------
 
       use ESMF_MOD
@@ -31,29 +37,32 @@
                                      con_eps, con_epsm1
       use MODULE_gfs_tropp,    ONLY: tpause
       use MODULE_gfs_funcphys
+
       USE Chem_RegistryMod
+      USE m_chars,             ONLY: lowercase
 
 !-----------------------------------------------------------------------
 !
       implicit none
+      SAVE
 !
 !-----------------------------------------------------------------------
 !
-      private
-
 !     Gaussian grid 
-      integer(ESMF_KIND_I4),allocatable,save :: lonsperlar_r(:)
-      integer, save                :: lonr, lats_node_r, lats_node_r_max
-      integer, save                :: im, jm, km
+      integer(ESMF_KIND_I4),allocatable,public :: lonsperlar_r(:)
+      integer, public               :: lonr, lats_node_r, lats_node_r_max
+      integer, public               :: im, jm, km
 
 !     Tracer specification
-      integer, save   :: ntrac
-      logical, save   :: run_DU, run_SU, run_SS, run_OC, run_BC
-      real(kind_phys), allocatable :: ri(:), cpi(:)
-!
-      TYPE(Chem_Registry),SAVE :: chemReg             !<-- The GOCART Chem_Registry
-!   
-      public :: setservices
+      integer, public               :: ntrac
+      logical, public               :: run_DU, run_SU, run_SS, run_OC, run_BC
+
+! --- public interface
+      public  ::    SetServices, GetPointer_tracer_, CkPointer_
+
+      private
+      TYPE(Chem_Registry)          :: chemReg      !<-- The GOCART Chem_Registry
+      logical, parameter           :: lckprnt = .false.
 
       contains
 
@@ -66,10 +75,11 @@
 !
 !-----------------------------------------------------------------------
 !!
-!! This routine register the coupler component's run routine        
+!! This routine register the coupler component's init and run routines    
 !!
 !! Code Revision:
 !! 11Nov 2009     Sarah Lu, First Crack
+!! 06Mar 2010     Sarah Lu, Register init routine
 !-----------------------------------------------------------------------
 !
       implicit none
@@ -117,7 +127,7 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
 
 !-----------------------------------------------------------------------
-!***  Check the error signal variable and print out the result.
+!***  Check the final error signal variable 
 !-----------------------------------------------------------------------
 !
       IF(RC_REG==ESMF_SUCCESS)THEN
@@ -168,25 +178,20 @@
       integer                       :: IERR, N, L
       type(ESMF_FieldBundle)        :: Bundle, iBundle
       type(ESMF_Field)              :: Field
-      real, pointer                 :: fArr3D(:,:,:)
+      character(len=ESMF_MAXSTR)    :: vname
 !
-      print *, 'LU_CPLX: enter phy2chem init ', RC
 !-----------------------------------------------------------------------
 !***  Read Chem_Registry to retrive tracer name
 !-----------------------------------------------------------------------
 
-      print *, 'LU_CPLX: phy2chem init - get chemReg'
+      print *, 'PHY2CHEM_INIT: get ChemReg '
       chemReg = Chem_RegistryCreate ( IERR )             !<-- read Chem_Registry
 
-      print *, 'LU_CPLX: phy2chem init - print chemReg'
-      CALL Chem_RegistryPrint ( chemReg)
-
 !-----------------------------------------------------------------------
-!***  Pass tracer bundle from physics to chemistry
+!***  Pass tracer bundle from physics export to chemistry import
 !-----------------------------------------------------------------------
 
-      MESSAGE_CHECK="PHY2CHEM_INIT: Get tracer bundle from phy exp"
-      print *, 'LU_CPLX: phy2chem init - get tracer bundle'
+      MESSAGE_CHECK="PHY2CHEM_INIT: get tracer bundle from phy exp"
       call ESMF_StateGet(PHY_EXP_STATE, 'tracers', iBundle, RC=RC)
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
@@ -198,30 +203,32 @@
 
          N = chemReg%i_GOCART + L - 1
 
-         MESSAGE_CHECK="PHY2CHEM_INIT: get field from tracers: "//chemReg%vname(N)
-         call ESMF_FieldBundleGet(iBundle, NAME=chemReg%vname(N), &
-                                  FIELD=Field, rc = RC )
+         vname = chemReg%vname(N)
+         MESSAGE_CHECK="PHY2CHEM_INIT: get field from tracers: "//vname
+         call ESMF_FieldBundleGet(iBundle, NAME=vname, FIELD=Field, rc = RC )
          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
-         MESSAGE_CHECK="PHY2CHEM_INIT: add field to iAero: "//chemReg%vname(N)
-         call ESMF_FieldBundleAdd(Bundle,Field,rc=rc)
+         MESSAGE_CHECK="PHY2CHEM_INIT: add field to iAero: "//vname
+         call ESMF_FieldBundleAdd(Bundle, Field, rc=RC )
          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
       end do
 !
-!
-!     Compute all physics function tables
-!
-      WRITE(0,*)'PHY2CHEM CPL INIT: Compute all physics function tables'
-      call gfuncphys      
+!-----------------------------------------------------------------------
+!***  Destroy Chem_Registry 
+!-----------------------------------------------------------------------
+
+      call Chem_RegistryDestroy ( chemReg, IERR )
+
+!-----------------------------------------------------------------------
+!***  Check the final error signal variable
+!-----------------------------------------------------------------------
 !
       IF(RC_CPL==ESMF_SUCCESS)THEN
         WRITE(0,*)'PHY2CHEM CPL INIT SUCCEEDED'
       ELSE
         WRITE(0,*)'PHY2CHEM CPL INIT FAILED RC_CPL=',RC_CPL
       ENDIF
-!
-      print *, 'LU_CPLX: exit phy2chem init ', RC_CPL
 !
       end subroutine init
 
@@ -242,9 +249,13 @@
 !! 01Feb 2010     Sarah Lu, Transfer/convert fields from phy export state 
 !!                          to GOCART import state
 !! 11Feb 2010     Sarah Lu, Add get_attribute
-!! 06Mar 2010     Sarah Lu, Flip vertical profile index from top-down to
-!!                          bottom-up
-!!
+!! 06Mar 2010     Sarah Lu, Flip vertical profile index from bottom-up to
+!!                          top-down
+!! 12Mar 2010     Sarah Lu, Code clean up
+!! 16Mar 2010     Sarah Lu, Add FillDefault_ and patch_; correct how vertical
+!!                          index is flipped for 3D arrays
+!! 23Mar 2010     Sarah Lu, Track run-time-clock; debug print optional
+!! 09Api 2010     Sarah Lu, Remove some rtc tracking print
 !-----------------------------------------------------------------------
 !
       implicit none
@@ -264,21 +275,24 @@
 !***  local variables
 !-----------------------------------------------------------------------
 !
-      integer                 :: rc=ESMF_success  ! the error signal variable
-      integer                 :: i, j, k, kp
-      integer                 :: item_count_phys, item_count_chem
-      character(20)           :: item_name(200)
-      logical, save           :: first =  .true.
-      real(ESMF_KIND_R8), pointer     :: Array(:,:,:)
-      type(ESMF_Field)                :: Field
-!
-! deubg
-      integer, parameter                 :: nfld_2d = 18          !chlu_debug
-      integer, parameter                 :: nfld_3d = 10          !chlu_debug
-      character(8)                       :: vname_2d(nfld_2d)     !chlu_debug
-      character(8)                       :: vname_3d(nfld_3d)     !chlu_debug
-      character(8)                       :: NAME                  !chlu_debug
+      integer                          :: rc=ESMF_success  ! the error signal variable
+      integer                          :: i, j, k
+      integer                          :: item_count_phys, item_count_chem
+      character(20)                    :: item_name(100)
+      logical, save                    :: first =  .true.
+      real(ESMF_KIND_R8), pointer      :: Array(:,:,:)
+      type(ESMF_Field)                 :: Field
 
+!
+      integer, parameter               :: nfld_2d  = 18          
+      integer, parameter               :: nfld_3d  = 10         
+      integer, parameter               :: nfld_trc = 5           
+      character(8)                     :: vname_2d (nfld_2d)    
+      character(8)                     :: vname_3d (nfld_3d)   
+      character(8)                     :: vname_trc(nfld_trc) 
+
+      real(kind=8) :: rtc
+      real(kind=8) :: t1, t1_i, t1_o, t2, t2_i, t2_o
 
 ! Fortran array for phy export state
       real(ESMF_KIND_R8), pointer, dimension(:,:) ::                    &
@@ -294,9 +308,7 @@
                p_du001, p_du002, p_du003, p_du004, p_du005,              & ! DU
                p_ss001, p_ss002, p_ss003, p_ss004, p_ss005,              & ! SS
                p_msa,   p_so4,   p_so2,   p_dms,                         & ! SU
-               p_ocphobic, p_ocphilic,                                   & ! OC
-               p_bcphobic, p_bcphilic                                      ! BC
-           
+               p_ocphobic, p_ocphilic, p_bcphobic, p_bcphilic              ! OC/BC
 
 ! Fortran array for chem import state
       real(ESMF_KIND_R8), pointer, dimension(:,:) ::          &
@@ -308,173 +320,152 @@
                c_airdens, c_t, c_u, c_v, c_fcld, c_dqdt
 
       real (ESMF_KIND_R8), pointer, dimension(:,:,:) ::                  &
-               c_o3, c_rh,                                               & ! met tracers
+               c_o3, c_rh2,                                              & ! met tracers
                c_du001, c_du002, c_du003, c_du004, c_du005,              & ! DU
                c_ss001, c_ss002, c_ss003, c_ss004, c_ss005,              & ! SS
                c_msa,   c_so4,   c_so2,   c_dms,                         & ! SU
-               c_ocphobic, c_ocphilic,                                   & ! OC
-               c_bcphobic, c_bcphilic                                      ! BC
-
+               c_ocphobic, c_ocphilic, c_bcphobic, c_bcphilic              ! OC/BC
+!
+! local variables for conversion
+      real       :: ptp, utp, vtp, ttp, htp, shrtp, tv1, dz
+      real (ESMF_KIND_R8), allocatable, dimension(:), save ::           &
+                              prsln, sh, rh, shs, rho, pi, h
+!
 ! SOILTYPE and POROSITY
       integer, parameter :: DEFINED_SOIL=9
       real               :: SMCMAX, MAXSMC(DEFINED_SOIL)
 !
-! local variables for conversion
-      real                    :: hs, ps, ptp, utp, vtp, ttp, htp, shrtp, &
-                                 tv1, dz, tem, es
-      real,  allocatable, dimension(:)  :: prsln, prslk, prsik, &
-                                 pm, pd, sh, t, u, v, rh, shs, rho, pi, h
-
-
       real(kind=kind_phys), parameter :: rovg = con_rd / con_g
       real(kind=kind_phys), parameter :: qmin = 1.0e-10
       real(ESMF_KIND_R8),   parameter :: f_one = 1.0
       real(ESMF_KIND_R8),   parameter :: f_zero = 0.0
-
+!
       data MAXSMC /0.421, 0.464, 0.468, 0.434, 0.406, 0.465,     &
                    0.404, 0.439, 0.421 /
-
 !
-      data vname_2d /'TROPP', 'LWI', 'ZPBL', 'FRLAKE',     &       !chlu_debug
-                     'FRACI', 'WET1', 'LAI', 'GRN', 'TA',  &       !chlu_debug
-                     'CN_PRCP', 'NCN_PRCP', 'PS', 'SH',    &       !chlu_debug
-                     'TSOIL1', 'U10M',  'V10M','USTAR','Z0H'/             !chlu_debug
+      data vname_2d /'TROPP', 'LWI', 'ZPBL', 'FRLAKE',     &       
+                     'FRACI', 'WET1', 'LAI', 'GRN', 'TA',  &     
+                     'CN_PRCP', 'NCN_PRCP', 'PS', 'SH',    &    
+                     'TSOIL1', 'U10M',  'V10M','USTAR','Z0H'/ 
 
-      data vname_3d /'PLE', 'ZLE' , 'AIRDENS', 'FCLD', 'DQDT', &  !chlu_debug
-                     'T', 'U', 'V', 'O3', 'RH2' /                 !chlu_debug
+      data vname_3d /'PLE', 'ZLE' , 'AIRDENS', 'FCLD', 'DQDT', &   
+                     'T', 'U', 'V', 'O3', 'RH2'  /               
 
+      data vname_trc/'du001', 'du002',                         & 
+                     'du003', 'du004', 'du005' /            
 
-!
-      print *, 'LU_CPLX: enter phy2chem_run step ', RC
 !---------------------------------------------
-!* Determine dimension and allocate local array
+!* Determine dimension/tracer and allocate local arrays
 !---------------------------------------------
 !
-      IF ( first ) THEN
+      IF ( FIRST ) THEN
 !
 !  --- Retrieve attributes (lat/lon and tracer specification) 
-!  --- Fill in tracer_const local arrays
-        call get_attribute
-!  ---  inputs:  (in scope variables)
-!  ---  outputs: (in scope variables)
-
+        MESSAGE_CHECK = 'PHY2CHEM_RUN: Retrive phy_exp attributes'
+        call get_attribute(PHY_EXP_STATE, RC)
+        CALL ERR_MSG(RC, MESSAGE_CHECK, RC_CPL)
 !
-        MESSAGE_CHECK = 'Retrive field t from phy export'
-        call ESMF_StateGet(state      = PHY_EXP_STATE       &
-                          ,itemName   = 't'                &
-                          ,field      = Field               &
-                          ,rc   =rc)
+        MESSAGE_CHECK = 'PHY2CHEM_RUN: Retrive field t from phy export'
+        call ESMF_StateGet(PHY_EXP_STATE , 't', Field, rc=RC)
         CALL ERR_MSG(RC, MESSAGE_CHECK, RC_CPL)
 !
         nullify(Array)
-        MESSAGE_CHECK = 'Get Fortran data pointer from t'
-        CALL ESMF_FieldGet(field=Field, localDe=0, &
-                           farray=Array, rc = rc)
+        MESSAGE_CHECK = 'PHY2CHEM_RUN: Get Fortran data pointer from t'
+        CALL ESMF_FieldGet(field=Field, localDe=0, farray=Array, rc = RC)
         CALL ERR_MSG(RC, MESSAGE_CHECK, RC_CPL)
 
-!       determine dimension in x-, y-, and z-direction
+!       Determine dimension in x-, y-, and z-direction
         im = size(Array, dim=1)
         jm = size(Array, dim=2)
         km = size(Array, dim=3)
 
-!       allocate local working arrays
-        allocate (                              &
-                     pm   (km),                  &
-                     pd   (km),                  &
+!  ---  allocate arrays at mid layers
+        allocate (                               &
                      sh   (km),                  &
-                     t    (km),                  &
-                     u    (km),                  &
-                     v    (km),                  &
                      rh   (km),                  &
                      rho  (km),                  &
-                     shs  (km),                  &
-                     prslk(km),                  &
-                     prsik(km+1),                &
-                     prsln(km+1),                &
-                     pi   (km+1),                &
-                     h    (km+1)                 &
+                     shs  (km)                   &
+                    ) 
+!  ---  allocate arrays at interfaces
+        allocate (                               &
+                     prsln(0:km),                &
+                     pi   (0:km),                &
+                     h    (0:km)                 &
                     )
+!
+!  ---  Compute all physics function tables
+!
+        print *, 'PHY2CHEM_RUN: Compute all physics function tables'
+        call gfuncphys      
 
-! debug print
-        print *, 'LU_TST: cpi =', cpi(0:ntrac)
-        print *, 'LU_TST: ri  =', ri(0:ntrac)
-        print *, 'LU_TST: ntrac =', ntrac
-        print *, 'LU_TST: doing_DU =', run_DU
-        print *, 'LU_TST: doing_SU =', run_SU
-        print *, 'LU_TST: doing_SS =', run_SS
-        print *, 'LU_TST: doing_OC =', run_OC
-        print *, 'LU_TST: doing_BC =', run_BC
-	print *, 'LU_TST: lonr =', lonr
-	print *, 'LU_TST: lats_node_r =', lats_node_r
-	print *, 'LU_TST: lats_node_r_max =', lats_node_r_max
-	print *, 'LU_TST: lonsperlar_r =', lonsperlar_r(:)
-        print *, 'LU_TST: im, jm, km=', im, jm, km
-
-
-!       reset first flag
-        first = .false.
+! ---   Debug print (optional)
+        if ( lckprnt ) then
+        print *, 'PHY2CHEM_RUN: im, jm, km=', im, jm, km
+        print *, 'PHY2CHEM_RUN: ntrac    =', ntrac
+        print *, 'PHY2CHEM_RUN: doing_DU =', run_DU
+        print *, 'PHY2CHEM_RUN: doing_SU =', run_SU
+        print *, 'PHY2CHEM_RUN: doing_SS =', run_SS
+        print *, 'PHY2CHEM_RUN: doing_OC =', run_OC
+        print *, 'PHY2CHEM_RUN: doing_BC =', run_BC
+	print *, 'PHY2CHEM_RUN: lonr            =', lonr
+	print *, 'PHY2CHEM_RUN: lats_node_r     =', lats_node_r
+	print *, 'PHY2CHEM_RUN: lats_node_r_max =', lats_node_r_max
+	print *, 'PHY2CHEM_RUN: lonsperlar_r =', lonsperlar_r(:)
+        endif
 
       ENDIF
-
+!
 !---------------------------------------------
 !* Get Fortran array from phy export state
 !---------------------------------------------
 
-      MESSAGE_CHECK="Get ItemCount from phy export state"
-
-      call esmf_stateget(PHY_EXP_STATE                    &
+      t1_i=rtc()
+      MESSAGE_CHECK="PHY2CHEM_RUN: Get ItemCount from phy export state"
+      call ESMF_StateGet(PHY_EXP_STATE                    &
                         ,itemcount = item_count_phys      &
                         ,itemnamelist = item_name         &
                         ,rc   =rc)
-
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
-
-      print *,'LU_TST: CPL: phy_exp item count:',item_count_phys
-      print *,'LU_TST: CPL: phy_exp item name :',      &
-                       (item_name(i),i=1,item_count_phys)
 
       IF ( RC == ESMF_SUCCESS ) THEN
 
       if (item_count_phys == 0 ) then
 
-       WRITE(0,*)'Empty phy export state; Fortran array not filled'
+       print *, 'PHY2CHEM_RUN: Empty phy export state; Fortran array not filled'
 
       else
 
-       WRITE(0,*)'Get Fortran array from phy export state'
+       call GetPointer_(PHY_EXP_STATE, 'slmsk', p_slmsk, rc)
+       call GetPointer_(PHY_EXP_STATE, 'hpbl',  p_hpbl , rc)
+       call GetPointer_(PHY_EXP_STATE, 'smc1',  p_smc1 , rc)
+       call GetPointer_(PHY_EXP_STATE, 'stype', p_stype, rc)
+       call GetPointer_(PHY_EXP_STATE, 'vtype', p_vtype, rc)
+       call GetPointer_(PHY_EXP_STATE, 'vfrac', p_vfrac, rc)
+       call GetPointer_(PHY_EXP_STATE, 'rain',  p_rain , rc)
+       call GetPointer_(PHY_EXP_STATE, 'rainc', p_rainc, rc)
+       call GetPointer_(PHY_EXP_STATE, 'dtsfci',p_dtsfci,rc)
+       call GetPointer_(PHY_EXP_STATE, 'tsea',  p_tsea , rc)
+       call GetPointer_(PHY_EXP_STATE, 'stc1',  p_stc1 , rc)
+       call GetPointer_(PHY_EXP_STATE, 'u10m',  p_u10m , rc)
+       call GetPointer_(PHY_EXP_STATE, 'v10m',  p_v10m , rc)
+       call GetPointer_(PHY_EXP_STATE, 'ustar', p_ustar, rc)
+       call GetPointer_(PHY_EXP_STATE, 'zorl',  p_zorl , rc)
+       call GetPointer_(PHY_EXP_STATE, 'hs'  ,  p_hs   , rc)
+       call GetPointer_(PHY_EXP_STATE, 'ps'  ,  p_ps   , rc)
 
-       call GetPointer_(PHY_EXP_STATE,'slmsk', p_slmsk, rc)
-       call GetPointer_(PHY_EXP_STATE,'hpbl',  p_hpbl , rc)
-       call GetPointer_(PHY_EXP_STATE,'smc1',  p_smc1 , rc)
-       call GetPointer_(PHY_EXP_STATE,'stype', p_stype, rc)
-       call GetPointer_(PHY_EXP_STATE,'vtype', p_vtype, rc)
-       call GetPointer_(PHY_EXP_STATE,'vfrac', p_vfrac, rc)
-       call GetPointer_(PHY_EXP_STATE,'rain',  p_rain , rc)
-       call GetPointer_(PHY_EXP_STATE,'rainc', p_rainc, rc)
-       call GetPointer_(PHY_EXP_STATE,'dtsfci',p_dtsfci,rc)
-       call GetPointer_(PHY_EXP_STATE,'tsea',  p_tsea , rc)
-       call GetPointer_(PHY_EXP_STATE,'stc1',  p_stc1 , rc)
-       call GetPointer_(PHY_EXP_STATE,'u10m',  p_u10m , rc)
-       call GetPointer_(PHY_EXP_STATE,'v10m',  p_v10m , rc)
-       call GetPointer_(PHY_EXP_STATE,'ustar', p_ustar, rc)
-       call GetPointer_(PHY_EXP_STATE,'zorl',  p_zorl , rc)
-       call GetPointer_(PHY_EXP_STATE,'hs'  ,  p_hs   , rc)
-       call GetPointer_(PHY_EXP_STATE,'ps'  ,  p_ps   , rc)
+! for GFS, vertical index is from surface to toa
+       call GetPointer_3D_(PHY_EXP_STATE, 't' ,  p_t   , rc)
+       call GetPointer_3D_(PHY_EXP_STATE, 'u' ,  p_u   , rc)
+       call GetPointer_3D_(PHY_EXP_STATE, 'v' ,  p_v   , rc)
+       call GetPointer_3D_(PHY_EXP_STATE, 'p' ,  p_p   , rc)
+       call GetPointer_3D_(PHY_EXP_STATE, 'dp',  p_dp  , rc)
+       call GetPointer_3D_(PHY_EXP_STATE, 'fcld',p_fcld , rc)
+       call GetPointer_3D_(PHY_EXP_STATE, 'dqdt',p_dqdt , rc)
 
-! for GFS, vertical index is from surface to top of atmosphere
-       call GetPointer_3D_(PHY_EXP_STATE,'t' ,  p_t   , rc)
-       call GetPointer_3D_(PHY_EXP_STATE,'u' ,  p_u   , rc)
-       call GetPointer_3D_(PHY_EXP_STATE,'v' ,  p_v   , rc)
-       call GetPointer_3D_(PHY_EXP_STATE,'p' ,  p_p   , rc)
-       call GetPointer_3D_(PHY_EXP_STATE,'dp',  p_dp  , rc)
-       call GetPointer_3D_(PHY_EXP_STATE,'fcld', p_fcld , rc)
-       call GetPointer_3D_(PHY_EXP_STATE,'dqdt', p_dqdt , rc)
-
-! get met tracers
+! get met + chem tracers
        call GetPointer_tracer_(PHY_EXP_STATE,'spfh', p_spfh, rc)
        call GetPointer_tracer_(PHY_EXP_STATE,'o3mr', p_o3mr, rc)
 
-! get chem tracers
        if ( run_DU ) then
         call GetPointer_tracer_(PHY_EXP_STATE,'du001', p_du001, rc)
         call GetPointer_tracer_(PHY_EXP_STATE,'du002', p_du002, rc)
@@ -512,67 +503,62 @@
 
       ELSE
 
-       WRITE(0,*)'Fail to get phy export state'
+       print *, 'PHY2CHEM_RUN: phy export state ItemCount failed,', RC
 
       ENDIF
-
 
 !---------------------------------------------
 !* Get Fortran array from gocart import state
 !---------------------------------------------
 
-      MESSAGE_CHECK="Get ItemCount from chem import state"
-
-      call esmf_stateget(CHEM_IMP_STATE                   &
+      MESSAGE_CHECK="PHY2CHEM_RUN: Get ItemCount from chem import state"
+      call ESMF_StateGet(CHEM_IMP_STATE                   &
                         ,itemcount = item_count_chem      &
                         ,itemnamelist = item_name         &
-                        ,rc   =rc)
-
+                        ,rc= RC)
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
-
-      print *,'LU_TST: CPL: chem_imp item count:',item_count_chem
-      print *,'LU_TST: CPL: chem_imp item name :',      &
-                       (item_name(i),i=1,item_count_chem)
 
       IF ( RC == ESMF_SUCCESS ) THEN
 
       if (item_count_chem == 0 ) then
 
-       WRITE(0,*)'Empty chem import state; Fortran array not filled'
+       print *, 'PHY2CHEM_RUN: Empty chem import state; Fortran array not filled'
 
       else
-       WRITE(0,*)'Get Fortran array from chem import state'
-       call GetPointer_(CHEM_IMP_STATE,'LWI'   ,c_lwi  , rc)
-       call GetPointer_(CHEM_IMP_STATE,'ZPBL'  ,c_zpbl , rc)
-       call GetPointer_(CHEM_IMP_STATE,'FRLAKE',c_frlake,rc)
-       call GetPointer_(CHEM_IMP_STATE,'FRACI' ,c_fraci, rc)
-       call GetPointer_(CHEM_IMP_STATE,'WET1'  ,c_wet1 , rc)
-       call GetPointer_(CHEM_IMP_STATE,'LAI'   ,c_lai  , rc)
-       call GetPointer_(CHEM_IMP_STATE,'GRN'   ,c_grn  , rc)
-       call GetPointer_(CHEM_IMP_STATE,'CN_PRCP',c_cn_prcp,rc)
-       call GetPointer_(CHEM_IMP_STATE,'NCN_PRCP',c_ncn_prcp,rc)
-       call GetPointer_(CHEM_IMP_STATE,'SH'    ,c_sh   , rc)
-       call GetPointer_(CHEM_IMP_STATE,'TA'    ,c_ta   , rc)
-       call GetPointer_(CHEM_IMP_STATE,'TSOIL1',c_tsoil1,rc)
-       call GetPointer_(CHEM_IMP_STATE,'U10M'  ,c_u10m , rc)
-       call GetPointer_(CHEM_IMP_STATE,'V10M'  ,c_v10m , rc)
-       call GetPointer_(CHEM_IMP_STATE,'USTAR' ,c_ustar, rc)
-       call GetPointer_(CHEM_IMP_STATE,'Z0H'   ,c_z0h  , rc)
-       call GetPointer_(CHEM_IMP_STATE,'TROPP' ,c_tropp, rc)
-       call GetPointer_(CHEM_IMP_STATE,'PS'    ,c_ps   , rc)
 
+       call GetPointer_(CHEM_IMP_STATE, 'LWI'   ,c_lwi  , rc)
+       call GetPointer_(CHEM_IMP_STATE, 'ZPBL'  ,c_zpbl , rc)
+       call GetPointer_(CHEM_IMP_STATE, 'FRLAKE',c_frlake,rc)
+       call GetPointer_(CHEM_IMP_STATE, 'FRACI' ,c_fraci, rc)
+       call GetPointer_(CHEM_IMP_STATE, 'WET1'  ,c_wet1 , rc)
+       call GetPointer_(CHEM_IMP_STATE, 'LAI'   ,c_lai  , rc)
+       call GetPointer_(CHEM_IMP_STATE, 'GRN'   ,c_grn  , rc)
+       call GetPointer_(CHEM_IMP_STATE, 'CN_PRCP',c_cn_prcp,rc)
+       call GetPointer_(CHEM_IMP_STATE, 'NCN_PRCP',c_ncn_prcp,rc)
+       call GetPointer_(CHEM_IMP_STATE, 'SH'    ,c_sh   , rc)
+       call GetPointer_(CHEM_IMP_STATE, 'TA'    ,c_ta   , rc)
+       call GetPointer_(CHEM_IMP_STATE, 'TSOIL1',c_tsoil1,rc)
+       call GetPointer_(CHEM_IMP_STATE, 'U10M'  ,c_u10m , rc)
+       call GetPointer_(CHEM_IMP_STATE, 'V10M'  ,c_v10m , rc)
+       call GetPointer_(CHEM_IMP_STATE, 'USTAR' ,c_ustar, rc)
+       call GetPointer_(CHEM_IMP_STATE, 'Z0H'   ,c_z0h  , rc)
+       call GetPointer_(CHEM_IMP_STATE, 'TROPP' ,c_tropp, rc)
+       call GetPointer_(CHEM_IMP_STATE, 'PS'    ,c_ps   , rc)
+
+! for GOCART, vertical index is fom toa to surface
        call GetPointer_3D_(CHEM_IMP_STATE,'PLE', c_ple , rc)
        call GetPointer_3D_(CHEM_IMP_STATE,'ZLE', c_zle , rc)
        call GetPointer_3D_(CHEM_IMP_STATE,'AIRDENS',  c_airdens, rc)
        call GetPointer_3D_(CHEM_IMP_STATE,'T'  , c_t   , rc)
        call GetPointer_3D_(CHEM_IMP_STATE,'U'  , c_u   , rc)
        call GetPointer_3D_(CHEM_IMP_STATE,'V'  , c_v   , rc)
-       call GetPointer_3D_(CHEM_IMP_STATE,'O3' , c_o3  , rc)
-       call GetPointer_3D_(CHEM_IMP_STATE,'RH2' , c_rh  , rc)
        call GetPointer_3D_(CHEM_IMP_STATE,'FCLD', c_fcld , rc)
        call GetPointer_3D_(CHEM_IMP_STATE,'DQDT', c_dqdt , rc)
 
-! get chem tracers
+! get met + chem tracers
+       call GetPointer_3D_(CHEM_IMP_STATE,'O3' , c_o3  , rc)
+       call GetPointer_3D_(CHEM_IMP_STATE,'RH2' , c_rh2 , rc)
+
        if ( run_DU ) then
         call GetPointer_tracer_(CHEM_IMP_STATE,'du001', c_du001, rc)
         call GetPointer_tracer_(CHEM_IMP_STATE,'du002', c_du002, rc)
@@ -606,32 +592,72 @@
         call GetPointer_tracer_(CHEM_IMP_STATE,'bcphilic', c_bcphilic, rc)
        endif
 
-
       endif
 
       ELSE
 
-       WRITE(0,*)'Fail to get chem import state'
+       print *, 'PHY2CHEM_RUN: chem import state ItemCount failed,', RC
 
       ENDIF
 
+      t1_o=rtc()
+      t1 = t1_o - t1_i
 
+!
 !---------------------------------------------
-!* Do the actual coupling (data copy)
+!* Do the actual coupling 
 !---------------------------------------------
 ! 
+      t2_i=rtc()
       IF ( RC_CPL == ESMF_SUCCESS ) THEN
 
-       if (item_count_chem == 0 ) then
+       if (item_count_chem==0 .or. item_count_phys==0) then
 
-        WRITE(0,*)'Empty chem imp; Coupling phy_exp with chem_imp skipped'
+        print *, 'PHY2CHEM_RUN: Empty state; Coupling phy_exp with chem_imp skipped'
 
        else
 
-        WRITE(0,*)'Chem imp not empty; Coupling phy_exp with chem_imp'
+
+! --- fill in default values
+!      call FillDefault_
+
 !
-! ---  data copy between phy export state and chem import state
+! --- Aerosol tracer fields: flip from bottom-up to top-down
 !
+       if ( run_DU ) then
+          p_du001(:,:,1:km) = p_du001(:,:,km:1:-1) 
+          p_du002(:,:,1:km) = p_du002(:,:,km:1:-1) 
+          p_du003(:,:,1:km) = p_du003(:,:,km:1:-1) 
+          p_du004(:,:,1:km) = p_du004(:,:,km:1:-1) 
+          p_du005(:,:,1:km) = p_du005(:,:,km:1:-1) 
+       endif
+
+       if ( run_SS ) then
+          p_ss001(:,:,1:km) = p_ss001(:,:,km:1:-1) 
+          p_ss002(:,:,1:km) = p_ss002(:,:,km:1:-1) 
+          p_ss003(:,:,1:km) = p_ss003(:,:,km:1:-1) 
+          p_ss004(:,:,1:km) = p_ss004(:,:,km:1:-1) 
+          p_ss005(:,:,1:km) = p_ss005(:,:,km:1:-1) 
+       endif
+
+       if ( run_OC ) then
+          p_ocphobic(:,:,1:km) = p_ocphobic(:,:,km:1:-1) 
+          p_ocphilic(:,:,1:km) = p_ocphilic(:,:,km:1:-1) 
+       endif
+
+       if ( run_BC ) then
+          p_bcphobic(:,:,1:km) = p_bcphobic(:,:,km:1:-1) 
+          p_bcphilic(:,:,1:km) = p_bcphilic(:,:,km:1:-1) 
+       endif
+
+       if ( run_SU ) then
+          p_msa (:,:,1:km) = p_msa (:,:,km:1:-1) 
+          p_so2 (:,:,1:km) = p_so2 (:,:,km:1:-1) 
+          p_so4 (:,:,1:km) = p_so4 (:,:,km:1:-1) 
+          p_dms (:,:,1:km) = p_dms (:,:,km:1:-1) 
+       endif
+
+! --- 2D array: data copy
         c_frlake = 0.                  ! fraction_of_lake (1)
         c_fraci  = 0.                  ! ice_covered_fraction_of_tile (1)
         c_lai    = 3.                  ! leaf_area_index (1)
@@ -644,190 +670,341 @@
         c_u10m   = p_u10m              ! 10-meter eastward_wind (m s-1)
         c_v10m   = p_v10m              ! 10-meter northward_wind (m s-1)
         c_ustar  = p_ustar             ! surface velocity scale (m s-1)
-!
-        c_cn_prcp  = 1.E3*p_rainc      ! surface conv. rain flux (kg/m^2/s)
-        c_ncn_prcp = 1.E3*(p_rain - p_rainc) ! Non-conv. precip rate (kg/m^2/s)
-        c_z0h      = p_zorl / 1.E2     ! surface roughness (m)
-! 
         c_lwi    = p_slmsk             ! land-ocean-ice mask  (1)
         c_ps     = p_ps                ! surface pressure (Pa)
 !
-! --- flip virtical profile index
-!*      c_t      = p_t                 ! air temp at mid-layer (K)
-!*      c_u      = p_u                 ! zonal wind at mid-layer (m/s)
-!*      c_v      = p_v                 ! meridian wind at mid-layer (m/s)
-!*      c_o3     = p_o3mr              ! ozone mixing ratio at mid-layer (kg/kg)
-!*      c_fcld   = p_fcld              ! cloud cover  (1)
-!*      c_dqdt   = p_dqdt              ! total moisture tendency (kg/kg/s)
-        do k = 1, km
-          kp = km - k + 1
-          c_t(:,:,kp)      = p_t(:,:,k)        ! air temp at mid-layer (K)
-          c_u(:,:,kp)      = p_u(:,:,k)        ! zonal wind at mid-layer (m/s)
-          c_v(:,:,kp)      = p_v(:,:,k)        ! meridian wind at mid-layer (m/s)
-          c_o3(:,:,kp)     = p_o3mr(:,:,k)     ! ozone mixing ratio at mid-layer (kg/kg)
-          c_fcld(:,:,kp)   = p_fcld(:,:,k)     ! cloud cover  (1)
-          c_dqdt(:,:,kp)   = p_dqdt(:,:,k)     ! total moisture tendency (kg/kg/s)
-        enddo
+! --- 2D array: data copy with unit conversion
+        c_cn_prcp  = 1.E3*p_rainc      ! surface conv. rain flux (kg/m^2/s)
+        c_ncn_prcp = 1.E3*(p_rain - p_rainc) ! Non-conv. precip rate (kg/m^2/s)
+        c_z0h      = p_zorl / 1.E2     ! surface roughness (m)
 
-!
-!
-! ---  derive chem import from phy export
-!
-!       do i = 1, im         ! <-- only loop through valid points
-!       do j = 1, jm
+! --- 3D array: filp vertical index from bottom-up to top-down
+        c_t (:,:,1:km)      = p_t (:,:,km:1:-1)       ! air temp at mid-layer (K)
+        c_u (:,:,1:km)      = p_u (:,:,km:1:-1)       ! zonal wind at mid-layer (m/s)
+        c_v (:,:,1:km)      = p_v (:,:,km:1:-1)       ! meridian wind at mid-layer (m/s)
+        c_o3(:,:,1:km)      = p_o3mr(:,:,km:1:-1)     ! ozone mixing ratio at mid-layer (kg/kg)
+        c_fcld(:,:,1:km)    = p_fcld(:,:,km:1:-1)     ! cloud cover  (1)
+        c_dqdt(:,:,1:km)    = p_dqdt(:,:,km:1:-1)     ! total moisture tendency (kg/kg/s)
+! 
+! --- Compute ple, zle, airdens, rh2, tropp, wet1
+        do j = 1, jm
+        do i = 1, im
 
-        do j = 1, lats_node_r
-        do i = 1, lonsperlar_r(j)
+!         local array
+          sh(:) = max( p_spfh(i,j,:), qmin )
+
+!         compute air pressure at interface
+          pi(0)=p_ps(i,j)
+          do k=1,km-1
+            pi(k) = pi(k-1) - p_dp(i,j,k)
+          enddo
+          pi(km) = f_zero
+
+!         compute prsln (for thickness computation)
+          do k = 0, km-1                    ! from SFC to TOA
+            prsln(k) = log(0.01*pi(k))      ! convert from Pa to mb
+          enddo
+          prsln(km)=log(0.01*p_p(i,j,km))   ! convert from Pa to mb
+
+!         compute rho (layer air density in kg/m^3), h (interface height in m)
+!         h(0) =  p_hs(i,j)
+          h(0) =  f_zero
+          do k = 1, km                           ! from SFC to TOA
+            tv1 = p_t(i,j,k) * (f_one + con_fvirt * sh(k))   ! virtual temp (k)
+            rho(k) = p_p(i,j,k) /(con_rd * tv1)       ! air density (kg/m3)
+            dz = rovg * (prsln(k-1)-prsln(k)) * tv1   ! thickness (m)
+            if ( k == km ) dz = 2.0 * dz
+            h(k) = h(k-1) + dz        ! geopotential height at interface (m)
+          enddo
+
+!         compute rh2 (relative humidity (in percent)
+          call getrh(km,p_p(i,j,:),sh,p_t(i,j,:),shs,rh)
+
+!         compute tropp (ptp: tropopause pressure in Pa)
+          call tpause(km,p_p(i,j,:),p_u(i,j,:),p_v(i,j,:),p_t(i,j,:),h, &
+                      ptp,utp,vtp,ttp,htp,shrtp)
 
 !         compute soil wetness
-          if ( p_slmsk(i,j) == 1. ) then      ! <--- over ocean
-            smcmax = maxsmc(p_vtype(i,j))     ! porosity
-            c_wet1(i,j) = p_smc1(i,j)/smcmax
+          if (p_slmsk(i,j) == 1.) then        !<---- over land
+            smcmax = maxsmc(p_stype(i,j))     ! porosity
+            c_wet1(i,j) = p_smc1(i,j) / smcmax
           else
-            c_wet1(i,j) = 0.
+            c_wet1(i,j) = f_zero
           endif
-
-!         setup local surface variables from dyn export state
-          hs    = p_hs(i,j)                    ! surface height (m)
-          ps    = p_ps(i,j)                    ! surface pressure (Pa)
-
-!         setup local mid-layer variables from dyn export state
-          pm(:) = p_p(i,j,:)                   ! pressure (Pa)
-          pd(:) = p_dp(i,j,:)                  ! pressure thickness (Pa)
-          sh(:) = max( p_spfh(i,j,:), qmin)    ! specific humidity (kg/kg)
-          t(:)  = p_t(i,j,:)                   ! temp (K)
-          u(:)  = p_u(i,j,:)                   ! zonal wind (m s-1)
-          v(:)  = p_v(i,j,:)                   ! meridian wind (m s-1)
-
-!         computes pi (interface pressure in Pa)
-          pi(1)=ps
-          do k=1,km-1
-            pi(k+1) = pi(k) - pd(k)
-          enddo
-          pi(km+1) = f_zero
-
-! ===>  rho and h can be calculated using real temp, following
-!       get_r and get_phi routines (as in phy grid component) -- Sarah Lu
-
-!         compute rho (layer air density in kg/m^3)
-!         compute h (interface height in m)
-!     
-!      
-          do k = 1, km                           ! from SFC to TOA
-            prsln(k) = log(0.01*pi(k))      ! convert from Pa to mb
-            if ( k == km ) prsln(k+1)=log(0.01*pm(k)) ! Pa to mb
-          enddo
-
-          h(1) =  hs
-          do k = 1, km                           ! from SFC to TOA
-            tv1 = t(k) * (f_one + con_fvirt * sh(k))   ! virtual temp (k)
-            rho(k) = pm(k) /(con_rd * tv1)       ! air density (kg/m3)
-            dz = rovg * (prsln(k)-prsln(k+1)) * tv1  ! thickness (m)
-            if ( k == km ) dz = 2.0 * dz
-            h(k+1) = h(k) + dz        ! geopotential height at interface (m)
 !
-            es=min(fpvs( t(k) ), pm(k))
-            shs(k)=con_eps*es/(pm(k)+con_epsm1*es)
-            rh(k)=1.e2*min(max(sh(k)/shs(k),0.),1.)
-          enddo
-
-!         call getrh to compute saturation humidity and relative humidity
-!         rh : relative humidity (percent)
-!         call getrh(km,pm,sh,t,shs,rh)
-
-!         call tpause to compute tropopause level fields
-!         ptp: tropopause pressure (Pa)
-          call tpause(km,pm,u,v,t,h,ptp,utp,vtp,ttp,htp,shrtp)
-
-!         pass local variables to chem import state
-          c_airdens(i,j,:) =  rho(:)   ! air density at mid-layer (kg/m3)
-          c_tropp(i,j) = ptp           ! tropopause (Pa)
-!*        c_ple(i,j,:) = pi(:)         ! air pressure at interface (Pa)
-!*        c_zle(i,j,:) = h(:)          ! geopotential height at interface (m)
-!*        c_rh(i,j,:)  = 0.01* rh(:)   ! relative humidity at mid-layer (0-1)
-
-! --- flip virtical profile index
-          do k = 1, km
-           kp = km - k + 1
-           c_airdens(i,j,kp) =  rho(k)   ! air density at mid-layer (kg/m3)
-           c_rh(i,j,kp)  = 0.01* rh(k)   ! relative humidity at mid-layer (0-1)
-          enddo
-! for fields at interface: 0:km for GOCART; 1:km+1 for GFS
-          do k = 1, km+1
-           kp = km - k + 1
-           c_ple(i,j,kp) = pi(k)       ! air pressure at interface (Pa)
-           c_zle(i,j,kp) = h(k)        ! geopotential height at interface (m)
-          enddo
+!         pass local array to chem import
+          c_tropp(i,j)    = ptp
+          c_ple(i,j,0:km) = pi(km:0:-1)               ! air pressure at interface (Pa)
+          c_zle(i,j,0:km) = h (km:0:-1)               ! geopotential height at interface (m)
+          c_airdens(i,j,1:km) = rho(km:1:-1)          ! air density at mid-layer (kg/m3)
+          c_rh2(i,j,1:km) = 0.01* rh(km:1:-1)         ! relative humidity in precent
 
         enddo
         enddo
 
        endif
-       print *, 'LU_CPLX: t(phys_exp):', p_t(1,1,1),p_t(2,1,1)
-       print *, 'LU_CPLX: t(chem_imp):', c_t(1,1,km),c_t(2,1,km)
-!
-       print *, 'LU_CPLX: t(phys_exp):', p_t(1,1,1:km)
-       print *, 'LU_CPLX: t(chem_imp):', c_t(1,1,1:km)
 
       ELSE
 
-       WRITE(0,*)'Coupling phy_exp with chem_imp skipped, RC_CPL=',RC_CPL
+       print *, 'PHY2CHEM_RUN: Coupling chem_imp with phy_exp skipped'
 
       ENDIF
+      t2_o=rtc()
+      t2 = t2_o - t2_i
+!
+!
+!---------------------------------------------
+!** Patch the array with valid values for chemistry import
+!---------------------------------------------
+        call patch_
+!  ---  inputs:  (in scope variables)
+!  ---  outputs: (in scope variables)
+
+!! debug print
+      if ( lckprnt ) then
+       print *, 'RTC for Get Array', t1, t1_i, t1_o
+       print *, 'RTC for Computations:', t2, t2_i, t2_o
+
+       print *, 'PHY2CHEM_RUN: check chem_imp before exit PHY2CHEM_RUN'
+
+       DO I = 1, nfld_2d
+        call CkPointer_ (CHEM_IMP_STATE, vname_2d(I) , '2D', rc)
+       ENDDO
+
+       DO I = 1, nfld_3d
+        call CkPointer_ (CHEM_IMP_STATE, vname_3d(I) , '3D',  rc)
+       ENDDO
+
+       DO I = 1, nfld_trc
+        call CkPointer_ (CHEM_IMP_STATE, vname_trc(I) , 'TR', rc)
+       ENDDO
+      endif
+!
+!     Reset first flag
+      FIRST = .False.
+!
+!-----------------------------------------------------------------------
+!***  Check the final error signal variable 
+!-----------------------------------------------------------------------
 !
       IF(RC_CPL==ESMF_SUCCESS)THEN
         WRITE(0,*)'PHY2CHEM CPL RUN SUCCEEDED'
       ELSE
         WRITE(0,*)'PHY2CHEM CPL RUN FAILED RC_CPL=',RC_CPL
       ENDIF
-!
-      print *, 'LU_CPLX: check gocart import state'
 
-      print *, 'LU_CPLX: o3mr(phy_exp):', p_o3mr(1,1,1:km)
-      print *, 'LU_CPLX: o3(chem_imp):', c_o3(1,1,1:km)
-
-      DO I = 1, nfld_2d
-        NAME = vname_2d(I)
-        call CkPointer_(CHEM_IMP_STATE, NAME  , rc)
-      ENDDO
-
-      DO I = 1, nfld_3d
-        NAME = vname_3d(I)
-        call CkPointer_3D_ (CHEM_IMP_STATE, NAME  , rc)
-      ENDDO
-
-!
-      print *, 'LU_CPLX: exit phy2chem_run step ', RC_CPL
-!
 !! 
       contains 
 
-
-!=========================
-      subroutine get_attribute
+! ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      subroutine FillDefault_
 
 !  ---  inputs:  (in scope variables)
 !  ---  outputs: (in scope variables)
+
+        do j = 1, jm
+        do i = 1, im
+
+            c_PLE(i,j,:) = (/ 1, 2, 3, 4, 6, 8, 11, 15, 21, 27, 36, 47, 61, 79, 101, 130,       &
+                           165, 208, 262, 327, 407, 504, 621, 761, 929, 1127, 1364, 1645,  &
+                           1979, 2373, 2836, 3381, 4017, 4764, 5638, 6660, 7851, 9236,     &
+                           10866, 12783, 15039, 17693, 20792, 24398, 28606, 33388, 37003,  &
+                           40612, 44214, 47816, 51405, 54997, 58584, 62170, 65769, 68147,  &
+                           70540, 72931, 75313, 77711, 79623, 81046, 82485, 83906, 85344,  &
+                           86765, 88201, 89636, 91071, 92516, 93921, 95376 /)       
+
+            c_ZLE(i,j,:) = (/ 78676, 74222, 71032, 68578, 66390, 64345, 62371, 60419, 58455, &
+                            56469, 54463, 52449, 50446, 48476, 46563, 44718, 42946, 41256, &
+                            39651, 38123, 36656, 35234, 33847, 32499, 31199, 29940, 28704, &
+                            27494, 26310, 25151, 24017, 22905, 21815, 20745, 19691, 18656, &
+                            17629, 16609, 15589, 14559, 13514, 12470, 11475, 10487, 9469, &
+                            8438, 7731, 7076, 6463, 5889, 5348, 4838, 4355, 3898, 3464, &
+                            3187, 2918, 2656, 2403, 2155, 1963, 1821, 1682, 1546, 1412, &
+                            280, 1149, 1022, 896, 773, 654, 535, 417 /)
+
+            c_AIRDENS(i,j,:) = (/ 2.27987766266e-05, 4.03523445129e-05, 6.19888305664e-05, 8.63075256348e-05, &
+                                0.000117659568787, 0.000159025192261, 0.000209808349609, 0.000270366668701, &
+                                0.000345230102539, 0.000439167022705, 0.00055980682373, 0.000717163085938, &
+                                0.000923156738281, 0.00120162963867, 0.00156402587891, 0.00202178955078, &
+                                0.00262451171875, 0.00339889526367, 0.00437164306641, 0.00555419921875, &
+                                0.00694274902344, 0.00857543945312, 0.0105895996094, 0.0131225585938, &
+                                0.0160827636719, 0.0195617675781, 0.0237731933594, 0.0287780761719, &
+                                0.0347290039062, 0.0416870117188, 0.0499267578125, 0.0596313476562, &
+                                0.0711669921875, 0.084716796875, 0.100830078125, 0.11865234375, 0.138671875, &
+                                0.1630859375, 0.190185546875, 0.22021484375, 0.25927734375, 0.318359375, &
+                                0.3720703125, 0.42138671875, 0.47265625, 0.521484375, 0.5615234375, &
+                                0.6005859375, 0.638671875, 0.677734375, 0.71875, 0.759765625, 0.8017578125, &
+                                0.8447265625, 0.8798828125, 0.90625, 0.9326171875, 0.958984375, 0.986328125, &
+                                1.013671875, 1.03515625, 1.052734375, 1.072265625, 1.08984375, 1.10546875, &
+                                1.123046875, 1.140625, 1.162109375, 1.1953125, 1.21875, 1.234375, 1.25 /)
+
+            c_FCLD(i,j,:) = 1e-2 * &
+                          (/ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, &
+                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, &
+                             0, 0, 0, 0, 0, 0, 16, 21, 26, 28, 0, 0, 0, 0, 0, 0, 0, &
+                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0 /)
+
+            c_DQDT(i,j,:) = 1e-12 * &
+                          (/ 9, 11, -3, -3, -2, -18, -10, 2, 0, -3, -6, -5, -3, -1, 1, &
+                             1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, &
+                             1, 1, 0, 0, -5, -22, -33, 95, 474, 348, 177, 3377, 11045, &
+                             11788, -5267, -7756, -17491, -19790, -10884, -6082, 8120, 4381, &
+                             -10346, 8033, 69151, 77650, 61351, 46508, 33936, 23022, 15658, &
+                             11598, 6469, 4861, -846, -7974, -30500, -20663, -14930 /)
+
+            c_T(i,j,:) = (/ 219, 221, 223, 228, 230, 230, 232, 238, 245, 253, 259, 263, &
+                          264, 262, 258, 253, 247, 239, 233, 229, 227, 227, 226, 223, &
+                          222, 221, 220, 219, 218, 217, 216, 215, 214, 213, 212, 212, &
+                          214, 214, 216, 219, 219, 210, 210, 218, 227, 234, 240, 245, &
+                          250, 254, 257, 260, 262, 263, 265, 266, 267, 268, 269, 270, &
+                          270, 270, 270, 270, 271, 271, 271, 270, 267, 265, 266, 266 /)
+
+
+            c_U(i,j,:) = (/ -18, -13, 0, 10, 26, 36, 39, 40, 38, 37, 36, 35, 32, 28,    &
+                           23, 16, 6, -2, -9, -13, -15, -16, -14, -14, -12, -12, -11, &
+                          -10, -9, -5, -3, -2, 0, 1, 3, 5, 9, 13, 17, 22, 24, 26,     &
+                           25, 26, 26, 22, 19, 17, 14, 12, 12, 11, 11, 11, 11, 10, 9, &
+                            8, 6, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5, -6, -6, -6 /)
+
+            c_V(i,j,:) = (/ 20, 13, 9, 4, -1, -9, -20, -24, -25, -27, -28, -28, -26,    &
+                         -25, -27, -28, -28, -28, -27, -27, -25, -23, -19, -15, -11,  &
+                         -10, -9, -8, -7, -7, -8, -9, -10, -12, -14, -15, -16, -18,   &
+                         -21, -22, -22, -25, -29, -25, -23, -23, -22, -20, -17, -13,  &
+                         -9, -6, -4, -4, -4, -3, -2, -1, 0, 0, 0, 1, 1, 1, 2, 2,      &
+                          3, 3, 3, 4, 4, 3 /)
+
+            c_O3(i,j,:) = 1.E-9 * & 
+                        (/ 16182, 9700, 7294, 5781, 4164, 3017, 2440, 2287, 2324, 2514,  &
+                           2838, 3304, 4030, 4924, 5915, 7033, 8434, 9894, 11101, 11414, &
+                           10475, 9745, 10058, 9119, 8538, 9238, 9164, 10028, 10132, 10237, &
+                           9447, 7972, 7174, 5222, 4008, 3296, 2231, 1320, 768, 628, 685, &
+                           676, 202, 122, 96, 88, 86, 83, 83, 84, 84, 83, 82, 81, 79, &
+                           79, 77, 76, 77, 80, 84, 87, 89, 90, 89, 88, 83, 76, 69, 65, &
+                           64, 64 /)
+ 
+            c_RH2(i,j,:) = 1e-6 * &
+                         (/ 1, 2, 2, 2, 3, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 6, 18, 51,          &
+                            129, 267, 394, 502, 682, 1135, 1603, 2076, 2820, 3792, 5120,     &
+                            6806, 8912, 11597, 15397, 20386, 28168, 29755, 28748, 33875,     &
+                            34058, 28657, 43458, 401856, 947266, 932618, 902344, 657227,     &
+                            371583, 203370, 235108, 317872, 413086, 511719, 691407, 686524,  &
+                            601563, 456055, 475098, 626954, 590821, 483399, 380860, 297852,  &
+                            230958, 183594, 144288, 111084, 96558, 136963, 369629, 770508,   &
+                            793946, 799805 /)
+!           2D
+!           --
+            c_TROPP(i,j) = 20363.5
+            c_LWI(i,j) = 1.
+            c_ZPBL(i,j) = 59.
+            c_FRLAKE(i,j) = 0.
+            c_FRACI(i,j) = 0.
+            c_WET1(i,j) = 0.0
+            c_LAI(i,j) = 0.280273
+            c_GRN(i,j) = 0.5
+            c_CN_PRCP(i,j) = 0.0
+            c_NCN_PRCP(i,j) = 3.18323e-10
+            c_PS(i,j) = 96825.3 
+            c_SH(i,j) = -28.548
+            c_TSOIL1(i,j) = 260.014
+            c_U10M(i,j) = -3.5
+            c_V10M(i,j) = 2.8
+            c_USTAR(i,j) = 0.29
+            c_Z0H(i,j) = 0.02005
+            c_TA(i,j) = 270.014
+
+      end do
+      end do
+
+      end subroutine FillDefault_
+
+      subroutine patch_
+
+!  ---  inputs:  (in scope variables)
+!  ---  outputs: (in scope variables)
+
+
+      do j = 1, lats_node_r_max
+
+        if (lonsperlar_r(j) < lonr ) then
+
+! fill in 2D array except for frlake, fraci, lai
+           c_lwi  (lonsperlar_r(j)+1:lonr, j) = c_lwi   (1,1)
+           c_zpbl (lonsperlar_r(j)+1:lonr, j) = c_zpbl  (1,1)
+           c_wet1 (lonsperlar_r(j)+1:lonr, j) = c_wet1  (1,1)
+           c_grn  (lonsperlar_r(j)+1:lonr, j) = c_grn   (1,1)
+           c_cn_prcp(lonsperlar_r(j)+1:lonr, j) = c_cn_prcp(1,1)
+           c_ncn_prcp(lonsperlar_r(j)+1:lonr, j)= c_ncn_prcp(1,1)
+           c_sh   (lonsperlar_r(j)+1:lonr, j) = c_sh    (1,1)
+           c_ta   (lonsperlar_r(j)+1:lonr, j) = c_ta    (1,1)
+           c_tsoil1(lonsperlar_r(j)+1:lonr,j) = c_tsoil1(1,1)
+           c_u10m (lonsperlar_r(j)+1:lonr, j) = c_u10m  (1,1)
+           c_v10m (lonsperlar_r(j)+1:lonr, j) = c_v10m  (1,1)
+           c_ustar(lonsperlar_r(j)+1:lonr, j) = c_ustar (1,1)
+           c_z0h  (lonsperlar_r(j)+1:lonr, j) = c_z0h   (1,1)
+           c_tropp(lonsperlar_r(j)+1:lonr, j) = c_tropp (1,1)
+           c_ps   (lonsperlar_r(j)+1:lonr, j) = c_ps    (1,1)
+
+! fill in 3D array at interface
+  	   do k = 0, km
+           c_ple   (lonsperlar_r(j)+1:lonr, j, k) = c_ple   (1,1,k)
+           c_zle   (lonsperlar_r(j)+1:lonr, j, k) = c_zle   (1,1,k)
+           enddo  
+
+! fill in 3D array at mid-layer
+           do k = 1, km
+           c_airdens(lonsperlar_r(j)+1:lonr,j,k) = c_airdens(1,1,k)
+           c_t      (lonsperlar_r(j)+1:lonr,j,k) = c_t      (1,1,k)
+           c_u      (lonsperlar_r(j)+1:lonr,j,k) = c_u      (1,1,k)
+           c_v      (lonsperlar_r(j)+1:lonr,j,k) = c_v      (1,1,k)
+           c_fcld   (lonsperlar_r(j)+1:lonr,j,k) = c_fcld   (1,1,k)
+           c_dqdt   (lonsperlar_r(j)+1:lonr,j,k) = c_dqdt   (1,1,k)
+
+           c_o3    (lonsperlar_r(j)+1:lonr,j,k) = c_o3    (1,1,k)
+           c_rh2   (lonsperlar_r(j)+1:lonr,j,k) = c_rh2   (1,1,k)
+           enddo     
+
+        endif
+      enddo 
+      RETURN
+
+      end subroutine patch_
+
+      END subroutine run
+
+!=========================
+      subroutine get_attribute(STATE, RC_CPL)
+
+!  ---  input
+        type(ESMF_State), intent(in)         :: STATE
+
+!  ---  output
+        integer, intent(out)                 :: RC_CPL
 
 !  ---  locals:
         type(ESMF_FieldBundle)   :: Bundle
         TYPE(ESMF_Logical)       :: doing_SU, doing_SS, &
                                     doing_DU, doing_OC, doing_BC
-        integer                  :: status
+        integer                  :: STATUS, RC
+        character(esmf_maxstr)   :: statename
 
-! ---  Retrieve lat/lon info
-        MESSAGE_CHECK = 'Extract lonr attribute from phy_exp'
-        CALL ESMF_AttributeGet(state=PHY_EXP_STATE, name='lonr'  &
+! ---   Retrieve statename
+        MESSAGE_CHECK='Retrive state name'
+        call ESMF_StateGet(state=STATE, name=statename, rc=RC )
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
+!  ---  Retrieve lat/lon info
+        MESSAGE_CHECK = 'Extract lonr attribute from '//trim(statename)
+        CALL ESMF_AttributeGet(state=STATE, name='lonr'  &
                               ,value=lonr, rc=RC)
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
-        MESSAGE_CHECK = 'Extract lats_node_r attribute from phy_exp'
-        CALL ESMF_AttributeGet(state=PHY_EXP_STATE, name='lats_node_r'  &  
+        MESSAGE_CHECK = 'Extract lats_node_r attribute from '//trim(statename)
+        CALL ESMF_AttributeGet(state=STATE, name='lats_node_r'  &  
                              ,value=lats_node_r, rc=RC)
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
-        MESSAGE_CHECK = 'Extract lats_node_r_max attribute from phy_exp'
-        CALL ESMF_AttributeGet(state=PHY_EXP_STATE, name='lats_node_r_max'&
+        MESSAGE_CHECK = 'Extract lats_node_r_max attribute from '//trim(statename)
+        CALL ESMF_AttributeGet(state=STATE, name='lats_node_r_max'&
                              ,value=lats_node_r_max, rc=RC)
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
@@ -835,361 +1012,288 @@
           allocate ( lonsperlar_r(lats_node_r_max))
         endif
 
-        MESSAGE_CHECK = 'Extract lonsperlar_r attribute from phy_exp'
-        CALL ESMF_AttributeGet(state=PHY_EXP_STATE     &  !<-- The physics export state
+        MESSAGE_CHECK = 'Extract lonsperlar_r attribute from '//trim(statename)
+        CALL ESMF_AttributeGet(state=STATE             &  !<-- Name of the state
                            ,name ='lonsperlar_r'       &  !<-- Name of the attribute to retrieve
                            ,count = lats_node_r_max    &  !<-- Number of values in the attribute
                            ,valueList =lonsperlar_r    &  !<-- Value of the attribute
                            ,rc   =RC)
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
-! ---  Retrieve tracer specification
-        MESSAGE_CHECK = 'Extract tracer bundle from phy_exp'
-        call ESMF_StateGet(state=PHY_EXP_STATE, ItemName='tracers',    &
-                          fieldbundle=Bundle, rc = rc )
+! ---   Retrieve tracer specification
+        MESSAGE_CHECK = 'Extract tracer bundle from '//trim(statename)
+        call ESMF_StateGet(state=STATE, ItemName='tracers',    &
+                           fieldbundle=Bundle, rc = rc )
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
-        MESSAGE_CHECK = 'Extract ntrac attribute from phy_exp tracer bundle'
-        CALL ESMF_AttributeGet(Bundle                        &  !<-- Tracer bundle
-               ,name  ='ntrac'                               &  !<-- Name of the attribute to retrieve
-               ,value = ntrac                                &  !<-- Value of the attribute
-               ,rc   =RC)
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
-
-        allocate(ri(0:ntrac), stat=status)
-           if( status .ne. 0 ) print *, 'ERROR: Fail to allocate ri'
-        allocate(cpi(0:ntrac), stat=status)
-           if( status .ne. 0 ) print *, 'ERROR: Fail to allocate cpi'
-
-        MESSAGE_CHECK = 'Extract cpi_dryair attribute from phy_exp tracer bundle'
-        CALL ESMF_AttributeGet(Bundle                        &  !<-- Tracer bundle
-               ,name ='cpi_dryair'                           &  !<-- Name of the attribute to retrieve
-               ,value = cpi(0)                               &  !<-- Value of the attribute
-               ,rc   =RC)
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
-
-        MESSAGE_CHECK = 'Extract ri_dryair attribute from phy_exp tracer bundle'
-        CALL ESMF_AttributeGet(Bundle                        &  !<-- Tracer bundle
-               ,name  ='ri_dryair'                           &  !<-- Name of the attribute to retrieve
-               ,value = ri(0)                                &  !<-- Value of the attribute
-               ,rc   =RC)
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
-
-        MESSAGE_CHECK = 'Extract cpi attribute from phy_exp tracer bundle'
-        CALL ESMF_AttributeGet(Bundle                        &  !<-- Tracer bundle
-               ,name  ='cpi'                                 &  !<-- Name of the attribute to retrieve
-               ,count= ntrac                                 &  !<-- Number of values in the attribute
-               ,valueList = cpi(1:ntrac)                     &  !<-- Value of the attribute
-               ,rc   =RC)
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
-
-        MESSAGE_CHECK = 'Extract ri attribute from phy_exp tracer bundle'
-        CALL ESMF_AttributeGet(Bundle                        &  !<-- Tracer bundle
-               ,name  ='ri'                                  &  !<-- Name of the attribute to retrieve
-               ,count= ntrac                                 &  !<-- Number of values in the attribute
-               ,valueList = ri(1:ntrac)                      &  !<-- Value of the attribute
-               ,rc   =RC)
+        MESSAGE_CHECK = 'Extract ntrac attribute from '//trim(statename)
+        CALL ESMF_AttributeGet(Bundle, name  ='ntrac'  & !<-- Name of the attribute to retrieve
+                              ,value = ntrac, rc = RC)   !<-- Value of the attribute
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
         run_DU = .False.
-        MESSAGE_CHECK = 'Extract doing_DU attribute from phy_exp tracer bundle'
-        CALL ESMF_AttributeGet(Bundle                         &  !<-- Phy export state tracer bundle
-               ,name  ='doing_DU'                             &  !<-- Name of the logical
-               ,value = doing_DU                              &  !<-- The logical being retrieved
-               ,rc   =RC)
+        MESSAGE_CHECK = 'Extract doing_DU attribute from '//trim(statename)
+        CALL ESMF_AttributeGet(Bundle, name = 'doing_DU'     &  
+                              ,value = doing_DU, rc = RC)
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
         if ( doing_DU == ESMF_True ) run_DU = .True.
 
         run_SU = .False.
-        MESSAGE_CHECK = 'Extract doing_SU attribute from phy_exp tracer bundle'
-        CALL ESMF_AttributeGet(Bundle                         &  !<-- Phy export state tracer bundle
-               ,name  ='doing_SU'                             &  !<-- Name of the logical
-               ,value = doing_SU                              &  !<-- The logical being retrieved
-               ,rc   =RC)
+        MESSAGE_CHECK = 'Extract doing_SU attribute from '//trim(statename)
+        CALL ESMF_AttributeGet(Bundle, name = 'doing_SU'     &  
+                              ,value = doing_SU, rc = RC)
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
         if ( doing_SU == ESMF_True ) run_SU = .True.
 
         run_SS = .False.
-        MESSAGE_CHECK = 'Extract doing_SS attribute from phy_exp tracer bundle'
-        CALL ESMF_AttributeGet(Bundle                         &  !<-- Phy export state tracer bundle
-               ,name  ='doing_SS'                             &  !<-- Name of the logical
-               ,value = doing_SS                              &  !<-- The logical being retrieved
-               ,rc   =RC)
+        MESSAGE_CHECK = 'Extract doing_SS attribute from '//trim(statename)
+        CALL ESMF_AttributeGet(Bundle, name = 'doing_SS'     &  
+                              ,value = doing_SS, rc = RC)
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
         if ( doing_SS == ESMF_True ) run_SS = .True.
 
         run_OC = .False.
-        MESSAGE_CHECK = 'Extract doing_OC attribute from phy_exp tracer bundle'
-        CALL ESMF_AttributeGet(Bundle                         &  !<-- Phy export state tracer bundle
-               ,name  ='doing_OC'                             &  !<-- Name of the logical
-               ,value = doing_OC                              &  !<-- The logical being retrieved
-               ,rc   =RC)
+        MESSAGE_CHECK = 'Extract doing_OC attribute from '//trim(statename)
+        CALL ESMF_AttributeGet(Bundle, name = 'doing_OC'     &  
+                              ,value = doing_OC, rc = RC)
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
         if ( doing_OC == ESMF_True ) run_OC = .True.
 
         run_BC = .False.
-        MESSAGE_CHECK = 'Extract doing_BC attribute from phy_exp tracer bundle'
-        CALL ESMF_AttributeGet(Bundle                         &  !<-- Phy export state tracer bundle
-               ,name  ='doing_BC'                             &  !<-- Name of the logical
-               ,value = doing_BC                              &  !<-- The logical being retrieved
-               ,rc   =RC)
+        MESSAGE_CHECK = 'Extract doing_BC attribute from '//trim(statename)
+        CALL ESMF_AttributeGet(Bundle, name = 'doing_BC'     &  
+                              ,value = doing_BC, rc = RC)
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
         if ( doing_BC == ESMF_True ) run_BC = .True.
 
        RETURN
       end subroutine get_attribute
 
-!!! ```````````````````````````````````````````````````````````````````````````
-      subroutine CkPointer_(STATE,NAME,rc)
+!!! ---------------- ! ------------------ ! ---------------- !----------------!
+
+      subroutine CkPointer_(STATE,NAME,TAG,rc)
+
 ! --- input/output arguments
-        type(ESMF_State), intent(IN)    :: State
-        character(len=*), intent(IN)    :: Name
+        type(ESMF_State), intent(IN)    :: STATE
+        character(len=*), intent(IN)    :: NAME
+        character(len=*), intent(IN)    :: TAG
         integer, intent (OUT)           :: rc
 
 ! --- locals
-        integer                         :: rc1
+        integer                         :: rc1, ii, jj, kk
         type(ESMF_Field)                :: Field
-        real(ESMF_KIND_R8), pointer     :: Array(:,:)
-
+        type(ESMF_FieldBundle)          :: Bundle
+        character(esmf_maxstr)          :: StateName, BundleName
+        real(ESMF_KIND_R8), pointer     :: Array2D(:,:), Array3D(:,:,:)
 !
-        MESSAGE_CHECK = 'Extract '//NAME//' from chem_imp'
-        call ESMF_StateGet(state      = STATE               &
-                          ,itemName   = NAME                &
-                          ,field      = Field               &
-                          ,rc   =rc1)
+        MESSAGE_CHECK='Retrive state name'
+        call ESMF_StateGet(state=State, name=statename, rc=rc1)
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 
-        nullify(Array)
-        MESSAGE_CHECK = 'Get Fortran data pointer from '//NAME
-        CALL ESMF_FieldGet(field=Field, localDe=0, &
-                           farray=Array, rc = rc1)
-        CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+        select case ( lowercase(statename))
+        case ( 'physics export') 
+           BundleName='tracers'
+        case ( 'chemistry import') 
+           BundleName='iAERO'
+        case ( 'chemistry export') 
+           BundleName='AERO'
+        end select
 !
-        print*, NAME,':', Array(1,1),Array(1,2),Array(2,1)
+        if ( TAG == '2D' ) then
+          MESSAGE_CHECK = 'Extract '//NAME//' from '//statename
+          call ESMF_StateGet(state=STATE, itemName=NAME, field=Field, rc=rc1)
+          CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+
+          nullify(Array2D)
+          MESSAGE_CHECK = 'Get 2d Fortran data pointer from '//NAME
+          CALL ESMF_FieldGet(field=Field, localDe=0, farray=Array2D, rc=rc1)
+          CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+!
+          ii = size(Array2D, dim=1)
+          jj = size(Array2D, dim=2)
+!
+          print *, trim(statename), '/', NAME,':', Array2D(1,1),Array2D(ii,jj), &
+                            minval(Array2D),maxval(Array2D)
+
+        ELSEIF (TAG == '3D' ) then
+          MESSAGE_CHECK = 'Extract '//NAME//' from '//statename
+          call ESMF_StateGet(state=STATE, itemName=NAME, field=Field, rc=rc1)
+          CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+
+          nullify(Array3D)
+          MESSAGE_CHECK = 'Get 3d Fortran data pointer from '//NAME
+          CALL ESMF_FieldGet(field=Field, localDe=0, farray=Array3D, rc=rc1)
+          CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+!
+          ii = size(Array3D, dim=1)
+          jj = size(Array3D, dim=2)
+          kk = size(Array3D, dim=3)
+!
+          print *, trim(statename), '/', NAME,':', Array3D(1,1,1),Array3D(ii,jj,kk), &
+                            minval(Array3D),maxval(Array3D)
+
+        ELSEIF (TAG == 'TR' ) then
+          MESSAGE_CHECK = 'Extract '//trim(BundleName)//' from '//statename
+          call ESMF_StateGet(state=State, ItemName=BundleName, fieldbundle=Bundle, rc=rc1)
+          CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+!
+          MESSAGE_CHECK = 'Extract '//NAME//' from '//trim(BundleName)
+          CALL ESMF_FieldBundleGet(bundle=Bundle, name=NAME, field=Field, rc=rc1)
+          CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+
+          nullify(Array3D)
+          MESSAGE_CHECK = 'Get 3d Fortran data pointer from '//NAME
+          CALL ESMF_FieldGet(field=Field, localDe=0, farray=Array3D, rc=rc1)
+          CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+!
+          ii = size(Array3D, dim=1)
+          jj = size(Array3D, dim=2)
+          kk = size(Array3D, dim=3)
+!
+          print*, trim(statename), '/', NAME,':', Array3D(1,1,1),Array3D(ii,jj,kk), &
+                            minval(Array3D),maxval(Array3D)
+
+        ELSE
+
+          print *, 'PHY2CHEM_RUN: Unknown data type, abort now'
+          call abort
+
+        ENDIF
+
+
         return
 !
       end subroutine CkPointer_
 
-      subroutine CkPointer_3D_(STATE,NAME,rc)
-! --- input/output arguments
-        type(ESMF_State), intent(IN)    :: State
-        character(len=*), intent(IN)    :: Name
-        integer, intent (OUT)           :: rc
-
-! --- locals
-        integer                         :: rc1
-        type(ESMF_Field)                :: Field
-        real(ESMF_KIND_R8), pointer     :: Array(:,:,:)
-
-!
-        MESSAGE_CHECK = 'Extract '//NAME//' from chem_imp'
-        call ESMF_StateGet(state      = STATE               &
-                          ,itemName   = NAME                &
-                          ,field      = Field               &
-                          ,rc   =rc1)
-        CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
-
-        nullify(Array)
-        MESSAGE_CHECK = 'Get Fortran data pointer from '//NAME
-        CALL ESMF_FieldGet(field=Field, localDe=0, &
-                           farray=Array, rc = rc1)
-        CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
-!
-        print*, NAME,':', Array(1,1,:)
-!
-        return
-      end subroutine CkPointer_3D_
-
-
+!!! ---------------- ! ------------------ ! ---------------- !----------------!
 
         subroutine GetPointer_ (STATE, NAME, Array, RC)
 
 ! --- input/output arguments
         type(ESMF_State), intent(IN)    :: State
-        character(len=*), intent(IN)    :: Name
+        character(len=*), intent(IN)    :: NAME
         real(ESMF_KIND_R8), pointer, intent(OUT)  :: Array(:,:)
         integer, intent (OUT)           :: rc
 
 ! --- locals
         type(ESMF_Field)                :: Field
-        integer                         :: i, j, rc1
+        integer                         :: rc1
         character(esmf_maxstr)          :: statename
 !
 !===>  ...  begin here
 !
-        MESSAGE_CHECK = 'Retrive statename'
-        call ESMF_StateGet(state=State, name=statename, rc=rc1 )
+        MESSAGE_CHECK = 'PHY2CHEM_RUN: Retrive statename'
+        call ESMF_StateGet(state=State, name=statename, rc=rc1)
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 
-        MESSAGE_CHECK = 'Extract '//NAME//' from '//statename
-        call ESMF_StateGet(state      = STATE               &
-                          ,itemName   = NAME                &
-                          ,field      = Field               &
-                          ,rc   =rc1)
+        MESSAGE_CHECK = 'PHY2CHEM_RUN: Extract '//NAME//' from '//statename
+        call ESMF_StateGet(state=STATE, itemName=NAME, field=Field, rc=rc1)
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !
         nullify(Array)
-        MESSAGE_CHECK = 'Get Fortran data pointer from '//NAME
-        CALL ESMF_FieldGet(field=Field, localDe=0, &
-                           farray=Array, rc = rc1)
+        MESSAGE_CHECK = 'PHY2CHEM_RUN: Get Fortran data pointer from '//NAME
+        CALL ESMF_FieldGet(field=Field, localDe=0, farray=Array, rc=rc1)
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !
-        print *,'LU_TST:',trim(statename),' ',Name,Array(1,1),Array(1,2),Array(2,1)
-! 
-!       check im and jm for physics export
-        if (statename == 'Physics Export') then
-          if ( lonr .ne. size ( Array, dim=1) )  print *, 'ERROR !',       &
+!       check i- and j-dimension
+        if ( lonr .ne. size(Array, dim=1) )  print *, 'ERROR !',   &
              'Invalid lonr:',  lonr, size(Array,dim=1)
-          if (lats_node_r_max .ne. size ( Array, dim=2) ) print *, 'ERROR !', &
-             'Invalid lats_node_r_max',  lats_node_r_max, size(Array,dim=2)
-        endif
-
-!       patch the array with valid values for chemistry import
-        if (statename == 'Chemistry Import') then
-          do j = 1, lats_node_r_max
-            if (lonsperlar_r(j) < lonr ) then
-              Array(lonsperlar_r(j)+1:lonr,j) = Array(1,1)
-              if(NAME=='smc1') print *,'LU_TST: fill smc1:',j,lonr,Array(1,1)
-             endif
-          enddo 
-        endif
+        if (lats_node_r_max .ne. size(Array, dim=2)) print *, 'ERROR !', &
+             'Invalid lats_node_r_max', lats_node_r_max, size(Array,dim=2)
 
        end subroutine GetPointer_
-!!!
-!!! ```````````````````````````````````````````````````````````````````````````
+
+!!! ---------------- ! ------------------ ! ---------------- !----------------!
+
         subroutine GetPointer_3D_ (STATE, NAME, Array, RC)
 
 ! --- input/output arguments
         type(ESMF_State), intent(IN)    :: State
-        character(len=*), intent(IN)    :: Name
+        character(len=*), intent(IN)    :: NAME
         real(ESMF_KIND_R8), pointer, intent(OUT)  :: Array(:,:,:)
         integer, intent (OUT)           :: rc
 
 ! --- locals
         type(ESMF_Field)                :: Field
-        integer                         :: i, j, k, rc1
+        integer                         :: rc1
         character(esmf_maxstr)          :: statename
 !
 !===>  ...  begin here
 !
-        MESSAGE_CHECK = 'Retrive statename'
+        MESSAGE_CHECK = 'PHY2CHEM_RUN: Retrive statename'
         call ESMF_StateGet(state=State, name=statename, rc=rc1 )
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
-!
-        MESSAGE_CHECK = 'Extract '//NAME//' from '//statename
-        call ESMF_StateGet(state      = STATE               &
-                          ,itemName   = NAME                &
-                          ,field      = Field               &
-                          ,rc   =rc1)
+
+        MESSAGE_CHECK = 'PHY2CHEM_RUN: Extract '//NAME//' from '//statename
+        call ESMF_StateGet(state=STATE, itemName=NAME, field=Field, rc=rc1)
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !
         nullify(Array)
-        MESSAGE_CHECK = 'Get Fortran data pointer from '//NAME
-        CALL ESMF_FieldGet(field=Field, localDe=0, &
-                           farray=Array, rc = rc1)
+        MESSAGE_CHECK = 'PHY2CHEM_RUN: Get Fortran data pointer from '//NAME
+        CALL ESMF_FieldGet(field=Field, localDe=0, farray=Array, rc=rc1)
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
-
-        print *, 'LU_TST:',trim(statename),' ',Name,Array(1,1,1),Array(1,2,1), &
-                                          Array(im,jm,km)
-
-!       check im, jm, km for physics export
-        if (statename == 'Physics Export') then
-          if ( lonr .ne. size ( Array, dim=1) )  print *, 'ERROR !',       &
+!
+!       check i- and j-dimension
+        if ( lonr .ne. size(Array, dim=1) )  print *, 'ERROR !',   &
              'Invalid lonr:',  lonr, size(Array,dim=1)
-          if (lats_node_r_max .ne. size ( Array, dim=2) ) print *, 'ERROR !', &
-             'Invalid lats_node_r_max',  lats_node_r_max, size(Array,dim=2)
-          if (km .ne. size ( Array, dim=3) ) print *, 'ERROR !', &
-             'Invalid km',  km, size(Array,dim=3)
-        endif
-
-!       patch the array with valid values
-        if (statename == 'Chemistry Import') then
-          do k = 1, km
-          do j = 1, lats_node_r_max
-            if (lonsperlar_r(j) < lonr ) then
-              Array(lonsperlar_r(j)+1:lonr,j,k) = Array(1,1,k)
-              if(NAME=='t') print *,'LU_TST: fill t:',i,lonr,Array(1,1,1)
-             endif
-          enddo 
-          enddo 
-        endif
+        if (lats_node_r_max .ne. size(Array, dim=2)) print *, 'ERROR !', &
+             'Invalid lats_node_r_max', lats_node_r_max, size(Array,dim=2)
 
        end subroutine GetPointer_3D_
 
-!!!!
-!!! ```````````````````````````````````````````````````````````````````````````
+!!! ---------------- ! ------------------ ! ---------------- !----------------!
+
         subroutine GetPointer_tracer_ (STATE, NAME, Array, RC)
 
 ! --- input/output arguments
         type(ESMF_State), intent(IN)    :: State
-        character(len=*), intent(IN)    :: Name
-        real(ESMF_KIND_R8), pointer, intent(OUT)  :: Array(:,:,:)
+        character(len=*), intent(IN)    :: NAME
+        real(ESMF_KIND_R8), pointer, intent(OUT) :: Array(:,:,:)
         integer, intent (OUT)           :: rc
 
 ! --- locals
         type(ESMF_Field)                :: Field
         type(ESMF_FieldBundle)          :: Bundle
-        integer                         :: i, j, k, rc1
-        character(esmf_maxstr)          :: statename
-        character(10)                   :: BundleName
+        integer                         :: rc1
+        character(esmf_maxstr)          :: statename, BundleName
 !
 !===>  ...  begin here
 
-        MESSAGE_CHECK = 'Extract statename'
+        MESSAGE_CHECK = 'PHY2CHEM_RUN: Retrive statename'
         call ESMF_StateGet(state=State, name=statename, rc=rc1 )
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 
-        if (statename == 'physics export') BundleName='tracers'
-        if (statename == 'chemistry import') BundleName='iAERO'
-        print *, 'LU_TST: BundleName=',BundleName
-!
-        MESSAGE_CHECK = 'Extract tracer bundle from '//statename
-        call ESMF_StateGet(state=State, ItemName=BundleName, &
-                           fieldbundle=Bundle, rc = rc1)
+        select case ( lowercase(statename))
+        case ( 'physics export') 
+           BundleName='tracers'
+        case ( 'chemistry import') 
+           BundleName='iAERO'
+        case ( 'chemistry export') 
+           BundleName='AERO'
+        end select
+
+        MESSAGE_CHECK = 'PHY2CHEM_RUN: Extract '//BundleName//' from '//statename
+        call ESMF_StateGet(state=State, ItemName=BundleName, fieldbundle=Bundle, rc=rc1)
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
-!
-        MESSAGE_CHECK = 'Extract '//NAME//' from '//BundleName
-        CALL ESMF_FieldBundleGet(bundle=Bundle, &
-                      name=NAME, field=Field, rc = rc1)
+
+        MESSAGE_CHECK = 'PHY2CHEM_RUN: Extract '//NAME//' from '//BundleName
+        CALL ESMF_FieldBundleGet(bundle=Bundle, name=NAME, field=Field, rc=rc1)
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
-!
+
         nullify(Array)
-        MESSAGE_CHECK = 'Get Fortran data pointer from '//NAME
-        CALL ESMF_FieldGet(field=Field, localDe=0, &
-                           farray=Array, rc = rc1)
+        MESSAGE_CHECK = 'PHY2CHEM_RUN: Get Fortran data pointer from '//NAME
+        CALL ESMF_FieldGet(field=Field, localDe=0, farray=Array, rc = rc1)
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
-
-        print *, 'LU_TST',trim(statename),' ',Name,Array(1,1,1), &
-                          Array(1,2,1), Array(im,jm,km)
 !
-!       check im, jm, km for physics export
-        if (statename == 'Physics Export') then
-          if ( lonr .ne. size ( Array, dim=1) )  print *, 'ERROR !',       &
+!       check i- and j-dimension
+        if ( lonr .ne. size(Array, dim=1) )  print *, 'ERROR !',   &
              'Invalid lonr:',  lonr, size(Array,dim=1)
-          if (lats_node_r_max .ne. size ( Array, dim=2) ) print *, 'ERROR !', &
-             'Invalid lats_node_r_max',  lats_node_r_max, size(Array,dim=2)
-          if (km .ne. size ( Array, dim=3) ) print *, 'ERROR !', &
-             'Invalid km',  km, size(Array,dim=3)
-        endif
-
-!       patch the array with valid values
-        if (statename == 'Chemistry Import') then
-          do k = 1, km
-          do j = 1, lats_node_r_max
-            if (lonsperlar_r(j) < lonr ) then
-              Array(lonsperlar_r(j)+1:lonr,j,k) = Array(1,1,k)
-              if(NAME=='t') print *,'LU_TST: fill t:',i,lonr,Array(1,1,1)
-             endif
-          enddo 
-          enddo 
-        endif
+        if (lats_node_r_max .ne. size(Array, dim=2)) print *, 'ERROR !', &
+             'Invalid lats_node_r_max', lats_node_r_max, size(Array,dim=2)
 
        end subroutine GetPointer_tracer_
 
-!
-      END subroutine run
 
-!! 
 !! adopt getrh routine from /nwprod/sorc/global_postgp.fd/postgp.f
 
       subroutine getrh(km,p,sh,t,shs,rh)
@@ -1240,11 +1344,10 @@
          es=fpvs(tr)
          es=min(es,pr)
          shs(k)=con_eps*es/(pr+con_epsm1*es)
-	write(555,*) 'rh ', fpvs(tr), tr, pr, es, sh(k), shs(k), sh(k)/shs(k)
          rh(k)=1.e2*min(max(sh(k)/shs(k),0.),1.)
        enddo
        end subroutine
-
+!
 
       END module atmos_phy_chem_cpl_comp_mod
 

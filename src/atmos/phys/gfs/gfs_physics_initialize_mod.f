@@ -23,6 +23,7 @@
 !  jan 22 2010  Sarah Lu        increase ngrids_flx and nfxr to include aod 
 !  feb 09 2010  Sarah Lu        set tracer_const (ri,cpi) from import state
 !  feb 05 2010  J. Wang         put phy_f3d and phy_f2d into restart file
+!  apr 09 2010  Sarah Lu        initialize global_lats_r, lonsperlar
 !
 ! !interface:
 !
@@ -45,7 +46,7 @@
                                                 ngrids_flx, levp1, lonrx, nfxr, ngrids_gg,    &
                                                 levm1, ivssfc, thermodyn_id, sfcpress_id,     &
                                                 ivssfc_restart, latrd, latr2, ivsupa, levh,   &
-                                                lgocart
+                                                lgocart, global_lats_r, lonsperlar
 !jw
       use mod_state,                      ONLY: buff_mult_piecea2d,buff_mult_piecea3d,        &  !jwang
                                                 buff_mult_piecef                                 !jwang
@@ -379,7 +380,8 @@
 !c
       if(gis_phy%iret.ne.0) then
         if(me.eq.0) print *,' incompatible physics namelist -',         &
-                            ' aborted in gfs_phy_initilize'
+                            ' aborted in gfs_phy_initilize ',gis_phy%iret 
+!*                          ' aborted in gfs_phy_initilize'
         call mpi_quit(13)
       endif
 !!
@@ -397,6 +399,12 @@
 
       gis_phy%lats_node_r_max = lats_node_r_max
       gis_phy%lats_nodes_r_fix(:) =  gis_phy%lats_node_r_max 
+
+!* set up global_lats_r and lonsperlar for simple scatter (Sarah Lu)
+      allocate(global_lats_r (latr))
+      allocate(lonsperlar (latr))
+      global_lats_r(1:latr) = gis_phy%global_lats_r(1:latr)
+      lonsperlar(1:latr) = gis_phy%lonsperlar(1:latr)
 
 !* change lats_node_r to lats_node_r_max to allow the pointer option
 !*    call sfcvar_aldata(lonr, lats_node_r, lsoil, gis_phy%sfc_fld, ierr)
@@ -430,6 +438,7 @@
 
       ALLOCATE (   gis_phy%SWH(NGPTC,LEVS,gis_phy%NBLCK,LATS_NODE_R), stat = ierr)
       ALLOCATE (   gis_phy%HLW(NGPTC,LEVS,gis_phy%NBLCK,LATS_NODE_R), stat = ierr)
+
 !
       ALLOCATE (gis_phy%JINDX1(LATS_NODE_R), stat = ierr)
       ALLOCATE (gis_phy%JINDX2(LATS_NODE_R), stat = ierr)
@@ -480,6 +489,26 @@
 ! coord def (lats_node_r, ipt_lats_node_r, and lats_nodes_a_fix)     
       gis_phy%lats_node_r     = lats_node_r                      
       gis_phy%ipt_lats_node_r = ipt_lats_node_r              
+
+!!
+!! debug print (Sarah Lu)
+!      if(me==0) then                                                  
+!         do j=1,latr                                                
+!         print *, 'PHY: lonsperlar=',j,gis_phy%lonsperlar(j)     
+!         enddo                                                        
+!         print *, 'PHY: lats_node_r_max=',gis_phy%lats_node_r_max 
+!         print *, 'PHY: lats_nodes_r=',gis_phy%lats_nodes_r(:)   
+!         print *, 'PHY: global_lats_r=',gis_phy%global_lats_r(:)
+!      endif                                                          
+!      print *, 'PHY:  lats_node_r=',me,gis_phy%lats_node_r      
+!      n = 0                                                     
+!      do j = 1, gis_phy%lats_node_r                              
+!         ilat = gis_phy%global_lats_r(gis_phy%ipt_lats_node_r-1+j)  
+!         l =  gis_phy%lonsperlar(ilat)                            
+!         n = n + l                                                 
+!         print *, 'PHY:, xlat=',me,n,gis_phy%ipt_lats_node_r-1+j,& 
+!                   j, ilat, l, 57.29578*gis_phy%xlat(1,j)       
+!      enddo                                             
 !!
       call countperf(1,18,0.)
 !!

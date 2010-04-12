@@ -5,7 +5,6 @@ set -x
 #
  export CDATE=2009072400
 
-
 #export EXPLICIT=.true.
  export EXPLICIT=.false.
 
@@ -141,6 +140,8 @@ fi
 export wave=${wave:-62}
 export lm=${lm:-64}
 export lsoil=${lsoil:-4}
+#
+export PASSIVE_TRACER=_TRACER_ 
 #
 export NTRAC=${NTRAC:-3}
 export NTOZ=${NTOZ:-2}

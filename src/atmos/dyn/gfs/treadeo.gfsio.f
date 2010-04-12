@@ -12,6 +12,7 @@
 !! Revision history:
 !  Nov 23 2009    Sarah Lu, tracer read-in is generalized (loop through ntrac, with
 !                 tracer name specified in gfs_dyn_tracer_config)
+!  Apr 09 2010    Sarah Lu, set rqg initial value to 1.e-15
 !  
  
       use gfs_dyn_resol_def
@@ -348,7 +349,8 @@
 !
 !  Initial Tracers with zero
 !
-      rqg(:,:,:) = 0.0
+!*    rqg(:,:,:) = 0.0
+      rqg(:,:,:) = 1.e-15
 
 !! Generalized tracers: 
 !! Loop through ntrac to read in met + chem tracers

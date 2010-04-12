@@ -17,6 +17,7 @@
 !! dec 15 2009     Sarah Lu, add g3d_fld to gloopb calling argument;
 !!                           add DQDT check print
 !! Feb 05 2010     J. Wang, write out restart file
+!! Apr 10 2010     Sarah Lu, debug print removed
 !!
 !!#include "../../inc/f_hpm.h"
       use resol_def
@@ -148,12 +149,6 @@
      &     global_times_r)
            if (iprint .eq. 1) print*,' me = fin gloopr ',me
 
-! --- ckprint for cldcov/fcld
-           if (me == 0) then
-            if(ldiag3d) print *,'LU_CLDCOV=',(CLDCOV(n,1,1),n=1,6)
-            if(lgocart) print *,'LU_FCLD  =',(g3d_fld%FCLD(1,1,n),n=1,6)
-           endif
-
         endif
 !
 !!
@@ -166,10 +161,6 @@
      &     phy_f3d, phy_f2d,xlat,nblck,kdt,
      &     global_times_r)
 !
-! --- ckprint for dqdt
-           if (me == 0) then
-            if(lgocart) print *,'LU_DQDT =',(g3d_fld%DQDT(1,1,n),n=1,6)
-           endif
 !!
 !jw      endif !.NOT.LIOPE.or.icolor.ne.2
 !--------------------------------------------
@@ -201,7 +192,6 @@
         FLUXR = 0.
 !
         if (ldiag3d) then
-          if(me==0) print *, 'LU_CLDCOV: zero out d3d fields'
           call d3d_zero
         endif
       ENDIF

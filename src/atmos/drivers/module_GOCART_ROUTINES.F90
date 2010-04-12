@@ -16,6 +16,7 @@
 ! PROGRAM HISTORY LOG:
 !   2010-03-05  Lu    - Create the module
 !   2010-03-05  Lu    - Change chemistry_on from out to inout
+!   2010-03-06  Lu    - 2-phased GOCART initialization
 !
 !-----------------------------------------------------------------------
 !
@@ -291,7 +292,7 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 
 !------------------------
-!*** Initialize GOCART Component
+!*** Initialize GOCART Component (phase 1)
 !------------------------
 !
       MESSAGE_CHECK="Initialize GOCART Component (phase-1)"
@@ -304,13 +305,9 @@
                                   ,rc         =RC)
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 
-!     Check the import state here
-      print *,'GOCART_INIT print state (chem imp)'
-      CALL ESMF_StatePrint (IMP_GFS_CHEM)
-
 !
 !------------------------
-!*** Initialize Phy-Chem Coupler Component  (phase 1)
+!*** Initialize Phy-Chem Coupler Component 
 !------------------------
 !
       MESSAGE_CHECK="Initialize Phys-Chem Coupler"
@@ -319,12 +316,12 @@
                                  ,importstate=EXP_GFS_PHY             &
                                  ,exportstate=IMP_GFS_CHEM            &
                                  ,clock      =CLOCK_ATM               &
-                                 ,phase      =1                       &
                                  ,rc         =RC)
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 
+
 !------------------------
-!*** Initialize GOCART Component
+!*** Initialize GOCART Component (phase 2)
 !------------------------
 !
       MESSAGE_CHECK="Initialize GOCART Component (phase-2)"
@@ -336,6 +333,7 @@
                                   ,phase      =2                     &
                                   ,rc         =RC)
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+
 
 !-----------------------------------------------------------------------
 !***  THE FINAL ERROR SIGNAL INFORMATION.
@@ -381,7 +379,8 @@
       INTEGER,INTENT(OUT) :: RC_LOOP                                  !<-- Return code
 
 ! Locals
-      INTEGER             :: RC=ESMF_SUCCESS  
+      INTEGER                  :: RC=ESMF_SUCCESS  
+      TYPE(ESMF_FieldBundle)   :: Bundle
 
 !-----------------------------------------------------------------------
 !***  Couple Physics export state to Chemistry import State

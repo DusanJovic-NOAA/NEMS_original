@@ -74,6 +74,7 @@ OBJS    = \
 OBJS_IO= \
 	  fix_fields.o       \
 	  read_fix.o         \
+	  GFS_simple_scatter.o \
 	  wrtout_physics.o   \
 	  gribit.o           \
 	  fld_collect.o      \

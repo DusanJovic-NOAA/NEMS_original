@@ -8,8 +8,6 @@ MAKEFILE=makefile_stub
 TARGET= gfs_libutil_stub.a
 OBJS0	= \
 		atmos_dyn_phy_cpl_comp_mod_stub.o \
-		atmos_dyn_chem_cpl_comp_mod_stub.o \
-		atmos_phy_chem_cpl_comp_mod_stub.o \
 	 	module_gfs_mpi_def_stub.o
 
 

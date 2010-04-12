@@ -270,8 +270,8 @@
   
    do i = 1, iState%lonr                               
    do j = 1, iState%lats_node_r      
-     centerX(i,j) = iState%xlon(i,j)                                          
-     centerY(i,j) = iState%xlat(i,j)                                      
+     centerX(i,j) = 57.29578* iState%xlon(i,j)                                           
+     centerY(i,j) = 57.29578* iState%xlat(i,j)                                      
    enddo                                                                       
    enddo                                                                   
 

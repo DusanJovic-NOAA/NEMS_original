@@ -43,6 +43,7 @@
 !  Sarah Lu  2010-02-09  Get ri, cpi attribute from import tracer bundle
 !  Sarah Lu  2010-02-11  add set_phy_attribute to insert tracer_config to export state;
 !                        add get_phy_attribute to retreive ri, cpi from import state
+!  Sarah Lu  2010-04-09  restore fArr2D allowing the linkage to GOCART
 !
       CONTAINS
 
@@ -310,6 +311,7 @@
                    hold_p,      hold_dp,   hold_dpdt
 
       REAL, DIMENSION(:, :, :), POINTER :: FArr3D
+      REAL, DIMENSION(:, :),    POINTER :: FArr2D
       integer                  :: i, j
 
 !
@@ -350,7 +352,7 @@
                      'rain', 'dtsfci', 'tsea', 'stc1',   &
                      'u10m', 'v10m',  'ustar','zorl'/
 
-      data vname_3d /'cldcov','dqdt'/
+      data vname_3d /'fcld','dqdt'/
 
       LOGICAL, SAVE :: first
       DATA first/.true./

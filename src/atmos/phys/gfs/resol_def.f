@@ -6,6 +6,10 @@
       integer   levh,levm1,levp1,levs,lnt,lnt2,lnt22,levr
       integer   lnte,lnted,lnto,lntod,lnuv
       integer   lonr,lonrx
+!
+      integer, allocatable :: global_lats_r(:)
+      integer, allocatable :: lonsperlar(:)
+!
 !jw      integer   ntrac
       integer,target ::   ntrac
       integer   nxpt,nypt,jintmx,latrd

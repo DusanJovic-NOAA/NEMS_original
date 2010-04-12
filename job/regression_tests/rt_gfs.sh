@@ -16,6 +16,22 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
 # Make configure and run files
 ####################################################################################################
 
+## determine GOCART and TRACER from dust_aerosol and passive_tracer 
+export dust_aerosol=${dust_aerosol:-NO}
+export passive_tracer=${passive_tracer:-NO}
+if [ $dust_aerosol = 'YES' ]; then
+ export GOCART=1 
+else
+ export GOCART=0 
+fi
+if  [ $passive_tracer = 'YES' ]; then
+ export TRACER=.true.
+else
+ export TRACER=.false.
+fi
+##
+
+
 cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_PE1_:${PE1}:g       \
                     | sed s:_WPG_:${WTPG}:g      \
@@ -35,6 +51,7 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_FHRES_:${FHRES}:g \
                     | sed s:_REDUCEDGRID_:${REDUCEDGRID}:g \
                     | sed s:_ADIAB_:${ADIAB}:g \
+                    | sed s:_TRACER_:${TRACER}:g \
                     | sed s:_NUMFILE_:${NUMFILE}:g \
                     | sed s:_SFCPRESSID_:${SFCPRESS_ID}:g \
                     | sed s:_THERMODYNID_:${THERMODYN_ID}:g \
@@ -46,8 +63,17 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
 # Copy init files
 ####################################################################################################
 
-cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
-cp MAPL.rc ${RUNDIR}/MAPL.rc
+if [ $GOCART = 1 ] ; then
+ cp Chem_Registry_DU.rc ${RUNDIR}/Chem_Registry.rc
+ cp MAPL.rc ${RUNDIR}/MAPL.rc
+ cp Aod-550nm_Registry.rc ${RUNDIR}/Aod-550nm_Registry.rc
+ cp DU_GridComp.rc ${RUNDIR}/DU_GridComp.rc
+ export EXTDIR=/global/save/wx23lu/NEMS/fix
+ cp -r  ${EXTDIR}/ExtData/GFSgocart/x ${RUNDIR}/.
+elif [ $GOCART = 0 ] ; then
+ cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
+ cp MAPL.rc ${RUNDIR}/MAPL.rc
+fi
 
 if [ $IDVC = 2 ] ; then
   cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/gfsanl.2009072400 ${RUNDIR}/.

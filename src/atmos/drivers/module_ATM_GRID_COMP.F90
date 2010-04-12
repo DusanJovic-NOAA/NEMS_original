@@ -2523,8 +2523,6 @@
 !***  DYN-PHY COUPLER COMPONENT
 !--------------
 
-      print *,'GFS_ATM_INIT before dyn-phy cpl init (dyn_exp)'
-      CALL ESMF_StatePrint (EXP_GFS_DYN)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Initialize Dyn-Phy Coupler"
@@ -2539,10 +2537,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
-      print *,'GFS_ATM_INIT after dyn-phy cpl init (phy_imp)'
-      CALL ESMF_StatePrint (IMP_GFS_PHY)
-!
 
 !-------------
 !***  PHYSICS
