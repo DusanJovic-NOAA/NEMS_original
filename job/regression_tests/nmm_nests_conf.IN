@@ -76,6 +76,7 @@ nhours_dfini:   0
 
 restart:        _RSTRT_     # True--> A restarted run
 nhours_restart: 12          # Frequency of restart output (hours)
+cycling:        false       # True--> Cycling (will force restart to true)
 
 
 #########################

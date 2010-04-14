@@ -253,6 +253,7 @@
 !-----------------------------------------------------------------------
 !
       TYPE(ESMF_Config) :: CF
+      LOGICAL           :: CYCLING                                         !<-- Original/cycling run logical flag
       INTEGER           :: RC
 !
 !-----------------------------------------------------------------------
@@ -408,6 +409,22 @@
                                   ,value =int_state%RESTART             &  !<-- Put extracted quantity here
                                   ,label ='restart:'                    &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="GET_CONFIG_DYN: Extract CYCLING from Config File"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
+                                  ,value =CYCLING                       &  !<-- Put extracted quantity here
+                                  ,label ='cycling:'                    &  !<-- The quantity's label in the configure file
+                                  ,rc    =RC)
+!
+      IF(CYCLING) int_state%RESTART=.TRUE.                                 !<-- Correct restart flag if not set right in CF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)

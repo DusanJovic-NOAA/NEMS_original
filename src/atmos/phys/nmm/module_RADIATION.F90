@@ -60,11 +60,6 @@
 !
 !-----------------------------------------------------------------------
 !
-      REAL,PARAMETER :: DEGRAD=3.1415926/180.
-      REAL,PARAMETER :: RTD=1./DEGRAD
-!
-!-----------------------------------------------------------------------
-!
       CONTAINS
 !
 !-----------------------------------------------------------------------
@@ -211,17 +206,15 @@
       REAL,DIMENSION(1:LM) :: QL
 !
       REAL,DIMENSION(IMS:IME,JMS:JME) :: GSW                            &
-     &                                  ,TOT,TSFC,XLAND,XLAT,XLON       &
+     &                                  ,TOT,TSFC,XLAND                 &
      &                                  ,GLW,SWDOWN,SWDOWNC,CZEN        &
      &                                  ,CUPPTR
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1) :: P8W
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM) :: DZ,PI3D,RHO               &
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM) :: PI3D                      &
                                              ,THRATEN,THRATENLW         &
                                              ,THRATENSW
-!
-      REAL,DIMENSION(IMS:IME,JMS:JME) :: YLAT,YLON
 !
       LOGICAL ::    GFDL_LW,GFDL_SW
 !
@@ -257,12 +250,6 @@
       DO I=ITS,ITE
 !
         PDSL=PD(I,J)
-!rv   Later remove XLAT, XLON, YLAT, YLON and use only GLAT & GLON
-!     (this will change answers)
-        XLAT(I,J)=GLAT(I,J)*RTD
-        XLON(I,J)=GLON(I,J)*RTD
-        YLAT(I,J)=XLAT(I,J)*DEGRAD
-        YLON(I,J)=XLON(I,J)*DEGRAD
         XLAND(I,J)=SM(I,J)+1.
         P8W(I,J,1)=PT
 !
@@ -276,12 +263,8 @@
 !
           QL(K)=AMAX1(Q(I,J,K),EPSQ)
 !
-          RHO(I,J,K)=PLYR/(R_D*T(I,J,K)*(1.+P608*QL(K)))
           P8W(I,J,K+1)=P8W(I,J,K)+PDSG1(K)+DSG2(K)*PDSL
           PI3D(I,J,K)=(PLYR*1.E-5)**CAPPA
-          DZ(I,J,K)=T(I,J,K)*(P608*QL(K)+1.)*R_D                        &
-     &                 *(P8W(I,J,K+1)-P8W(I,J,K))                       &
-     &                 /(PLYR*G)
 !
           THRATEN(I,J,K)=0.
           THRATENLW(I,J,K)=0.
@@ -508,14 +491,14 @@
                  gfdl_lw  = .true.
                  CALL GFDL(                                         &
                   DT=dt,XLAND=xland                                 &
-                 ,P8W=p8w,DZ=dz,RHO=rho,T=t                         &
+                 ,P8W=p8w,T=t                                       &
                  ,QV=WATER(IMS:IME,JMS:JME,1:LM,P_QV)               &
                  ,QW=WATER(IMS:IME,JMS:JME,1:LM,P_QC)               &
                  ,QI=WATER(IMS:IME,JMS:JME,1:LM,P_QI)               &
                  ,QS=WATER(IMS:IME,JMS:JME,1:LM,P_QS)               &
                  ,TSK2D=tsfc,GLW=GLW,RSWIN=SWDOWN,GSW=GSW           &
                  ,RSWINC=SWDOWNC,CLDFRA=CLDFRA,PI3D=PI3D            &
-                 ,GLAT=ylat,GLON=ylon,HTOP=htop,HBOT=hbot           &
+                 ,GLAT=glat,GLON=glon,HTOP=htop,HBOT=hbot           &
                  ,ALBEDO=albedo,CUPPT=cupptr                        &
                  ,SNOW=snow,G=g,GMT=gmt                             &
                  ,NSTEPRA=nrad,NPHS=nphs,ITIMESTEP=itimestep        &
@@ -558,14 +541,14 @@
                  gfdl_sw = .true.
                  CALL GFDL(                                         &
                   DT=dt,XLAND=xland                                 &
-                 ,P8W=p8w,DZ=dz,RHO=rho,T=t                         &
+                 ,P8W=p8w,T=t                                       &
                  ,QV=WATER(IMS:IME,JMS:JME,1:LM,P_QV)               &
                  ,QW=WATER(IMS:IME,JMS:JME,1:LM,P_QC)               &
                  ,QI=WATER(IMS:IME,JMS:JME,1:LM,P_QI)               &
                  ,QS=WATER(IMS:IME,JMS:JME,1:LM,P_QS)               &
                  ,TSK2D=tsfc,GLW=GLW,RSWIN=SWDOWN,GSW=GSW           &
                  ,RSWINC=SWDOWNC,CLDFRA=CLDFRA,PI3D=PI3D            &
-                 ,GLAT=ylat,GLON=ylon,HTOP=htop,HBOT=hbot           &
+                 ,GLAT=glat,GLON=glon,HTOP=htop,HBOT=hbot           &
                  ,ALBEDO=albedo,CUPPT=cupptr                        &
                  ,SNOW=snow,G=g,GMT=gmt                             &
                  ,NSTEPRA=nrad,NPHS=nphs,ITIMESTEP=itimestep        &
@@ -738,15 +721,15 @@
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
-   SUBROUTINE radconst(XTIME,DECLIN,SOLCON,JULIAN,                   &
-                       DEGRAD)
+   SUBROUTINE radconst(XTIME,DECLIN,SOLCON,JULIAN)
 !---------------------------------------------------------------------
    IMPLICIT NONE
 !---------------------------------------------------------------------
 
 ! !ARGUMENTS:
-   REAL, INTENT(IN   )      ::       DEGRAD,XTIME,JULIAN
+   REAL, INTENT(IN   )      ::       XTIME,JULIAN
    REAL, INTENT(OUT  )      ::       DECLIN,SOLCON
+   REAL, PARAMETER          ::       DEGRAD=3.1415926/180.
    REAL                     ::       OBECL,SINOB,SXLONG,ARG,  &
                                      DECDEG,DJUL,RJUL,ECCFAC
 ! ---- local variables -----

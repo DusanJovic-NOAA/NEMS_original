@@ -104,6 +104,7 @@
                               ,NDFISTEP                                 &
                               ,NPE_PRINT                                &
                               ,RESTARTED_RUN                            &
+                              ,CYCLING                                  &
                               ,I_AM_A_FCST_TASK                         &
                               ,NESTING                                  &
                               ,I_AM_A_NEST                              &
@@ -137,7 +138,8 @@
       REAL(kind=KFPT),INTENT(IN) :: DT                                     !<-- Fundamental timestep of this domain (REAL) (s)
 !
       LOGICAL(kind=KLOG),INTENT(IN) :: NESTING                          &  !<-- Are there any nested domains?
-                                      ,RESTARTED_RUN                       !<-- Is this a restarted run?
+                                      ,RESTARTED_RUN                    &  !<-- Is this a restarted run?
+                                      ,CYCLING                             !<-- Is this a cycling?
 !
       CHARACTER(7),INTENT(IN) :: CLOCK_DIRECTION                           !<-- The direction of time in the Clock
 !
@@ -376,7 +378,9 @@
 !
         history_output_0_b: IF(RESTARTED_RUN                            &
                                  .AND.                                  &
-                              RESTARTED_RUN_FIRST                       &
+                               RESTARTED_RUN_FIRST                      &
+                                 .AND.                                  &
+                               CYCLING                                  &
                                  .AND.                                  &
                                atm_int_state%QUILTING)THEN
 !

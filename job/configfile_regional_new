@@ -70,12 +70,13 @@ tstart:       0.            # The starting forecast hour
 ##### Forecast Length #####
 ###########################
                                                                                                                                               
-nhours_fcst:    48     # Length of the forecast (hours)
+nhours_fcst:    48          # Length of the forecast (hours)
 nhours_history: 03          # Frequency of history output (hours)
 nhours_dfini:   0
 
-restart:        false     # True--> A restarted run
+restart:        false       # True--> A restarted run
 nhours_restart: 12          # Frequency of restart output (hours)
+cycling:        false       # True--> Cycling (will force restart to true)
 
 
 #########################

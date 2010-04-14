@@ -45,6 +45,7 @@ Tests performed:
     NMMB, regional, test with GFS physics
     NMMB, regional, test nesting
     NMMB, regional, test precipitation adjustment
+    NMMB, regional, test writing time series
 
     GFS, control version (32 processors, 1 thread)
     GFS, 2-copy option

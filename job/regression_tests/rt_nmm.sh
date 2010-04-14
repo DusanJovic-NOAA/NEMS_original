@@ -13,6 +13,7 @@ cat nmm_${GBRG}_ll.IN   | sed s:_JBNME_:${JBNME}:g   \
                         | sed s:_TPN_:${TPN}:g       \
                         | sed s:_THRD_:${THRD}:g     \
                         | sed s:_GS_:${GS}:g         \
+                        | sed s:_TS_:${TS}:g         \
                         | sed s:_CPPCP_:${CPPCP}:g   \
                         | sed s:_RTPWD_:${RTPWD}:g   \
                         | sed s:_SRCD_:${PATHTR}:g   \

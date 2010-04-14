@@ -46,7 +46,7 @@ cp _RTPWD_/NMMB_glob/test_input_nmmb_global.nemsio  input_domain_01_nemsio
 cp _RTPWD_/NMMB_glob/nmm_b_restart.024              restart_file_01
 cp _RTPWD_/NMMB_glob/nmm_b_restart_nemsio.024       restart_file_01_nemsio
 cp _RTPWD_/NMMB_glob/GWD.bin                        GWD.bin
-_GS_cp ../NMM_CNTRL/global_* .
+_GS_cp _RTPWD_/NMMB_glob/global_* .
 
 cp $SRCDIR/job/regression_tests/configure_file .
 cp configure_file configure_file_01
@@ -56,7 +56,7 @@ ln -sf /nwprod/fix/global_o3clim.txt fort.48
 
 cp $SRCDIR/job/regression_tests/dyn_state.txt .
 cp $SRCDIR/job/regression_tests/phy_state.txt .
-cp $SRCDIR/job/regression_tests/ts_locations.nml .
+_TS_cp $SRCDIR/job/regression_tests/ts_locations.nml .
 
 echo "Model started:  " `date`
 

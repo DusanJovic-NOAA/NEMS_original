@@ -1,0 +1,52 @@
+=====================
+How to use restart:
+=====================
+
+1) Keep same end time (nhours_fcst: in config file) like in original run.
+2) Change restart: argument in config file from false to true
+   That's the only change in config file
+3) The only difference from original run script is you don't use main_input_filename.
+   Instead, you use restart_file which you get from original output (i.e. nmm_b_restart.006)
+
+Limitations:
+
+1) In order to keep bit-identical results, restart must be written (used) on full hour
+2) Restart cannot be more frequent than history output and must be multiplier of history output
+   i.e. if history is written on 3 hours, model can be restarted on 3, 6, 9, ... hours
+   (need to be fixed later)
+
+TODO:
+
+1) Allow writing restart file at any time in forecast
+2) Some of fields written in restart file might be unnecessary for the restart
+
+
+
+=====================
+How to use time series output in NMMB:
+=====================
+
+Time series output in NMMB is optional output that is turned on by providing
+appropriate namelist file in run directory. The name of that file must be ts_locations.nml,
+and the contents of the file is as follows:
+
+&TS_LOCATIONS
+NPOINTS=2,
+POINTS_LON=-106.0, -110.0,
+POINTS_LAT=54.0, 50.0
+/
+
+where NPOINTS defines number of locations and POINTS_LON,POINTS_LAT are arrays of longitudes
+and latitudes of selected points in degrees (-180.0 to 180.0).
+
+The output filenames are ts_p01_d01.bin,ts_p02_d01.bin, ts_p01_d02.bin,ts_p02_d02.bin etc.
+The p01 indicates the point number from 1 to NPOINTS and d01,d02 indicate domain number
+
+The ncarg program tsplot that can be used to plot time series is located in /u/wx20du/plot_timeseries.
+It requires a control file as a command line argument. For example if the control file is named tsplotsetup_nmm
+you will need to run:
+
+$ ./tsplot tsplotsetup_nmm
+
+which will create gmeta file. Sample control file (tsplotsetup_nmm) is also located in
+/u/wx20du/plot_timeseries directory.

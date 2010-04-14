@@ -98,8 +98,9 @@
 !
       REAL, PARAMETER ::  &
      &   TRAD_ice=0.5*T_ice      & !--- Very tunable parameter
-     &,  ABSCOEF_W=1600.         & !--- Very tunable parameter
-     &,  ABSCOEF_I=1000.         & !--- Very tunable parameter
+     &,  TRADK_ice=TRAD_ice+273.15   & !--- Very tunable parameter
+     &,  ABSCOEF_W=800.          & !--- Very tunable parameter
+     &,  ABSCOEF_I=500.          & !--- Very tunable parameter
      &,  SECANG=-1.66            & !--- Very tunable parameter
      &,  CLDCOEF_LW=1.5          & !--- Enhance LW cloud depths
      &,  ABSCOEF_LW=SECANG*CLDCOEF_LW  & !--- Final factor for cloud emissivities
@@ -405,7 +406,7 @@
 !
 !-----------------------------------------------------------------------
       SUBROUTINE GFDL(DT,THRATEN,THRATENLW,THRATENSW,CLDFRA,PI3D        &
-     &                ,XLAND,P8W,DZ,RHO,T                               &
+     &                ,XLAND,P8W,T                                      &
      &                ,QV,QW,QI,QS                                      & 
      &                ,TSK2D,GLW,RSWIN,GSW,RSWINC                       &
      &                ,RSWTOA,RLWTOA,CZMEAN                             & 
@@ -437,9 +438,7 @@
       REAL,INTENT(INOUT),DIMENSION(ims:ime, jms:jme, kts:kte):: THRATEN &
                                                    ,THRATENLW,THRATENSW
       REAL,INTENT(IN),DIMENSION(ims:ime, jms:jme, kms:kme)::   p8w
-      REAL,INTENT(IN),DIMENSION(ims:ime, jms:jme, kts:kte)::    dz,     &
-     &                                                           t,     &
-     &                                                         rho,     &
+      REAL,INTENT(IN),DIMENSION(ims:ime, jms:jme, kts:kte)::     t,     &
      &                                                          qs,     &
      &                                                          qv,     &
      &                                                          qw,     &
@@ -459,9 +458,8 @@
       LOGICAL, INTENT(IN) :: gfdl_lw,gfdl_sw
       REAL, OPTIONAL, INTENT(IN), DIMENSION(ims:ime, jms:jme, kts:kte):: QI
 
-      REAL, DIMENSION(its:ite, jts:jte, kms:kme):: PFLIP,QIFLIP,QFLIP,  &
-     &                                             QWFLIP,TFLIP
-      REAL, DIMENSION(its:ite, jts:jte, kms:kme)::P8WFLIP
+      REAL, DIMENSION(ims:ime, jms:jme, kms:kme):: PFLIP,QIFLIP,QFLIP,  &
+     &                                             QWFLIP
       REAL, DIMENSION(its:ite, jts:jte, kts:kte)::TENDS,TENDL
       REAL, DIMENSION(ims:ime, jms:jme):: CUTOP,CUBOT
       INTEGER :: IDAT(3),Jmonth,Jday,IHOUR
@@ -483,40 +481,12 @@
           ENDDO
         ENDDO
       ENDDO
-! NEED HYDROSTATIC PRESSURE HERE (MONOTONIC CHANGE WITH HEIGHT)
-      DO J=JTS,JTE
-      DO I=ITS,ITE
-        P8WFLIP(I,J,KME)=P8W(I,J,KME) 
-      ENDDO
-      ENDDO
-!
-      DO K=KTE,KTS,-1
-        DO J=JTS,JTE
-        DO I=ITS,ITE
-          P8WFLIP(I,J,K)=P8WFLIP(I,J,K+1)-G*RHO(I,J,K)*DZ(I,J,K)
-          TENDL(I,J,K)=0.
-          TENDS(I,J,K)=0.
-        ENDDO
-        ENDDO
-      ENDDO
-!rv
-!rv  - Later take out P8WFLIP, RHO and DZ and leave P8WFLIP=P8W 
-!rv
-!rv   DO K=KMS,KME
-!rv     DO J=JTS,JTE
-!rv     DO I=ITS,ITE
-!rv       P8WFLIP(I,J,K)=P8W(I,J,K)
-!rv     ENDDO
-!rv     ENDDO
-!rv   ENDDO
-!rv 
 !
 !- Note that the effects of rain are ignored in this radiation package (BSF 2005-01-25)
 !
       DO K=KTS,KTE
         DO J=JTS,JTE
         DO I=ITS,ITE
-          TFLIP (I,J,K)=T(I,J,K)
           QFLIP (I,J,K)=MAX(0.,QV(I,J,K)/(1.+QV(I,J,K)))
           QWFLIP(I,J,K)=MAX(QW(I,J,K),0.)      !Modified
 ! Note that QIFLIP will contain QS+QI if both are passed in, otherwise just QS 
@@ -526,7 +496,7 @@
 !
 !***  USE MONOTONIC HYDROSTATIC PRESSURE INTERPOLATED TO MID-LEVEL
 !
-          PFLIP(I,J,K)=0.5*(P8WFLIP(I,J,K)+P8WFLIP(I,J,K+1))
+          PFLIP(I,J,K)=0.5*(P8W(I,J,K)+P8W(I,J,K+1))
         ENDDO
         ENDDO
       ENDDO
@@ -549,8 +519,8 @@
       CALL SOLARD(IHOUR,JDAY,JMONTH,JULYR)
 
 !-----------------------------------------------------------------------
-      CALL RADTN (DT,TFLIP,QFLIP,QWFLIP,QIFLIP,                         &
-     &            PFLIP,P8WFLIP,XLAND,TSK2D,                            &
+      CALL RADTN (DT,T,QFLIP,QWFLIP,QIFLIP,                             &
+     &            PFLIP,P8W,XLAND,TSK2D,                                &
      &            GLAT,GLON,CUTOP,CUBOT,ALBEDO,CUPPT,                   &
      &            ACFRCV,NCFRCV,ACFRST,NCFRST,                          &
      &            SNOW,GLW,GSW,RSWIN,RSWINC,                            &
@@ -633,7 +603,7 @@
 !
 !-----------------------------------------------------------------------
       SUBROUTINE RADTN(DT,T,Q,QCW,QICE,                                 &
-     &                 PFLIP,P8WFLIP,XLAND,TSK2D,                       &
+     &                 PFLIP,P8W,XLAND,TSK2D,                           &
      &                 GLAT,GLON,CUTOP,CUBOT,ALB,CUPPT,                 &
      &                 ACFRCV,NCFRCV,ACFRST,NCFRST,                     &
      &                 SNO,GLW,GSW,RSWIN,RSWINC,                        &
@@ -780,10 +750,10 @@
       LOGICAL :: NEW_CLOUD
 !-----------------------------------------------------------------------
       REAL, INTENT(IN), DIMENSION(ims:ime,jms:jme) :: XLAND,TSK2D
-      REAL, INTENT(IN), DIMENSION(its:ite, jts:jte, kms:kme):: Q,QCW,   &
+      REAL, INTENT(IN), DIMENSION(ims:ime, jms:jme, kts:kte):: P8W
+      REAL, INTENT(IN), DIMENSION(ims:ime, jms:jme, kms:kme):: Q,QCW,   &
      &                                                         QICE,T,  &
-     &                                                         PFLIP,   &
-     &                                                         P8WFLIP
+     &                                                         PFLIP
 
       REAL, INTENT(OUT), DIMENSION(ims:ime, jms:jme):: GLW,GSW,CZMEAN   &
      &                                                ,RSWIN,RSWINC     &
@@ -831,7 +801,7 @@
       REAL,   DIMENSION(its:ite,kts:kte) :: QMID,THMID,OZN,POZN
       REAL,   DIMENSION(its:ite,jts:jte) :: TOT 
 
-      REAL,   DIMENSION(its:ite,kts:kte+1) :: PINT,EMIS,CAMT
+      REAL,   DIMENSION(its:ite,kts:kte+1) :: PINT,EMIS,CAMT,TAUcld
       INTEGER,DIMENSION(its:ite,kts:kte+1) :: KBTM,KTOP
       INTEGER,DIMENSION(its:ite)   :: NCLDS,KCLD 
       REAL,   DIMENSION(its:ite)   :: TAUDAR
@@ -1008,7 +978,7 @@
 !
       DO L=1,LML
         PMID(I,L+LVLIJ)=PFLIP(I,J,L)
-        PINT(I,L+LVLIJ+1)=P8WFLIP(I,J,L+1)
+        PINT(I,L+LVLIJ+1)=P8W(I,J,L+1)
         EXNER=(1.E5/PMID(I,L+LVLIJ))**CAPPA
         TMID(I,L+LVLIJ)=T(I,J,L)
         THMID(I,L+LVLIJ)=T(I,J,L)*EXNER
@@ -1028,7 +998,7 @@
 !
         DO L=LVLIJ,1,-1
           KNTLYR=KNTLYR+1
-          PMID(I,L)=P8WFLIP(I,J,1)-REAL(2*KNTLYR-1)*HPINC
+          PMID(I,L)=P8W(I,J,1)-REAL(2*KNTLYR-1)*HPINC
           PINT(I,L+1)=PMID(I,L)+HPINC
           EXNER=(1.E5/PMID(I,L))**CAPPA
           THMID(I,L)=TMID(I,L)*EXNER
@@ -1036,7 +1006,7 @@
       ENDIF
 !
       IF(LVLIJ.EQ.0) THEN
-         PINT(I,1)=P8WFLIP(I,J,1)
+         PINT(I,1)=P8W(I,J,1)
       ELSE
          PINT(I,1)=PMID(I,1)-HPINC
       ENDIF
@@ -1047,7 +1017,7 @@
 !***  NEGATIVE OVER WATER.
 !***
       DO 250 I=MYIS,MYIE
-      PSFC(I)=P8WFLIP(I,J,KME)
+      PSFC(I)=P8W(I,J,KME)
       APES=(PSFC(I)*1.E-5)**CAPPA
       IF((XLAND(I,J)-1.5).GT.0.)THEN
         TSKN(I)=-TSK2D(I,J)
@@ -1397,6 +1367,7 @@
       KTOP(I,1)=LP1
       KBTM(I,1)=LP1
       CAMT(I,1)=1.0
+      TAUCLD(I,1)=0.0
       KCLD(I)=2
 !
       DO NBAND=1,NB
@@ -1406,6 +1377,7 @@
 !
       DO 510 L=2,LP1
       CAMT(I,L)=0.0
+      TAUCLD(I,L)=0.0
       KTOP(I,L)=1
       KBTM(I,L)=1
       EMIS(I,L)=0.0
@@ -1554,6 +1526,7 @@
 !     &           ( ABSCOEF_W*QWMID(I,LL)+ABSCOEF_I*QIMID(I,LL) )
             CTau=CTau+ABSCOEF_W*QWMID(I,LL)+ABSCOEF_I*QIMID(I,LL)
             TauC=TauC+DELP*CTau
+            TAUcld(I,NC)=TauC
           ENDIF      !--- End IF(LL.GE.KTOP(I,NC) ....
         ENDDO        !--- End DO LL
 !
@@ -1616,7 +1589,7 @@
       CALL RADFS &
      &     (PSFC,PMID,PINT,QMID,TMID,OZN,TSKN,SLMSK,ALBEDO,XLAT         &
 !BSF => for NAMX changes, pass in surface emissivity (SFCEMS) [different for snow]
-     &,     CAMT,KTOP,KBTM,NCLDS,EMIS,RRCL,TTCL                         &
+     &,     TAUcld,CAMT,KTOP,KBTM,NCLDS,EMIS,RRCL,TTCL                  &
      &,     COSZ,TAUDAR,1                                               &
      &,     1,0                                                         &
      &,     ITIMSW,ITIMLW                                               &
@@ -5629,7 +5602,7 @@
 !***
                 (QS,PP,PPI,QQH2O,TT,O3QO3,TSFC,SLMSK,ALBEDO,XLAT &
 !BSF => for NAMX changes, pass in surface emissivity (SFCEMS) [different for snow]
-      ,          CAMT,KTOP,KBTM,NCLDS,EMCLD,RRCL,TTCL &
+      ,          TAUcld,CAMT,KTOP,KBTM,NCLDS,EMCLD,RRCL,TTCL &
       ,          COSZRO,TAUDAR,IBEG &
       ,          KO3,KALB &
       ,          ITIMSW,ITIMLW &
@@ -5650,6 +5623,7 @@
 !* THE FOLLOWING ARE CLOUD INFORMATION FOR EACH CLOUD LAYER
 !*                      LAYER=1:SURFACE
 !*                      LAYER=2:FIRST LAYER ABOVE GROUND, AND SO ON
+!*   TAUcld(IX,LP1):    OPTICAL DEPTH/THICKNESS OF EACH CLOUD LAYER
 !*   CAMT(IX,LP1):      CLOUD FRACTION OF EACH CLOUD LAYER
 !*   ITYP(IX,LP1):      CLOUD TYPE(=1: STRATIFORM, =2:CONVECTIVE)
 !*   KTOP(IX,LP1):      HEIGHT OF CLOUD TOP OF EACH CLOUD LAYER (IN ETA LEVEL)
@@ -6007,7 +5981,7 @@
 
       REAL,    INTENT(IN), DIMENSION(its:ite,kts:kte):: PP,TT
       REAL,    INTENT(IN), DIMENSION(its:ite,kts:kte):: QQH2O
-      REAL,    INTENT(IN), DIMENSION(its:ite,kts:kte+1):: PPI,CAMT,EMCLD
+      REAL,    INTENT(IN), DIMENSION(its:ite,kts:kte+1):: PPI,CAMT,EMCLD,TAUcld
       REAL,    INTENT(IN), DIMENSION(its:ite):: QS,TSFC,SLMSK,ALBEDO,XLAT
       REAL,    INTENT(IN), DIMENSION(its:ite):: COSZRO,TAUDAR
       REAL,    INTENT(OUT), DIMENSION(its:ite):: FLWUPS
@@ -6071,7 +6045,8 @@
        REAL, INTENT(INOUT),DIMENSION(its:ite,kts:kte)::SWH,HLW
        REAL, INTENT(OUT), DIMENSION(its:ite):: FSWUP,FSWUPS,FSWDN, &
                            FSWDNS,FLWUP,FLWDNS,FSWDNSC
-      
+       REAL :: SWHcrit,SWH1D(kts:kte)    !-- 1D SW heating rates
+       INTEGER :: KCHItp,KCHIbt,NCtop
 !        *********************************************
 !====>   *   POSSIBLE OUTPUT TO CALLING PROGRAM      *
 !        *********************************************
@@ -6477,12 +6452,49 @@
        GDFVBR(IR) = GDFVB(I) * 1.E-3
        GDFNBR(IR) = GDFNB(I) * 1.E-3
   320 CONTINUE
+!
+!-- Remove spikes in SW heating rates aloft
+!
+      SWH_check: DO I=MYIS,MYIE
+         DO K=1,L
+            SWH1D(K)=HSW(I,K)     !-- IBEG=1, I+IBEG-1=I
+         ENDDO
+!
+!-- Limit SW Heating rates (SWH) at the tops of cold, thin cirrus
+!
+         SWH_hi_cld:  IF (NCLDS(I)>0 .and. maxval(SWH1D(1:L)) >0. ) THEN
+            SWH_clouds: DO NCtop=2,NCLDS(I)+1
+               KCHItp=MIN(L-1, MAX(2, KTOP(I,NCtop) ) )
+!
+!-- Identify cloud layers where the SWH at cloud top is more than twice that
+!   of the level just above cloud top, and only for thin (TAUcld<0.1) clouds
+!   with cold tops (T<TRADK_ice).
+!
+               IF ( TAUcld(I,NCtop)<0.1 .AND. TEMP(I,KCHItp)<TRADK_ice  &
+                    .AND. SWH1D(KCHItp)>2.*SWH1D(KCHItp-1) ) THEN
+!
+!-- Adjust SW/HR to remove upper-level spikes.  The SWHs in the cloud layer are
+!   limited to the maximum of the SWH at 1 level above cloud top or the SWH at
+!   1 level below cloud base.
+!
+                  KCHIbt=MIN(L-1, MAX(2, KBTM(I,NCtop) ) )
+                  SWHcrit=MAX( SWH1D(KCHItp-1), SWH1D(KCHIbt+1) )
+                  DO K=KCHItp,KCHIbt
+                     SWH1D(K)=MIN( SWH1D(K), SWHcrit )
+                  ENDDO
+               ENDIF
+            ENDDO SWH_clouds
+         ENDIF SWH_hi_cld
+!
 !....      CONVERT HEATING RATES TO DEG/SEC
-      DO 330 K=1,L
-        DO 330 I=MYIS,MYIE
-          SWH(I+IBEG-1,K)=HSW(I,K)*DAYSEC
-  330 CONTINUE
+!
+         DO K=1,L
+            SWH(I+IBEG-1,K)=SWH1D(K)*DAYSEC
+         ENDDO
+      ENDDO SWH_check    !-- End check on SWH spikes
+
   350 CONTINUE
+
 ! begin debugging radiation
 
 !     if (Jndx .eq. jmd) then
