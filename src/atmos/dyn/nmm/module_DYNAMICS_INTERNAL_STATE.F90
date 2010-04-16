@@ -67,6 +67,7 @@
                              ,HYDRO                                     &
                              ,GLOBAL                                    &
                              ,RESTART                                   &
+                             ,FREERUN                                   &
                              ,SECADV                                    &
                              ,READ_GLOBAL_SUMS                          &
                              ,WRITE_GLOBAL_SUMS                         &

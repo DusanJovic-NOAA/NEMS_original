@@ -680,6 +680,7 @@ real(kind=kfpt),dimension(its_b1:ite_h2,jts_b1:jte_h2):: &
 ,dsg2,pdsg1 &
 ,sg1,sg2 &
 ,ddmpu &
+,freerun &
 ,pd,pdo &
 ,u,v &
 !---temporary arguments-------------------------------------------------
@@ -692,6 +693,9 @@ real(kind=kfpt),parameter:: &
  cfc=1.533 &                 ! adams-bashforth positioning in time
 ,bfc=1.-cfc                  ! adams bashforth positioning in time
 !-----------------------------------------------------------------------
+logical(kind=klog),intent(in):: &
+ freerun
+
 integer(kind=kint),intent(in):: &
  lm                          ! total # of levels
 
@@ -724,8 +728,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
 
 !--local variables------------------------------------------------------
 logical(kind=klog),parameter:: &
- freerun=.true. &
-,extmod=.true.
+ extmod=.true.
 
 real(kind=kfpt),parameter:: &
  assimfc=5.0

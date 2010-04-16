@@ -81,7 +81,7 @@
 !
 !
       LOGICAL(kind=KLOG) :: RESTARTED_RUN                               &  !<-- Flag indicating if this is a restarted run
-                           ,CYCLING                                        !<-- Flag indicating if this is a cycling
+                           ,RST_OUT_00                                     !<-- Shall we write 00h history in restarted run?
 !
       TYPE(ESMF_VM),SAVE :: VM                                             !<-- The ESMF virtual machine.
 !
@@ -1073,16 +1073,14 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="NMM_ATM_DRIVER_INIT: Extract Cycling Flag from Configure File"
+      MESSAGE_CHECK="NMM_ATM_DRIVER_INIT: Extract Rst_out_00 Flag from Configure File"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)            &  !<-- The config object
-                                  ,value =CYCLING                     &  !<-- Logical flag indicating if this is a restarted run
-                                  ,label ='cycling:'                  &  !<-- Give this label's value to the previous variable
+                                  ,value =RST_OUT_00                  &  !<-- Logical flag indicating if this is a restarted run
+                                  ,label ='rst_out_00:'               &  !<-- Give this label's value to the previous variable
                                   ,rc    =RC)
-!
-      IF(CYCLING) RESTARTED_RUN=.TRUE.                                   !<-- Correct restart flag if not set in CF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NMM_DRV_INIT)
@@ -1951,7 +1949,7 @@
                         ,filter_method     =FILTER_METHOD                  &
                         ,npe_print         =NPE_PRINT                      &
                         ,restarted_run     =RESTARTED_RUN                  &
-                        ,cycling           =CYCLING                        &
+                        ,rst_out_00        =RST_OUT_00                     &
                         ,i_am_a_fcst_task  =I_AM_A_FCST_TASK               &
                         ,nesting           =NESTING_NMM                    &
                         ,i_am_a_nest       =I_AM_A_NEST                    &
@@ -2075,7 +2073,7 @@
                           ,halfdfitime       =HALFDFITIME               &
                           ,npe_print         =NPE_PRINT                 &
                           ,restarted_run     =RESTARTED_RUN             &
-                          ,cycling           =CYCLING                   &
+                          ,rst_out_00        =RST_OUT_00                &
                           ,i_am_a_fcst_task  =I_AM_A_FCST_TASK          &
                           ,nesting           =NESTING_NMM               &
                           ,i_am_a_nest       =I_AM_A_NEST               &
@@ -2175,7 +2173,7 @@
                           ,ndfistep          =NDFISTEP                  &
                           ,npe_print         =NPE_PRINT                 &
                           ,restarted_run     =RESTARTED_RUN             &
-                          ,cycling           =CYCLING                   &
+                          ,rst_out_00        =RST_OUT_00                &
                           ,i_am_a_fcst_task  =I_AM_A_FCST_TASK          &
                           ,nesting           =NESTING_NMM               &
                           ,i_am_a_nest       =I_AM_A_NEST               &
@@ -2262,7 +2260,7 @@
                           ,halfdfitime       =HALFDFITIME               &
                           ,npe_print         =NPE_PRINT                 &
                           ,restarted_run     =RESTARTED_RUN             &
-                          ,cycling           =CYCLING                   &
+                          ,rst_out_00        =RST_OUT_00                &
                           ,i_am_a_fcst_task  =I_AM_A_FCST_TASK          &
                           ,nesting           =NESTING_NMM               &
                           ,i_am_a_nest       =I_AM_A_NEST               &
@@ -2353,7 +2351,7 @@
                           ,ndfistep          =NDFISTEP                  &
                           ,npe_print         =NPE_PRINT                 &
                           ,restarted_run     =RESTARTED_RUN             &
-                          ,cycling           =CYCLING                   &
+                          ,rst_out_00        =RST_OUT_00                &
                           ,i_am_a_fcst_task  =I_AM_A_FCST_TASK          &
                           ,nesting           =NESTING_NMM               &
                           ,i_am_a_nest       =I_AM_A_NEST               &
@@ -2439,7 +2437,7 @@
                           ,halfdfitime       =HALFDFITIME               &
                           ,npe_print         =NPE_PRINT                 &
                           ,restarted_run     =RESTARTED_RUN             &
-                          ,cycling           =CYCLING                   &
+                          ,rst_out_00        =RST_OUT_00                &
                           ,i_am_a_fcst_task  =I_AM_A_FCST_TASK          &
                           ,nesting           =NESTING_NMM               &
                           ,i_am_a_nest       =I_AM_A_NEST               &

@@ -2214,6 +2214,7 @@
             ,DSG2,PDSG1                                                 &
             ,SG1,SG2                                                    &
             ,DDMPU                                                      &
+            ,int_state%FREERUN                                          &
             ,int_state%PD,int_state%PDO                                 &
             ,int_state%U,int_state%V                                    &
             ,int_state%DIV)

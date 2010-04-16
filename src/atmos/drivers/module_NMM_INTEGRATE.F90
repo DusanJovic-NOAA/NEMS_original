@@ -104,7 +104,7 @@
                               ,NDFISTEP                                 &
                               ,NPE_PRINT                                &
                               ,RESTARTED_RUN                            &
-                              ,CYCLING                                  &
+                              ,RST_OUT_00                               &
                               ,I_AM_A_FCST_TASK                         &
                               ,NESTING                                  &
                               ,I_AM_A_NEST                              &
@@ -139,7 +139,7 @@
 !
       LOGICAL(kind=KLOG),INTENT(IN) :: NESTING                          &  !<-- Are there any nested domains?
                                       ,RESTARTED_RUN                    &  !<-- Is this a restarted run?
-                                      ,CYCLING                             !<-- Is this a cycling?
+                                      ,RST_OUT_00                          !<-- Shall we write 00h history in restarted run?
 !
       CHARACTER(7),INTENT(IN) :: CLOCK_DIRECTION                           !<-- The direction of time in the Clock
 !
@@ -380,7 +380,7 @@
                                  .AND.                                  &
                                RESTARTED_RUN_FIRST                      &
                                  .AND.                                  &
-                               CYCLING                                  &
+                               RST_OUT_00                               &
                                  .AND.                                  &
                                atm_int_state%QUILTING)THEN
 !

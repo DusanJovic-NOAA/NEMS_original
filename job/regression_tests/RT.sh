@@ -384,7 +384,7 @@ nmm_b_history.000         nmm_b_history.003         nmm_b_history.006         nm
 nmm_b_history.024         nmm_b_history.027         nmm_b_history.030         nmm_b_history.036        \
 nmm_b_history.048         nmm_b_history_nemsio.000  nmm_b_history_nemsio.003  nmm_b_history_nemsio.006 \
 nmm_b_history_nemsio.012  nmm_b_history_nemsio.024  nmm_b_history_nemsio.048  nmm_b_restart.024        \
-nmm_b_restart_nemsio.024  global_sums"
+nmm_b_restart_nemsio.024  global_sums    fort.41  fort.42  fort.43  fort.44  fort.45  fort.46  fort.47"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=reg  ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48

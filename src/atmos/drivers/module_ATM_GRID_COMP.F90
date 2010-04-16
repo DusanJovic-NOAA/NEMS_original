@@ -128,8 +128,7 @@
       CHARACTER(3),SAVE :: CORE                                            !<-- The name of the selected dynamic core
 !
       LOGICAL(kind=KLOG) :: QUILTING                                    &  !<-- Is asynchronous quilting specified?
-                           ,RESTARTED_RUN                               &  !<-- Original/restarted run logical flag
-                           ,CYCLING                                        !<-- Original/cycling   run logical flag
+                           ,RESTARTED_RUN                                  !<-- Original/restarted run logical flag
 !
       TYPE(ESMF_Config),SAVE :: CF_1                                       !<-- The principal config object
 !
@@ -873,7 +872,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  Extract the RESTART and CYCLING flag from the configure file.
+!***  Extract the RESTART flag from the configure file.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -885,22 +884,6 @@
                                   ,value =RESTARTED_RUN                 &  !<-- True => restart; False => cold start
                                   ,label ='restart:'                    &  !<-- Give this label's value to the previous variable
                                   ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract Cycling Flag from Config File"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)              &  !<-- The config object
-                                  ,value =CYCLING                       &  !<-- True => restart; False => cold start
-                                  ,label ='cycling:'                    &  !<-- Give this label's value to the previous variable
-                                  ,rc    =RC)
-!
-      IF(CYCLING) RESTARTED_RUN=.TRUE.                                     !<-- Correct restart flag if not set in CF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)

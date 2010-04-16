@@ -76,7 +76,10 @@ nhours_dfini:   0
 
 restart:        false       # True--> A restarted run
 nhours_restart: 12          # Frequency of restart output (hours)
-cycling:        false       # True--> Cycling (will force restart to true)
+
+rst_out_00:     false       # True--> Write 00h history in restarted run
+freerun:        true        # True--> Original
+                            # False--> 5X divergence dumping in NDAS forec.
 
 
 #########################
