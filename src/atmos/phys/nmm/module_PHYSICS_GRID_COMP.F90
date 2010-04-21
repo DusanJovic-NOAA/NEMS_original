@@ -3212,7 +3212,7 @@
 !***  SET TIME VARIABLES NEEDED FOR HISTORY OUTPUT.
 !-----------------------------------------------------------------------
 !
-      NSTEPS_PER_HOUR=3600./int_state%DT
+      NSTEPS_PER_HOUR=NINT(3600./int_state%DT)
       int_state%NPREC=NSTEPS_PER_HOUR*int_state%NHRS_PREC
       int_state%NCLOD=NSTEPS_PER_HOUR*int_state%NHRS_CLOD
       int_state%NHEAT=NSTEPS_PER_HOUR*int_state%NHRS_HEAT

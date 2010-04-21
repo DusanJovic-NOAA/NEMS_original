@@ -63,6 +63,7 @@
                               ,NDFISTEP                                 &
                               ,NPE_PRINT                                &
                               ,RESTARTED_RUN                            &
+                              ,RST_OUT_00                               &
                               ,I_AM_A_FCST_TASK                         &
                               ,NESTING                                  &
                               ,I_AM_A_NEST                              &
