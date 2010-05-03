@@ -1395,6 +1395,9 @@
       INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF
 !
       LOGICAL(kind=KLOG) :: READBC
+! wang 3-09-2010
+      INTEGER(kind=KINT):: KSE1,specadv
+
 !
 !------------------------------------------------------------------
 !***  The following SAVEs are for dereferenced constant variables.
@@ -2356,9 +2359,20 @@
 !
         btim=timef()
 !
+!wang 3-9-2010
+        specadv=0
+        IF(int_state%SPEC_ADV) specadv = 1   ! advect water 0-no, 1-yes
+        IF(specadv == 1 .or. int_state%MICROPHYSICS=='wsm6') then
+         kse1 = int_state%num_tracers_total
+!!!         write(0,*)'spec adv is on, specadv=',specadv,kse1,kse
+        ELSE
+         kse1 = kse
+        ENDIF
+
         CALL ADV2                                                       &
           (GLOBAL                                                       &
-          ,IDTADT,KSS,KSE,LM,LNSAD                                      &
+!          ,IDTADT,KSS,KSE,LM,LNSAD                                      &
+          ,IDTADT,KSS,KSE1,LM,LNSAD                                     &
           ,DT,RDYH                                                      &
           ,DSG2,PDSG1                                                   &
           ,FAH,RDXH                                                     &
@@ -2386,7 +2400,8 @@
 !
             btim=timef()
 !
-              DO KS=KSS,KSE
+ !             DO KS=KSS,KSE
+              DO KS=KSS,KSE1
                 CALL FFTFHN                                             &
                   (LM                                                   &
                   ,int_state%KHFILT                                     &
@@ -2412,7 +2427,8 @@
         btim=timef()
 !
         CALL MONO                                                       &
-          (IDTADT,KSS,KSE,LM                                            &
+!          (IDTADT,KSS,KSE,LM                                            &
+          (IDTADT,KSS,KSE1,LM                                           &
           ,DSG2,PDSG1                                                   &
           ,DARE                                                         &
           ,int_state%PD                                                 &
@@ -2482,6 +2498,22 @@
 !
           ,int_state%TRACERS_TEND(IMS:IME,JMS:JME,1:LM,int_state%INDX_Q2))
 !
+! wang 3-9-2010
+        IF (specadv == 1) then
+          DO KS=KSS,KSE1
+           if(KS .ne. int_state%INDX_Q .and.                            &
+              KS .ne. int_state%INDX_CW .and.                           &
+              KS .ne. int_state%INDX_O3 .and.                           &
+              KS .ne. int_state%INDX_Q2 ) then
+            CALL UPDATES                                                &
+              (LM                                                       &
+              ,int_state%TRACERS(IMS:IME,JMS:JME,1:LM,KS)               &
+              ,int_state%TRACERS_TEND(IMS:IME,JMS:JME,1:LM,KS))
+           endif
+          ENDDO
+        ENDIF
+! wang
+
         updatet_tim=updatet_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
@@ -2493,6 +2525,7 @@
           CALL SWAPHN(int_state%CW,IMS,IME,JMS,JME,LM,INPES)
           CALL SWAPHN(int_state%O3,IMS,IME,JMS,JME,LM,INPES)
           CALL SWAPHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES)
+! IF specadv == 1 , consider SWAPHN for other species. (in the future for GLOBAL)
 !
           swaphn_tim=swaphn_tim+(timef()-btim)
 !
@@ -2502,6 +2535,7 @@
           CALL POLEHN(int_state%O3,IMS,IME,JMS,JME,LM,INPES,JNPES)
           CALL POLEHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES,JNPES)
 !
+! IF specadv == 1 , consider POLEHN for other species. (in the future for GLOBAL)
           polehn_tim=polehn_tim+(timef()-btim)
 !
         ENDIF
@@ -2515,6 +2549,21 @@
                       ,int_state%Q2,LM                                  &
                       ,2,2)
 !
+!wang 3-9-2010
+        IF (specadv == 1) then
+          DO KS=KSS,KSE1
+           if(KS .ne. int_state%INDX_Q .and.                            &
+              KS .ne. int_state%INDX_CW .and.                           &
+              KS .ne. int_state%INDX_O3 .and.                           &
+              KS .ne. int_state%INDX_Q2 ) then
+            CALL HALO_EXCH(                                             &
+               int_state%TRACERS(IMS:IME,JMS:JME,1:LM,KS),LM            &
+              ,2,2)
+           endif
+          ENDDO
+        ENDIF
+
+!wang
         exch_dyn_tim=exch_dyn_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------

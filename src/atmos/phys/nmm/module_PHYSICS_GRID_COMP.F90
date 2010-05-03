@@ -27,6 +27,7 @@
 !   2009-12-15  Sarah Lu - GBPHYS calling argument modified: add dqdt
 !   2009-11     Jovic    - Modified for ownership/import/export specification
 !   2010-02-08  W. Wang  - Add wsm6 microphysics 
+!   2010-03-10  W. Wang  - ADD species advection option
 !
 !-----------------------------------------------------------------------
 !
@@ -939,7 +940,8 @@
 !---------------------------
 !
       INTEGER(KIND=KINT) :: I,J,IRTN,ISTAT,JULDAY,JULYR,L               &
-                           ,N,NPRECIP,NTIMESTEP,RC,NTIMESTEP_RAD,IMICRO
+                           ,N,NPRECIP,NTIMESTEP,RC,NTIMESTEP_RAD,IMICRO,&
+                            SPECADV
 !
       INTEGER(KIND=ESMF_KIND_I8) :: NTIMESTEP_ESMF
 !
@@ -1078,6 +1080,8 @@
 !     microphysics
 !-----------------------------------------------------------------------
 !
+           SPECADV = 0
+           IF(int_state%SPEC_ADV) SPECADV=1
         update_wtr: IF (int_state%MICROPHYSICS=='fer' .AND.             &
                           (CALL_SHORTWAVE .OR. CALL_LONGWAVE .OR.       &
                            CALL_TURBULENCE .OR. CALL_PRECIP) ) THEN
@@ -1102,6 +1106,7 @@
                             ,int_state%P_QI                             &
                             ,int_state%P_QG                             &
                             ,IMICRO                                     &
+                            ,SPECADV                                    &
                             ,IDS,IDE,JDS,JDE,LM                         &
                             ,IMS,IME,JMS,JME                            &
                             ,ITS,ITE,JTS,JTE)
@@ -3735,7 +3740,7 @@
 !
       SUBROUTINE UPDATE_WATER(CWM,F_ICE,F_RAIN,F_RIMEF                  &
                              ,NUM_WATER,WATER,T                         &
-                             ,P_QC,P_QR,P_QS,P_QI,P_QG, IMICRO     &
+                             ,P_QC,P_QR,P_QS,P_QI,P_QG, IMICRO,SPECADV  &
                              ,IDS,IDE,JDS,JDE,LM                        &
                              ,IMS,IME,JMS,JME                           &
                              ,ITS,ITE,JTS,JTE)
@@ -3766,7 +3771,7 @@
                            ,IMS,IME,JMS,JME                             &
                            ,ITS,ITE,JTS,JTE                             &
                            ,NUM_WATER                                   &
-                           ,P_QC,P_QR,P_QS,P_QI,P_QG, IMICRO
+                           ,P_QC,P_QR,P_QS,P_QI,P_QG,IMICRO,SPECADV
      ! REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: CWM,T          &
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: CWM,T          &
                                                   ,F_ICE,F_RAIN,F_RIMEF
@@ -3788,6 +3793,7 @@
          DO K=1,LM
            DO J=JMS,JME
              DO I=IMS,IME
+              IF (specadv == 0) THEN       ! specadv
                 IF (CWM(I,J,K)>EPSQ) THEN
                    LIQW=(1.-F_ice(I,J,K))*CWM(I,J,K)
                    WATER(I,J,K,P_QC)=(1.-F_rain(I,J,K))*LIQW
@@ -3798,6 +3804,20 @@
                    WATER(I,J,K,P_QR)=0.
                    WATER(I,J,K,P_QS)=0.
                 ENDIF
+              ELSE                         !specadv
+               ! IF species are advected, CWM(i,j,k) is changed.
+                  CWM(I,J,K) = WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)+WATER(I,J,K,P_QS)
+                     F_ICE(I,J,K)=0.0
+                  IF (CWM(I,J,K) > EPSQ) THEN
+                     F_ICE(I,J,K)=WATER(I,J,K,P_QS)/CWM(I,J,K)
+                  ENDIF
+                     F_RAIN(I,J,K)=0.
+                  IF (WATER(I,J,K,P_QR) > EPSQ) THEN
+                     LIQW=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)
+                     F_RAIN(I,J,K)=WATER(I,J,K,P_QR)/LIQW
+                  ENDIF
+
+              ENDIF                        !sepcadv
              ENDDO
            ENDDO
          ENDDO

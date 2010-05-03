@@ -181,6 +181,7 @@ microphysics:  fer          # Microphysics scheme
                                 # lin--> Lin
                                 # tho--> Thompson
                                 # wsm3--> WSM3
+spec_adv:  .false.          # Individual cloud species advected
                                                                                                                                               
 #---------------------------------
 turbulence:  myj            # Turbulence schemes

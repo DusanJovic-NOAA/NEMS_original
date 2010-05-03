@@ -71,7 +71,8 @@
                              ,SECADV                                    &
                              ,READ_GLOBAL_SUMS                          &
                              ,WRITE_GLOBAL_SUMS                         &
-                             ,NEMSIO_INPUT
+                             ,NEMSIO_INPUT                              &
+                             ,SPEC_ADV
 !
 !-----------------------------------------------------------------------
 !***  Distributed memory information.

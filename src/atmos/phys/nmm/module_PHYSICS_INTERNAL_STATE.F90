@@ -70,7 +70,8 @@
 !
         LOGICAL :: GLOBAL,GWDFLG,HYDRO,NEMSIO_INPUT,NESTED,NHRS_UDEF    &
                   ,PCPFLG,RESTART,SPECIFIED,WRITE_PREC_ADJ              &
-                  ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP
+                  ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP                &
+                  ,SPEC_ADV    ! cloud water species advection option
 !
 !-----------------------------------------------------------------------
 !***  Distributed memory information.
@@ -732,7 +733,7 @@
         int_state%RSWTT(I,J,L)=0.
 
         int_state%EXCH_H(I,J,L)=0.
-        int_state%XLEN_MIX(I,J,L)=-1.E6
+        int_state%XLEN_MIX(I,J,L)=0.
 
         int_state%CLDFRA(I,J,L)=0.
         int_state%TRAIN(I,J,L) =0.
