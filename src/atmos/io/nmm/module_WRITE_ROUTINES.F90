@@ -3,10 +3,10 @@
       MODULE MODULE_WRITE_ROUTINES
 !
 !-----------------------------------------------------------------------
-!***  THIS MODULE CONTAINS ROUTINES NEEDED BY THE RUN STEP OF THE
-!***  WRITE GRIDDED COMPONENT IN WHICH HISTORY OUTPUT DATA FROM
-!***  THE FORECAST TASKS ARE ASSEMBLED AND WRITTEN TO HISTORY FILES
-!***  BY THE WRITE TASKS.
+!***  This module contains routines needed by the Run step of the
+!***  Write gridded component in which history output data from
+!***  the forecast tasks are assembled and written to history files
+!***  by the write tasks.
 !-----------------------------------------------------------------------
 !***
 !***  HISTORY   
@@ -26,6 +26,7 @@
 !       06 Jan 2009:  T. Black - Replace Max # of words recv'd by
 !                                Write tasks with actual # of words.
 !       03 Sep 2009:  T. Black - Merged with NMM-B nesting code.
+!       22 Apr 2010:  T. Black - Change output frequency to minutes.
 !
 !-----------------------------------------------------------------------
 !
@@ -1659,17 +1660,17 @@
                                 )
 ! 
 !-----------------------------------------------------------------------
-!***  EACH TIME A NEW GROUP OF WRITE TASKS IS INVOKED FOR THE FIRST
-!***  TIME THIS ROUTINE WILL PERFORM CERTAIN COMPUTATIONS AND TASKS
-!***  THAT ONLY NEED TO BE DONE ONCE FOR EACH WRITE GROUP.
-!***  THE ROUTINE WILL UNLOAD SOME VALUES FROM THE WRITE COMPONENT'S
-!***  IMPORT STATE.  BECAUSE THESE QUANTITIES DO NOT CHANGE WITH
-!***  FORECAST TIME, THE ROUTINE IS NOT NEEDED FOR SUBSEQUENT USE
-!***  OF EACH WRITE GROUP.  THE DATA BEING UNLOADED CONSISTS OF
-!***  EVERYTHING EXCEPT THE 2D/3D GRIDDED FORECAST ARRAYS.
-!***  ALSO BASIC INFORMATION IS PROVIDED TO FORECAST AND WRITE TASKS
-!***  THAT WILL BE NECESSARY IN THE QUILTING OF LOCAL 2-D GRIDDED
-!***  RESTART DATA INTO FULL DOMAIN 2-D FIELDS.
+!***  Each time a new group of write tasks is invoked for the first
+!***  time this routine will perform certain computations and tasks
+!***  that only need to be done once for each write group.
+!***  The routine will unload some values from the Write component's
+!***  import state.  Because these quantities do not change with
+!***  forecast time, the routine is not needed for subsequent use
+!***  of each write group.  The data being unloaded consists of
+!***  everything except the 2-D/3-D gridded forecast arrays.
+!***  Also basic information is provided to forecast and write tasks
+!***  that will be necessary in the quilting of local 2-D gridded
+!***  restart data into full domain 2-D fields.
 !-----------------------------------------------------------------------
 !
 !------------------------
@@ -3269,7 +3270,7 @@
       SUBROUTINE OPEN_HST_FILE(WRT_INT_STATE)
 !
 !-----------------------------------------------------------------------
-!***  OPEN A HISTORY DISK FILE.
+!***  Open a history disk file.
 !-----------------------------------------------------------------------
 !
 !-----------------------
@@ -3282,7 +3283,7 @@
 !***  Local variables
 !---------------------
 !
-      INTEGER :: IO_HST_UNIT,N,RC
+      INTEGER :: FRAC_SEC,INT_SEC,IO_HST_UNIT,N,RC
 !
       LOGICAL :: OPENED
 !
@@ -3302,8 +3303,13 @@
 !     write(0,*)' OPEN_HST_FILE wrt_int_state%IO_HST_FILE=',trim(wrt_int_state%IO_HST_FILE)
 !
       IF(wrt_int_state%IO_HST_FILE=='DEFERRED')THEN
-        WRITE(FILENAME,100)TRIM(wrt_int_state%HST_NAME_BASE)//'.',wrt_int_state%NFHOUR
-  100   FORMAT(A,I3.3)
+        INT_SEC=INT(wrt_int_state%NFSECONDS)
+        FRAC_SEC=NINT((wrt_int_state%NFSECONDS-INT_SEC)*100.)
+        WRITE(FILENAME,100)TRIM(wrt_int_state%HST_NAME_BASE)//'.'       &
+                          ,wrt_int_state%NFHOURS,'h_'                   &
+                          ,wrt_int_state%NFMINUTES,'m_'                 &
+                          ,INT_SEC,'.',FRAC_SEC,'s'
+  100   FORMAT(A,I3.3,A,I2.2,A,I2.2,A,I2.2,A)
 !!!     WRITE(0,*)' Created filename=',filename,' HST_NAME_BASE=',wrt_int_state%HST_NAME_BASE
       ELSE
         FILENAME=wrt_int_state%IO_HST_FILE
@@ -3361,7 +3367,7 @@
       SUBROUTINE OPEN_RST_FILE(WRT_INT_STATE)
 !
 !-----------------------------------------------------------------------
-!***  OPEN A RESTART DISK FILE.
+!***  Open a restart disk file.
 !-----------------------------------------------------------------------
 !
 !------------------------
@@ -3374,7 +3380,7 @@
 !***  Local variables
 !---------------------
 !
-      INTEGER :: IO_RST_UNIT,N,RC
+      INTEGER :: FRAC_SEC,INT_SEC,IO_RST_UNIT,N,RC
 !
       LOGICAL :: OPENED
 !
@@ -3394,8 +3400,13 @@
 !     write(0,*)' OPEN_RST_FILE wrt_int_state%IO_RST_FILE=',trim(wrt_int_state%IO_RST_FILE)
 !
       IF(wrt_int_state%IO_RST_FILE=='DEFERRED')THEN
-        WRITE(FILENAME,100)TRIM(wrt_int_state%RST_NAME_BASE)//'.',wrt_int_state%NFHOUR
-  100   FORMAT(A,I3.3)
+        INT_SEC=INT(wrt_int_state%NFSECONDS)
+        FRAC_SEC=NINT((wrt_int_state%NFSECONDS-INT_SEC)*100.)
+        WRITE(FILENAME,100)TRIM(wrt_int_state%RST_NAME_BASE)//'.'       &
+                          ,wrt_int_state%NFHOURS,'h_'                   &
+                          ,wrt_int_state%NFMINUTES,'m_'                 &
+                          ,INT_SEC,'.',FRAC_SEC,'s'
+  100   FORMAT(A,I3.3,A,I2.2,A,I2.2,A,I2.2,A)
       ELSE
         FILENAME=wrt_int_state%IO_RST_FILE
       ENDIF
@@ -3451,7 +3462,7 @@
       SUBROUTINE WRITE_INIT(ATM_GRID_COMP,ATM_INT_STATE,CLOCK_ATM)
 ! 
 !-----------------------------------------------------------------------
-!***  EXECUTE THE INITIALIZE STEP OF THE WRITE COMPONENTS.
+!***  Execute the Initialize step of the Write components.
 !-----------------------------------------------------------------------
 !
       TYPE(ESMF_GridComp),INTENT(INOUT)      :: ATM_GRID_COMP             !<-- The ATM gridded component
@@ -3472,7 +3483,7 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  RETRIEVE THE CONFIG OBJECT CF FROM THE ATM GRIDDED COMPONENT.
+!***  Retrieve the config object CF from the ATM gridded component.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3489,7 +3500,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  HOW MANY FORECAST TASKS DO WE HAVE?
+!***  How many forecast tasks do we have?
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3514,9 +3525,9 @@
       NUM_PES_FCST=INPES*JNPES                                             !<-- Total number of forecast tasks
 !
 !-----------------------------------------------------------------------
-!***  EXECUTE THE INITIALIZE STEP FOR THE WRITE COMPONENTS.
-!***  THESE ARE THE INITIALIZE SUBROUTINES SPECIFIED IN THE
-!***  REGISTER ROUTINES CALLED IN ESMF_GridCompSetServices.
+!***  Execute the Initialize step for the Write components.
+!***  These are the Initialize subroutines specified in the
+!***  Register routines called in ESMF_GridCompSetServices.
 !-----------------------------------------------------------------------
 !
       DO J=1,atm_int_state%WRITE_GROUPS
@@ -3546,7 +3557,7 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  SET THE FIRST WRITE GROUP AS THE FIRST ONE TO ACT.
+!***  Set the first write group as the first one to act.
 !-----------------------------------------------------------------------
 !
       atm_int_state%WRITE_GROUP_READY_TO_GO=1
@@ -3566,7 +3577,7 @@
                             ,CWRT)
 !
 !-----------------------------------------------------------------------
-!***  WRITE OUT A HISTORY FILE USING THE ASYNCHRONOUS QUILTING.
+!***  Write out a history file using the asynchronous quilting.
 !-----------------------------------------------------------------------
 !
 !------------------------
@@ -3606,8 +3617,8 @@
       IF(CWRT=='Restart') TIME_FOR_RESTART = .TRUE.
 !
 !-----------------------------------------------------------------------
-!***  EXTRACT THE CONFIGURE OBJECT IN ORDER TO KNOW THE NUMBER
-!***  OF FORECAST TASKS, WRITE GROUPS, AND WRITE TASKS PER GROUP.
+!***  Extract the configure object in order to know the number
+!***  of forecast tasks, write groups, and write tasks per group.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3655,7 +3666,7 @@
       NUM_PES_FCST=INPES*JNPES                                             !<-- Number of forecast tasks
 !
 !-----------------------------------------------------------------------
-!***  WHAT IS THE CURRENT FORECAST TIME?
+!***  What is the current forecast time?
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3690,11 +3701,11 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  THE EXPORT STATE OF THE DYNAMICS COMPONENT LIES WITHIN THE
-!***  INTERNAL STATE OF THE ATM GRIDDED COMPONENT AND HOLDS THE
-!***  IMPORT STATE OF THE WRITE COMPONENT.
-!***  EXTRACT THAT WRITE COMPONENT'S IMPORT STATE SINCE WE ARE 
-!***  ABOUT TO EXECUTE THE RUN STEP OF THE WRITE COMPONENT.
+!***  The export state of the Dynamics component lies within the
+!***  internal state of the ATM gridded component and holds the
+!***  import state of the Write component.
+!***  Extract that Write component's import state since we are 
+!***  about to execute the Run step of the Write component.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3714,8 +3725,8 @@
 !!!   CALL ESMF_VMBarrier(vm=VM,rc=RC)
 !
 !-----------------------------------------------------------------------
-!***  ALL FORECAST TASKS PLUS THOSE WRITE TASKS IN THE APPROPRIATE
-!***  WRITE GROUP EXECUTE THE RUN STEP OF A WRITE COMPONENT.
+!***  All forecast tasks plus those write tasks in the appropriate
+!***  write group execute the Run step of a Write component.
 !-----------------------------------------------------------------------
 !
       N_GROUP=atm_int_state%WRITE_GROUP_READY_TO_GO                          !<-- The active write group
@@ -3748,8 +3759,8 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  PREPARE TO USE THE NEXT WRITE GROUP AT THE NEXT OUTPUT TIME.
-!***  RETURN TO THE 1ST GROUP IF WE HAVE CYCLED THROUGH ALL OF THEM.
+!***  Prepare to use the next write group at the next output time.
+!***  Return to the 1st group if we have cycled through all of them.
 !-----------------------------------------------------------------------
 !
       IF(atm_int_state%WRITE_GROUP_READY_TO_GO==WRITE_GROUPS)THEN
@@ -3759,7 +3770,7 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  RESTORE TIME_FOR_HISTORY & TIME_FOR_RESTART TO FALSE
+!***  Restore TIME_FOR_HISTORY and TIME_FOR_RESTART to false.
 !-----------------------------------------------------------------------
 !
       TIME_FOR_HISTORY = .FALSE.
@@ -3787,7 +3798,7 @@
                                       ,LEAD_WRITE_TASK )
 !
 !-----------------------------------------------------------------------
-!***  WRITE OUT A BINARY RUN HISTORY FILE.
+!***  Write out a binary run history file.
 !-----------------------------------------------------------------------
 !
 !------------------------
@@ -3827,8 +3838,8 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  OPEN THE HISTORY FILE AND WRITE THE CURRENT FORECAST TIME
-!***  AND ELAPSED TIME.
+!***  Open the history file and write the current forecast time
+!***  and elapsed time.
 !-----------------------------------------------------------------------
 !
       CALL OPEN_HST_FILE(WRT_INT_STATE)
@@ -3857,7 +3868,7 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  INTEGER SCALAR/1D HISTORY VARIABLES
+!***  Integer scalar/1-D history variables
 !-----------------------------------------------------------------------
 !
       N2=0                                                                !<-- Word counter for full string of integer scalar/1D data
@@ -3886,7 +3897,7 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  REAL SCALAR/1D HISTORY VARIABLES
+!***  Real scalar/1-D history variables
 !-----------------------------------------------------------------------
 !
       N2=0                                                                !<-- Word counter for full string of real scalar/1D data
@@ -3915,7 +3926,7 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  LOGICAL HISTORY VARIABLES
+!***  Logical history variables
 !-----------------------------------------------------------------------
 !
       N2=0                                                                !<-- Counter for full string of logical data
@@ -3961,7 +3972,7 @@
                                              ,LEAD_WRITE_TASK)
 !
 !-----------------------------------------------------------------------
-!***  WRITE OUT A NEMSIO BINARY RUN HISTORY FILE.
+!***  Write out a NEMSIO binary run history file.
 !-----------------------------------------------------------------------
 !
 !------------------------
@@ -3999,7 +4010,7 @@
                 ,N2ISCALAR,N2IARY,N2RSCALAR,N2RARY,N2LSCALAR            &
                 ,NMETA,NSOIL,TLMETA,VLEV
 !
-      INTEGER :: NFIELD,RC
+      INTEGER :: FRAC_SEC,INT_SEC,NFIELD,RC
 !
       INTEGER,DIMENSION(:),POINTER :: ARYILEN                           &
                                      ,ARYRLEN                           &
@@ -4048,11 +4059,11 @@
       FCSTDATE(3)=IDAY_FCST
       FCSTDATE(4)=IHOUR_FCST
       FCSTDATE(5)=IMINUTE_FCST
-      FCSTDATE(6)=nint(SECOND_FCST*100.)
+      FCSTDATE(6)=NINT(SECOND_FCST*100.)
       FCSTDATE(7)=100
 !
 !-----------------------------------------------------------------------
-!***  INTEGER SCALAR/1D HISTORY VARIABLES
+!***  Integer scalar/1-D history variables
 !-----------------------------------------------------------------------
 !
 !-------------------------------------------------------------
@@ -4081,7 +4092,7 @@
       ALLOCATE(ARYINAME(N2IARY),ARYILEN(N2IARY),ARYIVAL(MAXLENGTH,N2IARY))
 !
 !---------------------------------------
-!***  SET VALUE TO AVRIVAL and ARYIVAL.
+!***  Set value to AVRIVAL and ARYIVAL.
 !---------------------------------------
 !
       N2=0                                                                 !<-- Word counter for full string of integer scalar/1D data
@@ -4138,7 +4149,7 @@
       ARYIVAL(1:7,N2IARY)=FCSTDATE(1:7)
 !
 !-----------------------------------------------------------------------
-!***  REAL SCALAR/1D HISTORY VARIABLES
+!***  Real scalar/1-D history variables
 !-----------------------------------------------------------------------
 !
 !------------------------------------------------------------
@@ -4221,7 +4232,7 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  LOGICAL HISTORY VARIABLES
+!***  Logical history variables
 !-----------------------------------------------------------------------
 !
       N2LSCALAR=wrt_int_state%KOUNT_LOG(1)                                 !<-- Counter for full string of logical data
@@ -4244,7 +4255,7 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  NOW OPEN NEMSIO FILE
+!***  Now open NEMSIO file.
 !-----------------------------------------------------------------------
 !
       write(0,*)' OPEN_NEMSIO_FILE wrt_int_state%IO_NEMSIOFILE=',       &
@@ -4253,10 +4264,14 @@
       IF(wrt_int_state%IO_HST_FILE=='DEFERRED')THEN
 !!!     N=LEN_TRIM(wrt_int_state%HST_NAME_BASE)-1
         N=LEN_TRIM(wrt_int_state%HST_NAME_BASE)
+        INT_SEC=INT(wrt_int_state%NFSECONDS)
+        FRAC_SEC=NINT((wrt_int_state%NFSECONDS-INT_SEC)*100.)
         WRITE(FILENAME,100)wrt_int_state%HST_NAME_BASE(1:N)//'_nemsio.' &
-                          ,wrt_int_state%NFHOUR
+                          ,wrt_int_state%NFHOURS,'h_'                   &
+                          ,wrt_int_state%NFMINUTES,'m_'                 &
+                          ,INT_SEC,'.',FRAC_SEC,'s'
         write(0,*)'FILENAME=',trim(FILENAME),'n=',n
-  100   FORMAT(A,I3.3)
+  100   FORMAT(A,I3.3,A,I2.2,A,I2.2,A,I2.2,A)
       ELSE
         FILENAME=wrt_int_state%IO_HST_FILE//'_nemsio'
       ENDIF
@@ -4454,7 +4469,7 @@
       CALL NEMSIO_INIT(IRET=IRET)
 !
 !-----------------------------------------------------------------------
-!***  OPEN NEMSIO RUN HISTORY FILE
+!***  Open NEMSIO run history file.
 !-----------------------------------------------------------------------
 !
       CALL NEMSIO_OPEN(NEMSIOFILE,trim(FILENAME),'write',iret,           &
@@ -4474,7 +4489,7 @@
         aryrval=ARYRVAL,recname=RECNAME,reclevtyp=RECLEVTYP,reclev=RECLEV)
 !
 !-----------------------------------------------------------------------
-!***  GET VARIABLES NEEDED BY THE .ctl FILE.
+!***  Get variables needed by the .ctl file.
 !-----------------------------------------------------------------------
 !
       IF(wrt_int_state%WRITE_NEMSIOCTL.AND.wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
@@ -4484,7 +4499,7 @@
         CNT=INI1+(INI2/LM)+(INI3/(LM+1))+IND1+(IND2/LM)+(IND3/(LM+1))+(IND4/NSOIL)+1  !fact10 is calculated in write grid comp
 !
 !-----------------------------------------------------------------------
-!***  WRITE OUT NEMSIO CTL FILE
+!***  Write out NEMSIO ctl file.
 !-----------------------------------------------------------------------
 !
         CALL WRITE_NEMSIOCTL(GLOBAL,IHOUR_FCST,IDAY_FCST,IMONTH_FCST,       &
@@ -4493,7 +4508,7 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  CLEAN UP
+!***  Clean up
 !-----------------------------------------------------------------------
 !
       DEALLOCATE(VCOORD,DX,DY)
@@ -4524,8 +4539,12 @@
                                       ,LEAD_WRITE_TASK )
 !
 !-----------------------------------------------------------------------
-!***  WRITE OUT A BINARY RUN RESTART FILE.
+!***  Write out a binary run restart file.
 !-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
 !
       TYPE(WRITE_INTERNAL_STATE),INTENT(INOUT) :: WRT_INT_STATE            !<-- The Write component's internal state
 !
@@ -4543,9 +4562,9 @@
 !
       REAL,INTENT(IN) :: NF_SECONDS,SECOND_FCST
 !
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local Variables
+!---------------------
 !
       INTEGER :: N,N1,N2,NPOSN_1,NPOSN_2,LENGTH
       INTEGER :: NFIELD,RC
@@ -4561,8 +4580,8 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  OPEN THE RESTART FILE AND WRITE THE CURRENT FORECAST TIME
-!***  AND ELAPSED TIME.
+!***  Open the restart file and write the current forecast time
+!***  and elapsed time.
 !-----------------------------------------------------------------------
 !
       CALL OPEN_RST_FILE(WRT_INT_STATE)
@@ -4587,7 +4606,7 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  INTEGER SCALAR/1D RESTART VARIABLES
+!***  Integer scalar/1-D restart variables
 !-----------------------------------------------------------------------
 !
         N2=0                                                               !<-- Word counter for full string of integer scalar/1D data
@@ -4616,7 +4635,7 @@
         ENDDO
 !
 !-----------------------------------------------------------------------
-!***  REAL SCALAR/1D RESTART VARIABLES
+!***  Real scalar/1-D restart variables
 !-----------------------------------------------------------------------
 !
         N2=0                                                               !<-- Word counter for full string of real scalar/1D data
@@ -4645,7 +4664,7 @@
         ENDDO
 !
 !-----------------------------------------------------------------------
-!***  LOGICAL RESTART VARIABLES
+!***  Logical restart variables
 !-----------------------------------------------------------------------
 !
         N2=0                                                               !<-- Counter for full string of logical data
@@ -4692,8 +4711,12 @@
                                         ,LEAD_WRITE_TASK)
 !
 !-----------------------------------------------------------------------
-!***  WRITE OUT A NEMSIO BINARY RUN HISTORY FILE.
+!***  Write out a NEMSIO binary run history file.
 !-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
 !
       TYPE(WRITE_INTERNAL_STATE),INTENT(INOUT) :: WRT_INT_STATE             !<-- The Write component's internal state
 !
@@ -4715,9 +4738,9 @@
       REAL,INTENT(IN)     :: NF_SECONDS                                 &
                             ,SECOND_FCST
 !
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local Variables
+!---------------------
 !
       INTEGER :: I,J,N,N1,N2,NPOSN_1,NPOSN_2,LENGTH,MAXLENGTH
 !
@@ -4727,7 +4750,7 @@
                 ,N2ISCALAR,N2IARY,N2RSCALAR,N2RARY,N2LSCALAR            &
                 ,NMETA,NSOIL,TLMETA,VLEV    
 !
-      INTEGER :: NFIELD,RC
+      INTEGER :: FRAC_SEC,INT_SEC,NFIELD,RC
 !
       INTEGER,DIMENSION(:),POINTER :: ARYILEN                           &
                                      ,ARYRLEN                           &
@@ -4776,11 +4799,11 @@
       FCSTDATE(3)=IDAY_FCST
       FCSTDATE(4)=IHOUR_FCST
       FCSTDATE(5)=IMINUTE_FCST
-      FCSTDATE(6)=nint(SECOND_FCST*100.)
+      FCSTDATE(6)=NINT(SECOND_FCST*100.)
       FCSTDATE(7)=100
 !
 !-----------------------------------------------------------------------
-!***  INTEGER SCALAR/1D HISTORY VARIABLES
+!***  Integer scalar/1-D history variables
 !-----------------------------------------------------------------------
 !
 !-------------------------------------------------------------
@@ -4810,7 +4833,7 @@
       ALLOCATE(ARYINAME(N2IARY),ARYILEN(N2IARY),ARYIVAL(MAXLENGTH,N2IARY))
 !
 !---------------------------------------
-!***  SET VALUE TO AVRIVAL and ARYIVAL.
+!***  Set value to AVRIVAL and ARYIVAL.
 !---------------------------------------
 !
       N2=0                                                                 !<-- Word counter for full string of integer scalar/1D data
@@ -4857,7 +4880,7 @@
 !
       ENDDO
 !-----------------------------
-!***  Add ntimestep into VARI
+!***  Add ntimestep into VARI.
 !-----------------------------
 !
      N2ISCALAR= N2ISCALAR+1
@@ -4867,7 +4890,7 @@
 !
 !
 !-----------------------------
-!***  Add fcst_date into ARYI
+!***  Add fcst_date into ARYI.
 !-----------------------------
 !
       N2IARY=N2IARY+1
@@ -4876,7 +4899,7 @@
       ARYIVAL(1:7,N2IARY)=FCSTDATE(1:7)
 !
 !-----------------------------------------------------------------------
-!***  REAL SCALAR/1D HISTORY VARIABLES
+!***  Real scalar/1-D history variables
 !-----------------------------------------------------------------------
 !
 !------------------------------------------------------------
@@ -4959,7 +4982,7 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  LOGICAL HISTORY VARIABLES
+!***  Logical history variables
 !-----------------------------------------------------------------------
 !
       N2LSCALAR=wrt_int_state%RST_KOUNT_LOG(1)                                 !<-- Counter for full string of logical data
@@ -4982,7 +5005,7 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  NOW OPEN NEMSIO FILE
+!***  Now open NEMSIO file.
 !-----------------------------------------------------------------------
 !
       write(0,*)' OPEN_NEMSIO_FILE wrt_int_state%IO_NEMSIOFILE=',       &
@@ -4991,10 +5014,14 @@
       IF(wrt_int_state%IO_RST_FILE=='DEFERRED')THEN
 !!!     N=LEN_TRIM(wrt_int_state%RST_NAME_BASE)-1
         N=LEN_TRIM(wrt_int_state%RST_NAME_BASE)
+        INT_SEC=INT(wrt_int_state%NFSECONDS)
+        FRAC_SEC=NINT((wrt_int_state%NFSECONDS-INT_SEC)*100.)
         WRITE(FILENAME,100)wrt_int_state%RST_NAME_BASE(1:N)//'_nemsio.' &
-                          ,wrt_int_state%NFHOUR
+                          ,wrt_int_state%NFHOURS,'h_'                   &
+                          ,wrt_int_state%NFMINUTES,'m_'                 &
+                          ,INT_SEC,'.',FRAC_SEC,'s'
         write(0,*)'FILENAME=',trim(FILENAME),'n=',n
-  100   FORMAT(A,I3.3)
+  100   FORMAT(A,I3.3,A,I2.2,A,I2.2,A,I2.2,A)
       ELSE
         FILENAME=wrt_int_state%IO_RST_FILE//'_nemsio'
       ENDIF
@@ -5200,7 +5227,7 @@
       CALL NEMSIO_INIT(IRET=IRET)
 !
 !-----------------------------------------------------------------------
-!***  OPEN NEMSIO FILE
+!***  Open NEMSIO file
 !-----------------------------------------------------------------------
 !
       CALL NEMSIO_OPEN(NEMSIOFILE,trim(FILENAME),'write',iret,           &
@@ -5220,7 +5247,7 @@
         aryrval=ARYRVAL,recname=RECNAME,reclevtyp=RECLEVTYP,reclev=RECLEV)
 !
 !-----------------------------------------------------------------------
-!***  GET VARIABLES NEEDED BY THE .ctl FILE.
+!***  Get variables needed by the .ctl file.
 !-----------------------------------------------------------------------
 !
       IF(wrt_int_state%WRITE_NEMSIOCTL.AND.wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
@@ -5232,7 +5259,7 @@
 
 !
 !-----------------------------------------------------------------------
-!***  WRITE OUT NEMSIO CTL FILE
+!***  Write out NEMSIO ctl file.
 !-----------------------------------------------------------------------
 !
         CALL WRITE_NEMSIOCTL(GLOBAL,IHOUR_FCST,IDAY_FCST,IMONTH_FCST,       &
@@ -5241,7 +5268,7 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  CLEAN UP
+!***  Clean up
 !-----------------------------------------------------------------------
 !
       DEALLOCATE(VCOORD,DX,DY)
@@ -5262,12 +5289,12 @@
         DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP,KOUNT_R2D)
 !
 !-----------------------------------------------------------------------
-!***  WRITE OUT CTL FILE
+!***  Write out ctl file.
 !-----------------------------------------------------------------------
 !
-!--------------
-!*** Arguments
-!--------------
+!-----------------------
+!*** Argument Variables
+!-----------------------
 !
       INTEGER,INTENT(IN) :: DIM1,DIM2                                   &
                            ,IHOUR_FCST,IDAY_FCST,IMONTH_FCST,IYEAR_FCST &
@@ -5400,7 +5427,7 @@
       SUBROUTINE CMONTH(IMON,CMON)
 !
 !-----------------------------------------------------------------------
-!***  CONVERT MONTH
+!***  Convert month
 !-----------------------------------------------------------------------
 !
       INTEGER,INTENT(IN) :: IMON

@@ -110,7 +110,7 @@
       INTEGER(KIND=KINT) :: START_YEAR,START_MONTH,START_DAY,START_HOUR &
                            ,START_MINUTE,START_SECOND
 !
-      INTEGER(KIND=KINT),SAVE :: JC,NSTEPS_HIST,NSTEPS_PER_HOUR
+      INTEGER(KIND=KINT),SAVE :: JC,NSTEPS_PER_HOUR
 !
 !-----------------------------------------------------------------------
 !
@@ -614,7 +614,6 @@
         DT=int_state%DT
 !
         NSTEPS_PER_HOUR=NINT(3600./DT)
-        NSTEPS_HIST=int_state%NHOURS_HISTORY*NSTEPS_PER_HOUR
 !
 !-----------------------------------------------------------------------
 !***  Retrieve the domain ID from the Physics import state.
@@ -1536,7 +1535,7 @@
 !
           CALL CUCNVC(NTIMESTEP,int_state%DT,int_state%NPRECIP          &
                      ,int_state%NRADS,int_state%NRADL                   &
-                     ,int_state%NHOURS_HISTORY                          &
+                     ,int_state%MINUTES_HISTORY                         &
                      ,int_state%DYH,int_state%RESTART,int_state%HYDRO   &
                      ,int_state%CLDEFI,int_state%NUM_WATER              &
                      ,int_state%F_ICE,int_state%F_RAIN                  &
@@ -1568,7 +1567,7 @@
 !
           CALL CUCNVC_DEV(NTIMESTEP,int_state%DT,int_state%NPRECIP      &
                      ,int_state%NRADS,int_state%NRADL                   &
-                     ,int_state%NHOURS_HISTORY                          &
+                     ,int_state%MINUTES_HISTORY                         &
                      ,int_state%ENTRAIN,int_state%NEWALL                &
                      ,int_state%NEWSWAP,int_state%NEWUPUP               &
                      ,int_state%NODEEP                                  &

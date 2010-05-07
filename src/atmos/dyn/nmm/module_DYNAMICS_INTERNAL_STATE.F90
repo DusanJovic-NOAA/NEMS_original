@@ -43,8 +43,8 @@
         INTEGER(KIND=KINT), POINTER :: IM,JM,LM
         INTEGER(KIND=KINT) :: INPES,JNPES                               &
                              ,NHOURS_FCST                               &
-                             ,NHOURS_HISTORY                            &
-                             ,NHOURS_RESTART                            &
+                             ,MINUTES_HISTORY                           &
+                             ,MINUTES_RESTART                           &
                              ,NSTEPS_BC_RESTART                         &
                              ,NUM_TRACERS_MET                           &  !<-- Number of meteorological tracers (e.g. water)
                              ,NUM_TRACERS_CHEM                          &  !<-- Number of chem/aerosol tracers

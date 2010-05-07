@@ -55,8 +55,8 @@
 !
         INTEGER(kind=KINT), POINTER :: NSOIL
         INTEGER(kind=KINT) :: IM,JM,LM                                  &
-                             ,NHOURS_HISTORY                            &
-                             ,NHOURS_RESTART                            &
+                             ,MINUTES_HISTORY                           &
+                             ,MINUTES_RESTART                           &
                              ,NUM_TRACERS_MET                           &  !<-- Number of meteorological tracers (e.g. water)
                              ,NUM_TRACERS_CHEM                          &  !<-- Number of chem/aerosol tracers
                              ,START_YEAR,START_MONTH,START_DAY          &
@@ -71,7 +71,7 @@
         LOGICAL :: GLOBAL,GWDFLG,HYDRO,NEMSIO_INPUT,NESTED,NHRS_UDEF    &
                   ,PCPFLG,RESTART,SPECIFIED,WRITE_PREC_ADJ              &
                   ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP                &
-                  ,SPEC_ADV    ! cloud water species advection option
+                  ,SPEC_ADV                                                ! Cloud water species advection option
 !
 !-----------------------------------------------------------------------
 !***  Distributed memory information.

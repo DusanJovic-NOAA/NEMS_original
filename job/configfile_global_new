@@ -28,7 +28,7 @@ sbd:  -90.0                 # Grid's southern boundary (rotated degrees)
 ##### Grid Decomposition #####
 ##############################
 
-inpes:  06             # Number of compute tasks in the I direction
+inpes:  06                  # Number of compute tasks in the I direction
 jnpes:  05                  # Number of compute tasks in the J direction
 
 
@@ -66,16 +66,16 @@ start_second: 0
 tstart:       0.            # The starting forecast hour
 
 
-###########################
-##### Forecast Length #####
-###########################
+############################################################
+##### Forecast Length / Restarting / Output Frequency  #####
+############################################################
                                                                                                                                               
-nhours_fcst:    48          # Length of the forecast (hours)
-nhours_history: 03          # Frequency of history output (hours)
-nhours_dfini:   0
+nhours_fcst:      48        # Length of the forecast (hours)
+minutes_history: 180        # Frequency of history output (minutes)
+nhours_dfini:      0
 
-restart:        false       # True--> A restarted run
-nhours_restart: 12          # Frequency of restart output (hours)
+restart:         false      # True--> A restarted run
+minutes_restart: 720        # Frequency of restart output (minutes)
 
 rst_out_00:     false       # True--> Write 00h history in restarted run
 freerun:        true        # True--> Original
@@ -110,9 +110,12 @@ idtadt:  2                  # Number of adjustment timesteps between tracer adve
 num_tracers_met:   4        # Number of specified meterological "tracer" scalars (e.g., water)
 num_tracers_chem:  0        # Number of specified chem/aerosol "tracer" scalars
 
+lnsh:  1                    # Number of boundary blending rows for H points
+lnsv:  1                    # Number of boundary blending rows for V points
+
 
 ###################################
-##### Digital Filtering options ###
+##### Digital Filtering Options ###
 ###################################
 
 filter_method: 0            # 0--->none ; 1--->DFL ; 2---> DDFI ; 3--->TDFI
@@ -136,7 +139,7 @@ write_global_sums: false     # Write out global summations or not
 ### Precipitation Assimilation####
 ##################################
 
-pcpflg:  false             # True--> assimilation on ; False--> assimilation off
+pcpflg:  false              # True--> assimilation on ; False--> assimilation off
 pcphr: 6
 write_prec_adj: false       # True--> create baseline prec. files ; False--> regular run
 
@@ -170,6 +173,7 @@ convection:  bmj_dev        # Convection scheme
                                 #  kf    --> Kain-Fritsch
                                 # sas    --> Simplified Arakawa-Schubert
                                 #  gd    --> Grell-Devenyi
+                                # none   --> No convection
 
 #---------------------------------
 microphysics:  fer          # Microphysics scheme
@@ -178,6 +182,7 @@ microphysics:  fer          # Microphysics scheme
                                 # lin--> Lin
                                 # tho--> Thompson
                                 # wsm3--> WSM3
+
 spec_adv:    .false.       # Individual cloud species advected                                                                                                                                              
 #---------------------------------
 turbulence:  myj            # Turbulence schemes
@@ -206,11 +211,11 @@ gfs:  false                 # Select entire GFS physics suite
 ##### Shallow Convection Switches ####
 ######################################
 
-entrain:    .false.         ! entrainment
-newall:     .true.          ! new cloud used at all shallow points
-newswap:    .true.          ! new clouds at swap shallow points
-newupup:    .true.          ! new cloud used for both heat and moisture up shallow pts.
-nodeep:     .false.         ! all deep convection diverted to shallow swap algorythm
+entrain:    .false.         # entrainment
+newall:     .true.          # new cloud used at all shallow points
+newswap:    .true.          # new clouds at swap shallow points
+newupup:    .true.          # new cloud used for both heat and moisture up shallow pts.
+nodeep:     .false.         # all deep convection diverted to shallow swap algorithm
 
 
 #############################
@@ -253,15 +258,18 @@ write_donefileflag:      .FALSE.
 
 io_hst_unit:             -999
 io_rst_unit:             -999
-io_hst_file:             'DEFERRED'
-io_rst_file:             'DEFERRED'
 
 #-------------------------------------------------
-# If IO_FILE == 'DEFERRED', use FILENAME_BASE
-# as the first part of the history file names.
+# If IO_FILE == 'DEFERRED', use hst/rst_name_base
+# as the first part of the history/restart
+# file names.
 #-------------------------------------------------
+
+io_hst_file:             'DEFERRED'
+io_rst_file:             'DEFERRED'
 hst_name_base:           'nmm_b_history'
 rst_name_base:           'nmm_b_restart'
+
 io_status:               'REPLACE'
 io_access:               'SEQUENTIAL'
 io_form:                 'UNFORMATTED'
@@ -281,8 +289,9 @@ my_parent_id: -999
 n_children:  0
 
 
-#######################################
-####  timing info                  ####
-#######################################
+#######################
+####  Timing Info  ####
+#######################
+
 nhours_clocktime:   1        # Frequency in hours between clocktime diagnostic prints.
 npe_print:          1        # The MPI task that will provide the clocktimes.

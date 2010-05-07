@@ -1242,8 +1242,8 @@
 !***  LEAD WRITE TASK FOR INSERTION INTO THE RESTART FILE.
 !-----------------------------------------------------------------------
 !
-        int_state%NSTEPS_BC_RESTART=NINT((int_state%NHOURS_RESTART*3600)  &  !<-- Timestep frequency for BC data insertion into
-                                         /int_state%DT)                      !    1-D local datastrings
+        int_state%NSTEPS_BC_RESTART=NINT((int_state%MINUTES_RESTART*60) &  !<-- Timestep frequency for BC data insertion into
+                                         /int_state%DT)                    !    1-D local datastrings
 !
         IEND=MIN(ITE,IDE-1)
         JEND=MIN(JTE,JDE-1)
@@ -1357,7 +1357,6 @@
                                         ,CDWDT,CDZDT,DDAMP,DHT          &
                                         ,HADV2,HADV2_SCAL,HDIFF         &
                                         ,IUNIT_ADVEC_SUMS               &
-                                        ,IUNIT_POLE_SUMS                &
                                         ,MONO,PDTSDT,PGFORCE            &
                                         ,UPDATES,UPDATET,UPDATEUV       &
                                         ,VADV2,VADV2_SCAL,VSOUND,VTOA
@@ -1365,6 +1364,7 @@
       USE MODULE_EXCHANGE,ONLY: HALO_EXCH
 !
       USE MODULE_FLTBNDS,ONLY: BOCOH,BOCOV,FFTFHN,FFTFUVN               &
+                              ,IUNIT_POLE_SUMS                          &
                               ,POAVHN,POLEHN,POLEWN,READ_BC             &
                               ,SWAPHN,SWAPWN
 !

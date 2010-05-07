@@ -561,13 +561,13 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="GET_CONFIG_PHY: Extract NHOURS_HISTORY from Config File"
+      MESSAGE_CHECK="GET_CONFIG_PHY: Extract MINUTES_HISTORY from Config File"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
-                                  ,value =int_state%NHOURS_HISTORY      &  !<-- Put extracted quantity here
-                                  ,label ='nhours_history:'             &  !<-- The quantity's label in the configure file
+                                  ,value =int_state%MINUTES_HISTORY     &  !<-- Put extracted quantity here
+                                  ,label ='minutes_history:'             &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -577,13 +577,13 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="GET_CONFIG_PHY: Extract NHOURS_RESTART from Config File"
+      MESSAGE_CHECK="GET_CONFIG_PHY: Extract MINUTES_RESTART from Config File"
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
-                                  ,value =int_state%NHOURS_RESTART      &  !<-- Put extracted quantity here
-                                  ,label ='nhours_restart:'             &  !<-- The quantity's label in the configure file
+                                  ,value =int_state%MINUTES_RESTART     &  !<-- Put extracted quantity here
+                                  ,label ='minutes_restart:'            &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1022,7 +1022,7 @@
                                   ,label ='nhrs_prec:'                  &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
 !
-      IF(.NOT.int_state%NHRS_UDEF) int_state%NHRS_PREC=int_state%NHOURS_HISTORY
+      IF(.NOT.int_state%NHRS_UDEF) int_state%NHRS_PREC=1                   !<-- Empty bucket hourly if user did not specify
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
@@ -1040,7 +1040,7 @@
                                   ,label ='nhrs_heat:'                  &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
 !
-      IF(.NOT.int_state%NHRS_UDEF) int_state%NHRS_HEAT=int_state%NHOURS_HISTORY
+      IF(.NOT.int_state%NHRS_UDEF) int_state%NHRS_HEAT=1                   !<-- Empty bucket hourly if user did not specify
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
@@ -1058,7 +1058,7 @@
                                   ,label ='nhrs_clod:'                  &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
 !
-      IF(.NOT.int_state%NHRS_UDEF) int_state%NHRS_CLOD=int_state%NHOURS_HISTORY
+      IF(.NOT.int_state%NHRS_UDEF) int_state%NHRS_CLOD=1                   !<-- Empty bucket hourly if user did not specify
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
@@ -1076,7 +1076,7 @@
                                   ,label ='nhrs_rdlw:'                  &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
 !
-      IF(.NOT.int_state%NHRS_UDEF) int_state%NHRS_RDLW=int_state%NHOURS_HISTORY
+      IF(.NOT.int_state%NHRS_UDEF) int_state%NHRS_RDLW=1                   !<-- Empty bucket hourly if user did not specify
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
@@ -1094,7 +1094,7 @@
                                   ,label ='nhrs_rdsw:'                  &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
 !
-      IF(.NOT.int_state%NHRS_UDEF) int_state%NHRS_RDSW=int_state%NHOURS_HISTORY
+      IF(.NOT.int_state%NHRS_UDEF) int_state%NHRS_RDSW=1                   !<-- Empty bucket hourly if user did not specify
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
@@ -1112,7 +1112,7 @@
                                   ,label ='nhrs_srfc:'                  &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
 !
-      IF(.NOT.int_state%NHRS_UDEF) int_state%NHRS_SRFC=int_state%NHOURS_HISTORY
+      IF(.NOT.int_state%NHRS_UDEF) int_state%NHRS_SRFC=1                   !<-- Empty bucket hourly if user did not specify
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)

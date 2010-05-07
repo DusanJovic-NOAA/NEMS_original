@@ -162,11 +162,12 @@ export TEST_DESCR="Compare NMMB-global results with previous trunk version"
 export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL
 export CNTL_DIR=NMMB_glob
 export LIST_FILES=" \
-nmm_b_history.000         nmm_b_history.003         nmm_b_history.006         nmm_b_history.012        \
-nmm_b_history.024         nmm_b_history.027         nmm_b_history.030         nmm_b_history.036        \
-nmm_b_history.048         nmm_b_history_nemsio.000  nmm_b_history_nemsio.003  nmm_b_history_nemsio.006 \
-nmm_b_history_nemsio.012  nmm_b_history_nemsio.024  nmm_b_history_nemsio.048  nmm_b_restart.024        \
-nmm_b_restart_nemsio.024  global_sums               global_pole_sums"
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s  nmm_b_history.027h_00m_00.00s \
+nmm_b_history.030h_00m_00.00s  nmm_b_history.036h_00m_00.00s  nmm_b_history.048h_00m_00.00s \
+nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  nmm_b_history_nemsio.048h_00m_00.00s \
+nmm_b_restart.024h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s  global_sums global_pole_sums"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=glob ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
@@ -200,9 +201,11 @@ export TEST_DESCR="Test NMMB-global NEMSIO as input file"
 export RUNDIR=${RUNDIR_ROOT}/NMM_NEMSIO
 export CNTL_DIR=NMMB_glob
 export LIST_FILES=" \
-nmm_b_history.000 nmm_b_history.003 nmm_b_history.006 nmm_b_history.012 nmm_b_history.024 nmm_b_history.048 \
-nmm_b_restart.024 nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_history_nemsio.006                \
-nmm_b_history_nemsio.012 nmm_b_history_nemsio.024 nmm_b_history_nemsio.048 nmm_b_restart_nemsio.024"
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s  nmm_b_history.048h_00m_00.00s \
+nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  nmm_b_history_nemsio.048h_00m_00.00s \
+nmm_b_restart.024h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=glob ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
@@ -230,7 +233,9 @@ export TEST_DESCR="Test NMMB-global restart run"
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/NMM_REST
 export CNTL_DIR=NMMB_glob
-export LIST_FILES="nmm_b_history.027 nmm_b_history.030 nmm_b_history.036 nmm_b_history.048"
+export LIST_FILES=" \
+nmm_b_history.027h_00m_00.00s  nmm_b_history.030h_00m_00.00s  nmm_b_history.036h_00m_00.00s \
+nmm_b_history.048h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=glob ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
@@ -258,7 +263,9 @@ export TEST_DESCR="Test NMMB-global restart run from NEMSIO file"
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/NMM_REST_NIO
 export CNTL_DIR=NMMB_glob
-export LIST_FILES="nmm_b_history.027 nmm_b_history.030 nmm_b_history.036 nmm_b_history.048"
+export LIST_FILES=" \
+nmm_b_history.027h_00m_00.00s  nmm_b_history.030h_00m_00.00s  nmm_b_history.036h_00m_00.00s \
+nmm_b_history.048h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=glob ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
@@ -287,9 +294,10 @@ export TEST_DESCR="Test NMMB-global different decomposition"
 export RUNDIR=${RUNDIR_ROOT}/NMM_DECOMP
 export CNTL_DIR=NMMB_glob
 export LIST_FILES=" \
-nmm_b_history.000 nmm_b_history.003 nmm_b_history.006 nmm_b_history.012 nmm_b_history.024   \
-nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_history_nemsio.006                  \
-nmm_b_history_nemsio.012 nmm_b_history_nemsio.024"
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s  \
+nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s"
 #---------------------
 export TPN=16       ; export THRD=1      ; export GS=''      ; export GBRG=glob ; export TS=#
 export INPES=03     ; export JNPES=05    ; export WTPG=1     ; export FCSTL=24
@@ -318,9 +326,11 @@ export TEST_DESCR="Test NMMB-global threading "
 export RUNDIR=${RUNDIR_ROOT}/NMM_THREAD
 export CNTL_DIR=NMMB_glob
 export LIST_FILES=" \
-nmm_b_history.000 nmm_b_history.003 nmm_b_history.006 nmm_b_history.012 nmm_b_history.024 nmm_b_history.048 \
-nmm_b_restart.024 nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_history_nemsio.006                \
-nmm_b_history_nemsio.012 nmm_b_history_nemsio.024 nmm_b_history_nemsio.048 nmm_b_restart_nemsio.024"
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s  nmm_b_history.048h_00m_00.00s \
+nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s \
+nmm_b_restart.024h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=2      ; export GS=''      ; export GBRG=glob ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
@@ -349,9 +359,11 @@ export TEST_DESCR="Test NMMB-global with GFS physics package "
 export RUNDIR=${RUNDIR_ROOT}/NMM_gfsP
 export CNTL_DIR=NMMB_gfsP_glob
 export LIST_FILES=" \
-nmm_b_history.000 nmm_b_history.003 nmm_b_history.006 nmm_b_history.012 nmm_b_history.024         \
-nmm_b_restart.012 nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_history_nemsio.006      \
-nmm_b_history_nemsio.012 nmm_b_history_nemsio.024 nmm_b_restart_nemsio.012"
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s  \
+nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  \
+nmm_b_restart.012h_00m_00.00s  nmm_b_restart_nemsio.012h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=glob ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=24
@@ -380,11 +392,13 @@ export TEST_DESCR="Compare NMMB-regional results with previous trunk version"
 export RUNDIR=${RUNDIR_ROOT}/NMM_REG_CTL
 export CNTL_DIR=NMMB_reg
 export LIST_FILES=" \
-nmm_b_history.000         nmm_b_history.003         nmm_b_history.006         nmm_b_history.012        \
-nmm_b_history.024         nmm_b_history.027         nmm_b_history.030         nmm_b_history.036        \
-nmm_b_history.048         nmm_b_history_nemsio.000  nmm_b_history_nemsio.003  nmm_b_history_nemsio.006 \
-nmm_b_history_nemsio.012  nmm_b_history_nemsio.024  nmm_b_history_nemsio.048  nmm_b_restart.024        \
-nmm_b_restart_nemsio.024  global_sums    fort.41  fort.42  fort.43  fort.44  fort.45  fort.46  fort.47"
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s  nmm_b_history.027h_00m_00.00s \
+nmm_b_history.030h_00m_00.00s  nmm_b_history.036h_00m_00.00s  nmm_b_history.048h_00m_00.00s \
+nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  nmm_b_history_nemsio.048h_00m_00.00s \
+nmm_b_restart.024h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s \
+global_sums    fort.41  fort.42  fort.43  fort.44  fort.45  fort.46  fort.47"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=reg  ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
@@ -418,9 +432,10 @@ export TEST_DESCR="Test NMMB-regional NEMSIO as input file"
 export RUNDIR=${RUNDIR_ROOT}/NMM_REG_NEMSIO
 export CNTL_DIR=NMMB_reg
 export LIST_FILES=" \
-nmm_b_history.000 nmm_b_history.003 nmm_b_history.006 nmm_b_history.012      \
-nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_history_nemsio.006   \
-nmm_b_history_nemsio.012"
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  \
+nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=reg  ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=12
@@ -448,7 +463,9 @@ export TEST_DESCR="Test NMMB-regional restart run"
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/NMM_REG_RST
 export CNTL_DIR=NMMB_reg
-export LIST_FILES="nmm_b_history.027 nmm_b_history.030 nmm_b_history.036 nmm_b_history.048"
+export LIST_FILES=" \
+nmm_b_history.027h_00m_00.00s  nmm_b_history.030h_00m_00.00s  nmm_b_history.036h_00m_00.00s \
+nmm_b_history.048h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=reg  ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
@@ -476,7 +493,9 @@ export TEST_DESCR="Test NMMB-regional restart run with NEMSIO file "
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/NMM_REG_RST_NIO
 export CNTL_DIR=NMMB_reg
-export LIST_FILES="nmm_b_history.027 nmm_b_history.030 nmm_b_history.036 nmm_b_history.048"
+export LIST_FILES=" \
+nmm_b_history.027h_00m_00.00s  nmm_b_history.030h_00m_00.00s  nmm_b_history.036h_00m_00.00s \
+nmm_b_history.048h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=reg  ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
@@ -504,7 +523,9 @@ export TEST_DESCR="Test NMMB-regional different decomposition"
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/NMM_REG_DECOMP
 export CNTL_DIR=NMMB_reg
-export LIST_FILES="nmm_b_history.000 nmm_b_history.003 nmm_b_history.006 nmm_b_history.012"
+export LIST_FILES=" \
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s"
 #---------------------
 export TPN=16       ; export THRD=1      ; export GS=''      ; export GBRG=reg  ; export TS=#
 export INPES=03     ; export JNPES=05    ; export WTPG=1     ; export FCSTL=12
@@ -533,9 +554,11 @@ export TEST_DESCR="Test NMMB-regional threading "
 export RUNDIR=${RUNDIR_ROOT}/NMM_REG_THREAD
 export CNTL_DIR=NMMB_reg
 export LIST_FILES=" \
-nmm_b_history.000 nmm_b_history.003 nmm_b_history.006 nmm_b_history.012 nmm_b_history.024 nmm_b_history.048 \
-nmm_b_restart.024 nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_history_nemsio.006                \
-nmm_b_history_nemsio.012 nmm_b_history_nemsio.024 nmm_b_history_nemsio.048 nmm_b_restart_nemsio.024"
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s  nmm_b_history.048h_00m_00.00s \
+nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  nmm_b_history_nemsio.048h_00m_00.00s \
+nmm_b_restart.024h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=2      ; export GS=''      ; export GBRG=reg  ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
@@ -564,9 +587,11 @@ export TEST_DESCR="Test NMMB-regional with GFS physics package "
 export RUNDIR=${RUNDIR_ROOT}/NMM_REG_gfsP
 export CNTL_DIR=NMMB_gfsP_reg
 export LIST_FILES=" \
-nmm_b_history.000 nmm_b_history.003 nmm_b_history.006 nmm_b_history.012 nmm_b_history.024     \
-nmm_b_restart.012 nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_history_nemsio.006  \
-nmm_b_history_nemsio.012 nmm_b_history_nemsio.024 nmm_b_restart_nemsio.012"
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s \
+nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s \
+nmm_b_restart.012h_00m_00.00s  nmm_b_restart_nemsio.012h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=reg  ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=24
@@ -596,22 +621,30 @@ export TEST_DESCR="Test NMMB-regional with nesting"
 export RUNDIR=${RUNDIR_ROOT}/NMM_nests
 export CNTL_DIR=NMMB_nests
 export LIST_FILES=" \
-nmm_b_history.000 nmm_b_history.003 nmm_b_history.006 nmm_b_history.012 nmm_b_history.024                \
-nmm_b_history_nemsio.000 nmm_b_history_nemsio.003 nmm_b_history_nemsio.006                               \
-nmm_b_history_nemsio.012 nmm_b_history_nemsio.024                                                        \
-nmm_b_restart.012 nmm_b_restart.024 nmm_b_restart_nemsio.012 nmm_b_restart_nemsio.024                    \
-nmm_b_history.02.000 nmm_b_history.02.003 nmm_b_history.02.006 nmm_b_history.02.012 nmm_b_history.02.024 \
-nmm_b_history.02_nemsio.000 nmm_b_history.02_nemsio.003 nmm_b_history.02_nemsio.006                      \
-nmm_b_history.02_nemsio.012 nmm_b_history.02_nemsio.024                                                  \
-nmm_b_restart.02.012 nmm_b_restart.02.024 nmm_b_restart.02_nemsio.012 nmm_b_restart.02_nemsio.024        \
-nmm_b_history.03.000 nmm_b_history.03.003 nmm_b_history.03.006 nmm_b_history.03.012 nmm_b_history.03.024 \
-nmm_b_history.03_nemsio.000 nmm_b_history.03_nemsio.003 nmm_b_history.03_nemsio.006                      \
-nmm_b_history.03_nemsio.012 nmm_b_history.03_nemsio.024                                                  \
-nmm_b_restart.03.012 nmm_b_restart.03.024 nmm_b_restart.03_nemsio.012 nmm_b_restart.03_nemsio.024        \
-nmm_b_history.04.000 nmm_b_history.04.003 nmm_b_history.04.006 nmm_b_history.04.012 nmm_b_history.04.024 \
-nmm_b_history.04_nemsio.000 nmm_b_history.04_nemsio.003 nmm_b_history.04_nemsio.006                      \
-nmm_b_history.04_nemsio.012 nmm_b_history.04_nemsio.024                                                  \
-nmm_b_restart.04.012 nmm_b_restart.04.024 nmm_b_restart.04_nemsio.012 nmm_b_restart.04_nemsio.024"
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s \
+nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s \
+nmm_b_restart.012h_00m_00.00s  nmm_b_restart.024h_00m_00.00s \
+nmm_b_restart_nemsio.012h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s  \
+nmm_b_history.02.000h_00m_00.00s  nmm_b_history.02.003h_00m_00.00s  nmm_b_history.02.006h_00m_00.00s \
+nmm_b_history.02.012h_00m_00.00s  nmm_b_history.02.024h_00m_00.00s \
+nmm_b_history.02_nemsio.000h_00m_00.00s  nmm_b_history.02_nemsio.003h_00m_00.00s  nmm_b_history.02_nemsio.006h_00m_00.00s \
+nmm_b_history.02_nemsio.012h_00m_00.00s  nmm_b_history.02_nemsio.024h_00m_00.00s \
+nmm_b_restart.02.012h_00m_00.00s  nmm_b_restart.02.024h_00m_00.00s \
+nmm_b_restart.02_nemsio.012h_00m_00.00s  nmm_b_restart.02_nemsio.024h_00m_00.00s  \
+nmm_b_history.03.000h_00m_00.00s  nmm_b_history.03.003h_00m_00.00s  nmm_b_history.03.006h_00m_00.00s \
+nmm_b_history.03.012h_00m_00.00s  nmm_b_history.03.024h_00m_00.00s \
+nmm_b_history.03_nemsio.000h_00m_00.00s  nmm_b_history.03_nemsio.003h_00m_00.00s  nmm_b_history.03_nemsio.006h_00m_00.00s \
+nmm_b_history.03_nemsio.012h_00m_00.00s  nmm_b_history.03_nemsio.024h_00m_00.00s \
+nmm_b_restart.03.012h_00m_00.00s  nmm_b_restart.03.024h_00m_00.00s \
+nmm_b_restart.03_nemsio.012h_00m_00.00s  nmm_b_restart.03_nemsio.024h_00m_00.00s  \
+nmm_b_history.04.000h_00m_00.00s  nmm_b_history.04.003h_00m_00.00s  nmm_b_history.04.006h_00m_00.00s \
+nmm_b_history.04.012h_00m_00.00s  nmm_b_history.04.024h_00m_00.00s \
+nmm_b_history.04_nemsio.000h_00m_00.00s  nmm_b_history.04_nemsio.003h_00m_00.00s  nmm_b_history.04_nemsio.006h_00m_00.00s \
+nmm_b_history.04_nemsio.012h_00m_00.00s  nmm_b_history.04_nemsio.024h_00m_00.00s \
+nmm_b_restart.04.012h_00m_00.00s  nmm_b_restart.04.024h_00m_00.00s \
+nmm_b_restart.04_nemsio.012h_00m_00.00s  nmm_b_restart.04_nemsio.024h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=nests ; export TS=#
 export INPES=02     ; export JNPES=03    ; export WTPG=1     ; export FCSTL=24
@@ -640,9 +673,11 @@ export TEST_DESCR="Test NMMB-regional with precipitation adjustment on"
 export RUNDIR=${RUNDIR_ROOT}/NMM_REG_PCPADJ
 export CNTL_DIR=NMMB_reg_pcpadj
 export LIST_FILES=" \
-nmm_b_history.000  nmm_b_history.012         nmm_b_history_nemsio.006  nmm_b_restart_nemsio.012 \
-nmm_b_history.003  nmm_b_history_nemsio.000  nmm_b_history_nemsio.012                           \
-nmm_b_history.006  nmm_b_history_nemsio.003  nmm_b_restart.012"
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  \
+nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s  \
+nmm_b_restart.012h_00m_00.00s  nmm_b_restart_nemsio.012h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=reg  ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=12
@@ -671,7 +706,7 @@ export TEST_DESCR="Test NMMB-regional writing time series"
 export RUNDIR=${RUNDIR_ROOT}/NMM_REG_TIMESR
 export CNTL_DIR=NMMB_reg_timesr
 export LIST_FILES=" \
-nmm_b_history.006 ts_p01_d01.bin ts_p02_d01.bin"
+nmm_b_history.006h_00m_00.00s ts_p01_d01.bin ts_p02_d01.bin"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=reg  ; export TS=''
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=06

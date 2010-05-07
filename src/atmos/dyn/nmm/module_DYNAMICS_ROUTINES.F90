@@ -4657,7 +4657,19 @@ real(kind=kdbl),save :: sumdo3=0.
         enddo
       enddo
 !-----------------------------------------------------------------------
+!
+!     call species_sums
+!
+!-----------------------------------------------------------------------
+!
+      contains
+!
+!-----------------------------------------------------------------------
 !zjwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
+!-----------------------------------------------------------------------
+!
+      subroutine species_sums
+!
 !-----------------------------------------------------------------------
       do ks=kss,kse ! loop by species
         do l=1,lm
@@ -4720,6 +4732,9 @@ real(kind=kdbl),save :: sumdo3=0.
                       ,gsump,sumdo3
       endif
  1000 format('global vol sums ',10d13.5)
+!
+      end subroutine species_sums
+!-----------------------------------------------------------------------
 !zjmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
 !-----------------------------------------------------------------------
 !

@@ -90,7 +90,9 @@
       REAL(kind=KFPT),INTENT(IN) :: DT                                     !<-- Fundamental timestep of this domain (REAL) (s)
 !
       LOGICAL(kind=KLOG),INTENT(IN) :: NESTING                          &  !<-- Are there any nested domains?
-                                      ,RESTARTED_RUN                       !<-- Is this a restarted run?
+                                      ,RESTARTED_RUN                    &  !<-- Is this a restarted run?
+                                      ,RST_OUT_00                          !<-- Shall we write 00h history in restarted run?
+
 !
       CHARACTER(7),INTENT(IN) :: CLOCK_DIRECTION                           !<-- The direction of time in the Clock
 !

@@ -54,7 +54,7 @@
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
-      SUBROUTINE CUCNVC_DEV(NTSD,DT,NCNVC,NRADS,NRADL,NHOURS_HISTORY    &
+      SUBROUTINE CUCNVC_DEV(NTSD,DT,NCNVC,NRADS,NRADL,MINUTES_HISTORY   &
                        ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP           &
                        ,DYH,RESTRT,HYDRO                                &
                        ,CLDEFI,NUM_WATER                                &
@@ -116,7 +116,7 @@
        IDS,IDE,JDS,JDE,LM &
       ,IMS,IME,JMS,JME &
       ,ITS,ITE,JTS,JTE &
-      ,NCNVC,NHOURS_HISTORY &
+      ,NCNVC,MINUTES_HISTORY &
       ,NRADS,NRADL,NTSD,NUM_WATER &
       ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG
 !
@@ -431,7 +431,7 @@
 !***  FOR SHALLOW (NONPRECIPITATING) CONVECTION, AND HBOTD/HTOPD ARE FOR
 !***  DEEP (PRECIPITATING) CONVECTION.  
 !
-      CF_HI=NHOURS_HISTORY
+      CF_HI=REAL(MINUTES_HISTORY)/60.
       N_TIMSTPS_OUTPUT=NINT(3600.*CF_HI/DT)
       MNTO=MOD(NTSD,N_TIMSTPS_OUTPUT)
 !

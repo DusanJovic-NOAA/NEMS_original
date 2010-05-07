@@ -4,9 +4,9 @@
 !
 !-----------------------------------------------------------------------
 !
-!***  THIS IS THE ATM (Atmosphere) DRIVER MODULE.
-!***  IT WILL SET UP THE ATM GRIDDED COMPONENTS THEN
-!***  RUN THEIR INITIALIZE, RUN, AND FINALIZE ROUTINES.
+!***  This is the ATM (Atmosphere) Driver module.
+!***  It will set up the ATM gridded components then
+!***  run their Initialize, Run, and Finalize routines.
 !
 !-----------------------------------------------------------------------
 !
@@ -19,6 +19,7 @@
 !   2009-07-30  Black - Merged into NEMS trunk code.
 !   2009-11-03  Weiyu - Modified for the ensemble GEFS.
 !   2009-11-30  Wang  - removed writing "core" into atm_namelist.rc
+!   2010-04-22  Black - Changed output frequency to minutes.
 !
 ! USAGE: ATM_DRIVER parts called from MAIN_ESMF.F90
 !
@@ -38,7 +39,7 @@
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !
 !-----------------------------------------------------------------------
-!***  MODULES USED BY ATM_DRIVER ONLY FOR THE NMM.
+!***  Modules used by ATM_DRIVER only for the NMM.
 !-----------------------------------------------------------------------
 !
       USE MODULE_NESTING,ONLY: PARENT_CHILD_COMMS
@@ -199,13 +200,17 @@
 !***  routines.
 !-----------------------------------------------------------------------
 !
+!------------------------
+!***  Argument Variables
+!------------------------
+!
       TYPE(ESMF_GridComp),INTENT(INOUT) :: ATM_DRIVER_COMP              !<-- ATM Driver component
 !
       INTEGER,INTENT(OUT)               :: RC_REG                       !<-- Return code for register
 !     
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local Variables
+!---------------------
 !
       INTEGER :: RC
 !
@@ -301,8 +306,8 @@
                                       ,RC_INIT_DRV)
 !
 !-----------------------------------------------------------------------
-!***  THIS ROUTINE CREATES THE ATM GRIDDED COMPONENTS AND EXECUTES
-!***  THEIR INITIALIZE STEP.
+!***  This routine creates the ATM gridded components and executes
+!***  their Initialize step.
 !-----------------------------------------------------------------------
 !
 !------------------------
@@ -476,8 +481,8 @@
                                ,RC_RUN_DRV)
 !
 !-----------------------------------------------------------------------
-!***  RUN THE ATM_DRIVER COMPONENT.  THIS ROUTINE EXECUTES THE
-!***  RUN STEPS OF ALL ATM COMPONENTS.
+!***  Run the ATM_DRIVER component.  This routine executes the
+!***  Run steps of all ATM components.
 !-----------------------------------------------------------------------
 !
 !------------------------
@@ -546,8 +551,12 @@
                                     ,RC_FINALIZE)
 !
 !-----------------------------------------------------------------------
-!***  THIS ROUTINE FINALIZES THE ATM GRIDDED COMPONENT.
+!***  This routine Finalizes the atm gridded component.
 !-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
 !
       TYPE(ESMF_GridComp),INTENT(INOUT) :: ATM_DRIVER_COMP                 !<-- The ATM_DRIVER component
       TYPE(ESMF_State),   INTENT(INOUT) :: IMP_STATE                       !<-- The ATM finalize step's import state
@@ -721,8 +730,8 @@
       SUBROUTINE NMM_ATM_DRIVER_INIT(CLOCK_MAIN)
 !
 !-----------------------------------------------------------------------
-!***  THIS ROUTINE CREATES CONFIGURE OBJECTS, CLOCKS, AND THE
-!***  INDIVIDUAL ATM COMPONENTS FOR ALL NMM DOMAINS.
+!***  This routine creates configure objects, Clocks, and the
+!***  individual ATM components for all NMM domains.
 !-----------------------------------------------------------------------
 !
 !------------------------
@@ -738,8 +747,8 @@
       INTEGER(kind=KINT) :: ID_DOM,ID_X,ISTAT,N
 !
       INTEGER(kind=KINT) :: NHOURS_FCST                                 &  !<-- Length of forecast in hours
-                           ,NHOURS_HISTORY                              &  !<-- Hours between history output
-                           ,NHOURS_RESTART                              &  !<-- Hours between restart output
+                           ,MINUTES_HISTORY                             &  !<-- Minutes between history output
+                           ,MINUTES_RESTART                             &  !<-- Minutes between restart output
                            ,NSECONDS_FCST                                  !<-- Length of forecast in seconds
 !
       INTEGER(kind=KINT) :: INPES,JNPES,LENGTH,N_TASKS                  &
@@ -1171,8 +1180,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_ConfigGetAttribute(config=CF(ID_DOM)                  &  !<-- The configure object of this domain
-                                    ,value =NHOURS_HISTORY              &  !<-- Fill this variable
-                                    ,label ='nhours_history:'           &  !<-- Give the variable this label's value from the config file
+                                    ,value =MINUTES_HISTORY             &  !<-- Fill this variable
+                                    ,label ='minutes_history:'          &  !<-- Give the variable this label's value from the config file
                                     ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1188,8 +1197,8 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_TimeIntervalSet(timeinterval=INTERVAL_HISTORY(ID_DOM) &  !<-- Time interval between
-                                 ,h           =NHOURS_HISTORY           &  !<-- Hours between history
+        CALL ESMF_TimeIntervalSet(timeinterval=INTERVAL_HISTORY(ID_DOM) &  !<-- Time interval between history output (ESMF)
+                                 ,m           =MINUTES_HISTORY          &  !<-- Minutes between history output (integer)
                                  ,rc          =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1206,8 +1215,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_ConfigGetAttribute(config=CF(ID_DOM)                  &  !<-- The configure object of this domain
-                                    ,value =NHOURS_RESTART              &  !<-- Fill this variable
-                                    ,label ='nhours_restart:'           &  !<-- Give the variable this label's value from the config file
+                                    ,value =MINUTES_RESTART             &  !<-- Fill this variable
+                                    ,label ='minutes_restart:'          &  !<-- Give the variable this label's value from the config file
                                     ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1224,7 +1233,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_TimeIntervalSet(timeinterval=INTERVAL_RESTART(ID_DOM) &  !<-- Time interval between restart output (ESMF)
-                                 ,h           =NHOURS_RESTART           &  !<-- Hours between restart output (integer)
+                                 ,m           =MINUTES_RESTART          &  !<-- Minutes between restart output (integer)
                                  ,rc          =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

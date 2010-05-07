@@ -13,6 +13,8 @@
 !       15 Aug 2008:  J. Wang  - Add NEMSIO variables
 !       16 Sep 2008:  J. Wang  - 3-D output arrays revert to 2-D
 !       04 Sep 2009:  T. Black - Add the 1-D boundary restart arrays
+!       22 Apr 2010:  T. Black - Add minutes and seconds to elapsed
+!                                forecast time.
 !
 !-----------------------------------------------------------------------
 !
@@ -228,7 +230,10 @@
 !
       INTEGER(kind=KINT) :: IO_HST_UNIT,IO_RST_UNIT
       INTEGER(kind=KINT) :: IO_RECL
-      INTEGER(kind=KINT) :: NFHOUR
+      INTEGER(kind=KINT) :: NFHOURS
+      INTEGER(kind=KINT) :: NFMINUTES
+!
+      REAL(kind=KFPT)    :: NFSECONDS
 !
       CHARACTER(ESMF_MAXSTR) :: IO_HST_FILE,IO_RST_FILE
       CHARACTER(ESMF_MAXSTR) :: HST_NAME_BASE,RST_NAME_BASE
