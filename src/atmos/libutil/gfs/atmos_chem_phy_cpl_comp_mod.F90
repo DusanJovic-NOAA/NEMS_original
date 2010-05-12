@@ -211,20 +211,20 @@
        endif
 
        if ( run_SU ) then
-        call GetPointer_tracer_(PHY_EXP_STATE,'msa', p_msa, rc)
-        call GetPointer_tracer_(PHY_EXP_STATE,'so4', p_so4, rc)
-        call GetPointer_tracer_(PHY_EXP_STATE,'so2', p_so2, rc)
-        call GetPointer_tracer_(PHY_EXP_STATE,'dms', p_dms, rc)
+        call GetPointer_tracer_(PHY_EXP_STATE,'MSA', p_msa, rc)
+        call GetPointer_tracer_(PHY_EXP_STATE,'SO4', p_so4, rc)
+        call GetPointer_tracer_(PHY_EXP_STATE,'SO2', p_so2, rc)
+        call GetPointer_tracer_(PHY_EXP_STATE,'DMS', p_dms, rc)
        endif
 
        if ( run_OC ) then
-        call GetPointer_tracer_(PHY_EXP_STATE,'ocphobic', p_ocphobic, rc)
-        call GetPointer_tracer_(PHY_EXP_STATE,'ocphilic', p_ocphilic, rc)
+        call GetPointer_tracer_(PHY_EXP_STATE,'OCphobic', p_ocphobic, rc)
+        call GetPointer_tracer_(PHY_EXP_STATE,'OCphilic', p_ocphilic, rc)
        endif
 
        if ( run_BC ) then
-        call GetPointer_tracer_(PHY_EXP_STATE,'bcphobic', p_bcphobic, rc)
-        call GetPointer_tracer_(PHY_EXP_STATE,'bcphilic', p_bcphilic, rc)
+        call GetPointer_tracer_(PHY_EXP_STATE,'BCphobic', p_bcphobic, rc)
+        call GetPointer_tracer_(PHY_EXP_STATE,'BCphilic', p_bcphilic, rc)
        endif
 
       endif
@@ -271,20 +271,20 @@
        endif
 
        if ( run_SU ) then
-        call GetPointer_tracer_(CHEM_EXP_STATE,'msa', c_msa, rc)
-        call GetPointer_tracer_(CHEM_EXP_STATE,'so4', c_so4, rc)
-        call GetPointer_tracer_(CHEM_EXP_STATE,'so2', c_so2, rc)
-        call GetPointer_tracer_(CHEM_EXP_STATE,'dms', c_dms, rc)
+        call GetPointer_tracer_(CHEM_EXP_STATE,'MSA', c_msa, rc)
+        call GetPointer_tracer_(CHEM_EXP_STATE,'SO4', c_so4, rc)
+        call GetPointer_tracer_(CHEM_EXP_STATE,'SO2', c_so2, rc)
+        call GetPointer_tracer_(CHEM_EXP_STATE,'DMS', c_dms, rc)
        endif
 
        if ( run_OC ) then
-        call GetPointer_tracer_(CHEM_EXP_STATE,'ocphobic', c_ocphobic, rc)
-        call GetPointer_tracer_(CHEM_EXP_STATE,'ocphilic', c_ocphilic, rc)
+        call GetPointer_tracer_(CHEM_EXP_STATE,'OCphobic', c_ocphobic, rc)
+        call GetPointer_tracer_(CHEM_EXP_STATE,'OCphilic', c_ocphilic, rc)
        endif
 
        if ( run_BC ) then
-        call GetPointer_tracer_(CHEM_EXP_STATE,'bcphobic', c_bcphobic, rc)
-        call GetPointer_tracer_(CHEM_EXP_STATE,'bcphilic', c_bcphilic, rc)
+        call GetPointer_tracer_(CHEM_EXP_STATE,'BCphobic', c_bcphobic, rc)
+        call GetPointer_tracer_(CHEM_EXP_STATE,'BCphilic', c_bcphilic, rc)
        endif
 
       endif

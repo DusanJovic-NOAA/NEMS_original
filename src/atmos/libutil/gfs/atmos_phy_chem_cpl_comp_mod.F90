@@ -27,6 +27,7 @@
 !!                          tracer specification public (to chem2phy coupler)
 !! 23Mar 2010     Sarah Lu, Call rtc to track run-time-clock; debug print optional
 !! 09Apr 2010     Sarah Lu, Clean up the code
+!! 09May 2010     Sarah Lu, Revise species name for SU, OC, and BC
 !-----------------------------------------------------------------------
 
       use ESMF_MOD
@@ -483,20 +484,20 @@
        endif
 
        if ( run_SU ) then
-        call GetPointer_tracer_(PHY_EXP_STATE,'msa', p_msa, rc)
-        call GetPointer_tracer_(PHY_EXP_STATE,'so4', p_so4, rc)
-        call GetPointer_tracer_(PHY_EXP_STATE,'so2', p_so2, rc)
-        call GetPointer_tracer_(PHY_EXP_STATE,'dms', p_dms, rc)
+        call GetPointer_tracer_(PHY_EXP_STATE,'MSA', p_msa, rc)
+        call GetPointer_tracer_(PHY_EXP_STATE,'SO4', p_so4, rc)
+        call GetPointer_tracer_(PHY_EXP_STATE,'SO2', p_so2, rc)
+        call GetPointer_tracer_(PHY_EXP_STATE,'DMS', p_dms, rc)
        endif
 
        if ( run_OC ) then
-        call GetPointer_tracer_(PHY_EXP_STATE,'ocphobic', p_ocphobic, rc)
-        call GetPointer_tracer_(PHY_EXP_STATE,'ocphilic', p_ocphilic, rc)
+        call GetPointer_tracer_(PHY_EXP_STATE,'OCphobic', p_ocphobic, rc)
+        call GetPointer_tracer_(PHY_EXP_STATE,'OCphilic', p_ocphilic, rc)
        endif
 
        if ( run_BC ) then
-        call GetPointer_tracer_(PHY_EXP_STATE,'bcphobic', p_bcphobic, rc)
-        call GetPointer_tracer_(PHY_EXP_STATE,'bcphilic', p_bcphilic, rc)
+        call GetPointer_tracer_(PHY_EXP_STATE,'BCphobic', p_bcphobic, rc)
+        call GetPointer_tracer_(PHY_EXP_STATE,'BCphilic', p_bcphilic, rc)
        endif
 
       endif
@@ -576,20 +577,20 @@
        endif
 
        if ( run_SU ) then
-        call GetPointer_tracer_(CHEM_IMP_STATE,'msa', c_msa, rc)
-        call GetPointer_tracer_(CHEM_IMP_STATE,'so4', c_so4, rc)
-        call GetPointer_tracer_(CHEM_IMP_STATE,'so2', c_so2, rc)
-        call GetPointer_tracer_(CHEM_IMP_STATE,'dms', c_dms, rc)
+        call GetPointer_tracer_(CHEM_IMP_STATE,'MSA', c_msa, rc)
+        call GetPointer_tracer_(CHEM_IMP_STATE,'SO4', c_so4, rc)
+        call GetPointer_tracer_(CHEM_IMP_STATE,'SO2', c_so2, rc)
+        call GetPointer_tracer_(CHEM_IMP_STATE,'DMS', c_dms, rc)
        endif
 
        if ( run_OC ) then
-        call GetPointer_tracer_(CHEM_IMP_STATE,'ocphobic', c_ocphobic, rc)
-        call GetPointer_tracer_(CHEM_IMP_STATE,'ocphilic', c_ocphilic, rc)
+        call GetPointer_tracer_(CHEM_IMP_STATE,'OCphobic', c_ocphobic, rc)
+        call GetPointer_tracer_(CHEM_IMP_STATE,'OCphilic', c_ocphilic, rc)
        endif
 
        if ( run_BC ) then
-        call GetPointer_tracer_(CHEM_IMP_STATE,'bcphobic', c_bcphobic, rc)
-        call GetPointer_tracer_(CHEM_IMP_STATE,'bcphilic', c_bcphilic, rc)
+        call GetPointer_tracer_(CHEM_IMP_STATE,'BCphobic', c_bcphobic, rc)
+        call GetPointer_tracer_(CHEM_IMP_STATE,'BCphilic', c_bcphilic, rc)
        endif
 
       endif
@@ -1141,6 +1142,8 @@
           CALL ESMF_FieldBundleGet(bundle=Bundle, name=NAME, field=Field, rc=rc1)
           CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 
+!
+!
           nullify(Array3D)
           MESSAGE_CHECK = 'Get 3d Fortran data pointer from '//NAME
           CALL ESMF_FieldGet(field=Field, localDe=0, farray=Array3D, rc=rc1)
@@ -1257,6 +1260,8 @@
         integer                         :: rc1
         character(esmf_maxstr)          :: statename, BundleName
 !
+        character*8                     :: FldName(8)
+        integer                         :: nameCount, i
 !===>  ...  begin here
 
         MESSAGE_CHECK = 'PHY2CHEM_RUN: Retrive statename'
@@ -1279,6 +1284,11 @@
         MESSAGE_CHECK = 'PHY2CHEM_RUN: Extract '//NAME//' from '//BundleName
         CALL ESMF_FieldBundleGet(bundle=Bundle, name=NAME, field=Field, rc=rc1)
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+
+          print *, 'YUN:  Print FieldBundle ', trim(BundleName)
+          call ESMF_FieldBundleGet(Bundle,  FldName, nameCount, rc=rc1)
+          print *, 'YUN:  namelist:', (FldName(i),i=1,nameCount)
+
 
         nullify(Array)
         MESSAGE_CHECK = 'PHY2CHEM_RUN: Get Fortran data pointer from '//NAME

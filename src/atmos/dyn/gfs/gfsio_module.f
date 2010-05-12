@@ -11,6 +11,8 @@ module gfsio_module
 ! Program history log
 !    2006-11-10    Jun Wang
 !    2009-11-23    Sarah Lu, gocart species added to grib table
+!    2010-05-10    Sarah Lu, gocart species name modified to be consistent
+!                            with Chemistry Registry 
 !
 ! Public Variables
 ! Public Defined Types
@@ -2123,14 +2125,14 @@ contains
     gribtable(56)=gfsio_grbtbl_item('ss002','layer',10,0,246,109)       
     gribtable(57)=gfsio_grbtbl_item('ss003','layer',10,0,247,109)       
     gribtable(58)=gfsio_grbtbl_item('ss004','layer',10,0,248,109)        
-    gribtable(59)=gfsio_grbtbl_item('msa','layer',9,0,230,109)           
-    gribtable(60)=gfsio_grbtbl_item('so4','layer',9,0,231,109)        
-    gribtable(61)=gfsio_grbtbl_item('so2','layer',9,0,232,109)          
-    gribtable(62)=gfsio_grbtbl_item('dms','layer',9,0,233,109)        
-    gribtable(63)=gfsio_grbtbl_item('ocphobic','layer',9,0,249,109)      
-    gribtable(64)=gfsio_grbtbl_item('ocphilic','layer',9,0,250,109)    
-    gribtable(65)=gfsio_grbtbl_item('bcphobic','layer',10,0,251,109)   
-    gribtable(66)=gfsio_grbtbl_item('bcphilic','layer',10,0,252,109)  
+    gribtable(59)=gfsio_grbtbl_item('MSA','layer',9,0,230,109)           
+    gribtable(60)=gfsio_grbtbl_item('SO4','layer',9,0,231,109)        
+    gribtable(61)=gfsio_grbtbl_item('SO2','layer',9,0,232,109)          
+    gribtable(62)=gfsio_grbtbl_item('DMS','layer',9,0,233,109)        
+    gribtable(63)=gfsio_grbtbl_item('OCphobic','layer',9,0,249,109)      
+    gribtable(64)=gfsio_grbtbl_item('OCphilic','layer',9,0,250,109)    
+    gribtable(65)=gfsio_grbtbl_item('BCphobic','layer',10,0,251,109)   
+    gribtable(66)=gfsio_grbtbl_item('BCphilic','layer',10,0,252,109)  
 
     iret=0
   end subroutine gfsio_setgrbtbl
