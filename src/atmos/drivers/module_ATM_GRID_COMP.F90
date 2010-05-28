@@ -3539,9 +3539,9 @@
       TYPE(ESMF_Time) :: CURRTIME                                       &  !<-- The current time of Clock_ATM
                         ,STARTTIME                                         !<-- The start time of CLock_ATM
 !
-      TYPE(ATM_INTERNAL_STATE),POINTER :: ATM_INT_STATE                    !<-- The ATM internal state pointer
+      TYPE(ATM_INTERNAL_STATE),POINTER,SAVE :: ATM_INT_STATE               !<-- The ATM internal state pointer
 !
-      TYPE(WRAP_ATM_INTERNAL_STATE) :: WRAP                                !<-- The F90 wrap of the ATM internal state
+      TYPE(WRAP_ATM_INTERNAL_STATE),SAVE :: WRAP                           !<-- The F90 wrap of the ATM internal state
 !
       INTEGER(kind=KINT) :: RC
 !

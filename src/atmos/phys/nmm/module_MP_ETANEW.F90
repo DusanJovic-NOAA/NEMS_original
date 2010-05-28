@@ -762,10 +762,12 @@
 !--- This check is to determine grid-scale saturation when no condensate is present
 !    
           ESW=1000.*FPVS0(TK)              ! Saturation vapor pressure w/r/t water
+          ESW=MIN(ESW,0.99*PP)
           QSW=EPS*ESW/(PP-ESW)             ! Saturation mixing ratio w/r/t water
           WS=QSW                           ! General saturation mixing ratio (water/ice)
           IF (TC .LT. 0.) THEN
             ESI=1000.*FPVS(TK)             ! Saturation vapor pressure w/r/t ice
+            ESI=MIN(ESI,0.99*ESI)
             QSI=EPS*ESI/(PP-ESI)           ! Saturation mixing ratio w/r/t water
             WS=QSI                         ! General saturation mixing ratio (water/ice)
           ENDIF

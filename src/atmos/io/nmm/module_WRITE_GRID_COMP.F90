@@ -2968,17 +2968,19 @@
                                     ,label ='my_domain_id:'             &  !<-- The quantity's label in the configure file
                                     ,rc    =RC)
 !
+        INT_SEC=INT(NF_SECONDS)
+        FRAC_SEC=NINT((NF_SECONDS-INT_SEC)*100.)
+!
 	IF (ID_DOMAIN > 1) THEN                                   
-          INT_SEC=INT(NF_SECONDS)
-          FRAC_SEC=NINT((NF_SECONDS-INT_SEC)*100.)
-          WRITE(FILENAME,'(A,I3.3,A,I2.2,A,I2.2,A,I2.2,A,A,I2.2)' )     &  
-                                            'fcstdone',NF_HOURS,'h_'    &  
+          WRITE(FILENAME,'(A,I2.2,A,I3.3,A,I2.2,A,I2.2,A,I2.2,A)' )     &  
+                                           'fcstdone.',ID_DOMAIN,'.'    &  !<-- Insert the domain ID for nests
+                                           ,NF_HOURS,'h_'               & 
                                            ,NF_MINUTES,'m_'             &
-                                           ,INT_SEC,'.',FRAC_SEC,'s'    &
-                                           ,'_',ID_DOMAIN                  !<-- Append the domain ID to flag for nests
+                                           ,INT_SEC,'.',FRAC_SEC,'s'
         ELSE
           WRITE(FILENAME,'(A,I3.3,A,I2.2,A,I2.2,A,I2.2,A)')             &  !<-- Use plain flag name for uppermost domain
-                                            'fcstdone',NF_HOURS,'h_'    &
+                                           'fcstdone.'                  &
+                                           ,NF_HOURS,'h_'               &
                                            ,NF_MINUTES,'m_'             &
                                            ,INT_SEC,'.',FRAC_SEC,'s'
         ENDIF
@@ -3784,19 +3786,21 @@
                                     ,label ='my_domain_id:'             &  !<-- The quantity's label in the configure file
                                     ,rc    =RC)
 !
+        INT_SEC=INT(NF_SECONDS)
+        FRAC_SEC=NINT((NF_SECONDS-INT_SEC)*100.)
+!
 	IF (ID_DOMAIN > 1) THEN
-          INT_SEC=INT(NF_SECONDS)
-          FRAC_SEC=NINT((NF_SECONDS-INT_SEC)*100.)
-          WRITE(FILENAME,'(A,I3.3,A,I2.2,A,I2.2,A,I2.2,A,A,I2.2)' )     &
-                                            'restartdone',NF_HOURS,'h_' &
+          WRITE(FILENAME,'(A,I2.2,A,I3.3,A,I2.2,A,I2.2,A,I2.2,A)' )     &
+                                           'restartdone.',ID_DOMAIN,'.' &  !<-- Insert domain ID for nests
+                                           ,NF_HOURS,'h_'               &  
                                            ,NF_MINUTES,'m_'             &
-                                           ,INT_SEC,'.',FRAC_SEC,'s'    &
-                                           ,'_',ID_DOMAIN                  !<-- Append domain ID to flag for nests
+                                           ,INT_SEC,'.',FRAC_SEC,'s'
         ELSE
           WRITE(FILENAME,'(A,I3.3,A,I2.2,A,I2.2,A,I2.2,A)')             &  !<-- Use plain flag name for uppermost domain
-                                        'restartdone',NF_HOURS,'h_'     &  
-                                       ,NF_MINUTES,'m_'                 &
-                                       ,INT_SEC,'.',FRAC_SEC,'s'
+                                           'restartdone.'               &  
+                                           ,NF_HOURS,'h_'               &  
+                                           ,NF_MINUTES,'m_'             &
+                                           ,INT_SEC,'.',FRAC_SEC,'s'
         ENDIF
 !
         DO N=51,99
