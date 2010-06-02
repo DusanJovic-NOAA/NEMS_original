@@ -5,8 +5,8 @@
 number_dust_bins: 5
 
 ##ginoux_dust_source_filename: ExtData/AeroCom/sfc/gocart.dust_source.v5a_1x1inp.x360_y181.nc
-##ginoux_dust_source_filename: ExtData/GFSgocart/sfc/gocart_v4a.dust_source.T126.nc
-ginoux_dust_source_filename: /dev/null:0.01
+##ginoux_dust_source_filename: /dev/null:0.01
+ginoux_dust_source_filename: ExtData/GFSgocart/sfc/gocart_v4a.dust_source.T126.nc
 
 particle_radius: 0.73 1.4 2.4 4.5 8.0
 

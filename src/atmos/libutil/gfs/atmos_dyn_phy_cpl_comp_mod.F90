@@ -19,25 +19,16 @@
 !! Oct 16 2009        Sarah Lu, move tracer bundle between states
 !! Mar 05 2010        Sarah Lu, modify init routine (associate export state
 !!                    to import state) 
+!! May 31 2010        Sarah Lu, remove ref to NMM_B and StatePrint call
 !-----------------------------------------------------------------------
 !
       use esmf_mod
-#ifdef NMM_B
-      use module_dm_parallel,only : ids,ide,jds,jde                     &
-                                   ,ims,ime,jms,jme                     &
-                                   ,its,ite,jts,jte                     &
-                                   ,mype_share
-      use module_control,only : lm
-#endif
       use module_export_import_data
       use module_err_msg
 !
 !-----------------------------------------------------------------------
 !
       implicit none
-#ifndef NMM_B
-      integer 	lm
-#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -209,9 +200,6 @@
              ,' (',trim(import_statename),') with '                     &
              ,' (',trim(export_statename),') '
 
-! -- check cpl import state
-      print *,'ATM_CPL INIT print imp_state ',trim(import_statename)
-      CALL ESMF_StatePrint (imp_state)
 !
 !-----------------------------------------------------------------------
 !***  the number of fields transferred from the dynamics to
@@ -337,9 +325,6 @@
       call ESMF_StateAdd(exp_state, Bundle, rc=rc)
       call err_msg(rc,msg,rc_cpl)    
 !
-! -- check cpl export state
-      print *,'ATM_CPL INIT print exp_state ',trim(export_statename)
-      CALL ESMF_StatePrint (exp_state)
 
       end subroutine atm_cpl_initialize
 !
@@ -699,14 +684,6 @@
 !***  do 3-d arrays.
 !-----------------------------------------------------------------------
 !
-#ifdef NMM_B
-
-      format='(i3.3)'
-
-      model_levels: do l=1,lm
-!
-        write(model_level,format) l
-#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -714,11 +691,7 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef NMM_B
-          array_name=trim(datanames_3d(n))//'_'//model_level
-#else
           array_name=trim(datanames_3d(n))
-#endif
 !
 !         print *,' get ',array_name
 !
@@ -759,9 +732,6 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef NMM_B
-      enddo model_levels
-#endif
 
 !!
 !-----------------------------------------------------------------------

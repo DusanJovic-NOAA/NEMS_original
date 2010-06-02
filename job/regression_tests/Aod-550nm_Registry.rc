@@ -10,11 +10,11 @@ n_channels: 1
 
 r_channels: 5.5e-7
 
-filename_optical_properties_DU: x/optics_DU.nc
-filename_optical_properties_SS: x/optics_SS.v2.nc
-filename_optical_properties_OC: x/optics_OC.nc
-filename_optical_properties_BC: x/optics_BC.nc
-filename_optical_properties_SU: x/optics_SU.nc
+filename_optical_properties_DU: ExtData/GFSgocart/x/optics_DU.nc
+filename_optical_properties_SS: ExtData/GFSgocart/x/optics_SS.v2.nc
+filename_optical_properties_OC: ExtData/GFSgocart/x/optics_OC.nc
+filename_optical_properties_BC: ExtData/GFSgocart/x/optics_BC.nc
+filename_optical_properties_SU: ExtData/GFSgocart/x/optics_SU.nc
 
 # Second block is a copy of a chem registry type, used here only
 # to specify what to write out to the bundle file!!!

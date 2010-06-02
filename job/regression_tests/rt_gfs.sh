@@ -16,10 +16,10 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
 # Make configure and run files
 ####################################################################################################
 
-## determine GOCART and TRACER from dust_aerosol and passive_tracer 
-export dust_aerosol=${dust_aerosol:-NO}
+## determine GOCART and TRACER from gocart_aerosol and passive_tracer 
+export gocart_aerosol=${gocart_aerosol:-NO}
 export passive_tracer=${passive_tracer:-NO}
-if [ $dust_aerosol = 'YES' ]; then
+if [ $gocart_aerosol = 'YES' ]; then
  export GOCART=1 
 else
  export GOCART=0 
@@ -63,24 +63,33 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
 # Copy init files
 ####################################################################################################
 
+cp MAPL.rc ${RUNDIR}/MAPL.rc
+cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
 if [ $GOCART = 1 ] ; then
- cp Chem_Registry_DU.rc ${RUNDIR}/Chem_Registry.rc
- cp MAPL.rc ${RUNDIR}/MAPL.rc
- cp Aod-550nm_Registry.rc ${RUNDIR}/Aod-550nm_Registry.rc
  cp DU_GridComp.rc ${RUNDIR}/DU_GridComp.rc
+ cp BC_GridComp.rc ${RUNDIR}/BC_GridComp.rc
+ cp OC_GridComp.rc ${RUNDIR}/OC_GridComp.rc
+ cp OC_GridComp---full.rc ${RUNDIR}/OC_GridComp---full.rc
+ cp SU_GridComp.rc ${RUNDIR}/SU_GridComp.rc
+ cp SS_GridComp.rc ${RUNDIR}/SS_GridComp.rc
+ cp Aod-550nm_Registry.rc ${RUNDIR}/Aod-550nm_Registry.rc
  export EXTDIR=/global/save/wx23lu/NEMS/fix
- cp -r  ${EXTDIR}/ExtData/GFSgocart/x ${RUNDIR}/.
-elif [ $GOCART = 0 ] ; then
- cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
- cp MAPL.rc ${RUNDIR}/MAPL.rc
+ cp -r  ${EXTDIR}/ExtData ${RUNDIR}/.
 fi
 
 if [ $IDVC = 2 ] ; then
   cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/gfsanl.2009072400 ${RUNDIR}/.
   cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/sfcanl.2009072400 ${RUNDIR}/.
 elif [ $IDVC = 3 ] ; then
+  if [ $wave = 62 ] ; then
   cp ${RTPWD}/GFS_NODFI/gfsanl.2009072400 ${RUNDIR}/.
   cp ${RTPWD}/GFS_NODFI/sfcanl.2009072400 ${RUNDIR}/.
+  else
+  cp /global/save/wx23lu/NEMS/ICs/gfsanl.2009072400 ${RUNDIR}/.
+  cp /global/save/wx23lu/NEMS/ICs/sfcanl.2009072400 ${RUNDIR}/.
+##cp ${RTPWD}/GFS_GOCART/gfsanl.2009072400 ${RUNDIR}/.
+##cp ${RTPWD}/GFS_GOCART/sfcanl.2009072400 ${RUNDIR}/.
+  fi
 fi
 
 else

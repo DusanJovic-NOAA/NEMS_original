@@ -28,6 +28,7 @@
 !! 23Mar 2010     Sarah Lu, Call rtc to track run-time-clock; debug print optional
 !! 09Apr 2010     Sarah Lu, Clean up the code
 !! 09May 2010     Sarah Lu, Revise species name for SU, OC, and BC
+!! 13May 2010     Sarah Lu, Change GetPointer_3D_ from private to public
 !-----------------------------------------------------------------------
 
       use ESMF_MOD
@@ -59,7 +60,7 @@
       logical, public               :: run_DU, run_SU, run_SS, run_OC, run_BC
 
 ! --- public interface
-      public  ::    SetServices, GetPointer_tracer_, CkPointer_
+      public::  SetServices, GetPointer_tracer_, CkPointer_, GetPointer_3D_
 
       private
       TYPE(Chem_Registry)          :: chemReg      !<-- The GOCART Chem_Registry
@@ -1284,11 +1285,6 @@
         MESSAGE_CHECK = 'PHY2CHEM_RUN: Extract '//NAME//' from '//BundleName
         CALL ESMF_FieldBundleGet(bundle=Bundle, name=NAME, field=Field, rc=rc1)
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
-
-          print *, 'YUN:  Print FieldBundle ', trim(BundleName)
-          call ESMF_FieldBundleGet(Bundle,  FldName, nameCount, rc=rc1)
-          print *, 'YUN:  namelist:', (FldName(i),i=1,nameCount)
-
 
         nullify(Array)
         MESSAGE_CHECK = 'PHY2CHEM_RUN: Get Fortran data pointer from '//NAME

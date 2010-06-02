@@ -13,6 +13,9 @@
 !! 16Mar 2010     Sarah Lu, Dimension and tracer specification are passed 
 !!                          in from phy2chem coupler module; flip the 
 !!                          vertical index from top-down to bottom-up
+!! 09May 2010     Sarah Lu, Revise species name for SU, OC, and BC
+!! 13May 2010     Sarah Lu, Gaseous species (DMS, SO2, MSA) are extracted 
+!!                          from GOCART export state (not from AERO bundle)
 !-----------------------------------------------------------------------
 
       use ESMF_MOD
@@ -21,6 +24,7 @@
       use MODULE_gfs_machine,  ONLY: kind_phys
 !
       use atmos_phy_chem_cpl_comp_mod, only:                  &
+                          GetPointer_3D_,                     &
                           GetPointer_tracer_, CkPointer_,     &
                           lonr, lats_node_r, lats_node_r_max, &
                           lonsperlar_r, im, jm, km, ntrac,    &
@@ -271,10 +275,10 @@
        endif
 
        if ( run_SU ) then
-        call GetPointer_tracer_(CHEM_EXP_STATE,'MSA', c_msa, rc)
+        call GetPointer_3D_    (CHEM_EXP_STATE,'MSA', c_msa, rc)
         call GetPointer_tracer_(CHEM_EXP_STATE,'SO4', c_so4, rc)
-        call GetPointer_tracer_(CHEM_EXP_STATE,'SO2', c_so2, rc)
-        call GetPointer_tracer_(CHEM_EXP_STATE,'DMS', c_dms, rc)
+        call GetPointer_3D_    (CHEM_EXP_STATE,'SO2', c_so2, rc)
+        call GetPointer_3D_    (CHEM_EXP_STATE,'DMS', c_dms, rc)
        endif
 
        if ( run_OC ) then
