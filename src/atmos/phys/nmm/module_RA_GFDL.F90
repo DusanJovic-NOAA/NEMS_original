@@ -750,10 +750,9 @@
       LOGICAL :: NEW_CLOUD
 !-----------------------------------------------------------------------
       REAL, INTENT(IN), DIMENSION(ims:ime,jms:jme) :: XLAND,TSK2D
-      REAL, INTENT(IN), DIMENSION(ims:ime, jms:jme, kts:kte):: P8W
       REAL, INTENT(IN), DIMENSION(ims:ime, jms:jme, kms:kme):: Q,QCW,   &
      &                                                         QICE,T,  &
-     &                                                         PFLIP
+     &                                                         PFLIP,P8W
 
       REAL, INTENT(OUT), DIMENSION(ims:ime, jms:jme):: GLW,GSW,CZMEAN   &
      &                                                ,RSWIN,RSWINC     &
