@@ -2361,8 +2361,9 @@
 !
 !wang 3-9-2010
         specadv=0
-        IF(int_state%SPEC_ADV) specadv = 1   ! advect water 0-no, 1-yes
-        IF(specadv == 1 .or. int_state%MICROPHYSICS=='wsm6') then
+!        IF(int_state%SPEC_ADV) specadv = 1   ! advect water 0-no, 1-yes
+        IF(int_state%SPEC_ADV .OR. int_state%MICROPHYSICS=='wsm6') specadv = 1 ! 
+        IF(specadv == 1) then
          kse1 = int_state%num_tracers_total
 !!!         write(0,*)'spec adv is on, specadv=',specadv,kse1,kse
         ELSE

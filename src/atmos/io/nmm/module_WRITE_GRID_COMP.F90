@@ -3730,7 +3730,8 @@
 
         ENDIF
 !
-        IF(wrt_int_state%WRITE_RST_FLAG .and. wrt_int_state%WRITE_NEMSIOFLAG)THEN
+!        IF(wrt_int_state%WRITE_RST_FLAG .and. wrt_int_state%WRITE_NEMSIOFLAG)THEN
+        IF( wrt_int_state%WRITE_NEMSIOFLAG)THEN
           N=N+1
           TMP=RESHAPE(HGT(1:IM,1:JM),(/FIELDSIZE/))
           CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)

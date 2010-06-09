@@ -4,7 +4,7 @@
 !
 !----------------------------------------------------------------------
 !
-      USE MODULE_NEMSIO
+      USE MODULE_NEMSIO_MPI
       USE MODULE_INCLUDE
       USE MODULE_PHYSICS_INTERNAL_STATE,ONLY: PHYSICS_INTERNAL_STATE
       USE MODULE_DM_PARALLEL,ONLY : IDS,IDE,JDS,JDE                     &
@@ -20,6 +20,12 @@
 !----------------------------------------------------------------------
 !
       IMPLICIT NONE
+!
+!----------------------------------------------------------------------
+!
+      PRIVATE
+!
+      PUBLIC PHYSICS_READ_INPUT_NEMSIO,PHYSICS_READ_RESTT_NEMSIO
 !
 !----------------------------------------------------------------------
 !
@@ -39,6 +45,8 @@
                                           ,IRTN )
 !
 !-----------------------------------------------------------------------
+!
+        implicit none
 !
 !------------------------
 !***  Argument variables
@@ -64,21 +72,28 @@
       INTEGER :: LPT2
       INTEGER :: LDIM1,LDIM2,UDIM1,UDIM2
       INTEGER :: N,I,J,L,K,II,JJ
-      INTEGER,DIMENSION(:),ALLOCATABLE :: ITEMP
 !
       REAL :: PDTOP
       REAL,DIMENSION(LM+1) :: PSG1,SG1,SG2,SGM
       REAL,DIMENSION(LM) :: DSG1,DSG2,PDSG1,PSGML1,SGML1,SGML2
 !
-      REAL,DIMENSION(:),ALLOCATABLE :: TEMP1
+      REAL,DIMENSION(:),ALLOCATABLE :: tmp
 !
       LOGICAL :: RUN
 !
       TYPE(NEMSIO_GFILE) :: GFILE
 !
+      integer :: nrec,recn,fldsize,fldst,js
+      character(16),allocatable :: recname(:),reclevtyp(:)
+      integer,allocatable   :: reclev(:)
+!
+      real(8) :: stime,etime,timef
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
+!
+      stime=timef()
 !
 !-----------------------------------------------------------------------
 !***  First we need the value of PT (pressure at top of domain)
@@ -86,7 +101,7 @@
 !
       CALL NEMSIO_INIT()
 !
-      CALL NEMSIO_OPEN(gfile,INFILE,'read',iret=irtn)
+      CALL NEMSIO_OPEN(gfile,INFILE,'read',mpi_comm_comp,iret=irtn)
       if(irtn/=0) write(0,*)'ERROR: open file ',trim(infile),' has failed'
 !
 !---------------------------------------------------------------------
@@ -108,11 +123,11 @@
       CALL NEMSIO_GETHEADVAR(gfile,'SG2',sg2,iret=irtn)
       CALL NEMSIO_GETHEADVAR(gfile,'DSG2',dsg2,iret=irtn)
       CALL NEMSIO_GETHEADVAR(gfile,'SGML2',sgml2,iret=irtn)
-!      write(0,*)'in phys,pt=',pt,'run=',run,'ihrst=',ihrst,'idat=',idat,   &
-!         'pdtop=',pdtop,'lpt2=',lpt2
-!      write(0,*)'in phys,sgm=',sgm(1:10),'sg1=',sg1(1:10),maxval(sg1),minval(sg1),'sg2=',sg2(1:10), &
-!         maxval(sg2),minval(sg2),'dsg1=',dsg1(1:10),'dsg2=',dsg2(1:10),'sgml1=',sgml1(1:10),  &
-!         'sgml2=',sgml2(1:10)
+      if(mype==0)write(0,*)'in phys,pt=',pt,'run=',run,'ihrst=',ihrst,'idat=',idat,   &
+         'pdtop=',pdtop,'lpt2=',lpt2
+      if(mype==0)write(0,*)'in phys,sgm=',sgm(1:10),'sg1=',sg1(1:10),maxval(sg1),minval(sg1),'sg2=',sg2(1:10), &
+         maxval(sg2),minval(sg2),'dsg1=',dsg1(1:10),'dsg2=',dsg2(1:10),'sgml1=',sgml1(1:10),  &
+         'sgml2=',sgml2(1:10)
 !
 !-----------------------------------------------------------------------
 !***  Before moving on, transfer values to the internal state.
@@ -143,12 +158,24 @@
         int_state%SGM(L)=SGM(L)
       ENDDO
 !
-      ALLOCATE(TEMP1((IDE-IDS+1)*(JDE-JDS+1)),STAT=I)
+      call nemsio_getfilehead(gfile,nrec=nrec,iret=irtn)
+      ALLOCATE(recname(nrec),reclevtyp(nrec),reclev(nrec))
+!     
+      call nemsio_getfilehead(gfile,recname=recname,reclevtyp=reclevtyp,   &
+                              reclev=reclev,iret=irtn)
 !
 !-----------------------------------------------------------------------
 !***  Proceed with getting fields from input file.
 !***  NOTE: Two records were already read at the top of this routine.
 !-----------------------------------------------------------------------
+!
+      fldsize=(jte-jts+1)*(ite-its+1)
+      ALLOCATE(TMP(fldsize*nrec),STAT=I)
+!
+      call nemsio_denseread(gfile,its,ite,jts,jte,tmp,iret=irtn)
+      if(irtn/=0) then
+        print *,'WRONG: Could not read all the fields in the file!'
+      endif
 !
 !-----------------------------------------
 !***  I and J limits for tracer variables
@@ -163,123 +190,140 @@
 !***  FIS (Sfc Geopotential)
 !-----------------------------------------------------------------------
 !
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'fis','sfc',1,temp1,iret=irtn)
-!      write(0,*)'in phys,fis=',maxval(temp1),minval(temp1)
-      ENDIF
-!
       DO J=JMS,JME
       DO I=IMS,IME
         int_state%FIS(I,J)=0.
       ENDDO
       ENDDO
-      CALL DSTRB(TEMP1,int_state%FIS,1,1,1,1,1)
-      CALL HALO_EXCH(int_state%FIS,1,3,3) !zj
+      call getrecn(recname,reclevtyp,reclev,nrec,'fis','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%FIS(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+      CALL HALO_EXCH(int_state%FIS,1,3,3)
+!      write(0,*)'phycs fis=',maxval(int_state%fis),minval(int_state%fis),  &
+!        'fis1=',int_state%fis(its:its+2,jte-2:jte)
 !
 !-----------------------------------------------------------------------
 !***  SM (Seamask)
 !-----------------------------------------------------------------------
-!
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'sm','sfc',1,temp1,iret=irtn)
-!      write(0,*)'in phys,sm=',maxval(temp1),minval(temp1)
-      ENDIF
 !
       DO J=JMS,JME
       DO I=IMS,IME
         int_state%SM(I,J)=0.
       ENDDO
       ENDDO
-      CALL DSTRB(TEMP1,int_state%SM,1,1,1,1,1)
+!
+      call getrecn(recname,reclevtyp,reclev,nrec,'sm','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SM(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!      write(0,*)'phycs sm=',maxval(int_state%sm),minval(int_state%sm),  &
+!        'sm=',int_state%sm(its:its+2,jte-2:jte)
 !
 !-----------------------------------------------------------------------
 !***  PD
 !-----------------------------------------------------------------------
-!
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'dpres','hybrid sig lev',1,temp1,iret=irtn)
-!      write(0,*)'in phys,pd=',maxval(temp1),minval(temp1)
-      ENDIF
 !
       DO J=JMS,JME
       DO I=IMS,IME
         int_state%PD(I,J)=0.
       ENDDO
       ENDDO
-      CALL DSTRB(TEMP1,int_state%PD,1,1,1,1,1)
+!
+      call getrecn(recname,reclevtyp,reclev,nrec,'dpres','hybrid sig lev',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%PD(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
       CALL HALO_EXCH(int_state%PD,1,2,2)
+!      write(0,*)'phycs pd=',maxval(int_state%pd),minval(int_state%pd),  &
+!        'pd=',int_state%pd(its:its+2,jte-2:jte)
 !
 !-----------------------------------------------------------------------
 !***  U, V, T, Q, CW
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
-        IF(MYPE==0)THEN
-          CALL NEMSIO_READRECV(gfile,'ugrd','mid layer',k,temp1,iret=irtn)
-!      write(0,*)'in phys,ugrd=',maxval(temp1),minval(temp1)
-        ENDIF
-!
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%U(I,J,K)=0.
         ENDDO
         ENDDO
 !
-        CALL DSTRB(TEMP1,int_state%U,1,1,1,LM,K)
+        call getrecn(recname,reclevtyp,reclev,nrec,'ugrd','mid layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%U(i,j,k)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
       ENDDO
       CALL HALO_EXCH(int_state%U,LM,2,2)
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
-        IF(MYPE==0)THEN
-          CALL NEMSIO_READRECV(gfile,'vgrd','mid layer',k,temp1,iret=irtn)
-!      write(0,*)'in phys,vgrd=',maxval(temp1),minval(temp1)
-        ENDIF
-!
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%V(I,J,K)=0.
         ENDDO
         ENDDO
 !
-        CALL DSTRB(TEMP1,int_state%V,1,1,1,LM,K)
+        call getrecn(recname,reclevtyp,reclev,nrec,'vgrd','mid layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%V(i,j,k)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
       ENDDO
       CALL HALO_EXCH(int_state%V,LM,2,2)
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
-        IF(MYPE==0)THEN
-          CALL NEMSIO_READRECV(gfile,'tmp','mid layer',k,temp1,iret=irtn)
-!      write(0,*)'in phys,tmp=',maxval(temp1),minval(temp1)
-        ENDIF
-!
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%T(I,J,K)=0.
         ENDDO
         ENDDO
 !
-        CALL DSTRB(TEMP1,int_state%T,1,1,1,LM,K)
+        call getrecn(recname,reclevtyp,reclev,nrec,'tmp','mid layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%T(i,j,k)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
       ENDDO
       CALL HALO_EXCH(int_state%T,LM,2,2)
+!      write(0,*)'phycs t=',maxval(int_state%t),minval(int_state%t), &
+!       int_state%t(its:its+2,jts:jts+2,1)
 !-----------------------------------------------------------------------
-!
-      DO K=1,LM
-        IF(MYPE==0)THEN
-          CALL NEMSIO_READRECV(gfile,'spfh','mid layer',k,temp1,iret=irtn)
-!      write(0,*)'in phys,spfh=',maxval(temp1),minval(temp1)
-        ENDIF
-!
-
-        DO J=LDIM2,UDIM2
-        DO I=LDIM1,UDIM1
-!d          int_state%Q(I,J,K)=0.
-        ENDDO
-        ENDDO
-!
-!d        CALL DSTRB(TEMP1,int_state%Q,1,1,1,LM,K)
-      ENDDO
-!d      CALL HALO_EXCH(int_state%Q,LM,2,2)
 !-----------------------------------------
 !***  I and J limits for tracer variables
 !-----------------------------------------
@@ -288,200 +332,294 @@
       UDIM1=UBOUND(int_state%Q,1)
       LDIM2=LBOUND(int_state%Q,2)
       UDIM2=UBOUND(int_state%Q,2)
-
-!
-      DO K=1,LM
-        JJ=LDIM2-1
-        DO J=JMS,JME
-          JJ=JJ+1
-          II=LDIM1-1
-          DO I=IMS,IME
-            II=II+1
-!d            int_state%WATER(II,JJ,K,int_state%P_QV)=                      & ! WRF water array uses mixing ratio for vapor
-!d                      int_state%Q(II,JJ,K)/(1.-int_state%Q(II,JJ,K))
-          ENDDO
-        ENDDO
-      ENDDO
-
-!
-!-----------------------------------------------------------------------
-!
-      DO K=1,LM
-        IF(MYPE==0)THEN
-          CALL NEMSIO_READRECV(gfile,'clwmr','mid layer',k,temp1,iret=irtn)
-!      write(0,*)'in phys,clwmr=',maxval(temp1),minval(temp1)
-        ENDIF
-!
-        DO J=LDIM2,UDIM2
-        DO I=LDIM1,UDIM1
-!d          int_state%CW(I,J,K)=0.
-        ENDDO
-        ENDDO
-!
-!d        CALL DSTRB(TEMP1,int_state%CW,1,1,1,LM,K)
-      ENDDO
 !
 !-----------------------------------------------------------------------
 !***  ALBEDO
 !-----------------------------------------------------------------------
 !
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'albedo','sfc',1,temp1,iret=irtn)
-!      write(0,*)'in phys,albedo=',maxval(temp1),minval(temp1)
-      ENDIF
-!
-      CALL DSTRB(TEMP1,int_state%ALBEDO,1,1,1,1,1)
-      CALL DSTRB(TEMP1,int_state%ALBASE,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'albedo','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ALBEDO(i,j)=tmp(i-its+1+js+fldst)
+            int_state%ALBASE(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!      write(0,*)'phycs albdo=',maxval(int_state%albedo),minval(int_state%albedo), &
+!       int_state%albedo(its:its+2,jts:jts+2)
 !
 ! **** EPSR
-!
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'epsr','sfc',1,temp1,iret=irtn)
-!      write(0,*)'in phys,epsr=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%EPSR,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'epsr','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%EPSR(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!      write(0,*)'phycs epsr=',maxval(int_state%epsr),minval(int_state%epsr), &
+!       int_state%epsr(its:its+2,jts:jts+2)
 !
 !-----------------------------------------------------------------------
 !*** SNOW ALBEDO
 !-----------------------------------------------------------------------
 !
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'mxsnal','sfc',1,temp1,iret=irtn)
-!      write(0,*)'in phys,mxsnal=',maxval(temp1),minval(temp1)
-      ENDIF
-
-      CALL DSTRB(TEMP1,int_state%MXSNAL,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'mxsnal','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%MXSNAL(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !
 !-----------------------------------------------------------------------
 !***  SST/TSK
 !-----------------------------------------------------------------------
 !
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'tskin','sfc',1,temp1,iret=irtn)
-!      write(0,*)'in phys,tsk=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%TSKIN,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'tskin','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%TSKIN(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!      write(0,*)'tskin=',maxval(int_state%TSKIN),minval(int_state%TSKIN), &
+!       int_state%TSKIN(its:its+2,jts:jts+2)
 !
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'tsea','sfc',1,temp1,iret=irtn)
-!      write(0,*)'in phys,sst=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%SST,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'tsea','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SST(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!      write(0,*)'phycs sst=',maxval(int_state%sst),minval(int_state%sst), &
+!         int_state%sst(its:its+1,jts:jts+1)
 !
 !-----------------------------------------------------------------------
 !***  SNO, SICE, STC, SMC, ISLTYP, IVGTYP, VEGFRC
 !-----------------------------------------------------------------------
 !
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'sno','sfc',1,temp1,iret=irtn)
-!      write(0,*)'in phys,sno=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%SNO,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'sno','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SNO(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'si','sfc',1,temp1,iret=irtn)
-!      write(0,*)'in phys,si=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%SI,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'si','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SI(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!      write(0,*)'phycs si=',maxval(int_state%si),minval(int_state%si), &
+!         int_state%si(its:its+1,jts:jts+1)
 !
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'sice','sfc',1,temp1,iret=irtn)
-!      write(0,*)'in phys,sice=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%SICE,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'sice','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SICE(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!      write(0,*)'aft sice, sice=',maxval(int_state%SICE),minval(int_state%SICE)
 !
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'tg','sfc',1,temp1,iret=irtn)
-!      write(0,*)'in phys,tg=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%TG,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'tg','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%TG(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'cmc','sfc',1,temp1,iret=irtn)
-!      write(0,*)'in phys,cmc=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%CMC,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'cmc','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%CMC(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!      write(0,*)'phycs cmc=',maxval(int_state%cmc),minval(int_state%cmc), &
+!         int_state%cmc(its:its+1,jts:jts+1)
 !
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'sr','sfc',1,temp1,iret=irtn)
-!      write(0,*)'in phys,sr=',maxval(temp1),minval(temp1)
-!       write(0,*) 'min, max for SR: ', minval(TEMP1),maxval(TEMP1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%SR,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'sr','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SR(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!      write(0,*)'phycs sr=',maxval(int_state%sr),minval(int_state%sr), &
+!         int_state%sr(its:its+1,jts:jts+1)
 !
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'ustar','sfc',1,temp1,iret=irtn)
-!       write(0,*) 'min, max for USTAR: ', minval(TEMP1),maxval(TEMP1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%USTAR,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'ustar','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ustar(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!      write(0,*)'phycs ustar=',maxval(int_state%ustar),minval(int_state%ustar), &
+!         int_state%ustar(its:its+1,jts:jts+1)
 !
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'zorl','sfc',1,temp1,iret=irtn)
-!        write(0,*) 'min, max for zorl: ', minval(TEMP1),maxval(TEMP1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%Z0,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'zorl','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%Z0(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
       CALL HALO_EXCH(int_state%Z0,1,3,3)
+!      write(0,*)'phycs zo=',maxval(int_state%z0),minval(int_state%z0), &
+!         int_state%z0(its:its+1,jts:jts+1)
 !
-      IF(MYPE==0)THEN !zj
-        CALL NEMSIO_READRECV(gfile,'z0base','sfc',1,temp1,iret=irtn)
-!        write(0,*) 'min, max for Z0BASE: ', minval(TEMP1),maxval(TEMP1) !zj
-      ENDIF !zj
-      CALL DSTRB(TEMP1,int_state%Z0BASE,1,1,1,1,1) !zj
-      CALL HALO_EXCH(int_state%Z0BASE,1,3,3) !zj
+      call getrecn(recname,reclevtyp,reclev,nrec,'z0base','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%Z0BASE(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+      CALL HALO_EXCH(int_state%Z0BASE,1,3,3)
+!      write(0,*)'phycs zobase=',maxval(int_state%z0base),minval(int_state%z0base), &
+!         int_state%z0base(its:its+1,jts:jts+1)
 !
-      IF(MYPE==0)THEN !zj
-        CALL NEMSIO_READRECV(gfile,'stdh','sfc',1,temp1,iret=irtn)
-!        write(0,*) 'min, max for STDH: ', minval(TEMP1),maxval(TEMP1) !zj
-      ENDIF !zj
-      CALL DSTRB(TEMP1,int_state%STDH,1,1,1,1,1) !zj
-      CALL HALO_EXCH(int_state%STDH,1,3,3) !zj
+      call getrecn(recname,reclevtyp,reclev,nrec,'stdh','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%STDH(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+      CALL HALO_EXCH(int_state%STDH,1,3,3)
+!      write(0,*)'phycs stdh=',maxval(int_state%stdh),minval(int_state%stdh), &
+!         int_state%stdh(its:its+1,jts:jts+1)
 !
       DO L=1,NSOIL
-        IF(MYPE==0)THEN
-          CALL NEMSIO_READRECV(gfile,'stc','soil layer',l,temp1,iret=irtn)
-!          write(0,*) 'min, max for STC: ', minval(TEMP1),maxval(TEMP1)
-        ENDIF
-        CALL DSTRB(TEMP1,int_state%STC(IMS:IME,JMS:JME,L),1,1,1,1,1)
+        call getrecn(recname,reclevtyp,reclev,nrec,'stc','soil layer',l,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%STC(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+!
+        call getrecn(recname,reclevtyp,reclev,nrec,'smc','soil layer',l,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%SMC(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+!
+        call getrecn(recname,reclevtyp,reclev,nrec,'sh2o','soil layer',l,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%SH2O(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+!      write(0,*)'phycs stc=',maxval(int_state%stc(:,:,l)),minval(int_state%stc(:,:,l)), &
+!         int_state%stc(its:its+1,jts:jts+1,l)
+!
       ENDDO
 !
+      call getrecn(recname,reclevtyp,reclev,nrec,'sltyp','sfc',1,recn)
+      int_state%ISLTYP=0
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ISLTYP(i,j)=INT(tmp(i-its+1+js+fldst))
+          enddo
+        enddo
+      endif
+!      write(0,*)'phycs isltyp=',maxval(int_state%isltyp),minval(int_state%isltyp), &
+!         int_state%isltyp(its:its+1,jts:jts+1)
 !
-      DO L=1,NSOIL
-        IF(MYPE==0)THEN
-          CALL NEMSIO_READRECV(gfile,'smc','soil layer',l,temp1,iret=irtn)
-!          write(0,*) 'min, max for SMC: ', minval(TEMP1),maxval(TEMP1)
-        ENDIF
-        CALL DSTRB(TEMP1,int_state%SMC(IMS:IME,JMS:JME,L),1,1,1,1,1)
-      ENDDO
+      call getrecn(recname,reclevtyp,reclev,nrec,'vgtyp','sfc',1,recn)
+      int_state%IVGTYP=0
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%IVGTYP(i,j)=INT(tmp(i-its+1+js+fldst))
+          enddo
+        enddo
+      endif
+!      write(0,*)'phycs ivgtyp=',maxval(int_state%ivgtyp),minval(int_state%ivgtyp), &
+!         int_state%ivgtyp(its:its+1,jts:jts+1)
 !
-      DO L=1,NSOIL
-        IF(MYPE==0)THEN
-          CALL NEMSIO_READRECV(gfile,'sh2o','soil layer',l,temp1,iret=irtn)
-!          write(0,*) 'min, max for SH2O: ', minval(TEMP1),maxval(TEMP1)
-        ENDIF
-        CALL DSTRB(TEMP1,int_state%SH2O(IMS:IME,JMS:JME,L),1,1,1,1,1)
-      ENDDO
-!
-      ALLOCATE(ITEMP((IDE-IDS+1)*(JDE-JDS+1)),STAT=I)
-!
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'sltyp','sfc',1,temp1,iret=irtn)
-        ITEMP=INT(temp1)
-!        write(0,*) 'min, max for ISLTYP: ', minval(ITEMP),maxval(ITEMP)
-      ENDIF
-      CALL IDSTRB(ITEMP,int_state%ISLTYP)
-!
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'vgtyp','sfc',1,temp1,iret=irtn)
-        ITEMP=INT(temp1)
-!        write(0,*) 'min, max for IVGTYP: ', minval(ITEMP),maxval(ITEMP)
-      ENDIF
-      CALL IDSTRB(ITEMP,int_state%IVGTYP)
-!
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'vegfrc','sfc',1,temp1,iret=irtn)
-!        write(0,*) 'min, max for vegfrc: ', minval(TEMP1),maxval(TEMP1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%VEGFRC,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'vegfrc','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%VEGFRC(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!      write(0,*)'phycs vegfrv=',maxval(int_state%VEGFRC),minval(int_state%VEGFRC), &
+!         int_state%VEGFRC(its:its+1,jts:jts+1)
 !
 !----------------------------------------------------------------------
 !
@@ -491,6 +629,8 @@
       CALL NEMSIO_GETHEADVAR(gfile,'DLMD',int_state%DLMD,iret=irtn)
       CALL NEMSIO_GETHEADVAR(gfile,'TPH0D',int_state%TPH0D,iret=irtn)
       CALL NEMSIO_GETHEADVAR(gfile,'TLM0D',int_state%TLM0D,iret=irtn)
+      write(0,*)'phycs sbd=',int_state%SBD,int_state%WBD,int_state%DPHD,  &
+       int_state%DLMD,int_state%TPH0D,int_state%TLM0D
 !
 !----------------------------------------------------------------------
 !
@@ -500,8 +640,10 @@
 !
 !----------------------------------------------------------------------
 !
-      DEALLOCATE(ITEMP)
-      DEALLOCATE(TEMP1)
+      DEALLOCATE(TMP)
+!
+       etime=timef()
+        write(0,*)'PHYSICS_READ_INPUT_NEMSIO,time=',etime-stime
 !
 !-----------------------------------------------------------------------
 !
@@ -524,6 +666,8 @@
                                           ,IRTN )
 !
 !-----------------------------------------------------------------------
+!
+        implicit none
 !
 !------------------------
 !***  Argument variables
@@ -556,7 +700,6 @@
       INTEGER :: LDIM1,LDIM2,UDIM1,UDIM2
       INTEGER :: LPT2
       INTEGER,DIMENSION(7) :: FCSTDATE
-      INTEGER,DIMENSION(:),ALLOCATABLE :: ITEMP
 !
       REAL :: PDTOP
       REAL,DIMENSION(LM) :: DSG1,DSG2,SGML1,SGML2
@@ -564,7 +707,7 @@
       REAL,ALLOCATABLE,DIMENSION(:) :: SLDPTH
       REAL,DIMENSION(LM) :: PDSG1,PSGML1
       REAL,DIMENSION(LM+1) :: PSG1
-      REAL,DIMENSION(:),ALLOCATABLE :: TEMP1
+      REAL,DIMENSION(:),ALLOCATABLE :: tmp
 !
       LOGICAL :: RUN
 !
@@ -572,13 +715,23 @@
 !
       TYPE(NEMSIO_GFILE) :: GFILE
 !
+      integer :: nrec,recn,fldsize,fldst,js
+      character(16),allocatable :: recname(:),reclevtyp(:)
+      integer,allocatable   :: reclev(:)
+      
+      real(8) :: stime,etime,stime1,stime2,timef
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
+        stime=timef()
+
        CALL NEMSIO_INIT()
 !
-       CALL NEMSIO_OPEN(gfile,INFILE,'read',iret=irtn)
+       write(0,*)'inside rst phys, before nemsio_open'
+       CALL NEMSIO_OPEN(gfile,INFILE,'read',mpi_comm_comp,iret=irtn)
+!       write(0,*)'inside rst phys, after nemsio_open,iret=',irtn
+       
 !
 !-----------------------------------------------------------------------
 !***  Read from restart file: Integer scalars
@@ -675,7 +828,6 @@
 !
 !-----------------------------------------------------------------------
 !
-!jw
       DO L=1,LM
         PDSG1(L)=DSG1(L)*PDTOP
         PSGML1(L)=SGML1(L)*PDTOP+PT
@@ -705,7 +857,36 @@
         int_state%SG2(L)=SG2(L)
         int_state%SGM(L)=SGM(L)
       ENDDO
-
+!
+!-----------------------------------------------------------------------
+!***  Read from restart file: Record info including name,levtyp, and lev
+!-----------------------------------------------------------------------
+!
+      call nemsio_getfilehead(gfile,nrec=nrec,iret=irtn)
+      ALLOCATE(recname(nrec),reclevtyp(nrec),reclev(nrec))
+!
+      call nemsio_getfilehead(gfile,recname=recname,reclevtyp=reclevtyp,   &
+                              reclev=reclev,iret=irtn)
+!
+!-----------------------------------------------------------------------
+!***  Proceed with getting all the fields from input file.
+!-----------------------------------------------------------------------
+!
+      fldsize=(jte-jts+1)*(ite-its+1)
+      ALLOCATE(TMP(fldsize*nrec),STAT=I)
+!
+      stime1=timef()
+      call nemsio_denseread(gfile,its,ite,jts,jte,tmp,iret=irtn)
+      write(0,*)'after dense read, time=',timef()-stime1,'tmp=',maxval(tmp),minval(tmp)
+!
+!-----------------------------------------------------------------------
+!***  close nemsio file
+!-----------------------------------------------------------------------
+!
+      CALL NEMSIO_CLOSE(GFILE)
+!-----------------------------------------------------------------------
+!
+      CALL NEMSIO_FINALIZE()
 !
 !-----------------------------------------
 !***  I and J limits for tracer variables
@@ -717,77 +898,100 @@
       UDIM2=UBOUND(int_state%Q,2)
 !
 !-----------------------------------------------------------------------
-!***  Read from restart file: Integer 2D arrays
+!***  assign data: Integer 2D arrays
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(TEMP1((IDE-IDS+1)*(JDE-JDS+1)),STAT=I)
-      ALLOCATE(ITEMP((IDE-IDS+1)*(JDE-JDS+1)),STAT=I)
+      call getrecn(recname,reclevtyp,reclev,nrec,'sltyp','sfc',1,recn)
+      int_state%ISLTYP=0
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ISLTYP(i,j)=NINT(tmp(i-its+1+js+fldst))
+          enddo
+        enddo
+      endif
 !
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'SLTYP','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,sltyp=',maxval(temp1),minval(temp1)
-        itemp=nint(temp1)
-      ENDIF
-      CALL IDSTRB(ITEMP,int_state%ISLTYP)
+      call getrecn(recname,reclevtyp,reclev,nrec,'vgtyp','sfc',1,recn)
+      int_state%IVGTYP=0
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%IVGTYP(i,j)=NINT(tmp(i-its+1+js+fldst))
+          enddo
+        enddo
+      endif
 !
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'VGTYP','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,vgtyp=',maxval(temp1),minval(temp1)
-        itemp=nint(temp1)
-      ENDIF
-      CALL IDSTRB(ITEMP,int_state%IVGTYP)
+      call getrecn(recname,reclevtyp,reclev,nrec,'cfrcv','sfc',1,recn)
+      int_state%NCFRCV=0
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%NCFRCV(i,j)=NINT(tmp(i-its+1+js+fldst))
+          enddo
+        enddo
+      endif
 !
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'cfrcv','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,cfrcv=',maxval(temp1),minval(temp1)
-        itemp=nint(temp1)
-      ENDIF
-      CALL IDSTRB(ITEMP,int_state%NCFRCV)
-!
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'cfrst','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,cfrst=',maxval(temp1),minval(temp1)
-        itemp=nint(temp1)
-      ENDIF
-      CALL IDSTRB(ITEMP,int_state%NCFRST)
-!
-      DEALLOCATE(ITEMP)
+      call getrecn(recname,reclevtyp,reclev,nrec,'cfrst','sfc',1,recn)
+      int_state%NCFRST=0
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%NCFRST(i,j)=NINT(tmp(i-its+1+js+fldst))
+          enddo
+        enddo
+      endif
 !
 !-----------------------------------------------------------------------
-!***  Read from restart file: Real 2D arrays
+!***  Assign data: Real 2D arrays
 !-----------------------------------------------------------------------
-!
-!      ALLOCATE(TEMP1(IDS:IDE,JDS:JDE),STAT=I)
 !
 !-----------------------------------------------------------------------
 !***  FIS (Sfc Geopotential)
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'fis','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,fis=',maxval(temp1),minval(temp1)
-      ENDIF
 !
       DO J=JMS,JME
       DO I=IMS,IME
         int_state%FIS(I,J)=0.
       ENDDO
       ENDDO
-      CALL DSTRB(TEMP1,int_state%FIS,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'fis','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%FIS(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
       CALL HALO_EXCH(int_state%FIS,1,3,3)
+!
 !-----------------------------------------------------------------------
 !***  PD
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'dpres','hybrid sig lev',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,pd=',maxval(temp1),minval(temp1)
-      ENDIF
-!
       DO J=JMS,JME
       DO I=IMS,IME
         int_state%PD(I,J)=0.
       ENDDO
       ENDDO
-      CALL DSTRB(TEMP1,int_state%PD,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'dpres','hybrid sig lev',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%PD(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
       CALL HALO_EXCH(int_state%PD,1,2,2)
 !
 !-----------------------------------------------------------------------
@@ -797,1119 +1001,1621 @@
 !-----------------------------------------------------------------------
 !***  ACFRCV
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'acfrcv','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,acfrcv=',maxval(temp1),minval(temp1)
-      ENDIF
-!
       DO J=JMS,JME
       DO I=IMS,IME
         int_state%ACFRCV(I,J)=0.
       ENDDO
       ENDDO
-      CALL DSTRB(TEMP1,int_state%ACFRCV,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'acfrcv','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ACFRCV(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  ACFRST
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'acfrst','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,acfrst=',maxval(temp1),minval(temp1)
-      ENDIF
-!
       DO J=JMS,JME
       DO I=IMS,IME
         int_state%ACFRST(I,J)=0.
       ENDDO
       ENDDO
-      CALL DSTRB(TEMP1,int_state%ACFRST,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'acfrst','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ACFRST(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  ACPREC
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'acprec','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,acprec=',maxval(temp1),minval(temp1)
-      ENDIF
-!
       DO J=JMS,JME
       DO I=IMS,IME
         int_state%ACPREC(I,J)=0.
       ENDDO
       ENDDO
-      CALL DSTRB(TEMP1,int_state%ACPREC,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'acprec','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ACPREC(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  ACSNOM
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'acsnom','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,acsnom=',maxval(temp1),minval(temp1)
-      ENDIF
-!
       DO J=JMS,JME
       DO I=IMS,IME
         int_state%ACSNOM(I,J)=0.
       ENDDO
       ENDDO
-      CALL DSTRB(TEMP1,int_state%ACSNOM,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'acsnom','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ACSNOM(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  ACSNOW
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'acsnow','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,acsnow=',maxval(temp1),minval(temp1)
-      ENDIF
-!
       DO J=JMS,JME
       DO I=IMS,IME
         int_state%ACSNOW(I,J)=0.
       ENDDO
       ENDDO
-      CALL DSTRB(TEMP1,int_state%ACSNOW,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'acsnow','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ACSNOW(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  AKHS_OUT
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'akhs_out','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,akhs_out=',maxval(temp1),minval(temp1)
-      ENDIF
-!
       DO J=JMS,JME
       DO I=IMS,IME
         int_state%AKHS_OUT(I,J)=0.
       ENDDO
       ENDDO
-      CALL DSTRB(TEMP1,int_state%AKHS_OUT,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'akhs_out','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%AKHS_OUT(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 
 !***  AKMS_OUT
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'akms_out','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,akms_out=',maxval(temp1),minval(temp1)
-      ENDIF
-!
       DO J=JMS,JME
       DO I=IMS,IME
         int_state%AKMS_OUT(I,J)=0.
       ENDDO
       ENDDO
-      CALL DSTRB(TEMP1,int_state%AKMS_OUT,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'akms_out','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%AKMS_OUT(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  ALBASE
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'albase','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,albase=',maxval(temp1),minval(temp1)
-      ENDIF
-!
       DO J=JMS,JME
       DO I=IMS,IME
         int_state%ALBASE(I,J)=0.
       ENDDO
       ENDDO
-      CALL DSTRB(TEMP1,int_state%ALBASE,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'albase','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ALBASE(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  ALBEDO
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'albedo','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,albedo=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%ALBEDO,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'albedo','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ALBEDO(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  ALWIN
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'alwin','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,alwin=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%ALWIN,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'alwin','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ALWIN(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  ALWOUT
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'alwout','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,alwout=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%ALWOUT,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'alwout','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ALWOUT(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  ALWTOA
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'alwtoa','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,alwtoa=',maxval(temp1),minval(temp1)
-
-
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%ALWTOA,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'alwtoa','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ALWTOA(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  ASWIN
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'aswin','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,aswin=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%ASWIN,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'aswin','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ASWIN(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  ASWOUT
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'aswout','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,aswout=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%ASWOUT,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'aswout','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ASWOUT(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  ASWTOA
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'aswtoa','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,aswtoa=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%ASWTOA,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'aswtoa','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ASWTOA(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  BGROFF
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'bgroff','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,bgroff=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%BGROFF,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'bgroff','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%BGROFF(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  CFRACH
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'cfrach','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,cfrach=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%CFRACH,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'cfrach','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%CFRACH(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  CFRACL
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'cfracl','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,cfracl=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%CFRACL,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'cfracl','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%CFRACL(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  CFRACM
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'cfracm','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,cfracm=',maxval(temp1),minval(temp1)
-
-
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%CFRACM,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'cfracm','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%CFRACM(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  CLDEFI
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'cldefi','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,cldefi=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%CLDEFI,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'cldefi','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%CLDEFI(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  CMC
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'cmc','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,cmc=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%CMC,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'cmc','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%CMC(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  CNVBOT
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'cnvbot','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,cnvbot=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%CNVBOT,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'cnvbot','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%CNVBOT(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  CNVTOP
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'cnvtop','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,cnvtop=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%CNVTOP,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'cnvtop','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%CNVTOP(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  CPRATE
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'cprate','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,cnprate=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%CPRATE,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'cprate','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%CPRATE(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  CUPPT
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'cuppt','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,cuppt=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%CUPPT,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'cuppt','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%CUPPT(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  CUPREC
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'cuprec','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,cuprec=',maxval(temp1),minval(temp1)
-
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%CUPREC,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'cuprec','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%CUPREC(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  CZEN
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'czen','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,czen=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%CZEN,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'czen','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%CZEN(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  CZMEAN
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'czmean','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,czmean=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%CZMEAN,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'czmean','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%CZMEAN(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  EPSR
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'epsr','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,epsr=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%EPSR,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'epsr','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%EPSR(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  GRNFLX
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'grnflx','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,grnflx=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%GRNFLX,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'grnflx','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%GRNFLX(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  HBOTD
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'hbotd','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,hbotd=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%HBOTD,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'hbotd','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%HBOTD(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  HBOTS
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'hbots','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,hbots=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%HBOTS,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'hbots','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%HBOTS(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  HTOPD
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'htopd','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,htopd=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%HTOPD,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'htopd','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%HTOPD(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  HTOPS
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'htops','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,htops=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%HTOPS,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'htops','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%HTOPS(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  SNOW ALBEDO
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'mxsnal','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,mxsnal=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%MXSNAL,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'mxsnal','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%MXSNAL(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  PBLH
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'pblh','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,pblh=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%PBLH,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'pblh','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%PBLH(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  POTEVP
 !-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'potevp','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,potevp=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%POTEVP,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'potevp','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%POTEVP(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  PREC
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'prec','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,prec=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%PREC,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'prec','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%PREC(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  PSHLTR
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'pshltr','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,pshltr=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%PSHLTR,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'pshltr','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%PSHLTR(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  Q10
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'q10','10 m above gnd',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,q10=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%Q10,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'q10','10 m above gnd',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%Q10(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  QSH
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'qsh','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,qsh=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%QSH,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'qsh','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%QSH(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  QSHLTR
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'qshltr','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,qshltr=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%QSHLTR,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'qshltr','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%QSHLTR(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  QWBS
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'qwbs','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,qwbs=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%QWBS,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'qwbs','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%QWBS(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  QZ0
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'qz0','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,qz0=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%QZ0,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'qz0','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%QZ0(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  RADOT
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'radot','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,radot=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%RADOT,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'radot','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%RADOT(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  RLWIN
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'rlwin','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,rlwin=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%RLWIN,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'rlwin','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%RLWIN(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  RLWTOA
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'rlwtoa','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,rlwtoa=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%RLWTOA,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'rlwtoa','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%RLWTOA(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  RSWIN
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'rswin','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,rswin=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%RSWIN,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'rswin','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%RSWIN(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  RSWINC
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'rswinc','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,rswinc=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%RSWINC,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'rswinc','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%rswinc(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  RSWOUT
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'rswout','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,rswout=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%RSWOUT,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'rswout','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%RSWOUT(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  SFCEVP
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'sfcevp','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,sfcevp=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%SFCEVP,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'sfcevp','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SFCEVP(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  SFCEXC
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'sfcexc','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,sfcexc=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%SFCEXC,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'sfcexc','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SFCEXC(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  SFCLHX
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'sfclhx','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,sfclhx=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%SFCLHX,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'sfclhx','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SFCLHX(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  SFCSHX
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'sfcshx','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,sfcshx=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%SFCSHX,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'sfcshx','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SFCSHX(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  SI
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'si','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,si=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%SI,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'si','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SI(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  SICE
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'sice','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,sice=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%SICE,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'sice','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SICE(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  SIGT4
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'sigt4','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,sigt4=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%SIGT4,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'sigt4','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SIGT4(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  SM (Seamask)
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'sm','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,sm=',maxval(temp1),minval(temp1)
-      ENDIF
-!
       DO J=JMS,JME
       DO I=IMS,IME
         int_state%SM(I,J)=0.
       ENDDO
       ENDDO
-      CALL DSTRB(TEMP1,int_state%SM,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'sm','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SM(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  SMSTAV
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'smstav','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,smstav=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%SMSTAV,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'smstav','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SMSTAV(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  SMSTOT
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'smstot','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,smstot=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%SMSTOT,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'smstot','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SMSTOT(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  SNO
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'sno','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,sno=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%SNO,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'sno','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SNO(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  SNOPCX
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'snopcx','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,snopcx=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%SNOPCX,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'snopcx','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SNOPCX(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  SOILTB
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'soiltb','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,soiltb=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%SOILTB,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'soiltb','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SOILTB(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  SR
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'sr','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,sr=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%SR,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'sr','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SR(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  SSROFF
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'ssroff','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,ssroff=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%SSROFF,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'ssroff','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SSROFF(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  SST
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'tsea','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,sst=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%SST,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'tsea','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SST(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  SUBSHX
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'subshx','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,subshx=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%SUBSHX,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'subshx','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SUBSHX(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  TG
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'tg','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,tg=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%TG,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'tg','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%TG(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  TH10
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'th10','10 m above gnd',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,th10=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%TH10,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'th10','10 m above gnd',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%TH10(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  THS
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'ths','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,ths=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%THS,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'ths','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%THS(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  THZ0
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'thz0','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,thz0=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%THZ0,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'thz0','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%THZ0(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  TSHLTR
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'tshltr','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,tshltr=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%TSHLTR,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'tshltr','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%TSHLTR(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  TWBS
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'twbs','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,twbs=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%TWBS,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'twbs','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%TWBS(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  U10
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'u10','10 m above gnd',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,u10=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%U10,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'u10','10 m above gnd',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%U10(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  USTAR
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'uustar','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,ustar=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%USTAR,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'uustar','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%USTAR(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  UZ0
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'uz0','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,uz0=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%UZ0,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'uz0','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%UZ0(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
       CALL HALO_EXCH(int_state%UZ0,1,3,3)
-!     must do HALO_EXCH
 !-----------------------------------------------------------------------
 !***  V10
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'v10','10 m above gnd',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,v10=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%V10,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'v10','10 m above gnd',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%V10(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  VEGFRC
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'vegfrc','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,vegfrc=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%VEGFRC,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'vegfrc','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%VEGFRC(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  VZ0
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'vz0','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,vz0=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%VZ0,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'vz0','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%VZ0(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
       CALL HALO_EXCH(int_state%VZ0,1,3,3)
-!     must do HALO_EXCH
 !-----------------------------------------------------------------------
 !***  Z0
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'zorl','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,z0=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%Z0,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'zorl','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%Z0(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
       CALL HALO_EXCH(int_state%Z0,1,3,3)
 !-----------------------------------------------------------------------
 !***  TSKIN
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'tskin','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,tskin=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%TSKIN,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'tskin','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%TSKIN(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  AKHS
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'akhs','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,akhs=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%AKHS,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'akhs','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%AKHS(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  AKMS
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'akms','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,akms=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%AKMS,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'akms','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%AKMS(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  HBOT
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'hbot','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,hbot=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%HBOT,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'hbot','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%HBOT(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  HTOP
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'htop','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,htop=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%HTOP,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'htop','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%HTOP(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  RSWTOA
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'rswtoa','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,rswtoa=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%RSWTOA,1,1,1,1,1)
-!
+      call getrecn(recname,reclevtyp,reclev,nrec,'rswtoa','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%RSWTOA(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  POTFLX
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'potflx','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,potflx=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%POTFLX,1,1,1,1,1)
-!
+      call getrecn(recname,reclevtyp,reclev,nrec,'potflx','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%POTFLX(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  RMOL
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'rmol','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,rmol=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%RMOL,1,1,1,1,1)
-!
+      call getrecn(recname,reclevtyp,reclev,nrec,'rmol','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%RMOL(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  T2
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'t2','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,t2=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%T2,1,1,1,1,1)
-!
+      call getrecn(recname,reclevtyp,reclev,nrec,'t2','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%T2(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  Z0BASE
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'z0base','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,z0base=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%Z0BASE,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'z0base','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%z0base(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  TLMIN
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'tlmin','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,z0base=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%TLMIN,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'tlmin','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%TLMIN(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  TLMAX
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'tlmax','sfc',1,temp1,iret=irtn)
-!        write(0,*)'read rst phys,z0base=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%TLMAX,1,1,1,1,1)
-!
+      call getrecn(recname,reclevtyp,reclev,nrec,'tlmax','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%TLMAX(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  ACUTIM
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'acutim','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,acutim=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%ACUTIM,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'acutim','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ACUTIM(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  APHTIM
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'aphtim','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,aphtim=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%APHTIM,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'aphtim','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%APHTIM(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  ARDLW
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'ardlw','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,ardlw=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%ARDLW,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'ardlw','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ARDLW(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  ARDSW
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'ardsw','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,ardsw=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%ARDSW,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'ardsw','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ARDSW(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  ASRFC
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'asrfc','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,asrfc=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%ASRFC,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'asrfc','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ASRFC(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  AVRAIN
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'avrain','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,avrain=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%AVRAIN,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'avrain','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%AVRAIN(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
 !***  AVCNVC
 !-----------------------------------------------------------------------
-      IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'avcnvc','sfc',1,temp1,iret=irtn)
-        write(0,*)'read rst phys,avcnvc=',maxval(temp1),minval(temp1)
-      ENDIF
-      CALL DSTRB(TEMP1,int_state%AVCNVC,1,1,1,1,1)
+      call getrecn(recname,reclevtyp,reclev,nrec,'avcnvc','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%AVCNVC(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
 !-----------------------------------------------------------------------
-!              READ FROM RESTART FILE: REAL 3D ARRAYS
+!              ASSIGN DATA: REAL 3D ARRAYS
 !-----------------------------------------------------------------------
-!
-      CALL MPI_BARRIER(MPI_COMM_COMP,IRTN)
 !
 !-----------------------------------------------------------------------
 !***  U, V, T, Q, Q2, CW, F_ICE, F_RIMEF, F_RAIN
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
-        IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'cldfra','mid layer',k,temp1,iret=irtn)
-!        write(0,*)'read rst phys,cldfra=',maxval(temp1),minval(temp1)
-        ENDIF
 !
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%CLDFRA(I,J,K)=0.
         ENDDO
         ENDDO
+        call getrecn(recname,reclevtyp,reclev,nrec,'cldfra','mid layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%CLDFRA(i,j,k)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
 !
-        CALL DSTRB(TEMP1,int_state%CLDFRA,1,1,1,LM,K)
       ENDDO
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
-        IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'clwmr','mid layer',k,temp1,iret=irtn)
-!        write(0,*)'read rst phys,clwmr=',maxval(temp1),minval(temp1)
-        ENDIF
-!
-        DO J=LDIM2,UDIM2
-        DO I=LDIM1,UDIM1
-!d          int_state%CW(I,J,K)=0.
-        ENDDO
-        ENDDO
-!
-!d        CALL DSTRB(TEMP1,int_state%CW,1,1,1,LM,K)
-      ENDDO
-!-----------------------------------------------------------------------
-!
-      DO K=1,LM
-        IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'spfh','mid layer',k,temp1,iret=irtn)
-!        write(0,*)'read rst phys,spfh=',maxval(temp1),minval(temp1)
-        ENDIF
-!
-        DO J=LDIM2,UDIM2
-        DO I=LDIM1,UDIM1
-!d          int_state%Q(I,J,K)=0.
-        ENDDO
-        ENDDO
-!
-!d        CALL DSTRB(TEMP1,int_state%Q,1,1,1,LM,K)
-      ENDDO
-!d      CALL HALO_EXCH(int_state%Q,LM,2,2)
-!-----------------------------------------------------------------------
-!
-      DO K=1,LM
-        IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'q2','mid layer',k,temp1,iret=irtn)
-!        write(0,*)'read rst phys,q2=',maxval(temp1),minval(temp1)
-        ENDIF
 !
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%Q2(I,J,K)=0.
         ENDDO
         ENDDO
-!
-        CALL DSTRB(TEMP1,int_state%Q2,1,1,1,LM,K)
+        call getrecn(recname,reclevtyp,reclev,nrec,'q2','mid layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%Q2(i,j,k)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+
       ENDDO
       CALL HALO_EXCH(int_state%Q2,LM,2,2)
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
-        IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'rlwtt','mid layer',k,temp1,iret=irtn)
-!        write(0,*)'read rst phys,rlwtt=',maxval(temp1),minval(temp1)
-        ENDIF
 !
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%RLWTT(I,J,K)=0.
         ENDDO
         ENDDO
+        call getrecn(recname,reclevtyp,reclev,nrec,'rlwtt','mid layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%RLWTT(i,j,k)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
 !
-        CALL DSTRB(TEMP1,int_state%RLWTT,1,1,1,LM,K)
       ENDDO
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
-        IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'rswtt','mid layer',k,temp1,iret=irtn)
-
-!        write(0,*)'read rst phys,rswtt=',maxval(temp1),minval(temp1)
-        ENDIF
 !
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%RSWTT(I,J,K)=0.
         ENDDO
         ENDDO
+        call getrecn(recname,reclevtyp,reclev,nrec,'rswtt','mid layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%RSWTT(i,j,k)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
 !
-        CALL DSTRB(TEMP1,int_state%RSWTT,1,1,1,LM,K)
       ENDDO
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
-        IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'tmp','mid layer',k,temp1,iret=irtn)
-!        write(0,*)'read rst phys,tmp=',maxval(temp1),minval(temp1)
-        ENDIF
 !
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%T(I,J,K)=0.
         ENDDO
         ENDDO
+        call getrecn(recname,reclevtyp,reclev,nrec,'tmp','mid layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%T(i,j,k)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
 !
-        CALL DSTRB(TEMP1,int_state%T,1,1,1,LM,K)
       ENDDO
       CALL HALO_EXCH(int_state%T,LM,2,2)
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
-        IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'tcucn','mid layer',k,temp1,iret=irtn)
-!        write(0,*)'read rst phys,tcucn=',maxval(temp1),minval(temp1)
-        ENDIF
 !
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%TCUCN(I,J,K)=0.
         ENDDO
         ENDDO
+        call getrecn(recname,reclevtyp,reclev,nrec,'tcucn','mid layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%TCUCN(i,j,k)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
 !
-        CALL DSTRB(TEMP1,int_state%TCUCN,1,1,1,LM,K)
       ENDDO
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
-        IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'train','mid layer',k,temp1,iret=irtn)
-!        write(0,*)'read rst phys,train=',maxval(temp1),minval(temp1)
-        ENDIF
 !
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%TRAIN(I,J,K)=0.
         ENDDO
         ENDDO
+        call getrecn(recname,reclevtyp,reclev,nrec,'train','mid layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%TRAIN(i,j,k)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
 !
-        CALL DSTRB(TEMP1,int_state%TRAIN,1,1,1,LM,K)
       ENDDO
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
-        IF(MYPE==0)THEN
-       CALL NEMSIO_READRECV(gfile,'ugrd','mid layer',k,temp1,iret=irtn)
-!        write(0,*)'read rst phys,ugrd=',maxval(temp1),minval(temp1)
-        ENDIF
 !
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%U(I,J,K)=0.
         ENDDO
         ENDDO
+        call getrecn(recname,reclevtyp,reclev,nrec,'ugrd','mid layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%U(i,j,k)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
 !
-        CALL DSTRB(TEMP1,int_state%U,1,1,1,LM,K)
       ENDDO
       CALL HALO_EXCH(int_state%U,LM,2,2)
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
-        IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'vgrd','mid layer',k,temp1,iret=irtn)
-!        write(0,*)'read rst phys,vgrd=',maxval(temp1),minval(temp1)
-        ENDIF
 !
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%V(I,J,K)=0.
         ENDDO
         ENDDO
+        call getrecn(recname,reclevtyp,reclev,nrec,'vgrd','mid layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%V(i,j,k)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
 !
-        CALL DSTRB(TEMP1,int_state%V,1,1,1,LM,K)
       ENDDO
       CALL HALO_EXCH(int_state%V,LM,2,2)
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
-        IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'xlen_mix','mid layer',k,temp1,iret=irtn)
-!        write(0,*)'read rst phys,xlen_mix=',maxval(temp1),minval(temp1)
-        ENDIF
 !
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%XLEN_MIX(I,J,K)=0.
         ENDDO
         ENDDO
+        call getrecn(recname,reclevtyp,reclev,nrec,'xlen_mix','mid layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%XLEN_MIX(i,j,k)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
 !
-        CALL DSTRB(TEMP1,int_state%XLEN_MIX,1,1,1,LM,K)
       ENDDO
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
-        IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'f_ice','mid layer',k,temp1,iret=irtn)
-!        write(0,*)'read rst phys,f_ice=',maxval(temp1),minval(temp1)
-        ENDIF
 !
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%F_ICE(I,J,K)=0.
         ENDDO
         ENDDO
+        call getrecn(recname,reclevtyp,reclev,nrec,'f_ice','mid layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%F_ICE(i,j,k)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
 !
-        CALL DSTRB(TEMP1,int_state%F_ICE,1,1,1,LM,K)
       ENDDO
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
-        IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'f_rimef','mid layer',k,temp1,iret=irtn)
-!        write(0,*)'read rst phys,f_rimef=',maxval(temp1),minval(temp1)
-        ENDIF
 !
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%F_RIMEF(I,J,K)=0.
         ENDDO
         ENDDO
+        call getrecn(recname,reclevtyp,reclev,nrec,'f_rimef','mid layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%F_RIMEF(i,j,k)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
 !
-        CALL DSTRB(TEMP1,int_state%F_RIMEF,1,1,1,LM,K)
       ENDDO
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
-        IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'f_rain','mid layer',k,temp1,iret=irtn)
-!        write(0,*)'read rst phys,f_rrain=',maxval(temp1),minval(temp1)
-        ENDIF
 !
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%F_RAIN(I,J,K)=0.
         ENDDO
         ENDDO
+        call getrecn(recname,reclevtyp,reclev,nrec,'f_rain','mid layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%F_RAIN(i,j,k)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
 !
-        CALL DSTRB(TEMP1,int_state%F_RAIN,1,1,1,LM,K)
       ENDDO
 !-----------------------------------------------------------------------
 !***  SH2O, SMC, STC
@@ -1917,38 +2623,39 @@
 !
       DO K=1,NSOIL
 !
-        IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'sh2o','soil layer',k,temp1,iret=irtn)
-!        write(0,*)'read rst phys,sh2o=',maxval(temp1),minval(temp1)
-!          write(0,*) 'lev, min, max for SH2O: ', k,minval(TEMP1),maxval(TEMP1)
-        ENDIF
+        call getrecn(recname,reclevtyp,reclev,nrec,'sh2o','soil layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%SH2O(i,j,k)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+
+        call getrecn(recname,reclevtyp,reclev,nrec,'smc','soil layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%SMC(i,j,k)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
 !
-        CALL DSTRB(TEMP1,int_state%SH2O,1,1,1,NSOIL,K)
-!
-      ENDDO
-!
-      DO K=1,NSOIL
-!
-        IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'smc','soil layer',k,temp1,iret=irtn)
-!        write(0,*)'read rst phys,smc=',maxval(temp1),minval(temp1)
-!          write(0,*) 'lev, min, max for SMC: ', k,minval(TEMP1),maxval(TEMP1)
-        ENDIF
-!
-        CALL DSTRB(TEMP1,int_state%SMC,1,1,1,NSOIL,K)
-!
-      ENDDO
-!
-      DO K=1,NSOIL
-!
-        IF(MYPE==0)THEN
-        CALL NEMSIO_READRECV(gfile,'stc','soil layer',k,temp1,iret=irtn)
-!        write(0,*)'read rst phys,stc=',maxval(temp1),minval(temp1)
-!          write(0,*) 'lev, min, max for STC: ', k,minval(TEMP1),maxval(TEMP1)
-        ENDIF
-!
-        CALL DSTRB(TEMP1,int_state%STC,1,1,1,NSOIL,K)
-!
+        call getrecn(recname,reclevtyp,reclev,nrec,'stc','soil layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%STC(i,j,k)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+
       ENDDO
 !
 !-----------------------------------------------------------------------
@@ -1956,11 +2663,6 @@
 !-----------------------------------------------------------------------
       DO N=int_state%INDX_O3+1,int_state%NUM_TRACERS_TOTAL                !<-- The first 'INDX_O3' arrays are unallocated pointers
       DO K=1,LM
-        IF(MYPE==0)THEN
-        write(varname,'(a8,I2.2)')'tracers_',N
-        CALL NEMSIO_READRECV(gfile,varname,'mid layer',k,temp1,iret=irtn)
-!        write(0,*)'read rst,name=',varname,maxval(temp1),minval(temp1)
-        ENDIF
 !
         DO J=JMS,JME
         DO I=IMS,IME
@@ -1968,24 +2670,31 @@
         ENDDO
         ENDDO
 !
-        CALL DSTRB(TEMP1,int_state%TRACERS(:,:,:,N),1,1,1,LM,K)
+        write(varname,'(a8,I2.2)')'tracers_',N
+        call getrecn(recname,reclevtyp,reclev,nrec,varname,'mid layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%TRACERS(i,j,k,n)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+!
       ENDDO
       ENDDO
       CALL HALO_EXCH(int_state%TRACERS,LM,int_state%NUM_TRACERS_TOTAL,1,2,2)
-
 !-----------------------------------------------------------------------
 !
-      DEALLOCATE(TEMP1)
+      DEALLOCATE(TMP)
       DEALLOCATE(SLDPTH)
 !
 !-----------------------------------------------------------------------
       CALL MPI_BARRIER(MPI_COMM_COMP,IRTN)
 !-----------------------------------------------------------------------
-      CALL NEMSIO_CLOSE(GFILE)
-!-----------------------------------------------------------------------
-!
-      CALL NEMSIO_FINALIZE()
-!
+      etime=timef()
+      write(0,*)'PHYSICS_READ_RESTT_NEMSIO,time=',etime-stime
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -1993,6 +2702,48 @@
       END SUBROUTINE PHYSICS_READ_RESTT_NEMSIO
 !
 !-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+
+      SUBROUTINE getrecn(recname,reclevtyp,reclev,nrec,fldname,          &
+                         fldlevtyp,fldlev,recn)
+!-----------------------------------------------------------------------
+!-- this subroutine searches the field list to find out a specific field,
+!-- and return the field number for that field
+!-----------------------------------------------------------------------
+!
+        implicit none
+!
+        integer,intent(in)      :: nrec
+        character(*),intent(in) :: recname(nrec)
+        character(*),intent(in) :: reclevtyp(nrec)
+        integer,intent(in)      :: reclev(nrec)
+        character(*),intent(in) :: fldname
+        character(*),intent(in) :: fldlevtyp
+        integer,intent(in)      :: fldlev
+        integer,intent(out)     :: recn
+!
+        integer i
+!
+        recn=0
+        do i=1,nrec
+          if(trim(recname(i))==trim(fldname).and.                         &
+            trim(reclevtyp(i))==trim(fldlevtyp) .and.                    &
+            reclev(i)==fldlev) then
+            recn=i
+            return
+          endif
+        enddo
+!
+        if(recn==0) print *,'WARNING: field ',trim(fldname),' ',         &
+          trim(fldlevtyp),' ',fldlev,' is not in the nemsio file!'
+
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+
+      END SUBROUTINE getrecn
+!
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !

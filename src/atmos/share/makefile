@@ -36,6 +36,7 @@ TARGET = share.a
  
 MODULES=	\
 		module_NEMSIO.o \
+		module_NEMSIO_MPI.o \
 		module_INCLUDE.o \
 		module_ERR_MSG.o 
 

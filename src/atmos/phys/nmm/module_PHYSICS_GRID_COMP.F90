@@ -1080,8 +1080,12 @@
 !-----------------------------------------------------------------------
 !
            SPECADV = 0
-           IF(int_state%SPEC_ADV) SPECADV=1
-        update_wtr: IF (int_state%MICROPHYSICS=='fer' .AND.             &
+!           IF(int_state%SPEC_ADV) SPECADV=1
+           IF(int_state%SPEC_ADV .OR. int_state%MICROPHYSICS=='wsm6') SPECADV=1
+!        update_wtr: IF (int_state%MICROPHYSICS=='fer' .AND.             &
+        update_wtr: IF ( (int_state%MICROPHYSICS=='fer' .OR.            &
+                          int_state%MICROPHYSICS=='wsm6') .AND.         &!for wsm6, 5/28/2010,
+                                                                         !maybe remove int_state%microphys.
                           (CALL_SHORTWAVE .OR. CALL_LONGWAVE .OR.       &
                            CALL_TURBULENCE .OR. CALL_PRECIP) ) THEN
            SELECT CASE (trim(int_state%MICROPHYSICS))
@@ -1106,6 +1110,7 @@
                             ,int_state%P_QG                             &
                             ,IMICRO                                     &
                             ,SPECADV                                    &
+                            ,NTIMESTEP                                  &
                             ,IDS,IDE,JDS,JDE,LM                         &
                             ,IMS,IME,JMS,JME                            &
                             ,ITS,ITE,JTS,JTE)
@@ -3740,6 +3745,7 @@
       SUBROUTINE UPDATE_WATER(CWM,F_ICE,F_RAIN,F_RIMEF                  &
                              ,NUM_WATER,WATER,T                         &
                              ,P_QC,P_QR,P_QS,P_QI,P_QG, IMICRO,SPECADV  &
+                             ,NTIMESTEP                                 &
                              ,IDS,IDE,JDS,JDE,LM                        &
                              ,IMS,IME,JMS,JME                           &
                              ,ITS,ITE,JTS,JTE)
@@ -3770,7 +3776,8 @@
                            ,IMS,IME,JMS,JME                             &
                            ,ITS,ITE,JTS,JTE                             &
                            ,NUM_WATER                                   &
-                           ,P_QC,P_QR,P_QS,P_QI,P_QG,IMICRO,SPECADV
+                           ,P_QC,P_QR,P_QS,P_QI,P_QG,IMICRO,SPECADV     &
+                           ,NTIMESTEP 
      ! REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: CWM,T          &
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: CWM,T          &
                                                   ,F_ICE,F_RAIN,F_RIMEF
@@ -3792,7 +3799,9 @@
          DO K=1,LM
            DO J=JMS,JME
              DO I=IMS,IME
-              IF (specadv == 0) THEN       ! specadv
+              !IF (specadv == 0) THEN       ! specadv
+              IF (specadv == 0 .or. NTIMESTEP .LE. 1) THEN       ! specadv, 
+                                                                 ! assign cloud water to WATER in the initial time step
                 IF (CWM(I,J,K)>EPSQ) THEN
                    LIQW=(1.-F_ice(I,J,K))*CWM(I,J,K)
                    WATER(I,J,K,P_QC)=(1.-F_rain(I,J,K))*LIQW
@@ -3807,7 +3816,8 @@
                ! IF species are advected, CWM(i,j,k) is changed.
                   CWM(I,J,K) = WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)+WATER(I,J,K,P_QS)
                      F_ICE(I,J,K)=0.0
-                  IF (CWM(I,J,K) > EPSQ) THEN
+                !  IF (CWM(I,J,K) > EPSQ) THEN
+                  IF (WATER(I,J,K,P_QS) > EPSQ) THEN
                      F_ICE(I,J,K)=WATER(I,J,K,P_QS)/CWM(I,J,K)
                   ENDIF
                      F_RAIN(I,J,K)=0.
@@ -3827,6 +3837,18 @@
          DO K=1,LM
            DO J=JMS,JME
              DO I=IMS,IME
+               IF (NTIMESTEP .LE. 1) THEN         !! 5-28-2010 assign WATER at initital time 
+                IF (CWM(I,J,K)>EPSQ) THEN
+                   LIQW=(1.-F_ice(I,J,K))*CWM(I,J,K)
+                   WATER(I,J,K,P_QC)=(1.-F_rain(I,J,K))*LIQW
+                   WATER(I,J,K,P_QR)=F_rain(I,J,K)*LIQW
+                   WATER(I,J,K,P_QI)=F_ice(I,J,K)*CWM(I,J,K)
+                ELSE
+                   WATER(I,J,K,P_QC)=0.
+                   WATER(I,J,K,P_QR)=0.
+                   WATER(I,J,K,P_QI)=0.
+                ENDIF
+               ENDIF                             !!  END of WATER 
                 CWM(I,J,K)=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)+WATER(I,J,K,P_QI)  &
                           +WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG)
                 IF (CWM(I,J,K) > EPSQ) THEN

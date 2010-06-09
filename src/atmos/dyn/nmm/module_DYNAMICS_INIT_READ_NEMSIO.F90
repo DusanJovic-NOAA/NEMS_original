@@ -12,10 +12,15 @@ use module_dm_parallel,only : ids,ide,jds,jde &
                              ,dstrb
 use module_exchange
 use module_constants
-use module_nemsio
+use module_nemsio_mpi
+!
 !-----------------------------------------------------------------------
 !
       implicit none
+!
+      private
+!
+      public dynamics_read_nemsio
 !
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
@@ -224,7 +229,7 @@ real(kind=kfpt):: &
 
 real(kind=kfpt),dimension(:),allocatable :: &
  all_bc_data &
-,temp1
+,tmp
 
 logical(kind=klog) :: opened
 
@@ -242,14 +247,21 @@ ihrend &                    ! maximum forecast length, hours
 ,ntstm_max &
 ,nfcst
 
+integer nrec,mysize,myrank
+integer fldsize,fldst,js,recn
+character(16),allocatable :: recname(:), reclevtyp(:)
+integer,allocatable       :: reclev(:)
+!
+real(8) :: stime,etime,stime1,timef
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
+      stime=timef()
+!
       mype=mype_share
 !
-      allocate(temp1((ide-ids+1)*(jde-jds+1)),stat=i)
       allocate(stdh(ims:ime,jms:jme),stat=i)
 !
 !-----------------------------------------------------------------------
@@ -264,8 +276,15 @@ ihrend &                    ! maximum forecast length, hours
 !
 !!!     infile='main_input_filename_nemsio'
         write(infile,'(a,i2.2,a)')'input_domain_',my_domain_id,'_nemsio'
-        call nemsio_open(gfile,infile,'read',iret=ierr)
+        call nemsio_open(gfile,infile,'read',mpi_comm_comp,iret=ierr)
         if(ierr/=0) write(0,*)'ERROR: open file ',trim(infile),' has failed'
+      write(0,*)'after nemsio_open, t=',timef()-stime
+!
+        call nemsio_getfilehead(gfile,nrec=nrec,iret=ierr)
+!
+        allocate(recname(nrec),reclevtyp(nrec),reclev(nrec))
+        call nemsio_getfilehead(gfile,recname=recname,reclevtyp=reclevtyp,   &
+                                reclev=reclev,iret=ierr)
 !
 !-----------------------------------------------------------------------
 !***  First we need to extract the value of PT (pressure at top of domain)
@@ -314,122 +333,157 @@ ihrend &                    ! maximum forecast length, hours
         call nemsio_getheadvar(gfile,'dsg2',dsg2,ierr)
         call nemsio_getheadvar(gfile,'sgml2',sgml2,ierr)
 !
-        if(mype==0)then
-          call nemsio_readrecv(gfile,'fis','sfc',1,temp1,iret=ierr)
-!          write(0,*)'in init_nemsio,fis=',maxval(temp1),minval(temp1)
+        fldsize=(jte-jts+1)*(ite-its+1)
+        allocate(tmp((ite-its+1)*(jte-jts+1)*nrec),stat=i)
+!
+        stime1=timef()
+        call nemsio_denseread(gfile,its,ite,jts,jte,tmp,iret=ierr)
+        if(irtn/=0) then
+          print *,'WRONG: Could not read all the fields in the file!'
         endif
-        do j=jms,jme
-        do i=ims,ime
-          fis(i,j)=0.
-        enddo
-        enddo
-        call dstrb(temp1,fis,1,1,1,1,1)
+!
+!-- fis
+        fis=0.
+        call getrecn(recname,reclevtyp,reclev,nrec,'fis','sfc',1,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              fis(i,j)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
         call halo_exch(fis,1,2,2)
+!        write(0,*)'in init_nemsio,fis=',maxval(fis),minval(fis),'fis(its:its+2,1:3)=', &
+!           fis(its:its+2,jts:jts+2),'its=',its,'ite=',ite,'jts=',jts,'jte=',jte, &
+!          'tmp(1:3)=',tmp(1:3)
+
+!        if(mype==0)then
+!          call nemsio_readrecv(gfile,'fis','sfc',1,temp1,iret=ierr)
+!      if(mype==0) write(0,*)'dyn_init_read,after get fis, t=',timef()-stime
+!!          write(0,*)'in init_nemsio,fis=',maxval(temp1),minval(temp1)
+!        endif
+!        do j=jms,jme
+!        do i=ims,ime
+!          fis(i,j)=0.
+!        enddo
+!        enddo
+!      if(mype==0) write(0,*)'dyn_init_read,bf dstrb fis, t=',timef()-stime
+!        call dstrb(temp1,fis,1,1,1,1,1)
+!      if(mype==0) write(0,*)'dyn_init_read,after dstrb fis, t=',timef()-stime
+!        call halo_exch(fis,1,2,2)
+!      if(mype==0) write(0,*)'dyn_init_read,after exch fis, t=',timef()-stime
 !
 !-----------------------------------------------------------------------
 !
-        if(mype==0)then
-          call nemsio_readrecv(gfile,'stdh','sfc',1,temp1,iret=ierr)
-!          write(0,*)'in init_nemsio,stdh=',maxval(temp1),minval(temp1)
+!-- sm
+        sm=0.
+        call getrecn(recname,reclevtyp,reclev,nrec,'sm','sfc',1,recn)
+        write(0,*)'after sm, recn=',recn,'nrec=',nrec 
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              sm(i,j)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
         endif
-        do j=jms,jme
-        do i=ims,ime
-          stdh(i,j)=0.
-        enddo
-        enddo
-        call dstrb(temp1,stdh,1,1,1,1,1)
-        call halo_exch(stdh,1,2,2)
-!
-!-----------------------------------------------------------------------
-!
-        if(mype==0)then
-          call nemsio_readrecv(gfile,'sm','sfc',1,temp1,iret=ierr)
-!          write(0,*)'in init_nemsio,sm=',maxval(temp1),minval(temp1)
-        endif
-        do j=jms,jme
-        do i=ims,ime
-          sm(i,j)=0.
-        enddo
-        enddo
-        call dstrb(temp1,sm,1,1,1,1,1)
         call halo_exch(sm,1,2,2)
+!          call nemsio_readrecv(gfile,'sm','sfc',1,temp1,iret=ierr)
+!         write(0,*)'in init_nemsio,sm=',maxval(sm),minval(sm)
 !
 !-----------------------------------------------------------------------
 !
-        if(mype==0)then
-          call nemsio_readrecv(gfile,'dpres','hybrid sig lev',1,temp1,iret=ierr)
-          write(0,*)'in init_nemsio,pd=',maxval(temp1),minval(temp1)
+!-- dpres
+        pd=0.
+        call getrecn(recname,reclevtyp,reclev,nrec,'dpres','hybrid sig lev',1,recn)
+        write(0,*)'after pd, recn=',recn,'nrec=',nrec 
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              pd(i,j)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
         endif
-        do j=jms,jme
-        do i=ims,ime
-          pd(i,j)=0.
-        enddo
-        enddo
-        call dstrb(temp1,pd,1,1,1,1,1)
         call halo_exch(pd,1,2,2)
+!          call nemsio_readrecv(gfile,'dpres','hybrid sig lev',1,temp1,iret=ierr)
+!          write(0,*)'in init_nemsio,pd=',maxval(pd),minval(pd)
 !
 !-----------------------------------------------------------------------
 !
-        call mpi_barrier(mpi_comm_comp,ierr)
-        do l=1,lm
-          if(mype==0)then
-          call nemsio_readrecv(gfile,'ugrd','mid layer',l,temp1,iret=ierr)
-!          write(0,*)'in init_nemsio,ugrd=',maxval(temp1),minval(temp1)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            u(i,j,l)=0.
+!-- ugrd
+      u=0.
+      do l=1,lm
+        call getrecn(recname,reclevtyp,reclev,nrec,'ugrd','mid layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              u(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
           enddo
-          enddo
-          call dstrb(temp1,u,1,1,1,lm,l)
-        enddo
-        call halo_exch(u,lm,2,2)
+        endif
+      enddo
+      call halo_exch(u,lm,2,2)
+!      if(mype==0) write(0,*)'dyn_init_read,bf get ugrd2 , t=',timef()-stime
+!          call nemsio_readrecv(gfile,'ugrd','mid layer',l,temp1,iret=ierr)
+!          write(0,*)'in init_nemsio,ugrd=',maxval(tmp1),minval(temp1)
 !
 !-----------------------------------------------------------------------
 !
+!--vgrd
+        v=0.
         do l=1,lm
-          if(mype==0)then
-          call nemsio_readrecv(gfile,'vgrd','mid layer',l,temp1,iret=ierr)
-!          write(0,*)'in init_nemsio,vgrd=',maxval(temp1),minval(temp1)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            v(i,j,l)=0.
+         call getrecn(recname,reclevtyp,reclev,nrec,'vgrd','mid layer',l,recn)
+         if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              v(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
           enddo
-          enddo
-          call dstrb(temp1,v,1,1,1,lm,l)
+         endif
         enddo
         call halo_exch(v,lm,2,2)
 !
 !-----------------------------------------------------------------------
-!
+!--tmp
+        t=0.
         do l=1,lm
-          if(mype==0)then
-          call nemsio_readrecv(gfile,'tmp','mid layer',l,temp1,iret=ierr)
-            write(0,*) 'L, T extremes: ', L, minval(temp1),maxval(temp1)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            t(i,j,l)=0.
+         call getrecn(recname,reclevtyp,reclev,nrec,'tmp','mid layer',l,recn)
+         if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              t(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
           enddo
-          enddo
-          call dstrb(temp1,t,1,1,1,lm,l)
+         endif
         enddo
         call halo_exch(t,lm,2,2)
 !
 !-----------------------------------------------------------------------
 !
+!--spfh
+        q=0.
         do l=1,lm
-          if(mype==0)then
-          call nemsio_readrecv(gfile,'spfh','mid layer',l,temp1,iret=ierr)
-!          write(0,*)'in init_nemsio,spfh=',maxval(temp1),minval(temp1)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            q(i,j,l)=0.
+         call getrecn(recname,reclevtyp,reclev,nrec,'spfh','mid layer',l,recn)
+         if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              q(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
           enddo
-          enddo
-          call dstrb(temp1,q,1,1,1,lm,l)
+         endif
         enddo
         call halo_exch(q,lm,2,2)
 !
@@ -443,22 +497,21 @@ ihrend &                    ! maximum forecast length, hours
 !
 !-----------------------------------------------------------------------
 !
+!-- clwmr
+        cw=0.
         do l=1,lm
-          if(mype==0)then
-            call nemsio_readrecv(gfile,'clwmr','mid layer',l,temp1,iret=ierr)
-!           write(0,*)'in init_nemsio,cldmr=',maxval(temp1),minval(temp1)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            cw(i,j,l)=0.
+         call getrecn(recname,reclevtyp,reclev,nrec,'clwmr','mid layer',l,recn)
+         if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              cw(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
           enddo
-          enddo
-          call dstrb(temp1,cw,1,1,1,lm,l)
+         endif
         enddo
         call halo_exch(cw,lm,2,2)
-
-!
-        print*,'*** Read initial conditions in init_nemsio from ',infile
 !
 !-----------------------------------------------------------------------
         ntsti=ntsd+1
@@ -550,15 +603,18 @@ ihrend &                    ! maximum forecast length, hours
 !---reading surface data------------------------------------------------
 !-----------------------------------------------------------------------
 !
-        if(mype==0)then
-          call nemsio_readrecv(gfile,'sice','sfc',1,temp1,iret=ierr)
+!-- sice
+        sice=0.
+        call getrecn(recname,reclevtyp,reclev,nrec,'sice','sfc',1,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              sice(i,j)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
         endif
-        do j=jms,jme
-        do i=ims,ime
-          sice(i,j)=0.
-        enddo
-        enddo
-        call dstrb(temp1,sice,1,1,1,1,1)
         call halo_exch(sice,1,2,2)
 !
 !-----------------------------------------------------------------------
@@ -591,8 +647,9 @@ ihrend &                    ! maximum forecast length, hours
 !-----------------------------------------------------------------------
 !
         write(infile,'(a,i2.2,a)')'restart_file_',my_domain_id,'_nemsio'
-        call nemsio_open(gfile,infile,'read',iret=ierr)
+        call nemsio_open(gfile,infile,'read',mpi_comm_comp,iret=ierr)
         if(ierr/=0) write(0,*)'ERROR: open file ',trim(infile),' has failed'
+       write(0,*)'dyn_init_read,aft open nemsio,',trim(infile),'time=',timef()-stime
 !
 !-----------------------------------------------------------------------
 !***  Read from restart file: Integer scalars
@@ -605,12 +662,13 @@ ihrend &                    ! maximum forecast length, hours
         call nemsio_getheadvar(gfile,'IHRST',ihrst,ierr)
         call nemsio_getheadvar(gfile,'i_par_sta',i_parent_start,ierr)
         call nemsio_getheadvar(gfile,'j_par_sta',j_parent_start,ierr)
-        write(0,*)' INIT restart i_parent_start=',i_parent_start,' j_parent_start=',j_parent_start
+        if(mype == 0) then
+         write(0,*)' INIT restart i_parent_start=',i_parent_start,' j_parent_start=',j_parent_start,'ierr=',ierr
+        endif
         call nemsio_getheadvar(gfile,'LPT2',lpt2,ierr)
 !-----------------------------------------------------------------------
 !***  Read from restart file: Integer 1D arrays
 !-----------------------------------------------------------------------
-!        read(nfcst) idat
         call nemsio_getheadvar(gfile,'IDAT',idat,ierr)
 !-----------------------------------------------------------------------
 !***  Print the time information.
@@ -649,7 +707,6 @@ ihrend &                    ! maximum forecast length, hours
         call nemsio_getheadvar(gfile,'WBD',wbd,ierr)
 !       write(0,*)' in rst,pdtop=',pdtop,'pt=',pt,'nsoil=',nsoil,'idat=', &
 !        idat,'ntsd=',ntsd,'fcstdate=',fcstdate,'ihrst=',ihrst,'lpt2=',lpt2
-!       read(nfcst) pt
 !-----------------------------------------------------------------------
 !***  Read from restart file: Real 1D arrays
 !-----------------------------------------------------------------------
@@ -668,14 +725,8 @@ ihrend &                    ! maximum forecast length, hours
 !
         length=2*2*2*lnsv*lm*((ide-ids)+(jde-jds))
         allocate(all_bc_data(1:length))
-        write(0,*)' INIT allocated all_bc_data to length=',length
 !
-        if(mype==0)then
         call nemsio_getheadvar(gfile,'ALL_BC_DATA',all_bc_data,ierr)
-          write(0,*)' nemsio reads all_bc_data ierr=',ierr
-        endif
-!
-        call mpi_bcast(all_bc_data,length,mpi_real,0,mpi_comm_comp,irtn)
 !
 !-----------------------------------------------------------------------
 !
@@ -753,419 +804,507 @@ ihrend &                    ! maximum forecast length, hours
 !-----------------------------------------------------------------------
 !***  Read from restart file: Real 2D arrays
 !-----------------------------------------------------------------------
-        if(mype==0)then
-          call nemsio_readrecv(gfile,'fis','sfc',1,temp1,iret=ierr)
-          write(0,*)'in init restart,fis=',maxval(temp1),minval(temp1)
-        endif
-        do j=jms,jme
-        do i=ims,ime
-          fis(i,j)=0.
+!
+      fldsize=(jte-jts+1)*(ite-its+1)
+!      write(0,*)'its=',its,'ite=',ite,'jts=',jts,'jte=',jte,'fldsize=',fldsize
+!
+      call nemsio_getfilehead(gfile,nrec=nrec,iret=ierr)
+      allocate(recname(nrec),reclevtyp(nrec),reclev(nrec))
+      call nemsio_getfilehead(gfile,recname=recname,reclevtyp=reclevtyp,   &
+                              reclev=reclev,iret=ierr)
+!
+      allocate(tmp(fldsize*nrec))
+      tmp=0.
+      stime=timef()
+      call nemsio_denseread(gfile,its,ite,jts,jte,tmp,iret=ierr)
+      write(0,*)'aft nemsio_denseread, time=',timef()-stime,'tmp=',maxval(tmp), &
+        minval(tmp)
+!
+!-- fis
+      fis=0.
+      call getrecn(recname,reclevtyp,reclev,nrec,'fis','sfc',1,recn)
+      if(recn/=0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            fis(i,j)=tmp(i-its+1+js+fldst)
+          enddo
         enddo
-        enddo
-        call dstrb(temp1,fis,1,1,1,1,1)
-        call halo_exch(fis,1,2,2)
+      endif
+      call halo_exch(fis,1,2,2)
+
+!          call nemsio_readrecv(gfile,'fis','sfc',1,temp1,iret=ierr)
+!      write(0,*)'in init restart dyn,fis=',maxval(fis),minval(fis),'fiss=', &
+!           fis(its:its+2,jts:jts+2),'fisend=',fis(ite-2:ite,jte-2:jte)
 !-----------------------------------------------------------------------
-        if(mype==0)then
-          call nemsio_readrecv(gfile,'dpres','hybrid sig lev',1,temp1,iret=ierr)
-          write(0,*)'in init restart,pd=',maxval(temp1),minval(temp1)
-        endif
-        do j=jms,jme
-        do i=ims,ime
-          pd(i,j)=0.
+!--pd
+      pd=0.
+      call getrecn(recname,reclevtyp,reclev,nrec,'dpres','hybrid sig lev',1,recn)
+      if(recn/=0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            pd(i,j)=tmp(i-its+1+js+fldst)
+          enddo
         enddo
-        enddo
-        call dstrb(temp1,pd,1,1,1,1,1)
-        call halo_exch(pd,1,2,2)
+      endif
+      call halo_exch(pd,1,2,2)
+!      write(0,*)'in init restart dyn,pd=',maxval(pd),minval(pd),'pd=', &
+!           pd(its:its+2,jts:jts+2),'pde=',pd(ite-2:ite,jte-2:jte)
 !-----------------------------------------------------------------------
-        if(mype==0)then
-          call nemsio_readrecv(gfile,'pdo','sfc',1,temp1,iret=ierr)
-          write(0,*)'in init restart,pdo=',maxval(temp1),minval(temp1)
-        endif
-        do j=jms,jme
-        do i=ims,ime
-          pdo(i,j)=0.
+!-- pdo
+      pdo=0.
+      call getrecn(recname,reclevtyp,reclev,nrec,'pdo','sfc',1,recn)
+      if(recn/=0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            pdo(i,j)=tmp(i-its+1+js+fldst)
+          enddo
         enddo
-        enddo
-        call dstrb(temp1,pdo,1,1,1,1,1)
-        call halo_exch(pdo,1,2,2)
+      endif
+      call halo_exch(pdo,1,2,2)
+!      write(0,*)'in init restart dyn,pdo=',maxval(pdo),minval(pdo),'pdo=', &
+!           pdo(its:its+2,jts:jts+2),'pdoe=',pdo(ite-2:ite,jte-2:jte)
 !
 !-----------------------------------------------------------------------
 !***  Read from restart file: Real 3D arrays (only DYN)
 !-----------------------------------------------------------------------
-!       call mpi_barrier(mpi_comm_comp,ierr)
-        do l=1,lm
-          if(mype==0)then
-          call nemsio_readrecv(gfile,'vvel','mid layer',l,temp1,iret=ierr)
-          write(0,*)'in init restart,vvel=',maxval(temp1),minval(temp1)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            w(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,w,1,1,1,lm,l)
-        enddo
-        call halo_exch(w,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            call nemsio_readrecv(gfile,'dwdt','mid layer',l,temp1,iret=ierr)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            dwdt(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,dwdt,1,1,1,lm,l)
-        enddo
-        call halo_exch(dwdt,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm+1
-          if(mype==0)then
-            call nemsio_readrecv(gfile,'pres','layer',l,temp1,iret=ierr)
-          write(0,*)'in init restart,pres layer=',maxval(temp1),minval(temp1)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            pint(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,pint,1,1,1,lm+1,l)
-        enddo
-        call halo_exch(pint,lm+1,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            call nemsio_readrecv(gfile,'omgalf','mid layer',l,temp1,iret=ierr)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            omgalf(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,omgalf,1,1,1,lm,l)
-        enddo
-        call halo_exch(omgalf,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            call nemsio_readrecv(gfile,'o3mr','mid layer',l,temp1,iret=ierr)
-            write(0,*)'in init restart,o3 layer=',maxval(temp1),minval(temp1)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            o3(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,o3,1,1,1,lm,l)
-        enddo
-        call halo_exch(o3,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            call nemsio_readrecv(gfile,'div','mid layer',l,temp1,iret=ierr)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            div(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,div,1,1,1,lm,l)
-        enddo
-        call halo_exch(div,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            call nemsio_readrecv(gfile,'rtop','mid layer',l,temp1,iret=ierr)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            rtop(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,rtop,1,1,1,lm,l)
-        enddo
-        call halo_exch(rtop,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            call nemsio_readrecv(gfile,'tcu','mid layer',l,temp1,iret=ierr)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            tcu(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,tcu,1,1,1,lm,l)
-        enddo
-        call halo_exch(tcu,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            call nemsio_readrecv(gfile,'tcv','mid layer',l,temp1,iret=ierr)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            tcv(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,tcv,1,1,1,lm,l)
-        enddo
-        call halo_exch(tcv,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            call nemsio_readrecv(gfile,'tct','mid layer',l,temp1,iret=ierr)
-            write(0,*)'min,max tct=',minval(tct),maxval(tct)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            tct(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,tct,1,1,1,lm,l)
-        enddo
-        call halo_exch(tct,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            call nemsio_readrecv(gfile,'tp','mid layer',l,temp1,iret=ierr)
-          write(0,*)'in init restart,tp =',maxval(temp1),minval(temp1)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            tp(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,tp,1,1,1,lm,l)
-        enddo
-        call halo_exch(tp,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            call nemsio_readrecv(gfile,'up','mid layer',l,temp1,iret=ierr)
-          write(0,*)'in init restart,up =',maxval(temp1),minval(temp1)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            up(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,up,1,1,1,lm,l)
-        enddo
-        call halo_exch(up,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            call nemsio_readrecv(gfile,'vp','mid layer',l,temp1,iret=ierr)
-          write(0,*)'in init restart,vp =',maxval(temp1),minval(temp1)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            vp(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,vp,1,1,1,lm,l)
-        enddo
-        call halo_exch(vp,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            call nemsio_readrecv(gfile,'e2','mid layer',l,temp1,iret=ierr)
-          write(0,*)'in init restart,e2 =',maxval(temp1),minval(temp1)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            e2(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,e2,1,1,1,lm,l)
-        enddo
-        call halo_exch(e2,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            call nemsio_readrecv(gfile,'z','mid layer',l,temp1,iret=ierr)
-          write(0,*)'in init restart,z =',maxval(temp1),minval(temp1)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            z(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,z,1,1,1,lm,l)
-        enddo
-        call halo_exch(z,lm,2,2)
-!-----------------------------------------------------------------------
-        do n=1,indx_o3
-          do l=1,lm
-            if(mype==0)then
-              write(tn,'(I2.2)')n
-              call nemsio_readrecv(gfile,'tracers_prev_'//tn,'mid layer',l,temp1,iret=ierr)
-!             write(0,*)'get tracers_prev, name=','tracers_prev_'//tn,maxval(temp1),minval(temp1)
-            endif
-            do j=jms,jme
-            do i=ims,ime
-              sp(i,j,l,n)=0.
+!w
+      w=0.
+      do l=1,lm
+        call getrecn(recname,reclevtyp,reclev,nrec,'vvel','mid layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              w(i,j,l)=tmp(i-its+1+js+fldst)
             enddo
-            enddo
-            call dstrb(temp1,sp(:,:,:,n),1,1,1,lm,l)
           enddo
+        endif
+      enddo
+      call halo_exch(w,lm,2,2)
+!
+!-----------------------------------------------------------------------
+!-- dwdt
+      dwdt=0.
+      do l=1,lm
+        call getrecn(recname,reclevtyp,reclev,nrec,'dwdt','mid layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              dwdt(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+      enddo
+      call halo_exch(dwdt,lm,2,2)
+!-----------------------------------------------------------------------
+!-- pres
+      pint=0.
+      do l=1,lm+1
+        call getrecn(recname,reclevtyp,reclev,nrec,'pres','layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              pint(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+      enddo
+      call halo_exch(pint,lm+1,2,2)
+!-----------------------------------------------------------------------
+!-- omgalf
+      omgalf=0.
+      do l=1,lm
+        call getrecn(recname,reclevtyp,reclev,nrec,'omgalf','mid layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              omgalf(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+      enddo
+      call halo_exch(omgalf,lm,2,2)
+!-----------------------------------------------------------------------
+!-- o3mr
+      o3=0.
+      do l=1,lm
+        call getrecn(recname,reclevtyp,reclev,nrec,'o3mr','mid layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              o3(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+      enddo
+      call halo_exch(o3,lm,2,2)
+!-----------------------------------------------------------------------
+!-- div
+      div=0.
+      do l=1,lm
+        call getrecn(recname,reclevtyp,reclev,nrec,'div','mid layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              div(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+      enddo
+      call halo_exch(div,lm,2,2)
+!-----------------------------------------------------------------------
+!-- rtop
+      rtop=0.
+      do l=1,lm
+        call getrecn(recname,reclevtyp,reclev,nrec,'rtop','mid layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              rtop(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+      enddo
+      call halo_exch(rtop,lm,2,2)
+!-----------------------------------------------------------------------
+!-- tcu
+      tcu=0.
+      do l=1,lm
+        call getrecn(recname,reclevtyp,reclev,nrec,'tcu','mid layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              tcu(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+      enddo
+      call halo_exch(tcu,lm,2,2)
+!-----------------------------------------------------------------------
+!-- tcv
+      tcv=0.
+      do l=1,lm
+        call getrecn(recname,reclevtyp,reclev,nrec,'tcv','mid layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              tcv(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+      enddo
+      call halo_exch(tcv,lm,2,2)
+!-----------------------------------------------------------------------
+!-- tct
+      tct=0.
+      do l=1,lm
+        call getrecn(recname,reclevtyp,reclev,nrec,'tct','mid layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              tct(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+      enddo
+      call halo_exch(tct,lm,2,2)
+!-----------------------------------------------------------------------
+!--tp
+      tp=0.
+      do l=1,lm
+        call getrecn(recname,reclevtyp,reclev,nrec,'tp','mid layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              tp(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+      enddo
+      call halo_exch(tp,lm,2,2)
+!-----------------------------------------------------------------------
+!-- up
+      up=0.
+      do l=1,lm
+        call getrecn(recname,reclevtyp,reclev,nrec,'up','mid layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              up(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+      enddo
+      call halo_exch(up,lm,2,2)
+!-----------------------------------------------------------------------
+!-- vp
+      vp=0.
+      do l=1,lm
+        call getrecn(recname,reclevtyp,reclev,nrec,'vp','mid layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              vp(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+      enddo
+      call halo_exch(vp,lm,2,2)
+!-----------------------------------------------------------------------
+!-- e2
+      e2=0.
+      do l=1,lm
+        call getrecn(recname,reclevtyp,reclev,nrec,'e2','mid layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              e2(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+      enddo
+      call halo_exch(e2,lm,2,2)
+!-----------------------------------------------------------------------
+!-- z
+      z=0.
+      do l=1,lm
+        call getrecn(recname,reclevtyp,reclev,nrec,'z','mid layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              z(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+      enddo
+      call halo_exch(z,lm,2,2)
+!-----------------------------------------------------------------------
+!-- tracers
+      do n=1,indx_o3
+        sp(:,:,:,n)=0.
+        write(tn,'(I2.2)')n
+        do l=1,lm
+          call getrecn(recname,reclevtyp,reclev,nrec,'tracers_prev_'//tn,  &
+               'mid layer',l,recn)
+          if(recn/=0) then
+            fldst=(recn-1)*fldsize
+            do j=jts,jte
+              js=(j-jts)*(ite-its+1)
+              do i=its,ite
+                sp(i,j,l,n)=tmp(i-its+1+js+fldst)
+              enddo
+            enddo
+          endif
         enddo
-        call halo_exch(sp,lm,indx_o3,1,2,2)
+      enddo
+      call halo_exch(sp,lm,indx_o3,1,2,2)
+!
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !***  Read from restart file: Real 2D arrays (contd.)
 !-----------------------------------------------------------------------
 !
-        if(mype==0)then
-          call nemsio_readrecv(gfile,'sice','sfc',1,temp1,iret=ierr)
-          write(0,*)'in init restart,sice =',maxval(temp1),minval(temp1)
-        endif
-        do j=jms,jme
-        do i=ims,ime
-          sice(i,j)=0.
+!-- sice
+      sice=0.
+      call getrecn(recname,reclevtyp,reclev,nrec,'sice','sfc',1,recn)
+      if(recn/=0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            sice(i,j)=tmp(i-its+1+js+fldst)
+          enddo
         enddo
-        enddo
-        call dstrb(temp1,sice,1,1,1,1,1)
-        call halo_exch(sice,1,2,2)
+      endif
+      call halo_exch(sice,1,2,2)
 !-----------------------------------------------------------------------
-        if(mype==0)then
-          call nemsio_readrecv(gfile,'sm','sfc',1,temp1,iret=ierr)
-          write(0,*)'in init restart,sm =',maxval(temp1),minval(temp1)
-        endif
-        do j=jms,jme
-        do i=ims,ime
-          sm(i,j)=0.
+!-- sm
+      sm=0.
+      call getrecn(recname,reclevtyp,reclev,nrec,'sm','sfc',1,recn)
+      if(recn/=0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            sm(i,j)=tmp(i-its+1+js+fldst)
+          enddo
         enddo
-        enddo
-        call dstrb(temp1,sm,1,1,1,1,1)
-        call halo_exch(sm,1,2,2)
+      endif
+      call halo_exch(sm,1,2,2)
 !
 !-----------------------------------------------------------------------
 !***  Read from restart file: Real 3D arrays
 !-----------------------------------------------------------------------
 !
-        call mpi_barrier(mpi_comm_comp,ierr)
 !-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            call nemsio_readrecv(gfile,'clwmr','mid layer',l,temp1,iret=ierr)
-!            write(0,*)'in init restart,clwmr =',maxval(temp1),minval(temp1)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            cw(i,j,l)=0.
+!-- cw
+      cw=0.
+      do l=1,lm
+        call getrecn(recname,reclevtyp,reclev,nrec,'clwmr','mid layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              cw(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
           enddo
-          enddo
-          call dstrb(temp1,cw,1,1,1,lm,l)
-        enddo
-!        write(0,*)'in init restart after1,clwmr =',maxval(cw),minval(cw)
-        call halo_exch(cw,lm,2,2)
-!        write(0,*)'in init restart after2,clwmr =',maxval(cw),minval(cw)
+        endif
+      enddo
+      call halo_exch(cw,lm,2,2)
+!      write(0,*)'in init restart after2,clwmr =',maxval(cw),minval(cw)
 !-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            call nemsio_readrecv(gfile,'spfh','mid layer',l,temp1,iret=ierr)
-          write(0,*)'in init restart,spfh =',maxval(temp1),minval(temp1)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            q(i,j,l)=0.
+!-- spfh
+      q=0.
+      do l=1,lm
+        call getrecn(recname,reclevtyp,reclev,nrec,'spfh','mid layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              q(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
           enddo
-          enddo
-          call dstrb(temp1,q,1,1,1,lm,l)
-        enddo
-        call halo_exch(q,lm,2,2)
+        endif
+      enddo
+      call halo_exch(q,lm,2,2)
 !-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            call nemsio_readrecv(gfile,'q2','mid layer',l,temp1,iret=ierr)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            q2(i,j,l)=0.
+!-- q2
+      q2=0.
+      do l=1,lm
+        call getrecn(recname,reclevtyp,reclev,nrec,'q2','mid layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              q2(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
           enddo
-          enddo
-          call dstrb(temp1,q2,1,1,1,lm,l)
-        enddo
-        call halo_exch(q2,lm,2,2)
+        endif
+      enddo
+      call halo_exch(q2,lm,2,2)
 !-----------------------------------------------------------------------
+!-- t
+      t=0.
+      do l=1,lm
+        call getrecn(recname,reclevtyp,reclev,nrec,'tmp','mid layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              t(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+      enddo
+      call halo_exch(t,lm,2,2)
+!-----------------------------------------------------------------------
+!-- u
+      u=0.
+      do l=1,lm
+        call getrecn(recname,reclevtyp,reclev,nrec,'ugrd','mid layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              u(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+      enddo
+      call halo_exch(u,lm,2,2)
+!-----------------------------------------------------------------------
+!-- v
+      v=0.
+      do l=1,lm
+        call getrecn(recname,reclevtyp,reclev,nrec,'vgrd','mid layer',l,recn)
+        if(recn/=0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              v(i,j,l)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+      enddo
+      call halo_exch(v,lm,2,2)
+!-----------------------------------------------------------------------
+!-- rest of tracers
+      tracers(:,:,:,indx_o3+1:num_tracers_total)=0.
+      do n=indx_o3+1,num_tracers_total                                     !<-- The first 'indx_o3' arrays are unallocated pointers
+        write(tn,'(I2.2)')n
         do l=1,lm
-          if(mype==0)then
-            call nemsio_readrecv(gfile,'tmp','mid layer',l,temp1,iret=ierr)
-!          write(0,*)'in init restart,tmp =',maxval(temp1),minval(temp1)
-            write(0,*) 'L, T extremes: ', L, minval(temp1),maxval(temp1)
+          call getrecn(recname,reclevtyp,reclev,nrec,'tracers_'//tn,     &
+                       'mid layer',l,recn)
+          if(recn/=0) then
+            fldst=(recn-1)*fldsize
+            do j=jts,jte
+              js=(j-jts)*(ite-its+1)
+              do i=its,ite
+                tracers(i,j,l,n)=tmp(i-its+1+js+fldst)
+              enddo
+            enddo
           endif
-          do j=jms,jme
-          do i=ims,ime
-            t(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,t,1,1,1,lm,l)
         enddo
-        call halo_exch(t,lm,2,2)
+      enddo
+      call halo_exch(tracers,lm,num_tracers_total,1,2,2)
+!
+      do n=1,num_water
+      do l=1,lm
+        do j=jms,jme
+        do i=ims,ime
+          water(i,j,l,n)=tracers(i,j,l,n+num_tracers_total-num_water)
+        enddo
+        enddo
+      enddo
+      enddo
 !
 !-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            call nemsio_readrecv(gfile,'ugrd','mid layer',l,temp1,iret=ierr)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            u(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,u,1,1,1,lm,l)
-        enddo
-        call halo_exch(u,lm,2,2)
 !
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            call nemsio_readrecv(gfile,'vgrd','mid layer',l,temp1,iret=ierr)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            v(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,v,1,1,1,lm,l)
-        enddo
-        call halo_exch(v,lm,2,2)
+       call nemsio_close(gfile,iret=ierr)
 !
-!-----------------------------------------------------------------------
-        do n=indx_o3+1,num_tracers_total                                     !<-- The first 'indx_o3' arrays are unallocated pointers
-        do l=1,lm
-          if(mype==0)then
-            write(tn,'(I2.2)')n
-            call nemsio_readrecv(gfile,'tracers_'//tn,'mid layer',l,temp1,iret=ierr)
-!            write(0,*)'get tracer, name=','tracers_'//tn,maxval(temp1),minval(temp1)
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            tracers(i,j,l,n)=0.
-          enddo
-          enddo
-          call dstrb(temp1,tracers(:,:,:,n),1,1,1,lm,l)
-        enddo
-        enddo
-        call halo_exch(tracers,lm,num_tracers_total,1,2,2)
-!
-        do n=1,num_water
-        do l=1,lm
-          do j=jms,jme
-          do i=ims,ime
-            water(i,j,l,n)=tracers(i,j,l,n+num_tracers_total-num_water)
-          enddo
-          enddo
-        enddo
-        enddo
-!
-!-----------------------------------------------------------------------
-!
-        call nemsio_close(gfile,iret=ierr)
+       call mpi_barrier(mpi_comm_comp,ierr)
 !
 !-----------------------------------------------------------------------
         ntsti=ntsd+1
@@ -1203,7 +1342,10 @@ ihrend &                    ! maximum forecast length, hours
       endif  read_blocks                        ! cold start /restart
 !-----------------------------------------------------------------------
 !
-      deallocate(temp1)
+      etime=timef()
+      write(0,*)'restart=',restart,'DYNAMICS_INIT_READ_NEMSIO=',etime-stime
+!
+      deallocate(tmp)
       deallocate(stdh)
       if(mype==0)then
         write(0,*)' EXIT SUBROUTINE INIT pt=',pt
@@ -1211,6 +1353,45 @@ ihrend &                    ! maximum forecast length, hours
 !-----------------------------------------------------------------------
 !
       end subroutine dynamics_read_nemsio
+!
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE getrecn(recname,reclevtyp,reclev,nrec,fldname,          &
+                         fldlevtyp,fldlev,recn)
+!-----------------------------------------------------------------------
+!-- this subroutine searches the field list to find out a specific field,
+!-- and return the field number for that field
+!-----------------------------------------------------------------------
+!
+        implicit none
+!
+        integer,intent(in)      :: nrec
+        character(*),intent(in) :: recname(nrec)
+        character(*),intent(in) :: reclevtyp(nrec)
+        integer,intent(in)      :: reclev(nrec)
+        character(*),intent(in) :: fldname
+        character(*),intent(in) :: fldlevtyp
+        integer,intent(in)      :: fldlev
+        integer,intent(out)     :: recn
+!
+        integer i
+!
+        recn=0
+        do i=1,nrec
+          if(trim(recname(i))==trim(fldname).and.                        &
+            trim(reclevtyp(i))==trim(fldlevtyp) .and.                    &
+            reclev(i)==fldlev) then
+            recn=i
+            return
+          endif
+        enddo
+!
+        if(recn==0) print *,'WARNING: field ',trim(fldname),' ',         &
+          trim(fldlevtyp),' ',fldlev,' is not in the nemsio file!'
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE getrecn
 !
 !-----------------------------------------------------------------------
 !

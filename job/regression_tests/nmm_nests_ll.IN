@@ -24,7 +24,7 @@ set -x
 export BIND_TASKS=yes
 export MP_EAGER_LIMIT=65536
 export MP_SHARED_MEMORY=yes
-export MP_SINGLE_THREAD=yes
+#export MP_SINGLE_THREAD=yes
 export TARGET_CPU_RANGE=-1
 export OMP_MAX_THREADS=_THRD_
 export MP_LABELIO=yes
