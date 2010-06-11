@@ -502,7 +502,6 @@
       ALLOCATE(int_state%LPBL(IMS:IME,JMS:JME))     ! Model layer containing top of the PBL
       ALLOCATE(int_state%DDATA(IMS:IME,JMS:JME))    ! Observed precip to each physics timestep (kg m-2)
       ALLOCATE(int_state%MAVAIL(IMS:IME,JMS:JME))   ! Moisture availability
-      ALLOCATE(int_state%MIXHT(IMS:IME,JMS:JME))    ! Mixed layer height  (m)
       ALLOCATE(int_state%QCG(IMS:IME,JMS:JME))      ! Cloud water mixing ratio at the surface  (kg kg-1)
       ALLOCATE(int_state%QSG(IMS:IME,JMS:JME))      ! Surface saturation water vapor mixing ratio  (kg kg-1)
       ALLOCATE(int_state%QVG(IMS:IME,JMS:JME))      ! Water vapor mixing ratio at the surface  (kg kg-1)
@@ -723,6 +722,7 @@
       DO J=JMS,JME
       DO I=IMS,IME
         int_state%Q2(I,J,L)=0.02
+        int_state%OMGALF(I,J,L)=0.
         int_state%T(I,J,L)=-1.E6
         int_state%U(I,J,L)=-1.E6
         int_state%V(I,J,L)=-1.E6
@@ -820,7 +820,7 @@
         int_state%MAVAIL(I,J)  = 1.
         int_state%MXSNAL(I,J)  =-1.E6
         int_state%PBLH(I,J)    =-1.E6
-        int_state%MIXHT(I,J)   =-1.E6
+        int_state%MIXHT(I,J)   =0.
         int_state%PD(I,J)      =-1.E6
         int_state%POTEVP(I,J)  = 0.
         int_state%POTFLX(I,J)  =-1.E6
@@ -852,14 +852,14 @@
         int_state%SNO(I,J)     = 0.
         int_state%SNOPCX(I,J)  =-1.E6
         int_state%SOILT1(I,J)  =-1.E6
-        int_state%SOILTB(I,J)  =-1.E6
+        int_state%SOILTB(I,J)  = 273.
         int_state%SR(I,J)      =-1.E6
         int_state%SSROFF(I,J)  = 0.
-        int_state%SST(I,J)     =-1.E6
+        int_state%SST(I,J)     = 273.
         int_state%STDH(I,J)    =-1.E6 !zj
         int_state%SUBSHX(I,J)  =-1.E6
         int_state%THS(I,J)     =-1.E6
-        int_state%THZ0(I,J)    = 0.
+        int_state%THZ0(I,J)    = 273.
         int_state%TSKIN(I,J)   =-1.E6
         int_state%TSNAV(I,J)   =-1.E6
         int_state%TWBS(I,J)    =-1.E6
@@ -893,16 +893,16 @@
         int_state%ACPREC(I,J)= 0.
         int_state%CUPREC(I,J)= 0.
         int_state%PREC(I,J)  = 0.
-        int_state%CLDEFI(I,J)=-1.E6
-        int_state%PSHLTR(I,J)=-1.E6
-        int_state%PSFC(I,J)  =-1.E6
+        int_state%CLDEFI(I,J)= 0.
+        int_state%PSHLTR(I,J)= 1.E5
+        int_state%PSFC(I,J)  = 1.E5
         int_state%Q02(I,J)   = 0.
         int_state%Q10(I,J)   = 0.
         int_state%QSHLTR(I,J)= 0.
         int_state%T2(I,J)    = 0.
         int_state%TH02(I,J)  = 0.
-        int_state%TH10(I,J)  = 0.
-        int_state%TSHLTR(I,J)= 0.
+        int_state%TH10(I,J)  = 273.
+        int_state%TSHLTR(I,J)= 273.
         int_state%U10(I,J)   = 0.
         int_state%V10(I,J)   = 0.
         int_state%TLMIN(I,J) = 0.
@@ -1011,6 +1011,7 @@
       CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'HBOTS'      ,int_state%HBOTS    ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'HTOPD'      ,int_state%HTOPD    ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'HTOPS'      ,int_state%HTOPS    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'MIXHT'      ,int_state%MIXHT    ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'MXSNAL'     ,int_state%MXSNAL   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'PBLH'       ,int_state%PBLH     ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'PD'         ,int_state%PD       ,(/ IMS,JMS /),(/ IME,JME /) )

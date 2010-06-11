@@ -99,7 +99,7 @@
                       ,TWBS,QWBS,SFCSHX,SFCLHX,SFCEVP                   &
                       ,POTEVP,POTFLX,SUBSHX                             &
                       ,APHTIM,ARDSW,ARDLW,ASRFC                         &
-                      ,CROT,SROT                                        &
+                      ,CROT,SROT,MIXHT                                  &
                       ,HSTDV,HCNVX,HASYW,HASYS,HASYSW,HASYNW,HLENW      &
                       ,HLENS,HLENSW,HLENNW,HANGL,HANIS,HSLOP,HZMAX      &
                       ,RSWOUT,RSWTOA,RLWTOA                             &
@@ -221,7 +221,7 @@
                                                     ,ASWOUT,ASWTOA      &
                                                     ,PSHLTR,Q10,QSHLTR  &
                                                     ,TH10,TSHLTR        &
-                                                    ,U10,V10
+                                                    ,U10,V10,MIXHT
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: CWM         &
                                                            ,EXCH_H      &
@@ -999,7 +999,7 @@
                          ,XLAND=XLAND,SICE=SICE,SNOW=SNOW               &
                          ,TKE=TKE,EXCH_H=EXCH_H,USTAR=USTAR,Z0=Z0       &
                          ,EL_MYJ=XLEN_MIX,PBLH=PBLH,KPBL=KPBL,CT=CT     &
-                         ,AKHS=AKHS,AKMS=AKMS,ELFLX=ELFLX               &
+                         ,AKHS=AKHS,AKMS=AKMS,ELFLX=ELFLX,MIXHT=MIXHT   &
                          ,RUBLTEN=DUDT_PHY                              &
                          ,RVBLTEN=DVDT_PHY                              &
                          ,RTHBLTEN=RTHBLTEN                             &

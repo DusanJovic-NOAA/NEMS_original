@@ -135,7 +135,7 @@
      &                 ,TSK,QSFC,CHKLOWQ,THZ0,QZ0,UZ0,VZ0              &
      &                 ,XLAND,SICE,SNOW                                &
      &                 ,TKE,EXCH_H,USTAR,Z0,EL_MYJ,PBLH,KPBL,CT        &
-     &                 ,AKHS,AKMS,ELFLX                                &
+     &                 ,AKHS,AKMS,ELFLX,MIXHT                          &
      &                 ,RUBLTEN,RVBLTEN,RTHBLTEN,RQVBLTEN,RQCBLTEN     &
      &                 ,IDS,IDE,JDS,JDE,KDS,KDE                        &
      &                 ,IMS,IME,JMS,JME,KMS,KME                        &
@@ -164,7 +164,7 @@
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME),INTENT(IN) :: QV,CWM,U,V,T,TH
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: PBLH
+      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: PBLH,MIXHT
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: AKHS,AKMS
 !
@@ -343,7 +343,7 @@
 !***
           CALL MIXLEN(LMH,UK,VK,TK,THEK,QK,CWMK                        &
      &               ,Q2K,ZHK,GM,GH,EL                                 &
-     &               ,PBLH(I,J),LPBL(I,J),LMXL,CT(I,J)                 &
+     &               ,PBLH(I,J),LPBL(I,J),LMXL,CT(I,J),MIXHT(I,J)      &
      &               ,IDS,IDE,JDS,JDE,KDS,KDE                          &
      &               ,IMS,IME,JMS,JME,KMS,KME                          &
      &               ,ITS,ITE,JTS,JTE,KTS,KTE,I,J)
@@ -638,7 +638,7 @@
 !   *                                                                *
 !   ******************************************************************
 !
-     &(LMH,U,V,T,THE,Q,CWM,Q2,Z,GM,GH,EL,PBLH,LPBL,LMXL,CT             &
+     &(LMH,U,V,T,THE,Q,CWM,Q2,Z,GM,GH,EL,PBLH,LPBL,LMXL,CT,MIXHT       &
      &,IDS,IDE,JDS,JDE,KDS,KDE                                         &
      &,IMS,IME,JMS,JME,KMS,KME                                         &
      &,ITS,ITE,JTS,JTE,KTS,KTE,I,J)
@@ -659,7 +659,7 @@
 !
       REAL,DIMENSION(KTS:KTE+1),INTENT(IN) :: Z
 !
-      REAL,INTENT(OUT) :: PBLH
+      REAL,INTENT(OUT) :: PBLH,MIXHT
 !
       REAL,DIMENSION(KTS:KTE-1),INTENT(OUT) :: EL,GH,GM
 !
@@ -769,6 +769,7 @@
 !----------------------------------------------------------------------
 !
       BLMX=Z(LMXL)-Z(LMH+1)
+      MIXHT=BLMX
 !
 !----------------------------------------------------------------------
       DO K=LPBL,LMH

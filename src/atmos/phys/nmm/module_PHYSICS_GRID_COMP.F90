@@ -1397,7 +1397,7 @@
                     ,int_state%APHTIM                                   &
                     ,int_state%ARDSW,int_state%ARDLW                    &
                     ,int_state%ASRFC                                    &
-                    ,int_state%CROT,int_state%SROT                      &
+                    ,int_state%CROT,int_state%SROT,int_state%MIXHT      &
                     ,int_state%HSTDV,int_state%HCNVX,int_state%HASYW    &
                     ,int_state%HASYS,int_state%HASYSW,int_state%HASYNW  &
                     ,int_state%HLENW,int_state%HLENS,int_state%HLENSW   &

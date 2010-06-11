@@ -75,6 +75,7 @@
 'HBOTS'      H       R       O      -      -   T  'Bottom model layer of shallow convective cloud for output'
 'HTOPD'      H       R       O      -      -   T  'Top model layer of deep convective cloud for output'
 'HTOPS'      H       R       O      -      -   T  'Top model layer of shallow convective cloud for output'
+'MIXHT'      H       -       O      -      -   -  'Mixed layer height  (m)'
 'MXSNAL'     H       R       O      -      -   T  'Maximum deep snow albedo'
 'PBLH'       H       R       O      -      -   T  'PBL height  (m)'
 'PD'         -       -       -      I      -   T  'Mass in the sigma domain  (Pa)'
