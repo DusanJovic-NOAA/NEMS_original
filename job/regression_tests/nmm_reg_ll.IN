@@ -51,6 +51,7 @@ cp _RTPWD_/data/* .
 _GS_cp _RTPWD_/NMMB_reg/global_* .
 _CPPCP_cp _RTPWD_/NMMB_reg/fort.4* .
 
+cp $SRCDIR/job/regression_tests/atmos.configure_nmm atmos.configure
 cp $SRCDIR/job/regression_tests/configure_file .
 cp configure_file configure_file_01
 

@@ -1,0 +1,69 @@
+#!/bin/ksh
+#
+#@ output = out
+#@ error = err
+#@ job_type = parallel
+#@ job_name = NEMS_NMMB_REG
+#@ task_affinity = core(1)
+#@ node_usage = not_shared
+#@ tasks_per_node = 32
+#@ node = 1
+#@ node_resources= ConsumableMemory(110GB)
+#@ task_affinity=core(1)
+#@ class = dev
+#@ group = dev
+#@ wall_clock_limit = 00:15:00
+#@ parallel_threads = 1
+#@ preferences = Feature == "dev"
+#@ network.MPI = sn_all,not_shared,us
+#@ account_no=NAM-T2O
+#@ queue
+#
+set -x
+#
+export BIND_TASKS=yes
+export MP_EAGER_LIMIT=65536
+export MP_SHARED_MEMORY=yes
+export MP_SINGLE_THREAD=yes
+export TARGET_CPU_RANGE=-1
+export OMP_MAX_THREADS=1
+export MP_LABELIO=yes
+export MP_STDOUTMODE=ordered
+export MP_COREFILE_FORMAT=core.txt
+export TARGET_CPU_RANGE="-1"
+export XLSMPOPTS=parthds=1:spins=0:yields=0:stack=128000000:schedule=static
+export AIXTHREAD_SCOPE=S
+
+RUNDIR=/ptmp/${LOGIN}/test
+SRCDIR=/meso/save/${LOGIN}/trunk
+
+mkdir -p $RUNDIR
+cd $RUNDIR
+rm -rf $RUNDIR/*
+
+cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg/input_nmmb_regional.d01         input_domain_01
+cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg/input_nmmb_regional.d01_nemsio  input_domain_01_nemsio
+cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg/nmm_b_restart.024               restart_file_01
+cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg/nmm_b_restart_nemsio.024        restart_file_01_nemsio
+cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg/GWD.bin                         GWD.bin
+cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg/boco.* .
+cp /meso/noscrub/wx20rv/REGRESSION_TEST/data/* .
+
+cp $SRCDIR/job/configfile_regional_new configure_file
+cp configure_file configure_file_01
+
+ln -sf /nwprod/fix/global_o3prdlos.f77 fort.28
+ln -sf /nwprod/fix/global_o3clim.txt fort.48
+
+cp $SRCDIR/job/regression_tests/atmos.configure_nmm  atmos.configure
+cp $SRCDIR/job/regression_tests/dyn_state.txt .
+cp $SRCDIR/job/regression_tests/phy_state.txt .
+
+echo "Model started:  " `date`
+
+LDR_CNTRL=DATAPSIZE=64K@TEXTPSIZE=64K@STACKPSIZE=64K \
+poe $SRCDIR/exe/NMM_NEMS.x
+
+echo "Model ended:    " `date`
+
+exit

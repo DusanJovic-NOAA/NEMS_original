@@ -1,0 +1,4 @@
+module_ERR_MSG.o : 
+module_INCLUDE.o : kind.inc 
+module_CONSTANTS.o : module_INCLUDE.o 
+module_NEMSIO_MPI.o : 

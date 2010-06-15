@@ -63,17 +63,19 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
 # Copy init files
 ####################################################################################################
 
+cp atmos.configure_gfs ${RUNDIR}/atmos.configure
 cp MAPL.rc ${RUNDIR}/MAPL.rc
 cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
 if [ $GOCART = 1 ] ; then
- cp DU_GridComp.rc ${RUNDIR}/DU_GridComp.rc
- cp BC_GridComp.rc ${RUNDIR}/BC_GridComp.rc
- cp OC_GridComp.rc ${RUNDIR}/OC_GridComp.rc
- cp OC_GridComp---full.rc ${RUNDIR}/OC_GridComp---full.rc
- cp SU_GridComp.rc ${RUNDIR}/SU_GridComp.rc
- cp SS_GridComp.rc ${RUNDIR}/SS_GridComp.rc
- cp Aod-550nm_Registry.rc ${RUNDIR}/Aod-550nm_Registry.rc
  export EXTDIR=/global/save/wx23lu/NEMS/fix
+ export RCDIR=/global/save/wx23lu/NEMS/Chem_Registry
+ cp $RCDIR/DU_GridComp.rc ${RUNDIR}/DU_GridComp.rc
+ cp $RCDIR/BC_GridComp.rc ${RUNDIR}/BC_GridComp.rc
+ cp $RCDIR/OC_GridComp.rc ${RUNDIR}/OC_GridComp.rc
+ cp $RCDIR/OC_GridComp---full.rc ${RUNDIR}/OC_GridComp---full.rc
+ cp $RCDIR/SU_GridComp.rc ${RUNDIR}/SU_GridComp.rc
+ cp $RCDIR/SS_GridComp.rc ${RUNDIR}/SS_GridComp.rc
+ cp $RCDIR/Aod-550nm_Registry.rc ${RUNDIR}/Aod-550nm_Registry.rc
  cp -r  ${EXTDIR}/ExtData ${RUNDIR}/.
 fi
 
@@ -110,6 +112,7 @@ cat gfs_fcst_run_GEFS.IN \
                     | sed s:_RUNDIR_:${RUNDIR}:g > gfs_fcst_run
 
 cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
+cp atmos.configure_gfs ${RUNDIR}/atmos.configure
 
 fi
 

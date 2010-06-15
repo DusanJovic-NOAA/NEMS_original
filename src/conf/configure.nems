@@ -1,0 +1,40 @@
+SHELL     = /bin/sh
+
+include /meso/save/wx20rv/ESMF_libs/esmf_3_1_0rp2/lib/libO/AIX.default.64.mpi.default/esmf.mk
+
+ESMF_INC  = $(ESMF_F90COMPILEPATHS)
+ESMF_LIBS = $(ESMF_F90LINKPATHS) $(ESMF_F90ESMFLINKLIBS)
+
+EXTLIBS   = $(ESMF_LIBS) -L/climate/save/wx20wa/gfsio/bacio -lbacio_4 -L/nwprod/lib -lw3_d -lsp_d -lessl_r -lmass
+
+FC        = mpxlf95_r 
+FREE      = -qfree=f90
+FIXED     = -qfixed
+R8        = -qrealsize=8
+
+SMP       = -qsmp=omp
+MAF       = -qfloat=nomaf
+LIST      = -qsource -qlist
+FINCS     = $(ESMF_INC)
+#TRAPS     = -qinitauto=FF911299 -qflttrap=ov:zero:en -qsigtrap -C
+TRAPS     = 
+
+FFLAGS    = $(TRAPS) $(FINCS)
+
+OPTS_NMM  = -O3 -qstrict -qmaxmem=-1 -qarch=auto -qtune=auto -NS2000
+OPTS_GFS  = -O2 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave -NS2048 -qsuffix=cpp=f
+OPTS_FIM  = -O0
+
+FFLAGS_NMM= $(OPTS_NMM) $(FFLAGS)
+FFLAGS_GFS= $(OPTS_GFS) $(FFLAGS)
+FFLAGS_FIM= $(OPTS_FIM) $(FFLAGS)
+
+CPP       = /lib/cpp -P
+CPPFLAGS  = -DENABLE_SMP -DIBM
+
+AR        = ar
+ARFLAGS   = -r
+
+RM        = rm
+
+MAKEDEPF90 = /u/wx20du/bin/makedepf90

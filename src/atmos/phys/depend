@@ -1,0 +1,25 @@
+module_LS_LISS.o : 
+module_LS_NOAHLSM.o : module_SF_URBAN.o 
+module_BL_MYJPBL.o : 
+module_CU_BMJ.o : 
+module_CU_BMJ_DEV.o : 
+module_MP_ETANEW.o : 
+module_RA_GFDL.o : module_MP_ETANEW.o 
+module_RA_RRTM.o : module_MP_ETANEW.o resol_def.o radiation_astronomy.o grrad.o 
+module_SF_JSFC.o : 
+resol_def.o : machine.o 
+radiation_astronomy.o : iounitdef.o physcons_v.o machine.o 
+radiation_gases.o : iounitdef.o physcons_v.o funcphys_v.o machine.o 
+radiation_surface.o : iounitdef.o physcons_v.o machine.o 
+module_bfmicrophysics.o : module_MP_ETANEW.o physcons_v.o funcphys_v.o machine.o 
+radiation_clouds.o : iounitdef.o module_bfmicrophysics.o physcons_v.o machine.o 
+radiation_aerosols.o : radlw_param.o radlw_param.o radsw_param.o iounitdef.o physcons_v.o machine.o 
+radlw_param.o : machine.o 
+radlw_main.o : radlw_datatb.o radlw_datatb.o radlw_datatb.o radlw_datatb.o radlw_datatb.o radlw_datatb.o radlw_datatb.o radlw_datatb.o radlw_datatb.o radlw_datatb.o radlw_datatb.o radlw_datatb.o radlw_datatb.o radlw_datatb.o radlw_datatb.o radlw_datatb.o radlw_datatb.o radlw_datatb.o radlw_param.o radlw_param.o physcons_v.o machine.o 
+radlw_datatb.o : radlw_param.o machine.o 
+grrad.o : radlw_main.o radlw_param.o radlw_param.o radsw_main.o radsw_param.o radsw_param.o radiation_clouds.o radiation_surface.o radiation_aerosols.o radiation_gases.o radiation_astronomy.o funcphys_v.o physcons_v.o machine.o 
+radsw_param.o : machine.o 
+radsw_main.o : radsw_datatb.o radsw_datatb.o radsw_datatb.o radsw_datatb.o radsw_datatb.o radsw_datatb.o radsw_datatb.o radsw_datatb.o radsw_datatb.o radsw_datatb.o radsw_datatb.o radsw_datatb.o radsw_datatb.o radsw_datatb.o radsw_datatb.o radsw_datatb.o radsw_param.o radsw_param.o physcons_v.o machine.o 
+radsw_datatb.o : radsw_param.o machine.o 
+physcons_v.o : machine.o 
+funcphys_v.o : physcons_v.o machine.o 

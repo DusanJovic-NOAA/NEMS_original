@@ -1,75 +1,37 @@
-################################################################################
-# 
-#     Makefile for Global NMM Model 
-#
-#     Use:
-#     make         -  build the executable
-#     make clean   -  start with a clean slate
-#
-#     The following macros will be of interest:
-#
-#         FC       - name of Fortran compiler
-#         CPP      - name of CPP
-#         ARCH     - architecture
-#         CPPFLAGS - CPP flags
-#         OPTS     - compiler code optimizations
-#         LIST     - source listing
-#         SMP      - threading
-#         TRAPS    - runtime traps for floating point exceptions
-#         PROFILE  - source code profiling ( -pg )
-#         DEBUG    - -g
-#         MEM      - user data area and stack size
-#         MAP      - load map
-#         W3LIB    - w3lib
-#         ESSL     - ESSL library
-#         MASS     - MASS library
-#         TRACE    - MPI tracing
-#
-#################################################################################
-#
-# Define the name of the executable
-#
-#
-include ../../../build/compile_settings
+include ../../conf/configure.nems
+
 MAKEFILE = makefile
-TARGET = share.a
- 
-MODULES=	\
-		module_NEMSIO.o \
-		module_NEMSIO_MPI.o \
-		module_INCLUDE.o \
-		module_ERR_MSG.o 
+
+LIBRARY  = libshare.a
+
+MODULES  = module_ERR_MSG.o \
+           module_INCLUDE.o \
+           module_CONSTANTS.o \
+           module_NEMSIO.o \
+           module_NEMSIO_MPI.o
 
 MODULES_f90 = ${MODULES:.o=.f90}
 
-.SUFFIXES:	.F90 .f90 .o
+.SUFFIXES:
+.SUFFIXES: .F90 .f90 .o
 
 .F90.f90:
 	$(CPP) $(CPPFLAGS) $< > $*.f90
 
 default:
-	@gmake -f $(MAKEFILE) all
+	@gmake -f $(MAKEFILE) $(LIBRARY)
 
-all: $(LIBDIR)/lib/$(TARGET)
+$(LIBRARY): depend $(MODULES)
+	$(AR) $(ARFLAGS) $@ $(MODULES)
 
-$(LIBDIR)/lib/$(TARGET): $(MODULES) 
-	$(AR) $(ARFLAGS) $@ $?
+$(MODULES): %.o: %.f90
+	$(FC) $(FFLAGS) $(UTILINCS) -c $*.f90
 
-$(MODULES): %.o: %.f90	$(DEPS)
-	$(F90) $(FFLAG_NMM_UTIL) -c $*.f90
+depend: $(MODULES_f90)
+	$(MAKEDEPF90) -nosrc $^ > depend
 
-depend: $(MODULES_f90) 
-	$(MAKEDEPEXEC)
-
-clean:	
-	/bin/rm -f  $(LIBDIR)/lib/$(TARGET) 
-	/bin/rm -f  *.f90 
-	/bin/rm -f  *.lst 
-	/bin/rm -f  *.o 
-	/bin/rm -f  *.mod 
-	/bin/rm -f  lm 
-	/bin/rm -f  map
-	/bin/rm -f depend
+clean:
+	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst lm map
 
 #
 # DEPENDENCIES :

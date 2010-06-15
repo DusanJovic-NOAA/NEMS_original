@@ -1,0 +1,43 @@
+module_CLOCKTIMES.o : 
+module_CONTROL.o : module_EXCHANGE.o module_DM_PARALLEL.o 
+module_DIAGNOSE.o : 
+module_DIGITAL_FILTER_NMM.o : module_DM_PARALLEL.o 
+module_DM_PARALLEL.o : 
+module_DOMAIN_GRID_COMP.o : module_NMM_INTEGRATE.o module_DIGITAL_FILTER_NMM.o module_WRITE_GRID_COMP.o module_WRITE_ROUTINES.o module_NESTING.o module_NMM_CORE_SETUP.o module_CLOCKTIMES.o module_DIAGNOSE.o module_CONTROL.o module_GET_CONFIG_WRITE.o module_GET_CONFIG_PHY.o module_GET_CONFIG_DYN.o module_DYN_PHY_CPL_COMP.o module_PHYSICS_GRID_COMP.o module_DM_PARALLEL.o module_DYNAMICS_GRID_COMP.o module_DOMAIN_INTERNAL_STATE.o 
+module_DOMAIN_INTERNAL_STATE.o : 
+module_DYNAMICS_GRID_COMP.o : module_EXCHANGE.o module_DYNAMICS_ROUTINES.o module_FLTBNDS.o module_DYNAMICS_INIT_READ_NEMSIO.o module_DYNAMICS_INIT_READ_BIN.o module_CLOCKTIMES.o module_DYNAMICS_OUTPUT.o module_DIAGNOSE.o module_CONTROL.o module_GET_CONFIG_DYN.o module_DM_PARALLEL.o module_DYNAMICS_INTERNAL_STATE.o module_VARS_STATE.o 
+module_DYNAMICS_INIT_READ_BIN.o : module_EXCHANGE.o module_DM_PARALLEL.o 
+module_DYNAMICS_INIT_READ_NEMSIO.o : module_EXCHANGE.o module_DM_PARALLEL.o 
+module_DYNAMICS_OUTPUT.o : module_VARS_STATE.o module_VARS.o module_DYNAMICS_INTERNAL_STATE.o 
+module_DYN_PHY_CPL_COMP.o : ../../../inc/kind.inc module_CLOCKTIMES.o module_CONTROL.o module_DYN_PHY_CPL_DATA.o module_DM_PARALLEL.o 
+module_DYN_PHY_CPL_DATA.o : 
+module_EXCHANGE.o : module_DM_PARALLEL.o 
+module_GET_CONFIG_DYN.o : module_DYNAMICS_INTERNAL_STATE.o 
+module_GET_CONFIG_PHY.o : module_PHYSICS_INTERNAL_STATE.o 
+module_GET_CONFIG_WRITE.o : module_WRITE_INTERNAL_STATE.o 
+module_H_TO_V.o : module_DM_PARALLEL.o 
+module_NESTING.o : module_PHYSICS_INTERNAL_STATE.o module_DYNAMICS_INTERNAL_STATE.o 
+module_NMM_CORE_SETUP.o : ../../../inc/kind.inc module_DM_PARALLEL.o module_DOMAIN_INTERNAL_STATE.o module_GET_CONFIG_WRITE.o module_GET_CONFIG_PHY.o module_GET_CONFIG_DYN.o module_DYNAMICS_INTERNAL_STATE.o 
+module_NMM_GRID_COMP.o : module_CONTROL.o module_PARENT_CHILD_CPL_COMP.o module_NESTING.o module_NMM_INTEGRATE.o module_DOMAIN_GRID_COMP.o module_NMM_INTERNAL_STATE.o 
+module_NMM_INTEGRATE.o : ../../../inc/kind.inc module_TIMESERIES.o module_PHYSICS_INTERNAL_STATE.o module_DYNAMICS_INTERNAL_STATE.o module_CONTROL.o module_NESTING.o module_WRITE_ROUTINES.o module_DOMAIN_INTERNAL_STATE.o module_CLOCKTIMES.o 
+module_NMM_INTERNAL_STATE.o : 
+module_PARENT_CHILD_CPL_COMP.o : module_CONTROL.o 
+module_PHYSICS_GRID_COMP.o : module_PHYSICS_INIT_READ_NEMSIO.o module_PHYSICS_INIT_READ_BIN.o module_CLOCKTIMES.o module_PHYSICS_OUTPUT.o module_DIAGNOSE.o module_EXCHANGE.o module_PRECIP_ADJUST.o module_GWD.o module_H_TO_V.o module_MICROPHYSICS.o module_CONVECTION_DEV.o module_CONVECTION.o module_TURBULENCE.o module_RADIATION.o module_FLTBNDS.o module_GET_CONFIG_PHY.o module_CONTROL.o module_DM_PARALLEL.o module_PHYSICS_INTERNAL_STATE.o module_VARS_STATE.o 
+module_PHYSICS_INIT_READ_BIN.o : module_EXCHANGE.o module_MICROPHYSICS.o module_DM_PARALLEL.o module_PHYSICS_INTERNAL_STATE.o 
+module_PHYSICS_INIT_READ_NEMSIO.o : module_EXCHANGE.o module_MICROPHYSICS.o module_DM_PARALLEL.o module_PHYSICS_INTERNAL_STATE.o 
+module_PHYSICS_OUTPUT.o : module_VARS_STATE.o module_VARS.o module_PHYSICS_INTERNAL_STATE.o 
+module_PRECIP_ADJUST.o : module_DM_PARALLEL.o 
+module_TIMESERIES.o : module_PHYSICS_INTERNAL_STATE.o module_DYNAMICS_INTERNAL_STATE.o module_VARS.o module_DM_PARALLEL.o 
+module_VARS_STATE.o : module_VARS.o 
+module_WRITE_GRID_COMP.o : module_DOMAIN_INTERNAL_STATE.o module_BGRID_INTERP.o module_GET_CONFIG_WRITE.o module_CONTROL.o module_DM_PARALLEL.o module_WRITE_ROUTINES.o module_WRITE_INTERNAL_STATE.o 
+module_WRITE_INTERNAL_STATE.o : 
+module_WRITE_ROUTINES.o : module_CONTROL.o module_DM_PARALLEL.o module_DOMAIN_INTERNAL_STATE.o module_WRITE_INTERNAL_STATE.o 
+module_CONVECTION.o : module_CONTROL.o module_DM_PARALLEL.o 
+module_CONVECTION_DEV.o : module_CONTROL.o module_DM_PARALLEL.o 
+module_MICROPHYSICS.o : module_CONTROL.o 
+module_PHYSICS_INTERNAL_STATE.o : module_VARS.o module_MICROPHYSICS.o module_DM_PARALLEL.o 
+module_RADIATION.o : module_CONTROL.o module_DM_PARALLEL.o 
+module_TURBULENCE.o : module_CONTROL.o module_H_TO_V.o module_GWD.o module_DM_PARALLEL.o 
+module_DYNAMICS_INTERNAL_STATE.o : module_DM_PARALLEL.o module_VARS.o 
+module_DYNAMICS_ROUTINES.o : module_FLTBNDS.o module_EXCHANGE.o module_DM_PARALLEL.o module_CLOCKTIMES.o module_CONTROL.o 
+module_FLTBNDS.o : module_EXCHANGE.o module_DM_PARALLEL.o module_CONTROL.o 

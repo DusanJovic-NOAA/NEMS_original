@@ -810,7 +810,9 @@ ADVANCECOUNT_SETUP:      0
 
 #ESMF_State_Namelist +++++++++++++++
 # DHOU + WYANG, 01/07/2008, added TRIEO_IMPORT/EXPORT, changed types to logical
-ENS_SPS:                          $ENS_SPS
+
+ENS_SPS:              $ENS_SPS
+RUN_CONTINUE:         .false.
 
 #
 dt_int:               ${DELTIM}

@@ -48,6 +48,7 @@ cp _RTPWD_/NMMB_glob/nmm_b_restart_nemsio.024h_00m_00.00s  restart_file_01_nemsi
 cp _RTPWD_/NMMB_glob/GWD.bin  GWD.bin
 _GS_cp _RTPWD_/NMMB_glob/global_* .
 
+cp $SRCDIR/job/regression_tests/atmos.configure_nmm atmos.configure
 cp $SRCDIR/job/regression_tests/configure_file .
 cp configure_file configure_file_01
 cp _RTPWD_/data/* .
@@ -56,7 +57,7 @@ ln -sf /nwprod/fix/global_o3clim.txt fort.48
 
 cp $SRCDIR/job/regression_tests/dyn_state.txt .
 cp $SRCDIR/job/regression_tests/phy_state.txt .
-_TS_cp $SRCDIR/job/regression_tests/ts_locations.nml .
+cp $SRCDIR/job/regression_tests/ts_locations.nml .
 
 echo "Model started:  " `date`
 

@@ -92,6 +92,15 @@ adiabatic: false            # True--> Adiabatic ;  False--> Diabatic
 
 
 ######################
+#####  Ensemble  #####
+######################
+
+ENS_SPS:      false
+RUN_CONTINUE: false
+total_member: 1
+
+
+######################
 #####  Dynamics  #####
 ######################
  
@@ -284,9 +293,14 @@ io_pad:                  ' '
 ####  Nesting Specifications  ####
 ##################################
 
-my_domain_id: 1
-my_parent_id: -999
-n_children:  _NCHILD_
+my_domain_id: 1              # The ID number of this domain (uppermost domain must have ID=1)
+my_parent_id: -999           # The ID number of this domain's parent
+n_children:  _NCHILD_        # How many child domains does this domain have?
+i_parent_start:  175         # Nest southwest corner at this parent I
+j_parent_start:  127         # Nest southwest corner at this parent J
+parent_child_space_ratio: 3  # Ratio of parent grid increment to nests's
+
+input_ready:  .FALSE.        # Nest has pre-generated input file
 
 
 #######################
@@ -295,3 +309,13 @@ n_children:  _NCHILD_
 
 nhours_clocktime:   1        # Frequency in hours between clocktime diagnostic prints.
 npe_print:          1        # The MPI task that will provide the clocktimes.
+
+
+##########################
+####  Ensemble flags  ####
+##########################
+
+ens_sps:            .FALSE.
+total_member:       1
+RUN_CONTINUE:       .FALSE.
+

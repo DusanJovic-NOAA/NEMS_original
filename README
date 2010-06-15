@@ -1,270 +1,110 @@
-National Environmental Modeling System (NEMS) Version 1.1 (August 2008)
-======================================
-
-	-Employs ESMF superstructure & utilities
-	-Separate dynamics, physics, and coupler grid components & import/export states
-	-Digital filtering capabilities added
-	-Adiabatic (dynamics only) simulation capability
-	-Enhanced postprocessing capability
-
-Directory Structure
-
-======================================
-NEMS includes the following directories with associated file contents`:
-
-exe - NEMS and makedepf90 executables
-inc - include files shared by all modules that are needed to build the appropriate NEMS executables
-job - location of loadleveler submission scripts created by script llscript_configure.sh
-    - /regression_tests: sample scripts used in the NEMS regression tests 
-lib - NEMS libraries
-    - /lib: library (archive) files created from grid component compile step
-    - /libstub: stub library files used when linking to dynamical core components not being used 
-    - /syslib: IBM p6 system libraries 
-mod - NEMS module files
-    - /modstub: module files created from grid component compile step
-    - /w3: W3 library module files 
-pak - contains scripts that may be used to update specific NEMS components without checking out the entire directory 
-src - NEMS source code modules 
-    -atmos
-      -couplers 
-         -GEFS_Cpl
-      -drivers 
-	-main atmos drivers
-      -dyn
-	-arw
-        -fim
-        -gfs
-        -nmm
-      -phys
-        -arw
-        -gfs
-        -nmm
-      -io
-        -arw
-        -fim
-        -gfs
-        -nmm
-      -libutil 
-        -arw
-        -fim
-        -gfs
-        -nmm
-      -chem
-        -gocart
-      -main
-        -main NEMS driver
-      -ocean  
-build - NEMS configure, compile and clean scripts
-    - clean.sh: cleans the NEMS directories  including libraries, modules, core-dependent makefiles, and the compile settings file 
-    - clean_stub.sh: cleans the NEMS stub library related files
-    - compile.sh: creates NEMS executable along with required modules and libraries
-    - compile_stub.sh: creates NEMS stub libraries and modules
-    - configure_setup: contains user-specific compile options that are subsequently read by the script ./build.sh
-    - compile_settings: text file containing compile and link settings accessed by NEMS during the compile step. (created during build procedure)
-    - build.sh: configures and compiles NEMS
-    -build_setup
-      - build_driver: script that directs the creation of the compile_settings and master makefile formats
-      - build_makefiles.sh: script that builds the master makefile
-      - build_settings.sh: script that builds the compile settings file
-      - compile_settings_AIX: template file used in the creation of the compile settings file
-      - compile_settings_Linux: compile options template for all cores when NEMS is built on a Linux platform
-      	- scratch: scratch directory used to temporarily store compile_settings template files during the build process
-util - currently contains  ESMF Library source code. Other source codes and utilties will be added to aid in NEMS porting efforts.
-      - makedepf90-2.8.8: source code for the makedepf90 executable used in the creation of the "depend" text file containing all of the dependencies between modules. 
-
-#######################################################################################################################################
-
-I. Configure and Build
-
-#######################################################################################################################################
-======================================
-Configure
-======================================
-
-The file directs how NEMS is configured is found at: trunk/build/configure_setup and takes on the following format
-
-
-NEMS dynamics packages
------------------------------
-nmm_dyn x
-gfs_dyn x
-fim_dyn x
-
-NEMS physics packages
-----------------------------
-nmm_phys x
-gfs_phys x
-
-supplemental chemistry packages
-------------------------------
-gocart x
-
-where x takes on a value of 0 (to switch "off" that package for compilation ) or 1 (to switch "on" that package for compilation). Some typical settings are listed below and are intended to assist the user in correctly configuring the configure_setup file based on their needs. 
 
----------------------------------------------------------------------------------------------------------------------------
-NMMB PACKAGE ONLY
----------------------------------------------------------------------------------------------------------------------------
+===========================================================
+ National Environmental Modeling System (NEMS) Version 4.0
+===========================================================
 
-NEMS dynamics packages
------------------------------
-nmm_dyn 1
-gfs_dyn 0
-fim_dyn 0
+ -Employs ESMF superstructure & utilities
+ -Separate dynamics, physics, and coupler grid components & import/export states
+ -Digital filtering capabilities added
+ -Adiabatic (dynamics only) simulation capability
+ -Enhanced postprocessing capability
 
-NEMS physics packages
-----------------------------
-nmm_phys 1
-gfs_phys 0
 
-supplemental chemistry packages
-------------------------------
-gocart 0
+=====================
+ Directory Structure
+=====================
 
----------------------------------------------------------------------------------------------------------------------------
-NMMB PACKAGE WITH GFS PHYSICS
----------------------------------------------------------------------------------------------------------------------------
+exe:  NEMS and makedepf90 executables
 
-NEMS dynamics packages
------------------------------
-nmm_dyn 1
-gfs_dyn 0
-fim_dyn 0
+inc:  KIND types and some #defines for the GFS
 
-NEMS physics packages
-----------------------------
-nmm_phys 0
-gfs_phys 1
+job:  Examples of loadleveler runscripts;
 
-supplemental chemistry packages
-------------------------------
-gocart 0
+   -- regression_tests: The NEMS regression tests 
 
----------------------------------------------------------------------------------------------------------------------------
-GFS PACKAGE WITH GOCART
----------------------------------------------------------------------------------------------------------------------------
+src:  The Main program for NEMS.
+      The NEMS component code and its internal state.
+      The EARTH component code and its internal state.
 
-NEMS dynamics packages
------------------------------
-nmm_dyn 0
-gfs_dyn 1
-fim_dyn 0
+   -- atmos
+      - The ATM component code and its internal state.
 
-NEMS physics packages
-----------------------------
-nmm_phys 0
-gfs_phys 1
+      - gfs
+	- All files directly related to the GFS.
 
-supplemental chemistry packages
-------------------------------
-gocart 1
+      - nmm
+	- All files directly related to the NMM-B.
 
----------------------------------------------------------------------------------------------------------------------------
-COMBINED NMM/GFS PACKAGES WITH GOCART
----------------------------------------------------------------------------------------------------------------------------
+      - fim
+        - All files directly related to the FIM.
 
-NEMS dynamics packages
------------------------------
-nmm_dyn 1
-gfs_dyn 1
-fim_dyn 0
+      - phys
+        - All physics science routines (nothing core-specific and no ESMF)
+          [Currently holds only NMM-B routines.  GFS routines under /gfs/phys.]
 
-NEMS physics packages
-----------------------------
-nmm_phys 1
-gfs_phys 1
+      - share
+        - Assorted source shared by all model cores.
 
-supplemental chemistry packages
-------------------------------
-gocart 1
+      - ENS_Cpl
+        - The Ensemble coupler directory.
 
+   -- chem 
+      - gocart
+        - The GOCART source files.
 
-Currently the fim dynamics package has not be integrated into NEMS but a "place holder" has been created in anticipation of its integration. If one selects this option, the configure step will exit with a message warning that this package is currently not available.
+   -- conf 
+      - Various compile specifications.
 
+util: ESMF source codes.
+      makedepf90-2.8.8: Source code for the makedepf90 executable used to create the "depend" text file
+                        which determines dependencies between modules. 
 
-############################################################################################################################# 
 
-======================================
-Build
-======================================
-Prior to compiling NEMS, one has the option of modifying any number of options used during the build. These options are stored in:
+=====================
+ Configure and Build
+=====================
 
-trunk/build/build_setup/compile_settings_AIX - compile options settings template file for IBM system
-trunk/build/build_setup/compile_settings_Linux - compile options settings template file for Linux system
+To compile and load the model(s):
 
-The script:
+ (1) Go into /src .
 
-trunk/build/build_setup/build_settings.sh
+ (2) Set special compile options in the appropiate configure file in /conf .
 
-makes the appropriate stream editor substitutions in the compile settings template files based on the user-specified settings in trunk/build/configure_setup.
+ (3) In /src execute one of the following commands indicating which cores are to be compiled:
+       gmake nmm                      --- for NMM core only
+       gmake gfs                      --- for GFS core only - without GOCART
+       gmake gfs GOCART_MODE=full     --- for GFS core only - with GOCART
+       gmake nmm_gfs                  --- for both NMM and GFS core - without GOCART
+       gmake nmm_gfs GOCART_MODE=full --- for both NMM and GFS core - with GOCART
+       gmake fim                      --- for FIM core only
+       gmake fim_gfs                  --- for both FIM and GFS core only - without GOCART
+       gmake fim_gfs GOCART_MODE=full --- for both FIM and GFS core only - with GOCART
 
+ (4) The executable NEMS.x will appear in /exe .
 
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-Command issued:
 
-./build.sh
+===========
+ Execution
+===========
 
-Script invoked:
-trunk/build/build_setup/build.sh - creates the compile settings and master and stub makefiles in /src/main
-i
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ Once an executable is created, one may go about running NEMS by merely using one's own loadleveler submission script and accessing:
 
-Actions taken:
+ trunk/exe/NEMS.x  
 
-Reads the configure flag values in the file /meso/save/wx22ec/trunk/build/configure_flags
-Invokes 
+ Sample loadleveler submission scripts are provided in the directory:
 
-trunk/build/compile_stub.sh - (When the COMBINED NMM/GFS PACKAGES WITH/WITHOUT GOCART option is NOT selected)
-trunk/build/compile.sh - (always invoked)
+ trunk/job
 
-After issuing this command, the following files will be created:
+ These may be used as templates from which user-specific submission scripts can be based. These include:
 
-trunk/build/compile_settings - contains the directory paths and compile settings referenced by the NEMS makefiles
-
-trunk/build/configure_flags - flag values derived from the packages selected in configure_setup which are needed for the compile step.
-
-trunk/src/main/makefile_stub - stub makefile needed to compile stub modules in the trunk/src/main directory (not created when the COMBINED NMM/GFS PACKAGES WITH/WITHOUT GOCART option is selected).
-
-trunk/src/main/makefile - makefile needed to compile modules in the trunk/src/main directory (always created)
-
-trunk/src/main/Makefile_stub - master stub makefile for the entire NEMS compile step (not created when the COMBINED NMM/GFS PACKAGES WITH/WITHOUT GOCART option is selected).
-
-trunk/src/main/Makefile_main - master makefile for the entire NEMS compile step  (always created)
-
-trunk/lib/libstub - stub libraries created (Only when the COMBINED NMM/GFS PACKAGES WITH/WITHOUT GOCART option is selected).
-`
-trunk/lib/lib - main libraries created 
-
-trunk/mod/modstub/nmm & trunk/mod/modstub/gfs - stub modules created
-
-
-Following a successful build, a new executable file should appear in the directory /exe and will be labelled:
-
-trunk/exe/NEMS.x 
-
-#######################################################################################################################################
-
-II. Execution
-
-#######################################################################################################################################
-
-Once an executable is created, one may go about running NEMS by merely using one's own loadleveler submission script and accessing:
-
-trunk/exe/NEMS.x  
-
-Sample loadleveler submission scripts are provided in the directory:
-
-trunk/job
-
-that may be used as templates from which user-specific submission scripts can be based. These include:
-
-trunk/job/runglobal - global nmmb experiment
-trunk/job/runregional - regional nmmb experiment 
-trunk/job/gfs_prep_test - gfs prep
-trunk/job/gfs_run_test - gfs experiment
-
-The associated configure files which are read by this scripts are included as well:
-
-trunk/job/configfile_global_new - global nmmb experiment configure file
-trunk/job/configfile_regional_new - regional nmmb experiment configure file
-trunk/job/exglobal_fcst.sh.sms_nems - gfs experiment configure file
+ trunk/job/runglobal_nmm - global nmmb experiment
+ trunk/job/runregional_nmm - regional nmmb experiment 
+ trunk/job/gfs_prep_test - gfs prep
+ trunk/job/gfs_run_test - gfs experiment
+
+ The associated configure files which are read by this scripts are included as well:
+
+ trunk/job/configfile_global_nmm - global nmmb experiment configure file
+ trunk/job/configfile_regional_nmm - regional nmmb experiment configure file
+ trunk/job/exglobal_fcst.sh.sms_nems - gfs experiment configure file
 
