@@ -8,36 +8,23 @@ GOCARTINCS = -I../../../chem/gocart/AIX/include/Chem_Base \
              -I../../../chem/gocart/AIX/include/GEOSchem_GridComp
 
 
-#DEBUG    =
- DEBUG    = -qcheck -qsource -qlist
-#FFLAGM_DEBUG  = -g -fullpath -O0 -qinitauto=FF911299 -qflttrap=enable:overflow:zerodivide:invalid -qsigtrap=xl__trcedump -NS2048 $(DEBUG)
+LIBRARY   = gfs_physics.a
 
-#--------------
-# For Non-Debug.
-#---------------
+DEBUG    = -qcheck -qsource -qlist
 FFLAGM_DEBUG  = -O3
+OPTS     = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto  -qnosave $(FFLAGM_DEBUG)
 
- OPTS     = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto  -qnosave $(FFLAGM_DEBUG)
+FFLAG90  = $(FFLAGS) $(OPTS) -qfree -NS2048 $(UTILINCS)
+FFLAGS1  = $(FFLAGS) $(OPTS) $(TRAPS) -qfixed $(UTILINCS) $(GOCARTINCS)
+FFLAGIO  = $(OPTS) $(TRAPS) -qfixed
+FFLAGM   = $(OPTS) $(FINCS) -qfixed $(TRAPS) $(FFLAGM_DEBUG) -NS2048
+FFLAGSF=-qnosave -q free=f90 -qcheck $(FFLAGM_DEBUG)
+FFLAGSI  = -qrealsize=8 -qnosave -q free=f90 $(FFLAGM_DEBUG)
+FFLAGSDB = $(FFLAGS1)
+FFLAG_GFS_PHY=$(OPTS) $(TRAPS) -qfixed    $(UTILINCS) $(GOCARTINCS)
+FFLAG_GFS_PHY90=$(FFLAG90) $(TRAPS)     $(UTILINCS) $(GOCARTINCS)
 
-#TRAPS    = -qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap -qsource -qlist
-#
- FFLAG90  = $(FFLAGS) $(OPTS) -qfree -NS2048 $(UTILINCS)
- FFLAGS1  = $(FFLAGS) $(OPTS) $(TRAPS) -qfixed $(UTILINCS) $(GOCARTINCS)
- FFLAGIO  = $(OPTS) $(TRAPS) -qfixed
- FFLAGM   = $(OPTS) $(FINCS) -qfixed $(TRAPS) $(FFLAGM_DEBUG) -NS2048
- FFLAGSF=-qnosave -q free=f90 -qcheck $(FFLAGM_DEBUG)
- FFLAGSI  = -qrealsize=8 -qnosave -q free=f90 $(FFLAGM_DEBUG)
- FFLAGSDB = $(FFLAGS1)
- FFLAG_GFS_PHY=$(OPTS) $(TRAPS) -qfixed    $(UTILINCS) $(GOCARTINCS)
- FFLAG_GFS_PHY90=$(FFLAG90) $(TRAPS)     $(UTILINCS) $(GOCARTINCS)
 
-#
-#
-# *****************************************************************
-#
-TARGET= gfs_physics.a
-# *****************************************************************
-#
 OBJS0   = \
 	  gfs_physics_err_msg_mod.o            \
 	  gfs_physics_sfc_flx_mod.o	       \
@@ -166,45 +153,24 @@ OBJS_PHY = \
 # *****************************************************************
 #
 
-OBJS0_f = ${OBJS0:.o=.f}
-OBJ_MOD_f = ${OBJ_MOD:.o=.f}
-OBJS_f = ${OBJS:.o=.f}
-OBJS_IO_f = ${OBJS_IO:.o=.f}
-OBJS_RAD_f = ${OBJS_RAD:.o=.f}
-OBJS_PHY_f = ${OBJS_PHY:.o=.f}
+DEPEND_FILES = ${OBJS0:.o=.f} ${OBJ_MOD:.o=.f} ${OBJS:.o=.f} ${OBJS_IO:.o=.f} ${OBJS_RAD:.o=.f} ${OBJS_PHY:.o=.f}
 
+all default: depend
+	@gmake -f $(MAKEFILE) $(LIBRARY)
 
-.SUFFIXES:    .o .f
-
-default:
-	@gmake -f makefile all
-
-all: $(TARGET)
-
-
-$(TARGET):  $(OBJ_MOD) $(OBJS0) $(OBJS) $(OBJS_RAD) $(OBJS_PHY) $(OBJS_IO)
+$(LIBRARY):  $(OBJ_MOD) $(OBJS0) $(OBJS) $(OBJS_RAD) $(OBJS_PHY) $(OBJS_IO)
 	$(AR) $(ARFLAGS) $@ $?
 
 .f.o: %.o: %.f
 	$(F77) $(FFLAGS1) -c $*.f
 
-depend: $(OBJS0_f) $(OBJ_MOD_f) $(OBJS_f) $(OBJS_IO_f) $(OBJS_RAD_f) $(OBJS_PHY_f)
-	$(MAKEDEPEXEC) 
-
 clean:
-	/bin/rm -f $(OBJ_MOD) 
-	/bin/rm -f $(OBJS0) 
-	/bin/rm -f $(OBJS) 
-	/bin/rm -f $(OBJS_RAD) 
-	/bin/rm -f $(OBJS_PHY) 
-	/bin/rm -f *.mod 
-	/bin/rm -f *.o
-	/bin/rm -f $(TARGET)
-	/bin/rm -f depend
+	$(RM) -f $(LIBRARY) *.o *.mod *.lst lm map depend
 
 #
 # *****************************************************************
 #
+
 cnvcld_v.o:	cnvcld_v.f
 		$(F77) $(FFLAGM) -c cnvcld_v.f
 
@@ -474,3 +440,11 @@ gfs_physics_grid_comp_mod.o:    gfs_physics_grid_comp_mod.f
 ### use FFLAGSDB compile option
 gfs_phy_tracer_config.o:	gfs_phy_tracer_config.f
 		$(F77)  $(FFLAGSDB) -c gfs_phy_tracer_config.f
+
+#
+#
+#
+
+include ../../../conf/make.rules
+
+include depend

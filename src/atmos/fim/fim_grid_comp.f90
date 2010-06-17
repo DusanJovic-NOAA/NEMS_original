@@ -1,8 +1,8 @@
       MODULE module_FIM_GRID_COMP
 
       USE ESMF_MOD
-      USE FIM_INTERNAL_STATE_MOD ,ONLY: FIM_INTERNAL_STATE            &
-                                       ,WRAP_FIM_INTERNAL_STATE
+      USE MODULE_FIM_INTERNAL_STATe ,ONLY: FIM_INTERNAL_STATE            &
+                                          ,WRAP_FIM_INTERNAL_STATE
 
       IMPLICIT NONE
 

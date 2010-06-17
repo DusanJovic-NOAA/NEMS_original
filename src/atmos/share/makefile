@@ -10,30 +10,21 @@ MODULES  = module_ERR_MSG.o \
            module_NEMSIO.o \
            module_NEMSIO_MPI.o
 
-MODULES_f90 = ${MODULES:.o=.f90}
+MODULES_F90 = ${MODULES:.o=.F90}
+DEPEND_FILES = $(MODULES_F90)
 
-.SUFFIXES:
-.SUFFIXES: .F90 .f90 .o
-
-.F90.f90:
-	$(CPP) $(CPPFLAGS) $< > $*.f90
-
-default:
+all default: depend
 	@gmake -f $(MAKEFILE) $(LIBRARY)
 
-$(LIBRARY): depend $(MODULES)
+$(LIBRARY): $(MODULES)
 	$(AR) $(ARFLAGS) $@ $(MODULES)
 
 $(MODULES): %.o: %.f90
 	$(FC) $(FFLAGS) $(UTILINCS) -c $*.f90
 
-depend: $(MODULES_f90)
-	$(MAKEDEPF90) -nosrc $^ > depend
-
 clean:
-	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst lm map
+	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst lm map depend
 
-#
-# DEPENDENCIES :
-#
+include ../../conf/make.rules
+
 include depend

@@ -1,4 +1,4 @@
-#include "../../../../inc/options.h"
+#undef NMM_B
 !-----------------------------------------------------------------------
 !
       module atmos_dyn_phy_cpl_comp_mod

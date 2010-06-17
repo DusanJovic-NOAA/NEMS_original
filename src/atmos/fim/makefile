@@ -4,23 +4,20 @@ MAKEFILE = makefile
 
 UTILINCS = -I../../share
 
-LIBRARY       = libfim.a
+LIBRARY  = libfim.a
 
 MODULES  = fim_internal_state.o fim_grid_comp.o
 MODULES_STUB  = fim_grid_comp_stub.o
 
-MODULES_f90 = ${MODULES:.o=.f90}
+DEPEND_FILES = ${MODULES:.o=.f90}
 
-.SUFFIXES:
-.SUFFIXES: .F90 .f90 .o
+all default: depend
+	@gmake -f $(MAKEFILE) $(LIBRARY)
 
-.F90.f90:
-	$(CPP) $(CPPFLAGS) $< > $*.f90
+$(LIBRARY): $(MODULES)
+	$(AR) $(ARFLAGS) $@ $(MODULES)
 
-all: depend $(MODULES)
-	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES)
-	
-stub: depend $(MODULES_STUB)
+stub: $(MODULES_STUB)
 	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES_STUB)
 	
 $(MODULES): %.o: %.f90
@@ -29,13 +26,9 @@ $(MODULES): %.o: %.f90
 $(MODULES_STUB): %.o: %.f90
 	$(FC) $(FFLAGS_FIM) $(UTILINCS) -c $*.f90
 
-depend: $(MODULES_f90)
-	makedepf90 -nosrc $^ > depend
-
 clean:
-	$(RM) -f $(LIBRARY) *.o *.mod *.lst lm map
+	$(RM) -f $(LIBRARY) *.o *.mod *.lst lm map depend
 
-#
-# DEPENDENCIES :
-#
+include ../../conf/make.rules
+
 include depend

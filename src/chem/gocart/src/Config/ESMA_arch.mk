@@ -156,6 +156,7 @@ ifeq ($(ARCH),AIX)
      INC_MPI = /usr/lpp/ppe.poe/include/thread64
      ESMA_REAL=$(FREAL8)
      FDEFS += $(D)MAPL_IMPORT_HAS_PRECISION $(D)MAPL_EXPORT_HAS_PRECISION
+     FPPFLAGS += -W/dev/null
      ACG_FLAGS += -P # enforce native precision in specs
   endif
 
@@ -174,6 +175,7 @@ ifeq ($(ARCH),AIX)
      INC_MPI = /usr/lpp/ppe.poe/include/thread64
      ESMA_REAL=$(FREAL8)
      FDEFS += $(D)MAPL_IMPORT_HAS_PRECISION $(D)MAPL_EXPORT_HAS_PRECISION
+     FPPFLAGS += -W/dev/null
      ACG_FLAGS += -P # enforce native precision in specs
   endif
 
@@ -192,6 +194,7 @@ ifeq ($(ARCH),AIX)
      INC_MPI = /usr/lpp/ppe.poe/include/thread64
      ESMA_REAL=$(FREAL8)
      FDEFS += $(D)MAPL_IMPORT_HAS_PRECISION $(D)MAPL_EXPORT_HAS_PRECISION
+     FPPFLAGS += -W/dev/null
      ACG_FLAGS += -P # enforce native precision in specs
   endif
 

@@ -8,13 +8,10 @@ LIBRARY  = libatmos.a
 
 MODULES  = module_ATM_INTERNAL_STATE.o module_ATM_GRID_COMP.o
 
-.SUFFIXES:
-.SUFFIXES: .F90 .f90 .o
+DEPEND_FILES = ${MODULES:.o=.F90}
 
-.F90.f90:
-	$(CPP) $(CPPFLAGS) $< > $*.f90
 
-default:
+all default: depend
 	@gmake -f $(MAKEFILE) $(LIBRARY)
 
 $(LIBRARY): $(MODULES)
@@ -29,4 +26,8 @@ clean:
 	cd nmm          && gmake clean
 	cd gfs          && gmake clean
 	cd fim          && gmake clean
-	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst
+	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst depend
+
+include ../conf/make.rules
+
+include depend

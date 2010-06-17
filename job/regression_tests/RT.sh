@@ -345,38 +345,38 @@ export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
 
 fi
 
-# ####################################################################################################
-# #
-# # TEST   - Global NMM-B with GFS physics
-# #        - 6x5 compute tasks / 1 thread / GFS physics / free fcst / pure binary input
-# #
-# ####################################################################################################
-# 
-# if [ ${CB_arg} != gfs ]; then
-#  
-# export TEST_DESCR="Test NMMB-global with GFS physics package "
-# 
-# #---------------------
-# (( TEST_NR=TEST_NR+1 ))
-# export RUNDIR=${RUNDIR_ROOT}/NMM_gfsP
-# export CNTL_DIR=NMMB_gfsP_glob
-# export LIST_FILES=" \
-#nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
-#nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s  \
-#nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
-#nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  \
-#nmm_b_restart.012h_00m_00.00s  nmm_b_restart_nemsio.012h_00m_00.00s"
-# #---------------------
-# export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=glob ; export TS=#
-# export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=24
-# export NEMSI=false  ; export RSTRT=false ; export gfsP=true  ; export RGS=false ; export WGS=false
-# export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
-# #---------------------
-#   ./rt_nmm.sh
-#   if [ $? = 2 ]; then exit ; fi
-# #---------------------
-# 
-# fi
+####################################################################################################
+#
+# TEST   - Global NMM-B with GFS physics
+#        - 6x5 compute tasks / 1 thread / GFS physics / free fcst / pure binary input
+#
+####################################################################################################
+
+if [ ${CB_arg} != gfs ]; then
+ 
+export TEST_DESCR="Test NMMB-global with GFS physics package "
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/NMM_gfsP
+export CNTL_DIR=NMMB_gfsP_glob
+export LIST_FILES=" \
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s  \
+nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  \
+nmm_b_restart.012h_00m_00.00s  nmm_b_restart_nemsio.012h_00m_00.00s"
+#---------------------
+export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=glob ; export TS=#
+export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=24
+export NEMSI=false  ; export RSTRT=false ; export gfsP=true  ; export RGS=false ; export WGS=false
+export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+#---------------------
+  ./rt_nmm.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi
 
 ####################################################################################################
 #
@@ -573,38 +573,38 @@ export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
 
 fi
 
-# ####################################################################################################
-# #
-# # TEST   - Regional NMM-B with GFS physics
-# #        - 6x5 compute tasks / 1 thread / GFS physics / free fcst / pure binary input
-# #
-# ####################################################################################################
-# 
-# if [ ${CB_arg} != gfs ]; then
-# 
-# export TEST_DESCR="Test NMMB-regional with GFS physics package "
-# 
-# #---------------------
-# (( TEST_NR=TEST_NR+1 ))
-# export RUNDIR=${RUNDIR_ROOT}/NMM_REG_gfsP
-# export CNTL_DIR=NMMB_gfsP_reg
-# export LIST_FILES=" \
-#nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
-#nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s \
-#nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
-#nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s \
-#nmm_b_restart.012h_00m_00.00s  nmm_b_restart_nemsio.012h_00m_00.00s"
-# #---------------------
-# export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=reg  ; export TS=#
-# export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=24
-# export NEMSI=false  ; export RSTRT=false ; export gfsP=true  ; export RGS=false ; export WGS=false
-# export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
-# #---------------------
-#   ./rt_nmm.sh
-#   if [ $? = 2 ]; then exit ; fi
-# #---------------------
-# 
-# fi
+####################################################################################################
+#
+# TEST   - Regional NMM-B with GFS physics
+#        - 6x5 compute tasks / 1 thread / GFS physics / free fcst / pure binary input
+#
+####################################################################################################
+
+if [ ${CB_arg} != gfs ]; then
+
+export TEST_DESCR="Test NMMB-regional with GFS physics package "
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/NMM_REG_gfsP
+export CNTL_DIR=NMMB_gfsP_reg
+export LIST_FILES=" \
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s \
+nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s \
+nmm_b_restart.012h_00m_00.00s  nmm_b_restart_nemsio.012h_00m_00.00s"
+#---------------------
+export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=reg  ; export TS=#
+export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=24
+export NEMSI=false  ; export RSTRT=false ; export gfsP=true  ; export RGS=false ; export WGS=false
+export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+#---------------------
+  ./rt_nmm.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+ 
+fi
 
 ####################################################################################################
 #
@@ -1234,14 +1234,6 @@ rm ${PATHTR}/exe/NEMS.x
 
 cd ${PATHTR}/src
 gmake clean          > /dev/null 2>&1
-
-cd ${PATHTR}/src/chem/gocart/src/Components/GOCART_GridComp
-rm *_HAS_PRECISION
-rm *_GridComp/*_HAS_PRECISION
-rm *_GridComp/*DeclarePointer*
-cd ${PATHTR}/src/chem/gocart/src/GMAO_Shared
-rm */*_HAS_PRECISION
-rm */*/*_HAS_PRECISION
 
 rm -rf ${RUNDIR_ROOT}
 

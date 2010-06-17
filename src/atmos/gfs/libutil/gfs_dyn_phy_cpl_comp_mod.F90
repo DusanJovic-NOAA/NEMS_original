@@ -1,4 +1,3 @@
-!dusan #include "../../../../inc/options.h"
 !-----------------------------------------------------------------------
 !
       module gfs_dyn_phy_cpl_comp_mod

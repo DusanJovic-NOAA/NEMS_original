@@ -13,6 +13,7 @@
 !
       USE ESMF_MOD
       USE module_DM_PARALLEL_GFS  ,only: SETUP_SERVERS_GFS
+      USE module_INCLUDE
 !
 !-----------------------------------------------------------------------
 !
@@ -24,12 +25,6 @@
 !
 !
       PUBLIC :: GFS_SETUP       !<-- An NMM-specific routine to set up parallelism and ESMF Grid
-!
-!-----------------------------------------------------------------------
-      INCLUDE '../../../inc/kind.inc'
-!-----------------------------------------------------------------------
-!
-!
 !
 !
       CONTAINS

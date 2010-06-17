@@ -2,29 +2,13 @@ include ../conf/configure.nems
 
 MAKEFILE = makefile
 
+LIBRARY  = ENS_Cpl.a
 
-#DEBUG    =
- DEBUG    = -qcheck -qsource -qlist
-#FFLAGM_DEBUG  = -g -fullpath -O0 -qinitauto=FF911299 -qflttrap=enable:overflow:zerodivide:invalid -qsigtrap=xl__trcedump -NS2048 $(DEBUG)
+OPTS     = $(FFLAGS_GFS) $(R8) -O3 $(UTILINCS) $(GOCARTINCS)
 
-#--------------
-# For Non-Debug.
-#---------------
-FFLAGM_DEBUG  = -O3
+FFLAG90  = $(OPTS) $(FREE)
+FFLAGS1  = $(OPTS) $(FIXED)
 
- OPTS     = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlFC=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto  -qnosave $(FFLAGM_DEBUG)
-
-#TRAPS    = -qinitauto=FF911299 -qflttrap=ov:zero:inv:en -qsigtrap -qsource -qlist
-#
- FFLAG90  = $(FFLAGS) $(OPTS) -qfree -NS2048
- FFLAGS1  = $(FFLAGS) $(OPTS) $(TRAPS) -qfixed
- FFLAGB   = -qrealsize=8 -qnosave -qfixed $(FFLAGM_DEBUG)
-
-TARGET = ENS_Cpl.a
-
-#
-# *****************************************************************
-#
 OBJS =  Lib_ESMFStateAddGetMod.o            \
 	machine.o                           \
 	ENS_Cpl_InternalState_ESMFMod.o     \
@@ -46,26 +30,17 @@ OBJS_90=kinds.o                             \
 
 MODULES_STUB = ENS_CplComp_ESMFMod_STUB.o
 
-#
-#
-# *****************************************************************
-#
+DEPEND_FILES = ${OBJS:.o=.f} ${OBJS_90:.o=.f90}
 
-OBJS_f = ${OBJS:.o=.f}
-OBJS_90_f90 = ${OBJS_90:.o=.f90}
 
-.SUFFIXES:    .o .f .f90
+all default: depend
+	@gmake -f $(MAKEFILE) $(LIBRARY)
 
-default:
-	@gmake -f makefile all
-
-all: $(TARGET)
+$(LIBRARY):  $(OBJS) $(OBJS_90)
+	$(AR) $(ARFLAGS) $@ $?
 
 stub: $(MODULES_STUB)
 	$(AR) $(ARFLAGS) $(TARGET) $(MODULES_STUB)
-
-$(TARGET):  $(OBJS) $(OBJS_90)
-	$(AR) $(ARFLAGS) $@ $?
 
 .f.o: %.o: %.f
 	$(FC) $(FFLAGS1) -c $*.f
@@ -76,21 +51,20 @@ $(TARGET):  $(OBJS) $(OBJS_90)
 $(MODULES_STUB): %.o: %.f
 	$(FC) $(FFLAGS) -c $*.f
 
-depend: $(OBJS_f) $(OBJS_90_f90)
-	$(MAKEDEPEXEC)
 
 clean:
-	rm -f  $(TARGET)
-	rm -f *.o 
-	rm -f *.mod 
-	rm -f depend
+	$(RM) -f $(LIBRARY) *.o *.mod *.lst lm map depend
+
+#
+# *****************************************************************
+#
 
 
 Lib_ESMFStateAddGetMod.o: Lib_ESMFStateAddGetMod.f
 	$(FC) $(FFLAG90) -c Lib_ESMFStateAddGetMod.f
 
 machine.o: machine.f
-	$(FC) $(FFLAGB) -c machine.f
+	$(FC) $(FFLAGS1) -c machine.f
 
 ENS_Cpl_InternalState_ESMFMod.o: ENS_Cpl_InternalState_ESMFMod.f
 	$(FC) $(FFLAG90) -c ENS_Cpl_InternalState_ESMFMod.f
@@ -136,3 +110,13 @@ prana.o: prana.f90
 
 Cal_Sto_Coef.o: Cal_Sto_Coef.f90
 	$(FC) $(FFLAG90) -c Cal_Sto_Coef.f90
+
+
+
+#
+#
+#
+
+include ../conf/make.rules
+
+include depend

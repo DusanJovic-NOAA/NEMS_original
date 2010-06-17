@@ -36,8 +36,6 @@
 
       implicit none
 
-#include "../../../../inc/ESMF_LogMacros.inc"
-
       private   ! by default, data is private to this module
 
       public gfs_dyn_setservices	! only set service is public

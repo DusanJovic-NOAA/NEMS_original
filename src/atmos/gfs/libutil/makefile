@@ -27,19 +27,10 @@ OBJS02  = \
 	atmos_phy_chem_cpl_comp_mod.o \
 	atmos_chem_phy_cpl_comp_mod.o
 
+DEPEND_FILES = ${OBJS02:.o=.F90}
 
-OBJS02_F90 = ${OBJS02:.o=.F90}
-
-#
-# *****************************************************************
-#
-
-.SUFFIXES:  .o .F90 .h
-
-default:
-	@gmake -f makefile all
-
-all: depend $(LIBRARY)
+all default: depend
+	@gmake -f $(MAKEFILE) $(LIBRARY)
 
 $(LIBRARY): $(OBJS02)
 	$(AR) $(ARFLAGS) $@ $?
@@ -47,18 +38,9 @@ $(LIBRARY): $(OBJS02)
 $(OBJS02): %.o: %.F90
 	$(FC) $(FFLAG_GFS_UTIL90) -c $*.F90
 
-depend: ${OBJS02_F90}
-	$(MAKEDEPF90) -nosrc $^ > depend
-
 clean:
-	$(RM) -f *.o 
-	$(RM) -f *.mod 
-	$(RM) -f *.lst 
-	$(RM) -f $(LIBRARY)
-	$(RM) -f depend
+	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst lm map depend
 
-#
-# DEPENDENCIES :
-#
-#
+include ../../../conf/make.rules
+
 include depend

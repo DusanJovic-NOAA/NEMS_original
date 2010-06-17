@@ -42,8 +42,6 @@
  CHARACTER(ESMF_MAXSTR), DIMENSION(:), ALLOCATABLE :: IMPEARTHNAME
  CHARACTER(ESMF_MAXSTR), DIMENSION(:), ALLOCATABLE :: EXPEARTHNAME
 
-#include "ESMF_LogMacros.inc"
-
  PRIVATE   ! By default data is private to this module
 !
 ! !PUBLIC TYPES:

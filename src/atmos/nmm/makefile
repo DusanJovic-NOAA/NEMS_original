@@ -61,20 +61,14 @@ MODULE_SMP_MAF= \
 
 MODULES_STUB  = module_NMM_GRID_COMP_stub.o
 
-MODULES_f90 = ${MODULES:.o=.f90}
-MODULE_SMP_f90 = ${MODULE_SMP:.o=.f90}
-MODULE_SMP_MAF_f90 = ${MODULE_SMP_MAF:.o=.f90}
+DEPEND_FILES = ${MODULES:.o=.F90} ${MODULE_SMP:.o=.F90} ${MODULE_SMP_MAF:.o=.F90}
 
+all default: depend
+	@gmake -f $(MAKEFILE) $(LIBRARY)
 
-.SUFFIXES:
-.SUFFIXES: .F90 .f90 .o
+$(LIBRARY): $(MODULES) $(MODULE_SMP) $(MODULE_SMP_MAF)
+	$(AR) $(ARFLAGS) $@ $(MODULES) $(MODULE_SMP) $(MODULE_SMP_MAF)
 
-.F90.f90:
-	$(CPP) $(CPPFLAGS) $< > $*.f90
-
-all: depend $(MODULES) $(MODULE_SMP) $(MODULE_SMP_MAF)
-	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES) $(MODULE_SMP) $(MODULE_SMP_MAF)
-	
 stub: $(MODULES_STUB)
 	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES_STUB)
 	
@@ -90,13 +84,9 @@ $(MODULE_SMP_MAF): %.o: %.f90
 $(MODULES_STUB): %.o: %.f90
 	$(FC) $(FFLAGS_NMM) $(UTILINCS) -c $*.f90
 
-depend: $(MODULES_f90) $(MODULE_SMP_f90) $(MODULE_SMP_MAF_f90)
-	$(MAKEDEPF90) -nosrc $^ > depend
-
 clean:
-	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst lm map
+	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst lm map depend
 
-#
-# DEPENDENCIES :
-#
+include ../../conf/make.rules
+
 include depend

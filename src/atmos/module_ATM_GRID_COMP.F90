@@ -563,7 +563,7 @@
       CALL ESMF_GridCompFinalize(gridcomp   =atm_int_state%CORE_GRID_COMP &
                                 ,importState=atm_int_state%CORE_IMP_STATE &
                                 ,exportState=atm_int_state%CORE_EXP_STATE &
-                                ,clock      =CLOCK_ATM                    &
+                                ,clock      =atm_int_state%CLOCK_ATM      &
                                 ,phase      =ESMF_SINGLEPHASE             &
                                 ,rc         =RC)
 !

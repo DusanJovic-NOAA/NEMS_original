@@ -6,8 +6,6 @@ UTILINCS = -I../share
 
 LIBRARY  = libphys.a
 
-MODULES          = 
-
 MODULES_NMM      = module_LS_LISS.o \
                    module_LS_NOAHLSM.o \
                    module_SF_URBAN.o
@@ -45,22 +43,13 @@ MODULES_GFS =
 
 MODULES_ALL = $(MODULES) $(MODULES_NMM) $(MODULES_NMM_SMP) $(MODULES_NMM_RRTM) $(MODULES_GFS)
 
-MODULES_f90 = ${MODULES:.o=.f90}
-MODULES_NMM_f90 = ${MODULES_NMM:.o=.f90}
-MODULES_NMM_SMP_f90 = ${MODULES_NMM_SMP:.o=.f90}
-MODULES_NMM_RRTM_f90=${MODULES_NMM_RRTM:.o=.f}
+DEPEND_FILES = ${MODULES_NMM:.o=.F90} ${MODULES_NMM_SMP:.o=.F90} ${MODULES_NMM_RRTM:.o=.f}
 
 
-.SUFFIXES:
-.SUFFIXES: .F90 .f90 .o
-
-.F90.f90:
-	$(CPP) $(CPPFLAGS) $< > $*.f90
-
-default:
+all default: depend
 	@gmake -f $(MAKEFILE) $(LIBRARY)
 
-$(LIBRARY): depend $(MODULES_ALL)
+$(LIBRARY): $(MODULES_ALL)
 	$(AR) $(ARFLAGS) $@ $(MODULES_ALL)
 
 $(MODULES): %.o: %.f90
@@ -78,13 +67,9 @@ $(MODULES_NMM_RRTM): %.o: %.f
 $(MODULES_GFS): %.o: %.f90
 	$(FC) $(FFLAGS_GFS) $(UTILINCS) -c $*.f90
 
-depend: $(MODULES_f90) $(MODULES_NMM_f90) $(MODULES_NMM_SMP_f90) $(MODULES_NMM_RRTM_f90)
-	$(MAKEDEPF90) -nosrc $^ > depend
-
 clean:
-	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst lm map
+	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst lm map depend
 
-#
-# DEPENDENCIES :
-#
+include ../../conf/make.rules
+
 include depend

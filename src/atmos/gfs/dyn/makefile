@@ -7,10 +7,9 @@ GOCARTINCS = -I../../../chem/gocart/AIX/include/Chem_Base \
              -I../../../chem/gocart/AIX/include/GMAO_mpeu \
              -I../../../chem/gocart/AIX/include/GEOSchem_GridComp
 
-TARGET = gfs_dynamics.a
+LIBRARY  = gfs_dynamics.a
 
-FFLAGM_DEBUG  = -O3
-OPTS     = $(FFLAGS_GFS) $(R8) $(FFLAGM_DEBUG) $(UTILINCS) $(GOCARTINCS)
+OPTS     = $(FFLAGS_GFS) $(R8) -O3 $(UTILINCS) $(GOCARTINCS)
 
 FFLAG90  = $(OPTS) $(FREE)
 FFLAGS1  = $(OPTS) $(FIXED)
@@ -152,32 +151,19 @@ OBJS_IO= \
 	setsig.o           \
 	bafrio.o
 
-OBJS0_f = ${OBJS0:.o=.f}
-OBJ_MOD_f = ${OBJ_MOD:.o=.f}
-OBJS_f = ${OBJS:.o=.f}
-OBJS_PORT_f = ${OBJS_PORT:.o=.f}
-OBJS_IO_f = ${OBJS_IO:.o=.f}
+DEPEND_FILES = ${OBJS0:.o=.f} ${OBJ_MOD:.o=.f} ${OBJS:.o=.f} ${OBJS_PORT:.o=.f} ${OBJS_IO:.o=.f}
 
-.SUFFIXES:      .o .f
+all default: depend
+	@gmake -f $(MAKEFILE) $(LIBRARY)
 
-all: depend $(OBJ_MOD) $(OBJS0) $(OBJS) $(OBJS_IO)
-	$(AR) $(ARFLAGS) $(TARGET) $(OBJ_MOD) $(OBJS0) $(OBJS) $(OBJS_IO)
+$(LIBRARY): $(OBJ_MOD) $(OBJS0) $(OBJS) $(OBJS_IO)
+	$(AR) $(ARFLAGS) $@ $?
 
 .f.o: %.o: %.f
 	$(FC) $(FFLAGS1) -c $*.f
 
-depend: $(OBJS0_f) $(OBJ_MOD_f) $(OBJS_f) $(OBJS_PORT_f) $(OBJS_IO_f)
-	$(MAKEDEPF90) -nosrc $^ > depend
-
 clean:
-	$(RM) -f $(OBJ_MOD) 
-	$(RM) -f $(OBJS0) 
-	$(RM) -f $(OBJS) 
-	$(RM) -f $(OBJS_IO)
-	$(RM) -f *.mod 
-	$(RM) -f *.o
-	$(RM) -f depend
-	$(RM) -f $(TARGET)
+	$(RM) -f $(LIBRARY) *.o *.mod *.lst lm map depend
 
 #
 # *****************************************************************
@@ -238,6 +224,9 @@ gfs_dynamics_grid_comp_mod.o:	 gfs_dynamics_grid_comp_mod.f
 		$(FC) $(FFLAG90) -c gfs_dynamics_grid_comp_mod.f
 
 #
-# DEPENDENCIES :
 #
+#
+
+include ../../../conf/make.rules
+
 include depend

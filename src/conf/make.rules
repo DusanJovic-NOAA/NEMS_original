@@ -1,0 +1,15 @@
+.SUFFIXES:
+.SUFFIXES: .F90 .f90 .f .o
+
+.F90.f90:
+	$(CPP) $(CPPFLAGS) $< > $*.f90
+
+depend: $(DEPEND_FILES)
+	@if [ -e depend ]; \
+        then \
+           echo "gmake will now update dependency file."; \
+        else \
+           echo "gmake will now build dependency file. Ignore \"depend: No such file or directory\" message above"; \
+        fi
+	$(MAKEDEPF90) -nosrc $^ > depend
+

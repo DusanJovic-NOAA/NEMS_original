@@ -32,6 +32,7 @@
       USE MODULE_CONTROL,ONLY : TIMEF
       USE MODULE_CLOCKTIMES,ONLY : add_fld_tim,cpl_dyn_phy_tim,get_fld_tim
       USE MODULE_ERR_MSG,ONLY : ERR_MSG,MESSAGE_CHECK
+      USE MODULE_INCLUDE
 !
 !-----------------------------------------------------------------------
 !
@@ -42,10 +43,6 @@
       PRIVATE
 !
       PUBLIC :: DYN_PHY_CPL_REGISTER
-!
-!-----------------------------------------------------------------------
-      INCLUDE '../../../inc/kind.inc'
-!-----------------------------------------------------------------------
 !
       REAL(KIND=KDBL) :: btim,btim0
 !

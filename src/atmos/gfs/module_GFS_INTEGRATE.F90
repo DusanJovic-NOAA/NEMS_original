@@ -19,6 +19,7 @@
 
       USE ESMF_MOD
       USE MODULE_ERR_MSG
+      USE MODULE_INCLUDE
 
       USE MODULE_DIGITAL_FILTER_GFS
       USE MODULE_GFS_WRITE,        ONLY: WRITE_ASYNC_GFS
@@ -34,10 +35,6 @@
 !
 !
       PUBLIC :: GFS_INTEGRATE
-!
-!-----------------------------------------------------------------------
-      INCLUDE '../../../inc/kind.inc'
-!-----------------------------------------------------------------------
 !
 !
       CONTAINS
