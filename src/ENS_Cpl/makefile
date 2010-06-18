@@ -40,7 +40,7 @@ $(LIBRARY):  $(OBJS) $(OBJS_90)
 	$(AR) $(ARFLAGS) $@ $?
 
 stub: $(MODULES_STUB)
-	$(AR) $(ARFLAGS) $(TARGET) $(MODULES_STUB)
+	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES_STUB)
 
 .f.o: %.o: %.f
 	$(FC) $(FFLAGS1) -c $*.f
