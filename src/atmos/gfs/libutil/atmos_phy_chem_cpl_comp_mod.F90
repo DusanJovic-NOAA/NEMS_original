@@ -29,7 +29,8 @@
 !! 09Apr 2010     Sarah Lu, Clean up the code
 !! 09May 2010     Sarah Lu, Revise species name for SU, OC, and BC
 !! 13May 2010     Sarah Lu, Change GetPointer_3D_ from private to public
-!! 09Jun 2010     Sarah Lu, Remove ref to m_chars/lowercase; add f_fixchar
+!! 09Jun 2010     Sarah Lu, Remove ref to m_chars/lowercase; add g_fixchar
+!! 10Jun 2010     Sarah Lu, Remove aerosol tarcer pointer for iAERO
 !-----------------------------------------------------------------------
 
       use ESMF_MOD
@@ -321,12 +322,8 @@
       real (ESMF_KIND_R8), pointer, dimension(:,:,:) :: c_ple, c_zle,   &
                c_airdens, c_t, c_u, c_v, c_fcld, c_dqdt
 
-      real (ESMF_KIND_R8), pointer, dimension(:,:,:) ::                  &
-               c_o3, c_rh2,                                              & ! met tracers
-               c_du001, c_du002, c_du003, c_du004, c_du005,              & ! DU
-               c_ss001, c_ss002, c_ss003, c_ss004, c_ss005,              & ! SS
-               c_msa,   c_so4,   c_so2,   c_dms,                         & ! SU
-               c_ocphobic, c_ocphilic, c_bcphobic, c_bcphilic              ! OC/BC
+      real (ESMF_KIND_R8), pointer, dimension(:,:,:) ::  c_o3, c_rh2       ! met tracers
+
 !
 ! local variables for conversion
       real       :: ptp, utp, vtp, ttp, htp, shrtp, tv1, dz
@@ -557,42 +554,11 @@
        call GetPointer_3D_(CHEM_IMP_STATE,'FCLD', c_fcld , rc)
        call GetPointer_3D_(CHEM_IMP_STATE,'DQDT', c_dqdt , rc)
 
-! get met + chem tracers
+! get met tracers
        call GetPointer_3D_(CHEM_IMP_STATE,'O3' , c_o3  , rc)
        call GetPointer_3D_(CHEM_IMP_STATE,'RH2' , c_rh2 , rc)
 
-       if ( run_DU ) then
-        call GetPointer_tracer_(CHEM_IMP_STATE,'du001', c_du001, rc)
-        call GetPointer_tracer_(CHEM_IMP_STATE,'du002', c_du002, rc)
-        call GetPointer_tracer_(CHEM_IMP_STATE,'du003', c_du003, rc)
-        call GetPointer_tracer_(CHEM_IMP_STATE,'du004', c_du004, rc)
-        call GetPointer_tracer_(CHEM_IMP_STATE,'du005', c_du005, rc)
-       endif
-
-       if ( run_SS ) then
-        call GetPointer_tracer_(CHEM_IMP_STATE,'ss001', c_ss001, rc)
-        call GetPointer_tracer_(CHEM_IMP_STATE,'ss002', c_ss002, rc)
-        call GetPointer_tracer_(CHEM_IMP_STATE,'ss003', c_ss003, rc)
-        call GetPointer_tracer_(CHEM_IMP_STATE,'ss004', c_ss004, rc)
-        call GetPointer_tracer_(CHEM_IMP_STATE,'ss005', c_ss005, rc)
-       endif
-
-       if ( run_SU ) then
-        call GetPointer_tracer_(CHEM_IMP_STATE,'MSA', c_msa, rc)
-        call GetPointer_tracer_(CHEM_IMP_STATE,'SO4', c_so4, rc)
-        call GetPointer_tracer_(CHEM_IMP_STATE,'SO2', c_so2, rc)
-        call GetPointer_tracer_(CHEM_IMP_STATE,'DMS', c_dms, rc)
-       endif
-
-       if ( run_OC ) then
-        call GetPointer_tracer_(CHEM_IMP_STATE,'OCphobic', c_ocphobic, rc)
-        call GetPointer_tracer_(CHEM_IMP_STATE,'OCphilic', c_ocphilic, rc)
-       endif
-
-       if ( run_BC ) then
-        call GetPointer_tracer_(CHEM_IMP_STATE,'BCphobic', c_bcphobic, rc)
-        call GetPointer_tracer_(CHEM_IMP_STATE,'BCphilic', c_bcphilic, rc)
-       endif
+! chem tracers already pointed to phy export state (tracer bundle)
 
       endif
 

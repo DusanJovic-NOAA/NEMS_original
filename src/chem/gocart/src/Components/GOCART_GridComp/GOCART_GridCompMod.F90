@@ -49,6 +49,7 @@
 !
 !  25feb2005  da Silva  First crack.
 !  19jul2006  da Silva  First separate GOCART component.
+!  18jun2010  Lu        Add gaseous species (dms,so2,msa) to AERO bundle
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1048,6 +1049,11 @@ end if ! doing GOCART
             short_name(1:8) .eq. 'OCPHOBIC'  .or. &
             short_name(1:8) .eq. 'OCPHILIC'  .or. &
             short_name(1:2) .eq. 'BC'        .or. &
+! -- add gaseous species needed by GFS (Sarah Lu)
+            short_name(1:3) .eq. 'DMS'       .or. &
+            short_name(1:3) .eq. 'SO2'       .or. &
+            short_name(1:3) .eq. 'MSA'       .or. &
+
             short_name(1:3) .eq. 'SO4'            ) then
 
           if ( GOCART_OWNS_TRACERS ) then

@@ -63,21 +63,15 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
 # Copy init files
 ####################################################################################################
 
+if [ $GOCART = 1 ] ; then
+ export EXTDIR=/global/save/wx23lu/NEMS/fix
+ export RCSDIR=/global/save/wx23lu/NEMS/Chem_Registry
+ cp ${RCSDIR}/*.rc ${RUNDIR}/.
+ cp -r  ${EXTDIR}/ExtData ${RUNDIR}/.
+fi
 cp atmos.configure_gfs ${RUNDIR}/atmos.configure
 cp MAPL.rc ${RUNDIR}/MAPL.rc
 cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
-if [ $GOCART = 1 ] ; then
- export EXTDIR=/global/save/wx23lu/NEMS/fix
- export RCDIR=/global/save/wx23lu/NEMS/Chem_Registry
- cp $RCDIR/DU_GridComp.rc ${RUNDIR}/DU_GridComp.rc
- cp $RCDIR/BC_GridComp.rc ${RUNDIR}/BC_GridComp.rc
- cp $RCDIR/OC_GridComp.rc ${RUNDIR}/OC_GridComp.rc
- cp $RCDIR/OC_GridComp---full.rc ${RUNDIR}/OC_GridComp---full.rc
- cp $RCDIR/SU_GridComp.rc ${RUNDIR}/SU_GridComp.rc
- cp $RCDIR/SS_GridComp.rc ${RUNDIR}/SS_GridComp.rc
- cp $RCDIR/Aod-550nm_Registry.rc ${RUNDIR}/Aod-550nm_Registry.rc
- cp -r  ${EXTDIR}/ExtData ${RUNDIR}/.
-fi
 
 if [ $IDVC = 2 ] ; then
   cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/gfsanl.2009072400 ${RUNDIR}/.

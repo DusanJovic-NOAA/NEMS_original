@@ -20,6 +20,7 @@ module module_nemsio
 !    2010-01-25    Jun Wang - support 8 bytes real variables or aryays in the header
 !    2010-02-04    Jun Wang - set all real numbers in 8 byte real numbers when
 !                             calculating default latitude for GFS model
+!    2010-06-10    Sarah Lu - modify gribtable for msa, so4, dms, ss005
 !
 ! Public Variables
 ! Public Defined Types
@@ -5797,10 +5798,10 @@ contains
     gribtable(4)%item(7)=nemsio_grbtbl_item('ss002','mid layer',9,0,246,109)
     gribtable(4)%item(8)=nemsio_grbtbl_item('ss003','mid layer',9,0,247,109)
     gribtable(4)%item(9)=nemsio_grbtbl_item('ss004','mid layer',9,0,248,109)
-    gribtable(4)%item(10)=nemsio_grbtbl_item('msa','mid layer',9,0,230,109)
-    gribtable(4)%item(11)=nemsio_grbtbl_item('so4','mid layer',9,0,231,109)
+    gribtable(4)%item(10)=nemsio_grbtbl_item('dms','mid layer',9,0,235,109)
+    gribtable(4)%item(11)=nemsio_grbtbl_item('so4','mid layer',9,0,234,109)
     gribtable(4)%item(12)=nemsio_grbtbl_item('so2','mid layer',9,0,232,109)
-    gribtable(4)%item(13)=nemsio_grbtbl_item('dms','mid layer',9,0,233,109)
+    gribtable(4)%item(13)=nemsio_grbtbl_item('msa','mid layer',9,0,233,109)
     gribtable(4)%item(14)=nemsio_grbtbl_item('ocphobic','mid layer',9,0,249,109)
     gribtable(4)%item(15)=nemsio_grbtbl_item('ocphilic','mid layer',9,0,250,109)
     gribtable(4)%item(16)=nemsio_grbtbl_item('bcphobic','mid layer',9,0,251,109)
@@ -5812,6 +5813,8 @@ contains
     gribtable(4)%item(21)=nemsio_grbtbl_item('ocaod','atmos col',3,0,237,200)
     gribtable(4)%item(22)=nemsio_grbtbl_item('suaod','atmos col',3,0,234,200)
     gribtable(4)%item(23)=nemsio_grbtbl_item('ssaod','atmos col',3,0,239,200)
+
+    gribtable(4)%item(24)=nemsio_grbtbl_item('ss005','mid layer',9,0,253,109)
 !
     iret=0
   end subroutine nemsio_setgrbtbl

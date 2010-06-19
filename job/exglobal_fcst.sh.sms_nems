@@ -31,7 +31,7 @@
 # 2010-02     Jun Wang  Add restart
 # 2010-02-06  Sarah Lu : modify phy_namelist.rc (set p_export/dp_export to 1)
 # 2010-03-23  Sarah Lu : add passive_tracer to atm_namelist.rc 
-# 2010-05-31  Sarah Lu : change files to be copied in GOCART_CLIM to wildcard
+# 2010-05-31  Sarah Lu : use wildcard to copy files from GOCART_CLIM to DATA
 #
 # Usage:  global_forecast.sh GRDI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO
 #

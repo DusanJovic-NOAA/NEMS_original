@@ -14,8 +14,10 @@
 !!                          in from phy2chem coupler module; flip the 
 !!                          vertical index from top-down to bottom-up
 !! 09May 2010     Sarah Lu, Revise species name for SU, OC, and BC
-!! 13May 2010     Sarah Lu, Gaseous species (DMS, SO2, MSA) are extracted 
+!! 13May 2010     Sarah Lu, Gaseous species (DMS, SO2, MSA) are extracted
 !!                          from GOCART export state (not from AERO bundle)
+!! 10Jun 2010     Sarah Lu, Gaseous species are taken from AERO bundle (as
+!!                          GOCART grid component is revised)
 !-----------------------------------------------------------------------
 
       use ESMF_MOD
@@ -24,7 +26,6 @@
       use MODULE_gfs_machine,  ONLY: kind_phys
 !
       use atmos_phy_chem_cpl_comp_mod, only:                  &
-                          GetPointer_3D_,                     &
                           GetPointer_tracer_, CkPointer_,     &
                           lonr, lats_node_r, lats_node_r_max, &
                           lonsperlar_r, im, jm, km, ntrac,    &
@@ -275,10 +276,10 @@
        endif
 
        if ( run_SU ) then
-        call GetPointer_3D_    (CHEM_EXP_STATE,'MSA', c_msa, rc)
+        call GetPointer_tracer_(CHEM_EXP_STATE,'MSA', c_msa, rc)
         call GetPointer_tracer_(CHEM_EXP_STATE,'SO4', c_so4, rc)
-        call GetPointer_3D_    (CHEM_EXP_STATE,'SO2', c_so2, rc)
-        call GetPointer_3D_    (CHEM_EXP_STATE,'DMS', c_dms, rc)
+        call GetPointer_tracer_(CHEM_EXP_STATE,'SO2', c_so2, rc)
+        call GetPointer_tracer_(CHEM_EXP_STATE,'DMS', c_dms, rc)
        endif
 
        if ( run_OC ) then
@@ -335,10 +336,12 @@
           p_bcphilic(:,:,1:km) = c_bcphilic(:,:,km:1:-1) 
           p_bcphobic(:,:,1:km) = c_bcphobic(:,:,km:1:-1) 
         endif
+
         if ( run_OC ) then
           p_ocphilic(:,:,1:km) = c_ocphilic(:,:,km:1:-1) 
           p_ocphobic(:,:,1:km) = c_ocphobic(:,:,km:1:-1) 
         endif
+
         if ( run_SU ) then
           p_msa(:,:,1:km) = c_msa(:,:,km:1:-1) 
           p_so2(:,:,1:km) = c_so2(:,:,km:1:-1) 
