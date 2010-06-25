@@ -45,28 +45,28 @@ OBJS0   = \
 	  gfs_physics_grid_comp_mod.o
 
 OBJ_MOD	= \
-	  machine.o		\
-	  iounitdef.o           \
-	  resol_def.o           \
-	  layout1.o             \
-	  vert_def.o            \
-	  gg_def.o              \
-	  date_def.o            \
-	  physcons_v.o          \
-	  funcphys_v.o          \
-	  progtm_module.o       \
-	  rascnvv2_v.o          \
-	  namelist_physics_def.o        \
-	  namelist_soilveg.o    \
-	  coordinate_def.o      \
-	  tracer_const_h.o  	\
-	  gfs_phy_tracer_config.o  	\
-	  reduce_lons_grid_module.o	\
-	  module_bfmicrophysics.o	\
-	  mersenne_twister.o	\
-	  mpi_def.o		\
-	  d3d_def.o        	\
-	  sfcio_module.o        \
+	  machine.o 	  	    \
+	  iounitdef.o               \
+	  resol_def.o               \
+	  layout1.o                 \
+	  vert_def.o                \
+	  gg_def.o                  \
+	  date_def.o                \
+	  physcons.o                \
+	  funcphys.o                \
+	  progtm_module.o           \
+	  rascnvv2.o                \
+	  namelist_physics_def.o    \
+	  namelist_soilveg.o        \
+	  coordinate_def.o          \
+	  tracer_const_h.o  	    \
+	  gfs_phy_tracer_config.o   \
+	  reduce_lons_grid_module.o \
+	  module_bfmicrophysics.o   \
+	  mersenne_twister.o  	    \
+	  mpi_def.o		    \
+	  d3d_def.o        	    \
+	  sfcio_module.o            \
           mod_state.o    
 
 OBJS    = \
@@ -85,7 +85,7 @@ OBJS    = \
           common_to_physics_vars.o      \
           do_physics_one_step.o         \
           physics_to_common_vars.o      \
-          gcycle_v.o                    \
+          gcycle.o                      \
           hpmdummy.o
 
 OBJS_IO= \
@@ -115,39 +115,39 @@ OBJS_RAD	=              \
 
 
 OBJS_PHY = \
-	ozinterp.o          \
-	ozphys_v.o          \
-	gloopb.o            \
-	gbphys_v.o          \
-	gbphys_adv_hyb_gc.o \
+	ozinterp.o            \
+	ozphys.o              \
+	gloopb.o              \
+	gbphys.o              \
+	gbphys_adv_hyb_gc.o   \
 	gbphys_adv_hyb_gc_h.o \
-	dcyc2_v.o           \
-	dcyc2_v.pre.rad.o   \
-	set_soilveg.o       \
-	sfc_drv.o           \
-	sfc_land.o          \
-	progt2_v.o          \
-	sfc_sice.o          \
-	sfc_ocean.o         \
-	sfc_diff.o          \
-	sfc_diag.o          \
-	sflx.o              \
-	moninp_v.o          \
-	moninq_v.o          \
-	gwdps_v.o           \
-	gwdc.o           \
-	sascnv_v.o          \
-	sascnvn_v.o          \
-	cnvcld_v.o          \
-	shalcv_v.o          \
-	shalcnv_v.o          \
-	lrgsclr_v.o         \
-	gscond_v.o          \
-	precpd_v.o          \
-	mstadb_v.o          \
-	mstcnv_v.o          \
-	get_prs_v.o         \
-	gsmddrive_v.o 
+	dcyc2.o               \
+	dcyc2.pre.rad.o       \
+	set_soilveg.o         \
+	sfc_drv.o             \
+	sfc_land.o            \
+	progt2.o              \
+	sfc_sice.o            \
+	sfc_ocean.o           \
+	sfc_diff.o            \
+	sfc_diag.o            \
+	sflx.o                \
+	moninp.o              \
+	moninq.o              \
+	gwdps.o               \
+	gwdc.o                \
+	sascnv.o              \
+	sascnvn.o             \
+	cnvcld.o              \
+	shalcv.o              \
+	shalcnv.o             \
+	lrgsclr.o             \
+	gscond.o              \
+	precpd.o              \
+	mstadb.o              \
+	mstcnv.o              \
+	get_prs.o             \
+	gsmddrive.o 
 
 #
 # *****************************************************************
@@ -171,14 +171,14 @@ clean:
 # *****************************************************************
 #
 
-cnvcld_v.o:	cnvcld_v.f
-		$(F77) $(FFLAGM) -c cnvcld_v.f
+cnvcld.o:	cnvcld.f
+		$(F77) $(FFLAGM) -c cnvcld.f
 
-dcyc2_v.o:	dcyc2_v.f
-		$(F77) $(FFLAGM) -c dcyc2_v.f
+dcyc2.o:	dcyc2.f
+		$(F77) $(FFLAGM) -c dcyc2.f
 
-dcyc2_v.pre.rad.o:	dcyc2_v.pre.rad.f
-		$(F77) $(FFLAGM) -c dcyc2_v.pre.rad.f
+dcyc2.pre.rad.o:	dcyc2.pre.rad.f
+		$(F77) $(FFLAGM) -c dcyc2.pre.rad.f
 
 funcphys_subsx.o:	funcphys_subsx.f
 		$(F77) $(FFLAGM) -c funcphys_subsx.f
@@ -189,56 +189,53 @@ gbphys_adv_hyb_gc.o:	gbphys_adv_hyb_gc.f
 gbphys_adv_hyb_gc_h.o:	gbphys_adv_hyb_gc_h.f
 		$(F77) $(FFLAGM) -c gbphys_adv_hyb_gc_h.f
 
-gbphys_v.o:	gbphys_v.f
-		$(F77) $(FFLAGM) -c gbphys_v.f
+gbphys.o:	gbphys.f
+		$(F77) $(FFLAGM) -c gbphys.f
 
-get_prs_v.o:	get_prs_v.f
-		$(F77) $(FFLAGM) -c get_prs_v.f
+get_prs.o:	get_prs.f
+		$(F77) $(FFLAGM) -c get_prs.f
 
-gscond_v.o:	gscond_v.f
-		$(F77) $(FFLAGM) -c gscond_v.f
+gscond.o:	gscond.f
+		$(F77) $(FFLAGM) -c gscond.f
 
-gsmddrive_v.o:	gsmddrive_v.f
-		$(F77) $(FFLAGM) -c gsmddrive_v.f
+gsmddrive.o:	gsmddrive.f
+		$(F77) $(FFLAGM) -c gsmddrive.f
 
 module_bfmicrophysics.o:	module_bfmicrophysics.f
 		$(F77) $(FFLAGM) -c module_bfmicrophysics.f
 
-gwdps_v.o:	gwdps_v.f
-		$(F77) $(FFLAGM) -c gwdps_v.f
+gwdps.o:	gwdps.f
+		$(F77) $(FFLAGM) -c gwdps.f
 
 gwdc.o:		gwdc.f
 		$(F77) $(FFLAGM) -c gwdc.f
 
-lrgsclr_v.o:	lrgsclr_v.f
-		$(F77) $(FFLAGM) -c lrgsclr_v.f
+lrgsclr.o:	lrgsclr.f
+		$(F77) $(FFLAGM) -c lrgsclr.f
 
-moninp_v.o:	moninp_v.f
-		$(F77) $(FFLAGM) -c moninp_v.f
+moninp.o:	moninp.f
+		$(F77) $(FFLAGM) -c moninp.f
 
-moninq_v.o:	moninq_v.f
-		$(F77) $(FFLAGM) -c moninq_v.f
+moninq.o:	moninq.f
+		$(F77) $(FFLAGM) -c moninq.f
 
-moninp_han_v.o:	moninp_han_v.f
-		$(F77) $(FFLAGM) -c moninp_han_v.f
+mstadb.o:	mstadb.f
+		$(F77) $(FFLAGM) -c mstadb.f
 
-mstadb_v.o:	mstadb_v.f
-		$(F77) $(FFLAGM) -c mstadb_v.f
-
-mstcnv_v.o:	mstcnv_v.f
-		$(F77) $(FFLAGM) -c mstcnv_v.f
+mstcnv.o:	mstcnv.f
+		$(F77) $(FFLAGM) -c mstcnv.f
 
 ozinterp.o:	ozinterp.f
 		$(F77) $(FFLAGM) -c ozinterp.f
 
-ozphys_v.o:	ozphys_v.f
-		$(F77) $(FFLAGM) -c ozphys_v.f
+ozphys.o:	ozphys.f
+		$(F77) $(FFLAGM) -c ozphys.f
 
-precpd_v.o:	precpd_v.f
-		$(F77) $(FFLAGM) -c precpd_v.f
+precpd.o:	precpd.f
+		$(F77) $(FFLAGM) -c precpd.f
 
-rascnvv2_v.o:	rascnvv2_v.f
-		$(F77) $(FFLAGM) -c rascnvv2_v.f
+rascnvv2.o:	rascnvv2.f
+		$(F77) $(FFLAGM) -c rascnvv2.f
 
 sfc_sice.o:	sfc_sice.f
 		$(F77) $(FFLAGM) -c sfc_sice.f
@@ -252,8 +249,8 @@ namelist_soilveg.o:	namelist_soilveg.f
 sfc_land.o:	sfc_land.f
 		$(F77) $(FFLAGM) -c sfc_land.f
                                                                             
-progt2_v.o:	progt2_v.f
-		$(F77) $(FFLAGM) -c progt2_v.f
+progt2.o:	progt2.f
+		$(F77) $(FFLAGM) -c progt2.f
 
 sfc_drv.o:	sfc_drv.f
 		$(F77) $(FFLAGM) -c sfc_drv.f
@@ -270,17 +267,17 @@ sfc_diff.o:	sfc_diff.f
 sfc_diag.o:	sfc_diag.f
 		$(F77) $(FFLAGM) -c sfc_diag.f
 
-sascnv_v.o:	sascnv_v.f
-		$(F77) $(FFLAGM) -c sascnv_v.f
+sascnv.o:	sascnv.f
+		$(F77) $(FFLAGM) -c sascnv.f
 
-sascnvn_v.o:	sascnvn_v.f
-		$(F77) $(FFLAGM) -c sascnvn_v.f
+sascnvn.o:	sascnvn.f
+		$(F77) $(FFLAGM) -c sascnvn.f
 
-shalcv_v.o:	shalcv_v.f
-		$(F77) $(FFLAGM) -c shalcv_v.f
+shalcv.o:	shalcv.f
+		$(F77) $(FFLAGM) -c shalcv.f
 
-shalcnv_v.o:	shalcnv_v.f
-		$(F77) $(FFLAGM) -c shalcnv_v.f
+shalcnv.o:	shalcnv.f
+		$(F77) $(FFLAGM) -c shalcnv.f
 
 # *****************************************************************
 
@@ -332,14 +329,14 @@ mpi_def.o:	mpi_def.f
 #
 # *****************************************************************
 #
-physcons_v.o:	physcons_v.f
-		$(F77) $(FFLAG90) -c physcons_v.f
+physcons.o:	physcons.f
+		$(F77) $(FFLAG90) -c physcons.f
 
 iounitdef.o:	iounitdef.f
 		$(F77) $(FFLAG90) -c iounitdef.f
 
-funcphys_v.o:	funcphys_v.f
-		$(F77) $(FFLAG90) -c funcphys_v.f
+funcphys.o:	funcphys.f
+		$(F77) $(FFLAG90) -c funcphys.f
 
 sfcio_module.o:	sfcio_module.f
 		$(F77) $(FFLAGSF) -c sfcio_module.f
@@ -365,8 +362,8 @@ gloopb.o:	gloopb.f
 sfcsub.o:	sfcsub.f
 		$(F77) $(FFLAGM) -c sfcsub.f
 
-gcycle_v.o:	gcycle_v.f
-		$(F77) $(FFLAGM) -c gcycle_v.f
+gcycle.o:	gcycle.f
+		$(F77) $(FFLAGM) -c gcycle.f
 
 getaer.o:	getaer.f
 		$(F77) $(FFLAGIO) -c getaer.f

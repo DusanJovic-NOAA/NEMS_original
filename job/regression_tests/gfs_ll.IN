@@ -12,7 +12,7 @@
 # @ node_usage = shared
 # @ resources=ConsumableCPUs(1)ConsumableMemory(5GB)
 # @ class = _CLASS_
-# @ group = _CLASS_
+# @ group = _GROUP_
 # @ wall_clock_limit = 00:30:00
 # @ preferences = Feature == "dev"
 # @ network.MPI = sn_all,not_shared,us

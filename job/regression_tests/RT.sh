@@ -9,8 +9,12 @@ set -ua
 export MACHINE_ID=`hostname | cut -c1`
 
 if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
-  export CLASS=dev
-  export ACCNR=NAM-T2O
+  export CLASS=devhigh
+  export GROUP=devonprod
+# export CLASS=dev
+# export ACCNR=NAM-T2O
+# export DISKNM=meso
+  export ACCNR=GFS-T2O
   export DISKNM=meso
 elif [ ${MACHINE_ID} = v ]; then 
   export CLASS=mtb
