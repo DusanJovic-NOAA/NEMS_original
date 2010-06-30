@@ -27,7 +27,7 @@
 !
       USE ESMF_MOD
       USE MODULE_VARS_STATE
-      USE MODULE_DYNAMICS_INTERNAL_STATE                                  !<-- Horizontal loop limits obtained here
+      USE MODULE_DYNAMICS_INTERNAL_STATE                                   !<-- Horizontal loop limits obtained here
 !
       USE MODULE_DM_PARALLEL,ONLY : IDS,IDE,JDS,JDE                     &
                                    ,IMS,IME,JMS,JME                     &
@@ -1438,7 +1438,7 @@
       LOGICAL(kind=KLOG),SAVE :: GLOBAL,HYDRO,RUNBC,SECADV
       LOGICAL(kind=KLOG)      :: COMPUTE_BC
 !
-      INTEGER(kind=KINT),SAVE :: N_PRINT_STATS                            !<--- Timesteps between statistics prints
+      INTEGER(kind=KINT),SAVE :: N_PRINT_STATS                             !<--- Timesteps between statistics prints
       LOGICAL(kind=KLOG),SAVE :: written=.false.
 !
 !-----------------------------------------------------------------------
@@ -1719,7 +1719,7 @@
         btim=timef()
 !
         CALL DHT                                                        &
-          (LM,DYV,DSG2,PDSG1,DXV                                        &
+          (GLOBAL,LM,DYV,DSG2,PDSG1,DXV                                 &
           ,FCP,FDIV                                                     &
           ,int_state%PD,int_state%PDO                                   &
           ,int_state%U,int_state%V                                      &
@@ -1836,7 +1836,7 @@
             ,HDACX,HDACY,HDACVX,HDACVY                                  &
             ,int_state%W,int_state%Z                                    &
             ,int_state%CW,int_state%Q,int_state%Q2                      &
-            ,int_state%T,int_state%U,int_state%V)                          
+            ,int_state%T,int_state%U,int_state%V,int_state%DEF)                          
         ENDIF
 !
         hdiff_tim=hdiff_tim+(timef()-btim)
@@ -2141,7 +2141,7 @@
         btim=timef()
 !
         CALL DHT                                                        &
-          (LM,DYV,DSG2,PDSG1,DXV                                        &
+          (GLOBAL,LM,DYV,DSG2,PDSG1,DXV                                 &
           ,FCP,FDIV                                                     &
           ,int_state%PD,int_state%PDO                                   &
           ,int_state%U,int_state%V                                      &
@@ -2731,6 +2731,7 @@
         (GLOBAL,HYDRO,int_state%RESTART                                 &
         ,INPES,JNPES,LM,ABS(NTIMESTEP)                                  &
         ,DT,G,DSG2,PDSG1,FAH                                            &
+        ,int_state%HDACX,int_state%HDACY                                &
         ,int_state%PD,int_state%PDO                                     &
         ,int_state%PSGDT                                                &
         ,int_state%DWDT,int_state%PDWDT,int_state%W                     &
@@ -2738,7 +2739,8 @@
 !
 !***  External scratch areas
 !
-        ,int_state%PFX,int_state%PFY,int_state%PFNE,int_state%PFNW)
+        ,int_state%DEF,int_state%PFX,int_state%PFY                      &
+        ,int_state%PFNE,int_state%PFNW)
 !
       cdwdt_tim=cdwdt_tim+(timef()-btim)
 !
@@ -2788,7 +2790,7 @@
 !
       CALL VSOUND                                                       &
         (GLOBAL,HYDRO,int_state%RESTART                                 &
-        ,LM,ABS(NTIMESTEP)                                                   &
+        ,LM,ABS(NTIMESTEP)                                              &
         ,CP,DT,PT,DSG2,PDSG1                                            &
         ,int_state%PD                                                   &
         ,int_state%CW,int_state%Q,int_state%RTOP                        &

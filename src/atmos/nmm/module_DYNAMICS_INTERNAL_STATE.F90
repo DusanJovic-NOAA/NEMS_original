@@ -149,6 +149,7 @@
                                                    ,Q,CW,O3             &
                                                    ,Q2,E2               &
                                                    ,DIV                 &
+                                                   ,DEF                 &
                                                    ,TDIV                &
                                                    ,W,Z                 &
                                                    ,DWDT,PDWDT          &
@@ -575,6 +576,7 @@
 !***  Working arrays passed as arguments between subroutines.
 !-----------------------------------------------------------------------
 !
+      ALLOCATE(int_state%DEF (IMS:IME,JMS:JME,1:LM))                      !<-- Horizontal flow deformation
       ALLOCATE(int_state%PCNE(IMS:IME,JMS:JME,1:LM))                      !<-- 2nd term of pgf, NE direction
       ALLOCATE(int_state%PCNW(IMS:IME,JMS:JME,1:LM))                      !<-- 2nd term of pgf, NW direction
       ALLOCATE(int_state%PCX (IMS:IME,JMS:JME,1:LM))                      !<-- 2nd term of pgf, X direction
@@ -873,6 +875,7 @@
       DO L=1,LM
       DO J=JMS,JME
       DO I=IMS,IME
+        int_state%DEF(I,J,L) =-1.E6
         int_state%DIV(I,J,L) =-1.E6
         int_state%PCNE(I,J,L)=-1.E6
         int_state%PCNW(I,J,L)=-1.E6

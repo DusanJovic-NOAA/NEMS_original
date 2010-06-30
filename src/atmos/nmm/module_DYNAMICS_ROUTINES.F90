@@ -409,7 +409,8 @@ real(kind=kfpt),dimension(its:ite_h1,jts_b1:jte_h1):: &
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
                         subroutine dht &
-(lm &
+(global &
+,lm &
 ,dyv &
 ,dsg2,pdsg1 &
 ,dxv,fcp,fdiv &
@@ -427,6 +428,9 @@ real(kind=kfpt),parameter:: &
  cfc=1.533 &                 ! adams-bashforth positioning in time
 ,bfc=1.-cfc                  ! adams bashforth positioning in time
 !-----------------------------------------------------------------------
+logical(kind=klog),intent(in):: &
+ global
+
 integer(kind=kint),intent(in):: &
  lm                          ! total # of levels
  
@@ -627,6 +631,38 @@ real(kind=kfpt),dimension(its_b1:ite_h2,jts_b1:jte_h2):: &
                          *fcpp/(dsg2(l)*pd(i,j)+pdsg1(l))
           enddo
         enddo
+!-----------------------------------------------------------------------
+!---zero divergence along regional domain boundaries--------------------
+!-----------------------------------------------------------------------
+        if(.not.global) then
+          if(s_bdy)then
+            do i=ims,ime
+              div (i,jds,l)=0.
+              tdiv(i,jds,l)=0.
+            enddo
+          endif
+!
+          if(n_bdy)then
+            do i=ims,ime
+              div (i,jde,l)=0.
+              tdiv(i,jde,l)=0.
+            enddo
+          endif
+!
+          if(w_bdy)then
+            do j=jms,jme
+              div (ids,j,l)=0.
+              tdiv(ids,j,l)=0.
+            enddo
+          endif
+!
+          if(e_bdy)then
+            do j=jms,jme
+              div (ide,j,l)=0.
+              tdiv(ide,j,l)=0.
+            enddo
+          endif
+       endif
 !-----------------------------------------------------------------------
       enddo vertical_loop
 !-----------------------------------------------------------------------
@@ -2360,14 +2396,15 @@ real(kind=kfpt):: &
 ,sice,sm &
 ,hdacx,hdacy,hdacvx,hdacvy &
 ,w,z &
-,cw,q,q2,t,u,v)
+,cw,q,q2,t,u,v,def3d)
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
 implicit none
 !-----------------------------------------------------------------------
 real(kind=kfpt),parameter:: &
- scq2=50. &                  ! 2tke weighting factor
+ defvfc=2. &                 ! vertical deformation weight
+,scq2=50. &                  ! 2tke weighting factor
 ,epsq=1.e-20 &               ! floor value for specific humidity
 ,epsq2=0.02 &                ! floor value for 2tke
 ,slopec=.05                  ! critical slope
@@ -2411,6 +2448,9 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
 ,t &                         ! temperature
 ,u &                         ! u wind component
 ,v                           ! v wind component
+
+real(kind=kfpt),dimension(ims:ime,jms:jme,lm),intent(out) :: &
+ def3d          
            
 !-----------------------------------------------------------------------
 !--local variables------------------------------------------------------
@@ -2434,14 +2474,15 @@ real(kind=kfpt):: &
 ,defp &                      ! deformation at the point
 ,defs &                      ! component of deformation
 ,deft &                      ! component of deformation
-!,defz &                      ! rotational component of deformation
+,defvp &
+,defhp &
+
 ,hkfx &                      ! def with slope factor
 ,hkfy &                      ! def with slope factor
 ,q2trm &                     !
 ,slopx &                     ! x slope
 ,slopy                       ! y slope
 
-real(kind=kfpt),dimension(ims:ime,jms:jme,lm):: def3d          
 real(kind=kfpt),dimension(ims:ime,jms:jme):: &
  cdif &                      ! condensate 2nd order diffusion
 ,cx &                        ! condensate difference, x direction
@@ -2470,7 +2511,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 !***********************************************************************
 !-----------------------------------------------------------------------
       if(global) then
-        defm=1.35e-3/2./4. ! deformation cap, /4. for smag2=0.4
+        defm=1.6875e-4 ! 1.35e-3/2./4. ! deformation cap, /4. for smag2=0.4
       else
         defm=9999.
       endif
@@ -2547,22 +2588,29 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 !                   -v(i-1,j-1,l)-v(i-1,j  ,l))*dyh     )*rare(j)  *10.
 !            if(defz.gt.0.) defz=0.
 !
-            def1=(w(i,j,l)-w(i,j-1,l))*rdyh
-            def2=(w(i,j,l)-w(i-1,j,l))*rdxh(j)
-            def3=(w(i+1,j,l)-w(i,j,l))*rdxh(j)
-            def4=(w(i,j+1,l)-w(i,j,l))*rdyh
-!
+            if(.not.hydro) then
+              def1=(w(i,j,l)-w(i,j-1,l))*rdyh
+              def2=(w(i,j,l)-w(i-1,j,l))*rdxh(j)
+              def3=(w(i+1,j,l)-w(i,j,l))*rdxh(j)
+              def4=(w(i,j+1,l)-w(i,j,l))*rdyh
+            else
+              def1=0.
+              def2=0.
+              def3=0.
+              def4=0.
+            endif
+
             if(q2(i,j,l).gt.epsq2) then
               q2trm=scq2*q2(i,j,l)*rare(j)
             else
               q2trm=0.
             endif
+
+
+            defhp=deft*deft+defs*defs+q2trm
+            defvp=def1*def1+def2*def2+def3*def3+def4*def4 
 !
-            defp=deft*deft+defs*defs &
-!                +defz*defz &
-                +def1*def1+def2*def2+def3*def3+def4*def4 &
-                +q2trm
-            defp=sqrt(defp+defp)
+            defp=sqrt(defhp*2.+defvp*defvfc)
             defp=max (defp,defc)
             defp=min (defp,defm)
 !
@@ -2919,7 +2967,8 @@ real(kind=kfpt),dimension(its_h1:ite_h1,jts_h1:jte_h1):: &
         do j=jstart,jstop
           do i=its_b1,ite_b1
             tta(i,j)=(z(i,j,l+1)-z(i,j,l))*psgdt(i,j,l)*0.5
-            w(i,j,l)=(tta(i,j)+ttb(i,j))/(dsg2(l)*pdo(i,j)+pdsg1(l)) &
+            w(i,j,l)=(tta(i,j)+ttb(i,j)) &
+                    /(dsg2(l)*pdo(i,j)+pdsg1(l)) &
                     +w(i,j,l)
             ttb(i,j)=tta(i,j)
           enddo
@@ -3029,6 +3078,37 @@ real(kind=kfpt),dimension(its_h1:ite_h1,jts_h1:jte_h1):: &
 #endif
 !------------------
 !-----------------------------------------------------------------------
+!---taking external mode out--------------------------------------------
+!-----------------------------------------------------------------------
+      do j=jts_b1,jte_b1
+        do i=its_b1,ite_b1
+          ttb(i,j)=0.
+        enddo
+      enddo
+!
+      do l=1,lm
+        do j=jts_b1,jte_b1
+          do i=its_b1,ite_b1
+            ttb(i,j)=(dsg2(l)*pdo(i,j)+pdsg1(l))*w(i,j,l)+ttb(i,j)
+          enddo
+        enddo
+      enddo
+!
+      do j=jts_b1,jte_b1
+        do i=its_b1,ite_b1
+          ttb(i,j)=ttb(i,j)/pdo(i,j)
+        enddo
+      enddo
+!
+      do l=1,lm
+        do j=jts_b1,jte_b1
+          do i=its_b1,ite_b1
+            w(i,j,l)=w(i,j,l)-ttb(i,j)
+          enddo
+        enddo
+      enddo
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
 !
                         endsubroutine cdzdt
 !
@@ -3041,12 +3121,13 @@ real(kind=kfpt),dimension(its_h1:ite_h1,jts_h1:jte_h1):: &
 ,dt,g &
 ,dsg2,pdsg1 &
 ,fah &
+,hdacx,hdacy &
 ,pd,pdo &
 ,psgdt &
 ,dwdt,pdwdt,w &
 ,pint &
 !---temporary arguments-------------------------------------------------
-,pfx,pfy,pfne,pfnw)
+,def,pfx,pfy,pfne,pfnw)
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
@@ -3094,6 +3175,8 @@ real(kind=kfpt),dimension(jds:jde),intent(in):: &
 
 real(kind=kfpt),dimension(ims:ime,jms:jme),intent(in):: &
  pd &                        ! sigma range pressure difference
+,hdacx &                     ! exchange coefficient mass point
+,hdacy &                     ! exchange coefficient mass point
 ,pdo                         ! old sigma range pressure difference
 
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm-1),intent(in):: &
@@ -3110,13 +3193,21 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm+1),intent(inout):: &
 !---temporary arguments-------------------------------------------------
 !-----------------------------------------------------------------------
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(in) :: &
- pfx &                       ! mass flux, x direction
+ def &                       ! deformation
+,pfx &                       ! mass flux, x direction
 ,pfy &                       ! mass flux, y direction
 ,pfne &                      ! mass flux, ne direction
 ,pfnw                        ! mass flux, nw direction
 !-----------------------------------------------------------------------
 !--local variables------------------------------------------------------
 !-----------------------------------------------------------------------
+logical(kind=klog) :: diffw      ! turn horizontal diffusion of w on/off
+
+real(kind=kfpt),parameter:: &
+! epsvw=0.001                 !
+ epsvw=9999.                 !
+
+
 integer(kind=kint):: &
  i &                         ! index in x direction
 ,imn &                       !
@@ -3132,7 +3223,8 @@ integer(kind=kint):: &
 ,ks                          ! smoothing counter
 
 real(kind=kfpt):: &
- dwdtmn &                    ! minimum value of dwdt
+ advec &                     !
+,dwdtmn &                    ! minimum value of dwdt
 ,dwdtmx &                    ! maximum value of dwdt
 ,dwdtp &                     ! nonhydrostatic correction factor at the point
 ,fahp &                      ! grid factor
@@ -3146,14 +3238,24 @@ real(kind=kfpt),dimension(its:ite,jts:jte):: &
 real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
  wne &                       ! height flux, ne direction
 ,wnw &                       ! height flux, nw direction
-,ww &                        ! temporary for lateral smoothing
 ,wx &                        ! height flux, x direction
 ,wy                          ! height flux, y direction
+
+real(kind=kfpt),dimension(ims:ime,jms:jme):: &
+ ww                          ! temporary for lateral smoothing
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
 !
       mype=mype_share
+
+!--- cannot diffuse w when in the backward step of digital filtering 
+!
+      if (dt .gt. 0) then
+        diffw=.true.
+      else
+        diffw=.false.
+      endif
 !
 !-----------------------------------------------------------------------
       if(hydro.or.(.not.hydro.and..not.restart.and.ntsd.lt.2)) then
@@ -3280,6 +3382,47 @@ real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
 !.......................................................................
 !$omp end parallel do 
 !.......................................................................
+
+!-----------------------------------------------------------------------
+!---lateral diffusion of w----------------------------------------------
+!-----------------------------------------------------------------------
+!
+      if(diffw) then
+!
+!-----------------------------------------------------------------------
+!
+        do l=1,lm
+!
+!-----------------------------------------------------------------------
+!---w fluxes, on h points-----------------------------------------------
+!-----------------------------------------------------------------------
+!
+          do j=jts_b1,jte_h1
+            do i=its_b1,ite_h1
+              wx(i,j)=(w(i,j,l)-w(i-1,j,l))*(def(i-1,j,l)+def(i,j,l))
+              wy(i,j)=(w(i,j,l)-w(i,j-1,l))*(def(i,j-1,l)+def(i,j,l))
+            enddo
+          enddo
+!
+!-----------------------------------------------------------------------
+!---diffusion of w------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+          do j=jts_b1,jte_b1
+            do i=its_b1,ite_b1
+              dwdt(i,j,l)=-((wx(i+1,j)-wx(i,j))*hdacx(i,j) &
+                           +(wy(i,j+1)-wy(i,j))*hdacy(i,j))*rdt &
+                         +dwdt(i,j,l)
+            enddo
+          enddo
+!
+!-----------------------------------------------------------------------
+!
+        enddo
+!
+!-----------------------------------------------------------------------
+!
+      endif
 !-----------------------------------------------------------------------
 !---vertical advection of w---------------------------------------------
 !-----------------------------------------------------------------------
@@ -3293,7 +3436,8 @@ real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
         do j=jts_b1,jte_b1
           do i=its_b1,ite_b1
             tta(i,j)=(w(i,j,l+1)-w(i,j,l))*psgdt(i,j,l)*0.5
-            dwdt(i,j,l)=(tta(i,j)+ttb(i,j))/(dsg2(l)*pdo(i,j)+pdsg1(l)) &
+            dwdt(i,j,l)=(tta(i,j)+ttb(i,j)) &
+                       /(dsg2(l)*pdo(i,j)+pdsg1(l)) &
                        +dwdt(i,j,l)
             ttb(i,j)=tta(i,j)
           enddo
@@ -3306,6 +3450,18 @@ real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
                       +dwdt(i,j,lm)
         enddo
       enddo
+
+      kn=0
+      kp=0
+      imn=0
+      jmn=0
+      lmn=0
+      imx=0
+      jmx=0
+      lmx=0
+      dwdtmx=0.
+      dwdtmn=0.
+
 !-----------------------------------------------------------------------
 !
 !.......................................................................
@@ -3329,14 +3485,48 @@ real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
 !-----------------------------------------------------------------------
 !---advection of w------------------------------------------------------
 !-----------------------------------------------------------------------
+        do j=jms,jme
+          do i=ims,ime
+            ww(i,j)=0.
+          enddo
+        enddo
+
         do j=jts_b1,jte_b1
           fahp=-fah(j)/dt
           do i=its_b1,ite_b1
-            dwdt(i,j,l)=((wx(i,j)+wx(i+1,j)+wy(i,j)+wy(i,j+1)) &
-                        +(wne(i+1,j+1)+wne(i,j) &
-                         +wnw(i,j+1)+wnw(i+1,j))*0.25)*fahp &
-                       /(dsg2(l)*pdo(i,j)+pdsg1(l)) &
+            advec=((wx(i,j)+wx(i+1,j)+wy(i,j)+wy(i,j+1)) &
+                  +(wne(i+1,j+1)+wne(i,j) &
+                   +wnw(i,j+1)+wnw(i+1,j))*0.25)*fahp &
+                 /(dsg2(l)*pdo(i,j)+pdsg1(l))
+
+            dwdtp=advec
+
+            if(dwdtp.gt.dwdtmx) then
+              dwdtmx=dwdtp
+              imx=i
+              jmx=j
+              lmx=l
+            endif
+            if(dwdtp.lt.dwdtmn) then
+              dwdtmn=dwdtp
+              imn=i
+              jmn=j
+              lmn=l
+            endif
+            if(dwdtp.gt. epsvw) then
+              kp=kp+1
+            endif
+            if(dwdtp.lt.-epsvw) then
+              kn=kn+1
+            endif
+
+!
+            if(advec.gt. epsvw) advec= epsvw
+            if(advec.lt.-epsvw) advec=-epsvw
+!
+            dwdt(i,j,l)=advec &
                        +dwdt(i,j,l)
+
           enddo
         enddo
 !-----------------------------------------------------------------------
@@ -3345,7 +3535,40 @@ real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
 !.......................................................................
 !$omp end parallel do 
 !.......................................................................
+ 1300 format(' **** advecmx=',f9.5,' kp=',i6,' imx=',i4,' jmx=',i4,' lmx=',i2)
+ 1400 format(' **** advecmn=',f9.5,' kn=',i6,' imn=',i4,' jmn=',i4,' lmn=',i2)
+!      if(mype.eq.192) write(0,1300) dwdtmx,kp,imx,jmx,lmx
+!      if(mype.eq.192) write(0,1400) dwdtmn,kp,imn,jmn,lmn
+!-----------------------------------------------------------------------
+!---taking external mode out--------------------------------------------
+!-----------------------------------------------------------------------
+      do j=jts_b1,jte_b1
+        do i=its_b1,ite_b1
+          ttb(i,j)=0.
+        enddo
+      enddo
 !
+      do l=1,lm
+        do j=jts_b1,jte_b1
+          do i=its_b1,ite_b1
+            ttb(i,j)=(dsg2(l)*pdo(i,j)+pdsg1(l))*dwdt(i,j,l)+ttb(i,j)
+          enddo
+        enddo
+      enddo
+!
+      do j=jts_b1,jte_b1
+        do i=its_b1,ite_b1
+          ttb(i,j)=ttb(i,j)/pdo(i,j)
+        enddo
+      enddo
+!
+      do l=1,lm
+        do j=jts_b1,jte_b1
+          do i=its_b1,ite_b1
+            dwdt(i,j,l)=dwdt(i,j,l)-ttb(i,j)
+          enddo
+        enddo
+      enddo
 !-----------------------------------------------------------------------
       if(global) then
         btim=timef()
@@ -3356,6 +3579,10 @@ real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
         call polehn(dwdt,ims,ime,jms,jme,lm,inpes,jnpes)
         polehn_tim=polehn_tim+(timef()-btim)
       endif
+!
+      btim=timef()
+      call halo_exch(dwdt,lm,1,1)
+      exch_dyn_tim=exch_dyn_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !------------spatial filtering of dwdt----------------------------------
@@ -3439,6 +3666,10 @@ real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
           enddo
         enddo
       enddo
+ 1100 format(' dwdtmx=',f9.5,' kp=',i6,' imx=',i4,' jmx=',i4,' lmx=',i2)
+ 1200 format(' dwdtmn=',f9.5,' kn=',i6,' imn=',i4,' jmn=',i4,' lmn=',i2)
+!      if(mype.eq.192) write(0,1100) dwdtmx,kp,imx,jmx,lmx
+!      if(mype.eq.192) write(0,1200) dwdtmn,kp,imn,jmn,lmn
 !-----------------------------------------------------------------------
 !
       if(.not.global) then 
@@ -4623,6 +4854,8 @@ real(kind=kdbl),save :: sumdo3=0.
               dsp=s1(i,j,l,ks)*rdvol(i,j,l)
               if(sfacs.lt.1.) then
                 if(dsp.gt.0.) dsp=dsp*sfacs
+              else
+                if(dsp.lt.0.) dsp=dsp*rfacs
               endif
               tcs(i,j,l,ks)=tcs(i,j,l,ks)+dsp
             enddo
