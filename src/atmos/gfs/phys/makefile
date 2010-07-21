@@ -30,6 +30,7 @@ OBJS0   = \
 	  gfs_physics_sfc_flx_mod.o	       \
 	  gfs_physics_sfc_flx_set_mod.o	       \
 	  gfs_physics_gridgr_mod.o      	\
+	  gfs_physics_g2d_mod.o      		\
 	  gfs_physics_g3d_mod.o      		\
 	  gfs_physics_namelist_mod.o           \
 	  gfs_physics_start_time_get_mod.o     \
@@ -388,6 +389,9 @@ gfs_physics_err_msg_mod.o:      gfs_physics_err_msg_mod.f
 
 gfs_physics_gridgr_mod.o:	gfs_physics_gridgr_mod.f
 		$(F77) $(FFLAG90) -c gfs_physics_gridgr_mod.f
+
+gfs_physics_g2d_mod.o:          gfs_physics_g2d_mod.f
+		$(F77) $(FFLAG90) -c gfs_physics_g2d_mod.f
 
 gfs_physics_g3d_mod.o:		gfs_physics_g3d_mod.f
 		$(F77) $(FFLAG90) -c gfs_physics_g3d_mod.f

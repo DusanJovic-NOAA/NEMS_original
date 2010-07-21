@@ -24,6 +24,7 @@
 !  feb 09 2010  Sarah Lu        set tracer_const (ri,cpi) from import state
 !  feb 05 2010  J. Wang         put phy_f3d and phy_f2d into restart file
 !  apr 09 2010  Sarah Lu        initialize global_lats_r, lonsperlar
+!  jul 14 2010  Sarah Lu        initialize g2d_fld
 !
 ! !interface:
 !
@@ -71,6 +72,7 @@
       USE sfcio_module,                   ONLY: sfcio_axdbta
       USE gfs_physics_gridgr_mod,         ONLY: gridvar_aldata  
       USE gfs_physics_g3d_mod,            ONLY: g3d_aldata
+      USE gfs_physics_g2d_mod,            ONLY: g2d_aldata
       use gfs_phy_tracer_config,          ONLY: gfs_phy_tracer, tracer_config_init
 
       include 'mpif.h'
@@ -458,10 +460,56 @@
         call d3d_init(ngptc,gis_phy%nblck,lonr,lats_node_r_max,levs,pl_coeff)
       endif
 
-! allocate g3d_fld
+! allocate g3d_fld and g2d_fld
       if (lgocart) then
         call g3d_aldata (lonr, lats_node_r_max, levs,  &               
                          gis_phy%g3d_fld, ierr)  
+	print *, 'INIT -- call g2d_aldata'
+        call g2d_aldata (lonr, lats_node_r_max, gis_phy%gfs_phy_tracer,&
+                         gis_phy%g2d_fld, ierr)
+
+	print *, 'INIT -- exit g2d_aldata, ierr=', ierr
+
+        print *, 'INIT-g2d_fld DU:',gis_phy%g2d_fld%du%nfld
+        if ( gis_phy%g2d_fld%du%nfld > 0 ) then
+          do n = 1, gis_phy%g2d_fld%du%nfld
+             print *, 'g2d_fld: vname=',n,  &
+                       gis_phy%g2d_fld%du%diag(n)%name
+          enddo
+        endif
+
+        print *, 'INIT-g2d_fld SU:',gis_phy%g2d_fld%su%nfld
+        if ( gis_phy%g2d_fld%su%nfld > 0 ) then
+          do n = 1, gis_phy%g2d_fld%su%nfld
+             print *, 'g2d_fld: vname=',n,  &
+                       gis_phy%g2d_fld%su%diag(n)%name
+          enddo
+        endif
+
+        print *, 'INIT-g2d_fld SS:',gis_phy%g2d_fld%ss%nfld
+        if ( gis_phy%g2d_fld%ss%nfld > 0 ) then
+          do n = 1, gis_phy%g2d_fld%ss%nfld
+             print *, 'g2d_fld: vname=',n,  &
+                       gis_phy%g2d_fld%ss%diag(n)%name
+          enddo
+        endif
+
+        print *, 'INIT-g2d_fld OC:',gis_phy%g2d_fld%oc%nfld
+        if ( gis_phy%g2d_fld%oc%nfld > 0 ) then
+          do n = 1, gis_phy%g2d_fld%oc%nfld
+             print *, 'g2d_fld: vname=',n,  &
+                       gis_phy%g2d_fld%oc%diag(n)%name
+          enddo
+        endif
+
+        print *, 'INIT-g2d_fld BC:',gis_phy%g2d_fld%bc%nfld
+        if ( gis_phy%g2d_fld%bc%nfld > 0 ) then
+          do n = 1, gis_phy%g2d_fld%bc%nfld
+             print *, 'g2d_fld: vname=',n,  &
+                       gis_phy%g2d_fld%bc%diag(n)%name
+          enddo
+        endif
+
       endif
 
 !     if (icolor /= 2 .or. .not. liope) then

@@ -31,6 +31,7 @@
 !! 13May 2010     Sarah Lu, Change GetPointer_3D_ from private to public
 !! 09Jun 2010     Sarah Lu, Remove ref to m_chars/lowercase; add g_fixchar
 !! 10Jun 2010     Sarah Lu, Remove aerosol tarcer pointer for iAERO
+!! 30Jun 2010     Sarah Lu, Revise g_fixchar to allow longer char string
 !-----------------------------------------------------------------------
 
       use ESMF_MOD
@@ -1331,7 +1332,7 @@
       character*(*), intent(out)  ::  name_out
       integer, intent(in)         ::  option
 
-      character*10                :: temp
+      character*30                :: temp
       integer                     :: i, ic
 
       name_out= '          '
