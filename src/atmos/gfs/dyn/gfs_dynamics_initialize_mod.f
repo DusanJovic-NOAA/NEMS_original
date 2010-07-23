@@ -32,7 +32,7 @@
       use gfsio_module , only : gfsio_init
 !
       use gfs_dyn_mod_state, only : buff_mult_pieceg
-      use gfs_dyn_layout1, only : ipt_lats_node_a
+      use gfs_dyn_layout1, only : ipt_lats_node_a, lats_node_a_max
       use gfs_dyn_resol_def, only : adiabatic
       use namelist_dynamics_def, only : fhrot,fhini
       use gfs_dyn_tracer_config, only: gfs_dyn_tracer,     &
