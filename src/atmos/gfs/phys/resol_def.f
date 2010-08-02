@@ -16,6 +16,7 @@
       integer   ntoz,ntcw
       integer   lsoil,nmtvr,ncld,num_p3d,num_p2d,nrcm
       integer   ngrids_sfcc, ngrids_flx, nfxr, ngrids_gg
+      integer   ngrids_aer                                      ! for g2d_fld
 !jws      integer   ivsupa, ivssfc, ivssfc_restart, ivsinp
       integer   ivsupa, ivssfc_restart, ivsinp
       integer,target  :: thermodyn_id, sfcpress_id                      ! hmhj

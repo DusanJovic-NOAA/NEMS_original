@@ -10,6 +10,7 @@
 !			for gfs physics and gaussian grid DATA.
 !  March 2009           Weiyu Yang, modified for the ensemble NEMS run.
 !  2009/10/05           Sarah Lu, grid_gr unfolded to 3D
+!  2010/07/21           Sarah Lu, add aer_diag bundles to phy export state
 !
 !!USEs:
 !
@@ -635,6 +636,114 @@
         call gfs_physics_err_msg(rc, msg ,rcfinal)
 
       ENDDO   lab_do_3D
+
+! loop through the 2D diag fields
+! g2d_fld are computed by GOCART and allocated/outputted by PHY
+
+! add g2d_fld%du to dgdu
+      if ( int_state%g2d_fld%du%nfld > 0 ) then
+        msg =  "create empty FieldBundle dgdu"
+        Bundle = ESMF_FieldBundleCreate(name='dgdu', grid=mgrid, rc=rc)
+        call gfs_physics_err_msg(rc, msg, rcfinal)
+
+        DO k = 1, int_state%g2d_fld%du%nfld
+          vname = trim(int_state%g2d_fld%du%diag(k)%name)
+          NULLIFY(fArr2D)
+          fArr2D => int_state%g2d_fld%du%diag(k)%flds
+          Field  = ESMF_FieldCreate(mgrid, fArr2D, name=vname, rc=rc)
+          msg = "Add to physics export state du_bundle: "//vname
+          CALL ESMF_FieldBundleAdd(Bundle, Field, rc = rc)
+          call gfs_physics_err_msg(rc, msg ,rcfinal)
+        ENDDO
+
+        msg = "Add dgdu bundle to physics export state"
+        CALL ESMF_StateAdd(exp_gfs_phy, Bundle, rc = rc)
+        call gfs_physics_err_msg(rc, msg ,rcfinal)
+      endif
+
+! add g2d_fld%ss to dgss
+      if ( int_state%g2d_fld%ss%nfld > 0 ) then
+        msg =  "create empty FieldBundle dgss"
+        Bundle = ESMF_FieldBundleCreate(name='dgss', grid=mgrid, rc=rc)
+        call gfs_physics_err_msg(rc, msg, rcfinal)
+
+        DO k = 1, int_state%g2d_fld%ss%nfld
+          vname = trim(int_state%g2d_fld%ss%diag(k)%name)
+          NULLIFY(fArr2D)
+          fArr2D => int_state%g2d_fld%ss%diag(k)%flds
+          Field  = ESMF_FieldCreate(mgrid, fArr2D, name=vname, rc=rc)
+          msg = "Add to physics export state ss_bundle: "//vname
+          CALL ESMF_FieldBundleAdd(Bundle, Field, rc = rc)
+          call gfs_physics_err_msg(rc, msg ,rcfinal)
+        ENDDO
+
+        msg = "Add dgss bundle to physics export state"
+        CALL ESMF_StateAdd(exp_gfs_phy, Bundle, rc = rc)
+        call gfs_physics_err_msg(rc, msg ,rcfinal)
+      endif
+
+! add g2d_fld%su to dgsu
+      if ( int_state%g2d_fld%su%nfld > 0 ) then
+        msg =  "create empty FieldBundle dgsu"
+        Bundle = ESMF_FieldBundleCreate(name='dgsu', grid=mgrid, rc=rc)
+        call gfs_physics_err_msg(rc, msg, rcfinal)
+
+        DO k = 1, int_state%g2d_fld%su%nfld
+          vname = trim(int_state%g2d_fld%su%diag(k)%name)
+          NULLIFY(fArr2D)
+          fArr2D => int_state%g2d_fld%su%diag(k)%flds
+          Field  = ESMF_FieldCreate(mgrid, fArr2D, name=vname, rc=rc)
+          msg = "Add to physics export state su_bundle: "//vname
+          CALL ESMF_FieldBundleAdd(Bundle, Field, rc = rc)
+          call gfs_physics_err_msg(rc, msg ,rcfinal)
+        ENDDO
+
+        msg = "Add dgsu bundle to physics export state"
+        CALL ESMF_StateAdd(exp_gfs_phy, Bundle, rc = rc)
+        call gfs_physics_err_msg(rc, msg ,rcfinal)
+      endif
+
+! add g2d_fld%bc to dgbc
+      if ( int_state%g2d_fld%bc%nfld > 0 ) then
+        msg =  "create empty FieldBundle dgbc"
+        Bundle = ESMF_FieldBundleCreate(name='dgbc', grid=mgrid, rc=rc)
+        call gfs_physics_err_msg(rc, msg, rcfinal)
+
+        DO k = 1, int_state%g2d_fld%bc%nfld
+          vname = trim(int_state%g2d_fld%bc%diag(k)%name)
+          NULLIFY(fArr2D)
+          fArr2D => int_state%g2d_fld%bc%diag(k)%flds
+          Field  = ESMF_FieldCreate(mgrid, fArr2D, name=vname, rc=rc)
+          msg = "Add to physics export state bc_bundle: "//vname
+          CALL ESMF_FieldBundleAdd(Bundle, Field, rc = rc)
+          call gfs_physics_err_msg(rc, msg ,rcfinal)
+        ENDDO
+
+        msg = "Add dgbc bundle to physics export state"
+        CALL ESMF_StateAdd(exp_gfs_phy, Bundle, rc = rc)
+        call gfs_physics_err_msg(rc, msg ,rcfinal)
+      endif
+
+! add g2d_fld%oc to dgoc
+      if ( int_state%g2d_fld%oc%nfld > 0 ) then
+        msg =  "create empty FieldBundle dgoc"
+        Bundle = ESMF_FieldBundleCreate(name='dgoc', grid=mgrid, rc=rc)
+        call gfs_physics_err_msg(rc, msg, rcfinal)
+
+        DO k = 1, int_state%g2d_fld%oc%nfld
+          vname = trim(int_state%g2d_fld%oc%diag(k)%name)
+          NULLIFY(fArr2D)
+          fArr2D => int_state%g2d_fld%oc%diag(k)%flds
+          Field  = ESMF_FieldCreate(mgrid, fArr2D, name=vname, rc=rc)
+          msg = "Add to physics export state oc_bundle: "//vname
+          CALL ESMF_FieldBundleAdd(Bundle, Field, rc = rc)
+          call gfs_physics_err_msg(rc, msg ,rcfinal)
+        ENDDO
+
+        msg = "Add dgoc bundle to physics export state"
+        CALL ESMF_StateAdd(exp_gfs_phy, Bundle, rc = rc)
+        call gfs_physics_err_msg(rc, msg ,rcfinal)
+      endif
 
       endif lab_if_gocart
 

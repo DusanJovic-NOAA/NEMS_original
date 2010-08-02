@@ -212,6 +212,8 @@
       integer                            :: ifhmax
       integer                            :: runduration_hour 
 
+      type(ESMF_FieldBundle)        :: Bundle     ! debug check
+
 ! initialize the error signal variables.
 !---------------------------------------
       rc1     = esmf_success
@@ -445,6 +447,11 @@
       call gfs_physics_internal2export ( int_state,        &
                                          exp_gfs_phy, rc = rc1)
       call gfs_physics_err_msg(rc1,'PHY INIT-call internal2export',rc)
+
+!! debug check
+!     call ESMF_StatePrint( exp_gfs_phy, rc=rc)
+
+!
 
 ! set pointer the gfs export fields in the internal state 
 ! to the esmf exprot state which is the public interface

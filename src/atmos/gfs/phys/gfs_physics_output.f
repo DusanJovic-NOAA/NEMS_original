@@ -20,6 +20,10 @@
 !*    (1) THE APPROPRIATE DATA LIST PRECEDING THE 'CONTAINS' STATEMENT
 !*    (2) 'THE PHYSICS INTERNAL STATE POINTER BLOCK'
 !*        IN SUBROUTINE POINT_PHYSICS_OUPUT
+!
+!***  REVISION LOG:
+!***  Jul 23 2010, Sarah Lu   write out 2d aer_diag (g2d_fld)
+!***
 !-----------------------------------------------------------------------
 !
       USE ESMF_Mod
@@ -41,7 +45,7 @@
       PUBLIC :: PHY_INT_STATE_ISCALAR,PHY_INT_STATE_RSCALAR,            &
      &    PHY_INT_STATE_1D_I,PHY_INT_STATE_1D_R,                        &
      &    PHY_INT_STATE_2D_R_SFC,PHY_INT_STATE_3D_R,                    &
-     &    PHY_INT_STATE_2D_R_FLX
+     &    PHY_INT_STATE_2D_R_FLX,PHY_INT_STATE_2D_R_AER
 !
 !-----------------------------------------------------------------------
 !
@@ -412,6 +416,14 @@
 !
 !-----------------------------------------------------------------------
 !
+!-------------------------
+!-------------------------
+!***  REAL 2-D ARRAYS aer***                                     (for g2d_fld)
+!-------------------------
+!-------------------------
+!
+      CHARACTER(16),DIMENSION(3,MAX_KOUNT),TARGET :: PHY_INT_STATE_2D_R_AER
+
 !
 !-----------------------------------------------------------------------
 !***  FIRST WE MUST PROVIDE POINTERS INTO THE PHYSICS INTERNAL STATE.
@@ -471,6 +483,7 @@
       use mod_state, only:  buff_mult_piecea2d                          & !for sfc 2d file
                            ,buff_mult_piecea3d                          & !for sfc 3d file
                            ,buff_mult_piecef                            & !for flx file
+                           ,buff_mult_pieceg                            & !for aer file
                            ,ngrid  
 
 !-----------------------------------------------------------------------
@@ -488,6 +501,7 @@
 !
       INTEGER                     :: mype,RC,RC_PHY_OUT
       INTEGER                     :: MINIDX(2),MAXIDX(2)
+      INTEGER                     :: II, IJ, K
       INTEGER,allocatable         :: I2(:,:)
       real(kind=kind_io4),target  :: fhourtmp
       real(kind=kind_io4),dimension(:),allocatable,target  :: r4tmp
@@ -498,6 +512,7 @@
 !
       TYPE(ESMF_FieldBundle),SAVE :: GFS_SFC_BUNDLE
       TYPE(ESMF_FieldBundle),SAVE :: GFS_FLX_BUNDLE
+      TYPE(ESMF_FieldBundle),SAVE :: GFS_AER_BUNDLE
       TYPE(ESMF_DISTGRID) :: DistGrid
       TYPE(ESMF_GRID) :: Grid
 !
@@ -622,6 +637,7 @@
       R_3D( 2)%NAME=>buff_mult_piecea3D
 !flx
       R_3D(3)%NAME=>buff_mult_piecef
+      R_3D(4)%NAME=>buff_mult_pieceg                 ! for g2d_fld
 !
 !
 !-----------------------------------------------------------------------
@@ -723,6 +739,108 @@
       CALL ADD_BUNDLE_TO_WRITE(int_state,imp_write_state,     &
            grid,I_SC,R_SC,I_1D,I_2D,R_1D,R_2D,R_3D,R_4D,        &
            2,'OGFS_PHY','OGFS_FLX',GFS_FLX_BUNDLE)
+
+!-----------------------------------------------------------------------
+!! for aer file (optional)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      lab_if_gocart : IF ( int_state%lgocart .and.   &
+                          (int_state%num_file .eq. 4) ) THEN
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! set up PHY_INT_STATE_2D_R_AER
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!  fill in default values
+      DO II =1,MAX_KOUNT
+        PHY_INT_STATE_2D_R_AER(1:3,II) = '**********'
+      ENDDO
+
+      II = 0                     
+!  fill in variable name
+      if ( int_state%g2d_fld%du%nfld > 0 ) then   ! fill in du diag
+        do  k = 1, int_state%g2d_fld%du%nfld
+         II = II + 1
+         PHY_INT_STATE_2D_R_AER(1,II)=int_state%g2d_fld%du%diag(k)%name
+        enddo
+      endif
+
+      if ( int_state%g2d_fld%su%nfld > 0 ) then   ! fill in su diag
+        do  k = 1, int_state%g2d_fld%su%nfld
+         II = II + 1
+         PHY_INT_STATE_2D_R_AER(1,II)=int_state%g2d_fld%su%diag(k)%name
+        enddo
+      endif
+
+      if ( int_state%g2d_fld%ss%nfld > 0 ) then   ! fill in ss diag
+        do  k = 1, int_state%g2d_fld%ss%nfld
+         II = II + 1
+         PHY_INT_STATE_2D_R_AER(1,II)=int_state%g2d_fld%ss%diag(k)%name
+        enddo
+      endif
+
+      if ( int_state%g2d_fld%oc%nfld > 0 ) then   ! fill in oc diag
+        do  k = 1, int_state%g2d_fld%oc%nfld
+         II = II + 1
+         PHY_INT_STATE_2D_R_AER(1,II)=int_state%g2d_fld%oc%diag(k)%name
+        enddo
+      endif
+
+      if ( int_state%g2d_fld%bc%nfld > 0 ) then   ! fill in bc diag
+        do  k = 1, int_state%g2d_fld%bc%nfld
+         II = II + 1
+         PHY_INT_STATE_2D_R_AER(1,II)=int_state%g2d_fld%bc%diag(k)%name
+        enddo
+      endif
+
+!  fill in file type and level type
+      DO K = 1, II
+        PHY_INT_STATE_2D_R_AER(2,K) = 'OGFS_AER  '
+        PHY_INT_STATE_2D_R_AER(3,K) = 'atmos col '
+      ENDDO
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract History Data Bundle from the Write Import State"
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      GFS_AER_BUNDLE=ESMF_FieldBundleCreate(grid=GRID                  &  !<-- The ESMF integration Grid
+                                           ,name=int_state%filename_base(4) &  !<-- The Bundle's name
+                                           ,rc  =RC)
+!
+!*** add im,jm into import state
+!
+      CALL ESMF_AttributeSet(state    =IMP_WRITE_STATE                  &  !<-- The Write component import state
+                            ,name     ='im_'//trim(int_state%filename_base(4))   &  !<-- Name of the integer array
+                            ,value    =int_state%lonr                   &  !<-- The array being inserted into the import state
+                            ,rc       =RC)
+
+      CALL ESMF_AttributeSet(state    =IMP_WRITE_STATE                  &  !<-- The Write component import state
+                            ,name     ='jm_'//trim(int_state%filename_base(4)) &!<-- Name of the integer array
+                            ,value    =int_state%latr                   &  !<-- The array being inserted into the import state
+                            ,rc       =RC)
+!
+      CALL ESMF_AttributeSet(state    =IMP_WRITE_STATE                  &  !<-- The Write component import state
+                            ,name     ='zhour_'//trim(int_state%filename_base(4)) &!<-- Name of the integer array
+                            ,value    =int_state%zhour                   &  !<-- The array being inserted into the import state
+                            ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL gfs_physics_err_msg(RC,MESSAGE_CHECK,RC_PHY_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  INSERT INTO THE WRITE COMPONENTS' IMPORT STATE THE POINTERS
+!***  OF ONLY THOSE QUANTITIES THAT ARE SPECIFIED BY THE USER
+!***  FOR HISTORY OUTPUT.
+!***  PUT THE HISTORY DATA INTO THE ESMF Bundle RESIDING IN THE
+!***  WRITE COMPONENT'S IMPORT STATE.
+!-----------------------------------------------------------------------
+!
+      CALL ADD_BUNDLE_TO_WRITE(int_state,imp_write_state,     &
+           grid,I_SC,R_SC,I_1D,I_2D,R_1D,R_2D,R_3D,R_4D,        &
+           2,'OGFS_PHY','OGFS_AER',GFS_AER_BUNDLE)
+
+      ENDIF lab_if_gocart
+!
 !
 !-----------------------------------------------------------------------
 !
@@ -757,7 +875,7 @@
                                      ,MP_PHYSICS,MYPE                   &
                                      ,N,NDIM3,NFIND                     &
                                      ,NUM_2D_FIELDS_I,NUM_2D_FIELDS_R   &
-                                     ,RC,RC_PHY_OUT,NLEVS  
+                                     ,RC,RC_PHY_OUT,NLEVS
 !
       INTEGER                     :: LDIM1,LDIM2,LDIM3,LDIM4            &
                                     ,UDIM1,UDIM2,UDIM3,UDIM4,NDIM4
@@ -996,6 +1114,8 @@
         PHY_INT_STATE_2D_R=>PHY_INT_STATE_2D_R_SFC
       elseif(file_id=='OGFS_FLX') then
         PHY_INT_STATE_2D_R=>PHY_INT_STATE_2D_R_FLX
+      elseif(file_id=='OGFS_AER') then                  ! added by Sarah Lu
+        PHY_INT_STATE_2D_R=>PHY_INT_STATE_2D_R_AER
       endif 
 !
       DO NFIND=1,MAX_KOUNT
@@ -1005,6 +1125,8 @@
             TEMP_R2D=>R_3D(1)%NAME(LDIM1:UDIM1,LDIM2:UDIM2,NUM_2D_FIELDS_R+1)
           elseif(file_id=='OGFS_FLX') then
             TEMP_R2D=>R_3D(3)%NAME(LDIM1:UDIM1,LDIM2:UDIM2,NUM_2D_FIELDS_R+1)
+          elseif(file_id=='OGFS_AER') then              ! added by Sarah Lu
+            TEMP_R2D=>R_3D(4)%NAME(LDIM1:UDIM1,LDIM2:UDIM2,NUM_2D_FIELDS_R+1)
           endif
 !
 !          write(0,*)'phy_out,R2D NFIND=',NFIND,'VBL_NAME=',trim(VBL_NAME),  &

@@ -3,6 +3,10 @@
 !    New module to supply domain information to the GFS output routines
 !    called by wrtout.
 !
+!! REVISION LOG:
+!  Jul 2010 Sarah Lu, add buff_mult_pieceg for 2d aerosol diag fields
+! 
+!
       use machine,    ONLY: kind_io4
       implicit none
 !
@@ -11,6 +15,7 @@
      1                                    buff_mult_pieces(:)
       real(kind=kind_io4),allocatable,target :: buff_mult_piecef(:,:,:),
      1                                    buff_mult_piecesf(:,:,:,:)
+      real(kind=kind_io4),allocatable,target :: buff_mult_pieceg(:,:,:)
 !jw
       real(kind=kind_io4), allocatable,target ::
 !jw     1                                    buff_mult_piecea(:,:,:),

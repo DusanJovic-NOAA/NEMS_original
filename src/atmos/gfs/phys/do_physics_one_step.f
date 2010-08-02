@@ -1,6 +1,6 @@
       SUBROUTINE do_physics_one_step(deltim,kdt,PHOUR, 
 !*   &                 grid_gr, sfc_fld, flx_fld,
-     &                 grid_fld, sfc_fld, flx_fld, g3d_fld,
+     &                 grid_fld, sfc_fld, flx_fld, g3d_fld,g2d_fld,
      &                 lats_nodes_r,global_lats_r,lonsperlar,
      &                 XLON,XLAT,COSZDG, 
      &                 HPRIME,SWH,HLW, FLUXR,SFALB, SLAG,SDEC,CDEC,
@@ -18,6 +18,7 @@
 !!                           add DQDT check print
 !! Feb 05 2010     J. Wang, write out restart file
 !! Apr 10 2010     Sarah Lu, debug print removed
+!! Jul 21 2010     Sarah Lu, output 2d aerosol diag fields
 !!
 !!#include "../../inc/f_hpm.h"
       use resol_def
@@ -31,6 +32,7 @@
       use gfs_physics_sfc_flx_set_mod
       use gfs_physics_gridgr_mod,   ONLY: Grid_Var_Data
       use gfs_physics_g3d_mod,      ONLY: G3D_Var_Data
+      use gfs_physics_g2d_mod,      ONLY: G2D_Var_Data
       use d3d_def, ONLY: d3d_zero, CLDCOV
       USE machine, ONLY: KIND_GRID, KIND_GRID, KIND_RAD,
      &                   kind_phys
@@ -40,6 +42,7 @@
       TYPE(Flx_Var_Data)        :: flx_fld
       TYPE(Grid_Var_Data)       :: grid_fld 
       TYPE(G3D_Var_Data)        :: g3d_fld 
+      TYPE(G2D_Var_Data)        :: g2d_fld 
 !*    REAL(KIND=KIND_GRID)      GRID_GR(lonr*lats_node_r_max,lotgr)
       CHARACTER(16)             :: CFHOUR1
 !!     
@@ -171,7 +174,7 @@
       if( lsout.and.kdt.ne.0.0 ) then
       CALL WRTOUT_physics(phyhour,FHOUR,ZHOUR,IDATE,
      X            SL,SI,
-     &            sfc_fld, flx_fld,
+     &            sfc_fld, flx_fld, g2d_fld,
      &            fluxr,
      &            lats_nodes_r,global_lats_r,lonsperlar,nblck,
      &            COLAT1,CFHOUR1,pl_coeff)

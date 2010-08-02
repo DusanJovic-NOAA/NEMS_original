@@ -1,7 +1,7 @@
 
       subroutine wrtout_physics(phour,fhour,zhour,idate,
      &                  sl,si,
-     &                  sfc_fld, flx_fld,
+     &                  sfc_fld, flx_fld, g2d_fld, 
      &                  fluxr,
      &                  lats_nodes_r,global_lats_r,lonsperlar,nblck,
      &                  colat1,cfhour1,pl_coeff)
@@ -10,7 +10,8 @@
 ! May 2009 Jun Wang, modified to use write grid component
 ! Jan 2010 Sarah Lu, AOD added to flx files
 ! Feb 2010 Jun Wang, write out restart file
-!
+! Jul 2010 Sarah Lu, write out aerosol diag files (for g2d_fld)
+! 
 
       use resol_def,               ONLY: latr, levs, levp1, lonr, nfxr
       use layout1,                 ONLY: me, nodes, lats_node_r, 
@@ -20,11 +21,13 @@
       use mpi_def,                 ONLY: liope, info, mpi_comm_all, 
      &                                   mc_comp, mpi_comm_null,quilting
       use gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data, Flx_Var_Data
+      use gfs_physics_g2d_mod,     ONLY: G2D_Var_Data
       USE machine,                 ONLY: kind_evod, kind_io8
       implicit none
 !!
       TYPE(Sfc_Var_Data)        :: sfc_fld
       TYPE(Flx_Var_Data)        :: flx_fld
+      TYPE(G2D_Var_Data)        :: g2d_fld
       CHARACTER(16)             :: CFHOUR1    ! for ESMF Export State Creation
       integer ixgr, pl_coeff
       real(kind=kind_evod) phour,fhour,zhour
@@ -41,7 +44,7 @@
       integer              lats_nodes_r(nodes)
 !!
       integer              ierr,j,k,l,lenrec,locl,n,node
-      integer nosfc,noflx,nfill
+      integer nosfc,noflx,noaer,nfill
       character*16 cosfc
       data timesum/0./
 !!
@@ -107,6 +110,7 @@
 !jfe
       nosfc=62
       noflx=63
+      noaer=65               ! for g2d_fld
 !!
       t3=rtc()
       call MPI_BARRIER(mpi_comm_all,ierr)
@@ -121,6 +125,8 @@
 ! build state on each node.   COMP tasks only
 ! assemble spectral state first then sfc state,
 ! then (only if liope)  flux state.
+! finally (only if gocart is turned on) aer_diag state 
+! 
 !
       print *,'---- start sfc collection section -----'
       t3=rtc()
@@ -136,6 +142,11 @@
             call   wrtflx_a
      &             (IOPROC,noflx,ZHOUR,FHOUR,IDATE,colat1,SECSWR,SECLWR,
      &              sfc_fld, flx_fld, fluxr, global_lats_r,lonsperlar)
+
+            call   wrtaer
+     &             (IOPROC,noaer,ZHOUR,FHOUR,IDATE,
+     &              sfc_fld, g2d_fld, global_lats_r, lonsperlar)
+
       endif                 ! comp node
       t4=rtc()
       td=t4-t3
@@ -1850,6 +1861,120 @@ Clu: addition of 6 aod fields ends here -----------------------------
       RETURN
       END
 
+!!*********************************************************************
+!! This routine is added to output 2d aerosol diag fields (Sarah Lu)
+
+      SUBROUTINE wrtaer(IOPROC,noaer,ZHOUR,FHOUR,IDATE,
+     &             sfc_fld, g2d_fld,global_lats_r, lonsperlar)
+!!
+      use resol_def,               ONLY: lonr, latr, ngrids_aer
+      use mod_state,               ONLY: buff_mult_pieceg
+      use layout1,                 ONLY: me, lats_node_r
+      use gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data
+      use gfs_physics_g2d_mod,     ONLY: G2D_Var_Data
+      USE machine,                 ONLY: kind_io8, kind_io4
+      implicit none
+!!
+      TYPE(Sfc_Var_Data)        :: sfc_fld
+      TYPE(G2D_Var_Data)        :: g2d_fld
+      INTEGER                   GLOBAL_LATS_R(LATR)
+      INTEGER                   lonsperlar(LATR)
+      integer                   IOPROC
+!!
+      integer                   i,j,k,l,noaer,ngrid2d,ierr
+      real (kind=kind_io8)      rtime
+      real (kind=kind_io8)      zhour,fhour
+C
+
+!     real(kind=kind_io8) slmskful(lonr,lats_node_r)
+!     real(kind=kind_io8) slmskloc(LONR,LATS_NODE_R)
+!
+      INTEGER     IDATE(4), IDS(255),IENS(5)
+!
+      real (kind=kind_io8)   glolal(lonr,LATS_NODE_R)
+      real (kind=kind_io8)   buffo(lonr,LATS_NODE_R)
+      integer kmsk  (lonr,lats_node_r),kmsk0(lonr,lats_node_r)
+!
+      kmsk=nint(sfc_fld%slmsk)
+      kmsk0=0
+!
+      ngrid2d=1
+!
+      IF(FHOUR.GT.ZHOUR) THEN
+        RTIME=1./(3600.*(FHOUR-ZHOUR))
+      ELSE
+        RTIME=0.
+      ENDIF
+!
+!..........................................................
+!
+!      CALL uninterprez(1,kmsk,glolal,sfc_fld%slmsk,
+!     &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
+!      slmskloc=glolal
+!      slmskful=buff_mult_piecef(1:lonr,1:lats_node_r,ngrid2d)
+!
+!..........................................................
+!
+      if ( g2d_fld%du%nfld > 0 ) then
+        do  k = 1, g2d_fld%du%nfld
+          glolal=g2d_fld%du%diag(k)%flds
+          ngrid2d=ngrid2d+1
+          CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,
+     &                   lonsperlar,buff_mult_pieceg(1,1,ngrid2d))
+        enddo
+      endif
+!
+!..........................................................
+!
+      if ( g2d_fld%su%nfld > 0 ) then
+        do  k = 1, g2d_fld%su%nfld
+          glolal=g2d_fld%su%diag(k)%flds
+          ngrid2d=ngrid2d+1
+          CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,
+     &                   lonsperlar,buff_mult_pieceg(1,1,ngrid2d))
+        enddo
+      endif
+!
+!..........................................................
+!
+      if ( g2d_fld%ss%nfld > 0 ) then
+        do  k = 1, g2d_fld%ss%nfld
+          glolal=g2d_fld%ss%diag(k)%flds
+          ngrid2d=ngrid2d+1
+          CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,
+     &                   lonsperlar,buff_mult_pieceg(1,1,ngrid2d))
+        enddo
+      endif
+!
+!..........................................................
+!
+      if ( g2d_fld%oc%nfld > 0 ) then
+        do  k = 1, g2d_fld%oc%nfld
+          glolal=g2d_fld%oc%diag(k)%flds
+          ngrid2d=ngrid2d+1
+          CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,
+     &                   lonsperlar,buff_mult_pieceg(1,1,ngrid2d))
+        enddo
+      endif
+!
+!..........................................................
+!
+      if ( g2d_fld%bc%nfld > 0 ) then
+        do  k = 1, g2d_fld%bc%nfld
+          glolal=g2d_fld%bc%diag(k)%flds
+          ngrid2d=ngrid2d+1
+          CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,
+     &                   lonsperlar,buff_mult_pieceg(1,1,ngrid2d))
+        enddo
+      endif
+!!
+
+      if(me.eq.ioproc)
+     &   PRINT *,'(wrtaer) GRIB AER FILE WRITTEN ',FHOUR,IDATE,noaer
+!!
+      RETURN
+      END
+!!****
 
        subroutine flx_only_move(ioproc)
 !
