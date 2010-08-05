@@ -3849,6 +3849,20 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
+       IF(NTIMESTEP <= 1) Then
+         DO K=1,LM
+           DO J=JMS,JME
+             DO I=IMS,IME
+               IF(P_QC == 1) WATER(I,J,K,P_QC)=0.0                          
+               IF(P_QR == 1) WATER(I,J,K,P_QR)=0.0                          
+               IF(P_QI == 1) WATER(I,J,K,P_QI)=0.0                          
+               IF(P_QS == 1) WATER(I,J,K,P_QS)=0.0                          
+               IF(P_QG == 1) WATER(I,J,K,P_QG)=0.0                          
+             ENDDO
+           ENDDO
+          ENDDO
+       ENDIF
+
       micro_update:  IF (IMICRO <= 0) THEN
 !
 !-----------------------------------------------------------------------
@@ -3905,6 +3919,8 @@
              DO I=IMS,IME
 !
                IF (NTIMESTEP <= 1) THEN                                    !<-- Assign WATER at initial time (5-28-2010)
+                   WATER(I,J,K,P_QG)=0.
+                   WATER(I,J,K,P_QS)=0.
                  IF (CWM(I,J,K)>EPSQ) THEN
                    LIQW=(1.-F_ice(I,J,K))*CWM(I,J,K)
                    WATER(I,J,K,P_QC)=(1.-F_rain(I,J,K))*LIQW

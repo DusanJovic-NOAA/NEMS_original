@@ -367,12 +367,6 @@
         int_state%P_QS=5
         int_state%P_QI=1
         int_state%P_QG=1
-        int_state%F_QV=.TRUE.
-        int_state%F_QC=.TRUE.
-        int_state%F_QR=.TRUE.
-        int_state%F_QS=.TRUE.
-        int_state%F_QI=.FALSE.
-        int_state%F_QG=.FALSE.
       ELSEIF(TRIM(int_state%MICROPHYSICS)=='wsm3')THEN
         int_state%NUM_WATER=1+3
         int_state%P_QV=2
@@ -381,12 +375,6 @@
         int_state%P_QS=1
         int_state%P_QI=1
         int_state%P_QG=1
-        int_state%F_QV=.TRUE.
-        int_state%F_QC=.TRUE.
-        int_state%F_QR=.TRUE.
-        int_state%F_QS=.FALSE.
-        int_state%F_QI=.FALSE.
-        int_state%F_QG=.FALSE.
       ELSEIF(TRIM(int_state%MICROPHYSICS)=='wsm6')THEN
         int_state%NUM_WATER=1+6
         int_state%P_QV=2
@@ -395,14 +383,51 @@
         int_state%P_QS=5
         int_state%P_QI=6
         int_state%P_QG=7
-        int_state%F_QV=.TRUE.
-        int_state%F_QC=.TRUE.
-        int_state%F_QR=.TRUE.
-        int_state%F_QS=.TRUE.
-        int_state%F_QI=.TRUE.
-        int_state%F_QG=.TRUE.
+      ENDIF
+!
+!-- Moved the initiation of the int_state%F_Q logicals to 
+!   be defined by a series of IF tests below
+!
+      IF(int_state%P_QV <= 1) THEN
+         int_state%F_QV=.FALSE.
+      ELSE
+         int_state%F_QV=.TRUE.
       ENDIF
 
+      IF(int_state%P_QC <= 1) THEN
+         int_state%F_QC=.FALSE.
+      ELSE
+         int_state%F_QC=.TRUE.
+      ENDIF
+
+      IF(int_state%P_QR <= 1) THEN
+         int_state%F_QR=.FALSE.
+      ELSE
+         int_state%F_QR=.TRUE.
+      ENDIF
+
+      IF(int_state%P_QS <= 1) THEN
+         int_state%F_QS=.FALSE.
+      ELSE
+         int_state%F_QS=.TRUE.
+      ENDIF
+
+      IF(int_state%P_QI <= 1) THEN
+         int_state%F_QI=.FALSE.
+      ELSE
+         int_state%F_QI=.TRUE.
+      ENDIF
+
+      IF(int_state%P_QG <= 1) THEN
+         int_state%F_QG=.FALSE.
+      ELSE
+         int_state%F_QG=.TRUE.
+      ENDIF
+
+
+
+
+!-----
       int_state%NUM_TRACERS_TOTAL=                                      &  !<-- # of 3-D arrays in 4-D TRACERS array
                                   int_state%NUM_TRACERS_MET             &  !<-- # of meteorological tracers such as water (see below)
                                  +int_state%NUM_TRACERS_CHEM            &  !<-- # of specified scalars (chem, aerosol, etc.)
