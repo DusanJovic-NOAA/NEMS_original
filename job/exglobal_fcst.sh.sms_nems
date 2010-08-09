@@ -1033,7 +1033,7 @@ cat  > atm_namelist <<EOF
   $DYNVARS /
 &nam_phy
   FHOUT=$FHOUT, FHMAX=$FHMAX, IGEN=$IGEN, DELTIM=$DELTIM,
-  FHRES=$FHRES, FHROT=$FHROT, FHCYC=$FHCYC,
+  FHRES=$FHRES, FHROT=$FHROT, FHCYC=$FHCYC, FHDFI=$FHDFI,
   FHZER=$FHZER, FHLWR=$FHLWR, FHSWR=$FHSWR,nsout=$nsout,
   nxpt=1, nypt=2, jintmx=2, lonr=$LONR, latr=$LATR,
   jcap=$JCAP, levs=$LEVS, levr=$LEVR, reduced_grid=$REDUCED_GRID,

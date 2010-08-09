@@ -18,6 +18,7 @@
 !                     calling argument
 !  jul 21  2010       sarah lu, add g2d_fld to do_physics_one_step
 !                     calling argument
+!  Aug 03  2010       jun wang, fix lsout for dfi
 !
 !
 ! !interface:
@@ -28,7 +29,7 @@
 !
       use gfs_physics_internal_state_mod, ONLY: gfs_physics_internal_state
       USE date_def,                       ONLY: fhour
-      USE namelist_physics_def,           ONLY: nsout
+      USE namelist_physics_def,           ONLY: nsout,ldfi,ndfi
 
       implicit none
 
@@ -80,10 +81,16 @@
 ! ======================================================================
 !                     do one physics time step
 ! ---------------------------------------------------------------------
+       if(.not.ldfi) then
         gis_phy%LSOUT=MOD(gis_phy%kdt ,NSOUT).EQ.0  .or. gis_phy%kdt==1
+       else
+        gis_phy%LSOUT=(MOD(gis_phy%kdt ,NSOUT).EQ.0 .and.gis_phy%kdt/=ndfi) &
+            .or.gis_phy%kdt==1
+       endif
 !
-!        write(0,*)' end of common_to_physics_vars,kdt=',gis_phy%kdt,      &
-!         'nsout=',nsout,'lsout=',gis_phy%LSOUT,'zhour=',gis_phy%ZHOUR
+        write(0,*)' end of common_to_physics_vars,kdt=',gis_phy%kdt,      &
+         'nsout=',nsout,'lsout=',gis_phy%LSOUT,'zhour=',gis_phy%ZHOUR,    &
+        'ldfi=',ldfi,'ndfi=',ndfi
 !
 ! ======================================================================
         call do_physics_one_step(                                         &

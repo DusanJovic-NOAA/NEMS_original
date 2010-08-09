@@ -19,6 +19,7 @@
 !! Feb 05 2010     J. Wang, write out restart file
 !! Apr 10 2010     Sarah Lu, debug print removed
 !! Jul 21 2010     Sarah Lu, output 2d aerosol diag fields
+!! Aug 03 2010     Jun Wang, set llsav through ndfi,first_dfi
 !!
 !!#include "../../inc/f_hpm.h"
       use resol_def
@@ -90,7 +91,15 @@
       shour = kdt * deltim
       fhour = shour / 3600.
       lsfwd=kdt.eq.1
+!jws
       lssav=.true.
+      if(ndfi>0 .and. kdt>ndfi/2 .and. kdt<=ndfi.and. ldfi ) then
+        lssav=.false.
+      endif
+      if(ndfi>0 .and. kdt==ndfi .and. ldfi ) then
+        ldfi=.false.
+      endif
+!jwe
       lscca=mod(KDT ,nsswr).eq.0
       lsswr=mod(KDT ,nsswr).eq.1
       lslwr=mod(KDT ,nslwr).eq.1
@@ -168,9 +177,9 @@
 !jw      endif !.NOT.LIOPE.or.icolor.ne.2
 !--------------------------------------------
 !
-!      write(0,*)'in do one phys step, lsout=',lsout,'kdt=',kdt, 
-!     &   'nszer=',nszer,
-!     &   'fhour=',fhour,'zhour=',zhour
+      write(0,*)'in do one phys step, lsout=',lsout,'kdt=',kdt, 
+     &   'nszer=',nszer,'fhour=',fhour,'zhour=',zhour, 
+     &   'ndfi=',ndfi,'ldfi=',ldfi,'lssav=',lssav,'lsout=',lsout
       if( lsout.and.kdt.ne.0.0 ) then
       CALL WRTOUT_physics(phyhour,FHOUR,ZHOUR,IDATE,
      X            SL,SI,

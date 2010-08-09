@@ -4,7 +4,7 @@
       integer lsm
       real(kind=8),public:: fhswr,fhcyc
       logical,public:: ldiag3d,ras,sashal
-      logical,public:: lssav,lscca,lsswr,lslwr
+      logical,public:: lssav,lscca,lsswr,lslwr,ldfi
       logical,public:: pre_rad 
 !
 !     Radiation control parameters

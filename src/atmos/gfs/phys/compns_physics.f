@@ -43,6 +43,7 @@
 !   1999-01-26  Iredell
 !   2009-10-12  Sarah Lu, add grid_aldata (default to F)
 !   2010-01-12  Sarah Lu, add fdaer (default to 0)
+!   2010-08-03  Jun Wang, add fhdfi (default to 0)
 !
 ! Usage:    call compns(deltim,
 !    &                  fhout,fhswr,fhlwr,fhzer,fhres,fhcyc,
@@ -96,7 +97,7 @@ csela - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 c     if output (fhout) more frequently than zeroing ,get partial rains
  
       namelist /nam_phy/FHMAX,FHOUT,FHRES,FHZER,FHSEG,FHROT,DELTIM,IGEN,
-     & NGPTC,fhswr,fhlwr,fhcyc,ras,LDIAG3D,reduced_grid,
+     & NGPTC,fhswr,fhlwr,fhcyc,fhdfi,ras,LDIAG3D,reduced_grid,
      & shuff_lats_r,reshuff_lats_r,thermodyn_id,sfcpress_id,
      & pre_rad,hybrid,gen_coord_hybrid,random_xkt2,liope,
      & ntrac,nxpt,nypt,jintmx,jcap,levs,lonr,latr,levr,
@@ -120,6 +121,7 @@ c     if output (fhout) more frequently than zeroing ,get partial rains
       fhswr  = 0
       fhlwr  = 0
       fhcyc  = 0
+      fhdfi  = 0
       ccwf   = 0.5
       ras      = .false.
       zhao_mic = .true.
@@ -285,6 +287,21 @@ c
      &   mod(nsres,nslwr).ne.0.or.mod(nsres,nszer).ne.0) then
         iret=6
         return
+      endif
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+!  Compute ndfi and check rule 7.
+      if(fhdfi.eq.0.) then
+        ndfi=0
+        ldfi=.false.
+      else
+        ndfi=nint(2*fhdfi*3600./deltim)
+        ldfi=.true.
+        if(ndfi.le.0.or.abs(ndfi-2*fhdfi*3600./deltim).gt.tol.or.
+     &     ndfi.gt.nsres) then
+           print *,'ndfi=',ndfi,'is not equal to',2*fhdfi*3600./deltim
+          iret=7
+          return
+        endif
       endif
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  Compute nscyc and check rule 8.
