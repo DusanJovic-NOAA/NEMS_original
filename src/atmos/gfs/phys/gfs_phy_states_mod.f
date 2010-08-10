@@ -11,6 +11,11 @@
 !  March 2009           Weiyu Yang, modified for the ensemble NEMS run.
 !  2009/10/05           Sarah Lu, grid_gr unfolded to 3D
 !  2010/07/21           Sarah Lu, add aer_diag bundles to phy export state
+!  2010/08/04           Sarah Lu, modify internal2export (correct how 
+!                       aer_diag fields are created; remove doing_DU[SS,SU,
+!                       OC,BC] from attribute)
+!  2010/08/06           Sarah Lu, modify internal2export (add aer_diag 
+!                       nfld/name to attribute)
 !
 !!USEs:
 !
@@ -29,6 +34,7 @@
       USE gfs_physics_add_get_state_mod
       USE gfs_physics_err_msg_mod
       USE tracer_const, ONLY: cpi, ri
+      use gfs_physics_g2d_mod,      ONLY: AER_Diag_Data
 
       TYPE(GFS_Phy_State_Namelist) :: cf
 
@@ -285,6 +291,13 @@
 ! esmf states will get data directly from the gfs internal structure data arrays
 ! 
 
+! !REVISION HISTORY:
+!  2010/08/04    Sarah Lu, correct how aer_diag fields are created
+!                          (specify gridToFieldMap in FieldCreate call);
+!                          remove doing_DU[SS,SU,OC,BC] from attribute
+!  2010/08/06    Sarah Lu, add aer_diag fnld/name to attribute
+
+
 !
 !!uses:
 !
@@ -347,6 +360,14 @@
       character*50            :: msg
       character*8             :: vname, vname_2d(nfld_2d), &
                                  vname_3d(nfld_3d)
+!
+! Add the following for 2d aerosol diag fields
+      TYPE (AER_Diag_Data)   :: g2d
+      integer                :: kcount
+      character*10           :: BundleName, FieldName
+      character*10           :: aerosol_list(5), aerosol
+
+      data aerosol_list / 'du', 'su', 'ss', 'oc', 'bc'/ 
 
       data vname_2d /'slmsk', 'fice', 'hpbl', 'smc1',     &
                      'stype', 'vtype', 'vfrac', 'rainc', &
@@ -637,113 +658,65 @@
 
       ENDDO   lab_do_3D
 
-! loop through the 2D diag fields
-! g2d_fld are computed by GOCART and allocated/outputted by PHY
+! loop through the 2D aerosol diag fields
+! g2d_fld are computed by GOCART and outputted by PHY
 
-! add g2d_fld%du to dgdu
-      if ( int_state%g2d_fld%du%nfld > 0 ) then
-        msg =  "create empty FieldBundle dgdu"
-        Bundle = ESMF_FieldBundleCreate(name='dgdu', grid=mgrid, rc=rc)
-        call gfs_physics_err_msg(rc, msg, rcfinal)
+      lab_do_diag : DO i = 1, 5
 
-        DO k = 1, int_state%g2d_fld%du%nfld
-          vname = trim(int_state%g2d_fld%du%diag(k)%name)
+        aerosol = aerosol_list(i)
+        select case ( aerosol  )
+        case ( 'du')
+          g2d = int_state%g2d_fld%du
+        case ( 'ss')
+          g2d = int_state%g2d_fld%ss
+        case ( 'su')
+          g2d = int_state%g2d_fld%su
+        case ( 'oc')
+          g2d = int_state%g2d_fld%oc
+        case ( 'bc')
+          g2d = int_state%g2d_fld%bc
+        end select
+
+        BundleName='dg'//trim(aerosol)
+        kcount = g2d%nfld
+      
+!       print *, 'vvv -', BundleName, kcount 
+        if ( kcount > 0 ) then
+         msg =  "create empty FieldBundle "//BundleName
+         Bundle = ESMF_FieldBundleCreate(name=BundleName, & 
+                                         grid=mgrid, rc=rc)
+         call gfs_physics_err_msg(rc, msg, rcfinal)
+
+         DO k = 1, kcount
+          FieldName = trim(g2d%diag(k)%name)
+          msg = "create 2d Field "//FieldName
           NULLIFY(fArr2D)
-          fArr2D => int_state%g2d_fld%du%diag(k)%flds
-          Field  = ESMF_FieldCreate(mgrid, fArr2D, name=vname, rc=rc)
-          msg = "Add to physics export state du_bundle: "//vname
+          fArr2D => g2d%diag(k)%flds
+          Field = ESMF_FieldCreate(name=FieldName, grid=mgrid,    &
+                  fArray=fArr2D, gridToFieldMap=(/1,2,0/),       &
+                  indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
+          msg = "Add the created Field to Bundle: "//FieldName
           CALL ESMF_FieldBundleAdd(Bundle, Field, rc = rc)
           call gfs_physics_err_msg(rc, msg ,rcfinal)
-        ENDDO
 
-        msg = "Add dgdu bundle to physics export state"
-        CALL ESMF_StateAdd(exp_gfs_phy, Bundle, rc = rc)
+          call add_g2d_attribute(Bundle,BundleName,k,FieldName,rc=rc)
+!	  print *, 'vvv - FieldName=', k, FieldName
+         ENDDO
+
+         msg = "Add Bundle to physics export state"
+         CALL ESMF_StateAdd(exp_gfs_phy, Bundle, rc = rc)
+         call gfs_physics_err_msg(rc, msg ,rcfinal)
+        endif
+
+        FieldName = trim(aerosol)//'_nfld'
+        msg   = "Insert attribute "//FieldName//" to state"
+        CALL ESMF_AttributeSet(exp_gfs_phy               &  !<-- User specified bundle
+               ,name = FieldName                         &  !<-- Name of the attribute to insert
+               ,value = kcount                           &  !<-- Value of the attribute
+               ,rc   =RC)
         call gfs_physics_err_msg(rc, msg ,rcfinal)
-      endif
 
-! add g2d_fld%ss to dgss
-      if ( int_state%g2d_fld%ss%nfld > 0 ) then
-        msg =  "create empty FieldBundle dgss"
-        Bundle = ESMF_FieldBundleCreate(name='dgss', grid=mgrid, rc=rc)
-        call gfs_physics_err_msg(rc, msg, rcfinal)
-
-        DO k = 1, int_state%g2d_fld%ss%nfld
-          vname = trim(int_state%g2d_fld%ss%diag(k)%name)
-          NULLIFY(fArr2D)
-          fArr2D => int_state%g2d_fld%ss%diag(k)%flds
-          Field  = ESMF_FieldCreate(mgrid, fArr2D, name=vname, rc=rc)
-          msg = "Add to physics export state ss_bundle: "//vname
-          CALL ESMF_FieldBundleAdd(Bundle, Field, rc = rc)
-          call gfs_physics_err_msg(rc, msg ,rcfinal)
-        ENDDO
-
-        msg = "Add dgss bundle to physics export state"
-        CALL ESMF_StateAdd(exp_gfs_phy, Bundle, rc = rc)
-        call gfs_physics_err_msg(rc, msg ,rcfinal)
-      endif
-
-! add g2d_fld%su to dgsu
-      if ( int_state%g2d_fld%su%nfld > 0 ) then
-        msg =  "create empty FieldBundle dgsu"
-        Bundle = ESMF_FieldBundleCreate(name='dgsu', grid=mgrid, rc=rc)
-        call gfs_physics_err_msg(rc, msg, rcfinal)
-
-        DO k = 1, int_state%g2d_fld%su%nfld
-          vname = trim(int_state%g2d_fld%su%diag(k)%name)
-          NULLIFY(fArr2D)
-          fArr2D => int_state%g2d_fld%su%diag(k)%flds
-          Field  = ESMF_FieldCreate(mgrid, fArr2D, name=vname, rc=rc)
-          msg = "Add to physics export state su_bundle: "//vname
-          CALL ESMF_FieldBundleAdd(Bundle, Field, rc = rc)
-          call gfs_physics_err_msg(rc, msg ,rcfinal)
-        ENDDO
-
-        msg = "Add dgsu bundle to physics export state"
-        CALL ESMF_StateAdd(exp_gfs_phy, Bundle, rc = rc)
-        call gfs_physics_err_msg(rc, msg ,rcfinal)
-      endif
-
-! add g2d_fld%bc to dgbc
-      if ( int_state%g2d_fld%bc%nfld > 0 ) then
-        msg =  "create empty FieldBundle dgbc"
-        Bundle = ESMF_FieldBundleCreate(name='dgbc', grid=mgrid, rc=rc)
-        call gfs_physics_err_msg(rc, msg, rcfinal)
-
-        DO k = 1, int_state%g2d_fld%bc%nfld
-          vname = trim(int_state%g2d_fld%bc%diag(k)%name)
-          NULLIFY(fArr2D)
-          fArr2D => int_state%g2d_fld%bc%diag(k)%flds
-          Field  = ESMF_FieldCreate(mgrid, fArr2D, name=vname, rc=rc)
-          msg = "Add to physics export state bc_bundle: "//vname
-          CALL ESMF_FieldBundleAdd(Bundle, Field, rc = rc)
-          call gfs_physics_err_msg(rc, msg ,rcfinal)
-        ENDDO
-
-        msg = "Add dgbc bundle to physics export state"
-        CALL ESMF_StateAdd(exp_gfs_phy, Bundle, rc = rc)
-        call gfs_physics_err_msg(rc, msg ,rcfinal)
-      endif
-
-! add g2d_fld%oc to dgoc
-      if ( int_state%g2d_fld%oc%nfld > 0 ) then
-        msg =  "create empty FieldBundle dgoc"
-        Bundle = ESMF_FieldBundleCreate(name='dgoc', grid=mgrid, rc=rc)
-        call gfs_physics_err_msg(rc, msg, rcfinal)
-
-        DO k = 1, int_state%g2d_fld%oc%nfld
-          vname = trim(int_state%g2d_fld%oc%diag(k)%name)
-          NULLIFY(fArr2D)
-          fArr2D => int_state%g2d_fld%oc%diag(k)%flds
-          Field  = ESMF_FieldCreate(mgrid, fArr2D, name=vname, rc=rc)
-          msg = "Add to physics export state oc_bundle: "//vname
-          CALL ESMF_FieldBundleAdd(Bundle, Field, rc = rc)
-          call gfs_physics_err_msg(rc, msg ,rcfinal)
-        ENDDO
-
-        msg = "Add dgoc bundle to physics export state"
-        CALL ESMF_StateAdd(exp_gfs_phy, Bundle, rc = rc)
-        call gfs_physics_err_msg(rc, msg ,rcfinal)
-      endif
+      ENDDO   lab_do_diag
 
       endif lab_if_gocart
 
@@ -763,10 +736,6 @@
 !.............................
 !  ---  inputs:  (in scope variables)
 !  ---  outputs: (in scope variables)
-
-!  ---  locals:
-       TYPE(ESMF_Logical)      :: doing_SU, doing_SS, &
-                                  doing_DU, doing_OC, doing_BC
 
 ! ---  Set attributes for ri and cpi
        msg   = "insert cpi(0) attribute to phy_exp"
@@ -807,56 +776,35 @@
                ,rc   =RC)
        call gfs_physics_err_msg(rc,msg,rcfinal)
 
-! ---  Set attributes for doing_[DU,SS,SU,OC,BC]
-       doing_DU = ESMF_False
-       if ( int_state%gfs_phy_tracer%doing_DU ) doing_DU = ESMF_True
-       msg   = "insert logical doing_DU attribute to phy_exp"
-       CALL ESMF_AttributeSet(Bundle                          &  !<-- Phy export state tracer bundle
-               ,name  ='doing_DU'                             &  !<-- Name of the logical
-               ,value = doing_DU                              &  !<-- The logical being inserted into the Bundle
-               ,rc   =RC)
-       call gfs_physics_err_msg(rc,msg,rcfinal)
-
-       doing_SU = ESMF_False
-       if ( int_state%gfs_phy_tracer%doing_SU ) doing_SU = ESMF_True
-       msg   = "insert logical doing_SU attribute to phy_exp"
-       CALL ESMF_AttributeSet(Bundle                          &  !<-- Phy export state tracer bundle
-               ,name  ='doing_SU'                             &  !<-- Name of the logical
-               ,value = doing_SU                              &  !<-- The logical being inserted into the Bundle
-               ,rc   =RC)
-       call gfs_physics_err_msg(rc,msg,rcfinal)
-
-       doing_SS = ESMF_False
-       if ( int_state%gfs_phy_tracer%doing_SS ) doing_SS = ESMF_True
-       msg   = "insert logical doing_SS attribute to phy_exp"
-       CALL ESMF_AttributeSet(Bundle                          &  !<-- Phy export state tracer bundle
-               ,name  ='doing_SS'                             &  !<-- Name of the logical
-               ,value = doing_SS                              &  !<-- The logical being inserted into the Bundle
-               ,rc   =RC)
-       call gfs_physics_err_msg(rc,msg,rcfinal)
-
-       doing_OC = ESMF_False
-       if ( int_state%gfs_phy_tracer%doing_OC ) doing_OC = ESMF_True
-       msg   = "insert logical doing_OC attribute to phy_exp"
-       CALL ESMF_AttributeSet(Bundle                          &  !<-- Phy export state tracer bundle
-               ,name  ='doing_OC'                             &  !<-- Name of the logical
-               ,value = doing_OC                              &  !<-- The logical being inserted into the Bundle
-               ,rc   =RC)
-       call gfs_physics_err_msg(rc,msg,rcfinal)
-
-       doing_BC = ESMF_False
-       if ( int_state%gfs_phy_tracer%doing_BC ) doing_BC = ESMF_True
-       msg   = "insert logical doing_BC attribute to phy_exp"
-       CALL ESMF_AttributeSet(Bundle                          &  !<-- Phy export state tracer bundle
-               ,name  ='doing_BC'                             &  !<-- Name of the logical
-               ,value = doing_BC                              &  !<-- The logical being inserted into the Bundle
-               ,rc   =RC)
-       call gfs_physics_err_msg(rc,msg,rcfinal)
-
       RETURN
       end subroutine set_phy_attribute
 
       END SUBROUTINE gfs_physics_internal2export
+
+!--
+!------------ ! ------------- !-------------- !------------
+      subroutine add_g2d_attribute(bundle, aer, k, name, rc)
+
+      TYPE(ESMF_FieldBundle), INTENT(inout):: Bundle
+      character*10, INTENT(in)             :: aer, name
+      integer, INTENT(in)                  :: k
+      INTEGER, OPTIONAL, INTENT(out)       :: rc
+
+      character*50                         :: msg, vname, tag
+      integer                              :: rc1
+
+      write(tag, '(i2.2)') k
+      vname = trim(aer)//'_'//trim(tag)
+
+      msg   = "insert attribute "//vname//" to bundle "
+      CALL ESMF_AttributeSet(Bundle                    &  !<-- User specified bundle
+               ,name = vname                           &  !<-- Name of the attribute to insert
+               ,value = name                           &  !<-- Value of the attribute
+               ,rc   =RC1)
+      call gfs_physics_err_msg(rc1,msg,rc)
+
+      return
+      end subroutine add_g2d_attribute
 
 ! ==========================================================================
 

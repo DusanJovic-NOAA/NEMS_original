@@ -1364,7 +1364,13 @@ endif
          call MAPL_StateCreateFromVarSpec(EXPORT,STATE%EXPORT_SPEC,     &
                                        MYGRID%ESMFGRID,              &
                                        EDGEGRID=mygrid%EDGEGRID,            &
-                                       DEFER=.true., RC=STATUS       )
+                                       DEFER=.false., RC=STATUS      )
+!ams                                   DEFER=.true., RC=STATUS       )
+!ams
+!ams IMPORTANT: Patched MAPL to always allocate the export state; this is
+!ams            hack for getting things going with GFS/GOCART.
+!ams
+
       end if
       VERIFY_(STATUS)
    end if

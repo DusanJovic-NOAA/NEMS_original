@@ -11,7 +11,8 @@
 ! Jan 2010 Sarah Lu, AOD added to flx files
 ! Feb 2010 Jun Wang, write out restart file
 ! Jul 2010 Sarah Lu, write out aerosol diag files (for g2d_fld)
-! 
+! Aug 2010 Sarah Lu, scale the 2d_aer_diag by 1.e6
+!
 
       use resol_def,               ONLY: latr, levs, levp1, lonr, nfxr
       use layout1,                 ONLY: me, nodes, lats_node_r, 
@@ -1898,8 +1899,6 @@ C
       kmsk=nint(sfc_fld%slmsk)
       kmsk0=0
 !
-      ngrid2d=1
-!
       IF(FHOUR.GT.ZHOUR) THEN
         RTIME=1./(3600.*(FHOUR-ZHOUR))
       ELSE
@@ -1908,27 +1907,30 @@ C
 !
 !..........................................................
 !
+!      ngrid2d=1
 !      CALL uninterprez(1,kmsk,glolal,sfc_fld%slmsk,
-!     &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
+!     &       global_lats_r,lonsperlar,buff_mult_pieceg(1,1,ngrid2d))
 !      slmskloc=glolal
-!      slmskful=buff_mult_piecef(1:lonr,1:lats_node_r,ngrid2d)
+!      slmskful=buff_mult_pieceg(1:lonr,1:lats_node_r,ngrid2d)
 !
 !..........................................................
 !
+      ngrid2d=0
       if ( g2d_fld%du%nfld > 0 ) then
         do  k = 1, g2d_fld%du%nfld
-          glolal=g2d_fld%du%diag(k)%flds
+          glolal=1.e6*g2d_fld%du%diag(k)%flds
           ngrid2d=ngrid2d+1
           CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,
      &                   lonsperlar,buff_mult_pieceg(1,1,ngrid2d))
         enddo
+
       endif
 !
 !..........................................................
 !
       if ( g2d_fld%su%nfld > 0 ) then
         do  k = 1, g2d_fld%su%nfld
-          glolal=g2d_fld%su%diag(k)%flds
+          glolal=1.e6*g2d_fld%su%diag(k)%flds
           ngrid2d=ngrid2d+1
           CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,
      &                   lonsperlar,buff_mult_pieceg(1,1,ngrid2d))
@@ -1939,7 +1941,7 @@ C
 !
       if ( g2d_fld%ss%nfld > 0 ) then
         do  k = 1, g2d_fld%ss%nfld
-          glolal=g2d_fld%ss%diag(k)%flds
+          glolal=1.e6*g2d_fld%ss%diag(k)%flds
           ngrid2d=ngrid2d+1
           CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,
      &                   lonsperlar,buff_mult_pieceg(1,1,ngrid2d))
@@ -1950,7 +1952,7 @@ C
 !
       if ( g2d_fld%oc%nfld > 0 ) then
         do  k = 1, g2d_fld%oc%nfld
-          glolal=g2d_fld%oc%diag(k)%flds
+          glolal=1.e6*g2d_fld%oc%diag(k)%flds
           ngrid2d=ngrid2d+1
           CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,
      &                   lonsperlar,buff_mult_pieceg(1,1,ngrid2d))
@@ -1961,7 +1963,7 @@ C
 !
       if ( g2d_fld%bc%nfld > 0 ) then
         do  k = 1, g2d_fld%bc%nfld
-          glolal=g2d_fld%bc%diag(k)%flds
+          glolal=1.e6*g2d_fld%bc%diag(k)%flds
           ngrid2d=ngrid2d+1
           CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,
      &                   lonsperlar,buff_mult_pieceg(1,1,ngrid2d))

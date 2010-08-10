@@ -32,6 +32,7 @@
 !! 09Jun 2010     Sarah Lu, Remove ref to m_chars/lowercase; add g_fixchar
 !! 10Jun 2010     Sarah Lu, Remove aerosol tarcer pointer for iAERO
 !! 30Jun 2010     Sarah Lu, Revise g_fixchar to allow longer char string
+!! 04Aug 2010     Sarah Lu, run_DU[SU,SS,OC,BC] are determined from chemReg
 !-----------------------------------------------------------------------
 
       use ESMF_MOD
@@ -159,6 +160,7 @@
 !!
 !! Code Revision:
 !! 06Mar 2010     Sarah Lu, First Crack
+!! 04Aug 2010     Sarah Lu, Determine run_DU[SU,SS,OC,BC] from ChemRegistry
 !-----------------------------------------------------------------------
 
       implicit none
@@ -217,6 +219,17 @@
          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
       end do
+!
+!-----------------------------------------------------------------------
+!***  Determine what module(s) to be included in the simulation
+!-----------------------------------------------------------------------
+
+      run_DU = chemReg%doing_DU
+      run_SU = chemReg%doing_SU
+      run_OC = chemReg%doing_OC
+      run_BC = chemReg%doing_BC
+      run_SS = chemReg%doing_SS
+
 !
 !-----------------------------------------------------------------------
 !***  Destroy Chem_Registry 
@@ -402,11 +415,6 @@
         if ( lckprnt ) then
         print *, 'PHY2CHEM_RUN: im, jm, km=', im, jm, km
         print *, 'PHY2CHEM_RUN: ntrac    =', ntrac
-        print *, 'PHY2CHEM_RUN: doing_DU =', run_DU
-        print *, 'PHY2CHEM_RUN: doing_SU =', run_SU
-        print *, 'PHY2CHEM_RUN: doing_SS =', run_SS
-        print *, 'PHY2CHEM_RUN: doing_OC =', run_OC
-        print *, 'PHY2CHEM_RUN: doing_BC =', run_BC
 	print *, 'PHY2CHEM_RUN: lonr            =', lonr
 	print *, 'PHY2CHEM_RUN: lats_node_r     =', lats_node_r
 	print *, 'PHY2CHEM_RUN: lats_node_r_max =', lats_node_r_max
@@ -951,8 +959,6 @@
 
 !  ---  locals:
         type(ESMF_FieldBundle)   :: Bundle
-        TYPE(ESMF_Logical)       :: doing_SU, doing_SS, &
-                                    doing_DU, doing_OC, doing_BC
         integer                  :: STATUS, RC
         character(esmf_maxstr)   :: statename
 
@@ -999,41 +1005,6 @@
         CALL ESMF_AttributeGet(Bundle, name  ='ntrac'  & !<-- Name of the attribute to retrieve
                               ,value = ntrac, rc = RC)   !<-- Value of the attribute
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
-
-        run_DU = .False.
-        MESSAGE_CHECK = 'Extract doing_DU attribute from '//trim(statename)
-        CALL ESMF_AttributeGet(Bundle, name = 'doing_DU'     &  
-                              ,value = doing_DU, rc = RC)
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
-        if ( doing_DU == ESMF_True ) run_DU = .True.
-
-        run_SU = .False.
-        MESSAGE_CHECK = 'Extract doing_SU attribute from '//trim(statename)
-        CALL ESMF_AttributeGet(Bundle, name = 'doing_SU'     &  
-                              ,value = doing_SU, rc = RC)
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
-        if ( doing_SU == ESMF_True ) run_SU = .True.
-
-        run_SS = .False.
-        MESSAGE_CHECK = 'Extract doing_SS attribute from '//trim(statename)
-        CALL ESMF_AttributeGet(Bundle, name = 'doing_SS'     &  
-                              ,value = doing_SS, rc = RC)
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
-        if ( doing_SS == ESMF_True ) run_SS = .True.
-
-        run_OC = .False.
-        MESSAGE_CHECK = 'Extract doing_OC attribute from '//trim(statename)
-        CALL ESMF_AttributeGet(Bundle, name = 'doing_OC'     &  
-                              ,value = doing_OC, rc = RC)
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
-        if ( doing_OC == ESMF_True ) run_OC = .True.
-
-        run_BC = .False.
-        MESSAGE_CHECK = 'Extract doing_BC attribute from '//trim(statename)
-        CALL ESMF_AttributeGet(Bundle, name = 'doing_BC'     &  
-                              ,value = doing_BC, rc = RC)
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
-        if ( doing_BC == ESMF_True ) run_BC = .True.
 
        RETURN
       end subroutine get_attribute

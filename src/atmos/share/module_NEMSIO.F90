@@ -22,6 +22,8 @@ module module_nemsio
 !                             calculating default latitude for GFS model
 !    2010-06-10    Sarah Lu - modify gribtable for msa, so4, dms, ss005
 !    2010-07-26    Sarah Lu - modify gribtable for 2d aerosol diag fields
+!    2010-08-09    Sarah Lu - comment gribtable for clarification;
+!                             correct gribtable for OCSCATAU
 !
 ! Public Variables
 ! Public Defined Types
@@ -5638,6 +5640,13 @@ contains
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
     implicit none
     integer(nemsio_intkind),intent(out)  :: iret
+
+!
+!
+! nemsio_grbtbl_item(1:2): parameter name, layer definition, 
+! nemsio_grbtbl_item(3:6): precision, height, pds5 (parameter index), pds6 (level height)
+!
+!
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     iret=-7
     gribtable(1)%iptv=2
@@ -5895,7 +5904,7 @@ contains
     gribtable(4)%item(95)=nemsio_grbtbl_item('OCSMASS','atmos col',6,0,171,200)
     gribtable(4)%item(96)=nemsio_grbtbl_item('OCCMASS','atmos col',6,0,172,200)
     gribtable(4)%item(97)=nemsio_grbtbl_item('OCEXTTAU','atmos col',6,0,173,200)
-    gribtable(4)%item(98)=nemsio_grbtbl_item('OCEXTTAU','atmos col',6,0,174,200)
+    gribtable(4)%item(98)=nemsio_grbtbl_item('OCSCATAU','atmos col',6,0,174,200)
     gribtable(4)%item(99)=nemsio_grbtbl_item('BCEM001','atmos col',6,0,175,200)
     gribtable(4)%item(100)=nemsio_grbtbl_item('BCEM002','atmos col',6,0,176,200)
     gribtable(4)%item(101)=nemsio_grbtbl_item('BCDP001','atmos col',6,0,177,200)

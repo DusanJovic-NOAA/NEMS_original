@@ -18,6 +18,8 @@
 !!                          from GOCART export state (not from AERO bundle)
 !! 10Jun 2010     Sarah Lu, Gaseous species are taken from AERO bundle (as
 !!                          GOCART grid component is revised)
+!! 06Aug 2010     Sarah Lu, Modify phy2chem run routine to pass g2d_fld
+!!                          from chem_exp to phys_exp 
 !-----------------------------------------------------------------------
 
       use ESMF_MOD
@@ -155,6 +157,28 @@
                c_ocphobic, c_ocphilic, c_bcphobic, c_bcphilic              ! OC/BC
 !
 
+!---  Add the following for 2d aerosol diag fields ---
+
+!  Fortran data pointer for phy export state
+      real(ESMF_KIND_R8), pointer, dimension(:,:) ::  p_diag
+
+!  Fortran data pointer for chem export state
+      real(ESMF_KIND_R8), pointer, dimension(:,:) ::  c_diag
+
+      logical                 :: get_attribute
+      integer                 :: i, j, k, kcount
+      character*10            :: aerosol_list(5), aerosol, tag, vname
+      character*10            :: BundleName, FieldName
+      TYPE(ESMF_FieldBundle)  :: Bundle
+      character*10, dimension(30)  :: name_lst
+      integer,save            :: nfld_du, nfld_ss, nfld_su, &
+                                 nfld_oc, nfld_bc
+      character*10,  allocatable, save  :: name_du(:), name_ss(:), &
+                           name_oc(:), name_bc(:), name_su(:)
+
+      data aerosol_list / 'du', 'su', 'ss', 'oc', 'bc'/
+
+
 !---------------------------------------------
 !* Determine dimension and allocate local array 
 !---------------------------------------------
@@ -174,6 +198,76 @@
         print *, 'CKS=>CHEM2PHY_RUN: lats_node_r =', lats_node_r
         print *, 'CKS=>CHEM2PHY_RUN: lats_node_r_max =', lats_node_r_max
         print *, 'CKS=>CHEM2PHY_RUN: lonsperlar_r =', lonsperlar_r(:)
+
+!
+! determine 2d aer_diag fields from the bundle attribute
+!
+        name_lst(:) = 'xxxxx'
+        kcount      = 0
+
+        lab_setup: DO k = 1, 5
+          aerosol = aerosol_list(k)
+  
+          get_attribute = .False. 
+          if (aerosol=='du' .and. run_DU ) get_attribute = .True.
+          if (aerosol=='su' .and. run_SU ) get_attribute = .True.
+          if (aerosol=='ss' .and. run_SS ) get_attribute = .True.
+          if (aerosol=='oc' .and. run_OC ) get_attribute = .True.
+          if (aerosol=='bc' .and. run_BC ) get_attribute = .True.
+
+          lab_get_attribute: IF ( get_attribute ) then
+          FieldName = trim(aerosol)//'_nfld'
+          MESSAGE_CHECK="CHEM2PHY_RUN: get attribute from phy_exp"
+          CALL ESMF_AttributeGet(PHY_EXP_STATE, name = FieldName,  &  
+                                 value = kcount , rc=RC)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
+!	  print *, 'vvvx _aerosol = ', aerosol, kcount
+          IF ( kcount > 0 ) then
+
+            MESSAGE_CHECK="CHEM2PHY_RUN: get bundle from phy_exp"
+            BundleName='dg'//trim(aerosol)
+            CALL ESMF_StateGet(PHY_EXP_STATE, BundleName, &
+                               Bundle, rc=RC)
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
+            do i = 1, kcount
+              write(tag, '(i2.2)') i
+              FieldName = trim(BundleName)//'_'//trim(tag)
+              MESSAGE_CHECK="CHEM2PHY_RUN: get attribute from bundle"
+              CALL ESMF_AttributeGet(Bundle, name=FieldName,   &
+                                     value=vname, rc=RC)
+              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+              name_lst(i) = trim(vname)
+!	      print *, 'vvvx _vname = ', i, vname
+            enddo
+          ENDIF
+
+          select case ( aerosol )
+          case ( 'du' )
+            nfld_du = kcount
+            allocate(name_du(kcount) )
+            name_du(1:kcount) = name_lst(1:kcount)
+          case ( 'ss' )
+            nfld_ss = kcount
+            allocate(name_ss(kcount) )
+            name_ss(1:kcount) = name_lst(1:kcount)
+          case ( 'su' )
+            nfld_su = kcount
+            allocate(name_su(kcount) )
+            name_su(1:kcount) = name_lst(1:kcount)
+          case ( 'oc' )
+            nfld_oc = kcount
+            allocate(name_oc(kcount) )
+            name_oc(1:kcount) = name_lst(1:kcount)
+          case ( 'bc' )
+            nfld_bc = kcount
+            allocate(name_bc(kcount) )
+            name_bc(1:kcount) = name_lst(1:kcount)
+          end select
+          ENDIF  lab_get_attribute
+
+        ENDDO  lab_setup
 
 !       reset first flag
         first = .false.
@@ -358,6 +452,59 @@
       ENDIF
 
 !
+! --- now let's take care 2d aer_diag fields
+!
+      lab_copy: DO k = 1, 5
+        aerosol = aerosol_list(k)
+  
+        get_attribute = .False. 
+        if (aerosol=='du' .and. run_DU ) get_attribute = .True.
+        if (aerosol=='su' .and. run_SU ) get_attribute = .True.
+        if (aerosol=='ss' .and. run_SS ) get_attribute = .True.
+        if (aerosol=='oc' .and. run_OC ) get_attribute = .True.
+        if (aerosol=='bc' .and. run_BC ) get_attribute = .True.
+
+        lab_get_attribute2: IF ( get_attribute ) then
+
+        select case ( aerosol )
+          case ( 'du' )
+            kcount = nfld_du 
+            name_lst(1:kcount) = name_du(1:kcount) 
+          case ( 'ss' )
+            kcount = nfld_ss
+            name_lst(1:kcount) = name_ss(1:kcount) 
+          case ( 'su' )
+            kcount = nfld_su
+            name_lst(1:kcount) = name_su(1:kcount) 
+          case ( 'oc' )
+            kcount = nfld_oc
+            name_lst(1:kcount) = name_oc(1:kcount) 
+          case ( 'bc' )
+            kcount = nfld_bc
+            name_lst(1:kcount) = name_bc(1:kcount) 
+        end select
+
+        BundleName='dg'//trim(aerosol)
+        do i = 1, kcount
+
+          vname = name_lst(i) 
+          nullify(p_diag)
+          MESSAGE_CHECK = "Chem2Phys CPL_RUN: Get Farray from Phy_Exp-"//vname
+          call GetPointer_diag_(PHY_EXP_STATE, BundleName, vname, p_diag, rc)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
+          nullify(c_diag)
+          MESSAGE_CHECK = "Chem2Phys CPL_RUN: Get Farray from Chem_Exp-"//vname
+          call GetPointer_diag_(CHEM_EXP_STATE, 'xxxx', vname, c_diag, rc)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
+          p_diag(:,:) = c_diag(:,:)
+        enddo    ! kcount-loop
+
+        ENDIF lab_get_attribute2
+      ENDDO lab_copy
+
+!
 !-----------------------------------------------------------------------
 !***  Check the final error signal variable 
 !-----------------------------------------------------------------------
@@ -369,5 +516,46 @@
       ENDIF
 !! 
       END subroutine run
+
+
+!!! ---------------- ! ------------------ ! ---------------- !----------------!
+
+        subroutine GetPointer_diag_ (STATE, BUNDLENAME, NAME, ARRAY, RC)
+
+! --- input/output arguments
+        type(ESMF_State), intent(IN)    :: STATE
+        character(len=*), intent(IN)    :: BUNDLENAME
+        character(len=*), intent(IN)    :: NAME
+        real(ESMF_KIND_R8), pointer, intent(OUT) :: ARRAY(:,:)
+        integer, intent (OUT)           :: RC
+
+! --- locals
+        type(ESMF_Field)                :: Field
+        type(ESMF_FieldBundle)          :: Bundle
+        integer                         :: rc1
+!
+!===>  ...  begin here
+
+        IF ( BundleName(1:4) == 'xxxx') then
+         MESSAGE_CHECK = 'GetPointer_diag: Extract Field '//NAME
+         CALL ESMF_StateGet(state=State, ItemName=NAME, field=Field, rc=rc1)
+         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+        ELSE
+         MESSAGE_CHECK = 'GetPointer_diag: Extract Bundle '//BundleName
+         call ESMF_StateGet(state=State, ItemName=BundleName,  &
+                           fieldbundle=Bundle, rc=rc1)
+         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+
+         MESSAGE_CHECK = 'GetPointer_diag:: Extract Field '//NAME
+         CALL ESMF_FieldBundleGet(bundle=Bundle, name=NAME, field=Field, rc=rc1)
+         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+        ENDIF
+
+        nullify(Array)
+        MESSAGE_CHECK = 'GetPointer_diag:: Get Fortran data pointer from '//NAME
+        CALL ESMF_FieldGet(field=Field, localDe=0, farray=Array, rc = rc1)
+        CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+!
+       end subroutine GetPointer_diag_
 
       END module atmos_chem_phy_cpl_comp_mod
