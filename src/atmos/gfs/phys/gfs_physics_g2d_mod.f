@@ -8,6 +8,7 @@
 ! !REVISION HISTORY:
 !
 !  2010/07/14     Sarah Lu,  Initial code.
+!  2010/08/10     Sarah Lu,  Add g2d_zerout routine
 !
 ! !INTERFACE:
 !
@@ -164,5 +165,50 @@
     return
     end subroutine
 
+
+!---------------------------------------------------------------------------
+! !IROUTINE: g2d_zerout ---
+
+    subroutine g2d_zerout (gfs_phy_tracer, g2d_fld)
+
+    implicit none
+!
+    type(gfs_phy_tracer_type), intent(in) :: gfs_phy_tracer
+    TYPE(G2D_Var_Data), INTENT(inout)     :: g2d_fld
+!
+    integer k
+!
+    if ( gfs_phy_tracer%doing_DU ) then
+      do k =1, g2d_fld%du%nfld
+        g2d_fld%du%diag(k)%flds(:,:) = 0.
+      enddo
+    endif
+
+    if ( gfs_phy_tracer%doing_SU ) then
+      do k =1, g2d_fld%su%nfld
+        g2d_fld%su%diag(k)%flds(:,:) = 0.
+      enddo
+    endif
+
+    if ( gfs_phy_tracer%doing_SS ) then
+      do k =1, g2d_fld%ss%nfld
+       g2d_fld%ss%diag(k)%flds(:,:) = 0.
+      enddo
+    endif
+
+    if ( gfs_phy_tracer%doing_OC ) then
+      do k =1, g2d_fld%oc%nfld
+       g2d_fld%oc%diag(k)%flds(:,:) = 0.
+      enddo
+    endif
+
+    if ( gfs_phy_tracer%doing_BC ) then
+      do k =1, g2d_fld%bc%nfld
+       g2d_fld%bc%diag(k)%flds(:,:) = 0.
+      enddo
+    endif
+
+    return
+    end subroutine
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  END MODULE gfs_physics_g2d_mod

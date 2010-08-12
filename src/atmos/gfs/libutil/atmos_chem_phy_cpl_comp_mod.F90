@@ -20,6 +20,7 @@
 !!                          GOCART grid component is revised)
 !! 06Aug 2010     Sarah Lu, Modify phy2chem run routine to pass g2d_fld
 !!                          from chem_exp to phys_exp 
+!! 10Aug 2010     Sarah Lu, Modify chem2phy run routine to accumulate g2d_fld
 !-----------------------------------------------------------------------
 
       use ESMF_MOD
@@ -171,6 +172,7 @@
       character*10            :: BundleName, FieldName
       TYPE(ESMF_FieldBundle)  :: Bundle
       character*10, dimension(30)  :: name_lst
+      real, save              :: deltim
       integer,save            :: nfld_du, nfld_ss, nfld_su, &
                                  nfld_oc, nfld_bc
       character*10,  allocatable, save  :: name_du(:), name_ss(:), &
@@ -205,6 +207,11 @@
         name_lst(:) = 'xxxxx'
         kcount      = 0
 
+        MESSAGE_CHECK="CHEM2PHY_RUN: get deltim from phy_exp"
+        CALL ESMF_AttributeGet(PHY_EXP_STATE, name = 'deltim',  &
+                               value = deltim , rc=RC)
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
         lab_setup: DO k = 1, 5
           aerosol = aerosol_list(k)
   
@@ -222,7 +229,6 @@
                                  value = kcount , rc=RC)
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
-!	  print *, 'vvvx _aerosol = ', aerosol, kcount
           IF ( kcount > 0 ) then
 
             MESSAGE_CHECK="CHEM2PHY_RUN: get bundle from phy_exp"
@@ -239,7 +245,6 @@
                                      value=vname, rc=RC)
               CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
               name_lst(i) = trim(vname)
-!	      print *, 'vvvx _vname = ', i, vname
             enddo
           ENDIF
 
@@ -498,7 +503,8 @@
           call GetPointer_diag_(CHEM_EXP_STATE, 'xxxx', vname, c_diag, rc)
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
-          p_diag(:,:) = c_diag(:,:)
+!*        p_diag(:,:) = c_diag(:,:)
+          p_diag(:,:) = p_diag(:,:) + c_diag(:,:)*deltim
         enddo    ! kcount-loop
 
         ENDIF lab_get_attribute2

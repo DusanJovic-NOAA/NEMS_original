@@ -16,6 +16,8 @@
 !                       OC,BC] from attribute)
 !  2010/08/06           Sarah Lu, modify internal2export (add aer_diag 
 !                       nfld/name to attribute)
+!  2010/08/10           Sarah Lu, modify internal2export (add deltim to
+!                       attribute)
 !
 !!USEs:
 !
@@ -524,6 +526,11 @@
           lonsperlar_r(i) =  int_state%lonsperlar(ilat)
         enddo
       endif
+
+      CALL ESMF_AttributeSet(state=exp_gfs_phy        &  !<-- The physics export state
+                            ,name ='deltim'           &  !<-- Name of the attribute to insert
+                            ,value= int_state%nam_gfs_phy%deltim  & !<-- Value of the attribute
+                            ,rc   =RC)
 
       CALL ESMF_AttributeSet(state=exp_gfs_phy             &  !<-- The physics export state
                             ,name ='lats_node_r'           &  !<-- Name of the attribute to insert
