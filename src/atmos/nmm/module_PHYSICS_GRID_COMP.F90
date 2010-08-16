@@ -3269,6 +3269,21 @@
       int_state%NSRFC=NSTEPS_PER_HOUR*int_state%NHRS_SRFC
 !
 !-----------------------------------------------------------------------
+!***  If this is a restarted run frim timestep 0 then zero out
+!***  the accumulated precip since they pass through the analysis
+!***  with nonzero values from the first guess.
+!-----------------------------------------------------------------------
+!
+      IF(int_state%RST_OUT_00)THEN
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%ACPREC(I,J)=0.
+          int_state%CUPREC(I,J)=0.
+        ENDDO
+        ENDDO
+      ENDIF
+!
+!-----------------------------------------------------------------------
 !***  Finally initialize individual schemes.
 !-----------------------------------------------------------------------
 !

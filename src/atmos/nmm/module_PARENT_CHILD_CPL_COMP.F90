@@ -6249,6 +6249,7 @@
                   INFO(3)=CHILDTASK_H_SAVE(N)%I_HI_SOUTH_TRANSFER(NTX)     !<-- Save the ending index of boundary segment on child
                   INFO(4)=CHILDTASK_H_SAVE(N)%I_HI_SOUTH(NTX)              !<-- Save the ending index of expanded boundary segment on child
 !
+!     write(0,*)' parent task sends south H to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3),' i_hi_exp=',INFO(4)
                   CALL MPI_SEND(INFO,4,MPI_INTEGER,ID_CHILDTASK         &  !<-- Parent task sends the key data to the child Sbndry task
                                ,101                                     &  !<-- Tag for south boundary H points
                                ,COMM_TO_MY_CHILDREN(N),IERR)
@@ -6282,6 +6283,7 @@
                   INFO(2)=CHILDTASK_V_SAVE(N)%I_LO_SOUTH(NTX)              !<-- Save the starting index of boundary segment on child
                   INFO(3)=CHILDTASK_V_SAVE(N)%I_HI_SOUTH(NTX)              !<-- Save the ending index of boundary segment on child
 !
+!     write(0,*)' parent task sends south V to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3)
                   CALL MPI_SEND(INFO,3,MPI_INTEGER,ID_CHILDTASK         &  !<-- Parent task sends the key data to the child Sbndry task
                                ,102                                     &  !<-- Tag for south boundary V points
                                ,COMM_TO_MY_CHILDREN(N),IERR)
@@ -6316,6 +6318,7 @@
                   INFO(3)=CHILDTASK_H_SAVE(N)%I_HI_NORTH_TRANSFER(NTX)     !<-- Save the ending index of boundary segment on child
                   INFO(4)=CHILDTASK_H_SAVE(N)%I_HI_NORTH(NTX)              !<-- Save the ending index of expanded boundary segment on child
 !
+!     write(0,*)' parent task sends north H to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3),' i_hi_exp=',INFO(4)
                   CALL MPI_SEND(INFO,4,MPI_INTEGER,ID_CHILDTASK         &  !<-- Parent task sends the key data to the child Nbndry task
                                ,103                                     &  !<-- Tag for north boundary H points
                                ,COMM_TO_MY_CHILDREN(N),IERR)
@@ -6349,6 +6352,7 @@
                   INFO(2)=CHILDTASK_V_SAVE(N)%I_LO_NORTH(NTX)              !<-- Save the starting index of boundary segment on child
                   INFO(3)=CHILDTASK_V_SAVE(N)%I_HI_NORTH(NTX)              !<-- Save the ending index of boundary segment on child
 !
+!     write(0,*)' parent task sends north V to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3)
                   CALL MPI_SEND(INFO,3,MPI_INTEGER,ID_CHILDTASK         &  !<-- Parent task sends the key data to the child Nbndry task
                                ,104                                     &  !<-- Tag for north boundary V points
                                ,COMM_TO_MY_CHILDREN(N),IERR)
@@ -6383,6 +6387,7 @@
                   INFO(3)=CHILDTASK_H_SAVE(N)%J_HI_WEST_TRANSFER(NTX)      !<-- Save the ending index of boundary segment on child
                   INFO(4)=CHILDTASK_H_SAVE(N)%J_HI_WEST(NTX)               !<-- Save the ending index of expanded boundary segment on child
 !
+!     write(0,*)' parent task sends west H to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3),' i_hi_exp=',INFO(4)
                   CALL MPI_SEND(INFO,4,MPI_INTEGER,ID_CHILDTASK         &  !<-- Parent task sends the key data to the child Wbndry task
                                ,105                                     &  !<-- Tag for west boundary H points
                                ,COMM_TO_MY_CHILDREN(N),IERR)
@@ -6416,6 +6421,7 @@
                   INFO(2)=CHILDTASK_V_SAVE(N)%J_LO_WEST(NTX)               !<-- Save the starting index of boundary segment on child
                   INFO(3)=CHILDTASK_V_SAVE(N)%J_HI_WEST(NTX)               !<-- Save the ending index of boundary segment on child
 !
+!     write(0,*)' parent task sends west V to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3)
                   CALL MPI_SEND(INFO,3,MPI_INTEGER,ID_CHILDTASK         &  !<-- Parent task sends the key data to the child Wbndry task
                                ,106                                     &  !<-- Tag for west boundary V points
                                ,COMM_TO_MY_CHILDREN(N),IERR)
@@ -6450,6 +6456,7 @@
                   INFO(3)=CHILDTASK_H_SAVE(N)%J_HI_EAST_TRANSFER(NTX)      !<-- Save the ending index of boundary segment on child
                   INFO(4)=CHILDTASK_H_SAVE(N)%J_HI_EAST(NTX)               !<-- Save the ending index of expanded boundary segment on child
 !
+!     write(0,*)' parent task sends east H to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3),' i_hi_exp=',INFO(4)
                   CALL MPI_SEND(INFO,4,MPI_INTEGER,ID_CHILDTASK         &  !<-- Parent task sends the key data to the child Ebndry task
                                ,107                                     &  !<-- Tag for east boundary H points
                                ,COMM_TO_MY_CHILDREN(N),IERR)
@@ -6483,6 +6490,7 @@
                   INFO(2)=CHILDTASK_V_SAVE(N)%J_LO_EAST(NTX)               !<-- Save the starting index of boundary segment on child
                   INFO(3)=CHILDTASK_V_SAVE(N)%J_HI_EAST(NTX)               !<-- Save the ending index of boundary segment on child
 !
+!     write(0,*)' parent task sends east V to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3)
                   CALL MPI_SEND(INFO,3,MPI_INTEGER,ID_CHILDTASK         &  !<-- Parent task sends the key data to the child Ebndry task
                                ,108                                     &  !<-- Tag for east boundary V points
                                ,COMM_TO_MY_CHILDREN(N),IERR)
@@ -8172,6 +8180,13 @@
                                              ,PDB
 !
       integer,dimension(8) :: values
+!
+#ifdef IBM
+      INTEGER :: LOG_LENGTH
+!
+      REAL,DIMENSION(:,:),ALLOCATABLE :: TMP
+#endif
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -8317,6 +8332,11 @@
           ALLOCATE( PHI_INTERP(I_START:I_END,J_START:J_END,1:LM+1))
           ALLOCATE(   LOG_PTOP(I_START:I_END,J_START:J_END))
           ALLOCATE(   LOG_PBOT(I_START:I_END,J_START:J_END))
+#ifdef IBM
+          ALLOCATE(TMP(I_START:I_END,J_START:J_END))
+!
+          LOG_LENGTH=(I_END-I_START+1)*(J_END-J_START+1)
+#endif
 !
 !-----------------------------------------------------------------------
 !***  Compute parent heights of layer interfaces at the four points
@@ -8395,8 +8415,6 @@
                                 +WGHT_NW*PX_NW                          &
                                 +WGHT_NE*PX_NE               
 !
-              LOG_PTOP(I,J)=LOG(PINT_INTERP(I,J,L))                        !<-- Log of parent (top) interface pressure at child bndry point
-!
               T_INTERP=WGHT_SW*T(I_WEST,J_SOUTH,L)                      &  !<-- T interp'd to child gridpoint along child's
                       +WGHT_SE*T(I_EAST,J_SOUTH,L)                      &  !    boundary for child task NTX
                       +WGHT_NW*T(I_WEST,J_NORTH,L)                      &
@@ -8407,14 +8425,33 @@
                       +WGHT_NW*Q(I_WEST,J_NORTH,L)                      &
                       +WGHT_NE*Q(I_EAST,J_NORTH,L)
 !
+#ifndef IBM
+!
+              LOG_PTOP(I,J)=LOG(PINT_INTERP(I,J,L))                        !<-- Log of parent (top) interface pressure at child bndry point
+!
               PHI_INTERP(I,J,L)=PHI_INTERP(I,J,L+1)                     &  !<-- Top interface geopotl of parent at child gridpoint (I,J)
                                +R_D*T_INTERP*(1.+P608*Q_INTERP)         &
                                *(LOG_PBOT(I,J)-LOG_PTOP(I,J))
 !
               LOG_PBOT(I,J)=LOG_PTOP(I,J)                                  !<--- Move Log(Ptop) to bottom of next model layer up
 !
+#else
+              TMP(I,J)=R_D*T_INTERP*(1.+P608*Q_INTERP)
+#endif
             ENDDO
             ENDDO
+!
+#ifdef IBM
+            CALL VSLOG(LOG_PTOP,PINT_INTERP(:,:,L),LOG_LENGTH)             !<-- Log of parent (top) interface pressure at child bndry point
+!
+            DO J=J_START,J_END                                             !<-- J limits of child task bndry region on parent task
+            DO I=I_START,I_END                                             !<-- I limits of child task bndry region on parent task
+              PHI_INTERP(I,J,L)=PHI_INTERP(I,J,L+1)                     &  !<-- Top interface geopotl of parent at child gridpoint (I,J)
+                               +TMP(I,J)*(LOG_PBOT(I,J)-LOG_PTOP(I,J))
+              LOG_PBOT(I,J)=LOG_PTOP(I,J)                                  !<--- Move Log(Ptop) to bottom of next model layer up
+            ENDDO
+            ENDDO
+#endif
 !
           ENDDO
 !
@@ -8502,6 +8539,9 @@
           DEALLOCATE(PHI_INTERP)
           DEALLOCATE(LOG_PTOP)  
           DEALLOCATE(LOG_PBOT)  
+#ifdef IBM
+          DEALLOCATE(TMP)
+#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -8678,6 +8718,8 @@
                                         ,PINT_INTERP_LO                 &
                                         ,PMID_INTERP                    &
                                         , VBL_INTERP
+!
+      real,dimension(1:LM+1,1:4) :: C_TMP                                  !<-- Working array for ESSL spline call
 !
       REAL,DIMENSION(:),POINTER :: VBL_COL_CHILD
 !
@@ -9001,6 +9043,17 @@
 !                                                                               in input pointer.
             ENDIF
 !
+#ifdef IBM
+            CALL SCSINT(P_INPUT                                         &  !<-- Input mid-layer pressure
+                       ,VBL_INPUT                                       &  !<-- Input mid-layer mass variable value
+                       ,C_TMP                                           &  !<-- Auxiliary matrix, C(1:num_levs_spline,1:4)
+                       ,NUM_LEVS_SPLINE                                 &  !<-- # of input levels
+                       ,0                                               &  !<-- Natural boundary conditions, nothing precomputed (zero or negative integer)
+                       ,PMID_CHILD                                      &  !<-- Child mid-layer pressures to interpolate to
+                       ,VBL_COL_CHILD                                   &  !<-- # of child mid-layer variable returned
+                       ,LM)                                                !<-- # of child mid-layers to interpolate to
+
+#else
             DO L=1,LM+1
               SEC_DERIV(L)=0.                                              !<-- Initialize 2nd derivatives of the spline to zero.
             ENDDO
@@ -9012,6 +9065,7 @@
                        ,LM                                              &  !<-- # of child mid-layers to interpolate to
                        ,PMID_CHILD                                      &  !<-- Child mid-layer pressures to interpolate to
                        ,VBL_COL_CHILD)                                     !<-- Child mid-layer variable value returned
+#endif
 !
 !-----------------------------------------------------------------------
 !

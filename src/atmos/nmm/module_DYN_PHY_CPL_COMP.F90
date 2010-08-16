@@ -110,7 +110,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Set Entry Point for Coupler Run"
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Dyn-Phy Coupler Component
@@ -129,7 +129,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Set Entry Point for Coupler Finalize"
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Dyn-Phy Coupler Component
@@ -239,13 +239,31 @@
 !***         pointed at them.
 !-----------------------------------------------------------------------
 !
-      CALL ESMF_StateGet(state=IMP_STATE,itemCount=itemCount,itemNameList=itemNameList, rc=RC)
+      CALL ESMF_StateGet(state       =IMP_STATE                         &
+                        ,itemCount   =itemCount                         &
+                        ,itemNameList=itemNameList                      &
+                        ,rc          =RC)
+!
       DO i=1,itemCount  
-        CALL ESMF_StateGet(state=IMP_STATE ,name=itemNameList(i) ,stateitemtype=stateItemType, rc=RC)
+        CALL ESMF_StateGet(state        =IMP_STATE                      &
+                          ,name         =itemNameList(i)                &
+                          ,stateitemtype=stateItemType                  &
+                          ,rc           =RC)
+!
         IF (stateItemType == ESMF_STATEITEM_FIELD) THEN
-          write(0,*) TRIM(IMPORT_STATENAME),' -> ',TRIM(EXPORT_STATENAME),' Field     : ',i,itemNameList(i)
-          CALL ESMF_StateGet(state=IMP_STATE ,itemName=itemNameList(i) ,field=HOLD_FIELD ,rc=RC)
-          CALL ESMF_StateAdd(state=EXP_STATE ,field=HOLD_FIELD ,rc=RC)
+          if(mype_share==0)then
+            write(0,*) TRIM(IMPORT_STATENAME),' -> ',TRIM(EXPORT_STATENAME) &
+                                             ,' Field     : ',i,itemNameList(i)
+          endif
+!
+          CALL ESMF_StateGet(state   =IMP_STATE                         &
+                            ,itemName=itemNameList(i)                   &
+                            ,field   =HOLD_FIELD                        &
+                            ,rc      =RC)
+!
+          CALL ESMF_StateAdd(state=EXP_STATE                            &
+                            ,field=HOLD_FIELD                           &
+                            ,rc   =RC)
         END IF
       END DO
 

@@ -70,7 +70,7 @@
 !
         LOGICAL :: GLOBAL,GWDFLG,HYDRO,NEMSIO_INPUT,NESTED,NHRS_UDEF    &
                   ,PCPFLG,RESTART,SPECIFIED,WRITE_PREC_ADJ              &
-                  ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP                &
+                  ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP,RST_OUT_00     &
                   ,SPEC_ADV                                                ! Cloud water species advection option
 !
 !-----------------------------------------------------------------------
@@ -423,9 +423,6 @@
       ELSE
          int_state%F_QG=.TRUE.
       ENDIF
-
-
-
 
 !-----
       int_state%NUM_TRACERS_TOTAL=                                      &  !<-- # of 3-D arrays in 4-D TRACERS array
@@ -819,7 +816,7 @@
         int_state%ASWOUT(I,J)  =-1.E6
         int_state%ASWTOA(I,J)  =-1.E6
         int_state%BGROFF(I,J)  =-1.E6
-        int_state%CFRACL(I,J)  =-1.E6
+        int_state%CFRACH(I,J)  =-1.E6
         int_state%CFRACM(I,J)  =-1.E6
         int_state%CFRACL(I,J)  =-1.E6
         int_state%CNVBOT(I,J)  =0.0

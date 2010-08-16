@@ -71,7 +71,8 @@
                         ,cpl1_recv_tim                                  &
                         ,cpl2_send_tim                                  &
                         ,cpl2_comp_tim                                  &
-                        ,cpl2_wait_tim
+                        ,cpl2_wait_tim                                  &
+                        ,phase1_tim
 !
 !-----------------------------------------------------------------------
 !
@@ -228,6 +229,7 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
+      phase1_tim      =0
       atm_drv_run_1   =0.
       atm_drv_run_2   =0.
       atm_drv_run_3   =0.
@@ -452,7 +454,8 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        atm_drv_run_1=atm_drv_run_1+(timef()-btim0)
+        phase1_tim = (timef()-btim0)
+        atm_drv_run_1=atm_drv_run_1+phase1_tim
 !
 !-----------------------------------------------------------------------
 !***  If there is filtering, execute Phase 2 of the DOMAIN Run step.
@@ -510,11 +513,6 @@
 !
         NTIMESTEP=NTIMESTEP_ESMF
 !
-        IF(MYPE==0)THEN
-!!!     IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-          WRITE(0,25)NTIMESTEP-1,NTIMESTEP*DT/3600.
-   25     FORMAT(' Finished Timestep ',i5,' ending at ',f7.3,' hours')
-        ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Write timeseries data for this timestep on this domain.
@@ -571,19 +569,26 @@
 !***  so we call Phase 3 of the Run step for the DOMAIN components.
 !-----------------------------------------------------------------------
 !
-        btim0=timef()
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="NMM_INTEGRATE: Call Run3 for History Output"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+        btim0=timef()
         CALL ESMF_GridCompRun(gridcomp   =DOMAIN_GRID_COMP              &  !<-- The DOMAIN gridded component
                              ,importState=IMP_STATE_DOMAIN              &  !<-- The DOMAIN import state
                              ,exportState=EXP_STATE_DOMAIN              &  !<-- The DOMAIN export state
                              ,clock      =CLOCK_INTEGRATE               &  !<-- The ESMF Clock for "mini" forecast
                              ,phase      =3                             &  !<-- The phase (subroutine) of DOMAIN Run to execute
                              ,rc         =RC)
+        atm_drv_run_3=atm_drv_run_3+(timef()-btim0)
+        IF(MYPE==0)THEN
+!!!     IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
+          WRITE(0,25)NTIMESTEP-1,NTIMESTEP*DT/3600.,phase1_tim
+   25     FORMAT(' Finished Timestep ',i5,' ending at ',f7.3,           &
+                 ' hours: elapsed integration time ',g10.4)
+        ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
@@ -601,7 +606,6 @@
 !
         ENDIF
 !
-        atm_drv_run_3=atm_drv_run_3+(timef()-btim0)
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -687,26 +691,30 @@
         WRITE(0,*)' '
         WRITE(0,*)' Clocktime NMM_RUN'
         WRITE(0,*)' '
-        WRITE(0,*)'   Run Phase 1=',atm_drv_run_1*1.e-3
-        WRITE(0,*)'   Run Phase 2=',atm_drv_run_2*1.e-3
-        WRITE(0,*)'   Run Phase 3=',atm_drv_run_3*1.e-3
+        WRITE(0,*)'   Run Phase 1=',atm_drv_run_1
+        WRITE(0,*)'   Run Phase 2=',atm_drv_run_2
+        WRITE(0,*)'   Run Phase 3=',atm_drv_run_3
         WRITE(0,*)' '
 !
         IF(NESTING.AND.I_AM_A_FCST_TASK==ESMF_TRUE)THEN
 !
           IF(I_AM_A_NEST==ESMF_TRUE)THEN
-            WRITE(0,*)'   Recv in Cpl Phase 1=',cpl1_recv_tim*1.e-3
+            if (cpl1_recv_tim > 1.0) then
+            WRITE(0,*)'   Recv in Cpl Phase 1=',cpl1_recv_tim
+            WRITE(0,*)'   Total Cpl Phase 1=',atm_drv_run_cpl1
+           endif
           ENDIF
 !
-          WRITE(0,*)'   Total Cpl Phase 1=',atm_drv_run_cpl1*1.e-3
 !
           IF(NUM_CHILDREN>0)THEN
+            if( cpl2_comp_tim >2.0) then
             WRITE(0,*)' '
-            WRITE(0,*)'   Cpl Phase 2 Compute=',cpl2_comp_tim*1.e-3
-            WRITE(0,*)'   Cpl Phase 2 Wait   =',cpl2_wait_tim*1.e-3
-            WRITE(0,*)'   Cpl Phase 2 Send   =',cpl2_send_tim*1.e-3
-            WRITE(0,*)'   Total Cpl Phase 2  =',atm_drv_run_cpl2*1.e-3
+            WRITE(0,*)'   Cpl Phase 2 Compute=',cpl2_comp_tim
+            WRITE(0,*)'   Cpl Phase 2 Wait   =',cpl2_wait_tim
+            WRITE(0,*)'   Cpl Phase 2 Send   =',cpl2_send_tim
+            WRITE(0,*)'   Total Cpl Phase 2  =',atm_drv_run_cpl2
             WRITE(0,*)' '
+           endif
           ENDIF
 !
         ENDIF

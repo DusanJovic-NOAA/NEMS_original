@@ -2624,7 +2624,7 @@
             WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)wrt_int_state%OUTPUT_ARRAY_I2D  !<-- Lead write task writes out the 2D real data
 !
             IF(HST_FIRST)THEN
-              WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
+!!!           WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
             ENDIF
           ENDIF
 !
@@ -2810,10 +2810,10 @@
             WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)wrt_int_state%OUTPUT_ARRAY_R2D   !<-- Lead write task writes out the 2D real data
 !
             IF(HST_FIRST)THEN
-              WRITE(0,*)'Wrote ',TRIM(NAME)                                &
-                       ,' to history file unit ',wrt_int_state%IO_HST_UNIT &
-                       ,MAXVAL(wrt_int_state%OUTPUT_ARRAY_R2D)             &
-                       ,MINVAL(wrt_int_state%OUTPUT_ARRAY_R2D)
+!             WRITE(0,*)'Wrote ',TRIM(NAME)                                &
+!                      ,' to history file unit ',wrt_int_state%IO_HST_UNIT &
+!                      ,MAXVAL(wrt_int_state%OUTPUT_ARRAY_R2D)             &
+!                      ,MINVAL(wrt_int_state%OUTPUT_ARRAY_R2D)
             ENDIF
           ENDIF
 !
@@ -3437,8 +3437,8 @@
           WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)wrt_int_state%RST_OUTPUT_ARRAY_I2D   !<-- Lead write task writes out the 2D integer data
 !
           IF(RST_FIRST)THEN
-            WRITE(0,*)'Wrote ',TRIM(NAME),' to restart file unit ',wrt_int_state%IO_RST_UNIT, &
-             maxval(wrt_int_state%RST_OUTPUT_ARRAY_I2D),minval(wrt_int_state%RST_OUTPUT_ARRAY_I2D)
+!           WRITE(0,*)'Wrote ',TRIM(NAME),' to restart file unit ',wrt_int_state%IO_RST_UNIT, &
+!            maxval(wrt_int_state%RST_OUTPUT_ARRAY_I2D),minval(wrt_int_state%RST_OUTPUT_ARRAY_I2D)
           ENDIF
          ENDIF
 !

@@ -729,10 +729,7 @@
 
        CALL NEMSIO_INIT()
 !
-       write(0,*)'inside rst phys, before nemsio_open'
        CALL NEMSIO_OPEN(gfile,INFILE,'read',mpi_comm_comp,iret=irtn)
-!       write(0,*)'inside rst phys, after nemsio_open,iret=',irtn
-       
 !
 !-----------------------------------------------------------------------
 !***  Read from restart file: Integer scalars
@@ -878,7 +875,7 @@
 !
       stime1=timef()
       call nemsio_denseread(gfile,its,ite,jts,jte,tmp,iret=irtn)
-      write(0,*)'after dense read, time=',timef()-stime1,'tmp=',maxval(tmp),minval(tmp)
+!     write(0,*)'after dense read, time=',timef()-stime1,'tmp=',maxval(tmp),minval(tmp)
 !
 !-----------------------------------------------------------------------
 !***  close nemsio file
@@ -2695,7 +2692,7 @@
       CALL MPI_BARRIER(MPI_COMM_COMP,IRTN)
 !-----------------------------------------------------------------------
       etime=timef()
-      write(0,*)'PHYSICS_READ_RESTT_NEMSIO,time=',etime-stime
+!     write(0,*)'PHYSICS_READ_RESTT_NEMSIO,time=',etime-stime
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------

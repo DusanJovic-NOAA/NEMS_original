@@ -531,7 +531,7 @@ real(kind=kfpt),dimension(jds:jde):: &
 !-----------------------------------------------------------------------
  1000 format(100a4)
 !
-      if(mype==0)then
+      if(mype_share==0)then
         write(0,*)' CONSTS ids=',ids,' ide=',ide,' jds=',jds,' jde=',jde 
       endif
 !
@@ -557,7 +557,9 @@ real(kind=kfpt),dimension(jds:jde):: &
 !
 !!!     dlmd=-wbd*2./real(ide-3)
 !!!     dphd=-sbd*2./real(jde-3)
-        write(0,*)' CONSTS Global: dphd=',dphd,' dlmd=',dlmd
+        if(mype_share==0)then
+          write(0,*)' CONSTS Global: dphd=',dphd,' dlmd=',dlmd
+        endif
 !
         lnsbc=lnsh
         bofac=0.
@@ -572,7 +574,9 @@ real(kind=kfpt),dimension(jds:jde):: &
         icycle=ide
 !!!     dlmd=-wbd*2./real(ide-1)
 !!!     dphd=-sbd*2./real(jde-1)
-        write(0,*)' CONSTS Regional: dphd=',dphd,' dlmd=',dlmd
+        if(mype_share==0)then
+          write(0,*)' CONSTS Regional: dphd=',dphd,' dlmd=',dlmd
+        endif
 !
         lnsbc=lnsh
         bofac=4.
@@ -628,7 +632,9 @@ real(kind=kfpt),dimension(jds:jde):: &
 !	write(0,*) 'tboco: ', tboco
         rewind nbc
         close(unit=nbc)
-        write(0,*)'*** Read tboco in CONSTS from ',infile
+        if(mype_share==0)then
+          write(0,*)'*** Read tboco in CONSTS from ',infile
+        endif
         nboco=nint(tboco/dt)
       endif
 !-----------------------------------------------------------------------

@@ -16,6 +16,9 @@
 !***  internal state variables into that memory.
 !-----------------------------------------------------------------------
 
+      USE module_DM_PARALLEL,ONLY: MYPE_SHARE
+
+!-----------------------------------------------------------------------
       IMPLICIT NONE
 
       PRIVATE
@@ -141,7 +144,9 @@
         END DO  read_specs
 
         NUM_VARS = N
-        WRITE(0,*)' NUM_VARS in ',TRIM(FNAME),' ',NUM_VARS
+        IF (MYPE_SHARE==0) THEN
+          WRITE(0,*)' NUM_VARS in ',TRIM(FNAME),' ',NUM_VARS
+        ENDIF
 
         CLOSE(UNIT=10)
 

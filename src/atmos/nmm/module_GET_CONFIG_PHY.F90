@@ -1191,6 +1191,21 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !-----------------------------------------------------------------------
 !
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="GET_CONFIG_PHY: Extract RST_OUT_00 from Config File"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
+                                  ,value =int_state%RST_OUT_00          &  !<-- Put extracted quantity here
+                                  ,label ='rst_out_00:'                 &  !<-- The quantity's label in the configure file
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!-----------------------------------------------------------------------
+!
       IF(RC_CONF==ESMF_SUCCESS)THEN
 !!!     WRITE(0,*)'GET_CONFIG PASSED FOR PHYSICS'
       ELSE

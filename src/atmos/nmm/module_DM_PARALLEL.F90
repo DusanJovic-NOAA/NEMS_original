@@ -459,11 +459,11 @@ integer :: mpi_intra
 !***
       npes=npes-iqserver
 !
-!!!   if(mype==0)then
+      if(mype==0)then
         write(0,*)' Number of Integration Tasks: ',npes
         write(0,*)' Total Number of Quilt Servers: ',iqserver
         write(0,*)' exit SETUP_SERVERS npes=',npes
-!!!   endif
+      endif
 !***
       deallocate (irank)
 !-----------------------------------------------------------------------
@@ -812,7 +812,7 @@ integer :: mpi_intra
 !
       do npe=0,npes-1
         if(mype==npe)then
-          write(0,*)' PE=',mype
+!!!       write(0,*)' PE=',mype
           write(0,*)' its=',its,' ite=',ite,' jts=',jts,' jte=',jte
           write(0,*)' ims=',ims,' ime=',ime,' jms=',jms,' jme=',jme
           write(0,*)' ids=',ids,' ide=',ide,' jds=',jds,' jde=',jde
@@ -924,9 +924,9 @@ integer :: mpi_intra
 !
       deallocate(itemp)
 !
-          write(0,*)' Exiting DECOMP'
-          write(0,*)' its=',its,' ite=',ite,' jts=',jts,' jte=',jte
-          write(0,*)' ims=',ims,' ime=',ime,' jms=',jms,' jme=',jme
+!!!   write(0,*)' Exiting DECOMP'
+!!!   write(0,*)' its=',its,' ite=',ite,' jts=',jts,' jte=',jte
+!!!   write(0,*)' ims=',ims,' ime=',ime,' jms=',jms,' jme=',jme
 !-----------------------------------------------------------------------
 !
       end subroutine decomp

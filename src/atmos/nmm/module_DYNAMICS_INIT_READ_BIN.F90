@@ -445,7 +445,7 @@ ihrend &                    ! maximum forecast length, hours
         enddo
 !       call halo_exch(o3,lm,2,2)
 !
-        print*,'*** Read initial conditions in init from ',infile
+!       print*,'*** Read initial conditions in init from ',infile
 !
 !-----------------------------------------------------------------------
         ntsti=ntsd+1
@@ -455,7 +455,9 @@ ihrend &                    ! maximum forecast length, hours
         tend=real(nhours_fcst)
         ntstm=nint(tend*3600./dt)+1
         if(.not.global)then
-           write(0,*)' Max runtime is ',tend_max,' hours'
+          if(mype==0)then
+            write(0,*)' Max runtime is ',tend_max,' hours'
+          endif
         endif
         if(mype==0)then
           write(0,*)' Requested runtime is ',tend,' hours'
@@ -1716,7 +1718,9 @@ ihrend &                    ! maximum forecast length, hours
         tend=real(nhours_fcst)
         ntstm=nint(tend*3600./dt)+1
         if(.not.global)then
-           write(0,*)' Max runtime is ',tend_max,' hours'
+          if(mype==0)then
+            write(0,*)' Max runtime is ',tend_max,' hours'
+          endif
         endif
         if(mype==0)then
           write(0,*)' Requested runtime is ',tend,' hours'

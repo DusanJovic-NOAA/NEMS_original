@@ -278,7 +278,7 @@ real(8) :: stime,etime,stime1,timef
         write(infile,'(a,i2.2,a)')'input_domain_',my_domain_id,'_nemsio'
         call nemsio_open(gfile,infile,'read',mpi_comm_comp,iret=ierr)
         if(ierr/=0) write(0,*)'ERROR: open file ',trim(infile),' has failed'
-      write(0,*)'after nemsio_open, t=',timef()-stime
+!!!     write(0,*)'after nemsio_open, t=',timef()-stime
 !
         call nemsio_getfilehead(gfile,nrec=nrec,iret=ierr)
 !
@@ -649,7 +649,7 @@ real(8) :: stime,etime,stime1,timef
         write(infile,'(a,i2.2,a)')'restart_file_',my_domain_id,'_nemsio'
         call nemsio_open(gfile,infile,'read',mpi_comm_comp,iret=ierr)
         if(ierr/=0) write(0,*)'ERROR: open file ',trim(infile),' has failed'
-       write(0,*)'dyn_init_read,aft open nemsio,',trim(infile),'time=',timef()-stime
+!!!     write(0,*)'dyn_init_read,aft open nemsio,',trim(infile),'time=',timef()-stime
 !
 !-----------------------------------------------------------------------
 !***  Read from restart file: Integer scalars
@@ -817,8 +817,8 @@ real(8) :: stime,etime,stime1,timef
       tmp=0.
       stime=timef()
       call nemsio_denseread(gfile,its,ite,jts,jte,tmp,iret=ierr)
-      write(0,*)'aft nemsio_denseread, time=',timef()-stime,'tmp=',maxval(tmp), &
-        minval(tmp)
+!!!   write(0,*)'aft nemsio_denseread, time=',timef()-stime,'tmp=',maxval(tmp), &
+!!!     minval(tmp)
 !
 !-- fis
       fis=0.
@@ -1314,7 +1314,9 @@ real(8) :: stime,etime,stime1,timef
         tend=real(nhours_fcst)
         ntstm=nint(tend*3600./dt)+1
         if(.not.global)then
-           write(0,*)' Max runtime is ',tend_max,' hours'
+          if(mype==0)then
+            write(0,*)' Max runtime is ',tend_max,' hours'
+          endif
         endif
         if(mype==0)then
           write(0,*)' Requested runtime is ',tend,' hours'
@@ -1343,7 +1345,7 @@ real(8) :: stime,etime,stime1,timef
 !-----------------------------------------------------------------------
 !
       etime=timef()
-      write(0,*)'restart=',restart,'DYNAMICS_INIT_READ_NEMSIO=',etime-stime
+!!!   write(0,*)'restart=',restart,'DYNAMICS_INIT_READ_NEMSIO=',etime-stime
 !
       deallocate(tmp)
       deallocate(stdh)

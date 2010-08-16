@@ -4,7 +4,9 @@
 
       use module_include
       use module_constants
-      use module_dm_parallel, only : its,ite,jts,jte, ims,ime,jms,jme
+      use module_dm_parallel, only : its,ite,ims,ime                    &
+                                    ,jts,jte,jms,jme                    &
+                                    ,mype_share
       use module_vars
 
 !-----------------------------------------------------------------------
@@ -89,12 +91,14 @@
 
       if (initialized) return
 
-      write(0,*)'timeseries_initialize: initialize ... domain_id = ', domain_id
+!!!   write(0,*)'timeseries_initialize: initialize ... domain_id = ', domain_id
 
       inquire ( file='ts_locations.nml', exist=nml_exist)
 
       if (.not.nml_exist) then
-        write(0,*) ' ts_locations.nml does not exist. will skip timeseries ouput'
+        if (mype_share == 0) then
+          write(0,*) ' ts_locations.nml does not exist. will skip timeseries ouput'
+        end if
         return
       end if
 
@@ -117,7 +121,7 @@
          return
       end if
 
-      write(0,*)' fulllevel_vars = ', fulllevel_vars
+!!!   write(0,*)' fulllevel_vars = ', fulllevel_vars
 
       im = dyn_state%im
       jm = dyn_state%jm
@@ -213,7 +217,7 @@
         end select
         end if
       end do
-      write(0,*)' var2d_number, var3d_number =', var2d_number, var3d_number
+!!!   write(0,*)' var2d_number, var3d_number =', var2d_number, var3d_number
 
 
 !! loop over number of points specified in ts_locations namelist and calculate i,j
@@ -294,7 +298,7 @@
 
          end if inside_if
 
-      write(0,*)'timeseries_initialize: done'
+!!!      write(0,*)'timeseries_initialize: done'
       end do np_loop
 
       initialized=.true.
@@ -335,7 +339,10 @@
       character*128  :: filename
 
 !!
-      if (.not.nml_exist) return
+      if (.not.nml_exist) then
+        ierr = 0
+        return
+      end if
 
       tlm0d = dyn_state%tlm0d
       tph0d = dyn_state%tph0d

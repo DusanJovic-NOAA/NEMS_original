@@ -3899,7 +3899,7 @@
         WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)WORK_ARRAY_I1D          !<-- Write out the data
 !
         IF(HST_FIRST)THEN
-          WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
+!         WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
         ENDIF
 !
         DEALLOCATE(WORK_ARRAY_I1D)
@@ -3928,7 +3928,7 @@
         WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)WORK_ARRAY_R1D          !<-- Write out the data
 !
         IF(HST_FIRST)THEN
-          WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
+!         WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
         ENDIF
 !
         DEALLOCATE(WORK_ARRAY_R1D)
@@ -3954,7 +3954,7 @@
         WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)WRITE_LOGICAL           !<-- Write out the data
 !
         IF(HST_FIRST)THEN
-          WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
+!         WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
         ENDIF
 !
       ENDDO
@@ -4637,7 +4637,7 @@
           WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)WORK_ARRAY_I1D         !<-- Write out the data
 !
           IF(RST_FIRST)THEN
-            WRITE(0,*)'Wrote ',TRIM(NAME),' to restart file unit ',wrt_int_state%IO_RST_UNIT
+!           WRITE(0,*)'Wrote ',TRIM(NAME),' to restart file unit ',wrt_int_state%IO_RST_UNIT
           ENDIF
 !
           DEALLOCATE(WORK_ARRAY_I1D)
@@ -4666,7 +4666,7 @@
           WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)WORK_ARRAY_R1D         !<-- Write out the data
 !
           IF(RST_FIRST)THEN
-            WRITE(0,*)'Wrote ',TRIM(NAME),' to restart file unit ',wrt_int_state%IO_RST_UNIT
+!           WRITE(0,*)'Wrote ',TRIM(NAME),' to restart file unit ',wrt_int_state%IO_RST_UNIT
           ENDIF
 !
           DEALLOCATE(WORK_ARRAY_R1D)
@@ -4692,7 +4692,7 @@
           WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)WRITE_LOGICAL          !<-- Write out the data
 !
           IF(RST_FIRST)THEN
-            WRITE(0,*)'Wrote ',TRIM(NAME),' to restart file unit ',wrt_int_state%IO_RST_UNIT
+!           WRITE(0,*)'Wrote ',TRIM(NAME),' to restart file unit ',wrt_int_state%IO_RST_UNIT
           ENDIF
 !
         ENDDO
