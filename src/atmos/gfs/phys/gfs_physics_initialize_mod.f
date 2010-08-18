@@ -138,7 +138,6 @@
       gis_phy%lgocart = gfs_phy_tracer%doing_GOCART     ! for internal state
       lgocart = gis_phy%lgocart                         ! for resol_def module
       if( me == 0) then
-       write(0,*)'LU_TRC, exit tracer_config_init in phy'
        write(0,*)'LU_TRC, ntrac     =',gfs_phy_tracer%ntrac, gis_phy%ntrac
        write(0,*)'LU_TRC, ntrac_met =',gfs_phy_tracer%ntrac_met
        write(0,*)'LU_TRC, ntrac_chem=',gfs_phy_tracer%ntrac_chem

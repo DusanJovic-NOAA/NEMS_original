@@ -13,6 +13,7 @@
 !  Nov 23 2009    Sarah Lu, tracer read-in is generalized (loop through ntrac, with
 !                 tracer name specified in gfs_dyn_tracer_config)
 !  Apr 09 2010    Sarah Lu, set rqg initial value to 1.e-15
+!  Aug 17 2010    Sarah Lu, clean debug print
 !  
  
       use gfs_dyn_resol_def
@@ -362,14 +363,18 @@
           call gfsio_readrecv(gfile_in,trim(vname),
      &                       'layer',k,gfsio_data,iret=iret)
           if(iret == 0) then
-            if(me==0) print *,'LU_TRC: tracer read in ok -',
-     &                gfs_dyn_tracer%vname(n, 1),k
+!*          if(me==0) print *,'LU_TRC: tracer read in ok -',
+!*   &                gfs_dyn_tracer%vname(n, 1),k
+            if(me==0 .and. k==1) 
+     &                print *,'LU_TRC: tracer read in ok '
             call split2d(gfsio_data,buffo,global_lats_a)
             CALL interpred(1,kmsk,buffo,rqg(1,1,k+(n-1)*levs),
      &                     global_lats_a,lonsperlat)
           else
-            if(me==0) print *,'LU_TRC: tracer not found in input; ',
-     &         'set chem tracer to default values',me,k
+!*          if(me==0) print *,'LU_TRC: tracer not found in input; ',
+!*   &         'set chem tracer to default values',me,k
+            if(me==0 .and. k==1)  print *,
+     &         'LU_TRC: tracer not found in input; set to default'
           endif
         enddo
       enddo       

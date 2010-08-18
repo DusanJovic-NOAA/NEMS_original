@@ -56,6 +56,7 @@
 !
 !  16Sep2003 da Silva  First crack.
 !  18May2006 da Silva  Removed ensure postive, now in GOCART_GridComp
+!  17Aug2010 S. Lu     Ensure postive for no3
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -2716,6 +2717,7 @@ end subroutine getvolcexp
       else
        xno3(i,j,k) = gcSU%no3_mr(i,j,k) * 86400./ tnight
       endif
+      if(xno3(i,j,k) .lt. 0.) xno3(i,j,k) = 0.     !! Sarah Lu
      end do
     end do
    end do

@@ -5,6 +5,7 @@
 ! !revision history:
 !
 !  09Feb2010   Sarah Lu, ri/cpi dimension increased
+!  17Aug2010   Sarah Lu, print tracer_const only for master PE
 
       integer, parameter :: max_num_tracer=50
 !jw      real(kind=kind_grid) ri(0:20),cpi(0:20)
@@ -43,7 +44,7 @@ c
 
       rewind(nlunit)
       read(nlunit, tracer_constant)
-      write(*, tracer_constant)
+      if(me==0) write(*, tracer_constant)
 
 !     print *,' done get_tracer_const'
 

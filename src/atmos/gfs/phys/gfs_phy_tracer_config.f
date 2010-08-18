@@ -9,6 +9,7 @@
 !   Dec 10 2009   Sarah Lu, add doing_GOCART
 !   Jan 12 2010   Sarah Lu, add trcindx
 !   Feb 08 2009   Sarah Lu, ri/cpi added to gfs_phy_tracer_type
+!   Aug 17 2010   Sarah Lu, remove debug print
 ! -------------------------------------------------------------------------
 !
       module gfs_phy_tracer_config
@@ -70,7 +71,7 @@ c
 
 ! Read Chem_Registry
       reg = Chem_RegistryCreate ( ierr )
-      call Chem_RegistryPrint (reg)
+!!    call Chem_RegistryPrint (reg)
 
 ! ntrac_chem = number of chem tracers
       gfs_phy_tracer%ntrac_chem = reg%nq
@@ -120,8 +121,6 @@ c
 
 ! Destroy Chem_Registry
       call Chem_RegistryDestroy ( reg, ierr )
-
-      print *,'LU_TRC: exit tracer_config_init'
 
       return
 

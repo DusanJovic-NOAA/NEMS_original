@@ -17,6 +17,7 @@
 !   2010-03-05  Lu    - Create the module
 !   2010-03-05  Lu    - Change chemistry_on from out to inout
 !   2010-03-06  Lu    - 2-phased GOCART initialization
+!   2010-08-17  Lu    - Call Chem_RegistryPrint only for master PE
 !
 !-----------------------------------------------------------------------
 !
@@ -61,6 +62,7 @@
                                ,GC_PHY2CHEM_CPL                        &
                                ,GC_CHEM2PHY_CPL                        &
                                ,CHEMISTRY_ON                           &
+                               ,MYPE                                   &
                                ,RC_SETUP                               &
                                 )
 !
@@ -79,6 +81,7 @@
       TYPE(ESMF_CplComp), INTENT(INOUT) :: GC_PHY2CHEM_CPL                 !<-- Phy to Chem coupler component
       TYPE(ESMF_CplComp), INTENT(INOUT) :: GC_CHEM2PHY_CPL                 !<-- Chem to Phy coupler component
       TYPE(ESMF_Logical), INTENT(INOUT) :: CHEMISTRY_ON                    !<-- The option to activate gocart
+      INTEGER,            INTENT(IN)    :: MYPE                            !<-- MPI task ID
       INTEGER,OPTIONAL,   INTENT(OUT)   :: RC_SETUP                        !<-- Return code for the SETUP step
 !
 !---------------------
@@ -101,7 +104,7 @@
 !
       REG = Chem_RegistryCreate ( IERR )                    !<-- read Chem_Registry
 
-      CALL Chem_RegistryPrint ( REG )
+      IF (MYPE==0)   CALL Chem_RegistryPrint ( REG )
 
       IF(REG%doing_gocart)THEN                              !<-- GOCART => Chemistry on
 

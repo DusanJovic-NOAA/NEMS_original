@@ -85,7 +85,7 @@
         PRINT *,' It is starting, so no need for import_state2internal '
         RETURN
       ELSE
-        PRINT *,' do import state to internal state '
+!        PRINT *,' do import state to internal state '
       END IF
 
 ! get the surface orography array from the esmf import state.

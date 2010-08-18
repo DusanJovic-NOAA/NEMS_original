@@ -19,6 +19,8 @@
 !! Mar 05 2010        Sarah Lu, modify init routine (associate export state
 !!                    to import state) 
 !! May 31 2010        Sarah Lu, remove ref to NMM_B and StatePrint call
+!! Aug 17 2010        Sarah Lu, debug print only for master PE and the first
+!!                    run step
 !-----------------------------------------------------------------------
 !
       use esmf_mod
@@ -33,6 +35,8 @@
 !-----------------------------------------------------------------------
 !
       private
+
+      INTEGER, save         :: MYPE             !<-- Each MPI task ID
 !
       public :: gfs_cpl_setservices
 !
@@ -170,11 +174,23 @@
       TYPE(ESMF_Field)               :: Field      
       TYPE(ESMF_FieldBundle)         :: Bundle      
 !
+      TYPE(ESMF_VM)                  :: VM
+
 !-----------------------------------------------------------------------
 !***  initialize the error signal variables.
 !-----------------------------------------------------------------------
 !
       rc     =esmf_success
+!
+!-----------------------------------------------------------------------
+!***  determine MPI task ID
+!-----------------------------------------------------------------------
+      CALL ESMF_CplCompGet(CplComp = gc_gfs_cpl                       &
+                          ,vm=VM, rc=RC)
+
+      CALL ESMF_VMGet     (vm      = VM                &  !<-- The virtual machine
+                          ,localpet = MYPE             &  !<-- Each MPI task ID
+                          ,rc = RC)
 !
 !-----------------------------------------------------------------------
 !***  determine the direction of the transfer by extracting
@@ -196,9 +212,11 @@
                         ,rc   =rc)
       call err_msg(rc,msg,rc_cpl)
 !
+      if ( MYPE == 0) then
       print *,'GFS_CPL INIT is to associate data from '                &
              ,' (',trim(import_statename),') with '                     &
              ,' (',trim(export_statename),') '
+      endif
 !
 !-----------------------------------------------------------------------
 !***  the number of fields transferred from the dynamics to
@@ -231,8 +249,10 @@
         print *,' Error: no state name match, state_name='         &
                , trim(import_statename)
       endif
+      if ( MYPE == 0) then
       print *,'GFS_CPL INIT import state is ',trim(import_statename)
       print *,'GFS_CPL INIT ndata2i ndata3i are ',ndata2i,ndata3i
+      endif
 !
 ! ---------------------------------------------------------------------
 ! put to dynamics import state
@@ -259,8 +279,10 @@
         print *,' Error: no state name match, state_name='         &
                , trim(export_statename)
       endif
+      if ( MYPE == 0) then
       print *,'GFS_CPL INIT export state is ',trim(export_statename)
       print *,'GFS_CPL INIT ndata2o ndata3o are ',ndata2o,ndata3o
+      endif
 !
 ! --  check item member
       if ( ndata2o.gt.ndata2i .or. ndata3o.gt.ndata3i ) then
@@ -280,7 +302,7 @@
       data_2d: do n=1,ndata2o
 
         array_name=trim(datanames_2d(n))
-        print *, 'GFS_CPL INIT transfer ', array_name
+        if(MYPE==0)print *, 'GFS_CPL INIT transfer ', array_name
 !
         msg = 'retrieve field '//array_name//' from cpl import'
         call ESMF_StateGet(imp_state, array_name, Field, rc=rc)
@@ -299,7 +321,7 @@
       data_3d: do n=1,ndata3o
 
         array_name=trim(datanames_3d(n))
-        print *, 'GFS_CPL INIT transfer ', array_name
+        if(MYPE==0)print *, 'GFS_CPL INIT transfer ', array_name
 !
         msg = 'retrieve field '//array_name//' from cpl import'
         call ESMF_StateGet(imp_state, array_name, Field, rc=rc)
@@ -315,7 +337,7 @@
 !***  do tracer arrays.
 !-----------------------------------------------------------------------
 !
-      print *, 'GFS_CPL INIT transfer tracer bundle'
+      if(MYPE==0)print *, 'GFS_CPL INIT transfer tracer bundle'
       msg = 'retrieve tracer bundle from cpl import'
       call ESMF_StateGet(imp_state, 'tracers', Bundle, rc=rc)
       call err_msg(rc,msg,rc_cpl)    
@@ -413,9 +435,11 @@
                         ,name =export_statename                         &
                         ,rc   =rc)
 !
-      print *,' coupler is to move data from '                          &
+      IF ( first .and. (MYPE==0)  ) then
+           print *,' coupler is to move data from '                     &
              ,' (',trim(import_statename),') to '                       &
              ,' (',trim(export_statename),') '
+      ENDIF
 !
 ! if the pointer has already set, return
 !
@@ -466,10 +490,10 @@
                         ,array     = ESMFArray                      & 
                         ,rc        = rc2)                          
       if ( rc2 == esmf_success ) then                         
-         print *,' LU_CPL: ESMFArray found in imp state'          
+         if(MYPE==0)print *,' LU_CPL: ESMFArray found in imp state'          
          cpl_array = .true.                                     
       else                                                          
-         print *,' LU_CPL: ESMFArray not found in imp state'     
+         if(MYPE==0)print *,' LU_CPL: ESMFArray not found in imp state'     
          cpl_array = .false.                               
       endif                                             
 !---> query ps as an ESMF Field
@@ -478,10 +502,10 @@
                         ,field     = ESMFField                      & 
                         ,rc        = rc2)                            
       if ( rc2 == esmf_success ) then                               
-         print *,' LU_CPL: ESMFField found in imp state'         
+         if(MYPE==0)print *,' LU_CPL: ESMFField found in imp state'         
          cpl_field = .true.                                     
       else                                                     
-         print *,' LU_CPL: ESMFField not found in imp state'    
+         if(MYPE==0)print *,' LU_CPL: ESMFField not found in imp state'    
          cpl_field = .false.                                 
       endif                                           
 !---> query tracer bundle
@@ -490,14 +514,14 @@
                         ,fieldbundle = ESMFBundle                   & 
                         ,rc        = rc2)                          
       if ( rc2 == esmf_success ) then                          
-         print *,' LU_CPL: ESMFBundle found in imp state'             
+         if(MYPE==0)print *,' LU_CPL: ESMFBundle found in imp state'             
          cpl_bundle = .true.                                       
       else                                                        
-         print *,' LU_CPL: ESMFBundle not found in imp state'    
+         if(MYPE==0)print *,' LU_CPL: ESMFBundle not found in imp state'    
          cpl_bundle = .false.                                  
       endif                                              
 
-      first = .false.              
+!     first = .false.              
       endif    
 !
 !-----------------------------------------------------------------------
@@ -737,21 +761,27 @@
 !-----------------------------------------------------------------------
 !
 !
-! check the export state
+! check the export state  (optional)
 !
-      call esmf_stateget(exp_state                                      &
+
+      IF ( first ) THEN
+        first = .false.                         !<-- reset first flag
+
+        if ( MYPE==0 ) THEN
+        call esmf_stateget(exp_state                                    &
                         ,name =export_statename                         &
                         ,itemcount = exp_item                           &
                         ,itemnamelist = exp_item_name                   &
                         ,rc   =rc)
 
-! Sarah Lu, turn on debug prints
-!
-      print *,' coupler is done for expor state '                       &
+        print *,' coupler is done for expor state '                     &
              ,' (',trim(export_statename),') with item =',exp_item      &
              ,' and item name is ',(exp_item_name(n),n=1,exp_item)
 !
-      rcfinal=rc
+        rcfinal=rc
+        ENDIF
+
+      ENDIF
 !
 ! make sure to run once
 !

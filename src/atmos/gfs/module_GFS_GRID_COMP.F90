@@ -39,6 +39,7 @@
 !   2010-03-05  Lu    - Add GOCART_SETUP (to create and register GOCART) and
 !                       GOCART_INIT (to initialize GOCART)
 !   2010-03-23  Lu    - Add passive_tracer option
+!   2010-08-17  Lu    - Make debug print optional
 
 !
 ! USAGE: GFS Gridded component parts called from subroutines within
@@ -640,6 +641,7 @@
         RESTART_FILENAME='grid_ini'
         CALL NEMSIO_INIT()
         CALL NEMSIO_OPEN(GFILE,trim(RESTART_FILENAME),'read',iret=IRTN)
+        if ( irtn /= 0 )                                       &
          print *,'after ensmio open restartfile, irtn=',irtn
 !
         CALL NEMSIO_GETHEADVAR(GFILE,'FCSTDATE',FCSTDATE,iret=irtn)
@@ -656,7 +658,8 @@
         ENDIF
 !
         CALL NEMSIO_GETHEADVAR(gfile,'NTIMESTEP',NTSD,iret=irtn)
-        print *,'in rerestart.ntsd=',ntsd,'irtn=',irtn
+        if ( irtn /= 0 )                                       &   
+           print *,'in rerestart.ntsd=',ntsd,'irtn=',irtn
 !
         CALL NEMSIO_CLOSE(GFILE,iret=IERR)
         CALL NEMSIO_finalize()
@@ -968,6 +971,7 @@
                          ,gfs_int_state%GC_PHY2CHEM_CPL           &
                          ,gfs_int_state%GC_CHEM2PHY_CPL           &
                          ,gfs_int_state%CHEMISTRY_ON              &
+                         ,gfs_int_state%MYPE                      &
                          ,RC                                      &
                           )
 

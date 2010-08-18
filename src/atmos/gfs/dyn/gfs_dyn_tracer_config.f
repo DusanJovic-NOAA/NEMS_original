@@ -12,6 +12,7 @@
 !   Nov 13, 2009  Weiyu Yang, modified for the ensemble GEFS code.
 !   Nov 19 2009   Sarah Lu, chem tracer specified from ChemRegistry
 !   Feb 09 2009   Sarah Lu, ri/cpi added to gfs_dyn_tracer_type
+!   Aug 17 2010   Sarah Lu, remove debug print
 ! -------------------------------------------------------------------------
 !
       module gfs_dyn_tracer_config
@@ -70,7 +71,7 @@ c
 
 ! Read Chem_Registry
       reg = Chem_RegistryCreate ( ierr )
-      call Chem_RegistryPrint (reg)
+!     call Chem_RegistryPrint (reg)
 
 ! ntrac_chem = number of chem tracers
       gfs_dyn_tracer%ntrac_chem = reg%nq
@@ -144,7 +145,6 @@ c
 ! Destroy Chem_Registry
       call Chem_RegistryDestroy ( reg, ierr )
 
-      print *,'LU_TRC: exit tracer_config_init'
       return
 
 999   print *,'LU_TRC: error in allocate gfs_dyn_tracer :',status,me
