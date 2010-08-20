@@ -16,6 +16,7 @@
 !***  internal state variables into that memory.
 !-----------------------------------------------------------------------
 
+      USE ESMF_MOD
       USE module_DM_PARALLEL,ONLY: MYPE_SHARE
 
 !-----------------------------------------------------------------------
@@ -90,7 +91,7 @@
         TYPE(VAR), DIMENSION(:), INTENT(INOUT) :: VARS
         INTEGER, INTENT(OUT) :: NUM_VARS
 
-        INTEGER :: N,IOS,NVARS
+        INTEGER :: IERR,N,IOS,NVARS,RC
         CHARACTER(LEN=256) :: STRING
         CHARACTER(LEN=1) :: CH_H,CH_R,CH_O,CH_I,CH_X,CH_T
 
@@ -98,7 +99,14 @@
 
         NVARS = SIZE(VARS)                                                 !<-- Max # of variables MAX_VARS set in internal state modules
         N = 0
-        OPEN(UNIT=10,FILE=FNAME,STATUS='OLD',ACTION='READ')                !<-- Open the text file with user specifications
+        OPEN(UNIT=10,FILE=FNAME,STATUS='OLD',ACTION='READ',IOSTAT=IERR)    !<-- Open the text file with user specifications
+        IF(IERR/=0)THEN
+          WRITE(0,*)' Unable to open file ',TRIM(FNAME)                 &
+                   ,' in READ_CONFIG'
+          WRITE(0,*)' ABORTING!'
+          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
+                            ,rc             =RC)
+        ENDIF
 
         read_specs: DO WHILE(.TRUE.)
 

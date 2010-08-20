@@ -4,6 +4,7 @@
 !
 !----------------------------------------------------------------------
 !
+      USE ESMF_MOD
       USE MODULE_NEMSIO_MPI
       USE MODULE_INCLUDE
       USE MODULE_PHYSICS_INTERNAL_STATE,ONLY: PHYSICS_INTERNAL_STATE
@@ -84,7 +85,7 @@
 !
       TYPE(NEMSIO_GFILE) :: GFILE
 !
-      integer :: nrec,recn,fldsize,fldst,js
+      integer :: nrec,recn,fldsize,fldst,js,rc
       character(16),allocatable :: recname(:),reclevtyp(:)
       integer,allocatable   :: reclev(:)
 !
@@ -103,9 +104,15 @@
       CALL NEMSIO_INIT()
 !
       CALL NEMSIO_OPEN(gfile,INFILE,'read',mpi_comm_comp,iret=irtn)
-      if(irtn/=0) write(0,*)'ERROR: open file ',trim(infile),' has failed'
+      if(irtn/=0)then
+        write(0,*)'ERROR: Unable to open file ',trim(infile)            &
+                 ,' in PHYSICS_READ_INPUT_NEMSIO'
+        write(0,*)' ABORTING!'
+        call esmf_finalize(terminationflag=esmf_abort                   &
+                          ,rc             =rc)
+      endif
 !
-!---------------------------------------------------------------------
+!-----------------------------------------------------------------------
 !***  Vertical layer information is needed in order to send it to
 !***  some specific schemes' initialization routines.
 !-----------------------------------------------------------------------
@@ -716,7 +723,7 @@
 !
       TYPE(NEMSIO_GFILE) :: GFILE
 !
-      integer :: nrec,recn,fldsize,fldst,js
+      integer :: fldsize,fldst,js,nrec,rc,recn
       character(16),allocatable :: recname(:),reclevtyp(:)
       integer,allocatable   :: reclev(:)
       
@@ -730,6 +737,13 @@
        CALL NEMSIO_INIT()
 !
        CALL NEMSIO_OPEN(gfile,INFILE,'read',mpi_comm_comp,iret=irtn)
+        if(irtn/=0)then
+          write(0,*)'ERROR: Unable to open file ',trim(infile)          &
+                   ,' in PHYSICS_READ_RESTT_NEMSIO'
+          write(0,*)' ABORTING!'
+          call esmf_finalize(terminationflag=esmf_abort                 &
+                            ,rc             =rc)
+        endif
 !
 !-----------------------------------------------------------------------
 !***  Read from restart file: Integer scalars

@@ -4,6 +4,7 @@
 !
 !----------------------------------------------------------------------
 !
+      USE ESMF_MOD
       USE MODULE_INCLUDE
       USE MODULE_PHYSICS_INTERNAL_STATE,ONLY: PHYSICS_INTERNAL_STATE
       USE MODULE_DM_PARALLEL,ONLY : IDS,IDE,JDS,JDE                     &
@@ -48,6 +49,8 @@
 !***  Local variables
 !---------------------
 !
+      INTEGER :: IERR,RC
+!
       REAL,DIMENSION(:,:),ALLOCATABLE :: TEMP_GWD
 !
 !-----------------------------------------------------------------------
@@ -58,7 +61,15 @@
 !
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
-        OPEN(unit=NGWD,file=INFILE,status='old',form='unformatted')
+        OPEN(unit=NGWD,file=INFILE,status='old',form='unformatted'      &
+            ,iostat=IERR)
+        IF(IERR/=0)THEN
+          WRITE(0,*)' Unable to open file ',TRIM(INFILE)                &
+                   ,' in PHYSICS_READ_GWD'
+          WRITE(0,*)' ABORTING!'
+          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
+                            ,rc             =RC)
+        ENDIF
       ENDIF
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
@@ -193,7 +204,7 @@
       INTEGER :: LDIM1,LDIM2,UDIM1,UDIM2
       INTEGER :: IM,JM,LMM,LNSH
       INTEGER :: LPT2
-      INTEGER :: N,I,J,L,K,II,JJ
+      INTEGER :: N,I,IERR,J,L,K,II,JJ,RC
       REAL,DIMENSION(LM+1) :: PSG1
       REAL :: PDTOP
       REAL,DIMENSION(LM) :: DSG1,DSG2,SGML1,SGML2
@@ -206,12 +217,20 @@
       REAL,DIMENSION(NSOIL)                :: SOIL1DIN
       LOGICAL :: RUN
 !
-!----------------------------------------------------------------------
-!**********************************************************************
-!----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
 !
       IF(MYPE==0)THEN
-        OPEN(unit=NFCST,file=INFILE,status='old',form='unformatted')
+        OPEN(unit=NFCST,file=INFILE,status='old',form='unformatted'     &
+            ,iostat=IERR)
+        IF(IERR/=0)THEN
+          WRITE(0,*)' Unable to open file ',TRIM(INFILE)                &
+                   ,' in PHYSICS_READ_INPUT_BINARY'
+          WRITE(0,*)' ABORTING!'
+          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
+                            ,rc             =RC)
+        ENDIF
       ENDIF
 !
       IF(MYPE==0)THEN
@@ -739,6 +758,7 @@
 !
       INTEGER :: LDIM1,LDIM2,UDIM1,UDIM2
       INTEGER :: N,I,J,K,L,LPT2
+      INTEGER :: IERR,RC
       INTEGER,DIMENSION(:,:),ALLOCATABLE :: ITEMP
 !
       REAL :: PDTOP
@@ -758,7 +778,15 @@
 !-----------------------------------------------------------------------
 !
       IF(MYPE==0)THEN
-        OPEN(unit=NFCST,file=INFILE,status='old',form='unformatted')
+        OPEN(unit=NFCST,file=INFILE,status='old',form='unformatted'     &
+            ,iostat=IERR)
+        IF(IERR/=0)THEN
+          WRITE(0,*)' Unable to open file ',TRIM(INFILE)                &
+                   ,' in PHYSICS_READ_RESTT_BINARY'
+          WRITE(0,*)' ABORTING!'
+          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
+                            ,rc             =RC)
+        ENDIF
       ENDIF
 !
 !-----------------------------------------------------------------------

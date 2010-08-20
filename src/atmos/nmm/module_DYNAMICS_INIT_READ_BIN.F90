@@ -1,6 +1,7 @@
-                        module module_DYNAMICS_INIT_READ_BIN
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
+                        module module_DYNAMICS_INIT_READ_BIN
+!-----------------------------------------------------------------------
+use esmf_mod
 use module_include
 use module_dm_parallel,only : ids,ide,jds,jde &
                              ,ims,ime,jms,jme &
@@ -234,7 +235,9 @@ logical(kind=klog) :: opened
 
 
 integer(kind=kint) :: &
- mype
+ ierr &
+,mype &
+,rc
 character(64):: &
  infile
 real(kind=kfpt),allocatable,dimension(:,:):: &      !im,jm
@@ -660,7 +663,15 @@ ihrend &                    ! maximum forecast length, hours
 !-----------------------------------------------------------------------
 !
         write(infile,'(a,i2.2)')'restart_file_',my_domain_id
-        open(unit=nfcst,file=infile,status='old',form='unformatted')
+        open(unit=nfcst,file=infile,status='old',form='unformatted'     &
+            ,iostat=ierr)
+        if(ierr/=0)then
+          write(0,*)' Unable to open ',trim(infile)                     &
+                   ,' in DYNAMICS_READ_BINARY'
+          write(0,*)' ABORTING!'
+          call esmf_finalize(terminationflag=esmf_abort                 &
+                            ,rc             =rc)
+        endif
 !
 !-----------------------------------------------------------------------
 !***  Read from restart file: Integer scalars

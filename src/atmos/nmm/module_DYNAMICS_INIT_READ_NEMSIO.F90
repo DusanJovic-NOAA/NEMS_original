@@ -1,6 +1,7 @@
                         module module_DYNAMICS_INIT_READ_NEMSIO
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
+use esmf_mod
 use module_include
 use module_dm_parallel,only : ids,ide,jds,jde &
                              ,ims,ime,jms,jme &
@@ -200,6 +201,7 @@ logical(kind=klog),intent(out) :: &
 integer(kind=kint) :: &
  i &                         ! index in x direction
 ,iend &
+,ierr &
 ,irtn &
 ,j &                         ! index in y direction
 ,jend &
@@ -209,7 +211,7 @@ integer(kind=kint) :: &
 ,l &                         ! index in p direction
 ,length &
 ,n &
-,ierr
+,rc
 
 integer(kind=kint) :: &      ! number of soil levels
  nsoil
@@ -277,7 +279,13 @@ real(8) :: stime,etime,stime1,timef
 !!!     infile='main_input_filename_nemsio'
         write(infile,'(a,i2.2,a)')'input_domain_',my_domain_id,'_nemsio'
         call nemsio_open(gfile,infile,'read',mpi_comm_comp,iret=ierr)
-        if(ierr/=0) write(0,*)'ERROR: open file ',trim(infile),' has failed'
+        if(ierr/=0)then
+          write(0,*)'ERROR: Unable to open file ',trim(infile)          &
+                   ,' in DYNAMICS_READ_NEMSIO'
+          write(0,*)' ABORTING!'
+          call esmf_finalize(terminationflag=esmf_abort                 &
+                            ,rc             =rc)
+        endif
 !!!     write(0,*)'after nemsio_open, t=',timef()-stime
 !
         call nemsio_getfilehead(gfile,nrec=nrec,iret=ierr)
@@ -648,7 +656,12 @@ real(8) :: stime,etime,stime1,timef
 !
         write(infile,'(a,i2.2,a)')'restart_file_',my_domain_id,'_nemsio'
         call nemsio_open(gfile,infile,'read',mpi_comm_comp,iret=ierr)
-        if(ierr/=0) write(0,*)'ERROR: open file ',trim(infile),' has failed'
+        if(ierr/=0)then
+          write(0,*)'ERROR: open file ',trim(infile),' has failed'
+          write(0,*)' ABORTING!'
+          call esmf_finalize(terminationflag=esmf_abort                 &
+                            ,rc             =rc)
+        endif
 !!!     write(0,*)'dyn_init_read,aft open nemsio,',trim(infile),'time=',timef()-stime
 !
 !-----------------------------------------------------------------------

@@ -104,7 +104,6 @@
                            ,NUM_TRACERS_CHEM                            &  !<-- Number of chemistry tracer variables
                            ,NUM_TRACERS_MET                             &  !<-- Number of meteorological tracer variables
                            ,WRITE_GROUP_READY_TO_GO                        !<-- The write group to use
-      INTEGER(kind=KINT) :: MYPE_GLOBAL                                    !<-- Each MPI task ID
 !
       LOGICAL(kind=KLOG) :: QUILTING                                    &  !<-- Is asynchronous quilting specified?
                            ,RESTARTED_RUN                                  !<-- Restarted run logical flag
@@ -739,6 +738,13 @@
 !
           RESTART_FILENAME='restart_file_'//INT_TO_CHAR//'_nemsio'
           CALL NEMSIO_OPEN(GFILE,RESTART_FILENAME,'read',iret=IRTN)
+          IF(IRTN/=0)THEN
+            WRITE(0,*)' Unable to open nemsio file '                    &
+                     ,TRIM(RESTART_FILENAME),' in DOMAIN_INITIALIZE'
+            WRITE(0,*)' ABORTING!'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT               &
+                              ,rc             =RC)
+          ENDIF
 !
           CALL NEMSIO_GETHEADVAR(GFILE,'FCSTDATE',FCSTDATE,iret=irtn)
 !
@@ -757,7 +763,7 @@
 
           CALL NEMSIO_CLOSE(GFILE,iret=IERR)
 !
-        ELSE                                                                 !<-- Pure binary input
+        ELSE                                                               !<-- Pure binary input
 !
           select_unit: DO N=51,59
             INQUIRE(N,OPENED=OPENED)
@@ -768,16 +774,24 @@
           ENDDO select_unit
 !
           RESTART_FILENAME='restart_file_'//INT_TO_CHAR
-          OPEN(unit=NFCST,file=RESTART_FILENAME,status='old',form='unformatted')
+          OPEN(unit=NFCST,file=RESTART_FILENAME,status='old'            &
+              ,form='unformatted',iostat=IRTN)
+          IF(IRTN/=0)THEN
+            WRITE(0,*)' Unable to open pure binary file '               &
+                     ,TRIM(RESTART_FILENAME),' in DOMAIN_INITIALIZE'
+            WRITE(0,*)' ABORTING!'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT               &
+                              ,rc             =RC)
+          ENDIF
 !
-          READ(NFCST) IYEAR_FCST                                             !<-- Read time form restart file
-          READ(NFCST) IMONTH_FCST                                            !
-          READ(NFCST) IDAY_FCST                                              !
-          READ(NFCST) IHOUR_FCST                                             !
-          READ(NFCST) IMINUTE_FCST                                           !
-          READ(NFCST) SECOND_FCST                                            !<--
+          READ(NFCST) IYEAR_FCST                                           !<-- Read time form restart file
+          READ(NFCST) IMONTH_FCST                                          !
+          READ(NFCST) IDAY_FCST                                            !
+          READ(NFCST) IHOUR_FCST                                           !
+          READ(NFCST) IMINUTE_FCST                                         !
+          READ(NFCST) SECOND_FCST                                          !<--
 !
-          READ(NFCST) NTSD                                                   !<-- Read timestep from restart file
+          READ(NFCST) NTSD                                                 !<-- Read timestep from restart file
 !
           CLOSE(NFCST)
 !
