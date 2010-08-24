@@ -1569,6 +1569,8 @@
             CALL CUCNVC(NTIMESTEP,int_state%DT,int_state%NPRECIP          &
                        ,int_state%NRADS,int_state%NRADL                   &
                        ,int_state%MINUTES_HISTORY                         &
+                       ,int_state%fres,int_state%fr                       &
+                       ,int_state%fsl,int_state%fss                       &
                        ,int_state%DYH,int_state%RESTART,int_state%HYDRO   &
                        ,int_state%CLDEFI,int_state%NUM_WATER              &
                        ,int_state%F_ICE,int_state%F_RAIN                  &
@@ -1601,6 +1603,8 @@
             CALL CUCNVC_DEV(NTIMESTEP,int_state%DT,int_state%NPRECIP      &
                        ,int_state%NRADS,int_state%NRADL                   &
                        ,int_state%MINUTES_HISTORY                         &
+                       ,int_state%fres,int_state%fr                       &
+                       ,int_state%fsl,int_state%fss                       &
                        ,int_state%ENTRAIN,int_state%NEWALL                &
                        ,int_state%NEWSWAP,int_state%NEWUPUP               &
                        ,int_state%NODEEP                                  &

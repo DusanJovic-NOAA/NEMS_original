@@ -55,6 +55,7 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
       SUBROUTINE CUCNVC(NTSD,DT,NCNVC,NRADS,NRADL,MINUTES_HISTORY       &
+                       ,fres,fr,fsl,fss                                 &
                        ,DYH,RESTRT,HYDRO                                &
                        ,CLDEFI,NUM_WATER                                &
                        ,F_ICE,F_RAIN                                    &
@@ -111,7 +112,8 @@
 !
       INTEGER,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: LPBL
 !
-      REAL,INTENT(IN) :: DT,DYH,PT
+      REAL(kind=kfpt),INTENT(IN):: &
+       DT,DYH,PT,fres,fr,fsl,fss
 !
       REAL,DIMENSION(1:LM),INTENT(IN) :: DSG2,PDSG1,PSGML1,SGML2
 !
@@ -405,6 +407,7 @@
             CASE (BMJSCHEME)
 
               CALL BMJDRV(TH=th_phy,T=T_phy ,RAINCV=raincv, RR=RR       &
+                         ,FRES=fres,FR=fr,FSL=fsl,FSS=fss               &
                          ,DT=dt ,ntsd=NTSD ,NCNVC=NCNVC                 &
                          ,CUTOP=CUTOP, CUBOT=CUBOT, KPBL=kpbl           &
                          ,DZ=dz,PINT=PINT, PMID=p_phy, PI=pi_phy        &

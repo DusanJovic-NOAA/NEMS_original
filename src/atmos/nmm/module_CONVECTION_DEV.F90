@@ -55,6 +55,7 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
       SUBROUTINE CUCNVC_DEV(NTSD,DT,NCNVC,NRADS,NRADL,MINUTES_HISTORY   &
+                       ,fres,fr,fsl,fss                                 &
                        ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP           &
                        ,DYH,RESTRT,HYDRO                                &
                        ,CLDEFI,NUM_WATER                                &
@@ -124,7 +125,7 @@
        LPBL
 !
       REAL(kind=kfpt),INTENT(IN):: &
-       DT,DYH,PT
+       DT,DYH,PT,fres,fr,fsl,fss
 !
       REAL(kind=kfpt),DIMENSION(1:LM),INTENT(IN):: &
        DSG2,PDSG1,PSGML1,SGML2
@@ -394,6 +395,7 @@
             CASE (BMJSCHEME)
 
               CALL BMJDRV_DEV(TH=th,T=t ,RAINCV=raincv                  &
+                         ,FRES=fres,FR=fr,FSL=fsl,FSS=fss               &
                          ,ENTRAIN=ENTRAIN ,NEWALL=NEWALL                &
                          ,NEWSWAP=NEWSWAP ,NEWUPUP=NEWUPUP              &
                          ,NODEEP=NODEEP                                 &

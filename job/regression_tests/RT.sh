@@ -1234,8 +1234,6 @@ fi
 
 rm -f err out configure_file nmm_ll gfs_fcst_run  gfs_ll
 
-rm ${PATHTR}/exe/NEMS.x
-
 cd ${PATHTR}/src
 gmake clean          > /dev/null 2>&1
 

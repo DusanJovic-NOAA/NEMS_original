@@ -96,6 +96,7 @@
 !
         REAL(kind=KFPT) :: DLMD,DPHD                                    &
                           ,DYH,DYV                                      &
+                          ,fres,fr,fsl,fss                              &
                           ,PDTOP,PT                                     &
                           ,RDYH,RDYV
 !

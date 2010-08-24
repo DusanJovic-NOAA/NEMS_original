@@ -163,7 +163,7 @@ clean:
 	cd atmos               && gmake clean
 	cd ENS_Cpl             && gmake clean
 	cd chem                && gmake clean
-	$(RM) -f *.f90 *.lst *.o *.mod lm map
+	$(RM) -f *.f90 *.lst *.o *.mod lm map $(TARGET)
 
 .SUFFIXES:
 .SUFFIXES: .F90 .f90 .o

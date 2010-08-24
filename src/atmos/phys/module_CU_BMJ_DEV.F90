@@ -37,8 +37,6 @@
      &                 ,EPSDN=1.05,EPSDT=0.                             &
      &                 ,EPSNTP=.0001,EPSNTT=.0001,EPSPR=1.E-7           &
      &                 ,EPSUP=1.00                                      &
-!     &                 ,fres=1.00,FR=1.00,FSL=0.85,FSS=0.85             &
-     &                 ,fres=0.80,FR=1.00,FSL=0.85,FSS=0.85             &
      &                 ,FUP=1./200000.                                  &
      &                 ,PBM=13000.,PFRZ=15000.,PNO=1000.                &
      &                 ,PONE=2500.,PQM=20000.                           &
@@ -54,12 +52,13 @@
                        ,DTPtrigr=DTtrigr*PONE      !<-- Average parcel virtual temperature deficit over depth PONE.
                                                    !<-- NOTE: CAPEtrigr is scaled by the cloud base temperature (see below)
 !
-      REAL,PARAMETER :: DSPBFL=-3875.*fres*FR                           &
-     &                 ,DSP0FL=-5875.*fres*FR                           &
-     &                 ,DSPTFL=-1875.*fres*FR                           &
-     &                 ,DSPBFS=-3875.*fres                              &
-     &                 ,DSP0FS=-5875.*fres                              &
-     &                 ,DSPTFS=-1875.*fres
+      real(kind=kfpt),parameter:: &
+       dspbfl_base=-3875. &
+      ,dsp0fl_base=-5875. &
+      ,dsptfl_base=-1875. &
+      ,dspbfs_base=-3875. &
+      ,dsp0fs_base=-5875. &
+      ,dsptfs_base=-1875.
 !
       REAL,PARAMETER :: PL=2500.,PLQ=70000.,PH=105000.                  &
      &                 ,THL=210.,THH=365.,THHQ=325.
@@ -101,6 +100,7 @@
      &                  IDS,IDE,JDS,JDE,KDS,KDE                         &
      &                 ,IMS,IME,JMS,JME,KMS,KME                         &
      &                 ,ITS,ITE,JTS,JTE,KTS,KTE                         &
+     &                 ,fres,fr,fsl,fss                                 &
      &                 ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP           &
      &                 ,DT,NTSD,NCNVC                                   &
      &                 ,RAINCV,CUTOP,CUBOT,KPBL                         &
@@ -130,8 +130,7 @@
       INTEGER(kind=kint),DIMENSION(IMS:IME,JMS:JME),INTENT(IN):: &
        KPBL
 !
-      REAL(kind=kfpt),INTENT(IN):: &
-       CP,DT,ELIV,ELWV,G,R,TFRZ,D608
+      REAL,INTENT(IN) :: CP,DT,ELIV,ELWV,fres,fr,fsl,fss,G,R,TFRZ,D608
 !
       REAL(kind=kfpt),DIMENSION(IMS:IME,JMS:JME),INTENT(IN):: &
        XLAND
@@ -161,7 +160,10 @@
        i,icldck,ierr,J,K,LBOT,lmh,LPBL,LTOP
 !
       REAL(kind=kfpt):: &
-       DTCNVC,seamask,PCPCOL,PSFC,PTOP,qnew,qold
+       dspbfl,dsp0fl,dsptfl,dspbfs,dsp0fs,dsptfs &
+      ,dspbsl,dsp0sl,dsptsl,dspbss,dsp0ss,dsptss &
+      ,slopbl,slop0l,sloptl,slopbs,slop0s,slopts &
+      ,DTCNVC,seamask,PCPCOL,PSFC,PTOP,qnew,qold
 ! 
       REAL(kind=kfpt),DIMENSION(KTS:KTE):: &
        DPCOL,DQDT,DTDT,PCOL,QCOL,TCOL
@@ -204,6 +206,27 @@
 !
         DTCNVC=DT*NCNVC
 !
+!--set up deficit saturation pressures depending on resolution----------
+        dspbfl=dspbfl_base*fres*fr
+        dsp0fl=dsp0fl_base*fres*fr
+        dsptfl=dsptfl_base*fres*fr
+        dspbfs=dspbfs_base*fres
+        dsp0fs=dsp0fs_base*fres
+        dsptfs=dsptfs_base*fres
+!
+        dspbsl=dspbfl*fsl
+        dsp0sl=dsp0fl*fsl
+        dsptsl=dsptfl*fsl
+        dspbss=dspbfs*fss
+        dsp0ss=dsp0fs*fss
+        dsptss=dsptfs*fss
+!
+        slopbl=(dspbfl-dspbsl)/(1.-efimn)
+        slop0l=(dsp0fl-dsp0sl)/(1.-efimn)
+        sloptl=(dsptfl-dsptsl)/(1.-efimn)
+        slopbs=(dspbfs-dspbss)/(1.-efimn)
+        slop0s=(dsp0fs-dsp0ss)/(1.-efimn)
+        slopts=(dsptfs-dsptss)/(1.-efimn)
 !.......................................................................
 !$omp parallel do &
 !$omp private (j,i,dqdt,dtdt,pcpcol,psfc,ptop,seamask,k,qcol   &
@@ -254,6 +277,9 @@
 !***  End debugging convection
 !-----------------------------------------------------------------------
           CALL BMJ_DEV(ntsd,I,J,DTCNVC,LMH,seamask,CLDEFI(I,J)          &
+     &            ,dspbfl,dsp0fl,dsptfl,dspbfs,dsp0fs,dsptfs            &
+     &            ,dspbsl,dsp0sl,dsptsl,dspbss,dsp0ss,dsptss            &
+     &            ,slopbl,slop0l,sloptl,slopbs,slop0s,slopts            &
      &            ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP                &
      &            ,DPCOL,PCOL,QCOL,TCOL,PSFC,PTOP                       &
      &            ,DQDT,DTDT,PCPCOL,LBOT,LTOP,LPBL                      &
@@ -339,6 +365,9 @@
                           SUBROUTINE BMJ_DEV                            &
 !-----------------------------------------------------------------------
      & (ntsd,I,J,DTCNVC,LMH,SM,CLDEFI                                   &
+     & ,dspbfl,dsp0fl,dsptfl,dspbfs,dsp0fs,dsptfs                       &
+     & ,dspbsl,dsp0sl,dsptsl,dspbss,dsp0ss,dsptss                       &
+     & ,slopbl,slop0l,sloptl,slopbs,slop0s,slopts                       &
      & ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP                           &
      & ,DPRS,PRSMID,Q,T,PSFC,PT                                         &
      & ,DQDT,DTDT,PCPCOL,LBOT,LTOP,LPBL                                 &
@@ -368,7 +397,11 @@
 !
       INTEGER,INTENT(OUT) :: LBOT,LTOP
 !
-      REAL,INTENT(IN) :: CP,D608,DTCNVC,ELIV,ELWV,G,PSFC,PT,R,SM,TFRZ
+      REAL(kind=kfpt),INTENT(IN):: &
+       CP,D608,DTCNVC,ELIV,ELWV,G,PSFC,PT,R,SM,TFRZ &
+      ,dspbfl,dsp0fl,dsptfl,dspbfs,dsp0fs,dsptfs &
+      ,dspbsl,dsp0sl,dsptsl,dspbss,dsp0ss,dsptss &
+      ,slopbl,slop0l,sloptl,slopbs,slop0s,slopts
 !
       REAL,DIMENSION(KTS:KTE),INTENT(IN) :: DPRS,PRSMID,Q,T
 !
@@ -434,20 +467,9 @@
      &          ,LQM,LSHU,LTP1,LTP2,LTSH, LBOTcnv,LTOPcnv,LMID
 !-----------------------------------------------------------------------
 !
-      REAL,PARAMETER :: DSPBSL=DSPBFL*FSL,DSP0SL=DSP0FL*FSL             &
-     &                 ,DSPTSL=DSPTFL*FSL                               &
-     &                 ,DSPBSS=DSPBFS*FSS,DSP0SS=DSP0FS*FSS             &
-     &                 ,DSPTSS=DSPTFS*FSS
-!
       REAL,PARAMETER :: ELEVFC=0.6,STEFI=1.
 !
-      REAL,PARAMETER :: SLOPBL=(DSPBFL-DSPBSL)/(1.-EFIMN)               &
-     &                 ,SLOP0L=(DSP0FL-DSP0SL)/(1.-EFIMN)               &
-     &                 ,SLOPTL=(DSPTFL-DSPTSL)/(1.-EFIMN)               &
-     &                 ,SLOPBS=(DSPBFS-DSPBSS)/(1.-EFIMN)               &
-     &                 ,SLOP0S=(DSP0FS-DSP0SS)/(1.-EFIMN)               &
-     &                 ,SLOPTS=(DSPTFS-DSPTSS)/(1.-EFIMN)               &
-     &                 ,SLOPST=(STABDF-STABDS)/(1.-EFIMN)               &
+      REAL,PARAMETER :: SLOPST=(STABDF-STABDS)/(1.-EFIMN)               &
      &                 ,slopel=(1.-efmntl)/(1.-efimn)                   &
      &                 ,slopes=(1.-efmnts)/(1.-efimn)
 !
@@ -475,17 +497,9 @@
       RDTCNVC=1./DTCNVC
       DEPMIN=PSH*PSFC*RSFCP
 !--shallow convection switches------------------------------------------
-!rv   nodeep=.false.  ! all deep convection diverted to shallow swap algorythm
-!rv   newall=.true.  ! new cloud used at all shallow points
-!rv   newupup=.true. ! new cloud used for both heat and moisture up shallow pts.
-!rv   newswap=.true. ! new clouds at swap shallow points
-      
       DEEP=.FALSE.
       SHALLOW=.FALSE.
 !-----------------------------------------------------------------------
-!rv   entrain=.true.
-!rv   entrain=.false.
-!
       DSP0=0.
       DSPB=0.
       DSPT=0.
@@ -635,8 +649,6 @@
             thee(l)=thes(l)
             qbte(l)=qbtk(l)
           enddo
-!
-!zj            fefi=(cldefi-efimn)*slope+efmnt
 !
           if(sm.gt.0.5) then
             fefi=(cldefi-efimn)*slopes+efmnts
@@ -870,12 +882,9 @@
 
       IF(PTOP>PBOT-PNO.OR.LTOP>LBOT-2.OR.CAPEcnv<=0.)THEN
         LBOT=0
-!zj        LTOP=KTE
         PBOT=PRSMID(LMH)
         PTOP=PBOT
-!zj        CLDEFI=AVGEFI*SM+STEFI*(1.-SM)
         return
-!zj        GO TO 800
       ENDIF
 !
 !***  DEPTH OF CLOUD REQUIRED TO MAKE THE POINT A DEEP CONVECTION POINT
@@ -1149,7 +1158,6 @@
         EFI=EFIFC*DENTPY/DRHEAT
 !-----------------------------------------------------------------------
         EFI=MIN(EFI,1.)
-!zj        if(efi.gt.1.) efi=0.
         EFI=MAX(EFI,EFIMN)
 !-----------------------------------------------------------------------
 !
@@ -1165,7 +1173,6 @@
 !
         iswap=0 ! deep convection, no swap
         CLDEFI=EFI
-!zj        FEFI=EFMNT+SLOPE*(EFI-EFIMN)
 !
         if(sm.gt.0.5) then
           fefi=(cldefi-efimn)*slopes+efmnts
