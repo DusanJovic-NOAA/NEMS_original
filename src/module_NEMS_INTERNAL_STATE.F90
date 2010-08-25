@@ -23,11 +23,15 @@
 !
       TYPE NEMS_INTERNAL_STATE
 !
+        REAL :: DUMMY1
+!
       END TYPE NEMS_INTERNAL_STATE
 !
 !-----------------------------------------------------------------------
 !
       TYPE WRAP_NEMS_INTERNAL_STATE
+!
+        REAL :: DUMMY2
 !
         TYPE(NEMS_INTERNAL_STATE),POINTER :: NEMS_INT_STATE
 !

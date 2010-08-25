@@ -2,7 +2,7 @@ include ../conf/configure.nems
 
 MAKEFILE = makefile
 
-UTILINCS = -Ishare -Inmm -Igfs -Ifim
+UTILINCS = -Ishare -Inmm -Igfs -Ifim -Iphys
 
 LIBRARY  = libatmos.a
 

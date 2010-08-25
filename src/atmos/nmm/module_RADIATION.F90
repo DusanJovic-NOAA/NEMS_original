@@ -412,8 +412,8 @@
      tid = omp_get_thread_num()
      call looplimits(tid,nth,j_start(ij),j_end(ij),jqs,jqe)
 #else
-     jts = j_start(ij)
-     jte = j_end(ij)
+     jqs = j_start(ij)
+     jqe = j_end(ij)
 #endif
 !.......................................................................
 ! initialize data

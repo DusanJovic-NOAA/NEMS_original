@@ -17,6 +17,7 @@
       USE MODULE_MICROPHYSICS_NMM
       USE MODULE_CONSTANTS,ONLY : G
       USE MODULE_EXCHANGE
+      USE MODULE_CONTROL,ONLY : TIMEF
 !
 !----------------------------------------------------------------------
 !
@@ -89,7 +90,7 @@
       character(16),allocatable :: recname(:),reclevtyp(:)
       integer,allocatable   :: reclev(:)
 !
-      real(8) :: stime,etime,timef
+      real(8) :: stime,etime
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -727,7 +728,7 @@
       character(16),allocatable :: recname(:),reclevtyp(:)
       integer,allocatable   :: reclev(:)
       
-      real(8) :: stime,etime,stime1,stime2,timef
+      real(8) :: stime,etime,stime1,stime2
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------

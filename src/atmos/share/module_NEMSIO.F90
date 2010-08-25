@@ -5120,7 +5120,7 @@ contains
     endif
     if(gfile%nmeta>5)then
       allocate(gfile%vcoord(dimvcoord1,3,2) ,stat=iret2) 
-      if(iret3.eq.0) then
+      if(iret2.eq.0) then
       gfile%vcoord=nemsio_realfill
       endif
       iret=iret+abs(iret2)

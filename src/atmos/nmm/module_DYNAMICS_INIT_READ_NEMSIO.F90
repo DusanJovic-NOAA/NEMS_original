@@ -14,6 +14,7 @@ use module_dm_parallel,only : ids,ide,jds,jde &
 use module_exchange
 use module_constants
 use module_nemsio_mpi
+use module_control,only : timef
 !
 !-----------------------------------------------------------------------
 !
@@ -254,7 +255,7 @@ integer fldsize,fldst,js,recn
 character(16),allocatable :: recname(:), reclevtyp(:)
 integer,allocatable       :: reclev(:)
 !
-real(8) :: stime,etime,stime1,timef
+real(8) :: stime,etime,stime1
 !
 !-----------------------------------------------------------------------
 !***********************************************************************

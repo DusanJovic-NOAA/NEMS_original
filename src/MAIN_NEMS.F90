@@ -88,12 +88,19 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-     include 'fexcp.h'
-     call signal(11, xl__trce)
+#ifdef IBM
+      include 'fexcp.h'
+      call signal(11, xl__trce)
+#endif
 !
 !-----------------------------------------------------------------------
 !
+#if defined (SVN_INFO) && defined (CMP_YEAR) && defined (CMP_JD)
+      call w3tagb('NEMS '//SVN_INFO, &
+                  CMP_YEAR, CMP_JD, 0000, 'NEMS')
+#else
       call w3tagb('nems     ',0000,0000,0000,'np23   ')
+#endif
 !
 !-----------------------------------------------------------------------
 !***  Initialize the final error signal.

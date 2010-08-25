@@ -2675,6 +2675,8 @@
 !
 !!!   DEALLOCATE(INT_STATE,stat=RC)
 !
+      RCFINAL=ESMF_SUCCESS
+!
 !-----------------------------------------------------------------------
 !
       END SUBROUTINE PHY_FINALIZE

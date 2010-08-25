@@ -2,10 +2,12 @@ TARGET = ../exe/NEMS.x
 
 include ./conf/configure.nems
 
-INCS = -Iatmos -Iocean -Ichem -Iatmos/share -IENS_Cpl
+INCS = -Iatmos -Iocean -Ichem -Iatmos/share -IENS_Cpl -Iatmos/nmm -Iatmos/fim -Iatmos/gfs -Iatmos/phys
+
+MAIN = MAIN_NEMS.o
 
 OBJS = module_EARTH_INTERNAL_STATE.o module_EARTH_GRID_COMP.o \
-       module_NEMS_INTERNAL_STATE.o module_NEMS_GRID_COMP.o MAIN_NEMS.o
+       module_NEMS_INTERNAL_STATE.o module_NEMS_GRID_COMP.o
 
 LIBS = atmos/share/libshare.a           \
        atmos/phys/libphys.a             \
@@ -36,6 +38,25 @@ GOCART_MODE=stub
 ESMADIR=chem/gocart
 include $(ESMADIR)/src/Config/NCEP_base.mk
 
+#
+# log info
+#
+WHOAMI  := $(shell whoami)
+CMP_DATE := $(shell date)
+SVN_REV := $(shell svnversion -n .)
+SVN_URL := $(shell svn info | grep URL | cut -f 2 -d ' ')
+CMP_YEAR := $(shell date +"%Y" )
+CMP_JD := $(shell date +"%j" )
+
+CPPFLAGS += -D'SVN_INFO="($(WHOAMI)) $(CMP_DATE) r$(SVN_REV) $(SVN_URL)"'
+
+ifdef CMP_YEAR
+  CPPFLAGS += -D'CMP_YEAR=$(CMP_YEAR)'
+endif
+ifdef CMP_JD
+  CPPFLAGS += -D'CMP_JD=$(CMP_JD)'
+endif
+
 ################################################################################
 #
 # Ask user which target he/she wants to build
@@ -65,8 +86,8 @@ all:
 #
 ################################################################################
 
-nmm: nmm_libs $(OBJS)
-	$(FC) $(FFLAGS_NMM) $(SMP) -o $(TARGET) $(OBJS) $(LIBS_NMM) $(EXTLIBS)
+nmm: nmm_libs $(OBJS) $(MAIN)
+	$(FC) $(FFLAGS_NMM) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_NMM) $(EXTLIBS)
 	@echo "$(TARGET) is created for NMM core."
 
 nmm_libs:
@@ -84,8 +105,8 @@ nmm_libs:
 #
 ################################################################################
 
-gfs: gfs_libs $(OBJS)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(OBJS) $(LIBS) $(EXTLIBS) $(LIB_GOCART)
+gfs: gfs_libs $(OBJS) $(MAIN)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIB_GOCART)
 	@echo "nems.x is created for GFS core."
 
 gfs_libs:
@@ -105,8 +126,8 @@ gfs_libs:
 #
 ################################################################################
 
-nmm_gfs: nmm_gfs_libs $(OBJS)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(OBJS) $(LIBS) $(EXTLIBS) $(LIB_GOCART)
+nmm_gfs: nmm_gfs_libs $(OBJS) $(MAIN)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIB_GOCART)
 	@echo "nems.x is created for NMM and GFS core."
 
 nmm_gfs_libs:
@@ -125,8 +146,8 @@ nmm_gfs_libs:
 #
 ################################################################################
 
-fim: fim_libs $(OBJS)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(OBJS) $(LIBS) $(EXTLIBS)
+fim: fim_libs $(OBJS) $(MAIN)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS)
 	@echo "nems.x is created for FIM core."
 
 fim_libs:
@@ -142,8 +163,8 @@ fim_libs:
 #
 ################################################################################
 
-fim_gfs: fim_gfs_libs $(OBJS)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(OBJS) $(LIBS) $(EXTLIBS)
+fim_gfs: fim_gfs_libs $(OBJS) $(MAIN)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS)
 	@echo "nems.x is created for FIM and GFS core."
 
 fim_gfs_libs:
@@ -174,3 +195,6 @@ clean:
 $(OBJS): %.o: %.f90
 	$(FC) $(FFLAGS) $(INCS) -c $*.f90
 
+MAIN_NEMS.o: %.o: %.f90
+	$(FC) $(FFLAGS) $(INCS) -c $*.f90
+	$(RM) $*.f90

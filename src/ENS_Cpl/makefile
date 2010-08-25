@@ -96,6 +96,9 @@ ENS_GetParameterFromStateMod.o: ENS_GetParameterFromStateMod.f
 ENS_CplComp_ESMFMod.o:	ENS_CplComp_ESMFMod.f
 	$(FC) $(FFLAG90) -c ENS_CplComp_ESMFMod.f
 
+ENS_CplComp_ESMFMod_STUB.o:     ENS_CplComp_ESMFMod_STUB.f
+	$(FC) $(FFLAG90) -c ENS_CplComp_ESMFMod_STUB.f
+
 kinds.o: kinds.f90
 	$(FC) $(FFLAG90) -c kinds.f90
 
