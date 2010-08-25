@@ -1095,9 +1095,10 @@
 !-----------------------------------------------------------------------
 !
         SPECADV = 0
-        IF(int_state%SPEC_ADV                                           &
-                   .OR.                                                 &
-           int_state%MICROPHYSICS=='wsm6') SPECADV=1
+        IF(int_state%SPEC_ADV) SPECADV=1 
+  !      IF(int_state%SPEC_ADV                                           &
+  !                 .OR.                                                 &
+  !         int_state%MICROPHYSICS=='wsm6') SPECADV=1
 !
         update_wtr: IF((int_state%MICROPHYSICS=='fer'                   &
                                    .OR.                                 &
@@ -3864,7 +3865,7 @@
 !
       INTEGER :: I,J,K
 !
-      REAL :: LIQW
+      REAL :: LIQW, OLDCWM, fraction
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -3954,8 +3955,37 @@
                  ENDIF
                ENDIF    !  END of WATER
 !
+!------------------
+               IF( specadv == 1) THEN
+                 !! After advection, water may be reditruted in space
                 CWM(I,J,K)=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)+WATER(I,J,K,P_QI)  &
                           +WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG)
+               ELSE
+                 !! Water is not advected. Assuming species ratios are not changed after advection,
+                OLDCWM = WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)+WATER(I,J,K,P_QI)  &
+                          +WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG)
+                  IF (OLDCWM > EPSQ) THEN
+                    fraction = CWM(i,j,k)/OLDCWM
+                    WATER(I,J,K,P_QC) = fraction * WATER(I,J,K,P_QC)
+                    WATER(I,J,K,P_QR) = fraction * WATER(I,J,K,P_QR)
+                    WATER(I,J,K,P_QI) = fraction * WATER(I,J,K,P_QI)
+                    WATER(I,J,K,P_QS) = fraction * WATER(I,J,K,P_QS)
+                    WATER(I,J,K,P_QG) = fraction * WATER(I,J,K,P_QG)
+                   ELSE
+                     WATER(I,J,K,P_QC)=0.0
+                     WATER(I,J,K,P_QR)=0.0
+                     WATER(I,J,K,P_QI)=0.0
+                     WATER(I,J,K,P_QS)=0.0
+                     WATER(I,J,K,P_QG)=0.0
+                    IF (T(I,J,K) < 233.15) THEN
+                     WATER(I,J,K,P_QI) = CWM(I,J,K)
+                    ELSE
+                     WATER(I,J,K,P_QC) = CWM(I,J,K)
+                    ENDIF
+                  ENDIF
+               ENDIF
+!------------------
+
                 IF (CWM(I,J,K) > EPSQ) THEN
                    LIQW=WATER(I,J,K,P_QI)+WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG)
                    F_ICE(I,J,K)=LIQW/CWM(I,J,K)

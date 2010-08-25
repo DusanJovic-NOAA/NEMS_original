@@ -2363,7 +2363,8 @@
         btim=timef()
 !
         SPECADV=0
-        IF(int_state%SPEC_ADV.OR.int_state%MICROPHYSICS=='wsm6')THEN
+!!!        IF(int_state%SPEC_ADV.OR.int_state%MICROPHYSICS=='wsm6')THEN
+        IF(int_state%SPEC_ADV)THEN
           SPECADV=1
         ENDIF
 !
