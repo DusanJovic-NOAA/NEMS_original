@@ -6,7 +6,7 @@
      &                   SNNP1EV,SNNP1OD,pdryini,IPRINT,
      &                   global_lats_a,lats_nodes_a,lonsperlat,cfile,
      &                   epse,epso,plnew_a,plnow_a,
-     &                   plnev_a,plnod_a,pwat,ptot)
+     &                   plnev_a,plnod_a,pwat,ptot,ptrc)
 
 !!
 !! Revision history:
@@ -14,6 +14,7 @@
 !                 tracer name specified in gfs_dyn_tracer_config)
 !  Apr 09 2010    Sarah Lu, set rqg initial value to 1.e-15
 !  Aug 17 2010    Sarah Lu, clean debug print
+!  Aug 25 2010    Sarah Lu, modified to compute tracer global sum
 !  
  
       use gfs_dyn_resol_def
@@ -121,6 +122,7 @@
 !
       REAL(KIND=KIND_GRID) pwat   (lonf,lats_node_a)
       REAL(KIND=KIND_GRID) ptot   (lonf,lats_node_a)
+      REAL(KIND=KIND_GRID) ptrc   (lonf,lats_node_a,ntrac)                !glbsum
 !
 !       Input file is in grid-point space - use gfs_io package
 !
@@ -422,7 +424,7 @@
      &      ls_node,ls_nodes,max_ls_nodes,
      &      lats_nodes_a,global_lats_a,lonsperlat,
      &      epse,epso,SNNP1EV,SNNP1OD,
-     &      plnew_a,plnow_a,plnev_a,plnod_a,pwat,ptot)
+     &      plnew_a,plnow_a,plnev_a,plnod_a,pwat,ptot,ptrc)    !glbsum
 
 !
       endif

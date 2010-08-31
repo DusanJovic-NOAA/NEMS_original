@@ -14,6 +14,7 @@
 !  october  2009      jun wang, output data every time step
 !  november 2009      jun wang, set digital filter variables
 !  febrary  2010      jun wang, add restart step
+!  aug  2010          sarah lu, compute tracer global sum
 !
 !
 ! !interface:
@@ -92,7 +93,7 @@
                        gis_dyn%grid_gr(1,1,gis_dyn%g_rt),      &
                        gis_dyn%global_lats_a,                  &
                        gis_dyn%lonsperlat,                     &
-                       gis_dyn%pwat, gis_dyn%ptot )
+                       gis_dyn%pwat, gis_dyn%ptot, gis_dyn%ptrc )  !glbsum
 
 !
 ! ---------------------------------------------------------------------
@@ -145,6 +146,7 @@
                gis_dyn% syn_gr_a_2    ,gis_dyn% dyn_gr_a_2     ,	&
                gis_dyn% anl_gr_a_2    ,gis_dyn% lslag          ,        &
                gis_dyn% pwat          ,gis_dyn% ptot           ,	&
+               gis_dyn% ptrc          ,                                 & !glbsum
                gis_dyn% pdryini       ,gis_dyn% nblck          ,	&
                gis_dyn% zhour         ,					&
                gis_dyn% n1            ,gis_dyn% n4             ,	&
@@ -182,6 +184,7 @@
                gis_dyn% syn_gr_a_2    ,gis_dyn% dyn_gr_a_2     ,	&
                gis_dyn% anl_gr_a_2    ,gis_dyn% lslag          ,        &
                gis_dyn% pwat          ,gis_dyn% ptot           ,	&
+               gis_dyn% ptrc          ,                                 & !glbsum
                gis_dyn% pdryini       ,gis_dyn% nblck          ,	&
                gis_dyn% zhour         ,					&
                gis_dyn% n1            ,gis_dyn% n4             ,	&

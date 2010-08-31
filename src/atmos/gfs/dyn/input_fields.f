@@ -2,9 +2,10 @@
      &                 LS_NODE,LS_NODES,MAX_LS_NODES,SNNP1EV,SNNP1OD,
      &                 global_lats_a,lonsperlat,
      &                 epse,epso,plnev_a,plnod_a,plnew_a,plnow_a,
-     &                 lats_nodes_a, pwat,ptot)
+     &                 lats_nodes_a, pwat,ptot,ptrc)
 !!
-!
+!! Aug 2010    Sarah Lu, modified to compute tracer global sum
+
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
       use gfs_dyn_gg_def
@@ -43,6 +44,7 @@ cmy      REAL(KIND=KIND_EVOD) PDRYINI
 
       REAL(KIND=KIND_GRID) pwat   (lonf,lats_node_a)
       REAL(KIND=KIND_GRID) ptot   (lonf,lats_node_a)
+      REAL(KIND=KIND_GRID) ptrc   (lonf,lats_node_a,ntrac)          !glbsum
 !
       integer global_lats_a(latg), lonsperlat(latg)
  
@@ -81,7 +83,7 @@ c$$$  IF ( ME .EQ. 0 ) IPRINT = 1
      X               SNNP1EV,SNNP1OD,PDRYINI,IPRINT,
      &               global_lats_a,lats_nodes_a,lonsperlat, cread,
      &               epse, epso, plnew_a, plnow_a, 
-     &               plnev_a, plnod_a, pwat, ptot)
+     &               plnev_a, plnod_a, pwat, ptot, ptrc)            !glbsum
 
       do j=1,lats_node_a
         jlonf=(j-1)*lonf

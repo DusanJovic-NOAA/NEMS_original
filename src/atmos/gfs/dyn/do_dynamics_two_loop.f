@@ -12,10 +12,14 @@
      &                 SYN_GR_A_1,DYN_GR_A_1,ANL_GR_A_1,
      &                 SYM_GR_A_2,
      &                 SYN_GR_A_2,DYN_GR_A_2,ANL_GR_A_2,
-     &                 LSLAG,pwat,ptot,
+     &                 LSLAG,pwat,ptot,ptrc,
      &                 pdryini,nblck,ZHOUR,N1,N4,
      &                 LSOUT,ldfi,COLAT1,CFHOUR1,                             ! jw
      &                 start_step,reset_step,end_step)
+cc
+! Program History Log:
+! Aug 2010    Sarah Lu modified to compute tracer global sum
+!----------------------------------------------
 cc
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
@@ -27,6 +31,7 @@ cc
       use namelist_dynamics_def
       use gfs_dyn_mpi_def
       use gfs_dyn_dfi_mod
+      use gfs_dyn_tracer_config, only: glbsum               !glbsum
 
       use do_dynamics_mod
 
@@ -101,6 +106,11 @@ c
       real (kind=kind_grid) ptotj(lats_node_a),pwatj(lats_node_a)
       real (kind=kind_grid) ptotg(latg),pwatg(latg)
       real (kind=kind_grid) sumwa,sumto,ptotp,pwatp,pdryg
+
+! For tracer gloabl sum (Sarah Lu)
+      real (kind=kind_grid) ptrc(lonf,lats_node_a,ntrac)                !glbsum
+      real (kind=kind_grid) ptrcj(lats_node_a,ntrac),tmpj(lats_node_a)  !glbsum
+      real (kind=kind_grid) ptrcg(latg),sumtrc(ntrac),ptrcp(ntrac)      !glbsum
 !
       REAL (KIND=KIND_grid) filtb,typical_pgr
       REAL (KIND=KIND_grid) cons0,cons1,cons2,cons0p5
@@ -338,12 +348,23 @@ c timings
         lons_lat = lonsperlat(lat)
         ptotp=0.
         pwatp=0.
+        ptrcp(:)=0.                                                   !glbsum
         do i=1,lons_lat
            ptotp     = ptotp + ptot(i,lan)
            pwatp     = pwatp + pwat(i,lan)
+           if ( glbsum ) then                                         !glbsum
+             do n = 1, ntrac                                          !glbsum
+               ptrcp(n)  = ptrcp(n) + ptrc(i,lan,n)                   !glbsum
+             enddo                                                    !glbsum
+           endif                                                      !glbsum
         enddo
         pwatj(lan)=pwatp/(2.*lonsperlat(lat))
         ptotj(lan)=ptotp/(2.*lonsperlat(lat))
+        if ( glbsum ) then                                            !glbsum
+          do n = 1, ntrac                                             !glbsum
+            ptrcj(lan,n)=ptrcp(n)/(2.*lonsperlat(lat))                !glbsum
+          enddo                                                       !glbsum
+        endif                                                         !glbsum
       enddo
       call excha(lats_nodes_a,global_lats_a,ptotj,pwatj,ptotg,pwatg)
       sumwa=0.
@@ -352,6 +373,17 @@ c timings
          sumto=sumto+wgt_a(min(lat,latg-lat+1))*ptotg(lat)
          sumwa=sumwa+wgt_a(min(lat,latg-lat+1))*pwatg(lat)
       enddo
+      if ( glbsum ) then                                              !glbsum
+        do n = 1, ntrac                                               !glbsum
+         sumtrc(n)=0.                                                 !glbsum
+         tmpj(:) = ptrcj(:,n)                                         !glbsum
+         call excha(lats_nodes_a,global_lats_a,ptotj,tmpj,ptotg,ptrcg)!glbsum
+         do lat=1,latg                                                !glbsum
+           sumtrc(n)=sumtrc(n)+wgt_a(min(lat,latg-lat+1))*ptrcg(lat)  !glbsum
+         enddo                                                        !glbsum
+        enddo                                                         !glbsum
+      endif                                                           !glbsum
+
       pdryg=sumto-sumwa
       if(pdryini.le.0.) pdryini=pdryg
 
@@ -363,6 +395,13 @@ c timings
 !
 ! test
       print *,' pcorr pdryini pdryg ',pcorr,pdryini,pdryg
+
+      if (glbsum .and. me.eq.me_l_0) then                             !glbsum
+          write(70,111) kdt,fhour,idate                                 !glbsum
+          write(71,*)   kdt,(sumtrc(n),n=4,ntrac)                       !glbsum
+      endif                                                           !glbsum
+111   format ('kdt, fhour, idate=',i6,1x,f10.3,2x,4(i4,2x))           !glbsum
+
 
       if (ladj) then
 !

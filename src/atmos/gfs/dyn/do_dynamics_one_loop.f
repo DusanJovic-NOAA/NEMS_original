@@ -13,7 +13,7 @@
      &                 SYN_GR_A_1,DYN_GR_A_1,ANL_GR_A_1,
      &                 SYM_GR_A_2,
      &                 SYN_GR_A_2,DYN_GR_A_2,ANL_GR_A_2,
-     &                 LSLAG,pwat,ptot,
+     &                 LSLAG,pwat,ptot,ptrc,
      &                 pdryini,nblck,ZHOUR,N1,N4,
      &                 LSOUT,ldfi,COLAT1,CFHOUR1,
      &                 start_step,restart_step,reset_step,end_step,
@@ -22,6 +22,7 @@
 cc
 
 ! March 2009, Weiyu Yang modified for GEFS run.
+! Aug 2010    Sarah Lu modified to compute tracer global sum
 !----------------------------------------------
 
       USE ESMF_Mod
@@ -33,6 +34,7 @@ cc
       use namelist_dynamics_def
       use gfs_dyn_mpi_def
       use gfs_dyn_dfi_mod, only : gfs_dfi_grid_gr
+      use gfs_dyn_tracer_config, only: glbsum                   !glbsum
 
       use do_dynamics_mod
 
@@ -102,6 +104,11 @@ cc
       real (kind=kind_grid) ptotj(lats_node_a),pwatj(lats_node_a)
       real (kind=kind_grid) ptotg(latg),pwatg(latg)
       real (kind=kind_grid) sumwa,sumto,ptotp,pwatp,pdryg
+
+! For tracer gloabl sum (Sarah Lu)
+      real (kind=kind_grid) ptrc(lonf,lats_node_a,ntrac)               !glbsum
+      real (kind=kind_grid) ptrcj(lats_node_a,ntrac),tmpj(lats_node_a) !glbsum
+      real (kind=kind_grid) ptrcg(latg),sumtrc(ntrac),ptrcp(ntrac)     !glbsum
 !
       REAL (KIND=KIND_grid) filtb
       REAL (KIND=KIND_grid) cons0,cons1,cons2,cons0p5
@@ -328,12 +335,24 @@ cc
           lons_lat = lonsperlat(lat)
           ptotp=0.
           pwatp=0.
+          ptrcp(:)=0.                                          !glbsum
           do i=1,lons_lat
              ptotp     = ptotp + ptot(i,lan)
              pwatp     = pwatp + pwat(i,lan)
+             if( glbsum ) then                                 !glbsum
+               do n = 1, ntrac                                 !glbsum
+                 ptrcp(n)  = ptrcp(n) + ptrc(i,lan,n)          !glbsum
+               enddo                                           !glbsum
+             endif                                             !glbsum     
           enddo
           pwatj(lan)=pwatp/(2.*lonsperlat(lat))
           ptotj(lan)=ptotp/(2.*lonsperlat(lat))
+          if ( glbsum ) then                                   !glbsum
+            do n = 1, ntrac                                    !glbsum
+              ptrcj(lan,n)=ptrcp(n)/(2.*lonsperlat(lat))       !glbsum
+            enddo                                              !glbsum
+          endif                                                !glbsum
+
         enddo
         call excha(lats_nodes_a,global_lats_a,ptotj,pwatj,ptotg,pwatg)
         sumwa=0.
@@ -342,6 +361,17 @@ cc
            sumto=sumto+wgt_a(min(lat,latg-lat+1))*ptotg(lat)
            sumwa=sumwa+wgt_a(min(lat,latg-lat+1))*pwatg(lat)
         enddo
+        if ( glbsum ) then                                              !glbsum
+          do n = 1, ntrac                                               !glbsum
+           sumtrc(n)=0.                                                 !glbsum
+           tmpj(:) = ptrcj(:,n)                                         !glbsum
+           call excha(lats_nodes_a,global_lats_a,ptotj,tmpj,ptotg,ptrcg)!glbsum
+           do lat=1,latg                                                !glbsum
+             sumtrc(n)=sumtrc(n)+wgt_a(min(lat,latg-lat+1))*ptrcg(lat)  !glbsum
+           enddo                                                        !glbsum
+          enddo                                                         !glbsum
+        endif                                                           !glbsum
+
         pdryg=sumto-sumwa
         if(pdryini.le.0.) pdryini=pdryg
             
@@ -355,6 +385,13 @@ cc
           print *,' pdryini pdryg pcorr = ',pdryini,pdryg,pcorr
           trie_ls(1,1,p_zq)=trie_ls(1,1,p_zq)+pcorr/dt2
         endif
+
+        if (glbsum .and. me.eq.me_l_0) then                             !glbsum
+          write(70,111) kdt,fhour,idate                                 !glbsum
+          write(71,*)   kdt,(sumtrc(n),n=4,ntrac)                       !glbsum
+        endif                                                           !glbsum
+111     format ('kdt, fhour, idate=',i6,1x,f10.3,2x,4(i4,2x))           !glbsum
+
 !----------------------------------------------------------
 ! update in spectral for vorticity and tracers in explicit way       
 !
@@ -704,7 +741,7 @@ c
      &         trie_ls(1, 1, p_rm),  trio_ls(1, 1, p_rm),
      &         ls_node,      ls_nodes,      max_ls_nodes,
      &         lats_nodes_a, global_lats_a, lonsperlat,
-     &         epse, epso, plnew_a, plnow_a, pwat, ptot)
+     &         epse, epso, plnew_a, plnow_a, pwat, ptot, ptrc) !glbsum
 
           CALL grid_to_spect_inp_1
      &        (grid_gr(1, g_q), 
@@ -717,7 +754,7 @@ c
      &         trie_ls(1, 1, p_rq),  trio_ls(1, 1, p_rq),
      &         ls_node,      ls_nodes,      max_ls_nodes,
      &         lats_nodes_a, global_lats_a, lonsperlat,
-     &         epse, epso, plnew_a, plnow_a, pwat, ptot)
+     &         epse, epso, plnew_a, plnow_a, pwat, ptot, ptrc) !glbsum
 
           call do_dynamics_gridc2n(grid_gr, global_lats_a, lonsperlat)
 

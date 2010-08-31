@@ -1,10 +1,11 @@
       subroutine getpwatptot (psg,ttg,rqg,
-     &    global_lats_a,lonsperlat, pwat,ptot)
+     &    global_lats_a,lonsperlat, pwat,ptot,ptrc)
 !!
 !! program log
 !!   2007      Henry H. Juang
 !!   20100205  J. WANG - this routins is moved from input_fields, it
 !!                       computes pwat and ptot
+!!   20100825  Sarah Lu - modified to compute tracer global sum
 !!
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
@@ -16,6 +17,7 @@
       use gfs_dyn_tracer_const
       use gfs_dyn_physcons, fv => con_fvirt, rerth => con_rerth,
      &              grav => con_g,  cp => con_cp , rd => con_rd
+      use gfs_dyn_tracer_config, only: glbsum                     !glbsum
       implicit none
 !
       integer,intent(in) ::   global_lats_a(latg)
@@ -26,6 +28,8 @@
       REAL(KIND=KIND_GRID),intent(in) :: rqg (lonf,lats_node_a_max,levh)
       REAL(KIND=KIND_GRID),intent(out) :: pwat (lonf,lats_node_a)
       REAL(KIND=KIND_GRID),intent(out) :: ptot (lonf,lats_node_a)
+      REAL(KIND=KIND_GRID),intent(out) :: ptrc (lonf,lats_node_a,ntrac)        !glbsum
+
 !
 !local vars
       REAL(KIND=KIND_GRID) work   (lonf)
@@ -112,6 +116,23 @@
      &                                * (rqg(i,lan,k) + work(i))
           enddo
         enddo
+
+!
+! get ptrc (tracer global sum)                                   !glbsum
+!
+        if( glbsum ) then                                        !glbsum
+          do nn = 1, ntrac                                       !glbsum
+            nnl = (nn-1)*levs                                    !glbsum
+            do i=1,lons_lat                                      !glbsum
+             ptrc(i,lan,nn) = 0.0                                !glbsum
+             do k=1,levs                                         !glbsum
+               ptrc(i,lan,nn) = ptrc(i,lan,nn) +                 !glbsum
+     &         (prsi(i,k)-prsi(i,k+1))*rqg(i,lan,nnl+k)          !glbsum
+             enddo                                               !glbsum
+            enddo                                                !glbsum
+          enddo                                                  !glbsum
+        endif                                                    !glbsum
+
 !
 !       call mymaxmin(rqg(1,lan,1),lons_lat,lonf,1,' rqg in com to mdl')
 !       call mymaxmin(pwat(1,lan),lons_lat,lonf,1,' pwat in com to mdl')

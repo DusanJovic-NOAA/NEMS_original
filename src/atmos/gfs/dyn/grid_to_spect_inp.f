@@ -6,12 +6,13 @@
      &     ls_node,ls_nodes,max_ls_nodes,
      &     lats_nodes_a,global_lats_a,lonsperlat,
      &     epse,epso,snnp1ev,snnp1od,
-     &     plnew_a,plnow_a,plnev_a,plnod_a,pwat,ptot)
+     &     plnew_a,plnow_a,plnev_a,plnod_a,pwat,ptot,ptrc)
 !!
 !! hmhj - this routine do spectral to grid transform 
 !!        from gfsio read in field, to model fields
 !! input zsg,psg,uug,vvg,ttg,rqg (mapping wind, temp)
 !! output zsg,psg,uug,vvg,ttg,rqg in model values (mapping wind, enthalpy)
+!! aug 2010      sarah lu, modified to compute tracer global sum
 !!
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
@@ -21,6 +22,7 @@
       use namelist_dynamics_def
       use gfs_dyn_coordinate_def 
       use gfs_dyn_tracer_const
+      use gfs_dyn_tracer_config, only: glbsum                     !glbsum
       use gfs_dyn_physcons, fv => con_fvirt, rerth => con_rerth,
      &              grav => con_g,  cp => con_cp , rd => con_rd
       implicit none
@@ -34,6 +36,7 @@
 !
       REAL(KIND=KIND_GRID) pwat   (lonf,lats_node_a)
       REAL(KIND=KIND_GRID) ptot   (lonf,lats_node_a)
+      REAL(KIND=KIND_GRID) ptrc   (lonf,lats_node_a,ntrac)        !glbsum
       REAL(KIND=KIND_GRID) work   (lonf)
       REAL(KIND=KIND_GRID) tki    (lonf,levp1)
       REAL(KIND=KIND_GRID) prsi   (lonf,levp1)
@@ -245,6 +248,22 @@
      &                                * (rqg(i,lan,k) + work(i))
           enddo
         enddo
+!
+! compute ptrc (tracer global sum)                               !glbsum
+!
+        if( glbsum ) then                                        !glbsum
+          do nn = 1, ntrac                                       !glbsum
+            nnl = (nn-1)*levs                                    !glbsum
+            do i=1,lons_lat                                      !glbsum
+             ptrc(i,lan,nn) = 0.0                                !glbsum
+             do k=1,levs                                         !glbsum
+               ptrc(i,lan,nn) = ptrc(i,lan,nn) +                 !glbsum
+     &         (prsi(i,k)-prsi(i,k+1))*rqg(i,lan,nnl+k)          !glbsum
+             enddo                                               !glbsum
+            enddo                                                !glbsum
+          enddo                                                  !glbsum
+        endif                                                    !glbsum
+
 !
       enddo
 !

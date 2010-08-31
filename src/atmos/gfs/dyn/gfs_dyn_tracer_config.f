@@ -13,6 +13,7 @@
 !   Nov 19 2009   Sarah Lu, chem tracer specified from ChemRegistry
 !   Feb 09 2009   Sarah Lu, ri/cpi added to gfs_dyn_tracer_type
 !   Aug 17 2010   Sarah Lu, remove debug print
+!   Aug 30 2010   Sarah Lu, set glbsum default as F
 ! -------------------------------------------------------------------------
 !
       module gfs_dyn_tracer_config
@@ -43,7 +44,7 @@
 !
 ! misc tracer options
 !
-      logical, save                  :: glbsum  = .true.
+      logical, save                  :: glbsum  = .false.
 !
 
 ! --- public interface

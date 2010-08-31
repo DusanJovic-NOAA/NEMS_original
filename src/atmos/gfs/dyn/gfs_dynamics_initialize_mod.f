@@ -19,6 +19,7 @@
 !  Oct 16  2009 sarah lu         initialize gfs_dyn_tracer
 !  november 2009 j. wang         grid_gr_dfi for digital filter
 !  Feb 05  2010 j. wang          add option to read in  restart file
+!  Aug 25  2010 sarah lu         add option to compute tracer global sum
 !
 !
 ! !interface:
@@ -505,6 +506,7 @@
       allocate (      gis_dyn%grid_gr6(lonf,lats_node_a_max,lota * 2 ) )
       allocate (      gis_dyn%pwat    (lonf,lats_node_a) )
       allocate (      gis_dyn%ptot    (lonf,lats_node_a) )
+      allocate (      gis_dyn%ptrc   (lonf,lats_node_a,ntrac) )         !glbsum
 !c
       allocate (     gis_dyn%syn_ls_a(4*ls_dim,gis_dyn%lots,latg2) )
       allocate (     gis_dyn%dyn_ls_a(4*ls_dim,gis_dyn%lotd,latg2) )
@@ -581,6 +583,7 @@
       gis_dyn%grid_gr6 = 0.0
       gis_dyn%ptot     = 0.0
       gis_dyn%pwat     = 0.0
+      gis_dyn%ptrc     = 0.0                            !glbsum
 
       if (gis_dyn%lslag) then
         ilat=lats_node_ext
@@ -614,7 +617,7 @@
           gis_dyn%global_lats_a, gis_dyn%lonsperlat,                         &
           gis_dyn%epse, gis_dyn%epso, gis_dyn%plnev_a, gis_dyn%plnod_a,      &
           gis_dyn%plnew_a, gis_dyn%plnow_a, gis_dyn%lats_nodes_a,           &
-          gis_dyn%pwat, gis_dyn%ptot)
+          gis_dyn%pwat, gis_dyn%ptot, gis_dyn%ptrc)                     !glbsum
 !
           gis_dyn% start_step  = .true.
           gis_dyn% reset_step  = .false.

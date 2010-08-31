@@ -18,6 +18,7 @@
 !  Nov 2009           weiyu yang, modified for the GEFS ensemble system.
 !  Nov 2009           jun wang, add digital filter variables into internal state
 !  Feb 2010           jun wang, add logical restart
+!  Aug 2010           sarah lu, add glbsum and ptrc
 !
 ! !interface:
 !
@@ -40,7 +41,7 @@
       use gfs_dyn_tracer_const                                        ! hmhj
       use gfs_dyn_matrix_sig_def
       use gfs_dyn_dfi_mod, only : gfs_dfi_grid_gr                     ! jw
-      use gfs_dyn_tracer_config, only: gfs_dyn_tracer_type
+      use gfs_dyn_tracer_config, only: gfs_dyn_tracer_type, glbsum
 
       implicit none
 
@@ -133,6 +134,7 @@
       real (kind=kind_grid) pdryini
       real (kind=kind_grid) ,allocatable ::	pwat(:,:)
       real (kind=kind_grid) ,allocatable ::	ptot(:,:)
+      real (kind=kind_grid) ,allocatable ::     ptrc(:,:,:)      !glbsum
 
       integer              init,jcount,jpt,node
       integer              ibmsign
