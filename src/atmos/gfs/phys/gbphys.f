@@ -10,7 +10,7 @@
      + CHH,CMM,EPI,DLWSFCI,ULWSFCI,USWSFCI,DSWSFCI,DTSFCI,
      + DQSFCI,GFLUXI,SRUNOFF,T1,Q1,U1,V1,ZLVL,EVBSA,EVCWA,
      + TRANSA,SBSNOA,SNOWCA,SOILM,
-     + RAIN,RAINC,                                              ! added for gocart
+     + RAIN,RAINC,WET1,                                         ! added for gocart
      & TSEA  ,SHELEG,SNCOVR, TG3   ,ZORL  ,CV    ,CVB   ,CVT   ,
      & SLMSK ,VFRAC ,CANOPY,F10M  ,VTYPE ,STYPE ,UUSTAR,FFMM  ,FFHH  ,
      & TMPMIN,TMPMAX,GESHEM,DUSFC ,DVSFC ,DTSFC ,DQSFC ,DLWSFC,ULWSFC,
@@ -230,6 +230,8 @@ Cwei [+1L]: uncomment and add slsoil because of adding OSU LSM
      &,                    oro_land(im)
 Cwei added 10/24/2006
      &,   EVBS(im),EVCW(im),TRANS(im),SBSNO(im),SNOWC(im)
+!Sarah Lu added 09/09/2010 for GOCART
+     +,   WET1(IM)
 !
 Clu [+1L]: add (fm10,fh2)
      &,                    FM10(IM),        FH2(IM)
@@ -670,6 +672,8 @@ Clu_q2m_iter [-1L/+2L]: add tsurf, flag_iter, flag_guess
 Cwei added 10/24/2006
      +               CMM,CHH,ZLVL,EVBS,EVCW,TRANS,SBSNO,
      +               SNOWC,SOILM,
+!Sarah Lu added 09/09/2010 for GOCART
+     +               WET1,
      +               tsurf, flag_iter, flag_guess)
       else                                       ! OSU LSM CALL
         CALL SFC_LAND(IM,LSOIL,PGR,UGRS,VGRS,TGRS,QGRS,

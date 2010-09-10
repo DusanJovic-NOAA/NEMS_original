@@ -9,6 +9,7 @@
 !
 !  March 2007      Shrinivas Moorthi Initial code.
 !  Nov 2009        Sarah Lu, add rain and rainc
+!  Sep 2010        Sarah Lu, add wet1
 !
 ! !INTERFACE:
 !
@@ -134,6 +135,7 @@ allocate(                                  &
           flx_fld%SOILM   (dim1,dim2), &
           flx_fld%RAIN    (dim1,dim2), &
           flx_fld%RAINC   (dim1,dim2), &
+          flx_fld%WET1    (dim1,dim2), &
           stat=iret)
 
     if(iret.ne.0) iret=-4

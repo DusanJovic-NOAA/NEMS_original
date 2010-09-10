@@ -14,6 +14,7 @@
 !! Nov 18 2009       Sarah Lu, rain/rainc added to gbphys call arg
 !! Dec 14 2009       Sarah Lu, add g3d_fld to calling argument,
 !!                             update dqdt after gbphys returns dqdt_v
+!! Sep 09 2010       Sarah Lu, wet1 added to gbphys call arg
 !!
 ! #include "f_hpm.h"
 !!
@@ -402,6 +403,7 @@ c
      +     flx_fld%sbsnoa(istrt,lan),flx_fld%snowca(istrt,lan),
      +     flx_fld%soilm(istrt,lan),
      +     flx_fld%rain(istrt,lan),flx_fld%rainc(istrt,lan),   !added for gocart
+     +     flx_fld%wet1(istrt,lan),                            !added for gocart
      &     sfc_fld%tsea(istrt,lan),sfc_fld%sheleg(istrt,lan),
      &     sfc_fld%sncovr(istrt,lan),sfc_fld%tg3(istrt,lan),
      &     sfc_fld%zorl(istrt,lan),sfc_fld%cv(istrt,lan),

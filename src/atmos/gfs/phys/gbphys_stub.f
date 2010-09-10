@@ -10,7 +10,7 @@
      , CHH,CMM,EPI,DLWSFCI,ULWSFCI,USWSFCI,DSWSFCI,DTSFCI &
      , DQSFCI,GFLUXI,SRUNOFF,T1,Q1,U1,V1,ZLVL,EVBSA,EVCWA &
      , TRANSA,SBSNOA,SNOWCA,SOILM &
-     , RAIN,RAINC   &                                           ! added for gocart
+     , RAIN,RAINC,WET1   &                                      ! added for gocart
      , TSEA  ,SHELEG,SNCOVR, TG3   ,ZORL  ,CV    ,CVB   ,CVT   &
      , SLMSK ,VFRAC ,CANOPY,F10M  ,VTYPE ,STYPE ,UUSTAR,FFMM  ,FFHH   &
      , TMPMIN,TMPMAX,GESHEM,DUSFC ,DVSFC ,DTSFC ,DQSFC ,DLWSFC,ULWSFC &
@@ -88,7 +88,7 @@
      , DSWSFCI(IM),DTSFCI(IM),DQSFCI(IM),GFLUXI(IM),SRUNOFF(IM),T1(IM) &
      , Q1(IM),U1(IM),V1(IM),ZLVL(IM) &
      , EVBSA(IM),EVCWA(IM),TRANSA(IM),SBSNOA(IM),SNOWCA(IM),SOILM(IM) &
-     , RAIN(IM), RAINC(IM)                                            &
+     , RAIN(IM), RAINC(IM),WET1(IM)                                   &
      ,                    phy_f3d(IX,LEVS,num_p3d), phy_f2d(IX,num_p2d) &
      ,                    acv(IM),       acvb(IM), acvt(IM) &
      ,                    oro(im)

@@ -9,6 +9,7 @@
 !
 !  March 2007      Shrinivas Moorthi Initial code.
 !  Nov 2009        Sarah Lu, add rain and rainc
+!  Sep 2010        Sarah Lu, add wet1
 !
 ! !INTERFACE:
 !
@@ -112,5 +113,6 @@
     real(kind=kind_phys),pointer:: SOILM(:,:)=>null()
     real(kind=kind_phys),pointer:: RAIN(:,:)=>null()
     real(kind=kind_phys),pointer:: RAINC(:,:)=>null()
+    real(kind=kind_phys),pointer:: WET1(:,:)=>null()
  end type Flx_Var_Data
  END MODULE gfs_physics_sfc_flx_mod

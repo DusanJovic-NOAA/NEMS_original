@@ -279,7 +279,6 @@ CONTAINS
     real, pointer :: ptr2(:,:), ptr2f(:,:)
 !
 !** added for the NEMS/GFS-GOCART                           ! Sarah Lu
-    real :: global(im,jm)                                   ! Sarah Lu
     real :: local(i1-ig:i2+ig,j1-jg:j2+jg)                  ! Sarah Lu
 
     logical :: doingMasking, ForceBinning_
@@ -413,7 +412,6 @@ CONTAINS
 !   ------------------------------------
     call GridGetLatLons_ ( grid, lon, lat )
 
-    global(:,:) = 0.0                                                   ! Sarah Lu
     local(:,:) = 0.0                                                    ! Sarah Lu
 
 !
@@ -485,9 +483,7 @@ CONTAINS
 
 !* 
 !* NOTE: emissions are S_to_N while GFS is N_to_S                        ! Sarah Lu
-         global(:,:) = ptr2(:,:)                                         ! Sarah lu
-         global(:,1:jm) = global(:,jm:1:-1)                              ! Sarah lu
-         call GFS_Simple_Scatter ( global, local )                       ! Sarah lu
+         call GFS_Simple_Scatter ( ptr2f(:,jmf:1:-1), local )            ! Sarah lu
          var2d(:,:) = local(:,:)                                         ! Sarah Lu
 
 !        Apply mask when present
@@ -523,9 +519,7 @@ CONTAINS
 !*       call ArrayScatter ( var3d(:,:,k), ptr2, grid, rc=ios )          ! Sarah Lu
 !*       if ( ios /= 0 ) call die ( myname, 'cannot scatter v3d'//trim(vname)) !Sarah Lu
 
-         global(:,:) = ptr2(:,:)                                         ! Sarah lu
-         global(:,1:jm) = global(:,jm:1:-1)                              ! Sarah lu
-         call GFS_Simple_Scatter ( global, local )                       ! Sarah lu
+         call GFS_Simple_Scatter ( ptr2f(:,jmf:1:-1), local )            ! Sarah lu
          var3d(:,:,k) = local(:,:)                                       ! Sarah Lu
 
          verb = .false. ! true only for k=1

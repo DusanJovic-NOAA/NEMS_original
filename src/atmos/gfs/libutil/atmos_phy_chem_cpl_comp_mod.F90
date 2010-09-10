@@ -33,6 +33,9 @@
 !! 10Jun 2010     Sarah Lu, Remove aerosol tarcer pointer for iAERO
 !! 30Jun 2010     Sarah Lu, Revise g_fixchar to allow longer char string
 !! 04Aug 2010     Sarah Lu, run_DU[SU,SS,OC,BC] are determined from chemReg
+!! 09Sep 2010     Sarah Lu, wet1 is exported from phys, no longer calculated
+!!                          in the phy-to-chem coupler; correct how cn_prcp
+!!                          and ncn_prcp are computed
 !-----------------------------------------------------------------------
 
       use ESMF_MOD
@@ -292,6 +295,8 @@
 !***  local variables
 !-----------------------------------------------------------------------
 !
+      real, save                       :: deltim
+!
       integer                          :: rc=ESMF_success  ! the error signal variable
       integer                          :: i, j, k
       integer                          :: item_count_phys, item_count_chem
@@ -313,7 +318,7 @@
 
 ! Fortran array for phy export state
       real(ESMF_KIND_R8), pointer, dimension(:,:) ::                    &
-               p_slmsk, p_hpbl,  p_smc1,  p_stype,  p_vtype, p_vfrac,   &
+               p_slmsk, p_hpbl,  p_wet1,  p_stype,  p_vtype, p_vfrac,   &
                p_rain,  p_rainc, p_dtsfci,p_tsea,   p_stc1,  p_u10m,    &
                p_v10m,  p_ustar, p_zorl,  p_hs,     p_ps
 
@@ -344,17 +349,10 @@
       real (ESMF_KIND_R8), allocatable, dimension(:), save ::           &
                               prsln, sh, rh, shs, rho, pi, h
 !
-! SOILTYPE and POROSITY
-      integer, parameter :: DEFINED_SOIL=9
-      real               :: SMCMAX, MAXSMC(DEFINED_SOIL)
-!
       real(kind=kind_phys), parameter :: rovg = con_rd / con_g
       real(kind=kind_phys), parameter :: qmin = 1.0e-10
       real(ESMF_KIND_R8),   parameter :: f_one = 1.0
       real(ESMF_KIND_R8),   parameter :: f_zero = 0.0
-!
-      data MAXSMC /0.421, 0.464, 0.468, 0.434, 0.406, 0.465,     &
-                   0.404, 0.439, 0.421 /
 !
       data vname_2d /'TROPP', 'LWI', 'ZPBL', 'FRLAKE',     &       
                      'FRACI', 'WET1', 'LAI', 'GRN', 'TA',  &     
@@ -391,6 +389,13 @@
         im = size(Array, dim=1)
         jm = size(Array, dim=2)
         km = size(Array, dim=3)
+
+!  --- Retrieve deltim
+        MESSAGE_CHECK="PHY2CHEM_RUN: get deltim from phy_exp"
+        CALL ESMF_AttributeGet(PHY_EXP_STATE, name = 'deltim',  &
+                               value = deltim , rc=RC)
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
 
 !  ---  allocate arrays at mid layers
         allocate (                               &
@@ -445,7 +450,7 @@
 
        call GetPointer_(PHY_EXP_STATE, 'slmsk', p_slmsk, rc)
        call GetPointer_(PHY_EXP_STATE, 'hpbl',  p_hpbl , rc)
-       call GetPointer_(PHY_EXP_STATE, 'smc1',  p_smc1 , rc)
+       call GetPointer_(PHY_EXP_STATE, 'wet1',  p_wet1 , rc)
        call GetPointer_(PHY_EXP_STATE, 'stype', p_stype, rc)
        call GetPointer_(PHY_EXP_STATE, 'vtype', p_vtype, rc)
        call GetPointer_(PHY_EXP_STATE, 'vfrac', p_vfrac, rc)
@@ -649,11 +654,13 @@
         c_ustar  = p_ustar             ! surface velocity scale (m s-1)
         c_lwi    = p_slmsk             ! land-ocean-ice mask  (1)
         c_ps     = p_ps                ! surface pressure (Pa)
+
+        c_wet1   = p_wet1              ! soil wetness (1)
 !
 ! --- 2D array: data copy with unit conversion
-        c_cn_prcp  = 1.E3*p_rainc      ! surface conv. rain flux (kg/m^2/s)
-        c_ncn_prcp = 1.E3*(p_rain - p_rainc) ! Non-conv. precip rate (kg/m^2/s)
-        c_z0h      = p_zorl / 1.E2     ! surface roughness (m)
+        c_cn_prcp  = 1.E3*p_rainc /deltim            ! surface conv. rain flux (kg/m^2/s)
+        c_ncn_prcp = 1.E3*(p_rain - p_rainc)/deltim  ! Non-conv. precip rate (kg/m^2/s)
+        c_z0h      = p_zorl / 1.E2                   ! surface roughness (m)
 
 ! --- 3D array: filp vertical index from bottom-up to top-down
         c_t (:,:,1:km)      = p_t (:,:,km:1:-1)       ! air temp at mid-layer (K)
@@ -701,14 +708,6 @@
           call tpause(km,p_p(i,j,:),p_u(i,j,:),p_v(i,j,:),p_t(i,j,:),h, &
                       ptp,utp,vtp,ttp,htp,shrtp)
 
-!         compute soil wetness
-          if (p_slmsk(i,j) == 1.) then        !<---- over land
-            smcmax = maxsmc(p_stype(i,j))     ! porosity
-            c_wet1(i,j) = p_smc1(i,j) / smcmax
-          else
-            c_wet1(i,j) = f_zero
-          endif
-!
 !         pass local array to chem import
           c_tropp(i,j)    = ptp
           c_ple(i,j,0:km) = pi(km:0:-1)               ! air pressure at interface (Pa)

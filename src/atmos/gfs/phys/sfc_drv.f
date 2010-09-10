@@ -8,6 +8,7 @@
      +               RUNOFF,SLOPETYP,SHDMIN,SHDMAX,SNOALB,SFALB,
      +               CMM,CHH,ZF,EVBS,EVCW,TRANS,SBSNO,
      +               SNOWC,STM,
+     +               WET1,
      +               tsurf, flag_iter, flag_guess)
 !
       USE MACHINE , ONLY : kind_phys
@@ -45,6 +46,8 @@
 Cwei added 10/24/2006
      &, CHH(IM),CMM(IM),ZF(IM),EVBS(IM),EVCW(IM)
      &, TRANS(IM),SBSNO(IM),SNOWC(IM),STM(IM)
+!Sarah Lu added 09/09/2010
+     +, WET1(IM)
 
       logical              flag_iter(im), flag_guess(im), FLAG(IM)
 !
@@ -339,6 +342,8 @@ Cwei added 10/24/2006
         SBSNO(I)=ESNOW
         SNOWC(I)=SNCOVR
         STM(I)=SOILM
+!Sarah Lu added 09/09/2010 (for GOCART)
+        WET1(I) = SMSOIL(1) / SMCMAX
 
        EP(I) = ETP
 !*     TSKIN(I) = TSEA

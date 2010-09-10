@@ -18,6 +18,7 @@
 !                       nfld/name to attribute)
 !  2010/08/10           Sarah Lu, modify internal2export (add deltim to
 !                       attribute)
+!  2010/09/09           Sarah Lu, change smc1 to wet1 
 !
 !!USEs:
 !
@@ -371,7 +372,7 @@
 
       data aerosol_list / 'du', 'su', 'ss', 'oc', 'bc'/ 
 
-      data vname_2d /'slmsk', 'fice', 'hpbl', 'smc1',     &
+      data vname_2d /'slmsk', 'fice', 'hpbl', 'wet1',     &
                      'stype', 'vtype', 'vfrac', 'rainc', &
                      'rain', 'dtsfci', 'tsea', 'stc1',   &
                      'u10m', 'v10m',  'ustar','zorl'/
@@ -574,8 +575,9 @@
             fArr2D => int_state%flx_fld%hpbl
 
 !!        surface_soil_wetness
-          CASE ('smc1')
-            fArr2D => int_state%sfc_fld%smc(1,:,:)
+          CASE ('wet1')
+!           fArr2D => int_state%sfc_fld%smc(1,:,:)
+            fArr2D => int_state%flx_fld%wet1(:,:)
           CASE ('stype')
             fArr2D => int_state%sfc_fld%stype
 
