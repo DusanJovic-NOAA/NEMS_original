@@ -75,7 +75,7 @@
 'TP'         -       R       O      -      -   -  'Sensible temperature, previous step  (K)'
 'UP'         -       R       O      -      -   -  'U wind component, previous step  (m s-1)'
 'VP'         -       R       O      -      -   -  'V wind component, previous step  (m s-1)'
-'E2'         -       R       -      -      -   -  ''
+'E2'         -       R       -      -      -   -  '3D, 2*TKE - turbulent kinetic energy'
 'PSGDT'      -       R       O      -      -   -  'Specific volume  (m3 kg-1)'
 'Z'          -       R       O      -      -   -  'Height at midlayers  (m)'
 
