@@ -9,6 +9,7 @@
 !
 !  2010/07/14     Sarah Lu,  Initial code.
 !  2010/08/10     Sarah Lu,  Add g2d_zerout routine
+!  2010/09/11     Sarah Lu,  Modify g2d_zerout 
 !
 ! !INTERFACE:
 !
@@ -169,40 +170,40 @@
 !---------------------------------------------------------------------------
 ! !IROUTINE: g2d_zerout ---
 
-    subroutine g2d_zerout (gfs_phy_tracer, g2d_fld)
+    subroutine g2d_zerout (g2d_fld, iret)
 
     implicit none
 !
-    type(gfs_phy_tracer_type), intent(in) :: gfs_phy_tracer
     TYPE(G2D_Var_Data), INTENT(inout)     :: g2d_fld
+    integer, intent(out)                  :: iret
 !
     integer k
 !
-    if ( gfs_phy_tracer%doing_DU ) then
+    if (  g2d_fld%du%nfld .gt. 0 ) then
       do k =1, g2d_fld%du%nfld
         g2d_fld%du%diag(k)%flds(:,:) = 0.
       enddo
     endif
 
-    if ( gfs_phy_tracer%doing_SU ) then
+    if (  g2d_fld%su%nfld .gt. 0 ) then
       do k =1, g2d_fld%su%nfld
         g2d_fld%su%diag(k)%flds(:,:) = 0.
       enddo
     endif
 
-    if ( gfs_phy_tracer%doing_SS ) then
+    if (  g2d_fld%ss%nfld .gt. 0 ) then
       do k =1, g2d_fld%ss%nfld
        g2d_fld%ss%diag(k)%flds(:,:) = 0.
       enddo
     endif
 
-    if ( gfs_phy_tracer%doing_OC ) then
+    if (  g2d_fld%oc%nfld .gt. 0 ) then
       do k =1, g2d_fld%oc%nfld
        g2d_fld%oc%diag(k)%flds(:,:) = 0.
       enddo
     endif
 
-    if ( gfs_phy_tracer%doing_BC ) then
+    if (  g2d_fld%bc%nfld .gt. 0 ) then
       do k =1, g2d_fld%bc%nfld
        g2d_fld%bc%diag(k)%flds(:,:) = 0.
       enddo

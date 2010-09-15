@@ -21,6 +21,7 @@
 !! Jul 21 2010     Sarah Lu, output 2d aerosol diag fields
 !! Aug 03 2010     Jun Wang, set llsav through ndfi,first_dfi
 !! Aug 10 2010     Sarah Lu, zerout g2d_fld if needed
+!! Sep 11 2010     Sarah Lu, g2d_fld zerout call modified
 !!
 !!#include "../../inc/f_hpm.h"
       use resol_def
@@ -35,7 +36,6 @@
       use gfs_physics_gridgr_mod,   ONLY: Grid_Var_Data
       use gfs_physics_g3d_mod,      ONLY: G3D_Var_Data
       use gfs_physics_g2d_mod,      ONLY: G2D_Var_Data, g2d_zerout
-      use gfs_phy_tracer_config,    ONLY: gfs_phy_tracer_type
       use d3d_def, ONLY: d3d_zero, CLDCOV
       USE machine, ONLY: KIND_GRID, KIND_GRID, KIND_RAD,
      &                   kind_phys
@@ -46,7 +46,6 @@
       TYPE(Grid_Var_Data)       :: grid_fld 
       TYPE(G3D_Var_Data)        :: g3d_fld 
       TYPE(G2D_Var_Data)        :: g2d_fld 
-      type(gfs_phy_tracer_type) :: gfs_phy_tracer
 !*    REAL(KIND=KIND_GRID)      GRID_GR(lonr*lats_node_r_max,lotgr)
       CHARACTER(16)             :: CFHOUR1
 !!     
@@ -210,8 +209,8 @@
           call d3d_zero
         endif
 !
-        if ( gfs_phy_tracer%doing_GOCART ) then
-          call g2d_zerout(gfs_phy_tracer, g2d_fld)
+        if ( lgocart ) then
+          call g2d_zerout(g2d_fld,ierr)
         endif
 
       ENDIF
