@@ -9,10 +9,9 @@
 #@ tasks_per_node = _TPN_
 #@ node = 1
 #@ node_resources= ConsumableMemory(110GB)
-#@ task_affinity=core(1)
 #@ class = _CLASS_
 #@ group = _GROUP_
-#@ wall_clock_limit = 00:15:00
+#@ wall_clock_limit = 00:08:00
 #@ parallel_threads = _THRD_
 #@ preferences = Feature == "dev"
 #@ network.MPI = sn_all,not_shared,us

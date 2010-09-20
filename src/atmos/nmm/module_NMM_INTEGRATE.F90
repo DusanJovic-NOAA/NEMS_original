@@ -225,6 +225,8 @@
 !
       TYPE(PHYSICS_INTERNAL_STATE),POINTER :: PHY_INT_STATE
 !
+      LOGICAL, SAVE :: TS_INITIALIZED = .FALSE.
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -405,13 +407,14 @@
 !***  for this domain.
 !-----------------------------------------------------------------------
 !
-        time_series_0: IF(NTIMESTEP==0) THEN
+        time_series_0: IF(.NOT.TS_INITIALIZED) THEN
 !
           IF(MYPE<domain_int_state%NUM_PES_FCST)THEN
 !
             CALL TIMESERIES_INITIALIZE(DYN_INT_STATE                    &
                                       ,PHY_INT_STATE                    &
                                       ,MY_DOMAIN_ID                     &
+                                      ,NTIMESTEP                        &
                                       ,IERR)
 !
             IF (IERR /= 0) THEN
@@ -429,6 +432,8 @@
             END IF
 !
           END IF
+!
+          TS_INITIALIZED = .TRUE.
 !
         END IF time_series_0
 !

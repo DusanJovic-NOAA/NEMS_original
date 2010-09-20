@@ -61,7 +61,7 @@
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !-----------------------------------------------------------------------
 
-      subroutine timeseries_initialize(dyn_state,phy_state,domain_id,ierr)
+      subroutine timeseries_initialize(dyn_state,phy_state,domain_id,ntsd,ierr)
 
       use module_dynamics_internal_state, only : dynamics_internal_state
       use module_physics_internal_state, only : physics_internal_state
@@ -71,6 +71,7 @@
       type(dynamics_internal_state),intent(in) :: dyn_state
       type(physics_internal_state),intent(in) :: phy_state
       integer, intent(in) :: domain_id
+      integer, intent(in) :: ntsd
       integer, intent(out) :: ierr
 
       integer :: ios
@@ -81,6 +82,14 @@
       integer :: i,k,j, np, var, inrs,jnrs, nvar, iq, jq, n, l
       logical :: inside
       integer, dimension(8) :: modelstarttime
+      character(len=3) :: trnum
+
+      integer year, month, day, hour, minute, second, ten_thousandth
+      integer :: ihr
+      integer :: nf_hours,nf_minutes
+      real    :: nf_seconds
+      real    :: secfcst
+      integer :: idatv(3),ihrv,idaywk
 
       character*128  :: filename
 
@@ -90,8 +99,6 @@
       ierr = 0
 
       if (initialized) return
-
-!!!   write(0,*)'timeseries_initialize: initialize ... domain_id = ', domain_id
 
       inquire ( file='ts_locations.nml', exist=nml_exist)
 
@@ -121,8 +128,6 @@
          return
       end if
 
-!!!   write(0,*)' fulllevel_vars = ', fulllevel_vars
-
       im = dyn_state%im
       jm = dyn_state%jm
       lm = dyn_state%lm
@@ -133,14 +138,33 @@
       wbd = dyn_state%wbd
       sbd = dyn_state%sbd
 
-      modelstarttime(1) = dyn_state%idat(3)
-      modelstarttime(2) = dyn_state%idat(2)
-      modelstarttime(3) = dyn_state%idat(1)
-      modelstarttime(4) = dyn_state%ihrst
-      modelstarttime(5) = 0
-      modelstarttime(6) = 0
+!! calculate forecast time for this time step
+
+      secfcst = dyn_state%dt * ntsd
+      nf_hours = int(secfcst/3600)
+      ihr = nf_hours
+      nf_minutes = int( mod(secfcst,3600.0)/60.0 )
+      nf_seconds = (secfcst - nf_hours*3600.0) - nf_minutes*60.0
+      if (nf_seconds< 0.000001) nf_seconds=0.0
+      ten_thousandth = nint((secfcst-int(secfcst))*10000)
+
+      call valid(dyn_state%idat,dyn_state%ihrst,nf_hours,idatv,ihrv,idaywk)
+
+      year = idatv(3)
+      month = idatv(2)
+      day = idatv(1)
+      hour = ihrv
+      minute = nf_minutes
+      second = nf_seconds
+
+      modelstarttime(1) = year
+      modelstarttime(2) = month
+      modelstarttime(3) = day
+      modelstarttime(4) = hour
+      modelstarttime(5) = minute
+      modelstarttime(6) = second
       modelstarttime(7) = 0
-      modelstarttime(8) = 0
+      modelstarttime(8) = ntsd
 
       allocate(zint(npoints,lm+1))
       allocate(zmid(npoints,lm))
@@ -155,7 +179,6 @@
 
       do n=1,dyn_state%num_vars
         if (dyn_state%vars(n)%tseries) then
-!        write(0,*)'dyn_state ',trim(dyn_state%vars(n)%vbl_name), dyn_state%vars(n)%tseries
         select case(dyn_state%vars(n)%tkr)
           case(tkr_r2d)
             var2d_number = var2d_number + 1
@@ -192,7 +215,6 @@
 
       do n=1,phy_state%num_vars
         if (phy_state%vars(n)%tseries) then
-!        write(0,*)'phy_state ',trim(phy_state%vars(n)%vbl_name), phy_state%vars(n)%tseries
         select case(phy_state%vars(n)%tkr)
           case(tkr_r2d)
             var2d_number = var2d_number + 1
@@ -212,12 +234,12 @@
                end if
             end do
           case default
-            write(0,*)' tkr = ', phy_state%vars(n)%tkr, trim(phy_state%vars(n)%vbl_name)
-            stop 9
+            write(0,*)' unknown tkr = ', phy_state%vars(n)%tkr, trim(phy_state%vars(n)%vbl_name)
+            ierr = -1
+            return
         end select
         end if
       end do
-!!!   write(0,*)' var2d_number, var3d_number =', var2d_number, var3d_number
 
 
 !! loop over number of points specified in ts_locations namelist and calculate i,j
@@ -298,7 +320,6 @@
 
          end if inside_if
 
-!!!      write(0,*)'timeseries_initialize: done'
       end do np_loop
 
       initialized=.true.
@@ -375,7 +396,7 @@
 
           if (i.eq.ipnt(np) .and. j.eq.jpnt(np)) then
 
-!! iq, jq are i,j indexes that go from 1 to ime-ims+1 on this task and are used instad of global i,j
+!! iq, jq are i,j indexes that go from 1 to ime-ims+1 on this task and are used instead of global i,j
 !! for arrays that are pointers to a 3d subarray of other 4d array. typically these are
 !! variables that point to TRACER or WATER arrays. currently only 4 such arrays are in use 
 !! Q,CW,E2 and O3.
@@ -393,7 +414,7 @@
                return
             end if
 
-            write(tsunit(np)) year,month,day,hour,minute,second,ten_thousandth,0
+            write(tsunit(np)) year,month,day,hour,minute,second,ten_thousandth,ntsd
 
 ! 2d
             do n=1,dyn_state%num_vars

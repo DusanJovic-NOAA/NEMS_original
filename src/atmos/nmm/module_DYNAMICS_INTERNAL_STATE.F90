@@ -142,8 +142,6 @@
 !
         INTEGER(kind=KINT),DIMENSION(:), POINTER :: IDAT
 !
-        INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: INSOIL,INVEG
-!
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: PINT,RTOP           &
                                                    ,T,U,V               &
                                                    ,Q,CW,O3             &
@@ -442,52 +440,52 @@
 !***  Grid-related constants.
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(int_state%PDSG1 (1:LM))                                    !<-- Thicknesses of pressure layers in press. range
-      ALLOCATE(int_state%PSGML1(1:LM))                                    !<-- Pressure at midlayers in pressure range
+      ALLOCATE(int_state%PDSG1 (1:LM))             ;int_state%PDSG1  = R4_IN  !<-- Thicknesses of pressure layers in press. range
+      ALLOCATE(int_state%PSGML1(1:LM))             ;int_state%PSGML1 = R4_IN  !<-- Pressure at midlayers in pressure range
 !   
-      ALLOCATE(int_state%PSG1(1:LM+1))                                    !<-- Pressure at interfaces in pressure range  (Pa)
+      ALLOCATE(int_state%PSG1(1:LM+1))             ;int_state%PSG1   = R4_IN  !<-- Pressure at interfaces in pressure range  (Pa)
 !     
-      ALLOCATE(int_state%KHFILT(JDS:JDE))                                 !<-- Polar filter, truncation wave #, h points
-      ALLOCATE(int_state%KVFILT(JDS:JDE))                                 !<-- Polar filter, truncation wave #, v points
-      ALLOCATE(int_state%NHSMUD(JMS:JME))                                 !<-- Polar smoother for unfiltered variables
+      ALLOCATE(int_state%KHFILT(JDS:JDE))          ;int_state%KHFILT = I4_IN  !<-- Polar filter, truncation wave #, h points
+      ALLOCATE(int_state%KVFILT(JDS:JDE))          ;int_state%KVFILT = I4_IN  !<-- Polar filter, truncation wave #, v points
+      ALLOCATE(int_state%NHSMUD(JMS:JME))          ;int_state%NHSMUD = I4_IN  !<-- Polar smoother for unfiltered variables
 !     
-      ALLOCATE(int_state%HFILT(IDS:IDE,JDS:JDE))                          !<-- Polar filter, h points
-      ALLOCATE(int_state%VFILT(IDS:IDE,JDS:JDE))                          !<-- Polar filter, v points
+      ALLOCATE(int_state%HFILT(IDS:IDE,JDS:JDE))   ;int_state%HFILT  = R4_IN  !<-- Polar filter, h points
+      ALLOCATE(int_state%VFILT(IDS:IDE,JDS:JDE))   ;int_state%VFILT  = R4_IN  !<-- Polar filter, v points
 !     
-      ALLOCATE(int_state%CURV (JDS:JDE))                                  !<-- Curvature term in coriolis force  (m-1)
-      ALLOCATE(int_state%DARE (JDS:JDE))                                  !<-- Gridbox area  (m2)
-      ALLOCATE(int_state%DDMPU(JDS:JDE))                                  !<-- Divergence damping coefficient, x direction  (m)
-      ALLOCATE(int_state%DDV  (JDS:JDE))                                  !<-- Gridbox diagonal distance  (m)
-      ALLOCATE(int_state%DXV  (JDS:JDE))                                  !<-- Delta x, v points  (m)
-      ALLOCATE(int_state%FAD  (JDS:JDE))                                  !<-- Momentum advection factor
-      ALLOCATE(int_state%FAH  (JDS:JDE))                                  !<-- z, w advection factor
-      ALLOCATE(int_state%FCP  (JDS:JDE))                                  !<-- Temperature advection factor
-      ALLOCATE(int_state%FDIV (JDS:JDE))                                  !<-- Divergence factor
-      ALLOCATE(int_state%RARE (JDS:JDE))                                  !<-- 1 / gridbox area  (m-2)
-      ALLOCATE(int_state%RDDV (JDS:JDE))                                  !<-- 1 / gridbox diagonal distance  (m-1)
-      ALLOCATE(int_state%RDXH (JDS:JDE))                                  !<-- 1 / delta x, h points  (m-1)
-      ALLOCATE(int_state%RDXV (JDS:JDE))                                  !<-- 1 / delta x, v points  (m-1)
-      ALLOCATE(int_state%WPDAR(JDS:JDE))                                  !<-- Weight of grid separation filter
+      ALLOCATE(int_state%CURV (JDS:JDE))           ;int_state%CURV   = R4_IN  !<-- Curvature term in coriolis force  (m-1)
+      ALLOCATE(int_state%DARE (JDS:JDE))           ;int_state%DARE   = R4_IN  !<-- Gridbox area  (m2)
+      ALLOCATE(int_state%DDMPU(JDS:JDE))           ;int_state%DDMPU  = R4_IN  !<-- Divergence damping coefficient, x direction  (m)
+      ALLOCATE(int_state%DDV  (JDS:JDE))           ;int_state%DDV    = R4_IN  !<-- Gridbox diagonal distance  (m)
+      ALLOCATE(int_state%DXV  (JDS:JDE))           ;int_state%DXV    = R4_IN  !<-- Delta x, v points  (m)
+      ALLOCATE(int_state%FAD  (JDS:JDE))           ;int_state%FAD    = R4_IN  !<-- Momentum advection factor
+      ALLOCATE(int_state%FAH  (JDS:JDE))           ;int_state%FAH    = R4_IN  !<-- z, w advection factor
+      ALLOCATE(int_state%FCP  (JDS:JDE))           ;int_state%FCP    = R4_IN  !<-- Temperature advection factor
+      ALLOCATE(int_state%FDIV (JDS:JDE))           ;int_state%FDIV   = R4_IN  !<-- Divergence factor
+      ALLOCATE(int_state%RARE (JDS:JDE))           ;int_state%RARE   = R4_IN  !<-- 1 / gridbox area  (m-2)
+      ALLOCATE(int_state%RDDV (JDS:JDE))           ;int_state%RDDV   = R4_IN  !<-- 1 / gridbox diagonal distance  (m-1)
+      ALLOCATE(int_state%RDXH (JDS:JDE))           ;int_state%RDXH   = R4_IN  !<-- 1 / delta x, h points  (m-1)
+      ALLOCATE(int_state%RDXV (JDS:JDE))           ;int_state%RDXV   = R4_IN  !<-- 1 / delta x, v points  (m-1)
+      ALLOCATE(int_state%WPDAR(JDS:JDE))           ;int_state%WPDAR  = R4_IN  !<-- Weight of grid separation filter
 !     
-      ALLOCATE(int_state%WFFTRH(1:2*I_CYCLE))                             !<-- FFT working field, h points
-      ALLOCATE(int_state%WFFTRW(1:2*I_CYCLE))                             !<-- FFT working field, v points
-      ALLOCATE(int_state%NFFTRH(1:15))                                    !<-- FFT working field, h points
-      ALLOCATE(int_state%NFFTRW(1:15))                                    !<-- FFT working field, v points
+      ALLOCATE(int_state%WFFTRH(1:2*I_CYCLE))      ;int_state%WFFTRH = R4_IN  !<-- FFT working field, h points
+      ALLOCATE(int_state%WFFTRW(1:2*I_CYCLE))      ;int_state%WFFTRW = R4_IN  !<-- FFT working field, v points
+      ALLOCATE(int_state%NFFTRH(1:15))             ;int_state%NFFTRH = I4_IN  !<-- FFT working field, h points
+      ALLOCATE(int_state%NFFTRW(1:15))             ;int_state%NFFTRW = I4_IN  !<-- FFT working field, v points
 !
-      ALLOCATE(int_state%F     (IMS:IME,JMS:JME))                         !<-- Coriolis parameter  (s-1)
-      ALLOCATE(int_state%HDACX (IMS:IME,JMS:JME))                         !<-- Lateral diffusion coefficient, h points  (s m-1)
-      ALLOCATE(int_state%HDACY (IMS:IME,JMS:JME))                         !<-- Lateral diffusion coefficient, h points  (s m-1)
-      ALLOCATE(int_state%HDACVX(IMS:IME,JMS:JME))                         !<-- Lateral diffusion coefficient, v points  (s m-1)
-      ALLOCATE(int_state%HDACVY(IMS:IME,JMS:JME))                         !<-- Lateral diffusion coefficient, v points  (s m-1)
+      ALLOCATE(int_state%F     (IMS:IME,JMS:JME))  ;int_state%F      = R4_IN  !<-- Coriolis parameter  (s-1)
+      ALLOCATE(int_state%HDACX (IMS:IME,JMS:JME))  ;int_state%HDACX  = R4_IN  !<-- Lateral diffusion coefficient, h points  (s m-1)
+      ALLOCATE(int_state%HDACY (IMS:IME,JMS:JME))  ;int_state%HDACY  = R4_IN  !<-- Lateral diffusion coefficient, h points  (s m-1)
+      ALLOCATE(int_state%HDACVX(IMS:IME,JMS:JME))  ;int_state%HDACVX = R4_IN  !<-- Lateral diffusion coefficient, v points  (s m-1)
+      ALLOCATE(int_state%HDACVY(IMS:IME,JMS:JME))  ;int_state%HDACVY = R4_IN  !<-- Lateral diffusion coefficient, v points  (s m-1)
 !
 !-----------------------------------------------------------------------
 !***  Local horizontal subdomain limits for all forecast tasks.
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(int_state%LOCAL_ISTART(0:int_state%NUM_PES-1))
-      ALLOCATE(int_state%LOCAL_IEND  (0:int_state%NUM_PES-1))
-      ALLOCATE(int_state%LOCAL_JSTART(0:int_state%NUM_PES-1))
-      ALLOCATE(int_state%LOCAL_JEND  (0:int_state%NUM_PES-1))
+      ALLOCATE(int_state%LOCAL_ISTART(0:int_state%NUM_PES-1))  ;int_state%LOCAL_ISTART = I4_IN 
+      ALLOCATE(int_state%LOCAL_IEND  (0:int_state%NUM_PES-1))  ;int_state%LOCAL_IEND   = I4_IN 
+      ALLOCATE(int_state%LOCAL_JSTART(0:int_state%NUM_PES-1))  ;int_state%LOCAL_JSTART = I4_IN 
+      ALLOCATE(int_state%LOCAL_JEND  (0:int_state%NUM_PES-1))  ;int_state%LOCAL_JEND   = I4_IN 
 !
       int_state%IMS=IMS
       int_state%IME=IME
@@ -505,44 +503,44 @@
 !***  Fixed surface fields
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(int_state%SM(IMS:IME,JMS:JME))                            !<-- Sea mask
-      ALLOCATE(int_state%SICE(IMS:IME,JMS:JME))                          !<-- Sea ice
+      ALLOCATE(int_state%SM(IMS:IME,JMS:JME))             ;int_state%SM   = R4_IN  !<-- Sea mask
+      ALLOCATE(int_state%SICE(IMS:IME,JMS:JME))           ;int_state%SICE = R4_IN  !<-- Sea ice
 !
 !-----------------------------------------------------------------------
 !***  Regional boundary conditions.
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(int_state%UBN(IMS:IME,1:LNSV,1:LM,1:2))                     !<-- U wind component at northern boundary  (m s-1)
-      ALLOCATE(int_state%UBS(IMS:IME,1:LNSV,1:LM,1:2))                     !<-- U wind component at southern boundary  (m s-1)
-      ALLOCATE(int_state%VBN(IMS:IME,1:LNSV,1:LM,1:2))                     !<-- V wind component at northern boundary  (m s-1)
-      ALLOCATE(int_state%VBS(IMS:IME,1:LNSV,1:LM,1:2))                     !<-- V wind component at southern boundary  (m s-1)
+      ALLOCATE(int_state%UBN(IMS:IME,1:LNSV,1:LM,1:2))    ;int_state%UBN  = R4_IN  !<-- U wind component at northern boundary  (m s-1)
+      ALLOCATE(int_state%UBS(IMS:IME,1:LNSV,1:LM,1:2))    ;int_state%UBS  = R4_IN  !<-- U wind component at southern boundary  (m s-1)
+      ALLOCATE(int_state%VBN(IMS:IME,1:LNSV,1:LM,1:2))    ;int_state%VBN  = R4_IN  !<-- V wind component at northern boundary  (m s-1)
+      ALLOCATE(int_state%VBS(IMS:IME,1:LNSV,1:LM,1:2))    ;int_state%VBS  = R4_IN  !<-- V wind component at southern boundary  (m s-1)
 !
-      ALLOCATE(int_state%UBE(1:LNSV,JMS:JME,1:LM,1:2))                     !<-- U wind component at eastern boundary  (m s-1)
-      ALLOCATE(int_state%UBW(1:LNSV,JMS:JME,1:LM,1:2))                     !<-- U wind component at western boundary  (m s-1)
-      ALLOCATE(int_state%VBE(1:LNSV,JMS:JME,1:LM,1:2))                     !<-- V wind component at eastern boundary  (m s-1)
-      ALLOCATE(int_state%VBW(1:LNSV,JMS:JME,1:LM,1:2))                     !<-- V wind component at western boundary  (m s-1)
+      ALLOCATE(int_state%UBE(1:LNSV,JMS:JME,1:LM,1:2))    ;int_state%UBE  = R4_IN  !<-- U wind component at eastern boundary  (m s-1)
+      ALLOCATE(int_state%UBW(1:LNSV,JMS:JME,1:LM,1:2))    ;int_state%UBW  = R4_IN  !<-- U wind component at western boundary  (m s-1)
+      ALLOCATE(int_state%VBE(1:LNSV,JMS:JME,1:LM,1:2))    ;int_state%VBE  = R4_IN  !<-- V wind component at eastern boundary  (m s-1)
+      ALLOCATE(int_state%VBW(1:LNSV,JMS:JME,1:LM,1:2))    ;int_state%VBW  = R4_IN  !<-- V wind component at western boundary  (m s-1)
 !
       IF(.NOT.int_state%GLOBAL)THEN
 !
-        ALLOCATE(int_state%PDBN(IMS:IME,1:LNSH,1:2))                       !<-- Pressure difference at northern boundary  (Pa)
-        ALLOCATE(int_state%PDBS(IMS:IME,1:LNSH,1:2))                       !<-- Pressure difference at southern boundary  (Pa)
+        ALLOCATE(int_state%PDBN(IMS:IME,1:LNSH,1:2))      ;int_state%PDBN = R4_IN  !<-- Pressure difference at northern boundary  (Pa)
+        ALLOCATE(int_state%PDBS(IMS:IME,1:LNSH,1:2))      ;int_state%PDBS = R4_IN  !<-- Pressure difference at southern boundary  (Pa)
 !
-        ALLOCATE(int_state%PDBE(1:LNSH,JMS:JME,1:2))                       !<-- Pressure difference at eastern boundary  (Pa)
-        ALLOCATE(int_state%PDBW(1:LNSH,JMS:JME,1:2))                       !<-- Pressure difference at western boundary  (Pa)
+        ALLOCATE(int_state%PDBE(1:LNSH,JMS:JME,1:2))      ;int_state%PDBE = R4_IN  !<-- Pressure difference at eastern boundary  (Pa)
+        ALLOCATE(int_state%PDBW(1:LNSH,JMS:JME,1:2))      ;int_state%PDBW = R4_IN  !<-- Pressure difference at western boundary  (Pa)
 !
-        ALLOCATE(int_state%QBN(IMS:IME,1:LNSH,1:LM,1:2))                   !<-- Specific humidity at northern boundary  (kg kg-1)
-        ALLOCATE(int_state%QBS(IMS:IME,1:LNSH,1:LM,1:2))                   !<-- Specific humidity at southern boundary  (kg kg-1)
-        ALLOCATE(int_state%TBN(IMS:IME,1:LNSH,1:LM,1:2))                   !<-- Temperature at northern boundary  (K)
-        ALLOCATE(int_state%TBS(IMS:IME,1:LNSH,1:LM,1:2))                   !<-- Temperature at southern boundary  (K)
-        ALLOCATE(int_state%WBN(IMS:IME,1:LNSH,1:LM,1:2))                   !<-- Vertical velocity at northern boundary  (m s-1)
-        ALLOCATE(int_state%WBS(IMS:IME,1:LNSH,1:LM,1:2))                   !<-- Vertical velocity at southern boundary  (m s-1)
+        ALLOCATE(int_state%QBN(IMS:IME,1:LNSH,1:LM,1:2))  ;int_state%QBN  = R4_IN  !<-- Specific humidity at northern boundary  (kg kg-1)
+        ALLOCATE(int_state%QBS(IMS:IME,1:LNSH,1:LM,1:2))  ;int_state%QBS  = R4_IN  !<-- Specific humidity at southern boundary  (kg kg-1)
+        ALLOCATE(int_state%TBN(IMS:IME,1:LNSH,1:LM,1:2))  ;int_state%TBN  = R4_IN  !<-- Temperature at northern boundary  (K)
+        ALLOCATE(int_state%TBS(IMS:IME,1:LNSH,1:LM,1:2))  ;int_state%TBS  = R4_IN  !<-- Temperature at southern boundary  (K)
+        ALLOCATE(int_state%WBN(IMS:IME,1:LNSH,1:LM,1:2))  ;int_state%WBN  = R4_IN  !<-- Vertical velocity at northern boundary  (m s-1)
+        ALLOCATE(int_state%WBS(IMS:IME,1:LNSH,1:LM,1:2))  ;int_state%WBS  = R4_IN  !<-- Vertical velocity at southern boundary  (m s-1)
 !
-        ALLOCATE(int_state%QBE(1:LNSH,JMS:JME,1:LM,1:2))                   !<-- Specific humidity at eastern boundary  (kg kg-1)
-        ALLOCATE(int_state%QBW(1:LNSH,JMS:JME,1:LM,1:2))                   !<-- Specific humidity at western boundary  (kg kg-1)
-        ALLOCATE(int_state%TBE(1:LNSH,JMS:JME,1:LM,1:2))                   !<-- Temperature at eastern boundary  (K)
-        ALLOCATE(int_state%TBW(1:LNSH,JMS:JME,1:LM,1:2))                   !<-- Temperature at western boundary  (K)
-        ALLOCATE(int_state%WBE(1:LNSH,JMS:JME,1:LM,1:2))                   !<-- Vertical velocity at eastern boundary  (m s-1)
-        ALLOCATE(int_state%WBW(1:LNSH,JMS:JME,1:LM,1:2))                   !<-- Vertical velocity at western boundary  (m s-1)
+        ALLOCATE(int_state%QBE(1:LNSH,JMS:JME,1:LM,1:2))  ;int_state%QBE  = R4_IN  !<-- Specific humidity at eastern boundary  (kg kg-1)
+        ALLOCATE(int_state%QBW(1:LNSH,JMS:JME,1:LM,1:2))  ;int_state%QBW  = R4_IN  !<-- Specific humidity at western boundary  (kg kg-1)
+        ALLOCATE(int_state%TBE(1:LNSH,JMS:JME,1:LM,1:2))  ;int_state%TBE  = R4_IN  !<-- Temperature at eastern boundary  (K)
+        ALLOCATE(int_state%TBW(1:LNSH,JMS:JME,1:LM,1:2))  ;int_state%TBW  = R4_IN  !<-- Temperature at western boundary  (K)
+        ALLOCATE(int_state%WBE(1:LNSH,JMS:JME,1:LM,1:2))  ;int_state%WBE  = R4_IN  !<-- Vertical velocity at eastern boundary  (m s-1)
+        ALLOCATE(int_state%WBW(1:LNSH,JMS:JME,1:LM,1:2))  ;int_state%WBW  = R4_IN  !<-- Vertical velocity at western boundary  (m s-1)
 !
       ENDIF
 !
@@ -550,11 +548,11 @@
 !***  Atmospheric variables, hydrostatic (mostly)
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(int_state%PSDT(IMS:IME,JMS:JME))                            !<-- Hydrostatic surface pressure tendency  (Pa s-1)
+      ALLOCATE(int_state%PSDT(IMS:IME,JMS:JME))           ;int_state%PSDT    = R4_IN  !<-- Hydrostatic surface pressure tendency  (Pa s-1)
 !
-      ALLOCATE(int_state%F_ICE(IMS:IME,JMS:JME,1:LM))                        !<-- Fraction of condensate as ice
-      ALLOCATE(int_state%F_RAIN(IMS:IME,JMS:JME,1:LM))                       !<-- Fraction of condensate as rain
-      ALLOCATE(int_state%F_RIMEF(IMS:IME,JMS:JME,1:LM))                      !<-- Fraction of condensate as rime
+      ALLOCATE(int_state%F_ICE(IMS:IME,JMS:JME,1:LM))     ;int_state%F_ICE   = R4_IN  !<-- Fraction of condensate as ice
+      ALLOCATE(int_state%F_RAIN(IMS:IME,JMS:JME,1:LM))    ;int_state%F_RAIN  = R4_IN  !<-- Fraction of condensate as rain
+      ALLOCATE(int_state%F_RIMEF(IMS:IME,JMS:JME,1:LM))   ;int_state%F_RIMEF = R4_IN  !<-- Fraction of condensate as rime
 !
 !-----------------------------------------------------------------------
 !***  THE TRACERS ARRAY HOLDS ALL GENERAL "TRACER" VARIABLES INCLUDING
@@ -563,40 +561,40 @@
 !***  (e.g., chemistry and aerosols) WILL FOLLOW.
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(int_state%TRACERS_SQRT(IMS:IME,JMS:JME,1:LM,1:int_state%NUM_TRACERS_TOTAL))  !<-- Sqrt of tracers (for advection)
-      ALLOCATE(int_state%TRACERS_TEND(IMS:IME,JMS:JME,1:LM,1:int_state%NUM_TRACERS_TOTAL))  !<-- Tendency of tracers (for advection)
+      ALLOCATE(int_state%TRACERS_SQRT(IMS:IME,JMS:JME,1:LM,1:int_state%NUM_TRACERS_TOTAL))  ;int_state%TRACERS_SQRT = R4_IN  !<-- Sqrt of tracers (for advection)
+      ALLOCATE(int_state%TRACERS_TEND(IMS:IME,JMS:JME,1:LM,1:int_state%NUM_TRACERS_TOTAL))  ;int_state%TRACERS_TEND = R4_IN  !<-- Tendency of tracers (for advection)
 !
 !-----------------------------------------------------------------------
 !***  Atmospheric variables, nonhydrostatic
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(int_state%PDWDT(IMS:IME,JMS:JME,1:LM))                     !<-- Correction factor, previous step  (m s-2)
+      ALLOCATE(int_state%PDWDT(IMS:IME,JMS:JME,1:LM))     ;int_state%PDWDT = R4_IN  !<-- Correction factor, previous step  (m s-2)
 !
 !-----------------------------------------------------------------------
 !***  Working arrays passed as arguments between subroutines.
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(int_state%DEF (IMS:IME,JMS:JME,1:LM))                      !<-- Horizontal flow deformation
-      ALLOCATE(int_state%PCNE(IMS:IME,JMS:JME,1:LM))                      !<-- 2nd term of pgf, NE direction
-      ALLOCATE(int_state%PCNW(IMS:IME,JMS:JME,1:LM))                      !<-- 2nd term of pgf, NW direction
-      ALLOCATE(int_state%PCX (IMS:IME,JMS:JME,1:LM))                      !<-- 2nd term of pgf, X direction
-      ALLOCATE(int_state%PCY (IMS:IME,JMS:JME,1:LM))                      !<-- 2nd term of pgf, Y direction
-      ALLOCATE(int_state%PFNE(IMS:IME,JMS:JME,1:LM))                      !<-- Mass flux, NE direction
-      ALLOCATE(int_state%PFNW(IMS:IME,JMS:JME,1:LM))                      !<-- Mass flux, NW direction
-      ALLOCATE(int_state%PFX (IMS:IME,JMS:JME,1:LM))                      !<-- Mass flux, X direction
-      ALLOCATE(int_state%PFY (IMS:IME,JMS:JME,1:LM))                      !<-- Mass flux, Y direction
-      ALLOCATE(int_state%TDIV(IMS:IME,JMS:JME,1:LM))                      !<-- Integrated horizontal mass divergence
+      ALLOCATE(int_state%DEF (IMS:IME,JMS:JME,1:LM))      ;int_state%DEF    = R4_IN  !<-- Horizontal flow deformation
+      ALLOCATE(int_state%PCNE(IMS:IME,JMS:JME,1:LM))      ;int_state%PCNE   = R4_IN  !<-- 2nd term of pgf, NE direction
+      ALLOCATE(int_state%PCNW(IMS:IME,JMS:JME,1:LM))      ;int_state%PCNW   = R4_IN  !<-- 2nd term of pgf, NW direction
+      ALLOCATE(int_state%PCX (IMS:IME,JMS:JME,1:LM))      ;int_state%PCX    = R4_IN  !<-- 2nd term of pgf, X direction
+      ALLOCATE(int_state%PCY (IMS:IME,JMS:JME,1:LM))      ;int_state%PCY    = R4_IN  !<-- 2nd term of pgf, Y direction
+      ALLOCATE(int_state%PFNE(IMS:IME,JMS:JME,1:LM))      ;int_state%PFNE   = R4_IN  !<-- Mass flux, NE direction
+      ALLOCATE(int_state%PFNW(IMS:IME,JMS:JME,1:LM))      ;int_state%PFNW   = R4_IN  !<-- Mass flux, NW direction
+      ALLOCATE(int_state%PFX (IMS:IME,JMS:JME,1:LM))      ;int_state%PFX    = R4_IN  !<-- Mass flux, X direction
+      ALLOCATE(int_state%PFY (IMS:IME,JMS:JME,1:LM))      ;int_state%PFY    = R4_IN  !<-- Mass flux, Y direction
+      ALLOCATE(int_state%TDIV(IMS:IME,JMS:JME,1:LM))      ;int_state%TDIV   = R4_IN  !<-- Integrated horizontal mass divergence
 !
 !-----------------------------------------------------------------------
 !***  FFT arrays
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(INT_STATE%CRAUX1(1:25000))                                 !<-- FFT working field
-      ALLOCATE(INT_STATE%CRAUX2(1:20000))                                 !<-- FFT working field
-      ALLOCATE(INT_STATE%CRAUX3(1:1    ))                                 !<-- FFT working field
-      ALLOCATE(INT_STATE%RCAUX1(1:25000))                                 !<-- FFT working field
-      ALLOCATE(INT_STATE%RCAUX2(1:20000))                                 !<-- FFT working field
-      ALLOCATE(INT_STATE%RCAUX3(1:1    ))                                 !<-- FFT working field
+      ALLOCATE(INT_STATE%CRAUX1(1:25000))                 ;int_state%CRAUX1 = R8_IN  !<-- FFT working field
+      ALLOCATE(INT_STATE%CRAUX2(1:20000))                 ;int_state%CRAUX2 = R8_IN  !<-- FFT working field
+      ALLOCATE(INT_STATE%CRAUX3(1:1    ))                 ;int_state%CRAUX3 = R8_IN  !<-- FFT working field
+      ALLOCATE(INT_STATE%RCAUX1(1:25000))                 ;int_state%RCAUX1 = R8_IN  !<-- FFT working field
+      ALLOCATE(INT_STATE%RCAUX2(1:20000))                 ;int_state%RCAUX2 = R8_IN  !<-- FFT working field
+      ALLOCATE(INT_STATE%RCAUX3(1:1    ))                 ;int_state%RCAUX3 = R8_IN  !<-- FFT working field
 !
 !-----------------------------------------------------------------------
 !
@@ -700,204 +698,6 @@
       int_state%INDX_WATER_END = int_state%INDX_WATER_START + int_state%NUM_WATER - 1
       int_state%WATER=>int_state%TRACERS(:,:,:,int_state%INDX_WATER_START:int_state%INDX_WATER_END)
 !
-!
-!-----------------------------------------------------------------------
-!
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%F(I,J)=-999.
-	int_state%GLAT(I,J)=-999.
-	int_state%GLON(I,J)=-999.
-	int_state%VLAT(I,J)=-999.
-	int_state%VLON(I,J)=-999.
-        int_state%HDACX(I,J)=-999.
-        int_state%HDACY(I,J)=-999.
-        int_state%HDACVX(I,J)=-999.
-        int_state%HDACVY(I,J)=-999.
-      ENDDO
-      ENDDO
-!
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%FIS(I,J)=-1.E6
-      ENDDO
-      ENDDO
-!
-      DO N=1,2
-      DO L=1,LM
-      DO LL=1,int_state%LNSV
-      DO I=IMS,IME
-        int_state%UBN(I,LL,L,N)=-1.E6
-        int_state%UBS(I,LL,L,N)=-1.E6
-        int_state%VBN(I,LL,L,N)=-1.E6
-        int_state%VBS(I,LL,L,N)=-1.E6
-      ENDDO
-      ENDDO
-      ENDDO
-      ENDDO
-!
-      DO N=1,2
-      DO L=1,LM
-      DO J=JMS,JME
-      DO LL=1,int_state%LNSV
-        int_state%UBE(LL,J,L,N)=-1.E6
-        int_state%UBW(LL,J,L,N)=-1.E6
-        int_state%VBE(LL,J,L,N)=-1.E6
-        int_state%VBW(LL,J,L,N)=-1.E6
-      ENDDO
-      ENDDO
-      ENDDO
-      ENDDO
-!
-      IF(.NOT.int_state%GLOBAL)THEN
-!
-        DO N=1,2
-        DO LL=1,int_state%LNSH
-        DO I=IMS,IME
-          int_state%PDBN(I,LL,N)=0.
-          int_state%PDBS(I,LL,N)=0.
-        ENDDO
-        ENDDO
-        ENDDO
-!
-        DO N=1,2
-        DO J=JMS,JME
-        DO LL=1,int_state%LNSH
-          int_state%PDBE(LL,J,N)=0.
-          int_state%PDBW(LL,J,N)=0.
-        ENDDO
-        ENDDO
-        ENDDO
-!
-        DO N=1,2
-        DO L=1,LM
-        DO LL=1,int_state%LNSH
-        DO I=IMS,IME
-          int_state%QBN(I,LL,L,N)=-999.
-          int_state%QBS(I,LL,L,N)=-999.
-          int_state%TBN(I,LL,L,N)=-999.
-          int_state%TBS(I,LL,L,N)=-999.
-          int_state%WBN(I,LL,L,N)=-999.
-          int_state%WBS(I,LL,L,N)=-999.
-        ENDDO
-        ENDDO
-        ENDDO
-        ENDDO
-!
-        DO N=1,2
-        DO L=1,LM
-        DO J=JMS,JME
-        DO LL=1,int_state%LNSH
-          int_state%QBE(LL,J,L,N)=-999.
-          int_state%QBW(LL,J,L,N)=-999.
-          int_state%TBE(LL,J,L,N)=-999.
-          int_state%TBW(LL,J,L,N)=-999.
-          int_state%WBE(LL,J,L,N)=-999.
-          int_state%WBW(LL,J,L,N)=-999.
-        ENDDO
-        ENDDO
-        ENDDO
-        ENDDO
-!
-        int_state%NUM_WORDS_BC_SOUTH=-1                                    !<-- Word counts of 1-D boundary data strings
-        int_state%NUM_WORDS_BC_NORTH=-1                                    !
-        int_state%NUM_WORDS_BC_WEST =-1                                    !
-        int_state%NUM_WORDS_BC_EAST =-1                                    !<--
-!
-      ENDIF
-!
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%PD(I,J)=0.
-        int_state%PDO(I,J)=0.
-        int_state%PSDT(I,J)=-1.E6
-      ENDDO
-      ENDDO
-!
-      DO L=1,LM-1
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%PSGDT(I,J,L)=0.
-      ENDDO
-      ENDDO
-      ENDDO
-!
-      DO L=1,LM
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%F_ICE(I,J,L)=0.
-        int_state%F_RAIN(I,J,L)=0.
-        int_state%F_RIMEF(I,J,L)=0.
-      ENDDO
-      ENDDO
-      ENDDO
-!
-      DO N=1,int_state%NUM_TRACERS_MET
-      DO L=1,LM
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%TRACERS     (I,J,L,N)=1.E-20
-        int_state%TRACERS_SQRT(I,J,L,N)=1.E-20
-        int_state%TRACERS_PREV(I,J,L,N)=1.E-20
-        int_state%TRACERS_TEND(I,J,L,N)=1.E-20
-      ENDDO
-      ENDDO
-      ENDDO
-      ENDDO
-!
-      DO L=1,LM
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%OMGALF(I,J,L)=-1.E6
-        int_state%Q2(I,J,L)    = 0.02
-        int_state%T(I,J,L)     =-1.E6
-        int_state%TP(I,J,L)    =-1.E6
-        int_state%U(I,J,L)     =-1.E6
-        int_state%UP(I,J,L)    =-1.E6
-        int_state%V(I,J,L)     =-1.E6
-        int_state%VP(I,J,L)    =-1.E6
-      ENDDO
-      ENDDO
-      ENDDO
-!
-      DO L=1,LM
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%DWDT(I,J,L)=-1.E6
-        int_state%PDWDT(I,J,L)=-1.E6
-        int_state%RTOP(I,J,L)=-1.E6
-        int_state%W(I,J,L)=-1.E6
-        int_state%Z(I,J,L)=-1.E6
-      ENDDO
-      ENDDO
-      ENDDO
-!
-      DO L=1,LM
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%DEF(I,J,L) =-1.E6
-        int_state%DIV(I,J,L) =-1.E6
-        int_state%PCNE(I,J,L)=-1.E6
-        int_state%PCNW(I,J,L)=-1.E6
-        int_state%PCX(I,J,L) =-1.E6
-        int_state%PCY(I,J,L) =-1.E6
-        int_state%PFNE(I,J,L)=-1.E6
-        int_state%PFNW(I,J,L)=-1.E6
-        int_state%PFX(I,J,L) =-1.E6
-        int_state%PFY(I,J,L) =-1.E6
-        int_state%TDIV(I,J,L)=-1.E6
-        int_state%TCT(I,J,L) =-1.E6
-        int_state%TCU(I,J,L) =-1.E6
-        int_state%TCV(I,J,L) =-1.E6
-      ENDDO
-      ENDDO
-      ENDDO
-!
-      int_state%I_PAR_STA=0
-      int_state%J_PAR_STA=0
-!
-      int_state%PARENT_CHILD_TIME_RATIO=-999
-!
 !-----------------------------------------------------------------------
 !
       END SUBROUTINE SET_INTERNAL_STATE_DYN_2
@@ -906,7 +706,7 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE SET_DYN_VAR_PTR(INT_STATE,ALLOC_FLAG,LM)
+      SUBROUTINE SET_DYN_VAR_PTR(INT_STATE,AF,LM)
 
 !---------------------------------------------------------------
 !***  We must allocate memory within the composite VARS array
@@ -927,86 +727,88 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(DYNAMICS_INTERNAL_STATE),INTENT(INOUT) :: INT_STATE             !<-- Dynamics internal state
-      LOGICAL, INTENT(IN) :: ALLOC_FLAG                                    !<-- Do we want to allocate the variables?
-      INTEGER, INTENT(IN) :: LM                                            !<-- Number of model layers
+      TYPE(DYNAMICS_INTERNAL_STATE),INTENT(INOUT) :: INT_STATE          !<-- Dynamics internal state
+      LOGICAL, INTENT(IN) :: AF         ! ALLOC_FLAG                    !<-- Do we want to allocate the variables?
+      INTEGER, INTENT(IN) :: LM                                         !<-- Number of model layers
 !
 !---------------------
 !***  Local Variables
 !---------------------
 !
-      INTEGER :: N
+      INTEGER :: N,NV
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'IM'        ,int_state%IM        )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'JM'        ,int_state%JM        )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'LM'        ,int_state%LM        )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'IHRST'     ,int_state%IHRST     )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'I_PAR_STA' ,int_state%I_PAR_STA )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'J_PAR_STA' ,int_state%J_PAR_STA )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'LPT2'      ,int_state%LPT2      )
+      NV=int_state%NUM_VARS
 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'DT'        ,int_state%DT        )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'DYH'       ,int_state%DYH       )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'PDTOP'     ,int_state%PDTOP     )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'PT'        ,int_state%PT        )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TLM0D'     ,int_state%TLM0D     )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TPH0D'     ,int_state%TPH0D     )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TSTART'    ,int_state%TSTART    )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'DPHD'      ,int_state%DPHD      )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'DLMD'      ,int_state%DLMD      )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SBD'       ,int_state%SBD       )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'WBD'       ,int_state%WBD       )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'IM'        ,int_state%IM        )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'JM'        ,int_state%JM        )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'LM'        ,int_state%LM        )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'IHRST'     ,int_state%IHRST     )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'I_PAR_STA' ,int_state%I_PAR_STA )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'J_PAR_STA' ,int_state%J_PAR_STA )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'LPT2'      ,int_state%LPT2      )
 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'IDAT'      ,int_state%IDAT    ,1 ,3 )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'DT'        ,int_state%DT        )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'DYH'       ,int_state%DYH       )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'PDTOP'     ,int_state%PDTOP     )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'PT'        ,int_state%PT        )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TLM0D'     ,int_state%TLM0D     )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TPH0D'     ,int_state%TPH0D     )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TSTART'    ,int_state%TSTART    )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'DPHD'      ,int_state%DPHD      )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'DLMD'      ,int_state%DLMD      )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SBD'       ,int_state%SBD       )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'WBD'       ,int_state%WBD       )
 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'DXH'       ,int_state%DXH     ,JDS, JDE )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SG1'       ,int_state%SG1     ,1, LM+1  )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SG2'       ,int_state%SG2     ,1, LM+1  )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'DSG1'      ,int_state%DSG1    ,1, LM    )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'DSG2'      ,int_state%DSG2    ,1, LM    )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SGML1'     ,int_state%SGML1   ,1, LM    )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SGML2'     ,int_state%SGML2   ,1, LM    )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SGM'       ,int_state%SGM     ,1, LM+1  )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'IDAT'      ,int_state%IDAT    ,1 ,3 )
 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'FIS'       ,int_state%FIS     ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'GLAT'      ,int_state%GLAT    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'GLON'      ,int_state%GLON    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'PD'        ,int_state%PD      ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'VLAT'      ,int_state%VLAT    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'VLON'      ,int_state%VLON    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'PDO'       ,int_state%PDO     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'DXH'       ,int_state%DXH     ,JDS, JDE )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SG1'       ,int_state%SG1     ,1, LM+1  )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SG2'       ,int_state%SG2     ,1, LM+1  )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'DSG1'      ,int_state%DSG1    ,1, LM    )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'DSG2'      ,int_state%DSG2    ,1, LM    )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SGML1'     ,int_state%SGML1   ,1, LM    )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SGML2'     ,int_state%SGML2   ,1, LM    )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SGM'       ,int_state%SGM     ,1, LM+1  )
 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'T'         ,int_state%T       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'Q'         ,int_state%Q       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'U'         ,int_state%U       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'V'         ,int_state%V       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'Q2'        ,int_state%Q2      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'CW'        ,int_state%CW      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'W'         ,int_state%W       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'DWDT'      ,int_state%DWDT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'PINT'      ,int_state%PINT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM+1 /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'OMGALF'    ,int_state%OMGALF  ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'O3'        ,int_state%O3      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'DIV'       ,int_state%DIV     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'RTOP'      ,int_state%RTOP    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TCU'       ,int_state%TCU     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TCV'       ,int_state%TCV     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TCT'       ,int_state%TCT     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TP'        ,int_state%TP      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'UP'        ,int_state%UP      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'VP'        ,int_state%VP      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'E2'        ,int_state%E2      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'PSGDT'     ,int_state%PSGDT   ,(/ IMS,JMS,1 /),(/ IME,JME,LM-1 /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'Z'         ,int_state%Z       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'FIS'       ,int_state%FIS     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'GLAT'      ,int_state%GLAT    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'GLON'      ,int_state%GLON    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'PD'        ,int_state%PD      ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'VLAT'      ,int_state%VLAT    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'VLON'      ,int_state%VLON    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'PDO'       ,int_state%PDO     ,(/ IMS,JMS /),(/ IME,JME /) )
 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TRACERS'     ,int_state%TRACERS      ,(/ IMS,JMS,1,1 /),(/ IME,JME,LM,int_state%NUM_TRACERS_TOTAL /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TRACERS_PREV',int_state%TRACERS_PREV ,(/ IMS,JMS,1,1 /),(/ IME,JME,LM,int_state%NUM_TRACERS_TOTAL /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'T'         ,int_state%T       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'Q'         ,int_state%Q       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'U'         ,int_state%U       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'V'         ,int_state%V       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'Q2'        ,int_state%Q2      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'CW'        ,int_state%CW      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'W'         ,int_state%W       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'DWDT'      ,int_state%DWDT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'PINT'      ,int_state%PINT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM+1 /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'OMGALF'    ,int_state%OMGALF  ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'O3'        ,int_state%O3      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'DIV'       ,int_state%DIV     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'RTOP'      ,int_state%RTOP    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TCU'       ,int_state%TCU     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TCV'       ,int_state%TCV     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TCT'       ,int_state%TCT     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TP'        ,int_state%TP      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'UP'        ,int_state%UP      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'VP'        ,int_state%VP      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'E2'        ,int_state%E2      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'PSGDT'     ,int_state%PSGDT   ,(/ IMS,JMS,1 /),(/ IME,JME,LM-1 /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'Z'         ,int_state%Z       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
 
-      DO N=1,int_state%NUM_VARS
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TRACERS'     ,int_state%TRACERS      ,(/ IMS,JMS,1,1 /),(/ IME,JME,LM,int_state%NUM_TRACERS_TOTAL /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TRACERS_PREV',int_state%TRACERS_PREV ,(/ IMS,JMS,1,1 /),(/ IME,JME,LM,int_state%NUM_TRACERS_TOTAL /) )
+
+      DO N=1,NV
         IF (int_state%VARS(N)%TKR==0) THEN
           write(0,*)' Error in SET_DYN_VAR_PTR. '
           write(0,*)' Variable ',TRIM(int_state%VARS(N)%VBL_NAME),' is not associated to an internal state fortran pointer'

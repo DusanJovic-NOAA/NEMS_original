@@ -652,7 +652,7 @@ nmm_b_history.04_nemsio.012h_00m_00.00s  nmm_b_history.04_nemsio.024h_00m_00.00s
 nmm_b_restart.04.012h_00m_00.00s  nmm_b_restart.04.024h_00m_00.00s \
 nmm_b_restart.04_nemsio.012h_00m_00.00s  nmm_b_restart.04_nemsio.024h_00m_00.00s"
 #---------------------
-export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=nests ; export TS=#
+export TPN=64       ; export THRD=1      ; export GS=#       ; export GBRG=nests ; export TS=#
 export INPES=02     ; export JNPES=03    ; export WTPG=1     ; export FCSTL=24
 export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export RGS=false  ; export WGS=false
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=02

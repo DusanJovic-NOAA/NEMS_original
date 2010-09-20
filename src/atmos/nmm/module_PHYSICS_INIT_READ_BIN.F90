@@ -509,6 +509,7 @@
 !
         CALL DSTRB(TEMP1,int_state%CW,1,1,1,LM,K)
       ENDDO
+      CALL HALO_EXCH(int_state%CW,LM,2,2)
 !
 !-----------------------------------------------------------------------
 !

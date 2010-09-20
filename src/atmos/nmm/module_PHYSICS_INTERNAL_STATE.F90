@@ -18,6 +18,7 @@
 !
 !-----------------------------------------------------------------------
 !
+
       USE MODULE_INCLUDE
       USE MODULE_DM_PARALLEL,ONLY : IDS,IDE,JDS,JDE                     &
                                    ,IMS,IME,JMS,JME                     &
@@ -142,7 +143,7 @@
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: EXCH_H,PPTDAT
 !
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: RQVBLTEN,RTHBLTEN   &
-                                                   ,TCUCN,W0AVG,WINT
+                                                   ,TCUCN,W0AVG
 !
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: CLDFRA              &
                                                    ,F_ICE,F_RAIN        &
@@ -466,49 +467,48 @@
 !***  Allocate the arrays of the internal state.
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(int_state%DSG2(1:LM))     ! Delta sigma (bottom domain)
-      ALLOCATE(int_state%PDSG1(1:LM))    ! Delta pressure (top domain)
-      ALLOCATE(int_state%PSGML1(1:LM))   ! Midlayer pressure (top domain)
-      ALLOCATE(int_state%SGML2(1:LM))    ! Midlayer sigma (bottom domain)
+      ALLOCATE(int_state%DSG2(1:LM))            ;int_state%DSG2   = R4_IN ! Delta sigma (bottom domain)
+      ALLOCATE(int_state%PDSG1(1:LM))           ;int_state%PDSG1  = R4_IN ! Delta pressure (top domain)
+      ALLOCATE(int_state%PSGML1(1:LM))          ;int_state%PSGML1 = R4_IN ! Midlayer pressure (top domain)
+      ALLOCATE(int_state%SGML2(1:LM))           ;int_state%SGML2  = R4_IN ! Midlayer sigma (bottom domain)
 !
-      ALLOCATE(INT_STATE%SG1(1:LM+1))    ! First hybrid component
-      ALLOCATE(INT_STATE%PSG1(1:LM+1))   ! First hybrid component press.
-      ALLOCATE(INT_STATE%SG2(1:LM+1))    ! Second hybrid component
-      ALLOCATE(INT_STATE%SGM(1:LM+1))    ! Reference sigma
+      ALLOCATE(INT_STATE%SG1(1:LM+1))           ;int_state%SG1    = R4_IN ! First hybrid component
+      ALLOCATE(INT_STATE%PSG1(1:LM+1))          ;int_state%PSG1   = R4_IN ! First hybrid component press.
+      ALLOCATE(INT_STATE%SG2(1:LM+1))           ;int_state%SG2    = R4_IN ! Second hybrid component
+      ALLOCATE(INT_STATE%SGM(1:LM+1))           ;int_state%SGM    = R4_IN ! Reference sigma
 !
-      ALLOCATE(int_state%RDXH(JDS:JDE))  ! 1./DX for H point rows !zj
-      ALLOCATE(int_state%RDXV(JDS:JDE))  ! 1./DX for V point rows !zj
+      ALLOCATE(int_state%RDXH(JDS:JDE))         ;int_state%RDXH   = R4_IN ! 1./DX for H point rows !zj
+      ALLOCATE(int_state%RDXV(JDS:JDE))         ;int_state%RDXV   = R4_IN ! 1./DX for V point rows !zj
 !
-      ALLOCATE(int_state%DXH(JDS:JDE))   ! DX for H point rows
-      ALLOCATE(int_state%DXV(JDS:JDE))   ! DX for V point rows
+      ALLOCATE(int_state%DXH(JDS:JDE))          ;int_state%DXH    = R4_IN ! DX for H point rows
+      ALLOCATE(int_state%DXV(JDS:JDE))          ;int_state%DXV    = R4_IN ! DX for V point rows
 !
-      ALLOCATE(int_state%GLAT(IMS:IME,JMS:JME))    ! Geographic latitude (radians)
-      ALLOCATE(int_state%GLON(IMS:IME,JMS:JME))    ! Geographic longitude (radians, positive east)
+      ALLOCATE(int_state%GLAT(IMS:IME,JMS:JME)) ;int_state%GLAT   = R4_IN ! Geographic latitude (radians)
+      ALLOCATE(int_state%GLON(IMS:IME,JMS:JME)) ;int_state%GLON   = R4_IN ! Geographic longitude (radians, positive east)
 !
 !-----------------------------------------------------------------------
 !***  Local horizontal subdomain limits for all forecast tasks.
 !-----------------------------------------------------------------------
 !
       NUM_PES=int_state%NUM_PES
-      ALLOCATE(int_state%LOCAL_ISTART(0:NUM_PES-1))
-      ALLOCATE(int_state%LOCAL_IEND  (0:NUM_PES-1))
-      ALLOCATE(int_state%LOCAL_JSTART(0:NUM_PES-1))
-      ALLOCATE(int_state%LOCAL_JEND  (0:NUM_PES-1))
+      ALLOCATE(int_state%LOCAL_ISTART(0:NUM_PES-1)) ;int_state%LOCAL_ISTART = R4_IN 
+      ALLOCATE(int_state%LOCAL_IEND  (0:NUM_PES-1)) ;int_state%LOCAL_IEND   = R4_IN 
+      ALLOCATE(int_state%LOCAL_JSTART(0:NUM_PES-1)) ;int_state%LOCAL_JSTART = R4_IN 
+      ALLOCATE(int_state%LOCAL_JEND  (0:NUM_PES-1)) ;int_state%LOCAL_JEND   = R4_IN 
 !
 !-----------------------------------------------------------------------
 !***  Prognostic arrays
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(int_state%DUDT(IMS:IME,JMS:JME,1:LM))      ! U wind component tendency  (m s-2)
-      ALLOCATE(int_state%DVDT(IMS:IME,JMS:JME,1:LM))      ! V wind component tendency  (m s-2)
+      ALLOCATE(int_state%DUDT(IMS:IME,JMS:JME,1:LM))       ;int_state%DUDT     = R4_IN ! U wind component tendency  (m s-2)
+      ALLOCATE(int_state%DVDT(IMS:IME,JMS:JME,1:LM))       ;int_state%DVDT     = R4_IN ! V wind component tendency  (m s-2)
 !
-      ALLOCATE(int_state%RQVBLTEN(IMS:IME,JMS:JME,1:LM+1)) ! Specific humidity tendency from turbulence  (kg kg-1 s-1)
-      ALLOCATE(int_state%RTHBLTEN(IMS:IME,JMS:JME,1:LM+1)) ! Theta tendency from turbulence  (K s-1)
+      ALLOCATE(int_state%RQVBLTEN(IMS:IME,JMS:JME,1:LM+1)) ;int_state%RQVBLTEN = R4_IN ! Specific humidity tendency from turbulence  (kg kg-1 s-1)
+      ALLOCATE(int_state%RTHBLTEN(IMS:IME,JMS:JME,1:LM+1)) ;int_state%RTHBLTEN = R4_IN ! Theta tendency from turbulence  (K s-1)
 !
-      ALLOCATE(int_state%W0AVG(IMS:IME,1:LM+1,JMS:JME))   ! Time-averaged vertical velocity (for K-F)  (m s-1)
-      ALLOCATE(int_state%WINT(IMS:IME,1:LM+1,JMS:JME))    ! Interface vertical velocity (m s-1)
+      ALLOCATE(int_state%W0AVG(IMS:IME,1:LM+1,JMS:JME))    ;int_state%W0AVG    = R4_IN ! Time-averaged vertical velocity (for K-F)  (m s-1)
 !
-      ALLOCATE(int_state%PPTDAT(IMS:IME,JMS:JME,1:int_state%PCPHR))
+      ALLOCATE(int_state%PPTDAT(IMS:IME,JMS:JME,1:int_state%PCPHR)) ;int_state%PPTDAT = R4_IN 
 
 !-----------------------------------------------------------------------
 !***  Only for GFS physics
@@ -517,40 +517,40 @@
       IF ( int_state%GFS ) THEN
         REWIND (KOZPL)
         READ (KOZPL) PL_COEFF, LATSOZP, LEVOZP, TIMEOZ
-        ALLOCATE(int_state%OZPLIN(LATSOZP,LEVOZP,PL_COEFF,TIMEOZ))
+        ALLOCATE(int_state%OZPLIN(LATSOZP,LEVOZP,PL_COEFF,TIMEOZ)) ;int_state%OZPLIN = R8_IN 
       ENDIF
 !
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(int_state%LPBL(IMS:IME,JMS:JME))     ! Model layer containing top of the PBL
-      ALLOCATE(int_state%DDATA(IMS:IME,JMS:JME))    ! Observed precip to each physics timestep (kg m-2)
-      ALLOCATE(int_state%MAVAIL(IMS:IME,JMS:JME))   ! Moisture availability
-      ALLOCATE(int_state%QCG(IMS:IME,JMS:JME))      ! Cloud water mixing ratio at the surface  (kg kg-1)
-      ALLOCATE(int_state%QSG(IMS:IME,JMS:JME))      ! Surface saturation water vapor mixing ratio  (kg kg-1)
-      ALLOCATE(int_state%QVG(IMS:IME,JMS:JME))      ! Water vapor mixing ratio at the surface  (kg kg-1)
-      ALLOCATE(int_state%SHDMAX(IMS:IME,JMS:JME))   ! Maximum areal fractional coverage of annual green vegetation
-      ALLOCATE(int_state%SHDMIN(IMS:IME,JMS:JME))   ! Minimum areal fractional coverage of annual green vegetation
-      ALLOCATE(int_state%SOILT1(IMS:IME,JMS:JME))   ! Snow temperature  (K)
-      ALLOCATE(int_state%STDH(IMS:IME,JMS:JME))     ! Standard deviation of topography height (m) !zj
-      ALLOCATE(int_state%TSNAV(IMS:IME,JMS:JME))    ! Average snow temperature  (K)
-      ALLOCATE(int_state%CROT(IMS:IME,JMS:JME))     ! Cosine of the angle between Earth and model coordinates
-      ALLOCATE(int_state%SROT(IMS:IME,JMS:JME))     ! Sine of the angle between Earth and model coordinates
-      ALLOCATE(int_state%HSTDV(IMS:IME,JMS:JME))    ! Standard deviation of the height (m)
-      ALLOCATE(int_state%HCNVX(IMS:IME,JMS:JME))    ! Orographic convexity
-      ALLOCATE(int_state%HASYW(IMS:IME,JMS:JME))    ! Orographic asymmetry, west wind direction
-      ALLOCATE(int_state%HASYS(IMS:IME,JMS:JME))    ! Orographic asymmetry, south wind direction
-      ALLOCATE(int_state%HASYSW(IMS:IME,JMS:JME))   ! Orographic asymmetry, southwest wind direction
-      ALLOCATE(int_state%HASYNW(IMS:IME,JMS:JME))   ! Orographic asymmetry, northwest wind direction
-      ALLOCATE(int_state%HLENW(IMS:IME,JMS:JME))    ! Orographic length scale, west wind direction
-      ALLOCATE(int_state%HLENS(IMS:IME,JMS:JME))    ! Orographic length scale, south wind direction
-      ALLOCATE(int_state%HLENSW(IMS:IME,JMS:JME))   ! Orographic length scale, southwest wind direction
-      ALLOCATE(int_state%HLENNW(IMS:IME,JMS:JME))   ! Orographic length scale, northwest wind direction
-      ALLOCATE(int_state%HANGL(IMS:IME,JMS:JME))    ! Angle of mountain range with respect to east
-      ALLOCATE(int_state%HANIS(IMS:IME,JMS:JME))    ! Anisotropy/aspect ratio
-      ALLOCATE(int_state%HSLOP(IMS:IME,JMS:JME))    ! Slope of orography
-      ALLOCATE(int_state%HZMAX(IMS:IME,JMS:JME))    ! Maximum height about mean terrain
-      ALLOCATE(int_state%Q02(IMS:IME,JMS:JME))     ! Specific humidity at 2-m  (kg k-1)
-      ALLOCATE(int_state%TH02(IMS:IME,JMS:JME))    ! Theta at 2-m  (K)
+      ALLOCATE(int_state%LPBL(IMS:IME,JMS:JME))   ;int_state%LPBL   = I4_IN ! Model layer containing top of the PBL
+      ALLOCATE(int_state%DDATA(IMS:IME,JMS:JME))  ;int_state%DDATA  = R4_IN ! Observed precip to each physics timestep (kg m-2)
+      ALLOCATE(int_state%MAVAIL(IMS:IME,JMS:JME)) ;int_state%MAVAIL = R4_IN ! Moisture availability
+      ALLOCATE(int_state%QCG(IMS:IME,JMS:JME))    ;int_state%QCG    = R4_IN ! Cloud water mixing ratio at the surface  (kg kg-1)
+      ALLOCATE(int_state%QSG(IMS:IME,JMS:JME))    ;int_state%QSG    = R4_IN ! Surface saturation water vapor mixing ratio  (kg kg-1)
+      ALLOCATE(int_state%QVG(IMS:IME,JMS:JME))    ;int_state%QVG    = R4_IN ! Water vapor mixing ratio at the surface  (kg kg-1)
+      ALLOCATE(int_state%SHDMAX(IMS:IME,JMS:JME)) ;int_state%SHDMAX = R4_IN ! Maximum areal fractional coverage of annual green vegetation
+      ALLOCATE(int_state%SHDMIN(IMS:IME,JMS:JME)) ;int_state%SHDMIN = R4_IN ! Minimum areal fractional coverage of annual green vegetation
+      ALLOCATE(int_state%SOILT1(IMS:IME,JMS:JME)) ;int_state%SOILT1 = R4_IN ! Snow temperature  (K)
+      ALLOCATE(int_state%STDH(IMS:IME,JMS:JME))   ;int_state%STDH   = R4_IN ! Standard deviation of topography height (m) !zj
+      ALLOCATE(int_state%TSNAV(IMS:IME,JMS:JME))  ;int_state%TSNAV  = R4_IN ! Average snow temperature  (K)
+      ALLOCATE(int_state%CROT(IMS:IME,JMS:JME))   ;int_state%CROT   = R4_IN ! Cosine of the angle between Earth and model coordinates
+      ALLOCATE(int_state%SROT(IMS:IME,JMS:JME))   ;int_state%SROT   = R4_IN ! Sine of the angle between Earth and model coordinates
+      ALLOCATE(int_state%HSTDV(IMS:IME,JMS:JME))  ;int_state%HSTDV  = R4_IN ! Standard deviation of the height (m)
+      ALLOCATE(int_state%HCNVX(IMS:IME,JMS:JME))  ;int_state%HCNVX  = R4_IN ! Orographic convexity
+      ALLOCATE(int_state%HASYW(IMS:IME,JMS:JME))  ;int_state%HASYW  = R4_IN ! Orographic asymmetry, west wind direction
+      ALLOCATE(int_state%HASYS(IMS:IME,JMS:JME))  ;int_state%HASYS  = R4_IN ! Orographic asymmetry, south wind direction
+      ALLOCATE(int_state%HASYSW(IMS:IME,JMS:JME)) ;int_state%HASYSW = R4_IN ! Orographic asymmetry, southwest wind direction
+      ALLOCATE(int_state%HASYNW(IMS:IME,JMS:JME)) ;int_state%HASYNW = R4_IN ! Orographic asymmetry, northwest wind direction
+      ALLOCATE(int_state%HLENW(IMS:IME,JMS:JME))  ;int_state%HLENW  = R4_IN ! Orographic length scale, west wind direction
+      ALLOCATE(int_state%HLENS(IMS:IME,JMS:JME))  ;int_state%HLENS  = R4_IN ! Orographic length scale, south wind direction
+      ALLOCATE(int_state%HLENSW(IMS:IME,JMS:JME)) ;int_state%HLENSW = R4_IN ! Orographic length scale, southwest wind direction
+      ALLOCATE(int_state%HLENNW(IMS:IME,JMS:JME)) ;int_state%HLENNW = R4_IN ! Orographic length scale, northwest wind direction
+      ALLOCATE(int_state%HANGL(IMS:IME,JMS:JME))  ;int_state%HANGL  = R4_IN ! Angle of mountain range with respect to east
+      ALLOCATE(int_state%HANIS(IMS:IME,JMS:JME))  ;int_state%HANIS  = R4_IN ! Anisotropy/aspect ratio
+      ALLOCATE(int_state%HSLOP(IMS:IME,JMS:JME))  ;int_state%HSLOP  = R4_IN ! Slope of orography
+      ALLOCATE(int_state%HZMAX(IMS:IME,JMS:JME))  ;int_state%HZMAX  = R4_IN ! Maximum height about mean terrain
+      ALLOCATE(int_state%Q02(IMS:IME,JMS:JME))    ;int_state%Q02    = R4_IN ! Specific humidity at 2-m  (kg k-1)
+      ALLOCATE(int_state%TH02(IMS:IME,JMS:JME))   ;int_state%TH02   = R4_IN ! Theta at 2-m  (K)
 !
 !-----------------------------------------------------------------------
 !***  GFS physics
@@ -558,108 +558,38 @@
 !
       gfs_physics: IF(int_state%GFS)THEN
 !
-        ALLOCATE(int_state%DDY              (JTS:JTE))         !
-        ALLOCATE(int_state%JINDX1           (JTS:JTE))         !
-        ALLOCATE(int_state%JINDX2           (JTS:JTE))         !
+        ALLOCATE(int_state%DDY              (JTS:JTE))    ;int_state%DDY    = R8_IN     !
+        ALLOCATE(int_state%JINDX1           (JTS:JTE))    ;int_state%JINDX1 = R8_IN     !
+        ALLOCATE(int_state%JINDX2           (JTS:JTE))    ;int_state%JINDX2 = R8_IN     !
 !
-        ALLOCATE(int_state%DUGWD    (IMS:IME,JMS:JME))         ! U comp. GWD tend (m s-1)
-        ALLOCATE(int_state%DVGWD    (IMS:IME,JMS:JME))         ! V comp. GWD tend (m s-1)
+        ALLOCATE(int_state%DUGWD    (IMS:IME,JMS:JME))    ;int_state%DUGWD  = R8_IN     ! U comp. GWD tend (m s-1)
+        ALLOCATE(int_state%DVGWD    (IMS:IME,JMS:JME))    ;int_state%DVGWD  = R8_IN     ! V comp. GWD tend (m s-1)
 !
-        ALLOCATE(int_state%TMPMIN   (IMS:IME,JMS:JME))         ! Max temp (K)
-        ALLOCATE(int_state%TMPMAX   (IMS:IME,JMS:JME))         ! Min temp (K)
+        ALLOCATE(int_state%TMPMIN   (IMS:IME,JMS:JME))    ;int_state%TMPMIN = R8_IN     ! Max temp (K)
+        ALLOCATE(int_state%TMPMAX   (IMS:IME,JMS:JME))    ;int_state%TMPMAX = R8_IN     ! Min temp (K)
 !
-        ALLOCATE(int_state%SFCNSW   (IMS:IME,JMS:JME))         !
-        ALLOCATE(int_state%SFCDSW   (IMS:IME,JMS:JME))         !
-        ALLOCATE(int_state%SFALB    (IMS:IME,JMS:JME))         !
-        ALLOCATE(int_state%SFCDLW   (IMS:IME,JMS:JME))         !
-        ALLOCATE(int_state%TSFLW    (IMS:IME,JMS:JME))         !
+        ALLOCATE(int_state%SFCNSW   (IMS:IME,JMS:JME))    ;int_state%SFCNSW = R8_IN     !
+        ALLOCATE(int_state%SFCDSW   (IMS:IME,JMS:JME))    ;int_state%SFCDSW = R8_IN     !
+        ALLOCATE(int_state%SFALB    (IMS:IME,JMS:JME))    ;int_state%SFALB  = R8_IN     !
+        ALLOCATE(int_state%SFCDLW   (IMS:IME,JMS:JME))    ;int_state%SFCDLW = R8_IN     !
+        ALLOCATE(int_state%TSFLW    (IMS:IME,JMS:JME))    ;int_state%TSFLW  = R8_IN     !
 !
-        ALLOCATE(int_state%ZORFCS   (IMS:IME,JMS:JME))         !
-        ALLOCATE(int_state%SIHFCS   (IMS:IME,JMS:JME))         !
-        ALLOCATE(int_state%SICFCS   (IMS:IME,JMS:JME))         !
-        ALLOCATE(int_state%SLPFCS   (IMS:IME,JMS:JME))         !
-        ALLOCATE(int_state%TG3FCS   (IMS:IME,JMS:JME))         !
-        ALLOCATE(int_state%VEGFCS   (IMS:IME,JMS:JME))         !
-        ALLOCATE(int_state%VETFCS   (IMS:IME,JMS:JME))         !
-        ALLOCATE(int_state%SOTFCS   (IMS:IME,JMS:JME))         !
-        ALLOCATE(int_state%ALBFC1   (IMS:IME,JMS:JME,4))       !
-        ALLOCATE(int_state%ALFFC1   (IMS:IME,JMS:JME,2))       !
+        ALLOCATE(int_state%ZORFCS   (IMS:IME,JMS:JME))    ;int_state%ZORFCS = R8_IN     !
+        ALLOCATE(int_state%SIHFCS   (IMS:IME,JMS:JME))    ;int_state%SIHFCS = R8_IN     !
+        ALLOCATE(int_state%SICFCS   (IMS:IME,JMS:JME))    ;int_state%SICFCS = R8_IN     !
+        ALLOCATE(int_state%SLPFCS   (IMS:IME,JMS:JME))    ;int_state%SLPFCS = R8_IN     !
+        ALLOCATE(int_state%TG3FCS   (IMS:IME,JMS:JME))    ;int_state%TG3FCS = R8_IN     !
+        ALLOCATE(int_state%VEGFCS   (IMS:IME,JMS:JME))    ;int_state%VEGFCS = R8_IN     !
+        ALLOCATE(int_state%VETFCS   (IMS:IME,JMS:JME))    ;int_state%VETFCS = R8_IN     !
+        ALLOCATE(int_state%SOTFCS   (IMS:IME,JMS:JME))    ;int_state%SOTFCS = R8_IN     !
 !
-        ALLOCATE(int_state%SWH      (IMS:IME,JMS:JME,LM))      !
-        ALLOCATE(int_state%HLW      (IMS:IME,JMS:JME,LM))      !
+        ALLOCATE(int_state%ALBFC1   (IMS:IME,JMS:JME,4))  ;int_state%ALBFC1 = R8_IN     !
+        ALLOCATE(int_state%ALFFC1   (IMS:IME,JMS:JME,2))  ;int_state%ALFFC1 = R8_IN     !
+        ALLOCATE(int_state%SWH      (IMS:IME,JMS:JME,LM)) ;int_state%SWH    = R8_IN     !
+        ALLOCATE(int_state%HLW      (IMS:IME,JMS:JME,LM)) ;int_state%HLW    = R8_IN     !
 !
-        ALLOCATE(int_state%PHY_F2DV (IMS:IME,JMS:JME,3))       ! for Zhao =3, Ferr=1
-        ALLOCATE(int_state%PHY_F3DV (IMS:IME,JMS:JME,LM,4))    ! for Zhao =4, Ferr=3
-!
-        int_state%SOLCON=0.0D0
-        int_state%SLAG  =0.0D0
-        int_state%SDEC  =0.0D0
-        int_state%CDEC  =0.0D0
-!
-        DO J=JTS,JTE
-          int_state%DDY   (J)=0.0D0
-          int_state%JINDX1(J)=0
-          int_state%JINDX2(J)=0
-        ENDDO
-!
-        DO J=JMS,JME
-        DO I=IMS,IME
-!
-          int_state%DUGWD  (I,J)=0.0D0
-          int_state%DVGWD  (I,J)=0.0D0
-!
-          int_state%TMPMIN (I,J)=373.0D0
-          int_state%TMPMAX (I,J)=173.0D0
-!
-          int_state%SFCNSW (I,J)=0.0D0
-          int_state%SFCDSW (I,J)=0.0D0
-          int_state%SFALB  (I,J)=0.0D0
-          int_state%SFCDLW (I,J)=0.0D0
-          int_state%TSFLW  (I,J)=0.0D0
-          int_state%ZORFCS (I,J)=-1.D6
-          int_state%SIHFCS (I,J)=-1.D6
-          int_state%SICFCS (I,J)=-1.D6
-          int_state%SLPFCS (I,J)=-1.D6
-          int_state%TG3FCS (I,J)=-1.D6
-          int_state%VEGFCS (I,J)=-1.D6
-          int_state%VETFCS (I,J)=-1.D6
-          int_state%SOTFCS (I,J)=-1.D6
-!
-          DO N=1,4
-            int_state%ALBFC1(I,J,N)=-1.D6
-          ENDDO
-!
-          DO N=1,2
-            int_state%ALFFC1(I,J,N)=-1.D6
-          ENDDO
-!
-          DO L=1,LM
-            int_state%SWH  (I,J,L)=-1.D6
-            int_state%HLW  (I,J,L)=-1.D6
-          ENDDO
-!
-          DO N=1,3                                 ! for Zhao =3, Ferr=1
-            int_state%PHY_F2DV (I,J,N)=0.0D0
-          ENDDO
-!
-          DO N=1,4                                 ! for Zhao =4, Ferr=3
-          DO L=1,LM
-            int_state%PHY_F3DV (I,J,L,N)=0.0D0
-          ENDDO
-          ENDDO
-!
-        ENDDO
-        ENDDO
-
-        DO N=1,TIMEOZ
-        DO L=1,PL_COEFF
-        DO J=1,LEVOZP
-        DO I=1,LATSOZP
-          int_state%OZPLIN(I,J,L,N)=-1.D6
-        ENDDO
-        ENDDO
-        ENDDO
-        ENDDO
+        ALLOCATE(int_state%PHY_F2DV (IMS:IME,JMS:JME,3))    ;int_state%PHY_F2DV = R8_IN ! for Zhao =3, Ferr=1
+        ALLOCATE(int_state%PHY_F3DV (IMS:IME,JMS:JME,LM,4)) ;int_state%PHY_F3DV = R8_IN ! for Zhao =4, Ferr=3
 !
       ENDIF  gfs_physics
 !
@@ -741,223 +671,13 @@
       int_state%INDX_WATER_END = int_state%INDX_WATER_START + int_state%NUM_WATER - 1
       int_state%WATER=>int_state%TRACERS(:,:,:,int_state%INDX_WATER_START:int_state%INDX_WATER_END)
 !
-      DO L=1,LM
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%Q2(I,J,L)=0.02
-        int_state%OMGALF(I,J,L)=0.
-        int_state%T(I,J,L)=-1.E6
-        int_state%U(I,J,L)=-1.E6
-        int_state%V(I,J,L)=-1.E6
-        int_state%DUDT(I,J,L)=-1.E6
-        int_state%DVDT(I,J,L)=-1.E6
-
-        int_state%RLWTT(I,J,L)=0.
-        int_state%RSWTT(I,J,L)=0.
-
-        int_state%EXCH_H(I,J,L)=0.
-        int_state%XLEN_MIX(I,J,L)=0.
-
-        int_state%CLDFRA(I,J,L)=0.
-        int_state%TRAIN(I,J,L) =0.
-        int_state%TCUCN(I,J,L) =0.
-      ENDDO
-      ENDDO
-      ENDDO
-
-      DO J=JMS,JME
-      DO L=1,LM+1
-      DO I=IMS,IME
-        int_state%RQVBLTEN(I,J,L)=-1.E6
-        int_state%RTHBLTEN(I,J,L)=-1.E6
-        int_state%W0AVG(I,L,J)=-1.E6
-        int_state%WINT(I,L,J)=-1.E6
-      ENDDO
-      ENDDO
-      ENDDO
-
-      DO L=1,NUM_SOIL_LAYERS
-        int_state%SLDPTH(L)=SLDPTH(L)
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%SMC(I,J,L)=-1.E6
-        int_state%STC(I,J,L)=-1.E6
-        int_state%SH2O(I,J,L)=-1.E6
-      ENDDO
-      ENDDO
-      ENDDO
-  
-      DO L=1,int_state%PCPHR
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%PPTDAT(I,J,L)=-1.E6
-      ENDDO
-      ENDDO
-      ENDDO
-
-      int_state%NSOIL=NUM_SOIL_LAYERS
-
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%LPBL(I,J)    =-999
-        int_state%NCFRCV(I,J)  =-999
-        int_state%NCFRST(I,J)  =-999
-        int_state%ACFRCV(I,J)  =-1.E6
-        int_state%ACFRST(I,J)  =-1.E6
-        int_state%AKHS(I,J)    = 0.
-        int_state%AKHS_OUT(I,J)= 0.
-        int_state%AKMS(I,J)    = 0.
-        int_state%AKMS_OUT(I,J)= 0.
-        int_state%ALBASE(I,J)  =-1.E6
-        int_state%ALBEDO(I,J)  =-1.E6
-        int_state%ALWIN(I,J)   =-1.E6
-        int_state%ALWOUT(I,J)  =-1.E6
-        int_state%ALWTOA(I,J)  =-1.E6
-        int_state%ASWIN(I,J)   =-1.E6
-        int_state%ASWOUT(I,J)  =-1.E6
-        int_state%ASWTOA(I,J)  =-1.E6
-        int_state%BGROFF(I,J)  =-1.E6
-        int_state%CFRACH(I,J)  =-1.E6
-        int_state%CFRACM(I,J)  =-1.E6
-        int_state%CFRACL(I,J)  =-1.E6
-        int_state%CNVBOT(I,J)  =0.0
-        int_state%CNVTOP(I,J)  =0.0
-        int_state%CMC(I,J)     =-1.E6
-        int_state%CPRATE(I,J)  =-1.E6
-        int_state%CUPPT(I,J)   =-1.E6
-        int_state%CZMEAN(I,J)  =-1.E6
-        int_state%CZEN(I,J)    =-1.E6
-        int_state%DDATA(I,J)   =-1.E6
-        int_state%LSPA(I,J)    =-1.E6
-        int_state%EPSR(I,J)    =-1.E6
-        int_state%FIS(I,J)     =-1.E6
-        int_state%HBOT(I,J)    =-1.E6
-        int_state%HBOTD(I,J)   =-1.E6
-        int_state%HBOTS(I,J)   =-1.E6
-        int_state%HTOP(I,J)    =-1.E6
-        int_state%HTOPD(I,J)   =-1.E6
-        int_state%HTOPS(I,J)   =-1.E6
-        int_state%GLAT(I,J)    =-1.E6
-        int_state%GLON(I,J)    =-1.E6
-        int_state%GRNFLX(I,J)  = 0.
-        int_state%MAVAIL(I,J)  = 1.
-        int_state%MXSNAL(I,J)  =-1.E6
-        int_state%PBLH(I,J)    =-1.E6
-        int_state%MIXHT(I,J)   =0.
-        int_state%PD(I,J)      =-1.E6
-        int_state%POTEVP(I,J)  = 0.
-        int_state%POTFLX(I,J)  =-1.E6
-        int_state%QCG(I,J)     =-1.E6
-        int_state%QSG(I,J)     =-1.E6
-        int_state%QSH(I,J)     = 0.
-        int_state%QVG(I,J)     =-1.E6
-        int_state%QWBS(I,J)    =-1.E6
-        int_state%QZ0(I,J)     = 0.
-        int_state%RADOT(I,J)   = 0.
-        int_state%RLWIN(I,J)   = 0.
-        int_state%RMOL(I,J)    =-1.E6
-        int_state%RSWIN(I,J)   = 0.
-        int_state%RSWINC(I,J)  = 0.
-        int_state%RSWOUT(I,J)  = 0.
-        int_state%RLWTOA(I,J)  = 0.
-        int_state%RSWTOA(I,J)  = 0.
-        int_state%SFCEVP(I,J)  = 0.
-        int_state%SFCEXC(I,J)  = 0.
-        int_state%SFCLHX(I,J)  =-1.E6
-        int_state%SFCSHX(I,J)  =-1.E6
-        int_state%SHDMAX(I,J)  =-1.E6
-        int_state%SHDMIN(I,J)  =-1.E6
-        int_state%SICE(I,J)    =-1.E6
-        int_state%SIGT4(I,J)   =-1.E6
-        int_state%SM(I,J)      =-1.E6
-        int_state%SMSTAV(I,J)  = 0.
-        int_state%SMSTOT(I,J)  = 0.
-        int_state%SNO(I,J)     = 0.
-        int_state%SNOPCX(I,J)  =-1.E6
-        int_state%SOILT1(I,J)  =-1.E6
-        int_state%SOILTB(I,J)  = 273.
-        int_state%SR(I,J)      =-1.E6
-        int_state%SSROFF(I,J)  = 0.
-        int_state%SST(I,J)     = 273.
-        int_state%STDH(I,J)    =-1.E6 !zj
-        int_state%SUBSHX(I,J)  =-1.E6
-        int_state%THS(I,J)     =-1.E6
-        int_state%THZ0(I,J)    = 273.
-        int_state%TSKIN(I,J)   =-1.E6
-        int_state%TSNAV(I,J)   =-1.E6
-        int_state%TWBS(I,J)    =-1.E6
-        int_state%USTAR(I,J)   = 0.1
-        int_state%UZ0(I,J)     = 0.
-        int_state%VEGFRC(I,J)  =-1.E6
-        int_state%VZ0(I,J)     = 0.
-        int_state%Z0(I,J)      =-1.E6
-        int_state%Z0BASE(I,J)  =-1.E6
-        int_state%CROT(I,J)    = 0.
-        int_state%SROT(I,J)    = 0.
-        int_state%HSTDV(I,J)   = 0.
-        int_state%HCNVX(I,J)   = 0.
-        int_state%HASYW(I,J)   = 0.
-        int_state%HASYS(I,J)   = 0.
-        int_state%HASYSW(I,J)  = 0.
-        int_state%HASYNW(I,J)  = 0.
-        int_state%HLENW(I,J)   = 0.
-        int_state%HLENS(I,J)   = 0.
-        int_state%HLENSW(I,J)  = 0.
-        int_state%HLENNW(I,J)  = 0.
-        int_state%HANGL(I,J)   = 0.
-        int_state%HANIS(I,J)   = 0.
-        int_state%HSLOP(I,J)   = 0.
-        int_state%HZMAX(I,J)   = 0.
-      ENDDO
-      ENDDO
-      
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%ACPREC(I,J)= 0.
-        int_state%CUPREC(I,J)= 0.
-        int_state%PREC(I,J)  = 0.
-        int_state%CLDEFI(I,J)= 0.
-        int_state%PSHLTR(I,J)= 1.E5
-        int_state%PSFC(I,J)  = 1.E5
-        int_state%Q02(I,J)   = 0.
-        int_state%Q10(I,J)   = 0.
-        int_state%QSHLTR(I,J)= 0.
-        int_state%T2(I,J)    = 0.
-        int_state%TH02(I,J)  = 0.
-        int_state%TH10(I,J)  = 273.
-        int_state%TSHLTR(I,J)= 273.
-        int_state%U10(I,J)   = 0.
-        int_state%V10(I,J)   = 0.
-        int_state%TLMIN(I,J) = 0.
-        int_state%TLMAX(I,J) = 0.
-
-        int_state%ACUTIM(I,J) = 0.
-        int_state%APHTIM(I,J) = 0.
-        int_state%ARDLW(I,J)  = 0.
-        int_state%ARDSW(I,J)  = 0.
-        int_state%ASRFC(I,J)  = 0.
-        int_state%AVRAIN(I,J) = 0.
-        int_state%AVCNVC(I,J) = 0.
-      ENDDO
-      ENDDO
-
-      DO L=1,LM
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%F_ICE(I,J,L)=0.
-        int_state%F_RAIN(I,J,L)=0.
-        int_state%F_RIMEF(I,J,L)=0.
-      ENDDO
-      ENDDO
-      ENDDO
-!
       END SUBROUTINE SET_INTERNAL_STATE_PHY_2
 !
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE SET_PHY_VAR_PTR(INT_STATE,ALLOC_FLAG,LM)
+      SUBROUTINE SET_PHY_VAR_PTR(INT_STATE,AF,LM)
 
 !--------------------------------------------------------------
 !***  We must allocate memory within the composite VARS array
@@ -975,160 +695,162 @@
       IMPLICIT NONE
 
       TYPE(PHYSICS_INTERNAL_STATE),INTENT(INOUT) :: INT_STATE
-      LOGICAL, INTENT(IN) :: ALLOC_FLAG
+      LOGICAL, INTENT(IN) :: AF                                  ! ALLOC_FLAG
       INTEGER, INTENT(IN) :: LM
 
-      INTEGER :: N
+      INTEGER :: N,NV
 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'NSOIL'      ,int_state%NSOIL ) 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'NPHS'       ,int_state%NPHS  )  
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'NCLOD'      ,int_state%NCLOD ) 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'NHEAT'      ,int_state%NHEAT ) 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'NPREC'      ,int_state%NPREC ) 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'NRDLW'      ,int_state%NRDLW ) 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'NRDSW'      ,int_state%NRDSW ) 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'NSRFC'      ,int_state%NSRFC ) 
+      NV=int_state%NUM_VARS
 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'ISLTYP'     ,int_state%ISLTYP   ,(/ IMS,JMS /),(/ IME,JME /) )  
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'IVGTYP'     ,int_state%IVGTYP   ,(/ IMS,JMS /),(/ IME,JME /) )  
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'NCFRCV'     ,int_state%NCFRCV   ,(/ IMS,JMS /),(/ IME,JME /) )  
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'NCFRST'     ,int_state%NCFRST   ,(/ IMS,JMS /),(/ IME,JME /) )  
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'NSOIL'      ,int_state%NSOIL ) 
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'NPHS'       ,int_state%NPHS  )  
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'NCLOD'      ,int_state%NCLOD ) 
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'NHEAT'      ,int_state%NHEAT ) 
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'NPREC'      ,int_state%NPREC ) 
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'NRDLW'      ,int_state%NRDLW ) 
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'NRDSW'      ,int_state%NRDSW ) 
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'NSRFC'      ,int_state%NSRFC ) 
 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SLDPTH'     ,int_state%SLDPTH	      ,1 ,NUM_SOIL_LAYERS  ) 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'MP_RESTART' ,int_state%MP_RESTART_STATE  ,1 ,MICRO_RESTART    ) 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TBPVS_STAT' ,int_state%TBPVS_STATE       ,1 ,MICRO_RESTART    ) 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TBPVS0_STA' ,int_state%TBPVS0_STATE      ,1 ,MICRO_RESTART    ) 
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ISLTYP'     ,int_state%ISLTYP   ,(/ IMS,JMS /),(/ IME,JME /) )  
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'IVGTYP'     ,int_state%IVGTYP   ,(/ IMS,JMS /),(/ IME,JME /) )  
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'NCFRCV'     ,int_state%NCFRCV   ,(/ IMS,JMS /),(/ IME,JME /) )  
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'NCFRST'     ,int_state%NCFRST   ,(/ IMS,JMS /),(/ IME,JME /) )  
 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'ACFRCV'     ,int_state%ACFRCV   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'ACFRST'     ,int_state%ACFRST   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'ACPREC'     ,int_state%ACPREC   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'ACSNOM'     ,int_state%ACSNOM   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'ACSNOW'     ,int_state%ACSNOW   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'AKHS_OUT'   ,int_state%AKHS_OUT ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'AKMS_OUT'   ,int_state%AKMS_OUT ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'ALBASE'     ,int_state%ALBASE   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'ALBEDO'     ,int_state%ALBEDO   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'ALWIN'      ,int_state%ALWIN    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'ALWOUT'     ,int_state%ALWOUT   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'ALWTOA'     ,int_state%ALWTOA   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'ASWIN'      ,int_state%ASWIN    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'ASWOUT'     ,int_state%ASWOUT   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'ASWTOA'     ,int_state%ASWTOA   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'BGROFF'     ,int_state%BGROFF   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'CFRACH'     ,int_state%CFRACH   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'CFRACL'     ,int_state%CFRACL   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'CFRACM'     ,int_state%CFRACM   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'CLDEFI'     ,int_state%CLDEFI   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'CMC'        ,int_state%CMC      ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'CNVBOT'     ,int_state%CNVBOT   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'CNVTOP'     ,int_state%CNVTOP   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'CPRATE'     ,int_state%CPRATE   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'CUPPT'      ,int_state%CUPPT    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'CUPREC'     ,int_state%CUPREC   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'CZEN'       ,int_state%CZEN     ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'CZMEAN'     ,int_state%CZMEAN   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'EPSR'       ,int_state%EPSR     ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'FIS'        ,int_state%FIS      ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'GRNFLX'     ,int_state%GRNFLX   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'HBOTD'      ,int_state%HBOTD    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'HBOTS'      ,int_state%HBOTS    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'HTOPD'      ,int_state%HTOPD    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'HTOPS'      ,int_state%HTOPS    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'MIXHT'      ,int_state%MIXHT    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'MXSNAL'     ,int_state%MXSNAL   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'PBLH'       ,int_state%PBLH     ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'PD'         ,int_state%PD       ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'POTEVP'     ,int_state%POTEVP   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'PREC'       ,int_state%PREC     ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'PSHLTR'     ,int_state%PSHLTR   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'Q10'        ,int_state%Q10      ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'QSH'        ,int_state%QSH      ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'QSHLTR'     ,int_state%QSHLTR   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'QWBS'       ,int_state%QWBS     ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'QZ0'        ,int_state%QZ0      ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'RADOT'      ,int_state%RADOT    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'RLWIN'      ,int_state%RLWIN    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'RLWTOA'     ,int_state%RLWTOA   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'RSWIN'      ,int_state%RSWIN    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'RSWINC'     ,int_state%RSWINC   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'RSWOUT'     ,int_state%RSWOUT   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SFCEVP'     ,int_state%SFCEVP   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SFCEXC'     ,int_state%SFCEXC   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SFCLHX'     ,int_state%SFCLHX   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SFCSHX'     ,int_state%SFCSHX   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SI'         ,int_state%SI       ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SICE'       ,int_state%SICE     ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SIGT4'      ,int_state%SIGT4    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SM'         ,int_state%SM       ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SMSTAV'     ,int_state%SMSTAV   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SMSTOT'     ,int_state%SMSTOT   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SNO'        ,int_state%SNO      ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SNOPCX'     ,int_state%SNOPCX   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SOILTB'     ,int_state%SOILTB   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SR'         ,int_state%SR       ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SSROFF'     ,int_state%SSROFF   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SST'        ,int_state%SST      ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SUBSHX'     ,int_state%SUBSHX   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TG'         ,int_state%TG       ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TH10'       ,int_state%TH10     ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'THS'        ,int_state%THS      ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'THZ0'       ,int_state%THZ0     ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TSHLTR'     ,int_state%TSHLTR   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TWBS'       ,int_state%TWBS     ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'U10'        ,int_state%U10      ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'USTAR'      ,int_state%USTAR    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'UZ0'        ,int_state%UZ0      ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'V10'        ,int_state%V10      ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'VEGFRC'     ,int_state%VEGFRC   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'VZ0'        ,int_state%VZ0      ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'Z0'         ,int_state%Z0       ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TSKIN'      ,int_state%TSKIN    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'AKHS'       ,int_state%AKHS     ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'AKMS'       ,int_state%AKMS     ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'HBOT'       ,int_state%HBOT     ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'HTOP'       ,int_state%HTOP     ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'RSWTOA'     ,int_state%RSWTOA   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'POTFLX'     ,int_state%POTFLX   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'RMOL'       ,int_state%RMOL     ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'T2'         ,int_state%T2       ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'Z0BASE'     ,int_state%Z0BASE   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'PSFC'       ,int_state%PSFC     ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TLMIN'      ,int_state%TLMIN    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TLMAX'      ,int_state%TLMAX    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'LSPA'       ,int_state%LSPA     ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'ACUTIM'     ,int_state%ACUTIM   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'APHTIM'     ,int_state%APHTIM   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'ARDLW'      ,int_state%ARDLW    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'ARDSW'      ,int_state%ARDSW    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'ASRFC'      ,int_state%ASRFC    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'AVRAIN'     ,int_state%AVRAIN   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'AVCNVC'     ,int_state%AVCNVC   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SLDPTH'     ,int_state%SLDPTH	      ,1 ,NUM_SOIL_LAYERS  ) 
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'MP_RESTART' ,int_state%MP_RESTART_STATE  ,1 ,MICRO_RESTART    ) 
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TBPVS_STAT' ,int_state%TBPVS_STATE       ,1 ,MICRO_RESTART    ) 
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TBPVS0_STA' ,int_state%TBPVS0_STATE      ,1 ,MICRO_RESTART    ) 
 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'Q2'         ,int_state%Q2       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'OMGALF'     ,int_state%OMGALF   ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'T'          ,int_state%T	     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'Q'          ,int_state%Q	     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'U'          ,int_state%U	     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'V'          ,int_state%V	     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'RLWTT'      ,int_state%RLWTT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'RSWTT'      ,int_state%RSWTT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'EXCH_H'     ,int_state%EXCH_H   ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'CLDFRA'     ,int_state%CLDFRA   ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'CW'         ,int_state%CW       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'F_ICE'      ,int_state%F_ICE    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'F_RAIN'     ,int_state%F_RAIN   ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'F_RIMEF'    ,int_state%F_RIMEF  ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TRAIN'      ,int_state%TRAIN    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'XLEN_MIX'   ,int_state%XLEN_MIX ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TCUCN'      ,int_state%TCUCN    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SMC'        ,int_state%SMC      ,(/ IMS,JMS,1 /),(/ IME,JME,NUM_SOIL_LAYERS /))
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'STC'        ,int_state%STC      ,(/ IMS,JMS,1 /),(/ IME,JME,NUM_SOIL_LAYERS /))
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'SH2O'       ,int_state%SH2O     ,(/ IMS,JMS,1 /),(/ IME,JME,NUM_SOIL_LAYERS /))
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'O3'         ,int_state%O3       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ACFRCV'     ,int_state%ACFRCV   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ACFRST'     ,int_state%ACFRST   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ACPREC'     ,int_state%ACPREC   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ACSNOM'     ,int_state%ACSNOM   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ACSNOW'     ,int_state%ACSNOW   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'AKHS_OUT'   ,int_state%AKHS_OUT ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'AKMS_OUT'   ,int_state%AKMS_OUT ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ALBASE'     ,int_state%ALBASE   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ALBEDO'     ,int_state%ALBEDO   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ALWIN'      ,int_state%ALWIN    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ALWOUT'     ,int_state%ALWOUT   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ALWTOA'     ,int_state%ALWTOA   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ASWIN'      ,int_state%ASWIN    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ASWOUT'     ,int_state%ASWOUT   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ASWTOA'     ,int_state%ASWTOA   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'BGROFF'     ,int_state%BGROFF   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'CFRACH'     ,int_state%CFRACH   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'CFRACL'     ,int_state%CFRACL   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'CFRACM'     ,int_state%CFRACM   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'CLDEFI'     ,int_state%CLDEFI   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'CMC'        ,int_state%CMC      ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'CNVBOT'     ,int_state%CNVBOT   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'CNVTOP'     ,int_state%CNVTOP   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'CPRATE'     ,int_state%CPRATE   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'CUPPT'      ,int_state%CUPPT    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'CUPREC'     ,int_state%CUPREC   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'CZEN'       ,int_state%CZEN     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'CZMEAN'     ,int_state%CZMEAN   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'EPSR'       ,int_state%EPSR     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'FIS'        ,int_state%FIS      ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'GRNFLX'     ,int_state%GRNFLX   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'HBOTD'      ,int_state%HBOTD    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'HBOTS'      ,int_state%HBOTS    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'HTOPD'      ,int_state%HTOPD    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'HTOPS'      ,int_state%HTOPS    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'MIXHT'      ,int_state%MIXHT    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'MXSNAL'     ,int_state%MXSNAL   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'PBLH'       ,int_state%PBLH     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'PD'         ,int_state%PD       ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'POTEVP'     ,int_state%POTEVP   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'PREC'       ,int_state%PREC     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'PSHLTR'     ,int_state%PSHLTR   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'Q10'        ,int_state%Q10      ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'QSH'        ,int_state%QSH      ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'QSHLTR'     ,int_state%QSHLTR   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'QWBS'       ,int_state%QWBS     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'QZ0'        ,int_state%QZ0      ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'RADOT'      ,int_state%RADOT    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'RLWIN'      ,int_state%RLWIN    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'RLWTOA'     ,int_state%RLWTOA   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'RSWIN'      ,int_state%RSWIN    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'RSWINC'     ,int_state%RSWINC   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'RSWOUT'     ,int_state%RSWOUT   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SFCEVP'     ,int_state%SFCEVP   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SFCEXC'     ,int_state%SFCEXC   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SFCLHX'     ,int_state%SFCLHX   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SFCSHX'     ,int_state%SFCSHX   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SI'         ,int_state%SI       ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SICE'       ,int_state%SICE     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SIGT4'      ,int_state%SIGT4    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SM'         ,int_state%SM       ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SMSTAV'     ,int_state%SMSTAV   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SMSTOT'     ,int_state%SMSTOT   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SNO'        ,int_state%SNO      ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SNOPCX'     ,int_state%SNOPCX   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SOILTB'     ,int_state%SOILTB   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SR'         ,int_state%SR       ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SSROFF'     ,int_state%SSROFF   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SST'        ,int_state%SST      ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SUBSHX'     ,int_state%SUBSHX   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TG'         ,int_state%TG       ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TH10'       ,int_state%TH10     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'THS'        ,int_state%THS      ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'THZ0'       ,int_state%THZ0     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TSHLTR'     ,int_state%TSHLTR   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TWBS'       ,int_state%TWBS     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'U10'        ,int_state%U10      ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'USTAR'      ,int_state%USTAR    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'UZ0'        ,int_state%UZ0      ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'V10'        ,int_state%V10      ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'VEGFRC'     ,int_state%VEGFRC   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'VZ0'        ,int_state%VZ0      ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'Z0'         ,int_state%Z0       ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TSKIN'      ,int_state%TSKIN    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'AKHS'       ,int_state%AKHS     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'AKMS'       ,int_state%AKMS     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'HBOT'       ,int_state%HBOT     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'HTOP'       ,int_state%HTOP     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'RSWTOA'     ,int_state%RSWTOA   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'POTFLX'     ,int_state%POTFLX   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'RMOL'       ,int_state%RMOL     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'T2'         ,int_state%T2       ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'Z0BASE'     ,int_state%Z0BASE   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'PSFC'       ,int_state%PSFC     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TLMIN'      ,int_state%TLMIN    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TLMAX'      ,int_state%TLMAX    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'LSPA'       ,int_state%LSPA     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ACUTIM'     ,int_state%ACUTIM   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'APHTIM'     ,int_state%APHTIM   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ARDLW'      ,int_state%ARDLW    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ARDSW'      ,int_state%ARDSW    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ASRFC'      ,int_state%ASRFC    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'AVRAIN'     ,int_state%AVRAIN   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'AVCNVC'     ,int_state%AVCNVC   ,(/ IMS,JMS /),(/ IME,JME /) )
 
-      CALL SET_VAR_PTR(int_state%VARS,int_state%NUM_VARS,ALLOC_FLAG,'TRACERS'    ,int_state%TRACERS,(/ IMS,JMS,1,1 /),(/ IME,JME,LM,int_state%NUM_TRACERS_TOTAL /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'Q2'         ,int_state%Q2       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'OMGALF'     ,int_state%OMGALF   ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'T'          ,int_state%T	     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'Q'          ,int_state%Q	     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'U'          ,int_state%U	     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'V'          ,int_state%V	     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'RLWTT'      ,int_state%RLWTT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'RSWTT'      ,int_state%RSWTT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'EXCH_H'     ,int_state%EXCH_H   ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'CLDFRA'     ,int_state%CLDFRA   ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'CW'         ,int_state%CW       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'F_ICE'      ,int_state%F_ICE    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'F_RAIN'     ,int_state%F_RAIN   ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'F_RIMEF'    ,int_state%F_RIMEF  ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TRAIN'      ,int_state%TRAIN    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'XLEN_MIX'   ,int_state%XLEN_MIX ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TCUCN'      ,int_state%TCUCN    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SMC'        ,int_state%SMC      ,(/ IMS,JMS,1 /),(/ IME,JME,NUM_SOIL_LAYERS /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'STC'        ,int_state%STC      ,(/ IMS,JMS,1 /),(/ IME,JME,NUM_SOIL_LAYERS /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SH2O'       ,int_state%SH2O     ,(/ IMS,JMS,1 /),(/ IME,JME,NUM_SOIL_LAYERS /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'O3'         ,int_state%O3       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
 
-      DO N=1,int_state%NUM_VARS
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TRACERS'    ,int_state%TRACERS,(/ IMS,JMS,1,1 /),(/ IME,JME,LM,int_state%NUM_TRACERS_TOTAL /) )
+
+      DO N=1,NV
         IF (int_state%VARS(N)%TKR==0) THEN
           write(0,*)' Error in SET_PHY_VAR_PTR. '
           write(0,*)' Variable ',TRIM(int_state%VARS(N)%VBL_NAME),' is not associated to an internal state fortran pointer'

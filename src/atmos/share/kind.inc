@@ -9,3 +9,7 @@ integer,parameter:: &
 ,kdin=idouble &
 ,kfpt=single &
 ,kdbl=double
+
+real   (kind=kfpt),parameter :: r4_in=x'ffbfffff'
+real   (kind=kdbl),parameter :: r8_in=x'fff7ffffffffffff'
+integer(kind=kint),parameter :: i4_in=-999 ! -huge(1)

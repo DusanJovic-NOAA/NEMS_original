@@ -1,3 +1,4 @@
+!-----------------------------------------------------------------------
  
       MODULE MODULE_VARS
 
@@ -17,6 +18,7 @@
 !-----------------------------------------------------------------------
 
       USE ESMF_MOD
+      USE MODULE_INCLUDE
       USE module_DM_PARALLEL,ONLY: MYPE_SHARE
 
 !-----------------------------------------------------------------------
@@ -184,6 +186,7 @@
         CALL FIND_VAR_INDX(VBL_NAME,VARS,NUM_VARS,INDX)
         IF (ALLOC_FLAG .AND. VARS(INDX)%OWNED) THEN
           ALLOCATE(VARS(INDX)%I0D)                                         !<-- Allocate an integer scalar pointer for input I0D
+          VARS(INDX)%I0D=I4_IN
         END IF
         I0D => VARS(INDX)%I0D                                              !<-- Internal state variable I0D uses the newly allocated space
         VARS(INDX)%TKR = TKR_I0D
@@ -214,6 +217,7 @@
         CALL FIND_VAR_INDX(VBL_NAME,VARS,NUM_VARS,INDX)
         IF (ALLOC_FLAG .AND. VARS(INDX)%OWNED) THEN
           ALLOCATE(VARS(INDX)%R0D)
+          VARS(INDX)%R0D=R4_IN
         END IF
         R0D => VARS(INDX)%R0D
         VARS(INDX)%TKR = TKR_R0D
@@ -245,6 +249,7 @@
         CALL FIND_VAR_INDX(VBL_NAME,VARS,NUM_VARS,INDX)
         IF (ALLOC_FLAG .AND. VARS(INDX)%OWNED) THEN
           ALLOCATE (VARS(INDX)%I1D(lowbound:upbound))
+          VARS(INDX)%I1D=I4_IN
         END IF
         I1D => VARS(INDX)%I1D
         VARS(INDX)%TKR = TKR_I1D
@@ -277,6 +282,7 @@
         IF (ALLOC_FLAG .AND. VARS(INDX)%OWNED) THEN
           ALLOCATE (VARS(INDX)%I2D(lowbound(1):upbound(1), &
                                    lowbound(2):upbound(2) ))
+          VARS(INDX)%I2D=I4_IN
         END IF
         I2D => VARS(INDX)%I2D
         VARS(INDX)%TKR = TKR_I2D
@@ -308,6 +314,7 @@
         CALL FIND_VAR_INDX(VBL_NAME,VARS,NUM_VARS,INDX)
         IF (ALLOC_FLAG .AND. VARS(INDX)%OWNED) THEN
           ALLOCATE (VARS(INDX)%R1D(lowbound:upbound))
+          VARS(INDX)%R1D=R4_IN
         END IF
         R1D => VARS(INDX)%R1D
         VARS(INDX)%TKR = TKR_R1D
@@ -340,6 +347,7 @@
         IF (ALLOC_FLAG .AND. VARS(INDX)%OWNED) THEN
           ALLOCATE (VARS(INDX)%R2D(lowbound(1):upbound(1), &
                                    lowbound(2):upbound(2) ))
+          VARS(INDX)%R2D=R4_IN
         END IF
         R2D => VARS(INDX)%R2D
         VARS(INDX)%TKR = TKR_R2D
@@ -373,6 +381,7 @@
           ALLOCATE (VARS(INDX)%R3D(lowbound(1):upbound(1), &
                                    lowbound(2):upbound(2), &
                                    lowbound(3):upbound(3) ))
+          VARS(INDX)%R3D=R4_IN
         END IF
         R3D => VARS(INDX)%R3D
         VARS(INDX)%TKR = TKR_R3D
@@ -407,6 +416,7 @@
                                    lowbound(2):upbound(2), &
                                    lowbound(3):upbound(3), &
                                    lowbound(4):upbound(4) ))
+          VARS(INDX)%R4D=R4_IN
         END IF
         R4D => VARS(INDX)%R4D
         VARS(INDX)%TKR = TKR_R4D

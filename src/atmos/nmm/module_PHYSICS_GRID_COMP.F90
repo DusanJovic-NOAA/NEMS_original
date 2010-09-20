@@ -59,12 +59,10 @@
                                      ,NUM_SOIL_LAYERS,SLDPTH
       USE MODULE_CU_BMJ       ,ONLY : BMJ_INIT
       USE MODULE_CONVECTION   ,ONLY : CUCNVC
-!rv
+
       USE MODULE_CU_BMJ_DEV       ,ONLY : BMJ_INIT_DEV
       USE MODULE_CONVECTION_DEV   ,ONLY : CUCNVC_DEV
-!rv
-!      USE MODULE_MICROPHYSICS_NMM ,ONLY : FERRIER_INIT,GSMDRIVE        &
-!                                         ,WSM3INIT,MICRO_RESTART
+
       USE MODULE_MICROPHYSICS_NMM ,ONLY : GSMDRIVE                      &
                                          ,MICRO_RESTART
       USE MODULE_MP_ETANEW, ONLY : FERRIER_INIT
@@ -2826,7 +2824,275 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
+!-----------------------------------------------------------------------
+!***  Initialize allocated arrays
+!-----------------------------------------------------------------------
+!
       NSOIL=NUM_SOIL_LAYERS                                              !<-- From Landsurface module
+
+      DO L=1,LM
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%Q2(I,J,L)=0.02
+        int_state%OMGALF(I,J,L)=0.
+        int_state%T(I,J,L)=-1.E6
+        int_state%U(I,J,L)=-1.E6
+        int_state%V(I,J,L)=-1.E6
+
+        int_state%RLWTT(I,J,L)=0.
+        int_state%RSWTT(I,J,L)=0.
+
+        int_state%EXCH_H(I,J,L)=0.
+        int_state%XLEN_MIX(I,J,L)=0.
+
+        int_state%CLDFRA(I,J,L)=0.
+        int_state%TRAIN(I,J,L) =0.
+        int_state%TCUCN(I,J,L) =0.
+      ENDDO
+      ENDDO
+      ENDDO
+
+      DO L=1,NUM_SOIL_LAYERS
+        int_state%SLDPTH(L)=SLDPTH(L)
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%SMC(I,J,L)=-1.E6
+        int_state%STC(I,J,L)=-1.E6
+        int_state%SH2O(I,J,L)=-1.E6
+      ENDDO
+      ENDDO
+      ENDDO
+
+      DO L=1,MICRO_RESTART
+        int_state%MP_RESTART_STATE(L)=0.
+        int_state%TBPVS_STATE(L)=0.
+        int_state%TBPVS0_STATE(L)=0.
+      ENDDO
+
+      int_state%NSOIL=NUM_SOIL_LAYERS
+
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%LPBL(I,J)    =-999
+        int_state%NCFRCV(I,J)  =-999
+        int_state%NCFRST(I,J)  =-999
+        int_state%ACFRCV(I,J)  =-1.E6
+        int_state%ACFRST(I,J)  =-1.E6
+        int_state%AKHS(I,J)    = 0.
+        int_state%AKHS_OUT(I,J)= 0.
+        int_state%AKMS(I,J)    = 0.
+        int_state%AKMS_OUT(I,J)= 0.
+        int_state%ALBASE(I,J)  =-1.E6
+        int_state%ALBEDO(I,J)  =-1.E6
+        int_state%ALWIN(I,J)   =-1.E6
+        int_state%ALWOUT(I,J)  =-1.E6
+        int_state%ALWTOA(I,J)  =-1.E6
+        int_state%ASWIN(I,J)   =-1.E6
+        int_state%ASWOUT(I,J)  =-1.E6
+        int_state%ASWTOA(I,J)  =-1.E6
+        int_state%BGROFF(I,J)  =-1.E6
+        int_state%CFRACH(I,J)  =-1.E6
+        int_state%CFRACM(I,J)  =-1.E6
+        int_state%CFRACL(I,J)  =-1.E6
+        int_state%CNVBOT(I,J)  =0.0
+        int_state%CNVTOP(I,J)  =0.0
+        int_state%CMC(I,J)     =-1.E6
+        int_state%CPRATE(I,J)  =-1.E6
+        int_state%CUPPT(I,J)   =-1.E6
+        int_state%CZMEAN(I,J)  =-1.E6
+        int_state%CZEN(I,J)    =-1.E6
+        int_state%LSPA(I,J)    =-1.E6
+        int_state%EPSR(I,J)    =-1.E6
+        int_state%FIS(I,J)     =-1.E6
+        int_state%HBOT(I,J)    =-1.E6
+        int_state%HBOTD(I,J)   =-1.E6
+        int_state%HBOTS(I,J)   =-1.E6
+        int_state%HTOP(I,J)    =-1.E6
+        int_state%HTOPD(I,J)   =-1.E6
+        int_state%HTOPS(I,J)   =-1.E6
+        int_state%GRNFLX(I,J)  = 0.
+        int_state%MAVAIL(I,J)  = 1.
+        int_state%MXSNAL(I,J)  =-1.E6
+        int_state%PBLH(I,J)    =-1.E6
+        int_state%MIXHT(I,J)   =0.
+        int_state%PD(I,J)      =-1.E6
+        int_state%POTEVP(I,J)  = 0.
+        int_state%POTFLX(I,J)  =-1.E6
+        int_state%QSH(I,J)     = 0.
+        int_state%QWBS(I,J)    =-1.E6
+        int_state%QZ0(I,J)     = 0.
+        int_state%RADOT(I,J)   = 0.
+        int_state%RLWIN(I,J)   = 0.
+        int_state%RMOL(I,J)    =-1.E6
+        int_state%RSWIN(I,J)   = 0.
+        int_state%RSWINC(I,J)  = 0.
+        int_state%RSWOUT(I,J)  = 0.
+        int_state%RLWTOA(I,J)  = 0.
+        int_state%RSWTOA(I,J)  = 0.
+        int_state%SFCEVP(I,J)  = 0.
+        int_state%SFCEXC(I,J)  = 0.
+        int_state%SFCLHX(I,J)  =-1.E6
+        int_state%SFCSHX(I,J)  =-1.E6
+        int_state%SICE(I,J)    =-1.E6
+        int_state%SIGT4(I,J)   =-1.E6
+        int_state%SM(I,J)      =-1.E6
+        int_state%SMSTAV(I,J)  = 0.
+        int_state%SMSTOT(I,J)  = 0.
+        int_state%SNO(I,J)     = 0.
+        int_state%SNOPCX(I,J)  =-1.E6
+        int_state%SOILTB(I,J)  = 273.
+        int_state%SR(I,J)      =-1.E6
+        int_state%SSROFF(I,J)  = 0.
+        int_state%SST(I,J)     = 273.
+        int_state%SUBSHX(I,J)  =-1.E6
+        int_state%THS(I,J)     =-1.E6
+        int_state%THZ0(I,J)    = 273.
+        int_state%TSKIN(I,J)   =-1.E6
+        int_state%TWBS(I,J)    =-1.E6
+        int_state%USTAR(I,J)   = 0.1
+        int_state%UZ0(I,J)     = 0.
+        int_state%VEGFRC(I,J)  =-1.E6
+        int_state%VZ0(I,J)     = 0.
+        int_state%Z0(I,J)      =-1.E6
+        int_state%Z0BASE(I,J)  =-1.E6
+        int_state%CROT(I,J)    = 0.
+        int_state%SROT(I,J)    = 0.
+        int_state%HSTDV(I,J)   = 0.
+        int_state%HCNVX(I,J)   = 0.
+        int_state%HASYW(I,J)   = 0.
+        int_state%HASYS(I,J)   = 0.
+        int_state%HASYSW(I,J)  = 0.
+        int_state%HASYNW(I,J)  = 0.
+        int_state%HLENW(I,J)   = 0.
+        int_state%HLENS(I,J)   = 0.
+        int_state%HLENSW(I,J)  = 0.
+        int_state%HLENNW(I,J)  = 0.
+        int_state%HANGL(I,J)   = 0.
+        int_state%HANIS(I,J)   = 0.
+        int_state%HSLOP(I,J)   = 0.
+        int_state%HZMAX(I,J)   = 0.
+      ENDDO
+      ENDDO
+
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%ACSNOM(I,J)= 0.
+        int_state%ACSNOW(I,J)= 0.
+        int_state%ACPREC(I,J)= 0.
+        int_state%CUPREC(I,J)= 0.
+        int_state%PREC(I,J)  = 0.
+        int_state%CLDEFI(I,J)= 0.
+        int_state%PSHLTR(I,J)= 1.E5
+        int_state%PSFC(I,J)  = 1.E5
+        int_state%Q02(I,J)   = 0.
+        int_state%Q10(I,J)   = 0.
+        int_state%QSHLTR(I,J)= 0.
+        int_state%T2(I,J)    = 0.
+        int_state%TH02(I,J)  = 0.
+        int_state%TH10(I,J)  = 273.
+        int_state%TSHLTR(I,J)= 273.
+        int_state%U10(I,J)   = 0.
+        int_state%V10(I,J)   = 0.
+        int_state%TLMIN(I,J) = 0.
+        int_state%TLMAX(I,J) = 0.
+
+        int_state%ACUTIM(I,J) = 0.
+        int_state%APHTIM(I,J) = 0.
+        int_state%ARDLW(I,J)  = 0.
+        int_state%ARDSW(I,J)  = 0.
+        int_state%ASRFC(I,J)  = 0.
+        int_state%AVRAIN(I,J) = 0.
+        int_state%AVCNVC(I,J) = 0.
+      ENDDO
+      ENDDO
+
+      DO L=1,LM
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%F_ICE(I,J,L)=0.
+        int_state%F_RAIN(I,J,L)=0.
+        int_state%F_RIMEF(I,J,L)=0.
+      ENDDO
+      ENDDO
+      ENDDO
+#ifdef USE_GFS
+      IF(GFS)THEN
+
+        int_state%SOLCON=0.0D0
+        int_state%SLAG  =0.0D0
+        int_state%SDEC  =0.0D0
+        int_state%CDEC  =0.0D0
+!
+        DO J=JTS,JTE
+          int_state%DDY   (J)=0.0D0
+          int_state%JINDX1(J)=0
+          int_state%JINDX2(J)=0
+        ENDDO
+!
+        DO J=JMS,JME
+        DO I=IMS,IME
+!
+          int_state%DUGWD  (I,J)=0.0D0
+          int_state%DVGWD  (I,J)=0.0D0
+!
+          int_state%TMPMIN (I,J)=373.0D0
+          int_state%TMPMAX (I,J)=173.0D0
+!
+          int_state%SFCNSW (I,J)=0.0D0
+          int_state%SFCDSW (I,J)=0.0D0
+          int_state%SFALB  (I,J)=0.0D0
+          int_state%SFCDLW (I,J)=0.0D0
+          int_state%TSFLW  (I,J)=0.0D0
+          int_state%ZORFCS (I,J)=-1.D6
+          int_state%SIHFCS (I,J)=-1.D6
+          int_state%SICFCS (I,J)=-1.D6
+          int_state%SLPFCS (I,J)=-1.D6
+          int_state%TG3FCS (I,J)=-1.D6
+          int_state%VEGFCS (I,J)=-1.D6
+          int_state%VETFCS (I,J)=-1.D6
+          int_state%SOTFCS (I,J)=-1.D6
+!
+          DO N=1,4
+            int_state%ALBFC1(I,J,N)=-1.D6
+          ENDDO
+!
+          DO N=1,2
+            int_state%ALFFC1(I,J,N)=-1.D6
+          ENDDO
+!
+          DO L=1,LM
+            int_state%SWH  (I,J,L)=-1.D6
+            int_state%HLW  (I,J,L)=-1.D6
+          ENDDO
+!
+          DO N=1,3                                 ! for Zhao =3, Ferr=1
+            int_state%PHY_F2DV (I,J,N)=0.0D0
+          ENDDO
+!
+          DO N=1,4                                 ! for Zhao =4, Ferr=3
+          DO L=1,LM
+            int_state%PHY_F3DV (I,J,L,N)=0.0D0
+          ENDDO
+          ENDDO
+!
+        ENDDO
+        ENDDO
+
+        rewind (kozpl)
+        read   (kozpl) pl_coeff, latsozp, levozp, timeoz
+
+        DO N=1,TIMEOZ
+        DO L=1,PL_COEFF
+        DO J=1,LEVOZP
+        DO I=1,LATSOZP
+          int_state%OZPLIN(I,J,L,N)=-1.D6
+        ENDDO
+        ENDDO
+        ENDDO
+        ENDDO
+!
+      ENDIF
+#endif
 !
 !-----------------------------------------------------------------------
 !***  Dereference the start time.
@@ -3711,13 +3977,13 @@
                          ,IDS,IDE,JDS,JDE,1,LM+1                       &
                          ,IMS,IME,JMS,JME,1,LM+1                       &
                          ,ITS,ITE,JTS,JTE,1,LM)
-!rv
+
           CASE ('bmj_dev')
             CALL BMJ_INIT_DEV(int_state%CLDEFI,int_state%RESTART       &
                          ,IDS,IDE,JDS,JDE,1,LM+1                       &
                          ,IMS,IME,JMS,JME,1,LM+1                       &
                          ,ITS,ITE,JTS,JTE,1,LM)
-!rv
+
 !
 !!!       CASE('kf')
 !!!         CALL KF_INIT

@@ -532,7 +532,7 @@
 !---------------------
 !
       INTEGER(kind=KINT) :: IDENOMINATOR_DT,IEND,IERR,INTEGER_DT,JEND   &
-                           ,KSE,KSS,L,N,NUMERATOR_DT,RC
+                           ,KSE,KSS,L,N,NUMERATOR_DT,RC,I,J,LL
 !
       LOGICAL(kind=KLOG) :: RUN_LOCAL
 !
@@ -679,11 +679,127 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  Read the input file.
+!***  Initialize allocated arrays
 !-----------------------------------------------------------------------
 !
-        KSS=1        
-        KSE=int_state%NUM_TRACERS_MET
+      KSS=1        
+      KSE=int_state%NUM_TRACERS_MET
+!
+      DO N=1,2
+      DO L=1,LM
+      DO LL=1,int_state%LNSV
+      DO I=IMS,IME
+        int_state%UBN(I,LL,L,N)=-1.E6
+        int_state%UBS(I,LL,L,N)=-1.E6
+        int_state%VBN(I,LL,L,N)=-1.E6
+        int_state%VBS(I,LL,L,N)=-1.E6
+      ENDDO
+      ENDDO
+      ENDDO
+      ENDDO
+!
+      DO N=1,2
+      DO L=1,LM
+      DO J=JMS,JME
+      DO LL=1,int_state%LNSV
+        int_state%UBE(LL,J,L,N)=-1.E6
+        int_state%UBW(LL,J,L,N)=-1.E6
+        int_state%VBE(LL,J,L,N)=-1.E6
+        int_state%VBW(LL,J,L,N)=-1.E6
+      ENDDO
+      ENDDO
+      ENDDO
+      ENDDO
+!
+      IF(.NOT.int_state%GLOBAL)THEN
+!
+        DO N=1,2
+        DO LL=1,int_state%LNSH
+        DO I=IMS,IME
+          int_state%PDBN(I,LL,N)=0.
+          int_state%PDBS(I,LL,N)=0.
+        ENDDO
+        ENDDO
+        ENDDO
+!
+        DO N=1,2
+        DO J=JMS,JME
+        DO LL=1,int_state%LNSH
+          int_state%PDBE(LL,J,N)=0.
+          int_state%PDBW(LL,J,N)=0.
+        ENDDO
+        ENDDO
+        ENDDO
+!
+        int_state%NUM_WORDS_BC_SOUTH=-1                                    !<-- Word counts of 1-D boundary data strings
+        int_state%NUM_WORDS_BC_NORTH=-1                                    !
+        int_state%NUM_WORDS_BC_WEST =-1                                    !
+        int_state%NUM_WORDS_BC_EAST =-1                                    !<--
+!
+      ENDIF
+!
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%PD(I,J)=0.
+        int_state%PDO(I,J)=0.
+      ENDDO
+      ENDDO
+!
+      DO L=1,LM-1
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%PSGDT(I,J,L)=0.
+      ENDDO
+      ENDDO
+      ENDDO
+!
+      DO L=1,LM
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%F_ICE(I,J,L)=0.
+        int_state%F_RAIN(I,J,L)=0.
+        int_state%F_RIMEF(I,J,L)=0.
+      ENDDO
+      ENDDO
+      ENDDO
+!
+      DO N=1,int_state%NUM_TRACERS_MET
+      DO L=1,LM
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%TRACERS     (I,J,L,N)=1.E-20
+        int_state%TRACERS_SQRT(I,J,L,N)=1.E-20
+        int_state%TRACERS_PREV(I,J,L,N)=1.E-20
+        int_state%TRACERS_TEND(I,J,L,N)=1.E-20
+      ENDDO
+      ENDDO
+      ENDDO
+      ENDDO
+!
+      DO L=1,LM
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%Q2(I,J,L)    = 0.02
+      ENDDO
+      ENDDO
+      ENDDO
+!
+      DO L=1,LM
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%TCT(I,J,L) =-1.E6
+        int_state%TCU(I,J,L) =-1.E6
+        int_state%TCV(I,J,L) =-1.E6
+      ENDDO
+      ENDDO
+      ENDDO
+!
+      int_state%I_PAR_STA=0
+      int_state%J_PAR_STA=0
+!
+!-----------------------------------------------------------------------
+!***  Read the input file.
+!-----------------------------------------------------------------------
 !
         btim=timef()
 !
