@@ -24,11 +24,11 @@ use module_clocktimes,only : adv1_tim,adv2_tim,bocoh_tim,bocov_tim &
 use module_dm_parallel,only : ids,ide,jds,jde &
                              ,ims,ime,jms,jme &
                              ,its,ite,jts,jte &
-                             ,its_b1,ite_b1,ite_b2 &
+                             ,its_b1,ite_b1,its_b2,ite_b2 &
                              ,its_b1_h1,ite_b1_h1,ite_b1_h2 &
                              ,its_b1_h2 &
                              ,its_h1,ite_h1,its_h2,ite_h2 &
-                             ,jts_b1,jte_b1,jte_b2 &
+                             ,jts_b1,jte_b1,jts_b2,jte_b2 &
                              ,jts_b1_h1,jte_b1_h1,jte_b1_h2 &
                              ,jts_b1_h2 &
                              ,jts_h1,jte_h1,jts_h2,jte_h2 &
@@ -70,7 +70,7 @@ external omp_get_num_threads,omp_get_thread_num
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
                         subroutine pgforce &
-(first,restart &
+(first,global,restart &
 ,lm &
 ,dt,ntimestep,rdyv &
 ,dsg2,pdsg1 &
@@ -98,6 +98,7 @@ real(kind=kfpt),parameter:: &
 !-----------------------------------------------------------------------
 logical(kind=klog),intent(in):: &
  first &                     ! first pass
+,global &                    ! global domain
 ,restart                     ! restart case
 
 integer(kind=kint),intent(in):: &
@@ -149,9 +150,13 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout) :: &
 !-----------------------------------------------------------------------
 integer(kind=kint):: &
  i &                         ! index in x direction
+,icl &                       !
+,ich &                       !
+,ip &                        !
 ,j &                         ! index in y direction
 ,jcl &                       ! lower bound for no divergence correction
 ,jch &                       ! upper bound for no divergence correction
+,jp &                        !
 ,l                           ! index in p direction
 
 real(kind=kfpt):: &
@@ -304,63 +309,165 @@ real(kind=kfpt),dimension(its:ite_h1,jts_b1:jte_h1):: &
 !-----------------------------------------------------------------------
 !---divergence correction, janjic 1974 mwr, 1979 beitrage---------------
 !-----------------------------------------------------------------------
-        jcl=jds
-        jch=jds-1+jw
+        if(global) then
+!-----------------------------------------------------------------------      
+          jcl=jds
+          jch=jds-1+jw
 !
-        if(jts<=jch)then
-          do j=max(jts,jcl),min(jte,jch)
-            do i=its,ite
-              div(i,j,l)=0.
+          if(jts<=jch)then
+            do j=max(jts,jcl),min(jte,jch)
+              do i=its,ite
+                div(i,j,l)=0.
+              enddo
             enddo
-          enddo
-        endif
+          endif
 !
-        jcl=jde-jw+1
-        jch=jde
+          jcl=jde-jw+1
+          jch=jde
 !
-        if(jte>=jcl)then
-          do j=max(jts,jcl),min(jte,jch)
-            do i=its,ite
-              div(i,j,l)=0.
+          if(jte>=jcl)then
+            do j=max(jts,jcl),min(jte,jch)
+              do i=its,ite
+                div(i,j,l)=0.
+              enddo
             enddo
-          enddo
-        endif
+          endif
 !
-        jcl=jds+jw
-        if(jts<=jcl.and.jte>=jcl)then
-          wprp=wpdar(jcl)
-          do i=its_b1,ite_b1
-            div(i,jcl,l)=(pgx(i+1,jcl)-pgx(i,jcl)  &
-                          +pgy(i  ,jcl+1)  &
-                          -( pgne(i+1,jcl+1)  &
-                            +pgnw(i  ,jcl+1))*0.5)*wprp
-          enddo
-        endif
-!
-        jch=jde-jw
-        if(jts<=jch.and.jte>=jch)then
-          wprp=wpdar(jch)
-          do i=its_b1,ite_b1
-            div(i,jch,l)=(pgx(i+1,jch)-pgx(i,jch)  &
-                           -pgy(i  ,jch)  &
-                           -(-pgne(i  ,jch)  &
-                             -pgnw(i+1,jch))*0.5)*wprp
-          enddo
-        endif
-!
-        jcl=jds+jw+1
-        jch=jde-jw-1
-        if(jte>=jcl.and.jts<=jch)then
-          do j=max(jts,jcl),min(jte,jch)
-            wprp=wpdar(j)
+          jcl=jds+jw
+          if(jts<=jcl.and.jte>=jcl)then
+            wprp=wpdar(jcl)
             do i=its_b1,ite_b1
-              div(i,j,l)=(pgx(i+1,j)-pgx(i,j)  &
-                         +pgy(i,j+1)-pgy(i,j)  &
-                        -(pgne(i+1,j+1)-pgne(i,j)  &
+              div(i,jcl,l)=(  pgx(i+1 ,jcl)-pgx(i,jcl)   &
+                            + pgy(i   ,jcl+1)            &
+                            -(pgne(i+1,jcl+1)            &
+                            + pgnw(i  ,jcl+1))*0.5)*wprp
+            enddo
+          endif
+!
+          jch=jde-jw
+          if(jts<=jch.and.jte>=jch)then
+            wprp=wpdar(jch)
+            do i=its_b1,ite_b1
+              div(i,jch,l)=( pgx(i+1,jch)-pgx(i,jch)     &
+                            -pgy(i  ,jch)                &
+                          -(-pgne(i  ,jch)               &
+                            -pgnw(i+1,jch))*0.5)*wprp
+            enddo
+          endif
+!
+          jcl=jds+jw+1
+          jch=jde-jw-1
+          if(jte>=jcl.and.jts<=jch)then
+            do j=max(jts,jcl),min(jte,jch)
+              wprp=wpdar(j)
+              do i=its_b1,ite_b1
+                div(i,j,l)=(pgx(i+1,j)-pgx(i,j)          &
+                           +pgy(i,j+1)-pgy(i,j)          &
+                          -(pgne(i+1,j+1)-pgne(i,j)      &
+                           +pgnw(i,j+1)-pgnw(i+1,j))*0.5)*wprp
+              enddo
+            enddo
+          endif
+!-----------------------------------------------------------------------
+        else ! regional
+!-----------------------------------------------------------------------
+          icl=ids+2
+          ich=ide-2
+!
+          jcl=jds+2
+          jch=jde-2
+!
+          if(s_bdy) then
+            jp=jds+1
+            wprp=wpdar(jp)
+            do i=max(its,icl),min(ite,ich)
+              div(i,jp,l)=(pgx(i+1,jp)-pgx(i,jp)         &
+                          +pgy(i,jp+1)                   &
+                         -(pgne(i+1,jp+1)                &
+                          +pgnw(i,jp+1))*0.5)*wprp
+            enddo
+          endif
+!
+          if(n_bdy) then
+            jp=jde-1
+            wprp=wpdar(jp)
+            do i=max(its,icl),min(ite,ich)
+              div(i,jp,l)=(pgx(i+1,jp)-pgx(i,jp)         &
+                          -pgy(i,jp)                     &
+                        -(-pgne(i,jp)                    &
+                          -pgnw(i+1,jp))*0.5)*wprp
+            enddo
+          endif
+!
+          if(w_bdy) then
+            ip=ids+1
+            do j=max(jts,jcl),min(jte,jch)
+              wprp=wpdar(j)
+              div(ip,j,l)=(pgx(ip+1,j)                   &
+                          +pgy(ip,j+1)-pgy(ip,j)         &
+                         -(pgne(ip+1,j+1)                &
+                          -pgnw(ip+1,j))*0.5)*wprp
+            enddo
+          endif
+!
+          if(e_bdy) then
+            ip=ide-1
+            do j=max(jts,jcl),min(jte,jch)
+              wprp=wpdar(j)
+              div(ip,j,l)=(-pgx(ip,j)                    &
+                           +pgy(ip,j+1)-pgy(ip,j)        &
+                         -(-pgne(ip,j)                   &
+                           +pgnw(ip,j+1))*0.5)*wprp
+            enddo
+          endif
+!
+          if(s_bdy.and.w_bdy) then
+            ip=ids+1
+            jp=jds+1
+            wprp=wpdar(jp)
+            div(ip,jp,l)=(pgx(ip+1,jp)                   &
+                         +pgy(ip,jp+1)                   &
+                        -(pgne(ip+1,jp+1))*0.5)*wprp
+          endif
+!
+          if(s_bdy.and.e_bdy) then
+            ip=ide-1
+            jp=jds+1
+            wprp=wpdar(jp)
+            div(ip,jp,l)=(-pgx(ip,jp)                    &
+                          +pgy(ip,jp+1)                  &
+                         -(pgnw(ip,jp+1))*0.5)*wprp
+          endif
+!
+          if(n_bdy.and.w_bdy) then
+            ip=ids+1
+            jp=jde-1
+            wprp=wpdar(jp)
+            div(ip,jp,l)=(pgx(ip+1,jp)                   &
+                         -pgy(ip,jp)                     &
+                       -(-pgnw(ip+1,jp))*0.5)*wprp
+          endif
+!
+          if(n_bdy.and.e_bdy) then
+            ip=ide-1
+            jp=jde-1
+            wprp=wpdar(jp)
+            div(ip,jp,l)=(-pgx(ip,jp)                    &
+                          -pgy(ip,jp)                    &
+                        -(-pgne(ip,jp))*0.5)*wprp
+          endif
+!
+          do j=jts_b2,jte_b2
+            wprp=wpdar(j)
+            do i=its_b2,ite_b2
+              div(i,j,l)=(pgx(i+1,j)-pgx(i,j)            &
+                         +pgy(i,j+1)-pgy(i,j)            &
+                        -(pgne(i+1,j+1)-pgne(i,j)        &
                          +pgnw(i,j+1)-pgnw(i+1,j))*0.5)*wprp
             enddo
           enddo
-        endif
+!-----------------------------------------------------------------------
+        endif ! global/regional branching
 !-----------------------------------------------------------------------
 !---first pass switch---------------------------------------------------
 !-----------------------------------------------------------------------

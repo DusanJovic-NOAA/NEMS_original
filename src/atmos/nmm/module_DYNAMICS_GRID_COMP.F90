@@ -1804,7 +1804,8 @@
         btim=timef()
 !
         CALL PGFORCE                                                    &
-          (int_state%FIRST,int_state%RESTART,LM,DT,NTIMESTEP            &
+          (int_state%FIRST,int_state%GLOBAL,int_state%RESTART           &
+          ,LM,DT,NTIMESTEP                                              &
           ,RDYV,DSG2,PDSG1,RDXV,WPDAR,FIS                               &
           ,int_state%PD                                                 &
           ,int_state%T,int_state%Q,int_state%CW                         &
@@ -2140,7 +2141,8 @@
         btim=timef()
 !
         CALL PGFORCE                                                    &
-          (int_state%FIRST,int_state%RESTART,LM,DT,NTIMESTEP            &
+          (int_state%FIRST,int_state%GLOBAL,int_state%RESTART           &
+          ,LM,DT,NTIMESTEP                                              &
           ,RDYV,DSG2,PDSG1,RDXV,WPDAR,FIS                               &
           ,int_state%PD                                                 &
           ,int_state%T,int_state%Q,int_state%CW                         &
