@@ -44,7 +44,7 @@ cp _RTPWD_/NMMB_nests/input_nmmb_regional.d01        input_domain_01
 cp _RTPWD_/NMMB_nests/input_nmmb_regional.d01_nemsio input_domain_01_nemsio
 cp _RTPWD_/NMMB_nests/boco.* .
 cp _RTPWD_/data/* .
-cp _RTPWD_/NMMB_nests/GWD.bin GWD.bin
+cp _RTPWD_/NMMB_nests/GWD_bin_* .
 
 cp $SRCDIR/job/regression_tests/atmos.configure_nmm atmos.configure
 cp $SRCDIR/job/regression_tests/configure_file .

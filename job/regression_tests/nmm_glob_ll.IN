@@ -44,7 +44,7 @@ cp _RTPWD_/NMMB_glob/test_input_nmmb_global                input_domain_01
 cp _RTPWD_/NMMB_glob/test_input_nmmb_global.nemsio         input_domain_01_nemsio
 cp _RTPWD_/NMMB_glob/nmm_b_restart.024h_00m_00.00s         restart_file_01
 cp _RTPWD_/NMMB_glob/nmm_b_restart_nemsio.024h_00m_00.00s  restart_file_01_nemsio
-cp _RTPWD_/NMMB_glob/GWD.bin  GWD.bin
+cp _RTPWD_/NMMB_glob/GWD_bin_01 .
 _GS_cp _RTPWD_/NMMB_glob/global_* .
 
 cp $SRCDIR/job/regression_tests/atmos.configure_nmm atmos.configure

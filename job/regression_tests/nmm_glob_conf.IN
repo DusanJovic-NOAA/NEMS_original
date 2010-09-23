@@ -92,15 +92,6 @@ adiabatic: false            # True--> Adiabatic ;  False--> Diabatic
 
 
 ######################
-#####  Ensemble  #####
-######################
-
-ENS_SPS:      false
-RUN_CONTINUE: false
-total_member: 1
-
-
-######################
 #####  Dynamics  #####
 ######################
  

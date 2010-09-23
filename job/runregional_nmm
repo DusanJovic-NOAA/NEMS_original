@@ -9,7 +9,6 @@
 #@ tasks_per_node = 32
 #@ node = 1
 #@ node_resources= ConsumableMemory(110GB)
-#@ task_affinity=core(1)
 #@ class = dev
 #@ group = dev
 #@ wall_clock_limit = 00:15:00
@@ -45,7 +44,7 @@ cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg/input_nmmb_regional.d01        
 cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg/input_nmmb_regional.d01_nemsio  input_domain_01_nemsio
 cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg/nmm_b_restart.024               restart_file_01
 cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg/nmm_b_restart_nemsio.024        restart_file_01_nemsio
-cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg/GWD.bin                         GWD.bin
+cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg/GWD_bin_01 .
 cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg/boco.* .
 cp /meso/noscrub/wx20rv/REGRESSION_TEST/data/* .
 

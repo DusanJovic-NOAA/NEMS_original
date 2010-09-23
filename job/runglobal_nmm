@@ -9,7 +9,6 @@
 #@ tasks_per_node = 32
 #@ node = 1
 #@ node_resources= ConsumableMemory(110GB)
-#@ task_affinity=core(1)
 #@ class = dev
 #@ group = dev
 #@ wall_clock_limit = 00:15:00
@@ -42,7 +41,7 @@ cd $RUNDIR
 rm -rf $RUNDIR/*
 
 cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_glob/test_input_nmmb_global         input_domain_01
-cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_glob/GWD.bin                        GWD.bin
+cp /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_glob/GWD_bin_01 .
 
 cp $SRCDIR/job/configfile_global_new configure_file
 cp configure_file configure_file_01

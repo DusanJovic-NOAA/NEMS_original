@@ -3129,7 +3129,7 @@
           ENDIF
         ENDDO select_GWD_unit
 !
-        INFILE='GWD.bin'
+        WRITE(INFILE,'(A,I2.2)')'GWD_bin_',MY_DOMAIN_ID
 !
 !-----------------------------------------------------------------------
 !

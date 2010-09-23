@@ -92,15 +92,6 @@ adiabatic: false            # True--> Adiabatic ;  False--> Diabatic
 
 
 ######################
-#####  Ensemble  #####
-######################
- 
-ENS_SPS:      false
-RUN_CONTINUE: false
-total_member: 1
-
-
-######################
 #####  Dynamics  #####
 ######################
  
@@ -320,3 +311,12 @@ input_ready:  .FALSE.        # Nest has pre-generated input file
 
 nhours_clocktime:   1        # Frequency in hours between clocktime diagnostic prints.
 npe_print:          1        # The MPI task that will provide the clocktimes.
+
+##########################
+####  Ensemble flags  ####
+##########################
+
+ens_sps:            .FALSE.
+total_member:       1
+RUN_CONTINUE:       .FALSE.
+
