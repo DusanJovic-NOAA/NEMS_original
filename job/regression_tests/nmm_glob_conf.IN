@@ -316,7 +316,7 @@ npe_print:          1        # The MPI task that will provide the clocktimes.
 ####  Ensemble flags  ####
 ##########################
 
-ens_sps:            .FALSE.
+ENS_SPS:            .FALSE.
 total_member:       1
 RUN_CONTINUE:       .FALSE.
 
