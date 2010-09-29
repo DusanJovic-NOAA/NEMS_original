@@ -179,7 +179,7 @@
 !
 !-----------------------------------------------------------------------
 !***  Create the NEMS gridded component which will create and
-!***  control the ATM (atmoshpere), OCN (ocean), ICE (sea ice), etc.
+!***  control the ATM (atmosphere), OCN (ocean), ICE (sea ice), etc.
 !***  gridded components.
 !-----------------------------------------------------------------------
 !
@@ -188,7 +188,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      NEMS_GRID_COMP=ESMF_GridCompCreate(name        ='NEMS Grid Comp'  & !<-- ATM Driver component name
+      NEMS_GRID_COMP=ESMF_GridCompCreate(name        ='NEMS Grid Comp'  & !<-- NEMS component name
                                         ,gridcomptype=ESMF_ATM          & !<-- A Type that the user can query.
                                         ,configFile  ='configure_file'  & !<-- Link the user-created configure file.
                                         ,rc          =RC)
@@ -207,7 +207,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_GridCompSetServices(NEMS_GRID_COMP                      &  !<-- The ATM Driver component
+      CALL ESMF_GridCompSetServices(NEMS_GRID_COMP                      &  !<-- The NEMS component
                                    ,NEMS_REGISTER                       &  !<-- User's subroutineName
                                    ,RC)
 !
@@ -436,8 +436,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompInitialize(gridcomp   =NEMS_GRID_COMP           &  !<-- The NEMS component
-                                  ,importState=NEMS_IMP_STATE           &  !<-- The ATM Driver's import state
-                                  ,exportState=NEMS_EXP_STATE           &  !<-- The ATM Driver's export state
+                                  ,importState=NEMS_IMP_STATE           &  !<-- The NEMS component import state
+                                  ,exportState=NEMS_EXP_STATE           &  !<-- The NEMS component export state
                                   ,clock      =CLOCK_MAIN               &  !<-- The ESMF clock
                                   ,phase      =ESMF_SINGLEPHASE         &
                                   ,rc         =RC)
@@ -455,9 +455,9 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_GridCompRun(gridcomp   =NEMS_GRID_COMP                  &  !<-- The ATM Driver component
-                           ,importState=NEMS_IMP_STATE                  &  !<-- The ATM Driver's import state
-                           ,exportState=NEMS_EXP_STATE                  &  !<-- The ATM Driver's export state
+      CALL ESMF_GridCompRun(gridcomp   =NEMS_GRID_COMP                  &  !<-- The NEMS component
+                           ,importState=NEMS_IMP_STATE                  &  !<-- The NEMS component import state
+                           ,exportState=NEMS_EXP_STATE                  &  !<-- The NEMS component export state
                            ,clock      =CLOCK_MAIN                      &  !<-- The ESMF clock
                            ,phase      =ESMF_SINGLEPHASE                &
                            ,rc         =RC)
@@ -540,7 +540,7 @@
       END IF
 !
 !-----------------------------------------------------------------------
-!***  Execute the FINALIZE step for the ATM Driver component.
+!***  Execute the FINALIZE step for the NEMS component.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
