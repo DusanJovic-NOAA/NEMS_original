@@ -670,12 +670,12 @@
 !*** add im, jm into import state
 !
       CALL ESMF_AttributeSet(state    =IMP_WRITE_STATE                  &  !<-- The Write component import state
-                            ,name     ='im_'//trim(int_state%filename_base(2))   &  !<-- Name of the integer array
+                            ,name     ='im'                             &  !<-- Name of the integer array
                             ,value    =int_state%lonr                   &  !<-- The array being inserted into the import state
                             ,rc       =RC)
 
       CALL ESMF_AttributeSet(state    =IMP_WRITE_STATE                  &  !<-- The Write component import state
-                            ,name     ='jm_'//trim(int_state%filename_base(2)) &!<-- Name of the integer array
+                            ,name     ='jm'                             &!<-- Name of the integer array
                             ,value    =int_state%latr                   &  !<-- The array being inserted into the import state
                             ,rc       =RC)
 !
@@ -706,23 +706,6 @@
       GFS_FLX_BUNDLE=ESMF_FieldBundleCreate(grid=GRID                  &  !<-- The ESMF integration Grid
                                            ,name=int_state%filename_base(3) &  !<-- The Bundle's name
                                            ,rc  =RC)
-!
-!*** add im,jm into import state
-!
-      CALL ESMF_AttributeSet(state    =IMP_WRITE_STATE                  &  !<-- The Write component import state
-                            ,name     ='im_'//trim(int_state%filename_base(3))   &  !<-- Name of the integer array
-                            ,value    =int_state%lonr                   &  !<-- The array being inserted into the import state
-                            ,rc       =RC)
-
-      CALL ESMF_AttributeSet(state    =IMP_WRITE_STATE                  &  !<-- The Write component import state
-                            ,name     ='jm_'//trim(int_state%filename_base(3)) &!<-- Name of the integer array
-                            ,value    =int_state%latr                   &  !<-- The array being inserted into the import state
-                            ,rc       =RC)
-!
-      CALL ESMF_AttributeSet(state    =IMP_WRITE_STATE                  &  !<-- The Write component import state
-                            ,name     ='zhour_'//trim(int_state%filename_base(3)) &!<-- Name of the integer array
-                            ,value    =int_state%zhour                   &  !<-- The array being inserted into the import state
-                            ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL gfs_physics_err_msg(RC,MESSAGE_CHECK,RC_PHY_OUT)
@@ -805,23 +788,6 @@
       GFS_AER_BUNDLE=ESMF_FieldBundleCreate(grid=GRID                  &  !<-- The ESMF integration Grid
                                            ,name=int_state%filename_base(4) &  !<-- The Bundle's name
                                            ,rc  =RC)
-!
-!*** add im,jm into import state
-!
-      CALL ESMF_AttributeSet(state    =IMP_WRITE_STATE                  &  !<-- The Write component import state
-                            ,name     ='im_'//trim(int_state%filename_base(4))   &  !<-- Name of the integer array
-                            ,value    =int_state%lonr                   &  !<-- The array being inserted into the import state
-                            ,rc       =RC)
-
-      CALL ESMF_AttributeSet(state    =IMP_WRITE_STATE                  &  !<-- The Write component import state
-                            ,name     ='jm_'//trim(int_state%filename_base(4)) &!<-- Name of the integer array
-                            ,value    =int_state%latr                   &  !<-- The array being inserted into the import state
-                            ,rc       =RC)
-!
-      CALL ESMF_AttributeSet(state    =IMP_WRITE_STATE                  &  !<-- The Write component import state
-                            ,name     ='zhour_'//trim(int_state%filename_base(4)) &!<-- Name of the integer array
-                            ,value    =int_state%zhour                   &  !<-- The array being inserted into the import state
-                            ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL gfs_physics_err_msg(RC,MESSAGE_CHECK,RC_PHY_OUT)

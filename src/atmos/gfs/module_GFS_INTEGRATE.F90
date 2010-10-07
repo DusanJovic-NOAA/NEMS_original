@@ -124,6 +124,8 @@
       LOGICAL, SAVE                          :: first_dfi  = .true.
       INTEGER                                :: YY, MM, DD, H, M, S
 !
+      real(kind=8) :: timeio,timedyn,timephy,times,timee,timef
+!
 !-----------------------------------------------------------------------
 !***  Set up alarm for output,alarm starts from current time
 !-----------------------------------------------------------------------
@@ -139,19 +141,6 @@
                             ,s   =S                                          &
                             ,rc  =RC)
 !
-           IF(M /= 0) THEN
-               H = H + 1
-               M = 0
-               CALL ESMF_TimeSet(time=ALARM_OUTPUT_RING                        &
-                                ,yy  =YY                                       &
-                                ,mm  =MM                                       &
-                                ,dd  =DD                                       &
-                                ,h   =H                                        &
-                                ,m   =M                                        &
-                                ,s   =S                                        &
-                                ,rc  =RC)
-           END IF
-
            write(0,*)'alarm_output_ring,H=',H,'m=',m,'s=',s
 !
            ALARM_OUTPUT =ESMF_AlarmCreate(name             ='ALARM_OUTPUT'     &
@@ -181,11 +170,13 @@
 
           CALL ESMF_LogWrite("Execute GFS Dynamics",ESMF_LOG_INFO,rc=RC)
 !
+          times=timef()
           CALL ESMF_GridCompRun(gridcomp   =GC_GFS_DYN                    &
                                ,importstate=IMP_GFS_DYN                   &
                                ,exportstate=EXP_GFS_DYN                   &
                                ,clock      =CLOCK_GFS                     &
                                ,rc         =RC)
+          timedyn=timedyn+timef()-times
 !
           CALL ERR_MSG(RC,'execute dynamics',RC_LOOP)
 !
@@ -198,6 +189,7 @@
                             ,rc          =RC)
 
           NTIMESTEP=NTIMESTEP_ESMF
+!
           IF(DFIHR>0 .and. currentTime>HALFDFITIME .and.                 &
             currentTime<=DFITIME .and. first_dfi) THEN
 
@@ -216,11 +208,13 @@
  outputdyn: IF(((ESMF_AlarmIsEnabled(alarm = ALARM_OUTPUT, rc = RC) .AND. &
                ESMF_AlarmIsRinging(alarm = ALARM_OUTPUT,rc = Rc)) .OR.    & !<-- The history output alarm
                NTIMESTEP == 1)  .AND. write_flag) THEN
+                 times=timef()
                  CALL WRITE_ASYNC_GFS(WRT_COMPs,exp_gfs_dyn               &
                                   ,imp_gfs_wrt,exp_gfs_wrt                &
                                   ,CLOCK_GFS                              &
                                   ,MYPE                                   &
                                   ,WRITE_GROUP_READY_TO_GO)
+                 timeio=timeio+timef()-times
             ELSE
                 write_flag = .true.
             END IF outputdyn
@@ -244,11 +238,13 @@
 !
           IF (PHYSICS_ON==ESMF_True) THEN
             call esmf_logwrite("execute physics",esmf_log_info,rc=rc)
+            times=timef()
             call esmf_gridcomprun(gridcomp   =gc_gfs_phy            &
                                  ,importstate=imp_gfs_phy           &
                                  ,exportstate=exp_gfs_phy           &
                                  ,clock      =CLOCK_GFS              &
                                  ,rc         =RC)
+            timephy=timephy+timef()-times
             call err_msg(RC,'execute physics',RC_LOOP)
 !check time step
             CALL ESMF_ClockGet(clock       =CLOCK_GFS                       &
@@ -397,23 +393,29 @@
  
        ENDDO integrate
 
-                call esmf_gridcomprun(gridcomp=gc_gfs_dyn       &
+       times=timef()
+       call esmf_gridcomprun(gridcomp=gc_gfs_dyn                &
                                ,importstate=imp_gfs_dyn         &
                                ,exportstate=exp_gfs_dyn         &
                                ,clock      =CLOCK_GFS           &
                                ,rc         =RC)
+       timedyn=timedyn+timef()-times
 !jws
     output2: IF(ESMF_AlarmIsRinging(alarm=ALARM_OUTPUT, rc = RC)) THEN    !<-- The history output alarm
+                 times=timef()
                  CALL WRITE_ASYNC_GFS(WRT_COMPs,exp_gfs_dyn            &
                          ,imp_gfs_wrt,exp_gfs_wrt                      &
                          ,CLOCK_GFS                                    &
                          ,MYPE                                         &
                          ,WRITE_GROUP_READY_TO_GO)
+                 timeio=timeio+timef()-times
                  write_flag = .false.
              ELSE
                  write_flag = .true.
              END IF output2
 !jwe
+       write(0,*)'end of gfs integration, time dyn=',timedyn*0.001,'time_io=', &
+        timeio*0.001,' time phys=',timephy*0.001
 !
       END SUBROUTINE GFS_INTEGRATE
 !

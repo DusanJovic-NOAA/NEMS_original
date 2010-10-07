@@ -14,6 +14,7 @@
 !       07 May 2009:  J. Wang - adopt write _routine from NMMB_io
 !                                modified for GFS
 !       03 Sep 2009:  W. Yang - Ensemble GEFS.
+!       29 Sep 2010:  J. Wang - set up data mapping between fcst/write ps only once
 !
 !-----------------------------------------------------------------------
 !
@@ -159,8 +160,9 @@
 !
 !-----------------------------------------------------------------------
 !
-      REAL(KIND=kind_evod)              :: btim,btim0
+      REAL(KIND=kind_evod)              :: btim,btim0,timef,time1,time2
 !
+      btim0=timef()
 !-----------------------------------------------------------------------
 !***** part 1: necessary info for fcst tasks to send data to write tasks
 !***********************************************************************
@@ -185,9 +187,10 @@
         MYPE_LOCAL=0
       endif
 !
-!      write(0,*)'in first pass, LAST_FCST_TASK=',LAST_FCST_TASK,  &
-!        'LEAD_WRITE_TASK=',LEAD_WRITE_TASK,'LAST_WRITE_TASK=',  &
-!        LAST_WRITE_TASK,'NWTPG=',NWTPG,'NUM_PES_FCST=',NUM_PES_FCST
+!       write(0,*)'in first pass, LAST_FCST_TASK=',LAST_FCST_TASK,  &
+!         'LEAD_WRITE_TASK=',LEAD_WRITE_TASK,'LAST_WRITE_TASK=',  &
+!         LAST_WRITE_TASK,'NWTPG=',NWTPG,'NUM_PES_FCST=',NUM_PES_FCST, &
+!        'NBDL=',NBDL,'NTASKS=',NTASKS
 
       ALLOCATE(ITMP(10000))
       ALLOCATE(RTMP(50000))
@@ -224,6 +227,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !--------------------------------------------------------------------
+        IF(NBDL==1) THEN
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Global Parameters from History Bundle" 
@@ -299,12 +303,12 @@
             fcst_lat_for_write_task(i)=nremain+ (lat-nremain*(nbelt+1)-1)/Nbelt+1
           endif
         enddo
-!        write(0,*)'nbelt=',nbelt,'nremain=',nremain,'lats_nodes=', &
-!         wrt_int_state%lats_node_a,'ipt_lats_node_a=',wrt_int_state%ipt_lats_node_a, &
-!         'global_lats_a=', &
-!         wrt_int_state%global_lats_a(wrt_int_state%ipt_lats_node_a: &
-!         wrt_int_state%ipt_lats_node_a-1+wrt_int_state%lats_node_a),'fcst_lat_to_write_task=',  &
-!         fcst_lat_to_write_task
+!         write(0,*)'nbelt=',nbelt,'nremain=',nremain,'lats_nodes=', &
+!          wrt_int_state%lats_node_a,'ipt_lats_node_a=',wrt_int_state%ipt_lats_node_a, &
+!          'global_lats_a=', &
+!          wrt_int_state%global_lats_a(wrt_int_state%ipt_lats_node_a: &
+!          wrt_int_state%ipt_lats_node_a-1+wrt_int_state%lats_node_a),'fcst_lat_to_write_task=',  &
+!          wrt_int_state%fcst_lat_to_write_task
 !
 !*** on each forecast task, specify the starting point and the number of lats in global_lat_a to
 !*** to each write task, which will decide the position of lat on write tasks
@@ -328,10 +332,10 @@
                         wrt_int_state%nlat_to_write_task(i-1)
           endif
        enddo
-!       write(0,*)'nstart_write_task=',wrt_int_state%nstart_write_task(1:NWTPG),'nlat_write_task=', &
-!          wrt_int_state%nlat_write_task(1:nwtpg),'fcst_lat_for_write_task=', &
-!          wrt_int_state%fcst_lat_for_write_task(1:wrt_int_state%lats_node_a), &
-!          'nwrttask_on_fcst=',wrt_int_state%nwrttask_on_fcst(1:wrt_int_state%lats_node_a)
+!        write(0,*)'nstart_write_task=',wrt_int_state%nstart_to_write_task(1:NWTPG),'nlat_write_task=', &
+!           wrt_int_state%nlat_to_write_task(1:nwtpg),'fcst_lat_for_write_task=', &
+!           wrt_int_state%fcst_lat_to_write_task(1:wrt_int_state%lats_node_a), &
+!           'nwrttask_on_fcst=',wrt_int_state%nwrttask_on_fcst(1:wrt_int_state%lats_node_a)
 !
         deallocate(fcst_lat_for_write_task)
 !
@@ -339,10 +343,12 @@
 !
         endif if1tasks
 !
+      ENDIF !nbdl==1
 !-----------------------------------------------------------------------
 !
       ENDIF domain_limits
 !
+      time1=timef()
 !
 !-----------------------------------------------------------------------
 !----------------------------------------------------------------------
@@ -387,8 +393,8 @@
       ENDIF 
 !
       IF(MYPE>=LEAD_WRITE_TASK)THEN                                        !<-- Write tasks in this group receive
-        write(0,*)'get dimension,NCURRENT_GROUP=',NCURRENT_GROUP,'MPI_COMM=',  &
-          MPI_COMM_INTER_ARRAY(NCURRENT_GROUP)
+!        write(0,*)'get dimension,NCURRENT_GROUP=',NCURRENT_GROUP,'MPI_COMM=',  &
+!          MPI_COMM_INTER_ARRAY(NCURRENT_GROUP)
         CALL MPI_RECV(wrt_int_state%IM                                  &  !<-- Recv this data
                      ,1                                                 &  !<-- Words received
                      ,MPI_INTEGER                                       &  !<-- Datatype
@@ -601,6 +607,8 @@
        ENDDO
 !       
       ENDIF
+!
+      time2=timef()
 !
 !-----------------------------------------------------------------------
 !***************** part 2: bundles *************************************

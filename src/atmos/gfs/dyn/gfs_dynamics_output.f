@@ -557,12 +557,12 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
-                            ,name     ='im_'//trim(int_state%filename_base(1))   &  !<-- Name of the integer array
+                            ,name     ='im'                             &  !<-- Name of the integer array
                             ,value    =int_state%lonf                   &  !<-- The array being inserted into the import state
                             ,rc       =RC)
 
       CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
-                            ,name     ='jm_'//trim(int_state%filename_base(1)) &!<-- Name of the integer array
+                            ,name     ='jm'                             &!<-- Name of the integer array
                             ,value    =int_state%latg                   &  !<-- The array being inserted into the import state
                             ,rc       =RC)
 !
@@ -583,7 +583,7 @@
                             ,rc       =RC)
 !
       CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
-                            ,name     ='zhour_'//trim(int_state%filename_base(1)) &  !<-- Name of the integer array
+                            ,name     ='zhour'                          &  !<-- Name of the integer array
                             ,value    =int_state%zhour                  &  !<-- The array being inserted into the import state
                             ,rc       =RC)
 !

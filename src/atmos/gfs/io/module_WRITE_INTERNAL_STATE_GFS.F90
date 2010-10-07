@@ -13,6 +13,7 @@
 !       15 Aug 2008:  J. Wang  - Add NEMSIO variables
 !       16 Sep 2008:  J. Wang  - 3-D output arrays revert to 2-D
 !       03 Sep 2009:  W. Yang  - Ensemble GEFS.
+!       29 Sep 2010:  J. Wang  - change all_data_I/R2d from 1D to 2D 
 !
 !-----------------------------------------------------------------------
 !
@@ -101,11 +102,11 @@
       INTEGER,DIMENSION(:),ALLOCATABLE :: NCOUNT_FIELDS
 !
       INTEGER,DIMENSION(:,:)  ,ALLOCATABLE :: ALL_DATA_I1D
-      INTEGER,DIMENSION(:)  ,ALLOCATABLE :: ALL_DATA_I2D
+      INTEGER,DIMENSION(:,:)  ,ALLOCATABLE :: ALL_DATA_I2D
       INTEGER,DIMENSION(:,:),ALLOCATABLE :: OUTPUT_ARRAY_I2D
 !
       REAL   ,DIMENSION(:,:)  ,ALLOCATABLE :: ALL_DATA_R1D
-      REAL(kind=4)   ,DIMENSION(:)  ,ALLOCATABLE :: ALL_DATA_R2D
+      REAL(kind=4)   ,DIMENSION(:,:)  ,ALLOCATABLE :: ALL_DATA_R2D
       REAL(kind=4)   ,DIMENSION(:,:),ALLOCATABLE :: OUTPUT_ARRAY_R2D
 !
 !-----------------------------------------------------------------------
