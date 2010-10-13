@@ -10,6 +10,7 @@
 !  2010/07/14     Sarah Lu,  Initial code.
 !  2010/08/10     Sarah Lu,  Add g2d_zerout routine
 !  2010/09/11     Sarah Lu,  Modify g2d_zerout 
+!  2010/10/10     Sarah Lu,  Add GFS forcing fields to g2d_fld
 !
 ! !INTERFACE:
 !
@@ -20,7 +21,7 @@
 !
  IMPLICIT none
 
- INTEGER, PARAMETER        :: MAX_AER_DIAG=100
+ INTEGER, PARAMETER        :: MAX_AER_DIAG=150
 
  TYPE AER_R2D
   real(kind=kind_phys), dimension(:,:), pointer :: flds =>null()
@@ -38,7 +39,10 @@
    TYPE (AER_Diag_Data)         :: SU
    TYPE (AER_Diag_Data)         :: OC 
    TYPE (AER_Diag_Data)         :: BC
+   TYPE (AER_Diag_Data)         :: MET
  END TYPE G2D_Var_Data
+!
+ logical, public      :: doing_MET = .true.
 !
  contains
 
@@ -66,6 +70,7 @@
  character*10      ::   name_du(29), name_su(30)
  character*10      ::   name_oc(15), name_bc(14)
  character*10      ::   name_ss(29)
+ character*10      ::   name_met(15)
 !
  data name_du(1:29) /                                    &
   'DUEM001', 'DUEM002', 'DUEM003', 'DUEM004', 'DUEM005', &
@@ -104,10 +109,19 @@
    'SSSMASS', 'SSCMASS', 'SSEXTTAU', 'SSSCATAU',         &
    'SSSMASS25','SSCMASS25','SSEXTT25','SSSCAT25',        &
    'SSAERIDX'/
+
+ data name_met(1:15) /                                   &
+   'U10M', 'V10M', 'UUSTAR', 'Z0H', 'LWI', 'ZPBL',  &
+   'WET1', 'GRN',  'PS', 'SH', 'TA', 'TSOIL',      &
+   'TROPP', 'CNPRCP', 'NCNPRCP'                    /
 !
 !! .............................................................
-
 !
+!   allocate g2d_fld for GFS met fields
+    if ( doing_MET ) then
+      call aldata_ (dim1, dim2, name_met, g2d_fld%met, iret)
+    endif
+
 !   allocate 2d aer diag fields for DU module
     if ( gfs_phy_tracer%doing_DU ) then
       call aldata_ (dim1, dim2, name_du, g2d_fld%du, iret)
@@ -178,6 +192,12 @@
     integer, intent(out)                  :: iret
 !
     integer k
+!
+    if ( doing_MET ) then
+      do k =1, g2d_fld%met%nfld
+        g2d_fld%met%diag(k)%flds(:,:) = 0.
+      enddo
+    endif
 !
     if (  g2d_fld%du%nfld .gt. 0 ) then
       do k =1, g2d_fld%du%nfld

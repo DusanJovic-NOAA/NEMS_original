@@ -21,6 +21,7 @@
 !! 06Aug 2010     Sarah Lu, Modify phy2chem run routine to pass g2d_fld
 !!                          from chem_exp to phys_exp 
 !! 10Aug 2010     Sarah Lu, Modify chem2phy run routine to accumulate g2d_fld
+!! 10Oct 2010     Sarah Lu, Move GetPointer_diag_ to phy2chem coupler
 !-----------------------------------------------------------------------
 
       use ESMF_MOD
@@ -30,6 +31,7 @@
 !
       use atmos_phy_chem_cpl_comp_mod, only:                  &
                           GetPointer_tracer_, CkPointer_,     &
+                          GetPointer_diag_,                   &
                           lonr, lats_node_r, lats_node_r_max, &
                           lonsperlar_r, im, jm, km, ntrac,    &
                           run_DU, run_SU, run_SS, run_OC, run_BC
@@ -522,46 +524,5 @@
       ENDIF
 !! 
       END subroutine run
-
-
-!!! ---------------- ! ------------------ ! ---------------- !----------------!
-
-        subroutine GetPointer_diag_ (STATE, BUNDLENAME, NAME, ARRAY, RC)
-
-! --- input/output arguments
-        type(ESMF_State), intent(IN)    :: STATE
-        character(len=*), intent(IN)    :: BUNDLENAME
-        character(len=*), intent(IN)    :: NAME
-        real(ESMF_KIND_R8), pointer, intent(OUT) :: ARRAY(:,:)
-        integer, intent (OUT)           :: RC
-
-! --- locals
-        type(ESMF_Field)                :: Field
-        type(ESMF_FieldBundle)          :: Bundle
-        integer                         :: rc1
-!
-!===>  ...  begin here
-
-        IF ( BundleName(1:4) == 'xxxx') then
-         MESSAGE_CHECK = 'GetPointer_diag: Extract Field '//NAME
-         CALL ESMF_StateGet(state=State, ItemName=NAME, field=Field, rc=rc1)
-         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
-        ELSE
-         MESSAGE_CHECK = 'GetPointer_diag: Extract Bundle '//BundleName
-         call ESMF_StateGet(state=State, ItemName=BundleName,  &
-                           fieldbundle=Bundle, rc=rc1)
-         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
-
-         MESSAGE_CHECK = 'GetPointer_diag:: Extract Field '//NAME
-         CALL ESMF_FieldBundleGet(bundle=Bundle, name=NAME, field=Field, rc=rc1)
-         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
-        ENDIF
-
-        nullify(Array)
-        MESSAGE_CHECK = 'GetPointer_diag:: Get Fortran data pointer from '//NAME
-        CALL ESMF_FieldGet(field=Field, localDe=0, farray=Array, rc = rc1)
-        CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
-!
-       end subroutine GetPointer_diag_
 
       END module atmos_chem_phy_cpl_comp_mod

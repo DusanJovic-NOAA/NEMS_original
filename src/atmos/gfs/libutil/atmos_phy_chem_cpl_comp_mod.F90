@@ -36,6 +36,7 @@
 !! 09Sep 2010     Sarah Lu, wet1 is exported from phys, no longer calculated
 !!                          in the phy-to-chem coupler; correct how cn_prcp
 !!                          and ncn_prcp are computed
+!! 10Oct 2010     Sarah Lu, pass g2d_fld%met from chem_imp to phys_exp
 !-----------------------------------------------------------------------
 
       use ESMF_MOD
@@ -66,7 +67,8 @@
       logical, public               :: run_DU, run_SU, run_SS, run_OC, run_BC
 
 ! --- public interface
-      public::  SetServices, GetPointer_tracer_, CkPointer_, GetPointer_3D_
+      public::  SetServices, GetPointer_tracer_, CkPointer_, GetPointer_3D_, &
+                GetPointer_diag_
 
       private
       TYPE(Chem_Registry)          :: chemReg      !<-- The GOCART Chem_Registry
@@ -342,7 +344,21 @@
                c_airdens, c_t, c_u, c_v, c_fcld, c_dqdt
 
       real (ESMF_KIND_R8), pointer, dimension(:,:,:) ::  c_o3, c_rh2       ! met tracers
+!
+!---  Add the following for 2d aerosol diag fields ---
+!  Fortran data pointer for phy export state
+      real(ESMF_KIND_R8), pointer, dimension(:,:) ::  p_diag
 
+!  Fortran data pointer for chem import state
+      real(ESMF_KIND_R8), pointer, dimension(:,:) ::  c_diag
+
+      TYPE(ESMF_FieldBundle)  :: Bundle
+      character*10            :: tag, vname
+      character*10            :: BundleName, FieldName
+      integer                 :: kcount
+      integer, save           :: nfld_met
+      character*10, dimension(30)  :: name_lst
+      character*10,  allocatable, save  :: name_met(:)
 !
 ! local variables for conversion
       real       :: ptp, utp, vtp, ttp, htp, shrtp, tv1, dz
@@ -415,6 +431,39 @@
 !
         print *, 'PHY2CHEM_RUN: Compute all physics function tables'
         call gfuncphys      
+
+!
+!  ---  Retrive g2d_fld%met from the bundle attribute
+!
+        FieldName = 'met_nfld'
+        MESSAGE_CHECK="PHY2CHEM_RUN: get attribute from phy_exp"
+        CALL ESMF_AttributeGet(PHY_EXP_STATE, name = FieldName,  &
+                               value = kcount , rc=RC)
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
+        if ( kcount > 0 ) then
+
+          MESSAGE_CHECK="PHY2CHEM_RUN: get bundle from phy_exp"
+          BundleName='dgmet'
+          CALL ESMF_StateGet(PHY_EXP_STATE, BundleName, &
+                             Bundle, rc=RC)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
+          do i = 1, kcount
+            write(tag, '(i2.2)') i
+            FieldName = trim(BundleName)//'_'//trim(tag)
+            MESSAGE_CHECK="PHY2CHEM_RUN: get attribute from bundle"
+            CALL ESMF_AttributeGet(Bundle, name=FieldName,   &
+                                   value=vname, rc=RC)
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+            name_lst(i) = trim(vname)
+          enddo
+
+          nfld_met = kcount
+          allocate(name_met(kcount) )
+          name_met(1:kcount) = name_lst(1:kcount)
+
+        endif
 
 ! ---   Debug print (optional)
         if ( lckprnt ) then
@@ -727,6 +776,60 @@
       ENDIF
       t2_o=rtc()
       t2 = t2_o - t2_i
+!
+! --- now let's take care 2d aer_diag fields 
+!
+      BundleName='dgmet'
+      do i = 1, nfld_met
+
+        vname = name_met(i)
+        nullify(p_diag)
+        MESSAGE_CHECK = "Phys2Chem CPL_RUN: Get Farray from Phy_Exp-"//vname
+        call GetPointer_diag_(PHY_EXP_STATE, BundleName, vname, p_diag, rc)
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
+        select case ( vname )
+          case ('xU10M')
+            p_diag = c_u10m
+          case ('xV10M')
+            p_diag = c_v10m
+          case ('xUUSTAR')
+            p_diag = c_ustar
+          case ('xZ0H')
+            p_diag = c_z0h
+          case ('xLWI')
+            p_diag = c_lwi
+          case ('xZPBL')
+            p_diag = c_zpbl
+          case ('xWET1')
+            p_diag = c_wet1
+          case ('xGRN')
+            p_diag = c_grn
+          case ('xPS')
+            p_diag = c_ps
+          case ('xSH')
+            p_diag = c_sh
+          case ('xTA')
+            p_diag = c_ta
+          case ('xTSOIL')
+            p_diag = c_tsoil1
+          case ('xTROPP')
+            p_diag = c_tropp
+          case ('xCNPRCP')
+            p_diag = c_cn_prcp
+          case ('xNCNPRCP')
+            p_diag = c_ncn_prcp
+        end select   
+
+!        nullify(c_diag)
+!        MESSAGE_CHECK = "Phys2Chem CPL_RUN: Get Farray from Chem_Imp-"//vname
+!        call GetPointer_diag_(CHEM_IMP_STATE, 'xxxx', vname, c_diag, rc)
+!        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
+!        p_diag(:,:) = c_diag(:,:)
+      enddo    ! kcount-loop
+
+
 !
 !
 !---------------------------------------------
@@ -1240,6 +1343,45 @@
 
        end subroutine GetPointer_tracer_
 
+!!! ---------------- ! ------------------ ! ---------------- !----------------!
+
+        subroutine GetPointer_diag_ (STATE, BUNDLENAME, NAME, ARRAY, RC)
+
+! --- input/output arguments
+        type(ESMF_State), intent(IN)    :: STATE
+        character(len=*), intent(IN)    :: BUNDLENAME
+        character(len=*), intent(IN)    :: NAME
+        real(ESMF_KIND_R8), pointer, intent(OUT) :: ARRAY(:,:)
+        integer, intent (OUT)           :: RC
+
+! --- locals
+        type(ESMF_Field)                :: Field
+        type(ESMF_FieldBundle)          :: Bundle
+        integer                         :: rc1
+!
+!===>  ...  begin here
+
+        IF ( BundleName(1:4) == 'xxxx') then
+         MESSAGE_CHECK = 'GetPointer_diag: Extract Field '//NAME
+         CALL ESMF_StateGet(state=State, ItemName=NAME, field=Field, rc=rc1)
+         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+        ELSE
+         MESSAGE_CHECK = 'GetPointer_diag: Extract Bundle '//BundleName
+         call ESMF_StateGet(state=State, ItemName=BundleName,  &
+                           fieldbundle=Bundle, rc=rc1)
+         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+
+         MESSAGE_CHECK = 'GetPointer_diag:: Extract Field '//NAME
+         CALL ESMF_FieldBundleGet(bundle=Bundle, name=NAME, field=Field, rc=rc1)
+         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+        ENDIF
+
+        nullify(Array)
+        MESSAGE_CHECK = 'GetPointer_diag:: Get Fortran data pointer from '//NAME
+        CALL ESMF_FieldGet(field=Field, localDe=0, farray=Array, rc = rc1)
+        CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
+!
+       end subroutine GetPointer_diag_
 
 !! adopt getrh routine from /nwprod/sorc/global_postgp.fd/postgp.f
 

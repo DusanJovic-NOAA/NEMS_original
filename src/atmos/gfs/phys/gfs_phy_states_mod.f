@@ -19,6 +19,7 @@
 !  2010/08/10           Sarah Lu, modify internal2export (add deltim to
 !                       attribute)
 !  2010/09/09           Sarah Lu, change smc1 to wet1 
+!  2010/10/10           Sarah Lu, add g2d_fld%met to phy_exp
 !
 !!USEs:
 !
@@ -368,9 +369,9 @@
       TYPE (AER_Diag_Data)   :: g2d
       integer                :: kcount
       character*10           :: BundleName, FieldName
-      character*10           :: aerosol_list(5), aerosol
+      character*10           :: aerosol_list(6), aerosol
 
-      data aerosol_list / 'du', 'su', 'ss', 'oc', 'bc'/ 
+      data aerosol_list / 'du', 'su', 'ss', 'oc', 'bc', 'met'/ 
 
       data vname_2d /'slmsk', 'fice', 'hpbl', 'wet1',     &
                      'stype', 'vtype', 'vfrac', 'rainc', &
@@ -670,7 +671,7 @@
 ! loop through the 2D aerosol diag fields
 ! g2d_fld are computed by GOCART and outputted by PHY
 
-      lab_do_diag : DO i = 1, 5
+      lab_do_diag : DO i = 1, 6
 
         aerosol = aerosol_list(i)
         select case ( aerosol  )
@@ -684,12 +685,13 @@
           g2d = int_state%g2d_fld%oc
         case ( 'bc')
           g2d = int_state%g2d_fld%bc
+        case ( 'met')
+          g2d = int_state%g2d_fld%met
         end select
 
         BundleName='dg'//trim(aerosol)
         kcount = g2d%nfld
       
-!       print *, 'vvv -', BundleName, kcount 
         if ( kcount > 0 ) then
          msg =  "create empty FieldBundle "//BundleName
          Bundle = ESMF_FieldBundleCreate(name=BundleName, & 
@@ -698,6 +700,7 @@
 
          DO k = 1, kcount
           FieldName = trim(g2d%diag(k)%name)
+          if(aerosol=='met') FieldName='x'//FieldName
           msg = "create 2d Field "//FieldName
           NULLIFY(fArr2D)
           fArr2D => g2d%diag(k)%flds
@@ -709,7 +712,6 @@
           call gfs_physics_err_msg(rc, msg ,rcfinal)
 
           call add_g2d_attribute(Bundle,BundleName,k,FieldName,rc=rc)
-!	  print *, 'vvv - FieldName=', k, FieldName
          ENDDO
 
          msg = "Add Bundle to physics export state"

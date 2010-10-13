@@ -26,6 +26,7 @@
 !  apr 09 2010  Sarah Lu        initialize global_lats_r, lonsperlar
 !  jul 14 2010  Sarah Lu        initialize g2d_fld
 !  jul 23 2010  Sarah Lu        initialize ngrids_aer and buff_mult_pieceg
+!  oct 10 2010  Sarah Lu        initialize g2d_fld%met 
 !
 ! !interface:
 !
@@ -483,6 +484,9 @@
 
         if ( gis_phy%g2d_fld%ss%nfld > 0 )   &
           ngrids_aer = ngrids_aer+gis_phy%g2d_fld%ss%nfld
+
+        if ( gis_phy%g2d_fld%met%nfld > 0 )   &
+          ngrids_aer = ngrids_aer+gis_phy%g2d_fld%met%nfld
 
 !       print *, 'INIT_g2d_fld ngrids_aer = ',ngrids_aer
       endif

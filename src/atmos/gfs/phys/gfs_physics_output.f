@@ -23,6 +23,7 @@
 !
 !***  REVISION LOG:
 !***  Jul 23 2010, Sarah Lu   write out 2d aer_diag (g2d_fld)
+!***  Oct 10 2010, Sarah Lu   add g2d_fld%met to 2d aer_diag
 !***
 !-----------------------------------------------------------------------
 !
@@ -773,6 +774,14 @@
          PHY_INT_STATE_2D_R_AER(1,II)=int_state%g2d_fld%bc%diag(k)%name
         enddo
       endif
+
+      if ( int_state%g2d_fld%met%nfld > 0 ) then   ! fill in gfs forcing
+        do  k = 1, int_state%g2d_fld%met%nfld
+         II = II + 1
+         PHY_INT_STATE_2D_R_AER(1,II)=int_state%g2d_fld%met%diag(k)%name
+        enddo
+      endif
+
 
 !  fill in file type and level type
       DO K = 1, II

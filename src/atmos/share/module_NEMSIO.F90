@@ -24,6 +24,7 @@ module module_nemsio
 !    2010-07-26    Sarah Lu - modify gribtable for 2d aerosol diag fields
 !    2010-08-09    Sarah Lu - comment gribtable for clarification;
 !                             correct gribtable for OCSCATAU
+!    2010-10-10    Sarah Lu - modify gribtable for gfs met forcing
 !
 ! Public Variables
 ! Public Defined Types
@@ -5951,6 +5952,22 @@ contains
     gribtable(4)%item(140)=nemsio_grbtbl_item('SSSCAT25','atmos col',6,0,217,200)
     gribtable(4)%item(141)=nemsio_grbtbl_item('SSAERIDX','atmos col',6,0,218,200)
 
+!   2d aerosol diag fields for MET (pds5=220:234)
+    gribtable(4)%item(142)=nemsio_grbtbl_item('U10M','atmos col',2,0,220,200)
+    gribtable(4)%item(143)=nemsio_grbtbl_item('V10M','atmos col',2,0,221,200)
+    gribtable(4)%item(144)=nemsio_grbtbl_item('UUSTAR','atmos col',2,0,222,200)
+    gribtable(4)%item(145)=nemsio_grbtbl_item('Z0H','atmos col',4,0,223,200)
+    gribtable(4)%item(146)=nemsio_grbtbl_item('LWI','atmos col',0,0,224,200)
+    gribtable(4)%item(147)=nemsio_grbtbl_item('ZPBL','atmos col',0,0,225,200)
+    gribtable(4)%item(148)=nemsio_grbtbl_item('WET1','atmos col',6,0,226,200)
+    gribtable(4)%item(149)=nemsio_grbtbl_item('GRN','atmos col',2,0,227,200)
+    gribtable(4)%item(150)=nemsio_grbtbl_item('PS','atmos col',0,0,228,200)
+    gribtable(4)%item(151)=nemsio_grbtbl_item('SH','atmos col',0,0,229,200)
+    gribtable(4)%item(152)=nemsio_grbtbl_item('TA','atmos col',3,0,230,200)
+    gribtable(4)%item(153)=nemsio_grbtbl_item('TSOIL','atmos col',3,0,231,200)
+    gribtable(4)%item(154)=nemsio_grbtbl_item('TROPP','atmos col',0,0,232,200)
+    gribtable(4)%item(155)=nemsio_grbtbl_item('CNPRCP','atmos col',6,0,233,200)
+    gribtable(4)%item(156)=nemsio_grbtbl_item('NCNPRCP','atmos col',6,0,234,200)
 !
     iret=0
   end subroutine nemsio_setgrbtbl
