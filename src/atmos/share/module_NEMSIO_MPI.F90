@@ -1393,49 +1393,48 @@ contains
     endif
 !
     if( gfile%extrameta )then
-      if(present(nmetavari).and.nmetavari.gt.0.and.present(variname) &
-         .and.size(variname).eq.nmetavari .and. &
-         present(varival).and.size(varival).eq.nmetavari) then
+      if(present(nmetavari).and.present(variname).and.present(varival)) then
+        if(nmetavari.gt.0.and.size(variname).eq.nmetavari.and.size(varival).eq.nmetavari) then
            gfile%nmetavari=nmetavari
            if(allocated(gfile%variname)) deallocate(gfile%variname)
            if(allocated(gfile%varival)) deallocate(gfile%varival)
            allocate(gfile%variname(nmetavari),gfile%varival(nmetavari))
            gfile%variname=variname
            gfile%varival=varival
+        endif
       endif
-      if(present(nmetavarr).and.nmetavarr.gt.0.and.present(varrname) &
-         .and.size(varrname).eq.nmetavarr .and. &
-         present(varrval).and.size(varrval).eq.nmetavarr) then
+      if(present(nmetavarr).and.present(varrname).and.present(varrval)) then
+        if(nmetavarr.gt.0.and.size(varrname).eq.nmetavarr.and.size(varrval).eq.nmetavarr) then
            gfile%nmetavarr=nmetavarr
            if(allocated(gfile%varrname)) deallocate(gfile%varrname)
            if(allocated(gfile%varrval)) deallocate(gfile%varrval)
            allocate(gfile%varrname(nmetavarr),gfile%varrval(nmetavarr))
            gfile%varrname=varrname
            gfile%varrval=varrval
+        endif
       endif
-      if(present(nmetavarl).and.nmetavarl.gt.0.and.present(varlname) &
-         .and.size(varlname).eq.nmetavarl .and. &
-         present(varlval).and.size(varlval).eq.nmetavarl) then
+      if(present(nmetavarl).and.present(varlname).and.present(varlval)) then
+        if(nmetavarl.gt.0.and.size(varlname).eq.nmetavarl.and.size(varlval).eq.nmetavarl) then
            gfile%nmetavarl=nmetavarl
            if(allocated(gfile%varlname)) deallocate(gfile%varlname)
            if(allocated(gfile%varlval)) deallocate(gfile%varlval)
            allocate(gfile%varlname(nmetavarl),gfile%varlval(nmetavarl))
            gfile%varlname=varlname
            gfile%varlval=varlval
+        endif
       endif
-      if(present(nmetavarc).and.nmetavarc.gt.0.and.present(varcname) &
-         .and.size(varcname).eq.nmetavarc .and. &
-         present(varcval).and.size(varcval).eq.nmetavarc) then
+      if(present(nmetavarc).and.present(varcname).and.present(varcval)) then
+        if(nmetavarc.gt.0.and.size(varcname).eq.nmetavarc.and.size(varcval).eq.nmetavarc) then
            gfile%nmetavarc=nmetavarc
            if(allocated(gfile%varcname)) deallocate(gfile%varcname)
            if(allocated(gfile%varcval)) deallocate(gfile%varcval)
            allocate(gfile%varcname(nmetavarc),gfile%varcval(nmetavarc))
            gfile%varcname=varcname
            gfile%varcval=varcval
+        endif
       endif
-      if(present(nmetaaryi).and.nmetaaryi.gt.0.and.present(aryiname) &
-         .and.size(aryiname).eq.nmetaaryi .and. &
-         present(aryilen).and.size(aryilen).eq.nmetaaryi) then
+      if(present(nmetaaryi).and.present(aryiname).and.present(aryilen)) then
+        if(nmetaaryi.gt.0.and.size(aryiname).eq.nmetaaryi.and.size(aryilen).eq.nmetaaryi) then
            gfile%nmetaaryi=nmetaaryi
            if(allocated(gfile%aryiname)) deallocate(gfile%aryiname)
            if(allocated(gfile%aryilen)) deallocate(gfile%aryilen)
@@ -1447,10 +1446,10 @@ contains
              allocate(gfile%aryival(maxval(gfile%aryilen),nmetaaryi))
              gfile%aryival=aryival
            endif
+        endif
       endif
-      if(present(nmetaaryr).and.nmetaaryr.gt.0.and.present(aryrname) &
-         .and.size(aryrname).eq.nmetaaryr .and. &
-         present(aryrlen).and.size(aryrlen).eq.nmetaaryr) then
+      if(present(nmetaaryr).and.present(aryrname).and.present(aryrlen)) then
+        if(nmetaaryr.gt.0.and.size(aryrname).eq.nmetaaryr.and.size(aryrlen).eq.nmetaaryr) then
            gfile%nmetaaryr=nmetaaryr
            if(allocated(gfile%aryrname)) deallocate(gfile%aryrname)
            if(allocated(gfile%aryrlen)) deallocate(gfile%aryrlen)
@@ -1459,41 +1458,48 @@ contains
            gfile%aryrlen=aryrlen
 !           print *,'in wcreate,gfile%aryrname=',gfile%aryrname
 !           print *,'in wcreate,gfile%aryrlen=',gfile%aryrlen
-           if(present(aryrval).and.size(aryrval).eq.nmetaaryr*maxval(gfile%aryrlen)) then
-             if(allocated(gfile%aryrval)) deallocate(gfile%aryrval)
-             allocate(gfile%aryrval(maxval(gfile%aryrlen),nmetaaryr))
-             gfile%aryrval=aryrval
+           if(present(aryrval)) then
+             if(size(aryrval).eq.nmetaaryr*maxval(gfile%aryrlen)) then
+               if(allocated(gfile%aryrval)) deallocate(gfile%aryrval)
+               allocate(gfile%aryrval(maxval(gfile%aryrlen),nmetaaryr))
+               gfile%aryrval=aryrval
+             endif
            endif
+        endif
       endif
-      if(present(nmetaaryl).and.nmetaaryl.gt.0.and.present(arylname) &
-          .and.size(arylname).eq.nmetaaryl .and. &
-           present(aryllen).and.size(aryllen).eq.nmetaaryl) then
+      if(present(nmetaaryl).and.present(arylname).and.present(aryllen))then
+        if(nmetaaryl.gt.0.and.size(arylname).eq.nmetaaryl.and.size(aryllen).eq.nmetaaryl) then
            gfile%nmetaaryl=nmetaaryl
            if(allocated(gfile%arylname)) deallocate(gfile%arylname)
            if(allocated(gfile%aryllen)) deallocate(gfile%aryllen)
            allocate(gfile%arylname(nmetaaryl),gfile%aryllen(nmetaaryl))
            gfile%arylname=arylname
            gfile%aryllen=aryllen
-           if(present(arylval).and.size(arylval).eq.nmetaaryl*maxval(gfile%aryllen)) then
-             if(allocated(gfile%arylval)) deallocate(gfile%arylval)
-             allocate(gfile%arylval(maxval(gfile%aryllen),nmetaaryl))
-             gfile%arylval=arylval
+           if(present(arylval)) then
+             if(size(arylval).eq.nmetaaryl*maxval(gfile%aryllen)) then
+               if(allocated(gfile%arylval)) deallocate(gfile%arylval)
+               allocate(gfile%arylval(maxval(gfile%aryllen),nmetaaryl))
+               gfile%arylval=arylval
+             endif
            endif
+        endif
       endif
-      if(present(nmetaaryc).and.nmetaaryc.gt.0.and.present(arycname) &
-          .and.size(arycname).eq.nmetaaryc .and. &
-          present(aryclen).and.size(aryclen).eq.nmetaaryc) then
+      if(present(nmetaaryc).and.present(arycname).and.present(aryclen))then
+        if(nmetaaryc.gt.0.and.size(arycname).eq.nmetaaryc.and.size(aryclen).eq.nmetaaryc) then
            gfile%nmetaaryc=nmetaaryc
            if(allocated(gfile%arycname)) deallocate(gfile%arycname)
            if(allocated(gfile%aryclen)) deallocate(gfile%aryclen)
            allocate(gfile%arycname(nmetaaryc),gfile%aryclen(nmetaaryc))
            gfile%arycname=arycname
            gfile%aryclen=aryclen
-           if(present(arycval).and.size(arycval).eq.nmetaaryc*maxval(gfile%aryclen)) then
-             if(allocated(gfile%arycval)) deallocate(gfile%arycval)
-             allocate(gfile%arycval(maxval(gfile%aryclen),nmetaaryc))
-             gfile%arycval=arycval
+           if(present(arycval)) then
+             if(size(arycval).eq.nmetaaryc*maxval(gfile%aryclen)) then
+               if(allocated(gfile%arycval)) deallocate(gfile%arycval)
+               allocate(gfile%arycval(maxval(gfile%aryclen),nmetaaryc))
+               gfile%arycval=arycval
+             endif
            endif
+        endif
       endif
       if (gfile%nmetavari+gfile%nmetavarr+gfile%nmetavarl+gfile%nmetavarc+ &
            gfile%nmetaaryi+gfile%nmetaaryr+gfile%nmetaaryl+gfile%nmetaaryc.lt.0 )then
@@ -2091,46 +2097,76 @@ contains
       if (present(nmetaaryr) ) nmetaaryr=gfile%nmetaaryr
       if (present(nmetaaryl) ) nmetaaryl=gfile%nmetaaryl
       if ( gfile%nmetavari.gt.0 ) then
-         if (present(variname).and.size(variname).eq.nmetavari) &
+         if (present(variname)) then
+           if (size(variname).eq.nmetavari) &
              variname=gfile%variname
-         if (present(varival).and.size(varival).eq.nmetavari) &
+         endif
+         if (present(varival)) then
+           if (size(varival).eq.nmetavari) &
              varival=gfile%varival
+         endif
       endif
       if ( gfile%nmetavarr.gt.0 ) then
-         if (present(varrname).and.size(varrname).eq.nmetavarr) &
+         if (present(varrname)) then
+           if (size(varrname).eq.nmetavarr) &
              varrname=gfile%varrname
-         if (present(varrval).and.size(varrval).eq.nmetavarr) &
+         endif
+         if (present(varrval)) then
+           if (size(varrval).eq.nmetavarr) &
              varrval=gfile%varrval
+         endif
       endif
       if ( gfile%nmetavarl.gt.0 ) then
-         if (present(varlname).and.size(varlname).eq.nmetavarl) &
+         if (present(varlname)) then
+           if (size(varlname).eq.nmetavarl) &
              varlname=gfile%varlname
-         if (present(varlval).and.size(varlval).eq.nmetavarl) &
+         endif
+         if (present(varlval)) then
+           if (size(varlval).eq.nmetavarl) &
              varlval=gfile%varlval
+         endif
       endif
       if ( gfile%nmetaaryi.gt.0 ) then
-         if (present(aryiname).and.size(aryiname).eq.nmetaaryi) &
+         if (present(aryiname)) then
+           if (size(aryiname).eq.nmetaaryi) &
              aryiname=gfile%aryiname
-         if (present(aryilen).and.size(aryilen).eq.nmetaaryi) &
+         endif
+         if (present(aryilen)) then
+           if (size(aryilen).eq.nmetaaryi) &
              aryilen=gfile%aryilen
-         if (present(aryival).and.size(aryival).eq.nmetaaryi*maxval(gfile%aryilen) ) &
+         endif
+         if (present(aryival)) then
+           if (size(aryival).eq.nmetaaryi*maxval(gfile%aryilen) ) &
              aryival=gfile%aryival
+         endif
       endif
       if ( gfile%nmetaaryr.gt.0 ) then
-         if (present(aryrname).and.size(aryrname).eq.nmetaaryr) &
+         if (present(aryrname)) then
+           if (size(aryrname).eq.nmetaaryr) &
              aryiname=gfile%aryiname
-         if (present(aryrlen).and.size(aryrlen).eq.nmetaaryr) &
+         endif
+         if (present(aryrlen)) then
+           if (size(aryrlen).eq.nmetaaryr) &
              aryrlen=gfile%aryrlen
-         if (present(aryrval).and.size(aryrval).eq.nmetaaryr*maxval(gfile%aryrlen) ) &
+         endif
+         if (present(aryrval)) then
+           if (size(aryrval).eq.nmetaaryr*maxval(gfile%aryrlen) ) &
              aryrval=gfile%aryrval
+         endif
       endif
       if ( gfile%nmetaaryl.gt.0 ) then
-         if (present(arylname).and.size(arylname).eq.nmetaaryl) &
+         if (present(arylname)) then
+           if (size(arylname).eq.nmetaaryl) &
              arylname=gfile%arylname
-         if (present(aryllen).and.size(aryllen).eq.nmetaaryl) &
+         endif
+         if (present(aryllen)) then
+           if (size(aryllen).eq.nmetaaryl) &
              aryllen=gfile%aryllen
-         if (present(arylval).and.size(arylval).eq.nmetaaryl*maxval(gfile%aryllen) ) &
+         endif
+         if (present(arylval)) then
+           if (size(arylval).eq.nmetaaryl*maxval(gfile%aryllen) ) &
              arylval=gfile%arylval
+         endif
       endif
     endif
 

@@ -15,7 +15,8 @@
      &                 LSLAG,pwat,ptot,ptrc,
      &                 pdryini,nblck,ZHOUR,N1,N4,
      &                 LSOUT,ldfi,COLAT1,CFHOUR1,                             ! jw
-     &                 start_step,reset_step,end_step)
+     &                 start_step,restart_step,reset_step,end_step,
+     &                 nfcstdate7)
 cc
 ! Program History Log:
 ! Aug 2010    Sarah Lu modified to compute tracer global sum
@@ -38,7 +39,7 @@ cc
       IMPLICIT NONE
 !!     
       CHARACTER(16)                     :: CFHOUR1
-      INTEGER,INTENT(IN):: LONSPERLAT(LATG),N1,N4
+      INTEGER,INTENT(IN):: LONSPERLAT(LATG),N1,N4,nfcstdate7(7)
       REAL(KIND=KIND_EVOD),INTENT(IN):: deltim,PHOUR
       REAL(KIND=KIND_EVOD),INTENT(INOUT):: ZHOUR
 !jw
@@ -128,6 +129,7 @@ c
       include 'function2'
       LOGICAL               LSLAG,LSOUT,ex_out
       LOGICAL               start_step,reset_step,end_step
+      LOGICAL               restart_step
       LOGICAL, parameter          :: ladj = .false.
 !     LOGICAL, parameter          :: ladj = .true.
       LOGICAL, save               :: fwd_step = .true.
@@ -184,7 +186,7 @@ c timings
 ! if the first step, from internal state, prepare syn for nonlinear
 ! -------- this section is called once only ---------
 ! --------------------------------------------------------------
-!       print *,' start step from internal state (grid and spectral)'
+       print *,' start step from internal state (grid and spectral)'
 
         fwd_step = .true.
         dt  = deltim*0.5
@@ -741,10 +743,12 @@ c
 !
 ! if the last step, 
 ! --------------------------
-      if( end_step ) return
-
+      if( end_step ) then
+        return
+      end if
+!
       kdt = kdt + 1
-
+!
 ! ====================================================================
 ! ===================================================================
 ! start nonlinear computation for dynamics 

@@ -132,7 +132,7 @@ clear;echo;echo
 # Clean and compile both NMMB & GFS cores
 #########################################################################
 
-if [ ${CB_arg} != gfs ]; then
+#if [ ${CB_arg} != gfs ]; then
   echo "Preparing model code for regression tests"
   printf %s "Compiling model code (this will take some time)......."
   cd ${PATHTR}/src
@@ -148,7 +148,7 @@ if [ ${CB_arg} != gfs ]; then
     echo "   Model code is NOT compiled"
     exit
   fi
-fi
+#fi
 
 cd $PATHRT
 
@@ -1124,8 +1124,8 @@ export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPEC
 fi
 
 ####################################################################################################
-# 
-# TEST   - GFS 
+#
+# TEST   - GFS
 #        - OPAC aerosols
 #
 ####################################################################################################
@@ -1139,9 +1139,9 @@ export TEST_DESCR="GFS, use the OPAC climo scheme for SW and LW"
 export RUNDIR=${RUNDIR_ROOT}/GFS_OPAC
 export CNTL_DIR=GFS_OPAC
 export LIST_FILES=" \
-	sigf03 sigf06 sigf12 sigf24 sigf48 \
-	sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
-	flxf03 flxf06 flxf12 flxf24 flxf48"
+        sigf03 sigf06 sigf12 sigf24 sigf48 \
+        sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+        flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
 export TASKS=32    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
 export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=#
@@ -1156,20 +1156,54 @@ export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPEC
 
 fi
 
+#
 ####################################################################################################
 #
-# TEST   - GFS digital filter  HYb
+# TEST   - GFS hyb 2 loop with digital filter
 #        - 12 compute tasks / 2 thread ,2 WrtGrp x 2 WrtPePerGrp
 #
 ####################################################################################################
 
-if [ ${CREATE_BASELINE} = false ]; then
+if [ ${CB_arg} != nmm ]; then
 
-export TEST_DESCR="GFS,16 proc, 2 thread, quilt,2x2 wrt pe, HYB digital filter on reduced grid"
+export TEST_DESCR="GFS,16 proc, 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_16_dfi_hyb
+export RUNDIR=${RUNDIR_ROOT}/GFS_hyb_2loop
+export CNTL_DIR=GFS_DFI_hyb_2loop
+export LIST_FILES=" \
+        sigf03 sigf06 sigf12 sigf24 sigf48 \
+        sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+        flxf03 flxf06 flxf12 flxf24 flxf48"
+#---------------------
+export TASKS=16    ; export THRD=2       ; export NSOUT=0     ; export QUILT=.true.
+export PE1=12      ; export WTPG=2       ; export NDAYS=2     ; export CP2=''
+export WRTGP=2     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
+export NUMFILE=3   ; export IAER=0      ; export FHRES=24
+export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
+export IDVC=2      ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALLOOP=2
+#---------------------
+  ./rt_gfs.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi
+
+####################################################################################################
+#
+# TEST   - GFS digital filter  HYb 1loop
+#        - 12 compute tasks / 2 thread ,2 WrtGrp x 2 WrtPePerGrp
+#
+####################################################################################################
+
+if [ ${CB_arg} != nmm ]; then
+
+export TEST_DESCR="GFS,16 proc, 2 thread, quilt,2x2 wrt pe, HYB 1loop digital filter on reduced grid"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/GFS_16_dfi_hyb_1loop
 export CNTL_DIR=GFS_DFI_REDUCEDGRID_HYB
 export LIST_FILES=" \
         sigf03 sigf06 sigf12 sigf24 sigf48 \
