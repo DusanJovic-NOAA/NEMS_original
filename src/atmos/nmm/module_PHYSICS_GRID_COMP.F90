@@ -1178,11 +1178,13 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-!***  Radiation needs some specific time quantities.
+!***  Radiation needs some specific time quantities.  Use NTIMESTEP_rad for
+!     the next time step ahead of the current time so that the radiation
+!     fields can be updated prior to being written to output (BSF 10/6/2010)
 !
         CALL TIME_MEASURE(START_YEAR,START_MONTH,START_DAY,START_HOUR   &
                          ,START_MINUTE,START_SECOND                     &
-                         ,NTIMESTEP,int_state%DT                        &
+                         ,NTIMESTEP_rad,int_state%DT                    &
                          ,JULDAY,JULYR,JULIAN,XTIME)
 !
 !-----------------------------------------------------------------------
@@ -1190,22 +1192,6 @@
 !-----------------------------------------------------------------------
 !
           btim=timef()
-!
-!-----------------------------------------------------------------------
-!***  Empty the ACFRST and ACFRCV accumulation arrays if it is time
-!***  to do so prior to their being updated by the radiation.
-!-----------------------------------------------------------------------
-!
-          IF(MOD(NTIMESTEP,int_state%NCLOD)==0)THEN
-            DO J=JTS,JTE
-            DO I=ITS,ITE
-              int_state%ACFRST(I,J)=0.
-              int_state%ACFRCV(I,J)=0.
-              int_state%NCFRST(I,J)=0
-              int_state%NCFRCV(I,J)=0
-            ENDDO
-            ENDDO
-          ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Temporary switch between radiation schemes placed in PHY_RUN
@@ -1269,6 +1255,22 @@
           radiation_tim=radiation_tim+(timef()-btim)
 !
         ENDIF radiatn
+!
+!-----------------------------------------------------------------------
+!***  Empty the ACFRST and ACFRCV accumulation arrays if it is time
+!***  to do so prior to their being updated by the radiation.
+!-----------------------------------------------------------------------
+!
+        IF(MOD(NTIMESTEP,int_state%NCLOD)==0)THEN
+          DO J=JTS,JTE
+          DO I=ITS,ITE
+            int_state%ACFRST(I,J)=0.
+            int_state%ACFRCV(I,J)=0.
+            int_state%NCFRST(I,J)=0
+            int_state%NCFRCV(I,J)=0
+          ENDDO
+          ENDDO
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Update the temperature with the radiative tendency.

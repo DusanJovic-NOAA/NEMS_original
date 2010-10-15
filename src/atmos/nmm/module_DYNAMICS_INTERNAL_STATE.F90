@@ -71,6 +71,7 @@
                              ,RESTART                                   &
                              ,SECADV                                    &
                              ,SPEC_ADV                                  &
+                             ,USE_ALLREDUCE                             &
                              ,READ_GLOBAL_SUMS                          &
                              ,WRITE_GLOBAL_SUMS
 !

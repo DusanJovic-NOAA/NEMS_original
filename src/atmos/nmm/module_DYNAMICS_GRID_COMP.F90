@@ -1970,24 +1970,32 @@
           CALL POAVHN                                                   &
             (IMS,IME,JMS,JME,LM                                         &
             ,int_state%T                                                &
+            ,INPES,JNPES                                                &
+            ,int_state%USE_ALLREDUCE                                    &
             ,int_state%READ_GLOBAL_SUMS                                 &
             ,int_state%WRITE_GLOBAL_SUMS)
 !
           CALL POAVHN                                                   &
             (IMS,IME,JMS,JME,LM                                         &
             ,int_state%Q                                                &
+            ,INPES,JNPES                                                &
+            ,int_state%USE_ALLREDUCE                                    &
             ,int_state%READ_GLOBAL_SUMS                                 &
             ,int_state%WRITE_GLOBAL_SUMS)
 !
           CALL POAVHN                                                   &
             (IMS,IME,JMS,JME,LM                                         &
             ,int_state%CW                                               &
+            ,INPES,JNPES                                                &
+            ,int_state%USE_ALLREDUCE                                    &
             ,int_state%READ_GLOBAL_SUMS                                 &
             ,int_state%WRITE_GLOBAL_SUMS)
 !
           CALL POAVHN                                                   &
             (IMS,IME,JMS,JME,LM                                         &
             ,int_state%Q2                                               &
+            ,INPES,JNPES                                                &
+            ,int_state%USE_ALLREDUCE                                    &
             ,int_state%READ_GLOBAL_SUMS                                 &
             ,int_state%WRITE_GLOBAL_SUMS)
 !
@@ -2554,6 +2562,8 @@
           ,int_state%PD                                                 &
           ,int_state%INDX_Q2                                            &
           ,int_state%TRACERS                                            &
+          ,INPES,JNPES                                                  &
+          ,int_state%USE_ALLREDUCE                                      &
           ,int_state%READ_GLOBAL_SUMS                                   &
           ,int_state%WRITE_GLOBAL_SUMS                                  &
 !
@@ -2928,16 +2938,22 @@
         CALL POAVHN                                                     &
           (IMS,IME,JMS,JME,LM                                           &
           ,int_state%DWDT                                               &
+          ,INPES,JNPES                                                  &
+          ,int_state%USE_ALLREDUCE                                      &
           ,int_state%READ_GLOBAL_SUMS                                   &
           ,int_state%WRITE_GLOBAL_SUMS)
         CALL POAVHN                                                     &
           (IMS,IME,JMS,JME,LM                                           &
           ,int_state%W                                                  &
+          ,INPES,JNPES                                                  &
+          ,int_state%USE_ALLREDUCE                                      &
           ,int_state%READ_GLOBAL_SUMS                                   &
           ,int_state%WRITE_GLOBAL_SUMS)
         CALL POAVHN                                                     &
           (IMS,IME,JMS,JME,LM                                           &
           ,int_state%PINT                                               &
+          ,INPES,JNPES                                                  &
+          ,int_state%USE_ALLREDUCE                                      &
           ,int_state%READ_GLOBAL_SUMS                                   &
           ,int_state%WRITE_GLOBAL_SUMS)
         poavhn_tim=poavhn_tim+(timef()-btim)

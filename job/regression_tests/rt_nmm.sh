@@ -13,7 +13,6 @@ cat nmm_${GBRG}_ll.IN   | sed s:_JBNME_:${JBNME}:g   \
                         | sed s:_ACCNR_:${ACCNR}:g   \
                         | sed s:_TPN_:${TPN}:g       \
                         | sed s:_THRD_:${THRD}:g     \
-                        | sed s:_GS_:${GS}:g         \
                         | sed s:_TS_:${TS}:g         \
                         | sed s:_CPPCP_:${CPPCP}:g   \
                         | sed s:_RTPWD_:${RTPWD}:g   \
@@ -29,8 +28,6 @@ cat nmm_${GBRG}_conf.IN | sed s:_INPES_:${INPES}:g   \
                         | sed s:_gfsP_:${gfsP}:g     \
                         | sed s:_PCPFLG_:${PCPFLG}:g \
                         | sed s:_WPREC_:${WPREC}:g   \
-                        | sed s:_RGS_:${RGS}:g       \
-                        | sed s:_WGS_:${WGS}:g       \
                         | sed s:_NCHILD_:${NCHILD}:g >  configure_file
 
 ####################################################################################################

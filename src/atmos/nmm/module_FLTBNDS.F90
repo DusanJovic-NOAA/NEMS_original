@@ -4288,8 +4288,8 @@ real(kind=kfpt) :: &
 !-----------------------------------------------------------------------
 !
                         subroutine poavhn &
-(i_start,i_end,j_start,j_end,km,hn &
-,read_global_sums,write_global_sums)
+(i_start,i_end,j_start,j_end,km,hn,inpes,jnpes &
+,use_allreduce,read_global_sums,write_global_sums)
 !-----------------------------------------------------------------------
 !
       implicit none
@@ -4301,13 +4301,16 @@ integer(kind=kint),intent(in) :: &
 ,i_end &
 ,j_start &
 ,j_end &
+,inpes &
+,jnpes &
 ,km 
 !
 real(kind=kfpt),dimension(i_start:i_end,j_start:j_end,km),intent(inout):: &
  hn
 !
 logical(kind=klog),intent(in) :: &
- read_global_sums &
+ use_allreduce &
+,read_global_sums &
 ,write_global_sums
 !
 !-----------------------------------------------------------------------
@@ -4318,10 +4321,25 @@ integer(kind=kint) :: &
  i &
 ,ierr &
 ,irecv &
-,l
+,l &
+,loc_its_b1 &
+,loc_ite_b2 &
+,loc_min &
+,loc_max &
+,n &
+,num_pes &
+,pe
+!
+integer,dimension(mpi_status_size) :: jstat
 !
 real(kind=kfpt) :: &
  rcycle
+!
+real(kind=kfpt),dimension(ids+1:(ide-3)*km+1) :: &
+ hn_glob
+!
+real(kind=kfpt),dimension((ite_b2-its_b1+1)*km):: &
+ hn_loc
 !
 real(kind=kfpt),dimension(1:km) :: &
  an &
@@ -4338,6 +4356,7 @@ character(10) :: fstatus
 !-----------------------------------------------------------------------
 !
       mype=mype_share
+      num_pes=inpes*jnpes
 !
 !-----------------------------------------------------------------------
 !
@@ -4351,59 +4370,117 @@ character(10) :: fstatus
 !***  Sum the values along the row north of the southern boundary.
 !-----------------------------------------------------------------------
 !
-      if(s_bdy)then
-        do l=1,km
-          do i=its_b1,ite_b2
-            as(l)=hn(i,jts+1,l)+as(l)
-          enddo
-        enddo
-      endif
+      if(use_allreduce)then
 !
 !-----------------------------------------------------------------------
 !***  Generate the global sum of the previous sums from each task
-!***  if they are not being read in.
+!***  using mpi_allreduce
 !-----------------------------------------------------------------------
 !
-      if(.not.read_global_sums)then
+        if(s_bdy)then
+          do l=1,km
+            do i=its_b1,ite_b2
+              as(l)=hn(i,jts+1,l)+as(l)
+            enddo
+          enddo
+        endif
 !
-        call mpi_allreduce(as,as_g,km,mpi_real,mpi_sum,mpi_comm_comp &
+        if(.not.read_global_sums)then
+!
+          call mpi_allreduce(as,as_g,km,mpi_real,mpi_sum,mpi_comm_comp &
                           ,irecv)
-      endif
+        endif
 !-----------------------------------------------------------------------
 !***  For bit reproducibility, read/write global sums.
 !-----------------------------------------------------------------------
 !
-      bits_1: if(read_global_sums.or.write_global_sums)then
-        if(.not.sum_file_is_open.and.mype==0)then
-          open_unit: do l=51,59
-            inquire(l,opened=opened)
-            if(.not.opened)then
-              iunit_pole_sums=l
-              if(read_global_sums)fstatus='OLD'
-              if(write_global_sums)fstatus='REPLACE'
-              open(unit=iunit_pole_sums,file='global_pole_sums',status=fstatus &
-                  ,form='UNFORMATTED',iostat=istat)
-              sum_file_is_open=.true.
-              exit open_unit
-            endif
-          enddo open_unit
-        endif
+        bits_1: if(read_global_sums.or.write_global_sums)then
+          if(.not.sum_file_is_open.and.mype==0)then
+            open_unit: do l=51,59
+              inquire(l,opened=opened)
+              if(.not.opened)then
+                iunit_pole_sums=l
+                if(read_global_sums)fstatus='OLD'
+                if(write_global_sums)fstatus='REPLACE'
+                open(unit=iunit_pole_sums,file='global_pole_sums',status=fstatus &
+                    ,form='UNFORMATTED',iostat=istat)
+                sum_file_is_open=.true.
+                exit open_unit
+              endif
+            enddo open_unit
+          endif
 !
 !***  Read in south/north global sums.
 !
-        if(read_global_sums)then
-          if(mype==0)then
-            do l=1,km
-              read(iunit_pole_sums)as_g(l),an_g(l)
-            enddo
+          if(read_global_sums)then
+            if(mype==0)then
+              do l=1,km
+                read(iunit_pole_sums)as_g(l),an_g(l)
+              enddo
+            endif
+!
+            call mpi_bcast(as_g,km,mpi_real,0,mpi_comm_comp,ierr)
+            call mpi_bcast(an_g,km,mpi_real,0,mpi_comm_comp,ierr)
+!
           endif
 !
-          call mpi_bcast(as_g,km,mpi_real,0,mpi_comm_comp,ierr)
-          call mpi_bcast(an_g,km,mpi_real,0,mpi_comm_comp,ierr)
+        endif bits_1
 !
+      else
+!
+!-----------------------------------------------------------------------
+!***  Generate the global sum of the previous sums from each task
+!***  using mpi_recv & mpi_send
+!-----------------------------------------------------------------------
+!
+        as_g(1:km)=0
+
+        if (mype==0) then
+
+          do i=its_b1,ite_b2
+            do l=1,km
+              n=its_b1+l-1+km*(i-its_b1)
+              hn_glob(n) = hn(i,jts+1,l)
+            enddo
+          enddo
+
+          do pe=1,inpes-1
+            loc_its_b1 = max(local_istart(pe),ids+1)
+            loc_ite_b2 = min(local_iend(pe),ide-2)
+            loc_min = (loc_its_b1-its_b1)*km+its_b1
+            loc_max = loc_min + (loc_ite_b2-loc_its_b1+1)*km-1
+            call mpi_recv(hn_glob(loc_min:loc_max),(loc_max-loc_min+1) &
+                         ,mpi_real,pe,pe,mpi_comm_comp,jstat,ierr)
+          end do
+
+          do i=ids+1,ide-2
+            do l=1,km
+              n=ids+1+l-1+km*(i-ids-1)
+              as_g(l) = hn_glob(n) + as_g(l)
+            enddo
+          end do
+
+        else
+
+          if(s_bdy)then
+
+            n=0
+            do i=its_b1,ite_b2
+              do l=1,km
+                n=n+1
+                hn_loc(n)=hn(i,jts+1,l)
+              enddo
+            enddo
+
+            call mpi_send(hn_loc(1:(ite_b2-its_b1+1)*km),(ite_b2-its_b1+1)*km &
+                         ,mpi_real, 0, mype, mpi_comm_comp, ierr)
+
+          endif
         endif
+
+        call mpi_bcast (as_g,km,mpi_real,0,mpi_comm_comp,ierr)
 !
-      endif bits_1
+      endif
 !
 !-----------------------------------------------------------------------
 !***  Reset the array values in that same row to the global sum.
@@ -4422,37 +4499,97 @@ character(10) :: fstatus
 !***  Now sum the values along the row south of the northern boundary.
 !-----------------------------------------------------------------------
 !
-      if(n_bdy)then
-        do l=1,km
-          do i=its_b1,ite_b2
-            an(l)=hn(i,jte-1,l)+an(l)
-          enddo
-        enddo
-      endif
+      if(use_allreduce)then
 !
 !-----------------------------------------------------------------------
 !***  Generate the global sum of the previous sums from each task
-!***  if they are not being read in.
+!***  using mpi_allreduce
 !-----------------------------------------------------------------------
 !
-      if(.not.read_global_sums)then
+        if(n_bdy)then
+          do l=1,km
+            do i=its_b1,ite_b2
+              an(l)=hn(i,jte-1,l)+an(l)
+            enddo
+          enddo
+        endif
 !
-        call mpi_allreduce(an,an_g,km,mpi_real,mpi_sum,mpi_comm_comp &
-                          ,irecv)
-      endif
+!
+        if(.not.read_global_sums)then
+!
+          call mpi_allreduce(an,an_g,km,mpi_real,mpi_sum,mpi_comm_comp &
+                            ,irecv)
+        endif
 !-----------------------------------------------------------------------
 !***  For bit reproducibility, write global sums.
 !-----------------------------------------------------------------------
 !
-      bits_2: if(write_global_sums)then
+        bits_2: if(write_global_sums)then
 !
-        if(mype==0)then
-          do l=1,km
-            write(iunit_pole_sums)as_g(l),an_g(l)
+          if(mype==0)then
+            do l=1,km
+              write(iunit_pole_sums)as_g(l),an_g(l)
+            enddo
+          endif
+!
+        endif bits_2
+!
+      else
+!
+!-----------------------------------------------------------------------
+!***  Generate the global sum of the previous sums from each task
+!***  using mpi_recv & mpi_send
+!-----------------------------------------------------------------------
+
+        an_g(1:km)=0
+
+        if (mype==num_pes-inpes) then
+
+          do i=its_b1,ite_b2
+            do l=1,km
+              n=its_b1+l-1+km*(i-its_b1)
+              hn_glob(n) = hn(i,jte-1,l)
+            enddo
           enddo
+
+          do pe=num_pes-inpes+1,num_pes-1
+            loc_its_b1 = max(local_istart(pe),ids+1)
+            loc_ite_b2 = min(local_iend(pe),ide-2)
+            loc_min = (loc_its_b1-its_b1)*km+its_b1
+            loc_max = loc_min + (loc_ite_b2-loc_its_b1+1)*km-1
+            call mpi_recv(hn_glob(loc_min:loc_max),(loc_max-loc_min+1) &
+                         ,mpi_real,pe,pe,mpi_comm_comp,jstat,ierr)
+          end do
+
+          do i=ids+1,ide-2
+            do l=1,km
+              n=ids+1+l-1+km*(i-ids-1)
+              an_g(l) = hn_glob(n) + an_g(l)
+            enddo
+          end do
+
+        else
+
+          if(n_bdy)then
+
+            n=0
+            do i=its_b1,ite_b2
+              do l=1,km
+                n=n+1
+                hn_loc(n)=hn(i,jte-1,l)
+              enddo
+            enddo
+
+            call mpi_send(hn_loc(1:(ite_b2-its_b1+1)*km),(ite_b2-its_b1+1)*km &
+                         ,mpi_real, num_pes-inpes, mype, mpi_comm_comp, ierr)
+
+          endif
         endif
-!
-      endif bits_2
+
+        call mpi_bcast (an_g,km,mpi_real,num_pes-inpes,mpi_comm_comp,ierr)
+
+
+      endif
 !
 !-----------------------------------------------------------------------
 !***  Reset the array values in that same row to the global sum.

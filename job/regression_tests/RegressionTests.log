@@ -1,4 +1,4 @@
-Wed Oct 13 21:41:15 EDT 2010
+Thu Oct 14 11:08:22 EDT 2010
 Start Regression test
 
 
@@ -25,13 +25,11 @@ Checking test 001 results ....
  Comparing nmm_b_history_nemsio.048h_00m_00.00s.........OK
  Comparing nmm_b_restart.024h_00m_00.00s.........OK
  Comparing nmm_b_restart_nemsio.024h_00m_00.00s.........OK
- Comparing global_sums.........OK
- Comparing global_pole_sums.........OK
  Test 001 passed 
 
 
 
- Original timing:  146.92  , test_glob timing:  148.93
+ Original timing:  146.92  , test_glob timing:  148.97
 
 
 Test 002
@@ -147,7 +145,6 @@ Checking test 007 results ....
  Comparing nmm_b_history_nemsio.048h_00m_00.00s.........OK
  Comparing nmm_b_restart.024h_00m_00.00s.........OK
  Comparing nmm_b_restart_nemsio.024h_00m_00.00s.........OK
- Comparing global_sums.........OK
  Comparing fort.41.........OK
  Comparing fort.42.........OK
  Comparing fort.43.........OK
@@ -159,7 +156,7 @@ Checking test 007 results ....
 
 
 
- Original timing:  235.58  , test_reg timing:  242.29
+ Original timing:  235.58  , test_reg timing:  244.00
 
 
 Test 008
@@ -736,4 +733,4 @@ Checking test 031 results ....
  Comparing FLX.F24_03.........OK
  Comparing FLX.F24_04.........OK
  Test 031 passed 
-Thu Oct 14 01:06:13 EDT 2010
+Thu Oct 14 14:46:28 EDT 2010

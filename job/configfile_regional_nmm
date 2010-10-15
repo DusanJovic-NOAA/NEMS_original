@@ -127,12 +127,15 @@ nsecs_bcktdfi: 3600         # HALF backward filter window (s)        (TDFI)
 nsecs_fwdtdfi: 3600         # HALF forward filter window (s)         (TDFI)
 
 
-##########################################
-#####  Read/Write Global Summations  #####
-##########################################
+#############################
+#####  Global Summations ####
+#############################
 
-read_global_sums:  false     # Read in global summations or not
-write_global_sums: false     # Write out global summations or not
+use_allreduce:  false       # False--> use mpi send/recv for global sums
+                            # True--> use mpi_allreduce for global sums
+
+read_global_sums:  false    # Read in global summations or not
+write_global_sums: false    # Write out global summations or not
 
 
 #####################################

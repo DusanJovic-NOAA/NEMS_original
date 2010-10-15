@@ -89,7 +89,6 @@ fi
 # PE1         - number of computing tasks
 # WTPG        - number of write tasks
 # THRD        - number of threads
-# GS          - read global sums (' '), or not (#)
 # TS          - write time series
 # INPES       - number od PE's on x direction
 # FCSTL       - forecast length in hours
@@ -97,8 +96,6 @@ fi
 # NEMSI       - NEMSIO as input file
 # RSTRT       - restarted run
 # gfsP        - GFS physics suite
-# RGS         - read global sums
-# WGS         - write global sums
 # GBRG        - NMMB global/regional option
 # QUILT       - quilting ON/OFF
 # NSOUT       - number of timesteps for output
@@ -132,23 +129,21 @@ clear;echo;echo
 # Clean and compile both NMMB & GFS cores
 #########################################################################
 
-#if [ ${CB_arg} != gfs ]; then
-  echo "Preparing model code for regression tests"
-  printf %s "Compiling model code (this will take some time)......."
-  cd ${PATHTR}/src
+echo "Preparing model code for regression tests"
+printf %s "Compiling model code (this will take some time)......."
+cd ${PATHTR}/src
 
-  rm -rf ../exe/NEMS.x
-  gmake clean                          >  ${PATHRT}/Compile.log 2>&1
-  gmake nmm_gfs GOCART_MODE=full       >> ${PATHRT}/Compile.log 2>&1
+rm -f ../exe/NEMS.x
+gmake clean                          >  ${PATHRT}/Compile.log 2>&1
+gmake nmm_gfs GOCART_MODE=full       >> ${PATHRT}/Compile.log 2>&1
 
-  if [ -f ../exe/NEMS.x ] ; then
-    echo "   Model code Compiled";echo;echo
-  else
-    echo "   Model code is NOT compiled" >> ${PATHRT}/RegressionTests.log
-    echo "   Model code is NOT compiled"
-    exit
-  fi
-#fi
+if [ -f ../exe/NEMS.x ] ; then
+  echo "   Model code Compiled";echo;echo
+else
+  echo "   Model code is NOT compiled" >> ${PATHRT}/RegressionTests.log
+  echo "   Model code is NOT compiled"
+  exit
+fi
 
 cd $PATHRT
 
@@ -173,11 +168,11 @@ nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s  nmm_b_history.027h
 nmm_b_history.030h_00m_00.00s  nmm_b_history.036h_00m_00.00s  nmm_b_history.048h_00m_00.00s \
 nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
 nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  nmm_b_history_nemsio.048h_00m_00.00s \
-nmm_b_restart.024h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s  global_sums global_pole_sums"
+nmm_b_restart.024h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s "
 #---------------------
-export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=glob ; export TS=#
+export TPN=32       ; export THRD=1      ; export GBRG=glob  ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export RGS=false ; export WGS=true
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
 #---------------------
   ./rt_nmm.sh
@@ -213,9 +208,9 @@ nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_
 nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  nmm_b_history_nemsio.048h_00m_00.00s \
 nmm_b_restart.024h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s"
 #---------------------
-export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=glob ; export TS=#
+export TPN=32       ; export THRD=1      ; export GBRG=glob  ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
-export NEMSI=true   ; export RSTRT=false ; export gfsP=false ; export RGS=false ; export WGS=false
+export NEMSI=true   ; export RSTRT=false ; export gfsP=false
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
 #---------------------
   ./rt_nmm.sh
@@ -243,9 +238,9 @@ export LIST_FILES=" \
 nmm_b_history.027h_00m_00.00s  nmm_b_history.030h_00m_00.00s  nmm_b_history.036h_00m_00.00s \
 nmm_b_history.048h_00m_00.00s"
 #---------------------
-export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=glob ; export TS=#
+export TPN=32       ; export THRD=1      ; export GBRG=glob  ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
-export NEMSI=false  ; export RSTRT=true  ; export gfsP=false ; export RGS=false ; export WGS=false
+export NEMSI=false  ; export RSTRT=true  ; export gfsP=false
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
 #---------------------
   ./rt_nmm.sh
@@ -273,9 +268,9 @@ export LIST_FILES=" \
 nmm_b_history.027h_00m_00.00s  nmm_b_history.030h_00m_00.00s  nmm_b_history.036h_00m_00.00s \
 nmm_b_history.048h_00m_00.00s"
 #---------------------
-export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=glob ; export TS=#
+export TPN=32       ; export THRD=1      ; export GBRG=glob  ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
-export NEMSI=true   ; export RSTRT=true  ; export gfsP=false ; export RGS=false ; export WGS=false
+export NEMSI=true   ; export RSTRT=true  ; export gfsP=false
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
 #---------------------
   ./rt_nmm.sh
@@ -305,9 +300,9 @@ nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s  \
 nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
 nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s"
 #---------------------
-export TPN=16       ; export THRD=1      ; export GS=''      ; export GBRG=glob ; export TS=#
+export TPN=16       ; export THRD=1      ; export GBRG=glob  ; export TS=#
 export INPES=03     ; export JNPES=05    ; export WTPG=1     ; export FCSTL=24
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export RGS=true  ; export WGS=false
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
 #---------------------
   ./rt_nmm.sh
@@ -338,9 +333,9 @@ nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_
 nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s \
 nmm_b_restart.024h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s"
 #---------------------
-export TPN=32       ; export THRD=2      ; export GS=''      ; export GBRG=glob ; export TS=#
+export TPN=32       ; export THRD=2      ; export GBRG=glob  ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export RGS=false ; export WGS=false
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
 #---------------------
   ./rt_nmm.sh
@@ -371,9 +366,9 @@ fi
 #nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  \
 #nmm_b_restart.012h_00m_00.00s  nmm_b_restart_nemsio.012h_00m_00.00s"
 #---------------------
-#export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=glob ; export TS=#
+#export TPN=32       ; export THRD=1      ; export GBRG=glob  ; export TS=#
 #export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=24
-#export NEMSI=false  ; export RSTRT=false ; export gfsP=true  ; export RGS=false ; export WGS=false
+#export NEMSI=false  ; export RSTRT=false ; export gfsP=true
 #export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
 #---------------------
 #  ./rt_nmm.sh
@@ -404,11 +399,11 @@ nmm_b_history.030h_00m_00.00s  nmm_b_history.036h_00m_00.00s  nmm_b_history.048h
 nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
 nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  nmm_b_history_nemsio.048h_00m_00.00s \
 nmm_b_restart.024h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s \
-global_sums    fort.41  fort.42  fort.43  fort.44  fort.45  fort.46  fort.47"
+fort.41  fort.42  fort.43  fort.44  fort.45  fort.46  fort.47"
 #---------------------
-export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=reg  ; export TS=#
+export TPN=32       ; export THRD=1      ; export GBRG=reg   ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export RGS=false ; export WGS=true
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false
 export PCPFLG=false ; export WPREC=true  ; export CPPCP=#    ; export NCHILD=0
 #---------------------
   ./rt_nmm.sh
@@ -443,9 +438,9 @@ nmm_b_history.012h_00m_00.00s  \
 nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
 nmm_b_history_nemsio.012h_00m_00.00s"
 #---------------------
-export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=reg  ; export TS=#
+export TPN=32       ; export THRD=1      ; export GBRG=reg   ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=12
-export NEMSI=true   ; export RSTRT=false ; export gfsP=false ; export RGS=false ; export WGS=false
+export NEMSI=true   ; export RSTRT=false ; export gfsP=false
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
 #---------------------
   ./rt_nmm.sh
@@ -473,9 +468,9 @@ export LIST_FILES=" \
 nmm_b_history.027h_00m_00.00s  nmm_b_history.030h_00m_00.00s  nmm_b_history.036h_00m_00.00s \
 nmm_b_history.048h_00m_00.00s"
 #---------------------
-export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=reg  ; export TS=#
+export TPN=32       ; export THRD=1      ; export GBRG=reg   ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
-export NEMSI=false  ; export RSTRT=true  ; export gfsP=false ; export RGS=false ; export WGS=false
+export NEMSI=false  ; export RSTRT=true  ; export gfsP=false
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
 #---------------------
   ./rt_nmm.sh
@@ -503,9 +498,9 @@ export LIST_FILES=" \
 nmm_b_history.027h_00m_00.00s  nmm_b_history.030h_00m_00.00s  nmm_b_history.036h_00m_00.00s \
 nmm_b_history.048h_00m_00.00s"
 #---------------------
-export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=reg  ; export TS=#
+export TPN=32       ; export THRD=1      ; export GBRG=reg   ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
-export NEMSI=true   ; export RSTRT=true  ; export gfsP=false ; export RGS=false ; export WGS=false
+export NEMSI=true   ; export RSTRT=true  ; export gfsP=false
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
 #---------------------
   ./rt_nmm.sh
@@ -533,9 +528,9 @@ export LIST_FILES=" \
 nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
 nmm_b_history.012h_00m_00.00s"
 #---------------------
-export TPN=16       ; export THRD=1      ; export GS=''      ; export GBRG=reg  ; export TS=#
+export TPN=16       ; export THRD=1      ; export GBRG=reg   ; export TS=#
 export INPES=03     ; export JNPES=05    ; export WTPG=1     ; export FCSTL=12
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export RGS=true  ; export WGS=false
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
 #---------------------
   ./rt_nmm.sh
@@ -566,9 +561,9 @@ nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_
 nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  nmm_b_history_nemsio.048h_00m_00.00s \
 nmm_b_restart.024h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s"
 #---------------------
-export TPN=32       ; export THRD=2      ; export GS=''      ; export GBRG=reg  ; export TS=#
+export TPN=32       ; export THRD=2      ; export GBRG=reg   ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export RGS=false ; export WGS=false
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
 #---------------------
   ./rt_nmm.sh
@@ -599,9 +594,9 @@ fi
 #nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s \
 #nmm_b_restart.012h_00m_00.00s  nmm_b_restart_nemsio.012h_00m_00.00s"
 #---------------------
-#export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=reg  ; export TS=#
+#export TPN=32       ; export THRD=1      ; export GBRG=reg   ; export TS=#
 #export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=24
-#export NEMSI=false  ; export RSTRT=false ; export gfsP=true  ; export RGS=false ; export WGS=false
+#export NEMSI=false  ; export RSTRT=false ; export gfsP=true
 #export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
 #---------------------
 #  ./rt_nmm.sh
@@ -652,9 +647,9 @@ nmm_b_history.04_nemsio.012h_00m_00.00s  nmm_b_history.04_nemsio.024h_00m_00.00s
 nmm_b_restart.04.012h_00m_00.00s  nmm_b_restart.04.024h_00m_00.00s \
 nmm_b_restart.04_nemsio.012h_00m_00.00s  nmm_b_restart.04_nemsio.024h_00m_00.00s"
 #---------------------
-export TPN=64       ; export THRD=1      ; export GS=#       ; export GBRG=nests ; export TS=#
+export TPN=64       ; export THRD=1      ; export GBRG=nests ; export TS=#
 export INPES=02     ; export JNPES=03    ; export WTPG=1     ; export FCSTL=24
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export RGS=false  ; export WGS=false
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=02
 #---------------------
   ./rt_nmm.sh
@@ -685,9 +680,9 @@ nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_
 nmm_b_history_nemsio.012h_00m_00.00s  \
 nmm_b_restart.012h_00m_00.00s  nmm_b_restart_nemsio.012h_00m_00.00s"
 #---------------------
-export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=reg  ; export TS=#
+export TPN=32       ; export THRD=1      ; export GBRG=reg   ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=12
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export RGS=false ; export WGS=false
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false
 export PCPFLG=true  ; export WPREC=false ; export CPPCP=''   ; export NCHILD=0
 #---------------------
   ./rt_nmm.sh
@@ -714,9 +709,9 @@ export CNTL_DIR=NMMB_reg_timesr
 export LIST_FILES=" \
 nmm_b_history.006h_00m_00.00s ts_p01_d01.bin ts_p02_d01.bin"
 #---------------------
-export TPN=32       ; export THRD=1      ; export GS=#       ; export GBRG=reg  ; export TS=''
+export TPN=32       ; export THRD=1      ; export GBRG=reg   ; export TS=''
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=06
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export RGS=false ; export WGS=false
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
 #---------------------
   ./rt_nmm.sh

@@ -33,6 +33,8 @@ use module_dm_parallel,only : ids,ide,jds,jde &
                              ,jts_b1_h2 &
                              ,jts_h1,jte_h1,jts_h2,jte_h2 &
                              ,ihalo,jhalo &
+                             ,local_istart,local_iend &
+                             ,local_jstart,local_jend &
                              ,looplimits &
                              ,mpi_comm_comp,mype_share
 !
@@ -4670,6 +4672,8 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse):: &
 ,pd &
 ,indx_q2 &
 ,s &
+,inpes,jnpes &
+,use_allreduce &
 ,read_global_sums &
 ,write_global_sums &
 !---temporary arguments-------------------------------------------------
@@ -4685,6 +4689,8 @@ real(kind=kfpt),parameter:: &
 
 integer(kind=kint),intent(in):: &
  idtadt &                    !
+,inpes &                     ! number of tasks in x direction
+,jnpes &                     ! number of tasks in y direction
 ,kse &                       ! terminal species index
 ,kss &                       ! initial species index
 ,lm &                        ! total # of levels
@@ -4704,7 +4710,8 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse),intent(inout):: &
  s                           ! s at previous time level
 
 logical(kind=klog) :: &
- read_global_sums &
+ use_allreduce &
+,read_global_sums &
 ,write_global_sums
 
 !---temporary arguments-------------------------------------------------
@@ -4719,7 +4726,18 @@ integer(kind=kint):: &
 ,j &                         !
 ,ks &                        !
 ,l &                         !
-,lngth                       !
+,lngth &                     !
+,loc_its_b1 &                !
+,loc_ite_b1 &                !
+,loc_jts_b1 &                !
+,loc_jte_b1 &                !
+,loc_len &                   !
+,loc_lngth &                 !
+,n &                         !
+,nn &                        !
+,pe                          !
+
+integer,dimension(mpi_status_size) :: jstat
 
 real(kind=kfpt):: &
  s1p &                       !
@@ -4739,16 +4757,21 @@ real(kind=kdbl):: &
 ,sumns &                     !
 ,sumps                       !
 
-real(kind=kdbl):: &
- gsump &                     !
-,xsump 
+real(kind=kdbl),dimension(ide*jde*(kse-kss+1)):: &
+ s1_glob                     !
+
+real(kind=kfpt),dimension((ite_b1-its_b1+1)*(jte_b1-jts_b1+1)*(kse-kss+1)):: &
+ s1_loc                      !
+
+real(kind=kfpt),dimension(:), allocatable :: &
+ s1_pe_loc                   !
 
 real(kind=kdbl),dimension(2*kss-1:2*kse):: &
- vgsums                      !
-
-real(kind=kdbl),dimension(2*kss-1:2*kse,1:lm):: &
  gsums &                     ! sum of neg/pos changes all global fields
-,xsums                       ! sum of neg/pos changes all local fields
+,xsums                       ! sum of neg/pos changes all global fields
+
+real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,kss:kse):: &
+ s1l_sum
 
 real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
  dvol &                      ! grid box volume
@@ -4788,24 +4811,34 @@ real(kind=kdbl),save :: sumdo3=0.
       enddo
 !.......................................................................
 !$omp end do
+!$omp end parallel
 !.......................................................................
 !
 !-----------------------------------------------------------------------
 !---monotonization------------------------------------------------------
 !-----------------------------------------------------------------------
 !
+      if(use_allreduce)then
+!
+!-----------------------------------------------------------------------
 !.......................................................................
+!$omp parallel 
 !$omp do private (dsp,i,j,ks,l,s1p,smax,smaxh,smaxv,smin,sminh,sminv,sn)
 !.......................................................................
 !-----------------------------------------------------------------------
       do ks=kss,kse ! loop by species
+          gsums(2*ks-1)=0.
+          gsums(2*ks  )=0.
+          xsums(2*ks-1)=0.
+          xsums(2*ks  )=0.
+!
+        do j=jts_b1,jte_b1
+          do i=its_b1,ite_b1
+            s1l_sum(i,j,ks)=0.
+          enddo
+        enddo
 !-----------------------------------------------------------------------
         do l=1,lm
-          xsums(2*ks-1,l)=0.
-          xsums(2*ks  ,l)=0.
-          gsums(2*ks-1,l)=0.
-          gsums(2*ks  ,l)=0.
-!
           do j=jts_b1,jte_b1
             do i=its_b1,ite_b1
               s1p=(s1(i,j,l,ks)+tcs(i,j,l,ks))**2
@@ -4849,103 +4882,244 @@ real(kind=kdbl),save :: sumdo3=0.
               if(sn.lt.     smin) sn=smin
 !
               dsp=(sn-s1p)*dvol(i,j,l)
-              s1(i,j,l,ks)=dsp
 !
               if(dsp.gt.0.) then
-                xsums(2*ks-1,l)=xsums(2*ks-1,l)+dsp
+                xsums(2*ks-1)=xsums(2*ks-1)+dsp
               else
-                xsums(2*ks  ,l)=xsums(2*ks  ,l)+dsp
+                xsums(2*ks  )=xsums(2*ks  )+dsp
               endif
 !
             enddo
           enddo
         enddo
-!-----------------------------------------------------------------------
-!
       enddo ! end of the loop by species
 !.......................................................................
 !$omp end do
 !$omp end parallel
 !.......................................................................
+!-----------------------------------------------------------------------
+!
+      else ! use send/recv
+!
+!-----------------------------------------------------------------------
+!.......................................................................
+!$omp parallel 
+!$omp do private (dsp,i,j,ks,l,s1p,smax,smaxh,smaxv,smin,sminh,sminv,sn)
+!.......................................................................
+!-----------------------------------------------------------------------
+      do ks=kss,kse ! loop by species
+          gsums(2*ks-1)=0.
+          gsums(2*ks  )=0.
+!
+        do j=jts_b1,jte_b1
+          do i=its_b1,ite_b1
+            s1l_sum(i,j,ks)=0.
+          enddo
+        enddo
+!-----------------------------------------------------------------------
+        do l=1,lm
+          do j=jts_b1,jte_b1
+            do i=its_b1,ite_b1
+              s1p=(s1(i,j,l,ks)+tcs(i,j,l,ks))**2
+              tcs(i,j,l,ks)=s1p-s(i,j,l,ks)
+!
+              sminh=min(s(i-1,j-1,l,ks) &
+                       ,s(i  ,j-1,l,ks) &
+                       ,s(i+1,j-1,l,ks) &
+                       ,s(i-1,j  ,l,ks) &
+                       ,s(i  ,j  ,l,ks) &
+                       ,s(i+1,j  ,l,ks) &
+                       ,s(i-1,j+1,l,ks) &
+                       ,s(i  ,j+1,l,ks) &
+                       ,s(i+1,j+1,l,ks))
+              smaxh=max(s(i-1,j-1,l,ks) &
+                       ,s(i  ,j-1,l,ks) &
+                       ,s(i+1,j-1,l,ks) &
+                       ,s(i-1,j  ,l,ks) &
+                       ,s(i  ,j  ,l,ks) &
+                       ,s(i+1,j  ,l,ks) &
+                       ,s(i-1,j+1,l,ks) &
+                       ,s(i  ,j+1,l,ks) &
+                       ,s(i+1,j+1,l,ks))
+!
+              if(l.gt.1.and.l.lt.lm) then
+                sminv=min(s(i,j,l-1,ks),s(i,j,l  ,ks),s(i,j,l+1,ks))
+                smaxv=max(s(i,j,l-1,ks),s(i,j,l  ,ks),s(i,j,l+1,ks))
+              elseif(l.eq.1) then
+                sminv=min(s(i,j,l  ,ks),s(i,j,l+1,ks))
+                smaxv=max(s(i,j,l  ,ks),s(i,j,l+1,ks))
+              elseif(l.eq.lm) then
+                sminv=min(s(i,j,l-1,ks),s(i,j,l  ,ks))
+                smaxv=max(s(i,j,l-1,ks),s(i,j,l  ,ks))
+              endif
+!
+              smin=min(sminh,sminv)
+              smax=max(smaxh,smaxv)
+!
+              sn=s1p
+              if(sn.gt.steep*smax) sn=smax
+              if(sn.lt.     smin) sn=smin
+!
+              dsp=(sn-s1p)*dvol(i,j,l)
+!
+              s1(i,j,l,ks)=dsp
+              s1l_sum(i,j,ks) = s1l_sum(i,j,ks) + dsp
+!
+            enddo
+          enddo
+        enddo
+      enddo ! end of the loop by species
+!.......................................................................
+!$omp end do
+!$omp end parallel
+!.......................................................................
+!-----------------------------------------------------------------------
+!
+      endif
 !
 !-----------------------------------------------------------------------
 !***  Global reductions
 !-----------------------------------------------------------------------
 !
+      global_reduce: if(use_allreduce)then
+!
 !-----------------------------------------------------------------------
 !***  Skip computing the global reduction if they are to be read in
 !***  from another run to check bit reproducibility.
 !-----------------------------------------------------------------------
-      if(.not.read_global_sums)then
-        lngth=(2*kse-2*kss+2)*lm
-        call mpi_allreduce(xsums,gsums,lngth &
-                          ,mpi_double_precision &
-                          ,mpi_sum,mpi_comm_comp,irecv)
-      endif
+        if(.not.read_global_sums)then
+          lngth=2*kse-2*kss+2
+          call mpi_allreduce(xsums,gsums,lngth &
+                            ,mpi_double_precision &
+                            ,mpi_sum,mpi_comm_comp,irecv)
+        endif
 !-----------------------------------------------------------------------
 !***  For bit reproducibility, read/write global sums.
 !-----------------------------------------------------------------------
-      bitsaf: if(read_global_sums.or.write_global_sums)then   !<--- NEVER SET BOTH READ AND WRITE TO .TRUE.
+        bitsaf: if(read_global_sums.or.write_global_sums)then  !<--- NEVER SET BOTH READ
+                                                               !<--- AND WRITE TO .TRUE.
 !
-        if(.not.sum_file_is_open.and.mype==0)then
-          open_unit_ad: do l=51,59
-            inquire(l,opened=opened)
-            if(.not.opened)then
-              iunit_advec_sums=l
-              if(read_global_sums)fstatus='OLD'
-              if(write_global_sums)fstatus='REPLACE'
-              open(unit=iunit_advec_sums,file='global_sums',status=fstatus &
-                  ,form='UNFORMATTED',iostat=istat)
-              sum_file_is_open=.true.
-              exit open_unit_ad
-            endif
-          enddo open_unit_ad
-          write(0,*)' mono opened iunit_advec_sums=',iunit_advec_sums
-        endif
+          if(.not.sum_file_is_open.and.mype==0)then
+            open_unit_ad: do l=51,59
+              inquire(l,opened=opened)
+              if(.not.opened)then
+                iunit_advec_sums=l
+                if(read_global_sums)fstatus='OLD'
+                if(write_global_sums)fstatus='REPLACE'
+                open(unit=iunit_advec_sums,file='global_sums',status=fstatus &
+                    ,form='UNFORMATTED',iostat=istat)
+                sum_file_is_open=.true.
+                exit open_unit_ad
+              endif
+            enddo open_unit_ad
+            write(0,*)' mono opened iunit_advec_sums=',iunit_advec_sums
+          endif
 !
-        if(write_global_sums.and.mype==0)then
-          do ks=kss,kse
-            do l=1,lm
-              write(iunit_advec_sums) gsums(2*ks-1,l) &
-                                     ,gsums(2*ks  ,l)
-            enddo
-          enddo
-        endif
-!
-        if(read_global_sums)then
-          if(mype==0)then
+          if(write_global_sums.and.mype==0)then
             do ks=kss,kse
-              do l=1,lm
-                read (iunit_advec_sums) gsums(2*ks-1,l) &
-                                       ,gsums(2*ks  ,l) 
-              enddo
+              write(iunit_advec_sums) gsums(2*ks-1) &
+                                     ,gsums(2*ks  )
             enddo
           endif
 !
-          call mpi_bcast(gsums,(kse-kss+1)*2*lm &
-                        ,mpi_double_precision,0,mpi_comm_comp,ierr)
+          if(read_global_sums)then
+            if(mype==0)then
+              do ks=kss,kse
+                read (iunit_advec_sums) gsums(2*ks-1) &
+                                       ,gsums(2*ks  ) 
+              enddo
+            endif
 !
+            call mpi_bcast(gsums,(kse-kss+1)*2 &
+                          ,mpi_double_precision,0,mpi_comm_comp,ierr)
+!
+          endif
+!
+        endif bitsaf
+!-----------------------------------------------------------------------
+!
+      else  global_reduce
+!
+!-----------------------------------------------------------------------
+        if (mype==0) then
+
+          do ks=kss,kse
+            do j=jts_b1,jte_b1
+              do i=its_b1,ite_b1
+                n=i+(j-1)*ide+(ks-1)*ide*jde
+                s1_glob(n) = s1l_sum(i,j,ks)
+              enddo
+            enddo
+          enddo
+
+          do pe=1,inpes*jnpes-1
+            loc_its_b1 = max(local_istart(pe),ids+1)
+            loc_ite_b1 = min(local_iend  (pe),ide-1)
+            loc_jts_b1 = max(local_jstart(pe),jds+1)
+            loc_jte_b1 = min(local_jend  (pe),jde-1)
+            loc_len    = (loc_ite_b1-loc_its_b1+1)*    &
+                         (loc_jte_b1-loc_jts_b1+1)*(kse-kss+1)
+            allocate(s1_pe_loc(1:loc_len))
+            call mpi_recv(s1_pe_loc(1:loc_len),loc_len &
+                         ,mpi_real,pe,pe,mpi_comm_comp,jstat,ierr)
+            nn=0
+            do ks=kss,kse
+              do j=loc_jts_b1,loc_jte_b1
+                do i=loc_its_b1,loc_ite_b1
+                  nn=nn+1
+                  n=i+(j-1)*ide+(ks-1)*ide*jde
+                  s1_glob(n) = s1_pe_loc(nn)
+                enddo
+              enddo
+            enddo
+            deallocate(s1_pe_loc)
+          end do
+
+          do ks=kss,kse
+            do j=jds+1,jde-1
+              do i=ids+1,ide-1
+                n=i+(j-1)*ide+(ks-1)*ide*jde
+                if(s1_glob(n).gt.0.0d0) then
+                  gsums(2*ks-1) = gsums(2*ks-1) + s1_glob(n)
+                else
+                  gsums(2*ks  ) = gsums(2*ks  ) + s1_glob(n)
+                endif
+              enddo
+            enddo
+          enddo
+
+        else
+          loc_lngth=(ite_b1-its_b1+1)*(jte_b1-jts_b1+1)*(kse-kss+1)
+
+          n=0
+          do ks=kss,kse
+            do j=jts_b1,jte_b1
+              do i=its_b1,ite_b1
+                n=n+1
+                s1_loc(n) = s1l_sum(i,j,ks)
+              enddo
+            enddo
+          enddo
+
+          call mpi_send(s1_loc(1:loc_lngth),loc_lngth &
+                       ,mpi_real, 0, mype, mpi_comm_comp, ierr)
+
         endif
+
+        call mpi_bcast(gsums,(kse-kss+1)*2 &
+                      ,mpi_double_precision,0,mpi_comm_comp,ierr)
+
+!----------------------------------------------------------------------
 !
-      endif bitsaf
-!----------------------------------------------------------------------
-!---forced conservation after monotonization----------------------------
-!----------------------------------------------------------------------
-      do ks=kss,kse
-        vgsums(2*ks-1)=0.
-        vgsums(2*ks  )=0.
-        do l=1,lm
-          vgsums(2*ks-1)=gsums(2*ks-1,l)+vgsums(2*ks-1)
-          vgsums(2*ks  )=gsums(2*ks  ,l)+vgsums(2*ks  )
-        enddo
-      enddo
+      endif  global_reduce
+!
 !----------------------------------------------------------------------
 !.......................................................................
 !$omp parallel do private (dsp,i,j,ks,l,rfacs,sfacs,sumns,sumps)
 !.......................................................................
       do ks=kss,kse
-        sumps=vgsums(2*ks-1)
-        sumns=vgsums(2*ks  )
+        sumps=gsums(2*ks-1)
+        sumns=gsums(2*ks  )
 !
         if(sumps*(-sumns).gt.1.) then
           sfacs=-sumns/sumps
@@ -4997,84 +5171,7 @@ real(kind=kdbl),save :: sumdo3=0.
           tcs(i,j,lm,indx_q2)=0.
         enddo
       enddo
-!-----------------------------------------------------------------------
 !
-!     call species_sums
-!
-!-----------------------------------------------------------------------
-!
-      contains
-!
-!-----------------------------------------------------------------------
-!zjwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
-!-----------------------------------------------------------------------
-!
-      subroutine species_sums
-!
-      do ks=kss,kse ! loop by species
-        do l=1,lm
-          xsums(2*ks-1,l)=0.
-          xsums(2*ks  ,l)=0.
-          gsums(2*ks-1,l)=0.
-          gsums(2*ks  ,l)=0.
-!
-          do j=jts_b1,jte_b1
-            do i=its_b1,ite_b1
-              xsums(2*ks-1,l)=xsums(2*ks-1,l)+s  (i,j,l,ks)*dvol(i,j,l)
-              xsums(2*ks  ,l)=xsums(2*ks  ,l)+tcs(i,j,l,ks)*dvol(i,j,l)
-            enddo
-          enddo
-        enddo
-      enddo
-!
-      xsump=0.
-      do j=jts_b1,jte_b1
-        do i=its_b1,ite_b1
-          xsump=pd(i,j)*dare(j)+xsump
-        enddo
-      enddo
-!-----------------------------------------------------------------------
-!***  GLOBAL REDUCTION
-!-----------------------------------------------------------------------
-      lngth=1
-      call mpi_allreduce(xsump,gsump,lngth &
-                        ,mpi_double_precision &
-                        ,mpi_sum,mpi_comm_comp,irecv)
-!-----------------------------------------------------------------------
-!***  END OF GLOBAL REDUCTION
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!***  GLOBAL REDUCTION
-!-----------------------------------------------------------------------
-      lngth=(2*kse-2*kss+2)*lm
-      call mpi_allreduce(xsums,gsums,lngth &
-                        ,mpi_double_precision &
-                        ,mpi_sum,mpi_comm_comp,irecv)
-!-----------------------------------------------------------------------
-!***  END OF GLOBAL REDUCTION
-!-----------------------------------------------------------------------
-      do ks=kss,kse
-        vgsums(2*ks-1)=0.
-        vgsums(2*ks  )=0.
-      enddo
-!
-      do ks=kss,kse
-        do l=1,lm
-          vgsums(2*ks-1)=gsums(2*ks-1,l)+vgsums(2*ks-1)
-          vgsums(2*ks  )=gsums(2*ks  ,l)+vgsums(2*ks  )
-        enddo
-      enddo
-!
-      sumdo3=vgsums(6)+sumdo3
-!
-      if(mype.eq.0) then
-        write(0,1000) (vgsums(ks),ks=2*kss-1,2*kse) &
-                      ,gsump,sumdo3
-      endif
- 1000 format('global vol sums ',10d13.5)
-!
-      end subroutine species_sums
-!zjmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
 !-----------------------------------------------------------------------
 !
                         endsubroutine mono
