@@ -1,14 +1,9 @@
 #######################
 ####  Model Core  #####
 #######################
-                                                                                                                                              
-core: nmm                   # The dynamic core options:
-                                # nmm
-                                # gfs
-                                # fim
-                                # arw
-                                                                                                                                              
-                                                                                                                                              
+
+core: nmm                   # Introduce ourselves to the NEMS
+
 #################################
 #####  Grid Specifications  #####
 #################################

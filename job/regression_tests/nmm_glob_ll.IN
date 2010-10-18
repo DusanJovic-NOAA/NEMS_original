@@ -48,6 +48,7 @@ cp _RTPWD_/NMMB_glob/GWD_bin_01 .
 
 cp $SRCDIR/job/regression_tests/atmos.configure_nmm atmos.configure
 cp $SRCDIR/job/regression_tests/configure_file_01 .
+cp configure_file_01 model_configure
 cp _RTPWD_/data/* .
 ln -sf /nwprod/fix/global_o3prdlos.f77 fort.28
 ln -sf /nwprod/fix/global_o3clim.txt fort.48

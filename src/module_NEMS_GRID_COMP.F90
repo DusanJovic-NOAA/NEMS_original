@@ -291,7 +291,7 @@
       CF_NEMS=ESMF_ConfigCreate(rc=RC)
 !
       CALL ESMF_ConfigLoadFile(config   = CF_NEMS                       &  !<-- The configure object
-                              ,filename = 'configure_file_01'           &  !<-- The name of the configure file
+                              ,filename = 'model_configure'             &  !<-- The name of the configure file
                               ,rc       = RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

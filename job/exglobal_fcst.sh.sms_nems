@@ -1090,7 +1090,7 @@ cat  > atm_namelist <<EOF
   $CYCLVARS /
 EOF
 
-ln -sf atm_namelist.rc ./configure_file_01
+ln -sf atm_namelist.rc ./model_configure
 eval hpmcount -o gfs_test $PGM $REDOUT$PGMOUT $REDERR$PGMERR
 
 export ERR=$?

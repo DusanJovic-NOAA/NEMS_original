@@ -169,8 +169,8 @@
 !
       CF_MAIN=ESMF_ConfigCreate(rc=RC)
 !
-      CALL ESMF_ConfigLoadFile(config  =CF_MAIN              & !<-- The Configure object
-                              ,filename='configure_file_01'  & !<-- The name of the configure file 
+      CALL ESMF_ConfigLoadFile(config  =CF_MAIN            & !<-- The Configure object
+                              ,filename='model_configure'  & !<-- The name of the configure file 
                               ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -188,9 +188,9 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      NEMS_GRID_COMP=ESMF_GridCompCreate(name        ='NEMS Grid Comp'    & !<-- NEMS component name
-                                        ,gridcomptype=ESMF_ATM            & !<-- A Type that the user can query.
-                                        ,configFile  ='configure_file_01' & !<-- Link the user-created configure file.
+      NEMS_GRID_COMP=ESMF_GridCompCreate(name        ='NEMS Grid Comp'  & !<-- NEMS component name
+                                        ,gridcomptype=ESMF_ATM          & !<-- A Type that the user can query.
+                                        ,configFile  ='model_configure'  & !<-- Link the user-created configure file.
                                         ,rc          =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
