@@ -108,8 +108,6 @@
       LOGICAL(kind=KLOG) :: QUILTING                                    &  !<-- Is asynchronous quilting specified?
                            ,RESTARTED_RUN                                  !<-- Restarted run logical flag
 !
-      TYPE(ESMF_Config),SAVE :: CF_1                                       !<-- The principal config object
-!
       TYPE(ESMF_VM),SAVE :: VM,VM_LOCAL                                    !<-- The ESMF virtual machine.
 !
       TYPE(DOMAIN_INTERNAL_STATE),POINTER,SAVE :: DOMAIN_INT_STATE         !<-- The NMM DOMAIN internal state pointer
@@ -182,28 +180,6 @@
 !
       RC    =ESMF_SUCCESS   ! Error signal variable
       RC_REG=ESMF_SUCCESS   ! Error signal variable
-!
-!-----------------------------------------------------------------------
-!***  Load the principal configure file to obtain the core name.
-!***  We need that here because different numbers of Phases are
-!***  needed for the execution of the Run steps of the different 
-!***  cores.
-!-----------------------------------------------------------------------
-!
-      CF_1=ESMF_ConfigCreate(rc=RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="DOMAIN_Register: Load principal configure file"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_ConfigLoadFile(config  =CF_1                            &
-                              ,filename='configure_file'                &
-                              ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)  
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !***  Register the DOMAIN INITIALIZE subroutine.  Since it is just one 

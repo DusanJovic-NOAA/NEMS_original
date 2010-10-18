@@ -28,7 +28,13 @@ cat nmm_${GBRG}_conf.IN | sed s:_INPES_:${INPES}:g   \
                         | sed s:_gfsP_:${gfsP}:g     \
                         | sed s:_PCPFLG_:${PCPFLG}:g \
                         | sed s:_WPREC_:${WPREC}:g   \
-                        | sed s:_NCHILD_:${NCHILD}:g >  configure_file
+                        | sed s:_NCHILD_:${NCHILD}:g >  configure_file_01
+
+if [ ${GBRG} = nests ]; then
+  cat ${RTPWD}/NMMB_nests/configure_file_02.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_02
+  cat ${RTPWD}/NMMB_nests/configure_file_03.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_03
+  cat ${RTPWD}/NMMB_nests/configure_file_04.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_04
+fi
 
 ####################################################################################################
 # Submit test
