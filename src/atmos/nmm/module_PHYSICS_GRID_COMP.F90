@@ -137,7 +137,7 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP                      !<-- The Physics Gridded Component
+      TYPE(ESMF_GridComp)               :: GRID_COMP                      !<-- The Physics Gridded Component
 !
       INTEGER,INTENT(OUT) :: RC_REG                                       !<-- Return code for Phy Register
 !
@@ -261,12 +261,12 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP			   !<-- The Physics gridded component
+      TYPE(ESMF_GridComp)               :: GRID_COMP			   !<-- The Physics gridded component
 !
-      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                       &  !<-- The Physics Initialize step's import state
+      TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The Physics Initialize step's import state
                                        ,EXP_STATE			   !<-- The Physics Initialize step's export state
 !
-      TYPE(ESMF_Clock),INTENT(IN) :: CLOCK_ATM                             !<-- The ATM's ESMF Clock
+      TYPE(ESMF_Clock)            :: CLOCK_ATM                             !<-- The ATM's ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_INIT
 !
@@ -501,12 +501,12 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP                       !<-- The Physics gridded component
+      TYPE(ESMF_GridComp)               :: GRID_COMP                       !<-- The Physics gridded component
 !
-      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                       &  !<-- The Physics Initialize step's import state
+      TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The Physics Initialize step's import state
                                        ,EXP_STATE                          !<-- The Physics Initialize step's export state
 !
-      TYPE(ESMF_Clock),INTENT(IN) :: CLOCK                                 !<-- The ATM's ESMF Clock
+      TYPE(ESMF_Clock)            :: CLOCK                                 !<-- The ATM's ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_INIT
 !
@@ -864,12 +864,12 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP                       !<-- The Physics component
+      TYPE(ESMF_GridComp)               :: GRID_COMP                       !<-- The Physics component
 !
-      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                       &  !<-- The Physics import state
+      TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The Physics import state
                                        ,EXP_STATE                          !<-- The Physics export state
 !
-      TYPE(ESMF_Clock),INTENT(IN) :: CLOCK                                 !<-- The ATM Clock
+      TYPE(ESMF_Clock)            :: CLOCK                                 !<-- The ATM Clock
 !
       INTEGER,INTENT(OUT) :: RC_RUN
 !
@@ -2646,10 +2646,10 @@
 !*** Argument Variables
 !-----------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP                       !<-- The Physics gridded component
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE                       !<-- The Physics import state
-      TYPE(ESMF_State),   INTENT(INOUT) :: EXP_STATE                       !<-- The Physics export state
-      TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_ATM                       !<-- The ATM component's ESMF Clock.
+      TYPE(ESMF_GridComp)               :: GRID_COMP                       !<-- The Physics gridded component
+      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The Physics import state
+      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The Physics export state
+      TYPE(ESMF_Clock)                  :: CLOCK_ATM                       !<-- The ATM component's ESMF Clock.
 !
       INTEGER            ,INTENT(OUT)   :: RCFINAL
 !      

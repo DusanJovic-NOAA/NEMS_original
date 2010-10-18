@@ -14,7 +14,7 @@
 !#######################################################################
 
       SUBROUTINE GFS_REGISTER(GFS_GRID_COMP,RC_REG)
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: GFS_GRID_COMP
+      TYPE(ESMF_GridComp)               :: GFS_GRID_COMP
       INTEGER            ,INTENT(OUT)   :: RC_REG
 
       INTEGER :: RC
@@ -33,10 +33,10 @@
 
       SUBROUTINE GFS_INITIALIZE(GFS_GRID_COMP ,IMP_STATE ,EXP_STATE ,CLOCK_GFS ,RC_INIT)
 
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: GFS_GRID_COMP
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: EXP_STATE
-      TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_GFS
+      TYPE(ESMF_GridComp)               :: GFS_GRID_COMP
+      TYPE(ESMF_State)                  :: IMP_STATE
+      TYPE(ESMF_State)                  :: EXP_STATE
+      TYPE(ESMF_Clock)                  :: CLOCK_GFS
       INTEGER            ,INTENT(OUT)   :: RC_INIT
 
       write(0,*) "        GFS_INITIALIZE stub"
@@ -49,10 +49,10 @@
 
       SUBROUTINE GFS_RUN(GFS_GRID_COMP ,IMP_STATE ,EXP_STATE ,CLOCK_GFS ,RC_RUN)
 
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: GFS_GRID_COMP
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: EXP_STATE
-      TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_GFS
+      TYPE(ESMF_GridComp)               :: GFS_GRID_COMP
+      TYPE(ESMF_State)                  :: IMP_STATE
+      TYPE(ESMF_State)                  :: EXP_STATE
+      TYPE(ESMF_Clock)                  :: CLOCK_GFS
       INTEGER            ,INTENT(OUT)   :: RC_RUN
 
       write(0,*) "        GFS_RUN stub"
@@ -65,10 +65,10 @@
 
       SUBROUTINE GFS_FINALIZE(GFS_GRID_COMP ,IMP_STATE ,EXP_STATE ,CLOCK_GFS ,RC_FINALIZE)
 
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: GFS_GRID_COMP
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: EXP_STATE
-      TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_GFS
+      TYPE(ESMF_GridComp)               :: GFS_GRID_COMP
+      TYPE(ESMF_State)                  :: IMP_STATE
+      TYPE(ESMF_State)                  :: EXP_STATE
+      TYPE(ESMF_Clock)                  :: CLOCK_GFS
       INTEGER            ,INTENT(OUT)   :: RC_FINALIZE
 
       write(0,*) "        GFS_FINALIZE stub"

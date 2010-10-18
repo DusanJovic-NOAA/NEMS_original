@@ -386,7 +386,7 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_CplComp),INTENT(INOUT) :: CPL_COMP                        !<-- Coupler component
+      TYPE(ESMF_CplComp)               :: CPL_COMP                        !<-- Coupler component
 !
       INTEGER(kind=KINT),INTENT(OUT)   :: RC_NEST_REG                     !<-- Return code for register
 !
@@ -514,12 +514,12 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_CplComp),INTENT(INOUT) :: CPL_COMP                         !<-- The Dyn-Phy Coupler Component
+      TYPE(ESMF_CplComp)               :: CPL_COMP                         !<-- The Dyn-Phy Coupler Component
 !
-      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                       &  !<-- The Coupler's Import State
+      TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The Coupler's Import State
                                        ,EXP_STATE                          !<-- The Coupler's Export State
 !
-      TYPE(ESMF_Clock),INTENT(IN) :: CLOCK                                 !<-- The ESMF Clock
+      TYPE(ESMF_Clock)            :: CLOCK                                 !<-- The ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_FINAL
 !
@@ -2220,12 +2220,12 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_CplComp),INTENT(INOUT) :: CPL_COMP                         !<-- The Parent-Child Coupler Component
+      TYPE(ESMF_CplComp)               :: CPL_COMP                         !<-- The Parent-Child Coupler Component
 !
-      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                       &  !<-- The Coupler's Import State
+      TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The Coupler's Import State
                                        ,EXP_STATE                          !<-- The Coupler's Export State
 !
-      TYPE(ESMF_Clock),INTENT(IN) :: CLOCK                                 !<-- The ESMF Clock
+      TYPE(ESMF_Clock)             ::CLOCK                                 !<-- The ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_FINAL
 !
@@ -2823,12 +2823,12 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_CplComp),INTENT(INOUT) :: CPL_COMP                         !<-- The Parent-Child Coupler Component
+      TYPE(ESMF_CplComp)               :: CPL_COMP                         !<-- The Parent-Child Coupler Component
 !
-      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                       &  !<-- The Coupler's Import State
+      TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The Coupler's Import State
                                        ,EXP_STATE                          !<-- The Coupler's Export State
 !
-      TYPE(ESMF_Clock),INTENT(IN) :: CLOCK                                 !<-- The ATM Driver Clock for this parent domain
+      TYPE(ESMF_Clock)            :: CLOCK                                 !<-- The ATM Driver Clock for this parent domain
 !
       INTEGER,INTENT(OUT) :: RC_FINAL
 !
@@ -3713,12 +3713,12 @@
 !-----------------------------------------------------------------------
 !
 !
-      TYPE(ESMF_CplComp),INTENT(INOUT) :: CPL_COMP                         !<-- The Parent-Child Coupler Component
+      TYPE(ESMF_CplComp)               :: CPL_COMP                         !<-- The Parent-Child Coupler Component
 !
-      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                       &  !<-- The Coupler's Import State
+      TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The Coupler's Import State
                                        ,EXP_STATE                          !<-- The Coupler's Export State
 !
-      TYPE(ESMF_Clock),INTENT(IN) :: CLOCK                                 !<-- The ESMF Clock
+      TYPE(ESMF_Clock)            :: CLOCK                                 !<-- The ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_FINAL
 !

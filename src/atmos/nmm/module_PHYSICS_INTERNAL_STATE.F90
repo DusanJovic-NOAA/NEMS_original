@@ -491,10 +491,10 @@
 !-----------------------------------------------------------------------
 !
       NUM_PES=int_state%NUM_PES
-      ALLOCATE(int_state%LOCAL_ISTART(0:NUM_PES-1)) ;int_state%LOCAL_ISTART = R4_IN 
-      ALLOCATE(int_state%LOCAL_IEND  (0:NUM_PES-1)) ;int_state%LOCAL_IEND   = R4_IN 
-      ALLOCATE(int_state%LOCAL_JSTART(0:NUM_PES-1)) ;int_state%LOCAL_JSTART = R4_IN 
-      ALLOCATE(int_state%LOCAL_JEND  (0:NUM_PES-1)) ;int_state%LOCAL_JEND   = R4_IN 
+      ALLOCATE(int_state%LOCAL_ISTART(0:NUM_PES-1)) ;int_state%LOCAL_ISTART = I4_IN 
+      ALLOCATE(int_state%LOCAL_IEND  (0:NUM_PES-1)) ;int_state%LOCAL_IEND   = I4_IN 
+      ALLOCATE(int_state%LOCAL_JSTART(0:NUM_PES-1)) ;int_state%LOCAL_JSTART = I4_IN 
+      ALLOCATE(int_state%LOCAL_JEND  (0:NUM_PES-1)) ;int_state%LOCAL_JEND   = I4_IN 
 !
 !-----------------------------------------------------------------------
 !***  Prognostic arrays
@@ -559,8 +559,8 @@
       gfs_physics: IF(int_state%GFS)THEN
 !
         ALLOCATE(int_state%DDY              (JTS:JTE))    ;int_state%DDY    = R8_IN     !
-        ALLOCATE(int_state%JINDX1           (JTS:JTE))    ;int_state%JINDX1 = R8_IN     !
-        ALLOCATE(int_state%JINDX2           (JTS:JTE))    ;int_state%JINDX2 = R8_IN     !
+        ALLOCATE(int_state%JINDX1           (JTS:JTE))    ;int_state%JINDX1 = I4_IN     !
+        ALLOCATE(int_state%JINDX2           (JTS:JTE))    ;int_state%JINDX2 = I4_IN     !
 !
         ALLOCATE(int_state%DUGWD    (IMS:IME,JMS:JME))    ;int_state%DUGWD  = R8_IN     ! U comp. GWD tend (m s-1)
         ALLOCATE(int_state%DVGWD    (IMS:IME,JMS:JME))    ;int_state%DVGWD  = R8_IN     ! V comp. GWD tend (m s-1)

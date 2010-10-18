@@ -71,7 +71,7 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: ATM_GRID_COMP                   !<-- The ATM component
+      TYPE(ESMF_GridComp)               :: ATM_GRID_COMP                   !<-- The ATM component
       INTEGER            ,INTENT(OUT)   :: RC_REG                          !<-- Error return code
 !
 !---------------------
@@ -163,10 +163,10 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: ATM_GRID_COMP                   !<-- The ATM component
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE                       !<-- The ATM import state
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: EXP_STATE                       !<-- The ATM export state
-      TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_EARTH                     !<-- The Clock of the EARTH component
+      TYPE(ESMF_GridComp)               :: ATM_GRID_COMP                   !<-- The ATM component
+      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The ATM import state
+      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The ATM export state
+      TYPE(ESMF_Clock)                  :: CLOCK_EARTH                     !<-- The Clock of the EARTH component
       INTEGER            ,INTENT(OUT)   :: RC_INIT                         !<-- Error return code
 !
 !---------------------
@@ -435,10 +435,10 @@
 !***  Argument Variables
 !------------------------
 ! 
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: ATM_GRID_COMP                   !<-- The ATM component
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE                       !<-- The ATM import state
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: EXP_STATE                       !<-- The ATM export state
-      TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_EARTH                     !<-- The Clock of the EARTH component
+      TYPE(ESMF_GridComp)               :: ATM_GRID_COMP                   !<-- The ATM component
+      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The ATM import state
+      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The ATM export state
+      TYPE(ESMF_Clock)                  :: CLOCK_EARTH                     !<-- The Clock of the EARTH component
       INTEGER            ,INTENT(OUT)   :: RC_RUN                          !<-- Error return code
 !
 !---------------------
@@ -539,10 +539,10 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: ATM_GRID_COMP                   !<-- The ATM component
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE                       !<-- The ATM import state
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: EXP_STATE                       !<-- The ATM import state
-      TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_EARTH                     !<-- The Clock of the EARTH component
+      TYPE(ESMF_GridComp)               :: ATM_GRID_COMP                   !<-- The ATM component
+      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The ATM import state
+      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The ATM import state
+      TYPE(ESMF_Clock)                  :: CLOCK_EARTH                     !<-- The Clock of the EARTH component
       INTEGER            ,INTENT(OUT)   :: RC_FINALIZE                     !<-- Error return code
 !
 !---------------------

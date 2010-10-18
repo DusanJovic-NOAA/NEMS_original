@@ -115,7 +115,7 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP                      !<-- The Dynamics Gridded Component
+      TYPE(ESMF_GridComp)               :: GRID_COMP                      !<-- The Dynamics Gridded Component
 !
       INTEGER,INTENT(OUT) :: RC_REG                                       !<-- Return code for Dyn register
 !
@@ -239,12 +239,12 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP                       !<-- The Dynamics gridded component
+      TYPE(ESMF_GridComp)               :: GRID_COMP                       !<-- The Dynamics gridded component
 !
-      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                       &  !<-- The Dynamics Initialize step's import state
+      TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The Dynamics Initialize step's import state
                                        ,EXP_STATE                          !<-- The Dynamics Initialize step's export state
 !
-      TYPE(ESMF_Clock),INTENT(IN) :: CLOCK_ATM                             !<-- The ATM's ESMF Clock
+      TYPE(ESMF_Clock)            :: CLOCK_ATM                             !<-- The ATM's ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_INIT
 !
@@ -518,12 +518,12 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP                       !<-- The Dynamics gridded component
+      TYPE(ESMF_GridComp)               :: GRID_COMP                       !<-- The Dynamics gridded component
 !
-      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                       &  !<-- The Dynamics Initialize step's import state
+      TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The Dynamics Initialize step's import state
                                        ,EXP_STATE                          !<-- The Dynamics Initialize step's export state
 !
-      TYPE(ESMF_Clock),INTENT(IN) :: CLOCK                                 !<-- The ATM's ESMF Clock
+      TYPE(ESMF_Clock)            :: CLOCK                                 !<-- The ATM's ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_INIT
 !
@@ -1493,12 +1493,12 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP                       !<-- The Dynamics gridded component
+      TYPE(ESMF_GridComp)               :: GRID_COMP                       !<-- The Dynamics gridded component
 !
-      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                          !<-- The Dynamics import state
-      TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE                          !<-- The Dynamics export state
+      TYPE(ESMF_State)               :: IMP_STATE                          !<-- The Dynamics import state
+      TYPE(ESMF_State)               :: EXP_STATE                          !<-- The Dynamics export state
 !
-      TYPE(ESMF_Clock),INTENT(IN) :: CLOCK_ATM                             !<-- The ATM's ESMF Clock
+      TYPE(ESMF_Clock)            :: CLOCK_ATM                             !<-- The ATM's ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_RUN
 !
@@ -3426,12 +3426,12 @@
 !
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: GRID_COMP                       !<-- The Dynamics gridded component
+      TYPE(ESMF_GridComp)               :: GRID_COMP                       !<-- The Dynamics gridded component
 !
-      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                       &  !<-- The Dynamics import state
+      TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The Dynamics import state
                                        ,EXP_STATE                          !<-- The Dynamics export state
 !
-      TYPE(ESMF_Clock),INTENT(INOUT) :: CLOCK_ATM                          !<-- The ATM component's ESMF Clock.
+      TYPE(ESMF_Clock)               :: CLOCK_ATM                          !<-- The ATM component's ESMF Clock.
 !
       INTEGER,INTENT(OUT) :: RC_FINALIZE
 !      

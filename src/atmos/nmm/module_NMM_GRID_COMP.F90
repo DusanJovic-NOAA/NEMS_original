@@ -154,7 +154,7 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: NMM_GRID_COMP                   !<-- The NMM component
+      TYPE(ESMF_GridComp)               :: NMM_GRID_COMP                   !<-- The NMM component
       INTEGER            ,INTENT(OUT)   :: RC_REG
 !
 !---------------------
@@ -249,10 +249,10 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: NMM_GRID_COMP                   !<-- The NMM component
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE                       !<-- The NMM import state
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: EXP_STATE                       !<-- The NMM export state
-      TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_NEMS                      !<-- The NEMS ESMF Clock
+      TYPE(ESMF_GridComp)               :: NMM_GRID_COMP                   !<-- The NMM component
+      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The NMM import state
+      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The NMM export state
+      TYPE(ESMF_Clock)                  :: CLOCK_NEMS                      !<-- The NEMS ESMF Clock
       INTEGER            ,INTENT(OUT)   :: RC_INIT                         !<-- Error return code
 !
 !---------------------
@@ -1377,10 +1377,10 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: NMM_GRID_COMP                   !<-- The NMM component
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE                       !<-- The NMM import state
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: EXP_STATE                       !<-- The NMM export state
-      TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_NEMS                      !<-- The NEMS ESMF Clock
+      TYPE(ESMF_GridComp)               :: NMM_GRID_COMP                   !<-- The NMM component
+      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The NMM import state
+      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The NMM export state
+      TYPE(ESMF_Clock)                  :: CLOCK_NEMS                      !<-- The NEMS ESMF Clock
       INTEGER            ,INTENT(OUT)   :: RC_RUN                          !<-- Error return code
 !
 !---------------------
@@ -2114,10 +2114,10 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: NMM_GRID_COMP                   !<-- The NMM component
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE                       !<-- The NMM import state
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: EXP_STATE                       !<-- The NMM export state
-      TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_NMM                       !<-- The NMM component's ESMF Clock
+      TYPE(ESMF_GridComp)               :: NMM_GRID_COMP                   !<-- The NMM component
+      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The NMM import state
+      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The NMM export state
+      TYPE(ESMF_Clock)                  :: CLOCK_NMM                       !<-- The NMM component's ESMF Clock
       INTEGER            ,INTENT(OUT)   :: RC_FINALIZE                     !<-- Error return code
 !
 !---------------------

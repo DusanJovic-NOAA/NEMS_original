@@ -148,7 +148,7 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: WRITE_COMP                      ! The write component
+      TYPE(ESMF_GridComp)               :: WRITE_COMP                      ! The write component
 !
       INTEGER,INTENT(OUT)               :: RC_WRT                          ! Final return code
 !     
@@ -244,12 +244,12 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE_WRITE                 & 
+      TYPE(ESMF_State)               :: IMP_STATE_WRITE                 & 
                                        ,EXP_STATE_WRITE  
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: WRITE_COMP
+      TYPE(ESMF_GridComp)               :: WRITE_COMP
 !
-      TYPE(ESMF_Clock),INTENT(IN)    :: CLOCK
+      TYPE(ESMF_Clock)               :: CLOCK
 !
       INTEGER,INTENT(OUT) :: RC_INIT
 !
@@ -921,10 +921,10 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(IN) :: WRITE_COMP
-      TYPE(ESMF_Clock)   ,INTENT(IN) :: CLOCK
+      TYPE(ESMF_GridComp)            :: WRITE_COMP
+      TYPE(ESMF_Clock)               :: CLOCK
 ! 
-      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE_WRITE                 &  !<-- The Write component import state
+      TYPE(ESMF_State)               :: IMP_STATE_WRITE                 &  !<-- The Write component import state
                                        ,EXP_STATE_WRITE                    !<-- The Write component export state.
                                                                            !    Although it is loaded up only as output from
                                                                            !    this subroutine, its INTENT needs to be INOUT
@@ -3869,10 +3869,10 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT):: WRITE_COMP
-      TYPE(ESMF_State)  ,INTENT(INOUT) :: IMP_STATE_WRITE  
-      TYPE(ESMF_State),  INTENT(INOUT) :: EXP_STATE_WRITE  
-      TYPE(ESMF_Clock)  ,INTENT(INOUT) :: CLOCK
+      TYPE(ESMF_GridComp)              :: WRITE_COMP
+      TYPE(ESMF_State)                 :: IMP_STATE_WRITE  
+      TYPE(ESMF_State)                 :: EXP_STATE_WRITE  
+      TYPE(ESMF_Clock)                 :: CLOCK
 !
       INTEGER,INTENT(OUT)              :: RCFINAL
 !

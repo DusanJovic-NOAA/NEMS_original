@@ -166,7 +166,7 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: DOMAIN_GRID_COMP                !<-- DOMAIN gridded component
+      TYPE(ESMF_GridComp)               :: DOMAIN_GRID_COMP                !<-- DOMAIN gridded component
 !
       INTEGER,INTENT(OUT) :: RC_REG                                        !<-- Return code for register
 !     
@@ -329,12 +329,12 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: DOMAIN_GRID_COMP                !<-- The DOMAIN component
+      TYPE(ESMF_GridComp)               :: DOMAIN_GRID_COMP                !<-- The DOMAIN component
 !
-      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                       &  !<-- The DOMAIN component's import state
+      TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The DOMAIN component's import state
                                        ,EXP_STATE                          !<-- The DOMAIN component's export state
 !
-      TYPE(ESMF_Clock),INTENT(INOUT) :: CLOCK_DOMAIN                       !<-- The ESMF Clock from the NMM component.
+      TYPE(ESMF_Clock)               :: CLOCK_DOMAIN                       !<-- The ESMF Clock from the NMM component.
 !
       INTEGER,INTENT(OUT) :: RC_INIT                                       !<-- Return code for Initialize step
 !
@@ -1720,12 +1720,12 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: DOMAIN_GRID_COMP                !<-- The DOMAIN gridded component
+      TYPE(ESMF_GridComp)               :: DOMAIN_GRID_COMP                !<-- The DOMAIN gridded component
 !
-      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                       &  !<-- The DOMAIN Run step's import state
+      TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The DOMAIN Run step's import state
                                        ,EXP_STATE                          !<-- The DOMAIN Run step's export state
 !
-      TYPE(ESMF_Clock), INTENT(INOUT) :: CLOCK_DOMAIN                      !<-- The DOMAIN ESMF Clock
+      TYPE(ESMF_Clock)                :: CLOCK_DOMAIN                      !<-- The DOMAIN ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_RUN                                        !<-- Return code for the Run step
 !
@@ -2016,12 +2016,12 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: DOMAIN_GRID_COMP                !<-- The DOMAIN gridded component
+      TYPE(ESMF_GridComp)               :: DOMAIN_GRID_COMP                !<-- The DOMAIN gridded component
 !
-      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                       &  !<-- The DOMAIN finalize step's import state
+      TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The DOMAIN finalize step's import state
                                        ,EXP_STATE                          !<-- The DOMAIN finalize step's export state
 !
-      TYPE(ESMF_Clock),INTENT(INOUT) :: CLOCK_DOMAIN                       !<-- The DOMAIN ESMF Clock
+      TYPE(ESMF_Clock)               :: CLOCK_DOMAIN                       !<-- The DOMAIN ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_FINALIZE                                   !<-- Return code for the Finalize step
 !
@@ -2327,12 +2327,12 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: DOMAIN_GRID_COMP                !<-- The DOMAIN gridded component
+      TYPE(ESMF_GridComp)               :: DOMAIN_GRID_COMP                !<-- The DOMAIN gridded component
 !
-      TYPE(ESMF_State),INTENT(IN) :: IMP_STATE                          &  !<-- The DOMAIN import state
+      TYPE(ESMF_State)            :: IMP_STATE                          &  !<-- The DOMAIN import state
                                     ,EXP_STATE                             !<-- The DOMAIN export state
 !
-      TYPE(ESMF_Clock),INTENT(INOUT) :: CLOCK_DOMAIN                       !<-- The DOMAIN ESMF Clock
+      TYPE(ESMF_Clock)               :: CLOCK_DOMAIN                       !<-- The DOMAIN ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_FILT                                       !<-- Return code for this step
 !
@@ -2560,12 +2560,12 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: DOMAIN_GRID_COMP                !<-- The DOMAIN gridded component
+      TYPE(ESMF_GridComp)               :: DOMAIN_GRID_COMP                !<-- The DOMAIN gridded component
 !
-      TYPE(ESMF_State),INTENT(IN)    :: IMP_STATE                          !<-- The DOMAIN Run step's import state
-      TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE                          !<-- The DOMAIN Run step's export state
+      TYPE(ESMF_State)               :: IMP_STATE                          !<-- The DOMAIN Run step's import state
+      TYPE(ESMF_State)               :: EXP_STATE                          !<-- The DOMAIN Run step's export state
 !
-      TYPE(ESMF_Clock),INTENT(INOUT) :: CLOCK_DOMAIN                       !<-- The DOMAIN ESMF Clock
+      TYPE(ESMF_Clock)               :: CLOCK_DOMAIN                       !<-- The DOMAIN ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_RUN2                                       !<-- Return code for the Run step 
 !

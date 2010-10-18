@@ -58,7 +58,7 @@
 ! !ARGUMENTS:
 !------------
 
- TYPE(ESMF_CplComp),  INTENT(inout) :: CplENS ! gridded component
+ TYPE(ESMF_CplComp)                 :: CplENS ! gridded component
  INTEGER,             INTENT(out)   :: rc      ! return code
      
 ! !DESCRIPTION: Set services (register) for the EARTH Ensemble Coupler
@@ -110,10 +110,10 @@
 ! !INPUT/OUTPUT VARIABLES AND PARAMETERS:
 !----------------------------------------
 
- TYPE(ESMF_CplComp), INTENT(inout)     :: CplENS 
- TYPE(ESMF_State),   INTENT(inout)     :: impENS
- TYPE(ESMF_State),   INTENT(inout)     :: expENS
- TYPE(ESMF_Clock),   INTENT(inout)     :: clock
+ TYPE(ESMF_CplComp)                    :: CplENS 
+ TYPE(ESMF_State)                      :: impENS
+ TYPE(ESMF_State)                      :: expENS
+ TYPE(ESMF_Clock)                      :: clock
 
 !
 ! !OUTPUT VARIABLES AND PARAMETERS:
@@ -151,13 +151,13 @@
 !
 ! !INPUT VARIABLES AND PARAMETERS:
 !---------------------------------
- TYPE(ESMF_CplComp), INTENT(inout)     :: CplENS   
- TYPE(ESMF_State),   INTENT(in)        :: impENS 
+ TYPE(ESMF_CplComp)                    :: CplENS   
+ TYPE(ESMF_State)                      :: impENS 
  
 ! !OUTPUT VARIABLES AND PARAMETERS:
 !----------------------------------
- TYPE(ESMF_Clock),   INTENT(inout)     :: clock
- TYPE(ESMF_State),   INTENT(inout)     :: expENS
+ TYPE(ESMF_Clock)                      :: clock
+ TYPE(ESMF_State)                      :: expENS
  INTEGER,            INTENT(out)       :: rcfinal 
 !
 !EOP
@@ -190,10 +190,10 @@
 !
 ! !INPUT VARIABLES AND PARAMETERS:
 !---------------------------------
- TYPE(ESMF_CplComp), INTENT(inout)  :: CplENS
- TYPE(ESMF_State),   INTENT(inout)  :: impENS
- TYPE(ESMF_State),   INTENT(inout)  :: expENS
- TYPE(ESMF_Clock),   INTENT(inout)  :: clock
+ TYPE(ESMF_CplComp)                 :: CplENS
+ TYPE(ESMF_State)                   :: impENS
+ TYPE(ESMF_State)                   :: expENS
+ TYPE(ESMF_Clock)                   :: clock
 
 ! !OUTPUT VARIABLES AND PARAMETERS:
 !----------------------------------
