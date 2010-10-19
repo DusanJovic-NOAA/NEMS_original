@@ -5968,6 +5968,23 @@ contains
     gribtable(4)%item(154)=nemsio_grbtbl_item('TROPP','atmos col',0,0,232,200)
     gribtable(4)%item(155)=nemsio_grbtbl_item('CNPRCP','atmos col',6,0,233,200)
     gribtable(4)%item(156)=nemsio_grbtbl_item('NCNPRCP','atmos col',6,0,234,200)
+
+    gribtable(4)%item(157)=nemsio_grbtbl_item('PLE01','atmos col',3,0,235,200)
+    gribtable(4)%item(158)=nemsio_grbtbl_item('ZLE01','atmos col',3,0,236,200)
+    gribtable(4)%item(159)=nemsio_grbtbl_item('AIRDENS01','atmos col',3,0,237,200)
+    gribtable(4)%item(160)=nemsio_grbtbl_item('T01','atmos col',3,0,238,200)
+    gribtable(4)%item(161)=nemsio_grbtbl_item('U01','atmos col',3,0,239,200)
+    gribtable(4)%item(162)=nemsio_grbtbl_item('V01','atmos col',3,0,240,200)
+    gribtable(4)%item(163)=nemsio_grbtbl_item('FCLD01','atmos col',3,0,241,200)
+    gribtable(4)%item(164)=nemsio_grbtbl_item('DQDT01','atmos col',3,0,242,200)
+    gribtable(4)%item(165)=nemsio_grbtbl_item('PLE64','atmos col',3,0,243,200)
+    gribtable(4)%item(166)=nemsio_grbtbl_item('ZLE64','atmos col',3,0,244,200)
+    gribtable(4)%item(167)=nemsio_grbtbl_item('AIRDENS64','atmos col',3,0,245,200)
+    gribtable(4)%item(168)=nemsio_grbtbl_item('T64','atmos col',3,0,246,200)
+    gribtable(4)%item(169)=nemsio_grbtbl_item('U64','atmos col',3,0,247,200)
+    gribtable(4)%item(170)=nemsio_grbtbl_item('V64','atmos col',3,0,248,200)
+    gribtable(4)%item(171)=nemsio_grbtbl_item('FCLD64','atmos col',3,0,249,200)
+    gribtable(4)%item(172)=nemsio_grbtbl_item('DQDT64','atmos col',3,0,250,200)
 !
     iret=0
   end subroutine nemsio_setgrbtbl

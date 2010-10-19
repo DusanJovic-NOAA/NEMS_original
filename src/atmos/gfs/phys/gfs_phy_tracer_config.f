@@ -10,6 +10,7 @@
 !   Jan 12 2010   Sarah Lu, add trcindx
 !   Feb 08 2009   Sarah Lu, ri/cpi added to gfs_phy_tracer_type
 !   Aug 17 2010   Sarah Lu, remove debug print
+!   Oct 16 2010   Sarah Lu, add fscav
 ! -------------------------------------------------------------------------
 !
       module gfs_phy_tracer_config
@@ -26,6 +27,7 @@
         character*20        , pointer      :: vname(:)    ! variable name
         real(kind=kind_phys), pointer      :: ri(:)
         real(kind=kind_phys), pointer      :: cpi(:)
+        real(kind=kind_phys), pointer      :: fscav(:)
         integer                  :: ntrac
         integer                  :: ntrac_met
         integer                  :: ntrac_chem
@@ -99,13 +101,15 @@ c
      &                       gfs_phy_tracer%ntrac_chem
       ntrac = gfs_phy_tracer%ntrac
 
-! Set up tracer name
+! Set up tracer name and allocate ri, cpi, fscav
       if ( gfs_phy_tracer%ntrac > 0 ) then      
        allocate(gfs_phy_tracer%vname(ntrac), stat=status)
            if( status .ne. 0 ) go to 999         
        allocate(gfs_phy_tracer%ri(0:ntrac), stat=status)
            if( status .ne. 0 ) go to 999         
        allocate(gfs_phy_tracer%cpi(0:ntrac), stat=status)
+           if( status .ne. 0 ) go to 999         
+       allocate(gfs_phy_tracer%fscav(ntrac), stat=status)
            if( status .ne. 0 ) go to 999         
 
 !--- fill in met tracers
@@ -116,6 +120,8 @@ c
       do i = 1,gfs_phy_tracer%ntrac_chem
        gfs_phy_tracer%vname(i+gfs_phy_tracer%ntrac_met)=reg%vname(i)
       enddo
+!--- fill in default values for fscav
+      gfs_phy_tracer%fscav(:) = 0.
 
       endif
 

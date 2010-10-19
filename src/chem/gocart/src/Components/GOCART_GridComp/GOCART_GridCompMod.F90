@@ -50,6 +50,7 @@
 !  25feb2005  da Silva  First crack.
 !  19jul2006  da Silva  First separate GOCART component.
 !  18jun2010  Lu        Add gaseous species (dms,so2,msa) to AERO bundle
+!  16oct2010  Lu        Add fscav to iAERO bundle 
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1032,7 +1033,25 @@ end if ! doing GOCART
 
        end do
 
+!!! Add ChemReg%fscav to impChem so GFS can use it (Sarah Lu)
+    else
+
+       do n = ChemReg%i_GOCART, ChemReg%j_GOCART 
+
+        call ESMF_FieldBundleGet(iBundle,NAME=trim(ChemReg%Vname(n)), &
+                  FIELD=FIELD, rc = STATUS )
+        VERIFY_(STATUS)
+
+        call ESMF_AttributeSet (FIELD, NAME  = "ScavengingFractionPerKm", &
+                                VALUE = ChemReg%fscav(n),          &
+                                RC = STATUS )
+        VERIFY_(STATUS)
+       end do
+
+!!!
     end if
+
+!
 
 
 !   Now that the internal state is nice and ready add its contents to the

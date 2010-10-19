@@ -11,6 +11,7 @@
 !  2010/08/10     Sarah Lu,  Add g2d_zerout routine
 !  2010/09/11     Sarah Lu,  Modify g2d_zerout 
 !  2010/10/10     Sarah Lu,  Add GFS forcing fields to g2d_fld
+!  2010/10/15     Sarah Lu,  Revise g2d_zerout
 !
 ! !INTERFACE:
 !
@@ -70,7 +71,7 @@
  character*10      ::   name_du(29), name_su(30)
  character*10      ::   name_oc(15), name_bc(14)
  character*10      ::   name_ss(29)
- character*10      ::   name_met(15)
+ character*10      ::   name_met(31)
 !
  data name_du(1:29) /                                    &
   'DUEM001', 'DUEM002', 'DUEM003', 'DUEM004', 'DUEM005', &
@@ -110,10 +111,14 @@
    'SSSMASS25','SSCMASS25','SSEXTT25','SSSCAT25',        &
    'SSAERIDX'/
 
- data name_met(1:15) /                                   &
-   'U10M', 'V10M', 'UUSTAR', 'Z0H', 'LWI', 'ZPBL',  &
-   'WET1', 'GRN',  'PS', 'SH', 'TA', 'TSOIL',      &
-   'TROPP', 'CNPRCP', 'NCNPRCP'                    /
+ data name_met(1:31) /                                   &
+   'U10M', 'V10M', 'UUSTAR', 'Z0H', 'LWI', 'ZPBL',       &
+   'WET1', 'GRN',  'PS', 'SH', 'TA', 'TSOIL',            &
+   'TROPP', 'CNPRCP', 'NCNPRCP' ,                        &
+   'PLE01', 'ZLE01' , 'AIRDENS01', 'T01' , 'U01',        &
+   'V01',   'FCLD01', 'DQDT01',                          &
+   'PLE64', 'ZLE64' , 'AIRDENS64', 'T64' , 'U64',        &
+   'V64',   'FCLD64', 'DQDT64'/
 !
 !! .............................................................
 !
@@ -193,7 +198,7 @@
 !
     integer k
 !
-    if ( doing_MET ) then
+    if (  g2d_fld%met%nfld .gt. 0 ) then
       do k =1, g2d_fld%met%nfld
         g2d_fld%met%diag(k)%flds(:,:) = 0.
       enddo

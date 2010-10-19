@@ -14,6 +14,7 @@
 ! Aug 2010 Sarah Lu, scale the 2d_aer_diag by 1.e6
 !                    output time-avg 2d_aer_diag
 ! Oct 2010 Sarah Lu, add g2d_fld%met
+! Oct 2010 Sarah Lu, g2d_fld%met changed from instant to accumulated
 !
 
       use resol_def,               ONLY: latr, levs, levp1, lonr, nfxr
@@ -1976,7 +1977,7 @@ C
 !
       if ( g2d_fld%met%nfld > 0 ) then
         do  k = 1, g2d_fld%met%nfld
-          glolal=g2d_fld%met%diag(k)%flds
+          glolal=RTIME*g2d_fld%met%diag(k)%flds
           ngrid2d=ngrid2d+1
           CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,
      &                   lonsperlar,buff_mult_pieceg(1,1,ngrid2d))

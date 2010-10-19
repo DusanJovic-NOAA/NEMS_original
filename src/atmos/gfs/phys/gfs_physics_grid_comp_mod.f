@@ -18,6 +18,7 @@
 !  Feb 05 2010      Jun Wang, set init time for restart
 !  Mar 02 2010      Sarah Lu, associate export state with internal state in init
 !  Apr 11 2010      Sarah Lu, debug print removed
+!  Oct 16 2010      Sarah Lu, retrieve fscav from exp state
 !                           
 !
 ! !interface:
@@ -546,6 +547,12 @@
 !
 !jw
       type(esmf_state)                   :: imp_wrt_state
+!lu
+      type(ESMF_Field)                   :: Field
+      type(ESMF_FieldBundle)             :: Bundle
+      integer                            :: i
+      character*10                       :: vname
+      real                               :: fscav
 !
 ! initialize the error signal variables.
 !---------------------------------------
@@ -634,6 +641,30 @@
                             ,value    =int_state%zhour                  &  !<-- The var being inserted into the import state
                             ,rc       =RC)
 
+!
+!-----------------------------------------------------------------------
+!***  retrieve the scavenging coefficients from physics export state
+!-----------------------------------------------------------------------
+!
+       if ( int_state%start_step ) then                             
+        CALL ESMF_StateGet(exp_gfs_phy, 'tracers', Bundle, rc = RC1 )
+        CALL gfs_physics_err_msg(rc1,"Retrieve tracer bundle from phy_exp",RC)
+
+        do I = 1, int_state%ntrac
+
+         vname = trim(int_state%gfs_phy_tracer%vname(i))
+         call ESMF_FieldBundleGet(Bundle, NAME=vname, FIELD=Field, rc = RC1 )
+         CALL gfs_physics_err_msg(rc1,"Retrieve field from tracer bundle ",RC)
+         CALL ESMF_AttributeGet(Field, NAME="ScavengingFractionPerKm", &
+                                value = fscav , rc=RC1)
+         if ( RC1 == ESMF_SUCCESS) THEN
+           int_state%gfs_phy_tracer%fscav(i) = fscav
+           int_state%start_step = .false. 
+         endif
+        enddo
+       endif
+
+!
 !
 ! run the gfs.
 !--------------------------

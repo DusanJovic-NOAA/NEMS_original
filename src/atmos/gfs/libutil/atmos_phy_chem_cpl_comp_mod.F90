@@ -37,6 +37,8 @@
 !!                          in the phy-to-chem coupler; correct how cn_prcp
 !!                          and ncn_prcp are computed
 !! 10Oct 2010     Sarah Lu, pass g2d_fld%met from chem_imp to phys_exp
+!! 15Oct 2010     Sarah Lu, pass fscav from chem_imp to phys_exp
+!! 16Oct 2010     Sarah Lu, change g2d_fld%met from instant to accumulated 
 !-----------------------------------------------------------------------
 
       use ESMF_MOD
@@ -65,6 +67,7 @@
 !     Tracer specification
       integer, public               :: ntrac
       logical, public               :: run_DU, run_SU, run_SS, run_OC, run_BC
+      character(10), allocatable    :: spec(:)
 
 ! --- public interface
       public::  SetServices, GetPointer_tracer_, CkPointer_, GetPointer_3D_, &
@@ -210,11 +213,13 @@
       call ESMF_StateGet(CHEM_IMP_STATE, 'iAERO', Bundle, RC=RC)
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
+      allocate ( spec(chemReg%n_GOCART) )
       do L = 1, chemReg%n_GOCART
 
          N = chemReg%i_GOCART + L - 1
 
          vname = chemReg%vname(N)
+         spec(L) = vname
          MESSAGE_CHECK="PHY2CHEM_INIT: get field from tracers: "//vname
          call ESMF_FieldBundleGet(iBundle, NAME=vname, FIELD=Field, rc = RC )
          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
@@ -298,9 +303,10 @@
 !-----------------------------------------------------------------------
 !
       real, save                       :: deltim
+      real                             :: fscav
 !
       integer                          :: rc=ESMF_success  ! the error signal variable
-      integer                          :: i, j, k
+      integer                          :: i, j, k, n
       integer                          :: item_count_phys, item_count_chem
       character(20)                    :: item_name(100)
       logical, save                    :: first =  .true.
@@ -352,7 +358,7 @@
 !  Fortran data pointer for chem import state
       real(ESMF_KIND_R8), pointer, dimension(:,:) ::  c_diag
 
-      TYPE(ESMF_FieldBundle)  :: Bundle
+      TYPE(ESMF_FieldBundle)  :: Bundle, iBundle
       character*10            :: tag, vname
       character*10            :: BundleName, FieldName
       integer                 :: kcount
@@ -464,6 +470,45 @@
           name_met(1:kcount) = name_lst(1:kcount)
 
         endif
+
+!
+!  ---  Retrive fscav from the chem_imp and pass to phys_exp
+!
+        MESSAGE_CHECK="PHY2CHEM_RUN: get iBundle from chem_imp"
+        CALL ESMF_StateGet(CHEM_IMP_STATE, 'iAERO', &
+                           iBundle, rc=RC)
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
+        MESSAGE_CHECK="PHY2CHEM_RUN: get Bundle from phy_exp"
+        CALL ESMF_StateGet(PHY_EXP_STATE, 'tracers', &
+                           Bundle, rc=RC)
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
+        do I = 1, chemReg%n_GOCART
+
+         N = chemReg%i_GOCART + I - 1
+
+         vname = spec(N)
+         MESSAGE_CHECK="PHY2CHEM_RUN: Get Field : "//vname
+         call ESMF_FieldBundleGet(iBundle, NAME=vname, FIELD=Field, rc = RC )
+         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
+         MESSAGE_CHECK="PHY2CHEM_RUN: Get Attribute "
+         CALL ESMF_AttributeGet(Field, NAME="ScavengingFractionPerKm", &
+                                value = fscav , rc=RC)
+         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
+         MESSAGE_CHECK="PHY2CHEM_RUN: Get Field : "//vname
+         call ESMF_FieldBundleGet(Bundle, NAME=vname, FIELD=Field, rc = RC )
+         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
+         MESSAGE_CHECK="PHY2CHEM_RUN: Add Attribute "
+         CALL ESMF_AttributeSet(Field, NAME="ScavengingFractionPerKm", &
+                                value = fscav , rc=RC)
+         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
+        enddo
+
 
 ! ---   Debug print (optional)
         if ( lckprnt ) then
@@ -790,35 +835,85 @@
 
         select case ( vname )
           case ('xU10M')
-            p_diag = c_u10m
+!           p_diag = c_u10m
+            p_diag = p_diag + deltim * c_u10m
           case ('xV10M')
-            p_diag = c_v10m
+!           p_diag = c_v10m
+            p_diag = p_diag + deltim * c_v10m
           case ('xUUSTAR')
-            p_diag = c_ustar
+!           p_diag = c_ustar
+            p_diag = p_diag + deltim * c_ustar
           case ('xZ0H')
-            p_diag = c_z0h
+!           p_diag = c_z0h
+            p_diag = p_diag + deltim * c_z0h
           case ('xLWI')
-            p_diag = c_lwi
+!           p_diag = c_lwi
+            p_diag = p_diag + deltim * c_lwi
           case ('xZPBL')
-            p_diag = c_zpbl
+!           p_diag = c_zpbl
+            p_diag = p_diag + deltim * c_zpbl
           case ('xWET1')
-            p_diag = c_wet1
+!           p_diag = c_wet1
+            p_diag = p_diag + deltim * c_wet1
           case ('xGRN')
-            p_diag = c_grn
+!           p_diag = c_grn
+            p_diag = p_diag + deltim * c_grn
           case ('xPS')
-            p_diag = c_ps
+!           p_diag = c_ps
+            p_diag = p_diag + deltim * c_ps
           case ('xSH')
-            p_diag = c_sh
+!           p_diag = c_sh
+            p_diag = p_diag + deltim * c_sh
           case ('xTA')
-            p_diag = c_ta
+!           p_diag = c_ta
+            p_diag = p_diag + deltim * c_ta
           case ('xTSOIL')
-            p_diag = c_tsoil1
+!           p_diag = c_tsoil1
+            p_diag = p_diag + deltim * c_tsoil1
           case ('xTROPP')
-            p_diag = c_tropp
+!           p_diag = c_tropp
+            p_diag = p_diag + deltim * c_tropp
           case ('xCNPRCP')
-            p_diag = c_cn_prcp
+!           p_diag = c_cn_prcp
+            p_diag = p_diag + deltim * c_cn_prcp
           case ('xNCNPRCP')
-            p_diag = c_ncn_prcp
+!           p_diag = c_ncn_prcp
+            p_diag = p_diag + deltim * c_ncn_prcp
+
+          case ('xPLE01')
+            p_diag = p_diag + deltim * c_ple(:,:,1)
+          case ('xZLE01')
+            p_diag = p_diag + deltim * c_zle(:,:,1)
+          case ('xAIRDENS01')
+            p_diag = p_diag + deltim * c_airdens(:,:,1)
+          case ('xT01')
+            p_diag = p_diag + deltim * c_t(:,:,1)
+          case ('xU01')
+            p_diag = p_diag + deltim * c_u(:,:,1)
+          case ('xV01')
+            p_diag = p_diag + deltim * c_v(:,:,1)
+          case ('xFCLD01')
+            p_diag = p_diag + deltim * c_fcld(:,:,1)
+          case ('xDQDT01')
+            p_diag = p_diag + deltim * c_dqdt(:,:,1)
+
+          case ('xPLE64')
+            p_diag = p_diag + deltim * c_ple(:,:,64)
+          case ('xZLE64')
+            p_diag = p_diag + deltim * c_zle(:,:,64)
+          case ('xAIRDENS64')
+            p_diag = p_diag + deltim * c_airdens(:,:,64)
+          case ('xT64')
+            p_diag = p_diag + deltim * c_t(:,:,64)
+          case ('xU64')
+            p_diag = p_diag + deltim * c_u(:,:,64)
+          case ('xV64')
+            p_diag = p_diag + deltim * c_v(:,:,64)
+          case ('xFCLD64')
+            p_diag = p_diag + deltim * c_fcld(:,:,64)
+          case ('xDQDT64')
+            p_diag = p_diag + deltim * c_dqdt(:,:,64)
+
         end select   
 
 !        nullify(c_diag)
