@@ -138,10 +138,13 @@
      &                 ,IMS,IME,JMS,JME,KMS,KME                        &
      &                 ,ITS,ITE,JTS,JTE,KTS,KTE)
 !----------------------------------------------------------------------
-!
       IMPLICIT NONE
-!
 !----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,KDS,KDE                    &
      &                     ,IMS,IME,JMS,JME,KMS,KME                    &
      &                     ,ITS,ITE,JTS,JTE,KTS,KTE
@@ -165,9 +168,10 @@
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: AKHS,AKMS
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME)                          &
-     &    ,INTENT(OUT) ::                      EL_MYJ                  &
-     &                                        ,RQCBLTEN                &
+      REAL,DIMENSION(IMS:IME,JMS:JME,KTS:KTE),INTENT(OUT) :: EL_MYJ
+!
+      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME),INTENT(OUT) ::           &
+     &                                         RQCBLTEN                &
      &                                        ,RUBLTEN,RVBLTEN         &
      &                                        ,RTHBLTEN,RQVBLTEN
 
@@ -184,10 +188,10 @@
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: CHKLOWQ,ELFLX
 !
-!----------------------------------------------------------------------
-!***
-!***  LOCAL VARIABLES
-!***
+!---------------------
+!***  Local Variables
+!---------------------
+!
       INTEGER :: I,J,K,LLOW,LMH,LMXL
 !
       INTEGER,DIMENSION(ITS:ITE,JTS:JTE) :: LPBL
@@ -276,7 +280,11 @@
         ENDDO
       ENDDO
 !
-      EL_MYJ = 0.
+      DO J=JTS,JTE
+      DO I=ITS,ITE
+        EL_MYJ(I,J,KTE)=0.
+      ENDDO
+      ENDDO
 !
 !----------------------------------------------------------------------
 !.......................................................................
@@ -618,7 +626,7 @@
 !----------------------------------------------------------------------
 !
       ENDDO main_integration
-!jaa!$omp end parallel do
+!$omp end parallel do
 !
 !----------------------------------------------------------------------
 !
@@ -1489,7 +1497,6 @@
 !-----------------------------------------------------------------------
 !
       END SUBROUTINE MYJPBL_INIT
-!
 !
       END MODULE MODULE_BL_MYJPBL
 !

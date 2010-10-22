@@ -19,7 +19,7 @@
       USE MODULE_INCLUDE
 !
       USE MODULE_DM_PARALLEL,ONLY : ITS_B1,ITE_B1,JTS_B1,JTE_B1         &
-                                   ,MPI_COMM_COMP,MYPE_SHARE,NUM_TILES
+                                   ,MPI_COMM_COMP,MYPE_SHARE
 !
       USE MODULE_LS_NOAHLSM
       USE MODULE_LS_LISS
@@ -254,6 +254,7 @@
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: DDATA
       LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
 !
+
 !-----------------------------------------------------------------------
 !***
 !***  LOCAL VARIABLES
@@ -271,7 +272,6 @@
                 ,NUM_ROOF_LAYERS                                        &
                 ,NUM_WALL_LAYERS
 !
-      INTEGER,DIMENSION(NUM_TILES) :: I_START,I_END,J_START,J_END
 !
       INTEGER,DIMENSION(IMS:IME,JMS:JME) :: KPBL                        &
                                            ,UTYPE_URB2D
@@ -695,18 +695,6 @@
 !
 !-----------------------------------------------------------------------
 !
-!!!   CALL SET_TILES(GRID,IDS,IDE-1,JDS+1,JDE-1,ITS,ITE,JTS,JTE)
-      DO K=1,NUM_TILES
-!!!     I_START(K)=ITS
-!!!     I_END(K)=ITE
-!!!     J_START(K)=JTS
-!!!     J_END(K)=JTE
-        I_START(K)=ITS_B1
-        I_END(K)=ITE_B1
-        J_START(K)=JTS_B1
-        J_END(K)=JTE_B1
-      ENDDO
-!
       QGH = 0.
       CHS = 0.
       CPM = 0.
@@ -714,13 +702,11 @@
       DTMIN = 0.
       DTBL = 0.
 !
-      DO IJ = 1 , NUM_TILES
-        DO J=J_START(IJ),J_END(IJ)
-        DO I=I_START(IJ),I_END(IJ)
-           RAINBL(I,J) = RAINBL(I,J) + RAIN(I,J)
-           RAINBL(I,J) = MAX (RAINBL(I,J), 0.0)
-        ENDDO
-        ENDDO
+      DO J=JTS_B1,JTE_B1
+      DO I=ITS_B1,ITE_B1
+        RAINBL(I,J) = RAINBL(I,J) + RAIN(I,J)
+        RAINBL(I,J) = MAX (RAINBL(I,J), 0.0)
+      ENDDO
       ENDDO
 !
 !------------
@@ -728,12 +714,10 @@
 !------------
 !
       IF (SST_UPDATE == 1) THEN
-        DO IJ = 1 , NUM_TILES
-          DO J=J_START(IJ),J_END(IJ)
-          DO I=I_START(IJ),I_END(IJ)
-            IF(XLAND(I,J)>1.5)TSFC(I,J)=SST(I,J)
-          ENDDO
-          ENDDO
+        DO J=JTS_B1,JTE_B1
+        DO I=ITS_B1,ITE_B1
+          IF(XLAND(I,J)>1.5)TSFC(I,J)=SST(I,J)
+        ENDDO
         ENDDO
       ENDIF
 
@@ -755,17 +739,11 @@
 !*** Save old values
 !--------------------
 !
-        DO IJ = 1 , NUM_TILES
-          DO J=J_START(IJ),J_END(IJ)
-          DO I=I_START(IJ),I_END(IJ)
-            PSFC_OUT(I,J)=PINT(I,J,LM+1)
-          ENDDO
-          ENDDO
+        DO J=JTS_B1,JTE_B1
+        DO I=ITS_B1,ITE_B1
+          PSFC_OUT(I,J)=PINT(I,J,LM+1)
         ENDDO
-!
-!-----------------------------------------------------------------------
-        DO IJ = 1 , NUM_TILES
-!-----------------------------------------------------------------------
+        ENDDO
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -792,8 +770,7 @@
                         PSHLTR,RIB,                                     &
                         IDS,IDE,JDS,JDE,1,LM+1,                         &
                         IMS,IME,JMS,JME,1,LM+1,                         &
-                        I_START(IJ),I_END(IJ),                          &
-                        J_START(IJ),J_END(IJ),1,LM)
+                        ITS_B1,ITE_B1,JTS_B1,JTE_B1,1,LM)
  
             CASE DEFAULT
 
@@ -806,7 +783,7 @@
 !***  SURFACE_PHYSICS
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
- 
+
           sfc_select: SELECT CASE(SURFACE_PHYSICS)
 
             CASE (LISSSCHEME)
@@ -824,8 +801,7 @@
                         ALBEDO,MXSNAL,SH2O,SNOWH,                       &
                         IDS,IDE, JDS,JDE, 1,LM+1,                       &
                         IMS,IME, JMS,JME, 1,LM+1,                       &
-                        I_START(IJ),I_END(IJ),                          &
-                        J_START(IJ),J_END(IJ), 1,LM )
+                        ITS_B1,ITE_B1,JTS_B1,JTE_B1, 1,LM )
 
             CASE (LSMSCHEME)
 
@@ -853,9 +829,7 @@
                            POTEVP, RIB,                                 & !O Added Bulk Richardson No.
                            IDS,IDE,JDS,JDE,1,LM+1,                      &
                            IMS,IME,JMS,JME,1,LM+1,                      &
-                           I_START(IJ),I_END(IJ),                       &
-                           J_START(IJ),J_END(IJ),                       &
-                           1,LM,                                        &
+                           ITS_B1,ITE_B1,JTS_B1,JTE_B1, 1,LM,           &
                            UCMCALL,                                     &
 ! Optional urban
                            TR_URB2D,TB_URB2D,TG_URB2D,TC_URB2D,         & !H urban
@@ -873,8 +847,8 @@
                            FRC_URB2D, UTYPE_URB2D                       & ! urban
                             )
 
-              DO J=J_START(IJ),J_END(IJ)
-              DO I=I_START(IJ),I_END(IJ)
+              DO J=JTS_B1,JTE_B1
+              DO I=ITS_B1,ITE_B1
                 SFCEVPX(I,J)= SFCEVPX(I,J) + QWBS(I,J)*DTBL
                 SFCEXC(I,J)= CHS(I,J)
                 SOILTB(I,J)= STC(I,J,NSOIL) !  nmmlsm vrbl., here only for output
@@ -882,16 +856,14 @@
               ENDDO
 
               CALL SFCDIAGS(TWBS,QWBS,TSFC,QS,CHS2,CQS2,T2,TH2X,Q2X,    &
-                           PSFC_OUT,CP,R_d,CAPPA,                       &
-                           IDS,IDE, JDS,JDE, 1,LM+1,                    &
-                           IMS,IME, JMS,JME, 1,LM+1,                    &
-                           I_START(IJ),I_END(IJ),                       &
-                           J_START(IJ),J_END(IJ),                       &
-                           1,LM )
+                            PSFC_OUT,CP,R_d,CAPPA,                      &
+                            IDS,IDE, JDS,JDE, 1,LM+1,                   &
+                            IMS,IME, JMS,JME, 1,LM+1,                   &
+                            ITS_B1,ITE_B1,JTS_B1,JTE_B1, 1,LM)
 
               urban: IF(UCMCALL==1) THEN
-                DO J=J_START(IJ),J_END(IJ)
-                DO I=I_START(IJ),I_END(IJ)
+                DO J=JTS_B1,JTE_B1
+                DO I=ITS_B1,ITE_B1
                   IF( IVGTYP(I,J) ==  1 .OR. IVGTYP(I,J) == 31 .OR.     &
                       IVGTYP(I,J) == 32 .OR. IVGTYP(I,J) == 33 ) THEN
 !
@@ -922,13 +894,12 @@
 !-----------------------------------------------------
 ! Reset RAINBL in mm (Accumulation between PBL calls)
 !-----------------------------------------------------
-          DO J=J_START(IJ),J_END(IJ)
-          DO I=I_START(IJ),I_END(IJ)
+          DO J=JTS_B1,JTE_B1
+          DO I=ITS_B1,ITE_B1
             RAINBL(I,J) = 0.
           ENDDO
           ENDDO
 
-        ENDDO
 !
 !-----------------------------------------------------------------------
       ENDIF  sfc_and_sfclyr
@@ -949,8 +920,8 @@
       DO I=IMS,IME
         DUDT_PHY(I,J,K)=0.
         DVDT_PHY(I,J,K)=0.
-        DUDT_GWD(I,K,J)=0.
-        DVDT_GWD(I,K,J)=0.
+!jaa        DUDT_GWD(I,K,J)=0.
+!jaa        DVDT_GWD(I,K,J)=0.
       ENDDO
       ENDDO
       ENDDO
@@ -982,7 +953,6 @@
         CASE (MYJPBLSCHEME)
 
           IF (NTSD == 1 .OR. MOD(NTSD,NPHS) == 0) THEN
-            DO IJ = 1 , NUM_TILES
 
               RTHBLTEN = 0.
               DUDT_PHY = 0.
@@ -1008,11 +978,10 @@
                          ,RQCBLTEN=RQCBLTEN                             &
                          ,IDS=IDS,IDE=IDE,JDS=JDS,JDE=JDE,KDS=1,KDE=LM+1 &
                          ,IMS=IMS,IME=IME,JMS=JMS,JME=JME,KMS=1,KME=LM+1 &
-                         ,ITS=I_START(IJ),ITE=I_END(IJ)                 &
-                         ,JTS=J_START(IJ),JTE=J_END(IJ)                 &
-                         ,KTS=1,KTE=LM )
+                         ,ITS=ITS_B1,ITE=ITE_B1                         &
+                         ,JTS=JTS_B1,JTE=JTE_B1                         &
+                         ,KTS=1,KTE=LM)
 
-            ENDDO
           END IF
 
         CASE DEFAULT
@@ -1215,8 +1184,8 @@
 !$omp& private(j,k,i,dtdt,dqdt,qold,ratiomx,qw,qi,qr,i_m)
 !.......................................................................
 
-      DO J=JTS_B1,JTE_B1
-        DO K=1,LM
+      DO K=1,LM
+        DO J=JTS_B1,JTE_B1
           DO I=ITS_B1,ITE_B1
             DTDT=RTHBLTEN(I,J,K)*EXNER(I,J,K)
             DQDT=RQVBLTEN(I,J,K)         !Mixing ratio tendency
@@ -1289,20 +1258,39 @@
 !***  TRANSFER THE WIND TENDENCIES.
 !-----------------------------------------------------------------------
 !
+      gwd_update: IF(GWDFLG) THEN
 !.......................................................................
 !$omp parallel do private(j,k,i)
 !.......................................................................
-      DO J=JMS,JME
-        DO K=1,LM
-          KFLIP=LM+1-K
-          DO I=IMS,IME
-            DUDT(I,J,K)=DUDT_PHY(I,J,K)+DUDT_GWD(I,KFLIP,J)
-            DVDT(I,J,K)=DVDT_PHY(I,J,K)+DVDT_GWD(I,KFLIP,J)
+        DO J=JMS,JME
+          DO K=1,LM
+            KFLIP=LM+1-K
+            DO I=IMS,IME
+              DUDT(I,J,K)=DUDT_PHY(I,J,K)+DUDT_GWD(I,KFLIP,J)
+              DVDT(I,J,K)=DVDT_PHY(I,J,K)+DVDT_GWD(I,KFLIP,J)
+            ENDDO
           ENDDO
         ENDDO
-      ENDDO
 !.......................................................................
 !$omp end parallel do
+!.......................................................................
+!
+      ELSE
+!.......................................................................
+!$omp parallel do private(k,j,i)
+!.......................................................................
+        DO K=1,LM
+        DO J=JMS,JME
+        DO I=IMS,IME
+          DUDT(I,J,K)=DUDT_PHY(I,J,K)
+          DVDT(I,J,K)=DVDT_PHY(I,J,K)
+        ENDDO
+        ENDDO
+        ENDDO
+!.......................................................................
+!$omp end parallel do
+!
+      ENDIF gwd_update
 !.......................................................................
 !
 !-----------------------------------------------------------------------

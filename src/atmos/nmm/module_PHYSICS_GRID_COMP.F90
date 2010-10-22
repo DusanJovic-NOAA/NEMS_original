@@ -42,8 +42,8 @@
                                    ,JTS_B1,JTE_B1                       &
                                    ,IHALO,JHALO                         &
                                    ,MPI_COMM_COMP                       &
-                                   ,MYPE_SHARE                          &
-                                   ,NUM_TILES
+                                   ,MYPE_SHARE                         
+
 !
       USE MODULE_CONTROL,ONLY : CAPPA,TIMEF
       USE MODULE_GET_CONFIG_PHY
@@ -137,7 +137,7 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)               :: GRID_COMP                      !<-- The Physics Gridded Component
+      TYPE(ESMF_GridComp) :: GRID_COMP                                    !<-- The Physics Gridded Component
 !
       INTEGER,INTENT(OUT) :: RC_REG                                       !<-- Return code for Phy Register
 !
@@ -261,12 +261,12 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)               :: GRID_COMP			   !<-- The Physics gridded component
+      TYPE(ESMF_GridComp) :: GRID_COMP			                   !<-- The Physics gridded component
 !
-      TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The Physics Initialize step's import state
-                                       ,EXP_STATE			   !<-- The Physics Initialize step's export state
+      TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The Physics Initialize step's import state
+                         ,EXP_STATE			                   !<-- The Physics Initialize step's export state
 !
-      TYPE(ESMF_Clock)            :: CLOCK_ATM                             !<-- The ATM's ESMF Clock
+      TYPE(ESMF_Clock) :: CLOCK_ATM                                        !<-- The ATM's ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_INIT
 !
@@ -501,12 +501,12 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)               :: GRID_COMP                       !<-- The Physics gridded component
+      TYPE(ESMF_GridComp) :: GRID_COMP                                     !<-- The Physics gridded component
 !
-      TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The Physics Initialize step's import state
-                                       ,EXP_STATE                          !<-- The Physics Initialize step's export state
+      TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The Physics Initialize step's import state
+                         ,EXP_STATE                                        !<-- The Physics Initialize step's export state
 !
-      TYPE(ESMF_Clock)            :: CLOCK                                 !<-- The ATM's ESMF Clock
+      TYPE(ESMF_Clock) :: CLOCK                                            !<-- The ATM's ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_INIT
 !
@@ -801,7 +801,7 @@
 !
 !-----------------------------------------------------------------------
 !
-        if (mype==0)        CALL ESMF_StatePrint(EXP_STATE)
+!       IF(MYPE==0)CALL ESMF_StatePrint(EXP_STATE)
 !
 !-----------------------------------------------------------------------
 !
@@ -864,12 +864,12 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)               :: GRID_COMP                       !<-- The Physics component
+      TYPE(ESMF_GridComp) :: GRID_COMP                                     !<-- The Physics component
 !
-      TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The Physics import state
-                                       ,EXP_STATE                          !<-- The Physics export state
+      TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The Physics import state
+                         ,EXP_STATE                                        !<-- The Physics export state
 !
-      TYPE(ESMF_Clock)            :: CLOCK                                 !<-- The ATM Clock
+      TYPE(ESMF_Clock) :: CLOCK                                            !<-- The ATM Clock
 !
       INTEGER,INTENT(OUT) :: RC_RUN
 !
@@ -1178,9 +1178,10 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-!***  Radiation needs some specific time quantities.  Use NTIMESTEP_rad for
-!     the next time step ahead of the current time so that the radiation
-!     fields can be updated prior to being written to output (BSF 10/6/2010)
+!***  Radiation needs some specific time quantities.  Use NTIMESTEP_rad 
+!***  for the next time step ahead of the current time so that the
+!***  radiation fields can be updated prior to being written to
+!***  output (BSF 10/6/2010).
 !
         CALL TIME_MEASURE(START_YEAR,START_MONTH,START_DAY,START_HOUR   &
                          ,START_MINUTE,START_SECOND                     &
@@ -1695,7 +1696,6 @@
                        ,int_state%TBPVS_STATE,int_state%TBPVS0_STATE       &
                        ,int_state%SPECIFIED,int_state%NESTED               &
                        ,int_state%MICROPHYSICS                             &
-                       ,NUM_TILES                                          &
                        ,IDS,IDE,JDS,JDE,LM                                 &
                        ,IMS,IME,JMS,JME                                    &
                        ,ITS,ITE,JTS,JTE                                    &
@@ -2646,12 +2646,12 @@
 !*** Argument Variables
 !-----------------------
 !
-      TYPE(ESMF_GridComp)               :: GRID_COMP                       !<-- The Physics gridded component
-      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The Physics import state
-      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The Physics export state
-      TYPE(ESMF_Clock)                  :: CLOCK_ATM                       !<-- The ATM component's ESMF Clock.
+      TYPE(ESMF_GridComp) :: GRID_COMP                                     !<-- The Physics gridded component
+      TYPE(ESMF_State)    :: IMP_STATE                                     !<-- The Physics import state
+      TYPE(ESMF_State)    :: EXP_STATE                                     !<-- The Physics export state
+      TYPE(ESMF_Clock)    :: CLOCK_ATM                                     !<-- The ATM component's ESMF Clock.
 !
-      INTEGER            ,INTENT(OUT)   :: RCFINAL
+      INTEGER,INTENT(OUT) :: RCFINAL
 !      
 !---------------------
 !***  Local Variables
@@ -3993,8 +3993,10 @@
 !!!         CALL SAS_INIT
 !!!       CASE ('gd')
 !!!         CALL GD_INIT
+          CASE ('none')
+!           WRITE(0,*)' User has chosen to run with no parameterized convection.'
           CASE DEFAULT
-            WRITE(0,*)' BAD SELECTION OF CONVECTION SCHEME: INIT'
+             WRITE(0,*)' BAD SELECTION OF CONVECTION SCHEME: INIT'
         END SELECT
 !
 !----------------------------------------------------------------------

@@ -6258,7 +6258,7 @@
                   INFO(3)=CHILDTASK_H_SAVE(N)%I_HI_SOUTH_TRANSFER(NTX)     !<-- Save the ending index of boundary segment on child
                   INFO(4)=CHILDTASK_H_SAVE(N)%I_HI_SOUTH(NTX)              !<-- Save the ending index of expanded boundary segment on child
 !
-!     write(0,*)' parent task sends south H to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3),' i_hi_exp=',INFO(4)
+      write(0,*)' parent task sends south H to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3),' i_hi_exp=',INFO(4)
                   CALL MPI_SEND(INFO,4,MPI_INTEGER,ID_CHILDTASK         &  !<-- Parent task sends the key data to the child Sbndry task
                                ,101                                     &  !<-- Tag for south boundary H points
                                ,COMM_TO_MY_CHILDREN(N),IERR)
@@ -6292,7 +6292,7 @@
                   INFO(2)=CHILDTASK_V_SAVE(N)%I_LO_SOUTH(NTX)              !<-- Save the starting index of boundary segment on child
                   INFO(3)=CHILDTASK_V_SAVE(N)%I_HI_SOUTH(NTX)              !<-- Save the ending index of boundary segment on child
 !
-!     write(0,*)' parent task sends south V to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3)
+      write(0,*)' parent task sends south V to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3)
                   CALL MPI_SEND(INFO,3,MPI_INTEGER,ID_CHILDTASK         &  !<-- Parent task sends the key data to the child Sbndry task
                                ,102                                     &  !<-- Tag for south boundary V points
                                ,COMM_TO_MY_CHILDREN(N),IERR)
@@ -6327,7 +6327,7 @@
                   INFO(3)=CHILDTASK_H_SAVE(N)%I_HI_NORTH_TRANSFER(NTX)     !<-- Save the ending index of boundary segment on child
                   INFO(4)=CHILDTASK_H_SAVE(N)%I_HI_NORTH(NTX)              !<-- Save the ending index of expanded boundary segment on child
 !
-!     write(0,*)' parent task sends north H to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3),' i_hi_exp=',INFO(4)
+      write(0,*)' parent task sends north H to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3),' i_hi_exp=',INFO(4)
                   CALL MPI_SEND(INFO,4,MPI_INTEGER,ID_CHILDTASK         &  !<-- Parent task sends the key data to the child Nbndry task
                                ,103                                     &  !<-- Tag for north boundary H points
                                ,COMM_TO_MY_CHILDREN(N),IERR)
@@ -6361,7 +6361,7 @@
                   INFO(2)=CHILDTASK_V_SAVE(N)%I_LO_NORTH(NTX)              !<-- Save the starting index of boundary segment on child
                   INFO(3)=CHILDTASK_V_SAVE(N)%I_HI_NORTH(NTX)              !<-- Save the ending index of boundary segment on child
 !
-!     write(0,*)' parent task sends north V to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3)
+      write(0,*)' parent task sends north V to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3)
                   CALL MPI_SEND(INFO,3,MPI_INTEGER,ID_CHILDTASK         &  !<-- Parent task sends the key data to the child Nbndry task
                                ,104                                     &  !<-- Tag for north boundary V points
                                ,COMM_TO_MY_CHILDREN(N),IERR)
@@ -6396,7 +6396,7 @@
                   INFO(3)=CHILDTASK_H_SAVE(N)%J_HI_WEST_TRANSFER(NTX)      !<-- Save the ending index of boundary segment on child
                   INFO(4)=CHILDTASK_H_SAVE(N)%J_HI_WEST(NTX)               !<-- Save the ending index of expanded boundary segment on child
 !
-!     write(0,*)' parent task sends west H to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3),' i_hi_exp=',INFO(4)
+      write(0,*)' parent task sends west H to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3),' i_hi_exp=',INFO(4)
                   CALL MPI_SEND(INFO,4,MPI_INTEGER,ID_CHILDTASK         &  !<-- Parent task sends the key data to the child Wbndry task
                                ,105                                     &  !<-- Tag for west boundary H points
                                ,COMM_TO_MY_CHILDREN(N),IERR)
@@ -6430,7 +6430,7 @@
                   INFO(2)=CHILDTASK_V_SAVE(N)%J_LO_WEST(NTX)               !<-- Save the starting index of boundary segment on child
                   INFO(3)=CHILDTASK_V_SAVE(N)%J_HI_WEST(NTX)               !<-- Save the ending index of boundary segment on child
 !
-!     write(0,*)' parent task sends west V to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3)
+      write(0,*)' parent task sends west V to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3)
                   CALL MPI_SEND(INFO,3,MPI_INTEGER,ID_CHILDTASK         &  !<-- Parent task sends the key data to the child Wbndry task
                                ,106                                     &  !<-- Tag for west boundary V points
                                ,COMM_TO_MY_CHILDREN(N),IERR)
@@ -6465,7 +6465,7 @@
                   INFO(3)=CHILDTASK_H_SAVE(N)%J_HI_EAST_TRANSFER(NTX)      !<-- Save the ending index of boundary segment on child
                   INFO(4)=CHILDTASK_H_SAVE(N)%J_HI_EAST(NTX)               !<-- Save the ending index of expanded boundary segment on child
 !
-!     write(0,*)' parent task sends east H to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3),' i_hi_exp=',INFO(4)
+      write(0,*)' parent task sends east H to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3),' i_hi_exp=',INFO(4)
                   CALL MPI_SEND(INFO,4,MPI_INTEGER,ID_CHILDTASK         &  !<-- Parent task sends the key data to the child Ebndry task
                                ,107                                     &  !<-- Tag for east boundary H points
                                ,COMM_TO_MY_CHILDREN(N),IERR)
@@ -6499,7 +6499,7 @@
                   INFO(2)=CHILDTASK_V_SAVE(N)%J_LO_EAST(NTX)               !<-- Save the starting index of boundary segment on child
                   INFO(3)=CHILDTASK_V_SAVE(N)%J_HI_EAST(NTX)               !<-- Save the ending index of boundary segment on child
 !
-!     write(0,*)' parent task sends east V to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3)
+      write(0,*)' parent task sends east V to child ',n,'  task ',id_childtask,' i_lo=',INFO(2),' i_hi=',INFO(3)
                   CALL MPI_SEND(INFO,3,MPI_INTEGER,ID_CHILDTASK         &  !<-- Parent task sends the key data to the child Ebndry task
                                ,108                                     &  !<-- Tag for east boundary V points
                                ,COMM_TO_MY_CHILDREN(N),IERR)

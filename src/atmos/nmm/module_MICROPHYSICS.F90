@@ -67,7 +67,6 @@
                          ,TBPVS_STATE,TBPVS0_STATE                      &
                          ,SPECIFIED,NESTED                              &
                          ,MICROPHYSICS                                  &
-                         ,NUM_TILES                                     &
                          ,IDS,IDE,JDS,JDE,LM                            &
                          ,IMS,IME,JMS,JME                               &
                          ,ITS,ITE,JTS,JTE                               &
@@ -104,7 +103,7 @@
 !***  Argument Variables
 !------------------------
 !
-      INTEGER,INTENT(IN) :: ITIMESTEP,NPHS,NUM_TILES,NUM_WATER          &
+      INTEGER,INTENT(IN) :: ITIMESTEP,NPHS,NUM_WATER                    &
                            ,IDS,IDE,JDS,JDE,LM                          &
                            ,IMS,IME,JMS,JME                             &
                            ,ITS,ITE,JTS,JTE                             &
@@ -153,8 +152,6 @@
       INTEGER :: ITSLOC,ITELOC,JTSLOC,JTELOC 
 !
       INTEGER,DIMENSION(IMS:IME,JMS:JME) :: LOWLYR
-!
-      INTEGER,DIMENSION(NUM_TILES) :: I_START,I_END,J_START,J_END
 !
       REAL :: DPL,DTPHS,PCPCOL,PDSL,PLYR,QI,QR,QW,RDTPHS,TNEW
 !
@@ -268,17 +265,6 @@
 !
 !-----------------------------------------------------------------------
 !
-!!!   CALL SET_TILES(GRID,IDS+1,IDE-1,JDS+2,JDE-2,ITS,ITE,JTS,JTE)
-      DO K=1,NUM_TILES
-!!!     I_START(K)=ITS
-!!!     I_END(K)=ITE
-!!!     J_START(K)=JTS
-!!!     J_END(K)=JTE
-        I_START(K)=ITS_B1
-        I_END(K)=ITE_B1
-        J_START(K)=JTS_B1
-        J_END(K)=JTE_B1
-      ENDDO
 !
 !-----------------------------------------------------------------------
 !***  TRANSLATE THE MICROPHYSICS OPTIONS IN THE CONFIG FILE TO THEIR
@@ -309,12 +295,11 @@
 !  specify these things!
 !---------------------------------------------------------------------
 
-      DO IJ = 1 , NUM_TILES
 
-        ITSLOC = MAX(I_START(IJ),IDS)
-        ITELOC = MIN(I_END(IJ),IDE-1)
-        JTSLOC = MAX(J_START(IJ),JDS)
-        JTELOC = MIN(J_END(IJ),JDE-1)
+        ITSLOC = MAX(ITS_B1,IDS)
+        ITELOC = MIN(ITE_B1,IDE-1)
+        JTSLOC = MAX(JTS_B1,JDS)
+        JTELOC = MIN(JTE_B1,JDE-1)
 
         micro_select: SELECT CASE (TRIM(MICROPHYSICS))
 !
@@ -362,23 +347,12 @@
                  ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=1,KME=LM    &
                  ,ITS=itsloc,ITE=iteloc, JTS=jtsloc,JTE=jteloc, KTS=1,KTE=LM &
                                                                     )
-  !! Update CWM, it may be advected
-                 DO I=ims,ime
-                 DO J=jms,jme
-                 DO K=1,LM
-                 CWM(I,J,K) = WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)+WATER(I,J,K,P_QI) &
-                             +WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG)
-                 ENDDO
-                 ENDDO
-                 ENDDO
-
           CASE DEFAULT
             WRITE(0,*)' The microphysics option does not exist: MICROPHYSICS = ',TRIM(MICROPHYSICS)
             CALL NMMB_FINALIZE
 
         END SELECT micro_select
 
-      ENDDO
 !            
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------

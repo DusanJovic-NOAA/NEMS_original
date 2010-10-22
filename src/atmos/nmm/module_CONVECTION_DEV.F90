@@ -17,7 +17,7 @@
                                    ,JTS_B1_H1,JTE_B1_H1,JTE_B1_H2       &
                                    ,JTS_B1_H2,JTE_H2                    &
                                    ,MPI_COMM_COMP                       &
-                                   ,MYPE_SHARE,NUM_TILES
+                                   ,MYPE_SHARE
 !
       USE MODULE_CONSTANTS,ONLY : A2,A3,A4,cappa,CP,ELIV,ELWV,EPSQ,G    &
                                  ,P608,PQ0,R_D,TIW
@@ -55,7 +55,7 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
       SUBROUTINE CUCNVC_DEV(NTSD,DT,NCNVC,NRADS,NRADL,MINUTES_HISTORY   &
-                       ,fres,fr,fsl,fss                                 &
+                       ,FRES,FR,FSL,FSS                                 &
                        ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP           &
                        ,DYH,RESTRT,HYDRO                                &
                        ,CLDEFI,NUM_WATER                                &
@@ -99,9 +99,9 @@
 !$$$  
 !-----------------------------------------------------------------------
 !
-      IMPLICIT NONE
-!
-!-----------------------------------------------------------------------
+!------------------------
+!***  Argument Variables
+!------------------------
 !
       CHARACTER(99),INTENT(IN):: &
        CONVECTION
@@ -125,7 +125,7 @@
        LPBL
 !
       REAL(kind=kfpt),INTENT(IN):: &
-       DT,DYH,PT,fres,fr,fsl,fss
+       DT,DYH,FRES,FR,FSL,FSS,PT
 !
       REAL(kind=kfpt),DIMENSION(1:LM),INTENT(IN):: &
        DSG2,PDSG1,PSGML1,SGML2
@@ -166,9 +166,9 @@
                      ,INTENT(INOUT):: &
        WATER
 !
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local Variables
+!---------------------
 !
       LOGICAL(kind=klog):: &
        RESTART,WARM_RAIN
@@ -180,8 +180,6 @@
        CU_PHYSICS,I,ICLDCK,IJ,J,K,MNTO &
       ,N,NCUBOT,NCUTOP,N_TIMSTPS_OUTPUT
 !
-      INTEGER(kind=kint),DIMENSION(NUM_TILES):: &
-       I_START,I_END,J_START,J_END
 !
       INTEGER(kind=kint),DIMENSION(IMS:IME,JMS:JME):: &
        KPBL,LBOT,LTOP
@@ -210,9 +208,11 @@
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-!***  TRANSLATE THE CONVECTION OPTIONS IN THE CONFIG FILE TO THEIR
-!***  ANALOGS IN THE WRF REGISTRY SO THAT THE WRF CUMULUS DRIVER
-!***  REMAINS UNTOUCHED.
+!
+!-----------------------------------------------------------------------
+!***  Translate the convection options in the config file to their
+!***  analogs in the WRF Registry so that the WRF cumulus driver
+!***  remains untouched.
 !-----------------------------------------------------------------------
 !
       SELECT CASE (TRIM(CONVECTION))
@@ -225,6 +225,8 @@
           CU_PHYSICS=4
         CASE ('gd')
           CU_PHYSICS=3
+        CASE ('none')
+!         WRITE(0,*)' User selected to run without parameterized convection.'
         CASE DEFAULT
           WRITE(0,*)' User selected CONVECTION=',TRIM(CONVECTION)
           WRITE(0,*)' Improper selection of Convection scheme in CUCNVC'
@@ -233,12 +235,12 @@
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
-!***  RESET THE HBOT/HTOP CONVECTIVE CLOUD BOTTOM (BASE) AND TOP ARRAYS
-!***  USED IN RADIATION.  THEY STORE THE MAXIMUM VERTICAL LIMITS OF 
-!***  CONVECTIVE CLOUD BETWEEN RADIATION CALLS.  THESE ARRAYS ARE OUT
-!***  OF THE WRF PHYSICS AND THUS THEIR VALUES INCREASE UPWARD.
-!***  CUPPT IS THE ACCUMULATED CONVECTIVE PRECIPITATION BETWEEN
-!***  RADIATION CALLS.
+!***  Reset the HBOT/HTOP convective cloud bottom (base) and top arrays
+!***  used in radiation.  They store the maximum vertical limits of 
+!***  convective cloud between radiation calls.  These arrays are out
+!***  of the WRF physics and thus their values increase upward.
+!***  CUPPT is the accumulated convective precipitation between
+!***  radiation calls.
 !-----------------------------------------------------------------------
 !
       IF(MOD(NTSD,NRADS)==0.OR.MOD(NTSD,NRADL)==0)THEN
@@ -281,7 +283,7 @@
 !jaa!$omp parallel do                                                       &
 !jaa!$omp& private(i,j,k)
 !-----------------------------------------------------------------------
-!***  GENERAL PREPARATION 
+!***  General preparation 
 !-----------------------------------------------------------------------
 !
 !-- AVCNVC,ACUTIM were scalars but changed to 2D arrays to allow for updates in ESMF
@@ -315,15 +317,15 @@
         CUTOP(I,J)=999.
         CUBOT(I,J)=999.
 !
-!***  LPBL IS THE MODEL LAYER CONTAINING THE PBL TOP
-!***  COUNTING DOWNWARD FROM THE TOP OF THE DOMAIN
-!***  SO KPBL IS THE SAME LAYER COUNTING UPWARD FROM 
-!***  THE GROUND.
+!***  LPBL is the model layer containing the PBL top
+!***  counting downward from the top of the domain
+!***  so KPBL is the same layer counting upward from 
+!***  the ground.
 !
         KPBL(I,J)=LPBL(I,J)
 !
 !-----------------------------------------------------------------------
-!***  FILL VERTICAL WORKING ARRAYS.
+!***  Fill vertical working arrays.
 !-----------------------------------------------------------------------
 !
         DO K=LM,1,-1
@@ -354,7 +356,7 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  SYNCHRONIZE MIXING RATIO IN WATER ARRAY WITH SPECIFIC HUMIDITY.
+!***  Synchronize mixing ratio in water array with specific humidity.
 !-----------------------------------------------------------------------
 !
 !.......................................................................
@@ -373,22 +375,13 @@
 !
 !-----------------------------------------------------------------------
 !
-!***  SINGLE-COLUMN CONVECTION
+!***  Single-Column Convection
 !
 !-----------------------------------------------------------------------
-!
-      DO K=1,NUM_TILES
-        I_START(K)=ITS_B1
-        I_END(K)=ITE_B1
-        J_START(K)=JTS_B1
-        J_END(K)=JTE_B1
-      ENDDO
 !
 !-----------------------------------------------------------------------
 !
       IF (CU_PHYSICS /= 0) THEN
-
-        DO IJ = 1 , NUM_TILES
 
           cps_select: SELECT CASE(cu_physics)
 
@@ -409,8 +402,8 @@
                          ,QV=WATER(IMS,JMS,1,P_QV)                      &
                          ,IDS=ids,IDE=ide,JDS=jds,JDE=jde,KDS=1,KDE=lm+1 &
                          ,IMS=ims,IME=ime,JMS=jms,JME=jme,KMS=1,KME=lm+1 &
-                         ,ITS=i_start(ij),ITE=i_end(ij)                 &
-                         ,JTS=j_start(ij),JTE=j_end(ij)                 &
+                         ,ITS=ITS_B1,ITE=ITE_B1                         &
+                         ,JTS=JTS_B1,JTE=JTE_B1                         &
                          ,KTS=1,KTE=lm                                  &
 ! optionals
                          ,RTHCUTEN=rthcuten ,RQVCUTEN=rqvcuten          &
@@ -422,16 +415,15 @@
 
           END SELECT cps_select
 
-        ENDDO
 
       END IF
 !
 !-----------------------------------------------------------------------
-!
-!***  CNVTOP/CNVBOT HOLD THE MAXIMUM VERTICAL LIMITS OF CONVECTIVE CLOUD 
-!***  BETWEEN HISTORY OUTPUT TIMES.  HBOTS/HTOPS STORE SIMILIAR INFORMATION
-!***  FOR SHALLOW (NONPRECIPITATING) CONVECTION, AND HBOTD/HTOPD ARE FOR
-!***  DEEP (PRECIPITATING) CONVECTION.  
+!***  CNVTOP/CNVBOT hold the maximum vertical limits of convective cloud 
+!***  between history output times.  HBOTS/HTOPS store similiar information
+!***  for shallow (nonprecipitating) convection, and HBOTD/HTOPD are for
+!***  deep (precipitating) convection.  
+!-----------------------------------------------------------------------
 !
       CF_HI=REAL(MINUTES_HISTORY)/60.
       N_TIMSTPS_OUTPUT=NINT(3600.*CF_HI/DT)
@@ -460,16 +452,22 @@
       DO I=ITS,ITE
 !-----------------------------------------------------------------------
 !
-!***  UPDATE TEMPERATURE, SPECIFIC HUMIDITY, AND HEATING.
+!-----------------------------------------------------------------------
+!***  Update temperature, specific humidity, and heating.
+!-----------------------------------------------------------------------
 !
         DO K=1,LM
 !
-!***  RQVCUTEN IN BMJDRV IS THE MIXING RATIO TENDENCY,
-!***  SO RETRIEVE DQDT BY CONVERTING TO SPECIFIC HUMIDITY.
+!-----------------------------------------------------------------------
+!***  RQVCUTEN in BMJDRV is the mixing ratio tendency,
+!***  so retrieve DQDT by converting to specific humidity.
+!-----------------------------------------------------------------------
 !
           DQDT=RQVCUTEN(I,J,K)/(1.+WATER(I,J,K,P_QV))**2
 !
-!***  RTHCUTEN IN BMJDRV IS DTDT OVER exner.
+!-----------------------------------------------------------------------
+!***  RTHCUTEN in BMJDRV is DTDT over Exner.
+!-----------------------------------------------------------------------
 !
           DTDT=RTHCUTEN(I,J,K)*exner(I,J,K)
           T(I,J,K)=T(I,J,K)+DTDT*DTCNVC
@@ -484,7 +482,9 @@
 !
         ENDDO
 !
-!***  UPDATE PRECIPITATION
+!-----------------------------------------------------------------------
+!***  Update precipitation
+!-----------------------------------------------------------------------
 !
         PCPCOL=RAINCV(I,J)*1.E-3*NCNVC
         PREC(I,J)=PREC(I,J)+PCPCOL
@@ -493,9 +493,11 @@
         CUPPT(I,J)=CUPPT(I,J)+PCPCOL
         CPRATE(I,J)=PCPCOL
 !
-!***  SAVE CLOUD TOP AND BOTTOM FOR RADIATION (HTOP/HBOT) AND
-!***  FOR OUTPUT (CNVTOP/CNVBOT, HTOPS/HBOTS, HTOPD/HBOTD) ARRAYS.
-!***  MUST BE TREATED SEPARATELY FROM EACH OTHER.
+!-----------------------------------------------------------------------
+!***  Save cloud top and bottom for radiation (HTOP/HBOT) and
+!***  for output (CNVTOP/CNVBOT, HTOPS/HBOTS, HTOPD/HBOTD) arrays.
+!***  Must be treated separately from each other.
+!-----------------------------------------------------------------------
 !
         NCUTOP=NINT(CUTOP(I,J))
         NCUBOT=NINT(CUBOT(I,J))

@@ -21,9 +21,9 @@
                                    ,IMS,IME,JMS,JME                     &
                                    ,ITS,ITE,JTS,JTE                     &
                                    ,ITS_B1,ITE_B1,JTS_B1,JTE_B1         &
+                                   ,LOOPLIMITS                          &
                                    ,MPI_COMM_COMP                       &
-                                   ,MYPE_SHARE,NUM_TILES                &
-                                   ,LOOPLIMITS
+                                   ,MYPE_SHARE
 !
       USE MODULE_CONTROL,ONLY : NMMB_FINALIZE
 !
@@ -131,9 +131,9 @@
 !$$$  
 !-----------------------------------------------------------------------
 !
-      IMPLICIT NONE
-!
-!-----------------------------------------------------------------------
+!------------------------
+!***  Argument Variables
+!------------------------
 !
       INTEGER,INTENT(IN) :: LM,DT_INT                                   &
      &                     ,IHRST,ITIMESTEP,JULDAY,JULYR                &
@@ -182,13 +182,12 @@
 !
       CHARACTER(99),INTENT(IN) :: LONGWAVE,SHORTWAVE
 !
-!-----------------------------------------------------------------------
-!***
-!***  LOCAL VARIABLES
-!***
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local Variables
+!---------------------
+!
 !.......................................................................
-      INTEGER :: iqs,iqe,jqs,jqe ! same as its,ite,jts,jte - changed in looplimits
+      INTEGER :: IQS,IQE,JQS,JQE   ! Same as ITS,ITE,JTS,JTE - Changed in looplimits
 #ifdef ENABLE_SMP
       INTEGER :: NTH,OMP_GET_NUM_THREADS,OMP_GET_THREAD_NUM,TID
 #endif
@@ -220,8 +219,6 @@
       LOGICAL ::    GFDL_LW,GFDL_SW
 !
 !-----------------------------------------------------------------------
-!
-      INTEGER,DIMENSION(NUM_TILES) :: I_START,I_END,J_START,J_END
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -343,12 +340,6 @@
 !
 !-----------------------------------------------------------------------
 !
-      DO K=1,NUM_TILES
-        I_START(K)=ITS_B1
-        I_END(K)=ITE_B1
-        J_START(K)=JTS_B1
-        J_END(K)=JTE_B1
-      ENDDO
 !
 !-----------------------------------------------------------------------
 !
@@ -401,42 +392,44 @@
 
 !---------------
 
-   DO ij = 1 , num_tiles
-     iqs = i_start(ij)
-     iqe = i_end(ij)
+     IQS = ITS_B1
+     IQE = ITE_B1
 !.......................................................................
 #ifdef ENABLE_SMP
 !$omp parallel private(nth,tid,i,j,k,jqs,jqe)
 !.......................................................................
-     nth = omp_get_num_threads()
-     tid = omp_get_thread_num()
-     call looplimits(tid,nth,j_start(ij),j_end(ij),jqs,jqe)
+     NTH = OMP_GET_NUM_THREADS()
+     TID = OMP_GET_THREAD_NUM()
+     CALL LOOPLIMITS(TID,NTH,JTS_B1,JTE_B1,JQS,JQE)
 #else
-     jqs = j_start(ij)
-     jqe = j_end(ij)
+     JQS = JTS_B1
+     JQE = JTE_B1
 #endif
-!.......................................................................
-! initialize data
-
-     DO j=jqs,jqe
-     DO i=iqs,iqe
+!-----------------------------------------------------------------------
+!***  Initialize Data
+!-----------------------------------------------------------------------
+!
+     DO J=JQS,JQE
+     DO I=IQS,IQE
         GSW(I,J)=0.
         GLW(I,J)=0.
         SWDOWN(I,J)=0.
      ENDDO
      ENDDO
-
-     DO k=1,lm
-     DO j=jqs,jqe
-     DO i=iqs,iqe
+!
+     DO K=1,LM
+     DO J=JQS,JQE
+     DO I=IQS,IQE
          THRATEN(I,J,K)=0.
      ENDDO
      ENDDO
      ENDDO
-
-!---------------
-
+!
+!-----------------------------------------------------------------------
+!
      lwrad_gfdl_select: SELECT CASE(lw_physics)
+!
+!-----------------------------------------------------------------------
 
         CASE (GFDLLWSCHEME)
 
@@ -449,18 +442,22 @@
 
         CASE DEFAULT
 
-       CALL cal_cldfra(CLDFRA,                               &
-                       WATER(IMS:IME,JMS:JME,1:LM,P_QC),     &
-                       WATER(IMS:IME,JMS:JME,1:LM,P_QI),     &
-                       F_QC,F_QI,                            &
-                       ids,ide, jds,jde, 1,lm+1,             &
-                       ims,ime, jms,jme, 1,lm+1,             &
-                       iqs,iqe, jqs,jqe, 1,lm  )
+          CALL CAL_CLDFRA(CLDFRA,                               &
+                          WATER(IMS:IME,JMS:JME,1:LM,P_QC),     &
+                          WATER(IMS:IME,JMS:JME,1:LM,P_QI),     &
+                          F_QC,F_QI,                            &
+                          IDS,IDE, JDS,JDE, 1,LM+1,             &
+                          IMS,IME, JMS,JME, 1,LM+1,             &
+                          IQS,IQE, JQS,JQE, 1,LM  )
+!-----------------------------------------------------------------------
 
      END SELECT lwrad_gfdl_select    
 
+!-----------------------------------------------------------------------
+!
      lwrad_select: SELECT CASE(lw_physics)
-
+!
+!-----------------------------------------------------------------------
         CASE (RRTMLWSCHEME)
 
           CALL RRTM(ITIMESTEP,DT_INT,JDAT                           &
@@ -524,10 +521,16 @@
   
              WRITE(0,*)'The longwave option does not exist: lw_physics = ', lw_physics
              CALL NMMB_FINALIZE
+
+!-----------------------------------------------------------------------
            
      END SELECT lwrad_select    
+
+!-----------------------------------------------------------------------
 !
      swrad_select: SELECT CASE(sw_physics)
+!
+!-----------------------------------------------------------------------
 
         CASE (SWRADSCHEME)
 !!!          CALL SWRAD()
@@ -575,7 +578,11 @@
              WRITE(0,*)'The shortwave option does not exist: sw_physics = ', sw_physics
              CALL NMMB_FINALIZE
 
+!-----------------------------------------------------------------------
+
      END SELECT swrad_select    
+
+!-----------------------------------------------------------------------
 !
 !.......................................................................
 #ifdef ENABLE_SMP
@@ -583,7 +590,6 @@
 #endif
 !.......................................................................
 !
-   ENDDO
    ENDIF
 !-----------------------------------------------------------------------
 !

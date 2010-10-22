@@ -66,6 +66,8 @@
       INTEGER :: LDIM1,LDIM2                                            &
                 ,UDIM1,UDIM2
 !
+      INTEGER :: ITWO=2
+!
       REAL(KIND=KFPT),DIMENSION(:,:),POINTER :: TEMP_R2D
 !
       CHARACTER(2)                :: MODEL_LEVEL
@@ -74,6 +76,8 @@
 !
       TYPE(ESMF_FieldBundle),SAVE :: HISTORY_BUNDLE
       TYPE(ESMF_FieldBundle),SAVE :: RESTART_BUNDLE
+!
+      TYPE(ESMF_FieldBundle),DIMENSION(1:2) :: BUNDLE_ARRAY
 !
       TYPE(ESMF_Field)            :: FIELD
 !
@@ -87,6 +91,10 @@
       TYPE(ESMF_Logical),TARGET :: ADIABATIC_ESMF                       &
                                   ,GLOBAL_ESMF                          &
                                   ,RUN_ESMF
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !***  ESMF version of logicals needed for their insertion
@@ -119,7 +127,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       HISTORY_BUNDLE=ESMF_FieldBundleCreate(grid=GRID                   &  !<-- The ESMF integration Grid
-                                           ,name='Bundle_Output_Data'   &  !<-- The Bundle's name
+                                           ,name='History Bundle'       &  !<-- The Bundle's name
                                            ,rc  =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -139,7 +147,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       RESTART_BUNDLE=ESMF_FieldBundleCreate(grid=GRID                   &  !<-- The ESMF integration Grid
-                                           ,name='Bundle_Restart_Data'  &  !<-- The Bundle's name
+                                           ,name='Restart Bundle'       &  !<-- The Bundle's name
                                            ,rc  =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -327,40 +335,24 @@
                               ,RESTART_BUNDLE)
 !
 !-----------------------------------------------------------------------
-!***  Insert the history data Bundle into the Write component's
-!***  import state.
-!***  Since Dynamics is called before Physics, we will insert the
-!***  Bundle now and simply use it in POINT_PHYSICS_OUTPUT.
+!***  Load the two output Bundles into the working array which is used
+!***  to add them to the Write component's import state.
+!-----------------------------------------------------------------------
+!
+      BUNDLE_ARRAY(1)=HISTORY_BUNDLE
+      BUNDLE_ARRAY(2)=RESTART_BUNDLE
+!
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Dynamics: Insert History Bundle into the Write Import State"
+      MESSAGE_CHECK="Dynamics: Insert Bundle Array into the Write Import State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(state      =IMP_STATE_WRITE                    &  !<-- The Write component's import state
-                        ,fieldbundle=HISTORY_BUNDLE                     &  !<-- The ESMF Bundle holding all Dynamics history data
-                        ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Insert the restart data Bundle into the Write component's
-!***  import state.
-!***  Since Dynamics is called before Physics, we will insert the
-!***  Bundle now and simply use it in POINT_PHYSICS_OUTPUT.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Dynamics: Insert Restart Bundle into the Write Import State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateAdd(state      =IMP_STATE_WRITE                    &  !<-- The Write component's import state
-                        ,fieldbundle=RESTART_BUNDLE                     &  !<-- The ESMF Bundle holding all Dynamics restart data
-                        ,rc         =RC)
+      CALL ESMF_StateAdd(state          =IMP_STATE_WRITE                &  !<-- The Write component's import state
+                        ,fieldbundlelist=BUNDLE_ARRAY                   &  !<-- Array holding the History/Restart Bundles
+                        ,count          =ITWO                           &  !<-- There are two Bundles in the array
+                        ,rc             =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)

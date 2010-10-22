@@ -43,9 +43,7 @@
 !
       USE ESMF_MOD
       USE MODULE_WRITE_INTERNAL_STATE
-      USE MODULE_WRITE_ROUTINES,ONLY : FIRST_PASS_HST                   &
-                                      ,FIRST_PASS_RST                   &
-                                      ,OPEN_HST_FILE                    &
+      USE MODULE_WRITE_ROUTINES,ONLY : OPEN_HST_FILE                    &
                                       ,OPEN_RST_FILE                    &
                                       ,WRITE_RUNHISTORY_OPEN            &
                                       ,WRITE_NEMSIO_RUNHISTORY_OPEN     &
@@ -148,9 +146,9 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)               :: WRITE_COMP                      ! The write component
+      TYPE(ESMF_GridComp) :: WRITE_COMP                                    ! The write component
 !
-      INTEGER,INTENT(OUT)               :: RC_WRT                          ! Final return code
+      INTEGER,INTENT(OUT) :: RC_WRT                                        ! Final return code
 !     
 !---------------------
 !***  Local variables
@@ -244,12 +242,12 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_State)               :: IMP_STATE_WRITE                 & 
-                                       ,EXP_STATE_WRITE  
+      TYPE(ESMF_State) :: IMP_STATE_WRITE                               &   !<-- The Write component import state
+                         ,EXP_STATE_WRITE                                   !<-- The Write component export state
 !
-      TYPE(ESMF_GridComp)               :: WRITE_COMP
+      TYPE(ESMF_GridComp) :: WRITE_COMP                                     !<-- The Write component
 !
-      TYPE(ESMF_Clock)               :: CLOCK
+      TYPE(ESMF_Clock) :: CLOCK                                             !<-- The Write component Clock
 !
       INTEGER,INTENT(OUT) :: RC_INIT
 !
@@ -372,27 +370,27 @@
 !***  Logical data buffers are also handled here.
 !-----------------------------------------------------------------------
 !
-      IF(.NOT.ALLOCATED(wrt_int_state%ALL_DATA_I1D))THEN
+      IF(.NOT.ASSOCIATED(wrt_int_state%ALL_DATA_I1D))THEN
         ALLOCATE(wrt_int_state%ALL_DATA_I1D(MAX_LENGTH_I1D),stat=ISTAT)
       ENDIF
 !
-      IF(.NOT.ALLOCATED(wrt_int_state%ALL_DATA_R1D))THEN
+      IF(.NOT.ASSOCIATED(wrt_int_state%ALL_DATA_R1D))THEN
         ALLOCATE(wrt_int_state%ALL_DATA_R1D(MAX_LENGTH_R1D),stat=ISTAT)
       ENDIF
 !
-      IF(.NOT.ALLOCATED(wrt_int_state%ALL_DATA_LOG))THEN
+      IF(.NOT.ASSOCIATED(wrt_int_state%ALL_DATA_LOG))THEN
         ALLOCATE(wrt_int_state%ALL_DATA_LOG(MAX_LENGTH_LOG),stat=ISTAT)
       ENDIF
 !
-      IF(.NOT.ALLOCATED(wrt_int_state%RST_ALL_DATA_I1D))THEN
+      IF(.NOT.ASSOCIATED(wrt_int_state%RST_ALL_DATA_I1D))THEN
         ALLOCATE(wrt_int_state%RST_ALL_DATA_I1D(MAX_LENGTH_I1D),stat=ISTAT)
       ENDIF
 !
-      IF(.NOT.ALLOCATED(wrt_int_state%RST_ALL_DATA_R1D))THEN
+      IF(.NOT.ASSOCIATED(wrt_int_state%RST_ALL_DATA_R1D))THEN
         ALLOCATE(wrt_int_state%RST_ALL_DATA_R1D(MAX_LENGTH_R1D),stat=ISTAT)
       ENDIF
 !
-      IF(.NOT.ALLOCATED(wrt_int_state%RST_ALL_DATA_LOG))THEN
+      IF(.NOT.ASSOCIATED(wrt_int_state%RST_ALL_DATA_LOG))THEN
         ALLOCATE(wrt_int_state%RST_ALL_DATA_LOG(MAX_LENGTH_LOG),stat=ISTAT)
       ENDIF
 !
@@ -423,7 +421,7 @@
 !***  data arrays.
 !-----------------------------------------------------------------------
 !
-      IF(.NOT.ALLOCATED(wrt_int_state%NCOUNT_FIELDS))THEN
+      IF(.NOT.ASSOCIATED(wrt_int_state%NCOUNT_FIELDS))THEN
 !
         ALLOCATE(wrt_int_state%NCOUNT_FIELDS(1),stat=ISTAT)
 !
@@ -587,9 +585,10 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateGet(state      =IMP_STATE_WRITE                  &  !<-- The write component's import state
-                          ,itemName   ='Bundle_Output_Data'             &  !<-- The name of the history data Bundle
+                          ,itemName   ='History Bundle'                 &  !<-- The name of the history data Bundle
                           ,fieldbundle=HISTORY_BUNDLE                   &  !<-- The history data Bundle inside the import state
                           ,rc         =RC)
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -600,9 +599,10 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateGet(state      =IMP_STATE_WRITE                  &  !<-- The write component's import state
-                          ,itemName   ='Bundle_Restart_Data'            &  !<-- The name of the restart data Bundle
+                          ,itemName   ='Restart Bundle'                 &  !<-- The name of the restart data Bundle
                           ,fieldbundle=RESTART_BUNDLE                   &  !<-- The restart data Bundle inside the import state
                           ,rc         =RC)
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -921,14 +921,13 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)            :: WRITE_COMP
-      TYPE(ESMF_Clock)               :: CLOCK
+      TYPE(ESMF_GridComp) :: WRITE_COMP                                    !<-- The Write component
+!
+      TYPE(ESMF_Clock) :: CLOCK                                            !<-- The Write component Clock
 ! 
-      TYPE(ESMF_State)               :: IMP_STATE_WRITE                 &  !<-- The Write component import state
-                                       ,EXP_STATE_WRITE                    !<-- The Write component export state.
-                                                                           !    Although it is loaded up only as output from
-                                                                           !    this subroutine, its INTENT needs to be INOUT
-                                                                           !    to function properly.
+      TYPE(ESMF_State) :: IMP_STATE_WRITE                               &  !<-- The Write component import state
+                         ,EXP_STATE_WRITE                                  !<-- The Write component export state.
+!
       INTEGER(kind=KINT),INTENT(OUT) :: RC_RUN 
 !
 !---------------------
@@ -1171,100 +1170,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  The Write component is executed at each history output time
-!***  by all forecast tasks plus by all write tasks in the active
-!***  write group.  A 'FIRST' switch is employed below so that the
-!***  forecast tasks extract fundamental grid information and send it
-!***  to the write tasks only the first time that each of the write
-!***  groups executes this routine.  For example, assume there are
-!***  two write groups.  At the 1st output time, the forecast tasks
-!***  extract certain information from the import state that does not
-!***  change with time and task 0 sends that information to each of 
-!***  the write tasks in the 1st write group.  At the 2nd output time
-!***  the forecast tasks extract that same information and task 0
-!***  sends it to the write tasks in the 2nd write group since the
-!***  write groups are cycling.  At the 3rd output time and all
-!***  subsequent output times the extraction and sending/receiving
-!***  of this information is skipped since all of the write tasks
-!***  (or at least the first write task in each write group) already
-!***  have the information.
-!-----------------------------------------------------------------------
-!
-      ALLOCATE(FIRST_IO_PE(1))                                            !<-- A flag indicating that this is or is not
-                                                                          !    this write group's first pass through
-                                                                          !    this write component
-!
-      IF(FIRST)THEN
-        FIRST_IO_PE(1)=ESMF_TRUE
-      ELSE
-        FIRST_IO_PE(1)=ESMF_FALSE
-      ENDIF
-!
-!-----------------------------------------------------------------------
-!***  Here the lead write task is telling all tasks including the
-!***  forecast tasks who extract information from the import state
-!***  that this is or is not this set of write tasks' first pass
-!***  through the Write component.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Broadcast FIRST_PASS Status"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_VMBroadcast(VM                                          &  !<-- The local VM
-                           ,FIRST_IO_PE                                 &  !<-- The 1st write task in this group tells everyone
-                                                                           !    if this is or is not the write tasks' first pass
-                                                                           !    through this routine.
-                           ,1                                           &  !<-- # of elements to broadcast
-                           ,LEAD_WRITE_TASK                             &  !<-- Root sender is the first write task in this group
-                           ,rc=RC) 
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      IF(FIRST_IO_PE(1)==ESMF_TRUE)THEN
-        FIRST=.TRUE.
-      ELSE
-        FIRST=.FALSE.
-      ENDIF
-!
-      DEALLOCATE(FIRST_IO_PE)
-!
-!-----------------------------------------------------------------------
-!***  Certain work needs to be done only the first time that each
-!***  group of write tasks is invoked.  This mostly consists of
-!***  the forecast tasks' sending the write tasks history data
-!***  from the import state that does not change with forecast time.
-!-----------------------------------------------------------------------
-!
-      first_block: IF(FIRST)THEN                                           !<-- Execute this routine only if this is the 
-                                                                           !    1st pass by the current set of write tasks.
-!
-!-----------------------------------------------------------------------
-!
-        CALL FIRST_PASS_HST(IMP_STATE_WRITE,HISTORY_BUNDLE              &
-                           ,WRT_INT_STATE,NTASKS,MYPE                   &
-                           ,NCURRENT_GROUP(1))
-!
-        CALL FIRST_PASS_RST(IMP_STATE_WRITE,RESTART_BUNDLE              &
-                           ,WRT_INT_STATE,NTASKS,MYPE                   &
-                           ,NCURRENT_GROUP(1))
-!
-!-----------------------------------------------------------------------
-!***  All forecast tasks plus the write tasks in this write group
-!***  Now turn off their 'FIRST' switch.  However this only matters
-!***  for the write tasks since it is their value of 'FIRST' that
-!***  is transmitted to the forecast tasks just prior to this block
-!***  by the 1st write task in the write group that is present.
-!-----------------------------------------------------------------------
-!
-        FIRST=.FALSE.
-!
-!-----------------------------------------------------------------------
-!
-      ENDIF first_block
 !
       write_first_tim=write_first_tim+(timef()-btim)
 !
@@ -3869,12 +3774,14 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)              :: WRITE_COMP
-      TYPE(ESMF_State)                 :: IMP_STATE_WRITE  
-      TYPE(ESMF_State)                 :: EXP_STATE_WRITE  
-      TYPE(ESMF_Clock)                 :: CLOCK
+      TYPE(ESMF_GridComp) :: WRITE_COMP                                    !<-- The Write component
 !
-      INTEGER,INTENT(OUT)              :: RCFINAL
+      TYPE(ESMF_State) :: IMP_STATE_WRITE                               &  !<-- The Write component import state 
+                         ,EXP_STATE_WRITE                                  !<-- The Write component export state
+!
+      TYPE(ESMF_Clock) :: CLOCK                                            !<-- The Write component Clock
+!
+      INTEGER,INTENT(OUT) :: RCFINAL
 !
 !---------------------
 !***  Local Variables

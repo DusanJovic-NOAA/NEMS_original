@@ -65,9 +65,7 @@
 
       PRIVATE
 !
-      PUBLIC :: FIRST_PASS_HST                                          &
-               ,FIRST_PASS_RST                                          &
-               ,WRITE_ASYNC                                             &
+      PUBLIC :: WRITE_ASYNC                                             &
                ,WRITE_INIT                                              &
                ,WRITE_NEMSIO_RUNHISTORY_OPEN                            &
                ,WRITE_NEMSIO_RUNRESTART_OPEN                            &
@@ -92,129 +90,334 @@
 !#######################################################################
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE FIRST_PASS_HST(IMP_STATE_WRITE                         &
-                               ,HISTORY_BUNDLE                          &
-                               ,WRT_INT_STATE                           &
-                               ,NTASKS                                  &
-                               ,MYPE                                    &
-                               ,NCURRENT_GROUP                          &
-                                )
+      SUBROUTINE PRELIM_INFO_FOR_OUTPUT(OUTPUT_FLAG                     &
+                                       ,NUM_PES_FCST                    &
+                                       ,NUM_WRITE_GROUPS                &
+                                       ,WRITE_COMPS                     &
+                                       ,IMP_STATE_WRITE )
 ! 
 !-----------------------------------------------------------------------
-!***  Each time a new group of Write tasks is invoked for the first
-!***  time this routine will perform certain computations and tasks
-!***  that only need to be done once for each Write group.
-!***  The routine will unload some values from the Write component's
-!***  import state.  Because these quantities do not change with
-!***  forecast time, the routine is not needed for subsequent use
-!***  of each Write group.  The data being unloaded consists of
-!***  everything except the 2D/3D gridded forecast arrays.
-!***  Also basic information is provided to forecast and Write tasks
-!***  that will be necessary in the quilting of local 2-D gridded
-!***  history data into full domain 2-D fields.
+!***  This routine will perform certain computations and operations
+!***  that only need to be done once for each Write group.  Data that
+!***  does not change with forecast time is unloaded from the Write
+!***  components' import state.  The data that is unloaded consists
+!***  of everything except the 2D/3D gridded forecast arrays (whose
+!***  contents do change with time).  Also basic information is 
+!***  provided to forecast and write tasks that will be necessary in
+!***  the quilting of local 2-D gridded history data into full domain
+!***  arrays.
 !-----------------------------------------------------------------------
 !
 !------------------------
-!***  Argument variables
+!***  Argument Variables
 !------------------------
 !
-      INTEGER,INTENT(IN) :: NTASKS
-      INTEGER,INTENT(IN) :: MYPE
-      INTEGER,INTENT(IN) :: NCURRENT_GROUP
+      CHARACTER(len=7),INTENT(IN) :: OUTPUT_FLAG
 !
-      TYPE(ESMF_State)          ,INTENT(INOUT) :: IMP_STATE_WRITE
-      TYPE(ESMF_FieldBundle)    ,INTENT(INOUT) :: HISTORY_BUNDLE
-      TYPE(WRITE_INTERNAL_STATE),INTENT(INOUT) :: WRT_INT_STATE
+      INTEGER(kind=KINT),INTENT(IN) :: NUM_PES_FCST                     &  !<-- # of forecast tasks
+                                      ,NUM_WRITE_GROUPS                    !<-- # of write groups
+!
+      TYPE(ESMF_GridComp),DIMENSION(NUM_WRITE_GROUPS),INTENT(IN) ::     &
+                                                          WRITE_COMPS      !<-- The array of Write components
+!
+      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE_WRITE                    !<-- The import state of the Write components
 !
 !---------------------
-!***  Local variables
+!***  Local Variables
 !---------------------
 !
-      INTEGER,SAVE                 :: ITS,ITE,JTS,JTE
+      INTEGER(kind=KDIN) :: NUM_WORDS_TOT
 !
-      INTEGER                      :: I,IERR,IM,ISTAT,J,JM,L            &
-                                     ,N,NN,NUM_ATTRIB,NWTPG             &
-                                     ,RC,RC_ABORT,RC_WRT
+      INTEGER(kind=KINT) :: COMM_MY_DOMAIN                              &
+                           ,MYPE_DOMAIN
 !
-      INTEGER,DIMENSION(:),POINTER :: INPES,JNPES
-      INTEGER,DIMENSION(:),POINTER :: IHALO,JHALO
+      INTEGER(kind=KINT),SAVE :: ITS,ITE,JTS,JTE                        &
+                                ,NCHAR_I1D                              &
+                                ,NCHAR_R1D                              &
+                                ,NCHAR_LOG
 !
-      INTEGER                      :: JROW_FIRST,JROW_LAST,JROWS
+      INTEGER(kind=KINT) :: I,IERR,IM,ISTAT,J,JM,L,M1,M2                &
+                           ,N,N1,N2,NN,NUM_ATTRIB,NWTPG,NX,NY           &
+                           ,RC,RC_WRT
 !
-      INTEGER                      :: LAST_FCST_TASK                    &
-                                     ,LEAD_WRITE_TASK                   &
-                                     ,LAST_WRITE_TASK                   &
-                                     ,N_END                             &
-                                     ,N_STA
+      INTEGER(kind=KINT) :: JROW_FIRST,JROW_LAST,JROWS                  &
+                           ,LAST_FCST_TASK                              &
+                           ,LOCAL_ID                                    &
+                           ,N_END                                       &
+                           ,N_STA
 !
-      INTEGER,SAVE                 :: NCHAR_I1D                         &
-                                     ,NCHAR_R1D                         &
-                                     ,NCHAR_LOG
+      INTEGER(kind=KINT) :: JEND_WRITE,JSTA_WRITE
 !
-      INTEGER                      :: JEND_WRITE,JSTA_WRITE
+      INTEGER(kind=KINT) :: KOUNT_I1D_X                                 &
+                           ,KOUNT_I2D_X                                 &
+                           ,KOUNT_R1D_X                                 &
+                           ,KOUNT_R2D_X                                 &
+                           ,KOUNT_LOG_X
 !
-      INTEGER                      :: KOUNT_I1D                         &
-                                     ,KOUNT_I2D                         &
-                                     ,KOUNT_R1D                         &
-                                     ,KOUNT_R2D                         &
-                                     ,KOUNT_LOG
+      INTEGER(kind=KINT) :: LENGTH                                      &
+                           ,LENGTH_SUM_I1D_X                            &
+                           ,LENGTH_SUM_R1D_X                            &
+                           ,LENGTH_SUM_LOG_X
 !
-      INTEGER                      :: LENGTH                            &
-                                     ,LENGTH_SUM_I1D                    &
-                                     ,LENGTH_SUM_R1D                    &
-                                     ,LENGTH_SUM_LOG
+      INTEGER(kind=KINT) :: MAX_WORDS                                   &
+                           ,NPOSN_START,NPOSN_END                       &
+                           ,NUM_FIELD_NAMES                             &
+                           ,NUM_WORDS
 !
-      INTEGER                      :: NPOSN_START,NPOSN_END
+      INTEGER(kind=KINT),DIMENSION(NUM_WRITE_GROUPS) :: LEAD_WRITE_TASK &
+                                                       ,LAST_WRITE_TASK
 !
-      INTEGER                      :: MAX_WORDS                         &
-                                     ,NUM_FIELD_NAMES                   &
-                                     ,NUM_PES_FCST                      &
-                                     ,NUM_WORDS
+      INTEGER(kind=KINT),DIMENSION(MPI_STATUS_SIZE) :: JSTAT
 !
-      INTEGER(KIND=KDIN) :: NUM_WORDS_TOT
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: IHALO,INPES            &
+                                                ,JHALO,JNPES            &
+                                                ,LOCAL_ISTART           &
+                                                ,LOCAL_IEND             &
+                                                ,LOCAL_JSTART           &
+                                                ,LOCAL_JEND
 !
-      INTEGER,DIMENSION(MPI_STATUS_SIZE) :: JSTAT
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: NCHAR_I2D              &
+                                                ,NCHAR_R2D              &
+                                                ,WORK_ARRAY_I1D
 !
-      INTEGER,DIMENSION(:),POINTER :: LOCAL_ISTART                      &
-                                     ,LOCAL_IEND                        &
-                                     ,LOCAL_JSTART                      &
-                                     ,LOCAL_JEND
+      REAL(kind=KFPT),DIMENSION(:),POINTER :: WORK_ARRAY_R1D
 !
-      INTEGER,DIMENSION(:),POINTER :: NCHAR_I2D                         &
-                                     ,NCHAR_R2D
+      CHARACTER(len=14) :: BUNDLE_NAME
 !
-      INTEGER,DIMENSION(:),POINTER :: WORK_ARRAY_I1D
+      CHARACTER(ESMF_MAXSTR) :: ATTRIB_NAME
+! 
+      LOGICAL(kind=KLOG) :: NO_FIELDS
 !
-      REAL(4),DIMENSION(:),POINTER :: WORK_ARRAY_R1D
+      TYPE(WRITE_WRAP) :: WRAP
 !
-      CHARACTER(ESMF_MAXSTR)       :: ATTRIB_NAME
+      TYPE(WRITE_INTERNAL_STATE),POINTER :: WRT_INT_STATE
 !
-      TYPE(ESMF_TypeKind)          :: DATATYPE
+      TYPE(ESMF_TypeKind) :: DATATYPE
 !
-      TYPE(ESMF_Field)             :: FIELD_WORK1
+      TYPE(ESMF_Field) :: FIELD_WORK1
 !
-      TYPE(ESMF_Logical)              :: WORK_LOGICAL
-      TYPE(ESMF_Logical),DIMENSION(1) :: NO_FIELDS
+      TYPE(ESMF_Logical) :: WORK_LOGICAL
 !
-      TYPE(ESMF_VM)                :: VM
+      TYPE(ESMF_VM) :: VM_DOMAIN
+!
+      TYPE(ESMF_FieldBundle) :: OUTPUT_BUNDLE 
+!
+      TYPE :: TEMP_INT_STATE
+        TYPE(WRITE_INTERNAL_STATE),POINTER :: LOC_INT_STATE
+      END TYPE
+!
+      TYPE(TEMP_INT_STATE),DIMENSION(:),ALLOCATABLE :: WRT_INT_STATE_X
+!
+!----------------------------------------------------
+!***  Local pointers to History or Restart variables
+!***  in the Write component's internal state.
+!----------------------------------------------------
+!
+      INTEGER(kind=KINT),POINTER :: NUM_WORDS_SEND_I2D                  &
+                                   ,NUM_WORDS_SEND_R2D
+!
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: KOUNT_I1D              &
+                                                ,KOUNT_I2D              &
+                                                ,KOUNT_R1D              &
+                                                ,KOUNT_R2D              &
+                                                ,KOUNT_LOG
+!
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: LENGTH_DATA_I1D        &
+                                                ,LENGTH_DATA_R1D        &
+                                                ,LENGTH_DATA_R2D
+!
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: LENGTH_SUM_I1D         &
+                                                ,LENGTH_SUM_R1D         &
+                                                ,LENGTH_SUM_R2D         &
+                                                ,LENGTH_SUM_LOG
+!
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: NUM_WORDS_RECV_I2D     &
+                                                ,NUM_WORDS_RECV_R2D
+!
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: NCOUNT_FIELDS
+!
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: ALL_DATA_I1D           &
+                                                ,ALL_DATA_I2D
+!
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: BUFF_INT
+!
+      INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: OUTPUT_ARRAY_I2D
+!
+      INTEGER(kind=KINT),DIMENSION(:,:,:),POINTER :: WRITE_SUBSET_I
+!
+      REAL(kind=KFPT),DIMENSION(:),POINTER :: ALL_DATA_R1D              &
+                                             ,ALL_DATA_R2D
+!
+      REAL(kind=KFPT),DIMENSION(:),POINTER :: BUFF_REAL
+!
+      REAL(kind=KFPT),DIMENSION(:,:),POINTER :: OUTPUT_ARRAY_R2D
+!
+      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: WRITE_SUBSET_R
+!
+      CHARACTER(ESMF_MAXSTR),DIMENSION(:),POINTER :: FIELD_NAME
+!
+      CHARACTER(ESMF_MAXSTR*MAX_DATA_I1D),POINTER :: NAMES_I1D_STRING   
+      CHARACTER(ESMF_MAXSTR*MAX_DATA_I2D),POINTER :: NAMES_I2D_STRING
+      CHARACTER(ESMF_MAXSTR*MAX_DATA_R1D),POINTER :: NAMES_R1D_STRING
+      CHARACTER(ESMF_MAXSTR*MAX_DATA_R2D),POINTER :: NAMES_R2D_STRING
+      CHARACTER(ESMF_MAXSTR*MAX_DATA_LOG),POINTER :: NAMES_LOG_STRING
+!
+      TYPE(ESMF_Logical),DIMENSION(:),POINTER :: ALL_DATA_LOG
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-!***  First we need the number of Write tasks in each group.
-!-----------------------------------------------------------------------
-!
-      NWTPG=wrt_int_state%WRITE_TASKS_PER_GROUP
-!
-      LAST_FCST_TASK =NTASKS-NWTPG-1
-      LEAD_WRITE_TASK=LAST_FCST_TASK+1
-      LAST_WRITE_TASK=NTASKS-1
 !
 !-----------------------------------------------------------------------
-!***  The integer quantities 'INPES' and 'JNPES' must be pointers
-!***  of length 1 since they will be passed through ESMF Send/Recv.
-!***  Likewise with the total length of all names of 2D data 
-!***  and the halo depths.
+!***  Get this domain's VM (ESMF Virtual Machine) and the domain's
+!***  MPI communicator so we can address all the tasks as needed.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="PRELIM_INFO_FOR_HISTORY: Get the Global VM"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!
+      CALL ESMF_VMGetCurrent(vm=VM_DOMAIN                               &  !<-- The VM for all tasks on this domain
+                            ,rc=RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract the Communicator from the Global VM"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_VMGet(vm             =VM_DOMAIN                         &
+                     ,mpiCommunicator=COMM_MY_DOMAIN                    &  !<-- The communicator for all tasks on this domain
+                     ,localPet       =MYPE_DOMAIN                       &  !<-- Each task's full-domain rank
+                     ,rc             =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Let the forecast tasks do all the work they need to do first.
+!***  While the number of Write components is equal to WRITE_GROUPS
+!***  the contents of the internal state of each of those components
+!***  is identical for the forecast tasks.  The forecast tasks begin
+!***  by extracting the internal state from the Write component for
+!***  write group #1.
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  NOTE:  All the forecast tasks are part of ALL write groups
+!***         while each write task belongs to only one of the write
+!***         groups.  In the work below the forecast tasks will
+!***         fill all their relevant variables within the internal
+!***         state of the Write component for write group #1 while
+!***         providing the write tasks the quantities they need for
+!***         the their variables within the internal state of the
+!***         Write component associated for their particular write
+!***         group.  At the end of this subroutine the forecast
+!***         tasks then need to set the same internal state variables
+!***         for each of the other Write components with which they
+!***         are associated.
+!-----------------------------------------------------------------------
+!
+      LAST_FCST_TASK=NUM_PES_FCST-1                                        !<-- The rank of the final forecast task
+!
+!-----------------------------------------------------------------------
+!
+      fcst_tasks_1: IF(MYPE_DOMAIN<=LAST_FCST_TASK)THEN                    !<-- Select only the forecast tasks
+!
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="PRELIM_INFO: Fcst Tasks Get the Write Internal State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_GridCompGetInternalState(WRITE_COMPS(1)               &
+                                          ,WRAP                         &
+                                          ,RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        WRT_INT_STATE=>wrap%WRITE_INT_STATE                                !<-- Local working pointer to internal state
+!
+!-----------------------------------------------------------------------
+!***  Extract the number of Write tasks in each group.
+!-----------------------------------------------------------------------
+!
+        NWTPG=wrt_int_state%WRITE_TASKS_PER_GROUP
+!
+      ENDIF fcst_tasks_1
+!
+!-----------------------------------------------------------------------
+!
+      CALL MPI_BCAST(NWTPG                                              &  !<-- Broadcast the # of write tasks per group
+                    ,1                                                  &  !<-- It is a scalar
+                    ,MPI_INTEGER                                        &  !<-- It is an integer
+                    ,0                                                  &  !<-- The lead forecast task broadcasts
+                    ,COMM_MY_DOMAIN                                     &  !<-- The domain communicator
+                    ,IERR)
+!
+!-----------------------------------------------------------------------
+!***  The ranks of key forecast and write tasks. 
+!-----------------------------------------------------------------------
+!
+      LEAD_WRITE_TASK(1)=LAST_FCST_TASK+1                                  !<-- The rank of the lead write task in group 1
+      LAST_WRITE_TASK(1)=LAST_FCST_TASK+NWTPG                              !<-- The rank of the last write task in group 1
+!
+      IF(NUM_WRITE_GROUPS>=2)THEN
+        DO N=2,NUM_WRITE_GROUPS
+          LEAD_WRITE_TASK(N)=LEAD_WRITE_TASK(N-1)+NWTPG                    !<-- The rank of the lead write task in group N
+          LAST_WRITE_TASK(N)=LEAD_WRITE_TASK(N)+NWTPG-1                    !<-- The rank of the final write task in group N
+        ENDDO
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Now all the tasks in each Write group can extract the
+!***  internal state from their respective Write component.
+!-----------------------------------------------------------------------
+!
+      DO N=1,NUM_WRITE_GROUPS
+!
+        IF(MYPE_DOMAIN>=LEAD_WRITE_TASK(N).AND.                         &
+           MYPE_DOMAIN<=LAST_WRITE_TASK(N))THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="PRELIM_INFO: Write Tasks Get the Write Internal State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_GridCompGetInternalState(WRITE_COMPS(N)             &
+                                            ,WRAP                       &
+                                            ,RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          WRT_INT_STATE=>wrap%WRITE_INT_STATE                              !<-- Local working pointer to internal state
+!
+        ENDIF
+!
+      ENDDO
+!
+!-----------------------------------------------------------------------
+!***  Now that all forecast and write tasks can see the internal state
+!***  of their Write component, point the local working pointers at the
+!***  appropriate components within the internal state depending upon
+!***  whether we are preparing work for History or Restart output.
+!***  In that way the following code can be used for both cases
+!***  without a huge number of IF tests.
+!-----------------------------------------------------------------------
+!
+      CALL POINT_LOCAL
+!
 !-----------------------------------------------------------------------
 !
       ALLOCATE(INPES(1))
@@ -225,18 +428,39 @@
       ALLOCATE(NCHAR_R2D(1))
 !
 !-----------------------------------------------------------------------
-!***  Extract the full domain limits from the component's import 
-!***  state.  These are needed for allocating the working arrays 
-!***  that will move the 2-D and 3-D Fields from the import to the
-!***  export state.
+!***  Extract the appropriate output Bundle from the Write component's
+!***  import state and then from it extract the full domain limits.
+!***  These are needed for allocating the working arrays that will
+!***  move the 2-D and 3-D Fields from the import to the export state.
 !-----------------------------------------------------------------------
 !
+!-----------------------------------------------------------------------
+!
+      domain_limits: IF(MYPE_DOMAIN<=LAST_FCST_TASK)THEN                   !<-- This selects only forecast tasks to do extractions
+                                                                           !    since only they know what is in the import state.
+!-----------------------------------------------------------------------
+!
+        IF(OUTPUT_FLAG=='History')THEN
+          BUNDLE_NAME='History Bundle'
+        ELSEIF(OUTPUT_FLAG=='Restart')THEN
+          BUNDLE_NAME='Restart Bundle'
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !
-      domain_limits: IF(MYPE<=LAST_FCST_TASK)THEN                          !<-- This selects only forecast tasks to do extractions
-                                                                           !    since only they know what is in the import state
-!-----------------------------------------------------------------------
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract the History Bundle from the Write Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_StateGet(state      =IMP_STATE_WRITE                  &  !<-- The Write component's import state
+                          ,itemName   =BUNDLE_NAME                      &  !<-- The name of the data Bundle
+                          ,fieldbundle=OUTPUT_BUNDLE                    &  !<-- The data Bundle inside the import state
+                          ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !***  Allocate the arrays that hold all start and end points in I,J
@@ -253,28 +477,28 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeGet(bundle    =HISTORY_BUNDLE                &  !<-- The Bundle of history data
-                              ,name      ='IM'                          &  !<-- Name of the Attribute to extract
-                              ,count     =1                             &  !<-- Length of Attribute
-                              ,valueList =wrt_int_state%IM              &  !<-- Extract this Attribute from History Bundle
-                              ,rc        =RC)
+        CALL ESMF_AttributeGet(bundle   =OUTPUT_BUNDLE                  &  !<-- The Bundle of output data
+                              ,name     ='IM'                           &  !<-- Name of the Attribute to extract
+                              ,count    =1                              &  !<-- Length of Attribute
+                              ,valueList=wrt_int_state%IM               &  !<-- Extract this Attribute from History Bundle
+                              ,rc       =RC)
 !
-        CALL ESMF_AttributeGet(bundle    =HISTORY_BUNDLE                &  !<-- The Bundle of history data
-                              ,name      ='JM'                          &  !<-- Name of the Attribute to extract
-                              ,count     =1                             &  !<-- Length of Attribute
-                              ,valueList =wrt_int_state%JM              &  !<-- Extract this Attribute from History Bundle
-                              ,rc        =RC)
+        CALL ESMF_AttributeGet(bundle   =OUTPUT_BUNDLE                  &  !<-- The Bundle of output data
+                              ,name     ='JM'                           &  !<-- Name of the Attribute to extract
+                              ,count    =1                              &  !<-- Length of Attribute
+                              ,valueList=wrt_int_state%JM               &  !<-- Extract this Attribute from History Bundle
+                              ,rc       =RC)
 !
-        CALL ESMF_AttributeGet(bundle    =HISTORY_BUNDLE                &  !<-- The Bundle of history data
-                              ,name      ='LM'                          &  !<-- Name of the Attribute to extract
-                              ,count     =1                             &  !<-- Length of Attribute
-                              ,valueList =wrt_int_state%LM              &  !<-- Extract this Attribute from History Bundle
-                              ,rc        =RC)
+        CALL ESMF_AttributeGet(bundle   =OUTPUT_BUNDLE                  &  !<-- The Bundle of output data
+                              ,name     ='LM'                           &  !<-- Name of the Attribute to extract
+                              ,count    =1                              &  !<-- Length of Attribute
+                              ,valueList=wrt_int_state%LM               &  !<-- Extract this Attribute from History Bundle
+                              ,rc       =RC)
 !
-        CALL ESMF_AttributeGet(bundle =HISTORY_BUNDLE                   &  !<-- The Bundle of history data
-                              ,name   ='GLOBAL'                         &  !<-- Name of the Attribute to extract
-                              ,value  =wrt_int_state%GLOBAL             &  !<-- Extract this Attribute from History Bundle
-                              ,rc     =RC)
+        CALL ESMF_AttributeGet(bundle=OUTPUT_BUNDLE                     &  !<-- The Bundle of output data
+                              ,name  ='GLOBAL'                          &  !<-- Name of the Attribute to extract
+                              ,value =wrt_int_state%GLOBAL              &  !<-- Extract this Attribute from History Bundle
+                              ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
@@ -294,1572 +518,11 @@
 !***  subdomain limits.
 !
 !***  Also extract the halo depths since they are needed for
-!***  excluding halo points from the final history data.
-!
-!***  These values are not to be written to the history files so
-!***  they were not inserted into the history data Bundle inside
-!***  the Write component's import state.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract Local Quilting Info from Write Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_AttributeGet(state =IMP_STATE_WRITE                   &  !<-- The Write component's import state
-                              ,name  ='INPES'                           &  !<-- Name of the Attribute to extract
-                              ,value =INPES(1)                          &  !<-- Extract this Attribute from import state
-                              ,rc    =RC)
-!
-        CALL ESMF_AttributeGet(state =IMP_STATE_WRITE                   &  !<-- The Write component's import state
-                              ,name  ='JNPES'                           &  !<-- Name of the Attribute to extract
-                              ,value =JNPES(1)                          &  !<-- Extract this Attribute from import state
-                              ,rc    =RC)
-!
-        wrt_int_state%INPES=INPES(1)                                       !<-- Place in internal state for later use
-        wrt_int_state%JNPES=JNPES(1)                                       !<-- Place in internal state for later use
-!
-        NUM_PES_FCST=INPES(1)*JNPES(1)                                     !<-- Number of fcst tasks
-!
-        CALL ESMF_AttributeGet(state =IMP_STATE_WRITE                   &  !<-- The Write component's import state
-                              ,name  ='IHALO'                           &  !<-- Name of the Attribute to extract
-                              ,value =IHALO(1)                          &  !<-- Extract this Attribute from import state
-                              ,rc    =RC)
-!
-        CALL ESMF_AttributeGet(state =IMP_STATE_WRITE                   &  !<-- The Write component's import state
-                              ,name  ='JHALO'                           &  !<-- Name of the Attribute to extract
-                              ,value =JHALO(1)                          &  !<-- Extract this Attribute from import state
-                              ,rc    =RC)
-!
-        wrt_int_state%IHALO=IHALO(1)                                       !<-- Place in internal state for later use
-        wrt_int_state%JHALO=JHALO(1)                                       !<-- Place in internal state for later use
-!
-        CALL ESMF_AttributeGet(state     =IMP_STATE_WRITE               &  !<-- The Write component's import state
-                              ,name      ='LOCAL_ISTART'                &  !<-- Name of the Attribute to extract
-                              ,count     =NUM_PES_FCST                  &  !<-- Length of Attribute
-                              ,valueList =LOCAL_ISTART                  &  !<-- Extract local subdomain starting I's
-                              ,rc=RC)
-!
-        CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
-                              ,name     ='LOCAL_IEND'                   &  !<-- Name of the Attribute to extract
-                              ,count    =NUM_PES_FCST                   &  !<-- Length of Attribute
-                              ,valueList= LOCAL_IEND                    &  !<-- Extract local subdomain ending I's
-                              ,rc=RC)
-!
-        CALL ESMF_AttributeGet(state     =IMP_STATE_WRITE               &  !<-- The Write component's import state
-                              ,name      ='LOCAL_JSTART'                &  !<-- Name of the Attribute to extract
-                              ,count     =NUM_PES_FCST                  &  !<-- Length of Attribute
-                              ,valueList =LOCAL_JSTART                  &  !<-- Extract local subdomain starting J's
-                              ,rc=RC)
-!
-        CALL ESMF_AttributeGet(state     =IMP_STATE_WRITE               &  !<-- The Write component's import state
-                              ,name      ='LOCAL_JEND'                  &  !<-- Name of the Attribute to extract
-                              ,count     =NUM_PES_FCST                  &  !<-- Length of Attribute
-                              ,valueList =LOCAL_JEND                    &  !<-- Extract local subdomain ending J's
-                              ,rc=RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        DO N=0,LAST_FCST_TASK
-          wrt_int_state%LOCAL_ISTART(N)=LOCAL_ISTART(N)
-          wrt_int_state%LOCAL_IEND  (N)=LOCAL_IEND(N)
-          wrt_int_state%LOCAL_JSTART(N)=LOCAL_JSTART(N)
-          wrt_int_state%LOCAL_JEND  (N)=LOCAL_JEND(N)
-        ENDDO
-!
-        ITS=LOCAL_ISTART(MYPE)
-        ITE=LOCAL_IEND(MYPE)
-        JTS=LOCAL_JSTART(MYPE)
-        JTE=LOCAL_JEND(MYPE)
-!
-        DEALLOCATE(LOCAL_ISTART)
-        DEALLOCATE(LOCAL_IEND  )
-        DEALLOCATE(LOCAL_JSTART)
-        DEALLOCATE(LOCAL_JEND  )
-!
-!-----------------------------------------------------------------------
-!
-      ENDIF domain_limits
-!
-!-----------------------------------------------------------------------
-!***  Forecast task 0 sends the domain size information
-!***  to the first Write task in each Write group because 
-!***  the Write tasks need to know this to assemble the
-!***  final gridded data.
-!***  First we need the VM.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Get the Current VM"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_VMGetCurrent(vm=VM                                      &  !<-- The ESMF virtual machine for this group of tasks
-                            ,rc=RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!                            -- IM --
-!-----------------------------------------------------------------------
-!
-      IF(MYPE==0)THEN                                                      !<-- Forecast task 0 sends
-        DO N=0,NWTPG-1
-          CALL MPI_SEND(wrt_int_state%IM                                &  !<-- Send this data
-                       ,1                                               &  !<-- Number of words sent
-                       ,MPI_INTEGER                                     &  !<-- Datatype
-                       ,N                                               &  !<-- Send to each of the write tasks (local IDs)
-                       ,0                                               &  !<-- An MPI tag
-                       ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP)            &  !<-- MPI communicator
-                       ,IERR)
-!
-          IF(IERR/=0)WRITE(0,*)' Failed to send IM from fcst task0 to write tasks'
-!
-        ENDDO
-      ENDIF 
-
-      IF(MYPE>=LEAD_WRITE_TASK)THEN                                        !<-- Write tasks in this group receive
-        CALL MPI_RECV(wrt_int_state%IM                                  &  !<-- Recv this data
-                     ,1                                                 &  !<-- Words received
-                     ,MPI_INTEGER                                       &  !<-- Datatype
-                     ,0                                                 &  !<-- Recv from fcst task 0
-                     ,0                                                 &  !<-- An MPI tag
-                     ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP)              &  !<-- MPI communicator
-                     ,JSTAT                                             &  !<-- MPI status object
-                     ,IERR)
-!
-        IF(IERR/=0)WRITE(0,*)' Write tasks failed to receive IM from fcst task0'
-!
-      ENDIF
-!
-!-----------------------------------------------------------------------
-!                          -- JM --
-!-----------------------------------------------------------------------
-!
-      IF(MYPE==0)THEN                                                      !<-- Forecast task 0 sends
-        DO N=0,NWTPG-1                                            
-          CALL MPI_SEND(wrt_int_state%JM                                &  !<-- Send this data
-                       ,1                                               &  !<-- Number of words sent
-                       ,MPI_INTEGER                                     &  !<-- Datatype
-                       ,N                                               &  !<-- Send to each of the write tasks (local IDs)
-                       ,0                                               &  !<-- An MPI tag
-                       ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP)            &  !<-- MPI communicator
-                       ,IERR)
-!
-          IF(IERR/=0)WRITE(0,*)' Failed to send JM from fcst task0 to write tasks'
-!
-        ENDDO
-      ENDIF 
-!
-      IF(MYPE>=LEAD_WRITE_TASK)THEN                                        !<-- Write tasks in this group receive
-        CALL MPI_RECV(wrt_int_state%JM                                  &  !<-- Recv this data
-                     ,1                                                 &  !<-- Words received
-                     ,MPI_INTEGER                                       &  !<-- Datatype
-                     ,0                                                 &  !<-- Recv from fcst task 0
-                     ,0                                                 &  !<-- An MPI tag
-                     ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP)              &  !<-- MPI communicator
-                     ,JSTAT                                             &  !<-- MPI status object
-                     ,IERR)
-!
-        IF(IERR/=0)WRITE(0,*)' Write tasks failed to receive JM from fcst task0'
-!
-      ENDIF
-!
-!-----------------------------------------------------------------------
-!                          -- LM --
-!-----------------------------------------------------------------------
-!
-      IF(MYPE==0)THEN                                                      !<-- Forecast task 0 sends
-        DO N=0,NWTPG-1                                            
-          CALL MPI_SEND(wrt_int_state%LM                                &  !<-- Send this data
-                       ,1                                               &  !<-- Number of words sent
-                       ,MPI_INTEGER                                     &  !<-- Datatype
-                       ,N                                               &  !<-- Send to each of the write tasks (local IDs)
-                       ,0                                               &  !<-- An MPI tag
-                       ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP)            &  !<-- MPI communicator
-                       ,IERR)
-!
-          IF(IERR/=0)WRITE(0,*)' Failed to send LM from fcst task0 to write tasks'
-!
-        ENDDO
-      ENDIF 
-!
-      IF(MYPE>=LEAD_WRITE_TASK)THEN                                        !<-- Write tasks in this group receive
-        CALL MPI_RECV(wrt_int_state%LM                                  &  !<-- Recv this data
-                     ,1                                                 &  !<-- Words received
-                     ,MPI_INTEGER                                       &  !<-- Datatype
-                     ,0                                                 &  !<-- Recv from fcst task 0
-                     ,0                                                 &  !<-- An MPI tag
-                     ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP)              &  !<-- MPI communicator
-                     ,JSTAT                                             &  !<-- MPI status object
-                     ,IERR)
-!
-        IF(IERR/=0)WRITE(0,*)' Write tasks failed to receive LM from fcst task0'
-!
-      ENDIF
-!
-      IM=wrt_int_state%IM(1)
-      JM=wrt_int_state%JM(1)
-!
-!-----------------------------------------------------------------------
-!***  The number of Attributes (for scalars and 1D arrays) and
-!***  Fields (for gridded 2D arrays) in the Write component's
-!***  import state are not known a priori.  In order to transfer
-!***  them to the Write tasks, extract the number of each of
-!***  them along with their names.  The scalars can be lumped in
-!***  with the 1D arrays at this point.
-!
-!***  Even though these counts are just scalar integers their
-!***  pointers were allocated in WRT_INIT to length 1 since they
-!***  will be used in ESMF_Send/Recv which require them to be 
-!***  contiguous data arrays.
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!***  All integer quantities (as 1D arrays) and 1D and 2D real
-!***  quantities will be strung together in single arrays of 
-!***  each particular type.  Arrays that will hold the length of  
-!***  each of the quantities in these 'strings' were allocated
-!***  in WRT_INIT.
-!-----------------------------------------------------------------------
-!
-      KOUNT_I1D=0
-      KOUNT_R1D=0
-      KOUNT_LOG=0
-!
-      LENGTH_SUM_I1D=0
-      LENGTH_SUM_R1D=0
-      LENGTH_SUM_LOG=0
-!
-      NCHAR_I1D=0
-      NCHAR_R1D=0
-      NCHAR_LOG=0
-!
-!-----------------------------------------------------------------------
-!
-      fcst_tasks: IF(MYPE<=LAST_FCST_TASK)THEN                             !<-- Only forecast tasks will extract output information
-                                                                           !    from the import state because only they participated
-                                                                           !    in filling the import state in the Dynamics/Physics
-                                                                           !    components.
-!
-!-----------------------------------------------------------------------
-!***  First find the number of Attributes in the history data Bundle
-!***  in the import state and then find their names, lengths, and
-!***  datatypes.
-!***  Extract the integer and real data and pack it into integer
-!***  and real buffers.  Later the buffers will be sent from the
-!***  Forecast tasks (the only ones who can see the original
-!***  data) to the Write tasks.
-!
-!***  The fact that the Attribute history data is being collected
-!***  here in a block that executes only once per Write group
-!***  implies the assumption that only the 2D/3D data
-!***  associated with the forecast grid can change with time.
-!***  If any scalar/1D Attribute data change with time then
-!***  this must be moved out of this 'first' block.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Get Attribute Count from History Bundle"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_AttributeGet(bundle =HISTORY_BUNDLE                   &  !<-- The write component's history data Bundle
-                              ,count  =NUM_ATTRIB                       &  !<-- # of Attributes in the history data Bundle
-                              ,rc     =RC)       
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-        attribute_loop: DO N=1,NUM_ATTRIB                                  !<-- Loop through all the Attributes
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Get Attribute Names, Datatypes, Lengths"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_AttributeGet(bundle         =HISTORY_BUNDLE         &  !<-- The write component's history data Bundle
-                                ,attributeIndex =N                      &  !<-- Index of each Attribute
-                                ,name           =ATTRIB_NAME            &  !<-- Each Attribute's name
-                                ,typekind       =DATATYPE               &  !<-- Each Attribute's ESMF Datatype
-                                ,count          =LENGTH                 &  !<-- Each Attribute's length
-                                ,rc             =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!                 -- SCALAR AND 1D INTEGER HISTORY DATA --
-!-----------------------------------------------------------------------
-!
-          IF(DATATYPE==ESMF_TYPEKIND_I4)THEN                               !<-- Extract integer data with rank <2
-!
-            ALLOCATE(WORK_ARRAY_I1D(LENGTH),stat=RC)                       !<-- This length is from the preceding call 
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Get Scalar/1-D Integer Data from History Bundle"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-            CALL ESMF_AttributeGet(bundle    =HISTORY_BUNDLE            &  !<-- The write component's history data Bundle
-                                  ,name      =ATTRIB_NAME               &  !<-- Name of the Attribute to extract
-                                  ,count     =LENGTH                    &  !<-- Length of Attribute
-                                  ,valueList =WORK_ARRAY_I1D            &  !<-- Place the Attribute here
-                                  ,rc=RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-            KOUNT_I1D=KOUNT_I1D+1                                          !<-- Count # of integer Attributes
-!
-            NPOSN_END=KOUNT_I1D*ESMF_MAXSTR
-            NPOSN_START=NPOSN_END-ESMF_MAXSTR+1     
-            wrt_int_state%NAMES_I1D_STRING(NPOSN_START:NPOSN_END)=ATTRIB_NAME  !<-- Save the 1D integer names
-            NCHAR_I1D=NCHAR_I1D+ESMF_MAXSTR                                !<-- Save #of characters in all scalar/1D integer names
-                                                                           !    Note that each name is being given
-                                                                           !    EMSF_MAXSTR total spaces
-!
-            DO L=1,LENGTH
-              wrt_int_state%ALL_DATA_I1D(LENGTH_SUM_I1D+L)=WORK_ARRAY_I1D(L)  !<-- String together the integer data
-            ENDDO
-!
-            LENGTH_SUM_I1D=LENGTH_SUM_I1D+LENGTH                           !<-- Total word sum of scalar/1D integer data
-            wrt_int_state%LENGTH_DATA_I1D(KOUNT_I1D)=LENGTH                !<-- Store length of each individual integer variable
-!
-            DEALLOCATE(WORK_ARRAY_I1D)
-!
-!-----------------------------------------------------------------------
-!                  -- SCALAR AND 1D REAL HISTORY DATA --
-!-----------------------------------------------------------------------
-!
-          ELSEIF(DATATYPE==ESMF_TYPEKIND_R4)THEN                           ! <-- Extract real data with rank <2 as Attributes
-!
-            ALLOCATE(WORK_ARRAY_R1D(LENGTH),stat=RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Get Scalar/1-D Real Data from History Bundle"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-            CALL ESMF_AttributeGet(bundle    =HISTORY_BUNDLE            &  !<-- The write component's history data Bundle
-                                  ,name      =ATTRIB_NAME               &  !<-- Name of the Attribute to extract
-                                  ,count     =LENGTH                    &  !<-- Length of Attribute
-                                  ,valueList =WORK_ARRAY_R1D            &  !<-- Place the Attribute here
-                                  ,rc=RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-            KOUNT_R1D=KOUNT_R1D+1                                          !<-- Count # of real Attributes
-!
-            NPOSN_END=KOUNT_R1D*ESMF_MAXSTR
-            NPOSN_START=NPOSN_END-ESMF_MAXSTR+1     
-            wrt_int_state%NAMES_R1D_STRING(NPOSN_START:NPOSN_END)=ATTRIB_NAME  !<-- Save the scalar/1D real names
-            NCHAR_R1D=NCHAR_R1D+ESMF_MAXSTR                                !<-- Save #of characters in all scalar/1D real names
-                                                                           !    Note that each name is being given
-                                                                           !    EMSF_MAXSTR total spaces
-!
-            DO L=1,LENGTH
-              wrt_int_state%ALL_DATA_R1D(LENGTH_SUM_R1D+L)=WORK_ARRAY_R1D(L)  !<-- String together the real data
-            ENDDO
-!
-            LENGTH_SUM_R1D=LENGTH_SUM_R1D+LENGTH                           !<-- Total word sum of scalar/1D real data
-            wrt_int_state%LENGTH_DATA_R1D(KOUNT_R1D)=LENGTH                !<-- Store length of each individual real variable
-!
-            DEALLOCATE(WORK_ARRAY_R1D)
-!
-!-----------------------------------------------------------------------
-!                          -- LOGICAL DATA --                       
-!-----------------------------------------------------------------------
-!
-!ratko    ELSEIF(DATATYPE==ESMF_DATA_LOGICAL)THEN                          ! <-- Extract logical data
-! --- nothing else than I4 and R4; should FIX later
-          ELSE
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Get Logical Data from History Bundle"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-            CALL ESMF_AttributeGet(bundle =HISTORY_BUNDLE               &  !<-- The write component's history data Bundle
-                                  ,name   =ATTRIB_NAME                  &  !<-- Name of the Attribute to extract
-                                  ,value  =WORK_LOGICAL                 &  !<-- Place the Attribute here
-                                  ,rc     =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-            KOUNT_LOG=KOUNT_LOG+1                                          !<-- Count # of logical Attributes
-!
-            NPOSN_END=KOUNT_LOG*ESMF_MAXSTR
-            NPOSN_START=NPOSN_END-ESMF_MAXSTR+1     
-            wrt_int_state%NAMES_LOG_STRING(NPOSN_START:NPOSN_END)=ATTRIB_NAME  !<-- Save the logical names
-            NCHAR_LOG=NCHAR_LOG+ESMF_MAXSTR                                !<-- Save #of characters in all logical names
-                                                                           !    Note that each name is being given
-                                                                           !    EMSF_MAXSTR total spaces
-!
-            wrt_int_state%ALL_DATA_LOG(KOUNT_LOG)=WORK_LOGICAL             !<-- String together the logical data
-!
-            LENGTH_SUM_LOG=LENGTH_SUM_LOG+1                                !<-- Total length of all logical data variables
-!
-          ENDIF
-!
-!-----------------------------------------------------------------------
-!
-        ENDDO attribute_loop
-!
-!-----------------------------------------------------------------------
-!***  Insert number and lengths of scalar/1D integer and real quantities
-!***  and logicals into the Write component's internal state.
-!-----------------------------------------------------------------------
-!
-        wrt_int_state%KOUNT_I1D(1)=KOUNT_I1D
-        wrt_int_state%KOUNT_R1D(1)=KOUNT_R1D
-        wrt_int_state%KOUNT_LOG(1)=KOUNT_LOG
-!
-        wrt_int_state%LENGTH_SUM_I1D(1)=LENGTH_SUM_I1D 
-        wrt_int_state%LENGTH_SUM_R1D(1)=LENGTH_SUM_R1D
-        wrt_int_state%LENGTH_SUM_LOG(1)=LENGTH_SUM_LOG
-!
-!-----------------------------------------------------------------------
-!***  Now extract the number of ESMF Fields in the history data Bundle
-!***  Write component's import state along with their names.
-!***  Save the Field information of the 2D history data since 
-!***  it will be needed for data extraction from the import state
-!***  and the transfer to the Write tasks.
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!***  Find out the number of ESMF Fields in the history data Bundle.
-!***  It was Fields into which the 2D gridded history data was placed.
-!
-!***  This information will be saved in the internal state
-!***  for all output times and not be retrieved over and over again.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Get Field Count from History Bundle"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_FieldBundleGet(bundle    =HISTORY_BUNDLE                   &  !<-- The write component's history data Bundle
-                                ,fieldCount=wrt_int_state%NCOUNT_FIELDS(1)   &  !<-- Get total # of Fields in the history data Bundle
-                                ,rc        =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Now extract the names of all the Fields in the bundle.  
-!***  Also, the number of Field names returned should equal 
-!***  the Field count in the preceding call.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract Field Names from History Bundle"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_FieldBundleGet(bundle    =HISTORY_BUNDLE              &  !<-- The write component's history data Bundle
-                                ,nameList  =wrt_int_state%FIELD_NAME    &  !<-- Array of ESMF Field names in the Bundle
-                                ,nameCount =NUM_FIELD_NAMES             &  !<-- Number of Field names in the Bundle
-                                ,rc        =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        IF(NUM_FIELD_NAMES/=wrt_int_state%NCOUNT_FIELDS(1))THEN
-          WRITE(0,*)' WARNING: Number of Fields in Bundle of history'   &
-                   ,' output does not equal the number of Field names'
-          WRITE(0,*)' They are ',NUM_FIELD_NAMES,' and '                &
-                   ,wrt_int_state%NCOUNT_FIELDS(1),', respectively'
-        ENDIF
-!
-!-----------------------------------------------------------------------
-!***  Do a preliminary extraction of the Fields themselves in order to
-!***  count the number of real and integer 2D arrays.  
-!-----------------------------------------------------------------------
-!
-        KOUNT_R2D=0
-        KOUNT_I2D=0
-        NCHAR_I2D(1)=0
-        NCHAR_R2D(1)=0
-!
-        DO N=1,wrt_int_state%NCOUNT_FIELDS(1)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Extract Fields from History Bundle for Counting"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_FieldBundleGet(bundle=HISTORY_BUNDLE                &  !<-- The write component's history data Bundle
-                                  ,name  =wrt_int_state%FIELD_NAME(N)   &  !<-- The ESMF Field's name
-                                  ,field =FIELD_WORK1                   &  !<-- The ESMF Field taken from the Bundle
-                                  ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Get Datatype of Fields for Counting Real/Integer"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_FieldGet(field=FIELD_WORK1                          &  !<-- The ESMF 2D Field
-                            ,typekind=DATATYPE                          &  !<-- The Field's ESMF Datatype
-                            ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          IF(DATATYPE==ESMF_TYPEKIND_I4)THEN
-            KOUNT_I2D=KOUNT_I2D+1                                          !<-- Add up the total number of integer 2D Fields
-!
-            IF(KOUNT_I2D>MAX_DATA_I2D)THEN
-              WRITE(0,*)' FATAL: YOU HAVE EXCEEDED MAX NUMBER OF INTEGER 2D FIELDS FOR OUTPUT'
-              WRITE(0,*)' YOU MUST INCREASE VALUE OF MAX_DATA_I2D WHICH NOW EQUALS ',MAX_DATA_I2D
-            ENDIF
-!
-            NPOSN_END  =KOUNT_I2D*ESMF_MAXSTR
-            NPOSN_START=NPOSN_END-ESMF_MAXSTR+1
-            wrt_int_state%NAMES_I2D_STRING(NPOSN_START:NPOSN_END)=wrt_int_state%FIELD_NAME(N) !<-- Save the 2D integer Field names 
-                                                                                              !<-- in one long string
-            NCHAR_I2D(1)=NCHAR_I2D(1)+ESMF_MAXSTR
-!
-          ELSEIF(DATATYPE==ESMF_TYPEKIND_R4)THEN
-            KOUNT_R2D=KOUNT_R2D+1                                          !<-- Add up the total number of real 2D Fields
-!
-            IF(KOUNT_R2D>MAX_DATA_R2D)THEN
-              WRITE(0,*)' FATAL: YOU HAVE EXCEEDED MAX NUMBER OF REAL 2D FIELDS FOR OUTPUT'
-              WRITE(0,*)' YOU MUST INCREASE VALUE OF MAX_DATA_R2D WHICH NOW EQUALS ',MAX_DATA_R2D
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT             &
-                                ,rc             =RC_ABORT  )
-            ENDIF
-!
-            NPOSN_END  =KOUNT_R2D*ESMF_MAXSTR
-            NPOSN_START=NPOSN_END-ESMF_MAXSTR+1
-            wrt_int_state%NAMES_R2D_STRING(NPOSN_START:NPOSN_END)=wrt_int_state%FIELD_NAME(N) !<-- Save the 2D real Field names 
-                                                                                              !<-- in one long string
-            NCHAR_R2D(1)=NCHAR_R2D(1)+ESMF_MAXSTR
-!
-          ENDIF
-!
-        ENDDO
-!
-        wrt_int_state%KOUNT_R2D(1)=KOUNT_R2D
-        wrt_int_state%KOUNT_I2D(1)=KOUNT_I2D
-!
-!-----------------------------------------------------------------------
-!***  Compute the total number of words for all 2D and 3D real data
-!***  and allocate a datastring to that length.  It will transfer
-!***  the 2D/3D real data from forecast to Write tasks.
-!-----------------------------------------------------------------------
-!
-        NUM_WORDS_TOT=(ITE-ITS+1+2*IHALO(1))*(JTE-JTS+1+2*JHALO(1))     &
-                      *KOUNT_R2D
-!
-        IF(NUM_WORDS_TOT>2147483647)THEN
-          WRITE(0,*)' You have TOO MANY words in your datastring.'
-          WRITE(0,*)' You must increase the number of tasks.'
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT                 &
-                            ,rc             =RC_ABORT  )
-        ELSE
-          wrt_int_state%NUM_WORDS_SEND_R2D_HST=NUM_WORDS_TOT
-          NUM_WORDS=wrt_int_state%NUM_WORDS_SEND_R2D_HST
-          IF(.NOT.ALLOCATED(wrt_int_state%ALL_DATA_R2D))THEN
-            ALLOCATE(wrt_int_state%ALL_DATA_R2D(NUM_WORDS),stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,*)' Fcst task FAILED to allocate ALL_DATA_R2D'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT             &
-                                ,rc             =RC_ABORT  )
-            ENDIF
-          ENDIF
-        ENDIF
-!
-!-----------------------------------------------------------------------
-!***  Likewise for 2D integer data.
-!-----------------------------------------------------------------------
-!
-        NUM_WORDS_TOT=(ITE-ITS+1+2*IHALO(1))*(JTE-JTS+1+2*JHALO(1))     &
-                      *KOUNT_I2D
-!
-        IF(NUM_WORDS_TOT>2147483647)THEN
-          WRITE(0,*)' You have TOO MANY words in your datastring.'
-          WRITE(0,*)' You must increase the number of tasks.'
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT                 &
-                            ,rc             =RC_ABORT  )
-        ELSE
-          wrt_int_state%NUM_WORDS_SEND_I2D_HST=NUM_WORDS_TOT
-          NUM_WORDS=wrt_int_state%NUM_WORDS_SEND_I2D_HST
-          IF(.NOT.ALLOCATED(wrt_int_state%ALL_DATA_I2D))THEN
-            ALLOCATE(wrt_int_state%ALL_DATA_I2D(NUM_WORDS),stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,*)' Fcst task FAILED to allocate ALL_DATA_I2D'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT             &
-                                ,rc             =RC_ABORT  )
-            ENDIF
-          ENDIF
-        ENDIF
-!
-!-----------------------------------------------------------------------
-!
-      ENDIF fcst_tasks
-!
-!-----------------------------------------------------------------------
-!***  If there are no quantities specified for history output,
-!***  Forecast task 0 will inform the Write tasks and then
-!***  everyone will return.
-!-----------------------------------------------------------------------
-!
-      NO_FIELDS(1)=ESMF_FALSE
-!
-      IF(MYPE==0)THEN
-        IF(wrt_int_state%NCOUNT_FIELDS(1)==0)NO_FIELDS(1)=ESMF_TRUE        !<-- Reset flag saying there are no history quantities
-        LAST_WRITE_TASK=NTASKS-1                                           !<-- The last write task in this group
-!
-        DO N=LEAD_WRITE_TASK,LAST_WRITE_TASK                               !<-- Loop through all the write tasks in the write group
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Fcst Task0 Informs All That There Are No Fields"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=NO_FIELDS                           &  !<-- Send this data
-                          ,count   =1                                   &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        ENDDO
-      ENDIF
-!
-      IF(MYPE>=LEAD_WRITE_TASK)THEN                                        !<-- All write tasks in this group receive
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Write Tasks Told By Fcst Task0 There Are No Fields"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=NO_FIELDS                             &  !<-- Recv this data
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      ENDIF
-!
-!-----------------------------------------------------------------------
-!
-      IF(NO_FIELDS(1)==ESMF_TRUE)THEN
-        IF(MYPE==0)THEN
-          WRITE(6,*)'WARNING: No Import ESMF quantities for the Write Component'
-          WRITE(0,*)'WARNING: No Import ESMF quantities for the Write Component'
-        ENDIF
-!
-        RETURN                                                             !<-- All tasks return if there is no history output
-!
-      ENDIF
-!
-!-----------------------------------------------------------------------
-!***  Forecast task 0 sends all the Write tasks the number of
-!***  real and integer 2D gridded quantities plus all of the
-!***  local horizontal domain limits in preparation for the
-!***  Write tasks' receiving and assembling the local history
-!***  data they receive from the Forecast tasks.
-!-----------------------------------------------------------------------
-!
-      IF(MYPE==0)THEN                                                      !<-- Forecast task 0 sends
-!
-        LAST_WRITE_TASK=NTASKS-1                                           !<-- The last write task in this group
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Fcst Task0 Sends Write Tasks Info for Quilting"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        DO N=LEAD_WRITE_TASK,LAST_WRITE_TASK                               !<-- Loop through all the write tasks in the write group
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=INPES                               &  !<-- Send this data
-                          ,count   =1                                   &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=JNPES                               &  !<-- Send this data
-                          ,count   =1                                   &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=IHALO                               &  !<-- Send this data
-                          ,count   =1                                   &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=JHALO                               &  !<-- Send this data
-                          ,count   =1                                   &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=wrt_int_state%NCOUNT_FIELDS         &  !<-- Send this data
-                          ,count   =1                                   &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=wrt_int_state%KOUNT_R2D             &  !<-- Send this data
-                          ,count   =1                                   &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=wrt_int_state%KOUNT_I2D             &  !<-- Send this data
-                          ,count   =1                                   &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=wrt_int_state%LOCAL_ISTART          &  !<-- Send this data
-                          ,count   =NUM_PES_FCST                        &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=wrt_int_state%LOCAL_IEND            &  !<-- Send this data
-                          ,count   =NUM_PES_FCST                        &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=wrt_int_state%LOCAL_JSTART          &  !<-- Send this data
-                          ,count   =NUM_PES_FCST                        &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=wrt_int_state%LOCAL_JEND            &  !<-- Send this data
-                          ,count   =NUM_PES_FCST                        &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-        ENDDO
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      ENDIF
-!
-!-----------------------------------------------------------------------
-!
-      IF(MYPE>=LEAD_WRITE_TASK)THEN                                        !<-- All write tasks in this group receive
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Write Tasks Recv Quilting Info From Fcst Task0"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=INPES                                 &  !<-- Recv this data
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=JNPES                                 &  !<-- Recv this data
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        NUM_PES_FCST=INPES(1)*JNPES(1)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=IHALO                                 &  !<-- Recv this data
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=JHALO                                 &  !<-- Recv this data
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        wrt_int_state%IHALO=IHALO(1)
-        wrt_int_state%JHALO=JHALO(1)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%NCOUNT_FIELDS           &  !<-- Recv this data
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%KOUNT_R2D               &  !<-- Recv this data
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%KOUNT_I2D               &  !<-- Recv this data
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%LOCAL_ISTART            &  !<-- Recv this data
-                        ,count   =NUM_PES_FCST                          &  !<-- Words received (#of fcst tasks)
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%LOCAL_IEND              &  !<-- Recv this data
-                        ,count   =NUM_PES_FCST                          &  !<-- Words received (#of fcst tasks)
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%LOCAL_JSTART            &  !<-- Recv this data
-                        ,count   =NUM_PES_FCST                          &  !<-- Words received (#of fcst tasks)
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%LOCAL_JEND              &  !<-- Recv this data
-                        ,count   =NUM_PES_FCST                          &  !<-- Words received (#of fcst tasks)
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      ENDIF
-!
-!-----------------------------------------------------------------------
-!***  Forecast task 0 sends the 2D data names to the lead Write task.
-!-----------------------------------------------------------------------
-!
-      IF(MYPE==0)THEN                                                      !<-- Fcst task0 alone can send write task preliminary info
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Fcst Task0 Sends Write Tasks 2D Data Names"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=NCHAR_I2D                             &  !<-- Send total length of the names of 2D integer data
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%NAMES_I2D_STRING        &  !<-- Send names of 2D integer history variables
-                        ,count   =NCHAR_I2D(1)                          &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=NCHAR_R2D                             &  !<-- Send total length of the names of 2D real data
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%NAMES_R2D_STRING        &  !<-- Send names of 2D real history variables
-                        ,count   =NCHAR_R2D(1)                          &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
-!
-      ELSEIF(MYPE==NTASKS-NWTPG)THEN                                       !<-- 1st write task receives 2D preliminary info
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=NCHAR_I2D                             &  !<-- Recv total length of the names of 2D integer data
-                        ,count   =1                                     &  !<-- Words sent
-                        ,src     =0                                     &  !<-- Sending task (fcst task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%NAMES_I2D_STRING        &  !<-- Recv names of 2D integer history variables
-                        ,count   =NCHAR_I2D(1)                          &  !<-- Words sent
-                        ,src     =0                                     &  !<-- Sending task (fcst task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=NCHAR_R2D                             &  !<-- Recv total length of the names of 2D gridded data
-                        ,count   =1                                     &  !<-- Words sent
-                        ,src     =0                                     &  !<-- Sending task (fcst task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%NAMES_R2D_STRING        &  !<-- Recv names of 2D real history variables
-                        ,count   =NCHAR_R2D(1)                          &  !<-- Words sent
-                        ,src     =0                                     &  !<-- Sending task (fcst task 0)
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      ENDIF
-!
-!-----------------------------------------------------------------------
-!***  Each Write task must know the IDs of the Forecast tasks
-!***  from which it will receive 2D gridded history data.
-!-----------------------------------------------------------------------
-!
-      IF(MYPE>=LEAD_WRITE_TASK)THEN                                        !<-- The write tasks
-!
-        ALLOCATE(wrt_int_state%ID_FTASK_RECV_STA(LEAD_WRITE_TASK:LAST_WRITE_TASK))
-        ALLOCATE(wrt_int_state%ID_FTASK_RECV_END(LEAD_WRITE_TASK:LAST_WRITE_TASK))
-!
-        NN=0
-        DO N=LEAD_WRITE_TASK,LAST_WRITE_TASK
-          NN=NN+1
-          CALL PARA_RANGE(JNPES(1),NWTPG,NN                             &  !<-- Find each write task's first and last rows of
-                         ,JROW_FIRST,JROW_LAST)                            !<--   fcst tasks from which it will recv
-!
-          wrt_int_state%ID_FTASK_RECV_STA(N)=(JROW_FIRST-1)*INPES(1)       !<-- First fcst task that sends to this write task
-          wrt_int_state%ID_FTASK_RECV_END(N)=JROW_LAST*INPES(1)-1          !<-- Last fcst task that sends to this write task
-        ENDDO
-!
-!-----------------------------------------------------------------------
-!***  Each Write task computes the number of words in the datastring
-!***  of 2D/3D real history data it will receive from each Forecast
-!***  task it is associated with.  Then allocate that datastring.
-!-----------------------------------------------------------------------
-!
-        IF(.NOT.ALLOCATED(wrt_int_state%NUM_WORDS_RECV_R2D_HST))THEN
-          N_STA=wrt_int_state%ID_FTASK_RECV_STA(MYPE)
-          N_END=wrt_int_state%ID_FTASK_RECV_END(MYPE)
-          ALLOCATE(wrt_int_state%NUM_WORDS_RECV_R2D_HST(N_STA:N_END))
-        ENDIF
-!
-        MAX_WORDS=0
-!
-        DO N=wrt_int_state%ID_FTASK_RECV_STA(MYPE)                      &  !<-- The fcst tasks sending to this write task
-            ,wrt_int_state%ID_FTASK_RECV_END(MYPE)                         !<--
-!
-          ITS=wrt_int_state%LOCAL_ISTART(N)
-          ITE=wrt_int_state%LOCAL_IEND  (N)
-          JTS=wrt_int_state%LOCAL_JSTART(N)
-          JTE=wrt_int_state%LOCAL_JEND  (N)
-!
-          NUM_WORDS_TOT=(ITE-ITS+1+2*IHALO(1))*(JTE-JTS+1+2*JHALO(1))   &  !<-- # of words of 2D/3D real history data from fcst task N
-                        *wrt_int_state%KOUNT_R2D(1)
-!
-          wrt_int_state%NUM_WORDS_RECV_R2D_HST(N)=NUM_WORDS_TOT
-          MAX_WORDS=MAX(MAX_WORDS                                       &  !<-- Max # of integer words from any fcst tasks
-                       ,wrt_int_state%NUM_WORDS_RECV_R2D_HST(N))           !<--
-        ENDDO
-!
-        IF(.NOT.ALLOCATED(wrt_int_state%ALL_DATA_R2D))THEN
-          ALLOCATE(wrt_int_state%ALL_DATA_R2D(MAX_WORDS),stat=ISTAT)
-          IF(ISTAT/=0)THEN
-            WRITE(0,*)' Write task FAILED to allocate ALL_DATA_R2D'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT               &
-                              ,rc             =RC_ABORT  )
-          ENDIF
-        ENDIF
-!
-!-----------------------------------------------------------------------
-!***  Likewise for the 2D integer data.
-!-----------------------------------------------------------------------
-!
-        IF(.NOT.ALLOCATED(wrt_int_state%NUM_WORDS_RECV_I2D_HST))THEN
-          N_STA=wrt_int_state%ID_FTASK_RECV_STA(MYPE)
-          N_END=wrt_int_state%ID_FTASK_RECV_END(MYPE)
-          ALLOCATE(wrt_int_state%NUM_WORDS_RECV_I2D_HST(N_STA:N_END))
-        ENDIF
-!
-        MAX_WORDS=0
-!
-        DO N=wrt_int_state%ID_FTASK_RECV_STA(MYPE)                      &  !<-- The fcst tasks sending to this write task
-            ,wrt_int_state%ID_FTASK_RECV_END(MYPE)                         !<--
-!
-          ITS=wrt_int_state%LOCAL_ISTART(N)
-          ITE=wrt_int_state%LOCAL_IEND  (N)
-          JTS=wrt_int_state%LOCAL_JSTART(N)
-          JTE=wrt_int_state%LOCAL_JEND  (N)
-!
-          NUM_WORDS_TOT=(ITE-ITS+1+2*IHALO(1))*(JTE-JTS+1+2*JHALO(1))   &  !<-- # of words of 2D integer history data from fcst task N
-                        *wrt_int_state%KOUNT_I2D(1)
-!
-          wrt_int_state%NUM_WORDS_RECV_I2D_HST(N)=NUM_WORDS_TOT
-          MAX_WORDS=MAX(MAX_WORDS                                       &  !<-- Max # of real words from all fcst tasks
-                       ,wrt_int_state%NUM_WORDS_RECV_I2D_HST(N))           !<--
-        ENDDO
-!
-        IF(.NOT.ALLOCATED(wrt_int_state%ALL_DATA_I2D))THEN
-          ALLOCATE(wrt_int_state%ALL_DATA_I2D(MAX_WORDS),stat=ISTAT)
-          IF(ISTAT/=0)THEN
-            WRITE(0,*)' Write task FAILED to allocate ALL_DATA_I2D'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT               &
-                              ,rc             =RC_ABORT  )
-          ENDIF
-        ENDIF
-!
-!-----------------------------------------------------------------------
-!***  Each Write task also must know the North-South extent of the
-!***  full 2D domain that it will handle.  This is determined by
-!***  the coverage of the Fcst tasks that send to it.
-!-----------------------------------------------------------------------
-!
-        JSTA_WRITE=wrt_int_state%LOCAL_JSTART(wrt_int_state%ID_FTASK_RECV_STA(MYPE))  !<-- JTS of 1st fcst task that sends to this write task
-        JEND_WRITE=wrt_int_state%LOCAL_JEND  (wrt_int_state%ID_FTASK_RECV_END(MYPE))  !<-- JTE of last fcst task that sends to this write task
-!
-!-----------------------------------------------------------------------
-!***  Now each Write task allocates its own section of the 2D domain
-!***  for all the 2D variables it will receive and its 1D equivalent
-!***  used to transfer the data to the lead Write task.
-!-----------------------------------------------------------------------
-!
-        ALLOCATE(wrt_int_state%WRITE_SUBSET_I(1:IM,JSTA_WRITE:JEND_WRITE  &
-                                             ,wrt_int_state%KOUNT_I2D(1)))
-        LENGTH=IM*(JEND_WRITE-JSTA_WRITE+1)*wrt_int_state%KOUNT_I2D(1)
-        ALLOCATE(wrt_int_state%BUFF_INT(LENGTH))
-!
-        ALLOCATE(wrt_int_state%WRITE_SUBSET_R(1:IM,JSTA_WRITE:JEND_WRITE  &
-                                             ,wrt_int_state%KOUNT_R2D(1)))
-        LENGTH=IM*(JEND_WRITE-JSTA_WRITE+1)*wrt_int_state%KOUNT_R2D(1)
-        ALLOCATE(wrt_int_state%BUFF_REAL(LENGTH))
-!
-      ENDIF
-!
-!-----------------------------------------------------------------------
-!***  The lead Write task allocates its working arrays into which
-!***  it will assemble each individual 2D field that will be
-!***  written to the history files.
-!-----------------------------------------------------------------------
-!
-      IF(MYPE==LEAD_WRITE_TASK)THEN
-        ALLOCATE(wrt_int_state%OUTPUT_ARRAY_I2D(1:IM,1:JM))
-        ALLOCATE(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM))
-      ENDIF
-!
-!-----------------------------------------------------------------------
-!***  Since all scalar/1D data is identical on all forecast tasks,
-!***  task 0 alone can send the information to the lead Write task
-!***  that will later write it to the history file.
-!--------------------------------------------------------------------
-!
-!--------------------------------------------------------------------
-      task_0_sends: IF(MYPE==0)THEN                                      !<-- Forecast task 0 sends
-!--------------------------------------------------------------------
-!
-!------------------------------------------------
-!***  Send scalar/1D integer history information.
-!------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Fcst Task0 Sends Scalar/1D Integer History Data"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%KOUNT_I1D               &  !<-- Send # of scalar/1D integer history variables
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%LENGTH_SUM_I1D          &  !<-- Send length of string of all such integer history variables
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%LENGTH_DATA_I1D         &  !<-- Send lengths of each scalar/1D integer history variable
-                        ,count   =wrt_int_state%KOUNT_I1D(1)            &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%NAMES_I1D_STRING        &  !<-- Send names of each scalar/1D integer history variable
-                        ,count   =NCHAR_I1D                             &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%ALL_DATA_I1D            &  !<-- Send the full string of all scalar/1D integer history data
-                        ,count   =wrt_int_state%LENGTH_SUM_I1D(1)       &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!---------------------------------------------
-!***  Send scalar/1D real history information.
-!---------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Fcst Task0 Sends Scalar/1D Real History Data"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%KOUNT_R1D               &  !<-- Send # of scalar/1D real history variables
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%LENGTH_SUM_R1D          &  !<-- Send length of string of all such real history variables
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%LENGTH_DATA_R1D         &  !<-- Send lengths of each scalar/1D real history variable
-                        ,count   =wrt_int_state%KOUNT_R1D(1)            &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%NAMES_R1D_STRING        &  !<-- Send names of each scalar/1D real history variable
-                        ,count   =NCHAR_R1D                             &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%ALL_DATA_R1D            &  !<-- Send the full string of all scalar/1D real history data
-                        ,count   =wrt_int_state%LENGTH_SUM_R1D(1)       &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!--------------------------------------
-!***  Send logical history information.
-!--------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Fcst Task0 Sends Logical History Data"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%KOUNT_LOG               &  !<-- Send # of logical history variables
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%LENGTH_SUM_LOG          &  !<-- Send length of string of all logical variables
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%NAMES_LOG_STRING        &  !<-- Send names of each logical history variable
-                        ,count   =NCHAR_LOG                             &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%ALL_DATA_LOG            &  !<-- Send the full string of all logical history data
-                        ,count   =wrt_int_state%LENGTH_SUM_LOG(1)       &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-      ENDIF task_0_sends
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!
-      write_task_recvs: IF(MYPE==LEAD_WRITE_TASK)THEN                      !<-- 1st write task in this group receives
-                                                                           !    all of the data just sent to it by
-                                                                           !    fcst task 0
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!***  Receive scalar/1D integer history information
-!***  from Forecast task 0.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Write Tasks Recv Scalar/1D Integer History Data"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%KOUNT_I1D               &  !<-- Recv # of integer history variables
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%LENGTH_SUM_I1D          &  !<-- Recv length of string of all integer history variables
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%LENGTH_DATA_I1D         &  !<-- Recv lengths of each integer history variable
-                        ,count   =wrt_int_state%KOUNT_I1D(1)            &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        NCHAR_I1D=wrt_int_state%KOUNT_I1D(1)*ESMF_MAXSTR
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%NAMES_I1D_STRING        &  !<-- Recv names of integer history variables
-                        ,count   =NCHAR_I1D                             &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%ALL_DATA_I1D            &  !<-- Recv the string of integer history data
-                        ,count   =wrt_int_state%LENGTH_SUM_I1D(1)       &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Receive scalar/1D real history information.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Write Tasks Recv Scalar/1D Real History Data"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%KOUNT_R1D               &  !<-- Recv # of scalar/1D real history variables
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%LENGTH_SUM_R1D          &  !<-- Recv length of string of all such real history variables
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%LENGTH_DATA_R1D         &  !<-- Recv lengths of each scalar/1D real history variable
-                        ,count   =wrt_int_state%KOUNT_R1D(1)            &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        NCHAR_R1D=wrt_int_state%KOUNT_R1D(1)*ESMF_MAXSTR
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%NAMES_R1D_STRING        &  !<-- Recv names of scalar/1D real history variables
-                        ,count   =NCHAR_R1D                             &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%ALL_DATA_R1D            &  !<-- Recv the string of all scalar/1D real history data
-                        ,count   =wrt_int_state%LENGTH_SUM_R1D(1)       &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Receive logical history information.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Write Tasks Recv Logical Real History Data"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%KOUNT_LOG               &  !<-- Recv # of logical history variables
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%LENGTH_SUM_LOG          &  !<-- Recv length of string of all logical history variables
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        NCHAR_LOG=wrt_int_state%KOUNT_LOG(1)*ESMF_MAXSTR
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%NAMES_LOG_STRING        &  !<-- Recv names of logical history variables
-                        ,count   =NCHAR_LOG                             &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%ALL_DATA_LOG            &  !<-- Recv the string of all logical history data
-                        ,count   =wrt_int_state%LENGTH_SUM_LOG(1)       &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-      ENDIF write_task_recvs
-!
-!-----------------------------------------------------------------------
-!
-      DEALLOCATE(INPES,JNPES)
-!
-!-----------------------------------------------------------------------
-!
-      END SUBROUTINE FIRST_PASS_HST
-!
-!-----------------------------------------------------------------------
-!$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!#######################################################################
-!-----------------------------------------------------------------------
-!
-      SUBROUTINE FIRST_PASS_RST(IMP_STATE_WRITE                         &
-                               ,RESTART_BUNDLE                          &
-                               ,WRT_INT_STATE                           &
-                               ,NTASKS                                  &
-                               ,MYPE                                    &
-                               ,NCURRENT_GROUP                          &
-                                )
-! 
-!-----------------------------------------------------------------------
-!***  Each time a new group of write tasks is invoked for the first
-!***  time this routine will perform certain computations and tasks
-!***  that only need to be done once for each write group.
-!***  The routine will unload some values from the Write component's
-!***  import state.  Because these quantities do not change with
-!***  forecast time, the routine is not needed for subsequent use
-!***  of each write group.  The data being unloaded consists of
-!***  everything except the 2-D/3-D gridded forecast arrays.
-!***  Also basic information is provided to forecast and write tasks
-!***  that will be necessary in the quilting of local 2-D gridded
-!***  restart data into full domain 2-D fields.
-!-----------------------------------------------------------------------
-!
-!------------------------
-!***  Argument variables
-!------------------------
-!
-      INTEGER,INTENT(IN) :: NTASKS
-      INTEGER,INTENT(IN) :: MYPE
-      INTEGER,INTENT(IN) :: NCURRENT_GROUP
-!
-      TYPE(ESMF_State)          ,INTENT(INOUT) :: IMP_STATE_WRITE
-      TYPE(ESMF_FieldBundle)    ,INTENT(INOUT) :: RESTART_BUNDLE
-      TYPE(WRITE_INTERNAL_STATE),INTENT(INOUT) :: WRT_INT_STATE
-!
-!---------------------
-!***  Local variables
-!---------------------
-!
-      INTEGER,SAVE                 :: ITS,ITE,JTS,JTE
-!
-      INTEGER                      :: I,IERR,IM,ISTAT,J,JM,L,MAX_WORDS  &
-                                     ,N,NN,RST_NUM_ATTRIB,NWTPG         &
-                                     ,RC,RC_ABORT,RC_WRT
-!
-      INTEGER,DIMENSION(:),POINTER :: INPES,JNPES
-      INTEGER,DIMENSION(:),POINTER :: IHALO,JHALO
-!
-      INTEGER                      :: JROW_FIRST,JROW_LAST,JROWS
-!
-      INTEGER                      :: LAST_FCST_TASK                    &
-                                     ,LEAD_WRITE_TASK                   &
-                                     ,LAST_WRITE_TASK                   &
-                                     ,N_END                             &
-                                     ,N_STA
-!
-      INTEGER,SAVE                 :: RST_NCHAR_I1D                     &
-                                     ,RST_NCHAR_R1D                     &
-                                     ,RST_NCHAR_LOG
-!
-      INTEGER                      :: JEND_WRITE,JSTA_WRITE
-!
-      INTEGER                      :: RST_KOUNT_I1D                     &
-                                     ,RST_KOUNT_I2D                     &
-                                     ,RST_KOUNT_R1D                     &
-                                     ,RST_KOUNT_R2D                     &
-                                     ,RST_KOUNT_LOG
-!
-      INTEGER                      :: LENGTH                            &
-                                     ,RST_LENGTH_SUM_I1D                &
-                                     ,RST_LENGTH_SUM_R1D                &
-                                     ,RST_LENGTH_SUM_LOG
-!
-      INTEGER                      :: NPOSN_START,NPOSN_END
-!
-      INTEGER                      :: NUM_PES_FCST                      &
-                                     ,NUM_WORDS                         &
-                                     ,RST_NUM_FIELD_NAMES
-!
-      INTEGER(KIND=KDIN) :: NUM_WORDS_TOT
-!
-      INTEGER,DIMENSION(MPI_STATUS_SIZE) :: JSTAT
-!
-      INTEGER,DIMENSION(:),POINTER :: LOCAL_ISTART                      &
-                                     ,LOCAL_IEND                        &
-                                     ,LOCAL_JSTART                      &
-                                     ,LOCAL_JEND
-!
-      INTEGER,DIMENSION(:),POINTER :: RST_NCHAR_I2D                     &
-                                     ,RST_NCHAR_R2D
-!
-      INTEGER,DIMENSION(:),POINTER :: WORK_ARRAY_I1D
-!
-      REAL(4),DIMENSION(:),POINTER :: WORK_ARRAY_R1D
-!
-      CHARACTER(ESMF_MAXSTR)       :: ATTRIB_NAME
-!
-      TYPE(ESMF_TypeKind)          :: DATATYPE
-!
-      TYPE(ESMF_Field)             :: FIELD_WORK1
-!
-      TYPE(ESMF_Logical)              :: WORK_LOGICAL
-      TYPE(ESMF_Logical),DIMENSION(1) :: NO_FIELDS
-!
-      TYPE(ESMF_VM)                :: VM
-!
-!-----------------------------------------------------------------------
-!***********************************************************************
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!***  First we need the number of Write tasks in each group.
-!-----------------------------------------------------------------------
-!
-      NWTPG=wrt_int_state%WRITE_TASKS_PER_GROUP
-!
-      LAST_FCST_TASK =NTASKS-NWTPG-1
-      LEAD_WRITE_TASK=LAST_FCST_TASK+1
-      LAST_WRITE_TASK=NTASKS-1
-!
-!-----------------------------------------------------------------------
-!***  The integer quantities 'INPES' and 'JNPES' must be pointers
-!***  of length 1 since they will be passed through ESMF Send/Recv.
-!***  Likewise with the total length of all names of 2D data 
-!***  and the halo depths.
-!-----------------------------------------------------------------------
-!
-      ALLOCATE(INPES(1))
-      ALLOCATE(JNPES(1))
-      ALLOCATE(IHALO(1))
-      ALLOCATE(JHALO(1))
-      ALLOCATE(RST_NCHAR_I2D(1))
-      ALLOCATE(RST_NCHAR_R2D(1))
-!
-!-----------------------------------------------------------------------
-!***  Extract the full domain limits from the component's import 
-!***  state.  These are needed for allocating the working arrays 
-!***  that will move the 2-D and 3-D Fields from the import to the
-!***  export state.
-!-----------------------------------------------------------------------
-!
-!
-!-----------------------------------------------------------------------
-!
-      domain_limits: IF(MYPE<=LAST_FCST_TASK)THEN                          !<-- This selects only forecast tasks to do extractions
-                                                                           !    since only they know what is in the import state
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!***  Allocate the arrays that hold all start and end points in I,J
-!***  for all Forecast tasks.
-!-----------------------------------------------------------------------
-!
-        ALLOCATE(LOCAL_ISTART(0:LAST_FCST_TASK),stat=RC)
-        ALLOCATE(LOCAL_IEND  (0:LAST_FCST_TASK),stat=RC)
-        ALLOCATE(LOCAL_JSTART(0:LAST_FCST_TASK),stat=RC)
-        ALLOCATE(LOCAL_JEND  (0:LAST_FCST_TASK),stat=RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract Global Parameters from Restart Bundle" 
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_AttributeGet(bundle   =RESTART_BUNDLE                 &  !<-- The Bundle of restart data
-                              ,name     ='IM'                           &  !<-- Name of the Attribute to extract
-                              ,count    =1                              &  !<-- Length of Attribute
-                              ,valueList=wrt_int_state%IM               &  !<-- Extract this Attribute from Restart Bundle
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeGet(bundle   =RESTART_BUNDLE                 &  !<-- The Bundle of restart data
-                              ,name     ='JM'                           &  !<-- Name of the Attribute to extract
-                              ,count    =1                              &  !<-- Length of Attribute
-                              ,valueList=wrt_int_state%JM               &  !<-- Extract this Attribute from Restart Bundle
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeGet(bundle   =RESTART_BUNDLE                 &  !<-- The Bundle of restart data
-                              ,name     ='LM'                           &  !<-- Name of the Attribute to extract
-                              ,count    =1                              &  !<-- Length of Attribute
-                              ,valueList=wrt_int_state%LM               &  !<-- Extract this Attribute from Restart Bundle
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeGet(bundle=RESTART_BUNDLE                    &  !<-- The Bundle of restart data
-                              ,name  ='GLOBAL'                          &  !<-- Name of the Attribute to extract
-                              ,value =wrt_int_state%GLOBAL              &  !<-- Extract this Attribute from Restart Bundle
-                              ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        IF(wrt_int_state%GLOBAL==ESMF_TRUE)THEN                            !<-- Increase lateral dimensions by 2 for global runs
-          wrt_int_state%IM(1)=wrt_int_state%IM(1)+2
-          wrt_int_state%JM(1)=wrt_int_state%JM(1)+2
-        ENDIF
-!
-!-----------------------------------------------------------------------
-!***  Now extract local subdomain limits.
-!***  These will be used to allocate the working array to hold fields
-!***  on each subdomain prior to quilting them together.
-!***  We first need the number of Forecast tasks since that
-!***  determines the size of the arrays holding the local
-!***  subdomain limits.
-!
-!***  Also extract the halo depths since they are needed for
-!***  excluding halo points from the final restart data.
-!
-!***  These values are not to be written to the restart files so
-!***  they were not inserted into the restart data Bundle inside
-!***  the Write component's import state.
+!***  excluding halo points from the final output data.
+!
+!***  These values are not to be written to the output files so
+!***  they were not inserted into the data Bundles inside the
+!***  Write component's import state.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1879,8 +542,6 @@
 !
         wrt_int_state%INPES=INPES(1)                                       !<-- Place in internal state for later use
         wrt_int_state%JNPES=JNPES(1)                                       !<-- Place in internal state for later use
-!
-        NUM_PES_FCST=INPES(1)*JNPES(1)                                     !<-- Number of fcst tasks
 !
         CALL ESMF_AttributeGet(state=IMP_STATE_WRITE                    &  !<-- The Write component's import state
                               ,name ='IHALO'                            &  !<-- Name of the Attribute to extract
@@ -1930,10 +591,10 @@
           wrt_int_state%LOCAL_JEND  (N)=LOCAL_JEND(N)
         ENDDO
 !
-        ITS=LOCAL_ISTART(MYPE)
-        ITE=LOCAL_IEND(MYPE)
-        JTS=LOCAL_JSTART(MYPE)
-        JTE=LOCAL_JEND(MYPE)
+        ITS=LOCAL_ISTART(MYPE_DOMAIN)
+        ITE=LOCAL_IEND(MYPE_DOMAIN)
+        JTS=LOCAL_JSTART(MYPE_DOMAIN)
+        JTE=LOCAL_JEND(MYPE_DOMAIN)
 !
         DEALLOCATE(LOCAL_ISTART)
         DEALLOCATE(LOCAL_IEND  )
@@ -1949,119 +610,119 @@
 !***  to the first Write task in each Write group because 
 !***  the Write tasks need to know this to assemble the
 !***  final gridded data.
-!***  First we need the VM.
 !-----------------------------------------------------------------------
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Get the Current VM"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      n_groups_1: DO N=1,NUM_WRITE_GROUPS
 !
-      CALL ESMF_VMGetCurrent(vm=VM                                      &  !<-- The ESMF virtual machine for this group of tasks
-                            ,rc=RC)
+!-----------------------------------------------------------------------
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        N1=LEAD_WRITE_TASK(N)
+        N2=LAST_WRITE_TASK(N)
 !
 !-----------------------------------------------------------------------
 !                            -- IM --
 !-----------------------------------------------------------------------
 !
-      IF(MYPE==0)THEN                                                      !<-- Forecast task 0 sends
-        DO N=0,NWTPG-1
-          CALL MPI_SEND(wrt_int_state%IM                                &  !<-- Send this data
-                       ,1                                               &  !<-- Number of words sent
+        IF(MYPE_DOMAIN==0)THEN                                             !<-- Forecast task 0 sends
+          DO NN=N1,N2     
+            CALL MPI_SEND(wrt_int_state%IM                              &  !<-- Send this data
+                         ,1                                             &  !<-- Number of words sent
+                         ,MPI_INTEGER                                   &  !<-- Datatype
+                         ,NN                                            &  !<-- Send to each of the write tasks (domain IDs)
+                         ,0                                             &  !<-- An MPI tag
+                         ,COMM_MY_DOMAIN                                &  !<-- MPI domain communicator
+                         ,IERR)
+!
+            IF(IERR/=0)WRITE(0,*)' Failed to send IM from fcst task 0 to write tasks'
+!
+          ENDDO
+        ENDIF 
+!
+        IF(MYPE_DOMAIN>=N1.AND.MYPE_DOMAIN<=N2)THEN                        !<-- Write tasks in this group receive
+          CALL MPI_RECV(wrt_int_state%IM                                &  !<-- Recv this data
+                       ,1                                               &  !<-- Words received
                        ,MPI_INTEGER                                     &  !<-- Datatype
-                       ,N                                               &  !<-- Send to each of the write tasks (local IDs)
+                       ,0                                               &  !<-- Recv from fcst task 0
                        ,0                                               &  !<-- An MPI tag
-                       ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP)            &  !<-- MPI communicator
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,JSTAT                                           &  !<-- MPI status object
                        ,IERR)
 !
-          IF(IERR/=0)WRITE(0,*)' Failed to send IM from fcst task0 to write tasks'
+          IF(IERR/=0)WRITE(0,*)' Write tasks failed to receive IM from fcst task0'
 !
-        ENDDO
-      ENDIF 
-
-      IF(MYPE>=LEAD_WRITE_TASK)THEN                                        !<-- Write tasks in this group receive
-        CALL MPI_RECV(wrt_int_state%IM                                  &  !<-- Recv this data
-                     ,1                                                 &  !<-- Words received
-                     ,MPI_INTEGER                                       &  !<-- Datatype
-                     ,0                                                 &  !<-- Recv from fcst task 0
-                     ,0                                                 &  !<-- An MPI tag
-                     ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP)              &  !<-- MPI communicator
-                     ,JSTAT                                             &  !<-- MPI status object
-                     ,IERR)
-!
-        IF(IERR/=0)WRITE(0,*)' Write tasks failed to receive IM from fcst task0'
-!
-      ENDIF
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !                          -- JM --
 !-----------------------------------------------------------------------
 !
-      IF(MYPE==0)THEN                                                      !<-- Forecast task 0 sends
-        DO N=0,NWTPG-1                                            
-          CALL MPI_SEND(wrt_int_state%JM                                &  !<-- Send this data
-                       ,1                                               &  !<-- Number of words sent
+        IF(MYPE_DOMAIN==0)THEN                                             !<-- Forecast task 0 sends
+          DO NN=N1,N2                                               
+            CALL MPI_SEND(wrt_int_state%JM                              &  !<-- Send this data
+                         ,1                                             &  !<-- Number of words sent
+                         ,MPI_INTEGER                                   &  !<-- Datatype
+                         ,NN                                            &  !<-- Send to each of the write tasks (local IDs)
+                         ,0                                             &  !<-- An MPI tag
+                         ,COMM_MY_DOMAIN                                &  !<-- MPI domain communicator
+                         ,IERR)
+!
+            IF(IERR/=0)WRITE(0,*)' Failed to send JM from fcst task0 to write tasks'
+!
+          ENDDO
+        ENDIF 
+!
+        IF(MYPE_DOMAIN>=N1.AND.MYPE_DOMAIN<=N2)THEN                        !<-- Write tasks in this group receive
+          CALL MPI_RECV(wrt_int_state%JM                                &  !<-- Recv this data
+                       ,1                                               &  !<-- Words received
                        ,MPI_INTEGER                                     &  !<-- Datatype
-                       ,N                                               &  !<-- Send to each of the write tasks (local IDs)
+                       ,0                                               &  !<-- Recv from fcst task 0
                        ,0                                               &  !<-- An MPI tag
-                       ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP)            &  !<-- MPI communicator
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,JSTAT                                           &  !<-- MPI status object
                        ,IERR)
 !
-          IF(IERR/=0)WRITE(0,*)' Failed to send JM from fcst task0 to write tasks'
+          IF(IERR/=0)WRITE(0,*)' Write tasks failed to receive JM from fcst task0'
 !
-        ENDDO
-      ENDIF 
-!
-      IF(MYPE>=LEAD_WRITE_TASK)THEN                                        !<-- Write tasks in this group receive
-        CALL MPI_RECV(wrt_int_state%JM                                  &  !<-- Recv this data
-                     ,1                                                 &  !<-- Words received
-                     ,MPI_INTEGER                                       &  !<-- Datatype
-                     ,0                                                 &  !<-- Recv from fcst task 0
-                     ,0                                                 &  !<-- An MPI tag
-                     ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP)              &  !<-- MPI communicator
-                     ,JSTAT                                             &  !<-- MPI status object
-                     ,IERR)
-!
-        IF(IERR/=0)WRITE(0,*)' Write tasks failed to receive JM from fcst task0'
-!
-      ENDIF
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !                          -- LM --
 !-----------------------------------------------------------------------
 !
-      IF(MYPE==0)THEN                                                      !<-- Forecast task 0 sends
-        DO N=0,NWTPG-1                                            
-          CALL MPI_SEND(wrt_int_state%LM                                &  !<-- Send this data
-                       ,1                                               &  !<-- Number of words sent
+        IF(MYPE_DOMAIN==0)THEN                                             !<-- Forecast task 0 sends
+          DO NN=N1,N2                                               
+            CALL MPI_SEND(wrt_int_state%LM                              &  !<-- Send this data
+                         ,1                                             &  !<-- Number of words sent
+                         ,MPI_INTEGER                                   &  !<-- Datatype
+                         ,NN                                            &  !<-- Send to each of the write tasks (local IDs)
+                         ,0                                             &  !<-- An MPI tag
+                         ,COMM_MY_DOMAIN                                &  !<-- MPI domain communicator
+                         ,IERR)
+!
+            IF(IERR/=0)WRITE(0,*)' Failed to send LM from fcst task0 to write tasks'
+!
+          ENDDO
+        ENDIF 
+!
+        IF(MYPE_DOMAIN>=N1.AND.MYPE_DOMAIN<=N2)THEN                        !<-- Write tasks in this group receive
+          CALL MPI_RECV(wrt_int_state%LM                                &  !<-- Recv this data
+                       ,1                                               &  !<-- Words received
                        ,MPI_INTEGER                                     &  !<-- Datatype
-                       ,N                                               &  !<-- Send to each of the write tasks (local IDs)
+                       ,0                                               &  !<-- Recv from fcst task 0
                        ,0                                               &  !<-- An MPI tag
-                       ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP)            &  !<-- MPI communicator
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,JSTAT                                           &  !<-- MPI status object
                        ,IERR)
 !
-          IF(IERR/=0)WRITE(0,*)' Failed to send LM from fcst task0 to write tasks'
+          IF(IERR/=0)WRITE(0,*)' Write tasks failed to receive LM from fcst task0'
 !
-        ENDDO
-      ENDIF 
+        ENDIF
 !
-      IF(MYPE>=LEAD_WRITE_TASK)THEN                                        !<-- Write tasks in this group receive
-        CALL MPI_RECV(wrt_int_state%LM                                  &  !<-- Recv this data
-                     ,1                                                 &  !<-- Words received
-                     ,MPI_INTEGER                                       &  !<-- Datatype
-                     ,0                                                 &  !<-- Recv from fcst task 0
-                     ,0                                                 &  !<-- An MPI tag
-                     ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP)              &  !<-- MPI communicator
-                     ,JSTAT                                             &  !<-- MPI status object
-                     ,IERR)
+!-----------------------------------------------------------------------
 !
-        IF(IERR/=0)WRITE(0,*)' Write tasks failed to receive LM from fcst task0'
+      ENDDO n_groups_1
 !
-      ENDIF
+!-----------------------------------------------------------------------
 !
       IM=wrt_int_state%IM(1)
       JM=wrt_int_state%JM(1)
@@ -2073,11 +734,6 @@
 !***  them to the Write tasks, extract the number of each of
 !***  them along with their names.  The scalars can be lumped in
 !***  with the 1D arrays at this point.
-!
-!***  Even though these counts are just scalar integers their
-!***  pointers were allocated in WRT_INIT to length 1 since they
-!***  will be used in ESMF_Send/Recv which require them to be 
-!***  contiguous data arrays.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
@@ -2088,49 +744,49 @@
 !***  in WRT_INIT.
 !-----------------------------------------------------------------------
 !
-      RST_KOUNT_I1D=0
-      RST_KOUNT_R1D=0
-      RST_KOUNT_LOG=0
+      KOUNT_I1D_X=0
+      KOUNT_R1D_X=0
+      KOUNT_LOG_X=0
 !
-      RST_LENGTH_SUM_I1D=0
-      RST_LENGTH_SUM_R1D=0
-      RST_LENGTH_SUM_LOG=0
+      LENGTH_SUM_I1D_X=0
+      LENGTH_SUM_R1D_X=0
+      LENGTH_SUM_LOG_X=0
 !
-      RST_NCHAR_I1D=0
-      RST_NCHAR_R1D=0
-      RST_NCHAR_LOG=0
-!
-!-----------------------------------------------------------------------
-!
-      fcst_tasks: IF(MYPE<=LAST_FCST_TASK)THEN                           !<-- Only forecast tasks will extract output information
-                                                                         !    from the import state because only they participated
-                                                                         !    in filling the import state in the Dynamics/Physics
-                                                                         !    components.
+      NCHAR_I1D=0
+      NCHAR_R1D=0
+      NCHAR_LOG=0
 !
 !-----------------------------------------------------------------------
-!***  First find the number of Attributes in the restart data Bundle
+!
+      fcst_tasks_2: IF(MYPE_DOMAIN<=LAST_FCST_TASK)THEN                    !<-- Only forecast tasks will extract output information
+                                                                           !    from the import state because only they participated
+                                                                           !    in filling the import state in the Dynamics/Physics
+                                                                           !    components.
+!
+!-----------------------------------------------------------------------
+!***  First find the number of Attributes in the output data Bundle
 !***  in the import state and then find their names, lengths, and
 !***  datatypes.
 !***  Extract the integer and real data and pack it into integer
 !***  and real buffers.  Later the buffers will be sent from the
 !***  Forecast tasks (the only ones who can see the original
-!***  data) to the Write tasks.
+!***  data) to the write tasks.
 !
-!***  The fact that the Attribute restart data is being collected
+!***  The fact that the Attribute output data is being collected
 !***  here in a block that executes only once per Write group
 !***  implies the assumption that only the 2D/3D data
 !***  associated with the forecast grid can change with time.
 !***  If any scalar/1D Attribute data change with time then
-!***  this must be moved out of this 'first' block.
+!***  this must be moved out of this routine and into the Run step.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Get Attribute Count from Restart Bundle"
+        MESSAGE_CHECK="Get Attribute Count from "//BUNDLE_NAME
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeGet(bundle =RESTART_BUNDLE                   &  !<-- The write component's restart data Bundle
-                              ,count  =RST_NUM_ATTRIB                   &  !<-- # of Attributes in the restart data Bundle
+        CALL ESMF_AttributeGet(bundle =OUTPUT_BUNDLE                    &  !<-- The Write component's data Bundle
+                              ,count  =NUM_ATTRIB                       &  !<-- # of Attributes in the data Bundle
                               ,rc     =RC)       
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2138,7 +794,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-        attribute_loop: DO N=1,RST_NUM_ATTRIB                              !<-- Loop through all the Attributes
+        attribute_loop: DO N=1,NUM_ATTRIB                                  !<-- Loop through all the Attributes
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2146,7 +802,7 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_AttributeGet(bundle         =RESTART_BUNDLE         &  !<-- The write component's restart data Bundle
+          CALL ESMF_AttributeGet(bundle         =OUTPUT_BUNDLE          &  !<-- The Write component's data Bundle
                                 ,attributeIndex =N                      &  !<-- Index of each Attribute
                                 ,name           =ATTRIB_NAME            &  !<-- Each Attribute's name
                                 ,typekind       =DATATYPE               &  !<-- Each Attribute's ESMF Datatype
@@ -2158,7 +814,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!                 -- SCALAR AND 1D INTEGER RESTART DATA --
+!                 -- Scalar and 1-D Integer Output Data --
 !-----------------------------------------------------------------------
 !
           IF(DATATYPE==ESMF_TYPEKIND_I4)THEN                               !<-- Extract integer data with rank <2
@@ -2166,81 +822,83 @@
             ALLOCATE(WORK_ARRAY_I1D(LENGTH),stat=RC)                       !<-- This length is from the preceding call 
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Get Scalar/1-D Integer Data from Restart Bundle"
+            MESSAGE_CHECK="Get Scalar/1-D Integer Data from "//BUNDLE_NAME
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL ESMF_AttributeGet(bundle    =RESTART_BUNDLE            &  !<-- The write component's restart data Bundle
-                                  ,name      =ATTRIB_NAME               &  !<-- Name of the Attribute to extract
-                                  ,count     =LENGTH                    &  !<-- Length of Attribute
-                                  ,valueList =WORK_ARRAY_I1D            &  !<-- Place the Attribute here
+            CALL ESMF_AttributeGet(bundle   =OUTPUT_BUNDLE              &  !<-- The Write component's data Bundle
+                                  ,name     =ATTRIB_NAME                &  !<-- Name of the Attribute to extract
+                                  ,count    =LENGTH                     &  !<-- Length of Attribute
+                                  ,valueList=WORK_ARRAY_I1D             &  !<-- Place the Attribute here
                                   ,rc=RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            RST_KOUNT_I1D=RST_KOUNT_I1D+1                                  !<-- Count # of integer Attributes
+            KOUNT_I1D_X=KOUNT_I1D_X+1                                      !<-- Count # of integer Attributes
 !
-            NPOSN_END=RST_KOUNT_I1D*ESMF_MAXSTR
+            NPOSN_END=KOUNT_I1D_X*ESMF_MAXSTR
             NPOSN_START=NPOSN_END-ESMF_MAXSTR+1     
-            wrt_int_state%RST_NAMES_I1D_STRING(NPOSN_START:NPOSN_END)=ATTRIB_NAME  !<-- Save the 1D integer names
-            RST_NCHAR_I1D=RST_NCHAR_I1D+ESMF_MAXSTR                                !<-- Save #of characters in all scalar/1D integer names
-                                                                                   !    Note that each name is being given
-                                                                                   !    EMSF_MAXSTR total spaces
+            NCHAR_I1D=NCHAR_I1D+ESMF_MAXSTR                                !<-- Save #of characters in all scalar/1D integer names.
+                                                                           !    Note that each name is being given
+                                                                           !    EMSF_MAXSTR total spaces.
 !
             DO L=1,LENGTH
-              wrt_int_state%RST_ALL_DATA_I1D(RST_LENGTH_SUM_I1D+L)=WORK_ARRAY_I1D(L)  !<-- String together the integer data
+              ALL_DATA_I1D(LENGTH_SUM_I1D_X+L)=WORK_ARRAY_I1D(L)           !<-- String together the integer data
             ENDDO
 !
-            RST_LENGTH_SUM_I1D=RST_LENGTH_SUM_I1D+LENGTH                   !<-- Total word sum of scalar/1D integer data
-            wrt_int_state%RST_LENGTH_DATA_I1D(RST_KOUNT_I1D)=LENGTH        !<-- Store length of each individual integer variable
+            LENGTH_SUM_I1D_X=LENGTH_SUM_I1D_X+LENGTH                       !<-- Total word sum of scalar/1D integer data
+!
+            NAMES_I1D_STRING(NPOSN_START:NPOSN_END)=ATTRIB_NAME            !<-- Save the 1D integer names
+            LENGTH_DATA_I1D(KOUNT_I1D_X)=LENGTH                            !<-- Store length of each individual integer variable
 !
             DEALLOCATE(WORK_ARRAY_I1D)
 !
 !-----------------------------------------------------------------------
-!                  -- SCALAR AND 1D REAL RESTART DATA --
+!                  -- Scalar and 1-D Real Output Data --
 !-----------------------------------------------------------------------
 !
-          ELSEIF(DATATYPE==ESMF_TYPEKIND_R4)THEN                           ! <-- Extract real data with rank <2
+          ELSEIF(DATATYPE==ESMF_TYPEKIND_R4)THEN                           ! <-- Extract real data with rank <2 as Attributes
 !
             ALLOCATE(WORK_ARRAY_R1D(LENGTH),stat=RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Get Scalar/1-D Real Data from Restart Bundle"
+            MESSAGE_CHECK="Get Scalar/1-D Real Data from "//BUNDLE_NAME
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL ESMF_AttributeGet(bundle    =RESTART_BUNDLE            &  !<-- The write component's restart data Bundle
-                                  ,name      =ATTRIB_NAME               &  !<-- Name of the Attribute to extract
-                                  ,count     =LENGTH                    &  !<-- Length of Attribute
-                                  ,valueList =WORK_ARRAY_R1D            &  !<-- Place the Attribute here
+            CALL ESMF_AttributeGet(bundle   =OUTPUT_BUNDLE              &  !<-- The write component's data Bundle
+                                  ,name     =ATTRIB_NAME                &  !<-- Name of the Attribute to extract
+                                  ,count    =LENGTH                     &  !<-- Length of Attribute
+                                  ,valueList=WORK_ARRAY_R1D             &  !<-- Place the Attribute here
                                   ,rc=RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            RST_KOUNT_R1D=RST_KOUNT_R1D+1                                  !<-- Count # of real Attributes
+            KOUNT_R1D_X=KOUNT_R1D_X+1                                      !<-- Count # of real Attributes
 !
-            NPOSN_END=RST_KOUNT_R1D*ESMF_MAXSTR
+            NPOSN_END=KOUNT_R1D_X*ESMF_MAXSTR
             NPOSN_START=NPOSN_END-ESMF_MAXSTR+1     
-            wrt_int_state%RST_NAMES_R1D_STRING(NPOSN_START:NPOSN_END)=ATTRIB_NAME  !<-- Save the scalar/1D real names
-            RST_NCHAR_R1D=RST_NCHAR_R1D+ESMF_MAXSTR                                !<-- Save #of characters in all scalar/1D real names
-                                                                                   !    Note that each name is being given
-                                                                                   !    EMSF_MAXSTR total spaces
+            NCHAR_R1D=NCHAR_R1D+ESMF_MAXSTR                                !<-- Save #of characters in all scalar/1D real names
+                                                                           !    Note that each name is being given
+                                                                           !    EMSF_MAXSTR total spaces
 !
             DO L=1,LENGTH
-              wrt_int_state%RST_ALL_DATA_R1D(RST_LENGTH_SUM_R1D+L)=WORK_ARRAY_R1D(L)  !<-- String together the real data
+              ALL_DATA_R1D(LENGTH_SUM_R1D_X+L)=WORK_ARRAY_R1D(L)           !<-- String together the real data
             ENDDO
 !
-            RST_LENGTH_SUM_R1D=RST_LENGTH_SUM_R1D+LENGTH                   !<-- Total word sum of scalar/1D real data
-            wrt_int_state%RST_LENGTH_DATA_R1D(RST_KOUNT_R1D)=LENGTH        !<-- Store length of each individual real variable
+            LENGTH_SUM_R1D_X=LENGTH_SUM_R1D_X+LENGTH                       !<-- Total word sum of scalar/1D real data
+!
+            NAMES_R1D_STRING(NPOSN_START:NPOSN_END)=ATTRIB_NAME            !<-- Save the scalar/1D real names
+            LENGTH_DATA_R1D(KOUNT_R1D_X)=LENGTH                            !<-- Store length of each individual real variable
 !
             DEALLOCATE(WORK_ARRAY_R1D)
 !
 !-----------------------------------------------------------------------
-!                          -- LOGICAL DATA --                       
+!                          -- Logical Data --                       
 !-----------------------------------------------------------------------
 !
 !ratko    ELSEIF(DATATYPE==ESMF_DATA_LOGICAL)THEN                          ! <-- Extract logical data
@@ -2248,31 +906,31 @@
           ELSE
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Get Logical Data from Restart Bundle"
+            MESSAGE_CHECK="Get Logical Data from "//BUNDLE_NAME
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL ESMF_AttributeGet(bundle =RESTART_BUNDLE               &  !<-- The write component's restart data Bundle
-                                  ,name   =ATTRIB_NAME                  &  !<-- Name of the Attribute to extract
-                                  ,value  =WORK_LOGICAL                 &  !<-- Place the Attribute here
-                                  ,rc     =RC)
+            CALL ESMF_AttributeGet(bundle=OUTPUT_BUNDLE                 &  !<-- The write component's data Bundle
+                                  ,name  =ATTRIB_NAME                   &  !<-- Name of the Attribute to extract
+                                  ,value =WORK_LOGICAL                  &  !<-- Place the Attribute here
+                                  ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            RST_KOUNT_LOG=RST_KOUNT_LOG+1                                  !<-- Count # of logical Attributes
+            KOUNT_LOG_X=KOUNT_LOG_X+1                                      !<-- Count # of logical Attributes
 !
-            NPOSN_END=RST_KOUNT_LOG*ESMF_MAXSTR
+            NPOSN_END=KOUNT_LOG_X*ESMF_MAXSTR
             NPOSN_START=NPOSN_END-ESMF_MAXSTR+1     
-            wrt_int_state%RST_NAMES_LOG_STRING(NPOSN_START:NPOSN_END)=ATTRIB_NAME  !<-- Save the logical names
-            RST_NCHAR_LOG=RST_NCHAR_LOG+ESMF_MAXSTR                                !<-- Save #of characters in all logical names
-                                                                                   !    Note that each name is being given
-                                                                                   !    EMSF_MAXSTR total spaces
+            NCHAR_LOG=NCHAR_LOG+ESMF_MAXSTR                                !<-- Save #of characters in all logical names
+                                                                           !    Note that each name is being given
+                                                                           !    EMSF_MAXSTR total spaces
 !
-            wrt_int_state%RST_ALL_DATA_LOG(RST_KOUNT_LOG)=WORK_LOGICAL     !<-- String together the logical data
+            LENGTH_SUM_LOG_X=LENGTH_SUM_LOG_X+1                            !<-- Total length of all logical data variables
 !
-            RST_LENGTH_SUM_LOG=RST_LENGTH_SUM_LOG+1                        !<-- Total length of all logical data variables
+            NAMES_LOG_STRING(NPOSN_START:NPOSN_END)=ATTRIB_NAME            !<-- Save the logical names
+            ALL_DATA_LOG(KOUNT_LOG_X)=WORK_LOGICAL                         !<-- String together the logical data
 !
           ENDIF
 !
@@ -2285,68 +943,60 @@
 !***  and logicals into the Write component's internal state.
 !-----------------------------------------------------------------------
 !
-        wrt_int_state%RST_KOUNT_I1D(1)=RST_KOUNT_I1D
-        wrt_int_state%RST_KOUNT_R1D(1)=RST_KOUNT_R1D
-        wrt_int_state%RST_KOUNT_LOG(1)=RST_KOUNT_LOG
+        KOUNT_I1D(1)=KOUNT_I1D_X
+        KOUNT_R1D(1)=KOUNT_R1D_X
+        KOUNT_LOG(1)=KOUNT_LOG_X
 !
-        wrt_int_state%RST_LENGTH_SUM_I1D(1)=RST_LENGTH_SUM_I1D 
-        wrt_int_state%RST_LENGTH_SUM_R1D(1)=RST_LENGTH_SUM_R1D
-        wrt_int_state%RST_LENGTH_SUM_LOG(1)=RST_LENGTH_SUM_LOG
-!
-!-----------------------------------------------------------------------
-!***  Now extract the number of ESMF Fields in the restart data Bundle
-!***  Write component's import state along with their names.
-!***  Save the Field information of the 2D restart data since 
-!***  it will be needed for data extraction from the import state
-!***  and the transfer to the write tasks.
-!-----------------------------------------------------------------------
+        LENGTH_SUM_I1D(1)=LENGTH_SUM_I1D_X
+        LENGTH_SUM_R1D(1)=LENGTH_SUM_R1D_X
+        LENGTH_SUM_LOG(1)=LENGTH_SUM_LOG_X
 !
 !-----------------------------------------------------------------------
-!***  Find out the number of ESMF Fields in the restart data Bundle.
-!***  It was Fields into which the 2D gridded restart data was placed.
-!
-!***  This information will be saved in the internal state
-!***  for all output times and not be retrieved over and over again.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Get Field Count from Restart Bundle"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_FieldBundleGet(bundle    =RESTART_BUNDLE                      &  !<-- The write component's restart data Bundle
-                                ,fieldCount=wrt_int_state%RST_NCOUNT_FIELDS(1)  &  !<-- Get total # of Fields in the restart data Bundle
-                                ,rc        =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Now extract the names of all the Fields in the Bundle.  
+!***  Now extract the number of ESMF Fields in the output data Bundle
+!***  along with their names.  Save the Field information of the 2-D 
+!***  data since it will be needed for extraction from the import
+!***  state and the transfer to the write tasks.
+!***  Then extract the names of all the Fields in the bundle.  
 !***  Also, the number of Field names returned should equal 
 !***  the Field count in the preceding call.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract Field Names from Restart Bundle"
+        MESSAGE_CHECK="Get Field Count from "//BUNDLE_NAME
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_FieldBundleGet(bundle    =RESTART_BUNDLE               &  !<-- The write component's restart data Bundle
-                                ,nameList  =wrt_int_state%RST_FIELD_NAME &  !<-- Array of ESMF Field names in the Bundle
-                                ,nameCount =RST_NUM_FIELD_NAMES          &  !<-- Number of Field names in the Bundle
+        CALL ESMF_FieldBundleGet(bundle    =OUTPUT_BUNDLE               &  !<-- The write component's data Bundle
+                                ,fieldCount=NCOUNT_FIELDS(1)            &  !<-- Get total # of Fields in the data Bundle
                                 ,rc        =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        IF(RST_NUM_FIELD_NAMES/=wrt_int_state%RST_NCOUNT_FIELDS(1))THEN
-          WRITE(0,*)' WARNING: Number of Fields in Bundle of restart'   &
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Field Names from "//BUNDLE_NAME
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_FieldBundleGet(bundle   =OUTPUT_BUNDLE                &  !<-- The write component's data Bundle
+                                ,nameList =FIELD_NAME                   &  !<-- Array of ESMF Field names in the Bundle
+                                ,nameCount=NUM_FIELD_NAMES              &  !<-- Number of Field names in the Bundle
+                                ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+        IF(NUM_FIELD_NAMES/=NCOUNT_FIELDS(1))THEN
+          WRITE(0,*)' WARNING: Number of Fields in '//BUNDLE_NAME       &
                    ,' output does not equal the number of Field names'
-          WRITE(0,*)' They are ',RST_NUM_FIELD_NAMES,' and '            &
-                   ,wrt_int_state%RST_NCOUNT_FIELDS(1),', respectively'
+          WRITE(0,*)' They are ',NUM_FIELD_NAMES,' and '            &
+                   ,NCOUNT_FIELDS(1),', respectively'
         ENDIF
 !
 !-----------------------------------------------------------------------
@@ -2354,21 +1004,21 @@
 !***  count the number of real and integer 2D arrays.  
 !-----------------------------------------------------------------------
 !
-        RST_KOUNT_R2D=0
-        RST_KOUNT_I2D=0
-        RST_NCHAR_I2D(1)=0
-        RST_NCHAR_R2D(1)=0
+        KOUNT_R2D_X=0
+        KOUNT_I2D_X=0
+        NCHAR_I2D(1)=0
+        NCHAR_R2D(1)=0
 !
-        DO N=1,wrt_int_state%RST_NCOUNT_FIELDS(1)
+        DO N=1,NCOUNT_FIELDS(1)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Extract Fields from Restart Bundle for Counting"
+          MESSAGE_CHECK="Extract Fields from Output Bundle for Counting"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_FieldBundleGet(bundle=RESTART_BUNDLE                  &  !<-- The write component's restart data Bundle
-                                  ,name  =wrt_int_state%RST_FIELD_NAME(N) &  !<-- The ESMF Field's name
-                                  ,field =FIELD_WORK1                     &  !<-- The ESMF Field taken from the Bundle
+          CALL ESMF_FieldBundleGet(bundle=OUTPUT_BUNDLE                 &  !<-- The write component's data Bundle
+                                  ,name  =FIELD_NAME(N)                 &  !<-- The ESMF Field's name
+                                  ,field =FIELD_WORK1                   &  !<-- The ESMF Field taken from the Bundle
                                   ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2380,77 +1030,93 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_FieldGet(field=FIELD_WORK1                          &  !<-- The ESMF 2D Field
+          CALL ESMF_FieldGet(field   =FIELD_WORK1                       &  !<-- The ESMF 2D Field
                             ,typekind=DATATYPE                          &  !<-- The Field's ESMF Datatype
-                            ,rc   =RC)
+                            ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           IF(DATATYPE==ESMF_TYPEKIND_I4)THEN
-            RST_KOUNT_I2D=RST_KOUNT_I2D+1                                  !<-- Add up the total number of integer 2D Fields
+            KOUNT_I2D_X=KOUNT_I2D_X+1                                      !<-- Add up the total number of integer 2D Fields
 !
-            IF(RST_KOUNT_I2D>MAX_DATA_I2D)THEN
+            IF(KOUNT_I2D_X>MAX_DATA_I2D)THEN
               WRITE(0,*)' FATAL: YOU HAVE EXCEEDED MAX NUMBER OF INTEGER 2D FIELDS FOR OUTPUT'
               WRITE(0,*)' YOU MUST INCREASE VALUE OF MAX_DATA_I2D WHICH NOW EQUALS ',MAX_DATA_I2D
             ENDIF
 !
-            NPOSN_END  =RST_KOUNT_I2D*ESMF_MAXSTR
+            NPOSN_END  =KOUNT_I2D_X*ESMF_MAXSTR
             NPOSN_START=NPOSN_END-ESMF_MAXSTR+1
-            wrt_int_state%RST_NAMES_I2D_STRING(NPOSN_START:NPOSN_END)=wrt_int_state%RST_FIELD_NAME(N) !<-- Save the 2D integer Field names 
-                                                                                                      !    in one long string
-            RST_NCHAR_I2D(1)=RST_NCHAR_I2D(1)+ESMF_MAXSTR
+            NAMES_I2D_STRING(NPOSN_START:NPOSN_END)=FIELD_NAME(N)          !<-- Save the 2D integer Field names 
+                                                                           !    in one long string.
+            NCHAR_I2D(1)=NCHAR_I2D(1)+ESMF_MAXSTR
 !
           ELSEIF(DATATYPE==ESMF_TYPEKIND_R4)THEN
-            RST_KOUNT_R2D=RST_KOUNT_R2D+1                                  !<-- Add up the total number of real 2D Fields
+            KOUNT_R2D_X=KOUNT_R2D_X+1                                      !<-- Add up the total number of real 2D Fields
 !
-            IF(RST_KOUNT_R2D>MAX_DATA_R2D)THEN
-              WRITE(0,*)' FATAL: YOU HAVE EXCEEDED MAX NUMBER OF REAL 2D FIELDS FOR RESTART OUTPUT'
+            IF(KOUNT_R2D_X>MAX_DATA_R2D)THEN
+              WRITE(0,*)' FATAL: YOU HAVE EXCEEDED MAX NUMBER OF REAL 2D FIELDS FOR OUTPUT'
               WRITE(0,*)' YOU MUST INCREASE VALUE OF MAX_DATA_R2D WHICH NOW EQUALS ',MAX_DATA_R2D
               CALL ESMF_Finalize(terminationflag=ESMF_ABORT             &
-                                ,rc             =RC_ABORT  )
+                                ,rc             =RC )
             ENDIF
 !
-            NPOSN_END  =RST_KOUNT_R2D*ESMF_MAXSTR
+            NPOSN_END  =KOUNT_R2D_X*ESMF_MAXSTR
             NPOSN_START=NPOSN_END-ESMF_MAXSTR+1
-            wrt_int_state%RST_NAMES_R2D_STRING(NPOSN_START:NPOSN_END)=wrt_int_state%RST_FIELD_NAME(N) !<-- Save the 2D real Field names 
-                                                                                                      !    in one long string
-            RST_NCHAR_R2D(1)=RST_NCHAR_R2D(1)+ESMF_MAXSTR
+            NAMES_R2D_STRING(NPOSN_START:NPOSN_END)=FIELD_NAME(N)          !<-- Save the 2D real Field names 
+                                                                           !    in one long string.
+            NCHAR_R2D(1)=NCHAR_R2D(1)+ESMF_MAXSTR
 !
           ENDIF
 !
         ENDDO
 !
-        wrt_int_state%RST_KOUNT_R2D(1)=RST_KOUNT_R2D
-        wrt_int_state%RST_KOUNT_I2D(1)=RST_KOUNT_I2D
+        KOUNT_R2D(1)=KOUNT_R2D_X
+        KOUNT_I2D(1)=KOUNT_I2D_X
 !
 !-----------------------------------------------------------------------
 !***  Compute the total number of words for all 2D and 3D real data
 !***  and allocate a datastring to that length.  It will transfer
-!***  the 2D/3D real data from Forecast to Write tasks.
+!***  the 2D/3D real data from forecast to Write tasks.
 !-----------------------------------------------------------------------
 !
         NUM_WORDS_TOT=(ITE-ITS+1+2*IHALO(1))*(JTE-JTS+1+2*JHALO(1))     &
-                      *RST_KOUNT_R2D
+                      *KOUNT_R2D_X
 !
         IF(NUM_WORDS_TOT>2147483647)THEN
           WRITE(0,*)' You have TOO MANY words in your datastring.'
           WRITE(0,*)' You must increase the number of tasks.'
           CALL ESMF_Finalize(terminationflag=ESMF_ABORT                 &
-                            ,rc             =RC_ABORT  )
+                            ,rc             =RC  )
         ELSE
-          wrt_int_state%NUM_WORDS_SEND_R2D_RST=NUM_WORDS_TOT
-          NUM_WORDS=wrt_int_state%NUM_WORDS_SEND_R2D_RST
-          IF(.NOT.ALLOCATED(wrt_int_state%RST_ALL_DATA_R2D))THEN
-            ALLOCATE(wrt_int_state%RST_ALL_DATA_R2D(NUM_WORDS)          &
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,*)' Fcst task FAILED to allocate RST_ALL_DATA_R2D'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT             &
-                                ,rc             =RC_ABORT  )
+          NUM_WORDS_SEND_R2D=NUM_WORDS_TOT
+          NUM_WORDS=NUM_WORDS_SEND_R2D
+!
+          IF(OUTPUT_FLAG=='History')THEN
+            IF(.NOT.ASSOCIATED(wrt_int_state%ALL_DATA_R2D))THEN
+              ALLOCATE(wrt_int_state%ALL_DATA_R2D(NUM_WORDS),stat=ISTAT)
+              IF(ISTAT/=0)THEN
+                WRITE(0,*)' Fcst task FAILED to allocate ALL_DATA_R2D'
+                CALL ESMF_Finalize(terminationflag=ESMF_ABORT           &
+                                  ,rc             =RC  )
+              ENDIF
+              ALL_DATA_R2D=>wrt_int_state%ALL_DATA_R2D
             ENDIF
+!
+          ELSEIF(OUTPUT_FLAG=='Restart')THEN
+            IF(.NOT.ASSOCIATED(wrt_int_state%RST_ALL_DATA_R2D))THEN
+              ALLOCATE(wrt_int_state%RST_ALL_DATA_R2D(NUM_WORDS),stat=ISTAT)
+              IF(ISTAT/=0)THEN
+                WRITE(0,*)' Fcst task FAILED to allocate RST_ALL_DATA_R2D'
+                CALL ESMF_Finalize(terminationflag=ESMF_ABORT           &
+                                  ,rc             =RC  )
+              ENDIF
+              ALL_DATA_R2D=>wrt_int_state%RST_ALL_DATA_R2D
+            ENDIF
+!
           ENDIF
+!
         ENDIF
 !
 !-----------------------------------------------------------------------
@@ -2458,439 +1124,654 @@
 !-----------------------------------------------------------------------
 !
         NUM_WORDS_TOT=(ITE-ITS+1+2*IHALO(1))*(JTE-JTS+1+2*JHALO(1))     &
-                      *RST_KOUNT_I2D
+                      *KOUNT_I2D_X
 !
         IF(NUM_WORDS_TOT>2147483647)THEN
           WRITE(0,*)' You have TOO MANY words in your datastring.'
           WRITE(0,*)' You must increase the number of tasks.'
           CALL ESMF_Finalize(terminationflag=ESMF_ABORT                 &
-                            ,rc             =RC_ABORT  )
+                            ,rc             =RC  )
         ELSE
-          wrt_int_state%NUM_WORDS_SEND_I2D_RST=NUM_WORDS_TOT
-          NUM_WORDS=wrt_int_state%NUM_WORDS_SEND_I2D_RST
-          IF(.NOT.ALLOCATED(wrt_int_state%RST_ALL_DATA_I2D))THEN
-            ALLOCATE(wrt_int_state%RST_ALL_DATA_I2D(NUM_WORDS)          &
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,*)' Fcst task FAILED to allocate RST_ALL_DATA_I2D'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT             &
-                                ,rc             =RC_ABORT  )
+          NUM_WORDS_SEND_I2D=NUM_WORDS_TOT
+          NUM_WORDS=NUM_WORDS_SEND_I2D
+!
+          IF(OUTPUT_FLAG=='History')THEN
+            IF(.NOT.ASSOCIATED(wrt_int_state%ALL_DATA_I2D))THEN
+              ALLOCATE(wrt_int_state%ALL_DATA_I2D(NUM_WORDS),stat=ISTAT)
+              IF(ISTAT/=0)THEN
+                WRITE(0,*)' Fcst task FAILED to allocate ALL_DATA_I2D'
+                CALL ESMF_Finalize(terminationflag=ESMF_ABORT           &
+                                  ,rc             =RC  )
+              ENDIF
+              ALL_DATA_I2D=>wrt_int_state%ALL_DATA_I2D
             ENDIF
+!
+          ELSEIF(OUTPUT_FLAG=='Restart')THEN
+            IF(.NOT.ASSOCIATED(wrt_int_state%RST_ALL_DATA_I2D))THEN
+              ALLOCATE(wrt_int_state%RST_ALL_DATA_I2D(NUM_WORDS),stat=ISTAT)
+              IF(ISTAT/=0)THEN
+                WRITE(0,*)' Fcst task FAILED to allocate RST_ALL_DATA_I2D'
+                CALL ESMF_Finalize(terminationflag=ESMF_ABORT           &
+                                  ,rc             =RC  )
+              ENDIF
+              ALL_DATA_I2D=>wrt_int_state%RST_ALL_DATA_I2D
+            ENDIF
+!
           ENDIF
+!
         ENDIF
 !
 !-----------------------------------------------------------------------
 !
-      ENDIF fcst_tasks
+      ENDIF fcst_tasks_2
 !
 !-----------------------------------------------------------------------
-!***  If there are no quantities specified for restart output,
-!***  Forecast task 0 will inform the Write tasks and then
+!***  If there are no quantities specified for history output,
+!***  forecast task 0 will inform the write tasks and then
 !***  everyone will return.
 !-----------------------------------------------------------------------
 !
-      NO_FIELDS(1)=ESMF_FALSE
+      NO_FIELDS=.FALSE.
 !
-      IF(MYPE==0)THEN
-        IF(wrt_int_state%RST_NCOUNT_FIELDS(1)==0)NO_FIELDS(1)=ESMF_TRUE    !<-- Reset flag saying there are no restart quantities
-        LAST_WRITE_TASK=NTASKS-1                                           !<-- The last write task in this group
+!-----------------------------------------------------------------------
+      n_groups_2: DO N=1,NUM_WRITE_GROUPS
+!-----------------------------------------------------------------------
 !
-        DO N=LEAD_WRITE_TASK,LAST_WRITE_TASK                               !<-- Loop through all the write tasks in the write group
+        N1=LEAD_WRITE_TASK(N)                                              !<-- The lead write task in group N
+        N2=LAST_WRITE_TASK(N)                                              !<-- The last write task in group N
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Fcst Task0 Informs All That There Are No Fields"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        IF(MYPE_DOMAIN==0)THEN
+          IF(NCOUNT_FIELDS(1)==0)NO_FIELDS=.TRUE.                          !<-- Reset flag saying there are no history quantities
 !
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=NO_FIELDS                           &  !<-- Send this data
-                          ,count   =1                                   &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
+          DO NN=N1,N2                                                      !<-- Loop through all the write tasks in the write group
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
+            MESSAGE_CHECK="Fcst Task0 Informs All That There Are No Fields"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        ENDDO
-      ENDIF
+            CALL MPI_SEND(NO_FIELDS                                     &  !<-- Send flag that there is no history data
+                         ,1                                             &  !<-- The flag is a scalar
+                         ,MPI_LOGICAL                                   &  !<-- The flag is logical
+                         ,NN                                            &  !<-- Receiving task in write group N
+                         ,0                                             &  !<-- MPI tag
+                         ,COMM_MY_DOMAIN                                &  !<-- MPI domain communicator
+                         ,IERR )          
 !
-      IF(MYPE>=LEAD_WRITE_TASK)THEN                                        !<-- All write tasks in this group receive
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          ENDDO
+!
+        ENDIF
+!
+        IF(MYPE_DOMAIN>=N1.AND.MYPE_DOMAIN<=N2)THEN                        !<-- All write tasks in this group receive
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Write Tasks Told By Fcst Task0 There Are No Fields"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=NO_FIELDS                             &  !<-- Recv this data
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+          CALL MPI_RECV(NO_FIELDS                                       &  !<-- Recv flag that there is no history data
+                       ,1                                               &  !<-- The flag is a scalar
+                       ,MPI_LOGICAL                                     &  !<-- The flag is logicallar
+                       ,0                                               &  !<-- Sending task (forecast task 0)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )         
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      ENDIF
+        ENDIF
+!
+      ENDDO n_groups_2
 !
 !-----------------------------------------------------------------------
 !
-      IF(NO_FIELDS(1)==ESMF_TRUE)THEN
-        IF(MYPE==0)THEN
+      IF(NO_FIELDS)THEN
+        IF(MYPE_DOMAIN==0)THEN
           WRITE(6,*)'WARNING: No Import ESMF quantities for the Write Component'
           WRITE(0,*)'WARNING: No Import ESMF quantities for the Write Component'
         ENDIF
 !
-        RETURN                                                             !<-- All tasks return if there is no restart output
+        RETURN                                                             !<-- All tasks return if there is no history output
 !
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  Forecast task 0 sends all the Write tasks the number of
+!***  Forecast task 0 sends all the write tasks the number of
 !***  real and integer 2D gridded quantities plus all of the
 !***  local horizontal domain limits in preparation for the
-!***  Write tasks' receiving and assembling the local restart
+!***  Write tasks' receiving and assembling the local history
 !***  data they receive from the Forecast tasks.
 !-----------------------------------------------------------------------
 !
-      IF(MYPE==0)THEN                                                      !<-- Forecast task 0 sends
+!-----------------------------------------------------------------------
+      n_groups_3: DO N=1,NUM_WRITE_GROUPS
+!-----------------------------------------------------------------------
 !
-        LAST_WRITE_TASK=NTASKS-1                                           !<-- The last write task in this group
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Fcst Task0 Sends Write Tasks Info for Quilting"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        DO N=LEAD_WRITE_TASK,LAST_WRITE_TASK                               !<-- Loop through all the write tasks in the write group
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=INPES                               &  !<-- Send this data
-                          ,count   =1                                   &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=JNPES                               &  !<-- Send this data
-                          ,count   =1                                   &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=IHALO                               &  !<-- Send this data
-                          ,count   =1                                   &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=JHALO                               &  !<-- Send this data
-                          ,count   =1                                   &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=wrt_int_state%RST_NCOUNT_FIELDS     &  !<-- Send this data
-                          ,count   =1                                   &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=wrt_int_state%RST_KOUNT_R2D         &  !<-- Send this data
-                          ,count   =1                                   &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=wrt_int_state%RST_KOUNT_I2D         &  !<-- Send this data
-                          ,count   =1                                   &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=wrt_int_state%LOCAL_ISTART          &  !<-- Send this data
-                          ,count   =NUM_PES_FCST                        &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=wrt_int_state%LOCAL_IEND            &  !<-- Send this data
-                          ,count   =NUM_PES_FCST                        &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=wrt_int_state%LOCAL_JSTART          &  !<-- Send this data
-                          ,count   =NUM_PES_FCST                        &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=wrt_int_state%LOCAL_JEND            &  !<-- Send this data
-                          ,count   =NUM_PES_FCST                        &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
-                          ,rc      =RC)
-!
-        ENDDO
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      ENDIF
+        N1=LEAD_WRITE_TASK(N)
+        N2=LAST_WRITE_TASK(N)
 !
 !-----------------------------------------------------------------------
 !
-      IF(MYPE>=LEAD_WRITE_TASK)THEN                                        !<-- All write tasks in this group receive
+        task_0: IF(MYPE_DOMAIN==0)THEN                                     !<-- Forecast task 0 sends
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Write Tasks Recv Quilting Info From Fcst Task0"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Fcst Task0 Sends Write Tasks Info for Quilting"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=INPES                                 &  !<-- Recv this data
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+          DO NN=N1,N2                                                      !<-- Loop through all the write tasks in the write group
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=JNPES                                 &  !<-- Recv this data
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+            CALL MPI_SEND(INPES                                         &  !<-- Send # of fcst tasks in I
+                         ,1                                             &  !<-- Number is one word
+                         ,MPI_INTEGER                                   &  !<-- Data is integer
+                         ,NN                                            &  !<-- Receiving task in active write group
+                         ,0                                             &  !<-- MPI tag
+                         ,COMM_MY_DOMAIN                                &  !<-- MPI domain communicator
+                         ,IERR )
 !
-        NUM_PES_FCST=INPES(1)*JNPES(1)
+            CALL MPI_SEND(JNPES                                         &  !<-- Send # of fcst tasks in J
+                         ,1                                             &  !<-- Number is one word
+                         ,MPI_INTEGER                                   &  !<-- Data is integer
+                         ,NN                                            &  !<-- Receiving task in active write group
+                         ,0                                             &  !<-- MPI tag
+                         ,COMM_MY_DOMAIN                                &  !<-- MPI domain communicator
+                         ,IERR )
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=IHALO                                 &  !<-- Recv this data
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+            CALL MPI_SEND(IHALO                                         &  !<-- Send # of points in the east-west halo
+                         ,1                                             &  !<-- Number is one word
+                         ,MPI_INTEGER                                   &  !<-- Data is integer
+                         ,NN                                            &  !<-- Receiving task in active write group
+                         ,0                                             &  !<-- MPI tag
+                         ,COMM_MY_DOMAIN                                &  !<-- MPI domain communicator
+                         ,IERR )
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=JHALO                                 &  !<-- Recv this data
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+            CALL MPI_SEND(JHALO                                         &  !<-- Send # of points in the south-north halo
+                         ,1                                             &  !<-- Number is one word
+                         ,MPI_INTEGER                                   &  !<-- Data is integer
+                         ,NN                                            &  !<-- Receiving task in active write group
+                         ,0                                             &  !<-- MPI tag
+                         ,COMM_MY_DOMAIN                                &  !<-- MPI domain communicator
+                         ,IERR )
 !
-        wrt_int_state%IHALO=IHALO(1)
-        wrt_int_state%JHALO=JHALO(1)
+            CALL MPI_SEND(NCOUNT_FIELDS                                 &  !<-- Send # of Fields in history data
+                         ,1                                             &  !<-- Number is one word
+                         ,MPI_INTEGER                                   &  !<-- Data is integer
+                         ,NN                                            &  !<-- Receiving task in active write group
+                         ,0                                             &  !<-- MPI tag
+                         ,COMM_MY_DOMAIN                                &  !<-- MPI domain communicator
+                         ,IERR )
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%RST_NCOUNT_FIELDS       &  !<-- Recv this data
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+            CALL MPI_SEND(KOUNT_R2D                                     &  !<-- Send # of real Fields in history data
+                         ,1                                             &  !<-- Number is one word
+                         ,MPI_INTEGER                                   &  !<-- Data is integer
+                         ,NN                                            &  !<-- Receiving task in active write group
+                         ,0                                             &  !<-- MPI tag
+                         ,COMM_MY_DOMAIN                                &  !<-- MPI domain communicator
+                         ,IERR )
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%RST_KOUNT_R2D           &  !<-- Recv this data
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+            CALL MPI_SEND(KOUNT_I2D                                     &  !<-- Send # of integer Fields in history data
+                         ,1                                             &  !<-- Number is one word
+                         ,MPI_INTEGER                                   &  !<-- Data is integer
+                         ,NN                                            &  !<-- Receiving task in active write group
+                         ,0                                             &  !<-- MPI tag
+                         ,COMM_MY_DOMAIN                                &  !<-- MPI domain communicator
+                         ,IERR )
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%RST_KOUNT_I2D           &  !<-- Recv this data
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+            CALL MPI_SEND(wrt_int_state%LOCAL_ISTART                    &  !<-- Send starting I for all fcst task subdomains
+                         ,NUM_PES_FCST                                  &  !<-- Number of words
+                         ,MPI_INTEGER                                   &  !<-- Data is integer
+                         ,NN                                            &  !<-- Receiving task in active write group
+                         ,0                                             &  !<-- MPI tag
+                         ,COMM_MY_DOMAIN                                &  !<-- MPI domain communicator
+                         ,IERR )
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%LOCAL_ISTART            &  !<-- Recv this data
-                        ,count   =NUM_PES_FCST                          &  !<-- Words received (#of fcst tasks)
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+            CALL MPI_SEND(wrt_int_state%LOCAL_IEND                      &  !<-- Send ending I for all fcst task subdomains
+                         ,NUM_PES_FCST                                  &  !<-- Number of words
+                         ,MPI_INTEGER                                   &  !<-- Data is integer
+                         ,NN                                            &  !<-- Receiving task in active write group
+                         ,0                                             &  !<-- MPI tag
+                         ,COMM_MY_DOMAIN                                &  !<-- MPI domain communicator
+                         ,IERR )
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%LOCAL_IEND              &  !<-- Recv this data
-                        ,count   =NUM_PES_FCST                          &  !<-- Words received (#of fcst tasks)
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+            CALL MPI_SEND(wrt_int_state%LOCAL_JSTART                    &  !<-- Send starting J for all fcst task subdomains
+                         ,NUM_PES_FCST                                  &  !<-- Number of words
+                         ,MPI_INTEGER                                   &  !<-- Data is integer
+                         ,NN                                            &  !<-- Receiving task in active write group
+                         ,0                                             &  !<-- MPI tag
+                         ,COMM_MY_DOMAIN                                &  !<-- MPI domain communicator
+                         ,IERR )
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%LOCAL_JSTART            &  !<-- Recv this data
-                        ,count   =NUM_PES_FCST                          &  !<-- Words received (#of fcst tasks)
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+            CALL MPI_SEND(wrt_int_state%LOCAL_JEND                      &  !<-- Send starting J for all fcst task subdomains
+                         ,NUM_PES_FCST                                  &  !<-- Number of words
+                         ,MPI_INTEGER                                   &  !<-- Data is integer
+                         ,NN                                            &  !<-- Receiving task in active write group
+                         ,0                                             &  !<-- MPI tag
+                         ,COMM_MY_DOMAIN                                &  !<-- MPI domain communicator
+                         ,IERR )
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%LOCAL_JEND              &  !<-- Recv this data
-                        ,count   =NUM_PES_FCST                          &  !<-- Words received (#of fcst tasks)
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+          ENDDO
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      ENDIF
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Fcst Task0 Sends Lead Write Task # of BC Words"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL MPI_SEND(wrt_int_state%NUM_WORDS_SEND_BC                 &  !<-- Send # of words in BC data
+                       ,1                                               &  !<-- Send one word
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,N1                                              &  !<-- Receiving task in active write group
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,IERR )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!
+        ENDIF task_0
+!
+!-----------------------------------------------------------------------
+!
+!
+        IF(MYPE_DOMAIN>=N1.AND.MYPE_DOMAIN<=N2)THEN                        !<-- All write tasks in this group receive
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Write Tasks Recv Quilting Info From Fcst Task0"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL MPI_RECV(INPES                                           &  !<-- Recv # of fcst tasks in I
+                       ,1                                               &  !<-- Data is a scalar
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,0                                               &  !<-- Sending task (forecast task 0)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
+!
+          CALL MPI_RECV(JNPES                                           &  !<-- Recv # of fcst tasks in J
+                       ,1                                               &  !<-- Data is a scalar
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,0                                               &  !<-- Sending task (forecast task 0)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
+!
+          CALL MPI_RECV(IHALO                                           &  !<-- Recv width of halo in I
+                       ,1                                               &  !<-- Data is a scalar
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,0                                               &  !<-- Sending task (forecast task 0)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
+!
+          CALL MPI_RECV(JHALO                                           &  !<-- Recv width of halo in J
+                       ,1                                               &  !<-- Data is a scalar
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,0                                               &  !<-- Sending task (forecast task 0)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
+!
+          wrt_int_state%IHALO=IHALO(1)
+          wrt_int_state%JHALO=JHALO(1)
+!
+          CALL MPI_RECV(NCOUNT_FIELDS                                   &  !<-- Recv # of Fields in history data
+                       ,1                                               &  !<-- Data is a scalar
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,0                                               &  !<-- Sending task (forecast task 0)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
+!
+          CALL MPI_RECV(KOUNT_R2D                                       &  !<-- Recv # of real Fields in history data
+                       ,1                                               &  !<-- Data is a scalar
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,0                                               &  !<-- Sending task (forecast task 0)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
+!
+          CALL MPI_RECV(KOUNT_I2D                                       &  !<-- Recv # of integer Fields in history data
+                       ,1                                               &  !<-- Data is a scalar
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,0                                               &  !<-- Sending task (forecast task 0)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
+!
+          CALL MPI_RECV(wrt_int_state%LOCAL_ISTART                      &  !<-- Recv starting I of each fcst task subdomain
+                       ,NUM_PES_FCST                                    &  !<-- # of words in data
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,0                                               &  !<-- Sending task (forecast task 0)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
+!
+          CALL MPI_RECV(wrt_int_state%LOCAL_IEND                        &  !<-- Recv ending I of each fcst task subdomain
+                       ,NUM_PES_FCST                                    &  !<-- # of words in data
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,0                                               &  !<-- Sending task (forecast task 0)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
+!
+          CALL MPI_RECV(wrt_int_state%LOCAL_JSTART                      &  !<-- Recv starting J of each fcst task subdomain
+                       ,NUM_PES_FCST                                    &  !<-- # of words in data
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,0                                               &  !<-- Sending task (forecast task 0)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
+!
+          CALL MPI_RECV(wrt_int_state%LOCAL_JEND                        &  !<-- Recv ending J of each fcst task subdomain
+                       ,NUM_PES_FCST                                    &  !<-- # of words in data
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,0                                               &  !<-- Sending task (forecast task 0)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          IF(MYPE_DOMAIN==N1)THEN                                          !<-- Lead write task in each group must recv BC word count
+!
+            IF(ALLOCATED(wrt_int_state%NUM_WORDS_SEND_BC))THEN
+!             write(0,*)' PRELIM_INFO wrt_int_state%NUM_WORDS_SEND_BC already allocated for write group ',n
+            ELSE
+!             WRITE(0,*)' PRELIM_INFO must allocate wrt_int_state%NUM_WORDS_SEND_BC'
+              ALLOCATE(wrt_int_state%NUM_WORDS_SEND_BC(1),stat=ISTAT)
+              IF(ISTAT/=0)THEN
+                WRITE(0,*)' Failed to allocate wrt_int_state%NUM_WORDS_SEND_BC in PRELIM_INFO'
+              ENDIF
+            ENDIF
+!
+            CALL MPI_RECV(wrt_int_state%NUM_WORDS_SEND_BC               &  !<-- Recv # of BC words
+                         ,1                                             &  !<-- Data is a scalar
+                         ,MPI_INTEGER                                   &  !<-- Data is integer
+                         ,0                                             &  !<-- Sending task (forecast task 0)
+                         ,0                                             &  !<-- MPI tag
+                         ,COMM_MY_DOMAIN                                &  !<-- MPI domain communicator
+                         ,JSTAT                                         &  !<-- MPI status object
+                         ,IERR )
+!
+            IF(ALLOCATED(wrt_int_state%RST_ALL_BC_DATA))THEN
+!             WRITE(0,*)' PRELIM_INFO wrt_int_state%RST_ALL_BC_DATA already allocated for write group ',n
+            ELSE
+!             WRITE(0,*)' PRELIM_INFO must allocate wrt_int_state%RST_ALL_BC_DATA'
+              ALLOCATE(wrt_int_state%RST_ALL_BC_DATA(1:wrt_int_state%NUM_WORDS_SEND_BC(1)),stat=ISTAT)
+              IF(ISTAT/=0)THEN
+                WRITE(0,*)' Failed to allocate wrt_int_state%wrt_int_state%RST_ALL_BC_DATA in PRELIM_INFO'
+              ENDIF
+            ENDIF
+!
+          ENDIF
+!
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Forecast task 0 sends the 2D data names to the lead Write task.
 !-----------------------------------------------------------------------
 !
-      IF(MYPE==0)THEN                                                      !<-- Fcst task0 alone can send write task preliminary info
+        IF(MYPE_DOMAIN==0)THEN                                             !<-- Fcst task 0 sends data names
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Fcst Task0 Sends Write Tasks 2D Data Names"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Fcst Task0 Sends Lead Write Task 2D Data Names"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=RST_NCHAR_I2D                         &  !<-- Send total length of the names of 2D integer data
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
+          CALL MPI_SEND(NCHAR_I2D                                       &  !<-- Send total length of the names of 2D integer data
+                       ,1                                               &  !<-- Words sent
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,N1                                              &  !<-- Receiving task (lead write task in group)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,IERR )
 !
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%RST_NAMES_I2D_STRING    &  !<-- Send names of 2D integer restart variables
-                        ,count   =RST_NCHAR_I2D(1)                      &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
+          CALL MPI_SEND(NAMES_I2D_STRING                                &  !<-- Send names of 2D integer history variables
+                       ,NCHAR_I2D(1)                                    &  !<-- Words sent
+                       ,MPI_CHARACTER                                   &  !<-- Data is character
+                       ,N1                                              &  !<-- Receiving task (lead write task in group)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,IERR )
 !
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=RST_NCHAR_R2D                         &  !<-- Send total length of the names of 2D real data
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
+          CALL MPI_SEND(NCHAR_R2D                                       &  !<-- Send total length of the names of 2D real data
+                       ,1                                               &  !<-- Words sent
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,N1                                              &  !<-- Receiving task (lead write task in group)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,IERR )
 !
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%RST_NAMES_R2D_STRING    &  !<-- Send names of 2D real restart variables
-                        ,count   =RST_NCHAR_R2D(1)                      &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
+          CALL MPI_SEND(NAMES_R2D_STRING                                &  !<-- Send names of 2D real history variables
+                       ,NCHAR_R2D(1)                                    &  !<-- Words sent
+                       ,MPI_CHARACTER                                   &  !<-- Data is character
+                       ,N1                                              &  !<-- Receiving task (lead write task in group)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,IERR )
 !
-      ELSEIF(MYPE==NTASKS-NWTPG)THEN                                       !<-- 1st write task receives 2D preliminary info
+        ELSEIF(MYPE_DOMAIN==N1)THEN                                        !<-- Lead write task receives 2D preliminary info
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=RST_NCHAR_I2D                         &  !<-- Recv total length of the names of 2D integer data
-                        ,count   =1                                     &  !<-- Words sent
-                        ,src     =0                                     &  !<-- Sending task (fcst task 0)
-                        ,rc      =RC)
+          CALL MPI_RECV(NCHAR_I2D                                       &  !<-- Recv total length of the names of 2D integer data
+                       ,1                                               &  !<-- Words sent
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,0                                               &  !<-- Sending task (lead fcst task)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%RST_NAMES_I2D_STRING    &  !<-- Recv names of 2D integer restart variables
-                        ,count   =RST_NCHAR_I2D(1)                      &  !<-- Words sent
-                        ,src     =0                                     &  !<-- Sending task (fcst task 0)
-                        ,rc      =RC)
+          CALL MPI_RECV(NAMES_I2D_STRING                                &  !<-- Recv names of 2D integer history variables
+                       ,NCHAR_I2D(1)                                    &  !<-- Words sent
+                       ,MPI_CHARACTER                                   &  !<-- Data is character
+                       ,0                                               &  !<-- Sending task (lead fcst task)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=RST_NCHAR_R2D                         &  !<-- Recv total length of the names of 2D gridded data
-                        ,count   =1                                     &  !<-- Words sent
-                        ,src     =0                                     &  !<-- Sending task (fcst task 0)
-                        ,rc      =RC)
+          CALL MPI_RECV(NCHAR_R2D                                       &  !<-- Recv total length of the names of 2D real data
+                       ,1                                               &  !<-- Words sent
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,0                                               &  !<-- Sending task (lead fcst task)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%RST_NAMES_R2D_STRING    &  !<-- Recv names of 2D real restart variables
-                        ,count   =RST_NCHAR_R2D(1)                      &  !<-- Words sent
-                        ,src     =0                                     &  !<-- Sending task (fcst task 0)
-                        ,rc      =RC)
+          CALL MPI_RECV(NAMES_R2D_STRING                                &  !<-- Recv names of 2D real history variables
+                       ,NCHAR_R2D(1)                                    &  !<-- Words sent
+                       ,MPI_CHARACTER                                   &  !<-- Data is character
+                       ,0                                               &  !<-- Sending task (lead fcst task)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      ENDIF
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Each Write task must know the IDs of the Forecast tasks
-!***  from which it will receive 2D gridded restart data.
+!***  from which it will receive 2D gridded history data.
 !-----------------------------------------------------------------------
 !
-      IF(MYPE>=LEAD_WRITE_TASK)THEN                                        !<-- The write tasks
+        IF(MYPE_DOMAIN>=N1.AND.MYPE_DOMAIN<=N2)THEN                        !<-- The write tasks
 !
-        IF(.NOT.ALLOCATED(wrt_int_state%ID_FTASK_RECV_STA))THEN
-          ALLOCATE(wrt_int_state%ID_FTASK_RECV_STA(LEAD_WRITE_TASK:LAST_WRITE_TASK))
-        ENDIF
+          M1=LEAD_WRITE_TASK(1)                                            !<-- Local rank of lead write task
+          M2=LAST_WRITE_TASK(1)                                            !<-- Local rank of last write task
+          LOCAL_ID=M1+MYPE_DOMAIN-LEAD_WRITE_TASK(N)                       !<-- Local rank of every write task
 !
-        IF(.NOT.ALLOCATED(wrt_int_state%ID_FTASK_RECV_END))THEN
-          ALLOCATE(wrt_int_state%ID_FTASK_RECV_END(LEAD_WRITE_TASK:LAST_WRITE_TASK))
-        ENDIF
+          IF(.NOT.ALLOCATED(wrt_int_state%ID_FTASK_RECV_STA))THEN
+            ALLOCATE(wrt_int_state%ID_FTASK_RECV_STA(M1:M2))
+            ALLOCATE(wrt_int_state%ID_FTASK_RECV_END(M1:M2))
+          ENDIF
 !
-        NN=0
-        DO N=LEAD_WRITE_TASK,LAST_WRITE_TASK
-          NN=NN+1
-          CALL PARA_RANGE(JNPES(1),NWTPG,NN                             &  !<-- Find each write task's first and last rows of
-                         ,JROW_FIRST,JROW_LAST)                            !<--   fcst tasks from which it will recv
+          NY=0
+          DO NX=M1,M2
+            NY=NY+1
+            CALL PARA_RANGE(JNPES(1),NWTPG,NY                           &  !<-- Find each write task's first and last rows of
+                           ,JROW_FIRST,JROW_LAST)                          !    fcst tasks from which it will recv.
 !
-          wrt_int_state%ID_FTASK_RECV_STA(N)=(JROW_FIRST-1)*INPES(1)       !<-- First fcst task that sends to this write task
-          wrt_int_state%ID_FTASK_RECV_END(N)=JROW_LAST*INPES(1)-1          !<-- Last fcst task that sends to this write task
-        ENDDO
+            wrt_int_state%ID_FTASK_RECV_STA(NX)=(JROW_FIRST-1)*INPES(1)    !<-- First fcst task that sends to this write task
+            wrt_int_state%ID_FTASK_RECV_END(NX)=JROW_LAST*INPES(1)-1       !<-- Last fcst task that sends to this write task
+          ENDDO
 !
 !-----------------------------------------------------------------------
-!***  Each Write task computes the number of words in the datastring
-!***  of 2D/3D real restart data it will receive from each Forecast
+!***  Each write task computes the number of words in the datastring
+!***  of 2D/3D real history data it will receive from each Forecast
 !***  task it is associated with.  Then allocate that datastring.
 !-----------------------------------------------------------------------
 !
-        IF(.NOT.ALLOCATED(wrt_int_state%NUM_WORDS_RECV_R2D_RST))THEN
-          N_STA=wrt_int_state%ID_FTASK_RECV_STA(MYPE)
-          N_END=wrt_int_state%ID_FTASK_RECV_END(MYPE)
-          ALLOCATE(wrt_int_state%NUM_WORDS_RECV_R2D_RST(N_STA:N_END))
-        ENDIF
+          IF(OUTPUT_FLAG=='History')THEN
+            IF(.NOT.ASSOCIATED(wrt_int_state%NUM_WORDS_RECV_R2D_HST))THEN
+              N_STA=wrt_int_state%ID_FTASK_RECV_STA(LOCAL_ID)
+              N_END=wrt_int_state%ID_FTASK_RECV_END(LOCAL_ID)
+              ALLOCATE(wrt_int_state%NUM_WORDS_RECV_R2D_HST(N_STA:N_END))
+              NUM_WORDS_RECV_R2D=>wrt_int_state%NUM_WORDS_RECV_R2D_HST
+            ENDIF
 !
-        MAX_WORDS=0
+          ELSEIF(OUTPUT_FLAG=='Restart')THEN
+            IF(.NOT.ASSOCIATED(wrt_int_state%NUM_WORDS_RECV_R2D_RST))THEN
+              N_STA=wrt_int_state%ID_FTASK_RECV_STA(LOCAL_ID)
+              N_END=wrt_int_state%ID_FTASK_RECV_END(LOCAL_ID)
+              ALLOCATE(wrt_int_state%NUM_WORDS_RECV_R2D_RST(N_STA:N_END))
+              NUM_WORDS_RECV_R2D=>wrt_int_state%NUM_WORDS_RECV_R2D_RST
+            ENDIF
 !
-        DO N=wrt_int_state%ID_FTASK_RECV_STA(MYPE)                      &  !<-- The fcst tasks sending to this write task
-            ,wrt_int_state%ID_FTASK_RECV_END(MYPE)                         !<--
-!
-          ITS=wrt_int_state%LOCAL_ISTART(N)
-          ITE=wrt_int_state%LOCAL_IEND  (N)
-          JTS=wrt_int_state%LOCAL_JSTART(N)
-          JTE=wrt_int_state%LOCAL_JEND  (N)
-!
-          NUM_WORDS_TOT=(ITE-ITS+1+2*IHALO(1))*(JTE-JTS+1+2*JHALO(1))   &  !<-- # of words of 2D/3D real restart data from fcst task N
-                        *wrt_int_state%RST_KOUNT_R2D(1)
-!
-          wrt_int_state%NUM_WORDS_RECV_R2D_RST(N)=NUM_WORDS_TOT
-          MAX_WORDS=MAX_WORDS+NUM_WORDS_TOT                                !<-- # of words from all fcst tasks
-        ENDDO
-!
-        IF(.NOT.ALLOCATED(wrt_int_state%RST_ALL_DATA_R2D))THEN
-          ALLOCATE(wrt_int_state%RST_ALL_DATA_R2D(MAX_WORDS)            &
-                  ,stat=ISTAT)
-          IF(ISTAT/=0)THEN
-            WRITE(0,*)' Write task FAILED to allocate RST_ALL_DATA_R2D'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT               &
-                              ,rc             =RC_ABORT  )
           ENDIF
-        ENDIF
+!
+          MAX_WORDS=0
+!
+          DO NX=wrt_int_state%ID_FTASK_RECV_STA(LOCAL_ID)               &  !<-- The fcst tasks sending to this write task
+               ,wrt_int_state%ID_FTASK_RECV_END(LOCAL_ID)                  !<--
+!
+            ITS=wrt_int_state%LOCAL_ISTART(NX)
+            ITE=wrt_int_state%LOCAL_IEND  (NX)
+            JTS=wrt_int_state%LOCAL_JSTART(NX)
+            JTE=wrt_int_state%LOCAL_JEND  (NX)
+!
+            NUM_WORDS_TOT=(ITE-ITS+1+2*IHALO(1))*(JTE-JTS+1+2*JHALO(1)) &  !<-- # of words of 2D/3D real history data from fcst task NX
+                          *KOUNT_R2D(1)
+!
+            NUM_WORDS_RECV_R2D(NX)=NUM_WORDS_TOT
+            MAX_WORDS=MAX(MAX_WORDS                                     &  !<-- Max # of integer words from any fcst tasks
+                         ,NUM_WORDS_RECV_R2D(NX))                          !
+          ENDDO
+!
+          IF(OUTPUT_FLAG=='History')THEN
+            IF(.NOT.ASSOCIATED(wrt_int_state%ALL_DATA_R2D))THEN
+              ALLOCATE(wrt_int_state%ALL_DATA_R2D(MAX_WORDS),stat=ISTAT)
+              IF(ISTAT/=0)THEN
+                WRITE(0,*)' Write task FAILED to allocate ALL_DATA_R2D'
+                CALL ESMF_Finalize(terminationflag=ESMF_ABORT             &
+                                  ,rc             =RC  )
+              ENDIF
+              ALL_DATA_R2D=>wrt_int_state%ALL_DATA_R2D
+            ENDIF
+!
+          ELSEIF(OUTPUT_FLAG=='Restart')THEN
+            IF(.NOT.ASSOCIATED(wrt_int_state%RST_ALL_DATA_R2D))THEN
+              ALLOCATE(wrt_int_state%RST_ALL_DATA_R2D(MAX_WORDS),stat=ISTAT)
+              IF(ISTAT/=0)THEN
+                WRITE(0,*)' Write task FAILED to allocate RST_ALL_DATA_R2D'
+                CALL ESMF_Finalize(terminationflag=ESMF_ABORT             &
+                                  ,rc             =RC  )
+              ENDIF
+              ALL_DATA_R2D=>wrt_int_state%RST_ALL_DATA_R2D
+            ENDIF
+!
+          ENDIF
 !
 !-----------------------------------------------------------------------
-!***  Likewise for the 2D integer data.
+!***  Likewise for the 2-D integer data.
 !-----------------------------------------------------------------------
 !
-        IF(.NOT.ALLOCATED(wrt_int_state%NUM_WORDS_RECV_I2D_RST))THEN
-          N_STA=wrt_int_state%ID_FTASK_RECV_STA(MYPE)
-          N_END=wrt_int_state%ID_FTASK_RECV_END(MYPE)
-          ALLOCATE(wrt_int_state%NUM_WORDS_RECV_I2D_RST(N_STA:N_END))
-        ENDIF
+          N_STA=wrt_int_state%ID_FTASK_RECV_STA(LOCAL_ID)
+          N_END=wrt_int_state%ID_FTASK_RECV_END(LOCAL_ID)
 !
-        MAX_WORDS=0
-!
-        DO N=wrt_int_state%ID_FTASK_RECV_STA(MYPE)                      &  !<-- The fcst tasks sending to this write task
-            ,wrt_int_state%ID_FTASK_RECV_END(MYPE)                         !<--
-!
-          ITS=wrt_int_state%LOCAL_ISTART(N)
-          ITE=wrt_int_state%LOCAL_IEND  (N)
-          JTS=wrt_int_state%LOCAL_JSTART(N)
-          JTE=wrt_int_state%LOCAL_JEND  (N)
-!
-          NUM_WORDS_TOT=(ITE-ITS+1+2*IHALO(1))*(JTE-JTS+1+2*JHALO(1))   &  !<-- # of words of 2D integer restart data from fcst task N
-                        *wrt_int_state%RST_KOUNT_I2D(1)
-!
-          wrt_int_state%NUM_WORDS_RECV_I2D_RST(N)=NUM_WORDS_TOT
-          MAX_WORDS=MAX_WORDS+NUM_WORDS_TOT                                !<-- # of words from all fcst tasks
-        ENDDO
-!
-        IF(.NOT.ALLOCATED(wrt_int_state%RST_ALL_DATA_I2D))THEN
-          ALLOCATE(wrt_int_state%RST_ALL_DATA_I2D(MAX_WORDS),stat=ISTAT)
-          IF(ISTAT/=0)THEN
-            WRITE(0,*)' Write task FAILED to allocate RST_ALL_DATA_I2D'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT               &
-                              ,rc             =RC_ABORT  )
+          IF(OUTPUT_FLAG=='History')THEN
+            IF(.NOT.ASSOCIATED(wrt_int_state%NUM_WORDS_RECV_I2D_HST))THEN
+              ALLOCATE(wrt_int_state%NUM_WORDS_RECV_I2D_HST(N_STA:N_END))
+              NUM_WORDS_RECV_I2D=>wrt_int_state%NUM_WORDS_RECV_I2D_HST
+            ENDIF
+          ELSEIF(OUTPUT_FLAG=='Restart')THEN
+            IF(.NOT.ASSOCIATED(wrt_int_state%NUM_WORDS_RECV_I2D_RST))THEN
+              ALLOCATE(wrt_int_state%NUM_WORDS_RECV_I2D_RST(N_STA:N_END))
+              NUM_WORDS_RECV_I2D=>wrt_int_state%NUM_WORDS_RECV_I2D_RST
+            ENDIF
           ENDIF
-        ENDIF
+!
+          MAX_WORDS=0
+!
+          DO NX=wrt_int_state%ID_FTASK_RECV_STA(LOCAL_ID)               &  !<-- The fcst tasks sending to this write task
+              ,wrt_int_state%ID_FTASK_RECV_END(LOCAL_ID)                   !
+!
+            ITS=wrt_int_state%LOCAL_ISTART(NX)
+            ITE=wrt_int_state%LOCAL_IEND  (NX)
+            JTS=wrt_int_state%LOCAL_JSTART(NX)
+            JTE=wrt_int_state%LOCAL_JEND  (NX)
+!
+            NUM_WORDS_TOT=(ITE-ITS+1+2*IHALO(1))*(JTE-JTS+1+2*JHALO(1)) &  !<-- # of words of 2D integer history data from fcst task NX
+                          *KOUNT_I2D(1)
+!
+            NUM_WORDS_RECV_I2D(NX)=NUM_WORDS_TOT
+            MAX_WORDS=MAX(MAX_WORDS                                     &  !<-- Max # of real words from all fcst tasks
+                         ,NUM_WORDS_RECV_I2D(NX))                          !
+          ENDDO
+!
+          IF(OUTPUT_FLAG=='History')THEN
+            IF(.NOT.ASSOCIATED(wrt_int_state%ALL_DATA_I2D))THEN
+              ALLOCATE(wrt_int_state%ALL_DATA_I2D(MAX_WORDS),stat=ISTAT)
+              IF(ISTAT/=0)THEN
+                WRITE(0,*)' Write task FAILED to allocate ALL_DATA_I2D'
+                CALL ESMF_Finalize(terminationflag=ESMF_ABORT             &
+                                  ,rc             =RC  )
+              ENDIF
+              ALL_DATA_I2D=>wrt_int_state%ALL_DATA_I2D
+            ENDIF
+!
+          ELSEIF(OUTPUT_FLAG=='Restart')THEN
+            IF(.NOT.ASSOCIATED(wrt_int_state%RST_ALL_DATA_I2D))THEN
+              ALLOCATE(wrt_int_state%RST_ALL_DATA_I2D(MAX_WORDS),stat=ISTAT)
+              IF(ISTAT/=0)THEN
+                WRITE(0,*)' Write task FAILED to allocate RST_ALL_DATA_I2D'
+                CALL ESMF_Finalize(terminationflag=ESMF_ABORT             &
+                                  ,rc             =RC  )
+              ENDIF
+              ALL_DATA_I2D=>wrt_int_state%RST_ALL_DATA_I2D
+            ENDIF
+!
+          ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Each Write task also must know the North-South extent of the
@@ -2898,8 +1779,8 @@
 !***  the coverage of the Fcst tasks that send to it.
 !-----------------------------------------------------------------------
 !
-        JSTA_WRITE=wrt_int_state%LOCAL_JSTART(wrt_int_state%ID_FTASK_RECV_STA(MYPE))  !<-- JTS of 1st fcst task that sends to this write task
-        JEND_WRITE=wrt_int_state%LOCAL_JEND  (wrt_int_state%ID_FTASK_RECV_END(MYPE))  !<-- JTE of last fcst task that sends to this write task
+          JSTA_WRITE=wrt_int_state%LOCAL_JSTART(wrt_int_state%ID_FTASK_RECV_STA(LOCAL_ID))  !<-- JTS/JTE of the first fcst task
+          JEND_WRITE=wrt_int_state%LOCAL_JEND  (wrt_int_state%ID_FTASK_RECV_END(LOCAL_ID))  !    that sends to this write task.
 !
 !-----------------------------------------------------------------------
 !***  Now each Write task allocates its own section of the 2D domain
@@ -2907,365 +1788,690 @@
 !***  used to transfer the data to the lead Write task.
 !-----------------------------------------------------------------------
 !
-        ALLOCATE(wrt_int_state%RST_WRITE_SUBSET_I(1:IM,JSTA_WRITE:JEND_WRITE  &
-                                             ,wrt_int_state%RST_KOUNT_I2D(1)))
-        LENGTH=IM*(JEND_WRITE-JSTA_WRITE+1)*wrt_int_state%RST_KOUNT_I2D(1)
-        ALLOCATE(wrt_int_state%RST_BUFF_INT(LENGTH))
+          IF(OUTPUT_FLAG=='History')THEN
 !
-        ALLOCATE(wrt_int_state%RST_WRITE_SUBSET_R(1:IM,JSTA_WRITE:JEND_WRITE  &
-                                             ,wrt_int_state%RST_KOUNT_R2D(1)))
-        LENGTH=IM*(JEND_WRITE-JSTA_WRITE+1)*wrt_int_state%RST_KOUNT_R2D(1)
-        ALLOCATE(wrt_int_state%RST_BUFF_REAL(LENGTH))
+            LENGTH=IM*(JEND_WRITE-JSTA_WRITE+1)*KOUNT_I2D(1)
+            ALLOCATE(wrt_int_state%WRITE_SUBSET_I(1:IM,JSTA_WRITE:JEND_WRITE  &
+                                                 ,KOUNT_I2D(1)))
+            ALLOCATE(wrt_int_state%BUFF_INT(LENGTH))
+            WRITE_SUBSET_I=>wrt_int_state%WRITE_SUBSET_I
+            BUFF_INT=>wrt_int_state%BUFF_INT
 !
-      ENDIF
+            LENGTH=IM*(JEND_WRITE-JSTA_WRITE+1)*KOUNT_R2D(1)
+            ALLOCATE(wrt_int_state%WRITE_SUBSET_R(1:IM,JSTA_WRITE:JEND_WRITE  &
+                                                 ,KOUNT_R2D(1)))
+            ALLOCATE(wrt_int_state%BUFF_REAL(LENGTH))
+            WRITE_SUBSET_R=>wrt_int_state%WRITE_SUBSET_R
+            BUFF_REAL=>wrt_int_state%BUFF_REAL
+!
+          ELSEIF(OUTPUT_FLAG=='Restart')THEN
+            LENGTH=IM*(JEND_WRITE-JSTA_WRITE+1)*KOUNT_I2D(1)
+            ALLOCATE(wrt_int_state%RST_WRITE_SUBSET_I(1:IM,JSTA_WRITE:JEND_WRITE  &
+                                                     ,KOUNT_I2D(1)))
+            ALLOCATE(wrt_int_state%RST_BUFF_INT(LENGTH))
+            WRITE_SUBSET_I=>wrt_int_state%RST_WRITE_SUBSET_I
+            BUFF_INT=>wrt_int_state%RST_BUFF_INT
+!
+            LENGTH=IM*(JEND_WRITE-JSTA_WRITE+1)*KOUNT_R2D(1)
+            ALLOCATE(wrt_int_state%RST_WRITE_SUBSET_R(1:IM,JSTA_WRITE:JEND_WRITE  &
+                                                     ,KOUNT_R2D(1)))
+            ALLOCATE(wrt_int_state%RST_BUFF_REAL(LENGTH))
+            WRITE_SUBSET_R=>wrt_int_state%RST_WRITE_SUBSET_R
+            BUFF_REAL=>wrt_int_state%RST_BUFF_REAL
+!
+          ENDIF
+!       
+        ENDIF
 !
 !-----------------------------------------------------------------------
-!***  The lead Write task allocates its working arrays into which
+!***  The lead write task allocates its working arrays into which
 !***  it will assemble each individual 2D field that will be
-!***  written to the restart files.
+!***  written to the history files.
 !-----------------------------------------------------------------------
 !
-      IF(MYPE==LEAD_WRITE_TASK)THEN
-        ALLOCATE(wrt_int_state%RST_OUTPUT_ARRAY_I2D(1:IM,1:JM))
-        ALLOCATE(wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM))
-      ENDIF
+        IF(MYPE_DOMAIN==LEAD_WRITE_TASK(N))THEN
+!
+          IF(OUTPUT_FLAG=='History')THEN
+            ALLOCATE(wrt_int_state%OUTPUT_ARRAY_I2D(1:IM,1:JM))
+            ALLOCATE(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM))
+            OUTPUT_ARRAY_I2D=>wrt_int_state%OUTPUT_ARRAY_I2D
+            OUTPUT_ARRAY_R2D=>wrt_int_state%OUTPUT_ARRAY_R2D
+!
+          ELSEIF(OUTPUT_FLAG=='Restart')THEN
+            ALLOCATE(wrt_int_state%RST_OUTPUT_ARRAY_I2D(1:IM,1:JM))
+            ALLOCATE(wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM))
+            OUTPUT_ARRAY_I2D=>wrt_int_state%RST_OUTPUT_ARRAY_I2D
+            OUTPUT_ARRAY_R2D=>wrt_int_state%RST_OUTPUT_ARRAY_R2D
+!
+          ENDIF
+!
+        ENDIF
 !
 !-----------------------------------------------------------------------
-!***  Since all scalar/1D data is identical on all Forecast tasks,
-!***  task 0 alone can send the information to the lead Write task
-!***  that will later write it to the restart file.
+!***  Since all scalar/1D data is identical on all forecast tasks,
+!***  task 0 alone can send the information to the lead write task
+!***  that will later write it to the history file.
 !--------------------------------------------------------------------
 !
 !--------------------------------------------------------------------
-      task_0_sends: IF(MYPE==0)THEN                                      !<-- Forecast task 0 sends
+        task_0_sends: IF(MYPE_DOMAIN==0)THEN                            !<-- Forecast task 0 sends
 !--------------------------------------------------------------------
 !
 !------------------------------------------------
-!***  SEND SCALAR/1D INTEGER RESTART INFORMATION.
+!***  Send scalar/1D integer history information.
 !------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Fcst Task0 Sends Scalar/1D Integer Restart Data"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Fcst Task0 Sends Scalar/1D Integer History Data"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%RST_KOUNT_I1D           &  !<-- Send # of scalar/1D integer restart variables
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
+          CALL MPI_SEND(KOUNT_I1D                                       &  !<-- Send # of scalar/1D integer history variables
+                       ,1                                               &  !<-- Words sent
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,LEAD_WRITE_TASK(N)                              &  !<-- Receiving task (1st write task in group)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain communicator
+                       ,IERR )
 !
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%RST_LENGTH_SUM_I1D      &  !<-- Send length of string of all such integer restart variables
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
+          CALL MPI_SEND(LENGTH_SUM_I1D                                  &  !<-- Send length of string of all such integer history variables
+                       ,1                                               &  !<-- Words sent
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,LEAD_WRITE_TASK(N)                              &  !<-- Receiving task (1st write task in group)
+!                      ,0                                               &  !<-- MPI tag
+                       ,678                                             &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,IERR )
 !
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%RST_LENGTH_DATA_I1D     &  !<-- Send lengths of each scalar/1D integer restart variable
-                        ,count   =wrt_int_state%RST_KOUNT_I1D(1)        &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
+          CALL MPI_SEND(LENGTH_DATA_I1D                                 &  !<-- Send lengths of each scalar/1D integer history variable
+                       ,KOUNT_I1D(1)                                    &  !<-- Words sent
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,LEAD_WRITE_TASK(N)                              &  !<-- Receiving task (1st write task in group)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,IERR )
 !
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%RST_NAMES_I1D_STRING    &  !<-- Send names of each scalar/1D integer restart variable
-                        ,count   =RST_NCHAR_I1D                         &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
+          CALL MPI_SEND(NAMES_I1D_STRING                                &  !<-- Send names of each scalar/1D integer history variable
+                       ,NCHAR_I1D                                       &  !<-- Words sent
+                       ,MPI_CHARACTER                                   &  !<-- Words are character
+                       ,LEAD_WRITE_TASK(N)                              &  !<-- Receiving task (1st write task in group)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,IERR )
 !
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%RST_ALL_DATA_I1D        &  !<-- Send the full string of all scalar/1D integer restart data
-                        ,count   =wrt_int_state%RST_LENGTH_SUM_I1D(1)   &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
+          CALL MPI_SEND(ALL_DATA_I1D                                    &  !<-- Send the full string of all scalar/1D integer history data
+                       ,LENGTH_SUM_I1D(1)                               &  !<-- Words sent
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,LEAD_WRITE_TASK(N)                              &  !<-- Receiving task (1st write task in group)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,IERR )
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !---------------------------------------------
-!***  Send scalar/1D real restart information.
+!***  Send scalar/1D real history information.
 !---------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Fcst Task0 Sends Scalar/1D Real Restart Data"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Fcst Task 0 Sends Scalar/1D Real History Data"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%RST_KOUNT_R1D           &  !<-- Send # of scalar/1D real restart variables
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
+          CALL MPI_SEND(KOUNT_R1D                                       &  !<-- Send # of scalar/1D real history variables
+                       ,1                                               &  !<-- Words sent
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,LEAD_WRITE_TASK(N)                              &  !<-- Receiving task (1st write task in group)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,IERR )
 !
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%RST_LENGTH_SUM_R1D      &  !<-- Send length of string of all such real restart variables
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
+          CALL MPI_SEND(LENGTH_SUM_R1D                                  &  !<-- Send length of string of all such real history variables
+                       ,1                                               &  !<-- Words sent
+                       ,MPI_INTEGER                                     &  !<-- Data is integer     
+                       ,LEAD_WRITE_TASK(N)                              &  !<-- Receiving task (1st write task in group)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,IERR )
 !
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%RST_LENGTH_DATA_R1D     &  !<-- Send lengths of each scalar/1D real restart variable
-                        ,count   =wrt_int_state%RST_KOUNT_R1D(1)        &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
+          CALL MPI_SEND(LENGTH_DATA_R1D                                 &  !<-- Send lengths of each scalar/1D real history variable
+                       ,KOUNT_R1D(1)                                    &  !<-- Words sent
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,LEAD_WRITE_TASK(N)                              &  !<-- Receiving task (1st write task in group)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,IERR )
 !
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%RST_NAMES_R1D_STRING    &  !<-- Send names of each scalar/1D real restart variable
-                        ,count   =RST_NCHAR_R1D                         &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
+          CALL MPI_SEND(NAMES_R1D_STRING                                &  !<-- Send names of each scalar/1D real history variable
+                       ,NCHAR_R1D                                       &  !<-- Words sent
+                       ,MPI_CHARACTER                                   &  !<-- Words are character
+                       ,LEAD_WRITE_TASK(N)                              &  !<-- Receiving task (1st write task in group)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,IERR )
 !
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%RST_ALL_DATA_R1D        &  !<-- Send the full string of all scalar/1D real restart data
-                        ,count   =wrt_int_state%RST_LENGTH_SUM_R1D(1)   &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
+          CALL MPI_SEND(ALL_DATA_R1D                                    &  !<-- Send the full string of all scalar/1D real history data
+                       ,LENGTH_SUM_R1D(1)                               &  !<-- Words sent
+                       ,MPI_REAL                                        &  !<-- Words are real
+                       ,LEAD_WRITE_TASK(N)                              &  !<-- Receiving task (1st write task in group)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,IERR )
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !--------------------------------------
-!***  Send logical restart information.
+!***  Send logical history information.
 !--------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Fcst Task0 Sends Logical Restart Data"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Fcst Task0 Sends Logical History Data"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%RST_KOUNT_LOG           &  !<-- Send # of logical restart variables
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
+          CALL MPI_SEND(KOUNT_LOG                                       &  !<-- Send # of logical history variables
+                       ,1                                               &  !<-- Words sent
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,LEAD_WRITE_TASK(N)                              &  !<-- Receiving task (1st write task in group)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,IERR )
 !
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%RST_LENGTH_SUM_LOG      &  !<-- Send length of string of all logical variables
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
+          CALL MPI_SEND(LENGTH_SUM_LOG                                  &  !<-- Send length of string of all logical variables
+                       ,1                                               &  !<-- Words sent
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,LEAD_WRITE_TASK(N)                              &  !<-- Receiving task (1st write task in group)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,IERR )
 !
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%RST_NAMES_LOG_STRING    &  !<-- Send names of each logical restart variable
-                        ,count   =RST_NCHAR_LOG                         &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
+          CALL MPI_SEND(NAMES_LOG_STRING                                &  !<-- Send names of each logical history variable
+                       ,NCHAR_LOG                                       &  !<-- Words sent
+                       ,MPI_CHARACTER                                   &  !<-- Data is character
+                       ,LEAD_WRITE_TASK(N)                              &  !<-- Receiving task (1st write task in group)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,IERR )
 !
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%RST_ALL_DATA_LOG        &  !<-- Send the full string of all logical restart data
-                        ,count   =wrt_int_state%RST_LENGTH_SUM_LOG(1)   &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-------------------------------------------------------------------
-!***  Send total # of words in full-domain 1-D boundary datastring.
-!-------------------------------------------------------------------
-!
-!       CALL MPI_SEND(wrt_int_state%NUM_WORDS_SEND_BC                   &  !<-- Send this data
-!                    ,1                                                 &  !<-- Number of words sent
-!                    ,MPI_INTEGER                                       &  !<-- Datatype
-!                    ,LEAD_WRITE_TASK                                   &  !<-- Send to lead write task in this write group
-!                    ,0                                                 &  !<-- An MPI tag
-!                    ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP)              &  !<-- MPI communicator
-!                    ,IERR)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Fcst Task0 Sends # of Full-Domain BC Words"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%NUM_WORDS_SEND_BC       &  !<-- Send # of words in full-domain BC data
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =LEAD_WRITE_TASK                       &  !<-- Receiving task (1st write task in group)
-                        ,rc      =RC)
+          CALL MPI_SEND(ALL_DATA_LOG                                    &  !<-- Send the full string of all logical history data
+                       ,LENGTH_SUM_LOG(1)                               &  !<-- Words sent
+                       ,MPI_LOGICAL                                     &  !<-- Data is logical 
+                       ,LEAD_WRITE_TASK(N)                              &  !<-- Receiving task (1st write task in group)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,IERR )
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-      ENDIF task_0_sends
+        ENDIF task_0_sends
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !
-      write_task_recvs: IF(MYPE==LEAD_WRITE_TASK)THEN                      !<-- 1st write task in this group receives
+        write_task_recvs: IF(MYPE_DOMAIN==LEAD_WRITE_TASK(N))THEN          !<-- 1st write task in this group receives
                                                                            !    all of the data just sent to it by
-                                                                           !    fcst task 0
+                                                                           !    fcst task 0.
 !-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!***  Receive scalar/1D integer restart information
+!***  Receive scalar/1D integer history information
 !***  from Forecast task 0.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Write Tasks Recv Scalar/1D Integer Restart Data"
+          MESSAGE_CHECK="Write Tasks Recv Scalar/1D Integer History Data"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL MPI_RECV(KOUNT_I1D                                       &  !<-- Recv # of scalar/1D integer history variables
+                       ,1                                               &  !<-- Words received
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,0                                               &  !<-- Sending task (lead fcst task)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
+!
+          CALL MPI_RECV(LENGTH_SUM_I1D                                  &  !<-- Recv length of string of all such integer history variables
+                       ,1                                               &  !<-- Words received
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,0                                               &  !<-- Sending task (lead fcst task)
+                       ,678                                             &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
+!
+          CALL MPI_RECV(LENGTH_DATA_I1D                                 &  !<-- Recv lengths of each scalar/1D integer history variable
+                       ,KOUNT_I1D(1)                                    &  !<-- Words received
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,0                                               &  !<-- Sending task (lead fcst task)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
+!
+          NCHAR_I1D=KOUNT_I1D(1)*ESMF_MAXSTR
+!
+          CALL MPI_RECV(NAMES_I1D_STRING                                &  !<-- Recv names of each scalar/1D integer history variable
+                       ,NCHAR_I1D                                       &  !<-- Words received
+                       ,MPI_CHARACTER                                   &  !<-- Words are character
+                       ,0                                               &  !<-- Sending task (lead fcst task)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
+!
+          CALL MPI_RECV(ALL_DATA_I1D                                    &  !<-- Recv the full string of all scalar/1D integer history data
+                       ,LENGTH_SUM_I1D(1)                               &  !<-- Words received
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,0                                               &  !<-- Sending task (lead fcst task)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Receive scalar/1D real history information.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Write Tasks Recv Scalar/1D Real History Data"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%RST_KOUNT_I1D           &  !<-- Recv # of integer restart variables
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+          CALL MPI_RECV(KOUNT_R1D                                       &  !<-- Recv # of scalar/1D real history variables
+                       ,1                                               &  !<-- Words received
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,0                                               &  !<-- Sending task (lead fcst task)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%RST_LENGTH_SUM_I1D      &  !<-- Recv length of string of all integer restart variables
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+          CALL MPI_RECV(LENGTH_SUM_R1D                                  &  !<-- Recv length of string of all such real history variables
+                       ,1                                               &  !<-- Words received
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,0                                               &  !<-- Sending task (lead fcst task)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%RST_LENGTH_DATA_I1D     &  !<-- Recv lengths of each integer restart variable
-                        ,count   =wrt_int_state%RST_KOUNT_I1D(1)        &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+          CALL MPI_RECV(LENGTH_DATA_R1D                                 &  !<-- Recv lengths of each scalar/1D real history variable
+                       ,KOUNT_R1D(1)                                    &  !<-- Words received
+                       ,MPI_INTEGER                                     &  !<-- Data is integer
+                       ,0                                               &  !<-- Sending task (lead fcst task)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
 !
-        RST_NCHAR_I1D=wrt_int_state%RST_KOUNT_I1D(1)*ESMF_MAXSTR
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%RST_NAMES_I1D_STRING    &  !<-- Recv names of integer restart variables
-                        ,count   =RST_NCHAR_I1D                         &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+          NCHAR_R1D=KOUNT_R1D(1)*ESMF_MAXSTR
+          CALL MPI_RECV(NAMES_R1D_STRING                                &  !<-- Recv names of scalar/1D real history variables
+                       ,NCHAR_R1D                                       &  !<-- Words received
+                       ,MPI_CHARACTER                                   &  !<-- Data is character
+                       ,0                                               &  !<-- Sending task (lead fcst task)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%RST_ALL_DATA_I1D        &  !<-- Recv the string of integer restart data
-                        ,count   =wrt_int_state%RST_LENGTH_SUM_I1D(1)   &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Receive scalar/1D real restart information.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Write Tasks Recv Scalar/1D Real Restart Data"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%RST_KOUNT_R1D           &  !<-- Recv # of scalar/1D real restart variables
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%RST_LENGTH_SUM_R1D      &  !<-- Recv length of string of all such real restart variables
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%RST_LENGTH_DATA_R1D     &  !<-- Recv lengths of each scalar/1D real restart variable
-                        ,count   =wrt_int_state%RST_KOUNT_R1D(1)        &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        RST_NCHAR_R1D=wrt_int_state%RST_KOUNT_R1D(1)*ESMF_MAXSTR
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%RST_NAMES_R1D_STRING    &  !<-- Recv names of scalar/1D real restart variables
-                        ,count   =RST_NCHAR_R1D                         &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
-!
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%RST_ALL_DATA_R1D        &  !<-- Recv the string of all scalar/1D real restart data
-                        ,count   =wrt_int_state%RST_LENGTH_SUM_R1D(1)   &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+          CALL MPI_RECV(ALL_DATA_R1D                                    &  !<-- Recv the string of all scalar/1D real history data
+                       ,LENGTH_SUM_R1D(1)                               &  !<-- Words received
+                       ,MPI_REAL                                        &  !<-- Data is real
+                       ,0                                               &  !<-- Sending task (lead fcst task)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  Receive logical restart information.
+!***  Receive logical history information.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Write Tasks Recv Logical Real Restart Data"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Write Tasks Recv Logical Real History Data"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%RST_KOUNT_LOG           &  !<-- Recv # of logical restart variables
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+          CALL MPI_RECV(KOUNT_LOG                                       &  !<-- Recv # of logical history variables
+                       ,1                                               &  !<-- Words received
+                       ,MPI_INTEGER                                     &  !<-- Data is integer  
+                       ,0                                               &  !<-- Sending task (lead fcst task)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%RST_LENGTH_SUM_LOG      &  !<-- Recv length of string of all logical restart variables
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+          CALL MPI_RECV(LENGTH_SUM_LOG                                  &  !<-- Recv length of string of all logical history variables
+                       ,1                                               &  !<-- Words received
+                       ,MPI_INTEGER                                     &  !<-- Data is integer  
+                       ,0                                               &  !<-- Sending task (lead fcst task)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
 !
-        RST_NCHAR_LOG=wrt_int_state%RST_KOUNT_LOG(1)*ESMF_MAXSTR
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%RST_NAMES_LOG_STRING    &  !<-- Recv names of logical restart variables
-                        ,count   =RST_NCHAR_LOG                         &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+          NCHAR_LOG=KOUNT_LOG(1)*ESMF_MAXSTR
+          CALL MPI_RECV(NAMES_LOG_STRING                                &  !<-- Recv names of logical history variables
+                       ,NCHAR_LOG                                       &  !<-- Words received
+                       ,MPI_CHARACTER                                   &  !<-- Data is character
+                       ,0                                               &  !<-- Sending task (lead fcst task)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%RST_ALL_DATA_LOG        &  !<-- Recv the string of all logical restart data
-                        ,count   =wrt_int_state%RST_LENGTH_SUM_LOG(1)   &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+          CALL MPI_RECV(ALL_DATA_LOG                                    &  !<-- Recv the string of all logical history data
+                       ,LENGTH_SUM_LOG(1)                               &  !<-- Words received
+                       ,MPI_LOGICAL                                     &  !<-- Data is logical  
+                       ,0                                               &  !<-- Sending task (lead fcst task)
+                       ,0                                               &  !<-- MPI tag
+                       ,COMM_MY_DOMAIN                                  &  !<-- MPI domain commumicator
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!-------------------------------------------------------------------
-!***  Recv total # of words in full-domain 1-D boundary datastring.
-!-------------------------------------------------------------------
+!-----------------------------------------------------------------------
 !
-        IF(.NOT.ALLOCATED(wrt_int_state%NUM_WORDS_SEND_BC))THEN
-          ALLOCATE(wrt_int_state%NUM_WORDS_SEND_BC(1))
+        ENDIF write_task_recvs
+!
+!-----------------------------------------------------------------------
+!
+      ENDDO n_groups_3
+!
+!-----------------------------------------------------------------------
+!
+      DEALLOCATE(INPES)
+      DEALLOCATE(JNPES)
+      DEALLOCATE(IHALO)
+      DEALLOCATE(JHALO)
+      DEALLOCATE(NCHAR_I2D)
+      DEALLOCATE(NCHAR_R2D)
+!
+!-----------------------------------------------------------------------
+!***  All the write tasks now have everything they need with respect to
+!***  the nature of the data they will be writing out whenever their
+!***  particular write group is invoked.  However for the forecast
+!***  tasks only the variables in the internal state of the Write 
+!***  component associated with write group #1 have been filled.
+!***  So now the write tasks fill those same variables in each of 
+!***  the other internal states of the Write components associated 
+!***  with the remaining write groups.
+!-----------------------------------------------------------------------
+!
+      IF(MYPE_DOMAIN<=LAST_FCST_TASK                                    &  !<-- Select only the forecast tasks
+                 .AND.                                                  &
+         NUM_WRITE_GROUPS>1)THEN                                           !<-- Variables in write group #1 already done
+!
+!-----------------------------------------------------------------------
+!
+        ALLOCATE(WRT_INT_STATE_X(2:NUM_WRITE_GROUPS),stat=RC)              !<-- Allocate working array of internal states
+!
+        IF(RC/=0)THEN
+          WRITE(0,*)' Failed to allocate working array of'              &
+                   ,' internal state pointers!'
+          WRITE(0,*)' ABORT!'
+          CALL ESMF_Finalize(terminationflag=ESMF_ABORT                 &
+                            ,rc             =RC )
         ENDIF
 !
-!       CALL MPI_RECV(wrt_int_state%NUM_WORDS_SEND_BC                   &  !<-- Recv this data
-!                    ,1                                                 &  !<-- Words received
-!                    ,MPI_INTEGER                                       &  !<-- Datatype
-!                    ,0                                                 &  !<-- Recv from fcst task 0
-!                    ,0                                                 &  !<-- An MPI tag
-!                    ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP)              &  !<-- MPI communicator
-!                    ,JSTAT                                             &  !<-- MPI status object
-!                    ,IERR)
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%NUM_WORDS_SEND_BC       &  !<-- Recv # of words in full-domain BC datastring
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
-                        ,rc      =RC)
+!-----------------------------------------------------------------------
 !
-        IF(.NOT.ALLOCATED(wrt_int_state%RST_ALL_BC_DATA))THEN
-          ALLOCATE(wrt_int_state%RST_ALL_BC_DATA(1:wrt_int_state%NUM_WORDS_SEND_BC(1)))
-        ENDIF
+        DO N=2,NUM_WRITE_GROUPS                                            !<-- Loop through remaining write groups
 !
 !-----------------------------------------------------------------------
 !
-      ENDIF write_task_recvs
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="PRELIM_INFO: Fcst Tasks Get Nth Write Internal State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_GridCompGetInternalState(WRITE_COMPS(N)             &
+                                            ,WRAP                       &
+                                            ,RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          WRT_INT_STATE_X(N)%LOC_INT_STATE=>wrap%WRITE_INT_STATE           !<-- Pointer to internal state of Nth Write component
 !
 !-----------------------------------------------------------------------
 !
-      DEALLOCATE(INPES,JNPES)
+          CALL FILL_GROUP_STATES                                           !<-- Fill variables in internal state N from state #1
 !
 !-----------------------------------------------------------------------
 !
-      END SUBROUTINE FIRST_PASS_RST
+        ENDDO
+!
+        DEALLOCATE(WRT_INT_STATE_X)
+!
+      ENDIF
 !
 !-----------------------------------------------------------------------
-!$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+!
+      CONTAINS
+!
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE POINT_LOCAL
+!
+!-----------------------------------------------------------------------
+!
+      IF(OUTPUT_FLAG=='History')THEN
+!
+        ALLOCATE(wrt_int_state%NUM_WORDS_SEND_I2D_HST)
+        ALLOCATE(wrt_int_state%NUM_WORDS_SEND_R2D_HST)
+        ALLOCATE(wrt_int_state%FIELD_NAME(1:5000))
+        ALLOCATE(wrt_int_state%NAMES_I1D_STRING)
+        ALLOCATE(wrt_int_state%NAMES_I2D_STRING)
+        ALLOCATE(wrt_int_state%NAMES_R1D_STRING)
+        ALLOCATE(wrt_int_state%NAMES_R2D_STRING)
+        ALLOCATE(wrt_int_state%NAMES_LOG_STRING)
+!
+        NUM_WORDS_SEND_I2D=>wrt_int_state%NUM_WORDS_SEND_I2D_HST
+        NUM_WORDS_SEND_R2D=>wrt_int_state%NUM_WORDS_SEND_R2D_HST
+        KOUNT_I1D=>wrt_int_state%KOUNT_I1D
+        KOUNT_I2D=>wrt_int_state%KOUNT_I2D
+        KOUNT_R1D=>wrt_int_state%KOUNT_R1D
+        KOUNT_R2D=>wrt_int_state%KOUNT_R2D
+        KOUNT_LOG=>wrt_int_state%KOUNT_LOG
+        LENGTH_DATA_I1D=>wrt_int_state%LENGTH_DATA_I1D
+        LENGTH_DATA_R1D=>wrt_int_state%LENGTH_DATA_R1D
+        LENGTH_DATA_R2D=>wrt_int_state%LENGTH_DATA_R2D
+        LENGTH_SUM_I1D=>wrt_int_state%LENGTH_SUM_I1D
+        LENGTH_SUM_R1D=>wrt_int_state%LENGTH_SUM_R1D
+        LENGTH_SUM_R2D=>wrt_int_state%LENGTH_SUM_R2D
+        LENGTH_SUM_LOG=>wrt_int_state%LENGTH_SUM_LOG
+        NCOUNT_FIELDS=>wrt_int_state%NCOUNT_FIELDS
+        ALL_DATA_I1D=>wrt_int_state%ALL_DATA_I1D
+        ALL_DATA_R1D=>wrt_int_state%ALL_DATA_R1D
+        FIELD_NAME=>wrt_int_state%FIELD_NAME
+        NAMES_I1D_STRING=>wrt_int_state%NAMES_I1D_STRING
+        NAMES_I2D_STRING=>wrt_int_state%NAMES_I2D_STRING
+        NAMES_R1D_STRING=>wrt_int_state%NAMES_R1D_STRING
+        NAMES_R2D_STRING=>wrt_int_state%NAMES_R2D_STRING
+        NAMES_LOG_STRING=>wrt_int_state%NAMES_LOG_STRING
+        ALL_DATA_LOG=>wrt_int_state%ALL_DATA_LOG
+!
+      ELSEIF(OUTPUT_FLAG=='Restart')THEN
+!
+        ALLOCATE(wrt_int_state%NUM_WORDS_SEND_I2D_RST)
+        ALLOCATE(wrt_int_state%NUM_WORDS_SEND_R2D_RST)
+        ALLOCATE(wrt_int_state%RST_FIELD_NAME(1:5000))
+        ALLOCATE(wrt_int_state%RST_NAMES_I1D_STRING)
+        ALLOCATE(wrt_int_state%RST_NAMES_I2D_STRING)
+        ALLOCATE(wrt_int_state%RST_NAMES_R1D_STRING)
+        ALLOCATE(wrt_int_state%RST_NAMES_R2D_STRING)
+        ALLOCATE(wrt_int_state%RST_NAMES_LOG_STRING)
+!
+        NUM_WORDS_SEND_I2D=>wrt_int_state%NUM_WORDS_SEND_I2D_RST
+        NUM_WORDS_SEND_R2D=>wrt_int_state%NUM_WORDS_SEND_R2D_RST
+        KOUNT_I1D=>wrt_int_state%RST_KOUNT_I1D
+        KOUNT_I2D=>wrt_int_state%RST_KOUNT_I2D
+        KOUNT_R1D=>wrt_int_state%RST_KOUNT_R1D
+        KOUNT_R2D=>wrt_int_state%RST_KOUNT_R2D
+        KOUNT_LOG=>wrt_int_state%RST_KOUNT_LOG
+        LENGTH_DATA_I1D=>wrt_int_state%RST_LENGTH_DATA_I1D
+        LENGTH_DATA_R1D=>wrt_int_state%RST_LENGTH_DATA_R1D
+        LENGTH_DATA_R2D=>wrt_int_state%RST_LENGTH_DATA_R2D
+        LENGTH_SUM_I1D=>wrt_int_state%RST_LENGTH_SUM_I1D
+        LENGTH_SUM_R1D=>wrt_int_state%RST_LENGTH_SUM_R1D
+        LENGTH_SUM_R2D=>wrt_int_state%RST_LENGTH_SUM_R2D
+        LENGTH_SUM_LOG=>wrt_int_state%RST_LENGTH_SUM_LOG
+        NCOUNT_FIELDS=>wrt_int_state%RST_NCOUNT_FIELDS
+        ALL_DATA_I1D=>wrt_int_state%RST_ALL_DATA_I1D
+        ALL_DATA_R1D=>wrt_int_state%RST_ALL_DATA_R1D
+        FIELD_NAME=>wrt_int_state%RST_FIELD_NAME
+        NAMES_I1D_STRING=>wrt_int_state%RST_NAMES_I1D_STRING
+        NAMES_I2D_STRING=>wrt_int_state%RST_NAMES_I2D_STRING
+        NAMES_R1D_STRING=>wrt_int_state%RST_NAMES_R1D_STRING
+        NAMES_R2D_STRING=>wrt_int_state%RST_NAMES_R2D_STRING
+        NAMES_LOG_STRING=>wrt_int_state%RST_NAMES_LOG_STRING
+        ALL_DATA_LOG=>wrt_int_state%RST_ALL_DATA_LOG
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE POINT_LOCAL
+!
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE FILL_GROUP_STATES
+!
+!-----------------------------------------------------------------------
+!
+      IF(OUTPUT_FLAG=='History')THEN
+!
+        ALLOCATE(wrt_int_state_x(N)%loc_int_state%NUM_WORDS_SEND_I2D_HST)
+        ALLOCATE(wrt_int_state_x(N)%loc_int_state%NUM_WORDS_SEND_R2D_HST)
+        ALLOCATE(wrt_int_state_x(N)%loc_int_state%FIELD_NAME(1:5000))
+        ALLOCATE(wrt_int_state_x(N)%loc_int_state%NAMES_I1D_STRING)
+        ALLOCATE(wrt_int_state_x(N)%loc_int_state%NAMES_I2D_STRING)
+        ALLOCATE(wrt_int_state_x(N)%loc_int_state%NAMES_R1D_STRING)
+        ALLOCATE(wrt_int_state_x(N)%loc_int_state%NAMES_R2D_STRING)
+        ALLOCATE(wrt_int_state_x(N)%loc_int_state%NAMES_LOG_STRING)
+        ALLOCATE(wrt_int_state_x(N)%loc_int_state%ALL_DATA_I2D(wrt_int_state%NUM_WORDS_SEND_I2D_HST),stat=ISTAT)
+        ALLOCATE(wrt_int_state_x(N)%loc_int_state%ALL_DATA_R2D(wrt_int_state%NUM_WORDS_SEND_R2D_HST),stat=ISTAT)
+!
+        wrt_int_state_x(N)%loc_int_state%INPES=wrt_int_state%INPES
+        wrt_int_state_x(N)%loc_int_state%JNPES=wrt_int_state%JNPES
+        wrt_int_state_x(N)%loc_int_state%IHALO=wrt_int_state%IHALO
+        wrt_int_state_x(N)%loc_int_state%JHALO=wrt_int_state%JHALO
+        wrt_int_state_x(N)%loc_int_state%NUM_WORDS_SEND_I2D_HST=wrt_int_state%NUM_WORDS_SEND_I2D_HST
+        wrt_int_state_x(N)%loc_int_state%NUM_WORDS_SEND_R2D_HST=wrt_int_state%NUM_WORDS_SEND_R2D_HST
+        wrt_int_state_x(N)%loc_int_state%KOUNT_I1D=wrt_int_state%KOUNT_I1D
+        wrt_int_state_x(N)%loc_int_state%KOUNT_I2D=wrt_int_state%KOUNT_I2D
+        wrt_int_state_x(N)%loc_int_state%KOUNT_R1D=wrt_int_state%KOUNT_R1D
+        wrt_int_state_x(N)%loc_int_state%KOUNT_R2D=wrt_int_state%KOUNT_R2D
+        wrt_int_state_x(N)%loc_int_state%KOUNT_LOG=wrt_int_state%KOUNT_LOG
+        wrt_int_state_x(N)%loc_int_state%LENGTH_DATA_I1D=wrt_int_state%LENGTH_DATA_I1D
+        wrt_int_state_x(N)%loc_int_state%LENGTH_DATA_R1D=wrt_int_state%LENGTH_DATA_R1D
+!       wrt_int_state_x(N)%loc_int_state%LENGTH_DATA_R2D=wrt_int_state%LENGTH_DATA_R2D
+        wrt_int_state_x(N)%loc_int_state%LENGTH_SUM_I1D=wrt_int_state%LENGTH_SUM_I1D
+        wrt_int_state_x(N)%loc_int_state%LENGTH_SUM_R1D=wrt_int_state%LENGTH_SUM_R1D
+!       wrt_int_state_x(N)%loc_int_state%LENGTH_SUM_R2D=wrt_int_state%LENGTH_SUM_R2D
+        wrt_int_state_x(N)%loc_int_state%LENGTH_SUM_LOG=wrt_int_state%LENGTH_SUM_LOG
+        wrt_int_state_x(N)%loc_int_state%NCOUNT_FIELDS=wrt_int_state%NCOUNT_FIELDS
+        wrt_int_state_x(N)%loc_int_state%ALL_DATA_I1D=wrt_int_state%ALL_DATA_I1D
+        wrt_int_state_x(N)%loc_int_state%ALL_DATA_R1D=wrt_int_state%ALL_DATA_R1D
+        wrt_int_state_x(N)%loc_int_state%FIELD_NAME=wrt_int_state%FIELD_NAME
+        wrt_int_state_x(N)%loc_int_state%NAMES_I1D_STRING=wrt_int_state%NAMES_I1D_STRING
+        wrt_int_state_x(N)%loc_int_state%NAMES_I2D_STRING=wrt_int_state%NAMES_I2D_STRING
+        wrt_int_state_x(N)%loc_int_state%NAMES_R1D_STRING=wrt_int_state%NAMES_R1D_STRING
+        wrt_int_state_x(N)%loc_int_state%NAMES_R2D_STRING=wrt_int_state%NAMES_R2D_STRING
+        wrt_int_state_x(N)%loc_int_state%NAMES_LOG_STRING=wrt_int_state%NAMES_LOG_STRING
+        wrt_int_state_x(N)%loc_int_state%ALL_DATA_LOG=wrt_int_state%ALL_DATA_LOG
+!
+        DO NN=0,LAST_FCST_TASK
+          wrt_int_state_x(N)%loc_int_state%LOCAL_ISTART(NN)=wrt_int_state%LOCAL_ISTART(NN)
+          wrt_int_state_x(N)%loc_int_state%LOCAL_IEND(NN)=wrt_int_state%LOCAL_IEND(NN)
+          wrt_int_state_x(N)%loc_int_state%LOCAL_JSTART(NN)=wrt_int_state%LOCAL_JSTART(NN)
+          wrt_int_state_x(N)%loc_int_state%LOCAL_JEND(NN)=wrt_int_state%LOCAL_JEND(NN)
+        ENDDO
+!
+      ELSEIF(OUTPUT_FLAG=='Restart')THEN
+!
+        wrt_int_state_x(N)%loc_int_state%INPES=wrt_int_state%INPES
+        wrt_int_state_x(N)%loc_int_state%JNPES=wrt_int_state%JNPES
+        wrt_int_state_x(N)%loc_int_state%IHALO=wrt_int_state%IHALO
+        wrt_int_state_x(N)%loc_int_state%JHALO=wrt_int_state%JHALO
+        ALLOCATE(wrt_int_state_x(N)%loc_int_state%NUM_WORDS_SEND_I2D_RST)
+        ALLOCATE(wrt_int_state_x(N)%loc_int_state%NUM_WORDS_SEND_R2D_RST)
+        ALLOCATE(wrt_int_state_x(N)%loc_int_state%RST_FIELD_NAME(1:5000))
+        ALLOCATE(wrt_int_state_x(N)%loc_int_state%RST_NAMES_I1D_STRING)
+        ALLOCATE(wrt_int_state_x(N)%loc_int_state%RST_NAMES_I2D_STRING)
+        ALLOCATE(wrt_int_state_x(N)%loc_int_state%RST_NAMES_R1D_STRING)
+        ALLOCATE(wrt_int_state_x(N)%loc_int_state%RST_NAMES_R2D_STRING)
+        ALLOCATE(wrt_int_state_x(N)%loc_int_state%RST_NAMES_LOG_STRING)
+        ALLOCATE(wrt_int_state_x(N)%loc_int_state%RST_ALL_DATA_I2D(wrt_int_state%NUM_WORDS_SEND_I2D_RST),stat=ISTAT)
+        ALLOCATE(wrt_int_state_x(N)%loc_int_state%RST_ALL_DATA_R2D(wrt_int_state%NUM_WORDS_SEND_R2D_RST),stat=ISTAT)
+!
+        wrt_int_state_x(N)%loc_int_state%NUM_WORDS_SEND_I2D_RST=wrt_int_state%NUM_WORDS_SEND_I2D_RST
+        wrt_int_state_x(N)%loc_int_state%NUM_WORDS_SEND_R2D_RST=wrt_int_state%NUM_WORDS_SEND_R2D_RST
+        wrt_int_state_x(N)%loc_int_state%RST_KOUNT_I1D=wrt_int_state%RST_KOUNT_I1D
+        wrt_int_state_x(N)%loc_int_state%RST_KOUNT_I2D=wrt_int_state%RST_KOUNT_I2D
+        wrt_int_state_x(N)%loc_int_state%RST_KOUNT_R1D=wrt_int_state%RST_KOUNT_R1D
+        wrt_int_state_x(N)%loc_int_state%RST_KOUNT_R2D=wrt_int_state%RST_KOUNT_R2D
+        wrt_int_state_x(N)%loc_int_state%RST_KOUNT_LOG=wrt_int_state%RST_KOUNT_LOG
+        wrt_int_state_x(N)%loc_int_state%RST_LENGTH_DATA_I1D=wrt_int_state%RST_LENGTH_DATA_I1D
+        wrt_int_state_x(N)%loc_int_state%RST_LENGTH_DATA_R1D=wrt_int_state%RST_LENGTH_DATA_R1D
+!       wrt_int_state_x(N)%loc_int_state%RST_LENGTH_DATA_R2D=wrt_int_state%RST_LENGTH_DATA_R2D
+        wrt_int_state_x(N)%loc_int_state%RST_LENGTH_SUM_I1D=wrt_int_state%RST_LENGTH_SUM_I1D
+        wrt_int_state_x(N)%loc_int_state%RST_LENGTH_SUM_R1D=wrt_int_state%RST_LENGTH_SUM_R1D
+!       wrt_int_state_x(N)%loc_int_state%RST_LENGTH_SUM_R2D=wrt_int_state%RST_LENGTH_SUM_R2D
+        wrt_int_state_x(N)%loc_int_state%RST_LENGTH_SUM_LOG=wrt_int_state%RST_LENGTH_SUM_LOG
+        wrt_int_state_x(N)%loc_int_state%RST_NCOUNT_FIELDS=wrt_int_state%RST_NCOUNT_FIELDS
+        wrt_int_state_x(N)%loc_int_state%RST_ALL_DATA_I1D=wrt_int_state%RST_ALL_DATA_I1D
+        wrt_int_state_x(N)%loc_int_state%RST_ALL_DATA_R1D=wrt_int_state%RST_ALL_DATA_R1D
+        wrt_int_state_x(N)%loc_int_state%RST_FIELD_NAME=wrt_int_state%RST_FIELD_NAME
+        wrt_int_state_x(N)%loc_int_state%RST_NAMES_I1D_STRING=wrt_int_state%RST_NAMES_I1D_STRING
+        wrt_int_state_x(N)%loc_int_state%RST_NAMES_I2D_STRING=wrt_int_state%RST_NAMES_I2D_STRING
+        wrt_int_state_x(N)%loc_int_state%RST_NAMES_R1D_STRING=wrt_int_state%RST_NAMES_R1D_STRING
+        wrt_int_state_x(N)%loc_int_state%RST_NAMES_R2D_STRING=wrt_int_state%RST_NAMES_R2D_STRING
+        wrt_int_state_x(N)%loc_int_state%RST_NAMES_LOG_STRING=wrt_int_state%RST_NAMES_LOG_STRING
+        wrt_int_state_x(N)%loc_int_state%RST_ALL_DATA_LOG=wrt_int_state%RST_ALL_DATA_LOG
+!
+        DO NN=0,LAST_FCST_TASK
+          wrt_int_state_x(N)%loc_int_state%LOCAL_ISTART(NN)=wrt_int_state%LOCAL_ISTART(NN)
+          wrt_int_state_x(N)%loc_int_state%LOCAL_IEND(NN)=wrt_int_state%LOCAL_IEND(NN)
+          wrt_int_state_x(N)%loc_int_state%LOCAL_JSTART(NN)=wrt_int_state%LOCAL_JSTART(NN)
+          wrt_int_state_x(N)%loc_int_state%LOCAL_JEND(NN)=wrt_int_state%LOCAL_JEND(NN)
+        ENDDO
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE FILL_GROUP_STATES
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE PRELIM_INFO_FOR_OUTPUT
+!
+!-----------------------------------------------------------------------
+!#######################################################################
 !-----------------------------------------------------------------------
 !
       SUBROUTINE OPEN_HST_FILE(WRT_INT_STATE)
@@ -3460,7 +2666,9 @@
 !#######################################################################
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE WRITE_INIT(DOMAIN_GRID_COMP,DOMAIN_INT_STATE,CLOCK_DOMAIN)
+      SUBROUTINE WRITE_INIT(DOMAIN_GRID_COMP                            &
+                           ,DOMAIN_INT_STATE                            &
+                           ,CLOCK_DOMAIN)
 ! 
 !-----------------------------------------------------------------------
 !***  Execute the Initialize step of the Write components.
@@ -3564,6 +2772,27 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
+!***  Some aspects of the output data do not change with forecast time
+!***  for both the forecast and the quilt tasks.  Determine all such
+!***  information now and save it.  Do this work once for history
+!***  and once for restart output.
+!-----------------------------------------------------------------------
+!
+!     write(0,*)' calling PRELIM for history'
+      CALL PRELIM_INFO_FOR_OUTPUT('History'                             &
+                                 ,NUM_PES_FCST                          &
+                                 ,domain_int_state%WRITE_GROUPS         &
+                                 ,domain_int_state%WRITE_COMPS          &
+                                 ,domain_int_state%IMP_STATE_WRITE )
+!
+!     write(0,*)' calling PRELIM for restart'
+      CALL PRELIM_INFO_FOR_OUTPUT('Restart'                             &
+                                 ,NUM_PES_FCST                          &
+                                 ,domain_int_state%WRITE_GROUPS         &
+                                 ,domain_int_state%WRITE_COMPS          &
+                                 ,domain_int_state%IMP_STATE_WRITE )
+!
+!-----------------------------------------------------------------------
 !***  Set the first Write group as the first one to act.
 !-----------------------------------------------------------------------
 !
@@ -3625,6 +2854,7 @@
 !
       IF(CWRT=='History') TIME_FOR_HISTORY = .TRUE.
       IF(CWRT=='Restart') TIME_FOR_RESTART = .TRUE.
+!     write(0,*)' enter WRITE_ASYNC time_for_history=',time_for_history,' time_for_restart=',time_for_restart
 !
 !-----------------------------------------------------------------------
 !***  Extract the configure object in order to know the number
@@ -3740,6 +2970,8 @@
 !-----------------------------------------------------------------------
 !
       N_GROUP=domain_int_state%WRITE_GROUP_READY_TO_GO                       !<-- The active write group
+!     write(0,*)' WRITE_ASYNC calling WRITE_RUN for write group ',n_group &
+!              ,' num_pes_fcst=',num_pes_fcst,' write_tasks_per_group=',write_tasks_per_group
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="WRITE_ASYNC: Execute Run Step of Write Components" 
@@ -3747,6 +2979,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO I=1,NUM_PES_FCST+WRITE_TASKS_PER_GROUP
+!     write(0,*)' I=',i,' mype=',mype,' petlist=',domain_int_state%PETLIST_WRITE(I,N_GROUP)
         IF(MYPE==domain_int_state%PETLIST_WRITE(I,N_GROUP))THEN
           CALL ESMF_GridCompRun(gridcomp=domain_int_state%WRITE_COMPS(N_GROUP) &  !<-- The write gridded component
                                ,importState=domain_int_state%IMP_STATE_WRITE   &  !<-- Its import state
@@ -5122,7 +4355,7 @@
         CALL LOWERCASE(RECNAME(NREC))
       ENDDO
 !
-      write(0,*)'after I2D,nrec=',nrec
+!     write(0,*)'after I2D,nrec=',nrec
 !
 !-----------------------------------------------------------------------
 !*** Cut the output R2D array.
@@ -5187,7 +4420,7 @@
 !
         CALL LOWERCASE(RECNAME(NREC))
       ENDDO
-      write(0,*)'after R2D,nrec=',nrec,'kount_r2d=',wrt_int_state%RST_KOUNT_R2D(1)
+!     write(0,*)'after R2D,nrec=',nrec,'kount_r2d=',wrt_int_state%RST_KOUNT_R2D(1)
 !
 !for fact10
       NREC=NREC+1
@@ -5206,7 +4439,7 @@
       glon1d=0.
       glat1d=0.
       NMETA=12
-      write(0,*)'after glat1d,NDYH=',ndyh
+!     write(0,*)'after glat1d,NDYH=',ndyh
 !
 !dx and dy
       ALLOCATE(DX(FIELDSIZE),DY(FIELDSIZE))
@@ -5217,7 +4450,7 @@
          DX(I+(J-1)*IM)=ARYRVAL(J,NDXH)
        ENDDO
        ENDDO
-       write(0,*)'after dx=',maxval(dx),minval(dx),'dy=',maxval(dy),minval(dy)
+!      write(0,*)'after dx=',maxval(dx),minval(dx),'dy=',maxval(dy),minval(dy)
       else
        NMETA=7
       endif
@@ -5227,7 +4460,7 @@
         DY(I)=VARRVAL(NDYH)
        ENDDO
       endif
-      write(0,*)'after DY,nrec=',nrec
+!     write(0,*)'after DY,nrec=',nrec
 
 !
 !-----------------------------------------------------------------------

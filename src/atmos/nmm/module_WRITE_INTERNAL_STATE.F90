@@ -1,7 +1,9 @@
 !-----------------------------------------------------------------------
+!
       MODULE MODULE_WRITE_INTERNAL_STATE
+!
 !-----------------------------------------------------------------------
-!***  THE INTERNAL STATE OF THE WRITE COMPONENT.
+!***  The internal state of the Write component.
 !-----------------------------------------------------------------------
 !***
 !***  HISTORY
@@ -15,6 +17,7 @@
 !       04 Sep 2009:  T. Black - Add the 1-D boundary restart arrays
 !       22 Apr 2010:  T. Black - Add minutes and seconds to elapsed
 !                                forecast time.
+!       15 Sep 2010:  T. Black - Changed many components to pointers
 !
 !-----------------------------------------------------------------------
 !
@@ -47,9 +50,9 @@
 
       TYPE WRITE_INTERNAL_STATE
 
-!--------------------------------
-! PE INFORMATION AND TASK LAYOUT
-!--------------------------------
+!------------------------------------
+!***  PE information and task layout
+!------------------------------------
 !
       INTEGER(kind=KINT) :: MYPE
       INTEGER(kind=KINT) :: INPES,JNPES
@@ -58,7 +61,7 @@
       INTEGER(kind=KINT) :: WRITE_GROUPS,WRITE_TASKS_PER_GROUP
 !
 !-----------------------------
-!***  FULL DOMAIN INFORMATION
+!***  Full domain information
 !-----------------------------
 !
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: IM
@@ -72,7 +75,7 @@
       TYPE(ESMF_Logical) :: GLOBAL
 !
 !--------------------
-!***  SUBDOMAIN SIZE
+!***  Subdomain size
 !--------------------
 !
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: LOCAL_ISTART       &
@@ -81,89 +84,92 @@
                                                     ,LOCAL_JEND
 !
 !----------------------------------------------------
-!***  IDs OF FCST TASKS THAT SEND TO EACH WRITE TASK
+!***  IDs of fcst tasks that send to each write task
 !----------------------------------------------------
 !
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: ID_FTASK_RECV_STA  &
                                                     ,ID_FTASK_RECV_END
 !
 !----------------------------------------------------
-!***  # OF WORDS SENT BY EACH FORECAST TASK 
-!***  TO ITS DESIGNATED WRITE TASK.
+!***  # of words sent by each forecast task 
+!***  to its designated write task.
 !----------------------------------------------------
 !
-      INTEGER(kind=KINT) :: NUM_WORDS_SEND_I2D_HST                      &
-                           ,NUM_WORDS_SEND_R2D_HST                      &
-                           ,NUM_WORDS_SEND_I2D_RST                      & 
-                           ,NUM_WORDS_SEND_R2D_RST
+      INTEGER(kind=KINT),POINTER :: NUM_WORDS_SEND_I2D_HST              &
+                                   ,NUM_WORDS_SEND_R2D_HST              &
+                                   ,NUM_WORDS_SEND_I2D_RST              & 
+                                   ,NUM_WORDS_SEND_R2D_RST
 !
 !----------------------------------------------------
-!***  # OF WORDS RECEIVED BY EACH WRITE TASK FROM
-!***  ALL OF ITS DESIGNATED FORECAST TASKS.
+!***  # of words received by each write task from
+!***  all of its designated forecast tasks.
 !----------------------------------------------------
 !
-      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: NUM_WORDS_RECV_I2D_HST  &
-                                                    ,NUM_WORDS_RECV_R2D_HST  &
-                                                    ,NUM_WORDS_RECV_I2D_RST  &
-                                                    ,NUM_WORDS_RECV_R2D_RST
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: NUM_WORDS_RECV_I2D_HST &
+                                                ,NUM_WORDS_RECV_R2D_HST &
+                                                ,NUM_WORDS_RECV_I2D_RST &
+                                                ,NUM_WORDS_RECV_R2D_RST
 !
-!------------------------------
-!***  HISTORY DATA INFORMATION
-!------------------------------
+!--------------------------------------
+!***  History/restart data information
+!--------------------------------------
 !
-      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: KOUNT_I1D          &
-                                                    ,KOUNT_I2D          &
-                                                    ,KOUNT_R1D          &
-                                                    ,KOUNT_R2D          &
-                                                    ,KOUNT_LOG
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: KOUNT_I1D              &
+                                                ,KOUNT_I2D              &
+                                                ,KOUNT_R1D              &
+                                                ,KOUNT_R2D              &
+                                                ,KOUNT_LOG
 !
-      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: RST_KOUNT_I1D      &
-                                                    ,RST_KOUNT_I2D      &
-                                                    ,RST_KOUNT_R1D      &
-                                                    ,RST_KOUNT_R2D      &
-                                                    ,RST_KOUNT_LOG
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: RST_KOUNT_I1D          &
+                                                ,RST_KOUNT_I2D          &
+                                                ,RST_KOUNT_R1D          &
+                                                ,RST_KOUNT_R2D          &
+                                                ,RST_KOUNT_LOG
 !
-      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: LENGTH_DATA_I1D    &
-                                                    ,LENGTH_DATA_R1D    &
-                                                    ,LENGTH_DATA_R2D
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: LENGTH_DATA_I1D        &
+                                                ,LENGTH_DATA_R1D        &
+                                                ,LENGTH_DATA_R2D
 !
-      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: RST_LENGTH_DATA_I1D  &
-                                                    ,RST_LENGTH_DATA_R1D  &
-                                                    ,RST_LENGTH_DATA_R2D
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: RST_LENGTH_DATA_I1D    &
+                                                ,RST_LENGTH_DATA_R1D    &
+                                                ,RST_LENGTH_DATA_R2D
 !
-      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: LENGTH_SUM_I1D     &
-                                                    ,LENGTH_SUM_R1D     &
-                                                    ,LENGTH_SUM_R2D     &
-                                                    ,LENGTH_SUM_LOG
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: LENGTH_SUM_I1D         &
+                                                ,LENGTH_SUM_R1D         &
+                                                ,LENGTH_SUM_R2D         &
+                                                ,LENGTH_SUM_LOG
 !
-      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: RST_LENGTH_SUM_I1D  &
-                                                    ,RST_LENGTH_SUM_R1D  &
-                                                    ,RST_LENGTH_SUM_R2D  &
-                                                    ,RST_LENGTH_SUM_LOG
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: RST_LENGTH_SUM_I1D     &
+                                                ,RST_LENGTH_SUM_R1D     &
+                                                ,RST_LENGTH_SUM_R2D     &
+                                                ,RST_LENGTH_SUM_LOG
 !
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: NCOUNT_FIELDS          &
+                                                ,RST_NCOUNT_FIELDS
 !
-      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: NCOUNT_FIELDS
-      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: RST_NCOUNT_FIELDS
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: ALL_DATA_I1D           &
+                                                ,ALL_DATA_I2D
 !
-      INTEGER(kind=KINT),DIMENSION(:)  ,ALLOCATABLE :: ALL_DATA_I1D
-      INTEGER(kind=KINT),DIMENSION(:)  ,ALLOCATABLE :: ALL_DATA_I2D
-      INTEGER(kind=KINT),DIMENSION(:,:),ALLOCATABLE :: OUTPUT_ARRAY_I2D
+      INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: OUTPUT_ARRAY_I2D
 !
-      INTEGER(kind=KINT),DIMENSION(:)  ,ALLOCATABLE :: RST_ALL_DATA_I1D
-      INTEGER(kind=KINT),DIMENSION(:)  ,ALLOCATABLE :: RST_ALL_DATA_I2D
-      INTEGER(kind=KINT),DIMENSION(:,:),ALLOCATABLE :: RST_OUTPUT_ARRAY_I2D
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: RST_ALL_DATA_I1D       &
+                                                ,RST_ALL_DATA_I2D
 !
-      REAL(kind=KFPT),DIMENSION(:)  ,ALLOCATABLE :: ALL_DATA_R1D
-      REAL(kind=KFPT),DIMENSION(:)  ,ALLOCATABLE :: ALL_DATA_R2D
-      REAL(kind=KFPT),DIMENSION(:,:),ALLOCATABLE :: OUTPUT_ARRAY_R2D
+      INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: RST_OUTPUT_ARRAY_I2D
 !
-      REAL(kind=KFPT),DIMENSION(:)  ,ALLOCATABLE :: RST_ALL_DATA_R1D
-      REAL(kind=KFPT),DIMENSION(:)  ,ALLOCATABLE :: RST_ALL_DATA_R2D
-      REAL(kind=KFPT),DIMENSION(:,:),ALLOCATABLE :: RST_OUTPUT_ARRAY_R2D
+      REAL(kind=KFPT),DIMENSION(:),POINTER :: ALL_DATA_R1D              &
+                                             ,ALL_DATA_R2D
 !
-!-----------------------------------------------------------------------
-!***  BOUNDARY RESTART 
-!-----------------------------------------------------------------------
+      REAL(kind=KFPT),DIMENSION(:,:),POINTER :: OUTPUT_ARRAY_R2D
+!
+      REAL(kind=KFPT),DIMENSION(:),POINTER :: RST_ALL_DATA_R1D          &
+                                             ,RST_ALL_DATA_R2D
+!
+      REAL(kind=KFPT),DIMENSION(:,:),POINTER :: RST_OUTPUT_ARRAY_R2D
+!
+!----------------------
+!***  Boundary restart 
+!----------------------
 !
       INTEGER(kind=KINT) :: LNSV                                           !<-- # of V bndry rows obtained from Dynamics
 !
@@ -192,41 +198,43 @@
 !
       REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: RST_ALL_BC_DATA          !<-- 1-D string of full-domain boundary data
 !
-!-----------------------------------------------------------------------
-!*** STORAGE ARRAYS
-!-----------------------------------------------------------------------
+!--------------------
+!***  Storage arrays
+!--------------------
 !
-      INTEGER(kind=KINT),DIMENSION(:)    ,ALLOCATABLE :: BUFF_INT
-      INTEGER(kind=KINT),DIMENSION(:,:,:),ALLOCATABLE :: WRITE_SUBSET_I
-      REAL(kind=KFPT)   ,DIMENSION(:)    ,ALLOCATABLE :: BUFF_REAL
-      REAL(kind=KFPT)   ,DIMENSION(:,:,:),ALLOCATABLE :: WRITE_SUBSET_R
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: BUFF_INT               &
+                                                ,RST_BUFF_INT 
 !
-      INTEGER(kind=KINT),DIMENSION(:)    ,ALLOCATABLE :: RST_BUFF_INT
-      INTEGER(kind=KINT),DIMENSION(:,:,:),ALLOCATABLE :: RST_WRITE_SUBSET_I
-      REAL(kind=KFPT)   ,DIMENSION(:)    ,ALLOCATABLE :: RST_BUFF_REAL
-      REAL(kind=KFPT)   ,DIMENSION(:,:,:),ALLOCATABLE :: RST_WRITE_SUBSET_R
+      INTEGER(kind=KINT),DIMENSION(:,:,:),POINTER :: WRITE_SUBSET_I     &
+                                                    ,RST_WRITE_SUBSET_I
 !
-      TYPE(ESMF_Logical),DIMENSION(:),ALLOCATABLE :: ALL_DATA_LOG 
-      TYPE(ESMF_Logical),DIMENSION(:),ALLOCATABLE :: RST_ALL_DATA_LOG
+      REAL(kind=KFPT),DIMENSION(:),POINTER :: BUFF_REAL                 &
+                                             ,RST_BUFF_REAL
 !
-      CHARACTER(ESMF_MAXSTR),DIMENSION(5000) :: FIELD_NAME
-      CHARACTER(ESMF_MAXSTR),DIMENSION(5000) :: RST_FIELD_NAME
+      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: WRITE_SUBSET_R        &
+                                                 ,RST_WRITE_SUBSET_R
 !
-      CHARACTER(ESMF_MAXSTR*MAX_DATA_I1D) :: NAMES_I1D_STRING
-      CHARACTER(ESMF_MAXSTR*MAX_DATA_I2D) :: NAMES_I2D_STRING
-      CHARACTER(ESMF_MAXSTR*MAX_DATA_R1D) :: NAMES_R1D_STRING
-      CHARACTER(ESMF_MAXSTR*MAX_DATA_R2D) :: NAMES_R2D_STRING
-      CHARACTER(ESMF_MAXSTR*MAX_DATA_LOG) :: NAMES_LOG_STRING
+      TYPE(ESMF_Logical),DIMENSION(:),POINTER :: ALL_DATA_LOG           &
+                                                ,RST_ALL_DATA_LOG
 !
-      CHARACTER(ESMF_MAXSTR*MAX_DATA_I1D) :: RST_NAMES_I1D_STRING
-      CHARACTER(ESMF_MAXSTR*MAX_DATA_I2D) :: RST_NAMES_I2D_STRING
-      CHARACTER(ESMF_MAXSTR*MAX_DATA_R1D) :: RST_NAMES_R1D_STRING
-      CHARACTER(ESMF_MAXSTR*MAX_DATA_R2D) :: RST_NAMES_R2D_STRING
-      CHARACTER(ESMF_MAXSTR*MAX_DATA_LOG) :: RST_NAMES_LOG_STRING
+      CHARACTER(ESMF_MAXSTR),DIMENSION(:),POINTER :: FIELD_NAME         &
+                                                    ,RST_FIELD_NAME
 !
-!-----------------------------------------------------------------------
-!***  THE OUTPUT FILE
-!-----------------------------------------------------------------------
+      CHARACTER(ESMF_MAXSTR*MAX_DATA_I1D),POINTER :: NAMES_I1D_STRING
+      CHARACTER(ESMF_MAXSTR*MAX_DATA_I2D),POINTER :: NAMES_I2D_STRING
+      CHARACTER(ESMF_MAXSTR*MAX_DATA_R1D),POINTER :: NAMES_R1D_STRING
+      CHARACTER(ESMF_MAXSTR*MAX_DATA_R2D),POINTER :: NAMES_R2D_STRING
+      CHARACTER(ESMF_MAXSTR*MAX_DATA_LOG),POINTER :: NAMES_LOG_STRING
+!
+      CHARACTER(ESMF_MAXSTR*MAX_DATA_I1D),POINTER :: RST_NAMES_I1D_STRING
+      CHARACTER(ESMF_MAXSTR*MAX_DATA_I2D),POINTER :: RST_NAMES_I2D_STRING
+      CHARACTER(ESMF_MAXSTR*MAX_DATA_R1D),POINTER :: RST_NAMES_R1D_STRING
+      CHARACTER(ESMF_MAXSTR*MAX_DATA_R2D),POINTER :: RST_NAMES_R2D_STRING
+      CHARACTER(ESMF_MAXSTR*MAX_DATA_LOG),POINTER :: RST_NAMES_LOG_STRING
+!
+!---------------------
+!***  The output file
+!---------------------
 !
       INTEGER(kind=KINT) :: IO_HST_UNIT,IO_RST_UNIT
       INTEGER(kind=KINT) :: IO_RECL
@@ -266,9 +274,9 @@
       END TYPE WRITE_INTERNAL_STATE
 !
 !-----------------------------------------------------------------------
-!***  THIS STATE IS SUPPORTED BY C POINTERS BUT NOT F90 POINTERS
-!***  THEREFORE WE NEED THIS WRAP.
-!-----------------------------------------------------------
+!***  This state is supported by C pointers but not F90 pointers
+!***  therefore we need this wrap.
+!-----------------------------------------------------------------------
 !
       TYPE WRITE_WRAP
         TYPE(WRITE_INTERNAL_STATE),POINTER :: WRITE_INT_STATE

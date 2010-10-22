@@ -1728,10 +1728,6 @@
 !
 !-----------------------------------------------------------------------
 !
-      btim0=timef()
-!
-!-----------------------------------------------------------------------
-!
 !     ALLOCATE(DOMAIN_INT_STATE,stat=RC)
 !     wrap%DOMAIN_INT_STATE=>DOMAIN_INT_STATE
 !
@@ -1959,6 +1955,7 @@
       domain_tim=domain_tim+(timef()-btim0)
 !
       total_integ_tim=total_integ_tim+(timef()-btim0)
+!     write(0,*)'exit DOMAIN_RUN integration time ',total_integ_tim
 !
 !-----------------------------------------------------------------------
 !***  The final error signal information.
@@ -2594,7 +2591,6 @@
 !***  Execute the writing of a history file.
 !-----------------------------------------------------------------------
 !
-!     write(6,*)' calling WRITE_ASYNC'
 !     call print_memory()
         IF(domain_int_state%QUILTING)THEN
           CWRT='History'
@@ -2604,7 +2600,6 @@
                           ,MYPE                                         &
                           ,CWRT)
         ENDIF
-!     write(6,*)' called WRITE_ASYNC'
 !     call print_memory()
 !
       ENDIF 
@@ -2639,7 +2634,6 @@
 !***  Execute the writing of a restart file.
 !-----------------------------------------------------------------------
 !
-!     write(6,*)' calling WRITE_ASYNC for restart'
 !     call print_memory()
         IF(domain_int_state%QUILTING)THEN
           CWRT='Restart'
@@ -2649,7 +2643,6 @@
                           ,MYPE                                         &
                           ,CWRT)
         ENDIF
-!     write(6,*)' called WRITE_ASYNC for restart'
 !     call print_memory()
 !
       ENDIF 
