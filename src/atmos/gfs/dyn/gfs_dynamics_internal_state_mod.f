@@ -188,7 +188,7 @@
 
       logical lslag
 
-      TYPE(ESMF_LOGICAL) :: Cpl_flag
+      LOGICAL :: Cpl_flag
       LOGICAL ENS
 !
 ! -----------------------------------------------------

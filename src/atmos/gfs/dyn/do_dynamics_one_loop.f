@@ -17,15 +17,13 @@
      &                 pdryini,nblck,ZHOUR,N1,N4,
      &                 LSOUT,ldfi,COLAT1,CFHOUR1,
      &                 start_step,restart_step,reset_step,end_step,
-     &                 nfcstdate7,
-     &                 Cpl_flag, imp_gfs_dyn)
+     &                 nfcstdate7, Cpl_flag)
 cc
 
 ! March 2009, Weiyu Yang modified for GEFS run.
 ! Aug 2010    Sarah Lu modified to compute tracer global sum
 !----------------------------------------------
 
-      USE ESMF_Mod
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
       use gfs_dyn_gg_def
@@ -40,8 +38,6 @@ cc
 
       IMPLICIT NONE
 !!     
-      TYPE(ESMF_State),   INTENT(inout) :: imp_gfs_dyn
-
       CHARACTER(16)                     :: CFHOUR1
       INTEGER,INTENT(IN):: LONSPERLAT(LATG),N1,N4,nfcstdate7(7)
       REAL(KIND=KIND_EVOD),INTENT(IN):: deltim,PHOUR
@@ -128,7 +124,7 @@ cc
       LOGICAL               start_step,reset_step,end_step
       LOGICAL               restart_step
 
-      TYPE(ESMF_LOGICAL), INTENT(inout) :: Cpl_flag
+      LOGICAL,      INTENT(inout) :: Cpl_flag
 !!     
       LOGICAL, save               :: fwd_step = .true.
       REAL (KIND=KIND_grid), save :: dt,dt2,rdt2
@@ -178,7 +174,7 @@ cc
 ! If input from the ensemble coupler ESMF state, skip the first linear
 ! computation part.
 !---------------------------------------------------------------------
-      IF(CPl_flag == ESMF_FALSE) THEN
+      IF(.NOT. CPl_flag) THEN
 !
 !----------------------------------------------------------
       if (me<num_pes_fcst) then                                          
@@ -704,9 +700,7 @@ c
 !  finish integration, then return
 ! -----------------------------------
       IF(end_step) THEN
-          Cpl_flag = ESMF_TRUE
-          CALL ESMF_AttributeSet(imp_gfs_dyn, 'Cpl_flag', 
-     &        Cpl_flag, rc = rc1)
+          Cpl_flag = .true.
           RETURN
       END IF
 ! run for Cpl_flag == .true.
@@ -760,9 +754,7 @@ c
 
           call do_dynamics_spectc2n(trie_ls,trio_ls)
 
-          Cpl_flag = ESMF_FALSE
-          CALL ESMF_AttributeSet(imp_gfs_dyn, 'Cpl_flag', 
-     &        Cpl_flag, rc = rc1)
+          Cpl_flag = .false.
       END IF
 
       kdt = kdt + 1

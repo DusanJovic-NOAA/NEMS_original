@@ -504,6 +504,8 @@
 !
       type(esmf_state)                  :: imp_state_write  !<-- The write gc import state
       logical,save                           :: first_reset=.true.
+      TYPE(ESMF_LOGICAL)                 :: Cpl_flag1  ! in ESMF 3.1.0rp2, to  get logical from state
+                                                       ! must use the ESMF_LOGICAL type.
 
 !! debug print for tracking import and export state (Sarah Lu)
       TYPE(ESMF_Field)                   :: ESMFField             !chlu_debug
@@ -585,7 +587,12 @@
 
 ! Set up the ensemble coupling time flag.
 !----------------------------------------
-      CALL ESMF_AttributeGet(imp_gfs_dyn, 'Cpl_flag', int_state%Cpl_flag, rc = rc1)
+      CALL ESMF_AttributeGet(imp_gfs_dyn, 'Cpl_flag', Cpl_flag1, rc = rc1)
+      IF(Cpl_flag1 == ESMF_TRUE) THEN
+          int_state%Cpl_flag = .true.
+      ELSE
+          int_state%Cpl_flag = .false.
+      END IF
 
       if( currtime .eq. stoptime ) then
           print *,' currtime equals to stoptime '

@@ -40,6 +40,8 @@
       integer, save     :: kdt_save=0
       integer		rc1, k 
 
+      TYPE(ESMF_LOGICAL) :: Cpl_flag1
+
 !***********************************************************************
 !
 !     lsfwd      logical true during a first forward step
@@ -70,7 +72,7 @@
 !
 ! ---------------------------------------------------------------------
 !! grid_gr unfolded from 2D to 3D (Sarah Lu)
-        IF(.NOT. (gis_dyn%ENS .AND. gis_dyn%Cpl_flag == ESMF_TRUE)) THEN
+        IF(.NOT. (gis_dyn%ENS .AND. gis_dyn%Cpl_flag)) THEN
             call common_to_model_vars (gis_dyn%grid_gr(1,1,gis_dyn%g_zq),  &
                                        gis_dyn%grid_gr(1,1,gis_dyn%g_t ),  &
                                        gis_dyn%grid_gr(1,1,gis_dyn%g_rt),  &
@@ -155,7 +157,18 @@
                gis_dyn% start_step    ,gis_dyn% restart_step   ,        &
                gis_dyn% reset_step    ,gis_dyn% end_step       ,        &
                gis_dyn% nfcstdate7,                                     &
-               gis_dyn%Cpl_flag       ,imp_gfs_dyn )
+               gis_dyn%Cpl_flag)
+
+        IF(gis_dyn%end_step) THEN
+            Cpl_flag1 = ESMF_TRUE
+            CALL ESMF_AttributeSet(imp_gfs_dyn, 'Cpl_flag',             &
+                Cpl_flag1, rc = rc1)
+        ELSE
+            Cpl_flag1 = ESMF_FALSE
+            CALL ESMF_AttributeSet(imp_gfs_dyn, 'Cpl_flag',             &
+                Cpl_flag1, rc = rc1)
+        END IF
+
 !
 ! ======================================================================
 !                     do one time step with two-loop

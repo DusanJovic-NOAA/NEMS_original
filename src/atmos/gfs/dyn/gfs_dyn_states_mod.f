@@ -109,7 +109,7 @@
 !-----------------------------------------------------------
       IF(cf%ps_import == 1) THEN
           IF(.NOT. PRESENT(exp_gfs_dyn)) THEN
-              IF(int_state%ENS .AND. int_state%Cpl_flag == ESMF_TRUE) THEN
+              IF(int_state%ENS .AND. int_state%Cpl_flag) THEN
                   mstr = int_state%g_q
                   CALL GetF90ArrayFromState(imp_gfs_dyn, 'pps', FArr2D, 0, rc = rc1)
                   int_state%grid_gr(:,:,mstr) = FArr2D
@@ -134,7 +134,7 @@
 !------------------------------------------------------
       IF(cf%temp_import == 1) THEN
           IF(.NOT. PRESENT(exp_gfs_dyn)) THEN
-              IF(int_state%ENS .AND. int_state%Cpl_flag == ESMF_TRUE) THEN
+              IF(int_state%ENS .AND. int_state%Cpl_flag) THEN
                   mstr = int_state%g_tt
                   mend = mstr + int_state%levs - 1
                   CALL GetF90ArrayFromState(imp_gfs_dyn, 'tt', FArr3D, 0, rc = rc1)
@@ -165,7 +165,7 @@
 !-----------------------------------------------------
       IF(cf%u_import == 1) THEN
           IF(.NOT. PRESENT(exp_gfs_dyn)) THEN
-              IF(int_state%ENS .AND. int_state%Cpl_flag == ESMF_TRUE) THEN
+              IF(int_state%ENS .AND. int_state%Cpl_flag) THEN
                   mstr = int_state%g_uu
                   mend = mstr + int_state%levs - 1
                   CALL GetF90ArrayFromState(imp_gfs_dyn, 'uu', FArr3D, 0, rc = rc1)
@@ -194,7 +194,7 @@
 !-----------------------------------------------------
       IF(cf%v_import == 1) THEN
           IF(.NOT. PRESENT(exp_gfs_dyn)) THEN
-              IF(int_state%ENS .AND. int_state%Cpl_flag == ESMF_TRUE) THEN
+              IF(int_state%ENS .AND. int_state%Cpl_flag) THEN
                   mstr = int_state%g_vv
                   mend = mstr + int_state%levs - 1
                   CALL GetF90ArrayFromState(imp_gfs_dyn, 'vv', FArr3D, 0, rc = rc1)
@@ -223,7 +223,7 @@
 !-------------------------------------------------
       IF(cf%tracer_import == 1) THEN
           IF(.NOT. PRESENT(exp_gfs_dyn)) THEN
-              IF(int_state%ENS .AND. int_state%Cpl_flag == ESMF_TRUE) THEN
+              IF(int_state%ENS .AND. int_state%Cpl_flag) THEN
                   CALL ESMF_StateGet(imp_gfs_dyn, 'tracers_ENS', Bundle, rc = rc1 )
                   CALL gfs_dynamics_err_msg(rc1, 'retrieve Ebundle from state', rcfinal)
                   DO k = 1, int_state%ntrac
