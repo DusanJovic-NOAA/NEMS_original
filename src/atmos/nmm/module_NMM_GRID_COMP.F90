@@ -154,8 +154,9 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)               :: NMM_GRID_COMP                   !<-- The NMM component
-      INTEGER            ,INTENT(OUT)   :: RC_REG
+      TYPE(ESMF_GridComp) :: NMM_GRID_COMP                                 !<-- The NMM component
+!
+      INTEGER,INTENT(OUT) :: RC_REG
 !
 !---------------------
 !***  Local Variables
@@ -249,11 +250,12 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)               :: NMM_GRID_COMP                   !<-- The NMM component
-      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The NMM import state
-      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The NMM export state
-      TYPE(ESMF_Clock)                  :: CLOCK_NEMS                      !<-- The NEMS ESMF Clock
-      INTEGER            ,INTENT(OUT)   :: RC_INIT                         !<-- Error return code
+      TYPE(ESMF_GridComp) :: NMM_GRID_COMP                                 !<-- The NMM component
+      TYPE(ESMF_State)    :: IMP_STATE                                     !<-- The NMM import state
+      TYPE(ESMF_State)    :: EXP_STATE                                     !<-- The NMM export state
+      TYPE(ESMF_Clock)    :: CLOCK_NEMS                                    !<-- The NEMS ESMF Clock
+!
+      INTEGER,INTENT(OUT)   :: RC_INIT                                     !<-- Error return code
 !
 !---------------------
 !***  Local Variables
@@ -1077,7 +1079,7 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        IF(COMM_TO_MY_PARENT<0)THEN
+        IF(COMM_TO_MY_PARENT==-999)THEN
           I_AM_A_NEST=ESMF_FALSE
         ELSE
           I_AM_A_NEST=ESMF_TRUE
@@ -1377,11 +1379,12 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)               :: NMM_GRID_COMP                   !<-- The NMM component
-      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The NMM import state
-      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The NMM export state
-      TYPE(ESMF_Clock)                  :: CLOCK_NEMS                      !<-- The NEMS ESMF Clock
-      INTEGER            ,INTENT(OUT)   :: RC_RUN                          !<-- Error return code
+      TYPE(ESMF_GridComp) :: NMM_GRID_COMP                                 !<-- The NMM component
+      TYPE(ESMF_State)    :: IMP_STATE                                     !<-- The NMM import state
+      TYPE(ESMF_State)    :: EXP_STATE                                     !<-- The NMM export state
+      TYPE(ESMF_Clock)    :: CLOCK_NEMS                                    !<-- The NEMS ESMF Clock
+!
+      INTEGER,INTENT(OUT)   :: RC_RUN                                      !<-- Error return code
 !
 !---------------------
 !***  Local Variables
@@ -2114,11 +2117,12 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)               :: NMM_GRID_COMP                   !<-- The NMM component
-      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The NMM import state
-      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The NMM export state
-      TYPE(ESMF_Clock)                  :: CLOCK_NMM                       !<-- The NMM component's ESMF Clock
-      INTEGER            ,INTENT(OUT)   :: RC_FINALIZE                     !<-- Error return code
+      TYPE(ESMF_GridComp) :: NMM_GRID_COMP                                 !<-- The NMM component
+      TYPE(ESMF_State)    :: IMP_STATE                                     !<-- The NMM import state
+      TYPE(ESMF_State)    :: EXP_STATE                                     !<-- The NMM export state
+      TYPE(ESMF_Clock)    :: CLOCK_NMM                                     !<-- The NMM component's ESMF Clock
+!
+      INTEGER,INTENT(OUT)   :: RC_FINALIZE                                 !<-- Error return code
 !
 !---------------------
 !***  Local Variables

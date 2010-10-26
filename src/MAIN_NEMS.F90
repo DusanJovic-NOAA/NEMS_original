@@ -94,14 +94,7 @@
 #endif
 !
 !-----------------------------------------------------------------------
-!
-#if defined (SVN_INFO) && defined (CMP_YEAR) && defined (CMP_JD)
-      call w3tagb('NEMS '//SVN_INFO, &
-                  CMP_YEAR, CMP_JD, 0000, 'NEMS')
-#else
-      call w3tagb('nems     ',0000,0000,0000,'np23   ')
-#endif
-!
+!!
 !-----------------------------------------------------------------------
 !***  Initialize the final error signal.
 !-----------------------------------------------------------------------
@@ -134,6 +127,13 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#if defined (SVN_INFO) && defined (CMP_YEAR) && defined (CMP_JD)
+      if (mype==0) call w3tagb('NEMS '//SVN_INFO                        &
+                  ,CMP_YEAR, CMP_JD, 0000, 'NEMS')
+#else
+      if (mype==0) call w3tagb('nems     ',0000,0000,0000,'np23   ')
+#endif
 !
 !-----------------------------------------------------------------------
 !***  Set up the default log.
@@ -622,7 +622,7 @@
       CALL ESMF_Finalize()
 !
       IF(RC_MAIN==ESMF_SUCCESS)THEN
-        WRITE(0,*)'MODEL FORECAST RUN SUCCEEDED'
+!       WRITE(0,*)'MODEL FORECAST RUN SUCCEEDED'
       ELSE
         WRITE(0,*)'MODEL FORECAST RUN FAILED  RC_MAIN=',RC_MAIN
       ENDIF

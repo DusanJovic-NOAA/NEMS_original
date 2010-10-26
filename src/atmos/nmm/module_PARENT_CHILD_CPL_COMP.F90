@@ -386,9 +386,9 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_CplComp)               :: CPL_COMP                        !<-- Coupler component
+      TYPE(ESMF_CplComp) :: CPL_COMP                                      !<-- Coupler component
 !
-      INTEGER(kind=KINT),INTENT(OUT)   :: RC_NEST_REG                     !<-- Return code for register
+      INTEGER(kind=KINT),INTENT(OUT) :: RC_NEST_REG                       !<-- Return code for register
 !
 !---------------------
 !***  Local variables
@@ -514,12 +514,12 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_CplComp)               :: CPL_COMP                         !<-- The Dyn-Phy Coupler Component
+      TYPE(ESMF_CplComp) :: CPL_COMP                                       !<-- The Dyn-Phy Coupler Component
 !
-      TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The Coupler's Import State
-                                       ,EXP_STATE                          !<-- The Coupler's Export State
+      TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The Coupler's Import State
+                         ,EXP_STATE                                        !<-- The Coupler's Export State
 !
-      TYPE(ESMF_Clock)            :: CLOCK                                 !<-- The ESMF Clock
+      TYPE(ESMF_Clock) :: CLOCK                                            !<-- The ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_FINAL
 !
@@ -2220,12 +2220,12 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_CplComp)               :: CPL_COMP                         !<-- The Parent-Child Coupler Component
+      TYPE(ESMF_CplComp) :: CPL_COMP                                       !<-- The Parent-Child Coupler Component
 !
-      TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The Coupler's Import State
-                                       ,EXP_STATE                          !<-- The Coupler's Export State
+      TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The Coupler's Import State
+                         ,EXP_STATE                                        !<-- The Coupler's Export State
 !
-      TYPE(ESMF_Clock)             ::CLOCK                                 !<-- The ESMF Clock
+      TYPE(ESMF_Clock) :: CLOCK                                            !<-- The ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_FINAL
 !
@@ -2823,12 +2823,12 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_CplComp)               :: CPL_COMP                         !<-- The Parent-Child Coupler Component
+      TYPE(ESMF_CplComp) :: CPL_COMP                                       !<-- The Parent-Child Coupler Component
 !
-      TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The Coupler's Import State
-                                       ,EXP_STATE                          !<-- The Coupler's Export State
+      TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The Coupler's Import State
+                         ,EXP_STATE                                        !<-- The Coupler's Export State
 !
-      TYPE(ESMF_Clock)            :: CLOCK                                 !<-- The ATM Driver Clock for this parent domain
+      TYPE(ESMF_Clock) :: CLOCK                                            !<-- The ATM Driver Clock for this parent domain
 !
       INTEGER,INTENT(OUT) :: RC_FINAL
 !
@@ -3525,6 +3525,10 @@
         IF(NUM_TASKS_SEND_H_N(N)>0)THEN                                    !<-- Parent task has Nbndry H data to send to child tasks?     
           DO NT=1,NUM_TASKS_SEND_H_N(N)                                    !<-- Send to all appropriate child tasks
 !
+!           call date_and_time(values=values)
+!           write(0,127)n,nt,childtask_bndry_h_ranks(n)%north(nt),values(5),values(6),values(7),values(8)
+! 127       format(' Ready to send North_H to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
+!
             btim=timef()
             CALL MPI_ISEND(CHILD_BOUND_H_NORTH(N)%TASKS(NT)%DATA        &  !<-- Child north boundary data on child task NT
                           ,WORDS_BOUND_H_NORTH(N)%TASKS(NT)             &  !<-- # of words in the data string
@@ -3536,6 +3540,10 @@
                           ,IERR )
             cpl2_send_tim=cpl2_send_tim+(timef()-btim)
 !
+!           call date_and_time(values=values)
+!           write(0,128)n,nt,childtask_bndry_h_ranks(n)%north(nt),values(5),values(6),values(7),values(8)
+! 128       format(' Sent North_H to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
+!
           ENDDO 
         ENDIF
 !
@@ -3545,6 +3553,10 @@
 !
         IF(NUM_TASKS_SEND_V_N(N)>0)THEN                                    !<-- Parent task has Nbndry V data to send to child tasks?     
           DO NT=1,NUM_TASKS_SEND_V_N(N)                                    !<-- Send to all appropriate child tasks
+!
+!           call date_and_time(values=values)
+!           write(0,129)n,nt,childtask_bndry_v_ranks(n)%north(nt),values(5),values(6),values(7),values(8)
+! 129       format(' Ready to send North_V to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
             btim=timef()
             CALL MPI_ISEND(CHILD_BOUND_V_NORTH(N)%TASKS(NT)%DATA        &  !<-- Child north boundary data on child task NT
@@ -3556,6 +3568,10 @@
                           ,HANDLE_V_NORTH(N)%NTASKS_TO_RECV(NT)         &  !<-- Handle for ISend to child N's task NT
                           ,IERR )
             cpl2_send_tim=cpl2_send_tim+(timef()-btim)
+!
+!           call date_and_time(values=values)
+!           write(0,130)n,nt,childtask_bndry_v_ranks(n)%north(nt),values(5),values(6),values(7),values(8)
+! 130       format(' Sent North_V to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
           ENDDO 
         ENDIF
@@ -3569,6 +3585,10 @@
         IF(NUM_TASKS_SEND_H_W(N)>0)THEN                                    !<-- Parent task has Wbndry H data to send to child tasks?     
           DO NT=1,NUM_TASKS_SEND_H_W(N)                                    !<-- Send to all appropriate child tasks
 !
+!           call date_and_time(values=values)
+!           write(0,131)n,nt,childtask_bndry_h_ranks(n)%west(nt),values(5),values(6),values(7),values(8)
+! 131       format(' Ready to send West_H to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
+!
             btim=timef()
             CALL MPI_ISEND(CHILD_BOUND_H_WEST(N)%TASKS(NT)%DATA         &  !<-- Child west boundary data on child task NT
                           ,WORDS_BOUND_H_WEST(N)%TASKS(NT)              &  !<-- # of words in the data string
@@ -3580,6 +3600,10 @@
                           ,IERR )
             cpl2_send_tim=cpl2_send_tim+(timef()-btim)
 !
+!           call date_and_time(values=values)
+!           write(0,132)n,nt,childtask_bndry_h_ranks(n)%west(nt),values(5),values(6),values(7),values(8)
+! 132       format(' Sent West_H to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
+!
           ENDDO 
         ENDIF
 !
@@ -3589,6 +3613,10 @@
 !
         IF(NUM_TASKS_SEND_V_W(N)>0)THEN                                    !<-- Parent task has Wbndry V data to send to child tasks?     
           DO NT=1,NUM_TASKS_SEND_V_W(N)                                    !<-- Send to all appropriate child tasks
+!
+!           call date_and_time(values=values)
+!           write(0,133)n,nt,childtask_bndry_v_ranks(n)%west(nt),values(5),values(6),values(7),values(8)
+! 133       format(' Ready to send West_V to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
             btim=timef()
             CALL MPI_ISEND(CHILD_BOUND_V_WEST(N)%TASKS(NT)%DATA         &  !<-- Child west boundary data on child task NT
@@ -3600,6 +3628,10 @@
                           ,HANDLE_V_WEST(N)%NTASKS_TO_RECV(NT)          &  !<-- Handle for ISend to child N's task NT
                           ,IERR )
             cpl2_send_tim=cpl2_send_tim+(timef()-btim)
+!
+!           call date_and_time(values=values)
+!           write(0,134)n,nt,childtask_bndry_v_ranks(n)%west(nt),values(5),values(6),values(7),values(8)
+! 134       format(' Sent West_V to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
           ENDDO 
         ENDIF
@@ -3613,6 +3645,10 @@
         IF(NUM_TASKS_SEND_H_E(N)>0)THEN                                    !<-- Parent task has Ebndry H data to send to child tasks?     
           DO NT=1,NUM_TASKS_SEND_H_E(N)                                    !<-- Send to all appropriate child tasks
 !
+!           call date_and_time(values=values)
+!           write(0,135)n,nt,childtask_bndry_h_ranks(n)%east(nt),values(5),values(6),values(7),values(8)
+! 135       format(' Ready to send East_H to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
+!
             btim=timef()
             CALL MPI_ISEND(CHILD_BOUND_H_EAST(N)%TASKS(NT)%DATA         &  !<-- Child east boundary data on child task NT
                           ,WORDS_BOUND_H_EAST(N)%TASKS(NT)              &  !<-- # of words in the data string
@@ -3624,6 +3660,10 @@
                           ,IERR )
             cpl2_send_tim=cpl2_send_tim+(timef()-btim)
 !
+!           call date_and_time(values=values)
+!           write(0,136)n,nt,childtask_bndry_h_ranks(n)%east(nt),values(5),values(6),values(7),values(8)
+! 136       format(' Sent East_H to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
+!
           ENDDO 
         ENDIF
 !
@@ -3633,6 +3673,10 @@
 !
         IF(NUM_TASKS_SEND_V_E(N)>0)THEN                                    !<-- Parent task has Ebndry V data to send to child tasks?     
           DO NT=1,NUM_TASKS_SEND_V_E(N)                                    !<-- Send to all appropriate child tasks
+!
+!           call date_and_time(values=values)
+!           write(0,137)n,nt,childtask_bndry_v_ranks(n)%east(nt),values(5),values(6),values(7),values(8)
+! 137       format(' Ready to send East_V to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
             btim=timef()
             CALL MPI_ISEND(CHILD_BOUND_V_EAST(N)%TASKS(NT)%DATA         &  !<-- Child east boundary data on child task NT
@@ -3644,6 +3688,10 @@
                           ,HANDLE_V_EAST(N)%NTASKS_TO_RECV(NT)          &  !<-- Handle for ISend to child N's task NT
                           ,IERR )
             cpl2_send_tim=cpl2_send_tim+(timef()-btim)
+!
+!           call date_and_time(values=values)
+!           write(0,138)n,nt,childtask_bndry_v_ranks(n)%east(nt),values(5),values(6),values(7),values(8)
+! 138       format(' Sent East_V to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
           ENDDO 
         ENDIF
@@ -3713,12 +3761,12 @@
 !-----------------------------------------------------------------------
 !
 !
-      TYPE(ESMF_CplComp)               :: CPL_COMP                         !<-- The Parent-Child Coupler Component
+      TYPE(ESMF_CplComp) :: CPL_COMP                                       !<-- The Parent-Child Coupler Component
 !
-      TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The Coupler's Import State
-                                       ,EXP_STATE                          !<-- The Coupler's Export State
+      TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The Coupler's Import State
+                         ,EXP_STATE                                        !<-- The Coupler's Export State
 !
-      TYPE(ESMF_Clock)            :: CLOCK                                 !<-- The ESMF Clock
+      TYPE(ESMF_Clock) :: CLOCK                                            !<-- The ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_FINAL
 !
@@ -4101,20 +4149,24 @@
 !***  Communicators to Children
 !-------------------------------
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Add Parent-to-Child Communicators to the Nesting CPL Import State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
-                            ,name     ='Parent-to-Child Comms'          &  !<-- Name of Attribute
-                            ,count    =NUM_CHILDREN                     &  !<-- Length of inserted array
-                            ,valueList=COMM_TO_MY_CHILDREN              &  !<-- Communicators to my children
-                            ,rc       =RC)
+      IF(NUM_CHILDREN>0)THEN
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+        MESSAGE_CHECK="Add Parent-to-Child Communicators to the Nesting CPL Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST             &  !<-- The Nesting Coupler's import state
+                              ,name     ='Parent-to-Child Comms'        &  !<-- Name of Attribute
+                              ,count    =NUM_CHILDREN                   &  !<-- Length of inserted array
+                              ,valueList=COMM_TO_MY_CHILDREN            &  !<-- Communicators to my children
+                              ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      ENDIF
 !
 !----------------------------
 !***  Communicator to Parent
@@ -4754,7 +4806,7 @@
 !
       IHANDLE_SEND=MPI_REQUEST_NULL
 !
-      IF(COMM_TO_MY_PARENT>0)THEN                                          !<-- Child tasks send to task 0 of parent
+      IF(COMM_TO_MY_PARENT/=-999)THEN                                      !<-- Child tasks send to task 0 of parent
         CALL MPI_COMM_RANK(COMM_TO_MY_PARENT,MYPE,IERR)                    !<-- Obtain my rank
         CALL MPI_ISEND(LIMITS                                           &
                       ,4,MPI_INTEGER,0                                  &
@@ -4795,7 +4847,7 @@
 !***  completed successfully.
 !-----------------------------------------------------------------------
 !
-      IF(COMM_TO_MY_PARENT>0)THEN                                          !<-- Child tasks satisfy ISends
+      IF(COMM_TO_MY_PARENT/=-999)THEN                                      !<-- Child tasks satisfy ISends
         CALL MPI_WAIT(IHANDLE_SEND,ISTAT,IERR)
       ENDIF
 !
@@ -6545,7 +6597,7 @@
 !***  is received with MPI_ANY_SOURCE.
 !-----------------------------------------------------------------------
 !
-      child_recvs: IF(COMM_TO_MY_PARENT>0)THEN                             !<-- Only children will receive
+      child_recvs: IF(COMM_TO_MY_PARENT/=-999)THEN                         !<-- Only children will receive
 !
         ID_DOM=ID_PARENTS(MY_DOMAIN_ID)                                    !<-- Domain ID of this child's parent
         ALLOCATE(PARENT_TASK(1:FTASKS_DOMAIN(ID_DOM)))
@@ -7632,7 +7684,7 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-      child_sends: IF(COMM_TO_MY_PARENT>0)THEN                             !<-- Select the nests' tasks
+      child_sends: IF(COMM_TO_MY_PARENT/=-999)THEN                         !<-- Select the nests' tasks
 !
 !-----------------------------------------------------------------------
 !***  Extract the sfc geopotential from the coupler's import state.

@@ -20,17 +20,14 @@
 #
 set -x
 #
-export BIND_TASKS=yes
 export MP_EAGER_LIMIT=65536
 export MP_SHARED_MEMORY=yes
 #export MP_SINGLE_THREAD=yes
-export TARGET_CPU_RANGE=-1
-export OMP_MAX_THREADS=_THRD_
+#export TARGET_CPU_RANGE=-1
 export MP_LABELIO=yes
 export MP_STDOUTMODE=ordered
 export MP_COREFILE_FORMAT=core.txt
-export TARGET_CPU_RANGE="-1"
-export XLSMPOPTS=parthds=_THRD_:spins=0:yields=0:stack=128000000:schedule=static
+export XLSMPOPTS=stack=128000000
 export AIXTHREAD_SCOPE=S
 
 RUNDIR=_RUND_

@@ -72,7 +72,8 @@
                         ,cpl2_send_tim                                  &
                         ,cpl2_comp_tim                                  &
                         ,cpl2_wait_tim                                  &
-                        ,phase1_tim
+                        ,phase1_tim                                     &
+                        ,phase3_tim
 !
 !-----------------------------------------------------------------------
 !
@@ -201,6 +202,8 @@
       CHARACTER(2)  :: INT_TO_CHAR
       CHARACTER(6)  :: FMT
 !
+      LOGICAL, SAVE :: TS_INITIALIZED = .FALSE.
+!
       TYPE(ESMF_Time) :: ALARM_HISTORY_RING                             &
                         ,ALARM_RESTART_RING                             &
                         ,ALARM_CLOCKTIME_RING
@@ -225,13 +228,12 @@
 !
       TYPE(PHYSICS_INTERNAL_STATE),POINTER :: PHY_INT_STATE
 !
-      LOGICAL, SAVE :: TS_INITIALIZED = .FALSE.
-!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
       phase1_tim      =0
+      phase3_tim      =0
       atm_drv_run_1   =0.
       atm_drv_run_2   =0.
       atm_drv_run_3   =0.
@@ -328,7 +330,7 @@
 !                               ,rc   =RC)                              &
 !            .or.ntimestep==0)  &        !<-- bandaid
           if(mod(kount_steps,par_chi_time_ratio)==0                     &
-             .AND.COMM_TO_MY_PARENT>0)THEN
+             .AND.COMM_TO_MY_PARENT/=-999)THEN
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Call Coupler: Children Recv from Parents"
@@ -590,9 +592,11 @@
         atm_drv_run_3=atm_drv_run_3+(timef()-btim0)
         IF(MYPE==0)THEN
 !!!     IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-          WRITE(0,25)NTIMESTEP-1,NTIMESTEP*DT/3600.,phase1_tim
+          WRITE(0,25)NTIMESTEP-1,NTIMESTEP*DT/3600.,phase1_tim          &
+                    ,atm_drv_run_3
    25     FORMAT(' Finished Timestep ',i5,' ending at ',f7.3,           &
-                 ' hours: elapsed integration time ',g10.4)
+                 ' hours: step integration time ',g10.4,                &
+                 ' elapsed I/O time ',g10.4)
         ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

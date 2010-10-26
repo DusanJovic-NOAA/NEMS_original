@@ -638,8 +638,8 @@
       CALL NEMSIO_GETHEADVAR(gfile,'DLMD',int_state%DLMD,iret=irtn)
       CALL NEMSIO_GETHEADVAR(gfile,'TPH0D',int_state%TPH0D,iret=irtn)
       CALL NEMSIO_GETHEADVAR(gfile,'TLM0D',int_state%TLM0D,iret=irtn)
-      write(0,*)'phycs sbd=',int_state%SBD,int_state%WBD,int_state%DPHD,  &
-       int_state%DLMD,int_state%TPH0D,int_state%TLM0D
+!      write(0,*)'phycs sbd=',int_state%SBD,int_state%WBD,int_state%DPHD,  &
+!       int_state%DLMD,int_state%TPH0D,int_state%TLM0D
 !
 !----------------------------------------------------------------------
 !
@@ -652,7 +652,7 @@
       DEALLOCATE(TMP)
 !
        etime=timef()
-        write(0,*)'PHYSICS_READ_INPUT_NEMSIO,time=',etime-stime
+!        write(0,*)'PHYSICS_READ_INPUT_NEMSIO,time=',etime-stime
 !
 !-----------------------------------------------------------------------
 !

@@ -885,7 +885,7 @@
 !
         ENDIF
 !
-      if (mype==0) then
+      if (mype==-9999) then
         write(0,*)'dynamics'
         write(0,*)'ihr,ihrst,lpt2,ntsti,ntstm=',int_state%ihr,int_state%ihrst,int_state%lpt2,int_state%ntsti,int_state%ntstm
         write(0,*)'idat=',int_state%idat(1),int_state%idat(2),int_state%idat(3)
@@ -1438,7 +1438,7 @@
 !
 !-----------------------------------------------------------------------
 !
-        IF(MYPE==0)CALL ESMF_StatePrint(EXP_STATE)
+!        IF(MYPE==0)CALL ESMF_StatePrint(EXP_STATE)
 !
       ENDIF fcst_tasks
 !

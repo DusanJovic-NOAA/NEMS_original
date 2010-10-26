@@ -389,7 +389,7 @@ real(8) :: stime,etime,stime1
 !-- sm
         sm=0.
         call getrecn(recname,reclevtyp,reclev,nrec,'sm','sfc',1,recn)
-        write(0,*)'after sm, recn=',recn,'nrec=',nrec 
+!        write(0,*)'after sm, recn=',recn,'nrec=',nrec 
         if(recn/=0) then
           fldst=(recn-1)*fldsize
           do j=jts,jte
@@ -408,7 +408,7 @@ real(8) :: stime,etime,stime1
 !-- dpres
         pd=0.
         call getrecn(recname,reclevtyp,reclev,nrec,'dpres','hybrid sig lev',1,recn)
-        write(0,*)'after pd, recn=',recn,'nrec=',nrec 
+!        write(0,*)'after pd, recn=',recn,'nrec=',nrec 
         if(recn/=0) then
           fldst=(recn-1)*fldsize
           do j=jts,jte
