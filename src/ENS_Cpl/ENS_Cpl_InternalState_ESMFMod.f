@@ -47,7 +47,6 @@
       INTEGER                        :: ntrac
       INTEGER                        :: jcap
       INTEGER                        :: latg, lonf
-      INTEGER                        :: lonsize, latsize
       INTEGER                        :: CENTER
       INTEGER                        :: USES1
       INTEGER                        :: Jul_Day
