@@ -1,8 +1,7 @@
 SHELL     = /bin/sh
 
-include /meso/save/wx20rv/ESMF_libs/esmf_3_1_0rp2/lib/libO/AIX.default.64.mpi.default/esmf.mk
-ESMF_INC  = $(ESMF_F90COMPILEPATHS)
-ESMF_LIBS = $(ESMF_F90LINKPATHS) $(ESMF_F90ESMFLINKLIBS)
+ESMF_INC  = -I/nwprod/lib/incmod/esmf_3_1_0rp2
+ESMF_LIBS = -L/nwprod/lib -lesmf_3_1_0rp2 -lC_r
 
 EXTLIBS   = $(ESMF_LIBS) -L/climate/save/wx20wa/gfsio/bacio -lbacio_4 -L/nwprod/lib -lw3_d -lsp_d -lessl_r -lmass -lmassvp6
 

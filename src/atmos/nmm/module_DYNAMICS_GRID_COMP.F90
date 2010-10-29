@@ -1604,14 +1604,7 @@
 !***  the Physics has not run yet.
 !-----------------------------------------------------------------------
 !
-!d      btim=timef()
       CALL GET_VARS_FROM_STATE(int_state%VARS, int_state%NUM_VARS, IMP_STATE)
-!
-!d      IF(.NOT.int_state%FIRST)THEN
-!d        CALL UPDATE_INTERNAL_STATE_DYN(IMP_STATE,INT_STATE)
-!d      ENDIF 
-!
-!d      update_dyn_int_state_tim=update_dyn_int_state_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  Do some work that only needs to be done once at the start of
@@ -2079,17 +2072,6 @@
                                     ,int_state%UBW,int_state%UBE        &
                                     ,int_state%VBS,int_state%VBN        &
                                     ,int_state%VBW,int_state%VBE )
-
-!d          if (mype==7) then
-!d          DO J=JMS,JME
-!d          write(301,*)J,int_state%PDBW(1,J,1),int_state%PDBW(1,J,2)
-!d          END DO
-!d          write(302,'(5F20.10)')int_state%TBW
-!d          call flush_(301)
-!d          call flush_(302)
-!d          written=.true.
-!d          end if
-
 !     call print_memory()
               ENDIF
 !

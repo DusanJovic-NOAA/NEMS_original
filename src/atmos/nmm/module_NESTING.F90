@@ -4007,8 +4007,8 @@
 !
       DPHD_MINE=DPHD_X
       DLMD_MINE=DLMD_X
-!!!   SBD_MINE=SBD_X
-!!!   WBD_MINE=WBD_X
+      SBD_MINE=SBD_X
+      WBD_MINE=WBD_X
 !
 !-----------------------------------------------------------------------
 !

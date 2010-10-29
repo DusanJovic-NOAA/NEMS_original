@@ -1041,10 +1041,7 @@
 !***  since the temperature is updated every timestep.
 !-----------------------------------------------------------------------
 !
-!d      btim=timef()
       CALL GET_VARS_FROM_STATE(int_state%VARS, int_state%NUM_VARS, IMP_STATE)
-!d      CALL UPDATE_INTERNAL_STATE_PHY(IMP_STATE,INT_STATE)
-!d      update_phy_int_state_tim=update_phy_int_state_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  Update the max/min values of the Temperature in the lowest

@@ -105,67 +105,67 @@
 !***  all of its designated forecast tasks.
 !----------------------------------------------------
 !
-      INTEGER(kind=KINT),DIMENSION(:),POINTER :: NUM_WORDS_RECV_I2D_HST &
-                                                ,NUM_WORDS_RECV_R2D_HST &
-                                                ,NUM_WORDS_RECV_I2D_RST &
-                                                ,NUM_WORDS_RECV_R2D_RST
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: NUM_WORDS_RECV_I2D_HST =>NULL() &
+                                                ,NUM_WORDS_RECV_R2D_HST =>NULL() &
+                                                ,NUM_WORDS_RECV_I2D_RST =>NULL() &
+                                                ,NUM_WORDS_RECV_R2D_RST =>NULL()
 !
 !--------------------------------------
 !***  History/restart data information
 !--------------------------------------
 !
-      INTEGER(kind=KINT),DIMENSION(:),POINTER :: KOUNT_I1D              &
-                                                ,KOUNT_I2D              &
-                                                ,KOUNT_R1D              &
-                                                ,KOUNT_R2D              &
-                                                ,KOUNT_LOG
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: KOUNT_I1D =>NULL()              &
+                                                ,KOUNT_I2D =>NULL()              &
+                                                ,KOUNT_R1D =>NULL()              &
+                                                ,KOUNT_R2D =>NULL()              &
+                                                ,KOUNT_LOG =>NULL()
 !
-      INTEGER(kind=KINT),DIMENSION(:),POINTER :: RST_KOUNT_I1D          &
-                                                ,RST_KOUNT_I2D          &
-                                                ,RST_KOUNT_R1D          &
-                                                ,RST_KOUNT_R2D          &
-                                                ,RST_KOUNT_LOG
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: RST_KOUNT_I1D =>NULL()          &
+                                                ,RST_KOUNT_I2D =>NULL()          &
+                                                ,RST_KOUNT_R1D =>NULL()          &
+                                                ,RST_KOUNT_R2D =>NULL()          &
+                                                ,RST_KOUNT_LOG =>NULL()
 !
-      INTEGER(kind=KINT),DIMENSION(:),POINTER :: LENGTH_DATA_I1D        &
-                                                ,LENGTH_DATA_R1D        &
-                                                ,LENGTH_DATA_R2D
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: LENGTH_DATA_I1D =>NULL()        &
+                                                ,LENGTH_DATA_R1D =>NULL()        &
+                                                ,LENGTH_DATA_R2D =>NULL()
 !
-      INTEGER(kind=KINT),DIMENSION(:),POINTER :: RST_LENGTH_DATA_I1D    &
-                                                ,RST_LENGTH_DATA_R1D    &
-                                                ,RST_LENGTH_DATA_R2D
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: RST_LENGTH_DATA_I1D =>NULL()    &
+                                                ,RST_LENGTH_DATA_R1D =>NULL()    &
+                                                ,RST_LENGTH_DATA_R2D =>NULL()
 !
-      INTEGER(kind=KINT),DIMENSION(:),POINTER :: LENGTH_SUM_I1D         &
-                                                ,LENGTH_SUM_R1D         &
-                                                ,LENGTH_SUM_R2D         &
-                                                ,LENGTH_SUM_LOG
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: LENGTH_SUM_I1D =>NULL()         &
+                                                ,LENGTH_SUM_R1D =>NULL()         &
+                                                ,LENGTH_SUM_R2D =>NULL()         &
+                                                ,LENGTH_SUM_LOG =>NULL()
 !
-      INTEGER(kind=KINT),DIMENSION(:),POINTER :: RST_LENGTH_SUM_I1D     &
-                                                ,RST_LENGTH_SUM_R1D     &
-                                                ,RST_LENGTH_SUM_R2D     &
-                                                ,RST_LENGTH_SUM_LOG
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: RST_LENGTH_SUM_I1D =>NULL()     &
+                                                ,RST_LENGTH_SUM_R1D =>NULL()     &
+                                                ,RST_LENGTH_SUM_R2D =>NULL()     &
+                                                ,RST_LENGTH_SUM_LOG =>NULL()
 !
-      INTEGER(kind=KINT),DIMENSION(:),POINTER :: NCOUNT_FIELDS          &
-                                                ,RST_NCOUNT_FIELDS
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: NCOUNT_FIELDS =>NULL()          &
+                                                ,RST_NCOUNT_FIELDS =>NULL()
 !
-      INTEGER(kind=KINT),DIMENSION(:),POINTER :: ALL_DATA_I1D           &
-                                                ,ALL_DATA_I2D
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: ALL_DATA_I1D =>NULL()           &
+                                                ,ALL_DATA_I2D =>NULL()
 !
-      INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: OUTPUT_ARRAY_I2D
+      INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: OUTPUT_ARRAY_I2D =>NULL()
 !
-      INTEGER(kind=KINT),DIMENSION(:),POINTER :: RST_ALL_DATA_I1D       &
-                                                ,RST_ALL_DATA_I2D
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: RST_ALL_DATA_I1D =>NULL()       &
+                                                ,RST_ALL_DATA_I2D =>NULL()
 !
-      INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: RST_OUTPUT_ARRAY_I2D
+      INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: RST_OUTPUT_ARRAY_I2D =>NULL()
 !
-      REAL(kind=KFPT),DIMENSION(:),POINTER :: ALL_DATA_R1D              &
-                                             ,ALL_DATA_R2D
+      REAL(kind=KFPT),DIMENSION(:),POINTER :: ALL_DATA_R1D =>NULL()              &
+                                             ,ALL_DATA_R2D =>NULL()
 !
-      REAL(kind=KFPT),DIMENSION(:,:),POINTER :: OUTPUT_ARRAY_R2D
+      REAL(kind=KFPT),DIMENSION(:,:),POINTER :: OUTPUT_ARRAY_R2D =>NULL()
 !
-      REAL(kind=KFPT),DIMENSION(:),POINTER :: RST_ALL_DATA_R1D          &
-                                             ,RST_ALL_DATA_R2D
+      REAL(kind=KFPT),DIMENSION(:),POINTER :: RST_ALL_DATA_R1D =>NULL()          &
+                                             ,RST_ALL_DATA_R2D =>NULL()
 !
-      REAL(kind=KFPT),DIMENSION(:,:),POINTER :: RST_OUTPUT_ARRAY_R2D
+      REAL(kind=KFPT),DIMENSION(:,:),POINTER :: RST_OUTPUT_ARRAY_R2D =>NULL()
 !
 !----------------------
 !***  Boundary restart 
@@ -202,23 +202,23 @@
 !***  Storage arrays
 !--------------------
 !
-      INTEGER(kind=KINT),DIMENSION(:),POINTER :: BUFF_INT               &
-                                                ,RST_BUFF_INT 
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: BUFF_INT =>NULL()              &
+                                                ,RST_BUFF_INT =>NULL()
 !
-      INTEGER(kind=KINT),DIMENSION(:,:,:),POINTER :: WRITE_SUBSET_I     &
-                                                    ,RST_WRITE_SUBSET_I
+      INTEGER(kind=KINT),DIMENSION(:,:,:),POINTER :: WRITE_SUBSET_I =>NULL()    &
+                                                    ,RST_WRITE_SUBSET_I=>NULL()
 !
-      REAL(kind=KFPT),DIMENSION(:),POINTER :: BUFF_REAL                 &
-                                             ,RST_BUFF_REAL
+      REAL(kind=KFPT),DIMENSION(:),POINTER :: BUFF_REAL =>NULL()                &
+                                             ,RST_BUFF_REAL=>NULL()
 !
-      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: WRITE_SUBSET_R        &
-                                                 ,RST_WRITE_SUBSET_R
+      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: WRITE_SUBSET_R =>NULL()       &
+                                                 ,RST_WRITE_SUBSET_R=>NULL()
 !
-      TYPE(ESMF_Logical),DIMENSION(:),POINTER :: ALL_DATA_LOG           &
-                                                ,RST_ALL_DATA_LOG
+      TYPE(ESMF_Logical),DIMENSION(:),POINTER :: ALL_DATA_LOG =>NULL()          &
+                                                ,RST_ALL_DATA_LOG=>NULL()
 !
-      CHARACTER(ESMF_MAXSTR),DIMENSION(:),POINTER :: FIELD_NAME         &
-                                                    ,RST_FIELD_NAME
+      CHARACTER(ESMF_MAXSTR),DIMENSION(:),POINTER :: FIELD_NAME=>NULL()         &
+                                                    ,RST_FIELD_NAME=>NULL()
 !
       CHARACTER(ESMF_MAXSTR*MAX_DATA_I1D),POINTER :: NAMES_I1D_STRING
       CHARACTER(ESMF_MAXSTR*MAX_DATA_I2D),POINTER :: NAMES_I2D_STRING

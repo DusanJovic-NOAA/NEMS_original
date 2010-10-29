@@ -14,9 +14,9 @@ R8        = -fdefault-real-8
 FINCS     = $(ESMF_INC)
 TRAPS     = -g
 
-FFLAGS    = $(TRAPS) $(FINCS)
+FFLAGS    = $(TRAPS) $(FINCS) -ffree-line-length-none
 
-OPTS_NMM  = -O0 -ffree-line-length-none
+OPTS_NMM  = -O3
 OPTS_GFS  = -O0
 OPTS_FIM  = -O0
 

@@ -64,7 +64,6 @@
                                         ,maxHaloUWidth   =(/IHALO,JHALO/)                   &  !<-- Upper bound of halo region
                                         ,maxHaloLWidth   =(/IHALO,JHALO/)                   &  !<-- Lower bound of halo region
                                         ,name            =VARS(N)%VBL_NAME                  &
-!dusan                                        ,indexFlag       =ESMF_INDEX_DELOCAL                &
                                         ,indexFlag       =ESMF_INDEX_GLOBAL                 &
                                         ,rc              =RC)
                 CALL ESMF_StateAdd(state=STATE ,field=FIELD ,rc=RC)
@@ -79,7 +78,6 @@
                                         ,ungriddedLBound =(/ lbound(VARS(N)%R3D,dim=3) /)   &
                                         ,ungriddedUBound =(/ ubound(VARS(N)%R3D,dim=3) /)   &
                                         ,name            =VARS(N)%VBL_NAME                  &
-!dusan                                        ,indexFlag       =ESMF_INDEX_DELOCAL                &
                                         ,indexFlag       =ESMF_INDEX_GLOBAL                 &
                                         ,rc              =RC)
                 CALL ESMF_StateAdd(state=STATE ,field=FIELD ,rc=RC)
@@ -94,7 +92,6 @@
                                         ,ungriddedLBound =(/ lbound(VARS(N)%R4D,dim=3),lbound(VARS(N)%R4D,dim=4) /)   &
                                         ,ungriddedUBound =(/ ubound(VARS(N)%R4D,dim=3),ubound(VARS(N)%R4D,dim=4) /)   &
                                         ,name            =VARS(N)%VBL_NAME                  &
-!dusan                                        ,indexFlag       =ESMF_INDEX_DELOCAL                &
                                         ,indexFlag       =ESMF_INDEX_GLOBAL                 &
                                         ,rc              =RC)
                 CALL ESMF_StateAdd(state=STATE ,field=FIELD ,rc=RC)
