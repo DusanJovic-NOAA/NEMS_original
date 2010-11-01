@@ -3,7 +3,7 @@
 set -x
 #
 #
- export CDATE=2009072400
+ export CDATE=2010010100
 
 #export EXPLICIT=.true.
  export EXPLICIT=.false.
@@ -159,12 +159,12 @@ export lsm=${lsm:-1}
 #   Control for post and time averaging  If "YES" then run
 #   -- Defaults to "NO" 
 #
- export gfsio_in=.true.
- export gfsio_out=.true.
+# export gfsio_in=.true.
+# export gfsio_out=.true.
 #
- export DYNVARS="liope=.F.,gfsio_in=$gfsio_in,gfsio_out=$gfsio_out"
- export PHYVARS="liope=.F.,gfsio_in=$gfsio_in,gfsio_out=$gfsio_out"
-_CP2_ export PHYVARS="liope=.F.,gfsio_in=$gfsio_in,gfsio_out=$gfsio_out,grid_aldata=.true."
+ export DYNVARS="liope=.F."
+ export PHYVARS="liope=.F."
+_CP2_ export PHYVARS="liope=.F.,grid_aldata=.true."
 
  export TRACERVARS="RI=$RIlist,CPI=$CPIlist,"
 #

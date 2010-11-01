@@ -9,6 +9,7 @@
 !  march 2005      weiyu yang initial code.
 !        2006      modified version 
 !  november 2007   henry juang
+!  Sep      2010   Jun Wang  change to nemsio file
 !
 !uses:
 !
@@ -64,10 +65,18 @@
 !
         call nemsio_init()
         call nemsio_open(nfile,trim(cfile),'read',iret=iret)
-          print *,'in start time,after nemsio_open,iret=',iret
+        print *,'in start time,after nemsio_open,iret=',iret
         call nemsio_getheadvar(nfile,'idate',idate7,iret=iret)
-        call nemsio_getheadvar(nfile,'fhour',fhour,iret=iret)
-        print *,'after nemsio,idate=',idate7,'fhour=',fhour
+        call nemsio_getheadvar(nfile,'fhour',fhour4,iret=iret)
+        if(iret==0) then
+          fhour=fhour4
+          fhini=fhour4
+        else
+          call nemsio_getheadvar(nfile,'fhour',fhour,iret=iret)
+          fhini=fhour
+        endif
+
+        print *,'after nemsio,idate=',idate7,'fhour=',fhour,iret
         call nemsio_close(nfile)
         call nemsio_finalize()
         idate(1)=idate7(4)
@@ -83,7 +92,6 @@
         else
           sec    = 0
         endif
-        fhini=fhour
 
       endif
 !

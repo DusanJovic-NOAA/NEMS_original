@@ -8,8 +8,6 @@ c wrtout.
 !
       use gfs_dyn_machine
       use gfs_dyn_resol_def
-      use gfsio_module
-      use gfsio_def
       implicit none
 !
       real(kind=kind_io4), allocatable,target :: buff_mult_pieceg(:,:,:)
@@ -38,7 +36,7 @@ c wrtout.
      &    epsedn,epsodn,snnp1ev,snnp1od,plnev_a,plnod_a,
      &    pdryini)
 !!
-!! write out only grid values for gfsio
+!! write out only grid values for nemsio
 !!
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
@@ -183,7 +181,7 @@ csela set lfnhr to false for writing one step output etc.
       else
       CFHOUR = CFHOUR(1:nfill(CFHOUR)) // ens_nam(1:nfill(ens_nam))
       endif
-      print *,' in wrtout_dynamics cfhour=',cfhour,' ens_nam=',ens_nam
+!      print *,' in wrtout_dynamics cfhour=',cfhour,' ens_nam=',ens_nam
 cjfe
       nosig=61
 !!

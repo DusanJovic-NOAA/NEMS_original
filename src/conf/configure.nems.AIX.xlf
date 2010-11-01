@@ -3,7 +3,8 @@ SHELL     = /bin/sh
 ESMF_INC  = -I/nwprod/lib/incmod/esmf_3_1_0rp2
 ESMF_LIBS = -L/nwprod/lib -lesmf_3_1_0rp2 -lC_r
 
-EXTLIBS   = $(ESMF_LIBS) -L/climate/save/wx20wa/gfsio/bacio -lbacio_4 -L/nwprod/lib -lw3_d -lsp_d -lessl_r -lmass -lmassvp6
+#EXTLIBS   = $(ESMF_LIBS) -L/nwprod/lib -lbacio_4 -lw3_d -lsp_d -lessl_r -lmass -lmassvp6
+EXTLIBS   = -L/climate/save/wx20wa/gfsio/w3/sorc_opn_gblevent -lw3_d $(ESMF_LIBS) -L/nwprod/lib -lbacio_4 -lsp_d -lessl_r -lmass -lmassvp6
 
 FC        = mpxlf95_r 
 FREE      = -qfree=f90

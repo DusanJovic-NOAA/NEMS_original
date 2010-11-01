@@ -41,6 +41,7 @@
 !   1999-01-26  Iredell
 !   2007-02-01  H.-M. H. Juang modify to be used for dynamics only
 !   2009-11-09  Jun Wang       added ndfi 
+!   2010-09-08  Jun Wang       change gfsio to nemsio
 !
 ! Usage:    call compns(deltim,
 !    &                  fhout,fhres,
@@ -87,7 +88,7 @@ c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      & explicit,hybrid,gen_coord_hybrid,liope, 
      & ntrac,nxpt,nypt,jintmx,jcap,levs,lonf,latg,levr,
      & ntoz,ntcw,ncld,nsout,tfiltc,
-     & gfsio_in,gfsio_out,ref_temp,
+     & nemsio_in,nemsio_out,ref_temp,
      & zflxtvd
 
 !
@@ -114,8 +115,8 @@ c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       zflxtvd          = .false.
       nislfv           = 0        ! non_iteration semi_Lagrangian finite volume
 !
-      gfsio_in         = .true.
-      gfsio_out        = .true.
+      nemsio_in         = .true.
+      nemsio_out        = .true.
 !
       ref_temp         = 300.0
 !

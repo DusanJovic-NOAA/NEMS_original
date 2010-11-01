@@ -147,11 +147,11 @@ export lsm=${lsm:-1}
 #   Control for post and time averaging  If "YES" then run
 #   -- Defaults to "NO" 
 #
- export gfsio_in=.true.
- export gfsio_out=.true.
+# export gfsio_in=.true.
+# export gfsio_out=.true.
 #
- export DYNVARS="liope=.F.,gfsio_in=$gfsio_in,gfsio_out=$gfsio_out"
- export PHYVARS="liope=.F.,gfsio_in=$gfsio_in,gfsio_out=$gfsio_out"
+ export DYNVARS="liope=.F."
+ export PHYVARS="liope=.F."
 
  export TRACERVARS="RI=$RIlist,CPI=$CPIlist,"
 #

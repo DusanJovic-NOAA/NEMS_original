@@ -3697,7 +3697,8 @@ contains
     deallocate(lbms,grbmeta%lbms)
     if(ios.ne.0) then
        if ( present(iret))  then
-          print *,'getgb_ios=',ios
+          print *,'getgb_ios=',ios,'name=',trim(vname),'levtype=',trim(vlevtyp), &
+            'lev=',vlev,'tlmeta=',gfile%tlmeta
          return
        else
          call nemsio_stop

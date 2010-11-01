@@ -1,5 +1,9 @@
       module namelist_dynamics_def
-
+!
+!---- revision history
+!--- Sep 8 2010    J. Wang   change gfsio to nemsio
+!
+!
       use gfs_dyn_machine
       implicit none
       
@@ -13,7 +17,7 @@
       logical zflxtvd,explicit
 
 
-      logical gfsio_in, gfsio_out
+      logical nemsio_in, nemsio_out
       logical reduced_grid
       integer nislfv
       character*20 ens_nam

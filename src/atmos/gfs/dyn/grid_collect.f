@@ -4,6 +4,7 @@
 !!
 !! Revision history:
 !  Nov 23 2009    Sarah Lu, comment out 4D tracer
+!  Sep 08 2010    Jun Wang  change gfsio to nemsio
 !
 
       use gfs_dyn_resol_def
@@ -238,11 +239,9 @@ c  receiving part of I/O task
       SUBROUTINE atmgg_wrt(IOPROC,cfile,xhour,idate
      &,                  global_lats_a,lonsperlat,pdryini)
 cc
-      use gfsio_module
       use gfs_dyn_resol_def
       use namelist_dynamics_def
       use gfs_dyn_vert_def
-      use gfsio_def
       use gfs_dyn_coordinate_def
       use gfs_dyn_io_header
       use gfs_dyn_resol_def
@@ -552,7 +551,7 @@ cc
         nfsecondn=int(((yhour-nfhour)*3600.-nfminute*60)*100)
         nfsecondd=100
 !
-!      write(0,*)' calling gfsio_open lonf=',lonf,' latg=',latg
+!      write(0,*)' calling nemsio_open lonf=',lonf,' latg=',latg
 !     &,' idate=',idate,' yhour=',yhour
 !
         call nemsio_open(gfileout,trim(cfile),'write',iret=iret,
@@ -573,7 +572,7 @@ cc
      &    recname=recname,reclevtyp=reclevtyp,
      &    reclev=reclev)
 !
-      print *,' after calling gfsio_open iret=',iret
+      print *,' after calling nemfio_open iret=',iret
 !     if (yhour .gt. 5.99) call mpi_quit(3333)
 !
 !     print *,' buff_multg=',buff_multg(lonb*latb/2,:)

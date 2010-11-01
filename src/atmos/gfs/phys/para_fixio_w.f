@@ -137,7 +137,7 @@
           RECNAME(25)='snod'
           RECNAME(26)='shdmin'
           RECNAME(27)='shdmax'
-          RECNAME(28)='slope'
+          RECNAME(28)='sltyp'
           RECNAME(29)='salbd'
           RECNAME(30)='orog'
           RECNAME(31)='sncovr'

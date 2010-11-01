@@ -9,6 +9,7 @@ module module_nemsio_mpi
 ! Program history log
 !    2006-11-10    Jun Wang  for gfsio
 !    2008-02-29    Jun Wang
+!    2010-09-06    Jun Wang change in/tou attributes for densewrt
 !
 ! Public Variables
 ! Public Defined Types
@@ -128,13 +129,14 @@ module module_nemsio_mpi
   private
 !------------------------------------------------------------------------------
 ! private variables and type needed by nemsio_gfile
-  integer,parameter:: nemsio_lmeta1=48,nemsio_lmeta3=32
+  integer,parameter:: nemsio_lmeta1=48,nemsio_lmeta3=40
   integer,parameter:: nemsio_intkind=4,nemsio_intkind8=8
   integer,parameter:: nemsio_realkind=4,nemsio_dblekind=8
   integer,parameter:: nemsio_charkind=16,nemsio_charkind8=8, nemsio_charkind4=4
   integer,parameter:: nemsio_logickind=4
   integer,parameter:: nemsio_maxint=2147483647
   real(nemsio_intkind),parameter     :: nemsio_intfill=-9999_nemsio_intkind
+  integer(nemsio_intkind8),parameter    :: nemsio_intfill8=-9999_nemsio_intkind8
   logical(nemsio_logickind),parameter:: nemsio_logicfill=.false.
   real(nemsio_intkind),parameter     :: nemsio_kpds_intfill=-1_nemsio_intkind
   real(nemsio_realkind),parameter    :: nemsio_realfill=-9999._nemsio_realkind
@@ -183,10 +185,12 @@ module module_nemsio_mpi
     integer(nemsio_intkind):: nmetavarr=nemsio_intfill
     integer(nemsio_intkind):: nmetavarl=nemsio_intfill
     integer(nemsio_intkind):: nmetavarc=nemsio_intfill
+    integer(nemsio_intkind):: nmetavarr8=nemsio_intfill
     integer(nemsio_intkind):: nmetaaryi=nemsio_intfill
     integer(nemsio_intkind):: nmetaaryr=nemsio_intfill
     integer(nemsio_intkind):: nmetaaryl=nemsio_intfill
     integer(nemsio_intkind):: nmetaaryc=nemsio_intfill
+    integer(nemsio_intkind):: nmetaaryr8=nemsio_intfill
 !
     character(nemsio_charkind),allocatable :: recname(:)
     character(nemsio_charkind),allocatable :: reclevtyp(:)
@@ -205,6 +209,8 @@ module module_nemsio_mpi
     integer(nemsio_intkind),allocatable    :: varival(:)
     character(nemsio_charkind),allocatable :: varrname(:)
     real(nemsio_realkind),allocatable      :: varrval(:)
+    character(nemsio_charkind),allocatable :: varr8name(:)
+    real(nemsio_dblekind),allocatable      :: varr8val(:)
     character(nemsio_charkind),allocatable :: varlname(:)
     logical(nemsio_logickind),allocatable  :: varlval(:)
     character(nemsio_charkind),allocatable :: varcname(:)
@@ -222,6 +228,9 @@ module module_nemsio_mpi
     character(nemsio_charkind),allocatable :: arycname(:)
     integer(nemsio_intkind),allocatable    :: aryclen(:)
     character(nemsio_charkind),allocatable :: arycval(:,:)
+    character(nemsio_charkind),allocatable :: aryr8name(:)
+    integer(nemsio_intkind),allocatable    :: aryr8len(:)
+    real(nemsio_dblekind),allocatable      :: aryr8val(:,:)
 !  
     character(255) :: gfname
     character(nemsio_charkind8) :: gaction
@@ -251,6 +260,12 @@ module module_nemsio_mpi
     character(nemsio_charkind),allocatable :: headarycval(:,:)
     character,allocatable      :: cbuf(:)
     integer(nemsio_intkind):: mbuf=0,nlen,nnum,mnum
+    integer(nemsio_intkind8)    :: tlmetalat=nemsio_intfill
+    integer(nemsio_intkind8)    :: tlmetalon=nemsio_intfill
+    integer(nemsio_intkind8)    :: tlmetadx=nemsio_intfill
+    integer(nemsio_intkind8)    :: tlmetady=nemsio_intfill
+    integer(nemsio_intkind8)    :: tlmetavarival=nemsio_intfill
+    integer(nemsio_intkind8)    :: tlmetaaryival=nemsio_intfill
 !-- for MPI I/O
     integer(nemsio_intkind)     :: mpi_comm=nemsio_intfill
     integer(nemsio_intkind)     :: lead_task=nemsio_intfill
@@ -285,7 +300,8 @@ module module_nemsio_mpi
 !
   type :: nemsio_meta3
     integer(nemsio_intkind) :: nmetavari,nmetavarr,nmetavarl,nmetavarc, &
-                               nmetaaryi,nmetaaryr,nmetaaryl,nmetaaryc
+                               nmetaaryi,nmetaaryr,nmetaaryl,nmetaaryc, &
+                               nmetavarr8,nmetaaryr8
   end type nemsio_meta3
 !
 !*** for mpi
@@ -305,31 +321,13 @@ module module_nemsio_mpi
     module procedure nemsio_getfheadvarr
     module procedure nemsio_getfheadvarl
     module procedure nemsio_getfheadvarc
+    module procedure nemsio_getfheadvarr8
     module procedure nemsio_getfheadaryi
     module procedure nemsio_getfheadaryr
+    module procedure nemsio_getfheadaryr8
     module procedure nemsio_getfheadaryl
     module procedure nemsio_getfheadaryc
   end interface nemsio_getheadvar
-!
-  interface nemsio_readrec
-    module procedure nemsio_readrecbin4
-    module procedure nemsio_readrecbin8
-  end interface nemsio_readrec
-!
-  interface nemsio_readrecv
-    module procedure nemsio_readrecvbin4
-    module procedure nemsio_readrecvbin8
-  end interface nemsio_readrecv
-!
-  interface nemsio_writerec
-    module procedure nemsio_writerecbin4
-    module procedure nemsio_writerecbin8
-  end interface nemsio_writerec
-!
-  interface nemsio_writerecv
-    module procedure nemsio_writerecvbin4
-    module procedure nemsio_writerecvbin8
-  end interface nemsio_writerecv
 !
   interface nemsio_denseread
     module procedure nemsio_denseread4
@@ -348,7 +346,6 @@ module module_nemsio_mpi
   public nemsio_intkind,nemsio_intkind8,nemsio_realkind,nemsio_dblekind
   public nemsio_charkind,nemsio_charkind8,nemsio_logickind
   public nemsio_init,nemsio_finalize,nemsio_open,nemsio_close
-  public nemsio_readrec,nemsio_writerec,nemsio_readrecv,nemsio_writerecv
   public nemsio_denseread,nemsio_densewrite
   public nemsio_getfilehead,nemsio_getheadvar,nemsio_getrechead
 !
@@ -438,10 +435,13 @@ contains
       rlon_min,rlon_max,rlat_min,rlat_max,extrameta,           &
       nmetavari,nmetavarr,nmetavarl,nmetavarc,                              &
       nmetaaryi,nmetaaryr,nmetaaryl,nmetaaryc,                              &
+      nmetavarr8,nmetaaryr8,                                                &
       recname,reclevtyp,reclev,vcoord,lat,lon,dx,dy,cpi,ri,                 &
       variname,varival,varrname,varrval,varlname,varlval,varcname,varcval,  &
+      varr8name,varr8val,                                                   &
       aryiname,aryilen,aryival,aryrname,aryrlen,aryrval,                    &
-      arylname,aryllen,arylval,arycname,aryclen,arycval  )
+      arylname,aryllen,arylval,arycname,aryclen,arycval,                    &
+      aryr8name,aryr8len,aryr8val  )
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ! abstract: open nemsio file, and read/write the meta data
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -467,7 +467,8 @@ contains
              rlon_min,rlon_max
     logical(nemsio_logickind),optional,intent(in):: extrameta
     integer(nemsio_intkind),optional,intent(in)  :: nmetavari,nmetavarr, &   
-            nmetavarl,nmetavarc,nmetaaryi,nmetaaryr,nmetaaryl,nmetaaryc
+            nmetavarl,nmetavarc,nmetaaryi,nmetaaryr,nmetaaryl,nmetaaryc, &
+            nmetavarr8,nmetaaryr8
 !
     character*(*),optional,intent(in)            :: recname(:),reclevtyp(:)
     integer(nemsio_intkind),optional,intent(in)  :: reclev(:)
@@ -477,11 +478,13 @@ contains
     real(nemsio_realkind),optional,intent(in)    :: Cpi(:),Ri(:)
 !
     character*(*),optional,intent(in)            :: variname(:),varrname(:),&
-          varlname(:),varcname(:),aryiname(:),aryrname(:),arylname(:),arycname(:)
+          varlname(:),varcname(:),varr8name(:),aryiname(:),aryrname(:),     &
+          arylname(:),arycname(:),aryr8name(:)
     integer(nemsio_intkind),optional,intent(in)  :: aryilen(:),aryrlen(:),  &
-          aryllen(:),aryclen(:)
+          aryllen(:),aryclen(:),aryr8len(:)
     integer(nemsio_intkind),optional,intent(in)  :: varival(:),aryival(:,:)
     real(nemsio_realkind),optional,intent(in)    :: varrval(:),aryrval(:,:)
+    real(nemsio_dblekind),optional,intent(in)    :: varr8val(:),aryr8val(:,:)
     logical(nemsio_logickind),optional,intent(in):: varlval(:),arylval(:,:)
     character(*),optional,intent(in)             :: varcval(:),arycval(:,:)
 !
@@ -577,15 +580,17 @@ contains
         idvm=idvm,idrt=idrt,                          &
         rlon_min=rlon_min,rlon_max=rlon_max,rlat_min=rlat_min, &
         rlat_max=rlat_max,extrameta=extrameta, &
-        nmetavari=nmetavari,nmetavarr=nmetavarr,  &
+        nmetavari=nmetavari,nmetavarr=nmetavarr,nmetavarr8=nmetavarr8,&
         nmetavarl=nmetavarl,nmetaaryi=nmetaaryi,nmetaaryr=nmetaaryr,&
         nmetaaryl=nmetaaryl,recname=recname,reclevtyp=reclevtyp,    &
         reclev=reclev,vcoord=vcoord,lat=lat,lon=lon,dx=dx,dy=dy,    &
         cpi=cpi,ri=ri,variname=variname,varival=varival,varrname=varrname,&
         varrval=varrval,varlname=varlname,varlval=varlval, &
         varcname=varcname,varcval=varcval, &
+        varr8name=varr8name,varr8val=varr8val, &
         aryiname=aryiname,aryilen=aryilen,aryival=aryival, &
         aryrname=aryrname,aryrlen=aryrlen,aryrval=aryrval, &
+        aryr8name=aryr8name,aryr8len=aryr8len,aryr8val=aryr8val, &
         arylname=arylname,aryllen=aryllen,arylval=arylval, &
         arycname=arycname,aryclen=aryclen,arycval=arycval  )
       if ( ios.ne.0) then
@@ -958,7 +963,7 @@ contains
 !      print *,'nmeta=',nmeta,' WARNING:there are more meta to be read!'
 !    endif
      
-    if(gfile%extrameta) then
+    extrameta_if: if(gfile%extrameta) then
 !------------------------------------------------------------
 ! read out extra meta data
 !------------------------------------------------------------
@@ -966,11 +971,24 @@ contains
      iskip=iskip+nread
      iread=nemsio_lmeta3
      call bafrreadl(gfile%flunit,iskip,iread,nread,meta3)
-     if(nread.lt.iread) return
-     gfile%tlmeta=gfile%tlmeta+nread
+     if(nread.lt.iread) then
+!when no r8 var and ary
+      iread=nemsio_lmeta3-8
+      call bafrreadl(gfile%flunit,iskip,iread,nread,meta3)
+      if(nread.lt.iread) return
+     else
+      gfile%nmetavarr8=meta3%nmetavarr8
+      gfile%nmetaaryr8=meta3%nmetaaryr8
+     endif
+!
+    gfile%tlmeta=gfile%tlmeta+nread
 !     print *,'tlmetameta3 =',gfile%tlmeta,'nread=',nread
       
     endif
+    call MPI_BCAST(gfile%nmetavarr8,1,MPI_integer,gfile%lead_task,        &
+       gfile%mpi_comm,ios)
+    call MPI_BCAST(meta3%nmetaaryr8,1,MPI_integer,gfile%lead_task,        &
+       gfile%mpi_comm,ios)
     call MPI_BCAST(meta3,1,itypemeta3,gfile%lead_task,        &
        gfile%mpi_comm,ios)
     gfile%nmetavari=meta3%nmetavari
@@ -996,9 +1014,17 @@ contains
     if (gfile%nmetavari.gt.0) then
      if(gfile%mype.eq.gfile%lead_task) then
       iskip=iskip+nread
-      iread=nemsio_charkind*gfile%nmetavari
+      iread=len(gfile%variname)*gfile%nmetavari
       call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%variname)
-      if(nread.lt.iread) return
+      if(nread.lt.iread) then
+         iread=nemsio_charkind8*gfile%nmetavari
+         allocate(char8var(gfile%nmetavari))
+         call bafrreadl(gfile%flunit,iskip,iread,nread,char8var)
+         gfile%variname=char8var
+         deallocate(char8var)
+!      print *,'after get varint name8,iskip=',iskip,'iread=',iread,'nread=',nread
+         if (nread.lt.iread) return
+      endif
       gfile%tlmeta=gfile%tlmeta+nread
 !      print *,'tlmetavari =',gfile%tlmeta,'nread=',nread
 !
@@ -1006,6 +1032,7 @@ contains
       iread=nemsio_intkind*gfile%nmetavari
       call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%varival)
       if(nread.lt.iread) return
+      gfile%tlmetavarival=gfile%tlmeta
       gfile%tlmeta=gfile%tlmeta+nread
 !      print *,'tlmetavarival =',gfile%tlmeta,'nread=',nread
      endif
@@ -1020,14 +1047,21 @@ contains
     if (gfile%nmetavarr.gt.0) then
      if(gfile%mype.eq.gfile%lead_task) then
       iskip=iskip+nread
-      iread=nemsio_charkind*gfile%nmetavarr
+      iread=len(gfile%varlname)*gfile%nmetavarr
       call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%varrname)
-      if(nread.lt.iread) return
+      if(nread.lt.iread)  then
+         iread=nemsio_charkind8*gfile%nmetavarr
+         allocate(char8var(gfile%nmetavarr))
+         call bafrreadl(gfile%flunit,iskip,iread,nread,char8var)
+         gfile%varrname=char8var
+         deallocate(char8var)
+         if (nread.lt.iread) return
+      endif
       gfile%tlmeta=gfile%tlmeta+nread
 !      print *,'tlmetavarr =',gfile%tlmeta,'nread=',nread
 
       iskip=iskip+nread
-      iread=nemsio_realkind*gfile%nmetavarr
+      iread=kind(gfile%varrval)*gfile%nmetavarr
       call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%varrval)
       if(nread.lt.iread) return
       gfile%tlmeta=gfile%tlmeta+nread
@@ -1043,9 +1077,16 @@ contains
     if (gfile%nmetavarl.gt.0) then
      if(gfile%mype.eq.gfile%lead_task) then
       iskip=iskip+nread
-      iread=nemsio_charkind*gfile%nmetavarl
+      iread=len(gfile%varlname)*gfile%nmetavarl
       call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%varlname)
-      if(nread.lt.iread) return
+      if(nread.lt.iread) then
+         iread=nemsio_charkind8*gfile%nmetavarl
+         allocate(char8var(gfile%nmetavarl))
+         call bafrreadl(gfile%flunit,iskip,iread,nread,char8var)
+         gfile%varlname=char8var
+         deallocate(char8var)
+         if (nread.lt.iread) return
+      endif
       gfile%tlmeta=gfile%tlmeta+nread
 !      print *,'tlmetavarl =',gfile%tlmeta,'nread=',nread
 
@@ -1066,14 +1107,21 @@ contains
     if (gfile%nmetavarc.gt.0) then
      if(gfile%mype.eq.gfile%lead_task) then
       iskip=iskip+nread
-      iread=nemsio_charkind*gfile%nmetavarc
+      iread=len(gfile%varcname)*gfile%nmetavarc
       call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%varcname)
-      if(nread.lt.iread) return
+      if(nread.lt.iread) then
+         iread=nemsio_charkind8*gfile%nmetavarc
+         allocate(char8var(gfile%nmetavarc))
+         call bafrreadl(gfile%flunit,iskip,iread,nread,char8var)
+         gfile%varcname=char8var
+         deallocate(char8var)
+         if (nread.lt.iread) return
+      endif
       gfile%tlmeta=gfile%tlmeta+nread
 !      print *,'tlmetavarc =',gfile%tlmeta,'nread=',nread
 !
       iskip=iskip+nread
-      iread=nemsio_charkind*gfile%nmetavarc
+      iread=len(gfile%varcval)*gfile%nmetavarc
       call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%varcval)
       if(nread.lt.iread) return
       gfile%tlmeta=gfile%tlmeta+nread
@@ -1084,22 +1132,59 @@ contains
      call MPI_BCAST(gfile%varcval,gfile%nmetavarc*nemsio_charkind,   &
        MPI_CHARACTER,gfile%lead_task,gfile%mpi_comm,ios)
     endif
+!meta var real 8
+    if (gfile%nmetavarr8.gt.0) then
+     if(gfile%mype.eq.gfile%lead_task) then
+      iskip=iskip+nread
+      iread=len(gfile%varr8name)*gfile%nmetavarr8
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%varr8name)
+!      print *,'tlmetavarr8=',gfile%tlmeta,'nread=',nread,'iread=',iread,gfile%nmetavarr8
+      if(nread.lt.iread)  then
+         iread=nemsio_charkind8*gfile%nmetavarr8
+         allocate(char8var(gfile%nmetavarr8))
+         call bafrreadl(gfile%flunit,iskip,iread,nread,char8var)
+         gfile%varr8name=char8var
+         deallocate(char8var)
+         if (nread.lt.iread) return
+      endif
+      gfile%tlmeta=gfile%tlmeta+nread
+!      print *,'tlmetavarr =',gfile%tlmeta,'nread=',nread,gfile%nmetavarr8
+      iskip=iskip+nread
+      iread=kind(gfile%varr8val)*gfile%nmetavarr8
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%varr8val)
+      if(nread.lt.iread) return
+      gfile%tlmeta=gfile%tlmeta+nread
+     endif
+!      print *,'tlmetavarr8val =',gfile%tlmeta,'nread=',nread
+     call MPI_BCAST(gfile%varr8name,gfile%nmetavarr8*nemsio_charkind,  &
+       MPI_CHARACTER,gfile%lead_task,gfile%mpi_comm,ios)
+     call MPI_BCAST(gfile%varr8val,gfile%nmetavarr8,   &
+       MPI_REAL8,gfile%lead_task,gfile%mpi_comm,ios)
+    endif
 !
 !meta arr integer
     if (gfile%nmetaaryi.gt.0) then
      if(gfile%mype.eq.gfile%lead_task) then
       iskip=iskip+nread
-      iread=nemsio_charkind*gfile%nmetaaryi
+      iread=len(gfile%aryiname)*gfile%nmetaaryi
       call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryiname)
-      if(nread.lt.iread) return
+      if(nread.lt.iread) then
+         iread=nemsio_charkind8*gfile%nmetaaryi
+         allocate(char8var(gfile%nmetaaryi))
+         call bafrreadl(gfile%flunit,iskip,iread,nread,char8var)
+         gfile%aryiname=char8var
+         deallocate(char8var)
+         if (nread.lt.iread) return
+      endif
       gfile%tlmeta=gfile%tlmeta+nread
 !      print *,'tlmetaaryinam =',gfile%tlmeta,'nread=',nread
 !
       iskip=iskip+nread
-      iread=nemsio_intkind*gfile%nmetaaryi
+      iread=kind(gfile%nmetaaryi)*gfile%nmetaaryi
       call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryilen)
       if(nread.lt.iread) return
       gfile%tlmeta=gfile%tlmeta+nread
+      gfile%tlmetaaryival=gfile%tlmeta
 !      print *,'tlmetaaryilen =',gfile%tlmeta,'nread=',nread
      endif
      call MPI_BCAST(gfile%aryiname,gfile%nmetaaryi*nemsio_charkind,  &
@@ -1110,7 +1195,7 @@ contains
      do i=1,gfile%nmetaaryi
       if(gfile%mype.eq.gfile%lead_task) then
         iskip=iskip+nread
-        iread=nemsio_intkind*gfile%aryilen(i)
+        iread=kind(gfile%aryival)*gfile%aryilen(i)
         call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryival(:,i))
         if(nread.lt.iread) return
         gfile%tlmeta=gfile%tlmeta+nread
@@ -1124,14 +1209,21 @@ contains
     if (gfile%nmetaaryr.gt.0) then
      if(gfile%mype.eq.gfile%lead_task) then
       iskip=iskip+nread
-      iread=nemsio_charkind*gfile%nmetaaryr
+      iread=len(gfile%aryrname)*gfile%nmetaaryr
       call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryrname)
-      if(nread.lt.iread) return
+      if(nread.lt.iread) then
+         iread=nemsio_charkind8*gfile%nmetaaryr
+         allocate(char8var(gfile%nmetaaryr))
+         call bafrreadl(gfile%flunit,iskip,iread,nread,char8var)
+         gfile%aryrname=char8var
+         deallocate(char8var)
+         if (nread.lt.iread) return
+      endif
       gfile%tlmeta=gfile%tlmeta+nread
 !      print *,'tlmetaaryrnam =',gfile%tlmeta,'nread=',nread
 
       iskip=iskip+nread
-      iread=nemsio_intkind*gfile%nmetaaryr
+      iread=kind(gfile%aryrlen)*gfile%nmetaaryr
       call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryrlen)
       if(nread.lt.iread) return
       gfile%tlmeta=gfile%tlmeta+nread
@@ -1145,7 +1237,7 @@ contains
      do i=1,gfile%nmetaaryr
        if(gfile%mype.eq.gfile%lead_task) then
         iskip=iskip+nread
-        iread=nemsio_realkind*gfile%aryrlen(i)
+        iread=kind(gfile%aryrval)*gfile%aryrlen(i)
         call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryrval(:,i))
         if(nread.lt.iread) return
         gfile%tlmeta=gfile%tlmeta+nread
@@ -1159,13 +1251,20 @@ contains
     if (gfile%nmetaaryl.gt.0) then
      if(gfile%mype.eq.gfile%lead_task) then
       iskip=iskip+nread
-      iread=nemsio_charkind*gfile%nmetaaryl
+      iread=len(gfile%arylname)*gfile%nmetaaryl
       call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%arylname)
-      if(nread.lt.iread) return
+      if(nread.lt.iread) then
+         iread=nemsio_charkind8*gfile%nmetaaryl
+         allocate(char8var(gfile%nmetaaryl))
+         call bafrreadl(gfile%flunit,iskip,iread,nread,char8var)
+         gfile%arylname=char8var
+         deallocate(char8var)
+         if (nread.lt.iread) return
+      endif
       gfile%tlmeta=gfile%tlmeta+nread
 !
       iskip=iskip+nread
-      iread=nemsio_intkind*gfile%nmetaaryl
+      iread=kind(gfile%aryllen)*gfile%nmetaaryl
       call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryllen)
       if(nread.lt.iread) return
       gfile%tlmeta=gfile%tlmeta+nread
@@ -1178,7 +1277,7 @@ contains
      do i=1,gfile%nmetaaryl
        if(gfile%mype.eq.gfile%lead_task) then
         iskip=iskip+nread
-        iread=nemsio_logickind*gfile%aryllen(i)
+        iread=kind(gfile%arylval)*gfile%aryllen(i)
         call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%arylval(:,i))
         if(nread.lt.iread) return
         gfile%tlmeta=gfile%tlmeta+nread
@@ -1191,9 +1290,16 @@ contains
     if (gfile%nmetaaryc.gt.0) then
      if(gfile%mype.eq.gfile%lead_task) then
       iskip=iskip+nread
-      iread=nemsio_charkind*gfile%nmetaaryc
+      iread=len(gfile%arycname)*gfile%nmetaaryc
       call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%arycname)
-      if(nread.lt.iread) return
+      if(nread.lt.iread) then
+         iread=nemsio_charkind8*gfile%nmetaaryc
+         allocate(char8var(gfile%nmetaaryc))
+         call bafrreadl(gfile%flunit,iskip,iread,nread,char8var)
+         gfile%arycname=char8var
+         deallocate(char8var)
+         if (nread.lt.iread) return
+      endif
       gfile%tlmeta=gfile%tlmeta+nread
 !
       iskip=iskip+nread
@@ -1210,7 +1316,7 @@ contains
      do i=1,gfile%nmetaaryc
        if(gfile%mype.eq.gfile%lead_task) then
         iskip=iskip+nread
-        iread=2*nemsio_charkind*gfile%aryclen(i)
+        iread=len(gfile%arycval)*gfile%aryclen(i)
         call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%arycval(:,i))
         if(nread.lt.iread) return
         gfile%tlmeta=gfile%tlmeta+nread
@@ -1219,9 +1325,52 @@ contains
         MPI_CHARACTER,gfile%lead_task,gfile%mpi_comm,ios)
      enddo
     endif
+!meta arr real8
+    if (gfile%nmetaaryr8.gt.0) then
+     if(gfile%mype.eq.gfile%lead_task) then
+      iskip=iskip+nread
+      iread=len(gfile%aryr8name)*gfile%nmetaaryr8
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryr8name)
+      if(nread.lt.iread) then
+         iread=nemsio_charkind8*gfile%nmetaaryr8
+         allocate(char8var(gfile%nmetaaryr8))
+         call bafrreadl(gfile%flunit,iskip,iread,nread,char8var)
+         gfile%aryr8name=char8var
+         deallocate(char8var)
+         if (nread.lt.iread) return
+      endif
+      gfile%tlmeta=gfile%tlmeta+nread
+!      print *,'tlmetaaryrnam =',gfile%tlmeta,'nread=',nread
+
+      iskip=iskip+nread
+      iread=kind(gfile%aryr8len)*gfile%nmetaaryr8
+      call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryr8len)
+      if(nread.lt.iread) return
+      gfile%tlmeta=gfile%tlmeta+nread
+!      print *,'tlmetaaryrlen =',gfile%tlmeta,'nread=',nread,'nmetaaryr=',gfile%nmetaaryr
+     endif
+     call MPI_BCAST(gfile%aryr8name,gfile%nmetaaryr8*nemsio_charkind,  &
+       MPI_CHARACTER,gfile%lead_task,gfile%mpi_comm,ios)
+     call MPI_BCAST(gfile%aryr8len,gfile%nmetaaryr8,   &
+       MPI_INTEGER,gfile%lead_task,gfile%mpi_comm,ios)
+     allocate(gfile%aryr8val(maxval(gfile%aryr8len),gfile%nmetaaryr8) )
+     do i=1,gfile%nmetaaryr8
+       if(gfile%mype.eq.gfile%lead_task) then
+        iskip=iskip+nread
+        iread=kind(gfile%aryr8val)*gfile%aryr8len(i)
+        call bafrreadl(gfile%flunit,iskip,iread,nread,gfile%aryr8val(:,i))
+        if(nread.lt.iread) return
+        gfile%tlmeta=gfile%tlmeta+nread
+!        print *,'tlmetaaryrval =',gfile%tlmeta,'nread=',nread
+       endif
+       call MPI_BCAST(gfile%aryr8val(:,i),gfile%aryr8len(i),   &
+        MPI_REAL8,gfile%lead_task,gfile%mpi_comm,ios)
+     enddo
+    endif
+
 !
 !end if extrameta
-   endif
+   endif extrameta_if
 !
 !bcst tlmeta
     tlmeta4=gfile%tlmeta
@@ -1242,16 +1391,18 @@ contains
   end subroutine nemsio_rcreate
 !------------------------------------------------------------------------------
   subroutine nemsio_wcreate(gfile,iret,gdatatype,version,  &
-      nmeta,lmeta,modelname,nrec,idate,nfday,nfhour,nfminute,nfsecondn,      &
+      nmeta,lmeta,modelname,nrec,idate,nfday,nfhour,nfminute,nfsecondn,     &
       nfsecondd, &
       dimx,dimy,dimz,nframe,nsoil,ntrac,jcap,ncldt,idvc,idsl,idvm,idrt,     &
       rlon_min,rlon_max,rlat_min,rlat_max,extrameta,                        &
-      nmetavari,nmetavarr,nmetavarl,nmetavarc,                              &
-      nmetaaryi,nmetaaryr,nmetaaryl,nmetaaryc,                              &
+      nmetavari,nmetavarr,nmetavarl,nmetavarc,nmetavarr8,                   &
+      nmetaaryi,nmetaaryr,nmetaaryl,nmetaaryc,nmetaaryr8,                   &
       recname,reclevtyp,reclev,vcoord,lat,lon,dx,dy,cpi,ri,                 &
       variname,varival,varrname,varrval,varlname,varlval,varcname,varcval,  &
+      varr8name,varr8val,                                                   &
       aryiname,aryilen,aryival,aryrname,aryrlen,aryrval,                    &
-      arylname,aryllen,arylval,arycname,aryclen,arycval  )
+      arylname,aryllen,arylval,arycname,aryclen,arycval,                    &
+      aryr8name,aryr8len,aryr8val )
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: write nemsio meta data
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
@@ -1271,7 +1422,8 @@ contains
              rlon_min,rlon_max
     logical(nemsio_logickind),optional,intent(in):: extrameta
     integer(nemsio_intkind),optional,intent(in)  :: nmetavari,nmetavarr, &
-            nmetavarl,nmetavarc,nmetaaryi,nmetaaryr,nmetaaryl,nmetaaryc
+            nmetavarl,nmetavarc,nmetaaryi,nmetaaryr,nmetaaryl,nmetaaryc, &
+            nmetavarr8,nmetaaryr8
 !
     character*(*),optional,intent(in)            :: recname(:),reclevtyp(:)
     integer(nemsio_intkind),optional,intent(in)  :: reclev(:)
@@ -1281,11 +1433,13 @@ contains
     real(nemsio_realkind),optional,intent(in)    :: Cpi(:),Ri(:)
 !
     character*(*),optional,intent(in)            :: variname(:),varrname(:),&
-          varlname(:),varcname(:),aryiname(:),aryrname(:),arylname(:),arycname(:)
+          varlname(:),varcname(:),varr8name(:),aryiname(:),aryrname(:),     &
+          arylname(:),arycname(:),aryr8name(:)
     integer(nemsio_intkind),optional,intent(in)  :: aryilen(:),aryrlen(:),  &
-          aryllen(:),aryclen(:)
+          aryllen(:),aryclen(:),aryr8len(:)
     integer(nemsio_intkind),optional,intent(in)  :: varival(:),aryival(:,:)
     real(nemsio_realkind),optional,intent(in)    :: varrval(:),aryrval(:,:)
+    real(nemsio_dblekind),optional,intent(in)    :: varr8val(:),aryr8val(:,:)
     logical(nemsio_logickind),optional,intent(in):: varlval(:),arylval(:,:)
     character(*),optional,intent(in)             :: varcval(:),arycval(:,:)
 !
@@ -1357,6 +1511,7 @@ contains
         return
       endif
     endif
+!     write(0,*)'in wcreate, after gfini'
 !
 !------------------------------------------------------------
 ! set up basic gfile meta data variables from outsides to 
@@ -1391,50 +1546,69 @@ contains
       call mpi_recv(gfile%fieldsize_real8,1,MPI_real8,0,99,gfile%mpi_comm,status,ios)
      endif
     endif
+!    write(0,*)'after mpi recv,fieldsize_real4=',gfile%fieldsize_real4
+!
+!---------------------------------------------------------------------
+!*** for lead write task
+!---------------------------------------------------------------------
+!
+!    write(0,*)'in wcreate,mype=',gfile%mype,'lead_task=',gfile%lead_task
+    if(gfile%mype.eq.gfile%lead_task) then
 !
     if( gfile%extrameta )then
-      if(present(nmetavari).and.present(variname).and.present(varival)) then
-        if(nmetavari.gt.0.and.size(variname).eq.nmetavari.and.size(varival).eq.nmetavari) then
+      if(present(nmetavari).and.nmetavari.gt.0.and.present(variname) &
+         .and.size(variname).eq.nmetavari .and. &
+         present(varival).and.size(varival).eq.nmetavari) then
            gfile%nmetavari=nmetavari
            if(allocated(gfile%variname)) deallocate(gfile%variname)
            if(allocated(gfile%varival)) deallocate(gfile%varival)
            allocate(gfile%variname(nmetavari),gfile%varival(nmetavari))
            gfile%variname=variname
            gfile%varival=varival
-        endif
       endif
-      if(present(nmetavarr).and.present(varrname).and.present(varrval)) then
-        if(nmetavarr.gt.0.and.size(varrname).eq.nmetavarr.and.size(varrval).eq.nmetavarr) then
+      if(present(nmetavarr).and.nmetavarr.gt.0.and.present(varrname) &
+         .and.size(varrname).eq.nmetavarr .and. &
+         present(varrval).and.size(varrval).eq.nmetavarr) then
            gfile%nmetavarr=nmetavarr
            if(allocated(gfile%varrname)) deallocate(gfile%varrname)
            if(allocated(gfile%varrval)) deallocate(gfile%varrval)
            allocate(gfile%varrname(nmetavarr),gfile%varrval(nmetavarr))
            gfile%varrname=varrname
            gfile%varrval=varrval
-        endif
       endif
-      if(present(nmetavarl).and.present(varlname).and.present(varlval)) then
-        if(nmetavarl.gt.0.and.size(varlname).eq.nmetavarl.and.size(varlval).eq.nmetavarl) then
+      if(present(nmetavarl).and.nmetavarl.gt.0.and.present(varlname) &
+         .and.size(varlname).eq.nmetavarl .and. &
+         present(varlval).and.size(varlval).eq.nmetavarl) then
            gfile%nmetavarl=nmetavarl
            if(allocated(gfile%varlname)) deallocate(gfile%varlname)
            if(allocated(gfile%varlval)) deallocate(gfile%varlval)
            allocate(gfile%varlname(nmetavarl),gfile%varlval(nmetavarl))
            gfile%varlname=varlname
            gfile%varlval=varlval
-        endif
       endif
-      if(present(nmetavarc).and.present(varcname).and.present(varcval)) then
-        if(nmetavarc.gt.0.and.size(varcname).eq.nmetavarc.and.size(varcval).eq.nmetavarc) then
+      if(present(nmetavarc).and.nmetavarc.gt.0.and.present(varcname) &
+         .and.size(varcname).eq.nmetavarc .and. &
+         present(varcval).and.size(varcval).eq.nmetavarc) then
            gfile%nmetavarc=nmetavarc
            if(allocated(gfile%varcname)) deallocate(gfile%varcname)
            if(allocated(gfile%varcval)) deallocate(gfile%varcval)
            allocate(gfile%varcname(nmetavarc),gfile%varcval(nmetavarc))
            gfile%varcname=varcname
            gfile%varcval=varcval
-        endif
       endif
-      if(present(nmetaaryi).and.present(aryiname).and.present(aryilen)) then
-        if(nmetaaryi.gt.0.and.size(aryiname).eq.nmetaaryi.and.size(aryilen).eq.nmetaaryi) then
+      if(present(nmetavarr8).and.nmetavarr8>0.and.present(varr8name) &
+         .and.size(varr8name)==nmetavarr8.and. &
+         present(varr8val).and.size(varr8val)==nmetavarc) then
+            gfile%nmetavarr8=nmetavarr8
+            if(allocated(gfile%varr8name)) deallocate(gfile%varr8name)
+            if(allocated(gfile%varr8val)) deallocate(gfile%varr8val)
+            allocate(gfile%varr8name(nmetavarr8),gfile%varr8val(nmetavarr8))
+            gfile%varr8name=varr8name
+            gfile%varr8val=varr8val
+      endif
+      if(present(nmetaaryi).and.nmetaaryi.gt.0.and.present(aryiname) &
+         .and.size(aryiname).eq.nmetaaryi .and. &
+         present(aryilen).and.size(aryilen).eq.nmetaaryi) then
            gfile%nmetaaryi=nmetaaryi
            if(allocated(gfile%aryiname)) deallocate(gfile%aryiname)
            if(allocated(gfile%aryilen)) deallocate(gfile%aryilen)
@@ -1446,10 +1620,10 @@ contains
              allocate(gfile%aryival(maxval(gfile%aryilen),nmetaaryi))
              gfile%aryival=aryival
            endif
-        endif
       endif
-      if(present(nmetaaryr).and.present(aryrname).and.present(aryrlen)) then
-        if(nmetaaryr.gt.0.and.size(aryrname).eq.nmetaaryr.and.size(aryrlen).eq.nmetaaryr) then
+      if(present(nmetaaryr).and.nmetaaryr.gt.0.and.present(aryrname) &
+         .and.size(aryrname).eq.nmetaaryr .and. &
+         present(aryrlen).and.size(aryrlen).eq.nmetaaryr) then
            gfile%nmetaaryr=nmetaaryr
            if(allocated(gfile%aryrname)) deallocate(gfile%aryrname)
            if(allocated(gfile%aryrlen)) deallocate(gfile%aryrlen)
@@ -1458,59 +1632,71 @@ contains
            gfile%aryrlen=aryrlen
 !           print *,'in wcreate,gfile%aryrname=',gfile%aryrname
 !           print *,'in wcreate,gfile%aryrlen=',gfile%aryrlen
-           if(present(aryrval)) then
-             if(size(aryrval).eq.nmetaaryr*maxval(gfile%aryrlen)) then
-               if(allocated(gfile%aryrval)) deallocate(gfile%aryrval)
-               allocate(gfile%aryrval(maxval(gfile%aryrlen),nmetaaryr))
-               gfile%aryrval=aryrval
-             endif
+           if(present(aryrval).and.size(aryrval).eq.nmetaaryr*maxval(gfile%aryrlen)) then
+             if(allocated(gfile%aryrval)) deallocate(gfile%aryrval)
+             allocate(gfile%aryrval(maxval(gfile%aryrlen),nmetaaryr))
+             gfile%aryrval=aryrval
            endif
-        endif
       endif
-      if(present(nmetaaryl).and.present(arylname).and.present(aryllen))then
-        if(nmetaaryl.gt.0.and.size(arylname).eq.nmetaaryl.and.size(aryllen).eq.nmetaaryl) then
+      if(present(nmetaaryl).and.nmetaaryl.gt.0.and.present(arylname) &
+          .and.size(arylname).eq.nmetaaryl .and. &
+           present(aryllen).and.size(aryllen).eq.nmetaaryl) then
            gfile%nmetaaryl=nmetaaryl
            if(allocated(gfile%arylname)) deallocate(gfile%arylname)
            if(allocated(gfile%aryllen)) deallocate(gfile%aryllen)
            allocate(gfile%arylname(nmetaaryl),gfile%aryllen(nmetaaryl))
            gfile%arylname=arylname
            gfile%aryllen=aryllen
-           if(present(arylval)) then
-             if(size(arylval).eq.nmetaaryl*maxval(gfile%aryllen)) then
-               if(allocated(gfile%arylval)) deallocate(gfile%arylval)
-               allocate(gfile%arylval(maxval(gfile%aryllen),nmetaaryl))
-               gfile%arylval=arylval
-             endif
+           if(present(arylval).and.size(arylval).eq.nmetaaryl*maxval(gfile%aryllen)) then
+             if(allocated(gfile%arylval)) deallocate(gfile%arylval)
+             allocate(gfile%arylval(maxval(gfile%aryllen),nmetaaryl))
+             gfile%arylval=arylval
            endif
-        endif
       endif
-      if(present(nmetaaryc).and.present(arycname).and.present(aryclen))then
-        if(nmetaaryc.gt.0.and.size(arycname).eq.nmetaaryc.and.size(aryclen).eq.nmetaaryc) then
+      if(present(nmetaaryc).and.nmetaaryc.gt.0.and.present(arycname) &
+          .and.size(arycname).eq.nmetaaryc .and. &
+          present(aryclen).and.size(aryclen).eq.nmetaaryc) then
            gfile%nmetaaryc=nmetaaryc
            if(allocated(gfile%arycname)) deallocate(gfile%arycname)
            if(allocated(gfile%aryclen)) deallocate(gfile%aryclen)
            allocate(gfile%arycname(nmetaaryc),gfile%aryclen(nmetaaryc))
            gfile%arycname=arycname
            gfile%aryclen=aryclen
-           if(present(arycval)) then
-             if(size(arycval).eq.nmetaaryc*maxval(gfile%aryclen)) then
-               if(allocated(gfile%arycval)) deallocate(gfile%arycval)
-               allocate(gfile%arycval(maxval(gfile%aryclen),nmetaaryc))
-               gfile%arycval=arycval
-             endif
+           if(present(arycval).and.size(arycval).eq.nmetaaryc*maxval(gfile%aryclen)) then
+             if(allocated(gfile%arycval)) deallocate(gfile%arycval)
+             allocate(gfile%arycval(maxval(gfile%aryclen),nmetaaryc))
+             gfile%arycval=arycval
            endif
-        endif
+      endif
+      if(present(nmetaaryr8).and.nmetaaryr8.gt.0.and.present(aryr8name) &
+         .and.size(aryr8name).eq.nmetaaryr8.and. &
+         present(aryr8len).and.size(aryr8len).eq.nmetaaryr8) then
+            gfile%nmetaaryr8=nmetaaryr8
+            if(allocated(gfile%aryr8name)) deallocate(gfile%aryr8name)
+            if(allocated(gfile%aryr8len)) deallocate(gfile%aryr8len)
+            allocate(gfile%aryr8name(nmetaaryr8),gfile%aryr8len(nmetaaryr8))
+            gfile%aryr8name=aryr8name
+            gfile%aryr8len=aryr8len
+            if(present(aryr8val) ) then
+              if(size(aryr8val).eq.nmetaaryr8*maxval(gfile%aryr8len)) then
+                if(allocated(gfile%aryr8val)) deallocate(gfile%aryr8val)
+                allocate(gfile%aryr8val(maxval(gfile%aryr8len),nmetaaryr8))
+                gfile%aryr8val=aryr8val
+              endif
+            endif
       endif
       if (gfile%nmetavari+gfile%nmetavarr+gfile%nmetavarl+gfile%nmetavarc+ &
-           gfile%nmetaaryi+gfile%nmetaaryr+gfile%nmetaaryl+gfile%nmetaaryc.lt.0 )then
+          gfile%nmetaaryi+gfile%nmetaaryr+gfile%nmetaaryl+gfile%nmetaaryc+ &
+          gfile%nmetavarr8+gfile%nmetaaryr8 .lt.10*nemsio_intfill )then
            print *,'WRONG: gfile%extrameta is not compatiable with input extra meta!'
            return
       endif
     endif 
+!
+
 !------------------------------------------------------------
 ! check gfile meta data array size
 !------------------------------------------------------------
-!    print *,'before chkgfary'
     call nemsio_chkgfary(gfile,ios)
     if (ios.ne. 0) then
       iret=ios
@@ -1522,58 +1708,106 @@ contains
 !set gfile data type to bin/grb, default set to grb
 !recname
     if(present(recname) ) then
-       if (gfile%nrec.ne.size(recname)) return
-       gfile%recname=recname
+       if (gfile%nrec.eq.size(recname)) then
+         gfile%recname=recname
+       else
+         print *,'WRONG: the size of recname is not equal to the total number of the fields in the file!'
+         return
+       endif
     endif
 !reclevtyp
     if(present(reclevtyp)) then
-       if (gfile%nrec.ne.size(reclevtyp)) return
-       gfile%reclevtyp=reclevtyp
+       if (gfile%nrec.eq.size(reclevtyp)) then
+         gfile%reclevtyp=reclevtyp
+       else
+         print *,'WRONG: the size of reclevtyp is not equal to the total number of the fields in the file!'
+         return
+       endif
     endif
 !reclev
     if(present(reclev) ) then
-       if (gfile%nrec.ne.size(reclev)) return
-       gfile%reclev=reclev
+       if (gfile%nrec.eq.size(reclev)) then
+         gfile%reclev=reclev
+       else
+         print *,'WRONG: the size of reclev is not equal to the total number of the fields in the file!'
+         return
+       endif
     endif
 !vcoord vcoord(levs+1
     if(present(vcoord) ) then
-       if ((gfile%dimz+1)*3*2.ne.size(vcoord)) return
-       gfile%vcoord=vcoord
+       if ((gfile%dimz+1)*3*2.eq.size(vcoord)) then
+         gfile%vcoord=vcoord
+       else
+         print *,'WRONG: the size of vcoord is not (lm+1,3,2) !'
+         return
+       endif
     endif
 !lat
     if(present(lat) ) then
-       if (gfile%fieldsize.ne.size(lat)) return
-       gfile%lat=lat
+       if (gfile%fieldsize.eq.size(lat)) then
+         if(.not.(all(lat==0.))) gfile%lat=lat
+       else
+         print *,'WRONG: the input size(lat) ',size(lat),' is not equal to: ',gfile%fieldsize
+         return
+       endif
+    endif
+    if(allocated(gfile%lat)) then
+       gfile%rlat_max=maxval(gfile%lat)
+       gfile%rlat_min=minval(gfile%lat)
     endif
 !lon
     if(present(lon) ) then
-       if (gfile%fieldsize.ne.size(lon)) return
-       gfile%lon=lon
+       if (gfile%fieldsize.eq.size(lon)) then
+         if(.not.(all(lon==0.)) ) gfile%lon=lon
+       else
+         print *,'WRONG: the input size(lon) ',size(lon),' is not equal to: ',gfile%fieldsize
+         return
+       endif
+    endif
+    if(allocated(gfile%lon)) then
+       gfile%rlon_max=maxval(gfile%lon)
+       gfile%rlon_min=minval(gfile%lon)
     endif
 !dx
     if(present(dx) ) then
-       if (gfile%fieldsize.ne.size(dx)) return
-       gfile%dx=dx
+       if (gfile%fieldsize.eq.size(dx)) then
+         if(.not.(all(dx==0.)) ) gfile%dx=dx
+       else
+         print *,'WRONG: the input size(dx) ',size(dx),' is not equal to: ',gfile%fieldsize
+         return
+       endif
     endif
 !dy
     if(present(dy) ) then
-       if (gfile%fieldsize.ne.size(dy)) return
-       gfile%dy=dy
+       if (gfile%fieldsize.eq.size(dy)) then
+         if(.not.(all(dy==0.)) ) gfile%dy=dy
+       else
+         print *,'WRONG: the input size(dy) ',size(dy),' is not equal to: ',gfile%fieldsize
+         return
+       endif
     endif
 !Cpi
     if( present(Cpi) ) then
-       if (gfile%ntrac+1.ne.size(gfile%Cpi)) return
-       gfile%Cpi = Cpi
+       if (gfile%ntrac+1.eq.size(gfile%Cpi)) then
+         if(.not.(all(cpi==0.))) gfile%Cpi = Cpi
+       else
+         print *,'WRONG: the input size(cpi) ',size(cpi),' is not equal to: ',gfile%ntrac+1
+         return
+       endif
     endif
 !Ri
     if( present(Ri) ) then
-       if (gfile%ntrac+1.ne.size(gfile%Ri)) return
-       gfile%Ri = Ri
+       if (gfile%ntrac+1.eq.size(gfile%Ri)) then
+         if(.not.(all(ri==0.))) gfile%Ri = Ri
+       else
+         print *,'WRONG: the input size(ri) ',size(ri),' is not equal to: ',gfile%ntrac+1
+         return
+       endif
     endif
 !------------------------------------------------------------
 ! write out the header by lead_task
 !------------------------------------------------------------
-    if(gfile%mype.eq.gfile%lead_task) then
+!    if(gfile%mype.eq.gfile%lead_task) then
       call baopenwt(gfile%flunit,gfile%gfname,ios)
       if ( ios.ne.0) return
 !------------------------------------------------------------
@@ -1737,8 +1971,14 @@ contains
       meta3%nmetaaryr=gfile%nmetaaryr
       meta3%nmetaaryl=gfile%nmetaaryl
       meta3%nmetaaryc=gfile%nmetaaryc
+      meta3%nmetavarr8=gfile%nmetavarr8
+      meta3%nmetaaryr8=gfile%nmetaaryr8
       iskip=iskip+nwrite
-      iwrite=nemsio_lmeta3
+      if(gfile%nmetavarr8>0.or.gfile%nmetaaryr8>0) then
+        iwrite=nemsio_lmeta3
+      else
+        iwrite=nemsio_lmeta3-8
+      endif
       call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,meta3)
       if(nwrite.lt.iwrite) return
       gfile%tlmeta=gfile%tlmeta+nwrite
@@ -1747,77 +1987,96 @@ contains
 !-- write meta var integer
       if (gfile%nmetavari.gt.0) then
         iskip=iskip+nwrite
-        iwrite=nemsio_charkind*gfile%nmetavari
+        iwrite=len(gfile%variname)*gfile%nmetavari
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%variname)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
 
         iskip=iskip+nwrite
-        iwrite=nemsio_intkind*gfile%nmetavari
+        iwrite=kind(gfile%varival)*gfile%nmetavari
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varival)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
 !        print *,'rlmetavari=',gfile%tlmeta
       endif
+!var real4
       if (gfile%nmetavarr.gt.0) then
         iskip=iskip+nwrite
-        iwrite=nemsio_charkind*gfile%nmetavarr
+        iwrite=len(gfile%varrname)*gfile%nmetavarr
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varrname)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
 
         iskip=iskip+nwrite
-        iwrite=nemsio_realkind*gfile%nmetavarr
+        iwrite=kind(gfile%varrval)*gfile%nmetavarr
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varrval)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
       endif
+!var logical
       if (gfile%nmetavarl.gt.0) then
         iskip=iskip+nwrite
-        iwrite=nemsio_charkind*gfile%nmetavarl
+        iwrite=len(gfile%varlname)*gfile%nmetavarl
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varlname)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
 !        print *,'tlmetavarl =',gfile%tlmeta,'nwrite=',nwrite
 
         iskip=iskip+nwrite
-        iwrite=nemsio_logickind*gfile%nmetavarl
+        iwrite=kind(gfile%varlval)*gfile%nmetavarl
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varlval)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
 !        print *,'tlmetavarlval =',gfile%tlmeta,'nwrite=',nwrite
       endif
+!var character
       if (gfile%nmetavarc.gt.0) then
         iskip=iskip+nwrite
-        iwrite=nemsio_charkind*gfile%nmetavarc
+        iwrite=len(gfile%varcname)*gfile%nmetavarc
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varcname)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
 !        print *,'tlmetaaryinam =',gfile%tlmeta,'write=',nwrite
 
         iskip=iskip+nwrite
-        iwrite=nemsio_charkind*gfile%nmetavarc
+        iwrite=len(gfile%varcval)*gfile%nmetavarc
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varcval)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
 !        print *,'tlmetaaryilen =',gfile%tlmeta,'nwrite=',nwrite
       endif
+!var real8
+      if (gfile%nmetavarr8.gt.0) then
+        iskip=iskip+nwrite
+        iwrite=len(gfile%varr8name)*gfile%nmetavarr8
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varr8name)
+!      print *,'tlmetavarr8=',gfile%tlmeta,'iwrite=',iwrite,'nwrite=',nwrite
+        if(nwrite.lt.iwrite) return
+        gfile%tlmeta=gfile%tlmeta+nwrite
+        iskip=iskip+nwrite
+        iwrite=kind(gfile%varr8val)*gfile%nmetavarr8
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%varr8val)
+!      print *,'tlmetavarr8val=',gfile%tlmeta,'iwrite=',iwrite,'nwrite=',nwrite
+        if(nwrite.lt.iwrite) return
+        gfile%tlmeta=gfile%tlmeta+nwrite
+      endif
+
 !meta arr integer
       if (gfile%nmetaaryi.gt.0) then
         iskip=iskip+nwrite
-        iwrite=nemsio_charkind*gfile%nmetaaryi
+        iwrite=len(gfile%aryiname)*gfile%nmetaaryi
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%aryiname)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
 
         iskip=iskip+nwrite
-        iwrite=nemsio_intkind*gfile%nmetaaryi
+        iwrite=kind(gfile%aryilen)*gfile%nmetaaryi
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%aryilen)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
         do i=1,gfile%nmetaaryi
           iskip=iskip+nwrite
-          iwrite=nemsio_intkind*gfile%aryilen(i)
+          iwrite=kind(gfile%aryival)*gfile%aryilen(i)
           call bafrwritel(gfile%flunit,iskip,iwrite,nwrite, &
                          gfile%aryival(1:gfile%aryilen(i),i))
           if(nwrite.lt.iwrite) return
@@ -1829,20 +2088,20 @@ contains
 !meta arr real
       if (gfile%nmetaaryr.gt.0) then
         iskip=iskip+nwrite
-        iwrite=nemsio_charkind*gfile%nmetaaryr
+        iwrite=len(gfile%aryrname)*gfile%nmetaaryr
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%aryrname)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
 !!          print *,'before tlmetaryr 1'
 
         iskip=iskip+nwrite
-        iwrite=nemsio_intkind*gfile%nmetaaryr
+        iwrite=kind(gfile%aryrlen)*gfile%nmetaaryr
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%aryrlen)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
         do i=1,gfile%nmetaaryr
           iskip=iskip+nwrite
-          iwrite=nemsio_intkind*gfile%aryrlen(i)
+          iwrite=kind(gfile%aryrval)*gfile%aryrlen(i)
           call bafrwritel(gfile%flunit,iskip,iwrite,nwrite, &
                          gfile%aryrval(1:gfile%aryrlen(i),i))
           if(nwrite.lt.iwrite) return
@@ -1853,19 +2112,19 @@ contains
 !meta arr logical
       if (gfile%nmetaaryl.gt.0) then
         iskip=iskip+nwrite
-        iwrite=nemsio_charkind*gfile%nmetaaryl
+        iwrite=len(gfile%arylname)*gfile%nmetaaryl
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%arylname)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
 
         iskip=iskip+nwrite
-        iwrite=nemsio_intkind*gfile%nmetaaryl
+        iwrite=kind(gfile%aryllen)*gfile%nmetaaryl
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%aryllen)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
         do i=1,gfile%nmetaaryl
           iskip=iskip+nwrite
-          iwrite=nemsio_logickind*gfile%aryllen(i)
+          iwrite=kind(gfile%arylval)*gfile%aryllen(i)
           call bafrwritel(gfile%flunit,iskip,iwrite,nwrite, &
                          gfile%arylval(1:gfile%aryllen(i),i))
           if(nwrite.lt.iwrite) return
@@ -1876,19 +2135,19 @@ contains
 !meta arr char
       if (gfile%nmetaaryc.gt.0) then
         iskip=iskip+nwrite
-        iwrite=nemsio_charkind*gfile%nmetaaryc
+        iwrite=len(gfile%arycname)*gfile%nmetaaryc
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%arycname)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
 
         iskip=iskip+nwrite
-        iwrite=nemsio_intkind*gfile%nmetaaryc
+        iwrite=kind(gfile%aryclen)*gfile%nmetaaryc
         call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%aryclen)
         if(nwrite.lt.iwrite) return
         gfile%tlmeta=gfile%tlmeta+nwrite
         do i=1,gfile%nmetaaryc
           iskip=iskip+nwrite
-          iwrite=nemsio_charkind*gfile%aryclen(i)
+          iwrite=len(gfile%arycval)*gfile%aryclen(i)
           call bafrwritel(gfile%flunit,iskip,iwrite,nwrite, &
                          gfile%arycval(1:gfile%aryclen(i),i))
           if(nwrite.lt.iwrite) return
@@ -1896,27 +2155,56 @@ contains
 !          print *,'tlmetarycogic=',i,gfile%tlmeta,'nwrite=',nwrite
         enddo
       endif
+!meta arr real8
+      if (gfile%nmetaaryr8.gt.0) then
+!          print *,'before tlmetaryr8'
+        iskip=iskip+nwrite
+        iwrite=len(gfile%aryr8name)*gfile%nmetaaryr8
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%aryr8name)
+        if(nwrite.lt.iwrite) return
+        gfile%tlmeta=gfile%tlmeta+nwrite
+!          print *,'before tlmetaryr 1'
+        iskip=iskip+nwrite
+        iwrite=kind(gfile%aryr8len)*gfile%nmetaaryr8
+        call bafrwritel(gfile%flunit,iskip,iwrite,nwrite,gfile%aryr8len)
+        if(nwrite.lt.iwrite) return
+        gfile%tlmeta=gfile%tlmeta+nwrite
+!          print *,'before tlmetaryr 2'
+        do i=1,gfile%nmetaaryr8
+          iskip=iskip+nwrite
+          iwrite=kind(gfile%aryr8val)*gfile%aryr8len(i)
+          call bafrwritel(gfile%flunit,iskip,iwrite,nwrite, &
+                         gfile%aryr8val(1:gfile%aryr8len(i),i))
+          if(nwrite.lt.iwrite) return
+          gfile%tlmeta=gfile%tlmeta+nwrite
+!          print *,'tlmetaryreal=',i,gfile%tlmeta,'nwrite=',nwrite
+        enddo
+      endif
+
     endif     !end of gfile%extrameta
+!
    endif      !end of lead_task
 !mpi
     call MPI_Barrier(gfile%mpi_comm, ios)
-    call mpi_bcast(gfile%tlmeta,1,MPI_INTEGER,gfile%lead_task,gfile%mpi_comm,ios)
-!    print *,'after mpi_bcasttlmeta,',gfile%tlmeta, 'end of wcreate'
+    call mpi_bcast(gfile%tlmeta,1,MPI_INTEGER8,gfile%lead_task,gfile%mpi_comm,ios)
+!    write(0,*)'after mpi_bcasttlmeta,',gfile%tlmeta, 'end of wcreate,ios=',ios
 !
     iret=0
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   end subroutine nemsio_wcreate
 !------------------------------------------------------------------------------
   subroutine nemsio_getfilehead(gfile,iret,gtype,gdatatype,gfname,gaction, &
-      modelname,version,nmeta,lmeta,nrec,idate,nfday,nfhour,nfminute, &
+      modelname,version,nmeta,lmeta,nrec,idate,nfday,nfhour,nfminute,  &
       nfsecondn,nfsecondd,dimx,dimy,dimz,nframe,nsoil,ntrac,ncldt,jcap,&
-      idvc,idsl,idvm,idrt, rlon_min,rlon_max,rlat_min,rlat_max,extrameta, &
-      nmetavari,nmetavarr,nmetavarl,nmetavarc,nmetaaryi,nmetaaryr, &
-      nmetaaryl,nmetaaryc,    &
-      recname,reclevtyp,reclev,vcoord,lon,lat,dx,dy,cpi,ri, &
+      idvc,idsl,idvm,idrt, rlon_min,rlon_max,rlat_min,rlat_max,tlmeta, &
+      extrameta,nmetavari,nmetavarr,nmetavarl,nmetavarc,nmetavarr8,    &
+      nmetaaryi,nmetaaryr,nmetaaryl,nmetaaryc,nmetaaryr8,    &
+      recname,reclevtyp,reclev,vcoord,lon,lat,dx,dy,cpi,ri,  &
       variname,varival,varrname,varrval,varlname,varlval,varcname,varcval, &
+      varr8name,varr8val,                                   &
       aryiname,aryilen,aryival,aryrname,aryrlen,aryrval,    &
-      arylname,aryllen,arylval,arycname,aryclen,arycval    )
+      arylname,aryllen,arylval,arycname,aryclen,arycval,    &
+      aryr8name,aryr8len,aryr8val    )
 
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: get nemsio meta data information from outside
@@ -1926,7 +2214,7 @@ contains
     integer(nemsio_intkind),optional,intent(out) :: iret
     character*(*),optional,intent(out)           :: gtype,gdatatype,gfname, &
                                                     gaction,modelname
-    integer(nemsio_intkind),optional,intent(out) :: version,nmeta,lmeta
+    integer(nemsio_intkind),optional,intent(out) :: version,nmeta,lmeta,tlmeta
     integer(nemsio_realkind),optional,intent(out):: nrec,idate(7),nfday,nfhour, &
                                                     nfminute,nfsecondn,nfsecondd
     integer(nemsio_realkind),optional,intent(out):: dimx,dimy,dimz,nframe, &
@@ -1937,7 +2225,8 @@ contains
     logical(nemsio_logickind),optional,intent(out):: extrameta
     integer(nemsio_realkind),optional,intent(out):: nmetavari,nmetavarr, &
                                                     nmetavarl,nmetavarc,nmetaaryi, &
-                                                    nmetaaryr,nmetaaryl,nmetaaryc
+                                                    nmetaaryr,nmetaaryl,nmetaaryc, &
+                                                    nmetavarr8,nmetaaryr8
     character(*),optional,intent(out)           :: recname(:)
     character(*),optional,intent(out)           :: reclevtyp(:)
     integer(nemsio_intkind),optional,intent(out) :: reclev(:)
@@ -1947,15 +2236,18 @@ contains
     real(nemsio_realkind),optional,intent(out)   :: Cpi(:),Ri(:)
     character(*),optional,intent(out)            :: variname(:),varrname(:)
     character(*),optional,intent(out)            :: varlname(:),varcname(:)
+    character(*),optional,intent(out)            :: varr8name(:)
     character(*),optional,intent(out)            :: aryiname(:),aryrname(:)
     character(*),optional,intent(out)            :: arylname(:),arycname(:)
+    character(*),optional,intent(out)            :: aryr8name(:)
     integer(nemsio_intkind),optional,intent(out) :: aryilen(:),aryrlen(:)
     integer(nemsio_intkind),optional,intent(out) :: aryllen(:),aryclen(:)
+    integer(nemsio_intkind),optional,intent(out) :: aryr8len(:)
     integer(nemsio_intkind),optional,intent(out) :: varival(:),aryival(:,:)
     real(nemsio_realkind),optional,intent(out)   :: varrval(:),aryrval(:,:)
+    real(nemsio_dblekind),optional,intent(out)   :: varr8val(:),aryr8val(:,:)
     logical(nemsio_logickind),optional,intent(out):: varlval(:),arylval(:,:)
-    character(*),optional,intent(out):: varcval(:)
-    character(*),optional,intent(out):: arycval(:)
+    character(*),optional,intent(out)             :: varcval(:),arycval(:,:)
     integer ierr
 !------------------------------------------------------------
     if (present(iret)) iret=-3
@@ -1967,6 +2259,7 @@ contains
     if(present(version)) version=gfile%version
     if(present(nmeta)) nmeta=gfile%nmeta
     if(present(lmeta)) lmeta=gfile%lmeta
+    if(present(tlmeta)) tlmeta=gfile%tlmeta
     if(present(nrec)) nrec=gfile%nrec
     if(present(nfday)) nfday=gfile%nfday
     if(present(nfhour)) nfhour=gfile%nfhour
@@ -2033,14 +2326,17 @@ contains
 !--- lat
     if(present(lat) ) then
        if (size(lat).ne.gfile%fieldsize) then
+         print *,'WRONG: size(lat)=',size(lat),' is not equal to ',gfile%fieldsize
          if ( present(iret))  return
          call nemsio_stop
        else
          lat=gfile%lat
        endif
     endif
+!--- lon
     if(present(lon) ) then
        if (size(lon).ne.gfile%fieldsize) then
+         print *,'WRONG: size(lon)=',size(lon),' is not equal to ',gfile%fieldsize
          if ( present(iret)) return
          call nemsio_stop
        else
@@ -2052,6 +2348,7 @@ contains
 !       print *,'getfilehead, size(dx)=',size(dx),gfile%fieldsize,  &
 !          maxval(gfile%dx),minval(gfile%dx)
        if (size(dx).ne.gfile%fieldsize) then
+         print *,'WRONG: size(dX)=',size(dx),' is not equal to ',gfile%fieldsize
          if ( present(iret))  return
          call nemsio_stop
        else
@@ -2060,6 +2357,7 @@ contains
     endif
     if(present(dy) ) then
        if (size(dy).ne.gfile%fieldsize) then
+         print *,'WRONG: size(dy)=',size(dy),' is not equal to ',gfile%fieldsize
          if ( present(iret)) return
          call nemsio_stop
        else
@@ -2093,85 +2391,98 @@ contains
       if (present(nmetavari) ) nmetavari=gfile%nmetavari
       if (present(nmetavarr) ) nmetavarr=gfile%nmetavarr
       if (present(nmetavarl) ) nmetavarl=gfile%nmetavarl
+      if (present(nmetavarc) ) nmetavarc=gfile%nmetavarc
+      if (present(nmetavarr8) ) nmetavarr8=gfile%nmetavarr8
       if (present(nmetaaryi) ) nmetaaryi=gfile%nmetaaryi
       if (present(nmetaaryr) ) nmetaaryr=gfile%nmetaaryr
       if (present(nmetaaryl) ) nmetaaryl=gfile%nmetaaryl
+      if (present(nmetaaryr8) ) nmetaaryr8=gfile%nmetaaryr8
       if ( gfile%nmetavari.gt.0 ) then
-         if (present(variname)) then
-           if (size(variname).eq.nmetavari) &
+         if (present(variname).and.size(variname).eq.nmetavari) &
              variname=gfile%variname
-         endif
-         if (present(varival)) then
-           if (size(varival).eq.nmetavari) &
+         if (present(varival).and.size(varival).eq.nmetavari) &
              varival=gfile%varival
-         endif
       endif
       if ( gfile%nmetavarr.gt.0 ) then
-         if (present(varrname)) then
-           if (size(varrname).eq.nmetavarr) &
+         if (present(varrname).and.size(varrname).eq.nmetavarr) &
              varrname=gfile%varrname
-         endif
-         if (present(varrval)) then
-           if (size(varrval).eq.nmetavarr) &
+         if (present(varrval).and.size(varrval).eq.nmetavarr) &
              varrval=gfile%varrval
-         endif
       endif
       if ( gfile%nmetavarl.gt.0 ) then
-         if (present(varlname)) then
-           if (size(varlname).eq.nmetavarl) &
+         if (present(varlname).and.size(varlname).eq.nmetavarl) &
              varlname=gfile%varlname
-         endif
-         if (present(varlval)) then
-           if (size(varlval).eq.nmetavarl) &
+         if (present(varlval).and.size(varlval).eq.nmetavarl) &
              varlval=gfile%varlval
+      endif
+      if ( gfile%nmetavarc.gt.0 ) then
+         if (present(varcname)) then
+           if(size(varcname).eq.gfile%nmetavarc)  varcname=gfile%varcname
+         endif
+         if (present(varcval)) then
+           if(size(varcval).eq.gfile%nmetavarc)  varcval=gfile%varcval
+         endif
+      endif
+      if ( gfile%nmetavarr8.gt.0 ) then
+         if (present(varr8name)) then
+           if(size(varr8name).eq.gfile%nmetavarr8) varr8name=gfile%varr8name
+         endif
+         if (present(varr8val)) then
+           if(size(varr8val).eq.gfile%nmetavarr8)  varr8val=gfile%varr8val
          endif
       endif
       if ( gfile%nmetaaryi.gt.0 ) then
-         if (present(aryiname)) then
-           if (size(aryiname).eq.nmetaaryi) &
+         if (present(aryiname).and.size(aryiname).eq.nmetaaryi) &
              aryiname=gfile%aryiname
-         endif
-         if (present(aryilen)) then
-           if (size(aryilen).eq.nmetaaryi) &
+         if (present(aryilen).and.size(aryilen).eq.nmetaaryi) &
              aryilen=gfile%aryilen
-         endif
-         if (present(aryival)) then
-           if (size(aryival).eq.nmetaaryi*maxval(gfile%aryilen) ) &
+         if (present(aryival).and.size(aryival).eq.nmetaaryi*maxval(gfile%aryilen) ) &
              aryival=gfile%aryival
-         endif
       endif
       if ( gfile%nmetaaryr.gt.0 ) then
-         if (present(aryrname)) then
-           if (size(aryrname).eq.nmetaaryr) &
+         if (present(aryrname).and.size(aryrname).eq.nmetaaryr) &
              aryiname=gfile%aryiname
-         endif
-         if (present(aryrlen)) then
-           if (size(aryrlen).eq.nmetaaryr) &
+         if (present(aryrlen).and.size(aryrlen).eq.nmetaaryr) &
              aryrlen=gfile%aryrlen
-         endif
-         if (present(aryrval)) then
-           if (size(aryrval).eq.nmetaaryr*maxval(gfile%aryrlen) ) &
+         if (present(aryrval).and.size(aryrval).eq.nmetaaryr*maxval(gfile%aryrlen) ) &
              aryrval=gfile%aryrval
-         endif
       endif
       if ( gfile%nmetaaryl.gt.0 ) then
-         if (present(arylname)) then
-           if (size(arylname).eq.nmetaaryl) &
+         if (present(arylname).and.size(arylname).eq.nmetaaryl) &
              arylname=gfile%arylname
-         endif
-         if (present(aryllen)) then
-           if (size(aryllen).eq.nmetaaryl) &
+         if (present(aryllen).and.size(aryllen).eq.nmetaaryl) &
              aryllen=gfile%aryllen
-         endif
-         if (present(arylval)) then
-           if (size(arylval).eq.nmetaaryl*maxval(gfile%aryllen) ) &
+         if (present(arylval).and.size(arylval).eq.nmetaaryl*maxval(gfile%aryllen) ) &
              arylval=gfile%arylval
+      endif
+      if ( gfile%nmetaaryc.gt.0 ) then
+         if (present(arycname)) then
+           if(size(arycname).eq.gfile%nmetaaryc)  arycname=gfile%arycname
+         endif
+         if (present(aryclen)) then
+           if(size(aryclen).eq.gfile%nmetaaryc)  aryclen=gfile%aryclen
+         endif
+         if (present(arycval)) then
+           if(size(arycval).eq.gfile%nmetaaryc*maxval(gfile%aryclen) ) &
+             arycval=gfile%arycval
+         endif
+      endif
+      if ( gfile%nmetaaryr8.gt.0 ) then
+         if (present(aryr8name)) then
+           if( size(aryr8name).eq.gfile%nmetaaryr8)  aryr8name=gfile%aryr8name
+         endif
+         if (present(aryr8len)) then
+           if(size(aryr8len).eq.gfile%nmetaaryr8)  aryr8len=gfile%aryr8len
+         endif
+         if (present(aryr8val)) then
+           if(size(aryr8val).eq.gfile%nmetaaryr8*maxval(gfile%aryr8len) ) &
+             aryr8val=gfile%aryr8val
          endif
       endif
     endif
 
-    call mpi_barrier(gfile%mpi_comm,ierr)
-    if ( ierr.ne.0) return
+!    call mpi_barrier(gfile%mpi_comm,ierr)
+!    if ( ierr.ne.0) return
     if ( present(iret)) iret=0
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   end subroutine nemsio_getfilehead
@@ -2304,6 +2615,33 @@ contains
     return
   end subroutine nemsio_getfheadvarc
 !------------------------------------------------------------------------------
+   subroutine nemsio_getfheadvarr8(gfile,varname,varval,iret)
+!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
+! abstract: get meta data var value from file header
+!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
+    implicit none
+    type(nemsio_gfile),intent(in)                 :: gfile
+    character(len=*),  intent(in)                 :: varname
+    real(nemsio_dblekind),intent(out)             :: varval
+    integer(nemsio_intkind),optional,intent(out)  :: iret
+    integer i,j
+!---
+    if(present(iret) ) iret=-17
+!---
+    if(gfile%nmetavarr8.gt.0) then
+      do i=1,gfile%nmetavarr8
+        if(equal_str_nocase(trim(varname),trim(gfile%varr8name(i))) ) then
+           varval=gfile%varr8val(i)
+           if(present(iret) ) iret=0
+           return
+        endif
+      enddo
+    endif
+
+    if(.not.present(iret) ) call nemsio_stop
+    return
+  end subroutine nemsio_getfheadvarr8
+!------------------------------------------------------------------------------
   subroutine nemsio_getfheadaryi(gfile,varname,varval,iret)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: get meta data var value from file header
@@ -2403,7 +2741,7 @@ contains
     return
   end subroutine nemsio_getfheadaryl
 !------------------------------------------------------------------------------
-   subroutine nemsio_getfheadaryc(gfile,varname,varval,iret)
+  subroutine nemsio_getfheadaryc(gfile,varname,varval,iret)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: get meta data var value from file header
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
@@ -2440,256 +2778,37 @@ contains
     return
   end subroutine nemsio_getfheadaryc
 !------------------------------------------------------------------------------
+   subroutine nemsio_getfheadaryr8(gfile,varname,varval,iret)
+!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
+! abstract: get meta data var value from file header 
+!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
+    implicit none
+    type(nemsio_gfile),intent(in)                 :: gfile
+    character(*),  intent(in)                     :: varname
+    real(nemsio_dblekind),intent(out)             :: varval(:)
+    integer(nemsio_intkind),optional,intent(out)  :: iret
+    integer i,j,ierr
+!---
+    if(present(iret) ) iret=-17
+!---
+    if(gfile%nmetaaryr8.gt.0) then
+      do i=1,gfile%nmetaaryr8
+        if(equal_str_nocase(trim(varname),trim(gfile%aryr8name(i)))) then
+           varval(:)=gfile%aryr8val(1:gfile%aryr8len(i),i)
+           if(present(iret) ) iret=0
+           ierr=0
+           return
+        endif
+      enddo
+    endif
+!---
+    if(.not.present(iret) ) call nemsio_stop
+    return
+  end subroutine nemsio_getfheadaryr8
+!------------------------------------------------------------------------------
 
 !*****************   read bin data set :  ********************************
 !
-!------------------------------------------------------------------------------
-  subroutine nemsio_readrecbin4(gfile,ista,iend,jsta,jend,jrec,data,iret)
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-! abstract: read nemsio data (bin) by record number into a 2D 32 bits array
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-    implicit none
-    type(nemsio_gfile),intent(inout)              :: gfile
-    integer(nemsio_intkind),intent(in)            :: ista,iend,jsta,jend
-    integer(nemsio_intkind),intent(in)            :: jrec
-    real(nemsio_realkind),intent(inout)           :: data(:)
-    integer(nemsio_intkind),optional,intent(out)  :: iret
-!
-    real(nemsio_dblekind),allocatable   :: data8(:)
-!--
-    if(trim(gfile%gdatatype)=='bin4') then
-      call nemsio_readrecbind4(gfile,ista,iend,jsta,jend,jrec,data,iret)
-    elseif(trim(gfile%gdatatype)=='bin8') then
-      allocate(data8(size(data)))
-      call nemsio_readrecbind8(gfile,ista,iend,jsta,jend,jrec,data8,iret)
-      data=data8
-      deallocate(data8)
-    endif
-!
-    return
-  end subroutine nemsio_readrecbin4
-!------------------------------------------------------------------------------
-  subroutine nemsio_readrecbin8(gfile,ista,iend,jsta,jend,jrec,data,iret)
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-! abstract: read nemsio data (bin) by record number into a 2D 32 bits array
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-    implicit none
-    type(nemsio_gfile),intent(inout)              :: gfile
-    integer(nemsio_intkind),intent(in)            :: ista,iend,jsta,jend
-    integer(nemsio_intkind),intent(in)            :: jrec
-    real(nemsio_dblekind),intent(inout)           :: data(:)
-    integer(nemsio_intkind),optional,intent(out)  :: iret
-!
-    real(nemsio_realkind),allocatable :: data4(:)
-!--
-    if(trim(gfile%gdatatype)=='bin4') then
-      allocate(data4(size(data)))
-      call nemsio_readrecbind4(gfile,ista,iend,jsta,jend,jrec,data4,iret)
-      data=data4
-      deallocate(data4)
-    elseif(trim(gfile%gdatatype)=='bin8') then
-      call nemsio_readrecbind8(gfile,ista,iend,jsta,jend,jrec,data,iret)
-    endif
-!
-    return
-  end subroutine nemsio_readrecbin8
-!------------------------------------------------------------------------------
-  subroutine nemsio_readrecvbin4(gfile,name,levtyp,lev,ista,iend,jsta,jend,jrec,data,iret)
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-! abstract: read nemsio data (bin) by record number into a 2D 32 bits array
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-    implicit none
-    type(nemsio_gfile),intent(inout)              :: gfile
-    character(*),intent(in)                       :: name, levtyp
-    integer(nemsio_intkind),intent(in)            :: lev
-    integer(nemsio_intkind),intent(in)            :: ista,iend,jsta,jend
-    integer(nemsio_intkind),intent(in)            :: jrec
-    real(nemsio_realkind),intent(inout)           :: data(:)
-    integer(nemsio_intkind),optional,intent(out)  :: iret
-!
-    real(nemsio_dblekind),allocatable   :: data8(:)
-!--
-    if(trim(gfile%gdatatype)=='bin4') then
-      call nemsio_readrecvbind4(gfile,name,levtyp,lev,ista,iend,jsta,jend,data,iret)
-    elseif(trim(gfile%gdatatype)=='bin8') then
-      allocate(data8(size(data)))
-      call nemsio_readrecvbind8(gfile,name,levtyp,lev,ista,iend,jsta,jend,data8,iret)
-      data=data8
-      deallocate(data8)
-    endif
-!
-    return
-  end subroutine nemsio_readrecvbin4
-!------------------------------------------------------------------------------
-  subroutine nemsio_readrecvbin8(gfile,name,levtyp,lev,ista,iend,jsta,jend,jrec,data,iret)
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-! abstract: read nemsio data (bin) by record number into a 2D 32 bits array
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-    implicit none
-    type(nemsio_gfile),intent(inout)              :: gfile
-    character(*),intent(in)                       :: name, levtyp
-    integer(nemsio_intkind),intent(in)            :: lev
-    integer(nemsio_intkind),intent(in)            :: ista,iend,jsta,jend
-    integer(nemsio_intkind),intent(in)            :: jrec
-    real(nemsio_dblekind),intent(inout)           :: data(:)
-    integer(nemsio_intkind),optional,intent(out)  :: iret
-!
-    real(nemsio_realkind),allocatable :: data4(:)
-!--
-    if(gfile%gdatatype=='bin4') then
-      allocate(data4(size(data)))
-      call nemsio_readrecvbind4(gfile,name,levtyp,lev,ista,iend,jsta,jend,data4,iret)
-      data=data4
-      deallocate(data4)
-    elseif(gfile%gdatatype=='bin8') then
-      call nemsio_readrecvbind8(gfile,name,levtyp,lev,ista,iend,jsta,jend,data,iret)
-    endif
-!
-    return
-  end subroutine nemsio_readrecvbin8
-
-!------------------------------------------------------------------------------
-  subroutine nemsio_readrecbind4(gfile,ista,iend,jsta,jend,jrec,data,iret)
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-! abstract: read nemsio data (bin) by record number into a 2D 32 bits array
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-    implicit none
-    type(nemsio_gfile),intent(inout)              :: gfile
-    integer(nemsio_intkind),intent(in)            :: ista,iend,jsta,jend
-    integer(nemsio_intkind),intent(in)            :: jrec
-    real(nemsio_realkind),intent(inout)           :: data(:)
-    integer(nemsio_intkind),optional,intent(out)  :: iret
-!local vars
-    integer,allocatable  :: fieldmap(:)
-    integer fieldmapsize
-    integer ios,i,j
-    integer(8) idispstt
-!
-    iret=-11
-!
-!--- set file map
-     fieldmapsize=(iend-ista+1)*(jend-jsta+1)
-     allocate(fieldmap(fieldmapsize) )
-     call set_mpimap_read(gfile,ista,iend,jsta,jend,fieldmap,iret,1)
-     if(iret.ne.0) return
-     idispstt=int(jrec-1,8)*int(gfile%fieldsize*4+8,8)
-!---
-     call readmpi4(gfile,fieldmapsize,fieldmap,data,iret,idispstt)
-     if(iret.ne.0) return
-     deallocate(fieldmap)
-!---
-     iret=0
-!
-    return
-  end subroutine nemsio_readrecbind4
-!------------------------------------------------------------------------------
-  subroutine nemsio_readrecvbind4(gfile,name,levtyp,lev,ista,iend,jsta,jend,data,iret)
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-! abstract: read nemsio data (bin) by record number into a 2D 32 bits array
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-    implicit none
-    type(nemsio_gfile),intent(inout)              :: gfile
-    character(*),intent(in)                      :: name, levtyp
-    integer(nemsio_intkind),intent(in)            :: lev
-    integer(nemsio_intkind),intent(in)            :: ista,iend,jsta,jend
-    real(nemsio_realkind),intent(out)             :: data(:)
-    integer(nemsio_intkind),optional,intent(out)  :: iret
-!
-    integer,allocatable  :: fieldmap(:)
-    integer :: fieldmapsize
-    integer :: jrec, ierr
-    integer(8) idispstt
-!
-    iret=-12
-    call nemsio_searchrecv(gfile,jrec,name,levtyp,lev,ierr)
-    if ( ierr .ne. 0) return
-!
-!--- set file map
-    fieldmapsize=(iend-ista+1)*(jend-jsta+1)
-    allocate(fieldmap(fieldmapsize) )
-    call set_mpimap_read(gfile,ista,iend,jsta,jend,fieldmap,ierr,1)
-    if(ierr.ne.0) return
-!---
-    idispstt=int(jrec-1,8)*int(gfile%fieldsize*4+8,8)
-    call readmpi4(gfile,fieldmapsize,fieldmap,data,ierr,idispstt)
-    if(ierr.ne.0) return
-    deallocate(fieldmap)
-!
-    iret=0
-!
-    return
-  end subroutine nemsio_readrecvbind4
-!------------------------------------------------------------------------------
-  subroutine nemsio_readrecbind8(gfile,ista,iend,jsta,jend,jrec,data,iret)
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-! abstract: read nemsio data (bin) by record number into a 2D 32 bits array
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-    implicit none
-    type(nemsio_gfile),intent(inout)              :: gfile
-    integer(nemsio_intkind),intent(in)            :: ista,iend,jsta,jend
-    integer(nemsio_intkind),intent(in)            :: jrec
-    real(nemsio_dblekind),intent(out)             :: data(:)
-    integer(nemsio_intkind),optional,intent(out)  :: iret
-!local vars
-    integer,allocatable  :: fieldmap(:)
-    integer fieldmapsize
-    integer ierr,i,j
-    integer(8) idispstt
-!
-    iret=-11
-!
-!--- set file map
-     fieldmapsize=(iend-ista+1)*(jend-jsta+1)
-     allocate(fieldmap(fieldmapsize) )
-     call set_mpimap_read(gfile,ista,iend,jsta,jend,fieldmap,ierr,1)
-     if(ierr.ne.0) return
-!---
-     idispstt=int(jrec-1,8)*int(gfile%fieldsize*8+8,8)
-     call readmpi8(gfile,fieldmapsize,fieldmap,data,ierr)
-     if(ierr.ne.0) return
-     deallocate(fieldmap)
-!---
-     iret=0
-!
-    return
-  end subroutine nemsio_readrecbind8
-!------------------------------------------------------------------------------
-  subroutine nemsio_readrecvbind8(gfile,name,levtyp,lev,ista,iend,jsta,jend,data,iret)
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-! abstract: read nemsio data (bin) by record number into a 2D 32 bits array
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-    implicit none
-    type(nemsio_gfile),intent(inout)              :: gfile
-    character(*),intent(in)                      :: name, levtyp
-    integer(nemsio_intkind),intent(in)            :: lev
-    integer(nemsio_intkind),intent(in)            :: ista,iend,jsta,jend
-    real(nemsio_dblekind),intent(out)             :: data(:)
-    integer(nemsio_intkind),optional,intent(out)  :: iret
-!local vars
-    integer,allocatable  :: fieldmap(:)
-    integer fieldmapsize
-    integer :: jrec, ierr
-    integer(8) idispstt
-
-    iret=-11
-    call nemsio_searchrecv(gfile,jrec,name,levtyp,lev,ierr)
-    if ( ierr .ne. 0) return
-!
-!--- set file map
-    fieldmapsize=(iend-ista+1)*(jend-jsta+1)
-    allocate(fieldmap(fieldmapsize) )
-    call set_mpimap_read(gfile,ista,iend,jsta,jend,fieldmap,ierr,1)
-    if(ierr.ne.0) return
-!---
-    idispstt=int(jrec-1,8)*int(gfile%fieldsize*8+8,8)
-    call readmpi8(gfile,fieldmapsize,fieldmap,data,ierr,idispstt)
-    if(ierr.ne.0) return
-    deallocate(fieldmap)
-!
-    iret=0
-!
-    return
-  end subroutine nemsio_readrecvbind8
 !------------------------------------------------------------------------------
   subroutine nemsio_searchrecv(gfile,jrec,name,levtyp,lev,iret)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
@@ -2731,356 +2850,6 @@ contains
 
 !*****************   write out bin data set :  ********************************
 
-!------------------------------------------------------------------------------
-  subroutine nemsio_writerecbin4(gfile,ista,iend,jsta,jend,jrec,data,iret)
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-! abstract: read nemsio data (bin) by record number into a 2D 32 bits array
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-    implicit none
-    type(nemsio_gfile),intent(inout)              :: gfile
-    integer(nemsio_intkind),intent(in)            :: ista,iend,jsta,jend
-    integer(nemsio_intkind),intent(in)            :: jrec
-    real(nemsio_realkind),intent(in)              :: data(:)
-    integer(nemsio_intkind),optional,intent(out)  :: iret
-!
-    real(nemsio_dblekind),allocatable   :: data8(:)
-!
-    if(trim(gfile%gdatatype)=='bin4') then
-      call nemsio_writerecbind4(gfile,ista,iend,jsta,jend,jrec,data,iret)
-    elseif( trim(gfile%gdatatype)=='bin8') then
-      allocate(data8(size(data)))
-      data8=data
-      call nemsio_writerecbind8(gfile,ista,iend,jsta,jend,jrec,data8,iret)
-      deallocate(data8)
-    endif
-!
-    return
-  end subroutine nemsio_writerecbin4
-!
-!------------------------------------------------------------------------------
-  subroutine nemsio_writerecbin8(gfile,ista,iend,jsta,jend,jrec,data,iret)
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-! abstract: read nemsio data (bin) by record number into a 2D 32 bits array
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-    implicit none
-    type(nemsio_gfile),intent(inout)              :: gfile
-    integer(nemsio_intkind),intent(in)            :: ista,iend,jsta,jend
-    integer(nemsio_intkind),intent(in)            :: jrec
-    real(nemsio_dblekind),intent(in)              :: data(:)
-    integer(nemsio_intkind),optional,intent(out)  :: iret
-!
-    real(nemsio_realkind),allocatable  :: data4(:)
-!
-    if(trim(gfile%gdatatype)=='bin4') then
-      allocate(data4(size(data)))
-      data4=data
-      call nemsio_writerecbind4(gfile,ista,iend,jsta,jend,jrec,data4,iret)
-      deallocate(data4)
-    elseif( trim(gfile%gdatatype)=='bin8') then
-      call nemsio_writerecbind8(gfile,ista,iend,jsta,jend,jrec,data,iret)
-    endif
-!
-    return
-  end subroutine nemsio_writerecbin8
-!
-!------------------------------------------------------------------------------
-  subroutine nemsio_writerecvbin4(gfile,name,levtyp,lev,ista,iend,jsta,jend,data,iret)
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-! abstract: write out data (bin4) by field
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-    implicit none
-    type(nemsio_gfile),intent(inout)              :: gfile
-    character(*),intent(in)                      :: name, levtyp
-    integer(nemsio_intkind),intent(in)            :: lev
-    integer(nemsio_intkind),intent(in)            :: ista,iend,jsta,jend
-    real(nemsio_realkind),intent(in)              :: data(:)
-    integer(nemsio_intkind),optional,intent(out)  :: iret
-    integer :: jrec, ierr
-!
-    real(nemsio_dblekind),allocatable   :: data8(:)
-!
-    if(trim(gfile%gdatatype)=='bin4') then
-      call nemsio_writerecvbind4(gfile,name,levtyp,lev,ista,iend,jsta,jend,data,iret)
-    elseif( trim(gfile%gdatatype)=='bin8') then
-      allocate(data8(size(data)))
-      data8=data
-      call nemsio_writerecvbind8(gfile,name,levtyp,lev,ista,iend,jsta,jend,data8,iret)
-      deallocate(data8)
-    endif
-!
-    return
-  end subroutine nemsio_writerecvbin4
-!
-!------------------------------------------------------------------------------
-  subroutine nemsio_writerecvbin8(gfile,name,levtyp,lev,ista,iend,jsta,jend,data,iret)
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-! abstract: read nemsio data (bin) by record number into a 2D 32 bits array
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-    implicit none
-    type(nemsio_gfile),intent(inout)              :: gfile
-    character(*),intent(in)                      :: name, levtyp
-    integer(nemsio_intkind),intent(in)            :: lev
-    integer(nemsio_intkind),intent(in)            :: ista,iend,jsta,jend
-    real(nemsio_dblekind),intent(in)              :: data(:)
-    integer(nemsio_intkind),optional,intent(out)  :: iret
-    integer :: jrec, ierr
-!
-    real(nemsio_realkind),allocatable  :: data4(:)
-!
-    if(trim(gfile%gdatatype)=='bin4') then
-      allocate(data4(size(data)))
-      data4=data
-      call nemsio_writerecvbind4(gfile,name,levtyp,lev,ista,iend,jsta,jend,data4,iret)
-      deallocate(data4)
-    elseif( trim(gfile%gdatatype)=='bin8') then
-      call nemsio_writerecvbind8(gfile,name,levtyp,lev,ista,iend,jsta,jend,data,iret)
-    endif
-!
-    return
-  end subroutine nemsio_writerecvbin8
-!
-!------------------------------------------------------------------------------
-  subroutine nemsio_writerecbind4(gfile,ista,iend,jsta,jend,jrec,data,iret)
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-! abstract: read nemsio data (bin) by record number into a 2D 32 bits array
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-    implicit none
-    type(nemsio_gfile),intent(inout)              :: gfile
-    integer(nemsio_intkind),intent(in)            :: ista,iend,jsta,jend
-    integer(nemsio_intkind),intent(in)            :: jrec
-    real(nemsio_realkind),intent(in)              :: data(:)
-    integer(nemsio_intkind),optional,intent(out)  :: iret
-!local vars
-    integer,allocatable                 :: fieldmap(:)
-    integer fieldmapsize,fieldmapsize1
-    integer ierr
-    real(nemsio_realkind),allocatable   :: datatmp(:)
-    integer(8) idispstt
-!
-    iret=-11
-!
-!--- check lead_task and last_task
-    if(gfile%mype==gfile%lead_task .and. ista/=1 .and. jsta/=1 ) &
-       call nemsio_stop("lead_task\'s subdomain must cover the (1,1) corner") 
-!
-!--- set file map
-    if(gfile%mype==gfile%lead_task) then
-      fieldmapsize=(iend-ista+1)*(jend-jsta+1)+2
-      fieldmapsize1=(iend-ista+1)*(jend-jsta+1)
-    else
-      fieldmapsize=(iend-ista+1)*(jend-jsta+1)
-    endif
-    allocate(datatmp(fieldmapsize))
-    allocate(fieldmap(fieldmapsize) )
-    call set_mpimap_wrt(gfile,ista,iend,jsta,jend,fieldmap,ierr,1)
-!    print *,'in writerecbin4, after set_mpimap,ierr=',ierr,fieldmap(1:5),  &
-!        fieldmap(fieldmapsize-4:fieldmapsize)
-    if(ierr.ne.0) return
-!
-!--- prepare data
-    if(gfile%mype.eq.gfile%lead_task) then
-      datatmp(1)=gfile%fieldsize_real4
-      datatmp(fieldmapsize)=datatmp(1)
-      datatmp(2:fieldmapsize-1)=data(1:fieldmapsize1)
-!      print *,'datatmp=',datatmp(1),datatmp(fieldmapsize),maxval(datatmp(2:fieldmapsize-1)), &
-!        minval(datatmp(2:fieldmapsize-1))
-    else
-      datatmp(:)=data(:)
-!      print *,'datatmp=',maxval(datatmp), minval(datatmp)
-    endif
-!
-!--- write out data into files
-    idispstt=int(jrec-1,8)*int(gfile%fieldsize*4+8,8)
-    call writempi4(gfile,fieldmapsize,fieldmap,datatmp,ierr,idispstt)
-!    print *,'in writempi4, after writempi4,ierr=',ierr
-    if(ierr.ne.0) return
-    deallocate(fieldmap)
-!
-    call mpi_barrier(gfile%mpi_comm,ierr)
-    if(ierr.ne.0) return
-!    print *,'in writempi4, end, after mpi_barrier,ierr=',ierr
-
-    iret=0
-
-    return
-  end subroutine nemsio_writerecbind4
-!------------------------------------------------------------------------------
-  subroutine nemsio_writerecbind8(gfile,ista,iend,jsta,jend,jrec,data,iret)
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-! abstract: read nemsio data (bin) by record number into a 2D 32 bits array
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-    implicit none
-    type(nemsio_gfile),intent(inout)              :: gfile
-    integer(nemsio_intkind),intent(in)            :: ista,iend,jsta,jend
-    integer(nemsio_intkind),intent(in)            :: jrec
-    real(nemsio_dblekind),intent(in)              :: data(:)
-    integer(nemsio_intkind),optional,intent(out)  :: iret
-!local vars
-    integer,allocatable                :: fieldmap(:)
-    real(nemsio_dblekind),allocatable  :: datatmp(:)
-    integer fieldmapsize
-    integer ierr
-    integer(8) idispstt
-!
-    iret=-11
-!
-!--- check lead_task and last_task
-    if(gfile%mype==gfile%lead_task .and. ista/=1 .and. jsta/=1 ) &
-       call nemsio_stop("lead_task\'s subdomain must cover the (1,1) corner")
-!
-!--- set file map
-    if(gfile%mype==gfile%lead_task) then
-      fieldmapsize=(iend-ista+1)*(jend-jsta+1)+2
-    else
-      fieldmapsize=(iend-ista+1)*(jend-jsta+1)
-    endif
-    allocate(datatmp(fieldmapsize))
-    allocate(fieldmap(fieldmapsize) )
-    call set_mpimap_wrt(gfile,ista,iend,jsta,jend,fieldmap,ierr,1)
-!    print *,'in writerecbin4, after set_mpimap,ierr=',ierr
-    if(ierr.ne.0) return
-!
-!--- prepare data
-    if(gfile%mype.eq.gfile%lead_task) then
-      datatmp(1)=gfile%fieldsize_real8
-      datatmp(fieldmapsize)=datatmp(1)
-      datatmp(2:fieldmapsize-1)=data(:)
-    else
-      datatmp(:)=data(:)
-    endif
-!
-!---
-    idispstt=int(jrec-1,8)*int(gfile%fieldsize*8+8,8)
-    call writempi8(gfile,fieldmapsize,fieldmap,datatmp,ierr,idispstt)
-    if(ierr.ne.0) return
-    deallocate(fieldmap)
-!
-    iret=0
-!
-    return
-  end subroutine nemsio_writerecbind8
-!------------------------------------------------------------------------------
-  subroutine nemsio_writerecvbind4(gfile,name,levtyp,lev,ista,iend,jsta,jend,data,iret)
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-! abstract: read nemsio data (bin) by record number into a 2D 32 bits array
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-    implicit none
-    type(nemsio_gfile),intent(inout)              :: gfile
-    character(*),intent(in)                       :: name, levtyp
-    integer(nemsio_intkind),intent(in)            :: lev
-    integer(nemsio_intkind),intent(in)            :: ista,iend,jsta,jend
-    real(nemsio_realkind),intent(in)              :: data(:)
-    integer(nemsio_intkind),optional,intent(out)  :: iret
-    integer :: jrec, ierr
-!local vars
-    integer,allocatable                :: fieldmap(:)
-    real(nemsio_realkind),allocatable  :: datatmp(:)
-    integer fieldmapsize
-    integer(8) idispstt
-!
-    iret=-11
-!
-    call nemsio_searchrecv(gfile,jrec,name,levtyp,lev,ierr)
-    if(ierr.ne.0) return
-!
-!--- check lead_task and last_task
-    if(gfile%mype==gfile%lead_task .and. ista/=1 .and. jsta/=1 ) &
-       call nemsio_stop("lead_task\'s subdomain must cover the (1,1) corner")
-!
-!--- set file map
-    if(gfile%mype==gfile%lead_task) then
-      fieldmapsize=(iend-ista+1)*(jend-jsta+1)+2
-    else
-      fieldmapsize=(iend-ista+1)*(jend-jsta+1)
-    endif
-    allocate(datatmp(fieldmapsize))
-    allocate(fieldmap(fieldmapsize) )
-    call set_mpimap_wrt(gfile,ista,iend,jsta,jend,fieldmap,ierr,1)
-!    print *,'in writerecbin4, after set_mpimap,ierr=',ierr
-    if(ierr.ne.0) return
-!
-!--- prepare data
-    if(gfile%mype.eq.gfile%lead_task) then
-      datatmp(1)=gfile%fieldsize_real4
-      datatmp(fieldmapsize)=datatmp(1)
-      datatmp(2:fieldmapsize-1)=data(:)
-    else
-      datatmp(:)=data(:)
-    endif
-!---
-    idispstt=int(jrec-1,8)*int(gfile%fieldsize*4+8,8)
-    call writempi4(gfile,fieldmapsize,fieldmap,datatmp,iret,idispstt=idispstt)
-    if(iret.ne.0) return
-    deallocate(fieldmap)
-!
-    iret=0
-!
-    return
-  end subroutine nemsio_writerecvbind4
-!
-!------------------------------------------------------------------------------
-  subroutine nemsio_writerecvbind8(gfile,name,levtyp,lev,ista,iend,jsta,jend,data,iret)
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-! abstract: read nemsio data (bin) by record number into a 2D 32 bits array
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-    implicit none
-    type(nemsio_gfile),intent(inout)              :: gfile
-    character(*),intent(in)                      :: name, levtyp
-    integer(nemsio_intkind),intent(in)            :: lev
-    integer(nemsio_intkind),intent(in)            :: ista,iend,jsta,jend
-    real(nemsio_dblekind),intent(in)              :: data(:)
-    integer(nemsio_intkind),optional,intent(out)  :: iret
-    integer :: jrec, ierr
-!local vars
-    integer,allocatable               :: fieldmap(:)
-    real(nemsio_dblekind),allocatable :: datatmp(:)
-    integer fieldmapsize
-    integer(8) idispstt
-!
-    iret=-11
-!
-    call nemsio_searchrecv(gfile,jrec,name,levtyp,lev,ierr)
-!
-!--- check lead_task and last_task
-    if(gfile%mype==gfile%lead_task .and. ista/=1 .and. jsta/=1 ) &
-       call nemsio_stop("lead_task\'s subdomain must cover the (1,1) corner")
-!
-!--- set file map
-    if(gfile%mype==gfile%lead_task) then
-      fieldmapsize=(iend-ista+1)*(jend-jsta+1)+2
-    else
-      fieldmapsize=(iend-ista+1)*(jend-jsta+1)
-    endif
-    allocate(datatmp(fieldmapsize))
-    allocate(fieldmap(fieldmapsize) )
-    call set_mpimap_wrt(gfile,ista,iend,jsta,jend,fieldmap,ierr,1)
-!    print *,'in writerecbin4, after set_mpimap,ierr=',ierr
-    if(ierr.ne.0) return
-!
-!--- prepare data
-    if(gfile%mype.eq.gfile%lead_task) then
-      datatmp(1)=gfile%fieldsize_real8
-      datatmp(fieldmapsize)=datatmp(1)
-      datatmp(2:fieldmapsize-1)=data(:)
-    else
-      datatmp(:)=data(:)
-    endif
-!
-!--- set file map
-!     fieldmapsize=(iend-ista+1)*(jend-jsta+1)
-!     allocate(fieldmap(fieldmapsize) )
-!     call set_mpimap_wrt(gfile,ista,iend,jsta,jend,fieldmap,iret,1)
-!     if(iret.ne.0) return
-!---
-     idispstt=int(jrec-1,8)*int(gfile%fieldsize*8+8,8)
-     call writempi8(gfile,fieldmapsize,fieldmap,data,iret,idispstt=idispstt)
-     if(iret.ne.0) return
-     deallocate(fieldmap)
-!
-    iret=0
-!
-    return
-  end subroutine nemsio_writerecvbind8
 !------------------------------------------------------------------------------
 !
 !***************** no write out grb data set :  ********************************
@@ -3233,6 +3002,13 @@ contains
                   gfile%varcval(gfile%nmetavarc), stat=iret1 )
          if(iret1.ne.0) return
       endif
+      if(gfile%nmetavarr8.gt.0) then
+         if(allocated(gfile%varr8name)) deallocate(gfile%varr8name)
+         if(allocated(gfile%varr8val)) deallocate(gfile%varr8val)
+         allocate(gfile%varr8name(gfile%nmetavarr8), &
+                  gfile%varr8val(gfile%nmetavarr8), stat=iret1 )
+         if(iret1.ne.0) return
+      endif
       if(gfile%nmetaaryi.gt.0) then
          if(allocated(gfile%aryiname)) deallocate(gfile%aryiname)
          if(allocated(gfile%aryilen)) deallocate(gfile%aryilen)
@@ -3263,6 +3039,14 @@ contains
          if(allocated(gfile%arycval)) deallocate(gfile%arycval)
          allocate(gfile%arycname(gfile%nmetaaryc), &
                   gfile%aryclen(gfile%nmetaaryc), stat=iret1 )
+         if(iret1.ne.0) return
+      endif
+      if(gfile%nmetaaryr8.gt.0) then
+         if(allocated(gfile%aryr8name)) deallocate(gfile%aryr8name)
+         if(allocated(gfile%aryr8len)) deallocate(gfile%aryr8len)
+         if(allocated(gfile%aryr8val)) deallocate(gfile%aryr8val)
+         allocate(gfile%aryr8name(gfile%nmetaaryr8), &
+                  gfile%aryr8len(gfile%nmetaaryr8), stat=iret1 )
          if(iret1.ne.0) return
       endif
     endif
@@ -3550,7 +3334,7 @@ contains
     gfile%headaryiname(1)='idate'
     gfile%headaryival(1:7,1)=gfile%idate(1:7)
     gfile%headaryiname(2)='reclev'
-    gfile%headaryival(:,2)=gfile%reclev(:)
+    if(allocated(gfile%reclev)) gfile%headaryival(:,2)=gfile%reclev(:)
 !
 !--- gfile%head real ary
 !    write(0,*)'before setfhead, headaryr,',gfile%headaryrnum ,gfile%fieldsize
@@ -3558,6 +3342,7 @@ contains
     allocate(gfile%headaryrval(max(gfile%fieldsize,(gfile%dimz+1)*6),gfile%headaryrnum))
     gfile%headaryrname(1)='vcoord'
 !    print *,'in setfhead, headaryr, before gfile%headaryrval 1',gfile%dimz
+    if(allocated(gfile%vcoord)) then
     do j=1,2
      do i=1,3
       do k=1,gfile%dimz+1
@@ -3565,27 +3350,30 @@ contains
       enddo
      enddo
     enddo
+    endif
     gfile%headaryrname(2)='lat'
-    gfile%headaryrval(:,2)=gfile%lat
+    if(allocated(gfile%lat)) gfile%headaryrval(:,2)=gfile%lat
     gfile%headaryrname(3)='lon'
-    gfile%headaryrval(:,3)=gfile%lon
+    if(allocated(gfile%lon)) gfile%headaryrval(:,3)=gfile%lon
     gfile%headaryrname(4)='dx'
-    gfile%headaryrval(:,4)=gfile%dx
+    if(allocated(gfile%dx)) gfile%headaryrval(:,4)=gfile%dx
     gfile%headaryrname(5)='dy'
-    gfile%headaryrval(:,5)=gfile%dy
+    if(allocated(gfile%dy)) gfile%headaryrval(:,5)=gfile%dy
     gfile%headaryrname(6)='cpi'
-    gfile%headaryrval(1:size(gfile%cpi),6)=gfile%cpi(:)
+    if(allocated(gfile%cpi)) gfile%headaryrval(1:size(gfile%cpi),6)=gfile%cpi(:)
     gfile%headaryrname(7)='ri'
-    gfile%headaryrval(1:size(gfile%ri),7)=gfile%ri(:)
+    if(allocated(gfile%ri)) gfile%headaryrval(1:size(gfile%ri),7)=gfile%ri(:)
 !
 !--- gfile%head char var
 !    write(0,*)'before setfhead, headaryc,nrec=',gfile%nrec,gfile%headarycnum
     allocate(gfile%headarycname(gfile%headarycnum) )
-    allocate(gfile%headarycval(size(gfile%recname),gfile%headarycnum))
-    gfile%headarycname(1)='recname'
-    gfile%headarycval(:,1)=gfile%recname
-    gfile%headarycname(2)='reclevtyp'
-    gfile%headarycval(:,2)=gfile%reclevtyp
+    if(size(gfile%recname)>0) then
+      allocate(gfile%headarycval(size(gfile%recname),gfile%headarycnum))
+      gfile%headarycname(1)='recname'
+      if(allocated(gfile%recname)) gfile%headarycval(:,1)=gfile%recname
+      gfile%headarycname(2)='reclevtyp'
+      if(allocated(gfile%reclevtyp)) gfile%headarycval(:,2)=gfile%reclevtyp
+    endif
 !
 !    write(0,*)'end ef nemsio_setfhead'
     iret=0
@@ -4127,18 +3915,18 @@ contains
        nfld=1
      else
        krec=1
-       nfld=size(fieldmap)/((iend-ista+1)*(jend-jsta+1))
+       if(gfile%mype==gfile%lead_task) then
+         nfld=size(fieldmap)/((iend-ista+1)*(jend-jsta+1)+2)
+       else
+         nfld=size(fieldmap)/((iend-ista+1)*(jend-jsta+1))
+       endif
      endif
 !--- set file map
      nfieldsize=gfile%fieldsize+2
      kstart=(krec-1)*nfieldsize
 !     print *,'in set_mpimap, kstart=',kstart,' tlmeta=',gfile%tlmeta,  &
-!       ' nfieldsize=',nfieldsize,'krec=',krec,'nfld=',nfld,'fldsize=',gfile%fieldsize
-!
-!     if(gfile%mype.eq.gfile%lead_task ) then
-!      if(size(fieldmap) < ((iend-ista+1)*(jend-jsta+1)+2)*nfld) &
-!        call nemsio_stop('in set_mpimap, fieldmap size is too small!')
-!     endif
+!       ' nfieldsize=',nfieldsize,'krec=',krec,'nfld=',nfld,'fldsize=',gfile%fieldsize,&
+!       'size(fieldmap)=',size(fieldmap)
 !
 
      if (gfile%nframe.eq.0) then
@@ -4174,7 +3962,7 @@ contains
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
    end subroutine set_mpimap_wrt
 !------------------------------------------------------------------------------
-   subroutine nemsio_densewrite4(gfile,ista,iend,jsta,jend,data,iret)
+   subroutine nemsio_densewrite4(gfile,ista,iend,jsta,jend,data,jrecs,jrece,iret)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: free unit number array index corresponding to unit number
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
@@ -4182,23 +3970,24 @@ contains
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      type(nemsio_gfile),intent(inout)    :: gfile
      integer,intent(in)                  :: ista,iend,jsta,jend
-     real(nemsio_realkind),intent(out)   :: data(:)
+     real(nemsio_realkind),intent(in)    :: data(:)
+     integer,optional,intent(in)         :: jrecs,jrece
      integer,optional,intent(out)        :: iret
 !
      real(nemsio_dblekind),allocatable   :: data8(:)
 !
      if(trim(gfile%gdatatype)=='bin4') then
-      call  mpi_densewrite4(gfile,ista,iend,jsta,jend,data,iret)
+      call  mpi_densewrite4(gfile,ista,iend,jsta,jend,data,jrecs,jrece,iret)
      else if (trim(gfile%gdatatype)=='bin8') then
       allocate(data8(size(data)))
       data8=data
-      call  mpi_densewrite8(gfile,ista,iend,jsta,jend,data8,iret)
+      call  mpi_densewrite8(gfile,ista,iend,jsta,jend,data8,jrecs,jrece,iret)
       deallocate(data8)
      endif
 !
    end subroutine nemsio_densewrite4
 !------------------------------------------------------------------------------
-   subroutine nemsio_densewrite8(gfile,ista,iend,jsta,jend,data,iret)
+   subroutine nemsio_densewrite8(gfile,ista,iend,jsta,jend,data,jrecs,jrece,iret)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: free unit number array index corresponding to unit number
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
@@ -4206,7 +3995,8 @@ contains
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      type(nemsio_gfile),intent(inout)    :: gfile
      integer,intent(in)                  :: ista,iend,jsta,jend
-     real(nemsio_dblekind),intent(out)   :: data(:)
+     real(nemsio_dblekind),intent(in)    :: data(:)
+     integer,optional,intent(in)         :: jrecs,jrece
      integer,optional,intent(out)        :: iret
 !
      real(nemsio_realkind),allocatable   :: data4(:)
@@ -4214,16 +4004,16 @@ contains
      if(trim(gfile%gdatatype)=='bin4') then
       allocate(data4(size(data)))
       data4=data
-      call  mpi_densewrite4(gfile,ista,iend,jsta,jend,data4,iret)
+      call  mpi_densewrite4(gfile,ista,iend,jsta,jend,data4,jrecs,jrece,iret)
       deallocate(data4)
      else if (trim(gfile%gdatatype)=='bin8') then
-      call  mpi_densewrite8(gfile,ista,iend,jsta,jend,data,iret)
+      call  mpi_densewrite8(gfile,ista,iend,jsta,jend,data,jrecs,jrece,iret)
      endif
 !
    end subroutine nemsio_densewrite8
 !
 !------------------------------------------------------------------------------
-   subroutine mpi_densewrite4(gfile,ista,iend,jsta,jend,data,iret)
+   subroutine mpi_densewrite4(gfile,ista,iend,jsta,jend,data,jrecs,jrece,iret)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: free unit number array index corresponding to unit number
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
@@ -4231,15 +4021,16 @@ contains
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      type(nemsio_gfile),intent(inout)    :: gfile
      integer,intent(in)                  :: ista,iend,jsta,jend
-     real(nemsio_realkind),intent(out)   :: data(:)
+     real(nemsio_realkind),intent(in)    :: data(:)
+     integer,optional,intent(in)         :: jrecs,jrece
      integer,optional,intent(out)        :: iret
 !--- local vars
      integer                  :: i,ierr,nfldsize,nfld,nfldloop,mfldrmd,k
-     integer               :: fieldmapsize,fldmapsize1,fldmapsize,fielddatasize
+     integer               :: fieldmapsize,fldmapsize1,fldmapsize
      integer,allocatable      :: fieldmap(:)
      real(nemsio_realkind),allocatable      :: datatmp(:)
-     integer ios,nstt,nend
-     integer(8) idispstt
+     integer ios,irecs,irece,nfldlp,mrec,mrecs,filetype
+     integer(8) idispstt,fielddatasize
 !---
      iret=-25
 !
@@ -4248,68 +4039,121 @@ contains
        call nemsio_stop("lead_task\'s subdomain must cover the (1,1) corner")
 !
 !--- set nfld
+     if(present(jrecs).and.present(jrece)) then
+       mrec=jrece-jrecs+1
+       mrecs=jrecs
+     else
+       mrec=gfile%nrec
+       mrecs=1
+     endif
      nfldsize=gfile%fieldsize+2
-     nfld=min(gfile%nrec,nemsio_maxint/nfldsize)
-     nfldloop=(gfile%nrec-1)/nfld+1
-     mfldrmd=mod(gfile%nrec,nfld)
-!     write(0,*)'in dense read,nfld=',nfld,'nfldloop=',nfldloop, &
-!       'mfldrmd=',mfldrmd
+     nfld=min(mrec,nemsio_maxint/(nfldsize*2))
+     nfldloop=(mrec-1)/nfld+1
+     mfldrmd=mod(mrec,nfld)
+!     write(0,*)'in dense write,nfld=',nfld,'nfldloop=',nfldloop, &
+!       'mfldrmd=',mfldrmd,'mrec=',mrec,'mrecs=',mrecs,'ista=',ista, &
+!        'iend=',iend,'jsta=',jsta,'jend=',jend,jend-jsta+1
 !
 !--- set file map
      if(gfile%mype==gfile%lead_task) then
       fieldmapsize=((iend-ista+1)*(jend-jsta+1)+2)*nfld
       fldmapsize=(iend-ista+1)*(jend-jsta+1)+2
       fldmapsize1=(iend-ista+1)*(jend-jsta+1)
-      fielddatasize=((iend-ista+1)*(jend-jsta+1)+2)*gfile%nrec
+!      fielddatasize=((iend-ista+1)*(jend-jsta+1)+2)*mrec
      else
+      fldmapsize=(iend-ista+1)*(jend-jsta+1)
       fieldmapsize=(iend-ista+1)*(jend-jsta+1)*nfld
-      fielddatasize=(iend-ista+1)*(jend-jsta+1)*gfile%nrec
+
+!      fielddatasize=(iend-ista+1)*(jend-jsta+1)*mrec
      endif
-!    print *,'in dense write, size(data)=',size(data),'fieldmapsize=',fieldmapsize,gfile%fieldsize_real4
-     allocate(datatmp(fielddatasize))
+!     print *,'in dense write, size(data)=',size(data),'fieldmapsize=',fieldmapsize,gfile%fieldsize_real4
+     allocate(datatmp(fieldmapsize))
      allocate(fieldmap(fieldmapsize) )
      call set_mpimap_wrt(gfile,ista,iend,jsta,jend,fieldmap,ierr)
+!     write(0,*)'after set_mpimap_wrt,fldmapsize=',fldmapsize,'fieldmapsize=',fieldmapsize
      if(ierr.ne.0) return
 !
-!--- prepare data
-     if(gfile%mype.eq.gfile%lead_task) then
-      do i=1,gfile%nrec
-        datatmp((i-1)*fldmapsize+1)=gfile%fieldsize_real4
-        datatmp(i*fldmapsize)=datatmp(1)
-        datatmp((i-1)*fldmapsize+2:i*fldmapsize-1)=data((i-1)*fldmapsize1+1:i*fldmapsize1)
-      enddo
-     else
-      datatmp(:)=data(:)
+!--- set file type
+!       write(0,*)'in densewrite4,fieldmapsize=',fieldmapsize,maxval(fieldmap), &
+!         minval(fieldmap)
+     call mpi_type_create_indexed_block(fieldmapsize,1,fieldmap, &
+          MPI_REAL,filetype,ierr)
+!       write(0,*)'af mpi_type_create,iret=',ierr
+     call MPI_TYPE_COMMIT(filetype,ierr)
+!       write(0,*)'af mpi_type_commit,iret=',ierr,'filetype=',filetype
+     if ( ierr.ne.0 ) then
+       if ( present(iret))  then
+         iret=ierr
+         return
+       else
+         call nemsio_stop('stop: at write set type indexed block')
+       endif
      endif
+
 !
 !---
      do k=1,nfldloop
 !
+       irecs=(k-1)*nfld
        if(k<nfldloop.or.mfldrmd==0) then
-         nstt=(k-1)*fieldmapsize+1
-         nend=k*fieldmapsize
+         irece=k*nfld
+         nfldlp=nfld
        elseif(mfldrmd/=0) then
-         nstt=(k-1)*fieldmapsize+1
-         nend=gfile%nrec*(iend-ista+1)*(jend-jsta+1)
-         deallocate(fieldmap)
-         fieldmapsize=(iend-ista+1)*(jend-jsta+1)*mfldrmd
+         deallocate(fieldmap,datatmp)
+         fieldmapsize=fldmapsize*mfldrmd
          allocate(fieldmap(fieldmapsize) )
-         call set_mpimap_read(gfile,ista,iend,jsta,jend,fieldmap,ios)
-         if(ios.ne.0) return
+         allocate(datatmp(fieldmapsize) )
+         call set_mpimap_wrt(gfile,ista,iend,jsta,jend,fieldmap,ierr)
+         if(ierr.ne.0) return
+!
+!--- set file type
+!       write(0,*)'in writempi4,fieldmapsize=',fieldmapsize,maxval(fieldmap), &
+!         minval(fieldmap)
+     call mpi_type_create_indexed_block(fieldmapsize,1,fieldmap, &
+          MPI_REAL,filetype,ierr)
+!       write(0,*)'af mpi_type_create,iret=',ierr
+     call MPI_TYPE_COMMIT(filetype,ierr)
+!       write(0,*)'af mpi_type_commit,iret=',ierr,'filetype=',filetype
+     if ( ierr.ne.0 ) then
+       if ( present(iret))  then
+         iret=ierr
+         return
+       else
+         call nemsio_stop('stop: at write set type indexed block')
        endif
-       idispstt=int(k-1,8)*int(nfld,8)*int(nfldsize*4,8)
+     endif
 
-       call writempi4(gfile,fieldmapsize,fieldmap,datatmp(nstt:nend),iret=iret, &
+         irece=mrec
+         nfldlp=mfldrmd
+       endif
+!
+!--- prepare data
+       do i=1,nfldlp
+        if(gfile%mype.eq.gfile%lead_task) then
+          datatmp((i-1)*fldmapsize+1)=gfile%fieldsize_real4
+          datatmp(i*fldmapsize)=datatmp(1)
+          datatmp((i-1)*fldmapsize+2:i*fldmapsize-1)=data((irecs+i-1)*fldmapsize1+1:(irecs+i)*fldmapsize1)
+        else
+          datatmp((i-1)*fldmapsize+1:i*fldmapsize)=data((irecs+i-1)*fldmapsize+1:(irecs+i)*fldmapsize)
+        endif
+       enddo
+!
+       idispstt=(int(k-1,8)*int(nfld,8)+int(mrecs-1,8))*int(nfldsize*4,8)
+
+!       write(0,*)'bf writempi4,k=',k,'nfldlp=',nfldlp,'idispstt=',idispstt
+       call writempi4(gfile,fieldmapsize,filetype,datatmp,iret=iret, &
          idispstt=idispstt)
-       if (iret.eq.0) return
+!       write(0,*)'af writempi4,iret=',iret,'k=',k,'nfldloop=',nfldloop
+       if (iret.ne.0) return
 !
      enddo
+     deallocate(fieldmap,datatmp)
 !
      iret=0
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
    end subroutine mpi_densewrite4
 !------------------------------------------------------------------------------
-   subroutine mpi_densewrite8(gfile,ista,iend,jsta,jend,data,iret)
+   subroutine mpi_densewrite8(gfile,ista,iend,jsta,jend,data,jrecs,jrece,iret)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
 ! abstract: free unit number array index corresponding to unit number
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
@@ -4317,15 +4161,17 @@ contains
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      type(nemsio_gfile),intent(inout)    :: gfile
      integer,intent(in)                  :: ista,iend,jsta,jend
-     real(nemsio_dblekind),intent(out)   :: data(:)
+     real(nemsio_dblekind),intent(in)    :: data(:)
+     integer,optional,intent(in)         :: jrecs,jrece
      integer,optional,intent(out)        :: iret
 !--- local vars
      integer                  :: i,ierr,nfldsize,nfld,nfldloop,mfldrmd,k
      integer               :: fieldmapsize,fldmapsize,fldmapsize1,fielddatasize
      integer,allocatable      :: fieldmap(:)
      real(nemsio_dblekind),allocatable   :: datatmp(:)
-     integer ios,nstt,nend
+     integer ios,irecs,irece,nfldlp,mrec,mrecs
      integer(8) idispstt
+     integer filetype
 !---
      iret=-25
 !
@@ -4334,11 +4180,18 @@ contains
        call nemsio_stop("lead_task\'s subdomain must cover the (1,1) corner")
 !
 !--- set nfld
-    nfldsize=gfile%fieldsize+2
-    nfld=min(gfile%nrec,nemsio_maxint/nfldsize)
-    nfldloop=(gfile%nrec-1)/nfld+1
-    mfldrmd=mod(gfile%nrec,nfld)
-!    write(0,*)'in dense read,nfld=',nfld,'nfldloop=',nfldloop, &
+     if(present(jrecs).and.present(jrece)) then
+       mrec=jrece-jrecs+1
+       mrecs=jrecs
+     else
+       mrec=gfile%nrec
+       mrecs=1
+     endif
+     nfldsize=gfile%fieldsize+2
+     nfld=min(mrec,nemsio_maxint/(nfldsize*2))
+     nfldloop=(mrec-1)/nfld+1
+     mfldrmd=mod(mrec,nfld)
+!     write(0,*)'in dense read,nfld=',nfld,'nfldloop=',nfldloop, &
 !       'mfldrmd=',mfldrmd
 !
 !--- set file map
@@ -4346,79 +4199,26 @@ contains
       fieldmapsize=((iend-ista+1)*(jend-jsta+1)+2)*nfld
       fldmapsize=(iend-ista+1)*(jend-jsta+1)+2
       fldmapsize1=(iend-ista+1)*(jend-jsta+1)
-      fielddatasize=((iend-ista+1)*(jend-jsta+1)+2)*gfile%nrec
+!      fielddatasize=((iend-ista+1)*(jend-jsta+1)+2)*gfile%nrec
     else
+      fldmapsize=(iend-ista+1)*(jend-jsta+1)
       fieldmapsize=(iend-ista+1)*(jend-jsta+1)*nfld
-      fielddatasize=(iend-ista+1)*(jend-jsta+1)*gfile%nrec
+!      fielddatasize=(iend-ista+1)*(jend-jsta+1)*gfile%nrec
     endif
-    allocate(datatmp(fielddatasize))
+    allocate(datatmp(fieldmapsize))
     allocate(fieldmap(fieldmapsize) )
     call set_mpimap_wrt(gfile,ista,iend,jsta,jend,fieldmap,ierr)
 !    print *,'in writerecbin4, after set_mpimap,ierr=',ierr
     if(ierr.ne.0) return
 !
-!--- prepare data
-    if(gfile%mype.eq.gfile%lead_task) then
-      do i=1,gfile%nrec
-        datatmp((i-1)*fldmapsize+1)=gfile%fieldsize_real8
-        datatmp(i*fldmapsize)=datatmp(1)
-        datatmp((i-1)*fldmapsize+2:i*fldmapsize-1)=data((i-1)*fldmapsize1+1:i*fldmapsize1)
-      enddo
-    else
-      datatmp(:)=data(:)
-    endif
-!
-!---
-     do k=1,nfldloop
-!
-       if(k<nfldloop.or.mfldrmd==0) then
-         nstt=(k-1)*fieldmapsize+1
-         nend=k*fieldmapsize
-       elseif(mfldrmd/=0) then
-         nstt=(k-1)*fieldmapsize+1
-         nend=gfile%nrec*(iend-ista+1)*(jend-jsta+1)
-         deallocate(fieldmap)
-         fieldmapsize=(iend-ista+1)*(jend-jsta+1)*mfldrmd
-         allocate(fieldmap(fieldmapsize) )
-         call set_mpimap_wrt(gfile,ista,iend,jsta,jend,fieldmap,ios)
-         if(ios.ne.0) return
-       endif
-       idispstt=int(k-1,8)*int(nfld,8)*int(gfile%fieldsize*8+8,8)
-!
-       call writempi8(gfile,fieldmapsize,fieldmap,datatmp,iret=iret,idispstt=idispstt)
-     enddo
-!
-     iret=0
-! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   end subroutine mpi_densewrite8
-!------------------------------------------------------------------------------
-   subroutine writempi4(gfile,fieldmapsize,fieldmap,data,iret,idispstt) 
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-! abstract: write out real 4 data using MPI
-!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-      implicit none
-! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-     type(nemsio_gfile),intent(inout)    :: gfile
-     integer,intent(in)                  :: fieldmapsize
-     integer,intent(in)                  :: fieldmap(:)
-     real(nemsio_realkind),intent(in)    :: data(:)
-     integer,optional,intent(out)        :: iret
-     integer(8),optional,intent(in)      :: idispstt
-!--- local vars
-     integer(MPI_OFFSET_KIND) :: idisp
-     integer                  :: status(MPI_STATUS_SIZE)
-     integer ios,filetype
-     real(nemsio_dblekind),allocatable :: tmp(:)
-!
 !--- set file type
-     if(trim(gfile%gdatatype).eq."bin4" ) then
-       call mpi_type_create_indexed_block(fieldmapsize,1,fieldmap, &
-            MPI_REAL,filetype,ios)
-     else if ( trim(gfile%gdatatype).eq."bin8" ) then
-       call mpi_type_create_indexed_block(fieldmapsize,1,fieldmap, &
-            MPI_REAL8,filetype,ios)
-     endif
+!       write(0,*)'densewrite8 fieldmapsize=',fieldmapsize,maxval(fieldmap), &
+!         minval(fieldmap)
+     call mpi_type_create_indexed_block(fieldmapsize,1,fieldmap, &
+          MPI_REAL8,filetype,ios)
+!       write(0,*)'af mpi_type_create,iret=',ios
      call MPI_TYPE_COMMIT(filetype,ios)
+!       write(0,*)'af mpi_type_commit,iret=',ios,'filetype=',filetype
      if ( ios.ne.0 ) then
        if ( present(iret))  then
          iret=ios
@@ -4428,6 +4228,80 @@ contains
        endif
      endif
 !
+!---
+     do k=1,nfldloop
+!
+       irecs=(k-1)*nfld+1 
+       if(k<nfldloop.or.mfldrmd==0) then
+         nfldlp=nfld
+         irece=k*nfld 
+       elseif(mfldrmd/=0) then
+         deallocate(fieldmap,datatmp)
+         fieldmapsize=fldmapsize*mfldrmd
+         allocate(fieldmap(fieldmapsize) )
+         allocate(datatmp(fieldmapsize) )
+         call set_mpimap_wrt(gfile,ista,iend,jsta,jend,fieldmap,ios)
+         if(ios.ne.0) return
+!
+!--- set file type
+!       write(0,*)'densewrite8 fieldmapsize=',fieldmapsize,maxval(fieldmap), &
+!         minval(fieldmap)
+     call mpi_type_create_indexed_block(fieldmapsize,1,fieldmap, &
+          MPI_REAL8,filetype,ios)
+!       write(0,*)'af mpi_type_create,iret=',ios
+     call MPI_TYPE_COMMIT(filetype,ios)
+!       write(0,*)'af mpi_type_commit,iret=',ios,'filetype=',filetype
+     if ( ios.ne.0 ) then
+       if ( present(iret))  then
+         iret=ios
+         return
+       else
+         call nemsio_stop('stop: at write set type indexed block')
+       endif
+     endif
+
+         nfldlp=mfldrmd
+         irece=mrec
+       endif
+!
+!--- prepare data
+       do i=1,nfldlp
+        if(gfile%mype.eq.gfile%lead_task) then
+          datatmp((i-1)*fldmapsize+1)=gfile%fieldsize_real8
+          datatmp(i*fldmapsize+2)=datatmp(1)
+          datatmp((i-1)*fldmapsize+2:i*fldmapsize+1)=data((irecs+i-1)*fldmapsize1+1:(irecs+i)*fldmapsize1)
+        else
+          datatmp((i-1)*fldmapsize+1:i*fldmapsize)=data((irecs+i-1)*fldmapsize+1:(irecs+i)*fldmapsize)
+        endif
+       enddo
+
+       idispstt=(int(k-1,8)*int(nfld,8)+int(mrecs-1,8))*int(gfile%fieldsize*8+8,8)
+!
+       call writempi8(gfile,fieldmapsize,filetype,datatmp,iret=iret,idispstt=idispstt)
+         if(iret/=0) return
+     enddo
+!
+     iret=0
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+   end subroutine mpi_densewrite8
+!------------------------------------------------------------------------------
+   subroutine writempi4(gfile,fieldmapsize,filetype,data,iret,idispstt) 
+!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
+! abstract: write out real 4 data using MPI
+!- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
+      implicit none
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+     type(nemsio_gfile),intent(inout)    :: gfile
+     integer,intent(in)                  :: fieldmapsize
+     integer,intent(in)                  :: filetype
+     real(nemsio_realkind),intent(in)    :: data(:)
+     integer,optional,intent(out)        :: iret
+     integer(8),optional,intent(in)      :: idispstt
+!--- local vars
+     integer(MPI_OFFSET_KIND) :: idisp
+     integer                  :: status(MPI_STATUS_SIZE)
+     integer ios
+!
 !--- file set view, and read
 !
        if(present(idispstt))  then
@@ -4435,10 +4309,13 @@ contains
        else
          idisp=gfile%tlmeta
        endif
+!       write(0,*)'bf file set view,disp=',idisp,'tlmeta=',gfile%tlmeta,'idpspstt=',idispstt
        call mpi_file_set_view(gfile%fh,idisp,MPI_REAL4,filetype,'native', &
          MPI_INFO_NULL,ios)
+!       write(0,*)'after fl set view,ios=',ios
        call MPI_FILE_WRITE_ALL(gfile%fh,data,fieldmapsize,MPI_REAL4,  &
         status,ios)
+!       write(0,*)'after fl write all,ios=',ios
        if ( ios.ne.0 ) then
          if ( present(iret))  then
            iret=ios
@@ -4452,43 +4329,24 @@ contains
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
    end subroutine writempi4
 !------------------------------------------------------------------------------
-  subroutine writempi8(gfile,fieldmapsize,fieldmap,data,iret,idispstt)
+  subroutine writempi8(gfile,fieldmapsize,filetype,data,iret,idispstt)
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
-! abstract: write out real 4 data using MPI
+! abstract: write out real 8 data using MPI
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - -
       implicit none
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      type(nemsio_gfile),intent(inout)    :: gfile
      integer,intent(in)                  :: fieldmapsize
-     integer,intent(in)                  :: fieldmap(:)
+     integer,intent(in)                  :: filetype
      real(nemsio_dblekind),intent(in)    :: data(:)
      integer,optional,intent(out)        :: iret
      integer(8),optional,intent(in)         :: idispstt
 !--- local vars
      integer(MPI_OFFSET_KIND) :: idisp
      integer                  :: status(MPI_STATUS_SIZE)
-     integer ios,filetype
-     real(nemsio_realkind),allocatable :: tmp(:)
+     integer ios
 !---
      iret=-25
-!
-!--- set file type
-     if(trim(gfile%gdatatype).eq."bin4" ) then
-       call mpi_type_create_indexed_block(fieldmapsize,1,fieldmap, &
-            MPI_REAL,filetype,ios)
-     else if ( trim(gfile%gdatatype).eq."bin8" ) then
-       call mpi_type_create_indexed_block(fieldmapsize,1,fieldmap, &
-            MPI_REAL8,filetype,ios)
-     endif
-     call MPI_TYPE_COMMIT(filetype,iret)
-     if ( ios.ne.0 ) then
-       if ( present(iret))  then
-         iret=ios
-         return
-       else
-         call nemsio_stop('stop: at write set type indexed block')
-       endif
-     endif
 !
 !--- file set view, and read
 !

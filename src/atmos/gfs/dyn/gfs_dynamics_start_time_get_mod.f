@@ -9,16 +9,13 @@
 !
 !  march 2005      weiyu yang initial code.
 !  Feb   2010      jun wang   read data from nemsio file
+!  Sep   2010      jun wang   remove gfsio option
 !
 !uses:
 !
       use esmf_mod,     only: esmf_success
       use gfs_dyn_machine,      only: kind_io4, kind_evod
       use gfs_dyn_date_def,     only: idate,idate7
-!     use sigio_module
-!     use sigio_r_module
-      use gfsio_module
-      use gfsio_def
       use module_nemsio
 
       implicit none
@@ -44,31 +41,22 @@
       n2    = 12
  
       print *,' grib_inp=',grib_inp,' cfile=',cfile
-      call gfsio_open(gfile_in,trim(cfile),'read',iret)
-      if(iret==0) then
-        print *,'after gfsio open, iert=',iret
-        call gfsio_getfilehead(gfile_in,iret=iret,idate=idate,fhour=fhour4)
-        print *,'after gfsio getfile head, fhour=',iret
-        call gfsio_close(gfile_in)
-        yy     = idate(4)
-        mm     = idate(2)
-        dd     = idate(3)
-        hh     = idate(1)
-        mns    = 0
-        sec    = 0
-        fhour = fhour4
-      else
-!        
-        call gfsio_close(gfile_in)
-!
+!        write(0,*)'in dyn_start_time'
         call nemsio_init()
         call nemsio_open(nfile,trim(cfile),'read',iret=iret)
-        print *,'after nemsio_open, iret=',iret
+!        print *,'nemsio open instart iret=',iret
         call nemsio_getheadvar(nfile,'idate',idate7,iret=iret)
-        call nemsio_getheadvar(nfile,'fhour',fhour,iret=iret)
-        print *,'after nemsio,idate=',idate7,'fhour=',fhour
+!        print *,'nemsio open inidate7 iret=',iret
+        call nemsio_getheadvar(nfile,'fhour',fhour4,iret=iret)
+        if(iret==0) then
+          fhour=fhour4
+        else
+          call nemsio_getheadvar(nfile,'fhour',fhour,iret=iret)
+        endif
+        print *,'nemsio open in fhour iret=',iret
         call nemsio_close(nfile)
         call nemsio_finalize()
+!
         idate(1)=idate7(4)
         idate(2:3)=idate7(2:3)
         idate(4)=idate7(1)
@@ -82,9 +70,9 @@
         else
           sec    = 0
         endif
-      endif
+!      endif
 
-      print *,' fhour=',fhour,' idate=',idate7,' iret=',iret
+!      print *,' fhour=',fhour,' idate=',idate7,' iret=',iret
       if (iret .ne. 0) call mpi_quit(5555)
       kfhour = nint(fhour)
       print *,' idate=',idate,' fhour=',fhour,' kfhour=',kfhour

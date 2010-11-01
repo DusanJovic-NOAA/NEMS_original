@@ -53,10 +53,11 @@
       NEEDORO = 0
       if (fhini .eq. fhrot) then
           if (me .eq. 0) print *,' call read_sfc CREAD=',cread
-          CALL read_sfc(sfc_fld,NEEDORO,NREAD,
+          CALL read_sfc_nemsio(sfc_fld,NEEDORO,NREAD,
      &                  CREAD,GLOBAL_LATS_R,LONSPERLAR)
       else
-          if (me .eq. 0) print *,' call read_sfc_r CREAD=',cread
+          if (me .eq. 0) print *,' call read_sfc_r CREAD=',cread,
+     &     'fhini=',fhini,'fhrot=',fhrot
           CALL read_sfc_r(cread,sfc_fld,phy_p2d,phy_p3d,num_p3d,
      &      num_p2d,NGPTC,NBLCK,GLOBAL_LATS_R,LONSPERLAR,NEEDORO)
       endif

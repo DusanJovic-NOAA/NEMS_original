@@ -10,6 +10,7 @@
 !  november 2004      weiyu yang initial code.
 !  february 2006      shrinivas moorthi - removed some comments
 !  january  2007      hann-ming henry juang -- modify to be dynamics only
+!  Sept     2010      Jun Wang   change gfsio to nemsio
 !
 !
 ! !interface:
@@ -19,7 +20,7 @@
 !!uses:
 !
       use gfs_dynamics_internal_state_mod
-      use gfsio_module , only : gfsio_finalize
+      use module_nemsio , only : nemsio_finalize
 
       implicit none
 
@@ -47,8 +48,8 @@
 !c    jjt terminate hpm ... this is needed
       call f_hpmterminate(me)
 !
-      if (gfsio_out .or. gfsio_in) then
-        call gfsio_finalize()
+      if (nemsio_out .or. nemsio_in) then
+        call nemsio_finalize()
       endif
 
       if(present(rc)) then

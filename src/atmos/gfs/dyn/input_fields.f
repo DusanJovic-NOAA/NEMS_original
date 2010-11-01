@@ -5,6 +5,7 @@
      &                 lats_nodes_a, pwat,ptot,ptrc)
 !!
 !! Aug 2010    Sarah Lu, modified to compute tracer global sum
+!! 20100908    J. WANG   remove gfsio module
 
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
@@ -12,8 +13,6 @@
       use gfs_dyn_vert_def
       use gfs_dyn_date_def
       use namelist_dynamics_def
-      use gfsio_module
-      use gfsio_def
       use gfs_dyn_mpi_def
       IMPLICIT NONE
 !!
@@ -71,7 +70,7 @@ cmy bug fix on dimension of ls_node
 c$$$  IF ( ME .EQ. 0 ) IPRINT = 1
 !
       if (me .eq. 0) write(0,*)'input field, cread=',cread,'ntoz=',ntoz
-        CALL TREADEO_gfsio(IDATE,
+        CALL TREADEO_nemsio(IDATE,
      X               TRIE_LS(1,1,P_GZ ), TRIE_LS(1,1,P_QM ),
      X               TRIE_LS(1,1,P_TEM), TRIE_LS(1,1,P_DIM),
      X               TRIE_LS(1,1,P_ZEM), TRIE_LS(1,1,P_RM ),

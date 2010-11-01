@@ -1,4 +1,4 @@
-      SUBROUTINE TREADEO_gfsio(IDATE,
+      SUBROUTINE TREADEO_nemsio(IDATE,
      &                   GZE,QE,TEE,DIE,ZEE,RQE,
      &                   GZO,QO,TEO,DIO,ZEO,RQO,
      &                   zsg,psg,ttg,uug,vvg,rqg,
@@ -15,6 +15,7 @@
 !  Apr 09 2010    Sarah Lu, set rqg initial value to 1.e-15
 !  Aug 17 2010    Sarah Lu, clean debug print
 !  Aug 25 2010    Sarah Lu, modified to compute tracer global sum
+!  Sep 08 2010    Jun Wang, change to nemsio format
 !  
  
       use gfs_dyn_resol_def
@@ -27,8 +28,8 @@
       use gfs_dyn_physcons, rerth => con_rerth
      &,             grav => con_g, rkap => con_rocp
      &,             cpd => con_cp
-      use gfsio_module
-      use gfsio_def
+      use module_nemsio
+      use nemsio_def
       USE gfs_dyn_date_def, ONLY: FHOUR
       use gfs_dyn_tracer_config, ONLY : gfs_dyn_tracer   ! generalized tracer
 
@@ -37,7 +38,7 @@
       character*(*) cfile
       INTEGER              IDATE(4),NTRACI, ntozi, ntcwi, ncldi
      &,                    latbi, lonbi, levsi, jcapi,
-     &                     latgi, lonfi, latri, lonri
+     &                     latgi, lonfi, latri, lonri,idate7(7)
 !!
       real(kind=kind_evod)  epse(len_trie_ls)
       real(kind=kind_evod)  epso(len_trio_ls)
@@ -86,20 +87,15 @@
       REAL(KIND=KIND_EVOD) sikp1(levp1)
       REAL(KIND=KIND_IO4)   VTID,RUNID4,fhour4,pdryini4,XNCLD,xgf
       REAL(KIND=KIND_grid)  PDRYINI
-      real(kind=kind_io4), allocatable ::  vcoord4(:,:)
+      real(kind=kind_io4), allocatable ::  vcoord4(:,:,:)
 ! for generalized tracers
       integer                      nreci
       character*8               :: vname
       character*8, allocatable  :: recnamei(:)
       character*8, allocatable  :: reclevtypi(:)
       integer,     allocatable  :: reclevi(:)
-!     integer             idusr
 !
-!     type (gfsio_gfile) gfile
-!
-!     integer              idvc
-!     integer              idsl, iret, num_dta
-      integer              iret, num_dta, ijm
+      integer              iret, num_dta, ijm, tlmeta
       real(kind=kind_evod) psurfff
       real(kind=kind_evod) pressk, tem
       real(kind=kind_evod), parameter :: rkapi=1.0/rkap,
@@ -111,7 +107,7 @@
       real(kind=kind_evod) teref(levp1),ck5p(levp1)			! hmhj
 !    &,                    ttref(levp1)
 !
-      real (kind=kind_io4), allocatable ::  gfsio_data(:)
+      real (kind=kind_io4), allocatable ::  nemsio_data(:)
 !!
       real(kind=kind_grid) zsg(lonf,lats_node_a)
       real(kind=kind_grid) psg(lonf,lats_node_a)
@@ -124,23 +120,52 @@
       REAL(KIND=KIND_GRID) ptot   (lonf,lats_node_a)
       REAL(KIND=KIND_GRID) ptrc   (lonf,lats_node_a,ntrac)                !glbsum
 !
+!------------------------------------------------------------------------
 !       Input file is in grid-point space - use gfs_io package
 !
-      call gfsio_open(gfile_in,trim(cfile),'read',iret)
-      call gfsio_getfilehead(gfile_in,iret=iret,
-     &  version=ivsupa,fhour=fhour4,idate=idate,
-     &  latb=latb,lonb=lonb,levs=levsi,jcap=jcapi,itrun=itrun,
-     &  iorder=iorder,irealf=irealf,igen=igen,latf=latgi,lonf=lonfi,
-     &  latr=latri,lonr=lonfi,ntrac=ntraci,icen2=icen2,iens=iens,
-     &  idpp=idpp,idsl=idsl,idvc=idvc,idvm=idvm,idvt=idvt,idrun=idrun,
-     &  idusr=idusr,pdryini=pdryini4,ncldt=ncldt,nvcoord=nvcoord)
+      call nemsio_open(gfile_in,trim(cfile),'read',iret)
+!
+      call nemsio_getfilehead(gfile_in,iret=iret,
+     &  version=ivsupa,idate=idate7,
+     &  dimy=latb,dimx=lonb,dimz=levsi,jcap=jcapi,
+     &  ntrac=ntraci,idsl=idsl,idvc=idvc,idvm=idvm,
+     &  ncldt=ncldt,tlmeta=tlmeta)
+       idate(1)=idate7(4)
+       idate(2:3)=idate7(2:3)
+       idate(4)=idate7(1)
+!
+      call nemsio_getheadvar(gfile_in,'fhour',fhour4,iret=iret)
+      call nemsio_getheadvar(gfile_in,'iorder',iorder,iret=iret)
+      call nemsio_getheadvar(gfile_in,'irealf',irealf,iret=iret)
+      call nemsio_getheadvar(gfile_in,'igen',igen,iret=iret)
+      call nemsio_getheadvar(gfile_in,'latf',latgi,iret=iret)
+      call nemsio_getheadvar(gfile_in,'lonf',lonfi,iret=iret)
+      call nemsio_getheadvar(gfile_in,'latr',latri,iret=iret)
+      call nemsio_getheadvar(gfile_in,'lonr',lonri,iret=iret)
+      call nemsio_getheadvar(gfile_in,'icen2',icen2,iret=iret)
+      call nemsio_getheadvar(gfile_in,'iens',iens,iret=iret)
+      call nemsio_getheadvar(gfile_in,'idpp',idpp,iret=iret)
+      call nemsio_getheadvar(gfile_in,'idrun',idrun,iret=iret)
+      call nemsio_getheadvar(gfile_in,'itrun',itrun,iret=iret)
+      call nemsio_getheadvar(gfile_in,'idusr',idusr,iret=iret)
+      call nemsio_getheadvar(gfile_in,'idvt',idvt,iret=iret)
+      call nemsio_getheadvar(gfile_in,'pdryini',pdryini,iret=iret)
+      call nemsio_getheadvar(gfile_in,'nvcoord',nvcoord,iret=iret)
+
+!      call gfsio_getfilehead(gfile_in,iret=iret,
+!     &  version=ivsupa,fhour=fhour4,idate=idate,
+!     &  latb=latb,lonb=lonb,levs=levsi,jcap=jcapi,itrun=itrun,
+!     &  iorder=iorder,irealf=irealf,igen=igen,latf=latgi,lonf=lonfi,
+!     &  latr=latri,lonr=lonfi,ntrac=ntraci,icen2=icen2,iens=iens,
+!     &  idpp=idpp,idsl=idsl,idvc=idvc,idvm=idvm,idvt=idvt,idrun=idrun,
+!     &  idusr=idusr,pdryini=pdryini4,ncldt=ncldt,nvcoord=nvcoord)
 !
       if (me == 0) then
         print *,'iret=',iret,'idvt=',idvt,' nvcoord=',nvcoord,
-     &     ' levsi=',levsi,'ntoz=',ntoz,
+     &     ' levsi=',levsi,'ntoz=',ntoz,' idate=',idate,
      &   'lonf=',lonf,'lonfi=',lonfi,'latg=',latg,'latgi=',latgi,
      &   'jcap=',jcap,'jcapi=',jcapi,'levs=',levs,'levsi=',levsi,
-     &   'idvc=',idvc,'idvm=',idvm,'idsl=',idsl,
+     &   'idvc=',idvc,'idvm=',idvm,'idsl=',idsl,'tlmeta=',tlmeta,
      &   'gen_coord_hybrid=',gen_coord_hybrid,'pdryini4=',pdryini4
         if(lonf .ne. lonfi .or. latg .ne. latgi .or.
      &     jcap .ne. jcapi .or. levs .ne. levsi) then
@@ -150,24 +175,22 @@
         endif
       endif
 !
-      allocate (vcoord4(levsi+1,nvcoord))
-      allocate (vcoord(levsi+1,nvcoord))
-      call gfsio_getfilehead(gfile_in,iret=iret,vcoord=vcoord4)
+      allocate (vcoord4(levsi+1,3,2))
+      allocate (vcoord(levsi+1,3))
+      call nemsio_getfilehead(gfile_in,iret=iret,vcoord=vcoord4)
 !
 !     if (me == 0) then
 !     print *,' nvcoord=',nvcoord,' vcoord4=',vcoord4(:,1:nvcoord)
 !    &,' iret=',iret
 !     endif
 !
-!     usrid = idusr
-!     runid - idrun
-      vcoord(:,1:nvcoord) = vcoord4(:,1:nvcoord)
+      vcoord(:,1:3) = vcoord4(:,1:3,1)
 !     if (me .eq. 0) print *,' vcoord=',vcoord(:,1:nvcoord)
       deallocate (vcoord4)
 !
 ! for generalized tracers
 ! retrieve nreci, recnamei, reclevtypi, and reclevi
-      call gfsio_getfilehead(gfile_in,iret=iret,nrec=nreci)
+      call nemsio_getfilehead(gfile_in,iret=iret,nrec=nreci)
       if (me == 0) then
         print *, 'LU_TRC: nreci =', nreci, iret
       endif
@@ -175,7 +198,7 @@
       allocate (recnamei(nreci))
       allocate (reclevtypi(nreci))
       allocate (reclevi(nreci))
-      call gfsio_getfilehead(gfile_in,iret=iret,recname=recnamei,
+      call nemsio_getfilehead(gfile_in,iret=iret,recname=recnamei,
      &                       reclevtyp=reclevtypi,reclev=reclevi)
 
 !
@@ -275,19 +298,14 @@
       endif
 !
       FHOUR       = fhour4
-      idate       = idate
       WAVES       = jcap
       XLAYERS     = levs
       itrun       = itrun
-!     ORDER       = iorder
-!     REALFORM    = irealf
       icen        = 7
       icen2       = icen2
       igen        = igen
       ienst       = iens(1)
       iensi       = iens(2)
-!     runid       = idrun
-!     usrid       = idusr
       if (pdryini .eq. 0.0) pdryini = pdryini4
       ntraci = ntrac
       if (idvt .gt. 0.0) then
@@ -319,34 +337,44 @@
      &, ' pdryini=',pdryini,'ntoz=',ntoz
       ENDIF
 !
-        allocate (gfsio_data(lonb*latb))
+      allocate (nemsio_data(lonb*latb))
 !  Read orog
-      call gfsio_readrecv(gfile_in,'hgt','sfc',1,gfsio_data,iret)
-      call split2d(gfsio_data,buffo,global_lats_a)
+      call nemsio_readrecv(gfile_in,'hgt','sfc',1,nemsio_data,iret=iret)
+!      print *,'in treadeo,hgt=',maxval(nemsio_data),minval(nemsio_data),
+!     &  'iret=',iret
+      call split2d(nemsio_data,buffo,global_lats_a)
+!      print *,'in treadeo,buffo=',maxval(buffo),minval(buffo)
       CALL interpred(1,kmsk,buffo,zsg,global_lats_a,lonsperlat)
+!      print *,'in treadeo,zgs=',maxval(zsg),minval(zsg)
       ijm=lonf*lats_node_a
 !
 !  Read ps
-      call gfsio_readrecv(gfile_in,'pres','sfc',1,gfsio_data,iret)
-      call split2d(gfsio_data,buffo,global_lats_a)
+      call nemsio_readrecv(gfile_in,'pres','sfc',1,nemsio_data,
+     &    iret=iret)
+      call split2d(nemsio_data,buffo,global_lats_a)
       CALL interpred(1,kmsk,buffo,psg,global_lats_a,lonsperlat)
 !
 !  Read u
       do k=1,levs
-        call gfsio_readrecv(gfile_in,'ugrd','layer',k,gfsio_data,iret)
-        call split2d(gfsio_data,buffo,global_lats_a)
-        CALL interpred(1,kmsk,buffo,uug(1,1,k),global_lats_a,lonsperlat)
+       call nemsio_readrecv(gfile_in,'ugrd','mid layer',k,nemsio_data,
+     &     iret=iret)
+!      print *,'in treadeo,ugrd=',maxval(nemsio_data),
+!     & minval(nemsio_data),'iret=',iret,'k=',k
+       call split2d(nemsio_data,buffo,global_lats_a)
+       CALL interpred(1,kmsk,buffo,uug(1,1,k),global_lats_a,lonsperlat)
       enddo
 !  Read v
       do k=1,levs
-        call gfsio_readrecv(gfile_in,'vgrd','layer',k,gfsio_data,iret)
-        call split2d(gfsio_data,buffo,global_lats_a)
+        call nemsio_readrecv(gfile_in,'vgrd','mid layer',k,nemsio_data,
+     &   iret=iret)
+        call split2d(nemsio_data,buffo,global_lats_a)
         CALL interpred(1,kmsk,buffo,vvg(1,1,k),global_lats_a,lonsperlat)
       enddo
 !  Read T   -- this is real temperature
       do k=1,levs
-        call gfsio_readrecv(gfile_in,'tmp','layer',k,gfsio_data,iret)
-        call split2d(gfsio_data,buffo,global_lats_a)
+        call nemsio_readrecv(gfile_in,'tmp','mid layer',k,nemsio_data,
+     &     iret=iret)
+        call split2d(nemsio_data,buffo,global_lats_a)
         CALL interpred(1,kmsk,buffo,ttg(1,1,k),global_lats_a,lonsperlat)
       enddo
 !
@@ -362,14 +390,14 @@
         vname = trim(gfs_dyn_tracer%vname(n, 1))
         if(me==0) print *,'LU_TRC: initialize ',n,vname
         do k=1,levs
-          call gfsio_readrecv(gfile_in,trim(vname),
-     &                       'layer',k,gfsio_data,iret=iret)
+          call nemsio_readrecv(gfile_in,trim(vname),
+     &                       'mid layer',k,nemsio_data,iret=iret)
           if(iret == 0) then
 !*          if(me==0) print *,'LU_TRC: tracer read in ok -',
 !*   &                gfs_dyn_tracer%vname(n, 1),k
             if(me==0 .and. k==1) 
      &                print *,'LU_TRC: tracer read in ok '
-            call split2d(gfsio_data,buffo,global_lats_a)
+            call split2d(nemsio_data,buffo,global_lats_a)
             CALL interpred(1,kmsk,buffo,rqg(1,1,k+(n-1)*levs),
      &                     global_lats_a,lonsperlat)
           else
@@ -380,38 +408,6 @@
           endif
         enddo
       enddo       
-!
-!!  Read q
-!      do k=1,levs
-!        call gfsio_readrecv(gfile_in,'spfh','layer',k,gfsio_data,iret)
-!        call split2d(gfsio_data,buffo,global_lats_a)
-!        CALL interpred(1,kmsk,buffo,rqg(1,1,k),global_lats_a,lonsperlat)
-!      enddo
-!!      write(0,*)'after interpred q,levs=',levs,'levh=',levh,
-!!     &     'ntozi=',ntozi,ntoz,'ntcwi=',ntcwi
-!!  Read O3
-!      if (ntozi .gt. 0) then
-!        do k=1,levs
-!          call gfsio_readrecv(gfile_in,'o3mr','layer',k,gfsio_data,
-!     &                                                  iret)
-!          call split2d(gfsio_data,buffo,global_lats_a)
-!          CALL interpred(1,kmsk,buffo,rqg(1,1,k+(ntozi-1)*levs),
-!     &                                global_lats_a,lonsperlat)
-!!       write(0,*)'after interpred o3mr, sfc,L=',k,'max=',
-!!     &  maxval(rqg(1:lonf,1:lats_node_a,k+(ntozi-1)*levs)),
-!!     &  'min=',maxval(rqg(1:lonf,1:lats_node_a,k+(ntozi-1)*levs))
-!        enddo
-!      endif
-!!  Read clw
-!      if (ntcwi .gt. 0) then
-!        do k=1,levs
-!          call gfsio_readrecv(gfile_in,'clwmr','layer',k,gfsio_data,
-!     &                                                         iret)
-!          call split2d(gfsio_data,buffo,global_lats_a)
-!          CALL interpred(1,kmsk,buffo,rqg(1,1,k+(ntcwi-1)*levs),
-!     &                                global_lats_a,lonsperlat)
-!        enddo
-!      endif
 !
 !   Convert from Gaussian grid to spectral space
 !   including converting to model_uvtp if necessary
@@ -429,7 +425,7 @@
 !
       endif
 !
-      call gfsio_close(gfile_in,iret)
+      call nemsio_close(gfile_in,iret)
 !
       iprint=0
  

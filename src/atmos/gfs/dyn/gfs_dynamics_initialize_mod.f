@@ -20,6 +20,7 @@
 !  november 2009 j. wang         grid_gr_dfi for digital filter
 !  Feb 05  2010 j. wang          add option to read in  restart file
 !  Aug 25  2010 sarah lu         add option to compute tracer global sum
+!  Sep 08  2010 J. Wang          changed gfsio file to nemsio file
 !
 !
 ! !interface:
@@ -30,7 +31,7 @@
 !
       use gfs_dynamics_getcf_mod
       use gfs_dyn_machine, only : kind_io4
-      use gfsio_module , only : gfsio_init
+      use module_nemsio , only : nemsio_init
 !
       use gfs_dyn_mod_state, only : buff_mult_pieceg
       use gfs_dyn_layout1, only : ipt_lats_node_a, lats_node_a_max
@@ -184,8 +185,8 @@
 
       allocate(spdmax(levs))
 
-      if (gfsio_in) then
-        call gfsio_init(ierr)
+      if (nemsio_in) then
+        call nemsio_init(ierr)
       endif
 
       allocate(lbasdz(4,2,levs),lbasiz(4,2,levs),detai(levp1), &
@@ -608,6 +609,7 @@
       gis_dyn%pdryini = 0.0
       print *,' grid_ini=',gis_dyn%nam_gfs_dyn%grid_ini,'fhrot=',fhrot,   &
        'fhini=',fhini,'restart_run=',gis_dyn%restart_run
+      write(0,*)'before input_fields'
 
       if( .not. gis_dyn%restart_run) then
         call input_fields(gis_dyn%nam_gfs_dyn%grid_ini, gis_dyn%pdryini,     &

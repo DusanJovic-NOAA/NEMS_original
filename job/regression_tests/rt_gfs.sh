@@ -74,17 +74,21 @@ cp MAPL.rc ${RUNDIR}/MAPL.rc
 cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
 
 if [ $IDVC = 2 ] ; then
-  cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/gfsanl.2009072400 ${RUNDIR}/.
-  cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/sfcanl.2009072400 ${RUNDIR}/.
+#  cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/gfsanl.2009072400 ${RUNDIR}/.
+#  cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/sfcanl.2009072400 ${RUNDIR}/.
+  cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio/hyb/t62/gfsanl.2010010100 ${RUNDIR}/.
+  cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio/hyb/t62/sfcanl.2010010100 ${RUNDIR}/.
 elif [ $IDVC = 3 ] ; then
   if [ $wave = 62 ] ; then
-  cp ${RTPWD}/GFS_NODFI/gfsanl.2009072400 ${RUNDIR}/.
-  cp ${RTPWD}/GFS_NODFI/sfcanl.2009072400 ${RUNDIR}/.
+##  cp ${RTPWD}/GFS_NODFI/gfsanl.2009072400 ${RUNDIR}/.
+##  cp ${RTPWD}/GFS_NODFI/sfcanl.2009072400 ${RUNDIR}/.
+  cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio/t62/gfsanl.2010010100 ${RUNDIR}/.
+  cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio/t62/sfcanl.2010010100 ${RUNDIR}/.
   else
-  cp /global/save/wx23lu/NEMS/ICs/gfsanl.2009072400 ${RUNDIR}/.
-  cp /global/save/wx23lu/NEMS/ICs/sfcanl.2009072400 ${RUNDIR}/.
-##cp ${RTPWD}/GFS_GOCART/gfsanl.2009072400 ${RUNDIR}/.
-##cp ${RTPWD}/GFS_GOCART/sfcanl.2009072400 ${RUNDIR}/.
+#  cp /global/save/wx23lu/NEMS/ICs/gfsanl.2009072400 ${RUNDIR}/.
+#  cp /global/save/wx23lu/NEMS/ICs/sfcanl.2009072400 ${RUNDIR}/.
+  cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio/t382/gfsanl.2010010100 ${RUNDIR}/.
+  cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio/t382/sfcanl.2010010100 ${RUNDIR}/.
   fi
 fi
 
@@ -99,7 +103,8 @@ cd $PATHRT
 
 echo 'RUNDIR=' $RUNDIR
 
-cp ${RTPWD}/GEFS_data_2008082500/* $RUNDIR
+#cp ${RTPWD}/GEFS_data_2008082500/* $RUNDIR
+cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio/GEFS_data_2008082500/* $RUNDIR
 
 cat gfs_fcst_run_GEFS.IN \
                     | sed s:_SRCDIR_:${PATHTR}:g \

@@ -1913,10 +1913,6 @@
           ENDDO
 
           IF(ARYINAME(N2IARY)=='IDAT') THEN
-            IDATE(1)=ARYIVAL(3,N2IARY)
-            IDATE(2)=ARYIVAL(2,N2IARY)
-            IDATE(3)=ARYIVAL(1,N2IARY)
-          ELSEIF(trim(ARYINAME(N2IARY))=='IDATE') THEN
             IDATE(4)=ARYIVAL(1,N2IARY)
             IDATE(2)=ARYIVAL(2,N2IARY)
             IDATE(3)=ARYIVAL(3,N2IARY)

@@ -53,8 +53,7 @@ OBJ_MOD	= \
 	  gfs_dyn_bfilt_def.o   	\
 	  gfs_dyn_glats.o	        \
 	  gfs_dyn_dfi_mod.o             \
-          gfsio_module.o                \
-	  gfsio_def.o	                \
+	  nemsio_def.o	                \
 	  wrtout_dynamics.o 
 
 OBJS   = \
@@ -140,7 +139,7 @@ OBJS_PORT = \
 
 OBJS_IO= \
 	grid_fix.o         \
-	treadeo.gfsio.o    \
+	treadeo_nemsio.o    \
 	treadg_nemsio.o    \
 	treads_nemsio.o    \
 	twrites_rst.o     \
@@ -148,8 +147,7 @@ OBJS_IO= \
 	grid_to_spect_inp.o    \
 	grid_to_spect_inp_1.o  \
 	spect_to_grid_inp.o    \
-	setsig.o           \
-	bafrio.o
+	setsig.o
 
 DEPEND_FILES = ${OBJS0:.o=.f} ${OBJ_MOD:.o=.f} ${OBJS:.o=.f} ${OBJS_PORT:.o=.f} ${OBJS_IO:.o=.f}
 
@@ -171,15 +169,6 @@ clean:
 
 gfs_dyn_physcons.o:	gfs_dyn_physcons.f
 		$(FC) $(FFLAG90) -c gfs_dyn_physcons.f
-
-gfsio_def.o:    gfsio_def.f
-		$(FC) $(FFLAG90) -c gfsio_def.f
-
-gfsio_module.o: gfsio_module.f
-		$(FC) $(FFLAG90) -c gfsio_module.f
-
-bafrio.o:	bafrio.f
-		$(FC) $(FFLAGS1) -c bafrio.f
 
 gfs_dynamics_err_msg_mod.o:	 gfs_dynamics_err_msg_mod.f
 		$(FC) $(FFLAG90) -c gfs_dynamics_err_msg_mod.f

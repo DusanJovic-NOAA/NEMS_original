@@ -8,6 +8,7 @@
 !program log
 !  20100205  J. WANG     Read in input restart files without computing 
 !                        pwat nad ptot
+!  20100908  J. WANG     remove gfsio module
 !
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
@@ -15,8 +16,6 @@
       use gfs_dyn_vert_def
       use gfs_dyn_date_def
       use namelist_dynamics_def
-      use gfsio_module
-      use gfsio_def
       use gfs_dyn_mpi_def
       use gfs_dyn_physcons, cp => con_cp , rd => con_rd
       use gfs_dyn_coordinate_def

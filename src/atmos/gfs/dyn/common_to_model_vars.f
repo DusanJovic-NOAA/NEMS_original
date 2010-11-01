@@ -95,12 +95,12 @@
             psg(i,lan) = log( psg(i,lan) * pa2cb )
           enddo
         endif
-       call mymaxmin(psg(1,lan),lons_lat,lonf,1,' psg in com to mdl')
+!       call mymaxmin(psg(1,lan),lons_lat,lonf,1,' psg in com to mdl')
 !
 !       call mymaxmin(rqg(1,lan,1),lons_lat,lonf,1,' rqg in com to mdl')
       enddo
 !
-      print *,' exit common_to_model_vars '
+!      print *,' exit common_to_model_vars '
 !!
       return
       end
