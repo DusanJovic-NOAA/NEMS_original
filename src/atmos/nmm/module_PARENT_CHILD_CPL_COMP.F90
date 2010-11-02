@@ -4156,10 +4156,10 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST             &  !<-- The Nesting Coupler's import state
-                              ,name     ='Parent-to-Child Comms'        &  !<-- Name of Attribute
-                              ,count    =NUM_CHILDREN                   &  !<-- Length of inserted array
-                              ,valueList=COMM_TO_MY_CHILDREN            &  !<-- Communicators to my children
+        CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
+                              ,name     ='Parent-to-Child Comms'          &  !<-- Name of Attribute
+                              ,count    =NUM_CHILDREN                     &  !<-- Length of inserted array
+                              ,valueList=COMM_TO_MY_CHILDREN              &  !<-- Communicators to my children
                               ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -5803,7 +5803,7 @@
       i_loop: DO I_CHILD=1,IM_END                                          !<-- Loop over child I's across its South/North boundaries
 !-----------------------------------------------------------------------
 !
-        REAL_I_PARENT=REAL_I_START+(I_CHILD-1)*RATIO_C_P                   !<-- Parent I index coinciding with child domain point
+        REAL_I_PARENT=REAL_I_START+(I_CHILD-1)*RATIO_C_P                   !<-- Parent I index coinciding with child domain's I=I_CHILD
 !
 !       i_block: IF(REAL_I_PARENT>=R_ITS.AND.REAL_I_PARENT<=R_IEND)THEN    !<-- Column (I) of child's S/N bndry point lies on parent task?
         i_block: IF(REAL_I_PARENT>=R_ITS.AND.REAL_I_PARENT< R_IEND)THEN    !<-- Column (I) of child's S/N bndry point lies on parent task?
@@ -5814,7 +5814,7 @@
 !-----------
 !-----------
 !
-          REAL_J_START=PARENT_J_CHILD_SBND
+          REAL_J_START=PARENT_J_CHILD_SBND                                 !<-- Parent J of nest's southern boundary row.
           KOUNT_J=0
 !
 !-----------------------------------------------------------------------
@@ -5898,7 +5898,8 @@
 !-----------
 !-----------
 !
-          REAL_J_START=PARENT_J_CHILD_NBND-(N_BLEND-1+N_ADD)*RATIO_C_P     !<-- N_ADD accounts for the additional row for H points
+          REAL_J_START=PARENT_J_CHILD_NBND-N_ADD*RATIO_C_P                 !<-- Parent J of 1 row south of child N bndry row.  N_ADD
+!                                                                          !    accounts for the extra row for H points in 4-pt interp.
           KOUNT_J=0
 !
 !-----------------------------------------------------------------------
@@ -5942,7 +5943,7 @@
 ! 
 !-----------------------------------------------------------------------
 !
-            j_north: DO J_CHILD=JM_END-N_BLEND+1-N_ADD,JM_END              !<-- Blending region of child's northern boundary
+            j_north: DO J_CHILD=JM_END,JM_END-N_BLEND+1-N_ADD,-1           !<-- Blending region of child's northern boundary
 !
 !-----------------------------------------------------------------------
 !
@@ -6014,13 +6015,13 @@
 !
 !-----------------------------------------------------------------------
 !
-      REAL_J_START=PARENT_J_CHILD_SBND
+      REAL_J_START=PARENT_J_CHILD_SBND                                     !<-- Parent J of child's south boundary row.
 !
 !-----------------------------------------------------------------------
       j_loop: DO J_CHILD=1,JM_END                                          !<-- Loop through child J's across its W/E boundaries
 !-----------------------------------------------------------------------
 
-        REAL_J_PARENT=REAL_J_START+(J_CHILD-1)*RATIO_C_P                   !<-- Parent J index coinciding with child domain point
+        REAL_J_PARENT=REAL_J_START+(J_CHILD-1)*RATIO_C_P                   !<-- Parent J index coinciding with child domain's J=J_CHILD
 !
 !       j_block: IF(REAL_J_PARENT>=R_JTS.AND.REAL_J_PARENT<=R_JEND)THEN    !<-- Row (J) of child's W/E bndry point lies on parent task?
         j_block: IF(REAL_J_PARENT>=R_JTS.AND.REAL_J_PARENT< R_JEND)THEN    !<-- Row (J) of child's W/E bndry point lies on parent task?
@@ -6031,7 +6032,7 @@
 !----------
 !----------
 !
-          REAL_I_START=PARENT_I_CHILD_WBND
+          REAL_I_START=PARENT_I_CHILD_WBND                                 !<-- Parent I of child's west boundary column.
           KOUNT_I=0
 !
 !-----------------------------------------------------------------------
@@ -6113,7 +6114,8 @@
 !----------
 !----------
 !
-          REAL_I_START=PARENT_I_CHILD_EBND-(N_BLEND-1+N_ADD)*RATIO_C_P
+          REAL_I_START=PARENT_I_CHILD_EBND-N_ADD*RATIO_C_P                 !<-- Parent I of 1 row west of child E bndry row.  N_ADD
+!                                                                          !    accounts for the extra row for H points in 4-pt interp.
           KOUNT_I=0
 !
 !-----------------------------------------------------------------------
@@ -6165,7 +6167,7 @@
 !
 !-----------------------------------------------------------------------
 !
-            i_east: DO I_CHILD=IM_END-N_BLEND+1-N_ADD,IM_END               !<-- Blending region of child's eastern boundary
+            i_east: DO I_CHILD=IM_END,IM_END-N_BLEND+1-N_ADD,-1            !<-- Blending region of child's eastern boundary
 !
               KOUNT_I=KOUNT_I+1
               REAL_I_PARENT=REAL_I_START+(KOUNT_I-1)*RATIO_C_P             !<-- REAL parent I for this child's I
