@@ -22,6 +22,7 @@
 !                        for nests.
 !   2009-03-12  Black  - Changes for general hybrid coordinate.
 !   2009-11     Jovic  - Modified for ownership/import/export specification
+!   2010-10     Pyle   - Modifications/corrections for digital filter.
 !
 !-----------------------------------------------------------------------
 !
@@ -885,7 +886,7 @@
 !
         ENDIF
 !
-      if (mype==-9999) then
+      if (mype==0) then
         write(0,*)'dynamics'
         write(0,*)'ihr,ihrst,lpt2,ntsti,ntstm=',int_state%ihr,int_state%ihrst,int_state%lpt2,int_state%ntsti,int_state%ntstm
         write(0,*)'idat=',int_state%idat(1),int_state%idat(2),int_state%idat(3)
@@ -1438,7 +1439,7 @@
 !
 !-----------------------------------------------------------------------
 !
-!        IF(MYPE==0)CALL ESMF_StatePrint(EXP_STATE)
+        IF(MYPE==0)CALL ESMF_StatePrint(EXP_STATE)
 !
       ENDIF fcst_tasks
 !
@@ -1484,8 +1485,10 @@
 !
       USE MODULE_FLTBNDS,ONLY: BOCOH,BOCOV,FFTFHN,FFTFUVN               &
                               ,IUNIT_POLE_SUMS                          &
-                              ,POAVHN,POLEHN,POLEWN,READ_BC             &
+                              ,POAVHN,POLEHN,POLEWN,READ_BC,WRITE_BC    &
                               ,SWAPHN,SWAPWN
+
+!!!      USE module_NMM_GRID_COMP, ONLY:  DFIHR
 !
 !-----------------------------------------------------------------------
 !
@@ -1493,12 +1496,12 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)               :: GRID_COMP                       !<-- The Dynamics gridded component
+      TYPE(ESMF_GridComp) :: GRID_COMP                                     !<-- The Dynamics gridded component
 !
-      TYPE(ESMF_State)               :: IMP_STATE                          !<-- The Dynamics import state
-      TYPE(ESMF_State)               :: EXP_STATE                          !<-- The Dynamics export state
+      TYPE(ESMF_State) :: IMP_STATE                                        !<-- The Dynamics import state
+      TYPE(ESMF_State) :: EXP_STATE                                        !<-- The Dynamics export state
 !
-      TYPE(ESMF_Clock)            :: CLOCK_ATM                             !<-- The ATM's ESMF Clock
+      TYPE(ESMF_Clock) :: CLOCK_ATM                                        !<-- The ATM's ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_RUN
 !
@@ -1506,9 +1509,12 @@
 !***  Local variables
 !---------------------
 !
+      INTEGER(kind=KINT) :: DFIHR
+
       INTEGER(kind=KINT) :: I,IER,INPES,IRTN,ISTAT,J,JNPES              &
                            ,K,KFLIP,KS,KSE1,L,N,NSTEPS_HISTORY          &
-                           ,NTIMESTEP,RC,SPECADV
+                           ,NTIMESTEP,RC,SPECADV,WRITE_BC_FLAG          &
+                           ,WRITE_BC_FLAG_NEST
 !
       INTEGER(kind=KINT),SAVE :: HDIFF_ON                               &
                                 ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG          &
@@ -1518,12 +1524,17 @@
 !
       LOGICAL(kind=KLOG) :: READBC
 !
+      TYPE(ESMF_TimeInterval) :: DT_ESMF                                   !<-- The ESMF fundamental timestep (s)
+!
 !------------------------------------------------------------------
 !***  The following SAVEs are for dereferenced constant variables.
 !------------------------------------------------------------------
 !
-      INTEGER(kind=KINT),SAVE :: IDTAD,IDTADT,IHRSTBC,KSE,KSS           &
-                                ,LNSAD,LNSH,LNSV,LPT2,NBOCO
+      INTEGER(kind=KINT),SAVE :: IDTAD,IDTADT,IFACT,IHRSTBC,KSE,KSS &
+                                ,LNSAD,LNSH,LNSV,LPT2,NBOCO         &
+                                ,INTEGER_DT                         &
+                                ,NUMERATOR_DT                       &
+                                ,IDENOMINATOR_DT
 !
       INTEGER(kind=KINT),DIMENSION(3),SAVE :: IDATBC
 !
@@ -1552,10 +1563,12 @@
 !
       LOGICAL(kind=KLOG),SAVE :: FIRST_PASS=.TRUE.
       LOGICAL(kind=KLOG),SAVE :: GLOBAL,HYDRO,RUNBC,SECADV
-      LOGICAL(kind=KLOG)      :: COMPUTE_BC
+      LOGICAL(kind=KLOG)      :: COMPUTE_BC 
 !
       INTEGER(kind=KINT),SAVE :: N_PRINT_STATS                             !<--- Timesteps between statistics prints
       LOGICAL(kind=KLOG),SAVE :: written=.false.
+      REAL(kind=KFPT), SAVE :: DT_LAST, DT_TEST
+
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -1587,6 +1600,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ClockGet(clock       =CLOCK_ATM                         &  !<-- The ESMF Clock
+                        ,timeStep    =DT_ESMF                           &  !<-- Fundamental timestep (s) (ESMF)
                         ,advanceCount=NTIMESTEP_ESMF                    &  !<-- The number of times the clock has been advanced
                         ,rc          =RC)
 !
@@ -1594,7 +1608,18 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+        CALL ESMF_TimeIntervalGet(timeinterval=DT_ESMF                  &  !<-- the ESMF timestep
+                                 ,s           =INTEGER_DT               &  !<-- the integer part of the timestep in seconds
+                                 ,sN          =NUMERATOR_DT             &  !<-- the numerator of the fractional second
+                                 ,sD          =IDENOMINATOR_DT          &  !<-- the denominator of the fractional second
+                                 ,rc          =RC)
+
+        int_state%DT=REAL(INTEGER_DT)+REAL(NUMERATOR_DT)                &  !<-- Fundamental tiemstep (s) (REAL)
+                                     /REAL(IDENOMINATOR_DT)
+        DT=int_state%DT
+
       NTIMESTEP=NTIMESTEP_ESMF
+
       int_state%NTSD=NTIMESTEP
 !
 !-----------------------------------------------------------------------
@@ -1604,7 +1629,14 @@
 !***  the Physics has not run yet.
 !-----------------------------------------------------------------------
 !
+!d      btim=timef()
       CALL GET_VARS_FROM_STATE(int_state%VARS, int_state%NUM_VARS, IMP_STATE)
+!
+!d      IF(.NOT.int_state%FIRST)THEN
+!d        CALL UPDATE_INTERNAL_STATE_DYN(IMP_STATE,INT_STATE)
+!d      ENDIF 
+!
+!d      update_dyn_int_state_tim=update_dyn_int_state_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  Do some work that only needs to be done once at the start of
@@ -1612,7 +1644,119 @@
 !***  horizontal diffusion flag.
 !-----------------------------------------------------------------------
 !
+        DT_TEST=INTEGER_DT
+!
+!-----------------------------------------------------------------------
+        not_firstpass: IF (.NOT. FIRST_PASS) THEN
+!-----------------------------------------------------------------------
+!
+          changedir: IF (DT_LAST .ne. DT_TEST) then
+!
+            write(0,*) 'change in integration direction...'
+!
+!***  Setting previous time level variables (Adams-Bashforth scheme)
+!***  to the current time level.  Seems safer than potentially leaving them
+!***  defined as values at a very different point in the time integration.
+!
+            int_state%TP=int_state%T
+            int_state%UP=int_state%U
+            int_state%VP=int_state%V
+!
+            IFACT=-1
+!
+            int_state%DDMPV=IFACT*int_state%DDMPV
+            int_state%EF4T=IFACT*int_state%EF4T
+            DDMPV=int_state%DDMPV
+            EF4T=int_state%EF4T
+!
+            DO J=JDS,JDE
+              int_state%DDMPU(J)=IFACT*int_state%DDMPU(J)
+              int_state%FAD(J)=IFACT*int_state%FAD(J)
+              int_state%FAH(J)=IFACT*int_state%FAH(J)
+              int_state%FCP(J)=IFACT*int_state%FCP(J)
+              int_state%WPDAR(J)=IFACT*int_state%WPDAR(J)
+!
+              DDMPU(J)=int_state%DDMPU(J)
+              FAD(J)=int_state%FAD(J)
+              FAH(J)=int_state%FAH(J)
+              FCP(J)=int_state%FCP(J)
+              WPDAR(J)=int_state%WPDAR(J)
+            ENDDO
+!
+            DO J=JMS,JME
+            DO I=IMS,IME
+              int_state%HDACX(I,J)=IFACT*int_state%HDACX(I,J)
+              int_state%HDACY(I,J)=IFACT*int_state%HDACY(I,J)
+              int_state%HDACVX(I,J)=IFACT*int_state%HDACVX(I,J)
+              int_state%HDACVY(I,J)=IFACT*int_state%HDACVY(I,J)
+
+              HDACX(I,J)=int_state%HDACX(I,J)
+              HDACY(I,J)=int_state%HDACY(I,J)
+              HDACVX(I,J)=int_state%HDACVX(I,J)
+              HDACVY(I,J)=int_state%HDACVY(I,J)
+            ENDDO
+            ENDDO
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Dyn_Run Gets HDIFF from Import State"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeGet(state=IMP_STATE                      &  !<-- The Dynamics import state
+                                  ,name ='HDIFF'                        &  !<-- Name of the Attribute to extract 
+                                  ,value=HDIFF_ON                       &  !<-- Put the Attribute here
+                                  ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+
+! could these halo exchanges be a single row?
+            CALL HALO_EXCH                                              &
+             (int_state%T,LM                                            &
+             ,int_state%Q,LM                                            &
+             ,int_state%CW,LM                                           &
+             ,2,2)
+!
+            CALL HALO_EXCH                                              &
+             (int_state%U,LM                                            &
+             ,int_state%V,LM                                            &
+             ,2,2)
+!
+            CALL HALO_EXCH                                              &
+             (int_state%PD,1                                            &
+             ,2,2)
+!
+            CALL WRITE_BC(LM,LNSH,LNSV,NTIMESTEP,DT                     &
+                         ,RUNBC,IDATBC,IHRSTBC                          &
+                         ,TBOCO+int_state%DFIHR_BOCO/2.                 &
+                         ,int_state%PDBS,int_state%PDBN                 &
+                         ,int_state%PDBW,int_state%PDBE                 &
+                         ,int_state%TBS,int_state%TBN                   &
+                         ,int_state%TBW,int_state%TBE                   &
+                         ,int_state%QBS,int_state%QBN                   &
+                         ,int_state%QBW,int_state%QBE                   &
+                         ,int_state%WBS,int_state%WBN                   &
+                         ,int_state%WBW,int_state%WBE                   &
+                         ,int_state%UBS,int_state%UBN                   &
+                         ,int_state%UBW,int_state%UBE                   &
+                         ,int_state%VBS,int_state%VBN                   &
+                         ,int_state%VBW,int_state%VBE                   &
+                         ,int_state%PD,int_state%T                      &
+                         ,int_state%Q,int_state%CW                      &
+                         ,int_state%U,int_state%V                       &
+                         ,MY_DOMAIN_ID,.true.)                             !<-- Recompute tendencies at this stage?
+!
+          ENDIF changedir 
+!
+!-----------------------------------------------------------------------
+        ENDIF not_firstpass
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
       firstpass: IF(FIRST_PASS)THEN
+!-----------------------------------------------------------------------
 !
         FIRST_PASS=.FALSE.
 !
@@ -1699,7 +1843,21 @@
           SG2(L)=int_state%SG2(L)
         ENDDO
 !
+        if (INTEGER_DT >= 0) IFACT=1
+        if (INTEGER_DT <  0) IFACT=-1
+        int_state%DDMPV=IFACT*int_state%DDMPV
+        int_state%EF4T=IFACT*int_state%EF4T
+!
+        DDMPV=int_state%DDMPV
+        EF4T=int_state%EF4T
+!
         DO J=JDS,JDE
+          int_state%DDMPU(J)=IFACT*int_state%DDMPU(J)
+          int_state%FAD(J)=IFACT*int_state%FAD(J)
+          int_state%FAH(J)=IFACT*int_state%FAH(J)
+          int_state%FCP(J)=IFACT*int_state%FCP(J)
+          int_state%WPDAR(J)=IFACT*int_state%WPDAR(J)
+!
           CURV(J)=int_state%CURV(J)
           DARE(J)=int_state%DARE(J)
           DDMPU(J)=int_state%DDMPU(J)
@@ -1707,15 +1865,20 @@
           FAD(J)=int_state%FAD(J)
           FAH(J)=int_state%FAH(J)
           FCP(J)=int_state%FCP(J)
+          WPDAR(J)=int_state%WPDAR(J)
           FDIV(J)=int_state%FDIV(J)
           RARE(J)=int_state%RARE(J)
           RDXV(J)=int_state%RDXV(J)
           RDXH(J)=int_state%RDXH(J)
-          WPDAR(J)=int_state%WPDAR(J)
         ENDDO
 !
         DO J=JMS,JME
         DO I=IMS,IME
+          int_state%HDACX(I,J)=IFACT*int_state%HDACX(I,J)
+          int_state%HDACY(I,J)=IFACT*int_state%HDACY(I,J)
+          int_state%HDACVX(I,J)=IFACT*int_state%HDACVX(I,J)
+          int_state%HDACVY(I,J)=IFACT*int_state%HDACVY(I,J)
+!
           F(I,J)=int_state%F(I,J)
           FIS(I,J)=int_state%FIS(I,J)
           HDACX(I,J)=int_state%HDACX(I,J)
@@ -1763,6 +1926,7 @@
 !
       firststep: IF(int_state%FIRST.AND.                                &  !<--  The following block is used only for
                     .NOT.int_state%RESTART)THEN                            !     the first timestep and cold start
+
 !
 !-----------------------------------------------------------------------
 !
@@ -2043,17 +2207,116 @@
 !***  from the Dynamics import state and compute the time tendencies.
 !-----------------------------------------------------------------------
 !
-        bc_update: IF(.NOT.GLOBAL)THEN
+        IF (.NOT. I_AM_A_NEST .and. .NOT. GLOBAL) THEN                     !<-- For single domains or uppermost parents
+!           
+          READBC=(NTIMESTEP==1.OR.MOD(NTIMESTEP,NBOCO)==0)
 !
+          IF(READBC)THEN                                                   !<-- Is it time to read BCs?
+!
+            IF (MYPE == 0) THEN
+              WRITE_BC_FLAG=0
+              IF ( NTIMESTEP.LE.1.AND.                                  &
+                   int_state%PDBS(1,1,1)/=0.AND.                        &
+                   int_state%PDBS(1,1,2)/=0) THEN
+                WRITE_BC_FLAG=1
+              ELSE
+                WRITE_BC_FLAG=0
+              ENDIF
+            ENDIF
+!
+            CALL MPI_BCAST(WRITE_BC_FLAG,1,MPI_INTEGER,0,MPI_COMM_COMP,IRTN)
+!
+            IF (WRITE_BC_FLAG == 1) THEN  
+              CALL HALO_EXCH                                            &
+               (int_state%T,LM                                          &
+               ,int_state%Q,LM                                          &
+               ,int_state%CW,LM                                         &
+               ,2,2)
+!
+              CALL HALO_EXCH                                            &
+               (int_state%U,LM                                          &
+               ,int_state%V,LM                                          &
+               ,2,2)
+!
+             CALL HALO_EXCH                                             &
+              (int_state%PD,1                                           &
+              ,2,2)
+!
+            ENDIF
+!
+          ENDIF ! READBC
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+        bc_update: IF(.NOT.GLOBAL)THEN
+!-----------------------------------------------------------------------
+!
+          IF(I_AM_A_NEST)THEN
+            WRITE_BC_FLAG_NEST=0
+!
+            IF (S_BDY .and. W_BDY .and. NTIMESTEP <= 1 .and. &
+                int_state%PDBS(1,1,1)/=0.and.int_state%PDBS(1,1,2)/=0) THEN
+              WRITE_BC_FLAG_NEST=1
+            ENDIF
+!
+            CALL MPI_BCAST(WRITE_BC_FLAG_NEST,1,MPI_INTEGER,0,MPI_COMM_COMP,IRTN)
+!
+            IF (WRITE_BC_FLAG_NEST == 1) THEN
+              CALL HALO_EXCH                                            &
+               (int_state%T,LM                                          &
+               ,int_state%Q,LM                                          &
+               ,int_state%CW,LM                                         &
+               ,2,2)
+!
+              CALL HALO_EXCH                                            &
+               (int_state%U,LM                                          &
+               ,int_state%V,LM                                          &
+               ,2,2)
+!
+              CALL HALO_EXCH                                            &
+               (int_state%PD,1                                          &
+               ,2,2)
+            ENDIF
+          ENDIF
+!
+!-----------------------------------------------------------------------
           boundary_tendencies: IF(S_BDY.OR.N_BDY.OR.W_BDY.OR.E_BDY)THEN
+!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------
 !***  Nests update boundary tendencies based on data from parent.
 !-----------------------------------------------------------------
 !
             IF(I_AM_A_NEST)THEN
+!
               COMPUTE_BC=(NTIMESTEP==1.OR.                              &
                           MOD(NTIMESTEP,PARENT_CHILD_TIME_RATIO)==0)
+!
+!***  For digital filtering
+!
+              IF (NTIMESTEP <= 1 .and. WRITE_BC_FLAG_NEST == 1) THEN
+                TBOCO=PARENT_CHILD_TIME_RATIO*DT
+                CALL WRITE_BC(LM,LNSH,LNSV,NTIMESTEP,DT                 &
+                             ,RUNBC,IDATBC,IHRSTBC,TBOCO                &
+                             ,int_state%PDBS,int_state%PDBN             &
+                             ,int_state%PDBW,int_state%PDBE             &
+                             ,int_state%TBS,int_state%TBN               &
+                             ,int_state%TBW,int_state%TBE               &
+                             ,int_state%QBS,int_state%QBN               &
+                             ,int_state%QBW,int_state%QBE               &
+                             ,int_state%WBS,int_state%WBN               &
+                             ,int_state%WBW,int_state%WBE               &
+                             ,int_state%UBS,int_state%UBN               &
+                             ,int_state%UBW,int_state%UBE               &
+                             ,int_state%VBS,int_state%VBN               &
+                             ,int_state%VBW,int_state%VBE               &
+                             ,int_state%PD,int_state%T                  &
+                             ,int_state%Q,int_state%CW                  &
+                             ,int_state%U,int_state%V                   &
+                             ,MY_DOMAIN_ID,.false.)                        !<-- logical is whether tendencies are recomputed
+
+              ENDIF 
 !
               IF(COMPUTE_BC)THEN
 !     call print_memory()
@@ -2072,18 +2335,21 @@
                                     ,int_state%UBW,int_state%UBE        &
                                     ,int_state%VBS,int_state%VBN        &
                                     ,int_state%VBW,int_state%VBE )
-!     call print_memory()
-              ENDIF
 !
-!---------------------------------------------------------------
+!     call print_memory()
+              ENDIF  ! compute_bc
+!
+!-----------------------------------------------------------------------
 !***  Single/uppermost domain reads its own boundary input data
-!---------------------------------------------------------------
+!-----------------------------------------------------------------------
 !
             ELSE
               READBC=(NTIMESTEP==1.OR.MOD(NTIMESTEP,NBOCO)==0)
 !
               IF(READBC)THEN
-                CALL READ_BC(LM,LNSH,LNSV,NTIMESTEP,DT                  &
+!
+                IF (WRITE_BC_FLAG == 0) THEN
+                  CALL READ_BC(LM,LNSH,LNSV,NTIMESTEP,DT                &
                             ,RUNBC,IDATBC,IHRSTBC,TBOCO                 &
                             ,int_state%PDBS,int_state%PDBN              &
                             ,int_state%PDBW,int_state%PDBE              &
@@ -2098,13 +2364,42 @@
                             ,int_state%VBS,int_state%VBN                &
                             ,int_state%VBW,int_state%VBE                &
                             ,MY_DOMAIN_ID)
-              ENDIF
+
+                ELSE
+
+                  IF (NTIMESTEP==0) THEN
+                    CALL WRITE_BC(LM,LNSH,LNSV,NTIMESTEP,DT             &
+                            ,RUNBC,IDATBC,IHRSTBC,TBOCO                 &
+                            ,int_state%PDBS,int_state%PDBN              &
+                            ,int_state%PDBW,int_state%PDBE              &
+                            ,int_state%TBS,int_state%TBN                &
+                            ,int_state%TBW,int_state%TBE                &
+                            ,int_state%QBS,int_state%QBN                &
+                            ,int_state%QBW,int_state%QBE                &
+                            ,int_state%WBS,int_state%WBN                &
+                            ,int_state%WBW,int_state%WBE                &
+                            ,int_state%UBS,int_state%UBN                &
+                            ,int_state%UBW,int_state%UBE                &
+                            ,int_state%VBS,int_state%VBN                &
+                            ,int_state%VBW,int_state%VBE                &
+                            ,int_state%PD,int_state%T                   &
+                            ,int_state%Q,int_state%CW                   &
+                            ,int_state%U,int_state%V                    &
+                            ,MY_DOMAIN_ID,.true.) ! logical is whether tendencies are recomputed
+                 ENDIF
+                ENDIF !write_bc_flag
 !
-            ENDIF
+              ENDIF !read_bc
+!
+            ENDIF ! am_a_nest
+!
+!-----------------------------------------------------------------------
 !
           ENDIF boundary_tendencies
 !
           btim=timef()
+!
+!-----------------------------------------------------------------------
 !
           CALL BOCOH                                                    &
             (LM,LNSH,DT,PT,DSG2,PDSG1                                   &
@@ -3365,6 +3660,11 @@
 !***  Write the layer statistics for temperature.
 !-----------------------------------------------------------------------
 !
+
+!    hold onto DT to compare and see if sign has changed (for filtering)
+
+      DT_LAST=DT_TEST
+
       IF(MOD(ABS(NTIMESTEP)+1,N_PRINT_STATS)==0)THEN
 !
         CALL FIELD_STATS(INT_STATE%T,MYPE,MPI_COMM_COMP,LM              &
@@ -3500,6 +3800,7 @@
 !
       REAL,INTENT(IN) :: DT                                                !<-- This domain's fundamental timestep
 !
+!
       TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                          !<-- Dynamics import state
 !
       REAL,DIMENSION(IMS:IME,1:LNSH,     1:2),INTENT(INOUT) :: PDBS,PDBN   !<-- South/North PD values/tendencies
@@ -3531,7 +3832,7 @@
 !
       INTEGER      :: I,J,K,KOUNT,RC,RC_BCT
 !
-      REAL,SAVE :: RECIP
+      REAL :: RECIP
 !
       REAL,DIMENSION(:),POINTER,SAVE :: BND_DATA_S_H                    &
                                        ,BND_DATA_S_V                    & 
@@ -3593,8 +3894,20 @@
         ALLOCATE(BND_DATA_E_H(1:KOUNT_E_H))
         ALLOCATE(BND_DATA_E_V(1:KOUNT_E_V))
 !
-        RECIP=1./(DT*PARENT_CHILD_TIME_RATIO)
+        NULLIFY(BND_DATA_S_H)
+        NULLIFY(BND_DATA_S_V)
+        NULLIFY(BND_DATA_N_H)
+        NULLIFY(BND_DATA_N_V)
+        NULLIFY(BND_DATA_W_H)
+        NULLIFY(BND_DATA_W_V)
+        NULLIFY(BND_DATA_E_H)
+        NULLIFY(BND_DATA_E_V)
+!
       ENDIF
+
+! compute RECIP every time in case sign of DT has changed due to filtering
+      RECIP=1./(DT*PARENT_CHILD_TIME_RATIO)
+
 !
 !-----------------------------------------------------------------------
 !***  Unload the boundary data from the import state and compute

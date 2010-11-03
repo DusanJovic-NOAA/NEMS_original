@@ -41,6 +41,10 @@ use module_dm_parallel,only : ids,ide,jds,jde &
 use module_exchange,only: halo_exch
 use module_fltbnds,only: polehn,polewn,swaphn,swapwn
 use module_constants
+
+use esmf_mod, only:  esmf_abort, esmf_finalize
+
+!
 !
 integer(kind=kint),save :: &
  iunit_advec_sums 
@@ -1108,7 +1112,16 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
 integer(kind=kint):: &
  i &                         ! index in x direction
 ,j &                         ! index in y direction
-,l                           ! index in p direction
+,l,mype &                    ! index in p direction
+,loc_npts &                  ! local point counts for diag
+,glb_npts &                  ! global point counts for diag
+,iret &                    
+,rc                         
+
+
+real(kind=kfpt) :: &
+ task_change &               ! task sum of abs(surface pressure change)
+,global_change               ! domain total sum
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -1174,12 +1187,50 @@ integer(kind=kint):: &
 !-----------------
 #endif
 !-----------------
+
+!      loc_npts=0
+!      task_change=0.
+
       do j=jstart,jstop
         do i=its_b1,ite_b1
           psdt(i,j)=-div(i,j,lm)
           pd(i,j)=psdt(i,j)*dt+pd(i,j)
         enddo
       enddo
+
+!      do j=jstart,jstop
+!        do i=its_b1,ite_b1
+!          if (abs(psdt(i,j)*dt) .ge. 250.) then
+!            write(0,*) 'big PD change...I,J, change: ', I,J, psdt(i,j)*dt
+!          endif
+!
+!          if (abs(psdt(i,j)*dt) .ge. 1000.) then
+!            write(0,*) 'huge PD change...I,J, change: ', I,J, psdt(i,j)*dt
+!            call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!          endif
+!
+!          loc_npts=loc_npts+1
+!          task_change=task_change+abs(PSDT(I,J)* (108./abs(dt)) )  ! .01*10800/dt (hPa/3 h)
+!
+!        enddo
+!      enddo
+!
+!      call mpi_reduce(task_change, global_change, 1, mpi_real, mpi_sum,0, &
+!                      mpi_comm_comp, iret)
+!
+!      call mpi_reduce(loc_npts, glb_npts, 1, mpi_integer, mpi_sum,0, &
+!                      mpi_comm_comp, iret)
+!
+!      mype=mype_share
+!
+!      if (mype == 0) then
+!        if (dt .gt. 0) then
+!          write(0,*) 'FWD avg global change (hPa/3h): ', GLOBAL_CHANGE/ GLB_NPTS
+!        else
+!          write(0,*) 'BCKWD avg global change (hPa/3h): ', GLOBAL_CHANGE/ GLB_NPTS
+!        endif
+!      endif
+
 !-----------------------------------------------------------------------
 !---boundary conditions-------------------------------------------------
 !-----------------------------------------------------------------------

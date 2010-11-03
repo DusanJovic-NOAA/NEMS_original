@@ -136,7 +136,7 @@
                                                    ,DUDT,DVDT           &
                                                    ,Q,CW                &
                                                    ,Q2,OMGALF           &
-                                                   ,O3
+                                                   ,O3,PINT,DWDT
 !
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: RLWTT,RSWTT
 !
@@ -829,6 +829,8 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'Q2'         ,int_state%Q2       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'OMGALF'     ,int_state%OMGALF   ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'T'          ,int_state%T	     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'PINT'       ,int_state%PINT     ,(/ IMS,JMS,1 /),(/ IME,JME,LM+1 /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'DWDT'       ,int_state%DWDT     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'Q'          ,int_state%Q	     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'U'          ,int_state%U	     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'V'          ,int_state%V	     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))

@@ -484,11 +484,33 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ESMF_ConfigGetAttribute(config=CF                            &
                                   ,value =int_state%FILTER_METHOD       &
                                   ,label ='filter_method:'              &
                                   ,rc    =RC)
+
+      IF (int_state%FILTER_METHOD == 1) THEN
+
+        CALL ESMF_ConfigGetAttribute(config=CF                          &
+                                    ,value = int_state%DFIHR_BOCO       &
+                                    ,label ='nsecs_dfl:'                &
+                                    ,rc    =RC)
+
+      ELSEIF (int_state%FILTER_METHOD == 2) THEN
+
+        CALL ESMF_ConfigGetAttribute(config=CF                          &
+                                    ,value = int_state%DFIHR_BOCO       &
+                                    ,label ='nsecs_bckddfi:'            &
+                                    ,rc    =RC)
+
+      ELSEIF (int_state%FILTER_METHOD == 3) THEN
+
+        CALL ESMF_ConfigGetAttribute(config=CF                          &
+                                    ,value = int_state%DFIHR_BOCO       &
+                                    ,label ='nsecs_bcktdfi:'            &
+                                    ,rc    =RC)
+
+      ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)

@@ -5732,6 +5732,562 @@ logical(kind=klog) :: opened
 !
 !-----------------------------------------------------------------------
                         end subroutine read_bc
+
+!-----------------------------------------------------------------------
+                        subroutine write_bc &
+(lm,lnsh,lnsv,ntsd,dt &
+,runbc,idatbc,ihrstbc,tboco &
+,pdbs,pdbn,pdbw,pdbe &
+,tbs,tbn,tbw,tbe &
+,qbs,qbn,qbw,qbe &
+,wbs,wbn,wbw,wbe &
+,ubs,ubn,ubw,ube &
+,vbs,vbn,vbw,vbe &
+,PD,T,Q,CWM,U,V &
+,my_domain_id,recomp_tend)
+!-----------------------------------------------------------------------
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!-----------------------------------------------------------------------
+!
+implicit none
+!
+!-----------------------------------------------------------------------
+!
+!include 'kind.inc'
+!
+!-----------------------------------------------------------------------
+integer(kind=kint),intent(in):: &
+ lm  &                       ! total # of levels
+,lnsh &                      ! # of boundary h lines for bc in reg. setup
+,lnsv &                      ! # of boundary v lines for bc in reg. setup
+,ntsd &                      ! current timestep
+,my_domain_id                ! the domain ID
+
+integer(kind=kint),intent(out):: &
+ ihrstbc                     ! boundary conditions starting time
+
+integer(kind=kint),dimension(1:3),intent(out):: &
+ idatbc                      ! date of boundary data, day, month, year
+
+real(kind=kfpt),intent(in):: &
+ dt                          ! dynamics time step
+
+logical, intent(in) :: recomp_tend
+
+real(kind=kfpt),dimension(ims:ime,jms:jme),intent(in):: &
+ PD   
+
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(in):: &
+ T   &
+,Q   &
+,CWM  &
+,U   &
+,V 
+
+real(kind=kfpt),intent(in):: &
+ tboco                       ! boundary conditions interval
+
+real(kind=kfpt),dimension(ims:ime,1:lnsh,1:2),intent(out):: &
+ pdbn &                      ! pressure difference at northern boundary
+,pdbs                        ! pressure difference at southern boundary
+
+real(kind=kfpt),dimension(1:lnsh,jms:jme,1:2),intent(out):: &
+ pdbe &                      ! pressure difference at eastern boundary
+,pdbw                        ! pressure difference at western boundary
+
+real(kind=kfpt),dimension(ims:ime,1:lnsh,1:lm,1:2),intent(out):: &
+ tbn &                       ! temperature at northern boundary
+,tbs &                       ! temperature at southern boundary
+,qbn &                       ! specific humidity at northern boundary
+,qbs &                       ! specific humidity at southern boundary
+,wbn &                       ! condensate at northern boundary
+,wbs                         ! condensate at southern boundary
+
+real(kind=kfpt),dimension(1:lnsh,jms:jme,1:lm,1:2),intent(out):: &
+ tbe &                       ! temperature at eastern boundary
+,tbw &                       ! temperature at western boundary
+,qbe &                       ! specific humidity at eastern boundary
+,qbw &                       ! specific humidity at western boundary
+,wbe &                       ! condensate at eastern boundary
+,wbw                         ! condensate at western boundary
+
+real(kind=kfpt),dimension(ims:ime,1:lnsv,1:lm,1:2),intent(out):: &
+ ubn &                       ! u wind component at northern boundary
+,ubs &                       ! u wind component at southern boundary
+,vbn &                       ! v wind component at northern boundary
+,vbs                         ! v wind component at southern boundary
+
+real(kind=kfpt),dimension(1:lnsv,jms:jme,1:lm,1:2),intent(out):: &
+ ube &                       ! u wind component at eastern boundary
+,ubw &                       ! u wind component at western boundary
+,vbe &                       ! v wind component at eastern boundary
+,vbw                         ! v wind component at western boundary
+
+real(kind=kfpt),allocatable,dimension(:,:,:) :: targpdbn,targpdbs,targpdbe,targpdbw
+
+real(kind=kfpt),allocatable,dimension(:,:,:,:) :: targtbn,targtbs,targtbe,targtbw
+real(kind=kfpt),allocatable,dimension(:,:,:,:) :: targqbn,targqbs,targqbe,targqbw
+real(kind=kfpt),allocatable,dimension(:,:,:,:) :: targwbn,targwbs,targwbe,targwbw
+real(kind=kfpt),allocatable,dimension(:,:,:,:) :: targubn,targubs,targube,targubw
+real(kind=kfpt),allocatable,dimension(:,:,:,:) :: targvbn,targvbs,targvbe,targvbw
+
+logical(kind=klog) :: runbc
+!-----------------------------------------------------------------------
+!---local variables-----------------------------------------------------
+!-----------------------------------------------------------------------
+integer(kind=kint):: &
+ i &                         ! index in x direction
+,i_hi &                      ! max i loop limit (cannot be > ide)
+,i_lo &                      ! min i loop limit (cannot be < ids)
+,ihr &                       ! current hour
+,ihrbc &                     ! current hour for bc's
+,istat &                     ! return status
+,iunit &                     ! file unit number
+,j_hi &                      ! max j loop limit (cannot be > jde)
+,j_lo &                      ! min j loop limit (cannot be < jds)
+,l &
+,n1 &                        ! dimension 1 of working arrays
+,n2 &                        ! dimension 2 of working arrays
+,n3 &                        ! dimension 3 of working arrays
+,n4                          ! dimension 4 of working arrays
+
+character(64) :: infile
+logical(kind=klog) :: opened
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!***  Because subdomains that lie along the global domain boundary
+!***  may have haloes that extend beyond the global limits, create
+!***  limits here that keep loops from reaching beyond those
+!***  global limits.
+!-----------------------------------------------------------------------
+!
+      i_lo=max(ims,ids)
+      i_hi=min(ime,ide)
+      j_lo=max(jms,jds)
+      j_hi=min(jme,jde)
+!
+
+    write(0,*) 'inside write_bc'
+
+!!! allocation block
+      if (recomp_tend) then
+
+	if (.not. allocated(targpdbn)) then
+           ALLOCATE(targpdbn(ims:ime,1:lnsh,1))
+           ALLOCATE(targpdbs(ims:ime,1:lnsh,1))
+           ALLOCATE(targpdbw(1:lnsh,jms:jme,1))
+           ALLOCATE(targpdbe(1:lnsh,jms:jme,1))
+
+           ALLOCATE(targtbn(ims:ime,1:lnsh,LM,1))
+           ALLOCATE(targtbs(ims:ime,1:lnsh,LM,1))
+           ALLOCATE(targtbw(1:lnsh,jms:jme,LM,1))
+           ALLOCATE(targtbe(1:lnsh,jms:jme,LM,1))
+
+           ALLOCATE(targqbn(ims:ime,1:lnsh,LM,1))
+           ALLOCATE(targqbs(ims:ime,1:lnsh,LM,1))
+           ALLOCATE(targqbw(1:lnsh,jms:jme,LM,1))
+           ALLOCATE(targqbe(1:lnsh,jms:jme,LM,1))
+
+           ALLOCATE(targwbn(ims:ime,1:lnsh,LM,1))
+           ALLOCATE(targwbs(ims:ime,1:lnsh,LM,1))
+           ALLOCATE(targwbw(1:lnsh,jms:jme,LM,1))
+           ALLOCATE(targwbe(1:lnsh,jms:jme,LM,1))
+
+           ALLOCATE(targubn(ims:ime,1:lnsv,LM,1))
+           ALLOCATE(targubs(ims:ime,1:lnsv,LM,1))
+           ALLOCATE(targubw(1:lnsv,jms:jme,LM,1))
+           ALLOCATE(targube(1:lnsv,jms:jme,LM,1))
+
+           ALLOCATE(targvbn(ims:ime,1:lnsv,LM,1))
+           ALLOCATE(targvbs(ims:ime,1:lnsv,LM,1))
+           ALLOCATE(targvbw(1:lnsv,jms:jme,LM,1))
+           ALLOCATE(targvbe(1:lnsv,jms:jme,LM,1))
+	endif
+
+        IF (n_bdy) THEN
+          do n3=1,1
+            do n2=1,lnsh
+            do n1=i_lo,i_hi
+              targpdbn(n1,n2,n3)=pdbn(n1,n2,1)+tboco*pdbn(n1,n2,2)
+            enddo
+            enddo
+          enddo
+
+          do n4=1,1
+          do n3=1,lm
+            do n2=1,lnsh
+            do n1=i_lo,i_hi
+              targtbn(n1,n2,n3,n4)=tbn(n1,n2,n3,1)+tboco*tbn(n1,n2,n3,2)
+              targqbn(n1,n2,n3,n4)=qbn(n1,n2,n3,1)+tboco*qbn(n1,n2,n3,2)
+              targwbn(n1,n2,n3,n4)=wbn(n1,n2,n3,1)+tboco*wbn(n1,n2,n3,2)
+            enddo
+            enddo
+          enddo
+          enddo
+
+          do n4=1,1
+          do n3=1,lm
+            do n2=1,lnsv
+            do n1=i_lo,i_hi
+              targubn(n1,n2,n3,n4)=ubn(n1,n2,n3,1)+tboco*ubn(n1,n2,n3,2)
+              targvbn(n1,n2,n3,n4)=vbn(n1,n2,n3,1)+tboco*vbn(n1,n2,n3,2)
+            enddo
+            enddo
+          enddo
+          enddo
+	ENDIF ! N_BDY
+
+        IF (s_bdy) THEN
+          do n3=1,1
+            do n2=1,lnsh
+            do n1=i_lo,i_hi
+              targpdbs(n1,n2,n3)=pdbs(n1,n2,1)+tboco*pdbs(n1,n2,2)
+            enddo
+            enddo
+          enddo
+
+          do n4=1,1
+          do n3=1,lm
+            do n2=1,lnsh
+            do n1=i_lo,i_hi
+              targtbs(n1,n2,n3,n4)=tbs(n1,n2,n3,1)+tboco*tbs(n1,n2,n3,2)
+              targqbs(n1,n2,n3,n4)=qbs(n1,n2,n3,1)+tboco*qbs(n1,n2,n3,2)
+              targwbs(n1,n2,n3,n4)=wbs(n1,n2,n3,1)+tboco*wbs(n1,n2,n3,2)
+            enddo
+            enddo
+          enddo
+          enddo
+
+          do n4=1,1
+          do n3=1,lm
+            do n2=1,lnsv
+            do n1=i_lo,i_hi
+              targubs(n1,n2,n3,n4)=ubs(n1,n2,n3,1)+tboco*ubs(n1,n2,n3,2)
+              targvbs(n1,n2,n3,n4)=vbs(n1,n2,n3,1)+tboco*vbs(n1,n2,n3,2)
+            enddo
+            enddo
+          enddo
+          enddo
+	ENDIF ! S_BDY
+
+        IF (w_bdy) THEN
+          do n3=1,1
+            do n2=j_lo,j_hi
+            do n1=1,lnsh
+              targpdbw(n1,n2,n3)=pdbw(n1,n2,1)+tboco*pdbw(n1,n2,2)
+            enddo
+            enddo
+          enddo
+
+          do n4=1,1
+          do n3=1,lm
+            do n2=j_lo,j_hi
+            do n1=1,lnsh
+              targtbw(n1,n2,n3,n4)=tbw(n1,n2,n3,1)+tboco*tbw(n1,n2,n3,2)
+              targqbw(n1,n2,n3,n4)=qbw(n1,n2,n3,1)+tboco*qbw(n1,n2,n3,2)
+              targwbw(n1,n2,n3,n4)=wbw(n1,n2,n3,1)+tboco*wbw(n1,n2,n3,2)
+            enddo
+            enddo
+          enddo
+          enddo
+
+          do n4=1,1
+          do n3=1,lm
+            do n2=j_lo,j_hi
+            do n1=1,lnsv
+              targubw(n1,n2,n3,n4)=ubw(n1,n2,n3,1)+tboco*ubw(n1,n2,n3,2)
+              targvbw(n1,n2,n3,n4)=vbw(n1,n2,n3,1)+tboco*vbw(n1,n2,n3,2)
+            enddo
+            enddo
+          enddo
+          enddo
+	ENDIF ! W_BDY
+
+        IF (e_bdy) THEN
+          do n3=1,1
+            do n2=j_lo,j_hi
+            do n1=1,lnsh
+              targpdbe(n1,n2,n3)=pdbe(n1,n2,1)+tboco*pdbe(n1,n2,2)
+            enddo
+            enddo
+          enddo
+
+          do n4=1,1
+          do n3=1,lm
+            do n2=j_lo,j_hi
+            do n1=1,lnsh
+              targtbe(n1,n2,n3,n4)=tbe(n1,n2,n3,1)+tboco*tbe(n1,n2,n3,2)
+              targqbe(n1,n2,n3,n4)=qbe(n1,n2,n3,1)+tboco*qbe(n1,n2,n3,2)
+              targwbe(n1,n2,n3,n4)=wbe(n1,n2,n3,1)+tboco*wbe(n1,n2,n3,2)
+            enddo
+            enddo
+          enddo
+          enddo
+
+          do n4=1,1
+          do n3=1,lm
+            do n2=j_lo,j_hi
+            do n1=1,lnsv
+              targube(n1,n2,n3,n4)=ube(n1,n2,n3,1)+tboco*ube(n1,n2,n3,2)
+              targvbe(n1,n2,n3,n4)=vbe(n1,n2,n3,1)+tboco*vbe(n1,n2,n3,2)
+            enddo
+            enddo
+          enddo
+          enddo
+	ENDIF ! E_BDY
+
+      endif  ! recomp_tend
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!! Define the first portion of the boundary arrays from the full domain fields
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      IF (n_bdy) THEN
+        do n3=1,1
+          do n2=1,lnsh
+          do n1=i_lo,i_hi
+            pdbn(n1,n2,n3)=PD(n1,n2+j_hi-lnsh)
+          enddo
+          enddo
+        enddo
+
+        do n4=1,1
+        do n3=1,lm
+          do n2=1,lnsh
+          do n1=i_lo,i_hi
+            tbn(n1,n2,n3,n4)=T(n1,n2+j_hi-lnsh,n3)
+            qbn(n1,n2,n3,n4)=Q(n1,n2+j_hi-lnsh,n3)
+            wbn(n1,n2,n3,n4)=CWM(n1,n2+j_hi-lnsh,n3)
+          enddo
+          enddo
+        enddo
+        enddo
+
+        do n4=1,1
+        do n3=1,lm
+          do n2=1,lnsv
+          do n1=i_lo,i_hi
+            ubn(n1,n2,n3,n4)=U(n1,n2+j_hi-lnsv-1,n3)
+            vbn(n1,n2,n3,n4)=V(n1,n2+j_hi-lnsv-1,n3)
+          enddo
+          enddo
+        enddo
+        enddo
+      ENDIF ! N_BDY
+
+      IF (s_bdy) THEN
+        do n3=1,1
+          do n2=1,lnsh
+          do n1=i_lo,i_hi
+            pdbs(n1,n2,n3)=PD(n1,j_lo+n2-1)
+          enddo
+          enddo
+        enddo
+
+        do n4=1,1
+        do n3=1,lm
+          do n2=1,lnsh
+          do n1=i_lo,i_hi
+            tbs(n1,n2,n3,n4)=T(n1,j_lo+n2-1,n3)
+            qbs(n1,n2,n3,n4)=Q(n1,j_lo+n2-1,n3)
+            wbs(n1,n2,n3,n4)=CWM(n1,j_lo+n2-1,n3)
+          enddo
+          enddo
+        enddo
+        enddo
+
+        do n4=1,1
+        do n3=1,lm
+          do n2=1,lnsv
+          do n1=i_lo,i_hi
+            ubs(n1,n2,n3,n4)=U(n1,j_lo+n2-1,n3)
+            vbs(n1,n2,n3,n4)=V(n1,j_lo+n2-1,n3)
+          enddo
+          enddo
+        enddo
+        enddo
+      ENDIF ! S_BDY
+
+      IF (w_bdy) THEN
+        do n3=1,1
+          do n2=j_lo,j_hi
+          do n1=1,lnsh
+            pdbw(n1,n2,n3)=PD(i_lo+n1-1,n2)
+          enddo
+          enddo
+        enddo
+
+        do n4=1,1
+        do n3=1,lm
+          do n2=j_lo,j_hi
+          do n1=1,lnsh
+            tbw(n1,n2,n3,n4)=T(i_lo+n1-1,n2,n3)
+            qbw(n1,n2,n3,n4)=Q(i_lo+n1-1,n2,n3)
+            wbw(n1,n2,n3,n4)=CWM(i_lo+n1-1,n2,n3)
+          enddo
+          enddo
+        enddo
+        enddo
+
+        do n4=1,1
+        do n3=1,lm
+          do n2=j_lo,j_hi
+          do n1=1,lnsv
+            ubw(n1,n2,n3,n4)=U(i_lo+n1-1,n2,n3)
+            vbw(n1,n2,n3,n4)=V(i_lo+n1-1,n2,n3)
+          enddo
+          enddo
+        enddo
+        enddo
+      ENDIF ! W_BDY
+
+      IF (e_bdy) THEN
+        do n3=1,1
+          do n2=j_lo,j_hi
+          do n1=1,lnsh
+            pdbe(n1,n2,n3)=PD(n1+i_hi-lnsh,n2)
+          enddo
+          enddo
+        enddo
+
+        do n4=1,1
+        do n3=1,lm
+          do n2=j_lo,j_hi
+          do n1=1,lnsh
+            tbe(n1,n2,n3,n4)=T(  n1+i_hi-lnsh,n2,n3)
+            qbe(n1,n2,n3,n4)=Q(  n1+i_hi-lnsh,n2,n3)
+            wbe(n1,n2,n3,n4)=CWM(n1+i_hi-lnsh,n2,n3)
+          enddo
+          enddo
+        enddo
+        enddo
+
+        do n4=1,1
+        do n3=1,lm
+          do n2=j_lo,j_hi
+          do n1=1,lnsv
+            ube(n1,n2,n3,n4)=U(n1+i_hi-lnsv-1,n2,n3)
+            vbe(n1,n2,n3,n4)=V(n1+i_hi-lnsv-1,n2,n3)
+          enddo
+          enddo
+        enddo
+        enddo
+      ENDIF ! E_BDY
+
+      if (recomp_tend) then
+
+        IF (n_bdy) THEN
+          do n2=1,lnsh
+          do n1=i_lo,i_hi
+            pdbn(n1,n2,2)=(targpdbn(n1,n2,1)-pdbn(n1,n2,1))/tboco
+          enddo
+          enddo
+
+          do n3=1,lm
+            do n2=1,lnsh
+            do n1=i_lo,i_hi
+              tbn(n1,n2,n3,2)=(targtbn(n1,n2,n3,1)-tbn(n1,n2,n3,1))/tboco
+              qbn(n1,n2,n3,2)=(targqbn(n1,n2,n3,1)-qbn(n1,n2,n3,1))/tboco
+              wbn(n1,n2,n3,2)=(targwbn(n1,n2,n3,1)-wbn(n1,n2,n3,1))/tboco
+            enddo
+            enddo
+          enddo
+
+          do n3=1,lm
+            do n2=1,lnsv
+            do n1=i_lo,i_hi
+              ubn(n1,n2,n3,2)=(targubn(n1,n2,n3,1)-ubn(n1,n2,n3,1))/tboco
+              vbn(n1,n2,n3,2)=(targvbn(n1,n2,n3,1)-vbn(n1,n2,n3,1))/tboco
+            enddo
+            enddo
+          enddo
+	ENDIF ! N_BDY
+
+        IF (s_bdy) THEN
+          do n2=1,lnsh
+          do n1=i_lo,i_hi
+            pdbs(n1,n2,2)=(targpdbs(n1,n2,1)-pdbs(n1,n2,1))/tboco
+          enddo
+          enddo
+
+          do n3=1,lm
+            do n2=1,lnsh
+            do n1=i_lo,i_hi
+              tbs(n1,n2,n3,2)=(targtbs(n1,n2,n3,1)-tbs(n1,n2,n3,1))/tboco
+              qbs(n1,n2,n3,2)=(targqbs(n1,n2,n3,1)-qbs(n1,n2,n3,1))/tboco
+              wbs(n1,n2,n3,2)=(targwbs(n1,n2,n3,1)-wbs(n1,n2,n3,1))/tboco
+            enddo
+            enddo
+          enddo
+
+          do n3=1,lm
+            do n2=1,lnsv
+            do n1=i_lo,i_hi
+              ubs(n1,n2,n3,2)=(targubs(n1,n2,n3,1)-ubs(n1,n2,n3,1))/tboco
+              vbs(n1,n2,n3,2)=(targvbs(n1,n2,n3,1)-vbs(n1,n2,n3,1))/tboco
+            enddo
+            enddo
+          enddo
+	ENDIF ! S_BDY
+
+        IF (w_bdy) THEN
+          do n2=j_lo,j_hi
+          do n1=1,lnsh
+            pdbw(n1,n2,2)=(targpdbw(n1,n2,1)-pdbw(n1,n2,1))/tboco
+          enddo
+          enddo
+
+          do n3=1,lm
+            do n2=j_lo,j_hi
+            do n1=1,lnsh
+              tbw(n1,n2,n3,2)=(targtbw(n1,n2,n3,1)-tbw(n1,n2,n3,1))/tboco
+              qbw(n1,n2,n3,2)=(targqbw(n1,n2,n3,1)-qbw(n1,n2,n3,1))/tboco
+              wbw(n1,n2,n3,2)=(targwbw(n1,n2,n3,1)-wbw(n1,n2,n3,1))/tboco
+            enddo
+            enddo
+          enddo
+
+          do n3=1,lm
+            do n2=j_lo,j_hi
+            do n1=1,lnsv
+              ubw(n1,n2,n3,2)=(targubw(n1,n2,n3,1)-ubw(n1,n2,n3,1))/tboco
+              vbw(n1,n2,n3,2)=(targvbw(n1,n2,n3,1)-vbw(n1,n2,n3,1))/tboco
+            enddo
+            enddo
+          enddo
+	ENDIF ! W_BDY
+
+        IF (e_bdy) THEN
+          do n2=j_lo,j_hi
+          do n1=1,lnsh
+            pdbe(n1,n2,2)=(targpdbe(n1,n2,1)-pdbe(n1,n2,1))/tboco
+          enddo
+          enddo
+
+          do n3=1,lm
+            do n2=j_lo,j_hi
+            do n1=1,lnsh
+              tbe(n1,n2,n3,2)=(targtbe(n1,n2,n3,1)-tbe(n1,n2,n3,1))/tboco
+              qbe(n1,n2,n3,2)=(targqbe(n1,n2,n3,1)-qbe(n1,n2,n3,1))/tboco
+              wbe(n1,n2,n3,2)=(targwbe(n1,n2,n3,1)-wbe(n1,n2,n3,1))/tboco
+            enddo
+            enddo
+          enddo
+
+          do n3=1,lm
+            do n2=j_lo,j_hi
+            do n1=1,lnsv
+              ube(n1,n2,n3,2)=(targube(n1,n2,n3,1)-ube(n1,n2,n3,1))/tboco
+              vbe(n1,n2,n3,2)=(targvbe(n1,n2,n3,1)-vbe(n1,n2,n3,1))/tboco
+            enddo
+            enddo
+          enddo
+	ENDIF ! E_BDY
+      endif ! recomp_tend
+!
+!-----------------------------------------------------------------------
+                        end subroutine write_bc
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------

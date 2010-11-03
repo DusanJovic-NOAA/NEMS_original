@@ -13,6 +13,10 @@
 !
       use esmf_mod
       use module_include
+      use module_exchange,only: halo_exch
+
+!      type(esmf_config),save :: cf_1                                !<-- The config object
+
       implicit none
 
 ! ---------
@@ -21,6 +25,7 @@
       real, allocatable, save :: array_save_2d(:,:,:)
       real, allocatable, save :: array_save_3d(:,:,:,:)
       real, allocatable, save :: array_save_4d(:,:,:,:,:)
+      real, allocatable, save :: dolph_wgts(:)
       real             , save :: totalsum
       character(20), allocatable, save :: name_save_2d(:)
       character(20), allocatable, save :: name_save_3d(:)
@@ -45,6 +50,7 @@
 !-----------------------------------------------------------------------
       subroutine digital_filter_dyn_init_nmm(dyn_state                  &
                                             ,ndfistep                   &
+                                            ,dt_int,dt_num,dt_den       &
                                             ,num_water                  &
                                             ,num_tracers)
 !-----------------------------------------------------------------------
@@ -54,27 +60,55 @@
       type(esmf_state), intent(in) :: dyn_state   
       integer, intent(in)          :: ndfistep
       integer, intent(in)          :: num_water,num_tracers
+      integer, intent(in)          :: dt_int,dt_num,dt_den
 !
       type(esmf_field)             :: tmp_field 
-      integer                      :: tmp_rank,dyn_items
-      integer                      :: spec_max,rc,N
+      integer                      :: tmp_rank,dyn_items                &
+                                     ,dfihr
+      integer                      :: spec_max,rc,n,m
       character(20), allocatable   :: dyn_name(:)
       character(20)                :: state_name
+      real                         :: taus, dt
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
       nstep = ndfistep 
       kstep = - nstep -1
 
+      if (allocated(dolph_wgts)) deallocate(dolph_wgts)
+      allocate(dolph_wgts(-nstep:nstep))
+
+      dt=float(dt_int)+float(dt_num)/float(dt_den)
+
+! hardwiring cutoff frequency based on length of filtering window
+
+      taus=float(2*ndfistep)*dt
+!     write(0,*) 'using pulled dt, taus (200% of tdfi) value is: ', dt, taus
+!
+      call dolph(dt,taus,nstep,dolph_wgts)
+!
+
       call esmf_stateget(state     = dyn_state                          &
                         ,name      = state_name                         &
                         ,itemcount = dyn_items                          &
                         ,rc=rc)
-!
+
+      tot_rank_2d=0
+      tot_rank_3d=0
+      tot_rank_4d=0
+
+      if (.not. allocated(dyn_name))                                    &
       allocate(dyn_name(dyn_items))
+
+      if (.not. allocated(name_save_2d))                                &
       allocate(name_save_2d(dyn_items))
+
+      if (.not. allocated(name_save_3d))                                &
       allocate(name_save_3d(dyn_items))
+
+      if (.not. allocated(name_save_4d))                                &
       allocate(name_save_4d(dyn_items))
+
       call esmf_stateget(state     = dyn_state                          &
                         ,itemnamelist = dyn_name                        &
                         ,rc=rc)
@@ -104,16 +138,16 @@
       ENDDO 
 !
       SPEC_MAX=MAX(NUM_TRACERS,NUM_WATER)
-     
-      IF (tot_rank_2d > 0) THEN
+!     
+      IF (tot_rank_2d > 0 .and. .not. allocated(array_save_2d)) THEN
       	allocate(array_save_2d(ITS:ITE,JTS:JTE,tot_rank_2d))
       ENDIF
 !
-      IF (tot_rank_3d > 0) THEN
+      IF (tot_rank_3d > 0 .and. .not. allocated(array_save_3d)) THEN
       	allocate(array_save_3d(ITS:ITE,JTS:JTE,LM,tot_rank_3d))
       ENDIF
 !
-      IF (tot_rank_4d > 0) THEN
+      IF (tot_rank_4d > 0 .and. .not. allocated(array_save_4d)) THEN
       	allocate(array_save_4d(ITS:ITE,JTS:JTE,LM,SPEC_MAX,tot_rank_4d))
       ENDIF
 !
@@ -122,7 +156,6 @@
       array_save_3d=0.
       array_save_4d=0.
       totalsum=0.
-!
 !-----------------------------------------------------------------------
 
       end subroutine digital_filter_dyn_init_nmm
@@ -145,6 +178,7 @@
       real(kind=kfpt),dimension(:,:)    ,pointer :: hold_2d
       real(kind=kfpt),dimension(:,:,:)  ,pointer :: hold_3d
       real(kind=kfpt),dimension(:,:,:,:),pointer :: hold_4d
+      logical :: dolph
 !
       character(20) :: field_name
 !
@@ -158,21 +192,31 @@
       rc_upd=esmf_success
 !
       kstep = kstep + 1
-      sx     = acos(-1.)*kstep/nstep
-      wx     = acos(-1.)*kstep/(nstep+1)
-  
-      if( kstep/=0)then
-        digfil = sin(wx)/wx*sin(sx)/sx
-      else
-        digfil=1.
-      endif 
-        
-      if(mean_on>0)then
-        digfil=1.
-      endif
-!
-      write(0,*)' In digital_filter_sum digfil = ',digfil
 
+!-----------------------------------------------------------------------
+!     Future task: make this dolph switch logical a configure file item
+!-----------------------------------------------------------------------
+
+      dolph=.true.
+
+      IF (dolph) THEN
+        digfil=dolph_wgts(kstep)
+
+      ELSE 
+        sx = acos(-1.)*kstep/nstep
+        wx = acos(-1.)*kstep/(nstep+1)
+        if( kstep/=0)then
+          digfil = sin(wx)/wx*sin(sx)/sx
+        else
+          digfil=1.
+        endif 
+
+        if(mean_on>0)then
+          digfil=1.
+        endif
+
+      ENDIF
+!
       totalsum = totalsum + digfil
 !
       if(tot_rank_2d>0) then
@@ -384,6 +428,10 @@
             HOLD_2D(I,J)=array_save_2d(I,J,N)
           ENDDO
           ENDDO
+
+          CALL HALO_EXCH(hold_2d,1,2,2)
+
+
           CALL ESMF_StateAdd(dyn_state,HOLD_FIELD,rc) 
         ENDDO
       ENDIF
@@ -427,6 +475,9 @@
             ENDDO
             ENDDO
           ENDDO
+
+          CALL HALO_EXCH(hold_3d,LM,2,2)
+
           CALL ESMF_StateAdd(dyn_state,HOLD_FIELD,rc)
         ENDDO
       ENDIF
@@ -481,17 +532,27 @@
       ENDIF
 
 
-      deallocate(name_save_2d)
-      deallocate(name_save_3d)
-      deallocate(name_save_4d)
-      deallocate(array_save_2d)
-      deallocate(array_save_3d)
-      deallocate(array_save_4d)
+      IF (tot_rank_2d > 0) THEN 
+        deallocate(name_save_2d)
+        deallocate(array_save_2d)
+      ENDIF
+
+      IF (tot_rank_3d > 0) THEN 
+        deallocate(name_save_3d)
+        deallocate(array_save_3d)
+      ENDIF
+
+      IF (tot_rank_4d > 0) THEN 
+        deallocate(name_save_4d)
+        deallocate(array_save_4d)
+      ENDIF
+
       tot_rank_2d=0
       tot_rank_3d=0
       tot_rank_4d=0
       kstep=0
       nstep=0
+
 !-----------------------------------------------------------------------
       end subroutine digital_filter_dyn_average_nmm
 !-----------------------------------------------------------------------
@@ -510,7 +571,11 @@
       call esmf_stateget(state     = phy_state,				&
                          itemcount = phy_items,				&
                          rc=rc)
-      allocate(phy_name(phy_items))
+
+      if (.not. allocated(phy_name)) then
+        allocate(phy_name(phy_items))
+      endif
+
       call esmf_stateget(state=phy_state,				&
                          itemnamelist = phy_name,			&
                          rc=rc)
@@ -564,14 +629,13 @@
 !-----------------------------------------------------------------------
 !
       do n=1,phy_items
-        CALL ESMF_StateGet(state=phy_state_save                         &
+        CALL ESMF_StateGet(state   =phy_state_save                      &
                           ,itemName=phy_name(n)                         &
-                          ,field=tmp_field                              &
+                          ,field   =tmp_field                           &
+                          ,rc      =rc)
+        CALL ESMF_StateAdd(phy_state                                    &
+                          ,tmp_field                                    &
                           ,rc = rc)
-
-        CALL ESMF_StateAdd(state=phy_state                              &
-                          ,field=tmp_field                              &
-                          ,rc   =rc)
       enddo
       deallocate(phy_name)
 
@@ -584,3 +648,115 @@
       end module module_digital_filter_nmm
 !
 !-----------------------------------------------------------------------
+
+   SUBROUTINE dolph(deltat, taus, m, window)
+
+!     calculation of dolph-chebyshev window or, for short,
+!     dolph window, using the expression in the reference:
+!
+!     antoniou, andreas, 1993: digital filters: analysis,
+!     design and applications. mcgraw-hill, inc., 689pp.
+!
+!     the dolph window is optimal in the following sense:
+!     for a given main-lobe width, the stop-band attenuation
+!     is minimal; for a given stop-band level, the main-lobe
+!     width is minimal.
+
+      IMPLICIT NONE
+
+      ! Arguments
+      INTEGER, INTENT(IN)                  ::  m
+      REAL, DIMENSION(0:2*M), INTENT(OUT)    ::  window
+      REAL, INTENT(IN)                     :: deltat, taus
+
+      ! local data
+      integer, PARAMETER        :: NMAX = 5000
+      REAL, dimension(0:NMAX)   :: t, w, time
+      real, dimension(0:2*nmax) :: w2
+      INTEGER                   :: NPRPE=0        ! no of pe
+      CHARACTER*80              :: MES
+
+      real    :: pi, thetas, x0, term1, term2, rr, r,db, sum, arg, sumw
+      integer :: n, nm1, i, nt
+
+      PI = 4*ATAN(1.D0)
+
+!      print *, 'in dfcoef, deltat = ', deltat, 'taus=',taus
+
+      N = 2*M+1
+      NM1 = N-1
+
+      THETAS = 2*PI*ABS(DELTAT/TAUS)
+      X0 = 1/COS(THETAS/2)
+      TERM1 = (X0 + SQRT(X0**2-1))**(FLOAT(N-1))
+      TERM2 = (X0 - SQRT(X0**2-1))**(FLOAT(N-1))
+      RR = 0.5*(TERM1+TERM2)
+      R = 1/RR
+      DB = 20*LOG10(R)
+
+
+!      WRITE(0,'(1X,''DOLPH: M,N='',2I8)')M,N
+!      WRITE(0,'(1X,''DOLPH: THETAS (STOP-BAND EDGE)='',F10.3)')THETAS
+!      WRITE(0,'(1X,''DOLPH: R,DB='',2F10.3)')R, DB
+
+      DO NT=0,M
+         SUM = 1
+         DO I=1,M
+            ARG = X0*COS(I*PI/N)
+            CALL CHEBY(T,NM1,ARG)
+            TERM1 = T(NM1)
+            TERM2 = COS(2*NT*PI*I/N)
+            SUM = SUM + R*2*TERM1*TERM2
+         ENDDO
+         W(NT) = SUM/N
+         TIME(NT) = NT
+      ENDDO
+!     fill in the negative-time values by symmetry.
+      DO NT=0,M
+         W2(M+NT) = W(NT)
+         W2(M-NT) = W(NT)
+      ENDDO
+
+!     fill up the array for return
+      SUMW = 0.
+      DO NT=0,2*M
+         SUMW = SUMW + W2(NT)
+      ENDDO
+!      WRITE(0,'(1X,''DOLPH: SUM OF WEIGHTS W2='',F10.4)')SUMW
+
+      DO NT=0,2*M
+         WINDOW(NT) = W2(NT)
+      ENDDO
+
+      RETURN
+
+   END SUBROUTINE dolph
+
+
+   SUBROUTINE cheby(t, n, x)
+
+!     calculate all chebyshev polynomials up to order n
+!     for the argument value x.
+
+!     reference: numerical recipes, page 184, recurrence
+!         t_n(x) = 2xt_{n-1}(x) - t_{n-2}(x) ,  n>=2.
+
+      IMPLICIT NONE
+
+      ! Arguments
+      INTEGER, INTENT(IN)  :: n
+      REAL, INTENT(IN)     :: x
+      REAL, DIMENSION(0:N) :: t
+
+      integer  :: nn
+
+      T(0) = 1
+      T(1) = X
+      IF(N.LT.2) RETURN
+      DO NN=2,N
+         T(NN) = 2*X*T(NN-1) - T(NN-2)
+      ENDDO
+
+      RETURN
+
+   END SUBROUTINE cheby

@@ -1066,18 +1066,6 @@
 !-----------------------------------------------------------------------
       DO K=1,LM
         IF(MYPE==0)THEN
-          READ(NFCST)TEMP1   ! DWDT
-        ENDIF
-      ENDDO
-!-----------------------------------------------------------------------
-      DO K=1,LM+1
-        IF(MYPE==0)THEN
-          READ(NFCST)TEMP1   ! PINT
-        ENDIF
-      ENDDO
-!-----------------------------------------------------------------------
-      DO K=1,LM
-        IF(MYPE==0)THEN
           READ(NFCST)TEMP1   ! OMGALF
         ENDIF
       ENDDO
@@ -2033,6 +2021,18 @@
         ENDDO
 !
         CALL DSTRB(TEMP1,int_state%RSWTT,1,1,1,LM,K)
+      ENDDO
+!-----------------------------------------------------------------------
+      DO K=1,LM+1
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1   ! PINT
+        ENDIF
+      ENDDO
+!-----------------------------------------------------------------------
+      DO K=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1   ! DWDT
+        ENDIF
       ENDDO
 !-----------------------------------------------------------------------
 !

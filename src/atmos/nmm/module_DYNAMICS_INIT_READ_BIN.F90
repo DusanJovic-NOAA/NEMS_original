@@ -924,32 +924,6 @@ ihrend &                    ! maximum forecast length, hours
           endif
           do j=jms,jme
           do i=ims,ime
-            dwdt(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,dwdt,1,1,1,lm,l)
-        enddo
-        call halo_exch(dwdt,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm+1
-          if(mype==0)then
-            read(nfcst)temp1
-          endif
-          do j=jms,jme
-          do i=ims,ime
-            pint(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,pint,1,1,1,lm+1,l)
-        enddo
-        call halo_exch(pint,lm+1,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            read(nfcst)temp1
-          endif
-          do j=jms,jme
-          do i=ims,ime
             omgalf(i,j,l)=0.
           enddo
           enddo
@@ -1087,7 +1061,7 @@ ihrend &                    ! maximum forecast length, hours
           call dstrb(temp1,e2,1,1,1,lm,l)
         enddo
         call halo_exch(e2,lm,2,2)
-!-----------------------------------------------------------------------
+!----------- psgdt -----------------------------------------------------
         do l=1,lm-1
           if(mype==0)then
             read(nfcst)temp1
@@ -1595,6 +1569,32 @@ ihrend &                    ! maximum forecast length, hours
             read(nfcst)temp1 ! rswtt
           endif
         enddo
+!-----------------------------------------------------------------------
+        do l=1,lm+1
+          if(mype==0)then
+            read(nfcst)temp1
+          endif
+          do j=jms,jme
+          do i=ims,ime
+            pint(i,j,l)=0.
+          enddo
+          enddo
+          call dstrb(temp1,pint,1,1,1,lm+1,l)
+        enddo
+        call halo_exch(pint,lm+1,2,2)
+!-----------------------------------------------------------------------
+        do l=1,lm
+          if(mype==0)then
+            read(nfcst)temp1
+          endif
+          do j=jms,jme
+          do i=ims,ime
+            dwdt(i,j,l)=0.
+          enddo
+          enddo
+          call dstrb(temp1,dwdt,1,1,1,lm,l)
+        enddo
+        call halo_exch(dwdt,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then

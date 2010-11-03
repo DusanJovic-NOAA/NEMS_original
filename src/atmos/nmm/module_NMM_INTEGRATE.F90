@@ -15,7 +15,8 @@
 !                       routines when adding digital filters.
 !   2009-07-09  Black - Condense all three NMM integrate routines
 !                       into one when when merging with nesting.
-!   2010_03_24  Black - Revised for new structure.
+!   2010-03-24  Black - Revised for new structure.
+!   2010-10-xx  Pyle  - Revised for digital filters.
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
@@ -35,7 +36,10 @@
 !
       USE module_CONTROL,ONLY: TIMEF
 !
+      USE module_PARENT_CHILD_CPL_COMP, ONLY: NSTEP_CHILD_RECV
+!
       USE module_INCLUDE
+!
 !
 !-----------------------------------------------------------------------
 !
@@ -72,8 +76,7 @@
                         ,cpl2_send_tim                                  &
                         ,cpl2_comp_tim                                  &
                         ,cpl2_wait_tim                                  &
-                        ,phase1_tim                                     &
-                        ,phase3_tim
+                        ,phase1_tim
 !
 !-----------------------------------------------------------------------
 !
@@ -145,7 +148,7 @@
                                       ,RESTARTED_RUN                    &  !<-- Is this a restarted run?
                                       ,RST_OUT_00                          !<-- Shall we write 00h history in restarted run?
 !
-      CHARACTER(7),INTENT(IN) :: CLOCK_DIRECTION                           !<-- The direction of time in the Clock
+      CHARACTER(8),INTENT(IN) :: CLOCK_DIRECTION                           !<-- The direction of time in the Clock
 !
       TYPE(ESMF_Logical),INTENT(IN) :: I_AM_A_FCST_TASK                 &  !<-- Am I in a forecast task?
                                       ,I_AM_A_NEST                         !<-- Am I in a nested domain?
@@ -194,15 +197,14 @@
 !---------------------
 !
       INTEGER(kind=KINT) :: YY,MM,DD,H,M,S
-      INTEGER(kind=KINT) :: I,KOUNT_STEPS
+      INTEGER(kind=KINT) :: I,KOUNT_STEPS,N
       INTEGER(kind=KINT) :: IERR,RC,RC_INTEG
+      INTEGER(kind=KINT), ALLOCATABLE :: LOC_PAR_CHILD_TIME_RATIO(:)
 !
       INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF                         !<-- The current forecast timestep (ESMF_INT)
 !
       CHARACTER(2)  :: INT_TO_CHAR
       CHARACTER(6)  :: FMT
-!
-      LOGICAL, SAVE :: TS_INITIALIZED = .FALSE.
 !
       TYPE(ESMF_Time) :: ALARM_HISTORY_RING                             &
                         ,ALARM_RESTART_RING                             &
@@ -228,12 +230,13 @@
 !
       TYPE(PHYSICS_INTERNAL_STATE),POINTER :: PHY_INT_STATE
 !
+      LOGICAL, SAVE :: TS_INITIALIZED = .FALSE.
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
       phase1_tim      =0
-      phase3_tim      =0
       atm_drv_run_1   =0.
       atm_drv_run_2   =0.
       atm_drv_run_3   =0.
@@ -313,15 +316,16 @@
 !
       timeloop_drv: DO WHILE (.NOT.ESMF_ClockIsStopTime(CLOCK_INTEGRATE &
                                                        ,RC) )
+
 !
 !-----------------------------------------------------------------------
+!
+        btim0=timef()
 !
 !-----------------------------------------------------------------------
 !***  Call the 1st Phase of the Parent_Child coupler where children
 !***  will recv from their parents.
 !-----------------------------------------------------------------------
-!
-        btim0=timef()
 !
         IF(I_AM_A_NEST==ESMF_TRUE.AND.I_AM_A_FCST_TASK==ESMF_TRUE)THEN
 !
@@ -329,8 +333,9 @@
 !         IF((ESMF_AlarmIsRinging(alarm=ALARM_RECV_FROM_PARENT          &  !<-- Alarm to alert child that it must recv from parent
 !                               ,rc   =RC)                              &
 !            .or.ntimestep==0)  &        !<-- bandaid
-          if(mod(kount_steps,par_chi_time_ratio)==0                     &
-             .AND.COMM_TO_MY_PARENT/=-999)THEN
+          IF(MOD(KOUNT_STEPS,PAR_CHI_TIME_RATIO)==0                     &
+                            .AND.                                       &
+             COMM_TO_MY_PARENT/=-999)THEN
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Call Coupler: Children Recv from Parents"
@@ -353,8 +358,10 @@
 !***  coupler into the nests' DOMAIN components.
 !-----------------------------------------------------------------------
 !
+
             CALL BOUNDARY_DATA_STATE_TO_STATE(state_in =EXP_STATE_CPL_NEST &  !<-- The Nesting coupler export state
                                              ,state_out=IMP_STATE_DOMAIN)     !<-- The DOMAIN import state
+
 !
 !-----------------------------------------------------------------------
 !
@@ -465,6 +472,37 @@
         atm_drv_run_1=atm_drv_run_1+phase1_tim
 !
 !-----------------------------------------------------------------------
+!***  Call the 2nd Phase of the Parent_Child coupler where parents
+!***  send data to their children (at the end of all parents'
+!***  timesteps, but before any potential filter averaging).
+!-----------------------------------------------------------------------
+!
+        btim0=timef()
+!
+        IF(NUM_CHILDREN>0)THEN                                             !<-- Call the coupler if there are children
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Call Coupler: Parents Send to Children"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_CplCompRun(cplcomp    =PARENT_CHILD_CPL           &  !<-- The Nesting coupler component
+                                ,importState=IMP_STATE_CPL_NEST         &  !<-- The Nesting coupler import state
+                                ,exportState=EXP_STATE_CPL_NEST         &  !<-- The Nesting coupler export state
+                                ,clock      =CLOCK_INTEGRATE            &  !<-- The DOMAIN Clock
+                                ,phase      =2                          &  !<-- The phase (subroutine) of the Coupler to execute
+                                ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!
+        atm_drv_run_cpl2=atm_drv_run_cpl2+(timef()-btim0)
+!-----------------------------------------------------------------------
 !***  If there is filtering, execute Phase 2 of the DOMAIN Run step.
 !-----------------------------------------------------------------------
 !
@@ -504,6 +542,9 @@
         CALL ESMF_ClockAdvance(clock=CLOCK_INTEGRATE                    &
                               ,rc   =RC)
         kount_steps=kount_steps+1
+        IF(FILTER_METHOD > 0 .AND. MYPE == 0) THEN
+          write(0,*) 'filter running, kount_steps: ', kount_steps
+        ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
@@ -525,49 +566,17 @@
 !***  Write timeseries data for this timestep on this domain.
 !-----------------------------------------------------------------------
 !
-        IF(MYPE<domain_int_state%NUM_PES_FCST)THEN
-!
+        IF(FILTER_METHOD==0 .and. MYPE<domain_int_state%NUM_PES_FCST)THEN
           CALL TIMESERIES_RUN(DYN_INT_STATE                             &
                              ,PHY_INT_STATE                             &
                              ,MY_DOMAIN_ID                              &
                              ,NTIMESTEP                                 &
                              ,IERR)
-!
           IF (IERR /= 0) THEN
             CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
           END IF
 !
         END IF
-!
-!-----------------------------------------------------------------------
-!***  Call the 2nd Phase of the Parent_Child coupler where parents
-!***  send data to their children (at the end of all parents'
-!***  timesteps).
-!-----------------------------------------------------------------------
-!
-        btim0=timef()
-!
-        IF(NUM_CHILDREN>0)THEN                                             !<-- Call the coupler if there are children
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Call Coupler: Parents Send to Children"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_CplCompRun(cplcomp    =PARENT_CHILD_CPL             &  !<-- The Nesting coupler component
-                              ,importState=IMP_STATE_CPL_NEST           &  !<-- The Nesting coupler import state
-                              ,exportState=EXP_STATE_CPL_NEST           &  !<-- The Nesting coupler export state
-                              ,clock      =CLOCK_INTEGRATE              &  !<-- The DOMAIN Clock
-                              ,phase      =2                            &  !<-- The phase (subroutine) of the Coupler to execute
-                              ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        ENDIF
-!
-        atm_drv_run_cpl2=atm_drv_run_cpl2+(timef()-btim0)
 !
 !-----------------------------------------------------------------------
 !***  Now that the clock has been advanced, write the history output
@@ -589,14 +598,22 @@
                              ,clock      =CLOCK_INTEGRATE               &  !<-- The ESMF Clock for "mini" forecast
                              ,phase      =3                             &  !<-- The phase (subroutine) of DOMAIN Run to execute
                              ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
         atm_drv_run_3=atm_drv_run_3+(timef()-btim0)
-        IF(MYPE==0)THEN
-!!!     IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-          WRITE(0,25)NTIMESTEP-1,NTIMESTEP*DT/3600.,phase1_tim          &
-                    ,atm_drv_run_3
+!
+!-----------------------------------------------------------------------
+!***  Lead forecast task prints timestep information in free forecast.
+!-----------------------------------------------------------------------
+!
+        IF(MYPE==0.AND.FILTER_METHOD==0)THEN
+!!!       IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
+          WRITE(0,25)NTIMESTEP-1,NTIMESTEP*DT/3600.,phase1_tim
    25     FORMAT(' Finished Timestep ',i5,' ending at ',f7.3,           &
-                 ' hours: step integration time ',g10.4,                &
-                 ' elapsed I/O time ',g10.4)
+                 ' hours: elapsed integration time ',g10.4)
         ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -608,11 +625,14 @@
 !***  on MPI task of choice.
 !-----------------------------------------------------------------------
 !
+
+        IF (FILTER_METHOD == 0) THEN
         IF(ESMF_AlarmIsRinging(alarm=ALARM_CLOCKTIME                    &  !<-- The alarm to print clocktimes used by model parts
                               ,rc   =RC))THEN
 !
           CALL PRINT_CLOCKTIMES(NTIMESTEP,MYPE,NPE_PRINT)
 !
+        ENDIF
         ENDIF
 !
 !
@@ -737,7 +757,7 @@
 !***  the Clock and times.
 !-----------------------------------------------------------------------
 !
-        IF(CLOCK_DIRECTION=='Bckward')THEN
+        IF(CLOCK_DIRECTION=='Bckward ')THEN
 !
 !-----------------------------------------------------------------------
 !
@@ -755,51 +775,93 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="NMM_INTEGRATE: Set Filter Clock to CurrTime"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_ClockSet(clock    =CLOCK_INTEGRATE                  &
-!!!!!!!!!                   ,direction=ESMF_MODE_FORWARD                &
-                            ,starttime=CURRTIME                         &  !<-- Forward integration will begin at this time
-                            ,rc       =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!         CALL ESMF_TimeIntervalGet(timeInterval=TIMESTEP_FILTER        &  !<-- Current filter timestep (s) (ESMF)
-!                                  ,s           =INT_TIMESTEP           &  !<-- Integer part of timestep 
-!                                  ,sN          =NUM_TIMESTEP           &  !<-- Numerator of fractional second
-!                                  ,sD          =DEN_TIMESTEP           &  !<-- Numerator of fractional second
-!                                  ,rc          =RC)
-!
           TIMESTEP_FILTER=-TIMESTEP_FILTER                                 !<-- We must set the timestep back to positive.
 !
-          IF(FILTER_METHOD==2)THEN
+!-----------------------------------------------------------------------
+          filter_method_block : IF(FILTER_METHOD==3)THEN
+!-----------------------------------------------------------------------
+            ndfiloop: DO I=1,NDFISTEP
 !
-            CALL ESMF_ClockAdvance(clock   =CLOCK_INTEGRATE             &
-                                  ,timestep=TIMESTEP_FILTER             &  !<-- Advance the clock to the forward starttime
-                                  ,rc      =RC)
+!-----------------------------------------------------------------------
+!***  Now set the timestep of the children at which they receive
+!***  data from their parent.  This must be known by the parents
+!***  since it will provide the proper tag to the MPI data sent.
+!-----------------------------------------------------------------------
 !
-          ELSEIF(FILTER_METHOD==3)THEN
+!-----------------------------------------------------------------------
+              parents_only: IF(NUM_CHILDREN>0                           &
+                                   .AND.                                &
+                               I_AM_A_FCST_TASK==ESMF_TRUE) THEN
+!-----------------------------------------------------------------------
 !
-            DO I=1,NDFISTEP+1
-              CALL ESMF_ClockAdvance(clock   =CLOCK_INTEGRATE           &
-                                    ,timestep=TIMESTEP_FILTER           &  !<-- Advance the clock to the forward starttime
-                                    ,rc      =RC)
-            ENDDO
+                IF(.NOT.ALLOCATED(LOC_PAR_CHILD_TIME_RATIO)) THEN
+                  ALLOCATE(LOC_PAR_CHILD_TIME_RATIO(1:NUM_CHILDREN))
+                ENDIF
 !
-          ENDIF
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="NMM_INTEGRATE: Parent/child DT Ratio for TDFI"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_ClockGet(clock   =CLOCK_INTEGRATE                   &
-                            ,currtime=CURRTIME                          &
-                            ,rc      =RC)
+                CALL ESMF_AttributeGet(state    =IMP_STATE_CPL_NEST        &  !<-- The parent-child coupler import state
+                                      ,name     ='Parent-Child Time Ratio' &  !<-- Name of the attribute to extract
+                                      ,count    =NUM_CHILDREN              &  !<-- # of items in the Attribute
+                                      ,valueList=LOC_PAR_CHILD_TIME_RATIO  &  !<-- Ratio of parent to child DTs
+                                      ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+                DO N=1,NUM_CHILDREN
+                  NSTEP_CHILD_RECV(N)=NSTEP_CHILD_RECV(N) +  LOC_PAR_CHILD_TIME_RATIO(N)
+                ENDDO
 !
 !-----------------------------------------------------------------------
 !
-        ELSEIF(CLOCK_DIRECTION=='Forward')THEN
+              ENDIF parents_only
+!
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              MESSAGE_CHECK="NMM_INTEGRATE: Advance Clock for TDFI"
+!             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              CALL ESMF_ClockAdvance(clock   =CLOCK_INTEGRATE           &
+                                    ,timestep=TIMESTEP_FILTER           &  !<-- Advance the clock to the forward starttime
+                                    ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+            ENDDO ndfiloop
+!
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="NMM_INTEGRATE: Get Current Clock Time for TDFI"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_ClockGet(clock   =CLOCK_INTEGRATE                 &
+                              ,currtime=CURRTIME                        &
+                              ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+          ENDIF  filter_method_block
+!
+!-----------------------------------------------------------------------
+!
+        ELSEIF(CLOCK_DIRECTION=='Forward ')THEN
 !
 !-----------------------------------------------------------------------
 !
@@ -809,21 +871,19 @@
             NTIMESTEP=NTIMESTEP-(HALFDFIINTVAL/TIMESTEP)-1
             NTIMESTEP_ESMF=NTIMESTEP
 !
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="NMM_INTEGRATE: Set Time to Half Filter Interval"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
             CALL ESMF_ClockSet(clock       =CLOCK_INTEGRATE             &  !<-- Reset current time and timestep to the
                               ,currtime    =CURRTIME                    &  !    halfway point of the filter interval.
                               ,advanceCount=NTIMESTEP_ESMF              &
                               ,rc          =RC)
 !
-          ELSEIF(FILTER_METHOD==2.OR.FILTER_METHOD==3)THEN
-!
-!!!         CURRTIME=STARTTIME
-!!!         NTIMESTEP=0
-!!!         NTIMESTEP_ESMF=NTIMESTEP
-!
-!!!         CALL ESMF_ClockSet(clock       =CLOCK_INTEGRATE             &
-!!!                           ,currtime    =CURRTIME                    &
-!!!                           ,advanceCount=NTIMESTEP_ESMF              &
-!!!                           ,rc          =RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           ENDIF
 !

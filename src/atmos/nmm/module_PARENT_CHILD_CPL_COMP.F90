@@ -41,7 +41,8 @@
       PRIVATE
 !
       PUBLIC :: PARENT_CHILD_CPL_REGISTER                               &
-               ,PARENT_CHILD_COUPLER_SETUP
+               ,PARENT_CHILD_COUPLER_SETUP                              &
+               ,NSTEP_CHILD_RECV
 !
 !-----------------------------------------------------------------------
 !
@@ -5943,7 +5944,7 @@
 ! 
 !-----------------------------------------------------------------------
 !
-            j_north: DO J_CHILD=JM_END,JM_END-N_BLEND+1-N_ADD,-1           !<-- Blending region of child's northern boundary
+            j_north: DO J_CHILD=JM_END,JM_END-N_BLEND+1-N_ADD,-1                  !<-- Blending region of child's northern boundary
 !
 !-----------------------------------------------------------------------
 !

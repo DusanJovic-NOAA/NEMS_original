@@ -39,6 +39,7 @@
 !   2010-03-05  Lu    - Add GOCART_SETUP (to create and register GOCART) and
 !                       GOCART_INIT (to initialize GOCART)
 !   2010-03-24  Black - Converted to DOMAIN component for NMM-B only.
+!   2010-10-xx  Pyle  - Revised for digital filters.
 
 !
 ! USAGE: Domain gridded component parts called from subroutines within
@@ -116,6 +117,9 @@
 !
       TYPE(ESMF_Time),SAVE :: DFITIME                                   &
                              ,HALFDFITIME 
+!
+      TYPE(ESMF_TimeInterval),SAVE :: HALFDFIINTVAL                        !<-- The ESMF time interval for filtering
+!
 !
       TYPE(ESMF_TimeInterval),SAVE :: TIMEINTERVAL_CLOCKTIME               !<-- The ESMF time interval between NMM clocktime output
 !
@@ -354,6 +358,7 @@
 !
       TYPE(ESMF_Time) :: CURRTIME                                       &  !<-- The ESMF current time.
                         ,STARTTIME                                         !<-- The ESMF start time.
+
 !
       TYPE(ESMF_Grid) :: GRID_DOMAIN                                       !<-- The ESMF GRID for the integration attached to
                                                                            !     the NMM DOMAIN component.
@@ -1845,8 +1850,9 @@
 !-----------------------------------------------------------------------
 !***  If integration is forward and Physics is turned on then proceed
 !***  with Physics and the associated coupling to Dynamics.
-!-----------------------------------------------------------------------
+
 !
+
         physics: IF(INTEGER_DT>0.AND.PHYSICS_ON==ESMF_True)THEN            !<-- Physics is active
 !
 !-----------------------------------------------------------------------
@@ -1902,7 +1908,6 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
-!     write(0,*)' DOMAIN_RUN before Run CPL Comp mype=',mype,' integer_dt=',integer_dt
           CALL ESMF_CplCompRun(cplcomp    =domain_int_state%COUPLER_DYN_PHY_COMP &  !<-- The Dynamics-Physics coupler component
                               ,importState=domain_int_state%EXP_STATE_PHY        &  !<-- The Coupler import state = Physics export state
                               ,exportState=domain_int_state%IMP_STATE_DYN        &  !<-- The Coupler export state = Dynamics import state
@@ -2313,21 +2318,26 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: MEAN_ON,NDFISTEP                            &
+      INTEGER(kind=KINT) :: DFIHR,FILTER_METHOD,MEAN_ON,NDFISTEP        &
                            ,NUM_TRACERS_CHEM,NUM_TRACERS_MET
 !
       LOGICAL(kind=KLOG),SAVE :: FIRST_PASS=.TRUE.
 !
-      CHARACTER(7) :: CLOCK_DIRECTION
+      CHARACTER(8) :: CLOCK_DIRECTION
 !
       TYPE(ESMF_Time) :: CURRTIME                                       &  !<-- The current time of Clock_DOMAIN
-                        ,STARTTIME                                         !<-- The start time of Clock_DOMAIN
+                        ,STARTTIME                                      &  !<-- The start time of Clock_DOMAIN
+                        ,TESTTIME  ! mptest
+!
+      TYPE(ESMF_TimeInterval) :: DT_ESMF
+!
+      INTEGER(ESMF_KIND_I4) :: INTEGER_DT,NUMERATOR_DT,IDENOMINATOR_DT     
 !
       TYPE(DOMAIN_INTERNAL_STATE),POINTER,SAVE :: DOMAIN_INT_STATE         !<-- The DOMAIN internal state pointer
 !
       TYPE(WRAP_DOMAIN_INTERNAL_STATE),SAVE :: WRAP                        !<-- The F90 wrap of the DOMAIN internal state
 !
-      INTEGER(kind=KINT) :: RC
+      INTEGER(kind=KINT) :: RC, YY, MM, DD, H, M, S
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -2373,7 +2383,14 @@
       CALL ESMF_ClockGet(clock    =CLOCK_DOMAIN                        &
                         ,startTime=STARTTIME                           &
                         ,currTime =CURRTIME                            &
+                        ,timeStep =DT_ESMF                             &
                         ,rc       =RC)
+!
+      CALL ESMF_TimeIntervalGet(timeinterval=DT_ESMF                   &  !<-- the ESMF timestep
+                               ,s           =INTEGER_DT                &  !<-- the integer part of the timestep in seconds
+                               ,sN          =NUMERATOR_DT              &  !<-- the numerator of the fractional second
+                               ,sD          =IDENOMINATOR_DT           &  !<-- the denominator of the fractional second
+                               ,rc          =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FILT)
@@ -2398,6 +2415,11 @@
                             ,value=MEAN_ON                              &
                             ,rc   =RC )
 !
+      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<- Extract FILTER_METHOD flag from import state
+                            ,name ='Filter_Method'                      & 
+                            ,value=FILTER_METHOD                        &  
+                            ,rc   =RC)
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FILT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2414,13 +2436,27 @@
 !
         IF(CURRTIME==STARTTIME)THEN
 !
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract NDFISTEP from DOMAIN Import State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
           CALL ESMF_AttributeGet(state=IMP_STATE                        &  !<-- Extract the filter value NDFISTEP from the import state
                                 ,name ='NDFISTEP'                       &
                                 ,value=NDFISTEP                         &
                                 ,rc   =RC )
 !
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FILT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+	  INTEGER_DT=ABS(INTEGER_DT)
+!
           CALL DIGITAL_FILTER_DYN_INIT_NMM(domain_int_state%IMP_STATE_DYN &
                                           ,NDFISTEP                       &
+                                          ,INTEGER_DT                     &
+                                          ,NUMERATOR_DT                   &
+                                          ,IDENOMINATOR_DT                &
                                           ,NUM_TRACERS_MET                &
                                           ,NUM_TRACERS_CHEM)
 !
@@ -2429,12 +2465,35 @@
         ENDIF
 !
 !-----------------------------------------------------------------------
-        direction: IF(CLOCK_DIRECTION=='Forward')THEN
+        direction: IF(CLOCK_DIRECTION(1:7)=='Forward')THEN
 !-----------------------------------------------------------------------
 !
 !-------------------------
 !***  The summation stage
 !-------------------------
+!
+!mpadd
+          startdef: IF(CURRTIME == STARTTIME)THEN
+!
+            DFIHR=NDFISTEP*(INTEGER_DT+(float(NUMERATOR_DT)/IDENOMINATOR_DT))
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Set HALFDFIINTVAL in Summation State"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_TimeIntervalSet(timeinterval=HALFDFIINTVAL        &
+                                     ,s           =DFIHR                &
+                                     ,rc          =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FILT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            HALFDFITIME=CURRTIME+HALFDFIINTVAL
+            DFITIME=HALFDFITIME+HALFDFIINTVAL
+!
+          ENDIF startdef
 !
           IF(CURRTIME>=STARTTIME)THEN
 !
@@ -2456,13 +2515,22 @@
 !***  The final stage
 !---------------------
 !
-          IF(CURRTIME==DFITIME)THEN
-            write(0,*)' DFI at final dfitime'
+
+          TESTTIME=CURRTIME+DT_ESMF
+
+          IF(TESTTIME==DFITIME)THEN
+
             CALL DIGITAL_FILTER_DYN_AVERAGE_NMM(domain_int_state%IMP_STATE_DYN &
                                                ,NUM_TRACERS_MET                &
                                                ,NUM_TRACERS_CHEM)
 !
-            CALL DIGITAL_FILTER_PHY_RESTORE_NMM(domain_int_state%IMP_STATE_PHY)
+!!! BUG -   PHY_RESTORE was restoring the wrong fields.  Probably should eliminate use
+!!!         of import/export states in general in deciding what needs to be filtered
+!!!         or save for physics restoration
+!
+!mptest            CALL DIGITAL_FILTER_PHY_RESTORE_NMM(domain_int_state%IMP_STATE_PHY)
+!
+            write(0,*) 'ignored  DIGITAL_FILTER_PHY_RESTORE_NMM'
 !
             CALL ESMF_ClockPrint(clock  =CLOCK_DOMAIN                   &
                                 ,options="currtime string"              &
@@ -2470,8 +2538,23 @@
           ENDIF
 !
 !-----------------------------------------------------------------------
-        ELSEIF(CLOCK_DIRECTION=='Bckward')THEN
+        ELSEIF(CLOCK_DIRECTION(1:7)=='Bckward')THEN
 !-----------------------------------------------------------------------
+
+          IF(CURRTIME == STARTTIME)THEN
+
+            DFIHR=NDFISTEP* ( ABS(INTEGER_DT)+ABS(REAL(NUMERATOR_DT)/IDENOMINATOR_DT) )
+
+            CALL ESMF_TimeIntervalSet(timeinterval=HALFDFIINTVAL        &
+                                    ,s            =DFIHR                &
+                                    ,rc           =RC)
+
+! BUG - saving wrong fields           CALL DIGITAL_FILTER_PHY_SAVE_NMM(domain_int_state%IMP_STATE_PHY)
+!
+            HALFDFITIME=CURRTIME-HALFDFIINTVAL
+            DFITIME=HALFDFITIME-HALFDFIINTVAL
+!
+          ENDIF
 !
 !-------------------------
 !***  The summation stage
@@ -2488,11 +2571,18 @@
 !***  The final stage
 !---------------------
 !
-          IF(CURRTIME==DFITIME)THEN
-            write(0,*)' DFI at final dfitime '
-            CALL DIGITAL_FILTER_DYN_AVERAGE_NMM(domain_int_state%IMP_STATE_DYN &
-                                               ,NUM_TRACERS_MET                &
-                                               ,NUM_TRACERS_CHEM)
+
+          TESTTIME=CURRTIME+DT_ESMF
+
+          IF(TESTTIME==DFITIME)THEN
+            IF (FILTER_METHOD == 3) THEN
+              CALL DIGITAL_FILTER_DYN_AVERAGE_NMM(domain_int_state%IMP_STATE_DYN &
+                                                 ,NUM_TRACERS_MET                &
+                                                 ,NUM_TRACERS_CHEM)
+
+!BUG          CALL DIGITAL_FILTER_PHY_RESTORE_NMM(domain_int_state%IMP_STATE_PHY)
+              write(0,*) 'ignored DIGITAL_FILTER_PHY_RESTORE_NMM'
+            ENDIF
 !
 ! ----------------------------------------------------------------------
 !

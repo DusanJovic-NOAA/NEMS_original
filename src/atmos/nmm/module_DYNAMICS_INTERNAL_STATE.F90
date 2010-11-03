@@ -54,7 +54,8 @@
                              ,START_HOUR                                &
                              ,START_MINUTE                              &
                              ,START_SECOND                              &
-                             ,FILTER_METHOD                             
+                             ,FILTER_METHOD                             &
+                             ,DFIHR_BOCO 
 !
         REAL(kind=KFPT), POINTER :: DT,SBD,TSTART,TPH0D,TLM0D,WBD
         REAL(kind=KFPT) :: CODAMP                                       &

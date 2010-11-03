@@ -21,7 +21,8 @@
 !
       USE module_NESTING,ONLY: PARENT_CHILD_COMMS
 !
-      USE module_PARENT_CHILD_CPL_COMP,ONLY: PARENT_CHILD_CPL_REGISTER  &  !<-- The Register routine for PARENT_CHILD Coupler
+      USE module_PARENT_CHILD_CPL_COMP,ONLY: NSTEP_CHILD_RECV           & 
+                                            ,PARENT_CHILD_CPL_REGISTER  &  !<-- The Register routine for PARENT_CHILD Coupler
                                             ,PARENT_CHILD_COUPLER_SETUP
 !
       USE module_CONTROL,ONLY: TIMEF
@@ -121,7 +122,9 @@
 !***  For Digital Filtering
 !---------------------------
 !
-      INTEGER(kind=KINT) :: DFIHR
+      INTEGER(kind=KINT),PUBLIC :: DFIHR, DFIHR_CHK
+      TYPE(ESMF_Time),SAVE,PUBLIC :: HALFDFITIME                                    !<-- Midpoint of filter window time
+      TYPE(ESMF_Time),SAVE,PUBLIC :: DFITIME                                        !<-- End of filter window time
 !
 !-----------------------------------------------------------------------
 !
@@ -154,9 +157,8 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp) :: NMM_GRID_COMP                                 !<-- The NMM component
-!
-      INTEGER,INTENT(OUT) :: RC_REG
+      TYPE(ESMF_GridComp)               :: NMM_GRID_COMP                   !<-- The NMM component
+      INTEGER            ,INTENT(OUT)   :: RC_REG
 !
 !---------------------
 !***  Local Variables
@@ -250,12 +252,11 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp) :: NMM_GRID_COMP                                 !<-- The NMM component
-      TYPE(ESMF_State)    :: IMP_STATE                                     !<-- The NMM import state
-      TYPE(ESMF_State)    :: EXP_STATE                                     !<-- The NMM export state
-      TYPE(ESMF_Clock)    :: CLOCK_NEMS                                    !<-- The NEMS ESMF Clock
-!
-      INTEGER,INTENT(OUT)   :: RC_INIT                                     !<-- Error return code
+      TYPE(ESMF_GridComp)               :: NMM_GRID_COMP                   !<-- The NMM component
+      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The NMM import state
+      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The NMM export state
+      TYPE(ESMF_Clock)                  :: CLOCK_NEMS                      !<-- The NEMS ESMF Clock
+      INTEGER            ,INTENT(OUT)   :: RC_INIT                         !<-- Error return code
 !
 !---------------------
 !***  Local Variables
@@ -1079,7 +1080,7 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        IF(COMM_TO_MY_PARENT==-999)THEN
+        IF(COMM_TO_MY_PARENT<0)THEN
           I_AM_A_NEST=ESMF_FALSE
         ELSE
           I_AM_A_NEST=ESMF_TRUE
@@ -1379,20 +1380,19 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp) :: NMM_GRID_COMP                                 !<-- The NMM component
-      TYPE(ESMF_State)    :: IMP_STATE                                     !<-- The NMM import state
-      TYPE(ESMF_State)    :: EXP_STATE                                     !<-- The NMM export state
-      TYPE(ESMF_Clock)    :: CLOCK_NEMS                                    !<-- The NEMS ESMF Clock
-!
-      INTEGER,INTENT(OUT)   :: RC_RUN                                      !<-- Error return code
+      TYPE(ESMF_GridComp)               :: NMM_GRID_COMP                   !<-- The NMM component
+      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The NMM import state
+      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The NMM export state
+      TYPE(ESMF_Clock)                  :: CLOCK_NEMS                      !<-- The NEMS ESMF Clock
+      INTEGER            ,INTENT(OUT)   :: RC_RUN                          !<-- Error return code
 !
 !---------------------
 !***  Local Variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: FILTER_METHOD,HDIFF_ON,MYPE_LOCAL,NTIMESTEP
+      INTEGER(kind=KINT) :: FILTER_METHOD,HDIFF_ON,MYPE_LOCAL,NTIMESTEP 
 !
-      INTEGER(kind=KINT) :: RC
+      INTEGER(kind=KINT) :: RC, YY, MM, DD, H, M, S, Sn, Sd
 !
       INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF
 !
@@ -1534,18 +1534,25 @@
       IF(FILTER_METHOD>0)THEN
 !
         CALL RUN_DIGITAL_FILTER_NMM                                        !<-- See internal subroutine below.
-!
+	write(0,*) 'filter_method here is: ', filter_method
+	write(0,*) 'setting filter_method to zero'
+        FILTER_METHOD=0
       ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Execute the normal forecast integration.
 !-----------------------------------------------------------------------
 !
+      CALL ESMF_ClockGet(clock    =CLOCK_NMM(MY_DOMAIN_ID)                &  !<-- The NEMS ESMF Clock
+                        ,starttime=STARTTIME                              &  !<-- The simulation start time (ESMF)
+                        ,currtime =CURRTIME                               &  !<-- The simulation start time (ESMF)
+                        ,rc       =RC)
+!
       CALL NMM_INTEGRATE(domain_grid_comp  =DOMAIN_GRID_COMP               &
                         ,imp_state_domain  =IMP_STATE_DOMAIN               &
                         ,exp_state_domain  =EXP_STATE_DOMAIN               &
                         ,clock_integrate   =CLOCK_NMM(MY_DOMAIN_ID)        &
-                        ,clock_direction   ='Forward'                      &
+                        ,clock_direction   ='Forward '                     &
                         ,currtime          =CURRTIME                       &
                         ,starttime         =STARTTIME                      &
                         ,timestep          =TIMESTEP(MY_DOMAIN_ID)         &
@@ -1589,8 +1596,8 @@
       SUBROUTINE RUN_DIGITAL_FILTER_NMM
 !
 !-----------------------------------------------------------------------
-!***  THIS ROUTINE EXECUTES THE DIGITAL FILTERS FOR THE NMM
-!***  IF SPECIFIED BY THE USER.
+!***  This routine executes the digital filters for the NMM
+!***  if specified by the user.
 !-----------------------------------------------------------------------
 !
 !---------------------
@@ -1600,11 +1607,15 @@
       INTEGER(kind=KINT) :: FILTER_METHOD,HDIFF_ON,MEAN_ON              &
                            ,NDFISTEP,NTIMESTEP
 !
-      INTEGER(kind=KINT) :: RC
+      INTEGER(kind=KINT) :: RC,YY,MM,DD,H,M,S
+
+      INTEGER(kind=KINT), allocatable:: LOC_PAR_CHILD_TIME_RATIO(:)
 !
       TYPE(ESMF_Clock) :: CLOCK_FILTER
 !
-      TYPE(ESMF_Time) :: DFITIME,HALFDFITIME,SDFITIME
+!      TYPE(ESMF_Time) :: DFITIME,HALFDFITIME,SDFITIME
+!
+      TYPE(ESMF_Time) :: SDFITIME
 !
       TYPE(ESMF_TimeInterval) :: HALFDFIINTVAL                          &
                                 ,TIMESTEP_FILTER
@@ -1612,8 +1623,17 @@
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
+
+      CALL ESMF_AttributeGet(state=IMP_STATE_DOMAIN                     &  !<-- This DOMAIN component's import state for filter
+                            ,name ='Filter_Method'                      &  !<-- Flag for type of digital filter
+                            ,value=FILTER_METHOD                        &  !<-- Value of digital filter flag
+                            ,rc   =RC)
+
 !
       method_block: IF(FILTER_METHOD==1)THEN                               !<-- The DFL digital filter.
+
+        write(0,*) 'DFL filter'
+
 !
 !-----------------------------------------------------------------------
 !***  Create a Clock to control the filter's timestepping and then
@@ -1625,12 +1645,34 @@
                                     ,label ='nsecs_dfl:'                &  !<-- Give this label's value to preceding variable
                                     ,rc    =RC)
 !
+!***  Does DFIHR divide evenly by TIMESTEP(MY_DOMAIN_ID)?
+!
         CALL ESMF_TimeIntervalSet(timeinterval=HALFDFIINTVAL            &
                                  ,s           =DFIHR                    &
                                  ,rc          =RC)
+
+        NDFISTEP=HALFDFIINTVAL/TIMESTEP(MY_DOMAIN_ID)
+
+        CALL ESMF_TimeIntervalGet(timeinterval=TIMESTEP(MY_DOMAIN_ID)   &  !<-- The fundamental timestep on this domain (sec) (ESMF)
+                                 ,s           =S  &
+                                 ,sn          =Sn &
+                                 ,sd          =Sd &
+                                 ,rc          =RC)
+
+        DFIHR_CHK=NDFISTEP*(S+float(Sn)/float(Sd))
+
+        IF (DFIHR_CHK /= DFIHR) THEN 
+          write(0,*) 'DFIHR, DFIHR_CHK: ', DFIHR, DFIHR_CHK
+          write(0,*) 'Change nsecs_dfl so is an integer multiple of the time step - important for nesting'
+          write(0,*) ' *** ABORTING MODEL RUN *** '
+          CALL ESMF_Finalize(RC=RC,terminationflag=ESMF_ABORT)
+	ENDIF
+
 !
-        HALFDFITIME=CURRTIME+HALFDFIINTVAL
-        SDFITIME=CURRTIME
+!        HALFDFITIME=CURRTIME+HALFDFIINTVAL
+        HALFDFITIME=STARTTIME+HALFDFIINTVAL
+!        SDFITIME=CURRTIME
+        SDFITIME=STARTTIME
         DFITIME=HALFDFITIME+HALFDFIINTVAL
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1651,12 +1693,12 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         HDIFF_ON=1                                                         !<-- Forward integration so we want horiz diffusion.
-        MEAN_ON =1                                                         !<-- Forward integration so we want horiz diffusion.
+        MEAN_ON =0                                                         !<-- 1=pure mean, 0=different weights applied (true temporal filtering)
         NDFISTEP=HALFDFIINTVAL/TIMESTEP(MY_DOMAIN_ID)
 !
         CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                   &  !<-- This DOMAIN component's import state for filter
                               ,name ='Clock_Direction'                  &
-                              ,value='Forward'                          &
+                              ,value='Forward '                         &
                               ,rc   =RC)
 !
         CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                   &  !<-- This DOMAIN component's import state for filter
@@ -1674,7 +1716,7 @@
                               ,value=NDFISTEP                           &
                               ,rc   =RC)
 !
-        CALL NMM_INTEGRATE(clock_direction   ='Forward'                 &  !<-- This filter only integrates forward
+        CALL NMM_INTEGRATE(clock_direction   ='Forward '                &  !<-- This filter only integrates forward
                           ,domain_grid_comp  =DOMAIN_GRID_COMP          &
                           ,imp_state_domain  =IMP_STATE_DOMAIN          &
                           ,exp_state_domain  =EXP_STATE_DOMAIN          &
@@ -1701,6 +1743,7 @@
                           ,exp_state_cpl_nest=EXP_STATE_CPL_NEST        &
                           ,par_chi_time_ratio=PARENT_CHILD_TIME_RATIO   &
                           ,mype              =MYPE)
+
 !
         STARTTIME=CURRTIME                                                 !<-- Start time set to halfway point of filter period
 !
@@ -1714,6 +1757,8 @@
 !-----------------------------------------------------------------------
 !
       ELSEIF(FILTER_METHOD==2)THEN  method_block                           !<-- The DDFI digital filter.
+!
+        write(0,*) 'DDFI filter'
 !
 !-----------------------------------------------------------------------
 !
@@ -1730,8 +1775,25 @@
                                  ,s           =DFIHR                    &
                                  ,rc          =RC)
 !
+        CALL ESMF_TimeIntervalGet(timeinterval=TIMESTEP(MY_DOMAIN_ID)   &  !<-- The fundamental timestep on this domain (sec) (ESMF)
+                                 ,s           =S  &
+                                 ,sn          =Sn &
+                                 ,sd          =Sd &
+                                 ,rc          =RC)
+
+        NDFISTEP=HALFDFIINTVAL/TIMESTEP(MY_DOMAIN_ID)
+
+        DFIHR_CHK=NDFISTEP*(S+float(Sn)/float(Sd))
+
+        IF (DFIHR_CHK /= DFIHR) THEN 
+          write(0,*) 'DFIHR, DFIHR_CHK: ', DFIHR, DFIHR_CHK
+          write(0,*) 'Change nsecs_bckddfi so is an integer multiple of the time step - important for nesting'
+          write(0,*) ' *** ABORTING MODEL RUN *** '
+          CALL ESMF_Finalize(RC=RC,terminationflag=ESMF_ABORT)
+	ENDIF
+
         HALFDFITIME=STARTTIME-HALFDFIINTVAL
-        DFITIME=HALFDFITIME-HALFDFIINTVAL
+        DFITIME=HALFDFITIME ! -HALFDFIINTVAL
 !
         TIMESTEP_FILTER=-TIMESTEP(MY_DOMAIN_ID)                            !<-- Prepare for backward part of integration
 !
@@ -1752,12 +1814,13 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         HDIFF_ON=0                                                         !<-- Turn off horiz diffusion for backward integration.
-        MEAN_ON =1                                                         !<-- Turn off horiz diffusion for backward integration.
+        MEAN_ON =0                                                         !<-- 
         NDFISTEP=HALFDFIINTVAL/TIMESTEP(MY_DOMAIN_ID)
 !
+	write(0,*) 'setting clock direction to Bckward'
         CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                   &  !<-- This DOMAIN component's import state for filter
                               ,name ='Clock_Direction'                  &
-                              ,value='Bckward'                          &
+                              ,value='Bckward '                         &
                               ,rc   =RC)
 !
         CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                   &  !<-- This DOMAIN component's import state for filter
@@ -1775,7 +1838,7 @@
                               ,value=NDFISTEP                           &
                               ,rc   =RC)
 !
-        CALL NMM_INTEGRATE(clock_direction   ='Bckward'                 &  !<-- The initial backward piece of the filter
+        CALL NMM_INTEGRATE(clock_direction   ='Bckward '                &  !<-- The initial backward piece of the filter
                           ,domain_grid_comp  =DOMAIN_GRID_COMP          &
                           ,imp_state_domain  =IMP_STATE_DOMAIN          &
                           ,exp_state_domain  =EXP_STATE_DOMAIN          &
@@ -1806,6 +1869,8 @@
 !***  The final forward step.
 !-----------------------------
 !
+        NTIMESTEP=0
+!
         CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)            &  !<-- The config object for this domain
                                     ,value = DFIHR                      &  !<-- The digital filter flag
                                     ,label ='nsecs_fwdddfi:'            &  !<-- Time duration of this forward integration
@@ -1815,34 +1880,39 @@
                                  ,s           =DFIHR                    &
                                  ,rc          =RC)
 !
+        CALL ESMF_ClockGet(clock    =CLOCK_FILTER                       &  !<-- The Clock for the DFI filter
+                          ,startTime=STARTTIME                          &  !<-- The simulation start time (ESMF)
+                          ,rc       =RC)
+
         HALFDFITIME=CURRTIME+HALFDFIINTVAL
-        SDFITIME=CURRTIME
         DFITIME=HALFDFITIME+HALFDFIINTVAL
 !
         TIMESTEP_FILTER=TIMESTEP(MY_DOMAIN_ID)                            !<-- Prepare for forward part of integration
+        NDFISTEP=HALFDFIINTVAL/TIMESTEP(MY_DOMAIN_ID)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Reset the Clock for Forward DDFI Digital Filter."
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_ClockSet(clock   =CLOCK_FILTER                        &  !<-- Reset the stoptime for the forward part of the filter
-                          ,timeStep=TIMESTEP_FILTER                     &  !<-- The fundamental timestep in this component
-                          ,stoptime=DFITIME                             &
-                          ,rc      =RC)
+        CALL ESMF_ClockSet(clock    =CLOCK_FILTER                       &  !<-- Reset the stoptime for the forward part of the filter 
+                          ,timeStep =TIMESTEP_FILTER                    &  !<-- The fundamental timestep in this component
+                          ,starttime=CURRTIME                           &
+                          ,stoptime =DFITIME                            &
+                          ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         HDIFF_ON=1                                                         !<-- Forward integration so we want horiz diffusion.
-        MEAN_ON =1
+        MEAN_ON =0
 !
         NDFISTEP=HALFDFIINTVAL/TIMESTEP(MY_DOMAIN_ID)
 !
         CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                   &  !<-- This DOMAIN component's import state for filter
                               ,name ='Clock_Direction'                  &
-                              ,value='Forward'                          &
+                              ,value='Forward '                         &
                               ,rc   =RC)
 !
         CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                   &  !<-- This DOMAIN component's import state for filter
@@ -1854,22 +1924,18 @@
                               ,name ='MEAN_ON'                          &
                               ,value=MEAN_ON                            &
                               ,rc   =RC)
-!
-        CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                   &  !<-- This DOMAIN component's import state for filter
-                              ,name ='NDFISTEP'                         &
-                              ,value=NDFISTEP                           &
-                              ,rc   =RC)
-!
-        CALL NMM_INTEGRATE(clock_direction   ='Forward'                 &  !<-- The final forward piece of the filter
+
+        CALL NMM_INTEGRATE(clock_direction   ='Forward '                &  !<-- The final forward piece of the filter
                           ,domain_grid_comp  =DOMAIN_GRID_COMP          &
                           ,imp_state_domain  =IMP_STATE_DOMAIN          &
                           ,exp_state_domain  =EXP_STATE_DOMAIN          &
                           ,clock_integrate   =CLOCK_FILTER              &
                           ,currtime          =CURRTIME                  &
 !!!                       ,starttime         =STARTTIME                 &
-                          ,starttime         =CURRTIME                  &  !<-- CURRTIME was set or reset at end of backwward piece
+                          ,starttime         =CURRTIME                  &  !<-- CURRTIME was set or reset at end of backward piece
                           ,timestep          =TIMESTEP(MY_DOMAIN_ID)    &
                           ,ntimestep         =NTIMESTEP                 &
+                          ,ndfistep          =NDFISTEP                  &
                           ,dt                =DT(MY_DOMAIN_ID)          &
                           ,filter_method     =FILTER_METHOD             &
                           ,halfdfiintval     =HALFDFIINTVAL             &
@@ -1888,10 +1954,13 @@
                           ,exp_state_cpl_nest=EXP_STATE_CPL_NEST        &
                           ,par_chi_time_ratio=PARENT_CHILD_TIME_RATIO   &
                           ,mype              =MYPE)
-!
+
 !-----------------------------------------------------------------------
 !
       ELSEIF(FILTER_METHOD==3)THEN  method_block                           !<-- The TDFI digital filter.
+
+        write(0,*) 'TDFI filter'
+
 !
 !-----------------------------------------------------------------------
 !
@@ -1907,11 +1976,29 @@
         CALL ESMF_TimeIntervalSet(timeinterval=HALFDFIINTVAL            &
                                  ,s           =DFIHR                    &
                                  ,rc          =RC)
+
+        CALL ESMF_TimeIntervalGet(timeinterval=TIMESTEP(MY_DOMAIN_ID)   &  !<-- The fundamental timestep on this domain (sec) (ESMF)
+                                 ,s           =S  &
+                                 ,sn          =Sn &
+                                 ,sd          =Sd &
+                                 ,rc          =RC)
+
+        NDFISTEP=HALFDFIINTVAL/TIMESTEP(MY_DOMAIN_ID)
 !
+        DFIHR_CHK=NDFISTEP*(S+float(Sn)/float(Sd))
+
+        IF (DFIHR_CHK /= DFIHR) THEN 
+          write(0,*) 'DFIHR, DFIHR_CHK: ', DFIHR, DFIHR_CHK
+          write(0,*) 'Change nsecs_bcktdfi so is an integer multiple of the time step - important for nesting'
+          write(0,*) ' *** ABORTING MODEL RUN *** '
+          CALL ESMF_Finalize(RC=RC,terminationflag=ESMF_ABORT)
+	ENDIF
+
         HALFDFITIME=STARTTIME-HALFDFIINTVAL
         DFITIME=HALFDFITIME-HALFDFIINTVAL
 !
         TIMESTEP_FILTER=-TIMESTEP(MY_DOMAIN_ID)                            !<-- Prepare for inital backward part of integration
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Create the Clock for the TDFI Digital Filter."
@@ -1919,11 +2006,12 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CLOCK_FILTER=ESMF_ClockCreate(name     ='CLOCK_TDFI'            &  !<-- The Clock for the DFI filter
-                                     ,timeStep =TIMESTEP(MY_DOMAIN_ID)  &  !<-- The fundamental timestep in this component
+                                     ,timeStep =TIMESTEP_FILTER         &  !<-- The fundamental timestep in this component
                                      ,startTime=STARTTIME               &  !<-- Start time of filter
 !!!!!!!!                             ,direction=ESMF_MODE_REVERSE       &  !<-- Reverse the Clock for backward integration
                                      ,stopTime =DFITIME                 &  !<-- Stop time of the filter
                                      ,rc       =RC)
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -1935,7 +2023,7 @@
 !
         CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                   &  !<-- This DOMAIN component's import state for filter
                               ,name ='Clock_Direction'                  &
-                              ,value='Bckward'                          &
+                              ,value='Bckward '                         &
                               ,rc   =RC)
 !
         CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                   &  !<-- This DOMAIN component's import state for filter
@@ -1953,7 +2041,7 @@
                               ,value=NDFISTEP                           &
                               ,rc   =RC)
 !
-        CALL NMM_INTEGRATE(clock_direction   ='Bckward'                 &  !<-- The initial backward piece of the filter
+        CALL NMM_INTEGRATE(clock_direction   ='Bckward '                &  !<-- The initial backward piece of the filter
                           ,domain_grid_comp  =DOMAIN_GRID_COMP          &
                           ,imp_state_domain  =IMP_STATE_DOMAIN          &
                           ,exp_state_domain  =EXP_STATE_DOMAIN          &
@@ -1964,6 +2052,7 @@
                           ,ntimestep         =NTIMESTEP                 &
                           ,dt                =DT(MY_DOMAIN_ID)          &
                           ,filter_method     =FILTER_METHOD             &
+                          ,halfdfiintval     =HALFDFIINTVAL             &
                           ,ndfistep          =NDFISTEP                  &
                           ,npe_print         =NPE_PRINT                 &
                           ,restarted_run     =RESTARTED_RUN             &
@@ -1993,35 +2082,43 @@
                                  ,s           =DFIHR                    &
                                  ,rc          =RC)
 !
+        CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                   &  !<-- This DOMAIN component's import state for filter
+                              ,name ='Clock_Direction'                  &
+                              ,value='Forward '                         &
+                              ,rc   =RC)
+
         HALFDFITIME=CURRTIME+HALFDFIINTVAL
         SDFITIME=CURRTIME
         DFITIME=HALFDFITIME+HALFDFIINTVAL
 !
         TIMESTEP_FILTER=TIMESTEP(MY_DOMAIN_ID)                            !<-- Prepare for forward part of integration
+        NDFISTEP=HALFDFIINTVAL/TIMESTEP(MY_DOMAIN_ID)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Reset the Clock for Forward TDFI Digital Filter."
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_ClockSet(clock   =CLOCK_FILTER                        &  !<-- Reset the stoptime for the forward part of the filter
-                          ,timeStep=TIMESTEP_FILTER                     &  !<-- The fundamental timestep in this component
-                          ,stoptime=DFITIME                             &
-                          ,rc      =RC)
+        CALL ESMF_TimeIntervalGet(timeinterval=TIMESTEP_FILTER          &
+                                 ,s           =S                        &
+                                 ,rc          =RC)
+
+        CALL ESMF_ClockSet(clock    =CLOCK_FILTER                       &  !<-- Reset the stoptime for the forward part of the filter 
+                          ,timeStep =TIMESTEP_FILTER                    &  !<-- The fundamental timestep in this component
+                          ,starttime=CURRTIME                           &
+                          ,stoptime =DFITIME                            &
+                          ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         HDIFF_ON=1                                                         !<-- Forward integration so we want horiz diffusion.
-        MEAN_ON =1                                                         !<-- Forward integration so we want horiz diffusion.
+        MEAN_ON =0                                                         !<-- Forward integration so we want horiz diffusion.
         NDFISTEP=HALFDFIINTVAL/TIMESTEP(MY_DOMAIN_ID)
-!
-        CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                   &  !<-- This DOMAIN component's import state for filter
-                              ,name ='Clock_Direction'                  &
-                              ,value='Forward'                          &
-                              ,rc   =RC)
-!
+
+        NTIMESTEP=0
+
         CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                   &  !<-- This DOMAIN component's import state for filter
                               ,name ='HDIFF'                            &  !<-- Flag for horizontal diffusion on/off
                               ,value=HDIFF_ON                           &  !<-- Value of horizontal diffusion flag
@@ -2031,22 +2128,36 @@
                               ,name ='MEAN_ON'                          &
                               ,value=MEAN_ON                            &
                               ,rc   =RC)
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!       MESSAGE_CHECK="Reset the Clock for Forward TDFI Digital Filter."
+!       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+        CALL ESMF_ClockGet(clock    =CLOCK_FILTER                       &  !<-- The ESMF Clock for the digital filter
+                        ,startTime  =STARTTIME                          &  !<-- The simulation start time (ESMF)
+                        ,currTime   =CURRTIME                           &  !<-- The simulation start time (ESMF)
+!!!                     ,runDuration=RUNDURATION                        &  !<-- The simulation run duration (ESMF)
+                        ,rc         =RC)
+ 
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                   &  !<-- This DOMAIN component's import state for filter
-                              ,name ='NDFISTEP'                         &
-                              ,value=NDFISTEP                           &
-                              ,rc   =RC)
-!
-        CALL NMM_INTEGRATE(clock_direction   ='Forward'                 &  !<-- The final forward piece of the filter
+        CALL ESMF_TimeIntervalGet(timeinterval=TIMESTEP(MY_DOMAIN_ID)   &
+                                 ,s           =S                        &
+                                 ,rc          =RC)
+
+        CALL NMM_INTEGRATE(clock_direction   ='Forward '                &  !<-- The final forward piece of the filter
                           ,domain_grid_comp  =DOMAIN_GRID_COMP          &
                           ,imp_state_domain  =IMP_STATE_DOMAIN          &
                           ,exp_state_domain  =EXP_STATE_DOMAIN          &
                           ,clock_integrate   =CLOCK_FILTER              &
                           ,currtime          =CURRTIME                  &
-!!!                       ,starttime         =STARTTIME                 &
                           ,starttime         =CURRTIME                  &  !<-- CURRTIME was set or reset at end of backwward piece
                           ,timestep          =TIMESTEP(MY_DOMAIN_ID)    &
                           ,ntimestep         =NTIMESTEP                 &
+                          ,ndfistep          =NDFISTEP                  &
                           ,dt                =DT(MY_DOMAIN_ID)          &
                           ,filter_method     =FILTER_METHOD             &
                           ,halfdfiintval     =HALFDFIINTVAL             &
@@ -2092,6 +2203,38 @@
 !-----------------------------------------------------------------------
 !
       FILTER_METHOD=0
+
+      IF (NUM_CHILDREN(MY_DOMAIN_ID) > 0 .and. I_AM_A_FCST_TASK == ESMF_TRUE ) THEN
+!
+        IF (.NOT. ALLOCATED(LOC_PAR_CHILD_TIME_RATIO)) THEN
+          ALLOCATE(LOC_PAR_CHILD_TIME_RATIO(1:NUM_CHILDREN(MY_DOMAIN_ID)))
+        ENDIF
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+
+        CALL ESMF_AttributeGet(state    =IMP_STATE_CPL_NEST             &  !<-- The parent-child coupler import state
+                              ,name     ='Parent-Child Time Ratio'      &  !<-- Name of the attribute to extract
+                              ,count    =NUM_CHILDREN(MY_DOMAIN_ID)     &  !<-- # of items in the Attribute
+                              ,valueList=LOC_PAR_CHILD_TIME_RATIO        &  !<-- Ratio of parent to child DTs
+                              ,rc       =RC)
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+        DO RC=1,NUM_CHILDREN(MY_DOMAIN_ID)
+          NSTEP_CHILD_RECV(RC)=-LOC_PAR_CHILD_TIME_RATIO(RC)
+
+          IF (NSTEP_CHILD_RECV(RC) == 0) THEN
+            write(0,*) 'NEED TO FIX THIS STUPID THING'
+            NSTEP_CHILD_RECV(RC)=-3
+	  ENDIF
+
+        ENDDO
+      
+        DEALLOCATE(LOC_PAR_CHILD_TIME_RATIO)
+!       RC=0
+!
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !
@@ -2117,12 +2260,11 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp) :: NMM_GRID_COMP                                 !<-- The NMM component
-      TYPE(ESMF_State)    :: IMP_STATE                                     !<-- The NMM import state
-      TYPE(ESMF_State)    :: EXP_STATE                                     !<-- The NMM export state
-      TYPE(ESMF_Clock)    :: CLOCK_NMM                                     !<-- The NMM component's ESMF Clock
-!
-      INTEGER,INTENT(OUT)   :: RC_FINALIZE                                 !<-- Error return code
+      TYPE(ESMF_GridComp)               :: NMM_GRID_COMP                   !<-- The NMM component
+      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The NMM import state
+      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The NMM export state
+      TYPE(ESMF_Clock)                  :: CLOCK_NMM                       !<-- The NMM component's ESMF Clock
+      INTEGER            ,INTENT(OUT)   :: RC_FINALIZE                     !<-- Error return code
 !
 !---------------------
 !***  Local Variables

@@ -265,6 +265,42 @@
 !      write(0,*)'phycs pd=',maxval(int_state%pd),minval(int_state%pd),  &
 !        'pd=',int_state%pd(its:its+2,jte-2:jte)
 !
+
+!-----------------------------------------------------------------------
+!***  PINT (test add)
+!-----------------------------------------------------------------------
+
+      DO L=1,LM+1
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%PINT(I,J,L)=0.
+      ENDDO
+      ENDDO
+      ENDDO
+
+      DO K=1,LM
+
+          do j=jts,jte
+            do i=its,ite
+          if (K .eq. 1) then
+            int_state%PINT(i,j,k)=pt
+          endif
+            int_state%PINT(i,j,k+1)=int_state%PINT(i,j,k)+dsg2(K)*int_state%PD(i,j)+pdsg1(K)
+            enddo
+          enddo
+
+      ENDDO
+
+      CALL HALO_EXCH(int_state%PINT,LM+1,2,2)
+
+        if (MYPE .eq. 0) then
+      DO L=1,LM+1
+        write(0,*) 'L, pint(5,5,L): ', L, int_state%PINT(5,5,L)
+      ENDDO
+        endif
+
+!
+
 !-----------------------------------------------------------------------
 !***  U, V, T, Q, CW
 !-----------------------------------------------------------------------
@@ -638,8 +674,8 @@
       CALL NEMSIO_GETHEADVAR(gfile,'DLMD',int_state%DLMD,iret=irtn)
       CALL NEMSIO_GETHEADVAR(gfile,'TPH0D',int_state%TPH0D,iret=irtn)
       CALL NEMSIO_GETHEADVAR(gfile,'TLM0D',int_state%TLM0D,iret=irtn)
-!      write(0,*)'phycs sbd=',int_state%SBD,int_state%WBD,int_state%DPHD,  &
-!       int_state%DLMD,int_state%TPH0D,int_state%TLM0D
+      write(0,*)'phycs sbd=',int_state%SBD,int_state%WBD,int_state%DPHD,  &
+       int_state%DLMD,int_state%TPH0D,int_state%TLM0D
 !
 !----------------------------------------------------------------------
 !
@@ -652,7 +688,7 @@
       DEALLOCATE(TMP)
 !
        etime=timef()
-!        write(0,*)'PHYSICS_READ_INPUT_NEMSIO,time=',etime-stime
+        write(0,*)'PHYSICS_READ_INPUT_NEMSIO,time=',etime-stime
 !
 !-----------------------------------------------------------------------
 !
