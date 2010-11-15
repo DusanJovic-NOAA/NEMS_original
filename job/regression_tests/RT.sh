@@ -753,6 +753,39 @@ export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
 
 fi
 
+####################################################################################################
+#
+# TEST   - Regional NMM-B nesting with filter
+#        - Compute tasks - Upper parent 2x2 | Child #1 3x5 | Grandchild 6x7
+#        - 1 thread / opnl physics / free fcst / nemsio binary input
+#
+#
+####################################################################################################
+
+if [ ${CB_arg} != gfs ]; then
+
+export TEST_DESCR="Test NMMB-regional digital filter with nests"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/NMM_REG_FILT
+export CNTL_DIR=NMMB_reg_filt
+export LIST_FILES=" \
+nmm_b_history.003h_00m_00.00s    nmm_b_history_nemsio.003h_00m_00.00s    \
+nmm_b_history.02.003h_00m_00.00s nmm_b_history.02_nemsio.003h_00m_00.00s \
+nmm_b_history.03.003h_00m_00.00s nmm_b_history.03_nemsio.003h_00m_00.00s"
+#---------------------
+export TPN=64       ; export THRD=1      ; export GBRG=filter ; export TS=#
+export INPES=02     ; export JNPES=02    ; export WTPG=1     ; export FCSTL=03
+export NEMSI=true  ; export RSTRT=false  ; export gfsP=false
+export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=01
+#---------------------
+  ./rt_nmm.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi
+
 cd $PATHRT
 
 ####################################################################################################

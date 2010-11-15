@@ -1,0 +1,64 @@
+#!/bin/ksh
+#
+#@ output = out
+#@ error = err
+#@ job_type = parallel
+#@ job_name = _JBNME_
+#@ task_affinity = cpu(1)
+#@ node_usage = not_shared
+#@ tasks_per_node = _TPN_
+#@ node = 1
+#@ node_resources= ConsumableMemory(110GB)
+#@ class = _CLASS_
+#@ group = _GROUP_
+#@ wall_clock_limit = 00:06:00
+#@ parallel_threads = _THRD_
+#@ preferences = Feature == "dev"
+#@ network.MPI = sn_all,not_shared,us
+#@ account_no=_ACCNR_
+#@ queue
+#
+set -x
+#
+export MP_EAGER_LIMIT=65536
+export MP_SHARED_MEMORY=yes
+#export MP_SINGLE_THREAD=yes
+#export TARGET_CPU_RANGE=-1
+export MP_LABELIO=yes
+export MP_STDOUTMODE=ordered
+export MP_COREFILE_FORMAT=core.txt
+export XLSMPOPTS=stack=128000000
+export AIXTHREAD_SCOPE=S
+
+RUNDIR=_RUND_
+SRCDIR=_SRCD_
+
+mkdir -p $RUNDIR
+cd $RUNDIR
+rm -rf $RUNDIR/*
+
+cp _RTPWD_/NMMB_nests/input_nmmb_regional.d01           input_domain_01
+cp _RTPWD_/NMMB_nests/input_nmmb_regional.d01_nemsio    input_domain_01_nemsio
+cp _RTPWD_/NMMB_nests/boco* .
+cp _RTPWD_/data/* .
+cp _RTPWD_/NMMB_reg_filt/GWD_bin_* .
+
+cp $SRCDIR/job/regression_tests/atmos.configure_nmm atmos.configure
+cp $SRCDIR/job/regression_tests/configure_file_0* .
+cp configure_file_01 model_configure
+
+ln -sf /nwprod/fix/global_o3prdlos.f77 fort.28
+ln -sf /nwprod/fix/global_o3clim.txt fort.48
+
+cp $SRCDIR/job/regression_tests/dyn_state.txt .
+cp $SRCDIR/job/regression_tests/phy_state.txt .
+_TS_cp $SRCDIR/job/regression_tests/ts_locations.nml .
+
+echo "Model started:  " `date`
+
+LDR_CNTRL=DATAPSIZE=64K@TEXTPSIZE=64K@STACKPSIZE=64K \
+poe $SRCDIR/exe/NEMS.x
+
+echo "Model ended:    " `date`
+
+exit

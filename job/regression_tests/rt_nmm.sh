@@ -36,6 +36,12 @@ if [ ${GBRG} = nests ]; then
   cat ${RTPWD}/NMMB_nests/configure_file_04.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_04
 fi
 
+if [ ${GBRG} = filter ]; then
+  rm configure_file_02 configure_file_03 configure_file_04
+  cat ${RTPWD}/NMMB_reg_filt/configure_file_02.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_02
+  cat ${RTPWD}/NMMB_reg_filt/configure_file_03.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_03
+fi
+
 ####################################################################################################
 # Submit test
 ####################################################################################################

@@ -1651,14 +1651,13 @@
                                  ,s           =DFIHR                    &
                                  ,rc          =RC)
 
-        NDFISTEP=HALFDFIINTVAL/TIMESTEP(MY_DOMAIN_ID)
-
         CALL ESMF_TimeIntervalGet(timeinterval=TIMESTEP(MY_DOMAIN_ID)   &  !<-- The fundamental timestep on this domain (sec) (ESMF)
                                  ,s           =S  &
                                  ,sn          =Sn &
                                  ,sd          =Sd &
                                  ,rc          =RC)
 
+        NDFISTEP=DFIHR/(S+float(Sn)/float(Sd))
         DFIHR_CHK=NDFISTEP*(S+float(Sn)/float(Sd))
 
         IF (DFIHR_CHK /= DFIHR) THEN 
@@ -1694,7 +1693,6 @@
 !
         HDIFF_ON=1                                                         !<-- Forward integration so we want horiz diffusion.
         MEAN_ON =0                                                         !<-- 1=pure mean, 0=different weights applied (true temporal filtering)
-        NDFISTEP=HALFDFIINTVAL/TIMESTEP(MY_DOMAIN_ID)
 !
         CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                   &  !<-- This DOMAIN component's import state for filter
                               ,name ='Clock_Direction'                  &
@@ -1781,8 +1779,7 @@
                                  ,sd          =Sd &
                                  ,rc          =RC)
 
-        NDFISTEP=HALFDFIINTVAL/TIMESTEP(MY_DOMAIN_ID)
-
+        NDFISTEP=DFIHR/(S+float(Sn)/float(Sd))
         DFIHR_CHK=NDFISTEP*(S+float(Sn)/float(Sd))
 
         IF (DFIHR_CHK /= DFIHR) THEN 
@@ -1815,7 +1812,6 @@
 !
         HDIFF_ON=0                                                         !<-- Turn off horiz diffusion for backward integration.
         MEAN_ON =0                                                         !<-- 
-        NDFISTEP=HALFDFIINTVAL/TIMESTEP(MY_DOMAIN_ID)
 !
 	write(0,*) 'setting clock direction to Bckward'
         CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                   &  !<-- This DOMAIN component's import state for filter
@@ -1888,7 +1884,6 @@
         DFITIME=HALFDFITIME+HALFDFIINTVAL
 !
         TIMESTEP_FILTER=TIMESTEP(MY_DOMAIN_ID)                            !<-- Prepare for forward part of integration
-        NDFISTEP=HALFDFIINTVAL/TIMESTEP(MY_DOMAIN_ID)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Reset the Clock for Forward DDFI Digital Filter."
@@ -1907,9 +1902,6 @@
 !
         HDIFF_ON=1                                                         !<-- Forward integration so we want horiz diffusion.
         MEAN_ON =0
-!
-        NDFISTEP=HALFDFIINTVAL/TIMESTEP(MY_DOMAIN_ID)
-!
         CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                   &  !<-- This DOMAIN component's import state for filter
                               ,name ='Clock_Direction'                  &
                               ,value='Forward '                         &
@@ -1983,8 +1975,7 @@
                                  ,sd          =Sd &
                                  ,rc          =RC)
 
-        NDFISTEP=HALFDFIINTVAL/TIMESTEP(MY_DOMAIN_ID)
-!
+        NDFISTEP=DFIHR/(S+float(Sn)/float(Sd))
         DFIHR_CHK=NDFISTEP*(S+float(Sn)/float(Sd))
 
         IF (DFIHR_CHK /= DFIHR) THEN 
@@ -2019,7 +2010,6 @@
 !
         HDIFF_ON=0                                                         !<-- Turn off horiz diffusion for backward integration.
         MEAN_ON =0                                                         !<-- Turn off horiz diffusion for backward integration.
-        NDFISTEP=HALFDFIINTVAL/TIMESTEP(MY_DOMAIN_ID)
 !
         CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                   &  !<-- This DOMAIN component's import state for filter
                               ,name ='Clock_Direction'                  &
@@ -2090,9 +2080,8 @@
         HALFDFITIME=CURRTIME+HALFDFIINTVAL
         SDFITIME=CURRTIME
         DFITIME=HALFDFITIME+HALFDFIINTVAL
-!
+
         TIMESTEP_FILTER=TIMESTEP(MY_DOMAIN_ID)                            !<-- Prepare for forward part of integration
-        NDFISTEP=HALFDFIINTVAL/TIMESTEP(MY_DOMAIN_ID)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Reset the Clock for Forward TDFI Digital Filter."
@@ -2115,7 +2104,6 @@
 !
         HDIFF_ON=1                                                         !<-- Forward integration so we want horiz diffusion.
         MEAN_ON =0                                                         !<-- Forward integration so we want horiz diffusion.
-        NDFISTEP=HALFDFIINTVAL/TIMESTEP(MY_DOMAIN_ID)
 
         NTIMESTEP=0
 
