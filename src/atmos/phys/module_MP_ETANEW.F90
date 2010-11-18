@@ -765,7 +765,7 @@
           WS=QSW                           ! General saturation mixing ratio (water/ice)
           IF (TC .LT. 0.) THEN
             ESI=1000.*FPVS(TK)             ! Saturation vapor pressure w/r/t ice
-            ESI=MIN(ESI,0.99*ESI)
+            ESI=MIN(ESI,0.99*PP)
             QSI=EPS*ESI/(PP-ESI)           ! Saturation mixing ratio w/r/t water
             WS=QSI                         ! General saturation mixing ratio (water/ice)
           ENDIF

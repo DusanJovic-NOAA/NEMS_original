@@ -483,6 +483,9 @@
             IF(QFC1>0.)THEN
               QLOW=QK(KTE)
               QSFC(I,J)=QLOW+ELFLX(I,J)/QFC1
+            ELSE
+!-- Convert back to specific humidity
+              QSFC(I,J)=QSFC(I,J)/(1.+QSFC(I,J))
             ENDIF
 !
           ELSE

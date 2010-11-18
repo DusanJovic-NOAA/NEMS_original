@@ -61,6 +61,7 @@ if [ $argn -eq 1 ]; then
     cp ${RTPWD}/GFS_OPAC/*             /stmp/${LOGIN}/REGRESSION_TEST/GFS_OPAC/.
     cp ${RTPWD}/GEFS_data_2008082500/* /stmp/${LOGIN}/REGRESSION_TEST/GEFS_data_2008082500/.
     cp ${RTPWD}/GEFS_m4/*              /stmp/${LOGIN}/REGRESSION_TEST/GEFS_m4/.
+    cp ${RTPWD}/GFS_DFI_hyb_2loop/*    /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_hyb_2loop/.
   elif [ ${CB_arg} = gfs ]; then
     cp ${RTPWD}/NMMB_gfsP_glob/*      /stmp/${LOGIN}/REGRESSION_TEST/NMMB_gfsP_glob/.
     cp ${RTPWD}/NMMB_gfsP_reg/*       /stmp/${LOGIN}/REGRESSION_TEST/NMMB_gfsP_reg/.
@@ -666,7 +667,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs ]; then
+if [ ${CREATE_BASELINE} = false ]; then
 
 export TEST_DESCR="Test NMMB-regional nesting with restart"
 
