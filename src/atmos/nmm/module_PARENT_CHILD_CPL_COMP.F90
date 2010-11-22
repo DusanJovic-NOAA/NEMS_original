@@ -5860,7 +5860,7 @@
 ! 
 !-----------------------------------------------------------------------
 !
-            j_south: DO J_CHILD=1,N_BLEND+N_ADD                            !<-- Blending region along child's southern boundary
+            j_south: DO J_CHILD=1,N_BLEND+N_ADD                            !<-- Blending region along child's southern boundary region
 !
               KOUNT_J=KOUNT_J+1
               REAL_J_PARENT=REAL_J_START+(KOUNT_J-1)*RATIO_C_P             !<-- REAL parent J for this child's J
@@ -5899,17 +5899,14 @@
 !-----------
 !-----------
 !
-          REAL_J_START=PARENT_J_CHILD_NBND-N_ADD*RATIO_C_P                 !<-- Parent J of 1 row south of child N bndry row.  N_ADD
-!                                                                          !    accounts for the extra row for H points in 4-pt interp.
+          REAL_J_START=PARENT_J_CHILD_NBND-(N_BLEND-1+N_ADD)*RATIO_C_P     !<-- Parent J of southernmost row of nest blending region.
+          J_CHILD=JM_END-N_BLEND+1-N_ADD                                   !<-- Child J of southernmost row of its blending region.
+!
           KOUNT_J=0
 !
 !-----------------------------------------------------------------------
 !
-          J_CHILD=JM_END-N_BLEND+1-N_ADD                                   !<-- Southernmost child J in north boundary
-                                                                           !    blending region.
-!-----------------------------------------------------------------------
-!
-          child_ij_n: IF(REAL_J_START >=R_JTS.AND.REAL_J_START < R_JEND)THEN  !<-- Does parent task see this row of its child?
+          child_ij_n: IF(REAL_J_START >=R_JTS.AND.REAL_J_START < R_JEND)THEN  !<-- Does parent task see that row of its child?
 !
 !-----------------------------------------------------------------------
 !
@@ -5944,7 +5941,7 @@
 ! 
 !-----------------------------------------------------------------------
 !
-            j_north: DO J_CHILD=JM_END,JM_END-N_BLEND+1-N_ADD,-1                  !<-- Blending region of child's northern boundary
+            j_north: DO J_CHILD=JM_END-N_BLEND+1-N_ADD,JM_END              !<-- Blending region of child's northern boundary region
 !
 !-----------------------------------------------------------------------
 !
@@ -6076,7 +6073,7 @@
             ENDDO
 !
 !-------------------------------------------------------------
-            i_west: DO I_CHILD=1,N_BLEND+N_ADD                             !<-- Blending region of child's western boundary
+            i_west: DO I_CHILD=1,N_BLEND+N_ADD                             !<-- Blending region of child's western boundary region
 !-------------------------------------------------------------
 !
               KOUNT_I=KOUNT_I+1
@@ -6115,8 +6112,9 @@
 !----------
 !----------
 !
-          REAL_I_START=PARENT_I_CHILD_EBND-N_ADD*RATIO_C_P                 !<-- Parent I of 1 row west of child E bndry row.  N_ADD
-!                                                                          !    accounts for the extra row for H points in 4-pt interp.
+          REAL_I_START=PARENT_I_CHILD_EBND-(N_BLEND-1+N_ADD)*RATIO_C_P     !<-- Parent I of westernmost row of nest blending region.
+          I_CHILD=IM_END-N_BLEND+1-N_ADD                                   !<-- Child I of westernmost row of its blending region.
+!
           KOUNT_I=0
 !
 !-----------------------------------------------------------------------
@@ -6127,14 +6125,10 @@
 !***  all of the blending region must be on that task since we are 
 !***  permitting the search to go into the parent tasks' haloes.
 !-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!      
-          I_CHILD=IM_END-N_BLEND+1-N_ADD
 !      
 !-----------------------------------------------------------------------
 !
-          child_ij_e: IF(REAL_I_START >=R_ITS.AND.REAL_I_START < R_IEND)THEN  !<-- Does parent task see this column of its child?
+          child_ij_e: IF(REAL_I_START >=R_ITS.AND.REAL_I_START < R_IEND)THEN  !<-- Does parent task see that row of its child?
 !
 !-----------------------------------------------------------------------
 !-------------------------------------------------------------
@@ -6168,7 +6162,7 @@
 !
 !-----------------------------------------------------------------------
 !
-            i_east: DO I_CHILD=IM_END,IM_END-N_BLEND+1-N_ADD,-1            !<-- Blending region of child's eastern boundary
+            i_east: DO I_CHILD=IM_END-N_BLEND+1-N_ADD,IM_END               !<-- Blending region of child's eastern boundary region
 !
               KOUNT_I=KOUNT_I+1
               REAL_I_PARENT=REAL_I_START+(KOUNT_I-1)*RATIO_C_P             !<-- REAL parent I for this child's I
