@@ -1,49 +1,49 @@
-      SUBROUTINE SHALCVT3(IM,IX,KM,DT,DEL,PRSI,PRSL,PRSLK,KUO,Q,T)
+      SUBROUTINE SHALCV(IM,IX,KM,DT,DEL,PRSI,PRSL,PRSLK,kcnv,Q,T,levshc
+     &,                 phil, kinver, ctei_r, ctei_rm, lprnt, ipr)
 !
       USE MACHINE , ONLY : kind_phys
       USE PHYSCONS, grav => con_g, CP => con_CP, HVAP => con_HVAP
      &,             RD => con_RD
       implicit none
 !
-!     include 'constant.h'
-!
-      integer              IM, IX, KM, KUO(IM)
+      logical lprnt
+      integer ipr
+      integer              IM, IX, KM, kcnv(IM), kinver(im), levshc(im)
       real(kind=kind_phys) DEL(IX,KM),   PRSI(IX,KM+1), PRSL(IX,KM),
-     &                     PRSLK(IX,KM),
+     &                     PRSLK(IX,KM), phil(ix,km),
      &                     Q(IX,KM),     T(IX,KM),      DT
+     &,                    ctei_r(im),   ctei_rm
 !
 !     Locals
 !
       real(kind=kind_phys) ck,    cpdt,   dmse,   dsdz1, dsdz2,
      &                     dsig,  dtodsl, dtodsu, eldq,  g,
-     &                     gocp,  rtdls
+     &                     gocp,  rtdls,  toppres
 !
       integer              k,k1,k2,kliftl,kliftu,kt,N2,I,iku,ik1,ik,ii
       integer              INDEX2(IM), KLCL(IM), KBOT(IM), KTOP(IM),kk
-cc
-C  PHYSICAL PARAMETERS
-      PARAMETER(G=GRAV, GOCP=G/CP)
-C  BOUNDS OF PARCEL ORIGIN
-      PARAMETER(KLIFTL=2,KLIFTU=2)
-      LOGICAL   LSHC(IM)
+     &,                    KTOPM(IM), kkt
+!
+      PARAMETER(G=GRAV, GOCP=G/CP)       !  PHYSICAL PARAMETERS
+      PARAMETER(KLIFTL=2,KLIFTU=2)       !  BOUNDS OF PARCEL ORIGIN
+      real, parameter :: ctei_dp=2000.0  !  mix over 20 hPa
+      LOGICAL   LSHC(IM), ctei(im)
       real(kind=kind_phys) Q2(IM*KM),     T2(IM*KM),
      &                     PRSL2(IM*KM),  PRSLK2(IM*KM),
      &                     AL(IM*(KM-1)), AD(IM*KM), AU(IM*(KM-1))
-C-----------------------------------------------------------------------
-C  COMPRESS FIELDS TO POINTS WITH NO DEEP CONVECTION
-C  AND MOIST STATIC INSTABILITY.
+!-----------------------------------------------------------------------
+!  COMPRESS FIELDS TO POINTS WITH NO DEEP CONVECTION
+!  AND MOIST STATIC INSTABILITY.
       DO I=1,IM
         LSHC(I)=.FALSE.
       ENDDO
       DO K=1,KM-1
         DO I=1,IM
-          IF(KUO(I).EQ.0) THEN
+          IF (kcnv(I) == 0 .or. ctei_r(i) > ctei_rm) then
             ELDQ    = HVAP*(Q(I,K)-Q(I,K+1))
             CPDT    = CP*(T(I,K)-T(I,K+1))
-            RTDLS   = (PRSL(I,K)-PRSL(I,K+1)) /
-     &                 PRSI(I,K+1)*RD*0.5*(T(I,K)+T(I,K+1))
-            DMSE    = ELDQ+CPDT-RTDLS
-            LSHC(I) = LSHC(I).OR.DMSE.GT.0.
+            DMSE    = ELDQ + CPDT + phil(i,k) - phil(i,k+1)
+            LSHC(I) = LSHC(I) .OR. DMSE > 0.0
           ENDIF
         ENDDO
       ENDDO
@@ -54,6 +54,7 @@ C  AND MOIST STATIC INSTABILITY.
           INDEX2(N2) = I
         ENDIF
       ENDDO
+!     if (lprnt) print *,' in shalcnv N2=',n2,' ipr=',ipr,' im=',im
       IF(N2.EQ.0) RETURN
       DO K=1,KM
         KK = (K-1)*N2
@@ -66,15 +67,54 @@ C  AND MOIST STATIC INSTABILITY.
           PRSLK2(IK) = PRSLK(II,K)
         ENDDO
       ENDDO
-C-----------------------------------------------------------------------
-C  COMPUTE MOIST ADIABAT AND DETERMINE LIMITS OF SHALLOW CONVECTION.
-C  CHECK FOR MOIST STATIC INSTABILITY AGAIN WITHIN CLOUD.
-      CALL MSTADBT3(N2,KM-1,KLIFTL,KLIFTU,PRSL2,PRSLK2,T2,Q2,
-     &            KLCL,KBOT,KTOP,AL,AU)
+!
+      do i=1,N2
+        ii         = index2(i)
+        ktopm(i)   = levshc(ii)
+        if (ctei_r(ii) > ctei_rm) then
+          ctei(i) = .true.
+        else
+          ctei(i) = .false.
+          ktopm(i)  = min(ktopm(i),kinver(ii))
+        endif
+!       if (ctei_r(ii) < ctei_rm) then
+!         ktopm(i)  = min(ktopm(i),kinver(ii))
+!       endif
+!       if (lprnt .and. ii == ipr) print *,' ktopm=',ktopm(i)
+!    &                                    ,' kinver=',kinver(ii)
+      enddo
+!-----------------------------------------------------------------------
+!  COMPUTE MOIST ADIABAT AND DETERMINE LIMITS OF SHALLOW CONVECTION.
+!  CHECK FOR MOIST STATIC INSTABILITY AGAIN WITHIN CLOUD.
+      CALL MSTADBTN(N2,KM-1,KLIFTL,KLIFTU,PRSL2,PRSLK2,T2,Q2,ctei,
+     &            KLCL,KBOT,KTOP,AL,AU,ktopm,lprnt,ipr,index2)
+!    &            KLCL,KBOT,KTOP,AL,AU)
       DO I=1,N2
-        KBOT(I) = KLCL(I)-1
-        KTOP(I) = KTOP(I)+1
+!       if (lprnt .and. index2(i) == ipr) print *,' kbotb=',kbot(i)
+!    &,                                           ' ktopb=',ktop(i)
+        if (ktop(i) > kbot(i)) then
+          KBOT(I) = min(KLCL(I)-1, ktopm(i)-1)
+          KTOP(I) = min(KTOP(I)+1, ktopm(i))
+!!!       KTOP(I) = min(KTOP(I), ktopm(i)) ! commented on 11/10/09 for test
+!         ii = index2(i)
+!         if (ctei_r(ii) >= ctei_rm) then
+!           KTOP(I) = min(KTOP(I)+1, ktopm(i))
+!         else
+!           KTOP(I) = min(KTOP(I), ktopm(i)) ! test on 11/11/09
+!         endif
+!         if (ctei_r(ii) >= ctei_rm) then
+!           toppres = prsl(ii,ktop(i)) - ctei_dp
+!           do kk=ktop(i)+1,km-1
+!             if (prsl(ii,kk) > toppres) kkt = kk
+!           enddo
+!           KTOP(I) = min(KTOP(I)+1, ktopm(i), kkt)
+!         else
+!           KTOP(I) = min(KTOP(I), ktopm(i))
+!         endif
+        endif
         LSHC(I) = .FALSE.
+!       if (lprnt .and. index2(i) == ipr) print *,' kbot=',kbot(i)
+!    &,                                           ' ktop=',ktop(i)
       ENDDO
       DO K=1,KM-1
         KK = (K-1)*N2
@@ -84,8 +124,9 @@ C  CHECK FOR MOIST STATIC INSTABILITY AGAIN WITHIN CLOUD.
             IKU     = IK + N2
             ELDQ    = HVAP * (Q2(IK)-Q2(IKU))
             CPDT    = CP   * (T2(IK)-T2(IKU))
-            RTDLS   = (PRSL2(IK)-PRSL2(IKU)) /
-     &                 PRSI(index2(i),K+1)*RD*0.5*(T2(IK)+T2(IKU))
+!           RTDLS   = (PRSL2(IK)-PRSL2(IKU)) /
+!    &                 PRSI(index2(i),K+1)*RD*0.5*(T2(IK)+T2(IKU))
+            RTDLS   = phil(index2(i),k+1) - phil(index2(i),k)
             DMSE    = ELDQ + CPDT - RTDLS
             LSHC(I) = LSHC(I).OR.DMSE.GT.0.
             AU(IK)  = G/RTDLS
@@ -104,10 +145,10 @@ C  CHECK FOR MOIST STATIC INSTABILITY AGAIN WITHIN CLOUD.
       ENDDO
       KT = K2-K1+1
       IF(KT.LT.2) RETURN
-C-----------------------------------------------------------------------
-C  SET EDDY VISCOSITY COEFFICIENT CKU AT SIGMA INTERFACES.
-C  COMPUTE DIAGONALS AND RHS FOR TRIDIAGONAL MATRIX SOLVER.
-C  EXPAND FINAL FIELDS.
+!-----------------------------------------------------------------------
+!  SET EDDY VISCOSITY COEFFICIENT CKU AT SIGMA INTERFACES.
+!  COMPUTE DIAGONALS AND RHS FOR TRIDIAGONAL MATRIX SOLVER.
+!  EXPAND FINAL FIELDS.
       KK = (K1-1) * N2
       DO I=1,N2
         IK     = KK + I
@@ -159,22 +200,21 @@ C  EXPAND FINAL FIELDS.
           T(INDEX2(I),K) = T2(IK)
         ENDDO
       ENDDO
-C-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
       RETURN
       END
-C-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
       SUBROUTINE TRIDI2T3(L,N,CL,CM,CU,R1,R2,AU,A1,A2)
-cyt      INCLUDE DBTRIDI2;
-cc
+!
       USE MACHINE     , ONLY : kind_phys
       implicit none
       integer             k,n,l,i
       real(kind=kind_phys) fk
-cc
+!
       real(kind=kind_phys)
      &          CL(L,2:N),CM(L,N),CU(L,N-1),R1(L,N),R2(L,N),
      &          AU(L,N-1),A1(L,N),A2(L,N)
-C-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
       DO I=1,L
         FK=1./CM(I,1)
         AU(I,1)=FK*CU(I,1)
@@ -200,6 +240,6 @@ C-----------------------------------------------------------------------
           A2(I,K)=A2(I,K)-AU(I,K)*A2(I,K+1)
         ENDDO
       ENDDO
-C-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
       RETURN
       END

@@ -15,12 +15,11 @@ c@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 c
       IF (me.eq.0) THEN
         write(6,*)
-        write(6,*)'This is the reduced-grid code'
+        write(6,*)'This is the reduced-grid code with new phys'
         write(6,9100) JCAP,LEVS
         write(6,9110) NODES
 cjfe    write(6,9115) NUM_PARTHDS()
         write(6,9120) LEVS,LATG,LONF
-        print *,' levh levm1 levp1 ',levh,levm1,levp1
         write(6,9140) dt
 c        write(6,9130)
       ENDIF
@@ -82,5 +81,4 @@ c
  101  format(3A,i3,A,ES24.17)
 c
       RETURN
-      end
-c
+      END

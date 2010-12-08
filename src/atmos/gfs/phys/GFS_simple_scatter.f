@@ -1,10 +1,15 @@
         
-        subroutine GFS_simple_scatter (global, local)
+        subroutine GFS_simple_scatter (global, local,
+     &                                 global_lats_r, lonsperlar)
 
-        use resol_def,   ONLY: lonr, latr, global_lats_r, 
-     &                         lonsperlar
+        use resol_def,   ONLY: lonr, latr
+!       use resol_def,   ONLY: lonr, latr, global_lats_r, 
+!    &                         lonsperlar
         use layout1,     ONLY: me, lats_node_r, 
      &                         ipt_lats_node_r, nodes
+
+        integer,intent(in)  :: global_lats_r(latr)
+        integer,intent(in)  :: lonsperlar(latr)
 
         real  :: global (lonr, latr)
         real  :: dist   (lonr, lats_node_r)

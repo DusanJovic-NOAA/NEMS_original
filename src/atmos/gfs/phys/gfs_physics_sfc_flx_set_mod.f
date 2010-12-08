@@ -8,6 +8,9 @@
 ! !REVISION HISTORY:
 !
 !  March 2007      Shrinivas Moorthi Initial code.
+!  March 2008      Y.-T. Hou         add Sunshine_Duration (suntim) to Flx_Var_Data
+!  Jan 2009        Moorthi           add Ho Chun's changes
+!  Apr 2009        Y.-T. Hou         add surface lw emissivity (sfcemis)
 !  Nov 2009        Sarah Lu, add rain and rainc
 !  Sep 2010        Sarah Lu, add wet1
 !
@@ -88,6 +91,9 @@ allocate(                                  &
           flx_fld%COSZEN  (dim1,dim2), &
           flx_fld%TMPMIN  (dim1,dim2), &
           flx_fld%TMPMAX  (dim1,dim2), &
+!jwang add spfhmax/spfhmin
+          flx_fld%SPFHMIN (dim1,dim2), &
+          flx_fld%SPFHMAX (dim1,dim2), &
           flx_fld%DUSFC   (dim1,dim2), &
           flx_fld%DVSFC   (dim1,dim2), &
           flx_fld%DTSFC   (dim1,dim2), &
@@ -133,11 +139,25 @@ allocate(                                  &
           flx_fld%SBSNOA  (dim1,dim2), &
           flx_fld%SNOWCA  (dim1,dim2), &
           flx_fld%SOILM   (dim1,dim2), &
+          flx_fld%SNOHFA  (dim1,dim2), &
+          flx_fld%SMCWLT2 (dim1,dim2), &
+          flx_fld%SMCREF2 (dim1,dim2), &
+          flx_fld%suntim  (dim1,dim2), &                !yth mar/08
+          flx_fld%sfcemis (dim1,dim2), &                !yth apr/09
+!hchuang
+          flx_fld%gsoil   (dim1,dim2), &
+          flx_fld%gtmp2m  (dim1,dim2), &
+          flx_fld%gustar  (dim1,dim2), &
+          flx_fld%gpblh   (dim1,dim2), &
+          flx_fld%gu10m   (dim1,dim2), &
+          flx_fld%gv10m   (dim1,dim2), &
+          flx_fld%gzorl   (dim1,dim2), &
+          flx_fld%goro    (dim1,dim2), &
           flx_fld%RAIN    (dim1,dim2), &
           flx_fld%RAINC   (dim1,dim2), &
           flx_fld%WET1    (dim1,dim2), &
           stat=iret)
-
+   
     if(iret.ne.0) iret=-4
     return
   end subroutine
@@ -152,6 +172,9 @@ allocate(                                  &
 !
     flx_fld%TMPMIN  = 1.e4
     flx_fld%TMPMAX  = 0.
+!jwang add spfhmax/spfhmin
+    flx_fld%SPFHMIN = 1.e10
+    flx_fld%SPFHMAX = 0.
     flx_fld%GESHEM  = 0.
     flx_fld%BENGSH  = 0.
     flx_fld%DUSFC   = 0.
@@ -175,6 +198,18 @@ allocate(                                  &
     flx_fld%SBSNOA  = 0.
     flx_fld%SNOWCA  = 0.
     flx_fld%SRUNOFF = 0.
+    flx_fld%SNOHFA  = 0.
+!jw
+    flx_fld%SUNTIM  = 0.
+!hchuang
+    flx_fld%gsoil   = 0.
+    flx_fld%gtmp2m  = 0.
+    flx_fld%gustar  = 0.
+    flx_fld%gpblh   = 0.
+    flx_fld%gu10m   = 0.
+    flx_fld%gv10m   = 0.
+    flx_fld%gzorl   = 0.
+    flx_fld%goro    = 0.
 
      return
   end subroutine

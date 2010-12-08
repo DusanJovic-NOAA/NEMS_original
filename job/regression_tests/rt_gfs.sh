@@ -51,6 +51,7 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_FHRES_:${FHRES}:g \
                     | sed s:_REDUCEDGRID_:${REDUCEDGRID}:g \
                     | sed s:_ADIAB_:${ADIAB}:g \
+                    | sed s:_NSTFCST_:${NST_FCST}:g \
                     | sed s:_TRACER_:${TRACER}:g \
                     | sed s:_NUMFILE_:${NUMFILE}:g \
                     | sed s:_SFCPRESSID_:${SFCPRESS_ID}:g \
@@ -104,7 +105,8 @@ cd $PATHRT
 echo 'RUNDIR=' $RUNDIR
 
 #cp ${RTPWD}/GEFS_data_2008082500/* $RUNDIR
-cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio/GEFS_data_2008082500/* $RUNDIR
+cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio/GEFS_data_2008082500/gfsanl* $RUNDIR
+cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio/GEFS_data_2008082500/sfcanl* $RUNDIR
 
 cat gfs_fcst_run_GEFS.IN \
                     | sed s:_SRCDIR_:${PATHTR}:g \

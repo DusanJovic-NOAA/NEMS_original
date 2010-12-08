@@ -20,6 +20,7 @@
 !                       attribute)
 !  2010/09/09           Sarah Lu, change smc1 to wet1 
 !  2010/10/10           Sarah Lu, add g2d_fld%met to phy_exp
+!  2010/11/18           Jun Wang, fix error on allocating cpi and ri
 !
 !!USEs:
 !
@@ -270,10 +271,14 @@
        call gfs_physics_err_msg(rc,'retrieve ri(:) attribute from phy_imp',rcfinal)
 
 ! ---  Fill in ri/cpi local array
-       allocate(ri(0:int_state%ntrac), stat=status)
+       if(.not.allocated(ri)) then
+         allocate(ri(0:int_state%ntrac), stat=status)
          if( status .ne. 0 ) print *, 'ERROR: Fail to allocate ri'
-       allocate(cpi(0:int_state%ntrac), stat=status)
+       endif
+       if(.not.allocated(cpi)) then
+         allocate(cpi(0:int_state%ntrac), stat=status)
          if( status .ne. 0 ) print *, 'ERROR: Fail to allocate cpi'
+       endif
        cpi(0:int_state%ntrac) =                                       &
               int_state%gfs_phy_tracer%cpi(0:int_state%ntrac)
        ri(0:int_state%ntrac) =                                        &

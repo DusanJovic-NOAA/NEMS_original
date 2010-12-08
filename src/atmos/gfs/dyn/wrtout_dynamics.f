@@ -181,8 +181,9 @@ csela set lfnhr to false for writing one step output etc.
       else
       CFHOUR = CFHOUR(1:nfill(CFHOUR)) // ens_nam(1:nfill(ens_nam))
       endif
-!      print *,' in wrtout_dynamics cfhour=',cfhour,' ens_nam=',ens_nam
-cjfe
+      if (me == ioproc)
+     &print *,' in wrtout_dynamics cfhour=',cfhour,' ens_nam=',ens_nam
+!
       nosig=61
 !!
       t3=rtc()
@@ -392,7 +393,7 @@ cgwv  t2=rtc()
       IPRINT = 0
       IOPROC=nodes-1
 !
-      print *,'in restart,lonsperlat=',lonsperlat
+      if (me == 0) print *,'in restart,lonsperlat=',lonsperlat
 ! n time step spectral file
 !
       filename='SIGR1'
@@ -404,7 +405,7 @@ cgwv  t2=rtc()
      X                TRIO_LS(1,1,P_GZ),TRIO_LS(1,1,P_QM ),
      X                TRIO_LS(1,1,P_TEM), TRIO_LS(1,1,P_DIM),
      X                TRIO_LS(1,1,P_ZEM), TRIO_LS(1,1,P_RM) )
-       print *,'1 end of twritero_rst,',trim(filename)
+       if (me == 0) print *,'1 end of twritero_rst,',trim(filename)
 !
 ! n+1 time step spectral file
 !
@@ -417,7 +418,7 @@ cgwv  t2=rtc()
      X                TRIO_LS(1,1,P_GZ), TRIO_LS(1,1,P_Q ),
      X                TRIO_LS(1,1,P_TE), TRIO_LS(1,1,P_DI),
      X                TRIO_LS(1,1,P_ZE), TRIO_LS(1,1,P_RQ) )
-       print *,'2 end of twritero_rst for ',trim(filename)
+       if (me == 0) print *,'2 end of twritero_rst for ',trim(filename)
 
 ! n time step grid file
 !
@@ -428,7 +429,7 @@ cgwv  t2=rtc()
      &                grid_gr(1,1,g_uum),grid_gr(1,1,g_vvm),
      &                grid_gr(1,1,g_rm),grid_gr(1,1,g_gz),
      &    kdt,nfcstdate7 )
-        print *,'1 end twriteg_rst,',trim(filename)
+        if (me == 0) print *,'1 end twriteg_rst,',trim(filename)
 !
 ! n+1 time step grid file
 !
@@ -439,7 +440,7 @@ cgwv  t2=rtc()
      &                grid_gr(1,1,g_uu),grid_gr(1,1,g_vv),
      &                grid_gr(1,1,g_rq),grid_gr(1,1,g_gz),
      &    kdt,nfcstdate7 )
-        print *,'2 end twriteg_rst,',trim(filename)
+        if (me == 0) print *,'2 end twriteg_rst,',trim(filename)
       call mpi_barrier(mpi_comm_all,iret)
 !
 

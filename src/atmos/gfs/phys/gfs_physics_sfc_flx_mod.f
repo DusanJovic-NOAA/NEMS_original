@@ -8,6 +8,9 @@
 ! !REVISION HISTORY:
 !
 !  March 2007      Shrinivas Moorthi Initial code.
+!  March 2008      Y.-T. Hou         add Sunshine_Duration (suntim) to Flx_Var_Data
+!  Jan 2009        Moorthi           add Ho Chun's changes
+!  Apr 2009        Y.-T. Hou         add surface lw emissivity (sfcemis)
 !  Nov 2009        Sarah Lu, add rain and rainc
 !  Sep 2010        Sarah Lu, add wet1
 !
@@ -66,6 +69,9 @@
     real(kind=kind_phys),pointer:: COSZEN(:,:)=>null()
     real(kind=kind_phys),pointer:: TMPMIN(:,:)=>null()
     real(kind=kind_phys),pointer:: TMPMAX(:,:)=>null()
+!jwang add spfhmax/spfhmin
+    real(kind=kind_phys),pointer:: SPFHMIN(:,:)=>null()
+    real(kind=kind_phys),pointer:: SPFHMAX(:,:)=>null()
     real(kind=kind_phys),pointer:: DUSFC(:,:)=>null()
     real(kind=kind_phys),pointer:: DVSFC(:,:)=>null()
     real(kind=kind_phys),pointer:: DTSFC(:,:)=>null()
@@ -111,6 +117,20 @@
     real(kind=kind_phys),pointer:: SBSNOA(:,:)=>null()
     real(kind=kind_phys),pointer:: SNOWCA(:,:)=>null()
     real(kind=kind_phys),pointer:: SOILM(:,:)=>null()
+    real(kind=kind_phys),pointer:: SNOHFA(:,:)=>null()
+    real(kind=kind_phys),pointer:: SMCWLT2(:,:)=>null()
+    real(kind=kind_phys),pointer:: SMCREF2(:,:)=>null()
+    real(kind=kind_phys),pointer:: suntim(:,:)=>null()       ! sunshine durationtime
+    real(kind=kind_phys),pointer:: sfcemis(:,:)=>null()      ! surface emissivity
+!hchuang code change [+8L] xx/xx/2007 : add 2D
+    real(kind=kind_phys),pointer:: gsoil(:,:)=>null()
+    real(kind=kind_phys),pointer:: gtmp2m(:,:)=>null()
+    real(kind=kind_phys),pointer:: gustar(:,:)=>null()
+    real(kind=kind_phys),pointer:: gpblh(:,:)=>null()
+    real(kind=kind_phys),pointer:: gu10m(:,:)=>null()
+    real(kind=kind_phys),pointer:: gv10m(:,:)=>null()
+    real(kind=kind_phys),pointer:: gzorl(:,:)=>null()
+    real(kind=kind_phys),pointer:: goro(:,:)=>null()
     real(kind=kind_phys),pointer:: RAIN(:,:)=>null()
     real(kind=kind_phys),pointer:: RAINC(:,:)=>null()
     real(kind=kind_phys),pointer:: WET1(:,:)=>null()

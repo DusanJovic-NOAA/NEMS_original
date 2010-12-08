@@ -168,9 +168,12 @@
 
       if (int_state%nam_gfs_phy%total_member <= 1) then
         int_state%nam_gfs_phy%sfc_ini  = 'sfc_ini'
+        int_state%nam_gfs_phy%nst_ini  = 'nst_ini'
       else
         write(int_state%nam_gfs_phy%sfc_ini, 				&
               '("sfc_ini_",i2.2)') int_state%nam_gfs_phy%member_id
+        write(Int_State%nam_gfs_phy%nst_ini,                            &
+              '("nst_ini_",I2.2)') Int_State%nam_gfs_phy%member_id
       endif
 
 !

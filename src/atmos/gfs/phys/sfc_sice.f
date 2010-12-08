@@ -1,552 +1,685 @@
-      SUBROUTINE SFC_SICE(IM,KM,PS,U1,V1,T1,Q1,
-     &                  HICE ,FICE ,TICE, SFCDSW,
-     &                  SHELEG,TSKIN,QSURF,TPRCP,SRFLAG,STC,DM,
-     &                  DLWFLX,SLRAD,SNOWMT,DELT,GFLUX,CM,CH,
-     &                  RCL,PRSL1,PRSLKI,SLIMSK,
-     +                  CMM,CHH,ZLVL,
-Clu_q2m_iter [-1L/+1L]: add flag_iter
-!*   &                  EVAP,HFLX,EP,DDVEL)
-     &                  EVAP,HFLX,EP,DDVEL,flag_iter)
+!-----------------------------------
+      subroutine sfc_sice                                               &
+!...................................
+!  ---  inputs:
+     &     ( im, km, ps, u1, v1, t1, q1, delt,                          &
+     &       sfcemis, dlwflx, sfcnsw, sfcdsw, srflag,                   &
+     &       cm, ch, prsl1, prslki, slimsk, ddvel,                      &
+     &       flag_iter, mom4ice, lsm, lprnt,ipr,                        &
+!  ---  input/outputs:
+     &       hice, fice, tice, weasd, tskin, tprcp, stc, ep,            &
+!  ---  outputs:
+     &       snwdph, qsurf, snowmt, gflux, cmm, chh, evap, hflx)
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!  usage:                                                               !
+!                                                                       !
+!    call sfc_sice                                                      !
+!       inputs:                                                         !
+!          ( im, km, ps, u1, v1, t1, q1, delt,                          !
+!            sfcemis, dlwflx, sfcnsw, sfcdsw, srflag,                   !
+!            cm, ch, prsl1, prslki, slimsk, ddvel,                      !
+!            flag_iter, mom4ice, lsm,                                   !
+!       input/outputs:                                                  !
+!            hice, fice, tice, weasd, tskin, tprcp, stc, ep,            !
+!       outputs:                                                        !
+!            snwdph, qsurf, snowmt, gflux, cmm, chh, evap, hflx )       !
+!                                                                       !
+!  subprogram called:  ice3lay.                                         !
+!                                                                       !
+!  program history log:                                                 !
+!         2005  --  xingren wu created  from original progtm and added  !
+!                     two-layer ice model                               !
+!         200x  -- sarah lu    added flag_iter                          !
+!    oct  2006  -- h. wei      added cmm and chh to output              !
+!         2007  -- x. wu modified for mom4 coupling (i.e. mom4ice)      !
+!         2007  -- s. moorthi micellaneous changes                      !
+!    may  2009  -- y.-t. hou   modified to include surface emissivity   !
+!                     effect on lw radiation. replaced the confusing    !
+!                     slrad with sfc net sw sfcnsw (dn-up). reformatted !
+!                     the code and add program documentation block.     !
+!    sep  2009 -- s. moorthi removed rcl, changed pressure units and    !
+!                     further optimized                                 !
+!                                                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     im, km   - integer, horiz dimension and num of soil layers   1    !
+!     ps       - real, surface pressure                            im   !
+!     u1, v1   - real, u/v component of surface layer wind         im   !
+!     t1       - real, surface layer mean temperature ( k )        im   !
+!     q1       - real, surface layer mean specific humidity        im   !
+!     delt     - real, time interval (second)                      1    !
+!     sfcemis  - real, sfc lw emissivity ( fraction )              im   !
+!     dlwflx   - real, total sky sfc downward lw flux ( w/m**2 )   im   !
+!     sfcnsw   - real, total sky sfc netsw flx into ground(w/m**2) im   !
+!     sfcdsw   - real, total sky sfc downward sw flux ( w/m**2 )   im   !
+!     srflag   - real, snow/rain flag for precipitation            im   !
+!     cm       - real, surface exchange coeff for momentum (m/s)   im   !
+!     ch       - real, surface exchange coeff heat & moisture(m/s) im   !
+!     prsl1    - real, surface layer mean pressure                 im   !
+!     prslki   - real,                                             im   !
+!     slimsk   - real, sea/land/ice mask (=0/1/2)                  im   !
+!     ddvel    - real,                                             im   !
+!     flag_iter- logical,                                          im   !
+!     mom4ice  - logical,                                          im   !
+!     lsm      - integer, flag for land surface model scheme       1    !
+!                =0: use osu scheme; =1: use noah scheme                !
+!                                                                       !
+!  input/outputs:                                                       !
+!     hice     - real, sea-ice thickness                           im   !
+!     fice     - real, sea-ice concentration                       im   !
+!     tice     - real, sea-ice surface temperature                 im   !
+!     weasd    - real, water equivalent accumulated snow depth (mm)im   !
+!     tskin    - real, ground surface skin temperature ( k )       im   !
+!     tprcp    - real, total precipitation                         im   !
+!     stc      - real, soil temp (k)                              im,km !
+!     ep       - real, potential evaporation                       im   !
+!                                                                       !
+!  outputs:                                                             !
+!     snwdph   - real, water equivalent snow depth (mm)            im   !
+!     qsurf    - real, specific humidity at sfc                    im   !
+!     snowmt   - real, snow melt (m)                               im   !
+!     gflux    - real, soil heat flux (w/m**2)                     im   !
+!     cmm      - real,                                             im   !
+!     chh      - real,                                             im   !
+!     evap     - real, evaperation from latent heat flux           im   !
+!     hflx     - real, sensible heat flux                          im   !
+!                                                                       !
+! ===================================================================== !
 !
-      USE MACHINE , ONLY : kind_phys
-      USE FUNCPHYS, ONLY : fpvs
-      USE PHYSCONS, SBC => con_sbc, HVAP => con_HVAP, TGICE => con_tice
-     &,             CP => con_CP, HFUS => con_HFUS, JCAL => con_JCAL
-     &,             EPS => con_eps, EPSM1 => con_epsm1, grav => con_g
-     &,             RVRDM1 => con_FVirt, T0C => con_T0C, RD => con_RD
+      use machine , only : kind_phys
+      use funcphys, only : fpvs
+      use physcons, only : sbc => con_sbc, hvap => con_hvap,            &
+     &                     tgice => con_tice, cp => con_cp,             &
+     &                     eps => con_eps, epsm1 => con_epsm1,          &
+     &                     grav => con_g, rvrdm1 => con_fvirt,          &
+     &                     t0c => con_t0c, rd => con_rd
+!
       implicit none
 !
-      integer              IM, km, kmi
-!
-      real(kind=kind_phys), parameter :: cpinv=1.0/cp, HVAPI=1.0/HVAP
-      real(kind=kind_phys) DELT
-      real(kind=kind_phys) PS(IM),       U1(IM),      V1(IM),
-     &                     T1(IM),       Q1(IM),      SHELEG(IM),
-     &                     TSKIN(IM),    QSURF(IM),   STC(IM,KM),
-     &                     DM(IM),       DLWFLX(IM),  SLRAD(IM),
-     &                     SNOWMT(IM),   GFLUX(IM),
-     &                     CM(IM),      CH(IM),
-     &                     RCL(IM),      PRSL1(IM),   PRSLKI(IM),
-     &                     SLIMSK(IM),   EVAP(IM),    HFLX(IM),
-     &                     RNET(IM),     EP(IM),      DDVEL(IM)
-     &,                    TPRCP(IM),    SRFLAG(IM)
-     &,                    SFCDSW(IM),   FICE(IM),    HICE(IM)
-     &,                    CMM(IM),CHH(IM),ZLVL(IM)
-      real(kind=kind_phys) TICE(IM),     FFW(IM),     EVAPI(IM),
-     &                     EVAPW(IM),    HFLXI(IM),   HFLXW(IM),
-     &                     SNETI(IM),    SNETW(IM),   QSSI(IM),
-     &                     QSSW(IM)
-      real(kind=kind_phys) hf(IM),       hfd(IM),     hfi(IM),
-     &                     hfw(IM),      focn(IM),    snof(IM)
+!  ---  constant parameters:
+      integer,              parameter :: kmi   = 2        ! 2-layer of ice
+      real(kind=kind_phys), parameter :: cpinv = 1.0/cp
+      real(kind=kind_phys), parameter :: hvapi = 1.0/hvap
+      real(kind=kind_phys), parameter :: elocp = hvap/cp
+      real(kind=kind_phys), parameter :: himax = 8.0      ! maximum ice thickness allowed
+      real(kind=kind_phys), parameter :: himin = 0.1      ! minimum ice thickness required
+      real(kind=kind_phys), parameter :: hsmax = 2.0      ! maximum snow depth allowed
+      real(kind=kind_phys), parameter :: timin = 173.0    ! minimum temperature allowed for snow/ice
+      real(kind=kind_phys), parameter :: albfw = 0.06     ! albedo for lead
+      real(kind=kind_phys), parameter :: dsi   = 1.0/0.33
 
-Clu_q2m_iter [+1L]: add flag_iter
-      logical              flag_iter(im)
+!  ---  inputs:
+      integer, intent(in) :: im, km, lsm, ipr
+      logical, intent(in) :: lprnt
 
-!
-!     Locals
-!
-      integer              k,i
-!
-      real(kind=kind_phys) 
-     &                     PSURF(IM),   Q0(IM),      QS1(IM),
-     &                     QSS(IM),     RCAP(IM),    RCH(IM),
-     &                     RHO(IM),     SLWD(IM),   SNET(IM),
-     &                     SNOEVP(IM),  SNOWD(IM),THETA1(IM),  
-     &                     TSURF(IM),   TV1(IM),    XRCL(IM),    
-     &                     PS1(IM),     WIND(IM)
-!
-      real(kind=kind_phys)   
-     &                     elocp,  sigma,   cimin,   himin,
-     &                     himax,  hsmax,   timin,
-     &                     t12,      t14,   tem
-      real(kind=kind_phys) albfw,  emissiv
-!
-cc
-      PARAMETER (kmi=2)           ! 2-layer of ice
-      PARAMETER (sigma=sbc)
-      PARAMETER (ELOCP=HVAP/CP)
-      PARAMETER (CIMIN=0.50)      ! minimum ice concentration required
-      PARAMETER (HIMAX=5.0)       ! maximum ice thickness allowed
-      PARAMETER (HIMIN=0.1)       ! minimum ice thickness required
-      PARAMETER (HSMAX=2.)        ! maximum snow depth allowed
-      PARAMETER (TIMIN=173.)      ! minimum temperature allowed for snow/ice
-!     PARAMETER (CICE=1880.*917.)
-      PARAMETER (ALBFW=0.06)     ! Albedo for lead
-!     PARAMETER (EMISSIV=0.95)   ! emissivity of snow and ice
-      PARAMETER (EMISSIV=1.0)    ! emissivity of snow and ice
-!
-      LOGICAL FLAG(IM), FLAGSNW(IM)
-      real(kind=kind_phys) STSICE(IM,KMI)
+      real (kind=kind_phys), dimension(im), intent(in) :: ps, u1, v1,   &
+     &       t1, q1, sfcemis, dlwflx, sfcnsw, sfcdsw, srflag, cm, ch,   &
+     &       prsl1, prslki, slimsk, ddvel
 
-!
-C
-C FLAG for sea-ice
-C
-      DO I = 1, IM
-         FLAG(I) = SLIMSK(I).GE.2. .AND. flag_iter(i)
-      ENDDO
-      DO I = 1, IM
-         IF (flag_iter(i).AND.SLIMSK(I).LT.1.5) THEN
-             HICE(I )= 0.
-             FICE(I )= 0.
-         ENDIF
-      ENDDO
-C
-C snow-rain detection
-C
-      DO I=1,IM
-        IF(FLAG(I)) THEN
-          IF(SRFLAG(I) .EQ. 1.) THEN
-            EP(I) = 0.
-            SHELEG(i) = SHELEG(i) + 1.E3*TPRCP(i)
-            TPRCP(i)   = 0.
-          ENDIF
-        ENDIF
-      ENDDO
+      real (kind=kind_phys), intent(in) :: delt
 
-C
-C  INITIALIZE VARIABLES. ALL UNITS ARE SUPPOSEDLY M.K.S. UNLESS SPECIFIE
-C  PSURF IS IN PASCALS
-C  WIND IS WIND SPEED, THETA1 IS ADIABATIC SURFACE TEMP FROM LEVEL 1
-C  RHO IS DENSITY, QS1 IS SAT. HUM. AT LEVEL1 AND QSS IS SAT. HUM. AT
-C  SURFACE
-C  CONVERT SLRAD TO THE CIVILIZED UNIT FROM LANGLEY MINUTE-1 K-4
-C
-!     qs1 = fpvs(t1)
-!     qss = fpvs(tskin)
-      DO I=1,IM
-        IF(FLAG(I)) THEN
-          XRCL(I)  = SQRT(RCL(I))
-          PSURF(I) = 1000. * PS(I)
-          PS1(I)   = 1000. * PRSL1(I)
-          SLWD(I)  = SLRAD(I)
-c
-c  DLWFLX has been given a negative sign for downward longwave
-c  snet is the net shortwave flux
-c
-          SNET(I) = -SLWD(I) - DLWFLX(I)
-          WIND(I) = XRCL(I) * SQRT(U1(I) * U1(I) + V1(I) * V1(I))
-     &            + MAX(0.0, MIN(DDVEL(I), 30.0))
-          WIND(I) = MAX(WIND(I),1.)
-          Q0(I) = MAX(Q1(I),1.E-8)
-          TSURF(I) = TSKIN(I)
-          THETA1(I) = T1(I) * PRSLKI(I)
-          TV1(I) = T1(I) * (1. + RVRDM1 * Q0(I))
-          RHO(I) = PS1(I) / (RD * TV1(I))
-cjfe      QS1(I) = 1000. * FPVS(T1(I))
-          qs1(i) = fpvs(t1(i))
-          QS1(I) = EPS * QS1(I) / (PS1(I) + EPSM1 * QS1(I))
-          QS1(I) = MAX(QS1(I), 1.E-8)
-          Q0(I) = min(QS1(I),Q0(I))
-cjfe      QSS(I) = 1000. * FPVS(TSURF(I))
-!         qss(i) = fpvs(tskin(i))
-!         QSS(I) = EPS * QSS(I) / (PSURF(I) + EPSM1 * QSS(I))
-          FFW(I) = 1.0-FICE(I)
-!         IF (FICE(I) .GE. cimin) THEN
-!            TICE(I) = (TSKIN(I)-TGICE*FFW(I))/FICE(I)
-!         ELSE
-          IF (FICE(I) .LT. cimin) THEN
-             PRINT *,'WARNING: ice fraction is low:', FICE(I)
-             FICE(I )= cimin
-             FFW(I)  = 1.0-FICE(I)
-             TICE(I) = tgice
-             TSKIN(I)= tgice
-             PRINT *,'Fix ice fraction: reset it to:', FICE(I)
-          ENDIF
+      logical, intent(in) :: flag_iter(im), mom4ice
+
+!  ---  input/outputs:
+      real (kind=kind_phys), dimension(im), intent(inout) :: hice,      &
+     &       fice, tice, weasd, tskin, tprcp, ep
+
+      real (kind=kind_phys), dimension(im,km), intent(inout) :: stc
+
+!  ---  outputs:
+      real (kind=kind_phys), dimension(im), intent(out) :: snwdph,      &
+     &       qsurf, snowmt, gflux, cmm, chh, evap, hflx
+
+!  ---  locals:
+      real (kind=kind_phys), dimension(im) :: ffw, evapi, evapw,        &
+     &       hflxi, hflxw, sneti, snetw, qssi, qssw, hfd, hfi, hfw,     &
+     &       focn, snof, hi_save, hs_save, psurf, q0, qs1, rch, rho,    &
+     &       snowd, theta1, tv1, ps1, wind
+
+      real (kind=kind_phys) :: cimin, t12, t14, tem, stsice(im,kmi)
+
+      integer :: i, k
+ 
+      logical :: flag(im)
+!
+!===> ...  begin here
+!
+!  --- ...  set minimum ice concentration required
+
+      if (mom4ice) then
+         cimin = 0.15          ! mom4ice and mask
+      else
+         cimin = 0.50          ! gfs only
+      endif
+
+!  --- ...  set flag for sea-ice
+
+      do i = 1, im
+         flag(i) = (slimsk(i)>=2.0) .and. flag_iter(i)
+      enddo
+
+      if (mom4ice) then
+        do i = 1, im
+          if (flag(i)) then
+            hi_save(i) = hice(i)
+            hs_save(i) = weasd(i) * 0.001
+          endif
+        enddo
+      endif
+!
+      do i = 1, im
+        if (flag_iter(i) .and. slimsk(i)<1.5) then
+          hice(i) = 0.0
+          fice(i) = 0.0
+        endif
+      enddo
+
+!  --- ...  snow-rain detection
+
+      if (.not. mom4ice .and. lsm > 0) then
+        do i = 1, im
+          if (flag(i)) then
+            if (srflag(i) == 1.0) then
+              ep(i) = 0.0
+              weasd(i) = weasd(i) + 1.e3*tprcp(i)
+              tprcp(i)  = 0.0
+            endif
+          endif
+        enddo
+      endif
+
+!  --- ...  initialize variables. all units are supposedly m.k.s. unless specifie
+!           psurf is in pascals, wind is wind speed, theta1 is adiabatic surface
+!           temp from level 1, rho is density, qs1 is sat. hum. at level1 and qss
+!           is sat. hum. at surface
+!           convert slrad to the civilized unit from langley minute-1 k-4
+
+      do i = 1, im
+        if (flag(i)) then
+          psurf(i) = 1000.0 * ps(i)
+          ps1(i)   = 1000.0 * prsl1(i)
+
+!         dlwflx has been given a negative sign for downward longwave
+!         sfcnsw is the net shortwave flux (direction: dn-up)
+
+          wind(i)   = sqrt(u1(i)*u1(i) + v1(i)*v1(i))                   &
+     &              + max(0.0, min(ddvel(i), 30.0))
+          wind(i)   = max(wind(i), 1.0)
+
+          q0(i)     = max(q1(i), 1.0e-8)
+!         tsurf(i)  = tskin(i)
+          theta1(i) = t1(i) * prslki(i)
+          tv1(i)    = t1(i) * (1.0 + rvrdm1*q0(i))
+          rho(i)    = prsl1(i) / (rd*tv1(i))
+          qs1(i)    = fpvs(t1(i))
+          qs1(i)    = eps*qs1(i) / (prsl1(i) + epsm1*qs1(i))
+          qs1(i)    = max(qs1(i), 1.e-8)
+          q0 (i)    = min(qs1(i), q0(i))
+
+          ffw(i)    = 1.0 - fice(i)
+          if (fice(i) < cimin) then
+            print *,'warning: ice fraction is low:', fice(i)
+            fice(i) = cimin
+            ffw (i) = 1.0 - fice(i)
+            tice(i) = tgice
+            tskin(i)= tgice
+            print *,'fix ice fraction: reset it to:', fice(i)
+          endif
+
           qssi(i) = fpvs(tice(i))
-          QSSI(I) = EPS * QSSI(I) / (PSURF(I) + EPSM1 * QSSI(I))
+          qssi(i) = eps*qssi(i) / (ps(i) + epsm1*qssi(i))
           qssw(i) = fpvs(tgice)
-          QSSW(I) = EPS * QSSW(I) / (PSURF(I) + EPSM1 * QSSW(I))
-C
-C  SNOW DEPTH IN WATER EQUIVALENT IS CONVERTED FROM MM TO M UNIT
-C
-          SNOWD(I) = SHELEG(I) / 1000.
-          FLAGSNW(I) = .FALSE.
-C
-C  WHEN SNOW DEPTH IS LESS THAN 1 MM, A PATCHY SNOW IS ASSUMED AND
-C  SOIL IS ALLOWED TO INTERACT WITH THE ATMOSPHERE.
-C  WE SHOULD EVENTUALLY MOVE TO A LINEAR COMBINATION OF SOIL AND
-C  SNOW UNDER THE CONDITION OF PATCHY SNOW.
-C
-          IF(SNOWD(I).GT..001) FLAGSNW(I) = .TRUE.
-        ENDIF
-      ENDDO
-!!
+          qssw(i) = eps*qssw(i) / (ps(i) + epsm1*qssw(i))
 
-C
-C  RCP = RHO CP CH V
-C
-      DO I = 1, IM
-        IF(FLAG(I)) THEN
-          RCH(I) = RHO(I) * CP * CH(I) * WIND(I)
-Cwei added 10/24/2006
-        CMM(I)=CM(I)* WIND(I)
-        CHH(I)=RHO(I)*CH(I)* WIND(I)
-        ZLVL(I) = -RD * TV1(I) * LOG(PS1(I)/PSURF(I)) / GRAV
-        ENDIF
-      ENDDO
+!  --- ...  snow depth in water equivalent is converted from mm to m unit
 
-C
-C  SENSIBLE AND LATENT HEAT FLUX OVER OPEN WATER & SEA ICE
-C
-      DO I = 1, IM
-        IF(FLAG(I)) THEN
-          EVAPI(I) = ELOCP * RCH(I) * (QSSI(I) - Q0(I))
-          EVAPW(I) = ELOCP * RCH(I) * (QSSW(I) - Q0(I))
-!         EVAP(I)  = FICE(I)*EVAPI(I) + FFW(I)*EVAPW(I)
-        ENDIF
-      ENDDO
+          if (mom4ice) then
+            snowd(i) = weasd(i) * 0.001 / fice(i)
+          else
+            snowd(i) = weasd(i) * 0.001
+          endif
+!         flagsnw(i) = .false.
 
-C
-C  UPDATE SEA ICE TEMPERATURE
-C
-      DO K = 1, KMI
-        DO I=1,IM
-          IF(FLAG(I)) THEN
-            STSICE(I,K) = STC(I,K)
-          ENDIF
-        ENDDO
-      ENDDO
-      DO I=1,IM
-        IF(FLAG(I)) THEN
-          SNETW(I) = SFCDSW(I)*(1.0-ALBFW)
-          SNETW(I) = min(3.*SNET(I)/(1.+2.*FFW(I)),SNETW(I))
-          SNETI(I) = (SNET(I)-FFW(I)*SNETW(I))/FICE(I)
-          t12=tice(i)*tice(i)
-          t14=t12*t12
-C         hfi = Net non-solar and upIR heat flux @ ice surface
-          hfi(i) =-dlwflx(i)+emissiv*sigma*t14 + evapi(i)
-     &           +rch(i)*(tice(i)-theta1(i))
-C         hfd = Heat flux derivat @ surface
-C             = 4 emissivity T**3 + RCH [ 1 + L/CP * DQS/DT) ]
-          hfd(i) = 4.*emissiv*sigma*tice(i)*t12
-     &            +(1.+elocp*eps*hvap*qs1(i)/(rd*t12))*rch(i)
-          t12=tgice*tgice
-          t14=t12*t12
-C         hfw = Net heat flux @ water surface (within ice)
-          hfw(i) =-dlwflx(i)+emissiv*sigma*t14 + evapw(i)
-     &           +rch(i)*(tgice-theta1(i))-snetw(i)
-          focn(i) = 2. ! heat flux from ocean - should be from ocn model
-          snof(i) = 0. ! snowfall rate - snow accumulates in gbphys
-CCC...QC
-          if (hice(i) .GT. himax) hice(i)=himax
-          if (hice(i) .LT. himin) hice(i)=himin
-          if (snowd(i) .GT. hsmax) snowd(i)=hsmax
-          if (snowd(i) .GT. (2.*hice(i))) then
-              print *,'WARNING: too much snow :',snowd(i)
-              snowd(i)=2.*hice(i)
-              print *,'FIX: decrease snow depth to:',snowd(i)
+!  --- ...  when snow depth is less than 1 mm, a patchy snow is assumed and
+!           soil is allowed to interact with the atmosphere.
+!           we should eventually move to a linear combination of soil and
+!           snow under the condition of patchy snow.
+        endif
+      enddo
+
+
+      do i = 1, im
+        if (flag(i)) then
+
+!  --- ...  rcp = rho cp ch v
+
+          cmm(i) = cm(i)  * wind(i)
+          chh(i) = rho(i) * ch(i) * wind(i)
+          rch(i) = chh(i) * cp
+
+!  --- ...  sensible and latent heat flux over open water & sea ice
+
+          evapi(i) = elocp * rch(i) * (qssi(i) - q0(i))
+          evapw(i) = elocp * rch(i) * (qssw(i) - q0(i))
+!         evap(i)  = fice(i)*evapi(i) + ffw(i)*evapw(i)
+        endif
+      enddo
+
+!  --- ...  update sea ice temperature
+
+      do k = 1, kmi
+        do i = 1, im
+          if (flag(i)) then
+            stsice(i,k) = stc(i,k)
           endif
-CCC...QC END
-        ENDIF
-      ENDDO
-      call ice3lay(IM,kmi,snowd,hice,fice,flag,
-     &             stsice,tice,hfi,sneti,hfd,hfw,focn,
-     &             snof,snowmt,gflux,delt)
-      DO I=1,IM
-        IF(FLAG(I)) THEN
-          if (tice(i).LT.timin) then
-           print *,'WARNING: snow/ice temperature is too low:',tice(i)
-           tice(i)=timin
-           PRINT *,'Fix snow/ice temperature: reset it to:',tice(i)
+        enddo
+      enddo
+
+      if (lprnt) write(0,*)' tice=',tice(ipr)
+
+      do i = 1, im
+        if (flag(i)) then
+          snetw(i) = sfcdsw(i) * (1.0 - albfw)
+          snetw(i) = min(3.0*sfcnsw(i)/(1.0+2.0*ffw(i)), snetw(i))
+          sneti(i) = (sfcnsw(i) - ffw(i)*snetw(i)) / fice(i)
+
+          t12 = tice(i) * tice(i)
+          t14 = t12 * t12
+
+!  --- ...  hfi = net non-solar and upir heat flux @ ice surface
+
+          hfi(i) = -dlwflx(i) + sfcemis(i)*sbc*t14 + evapi(i)           &
+     &           + rch(i)*(tice(i) - theta1(i))
+          hfd(i) = 4.0*sfcemis(i)*sbc*tice(i)*t12                       &
+     &           + (1.0 + elocp*eps*hvap*qs1(i)/(rd*t12)) * rch(i)
+
+          t12 = tgice * tgice
+          t14 = t12 * t12
+
+!  --- ...  hfw = net heat flux @ water surface (within ice)
+
+!         hfw(i) = -dlwflx(i) + sfcemis(i)*sbc*t14 + evapw(i)           &
+!    &           + rch(i)*(tgice - theta1(i)) - snetw(i)
+
+          focn(i) = 2.0     ! heat flux from ocean - should be from ocn model
+          snof(i) = 0.0     ! snowfall rate - snow accumulates in gbphys
+
+          hice(i) = max( min( hice(i), himax ), himin )
+          snowd(i) = min( snowd(i), hsmax )
+
+          if (snowd(i) > (2.0*hice(i))) then
+            print *, 'warning: too much snow :',snowd(i)
+            snowd(i) = 2.0 * hice(i)
+            print *,'fix: decrease snow depth to:',snowd(i)
           endif
-          if (stsice(i,1).LT.timin) then
-           print *,'WARNING: Layer 1 ice temp is too low:',stsice(i,1)
-           stsice(i,1)=timin
-           PRINT *,'Fix Layer 1 ice temp: reset it to:',stsice(i,1)
+        endif
+      enddo
+
+      if (lprnt) write(0,*)' tice2=',tice(ipr)
+      call ice3lay
+!  ---  inputs:                                                         !
+!    &     ( im, kmi, fice, flag, hfi, hfd, sneti, focn, delt,          !
+!  ---  outputs:                                                        !
+!    &       snowd, hice, stsice, tice, snof, snowmt, gflux )           !
+
+      if (lprnt) write(0,*)' tice3=',tice(ipr)
+      if (mom4ice) then
+        do i = 1, im
+          if (flag(i)) then
+            hice(i)  = hi_save(i)
+            snowd(i) = hs_save(i)
           endif
-          if (stsice(i,2).LT.timin) then
-           print *,'WARNING: Layer 2 ice temp is too low:',stsice(i,2)
-           stsice(i,2)=timin
-           PRINT *,'Fix Layer 2 ice temp: reset it to:',stsice(i,2)
+        enddo
+      endif
+
+      do i = 1, im
+        if (flag(i)) then
+          if (tice(i) < timin) then
+            print *,'warning: snow/ice temperature is too low:',tice(i)
+     &,' i=',i
+            tice(i) = timin
+            print *,'fix snow/ice temperature: reset it to:',tice(i)
           endif
+
+          if (stsice(i,1) < timin) then
+            print *,'warning: layer 1 ice temp is too low:',stsice(i,1)
+     &,' i=',i
+            stsice(i,1) = timin
+            print *,'fix layer 1 ice temp: reset it to:',stsice(i,1)
+          endif
+
+          if (stsice(i,2) < timin) then
+            print *,'warning: layer 2 ice temp is too low:',stsice(i,2)
+            stsice(i,2) = timin
+            print *,'fix layer 2 ice temp: reset it to:',stsice(i,2)
+          endif
+
           tskin(i) = tice(i)*fice(i) + tgice*ffw(i)
-        ENDIF
-      ENDDO
-      DO k=1,KMI
-        DO I=1,IM
-          IF(FLAG(I)) THEN
-             stc(i,k) = min(stsice(i,k),T0C)
-          ENDIF
-        ENDDO
-      ENDDO
-C
-C  CALCULATE SENSIBLE HEAT FLUX (& EVAP over SEA ICE)
-C
-      DO I = 1, IM
-        IF (FLAG(I)) THEN
-          HFLXI(I) = RCH(I) * (TICE(I) - THETA1(I))
-          HFLXW(I) = RCH(I) * (TGICE - THETA1(I))
-          HFLX(I) = FICE(I)*HFLXI(I) + FFW(I)*HFLXW(I)
-          EVAP(I) = FICE(I)*EVAPI(I) + FFW(I)*EVAPW(I)
-        ENDIF
-      ENDDO
+        endif
+      enddo
 
-C
-C  THE REST OF THE OUTPUT
-C
-      DO I = 1, IM
-        IF(FLAG(I)) THEN
-          QSURF(I) = Q1(I) + EVAP(I) / (ELOCP * RCH(I))
-          DM(I) = 1.
-C
-C  CONVERT SNOW DEPTH BACK TO MM OF WATER EQUIVALENT
-C
-          SHELEG(I) = SNOWD(I) * 1000.
-        ENDIF
-      ENDDO
+      do k = 1, kmi
+        do i = 1, im
+          if (flag(i)) then
+            stc(i,k) = min(stsice(i,k), t0c)
+          endif
+        enddo
+      enddo
+
+!  --- ...  calculate sensible heat flux (& evap over sea ice)
+
+      do i = 1, im
+        if (flag(i)) then
+          hflxi(i) = rch(i) * (tice(i) - theta1(i))
+          hflxw(i) = rch(i) * (tgice - theta1(i))
+          hflx(i)  = fice(i)*hflxi(i) + ffw(i)*hflxw(i)
+          evap(i)  = fice(i)*evapi(i) + ffw(i)*evapw(i)
+        endif
+      enddo
 !
-      do i=1,im
-        IF(FLAG(I)) THEN
+!  --- ...  the rest of the output
+
+      do i = 1, im
+        if (flag(i)) then
+          qsurf(i) = q1(i) + evap(i) / (elocp*rch(i))
+
+!  --- ...  convert snow depth back to mm of water equivalent
+
+          weasd(i)  = snowd(i) * 1000.0
+          snwdph(i) = weasd(i) * dsi             ! snow depth in mm
+        endif
+      enddo
+
+      do i = 1, im
+        if (flag(i)) then
           tem     = 1.0 / rho(i)
           hflx(i) = hflx(i) * tem * cpinv
           evap(i) = evap(i) * tem * hvapi
-        ENDIF
+        endif
       enddo
 !
-      RETURN
-      END
-
-      SUBROUTINE ICE3LAY(IM,kmi,hs,hi,fice,flag,
-     &                   TI,TS,HF,SOL,HFD,FRZMLT,FB,
-     &                   SNOW,SNOWMT,GFLUX,DT)
-C
-C**************************************************************************
-C                                                                         *
-C            THREE-LAYER SEA ICE VERTICAL THERMODYNAMICS                  *
-C                                                                         *
-C Based on:  M. Winton, "A reformulated three-layer sea ice model",       *
-C Journal of Atmospheric and Oceanic Technology, 2000                     *
-C                                                                         *
-C                                                                         *
-C        -> +---------+ <- ts - diagnostic surface temperature ( <= 0C )  *
-C       /   |         |                                                   *
-C     hs    |  snow   | <- 0-heat capacity snow layer                     *
-C       \   |         |                                                   *
-C        => +---------+                                                   *
-C       /   |         |                                                   *
-C      /    |         | <- t1 - upper 1/2 ice temperature; this layer has *
-C     /     |         |         a variable (T/S dependent) heat capacity  *
-C   hi      |...ice...|                                                   *
-C     \     |         |                                                   *
-C      \    |         | <- t2 - lower 1/2 ice temp. (fixed heat capacity) *
-C       \   |         |                                                   *
-C        -> +---------+ <- base of ice fixed at seawater freezing temp.   *
-C                                                                         *
-C**************************************************************************
-C
-      USE MACHINE , ONLY : kind_phys
-      implicit none
-C
-C ***************************************************************
-C                                                               *
-C    Argument    Description            Units       Changed?    *
-C    --------    -----------            -----       --------    *
-C                                                               *
-C INPUT/OUTPUT:                                                 *
-C                                                               *
-C      hs       Snow Thickness           m               y      *
-C      hi       Ice Thickness            m               y      *
-C      ts       Surface Temperature      deg C           y      *
-C      ti(1)    Temp @ Midpt of Ice1     deg C           y      *
-C      ti(2)    Temp @ Midpt of Ice2     deg C           y      *
-C      hf(+)    Net non-solar and upIR                          *
-C               heat flux @ surface      watt/m^2        n      *
-C      sol(+)   Net solar incoming top   watt/m^2        n      *
-C      hfd(+)   Heat flux derivat @ sfc  watt/(m^2deg-C) n      *
-C      fb(+)    Heat Flux from Ocean     watt/m^2        n      *
-C      snow     Snowfall Rate            m/sec           n      *
-C      dt       timestep                 sec             n      *
-C                                                               *
-C ADDITIONAL:                                                   *
-C                                                               *
-C      snowmt   snow melt during dt      m               y      *
-C      gflux    conductive heat flux     watt/m^2        y      *
-C      flag     Ice mask flag                            n      *
-C                                                               *
-C LOCAL:                                                        *
-C                                                               *
-C      hdi      ice-water interface      m               y      *
-C      hsni     snow-ice                 m               y      *
-C ***************************************************************
-C
-      integer              IM, kmi
-      real (kind=kind_phys) KS, DS, I0, KI, DI, CI, DICI,
-     &                      LI, SI, MU, TFI, TFW, DILI, DSLI 
-      real (kind=kind_phys) DW,tffresh,TFI0
-      real (kind=kind_phys) ki4, dt, dt2, dt4, dt6
-      real (kind=kind_phys) r0,r1,r2,r4,p5
-C
-C variables for temperature calculation [see Winton (2000) 2.a]
-C
-      real (kind=kind_phys) A(IM), B(IM), Ip(IM),
-     &                      A1(IM),B1(IM),C1(IM),
-     &                      A10(IM),B10(IM),
-     &                      K12(IM),K32(IM),
-     &                      TSF(IM),SNOWD(IM),
-     &                      H1(IM),H2(IM),DH(IM),
-     &                      F1(IM),TMELT(IM),BMELT(IM)
-      real (kind=kind_phys) HF(IM),HFD(IM),
-     &                      HS(IM),TS(IM),SOL(IM),
-     &                      GFLUX(IM),SNOWMT(IM),
-     &                      FB(IM),SNOW(IM),
-     &                      HI(IM),TI(IM,KMI)
-      real (kind=kind_phys) FICE(IM),FRZMLT(IM)
-      real (kind=kind_phys) HSNI(IM),HDI(IM)
-      LOGICAL FLAG(IM)
-      integer              I
-
-C properties of ice, snow, and seawater (local)
-      PARAMETER (DS=330.0)       ! snow (over sea ice) density - 330 kg/(m^3)
-      PARAMETER (DW=1000.0)      ! fresh water density - 1000 kg/(m^3)
-      PARAMETER (TFFRESH=273.15) ! Freezing temp of fresh ice (K)
-      PARAMETER (KS = 0.31)      ! conductivity of snow - 0.31 W/(mK)
-      PARAMETER (I0 = 0.3)       ! ice surface penetrating solar fraction
-      PARAMETER (KI = 2.03)      ! conductivity of ice  - 2.03 W/(mK)
-      PARAMETER (DI = 917.0)     ! density of ice  - 917 kg/(m^3)
-      PARAMETER (CI = 2054.0)    ! heat capacity of fresh ice - 2054 J/(kg K)
-      PARAMETER (LI = 3.34e5)    ! latent heat of fusion - 334e3 J/(kg-ice)
-      PARAMETER (SI = 1.0)       ! salinity of sea ice
-      PARAMETER (MU = 0.054)     ! relates freezing temp. to salinity
-      PARAMETER (TFI = -MU*SI)   ! sea ice freezing temp. = -mu*salinity
-      PARAMETER (TFW = -1.8)     ! TFW - seawater freezing temperature -1.8 C
-      PARAMETER (r0 = 0.)        ! r0=0
-      PARAMETER (r1 = 1.)        ! r1=1
-      PARAMETER (r2 = 2.)        ! r2=2
-      PARAMETER (r4 = 4.)        ! r4=4
-      PARAMETER (p5 = r1/r2)     ! p5=1/2
-      PARAMETER (TFI0 = TFI-0.0001) ! TFI-0.0001
-      PARAMETER (DICI = DI*CI)
-      PARAMETER (DILI = DI*LI)
-      PARAMETER (DSLI = DS*LI)
-      PARAMETER (KI4 = KI*r4)
-
-      dt2 = dt*r2
-      dt4 = dt*r4
-      dt6 = dt*6.
-
-      DO I=1,IM
-        IF(FLAG(I)) THEN
-          hs(i) = hs(i)*DW/DS
-          hdi(i) = (DS*hs(i)+DI*hi(i))/DW
-          if (hi(i).LT.hdi(i)) then
-             hs(i)=hs(i)+hi(i)-hdi(i)
-             hsni(i)=(hdi(i)-hi(i))*DS/DI
-             hi(i)=hi(i)+hsni(i)
-          endif
-          snow(i) = snow(i)*DW/DS
-          ts(i) = TS(I)-TFFRESH               ! degC
-          ti(i,1) = min(TI(I,1)-TFFRESH,TFI0) ! degC
-          ti(i,2) = min(TI(I,2)-TFFRESH,TFI0) ! degC
-          Ip(i) = I0*sol(i) ! Ip +v (in Winton Ip=-I0*sol as sol -v)
-          if (hs(i) .gt. r0) then
-            tsf(i) = r0
-            Ip(i) = r0
-          else
-            tsf(i) = TFI
-            Ip(i) = I0*sol(i) ! Ip +v here (in Winton Ip=-I0*sol)
-          endif
-          ts(i) = min(TS(I),TSF(I))
-C
-C Compute ice temperature
-C
-      B(i) = hfd(i)
-      A(i) = hf(i)-sol(i)+Ip(i)-ts(i)*B(i)    ! +v sol input here
-      K12(i) = KI4*KS/(KS*hi(i)+KI4*hs(i))
-      K32(i) = r2*KI/hi(i)
-
-      A10(i) = DICI*hi(i)/dt2 + K32(i)*(dt4*K32(i)+DICI*hi(i))
-     &                       /(dt6*K32(i)+DICI*hi(i))
-      B10(i) = -DI*hi(i)*(CI*ti(i,1)+LI*TFI/ti(i,1))/dt2 - Ip(i)
-     &          -K32(i)*(dt4*K32(i)*TFW+DICI*hi(i)*ti(i,2))
-     &              /(dt6*K32(i)+DICI*hi(i))
-
-      A1(i) = A10(i)+K12(i)*B(i)/(K12(i)+B(i))
-      B1(i) = B10(i)+A(i)*K12(i)/(K12(i)+B(i))
-      C1(i) = DILI*TFI/dt2*hi(i)
-      ti(i,1) = -(sqrt(B1(i)*B1(i)-r4*A1(i)*C1(i))+B1(i))/(r2*A1(i))
-      ts(i) = (K12(i)*ti(i,1)-A(i))/(K12(i)+B(i))
-      if (ts(i) .gt. tsf(i)) then
-         A1(i) = A10(i)+K12(i)
-         B1(i) = B10(i)-K12(i)*tsf(i)
-         ti(i,1) = -(sqrt(B1(i)*B1(i)-r4*A1(i)*C1(i))+B1(i))/(r2*A1(i))
-         ts(i) = tsf(i)
-         tmelt(i) = (K12(i)*(ti(i,1)-tsf(i))-(A(i)+B(i)*tsf(i)))*dt
-      else
-         tmelt(i) = r0
-         hs(i) = hs(i) + snow(i)*dt
-      endif
-
-      ti(i,2) = (dt2*K32(i)*(ti(i,1)+r2*TFW)+DICI*hi(i)*ti(i,2))
-     &     /(dt6*K32(i)+DICI*hi(i))
-
-      bmelt(i) = (fb(i)+KI4*(ti(i,2)-TFW)/hi(i))*dt
-C
-C Resize the ice ...
-C
-      h1(i) = p5*hi(i)
-      h2(i) = p5*hi(i)
-C
-C ... top ...
-C
-      if (tmelt(i) .le. hs(i)*DSLI) then
-         snowmt(i) = tmelt(i)/DSLI
-         hs(i) = hs(i) - tmelt(i)/DSLI
-      else
-         snowmt(i) = hs(i)
-         h1(i)=h1(i)
-     &        -(tmelt(i)-hs(i)*DSLI)/(DI*(CI-LI/ti(i,1))*(TFI-ti(i,1)))
-         hs(i) = r0
-      endif
-C
-C ... and bottom
-C
-      if (bmelt(i) .lt. r0) then
-         dh(i) = -bmelt(i)/(DILI+DICI*(TFI-TFW))
-         ti(i,2) = (h2(i)*ti(i,2)+dh(i)*TFW)/(h2(i)+dh(i))
-         h2(i) = h2(i)+dh(i)
-      else
-         h2(i) = h2(i)-bmelt(i)/(DILI+DICI*(TFI-ti(i,2)))
-      endif
-C
-C if ice remains, even up 2 layers, else, pass negative energy back in snow
-C
-      hi(i) = h1(i) + h2(i)
-
-      if (hi(i) .gt. r0) then
-         if (h1(i) .gt. p5*hi(i)) then
-            f1(i) = r1-r2*h2(i)/hi(i)
-            ti(i,2)=f1(i)*(ti(i,1)+LI*TFI/(CI*ti(i,1)))
-     &             +(r1-f1(i))*ti(i,2)
-            if (ti(i,2).GT.TFI) then
-               hi(i)=hi(i)-h2(i)*CI*(TI(i,2)-TFI)/(LI*dt)
-               ti(i,2)=TFI
-            endif
-         else
-            f1(i) = r2*h1(i)/hi(i)
-            ti(i,1)=f1(i)*(ti(i,1)+LI*TFI/(CI*ti(i,1)))
-     &             +(r1-f1(i))*ti(i,2)
-            ti(i,1) = (ti(i,1)-sqrt(ti(i,1)*ti(i,1)-r4*TFI*LI/CI))/r2
-         endif
-         K12(i) = KI4*KS/(KS*hi(i)+KI4*hs(i))
-         gflux(i) = k12(i) * (ti(i,1) - ts(i))
-      else
-         hs(i) = hs(i) + (h1(i)*(CI*(ti(i,1)-TFI)-LI*(r1-TFI/ti(i,1)))
-     &             +h2(i)*(CI*(ti(i,2)-TFI)-LI))/LI
-         hi(i) = max(r0,hs(i)*DS/DI)
-         hs(i) = r0
-         ti(i,1) = TFW
-         ti(i,2) = TFW
-         gflux(i) = r0
-      endif
-
-      gflux(i) = fice(i)*gflux(i)
-      snowmt(i)=snowmt(i)*DS/DW
-      hs(i)=hs(i)*DS/DW
-      ts(i)=ts(i)+tffresh
-      ti(i,1)=ti(i,1)+tffresh
-      ti(i,2)=ti(i,2)+tffresh
-      ENDIF ! FLAG
-      ENDDO ! IM
       return
-      end
+
+! =================
+      contains
+! =================
+
+
+!-----------------------------------
+      subroutine ice3lay
+!...................................
+!  ---  inputs:
+!    &     ( im, kmi, fice, flag, hfi, hfd, sneti, focn, delt,          &
+!  ---  input/outputs:
+!    &       snowd, hice, stsice, tice, snof,                           &
+!  ---  outputs:
+!    &       snowmt, gflux                                              &
+!    &     )
+
+!**************************************************************************
+!                                                                         *
+!            three-layer sea ice vertical thermodynamics                  *
+!                                                                         *
+! based on:  m. winton, "a reformulated three-layer sea ice model",       *
+! journal of atmospheric and oceanic technology, 2000                     *
+!                                                                         *
+!                                                                         *
+!        -> +---------+ <- tice - diagnostic surface temperature ( <= 0c )*
+!       /   |         |                                                   *
+!   snowd   |  snow   | <- 0-heat capacity snow layer                     *
+!       \   |         |                                                   *
+!        => +---------+                                                   *
+!       /   |         |                                                   *
+!      /    |         | <- t1 - upper 1/2 ice temperature; this layer has *
+!     /     |         |         a variable (t/s dependent) heat capacity  *
+!   hice    |...ice...|                                                   *
+!     \     |         |                                                   *
+!      \    |         | <- t2 - lower 1/2 ice temp. (fixed heat capacity) *
+!       \   |         |                                                   *
+!        -> +---------+ <- base of ice fixed at seawater freezing temp.   *
+!                                                                         *
+!  =====================  defination of variables  =====================  !
+!                                                                         !
+!  inputs:                                                         size   !
+!     im, kmi  - integer, horiz dimension and num of ice layers      1    !
+!     fice     - real, sea-ice concentration                         im   !
+!     flag     - logical, ice mask flag                              1    !
+!     hfi      - real, net non-solar and heat flux @ surface(w/m^2)  im   !
+!     hfd      - real, heat flux derivatice @ sfc (w/m^2/deg-c)      im   !
+!     sneti    - real, net solar incoming at top  (w/m^2)            im   !
+!     focn     - real, heat flux from ocean    (w/m^2)               im   !
+!     delt     - real, timestep                (sec)                 1    !
+!                                                                         !
+!  input/outputs:                                                         !
+!     snowd    - real, surface pressure                              im   !
+!     hice     - real, sea-ice thickness                             im   !
+!     stsice   - real, temp @ midpt of ice levels  (deg c)          im,kmi!     
+!     tice     - real, surface temperature     (deg c)               im   !
+!     snof     - real, snowfall rate           (m/sec)               im   !
+!                                                                         !
+!  outputs:                                                               !
+!     snowmt   - real, snow melt during delt   (m)                   im   !
+!     gflux    - real, conductive heat flux    (w/m^2)               im   !
+!                                                                         !
+!  locals:                                                                !
+!     hdi      - real, ice-water interface     (m)                   im   !
+!     hsni     - real, snow-ice                (m)                   im   !
+!                                                                         !
+! ======================================================================= !
+!
+
+!  ---  constant parameters: (properties of ice, snow, and seawater)
+      real (kind=kind_phys), parameter :: ds   = 330.0    ! snow (ov sea ice) density (kg/m^3)
+      real (kind=kind_phys), parameter :: dw   =1000.0    ! fresh water density  (kg/m^3)
+      real (kind=kind_phys), parameter :: t0c  =273.15    ! freezing temp of fresh ice (k)
+      real (kind=kind_phys), parameter :: ks   = 0.31     ! conductivity of snow   (w/mk)
+      real (kind=kind_phys), parameter :: i0   = 0.3      ! ice surface penetrating solar fraction
+      real (kind=kind_phys), parameter :: ki   = 2.03     ! conductivity of ice  (w/mk)
+      real (kind=kind_phys), parameter :: di   = 917.0    ! density of ice   (kg/m^3)
+      real (kind=kind_phys), parameter :: ci   = 2054.0   ! heat capacity of fresh ice (j/kg/k)
+      real (kind=kind_phys), parameter :: li   = 3.34e5   ! latent heat of fusion (j/kg-ice)
+      real (kind=kind_phys), parameter :: si   = 1.0      ! salinity of sea ice
+      real (kind=kind_phys), parameter :: mu   = 0.054    ! relates freezing temp to salinity
+      real (kind=kind_phys), parameter :: tfi  = -mu*si   ! sea ice freezing temp = -mu*salinity
+      real (kind=kind_phys), parameter :: tfw  = -1.8     ! tfw - seawater freezing temp (c)
+      real (kind=kind_phys), parameter :: tfi0 = tfi-0.0001
+      real (kind=kind_phys), parameter :: dici = di*ci 
+      real (kind=kind_phys), parameter :: dili = di*li 
+      real (kind=kind_phys), parameter :: dsli = ds*li 
+      real (kind=kind_phys), parameter :: ki4  = ki*4.0
+
+!  ---  inputs:
+!     integer, intent(in) :: im, kmi
+
+!     real (kind=kind_phys), dimension(im), intent(in) :: fice, hfi,    &
+!    &       hfd, sneti, focn
+
+!     real (kind=kind_phys), intent(in) :: delt
+
+!     logical, dimension(im), intent(in) :: flag
+
+!  ---  input/outputs:
+!     real (kind=kind_phys), dimension(im), intent(inout) :: snowd,     &
+!    &       hice, tice, snof
+
+!     real (kind=kind_phys), dimension(im,kmi), intent(inout) :: stsice
+
+!  ---  outputs:
+!     real (kind=kind_phys), dimension(im), intent(out) :: snowmt,      &
+!    &       gflux
+
+!  ---  locals:
+      real (kind=kind_phys), dimension(im) :: hdi, hsni, a, b, ip,      &
+     &      a1, b1, c1, a10, b10, k12, k32, h1, h2, dh, f1, tsf,        &
+     &      tmelt, bmelt
+
+      real (kind=kind_phys) :: dt2, dt4, dt6
+
+      integer :: i
+!
+!===> ...  begin here
+!
+      dt2 = 2.0 * delt
+      dt4 = 4.0 * delt
+      dt6 = 6.0 * delt
+
+      do i = 1, im
+        if (flag(i)) then
+          snowd(i) = snowd(i) * dw / ds
+          hdi(i) = (ds*snowd(i) + di*hice(i)) / dw
+
+          if (hice(i) < hdi(i)) then
+            snowd(i) = snowd(i) + hice(i) - hdi(i)
+            hsni (i) = (hdi(i) - hice(i)) * ds / di
+            hice (i) = hice(i) + hsni(i)
+          endif
+
+          snof(i) = snof(i) * dw / ds
+          tice(i) = tice(i) - t0c
+          stsice(i,1) = min(stsice(i,1)-t0c, tfi0)     ! degc
+          stsice(i,2) = min(stsice(i,2)-t0c, tfi0)     ! degc
+
+          ip(i) = i0 * sneti(i)         ! ip +v (in winton ip=-i0*sneti as sol -v)
+          if (snowd(i) > 0.0) then
+            tsf(i) = 0.0
+            ip (i) = 0.0
+          else
+            tsf(i) = tfi
+            ip (i) = i0 * sneti(i)      ! ip +v here (in winton ip=-i0*sneti)
+          endif
+          tice(i) = min(tice(i), tsf(i))
+
+!  --- ...  compute ice temperature
+
+          b(i) = hfd(i)
+          a(i) = hfi(i) - sneti(i) + ip(i) - tice(i)*b(i)  ! +v sol input here
+          k12(i) = ki4*ks / (ks*hice(i) + ki4*snowd(i))
+          k32(i) = 2.0 * ki / hice(i)
+
+          a10(i) = dici*hice(i)/dt2 + k32(i)*(dt4*k32(i) + dici*hice(i))&
+     &           / (dt6*k32(i) + dici*hice(i))
+          b10(i) = -di*hice(i) * (ci*stsice(i,1) + li*tfi/stsice(i,1))  &
+     &           / dt2 - ip(i)                                          &
+     &           - k32(i)*(dt4*k32(i)*tfw + dici*hice(i)*stsice(i,2))   &
+     &           / (dt6*k32(i) + dici*hice(i))
+
+          a1(i) = a10(i) + k12(i)*b(i) / (k12(i) + b(i))
+          b1(i) = b10(i) + a(i)*k12(i) / (k12(i) + b(i))
+          c1(i) = dili*tfi / dt2*hice(i)
+
+          stsice(i,1) = -(sqrt(b1(i)*b1(i) - 4.0*a1(i)*c1(i))           &
+     &                + b1(i))/(2.0*a1(i))
+          tice(i) = (k12(i)*stsice(i,1) - a(i)) / (k12(i) + b(i))
+
+          if (tice(i) > tsf(i)) then
+            a1(i) = a10(i) + k12(i)
+            b1(i) = b10(i) - k12(i)*tsf(i)
+            stsice(i,1) = -(sqrt(b1(i)*b1(i) - 4.0*a1(i)*c1(i))         &
+     &                  + b1(i)) / (2.0*a1(i))
+            tice(i) = tsf(i)
+            tmelt(i) = (k12(i)*(stsice(i,1) - tsf(i))                   &
+     &               - (a(i) + b(i)*tsf(i))) * delt
+          else
+            tmelt(i) = 0.0
+            snowd(i) = snowd(i) + snof(i)*delt
+          endif
+
+          stsice(i,2) = (dt2*k32(i)*(stsice(i,1) + 2.0*tfw)             &
+     &                + dici*hice(i)*stsice(i,2))                       &
+     &                / (dt6*k32(i) + dici*hice(i))
+
+          bmelt(i) = (focn(i) + ki4*(stsice(i,2) - tfw)/hice(i)) * delt
+
+!  --- ...  resize the ice ...
+
+          h1(i) = 0.5 * hice(i)
+          h2(i) = 0.5 * hice(i)
+
+!  --- ...  top ...
+
+          if (tmelt(i) <= snowd(i)*dsli) then
+            snowmt(i) = tmelt(i) / dsli
+            snowd (i) = snowd(i) - tmelt(i)/dsli
+          else
+            snowmt(i) = snowd(i)
+            h1(i) = h1(i) - (tmelt(i) - snowd(i)*dsli)                  &
+     &            / (di * (ci - li/stsice(i,1)) * (tfi - stsice(i,1)))
+            snowd(i) = 0.0
+          endif
+
+!  --- ...  and bottom
+
+          if (bmelt(i) < 0.0) then
+            dh(i) = -bmelt(i) / (dili + dici*(tfi - tfw))
+            stsice(i,2) = (h2(i)*stsice(i,2) + dh(i)*tfw)               &
+     &                  / (h2(i) + dh(i))
+            h2(i) = h2(i) + dh(i)
+          else
+            h2(i) = h2(i) - bmelt(i) / (dili + dici*(tfi - stsice(i,2)))
+          endif
+
+!  --- ...  if ice remains, even up 2 layers, else, pass negative energy back in snow
+
+          hice(i) = h1(i) + h2(i)
+
+          if (hice(i) > 0.0) then
+            if (h1(i) > 0.5*hice(i)) then
+              f1(i) = 1.0 - 2.0*h2(i) / hice(i)
+              stsice(i,2) = f1(i)                                       &
+     &                    * (stsice(i,1) + li*tfi/(ci*stsice(i,1)))     &
+     &                    + (1.0 - f1(i))*stsice(i,2)
+
+              if (stsice(i,2) > tfi) then
+                hice(i) = hice(i) - h2(i)*ci*(stsice(i,2) - tfi)        &
+     &                  / (li*delt)
+                stsice(i,2) = tfi
+              endif
+            else
+              f1(i) = 2.0 * h1(i) / hice(i)
+              stsice(i,1) = f1(i)                                       &
+     &                    * (stsice(i,1) + li*tfi/(ci*stsice(i,1)))     &
+     &                    + (1.0 - f1(i))*stsice(i,2)
+              stsice(i,1) = (stsice(i,1) - sqrt(stsice(i,1)*stsice(i,1) &
+     &                    - 4.0*tfi*li/ci)) / 2.0
+            endif
+
+            k12(i) = ki4*ks / (ks*hice(i) + ki4*snowd(i))
+            gflux(i) = k12(i) * (stsice(i,1) - tice(i))
+          else
+            snowd(i) = snowd(i) + (h1(i)*(ci*(stsice(i,1) - tfi)        &
+     &               - li*(1.0 - tfi/stsice(i,1)))                      &
+     &               + h2(i)*(ci*(stsice(i,2) - tfi) - li)) / li
+
+            hice(i) = max(0.0, snowd(i)*ds/di)
+            snowd(i) = 0.0
+            stsice(i,1) = tfw
+            stsice(i,2) = tfw
+            gflux(i) = 0.0
+          endif   ! end if_hice_block
+
+          gflux(i) = fice(i) * gflux(i)
+          snowmt(i) = snowmt(i) * ds / dw
+          snowd(i) = snowd(i) * ds / dw
+          tice(i) = tice(i) + t0c
+          stsice(i,1) = stsice(i,1) + t0c
+          stsice(i,2) = stsice(i,2) + t0c
+        endif   ! end if_flag_block
+      enddo   ! end do_i_loop
+
+      return
+!...................................
+      end subroutine ice3lay
+!-----------------------------------
+
+! =========================== !
+!     end contain programs    !
+! =========================== !
+
+!...................................
+      end subroutine sfc_sice
+!-----------------------------------

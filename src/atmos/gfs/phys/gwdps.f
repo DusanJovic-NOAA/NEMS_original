@@ -1,10 +1,9 @@
-CFPP$ NOCONCUR R                                                        
 !     SUBROUTINE GWDPS(IM,IX,IY,KM,A,B,U1,V1,T1,Q1,PSTAR,KPBL,
       SUBROUTINE GWDPS(IM,IX,IY,KM,A,B,U1,V1,T1,Q1,KPBL,
-     &               PRSI,DEL,PRSL,PRSLK,PHII, PHIL,RCL,DELTIM,KDT,
+     &               PRSI,DEL,PRSL,PRSLK,PHII, PHIL,DELTIM,KDT,
      &               HPRIME,OC,OA4,CLX4,THETA,SIGMA,GAMMA,ELVMAX, 
      &               DUSFC,DVSFC,G, CP, RD, RV, IMX, 
-     &               nmtvr, me, lprnt, ipr)
+     &               nmtvr, cdmbgwd, me, lprnt, ipr)
 !
 !   ********************************************************************
 ! ----->  I M P L E M E N T A T I O N    V E R S I O N   <----------
@@ -75,13 +74,11 @@ CFPP$ NOCONCUR R
 !  INPUT
 !        A(IY,KM)  NON-LIN TENDENCY FOR V WIND COMPONENT
 !        B(IY,KM)  NON-LIN TENDENCY FOR U WIND COMPONENT
-!        U1(IX,KM) ZONAL WIND / SQRT(RCL)  M/SEC  AT T0-DT
-!        V1(IX,KM) MERIDIONAL WIND / SQRT(RCL) M/SEC AT T0-DT
+!        U1(IX,KM) ZONAL WIND M/SEC  AT T0-DT
+!        V1(IX,KM) MERIDIONAL WIND M/SEC AT T0-DT
 !        T1(IX,KM) TEMPERATURE DEG K AT T0-DT
 !        Q1(IX,KM) SPECIFIC HUMIDITY AT T0-DT
 !
-!        RCL     A scaling factor = RECIPROCAL OF SQUARE OF COS(LAT)
-!                FOR MRF GFS.  
 !        DELTIM  TIME STEP    SECS
 !        SI(N)   P/PSFC AT BASE OF LAYER N
 !        SL(N)   P/PSFC AT MIDDLE OF LAYER N
@@ -97,7 +94,7 @@ CFPP$ NOCONCUR R
       implicit none
       integer im, iy, ix, km, imx, lat, kdt, ipr, me
       integer KPBL(IM)                 ! Index for the PBL top layer!
-      real(kind=kind_phys) deltim, G, CP, RD, RV
+      real(kind=kind_phys) deltim, G, CP, RD, RV,      cdmbgwd(2)
 !     real(kind=kind_phys) A(IY,KM),    B(IY,KM),      PSTAR(IM)
       real(kind=kind_phys) A(IY,KM),    B(IY,KM),
      &                     U1(IX,KM),   V1(IX,KM),     T1(IX,KM),
@@ -105,7 +102,7 @@ CFPP$ NOCONCUR R
      &                     PRSL(IX,KM), PRSLK(IX,KM),  PHIL(IX,KM),
      &                     PHII(IX,KM+1)
       real(kind=kind_phys) OC(IM),     OA4(IY,4), CLX4(IY,4)
-     &,                    HPRIME(IM), rcl(im)
+     &,                    HPRIME(IM)
 ! for lm mtn blocking
       real(kind=kind_phys) ELVMAX(IM),THETA(IM),SIGMA(IM),GAMMA(IM)
       real(kind=kind_phys) wk(IM)
@@ -126,12 +123,13 @@ CFPP$ NOCONCUR R
      &,                    CRITAC, VELEPS, FACTOP, RLOLEV, RDI
       parameter (FRC=1.0, CE=0.8, CEOFRC=CE/FRC, frmax=100., CG=0.5)
       parameter (GMAX=1.0, CRITAC=5.0E-4, VELEPS=1.0, FACTOP=0.5)
-      parameter (RLOLEV=500.0) 
+      parameter (RLOLEV=50000.0) 
+!     parameter (RLOLEV=500.0) 
 !     parameter (RLOLEV=0.5)
 !
        real(kind=kind_phys) dpmin,hminmt,hncrit,minwnd,sigfac
 ! --- for lm mtn blocking
-      parameter (cdmb = 1.0)     ! non-dim sub grid mtn drag Amp (*j*)
+!     parameter (cdmb = 1.0)     ! non-dim sub grid mtn drag Amp (*j*)
       parameter (hncrit=8000.)   ! Max value in meters for ELVMAX (*j*)
 !  hncrit set to 8000m and sigfac added to enhance elvmax mtn hgt
       parameter (sigfac=4.0)     ! MB3a expt test for ELVMAX factor (*j*)
@@ -139,9 +137,11 @@ CFPP$ NOCONCUR R
       parameter (minwnd=0.1)     ! min wind component (*j*)
 
 !     parameter (dpmin=00.0)     ! Minimum thickness of the reference layer
-      parameter (dpmin=05.0)     ! Minimum thickness of the reference layer
+!!    parameter (dpmin=05.0)     ! Minimum thickness of the reference layer
 !     parameter (dpmin=20.0)     ! Minimum thickness of the reference layer
                                  ! in centibars
+      parameter (dpmin=5000.0)   ! Minimum thickness of the reference layer
+                                 ! in Pa
 !
       real(kind=kind_phys) FDIR
       integer mdir
@@ -162,7 +162,7 @@ CFPP$ NOCONCUR R
       real(kind=kind_phys) BNV2(IM,KM),  TAUP(IM,KM+1), ri_n(IM,KM) 
      &,                    TAUD(IM,KM),  RO(IM,KM),     VTK(IM,KM)
      &,                    VTJ(IM,KM),   SCOR(IM),      VELCO(IM,KM-1)
-     &,                    bnv2bar(im),                 rcs(im)
+     &,                    bnv2bar(im)
 !
       real(kind=kind_phys) VELKO(KM-1)
       Integer   kref(IM), kint(im), iwk(im), iwk2(im), ipt(im)
@@ -175,12 +175,19 @@ CFPP$ NOCONCUR R
      &,                    wdir,   ti,    rdz,   dw2,   shr2, bvf2
      &,                    rdelks, wtkbj, efact, coefm, gfobnv
      &,                    scork,  rscor, hd,    fro,   rim,  sira
-     &,                    dtaux,  dtauy, rcsks, pkp1log, pklog
+     &,                    dtaux,  dtauy, pkp1log, pklog
       integer ncnt, kmm1, kmm2, lcap, lcapp1, kbps, kbpsp1,kbpsm1
      &, kmps, kmpsp1, idir, nwd, i, j, k, klcap, kp1, kmpbl, npt, npr
      &, kmll,kmds
 !    &, kmll,kmds,ihit,jhit
       logical lprnt
+!
+!     parameter (cdmb = 1.0)     ! non-dim sub grid mtn drag Amp (*j*)
+! non-dim sub grid mtn drag Amp (*j*)
+!     cdmb = 1.0/float(IMX/192)
+!     cdmb = 192.0/float(IMX)
+      cdmb = 4.0 * 192.0/float(IMX)
+      if (cdmbgwd(1) >= 0.0) cdmb = cdmb * cdmbgwd(1)
 !
       npr = 0
       DO I = 1, IM
@@ -189,11 +196,11 @@ CFPP$ NOCONCUR R
       ENDDO
 !
       DO K = 1, KM
-      DO I = 1, IM
-      DB(I,K) = 0.
-      ANG(I,K) = 0.
-      UDS(I,K) = 0.
-      ENDDO
+        DO I = 1, IM
+          DB(I,K)  = 0.
+          ANG(I,K) = 0.
+          UDS(I,K) = 0.
+        ENDDO
       ENDDO
 !
       RDI  = 1.0 / RD
@@ -231,9 +238,8 @@ CFPP$ NOCONCUR R
 ! INITIALIZE DIVIDING STREAMLINE (DS) CONTROL VECTOR
 !
         do i=1,npt
-          rcs(i) = sqrt(rcl(ipt(i)))
-          iwklm(i) = 2
-          IDXZB(i) = 0 
+          iwklm(i)  = 2
+          IDXZB(i)  = 0 
           kreflm(i) = 0
         enddo
 !       if (lprnt) 
@@ -342,9 +348,8 @@ CFPP$ NOCONCUR R
           DO K = 1, Kreflm(I)
             J        = ipt(i)
             RDELKS     = DEL(J,K) * DELKS(I)
-            RCSKS      = RCS(I)   * RDELKS
-            UBAR(I)    = UBAR(I)  + RCSKS  * U1(J,K) ! trial Mean U below 
-            VBAR(I)    = VBAR(I)  + RCSKS  * V1(J,K) ! trial Mean V below 
+            UBAR(I)    = UBAR(I)  + RDELKS * U1(J,K) ! trial Mean U below 
+            VBAR(I)    = VBAR(I)  + RDELKS * V1(J,K) ! trial Mean V below 
             ROLL(I)    = ROLL(I)  + RDELKS * RO(I,K) ! trial Mean RO below 
             RDELKS     = (PRSL(J,K)-PRSL(J,K+1)) * DELKS1(I)
             BNV2bar(I) = BNV2bar(I) + BNV2lm(I,K) * RDELKS
@@ -365,7 +370,7 @@ CFPP$ NOCONCUR R
             if ( ANG(I,K) .gt.  90. ) ANG(I,K) = ANG(I,K) - 180.
             if ( ANG(I,K) .lt. -90. ) ANG(I,K) = ANG(I,K) + 180.
 !
-            UDS(I,K) = RCS(I) * 
+            UDS(I,K) = 
      &          MAX(SQRT(U1(J,K)*U1(J,K) + V1(J,K)*V1(J,K)), minwnd)
 ! --- Test to see if we found Zb previously
             IF (IDXZB(I) .eq. 0 ) then
@@ -462,7 +467,6 @@ CFPP$ NOCONCUR R
 !      &,' ipt(npt)=',ipt(npt)
 !
         do i=1,npt
-          rcs(i) = sqrt(rcl(ipt(i)))
           IDXZB(i) = 0
         enddo
       ENDIF
@@ -477,10 +481,14 @@ CFPP$ NOCONCUR R
       if (imx .gt. 0) then
 !       cleff = 1.0E-5 * SQRT(FLOAT(IMX)/384.0) !  this is inverse of CLEFF!
 !       cleff = 1.0E-5 * SQRT(FLOAT(IMX)/192.0) !  this is inverse of CLEFF!
-        cleff = 0.5E-5 * SQRT(FLOAT(IMX)/192.0) !  this is inverse of CLEFF!
+!       cleff = 0.5E-5 * SQRT(FLOAT(IMX)/192.0) !  this is inverse of CLEFF!
+!       cleff = 1.0E-5 * SQRT(FLOAT(IMX)/192)/float(IMX/192)
+!       cleff = 1.0E-5 / SQRT(FLOAT(IMX)/192.0) !  this is inverse of CLEFF!
+        cleff = 0.5E-5 / SQRT(FLOAT(IMX)/192.0) !  this is inverse of CLEFF!
 !       cleff = 2.0E-5 * SQRT(FLOAT(IMX)/192.0) !  this is inverse of CLEFF!
 !       cleff = 2.5E-5 * SQRT(FLOAT(IMX)/192.0) !  this is inverse of CLEFF!
       endif
+      if (cdmbgwd(2) >= 0.0) cleff = cleff * cdmbgwd(2)
 !
       DO K = 1,KM
         DO I =1,npt
@@ -496,11 +504,10 @@ CFPP$ NOCONCUR R
           J         = ipt(i)
           TI        = 2.0 / (T1(J,K)+T1(J,K+1))
           TEM       = TI  / (PRSL(J,K)-PRSL(J,K+1))
-!         RDZ       = GOR * PRSI(J,K+1) * TEM
           RDZ       = g   / (phil(j,k+1) - phil(j,k))
           TEM1      = U1(J,K) - U1(J,K+1)
           TEM2      = V1(J,K) - V1(J,K+1)
-          DW2       = RCL(J)*(TEM1*TEM1 + TEM2*TEM2)
+          DW2       = TEM1*TEM1 + TEM2*TEM2
           SHR2      = MAX(DW2,DW2MIN) * RDZ * RDZ
           BVF2      = G*(GOCP+RDZ*(VTJ(I,K+1)-VTJ(I,K))) * TI
           ri_n(I,K) = MAX(BVF2/SHR2,RIMIN)   ! Richardson number
@@ -563,9 +570,8 @@ CFPP$ NOCONCUR R
           IF (K .LT. kref(I)) THEN
             J          = ipt(i)
             RDELKS     = DEL(J,K) * DELKS(I)
-            RCSKS      = RCS(I)   * RDELKS
-            UBAR(I)    = UBAR(I)  + RCSKS  * U1(J,K)   ! Mean U below kref
-            VBAR(I)    = VBAR(I)  + RCSKS  * V1(J,K)   ! Mean V below kref
+            UBAR(I)    = UBAR(I)  + RDELKS * U1(J,K)   ! Mean U below kref
+            VBAR(I)    = VBAR(I)  + RDELKS * V1(J,K)   ! Mean V below kref
 !
             ROLL(I)    = ROLL(I)  + RDELKS * RO(I,K)   ! Mean RO below kref
             RDELKS     = (PRSL(J,K)-PRSL(J,K+1)) * DELKS1(I)
@@ -619,8 +625,8 @@ CFPP$ NOCONCUR R
       DO  K = 1,KMM1
         DO  I = 1,npt
           J            = ipt(i)
-          VELCO(I,K)   = (0.5*RCS(I)) * ((U1(J,K)+U1(J,K+1))*UBAR(I)
-     &                                +  (V1(J,K)+V1(J,K+1))*VBAR(I))
+          VELCO(I,K)   = 0.5 * ((U1(J,K)+U1(J,K+1))*UBAR(I)
+     &                       +  (V1(J,K)+V1(J,K+1))*VBAR(I))
           VELCO(I,K)   = VELCO(I,K) * ULOI(I)
 !         IF ((VELCO(I,K).LT.VELEPS) .AND. (VELCO(I,K).GT.0.)) THEN
 !           VELCO(I,K) = VELEPS
@@ -771,14 +777,9 @@ CFPP$ NOCONCUR R
 !
 !     Calculate - (g/p*)*d(tau)/d(sigma) and Decel terms DTAUX, DTAUY
 !
-      DO I=1,npt
-!       SCOR(I) = 1.0 / (RCS(I) * PSTAR(I))
-        SCOR(I) = 1.0 / RCS(I)
-      ENDDO
       DO K = 1,KM
         DO I = 1,npt
-          TAUD(I,K) = G * (TAUP(I,K+1) - TAUP(I,K)) * SCOR(I) 
-     &                                              / DEL(ipt(I),K)
+          TAUD(I,K) = G * (TAUP(I,K+1) - TAUP(I,K)) / DEL(ipt(I),K)
         ENDDO
       ENDDO
 !
@@ -799,7 +800,7 @@ CFPP$ NOCONCUR R
         DO I = 1,npt
            IF (K .GT. kref(I) .and. PRSI(ipt(i),K) .GE. RLOLEV) THEN
              IF(TAUD(I,K).NE.0.) THEN
-               TEM = DELTIM *  RCS(I) * TAUD(I,K)
+               TEM = DELTIM * TAUD(I,K)
                DTFAC(I) = MIN(DTFAC(I),ABS(VELCO(I,K)/TEM))
              ENDIF
            ENDIF
@@ -841,10 +842,10 @@ CFPP$ NOCONCUR R
 !       print *,' in gwdps_lm.f after  B=',B(ipr,:)
 !       print *,' DB=',DB(ipr,:)
 !     endif
+      TEM    = -1.0/G
       DO I = 1,npt
         J          = ipt(i)
-!       TEM    = (-1.E3/G) * RCS(I) * PSTAR(I)
-        TEM    = (-1.E3/G) * RCS(I)
+!       TEM    = (-1.E3/G)
         DUSFC(J) = TEM * DUSFC(J)
         DVSFC(J) = TEM * DVSFC(J)
       ENDDO
@@ -858,7 +859,7 @@ CFPP$ NOCONCUR R
 !              IF(IKOUNT.GT.NCNT) GO TO 92
 !              IF(I.LT.319.OR.I.GT.320) GO TO 92
 !              DO 91 K = 1,KM
-!                 IF(ABS(RCS*TAUD(I,K)) .GT. CRITAC) THEN
+!                 IF(ABS(TAUD(I,K)) .GT. CRITAC) THEN
 !                    IF(I.LE.IM) THEN
 !                       IKOUNT = IKOUNT+1
 !                       PRINT 123,I,LAT,KDT
@@ -869,7 +870,7 @@ CFPP$ NOCONCUR R
 !                       PRINT 124,(ri_n(I,KK),KK = 1,KM)
 !                       DO 93 KK = 1,KMM1
 !                          VELKO(KK) =
-!    1                  0.5*RCS*((U1(I,KK)+U1(I,KK+1))*UBAR(I)+
+!    1                  0.5*((U1(I,KK)+U1(I,KK+1))*UBAR(I)+
 !    2                  (V1(I,KK)+V1(I,KK+1))*VBAR(I))*ULOI(I)
 !93                     CONTINUE
 !                       PRINT 124,(VELKO(KK),KK = 1,KMM1)

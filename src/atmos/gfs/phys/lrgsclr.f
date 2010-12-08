@@ -7,6 +7,8 @@
      &,             grav => con_g
       implicit none
 !
+!     include 'constant.h'
+!
       integer IX , IM, KM
       real(kind=kind_phys) T1(IX,KM),  Q1(IX,KM),    PRSL(IX,KM),
      &                     DEL(IX,KM), PRSLK(IX,KM), RAIN(IM),
@@ -47,7 +49,7 @@ cc
       KMAX = KM
       DO K = 1, KM
         do i=1,im
-          IF (PRSL(I,K) .GT. 60.0) KMAX = K + 1
+          IF (PRSL(I,K) .GT. 6000.0) KMAX = K + 1
         enddo
       ENDDO
 C
@@ -66,7 +68,7 @@ C
       TOTFLG = .FALSE.
 C
 C  COLUMN VARIABLES
-C  PRSL IS PRESSURE OF THE LAYER (CB)
+C  PRSL IS PRESSURE OF THE LAYER (Pa)
 C  TO IS TEMPERATURE AT T+DT (K)... THIS IS AFTER ADVECTION AND TURBULAN
 C  QO IS MIXING RATIO AT T+DT (KG/KG)..Q1
 C
@@ -83,7 +85,7 @@ C
 !     es(:,:) = 0.001 * fpvs(t1(1:IM,:))        ! fpvs in Pa
       DO K = 1, KMAX
         DO I=1,IM
-          es(I,k) = min(PRSL(I,k), 0.001 * fpvs(t1(I,k)))   ! fpvs in Pa
+          es(I,k) = min(PRSL(I,k), fpvs(t1(I,k)))   ! fpvs in Pa
           QS(I,k) = EPS * ES(I,k) / (PRSL(I,k) + EPSM1*ES(I,k))
           QS(I,k) = MAX(QS(I,k),cons_1pdm8)     !constant
         ENDDO
@@ -188,7 +190,7 @@ C
             KMLEV(I,k) = KK(I)
             TOPFLG(I) = .TRUE.
 !           PK        = PSK(I) * SLK(K)
-            EI        = 1000.0 * PRSL(I,k) * QO(I,k)
+            EI        = PRSL(I,k) * QO(I,k)
      &                                     / (EPS - EPSM1*QO(I,k))
             EI        = MIN(MAX(EI,cons_1pdm8),ES(I,k))    !constant
             TDPD      = MAX(TO(I,k)-FTDP(EI),cons_0)       !constant

@@ -1,11 +1,11 @@
       subroutine GET_PRS(im,ix,levs,ntrac,t,q,
      &                   prsi,prki,prsl,prkl,phii,phil,del)
 !
-      USE MACHINE ,      ONLY : kind_phys
-      use resol_def ,    only : thermodyn_id, sfcpress_id
+      USE MACHINE ,              ONLY : kind_phys
+      use resol_def ,            only : thermodyn_id, sfcpress_id
       use namelist_physics_def , only : gen_coord_hybrid 
-      use physcons ,     only : cp => con_cp, nu => con_fvirt
-     &,                         rd => con_rd, rkap => con_rocp
+      use physcons ,             only : cp => con_cp, nu => con_fvirt
+     &,                                 rd => con_rd, rkap => con_rocp
       USE tracer_const
       implicit none
 !
@@ -17,7 +17,7 @@
      &,                    q(ix,levs,ntrac)
       real(kind=kind_phys) xcp(ix,levs), xr(ix,levs), kappa(ix,levs)
       real(kind=kind_phys) tem, dphib, dphit, dphi
-      real (kind=kind_phys), parameter :: zero=0.0
+      real (kind=kind_phys), parameter :: zero=0.0, p00i=1.0e-5
      &,                                rkapi=1.0/rkap, rkapp1=1.0+rkap
       integer i, k, n
 !
@@ -43,22 +43,22 @@
               do i=1,im
                 kappa(i,k) = xr(i,k)/xcp(i,k)
                 prsl(i,k)  = (PRSI(i,k) + PRSI(i,k+1))*0.5
-                prkl(i,k)  = (prsl(i,k)*0.01) ** kappa(i,k)
+                prkl(i,k)  = (prsl(i,k)*p00i) ** kappa(i,k)
               enddo
             enddo
             do k=2,levs
               do i=1,im
                 tem = 0.5 * (kappa(i,k) + kappa(i,k-1))
-                prki(i,k-1) = (prsi(i,k)*0.01) ** tem
+                prki(i,k-1) = (prsi(i,k)*p00i) ** tem
               enddo
             enddo
             do i=1,im
-              prki(i,1) = (prsi(i,1)*0.01) ** kappa(i,1)
+              prki(i,1) = (prsi(i,1)*p00i) ** kappa(i,1)
             enddo
             k = levs + 1
             if (prsi(1,k) .gt. 0.0) then
               do i=1,im
-                prki(i,k) = (prsi(i,k)*0.01) ** kappa(i,levs)
+                prki(i,k) = (prsi(i,k)*p00i) ** kappa(i,levs)
               enddo
             endif
 !
@@ -106,12 +106,12 @@
             do k=1,levs
               do i=1,im
                 prsl(i,k) = (PRSI(i,k) + PRSI(i,k+1))*0.5
-                prkl(i,k) = (prsl(i,k)*0.01) ** rkap
+                prkl(i,k) = (prsl(i,k)*p00i) ** rkap
                 enddo
               enddo
               do k=1,levs+1
                 do i=1,im
-                  prki(i,k) = (prsi(i,k)*0.01) ** rkap
+                  prki(i,k) = (prsi(i,k)*p00i) ** rkap
                 enddo
               enddo
               do i=1,im
@@ -153,11 +153,11 @@
         if (prki(1,1) <= zero) then
 !                                      Pressure is in centibars!!!!
           do i=1,im
-            prki(i,1) = (prsi(i,1)*0.01) ** rkap
+            prki(i,1) = (prsi(i,1)*p00i) ** rkap
           enddo
           do k=1,levs
             do i=1,im
-             prki(i,k+1) = (prsi(i,k+1)*0.01) ** rkap
+             prki(i,k+1) = (prsi(i,k+1)*p00i) ** rkap
              tem         = rkapp1 * del(i,k)
              prkl(i,k)   = (prki(i,k)*PRSI(i,k)-prki(i,k+1)*PRSI(i,k+1))
      &                   / tem
@@ -202,12 +202,11 @@
       subroutine GET_PHI(im,ix,levs,ntrac,t,q,
      &                   prsi,prki,prsl,prkl,phii,phil)
 !
-      USE MACHINE , ONLY : kind_phys
-      USE MACHINE ,      ONLY : kind_phys
-      use resol_def ,    only : thermodyn_id, sfcpress_id
+      USE MACHINE ,              ONLY : kind_phys
+      use resol_def ,            only : thermodyn_id, sfcpress_id
       use namelist_physics_def , only : gen_coord_hybrid
-      use physcons ,     only : cp => con_cp, nu => con_fvirt
-     &,                         rd => con_rd, rkap => con_rocp
+      use physcons ,             only : cp => con_cp, nu => con_fvirt
+     &,                                 rd => con_rd, rkap => con_rocp
       USE tracer_const
       implicit none
 !

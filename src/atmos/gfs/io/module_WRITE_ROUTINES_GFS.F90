@@ -234,13 +234,13 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeGet(bundle    =FILE_BUNDLE                   &  !<-- The Bundle of history data
-                              ,name      ='lonf'                        &  !<-- Name of the Attribute to extract
-                              ,count     =1                             &  !<-- Length of Attribute
-                              ,valueList =wrt_int_state%IM              &  !<-- Extract this Attribute from History Bundle
-                              ,rc        =RC)
+!        CALL ESMF_AttributeGet(bundle    =FILE_BUNDLE                   &  !<-- The Bundle of history data
+!                              ,name      ='lonf'                        &  !<-- Name of the Attribute to extract
+!                              ,count     =1                             &  !<-- Length of Attribute
+!                              ,valueList =wrt_int_state%IM              &  !<-- Extract this Attribute from History Bundle
+!                              ,rc        =RC)
 !
-        CALL ESMF_AttributeGet(bundle    =FILE_BUNDLE                   &  !<-- The Bundle of history data
+         CALL ESMF_AttributeGet(bundle    =FILE_BUNDLE                   &  !<-- The Bundle of history data
                               ,name      ='levs'                        &  !<-- Name of the Attribute to extract
                               ,count     =1                             &  !<-- Length of Attribute
                               ,valueList =wrt_int_state%LM              &  !<-- Extract this Attribute from History Bundle

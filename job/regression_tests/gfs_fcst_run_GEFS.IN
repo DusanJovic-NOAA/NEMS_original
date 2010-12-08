@@ -6,6 +6,11 @@ set -x
 
  export EXPLICIT=.false.
  export ADIAB=.false.
+ export NST_FCST=0
+ export NUM_FILE=3
+ export FILENAME_BASE="'SIG.F' 'SFC.F' 'FLX.F'"
+ export FILE_IO_FORM="'grib' 'bin4' 'grib'"
+
 
 # The old Henry's version required.
 #----------------------------------
@@ -108,9 +113,7 @@ fi
 #
 #
 
-export nhours=6
-
-#export nhours=`expr $ndays \* 24`
+ export nhours=`expr $ndays \* 24`
 
 #
 # For two tracers

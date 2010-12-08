@@ -6,27 +6,30 @@
 !
 ! !revision history:
 !
-!  november 2004  weiyu yang     initial code.
-!  january 2006  s. moorthi      update to the new gfs version
-!  august 2006   h. juang        add option to run generalized coordinates
-!  january 2007 h. juang        change for dynamics only
-!  july    2007 s. moorthi      change for physics only
-!  november 2007 h. juang        continue for physics
-!  may      2009 j. wang         change for quilt
-!  oct 09 2009  Sarah Lu        coord def initialized (lats_nodes_r_fix,
+!  november 2004  weiyu yang    initial code.
+!  january  2006  s. moorthi    update to the new gfs version
+!  august   2006  h. juang      add option to run generalized coordinates
+!  january  2007  h. juang      change for dynamics only
+!  july     2007  s. moorthi    change for physics only
+!  november 2007  h. juang      continue for physics
+!  may      2009  j. wang       change for quilt
+!  oct 09   2009  Sarah Lu      coord def initialized (lats_nodes_r_fix,
 !                               lats_node_r, ipt_lats_node_r)
-!  oct 11 2009  Sarah Lu        grid_gr is replaced by grid_fld
-!  oct 12 2009  Sarah Lu        initialize start_step
-!  oct 16 2009  Sarah Lu        initialize gfs_phy_tracer
-!  nov 14 2009  Sarah Lu        flx_fld and sfc_fld allocation modified
-!  dec 10 2009  Sarah Lu        initialize lgocart and g3d_fld
-!  jan 22 2010  Sarah Lu        increase ngrids_flx and nfxr to include aod 
-!  feb 09 2010  Sarah Lu        set tracer_const (ri,cpi) from import state
-!  feb 05 2010  J. Wang         put phy_f3d and phy_f2d into restart file
-!  apr 09 2010  Sarah Lu        initialize global_lats_r, lonsperlar
-!  jul 14 2010  Sarah Lu        initialize g2d_fld
-!  jul 23 2010  Sarah Lu        initialize ngrids_aer and buff_mult_pieceg
-!  oct 10 2010  Sarah Lu        initialize g2d_fld%met 
+!  oct 11   2009  Sarah Lu      grid_gr is replaced by grid_fld
+!  oct 12   2009  Sarah Lu      initialize start_step
+!  oct 16   2009  Sarah Lu      initialize gfs_phy_tracer
+!  nov 14   2009  Sarah Lu      flx_fld and sfc_fld allocation modified
+!  dec 10   2009  Sarah Lu      initialize lgocart and g3d_fld
+!  jan 22   2010  Sarah Lu      increase ngrids_flx and nfxr to include aod 
+!  feb 09   2010  Sarah Lu      set tracer_const (ri,cpi) from import state
+!  feb 05   2010  J. Wang       put phy_f3d and phy_f2d into restart file
+!  apr 09   2010  Sarah Lu      initialize global_lats_r, lonsperlar
+!  July     2010  S. Moorthi    Upgrade to new physics + nst model
+!  jul 14   2010  Sarah Lu      initialize g2d_fld
+!  jul 23   2010  Sarah Lu      initialize ngrids_aer and buff_mult_pieceg
+!  July 30  2010  S. Moorthi    Removed allocation of cldcov
+!  Aug 19   2010  S. Moorthi    Updated for T574 + added num_reduce to namelist
+!  Oct 18   2010  S. Moorthi    Added fscav initialization
 !
 ! !interface:
 !
@@ -37,7 +40,7 @@
 !
       USE ESMF_Mod
       USE gfs_physics_internal_state_mod, ONLY: gfs_physics_internal_state
-!      USE mpi_def,                        ONLY: liope
+!     USE mpi_def,                        ONLY: liope
       USE mpi_def,                        ONLY: mc_comp, mc_io, mpi_comm_all_dup, mpi_comm_all
       USE resol_def,                      ONLY: g_dpdt, lotgr, g_p, g_dp, nrcm, g_q,          &
                                                 g_gz, g_u, g_v, g_ps, g_t, ntoz,              &
@@ -50,18 +53,22 @@
                                                 ngrids_flx, levp1, lonrx, nfxr, ngrids_gg,    &
                                                 levm1, ivssfc, thermodyn_id, sfcpress_id,     &
                                                 ivssfc_restart, latrd, latr2, ivsupa, levh,   &
-                                                lgocart, global_lats_r, lonsperlar
+                                                lgocart,                                      &
+!                                               lgocart, global_lats_r, lonsperlar,           &
+                                                nr_nst, nf_nst, ngrids_nst, ivsnst
 !jw
       use mod_state,                      ONLY: buff_mult_piecea2d,buff_mult_piecea3d,        &  !jwang
-                                                buff_mult_piecef,buff_mult_pieceg                !jwang
+                                                buff_mult_piecef,buff_mult_pieceg,            &
+                                                buff_mult_piecenst
       use coordinate_def,                 ONLY: ak5,bk5,ck5                                      !jwang
 
       USE ozne_def,                       ONLY: levozc, latsozp, blatc, timeozc, timeoz,      &
                                                 kozpl, levozp, pl_time, pl_lat, pl_pres,      &
                                                 kozc, dphiozc, latsozc, pl_coeff
       USE namelist_physics_def,           ONLY: ras, jo3, ldiag3d, ngptc, ens_nam,            &
-                                                reduced_grid, grid_aldata
-      USE module_ras,                     ONLY: nrcmax
+                                                reduced_grid, grid_aldata, nst_fcst, lggfs3d, &
+                                                num_reduce
+      USE module_ras,                     ONLY: nrcmax, fix_ncld_hr
       USE gg_def,                         ONLY: sinlat_r, coslat_r, wgtcs_r, rcs2_r, wgt_r,   &
                                                 colrad_r
       USE layout1,                        ONLY: nodes_comp, lats_node_r_max, lats_node_r, me, &
@@ -77,6 +84,7 @@
       USE gfs_physics_g3d_mod,            ONLY: g3d_aldata
       USE gfs_physics_g2d_mod,            ONLY: g2d_aldata
       use gfs_phy_tracer_config,          ONLY: gfs_phy_tracer, tracer_config_init
+      use gfs_physics_nst_var_mod
 
       include 'mpif.h'
 
@@ -144,7 +152,7 @@
        write(0,*)'LU_TRC, ntrac_chem=',gfs_phy_tracer%ntrac_chem
        write(0,*)'LU_TRC, lgocart   =',gis_phy%lgocart,lgocart
        do n = 1, gfs_phy_tracer%ntrac
-       write(0,*)'LU_TRC, tracer_vname=',gfs_phy_tracer%vname(n)
+         write(0,*)'LU_TRC, tracer_vname=',gfs_phy_tracer%vname(n)
        enddo
       endif
 
@@ -177,7 +185,9 @@
 !     ivssfc  = 200501
       ivssfc  = 200509
       ivssfc_restart  = 200509
-      if (ivssfc .gt. ivssfc_restart) ivssfc_restart = ivssfc
+      if (ivssfc > ivssfc_restart) ivssfc_restart = ivssfc
+      ivsnst  = 200907
+
       ivsupa  = 0
       if (levs .gt. 99) ivsupa  = 200509
 !
@@ -193,11 +203,26 @@
       ngrids_sfcc2d = 32        ! No CV, CVB, CVT! includes T2M, Q2M, TISFC
       ngrids_sfcc3d = LSOIL*3   ! for smc,stc,slc
 !     ngrids_flx  = 66+30        ! additional fields (most related to land surface)
-      ngrids_flx  = 66+30+6      ! additional fields (aod)
+!     ngrids_flx  = 66+30+6      ! additional fields (aod)
 !     nfxr        = 27
-      nfxr        = 27 + 6      ! Add AOD
+      ngrids_flx  = 66+43+6      ! additional fields (aod)
+      nfxr        = 39          ! Add AOD
       ngrids_gg   = 2+LEVS*(4+ntrac)
 !
+      if (nst_fcst > 0) then         !     For NST model
+!       ngrids_nst = 19              ! oceanic fields (for diurnal warming and sub-layer)
+         nr_nst = 10                 ! oceanic fields: for diurnal warming modelrun
+        nf_nst = 9                   ! oceanic fields: for GSI analysis
+        ngrids_nst = nr_nst + nf_nst ! oceanic fields (for diurnal warming and sub-layer)
+      else
+        ngrids_nst = 0
+      endif
+!
+      if (ntrac-ncld-1 > 0) then
+        allocate ( gis_phy%fscav(ntrac-ncld-1), stat = ierr )
+        gis_phy%fscav = 0.0
+      endif
+
       allocate ( lon_dims_r(latr), stat = ierr )
       allocate ( lon_dims_ext(latrd), stat = ierr )
 !
@@ -211,13 +236,14 @@
       allocate ( gis_phy%lats_nodes_r(nodes), stat = ierr )
       allocate ( gis_phy%lats_nodes_ext(nodes), stat = ierr )
       allocate ( gis_phy%global_lats_r(latr), stat = ierr )
+!     allocate ( gis_phy%global_lats_ext(latr+2*jintmx+2*nypt*(nodes-1)), stat = ierr )
       allocate ( gis_phy%global_lats_ext(latr), stat = ierr )
       allocate ( gis_phy%lonsperlar(latr), stat = ierr)
       allocate ( gis_phy%lats_nodes_r_fix(nodes), stat = ierr )    !added for mGrid
 
       if( reduced_grid ) then
         print *,' run with reduced gaussian grid '
-        call set_lonsgg(gis_phy%lonsperlar)
+        call set_lonsgg(gis_phy%lonsperlar,num_reduce,me)
       else
         print *,' run with full gaussian grid '
         do j=1,latr
@@ -251,7 +277,14 @@
 
 
       if (ras) then
-        nrcm = max(nrcmax, nint((nrcmax*gis_phy%deltim)/600.0))
+        if (fix_ncld_hr) then
+!         nrcm = min(nrcmax, levs-1) * (gis_phy%deltim/1200) + 0.50001
+          nrcm = min(nrcmax, levs-1) * (gis_phy%deltim/1200) + 0.10001
+!         nrcm = min(nrcmax, levs-1) * min(1.0,gis_phy%deltim/360) + 0.1
+        else
+          nrcm = min(nrcmax, levs-1)
+        endif
+!       nrcm = max(nrcmax, nint((nrcmax*gis_phy%deltim)/600.0))
       else
         nrcm = 1
       endif
@@ -308,7 +341,8 @@
 
       endif
 
-      pl_pres(:) = log(0.1*pl_pres(:))       ! Natural log of pres in cbars
+!     pl_pres(:) = log(0.1*pl_pres(:))       ! Natural log of pres in cbars
+      pl_pres(:) = log(100.0*pl_pres(:))     ! Natural log of pres in Pa
 !
       allocate(gis_phy%OZPLIN(LATSOZP,LEVOZP,pl_coeff,timeoz), stat = ierr) !OZONE P-L coeffcients
 
@@ -405,10 +439,10 @@
       gis_phy%lats_nodes_r_fix(:) =  gis_phy%lats_node_r_max 
 
 !* set up global_lats_r and lonsperlar for simple scatter (Sarah Lu)
-      allocate(global_lats_r (latr))
-      allocate(lonsperlar (latr))
-      global_lats_r(1:latr) = gis_phy%global_lats_r(1:latr)
-      lonsperlar(1:latr) = gis_phy%lonsperlar(1:latr)
+!     allocate(global_lats_r (latr))
+!     allocate(lonsperlar (latr))
+!     global_lats_r(1:latr) = gis_phy%global_lats_r(1:latr)
+!     lonsperlar(1:latr) = gis_phy%lonsperlar(1:latr)
 
 !* change lats_node_r to lats_node_r_max to allow the pointer option
 !*    call sfcvar_aldata(lonr, lats_node_r, lsoil, gis_phy%sfc_fld, ierr)
@@ -416,7 +450,11 @@
       call sfcvar_aldata(lonr, lats_node_r_max, lsoil, gis_phy%sfc_fld, ierr)
       call flxvar_aldata(lonr, lats_node_r_max, gis_phy%flx_fld, ierr)
 
-      print *,' check after sfc flx var_aldata ' 
+!      print *,' check after sfc flx var_aldata ' 
+      IF (me == 0) write(*,*) ' in "GFS_Initialize_ESMFMod,lonr,lats_node_r,nr_nst,nf_nst : ',lonr,lats_node_r,nr_nst,nf_nst
+
+!    Modified by Moorthi
+      call nstvar_aldata(lonr,lats_node_r_max,gis_phy%nst_fld,ierr)
 
 !! allocate grid_fld                      --- Sarah Lu                   
       gis_phy%grid_aldata = grid_aldata                                  
@@ -433,7 +471,7 @@
       ALLOCATE (   gis_phy%XLAT(LONR,LATS_NODE_R), stat = ierr)
       ALLOCATE (   gis_phy%COSZDG(LONR,LATS_NODE_R), stat = ierr)
 !*    ALLOCATE (   gis_phy%CLDCOV(LEVS,LONR,LATS_NODE_R), stat = ierr)
-      ALLOCATE (   gis_phy%CLDCOV(LEVS,LONR,LATS_NODE_R_MAX), stat = ierr)
+!     ALLOCATE (   gis_phy%CLDCOV(LEVS,LONR,LATS_NODE_R_MAX), stat = ierr)
       ALLOCATE (   gis_phy%SFALB(LONR,LATS_NODE_R), stat = ierr)
       ALLOCATE (   gis_phy%HPRIME(NMTVR,LONR,LATS_NODE_R), stat = ierr)
       ALLOCATE (   gis_phy%FLUXR(nfxr,LONR,LATS_NODE_R), stat = ierr)
@@ -459,7 +497,9 @@
       if (ldiag3d) then
 !* change lats_node_r to lats_node_r_max for consistency
 !*      call d3d_init(ngptc,gis_phy%nblck,lonr,lats_node_r,levs,pl_coeff)
-        call d3d_init(ngptc,gis_phy%nblck,lonr,lats_node_r_max,levs,pl_coeff)
+!       call d3d_init(ngptc,gis_phy%nblck,lonr,lats_node_r_max,levs,pl_coeff)
+        call d3d_init(ngptc,gis_phy%nblck,lonr,lats_node_r_max,levs,pl_coeff, &
+                      ldiag3d,lggfs3d)
       endif
 
 !* allocate g3d_fld and g2d_fld
@@ -485,9 +525,6 @@
         if ( gis_phy%g2d_fld%ss%nfld > 0 )   &
           ngrids_aer = ngrids_aer+gis_phy%g2d_fld%ss%nfld
 
-        if ( gis_phy%g2d_fld%met%nfld > 0 )   &
-          ngrids_aer = ngrids_aer+gis_phy%g2d_fld%met%nfld
-
 !       print *, 'INIT_g2d_fld ngrids_aer = ',ngrids_aer
       endif
 
@@ -496,24 +533,32 @@
         if (num_p2d .gt. 0) gis_phy%phy_f2d = 0.0
 !     endif
 !jw
+!jw       allocate(buff_mult_piecea2d(lonr,lats_node_r_max,1:ngrids_sfcc2d+ngrids_nst+1))
        allocate(buff_mult_piecea2d(lonr,lats_node_r_max,1:ngrids_sfcc2d+1))
        allocate(buff_mult_piecea3d(lonr,lats_node_r_max,1:ngrids_sfcc3d+1))
        allocate(buff_mult_piecef(lonr,lats_node_r_max,1:ngrids_flx+1))
        allocate(buff_mult_pieceg(lonr,lats_node_r_max,1:ngrids_aer+1))
+       allocate(buff_mult_piecenst(lonr,lats_node_r_max,1:ngrids_nst+1))
+
+       write(0,*)' lonr=',lonr,' lats_node_r_max=',lats_node_r_max,       &
+       'ngrids_sfcc2d=',ngrids_sfcc2d,' ngrids_nst=',ngrids_nst
+
        buff_mult_piecea2d(1:lonr,1:lats_node_r_max,1:ngrids_sfcc2d+1)=0.
        buff_mult_piecea3d(1:lonr,1:lats_node_r_max,1:ngrids_sfcc3d+1)=0.
        buff_mult_piecef(1:lonr,1:lats_node_r_max,1:ngrids_flx+1)=0.
        buff_mult_pieceg(1:lonr,1:lats_node_r_max,1:ngrids_aer+1)=0.
+       buff_mult_piecenst(1:lonr,1:lats_node_r_max,1:ngrids_nst+1)=0.
 !!
       call countperf(0,18,0.)
 !!
       call fix_fields(gis_phy%LONSPERLAR,gis_phy%GLOBAL_LATS_R,           &
-        gis_phy%XLON,gis_phy%XLAT,gis_phy%sfc_fld,                        &
+        gis_phy%XLON,gis_phy%XLAT,gis_phy%sfc_fld,gis_phy%nst_fld,        &
         gis_phy%HPRIME,gis_phy%JINDX1,gis_phy%JINDX2,gis_phy%DDY,         &
         gis_phy%OZPLIN,gis_phy%nam_gfs_phy%sfc_ini,                       &
+                       gis_phy%nam_gfs_phy%nst_ini,                       &
         gis_phy%nblck,gis_phy%phy_f3d,gis_phy%phy_f2d )
 
-!     print *,' GISXLAT=',gis_phy%XLAT(1,:)
+!      print *,' GISXLAT=',gis_phy%XLAT(1,:)
 !!
 ! coord def (lats_node_r, ipt_lats_node_r, and lats_nodes_a_fix)     
       gis_phy%lats_node_r     = lats_node_r                      
@@ -546,9 +591,11 @@
 !
       call flx_init(gis_phy%flx_fld, ierr)
 
-      if (ldiag3d) then
-        call d3d_zero
-      endif
+      call d3d_zero(ldiag3d,lggfs3d)
+
+!     if (ldiag3d) then
+!       call d3d_zero
+!     endif
 !
 ! initialize start_step (Sarah Lu)
       gis_phy% start_step  = .true.      
@@ -559,10 +606,10 @@
 !
 ! =========================================================================
 !
-      subroutine set_lonsgg(lonsperlat)
-      use resol_def
+      subroutine set_lonsgg(lonsperlat,num_reduce,me)
+!     use resol_def
       use reduce_lons_grid_module, only : reduce_grid           ! hmhj
-      integer numreduce                                         ! hmhj
+      integer num_reduce, me                                    ! hmhj
       integer lonsperlat(latr)
        
       integer lonsperlat_62(94)
@@ -572,6 +619,7 @@
       integer lonsperlat_254(384)
       integer lonsperlat_382(576)
       integer lonsperlat_510(766)
+      integer lonsperlat_574(880)
        
       data lonsperlat_62/                                                &
         30,  30,  30,  40,  48,  56,  60,  72,  72,  80,  90,  90,       &
@@ -713,44 +761,101 @@
         1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536,      &
         1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536,      &
         1536, 1536, 1536,  383*0/
+
+      data lonsperlat_574      /                                         &
+          18,   28,   32,   42,   48,   56,   64,   72,   80,   84,      &
+          90,  110,  110,  110,  120,  126,  132,  140,  144,  154,      &
+         160,  168,  176,  176,  192,  192,  198,  210,  210,  220,      &
+         224,  240,  240,  252,  252,  256,  264,  280,  280,  288,      &
+         288,  308,  308,  308,  320,  320,  330,  330,  352,  352,      &
+         352,  360,  384,  384,  384,  384,  396,  396,  420,  420,      &
+         420,  420,  440,  440,  440,  448,  462,  462,  462,  480,      &
+         480,  480,  504,  504,  504,  504,  512,  528,  528,  528,      &
+         560,  560,  560,  560,  560,  576,  576,  576,  616,  616,      &
+         616,  616,  616,  616,  630,  630,  630,  640,  660,  660,      &
+         660,  660,  672,  672,  704,  704,  704,  704,  704,  720,      &
+         720,  720,  768,  768,  768,  768,  768,  768,  768,  768,      &
+         770,  792,  792,  792,  792,  840,  840,  840,  840,  840,      &
+         840,  840,  840,  880,  880,  880,  880,  880,  880,  880,      &
+         896,  896,  896,  896,  924,  924,  924,  924,  924,  960,      &
+         960,  960,  960,  960,  960,  960,  990,  990,  990,  990,      &
+         990, 1008, 1008, 1008, 1008, 1024, 1024, 1024, 1056, 1056,      &
+        1056, 1056, 1056, 1056, 1120, 1120, 1120, 1120, 1120, 1120,      &
+        1120, 1120, 1120, 1120, 1120, 1120, 1120, 1152, 1152, 1152,      &
+        1152, 1152, 1152, 1152, 1232, 1232, 1232, 1232, 1232, 1232,      &
+        1232, 1232, 1232, 1232, 1232, 1232, 1232, 1232, 1232, 1232,      &
+        1232, 1260, 1260, 1260, 1260, 1260, 1260, 1260, 1280, 1280,      &
+        1280, 1280, 1280, 1320, 1320, 1320, 1320, 1320, 1320, 1320,      &
+        1320, 1320, 1344, 1344, 1344, 1344, 1344, 1344, 1386, 1386,      &
+        1386, 1386, 1386, 1386, 1386, 1386, 1386, 1386, 1386, 1408,      &
+        1408, 1408, 1408, 1408, 1440, 1440, 1440, 1440, 1440, 1440,      &
+        1440, 1440, 1440, 1440, 1536, 1536, 1536, 1536, 1536, 1536,      &
+        1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536,      &
+        1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536,      &
+        1536, 1536, 1536, 1536, 1584, 1584, 1584, 1584, 1584, 1584,      &
+        1584, 1584, 1584, 1584, 1584, 1584, 1584, 1584, 1584, 1584,      &
+        1584, 1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680,      &
+        1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680,      &
+        1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680,      &
+        1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680,      &
+        1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680, 1760, 1760,      &
+        1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760,      &
+        1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760,      &
+        1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760,      &
+        1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760,      &
+        1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760,      &
+        1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760,      &
+        1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760,      &
+        1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760,      &
+         440*0/
                                                                                 
       integer i
-      if (jcap .eq. 62) then
-         lonsperlat=lonsperlat_62
-      endif
-      if (jcap .eq. 126) then
-         lonsperlat=lonsperlat_126
-      endif
-      if (jcap .eq. 170) then
-         lonsperlat=lonsperlat_170
-      endif
-      if (jcap .eq. 190) then
-         lonsperlat=lonsperlat_190
-      endif
-      if (jcap .eq. 254) then
-         lonsperlat=lonsperlat_254
-      endif
-      if (jcap .eq. 382) then
-         lonsperlat=lonsperlat_382
-      endif
-      if (jcap .eq. 510) then
-         lonsperlat=lonsperlat_510
+      if (num_reduce < 0) then
+        if (jcap == 62) then
+           lonsperlat = lonsperlat_62
+        endif
+        if (jcap == 126) then
+           lonsperlat = lonsperlat_126
+        endif
+        if (jcap == 170) then
+           lonsperlat = lonsperlat_170
+        endif
+        if (jcap == 190) then
+           lonsperlat = lonsperlat_190
+        endif
+        if (jcap == 254) then
+           lonsperlat = lonsperlat_254
+        endif
+        if (jcap == 382) then
+           lonsperlat = lonsperlat_382
+        endif
+        if (jcap == 510) then
+           lonsperlat = lonsperlat_510
+        endif
+        if (jcap == 574) then
+           lonsperlat = lonsperlat_574
+        endif
       endif
                                                                                 
-      if (jcap .ne. 62 .and. jcap .ne. 126 .and. jcap .ne. 170 .and.     &
-          jcap .ne. 190 .and.                                            &
+      if (jcap .ne. 62 .and. jcap .ne. 126 .and. jcap .ne. 170 .and.   &
+          jcap .ne. 190 .and. jcap .ne. 574 .and.                        &
           jcap .ne. 254 .and. jcap .ne. 382 .and. jcap .ne. 510) then
 ! compute reduced grid using juang 2003
-         print*,' non standard resolution  - lonsperlat',     &
-                ' computed locally'
-         numreduce=4                                                    ! hmhj
-         call reduce_grid (numreduce,jcap,latr,lonsperlat)              ! hmhj
-         print*,' reduced grid is computed - lonsperlat '               ! hmhj
+         if ( me == 0 ) then
+           print*,' non standard resolution  - lonsperlat',              &
+                  ' computed locally'
+         endif
+         call reduce_grid (abs(num_reduce),jcap,latr,lonsperlat)
+         if ( me == 0 ) then
+           print*,' Reduced grid is computed - lonsperlat '             ! hmhj
+         endif
       endif
                                                                                 
-      print*,' jcap = ',jcap
-      print*,'min,max of lonsperlat = ',minval(lonsperlat),              &
-              maxval(lonsperlat)
+      if ( me == 0 ) then
+        print*,' jcap = ',jcap
+        print*,'min,max of lonsperlat = ',minval(lonsperlat),              &
+                maxval(lonsperlat)
+      endif
       end subroutine set_lonsgg
 !
       end module gfs_physics_initialize_mod

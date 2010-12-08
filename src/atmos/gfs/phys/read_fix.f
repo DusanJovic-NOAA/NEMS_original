@@ -80,7 +80,7 @@
 !      use sfcio_module, ONLY: sfcio_head, sfcio_data, sfcio_realfill,
 !     &                        sfcio_srohdc, sfcio_axdata
       use resol_def,    ONLY: latr, latr2, lonr, lsoil
-      use layout1,      ONLY: me, nodes, lats_node_r
+      use layout1,      ONLY: me, nodes, lats_node_r, lats_node_r_max
       use gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data
       use namelist_soilveg ,       only: salp_data, snupx
       use physcons,     only : tgice => con_tice
@@ -96,8 +96,8 @@
       integer needoro
 
       real(kind=kind_io4) buff1(lonr*latr),buff2(lonr,latr,LSOIL)
-      real(kind=kind_io8) buffo(lonr,lats_node_r)
-      real(kind=kind_io8) buff3(lonr,lats_node_r)
+      real(kind=kind_io8) buffo(lonr,lats_node_r_max)
+      real(kind=kind_io8) buff3(lonr,lats_node_r_max)
       integer nread,i,j,k,ij,idate7(7),lonsfc,latsfc,lplsfc(latr2)
       character*(*) cfile
       integer kmsk(lonr,latr),kmskcv(lonr,latr)
@@ -106,6 +106,7 @@
       real(4) fhour4
       type(nemsio_gfile) gfile_in
       integer iret, vegtyp,lonb4,latb4,nsoil4,ivs4
+      integer size1, size2, size3
 !
 !@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 !
@@ -116,7 +117,7 @@
 !
       call nemsio_open(gfile_in,trim(cfile),'read',iret=iret)
 !
-      IF (me==0) THEN
+      IF (me == 0) THEN
 
         call nemsio_getheadvar(gfile_in,'fhour',fhour4,iret=iret)
         call nemsio_getheadvar(gfile_in,'lonb',lonb4,iret=iret)
@@ -124,6 +125,7 @@
         call nemsio_getheadvar(gfile_in,'nsoil',nsoil4,iret=iret)
         call nemsio_getheadvar(gfile_in,'ivs',ivs4,iret=iret)
         call nemsio_getheadvar(gfile_in,'idate',idate7,iret=iret)
+        if(iret/=0) print *,' after sfcio_srohdc,iret=',iret
 
 !        PRINT 99,nread,head%fhour,head%idate,
 !     &           head%lonb,head%latb,head%lsoil,head%ivs,iret
@@ -139,7 +141,7 @@
 
       ENDIF
 
-      kmsk=0
+      kmsk = 0
 !
       if(me==0) call nemsio_readrecv(gfile_in,'tmp','sfc',1,buff1,
      &    iret=iret)
@@ -153,7 +155,7 @@
      &      buff1,iret=iret)
         call split2d_phys(buff1, buffo,global_lats_r)
         CALL interpred_phys(1,kmsk,buffo,buff3,global_lats_r,lonsperlar)
-        sfc_fld%SMC(k,:,:)=buff3(:,:)
+        sfc_fld%SMC(k,:,:) = buff3(:,:)
       ENDDO
 
       if(me==0) call nemsio_readrecv(gfile_in,'weasd','sfc',1,buff1,
@@ -167,7 +169,7 @@
      &      buff1,iret=iret)
         call split2d_phys(buff1, buffo,global_lats_r)
         CALL interpred_phys(1,kmsk,buffo,buff3,global_lats_r,lonsperlar)
-        sfc_fld%STC(k,:,:)=buff3(:,:)
+        sfc_fld%STC(k,:,:) = buff3(:,:)
       ENDDO
 
       if(me==0) call nemsio_readrecv(gfile_in,'tg3','sfc',1,buff1,
@@ -267,7 +269,7 @@
       CALL interpred_phys(1,kmsk,buffo,sfc_fld%FACWF,
      &               global_lats_r,lonsperlar)
 
-!szunyogh 06/16/99
+!
       if(me==0) call nemsio_readrecv(gfile_in,'fricv','sfc',1,buff1,
      &     iret=iret)
 !        if(me==0) buff1=data%uustar
@@ -289,7 +291,6 @@
          CALL interpred_phys(1,kmsk,buffo,sfc_fld%FFHH,
      &                  global_lats_r,lonsperlar)
 
-!c-- XW: FOR SEA-ICE Nov04
 !    Sea-ice (hice/fice) was added to the surface files.
 
       if(me==0) call nemsio_readrecv(gfile_in,'icetk','sfc',1,buff1,
@@ -312,23 +313,23 @@
          call split2d_phys(buff1, buffo,global_lats_r)
          CALL interpred_phys(1,kmsk,buffo,sfc_fld%TISFC,
      &                  global_lats_r,lonsperlar)
-         if (sfc_fld%tisfc(1,1) < 0.0)  then
-           DO j=1,lats_node_r
-             DO i=1,LONR
-                sfc_fld%TISFC(i,j)= sfc_fld%TSEA(i,j)
-                IF(sfc_fld%SLMSK(i,j) >=  2. .AND.
-     &             sfc_fld%FICE(i,j)  >= 0.5) THEN
-                   sfc_fld%TISFC(i,j) = (sfc_fld%TSEA(i,j)
-     &            -tgice*(1.-sfc_fld%FICE(i,j))) / sfc_fld%FICE(i,j)
-                  sfc_fld%TISFC(i,j)=MIN(sfc_fld%TISFC(i,j),tgice)
-                ENDIF
+         if (lats_node_r > 0 )  then
+           if (sfc_fld%tisfc(1,1) < 0.0)  then
+             DO j=1,lats_node_r
+               DO i=1,LONR
+                  sfc_fld%TISFC(i,j)= sfc_fld%TSEA(i,j)
+                  IF(sfc_fld%SLMSK(i,j) >=  2. .AND.
+     &               sfc_fld%FICE(i,j)  >= 0.5) THEN
+                     sfc_fld%TISFC(i,j) = (sfc_fld%TSEA(i,j)
+     &              -tgice*(1.-sfc_fld%FICE(i,j))) / sfc_fld%FICE(i,j)
+                   sfc_fld%TISFC(i,j)=MIN(sfc_fld%TISFC(i,j),tgice)
+                   ENDIF
+               ENDDO
              ENDDO
-           ENDDO
+           endif
          endif
 
-!c-- XW: END SEA-ICE
 
-!lu   11/10/2004
 !*     surface files for GFS/Noah contain 8 additional records:
 !*     tprcp, srflag, snwdph, slc, shdmin, shdmax, slope, snoalb
 
@@ -400,11 +401,11 @@
 !     print *,' snoalb=',sfc_fld%snoalb(1,:)
 !lu [+67L]: the addition of 8 Noah records ends here .........................
 
-       if(needoro.eq.1) then
-         if(me==0) then
+       if(needoro == 1) then
+         if (me == 0) then
            call nemsio_readrecv(gfile_in,'orog','sfc',1,buff1,iret=iret)
 !           buff1=data%orog
-           needoro=1
+           needoro = 1
            if(all(buff1.ne.-9999.)) needoro=0
            print *,'read sfc orography'
          endif
@@ -437,10 +438,9 @@
         ENDDO
        ENDDO
 !
-
-       IF (me==0) then
+       IF (me == 0) then
 !         call sfcio_axdata(data,iret)
-         t2=timef()
+         t2 = timef()
          print *,'FIXIO TIME ',t2-t1,t1,t2
        endif
 !
@@ -451,6 +451,268 @@
       RETURN
  5000 PRINT *, ' error in input in routine read_sfc'
       STOP
+      END
+!
+      SUBROUTINE read_nst(nst_fld, nread, cfile,
+     &                   global_lats_r, lonsperlar)
+!
+!***********************************************************************
+!
+      use namelist_physics_def
+      USE machine,        ONLY: kind_ior, kind_io8, kind_rad
+      use nstio_module
+      use resol_def
+      use layout1
+      use mpi_def
+      use gfs_physics_nst_var_mod
+      implicit none
+!
+      TYPE(Nst_Var_Data)       :: nst_fld
+      integer              global_lats_r(latr)
+      integer                 lonsperlar(latr)
+
+!     real (kind=kind_io8) slmsk(lonr,lats_node_r),
+
+      real(kind=kind_io4) buff1(lonr,latr)
+      real(kind=kind_io8) buffo(lonr,lats_node_r_max)
+      integer nread,i,j,k,ij,idate(4),lonnst,latnst,lplnst(latr2)
+      character*(*) cfile
+      integer kmsk(lonr,latr)
+      CHARACTER*8 labfix(4)
+      real t1,t2,timef
+      type(nstio_head) head
+      type(nstio_data) data
+      integer iret
+!
+!
+!@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+!
+      t1=timef()
+
+      print *,'read nst filem nread=',nread,'cfile=',cfile
+      IF (me == 0) then
+        call nstio_srohdc(nread,cfile,head,data,iret)
+
+        PRINT 99,nread,head%fhour,head%idate,
+     &     head%lonb,head%latb,head%lsea,head%ivo,iret,lats_node_r
+99      FORMAT(1H ,'in fixio nread=',i3,2x,'HOUR=',f8.2,3x,'IDATE=',
+     &  4(1X,I4),4x,'lonnst,latnst,lsea,ivsnst,iret=',6i8)
+
+        if(iret.ne.0) goto 5000
+        if(head%lonb.ne.lonr) goto 5000
+        if(head%latb.ne.latr) goto 5000
+        if(head%lsea.ne.lsea) goto 5000
+
+      ENDIF
+
+      kmsk=0
+!
+!     Assign ocnf(lonr,lats_node_r,nf_ocn)
+!
+      IF (me == 0)  buff1=data%xt
+      call split2d_phys(buff1, buffo,global_lats_r)
+      CALL interpred_phys(1,kmsk,buffo,nst_fld%xt,
+     &               global_lats_r,lonsperlar)
+
+      IF (me == 0) buff1=data%xs
+      call split2d_phys(buff1, buffo,global_lats_r)
+      CALL interpred_phys(1,kmsk,buffo,nst_fld%xs,
+     &               global_lats_r,lonsperlar)
+
+      IF (me == 0) buff1=data%xu
+      call split2d_phys(buff1, buffo,global_lats_r)
+      CALL interpred_phys(1,kmsk,buffo,nst_fld%xu,
+     &               global_lats_r,lonsperlar)
+
+      IF (me == 0) buff1=data%xv
+      call split2d_phys(buff1, buffo,global_lats_r)
+      CALL interpred_phys(1,kmsk,buffo,nst_fld%xv,
+     &               global_lats_r,lonsperlar)
+
+      IF (me == 0) buff1=data%xz
+      call split2d_phys(buff1, buffo,global_lats_r)
+      CALL interpred_phys(1,kmsk,buffo,nst_fld%xz,
+     &               global_lats_r,lonsperlar)
+
+      IF (me == 0) buff1=data%zm
+      call split2d_phys(buff1, buffo,global_lats_r)
+      CALL interpred_phys(1,kmsk,buffo,nst_fld%zm,
+     &               global_lats_r,lonsperlar)
+
+      IF (me == 0) buff1=data%xtts
+      call split2d_phys(buff1, buffo,global_lats_r)
+      CALL interpred_phys(1,kmsk,buffo,nst_fld%xtts,
+     &               global_lats_r,lonsperlar)
+
+      IF (me == 0) buff1=data%xzts
+      call split2d_phys(buff1, buffo,global_lats_r)
+      CALL interpred_phys(1,kmsk,buffo,nst_fld%xzts,
+     &               global_lats_r,lonsperlar)
+
+      IF (me == 0) buff1=data%dt_cool
+      call split2d_phys(buff1, buffo,global_lats_r)
+      CALL interpred_phys(1,kmsk,buffo,nst_fld%dt_cool,
+     &               global_lats_r,lonsperlar)
+
+      IF (me == 0) buff1=data%z_c
+      call split2d_phys(buff1, buffo,global_lats_r)
+      CALL interpred_phys(1,kmsk,buffo,nst_fld%z_c,
+     &               global_lats_r,lonsperlar)
+
+      IF (me == 0) buff1=data%c_0
+      call split2d_phys(buff1, buffo,global_lats_r)
+      CALL interpred_phys(1,kmsk,buffo,nst_fld%c_0,
+     &               global_lats_r,lonsperlar)
+      IF (me == 0) buff1=data%c_d
+      call split2d_phys(buff1, buffo,global_lats_r)
+      CALL interpred_phys(1,kmsk,buffo,nst_fld%c_d,
+     &               global_lats_r,lonsperlar)
+
+      IF (me == 0) buff1=data%w_0
+      call split2d_phys(buff1, buffo,global_lats_r)
+      CALL interpred_phys(1,kmsk,buffo,nst_fld%w_0,
+     &               global_lats_r,lonsperlar)
+
+      IF (me == 0) buff1=data%w_d
+      call split2d_phys(buff1, buffo,global_lats_r)
+      CALL interpred_phys(1,kmsk,buffo,nst_fld%w_d,
+     &               global_lats_r,lonsperlar)
+
+      IF (me == 0) buff1=data%d_conv
+      call split2d_phys(buff1, buffo,global_lats_r)
+      CALL interpred_phys(1,kmsk,buffo,nst_fld%d_conv,
+     &               global_lats_r,lonsperlar)
+
+      IF (me == 0) buff1=data%ifd
+      call split2d_phys(buff1, buffo,global_lats_r)
+      CALL interpred_phys(1,kmsk,buffo,nst_fld%ifd,
+     &               global_lats_r,lonsperlar)
+
+      IF (me == 0) buff1=data%tref
+      call split2d_phys(buff1, buffo,global_lats_r)
+      CALL interpred_phys(1,kmsk,buffo,nst_fld%tref,
+     &               global_lats_r,lonsperlar)
+
+      IF (me == 0) buff1=data%Qrain
+      call split2d_phys(buff1, buffo,global_lats_r)
+      CALL interpred_phys(1,kmsk,buffo,nst_fld%Qrain,
+     &               global_lats_r,lonsperlar)
+
+!     IF (icolor.eq.2.and.me.eq.nodes-1) then
+      IF (me == 0) then
+         call nstio_axdata(data,iret)
+         t2=timef()
+         print *,'FIXIO for NST TIME ',t2-t1,t1,t2
+      endif
+!
+      RETURN
+ 5000 PRINT *, ' ERROR IN INPUT IN read_nst'
+      STOP
+      END
+!
+      SUBROUTINE set_nst(tsea, nst_fld)
+c
+c***********************************************************************
+c
+      use namelist_physics_def
+      USE machine,     ONLY: kind_io8
+      use resol_def
+      use layout1
+      use gfs_physics_nst_var_mod
+      use module_nst_parameters, only: z_w_max
+      use mpi_def
+      implicit none
+c
+      TYPE(Nst_Var_Data)       :: nst_fld
+      real (kind=kind_io8) tsea(lonr,lats_node_r)
+
+      integer i,j,k
+      real t1,t2,timef
+
+c
+c@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+c
+      t1=timef()
+
+!      print *,'in set_nst start'
+      nst_fld%xt      = 0.0
+      nst_fld%xs      = 0.0
+      nst_fld%xu      = 0.0
+      nst_fld%xv      = 0.0
+      nst_fld%xz      = z_w_max
+      nst_fld%zm      = 0.0
+      nst_fld%xtts    = 0.0
+      nst_fld%xzts    = 0.0
+      nst_fld%dt_cool = 0.0
+      nst_fld%z_c     = 0.0
+      nst_fld%c_0     = 0.0
+      nst_fld%c_d     = 0.0
+      nst_fld%w_0     = 0.0
+      nst_fld%w_d     = 0.0
+      nst_fld%d_conv  = 0.0
+      nst_fld%ifd     = 0.0
+      nst_fld%Tref(:,1:lats_node_r)= tsea(:,1:lats_node_r)
+      nst_fld%Qrain   = 0.0
+!
+      t2=timef()
+!      print *,'FIXIO for set_nst TIME ',t2-t1,t1,t2
+!
+      RETURN
+      END
+!
+!***********************************************************************
+!
+      SUBROUTINE nst_reset_nonwater(tsea,nst_fld)
+c
+c***********************************************************************
+c
+      use resol_def
+      USE machine,     ONLY: kind_io8
+      use layout1
+      use gfs_physics_nst_var_mod
+      use module_nst_parameters, only: z_w_max
+      use mpi_def
+      implicit none
+c
+      TYPE(Nst_Var_Data)       :: nst_fld
+      real (kind=kind_io8) tsea(lonr,lats_node_r)
+
+      integer i,j
+      real t1,t2,timef
+c
+c@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+c
+      t1=timef()
+
+      do j = 1, lats_node_r
+        do i = 1, lonr
+          if ( nst_fld%slmsk(i,j) /= 0.0 ) then
+            nst_fld%xt(i,j)      = 0.0
+            nst_fld%xs(i,j)      = 0.0
+            nst_fld%xu(i,j)      = 0.0
+            nst_fld%xv(i,j)      = 0.0
+            nst_fld%xz(i,j)      = z_w_max
+            nst_fld%zm(i,j)      = 0.0
+            nst_fld%xtts(i,j)    = 0.0
+            nst_fld%xzts(i,j)    = 0.0
+            nst_fld%dt_cool(i,j) = 0.0
+            nst_fld%z_c(i,j)     = 0.0
+            nst_fld%c_0(i,j)     = 0.0
+            nst_fld%c_d(i,j)     = 0.0
+            nst_fld%w_0(i,j)     = 0.0
+            nst_fld%w_d(i,j)     = 0.0
+            nst_fld%d_conv(i,j)  = 0.0
+            nst_fld%ifd(i,j)     = 0.0
+            nst_fld%Tref(i,j)    = tsea(i,j)
+            nst_fld%Qrain(i,j)   = 0.0
+          endif
+        enddo
+      enddo
+
+            t2=timef()
+!            print *,'FIXIO for nst_reset_nonwater TIME ',t2-t1,t1,t2
+!
+      RETURN
       END
 !
 !***********************************************************************
@@ -884,7 +1146,6 @@ c
       integer,intent(in):: lonsperlar(latr)
       real(kind=kind_io8),intent(out):: f(lonr,lats_node_r)
       real(kind=kind_io8),intent(in):: fi(lonr,lats_node_r)
-       real(kind=4) f4(lonr,lats_node_r)
       integer j,lons,lat
       integer i,ubound
 !
@@ -897,15 +1158,13 @@ c
           if(lons.ne.lonr) then
             call intlon_phys(iord,1,1,lons,lonr,
      &                  kmsk(1,j),fi(1,j),f(1,j))
-          f4(:,j)=fi(:,j)
           else
             f(:,j)=fi(:,j)
-            f4(:,j)=fi(:,j)
           endif
-        enddo
+      enddo
       do j=1,lats_node_r
       do i=1,lonr
-      buff_mult_piecea(i,j)=f (i,j)
+        buff_mult_piecea(i,j)=f (i,j)
       end do
       end do
       end subroutine
@@ -1273,7 +1532,7 @@ c
       call nemsio_init()
 !
       call nemsio_open(gfile,trim(cfile),'read',iret=iret)
-      print *,'after nemsio_open, iret=',iret
+!      print *,'after nemsio_open, iret=',iret
       if(iret/=0) then
         PRINT *, ' ERROR in input routine read_sfc_r'
         return
@@ -1292,7 +1551,7 @@ c
         call nemsio_readrecv(gfile,'smc','soil layer',k,buff1,iret=iret)
         call split2d_rst(buff1, sfc_fld%smc(k,:,:),fieldsize,
      &    global_lats_r,lonsperlar)
-        print *,'read inrst,smc=',sfc_fld%smc(k,1:5,1:5)
+!        print *,'read inrst,smc=',sfc_fld%smc(k,1:5,1:5)
       ENDDO
 
 !-- sheleg
@@ -1304,14 +1563,14 @@ c
         call nemsio_readrecv(gfile,'stc','soil layer',k,buff1,iret=iret)
         call split2d_rst(buff1, sfc_fld%stc(k,:,:),fieldsize,
      &    global_lats_r,lonsperlar)
-        print *,'read inrst,stc=',sfc_fld%stc(k,1:5,1:5)
+!        print *,'read inrst,stc=',sfc_fld%stc(k,1:5,1:5)
       ENDDO
 
 !--tg3
       call nemsio_readrecv(gfile,'tg3','sfc',1,buff1,iret=iret)
       call split2d_rst(buff1,sfc_fld%tg3,fieldsize,global_lats_r,
      &  lonsperlar)
-        print *,'read inrst,tg3=',sfc_fld%tg3(1:3,1:3)
+!        print *,'read inrst,tg3=',sfc_fld%tg3(1:3,1:3)
 !--zorl
       call nemsio_readrecv(gfile,'sfcr','sfc',1,buff1,iret=iret)
       call split2d_rst(buff1,sfc_fld%zorl,fieldsize,global_lats_r,
@@ -1320,7 +1579,7 @@ c
       sfc_fld%cv  = 0
       sfc_fld%cvb = 0
       sfc_fld%cvt = 0
-        print *,'read inrst,cwafter cvt'
+!        print *,'read inrst,cwafter cvt'
 
 !-- alvsf
       call nemsio_readrecv(gfile,'alvsf','sfc',1,buff1,iret=iret)
@@ -1396,19 +1655,21 @@ c
       call nemsio_readrecv(gfile,'tisfc','sfc',1,buff1,iret=iret)
       call split2d_rst(buff1,sfc_fld%tisfc,fieldsize,global_lats_r,
      &  lonsperlar)
-        print *,'read inrst,tisfc=',sfc_fld%tisfc(1:3,1:3)
-      if (sfc_fld%tisfc(1,1) < 0.0) then
-        DO j=1,lats_node_r
-          DO i=1,LONR
-             sfc_fld%TISFC(i,j) = sfc_fld%TSEA(i,j)
-             IF(sfc_fld%SLMSK(i,j) >=  2. .AND.
-     &          sfc_fld%FICE(i,j)  >= 0.5) THEN
-                sfc_fld%TISFC(i,j) = (sfc_fld%TSEA(i,j)
-     &         -tgice*(1.-sfc_fld%FICE(i,j))) / sfc_fld%FICE(i,j)
-                sfc_fld%TISFC(i,j) = MIN(sfc_fld%TISFC(i,j),tgice)
-             ENDIF
+!        print *,'read inrst,tisfc=',sfc_fld%tisfc(1:3,1:3)
+      if (lats_node_r > 0 )  then
+        if (sfc_fld%tisfc(1,1) < 0.0) then
+          DO j=1,lats_node_r
+            DO i=1,LONR
+               sfc_fld%TISFC(i,j) = sfc_fld%TSEA(i,j)
+               IF(sfc_fld%SLMSK(i,j) >=  2. .AND.
+     &            sfc_fld%FICE(i,j)  >= 0.5) THEN
+                  sfc_fld%TISFC(i,j) = (sfc_fld%TSEA(i,j)
+     &           -tgice*(1.-sfc_fld%FICE(i,j))) / sfc_fld%FICE(i,j)
+                  sfc_fld%TISFC(i,j) = MIN(sfc_fld%TISFC(i,j),tgice)
+               ENDIF
+            ENDDO
           ENDDO
-        ENDDO
+        endif
       endif
 !-- tprcp
       call nemsio_readrecv(gfile,'tprcp','sfc',1,buff1,iret=iret)
@@ -1427,7 +1688,7 @@ c
         call nemsio_readrecv(gfile,'slc','soil layer',k,buff1,iret=iret)
         call split2d_rst(buff1,sfc_fld%slc(k,:,:),fieldsize,
      &    global_latS_r,lonsperlar)
-        print *,'read inrst,slc=',sfc_fld%slc(k,1:3,1:3)
+!        print *,'read inrst,slc=',sfc_fld%slc(k,1:3,1:3)
       ENDDO
 !-- shdmin
       call nemsio_readrecv(gfile,'shdmin','sfc',1,buff1,iret=iret)
@@ -1445,18 +1706,18 @@ c
       call nemsio_readrecv(gfile,'salbd','sfc',1,buff1,iret=iret)
       call split2d_rst(buff1,sfc_fld%SNOALB,fieldsize,global_lats_r,
      &  lonsperlar)
-        print *,'read inrst,snoalb=',sfc_fld%snoalb(1:3,1:3)
+!        print *,'read inrst,snoalb=',sfc_fld%snoalb(1:3,1:3)
 !-- orog
       if(needoro.eq.1) then
         call nemsio_readrecv(gfile,'orog','sfc',1,buff1,iret=iret)
         needoro=1
         if(any(buff1.eq.-9999.)) needoro=0
-        print *,'read sfc orography'
+!        print *,'read sfc orography'
         call split2d_rst(buff1,sfc_fld%oro,fieldsize,global_lats_r,
      &  lonsperlar)
         call skip(needoro)
       endif
-        print *,'read inrst,after orog'
+!        print *,'read inrst,after orog'
 !jw read sncovr from rstart file
 !-- read in snow cover from restart file
       sfc_fld%SNCOVR = 0.0
@@ -1464,8 +1725,8 @@ c
       if(iret==0)
      &call split2d_rst(buff1,sfc_fld%sncovr,fieldsize,global_lats_r,
      &  lonsperlar)
-        print *,'read inrst,snoalb=',sfc_fld%sncovr(38,3),
-     &    sfc_fld%SHELEG(38,3)
+!        print *,'read inrst,snoalb=',sfc_fld%sncovr(38,3),
+!     &    sfc_fld%SHELEG(38,3)
 !
 !-- num_p2d
       DO K=1, num_p2d
@@ -1473,7 +1734,7 @@ c
         varname='phyf2d_'//nump2d
         call nemsio_readrecv(gfile,trim(varname),'sfc',1,buff1,
      &    iret=iret)
-        print *,'read inrst,',trim(varname),'iret=',iret
+!        print *,'read inrst,',trim(varname),'iret=',iret
         call split2d_rst(buff1,phy_f2d(:,:,k),fieldsize,global_lats_r,
      &    lonsperlar)
       ENDDO
@@ -1485,7 +1746,7 @@ c
         DO L=1, levs
           call nemsio_readrecv(gfile,trim(varname),'mid layer',L,
      &      buff1,iret=iret)
-        print *,'read inrst,phy_p3d,',trim(varname),'iret=',iret
+!        print *,'read inrst,phy_p3d,',trim(varname),'iret=',iret
           call split2d_rst(buff1,buff3,fieldsize,global_lats_r,
      &    lonsperlar)
 !
@@ -1511,7 +1772,161 @@ c
       call nemsio_finalize()
 !
       t2=timef()
-      print *,'FIXIO TIME ',t2-t1,t1,t2
+!      print *,'FIXIO TIME ',t2-t1,t1,t2
+!
+      RETURN
+
+      STOP
+      END
+!
+      SUBROUTINE read_nst_r(nst_fld, nread, cfile,
+     &                     global_lats_r, lonsperlar)
+!
+!***********************************************************************
+!
+      use namelist_physics_def
+      USE machine,        ONLY: kind_ior, kind_io8, kind_rad
+      use resol_def
+      use layout1
+      use mpi_def
+      use gfs_physics_nst_var_mod
+      use module_nemsio
+      implicit none
+!
+      TYPE(Nst_Var_Data)       :: nst_fld
+      integer              global_lats_r(latr)
+      integer                 lonsperlar(latr)
+
+!     real (kind=kind_io8) slmsk(lonr,lats_node_r),
+
+      real(kind=kind_ior),allocatable :: buff1(:)
+      real(kind=kind_io8) buffo(lonr,lats_node_r)
+      integer nread,i,j,k,ij,idate(4),lonnst,latnst,lplnst(latr2)
+      character*(*) cfile
+      integer kmsk(lonr,latr)
+      CHARACTER*8 labfix(4)
+      real t1,t2,timef
+!---
+      type(nemsio_gfile) :: gfile
+      integer iret, fieldsize, im, jm
+      character(255) varname
+
+!
+!@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+!
+      t1=timef()
+!
+      call nemsio_init()
+!
+      call nemsio_open(gfile,trim(cfile),'read',iret=iret)
+!      print *,'after nemsio_open, iret=',iret
+      if(iret /= 0) then
+        PRINT *, ' ERROR in input routine read_sfc_r'
+        return
+      endif
+!
+      call nemsio_getfilehead(gfile,dimx=im,dimy=jm,iret=iret)
+      fieldsize = im*jm
+      allocate(buff1(fieldsize))
+!
+
+!-- xt
+      call nemsio_readrecv(gfile,'xt','sfc',1,buff1,iret=iret)
+      call split2d_rst(buff1,nst_fld%xt,fieldsize,global_lats_r,
+     &  lonsperlar)
+
+!-- xs
+      call nemsio_readrecv(gfile,'xs','sfc',1,buff1,iret=iret)
+      call split2d_rst(buff1,nst_fld%xs,fieldsize,global_lats_r,
+     &  lonsperlar)
+
+!-- xu
+      call nemsio_readrecv(gfile,'xu','sfc',1,buff1,iret=iret)
+      call split2d_rst(buff1,nst_fld%xu,fieldsize,global_lats_r,
+     &  lonsperlar)
+
+!-- xv
+      call nemsio_readrecv(gfile,'xv','sfc',1,buff1,iret=iret)
+      call split2d_rst(buff1,nst_fld%xv,fieldsize,global_lats_r,
+     &  lonsperlar)
+
+!-- xz
+      call nemsio_readrecv(gfile,'xz','sfc',1,buff1,iret=iret)
+      call split2d_rst(buff1,nst_fld%xz,fieldsize,global_lats_r,
+     &  lonsperlar)
+
+!-- zm
+      call nemsio_readrecv(gfile,'zm','sfc',1,buff1,iret=iret)
+      call split2d_rst(buff1,nst_fld%zm,fieldsize,global_lats_r,
+     &  lonsperlar)
+
+!-- xtts
+!      call nemsio_readrecv(gfile,'xtts','sfc',1,buff1,iret=iret)
+!     call split2d_rst(buff1,nst_fld%xtts,fieldsize,global_lats_r,
+!    &  lonsperlar)
+
+!-- xzts
+!     call nemsio_readrecv(gfile,'xzts','sfc',1,buff1,iret=iret)
+!     call split2d_rst(buff1,nst_fld%xzts,fieldsize,global_lats_r,
+!    &  lonsperlar)
+
+!-- dt_cool
+      call nemsio_readrecv(gfile,'dtcool','sfc',1,buff1,iret=iret)
+      call split2d_rst(buff1,nst_fld%dt_cool,fieldsize,global_lats_r,
+     &  lonsperlar)
+
+!-- z_c
+      call nemsio_readrecv(gfile,'zc','sfc',1,buff1,iret=iret)
+      call split2d_rst(buff1,nst_fld%z_c,fieldsize,global_lats_r,
+     &  lonsperlar)
+
+!-- c_0
+      call nemsio_readrecv(gfile,'c0','sfc',1,buff1,iret=iret)
+      call split2d_rst(buff1,nst_fld%c_0,fieldsize,global_lats_r,
+     &  lonsperlar)
+
+!-- c_d
+      call nemsio_readrecv(gfile,'cd','sfc',1,buff1,iret=iret)
+      call split2d_rst(buff1,nst_fld%c_d,fieldsize,global_lats_r,
+     &  lonsperlar)
+
+!-- xt
+      call nemsio_readrecv(gfile,'w0','sfc',1,buff1,iret=iret)
+      call split2d_rst(buff1,nst_fld%w_0,fieldsize,global_lats_r,
+     &  lonsperlar)
+
+!-- w_d
+      call nemsio_readrecv(gfile,'wd','sfc',1,buff1,iret=iret)
+      call split2d_rst(buff1,nst_fld%w_d,fieldsize,global_lats_r,
+     &  lonsperlar)
+
+!-- d_conv
+      call nemsio_readrecv(gfile,'dconv','sfc',1,buff1,iret=iret)
+      call split2d_rst(buff1,nst_fld%xt,fieldsize,global_lats_r,
+     &  lonsperlar)
+
+!-- ifd
+      call nemsio_readrecv(gfile,'ifd','sfc',1,buff1,iret=iret)
+      call split2d_rst(buff1,nst_fld%ifd,fieldsize,global_lats_r,
+     &  lonsperlar)
+
+!-- tref
+      call nemsio_readrecv(gfile,'tref','sfc',1,buff1,iret=iret)
+      call split2d_rst(buff1,nst_fld%tref,fieldsize,global_lats_r,
+     &  lonsperlar)
+
+!-- Qrain
+      call nemsio_readrecv(gfile,'Qrain','sfc',1,buff1,iret=iret)
+      call split2d_rst(buff1,nst_fld%Qrain,fieldsize,global_lats_r,
+     &  lonsperlar)
+!       print *,'in read_nst_r,qrain=',nst_fld%Qrain(1:3,1:3)
+
+!
+      call nemsio_close(gfile)
+      call nemsio_finalize()
+!
+      t2=timef()
+!      print *,'end of read_nst_r time ',t2-t1,t1,t2
 !
       RETURN
 

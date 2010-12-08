@@ -1,8 +1,6 @@
       SUBROUTINE SFC_DIAG(IM,KM,PS,U1,V1,T1,Q1,
-     &                  TSKIN,QSURF,
-     &                  F10M,U10M,V10M,T2M,Q2M,
-     &                  RCL,PRSLKI,SLIMSK,
-     &                  EVAP,FM,FH,FM10,FH2)
+     &                  TSKIN,QSURF,F10M,U10M,V10M,T2M,Q2M,
+     &                  PRSLKI,SLIMSK,EVAP,FM,FH,FM10,FH2)
 !
       USE MACHINE , ONLY : kind_phys
       USE FUNCPHYS, ONLY : fpvs
@@ -19,7 +17,7 @@
      &                     TSKIN(IM),    QSURF(IM), 
      &                     F10M(IM),     U10M(IM),
      &                     V10M(IM),     T2M(IM),     Q2M(IM),
-     &                     RCL(IM),      PRSL1(IM),   PRSLKI(IM),
+     &                                   PRSL1(IM),   PRSLKI(IM),
      &                     SLIMSK(IM),   EVAP(IM),    
      &                     FM(IM),       FH(IM),
      &                     FM10(IM),     FH2(IM)
@@ -29,13 +27,10 @@
       real (kind=kind_phys), parameter :: qmin=1.0e-8
       integer              k,i
 !
-      real(kind=kind_phys) 
-     &                     PSURF(IM),   QSS(IM),
-     &                     THETA1(IM),  XRCL(IM)
+      real(kind=kind_phys) QSS(IM), THETA1(IM)
 !
-      real(kind=kind_phys) g,    sig2k
+      real(kind=kind_phys) g,    sig2k, fhi
 !
-cc
       PARAMETER (G=grav)
 !
       LOGICAL FLAG(IM), FLAGSNW(IM)
@@ -44,19 +39,17 @@ cc
      &                     STSOIL(IM,KM), AI(IM,KM),    BI(IM,KM),
      &                     CI(IM,KM),     RHSTC(IM,KM)
 !
-C
-C     ESTIMATE SIGMA ** K AT 2 M
-C
+!
+!     ESTIMATE SIGMA ** K AT 2 M
+!
       SIG2K = 1. - 4. * G * 2. / (CP * 280.)
-C
-C  INITIALIZE VARIABLES. ALL UNITS ARE SUPPOSEDLY M.K.S. UNLESS SPECIFIE
-C  PSURF IS IN PASCALS
-C  THETA1 IS ADIABATIC SURFACE TEMP FROM LEVEL 1
-C
+!
+!  INITIALIZE VARIABLES. ALL UNITS ARE SUPPOSEDLY M.K.S. UNLESS SPECIFIE
+!  PS IS IN PASCALS
+!  THETA1 IS ADIABATIC SURFACE TEMP FROM LEVEL 1
+!
 !!
       DO I=1,IM
-        XRCL(I)  = SQRT(RCL(I))
-        PSURF(I) = 1000. * PS(I)
         THETA1(I) = T1(I) * PRSLKI(I)
       ENDDO
 !!
@@ -64,37 +57,20 @@ C
       DO I = 1, IM
         F10M(I) = FM10(I) / FM(I)
         F10M(I) = min(F10M(I),1.)
-        U10M(I) = F10M(I) * XRCL(I) * U1(I)
-        V10M(I) = F10M(I) * XRCL(I) * V1(I)
-         T2M(I) = TSKIN(I) * (1. - FH2(I) / FH(I))
-     &          + THETA1(I) * FH2(I) / FH(I)
-         T2M(I) = T2M(I) * SIG2K
-C        Q2M(I) = QSURF(I) * (1. - FH2(I) / FH(I))
-C    &         + Q1(I) * FH2(I) / FH(I)
-C       T2M(I) = T1
-C       Q2M(I) = Q1
-        IF(EVAP(I).GE.0.) THEN
-C
-C  IN CASE OF EVAPORATION, USE THE INFERRED QSURF TO DEDUCE Q2M
-C
-          Q2M(I) = QSURF(I) * (1. - FH2(I) / FH(I))
-     &         + max(qmin,Q1(I)) * FH2(I) / FH(I)      !  Moorthi
-!!   &         + Q1(I) * FH2(I) / FH(I)
-        ELSE
-C
-C  FOR DEW FORMATION SITUATION, USE SATURATED Q AT TSKIN
-C
-cjfe      QSS(I) = 1000. * FPVS(TSKIN(I))
+        U10M(I) = F10M(I) *  U1(I)
+        V10M(I) = F10M(I) * V1(I)
+        FHI     = FH2(I) / FH(I)
+        T2M(I)  = TSKIN(I)*(1. - FHI) + THETA1(I)*FHI
+        T2M(I)  = T2M(I) * SIG2K
+        IF(EVAP(I) >= 0.) THEN !  For EVAPORATION>0, USE INFERRED QSURF TO DEDUCE Q2M
+          Q2M(I) = QSURF(I)*(1.-FHI) + max(qmin,Q1(I))*FHI
+        ELSE                   !  FOR DEW FORMATION, USE SATURATED Q AT TSKIN
           qss(I) = fpvs(tskin(I))
-          QSS(I) = EPS * QSS(I) / (PSURF(I) + EPSM1 * QSS(I))
-          Q2M(I) = QSS(I) * (1. - FH2(I) / FH(I))
-     &         + max(qmin,Q1(I)) * FH2(I) / FH(I)      ! Moorthi
-!!   &         + Q1(I) * FH2(I) / FH(I)
+          QSS(I) = EPS * QSS(I) / (PS(I) + EPSM1 * QSS(I))
+          Q2M(I) = QSS(I)*(1.-FHI) + max(qmin,Q1(I))*FHI
         ENDIF
-cjfe    QSS(I) = 1000. * FPVS(T2M(I))
         QSS(I) = fpvs(t2m(I))
-!       QSS(I) = 1000. * T2MO(I)
-        QSS(I) = EPS * QSS(I) / (PSURF(I) + EPSM1 * QSS(I))
+        QSS(I) = EPS * QSS(I) / (PS(I) + EPSM1 * QSS(I))
         Q2M(I) = MIN(Q2M(I),QSS(I))
       ENDDO
 

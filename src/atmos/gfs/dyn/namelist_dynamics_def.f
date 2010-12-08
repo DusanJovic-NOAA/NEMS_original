@@ -7,7 +7,7 @@
       use gfs_dyn_machine
       implicit none
       
-      integer nsres,nsout,igen,ngptc
+      integer nsres,nsout,igen,ngptc,num_reduce
       real(kind=kind_evod) fhrot,fhmax,fhout,fhres,fhini,fhdfi
       real(kind=kind_evod) filta,ref_temp
       logical lsfwd

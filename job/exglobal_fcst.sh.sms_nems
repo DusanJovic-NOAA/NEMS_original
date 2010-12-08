@@ -2,13 +2,14 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         global_forecast.sh
+# Script name:         exglobal_fcst.sh.sms_nems.sh
 # Script description:  Runs a global spectral model forecast
 #
 # Author:        Mark Iredell       Org: NP23         Date: 1999-05-01
 #
-# Abstract: This script runs a single global spectral model forecast.
-#   The initial conditions and run parameters are passed in the argument list.
+# Abstract: This script runs a single or an ensemble of global spectral model
+#           forecasts. The initial conditions and run parameters are either
+#           passed in the argument list or imported.
 #
 # Script history log:
 # 1999-05-01  Mark Iredell
@@ -26,16 +27,21 @@
 #                       tracer added; (q, oz, cld) removed
 # 2009-11     Jun Wang, activate reduced grid option and digital filter option
 # 2009-12     Jun Wang, link atm_namelist.rc to configure_file
+# 2009-2010   Shrinvias Moorthi : Added stochastic ensembles, semi-Lagrangian
+#                                 high frequency output, G3D outputs and many
+#                                 other upgrades related to model changes
 # 2010-01     Weiyu Yang, modified for the ensemble GEFS.
 # 2010-01-14  Sarah Lu : Added GOCART_CLIM and GOCART_LUTS
 # 2010-02     Jun Wang  Add restart
 # 2010-02-06  Sarah Lu : modify phy_namelist.rc (set p_export/dp_export to 1)
 # 2010-03-23  Sarah Lu : add passive_tracer to atm_namelist.rc 
 # 2010-05-31  Sarah Lu : use wildcard to copy files from GOCART_CLIM to DATA
-# 2010-07-23  Sarah Lu : use wildcard to copy files from GOCART_CLIM to DATA
+# 2010-07     Jun Wang : add option to output filtered 3hr output
+# 2010-07-14  Shrinivas Moorthi : Upgraded for the new physics and nst model
+#             and rewrote some parts and added ensemble generality
 # 2010-07-23  Sarah Lu : add AER, modify filename_base, file_io_form, file_io
 #
-# Usage:  global_forecast.sh GRDI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO
+# Usage:  global_forecast.sh SIGI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO NSTI NSTO G3DO FHOUT_HF FHMAX_HF
 #
 #   Input script positional parameters:
 #     1             Input grd file 1
@@ -54,6 +60,12 @@
 #                   defaults to $IGEN, defaults to 0
 #     8             Output flux file with embedded forecast hour '${FH}'
 #                   defaults to $D3DO, then to ${COMOUT}/d3df'${FH}'$SUFOUT
+#     9             Input NST file
+#     10            Output NST file
+#     11            output 3d file for GOCART
+#                   defaults to $G3DO, then to ${COMOUT}/g3df'${FH}'$SUFOUT
+#     12            High frequency output interval ; default 1 hour
+#     13            Maximum hour of high frequecny output
 #
 #   Imported Shell Variables:
 #     SIGI          Input sigma file
@@ -64,6 +76,12 @@
 #                   overridden by $3; defaults to ${COMOUT}/sigf'${FH}'$SUFOUT
 #     FLXO          Output flux file with embedded forecast hour '${FH}'
 #                   overridden by $4; defaults to ${COMOUT}/flxf'${FH}'$SUFOUT
+#     D3DO          Output d3d file with embedded forecast hour '${FH}'
+#                   overridden by $4; defaults to ${COMOUT}/d3df'${FH}'$SUFOUT
+#     NSTO         Output nst file with embedded forecast hour '${FH}'
+#                   overridden by $4; defaults to ${COMOUT}/nstf'${FH}'$SUFOUT
+#     G3DO          Output g3d file with embedded forecast hour '${FH}'
+#                   overridden by $4; defaults to ${COMOUT}/g3df'${FH}'$SUFOUT
 #     FHOUT         Output frequency in hours
 #                   overridden by $5; defaults to 3
 #     FHMAX         Length of forecast in hours
@@ -179,6 +197,8 @@
 #                   defaults to ${DATA}/sigr2 which is deleted
 #     SFCR          Output surface restart file
 #                   defaults to ${DATA}/sfcr which is deleted
+#     NSTR          Output nst restart file
+#                   defaults to ${DATA}/nstr which is deleted
 #     SFCO          Output surface file with embedded forecast hour '${FH}'
 #                   defaults to ${COMOUT}/sfcf'${FH}'$SUFOUT
 #     LOGO          Output log file with embedded forecast hour '${FH}'
@@ -309,6 +329,7 @@
 #                  $SIGR1
 #                  $SIGR2
 #                  $SFCR
+#                  $NSTR
 #                  $PGMOUT
 #                  $PGMERR
 #
@@ -329,9 +350,13 @@
 #                  ${DATA}/SFC.F*
 #                  ${DATA}/FLX.F*
 #                  ${DATA}/LOG.F*
+#                  ${DATA}/D3D.F*
+#                  ${DATA}/G3D.F*
+#                  ${DATA}/NST.F*
 #                  ${DATA}/sigr1
 #                  ${DATA}/sigr2
 #                  ${DATA}/sfcr
+#                  ${DATA}/nstr
 #                  ${DATA}/NULL
 #
 # Remarks:
@@ -352,6 +377,12 @@
 ####
 ################################################################################
 #  Set environment.
+export MP_I_BINDPROC=${MP_I_BINDPROC:-yes}
+export MEMORY_AFFINIY=${MEMORY_AFFINIY:-MCM}
+export MP_SYNC_QP=${MP_SYNC_QP:-yes}
+export MP_SHARED_MEMORY=${MP_SHARED_MEMORY:-"NO"}
+export MP_COREFILE_FORMAT=${MP_COREFILE_FORMAT:-"lite"}
+
 export VERBOSE=${VERBOSE:-"NO"}
 if [[ "$VERBOSE" = "YES" ]]
 then
@@ -370,6 +401,24 @@ export FHOUT=${5:-${FHOUT:-3}}
 export FHMAX=${6:-${FHMAX:-0}}
 export IGEN=${7:-${IGEN:-0}}
 export D3DO=${8:-${D3DO}}
+export NSTII=${9:-${NSTI:-?}}
+export NSTO=${10:-${NSTO}}
+export G3DO=${11:-${G3DO}}
+export FHOUT_HF=${12:-${FHOUT_HF:-0}}
+export FHMAX_HF=${13:-${FHMAX_HF:-0}}
+export AERO=${14:-${AERO}}
+
+# DHOU 02/28/2008 Modified for general case
+# DHOU 01/07/2008 Added two input for the GEFS_Cpl module
+# FHM_FST is the FHMAX for the integration before the first stop
+# FH_INC is the FHMAX_increase for the integration before next stop
+export FH_INC=${FH_INC:-6}
+export ENS_SPS=${ENS_SPS:-.false.}
+export ADVANCECOUNT_SETUP=${ADVANCECOUNT_SETUP:-0}
+export HOUTASPS=${HOUTASPS:-10000}
+[[ $ENS_NUM -le 2 ]]&&ENS_SPS=.false.
+if [ $ENS_SPS = .false. ] ; then export FH_INC=$FHMAX ; fi
+
 #  Directories.
 export FIXGLOBAL=${FIXGLOBAL:-/nwprod/fix}
 export FIX_RAD=${FIX_RAD:-$FIXGLOBAL}
@@ -377,21 +426,24 @@ export EXECGLOBAL=${EXECGLOBAL:-/nwprod/exec}
 export DATA=${DATA:-$(pwd)}
 export COMOUT=${COMOUT:-$(pwd)}
 #  Filenames.
+MN=${MN:-""}
 export XC=${XC}
 export SUFOUT=${SUFOUT}
 export SIGHDR=${SIGHDR:-${EXECGLOBAL}/global_sighdr$XC}
 export JCAP=${JCAP:-$(echo jcap|$SIGHDR ${SIGI}$FM)}
 export LEVS=${LEVS:-$(echo levs|$SIGHDR ${SIGI}$FM)}
-export LEVR=${LEVR:-$(echo levs|$SIGHDR ${SIGI}$FM)}
+export LEVR=${LEVR:-$LEVS}
 export LONR=${LONR:-$(echo lonr|$SIGHDR ${SIGI}$FM)}
 export LATR=${LATR:-$(echo latr|$SIGHDR ${SIGI}$FM)}
 export LONF=${LONF:-$(echo lonf|$SIGHDR ${SIGI}$FM)}
 export LATG=${LATG:-$(echo latf|$SIGHDR ${SIGI}$FM)}
 export NTRAC=${NTRAC:-$(echo ntrac|$SIGHDR ${SIGI}$FM)}
 export IDVC=${IDVC:-$(echo idvc|$SIGHDR ${SIGI}$FM)}
+export IDVM=${IDVM:-$(echo idvm|$SIGHDR ${SIGI}$FM)}
+export THERMODYN_ID=${THERMODYN_ID:-$((IDVM/10))}
+export SFCPRESS_ID=${SFCPRESS_ID:-$((IDVM-(IDVM/10)*10))}
 export NMTVR=${NMTVR:-14}
 export LSOIL=${LSOIL:-4}
-export PASSIVE_TRACER=${PASSIVE_TRACER:-.false.}
 export NTOZ=${NTOZ:-2}
 export NTCW=${NTCW:-3}
 export NCLD=${NCLD:-1}
@@ -399,16 +451,18 @@ export NGPTC=${NGPTC:-30}
 #jw
 export ADIAB=${ADIAB:-.false.}
 export nsout=${nsout:-0}
+export LDFIFLTO=${LDFIFLTO:-.false.}
 export NUM_FILE=${NUM_FILE:-3}
 export QUILTING=${QUILTING:-.true.}
 export REDUCED_GRID=${REDUCED_GRID:-.true.}
 export nemsioget=${nemsioget:-/climate/save/wx20wa/gfsio/nems/nemsio_get}
+export PASSIVE_TRACER=${PASSIVE_TRACER:-.false.}
 #
 export EXPLICIT=${EXPLICIT:-.false.}
 export NON_ITER_SEMI_LAGRANGIAN_FV=${NON_ITER_SEMI_LAGRANGIAN_FV:-.false.}
 export ZFLXTVD=${ZFLXTVD:-.false.}
 export pre_rad=${pre_rad:-.false.}
-export random_xkt2=${random_xkt2:-.true.}
+export random_clds=${random_clds:-.false.}
 export FCSTEXEC=${FCSTEXEC:-${EXECGLOBAL}/global_fcst$XC}
 export GRDI2=${GRDI2:-NULL}
 export SIGI1=${SIGI1:-NULL}
@@ -455,16 +509,21 @@ export IAER=${IAER:-0}
 export ICO2=${ICO2:-0}
 #export IALB=${IALB:-0}
 #
-export GRDR1=${GRDR1:-${DATA}/grdr1}
-export GRDR2=${GRDR2:-${DATA}/grdr2}
-export SIGR1=${SIGR1:-${DATA}/sigr1}
-export SIGR2=${SIGR2:-${DATA}/sigr2}
-export SFCR=${SFCR:-${DATA}/sfcr}
-export SIGO=${SIGO:-${COMOUT}/sigf'${FH}''${MN}'$SUFOUT}
-export SFCO=${SFCO:-${COMOUT}/sfcf'${FH}''${MN}'$SUFOUT}
-export FLXO=${FLXO:-${COMOUT}/flxf'${FH}''${MN}'$SUFOUT}
-export LOGO=${LOGO:-${COMOUT}/logf'${FH}''${MN}'$SUFOUT}
-export D3DO=${D3DO:-${COMOUT}/d3df'${FH}''${MN}'$SUFOUT}
+LOCD=${LOCD:-""}
+export COMENS=$COMOUT'$LOCD'
+export GRDR1=${GRDR1:-${COMENS}/grdr1}
+export GRDR2=${GRDR2:-${COMENS}/grdr2}
+export SIGR1=${SIGR1:-${COMENS}/sigr1}
+export SIGR2=${SIGR2:-${COMENS}/sigr2}
+export SFCR=${SFCR:-${COMENS}/sfcr}
+export NSTR=${NSTR:-${COMENS}/nstr}
+export SIGO=${SIGO:-${COMENS}/sigf'${FH}''${MN}'$SUFOUT}
+export SFCO=${SFCO:-${COMENS}/sfcf'${FH}''${MN}'$SUFOUT}
+export FLXO=${FLXO:-${COMENS}/flxf'${FH}''${MN}'$SUFOUT}
+export LOGO=${LOGO:-${COMENS}/logf'${FH}''${MN}'$SUFOUT}
+export D3DO=${D3DO:-${COMENS}/d3df'${FH}''${MN}'$SUFOUT}
+export NSTO=${NSTO:-${COMENS}/nstf'${FH}''${MN}'$SUFOUT}
+export G3DO=${G3DO:-${COMENS}/g3df'${FH}''${MN}'$SUFOUT}
 export AERO=${AERO:-${COMOUT}/aerf'${FH}''${MN}'$SUFOUT}
 export INISCRIPT=${INISCRIPT}
 export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
@@ -487,6 +546,14 @@ export gfsio_in=${gfsio_in:-.true.}
 if [ $gfsio_in = .true. ] ; then
  export GB=1
 fi
+
+#
+# Total pe = WRT_GROUP*WRTPE_PER_GROUP + fcst pes
+#
+export WRT_GROUP=${WRT_GROUP:-0}
+export WRTPE_PER_GROUP=${WRTPE_PER_GROUP:-1}
+export QUILTING=${QUILTING:-.true.}
+
 if [ $IDVC = 1 ] ; then
  export HYBRID=.false.
  export GEN_COORD_HYBRID=.false.
@@ -526,8 +593,7 @@ export REDERR=${REDERR:-'2>'$a}
 #  Preprocessing
 $INISCRIPT
 pwd=$(pwd)
-if [[ -d $DATA ]]
-then
+if [[ -d $DATA ]] ; then
    mkdata=NO
 else
    mkdir -p $DATA
@@ -537,31 +603,37 @@ cd $DATA||exit 99
 [[ -d $COMOUT ]]||mkdir -p $COMOUT
 ################################################################################
 #  Make forecast
-export XLFRTEOPTS="unit_vars=yes"
+export XLFRTEOPTS="unit_vars=yes:intrinthds=1"
 export PGM=$DATA/$(basename $FCSTEXEC)
 export pgm=$PGM
 $LOGSCRIPT
 ${NCP:-cp} $FCSTEXEC $DATA
 rm -f NULL
-if [ $FHINI -lt 10 ]; then
-  FH=$((10#$FHINI))
-else
-  FH=$FHINI
-fi
+FH=$((10#$FHINI))
 [[ $FH -lt 10 ]]&&FH=0$FH
-if [[ $FHINI -gt 0 ]]
-then
-   FH=$((10#$FHINI+10#$FHOUT))
+if [[ $FHINI -gt 0 ]] ; then
+   if [ $FHOUT_HF -ne $FHOUT -a $FH -lt $FHMAX_HF ] ; then
+    FH=$((10#$FHINI+10#$FHOUT_HF))
+   else
+    FH=$((10#$FHINI+10#$FHOUT))
+   fi
    [[ $FH -lt 10 ]]&&FH=0$FH
 fi
-while [[ $FH -le $FHMAX ]]
-do
-   eval rm -f $LOGO
-   ((FH=10#$FH+10#$FHOUT))
+while [[ $FH -le $FHMAX ]] ; do
+   if [[ $FH -le $HOUTA ]] ; then
+     FNSUB=$NMSUB
+   else
+     FNSUB=""
+   fi
+   eval rm -f ${LOGO}${FNSUB}
+   if [ $FHOUT_HF -ne $FHOUT -a $FH -lt $FHMAX_HF ] ; then
+     ((FH=10#$FH+10#$FHOUT_HF))
+   else
+     ((FH=10#$FH+10#$FHOUT))
+   fi
    [[ $FH -lt 10 ]]&&FH=0$FH
 done
-if [[ $FILESTYLE = "L" ]]
-then
+if [[ $FILESTYLE = "L" ]] ; then
    ln -fs $CO2CON fort.15
    ln -fs $MTNVAR fort.24
    ln -fs $DTBTHE fort.27
@@ -607,117 +679,176 @@ cd $DATA
 export PHYVARS="IEMS=$IEMS,ISOL=$ISOL,IAER=$IAER,ICO2=$ICO2,$PHYVARS"
 #
 #     For one member case i.e. control
-#
+#     --------------------------------
 mins=$((DELTIM/60))
 secs=$((DELTIM-(DELTIM/60)*60))
-[[ $mins -lt 10 ]] &&secs=0$mins
+[[ $mins -lt 10 ]] &&mins=0$mins
 [[ $secs -lt 10 ]] &&secs=0$secs
 
 if [[ $ENS_NUM -le 1 ]] ; then
   FH=$((10#$FHINI))
   [[ $FH -lt 10 ]]&&FH=0$FH
   if [[ $FHINI -gt 0 ]] ; then
-    FH=$((10#$FHINI+10#$FHOUT))
+    if [ $FHOUT_HF -ne $FHOUT -a $FH -lt $FHMAX_HF ] ; then
+     FH=$((10#$FHINI+10#$FHOUT_HF))
+    else
+     FH=$((10#$FHINI+10#$FHOUT))
+    fi
     [[ $FH -lt 10 ]]&&FH=0$FH
   fi
 #        For Initial Conditions
-  if [ $FHINI = $FHROT ]; then
-    ln -fs $GRDI grid_ini
-    ln -fs $SFCI sfc_ini
+#        ----------------------
+  if [ $((FHINI+0)) -eq  $((FHROT+0)) ]; then
+    ln -fs $GRDI  grid_ini
+    ln -fs $SFCI  sfc_ini
+    ln -fs $NSTI  nst_ini
     export RESTART=.false.
   else
-    ln -fs $GRDI grid_ini
+    ln -fs $GRDI  grid_ini
     ln -fs $GRDI2 grid_ini2
-    ln -fs $SIGI sig_ini
+    ln -fs $SIGI  sig_ini
     ln -fs $SIGI2 sig_ini2
-    ln -fs $SFCI sfc_ini
+    ln -fs $SFCI  sfc_ini
+    ln -fs $NSTI  nst_ini
     export RESTART=.true.
   fi
 #        For output
+#        ----------
   while [[ $FH -le $FHMAX ]] ; do
-    if [ $FH -eq 00 ] ; then
-      eval ln -fs $SIGO SIG.F${FH}:${mins}:${secs}
-      eval ln -fs $FLXO FLX.F${FH}:${mins}:${secs}
-      eval ln -fs $SFCO SFC.F${FH}:${mins}:${secs}
-      eval ln -fs $LOGO LOG.F${FH}:${mins}:${secs}
-      eval ln -fs $D3DO D3D.F${FH}:${mins}:${secs}
-      eval ln -fs $AERO AER.F${FH}:${mins}:${secs}
+    if [[ $FH -le $HOUTA ]] ; then
+      FNSUB=$NMSUB
     else
-      eval ln -fs $SIGO SIG.F${FH}
-      eval ln -fs $SFCO SFC.F${FH}
-      eval ln -fs $FLXO FLX.F${FH}
-      eval ln -fs $LOGO LOG.F${FH}
-      eval ln -fs $D3DO D3D.F${FH}
-      eval ln -fs $AERO AER.F${FH}
+      FNSUB=""
     fi
-    ((FH=10#$FH+10#$FHOUT))
+    if [ $FH -eq 00 ] ; then
+      SUF2=:${mins}:${secs}
+    else
+      SUF2=""
+    fi
+    eval ln -fs ${SIGO}$FNSUB SIG.F${FH}$SUF2
+    eval ln -fs ${SFCO}$FNSUB SFC.F${FH}$SUF2
+    eval ln -fs ${FLXO}$FNSUB FLX.F${FH}$SUF2
+    eval ln -fs ${LOGO}$FNSUB LOG.F${FH}$SUF2
+    eval ln -fs ${D3DO}$FNSUB D3D.F${FH}$SUF2
+    eval ln -fs ${NSTO}$FNSUB NST.F${FH}$SUF2
+    eval ln -fs ${G3DO}$FNSUB G3D.F${FH}$SUF2
+    eval ln -fs ${AERO}$FNSUB AER.F${FH}$SUF2
+
+    if [ $FHOUT_HF -ne $FHOUT -a $FH -lt $FHMAX_HF ] ; then
+     ((FH=10#$FH+10#$FHOUT_HF))
+    else
+     ((FH=10#$FH+10#$FHOUT))
+    fi
     [[ $FH -lt 10 ]]&&FH=0$FH
+
   done
-  ln -fs $GRDR1 GRDR1
-  ln -fs $GRDR2 GRDR2
-  ln -fs $SIGR1 SIGR1
-  ln -fs $SIGR2 SIGR2
-  ln -fs $SFCR  SFCR
+  eval ln -fs $GRDR1 GRDR1
+  eval ln -fs $GRDR2 GRDR2
+  eval ln -fs $SIGR1 SIGR1
+  eval ln -fs $SIGR2 SIGR2
+  eval ln -fs $SFCR  SFCR
+  eval ln -fs $NSTR  NSTR
 else
 #
 #   For Ensemble runs (members > 1)
+#   -------------------------------
   for MN in $MEMBER_NAMES ; do
     IMN=`echo $MN|cut -c2-3`
-    if (( IMN == 0 )); then
-      IMN=$ENS_NUM
-    if (( IMN <= 9 )); then
-      IMN=0$IMN
-    fi
-    fi
+    IMN=$((IMN+0))
+    if [ $IMN -eq 0 ] ; then IMN=$ENS_NUM ; fi
+    if [ $IMN -lt 10 ] ; then IMN=0$IMN ; fi
     echo 'IMN=' $IMN
+    if [ ${USESUBDIR:-NO} = YES ] ; then
+     if [ $IMN -eq $ENS_NUM ] ; then LOCD=/c00 ; else LOCD=/p$IMN ; fi
+    fi
+    mkdir -p `eval echo \$COMENS`
 
 #      This is just faking the ensemble ICs.
 #   ${NCP:-cp} $SIGI  ${SIGI}${MN}
 #   ${NCP:-cp} $SFCI  ${SFCI}${MN}
 #   ${NCP:-cp} $SIGI2 ${SIGI2}${MN}
 #        For Initial Conditions
-    eval ln -fs ${GRDI}${MN} grid_ini_${IMN}
+#        ----------------------
+    eval ln -fs ${GRDI}${MN}  grid_ini_${IMN}
     eval ln -fs ${GRDI2}${MN} grid_ini2_${IMN}
-    eval ln -fs ${SIGI}${MN} sig_ini_${IMN}
-    eval ln -fs ${SFCI}${MN} sfc_ini_${IMN}
+    eval ln -fs ${SIGI}${MN}  sig_ini_${IMN}
     eval ln -fs ${SIGI2}${MN} sig_ini2_${IMN}
-    if [ $FHINI = ${FHROT}0 ]; then
+    eval ln -fs ${SFCI}${MN}  sfc_ini_${IMN}
+    eval ln -fs ${NSTI}${MN}  nst_ini_${IMN}
+
+    if [ $((FHINI+0)) -eq  $((FHROT+0)) ]; then
        export RESTART=.false.
     else
        export RESTART=.true.
     fi
+
 echo 'wy, RESTART=' $RESTART ############################????????????????????????
 echo 'wy, FHINI=' $FHINI ############################????????????????????????
 echo 'wy, FHROT=' $FHROT ############################????????????????????????
+
 #        For output
+#        ----------
     FH=$((10#$FHINI))
     [[ $FH -lt 10 ]]&&FH=0$FH
     if [[ $FHINI -gt 0 ]] ; then
-      FH=$((10#$FHINI+10#$FHOUT))
+      if [ $FHOUT_HF -ne $FHOUT -a $FH -lt $FHMAX_HF ] ; then
+       FH=$((10#$FHINI+10#$FHOUT_HF))
+      else
+       FH=$((10#$FHINI+10#$FHOUT))
+      fi
       [[ $FH -lt 10 ]]&&FH=0$FH
     fi
     while [[ $FH -le $FHMAX ]] ; do
-      if [ $FH -eq 00 ] ; then
-        eval ln -fs $SIGO SIG.F${FH}:${mins}:${secs}${MN}
-        eval ln -fs $FLXO FLX.F${FH}:${mins}:${secs}${MN}
-        eval ln -fs $SFCO SFC.F${FH}:${mins}:${secs}${MN}
-        eval ln -fs $LOGO LOG.F${FH}:${mins}:${secs}${MN}
-        eval ln -fs $D3DO D3D.F${FH}:${mins}:${secs}${MN}
-        eval ln -fs $AERO AER.F${FH}:${mins}:${secs}${MN}
+      if [[ $FH -le $HOUTA ]] ; then
+        FNSUB=$NMSUB
       else
-        eval ln -fs $SIGO SIG.F${FH}${MN}
-        eval ln -fs $SFCO SFC.F${FH}${MN}
-        eval ln -fs $FLXO FLX.F${FH}${MN}
-        eval ln -fs $LOGO LOG.F${FH}${MN}
-        eval ln -fs $D3DO D3D.F${FH}${MN}
-        eval ln -fs $AERO AER.F${FH}${MN}
+        FNSUB=""
       fi
-      ((FH=10#$FH+10#$FHOUT))
+      if [ $FH -eq 00 ] ; then
+        SUF2=:${mins}:${secs}
+      else
+        SUF2=""
+      fi
+      eval ln -fs ${SIGO}$FNSUB SIG.F${FH}${SUF2}_${IMN}
+      eval ln -fs ${SFCO}$FNSUB SFC.F${FH}${SUF2}_${IMN}
+      eval ln -fs ${FLXO}$FNSUB FLX.F${FH}${SUF2}_${IMN}
+      eval ln -fs ${LOGO}$FNSUB LOG.F${FH}${SUF2}_${IMN}
+      eval ln -fs ${D3DO}$FNSUB D3D.F${FH}${SUF2}_${IMN}
+      eval ln -fs ${NSTO}$FNSUB NST.F${FH}${SUF2}_${IMN}
+      eval ln -fs ${G3DO}$FNSUB G3D.F${FH}${SUF2}_${IMN}
+      eval ln -fs ${AERO}$FNSUB AER.F${FH}${SUF2}_${IMN}
+
+      if [ $FHOUT_HF -ne $FHOUT -a $FH -lt $FHMAX_HF ] ; then
+       ((FH=10#$FH+10#$FHOUT_HF))
+      else
+       ((FH=10#$FH+10#$FHOUT))
+      fi
       [[ $FH -lt 10 ]]&&FH=0$FH
     done
-    ln -fs ${SIGR1}${MN} SIGR1${MN}
-    ln -fs ${SIGR2}${MN} SIGR2${MN}
-    ln -fs ${SFCR}${MN}  SFCR${MN}
+
+# 02/29/2008 DHOU,  added new files for the output after SPS
+#     FH=$FHMAX
+# 09/09/2008 DHOU,  changed the time of output after SPS, fro end to earlier
+#             for the digital filtering after resolution change
+      FH=$HOUTASPS
+    if [[ $FH -lt 10000 ]] ; then
+      [[ $FH -lt 10 ]]&&FH=0$FH
+      eval ln -fs $SIGS SIG.S${FH}_${IMN}
+      eval ln -fs $SFBS SFB.S${FH}_${IMN}
+      eval ln -fs $FLXS FLX.S${FH}_${IMN}
+    fi
+
+    eval ln -fs ${SIGR1}_${IMN} SIGR1_${IMN}
+    eval ln -fs ${SIGR2}_${IMN} SIGR2_${IMN}
+    eval ln -fs ${SFCR}_{IMN}   SFCR_${IMN}
+    eval ln -fs ${NSTR}_${IMN}  NSTR_${IMN}
+# 02/29/2008 DHOU,  added new files for the re-start-files after SP
+    if [ $ENS_NUM -gt 2 ] ; then
+      eval ln -fs ${SIGS1}_${IMN} SIGS1_${IMN}
+      eval ln -fs ${SIGS2}_${IMN} SIGS2_${IMN}
+      eval ln -fs ${SFCS}_${IMN}  SFCS_${IMN}
+      eval ln -fs ${NSTS}_${IMN}  NSTS_${IMN}
+    fi
   done
 fi
 
@@ -731,14 +862,6 @@ while [ $c -le $ENS_NUM ] ; do
  eval export PE$c=\${PE$c:-0}
  c=$((c+1))
 done
-
-# DHOU 02/28/2008 Modified for general case
-# DHOU 01/07/2008 Added two input for the Cpl module:i
-# FH_FST is the FHMAX for the integration before the first stop
-# FH_INC is the FHMAX_increase for the integration before next stop
-export FH_INC=${FH_INC:-6}
-export ENS_SPS=${ENS_SPS:-.false.}
-export ADVANCECOUNT_SETUP=${ADVANCECOUNT_SETUP:-0}
 
 export wgrib=${wgrib:-/nwprod/util/exec/wgrib}
 if [ $FHINI -eq 0 ]; then
@@ -769,6 +892,12 @@ else
   INI_DAY=$(echo $CDATE | awk -F" " '{print $3}')
   INI_HOUR=$(echo $CDATE | awk -F" " '{print $4}')
 fi
+
+ioform_sig=${ioform_sig:-grib}
+ioform_sfc=${ioform_sfc:-bin4}
+ioform_flx=${ioform_flx:-grib}
+
+cp -p ${ATMOS_CONFIG_GFS:-$FIXGLOBAL/atmos.configure_gfs} $DATA/atmos.configure
 
 cat << EOF > atm_namelist.rc
 
@@ -802,45 +931,48 @@ PE_MEMBER19:             $PE19
 PE_MEMBER20:             $PE20
 PE_MEMBER21:             $PE21
 
-# DHOU, 05/28/2008, added ENS_SPS, logical control for application of stochastic perturbation scheme
-# DHOU, 02/21/2008, added HH_START, the start hour of forecast, and modified ADVANCECOUNT_SETUP
-# DHOU and WYANG, 01/07/2008, added HH_INCREASE and HH_FINAL for Concurrence-Coupler run
-# where HH_INCREASE defines fcst hour increment and HH_FINAL defines the end hour of forecast
-# ADVANCECOUNT_SETUP is an integer indicating the number of time steps between integrtion_start
-# and the time when model state is saved for the _ini of the GEFS_Coupling, cerrently is 0h.
+# For stachastic purturbed runs -  added by Dhou and Wyang
+  --------------------------------------------------------
+#  ENS_SPS, logical control for application of stochastic perturbation scheme
+#  HH_START, start hour of forecast, and modified ADVANCECOUNT_SETUP
+#  HH_INCREASE and HH_FINAL are fcst hour increment and end hour of forecast
+#  ADVANCECOUNT_SETUP is an integer indicating the number of time steps between
+#  integrtion_start and the time when model state is saved for the _ini of the
+#  GEFS_Coupling, currently is 0h.
+
 HH_INCREASE:             $FH_INC
-HH_FINAL:                24
-#HH_FINAL:                384
-#HH_FINAL:                $FHMAX
+HH_FINAL:                $FHMAX
 HH_START:                $FHINI
-ADVANCECOUNT_SETUP:      0
+ADVANCECOUNT_SETUP:      $ADVANCECOUNT_SETUP
+
+ENS_SPS:                  $ENS_SPS
+HOUTASPS:                 $HOUTASPS
 
 #ESMF_State_Namelist +++++++++++++++
-# DHOU + WYANG, 01/07/2008, added TRIEO_IMPORT/EXPORT, changed types to logical
 
-ENS_SPS:              $ENS_SPS
-RUN_CONTINUE:         .false.
+RUN_CONTINUE:             .false.
 
 #
-dt_int:               ${DELTIM}
-dt_num:               0
-dt_den:               1
-start_year:           ${INI_YEAR}
-start_month:          ${INI_MONTH}
-start_day:            ${INI_DAY}
-start_hour:           ${INI_HOUR}
-start_minute:         0.0
-start_second:         0.0
-nhours_fcst:          ${FHMAX}
-restart:              ${RESTART}
-nhours_fcst1:         6
-im:                   ${LONB}
-jm:                   ${LATB}
-global:               .true.
-nhours_dfini:         ${FHDFI}
-adiabatic:            ${ADIAB}
-lsoil:                ${LSOIL}
-passive_tracer:       ${PASSIVE_TRACER}
+dt_int:                   $DELTIM
+dt_num:                   0
+dt_den:                   1
+start_year:               $INI_YEAR
+start_month:              $INI_MONTH
+start_day:                $INI_DAY
+start_hour:               $INI_HOUR
+start_minute:             0.0
+start_second:             0.0
+nhours_fcst:              $FHMAX
+restart:                  $RESTART
+nhours_fcst1:             6
+im:                       $LONB
+jm:                       $LATB
+global:                   .true.
+nhours_dfini:             $FHDFI
+adiabatic:                $ADIAB
+lsoil:                    $LSOIL
+passive_tracer:           $PASSIVE_TRACER
+ldfiflto:                 $LDFIFLTO
 
 
 #jwstart added quilt
@@ -849,25 +981,25 @@ passive_tracer:       ${PASSIVE_TRACER}
 ###############################
 
 
-quilting:              ${QUILTING}   #Do you want asynchronous quilting/history writes?
-read_groups:           0
-read_tasks_per_group:  0
-write_groups:         ${WRT_GROUP}
-write_tasks_per_group:${WRTPE_PER_GROUP}
+quilting:                 $QUILTING   #For asynchronous quilting/history writes
+read_groups:              0
+read_tasks_per_group:     0
+write_groups:             $WRT_GROUP
+write_tasks_per_group:    $WRTPE_PER_GROUP
 
-num_file:      ${NUM_FILE}                   #
-filename_base:      'SIG.F' 'SFC.F' 'FLX.F' 'AER.F' #
-file_io_form:       'grib' 'bin4' 'grib'    'grib'  #
-file_io:            'DEFERRED' 'DEFERRED' 'DEFERRED'  'DEFERRED' #
-write_nemsioflag:   .TRUE.       # True--> Yes write nemsio run history files
-nfhout:             ${FHOUT}
-nsout:              ${nsout}
+num_file:                 $NUM_FILE                   #
+filename_base:            $FILENAME_BASE
+file_io_form:             $FILE_IO_FORM                     
+file_io:                  'DEFERRED' 'DEFERRED' 'DEFERRED' 'DEFERRED'  #
+write_nemsioflag:         .TRUE.       # True--> Write nemsio run history files
+nfhout:                   $FHOUT
+nsout:                    $nsout
 
-io_recl:                 100
-io_position:             ' '
-io_action:               'WRITE'
-io_delim:                ' '
-io_pad:                  ' '
+io_recl:                  100
+io_position:              ' '
+io_action:                'WRITE'
+io_delim:                 ' '
+io_pad:                   ' '
 
 #jwend
 
@@ -1091,7 +1223,9 @@ cat  > atm_namelist <<EOF
 EOF
 
 ln -sf atm_namelist.rc ./model_configure
-eval hpmcount -o gfs_test $PGM $REDOUT$PGMOUT $REDERR$PGMERR
+
+eval $PGM $REDOUT$PGMOUT $REDERR$PGMERR
+#eval hpmcount -o gfs_test $PGM $REDOUT$PGMOUT $REDERR$PGMERR
 
 export ERR=$?
 export err=$ERR
@@ -1103,7 +1237,7 @@ rm -f fort.11 fort.12 fort.14
 rm -f fort.15 fort.24 fort.27 fort.28 fort.29 fort.43 fort.48
 rm -f orography
 rm -f fort.51 fort.52 fort.53
-#rm -f SIG.F* SFC.F* FLX.F* LOG.F* D3D.F* AER.F*
+#rm -f SIG.F* SFC.F* FLX.F* LOG.F* D3D.F AER.F*
 ##rm -f sigr1 sigr2 sfcr
 ################################################################################
 #  Postprocessing
@@ -1111,8 +1245,7 @@ cd $pwd
 [[ $mkdata = YES ]]&&rmdir $DATA
 $ENDSCRIPT
 set +x
-if [[ "$VERBOSE" = "YES" ]]
-then
+if [[ "$VERBOSE" = "YES" ]] ; then
    echo $(date) EXITING $0 with return code $err >&2
 fi
 exit $err

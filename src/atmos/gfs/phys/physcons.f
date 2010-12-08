@@ -64,8 +64,10 @@
   real(kind=kind_phys),parameter:: con_psat   =6.1078e+2      ! pres at H2O 3pt     (Pa)  
   real(kind=kind_phys),parameter:: con_t0c    =2.7315e+2      ! temp at 0C          (K)
   real(kind=kind_phys),parameter:: con_ttp    =2.7316e+2      ! temp at H2O 3pt     (K)
-  real(kind=kind_phys),parameter:: con_tice    =2.7120e+2     ! temp freezing sea     (K)
+  real(kind=kind_phys),parameter:: con_tice   =2.7120e+2      ! temp freezing sea     (K)
   real(kind=kind_phys),parameter:: con_jcal   =4.1855E+0      ! joules per calorie  ()
+  real(kind=kind_phys),parameter:: con_rhw0   =1022.0         ! sea water reference density (kg/m^3)
+  real(kind=kind_phys),parameter:: con_epsq   =1.0E-12        ! min q for computing precip type
 
 !  Secondary constants
 

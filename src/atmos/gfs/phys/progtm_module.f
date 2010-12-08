@@ -1,7 +1,7 @@
       module module_progtm
       USE MACHINE , ONLY : kind_phys
       implicit none
-      
+      SAVE
 !
       integer,parameter:: NTYPE=9
       integer,parameter:: NGRID=22

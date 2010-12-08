@@ -1,4 +1,5 @@
-      subroutine physics_to_common_vars (psg,ttg,rqg,uug,vvg,
+!     subroutine physics_to_common_vars (psg,ttg,rqg,uug,vvg,
+      subroutine physics_to_common_vars (psg,ttg,rqg,
      &                                   ppg,dpg,dpdtg,
      &                                   global_lats_r,lonsperlar)
 !!
@@ -9,6 +10,7 @@
 !!        model  usage are t=virtal temperature (k) or enthalpy, 
 !!                         p is centibar, mapping winds
 !! Mar, 2010 J.WANG - compute mdl phys psg to common variables psg in pascal
+!! Jul, 2010 S.Moorthi - removed uug, vvg
 !!
       use resol_def,            ONLY: levh, lonr, latr, levs
       use layout1,              ONLY: ipt_lats_node_r, lats_node_r,
@@ -25,8 +27,8 @@
 !
       REAL(KIND=KIND_GRID)   psg(lonr,lats_node_r_max)
       REAL(KIND=KIND_GRID)   ttg(lonr,lats_node_r_max,levs)
-      REAL(KIND=KIND_GRID)   uug(lonr,lats_node_r_max,levs)
-      REAL(KIND=KIND_GRID)   vvg(lonr,lats_node_r_max,levs)
+!     REAL(KIND=KIND_GRID)   uug(lonr,lats_node_r_max,levs)
+!     REAL(KIND=KIND_GRID)   vvg(lonr,lats_node_r_max,levs)
       REAL(KIND=KIND_GRID)   rqg(lonr,lats_node_r_max,levh)
       REAL(KIND=KIND_GRID)   ppg(lonr,lats_node_r_max,levs)
       REAL(KIND=KIND_GRID)   dpg(lonr,lats_node_r_max,levs)
@@ -44,12 +46,12 @@
         lat = global_lats_r(ipt_lats_node_r-1+lan)
         lons_lat = lonsperlar(lat)
 !
-        do k=1,levs
-          do i=1,lons_lat
-            uug(i,lan,k) = uug(i,lan,k) / coslat_r(lat)
-            vvg(i,lan,k) = vvg(i,lan,k) / coslat_r(lat)
-          enddo
-        enddo
+!       do k=1,levs
+!         do i=1,lons_lat
+!           uug(i,lan,k) = uug(i,lan,k) / coslat_r(lat)
+!           vvg(i,lan,k) = vvg(i,lan,k) / coslat_r(lat)
+!         enddo
+!       enddo
 !
 !-- psg from nems gfs in pascal
         do i=1,lons_lat

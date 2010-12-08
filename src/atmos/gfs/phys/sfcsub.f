@@ -1,6 +1,6 @@
       module sfccyc_module
       implicit none
-      
+      SAVE
 !
 !  GRIB code for each parameter - Used in subroutines SFCCYCLE and SETRMSK.
 !
@@ -108,6 +108,7 @@
      &                     sihsmn,sihimx,sihimn,sihjmx,sihjmn,
      &                     siclmx,siclmn,sicomx,sicomn,sicsmx,
      &                     sicsmn,sicimx,sicimn,sicjmx,sicjmn
+     &,                    glacir_hice
 !Clu [+8L] add min/max for vmn, vmx, slp, abs
      &,                    vmnlmx,vmnlmn,vmnomx,vmnomn,vmnsmx,
      &                     vmnsmn,vmnimx,vmnimn,vmnjmx,vmnjmn,
@@ -259,10 +260,18 @@
      &          ALBJMX=0.80,ALBJMN=0.06)
       PARAMETER(SIHLMX=0.0,SIHLMN=0.0,SIHOMX=5.0,SIHOMN=0.0,
      &          SIHSMX=5.0,SIHSMN=0.0,SIHIMX=5.0,SIHIMN=0.10,
-     &          SIHJMX=5.0,SIHJMN=0.10)
+     &          SIHJMX=5.0,SIHJMN=0.10,glacir_hice=3.0)
       PARAMETER(SICLMX=0.0,SICLMN=0.0,SICOMX=1.0,SICOMN=0.0,
      &          SICSMX=1.0,SICSMN=0.0,SICIMX=1.0,SICIMN=0.50,
      &          SICJMX=1.0,SICJMN=0.50)
+!
+!     PARAMETER(SIHLMX=0.0,SIHLMN=0.0,SIHOMX=8.0,SIHOMN=0.0,
+!    &          SIHSMX=8.0,SIHSMN=0.0,SIHIMX=8.0,SIHIMN=0.10,
+!    &          SIHJMX=8.0,SIHJMN=0.10,glacir_hice=3.0)
+!     PARAMETER(SICLMX=0.0,SICLMN=0.0,SICOMX=1.0,SICOMN=0.0,
+!    &          SICSMX=1.0,SICSMN=0.0,SICIMX=1.0,SICIMN=0.15,
+!    &          SICJMX=1.0,SICJMN=0.15)
+
       PARAMETER(WETLMX=0.15,WETLMN=0.00,WETOMX=0.15,WETOMN=0.15,
      &          WETSMX=0.15,WETSMN=0.15,WETIMX=0.15,WETIMN=0.15,
      &          WETJMX=0.15,WETJMN=0.15)
@@ -703,8 +712,10 @@
       DATA FPLRL/0.0/,      FPLRS/0.0/
       DATA FvetL/0.0/,      FvetS/99999.0/
       DATA FsotL/0.0/,      FsotS/99999.0/
+      DATA FVegL/0.0/,      FvegS/99999.0/
 !Cwu [+4L] add f()l and f()s for sih, sic and aislim, sihlim
       DATA FsihL/99999.0/,  FsihS/99999.0/
+!     DATA FsicL/99999.0/,  FsicS/99999.0/
       DATA FsicL/0.0/,      FsicS/0.0/
 !  DEFAULT ice concentration limit (50%), new ice thickness (20cm)
       DATA AISLIM/0.50/,    SIHNEW/0.2/
@@ -881,6 +892,10 @@
         CSNOL=0.                       !...  snow over land
         IF(FSNOL.GE.99999.) CSNOL=1.
         IF((FSNOL.GT.0.).AND.(FSNOL.LT.99999))  CSNOL=EXP(-DELTF/FSNOL)
+!       Using the same way to bending snow as NARR when FSNOL is the negative value
+!       The magnitude of FSNOL is the thread to determine the lower and upper bound
+!       of final SWE
+        IF(FSNOL.LT.0.)CSNOL=FSNOL
 !
         CSNOS=0.                       !...  snow over sea
         IF(FSNOS.GE.99999.) CSNOS=1.
@@ -1119,7 +1134,7 @@
           IF(SLMASK(I).EQ.0..AND.GLACIR(I).EQ.1..AND.
      &      SICCLM(I).NE.1.) THEN
             SICCLM(I) = SICIMX
-            SIHFCS(I) = SIHIMX
+            SIHFCS(I) = glacir_hice
           ENDIF
         ENDDO
         CRIT=AISLIM
@@ -1133,7 +1148,7 @@
           IF(SLMASK(I).EQ.0..AND.GLACIR(I).EQ.1..AND.
      &      SICCLM(I).NE.1.) THEN
             SICCLM(I) = SICIMX
-            SIHFCS(I) = SIHIMX
+            SIHFCS(I) = glacir_hice
           ENDIF
         ENDDO
         CALL ROF01(ACNCLM,LEN,'GE',AISLIM)
@@ -1477,7 +1492,7 @@
           IF(SLMASK(I).EQ.0..AND.GLACIR(I).EQ.1..AND.
      &      SICANL(I).NE.1.) THEN
             SICANL(I) = SICIMX
-            SIHFCS(I) = SIHIMX
+            SIHFCS(I) = glacir_hice
           ENDIF
         ENDDO
         CRIT=AISLIM
@@ -1491,7 +1506,7 @@
           IF(SLMASK(I).EQ.0..AND.GLACIR(I).EQ.1..AND.
      &     SICANL(I).NE.1.) THEN
             SICANL(I) = SICIMX
-            SIHFCS(I) = SIHIMX
+            SIHFCS(I) = glacir_hice
           ENDIF
         ENDDO
         CRIT=AISLIM
@@ -4882,6 +4897,7 @@
 !         ALBANL(I) = ALBFCS(I)*RALBS + ALBANL(I)*QALBS
           AISANL(I) = AISFCS(I)*RAISS + AISANL(I)*QAISS
           SNOANL(I) = SNOFCS(I)*RSNOS + SNOANL(I)*QSNOS
+          
           ZORANL(I) = ZORFCS(I)*RZORS + ZORANL(I)*QZORS
           VEGANL(I) = VEGFCS(I)*RVEGS + VEGANL(I)*QVEGS
           vetANL(I) = vetFCS(I)*RvetS + vetANL(I)*QvetS
@@ -4903,7 +4919,14 @@
           TSFANL(I) = TSFFCS(I)*RTSFL + TSFANL(I)*QTSFL
 !         ALBANL(I) = ALBFCS(I)*RALBL + ALBANL(I)*QALBL
           AISANL(I) = AISFCS(I)*RAISL + AISANL(I)*QAISL
+         IF(RSNOL.GE.0)THEN
           SNOANL(I) = SNOFCS(I)*RSNOL + SNOANL(I)*QSNOL
+         ELSE
+          IF(SNOANL(I).NE.0)THEN
+           SNOANL(I) = MAX(-SNOANL(I)/RSNOL,
+     &                 MIN(-SNOANL(I)*RSNOL, SNOFCS(I)))
+          ENDIF
+         ENDIF
           ZORANL(I) = ZORFCS(I)*RZORL + ZORANL(I)*QZORL
 !cggg landice start
 !cggg at landice points (vegetation type 13) set the
@@ -6923,7 +6946,7 @@ cjfe
 !
         if (fh .gt. 0.0) then
 !cbosu
-          print*,'bosu fh gt 0'
+          if (me == 0) print*,'bosu fh gt 0'
 
           iy4=iy
           if(iy.lt.101) iy4=1900+iy4
@@ -7067,7 +7090,7 @@ cjfe
 !
       FIRST_TIME : if (first) then
 !cbosu
-        print*,'bosu first time thru'
+        if (me == 0) print*,'bosu first time thru'
 !
 !     Annual mean climatology
 !
@@ -7477,7 +7500,8 @@ cjfe
           NN  = k2
 !cbosu
           if (ialb == 1) then
-            print*,'bosu 2nd time in clima for month ',mon, k1,k2
+            if (me == 0) print*,'bosu 2nd time in clima for month ',
+     &                   mon, k1,k2
             DO K = 1, 4
               CALL FIXRDC(LUGB,FNALBC,KPDALB(K),MON,SLMASK,
      &                    ALB(1,K,NN),LEN,IRET
@@ -7703,8 +7727,8 @@ cjfe
 !Clu ----------------------------------------------------------------------
 !
 !cbosu  diagnostic print
-      print*,'monthly albedo weights are ', 
-     &                wei1m,' for k', k1, wei2m, ' for k', k2
+      if (me == 0) print*,'monthly albedo weights are ', 
+     &             wei1m,' for k', k1, wei2m, ' for k', k2
 
       if (ialb == 1) then
         DO K=1,4
@@ -8150,6 +8174,7 @@ cjfe
                          INTTYP = 0
         IF(KPDS5.EQ.225) INTTYP = 1
         IF(KPDS5.EQ.230) INTTYP = 1
+        IF(KPDS5.EQ.66)  INTTYP = 1
         if(inttyp.eq.1) print *, ' Nearest grid point used'
 !
         CALL LA2GA(DATA,IMAX,JMAX,RLNGRB,RLTGRB,WLON,RNLAT,INTTYP,

@@ -1,166 +1,172 @@
-      subroutine shalcnv(im,ix,km,jcap,delt,del,prsl,ps,phil,ql,
-     &     q1,t1,u1,v1,rcs,cldwrk,rn,kbot,ktop,kcnv,slimsk,
-     &     dot,ncloud,hpbl)
-!    &     dot,ncloud,hpbl,me)
+      subroutine shalcnv(im,ix,km,jcap,delt,delp,prslp,psp,phil,ql,
+     &     q1,t1,u1,v1,rn,kbot,ktop,kcnv,slimsk,
+     &     dot,ncloud,hpbl,heat,evap,ud_mf,dt_mf)
+!    &     q1,t1,u1,v1,rcs,rn,kbot,ktop,kcnv,slimsk,
+!    &     dot,ncloud,hpbl,heat,evap,ud_mf,dt_mf,me)
 !
       use machine , only : kind_phys
       use funcphys , only : fpvs
       use physcons, grav => con_g, cp => con_cp, hvap => con_hvap
      &,             rv => con_rv, fv => con_fvirt, t0c => con_t0c
-     &,             cvap => con_cvap, cliq => con_cliq
+     &,             rd => con_rd, cvap => con_cvap, cliq => con_cliq
      &,             eps => con_eps, epsm1 => con_epsm1
       implicit none
 !
       integer            im, ix,  km, jcap, ncloud,
-     &                   kbot(im), ktop(im), kcnv(im)
+     &                   kbot(im), ktop(im), kcnv(im) 
 !    &,                  me
       real(kind=kind_phys) delt
+      real(kind=kind_phys) psp(im),    delp(ix,km), prslp(ix,km)
       real(kind=kind_phys) ps(im),     del(ix,km),  prsl(ix,km),
      &                     ql(ix,km,2),q1(ix,km),   t1(ix,km),
-     &                     u1(ix,km),  v1(ix,km),   rcs(im),
-     &                     cldwrk(im), rn(im),      slimsk(im), 
-     &                     dot(ix,km), phil(ix,km), hpbl(im)
+     &                     u1(ix,km),  v1(ix,km),
+!    &                     u1(ix,km),  v1(ix,km),   rcs(im),
+     &                     rn(im),     slimsk(im), 
+     &                     dot(ix,km), phil(ix,km), hpbl(im),
+     &                     heat(im),   evap(im)
+! hchuang code change mass flux output
+     &,                    ud_mf(im,km),dt_mf(im,km)
 !
-      integer              i, indx, jmn, k, latd, lond, km1
+      integer              i,j,indx, jmn, k, kk, latd, lond, km1
       integer              kpbl(im)
-cj
-      real(kind=kind_phys) alpha,   alphal,  alphas,
-     &                     beta,    betal,   betas,
-     &                     c0,      cpoel,   dellat,  delta,
-     &                     desdt,   dg,
+!
+      real(kind=kind_phys) c0,      cpoel,   dellat,  delta,
+     &                     desdt,   deta,    detad,   dg,
      &                     dh,      dhh,     dlnsig,  dp,
      &                     dq,      dqsdp,   dqsdt,   dt,
      &                     dt2,     dtmax,   dtmin,   dv1h,
      &                     dv1q,    dv2h,    dv2q,    dv1u,
      &                     dv1v,    dv2u,    dv2v,    dv3q,
-     &                     dv3h,    dv3u,    dv3v,    alphat,
-     &                     dz,      dz1,     e1, 
-     &                     el2orc,  elocp,   es,      etah,
+     &                     dv3h,    dv3u,    dv3v,    clam,
+     &                     dz,      dz1,     e1,
+     &                     el2orc,  elocp,   aafac,
+     &                     es,      etah,    h1,      dthk,
      &                     evef,    evfact,  evfactl, fact1,
-     &                     fact2,   factor,  fjcap,   fkm,
-     &                     g,       gamma,   pprime,
-     &                     qc,      qlk,     qrch,    qs,
-     &                     rfact,   shear,   tem1,    dthk,
+     &                     fact2,   factor,  fjcap,
+     &                     g,       gamma,   pprime,  betaw,
+     &                     qlk,     qrch,    qs,      c1,
+     &                     rain,    rfact,   shear,   tem1,
      &                     tem2,    terr,    val,     val1,
      &                     val2,    w1,      w1l,     w1s,
      &                     w2,      w2l,     w2s,     w3,
      &                     w3l,     w3s,     w4,      w4l,
-     &                     w4s,     xdby,    xpw,     xpwd,
-     &                     xqc,     xqrch,   mbdt,    tem,
-     &                     ptem,    ptem1,   pgcon
+     &                     w4s,     tem,     ptem,    ptem1,
+     &                     pgcon
 !
-      integer              kb(im), kbcon(im), kbcon1(im), ktcon(im),
-     &                     ktcon1(im), kbm(im), kmax(im)
+      integer              kb(im), kbcon(im), kbcon1(im),
+     &                     ktcon(im), ktcon1(im),
+     &                     kbm(im), kmax(im)
 !
-      real(kind=kind_phys) aa1(im),     acrt(im),   acrtfct(im),
+      real(kind=kind_phys) aa1(im),
      &                     delhbar(im), delq(im),   delq2(im),
      &                     delqbar(im), delqev(im), deltbar(im),
-     &                     deltv(im),   dtconv(im), edt(im),
-     &                     fld(im),     cincr(im),
-     &                     pbcdif(im),  pdot(im),   po(im,km),
+     &                     deltv(im),   edt(im),
+     &                     wstar(im),   sflx(im),
+     &                     pdot(im),    po(im,km),
      &                     qcond(im),   qevap(im),  hmax(im),
-     &                     rntot(im),   vshear(im), xaa0(im),
-     &                     xk(im),      xlamb(im),  xlamue(im),  
-     &                     xlamdt(im),  xmb(im),    xmbmax(im),
+     &                     rntot(im),   vshear(im),
+     &                     xlamud(im),  xmb(im),    xmbmax(im),
      &                     delubar(im), delvbar(im)
 c
-      real(kind=kind_phys) cincrmax, cincrmin
+      real(kind=kind_phys) cincr, cincrmax, cincrmin
 cc
 c  physical parameters
       parameter(g=grav)
       parameter(cpoel=cp/hvap,elocp=hvap/cp,
      &          el2orc=hvap*hvap/(rv*cp))
-      parameter(terr=0.,c0=.002,delta=fv)
+      parameter(terr=0.,c0=.002,c1=5.e-4,delta=fv)
       parameter(fact1=(cvap-cliq)/rv,fact2=hvap/rv-fact1*t0c)
-      parameter(cincrmax=180.,cincrmin=120.)
-      parameter(dthk=25.)
+      parameter(cincrmax=180.,cincrmin=120.,dthk=25.)
+      parameter(h1=0.33333333)
 c  local variables and arrays
       real(kind=kind_phys) pfld(im,km),    to(im,km),     qo(im,km),
      &                     uo(im,km),      vo(im,km),     qeso(im,km)
 c  cloud water
-!     real(kind=kind_phys) qlko_ktcon(im), dellal(im),    tvo(im,km),
-      real(kind=kind_phys) qlko_ktcon(im), dellal(im),
-     &                     dbyo(im,km),    zo(im,km),
-     &                     heo(im,km),     heso(im,km),
+!     real(kind=kind_phys) qlko_ktcon(im), dellal(im,km), tvo(im,km),
+      real(kind=kind_phys) qlko_ktcon(im), dellal(im,km),
+     &                     dbyo(im,km),    zo(im,km),     xlamue(im,km),
+     &                     heo(im,km),     heso(im,km), 
      &                     dellah(im,km),  dellaq(im,km),
      &                     dellau(im,km),  dellav(im,km), hcko(im,km),
      &                     ucko(im,km),    vcko(im,km),   qcko(im,km),
      &                     eta(im,km),     zi(im,km),     pwo(im,km),
-     &                     tx1(im),        sumx(im),      dzmax(im)
+     &                     tx1(im)
 !
       logical totflg, cnvflg(im), flg(im)
 !
-      real(kind=kind_phys) pcrit(15), acritt(15), acrit(15)
-!!    save pcrit, acritt
-      data pcrit/850.,800.,750.,700.,650.,600.,550.,500.,450.,400.,
-     &           350.,300.,250.,200.,150./
-      data acritt/.0633,.0445,.0553,.0664,.075,.1082,.1521,.2216,
-     &           .3151,.3677,.41,.5255,.7663,1.1686,1.6851/
-c  gdas derived acrit
-c     data acritt/.203,.515,.521,.566,.625,.665,.659,.688,
-c    &            .743,.813,.886,.947,1.138,1.377,1.896/
       real(kind=kind_phys) tf, tcr, tcrf
       parameter (tf=233.16, tcr=263.16, tcrf=1.0/(tcr-tf))
-cc--------------------------------------------------------------------
-      real(kind=kind_phys) cons_0               !constant
-      cons_0          =         0.d0            !constant
-cc--------------------------------------------------------------------
+!
+c-----------------------------------------------------------------------
+!
+!************************************************************************
+!     convert input Pa terms to Cb terms  -- Moorthi
+      ps   = psp   * 0.001
+      prsl = prslp * 0.001
+      del  = delp  * 0.001
+!************************************************************************
 !
       km1 = km - 1
+c
+c  compute surface buoyancy flux
+c
+      do i=1,im
+        sflx(i) = heat(i)+fv*t1(i,1)*evap(i)
+      enddo
 c
 c  initialize arrays
 c
       do i=1,im
         cnvflg(i) = .true.
         if(kcnv(i).eq.1) cnvflg(i) = .false.
+        if(sflx(i).le.0.) cnvflg(i) = .false.
         if(cnvflg(i)) then
           kbot(i)=km+1
           ktop(i)=0
         endif
         rn(i)=0.
-        cldwrk(i) = 0.
         kbcon(i)=km
         ktcon(i)=1
         kb(i)=km
-        dtconv(i) = 3600.
         pdot(i) = 0.
         qlko_ktcon(i) = 0.
-        dellal(i) = 0.
         edt(i)  = 0.
-        acrt(i) = 0.
-        acrtfct(i) = 1.
         aa1(i)  = 0.
-        xaa0(i) = 0.
         vshear(i) = 0.
       enddo
-c
-      do k = 1, 15
-        acrit(k) = acritt(k) * (975. - pcrit(k))
+! hchuang code change
+      do k = 1, km
+        do i = 1, im
+          ud_mf(i,k) = 0.
+          dt_mf(i,k) = 0.
+        enddo
       enddo
-      dt2 = delt
+!!
+      totflg = .true.
+      do i=1,im
+        totflg = totflg .and. (.not. cnvflg(i))
+      enddo
+      if(totflg) return
+!!
+c
+      dt2   = delt
       val   =         1200.
       dtmin = max(dt2, val )
       val   =         3600.
       dtmax = max(dt2, val )
 c  model tunable parameters are all here
-      mbdt    = 10.
-      alphal  = .5
-      alphas  = .5
-      alphat  = .1
-!     betal   = .15
-!     betas   = .15
-      betal   = .05
-      betas   = .05
+      clam    = .3
+      aafac   = .1
+      betaw   = .03
 c     evef    = 0.07
       evfact  = 0.3
       evfactl = 0.3
+!
 !     pgcon   = 0.7     ! Gregory et al. (1997, QJRMS)
       pgcon   = 0.55    ! Zhang & Wu (2003,JAS)
       fjcap   = (float(jcap) / 126.) ** 2
       val     =           1.
       fjcap   = max(fjcap,val)
-      fkm     = (float(km) / 28.) ** 2
-      fkm     = max(fkm,val)
       w1l     = -8.e-3 
       w2l     = -4.e-2
       w3l     = -5.e-3 
@@ -179,17 +185,18 @@ c
         tx1(i)   = 1.0 / ps(i)
       enddo
 !     
-      do k = 1, km1
+      do k = 1, km
         do i=1,im
-          if (prsl(i,k)*tx1(i) .gt. 0.50) kbm(i)   = k + 1
-          if (prsl(i,k)*tx1(i) .gt. 0.40) kmax(i)  = k + 1
+          if (prsl(i,k)*tx1(i) .gt. 0.70) kbm(i)   = k + 1
+          if (prsl(i,k)*tx1(i) .gt. 0.60) kmax(i)  = k + 1
         enddo
       enddo
       do i=1,im
         kbm(i)   = min(kbm(i),kmax(i))
       enddo
 c
-c  hydrostatic height assume zero terr
+c  hydrostatic height assume zero terr and compute
+c  updraft entrainment rate as an inverse function of height
 c
       do k = 1, km
         do i=1,im
@@ -199,22 +206,30 @@ c
       do k = 1, km1
         do i=1,im
           zi(i,k) = 0.5*(zo(i,k)+zo(i,k+1))
+          xlamue(i,k) = clam / zi(i,k)
         enddo
+      enddo
+      do i=1,im
+        xlamue(i,km) = xlamue(i,km1)
       enddo
 c
 c  pbl height
 c
       do i=1,im
-        flg(i) = .true.
+        flg(i) = cnvflg(i)
         kpbl(i)= 1
       enddo
       do k = 2, km1
         do i=1,im
-          if (flg(i).and.zi(i,k).ge.hpbl(i)) then
-             kpbl(i) = k
-             flg(i) = .false.
+          if (flg(i).and.zo(i,k).le.hpbl(i)) then
+            kpbl(i) = k
+          else
+            flg(i) = .false.
           endif
         enddo
+      enddo
+      do i=1,im
+        kpbl(i)= min(kpbl(i),kbm(i))
       enddo
 c
 c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -223,18 +238,21 @@ c
       do k = 1, km
         do i = 1, im
           if (cnvflg(i) .and. k .le. kmax(i)) then
-             pfld(i,k) = prsl(i,k) * 10.0
-             eta(i,k)  = 1.
-             hcko(i,k) = 0.
-             qcko(i,k) = 0.
-             ucko(i,k) = 0.
-             vcko(i,k) = 0.
-             dbyo(i,k) = 0.
-             pwo(i,k)  = 0.
-             to(i,k)   = t1(i,k)
-             qo(i,k)   = q1(i,k)
-             uo(i,k)   = u1(i,k)
-             vo(i,k)   = v1(i,k)
+            pfld(i,k) = prsl(i,k) * 10.0
+            eta(i,k)  = 1.
+            hcko(i,k) = 0.
+            qcko(i,k) = 0.
+            ucko(i,k) = 0.
+            vcko(i,k) = 0.
+            dbyo(i,k) = 0.
+            pwo(i,k)  = 0.
+            dellal(i,k) = 0.
+            to(i,k)   = t1(i,k)
+            qo(i,k)   = q1(i,k)
+            uo(i,k)   = u1(i,k)
+            vo(i,k)   = v1(i,k)
+!           uo(i,k)   = u1(i,k) * rcs(i)
+!           vo(i,k)   = v1(i,k) * rcs(i)
           endif
         enddo
       enddo
@@ -249,7 +267,7 @@ c
       do k = 1, km
         do i=1,im
           if (cnvflg(i) .and. k .le. kmax(i)) then
-            qeso(i,k) = 0.01 * fpvs(t1(i,k))      ! fpvs is in pa
+            qeso(i,k) = 0.01 * fpvs(to(i,k))      ! fpvs is in pa
             qeso(i,k) = eps * qeso(i,k) / (pfld(i,k) + epsm1*qeso(i,k))
             val1      =             1.e-8
             qeso(i,k) = max(qeso(i,k), val1)
@@ -286,7 +304,7 @@ c
       enddo
       do k = 2, km
         do i=1,im
-          if (cnvflg(i).and.k .lt. kpbl(i)) then
+          if (cnvflg(i).and.k.le.kpbl(i)) then
             if(heo(i,k).gt.hmax(i)) then
               kb(i)   = k
               hmax(i) = heo(i,k)
@@ -339,12 +357,12 @@ c
 c  look for the level of free convection as cloud base
 c
       do i=1,im
-        flg(i)    = cnvflg(i)
+        flg(i)   = cnvflg(i)
         if(flg(i)) kbcon(i) = kmax(i)
       enddo
       do k = 2, km1
         do i=1,im
-          if (flg(i).and.k.le.kbm(i)) then
+          if (flg(i).and.k.lt.kbm(i)) then
             if(k.gt.kb(i).and.heo(i,kb(i)).gt.heso(i,k)) then
               kbcon(i) = k
               flg(i)   = .false.
@@ -371,7 +389,8 @@ c  as a function of vertical velocity at cloud base.
 c
       do i=1,im
         if(cnvflg(i)) then
-          pdot(i)  = 10.* dot(i,kbcon(i))
+!         pdot(i)  = 10.* dot(i,kbcon(i))
+          pdot(i)  = 0.01 * dot(i,kbcon(i)) ! Now dot is in Pa/s
         endif
       enddo
       do i=1,im
@@ -400,9 +419,9 @@ c
           ptem = min(ptem,val2)
           ptem = 1. - ptem
           ptem1= .5*(cincrmax-cincrmin)
-          cincr(i) = cincrmax - ptem * ptem1
-          pbcdif(i) = pfld(i,kb(i)) - pfld(i,kbcon(i))
-          if(pbcdif(i).gt.cincr(i)) then
+          cincr = cincrmax - ptem * ptem1
+          tem1 = pfld(i,kb(i)) - pfld(i,kbcon(i))
+          if(tem1.gt.cincr) then
              cnvflg(i) = .false.
           endif
         endif
@@ -415,185 +434,61 @@ c
       if(totflg) return
 !!
 c
-c  determine convective cloud top as the level of zero buoyancy
-c  without considering entrainment and detrainment
-c
-      do i = 1, im
-        flg(i) = cnvflg(i)
-        if(flg(i)) ktcon(i) = 1
-      enddo
-      do k = 2, km
-      do i=1,im
-        if (flg(i).and.k .le. kbm(i)) then
-          if(k.gt.kbcon(i).and.heo(i,kb(i)).lt.heso(i,k)) then
-             ktcon(i) = k
-             flg(i)   = .false.
-          endif
-        endif
-      enddo
-      enddo
+c  assume the detrainment rate for the updrafts to be same as 
+c  the entrainment rate at cloud base
 c
       do i = 1, im
         if(cnvflg(i)) then
-          pbcdif(i) = pfld(i,kbcon(i))-pfld(i,ktcon(i))
-          if(pbcdif(i).le.0..or.pbcdif(i).gt.300.) cnvflg(i)=.false.
-        endif
-      enddo
-!!
-      totflg = .true.
-      do i=1,im
-        totflg = totflg .and. (.not. cnvflg(i))
-      enddo
-      if(totflg) return
-!!
-c
-c if cloud top is less than the pbl top, which will be the case
-c of stratocumulus topped pbl, the shallow convection is turned
-c off to prevent stratocumulus from being unrealistically destroyed.
-c
-      do i = 1, im
-        if(cnvflg(i)) then
-          if(pfld(i,ktcon(i)).ge.pfld(i,kpbl(i))) then
-             cnvflg(i)=.false.
-          endif
-        endif
-      enddo
-!!
-      totflg = .true.
-      do i=1,im
-        totflg = totflg .and. (.not. cnvflg(i))
-      enddo
-      if(totflg) return
-!!
-c
-c  determine entrainment rate between kb and kbcon
-c
-      do i = 1, im
-        if(cnvflg(i)) then
-          sumx(i) = 0.
-        endif
-      enddo
-      do k = 1, km1
-      do i = 1, im
-        if(cnvflg(i).and.k.ge.kb(i).and.k.lt.kbcon(i)) then
-          dz = zi(i,k+1) - zi(i,k)
-          sumx(i) = sumx(i) + dz
-        endif
-      enddo
-      enddo
-      do i = 1, im
-        alpha = alphas
-        if(slimsk(i).eq.1.) alpha = alphal
-        if(cnvflg(i)) then
-          dz  = sumx(i)/float(kbcon(i)-kb(i))
-          tem = 1./float(kbcon(i)-kb(i))
-          ptem= 1./alpha
-          xlamb(i) = (ptem**tem - 1.) / dz
+          xlamud(i) = xlamue(i,kbcon(i))
         endif
       enddo
 c
-c  work up updraft cloud properties
-c
-      do i = 1, im
-        if(cnvflg(i)) then
-          indx         = kb(i)
-          hcko(i,indx) = heo(i,indx)
-          qcko(i,indx) = qo(i,indx)
-          ucko(i,indx) = uo(i,indx)
-          vcko(i,indx) = vo(i,indx)
-        endif
-      enddo
-c
-c  cloud property in subcloud layer is modified by the entrainment process
-c
-      do k = 2, km1
-        do i = 1, im
-          if (cnvflg(i)) then
-            if(k.gt.kb(i).and.k.le.kbcon(i)) then
-              dz   = zi(i,k) - zi(i,k-1)
-              tem  = xlamb(i) * dz
-              factor = 1. + tem
-              ptem = 0.5 * tem + pgcon
-              ptem1= 0.5 * tem - pgcon
-              hcko(i,k) = (hcko(i,k-1)+tem*0.5*
-     &                     (heo(i,k)+heo(i,k-1)))/factor
-              ucko(i,k) = (ucko(i,k-1)+ptem*uo(i,k)
-     &                     +ptem1*uo(i,k-1))/factor
-              vcko(i,k) = (vcko(i,k-1)+ptem*vo(i,k)
-     &                     +ptem1*vo(i,k-1))/factor
-              dbyo(i,k) = hcko(i,k)-heso(i,k)
-            endif
-          endif
-        enddo
-      enddo
-c
-c  determine updraft mass flux for subcloud layer
+c  determine updraft mass flux for the subcloud layers
 c
       do k = km1, 1, -1
         do i = 1, im
           if (cnvflg(i)) then
             if(k.lt.kbcon(i).and.k.ge.kb(i)) then
               dz       = zi(i,k+1) - zi(i,k)
-              eta(i,k) = eta(i,k+1) / (1. + xlamb(i) * dz)
+              ptem     = 0.5*(xlamue(i,k)+xlamue(i,k+1))-xlamud(i)
+              eta(i,k) = eta(i,k+1) / (1. + ptem * dz)
             endif
           endif
         enddo
       enddo
 c
-c  compute the average of the entrainment rate for the cloud layer
-c  which is inversely proportional to the height
-c  (~0.55/z: Siebesma et al. 2003)
+c  compute mass flux above cloud base
+c
+      do k = 2, km1
+        do i = 1, im
+         if(cnvflg(i))then
+           if(k.gt.kbcon(i).and.k.lt.kmax(i)) then
+              dz       = zi(i,k) - zi(i,k-1)
+              ptem     = 0.5*(xlamue(i,k)+xlamue(i,k-1))-xlamud(i)
+              eta(i,k) = eta(i,k-1) * (1 + ptem * dz)
+           endif
+         endif
+        enddo
+      enddo
+c
+c  compute updraft cloud property
 c
       do i = 1, im
         if(cnvflg(i)) then
-          dz = zi(i,ktcon(i))-zi(i,kbcon(i))
-          xlamue(i)=0.55*log(zi(i,ktcon(i))/zi(i,kbcon(i)))/dz
+          indx         = kb(i)
+          hcko(i,indx) = heo(i,indx)
+          ucko(i,indx) = uo(i,indx)
+          vcko(i,indx) = vo(i,indx)
         endif
       enddo
-c
-c  enhance the detrainment rate for the updrafts for mass flux to
-c  decrease above cloud base.
-c  the mass flux at cloud top is assumed to is reduced to
-c  (alphat*100)% of one at cloud base.
-c
-      do i = 1, im
-        if(cnvflg(i)) then
-          sumx(i) = 0.
-          dzmax(i) = 0.
-        endif
-      enddo
-      do k = 1, km1
-      do i = 1, im
-        if(cnvflg(i)) then
-          if(k.ge.kbcon(i).and.k.lt.ktcon(i)) then
-            dz = zi(i,k+1) - zi(i,k)
-            if(dz.gt.dzmax(i)) dzmax(i) = dz
-            sumx(i) = sumx(i) + dz
-          endif
-        endif
-      enddo
-      enddo
-c
-      do i = 1, im
-        if(cnvflg(i)) then
-          dz  = sumx(i)/float(ktcon(i)-kbcon(i))
-          tem = 1./float(ktcon(i)-kbcon(i))
-          ptem= (alphat**tem - 1.) / dz
-          xlamdt(i) = xlamue(i) - ptem
-          xlamdt(i) = max(xlamdt(i),xlamue(i))
-          xlamdt(i) = min(xlamdt(i),xlamue(i)+1./dzmax(i))
-        endif
-      enddo
-c
-c  compute updraft property above cloud base
 c
       do k = 2, km1
         do i = 1, im
           if (cnvflg(i)) then
-            if(k.gt.kbcon(i).and.k.le.ktcon(i)) then
+            if(k.gt.kb(i).and.k.lt.kmax(i)) then
               dz   = zi(i,k) - zi(i,k-1)
-              tem  = xlamue(i) * dz
-              tem1 = 0.5 * xlamdt(i) * dz
+              tem  = 0.5 * (xlamue(i,k)+xlamue(i,k-1)) * dz
+              tem1 = 0.5 * xlamud(i) * dz
               factor = 1. + tem - tem1
               ptem = 0.5 * tem + pgcon
               ptem1= 0.5 * tem - pgcon
@@ -609,15 +504,16 @@ c
         enddo
       enddo
 c
-c  renew the cloud top
+c   taking account into convection inhibition due to existence of
+c    dry layers below cloud base
 c
       do i=1,im
         flg(i) = cnvflg(i)
-        if(flg(i)) kbcon1(i) = kmax(i)
+        kbcon1(i) = kmax(i)
       enddo
       do k = 2, km1
       do i=1,im
-        if (flg(i).and.k.lt.ktcon(i)) then
+        if (flg(i).and.k.lt.kbm(i)) then
           if(k.ge.kbcon(i).and.dbyo(i,k).gt.0.) then
             kbcon1(i) = k
             flg(i)    = .false.
@@ -632,64 +528,67 @@ c
       enddo
       do i=1,im
         if(cnvflg(i)) then
-          ptem = pfld(i,kbcon(i)) - pfld(i,kbcon1(i))
-          if(ptem.gt.dthk) then
+          tem = pfld(i,kbcon(i)) - pfld(i,kbcon1(i))
+          if(tem.gt.dthk) then
              cnvflg(i) = .false.
-          endif
-        endif
-      enddo
-c
-      do i = 1, im
-        flg(i) = cnvflg(i)
-        if(flg(i)) ktcon1(i) = ktcon(i)
-      enddo
-      do k = 2, km
-      do i=1,im
-        if (flg(i).and.k .le. ktcon(i)) then
-          if(k.gt.kbcon1(i).and.dbyo(i,k).lt.0.) then
-             ktcon1(i) = k
-             flg(i)    = .false.
-          endif
-        endif
-      enddo
-      enddo
-c
-      do i = 1, im
-        if(cnvflg(i)) then
-          ktcon(i) = ktcon1(i)
-          if(pfld(i,ktcon(i)).ge.pfld(i,kpbl(i))) then
-             cnvflg(i)=.false.
           endif
         endif
       enddo
 !!
       totflg = .true.
-      do i=1,im
+      do i = 1, im
         totflg = totflg .and. (.not. cnvflg(i))
       enddo
       if(totflg) return
+!!
+c
+c  determine first guess cloud top as the level of zero buoyancy
+c    limited to the level of sigma=0.7
+c
+      do i = 1, im
+        flg(i) = cnvflg(i)
+        if(flg(i)) ktcon(i) = kbm(i)
+      enddo
+      do k = 2, km1
+      do i=1,im
+        if (flg(i).and.k .lt. kbm(i)) then
+          if(k.gt.kbcon1(i).and.dbyo(i,k).lt.0.) then
+             ktcon(i) = k
+             flg(i)   = .false.
+          endif
+        endif
+      enddo
+      enddo
+c
+c  turn off shallow convection if cloud top is less than pbl top
+c
+!     do i=1,im
+!       if(cnvflg(i)) then
+!         kk = kpbl(i)+1
+!         if(ktcon(i).le.kk) cnvflg(i) = .false.
+!       endif
+!     enddo
+!!
+!     totflg = .true.
+!     do i = 1, im
+!       totflg = totflg .and. (.not. cnvflg(i))
+!     enddo
+!     if(totflg) return
 !!
 c
 c  specify upper limit of mass flux at cloud base
 c
       do i = 1, im
         if(cnvflg(i)) then
-          xmbmax(i) = .1
+!         xmbmax(i) = .1
+!
+          k = kbcon(i)
+          dp = 1000. * del(i,k)
+          xmbmax(i) = dp / (g * dt2)
+!
+!         tem = dp / (g * dt2)
+!         xmbmax(i) = min(tem, xmbmax(i))
         endif
-      enddo
-c
-c  determine updraft mass flux for cloud layer
-c
-      do k = 2, km1
-        do i = 1, im
-          if(cnvflg(i)) then
-            if(k.gt.kbcon(i).and.k.le.ktcon(i)) then
-              dz        = zi(i,k) - zi(i,k-1)
-              ptem      = xlamue(i) - xlamdt(i)
-              eta(i,k)  = eta(i,k-1) * (1 + ptem * dz)
-            endif
-          endif
-        enddo
       enddo
 c
 c  compute cloud moisture property and precipitation
@@ -697,95 +596,51 @@ c
       do i = 1, im
         if (cnvflg(i)) then
           aa1(i) = 0.
-!         rhbar(i) = 0.
+          qcko(i,kb(i)) = qo(i,kb(i))
         endif
       enddo
-      do k = 1, km
+      do k = 2, km1
         do i = 1, im
           if (cnvflg(i)) then
             if(k.gt.kb(i).and.k.lt.ktcon(i)) then
               dz    = zi(i,k) - zi(i,k-1)
-              dz1   = zo(i,k+1) - zo(i,k)
               gamma = el2orc * qeso(i,k) / (to(i,k)**2)
               qrch = qeso(i,k)
      &             + gamma * dbyo(i,k) / (hvap * (1. + gamma))
 cj
-              if(k.le.kbcon(i)) then
-                 tem  = xlamb(i) * dz
-                 tem1 = 0.
-              else 
-                 tem  = xlamue(i) * dz
-                 tem1 = 0.5 * xlamdt(i) * dz
-              endif
+              tem  = 0.5 * (xlamue(i,k)+xlamue(i,k-1)) * dz
+              tem1 = 0.5 * xlamud(i) * dz
               factor = 1. + tem - tem1
               qcko(i,k) = ((1.-tem1)*qcko(i,k-1)+tem*0.5*
      &                     (qo(i,k)+qo(i,k-1)))/factor
 cj
-              dq = eta(i,k) * qcko(i,k) - eta(i,k) * qrch
-!
-!             dq = qcko(i,k) - qrch
+              dq = eta(i,k) * (qcko(i,k) - qrch)
 c
 !             rhbar(i) = rhbar(i) + qo(i,k) / qeso(i,k)
 c
 c  below lfc check if there is excess moisture to release latent heat
 c
-              if(dq.gt.0.) then
+              if(k.ge.kbcon(i).and.dq.gt.0.) then
                 etah = .5 * (eta(i,k) + eta(i,k-1))
-                qlk = dq / (eta(i,k) + etah * c0 * dz)
-!
-!               qlk = dq / (1. + c0 * dz)
-!               qlk = c0 * dz * dq
-!               qlk = min(qlk,dq)
-!
-                aa1(i) = aa1(i) - dz1 * g * qlk
-                qc = qlk + qrch
-!
-!               qc = qrch + dq - qlk
-!               pwo(i,k) = eta(i,k-1) * c0 * dz * qlk
-!               pwo(i,k) = eta(i,k-1) * qlk
-!
+                if(ncloud.gt.0.) then
+                  dp = 1000. * del(i,k)
+                  qlk = dq / (eta(i,k) + etah * (c0 + c1) * dz)
+                  dellal(i,k) = etah * c1 * dz * qlk * g / dp
+                else
+                  qlk = dq / (eta(i,k) + etah * c0 * dz)
+                endif
+                aa1(i) = aa1(i) - dz * g * qlk
+                qcko(i,k)= qlk + qrch
                 pwo(i,k) = etah * c0 * dz * qlk
-                qcko(i,k)= qc
               endif
             endif
           endif
         enddo
       enddo
 c
-!     do i = 1, im
-!       if(cnvflg(i)) then
-!         indx = ktcon(i) - kb(i) - 1
-!         rhbar(i) = rhbar(i) / float(indx)
-!       endif
-!     enddo
+c  calculate cloud work function
 c
-c  this section is ready for cloud water
-c
-      if(ncloud.gt.0) then
-c
-c  compute liquid and vapor separation at cloud top
-c
-      do i = 1, im
-        if(cnvflg(i)) then
-          k = ktcon(i)
-          gamma = el2orc * qeso(i,k) / (to(i,k)**2)
-          qrch = qeso(i,k)
-     &         + gamma * dbyo(i,k) / (hvap * (1. + gamma))
-          dq = qcko(i,k-1) - qrch
-c
-c  check if there is excess moisture to release latent heat
-c
-          if(dq.gt.0.) then
-            qlko_ktcon(i) = dq
-            qcko(i,k-1) = qrch
-          endif
-        endif
-      enddo
-      endif
-c
-c  calculate cloud work function at t+dt
-c
-      do k = 1, km
+      do k = 2, km1
         do i = 1, im
           if (cnvflg(i)) then
             if(k.ge.kbcon(i).and.k.lt.ktcon(i)) then
@@ -806,9 +661,7 @@ c
         enddo
       enddo
       do i = 1, im
-        if(cnvflg(i).and.aa1(i).le.0.) then
-           cnvflg(i) = .false.
-        endif
+        if(cnvflg(i).and.aa1(i).le.0.) cnvflg(i) = .false.
       enddo
 !!
       totflg = .true.
@@ -817,6 +670,115 @@ c
       enddo
       if(totflg) return
 !!
+c
+c  estimate the onvective overshooting as the level
+c    where the [aafac * cloud work function] becomes zero,
+c    which is the final cloud top
+c    limited to the level of sigma=0.7
+c
+      do i = 1, im
+        if (cnvflg(i)) then
+          aa1(i) = aafac * aa1(i)
+        endif
+      enddo
+c
+      do i = 1, im
+        flg(i) = cnvflg(i)
+        ktcon1(i) = kbm(i)
+      enddo
+      do k = 2, km1
+        do i = 1, im
+          if (flg(i)) then
+            if(k.ge.ktcon(i).and.k.lt.kbm(i)) then
+              dz1 = zo(i,k+1) - zo(i,k)
+              gamma = el2orc * qeso(i,k) / (to(i,k)**2)
+              rfact =  1. + delta * cp * gamma
+     &                 * to(i,k) / hvap
+              aa1(i) = aa1(i) +
+     &                 dz1 * (g / (cp * to(i,k)))
+     &                 * dbyo(i,k) / (1. + gamma)
+     &                 * rfact
+              if(aa1(i).lt.0.) then
+                ktcon1(i) = k
+                flg(i) = .false.
+              endif
+            endif
+          endif
+        enddo
+      enddo
+c
+c  compute cloud moisture property, detraining cloud water
+c    and precipitation in overshooting layers
+c
+      do k = 2, km1
+        do i = 1, im
+          if (cnvflg(i)) then
+            if(k.ge.ktcon(i).and.k.lt.ktcon1(i)) then
+              dz    = zi(i,k) - zi(i,k-1)
+              gamma = el2orc * qeso(i,k) / (to(i,k)**2)
+              qrch = qeso(i,k)
+     &             + gamma * dbyo(i,k) / (hvap * (1. + gamma))
+cj
+              tem  = 0.5 * (xlamue(i,k)+xlamue(i,k-1)) * dz
+              tem1 = 0.5 * xlamud(i) * dz
+              factor = 1. + tem - tem1
+              qcko(i,k) = ((1.-tem1)*qcko(i,k-1)+tem*0.5*
+     &                     (qo(i,k)+qo(i,k-1)))/factor
+cj
+              dq = eta(i,k) * (qcko(i,k) - qrch)
+c
+c  check if there is excess moisture to release latent heat
+c
+              if(dq.gt.0.) then
+                etah = .5 * (eta(i,k) + eta(i,k-1))
+                if(ncloud.gt.0.) then
+                  dp = 1000. * del(i,k)
+                  qlk = dq / (eta(i,k) + etah * (c0 + c1) * dz)
+                  dellal(i,k) = etah * c1 * dz * qlk * g / dp
+                else
+                  qlk = dq / (eta(i,k) + etah * c0 * dz)
+                endif
+                qcko(i,k) = qlk + qrch
+                pwo(i,k) = etah * c0 * dz * qlk
+              endif
+            endif
+          endif
+        enddo
+      enddo
+c
+c exchange ktcon with ktcon1
+c
+      do i = 1, im
+        if(cnvflg(i)) then
+          kk = ktcon(i)
+          ktcon(i) = ktcon1(i)
+          ktcon1(i) = kk
+        endif
+      enddo
+c
+c  this section is ready for cloud water
+c
+      if(ncloud.gt.0) then
+c
+c  compute liquid and vapor separation at cloud top
+c
+      do i = 1, im
+        if(cnvflg(i)) then
+          k = ktcon(i) - 1
+          gamma = el2orc * qeso(i,k) / (to(i,k)**2)
+          qrch = qeso(i,k)
+     &         + gamma * dbyo(i,k) / (hvap * (1. + gamma))
+          dq = qcko(i,k) - qrch
+c
+c  check if there is excess moisture to release latent heat
+c
+          if(dq.gt.0.) then
+            qlko_ktcon(i) = dq
+            qcko(i,k) = qrch
+          endif
+        endif
+      enddo
+      endif
 c
 c--- compute precipitation efficiency in terms of windshear
 c
@@ -829,8 +791,8 @@ c
         do i = 1, im
           if (cnvflg(i)) then
             if(k.gt.kb(i).and.k.le.ktcon(i)) then
-              shear=rcs(i) * sqrt((uo(i,k)-uo(i,k-1)) ** 2
-     &                          + (vo(i,k)-vo(i,k-1)) ** 2)
+              shear= sqrt((uo(i,k)-uo(i,k-1)) ** 2
+     &                  + (vo(i,k)-vo(i,k-1)) ** 2)
               vshear(i) = vshear(i) + shear
             endif
           endif
@@ -885,13 +847,8 @@ c
               dv2v = .5 * (vo(i,k) + vo(i,k-1))
               dv3v = vo(i,k-1)
 c
-              if(k.le.kbcon(i)) then
-                tem  = xlamb(i)
-                tem1 = 0.
-              else
-                tem  = xlamue(i)
-                tem1 = xlamdt(i)
-              endif
+              tem  = 0.5 * (xlamue(i,k)+xlamue(i,k-1))
+              tem1 = xlamud(i)
 cj
               dellah(i,k) = dellah(i,k) +
      &     ( eta(i,k)*dv1h - eta(i,k-1)*dv3h
@@ -945,306 +902,31 @@ c
 c
 c  cloud water
 c
-          dellal(i) = eta(i,indx-1) * qlko_ktcon(i) * g / dp
+          dellal(i,indx) = eta(i,indx-1) *
+     &                     qlko_ktcon(i) * g / dp
         endif
       enddo
 c
-c------- final changed variable per unit mass flux
-c
-      do k = 1, km
-        do i = 1, im
-          if (cnvflg(i).and.k .le. kmax(i)) then
-            if(k.gt.ktcon(i)) then
-              qo(i,k) = q1(i,k)
-              to(i,k) = t1(i,k)
-            endif
-            if(k.le.ktcon(i)) then
-              qo(i,k) = dellaq(i,k) * mbdt + q1(i,k)
-              dellat = (dellah(i,k) - hvap * dellaq(i,k)) / cp
-              to(i,k) = dellat * mbdt + t1(i,k)
-              val   =           1.e-10
-              qo(i,k) = max(qo(i,k), val  )
-            endif
-          endif
-        enddo
-      enddo
-c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-c
-c--- the above changed environment is now used to calulate the
-c--- effect the arbitrary cloud (with unit mass flux)
-c--- would have on the stability,
-c--- which then is used to calculate the real mass flux,
-c--- necessary to keep this change in balance with the large-scale
-c--- destabilization.
-c
-c--- environmental conditions again, first heights
-c
-      do k = 1, km
-        do i = 1, im
-          if(cnvflg(i) .and. k .le. kmax(i)) then
-            qeso(i,k) = 0.01 * fpvs(to(i,k))      ! fpvs is in pa
-            qeso(i,k) = eps * qeso(i,k) / (pfld(i,k)+epsm1*qeso(i,k))
-            val       =             1.e-8
-            qeso(i,k) = max(qeso(i,k), val )
-!           tvo(i,k)  = to(i,k) + delta * to(i,k) * qo(i,k)
-          endif
-        enddo
-      enddo
-c
-c--- moist static energy
-c
-      do k = 1, km1
-        do i = 1, im
-          if(cnvflg(i) .and. k .le. kmax(i)-1) then
-            dz = .5 * (zo(i,k+1) - zo(i,k))
-            dp = .5 * (pfld(i,k+1) - pfld(i,k))
-            es = 0.01 * fpvs(to(i,k+1))      ! fpvs is in pa
-            pprime = pfld(i,k+1) + epsm1 * es
-            qs = eps * es / pprime
-            dqsdp = - qs / pprime
-            desdt = es * (fact1 / to(i,k+1) + fact2 / (to(i,k+1)**2))
-            dqsdt = qs * pfld(i,k+1) * desdt / (es * pprime)
-            gamma = el2orc * qeso(i,k+1) / (to(i,k+1)**2)
-            dt = (g * dz + hvap * dqsdp * dp) / (cp * (1. + gamma))
-            dq = dqsdt * dt + dqsdp * dp
-            to(i,k) = to(i,k+1) + dt
-            qo(i,k) = qo(i,k+1) + dq
-            po(i,k) = .5 * (pfld(i,k) + pfld(i,k+1))
-          endif
-        enddo
-      enddo
-      do k = 1, km1
-        do i = 1, im
-          if(cnvflg(i) .and. k .le. kmax(i)-1) then
-            qeso(i,k) = 0.01 * fpvs(to(i,k))      ! fpvs is in pa
-            qeso(i,k) = eps * qeso(i,k) / (po(i,k) + epsm1 * qeso(i,k))
-            val1      =             1.e-8
-            qeso(i,k) = max(qeso(i,k), val1)
-            val2      =           1.e-10
-            qo(i,k)   = max(qo(i,k), val2 )
-!           qo(i,k)   = min(qo(i,k),qeso(i,k))
-            heo(i,k)   = .5 * g * (zo(i,k) + zo(i,k+1)) +
-     &                    cp * to(i,k) + hvap * qo(i,k)
-            heso(i,k) = .5 * g * (zo(i,k) + zo(i,k+1)) +
-     &                  cp * to(i,k) + hvap * qeso(i,k)
-          endif
-        enddo
-      enddo
-      do i = 1, im
-        if(cnvflg(i)) then
-          k = kmax(i)
-          heo(i,k) = g * zo(i,k) + cp * to(i,k) + hvap * qo(i,k)
-          heso(i,k) = g * zo(i,k) + cp * to(i,k) + hvap * qeso(i,k)
-c         heo(i,k) = min(heo(i,k),heso(i,k))
-        endif
-      enddo
-      do i = 1, im
-        if(cnvflg(i)) then
-          indx = kb(i)
-          hcko(i,indx) = heo(i,indx)
-          qcko(i,indx) = qo(i,indx)
-        endif
-      enddo
-c
-c**************************** static control
-c
-c------- moisture and cloud work functions
-c
-      do i = 1, im
-        if(cnvflg(i)) then
-          xaa0(i) = 0.
-        endif
-      enddo
-c
-      do k = 2, km1
-        do i = 1, im
-          if (cnvflg(i)) then
-            if(k.gt.kb(i).and.k.le.ktcon(i)) then
-              dz = zi(i,k) - zi(i,k-1)
-              if(k.le.kbcon(i)) then
-                 tem  = xlamb(i) * dz
-                 tem1 = 0.
-              else
-                 tem  = xlamue(i) * dz
-                 tem1 = 0.5 * xlamdt(i) * dz
-              endif
-              factor = 1. + tem - tem1
-              hcko(i,k) = ((1.-tem1)*hcko(i,k-1)+tem*0.5*
-     &                     (heo(i,k)+heo(i,k-1)))/factor
-            endif
-          endif
-        enddo
-      enddo
-      do k = 2, km1
-        do i = 1, im
-          if (cnvflg(i)) then
-            if(k.gt.kb(i).and.k.lt.ktcon(i)) then
-              dz = zi(i,k) - zi(i,k-1)
-              gamma = el2orc * qeso(i,k) / (to(i,k)**2)
-              xdby = hcko(i,k) - heso(i,k)
-              val  =          0.
-              xdby = max(xdby,val)
-              xqrch = qeso(i,k)
-     &              + gamma * xdby / (hvap * (1. + gamma))
-cj
-              if(k.le.kbcon(i)) then
-                 tem  = xlamb(i) * dz
-                 tem1 = 0.
-              else
-                 tem  = xlamue(i) * dz
-                 tem1 = 0.5 * xlamdt(i) * dz
-              endif
-              factor = 1. + tem - tem1
-              qcko(i,k) = ((1.-tem1)*qcko(i,k-1)+tem*0.5*
-     &                     (qo(i,k)+qo(i,k-1)))/factor
-cj
-              dq = eta(i,k) * qcko(i,k) - eta(i,k) * xqrch
-!
-!             dq = qcko(i,k) - xqrch
-c
-              if(dq.gt.0.) then
-                etah = .5 * (eta(i,k) + eta(i,k-1))
-                qlk = dq / (eta(i,k) + etah * c0 * dz)
-!
-!               qlk = dq / (1. + c0 * dz)
-!               qlk = c0 * dz * dq
-!               qlk = min(qlk,dq)
-!
-                xaa0(i) = xaa0(i) - (zo(i,k+1) - zo(i,k)) * g * qlk
-                xqc = qlk + xqrch
-!
-!               xqc = xqrch + dq - qlk
-!               xpw = eta(i,k-1) * c0 * dz * qlk
-!               xpw = eta(i,k-1) * qlk
-!
-                xpw = etah * c0 * dz * qlk
-                qcko(i,k) = xqc
-              endif
-            endif
-            if(k.ge.kbcon(i).and.k.lt.ktcon(i)) then
-              dz1 = zo(i,k+1) - zo(i,k)
-              gamma = el2orc * qeso(i,k) / (to(i,k)**2)
-              rfact =  1. + delta * cp * gamma
-     &                 * to(i,k) / hvap
-              xdby = hcko(i,k) - heso(i,k)
-              xaa0(i) = xaa0(i)
-     &                + dz1 * (g / (cp * to(i,k)))
-     &                * xdby / (1. + gamma)
-     &                * rfact
-              val=0.
-              xaa0(i)=xaa0(i)+
-     &                 dz1 * g * delta *
-     &                 max(val,(qeso(i,k) - qo(i,k)))
-            endif
-          endif
-        enddo
-      enddo
-c
-c  calculate critical cloud work function
-c
-      do i = 1, im
-        if(cnvflg(i)) then
-          if(pfld(i,ktcon(i)).lt.pcrit(15))then
-            acrt(i)=acrit(15)*(975.-pfld(i,ktcon(i)))
-     &              /(975.-pcrit(15))
-          else if(pfld(i,ktcon(i)).gt.pcrit(1))then
-            acrt(i)=acrit(1)
-          else
-            k =  int((850. - pfld(i,ktcon(i)))/50.) + 2
-            k = min(k,15)
-            k = max(k,2)
-            acrt(i)=acrit(k)+(acrit(k-1)-acrit(k))*
-     &           (pfld(i,ktcon(i))-pcrit(k))/(pcrit(k-1)-pcrit(k))
-          endif
-        endif
-      enddo
-      do i = 1, im
-        if(cnvflg(i)) then
-          if(slimsk(i).eq.1.) then
-            w1 = w1l
-            w2 = w2l
-            w3 = w3l
-            w4 = w4l
-          else
-            w1 = w1s
-            w2 = w2s
-            w3 = w3s
-            w4 = w4s
-          endif
-c
-c  modify critical cloud workfunction by cloud base vertical velocity
-c
-          if(pdot(i).le.w4) then
-            acrtfct(i) = (pdot(i) - w4) / (w3 - w4)
-          elseif(pdot(i).ge.-w4) then
-            acrtfct(i) = - (pdot(i) + w4) / (w4 - w3)
-          else
-            acrtfct(i) = 0.
-          endif
-          val1    =             -1.
-          acrtfct(i) = max(acrtfct(i),val1)
-          val2    =             1.
-          acrtfct(i) = min(acrtfct(i),val2)
-          acrtfct(i) = 1. - acrtfct(i)
-c
-c  modify acrtfct(i) by colume mean rh if rhbar(i) is greater than 80 percent
-c
-c         if(rhbar(i).ge..8) then
-c           acrtfct(i) = acrtfct(i) * (.9 - min(rhbar(i),.9)) * 10.
-c         endif
-c
-c  modify adjustment time scale by cloud base vertical velocity
-c
-          dtconv(i) = dt2 + max((1800. - dt2),cons_0) *     !constant
-     &                (pdot(i) - w2) / (w1 - w2)
-c         dtconv(i) = max(dtconv(i), dt2)
-c         dtconv(i) = 1800. * (pdot(i) - w2) / (w1 - w2)
-          dtconv(i) = max(dtconv(i),dtmin)
-          dtconv(i) = min(dtconv(i),dtmax)
-c
-        endif
-      enddo
-c
-c--- large scale forcing
+c  mass flux at cloud base for shallow convection
+c  (Grant, 2001)
 c
       do i= 1, im
         if(cnvflg(i)) then
-!!        f = aa1(i) / dtconv(i)
-          fld(i)=(aa1(i)-acrt(i)* acrtfct(i))/dtconv(i)
-!!        fld(i)=aa1(i)/dtconv(i)
-!!        fld(i)=(aa1(i)-acrt(i))/dtconv(i)
-          if(fld(i).le.0.) cnvflg(i) = .false.
-        endif
-        if(cnvflg(i)) then
-c         xaa0(i) = max(xaa0(i),0.)
-          xk(i) = (xaa0(i) - aa1(i)) / mbdt
-          if(xk(i).ge.0.) cnvflg(i) = .false.
-        endif
-c
-c--- kernel, cloud base mass flux
-c
-        if(cnvflg(i)) then
-          xmb(i) = -fld(i) / xk(i)
+          k = kbcon(i)
+!         ptem = g*sflx(i)*zi(i,k)/t1(i,1)
+          ptem = g*sflx(i)*hpbl(i)/t1(i,1)
+          wstar(i) = ptem**h1
+          tem = po(i,k)*100. / (rd*t1(i,k))
+          xmb(i) = betaw*tem*wstar(i)
           xmb(i) = min(xmb(i),xmbmax(i))
         endif
       enddo
-!!
-      totflg = .true.
-      do i=1,im
-        totflg = totflg .and. (.not. cnvflg(i))
-      enddo
-      if(totflg) return
-!!
 c
 c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 c
       do k = 1, km
         do i = 1, im
           if (cnvflg(i) .and. k .le. kmax(i)) then
-!           to(i,k) = t1(i,k)
-!           qo(i,k) = q1(i,k)
-!           uo(i,k) = u1(i,k)
-!           vo(i,k) = v1(i,k)
             qeso(i,k) = 0.01 * fpvs(t1(i,k))      ! fpvs is in pa
             qeso(i,k) = eps * qeso(i,k) / (pfld(i,k) + epsm1*qeso(i,k))
             val     =             1.e-8
@@ -1253,10 +935,6 @@ c
         enddo
       enddo
 c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-c
-c--- feedback: simply the changes from the cloud with unit mass flux
-c---           multiplied by  the mass flux necessary to keep the
-c---           equilibrium with the larger-scale.
 c
       do i = 1, im
         delhbar(i) = 0.
@@ -1273,6 +951,9 @@ c
               dellat = (dellah(i,k) - hvap * dellaq(i,k)) / cp
               t1(i,k) = t1(i,k) + dellat * xmb(i) * dt2
               q1(i,k) = q1(i,k) + dellaq(i,k) * xmb(i) * dt2
+!             tem = 1./rcs(i)
+!             u1(i,k) = u1(i,k) + dellau(i,k) * xmb(i) * dt2 * tem
+!             v1(i,k) = v1(i,k) + dellav(i,k) * xmb(i) * dt2 * tem
               u1(i,k) = u1(i,k) + dellau(i,k) * xmb(i) * dt2
               v1(i,k) = v1(i,k) + dellav(i,k) * xmb(i) * dt2
               dp = 1000. * del(i,k)
@@ -1327,7 +1008,7 @@ c
                 rn(i) = rn(i) + pwo(i,k) * xmb(i) * .001 * dt2
               endif
             endif
-            if(flg(i).and.k.le.ktcon(i)) then
+            if(flg(i).and.k.lt.ktcon(i)) then
               evef = edt(i) * evfact
               if(slimsk(i).eq.1.) evef=edt(i) * evfactl
 !             if(slimsk(i).eq.1.) evef=.07
@@ -1346,9 +1027,16 @@ c             if(slimsk(i).ne.1.) evef = 0.
                 flg(i) = .false.
               endif
               if(rn(i).gt.0..and.qevap(i).gt.0.) then
+                tem  = .001 * dp / g
+                tem1 = qevap(i) * tem
+                if(tem1.gt.rn(i)) then
+                  qevap(i) = rn(i) / tem
+                  rn(i) = 0.
+                else
+                  rn(i) = rn(i) - tem1
+                endif
                 q1(i,k) = q1(i,k) + qevap(i)
                 t1(i,k) = t1(i,k) - elocp * qevap(i)
-                rn(i) = rn(i) - .001 * qevap(i) * dp / g
                 deltv(i) = - elocp*qevap(i)/dt2
                 delq(i) =  + qevap(i)/dt2
                 delqev(i) = delqev(i) + .001*dp*qevap(i)/g
@@ -1362,53 +1050,63 @@ c             if(slimsk(i).ne.1.) evef = 0.
       enddo
 cj
 !     do i = 1, im
-!     if(cnvflg(i)) then
 !     if(me.eq.31.and.cnvflg(i)) then
-!     if(me.eq.8.and.cnvflg(i)) then
-c       print *, ' kb,kbot,ktop =',
-c    &            kb(i),kbcon(i),ktcon(i)
-c       print *, 'pkb pbot, ptop =', po(i,kb(i)),
-c    &po(i,kbcon(i)),po(i,ktcon(i))
-c       print *, '   eta ='
-c       print *, (eta(i,k),k=1,kmax(i))
+!     if(cnvflg(i)) then
 !       print *, ' shallow delhbar, delqbar, deltbar = ',
 !    &             delhbar(i),hvap*delqbar(i),cp*deltbar(i)
 !       print *, ' shallow delubar, delvbar = ',delubar(i),delvbar(i)
-!       print *, ' precip xmb= ', hvap*rn(i)*1000./dt2, xmb(i)
+!       print *, ' precip =', hvap*rn(i)*1000./dt2
+!       print*,'pdif= ',pfld(i,kbcon(i))-pfld(i,ktcon(i))
 !     endif
 !     enddo
 cj
+      do i = 1, im
+        if(cnvflg(i)) then
+          if(rn(i).lt.0..or..not.flg(i)) rn(i) = 0.
+          ktop(i) = ktcon(i)
+          kbot(i) = kbcon(i)
+          kcnv(i) = 0
+        endif
+      enddo
 c
 c  cloud water
 c
       if (ncloud.gt.0) then
-      do i = 1, im
-        if (cnvflg(i)) then
-           k = ktcon(i)
-           tem  = dellal(i) * xmb(i) * dt2
-           tem1 = max(0.0, min(1.0, (tcr-t1(i,k))*tcrf))
-           if (ql(i,k,2) .gt. -999.0) then
-             ql(i,k,1) = ql(i,k,1) + tem * tem1            ! ice
-             ql(i,k,2) = ql(i,k,2) + tem *(1.0-tem1)       ! water
-           else
-             ql(i,k,1) = ql(i,k,1) + tem
-           endif
-           dp = 1000. * del(i,k)
-           dellal(i) = dellal(i) * xmb(i) * dp / g
-        endif
+!
+      do k = 1, km1
+        do i = 1, im
+          if (cnvflg(i)) then
+            if (k.gt.kb(i).and.k.le.ktcon(i)) then
+              tem  = dellal(i,k) * xmb(i) * dt2
+              tem1 = max(0.0, min(1.0, (tcr-t1(i,k))*tcrf))
+              if (ql(i,k,2) .gt. -999.0) then
+                ql(i,k,1) = ql(i,k,1) + tem * tem1            ! ice
+                ql(i,k,2) = ql(i,k,2) + tem *(1.0-tem1)       ! water
+              else
+                ql(i,k,1) = ql(i,k,1) + tem
+              endif
+            endif
+          endif
+        enddo
       enddo
+!
       endif
-c
+!
+! hchuang code change
+!
+      do k = 1, km
+        do i = 1, im
+          if(cnvflg(i)) then
+            if(k.ge.kb(i) .and. k.lt.ktop(i)) then
+              ud_mf(i,k) = eta(i,k) * xmb(i) * dt2
+            endif
+          endif
+        enddo
+      enddo
       do i = 1, im
         if(cnvflg(i)) then
-          if(rn(i).lt.0..and..not.flg(i)) rn(i) = 0.
-          if(rn(i).le.0.) then
-            rn(i) = 0.
-          endif
-          ktop(i) = ktcon(i)
-          kbot(i) = kbcon(i)
-          kcnv(i) = 0
-          cldwrk(i) = aa1(i)
+           k = ktop(i)-1
+           dt_mf(i,k) = ud_mf(i,k)
         endif
       enddo
 !!

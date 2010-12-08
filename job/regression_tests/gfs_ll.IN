@@ -13,7 +13,7 @@
 # @ resources=ConsumableCPUs(1)ConsumableMemory(5GB)
 # @ class = _CLASS_
 # @ group = _GROUP_
-# @ wall_clock_limit = 00:30:00
+# @ wall_clock_limit = 01:30:00
 # @ preferences = Feature == "dev"
 # @ network.MPI = sn_all,not_shared,us
 # @ account_no=_ACCNR_

@@ -9,10 +9,37 @@ set -x
  export EXPLICIT=.false.
 
  export ADIAB=_ADIAB_
+ export NST_FCST=_NSTFCST_   #0(AM), 1(am,nst) and 2(cpld nstnst)
+## IAER=0 (no aerosols); 11 (opac for sw/lw) and 22 (gocart for sw/lw)
+ export IAER=_IAER_
+ export GOCART=${GOCART:-0}
 # reduced_grid default is true
  export REDUCED_GRID=_REDUCEDGRID_
 # number of output files, default =3, for adiab num_file=1
  export NUM_FILE=_NUMFILE_
+ if [[ $ADIAB = .true. ]] ; then
+     export NUM_FILE=1 ;
+    export FILENAME_BASE="'SIG.F'"
+    export FILE_IO_FORM="'grib'"
+ else
+    export FILENAME_BASE="'SIG.F' 'SFC.F' 'FLX.F'"
+    export FILE_IO_FORM="'grib' 'bin4' 'grib'"
+    export NUM_FILE=3
+    if [ $NST_FCST -gt 0 ] ; then
+      export FILENAME_BASE=${FILENAME_BASE}" 'NST.F'"
+      export FILE_IO_FORM=${FILE_IO_FORM}" 'bin4'"
+      NUM_FILE=`expr $NUM_FILE + 1`
+      export NUM_FILE
+    fi
+    if [ $GOCART == 1 ] ; then
+      export FILENAME_BASE=${FILENAME_BASE}" 'AER.F'"
+      export FILE_IO_FORM=${FILE_IO_FORM}" 'grib'"
+      NUM_FILE=`expr $NUM_FILE + 1`
+      export NUM_FILE
+    fi
+    echo "NUM_FILE=$NUM_FILE,NST_FCST=$NST_FCST,FILENAME_BASE=$FILENAME_BASE"
+ fi
+
 # restart default is coldstart
 #export RESTART=_RESTART_
 #read one time step input data
@@ -72,6 +99,9 @@ done
 #
   export WRT_GROUP=_WRTGP_
   export WRTPE_PER_GROUP=_WPG_
+   export liope=.false.
+  if [[ $QUILTING = .true. ]] ; then export liope=.true. ; fi
+#
 export MP_STDOUTMODE=ordered
 export MP_LABELIO=yes
 export MP_SHARED_MEMORY=yes
@@ -163,8 +193,23 @@ export lsm=${lsm:-1}
 # export gfsio_out=.true.
 #
  export DYNVARS="liope=.F."
- export PHYVARS="liope=.F."
-_CP2_ export PHYVARS="liope=.F.,grid_aldata=.true."
+#jw bkgd_vdif_s=1.0
+
+ grid_aldata=_CP2_
+# export PHYVARS="liope=$liope,ras=$ras,zhao_mic=$zhao_mic,lsm=$lsm,\
+#             old_monin=$old_monin,sashal=$sashal,newsas=$newsas,\
+#             shal_cnv=$shal_cnv,shuff_lats_r=$shuff_lats_r,\
+#             ialb=$ialb,pre_rad=.false.,random_clds=$random_clds,\
+#             iovr_lw=1,iovr_sw=1,\
+#             ISOL=$ISOL, ICO2=$ICO2, IAER=$IAER,ictm=$ictm, nsout=$nsout,\
+#             ldiag3d=$ldiag3d, ncw=$ncw,crtrh=$crtrh,flgmin=$flgmin,\
+#             cnvgwd=.false.,ctei_rm=$ctei_rm,mstrat=$mstrat,ccnorm=$ccnorm,\
+#             mom4ice=.false.,NST_FCST=$NST_FCST,NST_SPINUP=$NST_SPINUP,\
+#             lgoc3d=.false.,trans_trac=.true.,cal_pre=.false.,\
+#             CCWF=$ccwf,dlqf=$dlqf,psautco=$psautco,prautco=$prautco,evpco=$evpco,\
+#             bkgd_vdif_m=$bkgd_vdif_m,bkgd_vdif_h=$bkgd_vdif_h,\
+#             bkgd_vdif_s=$bkgd_vdif_s,hdif_fac=$hdif_fac,grid_aldata=$grid_aldata"
+ export PHYVARS="liope=.F.,grid_aldata=$grid_aldata"
 
  export TRACERVARS="RI=$RIlist,CPI=$CPIlist,"
 #

@@ -133,6 +133,7 @@
        idate(1)=idate7(4)
        idate(2:3)=idate7(2:3)
        idate(4)=idate7(1)
+       pdryini=0.
 !
       call nemsio_getheadvar(gfile_in,'fhour',fhour4,iret=iret)
       call nemsio_getheadvar(gfile_in,'iorder',iorder,iret=iret)
@@ -149,7 +150,7 @@
       call nemsio_getheadvar(gfile_in,'itrun',itrun,iret=iret)
       call nemsio_getheadvar(gfile_in,'idusr',idusr,iret=iret)
       call nemsio_getheadvar(gfile_in,'idvt',idvt,iret=iret)
-      call nemsio_getheadvar(gfile_in,'pdryini',pdryini,iret=iret)
+      call nemsio_getheadvar(gfile_in,'pdryini',pdryini4,iret=iret)
       call nemsio_getheadvar(gfile_in,'nvcoord',nvcoord,iret=iret)
 
 !      call gfsio_getfilehead(gfile_in,iret=iret,

@@ -1,11 +1,16 @@
-      SUBROUTINE SASCNV(IM,IX,KM,JCAP,DELT,DEL,PRSL,PS,PHIL,QL,
+      SUBROUTINE SASCNV(IM,IX,KM,JCAP,DELT,DELP,PRSLP,PSP,PHIL,QL,
 !     SUBROUTINE SASCNV(IM,IX,KM,JCAP,DELT,DEL,PRSL,PHIL,QL,
-     &       Q1,T1,U1,V1,RCS,CLDWRK,RN,KBOT,KTOP,KUO,SLIMSK,
-     &       DOT,XKT2,ncloud)
+     &       Q1,T1,U1,V1,CLDWRK,RN,KBOT,KTOP,KUO,SLIMSK,
+     &       DOT,XKT2,ncloud,ud_mf,dd_mf,dt_mf)
+! hchuang code change [r1L]
+!    &       DOT,XKT2,ncloud)
+!
+! 10/14/2008 Ho-Chun Huang The Cloudmass flux fields was added by Jongil
+!
 !  for cloud water version
 !     parameter(ncloud=0)
 !     SUBROUTINE SASCNV(KM,JCAP,DELT,DEL,SL,SLK,PS,QL,
-!    &       Q1,T1,U1,V1,RCS,CLDWRK,RN,KBOT,KTOP,KUO,SLIMSK,
+!    &       Q1,T1,U1,V1,CLDWRK,RN,KBOT,KTOP,KUO,SLIMSK,
 !    &       DOT,xkt2,ncloud)
 !
       USE MACHINE , ONLY : kind_phys
@@ -20,12 +25,15 @@
       integer            IM, IX,  KM, JCAP, ncloud,
      &                   KBOT(IM), KTOP(IM), KUO(IM)
       real(kind=kind_phys) DELT
+      real(kind=kind_phys) PSP(IM),    DELP(IX,KM), PRSLP(IX,KM)
       real(kind=kind_phys) PS(IM),     DEL(IX,KM),  PRSL(IX,KM),
 !     real(kind=kind_phys)             DEL(IX,KM),  PRSL(IX,KM),
      &                     QL(IX,KM,2),Q1(IX,KM),   T1(IX,KM),
-     &                     U1(IX,KM),  V1(IX,KM),   RCS(IM),
+     &                     U1(IX,KM),  V1(IX,KM),
      &                     CLDWRK(IM), RN(IM),      SLIMSK(IM),
      &                     DOT(IX,KM), XKT2(IM),    PHIL(IX,KM)
+! hchuang code change [+1L] mass flux output
+     &,                    ud_mf(IM,KM),dd_mf(IM,KM),dt_mf(IM,KM)
 !
       integer              I, INDX, jmn, k, knumb, latd, lond, km1
 !
@@ -120,6 +128,13 @@ cc
 c
 c--------------------------------------------------------------------
 !
+!************************************************************************
+!     convert input Pa terms to Cb terms  -- Moorthi
+      ps   = psp   * 0.001
+      prsl = prslp * 0.001
+      del  = delp  * 0.001
+!************************************************************************
+!
       km1 = km - 1
 C  INITIALIZE ARRAYS
 C
@@ -135,6 +150,14 @@ C
         KT2(I) = 0
         QLKO_KTCON(I) = 0.
         DELLAL(I) = 0.
+      ENDDO
+! hchuang code change [+7L]
+      DO K = 1, KM
+        DO I=1,IM
+          ud_mf(I,k) = 0.
+          dd_mf(I,k) = 0.
+          dt_mf(I,k) = 0.
+        ENDDO
       ENDDO
 !!
       DO K = 1, 15
@@ -387,7 +410,8 @@ C
       DO I=1,IM
         IF(CNVFLG(I)) THEN
           PBCDIF(I) = -PFLD(I,KBCON(I)) + PFLD(I,KB(I))
-          PDOT(I)   = 10.* DOT(I,KBCON(I))
+!         PDOT(I)   = 10.* DOT(I,KBCON(I))
+          PDOT(I)   = 0.01 * DOT(I,KBCON(I))  ! Now DOT is in Pa/s
           IF(PBCDIF(I).GT.150.)    CNVFLG(I) = .FALSE.
           IF(KBCON(I).EQ.KMAX(I))  CNVFLG(I) = .FALSE.
         ENDIF
@@ -803,8 +827,8 @@ C
         DO I = 1, IM
           if (k .le. kmax(i)) then
             IF(K.GE.KB(I).AND.K.LE.KTCON(I).AND.CNVFLG(I)) THEN
-              shear=rcs(I) * sqrt((UO(I,k+1)-UO(I,k)) ** 2
-     &                          + (VO(I,k+1)-VO(I,k)) ** 2)
+              shear     = sqrt((UO(I,k+1)-UO(I,k)) ** 2
+     &                       + (VO(I,k+1)-VO(I,k)) ** 2)
               VSHEAR(I) = VSHEAR(I) + SHEAR
             ENDIF
           endif
@@ -1672,6 +1696,31 @@ C
               T1(I,k) = TO(I,k)
               Q1(I,k) = QO(I,k)
             ENDIF
+          endif
+        ENDDO
+      ENDDO
+! hchuang code change [+24L]
+      DO K = 1, KM
+        DO I = 1, IM
+          IF(CNVFLG(I).AND.RN(I).gt.0.) THEN
+            if(k.ge.kb(i) .and. k.lt.ktop(i)) then
+              ud_mf(i,k) = eta(i,k) * xmb(i) * dt2
+            endif
+          endif
+        ENDDO
+      ENDDO
+      DO I = 1, IM
+        IF(CNVFLG(I).AND.RN(I).gt.0.) THEN
+           k = ktop(i)-1
+           dt_mf(i,k) = ud_mf(i,k)
+        endif
+      ENDDO
+      DO K = 1, KM
+        DO I = 1, IM
+          IF(CNVFLG(I).AND.RN(I).gt.0.) THEN
+            if(k.ge.1 .and. k.le.jmin(i)) then
+              dd_mf(i,k) = edto(i) * etad(i,k) * xmb(i) * dt2
+            endif
           endif
         ENDDO
       ENDDO

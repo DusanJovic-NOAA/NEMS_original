@@ -1,5 +1,6 @@
       SUBROUTINE OZPHYS (IX, IM, LEVS, KO3, DT, OZI, OZO, TIN, PO3,
-     &                   PRSL, PRDOUT, pl_coeff, DELP, LDIAG3D, OZP,me)
+     &                   PRSL, PRDOUT, pl_coeff, DELP, LDIAG3D,
+     &                   LGGFS3D, OZP,me)
 !
 !     This code assumes that both PRSL and PO3 are from bottom to top
 !     as are all other variables
@@ -16,7 +17,7 @@
      &                     OZP(IX,LEVS,pl_coeff),  DT
 !
       integer k,kmax,kmin,l,I,j
-      logical              LDIAG3D, flg(im)
+      logical              LDIAG3D, LGGFS3D, flg(im)
       real(kind=kind_phys) pmax, pmin, tem, temp
       real(kind=kind_phys) WK1(IM), WK2(IM), WK3(IM), PROD(IM,pl_coeff),
      &                     OZIB(IM),  COLO3(IM,LEVS+1)
@@ -83,7 +84,7 @@
             ozo(i,l)  = (OZIB(I) + prod(i,1)*dt) / (1.0 + prod(i,2)*dt)
           enddo
 !
-          IF (LDIAG3D) then                !     Ozone change diagnostics
+          IF (LDIAG3D .or. LGGFS3D) then     !     Ozone change diagnostics
             DO I=1,IM
               OZP(I,L,1) = OZP(I,L,1) + PROD(I,1)*DT
               OZP(I,L,2) = OZP(I,L,2) + (OZO(I,L) - OZIB(I))
@@ -99,7 +100,7 @@
 !    &,' ozib=',ozib(i),' l=',l,' tin=',tin(i,l),'colo3=',colo3(i,l+1)
             ozo(i,l) = (OZIB(I)  + tem*dt) / (1.0 + prod(i,2)*dt)
           enddo
-          IF (LDIAG3D) then                !     Ozone change diagnostics
+          IF (LDIAG3D .or. LGGFS3D) then     !     Ozone change diagnostics
             DO I=1,IM
               OZP(I,L,1) = OZP(I,L,1) + PROD(I,1)*DT
               OZP(I,L,2) = OZP(I,L,2) + (OZO(I,L) - OZIB(I))

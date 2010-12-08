@@ -1,11 +1,12 @@
 !-----------------------------------------------------------------------
       subroutine compns_physics(deltim,  iret,
-     &                  ntrac,   nxpt,    nypt,  jintmx,
-     &                  jcap,    levs,    levr,    lonr,  latr,
-     &                  ntoz,    ntcw,    ncld,   
-     &                  lsoil,   nmtvr,   num_p3d, num_p2d,
+     &                  ntrac,   nxpt,    nypt,  jintmx, jcap,
+!    &                  ntrac,                           jcap,
+     &                  levs,    levr,    lonr,  latr,
+     &                  ntoz,    ntcw,    ncld,  lsoil,  nmtvr, 
+     &                  num_p3d, num_p2d, 
      &                  thermodyn_id,     sfcpress_id,
-     &                  nlunit,  me,      gfs_phy_namelist)
+     &                  nlunit,   me,     gfs_phy_namelist)
 !
 !$$$  Subprogram Documentation Block
 !
@@ -41,9 +42,11 @@
 !
 ! Program History Log:
 !   1999-01-26  Iredell
+!   2009-05-04  Moorthi
 !   2009-10-12  Sarah Lu, add grid_aldata (default to F)
 !   2010-01-12  Sarah Lu, add fdaer (default to 0)
 !   2010-08-03  Jun Wang, add fhdfi (default to 0)
+!   2010-jul/augMoorthi  added many physics options
 !
 ! Usage:    call compns(deltim,
 !    &                  fhout,fhswr,fhlwr,fhzer,fhres,fhcyc,
@@ -69,6 +72,9 @@
 !     iret     - integer return code (0 if successful or
 !                between 1 and 8 for which rule above was broken)
 !     LDIAG3D  - switch for 3D diagnostic- (default = false)
+!hchuang code change [+1L]
+!     LGGFS3D  - switch for 3D GFS-GOCARRT fields (default = false)
+!
 !
 ! Attributes:
 !   Language: Fortran 90
@@ -87,59 +93,92 @@
       integer, intent(in)           :: me, nlunit
       real,intent(inout)            :: deltim
       integer,intent(out)           :: iret
-      integer ntrac,nxpt,nypt,jintmx,levs,lonr,latr
-      integer levr,jcap
+      integer ntrac,nxpt,nypt,jintmx,jcap,levs,lonr,latr
+!     integer ntrac,jcap,levs,lonr,latr
+      integer levr
       integer ntoz,ntcw,ncld,lsoil,nmtvr,num_p3d,num_p2d,member_num
       integer thermodyn_id, sfcpress_id
       real    tfiltc
+      logical lgoc3d
 
-csela - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-c     if output (fhout) more frequently than zeroing ,get partial rains
+!sela - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+!     if output (fhout) more frequently than zeroing ,get partial rains
  
       namelist /nam_phy/FHMAX,FHOUT,FHRES,FHZER,FHSEG,FHROT,DELTIM,IGEN,
-     & NGPTC,fhswr,fhlwr,fhcyc,fhdfi,ras,LDIAG3D,reduced_grid,
-     & shuff_lats_r,reshuff_lats_r,thermodyn_id,sfcpress_id,
-     & pre_rad,hybrid,gen_coord_hybrid,random_xkt2,liope,
+     & NGPTC,fhswr,fhlwr,fhcyc,ras,LGOC3D,FHGOC3D,LDIAG3D,reduced_grid,
+     & shuff_lats_r,thermodyn_id,sfcpress_id,fhdfi,
+     & pre_rad,hybrid,gen_coord_hybrid,random_clds,liope,
      & ntrac,nxpt,nypt,jintmx,jcap,levs,lonr,latr,levr,
      & ntoz,ntcw,ncld,lsoil,nmtvr,zhao_mic,nsout,lsm,tfiltc,
-     & isol, ico2, ialb, iems, iaer, iovr_sw, iovr_lw,
+     & isol, ico2, ialb, iems, iaer, iovr_sw, iovr_lw,ictm,
      & fdaer,
-     & ncw, crtrh,old_monin,flgmin,gfsio_in,gfsio_out,cnvgwd,
-     & ccwf,sashal,newsas,zflxtvd
-     &,grid_aldata
+     & ncw, crtrh,old_monin,flgmin,cnvgwd,
+!    & ncw, crtrh,old_monin,flgmin,gfsio_in,gfsio_out,cnvgwd,
+     & ccwf,shal_cnv,sashal,newsas,crick_proof,ccnorm,ctei_rm,mom4ice,
+!    & ccwf,sashal,newsas,zflxtvd,crick_proof,ccnorm,ctei_rm,mom4ice,
+     & norad_precip,num_reduce,mstrat,trans_trac,dlqf,moist_adj,
+     & nst_fcst,nst_spinup,lsea,cal_pre,psautco,prautco,evpco,
+     & fhout_hf,fhmax_hf,cdmbgwd,bkgd_vdif_m,bkgd_vdif_h,hdif_fac
+     &,grid_aldata,bkgd_vdif_s
 !
       shuff_lats_r   = .true.
-      reshuff_lats_r = .false.
+!     reshuff_lats_r = .false.
+
+      num_reduce = -4
 !
-      fhmax  = 0
-      fhout  = 0
-      fhzer  = 0
-      fhseg  = 0
-      fhrot  = 0
-      deltim = 0
-      igen   = 0
-      fhswr  = 0
-      fhlwr  = 0
-      fhcyc  = 0
-      fhdfi  = 0
-      ccwf   = 0.5
-      ras      = .false.
-      zhao_mic = .true.
-      LDIAG3D  = .false.
+      fhmax    = 0
+      fhout    = 0
+      fhzer    = 0
+      fhseg    = 0
+      fhrot    = 0
+      fhout_hf = 1
+      fhmax_hf = 0
+      deltim   = 0
+      igen     = 0
+      fhswr    = 0
+      fhlwr    = 0
+      fhcyc    = 0
+      fhdfi    = 0
+      tfiltc   = 0.85
+      ccwf     = 1.0
+      dlqf     = 0.0
+      ctei_rm  = 10.0
       NGPTC    = lonr
-      sashal   = .false.
-      newsas   = .false.
+!
+      bkgd_vdif_m = 3.0
+      bkgd_vdif_h = 1.0
+      bkgd_vdif_s = 0.2
+      hdif_fac    = 1.0
+!
+      ras              = .false.
+      zhao_mic         = .true.
+      LDIAG3D          = .false.
+      LGGFS3D          = .false.  !hchuang code change [+1L]
+      LGOC3D           = .false.
+      fhgoc3d          = 72.0
+      shal_cnv         = .true.
+      sashal           = .true.
+      crick_proof      = .false.
+      ccnorm           = .false.
+      newsas           = .true.
+      norad_precip     = .false.   ! This is effective only for Ferrier/Moorthi
+      mom4ice          = .false.   ! True when coupled to MOM4 OM
+      mstrat           = .false.
+      trans_trac       = .true.    ! This is effective only for RAS
+      moist_adj        = .false.   ! Must be true to turn on moist convective
+      cal_pre          = .false.   ! true for huiya's precip type algorithm
 !
       reduced_grid     = .true.
 !
       pre_rad          = .false.
       hybrid           = .false.
       gen_coord_hybrid = .false.                                     !hmhj
-      random_xkt2      = .true.
+      random_clds      = .true.
       liope            = .true.
 !
-      old_monin        = .true.
+      old_monin        = .false.
       cnvgwd           = .false.
+!     zflxtvd          = .true.
 !
       thermodyn_id     = 1
       sfcpress_id      = 1
@@ -148,20 +187,46 @@ c     if output (fhout) more frequently than zeroing ,get partial rains
       ncw(1)           = 50
       ncw(2)           = 150
       crtrh(:)         = 0.85
-      flgmin           = 0.20
+      flgmin(:)        = 0.20
+!
+      psautco(:)       = 4.0E-4        ! Zhao scheme default opr value
+      prautco(:)       = 1.0E-4        ! Zhao scheme default opr value
+      evpco            = 2.0E-5
+      cdmbgwd(:)       = 1.0             ! Mtn Blking and GWD tuning factors
+
+!                                         For NST model
+      nst_fcst         = 0
+      nst_spinup       = .false.
+      lsea             = 0
+!
+!     gfsio_in         = .true.
+!     gfsio_out        = .true.
 !
       nsout   = 0
+      nsout_hf = 0
       lsm     = 1         ! NOAH LSM is the default when lsm=1
       levr    = 0
 !     Default values for some radiation controls
       isol    = 0         ! use prescribed solar constant
       ico2    = 0         ! prescribed global mean value (old opernl)
-!     ialb    = 0         ! use climatology alb, based on sfc type
-      ialb    = 1         ! use modis based alb
+      ialb    = 0         ! use climatology alb, based on sfc type
+!     ialb    = 1         ! use modis based alb
       iems    = 0         ! use fixed value of 1.0
       iaer    = 1         ! default aerosol
       iovr_sw = 1         ! sw: max-random overlap clouds
       iovr_lw = 1         ! lw: max-random overlap clouds
+      ictm    = 1         ! ictm=0 => use data at initial cond time, if not
+                          ! available, use latest, no extrapolation.
+                          ! ictm=1 => use data at the forecast time, if not
+                          ! available, use latest and extrapolation.
+                          ! ictm=yyyy0 => use yyyy data for the forecast time,
+                          ! no further data extrapolation.
+                          ! ictm=yyyy1 = > use yyyy data for the fcst.
+                          ! if needed, do extrapolation to match the fcst time.
+                          ! ictm=-1 => use user provided external data for
+                          ! the fcst time, no extrapolation.
+                          ! ictm=-2 => same as ictm=0, but add seasonal cycle
+                          ! from climatology. no extrapolation.
 !
 ! The copy/pointer option (Sarah Lu)
 ! 3D fields are allocated only in DYN;
@@ -176,9 +241,14 @@ c     if output (fhout) more frequently than zeroing ,get partial rains
 c$$$      read(5,nam_phy)
       open(unit=nlunit,file=gfs_phy_namelist)
       rewind (nlunit)
+!     read(nlunit,nam_phy,err=999)
       read(nlunit,nam_phy)
       print *,' fhmax=',fhmax
-c
+!
+      print *,' fhmax=',fhmax,' nst_fcst =',nst_fcst,'
+     &  nst_spinup =',nst_spinup, 'lsea =',lsea
+!
+      LGGFS3D = LGOC3D
 !
       if (me == 0) then
         write(6,nam_phy)
@@ -203,9 +273,14 @@ c
         endif
         print *,' The time filter coefficient tfiltc=',tfiltc
         if (.not. old_monin) print *,' New PBL scheme used'
+        if (.not. shal_cnv) print *,' No shallow convection used'
         if (sashal) print *,' New Massflux based shallow convection'
      &,                     ' used'
         if (cnvgwd) print *,' Convective GWD parameterization used'
+          if (crick_proof) print *,' CRICK-Proof cloud water used in'
+     &,                            ' radiation '
+          if (ccnorm) print *,' Cloud condensate normalized by cloud'
+     &,                       ' cover for radiation'
       endif
 !
       if (levr == 0) then
@@ -255,6 +330,14 @@ c
       nsout=nint(fhout*3600./deltim)
       if(nsout.le.0.or.abs(nsout-fhout*3600./deltim).gt.tol) then
         iret=2
+        return
+      endif
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+!  Compute nsout_hf and check rule 21.
+!     if(nsout_hf.gt.0) fhout=nsout_hf*deltim/3600.
+      nsout_hf=nint(fhout_hf*3600./deltim)
+      if(nsout_hf <= 0.or.abs(nsout_hf-fhout_hf*3600./deltim)>tol) then
+        iret=9
         return
       endif
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -324,6 +407,8 @@ c
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  All checks are successful.
       iret=0
-c
-
+      return
+  999 print *,' error reading  namelist - execution terminated by user'
+      call mpi_quit(999)
+!
       end

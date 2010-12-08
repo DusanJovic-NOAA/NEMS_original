@@ -10,7 +10,8 @@ GOCARTINCS = -I../../../chem/gocart/AIX/include/Chem_Base \
 
 LIBRARY   = gfs_physics.a
 
-DEBUG    = -qcheck -qsource -qlist
+#DEBUG    = -qcheck -qsource -qlist
+#FFLAGM_DEBUG  = -O0 -qcheck
 FFLAGM_DEBUG  = -O3
 OPTS     = -qsuffix=cpp=f -qrealsize=8 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto  -qnosave $(FFLAGM_DEBUG)
 
@@ -18,6 +19,7 @@ FFLAG90  = $(FFLAGS) $(OPTS) -qfree -NS2048 $(UTILINCS)
 FFLAGS1  = $(FFLAGS) $(OPTS) $(TRAPS) -qfixed $(UTILINCS) $(GOCARTINCS)
 FFLAGIO  = $(OPTS) $(TRAPS) -qfixed
 FFLAGM   = $(OPTS) $(FINCS) -qfixed $(TRAPS) $(FFLAGM_DEBUG) -NS2048
+FFLAGM3  = $(OPTS) $(FINCS) -qfree  $(TRAPS) $(DEBUG) -NS2048
 FFLAGSF=-qnosave -q free=f90 -qcheck $(FFLAGM_DEBUG)
 FFLAGSI  = -qrealsize=8 -qnosave -q free=f90 $(FFLAGM_DEBUG)
 FFLAGSDB = $(FFLAGS1)
@@ -28,15 +30,16 @@ FFLAG_GFS_PHY90=$(FFLAG90) $(TRAPS)     $(UTILINCS) $(GOCARTINCS)
 OBJS0   = \
 	  gfs_physics_err_msg_mod.o            \
 	  gfs_physics_sfc_flx_mod.o	       \
+	  gfs_physics_nst_var_mod.o            \
 	  gfs_physics_sfc_flx_set_mod.o	       \
-	  gfs_physics_gridgr_mod.o      	\
-	  gfs_physics_g2d_mod.o      		\
-	  gfs_physics_g3d_mod.o      		\
+	  gfs_physics_gridgr_mod.o             \
+	  gfs_physics_g2d_mod.o                \
+	  gfs_physics_g3d_mod.o      	       \
 	  gfs_physics_namelist_mod.o           \
 	  gfs_physics_start_time_get_mod.o     \
 	  gfs_physics_internal_state_mod.o     \
 	  gfs_physics_grid_create_mod.o        \
-	  gfs_physics_output.o        \
+	  gfs_physics_output.o                 \
 	  gfs_physics_getcf_mod.o              \
  	  gfs_physics_initialize_mod.o         \
 	  gfs_physics_run_mod.o                \
@@ -68,7 +71,12 @@ OBJ_MOD	= \
 	  mpi_def.o		    \
 	  d3d_def.o        	    \
 	  sfcio_module.o            \
-          mod_state.o    
+          mod_state.o               \
+	  nstio_module.o            \
+	  module_nst_parameters.o   \
+	  module_nst_water_prop.o   \
+	  module_nst_model.o        \
+	  calpreciptype.o
 
 OBJS    = \
           glats_physics.o               \
@@ -83,11 +91,12 @@ OBJS    = \
           sortrx.o                      \
           mpi_quit.o                    \
           get_lats_node_shuff_r_fix.o   \
-          common_to_physics_vars.o      \
           do_physics_one_step.o         \
-          physics_to_common_vars.o      \
           gcycle.o                      \
           hpmdummy.o
+
+#          common_to_physics_vars.o      \
+#          physics_to_common_vars.o      \
 
 OBJS_IO= \
 	  fix_fields.o       \
@@ -96,7 +105,9 @@ OBJS_IO= \
 	  wrtout_physics.o   \
 	  gribit.o           \
 	  fld_collect.o      \
+	  fld_collect_nst.o      \
 	  para_fixio_w.o     \
+	  para_nst_w.o     \
 	  sfcsub.o
 
 OBJS_RAD	=              \
@@ -130,36 +141,46 @@ OBJS_PHY = \
 	progt2.o              \
 	sfc_sice.o            \
 	sfc_ocean.o           \
+	sfc_nst.o             \
 	sfc_diff.o            \
 	sfc_diag.o            \
 	sflx.o                \
 	moninp.o              \
+	moninp1.o             \
 	moninq.o              \
 	gwdps.o               \
 	gwdc.o                \
 	sascnv.o              \
 	sascnvn.o             \
-	cnvcld.o              \
+	cnvc90.o              \
 	shalcv.o              \
+	shalcv_opr.o          \
 	shalcnv.o             \
 	lrgsclr.o             \
 	gscond.o              \
 	precpd.o              \
 	mstadb.o              \
+	mstadbtn.o            \
 	mstcnv.o              \
 	get_prs.o             \
 	gsmddrive.o 
+
+OBJS_CC=            \
+	mpi_more.o  \
+	cmp.comm.o  \
+	atm.comm.o  \
+	tiles.o
 
 #
 # *****************************************************************
 #
 
-DEPEND_FILES = ${OBJS0:.o=.f} ${OBJ_MOD:.o=.f} ${OBJS:.o=.f} ${OBJS_IO:.o=.f} ${OBJS_RAD:.o=.f} ${OBJS_PHY:.o=.f}
+DEPEND_FILES = ${OBJS0:.o=.f} ${OBJ_MOD:.o=.f} ${OBJS:.o=.f} ${OBJS_IO:.o=.f} ${OBJS_RAD:.o=.f} ${OBJS_PHY:.o=.f} $(OBJS_CC:.o=.f)
 
 all default: depend
 	@gmake -f $(MAKEFILE) $(LIBRARY)
 
-$(LIBRARY):  $(OBJ_MOD) $(OBJS0) $(OBJS) $(OBJS_RAD) $(OBJS_PHY) $(OBJS_IO)
+$(LIBRARY):  $(OBJ_MOD) $(OBJS_CC) $(OBJS0) $(OBJS) $(OBJS_RAD) $(OBJS_PHY) $(OBJS_IO)
 	$(AR) $(ARFLAGS) $@ $?
 
 .f.o: %.o: %.f
@@ -172,8 +193,11 @@ clean:
 # *****************************************************************
 #
 
-cnvcld.o:	cnvcld.f
-		$(F77) $(FFLAGM) -c cnvcld.f
+cnvc90.o:	cnvc90.f
+		$(F77) $(FFLAGM) -c cnvc90.f
+
+calpreciptype.o:	calpreciptype.f
+		$(F77) $(FFLAGM3) -c calpreciptype.f
 
 dcyc2.o:	dcyc2.f
 		$(F77) $(FFLAGM) -c dcyc2.f
@@ -217,11 +241,17 @@ lrgsclr.o:	lrgsclr.f
 moninp.o:	moninp.f
 		$(F77) $(FFLAGM) -c moninp.f
 
+moninp1.o:	moninp1.f
+		$(F77) $(FFLAGM) -c moninp1.f
+
 moninq.o:	moninq.f
 		$(F77) $(FFLAGM) -c moninq.f
 
 mstadb.o:	mstadb.f
 		$(F77) $(FFLAGM) -c mstadb.f
+
+mstadbtn.o:	mstadbtn.f
+		$(F77) $(FFLAGM) -c mstadbtn.f
 
 mstcnv.o:	mstcnv.f
 		$(F77) $(FFLAGM) -c mstcnv.f
@@ -261,6 +291,9 @@ sflx.o: 	sflx.f
 
 sfc_ocean.o:	sfc_ocean.f
 		$(F77) $(FFLAGM) -c sfc_ocean.f
+		$(F77) $(FFLAGM) -c sfc_ocean.f
+sfc_nst.o:	sfc_nst.f
+		$(F77) $(FFLAGM) -c sfc_nst.f
 
 sfc_diff.o:	sfc_diff.f
 		$(F77) $(FFLAGM) -c sfc_diff.f
@@ -273,6 +306,9 @@ sascnv.o:	sascnv.f
 
 sascnvn.o:	sascnvn.f
 		$(F77) $(FFLAGM) -c sascnvn.f
+
+shalcv_opr.o:	shalcv_opr.f
+		$(F77) $(FFLAGM) -c shalcv_opr.f
 
 shalcv.o:	shalcv.f
 		$(F77) $(FFLAGM) -c shalcv.f
@@ -375,14 +411,47 @@ gribit.o:	gribit.f
 fld_collect.o:  fld_collect.f
 	        $(F77) $(FFLAG_GFS_PHY) -c fld_collect.f
 
+fld_collect_nst.o:  fld_collect_nst.f
+	        $(F77) $(FFLAG_GFS_PHY) -c fld_collect_nst.f
+
 read_fix.o: read_fix.f
 	        $(F77) $(FFLAG_GFS_PHY) -c read_fix.f
 
 para_fixio_w.o:  para_fixio_w.f
 		$(F77) $(FFLAG_GFS_PHY) -c para_fixio_w.f
 
+para_nst_w.o:  para_nst_w.f
+		$(F77) $(FFLAG_GFS_PHY) -c para_nst_w.f
+
+mpi_more.o:	mpi_more.f
+		$(F77) $(FFLAGxSM) -c mpi_more.f
+
+cmp.comm.o:	cmp.comm.f
+		$(F77) $(FFLAGM) -c cmp.comm.f
+
+atm.comm.o:	atm.comm.f
+		$(F77) $(FFLAGM) -c atm.comm.f
+
+tiles.o:	tiles.f
+		$(F77) $(FFLAGM) -c tiles.f
+
+para_nstio_w.o:  para_nstio_w.f
+		$(F77) $(FFLAG_GFS_PHY) -c para_nstio_w.f
+
 wrtout_physics.o: wrtout_physics.f
 		$(F77) $(FFLAG_GFS_PHY) -c wrtout_physics.f
+
+nstio_module.o:	  nstio_module.f
+		$(F77) $(FFLAG90) -c nstio_module.f
+
+module_nst_parameters.o:	 module_nst_parameters.f
+		$(F77) $(FFLAG90) -c module_nst_parameters.f
+
+module_nst_water_prop.o:	module_nst_water_prop.f
+		$(F77) $(FFLAG90) -c module_nst_water_prop.f
+
+module_nst_model.o:	 module_nst_model.f
+		$(F77) $(FFLAG90) -c module_nst_model.f
 
 gfs_physics_err_msg_mod.o:      gfs_physics_err_msg_mod.f
 		$(F77) $(FFLAG90) -c gfs_physics_err_msg_mod.f
@@ -398,9 +467,15 @@ gfs_physics_g3d_mod.o:		gfs_physics_g3d_mod.f
 
 gfs_physics_sfc_flx_mod.o:      gfs_physics_sfc_flx_mod.f
 		$(F77) $(FFLAG90) -c gfs_physics_sfc_flx_mod.f
+
+gfs_physics_nst_var_mod.o:      gfs_physics_nst_var_mod.f
+		$(F77) $(FFLAG90) -c gfs_physics_nst_var_mod.f
                                                                                 
 gfs_physics_sfc_flx_set_mod.o:      gfs_physics_sfc_flx_set_mod.f
 		$(F77) $(FFLAG90) -c gfs_physics_sfc_flx_set_mod.f
+
+gfs_physics_nst_flx_var.o:	gfs_physics_nst_var_mod.f
+		$(F77) $(FFLAG90) -c gfs_physics_nst_var_mod.f
                                                                                 
 gfs_physics_namelist_mod.o:     gfs_physics_namelist_mod.f
 		$(F77) $(FFLAG90) -c gfs_physics_namelist_mod.f

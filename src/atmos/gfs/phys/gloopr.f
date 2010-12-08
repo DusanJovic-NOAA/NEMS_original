@@ -1,13 +1,13 @@
        subroutine gloopr
 !*   &    ( grid_gr,
-     &    ( grid_fld, g3d_fld,
-     &     lats_nodes_r,global_lats_r, lonsperlar, phour,
-     &     xlon,xlat,coszdg,COSZEN,
-     &     SLMSK,SNWDPH,SNCOVR,SNOALB,ZORL,TSEA,HPRIME,SFALB,
-     &     ALVSF,ALNSF ,ALVWF ,ALNWF,FACSF ,FACWF,CV,CVT ,
-     &     CVB  ,SWH,HLW,SFCNSW,SFCDLW,
-     &     FICE ,TISFC, SFCDSW,            
-     &     TSFLW,FLUXR, phy_f3d,slag,sdec,cdec,NBLCK,KDT,
+     &    ( grid_fld, g3d_fld,                                          &
+     &     lats_nodes_r,global_lats_r, lonsperlar, phour,               &
+     &     xlon,xlat,coszdg,COSZEN,                                     &
+     &     SLMSK,SNWDPH,SNCOVR,SNOALB,ZORL,TSEA,HPRIME,SFALB,           &
+     &     ALVSF,ALNSF ,ALVWF ,ALNWF,FACSF ,FACWF,CV,CVT ,              &
+     &     CVB  ,SWH,HLW,SFCNSW,SFCDLW,                                 &
+     &     FICE ,TISFC, SFCDSW, sfcemis,                                &
+     &     TSFLW,FLUXR, phy_f3d,slag,sdec,cdec,NBLCK,KDT,               &
      &     global_times_r)
 
 !! Code Revision:
@@ -19,56 +19,65 @@
 !!                   returns instant cloud cover (cldcov_v); the accumulative 
 !!                   and instant cloud cover fields are updated after grrad call
 !! Dec 11 2009       Sarah Lu, ldiag3d removed from grrad calling argument
+!! Jul/Aug 2009      S. Moorthi Merged with McICA version of radiation from YuTai
 !!
-cc
+!!
 !#include "f_hpm.h"
 !
-      USE MACHINE              ,     ONLY : kind_phys,
-     &                                      kind_grid,
+      USE MACHINE              ,     ONLY : kind_phys, kind_grid,       &
      &                                      kind_evod
       USE FUNCPHYS             ,     ONLY : fpkap
-      USE PHYSCONS, fv => con_fvirt, rerth => con_rerth 
-      USE PHYSCONS, rk => con_rocp	! hmhj
+      USE PHYSCONS, fv => con_fvirt, rerth => con_rerth,
+     &              rk => con_rocp
 
       use module_radiation_driver,   only : radinit, grrad
       use module_radiation_astronomy,only : astronomy
       USE gfs_phy_tracer_config,     only : gfs_phy_tracer
+
+      use module_radsw_parameters,  only : topfsw_type, sfcfsw_type
+      use module_radlw_parameters,  only : topflw_type, sfcflw_type
 !
 !! ---  for optional spectral band heating outputs
 !!    use module_radsw_parameters,   only : NBDSW
 !!    use module_radlw_parameters,   only : NBDLW
 !
-      use resol_def,            ONLY: levs, levr, latr, lonr, lotgr,
-     &                                g_t, g_p, g_q, g_dp, g_ps, 
-     &                                ntcw, ntoz, ncld, num_p3d, 
-     &                                nmtvr, ntrac, levp1, nfxr, g_dpdt,
+      use resol_def,            ONLY: levs, levr, latr, lonr, lotgr,    &
+     &                                g_t, g_p, g_q, g_dp, g_ps,        &
+     &                                ntcw, ntoz, ncld, num_p3d,        &
+     &                                nmtvr, ntrac, levp1, nfxr, g_dpdt,&
      &                                lgocart
-      use layout1,              ONLY: me, nodes, lats_node_r, 
+      use layout1,              ONLY: me, nodes, lats_node_r,           &
      &                                lats_node_r_max, ipt_lats_node_r
       use gg_def,               ONLY: coslat_r, sinlat_r
       use date_def,             ONLY: idate
-      use namelist_physics_def, ONLY: lsswr, iaer, lslwr, sashal, 
-     &                                lssav, flgmin, ldiag3d,
-     &                                iovr_lw, iovr_sw, isol, iems, 
-     &                                ialb, fhlwr, fhswr, ico2, ngptc
+      use namelist_physics_def, ONLY: lsswr, iaer, lslwr, sashal, ras,  &
+     &                                lssav, flgmin, ldiag3d, lggfs3d,  &
+     &                                iovr_lw, iovr_sw, isol, iems,     &
+     &                                ialb, fhlwr, fhswr, ico2, ngptc,  &
+     &                                crick_proof, norad_precip, ccnorm,&
+     &                                ictm, isubc_sw, isubc_lw
       use d3d_def ,             ONLY: cldcov
       use gfs_physics_gridgr_mod, ONLY: Grid_Var_Data
       use gfs_physics_g3d_mod,    ONLY: G3D_Var_Data
+      use mersenne_twister, only : random_setseed, random_index,        &
+     &                             random_stat
 !
       implicit none
 !
-      real (kind=kind_phys), parameter :: QMIN =1.0e-10
-      real (kind=kind_phys), parameter :: Typical_pgr = 95.0
-      real (kind=kind_phys), parameter :: cons0 = 0.0,  cons2 = 2.0
-      real (kind=kind_phys), parameter :: pt01=0.01
+      real (kind=kind_phys), parameter :: QMIN =1.0e-10                 &
+     &,                                   Typical_pgr = 95.0            &
+     &,                                   cons0 = 0.0,  cons2 = 2.0     &
+     &,                                   pt00001=1.0e-5
+!    &,                                   pt01=0.01
 !
 !  --- ...  inputs:
       integer, intent(in) :: lats_nodes_r(nodes)
       integer, intent(in) :: global_lats_r(latr), lonsperlar(latr)
 
 !*    real(kind=kind_grid) grid_gr(lonr*lats_node_r_max,lotgr)
-      TYPE(Grid_Var_Data)       :: grid_fld 
-      TYPE(G3D_Var_Data)        :: g3d_fld 
+
+      TYPE(Grid_Var_Data) :: grid_fld 
+      TYPE(G3D_Var_Data)  :: g3d_fld 
 
       integer, intent(in) :: NBLCK
 
@@ -97,7 +106,7 @@ cc
 
       real (kind=kind_phys),dimension(LONR,LATS_NODE_R), intent(out) :: &
      &                    coszdg, coszen, sfcnsw, sfcdlw, tsflw,        &
-     &                    sfcdsw, SFALB
+     &                    sfcdsw, SFALB, sfcemis 
 
       real (kind=kind_phys), intent(out) :: slag, sdec, cdec
 
@@ -108,7 +117,8 @@ cc
 
 !  --- ...  locals:
       real(kind=kind_phys) :: prsl(NGPTC,LEVS),  prslk(NGPTC,LEVS),     &
-     &                        prsi(NGPTC,LEVP1), prsik(NGPTC,LEVP1)
+     &                        prsi(NGPTC,LEVP1)
+!    &                        prsi(NGPTC,LEVP1), prsik(NGPTC,LEVP1)
 
       real (kind=kind_phys) :: si_loc(LEVR+1)
 
@@ -117,27 +127,55 @@ cc
      &                        gr(NGPTC,LEVR), gr1(NGPTC,LEVR,NTRAC-1)
 
       real (kind=kind_phys) :: f_ice(NGPTC,LEVS), f_rain(NGPTC,LEVS),   &
-     &                        r_rime(NGPTC,LEVS)
+     &                         r_rime(NGPTC,LEVS)
 
       real (kind=kind_phys) :: cldcov_v(NGPTC,LEVS), hprime_v(NGPTC),   &
-     &                        fluxr_v(NGPTC,NFXR), vvel(NGPTC,LEVS)
-      real (kind=kind_phys) :: flgmin_l(ngptc), work1, work2
+     &                         fluxr_v(NGPTC,NFXR), vvel(NGPTC,LEVS)
+      real (kind=kind_phys) :: flgmin_v(ngptc), work1, work2
 
       real (kind=kind_phys) :: rinc(5), dtsw, dtlw, solcon, raddt
 
       real (kind=kind_phys), save :: facoz
 
-      integer :: njeff, lon, lan, lat, iblk, lons_lat, istrt
+      integer :: njeff, lon, lan, lat, iblk, lons_lat, kk
       integer :: idat(8), jdat(8), DAYS(13), iday, imon, midmon, id
-      integer :: kk, jlonr, ilan
+!     integer :: jlonr, ilan
 
-      integer, save :: icwp, k1oz, k2oz, midm, midp
+!  ---  variables of instantaneous calculated toa/sfc radiation fluxes
+      type (topfsw_type), dimension(NGPTC) :: topfsw
+      type (sfcfsw_type), dimension(NGPTC) :: sfcfsw
+
+      type (topflw_type), dimension(NGPTC) :: topflw
+      type (sfcflw_type), dimension(NGPTC) :: sfcflw
+
+!  ---  variables used for random number generator (thread safe mode)
+      type (random_stat) :: stat
+      integer :: numrdm(LONR*LATR*2), ixseed(LONR,LATS_NODE_R,2)
+      integer :: ipseed, icsdlw(NGPTC), icsdsw(NGPTC)
+      integer, parameter :: ipsdlim = 1.0e8      ! upper limit for random seeds
+
+
+      integer, save :: icwp, k1oz, k2oz, midm, midp, ipsd0, iaerflg
 
 !  ---  number of days in a month
       data DAYS / 31,28,31,30,31,30,31,31,30,31,30,31,30 /
 
 !  --- ...  control parameters: 
 !           (some of the them may be moved into model namelist)
+
+!  ---  ICTM=yyyy#, controls time sensitive external data (e.g. CO2, solcon, aerosols, etc)
+!     integer, parameter :: ICTM =   -2 ! same as ICTM=0, but add seasonal cycle
+!                                       ! from climatology. no extrapolation.
+!     integer, parameter :: ICTM =   -1 ! use user provided external data set for the
+!                                       ! forecast time. no extrapolation.
+!     integer, parameter :: ICTM =    0 ! use data at initial cond time, if not
+!                                       ! available, use latest, no extrapolatio n.
+!!    integer, parameter :: ICTM =    1 ! use data at the forecast time, if not
+!                                       ! available, use latest and extrapolation.
+!     integer, parameter :: ICTM =yyyy0 ! use yyyy data for the forecast time,
+!                                       ! no further data extrapolation.
+!     integer, parameter :: ICTM =yyyy1 ! use yyyy data for the fcst. if needed, do
+!                                       ! extrapolation to match the fcst time.
 
 !  ---  ISOL controls solar constant data source
 !!    integer, parameter :: ISOL  = 0  ! use prescribed solar constant
@@ -152,14 +190,29 @@ cc
 !!    integer, parameter :: IALB = 0   ! use climatology alb, based on sfc type
 !     integer, parameter :: IALB = 1   ! use modis derived alb (to be developed)
 
-!  ---  IEMS controls surface emissivity for lw radiation
-!!    integer, parameter :: IEMS = 0   ! use fixed value of 1.0
-!     integer, parameter :: IEMS = 1   ! use varying sfc emiss, based on sfc type
+!  ---  IEMS controls surface emissivity and sfc air/ground temp for lw radiation
+!        ab: 2-digit control flags. a-for sfc temperature;  b-for emissivity
+!!    integer, parameter :: IEMS = 00  ! same air/ground temp; fixed emis = 1.0
+!!    integer, parameter :: IEMS = 01  ! same air/ground temp; varying veg typ based emis
+!!    integer, parameter :: IEMS = 10  ! diff air/ground temp; fixed emis = 1.0
+!!    integer, parameter :: IEMS = 11  ! diff air/ground temp; varying veg typ based emis
 !  ---  IAER  controls aerosols scheme selections
+!     Old definition
 !     integer, parameter :: IAER  = 1  ! opac climatology, without volc forcing
 !     integer, parameter :: IAER  =11  ! opac climatology, with volcanic forcing
 !     integer, parameter :: IAER  = 2  ! gocart prognostic, without volc forcing
 !     integer, parameter :: IAER  =12  ! gocart prognostic, with volcanic forcing
+!     New definition in this code IAER = abc (a:volcanic; b:lw; c:sw)
+!                             b, c values: (0:none; 1:opac; 2:gocart)
+!  IAER =   0 --> no aerosol effect at all (volc, sw, lw)
+!       =   1 --> only tropospheric sw aerosols, no trop-lw and volc
+!       =  10 --> only tropospheric lw aerosols, no trop-sw and volc
+!       =  11 --> both trop-sw and trop-lw aerosols, no volc
+!       = 100 --> only strato-volc aeros, no trop-sw and trop-lw
+!       = 101 --> only sw aeros (trop + volc), no lw aeros
+!       = 110 --> only lw aeros (trop + volc), no sw aeros
+!       = 111 --> both sw and lw aeros (trop + volc)
+!
 
 !  ---  IOVR controls cloud overlapping method in radiation:
 !     integer, parameter :: IOVR_SW = 0  ! sw: random overlap clouds
@@ -168,6 +221,15 @@ cc
 !     integer, parameter :: IOVR_LW = 0  ! lw: random overlap clouds
 !!    integer, parameter :: IOVR_LW = 1  ! lw: max-random overlap clouds
 
+!  ---  ISUBC controls sub-column cloud approximation in radiation:
+!     integer, parameter :: ISUBC_SW = 0 ! sw: without sub-col clds approx
+!     integer, parameter :: ISUBC_SW = 1 ! sw: sub-col clds with prescribed seeds
+!     integer, parameter :: ISUBC_SW = 2 ! sw: sub-col clds with random seeds
+
+!     integer, parameter :: ISUBC_LW = 0 ! lw: without sub-col clds approx
+!     integer, parameter :: ISUBC_LW = 1 ! lw: sub-col clds with prescribed seeds
+!     integer, parameter :: ISUBC_LW = 2 ! lw: sub-col clds with random seeds
+
 !  ---  iflip indicates model vertical index direction:
 !     integer, parameter :: IFLIP = 0    ! virtical profile index from top to bottom
       integer, parameter :: IFLIP = 1    ! virtical profile index from bottom to top
@@ -175,15 +237,20 @@ cc
 !    The following parameters are from gbphys
 !
       real (kind=kind_phys), parameter :: dxmax=-16.118095651,          &
-     &                dxmin=-9.800790154, dxinv=1.0/(dxmax-dxmin)
+     &                                    dxmin=-9.800790154,           &
+     &                                    dxinv=1.0/(dxmax-dxmin)
 
       integer :: ierr, dimg
-      integer :: i, j, k, n
+      integer :: i, j, k, n, item
 
-      logical :: lslag, change, lprnt
-      data  lslag / .false. /,    lprnt / .false. /
-      logical, save :: first
+      logical :: change
+      logical, save :: first, sas_shal
       data  first / .true. /
+!
+!  ---  for debug test use
+      real (kind=kind_phys) :: temlon, temlat, alon, alat
+      integer :: ipt
+      logical :: lprnt
 
 !  ---  timers:
       real*8 :: rtc, timer1, timer2
@@ -245,6 +312,7 @@ cc
       endif
 !
       if (first) then
+        sas_shal = sashal .and. (.not. ras)
 !
         si_loc(1)=1.0
         do k=1,levr-1
@@ -257,7 +325,19 @@ cc
 
         icwp   = 0
         if (NTCW > 0) icwp = 1
-           
+
+!  ---  generate initial permutation seed for random number generator
+
+        if ( ISUBC_LW==2 .or. ISUBC_SW==2 ) then
+          ipsd0 = 17*idate(1) + 43*idate(2) + 37*idate(3) + 23*idate(4)
+          if ( me == 0 ) then
+            print *,'  Radiation sub-cloud initial seed =',ipsd0,       &
+     &              ' idate =',idate
+          endif
+        endif
+
+        iaerflg = max( mod(IAER,10), mod(IAER/10,10) ) ! flag for trop-aer scheme selection
+
         first = .false.
            
       endif         ! end_if_first
@@ -271,47 +351,79 @@ cc
 
       call radinit                                                      &
 !  ---  input:
-     &     ( si_loc, LEVR, IFLIP, NUM_P3D,                              &
-     &       ISOL, ICO2, ICWP, IALB, IEMS, IAER, jdat, me )
+     &     ( si_loc, LEVR, IFLIP, idat, jdat, ICTM, ISOL, ICO2,         &
+     &       IAER, IALB, IEMS, ICWP, NUM_P3D, ISUBC_SW, ISUBC_LW,       &
+     &       IOVR_SW, IOVR_LW, me )
 !  ---  output: ( none )
                                                                                                             
 !
 !===> *** ...  astronomy for sw radiation calculation.
 !
+!     print *,' calling astronomy'
       call astronomy                                                    &
 !  ---  inputs:
      &     ( lonsperlar, global_lats_r, sinlat_r, coslat_r, xlon,       &
+!    &       fhswr, jdat, deltim,                                       &
      &       fhswr, jdat,                                               &
      &       LONR, LATS_NODE_R, LATR, IPT_LATS_NODE_R, lsswr, me,       &
 !  ---  outputs:
      &       solcon, slag, sdec, cdec, coszen, coszdg                   &
      &      )
+!     print *,' returned from astro'
+
+!
+!===> *** ...  generate 2-d random seeds array for sub-grid cloud-radiation
+!
+      if ( ISUBC_LW==2 .or. ISUBC_SW==2 ) then
+        ipseed = mod(nint(100.0*sqrt(phour*3600)), ipsdlim) + 1 + ipsd0
+
+        call random_setseed                                             &
+!  ---  inputs:
+     &     ( ipseed,                                                    &
+!  ---  outputs:
+     &       stat                                                       &
+     &      )
+        call random_index                                               &
+!  ---  inputs:
+     &     ( ipsdlim,                                                   &
+!  ---  outputs:
+     &       numrdm, stat                                               &
+     &     )
+
+        do k = 1, 2
+          do j = 1, lats_node_r
+            lat = global_lats_r(ipt_lats_node_r-1+j)
+            do i = 1, LONR
+              ixseed(i,j,k) = numrdm(i+(lat-1)*LONR+(k-1)*LATR)
+            enddo
+          enddo
+        enddo
+      endif
+
 
 !
 !===> *** ...  spectrum to grid transformation for radiation calculation.
 !     -----------------------------------
-cc
+!!
 !     call f_hpmstart(61,"gr delnpe")
 !     call f_hpmstop(61)
 !     call f_hpmstart(62,"gr delnpo")
 !     call f_hpmstop(62)
-cc
-cc
+!!
 !     call f_hpmstart(63,"gr dezouv dozeuv")
 !
 !     call f_hpmstop(63)
-cc
+!!
 !     CALL countperf(0,5,0.)
 !     CALL synctime()
 !     CALL countperf(1,5,0.)
 !!
 !     CALL countperf(0,1,0.)
-cc
+!!
 !     call f_hpmstart(67,"gr sumfln")
 !     call f_hpmstop(67)
-cc
+!!
 !     CALL countperf(1,1,0.)
-cc
 !     CALL countperf(0,1,0.)                                            ! hmhj
 !
 !     call f_hpmstart(68,"gr sumder2")                                  ! hmhj
@@ -323,64 +435,88 @@ cc
 !===> *** ...  starting latitude loop
 !
       do lan=1,lats_node_r
-cc
+!!
          lat = global_lats_r(ipt_lats_node_r-1+lan)
-cc
+!!
          lons_lat = lonsperlar(lat)
 
-         jlonr = (lan-1) * lonr
+!        jlonr = (lan-1) * lonr
 
+!     write(0,*)' in gloopr lan=',lan,' lons_lat=',lons_lat,' lat=',lat
+!     write (0,*)' grid_fldps=',grid_fld%ps(1:lons_lat:ngptc,lan)
 !!
-!$omp parallel do schedule(dynamic,1) private(lon,j,k)
-!$omp+private(istrt,njeff,iblk,n)
-!$omp+private(vvel,gt,gr,gr1)
-!$omp+private(cldcov_v,hprime_v,fluxr_v,f_ice,f_rain,r_rime)
-!$omp+private(prslk,prsl,prsik,prsi)
+!jw!$omp parallel do schedule(dynamic,1) private(lon,j,k,item,njeff,iblk,n)
+!jw!$omp+private(vvel,gt,gr,gr1,work1,work2,flgmin_v)
+!jw!$omp+private(cldcov_v,hprime_v,fluxr_v,f_ice,f_rain,r_rime)
+!jw!$omp+private(prslk,prsl,prsi,topfsw,sfcfsw,topflw,sfcflw)
+!jw!!$omp+private(prslk,prsl,prsik,prsi,topfsw,sfcfsw,topflw,sfcflw)
+!jw!$omp+private(icsdsw,icsdlw)
+!jw!$omp+private(lprnt,ipt)
+!!!$omp+private(temlon,temlat,lprnt,ipt)
 
         DO lon=1,lons_lat,NGPTC
 !!
-          NJEFF   = MIN(NGPTC,lons_lat-lon+1)
-          ISTRT   = lon
-          if (NGPTC.ne.1) then
-            IBLK  = lon/NGPTC+1
-          else
-            IBLK  = lon
-          endif
+          NJEFF = MIN(NGPTC,lons_lat-lon+1)
+          iblk  = (lon-1)/ngptc + 1
+!
+!  --- ...  for debug test
+!         alon = 236.25
+!         alat = 56.189
+!         alon = 97.5
+!         alat = -6.66
+!         ipt = 0
+!         do i = 1, njeff
+!           item = lon + i - 1
+!           temlon = xlon(item,lan) * 57.29578
+!           if (temlon < 0.0) temlon = temlon + 360.0
+!           temlat = xlat(item,lan) * 57.29578
+!           lprnt = abs(temlon-alon) < 1.1 .and. abs(temlat-alat) < 1.1
+!    &          .and. kdt > 0
+!           if ( lprnt ) then
+!             ipt = i
+!             print *,' ipt=',ipt,' lon=',lon,' lan=',lan
+!             exit
+!           endif
+!         enddo
+!         lprnt = .false.
+!!
 !
 
           do i = 1, njeff
-!           ilan = jlonr + istrt+i-1
+!           ilan = jlonr + lon+i-1
 !           prsi(i,1) = grid_gr(ilan,g_ps)
             prsi(i,1) = grid_fld%ps(lon+i-1,lan)
           enddo
           do k = 1, LEVS
             do i = 1, njeff
-!             ilan = jlonr + istrt+i-1
+!             ilan = jlonr + lon+i-1
 !             gt(i,k)    = grid_gr(ilan,g_t+k-1)
 !             gr(i,k)    = max(qmin,grid_gr(ilan,g_q+k-1))
 !             prsl(i,k)  = grid_gr(ilan,g_p+k-1)
 !             vvel(i,k)  = grid_gr(ilan,g_dpdt+k-1)
 !             prsi(i,k+1)= prsi(i,k)-                                      &
 !     &                    grid_gr(ilan,g_dp+k-1)
-              gt(i,k)    = grid_fld%t(lon+i-1,lan,k)                           
 !*            gr(i,k)    = max(qmin,grid_fld%q(lon+i-1,lan,k))                 
-              gr(i,k)= max(qmin,grid_fld%tracers(1)%flds(lon+i-1,lan,k))                 
-              prsl(i,k)  = grid_fld%p(lon+i-1,lan,k)                         
-              vvel(i,k)  = grid_fld%dpdt(lon+i-1,lan,k)                        
-              prsi(i,k+1)= prsi(i,k)-                                      &  
-     &                     grid_fld%dp(lon+i-1,lan,k)          
+
+              item      = lon+i-1
+              gt(i,k)   = grid_fld%t(item,lan,k)                           
+              gr(i,k)   = max(qmin,grid_fld%tracers(1)%flds(item,lan,k))                 
+              prsl(i,k)   = grid_fld%p(item,lan,k)                         
+              vvel(i,k)   = grid_fld%dpdt(item,lan,k)                        
+              prsi(i,k+1) = prsi(i,k) - grid_fld%dp(item,lan,k)          
             enddo
           enddo
           do i = 1, njeff
             prsi (i,levs+1) = 0.0
-            prsik(i,levs+1) = 0.0
+!           prsik(i,levs+1) = 0.0
           enddo
-          do k = 1, levs
-            do i = 1, njeff
-              prslk(i,k) = (prsl(i,k)*pt01)**rk
-              prsik(i,k) = (prsi(i,k)*pt01)**rk
-            enddo
-          enddo
+!         do k = 1, levs
+!           do i = 1, njeff
+!             prslk(i,k) = (prsl(i,k)*pt00001)**rk
+!             prsik(i,k) = (prsi(i,k)*pt00001)**rk
+!           enddo
+!         enddo
+!       write (0,*)' prslk=',prslk(1,1:6),' lan=',lan
 !
 !       Remaining tracers
 !
@@ -388,7 +524,7 @@ cc
 !           kk = g_q + n*levs
             do k = 1, LEVS
               do i = 1, njeff
-!               ilan = jlonr + istrt+i-1
+!               ilan = jlonr + lon+i-1
 !               gr1(i,k,n) = grid_gr(ilan,kk+k-1)
 !*              gr1(i,k,ntoz-1) = grid_fld%oz(lon+i-1,lan,k)  
 !*              gr1(i,k,ntcw-1) = grid_fld%cld(lon+i-1,lan,k) 
@@ -399,21 +535,31 @@ cc
 
 !!
 !.....
-          if (levr .lt. levs) then
+          if (levr < levs) then
             do i=1,njeff
-              prsi(i,levr+1) = prsi(i,levp1)
-              prsl(i,levr)   = (prsi(i,levp1)+prsi(i,levr)) * 0.5
-              prsik(i,levr+1) = prslk(i,levp1)
-              prslk(i,levr)   = fpkap(prsl(i,levr)*1000.0)
+              prsi(i,levr+1)  = prsi(i,levp1)
+              prsl(i,levr)    = (prsi(i,levp1)+prsi(i,levr)) * 0.5
+!             prsik(i,levr+1) = prslk(i,levp1)
+!             prslk(i,levr)   = fpkap(prsl(i,levr))
+!             prslk(i,levr)   = fpkap(prsl(i,levr)*1000.0)
             enddo
           endif
+!
+          if (ntoz <= 0 .or. iaerflg == 2) then
+            do k = 1, levs
+              do i = 1, njeff
+                prslk(i,k) = (prsl(i,k)*pt00001)**rk
+              enddo
+            enddo
+          endif
+!
           do i=1,njeff
-            hprime_v(i) = hprime(1,istrt+i-1,lan)
+            hprime_v(i) = hprime(1,lon+i-1,lan)
           enddo
 !
           do k=1,nfxr
             do i=1,njeff
-              fluxr_v(i,k) = fluxr(k,istrt+i-1,lan)
+              fluxr_v(i,k) = fluxr(k,lon+i-1,lan)
             enddo
           enddo
           if (NUM_P3D == 3) then
@@ -424,24 +570,36 @@ cc
                 r_rime(i,k) = phy_f3d(i,k,iblk,lan,3)
               enddo
             enddo
+
+            work1 = (log(coslat_r(lat)/(lons_lat*latr)) - dxmin) * dxinv
+            work1 = max(0.0, min(1.0,work1))
+            work2 = flgmin(1)*work1 + flgmin(2)*(1.0-work1)
+            do i=1,njeff
+              flgmin_v(i) = work2
+            enddo
+          else
+            do i=1,njeff
+              flgmin_v(i) = 0.0
+            enddo
           endif
-          work1 = (log(coslat_r(lat)/(lons_lat*latr)) - dxmin) * dxinv
-          work1 = max(0.0, min(1.0,work1))
-          work2 = flgmin(1)*work1 + flgmin(2)*(1.0-work1)
-          do i=1,njeff
-            flgmin_l(i) = work2
-          enddo
  
 !  *** ...  calling radiation driver
  
 !
 !     lprnt = me .eq. 0 .and. kdt .ge. 120
+!     lprnt = me .eq. 0 .and. lan == 13
+      lprnt = me .eq. 0
+      ipt = min(91,njeff)
 !     if (lprnt) then
 !     if (kdt .gt. 85) then
-!     print *,' calling grrad for me=',me,' lan=',lan,' lat=',lat
+!     write(0,*)' calling grrad for me=',me,' lan=',lan,' lat=',lat
 !    &,' num_p3d=',num_p3d,' snoalb=',snoalb(lon,lan),' lon=',lon
 !    &,' tsea=',tsea(lon,lan),' sncovr=',sncovr(lon,lan),
-!    &' snwdph=',snwdph(lon,lan)
+!    &' snwdph=',snwdph(lon,lan),' ipt=',ipt,' njeff=',njeff
+!     print *,' prsi in gloopr=',prsi(ipt,1:5)
+!     print *,' gt in gloopr=',gt(ipt,1:5)
+!     print *,' gr in gloopr=',gr(ipt,1:5)
+!     endif
 !
 
 
@@ -453,52 +611,72 @@ cc
      &       zorl(lon,lan),hprime_v,                                    &
      &       alvsf(lon,lan),alnsf(lon,lan),alvwf(lon,lan),              &
      &       alnwf(lon,lan),facsf(lon,lan),facwf(lon,lan),              &
-                                          ! fice FOR SEA-ICE XW Nov04
      &       fice(lon,lan),tisfc(lon,lan),                              &
      &       solcon,coszen(lon,lan),coszdg(lon,lan),k1oz,k2oz,facoz,    &
      &       cv(lon,lan),cvt(lon,lan),cvb(lon,lan),                     &
-     &       IOVR_SW,IOVR_LW,f_ice,f_rain,r_rime,flgmin_l,              &
-     &       NUM_P3D,NTCW-1,NCLD,NTOZ-1,NTRAC-1,NFXR,                   &
-     &       dtlw,dtsw, lsswr,lslwr,lssav,sashal,                       &
-     &       NGPTC,njeff,LEVR,IFLIP, me, lprnt,                         &
+     &       IOVR_SW,IOVR_LW,f_ice,f_rain,r_rime,flgmin_v,              &
+     &       icsdsw,icsdlw,NUM_P3D,NTCW-1,NCLD,NTOZ-1,NTRAC-1,NFXR,     &
+     &       dtlw,dtsw, lsswr,lslwr,lssav,sashal,norad_precip,          &
+     &       crick_proof, ccnorm,                                       &
+     &       NGPTC,njeff,LEVR,IFLIP, me, lprnt, ipt, kdt,               &
 !  ---  outputs:
-     &       swh(1,1,iblk,lan),sfcnsw(lon,lan),sfcdsw(lon,lan),         & ! sfcdsw FOR SEA-ICE XW Nov04
-     &       sfalb(lon,lan),                                            & ! lu [+1L]: add sfalb
-     &       hlw(1,1,iblk,lan),sfcdlw(lon,lan),tsflw(lon,lan),          & 
-     &       cldcov_v,                                                  & ! return instant cloud cover
+     &       swh(1,1,iblk,lan),topfsw,sfcfsw,sfalb(lon,lan),            &
+     &       hlw(1,1,iblk,lan),topflw,sfcflw,tsflw(lon,lan),            &
+     &       sfcemis(lon,lan),cldcov_v,                                 &
 !  ---  input/output:
      &       fluxr_v                                                    & 
 !! ---  optional outputs:
 !!   &,      HTRSWB=htrswb(1,1,1,iblk,lan),                             &
 !!   &,      HTRLWB=htrlwb(1,1,1,iblk,lan)                              &
      &     )
+
+!  --- ...  radiation fluxes for other physics process or diagnostics
+
+          if (lsswr) then
+            do i = 1, njeff
+              j = lon + i - 1
+              sfcdsw(j,lan) = sfcfsw(i)%dnfxc
+              sfcnsw(j,lan) = sfcfsw(i)%dnfxc - sfcfsw(i)%upfxc
+            enddo
+          endif
+          if (lslwr) then
+            do i = 1, njeff
+              j = lon + i - 1
+              sfcdlw(j,lan) = sfcflw(i)%dnfxc
+            enddo
+          endif
+
+!     write(0,*)' hlw=',hlw(ipt,1:10,iblk,lan),' lan=',lan,' ipt=',ipt,
+!    &' njeff=',njeff
+!     write(0,*)' swh=',swh(ipt,1:10,iblk,lan),' lan=',lan
 !
 ! grrad routine computes cldcov_v (instant 3D cloud cover)    -- Sarah Lu
 ! if ldiag3d is T, update cldcov (accumulative 3D cloud cover)
 ! if lgocart is T, update fcld (instant 3D cloud cover)
 
-          if (ldiag3d) then
+          if (ldiag3d .or. lggfs3d) then
             do k=1,levr
               do i=1,njeff
-                cldcov(k,istrt+i-1,lan) = cldcov(k,istrt+i-1,lan) +     &
-     &                                    cldcov_v(i,k) * raddt
+                item = lon+i-1
+                cldcov(k,item,lan) = cldcov(k,item,lan)                 &
+     &                                + cldcov_v(i,k) * raddt
               enddo
             enddo
           endif
           if (lgocart) then
             do k=1,levr
               do i=1,njeff
-                g3d_fld%fcld(istrt+i-1,lan,k) = cldcov_v(i,k) 
+                g3d_fld%fcld(lon+i-1,lan,k) = cldcov_v(i,k) 
               enddo
             enddo
           endif
 
           do k=1,nfxr
             do i=1,njeff
-              fluxr(k,istrt+i-1,lan) = fluxr_v(i,k)
+              fluxr(k,lon+i-1,lan) = fluxr_v(i,k)
             enddo
           enddo
-          if (levr .lt. levs) then
+          if (levr < levs) then
             do k=levr+1,levs
               do i=1,njeff
                 hlw(i,k,iblk,lan) = hlw(i,levr,iblk,lan)
@@ -507,7 +685,7 @@ cc
             enddo
           endif
  
-c$$$          write(2900+lat,*) ' ilon = ',istrt
+c$$$          write(2900+lat,*) ' ilon = ',lon
 c$$$          write(2900+lat,'("swh",T16,"hlw")')
 c$$$      do k=1,levs
 c$$$         write(2900+lat,
@@ -520,7 +698,7 @@ c$$$       enddo
           ENDDO
 !
       enddo
-cc
+!!
       call f_hpmstop(69)
 !!
       CALL countperf(0,5,0.)

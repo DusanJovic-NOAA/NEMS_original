@@ -1,5 +1,5 @@
       subroutine gwdc(im,ix,iy,km,lat,u1,v1,t1,q1,
-     &                rcs,pmid1,pint1,dpmid1,qmax,cumchr1,ktop,kbot,kuo,
+     &                pmid1,pint1,dpmid1,qmax,cumchr1,ktop,kbot,kuo,
      &                fu1,fv1,g,cp,rd,fv,dlength,lprnt,ipr,fhour,
      &                tauctx,taucty,brunm1,rhom1)
 !    &                gwdcloc,critic,brunm1,rhom1)
@@ -25,8 +25,6 @@
 !  pmid     : midpoint pressures
 !  pint     : interface pressures
 !  dpmid    : midpoint delta p ( pi(k)-pi(k-1) )
-!  rcs      : reciprocal of cosine latitude         rcs=1/cos(lat)
-!  rcsi     : cosine latitude                       rcsi=cos(lat)
 !  lat      : latitude index
 !  qmax     : deep convective heating
 !  kcldtop  : Vertical level index for cloud top    ( mid level ) 
@@ -44,7 +42,7 @@
       integer ktop(im),kbot(im),kuo(im)
       integer kcldtop(im),kcldbot(im)
 
-      real(kind=kind_phys) g,cp,rd,fv,dlength(im),rcs(im),rcsi(im)
+      real(kind=kind_phys) g,cp,rd,fv,dlength(im)
       real(kind=kind_phys) qmax(ix),cumchr1(ix,km),cumchr(ix,km)
       real(kind=kind_phys) fhour,fhourpr
       real(kind=kind_phys) u1(ix,km),v1(ix,km),t1(ix,km),q1(ix,km),
@@ -178,12 +176,12 @@
       if (lprnt) then
         if (fhour.ge.fhourpr) then
           print *,' '
-          write(0,*) 'Inside GWDC raw input start print at fhour = ',
+          write(*,*) 'Inside GWDC raw input start print at fhour = ',
      &               fhour
-          write(0,*) 'IX  IM  KM  ',ix,im,km
-          write(0,*) 'KBOT KTOP QMAX DLENGTH KUO  ',
+          write(*,*) 'IX  IM  KM  ',ix,im,km
+          write(*,*) 'KBOT KTOP QMAX DLENGTH KUO  ',
      +     kbot(ipr),ktop(ipr),qmax(ipr),dlength(ipr),kuo(ipr)
-          write(0,*) 'g  cp  rd  RCS  ',g,cp,rd,RCS(ipr)
+          write(*,*) 'g  cp  rd  ',g,cp,rd
 
 !-------- Pressure levels ----------
           write(*,9100)
@@ -215,21 +213,17 @@
 
 !-----------------------------------------------------------------------
 !        Create local arrays with reversed vertical indices
-!        Make regular (U,V) by using array RCS=1/cos(lat)
-!          Incoming (U1,V1)=cos(lat)*(U,V)
-!        Make pressure have unit of Pa [Multiply by 1000]
-!          Incoming pressures in kPa
 !-----------------------------------------------------------------------
 
       do k=1,km
         k1 = km - k + 1
         do i=1,im
-          u(i,k)      = u1(i,k1)*rcs(i)
-          v(i,k)      = v1(i,k1)*rcs(i)
+          u(i,k)      = u1(i,k1)
+          v(i,k)      = v1(i,k1)
           t(i,k)      = t1(i,k1)
           spfh(i,k)   = max(q1(i,k1),qmin)
-          pmid(i,k)   = pmid1(i,k1)*1000.
-          dpmid(i,k)  = dpmid1(i,k1)*1000.
+          pmid(i,k)   = pmid1(i,k1)
+          dpmid(i,k)  = dpmid1(i,k1)
           cumchr(i,k) = cumchr1(i,k1)
         enddo
       enddo
@@ -237,7 +231,7 @@
       do k=1,km+1
         k1 = km - k + 2
         do i=1,im
-          pint(i,k) = pint1(i,k1)*1000.
+          pint(i,k) = pint1(i,k1)
         enddo
       enddo
 
@@ -1053,18 +1047,14 @@ C     vtgwc(i,kk) = - tem1 * ystress
 
 !-----------------------------------------------------------------------
 !        Convert back local GWDC Tendency arrays to GFS model vertical indices
-!        Make output Tendencies cos-weighted by using array RCS=1/cos(lat)
-!        Outgoing (FU1,FV1)=cos(lat)*(utgwc,vtgwc)
+!        Outgoing (FU1,FV1)=(utgwc,vtgwc)
 !-----------------------------------------------------------------------
 
-      do i=1,im
-        rcsi(i) = one / rcs(i)
-      enddo
       do k=1,km
         k1=km-k+1
         do i=1,im
-          fu1(i,k1)    = utgwc(i,k)*rcsi(i)
-          fv1(i,k1)    = vtgwc(i,k)*rcsi(i)
+          fu1(i,k1)    = utgwc(i,k)
+          fv1(i,k1)    = vtgwc(i,k)
           brunm1(i,k1) = brunm(i,k)
           rhom1(i,k1)  = rhom(i,k)
         enddo

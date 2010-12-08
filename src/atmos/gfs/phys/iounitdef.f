@@ -32,7 +32,6 @@
 !     NOSFCF  - output, surface file for post process           62     !
 !     NOFLXF  - output, flux file for post process              63     !
 !     NOD3DF  - output, 3-d  file for post process              64     !
-!     NOAERF  - output, 2-d  file for post process              65     !
 !     NOLOGF  - output, log  file                               99     !
 !                                                                      !
 !     NIOFRAD - in/out, temperary radiation data file (shared)  16     !
@@ -77,7 +76,6 @@
       integer, parameter :: NOSFCF  = 62
       integer, parameter :: NOFLXF  = 63
       integer, parameter :: NOD3DF  = 64
-      integer, parameter :: NOAERF  = 65    ! for g2d_fld
       integer, parameter :: NOLOGF  = 99
 
 !  --- ...  in/out units

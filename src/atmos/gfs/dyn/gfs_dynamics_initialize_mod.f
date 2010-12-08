@@ -19,6 +19,7 @@
 !  Oct 16  2009 sarah lu         initialize gfs_dyn_tracer
 !  november 2009 j. wang         grid_gr_dfi for digital filter
 !  Feb 05  2010 j. wang          add option to read in  restart file
+!  Aug 19  2010 S. Moorthi       Updated for T574 + added num_reduce to namelist
 !  Aug 25  2010 sarah lu         add option to compute tracer global sum
 !  Sep 08  2010 J. Wang          changed gfsio file to nemsio file
 !
@@ -36,9 +37,8 @@
       use gfs_dyn_mod_state, only : buff_mult_pieceg
       use gfs_dyn_layout1, only : ipt_lats_node_a, lats_node_a_max
       use gfs_dyn_resol_def, only : adiabatic
-      use namelist_dynamics_def, only : fhrot,fhini
-      use gfs_dyn_tracer_config, only: gfs_dyn_tracer,     &
-                                       tracer_config_init
+      use namelist_dynamics_def, only : fhrot,fhini,num_reduce
+      use gfs_dyn_tracer_config, only: gfs_dyn_tracer, tracer_config_init
 
       implicit none
 
@@ -69,6 +69,7 @@
 ! set up gfs internal state dimension and values for dynamics etc
 !-------------------------------------------------------------------
       me     = gis_dyn%me
+      if (me == 0)                                                      &
       write(0,*)'in initial,nbefore allocate lonsperlat,',allocated(gis_dyn%lonsperlat),'latg=',latg
 !
       nodes  = gis_dyn%nodes
@@ -203,14 +204,15 @@
 !hmhj allocate(z(lnt2))        ! not used
 !hmhj allocate(z_r(lnt2))      ! not used
 !
+      if (me == 0)                                                       &
       write(0,*)'before allocate lonsperlat,',allocated(gis_dyn%lonsperlat),'latg=',latg
       allocate(gis_dyn%lonsperlat(latg))
 
       if( reduced_grid ) then
-        print *,' run with reduced gaussian grid '
-        call set_lonsgg(gis_dyn%lonsperlat)
+        if (me == 0) print *,' run with reduced gaussian grid '
+        call set_lonsgg(gis_dyn%lonsperlat,num_reduce,me)
       else
-        print *,' run with full gaussian grid '
+        if (me == 0) print *,' run with full gaussian grid '
         do j=1,latg
           gis_dyn%lonsperlat(j) = lonf
         enddo
@@ -393,36 +395,37 @@
         print*,'number of threads is',num_parthds()
         print*,'number of mpi procs is',nodes
       endif
-!c
+!
       gis_dyn%cons0    =    0.0d0     !constant
       gis_dyn%cons0p5  =    0.5d0     !constant
       gis_dyn%cons1200 = 1200.d0      !constant
       gis_dyn%cons3600 = 3600.d0      !constant
-!c
+!
       ls_dim = (jcap1-1)/nodes+1
 !!
 !cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-!c
-      write(0,*)'befpre allocate ls_nodes,',allocated(gis_dyn%ls_nodes),'ls_dim=', &
-        ls_dim,'nodes=',nodes
-!c
+!
+      if (me == 0)                                                       &
+       write(0,*)'befpre allocate ls_nodes,',allocated(gis_dyn%ls_nodes),&
+       'ls_dim=', ls_dim,'nodes=',nodes
+!
       allocate (      gis_dyn%ls_node (ls_dim*3) )
       allocate (      gis_dyn%ls_nodes(ls_dim,nodes) )
       allocate (  gis_dyn%max_ls_nodes(nodes) )
-!c
+!
       allocate (  gis_dyn%lats_nodes_a_fix(nodes))     ! added for mGrid
-!c
+!
       allocate (  gis_dyn%lats_nodes_a(nodes) )
       allocate ( gis_dyn%global_lats_a(latg) )
-!c
+!
       allocate (   gis_dyn%lats_nodes_ext(nodes) )
       allocate ( gis_dyn%global_lats_ext(latg+2*jintmx+2*nypt*(nodes-1)) )
-!c
-!c
+!
+!
       gis_dyn%iprint = 0
       call get_ls_node( me, gis_dyn%ls_node, ls_max_node, gis_dyn%iprint )
-!c
-!c
+!
+!
       len_trie_ls=0
       len_trio_ls=0
       do locl=1,ls_max_node
@@ -432,7 +435,7 @@
          len_trie_ls=len_trie_ls+(jcap+3-l)/2
          len_trio_ls=len_trio_ls+(jcap+2-l)/2
       enddo
-      print *,'ls_node=',gis_dyn%ls_node(1:ls_dim),'2dim=',  &
+      if (me == 0) print *,'ls_node=',gis_dyn%ls_node(1:ls_dim),'2dim=',  &
          gis_dyn%ls_node(ls_dim+1:2*ls_dim),'3dim=',  &
          gis_dyn%ls_node(2*ls_dim+1:3*ls_dim)
 !c
@@ -481,6 +484,7 @@
 !
       gis_dyn%lats_node_a=gis_dyn%lats_nodes_a(me+1)
       gis_dyn%ipt_lats_node_a=ipt_lats_node_a
+      if (me == 0)                                                       &
       write(0,*)'after getcon_dynamics,lats_node_a=',gis_dyn%lats_node_a &
        ,'ipt_lats_node_a=',gis_dyn%ipt_lats_node_a,'ngptc=',ngptc
 !
@@ -568,17 +572,19 @@
 !
 !## allocate output vars
       allocate(buff_mult_pieceg(lonf,lats_node_a_max,ngrids_gg))
-      buff_mult_pieceg=0.
-      adiabatic=gis_dyn%adiabatic
+      buff_mult_pieceg = 0.
+      adiabatic = gis_dyn%adiabatic
 !##
 
 !!
       allocate (      gis_dyn%fhour_idate(1,5) )
 !      write(0,*)'after allocate fhour_idate'
 !
-     print*, ' lats_dim_a=', lats_dim_a, ' lats_node_a=', lats_node_a
-     print*, ' lats_dim_ext=', lats_dim_ext,              &
-              ' lats_node_ext=', lats_node_ext
+      if (me == 0) then
+        print*, ' lats_dim_a=', lats_dim_a, ' lats_node_a=', lats_node_a
+        print*, ' lats_dim_ext=', lats_dim_ext,                           &
+                ' lats_node_ext=', lats_node_ext
+      endif
 !c
       gis_dyn%grid_gr  = 0.0
       gis_dyn%grid_gr6 = 0.0
@@ -607,9 +613,11 @@
 !              ' sig_ini2=',gis_dyn%nam_gfs_dyn%sig_ini2 
       call countperf(0,18,0.)
       gis_dyn%pdryini = 0.0
-      print *,' grid_ini=',gis_dyn%nam_gfs_dyn%grid_ini,'fhrot=',fhrot,   &
-       'fhini=',fhini,'restart_run=',gis_dyn%restart_run
-      write(0,*)'before input_fields'
+
+      if (me == 0) then
+        print *,' grid_ini=',gis_dyn%nam_gfs_dyn%grid_ini,'fhrot=',fhrot,    &
+        'fhini=',fhini,'restart_run=',gis_dyn%restart_run
+      endif
 
       if( .not. gis_dyn%restart_run) then
         call input_fields(gis_dyn%nam_gfs_dyn%grid_ini, gis_dyn%pdryini,     &
@@ -674,10 +682,10 @@
 !
 ! =========================================================================
 !
-      subroutine set_lonsgg(lonsperlat)
-      use gfs_dyn_resol_def
+      subroutine set_lonsgg(lonsperlat,num_reduce,me)
+!     use gfs_dyn_resol_def
       use gfs_dyn_reduce_lons_grid_module, only : gfs_dyn_reduce_grid   ! hmhj
-      integer numreduce                                                 ! hmhj
+      integer num_reduce, me                                            ! hmhj
       integer lonsperlat(latg)
 
       integer lonsperlat_62(94)
@@ -687,6 +695,7 @@
       integer lonsperlat_254(384)
       integer lonsperlat_382(576)
       integer lonsperlat_510(766)
+      integer lonsperlat_574(880)
 
       data lonsperlat_62/                                                &
         30,  30,  30,  40,  48,  56,  60,  72,  72,  80,  90,  90,       &
@@ -829,44 +838,101 @@
         1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536,      &
         1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536,      &
         1536, 1536, 1536,  383*0/
+
+      data lonsperlat_574      /                                         &
+          18,   28,   32,   42,   48,   56,   64,   72,   80,   84,      &
+          90,  110,  110,  110,  120,  126,  132,  140,  144,  154,      &
+         160,  168,  176,  176,  192,  192,  198,  210,  210,  220,      &
+         224,  240,  240,  252,  252,  256,  264,  280,  280,  288,      &
+         288,  308,  308,  308,  320,  320,  330,  330,  352,  352,      &
+         352,  360,  384,  384,  384,  384,  396,  396,  420,  420,      &
+         420,  420,  440,  440,  440,  448,  462,  462,  462,  480,      &
+         480,  480,  504,  504,  504,  504,  512,  528,  528,  528,      &
+         560,  560,  560,  560,  560,  576,  576,  576,  616,  616,      &
+         616,  616,  616,  616,  630,  630,  630,  640,  660,  660,      &
+         660,  660,  672,  672,  704,  704,  704,  704,  704,  720,      &
+         720,  720,  768,  768,  768,  768,  768,  768,  768,  768,      &
+         770,  792,  792,  792,  792,  840,  840,  840,  840,  840,      &
+         840,  840,  840,  880,  880,  880,  880,  880,  880,  880,      &
+         896,  896,  896,  896,  924,  924,  924,  924,  924,  960,      &
+         960,  960,  960,  960,  960,  960,  990,  990,  990,  990,      &
+         990, 1008, 1008, 1008, 1008, 1024, 1024, 1024, 1056, 1056,      &
+        1056, 1056, 1056, 1056, 1120, 1120, 1120, 1120, 1120, 1120,      &
+        1120, 1120, 1120, 1120, 1120, 1120, 1120, 1152, 1152, 1152,      &
+        1152, 1152, 1152, 1152, 1232, 1232, 1232, 1232, 1232, 1232,      &
+        1232, 1232, 1232, 1232, 1232, 1232, 1232, 1232, 1232, 1232,      &
+        1232, 1260, 1260, 1260, 1260, 1260, 1260, 1260, 1280, 1280,      &
+        1280, 1280, 1280, 1320, 1320, 1320, 1320, 1320, 1320, 1320,      &
+        1320, 1320, 1344, 1344, 1344, 1344, 1344, 1344, 1386, 1386,      &
+        1386, 1386, 1386, 1386, 1386, 1386, 1386, 1386, 1386, 1408,      &
+        1408, 1408, 1408, 1408, 1440, 1440, 1440, 1440, 1440, 1440,      &
+        1440, 1440, 1440, 1440, 1536, 1536, 1536, 1536, 1536, 1536,      &
+        1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536,      &
+        1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536, 1536,      &
+        1536, 1536, 1536, 1536, 1584, 1584, 1584, 1584, 1584, 1584,      &
+        1584, 1584, 1584, 1584, 1584, 1584, 1584, 1584, 1584, 1584,      &
+        1584, 1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680,      &
+        1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680,      &
+        1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680,      &
+        1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680,      &
+        1680, 1680, 1680, 1680, 1680, 1680, 1680, 1680, 1760, 1760,      &
+        1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760,      &
+        1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760,      &
+        1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760,      &
+        1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760,      &
+        1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760,      &
+        1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760,      &
+        1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760,      &
+        1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760, 1760,      &
+         440*0/
  
       integer i
-      if (jcap .eq. 62) then
-         lonsperlat=lonsperlat_62
-      endif
-      if (jcap .eq. 126) then
-         lonsperlat=lonsperlat_126
-      endif
-      if (jcap .eq. 170) then
-         lonsperlat=lonsperlat_170
-      endif
-      if (jcap .eq. 190) then
-         lonsperlat=lonsperlat_190
-      endif
-      if (jcap .eq. 254) then
-         lonsperlat=lonsperlat_254
-      endif
-      if (jcap .eq. 382) then
-         lonsperlat=lonsperlat_382
-      endif
-      if (jcap .eq. 510) then
-         lonsperlat=lonsperlat_510
+      if (num_reduce < 0) then
+        if (jcap == 62) then
+           lonsperlat = lonsperlat_62
+        endif
+        if (jcap == 126) then
+           lonsperlat = lonsperlat_126
+        endif
+        if (jcap == 170) then
+           lonsperlat = lonsperlat_170
+        endif
+        if (jcap == 190) then
+           lonsperlat = lonsperlat_190
+        endif
+        if (jcap == 254) then
+           lonsperlat = lonsperlat_254
+        endif
+        if (jcap == 382) then
+           lonsperlat = lonsperlat_382
+        endif
+        if (jcap == 510) then
+           lonsperlat = lonsperlat_510
+        endif
+        if (jcap == 574) then
+           lonsperlat = lonsperlat_574
+        endif
       endif
 
-      if (jcap .ne. 62 .and. jcap .ne. 126 .and. jcap .ne. 170 .and.     &
-          jcap .ne. 190 .and.                                            &
+      if (jcap .ne. 62 .and. jcap .ne. 126 .and. jcap .ne. 170 .and.   &
+          jcap .ne. 190 .and. jcap .ne. 574 .and.                        &
           jcap .ne. 254 .and. jcap .ne. 382 .and. jcap .ne. 510) then
 ! compute reduced grid using juang 2003
-         print*,' non standard resolution  - lonsperlat',     &
-                ' computed locally'
-         numreduce=4                                                    ! hmhj
-         call gfs_dyn_reduce_grid (numreduce,jcap,latg,lonsperlat)      ! hmhj
-         print*,' reduced grid is computed - lonsperlat '    		! hmhj
+         if ( me == 0 ) then
+           print*,' non standard resolution  - lonsperlat',              &
+                  ' computed locally'
+         endif
+         call gfs_dyn_reduce_grid (abs(num_reduce),jcap,latg,lonsperlat)
+         if ( me == 0 ) then
+           print*,' Reduced grid is computed - lonsperlat '             ! hmhj
+         endif
       endif
 
-!     print*,' jcap = ',jcap
-!     print*,'min,max of lonsperlat = ',minval(lonsperlat),              &
-!             maxval(lonsperlat)
+      if ( me == 0 ) then
+        print*,' jcap = ',jcap
+        print*,'min,max of lonsperlat = ',minval(lonsperlat),              &
+                maxval(lonsperlat)
+      endif
 
       end subroutine set_lonsgg
 

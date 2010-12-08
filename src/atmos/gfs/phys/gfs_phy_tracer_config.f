@@ -73,7 +73,8 @@ c
 
 ! Read Chem_Registry
       reg = Chem_RegistryCreate ( ierr )
-!!    call Chem_RegistryPrint (reg)
+
+!!    if ( me == 0) call Chem_RegistryPrint (reg)
 
 ! ntrac_chem = number of chem tracers
       gfs_phy_tracer%ntrac_chem = reg%nq

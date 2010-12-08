@@ -9,7 +9,7 @@
 !                                                                      !
 !      'solinit'    -- read in solar constant                          !
 !         input:                                                       !
-!           ( ISOL, iyear, me )                                        !
+!           ( ISOL, iyear, iydat, me )                                 !
 !         output:                                                      !
 !           ( none )                                                   !
 !                                                                      !
@@ -34,6 +34,8 @@
 !     dec-15-2003  ---  yu-tai hou      combined compjd and fcstim and !
 !                       rewrite in fortran 90 compatable form          !
 !     feb-15-2006  ---  yu-tai hou      add 11-yr solar constant cycle !
+!     mar-19-2009  ---  yu-tai hou      modified solinit for climate   !
+!                       hindcast situation.                            !
 !                                                                      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
@@ -73,7 +75,7 @@
 !...................................
 
 !  ---  inputs:
-     &     ( ISOL, iyear, me )
+     &     ( ISOL, iyear, iydat, me )
 !  ---  outputs: ( none )
 
 !  ===================================================================  !
@@ -83,8 +85,11 @@
 !  inputs:                                                              !
 !     ISOL    - =0: use fixed solar constant in "physcon"               !
 !               =1: use 11-year cycle solar constant from table         !
-!     iyear   - year of the recorded data             1                 !
-!     me      - print message control flag            1                 !
+!     iyear   - year of the requested data (for ISOL=1 only)            !
+!     iydat   - usually =iyear. if not, it is for hindcast mode, and it !
+!               is usually the init cond time and serves as the upper   !
+!               limit of data can be used.                              !
+!     me      - print message control flag                              !
 !                                                                       !
 !  outputs:  (to module variable)                                       !
 !     ( none )                                                          !
@@ -101,7 +106,7 @@
       implicit none
 
 !  ---  input:
-      integer,  intent(in) :: ISOL, iyear, me
+      integer,  intent(in) :: ISOL, iyear, iydat, me
 
 !  ---  output: ( none )
 
@@ -125,7 +130,7 @@
         return
       endif
 
-!  --- ... check to see if solar constant data file existed
+!  --- ... check to see if the solar constant data file existed
 
       inquire (file=cfile0, exist=file_exist)
       if ( .not. file_exist ) then
@@ -147,6 +152,41 @@
         read (NIRADSF, 24) iyr1, iyr2, smean, cline
   24    format(i4,2x,i4,f8.2,a60)
 
+!  --- ...  check if there is a upper year limit put on the data table
+
+        if ( iyear /= iydat ) then
+          if ( iydat-iyr1 < 11 ) then    ! need data range at least 11 years
+                                         ! to perform 11-year cycle approx
+            if ( me == 0 ) then
+              print *,' - Using varying solar constant with 11-year',   &
+     &                ' cycle'
+              print *,'  *** the requested year',iyear,' and upper ',   &
+     &                'limit',iydat,' do not fit the range of data ',   &
+     &                'table of iyr1, iyr2 =',iyr1,iyr2
+              print *,'      USE FIXED SOLAR CONSTANT=',con_solr
+            endif
+
+            solc0 = con_solr
+            return
+
+          elseif ( iydat < iyr2 ) then
+
+!  --- ...  because the usage limit put on the historical data table,
+!           skip those unused data records at first
+
+            i = iyr2
+            Lab_dowhile0 : do while ( i > iydat )
+!             read (NIRADSF,26) jyr, solc1
+! 26          format(i4,f8.2)
+              read (NIRADSF,*) jyr, solc1
+              i = i - 1
+            enddo Lab_dowhile0
+
+            iyr2 = iydat   ! next record will serve the upper limit
+
+          endif   ! end if_iydat_block
+        endif   ! end if_iyear_block
+
         if ( me == 0 ) then
           print *,' - Using varying solar constant with 11-year cycle'
           print *,'   Opened solar constant data file: ',cfile0
@@ -159,7 +199,8 @@
           enddo Lab_dowhile1
 
           if ( me == 0 ) then
-            print *,'   *** Year',iyear,' out of table range!'
+            print *,'   *** Year',iyear,' out of table range!',         &
+     &              iyr1, iyr2
             print *,'       Using the 11-cycle year (',iyr,' ) value.'
           endif
         elseif ( iyr > iyr2 ) then
@@ -168,10 +209,13 @@
           enddo Lab_dowhile2
 
           if ( me == 0 ) then
-            print *,'   *** Year',iyear,' out of table range!'
+            print *,'   *** Year',iyear,' out of given table range!',   &
+     &              iyr1, iyr2
             print *,'       Using the 11-cycle year (',iyr,' ) value.'
           endif
         endif
+
+!  --- ...  locate the right record year of data
 
         i = iyr2
         Lab_dowhile3 : do while ( i >= iyr1 )

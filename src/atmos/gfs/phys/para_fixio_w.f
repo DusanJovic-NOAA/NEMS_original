@@ -51,7 +51,7 @@
 !
 !@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 !
-      print *,'in para_fix_w'
+!      print *,'in para_fix_w'
       nsfcrec=31
       fieldsize=sum(lonsperlar)
       nphyfld=nsfcrec+3*lsoil+num_p2d+num_p3d*levs
@@ -60,7 +60,7 @@
       call fld_collect(sfc_fld,phy_f2d,phy_f3d,ngptc,nblck,
      &  fieldsize,nphyfld,bfo,lats_nodes_r,global_lats_r,lonsperlar,
      &  ioproc,nsfcrec)
-       write(0,*)'after fld_collect'
+!       write(0,*)'after fld_collect'
 !
       if (me.eq.ioproc) then
         if (first) then
@@ -71,7 +71,7 @@
           allocate(variname(nmetavari),varival(nmetavari))
           variname=(/'ivs   ','irealf'/)
           varival=(/ivssfc_restart, 2/)
-          print *,'after vari'
+!          print *,'after vari'
 
           nmetaaryi=1
           allocate(aryiname(nmetaaryi),aryilen(nmetaaryi))
@@ -79,7 +79,7 @@
           aryilen(1)=latr/2
           allocate(aryival(maxval(aryilen),nmetaaryi))
           aryival(1:latr/2,1)=lonsperlar(1:latr/2)
-          print *,'after aryi'
+!          print *,'after aryi'
 !
           nmetaaryr8=1
           allocate(aryr8name(nmetaaryr8),aryr8len(nmetaaryr8))
@@ -91,7 +91,7 @@
           elseif (lsoil .eq. 2) then
             aryr8val(1:lsoil,1) = (/-0.1,-2.0/)
           endif
-          print *,'after aryr8'
+!          print *,'after aryr8'
 !
           nmetavarr8=1
           allocate(varr8name(nmetavarr8),varr8val(nmetavarr8))
@@ -101,8 +101,8 @@
           nrecs=nsfcrec
           nrecs1=nrecs+1
           nrec=nrecs+3*nsoil+num_p3d*levs+num_p2d
-          write(0,*)'after nrec=',nrec,'nsoil=',nsoil,'num_p3d=',
-     &      num_p3d,'num_p2d=',num_p2d
+!          write(0,*)'after nrec=',nrec,'nsoil=',nsoil,'num_p3d=',
+!     &      num_p3d,'num_p2d=',num_p2d
           allocate(recname(nrec),reclevtyp(nrec),reclev(nrec))
 !record name
           RECNAME(1)='tmp'
@@ -154,7 +154,7 @@
             RECNAME(3*NSOIL+num_p2d+nrecs1+(k-1)*levs:
      &        nrecs+3*NSOIL+num_p2d+k*levs)='phyf3d_'//nump3d
           enddo
-          print *,'after recname=',recname(36:40),recname(46:50)
+!          print *,'after recname=',recname(36:40),recname(46:50)
 !
           RECLEVTYP(1:nrecs)='sfc'
           RECLEVTYP(12)='10 m above gnd'
@@ -162,7 +162,7 @@
           RECLEVTYP(nrecs1+3*nsoil:nrecs+3*nsoil+num_p2d)='sfc'
           RECLEVTYP(nrecs1+3*nsoil+num_p2d:nrecs+
      &       3*nsoil+num_p3d*levs+num_p2d)='mid layer'
-          print *,'after reclevtyp=',reclevtyp(36:40),reclevtyp(46:50)
+!          print *,'after reclevtyp=',reclevtyp(36:40),reclevtyp(46:50)
 !
           RECLEV(1:nrecs)=1
           DO K=1,NSOIL
@@ -176,7 +176,7 @@
             RECLEV(nrecs+3*nsoil+num_p2d+(l-1)*levs+k)=k
           enddo
           enddo
-          print *,'after reclev=',reclev(36:40),reclev(46:50)
+!          print *,'after reclev=',reclev(36:40),reclev(46:50)
 !
 !endif first 
         endif

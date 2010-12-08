@@ -16,10 +16,12 @@
      &                 pdryini,nblck,ZHOUR,N1,N4,
      &                 LSOUT,ldfi,COLAT1,CFHOUR1,                             ! jw
      &                 start_step,restart_step,reset_step,end_step,
-     &                 nfcstdate7)
+     &                 dfiend_step,nfcstdate7)
 cc
 ! Program History Log:
 ! Aug 2010    Sarah Lu modified to compute tracer global sum
+! Oct 2010    Jun Wang added digital filter step 
+! Nov 2010    S Moorthi cleaned up rearranged a little
 !----------------------------------------------
 cc
       use gfs_dyn_resol_def
@@ -114,7 +116,8 @@ c
       real (kind=kind_grid) ptrcg(latg),sumtrc(ntrac),ptrcp(ntrac)      !glbsum
 !
       REAL (KIND=KIND_grid) filtb,typical_pgr
-      REAL (KIND=KIND_grid) cons0,cons1,cons2,cons0p5
+      REAL (KIND=KIND_grid), parameter :: cons0=0.0d0, cons1=1.0d0,
+     &                                    cons2=2.0d0, cons0p5 = 0.5d0
       INTEGER               kdt,IERR,I,J,K,L,LOCL,N
       real(kind=kind_evod)  ye1(levs)
       REAL(KIND=kind_mpi)   coef00m(LEVS,ntrac) ! temp. ozone clwater  
@@ -123,13 +126,13 @@ c
       INTEGER               INDLSOD,JBASOD
       integer               lan,lat,nt
       integer               lon_dim,lons_lat,node,nvcn
-      integer               iblk,njeff,istrt,lon
+      integer               iblk,njeff,lon,item,jtem,ktem,ltem
       integer , parameter :: ngptcd = 12
       logical , parameter :: repro = .false.
       include 'function2'
       LOGICAL               LSLAG,LSOUT,ex_out
       LOGICAL               start_step,reset_step,end_step
-      LOGICAL               restart_step
+      LOGICAL               restart_step,dfiend_step
       LOGICAL, parameter          :: ladj = .false.
 !     LOGICAL, parameter          :: ladj = .true.
       LOGICAL, save               :: fwd_step = .true.
@@ -152,8 +155,8 @@ c
       real(kind=kind_evod) spdmax_nodes(levs,nodes)
       real(kind=kind_mpi) spdmax_nodesm(levs,nodes)
 !
-c
-c timings
+!
+! timings
       real(kind=kind_evod) global_times_a(latg,nodes)
       integer tag,ireq1,ireq2
       real*8 rtc ,timer1,timer2
@@ -162,103 +165,99 @@ c timings
 !     print *,' ----------------- do two loop ------------- '
 !
 !     shour=shour+deltim
-      shour= kdt * deltim
+      shour = kdt * deltim
       fhour = shour/3600.
-      cons0=0.0d0
-      cons1=1.0d0
-      cons2=2.0d0
-      cons0p5 = 0.5d0                        !constant
-      filtb = (cons1-filta)*cons0p5          !constant
+      filtb = (cons1-filta)*cons0p5
 !
 !----------------------------------------------------------
 !jw      if (.NOT.LIOPE.or.icolor.ne.2) then
-      if (me<num_pes_fcst) then
+      if (me < num_pes_fcst) then
 !----------------------------------------------------------
 !
-      if(zfirst) then
-        allocate (szdrdt(lonfx*levh,lats_dim_a))
-        szdrdt=0.
-      endif
+        if(zfirst) then
+          allocate (szdrdt(lonfx*levh,lats_dim_a))
+          szdrdt = 0.
+        endif
 !!
 ! -----------------------------------
-      if( start_step ) then
+        if( start_step ) then
 ! --------------------------------------------------------------
 ! if the first step, from internal state, prepare syn for nonlinear
 ! -------- this section is called once only ---------
 ! --------------------------------------------------------------
-       print *,' start step from internal state (grid and spectral)'
+          print *,' start step from internal state (grid and spectral)'
 
-        fwd_step = .true.
-        dt  = deltim*0.5
-        dt2=cons2*dt
-        rdt2=1./dt2
-        if(hybrid)then
-          call get_cd_hyb(dt)
-        else if( gen_coord_hybrid ) then           
-          call get_cd_hyb_gc(dt)    
-        else
-          call get_cd_sig(am,bm,dt,tov,sv)
-        endif
+          fwd_step = .true.
+          dt   = deltim*0.5
+          dt2  = cons2*dt
+          rdt2 = 1./dt2
+          if(hybrid)then
+            call get_cd_hyb(dt)
+          else if( gen_coord_hybrid ) then           
+            call get_cd_hyb_gc(dt)    
+          else
+            call get_cd_sig(am,bm,dt,tov,sv)
+          endif
 
-        call spect_to_grid
-     &      (trie_ls,trio_ls, 
-     &       syn_gr_a_1,syn_gr_a_2,
-     &       ls_node,ls_nodes,max_ls_nodes,
-     &       lats_nodes_a,global_lats_a,lonsperlat,
-     &       epse,epso,epsedn,epsodn,
-     &       snnp1ev,snnp1od,plnev_a,plnod_a)
-        start_step = .false.
+          call spect_to_grid
+     &        (trie_ls,trio_ls, 
+     &         syn_gr_a_1,syn_gr_a_2,
+     &         ls_node,ls_nodes,max_ls_nodes,
+     &         lats_nodes_a,global_lats_a,lonsperlat,
+     &         epse,epso,epsedn,epsodn,
+     &         snnp1ev,snnp1od,plnev_a,plnod_a)
+          start_step = .false.
 ! -------------------------------------------------------
-      else if( reset_step ) then
+        else if( reset_step ) then
 ! --------------------------------------------------------------
 ! if it is reset step to reset internal state to be import state
 ! -------- this section is called once only ---------
 ! --------------------------------------------------------------
-!       print *,' reset internal values by import for all '
+!         print *,' reset internal values by import for all '
 
-        fwd_step = .true.
-        dt  = deltim*0.5
-        dt2=cons2*dt
-        rdt2=1./dt2
-        if(hybrid)then
-          call get_cd_hyb(dt)
-        else if( gen_coord_hybrid ) then           
-          call get_cd_hyb_gc(dt)    
-        else
-          call get_cd_sig(am,bm,dt,tov,sv)
-        endif
+          fwd_step = .true.
+          dt   = deltim*0.5
+          dt2  = cons2*dt
+          rdt2 = 1./dt2
+          if(hybrid)then
+            call get_cd_hyb(dt)
+          else if( gen_coord_hybrid ) then           
+            call get_cd_hyb_gc(dt)    
+          else
+            call get_cd_sig(am,bm,dt,tov,sv)
+          endif
 
-        call do_dynamics_gridn2anl(grid_gr,anl_gr_a_2,
-     &                             global_lats_a,lonsperlat)
-        call grid_to_spect(trie_ls,trio_ls,
-     &       anl_gr_a_1,anl_gr_a_2,
-     &       ls_node,ls_nodes,max_ls_nodes,
-     &       lats_nodes_a,global_lats_a,lonsperlat,
-     &       epse,epso,plnew_a,plnow_a)
+          call do_dynamics_gridn2anl(grid_gr,anl_gr_a_2,
+     &                               global_lats_a,lonsperlat)
+          call grid_to_spect(trie_ls,trio_ls,
+     &         anl_gr_a_1,anl_gr_a_2,
+     &         ls_node,ls_nodes,max_ls_nodes,
+     &         lats_nodes_a,global_lats_a,lonsperlat,
+     &         epse,epso,plnew_a,plnow_a)
 !---------------------------------------------------------------
 !set n and n-1 time level values as import
 ! spectral
-!       print *,' set time level n to time level n-1 '
-        call do_dynamics_spectn2c(trie_ls,trio_ls)
-        call do_dynamics_spectn2m(trie_ls,trio_ls)
+          print *,' set time level n to time level n-1 '
+          call do_dynamics_spectn2c(trie_ls,trio_ls)
+          call do_dynamics_spectn2m(trie_ls,trio_ls)
 ! grid
-        call do_dynamics_gridn2c(grid_gr,
-     &                           global_lats_a,lonsperlat)
-        call do_dynamics_gridn2m(grid_gr,
-     &                           global_lats_a,lonsperlat)
+          call do_dynamics_gridn2c(grid_gr,
+     &                             global_lats_a,lonsperlat)
+          call do_dynamics_gridn2m(grid_gr,
+     &                             global_lats_a,lonsperlat)
 !
 ! call after digital filter, prepare syn for nonlinear forcing
 !
-        call spect_to_grid
-     &      (trie_ls,trio_ls, 
-     &       syn_gr_a_1,syn_gr_a_2,
-     &       ls_node,ls_nodes,max_ls_nodes,
-     &       lats_nodes_a,global_lats_a,lonsperlat,
-     &       epse,epso,epsedn,epsodn,
-     &       snnp1ev,snnp1od,plnev_a,plnod_a)
-        reset_step = .false.
+          call spect_to_grid
+     &        (trie_ls,trio_ls, 
+     &         syn_gr_a_1,syn_gr_a_2,
+     &         ls_node,ls_nodes,max_ls_nodes,
+     &         lats_nodes_a,global_lats_a,lonsperlat,
+     &         epse,epso,epsedn,epsodn,
+     &         snnp1ev,snnp1od,plnev_a,plnod_a)
+          reset_step = .false.
 ! -------------------------------------------------------
-      else	! end start_step, begin not start_step 
+        else	! end start_step, begin not start_step 
 ! ------------------------------------------------------
 ! start linear computation
 ! -----------------------------------------------------------
@@ -267,17 +266,17 @@ c timings
 !
 ! update after physics 
 !
-        call do_dynamics_gridn2anl(grid_gr,anl_gr_a_2,
-     &                             global_lats_a,lonsperlat)
+          call do_dynamics_gridn2anl(grid_gr,anl_gr_a_2,
+     &                               global_lats_a,lonsperlat)
 !
 ! transform values in grid to spectral
 !
-        call grid_to_spect
-     &    (trie_ls,trio_ls,
-     &     anl_gr_a_1,anl_gr_a_2,
-     &     ls_node,ls_nodes,max_ls_nodes,
-     &     lats_nodes_a,global_lats_a,lonsperlat,
-     &     epse,epso,plnew_a,plnow_a)
+          call grid_to_spect
+     &      (trie_ls,trio_ls,
+     &       anl_gr_a_1,anl_gr_a_2,
+     &       ls_node,ls_nodes,max_ls_nodes,
+     &       lats_nodes_a,global_lats_a,lonsperlat,
+     &       epse,epso,plnew_a,plnow_a)
 
 !
 !
@@ -285,391 +284,414 @@ c timings
 !
 !     print *,' ----- do bfilter ------ '
 
-      do k=1,levs
-         do i=1,len_trie_ls
-         trie_ls_rqt(i,1,k)=bfilte(i)*
-     &  (trie_ls    (i,1,p_rt+k-1)-trie_ls(i,1,p_rq+k-1))
-         trie_ls_rqt(i,2,k)=bfilte(i)*
-     &  (trie_ls    (i,2,p_rt+k-1)-trie_ls(i,2,p_rq+k-1))
-         trie_ls(i,1,p_w  +k-1)=trie_ls(i,1,p_ze+k-1)+bfilte(i)*
-     &  (trie_ls(i,1,p_w  +k-1)-trie_ls(i,1,p_ze+k-1))
-         trie_ls(i,2,p_w  +k-1)=trie_ls(i,2,p_ze+k-1)+bfilte(i)*
-     &  (trie_ls(i,2,p_w  +k-1)-trie_ls(i,2,p_ze+k-1))
-         enddo
-      enddo
+          do k=1,levs
+            item = p_rt + k - 1
+            jtem = p_rq + k - 1
+            ktem = p_w  + k - 1
+            ltem = p_ze + k - 1
+            do i=1,len_trie_ls
+              trie_ls_rqt(i,1,k) = bfilte(i)*
+     &                            (trie_ls(i,1,item)-trie_ls(i,1,jtem))
+              trie_ls_rqt(i,2,k) = bfilte(i)*
+     &                            (trie_ls(i,2,item)-trie_ls(i,2,jtem))
+              trie_ls(i,1,ktem)  = trie_ls(i,1,ltem) + 
+     &                 bfilte(i) *(trie_ls(i,1,ktem)-trie_ls(i,1,ltem))
+              trie_ls(i,2,ktem)  = trie_ls(i,2,ltem) + 
+     &                 bfilte(i) *(trie_ls(i,2,ktem)-trie_ls(i,2,ltem))
+            enddo
 !!
-      do k=1,levs
-         do i=1,len_trio_ls
-         trio_ls_rqt(i,1,k)=bfilto(i)*
-     &  (trio_ls    (i,1,p_rt+k-1)-trio_ls(i,1,p_rq+k-1))
-         trio_ls_rqt(i,2,k)=bfilto(i)*
-     &  (trio_ls    (i,2,p_rt+k-1)-trio_ls(i,2,p_rq+k-1))
-         trio_ls(i,1,p_w  +k-1)=trio_ls(i,1,p_ze+k-1)+bfilto(i)*
-     &  (trio_ls(i,1,p_w  +k-1)-trio_ls(i,1,p_ze+k-1))
-         trio_ls(i,2,p_w  +k-1)=trio_ls(i,2,p_ze+k-1)+bfilto(i)*
-     &  (trio_ls(i,2,p_w  +k-1)-trio_ls(i,2,p_ze+k-1))
-         enddo
-      enddo
+            do i=1,len_trio_ls
+              trio_ls_rqt(i,1,k) = bfilto(i)*
+     &                            (trio_ls(i,1,item)-trio_ls(i,1,jtem))
+              trio_ls_rqt(i,2,k) = bfilto(i)*
+     &                            (trio_ls(i,2,item)-trio_ls(i,2,jtem))
+              trio_ls(i,1,ktem)  = trio_ls(i,1,ltem) +
+     &                 bfilto(i) *(trio_ls(i,1,ktem)-trio_ls(i,1,ltem))
+              trio_ls(i,2,ktem)  = trio_ls(i,2,ltem) +
+     &                 bfilto(i) *(trio_ls(i,2,ktem)-trio_ls(i,2,ltem))
+            enddo
+          enddo
 !!
-      do k=1,levh
-       do i=1,len_trie_ls
-        trie_ls(i,1,p_rt+k-1)=trie_ls(i,1,p_rq+k-1)+bfilte(i)*
-     & (trie_ls(i,1,p_rt+k-1)-trie_ls(i,1,p_rq+k-1))
-        trie_ls(i,2,p_rt+k-1)=trie_ls(i,2,p_rq+k-1)+bfilte(i)*
-     & (trie_ls(i,2,p_rt+k-1)-trie_ls(i,2,p_rq+k-1))
-       enddo
-       do i=1,len_trio_ls
-        trio_ls(i,1,p_rt+k-1)=trio_ls(i,1,p_rq+k-1)+bfilto(i)*
-     & (trio_ls(i,1,p_rt+k-1)-trio_ls(i,1,p_rq+k-1))
-        trio_ls(i,2,p_rt+k-1)=trio_ls(i,2,p_rq+k-1)+bfilto(i)*
-     & (trio_ls(i,2,p_rt+k-1)-trio_ls(i,2,p_rq+k-1))
-       enddo
-      enddo
+          do k=1,levh
+            item = p_rt+k-1
+            jtem = p_rq+k-1
+            do i=1,len_trie_ls
+              trie_ls(i,1,item) =  trie_ls(i,1,jtem) +
+     &                bfilte(i) * (trie_ls(i,1,item)-trie_ls(i,1,jtem))
+              trie_ls(i,2,item) =  trie_ls(i,2,jtem) +
+     &                bfilte(i) * (trie_ls(i,2,item)-trie_ls(i,2,jtem))
+            enddo
+            do i=1,len_trio_ls
+              trio_ls(i,1,item) =  trio_ls(i,1,jtem) +
+     &                bfilto(i) * (trio_ls(i,1,item)-trio_ls(i,1,jtem))
+              trio_ls(i,2,item) =  trio_ls(i,2,jtem) +
+     &                bfilto(i) * (trio_ls(i,2,item)-trio_ls(i,2,jtem))
+            enddo
+          enddo
 !!
 !----------------------------------------------------------------------
-!     print *,' ----- do pdry correction ------ '
+!         print *,' ----- do pdry correction ------ '
 
-      if(hybrid)then
+          if(hybrid)then
 !  get some sigma distribution and compute   typdel from it.
-        typical_pgr=85.
+            typical_pgr=85.
 !sela  si(k)=(ak5(k)+bk5(k)*typical_pgr)/typical_pgr   !ak(k) bk(k) go top to botto
-        do k=1,levp1
-         si(levs+2-k)= ak5(k)/typical_pgr+bk5(k)
-        enddo
-      endif
+            do k=1,levp1
+              si(levs+2-k) = ak5(k)/typical_pgr + bk5(k)
+            enddo
+          endif
 
-      do k=1,levs
-        typdel(k)= si(k)-si(k+1)
-      enddo
+          do k=1,levs
+            typdel(k) = si(k)-si(k+1)
+          enddo
  
 !----------------------------------------------------------------------
 ! adjust moisture changes to the total mass to conserve dry mass
 !
-      do lan=1,lats_node_a
-        lat = global_lats_a(ipt_lats_node_a-1+lan)
-        lons_lat = lonsperlat(lat)
-        ptotp=0.
-        pwatp=0.
-        ptrcp(:)=0.                                                   !glbsum
-        do i=1,lons_lat
-           ptotp     = ptotp + ptot(i,lan)
-           pwatp     = pwatp + pwat(i,lan)
-           if ( glbsum ) then                                         !glbsum
-             do n = 1, ntrac                                          !glbsum
-               ptrcp(n)  = ptrcp(n) + ptrc(i,lan,n)                   !glbsum
-             enddo                                                    !glbsum
-           endif                                                      !glbsum
-        enddo
-        pwatj(lan)=pwatp/(2.*lonsperlat(lat))
-        ptotj(lan)=ptotp/(2.*lonsperlat(lat))
-        if ( glbsum ) then                                            !glbsum
-          do n = 1, ntrac                                             !glbsum
-            ptrcj(lan,n)=ptrcp(n)/(2.*lonsperlat(lat))                !glbsum
-          enddo                                                       !glbsum
-        endif                                                         !glbsum
-      enddo
-      call excha(lats_nodes_a,global_lats_a,ptotj,pwatj,ptotg,pwatg)
-      sumwa=0.
-      sumto=0.
-      do lat=1,latg
-         sumto=sumto+wgt_a(min(lat,latg-lat+1))*ptotg(lat)
-         sumwa=sumwa+wgt_a(min(lat,latg-lat+1))*pwatg(lat)
-      enddo
-      if ( glbsum ) then                                              !glbsum
-        do n = 1, ntrac                                               !glbsum
-         sumtrc(n)=0.                                                 !glbsum
-         tmpj(:) = ptrcj(:,n)                                         !glbsum
-         call excha(lats_nodes_a,global_lats_a,ptotj,tmpj,ptotg,ptrcg)!glbsum
-         do lat=1,latg                                                !glbsum
-           sumtrc(n)=sumtrc(n)+wgt_a(min(lat,latg-lat+1))*ptrcg(lat)  !glbsum
-         enddo                                                        !glbsum
-        enddo                                                         !glbsum
-      endif                                                           !glbsum
+          do lan=1,lats_node_a
+            lat      = global_lats_a(ipt_lats_node_a-1+lan)
+            lons_lat = lonsperlat(lat)
+            ptotp    = 0.
+            pwatp    = 0.
+            ptrcp(:) = 0.                                               !glbsum
+            do i=1,lons_lat
+               ptotp     = ptotp + ptot(i,lan)
+               pwatp     = pwatp + pwat(i,lan)
+               if ( glbsum ) then                                       !glbsum
+                 do n = 1, ntrac                                        !glbsum
+                   ptrcp(n)  = ptrcp(n) + ptrc(i,lan,n)                 !glbsum
+                 enddo                                                  !glbsum
+               endif                                                    !glbsum
+            enddo
+            pwatj(lan) = pwatp/(2.*lonsperlat(lat))
+            ptotj(lan) = ptotp/(2.*lonsperlat(lat))
+            if ( glbsum ) then                                          !glbsum
+              do n = 1, ntrac                                           !glbsum
+                ptrcj(lan,n) = ptrcp(n)/(2.*lonsperlat(lat))            !glbsum
+              enddo                                                     !glbsum
+            endif                                                       !glbsum
+          enddo
+          call excha(lats_nodes_a,global_lats_a,ptotj,pwatj,ptotg,pwatg)
+          sumwa = 0.
+          sumto = 0.
+          do lat=1,latg
+            sumto = sumto + wgt_a(min(lat,latg-lat+1))*ptotg(lat)
+            sumwa = sumwa + wgt_a(min(lat,latg-lat+1))*pwatg(lat)
+          enddo
+          if ( glbsum ) then                                             !glbsum
+            do n = 1, ntrac                                              !glbsum
+              sumtrc(n) = 0.                                             !glbsum
+              tmpj(:)   = ptrcj(:,n)                                     !glbsum
+              call excha(lats_nodes_a,global_lats_a,ptotj,tmpj,          !glbsum
+     &                                             ptotg,ptrcg)          !glbsum
+              do lat=1,latg                                              !glbsum
+               sumtrc(n)=sumtrc(n)+wgt_a(min(lat,latg-lat+1))*ptrcg(lat) !glbsum
+              enddo                                                      !glbsum
+            enddo                                                        !glbsum
+          endif                                                          !glbsum
 
-      pdryg=sumto-sumwa
-      if(pdryini.le.0.) pdryini=pdryg
+          pdryg = sumto - sumwa
+          if(pdryini <= 0.) pdryini = pdryg
 
-      if( gen_coord_hybrid ) then                               
-        pcorr=(pdryini-pdryg)      *sqrt(2.)                    
-      else                                                      
-        pcorr=(pdryini-pdryg)/sumto*sqrt(2.)
-      endif                                                    
+          if( gen_coord_hybrid ) then                               
+            pcorr = (pdryini-pdryg)      *sqrt(2.)                    
+          else                                                      
+            pcorr = (pdryini-pdryg)/sumto*sqrt(2.)
+          endif                                                    
 !
-! test
-      print *,' pcorr pdryini pdryg ',pcorr,pdryini,pdryg
+          if (me == 0) write(0,*)'pcorr pdryini pdryg ',pcorr,pdryini,
+     &                            pdryg
 
-      if (glbsum .and. me.eq.me_l_0) then                             !glbsum
-          write(70,111) kdt,fhour,idate                                 !glbsum
-          write(71,*)   kdt,(sumtrc(n),n=4,ntrac)                       !glbsum
-      endif                                                           !glbsum
-111   format ('kdt, fhour, idate=',i6,1x,f10.3,2x,4(i4,2x))           !glbsum
+          if (glbsum .and. me == me_l_0) then                            !glbsum
+            write(70,111) kdt,fhour,idate                                !glbsum
+            write(71,*)   kdt,(sumtrc(n),n=4,ntrac)                      !glbsum
+          endif                                                          !glbsum
+111       format ('kdt, fhour, idate=',i6,1x,f10.3,2x,4(i4,2x))          !glbsum
 
 
-      if (ladj) then
+          if (ladj) then
 !
-       trie_ls_sfc=0.0                                                  
-       trio_ls_sfc=0.0                                                  
+            trie_ls_sfc = 0.0                                                  
+            trio_ls_sfc = 0.0                                                  
 
-       do k=1,levs                                                      
-        do i=1,len_trie_ls                                              
-         trie_ls_sfc(i,1)=trie_ls_sfc(i,1)+typdel(k)*trie_ls_rqt(i,1,k) 
-         trie_ls_sfc(i,2)=trie_ls_sfc(i,2)+typdel(k)*trie_ls_rqt(i,2,k) 
-        enddo                                                           
-        do i=1,len_trio_ls                                              
-         trio_ls_sfc(i,1)=trio_ls_sfc(i,1)+typdel(k)*trio_ls_rqt(i,1,k) 
-         trio_ls_sfc(i,2)=trio_ls_sfc(i,2)+typdel(k)*trio_ls_rqt(i,2,k) 
-        enddo                                                           
-       enddo                                                           
+            do k=1,levs                                                      
+              do i=1,len_trie_ls                                              
+                trie_ls_sfc(i,1) = trie_ls_sfc(i,1)
+     &                           + typdel(k)*trie_ls_rqt(i,1,k) 
+                trie_ls_sfc(i,2) = trie_ls_sfc(i,2)
+     &                           + typdel(k)*trie_ls_rqt(i,2,k) 
+              enddo                                                           
+              do i=1,len_trio_ls                                              
+                trio_ls_sfc(i,1) = trio_ls_sfc(i,1)
+     &                           + typdel(k)*trio_ls_rqt(i,1,k) 
+                trio_ls_sfc(i,2) = trio_ls_sfc(i,2)
+     &                           + typdel(k)*trio_ls_rqt(i,2,k) 
+              enddo                                                           
+            enddo                                                           
 
-       if( gen_coord_hybrid ) then                                       
+            if ( gen_coord_hybrid ) then                                       
+              do i=1,len_trie_ls                                             
+                trie_ls(i,1,p_q) = trie_ls(i,1,p_q)*trie_ls_sfc(i,1)      
+                trie_ls(i,2,p_q) = trie_ls(i,2,p_q)*trie_ls_sfc(i,2)     
+              enddo
+              do i=1,len_trio_ls                                          
+                trio_ls(i,1,p_q) = trio_ls(i,1,p_q)*trio_ls_sfc(i,1)
+                trio_ls(i,2,p_q) = trio_ls(i,2,p_q)*trio_ls_sfc(i,2)
+              enddo                                                    
+            else
+              do i=1,len_trie_ls                                             
+                trie_ls(i,1,p_q) = trie_ls_sfc(i,1)
+                trie_ls(i,2,p_q) = trie_ls_sfc(i,2)
+              enddo
+              do i=1,len_trio_ls                                          
+                trio_ls(i,1,p_q) = trio_ls_sfc(i,1)
+                trio_ls(i,2,p_q) = trio_ls_sfc(i,2)
+              enddo                                                    
+            endif                                                   
 
-        do i=1,len_trie_ls                                             
-         trie_ls(i,1,p_q)=trie_ls(i,1,p_q)*trie_ls_sfc(i,1)      
-         trie_ls(i,2,p_q)=trie_ls(i,2,p_q)*trie_ls_sfc(i,2)     
-        enddo
-        do i=1,len_trio_ls                                          
-         trio_ls(i,1,p_q)=trio_ls(i,1,p_q)*trio_ls_sfc(i,1)
-         trio_ls(i,2,p_q)=trio_ls(i,2,p_q)*trio_ls_sfc(i,2)
-        enddo                                                    
-
-       else
-
-        do i=1,len_trie_ls                                             
-         trie_ls(i,1,p_q)=trie_ls_sfc(i,1)
-         trie_ls(i,2,p_q)=trie_ls_sfc(i,2)
-        enddo
-        do i=1,len_trio_ls                                          
-         trio_ls(i,1,p_q)=trio_ls_sfc(i,1)
-         trio_ls(i,2,p_q)=trio_ls_sfc(i,2)
-        enddo                                                    
-
-       endif                                                   
-
-       if (me.eq.me_l_0) then
-         trie_ls(1,1,p_q)=trie_ls(1,1,p_q)+pcorr
-       endif
+            if (me == me_l_0) then
+              trie_ls(1,1,p_q) = trie_ls(1,1,p_q) + pcorr
+            endif
 !!
 !!
-      do k=1,levs
-       do i=1,len_trie_ls
-         trie_ls(i,1,p_di +k-1)=bfilte(i)*
-     &  (trie_ls(i,1,p_x  +k-1)-trie_ls(i,1,p_di+k-1))
-         trie_ls(i,1,p_te +k-1)=bfilte(i)*
-     &  (trie_ls(i,1,p_y  +k-1)-trie_ls(i,1,p_te+k-1))
-         trie_ls(i,2,p_di +k-1)=bfilte(i)*
-     &  (trie_ls(i,2,p_x  +k-1)-trie_ls(i,2,p_di+k-1))
-         trie_ls(i,2,p_te +k-1)=bfilte(i)*
-     &  (trie_ls(i,2,p_y  +k-1)-trie_ls(i,2,p_te+k-1))
-       enddo
-       do i=1,len_trio_ls
-         trio_ls(i,1,p_di +k-1)=bfilto(i)*
-     &  (trio_ls(i,1,p_x  +k-1)-trio_ls(i,1,p_di+k-1))
-         trio_ls(i,1,p_te +k-1)=bfilto(i)*
-     &  (trio_ls(i,1,p_y  +k-1)-trio_ls(i,1,p_te+k-1))
-         trio_ls(i,2,p_di +k-1)=bfilto(i)*
-     &  (trio_ls(i,2,p_x  +k-1)-trio_ls(i,2,p_di+k-1))
-         trio_ls(i,2,p_te +k-1)=bfilto(i)*
-     &  (trio_ls(i,2,p_y  +k-1)-trio_ls(i,2,p_te+k-1))
-       enddo
-      enddo
+            do k=1,levs
+              item = p_x +k-1
+              jtem = p_di+k-1
+              ktem = p_y +k-1
+              ltem = p_te+k-1
+              do i=1,len_trie_ls
+               trie_ls(i,1,item) =  trie_ls(i,1,jtem) +
+     &                 bfilte(i) * (trie_ls(i,1,item)-trie_ls(i,1,jtem))
+               trie_ls(i,2,item) =  trie_ls(i,2,jtem) +
+     &                 bfilte(i) * (trie_ls(i,2,item)-trie_ls(i,2,jtem))
+               trie_ls(i,1,ktem) =  trie_ls(i,1,ltem) +
+     &                 bfilte(i) * (trie_ls(i,1,ktem)-trie_ls(i,1,ltem))
+               trie_ls(i,2,ktem) =  trie_ls(i,2,ltem) +
+     &                 bfilte(i) * (trie_ls(i,2,ktem)-trie_ls(i,2,ltem))
+              enddo
+              do i=1,len_trio_ls
+               trio_ls(i,1,item) =  trio_ls(i,1,jtem) +
+     &                 bfilto(i) * (trio_ls(i,1,item)-trio_ls(i,1,jtem))
+               trio_ls(i,2,item) =  trio_ls(i,2,jtem) +
+     &                 bfilto(i) * (trio_ls(i,2,item)-trio_ls(i,2,jtem))
+               trio_ls(i,1,ktem) =  trio_ls(i,1,ltem) +
+     &                 bfilto(i) * (trio_ls(i,1,ktem)-trio_ls(i,1,ltem))
+               trio_ls(i,2,ktem) =  trio_ls(i,2,ltem) +
+     &                 bfilto(i) * (trio_ls(i,2,ktem)-trio_ls(i,2,ltem))
+              enddo
+            enddo
 
 !---------------------------------------------------------
-      if( gen_coord_hybrid ) then                            
+            if( gen_coord_hybrid ) then                            
 
 !$OMP parallel do private(locl)
-      do locl=1,ls_max_node                                  
-      call impadje_hyb_gc(trie_ls(1,1,p_x),trie_ls(1,1,p_y), 
-     &                    trie_ls(1,1,p_zq),trie_ls(1,1,p_di), 
-     &                    trie_ls(1,1,p_te),trie_ls(1,1,p_q), 
-     &                    dt,                             
-     &                    trie_ls(1,1,p_uln),trie_ls(1,1,p_vln),
-     &                    snnp1ev,ndexev,ls_node,locl)         
+              do locl=1,ls_max_node                                  
+                call impadje_hyb_gc(trie_ls(1,1,p_x),trie_ls(1,1,p_y), 
+     &                              trie_ls(1,1,p_zq),trie_ls(1,1,p_di), 
+     &                              trie_ls(1,1,p_te),trie_ls(1,1,p_q), 
+     &                              dt,                             
+     &                              trie_ls(1,1,p_uln),
+     &                              trie_ls(1,1,p_vln),
+     &                              snnp1ev,ndexev,ls_node,locl)         
 !!
-      call impadjo_hyb_gc(trio_ls(1,1,p_x),trio_ls(1,1,p_y),  
-     &                    trio_ls(1,1,p_zq),trio_ls(1,1,p_di), 
-     &                    trio_ls(1,1,p_te),trio_ls(1,1,p_q), 
-     &                    dt ,                           
-     &                    trio_ls(1,1,p_uln),trio_ls(1,1,p_vln),
-     &                    snnp1od,ndexod,ls_node,locl)         
-      enddo                                                   
+                call impadjo_hyb_gc(trio_ls(1,1,p_x),trio_ls(1,1,p_y),  
+     &                              trio_ls(1,1,p_zq),trio_ls(1,1,p_di), 
+     &                              trio_ls(1,1,p_te),trio_ls(1,1,p_q), 
+     &                              dt ,                           
+     &                              trio_ls(1,1,p_uln),
+     &                              trio_ls(1,1,p_vln),
+     &                              snnp1od,ndexod,ls_node,locl)         
+              enddo                                                   
 
-      else if(hybrid)then                                    
+            else if(hybrid)then                                    
  
 !$OMP parallel do private(locl)
-      do locl=1,ls_max_node
-      call impadje_hyb(trie_ls(1,1,p_x),trie_ls(1,1,p_y),
-     &             trie_ls(1,1,p_zq),trie_ls(1,1,p_di),
-     &             trie_ls(1,1,p_te),trie_ls(1,1,p_q),
-     &                    dt ,
-     &             trie_ls(1,1,p_uln),trie_ls(1,1,p_vln),
-     &             snnp1ev,ndexev,ls_node,locl)
+              do locl=1,ls_max_node
+                call impadje_hyb(trie_ls(1,1,p_x),trie_ls(1,1,p_y),
+     &                           trie_ls(1,1,p_zq),trie_ls(1,1,p_di),
+     &                           trie_ls(1,1,p_te),trie_ls(1,1,p_q),
+     &                           dt ,
+     &                           trie_ls(1,1,p_uln),
+     &                           trie_ls(1,1,p_vln),
+     &                           snnp1ev,ndexev,ls_node,locl)
 !!
-      call impadjo_hyb(trio_ls(1,1,p_x),trio_ls(1,1,p_y),
-     &             trio_ls(1,1,p_zq),trio_ls(1,1,p_di),
-     &             trio_ls(1,1,p_te),trio_ls(1,1,p_q),
-     &                    dt ,
-     &             trio_ls(1,1,p_uln),trio_ls(1,1,p_vln),
-     &             snnp1od,ndexod,ls_node,locl)
-      enddo
+                call impadjo_hyb(trio_ls(1,1,p_x),trio_ls(1,1,p_y),
+     &                           trio_ls(1,1,p_zq),trio_ls(1,1,p_di),
+     &                           trio_ls(1,1,p_te),trio_ls(1,1,p_q),
+     &                           dt ,
+     &                           trio_ls(1,1,p_uln),
+     &                           trio_ls(1,1,p_vln),
+     &                           snnp1od,ndexod,ls_node,locl)
+              enddo
  
-      else  ! fin massadj in hybrid
+            else  ! fin massadj in hybrid
  
-      call countperf(0,9,0.)
+              call countperf(0,9,0.)
 !$OMP parallel do private(locl)
-      do locl=1,ls_max_node
+              do locl=1,ls_max_node
  
-      call impadje(trie_ls(1,1,p_x),trie_ls(1,1,p_y),
-     &             trie_ls(1,1,p_zq),trie_ls(1,1,p_di),
-     &             trie_ls(1,1,p_te),trie_ls(1,1,p_q),
-     &             am,bm,sv,dt ,
-     &             trie_ls(1,1,p_uln),trie_ls(1,1,p_vln),
-     &             snnp1ev,ndexev,ls_node,locl)
+                call impadje(trie_ls(1,1,p_x),trie_ls(1,1,p_y),
+     &                       trie_ls(1,1,p_zq),trie_ls(1,1,p_di),
+     &                       trie_ls(1,1,p_te),trie_ls(1,1,p_q),
+     &                       am,bm,sv,dt ,
+     &                       trie_ls(1,1,p_uln),
+     &                       trie_ls(1,1,p_vln),
+     &                       snnp1ev,ndexev,ls_node,locl)
 !!
-      call impadjo(trio_ls(1,1,p_x),trio_ls(1,1,p_y),
-     &             trio_ls(1,1,p_zq),trio_ls(1,1,p_di),
-     &             trio_ls(1,1,p_te),trio_ls(1,1,p_q),
-     &             am,bm,sv,dt ,
-     &             trio_ls(1,1,p_uln),trio_ls(1,1,p_vln),
-     &             snnp1od,ndexod,ls_node,locl)
-      enddo
+                call impadjo(trio_ls(1,1,p_x),trio_ls(1,1,p_y),
+     &                       trio_ls(1,1,p_zq),trio_ls(1,1,p_di),
+     &                       trio_ls(1,1,p_te),trio_ls(1,1,p_q),
+     &                       am,bm,sv,dt ,
+     &                       trio_ls(1,1,p_uln),
+     &                       trio_ls(1,1,p_vln),
+     &                       snnp1od,ndexod,ls_node,locl)
+              enddo
  
-      call countperf(1,9,0.)
+              call countperf(1,9,0.)
  
-      endif  ! fin massadj in sigma
+            endif  ! fin massadj in sigma
 !---------------------------------------------------------
  
 ! -----------------------------------------------------------
-      else  ! fin impadj,    following is with no impadj
+          else  ! fin impadj,    following is with no impadj
 ! -----------------------------------------------------------
  
-      if (me.eq.me_l_0) then
-        trie_ls(1,1,p_zq)=trie_ls(1,1,p_zq)+pcorr
-      endif
+            if (me.eq.me_l_0) then
+              trie_ls(1,1,p_zq)=trie_ls(1,1,p_zq)+pcorr
+            endif
 !!
-      do k=1,levs
-       do i=1,len_trie_ls
-        trie_ls(i,1,p_zq)=trie_ls(i,1,p_zq)+typdel(k)*trie_ls_rqt(i,1,k)
-        trie_ls(i,2,p_zq)=trie_ls(i,2,p_zq)+typdel(k)*trie_ls_rqt(i,2,k)
-       enddo
-       do i=1,len_trio_ls
-        trio_ls(i,1,p_zq)=trio_ls(i,1,p_zq)+typdel(k)*trio_ls_rqt(i,1,k)
-        trio_ls(i,2,p_zq)=trio_ls(i,2,p_zq)+typdel(k)*trio_ls_rqt(i,2,k)
-       enddo
-      enddo
+            do k=1,levs
+              do i=1,len_trie_ls
+                trie_ls(i,1,p_zq) = trie_ls(i,1,p_zq)
+     &                            + typdel(k)*trie_ls_rqt(i,1,k)
+                trie_ls(i,2,p_zq) = trie_ls(i,2,p_zq)
+     &                            + typdel(k)*trie_ls_rqt(i,2,k)
+              enddo
+              do i=1,len_trio_ls
+                trio_ls(i,1,p_zq) = trio_ls(i,1,p_zq)
+     &                            + typdel(k)*trio_ls_rqt(i,1,k)
+                trio_ls(i,2,p_zq) = trio_ls(i,2,p_zq)
+     &                            + typdel(k)*trio_ls_rqt(i,2,k)
+              enddo
+            enddo
 !!
-      do k=1,levs
-       do i=1,len_trie_ls
-         trie_ls(i,1,p_x  +k-1)=trie_ls(i,1,p_di+k-1)+bfilte(i)*
-     &  (trie_ls(i,1,p_x  +k-1)-trie_ls(i,1,p_di+k-1))
-         trie_ls(i,2,p_x  +k-1)=trie_ls(i,2,p_di+k-1)+bfilte(i)*
-     &  (trie_ls(i,2,p_x  +k-1)-trie_ls(i,2,p_di+k-1))
-         trie_ls(i,1,p_y  +k-1)=trie_ls(i,1,p_te+k-1)+bfilte(i)*
-     &  (trie_ls(i,1,p_y  +k-1)-trie_ls(i,1,p_te+k-1))
-         trie_ls(i,2,p_y  +k-1)=trie_ls(i,2,p_te+k-1)+bfilte(i)*
-     &  (trie_ls(i,2,p_y  +k-1)-trie_ls(i,2,p_te+k-1))
-       enddo
-       do i=1,len_trio_ls
-         trio_ls(i,1,p_x  +k-1)=trio_ls(i,1,p_di+k-1)+bfilto(i)*
-     &  (trio_ls(i,1,p_x  +k-1)-trio_ls(i,1,p_di+k-1))
-         trio_ls(i,2,p_x  +k-1)=trio_ls(i,2,p_di+k-1)+bfilto(i)*
-     &  (trio_ls(i,2,p_x  +k-1)-trio_ls(i,2,p_di+k-1))
-         trio_ls(i,1,p_y  +k-1)=trio_ls(i,1,p_te+k-1)+bfilto(i)*
-     &  (trio_ls(i,1,p_y  +k-1)-trio_ls(i,1,p_te+k-1))
-         trio_ls(i,2,p_y  +k-1)=trio_ls(i,2,p_te+k-1)+bfilto(i)*
-     &  (trio_ls(i,2,p_y  +k-1)-trio_ls(i,2,p_te+k-1))
-       enddo
-      enddo
+            do k=1,levs
+              item = p_x +k-1
+              jtem = p_di+k-1
+              ktem = p_y +k-1
+              ltem = p_te+k-1
+              do i=1,len_trie_ls
+               trie_ls(i,1,item) =  trie_ls(i,1,jtem) +
+     &                 bfilte(i) * (trie_ls(i,1,item)-trie_ls(i,1,jtem))
+               trie_ls(i,2,item) =  trie_ls(i,2,jtem) +
+     &                 bfilte(i) * (trie_ls(i,2,item)-trie_ls(i,2,jtem))
+               trie_ls(i,1,ktem) =  trie_ls(i,1,ltem) +
+     &                 bfilte(i) * (trie_ls(i,1,ktem)-trie_ls(i,1,ltem))
+               trie_ls(i,2,ktem) =  trie_ls(i,2,ltem) +
+     &                 bfilte(i) * (trie_ls(i,2,ktem)-trie_ls(i,2,ltem))
+              enddo
+              do i=1,len_trio_ls
+               trio_ls(i,1,item) =  trio_ls(i,1,jtem) +
+     &                 bfilto(i) * (trio_ls(i,1,item)-trio_ls(i,1,jtem))
+               trio_ls(i,2,item) =  trio_ls(i,2,jtem) +
+     &                 bfilto(i) * (trio_ls(i,2,item)-trio_ls(i,2,jtem))
+               trio_ls(i,1,ktem) =  trio_ls(i,1,ltem) +
+     &                 bfilto(i) * (trio_ls(i,1,ktem)-trio_ls(i,1,ltem))
+               trio_ls(i,2,ktem) =  trio_ls(i,2,ltem) +
+     &                 bfilto(i) * (trio_ls(i,2,ktem)-trio_ls(i,2,ltem))
+              enddo
+            enddo
 ! ----------------------------------------
-      endif   ! fin no impadj
+          endif   ! fin no impadj
 ! ----------------------------------------
 !
 ! ----------------------------------------------------------------------
 !$omp parallel do shared(TRIE_LS,NDEXEV,TRIO_LS,NDEXOD)
 !$omp+shared(SL,SPDMAX,dt,LS_NODE)
-      do k=1,levs
-         CALL damp_speed(TRIE_LS(1,1,P_X+k-1), TRIE_LS(1,1,P_W +k-1),
-     &                   TRIE_LS(1,1,P_Y+k-1), TRIE_LS(1,1,P_RT+k-1),
-     &                   NDEXEV,
-     &                   TRIO_LS(1,1,P_X+k-1), TRIO_LS(1,1,P_W +k-1),
-     &                   TRIO_LS(1,1,P_Y+k-1), TRIO_LS(1,1,P_RT+k-1),
-     &                   NDEXOD,
-     &                   SL,SPDMAX(k),dt,LS_NODE,nislfv)
-      enddo
+          do k=1,levs
+            CALL damp_speed(TRIE_LS(1,1,P_X+k-1), TRIE_LS(1,1,P_W +k-1),
+     &                      TRIE_LS(1,1,P_Y+k-1), TRIE_LS(1,1,P_RT+k-1),
+     &                      NDEXEV,
+     &                      TRIO_LS(1,1,P_X+k-1), TRIO_LS(1,1,P_W +k-1),
+     &                      TRIO_LS(1,1,P_Y+k-1), TRIO_LS(1,1,P_RT+k-1),
+     &                      NDEXOD,
+     &                      SL,SPDMAX(k),dt,LS_NODE,nislfv)
+          enddo
 !
 !-------------------------------------------
-      if(.not.fwd_step)then
+          if (.not. fwd_step)then
 !-------------------------------------------
-      CALL filter2eo(TRIE_LS(1,1,P_TEM), TRIE_LS(1,1,P_TE ),
-     &               TRIE_LS(1,1,P_Y  ), TRIE_LS(1,1,P_DIM),
-     &               TRIE_LS(1,1,P_DI ), TRIE_LS(1,1,P_X  ),
-     &               TRIE_LS(1,1,P_ZEM), TRIE_LS(1,1,P_ZE ),
-     &               TRIE_LS(1,1,P_W  ), TRIE_LS(1,1,P_RM ),
-     &               TRIE_LS(1,1,P_RQ ), TRIE_LS(1,1,P_RT ),
-     &               TRIO_LS(1,1,P_TEM), TRIO_LS(1,1,P_TE ),
-     &               TRIO_LS(1,1,P_Y  ), TRIO_LS(1,1,P_DIM),
-     &               TRIO_LS(1,1,P_DI ), TRIO_LS(1,1,P_X  ),
-     &               TRIO_LS(1,1,P_ZEM), TRIO_LS(1,1,P_ZE ),
-     &               TRIO_LS(1,1,P_W  ), TRIO_LS(1,1,P_RM ),
-     &               TRIO_LS(1,1,P_RQ ), TRIO_LS(1,1,P_RT ),
-     &               FILTA,LS_NODE)
+            CALL filter2eo(TRIE_LS(1,1,P_TEM), TRIE_LS(1,1,P_TE ),
+     &                     TRIE_LS(1,1,P_Y  ), TRIE_LS(1,1,P_DIM),
+     &                     TRIE_LS(1,1,P_DI ), TRIE_LS(1,1,P_X  ),
+     &                     TRIE_LS(1,1,P_ZEM), TRIE_LS(1,1,P_ZE ),
+     &                     TRIE_LS(1,1,P_W  ), TRIE_LS(1,1,P_RM ),
+     &                     TRIE_LS(1,1,P_RQ ), TRIE_LS(1,1,P_RT ),
+     &                     TRIO_LS(1,1,P_TEM), TRIO_LS(1,1,P_TE ),
+     &                     TRIO_LS(1,1,P_Y  ), TRIO_LS(1,1,P_DIM),
+     &                     TRIO_LS(1,1,P_DI ), TRIO_LS(1,1,P_X  ),
+     &                     TRIO_LS(1,1,P_ZEM), TRIO_LS(1,1,P_ZE ),
+     &                     TRIO_LS(1,1,P_W  ), TRIO_LS(1,1,P_RM ),
+     &                     TRIO_LS(1,1,P_RQ ), TRIO_LS(1,1,P_RT ),
+     &                     FILTA,LS_NODE)
 !
-      DO J=1,LEN_TRIE_LS
-         TRIE_LS(J,1,P_Q )=TRIE_LS(J,1,P_ZQ)
-         TRIE_LS(J,2,P_Q )=TRIE_LS(J,2,P_ZQ)
-      ENDDO
-      DO J=1,LEN_TRIO_LS
-         TRIO_LS(J,1,P_Q )=TRIO_LS(J,1,P_ZQ)
-         TRIO_LS(J,2,P_Q )=TRIO_LS(J,2,P_ZQ)
-      ENDDO
+            DO J=1,LEN_TRIE_LS
+              TRIE_LS(J,1,P_Q ) = TRIE_LS(J,1,P_ZQ)
+              TRIE_LS(J,2,P_Q ) = TRIE_LS(J,2,P_ZQ)
+            ENDDO
+            DO J=1,LEN_TRIO_LS
+              TRIO_LS(J,1,P_Q ) = TRIO_LS(J,1,P_ZQ)
+              TRIO_LS(J,2,P_Q ) = TRIO_LS(J,2,P_ZQ)
+            ENDDO
 !--------------------------------------------
-      else	! fwd_step next
+          else	! fwd_step next
 !--------------------------------------------
-        call do_dynamics_spectn2c(trie_ls,trio_ls)
+            call do_dynamics_spectn2c(trie_ls,trio_ls)
 !--------------------------------------------
-      endif	! end fwd_step
+          endif	! end fwd_step
 !--------------------------------------------
 !
 ! ---------------------------------------------------------------------
 ! transform new spectral into grid, then do filter in grid-point values
 ! ---------------------------------------------------------------------
 !
-      call spect_to_grid
-     &      (trie_ls,trio_ls, 
-     &       syn_gr_a_1,syn_gr_a_2,
-     &       ls_node,ls_nodes,max_ls_nodes,
-     &       lats_nodes_a,global_lats_a,lonsperlat,
-     &       epse,epso,epsedn,epsodn,
-     &       snnp1ev,snnp1od,plnev_a,plnod_a)
+          call spect_to_grid
+     &          (trie_ls,trio_ls, 
+     &           syn_gr_a_1,syn_gr_a_2,
+     &           ls_node,ls_nodes,max_ls_nodes,
+     &           lats_nodes_a,global_lats_a,lonsperlat,
+     &           epse,epso,epsedn,epsodn,
+     &           snnp1ev,snnp1od,plnev_a,plnod_a)
 !
-      call do_dynamics_syn2gridn(syn_gr_a_2,grid_gr,
-     &                           global_lats_a,lonsperlat,nislfv)
+          call do_dynamics_syn2gridn(syn_gr_a_2,grid_gr,
+     &                               global_lats_a,lonsperlat,nislfv)
 !
 ! do filter in the grid point values and advance time with update
 ! ---------------------------
-      if(.not.fwd_step)then
-        call do_dynamics_gridfilter(grid_gr,filta,filtb,
-     &                              global_lats_a,lonsperlat)
-      else	! fwd_step next
-        call do_dynamics_gridn2c(grid_gr,
-     &                           global_lats_a,lonsperlat)
-      endif	! end of not fwd_step
+          if (.not. fwd_step) then
+            call do_dynamics_gridfilter(grid_gr,filta,filtb,
+     &                                  global_lats_a,lonsperlat)
+          else	! fwd_step next
+            call do_dynamics_gridn2c(grid_gr,
+     &                               global_lats_a,lonsperlat)
+          endif	! end of not fwd_step
 
-      if( fwd_step ) then
-        fwd_step = .false.
-        dt = deltim
-        dt2=cons2*dt
-        rdt2=1./dt2
-        if(hybrid)then
-          call get_cd_hyb(dt)
-        else if( gen_coord_hybrid ) then           
-          call get_cd_hyb_gc(dt)    
-        else
-          call get_cd_sig(am,bm,dt,tov,sv)
-        endif
-      endif
+          if ( fwd_step ) then
+            fwd_step = .false.
+            dt       = deltim
+            dt2      = cons2*dt
+            rdt2     = 1./dt2
+            if (hybrid)then
+              call get_cd_hyb(dt)
+            else if( gen_coord_hybrid ) then           
+              call get_cd_hyb_gc(dt)    
+            else
+              call get_cd_sig(am,bm,dt,tov,sv)
+            endif
+          endif
 
 ! ------------------------------------------------
-      endif 	! end not start_step
+        endif 	! end not start_step
 ! ------------------------------------------------
       endif 	! only for fcst node
 !--------------------------------------------
@@ -677,10 +699,10 @@ c timings
 !--------------------------------------------
 !**jw digital filter state collect
 !--------------------------------------------
-      print *,'in one loop,call gfs_dfi_coll,ldfi=',ldfi
-      IF (ldfi) THEN
+      if (me == 0) print *,'in two loop,call gfs_dfi_coll,ldfi=',ldfi
+      IF (ldfi) then
         call gfs_dficoll_dynamics(grid_gr,grid_gr_dfi)
-      ENDIF
+      endif
 !
 !--------------------------------------------
       IF (lsout.and.kdt.ne.0) THEN
@@ -718,33 +740,20 @@ CC
       ENDIF ! if ls_out
 ! ----------------------------------
 ! =====================================================================
-cmy
-! ----------------------------------
-!jw      if (reshuff_lats_a) then  
-! ----------------------------------
-c
-!jw        tag = kdt
-!jw        if (me .eq. 0) then
-!jw          CALL MPI_isend(global_lats_a,latg,MPI_INTEGER,
-!jw     &               nodes,tag,MPI_COMM_ALL,ireq1,IERR)
-!jw        elseif (liope .and. icolor .eq. 2) then
-!jw          CALL MPI_irecv(global_lats_a,latg,MPI_INTEGER,
-!jw     &               0,tag,MPI_COMM_ALL,ireq2,IERR)     
-
-!jw        endif
-!jw        call mpi_barrier(MPI_COMM_ALL,ierr)
-!jw          if (liope .and. icolor .eq. 2) 
-!jw     &    print*,' after mpi_irecv global_lats_a for io node = ',
-!jw     &     global_lats_a
 !
-! ----------------------------------
-!jw      endif ! reshuff_lats_a
-! ----------------------------------
-!
+!      print *,'in two loop, af wrt,end_step=',end_step,'dfiend_step=', 
+!     &  dfiend_step
 ! if the last step, 
 ! --------------------------
       if( end_step ) then
         return
+      else if(dfiend_step) then
+!
+!  dfi end step, return to dfi routine
+!------------------------------------
+       if(me==0)
+     &     print *,'in dyn two step, return aft dfi,kdt=',kdt
+          RETURN
       end if
 !
       kdt = kdt + 1
@@ -755,7 +764,7 @@ c
 ! ===================================================================
 ! ====================================================================
 c
-      iter_max=0
+      iter_max = 0
       do lan=1,lats_node_a
          lat = global_lats_a(ipt_lats_node_a-1+lan)
          lons_lat = lonsperlat(lat)
@@ -764,7 +773,7 @@ c
 !
       allocate ( spdlat(levs,iter_max ) )
       do k=1,levs
-         spdmax_node(k) = cons0     !constant
+         spdmax_node(k) = cons0
       enddo
 !
 ! =====================================================================
@@ -811,111 +820,106 @@ c
         if(hybrid.or.gen_coord_hybrid) then !-----  hybrid ----------- 
 ! --------------------------------------------------------------------
 !$omp parallel do schedule(dynamic,1) private(lon)
-!$omp+private(istrt,njeff,iblk)
+!$omp+private(njeff,iblk)
 !$omp+private(nvcn,xvcn)
         do lon=1,lons_lat,ngptcd
 !!
-          njeff=min(ngptcd,lons_lat-lon+1)
-          istrt=lon
-          if (ngptcd.ne.1) then
-            iblk=lon/ngptcd+1
-          else
-            iblk=lon
-          endif
+          njeff = min(ngptcd,lons_lat-lon+1)
+          iblk  = (lon-1)/ngptcd + 1
 !
           CALL countperf(0,10,0.)
           if( gen_coord_hybrid ) then                                    ! hmhj
             if( thermodyn_id.eq.3 ) then                                 ! hmhj
               call gfidi_hyb_gc_h(lon_dim, njeff, lat,                   ! hmhj
-     &               syn_gr_a_2(istrt+(ksd   -1)*lon_dim,lan),          ! hmhj
-     &               syn_gr_a_2(istrt+(kst   -1)*lon_dim,lan),          ! hmhj
-     &               syn_gr_a_2(istrt+(ksz   -1)*lon_dim,lan),          ! hmhj
-     &               syn_gr_a_2(istrt+(ksu   -1)*lon_dim,lan),          ! hmhj
-     &               syn_gr_a_2(istrt+(ksv   -1)*lon_dim,lan),          ! hmhj
-     &               syn_gr_a_2(istrt+(ksr   -1)*lon_dim,lan),          ! hmhj
-     &               syn_gr_a_2(istrt+(kspphi-1)*lon_dim,lan),          ! hmhj
-     &               syn_gr_a_2(istrt+(ksplam-1)*lon_dim,lan),          ! hmhj
-     &               syn_gr_a_2(istrt+(ksq   -1)*lon_dim,lan),          ! hmhj
-     &               syn_gr_a_2(istrt+(kzsphi-1)*lon_dim,lan),          ! hmhj
-     &               syn_gr_a_2(istrt+(kzslam-1)*lon_dim,lan),          ! hmhj
-     &               rcs2_a(min(lat,latg-lat+1)),                       ! hmhj
-     &               spdlat(1,iblk),                                    ! hmhj
-     &               dt,nvcn,xvcn,                                  ! hmhj
-     &               dyn_gr_a_2(istrt+(kdtphi-1)*lon_dim,lan),          ! hmhj
-     &               dyn_gr_a_2(istrt+(kdtlam-1)*lon_dim,lan),          ! hmhj
-     &               dyn_gr_a_2(istrt+(kdrphi-1)*lon_dim,lan),          ! hmhj
-     &               dyn_gr_a_2(istrt+(kdrlam-1)*lon_dim,lan),          ! hmhj
-     &               dyn_gr_a_2(istrt+(kdulam-1)*lon_dim,lan),          ! hmhj
-     &               dyn_gr_a_2(istrt+(kdvlam-1)*lon_dim,lan),          ! hmhj
-     &               dyn_gr_a_2(istrt+(kduphi-1)*lon_dim,lan),          ! hmhj
-     &               dyn_gr_a_2(istrt+(kdvphi-1)*lon_dim,lan),          ! hmhj
-     &               anl_gr_a_2(istrt+(kaps  -1)*lon_dim,lan),          ! hmhj
-     &               anl_gr_a_2(istrt+(kat   -1)*lon_dim,lan),          ! hmhj
-     &               anl_gr_a_2(istrt+(kar   -1)*lon_dim,lan),          ! hmhj
-     &               anl_gr_a_2(istrt+(kau   -1)*lon_dim,lan),          ! hmhj
-     &               anl_gr_a_2(istrt+(kav   -1)*lon_dim,lan),          ! hmhj
-     &               szdrdt(istrt,lan),zfirst)                          ! fyang
+     &               syn_gr_a_2(lon+(ksd   -1)*lon_dim,lan),             ! hmhj
+     &               syn_gr_a_2(lon+(kst   -1)*lon_dim,lan),             ! hmhj
+     &               syn_gr_a_2(lon+(ksz   -1)*lon_dim,lan),             ! hmhj
+     &               syn_gr_a_2(lon+(ksu   -1)*lon_dim,lan),             ! hmhj
+     &               syn_gr_a_2(lon+(ksv   -1)*lon_dim,lan),             ! hmhj
+     &               syn_gr_a_2(lon+(ksr   -1)*lon_dim,lan),             ! hmhj
+     &               syn_gr_a_2(lon+(kspphi-1)*lon_dim,lan),             ! hmhj
+     &               syn_gr_a_2(lon+(ksplam-1)*lon_dim,lan),             ! hmhj
+     &               syn_gr_a_2(lon+(ksq   -1)*lon_dim,lan),             ! hmhj
+     &               syn_gr_a_2(lon+(kzsphi-1)*lon_dim,lan),             ! hmhj
+     &               syn_gr_a_2(lon+(kzslam-1)*lon_dim,lan),             ! hmhj
+     &               rcs2_a(min(lat,latg-lat+1)),                        ! hmhj
+     &               spdlat(1,iblk),                                     ! hmhj
+     &               dt,nvcn,xvcn,                                       ! hmhj
+     &               dyn_gr_a_2(lon+(kdtphi-1)*lon_dim,lan),             ! hmhj
+     &               dyn_gr_a_2(lon+(kdtlam-1)*lon_dim,lan),             ! hmhj
+     &               dyn_gr_a_2(lon+(kdrphi-1)*lon_dim,lan),             ! hmhj
+     &               dyn_gr_a_2(lon+(kdrlam-1)*lon_dim,lan),             ! hmhj
+     &               dyn_gr_a_2(lon+(kdulam-1)*lon_dim,lan),             ! hmhj
+     &               dyn_gr_a_2(lon+(kdvlam-1)*lon_dim,lan),             ! hmhj
+     &               dyn_gr_a_2(lon+(kduphi-1)*lon_dim,lan),             ! hmhj
+     &               dyn_gr_a_2(lon+(kdvphi-1)*lon_dim,lan),             ! hmhj
+     &               anl_gr_a_2(lon+(kaps  -1)*lon_dim,lan),             ! hmhj
+     &               anl_gr_a_2(lon+(kat   -1)*lon_dim,lan),             ! hmhj
+     &               anl_gr_a_2(lon+(kar   -1)*lon_dim,lan),             ! hmhj
+     &               anl_gr_a_2(lon+(kau   -1)*lon_dim,lan),             ! hmhj
+     &               anl_gr_a_2(lon+(kav   -1)*lon_dim,lan),             ! hmhj
+     &               szdrdt(lon,lan),zfirst)                             ! fyang
             else                                                         ! hmhj
               call gfidi_hyb_gc(lon_dim, njeff, lat,
-     &               syn_gr_a_2(istrt+(ksd   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kst   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksz   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksu   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksv   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksr   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kspphi-1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksplam-1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksq   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kzsphi-1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kzslam-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksd   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kst   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksz   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksu   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksv   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksr   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kspphi-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksplam-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksq   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kzsphi-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kzslam-1)*lon_dim,lan),
      &               rcs2_a(min(lat,latg-lat+1)),
      &               spdlat(1,iblk),
      &               dt,nvcn,xvcn,
-     &               dyn_gr_a_2(istrt+(kdtphi-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdtlam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdrphi-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdrlam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdulam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdvlam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kduphi-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdvphi-1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kaps  -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kat   -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kar   -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kau   -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kav   -1)*lon_dim,lan),
-     &               szdrdt(istrt,lan),zfirst)
+     &               dyn_gr_a_2(lon+(kdtphi-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdtlam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdrphi-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdrlam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdulam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdvlam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kduphi-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdvphi-1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kaps  -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kat   -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kar   -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kau   -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kav   -1)*lon_dim,lan),
+     &               szdrdt(lon,lan),zfirst)
             endif                                                        ! hmhj
           else                                                           ! hmhj
             call gfidi_hyb(lon_dim, njeff, lat,
-     &               syn_gr_a_2(istrt+(ksd   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kst   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksz   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksu   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksv   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksr   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kspphi-1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksplam-1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksq   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kzsphi-1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kzslam-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksd   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kst   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksz   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksu   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksv   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksr   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kspphi-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksplam-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksq   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kzsphi-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kzslam-1)*lon_dim,lan),
      &               rcs2_a(min(lat,latg-lat+1)),
      &               spdlat(1,iblk),
      &               dt,nvcn,xvcn,
-     &               dyn_gr_a_2(istrt+(kdtphi-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdtlam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdrphi-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdrlam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdulam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdvlam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kduphi-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdvphi-1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kaps  -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kat   -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kar   -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kau   -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kav   -1)*lon_dim,lan),
-     &               szdrdt(istrt,lan),zfirst)
+     &               dyn_gr_a_2(lon+(kdtphi-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdtlam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdrphi-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdrlam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdulam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdvlam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kduphi-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdvphi-1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kaps  -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kat   -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kar   -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kau   -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kav   -1)*lon_dim,lan),
+     &               szdrdt(lon,lan),zfirst)
           endif                                                          ! hmhj
           CALL countperf(1,10,0.)
 !
@@ -925,47 +929,42 @@ c
 ! ---------------------------------------------------------------
 ! beginlon omp loop 3333333333333333333333333333333333333333333333333
 !$omp parallel do schedule(dynamic,1) private(lon)
-!$omp+private(istrt,njeff,iblk)
+!$omp+private(njeff,iblk)
 !$omp+private(nvcn,xvcn)
         do lon=1,lons_lat,ngptcd
 !!
-          njeff=min(ngptcd,lons_lat-lon+1)
-          istrt=lon
-          if (ngptcd.ne.1) then
-            iblk=lon/ngptcd+1
-          else
-            iblk=lon
-          endif
+          njeff = min(ngptcd,lons_lat-lon+1)
+          iblk  = (lon-1)/ngptcd + 1
 !
           CALL countperf(0,10,0.)
           call gfidi_sig(lon_dim, njeff, lat,
-     &               syn_gr_a_2(istrt+(ksd   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kst   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksz   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksu   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksv   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksr   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kspphi-1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksplam-1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksq   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kzsphi-1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kzslam-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksd   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kst   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksz   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksu   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksv   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksr   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kspphi-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksplam-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksq   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kzsphi-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kzslam-1)*lon_dim,lan),
      &               rcs2_a(min(lat,latg-lat+1)),
      &               typdel,rdel2,ci,tov,spdlat(1,iblk),
      &               dt,sl,nvcn,xvcn,
-     &               dyn_gr_a_2(istrt+(kdtphi-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdtlam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdrphi-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdrlam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdulam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdvlam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kduphi-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdvphi-1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kaps  -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kat   -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kar   -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kau   -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kav   -1)*lon_dim,lan))
+     &               dyn_gr_a_2(lon+(kdtphi-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdtlam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdrphi-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdrlam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdulam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdvlam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kduphi-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdvphi-1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kaps  -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kat   -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kar   -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kau   -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kav   -1)*lon_dim,lan))
           CALL countperf(1,10,0.)
 !
         enddo   !lon

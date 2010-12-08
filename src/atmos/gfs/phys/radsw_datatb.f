@@ -1045,6 +1045,21 @@
      & 1.821538e-02,1.683281e-02,1.534605e-02,1.371517e-02,1.190025e-02,&
      & 9.959941e-03,7.929838e-03 /
 
+!  ---  ... coefficients to compute tau, ssa, asy for rain drop and
+!           (chou 1999), and snowflake (fu 2001 private communication)
+      real (kind=kind_phys), public  :: a0r, a1r, a0s, a1s
+      data a0r,a1r / 3.07e-3, 0.0 /,    a0s,a1s / 0.0,     1.5 /  ! fu's coeff
+
+      real (kind=kind_phys), dimension(NBLOW:NBHGH), public ::          &
+     &       b0r, b0s, b1s, c0r, c0s
+      data b0r  / 0.466, 0.437, 0.416, 0.391, 0.374, 0.352, 0.183,      &
+     &            0.048, 0.012, 0.000, 0.000, 0.000, 0.000, 0.496 /
+      data c0r  / 0.975, 0.965, 0.960, 0.955, 0.952, 0.950, 0.944,      &
+     &            0.894, 0.884, 0.883, 0.883, 0.883, 0.883, 0.980 /
+      data b0s  / 7*0.460, 2*0.000,   4*0.000, 0.460 /
+      data b1s  / 7*0.000, 2*1.62e-5, 4*0.000, 0.000 /
+      data c0s  / 7*0.970, 2*0.970,   4*0.700, 0.970 /
+
 !........................................!
       end module module_radsw_cldprtb    !
 !========================================!

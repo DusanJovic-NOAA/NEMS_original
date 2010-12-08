@@ -1,5 +1,6 @@
       SUBROUTINE GSCOND (IM,IX,KM,DT,PRSL,PS,Q,cwm,T
-     &,                  tp, qp, psp, tp1, qp1, psp1, u, lprnt, ipr)
+     &,                  tp, qp, psp, tp1, qp1, psp1, u, lprnt, ipr,
+     &                   kdt,lat,me)
 !
 !     ******************************************************************
 !     *                                                                *
@@ -56,6 +57,8 @@
      &,                      el2orc, albycp, vprs(im)
       INTEGER IW(IM,KM), i, k, iwik
       logical lprnt
+!jw
+      integer kdt,lat,me
 !
 !-----------------PREPARE CONSTANTS FOR LATER USES-----------------
 !
@@ -102,6 +105,10 @@ C------------------QW, QI AND QINT--------------------------------------
           TMT15 = MIN(TMT0,cons_m15)                                            
           QIK   = MAX(Q(I,K),EPSQ)
           CWMIK = MAX(CWM(I,K),CLIMIT)
+          if(me==0.and.kdt==5.and.lat==18.and.I==2.and.K==1) then
+            print *,'in gscond1,cwm=',cwm(I,K),'CLIMIT=',climit,
+     &     'CWMIK=',CWMIK,'TMT0=',TMT0,'TMT15=',TMT15,'QIK=',QIK
+          endif
 !
 !         AI    = 0.008855
 !         BI    = 1.0
@@ -110,11 +117,11 @@ C------------------QW, QI AND QINT--------------------------------------
 !           BI = 0.9674
 !         END IF
 !
-!  the global qsat computation is done in cb
+!  the global qsat computation is done in Pa
           pres    = prsl(i,k)
 !
 !         QW      = vprs(i)
-          QW      = min(pres, 0.001 * fpvs(T(i,k)))
+          QW      = min(pres, fpvs(T(i,k)))
 !
           QW      = EPS * QW / (PRES + EPSM1 * QW)
           QW      = MAX(QW,EPSQ)
@@ -153,7 +160,7 @@ C------------------------AT, AQ AND DP/DT-------------------------------
           IWIK  = IW(I,K)
           U00IK = U(I,K)
           TIK   = T(I,K)
-          PRES  = PRSL(I,K)   * H1000
+          PRES  = PRSL(I,K)
           PP0   = (PRES / PS(I)) * PSP(I)
           AT    = (TIK-TP(I,K)) * RDT
           AQ    = (QIK-QP(I,K)) * RDT
@@ -234,6 +241,13 @@ C----------------EVAPORATION OF CLOUD WATER-----------------------------
 !   If cloud cover > 0.2 condense water vapor in to cloud condensate
 C-----------THE EQS. FOR COND. HAS BEEN REORGANIZED TO REDUCE CPU------
           COND = D00
+          if(me==0.and.kdt==5.and.lat==18.and.I==2.and.K==1) then
+            print *,'in gscond4,CCRIK=',CCRIK,'CCLIMIT=',CCLIMIT,
+     &     'QC=',QC,'EPSQ=',EPSQ,'US=',US,'U00IK=',U00IK,
+     &     'EPS=',EPS,'ELV=',ELV,'PRES=',PRES,'QIK=',QIK,
+     &     'US00=',US00,'CWMIK=',CWMIK,'CPR=',CPR,'TIK=',TIK,
+     &     'CP=',CP,'RDT=',RDT,'E0=',E0
+          endif
 !         IF (CCRIK .GT. 0.20 .AND. QC .GT. EPSQ) THEN
           IF (CCRIK .GT. CCLIMIT .AND. QC .GT. EPSQ) THEN
              US00   = US  - U00IK 
@@ -265,6 +279,10 @@ C-----------------------------------------------------------------------
 C-------------------UPDATE OF T, Q AND CWM------------------------------
           END IF
           CONE0    = (COND-E0) * DT
+          if(me==0.and.kdt==5.and.lat==18.and.I==2.and.K==1) then
+            print *,'in gscond,cwm=',cwm(I,K),'COND=',cond,'E0=',E0,
+     &     'DT=',DT,'CONE0=',CONE0
+          endif
           CWM(I,K) = CWM(I,K) + CONE0
 !     if (lprnt .and. i .eq. ipr) print *,' t=',t(i,k),' cone0',cone0
 !    &,' cond=',cond,' e0=',e0,' elv=',elv,' rcp=',rcp,' k=',k

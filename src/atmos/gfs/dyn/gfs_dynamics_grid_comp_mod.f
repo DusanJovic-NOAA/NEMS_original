@@ -274,9 +274,9 @@
       int_state%kfhour = nint(int_state%phour)
 !
       int_state%kdt    = advancecount4
-      print *,'in dyn_grid_comp,advancecount4=',advancecount4,          &
-        'phour=',int_state%phour,'kfhour=',int_state%kfhour,'kdt=',     &
-         int_state%kdt
+!      print *,'in dyn_grid_comp,advancecount4=',advancecount4,          &
+!        'phour=',int_state%phour,'kfhour=',int_state%kfhour,'kdt=',     &
+!         int_state%kdt
 !
 ! initialize the clock with the start time based on the information
 ! from calling starttimeget.
@@ -486,6 +486,7 @@
       type(esmf_time)                    :: starttime    
       type(esmf_time)                    :: currtime     
       type(esmf_time)                    :: stoptime     
+      type(esmf_time)                    :: dfitime     
       type(esmf_state),    intent(inout) :: exp_gfs_dyn
       integer,             intent(out)   :: rc   
 !eop
@@ -504,7 +505,10 @@
 !
       type(esmf_state)                  :: imp_state_write  !<-- The write gc import state
       logical,save                           :: first_reset=.true.
-      TYPE(ESMF_LOGICAL)                 :: Cpl_flag1  ! in ESMF 3.1.0rp2, to  get logical from state
+      logical,save                           :: first_dfiend=.true.
+      TYPE(ESMF_TimeInterval)                :: HALFDFIINTVAL
+      integer                                :: DFIHR
+      TYPE(ESMF_LOGICAL)                     :: Cpl_flag1  ! in ESMF 3.1.0rp2, to  get logical from state
                                                        ! must use the ESMF_LOGICAL type.
 
 !! debug print for tracking import and export state (Sarah Lu)
@@ -549,21 +553,30 @@
 !
       int_state%reset_step = .false.
       if(int_state%restart_step ) first_reset=.false.
-      if( int_state%ndfi>0 .and. int_state%kdt>int_state%ndfi .and.     &
-          first_reset) then
-        int_state%reset_step = .true.
-        first_reset=.false.
+!        int_state%dfiend_step=.false.
+      if( int_state%ndfi>0 .and. first_reset.and. int_state%kdt==int_state%ndfi) then
+        if( first_dfiend ) then
+! first go through dfi step
+          int_state%dfiend_step=.true.
+          first_dfiend=.false.
+        else
+! second go through reset step
+          int_state%reset_step = .true.
+          int_state%dfiend_step = .false.
+          first_reset=.false.
+        endif
       endif
-      print *,'in grid comp,ndfi=',int_state%ndfi,'kdt=',int_state%kdt,  &
-       'ndfi=',int_state%ndfi,'first_reset=',first_reset
+!      print *,'in grid comp,ndfi=',int_state%ndfi,'kdt=',int_state%kdt,  &
+!       'ndfi=',int_state%ndfi,'first_reset=',first_reset,'reset_step=',  &
+!       int_state%reset_step,'dfiend_step=',int_state%dfiend_step
+!
       IF(.NOT. int_state%restart_step .AND. .NOT. int_state%start_step ) THEN
           IF(.NOT. int_state%reset_step) THEN
-              PRINT *, 'get internal from imp_gfs_dyn'
               CALL gfs_dynamics_import2internal(imp_gfs_dyn, int_state, rc1)
           ELSE
-              PRINT *, 'get internal from imp_gfs_dyn and exp_gfs_dyn'
               CALL gfs_dynamics_import2internal(imp_gfs_dyn,          &
                   int_state, rc = rc1, exp_gfs_dyn = exp_gfs_dyn)
+
           END IF 
 
           CALL gfs_dynamics_err_msg(rc1, 'esmf import state to internal state', rc)
@@ -611,6 +624,7 @@
                         s =int_state%nfcstdate7(6),                       &
                         rc=rc1)
       call gfs_dynamics_err_msg(rc1,'esmf timeget',rc)
+!      print *,'in gfs grid comp,currtime=',int_state%nfcstdate7(1:6)
 !
 ! ======================================================================
 ! --------------- run the gfs dynamics related -------------------------
@@ -711,6 +725,7 @@
 !---------------------------------------------------------------
       call gfs_dynamics_err_msg_final(rcfinal,				&
                         'run from gfs dynamics grid comp.',rc)
+!      print *,'end of gfs_dyn_run'
       end subroutine gfs_dyn_run
 
 

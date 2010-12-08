@@ -1,7 +1,7 @@
 
       subroutine wrtout_physics(phour,fhour,zhour,idate,
      &                  sl,si,
-     &                  sfc_fld, flx_fld, g2d_fld, 
+     &                  sfc_fld, flx_fld, nst_fld, g2d_fld,
      &                  fluxr,
      &                  lats_nodes_r,global_lats_r,lonsperlar,nblck,
      &                  colat1,cfhour1,pl_coeff)
@@ -10,6 +10,8 @@
 ! May 2009 Jun Wang, modified to use write grid component
 ! Jan 2010 Sarah Lu, AOD added to flx files
 ! Feb 2010 Jun Wang, write out restart file
+! Jul 2010 S. Moorthi - added nst and other modifications
+! Jul 2010 S. Moorthi - added  hchuang  Add flx files output to wrtflx_a
 ! Jul 2010 Sarah Lu, write out aerosol diag files (for g2d_fld)
 ! Aug 2010 Sarah Lu, scale the 2d_aer_diag by 1.e6
 !                    output time-avg 2d_aer_diag
@@ -21,16 +23,19 @@
       use layout1,                 ONLY: me, nodes, lats_node_r, 
      &                                   nodes_comp
       use namelist_physics_def,    ONLY: gen_coord_hybrid, ldiag3d, 
-     &                                   hybrid, fhlwr, fhswr, ens_nam
+     &                                   hybrid, fhlwr, fhswr, ens_nam,
+     &                                   nst_fcst, lggfs3d
       use mpi_def,                 ONLY: liope, info, mpi_comm_all, 
      &                                   mc_comp, mpi_comm_null,quilting
       use gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data, Flx_Var_Data
+      use gfs_physics_nst_var_mod, ONLY: Nst_Var_Data
       use gfs_physics_g2d_mod,     ONLY: G2D_Var_Data
       USE machine,                 ONLY: kind_evod, kind_io8
       implicit none
 !!
       TYPE(Sfc_Var_Data)        :: sfc_fld
       TYPE(Flx_Var_Data)        :: flx_fld
+      TYPE(Nst_Var_Data)        :: nst_fld
       TYPE(G2D_Var_Data)        :: g2d_fld
       CHARACTER(16)             :: CFHOUR1    ! for ESMF Export State Creation
       integer ixgr, pl_coeff
@@ -48,8 +53,8 @@
       integer              lats_nodes_r(nodes)
 !!
       integer              ierr,j,k,l,lenrec,locl,n,node
-      integer nosfc,noflx,noaer,nfill
-      character*16 cosfc
+      integer nosfc,noflx,nonst,noaer,nfill
+      character*16 cosfc,const
       data timesum/0./
 !!
 !!
@@ -112,9 +117,10 @@
       CFHOUR = CFHOUR(1:nfill(CFHOUR)) // ens_nam(1:nfill(ens_nam))
       END IF
 !jfe
-      nosfc=62
-      noflx=63
-      noaer=65               ! for g2d_fld
+      nosfc = 62
+      noflx = 63
+      nonst = 65
+      noaer = 66
 !!
       t3=rtc()
       call MPI_BARRIER(mpi_comm_all,ierr)
@@ -129,14 +135,16 @@
 ! build state on each node.   COMP tasks only
 ! assemble spectral state first then sfc state,
 ! then (only if liope)  flux state.
-! finally (only if gocart is turned on) aer_diag state 
+! finally (only if gocart is turned on) aer_diag state
 ! 
-!
-      print *,'---- start sfc collection section -----'
+!      print *,'---- start sfc collection section -----'
       t3=rtc()
       if(mc_comp .ne. MPI_COMM_NULL) then
-        print *,' wrtout_physics call sfc_collect '
         CALL sfc_collect(sfc_fld,global_lats_r,lonsperlar)
+
+       if ( nst_fcst > 0 ) then
+         call nst_collect(nst_fld,global_lats_r,lonsperlar)
+       endif
 !
 ! collect flux grids as was done with sfc grids above.
 ! but only if liope is true.  If liope is false,
@@ -197,12 +205,17 @@
 !jw        ENDIF
 !
 !      if(me .eq. ioproc)  call wrtlog_physics(phour,fhour,idate)
-      tb=rtc()
-      tf=tb-ta
-      t2=rtc()
-      print 1011,tf
- 1011 format(' WRTOUT_PHYSICS TIME ',f10.4)
-      timesum=timesum+(t2-t1)
+
+      tb = rtc()
+      tf = tb-t1
+!     tf = tb-ta
+      t2 = rtc()
+
+       if (me == ioproc) write(0,*)' WRTOUT_PHYSICS TIME=',tf
+
+!     print 1011,tf
+!1011 format(' WRTOUT_PHYSICS TIME ',f10.4)
+      timesum = timesum+(t2-t1)
 !     print 1012,timesum,t2-t1,td,te,tf,t4-t3,tba,tbb,tbc,tbd
  1012 format(
      1 ' WRTOUT_PHYSICS TIME ALL TASKS  ',f10.4,f10.4,
@@ -214,18 +227,22 @@
       end
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       SUBROUTINE wrtout_restart_physics(
-     &        sfc_fld, fhour,idate,
+     &        sfc_fld, nst_fld, fhour,idate,
      &        lats_nodes_r,global_lats_r,lonsperlar,
      &        phy_f3d, phy_f2d, ngptc, nblck, ens_nam)
 !!
       use resol_def,               ONLY: latr, levp1, levs, lonr,
      &                                   num_p2d, num_p3d
+      use  namelist_physics_def,   ONLY: nst_fcst
       use layout1,                 ONLY: me, nodes, lats_node_r
       use gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data, Flx_Var_Data
+      use gfs_physics_nst_var_mod, ONLY: Nst_Var_Data
       USE machine,                 ONLY: kind_evod, kind_phys
       implicit none
 !!
       TYPE(Sfc_Var_Data)        :: sfc_fld
+      TYPE(Nst_Var_Data)        :: nst_fld
+
       real(kind=kind_evod) fhour
       character (len=*)  :: ens_nam
 !!
@@ -255,16 +272,22 @@
       IPRINT = 0
 !
       cfile='SFCR'
-      print *,' cfile=',cfile,'ens_nam=',ens_nam(1:nfill(ens_nam))
+!      print *,' cfile=',cfile,'ens_nam=',ens_nam(1:nfill(ens_nam))
 !
-      print *,' in rest write fhour=',fhour,
-     &  'idate=',idate,' before para_fixio_w'
+!      print *,' in rest write fhour=',fhour,
+!     &  'idate=',idate,' before para_fixio_w'
 !
       IOPROC=nodes-1
       CALL para_fixio_w(ioproc,sfc_fld,cfile,fhour,idate,
      &  lats_nodes_r,global_lats_r,lonsperlar,
      &  phy_f3d, phy_f2d, ngptc, nblck, ens_nam)
-      print *,'leave restart'
+!
+      if(nst_fcst>0) then
+        cfile='NSTR'
+        CALL para_nst_w(ioproc,nst_fld,cfile,fhour,idate,
+     &   lats_nodes_r,global_lats_r,lonsperlar,
+     &   ens_nam)
+      endif 
 !
       return
       end
@@ -340,8 +363,8 @@
 !!
 !!!   real(kind=kind_io4) buff4(lonr,latr,4),bufsave(lonr,lats_node_r)
       real(kind=kind_io8) buffo(lonr,lats_node_r)
-      real(kind=kind_io8) buffi(lonr,lats_node_r)
-      integer kmsk(lonr,lats_node_r),kmskcv(lonr,lats_node_r)
+      real(kind=kind_io8) buffi(lonr,lats_node_r_max)
+      integer kmsk(lonr,lats_node_r_max),kmskcv(lonr,lats_node_r_max)
       integer k,il
        integer ubound
        integer icount
@@ -360,14 +383,6 @@
 !@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 !
 !!
-!jw      if(allocated(buff_mult_piece)) then
-!jw         continue
-!jw      else
-!jw         allocate(buff_mult_piece(lonr,ngrids_sfcc,lats_node_r))
-!jw         allocate(buff_mult_piecef(lonr,0:ngrids_flx,lats_node_r))
-!jw         allocate
-!jw     1 (buff_mult_piecea(lonr,1:ngrids_flx+ngrids_sfcc+1,lats_node_r))
-!jw      endif
       if(allocated(buff_mult_piecea2d)) then
          continue
       else
@@ -556,7 +571,7 @@
       CALL uninterprez(1,kmsk,buffo,sfc_fld%ORO,
      &       global_lats_r,lonsperlar,buff_mult_piecea2d(1,1,ngrid2d))
 !
-!      write(0,*)' finished sfc_collect for  ngrid2d=',ngrid2d,ngrid3d
+!       write(0,*)' finished sfc_collect for  ngrid2d=',ngrid2d,ngrid3d
   999 continue
       return
       end
@@ -903,8 +918,9 @@ c  array copy
 !!
       use resol_def,               ONLY: lonr, latr, levp1, lsoil, nfxr,
      *                                   ngrids_sfcc
+      use namelist_physics_def,    ONLY: lggfs3d
       use mod_state,               ONLY: buff_mult_piecef
-      use layout1,                 ONLY: me, lats_node_r
+      use layout1,                 ONLY: me, lats_node_r,lats_node_r_max
       use gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data, Flx_Var_Data
       USE machine,             ONLY: kind_io8, kind_io4,grib_undef
       implicit none
@@ -918,7 +934,8 @@ c  array copy
       integer LEN,NFLD
       integer j,i,k,itop,ibot,k4,l,noflx,nundef,ngrid2d
 !*    PARAMETER(NFLD=18)
-      PARAMETER(NFLD=18+6)      ! 550nm AOD added
+!     PARAMETER(NFLD=18+6)      ! 550nm AOD added
+      PARAMETER(NFLD=25+6)      ! 550nm AOD added
        integer ilpds,iyr,imo,ida,ihr,ifhr,ithr,lg,ierr
        real (kind=kind_io8) RTIMER(NFLD),rtime,rtimsw,rtimlw
        real (kind=kind_io8) colat1
@@ -927,7 +944,7 @@ C
 
       real(kind=kind_io4) wrkga(lonr*latr),wrkgb(lonr*latr)
       real(kind=kind_io8) slmskful(lonr,lats_node_r)
-      real(kind=kind_io8) slmskloc(LONR,LATS_NODE_R)
+      real(kind=kind_io8) slmskloc(LONR,LATS_NODE_R_max)
 !
       INTEGER     IDATE(4), IDS(255),IENS(5)
 !     INTEGER     IDATE(4)
@@ -936,100 +953,105 @@ C
 !sela..................................................................
 !* change rflux 3rd dimension from 27 to nfxr (Sarah Lu)
 !*    real (kind=kind_io8)   rflux(lonr,LATS_NODE_R,27)     
-      real (kind=kind_io8)   rflux(lonr,LATS_NODE_R,nfxr)
-      real (kind=kind_io8)   glolal(lonr,LATS_NODE_R)
-      real (kind=kind_io8)   buffo(lonr,LATS_NODE_R)
+      real (kind=kind_io8)   rflux(lonr,LATS_NODE_R_max,nfxr)
+      real (kind=kind_io8)   glolal(lonr,LATS_NODE_R_max)
+      real (kind=kind_io8)   buffo(lonr,LATS_NODE_R_max)
       real (kind=kind_io4)   buff1(lonr,latr)
       real (kind=kind_io4)   buff1l(lonr*latr)
 !sela..................................................................
       real (kind=kind_io8)  FLUXR(nfxr,LONR,LATS_NODE_R)
 !sela..................................................................
-      integer kmsk(lonr,lats_node_r),kmsk0(lonr,lats_node_r)
-      integer kmskcv(lonr,LATS_NODE_R)
+      integer kmsk(lonr,lats_node_r_max),kmsk0(lonr,lats_node_r_max)
+      integer kmskcv(lonr,LATS_NODE_R_max)
 !jws
-      integer kmskgrib(lonr,lats_node_r)
+      integer kmskgrib(lonr,lats_node_r_max)
       real(kind=kind_io4) buff_max
 !jwe
 !
 !!
-      kmsk=nint(sfc_fld%slmsk)
-      kmsk0=0
+      kmsk     = nint(sfc_fld%slmsk)
+      kmsk0    = 0
 !
-      kmskgrib=0
-      ngrid2d=1
+      kmskgrib = 0
+      ngrid2d  = 1
 !
       CALL uninterprez(1,kmsk,glolal,sfc_fld%slmsk,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
-      slmskloc=glolal
-      slmskful=buff_mult_piecef(1:lonr,1:lats_node_r,ngrid2d)
+      slmskloc = glolal
+      slmskful = buff_mult_piecef(1:lonr,1:lats_node_r,ngrid2d)
 c
       do k=1,nfxr
        do j=1,LATS_NODE_R
         do i=1,lonr
-         rflux(i,j,k)=fluxr(k,i,j)
+         rflux(i,j,k) = fluxr(k,i,j)
         enddo
        enddo
       enddo
 !!
 !
-      IF(FHOUR.GT.ZHOUR) THEN
-        RTIME=1./(3600.*(FHOUR-ZHOUR))
+      IF(FHOUR > ZHOUR) THEN
+        RTIME   = 1./(3600.*(FHOUR-ZHOUR))
       ELSE
-        RTIME=0.
+        RTIME   = 0.
       ENDIF
-      IF(SECSWR.GT.0.) THEN
-        RTIMSW=1./SECSWR
+      IF(SECSWR > 0.) THEN
+        RTIMSW   = 1./SECSWR
       ELSE
-        RTIMSW=1.
+        RTIMSW   = 1.
       ENDIF
-      IF(SECLWR.GT.0.) THEN
-        RTIMLW=1./SECLWR
+      IF(SECLWR > 0.) THEN
+        RTIMLW   = 1./SECLWR
       ELSE
-        RTIMLW=1.
+        RTIMLW   = 1.
       ENDIF
-      RTIMER=RTIMSW
-      RTIMER(1)=RTIMLW
-      CL1=colat1
+      RTIMER     = RTIMSW
+      RTIMER(1)  = RTIMLW
+!*RADFLX*
+      RTIMER(20) = RTIMLW       ! CSULF_TOA
+      RTIMER(22) = RTIMLW       ! CSDLF_SFC
+      RTIMER(25) = RTIMLW       ! CSULF_SFC
+!*RADFLX*
+      CL1        = colat1
 !!
 !..........................................................
-      glolal=flx_fld%DUSFC*RTIME
+      glolal  = flx_fld%DUSFC*RTIME
 !jw
-      ngrid2d=1
+      ngrid2d = 1
       CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &    buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '01)Zonal compt of momentum flux (N/m**2) land and sea surface '
 
 !..........................................................
-      glolal=flx_fld%DVSFC*RTIME
-      ngrid2d=ngrid2d+1
+      glolal  = flx_fld%DVSFC*RTIME
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '02)Merid compt of momentum flux (N/m**2) land and sea surface '
 !..........................................................
-      glolal=flx_fld%DTSFC*RTIME
-      ngrid2d=ngrid2d+1
+      glolal  = flx_fld%DTSFC*RTIME
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '03)Sensible heat flux (W/m**2) land and sea surface           '
 !..........................................................
-      glolal=flx_fld%DQSFC*RTIME
-      ngrid2d=ngrid2d+1
+      glolal  = flx_fld%DQSFC*RTIME
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '04)Latent heat flux (W/m**2) land and sea surface             '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,sfc_fld%tsea,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribsn ierr=',ierr,'  ',
 !    x '05)Temperature (K) land and sea surface                       '
 !..........................................................
       glolal(:,:) = sfc_fld%SMC(1,:,:)
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
       where(nint(slmskful)/=1)
@@ -1038,7 +1060,7 @@ c
 !    x '06)Volumetric soil moist content (frac) layer 10cm and 0cm    '
 !..........................................................
       glolal(:,:) = sfc_fld%SMC(2,:,:)
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
       where(nint(slmskful)/=1)
@@ -1048,21 +1070,21 @@ c
 !    + '07)Volumetric soil moist content (frac) layer 40cm and 10cm  '
 !..........................................................
       glolal(:,:) = sfc_fld%STC(1,:,:)
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
-      nundef=0
-      buff_max=0.
+      where(nint(slmskful) /= 1)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
+      nundef   = 0
+      buff_max = 0.
       do j=1,lats_node_r
-      do i=1,lonr
-       if(buff_mult_piecef(i,j,ngrid2d)/=grib_undef) then
-         if(buff_mult_piecef(i,j,ngrid2d) >buff_max)
-     &   buff_max=buff_mult_piecef(i,j,ngrid2d)
-         nundef=nundef+1
-       endif
-      enddo
+        do i=1,lonr
+          if(buff_mult_piecef(i,j,ngrid2d)/=grib_undef) then
+            if(buff_mult_piecef(i,j,ngrid2d) >buff_max)
+     &                      buff_max = buff_mult_piecef(i,j,ngrid2d)
+            nundef = nundef+1
+          endif
+        enddo
       enddo
 !      write(0,*)'in wrtsfc_a, max stc=',buff_max,' grib_undef=',
 !     &   grib_undef,'nundef=',nundef
@@ -1070,31 +1092,31 @@ c
 !    x '08)Temp (K) layer betw two depth below land sfc 10cm and 0cm  '
 !..........................................................
       glolal(:,:) = sfc_fld%STC(2,:,:)
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(slmskful/=1._kind_io8)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(slmskful /= 1._kind_io8)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !lu  x '09)Temp (K) layer betw two depth below land sfc 200cm and 10cm'
 !    + '09)Temp (K) layer betw two depth below land sfc 40cm and 10cm'
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,sfc_fld%sheleg,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '10)Water equiv of accum snow depth (kg/m**2) land sea surface '
 c..........................................................
 !      write(0,*)'before DLWSFC'
-      glolal = flx_fld%DLWSFC*RTIME
-      ngrid2d=ngrid2d+1
+      glolal  = flx_fld%DLWSFC*RTIME
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '11)Downward long wave radiation flux (W/m**2) land sea surface'
 !..........................................................
-      glolal = flx_fld%ULWSFC*RTIME
-      ngrid2d=ngrid2d+1
+      glolal  = flx_fld%ULWSFC*RTIME
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
@@ -1107,7 +1129,7 @@ c..........................................................
          glolal(i,j) = rflux(i,j,k)*RTIMER(k)
         enddo
        enddo
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0.and.k.eq.1)print*,'wrtsfc gribit ierr=',ierr,'  ',
@@ -1128,7 +1150,7 @@ c..........................................................
           glolal(i,j) = rflux(i,j,21)*rtimsw
         enddo
       enddo
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
@@ -1138,7 +1160,7 @@ c..........................................................
           glolal(i,j) = rflux(i,j,22)*rtimsw
         enddo
       enddo
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
@@ -1161,14 +1183,14 @@ c..........................................................
         kmskcv = 0
       endwhere
 !!
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmskcv,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
 !      where(buff_mult_piecef(:,:,ngrid2d)<=0.5_kind_io4)
-!     &    buff_mult_piecef(:,:,ngrid2d)=grib_undef
-      kmskgrib=0
+!     &    buff_mult_piecef(:,:,ngrid2d) = grib_undef
+      kmskgrib = 0
       where(buff_mult_piecef(:,:,ngrid2d)<=0.5_kind_io4)
-     &    kmskgrib=1
+     &    kmskgrib = 1
 !     if(ierr.ne.0.and.k.eq.5)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '19)Total cloud cover (percent) high cloud layer               '
 !     if(ierr.ne.0.and.k.eq.6)print*,'wrtsfc gribit ierr=',ierr,'  ',
@@ -1176,19 +1198,19 @@ c..........................................................
 !     if(ierr.ne.0.and.k.eq.7)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '27)Total cloud cover (percent) low cloud layer                '
 !
-        K4=4+(K-5)*4
-        L=K4+1
+        K4 = 4  + (K-5)*4
+        L  = K4 + 1
 !
        do j=1,LATS_NODE_R
         do i=1,lonr
-         if(rflux(i,j,k).gt.0.)then
-          glolal(i,j) = rflux(i,j,k+3)*1000./rflux(i,j,k)
+         if(rflux(i,j,k) > 0.) then
+          glolal(i,j) = rflux(i,j,k+3)/rflux(i,j,k)
          else
           glolal(i,j) = 0.
          endif
         enddo
        enddo
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmskcv,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
       where(kmskgrib==1) buff_mult_piecef(:,:,ngrid2d)=grib_undef
@@ -1198,18 +1220,18 @@ c..........................................................
 !    x '24)Pressure (Pa) middle cloud top level                       '
 !     if(ierr.ne.0.and.k.eq.7)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '28)Pressure (Pa) low cloud top level                          '
-        L=K4+2
+        L = K4 + 2
 !
        do j=1,LATS_NODE_R
         do i=1,lonr
-         if(rflux(i,j,k).gt.0.)then
-          glolal(i,j) = rflux(i,j,k+6)*1000./rflux(i,j,k)
+         if(rflux(i,j,k) > 0.)then
+          glolal(i,j) = rflux(i,j,k+6)/rflux(i,j,k)
          else
           glolal(i,j) = 0.
          endif
         enddo
        enddo
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmskcv,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
       where(kmskgrib==1) buff_mult_piecef(:,:,ngrid2d)=grib_undef
@@ -1219,18 +1241,18 @@ c..........................................................
 !    x '25)Pressure (Pa) middle cloud bottom level                    '
 !     if(ierr.ne.0.and.k.eq.7)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '29)Pressure (Pa) low cloud bottom level                       '
-        L=K4+3
+        L = K4 + 3
 !
        do j=1,LATS_NODE_R
         do i=1,lonr
-         if(rflux(i,j,k).gt.0.)then
+         if(rflux(i,j,k) > 0.)then
           glolal(i,j) = rflux(i,j,k+9)/rflux(i,j,k)
          else
           glolal(i,j) = 0.
          endif
         enddo
        enddo
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmskcv,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
       where(kmskgrib==1) buff_mult_piecef(:,:,ngrid2d)=grib_undef
@@ -1240,31 +1262,31 @@ c..........................................................
 !    x '26)Temperature (K) middle cloud top level                     '
 !     if(ierr.ne.0.and.k.eq.7)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '30)Temperature (K) low cloud top level                        '
-        L=K4+4
+        L = K4 + 4
 !
   813 CONTINUE
 !!
 !...................................................................
       glolal = flx_fld%GESHEM*1.E3*RTIME
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '31)Precipitation rate (kg/m**2/s) land and sea surface        '
 c...................................................................
       glolal = flx_fld%BENGSH*1.E3*RTIME
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '32)Convective precipitation rate (kg/m**2/s) land sea surface '
 !...................................................................
-      glolal = flx_fld%GFLUX*RTIME
-      ngrid2d=ngrid2d+1
+      glolal  = flx_fld%GFLUX*RTIME
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
       where(slmskful==0._kind_io8)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '33)Ground heat flux (W/m**2) land and sea surface             '
 !...................................................................
@@ -1282,8 +1304,8 @@ c...................................................................
       buffo=MOD(slmskloc,2._kind_io8)
       do j=1,lats_node_r
         do i=1,lonr
-!jw          buff_mult_piecea(i,ngrid,j)=buffo(i,j)
-          buff_mult_piecef(i,j,ngrid2d)=buffo(i,j)
+!jw          buff_mult_piecea(i,ngrid,j) = buffo(i,j)
+          buff_mult_piecef(i,j,ngrid2d) = buffo(i,j)
         end do
       end do
 !jw        ngrid=ngrid+1
@@ -1292,96 +1314,108 @@ c...................................................................
 !gwv   add something here
 !
 !c-- XW: FOR SEA-ICE Nov04
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,sfc_fld%fice,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '35)Ice concentration (ice>0; no ice=0) (1/0) land sea surface '
 !c-- XW: END SEA-ICE
 !...................................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,flx_fld%u10m,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '36)u wind (m/s) height above ground                           '
 !...................................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,flx_fld%v10m,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '37)v wind (m/s) height above ground                           '
 !...................................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,sfc_fld%t2m,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '38)Temperature (K) height above ground                        '
 !...................................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,sfc_fld%q2m,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '39)Specific humidity (kg/kg) height above ground              '
 !...................................................................
-      glolal = flx_fld%PSURF*1.E3
-      ngrid2d=ngrid2d+1
+      glolal  = flx_fld%PSURF
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '40)Pressure (Pa) land and sea surface                         '
 !...................................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,flx_fld%tmpmax,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '41)Maximum temperature (K) height above ground                '
 !...................................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,flx_fld%tmpmin,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '42)Minimum temperature (K) height above ground                '
 !...................................................................
+      ngrid2d = ngrid2d+1
+      CALL uninterprez(2,kmsk0,buffo,flx_fld%spfhmax,
+     &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
+!     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '41a)Maximum specific humidity (kg/kg) height above ground      '
+!...................................................................
+      ngrid2d = ngrid2d+1
+      CALL uninterprez(2,kmsk0,buffo,flx_fld%spfhmin,
+     &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
+!     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '42a)Minimum specific humidity (kg/kg) height above ground      '
+!...................................................................
       glolal = flx_fld%RUNOFF * 1.E3
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(slmskful==0._kind_io8)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(slmskful == 0._kind_io8)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '43)Runoff (kg/m**2) land and sea surface                      '
 !...................................................................
-      glolal = flx_fld%EP * RTIME
-      ngrid2d=ngrid2d+1
+      glolal  = flx_fld%EP * RTIME
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(slmskful==0._kind_io8)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(slmskful == 0._kind_io8)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '44)Potential evaporation rate (w/m**/) land and sea surface   '
 !...................................................................
-      glolal = flx_fld%CLDWRK * RTIME
-      ngrid2d=ngrid2d+1
+      glolal  = flx_fld%CLDWRK * RTIME
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '45)Cloud work function (J/Kg) total atmospheric column        '
 !...................................................................
-      glolal = flx_fld%DUGWD*RTIME
-      ngrid2d=ngrid2d+1
+      glolal  = flx_fld%DUGWD*RTIME
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '46)Zonal gravity wave stress (N/m**2) land and sea surface    '
 !...................................................................
-      glolal = flx_fld%DVGWD*RTIME
-      ngrid2d=ngrid2d+1
+      glolal  = flx_fld%DVGWD*RTIME
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '47)Meridional gravity wave stress (N/m**2) land sea surface   '
 !...................................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,flx_fld%hpbl,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
@@ -1389,7 +1423,7 @@ c...................................................................
 !...................................................................
 !hmhj CALL uninterprez(2,kmsk0,buffo,flx_fld%pwat,
 !hmhj&                 global_lats_r,lonsperlar)
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,flx_fld%pwat,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
@@ -1398,15 +1432,15 @@ c...................................................................
 !
        do j=1,LATS_NODE_R
         do i=1,lonr
-         if (rflux(i,j,4).GT.0.) then
+         if (rflux(i,j,4) > 0.) then
           glolal(i,j) = rflux(i,j,3)/rflux(i,j,4) * 100.
-          if (glolal(i,j).GT.100.) glolal(i,j) = 100.
+          if (glolal(i,j) > 100.) glolal(i,j) = 100.
          else
           glolal(i,j) = 0.
          endif
         enddo
        enddo
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
@@ -1417,7 +1451,7 @@ c...................................................................
          glolal(i,j) = rflux(i,j,26)*100.*rtimsw
         enddo
        enddo
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
@@ -1427,17 +1461,17 @@ c...................................................................
 ! LABELED INSTANTANEOUS BUT ACTUALLY AVERAGED OVER FHSWR HOURS
 !
       glolal = sfc_fld%CV*1.E2
-      where(glolal.ge.0.5)
+      where(glolal >= 0.5)
         kmskcv = 1
       elsewhere
         kmskcv = 0
       endwhere
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmskcv,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      kmskgrib=0
+      kmskgrib = 0
       where(buff_mult_piecef(:,:,ngrid2d)<0.5_kind_io8)
-     &     kmskgrib=1
+     &     kmskgrib = 1
 !      where(buff_mult_piecef(:,:,ngrid2d)<0.5_kind_io8)
 !     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
 !      write(0,*)'52after cloud cover,buff=',maxval(buff_mult_piecef(
@@ -1450,19 +1484,20 @@ c...................................................................
        do j=1,LATS_NODE_R
         do i=1,lonr
         glolal(i,j) = 0.
-        IF(sfc_fld%CV(i,j).GT.0.) THEN
+        IF(sfc_fld%CV(i,j) > 0.) THEN
 !        ITOP=NINT(CVT(i,j))
 !        IF(ITOP.GE.1.AND.ITOP.LE.LEVS)
 !    &   glolal(i,j)=SI(ITOP+1)*PSURF(i,j)*1.E3
 !...      cvt already a pressure (cb)...convert to Pa
-         glolal(i,j) = sfc_fld%CVT(i,j)*1.E3
+!        glolal(i,j) = sfc_fld%CVT(i,j)*1.E3
+         glolal(i,j) = sfc_fld%CVT(i,j)     ! already Pa
         END IF
        ENDDO
       ENDDO
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmskcv,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(kmskgrib==1)
+      where(kmskgrib == 1)
      &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '53)Pressure (Pa) convective cloud top level                   '
@@ -1470,20 +1505,21 @@ c...................................................................
        do j=1,LATS_NODE_R
         do i=1,lonr
         glolal(i,j) = 0.
-        IF(sfc_fld%CV(i,j).GT.0.) THEN
+        IF(sfc_fld%CV(i,j) > 0.) THEN
 !        Ibot=NINT(CVB(i,j))
 !        IF(Ibot.GE.1.AND.Ibot.LE.LEVS)
 !    &   glolal(i,j)=SI(IBOT)*PSURF(i,j)*1.E3
 !...      cvb already a pressure (cb)...convert to Pa
-         glolal(i,j) = sfc_fld%CVB(i,j)*1.E3
+!        glolal(i,j) = sfc_fld%CVB(i,j)*1.E3
+         glolal(i,j) = sfc_fld%CVB(i,j)      ! already Pa
         END IF
        ENDDO
       ENDDO
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmskcv,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(kmskgrib==1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(kmskgrib == 1)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '54)Pressure (Pa) convective cloud bottom level                '
 !.................................................
@@ -1494,17 +1530,17 @@ c...................................................................
          glolal(i,j) = rflux(i,j,27)*100.*rtimsw
         enddo
        enddo
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '55)Total cloud cover (percent) boundary layer cloud layer     '
 !c-- XW: FOR SEA-ICE Nov04
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,sfc_fld%hice,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
-      where(nint(slmskful)/=1)
+      where(nint(slmskful) /= 1)
      &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '56)Sea ice thickness (m) category 1'
@@ -1512,351 +1548,508 @@ c...................................................................
 !.................................................
 !lu: add smc(3:4), stc(3:4), slc(1:4), snwdph, canopy
 !lu: addition of 10 records starts here -------------------------------
-      if(lsoil.gt.2)then
+      if(lsoil > 2)then
         glolal(:,:) = sfc_fld%SMC(3,:,:)
-      ngrid2d=ngrid2d+1
+        ngrid2d = ngrid2d+1
         CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(nint(slmskful) /= 1)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !       if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    &   '57)Volumetric soil moist content (frac) layer 100cm and 40cm '
 !..........................................................
         glolal(:,:) = sfc_fld%SMC(4,:,:)
-      ngrid2d=ngrid2d+1
+        ngrid2d = ngrid2d+1
         CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(nint(slmskful) /= 1)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !       if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    &   '58)Volumetric soil moist content (frac) layer 200cm and 100cm '
 !..........................................................
         glolal(:,:) = sfc_fld%STC(3,:,:)
-      ngrid2d=ngrid2d+1
+        ngrid2d = ngrid2d+1
         CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(nint(slmskful) /= 1)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !       if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    &   '59)Temp (K) layer betw two depth below land sfc 100cm and 40cm'
 !..........................................................
         glolal(:,:) = sfc_fld%STC(4,:,:)
-      ngrid2d=ngrid2d+1
+        ngrid2d = ngrid2d+1
         CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(nint(slmskful) /= 1)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !       if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    &   '60)Temp (K) layer betw two depth below land sfc 200cm and 100cm'
       endif
 !..........................................................
       glolal(:,:) = sfc_fld%SLC(1,:,:)
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
+      where(nint(slmskful) /= 1)
      &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '61)Liquid soil moist content (frac) layer 10cm and 0cm  '
 !..........................................................
       glolal(:,:) = sfc_fld%SLC(2,:,:)
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(nint(slmskful) /=1 )
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '62)Liquid soil moist content (frac) layer 40cm and 10cm '
 !..........................................................
       if(lsoil.gt.2)then
         glolal(:,:) = sfc_fld%SLC(3,:,:)
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
         CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(nint(slmskful) /= 1)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !       if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    &   '63)Liquid soil moist content (frac) layer 100cm and 40cm'
 !..........................................................
         glolal(:,:) = sfc_fld%SLC(4,:,:)
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
         CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(nint(slmskful) /= 1)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !       if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    &   '64)Liquid soil moist content (frac) layer 200cm and 100cm'
       endif
 !..........................................................
       glolal = sfc_fld%SNWDPH / 1.E3       !! convert from mm to m
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(nint(slmskful) /= 1)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '65)Snow depth (m) land surface 
 c..........................................................
 !     LBM=slmskful.EQ.1._kind_io8
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,sfc_fld%canopy,
      &       global_lats_r,lonsperlar,
      &       buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(nint(slmskful) /= 1)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '66)Canopy water content (kg/m^2) land surface      '
 !lu: addition of 10 records ends here -------------------------------
 !
 !wei: addition of 30 records starts here -------------------------------
-      glolal = sfc_fld%ZORL / 1.E2       !! convert from cm to m
-      ngrid2d=ngrid2d+1
+      glolal  = sfc_fld%ZORL / 1.E2       !! convert from cm to m
+      ngrid2d = ngrid2d+1
       CALL uninterprez(1,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '67)Surface roughness (m)       '
 !..........................................................
-      glolal = sfc_fld%vfrac*100.
-      ngrid2d=ngrid2d+1
+      glolal  = sfc_fld%vfrac*100.
+      ngrid2d = ngrid2d+1
       CALL uninterprez(1,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
+      where(nint(slmskful) /= 1)
      &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '68)Vegetation fraction (fractional) land surface      '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(1,kmsk,glolal,sfc_fld%vtype,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
-      buffo=MOD(glolal,2._kind_io8)
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      buffo = MOD(glolal,2._kind_io8)
+      where(nint(slmskful) /= 1)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '69)Vegetation type land surface      '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(1,kmsk,glolal,sfc_fld%stype,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
       buffo=MOD(glolal,2._kind_io8)
-      where(nint(slmskful)/=1)
+      where(nint(slmskful) /= 1)
      &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '70)Soil type land surface      '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(1,kmsk,glolal,sfc_fld%slope,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
-      buffo=MOD(glolal,2._kind_io8)
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      buffo = MOD(glolal,2._kind_io8)
+      where(nint(slmskful) /= 1)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '71)Slope type land surface      '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,sfc_fld%uustar,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '72)Frictional velocity (m/s)     '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(1,kmsk,buffo,sfc_fld%oro,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '73)Surface height (m)       '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(1,kmsk,buffo,sfc_fld%srflag,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
+      where(nint(slmskful) /= 1)
      &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '74)Freezing precip flag land surface      '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,flx_fld%chh,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '75)Exchange coefficient CH(m/s)       '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,flx_fld%cmm,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '76)Exchange coefficient CM(m/s)       '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,flx_fld%EPI,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(nint(slmskful) /= 1)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '77)Potential evaporation rate (w/m**2) land and sea surface   '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,flx_fld%DLWSFCI,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '78)Downward long wave radiation flux (W/m**2) '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,flx_fld%ULWSFCI,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '79)Upward long wave radiation flux (W/m**2)  '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,flx_fld%USWSFCI,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '80)Upward short wave radiation flux (W/m**2)  '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,flx_fld%DSWSFCI,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '81)Downward short wave radiation flux (W/m**2)   '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,flx_fld%DTSFCI,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '82)Sensible heat flux (W/m**2) land and sea surface       '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,flx_fld%DQSFCI,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '83)Latent heat flux (W/m**2) land and sea surface         '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,flx_fld%GFLUXI,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(nint(slmskful) /= 1)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '84)Ground heat flux (W/m**2) land and sea surface         '
 !..........................................................
-      glolal = flx_fld%SRUNOFF * 1.E3
-      ngrid2d=ngrid2d+1
+      glolal  = flx_fld%SRUNOFF * 1.E3
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &    buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(nint(slmskful) /= 1)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '85)Surface runoff (kg/m^2) land surface      '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,flx_fld%t1,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '86)Lowest model level Temp (K)      '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,flx_fld%q1,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '87)Lowest model specific humidity (kg/kg)    '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,flx_fld%u1,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '88)Lowest model u wind (m/s)      '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk0,buffo,flx_fld%v1,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '89)Lowest model v wind (m/s)       '
 !..........................................................
-      ngrid2d=ngrid2d+1
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,flx_fld%zlvl,
      &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(nint(slmskful) /= 1)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    x '90)Lowest model level height (m) land surface      '
 !..........................................................
-      glolal = flx_fld%EVBSA*RTIME
-      ngrid2d=ngrid2d+1
+      glolal  = flx_fld%EVBSA*RTIME
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(nint(slmskful) /= 1)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '91)Direct evaporation from bare soil(W/m^2) land surface      '
 !..........................................................
-      glolal = flx_fld%EVCWA*RTIME
-      ngrid2d=ngrid2d+1
+      glolal  = flx_fld%EVCWA*RTIME
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(nint(slmskful) /=1 )
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '92)Canopy water evaporation(W/m^2) land surface      '
 !..........................................................
-      glolal = flx_fld%TRANSA*RTIME
-      ngrid2d=ngrid2d+1
+      glolal  = flx_fld%TRANSA*RTIME
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(nint(slmskful) /= 1)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '93)Transpiration (W/m^2) land surface      '
 !..........................................................
-      glolal = flx_fld%SBSNOA*RTIME
-      ngrid2d=ngrid2d+1
+      glolal  = flx_fld%SBSNOA*RTIME
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(nint(slmskful) /= 1)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '94)Snow Sublimation (W/m^2) land surface      '
 !..........................................................
-      glolal = flx_fld%SNOWCA*RTIME*100.
-      ngrid2d=ngrid2d+1
+      glolal  = flx_fld%SNOWCA*RTIME*100.
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(nint(slmskful) /= 1)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '95)Snow Cover (fraction) land surface      '
 !..........................................................
-      glolal = flx_fld%soilm*1.E3       !! convert from m to (mm)kg/m^2
-      ngrid2d=ngrid2d+1
+      glolal  = flx_fld%soilm*1.E3       !! convert from m to (mm)kg/m^2
+      ngrid2d = ngrid2d+1
       CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
-      where(nint(slmskful)/=1)
-     &     buff_mult_piecef(:,:,ngrid2d)=grib_undef
+      where(nint(slmskful) /= 1)
+     &     buff_mult_piecef(:,:,ngrid2d) = grib_undef
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
 !    & '96)Total column soil moisture (Kg/m^2) land surface      '
 
 Cwei: addition of 30 records ends here -------------------------------
 
+!*RADFLX*
+!Clu: addition of 7 records starts here -------------------------------
+!dswrf_toa, csulf_toa, csusf_toa, csdlf_sfc,csusf_sfc, csdsf_sfc, csulf_sfc
+!
+      DO 115 K=19, 25
+       if(K .eq. 19)  then
+          L = 18
+        else
+          L = K + 8
+       endif
+       do j=1,LATS_NODE_R
+        do i=1,lonr
+         glolal(i,j)=rflux(i,j,L)*RTIMER(K)
+        enddo
+       enddo
+      ngrid2d = ngrid2d+1
+      CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
+     &     buff_mult_piecef(1,1,ngrid2d))
+!     if(ierr.ne.0.and.k.eq.19)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '97)Downward solar radiation flux (W/m**2) TOA '
+!     if(ierr.ne.0.and.k.eq.20)print*,'wrtsfc gribit ierr=',ierr,'  ',
+
+!    x '98)CS upward long wave radiation flux (W/m**2) TOA '
+!     if(ierr.ne.0.and.k.eq.21)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '99)CS upward solar radiation flux (W/m**2) TOA     '
+!     if(ierr.ne.0.and.k.eq.22)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '100)CS downward long radiation flux (W/m**2) SFC  '
+!     if(ierr.ne.0.and.k.eq.23)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '101)CS upward solar radiation flux (W/m**2)  SFC '
+!     if(ierr.ne.0.and.k.eq.24)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '102)CS downward solar radiation flux (W/m**2) SFC'
+!     if(ierr.ne.0.and.k.eq.25)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '103)CS upward long wave radiation flux (W/m**2) SFC '
+
+  115 CONTINUE
+!..........................................................
+      glolal  = flx_fld%snohfa*RTIME
+      ngrid2d = ngrid2d+1
+      CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
+     &     buff_mult_piecef(1,1,ngrid2d))
+!     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '104)Snow phase-change heat flux [W/m^2] land surface      '
+!..........................................................
+      glolal  = flx_fld%smcwlt2
+      ngrid2d = ngrid2d+1
+!      print *,'in wrtout,smcwlt=',maxval(flx_fld%smcwlt2),
+!     &  minval(flx_fld%smcwlt2),'loc=',minloc(flx_fld%smcwlt2)
+      CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
+     &     buff_mult_piecef(1,1,ngrid2d))
+!      print *,'in wrtout,aft unitpl,smcwlt=',
+!     &  maxval(buff_mult_piecef(:,:,ngrid2d)),
+!     &  minval(buff_mult_piecef(:,:,ngrid2d)),'ngrid2d=',ngrid2d
+!     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '105)Wilting point [fraction] land surface      '
+!..........................................................
+      glolal  = flx_fld%smcref2
+      ngrid2d = ngrid2d+1
+      CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
+     &     buff_mult_piecef(1,1,ngrid2d))
+!     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '106)Field capacity [fraction] land surface      '
+!..........................................................
+
+!lu: addition of 7 records ends here ---------------------------------
+!..........................................................
+!
+!    accumulated sunshine time
+!
+      glolal  = flx_fld%suntim
+      ngrid2d = ngrid2d+1
+      CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
+     &     buff_mult_piecef(1,1,ngrid2d))
+!     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '107)Accumulated sunshine duration (sec)'
+!
+!    end sunshine time
+!
 Clu: addition of 6 aod fields starts here ---------------------------
        do k = nfxr-5, nfxr
          do j=1,LATS_NODE_R
            do i=1,lonr
-             glolal(i,j) = rflux(i,j,k)*RTIMER(k-9)
+             glolal(i,j) = rflux(i,j,k)*RTIMER(k-15)
            enddo
          enddo
-       ngrid2d=ngrid2d+1
+       ngrid2d = ngrid2d+1
        CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,lonsperlar,
      &     buff_mult_piecef(1,1,ngrid2d))
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
-!    x '97)DU Aerosol optical depth at 550nm land sea surface'
+!    x '108)Total Aerosol optical depth at 550nm land sea surface'
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
-!    x '98)BC Aerosol optical depth at 550nm land sea surface'
+!    x '109)DU Aerosol optical depth at 550nm land sea surface'
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
-!    x '99)OC Aerosol optical depth at 550nm land sea surface'
+!    x '110)BC Aerosol optical depth at 550nm land sea surface'
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
-!    x '100)SU Aerosol optical depth at 550nm land sea surface'
+!    x '111)OC Aerosol optical depth at 550nm land sea surface'
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
-!    x '101)SS Aerosol optical depth at 550nm land sea surface'
+!    x '112)SU Aerosol optical depth at 550nm land sea surface'
 !     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
-!    x '102)Total Aerosol optical depth at 550nm land sea surface'
+!    x '113)SS Aerosol optical depth at 550nm land sea surface'
        enddo
 Clu: addition of 6 aod fields ends here -----------------------------
+!
+!...................................................................
+! Output additional variable (averaged quantity) for GOCART
+! If LGGFS3D = .TRUE.
+!
+      IF ( LGGFS3D ) THEN
+!
+!hchuang code change [+16L] 11/12/2007 :
+!..........................................................
+      glolal  = flx_fld%gsoil*rtime !! gsoil already in mm (kg/m^2)
+      ngrid2d = ngrid2d+1
+      CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
+     &     buff_mult_piecef(1,1,ngrid2d))
+!     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '114)Average VOL soil moist content(frac) layer 10cm -> 0cm'
+!..........................................................
+      glolal  = flx_fld%gtmp2m*rtime
+      ngrid2d = ngrid2d+1
+      CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
+     &     buff_mult_piecef(1,1,ngrid2d))
+!     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '115)Average temperature at 2 meter (K)                    '
+!..........................................................
+      glolal  = flx_fld%gustar*rtime
+      ngrid2d = ngrid2d+1
+      CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
+     &     buff_mult_piecef(1,1,ngrid2d))
+!     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '116)Average Frictional Velocity (m/s)                     '
+!..........................................................
+      glolal  = flx_fld%gpblh*rtime
+      ngrid2d = ngrid2d+1
+      CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
+     &     buff_mult_piecef(1,1,ngrid2d))
+!     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '117)Average Boundary layer height                        '
+!..........................................................
+      glolal  = flx_fld%gu10m*rtime
+      ngrid2d = ngrid2d+1
+      CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
+     &     buff_mult_piecef(1,1,ngrid2d))
+!     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '118)Average u wind (m/s) height 10m above ground         '
+!..........................................................
+      glolal  = flx_fld%gv10m*rtime
+      ngrid2d = ngrid2d+1
+      CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
+     &     buff_mult_piecef(1,1,ngrid2d))
+!     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '119)Average v wind (m/s) height 10m above ground         '
+!..........................................................
+!hchuang confirmed by Helin, correct bug, zorl unit in cm not mm
+! BUG      glolal=gzorl*1.0E-3*rtime  !! convert from mm to m
+      glolal  = flx_fld%gzorl*1.0E-2*rtime  !! convert from cm to m
+      ngrid2d = ngrid2d+1
+      CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
+     &     buff_mult_piecef(1,1,ngrid2d))
+!     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '120)Average Surface roughness (m)
+!
+!..........................................................
+!
+!hchuang when callng sub  uninterprez, array glolal is assign to
+!        buff_mult_piecea at the ngrid location, then ngrid advanced
+!        by 1.  Before assign the modified value (buffo) to
+!        buff_mult_piecea again dial ngrid back by 1 for the correct
+!        ngrid index otherwise, you risk the chance that ngrid might
+!        > ngrids_flx+1  which cause the address error or arry over-run
+!
+!hchuang code change [+2]  when callng sub  uninterprez, array glolal is assign
+to
+        glolal  = flx_fld%goro*rtime
+        ngrid2d = ngrid2d+1
+        CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
+     &     buff_mult_piecef(1,1,ngrid2d))
+!     if(ierr.ne.0)print*,'wrtsfc gribit ierr=',ierr,'  ',
+!    x '121)Average Land Sea surface (fraction)                  '
+!
+!..........................................................
+      ENDIF
 
 
       if(me.eq.ioproc)
@@ -1873,7 +2066,7 @@ Clu: addition of 6 aod fields ends here -----------------------------
 !!
       use resol_def,               ONLY: lonr, latr, ngrids_aer
       use mod_state,               ONLY: buff_mult_pieceg
-      use layout1,                 ONLY: me, lats_node_r
+      use layout1,                 ONLY: me, lats_node_r,lats_node_r_max
       use gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data
       use gfs_physics_g2d_mod,     ONLY: G2D_Var_Data
       USE machine,                 ONLY: kind_io8, kind_io4
@@ -1888,19 +2081,20 @@ Clu: addition of 6 aod fields ends here -----------------------------
       integer                   i,j,k,l,noaer,ngrid2d,ierr
       real (kind=kind_io8)      rtime
       real (kind=kind_io8)      zhour,fhour
-C
 
 !     real(kind=kind_io8) slmskful(lonr,lats_node_r)
 !     real(kind=kind_io8) slmskloc(LONR,LATS_NODE_R)
 !
       INTEGER     IDATE(4), IDS(255),IENS(5)
 !
-      real (kind=kind_io8)   glolal(lonr,LATS_NODE_R)
-      real (kind=kind_io8)   buffo(lonr,LATS_NODE_R)
-      integer kmsk(lonr,lats_node_r), kmsk0(lonr,lats_node_r)
+      real (kind=kind_io8)   glolal(lonr,LATS_NODE_R_max)
+      real (kind=kind_io8)   buffo(lonr,LATS_NODE_R_max)
+      integer kmsk  (lonr,lats_node_r_max),kmsk0(lonr,lats_node_r_max)
 !
       kmsk=nint(sfc_fld%slmsk)
       kmsk0=0
+!
+!     ngrid2d=1
 !
       IF(FHOUR.GT.ZHOUR) THEN
         RTIME=1./(3600.*(FHOUR-ZHOUR))
@@ -1910,30 +2104,28 @@ C
 !
 !..........................................................
 !
-!      ngrid2d=1
 !      CALL uninterprez(1,kmsk,glolal,sfc_fld%slmsk,
-!     &       global_lats_r,lonsperlar,buff_mult_pieceg(1,1,ngrid2d))
+!     &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
 !      slmskloc=glolal
-!      slmskful=buff_mult_pieceg(1:lonr,1:lats_node_r,ngrid2d)
+!      slmskful=buff_mult_piecef(1:lonr,1:lats_node_r,ngrid2d)
 !
 !..........................................................
 !
-      ngrid2d=0
+      ngrid2d = 0
       if ( g2d_fld%du%nfld > 0 ) then
         do  k = 1, g2d_fld%du%nfld
-          glolal=RTIME*1.e6*g2d_fld%du%diag(k)%flds
+          glolal = RTIME*1.e6*g2d_fld%du%diag(k)%flds
           ngrid2d=ngrid2d+1
           CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,
      &                   lonsperlar,buff_mult_pieceg(1,1,ngrid2d))
         enddo
-
       endif
 !
 !..........................................................
 !
       if ( g2d_fld%su%nfld > 0 ) then
         do  k = 1, g2d_fld%su%nfld
-          glolal=RTIME*1.e6*g2d_fld%su%diag(k)%flds
+          glolal = RTIME*1.e6*g2d_fld%su%diag(k)%flds
           ngrid2d=ngrid2d+1
           CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,
      &                   lonsperlar,buff_mult_pieceg(1,1,ngrid2d))
@@ -1944,7 +2136,7 @@ C
 !
       if ( g2d_fld%ss%nfld > 0 ) then
         do  k = 1, g2d_fld%ss%nfld
-          glolal=RTIME*1.e6*g2d_fld%ss%diag(k)%flds
+          glolal = RTIME*1.e6*g2d_fld%ss%diag(k)%flds
           ngrid2d=ngrid2d+1
           CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,
      &                   lonsperlar,buff_mult_pieceg(1,1,ngrid2d))
@@ -1966,18 +2158,7 @@ C
 !
       if ( g2d_fld%bc%nfld > 0 ) then
         do  k = 1, g2d_fld%bc%nfld
-          glolal=RTIME*1.e6*g2d_fld%bc%diag(k)%flds
-          ngrid2d=ngrid2d+1
-          CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,
-     &                   lonsperlar,buff_mult_pieceg(1,1,ngrid2d))
-        enddo
-      endif
-!
-!..........................................................
-!
-      if ( g2d_fld%met%nfld > 0 ) then
-        do  k = 1, g2d_fld%met%nfld
-          glolal=RTIME*g2d_fld%met%diag(k)%flds
+          glolal = RTIME*1.e6*g2d_fld%bc%diag(k)%flds
           ngrid2d=ngrid2d+1
           CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,
      &                   lonsperlar,buff_mult_pieceg(1,1,ngrid2d))
@@ -2363,3 +2544,133 @@ C
       END
  
  
+      SUBROUTINE nst_collect (nst_fld,global_lats_r,lonsperlar)
+!!
+      use resol_def,               ONLY: latr, lonr,ngrids_nst
+      use mod_state,               ONLY:
+     &                                   buff_mult_piecenst,ngridnst
+      use layout1,                 ONLY: lats_node_r,lats_node_r_max
+      use gfs_physics_nst_var_mod, ONLY: Nst_Var_Data
+      USE machine,                 ONLY: kind_io8, kind_io4
+      implicit none
+!!
+      TYPE(Nst_Var_Data)        :: nst_fld
+!
+      INTEGER              GLOBAL_LATS_R(latr)
+      INTEGER              lonsperlar(latr)
+!!
+      real(kind=kind_io8) buffo(lonr,lats_node_r)
+      integer kmsk(lonr,lats_node_r_max),kmskcv(lonr,lats_node_r_max)
+      integer k,il
+       integer ubound
+       integer icount
+        integer  ierr
+!!
+!
+      if(allocated(buff_mult_piecenst)) then
+         continue
+      else
+         allocate
+     1 (buff_mult_piecenst(lonr,lats_node_r_max,1:ngrids_nst+1))
+      endif
+!
+      kmsk= nint(nst_fld%slmsk)
+!
+!-- slmsk
+      ngridnst=1
+      CALL uninterprez(1,kmsk,buffo,nst_fld%slmsk,
+     &       global_lats_r,lonsperlar,buff_mult_piecenst(1,1,ngridnst))
+!
+!-- xt
+      ngridnst=ngridnst+1
+      CALL uninterprez(1,kmsk,buffo,nst_fld%xt,
+     &       global_lats_r,lonsperlar,buff_mult_piecenst(1,1,ngridnst))
+!
+!-- xs
+      ngridnst=ngridnst+1
+      CALL uninterprez(1,kmsk,buffo,nst_fld%xs,
+     &       global_lats_r,lonsperlar,buff_mult_piecenst(1,1,ngridnst))
+!
+!-- xu
+      ngridnst=ngridnst+1
+      CALL uninterprez(1,kmsk,buffo,nst_fld%xu,
+     &       global_lats_r,lonsperlar,buff_mult_piecenst(1,1,ngridnst))
+!
+!-- xv
+      ngridnst=ngridnst+1
+      CALL uninterprez(1,kmsk,buffo,nst_fld%xv,
+     &       global_lats_r,lonsperlar,buff_mult_piecenst(1,1,ngridnst))
+!
+!-- 6 xz
+      ngridnst=ngridnst+1
+      CALL uninterprez(1,kmsk,buffo,nst_fld%xz,
+     &       global_lats_r,lonsperlar,buff_mult_piecenst(1,1,ngridnst))
+!
+!-- zm
+      ngridnst=ngridnst+1
+      CALL uninterprez(1,kmsk,buffo,nst_fld%zm,
+     &       global_lats_r,lonsperlar,buff_mult_piecenst(1,1,ngridnst))
+!
+!-- xtts
+      ngridnst=ngridnst+1
+      CALL uninterprez(1,kmsk,buffo,nst_fld%xtts,
+     &       global_lats_r,lonsperlar,buff_mult_piecenst(1,1,ngridnst))
+!
+!-- xzts
+      ngridnst=ngridnst+1
+      CALL uninterprez(1,kmsk,buffo,nst_fld%xzts,
+     &       global_lats_r,lonsperlar,buff_mult_piecenst(1,1,ngridnst))
+!
+!-- 10 dt_cool
+      ngridnst=ngridnst+1
+      CALL uninterprez(1,kmsk,buffo,nst_fld%dt_cool,
+     &       global_lats_r,lonsperlar,buff_mult_piecenst(1,1,ngridnst))
+!
+!-- z_c
+      ngridnst=ngridnst+1
+      CALL uninterprez(1,kmsk,buffo,nst_fld%z_c,
+     &       global_lats_r,lonsperlar,buff_mult_piecenst(1,1,ngridnst))
+!
+!-- c_0
+      ngridnst=ngridnst+1
+      CALL uninterprez(1,kmsk,buffo,nst_fld%c_0,
+     &       global_lats_r,lonsperlar,buff_mult_piecenst(1,1,ngridnst))
+!
+!-- c_d
+      ngridnst=ngridnst+1
+      CALL uninterprez(1,kmsk,buffo,nst_fld%c_d,
+     &       global_lats_r,lonsperlar,buff_mult_piecenst(1,1,ngridnst))
+!
+!-- w_0
+      ngridnst=ngridnst+1
+      CALL uninterprez(1,kmsk,buffo,nst_fld%w_0,
+     &       global_lats_r,lonsperlar,buff_mult_piecenst(1,1,ngridnst))
+!
+!-- w_d
+      ngridnst=ngridnst+1
+      CALL uninterprez(1,kmsk,buffo,nst_fld%w_d,
+     &       global_lats_r,lonsperlar,buff_mult_piecenst(1,1,ngridnst))
+!
+!-- d_conv
+      ngridnst=ngridnst+1
+      CALL uninterprez(1,kmsk,buffo,nst_fld%d_conv,
+     &       global_lats_r,lonsperlar,buff_mult_piecenst(1,1,ngridnst))
+!
+!-- ifd
+      ngridnst=ngridnst+1
+      CALL uninterprez(1,kmsk,buffo,nst_fld%ifd,
+     &       global_lats_r,lonsperlar,buff_mult_piecenst(1,1,ngridnst))
+!
+!-- tref
+      ngridnst=ngridnst+1
+      CALL uninterprez(1,kmsk,buffo,nst_fld%tref,
+     &       global_lats_r,lonsperlar,buff_mult_piecenst(1,1,ngridnst))
+!
+!-- qrain
+      ngridnst=ngridnst+1
+      CALL uninterprez(1,kmsk,buffo,nst_fld%qrain,
+     &       global_lats_r,lonsperlar,buff_mult_piecenst(1,1,ngridnst))
+!
+
+      return
+      end subroutine nst_collect

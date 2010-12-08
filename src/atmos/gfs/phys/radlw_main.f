@@ -31,8 +31,8 @@
 !       'lwrad'     -- main rrtm1 lw radiation routine                 !
 !          inputs:                                                     !
 !           (pmid,pint,tmid,tint,qnm,o3mr,gasvmr,                      !
-!            clouds,iovr,aerosols,sfemis,                              !
-!            NPTS, NLAY, NLP1, iflip, lprnt,                           !
+!            clouds,iauxil,aerosols,sfemis,sfgtmp,                     !
+!            npts, nlay, nlp1, iflip, lprnt,                           !
 !          outputs:                                                    !
 !            hlwc,topflx,sfcflx,                                       !
 !!         optional outputs:                                           !
@@ -40,7 +40,7 @@
 !                                                                      !
 !       'rlwinit'   -- initialization routine                          !
 !          inputs:                                                     !
-!           ( icwp, me, NLAY )                                         !
+!           ( icwp, me, nlay, iovr, isubc )                            !
 !          outputs:                                                    !
 !           (none)                                                     !
 !                                                                      !
@@ -59,6 +59,7 @@
 !     2. radiation flux at sfc: (from module 'module_radlw_parameters')!
 !          sfcflw_type   -  derived data type for sfc rad fluxes       !
 !            upfxc              total sky upward flux at sfc           !
+!            upfx0              clear sky upward flux at sfc           !
 !            dnfxc              total sky downward flux at sfc         !
 !            dnfx0              clear sky downward flux at sfc         !
 !                                                                      !
@@ -116,31 +117,41 @@
 !        following people:  patrick d. brown, michael j. iacono,       !
 !        ronald e. farren, luke chen, robert bergstrom.                !
 !                                                                      !
-!                                                                      !
+! ******************************************************************** !
 !                                                                      !
 !    ncep modifications history log:                                   !
 !                                                                      !
 !       nov 1999,  ken campana  -- received the original code from aer !
-!                  updated to link up with ncep mrf model              !
-!       jun 2000,  ken campana                                         !
-!                  added option to call aer max/ran overlap            !
-!           2001,  shrinivas moorthi                                   !
-!                  further updates for mrf model                       !
-!       may 2001,  yu-tai hou                                          !
-!                  updated on trace gases and cloud property based on  !
-!                  rrtm_v3.0 codes                                     !
-!       dec 2001,  yu-tai hou                                          !
-!                  rewritten code into fortran 90                      !
-!       jun 2004,  yu-tai hou                                          !
-!                  add mike iacono's apr 2004 modification of variable !
-!                  diffusivity angle                                   !
-!       apr 2005,  yu-tai hou                                          !
-!                  minor modifications on module structures            !
-!       mar 2007,  yu-tai hou                                          !
-!                  add aerosol effect for lw radiation                 !
-!       apr 2007,  yu-tai hou                                          !
-!                  add spectral band heating as optional output        !
-!                                                                      !
+!                    (1998 ncar ccm version), updated to link up with  !
+!                    ncep mrf model                                    !
+!       jun 2000,  ken campana  -- added option to switch random and   !
+!                    maximum/random cloud overlap                      !
+!           2001,  s. moorthi   -- further updates for mrf model       !
+!       may 2001,  yu-tai hou   -- updated on trace gases and cloud    !
+!                    property based on rrtm_v3.0 codes.                !
+!       dec 2001,  yu-tai hou   -- rewritten code into fortran 90 std  !
+!                    set ncep radiation structure std that contains    !
+!                    three plug-in compatable fortran program files:   !
+!                    'radlw_param.f', 'radlw_datatb.f', 'radlw_main.f' !
+!                    fixed bugs in subprograms taugb14, taugb2, etc.   !
+!                    added out-of-bounds protections. (a detailed note !
+!                    of up_to_date modifications/corrections by ncep   !
+!                    was sent to aer in 2002)                          !
+!       jun 2004,  yu-tai hou   -- add mike iacono's apr 2004          !
+!                    modification of variable diffusivity angles.      !
+!       apr 2005,  yu-tai hou   -- minor modifications on module       !
+!                    structures include rain/snow effect (this version !
+!                    of code was given back to aer in jun 2006)        !
+!       mar 2007,  yu-tai hou   -- add aerosol effect for ncep models  !
+!                    using the generallized aerosol optical property   !
+!                    scheme for gfs model.                             !
+!       apr 2007,  yu-tai hou   -- add spectral band heating as an     !
+!                    optional output to support the 500 km gfs model's !
+!                    upper stratospheric radiation calculations. and   !
+!                    restructure optional outputs for easy access by   !
+!                    different models.                                 !
+!       mar 2009,  yu-tai hou   -- modified the program interface that !
+!                    is consistant with newer radiation code structure.!
 !                                                                      !
 !                                                                      !
 !!!!!  ==========================================================  !!!!!
@@ -189,7 +200,7 @@
       parameter (amdo3=con_amd/con_amo3)
 
 !  ...  band indices
-      integer :: nspa(NBANDS), nspb(NBANDS), ngb(NGPT)
+      integer :: nspa(NBANDS), nspb(NBANDS), ngb(NGPTLW)
 
       data nspa / 1, 1,10, 9, 9, 1, 9, 1,11, 1, 1, 9, 9, 1, 9, 9 /
       data nspb / 1, 1, 5, 6, 5, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0 /
@@ -282,6 +293,12 @@
       real (kind=kind_phys), dimension(0:N5000) :: tau, tf, trans
       real (kind=kind_phys), dimension(0:N200 ) :: corr1, corr2
 
+!  ...  iovrlw  is the clouds overlapping control flag
+!            =0: random overlapping clouds
+!            =1: maximum/random overlapping clouds
+
+      integer :: iovrlw
+
       public lwrad, rlwinit
 
 
@@ -295,7 +312,7 @@
 
 !  ---  inputs:
      &     ( pmid,pint,tmid,tint,qnm,o3mr,gasvmr,                       &
-     &       clouds,iovr,aerosols,sfemis,                               &
+     &       clouds,iauxil,aerosols,sfemis,sfgtmp,                      &
      &       NPTS, NLAY, NLP1, iflip, lprnt,                            &
 !  ---  outputs:
      &       hlwc,topflx,sfcflx                                         &
@@ -341,15 +358,15 @@
 !       clouds(:,:,2)  -   layer cloud optical depth                   !
 !       clouds(:,:,3)  -   layer cloud single scattering albedo        !
 !       clouds(:,:,4)  -   layer cloud asymmetry factor                !
-!     iovr                  - control flag for cloud overlapping       !
-!                             =0: random overlapping clouds            !
-!                             =1: max/ran overlapping clouds           !
+!     iauxil(:)             - auxiliary special purpose array          !
+!                       (*** not used in this version of code)         !
 !     aerosols(NPTS,NLAY,NBANDS,:) - aerosol optical properties        !
 !                       (check module_radiation_aerosols for definition!
 !        (:,:,:,1)          - optical depth                            !
 !        (:,:,:,2)          - single scattering albedo                 !
 !        (:,:,:,3)          - asymmetry parameter                      !
 !     sfemis (NPTS)         - surface emissivity                       !
+!     sfgtmp (NPTS)         - surface ground temperature (k)           !
 !     NPTS                  - total number of horizontal points        !
 !     NLAY,NLP1             - total number of vertical layers, levels  !
 !     iflip                 - control flag for in/out vertical index   !
@@ -391,6 +408,7 @@
 !     sfcflx (NPTS)         - radiation fluxes at sfc, component:      !
 !                        (check module_radlw_paramters for definition) !
 !        upfxc                 total sky upward flux at sfc (w/m2)     !
+!        upfx0                 clear sky upward flux at sfc (w/m2)     !
 !        dnfxc                 total sky downward flux at sfc (w/m2)   !
 !        dnfx0                 clear sky downward flux at sfc (w/m2)   !
 !                                                                      !
@@ -408,11 +426,14 @@
 !     NBANDS                - number of longwave spectral bands        !
 !     MAXGAS                - maximum number of absorbing gaseous      !
 !     MAXXSEC               - maximum number of cross-sections         !
-!     NGPT                  - total number of g-point subintervals     !
+!     NGPTLW                - total number of g-point subintervals     !
 !     NGnn   (nn=1-16)      - number of g-points in band nn            !
 !     nspa,nspb(NBANDS)     - number of lower/upper ref atm's per band !
 !     delwave(NBANDS)       - longwave band width (wavenumbers)        !
 !     bpade                 - pade approximation constant (1/0.278)    !
+!     iovrlw                - cloud overlapping control flag           !
+!                             =0: random overlapping clouds            !
+!                             =1: maximum/random overlapping clouds    !
 !     pavel  (NLAY)         - layer pressures (mb)                     !
 !     delp   (NLAY)         - layer pressure thickness (mb)            !
 !     tavel  (NLAY)         - layer temperatures (k)                   !
@@ -423,9 +444,9 @@
 !                                   (1.e-20*molecules/cm**2)           !
 !     cldfrac(0:NLP1)       - layer cloud fraction                     !
 !     taucloud(NBANDS,NLAY) - layer cloud optical depth for each band  !
-!     taug   (NGPT,NLAY)    - gaseous optical depths                   !
-!     pfrac  (NGPT,NLAY)    - planck fractions                         !
-!     itr    (NGPT,NLAY)    - integer look-up table index              !
+!     taug   (NGPTLW,NLAY)  - gaseous optical depths                   !
+!     pfrac  (NGPTLW,NLAY)  - planck fractions                         !
+!     itr    (NGPTLW,NLAY)  - integer look-up table index              !
 !     colamt (NLAY,MAXGAS)  - column amounts of absorbing gases        !
 !                             1-MAXGAS are for watervapor, carbon      !
 !                             dioxide, ozone, nitrous oxide, methane,  !
@@ -466,7 +487,7 @@
       implicit none
 
 !  ---  inputs:
-      integer,  intent(in) :: NPTS, NLAY, NLP1, iovr, iflip
+      integer,  intent(in) :: NPTS, NLAY, NLP1, iflip, iauxil(:)
 
       logical,  intent(in) :: lprnt
 
@@ -476,7 +497,8 @@
       real (kind=kind_phys), dimension(:,:,:),intent(in) :: gasvmr,     &
      &       clouds
 
-      real (kind=kind_phys), dimension(:),    intent(in) :: sfemis
+      real (kind=kind_phys), dimension(:),    intent(in) :: sfemis,     &
+     &       sfgtmp
 
       real (kind=kind_phys), dimension(:,:,:,:),intent(in) :: aerosols
 
@@ -505,13 +527,14 @@
      &       fac11, forfac, plog, selffac, selffrac, temcol
 
       real (kind=kind_phys) :: colamt(NLAY,MAXGAS), wx(NLAY,MAXXSEC),   &
-     &       taucloud(NBANDS,NLAY), pfrac(NGPT,NLAY), semiss(NBANDS),   &
+     &       taucloud(NBANDS,NLAY), pfrac(NGPTLW,NLAY), semiss(NBANDS), &
      &       secdiff(NBANDS), tauaer(NBANDS,NLAY), htrb(NLAY,NBANDS)
 
-      real (kind=kind_phys) :: fp, ft, ft1, tem0, tem1, tem2, pwvcm
+      real (kind=kind_phys) :: fp, ft, ft1, tem0, tem1, tem2, pwvcm,    &
+     &       stemp
 
       integer, dimension(NLAY) :: jp, jt, jt1, indself
-      integer                  :: itr(NGPT,NLAY), laytrop, layswtch,    &
+      integer                  :: itr(NGPTLW,NLAY), laytrop, layswtch,  &
      &                            laylow, jp1, j, k, k1, iplon
 !
 !===> ... begin here
@@ -534,6 +557,8 @@
             semiss(j) = semiss0(j)
           enddo
         endif
+
+        stemp = sfgtmp(iplon)          ! surface ground temp
 
 !  ---  prepare atmospheric profile for use in rrtm
 !       the vertical index of internal array is from surface to top
@@ -783,7 +808,7 @@
           forfac(k)  = pavel(k)*stpfac / (tavel(k)*(1.0 + h2ovmr(k)))
         enddo
         
-!     if (lprnt) then
+!     if (lprnt .and. ipt == iplon) then
 !     print *,'  coldry',coldry
 !     print *,' wx(*,1) ',(wx(k,1),k=1,NLAY)
 !     print *,' wx(*,2) ',(wx(k,2),k=1,NLAY)
@@ -942,23 +967,23 @@
 !     do k=1,NLAY
 !       write(6,123) k
 !123    format(' k =',i3,5x,'PFRAC')
-!       write(6,122) (pfrac(j,k),j=1,NGPT)
+!       write(6,122) (pfrac(j,k),j=1,NGPTLW)
 !122    format(10e14.7)
 !       write(6,124) k
 !124    format(' k =',i3,5x,'ITR')
-!       write(6,125) (itr(j,k),j=1,NGPT)
+!       write(6,125) (itr(j,k),j=1,NGPTLW)
 !125    format(10i10)
 !     enddo
 !     endif
 
 !  ---  call the radiative transfer routine.
 
-        if (iovr == 0) then
+        if (iovrlw == 0) then
 
           call rtrn                                                     &
 !  ---  inputs:
      &     ( tavel,tz,delp,semiss,cldfrac,taucloud,pfrac,               &
-     &       secdiff, itr, NLAY, NLP1,                                  &
+     &       secdiff, stemp, itr, NLAY, NLP1,                           &
 !  ---  outputs:
      &       totuflux,totdflux,htr, totuclfl,totdclfl,htrcl, htrb       &
      &     )
@@ -968,12 +993,12 @@
           call rtrnmr                                                   &
 !  ---  inputs:
      &     ( tavel,tz,delp,semiss,cldfrac,taucloud,pfrac,               &
-     &       secdiff, itr, NLAY, NLP1,                                  &
+     &       secdiff, stemp, itr, NLAY, NLP1,                           &
 !  ---  outputs:
      &       totuflux,totdflux,htr, totuclfl,totdclfl,htrcl, htrb       &
      &     )
 
-        endif
+        endif   ! end if_iovrlw_block
 
 
 !  ---  output total-sky and clear-sky fluxes and heating rates.
@@ -982,6 +1007,7 @@
         topflx(iplon)%upfx0 = totuclfl(NLAY)
 
         sfcflx(iplon)%upfxc = totuflux(0)
+        sfcflx(iplon)%upfx0 = totuclfl(0)
         sfcflx(iplon)%dnfxc = totdflux(0)
         sfcflx(iplon)%dnfx0 = totdclfl(0)
 
@@ -1069,7 +1095,7 @@
 !...................................
 
 !  ---  inputs:
-     &     ( icwp, me, NLAY )
+     &     ( icwp, me, NLAY, iovr, isubc )
 !  ---  outputs: (none)
 
 !  *******************************************************************  !
@@ -1105,6 +1131,11 @@
 !                =1: prognostic scheme gives cloud liq/ice path, etc.   !
 !    me       - print control for parallel process                      !
 !    NLAY     - number of vertical layers                               !
+!    iovr     - cloud overlapping control flag                          !
+!                =0: random overlapping clouds                          !
+!                =1: maximum/random overlapping clouds                  !
+!    isubc    - mcica sub-column cloud approximation control flag       !
+!                *** not used in this version of code                   !
 !                                                                       !
 !  outputs: (none)                                                      !
 !                                                                       !
@@ -1130,7 +1161,7 @@
       implicit none
 !
 !  ---  inputs:
-      integer, intent(in) :: icwp, me, NLAY
+      integer, intent(in) :: icwp, me, NLAY, iovr, isubc
 
 !  ---  outputs: none
 
@@ -1140,6 +1171,13 @@
 !
 !===> ... begin here
 !
+      iovrlw  = iovr     ! assign module variable of overlap flag
+
+      if ( iovrlw<0 .or. iovrlw>1 ) then
+        print *,'  *** Error in specification of cloud overlap flag',   &
+     &          ' IOVRLW=',iovrlw,' in RLWINIT !!'
+        stop
+      endif
 
       if (me == 0) then
         print *,' - Using AER Longwave Radiation, Version: ', VTAGLW
@@ -1162,6 +1200,15 @@
           print *,'   --- Include CFC gases absorptions in LW'
         else
           print *,'   --- CFC gases effect is NOT included in LW'
+        endif
+
+        if ( isubc == 0 ) then
+          print *,'   --- Using standard grid average clouds, no sub-', &
+     &            'column clouds approximation'
+        else
+          print *,'   --- Sub-column cloud scheme is not available in', &
+     &            ' this version of code.  Using standard grid',        &
+     &            ' average of clouds'
         endif
       endif
 
@@ -1486,7 +1533,7 @@
 
 !  ---  inputs:
      &     ( tavel,tz,delp,semiss,cldfrac,taucloud,pfrac,               &
-     &       secdiff, itr, NLAY, NLP1,                                  &
+     &       secdiff, stemp, itr, NLAY, NLP1,                           &
 !  ---  outputs:
      &       totuflux,totdflux,htr, totuclfl,totdclfl,htrcl, htrb       &
      &     )
@@ -1531,6 +1578,8 @@
       real (kind=kind_phys), dimension(:,:),intent(in) :: taucloud,     &
      &       pfrac
 
+      real (kind=kind_phys), intent(in) :: stemp
+
 !  ---  outputs:
       real (kind=kind_phys), dimension(:),  intent(out) :: htr, htrcl
       real (kind=kind_phys), dimension(:,:),intent(out) :: htrb
@@ -1539,15 +1588,16 @@
      &       totuflux, totdflux, totuclfl, totdclfl
 
 !  ---  locals:
-      real (kind=kind_phys), dimension(NGPT,NLAY)     :: gassrcu,       &
+      real (kind=kind_phys), dimension(NGPTLW,NLAY)   :: gassrcu,       &
      &       cldsrcu, trans0
-      real (kind=kind_phys), dimension(NGPT,0:NLAY)   :: bglev
-      real (kind=kind_phys), dimension(NGPT)          :: radclru,       &
-     &       radclrd, radtotu, radtotd
+      real (kind=kind_phys), dimension(NGPTLW,0:NLAY) :: bglev
+      real (kind=kind_phys), dimension(NGPTLW)        :: radclru,       &
+     &       radclrd, radtotu, radtotd, bgsfc
       real (kind=kind_phys), dimension(NBANDS,0:NLAY) :: plvl,          &
      &       totufxsb, totdfxsb
       real (kind=kind_phys), dimension(NBANDS,NLAY)   :: play, odcld,   &
      &       trncld, efcfr1
+      real (kind=kind_phys), dimension(NBANDS)        :: plksfc
       real (kind=kind_phys), dimension(0:NLAY)        :: fnet, fnetc
 
       real (kind=kind_phys) :: totdrad, clrdrad, toturad, clrurad
@@ -1565,18 +1615,19 @@
 !    semiss  (NBANDS)     ! surface emissivities for each band          !
 !    cldfrac (0:NLP1)     ! layer cloud fraction (padded at 2 ends)     !
 !    taucloud(NBANDS,NLAY)! layer cloud optical depth                   !
-!    pfrac   (NGPT,NLAY)  ! planck fractions                            !
+!    pfrac   (NGPTLW,NLAY)! planck fractions                            !
 !    secdiff(NBANDS)      ! variable diffusivity angle defined as an    !
 !                           exponential function of the column water    !
 !                           amount in bands 2-3 and 5-9. this reduces   !
 !                           the bias of several w/m2 in downward surface!
 !                           flux in high water profiles caused by using !
 !                           the constant diffusivity angle of 1.66.(mji)!
-!    itr     (NGPT,NLAY)  ! integer look-up table index                 !
+!    stemp                ! surface ground temperature (k)              !
+!    itr     (NGPTLW,NLAY)! integer look-up table index                 !
 !    NLAY/NLP1            ! number of model layers/levels               !
 !                                                                       !
 !  constants or shared variables:                                       !
-!    NGPT                 ! total number of g-point subintervals        !
+!    NGPTLW               ! total number of g-point subintervals        !
 !    NBANDS               ! number of longwave spectral bands           !
 !    wtnum                ! weight for radiance to flux conversion      !
 !    bpade                ! pade constant                               !
@@ -1597,10 +1648,10 @@
 !    odcld   (NBANDS,NLAY)! cloud optical depth                         !
 !    trncld  (NBANDS,NLAY)! cloud transmittance                         !
 !    efcfr1  (NBANDS,NLAY)! effective clear  sky fraction               !
-!    radtotu (NGPT)       ! upward radiance                             !
-!    radtotd (NGPT)       ! downward radiance                           !
-!    radclru (NGPT)       ! clear sky upward radiance                   !
-!    radclrd (NGPT)       ! clear sky downward radiance                 !
+!    radtotu (NGPTLW)     ! upward radiance                             !
+!    radtotd (NGPTLW)     ! downward radiance                           !
+!    radclru (NGPTLW)     ! clear sky upward radiance                   !
+!    radclrd (NGPTLW)     ! clear sky downward radiance                 !
 !    toturad              ! spectrally summed upward radiance           !
 !    totdrad              ! spectrally summed downward radiance         !
 !    clrurad              ! spectrally summed clear sky upward radiance !
@@ -1616,6 +1667,20 @@
 !
 !===> ... begin here
 !
+!  --- ... calculate the integrated planck functions at the surface
+
+      itm1 = min(NPLNK, max(1, int(stemp-159.0) ))
+      itm2 = min(NPLNK, itm1+1)
+      tem1 = stemp - int(stemp)
+      do j = 1, NBANDS
+        plksfc(j) = delwave(j) * ( totplnk(itm1,j)                      &
+     &           + tem1 * (totplnk(itm2,j) - totplnk(itm1,j)) )
+      enddo
+
+      do j = 1, NGPTLW
+        inb = ngb(j)                 ! band index
+        bgsfc(j) = pfrac(j,1) * plksfc(inb)
+      enddo
 
 !  --- ... calculate the integrated planck functions at the level and
 !          layer temperatures.
@@ -1624,8 +1689,8 @@
       itm2 = min(NPLNK, itm1+1)
       tem1 = tz(0) - int(tz(0))
       do j = 1, NBANDS
-         plvl(j,0) = delwave(j) * ( totplnk(itm1,j)                     &
-     &             + tem1 * (totplnk(itm2,j) - totplnk(itm1,j)) )
+        plvl(j,0) = delwave(j) * ( totplnk(itm1,j)                      &
+     &            + tem1 * (totplnk(itm2,j) - totplnk(itm1,j)) )
       enddo
 
       do k = 1, NLAY
@@ -1650,7 +1715,7 @@
           efcfr1(j,k) = 1.0 - cldfrac(k) + trncld(j,k)*cldfrac(k)
         enddo
 
-        do j = 1, NGPT
+        do j = 1, NGPTLW
           inb = ngb(j)                 ! band index
           bglev(j,k-1) = pfrac(j,k) * plvl(inb,k-1)
         enddo
@@ -1667,7 +1732,7 @@
         enddo
       endif
 
-      do j = 1, NGPT
+      do j = 1, NGPTLW
          inb = ngb(j)                 ! band index
          radclrd(j) = f_zero
          radtotd(j) = f_zero
@@ -1686,7 +1751,7 @@
         if (cldfrac(k) > eps) then
 !  --- ... cloudy layer
 
-          do j = 1, NGPT
+          do j = 1, NGPTLW
 !  --- ... get lookup table index
             ind = itr(j,k)
             inb = ngb(j)                 ! band index
@@ -1727,7 +1792,7 @@
 
 !  --- ... clear layer
 
-          do j = 1, NGPT
+          do j = 1, NGPTLW
             ind = itr(j,k)
             inb = ngb(j)                 ! band index
 
@@ -1762,7 +1827,7 @@
 
 !  --- ... total sky radiance for each of the spectral bands
         if ( lhlwb ) then
-          do j = 1, NGPT
+          do j = 1, NGPTLW
             inb = ngb(j)                 ! band index
             totdfxsb(inb,k-1) = totdfxsb(inb,k-1) + radtotd(j)
           enddo
@@ -1785,10 +1850,11 @@
       toturad = f_zero
       clrurad = f_zero
 
-      do j = 1, NGPT
+      do j = 1, NGPTLW
         inb = ngb(j)                 ! band index
         tem1 = 1.0 - semiss(inb)
-        tem2 = bglev(j,0) * semiss(inb)
+!       tem2 = bglev(j,0) * semiss(inb)
+        tem2 = bgsfc(j) * semiss(inb)
 
 !  --- ... total sky radiance
         radtotu(j) = tem2 + tem1 * radtotd(j)
@@ -1804,7 +1870,7 @@
 
 !  --- ... total sky radiance for each of the spectral bands
       if ( lhlwb ) then
-        do j = 1, NGPT
+        do j = 1, NGPTLW
           inb = ngb(j)                 ! band index
           totufxsb(inb,0) = totufxsb(inb,0) + radtotu(j)
         enddo
@@ -1827,7 +1893,7 @@
 
 !  --- ... cloudy layers
 
-          do j = 1, NGPT
+          do j = 1, NGPTLW
             inb   = ngb(j)                 ! band index
 
 !  --- ... total sky radiance
@@ -1844,7 +1910,7 @@
 
 !  --- ... clear layer
 
-          do j = 1, NGPT
+          do j = 1, NGPTLW
 
 !  --- ... total sky radiance
             radtotu(j) = radtotu(j)*trans0(j,k) + gassrcu(j,k)
@@ -1862,7 +1928,7 @@
 
 !  --- ... total sky radiance for each of the spectral bands
         if ( lhlwb ) then
-          do j = 1, NGPT
+          do j = 1, NGPTLW
             inb = ngb(j)                 ! band index
             totufxsb(inb,k) = totufxsb(inb,k) + radtotu(j)
           enddo
@@ -1932,7 +1998,7 @@
 
 !  ---  inputs:
      &     ( tavel,tz,delp,semiss,cldfrac,taucloud,pfrac,               &
-     &       secdiff, itr, NLAY, NLP1,                                  &
+     &       secdiff, stemp, itr, NLAY, NLP1,                           &
 !  ---  outputs:
      &       totuflux,totdflux,htr, totuclfl,totdclfl,htrcl, htrb       &
      &     )
@@ -1981,6 +2047,8 @@
       real (kind=kind_phys), dimension(:,:),intent(in) :: taucloud,     &
      &       pfrac
 
+      real (kind=kind_phys), intent(in) :: stemp
+
 !  ---  outputs:
       real (kind=kind_phys), dimension(:),  intent(out) :: htr, htrcl
       real (kind=kind_phys), dimension(:,:),intent(out) :: htrb
@@ -1990,15 +2058,16 @@
 
 !  ---  locals:
 !  dimensions for radiative transfer
-      real (kind=kind_phys), dimension(NGPT,NLAY)     :: gassrcu,       &
+      real (kind=kind_phys), dimension(NGPTLW,NLAY)   :: gassrcu,       &
      &       cldsrcu, trans0, transc
-      real (kind=kind_phys), dimension(NGPT,0:NLAY)   :: bglev
-      real (kind=kind_phys), dimension(NGPT)          :: radclru,       &
-     &       radclrd, radtotu, radtotd
+      real (kind=kind_phys), dimension(NGPTLW,0:NLAY) :: bglev
+      real (kind=kind_phys), dimension(NGPTLW)        :: radclru,       &
+     &       radclrd, radtotu, radtotd, bgsfc
       real (kind=kind_phys), dimension(NBANDS,0:NLAY) :: plvl,          &
      &       totufxsb, totdfxsb
       real (kind=kind_phys), dimension(NBANDS,NLAY)   :: play,          &
      &       odcld, trncld
+      real (kind=kind_phys), dimension(NBANDS)        :: plksfc
       real (kind=kind_phys), dimension(0:NLAY)        :: fnet, fnetc
 
       real (kind=kind_phys) :: totdrad, clrdrad, toturad, clrurad
@@ -2008,7 +2077,7 @@
       integer :: j, k, ind, inb, itm1, itm2, jtm1, jtm2
 
 !  dimensions for cloud overlap adjustment
-      real (kind=kind_phys), dimension(NGPT)   ::  clrradu, cldradu,    &
+      real (kind=kind_phys), dimension(NGPTLW) ::  clrradu, cldradu,    &
      &       clrradd, cldradd, rad
       real (kind=kind_phys), dimension(1:NLP1) ::  faccld1u, faccld2u,  &
      &       facclr1u, facclr2u, faccmb1u, faccmb2u
@@ -2027,18 +2096,19 @@
 !    semiss  (NBANDS)     ! surface emissivities for each band          !
 !    cldfrac (0:NLP1)     ! layer cloud fraction (padded at 2 ends)     !
 !    taucloud(NBANDS,NLAY)! layer cloud optical depth                   !
-!    pfrac   (NGPT,NLAY)  ! planck fractions                            !
+!    pfrac   (NGPTLW,NLAY)! planck fractions                            !
 !    secdiff(NBANDS)      ! variable diffusivity angle defined as an    !
 !                           exponential function of the column water    !
 !                           amount in bands 2-3 and 5-9. this reduces   !
 !                           the bias of several w/m2 in downward surface!
 !                           flux in high water profiles caused by using !
 !                           the constant diffusivity angle of 1.66.(mji)!
-!    itr     (NGPT,NLAY)  ! integer look-up table index                 !
+!    stemp   (NBANDS)     ! surface ground temperature (k)              !
+!    itr     (NGPTLW,NLAY)! integer look-up table index                 !
 !    NLAY/NLP1            ! number of model layers/levels               !
 !                                                                       !
 !  constants or shared variables:                                       !
-!    NGPT                 ! total number of g-point subintervals        !
+!    NGPTLW               ! total number of g-point subintervals        !
 !    NBANDS               ! number of longwave spectral bands           !
 !    wtnum                ! weight for radiance to flux conversion      !
 !    bpade                ! pade constant                               !
@@ -2058,10 +2128,10 @@
 !  local variables:                                                     !
 !    odcld   (NBANDS,NLAY)! cloud optical depth                         !
 !    trncld  (NBANDS,NLAY)! cloud transmittance                         !
-!    radtotu (NGPT)       ! upward radiance                             !
-!    radtotd (NGPT)       ! downward radiance                           !
-!    radclru (NGPT)       ! clear sky upward radiance                   !
-!    radclrd (NGPT)       ! clear sky downward radiance                 !
+!    radtotu (NGPTLW)     ! upward radiance                             !
+!    radtotd (NGPTLW)     ! downward radiance                           !
+!    radclru (NGPTLW)     ! clear sky upward radiance                   !
+!    radclrd (NGPTLW)     ! clear sky downward radiance                 !
 !    toturad              ! spectrally summed upward radiance           !
 !    totdrad              ! spectrally summed downward radiance         !
 !    clrurad              ! spectrally summed clear sky upward radiance !
@@ -2240,6 +2310,21 @@
 
       enddo
 
+!  --- ... calculate the integrated planck functions at the surface
+
+      itm1 = min(NPLNK, max(1, int(stemp-159.0) ))
+      itm2 = min(NPLNK, itm1+1)
+      tem1 = stemp - int(stemp)
+      do j = 1, NBANDS
+        plksfc(j) = delwave(j) * ( totplnk(itm1,j)                      &
+     &            + tem1 * (totplnk(itm2,j) - totplnk(itm1,j)) )
+      enddo
+
+      do j = 1, NGPTLW
+        inb = ngb(j)                 ! band index
+        bgsfc(j) = pfrac(j,1) * plksfc(inb)
+      enddo
+
 !  --- ... calculate the integrated planck functions at the level and
 !          layer temperatures.
 
@@ -2272,7 +2357,7 @@
           trncld(j,k) = exp( -odcld(j,k) )
         enddo
 
-        do j = 1, NGPT
+        do j = 1, NGPTLW
           inb = ngb(j)                 ! band index
           bglev(j,k-1) = pfrac(j,k) * plvl(inb,k-1)
         enddo
@@ -2289,7 +2374,7 @@
         enddo
       endif
 
-      do j = 1, NGPT
+      do j = 1, NGPTLW
         inb = ngb(j)                 ! band index
         radclrd(j) = f_zero
         radtotd(j) = f_zero
@@ -2306,7 +2391,7 @@
         clrdrad = f_zero
 
         if (istcldd(k)) then
-          do j = 1, NGPT
+          do j = 1, NGPTLW
             cldradd(j) = cldfrac(k) * radtotd(j)
             clrradd(j) = radtotd(j) - cldradd(j)
             rad    (j) = f_zero
@@ -2316,7 +2401,7 @@
         if (cldfrac(k) > eps) then
 !  --- ... cloudy layer
 
-          do j = 1, NGPT
+          do j = 1, NGPTLW
 !  --- ... get lookup table index
             ind = itr(j,k)
             inb = ngb(j)                 ! band index
@@ -2370,7 +2455,7 @@
 
 !  --- ... clear layer
 
-          do j = 1, NGPT
+          do j = 1, NGPTLW
             ind = itr(j,k)
             inb = ngb(j)                 ! band index
 
@@ -2406,7 +2491,7 @@
 
 !  --- ... total sky radiance for each of the spectral bands
         if ( lhlwb ) then
-          do j = 1, NGPT
+          do j = 1, NGPTLW
             inb = ngb(j)                 ! band index
             totdfxsb(inb,k-1) = totdfxsb(inb,k-1) + radtotd(j)
           enddo
@@ -2429,10 +2514,11 @@
       toturad = f_zero
       clrurad = f_zero
 
-      do j = 1, NGPT
+      do j = 1, NGPTLW
         inb = ngb(j)                 ! band index
         tem1 = 1.0 - semiss(inb)
-        tem2 = bglev(j,0) * semiss(inb)
+!       tem2 = bglev(j,0) * semiss(inb)
+        tem2 = bgsfc(j) * semiss(inb)
 
 !  --- ... total sky radiance
         radtotu(j) = tem2 + tem1 * radtotd(j)
@@ -2448,7 +2534,7 @@
 
 !  --- ... total sky radiance for each of the spectral bands
       if ( lhlwb ) then
-        do j = 1, NGPT
+        do j = 1, NGPTLW
           inb = ngb(j)                 ! band index
           totufxsb(inb,0) = totufxsb(inb,0) + radtotu(j)
         enddo
@@ -2464,7 +2550,7 @@
         clrurad = f_zero
 
         if (istcldu(k)) then
-          do j = 1, NGPT
+          do j = 1, NGPTLW
             cldradu(j) = radtotu(j) * cldfrac(k)
             clrradu(j) = radtotu(j) - cldradu(j)
             rad(j)     = f_zero
@@ -2476,7 +2562,7 @@
 
 !  --- ... cloudy layers
 
-          do j = 1, NGPT
+          do j = 1, NGPTLW
             cldradu(j) = cldradu(j)*transc(j,k)+cldfrac(k)*cldsrcu(j,k)
             clrradu(j) = clrradu(j)*trans0(j,k)                         &
      &                                + (1.0 - cldfrac(k))*gassrcu(j,k)
@@ -2503,7 +2589,7 @@
 
 !  --- ... clear layer
 
-          do j = 1, NGPT
+          do j = 1, NGPTLW
 
 !  --- ... total sky radiance
             radtotu(j) = radtotu(j)*trans0(j,k) + gassrcu(j,k)
@@ -2523,7 +2609,7 @@
 
 !  --- ... total sky radiance for each of the spectral bands
         if ( lhlwb ) then
-          do j = 1, NGPT
+          do j = 1, NGPTLW
             inb = ngb(j)                 ! band index
             totufxsb(inb,k) = totufxsb(inb,k) + radtotu(j)
           enddo
@@ -2720,7 +2806,7 @@
       integer,               dimension(:,:), intent(out) :: itr
 
 !  ---  locals:
-      real (kind=kind_phys) :: taug(NGPT,NLAY), tem1, tem2
+      real (kind=kind_phys) :: taug(NGPTLW,NLAY), tem1, tem2
       integer :: j, k, ja, jb, kk, id0(NLAY,NBANDS), id1(NLAY,NBANDS),  &
      &           inb
 !
@@ -2764,14 +2850,14 @@
       call taugb16
 
 ! mji do k = 1, NLAY
-!       do j = 1, NGPT
+!       do j = 1, NGPTLW
 !         tem1 = max( f_zero, secang*taug(j,k) )
 !         tem2 = tem1 / (bpade + tem1)
 !         itr(j,k) = 5.0e3 * tem2 + 0.5
 !       enddo
 ! mji enddo
 
-      do j = 1, NGPT
+      do j = 1, NGPTLW
         inb = ngb(j)
 
         do k = 1, NLAY

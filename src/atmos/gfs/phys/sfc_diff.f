@@ -1,10 +1,11 @@
-      SUBROUTINE SFC_DIFF(IM,PS,U1,V1,T1,Q1,
+      SUBROUTINE SFC_DIFF(IM,PS,U1,V1,T1,Q1,Z1,
      &                    TSKIN,Z0RL,CM,CH,RB,
-     &                    RCL,PRSL1,PRSLKI,SLIMSK,
+     &                    PRSL1,PRSLKI,SLIMSK,
      &                    STRESS,FM,FH,
 Clu_q2m_iter [-1L/+2L]: add tsurf, flag_iter
 !*   &                    USTAR,WIND,DDVEL,FM10,FH2)
      +                    USTAR,WIND,DDVEL,FM10,FH2,
+     +                    SIGMAF,VEGTYPE,SHDMAX,
      +                    tsurf,flag_iter)
 !
       USE MACHINE , ONLY : kind_phys
@@ -19,14 +20,16 @@ Clu_q2m_iter [-1L/+2L]: add tsurf, flag_iter
       integer              IM, km, ipr
 !
       real(kind=kind_phys) PS(IM),       U1(IM),      V1(IM),
-     &                     T1(IM),       Q1(IM),      
+     &                     T1(IM),       Q1(IM),      Z1(IM),      
      &                     TSKIN(IM),    Z0RL(IM),
      &                     CM(IM),       CH(IM),      RB(IM),
-     &                     RCL(IM),      PRSL1(IM),   PRSLKI(IM),
+     &                                   PRSL1(IM),   PRSLKI(IM),
      &                     SLIMSK(IM),   STRESS(IM), 
      &                     FM(IM),       FH(IM),      USTAR(IM),
      &                     WIND(IM),     DDVEL(IM),    
-     &                     FM10(IM),     FH2(IM)
+     &                     FM10(IM),     FH2(IM),     Z1I(IM),
+     &                     SIGMAF(IM),   SHDMAX(IM)   
+      integer VEGTYPE(IM)
 
 Clu_q2m_iter [+1L]: add flag_iter
       logical              flag_iter(im)
@@ -39,12 +42,11 @@ Clu_q2m_iter [+1L]: add flag_iter
       real(kind=kind_phys) DTV(IM),     HL1(IM),     HL12(IM),
      &                     HLINF(IM),   PH(IM),
      &                     PH2(IM),     PM(IM),      PM10(IM),
-     &                     PSURF(IM),   Q0(IM),      RAT(IM),
+     &                                  Q0(IM),      RAT(IM),
      &                     THETA1(IM),  THV1(IM),
      &                     TSURF(IM),   TV1(IM),
-     &                     TVS(IM),     XRCL(IM),
-     &                     Z0(IM),      Z0MAX(IM),   Z1(IM),
-     &                     ZTMAX(IM),   PS1(IM),     QS1(IM)
+     &                     TVS(IM),     Z0(IM),      Z0MAX(IM),
+     &                     ZTMAX(IM),   QS1(IM)
 
 !
       real(kind=kind_phys) a0,    a0p,    a1,    a1p,   aa,   aa0,
@@ -62,47 +64,44 @@ cc
       PARAMETER (A0P=-7.941,A1P=24.75,B1P=-8.705,B2P=7.899,VIS=1.4E-5)
       PARAMETER (AA1=-1.076,BB1=.7045,CC1=-.05808)
       PARAMETER (BB2=-.1954,CC2=.009999)
-      PARAMETER (RNU=1.51E-5,ARNU=.135*RNU)
+       PARAMETER (RNU=1.51E-5,ARNU=.135*RNU)
+C MBEK -- TOGA-COARE FLUX ALGORITHM
+!     PARAMETER (RNU=1.51E-5,ARNU=0.11*RNU)
 C
 C  INITIALIZE VARIABLES. ALL UNITS ARE SUPPOSEDLY M.K.S. UNLESS SPECIFIED
-C  PSURF IS IN PASCALS
+C  PS IS IN PASCALS
 C  WIND IS WIND SPEED, THETA1 IS ADIABATIC SURFACE TEMP FROM LEVEL 1
 C  SURFACE ROUGHNESS LENGTH IS CONVERTED TO M FROM CM
 C
       DO I=1,IM
         if(flag_iter(i)) then 
-        XRCL(I)  = SQRT(RCL(I))
-        PSURF(I) = 1000. * PS(I)
-!**     TSURF(I) = TSKIN(I)                 !! <---- Clu_q2m_iter [-1L]
-        PS1(I)   = 1000. * PRSL1(I)
-        WIND(I) = XRCL(I) * SQRT(U1(I) * U1(I) + V1(I) * V1(I))
+!**       TSURF(I)  = TSKIN(I)                 !! <---- Clu_q2m_iter [-1L]
+          WIND(I)   = SQRT(U1(I) * U1(I) + V1(I) * V1(I))
      &              + MAX(0.0, MIN(DDVEL(I), 30.0))
-        WIND(I) = MAX(WIND(I),1.)
-        Q0(I) = MAX(Q1(I),1.E-8)
-        THETA1(I) = T1(I) * PRSLKI(I)
-        TV1(I) = T1(I) * (1. + RVRDM1 * Q0(I))
-        THV1(I) = THETA1(I) * (1. + RVRDM1 * Q0(I))
+          WIND(I)   = MAX(WIND(I),1.)
+          Q0(I)     = MAX(Q1(I),1.E-8)
+          THETA1(I) = T1(I) * PRSLKI(I)
+          TV1(I)    = T1(I) * (1. + RVRDM1 * Q0(I))
+          THV1(I)   = THETA1(I) * (1. + RVRDM1 * Q0(I))
 Clu_q2m_iter[-1L/+2L]: TVS is computed from avg(tsurf,tskin)
-!**     TVS(I) = TSURF(I) * (1. + RVRDM1 * Q0(I))
-        TVS(I) = 0.5 * (TSURF(I)+TSKIN(I)) * 
-     +           (1. + RVRDM1 * Q0(I))
-        qs1(i) = fpvs(t1(i))
-        QS1(I) = EPS * QS1(I) / (PS1(I) + EPSM1 * QS1(I))
-        QS1(I) = MAX(QS1(I), 1.E-8)
-        Q0(I) = min(QS1(I),Q0(I))
+!**       TVS(I)    = TSURF(I) * (1. + RVRDM1 * Q0(I))
+          TVS(I)    = 0.5 * (TSURF(I)+TSKIN(I)) * (1. + RVRDM1 * Q0(I))
+          qs1(i)    = fpvs(t1(i))
+          QS1(I)    = EPS * QS1(I) / (PRSL1(I) + EPSM1 * QS1(I))
+          QS1(I)    = MAX(QS1(I), 1.E-8)
+          Q0(I)     = min(QS1(I),Q0(I))
 
-        Z0(I) = .01 * Z0RL(i)
-        Z1(I) = -RD * TV1(I) * LOG(PS1(I)/PSURF(I)) / G
+          Z0(I)     = .01 * Z0RL(i)
+!         Z1(I)     = -RD * TV1(I) * LOG(PS1(I)/PSURF(I)) / G
+          Z1I(I)    = 1.0 / Z1(I)
         endif
       ENDDO
-
 !!
 C
 C  COMPUTE STABILITY DEPENDENT EXCHANGE COEFFICIENTS
 C
 C  THIS PORTION OF THE CODE IS PRESENTLY SUPPRESSED
 C
-
       DO I=1,IM
        if(flag_iter(i)) then 
         IF(SLIMSK(I).EQ.0.) THEN
@@ -112,19 +111,48 @@ C
 C  COMPUTE STABILITY INDICES (RB AND HLINF)
 C
         Z0MAX(I) = MIN(Z0(I),1. * Z1(I))
-        ZTMAX(I) = Z0MAX(I)
+
+!**  test xubin's new z0
+        IF (SLIMSK(I) .NE. 0.) THEN
+          Z0MAX(I) = exp( ((1.-SHDMAX(I))**2)*LOG(0.01)+
+     &       (1-((1.-SHDMAX(I))**2))*LOG(Z0MAX(I)) )
+          if (VEGTYPE(I) == 7) then
+            Z0MAX(I) = exp( ((1.-SHDMAX(I))**2)*LOG(0.01)+
+     &       (1-((1.-SHDMAX(I))**2))*LOG(0.07) )
+          endif
+          if (VEGTYPE(I) == 8) then
+            Z0MAX(I) = exp( ((1.-SHDMAX(I))**2)*LOG(0.01)+
+     &        (1-((1.-SHDMAX(I))**2))*LOG(0.05) )
+          endif
+          if (VEGTYPE(I) == 9) then
+            Z0MAX(I) = exp( ((1.-SHDMAX(I))**2)*LOG(0.01)+
+     &       (1-((1.-SHDMAX(I))**2))*LOG(0.01) )
+          endif
+          if (VEGTYPE(I) == 11) then
+          Z0MAX(I) = exp( ((1.-SHDMAX(I))**2)*LOG(0.01)+
+     &       (1-((1.-SHDMAX(I))**2))*LOG(0.01) )
+          endif
+        ENDIF
+
+        ZTMAX(I) = Z0MAX(I)*exp( - ((1.-SIGMAF(I))**2)
+     &             *0.8*CA*sqrt(USTAR(I)*0.01/(1.5E-05)))
+
+!**  test xubin's new z0
+
+!       ZTMAX(I) = Z0MAX(I)
+
         IF(SLIMSK(I).EQ.0.) THEN
-          RESTAR = USTAR(I) * Z0MAX(I) / VIS
-          RESTAR = MAX(RESTAR,.000001)
-c         RESTAR = ALOG(RESTAR)
-c         RESTAR = MIN(RESTAR,5.)
-c         RESTAR = MAX(RESTAR,-5.)
-c         RAT(I) = AA1 + BB1 * RESTAR + CC1 * RESTAR ** 2
-c         RAT(I) = RAT(I) / (1. + BB2 * RESTAR
+          RESTAR   = USTAR(I) * Z0MAX(I) / VIS
+          RESTAR   = MAX(RESTAR,.000001)
+c         RESTAR   = LOG(RESTAR)
+c         RESTAR   = MIN(RESTAR,5.)
+c         RESTAR   = MAX(RESTAR,-5.)
+c         RAT(I)   = AA1 + BB1 * RESTAR + CC1 * RESTAR ** 2
+c         RAT(I)   = RAT(I) / (1. + BB2 * RESTAR
 c    &                       + CC2 * RESTAR ** 2)
 c  Rat taken from Zeng, Zhao and Dickinson 1997
-          RAT(I) = 2.67 * restar ** .25 - 2.57
-          RAT(I) = min(RAT(I),7.)
+          RAT(I)   = 2.67 * restar ** .25 - 2.57
+          RAT(I)   = min(RAT(I),7.)
           ZTMAX(I) = Z0MAX(I) * EXP(-RAT(I))
         ENDIF
        endif
@@ -135,21 +163,20 @@ C##DG &   z0max, ztmax, restar, RAT(I)
 C##DG  ENDIF
       DO I = 1, IM
        if(flag_iter(i)) then 
-        DTV(I) = THV1(I) - TVS(I)
-        ADTV = ABS(DTV(I))
-        ADTV = MAX(ADTV,.001)
-        DTV(I) = SIGN(1.,DTV(I)) * ADTV
-        RB(I) = G * DTV(I) * Z1(I) / (.5 * (THV1(I) + TVS(I))
-     &          * WIND(I) * WIND(I))
-        RB(I) = MAX(RB(I),-5000.)
-        FM(I) = LOG((Z0MAX(I)+Z1(I)) / Z0MAX(I))
-        FH(I) = LOG((ZTMAX(I)+Z1(I)) / ZTMAX(I))
+        DTV(I)   = THV1(I) - TVS(I)
+        ADTV     = ABS(DTV(I))
+        ADTV     = MAX(ADTV,.001)
+        DTV(I)   = SIGN(1.,DTV(I)) * ADTV
+        RB(I)    = G * DTV(I) * Z1(I) / (.5 * (THV1(I) + TVS(I))
+     &           * WIND(I) * WIND(I))
+        RB(I)    = MAX(RB(I),-5000.)
+        FM(I)    = LOG((Z0MAX(I)+Z1(I)) / Z0MAX(I))
+        FH(I)    = LOG((ZTMAX(I)+Z1(I)) / ZTMAX(I))
         HLINF(I) = RB(I) * FM(I) * FM(I) / FH(I)
-        FM10(I) = LOG((Z0MAX(I)+10.) / Z0MAX(I))
-        FH2(I) = LOG((ZTMAX(I)+2.) / ZTMAX(I))
+        FM10(I)  = LOG((Z0MAX(I)+10.) / Z0MAX(I))
+        FH2(I)   = LOG((ZTMAX(I)+2.) / ZTMAX(I))
        endif
       ENDDO
-
 C##DG  IF(LAT.EQ.LATD) THEN
 C##DG    PRINT *, ' DTV, RB(I), FM(I), FH(I), HLINF =',
 C##DG &   dtv, rb, FM(I), FH(I), hlinf
@@ -163,16 +190,16 @@ C
           HL1(I) = HLINF(I)
         ENDIF
         IF(DTV(I).GE.0..AND.HLINF(I).GT..25) THEN
-          HL0INF = Z0MAX(I) * HLINF(I) / Z1(I)
-          HLTINF = ZTMAX(I) * HLINF(I) / Z1(I)
-          AA = SQRT(1. + 4. * ALPHA * HLINF(I))
-          AA0 = SQRT(1. + 4. * ALPHA * HL0INF)
-          BB = AA
-          BB0 = SQRT(1. + 4. * ALPHA * HLTINF)
-          PM(I) = AA0 - AA + LOG((AA + 1.) / (AA0 + 1.))
-          PH(I) = BB0 - BB + LOG((BB + 1.) / (BB0 + 1.))
-          FMS = FM(I) - PM(I)
-          FHS = FH(I) - PH(I)
+          HL0INF = Z0MAX(I) * HLINF(I) * Z1I(I)
+          HLTINF = ZTMAX(I) * HLINF(I) * Z1I(I)
+          AA     = SQRT(1. + 4. * ALPHA * HLINF(I))
+          AA0    = SQRT(1. + 4. * ALPHA * HL0INF)
+          BB     = AA
+          BB0    = SQRT(1. + 4. * ALPHA * HLTINF)
+          PM(I)  = AA0 - AA + LOG((AA + 1.) / (AA0 + 1.))
+          PH(I)  = BB0 - BB + LOG((BB + 1.) / (BB0 + 1.))
+          FMS    = FM(I) - PM(I)
+          FHS    = FH(I) - PH(I)
           HL1(I) = FMS * FMS * RB(I) / FHS
         ENDIF
        endif
@@ -183,21 +210,21 @@ C
       DO I = 1, IM
        if(flag_iter(i)) then 
         IF(DTV(I).GE.0.) THEN
-          HL0 = Z0MAX(I) * HL1(I) / Z1(I)
-          HLT = ZTMAX(I) * HL1(I) / Z1(I)
-          AA = SQRT(1. + 4. * ALPHA * HL1(I))
-          AA0 = SQRT(1. + 4. * ALPHA * HL0)
-          BB = AA
-          BB0 = SQRT(1. + 4. * ALPHA * HLT)
-          PM(I) = AA0 - AA + LOG((AA + 1.) / (AA0 + 1.))
-          PH(I) = BB0 - BB + LOG((BB + 1.) / (BB0 + 1.))
-          HL110 = HL1(I) * 10. / Z1(I)
-          AA = SQRT(1. + 4. * ALPHA * HL110)
+          HL0     = Z0MAX(I) * HL1(I) * Z1I(I)
+          HLT     = ZTMAX(I) * HL1(I) * Z1I(I)
+          AA      = SQRT(1. + 4. * ALPHA * HL1(I))
+          AA0     = SQRT(1. + 4. * ALPHA * HL0)
+          BB      = AA
+          BB0     = SQRT(1. + 4. * ALPHA * HLT)
+          PM(I)   = AA0 - AA + LOG((AA + 1.) / (AA0 + 1.))
+          PH(I)   = BB0 - BB + LOG((BB + 1.) / (BB0 + 1.))
+          HL110   = HL1(I) * 10. * Z1I(I)
+          AA      = SQRT(1. + 4. * ALPHA * HL110)
           PM10(I) = AA0 - AA + LOG((AA + 1.) / (AA0 + 1.))
-          HL12(I) = HL1(I) * 2. / Z1(I)
-C         AA = SQRT(1. + 4. * ALPHA * HL12(I))
-          BB = SQRT(1. + 4. * ALPHA * HL12(I))
-          PH2(I) = BB0 - BB + LOG((BB + 1.) / (BB0 + 1.))
+          HL12(I) = HL1(I) * 2. * Z1I(I)
+C         AA      = SQRT(1. + 4. * ALPHA * HL12(I))
+          BB      = SQRT(1. + 4. * ALPHA * HL12(I))
+          PH2(I)  = BB0 - BB + LOG((BB + 1.) / (BB0 + 1.))
         ENDIF
        endif
       ENDDO
@@ -228,26 +255,26 @@ C
       DO I = 1, IM
        if(flag_iter(i)) then 
         IF(DTV(I).LT.0..AND.HLINF(I).GE.-.5) THEN
-          HL1(I) = HLINF(I)
-          PM(I) = (A0 + A1 * HL1(I)) * HL1(I)
+          HL1(I)  = HLINF(I)
+          PM(I)   = (A0 + A1 * HL1(I)) * HL1(I)
      &            / (1. + B1 * HL1(I) + B2 * HL1(I) * HL1(I))
-          PH(I) = (A0P + A1P * HL1(I)) * HL1(I)
+          PH(I)   = (A0P + A1P * HL1(I)) * HL1(I)
      &            / (1. + B1P * HL1(I) + B2P * HL1(I) * HL1(I))
-          HL110 = HL1(I) * 10. / Z1(I)
+          HL110   = HL1(I) * 10. * Z1I(I)
           PM10(I) = (A0 + A1 * HL110) * HL110
      &            / (1. + B1 * HL110 + B2 * HL110 * HL110)
-          HL12(I) = HL1(I) * 2. / Z1(I)
-          PH2(I) = (A0P + A1P * HL12(I)) * HL12(I)
+          HL12(I) = HL1(I) * 2. * Z1I(I)
+          PH2(I)  = (A0P + A1P * HL12(I)) * HL12(I)
      &            / (1. + B1P * HL12(I) + B2P * HL12(I) * HL12(I))
         ENDIF
         IF(DTV(I).LT.0.AND.HLINF(I).LT.-.5) THEN
-          HL1(I) = -HLINF(I)
-          PM(I) = LOG(HL1(I)) + 2. * HL1(I) ** (-.25) - .8776
-          PH(I) = LOG(HL1(I)) + .5 * HL1(I) ** (-.5) + 1.386
-          HL110 = HL1(I) * 10. / Z1(I)
+          HL1(I)  = -HLINF(I)
+          PM(I)   = LOG(HL1(I)) + 2. * HL1(I) ** (-.25) - .8776
+          PH(I)   = LOG(HL1(I)) + .5 * HL1(I) ** (-.5) + 1.386
+          HL110   = HL1(I) * 10. * Z1I(I)
           PM10(I) = LOG(HL110) + 2. * HL110 ** (-.25) - .8776
-          HL12(I) = HL1(I) * 2. / Z1(I)
-          PH2(I) = LOG(HL12(I)) + .5 * HL12(I) ** (-.5) + 1.386
+          HL12(I) = HL1(I) * 2. * Z1I(I)
+          PH2(I)  = LOG(HL12(I)) + .5 * HL12(I) ** (-.5) + 1.386
         ENDIF
        endif
       ENDDO
@@ -278,7 +305,10 @@ C
       DO I = 1, IM
        if(flag_iter(i)) then 
         IF(SLIMSK(I).EQ.0.) THEN
-          Z0(I) = (CHARNOCK / G) * USTAR(I) ** 2
+C          Z0(I) = (CHARNOCK / G) * USTAR(I) ** 2
+           Z0(I) = (CHARNOCK / G) * USTAR(I) * USTAR(I)
+C MBEK -- TOGA-COARE FLUX ALGORITHM
+!         Z0(I) = (CHARNOCK / G) * USTAR(I)*USTAR(I) +  ARNU/USTAR(I)
 C  NEW IMPLEMENTATION OF Z0
 C         CC = USTAR(I) * Z0 / RNU
 C         PP = CC / (1. + CC)

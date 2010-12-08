@@ -17,7 +17,8 @@
      &                 pdryini,nblck,ZHOUR,N1,N4,
      &                 LSOUT,ldfi,COLAT1,CFHOUR1,
      &                 start_step,restart_step,reset_step,end_step,
-     &                 nfcstdate7, Cpl_flag)
+     &                 dfiend_step,nfcstdate7,
+     &                 Cpl_flag)
 cc
 
 ! March 2009, Weiyu Yang modified for GEFS run.
@@ -116,17 +117,18 @@ cc
       INTEGER               INDLSOD,JBASOD
       integer               lan,lat
       integer               lon_dim,lons_lat,node,nvcn
-      integer               iblk,njeff,istrt,lon
+      integer               iblk,njeff,lon
       integer , parameter :: ngptcd = 12
       logical , parameter :: repro = .false.
       include 'function2'
       LOGICAL               LSLAG,LSOUT,ex_out
-      LOGICAL               start_step,reset_step,end_step
+      LOGICAL               start_step,reset_step,end_step,dfiend_step
       LOGICAL               restart_step
 
       LOGICAL,      INTENT(inout) :: Cpl_flag
 !!     
       LOGICAL, save               :: fwd_step = .true.
+      LOGICAL, save               :: firstdfi = .true.
       REAL (KIND=KIND_grid), save :: dt,dt2,rdt2
 !
       real(kind=kind_evod) xvcn
@@ -190,9 +192,9 @@ cc
 !      print *,' start step from internal state '
 
         fwd_step = .true.
-        dt  = deltim*0.5
-        dt2=cons2*dt
-        rdt2=1./dt2
+        dt   = deltim*0.5
+        dt2  = cons2*dt
+        rdt2 = 1./dt2
 
         if(hybrid)then
           call get_cd_hyb(dt)
@@ -218,10 +220,20 @@ cc
 ! ----- this section is called once only -------
 ! --------------------------------------------------------------
 
+!        print *,'in dyn one step,reset ps=',maxval(grid_gr(:,g_q)), 
+!     &   minval(grid_gr(:,g_q)),'u=',maxval(grid_gr(:,g_uu)),
+!     &    minval(grid_gr(:,g_uu)),'v=',maxval(grid_gr(:,g_vv)),
+!     &   minval(grid_gr(:,g_vv)),'t=',maxval(grid_gr(:,g_tt)),
+!     &   minval(grid_gr(:,g_tt)),'rq=',maxval(grid_gr(:,g_rq)),
+!     &   minval(grid_gr(:,g_rq)),'psg=',maxval(grid_gr(:,g_zq)), 
+!     &   minval(grid_gr(:,g_zq)),'psm=',minval(grid_gr(:,g_qm)), 
+!     &   minval(grid_gr(:,g_qm))
+
         fwd_step = .true.
-        dt  = deltim*0.5
-        dt2=cons2*dt
-        rdt2=1./dt2
+        dt   = deltim*0.5
+        dt2  = cons2*dt
+        rdt2 = 1./dt2
+
         if(hybrid)then
           call get_cd_hyb(dt)
         else if( gen_coord_hybrid ) then
@@ -259,14 +271,16 @@ cc
      &       snnp1ev,snnp1od,plnev_a,plnod_a)
 !
         reset_step = .false.
+!
 ! -------------------------------------------------------
 !### for restart step
       elseif(restart_step) then
 !
         fwd_step = .false.
-        dt = deltim
-        dt2=cons2*dt
-        rdt2=1./dt2
+        dt   = deltim
+        dt2  = cons2*dt
+        rdt2 = 1./dt2
+!
         if(hybrid)then
           call get_cd_hyb(dt)
         else if( gen_coord_hybrid ) then
@@ -326,6 +340,7 @@ cc
 !-----------------------------------------------------------------
 ! adjust moisture changes to the total mass to conserve dry mass
 !
+!     write(0,*)' pdryini=',pdryini
         do lan=1,lats_node_a
           lat = global_lats_a(ipt_lats_node_a-1+lan)
           lons_lat = lonsperlat(lat)
@@ -357,6 +372,10 @@ cc
            sumto=sumto+wgt_a(min(lat,latg-lat+1))*ptotg(lat)
            sumwa=sumwa+wgt_a(min(lat,latg-lat+1))*pwatg(lat)
         enddo
+!        if(kdt==5) then
+!      print *,' sumto=',sumto,' sumwa=',sumwa,' ptotg=',ptotg(1:latg)
+!      print *,' sumwa=',sumwa,'pwatg=',pwatg(1:latg)
+!        endif
         if ( glbsum ) then                                              !glbsum
           do n = 1, ntrac                                               !glbsum
            sumtrc(n)=0.                                                 !glbsum
@@ -625,9 +644,10 @@ cc
 
       if( fwd_step ) then
         fwd_step = .false.
-        dt = deltim
-        dt2=cons2*dt
-        rdt2=1./dt2
+        dt   = deltim
+        dt2  = cons2*dt
+        rdt2 = 1./dt2
+
         if(hybrid)then
           call get_cd_hyb(dt)
         else if( gen_coord_hybrid ) then
@@ -645,7 +665,8 @@ cc
 !--------------------------------------------
 !-- digital filter state collect
 !--------------------------------------------
-      print *,'in one loop,call gfs_dfi_coll,ldfi=',ldfi,'kdt=',kdt
+      if (me == 0)
+     &print *,'in one loop,call gfs_dfi_coll,ldfi=',ldfi,'kdt=',kdt
       IF (ldfi) THEN
         call gfs_dficoll_dynamics(grid_gr,grid_gr_dfi)
       ENDIF
@@ -699,14 +720,24 @@ c
 !
 !  finish integration, then return
 ! -----------------------------------
+!      print *,'in dyn one loop,bf endstep,end_step=',end_step,
+!     &   'dfiend_step=',dfiend_step,'kdt=',kdt
       IF(end_step) THEN
           Cpl_flag = .true.
+          RETURN
+!
+      else if(dfiend_step) then
+!
+!  dfi end step, return to dfi routine
+!------------------------------------
+       if(me==0) 
+     &     print *,'in dyn one step, return aft dfi,kdt=',kdt
           RETURN
       END IF
 ! run for Cpl_flag == .true.
 !---------------------------
       ELSE 
-          grid_gr6 = grid_gr(:, 2 : lota + 1)
+          grid_gr6 = grid_gr(:, 2 : lota*2 + 1)
 
 ! This causes problem? Weiyu.
 ! Causing T, q, clw just one physics step, only 3-5 digits same.
@@ -823,116 +854,111 @@ c
         if(hybrid.or.gen_coord_hybrid) then !-----  hybrid ----------- 
 ! --------------------------------------------------------------------
 !$omp parallel do schedule(dynamic,1) private(lon)
-!$omp+private(istrt,njeff,iblk)
+!$omp+private(njeff,iblk)
 !$omp+private(nvcn,xvcn)
         do lon=1,lons_lat,ngptcd
 !!
-          njeff=min(ngptcd,lons_lat-lon+1)
-          istrt=lon
-          if (ngptcd.ne.1) then
-            iblk=lon/ngptcd+1
-          else
-            iblk=lon
-          endif
+          njeff = min(ngptcd,lons_lat-lon+1)
+          iblk  = (lon-1)/ngptcd + 1
 !
           CALL countperf(0,10,0.)
 
           if( gen_coord_hybrid ) then                                    ! hmhj
             if( thermodyn_id.eq.3 ) then                                 ! hmhj
               call gfidi_hyb_gc_h(lon_dim, njeff, lat,                   ! hmhj
-     &               syn_gr_a_2(istrt+(ksd   -1)*lon_dim,lan),          ! hmhj
-     &               syn_gr_a_2(istrt+(kst   -1)*lon_dim,lan),          ! hmhj
-     &               syn_gr_a_2(istrt+(ksz   -1)*lon_dim,lan),          ! hmhj
-     &               syn_gr_a_2(istrt+(ksu   -1)*lon_dim,lan),          ! hmhj
-     &               syn_gr_a_2(istrt+(ksv   -1)*lon_dim,lan),          ! hmhj
-     &               syn_gr_a_2(istrt+(ksr   -1)*lon_dim,lan),          ! hmhj
-     &               syn_gr_a_2(istrt+(kspphi-1)*lon_dim,lan),          ! hmhj
-     &               syn_gr_a_2(istrt+(ksplam-1)*lon_dim,lan),          ! hmhj
-     &               syn_gr_a_2(istrt+(ksq   -1)*lon_dim,lan),          ! hmhj
-     &               syn_gr_a_2(istrt+(kzsphi-1)*lon_dim,lan),          ! hmhj
-     &               syn_gr_a_2(istrt+(kzslam-1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(ksd   -1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(kst   -1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(ksz   -1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(ksu   -1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(ksv   -1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(ksr   -1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(kspphi-1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(ksplam-1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(ksq   -1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(kzsphi-1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(kzslam-1)*lon_dim,lan),          ! hmhj
      &               rcs2_a(min(lat,latg-lat+1)),                       ! hmhj
      &               spdlat(1,iblk),                                    ! hmhj
      &               dt,nvcn,xvcn,                                  	! hmhj
-     &               dyn_gr_a_2(istrt+(kdtphi-1)*lon_dim,lan),          ! hmhj
-     &               dyn_gr_a_2(istrt+(kdtlam-1)*lon_dim,lan),          ! hmhj
-     &               dyn_gr_a_2(istrt+(kdrphi-1)*lon_dim,lan),          ! hmhj
-     &               dyn_gr_a_2(istrt+(kdrlam-1)*lon_dim,lan),          ! hmhj
-     &               dyn_gr_a_2(istrt+(kdulam-1)*lon_dim,lan),          ! hmhj
-     &               dyn_gr_a_2(istrt+(kdvlam-1)*lon_dim,lan),          ! hmhj
-     &               dyn_gr_a_2(istrt+(kduphi-1)*lon_dim,lan),          ! hmhj
-     &               dyn_gr_a_2(istrt+(kdvphi-1)*lon_dim,lan),          ! hmhj
-     &               anl_gr_a_2(istrt+(kaps  -1)*lon_dim,lan),          ! hmhj
-     &               anl_gr_a_2(istrt+(kat   -1)*lon_dim,lan),          ! hmhj
-     &               anl_gr_a_2(istrt+(kar   -1)*lon_dim,lan),          ! hmhj
-     &               anl_gr_a_2(istrt+(kau   -1)*lon_dim,lan),          ! hmhj
-     &               anl_gr_a_2(istrt+(kav   -1)*lon_dim,lan),          ! hmhj
-     &               szdrdt(istrt,lan),zfirst)                          ! fyang
+     &               dyn_gr_a_2(lon+(kdtphi-1)*lon_dim,lan),          ! hmhj
+     &               dyn_gr_a_2(lon+(kdtlam-1)*lon_dim,lan),          ! hmhj
+     &               dyn_gr_a_2(lon+(kdrphi-1)*lon_dim,lan),          ! hmhj
+     &               dyn_gr_a_2(lon+(kdrlam-1)*lon_dim,lan),          ! hmhj
+     &               dyn_gr_a_2(lon+(kdulam-1)*lon_dim,lan),          ! hmhj
+     &               dyn_gr_a_2(lon+(kdvlam-1)*lon_dim,lan),          ! hmhj
+     &               dyn_gr_a_2(lon+(kduphi-1)*lon_dim,lan),          ! hmhj
+     &               dyn_gr_a_2(lon+(kdvphi-1)*lon_dim,lan),          ! hmhj
+     &               anl_gr_a_2(lon+(kaps  -1)*lon_dim,lan),          ! hmhj
+     &               anl_gr_a_2(lon+(kat   -1)*lon_dim,lan),          ! hmhj
+     &               anl_gr_a_2(lon+(kar   -1)*lon_dim,lan),          ! hmhj
+     &               anl_gr_a_2(lon+(kau   -1)*lon_dim,lan),          ! hmhj
+     &               anl_gr_a_2(lon+(kav   -1)*lon_dim,lan),          ! hmhj
+     &               szdrdt(lon,lan),zfirst)                          ! fyang
 
             else                                                         ! hmhj
 
               call gfidi_hyb_gc(lon_dim, njeff, lat,
-     &               syn_gr_a_2(istrt+(ksd   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kst   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksz   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksu   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksv   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksr   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kspphi-1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksplam-1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksq   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kzsphi-1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kzslam-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksd   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kst   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksz   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksu   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksv   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksr   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kspphi-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksplam-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksq   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kzsphi-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kzslam-1)*lon_dim,lan),
      x               rcs2_a(min(lat,latg-lat+1)),
      &               spdlat(1,iblk),
      &               dt,nvcn,xvcn,
-     &               dyn_gr_a_2(istrt+(kdtphi-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdtlam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdrphi-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdrlam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdulam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdvlam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kduphi-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdvphi-1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kaps  -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kat   -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kar   -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kau   -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kav   -1)*lon_dim,lan),
-     &               szdrdt(istrt,lan),zfirst)
+     &               dyn_gr_a_2(lon+(kdtphi-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdtlam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdrphi-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdrlam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdulam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdvlam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kduphi-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdvphi-1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kaps  -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kat   -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kar   -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kau   -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kav   -1)*lon_dim,lan),
+     &               szdrdt(lon,lan),zfirst)
 
             endif                                                        ! hmhj
 
           else                                                           ! hmhj
             call gfidi_hyb(lon_dim, njeff, lat,
-     &               syn_gr_a_2(istrt+(ksd   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kst   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksz   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksu   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksv   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksr   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kspphi-1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksplam-1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksq   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kzsphi-1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kzslam-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksd   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kst   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksz   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksu   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksv   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksr   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kspphi-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksplam-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksq   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kzsphi-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kzslam-1)*lon_dim,lan),
      &               rcs2_a(min(lat,latg-lat+1)),
      &               spdlat(1,iblk),
      &               dt,nvcn,xvcn,
-     &               dyn_gr_a_2(istrt+(kdtphi-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdtlam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdrphi-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdrlam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdulam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdvlam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kduphi-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdvphi-1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kaps  -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kat   -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kar   -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kau   -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kav   -1)*lon_dim,lan),
-     &               szdrdt(istrt,lan),zfirst)
+     &               dyn_gr_a_2(lon+(kdtphi-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdtlam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdrphi-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdrlam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdulam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdvlam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kduphi-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdvphi-1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kaps  -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kat   -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kar   -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kau   -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kav   -1)*lon_dim,lan),
+     &               szdrdt(lon,lan),zfirst)
 
           endif                                                          ! hmhj
 
@@ -944,47 +970,42 @@ c
 ! ---------------------------------------------------------------
 ! beginlon omp loop 3333333333333333333333333333333333333333333333333
 !$omp parallel do schedule(dynamic,1) private(lon)
-!$omp+private(istrt,njeff,iblk)
+!$omp+private(njeff,iblk)
 !$omp+private(nvcn,xvcn)
         do lon=1,lons_lat,ngptcd
 !!
-          njeff=min(ngptcd,lons_lat-lon+1)
-          istrt=lon
-          if (ngptcd.ne.1) then
-            iblk=lon/ngptcd+1
-          else
-            iblk=lon
-          endif
+          njeff = min(ngptcd,lons_lat-lon+1)
+          iblk  = (lon-1)/ngptcd + 1
 !
           CALL countperf(0,10,0.)
           call gfidi_sig(lon_dim, njeff, lat,
-     &               syn_gr_a_2(istrt+(ksd   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kst   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksz   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksu   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksv   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksr   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kspphi-1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksplam-1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(ksq   -1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kzsphi-1)*lon_dim,lan),
-     &               syn_gr_a_2(istrt+(kzslam-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksd   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kst   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksz   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksu   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksv   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksr   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kspphi-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksplam-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(ksq   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kzsphi-1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kzslam-1)*lon_dim,lan),
      &               rcs2_a(min(lat,latg-lat+1)),
      &               del,rdel2,ci,tov,spdlat(1,iblk),
      &               dt,sl,nvcn,xvcn,
-     &               dyn_gr_a_2(istrt+(kdtphi-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdtlam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdrphi-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdrlam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdulam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdvlam-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kduphi-1)*lon_dim,lan),
-     &               dyn_gr_a_2(istrt+(kdvphi-1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kaps  -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kat   -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kar   -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kau   -1)*lon_dim,lan),
-     &               anl_gr_a_2(istrt+(kav   -1)*lon_dim,lan))
+     &               dyn_gr_a_2(lon+(kdtphi-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdtlam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdrphi-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdrlam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdulam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdvlam-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kduphi-1)*lon_dim,lan),
+     &               dyn_gr_a_2(lon+(kdvphi-1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kaps  -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kat   -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kar   -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kau   -1)*lon_dim,lan),
+     &               anl_gr_a_2(lon+(kav   -1)*lon_dim,lan))
           CALL countperf(1,10,0.)
 !
         enddo   !lon

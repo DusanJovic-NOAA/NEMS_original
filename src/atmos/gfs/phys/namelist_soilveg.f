@@ -1,6 +1,6 @@
       module namelist_soilveg
       implicit none
-      
+      save
 
       INTEGER MAX_SLOPETYP
       INTEGER MAX_SOILTYP
@@ -27,6 +27,7 @@
       REAL QTZ(MAX_SOILTYP)
       LOGICAL LPARAM
       REAL ZBOT_DATA
+      REAL SALP_DATA
       REAL SALP_DATA
       REAL CFACTR_DATA
       REAL CMCMAX_DATA

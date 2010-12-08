@@ -177,7 +177,7 @@
       logical restart_run
       logical start_step, reset_step, end_step, restart_step
 
-      logical lsout,ldfi
+      logical lsout,ldfi,dfiend_step=.false.
 
       real(kind=kind_evod),allocatable :: tee1(:)
 

@@ -1,5 +1,5 @@
        SUBROUTINE PRECPD (IM,IX,KM,DT,DEL,PRSL,PS,Q,CWM,T,RN
-     &,                                             u00k,lprnt,jpr)
+     &,                   rainp,u00k,psautco,prautco,evpco,lprnt,jpr)
 !
 !
 !     ******************************************************************
@@ -42,6 +42,8 @@
 !       SR(IM)     : Index (=-1 Snow, =0 Rain/Snow, =1 Rain)
 !       TCW(IM)    : Vertically integrated liquid water (Kg/m**2)
 !       CLL(IX,KM) : Cloud cover
+!hchuang RN(IM) unit in m per time step
+!        precipitation rate conversion 1 mm/s = 1 kg/m2/s
 !
       USE MACHINE , ONLY : kind_phys
       USE FUNCPHYS , ONLY : fpvs
@@ -49,6 +51,7 @@
      &,             TTP => con_TTP, CP => con_CP
      &,             EPS => con_eps, EPSM1 => con_epsm1
       implicit none
+!     include 'constant.h'
 !
       real (kind=kind_phys) G,      H1,    H2,   H1000
      &,                     H1000G, D00,   D125, D5
@@ -71,6 +74,10 @@
 !    &,                     CLL(IM,KM), DEL(IX,KM),  PRSL(IX,KM)
      &,                     PS(IM),     RN(IM),      SR(IM)
      &,                     TCW(IM),    DT
+!hchuang code change [+1L] : add record to record information in vertical in
+!                       addition to total column PRECRL
+     &,                     RAINP(IM,KM), RNP(IM),
+     &                      psautco, prautco, evpco
 !
 !
       real (kind=kind_phys) ERR(IM),      ERS(IM),     PRECRL(IM)
@@ -109,10 +116,13 @@
 !     ENDDO
 !
       RDT     = H1 / DT
-      KE      = 2.0E-5  ! commented on 09/10/99
+!     KE      = 2.0E-5  ! commented on 09/10/99  -- OPR value
 !     KE      = 2.0E-6
 !     KE      = 1.0E-5
-!     KE      = 5.0E-5
+!!!   KE      = 5.0E-5
+!!    KE      = 7.0E-5
+      KE      = evpco
+!     KE      = 7.0E-5
       US      = H1
       CCLIMIT = 1.0E-3
       CLIMIT  = 1.0E-20
@@ -134,7 +144,8 @@
 !     C00 = 1.5E-1 * DT
 !     C00 = 10.0E-1 * DT
 !     C00 = 3.0E-1 * DT          !05/09/2000
-      C00 = 1.0E-4 * DT          !05/09/2000
+!     C00 = 1.0E-4 * DT          !05/09/2000
+      C00 = prautco * DT         !05/09/2000
       CMR = 1.0 / 3.0E-4
 !     CMR = 1.0 / 5.0E-4
 !     C1  = 100.0
@@ -146,7 +157,7 @@
 !
       DO K=1,KM
         DO I=1,IM
-          tem   = (prsl(i,k)*0.01)
+          tem   = (prsl(i,k)*0.00001)
 !         tem   = sqrt(tem)
           IW(I,K)    = 0.0
           wmin(i,k)  = 1.0e-5 * tem
@@ -156,6 +167,9 @@
 !         wmin(i,k)  = 3.0e-6 * tem       ! Testing 
 !         wmini(i,k) = 3.0e-6 * tem       ! Testing
 !         wmini(i,k) = 1.0e-6 * tem       ! for SAS
+
+          rainp(i,k) = 0.0
+
         ENDDO
       ENDDO
       DO I=1,IM
@@ -169,6 +183,8 @@
         RN(I)      = D00
         SR(I)      = D00
         ccr(i)     = D00
+!
+        RNP(I)     = D00
       ENDDO
 !------------SELECT COLUMNS WHERE RAIN CAN BE PRODUCED--------------
       DO K=1, KM-1
@@ -201,7 +217,7 @@
           QQ(N)     = Q(I,K)
           WW(N)     = CWM(I,K)
           WMINK(N)  = WMIN(I,K)
-          PRES(N)   = H1000 * prSL(I,K)
+          PRES(N)   = prSL(I,K)
 !
           PRECRK = MAX(cons_0,    PRECRL1(N))
           PRECSK = MAX(cons_0,    PRECSL1(N))
@@ -218,7 +234,7 @@
         DO N=1,IHPR
           IF (COMPUT(N)) THEN
             I = IPR(N)
-            CONDE(N)  = (H1000*DT/G) * DEL(I,K)
+            CONDE(N)  = (DT/G) * DEL(I,K)
             CONDT(N)  = CONDE(N) * RDT
             RCONDE(N) = H1 / CONDE(N)
             QK        = MAX(EPSQ,  QQ(N))
@@ -314,10 +330,17 @@
             IF (IWL(N) .EQ. 1) THEN                 !  Ice Phase
                AMAXCM = MAX(cons_0, CWMK - WMINI(IPR(N),K))
                EXPF      = DT * EXP(0.025*TMT0(N))
+               PSAUT     = MIN(CWMK, psautco*EXPF*AMAXCM)
+
 !              PSAUT     = MIN(CWMK, 2.0E-3*EXPF*AMAXCM)
 !              PSAUT     = MIN(CWMK, 1.0E-3*EXPF*AMAXCM)
+!              PSAUT     = MIN(CWMK, 7.5E-4*EXPF*AMAXCM)
+!!!!!!!        PSAUT     = MIN(CWMK, 7.0E-4*EXPF*AMAXCM)
+!b             PSAUT     = MIN(CWMK, 6.5E-4*EXPF*AMAXCM)
+!!!!           PSAUT     = MIN(CWMK, 6.0E-4*EXPF*AMAXCM)
 !              PSAUT     = MIN(CWMK, 5.0E-4*EXPF*AMAXCM)
-               PSAUT     = MIN(CWMK, 4.0E-4*EXPF*AMAXCM)
+!              PSAUT     = MIN(CWMK, 4.0E-4*EXPF*AMAXCM)
+
                WW(N)     = WW(N) - PSAUT
                CWMK      = MAX(cons_0, WW(N))
 !              CWMK      = MAX(cons_0, WW(N)-wmini(ipr(n),k))
@@ -354,6 +377,10 @@
 !              WW(N)     = WW(N) - PRACW
 !
                PRECRL(N) = PRECRL(N) + (WWS - WW(N)) * CONDT(N)
+!
+!hchuang code change [+1L] : add record to record information in vertical
+! TURN RNP in unit of WW (CWM and Q, kg/kg ???)
+               RNP(N) = RNP(N) + (WWS - WW(N))
             ENDIF
           ENDIF
         ENDDO
@@ -392,6 +419,11 @@
             ERR(N)    = PPR * RCONDE(N)
             ERS(N)    = PPS * RCONDE(N)
             PRECRL(N) = PRECRL(N) - PPR
+!hchuang code change [+1L] : add record to record information in vertical
+! Use ERR for kg/kg/DT not the PPR (mm/DT=kg/m2/DT)
+!
+            RNP(N) = RNP(N) - ERR(N)
+!
             PRECSL(N) = PRECSL(N) - PPS
           ENDIF
         ENDDO
@@ -408,6 +440,11 @@
                  PSM1 = AMAXPS * RCONDE(N)
                ENDIF
                PRECRL(N) = PRECRL(N) + PPR
+!
+!hchuang code change [+1L] : add record to record information in vertical
+! TURN PPR (mm/DT=kg/m2/DT) to kg/kg/DT -> PPR/air density (kg/m3)
+               RNP(N) = RNP(N) + PPR * RCONDE(N)
+!
                PRECSL(N) = PRECSL(N) - PPR
             ELSE
                PSM1 = D00
@@ -428,15 +465,26 @@
           Q(I,K)     = QQ(N)
           CWM(I,K)   = WW(N)
           IW(I,K)    = IWL(N)
+!hchuang code change [+1L] : add record to record information in vertical
+! RNP = PRECRL1*RCONDE(N) unit in kg/kg/DT
+!
+          RAINP(I,K) = RNP(N)
         ENDDO
 !
 !  move water from vapor to liquid should the liquid amount be negative
 !
         do i = 1, im
-          if (cwm(i,k) .lt. 0.) then
-            q(i,k)   = q(i,k) + cwm(i,k)
-            t(i,k)   = t(i,k) - elwv * rcp * cwm(i,k)
-            cwm(i,k) = 0.
+          if (cwm(i,k) < 0.) then
+            tem      = q(i,k) + cwm(i,k)
+            if (tem >= 0.0) then
+              q(i,k)   = tem
+              t(i,k)   = t(i,k) - elwv * rcp * cwm(i,k)
+              cwm(i,k) = 0.
+            elseif (q(i,k) > 0.0) then
+              cwm(i,k) = tem
+              t(i,k)   = t(i,k) + elwv * rcp * q(i,k)
+              q(i,k)   = 0.0
+            endif
           endif
         enddo
 !

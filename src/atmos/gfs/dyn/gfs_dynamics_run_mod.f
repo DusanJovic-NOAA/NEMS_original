@@ -62,6 +62,7 @@
 !
       gis_dyn%ldfi = gis_dyn%ndfi>0 .and. gis_dyn%kdt<=gis_dyn%ndfi  &
            .and. kdt_save<=gis_dyn%ndfi
+!      print *,'in dyn_run,kdt=',gis_dyn%kdt,'ldfi=',gis_dyn%ldfi
 ! ---------------------------------------------------------------------
 ! change temperature and pressure back to model grid value at n+1  slot.
 !
@@ -72,6 +73,11 @@
 !
 ! ---------------------------------------------------------------------
 !! grid_gr unfolded from 2D to 3D (Sarah Lu)
+      if(gis_dyn%kdt>=4.and.gis_dyn%kdt<=5) then
+        print *,'in one loop,bf cm2mdl,kdt=',gis_dyn%kdt,'g_rt=',   &
+         maxval(gis_dyn%grid_gr(:,:,gis_dyn%g_rt+2*gis_dyn%levs:gis_dyn%g_rt+3*gis_dyn%levs-1)), &
+         minval(gis_dyn%grid_gr(:,:,gis_dyn%g_rt+2*gis_dyn%levs:gis_dyn%g_rt+3*gis_dyn%levs-1))
+      endif
         IF(.NOT. (gis_dyn%ENS .AND. gis_dyn%Cpl_flag)) THEN
             call common_to_model_vars (gis_dyn%grid_gr(1,1,gis_dyn%g_zq),  &
                                        gis_dyn%grid_gr(1,1,gis_dyn%g_t ),  &
@@ -90,6 +96,13 @@
 !
 ! ---------------------------------------------------------------------
 !! get pwat and ptot
+      if(gis_dyn%kdt>=4.and.gis_dyn%kdt<=5) then
+        print *,'in one loop,kdt=',gis_dyn%kdt,'g_rt=',   &
+         maxval(gis_dyn%grid_gr(:,:,gis_dyn%g_rt+2*gis_dyn%levs:gis_dyn%g_rt+3*gis_dyn%levs-1)), &
+         minval(gis_dyn%grid_gr(:,:,gis_dyn%g_rt+2*gis_dyn%levs:gis_dyn%g_rt+3*gis_dyn%levs-1)), &
+         't=',maxval(gis_dyn%grid_gr(:,:,gis_dyn%g_t:gis_dyn%g_t+levs-1)),  &
+          minval(gis_dyn%grid_gr(:,:,gis_dyn%g_t:gis_dyn%g_t+levs-1))
+      endif
       call getpwatptot(gis_dyn%grid_gr(1,1,gis_dyn%g_zq),      &
                        gis_dyn%grid_gr(1,1,gis_dyn%g_t ),      &
                        gis_dyn%grid_gr(1,1,gis_dyn%g_rt),      &
@@ -125,6 +138,17 @@
       if( gis_dyn% spectral_loop == 1 ) then
 !
 !! grid_gr unfolded from 2D to 3D (Sarah Lu)
+       if(gis_dyn% kdt>=4.and.gis_dyn% kdt<=5) then
+           print *,'in gfs dyn run,bf one kdt=',gis_dyn%kdt,'ps=',maxval(gis_dyn%grid_gr(:,:,g_q)),   &
+         minval(gis_dyn%grid_gr(:,:,g_q)),'u=',maxval(gis_dyn%grid_gr(:,:,g_uu)),   &
+          minval(gis_dyn%grid_gr(:,:,g_uu)),'v=',maxval(gis_dyn%grid_gr(:,:,g_vv)),   &
+         minval(gis_dyn%grid_gr(:,:,g_vv)),'t=',maxval(gis_dyn%grid_gr(:,:,g_tt)),   &
+         minval(gis_dyn%grid_gr(:,:,g_tt)),'rq=',maxval(gis_dyn%grid_gr(:,:,g_rq)),   &
+         minval(gis_dyn%grid_gr(:,:,g_rq)),'psg=',maxval(gis_dyn%grid_gr(:,:,g_zq)),   &
+         minval(gis_dyn%grid_gr(:,:,g_zq)),'psm=',minval(gis_dyn%grid_gr(:,:,g_qm)),   &
+         minval(gis_dyn%grid_gr(:,:,g_qm))
+       endif
+
         call  do_dynamics_one_loop(    gis_dyn% deltim         ,	&
                gis_dyn% kdt           ,gis_dyn% phour          ,	&
                gis_dyn% trie_ls       ,gis_dyn% trio_ls        ,	&
@@ -156,6 +180,7 @@
                gis_dyn% colat1        ,gis_dyn% cfhour1	       ,	&
                gis_dyn% start_step    ,gis_dyn% restart_step   ,        &
                gis_dyn% reset_step    ,gis_dyn% end_step       ,        &
+               gis_dyn% dfiend_step   ,                                 &
                gis_dyn% nfcstdate7,                                     &
                gis_dyn%Cpl_flag)
 
@@ -205,6 +230,7 @@
                gis_dyn% colat1        ,gis_dyn% cfhour1	,		&	
                gis_dyn%start_step     ,gis_dyn% restart_step   ,        &
                gis_dyn%reset_step     ,gis_dyn% end_step       ,        &
+               gis_dyn% dfiend_step   ,                                 &         ! jw
                gis_dyn% nfcstdate7)
 
       else

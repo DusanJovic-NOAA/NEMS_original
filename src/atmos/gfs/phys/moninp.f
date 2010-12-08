@@ -3,16 +3,13 @@ CFPP$ NOCONCUR R
      &     U1,V1,T1,Q1,
      &     PSK,RBSOIL,FM,FH,TSEA,QSS,HEAT,EVAP,STRESS,SPD1,KPBL,
 !    &     PSK,RBSOIL,CD,CH,FM,FH,TSEA,QSS,DPHI,SPD1,KPBL,
-     &     PRSI,DEL,PRSL,PRSLK,PHII,PHIL,RCL,DELTIM,
-     &     DUSFC,DVSFC,DTSFC,DQSFC,HPBL,HGAMT,HGAMQ)
+     &     PRSI,DEL,PRSL,PRSLK,PHII,PHIL,DELTIM,
+     &     DUSFC,DVSFC,DTSFC,DQSFC,HPBL,HGAMT,HGAMQ,DKT,xkzm_m,xkzm_h)
 !
       USE MACHINE     , ONLY : kind_phys
       USE PHYSCONS, grav => con_g, RD => con_RD, CP => con_CP
      &,             HVAP => con_HVAP, ROG => con_ROG, FV => con_FVirt
       implicit none
-!
-!     include 'constant.h'
-!
 !
 !     Arguments
 !
@@ -32,7 +29,7 @@ CFPP$ NOCONCUR R
      &                     PRSI(IX,KM+1), DEL(IX,KM),
      &                     PRSL(IX,KM),   PRSLK(IX,KM),
      &                     PHII(IX,KM+1), PHIL(IX,KM),
-     &                     RCL(IM),       DUSFC(IM),
+     &                     DUSFC(IM),
      &                     dvsfc(IM),     dtsfc(IM),
      &                     DQSFC(IM),     HPBL(IM),
      &                     HGAMT(IM),     hgamq(IM)
@@ -73,12 +70,12 @@ CFPP$ NOCONCUR R
      &                     tem,     ti,     ttend,  tvd,
      &                     tvu,     utend,  vk,     vk2,
      &                     vpert,   vtend,  xkzo(im,km),   zfac,
-     &                     zfmin,   zk,     tem1, xkzm
+     &                     zfmin,   zk,     tem1, xkzm_m, xkzm_h
 cc
       parameter (gravi=1.0/grav)
       PARAMETER(g=grav)
       PARAMETER(GOR=G/RD,GOCP=G/CP)
-      PARAMETER(CONT=1000.*CP/G,CONQ=1000.*HVAP/G,CONW=1000./G)
+      PARAMETER(CONT=CP/G,CONQ=HVAP/G,CONW=1./G)
 !     PARAMETER(RLAM=150.0,VK=0.4,VK2=VK*VK,PRMIN=1.0,PRMAX=4.)
       PARAMETER(RLAM=30.0,VK=0.4,VK2=VK*VK,PRMIN=1.0,PRMAX=4.)
 !     PARAMETER(RLAM=50.0,VK=0.4,VK2=VK*VK,PRMIN=1.0,PRMAX=4.)
@@ -87,7 +84,8 @@ cc
 !     PARAMETER(RBCR=0.5,CFAC=7.8,PFAC=2.0,SFCFRAC=0.1)
 !     PARAMETER(QMIN=1.E-8,XKZM=3.0,ZFMIN=1.E-8,APHI5=5.,APHI16=16.)
 !     PARAMETER(QMIN=1.E-8,XKZM=2.0,ZFMIN=1.E-8,APHI5=5.,APHI16=16.)
-      PARAMETER(QMIN=1.E-8,XKZM=1.0,ZFMIN=1.E-8,APHI5=5.,APHI16=16.)
+!     PARAMETER(QMIN=1.E-8,XKZM=1.0,ZFMIN=1.E-8,APHI5=5.,APHI16=16.)
+      PARAMETER(QMIN=1.E-8,         ZFMIN=1.E-8,APHI5=5.,APHI16=16.)
 !     PARAMETER(QMIN=1.E-8,XKZM=0.5,ZFMIN=1.E-8,APHI5=5.,APHI16=16.)
 !     PARAMETER(QMIN=1.E-8,XKZM=0.25,ZFMIN=1.E-8,APHI5=5.,APHI16=16.)
 !     PARAMETER(QMIN=1.E-8,XKZM=0.10,ZFMIN=1.E-8,APHI5=5.,APHI16=16.)
@@ -149,15 +147,6 @@ C
       DO K = 1,KM-1
         DO I=1,IM
           RDZT(I,K) = 1.0 / (ZL(I,K+1) - ZL(I,K))
-!         RDZT(I,K) = GOR * PRSI(I,K+1) / (PRSL(I,K) - PRSL(I,K+1))
-!         if (prsi(i,1) .gt. 60.0) then
-!           tem1    = max((prsi(i,k+1)-30.0)/(prsi(i,1)-30.0), 0.0)
-!         else
-!           tem1    = 0.0
-!         endif
-!         xkzo(i,k) = xkzm * tem1 * tem1
-!!        tem1      = (zi(i,k+1) - zi(i,1)) * 0.002
-!!        xkzo(i,k) = xkzm * exp(-tem1)
         ENDDO
       ENDDO
 C
@@ -218,7 +207,7 @@ C
 !            ZL(I,k)   = ZL(I,K-1) - (T1(i,k)+T1(i,K-1))/2 *
 !    &                   LOG(PRSL(I,K)/PRSL(I,K-1)) * ROG
              THEKV(I)  = THETA(i,k)*(1.+FV*MAX(Q1(i,k,1),QMIN))
-             SPDK2     = MAX(RCL(i)*(U1(i,k)**2+V1(i,k)**2),1.)
+             SPDK2     = MAX((U1(i,k)**2+V1(i,k)**2),1.)
              RBUP(I)   = (THEKV(I)-THE1V(I))*(G*ZL(I,k)/THE1V(I))/SPDK2
              KPBL(I)   = K
              STABLE(I) = RBUP(I).GT.RBCR
@@ -304,7 +293,7 @@ C
 !           ZL(I,k)   = ZL(I,K-1) - (T1(i,k)+T1(i,K-1))/2 *
 !    &                  LOG(PRSL(I,K)/PRSL(I,K-1)) * ROG
             THEKV(I)  = THETA(i,k)*(1.+FV*MAX(Q1(i,k,1),QMIN))
-            SPDK2     = MAX(RCL(i)*(U1(i,k)**2+V1(i,k)**2),1.)
+            SPDK2     = MAX((U1(i,k)**2+V1(i,k)**2),1.)
             RBUP(I)   = (THEKV(I)-THERMAL(I))*(G*ZL(I,k)/THE1V(I))/SPDK2
             KPBL(I)   = K
             STABLE(I) = RBUP(I).GT.RBCR
@@ -328,46 +317,11 @@ C
          ENDIF
       ENDDO
 !!
-!     DO K = 1,KM-1
-!       DO I=1,IM
-!         if (rbsoil(i) .gt. 0.0 .or. (.not. pblflg(i))) then
-!           tem1    = max((prsi(i,k+1)-30.0)/(prsi(i,1)-30.0), 0.0)
-!           xkzo(i,k) = xkzm * tem1 * tem1
-!!        tem1      = (zi(i,k+1) - zi(i,1)) * 0.002
-!!        xkzo(i,k) = xkzm * exp(-tem1)
-!         else
-!           xkzo(i,k) = 0.0
-!
-!         if (pblflg(i)) then
-!         if (sfcflg(i)) then
-!           xkzo(i,k) = 0.0
-!         else
-!           tem1      = (zi(i,k+1) - zi(i,1)) * 0.0005
-!           tem1      = (100.0 - prsi(i,k+1)) * 0.075
-!           tem1      = 100.0 - prsi(i,k+1)
-!           tem1      = max(0.0, 100.0 - prsi(i,k+1))
-!           tem1      = tem1 * tem1 * 0.00075
-!           tem1      = tem1 * tem1 * 0.001
-!           tem1      = tem1 * tem1 * 0.0011
-!           tem1      = tem1 * tem1 * 0.0012
-!
-!           tem1      = 1.0 - prsi(i,k+1) / prsi(i,1)
-!           tem1      = tem1 * tem1 * 5.0
-!           tem1      = tem1 * tem1 * 7.5
-!           tem1      = tem1 * tem1 * 10.0
-!           tem1      = tem1 * tem1 * 12.0
-!
-!           xkzo(i,k) = xkzm * min(1.0, exp(-tem1))
-!           if (xkzo(i,k) .lt. 0.01) xkzo(i,k) = 0.0
-!         endif
-!       ENDDO
-!     ENDDO
-!
       DO K = 1,KM-1
         DO I=1,IM
           tem1      = 1.0 - prsi(i,k+1) / prsi(i,1)
           tem1      = tem1 * tem1 * 10.0
-          xkzo(i,k) = xkzm * min(1.0, exp(-tem1))
+          xkzo(i,k) = xkzm_h * min(1.0, exp(-tem1))
         ENDDO
       ENDDO
 !!
@@ -384,9 +338,10 @@ C
 !    1                (HPBL(I)-ZL1(I))), ZFMIN)
                ZFAC = MAX((1.-(ZI(I,K+1)-ZL(I,1))/
      1                (HPBL(I)-ZL(I,1))), ZFMIN)
-               DKU(i,k) = XKZO(i,k) + WSCALE(I)*VK*ZI(I,K+1)
-     1                         * ZFAC**PFAC
-               DKT(i,k) = DKU(i,k)*PRINV
+!              DKU(i,k) = XKZO(i,k) + WSCALE(I)*VK*ZI(I,K+1)
+!    1                         * ZFAC**PFAC
+               DKU(i,k) = xkzm_m + WSCALE(I)*VK*ZI(I,K+1) * ZFAC**PFAC
+               DKT(i,k) = (DKU(i,k)-xkzm_m)*PRINV + xkzo(i,k)
                DKU(i,k) = MIN(DKU(i,k),DKMAX)
                DKU(i,k) = MAX(DKU(i,k),DKMIN)
                DKT(i,k) = MIN(DKT(i,k),DKMAX)
@@ -406,8 +361,7 @@ C
 !              RDZ  = RDZT(I,K) * TI
                RDZ  = RDZT(I,K)
 
-               DW2  = RCL(i)*((U1(i,k)-U1(i,K+1))**2
-     &                      + (V1(i,k)-V1(i,K+1))**2)
+               DW2  = ((U1(i,k)-U1(i,K+1))**2 + (V1(i,k)-V1(i,K+1))**2)
                SHR2 = MAX(DW2,DW2MIN)*RDZ*RDZ
                TVD  = T1(i,k)*(1.+FV*MAX(Q1(i,k,1),QMIN))
                TVU  = T1(i,K+1)*(1.+FV*MAX(Q1(i,K+1,1),QMIN))
@@ -423,7 +377,8 @@ C
                   RL2      = ZK*RLAMUN/(RLAMUN+ZK)
                   DK       = RL2*RL2*SQRT(SHR2)
                   SRI      = SQRT(-RI)
-                  DKU(i,k) = XKZO(i,k) + DK*(1+8.*(-RI)/(1+1.746*SRI))
+!                 DKU(i,k) = XKZO(i,k) + DK*(1+8.*(-RI)/(1+1.746*SRI))
+                  DKU(i,k) = XKZM_M    + DK*(1+8.*(-RI)/(1+1.746*SRI))
                   DKT(i,k) = XKZO(i,k) + DK*(1+8.*(-RI)/(1+1.286*SRI))
                ELSE             ! STABLE REGIME
                   RL2       = ZK*RLAM/(RLAM+ZK)
@@ -433,7 +388,8 @@ C
                   DKT(i,k)  = XKZO(i,k) + DK/(1+5.*RI)**2
                   PRNUM     = 1.0 + 2.1*RI
                   PRNUM     = MIN(PRNUM,PRMAX)
-                  DKU(i,k)  = (DKT(i,k)-XKZO(i,k))*PRNUM + XKZO(i,k)
+!                 DKU(i,k)  = (DKT(i,k)-XKZO(i,k))*PRNUM + XKZO(i,k)
+                  DKU(i,k)  = (DKT(i,k)-XKZO(i,k))*PRNUM + XKZM_M
                ENDIF
 C
                DKU(i,k) = MIN(DKU(i,k),DKMAX)
@@ -578,13 +534,12 @@ C     RECOVER TENDENCIES OF MOMENTUM
 C
       DO K = 1,KM
          DO I = 1,IM
-            CONWRC = CONW*SQRT(RCL(i))
-            UTEND = (A1(I,k)-U1(i,k))*RDT
-            VTEND = (A2(I,k)-V1(i,k))*RDT
-            DU(i,k)  = DU(i,k)+UTEND
-            DV(i,k)  = DV(i,k)+VTEND
-            DUSFC(I) = DUSFC(I)+CONWRC*DEL(I,K)*UTEND
-            DVSFC(I) = DVSFC(I)+CONWRC*DEL(I,K)*VTEND
+            UTEND    = (A1(I,k)-U1(i,k))*RDT
+            VTEND    = (A2(I,k)-V1(i,k))*RDT
+            DU(i,k)  = DU(i,k)  + UTEND
+            DV(i,k)  = DV(i,k)  + VTEND
+            DUSFC(I) = DUSFC(I) + CONW*DEL(I,K)*UTEND
+            DVSFC(I) = DVSFC(I) + CONW*DEL(I,K)*VTEND
          ENDDO
       ENDDO
 !!

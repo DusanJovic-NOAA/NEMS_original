@@ -43,40 +43,9 @@
 !                                                                      !
 !    and all should be put in front of routines that use lw modules    !
 !                                                                      !
+!    ncep modifications history log:                                   !
 !                                                                      !
-!                                                                      !
-!    the original program declarations:                                !
-!                                                                      !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!                                                                      !
-! Copyright 2002, 2003, Atmospheric & Environmental Research, Inc.(AER)!
-! This software may be used, copied, or redistributed as long as it is !
-! not sold and this copyright notice is reproduced on each copy made.  !
-! This model is provided as is without any express or implied warranties
-!                      (http://www.rtweb.aer.com/)                     !
-!                                                                      !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!                                                                      !
-!                               rrtm                                   !
-!                                                                      !
-!                   rapid radiative transfer model                     !
-!                                                                      !
-!            atmospheric and environmental research, inc.              !
-!                        840 memorial drive                            !
-!                        cambridge, ma 02139                           !
-!                                                                      !
-!                           eli j. mlawer                              !
-!                         steven j. taubman~                           !
-!                         shepard a. clough                            !
-!                                                                      !
-!                         ~currently at gfdl                           !
-!                                                                      !
-!                       email:  mlawer@aer.com                         !
-!                                                                      !
-!        the authors wish to acknowledge the contributions of the      !
-!        following people:  patrick d. brown, michael j. iacono,       !
-!        ronald e. farren, luke chen, robert bergstrom.                !
-!                                                                      !
+!       see list in program "radlw_rrtm1_main.f"                       !
 !                                                                      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
@@ -152,6 +121,7 @@
 !
       type :: sfcflw_type
         real (kind=kind_phys) :: upfxc         ! total sky upward flux at sfc
+        real (kind=kind_phys) :: upfx0         ! clear sky upward flux at sfc
         real (kind=kind_phys) :: dnfxc         ! total sky downward flux at sfc
         real (kind=kind_phys) :: dnfx0         ! clear sky downward flux at sfc
       end type
@@ -168,7 +138,7 @@
 !  ---  parameter constants for lw band structures
 !
       integer, parameter :: NBANDS = 16         ! num of total spectral bands
-      integer, parameter :: NGPT   = 140        ! num of total g-points
+      integer, parameter :: NGPTLW = 140        ! num of total g-points
       integer, parameter :: N5000  = 5000       !
       integer, parameter :: N200   = 200        !
       integer, parameter :: MAXGAS = 6          ! max num of absorbing gases

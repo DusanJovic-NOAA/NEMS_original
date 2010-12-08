@@ -1,12 +1,14 @@
       SUBROUTINE do_physics_one_step(deltim,kdt,PHOUR, 
 !*   &                 grid_gr, sfc_fld, flx_fld,
-     &                 grid_fld, sfc_fld, flx_fld, g3d_fld,g2d_fld,
+     &                 grid_fld, sfc_fld, flx_fld, nst_fld, g3d_fld,
+     &                 g2d_fld,
      &                 lats_nodes_r,global_lats_r,lonsperlar,
      &                 XLON,XLAT,COSZDG, 
      &                 HPRIME,SWH,HLW, FLUXR,SFALB, SLAG,SDEC,CDEC,
      &                 OZPLIN,JINDX1,JINDX2, DDY,
      &                 phy_f3d,  phy_f2d, NBLCK,
-     &                 ZHOUR, n3, n4, LSOUT,COLAT1,CFHOUR1)
+     &                 ZHOUR, zhour_dfi,n3, n4, LSOUT,COLAT1,CFHOUR1,
+     &                 fscav)
 !!
 
 !!
@@ -18,12 +20,13 @@
 !!                           add DQDT check print
 !! Feb 05 2010     J. Wang, write out restart file
 !! Apr 10 2010     Sarah Lu, debug print removed
+!! Jul 07 2010     S. Moorthi Added nst_fld and other changes
 !! Jul 21 2010     Sarah Lu, output 2d aerosol diag fields
-!! Aug 03 2010     Jun Wang, set llsav through ndfi,first_dfi
+!! Aug 03 2010     Jun Wang, set llsav through ndfi,ldfi
 !! Aug 10 2010     Sarah Lu, zerout g2d_fld if needed
+!! Aug 25 2010     J. Wang, add half dfi filtered fields output
 !! Sep 11 2010     Sarah Lu, g2d_fld zerout call modified
 !!
-!!#include "../../inc/f_hpm.h"
       use resol_def
       use layout1
       use vert_def
@@ -34,8 +37,10 @@
       use gfs_physics_sfc_flx_mod
       use gfs_physics_sfc_flx_set_mod
       use gfs_physics_gridgr_mod,   ONLY: Grid_Var_Data
+      use gfs_physics_nst_var_mod,  ONLY: Nst_Var_Data
       use gfs_physics_g3d_mod,      ONLY: G3D_Var_Data
       use gfs_physics_g2d_mod,      ONLY: G2D_Var_Data, g2d_zerout
+!     use gfs_phy_tracer_config,    ONLY: gfs_phy_tracer_type
       use d3d_def, ONLY: d3d_zero, CLDCOV
       USE machine, ONLY: KIND_GRID, KIND_GRID, KIND_RAD,
      &                   kind_phys
@@ -44,13 +49,15 @@
       TYPE(Sfc_Var_Data)        :: sfc_fld
       TYPE(Flx_Var_Data)        :: flx_fld
       TYPE(Grid_Var_Data)       :: grid_fld 
+      TYPE(Nst_Var_Data)        :: nst_fld 
       TYPE(G3D_Var_Data)        :: g3d_fld 
-      TYPE(G2D_Var_Data)        :: g2d_fld 
+      TYPE(G2D_Var_Data)        :: g2d_fld
+!     type(gfs_phy_tracer_type) :: gfs_phy_tracer
 !*    REAL(KIND=KIND_GRID)      GRID_GR(lonr*lats_node_r_max,lotgr)
       CHARACTER(16)             :: CFHOUR1
 !!     
       REAL(KIND=KIND_EVOD),INTENT(IN):: deltim,PHOUR
-      REAL(KIND=KIND_EVOD),INTENT(INOUT):: ZHOUR
+      REAL(KIND=KIND_EVOD),INTENT(INOUT):: ZHOUR,ZHOUR_DFI
 !!     
       INTEGER n3, n4
       INTEGER NBLCK
@@ -72,7 +79,7 @@
       REAL (kind=kind_phys)
      &     phy_f3d(NGPTC,LEVS,NBLCK,lats_node_r,num_p3d),
      &     phy_f2d(lonr,lats_node_r,num_p2d),
-     &     DDY(LATS_NODE_R)
+     &     DDY(LATS_NODE_R), fscav(ntrac-ncld-1)
 
       real(kind=kind_evod) global_times_r(latr,nodes)
 
@@ -81,30 +88,32 @@
       INTEGER LEV,LEVMAX
       REAL OZPLIN(LATSOZP,LEVOZP,pl_coeff,timeoz) !OZONE PL Coeff
       REAL(KIND=KIND_EVOD) SLAG,SDEC,CDEC
-      INTEGER   kdt,       IERR,J,K,L,LOCL,N
+      INTEGER   kdt,       IERR,I,J,K,L,LOCL,N
       integer iprint
       LOGICAL LSOUT,ex_out
 !
-      real*8 rtc ,timer1,timer2
+      real*8 rtc, timer1, timer2
+      REAL (kind=kind_phys) dt_warm
+      REAL (kind=kind_phys),save :: zhour_dfin=0.
 !
-      print *,' enter do_physics_one_step '
+!      print *,' enter do_physics_one_step '
 !
-!     SHOUR = SHOUR + deltim
-      shour = kdt * deltim
-      fhour = shour / 3600.
-      lsfwd=kdt.eq.1
+!     SHOUR   = SHOUR + deltim
+      shour   = kdt * deltim
+      fhour   = shour / 3600.
+      lsfwd   = kdt == 1
 !jws
       lssav=.true.
-      if(ndfi>0 .and. kdt>ndfi/2 .and. kdt<=ndfi.and. ldfi ) then
-        lssav=.false.
+      if(ndfi>0 .and. kdt>ndfi/2 .and. kdt<=ndfi .and. ldfi ) then
+        lssav = .false.
       endif
-      if(ndfi>0 .and. kdt==ndfi .and. ldfi ) then
-        ldfi=.false.
+      if(.not.ldfi.and.ndfi>0.and.kdt==ndfi/2+1) then
+         zhour=zhour_dfin
       endif
 !jwe
-      lscca=mod(KDT ,nsswr).eq.0
-      lsswr=mod(KDT ,nsswr).eq.1
-      lslwr=mod(KDT ,nslwr).eq.1
+      lscca   = mod(KDT ,nsswr) == 0
+      lsswr   = mod(KDT ,nsswr) == 1
+      lslwr   = mod(KDT ,nslwr) == 1
 ! test repro
       phyhour = phour + deltim/3600.
       phydt   = deltim
@@ -126,7 +135,7 @@
      &                    XLON ,XLAT  , sfc_fld, ialb)
             ENDIF
           endif
-          print *,' num_p3d ',num_p3d
+!          print *,' num_p3d ',num_p3d
 !
           if (num_p3d .eq. 3) then        ! Ferrier Microphysics initialization
             call INIT_MICRO(phydt, levs, 
@@ -146,6 +155,20 @@
 
 !<- Coupling insertion
 
+!
+         if ( nst_fcst > 1  .and. mom4ice) then ! update TSEA for OM coupling
+            do j = 1, lats_node_r
+              do i = 1, lonr
+                if (sfc_fld%slmsk(i,j) == 0 ) then
+                  dt_warm = (nst_fld%xt(i,j)+nst_fld%xt(i,j))
+     &                    /  nst_fld%xz(i,j)
+                  sfc_fld%TSEA(i,j) = sfc_fld%TSEA(i,j)
+     &                    + dt_warm - nst_fld%dt_cool(i,j)
+                endif
+              enddo
+            enddo
+         endif
+
 !!
 
         if (lsswr .or. lslwr) then         ! Radiation Call!
@@ -159,6 +182,7 @@
      &     sfc_fld%FACSF,sfc_fld%FACWF,sfc_fld%CV,sfc_fld%CVT ,
      &     sfc_fld%CVB,SWH,HLW,flx_fld%SFCNSW,flx_fld%SFCDLW,
      &     sfc_fld%FICE,sfc_fld%TISFC,flx_fld%SFCDSW,
+     &     flx_fld%sfcemis,
      &     flx_fld%TSFLW,FLUXR,phy_f3d,SLAG,SDEC,CDEC,NBLCK,KDT,
      &     global_times_r)
            if (iprint .eq. 1) print*,' me = fin gloopr ',me
@@ -169,44 +193,55 @@
 !*    call gloopb ( grid_gr,
       call gloopb ( grid_fld, g3d_fld,
      x     lats_nodes_r,global_lats_r,lonsperlar,
-     &     phydt,phyhour,sfc_fld, flx_fld, SFALB,xlon,
+     &     phydt,phyhour,sfc_fld, flx_fld,nst_fld,SFALB,xlon,
      &     swh,hlw,hprime,slag,sdec,cdec,
      &     ozplin,jindx1,jindx2,ddy,
      &     phy_f3d, phy_f2d,xlat,nblck,kdt,
-     &     global_times_r)
+     &     global_times_r,fscav)
 !
 !!
 !jw      endif !.NOT.LIOPE.or.icolor.ne.2
 !--------------------------------------------
 !
-      write(0,*)'in do one phys step, lsout=',lsout,'kdt=',kdt, 
-     &   'nszer=',nszer,'fhour=',fhour,'zhour=',zhour, 
-     &   'ndfi=',ndfi,'ldfi=',ldfi,'lssav=',lssav,'lsout=',lsout
-      if( lsout.and.kdt.ne.0.0 ) then
-      CALL WRTOUT_physics(phyhour,FHOUR,ZHOUR,IDATE,
-     X            SL,SI,
-     &            sfc_fld, flx_fld, g2d_fld,
-     &            fluxr,
-     &            lats_nodes_r,global_lats_r,lonsperlar,nblck,
-     &            COLAT1,CFHOUR1,pl_coeff)
+!      write(0,*)'in do one phys step, lsout=',lsout,'kdt=',kdt, 
+!     &   'nszer=',nszer,'ldfi=',ldfi,'ndfi=',ndfi,
+!     &   'fhour=',fhour,'zhour=',zhour,'zhour_dfin=',zhour_dfin,
+!     &   'zhour_dfi=',zhour_dfi
+      if (lsout .and. kdt .ne. 0.0 ) then
+        CALL WRTOUT_physics(phyhour,FHOUR,ZHOUR,IDATE,
+     &              SL,SI,
+     &              sfc_fld, flx_fld, nst_fld, g2d_fld,
+     &              fluxr,
+     &              lats_nodes_r,global_lats_r,lonsperlar,nblck,
+     &              COLAT1,CFHOUR1,pl_coeff)
       endif ! if ls_out
 !
        IF (kdt>0 .and. mod(kdt,nsres).eq.0) THEN
-           write(0,*)'wrt_restart_physics,kdt=',kdt,'nsres=',nsres
+!           write(0,*)'wrt_restart_physics,kdt=',kdt,'nsres=',nsres
            CALL wrtout_restart_physics(
-     &        sfc_fld, fhour,idate,
+     &        sfc_fld, nst_fld, fhour,idate,
      &        lats_nodes_r,global_lats_r,lonsperlar,
      &        phy_f3d, phy_f2d, ngptc, nblck, ens_nam)
-          write(0,*)'after wrtout_restart_physics'
        endif
 !
       IF (mod(kdt,nszer).eq.0 .and. lsout.and.kdt.ne.0) THEN
         call flx_init(flx_fld,ierr)
+        if(ldfi.and. kdt==ndfi/2) then
+         zhour_dfi=zhour
+         zhour_dfin=fhour
+        endif
         zhour = fhour
         FLUXR = 0.
 !
-        if (ldiag3d) then
-          call d3d_zero
+        if (ldiag3d .or. lggfs3d) then
+!         if(me==0) print *, 'LU_CLDCOV: zero out d3d fields'
+          call d3d_zero(ldiag3d,lggfs3d)
+          if (fhour >= fhgoc3d) lggfs3d = .false.
+
+!         if ( gfs_phy_tracer%doing_GOCART ) then
+!           call g2d_zerout(gfs_phy_tracer, g2d_fld)
+!         endif
+
         endif
 !
         if ( lgocart ) then
@@ -214,6 +249,16 @@
         endif
 
       ENDIF
+!
+      if(ldfi.and.kdt==ndfi) then
+         zhour=zhour_dfi
+      endif
+!       print *,'in phys one,kdt=',kdt,'zhour=',zhour,                   &
+!     &  'zhour_dfi=',zhour_dfi,'zhour_dfin=',zhour_dfin
+ 
+      if(ndfi>0 .and. kdt==ndfi .and. ldfi ) then
+        ldfi = .false.
+      endif
 !
 ! Coupling insertion->
 !     CALL ATM_SENDFLUXES(sfc_fld%SLMSK)
@@ -238,9 +283,9 @@
       do lan=1,lats_node_r
         lat = global_lats_r(ipt_lats_node_r-1+lan)
         lons_lat = lonsperlar(lat)
-        print *,' gridcheck: lan lat lons_lat ',lan,lat,lons_lat
+!        print *,' gridcheck: lan lat lons_lat ',lan,lat,lons_lat
         do k=1,km
-          print *,' check grid at k=',k
+!          print *,' check grid at k=',k
           call mymaxmin(grid_gr(1,g_pnt+k-1),lons_lat,lonr,1,chr)
         enddo
       enddo

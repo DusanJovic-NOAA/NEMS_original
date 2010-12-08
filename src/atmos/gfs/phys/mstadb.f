@@ -28,7 +28,7 @@ C  COMPUTE ITS LIFTING CONDENSATION LEVEL.
       ENDDO
       DO K=K1,K2
         DO I=1,IM
-          PV   = 1000.0 * PRSL(I,K)*QENV(I,K)/(EPS-EPSM1*QENV(I,K))
+          PV   = PRSL(I,K)*QENV(I,K)/(EPS-EPSM1*QENV(I,K))
           TDPD = TENV(I,K)-FTDP(PV)
           IF(TDPD.GT.0.) THEN
             TLCL   = FTLCL(TENV(I,K),TDPD)

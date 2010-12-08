@@ -1,67 +1,163 @@
-      subroutine dcyc2t3_pre_rad(ix,im,levs,solhr,slag,
-     &                   sinlab,coslab,sdec,cdec,
-     &                   xlon,czmn,sfcdlw,sfcnsw,tf,
-     &                   sfcdsw,dswsfc,                 ! FOR SEA-ICE - XW Nov04
-     &                   tsea,tsflw,swh,hlw,
-     &                   dlwsfc,ulwsfc,slrad,tau,xmu)
-      use machine     , only : kind_phys
-      use physcons, pi => con_pi, sbc => con_sbc,jcal=>con_JCAL
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!    dcyc2t3_pre_rad is a testing/debuging utility program mimic the    !
+!    original dcyc2t3 program that fits radiatibe fluxes and heating    !
+!    rates from a coarse time interval of radiation calculations onto   !
+!    the model's more frequent time steps.                              !
+!    (note: although contains some side-effect, this program is mainly  !
+!           used for testing purpose, but not for regular fcst mode.    !
+!           no significant modifications done after it was created)     !
+!                                                                       !
+!  usage:                                                               !
+!                                                                       !
+!    call dcyc2t3_pre rad                                               !
+!      inputs:                                                          !
+!          ( solhr,slag,sdec,cdec,sinlat,coslat,                        !
+!            xlon,coszen,tsea,tf,tsflw,                                 !
+!            sfcdsw,sfcnsw,sfcdlw,swh,hlw,                              !
+!            ix, im, levs,                                              !
+!      input/output:                                                    !
+!            dtdt,                                                      !
+!      outputs:                                                         !
+!            adjsfcdsw,adjsfcnsw,adjsfcdlw,adjsfculw,xmu,xcosz)         !
+!                                                                       !
+!                                                                       !
+!  program history:                                                     !
+!          198?  nmc mrf    - created subr dcyc2, similar to treatment  !
+!                             in gfdl radiation approximation scheme    !
+!          1994  y. hou     - modified solar zenith angle calculation   !
+!          200?  j. sala    - modified from dcyc2 to create a testing   !
+!                             debuging program                          !
+!     nov  2004  x. wu      - add sfc sw downward flux to the variable  !
+!                             list for sea-ice model                    !
+!     mar  2008  y. hou     - following updates in dcyc2t3, add cosine  !
+!                             of zenith angle as output for sunshine    !
+!                             duration time calculation.                !
+!     sep  2008  y. hou     - separate net sw and downward lw in slrad, !
+!                 change the sign of sfc net sw to consistent with other!
+!                 parts of the mdl (positive value defines from atmos to!
+!                 the ground). rename output fluxes as adjusted fluxes. !
+!                 other minor changes such as renaming some passing     !
+!                 argument names to be consistent with calling subr.    !
+!                                                                       !
+!                                                                       !
+!  subprograms called:  none                                            !
+!                                                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                              !
+!     solhr        - real, forecast time in 24-hour form (hr)           !
+!     slag         - real, equation of time in radians                  !
+!     sdec, cdec   - real, sin and cos of the solar declination angle   !
+!     sinlat(im), coslat(im):                                           !
+!                  - real, sin and cos of latitude                      !
+!     xlon   (im)  - real, longitude in radians                         !
+!     coszen (im)  - real, avg of cosz over daytime sw call interval    !
+!     tsea   (im)  - real, ground surface temperature (k)               !
+!     tf     (im)  - real, surface air (layer 1) temperature (k)        !
+!     tsflw  (im)  - real, sfc air (layer 1) temp in k saved in lw call !
+!     sfcdsw (im)  - real, total sky sfc downward sw flux (w/m**2)      !
+!     sfcnsw (im)  - real, total sky sfc net sw into ground (w/m**2)    !
+!     sfcdlw (im)  - real, total sky sfc downward lw flux (w/m**2)      !
+!     swh(ix,levs) - real, total sky sw heating rates ( k/s )           !
+!     hlw(ix,levs) - real, total sky lw heating rates ( k/s )           !
+!     ix, im       - integer, horiz. dimention and num of used points   !
+!     levs         - integer, vertical layer dimension                  !
+!                                                                       !
+!  input/output:                                                        !
+!     dtdt(im,levs)- real, model time step adjusted total radiation     !
+!                    heating rates ( k/s )                              !
+!                                                                       !
+!  outputs:                                                             !
+!     adjsfcdsw(im)- real, time step adjusted sfc dn sw flux (w/m**2)   !
+!     adjsfcnsw(im)- real, time step adj sfc net sw into ground (w/m**2)!
+!     adjsfcdlw(im)- real, time step adjusted sfc dn lw flux (w/m**2)   !
+!     adjsfculw(im)- real, sfc upward lw flux at current time (w/m**2)  !
+!     xmu    (im)  - real, time step zenith angle adjust factor for sw  !
+!     xcosz  (im)  - real, cosine of zenith angle at current time step  !
+!                                                                       !
+!  ====================    end of description    =====================  !
+
+!-----------------------------------
+      subroutine dcyc2t3_pre_rad                                        &
+!...................................
+
+!  ---  inputs:
+     &     ( solhr,slag,sdec,cdec,sinlat,coslat,                        &
+     &       xlon,coszen,tsea,tf,tsflw,                                 &
+     &       sfcdsw,sfcnsw,sfcdlw,swh,hlw,                              &
+     &       ix, im, levs,                                              &
+!  ---  input/output:
+     &       dtdt,                                                      &
+!  ---  outputs:
+     &       adjsfcdsw,adjsfcnsw,adjsfcdlw,adjsfculw,xmu,xcosz          &
+     &     )
+!
+      use machine,      only : kind_phys
+      use physcons,     only : con_pi, con_sbc, con_jcal
+
       implicit none
-      integer              levs,im,ix
-      real(kind=kind_phys) cdec,cnwatt,hsigma,sdec,slag,solhr
-      real(kind=kind_phys) sinlab(im)  , coslab(im), xlon(im),
-     &                     czmn(im),     sfcdlw(im), sfcnsw(im),
-     &                     tf(im),       tsea(im),   tsflw(im),
-     &                     dlwsfc(im),   ulwsfc(im), slrad(im),
-     &                     xmu(im)
-      real(kind=kind_phys) swh(ix,levs), hlw(ix,levs), tau(im,levs)
-!c-- XW: FOR SEA-ICE Nov04
-C  ADD SFCDSW (INPUT) & DSWSFC (OUTPUT)
-      real(kind=kind_phys) sfcdsw(im),   dswsfc(im)
-!c-- XW: END SEA-ICE
-      integer              i, k
-      real(kind=kind_phys) cns,ss,cc,ch,sdlw, tem
-      PARAMETER           (CNWATT=-jcal*1.E4/60.)
+!
+!  ---  constant parameters:
+      real(kind=kind_phys), parameter :: cnwatt = -con_jcal*1.0e4/60.0
 
+!  ---  inputs:
+      integer, intent(in) :: ix, im, levs
 
-      slag=0.
-      hlw=0.  
-      swh=0.
-      sfcnsw=0.
-      sfcdlw=350./cnwatt
-!sela
+      real(kind=kind_phys), intent(in) :: solhr, slag, cdec, sdec
 
-      cns = pi*(solhr-12.)/12.+slag
-      do i=1,im
-!sela   ss     = sinlab(i) * sdec
-!sela   cc     = coslab(i) * cdec
-!sela   ch     = cc * cos(xlon(i)+cns)
-!sela   xmu(i) = ch + ss
-        SS=0.5
-        CC=0.5
-        CH=0.5
-        XMU(i)=CH+SS
-        CZMN(i)=0.1
+      real(kind=kind_phys), dimension(im), intent(in) :: sinlat, coslat,&
+     &      xlon, coszen, tsea, tf, tsflw, sfcdlw, sfcdsw, sfcnsw
 
-      enddo
-      do i=1,im
-        if(xmu(i).gt.0.01.and.czmn(i).gt.0.01) then
-          xmu(i) = xmu(i) / czmn(i)
+      real(kind=kind_phys), dimension(ix,levs), intent(in) :: swh, hlw
+
+!  ---  input/output:
+      real(kind=kind_phys), dimension(im,levs), intent(inout) :: dtdt
+
+!  ---  outputs:
+      real(kind=kind_phys), dimension(im), intent(out) ::               &
+     &      adjsfcdsw, adjsfcnsw, adjsfcdlw, adjsfculw, xmu, xcosz
+
+!  ---  locals:
+      integer :: i, k
+      real(kind=kind_phys) :: cns, ss, cc, ch, tem
+!
+!===> ...  begin here
+!
+      xmu(:) = 1.0
+      cc     = 0.1
+      ss     = 0.0
+      ch     = 350.0 / cnwatt
+
+      do i = 1, im
+        xcosz(i) = xmu(i)
+        if (xmu(i) > 0.01 .and. cc > 0.01) then
+          xmu(i) = xmu(i) / cc
         else
-          xmu(i) = 0.
+          xmu(i) = 0.0
         endif
+
+        adjsfcdsw(i) = sfcdsw(i) * xmu(i)
+        adjsfcnsw(i) = ss * xmu(i)
+
         tem       = tf(i) / tsflw(i)
         tem       = tem * tem
-        dlwsfc(i) = sfcdlw(i) * tem * tem
-        slrad(i)  = sfcnsw(i)*xmu(i) - dlwsfc(i)
-        dswsfc(i) = sfcdsw(i)*xmu(i)                    ! FOR SEA-ICE - XW Nov04
+        adjsfcdlw(i) = ch * tem * tem
         tem       = tsea(i) * tsea(i)
-        ulwsfc(i) = sbc * tem * tem
+        adjsfculw(i) = con_sbc * tem * tem
       enddo
-      do k=1,levs
-        do i=1,im
-          tau(i,k) = tau(i,k) + swh(i,k)*xmu(i) + hlw(i,k)
-        enddo
-      enddo
+
+!  --- ...  will not change dtdt value
+!     do k = 1, levs
+!       do i = 1, im
+!         dtdt(i,k) = dtdt(i,k) + 0.0
+!       enddo
+!     enddo
+!
       return
-      end
+!...................................
+      end subroutine dcyc2t3_pre_rad
+!-----------------------------------
+

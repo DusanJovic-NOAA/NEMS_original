@@ -89,18 +89,19 @@ c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      & ntrac,nxpt,nypt,jintmx,jcap,levs,lonf,latg,levr,
      & ntoz,ntcw,ncld,nsout,tfiltc,
      & nemsio_in,nemsio_out,ref_temp,
-     & zflxtvd
+     & zflxtvd,num_reduce
 
 !
-      fhmax=0
-      fhout=0
-      fhres=0
-      fhrot=0
-      fhdfi=0
-      deltim=0
-      igen=0
-      tfiltc  = 0.92
-      NGPTC=lonf
+      num_reduce = -4
+      fhmax   = 0
+      fhout   = 0
+      fhres   = 0
+      fhrot   = 0
+      fhdfi   = 0
+      deltim  = 0
+      igen    = 0
+      tfiltc  = 0.85
+      NGPTC   = lonf
 !
       shuff_lats_a     = .true.
       reshuff_lats_a   = .false.
@@ -129,7 +130,7 @@ c$$$      read(5,nam_dyn)
       open(unit=nlunit,file=gfs_dyn_namelist)
       rewind (nlunit)
       read(nlunit,nam_dyn)
-      write(*,nam_dyn)
+      if (me == 0) write(*,nam_dyn)
 c
 !     if (me.eq.0) write(6,nam_dyn)
       filta = tfiltc

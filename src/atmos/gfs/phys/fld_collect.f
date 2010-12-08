@@ -41,9 +41,11 @@ cc
 cc
 !---------------------------------------------------------------------
 !
-      print *,' enter para_fix_w ' 		! hmhj
-      Print *,'lonr=',lonr,'lats_node_r_max=',lats_node_r_max,
-     &  'total_levels=',nfld,'lonsperlar=',lonsperlar
+      if ( me .eq. ioproc ) then
+        print *,' enter para_fix_w '            		! hmhj
+        Print *,'lonr=',lonr,'lats_node_r_max=',lats_node_r_max,
+     &    'total_levels=',nfld,'lonsperlar=',lonsperlar
+      endif
 
       allocate ( grid_node ( lonr,lats_node_r_max,nfld ) )
       grid_node=0.
@@ -125,13 +127,12 @@ cc
         enddo
        enddo
       enddo
-      print *,'in fld_collect,nfld=',nfld,'total field=',
-     &   nrecs+3*lsoil+num_p2d+num_p3d*levs,'nodes=',nodes
+!      print *,'in fld_collect,nfld=',nfld,'total field=',
+!     &   nrecs+3*lsoil+num_p2d+num_p3d*levs,'nodes=',nodes
 !
       if ( me .eq. ioproc ) then
          allocate ( grid_nodes ( lonr,lats_node_r_max,
      &                           nfld, nodes ),stat=ierr )
-          print *,'after allocate grid_nodes'
          if (ierr .ne. 0) then
            call mpi_abort(mpi_comm_all,ierr,i)
          endif
@@ -140,7 +141,7 @@ cc
       lenrec = lonr*lats_node_r_max * nfld
 !
       t1=rtc()
-      print *,'after allocate grid_nodes,lenrec=',lenrec
+!      print *,'after allocate grid_nodes,lenrec=',lenrec
       if(nodes>1) then
         call mpi_gather( grid_node , lenrec, MPI_R_MPI_R,
      x                 grid_nodes, lenrec, MPI_R_MPI_R,
@@ -153,11 +154,9 @@ cc
       endif
 !
       deallocate(grid_node)
-      print *,'after gather grid_nodes, ierr=',ierr
 !
       IF (me.eq.ioproc) THEN
  
-        print *,' in fld_collect,compact data'
 !
 !compact the data
 !
@@ -189,7 +188,7 @@ cc
 !!
 !
       call mpi_barrier(MPI_COMM_ALL,ierr)
-      print *,' leave fld_collect ' 
+!      print *,' leave fld_collect ' 
 
       return
       end

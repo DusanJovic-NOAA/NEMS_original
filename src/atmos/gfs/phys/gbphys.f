@@ -1,975 +1,1440 @@
-      SUBROUTINE GBPHYS(IM,IX,levs,lsoil,lsm,ntrac,ncld,
-     & ntoz,ntcw,nmtvr,lonr,latr,jcap,ras,nlons,xkt2,nrcm,pre_rad,
-     & UGRS,VGRS,PGR,TGRS,QGRS,vvel,
-     & GT0,GQ0,GU0,GV0,sinlat,coslat,rcs2,
-     & prsi,prsl,prslk,prsik,phii,phil,dpshc,fhour,lssav,solhr,
-     & lsfwd,clstp,dtp,dtf,poz,prdout,ko3,pl_coeff,
-     & HICE,FICE,TISFC,SFCDSW,                          ! FOR SEA-ICE - XW Nov04
-     + TPRCP, SRFLAG,						! lu add
-     + SLC   ,SNWDPH,SLOPE ,SHDMIN,SHDMAX,SNOALB,SFALB ,	! lu add
-     + CHH,CMM,EPI,DLWSFCI,ULWSFCI,USWSFCI,DSWSFCI,DTSFCI,
-     + DQSFCI,GFLUXI,SRUNOFF,T1,Q1,U1,V1,ZLVL,EVBSA,EVCWA,
-     + TRANSA,SBSNOA,SNOWCA,SOILM,
-     + RAIN,RAINC,WET1,                                         ! added for gocart
-     & TSEA  ,SHELEG,SNCOVR, TG3   ,ZORL  ,CV    ,CVB   ,CVT   ,
-     & SLMSK ,VFRAC ,CANOPY,F10M  ,VTYPE ,STYPE ,UUSTAR,FFMM  ,FFHH  ,
-     & TMPMIN,TMPMAX,GESHEM,DUSFC ,DVSFC ,DTSFC ,DQSFC ,DLWSFC,ULWSFC,
-     & GFLUX ,RUNOFF,EP    ,CLDWRK,DUGWD ,DVGWD ,PSMEAN,BENGSH,XLON  ,
-     & COSZEN,SFCNSW,XLAT  ,
-     & SFCDLW,TSFLW ,PSURF ,U10M  ,V10M  ,T2M   ,Q2M   ,
-     & HPBL  ,PWAT  ,SWH,HLW,SMC,STC,HPRIME,slag,sdec,cdec,
-     & acv,acvb,acvt,
-     & phy_f3d, phy_f2d, num_p3d, num_p2d, flgmin,
-     & DT3DT, DQ3DT, DU3DT, DV3DT, DQDT_V,
-     & upd_mf, dwn_mf, det_mf, LDIAG3D,
-     & flipv, me,kdt,lat,oro, 
-! Coupling insertion->
-!    > lssav_cc_dummy,DLWSFC_cc_dummy,ULWSFC_cc_dummy,SWSFC_cc_dummy,
-!    > DUSFC_cc_dummy,DVSFC_cc_dummy,DTSFC_cc_dummy,DQSFC_cc_dummy,
-!    > PRECR_cc_dummy,
-!<-Coupling insertion
-     & crtrh, ncw, old_monin,cnvgwd,ccwf, sashal,newsas )
-
-! Coupling insertion->
-!     USE SURFACE_cc, ONLY: JCAL_cc
-!<-Coupling insertion
+!===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!     gbphys is the driver subroutine to invoke GFS AM physics          !
+!     (except radiation but radiative heating is applied here)          !
+!     at physics time steps                                             !
+!                                                                       !
+!  usage:                                                               !
+!                                                                       !
+!    call gbphys                                                        !
+!       inputs:                                                         !
+!         ( im,ix,levs,lsoil,lsm,ntrac,ncld,ntoz,ntcw,                  !
+!           nmtvr,nrcm,ko3,lonf,latg,jcap,num_p3d,num_p2d,              !
+!           kdt,lat,me,pl_coeff,nlons,ncw,flgmin,crtrh,cdmbgwd,         !
+!           ccwf,dlqf,ctei_rm,clstp,dtp,dtf,fhour,solhr,                !
+!           slag,sdec,cdec,sinlat,coslat,pgr,ugrs,vgrs,                 !
+!           tgrs,qgrs,vvel,prsi,prsl,prslk,prsik,phii,phil,             !
+!           rann,prdout,poz,dpshc,hprime,xlon,xlat,                     !
+!           slope,shdmin,shdmax,snoalb,tg3,slmsk,vfrac,                 !
+!           vtype,stype,uustar,oro,coszen,sfcdsw,sfcnsw,                !
+!           sfcdlw,tsflw,sfcemis,sfalb,swh,hlw,ras,pre_rad,             !
+!           ldiag3d,lggfs3d,lssav,lssav_cc,                             !
+!           xkzm_m,xkzm_h,xkzm_s,psautco,prautco,evpco,                 !
+!           flipv,old_monin,cnvgwd,shal_cnv,sashal,newsas,cal_pre,      !
+!           mom4ice,mstrat,trans_trac,nst_fcst,moist_adj,               !
+!       input/outputs:                                                  !
+!           hice,fice,tisfc,tsea,tprcp,cv,cvb,cvt,                      !
+!           srflag,snwdph,weasd,sncovr,zorl,canopy,                     !
+!           ffmm,ffhh,f10m,srunoff,evbsa,evcwa,snohfa,                  !
+!           transa,sbsnoa,snowca,soilm,tmpmin,tmpmax,                   !
+!           dusfc,dvsfc,dtsfc,dqsfc,totprcp,gflux,                      !
+!           dlwsfc,ulwsfc,suntim,runoff,ep,cldwrk,                      !
+!           dugwd,dvgwd,psmean,cnvprcp,spfhmin,spfhmax,rain,rainc,      !
+!           dt3dt,dq3dt,du3dt,dv3dt,dqdt_vacv,acvb,acvt,                !
+!           slc,smc,stc,upd_mf,dwn_mf,det_mf,dkh,rnp,phy_f3d,phy_f2d,   !
+!           dlwsfc_cc,ulwsfc_cc,dtsfc_cc,swsfc_cc,                      !
+!           dusfc_cc, dvsfc_cc, dqsfc_cc,precr_cc,                      !
+!           xt,xs,xu,xv,xz,zm,xtts,xzts,d_conv,ifd,dt_cool,Qrain,      !
+!       outputs:                                                        !
+!           gt0,gq0,gu0,gv0,t2m,q2m,u10m,v10m,                          !
+!           zlvl,psurf,hpbl,pwat,t1,q1,u1,v1,                           !
+!           chh,cmm,dlwsfci,ulwsfci,dswsfci,uswsfci,                    !
+!           dtsfci,dqsfci,gfluxi,epi,smcwlt2,smcref2,wet1,              !
+!hchuang code change
+!           gsoil,gtmp2m,gustar,gpblh,gu10m,gv10m,gzorl,goro,           !
+!           xmu_cc,dlw_cc,dsw_cc,snw_cc,lprec_cc,                       !
+!           tref, z_c, c_0, c_d, w_0, w_d, rqtk )                       !
+!                                                                       !
+!  subprograms called:                                                  !
+!                                                                       !
+!     get_prs,  dcyc2t2_pre_rad (testing),    dcyc2t3,  sfc_diff,       !
+!     sfc_ocean,sfc_drv,  sfc_land, sfc_sice, sfc_diag, moninp1,        !
+!     moninp,   moninq1,  moninq,   gwdps,    ozphys,   get_phi,        !
+!     sascnv,   sascnvn,  rascnv,   gwdc,     shalcvt3, shalcv,         !
+!     shalcnv,  cnvc90,   lrgscl,   gsmdrive, gscond,   precpd,         !
+!     progt2.                                                           !
+!                                                                       !
+!                                                                       !
+!  program history log:                                                 !
+!           19xx  - ncep mrf/gfs                                        !
+!           2002  - s. moorthi  modify and restructure and add Ferrier  !
+!                               microphysics as an option               !
+!           200x  - h. juang    modify (what?)                                  !
+!      nov  2004  - x. wu       modify sea-ice model                    !
+!      may  2005  - s. moorthi  modify and restructure                  !
+!           2005  - s. lu       modify to include noah lsm              !
+!      oct  2006  - h. wei      modify lsm options to include both      !
+!                               noah and osu lsms.                      !
+!           2006  - s. moorthi  added a. johansson's convective gravity !
+!                               wave parameterization code              !
+!           2007  - s. moorthi  added j. han's modified pbl/sas options !
+!      dec  2007  - xu li       modified the operational version for    !
+!                               nst model                               !
+!           2008  - s. moorthi  applied xu li's nst model to new gfs    !
+!      mar  2008  - y.-t. hou   added sunshine duration var (suntim) as !
+!                     an input/output argument.                         !
+!           2008  - jun wang    added spfhmax/spfhmin as input/output.  !
+!      apr  2008  - y.-t. hou   added lw sfc emissivity var (sfcemis),  !
+!                     define the lw sfc dn/up fluxes in two forms: atmos!
+!                     and ground. also changed sw sfc net flux direction!
+!                     (positive) from ground -> atmos to the direction  !
+!                     of atmos -> ground. recode the program and add    !
+!                     program documentation block.
+!           2008/ - s. moorthi and y.t. hou upgraded the code to more   !
+!           2009    modern form and changed all the inputs to MKS units.!
+!      feb  2009  - s. moorthi  upgraded to add Hochun's gocart changes !
+!      jul  2009  - s. moorthi  added rqtk for sela's semi-lagrangian   !
+!      aug  2009  - s. moorthi  added j. han and h. pan updated shallow !
+!                               convection package                      !
+!      sep  2009  - s. moorthi  updated for the mcica (rrtm3) radiation !
+!                                                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     ix, im   - integer, horiz dimention and num of used pts      1    !
+!     levs     - integer, vertical layer dimension                 1    !
+!     lsoil    - integer, number of soil layers                    1    !
+!     lsm      - integer, flag for land surface model to use       1    !
+!                =0  for osu lsm; =1  for noah lsm                      !
+!     ntrac    - integer, number of tracers                        1    !
+!     ncld     - integer, number of cloud species                  1    !
+!     ntoz     - integer, ozone location in the tracer array       1    !
+!     ntcw     - integer, cloud condensate location in the tracer  1    !
+!                         array                                    1    !
+!     nmtvr    - integer, number of topographic variables such as  1    !
+!                         variance etc used in the GWD parameterization !
+!     nrcm     - integer, second dimension for the random number   1    !
+!                         array rann                                    !
+!     ko3      - integer, number of layers for ozone data          1    !
+!     lonf,latg- integer, number of lon/lat points                 1    !
+!     jcap     - integer, number of spectral wave trancation       1    !
+!                         used only by sascnv shalcnv                   !
+!     num_p3d  - integer, number of 3D arrays needed for           1    !
+!                          microphysics                                 !
+!     num_p2d  - integer, number of 2D arrays needed for           1    !
+!                         microphysics                                  !
+!     kdt       -integer, number of the current time step          1    !
+!     lat       -integer, latitude index - used for debug prints   1    !
+!     me        -integer, pe number - used for debug prints        1    !
+!     pl_coeff - integer, number coefficients in ozone forcing     1    !
+!     nlons    - integer, number of total grid points in a latitude     !
+!                         circle through a point                   im   !
+!     ncw      - integer, range of droplet number concentrations for    !
+!                         Ferrier microphysics                     2    !
+!     flgmin   - real, range of  minimum large ice fraction for         !
+!                         Ferrier microphys                        2    !
+!     crtrh    - real, critical relative humidity at the surface, PBL   !
+!                      top and at the top of the atmosphere        3    !
+!     cdmbgwd  - real, multiplication factors for cdmb and gwd     2    !
+!     ccwf     - real, multiplication factor for critical cloud         !
+!                      workfunction for RAS                        2    !
+!     dlqf     - real, factor for cloud condensate detrainment from     !
+!                      cloud edges (RAS)                           2    !
+!     ctei_rm  - real, critical cloud top entrainment instability  2    !
+!                      criteria (used if mstrat=.true.)                 !
+!     clstp    - real, index used by cnvc90 (for convective clouds)1    !
+!                      legacy stuff - does not affect forecast          !
+!     dtp      - real, physics time step in seconds                1    !
+!     dtf      - real, dynamics time step in seconds               1    !
+!     fhour    - real, forecast hour                               1    !
+!     solhr    - real, fcst hour at the end of prev time step      1    !
+!     slag     - real, equation of time ( radian )                 1    !
+!     sdec,cdec- real, sin and cos of the solar declination angle  1    !
+!     sinlat   - real, sin of latitude                             im   !
+!     coslat   - real, cos of latitude                             im   !
+!     pgr      - real, surface pressure (Pa)                       im   !
+!     ugrs,vgrs- real, u/v component of layer wind              ix,levs !
+!     tgrs     - real, layer mean temperature ( k )             ix,levs !
+!     qgrs     - real, layer mean tracer concentration     ix,levs,ntrac!
+!     vvel     - real, layer mean vertical velocity (Pa/s)      ix,levs !
+!     prsi     - real, pressure at layer interfaces             ix,levs+1
+!     prsl     - real, mean layer presure                       ix,levs !
+!     prsik    - real, Exner function at layer interface        ix,levs+1
+!     prslk    - real, Exner function at layer                  ix,levs !
+!     phii     - real, interface geopotential height            ix,levs+1
+!     phil     - real, layer geopotential height                ix,levs !
+!     rann     - real, random number array (0-1)                ix,nrcm !
+!     prdout   - real, ozone forcing data                       ix,ko3,pl_coeff!
+!     poz      - real, ozone forcing data level pressure (ln(Pa))  ko3  !
+!     dpshc    - real, maximum pressure depth for shallow convection im   !
+!     hprime   - real, orographic std dev                       ix,nmtvr!
+!     xlon,xlat- real, longitude and latitude ( radian )           im   !
+!     slope    - real, sfc slope type for lsm                      im   !
+!     shdmin   - real, min fractional coverage of green veg        im   !
+!     shdmax   - real, max fractnl cover of green veg (not used)   im   !
+!     snoalb   - real, max snow albedo over land (for deep snow)   im   !
+!     tg3      - real, deep soil temperature                       im   !
+!     slmsk    - real, sea/land/ice mask (=0/1/2)                  im   !
+!     vfrac    - real, vegetation fraction                         im   !
+!     vtype    - real, vegetation type                             im   !
+!     stype    - real, soil type                                   im   !
+!     uustar   - real, boundary layer parameter                    im   !
+!     oro      - real, orography                                   im   !
+!     coszen   - real, avg cosz over daytime sw radiation interval im   !
+!     sfcdsw   - real, total sky sfc downward sw flux ( w/m**2 )   im   !
+!     sfcnsw   - real, total sky sfc netsw flx into ground(w/m**2) im   !
+!     sfcdlw   - real, total sky sfc downward lw flux ( w/m**2 )   im   !
+!     tsflw    - real, sfc air (layer 1) temp over lw interval (k) im   !
+!     sfcemis  - real, sfc lw emissivity ( fraction )              im   !
+!     sfalb    - real, mean sfc diffused sw albedo                 im   !
+!     swh      - real, total sky sw heating rates ( k/s )       ix,levs !
+!     hlw      - real, total sky lw heating rates ( k/s )       ix,levs !
+!     ras      - logical, flag for ras convection scheme           1    !
+!     pre_rad  - logical, flag for testing purpose                 1    !
+!     ldiag3d  - logical, flag for 3d diagnostic fields            1    !
+!     lggfs3d  - logical, flag for 3d diagnostic fields for gocart 1    !
+!     lssav    - logical, flag controls data store and output      1    !
+!     lssav_cc - logical, flag for save data for ocean coupling    1    !
+!     flipv    - logical, flag for vertical direction flip (ras)   1    !
+!     xkzm_m   - real, background vertical diffusion for momentum  1    !
+!     xkzm_h   - real, background vertical diffusion for heat, q   1    !
+!     xkzm_s   - real, sigma threshold for background mom. diffusn 1    !
+!     psautco  - real, auto conversion coeff from ice to snow      2    !
+!     prautco  - real, auto conversion coeff from cloud to rain    2    !
+!     evpco    - real, coeff for evaporation of largescale rain    1    !
+!     old_monin- logical, flag for diff monin schemes              1    !
+!     cnvgwd   - logical, flag for conv gravity wave drag          1    !
+!     shal_cnv - logical, flag for calling shallow convection      1    !
+!     sashal   - logical, flag for new shallow conv scheme         1    !
+!     newsas   - logical, flag for new sas conv scheme             1    !
+!     cal_pre  - logical, flag controls precip type algorithm      1    !
+!     mom4ice  - logical, flag controls mom4 sea-ice               1    !
+!     mstrat   - logical, flag for moorthi approach for stratus    1    !
+!     trans_trac-logical, flag for convective transport of tracers 1    !
+!     nst_fcst  -integer, flag 0 for no nst, 1 for uncoupled nst        !
+!                          and 2 for coupled NST                   1    !
+!     moist_adj- logical, flag for moist convective adjustment     1    !
+!     fscav    - real, tracer convective scavenging coefficient ntrac-ncld-1!
+!                                                                       !
+!  input/outputs:                                                       !
+!     hice     - real, sea-ice thickness                           im   !
+!     fice     - real, sea-ice concentration                       im   !
+!     tisfc    - real, sea-ice temperature                         im   !
+!     tsea     - real, ground surface temperature ( k )            im   !
+!     tprcp    - real, total precipitation                         im   !
+!     the following three variables do not affect the forecast          !
+!     cv,       -real, convective clouds amountt                   im   !
+!     cvb       -real, convective clouds base pressure (kPa)       im   !
+!     cvt       -real, convective clouds top  pressure (kPa)       im   !
+!     srflag   - real, snow/rain flag for precipitation            im   !
+!     snwdph   - real, actual snow depth (mm) over land/sea ice    im   !
+!     weasd    - real, water equiv of accumulated  snow depth (kg/m**2)
+!                      over land and sea ice                       im   !
+!     sncovr   - real, snow cover over land                        im   !
+!     zorl     - real, surface roughness                           im   !
+!     canopy   - real, canopy water                                im   !
+!     ffmm     - real, fm parameter from PBL scheme                im   !
+!     ffhh     - real, fh parameter from PBL scheme                im   !
+!     f10m     - real, fm at 10m                                   im   !
+!     srunoff  - real, surface water runoff (from lsm)             im   !
+!     evbsa    - real, noah lsm diagnostics                        im   !
+!     evcwa    - real, noah lsm diagnostics                        im   !
+!     snohfa   - real, noah lsm diagnostics                        im   !
+!     transa   - real, noah lsm diagnostics                        im   !
+!     sbsnoa   - real, noah lsm diagnostics                        im   !
+!     snowca   - real, noah lsm diagnostics                        im   !
+!     soilm    - real, soil moisture                               im   !
+!     tmpmin   - real, min temperature at 2m height (k)            im   !
+!     tmpmax   - real, max temperature at 2m height (k)            im   !
+!     dusfc    - real, u component of surface stress               im   !
+!     dvsfc    - real, v component of surface stress               im   !
+!     dtsfc    - real, sensible heat flux (w/m2)                   im   !
+!     dqsfc    - real, latent heat flux (w/m2)                     im   !
+!     totprcp  - real, accumulated total precipitation (kg/m2)     im   !
+!     gflux    - real, groud conductive heat flux                  im   !
+!     dlwsfc   - real, time accumulated sfc dn lw flux ( w/m**2 )  im   !
+!     ulwsfc   - real, time accumulated sfc up lw flux ( w/m**2 )  im   !
+!     suntim   - real, sunshine duration time (s)                  im   !
+!     runoff   - real, total water runoff                          im   !
+!     ep       - real, potential evaporation                       im   !
+!     cldwrk   - real, cloud workfunction (valid only with sas)    im   !
+!     dugwd    - real, vertically integrated u change by OGWDi     im   !
+!     dvgwd    - real, vertically integrated v change by OGWD      im   !
+!     psmean   - real, surface pressure (kPa)                      im   !
+!     cnvprcp  - real, accumulated convective precipitation (kg/m2)im   !
+!     spfhmin  - real, minimum specific humidity                   im   !
+!     spfhmax  - real, maximum specific humidity                   im   !
+!     rain     - real, total rain at this time step                im   !
+!     rainc    - real, convective rain at this time step           im   !
+!     dt3dt    - real, temperature change due to physics           ix,levs,6 !
+!     dq3dt    - real, moisture change due to physics              ix,levs,5+pl_coeff!
+!     du3dt    - real, u momentum change due to physics            ix,levs,4 !
+!     dv3dt    - real, v momentum change due to physics            ix,levs,4 !
+!     dqdt_v   - real, total moisture tendency (kg/kg/s)           ix,levs   !
+!     acv      - real,  array containing accumulated convective clouds im   !
+!     acvb,acvt- real,  arrays used by cnvc90                      im   !
+!     slc      - real, liquid soil moisture                     ix,lsoil!
+!     smc      - real, total soil moisture                      ix,lsoil!
+!     stc      - real, soil temperature                         ix,lsoil!
+!     upd_mf   - real, convective updraft mass flux             ix,levs !
+!     dwn_mf   - real, convective downdraft mass flux           ix,levs !
+!     det_mf   - real, convective detrainment mass flux         ix,levs !
+!     dkh      - real, vertical diffusion coefficient (gocart)  ix,levs !
+!     rnp      - real, n cloud precipitation rate     (gocart)  ix,levs !
+!     phy_f3d  - real, 3d arrays saved for restart              ix,levs,num_p3d!
+!     phy_f2d  - real, 2d arrays save for restart               ix,num_p2d!
+!     dlwsfc_cc- real, sfc dnwd lw flux (w/m**2) for ocn coupling  im   !
+!     ulwsfc_cc- real, sfc upwd lw flux (w/m**2) for ocn coupling  im   !
+!     swsfc_cc - real, sfc net sw  flux (w/m**2) for ocn coupling  im   !
+!     dusfc_cc - real, sfc u-wind                for ocn coupling  im   !
+!     dvsfc_cc - real, sfc v-wind                for ocn coupling  im   !
+!     dtsfc_cc - real, sfc temperature  (k)      for ocn coupling  im   !
+!     dqsfc_cc - real, sfc pressure              for ocn coupling  im   !
+!     precr_cc - real, total precipitation       for ocn coupling  im   !
 !
-      USE MACHINE , ONLY : kind_phys
-      USE PHYSCONS, ROCP  => con_rocp,  CP => con_cp, FV => con_fvirt
-     &,             grav  => con_g,     RD => con_RD
-     &,             RV    => con_RV,    HVAP => con_HVAP
-     &,             HFUS  => con_HFUS
-     &,             rerth => con_rerth, pi => con_pi
+!     xt       - real, heat content in DTL                         im   !
+!     xs       - real, salinity  content in DTL                    im   !
+!     xu       - real, u-current content in DTL                    im   !
+!     xv       - real, v-current content in DTL                    im   !
+!     xz       - real, DTL thickness                               im   !
+!     zm       - real, MXL thickness                               im   !
+!     xtts     - real, d(xt)/d(ts)                                 im   !
+!     xzts     - real, d(xz)/d(ts)                                 im   !
+!     d_conv   - real, thickness of Free Convection Layer (FCL)    im   !
+!     ifd      - real, index to start DTM run or not               im   !
+!     dt_cool  - real, Sub-layer cooling amount                    im   !
+!     Qrain    - real, sensible heat flux due to rainfall (watts)  im   !
+!                                                                       !
+!  outputs:                                                             !
+!     gt0      - real, updated temperature                        ix,levs !
+!     gq0      - real, updated tracers                            ix,levs,ntrac!
+!     gu0      - real, updated zonal wind                         ix,levs !
+!     gv0      - real, update meridional wind                     ix,levs !
+!     t2m,q2m  - real, 2 meter temperature and humidity            im   !
+!     u10m,v10m- real, 10 meater u/v wind speed                    im   !
+!     zlvl     - real, layer 1 height (m)                          im   !
+!     psurf    - real, surface pressure (Pa)                       im   !
+!     hpbl     - real, pbl height (m)                              im   !
+!     pwat     - real, precipitable water                          im   !
+!     t1       - real, layer 1 temperature (K)                     im   !
+!     q1       - real, layer 1 specific humidity (kg/kg)           im   !
+!     u1       - real, layer 1 zonal wind (m/s)                    im   !
+!     v1       - real, layer 1 merdional wind (m/s)                im   !
+!     chh      - real, thermal exchange coefficient                im   !
+!     cmm      - real, momentum exchange coefficient               im   !
+!     dlwsfci  - real, instantaneous sfc dnwd lw flux ( w/m**2 )   im   !
+!     ulwsfci  - real, instantaneous sfc upwd lw flux ( w/m**2 )   im   !
+!     dswsfci  - real, instantaneous sfc dnwd sw flux ( w/m**2 )   im   !
+!     uswsfci  - real, instantaneous sfc upwd sw flux ( w/m**2 )   im   !
+!     dtsfci   - real, instantaneous sfc sensible heat flux        im   !
+!     dqsfci   - real, instantaneous sfc latent heat flux          im   !
+!     gfluxi   - real, instantaneous sfc ground heat flux          im   !
+!     epi      - real, instantaneous sfc potential evaporation     im   !
+!     smcwlt2  - real, wilting point (volumetric)                  im   !
+!     smcref2  - real, soil moisture threshold (volumetric)        im   !
+!     wet1     - real, normalized soil wetness (for GOCART)        im   !
+!
+!     gsoil    - real                                              im   !
+!     gtmp2m   - real                                              im   !
+!     gustar   - real                                              im   !
+!     gpblh    - real                                              im   !
+!     gu10m    - real                                              im   !
+!     gv10m    - real                                              im   !
+!     gzorl    - real                                              im   !
+!     goro     - real                                              im   !
+!   
+!     xmu_cc   - real, cosine of zenith angle at time step         im   !
+!     dlw_cc   - real, sfc dnwd lw flux at time step for ocn cpl   im   !
+!     dsw_cc   - real, sfc dnwd sw flux at time step for ocn cpl   im   !
+!     snw_cc   - real, lower atms snow fall rate for ocn cpl       im   !
+!     lprec_cc - real, lower atms rain fall rate for ocn cpl       im   !
+
+!     tref     - real, Reference Temperature                       im   !
+!     z_c      - real, Sub-layer cooling thickness                 im   !
+!     c_0      - real, coefficient1 to calculate d(Tz)/d(Ts)       im   !
+!     c_d      - real, coefficient2 to calculate d(Tz)/d(Ts)       im   !
+!     w_0      - real, coefficient3 to calculate d(Tz)/d(Ts)       im   !
+!     w_d      - real, coefficient4 to calculate d(Tz)/d(Ts)       im   !
+!     rqtk     - real, mass change due to moisture variation       im   !
+!                                                                       !
+!                                                                       !
+!  ====================    end of description    =====================  !
+
+      subroutine gbphys                                                 &
+!  ---  inputs:
+     &    ( im,ix,levs,lsoil,lsm,ntrac,ncld,ntoz,ntcw,                  &
+     &      nmtvr,nrcm,ko3,lonf,latg,jcap,num_p3d,num_p2d,              &
+     &      kdt,lat,me,pl_coeff,nlons,ncw,flgmin,crtrh,cdmbgwd,         &
+     &      ccwf,dlqf,ctei_rm,clstp,dtp,dtf,fhour,solhr,                &
+     &      slag,sdec,cdec,sinlat,coslat,pgr,ugrs,vgrs,                 &
+     &      tgrs,qgrs,vvel,prsi,prsl,prslk,prsik,phii,phil,             &
+     &      rann,prdout,poz,dpshc,hprime,xlon,xlat,                     &
+     &      slope,shdmin,shdmax,snoalb,tg3,slmsk,vfrac,                 &
+     &      vtype,stype,uustar,oro,coszen,sfcdsw,sfcnsw,                &
+     &      sfcdlw,tsflw,sfcemis,sfalb,swh,hlw,ras,pre_rad,             &
+!    &      ldiag3d,lggfs3d,lssav,                                      &
+     &      ldiag3d,lggfs3d,lssav,lssav_cc,                             &
+     &      xkzm_m,xkzm_h,xkzm_s,psautco,prautco,evpco,                 &
+     &      flipv,old_monin,cnvgwd,shal_cnv,sashal,newsas,cal_pre,      &
+     &      mom4ice,mstrat,trans_trac,nst_fcst,moist_adj,fscav,         &
+!  ---  input/outputs:
+     &      hice,fice,tisfc,tsea,tprcp,cv,cvb,cvt,                      &
+     &      srflag,snwdph,weasd,sncovr,zorl,canopy,                     &
+     &      ffmm,ffhh,f10m,srunoff,evbsa,evcwa,snohfa,                  &
+     &      transa,sbsnoa,snowca,soilm,tmpmin,tmpmax,                   &
+     &      dusfc,dvsfc,dtsfc,dqsfc,totprcp,gflux,                      &
+     &      dlwsfc,ulwsfc,suntim,runoff,ep,cldwrk,                      &
+     &      dugwd,dvgwd,psmean,cnvprcp,spfhmin,spfhmax,rain,rainc,      &
+     &      dt3dt,dq3dt,du3dt,dv3dt,dqdt_v,acv,acvb,acvt,               &
+     &      slc,smc,stc,upd_mf,dwn_mf,det_mf,dkh,rnp,phy_f3d,phy_f2d,   &
+     &      dlwsfc_cc,ulwsfc_cc,dtsfc_cc,swsfc_cc,                      &
+     &      dusfc_cc, dvsfc_cc, dqsfc_cc,precr_cc,                      &
+     &      xt,xs,xu,xv,xz,zm,xtts,xzts,d_conv,ifd,dt_cool,Qrain,       &
+!  ---  outputs:
+     &      gt0,gq0,gu0,gv0,t2m,q2m,u10m,v10m,                          &
+     &      zlvl,psurf,hpbl,pwat,t1,q1,u1,v1,                           &
+     &      chh,cmm,dlwsfci,ulwsfci,dswsfci,uswsfci,                    &
+     &      dtsfci,dqsfci,gfluxi,epi,smcwlt2,smcref2,wet1,              &
+     &      gsoil,gtmp2m,gustar,gpblh,gu10m,gv10m,gzorl,goro,           &
+     &      xmu_cc,dlw_cc,dsw_cc,snw_cc,lprec_cc,                       &
+     &      tref, z_c, c_0, c_d, w_0, w_d,                              &
+     &      rqtk                                                        &
+     &      )
+
+!
+      use machine ,   only : kind_phys
+      use physcons,   only : con_cp, con_fvirt, con_g, con_rd, con_rv,  &
+     &                       con_hvap, con_hfus, con_rerth, con_pi
+!
       implicit none
 !
-      integer  levs,lsoil,lsm,ix,im,ntrac,ncld,ntoz,ntcw,nmtvr,lonr,
-     &         latr,jcap,nlons(im),num_p3d,num_p2d,nrcm,lat
-     &,        pl_coeff
-!
-      real, parameter :: hocp=hvap/cp
-      LOGICAL lssav,lsfwd, old_monin, cnvgwd
-      integer levshc(im), levshcm     ! Needed for pry version
-      integer ncw(2)
-!     real(kind=kind_phys) dtp,dtf,FHOUR,solhr, prsshc
-      real(kind=kind_phys) dtp,dtf,FHOUR,solhr, dpshc(im), crtrh(3)
-      real(kind=kind_phys) flgmin(2), ccwf
-      real, parameter :: fhourpr=0.0
 
-! Coupling insertion->
-!     logical lssav_cc_dummy
-!     real(kind=kind_phys),dimension(IM)::
-!    > DLWSFC_cc_dummy,ULWSFC_cc_dummy,SWSFC_cc_dummy,
-!    > DUSFC_cc_dummy,DVSFC_cc_dummy,DTSFC_cc_dummy,DQSFC_cc_dummy,
-!    > PRECR_cc_dummy
+!  ---  constant parameters:
+      real(kind=kind_phys), parameter :: hocp    = con_hvap/con_cp
+      real(kind=kind_phys), parameter :: fhourpr = 0.0
+      real(kind=kind_phys), parameter :: rlapse  = 0.65e-2
+      real(kind=kind_phys), parameter :: rhc_max = 0.9999
+      real(kind=kind_phys), parameter :: qmin    = 1.0e-10
+      real(kind=kind_phys), parameter :: p850    = 85000.0
+      real(kind=kind_phys), parameter :: epsq    = 1.e-20
+      real(kind=kind_phys), parameter :: hsub    = con_hvap+con_hfus
+!     real(kind=kind_phys), parameter :: cb2mb   = 10.0
+      real(kind=kind_phys), parameter :: pa2mb   = 0.01
+      real(kind=kind_phys), parameter :: czmin   = 0.0001      ! cos(89.994)
 
-!      real(kind=kind_phys),parameter:: CONVRAD_cc=JCAL_cc*1.E4/60.
-!<-Coupling insertion
+      real(kind=kind_phys), parameter ::                                &
+!    & dxmax=ln(1.0/(5000.0*2500.0)),  dxmin=ln(1.0/(192.0*94.0)
+!    & dxmax=-16.118095651,dxmin=-9.800790154,dxinv=1.0/(dxmax-dxmin)
+     & dxmaxs=-16.118095651,dxmins=-9.800790154,                        &
+     & dxinvs=1.0/(dxmaxs-dxmins),
+!    & dxmax=ln(1.0/(2000.0*1000.0)),  dxmin=ln(1.0/(192.0*94.0)
+     & dxmaxr=-14.5086577385,dxminr=-9.800790154,                       &
+     & dxinvr=1.0/(dxmaxr-dxminr)
+!    & dxmax=ln(1.0/(2500.0*1250.0)),  dxmin=ln(1.0/(192.0*94.0)
+!    & dxmax=-14.95494484115,dxmin=-9.800790154, dxinv=1.0/(dxmax-dxmin)
+       real(kind=kind_phys) dxmax, dxmin, dxinv
 
-      real(kind=kind_phys) UGRS(IX,LEVS),      VGRS(IX,LEVS),
-     &                     TGRS(IX,LEVS),      qgrs(IX,levs,ntrac),
-     &                     VVEL(IX,LEVS),
-!
-     &                     GT0(IX,LEVS),       GU0(IX,LEVS),
-     &                     GV0(IX,LEVS),       gq0(IX,levs,ntrac),
-!
-     &                     DEL(IX,LEVS),       PRSI(IX,LEVS+1),
-     &                     PRSL(IX,LEVS),      PRSLK(IX,LEVS),
-     &                     PRSIK(IX,LEVS+1),   PHII(IX,LEVS+1),
-     &                     PHIL(IX,LEVS),
-     &                     PGR(IM),            XKT2(IX,nrcm)
-     &,                    ccwfac(im)
+!  ---  inputs:
+      integer, intent(in) :: ix,   im,   levs, lsoil,   lsm,     ntrac, &
+     &                       ncld, ntoz, ntcw, nmtvr,   nrcm,    ko3,   &
+     &                       lonf, latg, jcap, num_p3d, num_p2d, kdt,   &
+     &                       me,   pl_coeff, lat
 
-      real(kind=kind_phys) RCS2(IM), SINLAT(IM), COSLAT(IM),clstp
 
-      real(kind=kind_phys) SMC(IX,LSOIL), STC(IX,LSOIL),    SWH(IX,LEVS)
-     &,                    HICE(IM),      FICE(IM),         SFCDSW(IM) ! SEA-ICE
-     &,                    TISFC(IM)
-     &,                    HLW(IX,LEVS),  HPRIME(IX,NMTVR), TSEA(IM)
-     &,                    SHELEG(IM),    TG3(IM),          ZORL(IM)
-     &,                    SNCOVR(IM)
-     &,                    CV(IM),        CVB(IM),          CVT(IM)
-     &,                    COSZEN(IM),    PWAT(IM),         SLMSK(IM)
-     &,                    VFRAC(IM),     CANOPY(IM),       F10M(IM)
-     &,                    VTYPE(IM),     STYPE(IM),        UUSTAR(IM)
-     &,                    FFMM(IM),      FFHH(IM),         TMPMIN(IM)
-     &,                    TMPMAX(IM),    GESHEM(IM),       DUSFC(IM)
-     &,                    DVSFC(IM),     DTSFC(IM),        DQSFC(IM)
-     &,                    DLWSFC(IM),    ULWSFC(IM),       GFLUX(IM)
-     &,                    RUNOFF(IM),    EP(IM),           CLDWRK(IM)
-     &,                    DUGWD(IM),     DVGWD(IM),        PSMEAN(IM)
-     &,                    BENGSH(IM),    XLON(IM),         SFCNSW(IM)
-     &,                    SFCDLW(IM),    TSFLW(IM),        PSURF(IM)
-     &,                    U10M(IM),      V10M(IM),         T2M(IM)
-     &,                    Q2M(IM),       HPBL(IM),         xlat(IM)
-Clu [+5L]: add (tprcp,srflag),(slc,snwdph,shdmin,shdmax,snoalb,slope),sfalb,(fm10,fh2)
-     &,                    TPRCP(IM),     SRFLAG(IM)
-     &,                    SLC(IX,LSOIL)
-     &,                    SNWDPH(IM),    SHDMIN(IM),      SHDMAX(IM)
-     &,                    SNOALB(IM),    SLOPE(IM),       SFALB(IM)
-Cwei added 10/24/2006
-     &, CHH(IM),CMM(IM),EPI(IM),DLWSFCI(IM),ULWSFCI(IM),USWSFCI(IM)
-     &, DSWSFCI(IM),DTSFCI(IM),DQSFCI(IM),GFLUXI(IM),SRUNOFF(IM),T1(IM)
-     &, Q1(IM),U1(IM),V1(IM),ZLVL(IM)
-     &, EVBSA(IM),EVCWA(IM),TRANSA(IM),SBSNOA(IM),SNOWCA(IM),SOILM(IM)
-!
-     &,                    phy_f3d(IX,LEVS,num_p3d), phy_f2d(IX,num_p2d)
-     &,                    acv(IM),       acvb(IM), acvt(IM)
-     &,                    oro(im)
-      real(kind=kind_phys) slag,sdec,cdec
-!
-      real(kind=kind_phys) dt3dt(IX,levs,6),  dq3dt(IX,levs,5+pl_coeff),
-     &                     du3dt(IX,levs,4),  dv3dt(IX,levs,4)
-!    &,                    cumflx(ix,levs)
-     &,                    upd_mf(ix,levs), dwn_mf(ix,levs)
-     &,                    det_mf(ix,levs)
+      integer, intent(in) :: nlons(im), ncw(2), nst_fcst
 
-! add local working array for total moisture tendency
-      real(kind=kind_phys) dqdt_v(IX,levs)
+      logical, intent(in) :: ras,        pre_rad,   ldiag3d, flipv,     &
+     &                       old_monin,  cnvgwd,    sashal,  newsas,    &
+     &                       lssav,      lssav_cc,  mom4ice, mstrat,    &
+     &                       trans_trac, moist_adj, lggfs3d, cal_pre,   &
+     &                       shal_cnv
+
+      real(kind=kind_phys), dimension(im),            intent(in) ::     &
+     &      sinlat, coslat, pgr,    dpshc,  xlon,   xlat,               &
+     &      slope,  shdmin, shdmax, snoalb, tg3,    slmsk,  vfrac,      &
+     &      vtype,  stype,  uustar, oro,    coszen, sfcnsw, sfcdsw,     &
+     &      sfcdlw, tsflw,  sfalb,  sfcemis
+
+      real(kind=kind_phys), dimension(ix,levs),       intent(in) ::     &
+     &      ugrs, vgrs, tgrs, vvel, prsl, prslk, phil, swh, hlw
+
+      real(kind=kind_phys), intent(in) ::  qgrs(ix,levs,ntrac)
+
+      real(kind=kind_phys), dimension(ix,levs+1),     intent(in) ::     &
+     &      prsi, prsik, phii
+
+      real(kind=kind_phys), intent(in) ::  hprime(ix,nmtvr),            &
+     &      prdout(ix,ko3,pl_coeff),       rann(ix,nrcm), poz(ko3)
+
+      real(kind=kind_phys), intent(in) ::  dtp,     dtf, fhour, solhr,  &
+     &      slag,    sdec,     cdec,       ctei_rm(2), clstp,           &
+     &      ccwf(2), crtrh(3), flgmin(2),  dlqf(2), cdmbgwd(2),         &
+     &      xkzm_m,  xkzm_h, xkzm_s, psautco(2),   prautco(2), evpco
+
+      real(kind=kind_phys), intent(in) ::  fscav(ntrac-ncld-1)
+
+
+!  ---  input/output:
+      real(kind=kind_phys), dimension(im),            intent(inout) ::  &
+     &      hice,   fice,    tisfc,  tsea,   tprcp,  cv,     cvb,  cvt, &
+     &      srflag, snwdph,  weasd, sncovr, zorl,   canopy, ffmm, ffhh, &
+     &      f10m,   srunoff, evbsa,  evcwa,  snohfa, transa, sbsnoa,    &
+     &      snowca, soilm,   tmpmin, tmpmax, dusfc,  dvsfc,  dtsfc,     &
+     &      dqsfc,  totprcp, gflux,  dlwsfc, ulwsfc, suntim, runoff, ep,&
+     &      cldwrk, dugwd,   dvgwd,  psmean, cnvprcp,spfhmin, spfhmax,  &
+     &      rain, rainc, acv,    acvb,    acvt,                         &
+! om coupling
+     &      dlwsfc_cc, ulwsfc_cc, dtsfc_cc, swsfc_cc, dusfc_cc,         &
+     &      dvsfc_cc,  dqsfc_cc,  precr_cc,                             &
+! nst
+     &      xt(im),     xs(im),   xu(im),     xv(im),  xz(im),   zm(im),&
+     &      xtts(im),   xzts(im), d_conv(im), ifd(im), dt_cool(im),     &
+     &      Qrain(im)
 !
-      integer me, kdt
-      logical RAS,LDIAG3D,pre_rad,sashal,newsas
-      real(kind=kind_phys) CLW(IX,LEVS,2)
-     &,                    garea(im), dlength(im)
-!
-      integer KO3
-      real(kind=kind_phys) poz(KO3), prdout(IX,ko3,pl_coeff)
-!
-      real(kind=kind_phys) RHC(IM,LEVS), SR(IM,levs)
-     &,                    xncw(IM),  rhbbot, rhbtop, rhpbl
-     &,                    dxmax,     dxmin,  dxinv
-     &,                    ud_mf(ix,levs), dd_mf(ix,levs)
-     &,                    dt_mf(ix,levs)
-      logical flipv
-!
-      real(kind=kind_phys), parameter :: rhc_max=0.9999      ! 20060512
-!     real(kind=kind_phys), parameter :: rhc_max=0.999       ! for pry
-!
-      real (kind=kind_phys), parameter ::  qmin=1.0e-10, p850=85.0
+      real(kind=kind_phys), dimension(ix,lsoil),      intent(inout) ::  &
+     &      smc, stc, slc
+
+      real(kind=kind_phys), dimension(ix,levs),       intent(inout) ::  &
+     &      upd_mf, dwn_mf, det_mf, dkh, rnp
+
+      real(kind=kind_phys),                           intent(inout) ::  &
+     &      phy_f3d(ix,levs,num_p3d), phy_f2d(ix,num_p2d),              &
+     &      dt3dt(ix,levs,6), du3dt(ix,levs,4), dv3dt(ix,levs,4),       &
+     &      dq3dt(ix,levs,5+pl_coeff), dqdt_v(ix,levs)
+
+!  ---  output:
+      real(kind=kind_phys), dimension(im),            intent(out) ::    &
+     &      t2m,     q2m,     u10m,    v10m,    zlvl,   psurf, hpbl,    &
+     &      pwat,    t1,      q1,      u1,      v1,     chh,   cmm,     &
+     &      dlwsfci, ulwsfci, dswsfci, uswsfci, dtsfci, dqsfci,         &
+     &      gfluxi,  epi,     smcwlt2, smcref2, wet1,                   &
+!hchuang code change 11/12/2007 [+2L]
+     &      gsoil(im), gtmp2m(im), gustar(im), gpblh(im), gu10m(im),    &
+     &      gv10m(im), gzorl(im), goro(im),                             &
+     &      xmu_cc,  dlw_cc,  dsw_cc,  snw_cc,  lprec_cc,               &
+     &      tref,    z_c,     c_0,     c_d,     w_0,   w_d, rqtk
+
+      real(kind=kind_phys), dimension(ix,levs),       intent(out) ::    &
+     &      gt0, gu0, gv0
+
+      real(kind=kind_phys), dimension(ix,levs,ntrac), intent(out) ::    &
+     &      gq0
+
+!  ---  local:
+      real(kind=kind_phys), dimension(im)          :: ccwfac, garea,    &
+     &      dlength, xncw,   cumabs, qmax,   cice,    zice,   tice,     &
+     &      gflx,                    rainl,  rain1,   raincs, evapc,    &
+!    &      gflx,    rain,   rainc,  rainl,  rain1,   raincs, evapc,    &
+     &      snowmt,  cd,     cdq,    qss,    dusfcg,  dvsfcg, dusfc1,   &
+     &      dvsfc1,  dtsfc1, dqsfc1, rb,     rhscnpy, drain,  cld1d,    &
+     &      evap,    hflx,   stress, t850,   ep1d,    gamt,   gamq,     &
+     &      sigmaf,                  oc,     theta,   gamma,  sigma,    &
+     &      elvmax,  wind,   work1,  work2,  runof,   xmu,    oro_land, &
+     &      fm10,    fh2,    tsurf,  tx1,    tx2,     ctei_r, flgmin_l, &
+     &      evbs,    evcw,   trans,  sbsno,  snowc,   adjsfcdsw,        &
+     &      adjsfcnsw, adjsfcdlw, adjsfculw, asfcdlw, asfculw, gsfcdlw, &
+     &      gsfculw, xcosz,  tseal,  snohf,  dlqfac,  work3,            &
+     &      domr,    domzr,  domip,  doms,   psautco_l, prautco_l,      &
+     &      ctei_rml
+
+!    &      dswsfc, radsl,                                              &
+!    &      dlwsf1,  ulwsf1, xcosz,  tseal,  snohf,   dlqfac,           &
+!    &      domr,    domzr,  domip,  doms
+
+!     real(kind=kind_phys), dimension(ix,levs)     :: ud_mf, dd_mf,     &
+!    &      dt_mf, del
+      real(kind=kind_phys), dimension(ix,levs)     :: del
+      real(kind=kind_phys), dimension(im,levs-1)   :: dkt
+
+      real(kind=kind_phys), dimension(im,levs)     :: rhc, sr, dtdt,    &
+     &      dudt, dvdt, gwdcu, gwdcv, diagn1, diagn2, cuhr, cumchr,     &
+     &      qr_col, fc_ice, rainp, ud_mf, dd_mf, dt_mf
+
+      real(kind=kind_phys), dimension(im,lsoil)    :: smsoil, stsoil,   &
+     &      ai, bi, cci, rhsmc, zsoil, slsoil
+
+      real(kind=kind_phys) :: rhbbot, rhbtop, rhpbl, frain, f_rain,     &
+     &      f_ice, qi, qw, qr, wc, tem, tem1, tem2,  sume,  sumr, sumq, &
+     &      dqdt(im,levs,ntrac), oa4(im,4), clx(im,4)
+
+!           in clw, the first two varaibles are cloud water and ice. 
+!           from third to ntrac are convective transportable tracers,
+!           third being the ozone, when ntrac=3 (valid only with ras)
+
+      real(kind=kind_phys), allocatable :: clw(:,:,:)
+
+      integer, dimension(im) :: kbot, ktop, kcnv, soiltyp, vegtype,     &
+     &          kpbl, slopetyp, kinver, lmh, levshc
+
+      integer :: i, nvdiff, kk, ic, k, n, ipr, lv, k1, iter, levshcm,   &
+     &           tracers, trc_shft, tottracer
+
+      logical, dimension(im) :: flag_iter, flag_guess, invrsn
+
+      logical :: lprnt
 
 !
+!===> ...  begin here
 !
-!     parameter (dxmax=log(1.0/7200.0), dxmin=log(1.0/192.0)
-!     parameter (dxmax=-8.8818363, dxmin=-5.2574954
-!    &,          dxinv=1.0/(dxmax-dxmin))
-!     parameter (dxmax=ln(1.0/14000.0), dxmin=ln(1.0/192.0)
-!     parameter (dxmax=-9.5468126, dxmin=-5.2574954
-!    &,          dxinv=1.0/(dxmax-dxmin))
+!     if (ras) then
+!       dxmax = dxmaxr ; dxmin = dxminr ; dxinv = dxinvr
+!     else
+!       dxmax = dxmaxs ; dxmin = dxmins ; dxinv = dxinvs
+!     endif
+        dxmax = dxmaxs ; dxmin = dxmins ; dxinv = dxinvs
+ 
+!  --- ...  set up check print point (for debugging)
 !
-!     parameter (dxmax=ln(1.0/(14000.0*7000.0)), dxmin=ln(1.0/(192.0*94.0))
-!
-!     parameter (dxmax=-18.40047804, dxmin=-9.800790154
-!    &,          dxinv=1.0/(dxmax-dxmin))
-!
-!
-!     parameter (dxmax=ln(1.0/(4000.0*2000.0)), dxmin=ln(1.0/(192.0*94.0))
-!
-!     parameter (dxmax=-15.8949521, dxmin=-9.800790154
-!    &,          dxinv=1.0/(dxmax-dxmin))
-!
-!     parameter (dxmax=ln(1.0/(3000.0*1500.0)), dxmin=ln(1.0/(192.0*94.0))
-!
-!     parameter (dxmax=-15.31958795, dxmin=-9.800790154
-!    &,          dxinv=1.0/(dxmax-dxmin))
-!
-!     parameter (dxmax=ln(1.0/(2500.0*1250.0)), dxmin=ln(1.0/(192.0*94.0))
-!
-!     parameter (dxmax=-14.95494484, dxmin=-9.800790154
-!    &,          dxinv=1.0/(dxmax-dxmin))
-!
-!     parameter (dxmax=ln(1.0/(2000.0*1000.0)), dxmin=ln(1.0/(192.0*94.0))
-!     parameter (dxmax=-14.50865774, dxmin=-9.800790154
-!    &,          dxinv=1.0/(dxmax-dxmin))
-!
-!     parameter (dxmax=ln(1.0/(5000.0*2500.0)), dxmin=ln(1.0/(192.0*94.0))
-      parameter (dxmax=-16.118095651, dxmin=-9.800790154
-     &,          dxinv=1.0/(dxmax-dxmin))
-!
-      real (kind=kind_phys), parameter :: cb2mb=10.0
-c
-c     Local variables 
-c     ---------------
-      real(kind=kind_phys) DTDT(IM,LEVS),       DQDT(IM,LEVS,nTrac),
-     &                     DUDT(IM,LEVS),       DVDT(IM,LEVS),
-     &                     GWDCU(IM,LEVS),      GWDCV(IM,LEVS),
-     &                     DIAGN1(IM,LEVS),     DIAGN2(IM,LEVS)
-     &,                    cuhr(im,levs)
-       real(kind=kind_phys) cumchr(IM,levs),cumabs(IM)
-       real(kind=kind_phys) qmax(IM)
-!
-Clu [-3L/+1L]: add slsoil; comment out ai, bi, cci, rhsmc, zsoil
-Cwei [+1L]: uncomment and add slsoil because of adding OSU LSM
-      real(kind=kind_phys) SMSOIL(IM,LSOIL),    STSOIL(IM,LSOIL),
-     &                     AI(IM,LSOIL),        BI(IM,LSOIL),
-     &                     CCI(IM,LSOIL),       RHSMC(IM,LSOIL),
-     &                     ZSOIL(IM,LSOIL),
-     +                     SLSOIL(IM,LSOIL)
-!c-- XW: FOR SEA-ICE Nov04
-      real(kind=kind_phys) CICE(IM),    DSWSFC(IM),  ZICE(IM)
-     &,                    TICE(IM)
-!c-- XW: END SEA-ICE
-!
-      real(kind=kind_phys) GFLX(IM),    RAIN(IM),    RAINC(IM),
-     &                     RAINL(IM),   RAIN1(IM),   EVAPC(IM),
-     &                     SNOWMT(IM),  CD(IM),      CDQ(IM),
-     &                     QSS(IM),     radsl(IM),   DUSFCG(IM),
-     &                     DVSFCG(IM),  DUSFC1(IM),  DVSFC1(IM),
-     &                     DTSFC1(IM),  DQSFC1(IM),  DLWSF1(IM),
-     &                     ULWSF1(IM),  RB(IM),      RHSCNPY(IM),
-     &                     DRAIN(IM),   CLD1D(IM),   RAINCS(IM),
-     &                     EVAP(IM),    HFLX(IM),    STRESS(IM),
-!    &                     EVAP(IM),    HFLX(IM),    RNET(IM),
-     &                     T850(IM),
-     &                     EP1D(IM),    GAMT(IM),    GAMQ(IM),
-     &                     sigmaf(IM),
-     &                     rcl(IM),     rcs(IM),
-     &                     oc(IM),      oa4(IM,4),   clx(IM,4),
-     &                     theta(IM),gamma(IM),sigma(IM),elvmax(IM),
-     &                     wind(IM),    work1(IM),   work2(IM),
-     &                     runof(IM),   xmu(IM)
-     &,                    qr_col(im,levs), fc_ice(im,levs)
-     &,                    oro_land(im)
-Cwei added 10/24/2006
-     &,   EVBS(im),EVCW(im),TRANS(im),SBSNO(im),SNOWC(im)
-!Sarah Lu added 09/09/2010 for GOCART
-     +,   WET1(IM)
-!
-Clu [+1L]: add (fm10,fh2)
-     &,                    FM10(IM),        FH2(IM)
-Clu_q2m_iter [+1L]: add tsurf
-     &,                    tsurf(im)
-Clu_q2m_iter [+1L]: add flag_iter and flag_guess
-      logical              flag_iter(im), flag_guess(im)
-Clu_q2m [+1L]: add wrk1, wrk2
-      real(kind=kind_phys)  wrk1,   wrk2
-!
-!
-      REAL(kind=kind_phys), PARAMETER ::    EPSQ=1.E-20, HSUB=HVAP+HFUS
-      integer               KBOT(IM),    KTOP(IM),    kcnv(im),
-     &                      soiltyp(IM), vegtype(IM), kpbl(IM)
-Clu [+1L]: add slopetyp
-     &,                    SLOPETYP(IM)
-      integer i, nvdiff, kk, ic, k, n, kinver(im), ipr, lv, k1
-     &,       lmh(im)
-Clu_q2m_iter [+1L]: add iter
-     +,        iter
-!
-      logical lprnt, invrsn(im)
-      real(kind=kind_phys) frain,  tem, tem1, qi, qw, qr, wc
-     &,                    f_rain, f_ice, tem0d, tx1(im)
-     &,                    tem2,   flgmin_l(im)
-!    &,                    tem2,   ctei_r(im), ctei_rm, flgmin_l(im)
-!    &,                    sumq, sumr, tem2
-!    &,                    pwato(im), raino(im), evapo(im), sume
-!
-!@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-!
+!*************************************************************************
 !     lprnt = .true.
       lprnt = .false.
-!     lprnt = me .eq. 1
-!     lprnt = me .eq. 19 .and. lat .eq. 70
-!     lprnt = kdt .ge. 4
-!     lprnt = kdt .ge. 24*4 .and. me .eq. 30
-!     lprnt = kdt .ge. 24*4+1 .and. me .eq. 31
-!     lprnt = me .eq. 0 .and. kdt .ge. 24*4
-!     lprnt = me .eq. 0 .and. kdt .ge. 113 .and. lat .eq. 72
+!     lprnt = me == 0
+
       ipr = 1
-!     lprnt = kdt .gt. 0 .and. ilon .eq.  1
-!     do i=1,im
+
+      if (im > 90) then
+        ipr = 91
+       else
+         lprnt = .false.
+       endif
+!     lprnt = kdt .gt. 0
+!     do i = 1, im
 !       work1(1) = xlon(i) * 57.29578
-!       if (work1(1) .ge. 180.0) work1(1) = work1(1) - 360.0
+!       if (work1(1) >= 180.0) work1(1) = work1(1) - 360.0
 !       work2(1) = xlat(i) * 57.29578
-!     print *,' me=',me,' work1=',work1(1),' work2=',work2(1),' i=',i
-!       lprnt = kdt .gt. 4320
-!       lprnt = kdt .gt. 0
-!    &         .and. abs(work1(1)-103.0) .lt. 1.0
-!    &         .and. abs(work2(1)-20.0) .lt. 0.5
-!       lprnt = kdt .ge. 14 .and. lat .eq. 43 
-!       lprnt = kdt .ge. 1
-!    &         .and. abs(xlon(i)*57.29578-114.325) .lt. 0.101
-!    &         .and. abs(xlat(i)*57.29578+6.66) .lt. 0.101
-!     print *,' i=',i,' xlon=',xlon(i)*57.29578
-!    &,               ' xlat=',xlat(i)*57.29578
-!    &,' i=',i,' me=',me
+!       print *,' me=',me,' work1=',work1(1),' work2=',work2(1),' i=',i
+!       lprnt = kdt > 4320
+!       lprnt = kdt > 0 .and. abs(work1(1)-110.3) < 0.5                 &
+!    &                  .and. abs(work2(1)-2.0)   < 0.5
+!       lprnt = kdt >= 14 .and. lat == 43 
+!       lprnt = kdt >= 0 .and. abs(xlon(i)*57.29578-143.182) < 0.101    &
+!    &                   .and. abs(xlat(i)*57.29578-6.235)  < 0.101
+!       lprnt = kdt >= 0 .and. abs(xlon(i)*57.29578-135.0) < 0.201      &
+!    &                   .and. abs(xlat(i)*57.29578-10.476)  < 0.201
+!       lprnt = kdt >= 0 .and. abs(xlon(i)*57.29578-110.3) < 0.201      &
+!    &                   .and. abs(xlat(i)*57.29578-2.0)   < 0.201
+!       print *,' i=',i,' xlon=',xlon(i)*57.29578,                      &
+!    &                  ' xlat=',xlat(i)*57.29578,' i=',i,' me=',me
 !       if (lprnt) then
-!          ipr = i
-!          exit
+!         ipr = i
+!         exit
 !       endif
 !     enddo
 
 !     lprnt = .false.
 !     if(lprnt) then
-!       print *,' IM=',IM,' IX=',IX,' levs=',levs,' lsoil=',lsoil
-!    *,' ntrac=',ntrac,' ntoz=',ntoz,' ntcw=',ntcw,' me=',me
-!    *,' xlat=',xlat(ipr),' kdt=',kdt,' slmsk=',slmsk(ipr)
-!    *,' nrcm=',nrcm
-!    &,' xlon=',xlon(ipr),' sfalb=',sfalb(ipr),' kdt=',kdt
+!       print *,' im=',im,' ix=',ix,' levs=',levs,' lsoil=',lsoil,      &
+!    &   ' ntrac=',ntrac,' ntoz=',ntoz,' ntcw=',ntcw,' me=',me,         &
+!    &   ' xlat=',xlat(ipr),' kdt=',kdt,' slmsk=',slmsk(ipr),           &
+!    &   ' tsea=',tsea(ipr),                                            &
+!    &   ' tsea=',tsea(ipr),' tref=',tref(ipr),' dt_cool=',dt_cool(ipr),&
+!    &   ' dt_warm=',2.0*xt(ipr)/xz(ipr),' nrcm=',nrcm,' xlon=',
+!    &    xlon(ipr), ' tisfc=',tisfc(ipr),                              &
+!    &   ' dt_warm=',dt_warm(ipr),' nrcm=',nrcm,' xlon=',xlon(ipr),     &
+!    &   ' sfalb=',sfalb(ipr),' kdt=',kdt
 !       print *,' pgr=',pgr(ipr),' kdt=',kdt,' ipr=',ipr
 !       print *,' ipr=',ipr,' phy_f2d=',phy_f2d(ipr,1:num_p2d)
 !       print *,' ugrs=',ugrs(ipr,:)
 !       print *,' vgrs=',vgrs(ipr,:)
 !       print *,' tgrs=',tgrs(ipr,:),' kdt=',kdt,' ipr=',ipr
-!    &,' xlon=',xlon(ipr),' xlat=',xlat(ipr)
+!    &,  ' xlon=',xlon(ipr),' xlat=',xlat(ipr)
 !       print *,' qgrs=',qgrs(ipr,:,1)
 !       print *,' ozg=',qgrs(ipr,:,2)
 !       print *,' clw=',qgrs(ipr,:,3)
-!    &,' xlon=',xlon(ipr),' xlat=',xlat(ipr)
+!    &,  ' xlon=',xlon(ipr),' xlat=',xlat(ipr)
 !     endif
 !
+!*************************************************************************
 !
-      lmh(:) = levs
-      NVDIFF = ntrac    ! vertical diffusion of all tracers!
+!     write (0,*) ' ras=',ras,pre_rad,                                  &
+!    &      ldiag3d,lggfs3d,lssav,lssav_cc,                             &
+!    &      xkzm_m,xkzm_h,psautco,evpco,                                &
+!    &      flipv,old_monin,cnvgwd,sashal,newsas,cal_pre,               &
+!    &      mom4ice,mstrat,trans_trac,nst_fcst,moist_adj
+
+      do i=1,im
+        lmh(i) = levs
+      enddo
+      nvdiff = ntrac    ! vertical diffusion of all tracers!
 !
-      if (ras) then
-        if (ccwf >= 0.0) then
-          ccwfac = ccwf
+!  --- ...  figure out how many extra tracers are there
+!
+      tottracer = 0            ! no convective transport of tracers
+      if (trans_trac) then
+        if (ntcw > 0) then
+          if (ntoz < ntcw) then
+            trc_shft = ntcw + ncld - 1
+          else
+            trc_shft = ntoz
+          endif
+        elseif (ntoz > 0) then
+          trc_shft = ntoz
         else
-          ccwfac = -999.0
+          trc_shft = 1
         endif
+
+        tracers   = ntrac - trc_shft
+        tottracer = tracers
+        if (ntoz > 0) tottracer = tottracer + 1  ! ozone is added separately
       endif
+
+!     if (lprnt) print *,' trans_trac=',trans_trac,' tottracer=',       &
+!    &                   tottracer,' trc_shft=',trc_shft,' kdt=',kdt
+
+      allocate ( clw(ix,levs,tottracer+2) )
+
 !
-      CALL GET_PRS(im,ix,levs,ntrac,TGRS,QGRS
+      call get_prs(im,ix,levs,ntrac,tgrs,qgrs                           &
      &,            prsi,prsik,prsl,prslk,phii,phil,del)
-!..........................................................................
+!
+!     if (lprnt) then
+!       print *,' prsi=',prsi(ipr,:)
+!       print *,' prsl=',prsl(ipr,:)
+!       print *,' del=',del(ipr,:)
+!     endif
 !
       rhbbot = crtrh(1)
       rhpbl  = crtrh(2)
       rhbtop = crtrh(3)
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!     do i=1,im
-!       PWATo(i) = 0.
-!       evapo(i) = dqsfc(i)
-!       raino(i) = geshem(i)
-!     enddo
-!     DO K=1,LEVS
-!       do i=1,im
-!         work1(i) = 0.0
-!       enddo
-!       if (ncld .gt. 0) then
-!         do ic=ntcw, ntcw+ncld-1
-!           do i=1,im
-!             work1(i) = work1(i) + qgrs(i,k,ic)
-!           enddo
-!         enddo
-!       endif
-!       do i=1,im
-!         PWATo(i)  = PWATo(i)  + DEL(i,K)*(qgrs(i,K,1)+work1(i))
-!       enddo
-!     ENDDO
-!     do i=1,im
-!       PWATo(i)  = PWATo(i)*(1.E3/grav)
-!     enddo
 !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!                      For pry version
-      do i=1,im
+
+      do i = 1, im
         levshc(i) = 0
       enddo
-      do k=2,levs
-        do i=1,im
-          if (prsi(i,1)-prsi(i,k) .le. dpshc(i)) levshc(i) = k
+
+      do k = 2, levs
+        do i = 1, im
+          if (prsi(i,1)-prsi(i,k) <= dpshc(i)) levshc(i) = k
         enddo
       enddo
+
       levshcm = 1
-      do i=1,im
+      do i = 1, im
         levshcm = max(levshcm, levshc(i))
       enddo
-      levshcm = min(levshcm, levs/2)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!
-!  FRAIN=FACTOR FOR CENTERED DIFFERENCE SCHEME CORRECTION OF RAIN AMOUNT.
-!
-      FRAIN = DTF/DTP
 
-      do i=1,im
-        SOILTYP(i)  = INT(STYPE(i)+.5)
-        SIGMAF(i)   =  MAX(VFRAC(i),0.01)
-!       SIGMAF(i)   =  MAX(VFRAC(i),.3)
-        if (lsm == 0) SIGMAF(i)   =  0.5 + VFRAC(i) * 0.5
-        VEGTYPE(i)  = INT(VTYPE(i)+.5)
-        SLOPETYP(i) = INT(SLOPE(i)+.5)    !! Clu [+1L]: slope -> slopetyp
-!       fm1(i)      = ffmm(i)
-!       fh1(i)      = ffhh(i)
-!       ustar1(i)   = uustar(i)
-        IF(SLMSK(i).EQ.2.) THEN
-          SOILTYP(i) = 9
-          VEGTYPE(i) = 13
-          SLOPETYP(i) = 9                 !! Clu [+1L]: QA(slopetyp)
-        ENDIF
+!  --- ...  frain=factor for centered difference scheme correction of rain amount.
+
+      frain = dtf / dtp
+
+      do i = 1, im
+        soiltyp(i)  = int( stype(i)+0.5 )
+        sigmaf(i)   = max( vfrac(i),0.01 )
+!       sigmaf(i)   = max( vfrac(i),0.3 )
+        if (lsm == 0) sigmaf(i)   =  0.5 + vfrac(i) * 0.5
+
+        vegtype(i)  = int( vtype(i)+0.5 )
+        slopetyp(i) = int( slope(i)+0.5 )    !! clu: slope -> slopetyp
+
+        if (slmsk(i) == 2.0) then
+          soiltyp(i)  = 9
+          vegtype(i)  = 13
+          slopetyp(i) = 9                    !! clu: qa(slopetyp)
+        endif
       enddo
-!sela if(vegtype.eq.0 )print*,' vegtyp ilon ilat =',vegtype, ilon,ilat 
-!
-!  TRANSFER SOIL MOISTURE AND TEMPERATURE FROM GLOBAL TO LOCAL VARIABLES
-!
-      DO K = 1, LSOIL
-        do i=1,im
-          SMSOIL(i,K) = SMC(i,k)
-          STSOIL(i,K) = STC(i,k)
-          SLSOIL(i,K) = SLC(i,k)          !! Clu [+1L]: slc -> slsoil
+
+!  --- ...  transfer soil moisture and temperature from global to local variables
+
+!     write(0,*)' in gbphys stc=',stc(1:5,1)
+      do k = 1, lsoil
+        do i = 1, im
+          smsoil(i,k) = smc(i,k)
+          stsoil(i,k) = stc(i,k)
+          slsoil(i,k) = slc(i,k)          !! clu: slc -> slsoil
         enddo
-      ENDDO
-!
-!c-- XW: FOR SEA-ICE Nov04
-!
-!  TRANSFER ICE THICKNESS & CONCENTRATION FROM GLOBAL TO LOCAL VARIABLES
-!
-      do i=1,im
-          ZICE(i) = HICE(i)
-          CICE(i) = FICE(i)
-          TICE(i) = TISFC(i)
       enddo
-!c-- XW: END SEA-ICE
-!
-      do k=1,levs
-        do i=1,im
+
+!  --- ...  xw: transfer ice thickness & concentration from global to local variables
+
+      do i = 1, im
+        zice(i) = hice(i)
+        cice(i) = fice(i)
+        tice(i) = tisfc(i)
+      enddo
+
+      do k = 1, levs
+        do i = 1, im
           dudt(i,k) = 0.
           dvdt(i,k) = 0.
           dtdt(i,k) = 0.
         enddo
       enddo
-      do n=1,ntrac
-        do k=1,levs
-          do i=1,im
-            dqdt(i,k,n) = 0. ! dqdt may be dimensioned (levs,ntrac)
+
+      do n = 1, ntrac
+        do k = 1, levs
+          do i = 1, im
+            dqdt(i,k,n) = 0.
           enddo
         enddo
       enddo
-      do i=1,im
-        RCL(i)   = RCS2(i)
-        RCS(i)   = SQRT(RCL(i))
-        psurf(i) = pgr(i)                         
-        work1(i) = prsik(i,1) / prslk(i,1)
-!       garea(i)   = rerth * rerth * (pi+pi)*pi*coslat(i)/(nlons(i)*latr)
-        tem1       = rerth * (pi+pi)*coslat(i)/nlons(i)
-        tem2       = rerth * pi/latr
-        garea(i)   = tem1 * tem2
-        dlength(i) = sqrt(tem1*tem1+tem2*tem2)
+
+      do i = 1, im
+        work1(i)    = (log(coslat(i) / (nlons(i)*latg)) - dxmin) * dxinv
+        work1(i)    = max(0.0, min(1.0,work1(i)))
+        work2(i)    = 1.0 - work1(i)
+        psurf(i)    = pgr(i)
+        work3(i)    = prsik(i,1) / prslk(i,1)
+        tem1        = con_rerth * (con_pi+con_pi)*coslat(i)/nlons(i)
+        tem2        = con_rerth * con_pi/latg
+        garea(i)    = tem1 * tem2
+        dlength(i)  = sqrt( tem1*tem1+tem2*tem2 )
       enddo
-      if(lssav) then
-        do i=1,im
-          PSMEAN(i) = PSMEAN(i) + PGR(i)*DTF
+
+      if (lssav) then
+        do i = 1, im
+          psmean(i) = psmean(i) + pgr(i)*dtf
         enddo
       endif
-!
-!  INITIALIZE DTDT WITH HEATING RATE FROM DCYC2 
-!
-      if(lprnt) then
-!     do ipr=1,im
-      print *,' before DCYC2: IM=',IM,' LSOIL=',LSOIL,' levs=',levs
-     &,' sde=',sdec,' cdec=',cdec,' tsea=',tsea(ipr),' ipr=',ipr
-     &,' lat=',lat,' me=',me,' kdt=',kdt
-     &,' sfcdlw=',sfcdlw(ipr),' sfcnsw=',sfcnsw(ipr)
-        print *,' hlw=',hlw(ipr,:),' me=',me,' lat=',lat,xlon(ipr)
-        print *,' swh=',swh(ipr,:),' me=',me,' lat=',lat,xlon(ipr)
-!     enddo
-      endif
-!
-!
-      if(pre_rad)then
-        CALL DCYC2t3_pre_rad(IX,IM,LEVS,SOLHR,SLAG,
-     &             SINLAT,COSLAT,SDEC,CDEC,
-     &             XLON,COSZEN,SFCDLW,SFCNSW,TGRS(1,1),
-     &             SFCDSW,DSWSFC,                       ! FOR SEA-ICE - XW Nov04
-     &             TSEA,TGRS(1,1),SWH,HLW,
-     &             DLWSF1,ULWSF1,radsl,DTDT,xmu)
+
+!  --- ...  initialize dtdt with heating rate from dcyc2 
+
+!     if (lprnt) then
+!       do ipr=1,im
+!         print *,' before dcyc2: im=',im,' lsoil=',lsoil,' levs=',levs &
+!    &,    ' sde=',sdec,' cdec=',cdec,' tsea=',tsea(ipr),' ipr=',ipr    &
+!    &,    ' lat=',lat,' me=',me,' kdt=',kdt                            &
+!    &,    ' sfcdlw=',sfcdlw(ipr),' sfcnsw=',sfcnsw(ipr)
+!         print *,' hlw=',hlw(ipr,:),' me=',me,' lat=',lat,xlon(ipr)
+!         print *,' swh=',swh(ipr,:),' me=',me,' lat=',lat,xlon(ipr)
+!       enddo
+!     endif
+
+!  --- ...  adjust mean radiation fluxes and heating rates to fit for
+!           faster model time steps.
+!      sw:  using cos of zenith angle as scaling factor
+!      lw:  using surface air skin temperature as scaling factor
+
+      if (pre_rad) then
+
+        call dcyc2t3_pre_rad                                            &
+!  ---  inputs:
+     &     ( solhr,slag,sdec,cdec,sinlat,coslat,                        &
+     &       xlon,coszen,tsea,tgrs(1,1),tgrs(1,1),                      &
+     &       sfcdsw,sfcnsw,sfcdlw,swh,hlw,                              &
+     &       ix, im, levs,                                              &
+!  ---  input/output:
+     &       dtdt,                                                      &
+!  ---  outputs:
+     &       adjsfcdsw,adjsfcnsw,adjsfcdlw,adjsfculw,xmu,xcosz          &
+!old vars   ( dswsfc,    -radsl,  dlwsf1,   ulwsf1,  xmu,xcosz )
+     &     )
+
       else
-        CALL DCYC2t3(IX,IM,LEVS,SOLHR,SLAG,
-     &             SINLAT,COSLAT,SDEC,CDEC,
-     &             XLON,COSZEN,SFCDLW,SFCNSW,TGRS(1,1),
-     &             SFCDSW,DSWSFC,                       ! FOR SEA-ICE - XW Nov04
-     &             TSEA,TSFLW,SWH,HLW,
-     &             DLWSF1,ULWSF1,radsl,DTDT,xmu)
+
+        call dcyc2t3                                                    &
+!  ---  inputs:
+     &     ( solhr,slag,sdec,cdec,sinlat,coslat,                        &
+     &       xlon,coszen,tsea,tgrs(1,1),tsflw,                          &
+     &       sfcdsw,sfcnsw,sfcdlw,swh,hlw,                              &
+     &       ix, im, levs,                                              &
+!  ---  input/output:
+     &       dtdt,                                                      &
+!  ---  outputs:
+     &       adjsfcdsw,adjsfcnsw,adjsfcdlw,adjsfculw,xmu,xcosz          &
+!old vars   ( dswsfc,    -radsl,  dlwsf1,   ulwsf1,  xmu,xcosz )
+     &     )
+
+      endif
+      if(me==0.and.kdt==5.and.lat==18)then
+       print *,'in gbphys,dcycl,kdt=',kdt,'lat=',lat,'dtdt=',
+     &   maxval(dtdt(:,:)),minval(dtdt(:,:)),'dtdt(2,1)=',dtdt(2,1),
+     & 'swh=',swh(2,1),'hlw(2,1)=',hlw(2,1),'sfcemis(2)=',
+     & sfcemis(2),'adjsfcdlw=',adjsfcdlw(2),'adjsfcdsw=',
+     & adjsfcdsw(2),'adjsfcnsw=',adjsfcnsw(2),'adjsfculw=',
+     &  adjsfculw(2),'xmu=',xmu(2),'xcosz=',xcosz(2),'pre_rad=',
+     &  pre_rad,'tsflw=',tsflw(2),'tgrs=',tgrs(2,1),'sfcdlw=',
+     &  sfcdlw(2)
       endif
 
-!-> Coupling insertion
-!      if(lssav_cc_dummy) then
-!        DLWSFC_cc_dummy(1:IM)=DLWSFC_cc_dummy(1:IM)+DLWSF1(1:IM)     !*DTF (?)
-!        ULWSFC_cc_dummy(1:IM)=ULWSFC_cc_dummy(1:IM)+ULWSF1(1:IM)     !*DTF (?)
-!        SWSFC_cc_dummy(1:IM)=                                  !*DTF (?)
-!!    >     SWSFC_cc_dummy(1:IM)+radsl(1:IM)*CONVRAD_cc+DLWSF1(1:IM)
-!! <- see progtmr.f, subr. progtm (called below), and
-!! SUBROUTINE DCYC2T3 just called
-!!   ** check signs here, esp. for SWR.
-!! - there are many pecularities here, the whole rad.
-!!   stuff must be kept an eye on
-!!       Signs for SWSFC_cc: sign for SWSFC_cc is intended positive
-!!       upward, as for other fluxes. Downward LWR needs to be subtracted
-!!       from radsl*const, where the downward LWR is considered positive
-!!       upward. Since DLWSF1 is downward LWR positive downward,
-!!       DLWSF1 must be added rather than subtracted. Similarly (see
-!!       progtmr.f), radsl must be taken with +.
-!     >     SWSFC_cc_dummy(1:IM)+radsl(1:IM)+DLWSF1(1:IM)
-!      end if
-!<- Coupling insertion
-
-     
-      if(lssav)then
-        do i=1,im
-          DLWSFC(i) = DLWSFC(i) + DLWSF1(i)*DTF
-          ULWSFC(i) = ULWSFC(i) + ULWSF1(i)*DTF
+!  ---  convert lw fluxes for land/ocean/sea-ice models
+!  note: adjsfcdlw and adjsfculw are time-step adjusted lw sfc dn/up fluxes.
+!        those fluxes from dcyc2t3 subprogram are not applied with emissivity
+!        effect.  one needs to be cautious that, when emis<1, sfc dn/up lw
+!        fluxes will expressed differently when looking from atmospheric
+!        (as the output from radiation) to those applied for land/ocean/sea-ice
+!        model processes. however, the net effects are the same.
+!
+!   - flux to/from lnd/oc/ice:  gsfcdlw=emis*adjsfcdlw; gsfculw=emis*adjsfculw
+!   - flux to/from atmos mdl: asfcdlw=adjsfcdlw; asfculw=emis*adjsfculw+(1-emis)*adjsfcdlw
+        do i = 1, im
+          gsfcdlw(i) = sfcemis(i) * adjsfcdlw(i)                  ! for lnd/ocn/sice
+          gsfculw(i) = sfcemis(i) * adjsfculw(i)                  ! for lnd/ocn/sice
+          asfcdlw(i) = adjsfcdlw(i)                               ! for atmos output
+          asfculw(i) = gsfculw(i) + adjsfcdlw(i) - gsfcdlw(i)     ! for atmos output
+!org      asfculw(i) = gsfculw(i) + (1.0-sfcemis(i))*adjsfcdlw(i) ! for atmos output
         enddo
-       IF (LDIAG3D) THEN
-         DO K=1,LEVS
-           do i=1,im
-             DT3DT(i,k,1) = DT3DT(i,k,1) + HLW(i,K)*DTF
-             DT3DT(i,k,2) = DT3DT(i,k,2) + SWH(i,K)*DTF*xmu(i)
-           enddo
-         ENDDO
-       ENDIF
-      endif
-!
-!
-      do i=1,im
+
+!  --- ...  coupling insertion
+!  note: all radiation fluxes are positive values.
+!       sfc net sw is defined as sfcnsw = sfcdsw - sfcusw (*** positive downward
+!       see subr grrad for def)
+
+      if (lssav_cc) then
+        do i = 1, im
+          xmu_cc(i)    = max( 0.0, min( 1.0, xcosz(i) ))
+          dsw_cc(i)    = adjsfcdsw(i)
+          dlw_cc(i)    = adjsfcdlw(i)
+          dlwsfc_cc(i) = dlwsfc_cc(i) + gsfcdlw(i)
+          ulwsfc_cc(i) = ulwsfc_cc(i) + gsfculw(i)
+          swsfc_cc(i)  = swsfc_cc(i)  - adjsfcnsw(i) ! swsfc is positive upward
+!         sfcems_cc(i) = sfcemis(i)                  ! for ocn mdl if needed
+        enddo
+      end if
+
+!  --- ...  accumulate/save output variables
+     
+      if (lssav) then
+
+!  --- ...  sunshine duration time is defined as the length of time (in mdl output
+!           interval) that solar radiation falling on a plane perpendicular to the
+!           direction of the sun >= 120 w/m2
+
+        do i = 1, im
+          if ( xcosz(i) >= czmin ) then   ! zenth angle > 89.994 deg
+            tem1 = adjsfcdsw(i) / xcosz(i)
+
+            if ( tem1 >= 120.0 ) then
+              suntim(i) = suntim(i) + dtf
+            endif
+          endif
+        enddo
+
+!  --- ...  sfc lw fluxes used by atmospheric model are saved for output
+
+        do i = 1, im
+          dlwsfc(i) = dlwsfc(i) + asfcdlw(i)*dtf
+          ulwsfc(i) = ulwsfc(i) + asfculw(i)*dtf
+        enddo
+
+        if (ldiag3d) then
+          do k = 1, levs
+            do i = 1, im
+              dt3dt(i,k,1) = dt3dt(i,k,1) + hlw(i,k)*dtf
+              dt3dt(i,k,2) = dt3dt(i,k,2) + swh(i,k)*dtf*xmu(i)
+            enddo
+          enddo
+        endif
+
+      endif    ! end if_lssav_block
+
+      do i = 1, im
         kcnv(i)   = 0
         kinver(i) = levs
         invrsn(i) = .false.
         tx1(i)    = 0.0
-      enddo
-      do k=1,levs/2
-        do i=1,im
-!         if (prsl(i,k) .gt. 60.0 .and. (.not. invrsn(i))) then
-!         if (prsl(i,k) .gt. 50.0 .and. (.not. invrsn(i))) then
-          if (prsi(i,1)-prsi(i,k+1) .lt. 0.35*prsi(i,1)
-     &                            .and. (.not. invrsn(i))) then
-!L           tem = GT0(i,K+1) - GT0(i,K)
-!L           if (tem .gt. 0.2 .and. GT0(i,K) .GT. 278.0) then
-             tem = (TGRS(i,K+1) - TGRS(i,K)) / (prsl(i,k) - prsl(i,k+1))
-!LL          if (tem .gt. 0.1 .and. GT0(i,K) .GT. 278.0) then
-!LL2         if (tem .gt. 0.5 .and. GT0(i,K) .GT. 278.0) then
-!            if (tem .gt. 0.1 .and. GT0(i,K) .GT. 278.0) then
-!cnt         if (tem .gt. 0.05 .and. tx1(i) .lt. 0.0) then
-             if (tem .gt. 0.02 .and. tx1(i) .lt. 0.0) then
-               invrsn(i) = .true.
-               kinver(i) = k + 1      ! 20060428
-!              kinver(i) = k
-             endif
-             tx1(i) = tem
-          endif
-        enddo
+        tx2(i)    = 10.0
+        ctei_r(i) = 10.0
       enddo
 
-      ipr = 1
-      if(lprnt) then
-      print *,' before PROGTM: IM=',IM,' LSOIL=',LSOIL
-     &,' nvdiff=',nvdiff,' radsl=',radsl(ipr),' dlwsf1=',dlwsf1(ipr)
-     &,' dlwsf1=',dlwsf1(ipr),' tsea2=',tsea(ipr)
-     &,' ipr=',ipr,' me=',me,' lat=',lat,' xlon=',xlon(ipr)
-     &,' kdt=',kdt
-      print *,' dtdth=',dtdt(ipr,:),' kdt=',kdt
+!    Only used for old shallow convection with mstrat=.true.
+
+      if (.not. sashal .and. shal_cnv) then
+        do i = 1, im
+          ctei_rml(i) = ctei_rm(1)*work1(i) + ctei_rm(2)*work2(i)
+        enddo
+        do k = 1, levs/2
+          do i = 1, im
+
+            if (prsi(i,1)-prsi(i,k+1) < 0.35*prsi(i,1)                  &
+     &          .and. (.not. invrsn(i))) then
+              tem = (tgrs(i,k+1)-tgrs(i,k)) / (prsl(i,k)-prsl(i,k+1))
+
+              if ((tem > 0.00010 .and. tx1(i) < 0.0) .or. 
+     &            (tem-abs(tx1(i)) > 0.0 .and. tx2(i) < 0.0)) then
+                invrsn(i) = .true.
+
+                if (qgrs(i,k,1) > qgrs(i,k+1,1)) then
+                  tem1 = tgrs(i,k+1) + hocp*max(qgrs(i,k+1,1),qmin)
+                  tem2 = tgrs(i,k)   + hocp*max(qgrs(i,k,1),qmin)
+
+                  tem1 = tem1 / prslk(i,k+1) - tem2 / prslk(i,k)
+
+!  --- ...  (cp/l)(deltathetae)/(deltatwater) > ctei_rm -> conditon for CTEI
+                  ctei_r(i) = (1.0/hocp)*tem1/(qgrs(i,k+1,1)-qgrs(i,k,1)&
+     &                      + qgrs(i,k+1,ntcw)-qgrs(i,k,ntcw))
+                else
+                  ctei_r(i) = 10
+                endif
+
+                if ( ctei_rml(i) > ctei_r(i) ) then
+                  kinver(i) = k
+                else
+                  kinver(i) = levs
+!                 kinver(i) = k + 1    ! commented on 12/15/09
+                endif
+!               kinver(i) = k
+!Aug 4          kinver(i) = k + 1
+              endif
+
+              tx2(i) = tx1(i)
+              tx1(i) = tem
+            endif
+
+          enddo
+        enddo
       endif
-!     phy_f2d(:,num_p2d) = 0.0  ! disable downdraft effect on evap
+
+!  --- ...  check print
+
+!     ipr = 1
+!     if (lprnt) then
+!       print *,' before progtm: im=',im,' lsoil=',lsoil                &
+!    &,         ' nvdiff=',nvdiff,' adjsfcnsw=',adjsfcnsw(ipr)          &
+!    &,         ' asfcdlw=',asfcdlw(ipr),' asfculw=',asfculw(ipr)       &
+!    &,         ' gsfcdlw=',gsfcdlw(ipr),' gsfculw=',gsfculw(ipr)       &
+!    &,         ' sfcemis=',sfcemis(ipr),' tsea2=',tsea(ipr)            &
+!    &,         ' ipr=',ipr,' me=',me,' lat=',lat,' xlon=',xlon(ipr)    &
+!    &,         ' kdt=',kdt
+
+!       print *,' dtdth=',dtdt(ipr,:),' kdt=',kdt
+!     endif
+
+!  --- ...  lu: initialize flag_guess, flag_iter, tsurf
+
+      do i = 1, im
+        tsurf(i)      = tsea(i)
+        flag_guess(i) = .false.
+        flag_iter(i)  = .true.
+        drain(i)      = 0.0
+        ep1d(i)       = 0.0
+        runof(i)      = 0.0
+        hflx(i)       = 0.0
+        evap(i)       = 0.0
+
+        evbs(i)       = 0.0
+        evcw(i)       = 0.0
+        trans(i)      = 0.0
+        sbsno(i)      = 0.0
+        snowc(i)      = 0.0
+        snohf(i)      = 0.0
+        zlvl(i)       = phil(i,1) / con_g
+        smcwlt2(i)    = 0.
+        smcref2(i)    = 0.
+      enddo
+
+!  --- ...  lu: iter-loop over (sfc_diff,sfc_drv,sfc_ocean,sfc_sice)
+
+      do iter = 1, 2
+
+!  --- ...  surface exchange coefficients
 !
-Clu [-11L/+34L]: Revision starts here ...................................
-Clu     CALL PROGTM(IM,LSOIL,PGR,UGRS,VGRS,TGRS,QGRS,
-Clu   & SHELEG,TSEA,QSS,
-Clu   & SMSOIL,STSOIL,EVAPC,SOILTYP,SIGMAF,
-Clu   & vegtype,CANOPY,
-Clu   & dlwsf1,
-Clu   & radsl,SNOWMT,dtf   ,ZORL,TG3,
-Clu   & GFLX,F10M,U10M,V10M,T2M,Q2M,ZSOIL,
-Clu   & CD,CDQ,RB,RHSCNPY,RHSMC,AI,BI,CCI,
-Clu   & RCL,PRSL(1,1),work1,SLMSK,
-Clu   & DRAIN,EVAP,HFLX,STRESS,EP1D,ffmm,ffhh,
-Clu   & uustar,WIND,phy_f2d(1,num_p2d))
-                                                                                                         
-Clu_q2m [+22L]: print selected variables
-!      do i=1,im
-!       wrk1 = xlon(i) * 57.29578
-!       if (wrk1 .ge. 180.0) wrk1 = wrk1 - 360.0
-!       wrk2 = xlat(i) * 57.29578
-!       lprnt =  abs(wrk1+96.5) .lt. 0.5
-!    &     .and. abs(wrk2-39.1) .lt. 0.5
-!    &     .and. me .eq. 12
-!      if(lprnt) then
-!      write(221) LSOIL,PGR(i),UGRS(i,1),VGRS(i,1),
-!    & TGRS(i,1),QGRS(i,1,1),
-!    & SHELEG(i),TSEA(i),QSS(i),
-!    & (SMSOIL(i,k),k=1,LSOIL),(STSOIL(i,k),k=1,LSOIL),
-!    & (SLSOIL(i,k),k=1,LSOIL),EVAPC(i),SOILTYP(i),SIGMAF(I),
-!    & vegtype(i),CANOPY(i),dlwsf1(i),
-!    & radsl(i),dtf   ,ZORL(i),
-!    & TG3(i),GFLX(i),U10M(i),
-!    & V10M(i),T2M(i),Q2M(i),CD(i),CDQ(i),
-!    & RCL(i),PRSL(1,1),work1(i),SLMSK(i),
-!    + DRAIN(i),EVAP(i),HFLX(i),EP1D(i),ffmm(i),ffhh(i),
-!    & uustar(i),WIND(i)
-!      endif
-!      enddo
-                                                                                                         
-Clu_q2m_iter [+5L]: initialize flag_guess, flag_iter, tsurf
-       do i=1, im
-         tsurf(i)      = tsea(i)
-         flag_guess(i) = .False.
-         flag_iter(i)  = .True.
-         drain(i)      = 0.0
-         ep1d(i)       = 0.0
-         runof(i)      = 0.0
-         hflx(i)       = 0.0
-         evap(i)       = 0.0
-!
-         evbs(i)       = 0.0
-         evcw(i)       = 0.0
-         trans(i)      = 0.0
-         sbsno(i)      = 0.0
-         snowc(i)      = 0.0
-       enddo
-                                                                                                         
-Clu_q2m_iter [+2L]: add iter-loop over (sfc_diff,sfc_drv,sfc_ocean,sfc_sice)
-      do iter = 1, 2                                 !!!!! <---- Clu_q2m_iter
-!
-!**  surface exchange coefficients
-!
-        CALL SFC_DIFF(IM,PGR,UGRS,VGRS,TGRS,QGRS,
-     &                TSEA,ZORL,CD,CDQ,RB,
-     &                RCL,PRSL(1,1),work1,SLMSK,
-     &                STRESS,ffmm,ffhh,
-Clu_q2m_iter [-1L/+2L]: add tsurf, flag_iter
-!*   &                uustar,WIND,phy_f2d(1,num_p2d),fm10,fh2)
-     +                uustar,WIND,phy_f2d(1,num_p2d),fm10,fh2,
+        call sfc_diff(im,pgr,ugrs,vgrs,tgrs,qgrs,zlvl,                  &
+     &                tsea,zorl,cd,cdq,rb,                              &
+     &                prsl(1,1),work3,slmsk,                            &
+     &                stress,ffmm,ffhh,                                 &
+     +                uustar,wind,phy_f2d(1,num_p2d),fm10,fh2,          &
+!   This line below needs to commented for pre-Helin correction to LM - Moorthi
+     &                sigmaf,vegtype,shdmax,                            &
      +                tsurf, flag_iter)
 
+!       if (lprnt) print *,' cdq=',cdq(ipr),' iter=',iter               &
+!    &,   ' wind=',wind(ipr),'phy_f2d=',phy_f2d(ipr,num_p2d),' ugrs='   &
+!    &,   ugrs(ipr,1),' vgrs=',vgrs(ipr,1)
 
-      if (lprnt) print *,' cdq=',cdq(ipr),' iter=',iter
-     &,' wind=',wind(ipr),'phy_f2d=',phy_f2d(ipr,num_p2d),' ugrs='
-     &,ugrs(ipr,1),' vgrs=',vgrs(ipr,1)
-                                                                                                         
-Clu_q2m_iter [+4L]: update flag_guess
-         do i=1, im
-           if((iter.eq.1) .and. (wind(i).lt.2.))
-     +        flag_guess(i) = .True.
-         enddo
- 
-!
-!** surface energy balance over ocean
-!
-        CALL SFC_OCEAN(IM,LSOIL,PGR,UGRS,VGRS,TGRS,QGRS,
-     &                 TSEA,QSS,EVAPC,GFLX,CD,CDQ,
-     &                 RCL,PRSL(1,1),work1,SLMSK,
-Cwei added 10/24/2006
-     &                 CMM,CHH,
-Clu_q2m_iter [-1L/+1L]: add flag_iter
-!*   &                 EVAP,HFLX,EP1D,phy_f2d(1,num_p2d))
-     +                 EVAP,HFLX,EP1D,phy_f2d(1,num_p2d),flag_iter)
+!  --- ...  lu: update flag_guess
 
-      if (lprnt) print *,' sfalb=',sfalb(ipr),' ipr=',ipr
-     &,' sheleg=',sheleg(ipr),' snwdph=',snwdph(ipr)
-     &,' tprcp=',tprcp(ipr),' kdt=',kdt,' iter=',iter
- 
-!
-!**  surface energy balance over land
-!
-      if (lsm == 1) then                          ! NOAH LSM CALL
-        CALL SFC_DRV(IM,LSOIL,PGR,UGRS,VGRS,TGRS,QGRS,
-     &               SHELEG,SNCOVR,SNWDPH,TSEA,QSS,TPRCP,SRFLAG,
-     &               SMSOIL,STSOIL,SLSOIL,EVAPC,SOILTYP,SIGMAF,
-     &               vegtype,CANOPY,dlwsf1,DSWSFC,
-     &               radsl,dtf,TG3,GFLX,CD,CDQ,
-     &               RCL,PRSL(1,1),work1,SLMSK,
-     &               DRAIN,EVAP,HFLX,EP1D,phy_f2d(1,num_p2d),
-Clu_q2m_iter [-1L/+2L]: add tsurf, flag_iter, flag_guess
-!*   +               RUNOF,SLOPETYP,SHDMIN,SHDMAX,SNOALB,SFALB)
-     +               RUNOF,SLOPETYP,SHDMIN,SHDMAX,SNOALB,SFALB,
-Cwei added 10/24/2006
-     +               CMM,CHH,ZLVL,EVBS,EVCW,TRANS,SBSNO,
-     +               SNOWC,SOILM,
-!Sarah Lu added 09/09/2010 for GOCART
-     +               WET1,
-     +               tsurf, flag_iter, flag_guess)
-      else                                       ! OSU LSM CALL
-        CALL SFC_LAND(IM,LSOIL,PGR,UGRS,VGRS,TGRS,QGRS,
-     &  SHELEG,TSEA,QSS,TPRCP,SRFLAG,
-     &  SMSOIL,STSOIL,EVAPC,SOILTYP,SIGMAF,
-     &  vegtype,CANOPY,dlwsf1,
-     &  radsl,SNOWMT,dtf,ZORL,TG3,
-     &  GFLX,ZSOIL,
-     &  CD,CDQ,RHSCNPY,RHSMC,AI,BI,CCI,
-     &  RCL,PRSL(1,1),work1,SLMSK,
-     &  DRAIN,EVAP,HFLX,EP1D,phy_f2d(1,num_p2d),
-Cwei added 10/24/2006
-     +  CMM,CHH,ZLVL,EVBS,EVCW,TRANS,SBSNO,
-     +  SNOWC,SOILM,
-     &  tsurf,flag_iter, flag_guess)
-      endif
-!
-      if (lprnt) print *,' tseabeficemodel =',tsea(ipr),' me=',me
-     &,' kdt=',kdt
- 
-!
-!**  surface energy balance over seaice
-!
-        CALL SFC_SICE(IM,LSOIL,PGR,UGRS,VGRS,TGRS,QGRS,
-     &                ZICE,CICE,TICE,DSWSFC,            ! FOR SEA-ICE - XW Nov04
-     &                SHELEG,TSEA,QSS,TPRCP,SRFLAG,STSOIL,EVAPC,
-     &                dlwsf1,radsl,SNOWMT,dtf,GFLX,CD,CDQ,
-     &                RCL,PRSL(1,1),work1,SLMSK,
-Cwei added 10/24/2006
-     +                CMM,CHH,ZLVL,
-Clu_q2m_iter [-1L/+1L]: add flag_iter
-!*   &                EVAP,HFLX,EP1D,phy_f2d(1,num_p2d))
-     +                EVAP,HFLX,EP1D,phy_f2d(1,num_p2d),flag_iter)
-
- 
-Clu_q2m_iter [+7L]: update flag_iter and flag_guess
-        do i=1, im
-          flag_iter(i)  = .False.
-          flag_guess(i) = .False.
-          if((slmsk(i) .eq. 1.) .and. (iter .eq. 1)) then
-            if(wind(i).lt.2.) flag_iter(i) = .True.
+        do i = 1, im
+          if (iter == 1 .and. wind(i) < 2.0) then
+            flag_guess(i) = .true.
           endif
         enddo
-      enddo                                 !!!!! <---- Clu_q2m_iter
-Cwei added 10/24/2006
-      do i=1,im
+
+!  --- ...  surface energy balance over ocean
+
+        if ( nst_fcst > 0 ) then
+
+          do i = 1, im
+            if ( slmsk(i) == 0.0 ) then
+              tseal(i) = tsea(i)  + oro(i) * rlapse
+              tsurf(i) = tsurf(i) + oro(i) * rlapse
+            endif
+          enddo
+          if ( nst_fcst > 1 ) then
+            do i = 1, im
+              if ( slmsk(i) == 0.0 ) then
+                tref(i)  = tseal(i) - (xt(i)+xt(i))/xz(i) + dt_cool(i)
+              endif
+            enddo
+          else
+            do i = 1, im
+              if ( slmsk(i) == 0.0 ) then
+                tref(i)  = tseal(i)
+              endif
+            enddo
+          endif
+
+!         if (lprnt) print *,' tseaz1=',tsea(ipr),' tref=',tref(ipr),   &
+!    &      ' dt_cool=',dt_cool(ipr),' dt_warm=',2.0*(xt(ipr)/xz(ipr)   &
+!    &      ' dt_cool=',dt_cool(ipr),' dt_warm=',dt_warm(ipr)           &
+!    &,     ' tgrs=',tgrs(ipr,1),' prsl=',prsl(ipr,1)
+!    &,     ' work3=',work3(ipr),' kdt=',kdt
+
+          call sfc_nst                                                  &
+     &       ( im,lsoil,pgr,ugrs,vgrs,tgrs,qgrs,tref,cd,cdq,            &
+     &         prsl(1,1),work3,slmsk,xlon,sinlat,stress,                &
+     &         sfcemis,gsfcdlw,adjsfcnsw,tprcp,dtf,kdt,                 &
+     &         phy_f2d(1,num_p2d),flag_iter,flag_guess,lprnt,ipr,       &
+!  --- Input/output
+     &         tseal,tsurf,xt,xs,xu,xv,xz,zm,xtts,xzts,dt_cool,         &
+     &         z_c,c_0,c_d,w_0,w_d,d_conv,ifd,Qrain,                    &
+
+!    &         tseal, ifd, time_old, time_ins, i_sw, i_q,               &
+!    &         i_qrain, i_m, i_tau, i_sw_zw, i_q_ts, i_m_ts, dt_cool,   &
+!    &         dt_warm, z_c, z_w, c_0, c_d, w_0, w_d,                   &
+!  ---  outputs:
+     &         qss, gflx, cmm, chh, evap, hflx, ep1d)
+       if(me==0.and.kdt==5.and.lat==18) then
+        print *,'in gbphys,af sfcnst kdt=',kdt,'hflx=',hflx(2),         &
+     &    'evap=',evap(2)
+       endif
+
+!         if (lprnt) print *,' tseaz2=',tseal(ipr),' tref=',tref(ipr),  &
+!    &     ' dt_cool=',dt_cool(ipr),' dt_warm=',2.0*xt(ipr)/xz(ipr),    &
+!    &     ' kdt=',kdt
+!    &     ' dt_cool=',dt_cool(ipr),' dt_warm=',dt_warm(ipr),' kdt=',kdt
+
+          do i = 1, im
+            if ( slmsk(i) == 0.0 ) then
+              tsurf(i) = tsurf(i) - oro(i) * rlapse
+            endif
+          enddo
+          if ( nst_fcst > 1 ) then
+            do i = 1, im
+              if ( slmsk(i) == 0.0 ) then
+                tsea(i)  = tref(i) + (xt(i)+xt(i))/xz(i) - dt_cool(i)
+     &                             - oro(i) * rlapse
+              endif
+            enddo
+          endif
+
+!         if (lprnt) print *,' tseaz2=',tsea(ipr),' tref=',tref(ipr),   &
+!    &    ' dt_cool=',dt_cool(ipr),' dt_warm=',dt_warm(ipr),' kdt=',kdt
+
+        else
+
+          call sfc_ocean                                                &
+!  ---  inputs:
+     &     ( im,pgr,ugrs,vgrs,tgrs,qgrs,tsea,cd,cdq,                    &
+     &       prsl(1,1),work3,slmsk,phy_f2d(1,num_p2d),flag_iter,        &
+!  ---  outputs:
+     &       qss,cmm,chh,gflx,evap,hflx,ep1d                            &
+     &     )
+!
+       endif
+
+!       if (lprnt) print *,' sfalb=',sfalb(ipr),' ipr=',ipr             &
+!    &,   ' weasd=',weasd(ipr),' snwdph=',snwdph(ipr)                   &
+!    &,   ' tprcp=',tprcp(ipr),' kdt=',kdt,' iter=',iter
+ 
+!  --- ...  surface energy balance over land
+!
+        if (lsm == 1) then                          ! noah lsm call
+
+          call sfc_drv                                                  &
+!  ---  inputs:
+     &     ( im,lsoil,pgr,ugrs,vgrs,tgrs,qgrs,soiltyp,vegtype,sigmaf,   &
+     &       sfcemis,gsfcdlw,adjsfcdsw,adjsfcnsw,dtf,tg3,cd,cdq,        &
+     &       prsl(1,1),work3,zlvl,slmsk,phy_f2d(1,num_p2d),slopetyp,    &
+     &       shdmin,shdmax,snoalb,sfalb,flag_iter,flag_guess,           &
+!  ---  in/outs:
+     &       weasd,snwdph,tsea,tprcp,srflag,smsoil,stsoil,slsoil,       &
+     &       canopy,trans,tsurf,                                        &
+!  ---  outputs:
+     &       sncovr,qss,gflx,drain,evap,hflx,ep1d,runof,                &
+     &       cmm,chh,evbs,evcw,sbsno,snowc,soilm,snohf,                 &
+     &       smcwlt2,smcref2,wet1                                       &
+     &     )
+
+        else                                       ! osu lsm call
+
+          call sfc_land                                                 &
+!  ---  inputs:
+     &     ( im,lsoil,pgr,ugrs,vgrs,tgrs,qgrs,smsoil,soiltyp,           &
+     &       sigmaf,vegtype,sfcemis,gsfcdlw,adjsfcnsw,dtf,              &
+     &       zorl,tg3,cd,cdq,prsl(1,1),work3,slmsk,                     &
+     &       phy_f2d(1,num_p2d),flag_iter,flag_guess,                   &
+!  ---  input/outputs:
+     &       weasd,tsea,tprcp,srflag,stsoil,canopy,tsurf,               &
+!  ---  outputs:
+     &       qss,snowmt,gflx,zsoil,rhscnpy,rhsmc,                       &
+     &       ai,bi,cci,drain,evap,hflx,ep1d,cmm,chh,                    &
+     &       evbs,evcw,trans,sbsno,snowc,soilm,                         &
+     &       snohf,smcwlt2,smcref2                                      &
+     &     )
+
+        endif
+
+!       if (lprnt) print *,' tseabeficemodel =',tsea(ipr),' me=',me     &
+!    &,   ' kdt=',kdt,' stsoil=',stsoil(ipr,:)
+
+!  --- ...  surface energy balance over seaice
+
+        call sfc_sice                                                   &
+!  ---  inputs:
+     &     ( im,lsoil,pgr,ugrs,vgrs,tgrs,qgrs,dtf,                      &
+     &       sfcemis,gsfcdlw,adjsfcnsw,adjsfcdsw,srflag,                &
+     &       cd,cdq,prsl(1,1),work3,slmsk,phy_f2d(1,num_p2d),           &
+     &       flag_iter,mom4ice,lsm, lprnt,ipr,                          &
+!    &       flag_iter,mom4ice,lsm,                                     &
+!  ---  input/outputs:
+     &       zice,cice,tice,weasd,tsea,tprcp,stsoil,ep1d,               &
+!  ---  outputs:
+     &       snwdph,qss,snowmt,gflx,cmm,chh,evap,hflx)
+
+!  --- ...  lu: update flag_iter and flag_guess
+
+        do i = 1, im
+          flag_iter(i)  = .false.
+          flag_guess(i) = .false.
+
+          if(slmsk(i) == 1. .and. iter == 1) then
+            if (wind(i) < 2.0) flag_iter(i) = .true.
+          elseif (slmsk(i) == 0. .and. iter == 1                        &
+     &                           .and. nst_fcst > 1) then
+            if (wind(i) < 2.0) flag_iter(i) = .true.
+          endif
+        enddo
+
+      enddo   ! end iter_loop
+
+      do i = 1, im
         epi(i)     = ep1d(i)
-        dlwsfci(i) = dlwsf1(i)
-        ulwsfci(i) = ulwsf1(i)
-        uswsfci(i) = sfcnsw(i)*xmu(i) + dswsfc(i)
-        dswsfci(i) = dswsfc(i)
+        dlwsfci(i) = gsfcdlw(i)
+        ulwsfci(i) = gsfculw(i)
+        uswsfci(i) = adjsfcdsw(i) - adjsfcnsw(i)
+        dswsfci(i) = adjsfcdsw(i)
         gfluxi(i)  = gflx(i)
         t1(i)      = tgrs(i,1)
         q1(i)      = qgrs(i,1,1)
         u1(i)      = ugrs(i,1)
         v1(i)      = vgrs(i,1)
       enddo
-      if (lsm == 0) then                          ! OSU LSM CALL
-        do i=1,im
-         SNCOVR(i) = 0.0
-         if (SHELEG(i) > 0.0) SNCOVR(i) = 1.0
+
+      if (lsm == 0) then                          ! osu lsm call
+        do i = 1, im
+         sncovr(i) = 0.0
+         if (weasd(i) > 0.0) sncovr(i) = 1.0
         enddo
       endif
 
-!
-!** update near surface fields
-!
-      CALL SFC_DIAG(IM,LSOIL,PGR,UGRS,VGRS,TGRS,QGRS,
-     &              TSEA,QSS,F10M,U10M,V10M,T2M,Q2M,RCL,work1,SLMSK,
-     &              EVAP,ffmm,ffhh,fm10,fh2)
-!
+!  --- ...  update near surface fields
 
-!lu_q2m [+22L]: print selected variables
-!      do i=1,im
-!       wrk1 = xlon(i) * 57.29578
-!       if (wrk1 .ge. 180.0) wrk1 = wrk1 - 360.0
-!       wrk2 = xlat(i) * 57.29578
-!       lprnt =  abs(wrk1+96.5) .lt. 0.5
-!    &     .and. abs(wrk2-39.1) .lt. 0.5
-!    &     .and. me .eq. 12
-!      if(lprnt) then
-!      write(222) LSOIL,PGR(i),UGRS(i,1),VGRS(i,1),
-!    & TGRS(i,1),QGRS(i,1,1),
-!    & SHELEG(i),TSEA(i),QSS(i),
-!    & (SMSOIL(i,k),k=1,LSOIL),(STSOIL(i,k),k=1,LSOIL),
-!    & (SLSOIL(i,k),k=1,LSOIL),EVAPC(i),SOILTYP(i),SIGMAF(I),
-!    & vegtype(i),CANOPY(i),dlwsf1(i),
-!    & radsl(i),dtf   ,ZORL(i),
-!    & TG3(i),GFLX(i),U10M(i),
-!    & V10M(i),T2M(i),Q2M(i),CD(i),CDQ(i),
-!    & RCL(i),PRSL(1,1),work1(i),SLMSK(i),
-!    + DRAIN(i),EVAP(i),HFLX(i),EP1D(i),ffmm(i),ffhh(i),
-!    & uustar(i),WIND(i)
-!      endif
-!      enddo
-Clu [-11L/+34L]: Revision ends here .....................................
-!
-      if(lprnt) then
-        print *,' hflx=',hflx(ipr)
-        print *,' evap=',evap(ipr)
-        print *,' stress=',stress(ipr)
-      endif
-!
-       do i=1,im
-         phy_f2d(i,num_p2d) = 0.0
-       enddo
+      call sfc_diag(im,lsoil,pgr,ugrs,vgrs,tgrs,qgrs,                   &
+     &              tsea,qss,f10m,u10m,v10m,t2m,q2m,work3,slmsk,        &
+     &              evap,ffmm,ffhh,fm10,fh2)
 
-      if (lprnt) print *,' tseaim=',tsea(ipr),' me=',me,' kdt=',kdt
-!
-      if(lssav)then
-        do i=1,im
-          GFLUX(i)  = GFLUX(i)  + GFLX(i)*DTF
-Cwei added 10/24/2006
-          EVBSA(I)  = EVBSA(I)  + EVBS(i)*DTF
-          EVCWA(I)  = EVCWA(I)  + EVCW(i)*DTF
-          TRANSA(I) = TRANSA(I) + TRANS(i)*DTF
-          SBSNOA(I) = SBSNOA(I) + SBSNO(i)*DTF
-          SNOWCA(I) = SNOWCA(I) + SNOWC(i)*DTF
-
-          TMPMAX(i) = MAX(TMPMAX(i),T2M(i))
-          TMPMIN(i) = MIN(TMPMIN(i),T2M(i))
-          EP(i)     = EP(i) + EP1D(i) * DTF
-CWei move to the place after calling progt2
-Clu [+3L]: compute total runoff
-!  TOTAL RUNOFF IS COMPOSED OF DRAINAGE INTO WATER TABLE AND
-!  RUNOFF AT THE SURFACE AND IS ACCUMULATED IN UNIT OF METERS
-!         RUNOFF(i) = RUNOFF(i) + (DRAIN(i)+RUNOF(i)) * DTF / 1000.0
-
-!         uustar(i) = ustar1(i)  ! should be under lsfwd
-!           ffmm(i) = fm1(i)     ! should be under lsfwd
-!           ffhh(i) = fh1(i)     ! should be under lsfwd
-        enddo
-      endif
-csela the following is the correct code, the above duplicates oper. code.
-csela if(lsfwd)then
-csela  uustar(ilon,ilat)=ustar1
-csela    ffmm(ilon,ilat)=fm1
-csela    ffhh(ilon,ilat)=fh1
-csela endif
-!
-Clu [+11L]: update smc, stc, slc
-!
-!  RETURN UPDATED SMSOIL AND STSOIL TO GLOBAL ARRAYS
-!
-!Wei move to the place after calling progt2
-!     DO K = 1, LSOIL
-!       do i=1,im
-!         SMC(i,k) = SMSOIL(i,K)
-!         STC(i,k) = STSOIL(i,K)
-!         SLC(i,k) = SLSOIL(i,K)
-!       enddo
-!     ENDDO
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Commented by Moorthi on 20050505
-!
-      do i=1,im
-!
-!     COMPUTE COEFFICIENT OF EVAPORATION IN EVAPC
-!
-        IF (EVAPC(i) .GT. 1.0E0) EVAPC(i) = 1.0E0
-!
-!     OVER SNOW COVER OR ICE OR SEA, COEF OF EVAP =1.0E0
-!
-        IF((SHELEG(i).GT.0.) .OR. (SLMSK(i).NE.1.0)) EVAPC(i) = 1.0E0
+      do i = 1, im
+        phy_f2d(i,num_p2d) = 0.0
       enddo
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!     if (lprnt) print *,' tseaim=',tsea(ipr),' me=',me,' kdt=',kdt
+
+      if (lssav) then
+        do i = 1, im
+!     write(0,*)' i=',i,' gflx=',gflx(i),' evbs=',evbs(i),' evcw=',
+!    & evcw(i)
+!    &,' trans=',trans(i),' sbsno=',sbsno(i),' snowc=',snowc(i),
+!    &' shohf=',snohf(i),' i=',i
+          gflux(i)   = gflux(i)  + gflx(i)*dtf
+          evbsa(i)   = evbsa(i)  + evbs(i)*dtf
+          evcwa(i)   = evcwa(i)  + evcw(i)*dtf
+          transa(i)  = transa(i) + trans(i)*dtf
+          sbsnoa(i)  = sbsnoa(i) + sbsno(i)*dtf
+          snowca(i)  = snowca(i) + snowc(i)*dtf
+          snohfa(i)  = snohfa(i) + snohf(i)*dtf
+
+          tmpmax(i)  = max(tmpmax(i),t2m(i))
+          tmpmin(i)  = min(tmpmin(i),t2m(i))
+
+          spfhmax(i) = max(spfhmax(i),q2m(i))
+          spfhmin(i) = min(spfhmin(i),q2m(i))
+          ep(i)      = ep(i) + ep1d(i) * dtf
+!hchuang code change 11/12/2007 [+6]
+!hchuang oro is passin variable not derived in this routine
+          gtmp2m(i)  =  gtmp2m(i) + t2m(i)    * DTF
+          gu10m(i)   =  gu10m(i)  + u10m(i)   * DTF
+          gv10m(i)   =  gv10m(i)  + v10m(i)   * DTF
+          gustar(i)  =  gustar(i) + uustar(i) * DTF
+          gzorl(i)   =  gzorl(i)  + zorl(i)   * DTF
+          goro(i)    =  goro(i)   + slmsk(i)  * DTF
+        enddo
+      endif
+
+      do i = 1, im
+
+!  --- ...  compute coefficient of evaporation in evapc
 !
-!  DO VERTICAL DIFFUSION
-!
-      if (lprnt) print *,' tsea3=',tsea(ipr),' slmsk=',slmsk(ipr)
-     &,' kdt=',kdt,' evap=',evap(ipr)
-      if (lprnt)  print *,' dtdtb=',dtdt(ipr,:)
-!
-!     do i=1,im
-!       if (slmsk(i) .eq. 0) then
+        if (evapc(i) > 1.0e0) evapc(i) = 1.0e0
+
+!  --- ...  over snow cover or ice or sea, coef of evap =1.0e0
+
+        if (weasd(i) > 0.0 .or. slmsk(i) /= 1.0) evapc(i) = 1.0e0
+
+      enddo
+
+!  --- ...  vertical diffusion
+
+!     if (lprnt) print *,' tsea3=',tsea(ipr),' slmsk=',slmsk(ipr)       &
+!    &, ' kdt=',kdt,' evap=',evap(ipr)
+!     if (lprnt)  print *,' dtdtb=',dtdt(ipr,:)
+
+!     do i = 1, im
+!       if (slmsk(i) == 0.0) then
 !         oro_land(i) = 0.0
 !       else
 !         oro_land(i) = oro(i)
 !       endif
 !     enddo
 
-      if (OLD_MONIN) then
-        CALL MONINP(IX,IM,LEVS,nvdiff,DVDT,DUDT,DTDT,DQDT,
-     &     UGRS,VGRS,TGRS,QGRS,
-     &     prsik(1,1),RB,ffmm,ffhh,TSEA,QSS,HFLX,EVAP,STRESS,WIND,KPBL,
-     &     PRSI,DEL,PRSL,PRSLK,PHII,PHIL,RCL,dtp,
-     &     DUSFC1,DVSFC1,DTSFC1,DQSFC1,HPBL,GAMT,GAMQ)
-!    &     kinver, oro_land)
-!    &     invrsn, kinver, oro_land)
-      ELSE
-        CALL MONINQ(IX,IM,LEVS,nvdiff,DVDT,DUDT,DTDT,DQDT,
-!    &     UGRS,VGRS,TGRS,QGRS,
-     &     UGRS,VGRS,TGRS,QGRS,swh,hlw,xmu,
-     &     prsik(1,1),RB,ffmm,ffhh,TSEA,QSS,HFLX,EVAP,STRESS,WIND,KPBL,
-     &     PRSI,DEL,PRSL,PRSLK,PHII,PHIL,RCL,dtp,
-     &     DUSFC1,DVSFC1,DTSFC1,DQSFC1,HPBL,GAMT,GAMQ)
-      ENDIF
+      if (old_monin) then
 
-!
-!     if (ntoz .gt. 0) dqdt(:,:,ntoz) = 0.0
-!
-      if (lprnt) then
-        print *,' dusfc1=',dusfc1(ipr)
-        print *,' dtsfc1=',dtsfc1(ipr)
-        print *,' dqsfc1=',dqsfc1(ipr)
-        print *,' dtdt=',dtdt(ipr,:)
-        print *,' dudtm=',dudt(ipr,:)
+        if (mstrat) then
+          call moninp1(ix,im,levs,nvdiff,dvdt,dudt,dtdt,dqdt,           &
+     &     ugrs,vgrs,tgrs,qgrs,                                         &
+     &     prsik(1,1),rb,ffmm,ffhh,tsea,qss,hflx,evap,stress,wind,kpbl, &
+     &     prsi,del,prsl,prslk,phii,phil,dtp,                           &
+     &     dusfc1,dvsfc1,dtsfc1,dqsfc1,hpbl,gamt,gamq,dkt,              &
+!    &     kinver, ctei_r, ctei_rm, xkzm_m, xkzm_h)
+     &     kinver, xkzm_m, xkzm_h)
+        else
+          call moninp(ix,im,levs,nvdiff,dvdt,dudt,dtdt,dqdt,            &
+     &     ugrs,vgrs,tgrs,qgrs,                                         &
+     &     prsik(1,1),rb,ffmm,ffhh,tsea,qss,hflx,evap,stress,wind,kpbl, &
+     &     prsi,del,prsl,prslk,phii,phil,dtp,                           &
+     &     dusfc1,dvsfc1,dtsfc1,dqsfc1,hpbl,gamt,gamq,dkt,xkzm_m,xkzm_h)
+        endif
+
+      else
+
+!       if (mstrat) then
+!         call moninq1(ix,im,levs,nvdiff,dvdt,dudt,dtdt,dqdt,           &
+!    &     ugrs,vgrs,tgrs,qgrs,swh,hlw,xmu,slmsk,                       &
+!    &     prsik(1,1),rb,ffmm,ffhh,tsea,qss,hflx,evap,stress,wind,kpbl, &
+!    &     prsi,del,prsl,prslk,phii,phil,dtp,                           &
+!    &     dusfc1,dvsfc1,dtsfc1,dqsfc1,hpbl,gamt,gamq,dkt,              &
+!    &     kinver)
+!       else
+          call moninq(ix,im,levs,nvdiff,dvdt,dudt,dtdt,dqdt,            &
+!    &     ugrs,vgrs,tgrs,qgrs,swh,hlw,xmu,slmsk,                       &
+     &     ugrs,vgrs,tgrs,qgrs,swh,hlw,xmu,                             &
+     &     prsik(1,1),rb,ffmm,ffhh,tsea,qss,hflx,evap,stress,wind,kpbl, &
+     &     prsi,del,prsl,prslk,phii,phil,dtp,                           &
+     &     dusfc1,dvsfc1,dtsfc1,dqsfc1,hpbl,gamt,gamq,dkt,              &
+     &     kinver, xkzm_m, xkzm_h, xkzm_s)
+!       endif
+
+      endif   ! end if_old_monin
+
+!     if (lprnt) then
+!       print *,' dusfc1=',dusfc1(ipr)
+!       print *,' dtsfc1=',dtsfc1(ipr)
+!       print *,' dqsfc1=',dqsfc1(ipr)
+!       print *,' dtdt=',dtdt(ipr,:)
+!       print *,' dudtm=',dudt(ipr,:)
+!     endif
+
+!  --- ...  coupling insertion
+
+      if (lssav_cc) then
+        do i=1, im
+          dusfc_cc(i) = dusfc_cc(i) + dusfc1(i)        !*dtf <-na h.(?)
+          dvsfc_cc(i) = dvsfc_cc(i) + dvsfc1(i)        !*dtf <-na h.(?)
+          dtsfc_cc(i) = dtsfc_cc(i) + dtsfc1(i)        !*dtf <-na h.(?)
+          dqsfc_cc(i) = dqsfc_cc(i) + dqsfc1(i)        !*dtf <-na h.(?)
+        enddo
       endif
 
-!-> Coupling insertion
-!      if(lssav_cc_dummy) then
-!        DUSFC_cc_dummy(1:IM)=DUSFC_cc_dummy(1:IM)+DUSFC1 !*DTF <-na h.(?)
-!        DVSFC_cc_dummy(1:IM)=DVSFC_cc_dummy(1:IM)+DVSFC1 !*DTF <-na h.(?)
-!        DTSFC_cc_dummy(1:IM)=DTSFC_cc_dummy(1:IM)+DTSFC1 !*DTF <-na h.(?)
-!        DQSFC_cc_dummy(1:IM)=DQSFC_cc_dummy(1:IM)+DQSFC1 !*DTF <-na h.(?)
-!      end if
-!<- Coupling insertion
-
-      if(lssav) then
-        do i=1,im
-          DUSFC(i)  = DUSFC(i) + DUSFC1(i)*DTF
-          DVSFC(i)  = DVSFC(i) + DVSFC1(i)*DTF
-          DTSFC(i)  = DTSFC(i) + DTSFC1(i)*DTF
-          DQSFC(i)  = DQSFC(i) + DQSFC1(i)*DTF
+      if (lssav) then
+        do i = 1, im
+          dusfc(i)  = dusfc(i) + dusfc1(i)*dtf
+          dvsfc(i)  = dvsfc(i) + dvsfc1(i)*dtf
+          dtsfc(i)  = dtsfc(i) + dtsfc1(i)*dtf
+          dqsfc(i)  = dqsfc(i) + dqsfc1(i)*dtf
           dtsfci(i) = dtsfc1(i)
           dqsfci(i) = dqsfc1(i)
+!hchuang code change 11/12/2007 [+1L]
+          gpblh(i)  =  gpblh(i)  + hpbl(i)*dtf
         enddo
-        IF (LDIAG3D) THEN
-          DO K=1,LEVS
-            do i=1,im
-              tem1 = rcs(i) * dtf
+
+        if (ldiag3d) then
+          do k = 1, levs
+            do i = 1, im
               tem  = dtdt(i,k) - (hlw(i,k)+swh(i,k)*xmu(i))
-              DT3DT(i,k,3) = DT3DT(i,k,3) + tem*DTF
-              DQ3DT(i,k,1) = DQ3DT(i,k,1) + DQDT(i,K,1)*DTF
-              DU3DT(i,k,1) = DU3DT(i,k,1) + DUDT(i,K)*tem1
-              DU3DT(i,k,2) = DU3DT(i,k,2) - DUDT(i,K)*tem1
-              DV3DT(i,k,1) = DV3DT(i,k,1) + DVDT(i,K)*tem1
-              DV3DT(i,k,2) = DV3DT(i,k,2) - DVDT(i,K)*tem1
+              dt3dt(i,k,3) = dt3dt(i,k,3) + tem*dtf
+!             dq3dt(i,k,1) = dq3dt(i,k,1) + dqdt(i,k,1) * dtf
+              du3dt(i,k,1) = du3dt(i,k,1) + dudt(i,k)   * dtf
+              du3dt(i,k,2) = du3dt(i,k,2) - dudt(i,k)   * dtf
+              dv3dt(i,k,1) = dv3dt(i,k,1) + dvdt(i,k)   * dtf
+              dv3dt(i,k,2) = dv3dt(i,k,2) - dvdt(i,k)   * dtf
             enddo
-          ENDDO
-          if (ntoz .gt. 0) then
-            DO K=1,LEVS
-              do i=1,im
-                DQ3DT(i,k,5) = DQ3DT(i,k,5) + DQDT(i,K,ntoz)*DTF
+          enddo
+        endif
+        if (ldiag3d .or. lggfs3d) then
+          do k = 1, levs
+            do i = 1, im
+              tem  = dqdt(i,k,1) * dtf
+              dq3dt(i,k,1) = dq3dt(i,k,1) + tem
+              dqdt_v(i,k)  = tem
+            enddo
+          enddo
+          if (ntoz > 0) then
+            do k = 1, levs
+              do i = 1, im
+                dq3dt(i,k,5) = dq3dt(i,k,5) + dqdt(i,k,ntoz)*dtf
               enddo
             enddo
           endif
-        ENDIF
-
-! update dqdt_v to include moisture tendency due to vertical diffusion
-        DO K=1,LEVS
-          do i=1,im
-            DQDT_V(i,k) = DQDT(i,K,1) * DTF
+        endif
+        if (lggfs3d) then
+          do k=1,levs-1
+           do i=1,im
+              dkh(i,k) = dkh(i,k) + dkt(i,k)*dtf
+            enddo
           enddo
-        enddo
-      endif
-!
-      if (NMTVR .eq. 6) then
-        do i=1,im
+        endif
+
+      endif   ! end if_lssav
+
+      if (nmtvr == 6) then
+
+        do i = 1, im
           oc(i) = hprime(i,2)
         enddo
+
         do k = 1, 4
-          do i=1,im
+          do i = 1, im
             oa4(i,k) = hprime(i,k+2)
             clx(i,k) = 0.0
           enddo
         enddo
-      elseif(NMTVR .eq. 10) then
-        do i=1,im
+
+      elseif (nmtvr == 10) then
+
+        do i = 1, im
           oc(i) = hprime(i,2)
         enddo
+
         do k = 1, 4
-          do i=1,im
+          do i = 1, im
             oa4(i,k) = hprime(i,k+2)
             clx(i,k) = hprime(i,k+6)
           enddo
         enddo
-! --- lm mb (*j*)
-      elseif(NMTVR .eq. 14) then
-! --- get the kim fields (until this is changed)
-        do i=1,im
+
+      elseif (nmtvr == 14) then
+
+        do i = 1, im
           oc(i) = hprime(i,2)
         enddo
+
         do k = 1, 4
-          do i=1,im
+          do i = 1, im
             oa4(i,k) = hprime(i,k+2)
             clx(i,k) = hprime(i,k+6)
           enddo
         enddo
-          do i=1,im
-            theta(i)  = hprime(i,11)
-            gamma(i)  = hprime(i,12)
-            sigma(i)  = hprime(i,13)
-            elvmax(i) = hprime(i,14)
-          enddo
+
+        do i = 1, im
+          theta(i)  = hprime(i,11)
+          gamma(i)  = hprime(i,12)
+          sigma(i)  = hprime(i,13)
+          elvmax(i) = hprime(i,14)
+        enddo
+
       else
+
         oc  = 0
         oa4 = 0
         clx = 0
@@ -977,1071 +1442,1171 @@ Clu [+11L]: update smc, stc, slc
         gamma = 0
         sigma = 0
         elvmax = 0
-      endif
-!sela also replace lonr2 with cleff in this routine and compute
-!sela cleff for all columns once before the loops on lat and lon
-!sela do this in gloopb once and for all, better yet, in step1
-!
-!
-!     Call (old) operational gravity-wave drag
-!
-!     CALL GWDPS(lonr2,LEVS,DVDT,DUDT,UGRS,VGRS,TGRS,QGRS,
-!    & PGR,SI,DEL,CL,SL,slk,RCL,dtp,LAT,HPRIME(ilon,ilat,1),
-!    & oc,oa4,DUSFCG,DVSFCG)
-!
-!     if(lssav) then
-!       DUGWD(ilon,ilat)=DUGWD(ilon,ilat)+DUSFCG*DTF
-!       DVGWD(ilon,ilat)=DVGWD(ilon,ilat)+DVSFCG*DTF
-!       IF (LDIAG3D) THEN
-!         work1 = rcs * dtf
-!         DO K=1,LEVS
-!           DU3DT(k,2,ilon,ilat) = DU3DT(k,2,ilon,ilat) + DUDT(K)*work1
-!           DV3DT(k,2,ilon,ilat) = DV3DT(k,2,ilon,ilat) + DVDT(K)*work1
-!         ENDDO
-!       ENDIF
-!     endif
-!#ifdef NEWGWD
-!
-!     Call New operational gravity-wave drag
-!
-      if(lprnt) then
-        print *,' kdt=',kdt,' rcl=',rcl(ipr),' dtp=',dtp,
-     &' pgr=',pgr(ipr),' kpbl=',kpbl,grav,   CP, RD, RV, lonr
-        print *,' ugrs=',ugrs
-        print *,' vgrs=',vgrs
-        print *,' tgrs=',tgrs(ipr,:)
-        print *,' qgrs=',qgrs
-        print *,' hprime=',hprime(ipr,:)
-        print *,' oa4=',oa4,' oc=',oc,' clx=',clx
-!!      print *,' si=',si
-        print *,' prsl=',prsl(1,:),' me=',me
-        print *,' del=',del(1,:),' me=',me
-        print *,' prslk=',prslk(1,:),' me=',me
-        print *,' prsik=',prsik(1,:),' me=',me
-      endif
-!
-      CALL GWDPS(IM, IX, IM,   LEVS,  DVDT, DUDT,
-     &           UGRS,   VGRS, TGRS,  QGRS,
-     &           KPBL,   PRSI, DEL,   PRSL, PRSLK,
-     &           PHII,   PHIL, RCL, DTP,
-!!   &           PGR,    KPBL, PRSI,  DEL, PRSL, PRSLK, RCL, DTP,
-     &           KDT,    hprime(1,1), oc, oa4, clx,
-     &           theta,sigma,gamma,elvmax,DUSFCG, DVSFCG,
-     &           grav,  CP, RD, RV, lonr, nmtvr, me, lprnt,ipr)
-!
-      if (lprnt)  print *,' dudtg=',dudt(ipr,:)
-      if(lssav) then
-        do i=1,im
-          DUGWD(i) = DUGWD(i) + DUSFCG(i)*DTF
-          DVGWD(i) = DVGWD(i) + DVSFCG(i)*DTF
+
+      endif   ! end if_nmtvr
+
+      call gwdps(im, ix, im,   levs,  dvdt, dudt,                       &
+     &           ugrs,   vgrs, tgrs,  qgrs,                             &
+     &           kpbl,   prsi, del,   prsl, prslk,                      &
+     &           phii,   phil, dtp,                                     &
+     &           kdt,    hprime(1,1), oc, oa4, clx,                     &
+     &           theta,sigma,gamma,elvmax,dusfcg, dvsfcg,               &
+     &           con_g,con_cp,con_rd,con_rv, lonf, nmtvr, cdmbgwd,      &
+     &           me, lprnt,ipr)
+
+!     if (lprnt)  print *,' dudtg=',dudt(ipr,:)
+
+      if (lssav) then
+        do i = 1, im
+          dugwd(i) = dugwd(i) + dusfcg(i)*dtf
+          dvgwd(i) = dvgwd(i) + dvsfcg(i)*dtf
         enddo
-!     if (lprnt) print *,' dugwd=',dugwd(ipr),' dusfcg=',dusfcg(ipr)
-!     if (lprnt) print *,' dvgwd=',dvgwd(ipr),' dvsfcg=',dvsfcg(ipr)
-        IF (LDIAG3D) THEN
-          DO K=1,LEVS
-            do i=1,im
-              tem = rcs(i) * dtf
-              DU3DT(i,k,2) = DU3DT(i,k,2) + DUDT(i,K)*tem
-              DV3DT(i,k,2) = DV3DT(i,k,2) + DVDT(i,K)*tem
+
+!       if (lprnt) print *,' dugwd=',dugwd(ipr),' dusfcg=',dusfcg(ipr)
+!       if (lprnt) print *,' dvgwd=',dvgwd(ipr),' dvsfcg=',dvsfcg(ipr)
+
+        if (ldiag3d) then
+          do k = 1, levs
+            do i = 1, im
+              du3dt(i,k,2) = du3dt(i,k,2) + dudt(i,k) * dtf
+              dv3dt(i,k,2) = dv3dt(i,k,2) + dvdt(i,k) * dtf
             enddo
-          ENDDO
-!     if(lprnt) then
-!        print *,' gwdu=',du3dt(:,:,2)
-!     endif
-        ENDIF
+          enddo
+        endif
       endif
-!#endif
-!
-      DO  K=1,LEVS
-        do i=1,im
-          GT0(i,K)   = TGRS(i,K)   + DTDT(i,K)   * DTp
-          GU0(i,K)   = UGRS(i,K)   + DUDT(i,K)   * DTp
-          GV0(i,K)   = VGRS(i,K)   + DVDT(i,K)   * DTp
+
+      do  k = 1, levs
+        do i = 1, im
+          gt0(i,k)   = tgrs(i,k)   + dtdt(i,k)   * dtp
+          gu0(i,k)   = ugrs(i,k)   + dudt(i,k)   * dtp
+          gv0(i,k)   = vgrs(i,k)   + dvdt(i,k)   * dtp
         enddo
       enddo
-!
-      DO  N=1,ntrac
-        DO  K=1,LEVS
-          do i=1,im
-            GQ0(i,K,N) = QGRS(i,K,N) + dqdt(i,k,n) * dtp
+
+      do n = 1, ntrac
+        do k = 1, levs
+          do i = 1, im
+            gq0(i,k,n) = qgrs(i,k,n) + dqdt(i,k,n) * dtp
           enddo
         enddo
       enddo
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!
-!     if (me .eq. 0) then
-!     sumq = 0.0
-!     DO K=1,LEVS
-!       do i=1,im
-!         sumq = sumq + (dqdt(i,k,1)+dqdt(i,k,ntcw)) * del(i,k)
+!  --- ...  check print
+
+!     if (me == 0) then
+!       sumq = 0.0
+!       do k = 1, levs
+!         do i = 1, im
+!           sumq = sumq + (dqdt(i,k,1)+dqdt(i,k,ntcw)) * del(i,k)
+!         enddo
 !       enddo
-!     enddo
-!     sume = 0.0
-!     do i=1,im
-!       sume = sume + dqsfc1(i)
-!     enddo
-!     sumq = sumq * 1000.0 / grav
-!     sume = sume / hvap
-!     print *,' after MON: sumq=',sumq,' sume=',sume, ' kdt=',kdt
+
+!       sume = 0.0
+!       do i = 1, im
+!         sume = sume + dqsfc1(i)
+!       enddo
+
+!       sumq = sumq * 1000.0 / con_g
+!       sume = sume / con_hvap
+!       print *,' after mon: sumq=',sumq,' sume=',sume, ' kdt=',kdt
 !     endif
-!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!
-!
-!  OZONE PHYSICS
-!
-      if(ntoz .gt. 0 .and. ntrac .ge. ntoz)then
-        CALL OZPHYS(IX, IM, LEVS, KO3, DTP, GQ0(1,1,ntoz), GQ0(1,1,ntoz)
-     &,             GT0, poz, prsl, prdout, pl_coeff, DEL, LDIAG3D
-     &,             dq3dt(1,1,6), me)
+
+!  --- ...  ozone physics
+
+      if (ntoz > 0 .and. ntrac >= ntoz) then
+
+        call ozphys(ix,im,levs,ko3,dtp,gq0(1,1,ntoz),gq0(1,1,ntoz)      &
+     &,             gt0, poz, prsl, prdout, pl_coeff, del, ldiag3d      &
+!hchuang code change [r1L]
+     &,             lggfs3d,dq3dt(1,1,6), me)
+!    &,             dq3dt(1,1,6), me)
+
       endif
-!
-!     to side-step the ozone physics
-!      if(NTRAC .GE. 2) then
-!          do k = 1, LEVS
-!              GQ0(k,ntoz) = qgrs(k,ntoz)
-!          enddo
+
+!  --- ...  to side-step the ozone physics
+
+!      if (ntrac >= 2) then
+!        do k = 1, levs
+!          gq0(k,ntoz) = qgrs(k,ntoz)
+!        enddo
 !      endif
-!
+
 !     if (lprnt) then
-!     print *,' levs=',levs,' jcap=',jcap,' dtp',dtp
-!    *,' slmsk=',slmsk(ilon,ilat),' rcs=',rcs,' kdt=',kdt
-!     print *,' xkt2=',xkt2,' ncld=',ncld,' iq=',iq,' lat=',lat
-!     print *,' pgr=',pgr
-!     print *,' del=',del(1,:)
-!     print *,' prsl=',prsl(1,:)
-!     print *,' prslk=',prslk(1,:)
-!     print *,' xkt2=',xkt2(ipr,1)
-!     print *,' GT0=',GT0(ipr,:)
-!    &,' kdt=',kdt,' xlon=',xlon(ipr),' xlat=',xlat(ipr)
-!     print *,' dtdt=',dtdt(ipr,:)
-!     print *,' gu0=',gu0(ipr,:)
-!     print *,' gv0=',gv0(ipr,:)
-!     print *,' gq0=',(gq0(ipr,k,1),k=1,levs)
-!     print *,' gq1=',(gq0(ipr,k,ntcw),k=1,levs)
-!     print *,' vvel=',vvel
+!       print *,' levs=',levs,' jcap=',jcap,' dtp',dtp                  &
+!    *,  ' slmsk=',slmsk(ilon,ilat),' kdt=',kdt
+!       print *,' rann=',rann,' ncld=',ncld,' iq=',iq,' lat=',lat
+!       print *,' pgr=',pgr
+!       print *,' del=',del(ipr,:)
+!       print *,' prsl=',prsl(ipr,:)
+!       print *,' prslk=',prslk(ipr,:)
+!       print *,' rann=',rann(ipr,1)
+!       print *,' gt0=',gt0(ipr,:)                                      &
+!    &,         ' kdt=',kdt,' xlon=',xlon(ipr),' xlat=',xlat(ipr)
+!       print *,' dtdt=',dtdt(ipr,:)
+!       print *,' gu0=',gu0(ipr,:)
+!       print *,' gv0=',gv0(ipr,:)
+!       print *,' gq0=',(gq0(ipr,k,1),k=1,levs)
+!       print *,' gq1=',(gq0(ipr,k,ntcw),k=1,levs)
+!       print *,' vvel=',vvel
 !     endif
-!
-      IF (LDIAG3D) THEN
-        do k=1,levs
-          do i=1,im
-            dtdt(i,k)   = GT0(i,k)
-            dqdt(i,k,1) = gq0(i,k,1)
-            dudt(i,k)   = GU0(i,k)
-            dvdt(i,k)   = GV0(i,k)
+
+      if (ldiag3d) then
+
+        do k = 1, levs
+          do i = 1, im
+            dtdt(i,k)   = gt0(i,k)
+!           dqdt(i,k,1) = gq0(i,k,1)
+            dudt(i,k)   = gu0(i,k)
+            dvdt(i,k)   = gv0(i,k)
           enddo
         enddo
+
       elseif (cnvgwd) then
-        do k=1,levs
-          do i=1,im
-            dtdt(i,k)   = GT0(i,k)
+
+        do k = 1, levs
+          do i = 1, im
+            dtdt(i,k)   = gt0(i,k)
           enddo
         enddo
-      ENDIF
-!
-      call GET_PHI(im,ix,levs,ntrac,gt0,gq0,
+
+      endif   ! end if_ldiag3d/cnvgwd
+      if (ldiag3d .or. lggfs3d) then
+        do k = 1, levs
+          do i = 1, im
+            dqdt(i,k,1)   = gq0(i,k,1)
+          enddo
+        enddo
+      endif   ! end if_ldiag3d/lggfs3d
+
+      call get_phi(im,ix,levs,ntrac,gt0,gq0,                            &
      &             prsi,prsik,prsl,prslk,phii,phil)
-!
-      do k=1,levs
-        do i=1,im
-          CLW(i,k,1) = 0.0
-          CLW(i,k,2) = -999.9
+
+!     if (lprnt) then
+!       print *,' phii2=',phii(ipr,:)
+!       print *,' phil2=',phil(ipr,:)
+!     endif
+
+      do k = 1, levs
+        do i = 1, im
+          clw(i,k,1) = 0.0
+          clw(i,k,2) = -999.9
         enddo
       enddo
-      do i=1,im
+
+!  --- ...  for convective tracer transport (while using ras)
+
+      if (ras) then
+        if (tottracer > 0) then
+
+          if (ntoz > 0) then
+            do k=1,levs
+              do i=1,im
+                clw(i,k,3) = gq0(i,k,ntoz)
+              enddo
+            enddo
+
+            if (tracers > 0) then
+              do n = 1, tracers
+                do k=1,levs
+                  do i=1,im
+                    clw(i,k,3+n) = gq0(i,k,n+trc_shft)
+                  enddo
+                enddo
+              enddo
+            endif
+          else
+            do n = 1, tracers
+                do k=1,levs
+                  do i=1,im
+                    clw(i,k,2+n) = gq0(i,k,n+trc_shft)
+                  enddo
+                enddo
+            enddo
+          endif
+
+        endif
+      endif   ! end if_ras
+
+      do i = 1, im
         ktop(i)  = 1
         kbot(i)  = levs
       enddo
-!
-!     Calling precipitation processes
-!
-      do i=1,im
-!pry    work1(i) = (log(1.0 / (rcs(i)*nlons(i))) - dxmin) * dxinv
-!       work1(i) = (log(1.0 / (rcs(i)*nlons(i)*latr)) - dxmin) * dxinv
-        work1(i) = (log(coslat(i) / (nlons(i)*latr)) - dxmin) * dxinv
-        work1(i) = max(0.0, min(1.0,work1(i)))
-        work2(i) = 1.0 - work1(i)
-      enddo
-!
-!     Calling convective parameterization
-!
-      if (ntcw .gt. 0) then
-!
-        do k=1,levs
-          do i=1,im
+
+!  --- ...  calling precipitation processes
+
+!     do i = 1, im
+!       work1(i) = (log(coslat(i) / (nlons(i)*latg)) - dxmin) * dxinv
+!       work1(i) = max(0.0, min(1.0,work1(i)))
+!       work2(i) = 1.0 - work1(i)
+!     enddo
+
+!  --- ...  calling convective parameterization
+
+      if (ntcw > 0) then
+
+        do k = 1, levs
+          do i = 1, im
             rhc(i,k) = rhbbot - (rhbbot-rhbtop) * (1.0-prslk(i,k))
             rhc(i,k) = rhc_max * work1(i) + rhc(i,k) * work2(i)
+            rhc(i,k) = max(0.0, min(1.0,rhc(i,k)))
           enddo
         enddo
-        if (num_p3d .eq. 3) then    ! Call Brad Ferrier's Microphysics
-          do i=1,im
+
+        if (num_p3d == 3) then    ! call brad ferrier's microphysics
+          do i = 1, im
             flgmin_l(i) = flgmin(1)*work1(i) + flgmin(2)*work2(i)
           enddo
-!
-!***          ALGORITHM TO SEPARATE DIFFERENT HYDROMETEOR SPECIES
-!
-          DO K=1,LEVS
-            do i=1,im
-              WC     = GQ0(i,K,ntcw)
-              QI     = 0.
-              QR     = 0.
-              QW     = 0.
-              F_ice  = max(0.0, min(1.0, phy_f3d(I,K,1)))
-              F_rain = max(0.0, min(1.0, phy_f3d(I,K,2)))
-!
-              QI = F_ice*WC
-              QW = WC-QI
-              IF (QW .GT. 0.0) THEN
-                QR = F_rain*QW
-                QW = QW-QR
-              ENDIF
-!
-!             IF (F_ice .GE. 1.) THEN
-!               QI = WC
-!             ELSE IF (F_ice .LE. 0.) THEN
-!               QW = WC
-!             ELSE
-!               QI = F_ice*WC
-!               QW = WC-QI
-!             ENDIF
-!
-!             IF (QW.GT.0. .AND. F_rain.GT.0.) THEN
-!               IF (F_rain .GE. 1.) THEN
-!                 QR = QW
-!                 QW = 0.
-!               ELSE
-!                 QR = F_rain*QW
-!                 QW = QW-QR
-!               ENDIF
-!             ENDIF
-!
-              QR_col(I,K) = QR
-!             CLW(I,K)    = QI + QW
-              CLW(I,K,1)  = QI
-              CLW(I,K,2)  = QW
-!
-!
-!***          ARRAY TO TRACK FRACTION OF "CLOUD" IN THE FORM OF ICE
-!
-!             IF (QI+QW .GT. EPSQ) THEN
-!               FC_ice(I,K) = QI / (QI+QW)
-!             ELSE
-!               FC_ice(I,K) = 0.
-!             ENDIF
 
+!  --- ...  algorithm to separate different hydrometeor species
+
+          do k = 1, levs
+            do i = 1, im
+              wc     = gq0(i,k,ntcw)
+              qi     = 0.
+              qr     = 0.
+              qw     = 0.
+              f_ice  = max(0.0, min(1.0, phy_f3d(i,k,1)))
+              f_rain = max(0.0, min(1.0, phy_f3d(i,k,2)))
+
+              qi = f_ice*wc
+              qw = wc-qi
+              if (qw > 0.0) then
+                qr = f_rain*qw
+                qw = qw-qr
+              endif
+
+!             if (f_ice >= 1.0) then
+!               qi = wc
+!             elseif (f_ice <= 0.0) then
+!               qw = wc
+!             else
+!               qi = f_ice*wc
+!               qw = wc-qi
+!             endif
+
+!             if (qw > 0.0 .and. f_rain > 0.0) then
+!               if (f_rain >= 1.0) then
+!                 qr = qw
+!                 qw = 0.0
+!               else
+!                 qr = f_rain*qw
+!                 qw = qw-qr
+!               endif
+!             endif
+
+              qr_col(i,k) = qr
+!             clw(i,k)    = qi + qw
+              clw(i,k,1)  = qi
+              clw(i,k,2)  = qw
+
+!  --- ...  array to track fraction of "cloud" in the form of ice
+
+!             if (qi+qw > epsq) then
+!               fc_ice(i,k) = qi / (qi+qw)
+!             else
+!               fc_ice(i,k) = 0.0
+!             endif
             enddo
-          ENDDO
-        else
-          DO K=1,LEVS
-            do i=1,im
-              clw(i,K,1) = GQ0(i,K,ntcw)
+          enddo
+
+        else   ! if_num_p3d
+
+          do i = 1, im
+            psautco_l(i) = psautco(1)*work1(i) + psautco(2)*work2(i)
+            prautco_l(i) = prautco(1)*work1(i) + prautco(2)*work2(i)
+          enddo
+          do k = 1, levs
+            do i = 1, im
+              clw(i,k,1) = gq0(i,k,ntcw)
             enddo
-          ENDDO
-        endif
-      else
-        rhc(:,:) = 1.0
-      endif
+          enddo
+
+        endif  ! end if_num_p3d
+
+      else    ! if_ntcw
+
+        do i = 1, im
+          psautco_l(i) = psautco(1)*work1(i) + psautco(2)*work2(i)
+          prautco_l(i) = prautco(1)*work1(i) + prautco(2)*work2(i)
+        enddo
+        do k = 1, levs
+          do i = 1, im
+            rhc(i,k) = 1.0
+          enddo
+        enddo
+
+      endif   ! end if_ntcw
 !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!     if (me .eq. 0) then
-!     sumq = 0.0
-!     DO K=1,LEVS
-!       do i=1,im
-!         sumq = sumq - (gq0(i,k,1)+clw(i,k,1)+clw(i,k,2)) * del(i,k)
-!       enddo
-!     enddo
-!     endif
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!
-      IF (.NOT. RAS) THEN
+      if (.not. ras) then
 
         if (.not. newsas) then
-          CALL SASCNV(IM,IX,LEVS,JCAP,dtp,DEL,PRSL,PGR,PHIL,
-     &                CLW,GQ0,GT0,gu0,gv0,rcs,CLD1D,
-     &                RAIN1,KBOT,KTOP,kcnv,SLMSK,
-     &                VVEL,xkt2,ncld)
+
+          call sascnv(im,ix,levs,jcap,dtp,del,prsl,pgr,phil,            &
+     &                clw,gq0,gt0,gu0,gv0,cld1d,                        &
+     &                rain1,kbot,ktop,kcnv,slmsk,                       &
+     &                vvel,rann,ncld,ud_mf,dd_mf,dt_mf)
+!hchuang code change 03/03/08 [r1L] add SAS modification of mass flux
+!    &                vvel,rann,ncld)
+
         else
-          CALL SASCNVN(IM,IX,LEVS,JCAP,dtp,DEL,PRSL,PGR,PHIL,
-     &                CLW,GQ0,GT0,gu0,gv0,rcs,CLD1D,
-     &                RAIN1,KBOT,KTOP,kcnv,SLMSK,
-     &                VVEL,xkt2,ncld)
+
+          call sascnvn(im,ix,levs,jcap,dtp,del,prsl,pgr,phil,           &
+     &                clw,gq0,gt0,gu0,gv0,cld1d,                        &
+     &                rain1,kbot,ktop,kcnv,slmsk,                       &
+     &                VVEL,ncld,ud_mf,dd_mf,dt_mf)
+!hchuang code change 03/03/08 [r1L] add SAS modification of mass flux
+!    &                vvel,rann,ncld)
+
         endif
 
-      if(lprnt) print *,' rain1=',rain1(ipr),' xkt2=',xkt2(ipr,1)
+!      if(me==0.and.kdt==5.and.lat==18)then
+!       print *,'in gbphys,aft sas,kdt=',kdt,'lat=',lat,'im=',im,'gq0=',
+!     &   maxval(gq0(:,:,3)),minval(gq0(:,:,3)),'gq0(2,1,3)=',
+!     &   gq0(2,1,3),'clw=',clw(2,1,3)
+!      endif
 
-      ELSE
+!       if (lprnt) print *,' rain1=',rain1(ipr),' rann=',rann(ipr,1)
 
-!     if(lprnt) print *,' calling RAS for kdt=',kdt,' me=',me
-!    &,' lprnt=',lprnt
+      else    ! if_not_newsas
 
-        CALL RASCNV(IM,     IX,    LEVS,   DTP, DTF, xkt2
-!    &,             GT0,    GQ0,   GU0,    GV0, clw
-     &,             GT0,    GQ0,   GU0,    GV0, clw, 0
-     &,             prsi,   prsl,   prsik,  prslk, phil,  phii
-     &,             KPBL,   CD,     RAIN1,  KBOT,  KTOP,  kcnv
-     &,             phy_f2d(1,num_p2d), flipv, cb2mb
-     &,             me, garea, lmh, ccwfac, nrcm, rhc
-     &,             ud_mf, dd_mf, dt_mf, lprnt, ipr)
-!    &,             me, 1, 1, garea, lprnt, ipr)
-!
-!       do i=1,im
-!         if (tsea(i) .gt. 380.0 .or. tsea(i) .lt. 10) then
-!           print *,' tsea=', tsea(i),' i=',i,' lat=',lat,
-!    &' kdt=',kdt,' xlon=',xlon(i),' xlat=',xlat(i),' slmsk=',
-!    &slmsk(i),' me=',me
-!           stop
-!         endif
-!       enddo
-!     do k=1,levs
-!       do i=1,im
-!         if (gt0(i,k) .gt. 330.0 .or. gt0(i,k) .lt. 80) then
-!           print *,' gt0=', gt0(i,k),' i=',i,' k=',k,' lat=',lat,
-!    &' kdt=',kdt,' xlon=',xlon(i),' xlat=',xlat(i)
-!           stop
-!         endif
-!         if (gq0(i,k,1) .gt. 1.0 ) then
-!           print *,' gq0=', gq0(i,k,1),' i=',i,' k=',k,' lat=',lat,
-!    &' kdt=',kdt
-!           stop
-!         endif
-!       enddo
-!     enddo
-!     if(lprnt) print *,' returning from RAS for kdt=', kdt,' me=',me
+!       if  (lprnt) print *,' calling ras for kdt=',kdt,' me=',me       &
+!    &,                     ' lprnt=',lprnt
+
+        if (ccwf(1) >= 0.0 .or. ccwf(2) >= 0 ) then
+          do i=1,im
+            ccwfac(i) = ccwf(1)*work1(i) + ccwf(2)*work2(i)
+            dlqfac(i) = dlqf(1)*work1(i) + dlqf(2)*work2(i)
+          enddo
+        else
+          ccwfac = -999.0
+          dlqfac = 0.0
+        endif
+
+        call rascnv(im,     ix,    levs,   dtp, dtf, rann               &
+     &,             gt0,    gq0,   gu0,    gv0, clw, tottracer          &
+     &,             prsi,   prsl,   prsik,  prslk, phil,  phii          &
+     &,             kpbl,   cd,     rain1,  kbot,  ktop,  kcnv          &
+     &,             phy_f2d(1,num_p2d), flipv, pa2mb                    &
+     &,             me, garea, lmh, ccwfac, nrcm, rhc                   &
+     &,             ud_mf, dd_mf, dt_mf, dlqfac, lprnt, ipr, kdt, fscav)
+
+!  --- ...  check print
+
+!       if (lprnt) print *,' rain1=',rain1(ipr),' rann=',rann(ipr,1)
 !    &,' lat=',lat
-!
-        CLD1D = 0
-      ENDIF
-!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!     if (me .eq. 0) then
-!     DO K=1,LEVS
-!       do i=1,im
-!         sumq = sumq + (gq0(i,k,1)+clw(i,k,1)+clw(i,k,2)) * del(i,k)
+!       do i = 1, im
+!         if (tsea(i) > 380.0 .or. tsea(i) < 10) then
+!           print *,' tsea=', tsea(i),' i=',i,' lat=',lat,              &
+!    &        ' kdt=',kdt,' xlon=',xlon(i),' xlat=',xlat(i),' slmsk=',  &
+!    &        slmsk(i),' me=',me
+!           stop
+!         endif
 !       enddo
-!     enddo
-!     sumr = 0.0
-!     do i=1,im
-!       sumr = sumr + rain1(i)
-!     enddo
-!     sumq = sumq * 1000.0 / grav
-!     sumr = sumr *1000
-!     print *,' after RAS: sumq=',sumq,' sumr=',sumr, ' kdt=',kdt
-!     endif
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!
-!
-      if(lssav) then
-        do i=1,im
-          CLDWRK(i) = CLDWRK(i) + CLD1D(i) * DTF
-        enddo
-        IF (LDIAG3D) THEN
-          DO K=1,LEVS
-            do i=1,im
-              tem = rcs(i) * FRAIN
-              DT3DT(i,k,4) = DT3DT(i,k,4) + (GT0(i,k)-dtdt(i,k)) * FRAIN
-              DQ3DT(i,k,2) = DQ3DT(i,k,2) + (gq0(i,k,1)-dqdt(i,k,1))
-     &                                                           * FRAIN
-              DU3DT(i,k,3) = DU3DT(i,k,3) + (GU0(i,k)-dudt(i,k)) * tem
-              DV3DT(i,k,3) = DV3DT(i,k,3) + (GV0(i,k)-dvdt(i,k)) * tem
-!             cumflx(i,k)  = cumflx(i,k)  + (ud_mf(i,k)-dd_mf(i,k))
-!    &                                    * (grav*FRAIN)
-              upd_mf(i,k)  = upd_mf(i,k)  + ud_mf(i,k) * (grav*FRAIN)
-              dwn_mf(i,k)  = dwn_mf(i,k)  + dd_mf(i,k) * (grav*FRAIN)
-              det_mf(i,k)  = det_mf(i,k)  + dt_mf(i,k) * (grav*FRAIN)
-            enddo
-          ENDDO
-        ENDIF
 
-! update dqdt_v to include moisture tendency due to deep convection
-        DO K=1,LEVS
-          do i=1,im
-            DQDT_V(i,k) = DQDT_V(i,k) + (gq0(i,k,1)-dqdt(i,k,1))
-     &                                         * FRAIN
-          enddo
-        enddo
-      endif
-!
-      do i=1,im
-        RAINC(i) = FRAIN * RAIN1(i)
-      enddo
-      if(lssav) then
-        do i=1,im
-          BENGSH(i) = BENGSH(i) + RAINC(i)
-        enddo
-      endif
-!
-!************************************************************************
-      if (cnvgwd) then         !        call CONVECTIVE GRAVITY WAVE DRAG
-!
-!-----------------------------------------------------------------------
-!        Calculate Maximum Convective Heating Rate            qmax [K/s]
-!        cuhr = Temperature change due to deep convection
-!-----------------------------------------------------------------------
+!       do k = 1, levs
+!         do i = 1, im
+!           if (gt0(i,k) > 330.0 .or. gt0(i,k) < 80.0) then             &
+!             print *,' gt0=', gt0(i,k),' i=',i,' k=',k,' lat=',lat,    &
+!    &          ' kdt=',kdt,' xlon=',xlon(i),' xlat=',xlat(i)
+!             stop
+!           endif
 
-      do i=1,IM
-        qmax(i)   = 0.
-        cumabs(i) = 0.
-      enddo
-      do k=1,LEVS
-        do i=1,IM
-!         cuhr(i,k) = (GT0(i,k)-DTDT(i,k)) / DTF
-          cuhr(i,k) = (GT0(i,k)-DTDT(i,k)) / DTP    ! Moorthi
-
-          cumchr(i,k) = 0.
-          GWDCU(i,k)  = 0.
-          GWDCV(i,k)  = 0.
-          DIAGN1(i,k) = 0.
-          DIAGN2(i,k) = 0.
-!
-          if (k >= kbot(i) .and. k <= ktop(i)) then
-            qmax(i)     = max(qmax(i),cuhr(i,k))
-            cumabs(i)   = cuhr(i,k) + cumabs(i)
-          endif
-        enddo
-      enddo
-
-      do i=1,IM
-        do k=KBOT(i),KTOP(i)
-          do k1=KBOT(i),k
-            cumchr(i,k) = cuhr(i,k1) + cumchr(i,k)
-          enddo
-          cumchr(i,k) = cumchr(i,k) / cumabs(i)
-        enddo
-      enddo
-!
-      if (lprnt) then
-        if (KBOT(ipr).le.KTOP(ipr)) then
-          write(0,*) 'KBOT <= KTOP     for (lat,lon) = ',
-     &               xlon(ipr)*57.29578,xlat(ipr)*57.29578
-          write(0,*) 'kcnv KBOT KTOP QMAX DLENGTH  ',
-     +    kcnv(ipr),kbot(ipr),ktop(ipr),(86400.*qmax(ipr)),dlength(ipr)
-          write(*,9000) kdt
-          do k=KTOP(ipr),KBOT(ipr),-1
-            write(*,9010) k,(86400.*cuhr(ipr,k)),(100.*cumchr(ipr,k))
-          enddo
-        endif
-
- 9000 format(/,3x,'K',5x,'CUHR(K)',4x,'CUMCHR(K)',5x,'at KDT = ',i4,/)
- 9010 format(2x,i2,2x,f8.2,5x,f6.0)
-!
-        print *,' Before GWDC in GBPHYS fhour ',fhour
-        if (fhour >= fhourpr) then
-          print *,' Before GWDC in GBPHYS start print'
-          write(0,*) 'FHOUR IX IM LEVS = ',fhour,ix,im,levs
-          print *,'dtp  dtf  RCS = ',dtp,dtf,RCS(ipr)
-
-          write(*,9100)
-          k=LEVS+1
-          write(*,9110) k,(10.*prsi(ipr,k))
-          do k=LEVS,1,-1
-            write(*,9120) k,(10.*prsl(ipr,k)),(10.*del(ipr,k))
-            write(*,9110) k,(10.*prsi(ipr,k))
-          enddo
-
- 9100 format(//,14x,'PRESSURE LEVELS',//,
-     +' ILEV',7x,'PRSI',8x,'PRSL',8x,'DELP',/)
- 9110 format(i4,2x,f10.3)
- 9120 format(i4,12x,2(2x,f10.3))
-         write(*,9130)
-          do k=LEVS,1,-1
-            write(*,9140) k,UGRS(ipr,k),GU0(ipr,k),
-     +                      VGRS(ipr,k),GV0(ipr,k),
-     +                      TGRS(ipr,k),GT0(ipr,k),DTDT(ipr,k),
-     +                      dudt(ipr,k),dvdt(ipr,k)
-          enddo
-
- 9130 format(//,10x,'Before GWDC in GBPHYS',//,' ILEV',6x,
-     +'UGRS',9x,'GU0',8x,'VGRS',9x,'GV0',8x,
-     +'TGRS',9x,'GT0',8x,'GT0B',8x,'DUDT',8x,'DVDT',/)
- 9140 format(i4,9(2x,f10.3))
-
-          print *,' Before GWDC in GBPHYS end print'
-
-        endif
-      endif
-      CALL GWDC(IM, IX, IM, LEVS, LAT, UGRS, VGRS, TGRS, QGRS,
-     &          RCS, PRSL, PRSI, DEL, QMAX, CUMCHR, KTOP, KBOT, kcnv,
-     &          GWDCU, GWDCV, grav, CP, RD, fv, dlength,
-     &          lprnt, ipr, fhour,
-     &          DUSFCG,DVSFCG,DIAGN1,DIAGN2)
-!
-      if (lprnt) then
-        if (fhour.ge.fhourpr) then
-          print *,' After GWDC in GBPHYS start print'
-          write(*,9131)
-          do k=LEVS,1,-1
-            write(*,9141) k,UGRS(ipr,k),GU0(ipr,k),
-     +                      VGRS(ipr,k),GV0(ipr,k),
-     +                      TGRS(ipr,k),GT0(ipr,k),DTDT(ipr,k),
-     +                      GWDCU(ipr,k),GWDCV(ipr,k)
-          enddo
-
- 9131 format(//,10x,'After GWDC in GBPHYS',//,' ILEV',6x,
-     +'UGRS',9x,'GU0',8x,'VGRS',9x,'GV0',8x,
-     +'TGRS',9x,'GT0',8x,'GT0B',7x,'GWDCU',7x,'GWDCV',/)
- 9141 format(i4,9(2x,f10.3))
-          print *,' After GWDC in GBPHYS end print'
-        endif
-      endif
-!
-!-----------------------------------------------------------------------
-!        Write out cloud top stress and wind tendencies
-!-----------------------------------------------------------------------
-
-      if(lssav) then
-        do i=1,im
-          DUGWD(i) = DUGWD(i) + DUSFCG(i)*DTF
-          DVGWD(i) = DVGWD(i) + DVSFCG(i)*DTF
-        enddo
-        IF (LDIAG3D) THEN
-          DO K=1,LEVS
-            do i=1,im
-              tem = rcs(i) * dtf
-              DU3DT(i,k,4) = DU3DT(i,k,4) + GWDCU(i,K)*tem
-              DV3DT(i,k,4) = DV3DT(i,k,4) + GWDCV(i,K)*tem
-!             DU3DT(i,k,2) = DU3DT(i,k,2) + DIAGN1(i,K)*tem
-!             DV3DT(i,k,2) = DV3DT(i,k,2) + DIAGN2(i,K)*tem
-            enddo
-          ENDDO
-        ENDIF
-      endif
-
-!-----------------------------------------------------------------------
-!     Update the wind components with  GWDC tendencies
-!-----------------------------------------------------------------------
-
-      DO  K=1,LEVS
-        do i=1,im
-          GU0(i,K)   = GU0(i,K)   + GWDCU(i,K)   * DTP
-          GV0(i,K)   = GV0(i,K)   + GWDCV(i,K)   * DTP
-        enddo
-      enddo
-!
-      if (lprnt) then
-        if (fhour.ge.fhourpr) then
-          print *,' After Tendency GWDC in GBPHYS start print'
-          write(*,9132)
-          do k=LEVS,1,-1
-            write(*,9142) k,UGRS(ipr,k),GU0(ipr,k),VGRS(ipr,k),
-     &      GV0(ipr,k),TGRS(ipr,k),GT0(ipr,k),DTDT(ipr,k),
-     +      GWDCU(ipr,k),GWDCV(ipr,k)
-          enddo
- 9132 format(//,10x,'After Tendency GWDC in GBPHYS',//,' ILEV',6x,
-     +'UGRS',9x,'GU0',8x,'VGRS',9x,'GV0',8x,
-     +'TGRS',9x,'GT0',8x,'GT0B',7x,'GWDCU',7x,'GWDCV',/)
- 9142 format(i4,9(2x,f10.3))
-          print *,' After Tendency GWDC in GBPHYS end print'
-        endif
-      endif
-!
-      endif              !       END CONVECTIVE GRAVITY WAVE DRAG
-!************************************************************************
-!
-      IF (LDIAG3D) THEN
-        do k=1,levs
-          do i=1,im
-            dtdt(i,k)   = GT0(i,k)
-            dqdt(i,k,1) = gq0(i,k,1)
-          enddo
-        enddo
-      ENDIF
-!
-      if (.not. sashal) then
-!       if (lprnt) print *,' levshcm=',levshcm,' gt0sh=',gt0(ipr,:)
-        CALL SHALCVt3(IM,IX,LEVSHCM,dtp,DEL,PRSI,PRSL,PRSLK,
-     &                                           kcnv,GQ0,GT0)  ! for pry
-!L      CALL SHALCV(IM,IX,LEVS,dtp,DEL,PRSI,PRSL,PRSLK,kcnv,GQ0,GT0,DPSHC)
-!       CALL SHALCV(IM,IX,LEVS,dtp,DEL,PRSI,PRSL,PRSLK,kcnv,GQ0,GT0
-!       CALL SHALCV(IM,IX,LEVSHCM,dtp,DEL,PRSI,PRSL,PRSLK,kcnv,GQ0,GT0
-!    &,             levshc,phil,kinver,ctei_r,ctei_rm)
-!    &,             DPSHC,phil,kinver)
-!    &,             DPSHC,kinver)
-!       if (lprnt) print *,' levshcm=',levshcm,' gt0sha=',gt0(ipr,:)
-!
-      else
-          CALL SHALCNV(IM,IX,LEVS,JCAP,dtp,DEL,PRSL,PGR,PHIL,
-     &                CLW,GQ0,GT0,gu0,gv0,rcs,CLD1D,
-     &                RAIN1,KBOT,KTOP,kcnv,SLMSK,
-     &                VVEL,ncld,hpbl)
-!
-        do i=1,im
-          RAINCS(i) = FRAIN * RAIN1(i)
-        enddo
-        if(lssav) then
-          do i=1,im
-            BENGSH(i) = BENGSH(i) + RAINCS(i)
-          enddo
-        endif
-        do i=1,im
-          RAINC(i) = RAINC(i) + RAINCS(i)
-        enddo
-      endif
-!
-      if(lssav) then
-        do i=1,im
-          CLDWRK(i) = CLDWRK(i) + CLD1D(i) * DTF
-        enddo
-        IF (LDIAG3D) THEN
-          DO K=1,LEVS
-            do i=1,im
-              DT3DT(i,k,5) = DT3DT(i,k,5) + (GT0(i,k)-dtdt(i,k)) * FRAIN
-              DQ3DT(i,k,3) = DQ3DT(i,k,3) + (gq0(i,k,1)-dqdt(i,k,1))
-     &                                                           * FRAIN
-            enddo
-          ENDDO
-          do k=1,levs
-            do i=1,im
-              dtdt(i,k)   = GT0(i,k)
-              dqdt(i,k,1) = gq0(i,k,1)
-            enddo
-          enddo
-        ENDIF
-! update dqdt_v to include moisture tendency due to shallow convection
-        DO K=1,LEVS
-          do i=1,im
-            DQDT_V(i,k) = DQDT_V(i,k) + (gq0(i,k,1)-dqdt(i,k,1))
-     &                                         * FRAIN
-          enddo
-        enddo
-      endif
-!
-!
-      DO K=1,LEVS
-        do i=1,im
-          if (CLW(I,K,2) .le. -999.0) CLW(I,K,2) = 0.0
-        enddo
-      ENDDO
-      if (ntcw .gt. 0) then
-        if (num_p3d .eq. 3) then    ! Call Brad Ferrier's Microphysics
-!
-!***          EXTRACT CLOUD WATER & ICE FROM FC_ice
-!
-          DO K=1,LEVS
-            do i=1,im
-!             QI = CLW(I,K)*FC_ice(I,K)
-!             QW = CLW(I,K) - QI
-!
-              QI = CLW(I,K,1)
-              QW = CLW(I,K,2)
-!
-!***          ALGORITHM TO COMBINE DIFFERENT HYDROMETEOR SPECIES
-!
-!             GQ0(i,K,ntcw) = MAX(EPSQ, QI+QW+QR_col(i,K))
-              GQ0(i,K,ntcw) = QI + QW + QR_col(i,K)
-              IF (QI .LE. EPSQ) THEN
-                phy_f3d(I,K,1) = 0.
-              ELSE
-                phy_f3d(I,K,1) = QI/GQ0(i,K,ntcw)
-              ENDIF
-              IF (QR_col(I,K) .LE. EPSQ) THEN
-                phy_f3d(I,K,2) = 0.
-              ELSE
-                phy_f3d(I,K,2) = QR_col(I,K) / (QW+QR_col(I,K))
-              ENDIF
-            enddo
-          ENDDO
-        else
-          DO K=1,LEVS
-            do i=1,im
-!             GQ0(i,K,ntcw) = CLW(i,K) + GQ0(i,K,ntcw)
-              GQ0(i,K,ntcw) = CLW(i,K,1) + clw(i,K,2)
-!             GQ0(i,K,ntcw) = CLW(i,K,1)               ! for pry
-            enddo
-          ENDDO
-        endif
-      else
-        DO K=1,LEVS
-          do i=1,im
-              clw(i,K,1) = CLW(i,K,1) + clw(i,K,2)
-          enddo
-        ENDDO
-
-      endif
-
-!
-      CALL CNVC90(CLSTP, IM,   IX,   RAINC, KBOT, KTOP, LEVS, PRSI,
-     &            aCV,   aCVB, aCVT, CV,    CVB,  CVT)
-!
-!
-      IF (NCLD .EQ. 0) THEN
-        CALL LRGSCL(IX,IM,LEVS,dtp,GT0,GQ0,PRSL,DEL,PRSLK,RAIN1,CLW)
-      ELSEIF (NCLD .EQ. 1) THEN
-!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!     if (me .eq. 0) then
-!     sumq = 0.0
-!     DO K=1,LEVS
-!       do i=1,im
-!         sumq = sumq - (gq0(i,k,1)+gq0(i,k,ntcw)) * del(i,k)
-!       enddo
-!     enddo
-!     endif
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!
-!       To call moist convective adjustment
-!
-!       CALL MSTCNV(IM,IX,LEVS,DTP,GT0,GQ0,PRSL,DEL,PRSLK,RAIN1
-!    &,                                                 lprnt,ipr)
-!       do i=1,im
-!         RAINC(i) = RAINC(i) + FRAIN * RAIN1(i)
-!       enddo
-!       if(lssav) then
-!         do i=1,im
-!           BENGSH(i) = BENGSH(i) + RAIN1(i) * FRAIN
-!         enddo
-!         IF (LDIAG3D) THEN
-!           DO K=1,LEVS
-!             do i=1,im
-!               DT3DT(i,k,4) = DT3DT(i,k,4) + (GT0(i,k)-dtdt(i,k))
-!    &                                      * FRAIN
-!               DQ3DT(i,k,2) = DQ3DT(i,k,2) + (gq0(i,k,1)-dqdt(i,k,1))
-!    &                                      * FRAIN
-!             enddo
-!           ENDDO
-!         ENDIF
-!       endif
-!
-!       IF (LDIAG3D) THEN
-!         do k=1,levs
-!           do i=1,im
-!             dtdt(i,k)   = GT0(i,k)
-!             dqdt(i,k,1) = gq0(i,k,1)
-!           enddo
-!         enddo
-!       ENDIF
-!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!     if (me .eq. 0) then
-!     DO K=1,LEVS
-!       do i=1,im
-!         sumq = sumq + (gq0(i,k,1)+gq0(i,k,ntcw)) * del(i,k)
-!       enddo
-!     enddo
-!     sumr = 0.0
-!     do i=1,im
-!       sumr = sumr + rain1(i)
-!     enddo
-!     sumq = sumq * 1000.0 / grav
-!     sumr = sumr *1000
-!     print *,' after MCN: sumq=',sumq,' sumr=',sumr, ' kdt=',kdt
-!     endif
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!
-!       moist convective adjustment over
-!
-!
-      if (num_p3d .eq. 3) then    ! Call Brad Ferrier's Microphysics
-!
-        do i=1,im
-          xncw(i) = ncw(2) * work1(i) + ncw(1) * work2(i)
-        enddo
-        if (kdt .eq. 1 .and. abs(xlon(1)) .lt. 0.0001)
-     &          print *,' xncw=',xncw(1),' rhc=',rhc(1,1)
-     &, ' work1=',work1(1),' work2=',work2(1),' flgmin=',flgmin_l(1)
-     &, ' lon=',xlon(1) * 57.29578,' lat=',lat,' me=',me
-!    &, ' lon=',xlon(1) * 57.29578,' lat=',xlat(1) * 57.29578
-!    &,' kinver=',kinver(1)
-!
-!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!     if (me .eq. 0) then
-!     sumq = 0.0
-!     DO K=1,LEVS
-!       do i=1,im
-!         sumq = sumq - (gq0(i,k,1)+gq0(i,k,ntcw)) * del(i,k)
-!       enddo
-!     enddo
-!     endif
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!
-!          if (lprnt) print *,' ipr=',ipr,' gt0_gsmb=',gt0(ipr,:)
-!    &,' xlon=',xlon(ipr),' xlat=',xlat(ipr)
-        call GSMDRIVE(IM, IX, LEVS, DTP, PRSL, DEL
-     &,               GT0, GQ0(1,1,1), GQ0(1,1,ntcw), slmsk
-     &,               phy_f3d(1,1,1),  phy_f3d(1,1,2)
-     &,               phy_f3d(1,1,3), RAIN1, SR, grav
-     &,               hvap, hsub, cp, rhc, xncw, flgmin_l
-     &,               me, lprnt, ipr)
-!    &,               hvap, hsub, cp, rhc, xncw, me, lprnt, ipr)
-!
-!          if (lprnt) print *,' ipr=',ipr,' gt0_gsma=',gt0(ipr,:)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!     if (me .eq. 0) then
-!     DO K=1,LEVS
-!       do i=1,im
-!         sumq = sumq + (gq0(i,k,1)+gq0(i,k,ntcw)) * del(i,k)
-!       enddo
-!     enddo
-!     sumr = 0.0
-!     do i=1,im
-!       sumr = sumr + rain1(i)
-!     enddo
-!     sumq = sumq * 1000.0 / grav
-!     sumr = sumr *1000
-!     print *,' after GSM: sumq=',sumq,' sumr=',sumr, ' kdt=',kdt
-!     endif
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!
-!
-      elseif (num_p3d .eq. 4) then ! Call Zhao/Carr/Sundqvist Microphysics
-!
-!   The following commented by Moorthi on 11/01/2002
-!       do k=1,levs/2
-!         do i=1,im
-!!          if (k .le. kinver(i) .and. slmsk(i) .eq. 0.0) then
-!           if (k .le. kinver(i)) then
-!             rhc(i,k) = 0.85
+!           if (gq0(i,k,1) > 1.0 ) then
+!             print *,' gq0=', gq0(i,k,1),' i=',i,' k=',k,' lat=',lat,  &
+!    &          ' kdt=',kdt
+!             stop
 !           endif
 !         enddo
 !       enddo
-!       if (me .eq. 0 .and. kdt .eq. 1 .and. ilon .eq. 1)
-!    &      print *,' rhc=',rhc
-!       if (me .eq. 0 .and. kdt .eq. 1)
-!    &          print *,' rhc=',rhc(1,1)
-!    &, ' lon=',xlon(1) * 57.29578,' lat=',xlat(1) * 57.29578
-!    &,' kinver=',kinver(1)
-!       if (kdt .eq. 1 .and. abs(xlon(1)) .lt. 0.0001)
-!    &          print *,' rhc=',rhc(1,1)
-!    &, ' work1=',work1(1),' work2=',work2(1)
-!    &, ' lon=',xlon(1) * 57.29578,' lat=',lat,' me=',me
-!
-!          if (lprnt) print *,' ipr=',ipr,' gt0_gsc=',gt0(ipr,:)
-!    &,' xlon=',xlon(ipr),' xlat=',xlat(ipr)
-!          if (lprnt) print *,' ipr=',ipr,' gq0_gsc=',gq0(ipr,:,1)
-!    &,' xlon=',xlon(ipr),' xlat=',xlat(ipr)
-!          if (lprnt) print *,' ipr=',ipr,' gc0_gsc=',gq0(ipr,:,ntcw)
-!    &,' xlon=',xlon(ipr),' xlat=',xlat(ipr)
-!          if (lprnt) print *,' ipr=',ipr,' phy_f3d1=',phy_f3d(ipr,:,1)
-!          if (lprnt) print *,' ipr=',ipr,' phy_f3d2=',phy_f3d(ipr,:,2)
-!          if (lprnt) print *,' ipr=',ipr,' phy_f3d3=',phy_f3d(ipr,:,3)
-!          if (lprnt) print *,' ipr=',ipr,' phy_f2d=',
-!    &phy_f2d(ipr,1:num_p2d),' num_p2d=',num_p2d
-!    &,    phy_f2d(ipr,2)
-        CALL GSCOND(IM, IX, LEVS, DTP, PRSL, PGR,
-     &              GQ0(1,1,1), GQ0(1,1,ntcw), GT0,
-     &              phy_f3d(1,1,1), phy_f3d(1,1,2), phy_f2d(1,1),
-     &              phy_f3d(1,1,3), phy_f3d(1,1,4), phy_f2d(1,2),
-!    &              rhc,lprnt)
-     &              rhc,lprnt, ipr)
-        CALL PRECPD(IM, IX, LEVS, DTP, DEL, PRSL, PGR,
-     &              GQ0(1,1,1), GQ0(1,1,ntcw), GT0, RAIN1,
-     &               rhc, lprnt, ipr)
-!    &              GQ0(1,1,1), GQ0(1,1,ntcw), GT0, RAIN1, rhc, lprnt)
-!     if (lprnt) print *,' rain1=',rain1(ipr)
-      endif
-!
-!     ELSEIF (NCLD .EQ. 2) THEN
-!     CALL CLOUD3(1, 1, LEVS,DTP,PSEXP,
-!    1            GT0(1,1),GQ0(1,1,1),GQ0(1,1,ntcw),NCLD,SL,DEL,SLK,
-!    2            RAIN1,LAT,VVEL,KDT,FHOUR)
-!     ELSEIF (NCLD .EQ. 4) THEN
-!     CALL CLOUD5(1, 1, LEVS,DTP,PSEXP,
-!    1            GT0,GQ0(1,1),GQ0(1,ntcw),NCLD,SL,DEL,SLK,
-!    2            RAIN1,LAT,VVEL,KDT,FHOUR)
-!     ELSEIF (NCLD .EQ. 5) THEN
-!     CALL CLOUD6(1, 1, LEVS,DTP,PSEXP,
-!    1            GT0,GQ0(1,1),GQ0(1,ntcw),NCLD,SL,DEL,SLK,
-!    2            RAIN1,LAT,VVEL,KDT,FHOUR)
-      ENDIF
-!
-!     if (lprnt) print *,' rain1=',rain1(ipr),' rainc=',rainc(ipr)
-      do i=1,im
-        RAINL(i) = FRAIN    * RAIN1(i)
-        RAIN(i)  = RAINC(i) + RAINL(i)
-      enddo
 
-!!-> Coupling insertion
-!      if(lssav_cc_dummy) then
-!        PRECR_cc_dummy(1:IM)=PRECR_cc_dummy(1:IM)+RAIN(1:IM)
-!      end if
-!!<- Coupling insertion
+!       if (lprnt) print *,' returning from ras for kdt=', kdt,         &
+!    &                     ' me=',me,' lat=',lat
 
-      if(lssav) then
-        do i=1,im
-          GESHEM(i) = GESHEM(i) + RAIN(i)
-        enddo
-        IF (LDIAG3D) THEN
-          DO K=1,LEVS
-            do i=1,im
-              DT3DT(i,k,6) = DT3DT(i,k,6) + (GT0(i,k)-dtdt(i,k)) * FRAIN
-              DQ3DT(i,k,4) = DQ3DT(i,k,4) + (gq0(i,k,1)-dqdt(i,k,1))
-     &                                                           * FRAIN
+!  --- ...  end check print
+
+        cld1d = 0
+
+!  --- ...  update the tracers due to convective transport
+
+        if (tottracer > 0) then
+          if (ntoz > 0) then                         ! for ozone
+            do k=1,levs
+              do i=1,im
+                gq0(i,k,ntoz) = clw(i,k,3)
+              enddo
             enddo
-          ENDDO
-        ENDIF
-! update dqdt_v to include moisture tendency due to surface processes
-! scale total moisture tendency from (g/kg) to (kg/kg/s)
-        DO K=1,LEVS
-          do i=1,im
-            DQDT_V(i,k) = DQDT_V(i,k) + (gq0(i,k,1)-dqdt(i,k,1))
-     &                                         * FRAIN
-            DQDT_V(i,k) = 1000.* DQDT_V(i,k) / DTF
-          enddo
-        enddo
-      endif
-!
-!  ESTIMATE T850 FOR RAIN-SNOW DECISION
-!
-      do i=1,im
-        T850(i) = GT0(I,1)
-      enddo
-      DO K = 1, LEVS - 1
-        do i=1,im
-          IF(PRSL(I,K) .GT. P850 .AND. PRSL(I,K+1) .LE. P850) THEN
-            T850(i) = GT0(i,K) - (PRSL(i,k)-P850)
-     &              / (PRSL(I,K)-PRSL(I,K+1)) * (GT0(I,K)-GT0(I,K+1))
-          ENDIF
-        enddo
-      ENDDO
 
-!lu [-4L/+3L]: snow-rain detection is performed in land/sice module
-!
-!  FACTOR=WEIGHTED MEAN TEP.
-      do i=1,im
-        TPRCP(i) = RAIN(i)               !! Clu [+1L]: rain -> tprcp
-        SRFLAG(i) = 0.                   !! Clu [+1L]: default srflag as 'rain'
-        IF(T850(i).LE.273.16) THEN
-          SRFLAG(i) = 1.                  !! Clu [+1L]: set srflag to 'snow'
-CWei when call OSU LSM
-          if(lsm.eq.0 .and. SLMSK(i).NE.0.) THEN
-            SHELEG(i) = SHELEG(i) + 1.E3*RAIN(i)  !! neutral impact, for code
-consistency
-            TPRCP(i)  = 0.
+            if (tracers > 0) then                    ! for other tracers
+              do n = 1, tracers
+                do k=1,levs
+                  do i=1,im
+                    gq0(i,k,n+trc_shft) = clw(i,k,3+n)
+                  enddo
+                enddo
+              enddo
+            endif
+          else
+            do n = 1, tracers
+              do k=1,levs
+                do i=1,im
+                  gq0(i,k,n+trc_shft) = clw(i,k,2+n)
+                enddo
+              enddo
+            enddo
           endif
-        ENDIF
-      enddo
-!     if (lprnt) print *,' TPRCP=',tprcp(ipr),' rain=',rain(ipr)
-                                                                                                        
-CWei [+2] when call OSU LSM
+        endif
+      endif   ! end if_not_ras
 !
-!  UPDATE SOIL MOISTURE AND CANOPY WATER AFTER PRECIPITATION computaion
-!
-      if (lsm == 0) then
-        CALL PROGT2(IM,LSOIL,RHSCNPY,RHSMC,AI,BI,CCI,SMSOIL,
-     &              SLMSK,CANOPY,TPRCP,RUNOF,SNOWMT,
-     &              ZSOIL,SOILTYP,SIGMAF,dtf,me)
-                                                                                                        
-CWei [+5]: let soil liquid water equal to soil total water
-        DO K = 1, LSOIL
-          do i=1,im
-           IF(SLMSK(i).EQ.1.) THEN
-            SLSOIL(i,K) = SMSOIL(i,k)
-           ENDIF
-          enddo
-        ENDDO
-      endif
+      if (lssav) then
+        do i = 1, im
+          cldwrk(i) = cldwrk(i) + cld1d(i) * dtf
+        enddo
 
-!
-!  TOTAL RUNOFF IS COMPOSED OF DRAINAGE INTO WATER TABLE AND
-!  RUNOFF AT THE SURFACE AND IS ACCUMULATED IN UNIT OF METERS
-!
-      if(lssav) then
-        do i=1,im
-          RUNOFF(i) = RUNOFF(i) + (DRAIN(i)+RUNOF(i)) * DTF / 1000.0
-Cwei added 10/24/2006
-          SRUNOFF(i) = SRUNOFF(i) + RUNOF(i) * DTF / 1000.0
+        if (ldiag3d) then
+          do k = 1, levs
+            do i = 1, im
+              dt3dt(i,k,4) = dt3dt(i,k,4) + (gt0(i,k)-dtdt(i,k)) * frain
+!             dq3dt(i,k,2) = dq3dt(i,k,2) + (gq0(i,k,1)-dqdt(i,k,1))    &
+!    &                                                           * frain
+              du3dt(i,k,3) = du3dt(i,k,3) + (gu0(i,k)-dudt(i,k)) * frain
+              dv3dt(i,k,3) = dv3dt(i,k,3) + (gv0(i,k)-dvdt(i,k)) * frain
+
+            enddo
+          enddo
+        endif
+        if (ldiag3d .or. lggfs3d) then
+          do k = 1, levs
+            do i = 1, im
+              tem          = (gq0(i,k,1)-dqdt(i,k,1)) * frain
+              dq3dt(i,k,2) = dq3dt(i,k,2) + tem
+              dqdt_v(i,k)  = dqdt_v(i,k)  + tem
+              upd_mf(i,k)  = upd_mf(i,k)  + ud_mf(i,k) * (con_g*frain)
+              dwn_mf(i,k)  = dwn_mf(i,k)  + dd_mf(i,k) * (con_g*frain)
+              det_mf(i,k)  = det_mf(i,k)  + dt_mf(i,k) * (con_g*frain)
+            enddo
+          enddo
+        endif
+      endif   ! end if_lssav
+
+      do i = 1, im
+        rainc(i) = frain * rain1(i)
+      enddo
+
+      if (lssav) then
+        do i = 1, im
+          cnvprcp(i) = cnvprcp(i) + rainc(i)
         enddo
       endif
-       
-!c-- XW: FOR SEA-ICE Nov04
 !
-!  RETURN UPDATED ICE THICKNESS & CONCENTRATION TO GLOBAL ARRAYS
-!
-      do i=1,im
-        IF(SLMSK(i).EQ.2.) THEN
-          HICE(i)  = ZICE(i)
-          FICE(i)  = CICE(i)
-          TISFC(i) = TICE(i)
+      if (cnvgwd) then         !        call convective gravity wave drag
+
+!  --- ...  calculate maximum convective heating rate            qmax [k/s]
+!           cuhr = temperature change due to deep convection
+
+        do i = 1, im
+          qmax(i)   = 0.
+          cumabs(i) = 0.
+        enddo
+
+        do k = 1, levs
+          do i = 1, im
+!           cuhr(i,k) = (gt0(i,k)-dtdt(i,k)) / dtf
+            cuhr(i,k) = (gt0(i,k)-dtdt(i,k)) / dtp    ! moorthi
+
+            cumchr(i,k) = 0.
+            gwdcu(i,k)  = 0.
+            gwdcv(i,k)  = 0.
+            diagn1(i,k) = 0.
+            diagn2(i,k) = 0.
+
+            if (k >= kbot(i) .and. k <= ktop(i)) then
+              qmax(i)     = max(qmax(i),cuhr(i,k))
+              cumabs(i)   = cuhr(i,k) + cumabs(i)
+            endif
+          enddo
+        enddo
+
+        do i = 1, im
+          do k = kbot(i), ktop(i)
+            do k1 = kbot(i), k
+              cumchr(i,k) = cuhr(i,k1) + cumchr(i,k)
+            enddo
+
+            cumchr(i,k) = cumchr(i,k) / cumabs(i)
+          enddo
+        enddo
+
+!  --- ...  check print
+
+        if (lprnt) then
+          if (kbot(ipr) <= ktop(ipr)) then
+            write(*,*) 'kbot <= ktop     for (lat,lon) = ',             &
+     &            xlon(ipr)*57.29578,xlat(ipr)*57.29578
+            write(*,*) 'kcnv kbot ktop qmax dlength  ',kcnv(ipr),       &
+     &            kbot(ipr),ktop(ipr),(86400.*qmax(ipr)),dlength(ipr)
+            write(*,9000) kdt
+ 9000       format(/,3x,'k',5x,'cuhr(k)',4x,'cumchr(k)',5x,             &
+     &            'at kdt = ',i4,/)
+
+            do k = ktop(ipr), kbot(ipr),-1
+              write(*,9010) k,(86400.*cuhr(ipr,k)),(100.*cumchr(ipr,k))
+ 9010         format(2x,i2,2x,f8.2,5x,f6.0)
+            enddo
+          endif
+
+!         print *,' before gwdc in gbphys fhour ',fhour
+
+          if (fhour >= fhourpr) then
+            print *,' before gwdc in gbphys start print'
+            write(*,*) 'fhour ix im levs = ',fhour,ix,im,levs
+            print *,'dtp  dtf  = ',dtp,dtf
+
+            write(*,9100)
+ 9100       format(//,14x,'pressure levels',//                          &
+     &             ' ilev',7x,'prsi',8x,'prsl',8x,'delp',/)
+
+            k = levs + 1
+            write(*,9110) k,(10.*prsi(ipr,k))
+ 9110       format(i4,2x,f10.3)
+
+            do k = levs, 1, -1
+              write(*,9120) k,(10.*prsl(ipr,k)),(10.*del(ipr,k))
+              write(*,9110) k,(10.*prsi(ipr,k))
+            enddo
+ 9120       format(i4,12x,2(2x,f10.3))
+
+            write(*,9130)
+ 9130       format(//,10x,'before gwdc in gbphys',//,' ilev',6x,        &
+     &             'ugrs',9x,'gu0',8x,'vgrs',9x,'gv0',8x,               &
+     &             'tgrs',9x,'gt0',8x,'gt0b',8x,'dudt',8x,'dvdt',/)
+
+            do k = levs, 1, -1
+              write(*,9140) k,ugrs(ipr,k),gu0(ipr,k),                   &
+     &                        vgrs(ipr,k),gv0(ipr,k),                   &
+     &                        tgrs(ipr,k),gt0(ipr,k),dtdt(ipr,k),       &
+     &                        dudt(ipr,k),dvdt(ipr,k)
+            enddo
+ 9140       format(i4,9(2x,f10.3))
+
+            print *,' before gwdc in gbphys end print'
+          endif
+        endif   ! end if_lprnt
+
+!  --- ...  end check print
+
+        call gwdc(im, ix, im, levs, lat, ugrs, vgrs, tgrs, qgrs,        &
+     &           prsl, prsi, del, qmax, cumchr, ktop, kbot, kcnv,       &
+     &          gwdcu, gwdcv,con_g,con_cp,con_rd,con_fvirt, dlength,    &
+     &          lprnt, ipr, fhour,                                      &
+     &          dusfcg,dvsfcg,diagn1,diagn2)
+
+        if (lprnt) then
+          if (fhour >= fhourpr) then
+            print *,' after gwdc in gbphys start print'
+
+            write(*,9131)
+ 9131       format(//,10x,'after gwdc in gbphys',//,' ilev',6x,         &
+     &             'ugrs',9x,'gu0',8x,'vgrs',9x,'gv0',8x,               &
+     &             'tgrs',9x,'gt0',8x,'gt0b',7x,'gwdcu',7x,'gwdcv',/)
+
+            do k = levs, 1, -1
+              write(*,9141) k,ugrs(ipr,k),gu0(ipr,k),                   &
+     &                        vgrs(ipr,k),gv0(ipr,k),                   &
+     &                        tgrs(ipr,k),gt0(ipr,k),dtdt(ipr,k),       &
+     &                        gwdcu(ipr,k),gwdcv(ipr,k)
+            enddo
+ 9141       format(i4,9(2x,f10.3))
+
+            print *,' after gwdc in gbphys end print'
+          endif
+        endif
+
+!  --- ...  write out cloud top stress and wind tendencies
+
+        if (lssav) then
+          do i = 1, im
+            dugwd(i) = dugwd(i) + dusfcg(i)*dtf
+            dvgwd(i) = dvgwd(i) + dvsfcg(i)*dtf
+          enddo
+
+          if (ldiag3d) then
+            do k = 1, levs
+              do i = 1, im
+                du3dt(i,k,4) = du3dt(i,k,4) + gwdcu(i,k)  * dtf
+                dv3dt(i,k,4) = dv3dt(i,k,4) + gwdcv(i,k)  * dtf
+!               du3dt(i,k,2) = du3dt(i,k,2) + diagn1(i,k) * dtf
+!               dv3dt(i,k,2) = dv3dt(i,k,2) + diagn2(i,k) * dtf
+              enddo
+            enddo
+          endif
+        endif   ! end if_lssav
+
+!  --- ...  update the wind components with  gwdc tendencies
+
+        do k = 1, levs
+          do i = 1, im
+            gu0(i,k)   = gu0(i,k)   + gwdcu(i,k)   * dtp
+            gv0(i,k)   = gv0(i,k)   + gwdcv(i,k)   * dtp
+          enddo
+        enddo
+
+        if (lprnt) then
+          if (fhour >= fhourpr) then
+            print *,' after tendency gwdc in gbphys start print'
+
+            write(*,9132)
+ 9132       format(//,10x,'after tendency gwdc in gbphys',//,' ilev',6x,&
+     &             'ugrs',9x,'gu0',8x,'vgrs',9x,'gv0',8x,               &
+     &             'tgrs',9x,'gt0',8x,'gt0b',7x,'gwdcu',7x,'gwdcv',/)
+
+            do k = levs, 1, -1
+              write(*,9142) k,ugrs(ipr,k),gu0(ipr,k),vgrs(ipr,k),       &
+     &              gv0(ipr,k),tgrs(ipr,k),gt0(ipr,k),dtdt(ipr,k),      &
+     &              gwdcu(ipr,k),gwdcv(ipr,k)
+            enddo
+ 9142       format(i4,9(2x,f10.3))
+
+            print *,' after tendency gwdc in gbphys end print'
+          endif
+        endif
+
+      endif   ! end if_cnvgwd (convective gravity wave drag)
+
+      if (ldiag3d) then
+        do k = 1, levs
+          do i = 1, im
+            dtdt(i,k)   = gt0(i,k)
+!           dqdt(i,k,1) = gq0(i,k,1)
+          enddo
+        enddo
+      endif
+      if (ldiag3d .or. lggfs3d) then
+        do k = 1, levs
+          do i = 1, im
+            dqdt(i,k,1) = gq0(i,k,1)
+          enddo
+        enddo
+      endif
+
+      if (shal_cnv) then
+        if (.not. sashal) then
+
+!         if (lprnt) print *,' levshcm=',levshcm,' gt0sh=',gt0(ipr,:)
+!    &,  ' lat=',lat
+
+          if (.not. mstrat) then
+            call shalcvt3(im,ix,levshcm,dtp,del,prsi,prsl,prslk,        &
+     &                    kcnv,gq0,gt0)                             ! for pry
+          else
+            call shalcv(im,ix,levshcm,dtp,del,prsi,prsl,prslk,kcnv,     &
+     &                  gq0,gt0,levshc,phil,kinver,ctei_r,ctei_rml      &
+     &,                                                lprnt,ipr)
+
+!           if (lprnt) print *,' levshcm=',levshcm,' gt0sha=',gt0(ipr,:)
+          endif
+
         else
-          HICE(i)  = 0.0
-          FICE(i)  = 0.0
-          TISFC(i) = TSEA(i)
+
+          call shalcnv(im,ix,levs,jcap,dtp,del,prsl,pgr,phil,           &
+     &                 clw,gq0,gt0,gu0,gv0,                             &
+     &                 rain1,kbot,ktop,kcnv,slmsk,                      &
+     &                 vvel,ncld,hpbl,hflx,evap,ud_mf,dt_mf)
+
+          do i = 1, im
+            raincs(i) = frain * rain1(i)
+          enddo
+
+          if (lssav) then
+            do i = 1, im
+              cnvprcp(i) = cnvprcp(i) + raincs(i)
+            enddo
+          endif
+
+          do i = 1, im
+            rainc(i) = rainc(i) + raincs(i)
+          enddo
+
+          if (lssav) then
+            do i = 1, im
+              cldwrk(i) = cldwrk(i) + cld1d(i) * dtf
+            enddo
+          endif
+
+        endif   ! end if_not_sashal
+      endif   ! end if_shal_cnv
+
+      if (lssav) then
+        if (ldiag3d) then
+          do k = 1, levs
+            do i = 1, im
+              dt3dt(i,k,5) = dt3dt(i,k,5) + (gt0(i,k)-dtdt(i,k)) * frain
+!             dq3dt(i,k,3) = dq3dt(i,k,3) + (gq0(i,k,1)-dqdt(i,k,1))    &
+!    &                                                           * frain
+            enddo
+          enddo
+          do k = 1, levs
+            do i = 1, im
+              dtdt(i,k)   = gt0(i,k)
+!             dqdt(i,k,1) = gq0(i,k,1)
+            enddo
+          enddo
+        endif
+        if (ldiag3d .or. lggfs3d) then
+          do k = 1, levs
+            do i = 1, im
+              tem          = (gq0(i,k,1)-dqdt(i,k,1)) * frain
+              dq3dt(i,k,3) = dq3dt(i,k,3) + tem
+              dqdt_v(i,k)  = dqdt_v(i,k)  + tem
+              dqdt_v(i,k)  = dqdt_v(i,k)  * (1000.0/dtf)
+            enddo
+          enddo
+          do k = 1, levs
+            do i = 1, im
+              dqdt(i,k,1) = gq0(i,k,1)
+            enddo
+          enddo
+        endif
+      endif   ! end if_lssav
+
+      do k = 1, levs
+        do i = 1, im
+          if (clw(i,k,2) <= -999.0) clw(i,k,2) = 0.0
+        enddo
+      enddo
+
+      if (ntcw > 0) then
+
+        if (num_p3d == 3) then    ! call brad ferrier's microphysics
+
+          do k = 1, levs
+            do i = 1, im
+
+!             qi = clw(i,k)*fc_ice(i,k)
+!             qw = clw(i,k) - qi
+              qi = clw(i,k,1)
+              qw = clw(i,k,2)
+
+!  --- ...  algorithm to combine different hydrometeor species
+
+!             gq0(i,k,ntcw) = max(epsq, qi+qw+qr_col(i,k))
+              gq0(i,k,ntcw) = qi + qw + qr_col(i,k)
+
+              if (qi <= epsq) then
+                phy_f3d(i,k,1) = 0.
+              else
+                phy_f3d(i,k,1) = qi/gq0(i,k,ntcw)
+              endif
+
+              if (qr_col(i,k) <= epsq) then
+                phy_f3d(i,k,2) = 0.
+              else
+                phy_f3d(i,k,2) = qr_col(i,k) / (qw+qr_col(i,k))
+              endif
+
+            enddo
+          enddo
+
+        else    ! if_num_p3d
+
+          do k = 1, levs
+            do i = 1, im
+!             gq0(i,k,ntcw) = clw(i,k)   + gq0(i,k,ntcw)
+              gq0(i,k,ntcw) = clw(i,k,1) + clw(i,k,2)
+!             gq0(i,k,ntcw) = clw(i,k,1)               ! for pry
+            enddo
+          enddo
+
+        endif   ! end if_num_p3d
+
+      else    ! if_ntcw
+
+        do k = 1, levs
+          do i = 1, im
+            clw(i,k,1) = clw(i,k,1) + clw(i,k,2)
+          enddo
+        enddo
+
+      endif   ! end if_ntcw
+
+      call cnvc90(clstp, im,   ix,   rainc, kbot, ktop, levs, prsi,     &
+     &            acv,   acvb, acvt, cv,    cvb,  cvt)
+
+      if (ncld == 0) then
+
+        call lrgscl(ix,im,levs,dtp,gt0,gq0,prsl,del,prslk,rain1,clw)
+
+      elseif (ncld == 1) then
+        if (moist_adj) then
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!         if (me .eq. 0) then
+!           sumq = 0.0
+!           DO K=1,LEVS
+!             do i=1,im
+!               sumq = sumq - (gq0(i,k,1)+gq0(i,k,ntcw)) * del(i,k)
+!             enddo
+!           enddo
+!         endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+!         To call moist convective adjustment
+!
+!         if (lprnt) then
+!           print *,' prsl=',prsl(ipr,:)
+!           print *,' del=',del(ipr,:)
+!           print *,' gt0b=',gt0(ipr,:)
+!           print *,' gq0b=',gq0(ipr,:,1)
+!         endif
+
+          call mstcnv(im,ix,levs,dtp,gt0,gq0,prsl,del,prslk,rain1
+     &,                            gq0(1,1,ntcw), rhc, lprnt,ipr)
+
+!         if (lprnt) then
+!           print *,' rain1=',rain1(ipr),' rainc=',rainc(ipr)
+!           print *,' gt0a=',gt0(ipr,:)
+!           print *,' gq0a=',gq0(ipr,:,1)
+!         endif
+          do i=1,im
+            rainc(i) = rainc(i) + frain * rain1(i)
+          enddo
+          if(lssav) then
+            do i=1,im
+              cnvprcp(i) = cnvprcp(i) + rain1(i) * frain
+            enddo
+            if (ldiag3d) then
+              do k=1,levs
+                do i=1,im
+                  dt3dt(i,k,4) = dt3dt(i,k,4) + (gt0(i,k)-dtdt(i,k))
+     &                                        * frain
+!                 dq3dt(i,k,2) = dq3dt(i,k,2) + (gq0(i,k,1)-dqdt(i,k,1))
+!    &                                        * frain
+                enddo
+              enddo
+            endif
+            if (ldiag3d .or. lggfs3d) then
+              do k=1,levs
+                do i=1,im
+                  dq3dt(i,k,2) = dq3dt(i,k,2) + (gq0(i,k,1)-dqdt(i,k,1))
+     &                                        * frain
+                enddo
+              enddo
+            endif
+           endif
+!
+          if (ldiag3d) then
+            do k=1,levs
+              do i=1,im
+                dtdt(i,k)   = gt0(i,k)
+!               dqdt(i,k,1) = gq0(i,k,1)
+              enddo
+            enddo
+          endif
+          if (ldiag3d .or. lggfs3d) then
+            do k=1,levs
+              do i=1,im
+                dqdt(i,k,1) = gq0(i,k,1)
+              enddo
+            enddo
+          ENDIF
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!         if (me .eq. 0) then
+!           DO K=1,LEVS
+!             do i=1,im
+!               sumq = sumq + (gq0(i,k,1)+gq0(i,k,ntcw)) * del(i,k)
+!             enddo
+!           enddo
+!           sumr = 0.0
+!           do i=1,im
+!             sumr = sumr + rain1(i)
+!           enddo
+!           sumq = sumq * 1000.0 / grav
+!           sumr = sumr *1000
+!           print *,' after MCN: sumq=',sumq,' sumr=',sumr, ' kdt=',kdt
+!         endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+        endif               !       moist convective adjustment over
+!
+
+        if (num_p3d == 3) then    ! call brad ferrier's microphysics
+
+          do i = 1, im
+            xncw(i) = ncw(2) * work1(i) + ncw(1) * work2(i)
+          enddo
+
+          if (kdt == 1 .and. abs(xlon(1)) < 0.0001) then
+            print *,' xncw=',xncw(1),' rhc=',rhc(1,1),' work1=',work1(1)&
+     &,         ' work2=',work2(1),' flgmin=',flgmin_l(1)               &
+     &,         ' lon=',xlon(1) * 57.29578,' lat=',lat,' me=',me
+!    &,         ' lon=',xlon(1) * 57.29578,' lat=',xlat(1) * 57.29578
+!    &,         ' kinver=',kinver(1)
+          endif
+
+!         if (lprnt) print *,' ipr=',ipr,' gt0_gsmb=',gt0(ipr,:)        &
+!    &,         ' xlon=',xlon(ipr),' xlat=',xlat(ipr)
+
+          call gsmdrive(im, ix, levs, dtp, prsl, del                    &
+     &,                 gt0, gq0(1,1,1), gq0(1,1,ntcw), slmsk           &
+     &,                 phy_f3d(1,1,1),  phy_f3d(1,1,2)                 &
+     &,                 phy_f3d(1,1,3), rain1, sr, con_g                &
+     &,                 con_hvap, hsub,con_cp, rhc, xncw, flgmin_l      &
+     &,                 me, lprnt, ipr)
+
+!         if (lprnt) print *,' ipr=',ipr,' gt0_gsma=',gt0(ipr,:)
+
+        elseif (num_p3d == 4) then ! call zhao/carr/sundqvist microphysics
+
+          call gscond(im, ix, levs, dtp, prsl, pgr,                     &
+     &                gq0(1,1,1), gq0(1,1,ntcw), gt0,                   &
+     &                phy_f3d(1,1,1), phy_f3d(1,1,2), phy_f2d(1,1),     &
+     &                phy_f3d(1,1,3), phy_f3d(1,1,4), phy_f2d(1,2),     &
+     &                rhc,lprnt, ipr,kdt,lat,me)
+
+          call precpd(im, ix, levs, dtp, del, prsl, pgr,                &
+     &                gq0(1,1,1), gq0(1,1,ntcw), gt0, rain1,            &
+     &                rainp, rhc, psautco_l, prautco_l, evpco,          &
+     &                lprnt, ipr)
+
+        endif   ! end if_num_p3d
+
+      endif   ! end if_ncld
+
+!     if (lprnt) print *,' rain1=',rain1(ipr),' rainc=',rainc(ipr)
+
+
+      do i = 1, im
+        rainl(i) = frain    * rain1(i)
+        rain(i)  = rainc(i) + rainl(i)
+      enddo
+
+!  --- ...  coupling insertion
+
+      if (lssav_cc) then
+        precr_cc(1:im) = precr_cc(1:im) + rain(1:im)
+      endif
+
+!  --- ...  end coupling insertion
+
+      if (cal_pre) then
+!       HCHUANG: add dominant precipitation type algorithm
+
+        call calpreciptype(kdt,nrcm,im,ix,LEVS,LEVS+1,rann,
+     &    xlat,xlon,gt0,gq0,prsl,prsi,RAIN,
+     &    phii,num_p3d,tsea,sr,phy_f3d(1,1,3),    ! input
+     &    DOMR,DOMZR,DOMIP,DOMS)                  ! output
+
+!
+!        if (lprnt) print*,'debug calpreciptype: DOMR,DOMZR,DOMIP,DOMS '
+!     &,DOMR(ipr),DOMZR(ipr),DOMIP(ipr),DOMS(ipr)
+!        do i=1,im
+!         if (abs(xlon(i)*57.29578-114.0) .lt. 0.2  .and.
+!     &    abs(xlat(i)*57.29578-40.0) .lt. 0.2)
+!     &    print*,'debug calpreciptype: DOMR,DOMZR,DOMIP,DOMS ',
+!     &    DOMR(i),DOMZR(i),DOMIP(i),DOMS(i)
+!       end do
+!       HCHUANG: use new precipitation type to decide snow flag for LSM snow accumulation
+        do i=1,im
+          if(DOMS(i) >0.0 .or. DOMIP(i)>0.0)then
+            SRFLAG(i) = 1.
+          else
+            SRFLAG(i) = 0.
+          end if
+        enddo
+      endif
+
+      if (lssav) then
+        do i = 1, im
+          totprcp(i) = totprcp(i) + rain(i)
+        enddo
+
+        if (ldiag3d) then
+          do k = 1, levs
+            do i = 1, im
+              dt3dt(i,k,6) = dt3dt(i,k,6) + (gt0(i,k)-dtdt(i,k)) * frain
+!             dq3dt(i,k,4) = dq3dt(i,k,4) + (gq0(i,k,1)-dqdt(i,k,1))    &
+!    &                                                           * frain
+            enddo
+          enddo
+        endif
+        if (ldiag3d .or. lggfs3d) then
+          do k = 1, levs
+            do i = 1, im
+              dq3dt(i,k,4) = dq3dt(i,k,4) + (gq0(i,k,1)-dqdt(i,k,1))    &
+     &                                                           * frain
+            enddo
+          enddo
+        endif
+!hchuang code change [+8L] 10/08/2008 rnp is 1.E+3 m/dtp, with mutiply by frain dtf/dtp
+!              rnp becomes rain (km) amount when output it will become
+!              rnp/(total time)  that is km/s
+        if (lggfs3d) then
+          do k = 1, levs
+            do i = 1, im
+              rnp(i,k) = rainp(i,k) * frain ! 3D large scale liqid rain amount
+                                            ! of one DTF time period in mm
+            enddo
+          enddo
+        endif
+      endif
+
+!  --- ...  estimate t850 for rain-snow decision
+
+      do i = 1, im
+        t850(i) = gt0(i,1)
+      enddo
+
+      do k = 1, levs - 1
+        do i = 1, im
+          if (prsl(i,k) > p850 .and. prsl(i,k+1) <= p850) then
+            t850(i) = gt0(i,k) - (prsl(i,k)-p850)                       &
+     &              / (prsl(i,k)-prsl(i,k+1)) * (gt0(i,k)-gt0(i,k+1))
+          endif
+        enddo
+      enddo
+
+!  --- ...  lu: snow-rain detection is performed in land/sice module
+
+      if (cal_pre) then ! HCHUANG: new precip type algorithm defines srflag
+        do i = 1, im
+          tprcp(i) = rain(i)            ! clu: rain -> tprcp
+          if (t850(i) <= 273.16) then
+!  --- ...  wei: when call osu lsm, neutral impact, for code consistency
+            if (lsm == 0 .and. slmsk(i) /= 0.0) then
+              weasd(i)  = weasd(i) + 1.e3*rain(i)
+              tprcp(i)  = 0.
+            endif
+          endif
+        enddo
+      else
+        do i = 1, im
+          tprcp(i) = rain(i)            ! clu: rain -> tprcp
+          srflag(i) = 0.                ! clu: default srflag as 'rain' (i.e. 0)
+
+          if (t850(i) <= 273.16) then
+            srflag(i) = 1.              ! clu: set srflag to 'snow' (i.e. 1)
+!  --- ...  wei: when call osu lsm, neutral impact, for code consistency
+            if (lsm == 0 .and. slmsk(i) /= 0.0) then
+              weasd(i)  = weasd(i) + 1.e3*rain(i)
+              tprcp(i)  = 0.
+            endif
+          endif
+        enddo
+      endif
+
+!     if (lprnt) print *,' tprcp=',tprcp(ipr),' rain=',rain(ipr)
+
+!  --- ...  cpl insertion
+
+      do i = 1, im
+!       if (t850(i) <= 273.16 .and. slmsk(i) /= 0.) then
+        if (t850(i) <= 273.16) then
+           lprec_cc(i) = 0.0
+           snw_cc(i)   = rain(i)
+        else
+           lprec_cc(i) = rain(i)
+           snw_cc(i)   = 0.0
         endif
       enddo
-!c-- XW: END SEA-ICE
-       
-Clu [-10L]: comment out smc/stc update
-!
-!  RETURN UPDATED SMSOIL AND STSOIL TO GLOBAL ARRAYS
-!
-      DO K = 1, LSOIL
-        do i=1,im
-          SMC(i,k) = SMSOIL(i,K)
-          STC(i,k) = STSOIL(i,K)
-          SLC(i,k) = SLSOIL(i,K)
+
+!  --- ...  wei: when call osu lsm
+!           update soil moisture and canopy water after precipitation computaion
+
+      if (lsm == 0) then
+
+        call progt2(im,lsoil,rhscnpy,rhsmc,ai,bi,cci,smsoil,            &
+     &              slmsk,canopy,tprcp,runof,snowmt,                    &
+     &              zsoil,soiltyp,sigmaf,dtf,me)
+
+!  --- ...  wei: let soil liquid water equal to soil total water
+
+        do k = 1, lsoil
+          do i = 1, im
+            if (slmsk(i) == 1.) then
+              slsoil(i,k) = smsoil(i,k)
+             endif
+          enddo
         enddo
-      ENDDO
-!
-! calc. integral of moistue in pwat
-!
-      do i=1,im
-        PWAT(i) = 0.
+
+      endif   ! end if_lsm
+
+!  --- ...  total runoff is composed of drainage into water table and
+!           runoff at the surface and is accumulated in unit of meters
+
+      if (lssav) then
+        tem = dtf * 0.001
+        do i = 1, im
+          runoff(i)  = runoff(i)  + (drain(i)+runof(i)) * tem
+          srunoff(i) = srunoff(i) + runof(i) * tem
+!hchaung 11/19/2007 [+1L] ;  top soil moisture unit is in mm
+          gsoil(i)   =  gsoil(i)  + smsoil(i,1)  * dtf
+        enddo
+      endif
+       
+!  --- ...  xw: return updated ice thickness & concentration to global array
+
+      do i = 1, im
+        if (slmsk(i) == 2.) then
+          hice(i)  = zice(i)
+          fice(i)  = cice(i)
+          tisfc(i) = tice(i)
+        else
+          hice(i)  = 0.0
+          fice(i)  = 0.0
+          tisfc(i) = tsea(i)
+        endif
       enddo
-      DO K=1,LEVS
-        do i=1,im
+
+!  --- ...  return updated smsoil and stsoil to global arrays
+
+      do k = 1, lsoil
+        do i = 1, im
+          smc(i,k) = smsoil(i,k)
+          stc(i,k) = stsoil(i,k)
+          slc(i,k) = slsoil(i,k)
+        enddo
+      enddo
+
+!  --- ...  calculate column precipitable water "pwat"
+
+      do i = 1, im
+        pwat(i)  = 0.
+        rqtk(i)  = 0.
+        work2(i) = 1.0 / pgr(i)
+      enddo
+
+      do k = 1, levs
+        do i = 1, im
           work1(i) = 0.0
         enddo
-        if (ncld .gt. 0) then
-          do ic=ntcw, ntcw+ncld-1
-            do i=1,im
-!             work1(i) = work1(i) + max(gq0(i,k,ic), qmin)
+
+        if (ncld > 0) then
+          do ic = ntcw, ntcw+ncld-1
+            do i = 1, im
               work1(i) = work1(i) + gq0(i,k,ic)
             enddo
           enddo
         endif
-        do i=1,im
-! inside this routine, let t as dry temperature only            ! hmhj
-!         work2(i) = 1.0 + fv * max(gq0(i,k,1),qmin)            ! hmhj
-!         GT0(i,K) = GT0(i,K) * work2(i)                        ! hmhj
-          PWAT(i)  = PWAT(i)  + DEL(i,K)*(GQ0(i,K,1)+work1(i))
+
+        do i = 1, im
+          pwat(i) = pwat(i) + del(i,k)*(gq0(i,k,1)+work1(i))
+          rqtk(i) = rqtk(i) + del(i,k)*(gq0(i,k,1)-qgrs(i,k,1))
         enddo
-      ENDDO
-  490 CONTINUE
-      do i=1,im
-        PWAT(i)  = PWAT(i)*(1.E3/grav)
+      enddo
+
+      do i = 1, im
+        pwat(i) = pwat(i) * (1.0/con_g)
+        rqtk(i) = rqtk(i) * work2(i)
       enddo
 !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!     if (me .eq. 0) then
-!     do i=1,im
-!       tem1 = dqsfc(i) - evapo(i)
-!       tem2 = geshem(i) - raino(i)
-!     print *,' pwatdif=',pwat(i)-pwato(i),' Edif=',tem1
-!    &,' Pdif=',tem2,' E-P=',(tem1/hvap-tem2*1000)/frain
-!    &,' pwato=',pwato(i),' pwat=',pwat(i)
-!     enddo
-!     endif
-!     if (lprnt) then
-!       do i=1,im
-!          print *,' i=',i,' gt0=',gt0(i,:),' kdt=',kdt
-!    &,' xlon=',xlon(i)*57.296,' xlat(i)=',xlat(i)*57.296
-!          print *,' ipr=',ipr,' gt0=',gt0(ipr,:),' kdt=',kdt,' ipr='
-!       print *,' gt0E=',gt0(ipr,:)
-!    &,' xlon=',xlon(ipr),' xlat=',xlat(ipr)
-!       print *,' gu0=',gu0(ipr,:)
-!       print *,' gv0=',gv0(ipr,:)
-!       print *,' gq0=',gq0(ipr,:,3)
-!       print *,' gq0=',gq0(ipr,14,3)
-!    &,' xlon=',xlon(ipr),' xlat=',xlat(ipr)
-!    &,ipr
-!       enddo
-!     endif
-!     do i=1,im
-!        print *,' i=',i,' me=',me,' lat=',lat,' gt0=',gt0(i,:)
-!     enddo
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      deallocate (clw)
 !
-!
-!     CALL dscal(LEVS*IX,rcl,GU0,1) ! Commented by Moorthi -- Moved to gbphys_call.f
-!     CALL dscal(LEVS*IX,rcl,GV0,1)
-!
-csela  write(66,103)gq0(1,2),gq0(levs,2)
-103    format(1h ,' at end  ozphys gq0(1,2) gq0(levs,2)',2(2x,e12.3))  
+!     write(0,*)' pwat in gbphys',(pwat(i),i=1,im)
+!     if (lprnt) call mpi_quit(7)
+!     if (kdt == 1)  call mpi_quit(701)
 
-!     if(lprnt) call mpi_quit(7)
-!     if (kdt .gt. 1)  call mpi_quit(7)
-!
-      RETURN
-      END
+      return
+!...................................
+      end subroutine gbphys
+!-----------------------------------
 

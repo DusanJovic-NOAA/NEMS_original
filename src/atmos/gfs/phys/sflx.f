@@ -1,5045 +1,5379 @@
-      SUBROUTINE SFLX (
-Clu.....add COUPLE
-C     C  FFROZP,ICE,DT,ZLVL,NSOIL,SLDPTH,
-     C  COUPLE,FFROZP,ICEIN,DT,ZLVL,NSOIL,SLDPTH,
-Clu.....pass in RADFLX instead of SOLDN and SOLNET
-Clu  F  LWDN,SOLDN,SOLNET,SFCPRS,PRCP,SFCTMP,Q2,SFCSPD,
-     F  LWDN,SWDN, RADFLX,SFCPRS,PRCP,SFCTMP,Q2,SFCSPD,
-     I  TH2,Q2SAT,DQSDT2,
-     S  VEGTYP,SOILTYP,SLOPETYP,SHDFAC,SHDMIN,PTU,ALB,SNOALB,TBOT,
-     H  CMC,T1,STC,SMC,SH2O,SNOWH,SNEQV,ALBEDO,CH,CM,
-     O  ETA,SHEAT,
-C ----------------------------------------------------------------------
-C OUTPUTS, DIAGNOSTICS, PARAMETERS BELOW GENERALLY NOT NECESSARY WHEN
-C COUPLED WITH E.G. A NWP MODEL (SUCH AS THE NOAA/NWS/NCEP MESOSCALE ETA
-C MODEL).  OTHER APPLICATIONS MAY REQUIRE DIFFERENT OUTPUT VARIABLES. 
-C ----------------------------------------------------------------------
-     O  EC,EDIR,ET,ETT,ESNOW,DRIP,DEW,
-     O  BETA,ETP,SSOIL,
-     O  FLX1,FLX2,FLX3,
-     O  SNOMLT,SNCOVR,
-     O  RUNOFF1,RUNOFF2,RUNOFF3,
-     O  RC,PC,RSMIN,XLAI,RCS,RCT,RCQ,RCSOIL,
-     D  SOILW,SOILM,
-     P  SMCWLT,SMCDRY,SMCREF,SMCMAX,NROOT)
+!-----------------------------------
+      subroutine sflx                                                   &
+!...................................
+!  ---  inputs:
+     &     ( nsoil, couple, icein, ffrozp, dt, zlvl, sldpth,            &
+     &       swdn, swnet, lwdn, sfcems, sfcprs, sfctmp,                 &
+     &       sfcspd, prcp, q2, q2sat, dqsdt2, th2,                      &
+     &       vegtyp, soiltyp, slopetyp, shdmin, alb, snoalb,            &
+!  ---  input/outputs:
+     &       tbot, cmc, t1, stc, smc, sh2o, sneqv, ch, cm,              &
+!  ---  outputs:
+     &       nroot, shdfac, snowh, albedo, eta, sheat, ec,              &
+     &       edir, et, ett, esnow, drip, dew, beta, etp, ssoil,         &
+     &       flx1, flx2, flx3, runoff1, runoff2, runoff3,               &
+     &       snomlt, sncovr, rc, pc, rsmin, xlai, rcs, rct, rcq,        &
+     &       rcsoil, soilw, soilm, smcwlt, smcdry, smcref, smcmax       &
+     &     )
 
-      IMPLICIT NONE
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!  subroutine sflx - version 2.7:                                       !
+!  sub-driver for "noah/osu lsm" family of physics subroutines for a    !
+!  soil/veg/snowpack land-surface model to update soil moisture, soil   !
+!  ice, soil temperature, skin temperature, snowpack water content,     !
+!  snowdepth, and all terms of the surface energy balance and surface   !
+!  water balance (excluding input atmospheric forcings of downward      !
+!  radiation and precip)                                                !
+!                                                                       !
+!  usage:                                                               !
+!                                                                       !
+!      call sflx                                                        !
+!  ---  inputs:                                                         !
+!          ( nsoil, couple, icein, ffrozp, dt, zlvl, sldpth,            !
+!            swdn, swnet, lwdn, sfcems, sfcprs, sfctmp,                 !
+!            sfcspd, prcp, q2, q2sat, dqsdt2, th2,                      !
+!            vegtyp, soiltyp, slopetyp, shdmin, alb, snoalb,            !
+!  ---  input/outputs:                                                  !
+!            tbot, cmc, t1, stc, smc, sh2o, sneqv, ch, cm,              !
+!  ---  outputs:                                                        !
+!            nroot, shdfac, snowh, albedo, eta, sheat, ec,              !
+!            edir, et, ett, esnow, drip, dew, beta, etp, ssoil,         !
+!            flx1, flx2, flx3, runoff1, runoff2, runoff3,               !
+!            snomlt, sncovr, rc, pc, rsmin, xlai, rcs, rct, rcq,        !
+!            rcsoil, soilw, soilm, smcwlt, smcdry, smcref, smcmax )     !
+!                                                                       !
+!                                                                       !
+!  subprograms called:  redprm, snow_new, csnow, snfrac, alcalc,        !
+!            tdfcnd, snowz0, sfcdif, penman, canres, nopac, snopac.     !
+!                                                                       !
+!                                                                       !
+!  program history log:                                                 !
+!    jun  2003  -- K. Mitchell et. al -- created version 2.7            !
+!         200x  -- sarah lu    modified the code including:             !
+!                       added passing argument, couple; replaced soldn  !
+!                       and solnet by radflx; call sfcdif if couple=0;  !
+!                       apply time filter to stc and tskin; and the     !
+!                       way of namelist inport.                         !
+!    feb  2004 -- m. ek noah v2.7.1 non-linear weighting of snow vs     !
+!                       non-snow covered portions of gridbox            !
+!    apr  2009  -- y.-t. hou   added lw surface emissivity effect,      !
+!                       streamlined and reformatted the code, and       !
+!                       consolidated constents/parameters by using      !
+!                       module physcons, and added program documentation!               !
+!    sep  2009 -- s. moorthi minor fixes
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     nsoil    - integer, number of soil layers (>=2 but <=nsold)  1    !
+!     couple   - integer, =0:uncoupled (land model only)           1    !
+!                         =1:coupled with parent atmos model            !
+!     icein    - integer, sea-ice flag (=1: sea-ice, =0: land)     1    !
+!     ffrozp   - real,                                             1    !
+!     dt       - real, time step (<3600 sec)                       1    !
+!     zlvl     - real, height abv atmos ground forcing vars (m)    1    !
+!     sldpth   - real, thickness of each soil layer (m)          nsoil  !
+!     swdn     - real, downward sw radiation flux (w/m**2)         1    !
+!     swnet    - real, downward sw net (dn-up) flux (w/m**2)       1    !
+!     lwdn     - real, downward lw radiation flux (w/m**2)         1    !
+!     sfcems   - real, sfc lw emissivity (fractional)              1    !
+!     sfcprs   - real, pressure at height zlvl abv ground(pascals) 1    !
+!     sfctmp   - real, air temp at height zlvl abv ground (k)      1    !
+!     sfcspd   - real, wind speed at height zlvl abv ground (m/s)  1    !
+!     prcp     - real, precip rate (kg m-2 s-1)                    1    !
+!     q2       - real, mixing ratio at hght zlvl abv grnd (kg/kg)  1    !
+!     q2sat    - real, sat mixing ratio at zlvl abv grnd (kg/kg)   1    !
+!     dqsdt2   - real, slope of sat specific humidity curve at     1    !
+!                      t=sfctmp (kg kg-1 k-1)                           !
+!     th2      - real, air potential temp at zlvl abv grnd (k)     1    !
+!     vegtyp   - integer, vegetation type (integer index)          1    !
+!     soiltyp  - integer, soil type (integer index)                1    !
+!     slopetyp - integer, class of sfc slope (integer index)       1    !
+!     shdmin   - real, min areal coverage of green veg (fraction)  1    !
+!     alb      - real, bkground snow-free sfc albedo (fraction)    1    !
+!     snoalb   - real, max albedo over deep snow     (fraction)    1    !
+!                                                                       !
+!  input/outputs:                                                       !
+!     tbot     - real, bottom soil temp (k)                        1    !
+!                      (local yearly-mean sfc air temp)                 !
+!     cmc      - real, canopy moisture content (m)                 1    !
+!     t1       - real, ground/canopy/snowpack eff skin temp (k)    1    !
+!     stc      - real, soil temp (k)                             nsoil  !
+!     smc      - real, total soil moisture (vol fraction)        nsoil  !
+!     sh2o     - real, unfrozen soil moisture (vol fraction)     nsoil  !
+!                      note: frozen part = smc-sh2o                     !
+!     sneqv    - real, water-equivalent snow depth (m)             1    !
+!                      note: snow density = snwqv/snowh                 !
+!     ch       - real, sfc exchange coeff for heat & moisture (m/s)1    !
+!                      note: conductance since it's been mult by wind   !
+!     cm       - real, sfc exchange coeff for momentum (m/s)       1    !
+!                      note: conductance since it's been mult by wind   !
+!                                                                       !
+!  outputs:                                                             !
+!     nroot    - integer, number of root layers                    1    !
+!     shdfac   - real, aeral coverage of green veg (fraction)      1    !
+!     snowh    - real, snow depth (m)                              1    !
+!     albedo   - real, sfc albedo incl snow effect (fraction)      1    !
+!     eta      - real, downward latent heat flux (w/m2)            1    !
+!     sheat    - real, downward sensible heat flux (w/m2)          1    !
+!     ec       - real, canopy water evaporation (w/m2)             1    !
+!     edir     - real, direct soil evaporation (w/m2)              1    !
+!     et       - real, plant transpiration     (w/m2)            nsoil  !
+!     ett      - real, total plant transpiration (w/m2)            1    !
+!     esnow    - real, sublimation from snowpack (w/m2)            1    !
+!     drip     - real, through-fall of precip and/or dew in excess 1    !
+!                      of canopy water-holding capacity (m)             !
+!     dew      - real, dewfall (or frostfall for t<273.15) (m)     1    !
+!     beta     - real, ratio of actual/potential evap              1    !
+!     etp      - real, potential evaporation (w/m2)                1    !
+!     ssoil    - real, upward soil heat flux (w/m2)                1    !
+!     flx1     - real, precip-snow sfc flux  (w/m2)                1    !
+!     flx2     - real, freezing rain latent heat flux (w/m2)       1    !
+!     flx3     - real, phase-change heat flux from snowmelt (w/m2) 1    !
+!     snomlt   - real, snow melt (m) (water equivalent)            1    !
+!     sncovr   - real, fractional snow cover                       1    !
+!     runoff1  - real, surface runoff (m/s) not infiltrating sfc   1    !
+!     runoff2  - real, sub sfc runoff (m/s) (baseflow)             1    !
+!     runoff3  - real, excess of porosity for a given soil layer   1    !
+!     rc       - real, canopy resistance (s/m)                     1    !
+!     pc       - real, plant coeff (fraction) where pc*etp=transpi 1    !
+!     rsmin    - real, minimum canopy resistance (s/m)             1    !
+!     xlai     - real, leaf area index  (dimensionless)            1    !
+!     rcs      - real, incoming solar rc factor  (dimensionless)   1    !
+!     rct      - real, air temp rc factor        (dimensionless)   1    !
+!     rcq      - real, atoms vapor press deficit rc factor         1    !
+!     rcsoil   - real, soil moisture rc factor   (dimensionless)   1    !
+!     soilw    - real, available soil mois in root zone            1    !
+!     soilm    - real, total soil column mois (frozen+unfrozen) (m)1    !
+!     smcwlt   - real, wilting point (volumetric)                  1    !
+!     smcdry   - real, dry soil mois threshold (volumetric)        1    !
+!     smcref   - real, soil mois threshold     (volumetric)        1    !
+!     smcmax   - real, porosity (sat val of soil mois)             1    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+      use machine ,   only : kind_phys
+!
+      use physcons,   only : con_cp, con_rd, con_t0c, con_g, con_pi,    &
+     &                       con_cliq, con_csol, con_hvap, con_hfus,    &
+     &                       con_sbc
+!
+      implicit none
 
-Clu ---------------------------------------------------------------------
-C (1) MODIFY CALLING ARGUMENT
-C     1. ADD 'COUPLE' (=1: COUPLED, =0: UNCOUPLED)
-C     2. REPLACE (SOLDN,SOLNET) BY (RADFLX)
-C (2) MODIFY SOURCE CODE
-C     1. INVOKE THE SECTION OF SFCDIF IF COUPLE=0
-C     2. APPLY TIME FILTER TO STC AND TSKIN
-C     3. MODIFY HOW NAMELIST IS READ IN
-Clu ---------------------------------------------------------------------
+!  ---  constant parameters:
+!      *** note: some of the constants are different in subprograms and need to
+!          be consolidated with the standard def in module physcons at sometime
+!          at the present time, those diverse values are kept temperately to 
+!          provide the same result as the original codes.  -- y.t.h.  may09
 
-C ----------------------------------------------------------------------
-C SUBROUTINE SFLX - VERSION 2.7 - June 2nd 2003
-C ----------------------------------------------------------------------
-C SUB-DRIVER FOR "NOAH/OSU LSM" FAMILY OF PHYSICS SUBROUTINES FOR A
-C SOIL/VEG/SNOWPACK LAND-SURFACE MODEL TO UPDATE SOIL MOISTURE, SOIL
-C ICE, SOIL TEMPERATURE, SKIN TEMPERATURE, SNOWPACK WATER CONTENT,
-C SNOWDEPTH, AND ALL TERMS OF THE SURFACE ENERGY BALANCE AND SURFACE
-C WATER BALANCE (EXCLUDING INPUT ATMOSPHERIC FORCINGS OF DOWNWARD
-C RADIATION AND PRECIP)
-C ----------------------------------------------------------------------
-C SFLX ARGUMENT LIST KEY:
-C ----------------------------------------------------------------------
-C  C  CONFIGURATION INFORMATION
-C  F  FORCING DATA
-C  I  OTHER (INPUT) FORCING DATA
-C  S  SURFACE CHARACTERISTICS
-C  H  HISTORY (STATE) VARIABLES
-C  O  OUTPUT VARIABLES
-C  D  DIAGNOSTIC OUTPUT
-C ----------------------------------------------------------------------
-C 1. CONFIGURATION INFORMATION (C):
-C ----------------------------------------------------------------------
-C   COUPLE     0=UNCOUPLED (LAND MODEL ONLY)
-C              1=COUPLED ...WITH PARENT ATMOS MODEL
-C   ICEIN      SEA-ICE FLAG  (= 1: SEA-ICE, = 0: LAND)
-C   DT	       TIMESTEP (SEC) (DT SHOULD NOT EXCEED 3600 SECS, RECOMMEND
-C                1800 SECS OR LESS)
-C   ZLVL       HEIGHT (M) ABOVE GROUND OF ATMOSPHERIC FORCING VARIABLES
-C   NSOIL      NUMBER OF SOIL LAYERS (AT LEAST 2, AND NOT GREATER THAN
-C                PARAMETER NSOLD SET BELOW)
-C   SLDPTH     THE THICKNESS OF EACH SOIL LAYER (M)
-C ----------------------------------------------------------------------
-C 2. FORCING DATA (F):
-C ----------------------------------------------------------------------
-C   LWDN       LW DOWNWARD RADIATION (W M-2; POSITIVE, NOT NET LONGWAVE)
-C   SWDN       SW DOWNWARD RADIATION (W M-2; POSITIVE, NOT NET SHORTWAVE)
-C   RADFLX     COUPLED MODE   = NET SOLAR + DOWNWARD LONGWAVE
-C              UNCOUPLED MODE = DOWNWARD (INCOMING) SOLAR, NOT NET SOLAR
-C   SOLDN      SOLAR DOWNWARD RADIATION (W M-2; POSITIVE, NOT NET SOLAR)
-C   SOLNET     NET SOLAR DOWNWARD RADIATION (W M-2; POSITIVE)
-C   SFCPRS     PRESSURE AT HEIGHT ZLVL ABOVE GROUND (PASCALS)
-C   PRCP       PRECIP RATE (KG M-2 S-1) (NOTE, THIS IS A RATE)
-C   SFCTMP     AIR TEMPERATURE (K) AT HEIGHT ZLVL ABOVE GROUND
-C   TH2        AIR POTENTIAL TEMPERATURE (K) AT HEIGHT ZLVL ABOVE GROUND
-C   Q2         MIXING RATIO AT HEIGHT ZLVL ABOVE GROUND (KG KG-1)
-C ----------------------------------------------------------------------
-C 3. OTHER FORCING (INPUT) DATA (I):
-C ----------------------------------------------------------------------
-C   SFCSPD     WIND SPEED (M S-1) AT HEIGHT ZLVL ABOVE GROUND
-C   Q2SAT      SAT MIXING RATIO AT HEIGHT ZLVL ABOVE GROUND (KG KG-1)
-C   DQSDT2     SLOPE OF SAT SPECIFIC HUMIDITY CURVE AT T=SFCTMP
-C                (KG KG-1 K-1)
-C ----------------------------------------------------------------------
-C 4. CANOPY/SOIL CHARACTERISTICS (S):
-C ----------------------------------------------------------------------
-C   VEGTYP     VEGETATION TYPE (INTEGER INDEX)
-C   SOILTYP    SOIL TYPE (INTEGER INDEX)
-C   SLOPETYP   CLASS OF SFC SLOPE (INTEGER INDEX)
-C   SHDFAC     AREAL FRACTIONAL COVERAGE OF GREEN VEGETATION
-C                (FRACTION= 0.0-1.0)
-C   SHDMIN     MINIMUM AREAL FRACTIONAL COVERAGE OF GREEN VEGETATION
-C                (FRACTION= 0.0-1.0) <= SHDFAC
-C   PTU        PHOTO THERMAL UNIT (PLANT PHENOLOGY FOR ANNUALS/CROPS)
-C                (NOT YET USED, BUT PASSED TO REDPRM FOR FUTURE USE IN
-C                VEG PARMS)
-C   ALB        BACKROUND SNOW-FREE SURFACE ALBEDO (FRACTION), FOR JULIAN
-C                DAY OF YEAR (USUALLY FROM TEMPORAL INTERPOLATION OF
-C                MONTHLY MEAN VALUES' CALLING PROG MAY OR MAY NOT
-C                INCLUDE DIURNAL SUN ANGLE EFFECT)
-C   SNOALB     UPPER BOUND ON MAXIMUM ALBEDO OVER DEEP SNOW (E.G. FROM
-C                ROBINSON AND KUKLA, 1985, J. CLIM. & APPL. METEOR.)
-C   TBOT       BOTTOM SOIL TEMPERATURE (LOCAL YEARLY-MEAN SFC AIR
-C                TEMPERATURE)
-C ----------------------------------------------------------------------
-C 5. HISTORY (STATE) VARIABLES (H):
-C ----------------------------------------------------------------------
-C  CMC         CANOPY MOISTURE CONTENT (M)
-C  T1          GROUND/CANOPY/SNOWPACK) EFFECTIVE SKIN TEMPERATURE (K)
-C  STC(NSOIL)  SOIL TEMP (K)
-C  SMC(NSOIL)  TOTAL SOIL MOISTURE CONTENT (VOLUMETRIC FRACTION)
-C  SH2O(NSOIL) UNFROZEN SOIL MOISTURE CONTENT (VOLUMETRIC FRACTION)
-C                NOTE: FROZEN SOIL MOISTURE = SMC - SH2O
-C  SNOWH       ACTUAL SNOW DEPTH (M)
-C  SNEQV       LIQUID WATER-EQUIVALENT SNOW DEPTH (M)
-C                NOTE: SNOW DENSITY = SNEQV/SNOWH
-C  ALBEDO      SURFACE ALBEDO INCLUDING SNOW EFFECT (UNITLESS FRACTION)
-C                =SNOW-FREE ALBEDO (ALB) WHEN SNEQV=0, OR
-C                =FCT(MSNOALB,ALB,VEGTYP,SHDFAC,SHDMIN) WHEN SNEQV>0
-C  CH          SURFACE EXCHANGE COEFFICIENT FOR HEAT AND MOISTURE
-C                (M S-1); NOTE: CH IS TECHNICALLY A CONDUCTANCE SINCE
-C                IT HAS BEEN MULTIPLIED BY WIND SPEED.
-C  CM          SURFACE EXCHANGE COEFFICIENT FOR MOMENTUM (M S-1); NOTE:
-C                CM IS TECHNICALLY A CONDUCTANCE SINCE IT HAS BEEN
-C                MULTIPLIED BY WIND SPEED.  CM IS NOT NEEDED IN SFLX
-C ----------------------------------------------------------------------
-C 6. OUTPUT (O):
-C ----------------------------------------------------------------------
-C OUTPUT VARIABLES NECESSARY FOR A COUPLED NUMERICAL WEATHER PREDICTION
-C MODEL, E.G. NOAA/NWS/NCEP MESOSCALE ETA MODEL.  FOR THIS APPLICATION,
-C THE REMAINING OUTPUT/DIAGNOSTIC/PARAMETER BLOCKS BELOW ARE NOT
-C NECESSARY.  OTHER APPLICATIONS MAY REQUIRE DIFFERENT OUTPUT VARIABLES.
-C   ETA        ACTUAL LATENT HEAT FLUX (W M-2: NEGATIVE, IF UP FROM
-C	         SURFACE)
-C   SHEAT      SENSIBLE HEAT FLUX (W M-2: NEGATIVE, IF UPWARD FROM
-C	         SURFACE)
-C ----------------------------------------------------------------------
-C   EC         CANOPY WATER EVAPORATION (W M-2)
-C   EDIR       DIRECT SOIL EVAPORATION (W M-2)
-C   ET(NSOIL)  PLANT TRANSPIRATION FROM A PARTICULAR ROOT (SOIL) LAYER
-C                 (W M-2)
-C   ETT        TOTAL PLANT TRANSPIRATION (W M-2)
-C   ESNOW      SUBLIMATION FROM SNOWPACK (W M-2)
-C   DRIP       THROUGH-FALL OF PRECIP AND/OR DEW IN EXCESS OF CANOPY
-C                WATER-HOLDING CAPACITY (M)
-C   DEW        DEWFALL (OR FROSTFALL FOR T<273.15) (M)
-C ----------------------------------------------------------------------
-C   BETA       RATIO OF ACTUAL/POTENTIAL EVAP (DIMENSIONLESS)
-C   ETP        POTENTIAL EVAPORATION (W M-2)
-C   SSOIL      SOIL HEAT FLUX (W M-2: NEGATIVE IF DOWNWARD FROM SURFACE)
-C ----------------------------------------------------------------------
-C   FLX1       PRECIP-SNOW SFC (W M-2)
-C   FLX2       FREEZING RAIN LATENT HEAT FLUX (W M-2)
-C   FLX3       PHASE-CHANGE HEAT FLUX FROM SNOWMELT (W M-2)
-C ----------------------------------------------------------------------
-C   SNOMLT     SNOW MELT (M) (WATER EQUIVALENT)
-C   SNCOVR     FRACTIONAL SNOW COVER (UNITLESS FRACTION, 0-1)
-C ----------------------------------------------------------------------
-C   RUNOFF1    SURFACE RUNOFF (M S-1), NOT INFILTRATING THE SURFACE
-C   RUNOFF2    SUBSURFACE RUNOFF (M S-1), DRAINAGE OUT BOTTOM OF LAST
-C                SOIL LAYER, ALSO KNOWN AS BASEFLOW
-C   RUNOFF3    NUMERICAL TRUNCTATION IN EXCESS OF POROSITY (SMCMAX)
-C                FOR A GIVEN SOIL LAYER AT THE END OF A TIME STEP
-C ----------------------------------------------------------------------
-C   RC         CANOPY RESISTANCE (S M-1)
-C   PC         PLANT COEFFICIENT (UNITLESS FRACTION, 0-1) WHERE PC*ETP
-C                = ACTUAL TRANSPIRATION
-C   XLAI       LEAF AREA INDEX (DIMENSIONLESS)
-C   RSMIN      MINIMUM CANOPY RESISTANCE (S M-1)
-C   RCS        INCOMING SOLAR RC FACTOR (DIMENSIONLESS)
-C   RCT        AIR TEMPERATURE RC FACTOR (DIMENSIONLESS)
-C   RCQ        ATMOS VAPOR PRESSURE DEFICIT RC FACTOR (DIMENSIONLESS)
-C   RCSOIL     SOIL MOISTURE RC FACTOR (DIMENSIONLESS)
-C ----------------------------------------------------------------------
-C 7. DIAGNOSTIC OUTPUT (D):
-C ----------------------------------------------------------------------
-C   SOILW      AVAILABLE SOIL MOISTURE IN ROOT ZONE (UNITLESS FRACTION
-C	         BETWEEN SMCWLT AND SMCMAX)
-C   SOILM      TOTAL SOIL COLUMN MOISTURE CONTENT (FROZEN+UNFROZEN) (M) 
-C ----------------------------------------------------------------------
-C 8. PARAMETERS (P):
-C ----------------------------------------------------------------------
-C   SMCWLT     WILTING POINT (VOLUMETRIC)
-C   SMCDRY     DRY SOIL MOISTURE THRESHOLD WHERE DIRECT EVAP FRM TOP
-C                LAYER ENDS (VOLUMETRIC)
-C   SMCREF     SOIL MOISTURE THRESHOLD WHERE TRANSPIRATION BEGINS TO
-C                STRESS (VOLUMETRIC)
-C   SMCMAX     POROSITY, I.E. SATURATED VALUE OF SOIL MOISTURE
-C                (VOLUMETRIC)
-C   NROOT      NUMBER OF ROOT LAYERS, A FUNCTION OF VEG TYPE, DETERMINED
-C              IN SUBROUTINE REDPRM.
-C ----------------------------------------------------------------------
-      INTEGER NSOLD
-      PARAMETER(NSOLD = 20)
+      integer,               parameter :: nsold   = 4           ! max soil layers
 
-C ----------------------------------------------------------------------
-C DECLARATIONS - LOGICAL
-C ----------------------------------------------------------------------
-      LOGICAL FRZGRA
-      LOGICAL SATURATED
-      LOGICAL SNOWNG
+      real (kind=kind_phys), parameter :: gs      = con_g       ! con_g   =9.80665
+      real (kind=kind_phys), parameter :: gs1     = 9.8         ! con_g in sfcdif
+      real (kind=kind_phys), parameter :: gs2     = 9.81        ! con_g in snowpack, frh2o
+      real (kind=kind_phys), parameter :: tfreez  = con_t0c     ! con_t0c =275.15
+      real (kind=kind_phys), parameter :: lsubc   = 2.501e+6    ! con_hvap=2.5000e+6
+      real (kind=kind_phys), parameter :: lsubf   = 3.335e5     ! con_hfus=3.3358e+5
+      real (kind=kind_phys), parameter :: lsubs   = 2.83e+6     ! ? in sflx, snopac
+      real (kind=kind_phys), parameter :: elcp    = 2.4888e+3   ! ? in penman
+      real (kind=kind_phys), parameter :: rd      = con_rd      ! con_rd  =287.05
+      real (kind=kind_phys), parameter :: rd1     = 287.04      ! con_rd in sflx, penman, canres
+      real (kind=kind_phys), parameter :: cp      = con_cp      ! con_cp  =1004.6
+      real (kind=kind_phys), parameter :: cp1     = 1004.5      ! con_cp in sflx, canres
+      real (kind=kind_phys), parameter :: cp2     = 1004.0      ! con_cp in htr
+      real (kind=kind_phys), parameter :: cph2o   = con_cliq    ! con_cliq=4.1855e+3
+      real (kind=kind_phys), parameter :: cph2o1  = 4.218e+3    ! con_cliq in penman, snopac
+      real (kind=kind_phys), parameter :: cph2o2  = 4.2e6       ! con_cliq in hrt *unit diff!
+      real (kind=kind_phys), parameter :: cpice   = con_csol    ! con_csol=2.106e+3
+      real (kind=kind_phys), parameter :: cpice1  = 2.106e6     ! con_csol in hrt *unit diff!
+      real (kind=kind_phys), parameter :: sigma   = con_sbc     ! con_sbc=5.6704e-8
+      real (kind=kind_phys), parameter :: sigma1  = 5.67e-8     ! con_sbc in penman, nopac, snopac
 
-C ----------------------------------------------------------------------
-C DECLARATIONS - INTEGER
-C ----------------------------------------------------------------------
-      INTEGER COUPLE                                   !...***Clu***
-      INTEGER ICEIN
-      INTEGER ICE
-      INTEGER K
-      INTEGER KZ
-      INTEGER NSOIL
-      INTEGER NROOT
-      INTEGER SLOPETYP
-      INTEGER SOILTYP
-      INTEGER VEGTYP
+!  ---  inputs:
+      integer, intent(in) :: nsoil, couple, icein, vegtyp, soiltyp,     &
+     &       slopetyp
 
-C ----------------------------------------------------------------------
-C DECLARATIONS - REAL
-C ----------------------------------------------------------------------
-      REAL ALBEDO
-      REAL ALB
-      REAL BEXP
-      REAL BETA
-      REAL CFACTR
-      REAL CH
-      REAL CM
-      REAL CMC
-      REAL CMCMAX
-      REAL CP
-      REAL CSNOW
-      REAL CSOIL
-      REAL CZIL
-      REAL DEW
-      REAL DF1
-      REAL DF1H
-      REAL DF1A
-      REAL DKSAT
-      REAL DT
-      REAL DWSAT
-      REAL DQSDT2
-      REAL DSOIL
-      REAL DTOT
-      REAL DRIP
-      REAL EC
-      REAL EDIR
-      REAL ESNOW
-      REAL ET(NSOIL)
-      REAL ETT
-      REAL FRCSNO
-      REAL FRCSOI
-      REAL EPSCA
-      REAL ETA
-      REAL ETP
-      REAL FDOWN
-      REAL F1
-      REAL FLX1
-      REAL FLX2
-      REAL FLX3
-      REAL FXEXP
-      REAL FRZX
-      REAL SHEAT
-      REAL HS
-      REAL KDT
-      REAL LWDN
-      REAL SWDN
-      REAL LVH2O
-      REAL PC
-      REAL PRCP
-      REAL PTU
-      REAL PRCP1
-      REAL PSISAT
-      REAL Q2
-      REAL Q2SAT
-      REAL QUARTZ
-      REAL R
-      REAL RADFLX                            ! ... *** Clu ***
-      REAL RCH
-      REAL REFKDT
-      REAL RR
-      REAL RTDIS(NSOLD)
-      REAL RUNOFF1
-      REAL RUNOFF2
-      REAL RGL
-      REAL RUNOFF3
-      REAL RSMAX
-      REAL RC
-      REAL RSMIN
-      REAL RCQ
-      REAL RCS
-      REAL RCSOIL
-      REAL RCT
-      REAL RSNOW
-      REAL SNDENS
-      REAL SNCOND 
-      REAL SSOIL
-      REAL SBETA
-      REAL SFCPRS
-      REAL SFCSPD
-      REAL SFCTMP
-      REAL SHDFAC
-      REAL SHDMIN
-      REAL SH2O(NSOIL)
-      REAL SLDPTH(NSOIL)
-      REAL SMCDRY
-      REAL SMCMAX
-      REAL SMCREF
-      REAL SMCWLT
-      REAL SMC(NSOIL)
-      REAL SNEQV
-      REAL SNCOVR
-      REAL SNOWH
-      REAL SN_NEW
-      REAL SLOPE
-      REAL SNUP
-      REAL SALP
-      REAL SNOALB
-      REAL STC(NSOIL)
-      REAL SNOMLT
-      REAL SOLDN
-      REAL SOILM
-      REAL SOILW
-      REAL SOILWM
-      REAL SOILWW
-      REAL T1
-      REAL T1V
-      REAL T24
-      REAL T2V
-      REAL TBOT
-      REAL TH2
-      REAL TH2V
-      REAL TOPT
-      REAL TFREEZ
-      REAL TSNOW
-      REAL XLAI
-      REAL ZLVL
-      REAL ZBOT
-      REAL Z0
-      REAL ZSOIL(NSOLD)
+      real (kind=kind_phys), intent(in) :: ffrozp, dt, zlvl, lwdn,      &
+     &       sldpth(nsoil), swdn, swnet, sfcems, sfcprs, sfctmp,        &
+     &       sfcspd, prcp, q2, q2sat, dqsdt2, th2, shdmin, alb, snoalb
 
-      REAL FFROZP
-      REAL SOLNET
-      REAL LSUBS
+!  ---  input/outputs:
+      real (kind=kind_phys), intent(inout) :: tbot, cmc, t1, sneqv,     &
+     &       stc(nsoil), smc(nsoil), sh2o(nsoil), ch, cm
 
-C ----------------------------------------------------------------------
-C DECLARATIONS - PARAMETERS
-C ----------------------------------------------------------------------
-      PARAMETER(TFREEZ = 273.15)
-      PARAMETER(LVH2O = 2.501E+6)
-      PARAMETER(LSUBS = 2.83E+6)
-      PARAMETER(R = 287.04)
-      PARAMETER(CP = 1004.5)
+!  ---  outputs:
+      integer, intent(out) :: nroot
 
-C ----------------------------------------------------------------------
-C   INITIALIZATION
-C ----------------------------------------------------------------------
-      RUNOFF1 = 0.0
-      RUNOFF2 = 0.0
-      RUNOFF3 = 0.0
-      SNOMLT = 0.0
+      real (kind=kind_phys), intent(out) :: shdfac, snowh, albedo,      &
+     &       eta, sheat, ec, edir, et(nsoil), ett, esnow, drip, dew,    &
+     &       beta, etp, ssoil, flx1, flx2, flx3, snomlt, sncovr,        &
+     &       runoff1, runoff2, runoff3, rc, pc, rsmin, xlai, rcs,       &
+     &       rct, rcq, rcsoil, soilw, soilm, smcwlt, smcdry, smcref,    &
+     &       smcmax
 
-C ----------------------------------------------------------------------
-C DEFINE LOCAL VARIABLE ICE TO ACHIEVE:
-C   SEA-ICE CASE,          ICE =  1
-C   NON-GLACIAL LAND,      ICE =  0
-C   GLACIAL-ICE LAND,      ICE = -1
-C IF VEGTYPE=13 (GLACIAL-ICE), RE-SET ICE FLAG = -1 (GLACIAL-ICE)
-C NOTE:  FOR OPEN-SEA, SFLX SHOULD *NOT* HAVE BEEN CALLED.
-C SET GREEN VEGETATION FRACTION (SHDFAC) = 0.
-C ----------------------------------------------------------------------
-      ICE = ICEIN
-      IF (VEGTYP .EQ. 13) THEN
-        ICE = -1
-        SHDFAC = 0.0
-      ENDIF
+!  ---  locals:
+      real (kind=kind_phys) ::  bexp, cfactr, cmcmax, csoil, czil,      &
+     &       df1, df1h, df1a, dksat, dwsat, dsoil, dtot, frcsno,        &
+     &       frcsoi, epsca, fdown, f1, fxexp, frzx, hs, kdt, prcp1,     &
+     &       psisat, quartz, rch, refkdt, rr, rgl, rsmax, sndens,       &
+     &       sncond, sbeta, sn_new, slope, snup, salp, soilwm, soilww,  &
+     &       t1v, t24, t2v, th2v, topt, tsnow, zbot, z0
 
-      IF (ICE .EQ. 1) THEN
-        SHDFAC = 0.0
-C ----------------------------------------------------------------------
-C SET GREEN VEGETATION FRACTION (SHDFAC) = 0.
-C SET SEA-ICE LAYERS OF EQUAL THICKNESS AND SUM TO 3 METERS
-C ----------------------------------------------------------------------
-        DO KZ = 1,NSOIL
-          ZSOIL(KZ) = -3.*FLOAT(KZ)/FLOAT(NSOIL)
-        END DO
+      real (kind=kind_phys), dimension(nsold) :: rtdis, zsoil
 
-      ELSE
-C ----------------------------------------------------------------------
-C CALCULATE DEPTH (NEGATIVE) BELOW GROUND FROM TOP SKIN SFC TO BOTTOM OF
-C   EACH SOIL LAYER.  NOTE:  SIGN OF ZSOIL IS NEGATIVE (DENOTING BELOW
-C   GROUND)
-C ----------------------------------------------------------------------
-        ZSOIL(1) = -SLDPTH(1)
-        DO KZ = 2,NSOIL
-          ZSOIL(KZ) = -SLDPTH(KZ)+ZSOIL(KZ-1)
-        END DO
+      logical :: frzgra, snowng
 
-      ENDIF
+      integer :: ice, k, kz
+
+!
+!===> ...  begin here
+!
+!  --- ...  initialization
+
+      runoff1 = 0.0
+      runoff2 = 0.0
+      runoff3 = 0.0
+      snomlt  = 0.0
+
+!  --- ...  define local variable ice to achieve:
+!             sea-ice case,          ice =  1
+!             non-glacial land,      ice =  0
+!             glacial-ice land,      ice = -1
+!             if vegtype=13 (glacial-ice), re-set ice flag = -1 (glacial-ice)
+!    note - for open-sea, sflx should *not* have been called. set green
+!           vegetation fraction (shdfac) = 0.
+
+      ice = icein
+
+      if (vegtyp == 13) then
+        ice = -1
+        shdfac = 0.0
+      endif
+
+      if (ice == 1) then
+
+        shdfac = 0.0
+
+!  --- ...  set green vegetation fraction (shdfac) = 0.
+!           set sea-ice layers of equal thickness and sum to 3 meters
+
+        do kz = 1, nsoil
+          zsoil(kz) = -3.0 * float(kz) / float(nsoil)
+        enddo
+
+      else
+
+!  --- ...  calculate depth (negative) below ground from top skin sfc to 
+!           bottom of each soil layer.
+!    note - sign of zsoil is negative (denoting below ground)
+
+        zsoil(1) = -sldpth(1)
+        do kz = 2, nsoil
+          zsoil(kz) = -sldpth(kz) + zsoil(kz-1)
+        end do
+
+      endif   ! end if_ice_block
          
-C ----------------------------------------------------------------------
-C NEXT IS CRUCIAL CALL TO SET THE LAND-SURFACE PARAMETERS, INCLUDING
-C SOIL-TYPE AND VEG-TYPE DEPENDENT PARAMETERS.
-C SET SHDFAC=0.0 FOR BARE SOIL SURFACES
-C ----------------------------------------------------------------------
-      CALL REDPRM (VEGTYP,SOILTYP,SLOPETYP,
-     +      	   CFACTR,CMCMAX,RSMAX,TOPT,REFKDT,KDT,SBETA,
-     O      	   SHDFAC,RSMIN,RGL,HS,ZBOT,FRZX,PSISAT,SLOPE,
-     +      	   SNUP,SALP,BEXP,DKSAT,DWSAT,SMCMAX,SMCWLT,SMCREF,
-     O      	   SMCDRY,F1,QUARTZ,FXEXP,RTDIS,SLDPTH,ZSOIL,
-     +      	   NROOT,NSOIL,Z0,CZIL,XLAI,CSOIL,PTU)
-
-C ----------------------------------------------------------------------
-C  INITIALIZE PRECIPITATION LOGICALS.
-C ----------------------------------------------------------------------
-      SNOWNG = .FALSE.
-      FRZGRA = .FALSE.
-
-C ----------------------------------------------------------------------
-C OVER SEA-ICE OR GLACIAL-ICE, IF S.W.E. (SNEQV) BELOW THRESHOLD LOWER
-C BOUND (0.01 M FOR SEA-ICE, 0.10 M FOR GLACIAL-ICE), THEN SET AT LOWER
-C BOUND AND STORE THE SOURCE INCREMENT IN SUBSURFACE RUNOFF/BASEFLOW
-C (RUNOFF2).  NOTE:  RUNOFF2 IS THEN A NEGATIVE VALUE (AS A FLAG) OVER
-C SEA-ICE OR GLACIAL-ICE, IN ORDER TO ACHIEVE WATER BALANCE.
-C ----------------------------------------------------------------------
-      IF (ICE .EQ. 1) THEN
-        IF (SNEQV .LT. 0.01) THEN
-c          SNDENS = SNEQV/SNOWH
-c         RUNOFF2 = -(0.01-SNEQV)/DT
-          SNEQV = 0.01
-          SNOWH = 0.05
-c          SNOWH = SNEQV/SNDENS
-        ENDIF
-      ELSEIF (ICE .EQ. -1) THEN
-        IF (SNEQV .LT. 0.10) THEN
-c          SNDENS = SNEQV/SNOWH
-c         RUNOFF2 = -(0.10-SNEQV)/DT
-          SNEQV = 0.10
-          SNOWH = 0.50
-c          SNOWH = SNEQV/SNDENS
-        ENDIF
-      ENDIF
-
-C ----------------------------------------------------------------------
-C FOR SEA-ICE AND GLACIAL-ICE CASES, SET SMC AND SH20 VALUES = 1 AS A
-C FLAG FOR NON-SOIL MEDIUM
-C ----------------------------------------------------------------------
-      IF (ICE .NE. 0) THEN
-        DO KZ = 1,NSOIL
-          SMC(KZ) = 1.0
-          SH2O(KZ) = 1.0
-        END DO
-      ENDIF
-
-C ----------------------------------------------------------------------
-C IF INPUT SNOWPACK IS NONZERO, THEN COMPUTE SNOW DENSITY "SNDENS" AND
-C   SNOW THERMAL CONDUCTIVITY "SNCOND" (NOTE THAT CSNOW IS A FUNCTION
-C   SUBROUTINE)
-C ----------------------------------------------------------------------
-      IF (SNEQV .EQ. 0.0) THEN
-        SNDENS = 0.0
-        SNOWH = 0.0
-        SNCOND = 1.0
-      ELSE
-        SNDENS = SNEQV/SNOWH
-        sndens = max(0.0, min(1.0, sndens))   ! Added by Moorthi
-        SNCOND = CSNOW(SNDENS) 
-      ENDIF
-
-C ----------------------------------------------------------------------
-C DETERMINE IF IT'S PRECIPITATING AND WHAT KIND OF PRECIP IT IS.
-C IF IT'S PRCPING AND THE AIR TEMP IS COLDER THAN 0 C, IT'S SNOWING!
-C IF IT'S PRCPING AND THE AIR TEMP IS WARMER THAN 0 C, BUT THE GRND
-C TEMP IS COLDER THAN 0 C, FREEZING RAIN IS PRESUMED TO BE FALLING.
-C ----------------------------------------------------------------------
-      IF (PRCP .GT. 0.0) THEN
-C       IF (SFCTMP .LE. TFREEZ) THEN
-        IF (FFROZP .GT. 0.5) THEN
-          SNOWNG = .TRUE.
-        ELSE
-          IF (T1 .LE. TFREEZ) FRZGRA = .TRUE.
-        ENDIF
-      ENDIF
-
-C ----------------------------------------------------------------------
-C IF EITHER PRCP FLAG IS SET, DETERMINE NEW SNOWFALL (CONVERTING PRCP
-C RATE FROM KG M-2 S-1 TO A LIQUID EQUIV SNOW DEPTH IN METERS) AND ADD
-C IT TO THE EXISTING SNOWPACK.
-C NOTE THAT SINCE ALL PRECIP IS ADDED TO SNOWPACK, NO PRECIP INFILTRATES
-C INTO THE SOIL SO THAT PRCP1 IS SET TO ZERO.
-C ----------------------------------------------------------------------
-      IF ( (SNOWNG) .OR. (FRZGRA) ) THEN
-        SN_NEW = PRCP * DT * 0.001
-        SNEQV = SNEQV + SN_NEW
-        PRCP1 = 0.0
-
-C ----------------------------------------------------------------------
-C UPDATE SNOW DENSITY BASED ON NEW SNOWFALL, USING OLD AND NEW SNOW.
-C UPDATE SNOW THERMAL CONDUCTIVITY
-C ----------------------------------------------------------------------
-        CALL SNOW_NEW (SFCTMP,SN_NEW,SNOWH,SNDENS)
-        SNCOND = CSNOW (SNDENS) 
-      ELSE
-
-C ----------------------------------------------------------------------
-C PRECIP IS LIQUID (RAIN), HENCE SAVE IN THE PRECIP VARIABLE THAT
-C LATER CAN WHOLELY OR PARTIALLY INFILTRATE THE SOIL (ALONG WITH 
-C ANY CANOPY "DRIP" ADDED TO THIS LATER)
-C ----------------------------------------------------------------------
-        PRCP1 = PRCP
-
-      ENDIF
-
-C ----------------------------------------------------------------------
-C DETERMINE SNOWCOVER FRACTION AND ALBEDO FRACTION OVER LAND.
-C ----------------------------------------------------------------------
-      IF (ICE .NE. 0) THEN
-C ----------------------------------------------------------------------
-C SNOW COVER, ALBEDO OVER SEA-ICE, GLACIAL-ICE
-C ----------------------------------------------------------------------
-        SNCOVR = 1.0
-        ALBEDO = 0.65
-
-      ELSE
-C ----------------------------------------------------------------------
-C NON-GLACIAL LAND
-C IF SNOW DEPTH=0, SET SNOWCOVER FRACTION=0, ALBEDO=SNOW FREE ALBEDO.
-C ----------------------------------------------------------------------
-        IF (SNEQV .EQ. 0.0) THEN
-          SNCOVR = 0.0
-          ALBEDO = ALB
-
-        ELSE
-C ----------------------------------------------------------------------
-C DETERMINE SNOW FRACTION COVER.
-C DETERMINE SURFACE ALBEDO MODIFICATION DUE TO SNOWDEPTH STATE.
-C ----------------------------------------------------------------------
-          CALL SNFRAC (SNEQV,SNUP,SALP,SNOWH,SNCOVR)
-          CALL ALCALC (ALB,SNOALB,SHDFAC,SHDMIN,SNCOVR,TSNOW,ALBEDO)
-        ENDIF
-
-      ENDIF
-
-C ----------------------------------------------------------------------
-C THERMAL CONDUCTIVITY FOR SEA-ICE CASE, GLACIAL-ICE CASE
-C ----------------------------------------------------------------------
-      IF (ICE .NE. 0) THEN
-        DF1 = 2.2
-
-      ELSE
-
-C ----------------------------------------------------------------------
-C NEXT CALCULATE THE SUBSURFACE HEAT FLUX, WHICH FIRST REQUIRES
-C CALCULATION OF THE THERMAL DIFFUSIVITY.  TREATMENT OF THE
-C LATTER FOLLOWS THAT ON PAGES 148-149 FROM "HEAT TRANSFER IN 
-C COLD CLIMATES", BY V. J. LUNARDINI (PUBLISHED IN 1981 
-C BY VAN NOSTRAND REINHOLD CO.) I.E. TREATMENT OF TWO CONTIGUOUS 
-C "PLANE PARALLEL" MEDIUMS (NAMELY HERE THE FIRST SOIL LAYER 
-C AND THE SNOWPACK LAYER, IF ANY). THIS DIFFUSIVITY TREATMENT 
-C BEHAVES WELL FOR BOTH ZERO AND NONZERO SNOWPACK, INCLUDING THE 
-C LIMIT OF VERY THIN SNOWPACK.  THIS TREATMENT ALSO ELIMINATES
-C THE NEED TO IMPOSE AN ARBITRARY UPPER BOUND ON SUBSURFACE 
-C HEAT FLUX WHEN THE SNOWPACK BECOMES EXTREMELY THIN.
-C ----------------------------------------------------------------------
-C FIRST CALCULATE THERMAL DIFFUSIVITY OF TOP SOIL LAYER, USING
-C BOTH THE FROZEN AND LIQUID SOIL MOISTURE, FOLLOWING THE 
-C SOIL THERMAL DIFFUSIVITY FUNCTION OF PETERS-LIDARD ET AL.
-C (1998,JAS, VOL 55, 1209-1224), WHICH REQUIRES THE SPECIFYING
-C THE QUARTZ CONTENT OF THE GIVEN SOIL CLASS (SEE ROUTINE REDPRM)
-C ----------------------------------------------------------------------
-        CALL TDFCND (DF1,SMC(1),QUARTZ,SMCMAX,SH2O(1))
-
-C ----------------------------------------------------------------------
-C NEXT ADD SUBSURFACE HEAT FLUX REDUCTION EFFECT FROM THE 
-C OVERLYING GREEN CANOPY, ADAPTED FROM SECTION 2.1.2 OF 
-C PETERS-LIDARD ET AL. (1997, JGR, VOL 102(D4))
-C ----------------------------------------------------------------------
-        DF1 = DF1 * EXP(SBETA*SHDFAC)
-      ENDIF
-
-C ----------------------------------------------------------------------
-C FINALLY "PLANE PARALLEL" SNOWPACK EFFECT FOLLOWING 
-C V.J. LINARDINI REFERENCE CITED ABOVE. NOTE THAT DTOT IS
-C COMBINED DEPTH OF SNOWDEPTH AND THICKNESS OF FIRST SOIL LAYER
-C ----------------------------------------------------------------------
-      DSOIL = -(0.5 * ZSOIL(1))
-
-      IF (SNEQV .EQ. 0.) THEN
-        SSOIL = DF1 * (T1 - STC(1) ) / DSOIL
-      ELSE
-        DTOT = SNOWH + DSOIL
-        FRCSNO = SNOWH/DTOT
-        FRCSOI = DSOIL/DTOT
-C
-C 1. HARMONIC MEAN (SERIES FLOW)
-C        DF1 = (SNCOND*DF1)/(FRCSOI*SNCOND+FRCSNO*DF1)
-        DF1H = (SNCOND*DF1)/(FRCSOI*SNCOND+FRCSNO*DF1)
-C 2. ARITHMETIC MEAN (PARALLEL FLOW)
-C        DF1 = FRCSNO*SNCOND + FRCSOI*DF1
-        DF1A = FRCSNO*SNCOND + FRCSOI*DF1
-C
-C 3. GEOMETRIC MEAN (INTERMEDIATE BETWEEN HARMONIC AND ARITHMETIC MEAN)
-C        DF1 = (SNCOND**FRCSNO)*(DF1**FRCSOI)
-C TEST - MBEK, 10 Jan 2002
-C weigh DF by snow fraction
-c        DF1 = DF1H*SNCOVR + DF1A*(1.0-SNCOVR)
-c        DF1 = DF1H*SNCOVR + DF1*(1.0-SNCOVR)
-        DF1 = DF1A*SNCOVR + DF1*(1.0-SNCOVR)
-
-C ----------------------------------------------------------------------
-C CALCULATE SUBSURFACE HEAT FLUX, SSOIL, FROM FINAL THERMAL DIFFUSIVITY
-C OF SURFACE MEDIUMS, DF1 ABOVE, AND SKIN TEMPERATURE AND TOP 
-C MID-LAYER SOIL TEMPERATURE
-C ----------------------------------------------------------------------
-        SSOIL = DF1 * (T1 - STC(1) ) / DTOT
-      ENDIF
-
-C ----------------------------------------------------------------------
-C DETERMINE SURFACE ROUGHNESS OVER SNOWPACK USING SNOW CONDITION FROM
-C THE PREVIOUS TIMESTEP.
-C ----------------------------------------------------------------------
-      IF (COUPLE .EQ. 0) THEN
-C UNCOUPLED MODE
-        IF (SNCOVR .GT. 0.) THEN
-          CALL SNOWZ0 (SNCOVR,Z0)
-        ENDIF
-      ENDIF
-
-C ----------------------------------------------------------------------
-C NEXT CALL ROUTINE SFCDIF TO CALCULATE THE SFC EXCHANGE COEF (CH) FOR
-C HEAT AND MOISTURE.
-C
-C NOTE !!!
-C COMMENT OUT CALL SFCDIF, IF SFCDIF ALREADY CALLED IN CALLING PROGRAM
-C (SUCH AS IN COUPLED ATMOSPHERIC MODEL).
-C
-C NOTE !!!
-C DO NOT CALL SFCDIF UNTIL AFTER ABOVE CALL TO REDPRM, IN CASE
-C ALTERNATIVE VALUES OF ROUGHNESS LENGTH (Z0) AND ZILINTINKEVICH COEF
-C (CZIL) ARE SET THERE VIA NAMELIST I/O.
-C
-C NOTE !!!
-C ROUTINE SFCDIF RETURNS A CH THAT REPRESENTS THE WIND SPD TIMES THE
-C "ORIGINAL" NONDIMENSIONAL "Ch" TYPICAL IN LITERATURE.  HENCE THE CH
-C RETURNED FROM SFCDIF HAS UNITS OF M/S.  THE IMPORTANT COMPANION
-C COEFFICIENT OF CH, CARRIED HERE AS "RCH", IS THE CH FROM SFCDIF TIMES
-C AIR DENSITY AND PARAMETER "CP".  "RCH" IS COMPUTED IN "CALL PENMAN".
-C RCH RATHER THAN CH IS THE COEFF USUALLY INVOKED LATER IN EQNS.
-C
-C NOTE !!!
-C SFCDIF ALSO RETURNS THE SURFACE EXCHANGE COEFFICIENT FOR MOMENTUM, CM,
-C ALSO KNOWN AS THE SURFACE DRAGE COEFFICIENT, BUT CM IS NOT USED HERE.
-C ----------------------------------------------------------------------
-C CALC VIRTUAL TEMPS AND VIRTUAL POTENTIAL TEMPS NEEDED BY SUBROUTINES
-C SFCDIF AND PENMAN.
-C ----------------------------------------------------------------------
-      T2V = SFCTMP * (1.0 + 0.61 * Q2 )
-
-C xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-C KEY REQUIRED RADIATION TERM IS THE TOTAL DOWNWARD RADIATION (FDOWN) =
-C NET SOLAR (SOLNET) + DOWNWARD LONGWAVE (LWDN), FOR USE IN PENMAN EP
-C CALCULATION (PENMAN) AND OTHER SURFACE ENERGY BUDGET CALCUATIONS.
-C
-C ALSO NEED DOWNWARD SOLAR (SOLDN) FOR CANOPY RESISTANCE ROUTINE
-C (CANRES).
-C
-C FDOWN, SOLDN ARE DERIVED DIFFERENTLY IN THE UNCOUPLED AND COUPLED
-C MODES.
-C xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-
-      IF (COUPLE .EQ. 0) THEN                      !......uncoupled mode
-C ----------------------------------------------------------------------
-C UNCOUPLED MODE:
-C
-C COMPUTE SURFACE EXCHANGE COEFFICIENTS
-C ----------------------------------------------------------------------
-        T1V = T1 * (1.0 + 0.61 * Q2)
-        TH2V = TH2 * (1.0 + 0.61 * Q2)
-
-        CALL SFCDIF (ZLVL,Z0,T1V,TH2V,SFCSPD,CZIL,CM,CH)
-
-C ----------------------------------------------------------------------
-C RADFLX = DOWNWARD (INCOMING) SOLAR, NOT NET SOLAR
-C ----------------------------------------------------------------------
-        SOLDN = RADFLX
-        SOLNET = SOLDN*(1.0-ALBEDO)
-        FDOWN = SOLNET + LWDN
-
-      ELSE                                           !......coupled mode
-C ----------------------------------------------------------------------
-C COUPLED MODE (COUPLE .NE. 0):
-c
-C SURFACE EXCHANGE COEFFICIENTS COMPUTED EXTERNALLY AND PASSED IN, HENCE
-C SUBROUTINE SFCDIF NOT CALLED.
-C
-C RADFLX = FDOWN = NET SOLAR + DOWNWARD LONGWAVE
-C ----------------------------------------------------------------------
-        FDOWN = RADFLX
-        SOLNET = FDOWN - LWDN
-c       SOLDN = SOLNET/(1.0-ALBEDO)
-        SOLDN=SWDN
-
-      ENDIF
-
-C ----------------------------------------------------------------------
-C CALL PENMAN SUBROUTINE TO CALCULATE POTENTIAL EVAPORATION (ETP), AND
-C OTHER PARTIAL PRODUCTS AND SUMS SAVE IN COMMON/RITE FOR LATER
-C CALCULATIONS.
-C ----------------------------------------------------------------------
-       CALL PENMAN (SFCTMP,SFCPRS,CH,T2V,TH2,PRCP,FDOWN,T24,SSOIL,
-     &              Q2,Q2SAT,ETP,RCH,EPSCA,RR,SNOWNG,FRZGRA,
-     &              DQSDT2,FLX2)
-
-
-C ----------------------------------------------------------------------
-C CALL CANRES TO CALCULATE THE CANOPY RESISTANCE AND CONVERT IT INTO PC
-C IF NONZERO GREENNESS FRACTION
-C ----------------------------------------------------------------------
-      IF (SHDFAC .GT. 0.) THEN
-      
-C ----------------------------------------------------------------------
-C  FROZEN GROUND EXTENSION: TOTAL SOIL WATER "SMC" WAS REPLACED 
-C  BY UNFROZEN SOIL WATER "SH2O" IN CALL TO CANRES BELOW
-C ----------------------------------------------------------------------
-        CALL CANRES (SOLDN,CH,SFCTMP,Q2,SFCPRS,SH2O,ZSOIL,NSOIL,
-     &               SMCWLT,SMCREF,RSMIN,RC,PC,NROOT,Q2SAT,DQSDT2,
-     &               TOPT,RSMAX,RGL,HS,XLAI,
-     &               RCS,RCT,RCQ,RCSOIL)
-
-      ENDIF
-
-C ----------------------------------------------------------------------
-C NOW DECIDE MAJOR PATHWAY BRANCH TO TAKE DEPENDING ON WHETHER SNOWPACK
-C EXISTS OR NOT:
-C ----------------------------------------------------------------------
-      ESNOW = 0.0
-      IF (SNEQV .EQ. 0.0) THEN
-        CALL NOPAC (ETP,ETA,PRCP,SMC,SMCMAX,SMCWLT,
-     &     	    SMCREF,SMCDRY,CMC,CMCMAX,NSOIL,DT,SHDFAC,
-     &     	    SBETA,Q2,T1,SFCTMP,T24,TH2,FDOWN,F1,SSOIL,
-     &     	    STC,EPSCA,BEXP,PC,RCH,RR,CFACTR,
-     &     	    SH2O,SLOPE,KDT,FRZX,PSISAT,ZSOIL,
-     &     	    DKSAT,DWSAT,TBOT,ZBOT,RUNOFF1,RUNOFF2,
-     &     	    RUNOFF3,EDIR,EC,ET,ETT,NROOT,ICE,RTDIS,
-     &     	    QUARTZ,FXEXP,CSOIL,
-     &     	    BETA,DRIP,DEW,FLX1,FLX2,FLX3)
-      ELSE
-        CALL SNOPAC (ETP,ETA,PRCP,PRCP1,SNOWNG,SMC,SMCMAX,SMCWLT,
-     &               SMCREF,SMCDRY,CMC,CMCMAX,NSOIL,DT,
-     &               SBETA,DF1,
-     &               Q2,T1,SFCTMP,T24,TH2,FDOWN,F1,SSOIL,STC,EPSCA,
-     &               SFCPRS,BEXP,PC,RCH,RR,CFACTR,SNCOVR,SNEQV,SNDENS,
-     &               SNOWH,SH2O,SLOPE,KDT,FRZX,PSISAT,SNUP,
-     &               ZSOIL,DWSAT,DKSAT,TBOT,ZBOT,SHDFAC,RUNOFF1,
-     &               RUNOFF2,RUNOFF3,EDIR,EC,ET,ETT,NROOT,SNOMLT,
-     &               ICE,RTDIS,QUARTZ,FXEXP,CSOIL,
-     &               BETA,DRIP,DEW,FLX1,FLX2,FLX3,ESNOW)
-      ENDIF
-
-C ----------------------------------------------------------------------
-C   PREPARE SENSIBLE HEAT (H) FOR RETURN TO PARENT MODEL
-C ----------------------------------------------------------------------
-      SHEAT = -(CH * CP * SFCPRS)/(R * T2V) * ( TH2 - T1 )
-          
-C ----------------------------------------------------------------------
-C  CONVERT UNITS AND/OR SIGN OF TOTAL EVAP (ETA), POTENTIAL EVAP (ETP),
-C  SUBSURFACE HEAT FLUX (S), AND RUNOFFS FOR WHAT PARENT MODEL EXPECTS
-C  CONVERT ETA FROM KG M-2 S-1 TO W M-2
-C ----------------------------------------------------------------------
-c      ETA = ETA*LVH2O
-c      ETP = ETP*LVH2O
-
-C ----------------------------------------------------------------------
-      EDIR = EDIR * LVH2O
-      EC = EC * LVH2O
-      DO K=1,4
-        ET(K) = ET(K) * LVH2O
-      ENDDO
-      ETT = ETT * LVH2O
-      ESNOW = ESNOW * LSUBS
-      ETP = ETP*((1.-SNCOVR)*LVH2O + SNCOVR*LSUBS)
-      IF (ETP .GT. 0.) THEN
-        ETA = EDIR + EC + ETT + ESNOW
-      ELSE
-        ETA = ETP
-      ENDIF
-      BETA = ETA/ETP
-C ----------------------------------------------------------------------
-
-C ----------------------------------------------------------------------
-C CONVERT THE SIGN OF SOIL HEAT FLUX SO THAT:
-C   SSOIL>0: WARM THE SURFACE  (NIGHT TIME)
-C   SSOIL<0: COOL THE SURFACE  (DAY TIME)
-C ----------------------------------------------------------------------
-      SSOIL = -1.0*SSOIL      
-
-      IF (ICE .EQ. 0) THEN
-C ----------------------------------------------------------------------
-C FOR THE CASE OF LAND (BUT NOT GLACIAL-ICE):
-C CONVERT RUNOFF3 (INTERNAL LAYER RUNOFF FROM SUPERSAT) FROM M TO M S-1
-C AND ADD TO SUBSURFACE RUNOFF/BASEFLOW (RUNOFF2).  RUNOFF2 IS ALREADY
-C A RATE AT THIS POINT.
-C ----------------------------------------------------------------------
-        RUNOFF3 = RUNOFF3/DT
-        RUNOFF2 = RUNOFF2+RUNOFF3
-
-      ELSE
-C ----------------------------------------------------------------------
-C FOR THE CASE OF SEA-ICE (ICE=1) OR GLACIAL-ICE (ICE=-1), ADD ANY
-C SNOWMELT DIRECTLY TO SURFACE RUNOFF (RUNOFF1) SINCE THERE IS NO
-C SOIL MEDIUM, AND THUS NO CALL TO SUBROUTINE SMFLX (FOR SOIL MOISTURE
-C TENDENCY).
-C ----------------------------------------------------------------------
-        RUNOFF1 = SNOMLT/DT
-      ENDIF
-
-C ----------------------------------------------------------------------
-C TOTAL COLUMN SOIL MOISTURE IN METERS (SOILM) AND ROOT-ZONE 
-C SOIL MOISTURE AVAILABILITY (FRACTION) RELATIVE TO POROSITY/SATURATION
-C ----------------------------------------------------------------------
-      SOILM = -1.0*SMC(1)*ZSOIL(1)
-      DO K = 2,NSOIL
-        SOILM = SOILM+SMC(K)*(ZSOIL(K-1)-ZSOIL(K))
-      END DO
-      SOILWM = -1.0*(SMCMAX-SMCWLT)*ZSOIL(1)
-      SOILWW = -1.0*(SMC(1)-SMCWLT)*ZSOIL(1)
-      DO K = 2,NROOT
-        SOILWM = SOILWM+(SMCMAX-SMCWLT)*(ZSOIL(K-1)-ZSOIL(K))
-        SOILWW = SOILWW+(SMC(K)-SMCWLT)*(ZSOIL(K-1)-ZSOIL(K))
-      END DO
-      SOILW = SOILWW/SOILWM
-
-C ----------------------------------------------------------------------
-C END SUBROUTINE SFLX
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE ALCALC (ALB,SNOALB,SHDFAC,SHDMIN,SNCOVR,TSNOW,ALBEDO)
-
-      IMPLICIT NONE
-      
-C ----------------------------------------------------------------------
-C CALCULATE ALBEDO INCLUDING SNOW EFFECT (0 -> 1)
-C   ALB     SNOWFREE ALBEDO
-C   SNOALB  MAXIMUM (DEEP) SNOW ALBEDO
-C   SHDFAC    AREAL FRACTIONAL COVERAGE OF GREEN VEGETATION
-C   SHDMIN    MINIMUM AREAL FRACTIONAL COVERAGE OF GREEN VEGETATION
-C   SNCOVR  FRACTIONAL SNOW COVER
-C   ALBEDO  SURFACE ALBEDO INCLUDING SNOW EFFECT
-C   TSNOW   SNOW SURFACE TEMPERATURE (K)
-C ----------------------------------------------------------------------
-      REAL ALB, SNOALB, SHDFAC, SHDMIN, SNCOVR, ALBEDO, TSNOW
-      
-C ----------------------------------------------------------------------
-C SNOALB IS ARGUMENT REPRESENTING MAXIMUM ALBEDO OVER DEEP SNOW,
-C AS PASSED INTO SFLX, AND ADAPTED FROM THE SATELLITE-BASED MAXIMUM 
-C SNOW ALBEDO FIELDS PROVIDED BY D. ROBINSON AND G. KUKLA 
-C (1985, JCAM, VOL 24, 402-411)
-C ----------------------------------------------------------------------
-C         changed in version 2.6 on June 2nd 2003
-C          ALBEDO = ALB + (1.0-(SHDFAC-SHDMIN))*SNCOVR*(SNOALB-ALB) 
-          ALBEDO = ALB + SNCOVR*(SNOALB-ALB)
-          IF (ALBEDO .GT. SNOALB) ALBEDO=SNOALB
-
-C     BASE FORMULATION (DICKINSON ET AL., 1986, COGLEY ET AL., 1990)
-C          IF (TSNOW.LE.263.16) THEN
-C            ALBEDO=SNOALB
-C          ELSE
-C            IF (TSNOW.LT.273.16) THEN
-C              TM=0.1*(TSNOW-263.16)
-C              ALBEDO=0.5*((0.9-0.2*(TM**3))+(0.8-0.16*(TM**3)))
-C            ELSE
-C              ALBEDO=0.67
-C            ENDIF
-C          ENDIF
-
-C     ISBA FORMULATION (VERSEGHY, 1991; BAKER ET AL., 1990)
-C          IF (TSNOW.LT.273.16) THEN
-C            ALBEDO=SNOALB-0.008*DT/86400
-C          ELSE
-C            ALBEDO=(SNOALB-0.5)*EXP(-0.24*DT/86400)+0.5
-C          ENDIF
-
-C ----------------------------------------------------------------------
-C END SUBROUTINE ALCALC
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE CANRES (SOLAR,CH,SFCTMP,Q2,SFCPRS,SMC,ZSOIL,NSOIL,
-     &                   SMCWLT,SMCREF,RSMIN,RC,PC,NROOT,Q2SAT,DQSDT2, 
-     &                   TOPT,RSMAX,RGL,HS,XLAI,
-     &                   RCS,RCT,RCQ,RCSOIL)
-
-      IMPLICIT NONE
-
-C ----------------------------------------------------------------------
-C SUBROUTINE CANRES                    
-C ----------------------------------------------------------------------
-C CALCULATE CANOPY RESISTANCE WHICH DEPENDS ON INCOMING SOLAR RADIATION,
-C AIR TEMPERATURE, ATMOSPHERIC WATER VAPOR PRESSURE DEFICIT AT THE
-C LOWEST MODEL LEVEL, AND SOIL MOISTURE (PREFERABLY UNFROZEN SOIL
-C MOISTURE RATHER THAN TOTAL)
-C ----------------------------------------------------------------------
-C SOURCE:  JARVIS (1976), NOILHAN AND PLANTON (1989, MWR), JACQUEMIN AND
-C NOILHAN (1990, BLM)
-C SEE ALSO:  CHEN ET AL (1996, JGR, VOL 101(D3), 7251-7268), EQNS 12-14
-C AND TABLE 2 OF SEC. 3.1.2         
-C ----------------------------------------------------------------------
-C INPUT:
-C   SOLAR   INCOMING SOLAR RADIATION
-C   CH      SURFACE EXCHANGE COEFFICIENT FOR HEAT AND MOISTURE
-C   SFCTMP  AIR TEMPERATURE AT 1ST LEVEL ABOVE GROUND
-C   Q2      AIR HUMIDITY AT 1ST LEVEL ABOVE GROUND
-C   Q2SAT   SATURATION AIR HUMIDITY AT 1ST LEVEL ABOVE GROUND
-C   DQSDT2  SLOPE OF SATURATION HUMIDITY FUNCTION WRT TEMP
-C   SFCPRS  SURFACE PRESSURE
-C   SMC     VOLUMETRIC SOIL MOISTURE 
-C   ZSOIL   SOIL DEPTH (NEGATIVE SIGN, AS IT IS BELOW GROUND)
-C   NSOIL   NO. OF SOIL LAYERS
-C   NROOT   NO. OF SOIL LAYERS IN ROOT ZONE (1.LE.NROOT.LE.NSOIL)
-C   XLAI    LEAF AREA INDEX
-C   SMCWLT  WILTING POINT
-C   SMCREF  REFERENCE SOIL MOISTURE (WHERE SOIL WATER DEFICIT STRESS
-C             SETS IN)
-C RSMIN, RSMAX, TOPT, RGL, HS ARE CANOPY STRESS PARAMETERS SET IN
-C   SURBOUTINE REDPRM
-C OUTPUT:
-C   PC  PLANT COEFFICIENT
-C   RC  CANOPY RESISTANCE
-C ----------------------------------------------------------------------
-      INTEGER NSOLD
-      PARAMETER(NSOLD = 20)
-
-      INTEGER K
-      INTEGER NROOT
-      INTEGER NSOIL
-
-      REAL CH
-      REAL CP
-      REAL DELTA
-      REAL DQSDT2
-      REAL FF
-      REAL GX
-      REAL HS
-      REAL P
-      REAL PART(NSOLD) 
-      REAL PC
-      REAL Q2
-      REAL Q2SAT
-      REAL RC
-      REAL RSMIN
-      REAL RCQ
-      REAL RCS
-      REAL RCSOIL
-      REAL RCT
-      REAL RD
-      REAL RGL
-      REAL RR
-      REAL RSMAX
-      REAL SFCPRS
-      REAL SFCTMP
-      REAL SIGMA
-      REAL SLV
-      REAL SMC(NSOIL)
-      REAL SMCREF
-      REAL SMCWLT
-      REAL SOLAR
-      REAL TOPT
-      REAL SLVCP
-      REAL ST1
-      REAL TAIR4
-      REAL XLAI
-      REAL ZSOIL(NSOIL)
-
-      PARAMETER(CP = 1004.5)
-      PARAMETER(RD = 287.04)
-      PARAMETER(SIGMA = 5.67E-8)
-      PARAMETER(SLV = 2.501000E6)
-
-C ----------------------------------------------------------------------
-C INITIALIZE CANOPY RESISTANCE MULTIPLIER TERMS.
-C ----------------------------------------------------------------------
-      RCS = 0.0
-      RCT = 0.0
-      RCQ = 0.0
-      RCSOIL = 0.0
-      RC = 0.0
-
-C ----------------------------------------------------------------------
-C CONTRIBUTION DUE TO INCOMING SOLAR RADIATION
-C ----------------------------------------------------------------------
-      FF = 0.55*2.0*SOLAR/(RGL*XLAI)
-      RCS = (FF + RSMIN/RSMAX) / (1.0 + FF)
-      RCS = MAX(RCS,0.0001)
-
-C ----------------------------------------------------------------------
-C CONTRIBUTION DUE TO AIR TEMPERATURE AT FIRST MODEL LEVEL ABOVE GROUND
-C RCT EXPRESSION FROM NOILHAN AND PLANTON (1989, MWR).
-C ----------------------------------------------------------------------
-      RCT = 1.0 - 0.0016*((TOPT-SFCTMP)**2.0)
-      RCT = MAX(RCT,0.0001)
-
-C ----------------------------------------------------------------------
-C CONTRIBUTION DUE TO VAPOR PRESSURE DEFICIT AT FIRST MODEL LEVEL.
-C RCQ EXPRESSION FROM SSIB 
-C ----------------------------------------------------------------------
-      RCQ = 1.0/(1.0+HS*(Q2SAT-Q2))
-      RCQ = MAX(RCQ,0.01)
-
-C ----------------------------------------------------------------------
-C CONTRIBUTION DUE TO SOIL MOISTURE AVAILABILITY.
-C DETERMINE CONTRIBUTION FROM EACH SOIL LAYER, THEN ADD THEM UP.
-C ----------------------------------------------------------------------
-      GX = (SMC(1) - SMCWLT) / (SMCREF - SMCWLT)
-      IF (GX .GT. 1.) GX = 1.
-      IF (GX .LT. 0.) GX = 0.
-
-C ----------------------------------------------------------------------
-C USE SOIL DEPTH AS WEIGHTING FACTOR
-C ----------------------------------------------------------------------
-      PART(1) = (ZSOIL(1)/ZSOIL(NROOT)) * GX
-C ----------------------------------------------------------------------
-C USE ROOT DISTRIBUTION AS WEIGHTING FACTOR
-C      PART(1) = RTDIS(1) * GX
-C ----------------------------------------------------------------------
-      DO K = 2,NROOT
-        GX = (SMC(K) - SMCWLT) / (SMCREF - SMCWLT)
-        IF (GX .GT. 1.) GX = 1.
-        IF (GX .LT. 0.) GX = 0.
-C ----------------------------------------------------------------------
-C USE SOIL DEPTH AS WEIGHTING FACTOR        
-C ----------------------------------------------------------------------
-        PART(K) = ((ZSOIL(K)-ZSOIL(K-1))/ZSOIL(NROOT)) * GX
-C ----------------------------------------------------------------------
-C USE ROOT DISTRIBUTION AS WEIGHTING FACTOR
-C        PART(K) = RTDIS(K) * GX 
-C ----------------------------------------------------------------------
-      END DO
-
-      DO K = 1,NROOT
-        RCSOIL = RCSOIL+PART(K)
-      END DO
-      RCSOIL = MAX(RCSOIL,0.0001)
-
-C ----------------------------------------------------------------------
-C DETERMINE CANOPY RESISTANCE DUE TO ALL FACTORS.  CONVERT CANOPY
-C RESISTANCE (RC) TO PLANT COEFFICIENT (PC) TO BE USED WITH POTENTIAL
-C EVAP IN DETERMINING ACTUAL EVAP.  PC IS DETERMINED BY:
-C   PC * LINERIZED PENMAN POTENTIAL EVAP =
-C   PENMAN-MONTEITH ACTUAL EVAPORATION (CONTAINING RC TERM).
-C ----------------------------------------------------------------------
-      RC = RSMIN/(XLAI*RCS*RCT*RCQ*RCSOIL)
-
-c      TAIR4 = SFCTMP**4.
-c      ST1 = (4.*SIGMA*RD)/CP
-c      SLVCP = SLV/CP
-c      RR = ST1*TAIR4/(SFCPRS*CH) + 1.0
-      RR = (4.*SIGMA*RD/CP)*(SFCTMP**4.)/(SFCPRS*CH) + 1.0
-      DELTA = (SLV/CP)*DQSDT2
-
-      PC = (RR+DELTA)/(RR*(1.+RC*CH)+DELTA)
-
-C ----------------------------------------------------------------------
-C END SUBROUTINE CANRES
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      FUNCTION CSNOW (DSNOW)
-
-      IMPLICIT NONE
-
-C ----------------------------------------------------------------------
-C FUNCTION CSNOW
-C ----------------------------------------------------------------------
-C CALCULATE SNOW TERMAL CONDUCTIVITY
-C ----------------------------------------------------------------------
-      REAL C
-      REAL DSNOW
-      REAL CSNOW
-      REAL UNIT
-
-      PARAMETER(UNIT = 0.11631) 
-                                         
-C ----------------------------------------------------------------------
-C CSNOW IN UNITS OF CAL/(CM*HR*C), RETURNED IN W/(M*C)
-C BASIC VERSION IS DYACHKOVA EQUATION (1960), FOR RANGE 0.1-0.4
-C ----------------------------------------------------------------------
-      C=0.328*10**(2.25*DSNOW)
-      CSNOW=UNIT*C
-
-C ----------------------------------------------------------------------
-C DE VAUX EQUATION (1933), IN RANGE 0.1-0.6
-C ----------------------------------------------------------------------
-C      CSNOW=0.0293*(1.+100.*DSNOW**2)
-      
-C ----------------------------------------------------------------------
-C E. ANDERSEN FROM FLERCHINGER
-C ----------------------------------------------------------------------
-C      CSNOW=0.021+2.51*DSNOW**2        
-      
-C ----------------------------------------------------------------------
-C END FUNCTION CSNOW
-C ----------------------------------------------------------------------
-      RETURN                                                      
-      END
-      SUBROUTINE DEVAP (EDIR1,ETP1,SMC,ZSOIL,SHDFAC,SMCMAX,BEXP,
-c      FUNCTION DEVAP (ETP1,SMC,ZSOIL,SHDFAC,SMCMAX,BEXP,
-     &                DKSAT,DWSAT,SMCDRY,SMCREF,SMCWLT,FXEXP)
-
-      IMPLICIT NONE
-
-C ----------------------------------------------------------------------
-C SUBROUTINE DEVAP
-C FUNCTION DEVAP
-C ----------------------------------------------------------------------
-C CALCULATE DIRECT SOIL EVAPORATION
-C ----------------------------------------------------------------------
-      REAL BEXP
-c      REAL DEVAP
-      REAL EDIR1
-      REAL DKSAT
-      REAL DWSAT
-      REAL ETP1
-      REAL FX
-      REAL FXEXP
-      REAL SHDFAC
-      REAL SMC
-      REAL SMCDRY
-      REAL SMCMAX
-      REAL ZSOIL
-      REAL SMCREF
-      REAL SMCWLT
-      REAL SRATIO
-
-C ----------------------------------------------------------------------
-C DIRECT EVAP A FUNCTION OF RELATIVE SOIL MOISTURE AVAILABILITY, LINEAR
-C WHEN FXEXP=1.
-C FX > 1 REPRESENTS DEMAND CONTROL
-C FX < 1 REPRESENTS FLUX CONTROL
-C ----------------------------------------------------------------------
-      SRATIO = (SMC - SMCDRY) / (SMCMAX - SMCDRY)
-      IF (SRATIO .GT. 0.) THEN
-        FX = SRATIO**FXEXP
-        FX = MAX ( MIN ( FX, 1. ) ,0. )
-      ELSE
-        FX = 0.
-      ENDIF
-
-C ----------------------------------------------------------------------
-C ALLOW FOR THE DIRECT-EVAP-REDUCING EFFECT OF SHADE
-C ----------------------------------------------------------------------
-c      DEVAP = FX * ( 1.0 - SHDFAC ) * ETP1
-      EDIR1 = FX * ( 1.0 - SHDFAC ) * ETP1
-
-C ----------------------------------------------------------------------
-C END SUBROUTINE DEVAP
-C END FUNCTION DEVAP
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE EVAPO (ETA1,SMC,NSOIL,CMC,ETP1,DT,ZSOIL,
-     &                  SH2O,
-     &                  SMCMAX,BEXP,PC,SMCWLT,DKSAT,DWSAT,
-     &                  SMCREF,SHDFAC,CMCMAX,
-     &                  SMCDRY,CFACTR,
-     &                  EDIR1,EC1,ET1,ETT1,SFCTMP,Q2,NROOT,RTDIS,FXEXP)
-
-      IMPLICIT NONE
-
-C ----------------------------------------------------------------------
-C SUBROUTINE EVAPO
-C ----------------------------------------------------------------------
-C CALCULATE SOIL MOISTURE FLUX.  THE SOIL MOISTURE CONTENT (SMC - A PER
-C UNIT VOLUME MEASUREMENT) IS A DEPENDENT VARIABLE THAT IS UPDATED WITH
-C PROGNOSTIC EQNS. THE CANOPY MOISTURE CONTENT (CMC) IS ALSO UPDATED.
-C FROZEN GROUND VERSION:  NEW STATES ADDED: SH2O, AND FROZEN GROUND
-C CORRECTION FACTOR, FRZFACT AND PARAMETER SLOPE.
-C ----------------------------------------------------------------------
-      INTEGER NSOLD
-      PARAMETER(NSOLD = 20)
-
-      INTEGER I
-      INTEGER K
-      INTEGER NSOIL
-      INTEGER NROOT
-
-      REAL BEXP
-      REAL CFACTR
-      REAL CMC
-      REAL CMC2MS
-      REAL CMCMAX
-c      REAL DEVAP
-      REAL DKSAT
-      REAL DT
-      REAL DWSAT
-      REAL EC1
-      REAL EDIR1
-      REAL ET1(NSOIL)
-      REAL ETA1
-      REAL ETP1
-      REAL ETT1
-      REAL FXEXP
-      REAL PC
-      REAL Q2
-      REAL RTDIS(NSOIL)
-      REAL SFCTMP
-      REAL SHDFAC
-      REAL SMC(NSOIL)
-      REAL SH2O(NSOIL)
-      REAL SMCDRY
-      REAL SMCMAX
-      REAL SMCREF
-      REAL SMCWLT
-      REAL ZSOIL(NSOIL)
-
-C ----------------------------------------------------------------------
-C EXECUTABLE CODE BEGINS HERE IF THE POTENTIAL EVAPOTRANSPIRATION IS
-C GREATER THAN ZERO.
-C ----------------------------------------------------------------------
-      EDIR1 = 0.
-      EC1 = 0.
-      DO K = 1,NSOIL
-        ET1(K) = 0.
-      END DO
-      ETT1 = 0.
-
-      IF (ETP1 .GT. 0.0) THEN
-
-C ----------------------------------------------------------------------
-C RETRIEVE DIRECT EVAPORATION FROM SOIL SURFACE.  CALL THIS FUNCTION
-C ONLY IF VEG COVER NOT COMPLETE.
-C FROZEN GROUND VERSION:  SH2O STATES REPLACE SMC STATES.
-C ----------------------------------------------------------------------
-        IF (SHDFAC .LT. 1.) THEN
-        CALL DEVAP (EDIR1,ETP1,SH2O(1),ZSOIL(1),SHDFAC,SMCMAX,
-c          EDIR = DEVAP(ETP1,SH2O(1),ZSOIL(1),SHDFAC,SMCMAX,
-     &                 BEXP,DKSAT,DWSAT,SMCDRY,SMCREF,SMCWLT,FXEXP)
-        ENDIF
-
-C ----------------------------------------------------------------------
-C INITIALIZE PLANT TOTAL TRANSPIRATION, RETRIEVE PLANT TRANSPIRATION,
-C AND ACCUMULATE IT FOR ALL SOIL LAYERS.
-C ----------------------------------------------------------------------
-        IF (SHDFAC.GT.0.0) THEN
-
-          CALL TRANSP (ET1,NSOIL,ETP1,SH2O,CMC,ZSOIL,SHDFAC,SMCWLT,
-     &                 CMCMAX,PC,CFACTR,SMCREF,SFCTMP,Q2,NROOT,RTDIS)
-
-          DO K = 1,NSOIL
-            ETT1 = ETT1 + ET1(K)
-          END DO
-
-C ----------------------------------------------------------------------
-C CALCULATE CANOPY EVAPORATION.
-C IF STATEMENTS TO AVOID TANGENT LINEAR PROBLEMS NEAR CMC=0.0.
-C ----------------------------------------------------------------------
-          IF (CMC .GT. 0.0) THEN
-            EC1 = SHDFAC * ( ( CMC / CMCMAX ) ** CFACTR ) * ETP1
-          ELSE
-            EC1 = 0.0
-          ENDIF
-
-C ----------------------------------------------------------------------
-C EC SHOULD BE LIMITED BY THE TOTAL AMOUNT OF AVAILABLE WATER ON THE
-C CANOPY.  -F.CHEN, 18-OCT-1994
-C ----------------------------------------------------------------------
-          CMC2MS = CMC / DT
-          EC1 = MIN ( CMC2MS, EC1 )
-        ENDIF
-      ENDIF
-
-C ----------------------------------------------------------------------
-C TOTAL UP EVAP AND TRANSP TYPES TO OBTAIN ACTUAL EVAPOTRANSP
-C ----------------------------------------------------------------------
-      ETA1 = EDIR1 + ETT1 + EC1
-
-C ----------------------------------------------------------------------
-C END SUBROUTINE EVAPO
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      FUNCTION FRH2O (TKELV,SMC,SH2O,SMCMAX,BEXP,PSIS)
-
-      IMPLICIT NONE
-
-C ----------------------------------------------------------------------
-C FUNCTION FRH2O
-C ----------------------------------------------------------------------
-C CALCULATE AMOUNT OF SUPERCOOLED LIQUID SOIL WATER CONTENT IF
-C TEMPERATURE IS BELOW 273.15K (T0).  REQUIRES NEWTON-TYPE ITERATION TO
-C SOLVE THE NONLINEAR IMPLICIT EQUATION GIVEN IN EQN 17 OF KOREN ET AL
-C (1999, JGR, VOL 104(D16), 19569-19585).
-C ----------------------------------------------------------------------
-C NEW VERSION (JUNE 2001): MUCH FASTER AND MORE ACCURATE NEWTON
-C ITERATION ACHIEVED BY FIRST TAKING LOG OF EQN CITED ABOVE -- LESS THAN
-C 4 (TYPICALLY 1 OR 2) ITERATIONS ACHIEVES CONVERGENCE.  ALSO, EXPLICIT
-C 1-STEP SOLUTION OPTION FOR SPECIAL CASE OF PARAMETER CK=0, WHICH
-C REDUCES THE ORIGINAL IMPLICIT EQUATION TO A SIMPLER EXPLICIT FORM,
-C KNOWN AS THE "FLERCHINGER EQN". IMPROVED HANDLING OF SOLUTION IN THE
-C LIMIT OF FREEZING POINT TEMPERATURE T0.
-C ----------------------------------------------------------------------
-C INPUT:
-C
-C   TKELV.........TEMPERATURE (Kelvin)
-C   SMC...........TOTAL SOIL MOISTURE CONTENT (VOLUMETRIC)
-C   SH2O..........LIQUID SOIL MOISTURE CONTENT (VOLUMETRIC)
-C   SMCMAX........SATURATION SOIL MOISTURE CONTENT (FROM REDPRM)
-C   B.............SOIL TYPE "B" PARAMETER (FROM REDPRM)
-C   PSIS..........SATURATED SOIL MATRIC POTENTIAL (FROM REDPRM)
-C
-C OUTPUT:
-C   FRH2O.........SUPERCOOLED LIQUID WATER CONTENT
-C ----------------------------------------------------------------------
-      REAL BEXP
-      REAL BLIM
-      REAL BX
-      REAL CK
-      REAL DENOM
-      REAL DF
-      REAL DH2O
-      REAL DICE
-      REAL DSWL
-      REAL ERROR
-      REAL FK
-      REAL FRH2O
-      REAL GS
-      REAL HLICE
-      REAL PSIS
-      REAL SH2O
-      REAL SMC
-      REAL SMCMAX
-      REAL SWL
-      REAL SWLK
-      REAL TKELV
-      REAL T0
-
-      INTEGER NLOG
-      INTEGER KCOUNT
-
-      PARAMETER(CK = 8.0)
-C      PARAMETER(CK = 0.0)
-      PARAMETER(BLIM = 5.5)
-      PARAMETER(ERROR = 0.005)
-
-      PARAMETER(HLICE = 3.335E5)
-      PARAMETER(GS = 9.81)
-      PARAMETER(DICE = 920.0)
-      PARAMETER(DH2O = 1000.0)
-      PARAMETER(T0 = 273.15)
-
-C ----------------------------------------------------------------------
-C LIMITS ON PARAMETER B: B < 5.5  (use parameter BLIM)
-C SIMULATIONS SHOWED IF B > 5.5 UNFROZEN WATER CONTENT IS
-C NON-REALISTICALLY HIGH AT VERY LOW TEMPERATURES.
-C ----------------------------------------------------------------------
-      BX = BEXP
-      IF (BEXP .GT. BLIM) BX = BLIM
-
-C ----------------------------------------------------------------------
-C INITIALIZING ITERATIONS COUNTER AND ITERATIVE SOLUTION FLAG.
-C ----------------------------------------------------------------------
-      NLOG=0
-      KCOUNT=0
-
-C ----------------------------------------------------------------------
-C  IF TEMPERATURE NOT SIGNIFICANTLY BELOW FREEZING (T0), SH2O = SMC
-C ----------------------------------------------------------------------
-      IF (TKELV .GT. (T0 - 1.E-3)) THEN
- 	FRH2O = SMC
-      ELSE
-        IF (CK .NE. 0.0) THEN
-
-C ----------------------------------------------------------------------
-C OPTION 1: ITERATED SOLUTION FOR NONZERO CK
-C IN KOREN ET AL, JGR, 1999, EQN 17
-C ----------------------------------------------------------------------
-C INITIAL GUESS FOR SWL (frozen content)
-C ----------------------------------------------------------------------
-          SWL = SMC-SH2O
-
-C ----------------------------------------------------------------------
-C KEEP WITHIN BOUNDS.
-C ----------------------------------------------------------------------
-          IF (SWL .GT. (SMC-0.02)) SWL = SMC-0.02
-          IF (SWL .LT. 0.) SWL = 0.
-
-C ----------------------------------------------------------------------
-C  START OF ITERATIONS
-C ----------------------------------------------------------------------
-          DO WHILE ( (NLOG .LT. 10) .AND. (KCOUNT .EQ. 0) )
-            NLOG = NLOG+1
-            DF = ALOG(( PSIS*GS/HLICE ) * ( ( 1.+CK*SWL )**2. ) *
-     &        ( SMCMAX/(SMC-SWL) )**BX) - ALOG(-(TKELV-T0)/TKELV)
-            DENOM = 2. * CK / ( 1.+CK*SWL ) + BX / ( SMC - SWL )
-            SWLK = SWL - DF/DENOM
-C ----------------------------------------------------------------------
-C BOUNDS USEFUL FOR MATHEMATICAL SOLUTION.
-C ----------------------------------------------------------------------
-            IF (SWLK .GT. (SMC-0.02)) SWLK = SMC - 0.02
-            IF (SWLK .LT. 0.) SWLK = 0.
-
-C ----------------------------------------------------------------------
-C MATHEMATICAL SOLUTION BOUNDS APPLIED.
-C ----------------------------------------------------------------------
-            DSWL = ABS(SWLK-SWL)
-            SWL = SWLK
-
-C ----------------------------------------------------------------------
-C IF MORE THAN 10 ITERATIONS, USE EXPLICIT METHOD (CK=0 APPROX.)
-C WHEN DSWL LESS OR EQ. ERROR, NO MORE ITERATIONS REQUIRED.
-C ----------------------------------------------------------------------
-            IF ( DSWL .LE. ERROR )  THEN
- 	      KCOUNT = KCOUNT+1
-            ENDIF
-          END DO
-
-C ----------------------------------------------------------------------
-C  END OF ITERATIONS
-C ----------------------------------------------------------------------
-C BOUNDS APPLIED WITHIN DO-BLOCK ARE VALID FOR PHYSICAL SOLUTION.
-C ----------------------------------------------------------------------
-          FRH2O = SMC - SWL
-
-C ----------------------------------------------------------------------
-C END OPTION 1
-C ----------------------------------------------------------------------
-        ENDIF
-
-C ----------------------------------------------------------------------
-C OPTION 2: EXPLICIT SOLUTION FOR FLERCHINGER EQ. i.e. CK=0
-C IN KOREN ET AL., JGR, 1999, EQN 17
-C APPLY PHYSICAL BOUNDS TO FLERCHINGER SOLUTION
-C ----------------------------------------------------------------------
-        IF (KCOUNT .EQ. 0) THEN
-!Clu........comment out the following line to shorten the standard output
-!*          Print*,'Flerchinger used in NEW version. Iterations=',NLOG
-
- 	  FK = (((HLICE/(GS*(-PSIS)))*
-     &      ((TKELV-T0)/TKELV))**(-1/BX))*SMCMAX
- 	  IF (FK .LT. 0.02) FK = 0.02
- 	  FRH2O = MIN (FK, SMC)
-C ----------------------------------------------------------------------
-C END OPTION 2
-C ----------------------------------------------------------------------
-        ENDIF
-
-      ENDIF
-
-C ----------------------------------------------------------------------
-C END FUNCTION FRH2O
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE HRT (RHSTS,STC,SMC,SMCMAX,NSOIL,ZSOIL,YY,ZZ1,
-     &                TBOT,ZBOT,PSISAT,SH2O,DT,BEXP,
-     &                F1,DF1,QUARTZ,CSOIL,AI,BI,CI)
-
-      IMPLICIT NONE
-
-C ----------------------------------------------------------------------
-C SUBROUTINE HRT
-C ----------------------------------------------------------------------
-C CALCULATE THE RIGHT HAND SIDE OF THE TIME TENDENCY TERM OF THE SOIL
-C THERMAL DIFFUSION EQUATION.  ALSO TO COMPUTE ( PREPARE ) THE MATRIX
-C COEFFICIENTS FOR THE TRI-DIAGONAL MATRIX OF THE IMPLICIT TIME SCHEME.
-C ----------------------------------------------------------------------
-      INTEGER NSOLD
-      PARAMETER(NSOLD = 20)
-
-      LOGICAL ITAVG
-
-      INTEGER I
-      INTEGER K
-      INTEGER NSOIL
-
-C ----------------------------------------------------------------------
-C DECLARE WORK ARRAYS NEEDED IN TRI-DIAGONAL IMPLICIT SOLVER
-C ----------------------------------------------------------------------
-      REAL AI(NSOLD)
-      REAL BI(NSOLD)
-      REAL CI(NSOLD)
-
-C ----------------------------------------------------------------------
-C DECLARATIONS
-C ----------------------------------------------------------------------
-      REAL BEXP
-      REAL CAIR
-      REAL CH2O
-      REAL CICE
-      REAL CSOIL
-      REAL DDZ
-      REAL DDZ2
-      REAL DENOM
-      REAL DF1
-      REAL DF1N
-      REAL DF1K
-      REAL DT
-      REAL DTSDZ
-      REAL DTSDZ2
-      REAL F1
-      REAL HCPCT
-      REAL PSISAT
-      REAL QUARTZ
-      REAL QTOT
-      REAL RHSTS(NSOIL)
-      REAL SSOIL
-      REAL SICE
-      REAL SMC(NSOIL)
-      REAL SH2O(NSOIL)
-      REAL SMCMAX
-      REAL SNKSRC
-      REAL STC(NSOIL)
-      REAL T0
-      REAL TAVG
-      REAL TBK
-      REAL TBK1
-      REAL TBOT
-      REAL ZBOT
-      REAL TSNSR
-      REAL TSURF
-      REAL YY
-      REAL ZSOIL(NSOIL)
-      REAL ZZ1
-
-      PARAMETER(T0 = 273.15)
-
-C ----------------------------------------------------------------------
-C SET SPECIFIC HEAT CAPACITIES OF AIR, WATER, ICE, SOIL MINERAL       
-C ----------------------------------------------------------------------
-      PARAMETER(CAIR = 1004.0)
-      PARAMETER(CH2O = 4.2E6)
-      PARAMETER(CICE = 2.106E6)
-C NOTE: CSOIL NOW SET IN ROUTINE REDPRM AND PASSED IN
-C      PARAMETER(CSOIL = 1.26E6)
-
-C ----------------------------------------------------------------------
-C INITIALIZE LOGICAL FOR SOIL LAYER TEMPERATURE AVERAGING.
-C ----------------------------------------------------------------------
-      ITAVG = .TRUE.
-C      ITAVG = .FALSE.
-
-C ----------------------------------------------------------------------
-C BEGIN SECTION FOR TOP SOIL LAYER
-C ----------------------------------------------------------------------
-C CALC THE HEAT CAPACITY OF THE TOP SOIL LAYER
-C ----------------------------------------------------------------------
-      HCPCT = SH2O(1)*CH2O + (1.0-SMCMAX)*CSOIL + (SMCMAX-SMC(1))*CAIR
-     &        + ( SMC(1) - SH2O(1) )*CICE
-
-C ----------------------------------------------------------------------
-C CALC THE MATRIX COEFFICIENTS AI, BI, AND CI FOR THE TOP LAYER
-C ----------------------------------------------------------------------
-      DDZ = 1.0 / ( -0.5 * ZSOIL(2) )
-      AI(1) = 0.0
-      CI(1) = (DF1 * DDZ) / (ZSOIL(1) * HCPCT)
-      BI(1) = -CI(1) + DF1 / (0.5 * ZSOIL(1) * ZSOIL(1)*HCPCT*ZZ1)
-
-C ----------------------------------------------------------------------
-C CALCULATE THE VERTICAL SOIL TEMP GRADIENT BTWN THE 1ST AND 2ND SOIL
-C LAYERS.  THEN CALCULATE THE SUBSURFACE HEAT FLUX. USE THE TEMP
-C GRADIENT AND SUBSFC HEAT FLUX TO CALC "RIGHT-HAND SIDE TENDENCY
-C TERMS", OR "RHSTS", FOR TOP SOIL LAYER.
-C ----------------------------------------------------------------------
-      DTSDZ = (STC(1) - STC(2)) / (-0.5 * ZSOIL(2))
-      SSOIL = DF1 * (STC(1) - YY) / (0.5 * ZSOIL(1) * ZZ1)
-      RHSTS(1) = (DF1 * DTSDZ - SSOIL) / (ZSOIL(1) * HCPCT)
-
-C ----------------------------------------------------------------------
-C NEXT CAPTURE THE VERTICAL DIFFERENCE OF THE HEAT FLUX AT TOP AND
-C BOTTOM OF FIRST SOIL LAYER FOR USE IN HEAT FLUX CONSTRAINT APPLIED TO
-C POTENTIAL SOIL FREEZING/THAWING IN ROUTINE SNKSRC.
-C ----------------------------------------------------------------------
-      QTOT = SSOIL - DF1*DTSDZ
-
-C ----------------------------------------------------------------------
-C IF TEMPERATURE AVERAGING INVOKED (ITAVG=TRUE; ELSE SKIP):
-C SET TEMP "TSURF" AT TOP OF SOIL COLUMN (FOR USE IN FREEZING SOIL
-C PHYSICS LATER IN FUNCTION SUBROUTINE SNKSRC).  IF SNOWPACK CONTENT IS
-C ZERO, THEN TSURF EXPRESSION BELOW GIVES TSURF = SKIN TEMP.  IF
-C SNOWPACK IS NONZERO (HENCE ARGUMENT ZZ1=1), THEN TSURF EXPRESSION
-C BELOW YIELDS SOIL COLUMN TOP TEMPERATURE UNDER SNOWPACK.  THEN
-C CALCULATE TEMPERATURE AT BOTTOM INTERFACE OF 1ST SOIL LAYER FOR USE
-C LATER IN FUNCTION SUBROUTINE SNKSRC
-C ----------------------------------------------------------------------
-      IF (ITAVG) THEN 
-        TSURF = (YY + (ZZ1-1) * STC(1)) / ZZ1
-        CALL TBND (STC(1),STC(2),ZSOIL,ZBOT,1,NSOIL,TBK)
-      ENDIF
-
-C ----------------------------------------------------------------------
-C CALCULATE FROZEN WATER CONTENT IN 1ST SOIL LAYER. 
-C ----------------------------------------------------------------------
-      SICE = SMC(1) - SH2O(1)
-
-C ----------------------------------------------------------------------
-C IF FROZEN WATER PRESENT OR ANY OF LAYER-1 MID-POINT OR BOUNDING
-C INTERFACE TEMPERATURES BELOW FREEZING, THEN CALL SNKSRC TO
-C COMPUTE HEAT SOURCE/SINK (AND CHANGE IN FROZEN WATER CONTENT)
-C DUE TO POSSIBLE SOIL WATER PHASE CHANGE
-C ----------------------------------------------------------------------
-      IF ( (SICE   .GT. 0.) .OR. (TSURF .LT. T0) .OR.
-     &     (STC(1) .LT. T0) .OR. (TBK   .LT. T0) ) THEN
-
-        IF (ITAVG) THEN 
-          CALL TMPAVG(TAVG,TSURF,STC(1),TBK,ZSOIL,NSOIL,1)
-        ELSE
-          TAVG = STC(1)
-        ENDIF
-        TSNSR = SNKSRC (TAVG,SMC(1),SH2O(1), 
-     &    ZSOIL,NSOIL,SMCMAX,PSISAT,BEXP,DT,1,QTOT)
-
-        RHSTS(1) = RHSTS(1) - TSNSR / ( ZSOIL(1) * HCPCT )
-      ENDIF
- 
-C ----------------------------------------------------------------------
-C THIS ENDS SECTION FOR TOP SOIL LAYER.
-C ----------------------------------------------------------------------
-C INITIALIZE DDZ2
-C ----------------------------------------------------------------------
-      DDZ2 = 0.0
-
-C ----------------------------------------------------------------------
-C LOOP THRU THE REMAINING SOIL LAYERS, REPEATING THE ABOVE PROCESS
-C (EXCEPT SUBSFC OR "GROUND" HEAT FLUX NOT REPEATED IN LOWER LAYERS)
-C ----------------------------------------------------------------------
-      DF1K = DF1
-      DO K = 2,NSOIL
-
-C ----------------------------------------------------------------------
-C CALCULATE HEAT CAPACITY FOR THIS SOIL LAYER.
-C ----------------------------------------------------------------------
-        HCPCT = SH2O(K)*CH2O +(1.0-SMCMAX)*CSOIL +(SMCMAX-SMC(K))*CAIR
-     &        + ( SMC(K) - SH2O(K) )*CICE
-
-        IF (K .NE. NSOIL) THEN
-C ----------------------------------------------------------------------
-C THIS SECTION FOR LAYER 2 OR GREATER, BUT NOT LAST LAYER.
-C ----------------------------------------------------------------------
-C CALCULATE THERMAL DIFFUSIVITY FOR THIS LAYER.
-C ----------------------------------------------------------------------
-          CALL TDFCND (DF1N,SMC(K),QUARTZ,SMCMAX,SH2O(K))
-
-C ----------------------------------------------------------------------
-C CALC THE VERTICAL SOIL TEMP GRADIENT THRU THIS LAYER
-C ----------------------------------------------------------------------
-          DENOM = 0.5 * ( ZSOIL(K-1) - ZSOIL(K+1) )
-          DTSDZ2 = ( STC(K) - STC(K+1) ) / DENOM
-
-C ----------------------------------------------------------------------
-C CALC THE MATRIX COEF, CI, AFTER CALC'NG ITS PARTIAL PRODUCT
-C ----------------------------------------------------------------------
-          DDZ2 = 2. / (ZSOIL(K-1) - ZSOIL(K+1))
-          CI(K) = -DF1N * DDZ2 / ((ZSOIL(K-1) - ZSOIL(K)) * HCPCT)
-
-C ----------------------------------------------------------------------
-C IF TEMPERATURE AVERAGING INVOKED (ITAVG=TRUE; ELSE SKIP):  CALCULATE
-C TEMP AT BOTTOM OF LAYER.
-C ----------------------------------------------------------------------
-          IF (ITAVG) THEN 
-            CALL TBND (STC(K),STC(K+1),ZSOIL,ZBOT,K,NSOIL,TBK1)
-          ENDIF
-        ELSE
-
-C ----------------------------------------------------------------------
-C SPECIAL CASE OF BOTTOM SOIL LAYER:  CALCULATE THERMAL DIFFUSIVITY FOR
-C BOTTOM LAYER.
-C ----------------------------------------------------------------------
-          CALL TDFCND (DF1N,SMC(K),QUARTZ,SMCMAX,SH2O(K))
-
-C ----------------------------------------------------------------------
-C CALC THE VERTICAL SOIL TEMP GRADIENT THRU BOTTOM LAYER.
-C ----------------------------------------------------------------------
-          DENOM = .5 * (ZSOIL(K-1) + ZSOIL(K)) - ZBOT
-          DTSDZ2 = (STC(K)-TBOT) / DENOM
-
-C ----------------------------------------------------------------------
-C SET MATRIX COEF, CI TO ZERO IF BOTTOM LAYER.
-C ----------------------------------------------------------------------
-          CI(K) = 0.
-
-C ----------------------------------------------------------------------
-C IF TEMPERATURE AVERAGING INVOKED (ITAVG=TRUE; ELSE SKIP):  CALCULATE
-C TEMP AT BOTTOM OF LAST LAYER.
-C ----------------------------------------------------------------------
-          IF (ITAVG) THEN 
-            CALL TBND (STC(K),TBOT,ZSOIL,ZBOT,K,NSOIL,TBK1)
-          ENDIF 
-
-        ENDIF
-C ----------------------------------------------------------------------
-C THIS ENDS SPECIAL LOOP FOR BOTTOM LAYER.
-C ----------------------------------------------------------------------
-C CALCULATE RHSTS FOR THIS LAYER AFTER CALC'NG A PARTIAL PRODUCT.
-C ----------------------------------------------------------------------
-        DENOM = ( ZSOIL(K) - ZSOIL(K-1) ) * HCPCT
-        RHSTS(K) = ( DF1N * DTSDZ2 - DF1K * DTSDZ ) / DENOM
-        QTOT = -1.0*DENOM*RHSTS(K)
-        SICE = SMC(K) - SH2O(K)
-
-        IF ( (SICE .GT. 0.) .OR. (TBK .LT. T0) .OR.
-     &     (STC(K) .LT. T0) .OR. (TBK1 .LT. T0) ) THEN
-
-          IF (ITAVG) THEN 
-            CALL TMPAVG(TAVG,TBK,STC(K),TBK1,ZSOIL,NSOIL,K)
-          ELSE
-            TAVG = STC(K)
-          ENDIF
-          TSNSR = SNKSRC(TAVG,SMC(K),SH2O(K),ZSOIL,NSOIL,
-     &                   SMCMAX,PSISAT,BEXP,DT,K,QTOT)
-          RHSTS(K) = RHSTS(K) - TSNSR / DENOM
-        ENDIF 
-
-C ----------------------------------------------------------------------
-C CALC MATRIX COEFS, AI, AND BI FOR THIS LAYER.
-C ----------------------------------------------------------------------
-        AI(K) = - DF1 * DDZ / ((ZSOIL(K-1) - ZSOIL(K)) * HCPCT)
-        BI(K) = -(AI(K) + CI(K))
-
-C ----------------------------------------------------------------------
-C RESET VALUES OF DF1, DTSDZ, DDZ, AND TBK FOR LOOP TO NEXT SOIL LAYER.
-C ----------------------------------------------------------------------
-        TBK   = TBK1
-        DF1K  = DF1N
-        DTSDZ = DTSDZ2
-        DDZ   = DDZ2
-      END DO
-
-C ----------------------------------------------------------------------
-C END SUBROUTINE HRT
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE HRTICE (RHSTS,STC,NSOIL,ZSOIL,YY,ZZ1,DF1,AI,BI,CI,
-     &                   ICE,TBOT)
-
-      IMPLICIT NONE
-
-C ----------------------------------------------------------------------
-C SUBROUTINE HRTICE
-C ----------------------------------------------------------------------
-C CALCULATE THE RIGHT HAND SIDE OF THE TIME TENDENCY TERM OF THE SOIL
-C THERMAL DIFFUSION EQUATION FOR SEA-ICE (ICE = 1) OR GLACIAL-ICE (ICE).
-C COMPUTE (PREPARE) THE MATRIX COEFFICIENTS FOR THE TRI-DIAGONAL MATRIX
-C OF THE IMPLICIT TIME SCHEME.
-C
-C (NOTE:  THIS SUBROUTINE ONLY CALLED FOR SEA-ICE OR GLACIAL ICE, BUT
-C NOT FOR NON-GLACIAL LAND (ICE = 0).
-C ----------------------------------------------------------------------
-      INTEGER NSOLD
-      PARAMETER(NSOLD = 20)
-
-      INTEGER ICE
-      INTEGER K
-      INTEGER NSOIL
-
-      REAL AI(NSOLD)
-      REAL BI(NSOLD)
-      REAL CI(NSOLD)
-
-      REAL DDZ
-      REAL DDZ2
-      REAL DENOM
-      REAL DF1
-      REAL DTSDZ
-      REAL DTSDZ2
-      REAL HCPCT
-      REAL RHSTS(NSOIL)
-      REAL SSOIL
-      REAL STC(NSOIL)
-      REAL TBOT
-      REAL YY
-      REAL ZBOT
-      REAL ZSOIL(NSOIL)
-      REAL ZZ1
-
-c      DATA TBOT /271.16/
-
-C ----------------------------------------------------------------------
-C SET A NOMINAL UNIVERSAL VALUE OF THE SEA-ICE SPECIFIC HEAT CAPACITY,
-C   HCPCT = 1880.0*917.0 = 1.72396E+6 (SOURCE:  FEI CHEN, 1995)
-C SET BOTTOM OF SEA-ICE PACK TEMPERATURE
-C   TBOT = 271.16
-C SET A NOMINAL UNIVERSAL VALUE OF GLACIAL-ICE SPECIFIC HEAT CAPACITY,
-C   HCPCT = 2100.0*900.0 = 1.89000E+6 (SOURCE:  BOB GRUMBINE, 2005)
-C   TBOT PASSED IN AS ARGUMENT, VALUE FROM GLOBAL DATA SET
-C ----------------------------------------------------------------------
-c      PARAMETER(HCPCT = 1.72396E+6)
-      IF (ICE .EQ. 1) THEN       
-C ----------------------------------------------------------------------
-C SEA-ICE
-C ----------------------------------------------------------------------
-        HCPCT = 1.72396E+6
-        TBOT = 271.16
-      ELSE
-C ----------------------------------------------------------------------
-C GLACIAL-ICE
-C ----------------------------------------------------------------------
-        HCPCT = 1.89000E+6
-      ENDIF
-
-C ----------------------------------------------------------------------
-C THE INPUT ARGUMENT DF1 IS A UNIVERSALLY CONSTANT VALUE OF SEA-ICE
-C AND GLACIAL-ICE THERMAL DIFFUSIVITY, SET IN SFLX AS DF1 = 2.2.
-C ----------------------------------------------------------------------
-C SET ICE PACK DEPTH.  USE TBOT AS ICE PACK LOWER BOUNDARY TEMPERATURE
-C (THAT OF UNFROZEN SEA WATER AT BOTTOM OF SEA ICE PACK).  ASSUME ICE
-C PACK IS OF N=NSOIL LAYERS SPANNING A UNIFORM CONSTANT ICE PACK
-C THICKNESS AS DEFINED BY ZSOIL(NSOIL) IN ROUTINE SFLX.
-C IF GLACIAL-ICE, SET ZBOT = -25 METERS
-C ----------------------------------------------------------------------
-      IF (ICE .EQ. 1) THEN       
-C ----------------------------------------------------------------------
-C SEA-ICE
-C ----------------------------------------------------------------------
-        ZBOT = ZSOIL(NSOIL)
-      ELSE
-C ----------------------------------------------------------------------
-C GLACIAL-ICE
-C ----------------------------------------------------------------------
-        ZBOT = -25.0
-      ENDIF
-
-C ----------------------------------------------------------------------
-C CALC THE MATRIX COEFFICIENTS AI, BI, AND CI FOR THE TOP LAYER
-C ----------------------------------------------------------------------
-      DDZ = 1.0 / ( -0.5 * ZSOIL(2) )
-      AI(1) = 0.0
-      CI(1) = (DF1 * DDZ) / (ZSOIL(1) * HCPCT)
-      BI(1) = -CI(1) + DF1/(0.5 * ZSOIL(1) * ZSOIL(1) * HCPCT * ZZ1)
-
-C ----------------------------------------------------------------------
-C CALC THE VERTICAL SOIL TEMP GRADIENT BTWN THE TOP AND 2ND SOIL LAYERS.
-C RECALC/ADJUST THE SOIL HEAT FLUX.  USE THE GRADIENT AND FLUX TO CALC
-C RHSTS FOR THE TOP SOIL LAYER.
-C ----------------------------------------------------------------------
-      DTSDZ = ( STC(1) - STC(2) ) / ( -0.5 * ZSOIL(2) )
-      SSOIL = DF1 * ( STC(1) - YY ) / ( 0.5 * ZSOIL(1) * ZZ1 )
-      RHSTS(1) = ( DF1 * DTSDZ - SSOIL ) / ( ZSOIL(1) * HCPCT )
-
-C ----------------------------------------------------------------------
-C INITIALIZE DDZ2
-C ----------------------------------------------------------------------
-      DDZ2 = 0.0
-
-C ----------------------------------------------------------------------
-C LOOP THRU THE REMAINING SOIL LAYERS, REPEATING THE ABOVE PROCESS
-C ----------------------------------------------------------------------
-      DO K = 2,NSOIL
-        IF (K .NE. NSOIL) THEN
-
-C ----------------------------------------------------------------------
-C CALC THE VERTICAL SOIL TEMP GRADIENT THRU THIS LAYER.
-C ----------------------------------------------------------------------
-          DENOM = 0.5 * ( ZSOIL(K-1) - ZSOIL(K+1) )
-          DTSDZ2 = ( STC(K) - STC(K+1) ) / DENOM
-
-C ----------------------------------------------------------------------
-C CALC THE MATRIX COEF, CI, AFTER CALC'NG ITS PARTIAL PRODUCT.
-C ----------------------------------------------------------------------
-          DDZ2 = 2. / (ZSOIL(K-1) - ZSOIL(K+1))
-          CI(K) = -DF1 * DDZ2 / ((ZSOIL(K-1) - ZSOIL(K)) * HCPCT)
-        ELSE
-
-C ----------------------------------------------------------------------
-C CALC THE VERTICAL SOIL TEMP GRADIENT THRU THE LOWEST LAYER.
-C ----------------------------------------------------------------------
-          DTSDZ2 = (STC(K)-TBOT)/(.5 * (ZSOIL(K-1) + ZSOIL(K))-ZBOT)
-
-C ----------------------------------------------------------------------
-C SET MATRIX COEF, CI TO ZERO.
-C ----------------------------------------------------------------------
-          CI(K) = 0.
-        ENDIF
-
-C ----------------------------------------------------------------------
-C CALC RHSTS FOR THIS LAYER AFTER CALC'NG A PARTIAL PRODUCT.
-C ----------------------------------------------------------------------
-        DENOM = ( ZSOIL(K) - ZSOIL(K-1) ) * HCPCT
-        RHSTS(K) = ( DF1 * DTSDZ2 - DF1 * DTSDZ ) / DENOM
-
-C ----------------------------------------------------------------------
-C CALC MATRIX COEFS, AI, AND BI FOR THIS LAYER.
-C ----------------------------------------------------------------------
-        AI(K) = - DF1 * DDZ / ((ZSOIL(K-1) - ZSOIL(K)) * HCPCT)
-        BI(K) = -(AI(K) + CI(K))
-
-C ----------------------------------------------------------------------
-C RESET VALUES OF DTSDZ AND DDZ FOR LOOP TO NEXT SOIL LYR.
-C ----------------------------------------------------------------------
-        DTSDZ = DTSDZ2
-        DDZ   = DDZ2
-
-      END DO
-C ----------------------------------------------------------------------
-C END SUBROUTINE HRTICE
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE HSTEP (STCOUT,STCIN,RHSTS,DT,NSOIL,AI,BI,CI)
-
-      IMPLICIT NONE
-
-C ----------------------------------------------------------------------
-C SUBROUTINE HSTEP
-C ----------------------------------------------------------------------
-C CALCULATE/UPDATE THE SOIL TEMPERATURE FIELD.
-C ----------------------------------------------------------------------
-      INTEGER NSOLD
-      PARAMETER(NSOLD = 20)
-
-      INTEGER K
-      INTEGER NSOIL
-
-      REAL AI(NSOLD)
-      REAL BI(NSOLD)
-      REAL CI(NSOLD)
-      REAL CIin(NSOLD)
-      REAL DT
-      REAL RHSTS(NSOIL)
-      REAL RHSTSin(NSOIL)
-      REAL STCIN(NSOIL)
-      REAL STCOUT(NSOIL)
-
-C ----------------------------------------------------------------------
-C CREATE FINITE DIFFERENCE VALUES FOR USE IN ROSR12 ROUTINE
-C ----------------------------------------------------------------------
-      DO K = 1,NSOIL
-        RHSTS(K) = RHSTS(K) * DT
-        AI(K) = AI(K) * DT
-        BI(K) = 1. + BI(K) * DT
-        CI(K) = CI(K) * DT
-      END DO
-
-C ----------------------------------------------------------------------
-C COPY VALUES FOR INPUT VARIABLES BEFORE CALL TO ROSR12
-C ----------------------------------------------------------------------
-      DO K = 1,NSOIL
-         RHSTSin(K) = RHSTS(K)
-      END DO
-      DO K = 1,NSOLD
-        CIin(K) = CI(K)
-      END DO
-
-C ----------------------------------------------------------------------
-C SOLVE THE TRI-DIAGONAL MATRIX EQUATION
-C ----------------------------------------------------------------------
-      CALL ROSR12(CI,AI,BI,CIin,RHSTSin,RHSTS,NSOIL)
-
-C ----------------------------------------------------------------------
-C CALC/UPDATE THE SOIL TEMPS USING MATRIX SOLUTION
-C ----------------------------------------------------------------------
-      DO K = 1,NSOIL
-        STCOUT(K) = STCIN(K) + CI(K)
-      END DO
-
-C ----------------------------------------------------------------------
-C END SUBROUTINE HSTEP
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE NOPAC(ETP,ETA,PRCP,SMC,SMCMAX,SMCWLT,
-     &                 SMCREF,SMCDRY,CMC,CMCMAX,NSOIL,DT,SHDFAC,
-     &                 SBETA,Q2,T1,SFCTMP,T24,TH2,FDOWN,F1,SSOIL,
-     &                 STC,EPSCA,BEXP,PC,RCH,RR,CFACTR, 
-     &                 SH2O,SLOPE,KDT,FRZFACT,PSISAT,ZSOIL,
-     &                 DKSAT,DWSAT,TBOT,ZBOT,RUNOFF1,RUNOFF2,
-     &                 RUNOFF3,EDIR,EC,ET,ETT,NROOT,ICE,RTDIS,
-     &                 QUARTZ,FXEXP,CSOIL,
-     &                 BETA,DRIP,DEW,FLX1,FLX2,FLX3)
-
-      IMPLICIT NONE
-
-C ----------------------------------------------------------------------
-C SUBROUTINE NOPAC
-C ----------------------------------------------------------------------
-C CALCULATE SOIL MOISTURE AND HEAT FLUX VALUES AND UPDATE SOIL MOISTURE
-C CONTENT AND SOIL HEAT CONTENT VALUES FOR THE CASE WHEN NO SNOW PACK IS
-C PRESENT.
-C ----------------------------------------------------------------------
-      INTEGER ICE
-      INTEGER NROOT
-      INTEGER NSOIL
-
-      REAL BEXP
-      REAL BETA
-      REAL CFACTR
-      REAL CMC
-      REAL CMCMAX
-      REAL CP
-      REAL CSOIL
-      REAL DEW
-      REAL DF1
-      REAL DKSAT
-      REAL DRIP
-      REAL DT
-      REAL DWSAT
-      REAL EC
-      REAL EDIR
-      REAL EPSCA
-      REAL ETA
-      REAL ETA1
-      REAL ETP
-      REAL ETP1
-      REAL ET(NSOIL)
-      REAL ETT
-      REAL FDOWN
-      REAL F1
-      REAL FXEXP
-      REAL FLX1
-      REAL FLX2
-      REAL FLX3
-      REAL FRZFACT
-      REAL KDT
-      REAL PC
-      REAL PRCP
-      REAL PRCP1
-      REAL PSISAT
-      REAL Q2
-      REAL QUARTZ
-      REAL RCH
-      REAL RR
-      REAL RTDIS(NSOIL)
-      REAL RUNOFF1
-      REAL RUNOFF2
-      REAL RUNOFF3
-      REAL SSOIL
-      REAL SBETA
-      REAL SFCTMP
-      REAL SHDFAC
-      REAL SH2O(NSOIL)
-      REAL SIGMA
-      REAL SLOPE
-      REAL SMC(NSOIL)
-      REAL SMCDRY
-      REAL SMCMAX
-      REAL SMCREF
-      REAL SMCWLT
-      REAL STC(NSOIL)
-      REAL T1
-      REAL T24
-      REAL TBOT
-      REAL TH2
-      REAL YY
-      REAL YYNUM
-      REAL ZBOT
-      REAL ZSOIL(NSOIL)
-      REAL ZZ1
-
-      REAL EC1
-      REAL EDIR1
-      REAL ET1(NSOIL)
-      REAL ETT1
-
-      INTEGER K
-
-      PARAMETER(CP = 1004.5)
-      PARAMETER(SIGMA = 5.67E-8)
-
-C ----------------------------------------------------------------------
-C EXECUTABLE CODE BEGINS HERE:
-C CONVERT ETP FROM KG M-2 S-1 TO MS-1 AND INITIALIZE DEW.
-C ----------------------------------------------------------------------
-      PRCP1 = PRCP * 0.001
-      ETP1 = ETP * 0.001
-      DEW = 0.0
-
-      EDIR = 0.
-      EDIR1 = 0.
-      EC = 0.
-      EC1 = 0.
-      DO K = 1,NSOIL
-        ET(K) = 0.
-        ET1(K) = 0.
-      END DO
-      ETT = 0.
-      ETT1 = 0.
-
-      IF (ETP .GT. 0.0) THEN
-
-C ----------------------------------------------------------------------
-C CONVERT PRCP FROM 'KG M-2 S-1' TO 'M S-1'.
-C ----------------------------------------------------------------------
-           CALL EVAPO (ETA1,SMC,NSOIL,CMC,ETP1,DT,ZSOIL,
-     &                 SH2O,SMCMAX,BEXP,PC,SMCWLT,DKSAT,DWSAT,
-     &                 SMCREF,SHDFAC,CMCMAX,
-     &                 SMCDRY,CFACTR, 
-     &                 EDIR1,EC1,ET1,ETT1,SFCTMP,Q2,NROOT,RTDIS,FXEXP)
-           CALL SMFLX (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,
-     &                 SH2O,SLOPE,KDT,FRZFACT,
-     &                 SMCMAX,BEXP,SMCWLT,DKSAT,DWSAT,
-     &                 SHDFAC,CMCMAX,
-     &                 RUNOFF1,RUNOFF2,RUNOFF3, 
-     &                 EDIR1,EC1,ET1,
-     &                 DRIP)
-
-C ----------------------------------------------------------------------
-C       CONVERT MODELED EVAPOTRANSPIRATION FM  M S-1  TO  KG M-2 S-1
-C ----------------------------------------------------------------------
-c        ETA = ETA1 * 1000.0
-
-C ----------------------------------------------------------------------
-c        EDIR = EDIR1 * 1000.0
-c        EC = EC1 * 1000.0
-c        ETT = ETT1 * 1000.0
-c        ET(1) = ET1(1) * 1000.0
-c        ET(2) = ET1(2) * 1000.0
-c        ET(3) = ET1(3) * 1000.0
-c        ET(4) = ET1(4) * 1000.0
-C ----------------------------------------------------------------------
-
-      ELSE
-
-C ----------------------------------------------------------------------
-C IF ETP < 0, ASSUME DEW FORMS (TRANSFORM ETP1 INTO DEW AND REINITIALIZE
-C ETP1 TO ZERO).
-C ----------------------------------------------------------------------
-        DEW = -ETP1
-        ETA1 = 0.0 ! Added by weiyu for initializing.
-c        ETP1 = 0.0
-
-C ----------------------------------------------------------------------
-C CONVERT PRCP FROM 'KG M-2 S-1' TO 'M S-1' AND ADD DEW AMOUNT.
-C ----------------------------------------------------------------------
-        PRCP1 = PRCP1 + DEW
-C
-c      CALL EVAPO (ETA1,SMC,NSOIL,CMC,ETP1,DT,ZSOIL,
-c     &            SH2O,SMCMAX,BEXP,PC,SMCWLT,DKSAT,DWSAT,
-c     &            SMCREF,SHDFAC,CMCMAX,
-c     &            SMCDRY,CFACTR, 
-c     &            EDIR1,EC1,ET1,ETT,SFCTMP,Q2,NROOT,RTDIS,FXEXP)
-      CALL SMFLX (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,
-     &            SH2O,SLOPE,KDT,FRZFACT,
-     &            SMCMAX,BEXP,SMCWLT,DKSAT,DWSAT,
-     &            SHDFAC,CMCMAX,
-     &            RUNOFF1,RUNOFF2,RUNOFF3, 
-     &            EDIR1,EC1,ET1,
-     &            DRIP)
-
-C ----------------------------------------------------------------------
-C CONVERT MODELED EVAPOTRANSPIRATION FROM 'M S-1' TO 'KG M-2 S-1'.
-C ----------------------------------------------------------------------
-c        ETA = ETA1 * 1000.0
-
-C ----------------------------------------------------------------------
-c        EDIR = EDIR1 * 1000.0
-c        EC = EC1 * 1000.0
-c        ETT = ETT1 * 1000.0
-c        ET(1) = ET1(1) * 1000.0
-c        ET(2) = ET1(2) * 1000.0
-c        ET(3) = ET1(3) * 1000.0
-c        ET(4) = ET1(4) * 1000.0
-C ----------------------------------------------------------------------
-
-      ENDIF
-
-C ----------------------------------------------------------------------
-C       CONVERT MODELED EVAPOTRANSPIRATION FM  M S-1  TO  KG M-2 S-1
-C ----------------------------------------------------------------------
-        ETA = ETA1 * 1000.0
-
-C ----------------------------------------------------------------------
-      EDIR = EDIR1 * 1000.0
-      EC = EC1 * 1000.0
-      DO K = 1,NSOIL
-        ET(K) = ET1(K) * 1000.0
-c        ET(1) = ET1(1) * 1000.0
-c        ET(2) = ET1(2) * 1000.0
-c        ET(3) = ET1(3) * 1000.0
-c        ET(4) = ET1(4) * 1000.0
-      ENDDO
-      ETT = ETT1 * 1000.0
-C ----------------------------------------------------------------------
-
-C ----------------------------------------------------------------------
-C BASED ON ETP AND E VALUES, DETERMINE BETA
-C ----------------------------------------------------------------------
-      IF ( ETP .LE. 0.0 ) THEN
-        BETA = 0.0
-        IF ( ETP .LT. 0.0 ) THEN
-          BETA = 1.0
-c          ETA = ETP
-        ENDIF
-      ELSE
-        BETA = ETA / ETP
-      ENDIF
-
-C ----------------------------------------------------------------------
-C GET SOIL THERMAL DIFFUXIVITY/CONDUCTIVITY FOR TOP SOIL LYR,
-C CALC. ADJUSTED TOP LYR SOIL TEMP AND ADJUSTED SOIL FLUX, THEN
-C CALL SHFLX TO COMPUTE/UPDATE SOIL HEAT FLUX AND SOIL TEMPS.
-C ----------------------------------------------------------------------
-      CALL TDFCND (DF1,SMC(1),QUARTZ,SMCMAX,SH2O(1))
-
-C ----------------------------------------------------------------------
-C VEGETATION GREENNESS FRACTION REDUCTION IN SUBSURFACE HEAT FLUX 
-C VIA REDUCTION FACTOR, WHICH IS CONVENIENT TO APPLY HERE TO THERMAL 
-C DIFFUSIVITY THAT IS LATER USED IN HRT TO COMPUTE SUB SFC HEAT FLUX
-C (SEE ADDITIONAL COMMENTS ON VEG EFFECT SUB-SFC HEAT FLX IN 
-C ROUTINE SFLX)
-C ----------------------------------------------------------------------
-      DF1 = DF1 * EXP(SBETA*SHDFAC)
-
-C ----------------------------------------------------------------------
-C COMPUTE INTERMEDIATE TERMS PASSED TO ROUTINE HRT (VIA ROUTINE 
-C SHFLX BELOW) FOR USE IN COMPUTING SUBSURFACE HEAT FLUX IN HRT
-C ----------------------------------------------------------------------
-      YYNUM = FDOWN - SIGMA * T24
-      YY = SFCTMP + (YYNUM/RCH+TH2-SFCTMP-BETA*EPSCA) / RR
-      ZZ1 = DF1 / ( -0.5 * ZSOIL(1) * RCH * RR ) + 1.0
-
-      CALL SHFLX (SSOIL,STC,SMC,SMCMAX,NSOIL,T1,DT,YY,ZZ1,ZSOIL,
-     &            TBOT,ZBOT,SMCWLT,PSISAT,SH2O,BEXP,F1,DF1,ICE,
-     &            QUARTZ,CSOIL)
-
-C ----------------------------------------------------------------------
-C SET FLX1 AND FLX3 (SNOPACK PHASE CHANGE HEAT FLUXES) TO ZERO SINCE
-C THEY ARE NOT USED HERE IN SNOPAC.  FLX2 (FREEZING RAIN HEAT FLUX) WAS
-C SIMILARLY INITIALIZED IN THE PENMAN ROUTINE.
-C ----------------------------------------------------------------------
-      FLX1 = 0.0
-      FLX3 = 0.0
-
-C ----------------------------------------------------------------------
-C END SUBROUTINE NOPAC
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE PENMAN (SFCTMP,SFCPRS,CH,T2V,TH2,PRCP,FDOWN,T24,SSOIL,
-     &                   Q2,Q2SAT,ETP,RCH,EPSCA,RR,SNOWNG,FRZGRA,
-     &                   DQSDT2,FLX2)
-
-      IMPLICIT NONE
-
-C ----------------------------------------------------------------------
-C SUBROUTINE PENMAN
-C ----------------------------------------------------------------------
-C CALCULATE POTENTIAL EVAPORATION FOR THE CURRENT POINT.  VARIOUS
-C PARTIAL SUMS/PRODUCTS ARE ALSO CALCULATED AND PASSED BACK TO THE
-C CALLING ROUTINE FOR LATER USE.
-C ----------------------------------------------------------------------
-      LOGICAL SNOWNG
-      LOGICAL FRZGRA
-
-      REAL A
-      REAL BETA
-      REAL CH
-      REAL CP
-      REAL CPH2O
-      REAL CPICE
-      REAL DELTA
-      REAL DQSDT2
-      REAL ELCP
-      REAL EPSCA
-      REAL ETP
-      REAL FDOWN
-      REAL FLX2
-      REAL FNET
-      REAL LSUBC
-      REAL LSUBF
-      REAL PRCP
-      REAL Q2
-      REAL Q2SAT
-      REAL R
-      REAL RAD
-      REAL RCH
-      REAL RHO
-      REAL RR
-      REAL SSOIL
-      REAL SFCPRS
-      REAL SFCTMP
-      REAL SIGMA
-      REAL T24
-      REAL T2V
-      REAL TH2
-
-      PARAMETER(CP = 1004.6)
-      PARAMETER(CPH2O = 4.218E+3)
-      PARAMETER(CPICE = 2.106E+3)
-      PARAMETER(R = 287.04)
-      PARAMETER(ELCP = 2.4888E+3)
-      PARAMETER(LSUBF = 3.335E+5)
-      PARAMETER(LSUBC = 2.501000E+6)
-      PARAMETER(SIGMA = 5.67E-8)
-
-C ----------------------------------------------------------------------
-C EXECUTABLE CODE BEGINS HERE:
-C ----------------------------------------------------------------------
-      FLX2 = 0.0
-
-C ----------------------------------------------------------------------
-C PREPARE PARTIAL QUANTITIES FOR PENMAN EQUATION.
-C ----------------------------------------------------------------------
-      DELTA = ELCP * DQSDT2
-      T24 = SFCTMP * SFCTMP * SFCTMP * SFCTMP
-      RR = T24 * 6.48E-8 /(SFCPRS * CH) + 1.0
-      RHO = SFCPRS / (R * T2V)
-      RCH = RHO * CP * CH
-
-C ----------------------------------------------------------------------
-C ADJUST THE PARTIAL SUMS / PRODUCTS WITH THE LATENT HEAT
-C EFFECTS CAUSED BY FALLING PRECIPITATION.
-C ----------------------------------------------------------------------
-      IF (.NOT. SNOWNG) THEN
-        IF (PRCP .GT. 0.0) RR = RR + CPH2O*PRCP/RCH
-      ELSE
-        RR = RR + CPICE*PRCP/RCH
-      ENDIF
-
-      FNET = FDOWN - SIGMA*T24 - SSOIL
-
-C ----------------------------------------------------------------------
-C INCLUDE THE LATENT HEAT EFFECTS OF FRZNG RAIN CONVERTING TO ICE ON
-C IMPACT IN THE CALCULATION OF FLX2 AND FNET.
-C ----------------------------------------------------------------------
-      IF (FRZGRA) THEN
-        FLX2 = -LSUBF * PRCP
-        FNET = FNET - FLX2
-      ENDIF
-
-C ----------------------------------------------------------------------
-C FINISH PENMAN EQUATION CALCULATIONS.
-C ----------------------------------------------------------------------
-      RAD = FNET/RCH + TH2 - SFCTMP
-      A = ELCP * (Q2SAT - Q2)
-      EPSCA = (A*RR + RAD*DELTA) / (DELTA + RR)
-      ETP = EPSCA * RCH / LSUBC
-
-C ----------------------------------------------------------------------
-C END SUBROUTINE PENMAN
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE REDPRM (
-     &                   VEGTYP,SOILTYP,SLOPETYP,
-     &     		 CFACTR,CMCMAX,RSMAX,TOPT,REFKDT,KDT,SBETA,
-     &     		 SHDFAC,RSMIN,RGL,HS,ZBOT,FRZX,PSISAT,SLOPE,
-     &     		 SNUP,SALP,BEXP,DKSAT,DWSAT,
-     &                   SMCMAX,SMCWLT,SMCREF,
-     &     		 SMCDRY,F1,QUARTZ,FXEXP,RTDIS,SLDPTH,ZSOIL,
-     &     		 NROOT,NSOIL,Z0,CZIL,LAI,CSOIL,PTU)
-
-C ----------------------------------------------------------------------
-C SUBROUTINE REDPRM
-C ----------------------------------------------------------------------
-C ALL SOIL, VEG, SLOPE, AND UNIVERSAL PARAMETERS VALUES ARE DEFINED
-C EXTERNALLY (IN SUBROUTINE "set_soilveg.f") AND THEN ACCESSED VIA "use
-C namelist_soilveg" (BELOW) AND THEN SET HERE.
-C ----------------------------------------------------------------------
+!  --- ...  next is crucial call to set the land-surface parameters, 
+!           including soil-type and veg-type dependent parameters.
+!           set shdfac=0.0 for bare soil surfaces
+
+      call redprm
+!  ---  inputs:                                                            !
+!          ( nsoil, vegtyp, soiltyp, slopetyp, sldpth, zsoil,              !
+!  ---  outputs:                                                           !
+!            cfactr, cmcmax, rsmin, rsmax, topt, refkdt, kdt,              !
+!            sbeta, shdfac, rgl, hs, zbot, frzx, psisat, slope,            !
+!            snup, salp, bexp, dksat, dwsat, smcmax, smcwlt,               !
+!            smcref, smcdry, f1, quartz, fxexp, rtdis, nroot,              !
+!            z0, czil, xlai, csoil )                                       !
+
+       if(smcwlt<0) then
+       print *,'after redprm,smcwlt=',smcwlt,'smcref=',smcref,
+     &    'soiltyp=',soiltyp
+       endif
+!  --- ...  initialize precipitation logicals.
+
+      snowng = .false.
+      frzgra = .false.
+
+!  --- ...  over sea-ice or glacial-ice, if s.w.e. (sneqv) below threshold
+!           lower bound (0.01 m for sea-ice, 0.10 m for glacial-ice), then
+!           set at lower bound and store the source increment in subsurface
+!           runoff/baseflow (runoff2).
+!    note - runoff2 is then a negative value (as a flag) over sea-ice or
+!           glacial-ice, in order to achieve water balance.
+
+      if (ice == 1) then
+
+        if (sneqv < 0.01) then
+          sneqv = 0.01
+          snowh = 0.10
+!         snowh = sneqv / sndens
+        endif
+
+      elseif (ice == -1) then
+
+        if (sneqv < 0.10) then
+!         sndens = sneqv / snowh
+!         runoff2 = -(0.10 - sneqv) / dt
+          sneqv = 0.10
+          snowh = 1.00
+!         snowh = sneqv / sndens
+        endif
+
+      endif   ! end if_ice_block
+
+!  --- ...  for sea-ice and glacial-ice cases, set smc and sh2o values = 1
+!           as a flag for non-soil medium
+
+      if (ice /= 0) then
+        do kz = 1, nsoil
+          smc (kz) = 1.0
+          sh2o(kz) = 1.0
+        enddo
+      endif
+
+!  --- ...  if input snowpack is nonzero, then compute snow density "sndens"
+!           and snow thermal conductivity "sncond" (note that csnow is a
+!           function subroutine)
+
+      if (sneqv .eq. 0.0) then
+        sndens = 0.0
+        snowh = 0.0
+        sncond = 1.0
+      else
+        sndens = sneqv / snowh
+        sndens = max( 0.0, min( 1.0, sndens ))   ! added by moorthi
+
+        call csnow
+!  ---  inputs:                                                         !
+!          ( sndens,                                                    !
+!  ---  outputs:                                                        !
+!            sncond )                                                   !
+
+      endif
+
+!  --- ...  determine if it's precipitating and what kind of precip it is.
+!           if it's prcping and the air temp is colder than 0 c, it's snowing!
+!           if it's prcping and the air temp is warmer than 0 c, but the grnd
+!           temp is colder than 0 c, freezing rain is presumed to be falling.
+
+      if (prcp > 0.0) then
+        if (ffrozp > 0.5) then
+          snowng = .true.
+        else
+          if (t1 <= tfreez) frzgra = .true.
+        endif
+      endif
+
+!  --- ...  if either prcp flag is set, determine new snowfall (converting
+!           prcp rate from kg m-2 s-1 to a liquid equiv snow depth in meters)
+!           and add it to the existing snowpack.
+!    note - that since all precip is added to snowpack, no precip infiltrates
+!           into the soil so that prcp1 is set to zero.
+
+      if (snowng .or. frzgra) then
+
+        sn_new = prcp * dt * 0.001
+        sneqv = sneqv + sn_new
+        prcp1 = 0.0
+
+!  --- ...  update snow density based on new snowfall, using old and new
+!           snow.  update snow thermal conductivity
+
+        call snow_new
+!  ---  inputs:                                                         !
+!          ( sfctmp, sn_new,                                            !
+!  ---  input/outputs:                                                  !
+!            snowh, sndens )                                            !
+
+        call csnow
+!  ---  inputs:                                                         !
+!          ( sndens,                                                    !
+!  ---  outputs:                                                        !
+!            sncond )                                                   !
+
+      else
+
+!  --- ...  precip is liquid (rain), hence save in the precip variable
+!           that later can wholely or partially infiltrate the soil (along
+!           with any canopy "drip" added to this later)
+
+        prcp1 = prcp
+
+      endif   ! end if_snowng_block
+
+!  --- ...  determine snowcover fraction and albedo fraction over land.
+
+      if (ice /= 0) then
+
+!  --- ...  snow cover, albedo over sea-ice, glacial-ice
+
+        sncovr = 1.0
+        albedo = 0.65
+
+      else
+
+!  --- ...  non-glacial land
+!           if snow depth=0, set snowcover fraction=0, albedo=snow free albedo.
+
+        if (sneqv == 0.0) then
+
+          sncovr = 0.0
+          albedo = alb
+
+        else
+
+!  --- ...  determine snow fraction cover.
+!           determine surface albedo modification due to snowdepth state.
+
+          call snfrac
+!  ---  inputs:                                                         !
+!          ( sneqv, snup, salp, snowh,                                  !
+!  ---  outputs:                                                        !
+!            sncovr )                                                   !
+
+          call alcalc
+!  ---  inputs:                                                         !
+!          ( alb, snoalb, shdfac, shdmin, sncovr, tsnow,                !
+!  ---  outputs:                                                        !
+!            albedo )                                                   !
+
+        endif   ! end if_sneqv_block
+
+      endif   ! end if_ice_block
+
+!  --- ...  thermal conductivity for sea-ice case, glacial-ice case
+
+      if (ice /= 0) then
+
+        df1 = 2.2
+
+      else
+
+!  --- ...  next calculate the subsurface heat flux, which first requires
+!           calculation of the thermal diffusivity.  treatment of the
+!           latter follows that on pages 148-149 from "heat transfer in 
+!           cold climates", by v. j. lunardini (published in 1981 
+!           by van nostrand reinhold co.) i.e. treatment of two contiguous 
+!           "plane parallel" mediums (namely here the first soil layer 
+!           and the snowpack layer, if any). this diffusivity treatment 
+!           behaves well for both zero and nonzero snowpack, including the 
+!           limit of very thin snowpack.  this treatment also eliminates
+!           the need to impose an arbitrary upper bound on subsurface 
+!           heat flux when the snowpack becomes extremely thin.
+
+!  --- ...   first calculate thermal diffusivity of top soil layer, using
+!            both the frozen and liquid soil moisture, following the 
+!            soil thermal diffusivity function of peters-lidard et al.
+!            (1998,jas, vol 55, 1209-1224), which requires the specifying
+!            the quartz content of the given soil class (see routine redprm)
+
+        call tdfcnd                                                     &
+!  ---  inputs:
+     &     ( smc(1), quartz, smcmax, sh2o(1),                           &
+!  ---  outputs:
+     &       df1                                                        &
+     &     )
+
+!  --- ...  next add subsurface heat flux reduction effect from the 
+!           overlying green canopy, adapted from section 2.1.2 of 
+!           peters-lidard et al. (1997, jgr, vol 102(d4))
+
+        df1 = df1 * exp( sbeta*shdfac )
+
+      endif   ! end if_ice_block
+
+!  --- ...  finally "plane parallel" snowpack effect following 
+!           v.j. linardini reference cited above. note that dtot is
+!           combined depth of snowdepth and thickness of first soil layer
+
+      dsoil = -0.5 * zsoil(1)
+
+      if (sneqv == 0.0) then
+
+        ssoil = df1 * (t1 - stc(1)) / dsoil
+
+      else
+
+        dtot = snowh + dsoil
+        frcsno = snowh / dtot
+        frcsoi = dsoil / dtot
+
+!  --- ...  1. harmonic mean (series flow)
+
+!       df1  = (sncond*df1) / (frcsoi*sncond + frcsno*df1)
+!       df1h = (sncond*df1) / (frcsoi*sncond + frcsno*df1)
+
+!  --- ...  2. arithmetic mean (parallel flow)
+
+!       df1  = frcsno*sncond + frcsoi*df1
+        df1a = frcsno*sncond + frcsoi*df1
+
+!  --- ...  3. geometric mean (intermediate between harmonic and arithmetic mean)
+
+!       df1 = (sncond**frcsno) * (df1**frcsoi)
+!       df1 = df1h*sncovr + df1a*(1.0-sncovr)
+!       df1 = df1h*sncovr + df1 *(1.0-sncovr)
+        df1 = df1a*sncovr + df1 *(1.0-sncovr)
+
+!  --- ...  calculate subsurface heat flux, ssoil, from final thermal
+!           diffusivity of surface mediums, df1 above, and skin
+!           temperature and top mid-layer soil temperature
+
+        ssoil = df1 * (t1 - stc(1)) / dtot
+
+      endif   ! end if_sneqv_block
+
+!  --- ...  determine surface roughness over snowpack using snow condition
+!           from the previous timestep.
+
+      if (couple == 0) then            ! uncoupled mode
+        if (sncovr > 0.0) then
+
+          call snowz0
+!  ---  inputs:                                                         !
+!          ( sncovr,                                                    !
+!  ---  input/outputs:                                                  !
+!            z0 )                                                       !
+
+        endif
+      endif
+
+!  --- ...  calc virtual temps and virtual potential temps needed by
+!           subroutines sfcdif and penman.
+
+      t2v = sfctmp * (1.0 + 0.61*q2)
+
+!  --- ...  next call routine sfcdif to calculate the sfc exchange coef (ch)
+!           for heat and moisture.
+!    note - comment out call sfcdif, if sfcdif already called in calling 
+!           program (such as in coupled atmospheric model).
+!         - do not call sfcdif until after above call to redprm, in case
+!           alternative values of roughness length (z0) and zilintinkevich
+!           coef (czil) are set there via namelist i/o.
+!         - routine sfcdif returns a ch that represents the wind spd times
+!           the "original" nondimensional "ch" typical in literature.  hence
+!           the ch returned from sfcdif has units of m/s.  the important 
+!           companion coefficient of ch, carried here as "rch", is the ch
+!           from sfcdif times air density and parameter "cp".  "rch" is
+!           computed in "call penman". rch rather than ch is the coeff 
+!           usually invoked later in eqns.
+!         - sfcdif also returns the surface exchange coefficient for momentum,
+!           cm, also known as the surface drage coefficient, but cm is not
+!           used here.
+
+!  --- ...  key required radiation term is the total downward radiation
+!           (fdown) = net solar (swnet) + downward longwave (lwdn),
+!           for use in penman ep calculation (penman) and other surface
+!           energy budget calcuations.  also need downward solar (swdn)
+!           for canopy resistance routine (canres).
+!    note - fdown, swdn are derived differently in the uncoupled and
+!           coupled modes.
+
+      if (couple == 0) then                      !......uncoupled mode
+
+!  --- ...  uncoupled mode:
+!           compute surface exchange coefficients
+
+        t1v  = t1  * (1.0 + 0.61 * q2)
+        th2v = th2 * (1.0 + 0.61 * q2)
+
+        call sfcdif
+!  ---  inputs:                                                         !
+!          ( zlvl, z0, t1v, th2v, sfcspd, czil,                         !
+!  ---  input/outputs:                                                  !
+!            cm, ch )                                                   !
+
+!     swnet = net solar radiation into the ground (w/m2; dn-up) from input
+!     fdown  = net solar + downward lw flux at sfc (w/m2)
+
+        fdown = swnet + lwdn
+
+      else                                       !......coupled mode
+
+!  --- ...  coupled mode (couple .ne. 0):
+!           surface exchange coefficients computed externally and passed in,
+!           hence subroutine sfcdif not called.
+
+!     swnet = net solar radiation into the ground (w/m2; dn-up) from input
+!     fdown  = net solar + downward lw flux at sfc (w/m2)
+
+        fdown = swnet + lwdn
+
+      endif   ! end if_couple_block
+
+!  --- ...  call penman subroutine to calculate potential evaporation (etp),
+!           and other partial products and sums save in common/rite for later
+!           calculations.
+
+      call penman
+!  ---  inputs:                                                         !
+!          ( sfctmp, sfcprs, sfcems, ch, t2v, th2, prcp, fdown,         !
+!            ssoil, q2, q2sat, dqsdt2, snowng, frzgra,                  !
+!  ---  outputs:                                                        !
+!            t24, etp, rch, epsca, rr, flx2 )                           !
+
+!  --- ...  call canres to calculate the canopy resistance and convert it
+!           into pc if nonzero greenness fraction
+
+      if (shdfac > 0.) then
+
+!  --- ...  frozen ground extension: total soil water "smc" was replaced 
+!           by unfrozen soil water "sh2o" in call to canres below
+
+        call canres
+!  ---  inputs:                                                         !
+!          ( nsoil, nroot, swdn, ch, q2, q2sat, dqsdt2, sfctmp,         !
+!            sfcprs, sfcems, sh2o, smcwlt, smcref, zsoil, rsmin,        !
+!            rsmax, topt, rgl, hs, xlai,                                !
+!  ---  outputs:                                                        !
+!            rc, pc, rcs, rct, rcq, rcsoil )                            !
+
+      endif
+
+!  --- ...  now decide major pathway branch to take depending on whether
+!           snowpack exists or not:
+
+      esnow = 0.0
+
+      if (sneqv .eq. 0.0) then
+
+        call nopac
+!  ---  inputs:                                                         !
+!          ( nsoil, nroot, etp, prcp, smcmax, smcwlt, smcref,           !
+!            smcdry, cmcmax, dt, shdfac, sbeta, sfctmp, sfcems,         !
+!            t24, th2, fdown, epsca, bexp, pc, rch, rr, cfactr,         !
+!            slope, kdt, frzx, psisat, zsoil, dksat, dwsat,             !
+!            zbot, ice, rtdis, quartz, fxexp, csoil,                    !
+!  ---  input/outputs:                                                  !
+!            cmc, t1, stc, sh2o, tbot,                                  !
+!  ---  outputs:                                                        !
+!            eta, smc, ssoil, runoff1, runoff2, runoff3, edir,          !
+!            ec, et, ett, beta, drip, dew, flx1, flx3 )                 !
+
+      else
+
+        call snopac
+!  ---  inputs:                                                         !
+!          ( nsoil, nroot, etp, prcp, smcmax, smcwlt, smcref, smcdry,   !
+!            cmcmax, dt, df1, sfcems, sfctmp, t24, th2, fdown, epsca,   !
+!            bexp, pc, rch, rr, cfactr, slope, kdt, frzx, psisat,       !
+!            zsoil, dwsat, dksat, zbot, shdfac, ice, rtdis, quartz,     !
+!            fxexp, csoil, flx2, snowng,                                !
+!  ---  input/outputs:                                                  !
+!            prcp1, cmc, t1, stc, sncovr, sneqv, sndens, snowh,         !
+!            sh2o, tbot, beta,                                          !
+!  ---  outputs:                                                        !
+!            smc, ssoil, runoff1, runoff2, runoff3, edir, ec, et,       !
+!            ett, snomlt, drip, dew, flx1, flx3, esnow )                !
+
+      endif
+
+!  --- ...  prepare sensible heat (h) for return to parent model
+
+      sheat = -(ch*cp1*sfcprs) / (rd1*t2v) * (th2 - t1)
+
+!  --- ...  convert units and/or sign of total evap (eta), potential evap (etp),
+!           subsurface heat flux (s), and runoffs for what parent model expects
+!           convert eta from kg m-2 s-1 to w m-2
+!     eta = eta * lsubc
+!     etp = etp * lsubc
+
+      edir = edir * lsubc
+      ec = ec * lsubc
+
+      do k = 1, 4
+        et(k) = et(k) * lsubc
+      enddo
+
+      ett = ett * lsubc
+      esnow = esnow * lsubs
+      etp = etp * ((1.0 - sncovr)*lsubc + sncovr*lsubs)
+
+      if (etp > 0.) then
+        eta = edir + ec + ett + esnow
+      else
+        eta = etp
+      endif
+
+      beta = eta / etp
+
+!  --- ...  convert the sign of soil heat flux so that:
+!           ssoil>0: warm the surface  (night time)
+!           ssoil<0: cool the surface  (day time)
+
+      ssoil = -1.0 * ssoil      
+
+      if (ice == 0) then
+
+!  --- ...  for the case of land (but not glacial-ice):
+!           convert runoff3 (internal layer runoff from supersat) from m 
+!           to m s-1 and add to subsurface runoff/baseflow (runoff2).
+!           runoff2 is already a rate at this point.
+
+        runoff3 = runoff3 / dt
+        runoff2 = runoff2 + runoff3
+
+      else
+
+!  --- ...  for the case of sea-ice (ice=1) or glacial-ice (ice=-1), add any
+!           snowmelt directly to surface runoff (runoff1) since there is no
+!           soil medium, and thus no call to subroutine smflx (for soil
+!           moisture tendency).
+
+        runoff1 = snomlt / dt
+      endif
+
+!  --- ...  total column soil moisture in meters (soilm) and root-zone 
+!           soil moisture availability (fraction) relative to porosity/saturation
+
+      soilm = -1.0 * smc(1) * zsoil(1)
+      do k = 2, nsoil
+        soilm = soilm + smc(k)*(zsoil(k-1) - zsoil(k))
+      enddo
+
+      soilwm = -1.0 * (smcmax - smcwlt) * zsoil(1)
+      soilww = -1.0 * (smc(1) - smcwlt) * zsoil(1)
+      do k = 2, nroot
+        soilwm = soilwm + (smcmax - smcwlt) * (zsoil(k-1) - zsoil(k))
+        soilww = soilww + (smc(k) - smcwlt) * (zsoil(k-1) - zsoil(k))
+      enddo
+
+      soilw = soilww / soilwm
+!
+      return
+
+
+! =================
+      contains
+! =================
+
+!*************************************!
+!  section-1  1st level subprograms   !
+!*************************************!
+
+!-----------------------------------
+      subroutine alcalc
+!...................................
+!  ---  inputs:
+!    &     ( alb, snoalb, shdfac, shdmin, sncovr, tsnow,                &
+!  ---  outputs:
+!    &       albedo                                                     &
+!    &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!  subroutine alcalc calculates albedo including snow effect (0 -> 1)   !
+!                                                                       !
+!  subprogram called:  none                                             !
+!                                                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs from calling program:                                  size   !
+!     alb      - real, snowfree albedo                             1    !
+!     snoalb   - real, maximum (deep) snow albedo                  1    !
+!     shdfac   - real, areal fractional coverage of green veg.     1    !
+!     shdmin   - real, minimum areal coverage of green veg.        1    !
+!     sncovr   - real, fractional snow cover                       1    !
+!     tsnow    - real, snow surface temperature (k)                1    !
+!                                                                       !
+!  outputs to calling program:                                          !
+!     albedo   - real, surface albedo including snow effect        1    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  inputs:
+!     real (kind=kind_phys), intent(in) :: alb, snoalb, shdfac,         &
+!    &       shdmin, sncovr, tsnow
+
+!  ---  outputs:
+!     real (kind=kind_phys), intent(out) :: albedo
+
+!  ---  locals: (none)
+
+!
+!===> ...  begin here
+!
+!  --- ...  snoalb is argument representing maximum albedo over deep snow,
+!           as passed into sflx, and adapted from the satellite-based
+!           maximum snow albedo fields provided by d. robinson and g. kukla
+!           (1985, jcam, vol 24, 402-411)
+
+!         albedo = alb + (1.0-(shdfac-shdmin))*sncovr*(snoalb-alb)
+          albedo = alb + sncovr*(snoalb - alb)
+
+          if (albedo > snoalb) albedo = snoalb
+
+!  --- ...  base formulation (dickinson et al., 1986, cogley et al., 1990)
+
+!     if (tsnow <= 263.16) then
+!       albedo = snoalb
+!     else
+!       if (tsnow < 273.16) then
+!         tm = 0.1 * (tsnow - 263.16)
+!         albedo = 0.5 * ((0.9 - 0.2*(tm**3)) + (0.8 - 0.16*(tm**3)))
+!       else
+!         albedo = 0.67
+!       endif
+!     endif
+
+!  --- ...  isba formulation (verseghy, 1991; baker et al., 1990)
+
+!     if (tsnow < 273.16) then
+!       albedo = snoalb - 0.008*dt/86400
+!     else
+!       albedo = (snoalb - 0.5) * exp( -0.24*dt/86400 ) + 0.5
+!     endif
+
+!
+      return
+!...................................
+      end subroutine alcalc
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine canres
+!...................................
+!  ---  inputs:
+!    &     ( nsoil, nroot, swdn, ch, q2, q2sat, dqsdt2, sfctmp,         &
+!    &       sfcprs, sfcems, sh2o, smcwlt, smcref, zsoil, rsmin,        &
+!    &       rsmax, topt, rgl, hs, xlai,                                &
+!  ---  outputs:
+!    &       rc, pc, rcs, rct, rcq, rcsoil                              &
+!    &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!  subroutine canres calculates canopy resistance which depends on      !
+!  incoming solar radiation, air temperature, atmospheric water vapor   !
+!  pressure deficit at the lowest model level, and soil moisture        !
+!  (preferably unfrozen soil moisture rather than total)                !
+!                                                                       !
+!  source:   jarvis (1976), noilhan and planton (1989, mwr), jacquemin  !
+!            and noilhan (1990, blm)                                    !
+!  see also: chen et al (1996, jgr, vol 101(d3), 7251-7268), eqns       !
+!            12-14 and table 2 of sec. 3.1.2                            !
+!                                                                       !
+!  subprogram called:  none                                             !
+!                                                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs from calling program:                                  size   !
+!     nsoil    - integer, no. of soil layers                       1    !
+!     nroot    - integer, no. of soil layers in root zone (<nsoil) 1    !
+!     swdn     - real, incoming solar radiation                    1    !
+!     ch       - real, sfc exchange coeff for heat and moisture    1    !
+!     q2       - real, air humidity at 1st level above ground      1    !
+!     q2sat    - real, sat. air humidity at 1st level abv ground   1    !
+!     dqsdt2   - real, slope of sat. humidity function wrt temp    1    !
+!     sfctmp   - real, sfc temperature at 1st level above ground   1    !
+!     sfcprs   - real, sfc pressure                                1    !
+!     sfcems   - real, sfc emissivity for lw radiation             1    !
+!     sh2o     - real, volumetric soil moisture                  nsoil  !
+!     smcwlt   - real, wilting point                               1    !
+!     smcref   - real, reference soil moisture                     1    !
+!     zsoil    - real, soil depth (negative sign, as below grd)  nsoil  !
+!     rsmin    - real, mimimum stomatal resistance                 1    !
+!     rsmax    - real, maximum stomatal resistance                 1    !
+!     topt     - real, optimum transpiration air temperature       1    !
+!     rgl      - real, canopy resistance func (in solar rad term)  1    !
+!     hs       - real, canopy resistance func (vapor deficit term) 1    !
+!     xlai     - real, leaf area index                             1    !
+!                                                                       !
+!  outputs to calling program:                                          !
+!     rc       - real, canopy resistance                           1    !
+!     pc       - real, plant coefficient                           1    !
+!     rcs      - real, incoming solar rc factor                    1    !
+!     rct      - real, air temp rc factor                          1    !
+!     rcq      - real, atoms vapor press deficit rc factor         1    !
+!     rcsoil   - real, soil moisture rc factor                     1    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  inputs:
+!     integer, intent(in) :: nsoil, nroot
+
+!     real (kind=kind_phys), intent(in) :: swdn, ch, q2, q2sat,         &
+!    &       dqsdt2, sfctmp, sfcprs, sfcems, smcwlt, smcref, rsmin,     &
+!    &       rsmax, topt, rgl, hs, xlai, sh2o(nsoil), zsoil(nsoil)
+
+!  ---  outputs:
+!     real (kind=kind_phys), intent(out) :: rc, pc, rcs, rct, rcq,      &
+!    &       rcsoil
+
+!  ---  locals:
+      real (kind=kind_phys) :: delta, ff, gx, rr, part(nsold)
+
+      integer :: k
+
+!
+!===> ...  begin here
+!
+!  --- ...  initialize canopy resistance multiplier terms.
+
+      rcs = 0.0
+      rct = 0.0
+      rcq = 0.0
+      rcsoil = 0.0
+      rc = 0.0
+
+!  --- ...  contribution due to incoming solar radiation
+
+      ff = 0.55 * 2.0 * swdn / (rgl*xlai)
+      rcs = (ff + rsmin/rsmax) / (1.0 + ff)
+      rcs = max( rcs, 0.0001 )
+
+!  --- ...  contribution due to air temperature at first model level above ground
+!           rct expression from noilhan and planton (1989, mwr).
+
+      rct = 1.0 - 0.0016 * (topt - sfctmp)**2.0
+      rct = max( rct, 0.0001 )
+
+!  --- ...  contribution due to vapor pressure deficit at first model level.
+!           rcq expression from ssib
+
+      rcq = 1.0 / (1.0 + hs*(q2sat-q2))
+      rcq = max( rcq, 0.01 )
+
+!  --- ...  contribution due to soil moisture availability.
+!           determine contribution from each soil layer, then add them up.
+
+      gx = (sh2o(1) - smcwlt) / (smcref - smcwlt)
+      gx = max( 0.0, min( 1.0, gx ) )
+
+!  --- ...  use soil depth as weighting factor
+      part(1) = (zsoil(1)/zsoil(nroot)) * gx
+
+!  --- ...  use root distribution as weighting factor
+!     part(1) = rtdis(1) * gx
+
+      do k = 2, nroot
+
+        gx = (sh2o(k) - smcwlt) / (smcref - smcwlt)
+        gx = max( 0.0, min( 1.0, gx ) )
+
+!  --- ...  use soil depth as weighting factor
+        part(k) = ((zsoil(k) - zsoil(k-1)) / zsoil(nroot)) * gx
+
+!  --- ...  use root distribution as weighting factor
+!       part(k) = rtdis(k) * gx
+
+      enddo
+
+      do k = 1, nroot
+        rcsoil = rcsoil + part(k)
+      enddo
+      rcsoil = max( rcsoil, 0.0001 )
+
+!  --- ...  determine canopy resistance due to all factors.  convert canopy
+!           resistance (rc) to plant coefficient (pc) to be used with
+!           potential evap in determining actual evap.  pc is determined by:
+!           pc * linerized penman potential evap = penman-monteith actual
+!           evaporation (containing rc term).
+
+      rc = rsmin / (xlai*rcs*rct*rcq*rcsoil)
+      rr = (4.0*sfcems*sigma1*rd1/cp1) * (sfctmp**4.0)/(sfcprs*ch) + 1.0
+      delta = (lsubc/cp1) * dqsdt2
+
+      pc = (rr + delta) / (rr*(1.0 + rc*ch) + delta)
+!
+      return
+!...................................
+      end subroutine canres
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine csnow
+!...................................
+!  ---  inputs:
+!    &     ( sndens,                                                    &
+!  ---  outputs:
+!    &       sncond                                                     &
+!    &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!  subroutine csnow calculates snow termal conductivity                 !
+!                                                                       !
+!  subprogram called:  none                                             !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs from the calling program:                              size   !
+!     sndens   - real, snow density                                1    !
+!                                                                       !
+!  outputs to the calling program:                                      !
+!     sncond   - real, snow termal conductivity                    1    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  constant parameters:
+      real (kind=kind_phys), parameter :: unit = 0.11631
+
+!  ---  inputs:
+!     real (kind=kind_phys), intent(in) :: sndens
+
+!  ---  outputs:
+!     real (kind=kind_phys), intent(out) :: sncond
+
+!  ---  locals:
+      real (kind=kind_phys) :: c
+
+!
+!===> ...  begin here
+!
+!  --- ...  sncond in units of cal/(cm*hr*c), returned in w/(m*c)
+!           basic version is dyachkova equation (1960), for range 0.1-0.4
+
+      c = 0.328 * 10**(2.25*sndens)
+      sncond = unit * c
+
+!  --- ...  de vaux equation (1933), in range 0.1-0.6
+
+!      sncond = 0.0293 * (1.0 + 100.0*sndens**2)
+
+!  --- ...  e. andersen from flerchinger
+
+!      sncond = 0.021 + 2.51 * sndens**2
+!
+      return
+!...................................
+      end subroutine csnow
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine nopac
+!...................................
+!  ---  inputs:
+!    &     ( nsoil, nroot, etp, prcp, smcmax, smcwlt, smcref,           &
+!    &       smcdry, cmcmax, dt, shdfac, sbeta, sfctmp, sfcems,         &
+!    &       t24, th2, fdown, epsca, bexp, pc, rch, rr, cfactr,         &
+!    &       slope, kdt, frzx, psisat, zsoil, dksat, dwsat,             &
+!    &       zbot, ice, rtdis, quartz, fxexp, csoil,                    &
+!  ---  input/outputs:
+!    &       cmc, t1, stc, sh2o, tbot,                                  &
+!  ---  outputs:
+!    &       eta, smc, ssoil, runoff1, runoff2, runoff3, edir,          &
+!    &       ec, et, ett, beta, drip, dew, flx1, flx3                   &
+!    &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!  subroutine nopac calculates soil moisture and heat flux values and   !
+!  update soil moisture content and soil heat content values for the    !
+!  case when no snow pack is present.                                   !
+!                                                                       !
+!                                                                       !
+!  subprograms called:  evapo, smflx, tdfcnd, shflx                     !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs from calling program:                                  size   !
+!     nsoil    - integer, number of soil layers                    1    !
+!     nroot    - integer, number of root layers                    1    !
+!     etp      - real, potential evaporation                       1    !
+!     prcp     - real, precip rate                                 1    !
+!     smcmax   - real, porosity (sat val of soil mois)             1    !
+!     smcwlt   - real, wilting point                               1    !
+!     smcref   - real, soil mois threshold                         1    !
+!     smcdry   - real, dry soil mois threshold                     1    !
+!     cmcmax   - real, maximum canopy water parameters             1    !
+!     dt       - real, time step                                   1    !
+!     shdfac   - real, aeral coverage of green veg                 1    !
+!     sbeta    - real, param to cal veg effect on soil heat flux   1    !
+!     sfctmp   - real, air temp at height zlvl abv ground          1    !
+!     sfcems   - real, sfc lw emissivity                           1    !
+!     t24      - real, sfctmp**4                                   1    !
+!     th2      - real, air potential temp at zlvl abv grnd         1    !
+!     fdown    - real, net solar + downward lw flux at sfc         1    !
+!     epsca    - real,                                             1    !
+!     bexp     - real, soil type "b" parameter                     1    !
+!     pc       - real, plant coeff                                 1    !
+!     rch      - real, companion coefficient of ch                 1    !
+!     rr       - real,                                             1    !
+!     cfactr   - real, canopy water parameters                     1    !
+!     slope    - real, linear reservoir coefficient                1    !
+!     kdt      - real,                                             1    !
+!     frzx     - real, frozen ground parameter                     1    !
+!     psisat   - real, saturated soil potential                    1    !
+!     zsoil    - real, soil layer depth below ground (negative)  nsoil  !
+!     dksat    - real, saturated soil hydraulic conductivity       1    !
+!     dwsat    - real, saturated soil diffusivity                  1    !
+!     zbot     - real, specify depth of lower bd soil              1    !
+!     ice      - integer, sea-ice flag (=1: sea-ice, =0: land)     1    !
+!     rtdis    - real, root distribution                         nsoil  !
+!     quartz   - real, soil quartz content                         1    !
+!     fxexp    - real, bare soil evaporation exponent              1    !
+!     csoil    - real, soil heat capacity                          1    !
+!                                                                       !
+!  input/outputs from and to the calling program:                       !
+!     cmc      - real, canopy moisture content                     1    !
+!     t1       - real, ground/canopy/snowpack eff skin temp        1    !
+!     stc      - real, soil temp                                 nsoil  !
+!     sh2o     - real, unfrozen soil moisture                    nsoil  !
+!     tbot     - real, bottom soil temp                            1    !
+!                                                                       !
+!  outputs to the calling program:                                      !
+!     eta      - real, downward latent heat flux                   1    !
+!     smc      - real, total soil moisture                       nsoil  !
+!     ssoil    - real, upward soil heat flux                       1    !
+!     runoff1  - real, surface runoff not infiltrating sfc         1    !
+!     runoff2  - real, sub surface runoff (baseflow)               1    !
+!     runoff3  - real, excess of porosity                          1    !
+!     edir     - real, direct soil evaporation                     1    !
+!     ec       - real, canopy water evaporation                    1    !
+!     et       - real, plant transpiration                       nsoil  !
+!     ett      - real, total plant transpiration                   1    !
+!     beta     - real, ratio of actual/potential evap              1    !
+!     drip     - real, through-fall of precip and/or dew           1    !
+!     dew      - real, dewfall (or frostfall)                      1    !
+!     flx1     - real, precip-snow sfc flux                        1    !
+!     flx3     - real, phase-change heat flux from snowmelt        1    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  inputs:
+!     integer, intent(in) :: nsoil, nroot, ice
+
+!     real (kind=kind_phys), intent(in) :: etp, prcp, smcmax,           &
+!    &       smcwlt, smcref, smcdry, cmcmax, dt, shdfac, sbeta,         &
+!    &       sfctmp, sfcems, t24, th2, fdown, epsca, bexp, pc,          &
+!    &       rch, rr, cfactr, slope, kdt, frzx, psisat,                 &
+!    &       zsoil(nsoil), dksat, dwsat, zbot, rtdis(nsoil),            &
+!    &       quartz, fxexp, csoil
+
+!  ---  input/outputs:
+!     real (kind=kind_phys), intent(inout) :: cmc, t1, stc(nsoil),      &
+!    &       sh2o(nsoil), tbot
+
+!  ---  outputs:
+!     real (kind=kind_phys), intent(out) :: eta, smc(nsoil), ssoil,     &
+!    &       runoff1, runoff2, runoff3, edir, ec, et(nsoil), ett,       &
+!    &       beta, drip, dew, flx1, flx3
+
+!  ---  locals:
+      real (kind=kind_phys) :: df1, eta1, etp1, prcp1, yy, yynum,       &
+     &       zz1, ec1, edir1, et1(nsoil), ett1
+
+      integer :: k
+
+!
+!===> ...  begin here
+!
+!  --- ...  convert etp from kg m-2 s-1 to ms-1 and initialize dew.
+
+      prcp1= prcp * 0.001
+      etp1 = etp  * 0.001
+      dew  = 0.0
+      edir = 0.0
+      edir1= 0.0
+      ec   = 0.0
+      ec1  = 0.0
+
+      do k = 1, nsoil
+        et (k) = 0.0
+        et1(k) = 0.0
+      enddo
+
+      ett  = 0.0
+      ett1 = 0.0
+
+      if (etp > 0.0) then
+
+!  --- ...  convert prcp from 'kg m-2 s-1' to 'm s-1'.
+
+        call evapo                                                      &
+!  ---  inputs:
+     &     ( nsoil, nroot, cmc, cmcmax, etp1, dt, zsoil,                &
+     &       sh2o, smcmax, smcwlt, smcref, smcdry, pc,                  &
+     &       shdfac, cfactr, rtdis, fxexp,                              &
+!  ---  outputs:
+     &       eta1, edir1, ec1, et1, ett1                                &
+     &     )
+
+        call smflx                                                      &
+!  ---  inputs:
+     &     ( nsoil, dt, kdt, smcmax, smcwlt, cmcmax, prcp1,             &
+     &       zsoil, slope, frzx, bexp, dksat, dwsat, shdfac,            &
+     &       edir1, ec1, et1,                                           &
+!  ---  input/outputs:
+     &       cmc, sh2o,                                                 &
+!  ---  outputs:
+     &       smc, runoff1, runoff2, runoff3, drip                       &
+     &     )
+
+      else
+
+!  --- ...  if etp < 0, assume dew forms (transform etp1 into dew and
+!           reinitialize etp1 to zero).
+
+        eta1 = 0.0
+        dew  = -etp1
+
+!  --- ...  convert prcp from 'kg m-2 s-1' to 'm s-1' and add dew amount.
+
+        prcp1 = prcp1 + dew
+
+        call smflx                                                      &
+!  ---  inputs:
+     &     ( nsoil, dt, kdt, smcmax, smcwlt, cmcmax, prcp1,             &
+     &       zsoil, slope, frzx, bexp, dksat, dwsat, shdfac,            &
+     &       edir1, ec1, et1,                                           &
+!  ---  input/outputs:
+     &       cmc, sh2o,                                                 &
+!  ---  outputs:
+     &       smc, runoff1, runoff2, runoff3, drip                       &
+     &     )
+
+      endif   ! end if_etp_block
+
+!  --- ...  convert modeled evapotranspiration fm  m s-1  to  kg m-2 s-1
+
+      eta  = eta1 * 1000.0
+      edir = edir1 * 1000.0
+      ec   = ec1 * 1000.0
+
+      do k = 1, nsoil
+        et(k) = et1(k) * 1000.0
+      enddo
+
+      ett = ett1 * 1000.0
+
+!  --- ...  based on etp and e values, determine beta
+
+      if ( etp <= 0.0 ) then
+        beta = 0.0
+        if ( etp < 0.0 ) then
+          beta = 1.0
+        endif
+      else
+        beta = eta / etp
+      endif
+
+!  --- ...  get soil thermal diffuxivity/conductivity for top soil lyr,
+!           calc. adjusted top lyr soil temp and adjusted soil flux, then
+!           call shflx to compute/update soil heat flux and soil temps.
+
+      call tdfcnd                                                       &
+!  ---  inputs:
+     &     ( smc(1), quartz, smcmax, sh2o(1),                           &
+!  ---  outputs:
+     &       df1                                                        &
+     &     )
+
+!  --- ... vegetation greenness fraction reduction in subsurface heat
+!          flux via reduction factor, which is convenient to apply here
+!          to thermal diffusivity that is later used in hrt to compute
+!          sub sfc heat flux (see additional comments on veg effect
+!          sub-sfc heat flx in routine sflx)
+
+      df1 = df1 * exp( sbeta*shdfac )
+
+!  --- ...  compute intermediate terms passed to routine hrt (via routine
+!           shflx below) for use in computing subsurface heat flux in hrt
+
+      yynum = fdown - sfcems*sigma1*t24
+      yy = sfctmp + (yynum/rch + th2 - sfctmp - beta*epsca)/rr
+      zz1 = df1/(-0.5*zsoil(1)*rch*rr) + 1.0
+
+      call shflx                                                        &
+!  ---  inputs:
+     &     ( nsoil, smc, smcmax, dt, yy, zz1, zsoil, zbot,              &
+     &       psisat, bexp, df1, ice, quartz, csoil,                     &
+!  ---  input/outputs:
+     &       stc, t1, tbot, sh2o,                                       &
+!  ---  outputs:
+     &       ssoil                                                      &
+     &     )
+
+!  --- ...  set flx1 and flx3 (snopack phase change heat fluxes) to zero since
+!           they are not used here in snopac.  flx2 (freezing rain heat flux)
+!           was similarly initialized in the penman routine.
+
+      flx1 = 0.0
+      flx3 = 0.0
+!
+      return
+!...................................
+      end subroutine nopac
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine penman
+!...................................
+!  ---  inputs:
+!    &     ( sfctmp, sfcprs, sfcems, ch, t2v, th2, prcp, fdown,         &
+!    &       ssoil, q2, q2sat, dqsdt2, snowng, frzgra,                  &
+!  ---  outputs:
+!    &       t24, etp, rch, epsca, rr, flx2                             &
+!    &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!  subroutine penman calculates potential evaporation for the current   !
+!  point.  various partial sums/products are also calculated and passed !
+!  back to the calling routine for later use.                           !
+!                                                                       !
+!                                                                       !
+!  subprogram called:  none                                             !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     sfctmp   - real, sfc temperature at 1st level above ground   1    !
+!     sfcprs   - real, sfc pressure                                1    !
+!     sfcems   - real, sfc emissivity for lw radiation             1    !
+!     ch       - real, sfc exchange coeff for heat & moisture      1    !
+!     t2v      - real, sfc virtual temperature                     1    !
+!     th2      - real, air potential temp at zlvl abv grnd         1    !
+!     prcp     - real, precip rate                                 1    !
+!     fdown    - real, net solar + downward lw flux at sfc         1    !
+!     ssoil    - real, upward soil heat flux                       1    !
+!     q2       - real, mixing ratio at hght zlvl abv ground        1    !
+!     q2sat    - real, sat mixing ratio at zlvl abv ground         1    !
+!     dqsdt2   - real, slope of sat specific humidity curve        1    !
+!     snowng   - logical, snow flag                                1    !
+!     frzgra   - logical, freezing rain flag                       1    !
+!                                                                       !
+!  outputs:                                                             !
+!     t24      - real, sfctmp**4                                   1    !
+!     etp      - real, potential evaporation                       1    !
+!     rch      - real, companion coefficient of ch                 1    !
+!     epsca    - real,                                             1    !
+!     rr       - real,                                             1    !
+!     flx2     - real, freezing rain latent heat flux              1    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  inputs:
+!     real (kind=kind_phys), intent(in) :: sfctmp, sfcprs, sfcems,      &
+!    &       ch, t2v, th2, prcp, fdown, ssoil, q2, q2sat, dqsdt2
+
+!     logical, intent(in) :: snowng, frzgra
+
+!  ---  outputs:
+!     real (kind=kind_phys), intent(out) :: t24, etp, rch, epsca,       &
+!    &       rr, flx2
+
+!  ---  locals:
+      real (kind=kind_phys) :: a, delta, fnet, rad, rho
+
+!
+!===> ...  begin here
+!
+      flx2 = 0.0
+
+!  --- ...  prepare partial quantities for penman equation.
+
+      delta = elcp * dqsdt2
+      t24 = sfctmp * sfctmp * sfctmp * sfctmp
+      rr  = t24 * 6.48e-8 / (sfcprs*ch) + 1.0
+      rho = sfcprs / (rd1*t2v)
+      rch = rho * cp * ch
+
+!  --- ...  adjust the partial sums / products with the latent heat
+!           effects caused by falling precipitation.
+
+      if (.not. snowng) then
+        if (prcp > 0.0)  rr = rr + cph2o1*prcp/rch
+      else
+        rr = rr + cpice*prcp/rch
+      endif
+
+      fnet = fdown - sfcems*sigma1*t24 - ssoil
+
+!  --- ...  include the latent heat effects of frzng rain converting to ice
+!           on impact in the calculation of flx2 and fnet.
+
+      if (frzgra) then
+        flx2 = -lsubf * prcp
+        fnet = fnet - flx2
+      endif
+
+!  --- ...  finish penman equation calculations.
+
+      rad = fnet/rch + th2 - sfctmp
+      a = elcp * (q2sat - q2)
+      epsca = (a*rr + rad*delta) / (delta + rr)
+      etp = epsca * rch / lsubc
+!
+      return
+!...................................
+      end subroutine penman
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine redprm
+!...................................
+!  ---  inputs:
+!    &     ( nsoil, vegtyp, soiltyp, slopetyp, sldpth, zsoil,              &
+!  ---  outputs:
+!    &       cfactr, cmcmax, rsmin, rsmax, topt, refkdt, kdt,              &
+!    &       sbeta, shdfac, rgl, hs, zbot, frzx, psisat, slope,            &
+!    &       snup, salp, bexp, dksat, dwsat, smcmax, smcwlt,               &
+!    &       smcref, smcdry, f1, quartz, fxexp, rtdis, nroot,              &
+!    &       z0, czil, xlai, csoil                                         &
+!    &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!  subroutine redprm internally sets(default valuess), or optionally    !
+!  read-in via namelist i/o, all soil and vegetation parameters         !
+!  required for the execusion of the noah lsm.                          !
+!                                                                       !
+!  optional non-default parameters can be read in, accommodating up to  !
+!  30 soil, veg, or slope classes, if the default max number of soil,   !
+!  veg, and/or slope types is reset.                                    !
+!                                                                       !
+!  future upgrades of routine redprm must expand to incorporate some    !
+!  of the empirical parameters of the frozen soil and snowpack physics  !
+!  (such as in routines frh2o, snowpack, and snow_new) not yet set in   !
+!  this redprm routine, but rather set in lower level subroutines.      !
+!                                                                       !
+!  all soil, veg, slope, and universal parameters values are defined    !
+!  externally (in subroutine "set_soilveg.f") and then accessed via     !
+!  "use namelist_soilveg" (below) and then set here.                    !
+!                                                                       !
+!  soil types   zobler (1986)      cosby et al (1984) (quartz cont.(1)) !
+!      1         coarse            loamy sand            (0.82)         !
+!      2         medium            silty clay loam       (0.10)         !
+!      3         fine              light clay            (0.25)         !
+!      4         coarse-medium     sandy loam            (0.60)         !
+!      5         coarse-fine       sandy clay            (0.52)         !
+!      6         medium-fine       clay loam             (0.35)         !
+!      7         coarse-med-fine   sandy clay loam       (0.60)         !
+!      8         organic           loam                  (0.40)         !
+!      9         glacial land ice  loamy sand            (na using 0.82)!
+!     13: <old>- glacial land ice -<old>                                !
+!     13:        glacial-ice (no longer use these parameters), now      !
+!                treated as ice-only surface and sub-surface            !
+!                (in subroutine hrtice)                                 !
+!                                                                       !
+!  ssib vegetation types (dorman and sellers, 1989; jam)                !
+!      1:  broadleaf-evergreen trees  (tropical forest)                 !
+!      2:  broadleaf-deciduous trees                                    !
+!      3:  broadleaf and needleleaf trees (mixed forest)                !
+!      4:  needleleaf-evergreen trees                                   !
+!      5:  needleleaf-deciduous trees (larch)                           !
+!      6:  broadleaf trees with groundcover (savanna)                   !
+!      7:  groundcover only (perennial)                                 !
+!      8:  broadleaf shrubs with perennial groundcover                  !
+!      9:  broadleaf shrubs with bare soil                              !
+!     10:  dwarf trees and shrubs with groundcover (tundra)             !
+!     11:  bare soil                                                    !
+!     12:  cultivations (the same parameters as for type 7)             !
+!     13: <old>- glacial (the same parameters as for type 11) -<old>    !
+!     13:  glacial-ice (no longer use these parameters), now treated as !
+!          ice-only surface and sub-surface (in subroutine hrtice)      !
+!                                                                       !
+!  slopetyp is to estimate linear reservoir coefficient slope to the    !
+!  baseflow runoff out of the bottom layer. lowest class (slopetyp=0)   !
+!  means highest slope parameter = 1.                                   !
+!                                                                       !
+!  slope class       percent slope                                      !
+!      1                0-8                                             !
+!      2                8-30                                            !
+!      3                > 30                                            !
+!      4                0-30                                            !
+!      5                0-8 & > 30                                      !
+!      6                8-30 & > 30                                     !
+!      7                0-8, 8-30, > 30                                 !
+!      9                glacial ice                                     !
+!    blank              ocean/sea                                       !
+!                                                                       !
+!  note: class 9 from zobler file should be replaced by 8 and 'blank' 9 !
+!                                                                       !
+!                                                                       !
+!  subprogram called:  none                                             !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs from calling program:                                  size   !
+!     nsoil    - integer, number of soil layers                    1    !
+!     vegtyp   - integer, vegetation type (integer index)          1    !
+!     soiltyp  - integer, soil type (integer index)                1    !
+!     slopetyp - integer, class of sfc slope (integer index)       1    !
+!     sldpth   - integer, thickness of each soil layer (m)       nsoil  !
+!     zsoil    - integer, soil depth (negative sign) (m)         nsoil  !
+!                                                                       !
+!  outputs to the calling program:                                      !
+!     cfactr   - real, canopy water parameters                     1    !
+!     cmcmax   - real, maximum canopy water parameters             1    !
+!     rsmin    - real, mimimum stomatal resistance                 1    !
+!     rsmax    - real, maximum stomatal resistance                 1    !
+!     topt     - real, optimum transpiration air temperature       1    !
+!     refkdt   - real, =2.e-6 the sat. dk. val for soil type 2     1    !
+!     kdt      - real,                                             1    !
+!     sbeta    - real, param to cal veg effect on soil heat flux   1    !
+!     shdfac   - real, vegetation greenness fraction               1    !
+!     rgl      - real, canopy resistance func (in solar rad term)  1    !
+!     hs       - real, canopy resistance func (vapor deficit term) 1    !
+!     zbot     - real, specify depth of lower bd soil temp (m)     1    !
+!     frzx     - real, frozen ground parameter, ice content        1    !
+!                      threshold above which frozen soil is impermeable !
+!     psisat   - real, saturated soil potential                    1    !
+!     slope    - real, linear reservoir coefficient                1    !
+!     snup     - real, threshold snow depth (water equi m)         1    !
+!     salp     - real, snow cover shape parameter                  1    !
+!                      from anderson's hydro-17 best fit salp = 2.6     !
+!     bexp     - real, the 'b' parameter                           1    !
+!     dksat    - real, saturated soil hydraulic conductivity       1    !
+!     dwsat    - real, saturated soil diffusivity                  1    !
+!     smcmax   - real, max soil moisture content (porosity)        1    !
+!     smcwlt   - real, wilting pt soil moisture contents           1    !
+!     smcref   - real, reference soil moisture (onset stress)      1    !
+!     smcdry   - real, air dry soil moist content limits           1    !
+!     f1       - real, used to comp soil diffusivity/conductivity  1    !
+!     quartz   - real, soil quartz content                         1    !
+!     fxexp    - real, bare soil evaporation exponent              1    !
+!     rtdis    - real, root distribution                         nsoil  !
+!     nroot    - integer, number of root layers                    1    !
+!     z0       - real, roughness length (m)                        1    !
+!     czil     - real, param to cal roughness length of heat       1    !
+!     xlai     - real, leaf area index                             1    !
+!     csoil    - real, soil heat capacity (j m-3 k-1)              1    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
       use namelist_soilveg
-      IMPLICIT NONE
-
-C ----------------------------------------------------------------------
-C SUBROUTINE REDPRM
-C ----------------------------------------------------------------------
-C INTERNALLY SET (DEFAULT VALUESS), OR OPTIONALLY READ-IN VIA NAMELIST
-C I/O, ALL SOIL AND VEGETATION PARAMETERS REQUIRED FOR THE EXECUSION OF
-C THE NOAH LSM.
-C
-C OPTIONAL NON-DEFAULT PARAMETERS CAN BE READ IN, ACCOMMODATING UP TO 30
-C SOIL, VEG, OR SLOPE CLASSES, IF THE DEFAULT MAX NUMBER OF SOIL, VEG,
-C AND/OR SLOPE TYPES IS RESET.
-C
-C FUTURE UPGRADES OF ROUTINE REDPRM MUST EXPAND TO INCORPORATE SOME OF
-C THE EMPIRICAL PARAMETERS OF THE FROZEN SOIL AND SNOWPACK PHYSICS (SUCH
-C AS IN ROUTINES FRH2O, SNOWPACK, AND SNOW_NEW) NOT YET SET IN THIS
-C REDPRM ROUTINE, BUT RATHER SET IN LOWER LEVEL SUBROUTINES.
-C
-C SET MAXIMUM NUMBER OF SOIL-, VEG-, AND SLOPETYP IN DATA STATEMENT.
-C ----------------------------------------------------------------------
-
-
-
-C ----------------------------------------------------------------------
-C  SET-UP SOIL PARAMETERS FOR GIVEN SOIL TYPE
-C  INPUT: SOLTYP: SOIL TYPE (INTEGER INDEX)
-C  OUTPUT: SOIL PARAMETERS:
-C    MAXSMC: MAX SOIL MOISTURE CONTENT (POROSITY)
-C    REFSMC: REFERENCE SOIL MOISTURE (ONSET OF SOIL MOISTURE
-C	     STRESS IN TRANSPIRATION)
-C    WLTSMC: WILTING PT SOIL MOISTURE CONTENTS
-C    DRYSMC: AIR DRY SOIL MOIST CONTENT LIMITS
-C    SATPSI: SATURATED SOIL POTENTIAL
-C    SATDK:  SATURATED SOIL HYDRAULIC CONDUCTIVITY
-C    BB:     THE 'B' PARAMETER
-C    SATDW:  SATURATED SOIL DIFFUSIVITY
-C    F11:    USED TO COMPUTE SOIL DIFFUSIVITY/CONDUCTIVITY
-C    QUARTZ:  SOIL QUARTZ CONTENT
-C ----------------------------------------------------------------------
-C SOIL TYPES   ZOBLER (1986)	  COSBY ET AL (1984) (quartz cont.(1))
-C  1	    COARSE	      LOAMY SAND	 (0.82)
-C  2	    MEDIUM	      SILTY CLAY LOAM	 (0.10)
-C  3	    FINE	      LIGHT CLAY	 (0.25)
-C  4	    COARSE-MEDIUM     SANDY LOAM	 (0.60)
-C  5	    COARSE-FINE       SANDY CLAY	 (0.52)
-C  6	    MEDIUM-FINE       CLAY LOAM 	 (0.35)
-C  7	    COARSE-MED-FINE   SANDY CLAY LOAM	 (0.60)
-C  8	    ORGANIC	      LOAM		 (0.40)
-C  9	    GLACIAL LAND ICE  LOAMY SAND	 (NA using 0.82)
-C 13:  >>>OLD>>>GLACIAL LAND ICE<<<OLD<<<
-C 13:  GLACIAL-ICE (NO LONGER USE THESE PARAMETERS), NOW TREATED AS
-C      ICE-ONLY SURFACE AND SUB-SURFACE (IN SUBROUTINE HRTICE)
-C ----------------------------------------------------------------------
-
-
-
-
-
-
-      REAL BEXP
-      REAL DKSAT
-      REAL DWSAT
-      REAL F1
-      REAL PTU
-      REAL QUARTZ
-      REAL SMCDRY
-      REAL SMCMAX
-      REAL SMCREF
-      REAL SMCWLT
-
-
-
-C ----------------------------------------------------------------------
-C SET-UP VEGETATION PARAMETERS FOR A GIVEN VEGETAION TYPE:
-C INPUT: VEGTYP = VEGETATION TYPE (INTEGER INDEX)
-C OUPUT: VEGETATION PARAMETERS
-C   SHDFAC: VEGETATION GREENNESS FRACTION
-C   RSMIN:  MIMIMUM STOMATAL RESISTANCE
-C   RGL:    PARAMETER USED IN SOLAR RAD TERM OF
-C	    CANOPY RESISTANCE FUNCTION
-C   HS:     PARAMETER USED IN VAPOR PRESSURE DEFICIT TERM OF
-C	    CANOPY RESISTANCE FUNCTION
-C   SNUP:   THRESHOLD SNOW DEPTH (IN WATER EQUIVALENT M) THAT
-C   	    IMPLIES 100% SNOW COVER
-C ----------------------------------------------------------------------
-C SSIB VEGETATION TYPES (DORMAN AND SELLERS, 1989; JAM)
-C  1:  BROADLEAF-EVERGREEN TREES  (TROPICAL FOREST)
-C  2:  BROADLEAF-DECIDUOUS TREES
-C  3:  BROADLEAF AND NEEDLELEAF TREES (MIXED FOREST)
-C  4:  NEEDLELEAF-EVERGREEN TREES
-C  5:  NEEDLELEAF-DECIDUOUS TREES (LARCH)
-C  6:  BROADLEAF TREES WITH GROUNDCOVER (SAVANNA)
-C  7:  GROUNDCOVER ONLY (PERENNIAL)
-C  8:  BROADLEAF SHRUBS WITH PERENNIAL GROUNDCOVER
-C  9:  BROADLEAF SHRUBS WITH BARE SOIL
-C 10:  DWARF TREES AND SHRUBS WITH GROUNDCOVER (TUNDRA)
-C 11:  BARE SOIL
-C 12:  CULTIVATIONS (THE SAME PARAMETERS AS FOR TYPE 7)
-C 13:  >>>OLD>>>GLACIAL (THE SAME PARAMETERS AS FOR TYPE 11)<<<OLD<<<
-C 13:  GLACIAL-ICE (NO LONGER USE THESE PARAMETERS), NOW TREATED AS
-C      ICE-ONLY SURFACE AND SUB-SURFACE (IN SUBROUTINE HRTICE)
-C ----------------------------------------------------------------------
 
-      INTEGER NROOT
+!  ---  input:
+!     integer, intent(in) :: nsoil, vegtyp, soiltyp, slopetyp
 
+!     real (kind=kind_phys), intent(in) :: sldpth(nsoil), zsoil(nsoil)
+
+!  ---  outputs:
+!     real (kind=kind_phys), intent(out) :: cfactr, cmcmax, rsmin,      &
+!    &       rsmax, topt, refkdt, kdt, sbeta, shdfac, rgl, hs, zbot,    &
+!    &       frzx, psisat, slope, snup, salp, bexp, dksat, dwsat,       &
+!    &       smcmax, smcwlt, smcref, smcdry, f1, quartz, fxexp, z0,     &
+!    &       czil, xlai, csoil, rtdis(nsoil)
 
-      REAL FRZFACT
-      REAL HS
-
-      REAL LAI
-
-      REAL PSISAT
-      REAL RSMIN
-      REAL RGL
-
-
-      REAL SHDFAC
-      REAL SNUP
-
-      REAL Z0
-
-
-
-C ----------------------------------------------------------------------
-C CLASS PARAMETER 'SLOPETYP' WAS INCLUDED TO ESTIMATE LINEAR RESERVOIR
-C COEFFICIENT 'SLOPE' TO THE BASEFLOW RUNOFF OUT OF THE BOTTOM LAYER.
-C LOWEST CLASS (SLOPETYP=0) MEANS HIGHEST SLOPE PARAMETER = 1.
-C DEFINITION OF SLOPETYP FROM 'ZOBLER' SLOPE TYPE:
-C SLOPE CLASS  PERCENT SLOPE
-C 1	       0-8
-C 2	       8-30
-C 3	       > 30
-C 4	       0-30
-C 5	       0-8 & > 30
-C 6	       8-30 & > 30
-C 7	       0-8, 8-30, > 30
-C 9	       GLACIAL ICE
-C BLANK        OCEAN/SEA
-C ----------------------------------------------------------------------
-C NOTE:
-C CLASS 9 FROM 'ZOBLER' FILE SHOULD BE REPLACED BY 8 AND 'BLANK' 9
-C ----------------------------------------------------------------------
-      REAL SLOPE
-
-
-C ----------------------------------------------------------------------
-C SET NAMELIST FILE NAME
-C ----------------------------------------------------------------------
-      CHARACTER*50 NAMELIST_NAME
-
-C ** Clu: Retain definition status to quarantee 'one-time' execution
-      SAVE  LFIRST
-
-C ----------------------------------------------------------------------
-C SET UNIVERSAL PARAMETERS (NOT DEPENDENT ON SOIL, VEG, SLOPE TYPE)
-C ----------------------------------------------------------------------
-      INTEGER I
-      INTEGER NSOIL
-      INTEGER SLOPETYP
-      INTEGER SOILTYP
-      INTEGER VEGTYP
-
-
-
-
-
-
-
-      LOGICAL LFIRST
-      DATA LFIRST /.TRUE./
-
-C ----------------------------------------------------------------------
-C PARAMETER USED TO CALCULATE ROUGHNESS LENGTH OF HEAT.
-C ----------------------------------------------------------------------
-      REAL CZIL
-
-
-C ----------------------------------------------------------------------
-C PARAMETER USED TO CALUCULATE VEGETATION EFFECT ON SOIL HEAT FLUX.
-C ----------------------------------------------------------------------
-      REAL SBETA
-
-
-
-C ----------------------------------------------------------------------
-C BARE SOIL EVAPORATION EXPONENT USED IN DEVAP.
-C ----------------------------------------------------------------------
-      REAL FXEXP
-
-
-
-C ----------------------------------------------------------------------
-C SOIL HEAT CAPACITY [J M-3 K-1]
-C ----------------------------------------------------------------------
-      REAL CSOIL
-
-
-C ----------------------------------------------------------------------
-C SPECIFY SNOW DISTRIBUTION SHAPE PARAMETER SALP - SHAPE PARAMETER OF
-C DISTRIBUTION FUNCTION OF SNOW COVER. FROM ANDERSON'S DATA (HYDRO-17)
-C BEST FIT IS WHEN SALP = 2.6
-C ----------------------------------------------------------------------
-      REAL SALP
-
-
-C ----------------------------------------------------------------------
-C KDT IS DEFINED BY REFERENCE REFKDT AND DKSAT; REFDK=2.E-6 IS THE SAT.
-C DK. VALUE FOR THE SOIL TYPE 2
-C ----------------------------------------------------------------------
-      REAL REFDK
-
-
-
-      REAL REFKDT
-
-
-
-      REAL FRZX
-      REAL KDT
-
-C ----------------------------------------------------------------------
-C FROZEN GROUND PARAMETER, FRZK, DEFINITION: ICE CONTENT THRESHOLD ABOVE
-C WHICH FROZEN SOIL IS IMPERMEABLE REFERENCE VALUE OF THIS PARAMETER FOR
-C THE LIGHT CLAY SOIL (TYPE=3) FRZK = 0.15 M.
-C ----------------------------------------------------------------------
-      REAL FRZK
-
-
-
-      REAL RTDIS(NSOIL)
-      REAL SLDPTH(NSOIL)
-      REAL ZSOIL(NSOIL)
-
-C ----------------------------------------------------------------------
-C SET TWO CANOPY WATER PARAMETERS.
-C ----------------------------------------------------------------------
-      REAL CFACTR
-
-
-
-      REAL CMCMAX
-
-
-
-C ----------------------------------------------------------------------
-C SET MAX. STOMATAL RESISTANCE.
-C ----------------------------------------------------------------------
-      REAL RSMAX
-
-
-
-C ----------------------------------------------------------------------
-C SET OPTIMUM TRANSPIRATION AIR TEMPERATURE.
-C ----------------------------------------------------------------------
-      REAL TOPT
-
-
-
-C ----------------------------------------------------------------------
-C SPECIFY DEPTH[M] OF LOWER BOUNDARY SOIL TEMPERATURE.
-C ----------------------------------------------------------------------
-      REAL ZBOT
-
-
-
-C ----------------------------------------------------------------------
-C NAMELIST DEFINITION:
-C ----------------------------------------------------------------------
-c$$$      NAMELIST /SOIL_VEG/ SLOPE_DATA, RSMTBL, RGLTBL, HSTBL, SNUPX,
-c$$$     &  BB, DRYSMC, F11, MAXSMC, REFSMC, SATPSI, SATDK, SATDW,
-c$$$     &  WLTSMC, QTZ, LPARAM, ZBOT_DATA, SALP_DATA, CFACTR_DATA,
-c$$$     &  CMCMAX_DATA, SBETA_DATA, RSMAX_DATA, TOPT_DATA,
-c$$$     &  REFDK_DATA, FRZK_DATA, BARE, DEFINED_VEG, DEFINED_SOIL,
-c$$$     &  DEFINED_SLOPE, FXEXP_DATA, NROOT_DATA, REFKDT_DATA, Z0_DATA,
-c$$$     &  CZIL_DATA, LAI_DATA, CSOIL_DATA
-
-c
-cmy moved lfirst block to gfs_init
-c      
-      IF (SOILTYP .GT. DEFINED_SOIL) THEN
- 	WRITE(0,*) 'Warning: too many soil types'
- 	STOP 333
-      ENDIF
-      IF (VEGTYP .GT. DEFINED_VEG) THEN
- 	WRITE(0,*) 'Warning: too many veg types'
- 	STOP 333
-      ENDIF
-      IF (SLOPETYP .GT. DEFINED_SLOPE) THEN
- 	WRITE(0,*) 'Warning: too many slope types'
- 	STOP 333
-      ENDIF
-
-C ----------------------------------------------------------------------
-C SET-UP UNIVERSAL PARAMETERS (NOT DEPENDENT ON SOILTYP, VEGTYP OR
-C SLOPETYP)
-C ----------------------------------------------------------------------
-      ZBOT = ZBOT_DATA
-      SALP = SALP_DATA
-      CFACTR = CFACTR_DATA
-      CMCMAX = CMCMAX_DATA
-      SBETA = SBETA_DATA
-      RSMAX = RSMAX_DATA
-      TOPT = TOPT_DATA
-      REFDK = REFDK_DATA
-      FRZK = FRZK_DATA
-      FXEXP = FXEXP_DATA
-      REFKDT = REFKDT_DATA
-      CZIL = CZIL_DATA
-      CSOIL = CSOIL_DATA
-
-C ----------------------------------------------------------------------
-C  SET-UP SOIL PARAMETERS
-C ----------------------------------------------------------------------
-      BEXP = BB(SOILTYP)
-      DKSAT = SATDK(SOILTYP)
-      DWSAT = SATDW(SOILTYP)
-      F1 = F11(SOILTYP)
-      KDT = REFKDT * DKSAT/REFDK
-      PSISAT = SATPSI(SOILTYP)
-      QUARTZ = QTZ(SOILTYP)
-      SMCDRY = DRYSMC(SOILTYP)
-      SMCMAX = MAXSMC(SOILTYP)
-      SMCREF = REFSMC(SOILTYP)
-      SMCWLT = WLTSMC(SOILTYP)
-      FRZFACT = (SMCMAX / SMCREF) * (0.412 / 0.468)
-
-C ----------------------------------------------------------------------
-C TO ADJUST FRZK PARAMETER TO ACTUAL SOIL TYPE: FRZK * FRZFACT
-C ----------------------------------------------------------------------
-      FRZX = FRZK * FRZFACT
-
-C ----------------------------------------------------------------------
-C SET-UP VEGETATION PARAMETERS
-C ----------------------------------------------------------------------
-      NROOT = NROOT_DATA(VEGTYP)
-      SNUP = SNUPX(VEGTYP)
-      RSMIN = RSMTBL(VEGTYP)
-      RGL = RGLTBL(VEGTYP)
-      HS = HSTBL(VEGTYP)
-      Z0 = Z0_DATA(VEGTYP)
-      LAI = LAI_DATA(VEGTYP)
-      IF (VEGTYP .EQ. BARE) SHDFAC = 0.0
-
-      IF (NROOT .GT. NSOIL) THEN
- 	WRITE(0,*) 'Warning: too many root layers'
- 	STOP 333
-      ENDIF
-
-C ----------------------------------------------------------------------
-C CALCULATE ROOT DISTRIBUTION.  PRESENT VERSION ASSUMES UNIFORM
-C DISTRIBUTION BASED ON SOIL LAYER DEPTHS.
-C ----------------------------------------------------------------------
-      DO I = 1,NROOT
- 	RTDIS(I) = -SLDPTH(I)/ZSOIL(NROOT)
-      END DO
-
-C ----------------------------------------------------------------------
-C  SET-UP SLOPE PARAMETER
-C ----------------------------------------------------------------------
-      SLOPE = SLOPE_DATA(SLOPETYP)
-
-C ----------------------------------------------------------------------
-C END SUBROUTINE REDPRM
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE ROSR12 (P,A,B,C,D,DELTA,NSOIL)
-
-      IMPLICIT NONE
-
-C ----------------------------------------------------------------------
-C SUBROUTINE ROSR12
-C ----------------------------------------------------------------------
-C INVERT (SOLVE) THE TRI-DIAGONAL MATRIX PROBLEM SHOWN BELOW:
-C ###                                            ### ###  ###   ###  ###
-C #B(1), C(1),  0  ,  0  ,  0  ,   . . .  ,    0   # #      #   #      #
-C #A(2), B(2), C(2),  0  ,  0  ,   . . .  ,    0   # #      #   #      #
-C # 0  , A(3), B(3), C(3),  0  ,   . . .  ,    0   # #      #   # D(3) #
-C # 0  ,  0  , A(4), B(4), C(4),   . . .  ,    0   # # P(4) #   # D(4) #
-C # 0  ,  0  ,  0  , A(5), B(5),   . . .  ,    0   # # P(5) #   # D(5) #
-C # .                                          .   # #  .   # = #   .  #
-C # .                                          .   # #  .   #   #   .  #
-C # .                                          .   # #  .   #   #   .  #
-C # 0  , . . . , 0 , A(M-2), B(M-2), C(M-2),   0   # #P(M-2)#   #D(M-2)#
-C # 0  , . . . , 0 ,   0   , A(M-1), B(M-1), C(M-1)# #P(M-1)#   #D(M-1)#
-C # 0  , . . . , 0 ,   0   ,   0   ,  A(M) ,  B(M) # # P(M) #   # D(M) #
-C ###                                            ### ###  ###   ###  ###
-C ----------------------------------------------------------------------
-      INTEGER K
-      INTEGER KK
-      INTEGER NSOIL
-      
-      REAL A(NSOIL)
-      REAL B(NSOIL)
-      REAL C(NSOIL)
-      REAL D(NSOIL)
-      REAL DELTA(NSOIL)
-      REAL P(NSOIL)
-      
-C ----------------------------------------------------------------------
-C INITIALIZE EQN COEF C FOR THE LOWEST SOIL LAYER
-C ----------------------------------------------------------------------
-      C(NSOIL) = 0.0
-
-C ----------------------------------------------------------------------
-C SOLVE THE COEFS FOR THE 1ST SOIL LAYER
-C ----------------------------------------------------------------------
-      P(1) = -C(1) / B(1)
-      DELTA(1) = D(1) / B(1)
-
-C ----------------------------------------------------------------------
-C SOLVE THE COEFS FOR SOIL LAYERS 2 THRU NSOIL
-C ----------------------------------------------------------------------
-      DO K = 2,NSOIL
-        P(K) = -C(K) * ( 1.0 / (B(K) + A (K) * P(K-1)) )
-        DELTA(K) = (D(K)-A(K)*DELTA(K-1))*(1.0/(B(K)+A(K)*P(K-1)))
-      END DO
-
-C ----------------------------------------------------------------------
-C SET P TO DELTA FOR LOWEST SOIL LAYER
-C ----------------------------------------------------------------------
-      P(NSOIL) = DELTA(NSOIL)
-
-C ----------------------------------------------------------------------
-C ADJUST P FOR SOIL LAYERS 2 THRU NSOIL
-C ----------------------------------------------------------------------
-      DO K = 2,NSOIL
-         KK = NSOIL - K + 1
-         P(KK) = P(KK) * P(KK+1) + DELTA(KK)
-      END DO
-
-C ----------------------------------------------------------------------
-C END SUBROUTINE ROSR12
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE SFCDIF (ZLM,Z0,THZ0,THLM,SFCSPD,CZIL,AKMS,AKHS)
-      
-      IMPLICIT NONE
-      
-C ----------------------------------------------------------------------
-C SUBROUTINE SFCDIF
-C ----------------------------------------------------------------------
-C CALCULATE SURFACE LAYER EXCHANGE COEFFICIENTS VIA ITERATIVE PROCESS.
-C SEE CHEN ET AL (1997, BLM)
-C ----------------------------------------------------------------------
-      
-      REAL WWST, WWST2, G, VKRM, EXCM, BETA, BTG, ELFC, WOLD, WNEW
-      REAL PIHF, EPSU2, EPSUST, EPSIT, EPSA, ZTMIN, ZTMAX, HPBL, SQVISC
-      REAL RIC, RRIC, FHNEU, RFC, RFAC, ZZ, PSLMU, PSLMS, PSLHU, PSLHS
-      REAL XX, PSPMU, YY, PSPMS, PSPHU, PSPHS, ZLM, Z0, THZ0, THLM
-      REAL SFCSPD, CZIL, AKMS, AKHS, ZILFC, ZU, ZT, RDZ, CXCH
-      REAL DTHV, DU2, BTGH, WSTAR2, USTAR, ZSLU, ZSLT, RLOGU, RLOGT
-      REAL RLMO, ZETALT, ZETALU, ZETAU, ZETAT, XLU4, XLT4, XU4, XT4
-      REAL XLU, XLT, XU, XT, PSMZ, SIMM, PSHZ, SIMH, USTARK, RLMN, RLMA
-CCC   ......REAL ZTFC
-      
-      INTEGER ITRMX, ILECH, ITR
-      
-      PARAMETER
-     &     (WWST=1.2,WWST2=WWST*WWST,G=9.8,VKRM=0.40,EXCM=0.001
-     &     ,BETA=1./270.,BTG=BETA*G,ELFC=VKRM*BTG
-     &     ,WOLD=.15,WNEW=1.-WOLD,ITRMX=05,PIHF=3.14159265/2.)
-C ----------------------------------------------------------------------
-      PARAMETER
-     &     (EPSU2=1.E-4,EPSUST=0.07,EPSIT=1.E-4,EPSA=1.E-8
-     &     ,ZTMIN=-5.,ZTMAX=1.,HPBL=1000.0
-     &     ,SQVISC=258.2)
-C ----------------------------------------------------------------------
-      PARAMETER
-     &     (RIC=0.183,RRIC=1.0/RIC,FHNEU=0.8,RFC=0.191
-     &     ,RFAC=RIC/(FHNEU*RFC*RFC))
-      
-C ----------------------------------------------------------------------
-C NOTE: THE TWO CODE BLOCKS BELOW DEFINE FUNCTIONS
-C ----------------------------------------------------------------------
-C LECH'S SURFACE FUNCTIONS
-C ----------------------------------------------------------------------
-      PSLMU(ZZ)=-0.96*log(1.0-4.5*ZZ)
-      PSLMS(ZZ)=ZZ*RRIC-2.076*(1.-1./(ZZ+1.))
-      PSLHU(ZZ)=-0.96*log(1.0-4.5*ZZ)
-      PSLHS(ZZ)=ZZ*RFAC-2.076*(1.-1./(ZZ+1.))
-      
-C ----------------------------------------------------------------------
-C PAULSON'S SURFACE FUNCTIONS
-C ----------------------------------------------------------------------
-      PSPMU(XX)=-2.*log((XX+1.)*0.5)-log((XX*XX+1.)*0.5)+2.*ATAN(XX)
-     &     -PIHF
-      PSPMS(YY)=5.*YY
-      PSPHU(XX)=-2.*log((XX*XX+1.)*0.5)
-      PSPHS(YY)=5.*YY
-
-C ----------------------------------------------------------------------
-C THIS ROUTINE SFCDIF CAN HANDLE BOTH OVER OPEN WATER (SEA, OCEAN) AND
-C OVER SOLID SURFACE (LAND, SEA-ICE).  
-C ----------------------------------------------------------------------
-      ILECH=0
-      
-C ----------------------------------------------------------------------
-C     ZTFC: RATIO OF ZOH/ZOM  LESS OR EQUAL THAN 1
-C     C......ZTFC=0.1
-C     CZIL: CONSTANT C IN Zilitinkevich, S. S.1995,:NOTE ABOUT ZT
-C ----------------------------------------------------------------------
-      ZILFC=-CZIL*VKRM*SQVISC
-      
-C ----------------------------------------------------------------------
-      ZU=Z0
-C     C.......ZT=Z0*ZTFC
-      RDZ=1./ZLM
-      CXCH=EXCM*RDZ
-      DTHV=THLM-THZ0     
-      DU2=MAX(SFCSPD*SFCSPD,EPSU2)
-
-C ----------------------------------------------------------------------
-C BELJARS CORRECTION OF USTAR
-C ----------------------------------------------------------------------
-      BTGH=BTG*HPBL
-ccc   If statements to avoid TANGENT LINEAR problems near zero
-      IF (BTGH*AKHS*DTHV .NE. 0.0) THEN
-         WSTAR2=WWST2*ABS(BTGH*AKHS*DTHV)**(2./3.)
-      ELSE
-         WSTAR2=0.0
-      ENDIF
-      USTAR=MAX(SQRT(AKMS*SQRT(DU2+WSTAR2)),EPSUST)
-
-C ----------------------------------------------------------------------
-C ZILITINKEVITCH APPROACH FOR ZT
-C ----------------------------------------------------------------------
-      ZT=EXP(ZILFC*SQRT(USTAR*Z0))*Z0
-
-C ----------------------------------------------------------------------
-      ZSLU=ZLM+ZU
-      ZSLT=ZLM+ZT
-C     PRINT*,'ZSLT=',ZSLT
-C     PRINT*,'ZLM=',ZLM
-C     PRINT*,'ZT=',ZT
-C     
-      RLOGU=log(ZSLU/ZU)
-      RLOGT=log(ZSLT/ZT)
-C     
-      RLMO=ELFC*AKHS*DTHV/USTAR**3
-C     PRINT*,'RLMO=',RLMO
-C     PRINT*,'ELFC=',ELFC
-C     PRINT*,'AKHS=',AKHS
-C     PRINT*,'DTHV=',DTHV
-C     PRINT*,'USTAR=',USTAR
-      
-      DO ITR=1,ITRMX
-C ----------------------------------------------------------------------
-C 1./MONIN-OBUKKHOV LENGTH-SCALE
-C ----------------------------------------------------------------------
-         ZETALT=MAX(ZSLT*RLMO,ZTMIN)
-         RLMO=ZETALT/ZSLT
-         ZETALU=ZSLU*RLMO
-         ZETAU=ZU*RLMO
-         ZETAT=ZT*RLMO
-         
-         IF(ILECH.EQ.0) THEN
-            IF(RLMO.LT.0.)THEN
-               XLU4=1.-16.*ZETALU
-               XLT4=1.-16.*ZETALT
-               XU4 =1.-16.*ZETAU
-               XT4 =1.-16.*ZETAT
-               
-               XLU=SQRT(SQRT(XLU4))
-               XLT=SQRT(SQRT(XLT4))
-               XU =SQRT(SQRT(XU4))
-               XT =SQRT(SQRT(XT4))
-               
-               PSMZ=PSPMU(XU)
-C     PRINT*,'-----------1------------'
-C     PRINT*,'PSMZ=',PSMZ
-C     PRINT*,'PSPMU(ZETAU)=',PSPMU(ZETAU)
-C     PRINT*,'XU=',XU
-C     PRINT*,'------------------------'
-               SIMM=PSPMU(XLU)-PSMZ+RLOGU
-               PSHZ=PSPHU(XT)
-               SIMH=PSPHU(XLT)-PSHZ+RLOGT
-            ELSE
-               ZETALU=MIN(ZETALU,ZTMAX)
-               ZETALT=MIN(ZETALT,ZTMAX)
-               PSMZ=PSPMS(ZETAU)
-C     PRINT*,'-----------2------------'
-C     PRINT*,'PSMZ=',PSMZ
-C     PRINT*,'PSPMS(ZETAU)=',PSPMS(ZETAU)
-C     PRINT*,'ZETAU=',ZETAU
-C     PRINT*,'------------------------'
-               SIMM=PSPMS(ZETALU)-PSMZ+RLOGU
-               PSHZ=PSPHS(ZETAT)
-               SIMH=PSPHS(ZETALT)-PSHZ+RLOGT
-            ENDIF
-         ELSE
-C ----------------------------------------------------------------------
-C LECH'S FUNCTIONS
-C ----------------------------------------------------------------------
-            IF(RLMO.LT.0.)THEN
-               PSMZ=PSLMU(ZETAU)
-C     PRINT*,'-----------3------------'
-C     PRINT*,'PSMZ=',PSMZ
-C     PRINT*,'PSLMU(ZETAU)=',PSLMU(ZETAU)
-C     PRINT*,'ZETAU=',ZETAU
-C     PRINT*,'------------------------'
-               SIMM=PSLMU(ZETALU)-PSMZ+RLOGU
-               PSHZ=PSLHU(ZETAT)
-               SIMH=PSLHU(ZETALT)-PSHZ+RLOGT
-            ELSE
-               ZETALU=MIN(ZETALU,ZTMAX)
-               ZETALT=MIN(ZETALT,ZTMAX)
-C     
-               PSMZ=PSLMS(ZETAU)
-C     PRINT*,'-----------4------------'
-C     PRINT*,'PSMZ=',PSMZ
-C     PRINT*,'PSLMS(ZETAU)=',PSLMS(ZETAU)
-C     PRINT*,'ZETAU=',ZETAU
-C     PRINT*,'------------------------'
-               SIMM=PSLMS(ZETALU)-PSMZ+RLOGU
-               PSHZ=PSLHS(ZETAT)
-               SIMH=PSLHS(ZETALT)-PSHZ+RLOGT
-            ENDIF
-         ENDIF
-C ----------------------------------------------------------------------
-C BELJAARS CORRECTION FOR USTAR
-C ----------------------------------------------------------------------
-         USTAR=MAX(SQRT(AKMS*SQRT(DU2+WSTAR2)),EPSUST)
-
-C ----------------------------------------------------------------------
-C ZILITINKEVITCH FIX FOR ZT
-C ----------------------------------------------------------------------
-         ZT=EXP(ZILFC*SQRT(USTAR*Z0))*Z0
-         
-         ZSLT=ZLM+ZT
-         RLOGT=log(ZSLT/ZT)
-C-----------------------------------------------------------------------
-         USTARK=USTAR*VKRM
-         AKMS=MAX(USTARK/SIMM,CXCH)
-         AKHS=MAX(USTARK/SIMH,CXCH)
-C-----------------------------------------------------------------------
-C IF STATEMENTS TO AVOID TANGENT LINEAR PROBLEMS NEAR ZERO
-C-----------------------------------------------------------------------
-         IF (BTGH*AKHS*DTHV .NE. 0.0) THEN
-            WSTAR2=WWST2*ABS(BTGH*AKHS*DTHV)**(2./3.)
-         ELSE
-            WSTAR2=0.0
-         ENDIF
-         RLMN=ELFC*AKHS*DTHV/USTAR**3
-C-----------------------------------------------------------------------
-         RLMA=RLMO*WOLD+RLMN*WNEW
-C-----------------------------------------------------------------------
-C     IF(ABS((RLMN-RLMO)/RLMA).LT.EPSIT)    GO TO 110
-C-----------------------------------------------------------------------
-         RLMO=RLMA
-C-----------------------------------------------------------------------
-      END DO
-
-C     PRINT*,'----------------------------'
-C     PRINT*,'SFCDIF OUTPUT !  ! ! ! ! ! ! ! !  !   !    !'
-C     
-C     PRINT*,'ZLM=',ZLM
-C     PRINT*,'Z0=',Z0
-C     PRINT*,'THZ0=',THZ0
-C     PRINT*,'THLM=',THLM
-C     PRINT*,'SFCSPD=',SFCSPD
-C     PRINT*,'CZIL=',CZIL
-C     PRINT*,'AKMS=',AKMS
-C     PRINT*,'AKHS=',AKHS
-C     PRINT*,'----------------------------'
-C     
-C ----------------------------------------------------------------------
-C END SUBROUTINE SFCDIF
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE SHFLX (SSOIL,STC,SMC,SMCMAX,NSOIL,T1,DT,YY,ZZ1,ZSOIL,
-     &                  TBOT,ZBOT,SMCWLT,PSISAT,SH2O,BEXP,F1,DF1,ICE,
-     &                  QUARTZ,CSOIL)
-      
-      IMPLICIT NONE
-      
-C ----------------------------------------------------------------------
-C SUBROUTINE SHFLX
-C ----------------------------------------------------------------------
-C UPDATE THE TEMPERATURE STATE OF THE SOIL COLUMN BASED ON THE THERMAL
-C DIFFUSION EQUATION AND UPDATE THE FROZEN SOIL MOISTURE CONTENT BASED
-C ON THE TEMPERATURE.
-C ----------------------------------------------------------------------
-      INTEGER NSOLD
-      PARAMETER(NSOLD = 20)
-
-      INTEGER I
-      INTEGER ICE
-      INTEGER IFRZ
-      INTEGER NSOIL
-
-      REAL AI(NSOLD)
-      REAL BI(NSOLD)
-      REAL CI(NSOLD)
-
-      REAL BEXP
-      REAL CSOIL
-      REAL DF1
-      REAL DT
-      REAL F1
-      REAL PSISAT
-      REAL QUARTZ
-      REAL RHSTS(NSOLD)
-      REAL SSOIL
-      REAL SH2O(NSOIL)
-      REAL SMC(NSOIL)
-      REAL SMCMAX
-      REAL SMCWLT
-      REAL STC(NSOIL)
-      REAL STCF(NSOLD)
-      REAL T0
-      REAL T1
-      REAL TBOT
-      REAL YY
-      REAL ZBOT
-      REAL ZSOIL(NSOIL)
-      REAL ZZ1
-Clu_timefilter
-      REAL OLDT1                              
-      REAL STSOIL(NSOIL)                      
-      REAL CTFIL1,CTFIL2                  
-      PARAMETER (CTFIL1=.5,CTFIL2=1.-CTFIL1)   
-
-      PARAMETER(T0 = 273.15)
-
-Clu_timefilter
-      OLDT1 = T1
-      DO I = 1,NSOIL
-         STSOIL(I) = STC(I)
-      END DO
-
-C ----------------------------------------------------------------------
-C HRT ROUTINE CALCS THE RIGHT HAND SIDE OF THE SOIL TEMP DIF EQN
-C ----------------------------------------------------------------------
-      IF (ICE.NE.0) THEN
-
-C ----------------------------------------------------------------------
-C SEA-ICE CASE, GLACIAL-ICE CASE
-C ----------------------------------------------------------------------
-         CALL HRTICE (RHSTS,STC,NSOIL,ZSOIL,YY,ZZ1,DF1,AI,BI,CI,
-     &                ICE,TBOT)
-
-         CALL HSTEP (STCF,STC,RHSTS,DT,NSOIL,AI,BI,CI)
-         
-      ELSE
-
-C ----------------------------------------------------------------------
-C LAND-MASS CASE
-C ----------------------------------------------------------------------
-         CALL HRT (RHSTS,STC,SMC,SMCMAX,NSOIL,ZSOIL,YY,ZZ1,TBOT,
-     &             ZBOT,PSISAT,SH2O,DT,
-     &             BEXP,F1,DF1,QUARTZ,CSOIL,AI,BI,CI)
-         
-         CALL HSTEP (STCF,STC,RHSTS,DT,NSOIL,AI,BI,CI)
-
-      ENDIF
-
-      DO I = 1,NSOIL
-         STC(I) = STCF(I)
-      END DO
-      
-C ----------------------------------------------------------------------
-C IN THE NO SNOWPACK CASE (VIA ROUTINE NOPAC BRANCH,) UPDATE THE GRND
-C (SKIN) TEMPERATURE HERE IN RESPONSE TO THE UPDATED SOIL TEMPERATURE 
-C PROFILE ABOVE.  (NOTE: INSPECTION OF ROUTINE SNOPAC SHOWS THAT T1
-C BELOW IS A DUMMY VARIABLE ONLY, AS SKIN TEMPERATURE IS UPDATED
-C DIFFERENTLY IN ROUTINE SNOPAC) 
-C ----------------------------------------------------------------------
-      T1 = (YY + (ZZ1 - 1.0) * STC(1)) / ZZ1
-
-Clu_timefilter
-      T1 = CTFIL1 * T1 + CTFIL2 * OLDT1
-      DO I = 1, NSOIL
-        STC(I) = CTFIL1 * STC(I) + CTFIL2 * STSOIL(I)
-      ENDDO
-
-
-C ----------------------------------------------------------------------
-C CALCULATE SURFACE SOIL HEAT FLUX
-C ----------------------------------------------------------------------
-      SSOIL = DF1 * (STC(1) - T1) / (0.5 * ZSOIL(1))
-
-C ----------------------------------------------------------------------
-C END SUBROUTINE SHFLX
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE SMFLX (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,
-     &                  SH2O,SLOPE,KDT,FRZFACT,
-     &                  SMCMAX,BEXP,SMCWLT,DKSAT,DWSAT,
-     &                  SHDFAC,CMCMAX,
-     &                  RUNOFF1,RUNOFF2,RUNOFF3,
-     &                  EDIR1,EC1,ET1,
-     &                  DRIP)
-
-      IMPLICIT NONE
-
-C ----------------------------------------------------------------------
-C SUBROUTINE SMFLX
-C ----------------------------------------------------------------------
-C CALCULATE SOIL MOISTURE FLUX.  THE SOIL MOISTURE CONTENT (SMC - A PER
-C UNIT VOLUME MEASUREMENT) IS A DEPENDENT VARIABLE THAT IS UPDATED WITH
-C PROGNOSTIC EQNS. THE CANOPY MOISTURE CONTENT (CMC) IS ALSO UPDATED.
-C FROZEN GROUND VERSION:  NEW STATES ADDED: SH2O, AND FROZEN GROUND
-C CORRECTION FACTOR, FRZFACT AND PARAMETER SLOPE.
-C ----------------------------------------------------------------------
-      INTEGER NSOLD
-      PARAMETER(NSOLD = 20)
-
-      INTEGER I
-      INTEGER K
-      INTEGER NSOIL
-
-      REAL AI(NSOLD)
-      REAL BI(NSOLD)
-      REAL CI(NSOLD)
-
-      REAL BEXP
-      REAL CMC
-      REAL CMCMAX
-      REAL DKSAT
-      REAL DRIP
-      REAL DT
-      REAL DUMMY
-      REAL DWSAT
-      REAL EC1
-      REAL EDIR1
-      REAL ET1(NSOIL)
-      REAL EXCESS
-      REAL FRZFACT
-      REAL KDT
-      REAL PCPDRP
-      REAL PRCP1
-      REAL RHSCT
-      REAL RHSTT(NSOLD)
-      REAL RUNOFF1
-      REAL RUNOFF2
-      REAL RUNOFF3
-      REAL SHDFAC
-      REAL SMC(NSOIL)
-      REAL SH2O(NSOIL)
-      REAL SICE(NSOLD)
-      REAL SH2OA(NSOLD)
-      REAL SH2OFG(NSOLD)
-      REAL SLOPE
-      REAL SMCMAX
-      REAL SMCWLT
-      REAL TRHSCT
-      REAL ZSOIL(NSOIL)
-
-C ----------------------------------------------------------------------
-C EXECUTABLE CODE BEGINS HERE.
-C ----------------------------------------------------------------------
-      DUMMY = 0.
-
-C ----------------------------------------------------------------------
-C COMPUTE THE RIGHT HAND SIDE OF THE CANOPY EQN TERM ( RHSCT )
-C ----------------------------------------------------------------------
-      RHSCT = SHDFAC * PRCP1 - EC1
-
-C ----------------------------------------------------------------------
-C CONVERT RHSCT (A RATE) TO TRHSCT (AN AMOUNT) AND ADD IT TO EXISTING
-C CMC.  IF RESULTING AMT EXCEEDS MAX CAPACITY, IT BECOMES DRIP AND WILL
-C FALL TO THE GRND.
-C ----------------------------------------------------------------------
-      DRIP = 0.
-      TRHSCT = DT * RHSCT
-      EXCESS = CMC + TRHSCT
-      IF (EXCESS .GT. CMCMAX) DRIP = EXCESS - CMCMAX
-
-C ----------------------------------------------------------------------
-C PCPDRP IS THE COMBINED PRCP1 AND DRIP (FROM CMC) THAT GOES INTO THE
-C SOIL
-C ----------------------------------------------------------------------
-      PCPDRP = (1. - SHDFAC) * PRCP1 + DRIP / DT
-
-C ----------------------------------------------------------------------
-C STORE ICE CONTENT AT EACH SOIL LAYER BEFORE CALLING SRT & SSTEP
-C ----------------------------------------------------------------------
-      DO I = 1,NSOIL
-        SICE(I) = SMC(I) - SH2O(I)
-      END DO
-            
-C ----------------------------------------------------------------------
-C CALL SUBROUTINES SRT AND SSTEP TO SOLVE THE SOIL MOISTURE
-C TENDENCY EQUATIONS. 
-C
-C IF THE INFILTRATING PRECIP RATE IS NONTRIVIAL,
-C   (WE CONSIDER NONTRIVIAL TO BE A PRECIP TOTAL OVER THE TIME STEP 
-C    EXCEEDING ONE ONE-THOUSANDTH OF THE WATER HOLDING CAPACITY OF 
-C    THE FIRST SOIL LAYER)
-C THEN CALL THE SRT/SSTEP SUBROUTINE PAIR TWICE IN THE MANNER OF 
-C   TIME SCHEME "F" (IMPLICIT STATE, AVERAGED COEFFICIENT)
-C   OF SECTION 2 OF KALNAY AND KANAMITSU (1988, MWR, VOL 116, 
-C   PAGES 1945-1958)TO MINIMIZE 2-DELTA-T OSCILLATIONS IN THE 
-C   SOIL MOISTURE VALUE OF THE TOP SOIL LAYER THAT CAN ARISE BECAUSE
-C   OF THE EXTREME NONLINEAR DEPENDENCE OF THE SOIL HYDRAULIC 
-C   DIFFUSIVITY COEFFICIENT AND THE HYDRAULIC CONDUCTIVITY ON THE
-C   SOIL MOISTURE STATE
-C OTHERWISE CALL THE SRT/SSTEP SUBROUTINE PAIR ONCE IN THE MANNER OF
-C   TIME SCHEME "D" (IMPLICIT STATE, EXPLICIT COEFFICIENT) 
-C   OF SECTION 2 OF KALNAY AND KANAMITSU
-C PCPDRP IS UNITS OF KG/M**2/S OR MM/S, ZSOIL IS NEGATIVE DEPTH IN M 
-C ----------------------------------------------------------------------
-C      IF ( PCPDRP .GT. 0.0 ) THEN
-      IF ( (PCPDRP*DT) .GT. (0.001*1000.0*(-ZSOIL(1))*SMCMAX) ) THEN
-
-C ----------------------------------------------------------------------
-C FROZEN GROUND VERSION:
-C SMC STATES REPLACED BY SH2O STATES IN SRT SUBR.  SH2O & SICE STATES
-C INCLUDED IN SSTEP SUBR.  FROZEN GROUND CORRECTION FACTOR, FRZFACT
-C ADDED.  ALL WATER BALANCE CALCULATIONS USING UNFROZEN WATER
-C ----------------------------------------------------------------------
-        CALL SRT (RHSTT,EDIR1,ET1,SH2O,SH2O,NSOIL,PCPDRP,ZSOIL,
-     &            DWSAT,DKSAT,SMCMAX,BEXP,RUNOFF1, 
-     &            RUNOFF2,DT,SMCWLT,SLOPE,KDT,FRZFACT,SICE,AI,BI,CI)
-         
-        CALL SSTEP (SH2OFG,SH2O,DUMMY,RHSTT,RHSCT,DT,NSOIL,SMCMAX,
-     &              CMCMAX,RUNOFF3,ZSOIL,SMC,SICE,AI,BI,CI)
-         
-        DO K = 1,NSOIL
-          SH2OA(K) = (SH2O(K) + SH2OFG(K)) * 0.5
-        END DO
-        
-        CALL SRT (RHSTT,EDIR1,ET1,SH2O,SH2OA,NSOIL,PCPDRP,ZSOIL,
-     &            DWSAT,DKSAT,SMCMAX,BEXP,RUNOFF1,
-     &            RUNOFF2,DT,SMCWLT,SLOPE,KDT,FRZFACT,SICE,AI,BI,CI)
-         
-        CALL SSTEP (SH2O,SH2O,CMC,RHSTT,RHSCT,DT,NSOIL,SMCMAX,
-     &              CMCMAX,RUNOFF3,ZSOIL,SMC,SICE,AI,BI,CI)
-         
-      ELSE
-         
-        CALL SRT (RHSTT,EDIR1,ET1,SH2O,SH2O,NSOIL,PCPDRP,ZSOIL,
-     &            DWSAT,DKSAT,SMCMAX,BEXP,RUNOFF1,
-     &            RUNOFF2,DT,SMCWLT,SLOPE,KDT,FRZFACT,SICE,AI,BI,CI)
-
-        CALL SSTEP (SH2O,SH2O,CMC,RHSTT,RHSCT,DT,NSOIL,SMCMAX,
-     &              CMCMAX,RUNOFF3,ZSOIL,SMC,SICE,AI,BI,CI)
-         
-      ENDIF
-      
-c      RUNOF = RUNOFF
-
-C ----------------------------------------------------------------------
-C END SUBROUTINE SMFLX
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE SNFRAC (SNEQV,SNUP,SALP,SNOWH,SNCOVR)
-
-      IMPLICIT NONE
-      
-C ----------------------------------------------------------------------
-C SUBROUTINE SNFRAC
-C ----------------------------------------------------------------------
-C CALCULATE SNOW FRACTION (0 -> 1)
-C SNEQV   SNOW WATER EQUIVALENT (M)
-C SNUP    THRESHOLD SNEQV DEPTH ABOVE WHICH SNCOVR=1
-C SALP    TUNING PARAMETER
-C SNCOVR  FRACTIONAL SNOW COVER
-C ----------------------------------------------------------------------
-      REAL SNEQV, SNUP, SALP, SNCOVR, RSNOW, Z0N, SNOWH
-      
-C ----------------------------------------------------------------------
-C SNUP IS VEG-CLASS DEPENDENT SNOWDEPTH THRESHHOLD (SET IN ROUTINE
-C REDPRM) ABOVE WHICH SNOCVR=1.
-C ----------------------------------------------------------------------
-          IF (SNEQV .LT. SNUP) THEN
-            RSNOW = SNEQV/SNUP
-            SNCOVR = 1. - ( EXP(-SALP*RSNOW) - RSNOW*EXP(-SALP))
-          ELSE
-            SNCOVR = 1.0
-          ENDIF
-
-          Z0N=0.035 
-C     FORMULATION OF DICKINSON ET AL. 1986
-
-C        SNCOVR=SNOWH/(SNOWH + 5*Z0N)
-
-C     FORMULATION OF MARSHALL ET AL. 1994
-C        SNCOVR=SNEQV/(SNEQV + 2*Z0N)
-
-C ----------------------------------------------------------------------
-C END SUBROUTINE SNFRAC
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      FUNCTION SNKSRC (TAVG,SMC,SH2O,ZSOIL,NSOIL,
-     &                 SMCMAX,PSISAT,BEXP,DT,K,QTOT) 
-      
-      IMPLICIT NONE
-      
-C ----------------------------------------------------------------------
-C FUNCTION SNKSRC
-C ----------------------------------------------------------------------
-C CALCULATE SINK/SOURCE TERM OF THE TERMAL DIFFUSION EQUATION. (SH2O) IS
-C AVAILABLE LIQUED WATER.
-C ----------------------------------------------------------------------
-      INTEGER K
-      INTEGER NSOIL
-      
-      REAL BEXP
-      REAL DF
-      REAL DH2O
-      REAL DT
-      REAL DZ
-      REAL DZH
-      REAL FREE
-      REAL FRH2O
-      REAL HLICE
-      REAL PSISAT
-      REAL QTOT
-      REAL SH2O
-      REAL SMC
-      REAL SMCMAX
-      REAL SNKSRC
-      REAL T0
-      REAL TAVG
-      REAL TDN
-      REAL TM
-      REAL TUP
-      REAL TZ
-      REAL X0
-      REAL XDN
-      REAL XH2O
-      REAL XUP
-      REAL ZSOIL (NSOIL)
-
-      PARAMETER(DH2O = 1.0000E3)
-      PARAMETER(HLICE = 3.3350E5)
-      PARAMETER(T0 = 2.7315E2)
-      
-      IF (K .EQ. 1) THEN
-        DZ = -ZSOIL(1)
-      ELSE
-        DZ = ZSOIL(K-1)-ZSOIL(K)
-      ENDIF
-
-C ----------------------------------------------------------------------
-C VIA FUNCTION FRH2O, COMPUTE POTENTIAL OR 'EQUILIBRIUM' UNFROZEN
-C SUPERCOOLED FREE WATER FOR GIVEN SOIL TYPE AND SOIL LAYER TEMPERATURE.
-C FUNCTION FRH20 INVOKES EQN (17) FROM V. KOREN ET AL (1999, JGR, VOL.
-C 104, PG 19573).  (ASIDE:  LATTER EQN IN JOURNAL IN CENTIGRADE UNITS.
-C ROUTINE FRH2O USE FORM OF EQN IN KELVIN UNITS.)
-C ----------------------------------------------------------------------
-      FREE = FRH2O(TAVG,SMC,SH2O,SMCMAX,BEXP,PSISAT)
-
-C ----------------------------------------------------------------------
-C IN NEXT BLOCK OF CODE, INVOKE EQN 18 OF V. KOREN ET AL (1999, JGR,
-C VOL. 104, PG 19573.)  THAT IS, FIRST ESTIMATE THE NEW AMOUNTOF LIQUID
-C WATER, 'XH2O', IMPLIED BY THE SUM OF (1) THE LIQUID WATER AT THE BEGIN
-C OF CURRENT TIME STEP, AND (2) THE FREEZE OF THAW CHANGE IN LIQUID
-C WATER IMPLIED BY THE HEAT FLUX 'QTOT' PASSED IN FROM ROUTINE HRT.
-C SECOND, DETERMINE IF XH2O NEEDS TO BE BOUNDED BY 'FREE' (EQUIL AMT) OR
-C IF 'FREE' NEEDS TO BE BOUNDED BY XH2O.
-C ----------------------------------------------------------------------
-      XH2O = SH2O + QTOT*DT/(DH2O*HLICE*DZ)
-
-C ----------------------------------------------------------------------
-C FIRST, IF FREEZING AND REMAINING LIQUID LESS THAN LOWER BOUND, THEN
-C REDUCE EXTENT OF FREEZING, THEREBY LETTING SOME OR ALL OF HEAT FLUX
-C QTOT COOL THE SOIL TEMP LATER IN ROUTINE HRT.
-C ----------------------------------------------------------------------
-      IF ( XH2O .LT. SH2O .AND. XH2O .LT. FREE) THEN 
-        IF ( FREE .GT. SH2O ) THEN
-          XH2O = SH2O
-        ELSE
-          XH2O = FREE
-        ENDIF
-      ENDIF
-              
-C ----------------------------------------------------------------------
-C SECOND, IF THAWING AND THE INCREASE IN LIQUID WATER GREATER THAN UPPER
-C BOUND, THEN REDUCE EXTENT OF THAW, THEREBY LETTING SOME OR ALL OF HEAT
-C FLUX QTOT WARM THE SOIL TEMP LATER IN ROUTINE HRT.
-C ----------------------------------------------------------------------
-      IF ( XH2O .GT. SH2O .AND. XH2O .GT. FREE )  THEN
-        IF ( FREE .LT. SH2O ) THEN
-          XH2O = SH2O
-        ELSE
-          XH2O = FREE
-        ENDIF
-      ENDIF 
-
-      IF (XH2O .LT. 0.) XH2O = 0.
-      IF (XH2O .GT. SMC) XH2O = SMC
-
-C ----------------------------------------------------------------------
-C CALCULATE PHASE-CHANGE HEAT SOURCE/SINK TERM FOR USE IN ROUTINE HRT
-C AND UPDATE LIQUID WATER TO REFLCET FINAL FREEZE/THAW INCREMENT.
-C ----------------------------------------------------------------------
-      SNKSRC = -DH2O*HLICE*DZ*(XH2O-SH2O)/DT
-      SH2O = XH2O
-      
-C ----------------------------------------------------------------------
-C END FUNCTION SNKSRC
-C ----------------------------------------------------------------------
-77    RETURN
-      END
-      SUBROUTINE SNOPAC (ETP,ETA,PRCP,PRCP1,SNOWNG,SMC,SMCMAX,SMCWLT,
-     &                   SMCREF,SMCDRY,CMC,CMCMAX,NSOIL,DT,
-     &                   SBETA,DF1,
-     &                   Q2,T1,SFCTMP,T24,TH2,FDOWN,F1,SSOIL,STC,EPSCA,
-     &                   SFCPRS,BEXP,PC,RCH,RR,CFACTR,SNCOVR,ESD,SNDENS,
-     &                   SNOWH,SH2O,SLOPE,KDT,FRZFACT,PSISAT,SNUP,
-     &                   ZSOIL,DWSAT,DKSAT,TBOT,ZBOT,SHDFAC,RUNOFF1,
-     &                   RUNOFF2,RUNOFF3,EDIR,EC,ET,ETT,NROOT,SNOMLT,
-     &                   ICE,RTDIS,QUARTZ,FXEXP,CSOIL,
-     &                   BETA,DRIP,DEW,FLX1,FLX2,FLX3,ESNOW)
-
-      IMPLICIT NONE
-
-C ----------------------------------------------------------------------
-C SUBROUTINE SNOPAC
-C ----------------------------------------------------------------------
-C CALCULATE SOIL MOISTURE AND HEAT FLUX VALUES & UPDATE SOIL MOISTURE
-C CONTENT AND SOIL HEAT CONTENT VALUES FOR THE CASE WHEN A SNOW PACK IS
-C PRESENT.
-C ----------------------------------------------------------------------
-      INTEGER ICE
-      INTEGER NROOT
-      INTEGER NSOIL
-
-      LOGICAL SNOWNG
-
-      REAL BEXP
-      REAL BETA
-      REAL CFACTR
-      REAL CMC
-      REAL CMCMAX
-      REAL CP
-      REAL CPH2O
-      REAL CPICE
-      REAL CSOIL
-      REAL DENOM
-      REAL DEW
-      REAL DF1
-      REAL DKSAT
-      REAL DRIP
-      REAL DSOIL
-      REAL DTOT
-      REAL DT
-      REAL DWSAT
-      REAL EC
-      REAL EDIR
-      REAL EPSCA
-      REAL ESD
-      REAL ESDMIN
-      REAL EXPSNO
-      REAL EXPSOI
-      REAL ETA
-      REAL ETA1
-      REAL ETP
-      REAL ETP1
-      REAL ETP2
-      REAL ET(NSOIL)
-      REAL ETT
-      REAL EX
-      REAL EXPFAC
-      REAL FDOWN
-      REAL FXEXP
-      REAL FLX1
-      REAL FLX2
-      REAL FLX3
-      REAL F1
-      REAL KDT
-      REAL LSUBF
-      REAL LSUBC
-      REAL LSUBS
-      REAL PC
-      REAL PRCP
-      REAL PRCP1
-      REAL Q2
-      REAL RCH
-      REAL RR
-      REAL RTDIS(NSOIL)
-      REAL SSOIL
-      REAL SBETA
-      REAL SSOIL1
-      REAL SFCTMP
-      REAL SHDFAC
-      REAL SIGMA
-      REAL SMC(NSOIL)
-      REAL SH2O(NSOIL)
-      REAL SMCDRY
-      REAL SMCMAX
-      REAL SMCREF
-      REAL SMCWLT
-      REAL SNOMLT
-      REAL SNOEXP                       !!!!!<-------- for Noah V2.7.1
-      REAL SNOWH
-      REAL STC(NSOIL)
-      REAL T1
-      REAL T11
-      REAL T12
-      REAL T12A
-      REAL T12B
-      REAL T24
-      REAL TBOT
-      REAL ZBOT
-      REAL TH2
-      REAL YY
-      REAL ZSOIL(NSOIL)
-      REAL ZZ1
-      REAL TFREEZ
-      REAL SALP
-      REAL SFCPRS
-      REAL SLOPE
-      REAL FRZFACT
-      REAL PSISAT
-      REAL SNUP
-      REAL RUNOFF1
-      REAL RUNOFF2
-      REAL RUNOFF3
-      REAL QUARTZ
-      REAL SNDENS
-      REAL SNCOND
-      REAL RSNOW
-      REAL SNCOVR
-      REAL QSAT
-      REAL ETP3
-      REAL SEH
-      REAL T14
-      REAL CSNOW
-
-      REAL EC1
-      REAL EDIR1
-      REAL ET1(NSOIL)
-      REAL ETT1
-
-      REAL ETNS
-      REAL ETNS1
-      REAL ESNOW
-      REAL ESNOW1
-      REAL ESNOW2
-      REAL ETANRG
-
-      INTEGER K
-
-      PARAMETER(CP = 1004.5)
-      PARAMETER(CPH2O = 4.218E+3)
-      PARAMETER(CPICE = 2.106E+3)
-      PARAMETER(ESDMIN = 1.E-6)
-      PARAMETER(LSUBF = 3.335E+5)
-      PARAMETER(LSUBC = 2.501000E+6)
-      PARAMETER(LSUBS = 2.83E+6)
-      PARAMETER(SIGMA = 5.67E-8)
-      PARAMETER(TFREEZ = 273.15)
-
-!     DATA SNOEXP /1.0/    !!! <----- for Noah V2.7
-      DATA SNOEXP /2.0/    !!! <----- for Noah V2.7.1
-
-C ----------------------------------------------------------------------
-C EXECUTABLE CODE BEGINS HERE:
-C CONVERT POTENTIAL EVAP (ETP) FROM KG M-2 S-1 TO M S-1 AND THEN TO AN
-C AMOUNT (M) GIVEN TIMESTEP (DT) AND CALL IT AN EFFECTIVE SNOWPACK
-C REDUCTION AMOUNT, ESNOW2 (M) FOR A SNOWCOVER FRACTION = 1.0.  THIS IS
-c THE AMOUNT THE SNOWPACK WOULD BE REDUCED DUE TO SUBLIMATION FROM THE
-C SNOW SFC DURING THE TIMESTEP.  SUBLIMATION WILL PROCEED AT THE
-C POTENTIAL RATE UNLESS THE SNOW DEPTH IS LESS THAN THE EXPECTED
-C SNOWPACK REDUCTION.  FOR SNOWCOVER FRACTION = 1.0, 0=EDIR=ET=EC, AND
-C HENCE TOTAL EVAP = ESNOW = SUBLIMATION (POTENTIAL EVAP RATE)
-C ----------------------------------------------------------------------
-C IF SEA-ICE (ICE=1) OR GLACIAL-ICE (ICE=-1), SNOWCOVER FRACTION = 1.0,
-C AND SUBLIMATION IS AT THE POTENTIAL RATE.
-C FOR NON-GLACIAL LAND (ICE=0), IF SNOWCOVER FRACTION < 1.0, TOTAL
-C EVAPORATION < POTENTIAL DUE TO NON-POTENTIAL CONTRIBUTION FROM
-C NON-SNOW COVERED FRACTION.
-C ----------------------------------------------------------------------
-      PRCP1 = PRCP1*0.001
-
-C ----------------------------------------------------------------------
-      EDIR = 0.0
-      EDIR1 = 0.0
-      EC = 0.0
-      EC1 = 0.0
-      DO K = 1,NSOIL
-        ET(K) = 0.0
-        ET1(K) = 0.0
-      ENDDO
-      ETT = 0.0
-      ETT1 = 0.0
-      ETNS = 0.0
-      ETNS1 = 0.0
-      ESNOW = 0.0
-      ESNOW1 = 0.0
-      ESNOW2 = 0.0
-C ----------------------------------------------------------------------
-
-      DEW = 0.0
-      ETP1 = ETP*0.001
-
-      IF (ETP .LT. 0.0) THEN
-C ----------------------------------------------------------------------
-C IF ETP<0 (DOWNWARD) THEN DEWFALL (=FROSTFALL IN THIS CASE).
-C ----------------------------------------------------------------------
-        DEW = -ETP1
-        ESNOW2 = ETP1 * DT
-        ETANRG = ETP*((1.-SNCOVR)*LSUBC + SNCOVR*LSUBS)
-      ELSE
-C ----------------------------------------------------------------------
-C ETP >= 0, UPWARD MOISTURE FLUX
-C ----------------------------------------------------------------------
-        IF (ICE .NE. 0) THEN
-C ----------------------------------------------------------------------
-C SEA-ICE AND GLACIAL-ICE CASE
-C ----------------------------------------------------------------------
-          ESNOW = ETP
-          ESNOW1 = ESNOW*0.001
-          ESNOW2 = ESNOW1*DT
-          ETANRG = ESNOW*LSUBS
-        ELSE
-C ----------------------------------------------------------------------
-C NON-GLACIAL LAND CASE
-C ----------------------------------------------------------------------
-          IF (SNCOVR .LT. 1.) THEN
-            CALL EVAPO (ETNS1,SMC,NSOIL,CMC,ETP1,DT,ZSOIL,
-     &                  SH2O,SMCMAX,BEXP,PC,SMCWLT,DKSAT,DWSAT,
-     &                  SMCREF,SHDFAC,CMCMAX,
-     &                  SMCDRY,CFACTR,
-     &                  EDIR1,EC1,ET1,ETT1,SFCTMP,Q2,NROOT,RTDIS,FXEXP)
-C ----------------------------------------------------------------------
-            EDIR1 = EDIR1*(1.-SNCOVR)
-            EC1 = EC1*(1.-SNCOVR)
-            DO K = 1,NSOIL
-              ET1(K) = ET1(K)*(1.-SNCOVR)
-            END DO
-            ETT1 = ETT1*(1.-SNCOVR)
-            ETNS1 = ETNS1*(1.-SNCOVR)
-C ----------------------------------------------------------------------
-            EDIR = EDIR1 * 1000.0
-            EC = EC1 * 1000.0
-            DO K = 1,NSOIL
-              ET(K) = ET1(K) * 1000.0
-            END DO
-            ETT = ETT1 * 1000.0
-            ETNS = ETNS1 * 1000.0
-C ----------------------------------------------------------------------
-          ENDIF
-          ESNOW = ETP*SNCOVR
-c          ESNOW1 = ETP*0.001
-          ESNOW1 = ESNOW*0.001
-          ESNOW2 = ESNOW1*DT
-          ETANRG = ESNOW*LSUBS + ETNS*LSUBC
-        ENDIF
-      ENDIF
-   
-C ----------------------------------------------------------------------
-C IF PRECIP IS FALLING, CALCULATE HEAT FLUX FROM SNOW SFC TO NEWLY
-C ACCUMULATING PRECIP.  NOTE THAT THIS REFLECTS THE FLUX APPROPRIATE FOR
-C THE NOT-YET-UPDATED SKIN TEMPERATURE (T1).  ASSUMES TEMPERATURE OF THE
-C SNOWFALL STRIKING THE GOUND IS =SFCTMP (LOWEST MODEL LEVEL AIR TEMP).
-C ----------------------------------------------------------------------
-      FLX1 = 0.0
-      IF (SNOWNG) THEN
-        FLX1 = CPICE * PRCP * (T1 - SFCTMP)
-      ELSE
-        IF (PRCP .GT. 0.0) FLX1 = CPH2O * PRCP * (T1 - SFCTMP)
-      ENDIF
-
-C ----------------------------------------------------------------------
-C CALCULATE AN 'EFFECTIVE SNOW-GRND SFC TEMP' (T12) BASED ON HEAT FLUXES
-C BETWEEN THE SNOW PACK AND THE SOIL AND ON NET RADIATION.
-C INCLUDE FLX1 (PRECIP-SNOW SFC) AND FLX2 (FREEZING RAIN LATENT HEAT)
-C FLUXES.
-C FLX2 REFLECTS FREEZING RAIN LATENT HEAT FLUX USING T1 CALCULATED IN
-C PENMAN.
-C ----------------------------------------------------------------------
-      DSOIL = -(0.5 * ZSOIL(1))
-      DTOT = SNOWH + DSOIL
-      DENOM = 1.0 + DF1 / (DTOT * RR * RCH)
-c      T12A = ( (FDOWN-FLX1-FLX2-SIGMA*T24)/RCH
-c     &       + TH2 - SFCTMP - BETA*EPSCA ) / RR
-      T12A = ( (FDOWN-FLX1-FLX2-SIGMA*T24)/RCH
-     &       + TH2 - SFCTMP - ETANRG/RCH ) / RR
-      T12B = DF1 * STC(1) / (DTOT * RR * RCH)
-      T12 = (SFCTMP + T12A + T12B) / DENOM      
-
-C ----------------------------------------------------------------------
-C IF THE 'EFFECTIVE SNOW-GRND SFC TEMP' IS AT OR BELOW FREEZING, NO SNOW
-C MELT WILL OCCUR.  SET THE SKIN TEMP TO THIS EFFECTIVE TEMP.  REDUCE
-C (BY SUBLIMINATION ) OR INCREASE (BY FROST) THE DEPTH OF THE SNOWPACK,
-C DEPENDING ON SIGN OF ETP.
-C UPDATE SOIL HEAT FLUX (SSOIL) USING NEW SKIN TEMPERATURE (T1)
-C SINCE NO SNOWMELT, SET ACCUMULATED SNOWMELT TO ZERO, SET 'EFFECTIVE'
-C PRECIP FROM SNOWMELT TO ZERO, SET PHASE-CHANGE HEAT FLUX FROM SNOWMELT
-C TO ZERO.
-C ----------------------------------------------------------------------
-      IF (T12 .LE. TFREEZ) THEN
-        T1 = T12
-        SSOIL = DF1 * (T1 - STC(1)) / DTOT
-c        ESD = MAX(0.0, ESD-ETP2)
-        ESD = MAX(0.0, ESD-ESNOW2)
-        FLX3 = 0.0
-        EX = 0.0
-        SNOMLT = 0.0
-
-      ELSE
-C ----------------------------------------------------------------------
-C IF THE 'EFFECTIVE SNOW-GRND SFC TEMP' IS ABOVE FREEZING, SNOW MELT
-C WILL OCCUR.  CALL THE SNOW MELT RATE,EX AND AMT, SNOMLT.  REVISE THE
-C EFFECTIVE SNOW DEPTH.  REVISE THE SKIN TEMP BECAUSE IT WOULD HAVE CHGD
-C DUE TO THE LATENT HEAT RELEASED BY THE MELTING. CALC THE LATENT HEAT
-C RELEASED, FLX3. SET THE EFFECTIVE PRECIP, PRCP1 TO THE SNOW MELT RATE,
-C EX FOR USE IN SMFLX.  ADJUSTMENT TO T1 TO ACCOUNT FOR SNOW PATCHES.
-C CALCULATE QSAT VALID AT FREEZING POINT.  NOTE THAT ESAT (SATURATION
-C VAPOR PRESSURE) VALUE OF 6.11E+2 USED HERE IS THAT VALID AT FRZZING
-C POINT.  NOTE THAT ETP FROM CALL PENMAN IN SFLX IS IGNORED HERE IN
-C FAVOR OF BULK ETP OVER 'OPEN WATER' AT FREEZING TEMP.
-C UPDATE SOIL HEAT FLUX (S) USING NEW SKIN TEMPERATURE (T1)
-C ----------------------------------------------------------------------
-
-c....Noah V2.7.1 
-c mek Feb2004
-c non-linear weighting of snow vs non-snow covered portions of gridbox
-c so with SNOEXP = 2.0 (>1), surface skin temperature is higher than for
-c the linear case (SNOEXP = 1).
-
-!!      T1 = TFREEZ * SNCOVR + T12 * (1.0 - SNCOVR)
-        T1=TFREEZ * SNCOVR**SNOEXP+T12*(1.0 - SNCOVR**SNOEXP)
-
-c        QSAT = (0.622*6.11E2)/(SFCPRS-0.378*6.11E2)
-c        ETP = RCH*(QSAT-Q2)/CP
-c        ETP2 = ETP*0.001*DT
-        BETA = 1.0
-        SSOIL = DF1 * (T1 - STC(1)) / DTOT
-	
-C ----------------------------------------------------------------------
-C IF POTENTIAL EVAP (SUBLIMATION) GREATER THAN DEPTH OF SNOWPACK.
-C BETA<1
-C SNOWPACK HAS SUBLIMATED AWAY, SET DEPTH TO ZERO.
-C ----------------------------------------------------------------------
-c        IF (ESD .LE. ETP2) THEN
-c        IF (ESD .LE. ESNOW2) THEN
-        IF (ESD-ESNOW2 .LE. ESDMIN) THEN
-c          BETA = ESD / ETP2
-          ESD = 0.0
-          EX = 0.0
-          SNOMLT = 0.0
-
-        ELSE
-C ----------------------------------------------------------------------
-C POTENTIAL EVAP (SUBLIMATION) LESS THAN DEPTH OF SNOWPACK, RETAIN
-C   BETA=1.
-C SNOWPACK (ESD) REDUCED BY POTENTIAL EVAP RATE
-C ETP3 (CONVERT TO FLUX)
-C ----------------------------------------------------------------------
-c          ESD = ESD-ETP2
-          ESD = ESD-ESNOW2
-c          ETP3 = ETP*LSUBC
-          SEH = RCH*(T1-TH2)
-          T14 = T1*T1
-          T14 = T14*T14
-c          FLX3 = FDOWN - FLX1 - FLX2 - SIGMA*T14 - SSOIL - SEH - ETP3
-          FLX3 = FDOWN - FLX1 - FLX2 - SIGMA*T14 - SSOIL - SEH - ETANRG
-          IF (FLX3 .LE .0.0) FLX3 = 0.0
-          EX = FLX3*0.001/LSUBF
-
-C ----------------------------------------------------------------------
-C SNOWMELT REDUCTION DEPENDING ON SNOW COVER
-C IF SNOW COVER LESS THAN 5% NO SNOWMELT REDUCTION
-C ***NOTE:  DOES 'IF' BELOW FAIL TO MATCH THE MELT WATER WITH THE MELT
-C           ENERGY?
-C ----------------------------------------------------------------------
-c          IF (SNCOVR .GT. 0.05) EX = EX * SNCOVR
-          SNOMLT = EX * DT
-
-C ----------------------------------------------------------------------
-C ESDMIN REPRESENTS A SNOWPACK DEPTH THRESHOLD VALUE BELOW WHICH WE
-C CHOOSE NOT TO RETAIN ANY SNOWPACK, AND INSTEAD INCLUDE IT IN SNOWMELT.
-C ----------------------------------------------------------------------
-          IF (ESD-SNOMLT .GE. ESDMIN) THEN
-            ESD = ESD - SNOMLT
-
-          ELSE
-C ----------------------------------------------------------------------
-C SNOWMELT EXCEEDS SNOW DEPTH
-C ----------------------------------------------------------------------
-            EX = ESD/DT
-            FLX3 = EX*1000.0*LSUBF
-            SNOMLT = ESD
-            ESD = 0.0
-
-          ENDIF
-C ----------------------------------------------------------------------
-C END OF 'ESD .LE. ETP2' IF-BLOCK
-C ----------------------------------------------------------------------
-        ENDIF
-
-c        PRCP1 = PRCP1 + EX
-C ----------------------------------------------------------------------
-C IF NON-GLACIAL LAND, ADD SNOWMELT RATE (EX) TO PRECIP RATE TO BE USED
-C IN SUBROUTINE SMFLX (SOIL MOISTURE EVOLUTION) VIA INFILTRATION.
-C
-C FOR SEA-ICE AND GLACIAL-ICE, THE SNOWMELT WILL BE ADDED TO SUBSURFACE
-C RUNOFF/BASEFLOW LATER NEAR THE END OF SFLX (AFTER RETURN FROM CALL TO
-C SUBROUTINE SNOPAC)
-C ----------------------------------------------------------------------
-        IF (ICE .EQ. 0) PRCP1 = PRCP1 + EX
-
-C ----------------------------------------------------------------------
-C END OF 'T12 .LE. TFREEZ' IF-BLOCK
-C ----------------------------------------------------------------------
-      ENDIF
-         
-C ----------------------------------------------------------------------
-C FINAL BETA NOW IN HAND, SO COMPUTE EVAPORATION.  EVAP EQUALS ETP
-C UNLESS BETA<1.
-C ----------------------------------------------------------------------
-c      ETA = BETA*ETP
-
-C ----------------------------------------------------------------------
-C SMFLX RETURNS UPDATED SOIL MOISTURE VALUES FOR NON-GLACIAL LAND.
-C IF SEA-ICE (ICE=1) OR GLACIAL-ICE (ICE=-1), SKIP CALL TO SMFLX, SINCE
-C NO SOIL MEDIUM FOR SEA-ICE OR GLACIAL-ICE
-C ----------------------------------------------------------------------
-      IF (ICE .EQ. 0) THEN
-        CALL SMFLX (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,
-     &              SH2O,SLOPE,KDT,FRZFACT,
-     &              SMCMAX,BEXP,SMCWLT,DKSAT,DWSAT,
-     &              SHDFAC,CMCMAX,
-     &              RUNOFF1,RUNOFF2,RUNOFF3,
-     &              EDIR1,EC1,ET1,
-     &              DRIP)
-
-      ENDIF
-
-C ----------------------------------------------------------------------
-C BEFORE CALL SHFLX IN THIS SNOWPACK CASE, SET ZZ1 AND YY ARGUMENTS TO
-C SPECIAL VALUES THAT ENSURE THAT GROUND HEAT FLUX CALCULATED IN SHFLX
-C MATCHES THAT ALREADY COMPUTER FOR BELOW THE SNOWPACK, THUS THE SFC
-C HEAT FLUX TO BE COMPUTED IN SHFLX WILL EFFECTIVELY BE THE FLUX AT THE
-C SNOW TOP SURFACE.  T11 IS A DUMMY ARGUEMENT SO WE WILL NOT USE THE
-C SKIN TEMP VALUE AS REVISED BY SHFLX.
-C ----------------------------------------------------------------------
-      ZZ1 = 1.0
-      YY = STC(1)-0.5*SSOIL*ZSOIL(1)*ZZ1/DF1
-      T11 = T1
-
-C ----------------------------------------------------------------------
-C SHFLX WILL CALC/UPDATE THE SOIL TEMPS.  NOTE:  THE SUB-SFC HEAT FLUX 
-C (SSOIL1) AND THE SKIN TEMP (T11) OUTPUT FROM THIS SHFLX CALL ARE NOT
-C USED  IN ANY SUBSEQUENT CALCULATIONS. RATHER, THEY ARE DUMMY VARIABLES
-C HERE IN THE SNOPAC CASE, SINCE THE SKIN TEMP AND SUB-SFC HEAT FLUX ARE
-C UPDATED INSTEAD NEAR THE BEGINNING OF THE CALL TO SNOPAC.
-C ----------------------------------------------------------------------
-      CALL SHFLX (SSOIL1,STC,SMC,SMCMAX,NSOIL,T11,DT,YY,ZZ1,ZSOIL,
-     &            TBOT,ZBOT,SMCWLT,PSISAT,SH2O,BEXP,F1,DF1,ICE,
-     &            QUARTZ,CSOIL)
-      
-C ----------------------------------------------------------------------
-C SNOW DEPTH AND DENSITY ADJUSTMENT BASED ON SNOW COMPACTION.  YY IS
-C ASSUMED TO BE THE SOIL TEMPERTURE AT THE TOP OF THE SOIL COLUMN.
-C ----------------------------------------------------------------------
-      IF (ICE .EQ. 0) THEN
-C NON-GLACIAL LAND
-        IF (ESD .GT. 0.) THEN
-          CALL SNOWPACK (ESD,DT,SNOWH,SNDENS,T1,YY)
-        ELSE
-          ESD = 0.
-          SNOWH = 0.
-          SNDENS = 0.
-          SNCOND = 1.
-          SNCOVR = 0.
-        ENDIF
-C ----------------------------------------------------------------------
-C OVER SEA-ICE OR GLACIAL-ICE, IF S.W.E. (ESD) BELOW THRESHOLD LOWER
-C BOUND (0.01 M FOR SEA-ICE, 0.10 M FOR GLACIAL-ICE), THEN SET AT LOWER
-C BOUND AND STORE THE SOURCE INCREMENT IN SUBSURFACE RUNOFF/BASEFLOW
-C (RUNOFF2).  NOTE:  RUNOFF2 IS THEN A NEGATIVE VALUE (AS A FLAG) OVER
-C SEA-ICE OR GLACIAL-ICE, IN ORDER TO ACHIEVE WATER BALANCE.
-C ----------------------------------------------------------------------
-      ELSEIF (ICE .EQ. 1) THEN
-C SEA-ICE
-        IF (ESD .GE. 0.01) THEN
-          CALL SNOWPACK (ESD,DT,SNOWH,SNDENS,T1,YY)
-        ELSE
-c          SNDENS = ESD/SNOWH
-c         RUNOFF2 = -(0.01-ESD)/DT
-          ESD = 0.01
-          SNOWH = 0.05
-          SNCOVR = 1.0
-c          SNOWH = ESD/SNDENS
-        ENDIF
-      ELSE
-C GLACIAL-ICE
-        IF (ESD .GE. 0.10) THEN
-          CALL SNOWPACK (ESD,DT,SNOWH,SNDENS,T1,YY)
-        ELSE
-c          SNDENS = ESD/SNOWH
-c         RUNOFF2 = -(0.10-ESD)/DT
-          ESD = 0.10
-          SNOWH = 0.50
-          SNCOVR = 1.0
-c          SNOWH = ESD/SNDENS
-        ENDIF
-      ENDIF
-
-C ----------------------------------------------------------------------
-C END SUBROUTINE SNOPAC
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE SNOWPACK (ESD,DTSEC,SNOWH,SNDENS,TSNOW,TSOIL)
-
-      IMPLICIT NONE
-
-C ----------------------------------------------------------------------
-C SUBROUTINE SNOWPACK
-C ----------------------------------------------------------------------
-C CALCULATE COMPACTION OF SNOWPACK UNDER CONDITIONS OF INCREASING SNOW
-C DENSITY, AS OBTAINED FROM AN APPROXIMATE SOLUTION OF E. ANDERSON'S
-C DIFFERENTIAL EQUATION (3.29), NOAA TECHNICAL REPORT NWS 19, BY VICTOR
-C KOREN, 03/25/95.
-C ----------------------------------------------------------------------
-C ESD     WATER EQUIVALENT OF SNOW (M)
-C DTSEC   TIME STEP (SEC)
-C SNOWH   SNOW DEPTH (M)
-C SNDENS  SNOW DENSITY (G/CM3=DIMENSIONLESS FRACTION OF H2O DENSITY)
-C TSNOW   SNOW SURFACE TEMPERATURE (K)
-C TSOIL   SOIL SURFACE TEMPERATURE (K)
-C
-C SUBROUTINE WILL RETURN NEW VALUES OF SNOWH AND SNDENS
-C ----------------------------------------------------------------------
-      INTEGER IPOL, J
-
-      REAL BFAC,C1,C2,SNDENS,DSX,DTHR,DTSEC,DW,SNOWHC,SNOWH,PEXP,TAVGC,
-     &     TSNOW,TSNOWC,TSOIL,TSOILC,ESD,ESDC,ESDCX,G,KN
-
-      PARAMETER(C1 = 0.01, C2=21.0, G=9.81, KN=4000.0)
-
-C ----------------------------------------------------------------------
-C CONVERSION INTO SIMULATION UNITS
-C ----------------------------------------------------------------------
-      SNOWHC = SNOWH*100.
-      ESDC = ESD*100.
-      DTHR = DTSEC/3600.
-      TSNOWC = TSNOW-273.15
-      TSOILC = TSOIL-273.15
-
-C ----------------------------------------------------------------------
-C CALCULATING OF AVERAGE TEMPERATURE OF SNOW PACK
-C ----------------------------------------------------------------------
-      TAVGC = 0.5*(TSNOWC+TSOILC)                                    
-
-C ----------------------------------------------------------------------
-C CALCULATING OF SNOW DEPTH AND DENSITY AS A RESULT OF COMPACTION
-C  SNDENS=DS0*(EXP(BFAC*ESD)-1.)/(BFAC*ESD)
-C  BFAC=DTHR*C1*EXP(0.08*TAVGC-C2*DS0)
-C NOTE: BFAC*ESD IN SNDENS EQN ABOVE HAS TO BE CAREFULLY TREATED
-C NUMERICALLY BELOW:
-C   C1 IS THE FRACTIONAL INCREASE IN DENSITY (1/(CM*HR)) 
-C   C2 IS A CONSTANT (CM3/G) KOJIMA ESTIMATED AS 21 CMS/G
-C ----------------------------------------------------------------------
-      IF (ESDC .GT. 1.E-2) THEN
-        ESDCX = ESDC
-      ELSE
-        ESDCX = 1.E-2
-      ENDIF
-      BFAC = DTHR*C1*EXP(0.08*TAVGC-C2*SNDENS)
-
-C      DSX = SNDENS*((DEXP(BFAC*ESDC)-1.)/(BFAC*ESDC))
-C ----------------------------------------------------------------------
-C THE FUNCTION OF THE FORM (e**x-1)/x IMBEDDED IN ABOVE EXPRESSION
-C FOR DSX WAS CAUSING NUMERICAL DIFFICULTIES WHEN THE DENOMINATOR "x"
-C (I.E. BFAC*ESDC) BECAME ZERO OR APPROACHED ZERO (DESPITE THE FACT THAT
-C THE ANALYTICAL FUNCTION (e**x-1)/x HAS A WELL DEFINED LIMIT AS 
-C "x" APPROACHES ZERO), HENCE BELOW WE REPLACE THE (e**x-1)/x 
-C EXPRESSION WITH AN EQUIVALENT, NUMERICALLY WELL-BEHAVED 
-C POLYNOMIAL EXPANSION.
-C
-C NUMBER OF TERMS OF POLYNOMIAL EXPANSION, AND HENCE ITS ACCURACY, 
-C IS GOVERNED BY ITERATION LIMIT "IPOL".
-C      IPOL GREATER THAN 9 ONLY MAKES A DIFFERENCE ON DOUBLE
-C            PRECISION (RELATIVE ERRORS GIVEN IN PERCENT %).
-C       IPOL=9, FOR REL.ERROR <~ 1.6 E-6 % (8 SIGNIFICANT DIGITS)
-C       IPOL=8, FOR REL.ERROR <~ 1.8 E-5 % (7 SIGNIFICANT DIGITS)
-C       IPOL=7, FOR REL.ERROR <~ 1.8 E-4 % ...
-C ----------------------------------------------------------------------
-      IPOL = 4
-      PEXP = 0.
-      DO J = IPOL,1,-1
-C        PEXP = (1. + PEXP)*BFAC*ESDC/REAL(J+1) 
-        PEXP = (1. + PEXP)*BFAC*ESDCX/REAL(J+1) 
-      END DO
-      PEXP = PEXP + 1.
-
-      DSX = SNDENS*(PEXP)
-C ----------------------------------------------------------------------
-C ABOVE LINE ENDS POLYNOMIAL SUBSTITUTION
-C ----------------------------------------------------------------------
-C     END OF KOREAN FORMULATION
-
-C     BASE FORMULATION (COGLEY ET AL., 1990)
-C     CONVERT DENSITY FROM G/CM3 TO KG/M3
-C       DSM=SNDENS*1000.0
- 
-C       DSX=DSM+DTSEC*0.5*DSM*G*ESD/
-C    &      (1E7*EXP(-0.02*DSM+KN/(TAVGC+273.16)-14.643))
- 
-C     CONVERT DENSITY FROM KG/M3 TO G/CM3
-C       DSX=DSX/1000.0
-
-C     END OF COGLEY ET AL. FORMULATION 
-
-C ----------------------------------------------------------------------
-C SET UPPER/LOWER LIMIT ON SNOW DENSITY
-C ----------------------------------------------------------------------
-      IF (DSX .GT. 0.40) DSX = 0.40
-      IF (DSX .LT. 0.05) DSX = 0.05
-      SNDENS = DSX
-C ----------------------------------------------------------------------
-C UPDATE OF SNOW DEPTH AND DENSITY DEPENDING ON LIQUID WATER DURING
-C SNOWMELT.  ASSUMED THAT 13% OF LIQUID WATER CAN BE STORED IN SNOW PER
-C DAY DURING SNOWMELT TILL SNOW DENSITY 0.40.
-C ----------------------------------------------------------------------
-      IF (TSNOWC .GE. 0.) THEN
-        DW = 0.13*DTHR/24.
-        SNDENS = SNDENS*(1.-DW)+DW
-        IF (SNDENS .GT. 0.40) SNDENS = 0.40
-      ENDIF
-
-C ----------------------------------------------------------------------
-C CALCULATE SNOW DEPTH (CM) FROM SNOW WATER EQUIVALENT AND SNOW DENSITY.
-C CHANGE SNOW DEPTH UNITS TO METERS
-C ----------------------------------------------------------------------
-      SNOWHC = ESDC/SNDENS
-      SNOWH = SNOWHC*0.01
-
-C ----------------------------------------------------------------------
-C END SUBROUTINE SNOWPACK
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE SNOWZ0 (SNCOVR,Z0)
-
-      IMPLICIT NONE
-      
-C ----------------------------------------------------------------------
-C SUBROUTINE SNOWZ0
-C ----------------------------------------------------------------------
-C CALCULATE TOTAL ROUGHNESS LENGTH OVER SNOW
-C SNCOVR  FRACTIONAL SNOW COVER
-C Z0      ROUGHNESS LENGTH (m)
-C Z0S     SNOW ROUGHNESS LENGTH:=0.001 (m)
-C ----------------------------------------------------------------------
-      REAL SNCOVR, Z0, Z0S
-c      PARAMETER (Z0S=0.001)
-      
-C CURRENT NOAH LSM CONDITION - MBEK, 09-OCT-2001
-      Z0S = Z0
-C
-      Z0 = (1-SNCOVR)*Z0 + SNCOVR*Z0S
-C ----------------------------------------------------------------------
-C END SUBROUTINE SNOWZ0
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE SNOW_NEW (TEMP,NEWSN,SNOWH,SNDENS)
-
-      IMPLICIT NONE
-      
-C ----------------------------------------------------------------------
-C SUBROUTINE SNOW_NEW
-C ----------------------------------------------------------------------
-C CALCULATE SNOW DEPTH AND DENSITITY TO ACCOUNT FOR THE NEW SNOWFALL.
-C NEW VALUES OF SNOW DEPTH & DENSITY RETURNED.
-C
-C TEMP    AIR TEMPERATURE (K)
-C NEWSN   NEW SNOWFALL (M)
-C SNOWH   SNOW DEPTH (M)
-C SNDENS  SNOW DENSITY (G/CM3=DIMENSIONLESS FRACTION OF H2O DENSITY)
-C ----------------------------------------------------------------------
-      REAL SNDENS
-      REAL DSNEW
-      REAL SNOWHC
-      REAL HNEWC
-      REAL SNOWH
-      REAL NEWSN
-      REAL NEWSNC
-      REAL TEMP 
-      REAL TEMPC
-      
-C ----------------------------------------------------------------------
-C CONVERSION INTO SIMULATION UNITS      
-C ----------------------------------------------------------------------
-      SNOWHC = SNOWH*100.
-      NEWSNC = NEWSN*100.
-      TEMPC = TEMP-273.15
-      
-C ----------------------------------------------------------------------
-C CALCULATING NEW SNOWFALL DENSITY DEPENDING ON TEMPERATURE
-C EQUATION FROM GOTTLIB L. 'A GENERAL RUNOFF MODEL FOR SNOWCOVERED
-C AND GLACIERIZED BASIN', 6TH NORDIC HYDROLOGICAL CONFERENCE,
-C VEMADOLEN, SWEDEN, 1980, 172-177PP.
-C-----------------------------------------------------------------------
-      IF (TEMPC .LE. -15.) THEN
-        DSNEW = 0.05
-      ELSE                                                      
-        DSNEW = 0.05+0.0017*(TEMPC+15.)**1.5
-      ENDIF
-      
-C ----------------------------------------------------------------------
-C ADJUSTMENT OF SNOW DENSITY DEPENDING ON NEW SNOWFALL      
-C ----------------------------------------------------------------------
-      HNEWC = NEWSNC/DSNEW
-      SNDENS = (SNOWHC*SNDENS+HNEWC*DSNEW)/(SNOWHC+HNEWC)
-      SNOWHC = SNOWHC+HNEWC
-      SNOWH = SNOWHC*0.01
-      
-C ----------------------------------------------------------------------
-C END SUBROUTINE SNOW_NEW
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE SRT (RHSTT,EDIR,ET,SH2O,SH2OA,NSOIL,PCPDRP,
-     &                ZSOIL,DWSAT,DKSAT,SMCMAX,BEXP,RUNOFF1, 
-     &                RUNOFF2,DT,SMCWLT,SLOPE,KDT,FRZX,SICE,AI,BI,CI)
-
-      IMPLICIT NONE
-
-C ----------------------------------------------------------------------
-C SUBROUTINE SRT
-C ----------------------------------------------------------------------
-C CALCULATE THE RIGHT HAND SIDE OF THE TIME TENDENCY TERM OF THE SOIL
-C WATER DIFFUSION EQUATION.  ALSO TO COMPUTE ( PREPARE ) THE MATRIX
-C COEFFICIENTS FOR THE TRI-DIAGONAL MATRIX OF THE IMPLICIT TIME SCHEME.
-C ----------------------------------------------------------------------
-      INTEGER NSOLD
-      PARAMETER(NSOLD = 20)
-
-      INTEGER CVFRZ      
-      INTEGER IALP1
-      INTEGER IOHINF
-      INTEGER J
-      INTEGER JJ      
-      INTEGER K
-      INTEGER KS
-      INTEGER NSOIL
-
-      REAL ACRT
-      REAL AI(NSOLD)
-      REAL BEXP
-      REAL BI(NSOLD)
-      REAL CI(NSOLD)
-      REAL DD
-      REAL DDT
-      REAL DDZ
-      REAL DDZ2
-      REAL DENOM
-      REAL DENOM2
-      REAL DICE
-      REAL DKSAT
-      REAL DMAX(NSOLD)
-      REAL DSMDZ
-      REAL DSMDZ2
-      REAL DT
-      REAL DT1
-      REAL DWSAT
-      REAL EDIR
-      REAL ET(NSOIL)
-      REAL FCR
-      REAL FRZX
-      REAL INFMAX
-      REAL KDT
-      REAL MXSMC
-      REAL MXSMC2
-      REAL NUMER
-      REAL PCPDRP
-      REAL PDDUM
-      REAL PX
-      REAL RHSTT(NSOIL)
-      REAL RUNOFF1
-      REAL RUNOFF2
-      REAL SH2O(NSOIL)
-      REAL SH2OA(NSOIL)
-      REAL SICE(NSOIL)
-      REAL SICEMAX
-      REAL SLOPE
-      REAL SLOPX
-      REAL SMCAV
-      REAL SMCMAX
-      REAL SMCWLT
-      REAL SSTT
-      REAL SUM
-      REAL VAL
-      REAL WCND
-      REAL WCND2
-      REAL WDF
-      REAL WDF2
-      REAL ZSOIL(NSOIL)
-
-C ----------------------------------------------------------------------
-C FROZEN GROUND VERSION:
-C REFERENCE FROZEN GROUND PARAMETER, CVFRZ, IS A SHAPE PARAMETER OF
-C AREAL DISTRIBUTION FUNCTION OF SOIL ICE CONTENT WHICH EQUALS 1/CV.
-C CV IS A COEFFICIENT OF SPATIAL VARIATION OF SOIL ICE CONTENT.  BASED
-C ON FIELD DATA CV DEPENDS ON AREAL MEAN OF FROZEN DEPTH, AND IT CLOSE
-C TO CONSTANT = 0.6 IF AREAL MEAN FROZEN DEPTH IS ABOVE 20 CM.  THAT IS
-C WHY PARAMETER CVFRZ = 3 (INT{1/0.6*0.6}).
-C CURRENT LOGIC DOESN'T ALLOW CVFRZ BE BIGGER THAN 3
-C ----------------------------------------------------------------------
-        PARAMETER(CVFRZ = 3)
-        
-C ----------------------------------------------------------------------
-C DETERMINE RAINFALL INFILTRATION RATE AND RUNOFF.  INCLUDE THE
-C INFILTRATION FORMULE FROM SCHAAKE AND KOREN MODEL.
-C MODIFIED BY Q DUAN
-C ----------------------------------------------------------------------
-      IOHINF=1
-
-C ----------------------------------------------------------------------
-C LET SICEMAX BE THE GREATEST, IF ANY, FROZEN WATER CONTENT WITHIN SOIL
-C LAYERS.
-C ----------------------------------------------------------------------
-      SICEMAX = 0.0
-      DO KS=1,NSOIL
-       IF (SICE(KS) .GT. SICEMAX) SICEMAX = SICE(KS)
-      END DO
-
-C ----------------------------------------------------------------------
-C DETERMINE RAINFALL INFILTRATION RATE AND RUNOFF
-C ----------------------------------------------------------------------
-      PDDUM = PCPDRP
-      RUNOFF1 = 0.0
-      IF (PCPDRP .NE. 0.0) THEN
-
-C ----------------------------------------------------------------------
-C MODIFIED BY Q. DUAN, 5/16/94
-C ----------------------------------------------------------------------
-C        IF (IOHINF .EQ. 1) THEN
-
-        DT1 = DT/86400.
-        SMCAV = SMCMAX - SMCWLT
-        DMAX(1)=-ZSOIL(1)*SMCAV
-
-C ----------------------------------------------------------------------
-C FROZEN GROUND VERSION:
-C ----------------------------------------------------------------------
-        DICE = -ZSOIL(1) * SICE(1)
-          
-        DMAX(1)=DMAX(1)*(1.0 - (SH2OA(1)+SICE(1)-SMCWLT)/SMCAV)
-        DD=DMAX(1)
-
-        DO KS=2,NSOIL
-          
-C ----------------------------------------------------------------------
-C FROZEN GROUND VERSION:
-C ----------------------------------------------------------------------
-          DICE = DICE + ( ZSOIL(KS-1) - ZSOIL(KS) ) * SICE(KS)
-         
-          DMAX(KS) = (ZSOIL(KS-1)-ZSOIL(KS))*SMCAV
-          DMAX(KS) = DMAX(KS)*(1.0 - (SH2OA(KS)+SICE(KS)-SMCWLT)/SMCAV)
-          DD = DD+DMAX(KS)
-        END DO
-
-C ----------------------------------------------------------------------
-C VAL = (1.-EXP(-KDT*SQRT(DT1)))
-C IN BELOW, REMOVE THE SQRT IN ABOVE
-C ----------------------------------------------------------------------
-        VAL = (1.-EXP(-KDT*DT1))
-        DDT = DD*VAL
-        PX = PCPDRP*DT  
-        IF (PX .LT. 0.0) PX = 0.0
-        INFMAX = (PX*(DDT/(PX+DDT)))/DT
-          
-C ----------------------------------------------------------------------
-C FROZEN GROUND VERSION:
-C REDUCTION OF INFILTRATION BASED ON FROZEN GROUND PARAMETERS
-C ----------------------------------------------------------------------
-        FCR = 1. 
-        IF (DICE .GT. 1.E-2) THEN 
-          ACRT = CVFRZ * FRZX / DICE 
-          SUM = 1.
-          IALP1 = CVFRZ - 1 
-          DO J = 1,IALP1
-            K = 1
-            DO JJ = J+1,IALP1
-              K = K * JJ
-            END DO
-            SUM = SUM + (ACRT ** ( CVFRZ-J)) / FLOAT (K) 
-          END DO
-          FCR = 1. - EXP(-ACRT) * SUM 
-        ENDIF 
-        INFMAX = INFMAX * FCR
-
-C ----------------------------------------------------------------------
-C CORRECTION OF INFILTRATION LIMITATION:
-C IF INFMAX .LE. HYDROLIC CONDUCTIVITY ASSIGN INFMAX THE VALUE OF
-C HYDROLIC CONDUCTIVITY
-C ----------------------------------------------------------------------
-C         MXSMC = MAX ( SH2OA(1), SH2OA(2) ) 
-        MXSMC = SH2OA(1)
-
-        CALL WDFCND (WDF,WCND,MXSMC,SMCMAX,BEXP,DKSAT,DWSAT,
-     &               SICEMAX)
-
-        INFMAX = MAX(INFMAX,WCND)
-        INFMAX = MIN(INFMAX,PX)
-
-        IF (PCPDRP .GT. INFMAX) THEN
-          RUNOFF1 = PCPDRP - INFMAX
-          PDDUM = INFMAX
-        ENDIF
-
-      ENDIF
-
-C ----------------------------------------------------------------------
-C TO AVOID SPURIOUS DRAINAGE BEHAVIOR, 'UPSTREAM DIFFERENCING' IN LINE
-C BELOW REPLACED WITH NEW APPROACH IN 2ND LINE:
-C 'MXSMC = MAX(SH2OA(1), SH2OA(2))'
-C ----------------------------------------------------------------------
-      MXSMC = SH2OA(1)
-
-      CALL WDFCND (WDF,WCND,MXSMC,SMCMAX,BEXP,DKSAT,DWSAT,
-     &             SICEMAX)
- 
-C ----------------------------------------------------------------------
-C CALC THE MATRIX COEFFICIENTS AI, BI, AND CI FOR THE TOP LAYER
-C ----------------------------------------------------------------------
-      DDZ = 1. / ( -.5 * ZSOIL(2) )
-      AI(1) = 0.0
-      BI(1) = WDF * DDZ / ( -ZSOIL(1) )
-      CI(1) = -BI(1)
-
-C ----------------------------------------------------------------------
-C CALC RHSTT FOR THE TOP LAYER AFTER CALC'NG THE VERTICAL SOIL MOISTURE
-C GRADIENT BTWN THE TOP AND NEXT TO TOP LAYERS.
-C ----------------------------------------------------------------------
-      DSMDZ = ( SH2O(1) - SH2O(2) ) / ( -.5 * ZSOIL(2) )
-      RHSTT(1) = (WDF * DSMDZ + WCND - PDDUM + EDIR + ET(1))/ZSOIL(1)
-      SSTT = WDF * DSMDZ + WCND + EDIR + ET(1)
-
-C ----------------------------------------------------------------------
-C INITIALIZE DDZ2
-C ----------------------------------------------------------------------
-      DDZ2 = 0.0
-
-C ----------------------------------------------------------------------
-C LOOP THRU THE REMAINING SOIL LAYERS, REPEATING THE ABV PROCESS
-C ----------------------------------------------------------------------
-      DO K = 2,NSOIL
-        DENOM2 = (ZSOIL(K-1) - ZSOIL(K))
-        IF (K .NE. NSOIL) THEN
-          SLOPX = 1.
-
-C ----------------------------------------------------------------------
-C AGAIN, TO AVOID SPURIOUS DRAINAGE BEHAVIOR, 'UPSTREAM DIFFERENCING' IN
-C LINE BELOW REPLACED WITH NEW APPROACH IN 2ND LINE:
-C 'MXSMC2 = MAX (SH2OA(K), SH2OA(K+1))'
-C ----------------------------------------------------------------------
-          MXSMC2 = SH2OA(K)
-
-          CALL WDFCND (WDF2,WCND2,MXSMC2,SMCMAX,BEXP,DKSAT,DWSAT,
-     &                 SICEMAX)
-
-C ----------------------------------------------------------------------
-C CALC SOME PARTIAL PRODUCTS FOR LATER USE IN CALC'NG RHSTT
-C ----------------------------------------------------------------------
-          DENOM = (ZSOIL(K-1) - ZSOIL(K+1))
-          DSMDZ2 = (SH2O(K) - SH2O(K+1)) / (DENOM * 0.5)
-
-C ----------------------------------------------------------------------
-C CALC THE MATRIX COEF, CI, AFTER CALC'NG ITS PARTIAL PRODUCT
-C ----------------------------------------------------------------------
-          DDZ2 = 2.0 / DENOM
-          CI(K) = -WDF2 * DDZ2 / DENOM2
-        ELSE
-
-C ----------------------------------------------------------------------
-C SLOPE OF BOTTOM LAYER IS INTRODUCED
-C ----------------------------------------------------------------------
-          SLOPX = SLOPE
-
-C ----------------------------------------------------------------------
-C RETRIEVE THE SOIL WATER DIFFUSIVITY AND HYDRAULIC CONDUCTIVITY FOR
-C THIS LAYER
-C ----------------------------------------------------------------------
-          CALL WDFCND (WDF2,WCND2,SH2OA(NSOIL),SMCMAX,BEXP,DKSAT,DWSAT,
-     &                 SICEMAX)
-
-C ----------------------------------------------------------------------
-C CALC A PARTIAL PRODUCT FOR LATER USE IN CALC'NG RHSTT
-C ----------------------------------------------------------------------
-          DSMDZ2 = 0.0
-
-C ----------------------------------------------------------------------
-C SET MATRIX COEF CI TO ZERO
-C ----------------------------------------------------------------------
-          CI(K) = 0.0
-        ENDIF
-
-C ----------------------------------------------------------------------
-C CALC RHSTT FOR THIS LAYER AFTER CALC'NG ITS NUMERATOR
-C ----------------------------------------------------------------------
-        NUMER = (WDF2 * DSMDZ2) + SLOPX * WCND2 - (WDF * DSMDZ) 
-     &    - WCND + ET(K)
-        RHSTT(K) = NUMER / (-DENOM2)
-
-C ----------------------------------------------------------------------
-C CALC MATRIX COEFS, AI, AND BI FOR THIS LAYER
-C ----------------------------------------------------------------------
-        AI(K) = -WDF * DDZ / DENOM2
-        BI(K) = -( AI(K) + CI(K) )
-
-C ----------------------------------------------------------------------
-C RESET VALUES OF WDF, WCND, DSMDZ, AND DDZ FOR LOOP TO NEXT LYR
-C RUNOFF2:  SUB-SURFACE OR BASEFLOW RUNOFF
-C ----------------------------------------------------------------------
-        IF (K .EQ. NSOIL) THEN
-          RUNOFF2 = SLOPX * WCND2
-        ENDIF
-
-        IF (K .NE. NSOIL) THEN
-          WDF = WDF2
-          WCND = WCND2
-          DSMDZ = DSMDZ2
-          DDZ = DDZ2
-        ENDIF
-      END DO
-
-C ----------------------------------------------------------------------
-C END SUBROUTINE SRT
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE SSTEP (SH2OOUT,SH2OIN,CMC,RHSTT,RHSCT,DT,
-     &                  NSOIL,SMCMAX,CMCMAX,RUNOFF3,ZSOIL,SMC,SICE,
-     &                  AI,BI,CI)
-
-      IMPLICIT NONE
-
-C ----------------------------------------------------------------------
-C SUBROUTINE SSTEP
-C ----------------------------------------------------------------------
-C CALCULATE/UPDATE SOIL MOISTURE CONTENT VALUES AND CANOPY MOISTURE
-C CONTENT VALUES.
-C ----------------------------------------------------------------------
-      INTEGER NSOLD
-      PARAMETER(NSOLD = 20)
-
-      INTEGER I
-      INTEGER K 
-      INTEGER KK11
-      INTEGER NSOIL
-
-      REAL AI(NSOLD)
-      REAL BI(NSOLD)
-      REAL CI(NSOLD)
-      REAL CIin(NSOLD)
-      REAL CMC
-      REAL CMCMAX
-      REAL DDZ
-      REAL DT
-      REAL RHSCT
-      REAL RHSTT(NSOIL)
-      REAL RHSTTin(NSOIL)
-      REAL RUNOFF3
-      REAL SH2OIN(NSOIL)
-      REAL SH2OOUT(NSOIL)
-      REAL SICE(NSOIL)
-      REAL SMC(NSOIL)
-      REAL SMCMAX
-      REAL STOT
-      REAL WPLUS
-      REAL ZSOIL(NSOIL)
-
-C ----------------------------------------------------------------------
-C CREATE 'AMOUNT' VALUES OF VARIABLES TO BE INPUT TO THE
-C TRI-DIAGONAL MATRIX ROUTINE.
-C ----------------------------------------------------------------------
-      DO K = 1,NSOIL
-        RHSTT(K) = RHSTT(K) * DT
-        AI(K) = AI(K) * DT
-        BI(K) = 1. + BI(K) * DT
-        CI(K) = CI(K) * DT
-      END DO
-
-C ----------------------------------------------------------------------
-C COPY VALUES FOR INPUT VARIABLES BEFORE CALL TO ROSR12
-C ----------------------------------------------------------------------
-      DO K = 1,NSOIL
-        RHSTTin(K) = RHSTT(K)
-      END DO
-      DO K = 1,NSOLD
-        CIin(K) = CI(K)
-      END DO
-
-C ----------------------------------------------------------------------
-C CALL ROSR12 TO SOLVE THE TRI-DIAGONAL MATRIX
-C ----------------------------------------------------------------------
-      CALL ROSR12 (CI,AI,BI,CIin,RHSTTin,RHSTT,NSOIL)
-
-C ----------------------------------------------------------------------
-C SUM THE PREVIOUS SMC VALUE AND THE MATRIX SOLUTION TO GET A
-C NEW VALUE.  MIN ALLOWABLE VALUE OF SMC WILL BE 0.02.
-C RUNOFF3: RUNOFF WITHIN SOIL LAYERS
-C ----------------------------------------------------------------------
-      WPLUS = 0.0
-      RUNOFF3 = 0.
-      DDZ = -ZSOIL(1)
-      
-      DO K = 1,NSOIL
-        IF (K .NE. 1) DDZ = ZSOIL(K - 1) - ZSOIL(K)
-        SH2OOUT(K) = SH2OIN(K) + CI(K) + WPLUS / DDZ
-
-        STOT = SH2OOUT(K) + SICE(K)
-        IF (STOT .GT. SMCMAX) THEN
-          IF (K .EQ. 1) THEN
-            DDZ = -ZSOIL(1)
-          ELSE
-            KK11 = K - 1
-            DDZ = -ZSOIL(K) + ZSOIL(KK11)
-          ENDIF
-          WPLUS = (STOT-SMCMAX) * DDZ
-        ELSE
-          WPLUS = 0.
-        ENDIF
-        SMC(K) = MAX ( MIN(STOT,SMCMAX),0.02 )
-        SH2OOUT(K) = MAX((SMC(K)-SICE(K)),0.0)
-      END DO
-
-      RUNOFF3 = WPLUS
-
-C ----------------------------------------------------------------------
-C UPDATE CANOPY WATER CONTENT/INTERCEPTION (CMC).  CONVERT RHSCT TO 
-C AN 'AMOUNT' VALUE AND ADD TO PREVIOUS CMC VALUE TO GET NEW CMC.
-C ----------------------------------------------------------------------
-      CMC = CMC + DT * RHSCT
-      IF (CMC .LT. 1.E-20) CMC=0.0
-      CMC = MIN(CMC,CMCMAX)
-
-C ----------------------------------------------------------------------
-C END SUBROUTINE SSTEP
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE TBND (TU,TB,ZSOIL,ZBOT,K,NSOIL,TBND1)
-
-      IMPLICIT NONE
-
-C ----------------------------------------------------------------------
-C SUBROUTINE TBND
-C ----------------------------------------------------------------------
-C CALCULATE TEMPERATURE ON THE BOUNDARY OF THE LAYER BY INTERPOLATION OF
-C THE MIDDLE LAYER TEMPERATURES
-C ----------------------------------------------------------------------
-      INTEGER NSOIL
-      INTEGER K
-
-      REAL TBND1
-      REAL T0
-      REAL TU
-      REAL TB
-      REAL ZB
-      REAL ZBOT
-      REAL ZUP
-      REAL ZSOIL (NSOIL)
-
-      PARAMETER(T0 = 273.15)
-
-C ----------------------------------------------------------------------
-C USE SURFACE TEMPERATURE ON THE TOP OF THE FIRST LAYER
-C ----------------------------------------------------------------------
-      IF (K .EQ. 1) THEN
-        ZUP = 0.
-      ELSE
-        ZUP = ZSOIL(K-1)
-      ENDIF
-
-C ----------------------------------------------------------------------
-C USE DEPTH OF THE CONSTANT BOTTOM TEMPERATURE WHEN INTERPOLATE
-C TEMPERATURE INTO THE LAST LAYER BOUNDARY
-C ----------------------------------------------------------------------
-      IF (K .EQ. NSOIL) THEN
-        ZB = 2.*ZBOT-ZSOIL(K)
-      ELSE
-        ZB = ZSOIL(K+1)
-      ENDIF
-
-C ----------------------------------------------------------------------
-C LINEAR INTERPOLATION BETWEEN THE AVERAGE LAYER TEMPERATURES
-C ----------------------------------------------------------------------
-      TBND1 = TU+(TB-TU)*(ZUP-ZSOIL(K))/(ZUP-ZB)
-      
-C ----------------------------------------------------------------------
-C END SUBROUTINE TBND
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE TDFCND ( DF, SMC, QZ,  SMCMAX, SH2O)
-
-      IMPLICIT NONE
-
-C ----------------------------------------------------------------------
-C SUBROUTINE TDFCND
-C ----------------------------------------------------------------------
-C CALCULATE THERMAL DIFFUSIVITY AND CONDUCTIVITY OF THE SOIL FOR A GIVEN
-C POINT AND TIME.
-C ----------------------------------------------------------------------
-C PETERS-LIDARD APPROACH (PETERS-LIDARD et al., 1998)
-C June 2001 CHANGES: FROZEN SOIL CONDITION.
-C ----------------------------------------------------------------------
-       REAL DF
-       REAL GAMMD
-       REAL THKDRY
-       REAL AKE
-       REAL THKICE
-       REAL THKO
-       REAL THKQTZ
-       REAL THKSAT
-       REAL THKS
-       REAL THKW
-       REAL QZ
-       REAL SATRATIO
-       REAL SH2O
-       REAL SMC
-       REAL SMCMAX
-       REAL XU
-       REAL XUNFROZ
-
-C ----------------------------------------------------------------------
-C WE NOW GET QUARTZ AS AN INPUT ARGUMENT (SET IN ROUTINE REDPRM):
-C      DATA QUARTZ /0.82, 0.10, 0.25, 0.60, 0.52, 
-C     &             0.35, 0.60, 0.40, 0.82/
-C ----------------------------------------------------------------------
-C IF THE SOIL HAS ANY MOISTURE CONTENT COMPUTE A PARTIAL SUM/PRODUCT
-C OTHERWISE USE A CONSTANT VALUE WHICH WORKS WELL WITH MOST SOILS
-C ----------------------------------------------------------------------
-C  THKW ......WATER THERMAL CONDUCTIVITY
-C  THKQTZ ....THERMAL CONDUCTIVITY FOR QUARTZ
-C  THKO ......THERMAL CONDUCTIVITY FOR OTHER SOIL COMPONENTS
-C  THKS ......THERMAL CONDUCTIVITY FOR THE SOLIDS COMBINED(QUARTZ+OTHER)
-C  THKICE ....ICE THERMAL CONDUCTIVITY
-C  SMCMAX ....POROSITY (= SMCMAX)
-C  QZ .........QUARTZ CONTENT (SOIL TYPE DEPENDENT)
-C ----------------------------------------------------------------------
-C USE AS IN PETERS-LIDARD, 1998 (MODIF. FROM JOHANSEN, 1975).
-C
-C                                  PABLO GRUNMANN, 08/17/98
-C REFS.:
-C      FAROUKI, O.T.,1986: THERMAL PROPERTIES OF SOILS. SERIES ON ROCK 
-C              AND SOIL MECHANICS, VOL. 11, TRANS TECH, 136 PP.
-C      JOHANSEN, O., 1975: THERMAL CONDUCTIVITY OF SOILS. PH.D. THESIS,
-C              UNIVERSITY OF TRONDHEIM,
-C      PETERS-LIDARD, C. D., ET AL., 1998: THE EFFECT OF SOIL THERMAL 
-C              CONDUCTIVITY PARAMETERIZATION ON SURFACE ENERGY FLUXES
-C              AND TEMPERATURES. JOURNAL OF THE ATMOSPHERIC SCIENCES,
-C              VOL. 55, PP. 1209-1224.
-C ----------------------------------------------------------------------
-C NEEDS PARAMETERS
-C POROSITY(SOIL TYPE):
-C      POROS = SMCMAX
-C SATURATION RATIO:
-      SATRATIO = SMC/SMCMAX
-
-C PARAMETERS  W/(M.K)
-      THKICE = 2.2
-      THKW = 0.57
-      THKO = 2.0
-C      IF (QZ .LE. 0.2) THKO = 3.0
-      THKQTZ = 7.7
-C SOLIDS' CONDUCTIVITY      
-      THKS = (THKQTZ**QZ)*(THKO**(1.- QZ))
-
-C UNFROZEN FRACTION (FROM 1., i.e., 100%LIQUID, TO 0. (100% FROZEN))
-      XUNFROZ = (SH2O + 1.E-9) / (SMC + 1.E-9)
-
-C UNFROZEN VOLUME FOR SATURATION (POROSITY*XUNFROZ)
-      XU=XUNFROZ*SMCMAX 
-C SATURATED THERMAL CONDUCTIVITY
-      THKSAT = THKS**(1.-SMCMAX)*THKICE**(SMCMAX-XU)*THKW**(XU)
-
-C DRY DENSITY IN KG/M3
-      GAMMD = (1. - SMCMAX)*2700.
-
-C DRY THERMAL CONDUCTIVITY IN W.M-1.K-1
-      THKDRY = (0.135*GAMMD + 64.7)/(2700. - 0.947*GAMMD)
-
-      IF ( (SH2O + 0.0005) .LT. SMC ) THEN
-C FROZEN
-              AKE = SATRATIO
-      ELSE
-C UNFROZEN
-C RANGE OF VALIDITY FOR THE KERSTEN NUMBER (AKE)
-          IF ( SATRATIO .GT. 0.1 ) THEN
-
-C KERSTEN NUMBER (USING "FINE" FORMULA, VALID FOR SOILS CONTAINING AT 
-C LEAST 5% OF PARTICLES WITH DIAMETER LESS THAN 2.E-6 METERS.)
-C (FOR "COARSE" FORMULA, SEE PETERS-LIDARD ET AL., 1998).
-
-              AKE = LOG10(SATRATIO) + 1.0
-
-          ELSE
-
-C USE K = KDRY
-              AKE = 0.0
-
-          ENDIF
-      ENDIF
-
-C  THERMAL CONDUCTIVITY
-
-       DF = AKE*(THKSAT - THKDRY) + THKDRY
-
-C ----------------------------------------------------------------------
-C END SUBROUTINE TDFCND
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE TMPAVG (TAVG,TUP,TM,TDN,ZSOIL,NSOIL,K) 
-      
-      IMPLICIT NONE
-      
-C ----------------------------------------------------------------------
-C SUBROUTINE TMPAVG
-C ----------------------------------------------------------------------
-C CALCULATE SOIL LAYER AVERAGE TEMPERATURE (TAVG) IN FREEZING/THAWING
-C LAYER USING UP, DOWN, AND MIDDLE LAYER TEMPERATURES (TUP, TDN, TM),
-C WHERE TUP IS AT TOP BOUNDARY OF LAYER, TDN IS AT BOTTOM BOUNDARY OF
-C LAYER.  TM IS LAYER PROGNOSTIC STATE TEMPERATURE.
-C ----------------------------------------------------------------------
-      INTEGER K
-      INTEGER NSOIL
-
-      REAL DZ
-      REAL DZH
-      REAL T0
-      REAL TAVG
-      REAL TDN
-      REAL TM
-      REAL TUP
-      REAL X0
-      REAL XDN
-      REAL XUP
-      REAL ZSOIL (NSOIL)
-
-      PARAMETER(T0 = 2.7315E2)
-
-C ----------------------------------------------------------------------
-      IF (K .EQ. 1) THEN
-        DZ = -ZSOIL(1)
-      ELSE
-        DZ = ZSOIL(K-1)-ZSOIL(K)
-      ENDIF
-
-      DZH=DZ*0.5
-
-      IF (TUP .LT. T0) THEN
-        IF (TM .LT. T0) THEN
-          IF (TDN .LT. T0) THEN
-C ----------------------------------------------------------------------
-C TUP, TM, TDN < T0
-C ----------------------------------------------------------------------
-            TAVG = (TUP + 2.0*TM + TDN)/ 4.0            
-          ELSE
-C ----------------------------------------------------------------------
-C TUP & TM < T0,  TDN >= T0
-C ----------------------------------------------------------------------
-            X0 = (T0 - TM) * DZH / (TDN - TM)
-            TAVG = 0.5 * (TUP*DZH+TM*(DZH+X0)+T0*(2.*DZH-X0)) / DZ
-          ENDIF      
-        ELSE
-          IF (TDN .LT. T0) THEN
-C ----------------------------------------------------------------------
-C TUP < T0, TM >= T0, TDN < T0
-C ----------------------------------------------------------------------
-            XUP  = (T0-TUP) * DZH / (TM-TUP)
-            XDN  = DZH - (T0-TM) * DZH / (TDN-TM)
-            TAVG = 0.5 * (TUP*XUP+T0*(2.*DZ-XUP-XDN)+TDN*XDN) / DZ
-          ELSE
-C ----------------------------------------------------------------------
-C TUP < T0, TM >= T0, TDN >= T0
-C ----------------------------------------------------------------------
-            XUP  = (T0-TUP) * DZH / (TM-TUP)
-            TAVG = 0.5 * (TUP*XUP+T0*(2.*DZ-XUP)) / DZ
-          ENDIF   
-        ENDIF
-      ELSE
-        IF (TM .LT. T0) THEN
-          IF (TDN .LT. T0) THEN
-C ----------------------------------------------------------------------
-C TUP >= T0, TM < T0, TDN < T0
-C ----------------------------------------------------------------------
-            XUP  = DZH - (T0-TUP) * DZH / (TM-TUP)
-            TAVG = 0.5 * (T0*(DZ-XUP)+TM*(DZH+XUP)+TDN*DZH) / DZ
-          ELSE
-C ----------------------------------------------------------------------
-C TUP >= T0, TM < T0, TDN >= T0
-C ----------------------------------------------------------------------
-            XUP  = DZH - (T0-TUP) * DZH / (TM-TUP)
-            XDN  = (T0-TM) * DZH / (TDN-TM)
-            TAVG = 0.5 * (T0*(2.*DZ-XUP-XDN)+TM*(XUP+XDN)) / DZ
-          ENDIF   
-        ELSE
-          IF (TDN .LT. T0) THEN
-C ----------------------------------------------------------------------
-C TUP >= T0, TM >= T0, TDN < T0
-C ----------------------------------------------------------------------
-            XDN  = DZH - (T0-TM) * DZH / (TDN-TM)
-            TAVG = (T0*(DZ-XDN)+0.5*(T0+TDN)*XDN) / DZ                 
-          ELSE
-C ----------------------------------------------------------------------
-C TUP >= T0, TM >= T0, TDN >= T0
-C ----------------------------------------------------------------------
-            TAVG = (TUP + 2.0*TM + TDN) / 4.0
-          ENDIF
-        ENDIF
-      ENDIF
-C ----------------------------------------------------------------------
-C END SUBROUTINE TMPAVG
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE TRANSP (ET1,NSOIL,ETP1,SMC,CMC,ZSOIL,SHDFAC,SMCWLT,
-     &                   CMCMAX,PC,CFACTR,SMCREF,SFCTMP,Q2,NROOT,RTDIS)
-
-      IMPLICIT NONE
-
-C ----------------------------------------------------------------------
-C SUBROUTINE TRANSP
-C ----------------------------------------------------------------------
-C CALCULATE TRANSPIRATION FOR THE VEG CLASS.
-C ----------------------------------------------------------------------
-      INTEGER I
-      INTEGER K
-      INTEGER NSOIL
-      INTEGER NROOT
-
-      REAL CFACTR
-      REAL CMC
-      REAL CMCMAX
-      REAL DENOM
-      REAL ET1(NSOIL)
-      REAL ETP1
-      REAL ETP1A
-      REAL GX (7)
-C.....REAL PART(NSOIL)
-      REAL PC
-      REAL Q2
-      REAL RTDIS(NSOIL)
-      REAL RTX
-      REAL SFCTMP
-      REAL SGX
-      REAL SHDFAC
-      REAL SMC(NSOIL)
-      REAL SMCREF
-      REAL SMCWLT
-      REAL ZSOIL(NSOIL)
-
-C ----------------------------------------------------------------------
-C INITIALIZE PLANT TRANSP TO ZERO FOR ALL SOIL LAYERS.
-C ----------------------------------------------------------------------
-      DO K = 1,NSOIL
-        ET1(K) = 0.
-      END DO
-
-C ----------------------------------------------------------------------
-C CALCULATE AN 'ADJUSTED' POTENTIAL TRANSPIRATION
-C IF STATEMENT BELOW TO AVOID TANGENT LINEAR PROBLEMS NEAR ZERO
-C NOTE: GX AND OTHER TERMS BELOW REDISTRIBUTE TRANSPIRATION BY LAYER,
-C ET(K), AS A FUNCTION OF SOIL MOISTURE AVAILABILITY, WHILE PRESERVING
-C TOTAL ETP1A.
-C ----------------------------------------------------------------------
-      IF (CMC .NE. 0.0) THEN
-        ETP1A = SHDFAC * PC * ETP1 * (1.0 - (CMC /CMCMAX) ** CFACTR)
-      ELSE
-        ETP1A = SHDFAC * PC * ETP1
-      ENDIF
-      
-      SGX = 0.0
-      DO I = 1,NROOT
-        GX(I) = ( SMC(I) - SMCWLT ) / ( SMCREF - SMCWLT )
-        GX(I) = MAX ( MIN ( GX(I), 1. ), 0. )
-        SGX = SGX + GX (I)
-      END DO
-      SGX = SGX / NROOT
-      
-      DENOM = 0.
-      DO I = 1,NROOT
-        RTX = RTDIS(I) + GX(I) - SGX
-        GX(I) = GX(I) * MAX ( RTX, 0. )
-        DENOM = DENOM + GX(I)
-      END DO
-      IF (DENOM .LE. 0.0) DENOM = 1.
-
-      DO I = 1,NROOT
-        ET1(I) = ETP1A * GX(I) / DENOM
-      END DO
-
-C ----------------------------------------------------------------------
-C ABOVE CODE ASSUMES A VERTICALLY UNIFORM ROOT DISTRIBUTION
-C CODE BELOW TESTS A VARIABLE ROOT DISTRIBUTION
-C ----------------------------------------------------------------------
-C      ET(1) = ( ZSOIL(1) / ZSOIL(NROOT) ) * GX * ETP1A
-C      ET(1) = ( ZSOIL(1) / ZSOIL(NROOT) ) * ETP1A
-C ----------------------------------------------------------------------
-C USING ROOT DISTRIBUTION AS WEIGHTING FACTOR
-C ----------------------------------------------------------------------
-C      ET(1) = RTDIS(1) * ETP1A
-C      ET(1) = ETP1A * PART(1)
-C ----------------------------------------------------------------------
-C LOOP DOWN THRU THE SOIL LAYERS REPEATING THE OPERATION ABOVE,
-C BUT USING THE THICKNESS OF THE SOIL LAYER (RATHER THAN THE
-C ABSOLUTE DEPTH OF EACH LAYER) IN THE FINAL CALCULATION.
-C ----------------------------------------------------------------------
-C      DO K = 2,NROOT
-C        GX = ( SMC(K) - SMCWLT ) / ( SMCREF - SMCWLT )
-C        GX = MAX ( MIN ( GX, 1. ), 0. )
-C TEST CANOPY RESISTANCE
-C        GX = 1.0
-C        ET(K) = ((ZSOIL(K)-ZSOIL(K-1))/ZSOIL(NROOT))*GX*ETP1A
-C        ET(K) = ((ZSOIL(K)-ZSOIL(K-1))/ZSOIL(NROOT))*ETP1A
-C ----------------------------------------------------------------------
-C USING ROOT DISTRIBUTION AS WEIGHTING FACTOR
-C ----------------------------------------------------------------------
-C        ET(K) = RTDIS(K) * ETP1A
-C        ET(K) = ETP1A*PART(K)
-C      END DO      
-C ----------------------------------------------------------------------
-C END SUBROUTINE TRANSP
-C ----------------------------------------------------------------------
-      RETURN
-      END
-      SUBROUTINE WDFCND (WDF,WCND,SMC,SMCMAX,BEXP,DKSAT,DWSAT,
-     &                   SICEMAX)
-
-      IMPLICIT NONE
-
-C ----------------------------------------------------------------------
-C SUBROUTINE WDFCND
-C ----------------------------------------------------------------------
-C CALCULATE SOIL WATER DIFFUSIVITY AND SOIL HYDRAULIC CONDUCTIVITY.
-C ----------------------------------------------------------------------
-      REAL BEXP
-      REAL DKSAT
-      REAL DWSAT
-      REAL EXPON
-      REAL FACTR1
-      REAL FACTR2
-      REAL SICEMAX
-      REAL SMC
-      REAL SMCMAX
-      REAL VKwgt
-      REAL WCND
-      REAL WDF
-
-C ----------------------------------------------------------------------
-C     CALC THE RATIO OF THE ACTUAL TO THE MAX PSBL SOIL H2O CONTENT
-C ----------------------------------------------------------------------
-      SMC = SMC
-      SMCMAX = SMCMAX
-      FACTR1 = 0.2 / SMCMAX
-      FACTR2 = SMC / SMCMAX
-
-C ----------------------------------------------------------------------
-C PREP AN EXPNTL COEF AND CALC THE SOIL WATER DIFFUSIVITY
-C ----------------------------------------------------------------------
-      EXPON = BEXP + 2.0
-      WDF = DWSAT * FACTR2 ** EXPON
-
-C ----------------------------------------------------------------------
-C FROZEN SOIL HYDRAULIC DIFFUSIVITY.  VERY SENSITIVE TO THE VERTICAL
-C GRADIENT OF UNFROZEN WATER. THE LATTER GRADIENT CAN BECOME VERY
-C EXTREME IN FREEZING/THAWING SITUATIONS, AND GIVEN THE RELATIVELY 
-C FEW AND THICK SOIL LAYERS, THIS GRADIENT SUFFERES SERIOUS 
-C TRUNCTION ERRORS YIELDING ERRONEOUSLY HIGH VERTICAL TRANSPORTS OF
-C UNFROZEN WATER IN BOTH DIRECTIONS FROM HUGE HYDRAULIC DIFFUSIVITY.  
-C THEREFORE, WE FOUND WE HAD TO ARBITRARILY CONSTRAIN WDF 
-C --
-C VERSION D_10CM: ........  FACTR1 = 0.2/SMCMAX
-C WEIGHTED APPROACH...................... PABLO GRUNMANN, 28_SEP_1999.
-C ----------------------------------------------------------------------
-      IF (SICEMAX .GT. 0.0)  THEN
-        VKWGT = 1./(1.+(500.*SICEMAX)**3.)
-        WDF = VKWGT*WDF + (1.- VKWGT)*DWSAT*FACTR1**EXPON
-      ENDIF
-
-C ----------------------------------------------------------------------
-C RESET THE EXPNTL COEF AND CALC THE HYDRAULIC CONDUCTIVITY
-C ----------------------------------------------------------------------
-      EXPON = (2.0 * BEXP) + 3.0
-      WCND = DKSAT * FACTR2 ** EXPON
-
-C ----------------------------------------------------------------------
-C END SUBROUTINE WDFCND
-C ----------------------------------------------------------------------
-      RETURN
-      END
+!     integer, intent(out) :: nroot
+
+!  ---  locals:
+      real (kind=kind_phys) :: frzfact, frzk, refdk
+
+      integer :: i
+
+!
+!===> ...  begin here
+!
+      if (soiltyp > defined_soil) then
+        write(*,*) 'warning: too many soil types'
+        stop 333
+      endif
+
+      if (vegtyp > defined_veg) then
+        write(*,*) 'warning: too many veg types'
+        stop 333
+      endif
+
+      if (slopetyp > defined_slope) then
+        write(*,*) 'warning: too many slope types'
+        stop 333
+      endif
+
+!  --- ...  set-up universal parameters (not dependent on soiltyp, vegtyp
+!           or slopetyp)
+
+      zbot   = zbot_data
+      salp   = salp_data
+      cfactr = cfactr_data
+      cmcmax = cmcmax_data
+      sbeta  = sbeta_data
+      rsmax  = rsmax_data
+      topt   = topt_data
+      refdk  = refdk_data
+      frzk   = frzk_data
+      fxexp  = fxexp_data
+      refkdt = refkdt_data
+      czil   = czil_data
+      csoil  = csoil_data
+
+!  --- ...  set-up soil parameters
+
+      bexp  = bb   (soiltyp)
+      dksat = satdk(soiltyp)
+      dwsat = satdw(soiltyp)
+      f1    = f11  (soiltyp)
+      kdt   = refkdt * dksat / refdk
+
+      psisat = satpsi(soiltyp)
+      quartz = qtz   (soiltyp)
+      smcdry = drysmc(soiltyp)
+      smcmax = maxsmc(soiltyp)
+      smcref = refsmc(soiltyp)
+      smcwlt = wltsmc(soiltyp)
+
+      frzfact = (smcmax / smcref) * (0.412 / 0.468)
+
+!  --- ...  to adjust frzk parameter to actual soil type: frzk * frzfact
+
+      frzx = frzk * frzfact
+
+!  --- ...  set-up vegetation parameters
+
+      nroot = nroot_data(vegtyp)
+      snup  = snupx(vegtyp)
+      rsmin = rsmtbl(vegtyp)
+
+      rgl = rgltbl(vegtyp)
+      hs  = hstbl(vegtyp)
+      z0  = z0_data(vegtyp)
+      xlai= lai_data(vegtyp)
+
+      if (vegtyp == bare) shdfac = 0.0
+
+      if (nroot > nsoil) then
+        write(*,*) 'warning: too many root layers'
+        stop 333
+      endif
+
+!  --- ...  calculate root distribution.  present version assumes uniform
+!           distribution based on soil layer depths.
+
+      do i = 1, nroot
+        rtdis(i) = -sldpth(i) / zsoil(nroot)
+      enddo
+
+!  --- ...  set-up slope parameter
+
+      slope = slope_data(slopetyp)
+!
+      return
+!...................................
+      end subroutine redprm
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine sfcdif
+!...................................
+!  ---  inputs:
+!    &     ( zlvl, z0, t1v, th2v, sfcspd, czil,                         &
+!  ---  input/outputs:
+!    &       cm, ch                                                     &
+!    &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!  subroutine sfcdif calculates surface layer exchange coefficients     !
+!  via iterative process. see chen et al (1997, blm)                    !
+!                                                                       !
+!  subprogram called:  none                                             !
+!                                                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs from the calling program:                              size   !
+!     zlvl     - real, height abv atmos ground forcing vars (m)    1    !
+!     z0       - real, roughness length (m)                        1    !
+!     t1v      - real, surface exchange coefficient                1    !
+!     th2v     - real, surface exchange coefficient                1    !
+!     sfcspd   - real, wind speed at height zlvl abv ground (m/s)  1    !
+!     czil     - real, param to cal roughness length of heat       1    !
+!                                                                       !
+!  input/outputs from and to the calling program:                       !
+!     cm       - real, sfc exchange coeff for momentum (m/s)       1    !
+!     ch       - real, sfc exchange coeff for heat & moisture (m/s)1    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  --- constant parameters:
+      integer,               parameter :: itrmx  = 5
+      real (kind=kind_phys), parameter :: wwst   = 1.2
+      real (kind=kind_phys), parameter :: wwst2  = wwst*wwst
+      real (kind=kind_phys), parameter :: vkrm   = 0.40
+      real (kind=kind_phys), parameter :: excm   = 0.001
+      real (kind=kind_phys), parameter :: beta   = 1.0/270.0
+      real (kind=kind_phys), parameter :: btg    = beta*gs1
+      real (kind=kind_phys), parameter :: elfc   = vkrm*btg
+      real (kind=kind_phys), parameter :: wold   = 0.15
+      real (kind=kind_phys), parameter :: wnew   = 1.0-wold
+      real (kind=kind_phys), parameter :: pihf   = 3.14159265/2.0  ! con_pi/2.0
+
+      real (kind=kind_phys), parameter :: epsu2  = 1.e-4
+      real (kind=kind_phys), parameter :: epsust = 0.07
+      real (kind=kind_phys), parameter :: ztmin  = -5.0
+      real (kind=kind_phys), parameter :: ztmax  = 1.0
+      real (kind=kind_phys), parameter :: hpbl   = 1000.0
+      real (kind=kind_phys), parameter :: sqvisc = 258.2
+
+      real (kind=kind_phys), parameter :: ric    = 0.183
+      real (kind=kind_phys), parameter :: rric   = 1.0/ric
+      real (kind=kind_phys), parameter :: fhneu  = 0.8
+      real (kind=kind_phys), parameter :: rfc    = 0.191
+      real (kind=kind_phys), parameter :: rfac   = ric/(fhneu*rfc*rfc)
+
+!  ---  inputs:
+!     real (kind=kind_phys),  intent(in) :: zlvl, z0, t1v, th2v,        &
+!    &       sfcspd, czil
+
+!  ---  input/outputs:
+!     real (kind=kind_phys),  intent(inout) :: cm, ch
+
+!  ---  locals:
+      real (kind=kind_phys) :: zilfc, zu, zt, rdz, cxch, dthv, du2,     &
+     &       btgh, wstar2, ustar, zslu, zslt, rlogu, rlogt, rlmo,       &
+     &       zetalt, zetalu, zetau, zetat, xlu4, xlt4, xu4, xt4,        &
+     &       xlu, xlt, xu, xt, psmz, simm, pshz, simh, ustark,          &
+     &       rlmn, rlma
+
+      integer :: ilech, itr
+
+!  ---  define local in-line functions:
+
+      real (kind=kind_phys) :: pslmu, pslms, pslhu, pslhs, zz
+      real (kind=kind_phys) :: pspmu, pspms, psphu, psphs, xx, yy
+
+!  ...  1) lech's surface functions
+
+      pslmu( zz ) = -0.96 * log( 1.0-4.5*zz )
+      pslms( zz ) = zz*rric - 2.076*(1.0 - 1.0/(zz + 1.0))
+      pslhu( zz ) = -0.96 * log( 1.0-4.5*zz )
+      pslhs( zz ) = zz*rfac - 2.076*(1.0 - 1.0/(zz + 1.0))
+
+!  ...  2) paulson's surface functions
+
+      pspmu( xx ) = -2.0 * log( (xx + 1.0)*0.5 )                        &
+     &            - log( (xx*xx + 1.0)*0.5 ) + 2.0*atan(xx) - pihf
+      pspms( yy ) = 5.0 * yy
+      psphu( xx ) = -2.0 * log( (xx*xx + 1.0)*0.5 )
+      psphs( yy ) = 5.0 * yy
+
+!
+!===> ...  begin here
+!
+!  --- ...  this routine sfcdif can handle both over open water (sea, ocean) and
+!           over solid surface (land, sea-ice).
+
+      ilech = 0
+
+!   --- ...  ztfc: ratio of zoh/zom  less or equal than 1
+!            czil: constant c in zilitinkevich, s. s.1995,:note about zt
+
+      zilfc = -czil * vkrm * sqvisc
+
+      zu = z0
+
+      rdz = 1.0 / zlvl
+      cxch = excm * rdz
+      dthv = th2v - t1v
+      du2 = max( sfcspd*sfcspd, epsu2 )
+
+!  --- ...  beljars correction of ustar
+
+      btgh = btg * hpbl
+
+!  --- ...  if statements to avoid tangent linear problems near zero
+      if (btgh*ch*dthv /= 0.0) then
+        wstar2 = wwst2 * abs( btgh*ch*dthv )**(2.0/3.0)
+      else
+        wstar2 = 0.0
+      endif
+
+      ustar = max( sqrt( cm*sqrt( du2+wstar2 ) ), epsust )
+
+!  --- ...  zilitinkevitch approach for zt
+
+      zt = exp( zilfc*sqrt( ustar*z0 ) ) * z0
+
+      zslu = zlvl + zu
+      zslt = zlvl + zt
+
+!     print*,'zslt=',zslt
+!     print*,'zlvl=',zvll
+!     print*,'zt=',zt
+
+      rlogu = log( zslu/zu )
+      rlogt = log( zslt/zt )
+
+      rlmo = elfc*ch*dthv / ustar**3
+
+!     print*,'rlmo=',rlmo
+!     print*,'elfc=',elfc
+!     print*,'ch=',ch
+!     print*,'dthv=',dthv
+!     print*,'ustar=',ustar
+
+      do itr = 1, itrmx
+
+!  --- ...  1./ monin-obukkhov length-scale
+
+        zetalt = max( zslt*rlmo, ztmin )
+        rlmo   = zetalt / zslt
+        zetalu = zslu * rlmo
+        zetau  = zu * rlmo
+        zetat  = zt * rlmo
+
+        if (ilech == 0) then
+
+          if (rlmo < 0.0) then
+            xlu4 = 1.0 - 16.0 * zetalu
+            xlt4 = 1.0 - 16.0 * zetalt
+            xu4  = 1.0 - 16.0 * zetau
+            xt4  = 1.0 - 16.0* zetat
+
+            xlu = sqrt( sqrt( xlu4 ) )
+            xlt = sqrt( sqrt( xlt4 ) )
+            xu  = sqrt( sqrt( xu4  ) )
+            xt  = sqrt( sqrt( xt4  ) )
+
+            psmz = pspmu(xu)
+
+!           print*,'-----------1------------'
+!           print*,'psmz=',psmz
+!           print*,'pspmu(zetau)=',pspmu( zetau )
+!           print*,'xu=',xu
+!           print*,'------------------------'
+
+            simm = pspmu( xlu ) - psmz + rlogu
+            pshz = psphu( xt  )
+            simh = psphu( xlt ) - pshz + rlogt
+          else
+            zetalu = min( zetalu, ztmax )
+            zetalt = min( zetalt, ztmax )
+            psmz = pspms( zetau )
+
+!           print*,'-----------2------------'
+!           print*,'psmz=',psmz
+!           print*,'pspms(zetau)=',pspms( zetau )
+!           print*,'zetau=',zetau
+!           print*,'------------------------'
+
+            simm = pspms( zetalu ) - psmz + rlogu
+            pshz = psphs( zetat  )
+            simh = psphs( zetalt ) - pshz + rlogt
+          endif   ! end if_rlmo_block
+
+        else
+
+!  --- ...  lech's functions
+
+          if (rlmo < 0.0) then
+            psmz = pslmu( zetau )
+
+!           print*,'-----------3------------'
+!           print*,'psmz=',psmz
+!           print*,'pslmu(zetau)=',pslmu( zetau )
+!           print*,'zetau=',zetau
+!           print*,'------------------------'
+
+            simm = pslmu( zetalu ) - psmz + rlogu
+            pshz = pslhu( zetat  )
+            simh = pslhu( zetalt ) - pshz + rlogt
+          else
+            zetalu = min( zetalu, ztmax )
+            zetalt = min( zetalt, ztmax )
+
+            psmz = pslms( zetau  )
+
+!           print*,'-----------4------------'
+!           print*,'psmz=',psmz
+!           print*,'pslms(zetau)=',pslms( zetau )
+!           print*,'zetau=',zetau
+!           print*,'------------------------'
+
+            simm = pslms( zetalu ) - psmz + rlogu
+            pshz = pslhs( zetat  )
+            simh = pslhs( zetalt ) - pshz + rlogt
+          endif   ! end if_rlmo_block
+
+        endif   ! end if_ilech_block
+
+!  --- ...  beljaars correction for ustar
+
+        ustar = max( sqrt( cm*sqrt( du2+wstar2 ) ), epsust )
+
+!  --- ...  zilitinkevitch fix for zt
+
+        zt = exp( zilfc*sqrt( ustar*z0 ) ) * z0
+
+        zslt = zlvl + zt
+        rlogt = log( zslt/zt )
+
+        ustark = ustar * vkrm
+        cm = max( ustark/simm, cxch )
+        ch = max( ustark/simh, cxch )
+
+!  --- ...  if statements to avoid tangent linear problems near zero
+
+        if (btgh*ch*dthv /= 0.0) then
+          wstar2 = wwst2 * abs(btgh*ch*dthv) ** (2.0/3.0)
+        else
+          wstar2 = 0.0
+        endif
+
+        rlmn = elfc*ch*dthv / ustar**3
+        rlma = rlmo*wold + rlmn*wnew
+
+        rlmo = rlma
+
+      enddo   ! end do_itr_loop
+
+!     print*,'----------------------------'
+!     print*,'sfcdif output !  ! ! ! ! ! ! ! !  !   !    !'
+!
+!     print*,'zlvl=',zlvl
+!     print*,'z0=',z0
+!     print*,'t1v=',t1v
+!     print*,'th2v=',th2v
+!     print*,'sfcspd=',sfcspd
+!     print*,'czil=',czil
+!     print*,'cm=',cm
+!     print*,'ch=',ch
+!     print*,'----------------------------'
+!
+      return
+!...................................
+      end subroutine sfcdif
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine snfrac
+!...................................
+!  ---  inputs:
+!    &     ( sneqv, snup, salp, snowh,                                  &
+!  ---  outputs:
+!    &       sncovr                                                     &
+!    &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!  subroutine snfrac calculatexsnow fraction (0 -> 1)                   !
+!                                                                       !
+!  subprogram called:  none                                             !
+!                                                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs from the calling program:                              size   !
+!     sneqv    - real, snow water equivalent (m)                   1    !
+!     snup     - real, threshold sneqv depth above which sncovr=1  1    !
+!     salp     - real, tuning parameter                            1    !
+!     snowh    - real, snow depth (m)                              1    !
+!                                                                       !
+!  outputs to the calling program:                                      !
+!     sncovr   - real, fractional snow cover                       1    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  inputs:
+!     real (kind=kind_phys),  intent(in) :: sneqv, snup, salp, snowh
+
+!  ---  outputs:
+!     real (kind=kind_phys),  intent(out) :: sncovr
+
+!  ---  locals:
+      real (kind=kind_phys) :: rsnow, z0n
+
+!
+!===> ...  begin here
+!
+!  --- ...  snup is veg-class dependent snowdepth threshhold (set in routine
+!           redprm) above which snocvr=1.
+
+          if (sneqv < snup) then
+            rsnow = sneqv / snup
+            sncovr = 1.0 - (exp(-salp*rsnow) - rsnow*exp(-salp))
+          else
+            sncovr = 1.0
+          endif
+
+          z0n = 0.035
+
+!  --- ...  formulation of dickinson et al. 1986
+
+!       sncovr = snowh / (snowh + 5.0*z0n)
+
+!  --- ...  formulation of marshall et al. 1994
+
+!       sncovr = sneqv / (sneqv + 2.0*z0n)
+
+!
+      return
+!...................................
+      end subroutine snfrac
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine snopac
+!...................................
+!  ---  inputs:
+!    &     ( nsoil, nroot, etp, prcp, smcmax, smcwlt, smcref, smcdry,   &
+!    &       cmcmax, dt, df1, sfcems, sfctmp, t24, th2, fdown, epsca,   &
+!    &       bexp, pc, rch, rr, cfactr, slope, kdt, frzx, psisat,       &
+!    &       zsoil, dwsat, dksat, zbot, shdfac, ice, rtdis, quartz,     &
+!    &       fxexp, csoil, flx2, snowng,                                &
+!  ---  input/outputs:
+!    &       prcp1, cmc, t1, stc, sncovr, sneqv, sndens, snowh,         &
+!    &       sh2o, tbot, beta,                                          &
+!  ---  outputs:
+!    &       smc, ssoil, runoff1, runoff2, runoff3, edir, ec, et,       &
+!    &       ett, snomlt, drip, dew, flx1, flx3, esnow                  &
+!    &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!  subroutine snopac calculates soil moisture and heat flux values and  !
+!  update soil moisture content and soil heat content values for the    !
+!  case when a snow pack is present.                                    !
+!                                                                       !
+!                                                                       !
+!  subprograms called:  evapo, smflx, shflx, snowpack
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs from the calling program:                              size   !
+!     nsoil    - integer, number of soil layers                    1    !
+!     nroot    - integer, number of root layers                    1    !
+!     etp      - real, potential evaporation                       1    !
+!     prcp     - real, precip rate                                 1    !
+!     smcmax   - real, porosity                                    1    !
+!     smcwlt   - real, wilting point                               1    !
+!     smcref   - real, soil mois threshold                         1    !
+!     smcdry   - real, dry soil mois threshold                     1    !
+!     cmcmax   - real, maximum canopy water parameters             1    !
+!     dt       - real, time step                                   1    !
+!     df1      - real, thermal diffusivity                         m    !
+!     sfcems   - real, lw surface emissivity                       1    !
+!     sfctmp   - real, sfc temperature                             1    !
+!     t24      - real, sfctmp**4                                   1    !
+!     th2      - real, sfc air potential temperature               1    !
+!     fdown    - real, net solar + downward lw flux at sfc         1    !
+!     epsca    - real,                                             1    !
+!     bexp     - real, soil type "b" parameter                     1    !
+!     pc       - real, plant coeff                                 1    !
+!     rch      - real, companion coefficient of ch                 1    !
+!     rr       - real,                                             1    !
+!     cfactr   - real, canopy water parameters                     1    !
+!     slope    - real, linear reservoir coefficient                1    !
+!     kdt      - real,                                             1    !
+!     frzx     - real, frozen ground parameter                     1    !
+!     psisat   - real, saturated soil potential                    1    !
+!     zsoil    - real, soil layer depth below ground (negative)  nsoil  !
+!     dwsat    - real, saturated soil diffusivity                  1    !
+!     dksat    - real, saturated soil hydraulic conductivity       1    !
+!     zbot     - real, specify depth of lower bd soil              1    !
+!     shdfac   - real, aeral coverage of green vegetation          1    !
+!     ice      - integer, sea-ice flag (=1: sea-ice, =0: land)     1    !
+!     rtdis    - real, root distribution                         nsoil  !
+!     quartz   - real, soil quartz content                         1    !
+!     fxexp    - real, bare soil evaporation exponent              1    !
+!     csoil    - real, soil heat capacity                          1    !
+!     flx2     - real, freezing rain latent heat flux              1    !
+!     snowng   - logical, snow flag                                1    !
+!                                                                       !
+!  input/outputs from and to the calling program:                       !
+!     prcp1    - real, effective precip                            1    !
+!     cmc      - real, canopy moisture content                     1    !
+!     t1       - real, ground/canopy/snowpack eff skin temp        1    !
+!     stc      - real, soil temperature                          nsoil  !
+!     sncovr   - real, snow cover                                  1    !
+!     sneqv    - real, water-equivalent snow depth                 1    !
+!     sndens   - real, snow density                                1    !
+!     snowh    - real, snow depth                                  1    !
+!     sh2o     - real, unfrozen soil moisture                    nsoil  !
+!     tbot     - real, bottom soil temperature                     1    !
+!     beta     - real, ratio of actual/potential evap              1    !
+!                                                                       !
+!  outputs to the calling program:                                      !
+!     smc      - real, total soil moisture                       nsoil  !
+!     ssoil    - real, upward soil heat flux                       1    !
+!     runoff1  - real, surface runoff not infiltrating sfc         1    !
+!     runoff2  - real, sub surface runoff                          1    !
+!     runoff3  - real, excess of porosity for a given soil layer   1    !
+!     edir     - real, direct soil evaporation                     1    !
+!     ec       - real, canopy water evaporation                    1    !
+!     et       - real, plant transpiration                       nsoil  !
+!     ett      - real, total plant transpiration                   1    !
+!     snomlt   - real, snow melt water equivalent                  1    !
+!     drip     - real, through-fall of precip                      1    !
+!     dew      - real, dewfall (or frostfall)                      1    !
+!     flx1     - real, precip-snow sfc flux                        1    !
+!     flx3     - real, phase-change heat flux from snowmelt        1    !
+!     esnow    - real, sublimation from snowpack                   1    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  constant parameters:
+      real, parameter :: esdmin = 1.e-6
+
+!  ---  inputs:
+!     integer, intent(in) :: nsoil, nroot, ice
+
+!     real (kind=kind_phys), intent(in) :: etp, prcp, smcmax, smcref,   &
+!    &       smcwlt, smcdry, cmcmax, dt, df1, sfcems, sfctmp, t24,      &
+!    &       th2, fdown, epsca, bexp, pc, rch, rr, cfactr, slope, kdt,  &
+!    &       frzx, psisat, dwsat, dksat, zbot, shdfac, quartz,          &
+!    &       csoil, fxexp, flx2, zsoil(nsoil), rtdis(nsoil)
+
+!     logical, intent(in) :: snowng
+
+!  ---  input/outputs:
+!     real (kind=kind_phys), intent(inout) :: prcp1, t1, sncovr, sneqv, &
+!    &       sndens, snowh, cmc, tbot, beta, sh2o(nsoil), stc(nsoil)
+
+!  ---  outputs:
+!     real (kind=kind_phys), intent(out) :: ssoil, runoff1, runoff2,    &
+!    &       runoff3, edir, ec, et(nsoil), ett, snomlt, drip, dew,      &
+!    &       flx1, flx3, esnow, smc(nsoil)
+
+!  ---  locals:
+      real (kind=kind_phys):: denom, dsoil, dtot, eta, etp1, ssoil1,    &
+     &       snoexp, ex, t11, t12, t12a, t12b, yy, zz1, seh, t14,       &
+     &       ec1, edir1, ett1, etns, etns1, esnow1, esnow2, etanrg,     &
+     &       et1(nsoil)
+
+      integer k
+
+!     data snoexp /1.0/    !!! <----- for noah v2.7
+      data snoexp /2.0/    !!! <----- for noah v2.7.1
+
+!  --- ...  convert potential evap (etp) from kg m-2 s-1 to m s-1 and then to an
+!           amount (m) given timestep (dt) and call it an effective snowpack
+!           reduction amount, esnow2 (m) for a snowcover fraction = 1.0.  this is
+!           the amount the snowpack would be reduced due to sublimation from the
+!           snow sfc during the timestep.  sublimation will proceed at the
+!           potential rate unless the snow depth is less than the expected
+!           snowpack reduction.  for snowcover fraction = 1.0, 0=edir=et=ec, and
+!           hence total evap = esnow = sublimation (potential evap rate)
+
+!  --- ...  if sea-ice (ice=1) or glacial-ice (ice=-1), snowcover fraction = 1.0,
+!           and sublimation is at the potential rate.
+!           for non-glacial land (ice=0), if snowcover fraction < 1.0, total
+!           evaporation < potential due to non-potential contribution from
+!           non-snow covered fraction.
+
+      prcp1 = prcp1 * 0.001
+
+      edir  = 0.0
+      edir1 = 0.0
+
+      ec  = 0.0
+      ec1 = 0.0
+
+      do k = 1, nsoil
+        et (k) = 0.0
+        et1(k) = 0.0
+      enddo
+
+      ett   = 0.0
+      ett1  = 0.0
+      etns  = 0.0
+      etns1 = 0.0
+      esnow = 0.0
+      esnow1= 0.0
+      esnow2= 0.0
+
+      dew = 0.0
+      etp1 = etp * 0.001
+
+      if (etp < 0.0) then
+
+!  --- ...  if etp<0 (downward) then dewfall (=frostfall in this case).
+
+        dew = -etp1
+        esnow2 = etp1 * dt
+        etanrg = etp * ((1.0-sncovr)*lsubc + sncovr*lsubs)
+
+      else
+
+!  --- ...  etp >= 0, upward moisture flux
+
+        if (ice /= 0) then           ! for sea-ice and glacial-ice case
+
+          esnow = etp
+          esnow1 = esnow * 0.001
+          esnow2 = esnow1 * dt
+          etanrg = esnow * lsubs
+
+        else                         ! for non-glacial land case
+
+          if (sncovr < 1.0) then
+
+            call evapo                                                  &
+!  ---  inputs:
+     &     ( nsoil, nroot, cmc, cmcmax, etp1, dt, zsoil,                &
+     &       sh2o, smcmax, smcwlt, smcref, smcdry, pc,                  &
+     &       shdfac, cfactr, rtdis, fxexp,                              &
+!  ---  outputs:
+     &       etns1, edir1, ec1, et1, ett1                               &
+     &     )
+
+            edir1 = edir1 * (1.0 - sncovr)
+            ec1 = ec1 * (1.0 - sncovr)
+
+            do k = 1, nsoil
+              et1(k) = et1(k) * (1.0 - sncovr)
+            enddo
+
+            ett1  = ett1  * (1.0 - sncovr)
+            etns1 = etns1 * (1.0 - sncovr)
+
+            edir = edir1 * 1000.0
+            ec = ec1 * 1000.0
+
+            do k = 1, nsoil
+              et(k) = et1(k) * 1000.0
+            enddo
+
+            ett = ett1 * 1000.0
+            etns = etns1 * 1000.0
+
+          endif   ! end if_sncovr_block
+
+          esnow = etp * sncovr
+!         esnow1 = etp * 0.001
+          esnow1 = esnow * 0.001
+          esnow2 = esnow1 * dt
+          etanrg = esnow*lsubs + etns*lsubc
+
+        endif   ! end if_ice_block
+
+      endif   ! end if_etp_block
+
+!  --- ...  if precip is falling, calculate heat flux from snow sfc to newly
+!           accumulating precip.  note that this reflects the flux appropriate for
+!           the not-yet-updated skin temperature (t1).  assumes temperature of the
+!           snowfall striking the gound is =sfctmp (lowest model level air temp).
+
+      flx1 = 0.0
+      if ( snowng ) then
+        flx1 = cpice * prcp * (t1 - sfctmp)
+      else
+        if (prcp > 0.0) flx1 = cph2o1 * prcp * (t1 - sfctmp)
+      endif
+
+!  --- ...  calculate an 'effective snow-grnd sfc temp' (t12) based on heat
+!           fluxes between the snow pack and the soil and on net radiation.
+!           include flx1 (precip-snow sfc) and flx2 (freezing rain latent
+!           heat) fluxes.
+!           flx2 reflects freezing rain latent heat flux using t1 calculated
+!           in penman.
+
+      dsoil = -0.5 * zsoil(1)
+      dtot = snowh + dsoil
+      denom = 1.0 + df1 / (dtot * rr * rch)
+
+!     t12a = ( (fdown - flx1 - flx2 - sigma1*t24) / rch                 &
+!    &     + th2 - sfctmp - beta*epsca ) / rr
+      t12a = ( (fdown - flx1 - flx2 - sfcems*sigma1*t24) / rch          &
+     &     + th2 - sfctmp - etanrg/rch ) / rr
+
+      t12b = df1 * stc(1) / (dtot * rr * rch)
+      t12 = (sfctmp + t12a + t12b) / denom
+
+!  --- ...  if the 'effective snow-grnd sfc temp' is at or below freezing, no snow
+!           melt will occur.  set the skin temp to this effective temp.  reduce
+!           (by sublimination ) or increase (by frost) the depth of the snowpack,
+!           depending on sign of etp.
+!           update soil heat flux (ssoil) using new skin temperature (t1)
+!           since no snowmelt, set accumulated snowmelt to zero, set 'effective'
+!           precip from snowmelt to zero, set phase-change heat flux from snowmelt
+!           to zero.
+
+      if (t12 <= tfreez) then
+
+        t1 = t12
+        ssoil = df1 * (t1 - stc(1)) / dtot
+        sneqv = max(0.0, sneqv-esnow2)
+        flx3 = 0.0
+        ex = 0.0
+        snomlt = 0.0
+
+      else
+
+!  --- ...  if the 'effective snow-grnd sfc temp' is above freezing, snow melt
+!           will occur.  call the snow melt rate,ex and amt, snomlt.  revise the
+!           effective snow depth.  revise the skin temp because it would have chgd
+!           due to the latent heat released by the melting. calc the latent heat
+!           released, flx3. set the effective precip, prcp1 to the snow melt rate,
+!           ex for use in smflx.  adjustment to t1 to account for snow patches.
+!           calculate qsat valid at freezing point.  note that esat (saturation
+!           vapor pressure) value of 6.11e+2 used here is that valid at frzzing
+!           point.  note that etp from call penman in sflx is ignored here in
+!           favor of bulk etp over 'open water' at freezing temp.
+!           update soil heat flux (s) using new skin temperature (t1)
+
+!  --- ...  noah v2.7.1   mek feb2004
+!           non-linear weighting of snow vs non-snow covered portions of gridbox
+!           so with snoexp = 2.0 (>1), surface skin temperature is higher than
+!           for the linear case (snoexp = 1).
+
+        t1 = tfreez * sncovr**snoexp + t12 * (1.0 - sncovr**snoexp)
+
+        beta = 1.0
+        ssoil = df1 * (t1 - stc(1)) / dtot
+
+!  --- ...  if potential evap (sublimation) greater than depth of snowpack.
+!           beta<1
+!           snowpack has sublimated away, set depth to zero.
+
+        if (sneqv-esnow2 <= esdmin) then
+
+          sneqv = 0.0
+          ex = 0.0
+          snomlt = 0.0
+          flx3 = 0.0
+
+        else
+
+!  --- ...  potential evap (sublimation) less than depth of snowpack, retain
+!           beta=1.
+
+          sneqv = sneqv - esnow2
+          seh = rch * (t1 - th2)
+
+          t14 = t1 * t1
+          t14 = t14 * t14
+
+          flx3 = fdown - flx1 - flx2 - sfcems*sigma1*t14                &
+     &         - ssoil - seh - etanrg
+          if (flx3 <= 0.0) flx3 = 0.0
+
+          ex = flx3 * 0.001 / lsubf
+
+!  --- ...  snowmelt reduction depending on snow cover
+!           if snow cover less than 5% no snowmelt reduction
+!     note: does 'if' below fail to match the melt water with the melt
+!           energy?
+
+!         if (sncovr > 0.05) ex = ex * sncovr
+          snomlt = ex * dt
+
+!  --- ...  esdmin represents a snowpack depth threshold value below which we
+!           choose not to retain any snowpack, and instead include it in snowmelt.
+
+          if (sneqv-snomlt >= esdmin) then
+
+            sneqv = sneqv - snomlt
+
+          else
+
+!  --- ...  snowmelt exceeds snow depth
+
+            ex = sneqv / dt
+            flx3 = ex * 1000.0 * lsubf
+            snomlt = sneqv 
+            sneqv = 0.0
+
+          endif   ! end if_sneqv-snomlt_block
+
+        endif   ! end if_sneqv-esnow2_block
+
+!       prcp1 = prcp1 + ex
+
+!  --- ...  if non-glacial land, add snowmelt rate (ex) to precip rate to be used
+!           in subroutine smflx (soil moisture evolution) via infiltration.
+
+!  --- ...  for sea-ice and glacial-ice, the snowmelt will be added to subsurface
+!           runoff/baseflow later near the end of sflx (after return from call to
+!           subroutine snopac)
+
+        if (ice == 0) prcp1 = prcp1 + ex
+
+      endif   ! end if_t12<=tfreez_block
+
+!  --- ...  final beta now in hand, so compute evaporation.  evap equals etp
+!           unless beta<1.
+
+!      eta = beta * etp
+
+!  --- ...  smflx returns updated soil moisture values for non-glacial land.
+!           if sea-ice (ice=1) or glacial-ice (ice=-1), skip call to smflx, since
+!           no soil medium for sea-ice or glacial-ice
+
+      if (ice == 0) then
+
+        call smflx                                                        &
+!  ---  inputs:
+     &     ( nsoil, dt, kdt, smcmax, smcwlt, cmcmax, prcp1,               &
+     &       zsoil, slope, frzx, bexp, dksat, dwsat, shdfac,              &
+     &       edir1, ec1, et1,                                             &
+!  ---  input/outputs:
+     &       cmc, sh2o,                                                   &
+!  ---  outputs:
+     &       smc, runoff1, runoff2, runoff3, drip                         &
+     &     )
+
+      endif
+
+!  --- ...  before call shflx in this snowpack case, set zz1 and yy arguments to
+!           special values that ensure that ground heat flux calculated in shflx
+!           matches that already computer for below the snowpack, thus the sfc
+!           heat flux to be computed in shflx will effectively be the flux at the
+!           snow top surface.  t11 is a dummy arguement so we will not use the
+!           skin temp value as revised by shflx.
+
+      zz1 = 1.0
+      yy = stc(1) - 0.5*ssoil*zsoil(1)*zz1 / df1
+      t11 = t1
+
+!  --- ...  shflx will calc/update the soil temps.  note:  the sub-sfc heat flux
+!           (ssoil1) and the skin temp (t11) output from this shflx call are not
+!           used  in any subsequent calculations. rather, they are dummy variables
+!           here in the snopac case, since the skin temp and sub-sfc heat flux are
+!           updated instead near the beginning of the call to snopac.
+
+      call shflx                                                        &
+!  ---  inputs:
+     &     ( nsoil, smc, smcmax, dt, yy, zz1, zsoil, zbot,              &
+     &       psisat, bexp, df1, ice, quartz, csoil,                     &
+!  ---  input/outputs:
+     &       stc, t11, tbot, sh2o,                                      &
+!  ---  outputs:
+     &       ssoil1                                                     &
+     &     )
+
+!  --- ...  snow depth and density adjustment based on snow compaction.  yy is
+!           assumed to be the soil temperture at the top of the soil column.
+
+      if (ice == 0) then              ! for non-glacial land
+
+        if (sneqv > 0.0) then
+
+          call snowpack                                                 &
+!  ---  inputs:
+     &     ( sneqv, dt, t1, yy,                                         &
+!  ---  input/outputs:
+     &       snowh, sndens                                              &
+     &     )
+
+        else
+
+          sneqv = 0.0
+          snowh = 0.0
+          sndens = 0.0
+!         sncond = 1.0
+          sncovr = 0.0
+
+        endif   ! end if_sneqv_block
+
+!  --- ...  over sea-ice or glacial-ice, if s.w.e. (sneqv) below threshold lower
+!           bound (0.01 m for sea-ice, 0.10 m for glacial-ice), then set at
+!           lower bound and store the source increment in subsurface runoff/
+!           baseflow (runoff2).  note:  runoff2 is then a negative value (as
+!           a flag) over sea-ice or glacial-ice, in order to achieve water balance.
+
+      elseif (ice == 1) then          ! for sea-ice
+
+        if (sneqv >= 0.01) then
+
+          call snowpack                                                 &
+!  ---  inputs:
+     &     ( sneqv, dt, t1, yy,                                         &
+!  ---  input/outputs:
+     &       snowh, sndens                                              &
+     &     )
+
+        else
+
+!         sndens = sneqv / snowh
+!         runoff2 = -(0.01 - sneqv) / dt
+          sneqv = 0.01
+          snowh = 0.05
+          sncovr = 1.0
+!         snowh = sneqv / sndens
+
+        endif   ! end if_sneqv_block
+
+      else                            ! for glacial-ice
+
+        if (sneqv >= 0.10) then
+
+          call snowpack                                                 &
+!  ---  inputs:
+     &     ( sneqv, dt, t1, yy,                                         &
+!  ---  input/outputs:
+     &       snowh, sndens                                              &
+     &     )
+
+        else
+
+!         sndens = sneqv / snowh
+!         runoff2 = -(0.10 - sneqv) / dt
+          sneqv = 0.10
+          snowh = 0.50
+          sncovr = 1.0
+!         snowh = sneqv / sndens
+
+        endif   ! end if_sneqv_block
+
+      endif   ! end if_ice_block
+
+!
+      return
+!...................................
+      end subroutine snopac
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine snow_new
+!...................................
+!  ---  inputs:
+!    &     ( sfctmp, sn_new,                                            &
+!  ---  input/outputs:
+!    &       snowh, sndens                                              &
+!    &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!    subroutine snow_new calculates snow depth and densitity to account !
+!    for the new snowfall. new values of snow depth & density returned. !
+!                                                                       !
+!  subprogram called:  none                                             !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs from the calling program:                              size   !
+!     sfctmp   - real, surface air temperature (k)                 1    !
+!     sn_new   - real, new snowfall (m)                            1    !
+!                                                                       !
+!  input/outputs from and to the calling program:                       !
+!     snowh    - real, snow depth (m)                              1    !
+!     sndens   - real, snow density                                1    !
+!                      (g/cm3=dimensionless fraction of h2o density)    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  inputs:
+!     real(kind=kind_phys), intent(in) :: sfctmp, sn_new
+
+!  ---  input/outputs:
+!     real(kind=kind_phys), intent(inout) :: snowh, sndens
+
+!  ---  locals:
+      real(kind=kind_phys) :: dsnew, snowhc, hnewc, newsnc, tempc
+
+!
+!===> ...  begin here
+!
+!  --- ...  conversion into simulation units
+
+      snowhc = snowh * 100.0
+      newsnc = sn_new * 100.0
+      tempc  = sfctmp - tfreez
+
+!  --- ...  calculating new snowfall density depending on temperature
+!           equation from gottlib l. 'a general runoff model for
+!           snowcovered and glacierized basin', 6th nordic hydrological
+!           conference, vemadolen, sweden, 1980, 172-177pp.
+
+      if (tempc <= -15.0) then
+        dsnew = 0.05
+      else
+        dsnew = 0.05 + 0.0017*(tempc + 15.0)**1.5
+      endif
+
+!  --- ...  adjustment of snow density depending on new snowfall
+
+      hnewc  = newsnc / dsnew
+      sndens = (snowhc*sndens + hnewc*dsnew) / (snowhc + hnewc)
+      snowhc = snowhc + hnewc
+      snowh  = snowhc * 0.01
+!
+      return
+!...................................
+      end subroutine snow_new
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine snowz0
+!...................................
+!  ---  inputs:
+!    &     ( sncovr,                                                    &
+!  ---  input/outputs:
+!    &       z0                                                         &
+!    &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!    subroutine snowz0 calculates total roughness length over snow      !
+!                                                                       !
+!  subprogram called:  none                                             !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs from the calling program:                              size   !
+!     sncovr   - real, fractional snow cover                       1    !
+!                                                                       !
+!  input/outputs from and to the calling program:                       !
+!     z0       - real, roughness length (m)                        1    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  inputs:
+!     real(kind=kind_phys), intent(in) :: sncovr
+
+!  ---  input/outputs:
+!     real(kind=kind_phys), intent(inout) :: z0
+
+!  ---  locals:
+      real(kind=kind_phys) :: z0s
+!
+!===> ...  begin here
+!
+!     z0s = 0.001                     ! snow roughness length:=0.001 (m)
+!  --- ...  current noah lsm condition - mbek, 09-oct-2001
+      z0s = z0
+
+      z0 = (1.0 - sncovr)*z0 + sncovr*z0s
+
+!
+      return
+!...................................
+      end subroutine snowz0
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine tdfcnd                                                 &
+!...................................
+!  ---  inputs:
+     &     ( smc, qz, smcmax, sh2o,                                     &
+!  ---  outputs:
+     &       df                                                         &
+     &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!    subroutine tdfcnd calculates thermal diffusivity and conductivity  !
+!    of the soil for a given point and time.                            !
+!                                                                       !
+!    peters-lidard approach (peters-lidard et al., 1998)                !
+!    june 2001 changes: frozen soil condition.                          !
+!                                                                       !
+!  subprogram called:  none                                             !
+!                                                                       !
+!  use as in peters-lidard, 1998 (modif. from johansen, 1975).          !
+!                                 pablo grunmann, 08/17/98              !
+!  refs.:                                                               !
+!    farouki, o.t.,1986: thermal properties of soils. series on rock    !
+!             and soil mechanics, vol. 11, trans tech, 136 pp.          !
+!    johansen, o., 1975: thermal conductivity of soils. ph.d. thesis,   !
+!             university of trondheim,                                  !
+!    peters-lidard, c. d., et al., 1998: the effect of soil thermal     !
+!             conductivity parameterization on surface energy fluxes    !
+!             and temperatures. journal of the atmospheric sciences,    !
+!             vol. 55, pp. 1209-1224.                                   !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     smc      - real, top layer total soil moisture               1    !
+!     qz       - real, quartz content (soil type dependent)        1    !
+!     smcmax   - real, porosity                                    1    !
+!     sh2o     - real, top layer unfrozen soil moisture            1    !
+!                                                                       !
+!  outputs:                                                             !
+!     df       - real, soil thermal diffusivity and conductivity   1    !
+!                                                                       !
+!  locals:                                                              !
+!     thkw     - water thermal conductivity                        1    !
+!     thkqtz   - thermal conductivity for quartz                   1    !
+!     thko     - thermal conductivity for other soil components    1    !
+!     thkqtz   - thermal conductivity for the solids combined      1    !
+!     thkice   - ice thermal conductivity                          1    !
+!                                                                       !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  input:
+      real (kind=kind_phys), intent(in) :: smc, qz, smcmax, sh2o
+
+!  ---  output:
+      real (kind=kind_phys), intent(out) :: df
+
+!  ---  locals:
+      real (kind=kind_phys) :: gammd, thkdry, ake, thkice, thko,        &
+     &       thkqtz, thksat, thks, thkw, satratio, xu, xunfroz
+!
+!===> ...  begin here
+!
+!  --- ...  if the soil has any moisture content compute a partial sum/product
+!           otherwise use a constant value which works well with most soils
+
+!  --- ...  saturation ratio:
+
+      satratio = smc / smcmax
+
+!  --- ...  parameters  w/(m.k)
+      thkice = 2.2
+      thkw   = 0.57
+      thko   = 2.0
+!     if (qz <= 0.2) thko = 3.0
+      thkqtz = 7.7
+
+!  --- ...  solids' conductivity
+
+      thks = (thkqtz**qz) * (thko**(1.0-qz))
+
+!  --- ...  unfrozen fraction (from 1., i.e., 100%liquid, to 0. (100% frozen))
+
+      xunfroz = (sh2o + 1.e-9) / (smc + 1.e-9)
+
+!  --- ...  unfrozen volume for saturation (porosity*xunfroz)
+
+      xu=xunfroz*smcmax
+
+!  --- ...  saturated thermal conductivity
+
+      thksat = thks**(1.-smcmax) * thkice**(smcmax-xu) * thkw**(xu)
+
+!  --- ...  dry density in kg/m3
+
+      gammd = (1.0 - smcmax) * 2700.0
+
+!  --- ...  dry thermal conductivity in w.m-1.k-1
+
+      thkdry = (0.135*gammd + 64.7) / (2700.0 - 0.947*gammd)
+
+      if ( sh2o+0.0005 < smc ) then         ! frozen
+
+        ake = satratio
+
+      else                                  ! unfrozen
+
+!  --- ...  range of validity for the kersten number (ake)
+        if ( satratio > 0.1 ) then
+
+!  --- ...  kersten number (using "fine" formula, valid for soils containing
+!           at least 5% of particles with diameter less than 2.e-6 meters.)
+!           (for "coarse" formula, see peters-lidard et al., 1998).
+
+          ake = log10( satratio ) + 1.0
+
+        else
+
+!  --- ...  use k = kdry
+          ake = 0.0
+
+        endif   ! end if_satratio_block
+
+      endif   ! end if_sh2o+0.0005_block
+
+!  --- ...  thermal conductivity
+
+      df = ake * (thksat - thkdry) + thkdry
+!
+      return
+!...................................
+      end subroutine tdfcnd
+!-----------------------------------
+
+
+!*********************************************!
+!  section-2  2nd level subprograms           !
+!*********************************************!
+
+
+!-----------------------------------
+      subroutine evapo                                                  &
+!...................................
+!  ---  inputs:
+     &     ( nsoil, nroot, cmc, cmcmax, etp1, dt, zsoil,                &
+     &       sh2o, smcmax, smcwlt, smcref, smcdry, pc,                  &
+     &       shdfac, cfactr, rtdis, fxexp,                              &
+!  ---  outputs:
+     &       eta1, edir1, ec1, et1, ett1                                &
+     &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!  subroutine evapo calculates soil moisture flux.  the soil moisture   !
+!  content (smc - a per unit volume measurement) is a dependent variable!
+!  that is updated with prognostic eqns. the canopy moisture content    !
+!  (cmc) is also updated. frozen ground version:  new states added:     !
+!  sh2o, and frozen ground correction factor, frzfact and parameter     !
+!  slope.                                                               !
+!                                                                       !
+!                                                                       !
+!  subprogram called:  devap, transp                                    !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs from calling program:                                  size   !
+!     nsoil    - integer, number of soil layers                    1    !
+!     nroot    - integer, number of root layers                    1    !
+!     cmc      - real, canopy moisture content                     1    !
+!     cmcmax   - real, maximum canopy water parameters             1    !
+!     etp1     - real, potential evaporation                       1    !
+!     dt       - real, time step                                   1    !
+!     zsoil    - real, soil layer depth below ground             nsoil  !
+!     sh2o     - real, unfrozen soil moisture                    nsoil  !
+!     smcmax   - real, porosity                                    1    !
+!     smcwlt   - real, wilting point                               1    !
+!     smcref   - real, soil mois threshold                         1    !
+!     smcdry   - real, dry soil mois threshold                     1    !
+!     pc       - real, plant coeff                                 1    !
+!     cfactr   - real, canopy water parameters                     1    !
+!     rtdis    - real, root distribution                         nsoil  !
+!     fxexp    - real, bare soil evaporation exponent              1    !
+!                                                                       !
+!  outputs to calling program:                                          !
+!     eta1     - real, latent heat flux                            1    !
+!     edir1    - real, direct soil evaporation                     1    !
+!     ec1      - real, canopy water evaporation                    1    !
+!     et1      - real, plant transpiration                       nsoil  !
+!     ett1     - real, total plant transpiration                   1    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  inputs:
+      integer, intent(in) :: nsoil, nroot
+
+      real (kind=kind_phys),  intent(in) :: cmc, cmcmax, etp1, dt, pc,  &
+     &       smcmax, smcwlt, smcref, smcdry, shdfac, cfactr, fxexp,     &
+     &       zsoil(nsoil), sh2o(nsoil), rtdis(nsoil)
+
+!  ---  outputs:
+      real (kind=kind_phys),  intent(out) :: eta1, edir1, ec1, ett1,    &
+     &       et1(nsoil)
+
+!  ---  locals:
+      real (kind=kind_phys) :: cmc2ms
+
+      integer :: i, k
+
+!
+!===> ...  begin here
+!
+!  --- ...  executable code begins here if the potential evapotranspiration
+!           is greater than zero.
+
+      edir1 = 0.0
+      ec1 = 0.0
+
+      do k = 1, nsoil
+        et1(k) = 0.0
+      enddo
+      ett1 = 0.0
+
+      if (etp1 > 0.0) then
+
+!  --- ...  retrieve direct evaporation from soil surface.  call this function
+!           only if veg cover not complete.
+!           frozen ground version:  sh2o states replace smc states.
+
+        if (shdfac < 1.0) then
+
+          call devap                                                    &
+!  ---  inputs:
+     &     ( etp1, sh2o(1), shdfac, smcmax, smcdry, fxexp,              &
+!  ---  outputs:
+     &       edir1                                                      &
+     &     )
+
+        endif
+
+!  --- ...  initialize plant total transpiration, retrieve plant transpiration,
+!           and accumulate it for all soil layers.
+
+        if (shdfac > 0.0) then
+
+          call transp                                                   &
+!  ---  inputs:
+     &     ( nsoil, nroot, etp1, sh2o, smcwlt, smcref,                   &
+     &       cmc, cmcmax, zsoil, shdfac, pc, cfactr, rtdis,             &
+!  ---  outputs:
+     &       et1                                                        &
+     &     )
+
+          do k = 1, nsoil
+            ett1 = ett1 + et1(k)
+          enddo
+
+!  --- ...  calculate canopy evaporation.
+!           if statements to avoid tangent linear problems near cmc=0.0.
+
+          if (cmc > 0.0) then
+            ec1 = shdfac * ( (cmc/cmcmax)**cfactr ) * etp1
+          else
+            ec1 = 0.0
+          endif
+
+!  --- ...  ec should be limited by the total amount of available water
+!           on the canopy.  -f.chen, 18-oct-1994
+
+          cmc2ms = cmc / dt
+          ec1 = min ( cmc2ms, ec1 )
+        endif
+
+      endif   ! end if_etp1_block
+
+!  --- ...  total up evap and transp types to obtain actual evapotransp
+
+      eta1 = edir1 + ett1 + ec1
+
+!
+      return
+!...................................
+      end subroutine evapo
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine shflx                                                  &
+!...................................
+!  ---  inputs:
+     &     ( nsoil, smc, smcmax, dt, yy, zz1, zsoil, zbot,              &
+     &       psisat, bexp, df1, ice, quartz, csoil,                     &
+!  ---  input/outputs:
+     &       stc, t1, tbot, sh2o,                                       &
+!  ---  outputs:
+     &       ssoil                                                      &
+     &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!  subroutine shflx updates the temperature state of the soil column    !
+!  based on the thermal diffusion equation and update the frozen soil   !
+!  moisture content based on the temperature.                           !
+!                                                                       !
+!  subprogram called:  hstep, hrtice, hrt                               !
+!                                                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     nsoil    - integer, number of soil layers                    1    !
+!     smc      - real, total soil moisture                       nsoil  !
+!     smcmax   - real, porosity (sat val of soil mois)             1    !
+!     dt       - real, time step                                   1    !
+!     yy       - real, soil temperature at the top of column       1    !
+!     zz1      - real,                                             1    !
+!     zsoil    - real, soil layer depth below ground (negative)  nsoil  !
+!     zbot     - real, specify depth of lower bd soil              1    !
+!     psisat   - real, saturated soil potential                    1    !
+!     bexp     - real, soil type "b" parameter                     1    !
+!     df1      - real, thermal diffusivity and conductivity        1    !
+!     ice      - integer, sea-ice flag (=1: sea-ice, =0: land)     1    !
+!     quartz   - real, soil quartz content                         1    !
+!     csoil    - real, soil heat capacity                          1    !
+!                                                                       !
+!  input/outputs:                                                       !
+!     stc      - real, soil temp                                 nsoil  !
+!     t1       - real, ground/canopy/snowpack eff skin temp        1    !
+!     tbot     - real, bottom soil temp                            1    !
+!     sh2o     - real, unfrozen soil moisture                    nsoil  !
+!                                                                       !
+!  outputs:                                                             !
+!     ssoil    - real, upward soil heat flux                       1    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  parameter constants:
+      real (kind=kind_phys), parameter :: ctfil1 = 0.5
+      real (kind=kind_phys), parameter :: ctfil2 = 1.0 - ctfil1
+
+!  ---  inputs:
+      integer, intent(in) :: nsoil, ice
+
+      real (kind=kind_phys), intent(in) :: smc(nsoil), smcmax, dt, yy,  &
+     &       zz1, zsoil(nsoil), zbot, psisat, bexp, df1, quartz, csoil
+
+!  ---  input/outputs:
+      real (kind=kind_phys), intent(inout) :: stc(nsoil), t1, tbot,     &
+     &       sh2o(nsoil)
+
+!  ---  outputs:
+      real (kind=kind_phys), intent(out) :: ssoil
+
+!  ---  locals:
+      real (kind=kind_phys) :: ai(nsold), bi(nsold), ci(nsold), oldt1,  &
+     &       rhsts(nsold), stcf(nsold), stsoil(nsoil)
+
+      integer :: i
+
+!
+!===> ...  begin here
+!
+      oldt1 = t1
+      do i = 1, nsoil
+         stsoil(i) = stc(i)
+      enddo
+
+!  --- ...  hrt routine calcs the right hand side of the soil temp dif eqn
+
+      if (ice /= 0) then
+
+!  --- ...  sea-ice case, glacial-ice case
+
+        call hrtice                                                     &
+!  ---  inputs:
+     &     ( nsoil, stc, zsoil, yy, zz1, df1, ice,                      &
+!  ---  input/outputs:
+     &       tbot,                                                      &
+!  ---  outputs:
+     &       rhsts, ai, bi, ci                                          &
+     &     )
+
+        call hstep                                                      &
+!  ---  inputs:
+     &     ( nsoil, stc, dt,                                            &
+!  ---  input/outputs:
+     &       rhsts, ai, bi, ci,                                         &
+!  ---  outputs:
+     &       stcf                                                       &
+     &     )
+
+      else
+
+!  --- ...  land-mass case
+
+        call hrt                                                        &
+!  ---  inputs:
+     &     ( nsoil, stc, smc, smcmax, zsoil, yy, zz1, tbot,             &
+     &       zbot, psisat, dt, bexp, df1, quartz, csoil,                &
+!  ---  input/outputs:
+     &       sh2o,                                                      &
+!  ---  outputs:
+     &       rhsts, ai, bi, ci                                          &
+     &     )
+
+        call hstep                                                      &
+!  ---  inputs:
+     &     ( nsoil, stc, dt,                                            &
+!  ---  input/outputs:
+     &       rhsts, ai, bi, ci,                                         &
+!  ---  outputs:
+     &       stcf                                                       &
+     &     )
+
+      endif
+
+      do i = 1, nsoil
+         stc(i) = stcf(i)
+      enddo
+
+!  --- ...  in the no snowpack case (via routine nopac branch,) update the grnd
+!           (skin) temperature here in response to the updated soil temperature
+!           profile above.  (note: inspection of routine snopac shows that t1
+!           below is a dummy variable only, as skin temperature is updated
+!           differently in routine snopac)
+
+      t1 = (yy + (zz1 - 1.0)*stc(1)) / zz1
+      t1 = ctfil1*t1 + ctfil2*oldt1
+
+      do i = 1, nsoil
+        stc(i) = ctfil1*stc(i) + ctfil2*stsoil(i)
+      enddo
+
+!  --- ...  calculate surface soil heat flux
+
+      ssoil = df1*(stc(1) - t1) / (0.5*zsoil(1))
+
+!
+      return
+!...................................
+      end subroutine shflx
+!-----------------------------------
+
+
+
+!-----------------------------------
+      subroutine smflx                                                    &
+!...................................
+!  ---  inputs:
+     &     ( nsoil, dt, kdt, smcmax, smcwlt, cmcmax, prcp1,               &
+     &       zsoil, slope, frzx, bexp, dksat, dwsat, shdfac,              &
+     &       edir1, ec1, et1,                                             &
+!  ---  input/outputs:
+     &       cmc, sh2o,                                                   &
+!  ---  outputs:
+     &       smc, runoff1, runoff2, runoff3, drip                         &
+     &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!  subroutine smflx calculates soil moisture flux.  the soil moisture   !
+!  content (smc - a per unit volume measurement) is a dependent variable!
+!  that is updated with prognostic eqns. the canopy moisture content    !
+!  (cmc) is also updated. frozen ground version:  new states added: sh2o!
+!  and frozen ground correction factor, frzx and parameter slope.       !
+!                                                                       !
+!                                                                       !
+!  subprogram called:  srt, sstep                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     nsoil    - integer, number of soil layers                    1    !
+!     dt       - real, time step                                   1    !
+!     kdt      - real,                                             1    !
+!     smcmax   - real, porosity                                    1    !
+!     smcwlt   - real, wilting point                               1    !
+!     cmcmax   - real, maximum canopy water parameters             1    !
+!     prcp1    - real, effective precip                            1    !
+!     zsoil    - real, soil layer depth below ground (negative)  nsoil  !
+!     slope    - real, linear reservoir coefficient                1    !
+!     frzx     - real, frozen ground parameter                     1    !
+!     bexp     - real, soil type "b" parameter                     1    !
+!     dksat    - real, saturated soil hydraulic conductivity       1    !
+!     dwsat    - real, saturated soil diffusivity                  1    !
+!     shdfac   - real, aeral coverage of green veg                 1    !
+!     edir1    - real, direct soil evaporation                     1    !
+!     ec1      - real, canopy water evaporation                    1    !
+!     et1      - real, plant transpiration                       nsoil  !
+!                                                                       !
+!  input/outputs:                                                       !
+!     cmc      - real, canopy moisture content                     1    !
+!     sh2o     - real, unfrozen soil moisture                    nsoil  !
+!                                                                       !
+!  outputs:                                                             !
+!     smc      - real, total soil moisture                       nsoil  !
+!     runoff1  - real, surface runoff not infiltrating sfc         1    !
+!     runoff2  - real, sub surface runoff (baseflow)               1    !
+!     runoff3  - real, excess of porosity                          1    !
+!     drip     - real, through-fall of precip and/or dew           1    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  inputs:
+      integer, intent(in) :: nsoil
+
+      real (kind=kind_phys),  intent(in) :: dt, kdt, smcmax, smcwlt,    &
+     &       cmcmax, prcp1, slope, frzx, bexp, dksat, dwsat, shdfac,    &
+     &       edir1, ec1, et1(nsoil), zsoil(nsoil)
+
+!  ---  input/outputs:
+      real (kind=kind_phys),  intent(inout) :: cmc, sh2o(nsoil)
+
+!  ---  outputs:
+      real (kind=kind_phys),  intent(out) :: smc(nsoil), runoff1,       &
+     &       runoff2, runoff3, drip
+
+!  ---  locals:
+      real (kind=kind_phys) :: dummy, excess, pcpdrp, rhsct, trhsct,    &
+     &       rhstt(nsold), sice(nsold), sh2oa(nsold), sh2ofg(nsold),    &
+     &       ai(nsold), bi(nsold), ci(nsold)
+
+      integer :: i, k
+!
+!===> ...  begin here
+!
+!  --- ...  executable code begins here.
+
+      dummy = 0.0
+
+!  --- ...  compute the right hand side of the canopy eqn term ( rhsct )
+
+      rhsct = shdfac*prcp1 - ec1
+
+!  --- ...  convert rhsct (a rate) to trhsct (an amount) and add it to
+!           existing cmc.  if resulting amt exceeds max capacity, it becomes
+!           drip and will fall to the grnd.
+
+      drip = 0.0
+      trhsct = dt * rhsct
+      excess = cmc + trhsct
+
+      if (excess > cmcmax) drip = excess - cmcmax
+
+!  --- ...  pcpdrp is the combined prcp1 and drip (from cmc) that goes into
+!           the soil
+
+      pcpdrp = (1.0 - shdfac)*prcp1 + drip/dt
+
+!  --- ...  store ice content at each soil layer before calling srt & sstep
+
+      do i = 1, nsoil
+        sice(i) = smc(i) - sh2o(i)
+      enddo
+
+!  --- ...  call subroutines srt and sstep to solve the soil moisture
+!           tendency equations.
+
+!  ---  if the infiltrating precip rate is nontrivial,
+!         (we consider nontrivial to be a precip total over the time step
+!         exceeding one one-thousandth of the water holding capacity of
+!         the first soil layer)
+!       then call the srt/sstep subroutine pair twice in the manner of
+!         time scheme "f" (implicit state, averaged coefficient)
+!         of section 2 of kalnay and kanamitsu (1988, mwr, vol 116,
+!         pages 1945-1958)to minimize 2-delta-t oscillations in the
+!         soil moisture value of the top soil layer that can arise because
+!         of the extreme nonlinear dependence of the soil hydraulic
+!         diffusivity coefficient and the hydraulic conductivity on the
+!         soil moisture state
+!       otherwise call the srt/sstep subroutine pair once in the manner of
+!         time scheme "d" (implicit state, explicit coefficient)
+!         of section 2 of kalnay and kanamitsu
+!       pcpdrp is units of kg/m**2/s or mm/s, zsoil is negative depth in m
+
+!     if ( pcpdrp .gt. 0.0 ) then
+      if ( (pcpdrp*dt) > (0.001*1000.0*(-zsoil(1))*smcmax) ) then
+
+!  --- ...  frozen ground version:
+!           smc states replaced by sh2o states in srt subr.  sh2o & sice states
+!           included in sstep subr.  frozen ground correction factor, frzx
+!           added.  all water balance calculations using unfrozen water
+
+        call srt                                                        &
+!  ---  inputs:
+     &     ( nsoil, edir1, et1, sh2o, sh2o, pcpdrp, zsoil, dwsat,       &
+     &       dksat, smcmax, bexp, dt, smcwlt, slope, kdt, frzx, sice,   &
+!  ---  outputs:
+     &       rhstt, runoff1, runoff2, ai, bi, ci                        &
+     &     )
+
+        call sstep                                                      &
+!  ---  inputs:
+     &     ( nsoil, sh2o, rhsct, dt, smcmax, cmcmax, zsoil, sice,       &
+!  ---  input/outputs:
+     &       dummy, rhstt, ai, bi, ci,                                  &
+!  ---  outputs:
+     &       sh2ofg, runoff3, smc                                       &
+     &     )
+
+        do k = 1, nsoil
+          sh2oa(k) = (sh2o(k) + sh2ofg(k)) * 0.5
+        enddo
+
+        call srt                                                        &
+!  ---  inputs:
+     &     ( nsoil, edir1, et1, sh2o, sh2oa, pcpdrp, zsoil, dwsat,      &
+     &       dksat, smcmax, bexp, dt, smcwlt, slope, kdt, frzx, sice,   &
+!  ---  outputs:
+     &       rhstt, runoff1, runoff2, ai, bi, ci                        &
+     &     )
+
+        call sstep                                                      &
+!  ---  inputs:
+     &     ( nsoil, sh2o, rhsct, dt, smcmax, cmcmax, zsoil, sice,       &
+!  ---  input/outputs:
+     &       cmc, rhstt, ai, bi, ci,                                    &
+!  ---  outputs:
+     &       sh2o, runoff3, smc                                         &
+     &     )
+
+      else
+
+        call srt                                                        &
+!  ---  inputs:
+     &     ( nsoil, edir1, et1, sh2o, sh2o, pcpdrp, zsoil, dwsat,       &
+     &       dksat, smcmax, bexp, dt, smcwlt, slope, kdt, frzx, sice,   &
+!  ---  outputs:
+     &       rhstt, runoff1, runoff2, ai, bi, ci                        &
+     &     )
+
+        call sstep                                                      &
+!  ---  inputs:
+     &     ( nsoil, sh2o, rhsct, dt, smcmax, cmcmax, zsoil, sice,       &
+!  ---  input/outputs:
+     &       cmc, rhstt, ai, bi, ci,                                    &
+!  ---  outputs:
+     &       sh2o, runoff3, smc                                         &
+     &     )
+
+      endif
+
+!     runof = runoff
+!
+      return
+!...................................
+      end subroutine smflx
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine snowpack                                               &
+!...................................
+!  ---  inputs:
+     &     ( esd, dtsec, tsnow, tsoil,                                  &
+!  ---  input/outputs:
+     &       snowh, sndens                                              &
+     &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!    subroutine snowpack calculates compaction of snowpack under        !
+!    conditions of increasing snow density, as obtained from an         !
+!    approximate solution of e. anderson's differential equation (3.29),!
+!    noaa technical report nws 19, by victor koren, 03/25/95.           !
+!    subroutine will return new values of snowh and sndens              !
+!                                                                       !
+!                                                                       !
+!  subprogram called:  none                                             !
+!                                                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     esd      - real, water equivalent of snow (m)                1    !
+!     dtsec    - real, time step (sec)                             1    !
+!     tsnow    - real, snow surface temperature (k)                1    !
+!     tsoil    - real, soil surface temperature (k)                1    !
+!                                                                       !
+!  input/outputs:                                                       !
+!     snowh    - real, snow depth (m)                              1    !
+!     sndens   - real, snow density                                1    !
+!                      (g/cm3=dimensionless fraction of h2o density)    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  parameter constants:
+      real (kind=kind_phys), parameter :: c1 = 0.01
+      real (kind=kind_phys), parameter :: c2 = 21.0
+      real (kind=kind_phys), parameter :: kn = 4000.0
+
+!  ---  inputs:
+      real (kind=kind_phys), intent(in) :: esd, dtsec, tsnow, tsoil
+
+!  ---  input/outputs:
+      real (kind=kind_phys), intent(inout) :: snowh, sndens
+
+!  ---  locals:
+      real (kind=kind_phys) :: bfac, dsx, dthr, dw, snowhc, pexp,       &
+     &       tavgc, tsnowc, tsoilc, esdc, esdcx
+
+      integer :: ipol, j
+!
+!===> ...  begin here
+!
+!  --- ...  conversion into simulation units
+
+      snowhc = snowh * 100.0
+      esdc   = esd * 100.0
+      dthr   = dtsec / 3600.0
+      tsnowc = tsnow - tfreez
+      tsoilc = tsoil - tfreez
+
+!  --- ...  calculating of average temperature of snow pack
+
+      tavgc = 0.5 * (tsnowc + tsoilc)
+
+!  --- ...  calculating of snow depth and density as a result of compaction
+!           sndens=ds0*(exp(bfac*esd)-1.)/(bfac*esd)
+!           bfac=dthr*c1*exp(0.08*tavgc-c2*ds0)
+!     note: bfac*esd in sndens eqn above has to be carefully treated
+!           numerically below:
+!        c1 is the fractional increase in density (1/(cm*hr))
+!        c2 is a constant (cm3/g) kojima estimated as 21 cms/g
+
+      if (esdc > 1.e-2) then
+        esdcx = esdc
+      else
+        esdcx = 1.e-2
+      endif
+
+      bfac = dthr*c1 * exp(0.08*tavgc - c2*sndens)
+
+!     dsx = sndens * ((dexp(bfac*esdc)-1.0) / (bfac*esdc))
+
+!  --- ...  the function of the form (e**x-1)/x imbedded in above expression
+!           for dsx was causing numerical difficulties when the denominator "x"
+!           (i.e. bfac*esdc) became zero or approached zero (despite the fact
+!           that the analytical function (e**x-1)/x has a well defined limit
+!           as "x" approaches zero), hence below we replace the (e**x-1)/x
+!           expression with an equivalent, numerically well-behaved
+!           polynomial expansion.
+
+!  --- ...  number of terms of polynomial expansion, and hence its accuracy,
+!           is governed by iteration limit "ipol".
+!           ipol greater than 9 only makes a difference on double
+!           precision (relative errors given in percent %).
+!       ipol=9, for rel.error <~ 1.6 e-6 % (8 significant digits)
+!       ipol=8, for rel.error <~ 1.8 e-5 % (7 significant digits)
+!       ipol=7, for rel.error <~ 1.8 e-4 % ...
+
+      ipol = 4
+      pexp = 0.0
+
+      do j = ipol, 1, -1
+!       pexp = (1.0 + pexp)*bfac*esdc /real(j+1)
+        pexp = (1.0 + pexp)*bfac*esdcx/real(j+1)
+      enddo
+      pexp = pexp + 1.
+
+      dsx = sndens * pexp
+
+!  --- ...  above line ends polynomial substitution
+!           end of koren formulation
+
+!! --- ...  base formulation (cogley et al., 1990)
+!           convert density from g/cm3 to kg/m3
+
+!!      dsm = sndens * 1000.0
+
+!!      dsx = dsm + dtsec*0.5*dsm*gs2*esd /                             &
+!!   &        (1.e7*exp(-0.02*dsm + kn/(tavgc+273.16)-14.643))
+
+!! --- ...  convert density from kg/m3 to g/cm3
+
+!!      dsx = dsx / 1000.0
+
+!! --- ...  end of cogley et al. formulation
+
+!  --- ...  set upper/lower limit on snow density
+
+      dsx = max( min( dsx, 0.40 ), 0.05 )
+      sndens = dsx
+
+!  --- ...  update of snow depth and density depending on liquid water
+!           during snowmelt.  assumed that 13% of liquid water can be
+!           stored in snow per day during snowmelt till snow density 0.40.
+
+      if (tsnowc >= 0.0) then
+        dw = 0.13 * dthr / 24.0
+        sndens = sndens*(1.0 - dw) + dw
+        if (sndens > 0.40) sndens = 0.40
+      endif
+
+!  --- ...  calculate snow depth (cm) from snow water equivalent and snow
+!           density. change snow depth units to meters
+
+      snowhc = esdc / sndens
+      snowh  = snowhc * 0.01
+
+!
+      return
+!...................................
+      end subroutine snowpack
+!-----------------------------------
+
+
+!*********************************************!
+!  section-3  3rd or lower level subprograms  !
+!*********************************************!
+
+
+!-----------------------------------
+      subroutine devap                                                  &
+!...................................
+!  ---  inputs:
+     &     ( etp1, smc, shdfac, smcmax, smcdry, fxexp,                  &
+!  ---  outputs:
+     &       edir1                                                      &
+     &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!  subroutine devap calculates direct soil evaporation                  !
+!                                                                       !
+!                                                                       !
+!  subprogram called:  none                                             !
+!                                                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     etp1     - real, potential evaporation                       1    !
+!     smc      - real, unfrozen soil moisture                      1    !
+!     shdfac   - real, aeral coverage of green vegetation          1    !
+!     smcmax   - real, porosity (sat val of soil mois)             1    !
+!     smcdry   - real, dry soil mois threshold                     1    !
+!     fxexp    - real, bare soil evaporation exponent              1    !
+!                                                                       !
+!  outputs:                                                             !
+!     edir1    - real, direct soil evaporation                     1    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  inputs:
+      real (kind=kind_phys), intent(in) :: etp1, smc, shdfac, smcmax,   &
+     &       smcdry, fxexp
+
+!  ---  outputs:
+      real (kind=kind_phys), intent(out) :: edir1
+
+!  ---  locals:
+      real (kind=kind_phys) :: fx, sratio
+!
+!===> ...  begin here
+!
+!  --- ...  direct evap a function of relative soil moisture availability,
+!           linear when fxexp=1.
+!           fx > 1 represents demand control
+!           fx < 1 represents flux control
+
+      sratio = (smc - smcdry) / (smcmax - smcdry)
+
+      if (sratio > 0.0) then
+        fx = sratio**fxexp
+        fx = max ( min ( fx, 1.0 ), 0.0 )
+      else
+        fx = 0.0
+      endif
+
+!  --- ...  allow for the direct-evap-reducing effect of shade
+
+      edir1 = fx * ( 1.0 - shdfac ) * etp1
+!
+      return
+!...................................
+      end subroutine devap
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine frh2o                                                  &
+!...................................
+!  ---  inputs:
+     &     ( tkelv, smc, sh2o, smcmax, bexp, psis,                      &
+!  ---  outputs:
+     &       liqwat                                                     &
+     &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!  subroutine frh2o calculates amount of supercooled liquid soil water  !
+!  content if temperature is below 273.15k (t0).  requires newton-type  !
+!  iteration to solve the nonlinear implicit equation given in eqn 17   !
+!  of koren et al (1999, jgr, vol 104(d16), 19569-19585).               !
+!                                                                       !
+!  new version (june 2001): much faster and more accurate newton        !
+!  iteration achieved by first taking log of eqn cited above -- less    !
+!  than 4 (typically 1 or 2) iterations achieves convergence.  also,    !
+!  explicit 1-step solution option for special case of parameter ck=0,  !
+!  which reduces the original implicit equation to a simpler explicit   !
+!  form, known as the "flerchinger eqn". improved handling of solution  !
+!  in the limit of freezing point temperature t0.                       !
+!                                                                       !
+!  subprogram called:  none                                             !
+!                                                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     tkelv    - real, temperature (k)                             1    !
+!     smc      - real, total soil moisture content (volumetric)    1    !
+!     sh2o     - real, liquid soil moisture content (volumetric)   1    !
+!     smcmax   - real, saturation soil moisture content            1    !
+!     bexp     - real, soil type "b" parameter                     1    !
+!     psis     - real, saturated soil matric potential             1    !
+!                                                                       !
+!  outputs:                                                             !
+!     liqwat   - real, supercooled liquid water content            1    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  constant parameters:
+      real (kind=kind_phys), parameter :: ck    = 8.0
+!     real (kind=kind_phys), parameter :: ck    = 0.0
+      real (kind=kind_phys), parameter :: blim  = 5.5
+      real (kind=kind_phys), parameter :: error = 0.005
+
+!  ---  inputs:
+      real (kind=kind_phys), intent(in) :: tkelv, smc, sh2o, smcmax,    &
+     &       bexp, psis
+
+!  ---  outputs:
+      real (kind=kind_phys), intent(out) :: liqwat
+
+!  ---  locals:
+      real (kind=kind_phys) :: bx, denom, df, dswl, fk, swl, swlk
+
+      integer :: nlog, kcount
+!
+!===> ...  begin here
+!
+!  --- ...  limits on parameter b: b < 5.5  (use parameter blim)
+!           simulations showed if b > 5.5 unfrozen water content is
+!           non-realistically high at very low temperatures.
+
+      bx = bexp
+      if (bexp > blim)  bx = blim
+
+!  --- ...  initializing iterations counter and iterative solution flag.
+
+      nlog  = 0
+      kcount= 0
+
+!  --- ...  if temperature not significantly below freezing (t0), sh2o = smc
+
+      if (tkelv > (tfreez-1.e-3)) then
+
+        liqwat = smc
+
+      else
+
+        if (ck /= 0.0) then
+
+!  --- ...  option 1: iterated solution for nonzero ck
+!                     in koren et al, jgr, 1999, eqn 17
+
+!  --- ...  initial guess for swl (frozen content)
+
+          swl = smc - sh2o
+
+!  --- ...  keep within bounds.
+
+          swl = max( min( swl, smc-0.02 ), 0.0 )
+
+!  --- ...  start of iterations
+
+          do while ( (nlog < 10) .and. (kcount == 0) )
+            nlog = nlog + 1
+
+            df = alog( (psis*gs2/lsubf) * ( (1.0 + ck*swl)**2.0 )       &
+     &         * (smcmax/(smc-swl))**bx ) - alog(-(tkelv-tfreez)/tkelv)
+
+            denom = 2.0*ck/(1.0 + ck*swl) + bx/(smc - swl)
+            swlk  = swl - df/denom
+
+!  --- ...  bounds useful for mathematical solution.
+
+            swlk = max( min( swlk, smc-0.02 ), 0.0 )
+
+!  --- ...  mathematical solution bounds applied.
+
+            dswl = abs(swlk - swl)
+            swl = swlk
+
+!  --- ...  if more than 10 iterations, use explicit method (ck=0 approx.)
+!           when dswl less or eq. error, no more iterations required.
+
+            if ( dswl <= error )  then
+              kcount = kcount + 1
+            endif
+          enddo   !  end do_while_loop
+
+!  --- ...  bounds applied within do-block are valid for physical solution.
+
+          liqwat = smc - swl
+
+        endif   ! end if_ck_block
+
+!  --- ...  option 2: explicit solution for flerchinger eq. i.e. ck=0
+!                     in koren et al., jgr, 1999, eqn 17
+!           apply physical bounds to flerchinger solution
+
+        if (kcount == 0) then
+          fk = ( ( (lsubf/(gs2*(-psis)))                                &
+     &       * ((tkelv-tfreez)/tkelv) )**(-1/bx) ) * smcmax
+
+          fk = max( fk, 0.02 )
+
+          liqwat = min( fk, smc )
+        endif
+
+      endif   ! end if_tkelv_block
+!
+      return
+!...................................
+      end subroutine frh2o
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine hrt                                                    &
+!...................................
+!  ---  inputs:
+     &     ( nsoil, stc, smc, smcmax, zsoil, yy, zz1, tbot,             &
+     &       zbot, psisat, dt, bexp, df1, quartz, csoil,                &
+!  ---  input/outputs:
+     &       sh2o,                                                      &
+!  ---  outputs:
+     &       rhsts, ai, bi, ci                                          &
+     &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!  subroutine hrt calculates the right hand side of the time tendency   !
+!  term of the soil thermal diffusion equation.  also to compute        !
+!  (prepare) the matrix coefficients for the tri-diagonal matrix of     !
+!  the implicit time scheme.                                            !
+!                                                                       !
+!  subprogram called:  tbnd, snksrc, tmpavg                             !
+!                                                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     nsoil    - integer, number of soil layers                    1    !
+!     stc      - real, soil temperature                          nsoil  !
+!     smc      - real, total soil moisture                       nsoil  !
+!     smcmax   - real, porosity                                    1    !
+!     zsoil    - real, soil layer depth below ground (negative)  nsoil  !
+!     yy       - real,                                             1    !
+!     zz1      - real, soil temperture at the top soil column      1    !
+!     tbot     - real, bottom soil temp                            1    !
+!     zbot     - real, specify depth of lower bd soil              1    !
+!     psisat   - real, saturated soil potential                    1    !
+!     dt       - real, time step                                   1    !
+!     bexp     - real, soil type "b" parameter                     1    !
+!     df1      - real, thermal diffusivity                         1    !
+!     quartz   - real, soil quartz content                         1    !
+!     csoil    - real, soil heat capacity                          1    !
+!                                                                       !
+!  input/outputs:                                                       !
+!     sh2o     - real, unfrozen soil moisture                    nsoil  !
+!                                                                       !
+!  outputs:                                                             !
+!     rhsts    - real, time tendency of soil thermal diffusion   nsoil  !
+!     ai       - real, matrix coefficients                       nsold  !
+!     bi       - real, matrix coefficients                       nsold  !
+!     ci       - real, matrix coefficients                       nsold  !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  inputs:
+      integer, intent(in) :: nsoil
+
+      real (kind=kind_phys),  intent(in) :: stc(nsoil), smc(nsoil),     &
+     &       smcmax, zsoil(nsoil), yy, zz1, tbot, zbot, psisat, dt,     &
+     &       bexp, df1, quartz, csoil
+
+!  ---  input/outputs:
+      real (kind=kind_phys),  intent(inout) :: sh2o(nsoil)
+
+!  ---  outputs:
+      real (kind=kind_phys),  intent(out) :: rhsts(nsoil), ai(nsold),   &
+     &       bi(nsold), ci(nsold)
+
+!  ---  locals:
+      real (kind=kind_phys) :: ddz, ddz2, denom, df1n, df1k, dtsdz,     &
+     &       dtsdz2, hcpct, qtot, ssoil, sice, tavg, tbk, tbk1,         &
+     &       tsnsr, tsurf
+
+      integer :: i, k
+
+      logical :: itavg
+
+!
+!===> ...  begin here
+!
+!  --- ...  initialize logical for soil layer temperature averaging.
+
+      itavg = .true.
+!     itavg = .false.
+
+!  ===  begin section for top soil layer
+
+!  --- ...  calc the heat capacity of the top soil layer
+
+      hcpct = sh2o(1)*cph2o2 + (1.0 - smcmax)*csoil                     &
+     &      + (smcmax - smc(1))*cp2 + (smc(1) - sh2o(1))*cpice1
+
+!  --- ...  calc the matrix coefficients ai, bi, and ci for the top layer
+
+      ddz = 1.0 / ( -0.5*zsoil(2) )
+      ai(1) = 0.0
+      ci(1) = (df1*ddz) / ( zsoil(1)*hcpct )
+      bi(1) = -ci(1) + df1 / ( 0.5*zsoil(1)*zsoil(1)*hcpct*zz1 )
+
+!  --- ...  calculate the vertical soil temp gradient btwn the 1st and 2nd soil
+!           layers.  then calculate the subsurface heat flux. use the temp
+!           gradient and subsfc heat flux to calc "right-hand side tendency
+!           terms", or "rhsts", for top soil layer.
+
+      dtsdz = (stc(1) - stc(2)) / (-0.5*zsoil(2))
+      ssoil = df1 * (stc(1) - yy) / (0.5*zsoil(1)*zz1)
+      rhsts(1) = (df1*dtsdz - ssoil) / (zsoil(1)*hcpct)
+
+!  --- ...  next capture the vertical difference of the heat flux at top and
+!           bottom of first soil layer for use in heat flux constraint applied to
+!           potential soil freezing/thawing in routine snksrc.
+
+      qtot = ssoil - df1*dtsdz
+
+!  --- ...  if temperature averaging invoked (itavg=true; else skip):
+!           set temp "tsurf" at top of soil column (for use in freezing soil
+!           physics later in subroutine snksrc).  if snowpack content is
+!           zero, then tsurf expression below gives tsurf = skin temp.  if
+!           snowpack is nonzero (hence argument zz1=1), then tsurf expression
+!           below yields soil column top temperature under snowpack.  then
+!           calculate temperature at bottom interface of 1st soil layer for use
+!           later in subroutine snksrc
+
+      if (itavg) then
+
+        tsurf = (yy + (zz1-1)*stc(1)) / zz1
+
+        call tbnd                                                       &
+!  ---  inputs:
+     &     ( stc(1), stc(2), zsoil, zbot, 1, nsoil,                     &
+!  ---  outputs:
+     &       tbk                                                        &
+     &     )
+
+      endif
+
+!  --- ...  calculate frozen water content in 1st soil layer.
+
+      sice = smc(1) - sh2o(1)
+
+!  --- ...  if frozen water present or any of layer-1 mid-point or bounding
+!           interface temperatures below freezing, then call snksrc to
+!           compute heat source/sink (and change in frozen water content)
+!           due to possible soil water phase change
+
+      if ( (sice > 0.0) .or. (tsurf < tfreez) .or.                      &
+     &     (stc(1) < tfreez) .or. (tbk < tfreez) ) then
+
+        if (itavg) then
+
+          call tmpavg                                                   &
+!  ---  inputs:
+     &     ( tsurf, stc(1), tbk, zsoil, nsoil, 1,                       &
+!  ---  outputs:
+     &       tavg                                                       &
+     &     )
+
+        else
+
+          tavg = stc(1)
+
+        endif   ! end if_itavg_block
+
+        call snksrc                                                     &
+!  ---  inputs:
+     &     ( nsoil, 1, tavg, smc(1), smcmax, psisat, bexp, dt,          &
+     &       qtot, zsoil,                                               &
+!  ---  input/outputs:
+     &       sh2o(1),                                                   &
+!  ---  outputs:
+     &       tsnsr                                                      &
+     &     )
+
+
+        rhsts(1) = rhsts(1) - tsnsr / ( zsoil(1)*hcpct )
+
+      endif   ! end if_sice_block
+
+!  ===  this ends section for top soil layer.
+
+!  --- ...  initialize ddz2
+
+      ddz2 = 0.0
+
+!  --- ...  loop thru the remaining soil layers, repeating the above process
+!           (except subsfc or "ground" heat flux not repeated in lower layers)
+
+      df1k = df1
+
+      do k = 2, nsoil
+
+!  --- ...  calculate heat capacity for this soil layer.
+
+        hcpct = sh2o(k)*cph2o2 + (1.0 - smcmax)*csoil                   &
+     &        + (smcmax - smc(k))*cp2 + (smc(k) - sh2o(k))*cpice1
+
+        if (k /= nsoil) then
+
+!  --- ...  this section for layer 2 or greater, but not last layer.
+!           calculate thermal diffusivity for this layer.
+
+          call tdfcnd                                                   &
+!  ---  inputs:
+     &     ( smc(k), quartz, smcmax, sh2o(k),                           &
+!  ---  outputs:
+     &       df1n                                                       &
+     &     )
+
+!  --- ...  calc the vertical soil temp gradient thru this layer
+
+          denom = 0.5 * (zsoil(k-1) - zsoil(k+1))
+          dtsdz2 = (stc(k) - stc(k+1)) / denom
+
+!  --- ...  calc the matrix coef, ci, after calc'ng its partial product
+
+          ddz2 = 2.0 / (zsoil(k-1) - zsoil(k+1))
+          ci(k) = -df1n*ddz2 / ((zsoil(k-1) - zsoil(k)) * hcpct)
+
+!  --- ...  if temperature averaging invoked (itavg=true; else skip):
+!           calculate temp at bottom of layer.
+
+          if (itavg) then
+
+            call tbnd                                                   &
+!  ---  inputs:
+     &     ( stc(k), stc(k+1), zsoil, zbot, k, nsoil,                   &
+!  ---  outputs:
+     &       tbk1                                                       &
+     &     )
+
+          endif
+
+        else
+
+!  --- ...  special case of bottom soil layer:  calculate thermal diffusivity
+!           for bottom layer.
+
+          call tdfcnd                                                   &
+!  ---  inputs:
+     &     ( smc(k), quartz, smcmax, sh2o(k),                           &
+!  ---  outputs:
+     &       df1n                                                       &
+     &     )
+
+!  --- ...  calc the vertical soil temp gradient thru bottom layer.
+
+          denom = 0.5 * (zsoil(k-1) + zsoil(k)) - zbot
+          dtsdz2 = (stc(k) - tbot) / denom
+
+!  --- ...  set matrix coef, ci to zero if bottom layer.
+
+          ci(k) = 0.0
+
+!  --- ...  if temperature averaging invoked (itavg=true; else skip):
+!           calculate temp at bottom of last layer.
+
+          if (itavg) then
+
+            call tbnd                                                   &
+!  ---  inputs:
+     &     ( stc(k), tbot, zsoil, zbot, k, nsoil,                       &
+!  ---  outputs:
+     &       tbk1                                                       &
+     &     )
+
+          endif
+
+        endif   ! end if_k_block
+
+!  --- ...  calculate rhsts for this layer after calc'ng a partial product.
+
+        denom = (zsoil(k) - zsoil(k-1)) * hcpct
+        rhsts(k) = ( df1n*dtsdz2 - df1k*dtsdz ) / denom
+
+        qtot = -1.0 * denom * rhsts(k)
+        sice = smc(k) - sh2o(k)
+
+        if ( (sice > 0.0) .or. (tbk < tfreez) .or.                      &
+     &       (stc(k) < tfreez) .or. (tbk1 < tfreez) ) then
+
+          if (itavg) then
+
+            call tmpavg                                                 &
+!  ---  inputs:
+     &     ( tbk, stc(k), tbk1, zsoil, nsoil, k,                        &
+!  ---  outputs:
+     &       tavg                                                       &
+     &     )
+
+          else
+            tavg = stc(k)
+          endif
+
+          call snksrc                                                   &
+!  ---  inputs:
+     &     ( nsoil, k, tavg, smc(k), smcmax, psisat, bexp, dt,          &
+     &       qtot, zsoil,                                               &
+!  ---  input/outputs:
+     &       sh2o(k),                                                   &
+!  ---  outputs:
+     &       tsnsr                                                      &
+     &     )
+
+          rhsts(k) = rhsts(k) - tsnsr/denom
+        endif
+
+!  --- ...  calc matrix coefs, ai, and bi for this layer.
+
+        ai(k) = - df1 * ddz / ((zsoil(k-1) - zsoil(k)) * hcpct)
+        bi(k) = -(ai(k) + ci(k))
+
+!  --- ...  reset values of df1, dtsdz, ddz, and tbk for loop to next soil layer.
+
+        tbk   = tbk1
+        df1k  = df1n
+        dtsdz = dtsdz2
+        ddz   = ddz2
+
+      enddo   ! end do_k_loop
+
+!
+      return
+!...................................
+      end subroutine hrt
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine hrtice                                                 &
+!...................................
+!  ---  inputs:
+     &     ( nsoil, stc, zsoil, yy, zz1, df1, ice,                      &
+!  ---  input/outputs:
+     &       tbot,                                                      &
+!  ---  outputs:
+     &       rhsts, ai, bi, ci                                          &
+     &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!  subroutine hrtice calculates the right hand side of the time tendency!
+!  term of the soil thermal diffusion equation for sea-ice (ice = 1) or !
+!  glacial-ice (ice). compute (prepare) the matrix coefficients for the !
+!  tri-diagonal matrix of the implicit time scheme.                     !
+!  (note:  this subroutine only called for sea-ice or glacial ice, but  !
+!  not for non-glacial land (ice = 0).                                  !
+!                                                                       !
+!  subprogram called:  none                                             !
+!                                                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     nsoil    - integer, number of soil layers                    1    !
+!     stc      - real, soil temperature                          nsoil  !
+!     zsoil    - real, soil depth (negative sign, as below grd)  nsoil  !
+!     yy       - real, soil temperature at the top of column       1    !
+!     zz1      - real,                                             1    !
+!     df1      - real, thermal diffusivity and conductivity        1    !
+!     ice      - integer, sea-ice flag (=1: sea-ice, =0: land)     1    !
+!                                                                       !
+!  input/outputs:                                                       !
+!     tbot     - real, bottom soil temperature                     1    !
+!                                                                       !
+!  outputs:                                                             !
+!     rhsts    - real, time tendency of soil thermal diffusion   nsoil  !
+!     ai       - real, matrix coefficients                       nsold  !
+!     bi       - real, matrix coefficients                       nsold  !
+!     ci       - real, matrix coefficients                       nsold  !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  inputs:
+      integer, intent(in) :: nsoil, ice
+
+      real (kind=kind_phys), intent(in) :: stc(nsoil), zsoil(nsoil),    &
+     &       yy, zz1, df1
+
+!  ---  input/outputs:
+      real (kind=kind_phys), intent(inout) :: tbot
+
+!  ---  outputs:
+      real (kind=kind_phys), intent(out) :: rhsts(nsoil), ai(nsold),    &
+     &       bi(nsold), ci(nsold)
+
+!  ---  locals:
+      real (kind=kind_phys) :: ddz, ddz2, denom, dtsdz, dtsdz2,         &
+     &       hcpct, ssoil, zbot
+
+      integer :: k
+
+!
+!===> ...  begin here
+!
+!  --- ...  set a nominal universal value of the sea-ice specific heat capacity,
+!           hcpct = 1880.0*917.0 = 1.72396e+6 (source:  fei chen, 1995)
+!           set bottom of sea-ice pack temperature: tbot = 271.16
+!           set a nominal universal value of glacial-ice specific heat capacity,
+!           hcpct = 2100.0*900.0 = 1.89000e+6 (source:  bob grumbine, 2005)
+!           tbot passed in as argument, value from global data set
+
+      if (ice == 1) then
+!  --- ...  sea-ice
+        hcpct = 1.72396e+6
+        tbot = 271.16
+      else
+!  --- ...  glacial-ice
+        hcpct = 1.89000e+6
+      endif
+
+!  --- ...  the input argument df1 is a universally constant value of sea-ice
+!           and glacial-ice thermal diffusivity, set in sflx as df1 = 2.2.
+
+!  --- ...  set ice pack depth.  use tbot as ice pack lower boundary temperature
+!           (that of unfrozen sea water at bottom of sea ice pack).  assume ice
+!           pack is of n=nsoil layers spanning a uniform constant ice pack
+!           thickness as defined by zsoil(nsoil) in routine sflx.
+!           if glacial-ice, set zbot = -25 meters
+
+      if (ice == 1) then
+!  --- ...  sea-ice
+        zbot = zsoil(nsoil)
+      else
+!  --- ...  glacial-ice
+        zbot = -25.0
+      endif
+
+!  --- ...  calc the matrix coefficients ai, bi, and ci for the top layer
+
+      ddz = 1.0 / (-0.5*zsoil(2))
+      ai(1) = 0.0
+      ci(1) = (df1*ddz) / (zsoil(1)*hcpct)
+      bi(1) = -ci(1) + df1 / (0.5*zsoil(1)*zsoil(1)*hcpct*zz1)
+
+!  --- ...  calc the vertical soil temp gradient btwn the top and 2nd soil
+!           layers. recalc/adjust the soil heat flux.  use the gradient and
+!           flux to calc rhsts for the top soil layer.
+
+      dtsdz = (stc(1) - stc(2)) / (-0.5*zsoil(2))
+      ssoil = df1 * (stc(1) - yy) / (0.5*zsoil(1)*zz1)
+      rhsts(1) = (df1*dtsdz - ssoil) / (zsoil(1)*hcpct)
+
+!  --- ...  initialize ddz2
+
+      ddz2 = 0.0
+
+!  --- ...  loop thru the remaining soil layers, repeating the above process
+
+      do k = 2, nsoil
+
+        if (k /= nsoil) then
+
+!  --- ...  calc the vertical soil temp gradient thru this layer.
+
+          denom = 0.5 * (zsoil(k-1) - zsoil(k+1))
+          dtsdz2 = (stc(k) - stc(k+1)) / denom
+
+!  --- ...  calc the matrix coef, ci, after calc'ng its partial product.
+
+          ddz2 = 2.0 / (zsoil(k-1) - zsoil(k+1))
+          ci(k) = -df1*ddz2 / ((zsoil(k-1) - zsoil(k))*hcpct)
+
+        else
+
+!  --- ...  calc the vertical soil temp gradient thru the lowest layer.
+
+          dtsdz2 = (stc(k) - tbot)                                      &
+     &           / (0.5*(zsoil(k-1) + zsoil(k)) - zbot)
+
+!  --- ...  set matrix coef, ci to zero.
+
+          ci(k) = 0.0
+
+        endif   ! end if_k_block
+
+!  --- ...  calc rhsts for this layer after calc'ng a partial product.
+
+        denom = (zsoil(k) - zsoil(k-1)) * hcpct
+        rhsts(k) = (df1*dtsdz2 - df1*dtsdz) / denom
+
+!  --- ...  calc matrix coefs, ai, and bi for this layer.
+
+        ai(k) = - df1*ddz / ((zsoil(k-1) - zsoil(k)) * hcpct)
+        bi(k) = -(ai(k) + ci(k))
+
+!  --- ...  reset values of dtsdz and ddz for loop to next soil lyr.
+
+        dtsdz = dtsdz2
+        ddz   = ddz2
+
+      enddo   ! end do_k_loop
+!
+      return
+!...................................
+      end subroutine hrtice
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine hstep                                                  &
+!...................................
+!  ---  inputs:
+     &     ( nsoil, stcin, dt,                                          &
+!  ---  input/outputs:
+     &       rhsts, ai, bi, ci,                                         &
+!  ---  outputs:
+     &       stcout                                                     &
+     &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!  subroutine hstep calculates/updates the soil temperature field.      !
+!                                                                       !
+!  subprogram called:  rosr12                                           !
+!                                                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     nsoil    - integer, number of soil layers                    1    !
+!     stcin    - real, soil temperature                          nsoil  !
+!     dt       - real, time step                                   1    !
+!                                                                       !
+!  input/outputs:                                                       !
+!     rhsts    - real, time tendency of soil thermal diffusion   nsoil  !
+!     ai       - real, matrix coefficients                       nsold  !
+!     bi       - real, matrix coefficients                       nsold  !
+!     ci       - real, matrix coefficients                       nsold  !
+!                                                                       !
+!  outputs:                                                             !
+!     stcout   - real, updated soil temperature                  nsoil  !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  inputs:
+      integer, intent(in) :: nsoil
+
+      real (kind=kind_phys),  intent(in) :: stcin(nsoil), dt
+
+!  ---  input/outputs:
+      real (kind=kind_phys),  intent(inout) :: rhsts(nsoil),            &
+     &      ai(nsold), bi(nsold), ci(nsold)
+
+!  ---  outputs:
+      real (kind=kind_phys),  intent(out) :: stcout(nsoil)
+
+!  ---  locals:
+      integer :: k
+
+      real (kind=kind_phys) :: ciin(nsold), rhstsin(nsoil)
+
+!
+!===> ...  begin here
+!
+!  --- ...  create finite difference values for use in rosr12 routine
+
+      do k = 1, nsoil
+        rhsts(k) = rhsts(k) * dt
+        ai(k) = ai(k) * dt
+        bi(k) = 1.0 + bi(k)*dt
+        ci(k) = ci(k) * dt
+      enddo
+
+!  --- ...  copy values for input variables before call to rosr12
+
+      do k = 1, nsoil
+         rhstsin(k) = rhsts(k)
+      enddo
+
+      do k = 1, nsold
+        ciin(k) = ci(k)
+      enddo
+
+!  --- ...  solve the tri-diagonal matrix equation
+
+      call rosr12                                                       &
+!  ---  inputs:
+     &     ( nsoil, ai, bi, rhstsin,                                    &
+!  ---  input/outputs:
+     &       ciin,                                                      &
+!  ---  outputs:
+     &       ci, rhsts                                                  &
+     &     )
+
+!  --- ...  calc/update the soil temps using matrix solution
+
+      do k = 1, nsoil
+        stcout(k) = stcin(k) + ci(k)
+      enddo
+!
+      return
+!...................................
+      end subroutine hstep
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine rosr12                                                 &
+!...................................
+!  ---  inputs:
+     &     ( nsoil, a, b, d,                                            &
+!  ---  input/outputs:
+     &       c,                                                         &
+!  ---  outputs:
+     &       p, delta                                                   &
+     &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!  subroutine rosr12 inverts (solve) the tri-diagonal matrix problem    !
+!  shown below:                                                         !
+!                                                                       !
+! ###                                            ### ###  ###   ###  ###!
+! #b(1), c(1),  0  ,  0  ,  0  ,   . . .  ,    0   # #      #   #      #!
+! #a(2), b(2), c(2),  0  ,  0  ,   . . .  ,    0   # #      #   #      #!
+! # 0  , a(3), b(3), c(3),  0  ,   . . .  ,    0   # #      #   # d(3) #!
+! # 0  ,  0  , a(4), b(4), c(4),   . . .  ,    0   # # p(4) #   # d(4) #!
+! # 0  ,  0  ,  0  , a(5), b(5),   . . .  ,    0   # # p(5) #   # d(5) #!
+! # .                                          .   # #  .   # = #   .  #!
+! # .                                          .   # #  .   #   #   .  #!
+! # .                                          .   # #  .   #   #   .  #!
+! # 0  , . . . , 0 , a(m-2), b(m-2), c(m-2),   0   # #p(m-2)#   #d(m-2)#!
+! # 0  , . . . , 0 ,   0   , a(m-1), b(m-1), c(m-1)# #p(m-1)#   #d(m-1)#!
+! # 0  , . . . , 0 ,   0   ,   0   ,  a(m) ,  b(m) # # p(m) #   # d(m) #!
+! ###                                            ### ###  ###   ###  ###!
+!                                                                       !
+!  subprogram called:  none                                             !
+!                                                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     nsoil    - integer, number of soil layers                    1    !
+!     a        - real, matrix coefficients                       nsoil  !
+!     b        - real, matrix coefficients                       nsoil  !
+!     d        - real, soil water time tendency                  nsoil  !
+!                                                                       !
+!  input/outputs:                                                       !
+!     c        - real, matrix coefficients                       nsoil  !
+!                                                                       !
+!  outputs:                                                             !
+!     p        - real,                                           nsoil  !
+!     delta    - real,                                           nsoil  !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  inputs:
+      integer, intent(in) :: nsoil
+
+      real (kind=kind_phys),  dimension(nsoil), intent(in) :: a, b, d
+
+!  ---  input/outputs:
+      real (kind=kind_phys),  dimension(nsoil), intent(inout) :: c
+
+!  ---  outputs:
+      real (kind=kind_phys),  dimension(nsoil), intent(out) :: p, delta
+
+!  ---  locals:
+      integer :: k, kk
+
+!
+!===> ...  begin here
+!
+!  --- ...  initialize eqn coef c for the lowest soil layer
+
+      c(nsoil) = 0.0
+
+!  --- ...  solve the coefs for the 1st soil layer
+
+      p(1) = -c(1) / b(1)
+      delta(1) = d(1) / b(1)
+
+!  --- ...  solve the coefs for soil layers 2 thru nsoil
+
+      do k = 2, nsoil
+        p(k) = -c(k) * ( 1.0 / (b(k) + a (k)*p(k-1)) )
+        delta(k) = (d(k) - a(k)*delta(k-1))                              &
+     &           * ( 1.0 / (b(k) + a(k)*p(k-1)) )
+      enddo
+
+!  --- ...  set p to delta for lowest soil layer
+
+      p(nsoil) = delta(nsoil)
+
+!  --- ...  adjust p for soil layers 2 thru nsoil
+
+      do k = 2, nsoil
+         kk = nsoil - k + 1
+         p(kk) = p(kk)*p(kk+1) + delta(kk)
+      enddo
+!
+      return
+!...................................
+      end subroutine rosr12
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine snksrc                                                 &
+!...................................
+!  ---  inputs:
+     &     ( nsoil, k, tavg, smc, smcmax, psisat, bexp, dt,             &
+     &       qtot, zsoil,                                               &
+!  ---  input/outputs:
+     &       sh2o,                                                      &
+!  ---  outputs:
+     &       tsrc                                                       &
+     &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!  subroutine snksrc calculates sink/source term of the termal          !
+!  diffusion equation.                                                  !
+!                                                                       !
+!  subprograms called: frh2o                                            !
+!                                                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     nsoil    - integer, number of soil layers                    1    !
+!     k        - integer, index of soil layers                     1    !
+!     tavg     - real, soil layer average temperature              1    !
+!     smc      - real, total soil moisture                         1    !
+!     smcmax   - real, porosity                                    1    !
+!     psisat   - real, saturated soil potential                    1    !
+!     bexp     - real, soil type "b" parameter                     1    !
+!     dt       - real, time step                                   1    !
+!     qtot     - real, tot vertical diff of heat flux              1    !
+!     zsoil    - real, soil layer depth below ground (negative)  nsoil  !
+!                                                                       !
+!  input/outputs:                                                       !
+!     sh2o     - real, available liqued water                      1    !
+!                                                                       !
+!  outputs:                                                             !
+!     tsrc     - real, heat source/sink                            1    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  parameter constants:
+      real (kind=kind_phys), parameter :: dh2o = 1.0000e3
+
+!  ---  inputs:
+      integer, intent(in) :: nsoil, k
+
+      real (kind=kind_phys), intent(in) :: tavg, smc, smcmax, psisat,   &
+     &       bexp, dt, qtot, zsoil(nsoil)
+
+!  ---  input/outputs:
+      real (kind=kind_phys), intent(inout) :: sh2o
+
+!  ---  outputs:
+      real (kind=kind_phys), intent(out) :: tsrc
+
+!  ---  locals:
+      real (kind=kind_phys) :: dz, free, xh2o
+
+!  ---  external functions:
+!     real (kind=kind_phys) :: frh2o
+
+!
+!===> ...  begin here
+!
+      if (k == 1) then
+        dz = -zsoil(1)
+      else
+        dz = zsoil(k-1) - zsoil(k)
+      endif
+
+!  --- ...  via function frh2o, compute potential or 'equilibrium' unfrozen
+!           supercooled free water for given soil type and soil layer temperature.
+!           function frh20 invokes eqn (17) from v. koren et al (1999, jgr, vol.
+!           104, pg 19573).  (aside:  latter eqn in journal in centigrade units.
+!           routine frh2o use form of eqn in kelvin units.)
+
+!     free = frh2o( tavg,smc,sh2o,smcmax,bexp,psisat )
+
+      call frh2o                                                        &
+!  ---  inputs:
+     &     ( tavg, smc, sh2o, smcmax, bexp, psisat,                     &
+!  ---  outputs:
+     &       free                                                       &
+     &     )
+
+
+!  --- ...  in next block of code, invoke eqn 18 of v. koren et al (1999, jgr,
+!           vol. 104, pg 19573.)  that is, first estimate the new amountof liquid
+!           water, 'xh2o', implied by the sum of (1) the liquid water at the begin
+!           of current time step, and (2) the freeze of thaw change in liquid
+!           water implied by the heat flux 'qtot' passed in from routine hrt.
+!           second, determine if xh2o needs to be bounded by 'free' (equil amt) or
+!           if 'free' needs to be bounded by xh2o.
+
+      xh2o = sh2o + qtot*dt / (dh2o*lsubf*dz)
+
+!  --- ...  first, if freezing and remaining liquid less than lower bound, then
+!           reduce extent of freezing, thereby letting some or all of heat flux
+!           qtot cool the soil temp later in routine hrt.
+
+      if ( xh2o < sh2o .and. xh2o < free) then
+        if ( free > sh2o ) then
+          xh2o = sh2o
+        else
+          xh2o = free
+        endif
+      endif
+
+!  --- ...  second, if thawing and the increase in liquid water greater than
+!           upper bound, then reduce extent of thaw, thereby letting some or
+!           all of heat flux qtot warm the soil temp later in routine hrt.
+
+      if ( xh2o > sh2o .and. xh2o > free )  then
+        if ( free < sh2o ) then
+          xh2o = sh2o
+        else
+          xh2o = free
+        endif
+      endif
+
+      xh2o = max( min( xh2o, smc ), 0.0 )
+
+!  --- ...  calculate phase-change heat source/sink term for use in routine hrt
+!           and update liquid water to reflcet final freeze/thaw increment.
+
+      tsrc = -dh2o * lsubf * dz * (xh2o - sh2o) / dt
+      sh2o = xh2o
+!
+      return
+!...................................
+      end subroutine snksrc
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine srt                                                    &
+!...................................
+!  ---  inputs:
+     &     ( nsoil, edir, et, sh2o, sh2oa, pcpdrp, zsoil, dwsat,        &
+     &       dksat, smcmax, bexp, dt, smcwlt, slope, kdt, frzx, sice,   &
+!  ---  outputs:
+     &       rhstt, runoff1, runoff2, ai, bi, ci                        &
+     &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!    subroutine srt calculates the right hand side of the time tendency !
+!    term of the soil water diffusion equation.  also to compute        !
+!    ( prepare ) the matrix coefficients for the tri-diagonal matrix    !
+!    of the implicit time scheme.                                       !
+!                                                                       !
+!  subprogram called:  wdfcnd                                           !
+!                                                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     nsoil    - integer, number of soil layers                    1    !
+!     edir     - real, direct soil evaporation                     1    !
+!     et       - real, plant transpiration                       nsoil  !
+!     sh2o     - real, unfrozen soil moisture                    nsoil  !
+!     sh2oa    - real,                                           nsoil  !
+!     pcpdrp   - real, combined prcp and drip                      1    !
+!     zsoil    - real, soil layer depth below ground             nsoil  !
+!     dwsat    - real, saturated soil diffusivity                  1    !
+!     dksat    - real, saturated soil hydraulic conductivity       1    !
+!     smcmax   - real, porosity                                    1    !
+!     bexp     - real, soil type "b" parameter                     1    !
+!     dt       - real, time step                                   1    !
+!     smcwlt   - real, wilting point                               1    !
+!     slope    - real, linear reservoir coefficient                1    !
+!     kdt      - real,                                             1    !
+!     frzx     - real, frozen ground parameter                     1    !
+!     sice     - real, ice content at each soil layer            nsoil  !
+!                                                                       !
+!  outputs:                                                             !
+!     rhstt    - real, soil water time tendency                  nsoil  !
+!     runoff1  - real, surface runoff not infiltrating sfc         1    !
+!     runoff2  - real, sub surface runoff (baseflow)               1    !
+!     ai       - real, matrix coefficients                       nsold  !
+!     bi       - real, matrix coefficients                       nsold  !
+!     ci       - real, matrix coefficients                       nsold  !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  inputs:
+      integer, intent(in) :: nsoil
+
+      real (kind=kind_phys), dimension(nsoil), intent(in) :: et,        &
+     &       sh2o, sh2oa, zsoil, sice
+
+      real (kind=kind_phys), intent(in) :: edir, pcpdrp, dwsat, dksat,  &
+     &       smcmax, smcwlt, bexp, dt, slope, kdt, frzx
+
+!  --- outputs:
+      real (kind=kind_phys), intent(out) :: runoff1, runoff2,           &
+     &      rhstt(nsoil), ai(nsold), bi(nsold), ci(nsold)
+
+
+!  ---  locals:
+      real (kind=kind_phys) :: acrt, dd, ddt, ddz, ddz2, denom, denom2, &
+     &       dice, dsmdz, dsmdz2, dt1, fcr, infmax, mxsmc, mxsmc2, px,  &
+     &       numer, pddum, sicemax, slopx, smcav, sstt, sum, val, wcnd, &
+     &       wcnd2, wdf, wdf2, dmax(nsold)
+
+      integer :: cvfrz, ialp1, iohinf, j, jj, k, ks
+!
+!===> ...  begin here
+!
+!  --- ...  frozen ground version:
+!           reference frozen ground parameter, cvfrz, is a shape parameter
+!           of areal distribution function of soil ice content which equals
+!           1/cv. cv is a coefficient of spatial variation of soil ice content.
+!           based on field data cv depends on areal mean of frozen depth, and
+!           it close to constant = 0.6 if areal mean frozen depth is above 20 cm.
+!           that is why parameter cvfrz = 3 (int{1/0.6*0.6}). current logic
+!           doesn't allow cvfrz be bigger than 3
+
+        parameter (cvfrz = 3)
+
+c ----------------------------------------------------------------------
+!  --- ...  determine rainfall infiltration rate and runoff.  include
+!           the infiltration formule from schaake and koren model.
+!           modified by q duan
+
+      iohinf = 1
+
+!  --- ... let sicemax be the greatest, if any, frozen water content within
+!          soil layers.
+
+      sicemax = 0.0
+      do ks = 1, nsoil
+       if (sice(ks) > sicemax) sicemax = sice(ks)
+      enddo
+
+!  --- ...  determine rainfall infiltration rate and runoff
+
+      pddum = pcpdrp
+      runoff1 = 0.0
+
+      if (pcpdrp /= 0.0) then
+
+!  --- ...  modified by q. duan, 5/16/94
+
+        dt1 = dt/86400.
+        smcav = smcmax - smcwlt
+        dmax(1) = -zsoil(1) * smcav
+
+!  --- ...  frozen ground version:
+
+        dice = -zsoil(1) * sice(1)
+
+        dmax(1) = dmax(1)*(1.0 - (sh2oa(1)+sice(1)-smcwlt)/smcav)
+        dd = dmax(1)
+
+        do ks = 2, nsoil
+
+!  --- ...  frozen ground version:
+
+          dice = dice + ( zsoil(ks-1) - zsoil(ks) ) * sice(ks)
+
+          dmax(ks) = (zsoil(ks-1)-zsoil(ks))*smcav
+          dmax(ks) = dmax(ks)*(1.0 - (sh2oa(ks)+sice(ks)-smcwlt)/smcav)
+          dd = dd + dmax(ks)
+        enddo
+
+!  --- ...  val = (1.-exp(-kdt*sqrt(dt1)))
+!           in below, remove the sqrt in above
+
+        val = 1.0 - exp(-kdt*dt1)
+        ddt = dd * val
+
+        px = pcpdrp * dt
+        if (px < 0.0) px = 0.0
+
+        infmax = (px*(ddt/(px+ddt)))/dt
+
+!  --- ...  frozen ground version:
+!           reduction of infiltration based on frozen ground parameters
+
+        fcr = 1.
+
+        if (dice > 1.e-2) then
+          acrt = cvfrz * frzx / dice
+          sum = 1.
+
+          ialp1 = cvfrz - 1
+          do j = 1, ialp1
+            k = 1
+
+            do jj = j+1,ialp1
+              k = k * jj
+            enddo
+
+            sum = sum + (acrt**( cvfrz-j)) / float (k)
+          enddo
+
+          fcr = 1.0 - exp(-acrt) * sum
+        endif
+
+        infmax = infmax * fcr
+
+!  --- ...  correction of infiltration limitation:
+!           if infmax .le. hydrolic conductivity assign infmax the value
+!           of hydrolic conductivity
+
+!       mxsmc = max ( sh2oa(1), sh2oa(2) )
+        mxsmc = sh2oa(1)
+
+        call wdfcnd                                                     &
+!  ---  inputs:
+     &     ( mxsmc, smcmax, bexp, dksat, dwsat, sicemax,                &
+!  ---  outputs:
+     &       wdf, wcnd                                                  &
+     &     )
+
+        infmax = max( infmax, wcnd )
+        infmax = min( infmax, px )
+
+        if (pcpdrp > infmax) then
+          runoff1 = pcpdrp - infmax
+          pddum   = infmax
+        endif
+
+      endif   ! end if_pcpdrp_block
+
+!  --- ... to avoid spurious drainage behavior, 'upstream differencing'
+!          in line below replaced with new approach in 2nd line:
+!          'mxsmc = max(sh2oa(1), sh2oa(2))'
+
+      mxsmc = sh2oa(1)
+
+      call wdfcnd                                                       &
+!  ---  inputs:
+     &     ( mxsmc, smcmax, bexp, dksat, dwsat, sicemax,                &
+!  ---  outputs:
+     &       wdf, wcnd                                                  &
+     &     )
+
+!  --- ...  calc the matrix coefficients ai, bi, and ci for the top layer
+
+      ddz = 1.0 / ( -.5*zsoil(2) )
+      ai(1) = 0.0
+      bi(1) = wdf * ddz / ( -zsoil(1) )
+      ci(1) = -bi(1)
+
+!  --- ...  calc rhstt for the top layer after calc'ng the vertical soil
+!           moisture gradient btwn the top and next to top layers.
+
+      dsmdz = ( sh2o(1) - sh2o(2) ) / ( -.5*zsoil(2) )
+      rhstt(1) = (wdf*dsmdz + wcnd - pddum + edir + et(1)) / zsoil(1)
+      sstt = wdf * dsmdz + wcnd + edir + et(1)
+
+!  --- ...  initialize ddz2
+
+      ddz2 = 0.0
+
+!  --- ...  loop thru the remaining soil layers, repeating the abv process
+
+      do k = 2, nsoil
+        denom2 = (zsoil(k-1) - zsoil(k))
+
+        if (k /= nsoil) then
+          slopx = 1.0
+
+!  --- ...  again, to avoid spurious drainage behavior, 'upstream differencing'
+!           in line below replaced with new approach in 2nd line:
+!           'mxsmc2 = max (sh2oa(k), sh2oa(k+1))'
+
+          mxsmc2 = sh2oa(k)
+
+          call wdfcnd                                                   &
+!  ---  inputs:
+     &     ( mxsmc2, smcmax, bexp, dksat, dwsat, sicemax,               &
+!  ---  outputs:
+     &       wdf2, wcnd2                                                &
+     &     )
+
+!  --- ...  calc some partial products for later use in calc'ng rhstt
+
+          denom = (zsoil(k-1) - zsoil(k+1))
+          dsmdz2 = (sh2o(k) - sh2o(k+1)) / (denom * 0.5)
+
+!  --- ...  calc the matrix coef, ci, after calc'ng its partial product
+
+          ddz2 = 2.0 / denom
+          ci(k) = -wdf2 * ddz2 / denom2
+
+        else   ! if_k_block
+
+!  --- ...  slope of bottom layer is introduced
+
+          slopx = slope
+
+!  --- ...  retrieve the soil water diffusivity and hydraulic conductivity
+!           for this layer
+
+          call wdfcnd                                                   &
+!  ---  inputs:
+     &     ( sh2oa(nsoil), smcmax, bexp, dksat, dwsat, sicemax,         &
+!  ---  outputs:
+     &       wdf2, wcnd2                                                &
+     &     )
+
+!  --- ...  calc a partial product for later use in calc'ng rhstt
+          dsmdz2 = 0.0
+
+!  --- ...  set matrix coef ci to zero
+
+          ci(k) = 0.0
+
+        endif   ! end if_k_block
+
+!  --- ...  calc rhstt for this layer after calc'ng its numerator
+
+        numer = wdf2*dsmdz2 + slopx*wcnd2 - wdf*dsmdz - wcnd + et(k)
+        rhstt(k) = numer / (-denom2)
+
+!  --- ...  calc matrix coefs, ai, and bi for this layer
+
+        ai(k) = -wdf * ddz / denom2
+        bi(k) = -( ai(k) + ci(k) )
+
+!  --- ...  reset values of wdf, wcnd, dsmdz, and ddz for loop to next lyr
+!      runoff2:  sub-surface or baseflow runoff
+
+        if (k == nsoil) then
+          runoff2 = slopx * wcnd2
+        endif
+
+        if (k /= nsoil) then
+          wdf  = wdf2
+          wcnd = wcnd2
+          dsmdz= dsmdz2
+          ddz  = ddz2
+        endif
+      enddo   ! end do_k_loop
+!
+      return
+!...................................
+      end subroutine srt
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine sstep                                                  &
+!...................................
+!  ---  inputs:
+     &     ( nsoil, sh2oin, rhsct, dt, smcmax, cmcmax, zsoil, sice,     &
+!  ---  input/outputs:
+     &       cmc, rhstt, ai, bi, ci,                                    &
+!  ---  outputs:
+     &       sh2oout, runoff3, smc                                      &
+     &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!    subroutine sstep calculates/updates soil moisture content values   !
+!    and canopy moisture content values.                                !
+!                                                                       !
+!  subprogram called:  rosr12                                           !
+!                                                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     nsoil    - integer, number of soil layers                    1    !
+!     sh2oin   - real, unfrozen soil moisture                    nsoil  !
+!     rhsct    - real,                                             1    !
+!     dt       - real, time step                                   1    !
+!     smcmax   - real, porosity                                    1    !
+!     cmcmax   - real, maximum canopy water parameters             1    !
+!     zsoil    - real, soil layer depth below ground             nsoil  !
+!     sice     - real, ice content at each soil layer            nsoil  !
+!                                                                       !
+!  input/outputs:                                                       !
+!     cmc      - real, canopy moisture content                     1    !
+!     rhstt    - real, soil water time tendency                  nsoil  !
+!     ai       - real, matrix coefficients                       nsold  !
+!     bi       - real, matrix coefficients                       nsold  !
+!     ci       - real, matrix coefficients                       nsold  !
+!                                                                       !
+!  outputs:                                                             !
+!     sh2oout  - real, updated soil moisture content             nsoil  !
+!     runoff3  - real, excess of porosity                          1    !
+!     smc      - real, total soil moisture                       nsoil  !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  input:
+      integer, intent(in) :: nsoil
+
+      real (kind=kind_phys), dimension(nsoil), intent(in) :: sh2oin,    &
+     &       zsoil, sice
+
+      real (kind=kind_phys), intent(in) :: rhsct, dt, smcmax, cmcmax
+
+!  ---  inout/outputs:
+      real (kind=kind_phys), intent(inout) :: cmc, rhstt(nsoil),        &
+     &       ai(nsold), bi(nsold), ci(nsold)
+
+!  ---  outputs:
+      real (kind=kind_phys), intent(out) :: sh2oout(nsoil), runoff3,    &
+     &       smc(nsoil)
+
+!  ---  locals:
+      real (kind=kind_phys) :: ciin(nsold), rhsttin(nsoil), ddz, stot,  &
+     &       wplus
+
+      integer :: i, k, kk11
+!
+!===> ...  begin here
+!
+!  --- ...  create 'amount' values of variables to be input to the
+!           tri-diagonal matrix routine.
+
+      do k = 1, nsoil
+        rhstt(k) = rhstt(k) * dt
+        ai(k) = ai(k) * dt
+        bi(k) = 1. + bi(k) * dt
+        ci(k) = ci(k) * dt
+      enddo
+
+!  --- ...  copy values for input variables before call to rosr12
+
+      do k = 1, nsoil
+        rhsttin(k) = rhstt(k)
+      enddo
+
+      do k = 1, nsold
+        ciin(k) = ci(k)
+      enddo
+
+!  --- ...  call rosr12 to solve the tri-diagonal matrix
+
+      call rosr12                                                       &
+!  ---  inputs:
+     &     ( nsoil, ai, bi, rhsttin,                                    &
+!  ---  input/outputs:
+     &       ciin,                                                      &
+!  ---  outputs:
+     &       ci, rhstt                                                  &
+     &     )
+
+!  --- ...  sum the previous smc value and the matrix solution to get
+!           a new value.  min allowable value of smc will be 0.02.
+!      runoff3: runoff within soil layers
+
+      wplus   = 0.0
+      runoff3 = 0.0
+      ddz     = -zsoil(1)
+
+      do k = 1, nsoil
+        if (k /= 1) ddz = zsoil(k - 1) - zsoil(k)
+
+        sh2oout(k) = sh2oin(k) + ci(k) + wplus/ddz
+
+        stot = sh2oout(k) + sice(k)
+        if (stot > smcmax) then
+          if (k == 1) then
+            ddz = -zsoil(1)
+          else
+            kk11 = k - 1
+            ddz = -zsoil(k) + zsoil(kk11)
+          endif
+
+          wplus = (stot - smcmax) * ddz
+        else
+          wplus = 0.0
+        endif
+
+        smc(k) = max( min( stot, smcmax ), 0.02 )
+        sh2oout(k) = max( smc(k)-sice(k), 0.0 )
+      enddo
+
+      runoff3 = wplus
+
+!  --- ...  update canopy water content/interception (cmc).  convert rhsct to
+!           an 'amount' value and add to previous cmc value to get new cmc.
+
+      cmc = cmc + dt*rhsct
+      if (cmc < 1.e-20) cmc = 0.0
+      cmc = min( cmc, cmcmax )
+!
+      return
+!...................................
+      end subroutine sstep
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine tbnd                                                   &
+!...................................
+!  ---  inputs:
+     &     ( tu, tb, zsoil, zbot, k, nsoil,                             &
+!  ---  outputs:
+     &       tbnd1                                                      &
+     &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!                                                                       !
+!    subroutine tbnd calculates temperature on the boundary of the      !
+!    layer by interpolation of the middle layer temperatures            !
+!                                                                       !
+!  subprogram called:  none                                             !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     tu       - real, soil temperature                            1    !
+!     tb       - real, bottom soil temp                            1    !
+!     zsoil    - real, soil layer depth                          nsoil  !
+!     zbot     - real, specify depth of lower bd soil              1    !
+!     k        - integer, soil layer index                         1    !
+!     nsoil    - integer, number of soil layers                    1    !
+!                                                                       !
+!  outputs:                                                             !
+!     tbnd1    - real, temperature at bottom interface of the lyr  1    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  input:
+      integer, intent(in) :: k, nsoil
+
+      real (kind=kind_phys), intent(in) :: tu, tb, zbot, zsoil(nsoil)
+
+!  ---  output:
+      real (kind=kind_phys), intent(out) :: tbnd1
+
+!  ---  locals:
+      real (kind=kind_phys) :: zb, zup
+
+!  --- ...  use surface temperature on the top of the first layer
+
+      if (k == 1) then
+        zup = 0.0
+      else
+        zup = zsoil(k-1)
+      endif
+
+!  --- ...  use depth of the constant bottom temperature when interpolate
+!           temperature into the last layer boundary
+
+      if (k == nsoil) then
+        zb = 2.0*zbot - zsoil(k)
+      else
+        zb = zsoil(k+1)
+      endif
+
+!  --- ...  linear interpolation between the average layer temperatures
+
+      tbnd1 = tu + (tb-tu)*(zup-zsoil(k))/(zup-zb)
+!
+      return
+!...................................
+      end subroutine tbnd
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine tmpavg                                                 &
+!...................................
+!  ---  inputs:
+     &     ( tup, tm, tdn, zsoil, nsoil, k,                             &
+!  ---  outputs:
+     &       tavg                                                       &
+     &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!    subroutine tmpavg calculates soil layer average temperature (tavg) !
+!    in freezing/thawing layer using up, down, and middle layer         !
+!    temperatures (tup, tdn, tm), where tup is at top boundary of       !
+!    layer, tdn is at bottom boundary of layer.  tm is layer prognostic !
+!    state temperature.                                                 !
+!                                                                       !
+!                                                                       !
+!  subprogram called:  none                                             !
+!                                                                       !
+!
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     tup      - real, temperature ar top boundary of layer        1    !
+!     tm       - real, layer prognostic state temperature          1    !
+!     tdn      - real, temperature ar bottom boundary of layer     1    !
+!     zsoil    - real, soil layer depth                          nsoil  !
+!     nsoil    - integer, number of soil layers                    1    !
+!     k        - integer, layer index                              1    !
+!  outputs:                                                             !
+!     tavg     - real, soil layer average temperature              1    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  input:
+      integer, intent(in) :: nsoil, k
+
+      real (kind=kind_phys), intent(in) :: tup, tm, tdn, zsoil(nsoil)
+
+!  ---  output:
+      real (kind=kind_phys), intent(out) :: tavg
+
+!  ---  locals:
+      real (kind=kind_phys) :: dz, dzh, x0, xdn, xup
+!
+!===> ...  begin here
+!
+      if (k == 1) then
+        dz = -zsoil(1)
+      else
+        dz = zsoil(k-1) - zsoil(k)
+      endif
+
+      dzh = dz * 0.5
+
+      if (tup < tfreez) then
+
+        if (tm < tfreez) then
+          if (tdn < tfreez) then               ! tup, tm, tdn < t0
+            tavg = (tup + 2.0*tm + tdn) / 4.0
+          else                                 ! tup & tm < t0,  tdn >= t0
+            x0 = (tfreez - tm) * dzh / (tdn - tm)
+            tavg = 0.5*(tup*dzh + tm*(dzh+x0)+tfreez*(2.*dzh-x0)) / dz
+          endif
+        else
+          if (tdn < tfreez) then               ! tup < t0, tm >= t0, tdn < t0
+            xup  = (tfreez-tup) * dzh / (tm-tup)
+            xdn  = dzh - (tfreez-tm) * dzh / (tdn-tm)
+            tavg = 0.5*(tup*xup + tfreez*(2.*dz-xup-xdn)+tdn*xdn) / dz
+          else                                 ! tup < t0, tm >= t0, tdn >= t0
+            xup  = (tfreez-tup) * dzh / (tm-tup)
+            tavg = 0.5*(tup*xup + tfreez*(2.*dz-xup)) / dz
+          endif
+        endif
+
+      else    ! if_tup_block
+
+        if (tm < tfreez) then
+          if (tdn < tfreez) then               ! tup >= t0, tm < t0, tdn < t0
+            xup  = dzh - (tfreez-tup) * dzh / (tm-tup)
+            tavg = 0.5*(tfreez*(dz-xup) + tm*(dzh+xup)+tdn*dzh) / dz
+          else                                 ! tup >= t0, tm < t0, tdn >= t0
+            xup  = dzh - (tfreez-tup) * dzh / (tm-tup)
+            xdn  = (tfreez-tm) * dzh / (tdn-tm)
+            tavg = 0.5 * (tfreez*(2.*dz-xup-xdn) + tm*(xup+xdn)) / dz
+          endif
+        else
+          if (tdn < tfreez) then               ! tup >= t0, tm >= t0, tdn < t0
+            xdn  = dzh - (tfreez-tm) * dzh / (tdn-tm)
+            tavg = (tfreez*(dz-xdn) + 0.5*(tfreez+tdn)*xdn) / dz
+          else                                 ! tup >= t0, tm >= t0, tdn >= t0
+            tavg = (tup + 2.0*tm + tdn) / 4.0
+          endif
+        endif
+
+      endif   ! end if_tup_block
+!
+      return
+!...................................
+      end subroutine tmpavg
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine transp                                                    &
+!...................................
+!  ---  inputs:
+     &     ( nsoil, nroot, etp1, smc, smcwlt, smcref,                   &
+     &       cmc, cmcmax, zsoil, shdfac, pc, cfactr, rtdis,             &
+!  ---  outputs:
+     &       et1                                                        &
+     &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!     subroutine transp calculates transpiration for the veg class.     !
+!                                                                       !
+!  subprogram called:  none                                             !
+!                                                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     nsoil    - integer, number of soil layers                    1    !
+!     nroot    - integer, number of root layers                    1    !
+!     etp1     - real, potential evaporation                       1    !
+!     smc      - real, unfrozen soil moisture                    nsoil  !
+!     smcwlt   - real, wilting point                               1    !
+!     smcref   - real, soil mois threshold                         1    !
+!     cmc      - real, canopy moisture content                     1    !
+!     cmcmax   - real, maximum canopy water parameters             1    !
+!     zsoil    - real, soil layer depth below ground             nsoil  !
+!     shdfac   - real, aeral coverage of green vegetation          1    !
+!     pc       - real, plant coeff                                 1    !
+!     cfactr   - real, canopy water parameters                     1    !
+!     rtdis    - real, root distribution                         nsoil  !
+!                                                                       !
+!  outputs:                                                             !
+!     et1      - real, plant transpiration                       nsoil  !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  input:
+      integer, intent(in) :: nsoil, nroot
+
+      real (kind=kind_phys), intent(in) :: etp1, smcwlt, smcref,        &
+     &       cmc, cmcmax, shdfac, pc, cfactr
+
+      real (kind=kind_phys), dimension(nsoil), intent(in) :: smc,       &
+     &       zsoil, rtdis
+
+!  ---  output:
+      real (kind=kind_phys), dimension(nsoil), intent(out) :: et1
+
+!  ---  locals:
+      real (kind=kind_phys) :: denom, etp1a, rtx, sgx, gx(7)
+
+      integer :: i, k
+!
+!===> ...  begin here
+!
+!  --- ...  initialize plant transp to zero for all soil layers.
+
+      do k = 1, nsoil
+        et1(k) = 0.0
+      enddo
+
+!  --- ...  calculate an 'adjusted' potential transpiration
+!           if statement below to avoid tangent linear problems near zero
+!           note: gx and other terms below redistribute transpiration by layer,
+!           et(k), as a function of soil moisture availability, while preserving
+!           total etp1a.
+
+      if (cmc /= 0.0) then
+        etp1a = shdfac * pc * etp1 * (1.0 - (cmc /cmcmax) ** cfactr)
+      else
+        etp1a = shdfac * pc * etp1
+      endif
+
+      sgx = 0.0
+      do i = 1, nroot
+        gx(i) = ( smc(i) - smcwlt ) / ( smcref - smcwlt )
+        gx(i) = max ( min ( gx(i), 1.0 ), 0.0 )
+        sgx = sgx + gx(i)
+      enddo
+      sgx = sgx / nroot
+
+      denom = 0.0
+      do i = 1, nroot
+        rtx = rtdis(i) + gx(i) - sgx
+        gx(i) = gx(i) * max ( rtx, 0.0 )
+        denom = denom + gx(i)
+      enddo
+      if (denom <= 0.0) denom = 1.0
+
+      do i = 1, nroot
+        et1(i) = etp1a * gx(i) / denom
+      enddo
+
+!  --- ...  above code assumes a vertically uniform root distribution
+!           code below tests a variable root distribution
+
+!     et(1) = ( zsoil(1) / zsoil(nroot) ) * gx * etp1a
+!     et(1) = ( zsoil(1) / zsoil(nroot) ) * etp1a
+
+!  --- ...  using root distribution as weighting factor
+
+!     et(1) = rtdis(1) * etp1a
+!     et(1) = etp1a * part(1)
+
+!  --- ...  loop down thru the soil layers repeating the operation above,
+!           but using the thickness of the soil layer (rather than the
+!           absolute depth of each layer) in the final calculation.
+
+!     do k = 2, nroot
+!       gx = ( smc(k) - smcwlt ) / ( smcref - smcwlt )
+!       gx = max ( min ( gx, 1.0 ), 0.0 )
+!  --- ...  test canopy resistance
+!       gx = 1.0
+!       et(k) = ((zsoil(k)-zsoil(k-1))/zsoil(nroot))*gx*etp1a
+!       et(k) = ((zsoil(k)-zsoil(k-1))/zsoil(nroot))*etp1a
+
+!  --- ...  using root distribution as weighting factor
+
+!       et(k) = rtdis(k) * etp1a
+!       et(k) = etp1a*part(k)
+!     enddo
+
+!
+      return
+!...................................
+      end subroutine transp
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine wdfcnd                                                 &
+!...................................
+!  ---  inputs:
+     &     ( smc, smcmax, bexp, dksat, dwsat, sicemax,                  &
+!  ---  outputs:
+     &       wdf, wcnd                                                  &
+     &     )
+
+! ===================================================================== !
+!  description:                                                         !
+!     subroutine wdfcnd calculates soil water diffusivity and soil      !
+!     hydraulic conductivity.                                           !
+!                                                                       !
+!  subprogram called:  none                                             !
+!                                                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     smc      - real, layer total soil moisture                   1    !
+!     smcmax   - real, porosity                                    1    !
+!     bexp     - real, soil type "b" parameter                     1    !
+!     dksat    - real, saturated soil hydraulic conductivity       1    !
+!     dwsat    - real, saturated soil diffusivity                  1    !
+!     sicemax  - real, max frozen water content in soil layer      1    !
+!                                                                       !
+!  outputs:                                                             !
+!     wdf      - real, soil water diffusivity                      1    !
+!     wcnd     - real, soil hydraulic conductivity                 1    !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+!  ---  input:
+      real (kind=kind_phys), intent(in)  :: smc, smcmax, bexp, dksat,   &
+     &       dwsat, sicemax
+
+!  ---  output:
+      real (kind=kind_phys), intent(out) :: wdf, wcnd
+
+!  ---  locals:
+      real (kind=kind_phys) :: expon, factr1, factr2, vkwgt
+!
+!===> ...  begin here
+!
+!  --- ...  calc the ratio of the actual to the max psbl soil h2o content
+
+      factr1 = 0.2 / smcmax
+      factr2 = smc / smcmax
+
+!  --- ...  prep an expntl coef and calc the soil water diffusivity
+
+      expon = bexp + 2.0
+      wdf = dwsat * factr2 ** expon
+
+!  --- ...  frozen soil hydraulic diffusivity.  very sensitive to the vertical
+!           gradient of unfrozen water. the latter gradient can become very
+!           extreme in freezing/thawing situations, and given the relatively
+!           few and thick soil layers, this gradient sufferes serious
+!           trunction errors yielding erroneously high vertical transports of
+!           unfrozen water in both directions from huge hydraulic diffusivity.
+!           therefore, we found we had to arbitrarily constrain wdf
+!
+!           version d_10cm:  .......  factr1 = 0.2/smcmax
+!           weighted approach.......  pablo grunmann, 28_sep_1999.
+
+      if (sicemax > 0.0) then
+        vkwgt = 1.0 / (1.0 + (500.0*sicemax)**3.0)
+        wdf = vkwgt*wdf + (1.0- vkwgt)*dwsat*factr1**expon
+      endif
+
+!  --- ...  reset the expntl coef and calc the hydraulic conductivity
+
+      expon = (2.0 * bexp) + 3.0
+      wcnd = dksat * factr2 ** expon
+!
+      return
+!...................................
+      end subroutine wdfcnd
+!-----------------------------------
+
+! =========================== !
+!     end contain programs    !
+! =========================== !
+
+!...................................
+      end subroutine sflx
+!-----------------------------------

@@ -10,8 +10,9 @@
 !                                                                      !
 !      'radinit'    -- initialization routine                          !
 !         input:                                                       !
-!           ( si, NLAY, iflip, NP3D,                                   !
-!             ISOL, ICO2, ICWP, IALB, IEMS, IAER, jdate, me )          !
+!           ( si, NLAY, iflip, idate, jdate, ICTM, ISOL, ICO2,         !
+!             IAER, IALB, IEMS, ICWP, NP3D, isubcsw, isubclw,          !
+!             iovrsw, iovrlw, me )                                     !
 !         output:                                                      !
 !           ( none )                                                   !
 !                                                                      !
@@ -21,15 +22,16 @@
 !            xlon,xlat,tsfc,snowd,sncovr,snoalb,zorl,hprim,            !
 !            alvsf,alnsf,alvwf,alnwf,facsf,facwf,fice,tisfc,           !
 !            solcon,coszen,coszdg,k1oz,k2oz,facoz,                     !
-!            cv,cvt,cvb,iovrsw,iovrlw,fcice,frain,rrime,               !
-!            np3d,ntcw,ncld,ntoz, NTRAC,NFXR,                          !
-!            dtlw,dtsw, lsswr,lslwr,lssav,                             !
-!            IX, IM, LM, iflip, me, lprnt,                             !
+!            cv,cvt,cvb,iovrsw,iovrlw,fcice,frain,rrime,flgmin,        !
+!            icsdsw,icsdlw, np3d,ntcw,ncld,ntoz, NTRAC,NFXR,           !
+!            dtlw,dtsw, lsswr,lslwr,lssav,sashal,norad_precip,         !
+!            crick_proof, ccnorm,                                      !
+!            IX, IM, LM, iflip, me, lprnt, ipt, kdt,                   !
 !         output:                                                      !
-!            htrsw,sfcnsw,sfcdsw,sfalb,                                !
-!            htrlw,sfcdlw,tsflw,cldcov,                                !
+!            htrsw,topfsw,sfcfsw,sfalb,                                !
+!            htrlw,topflw,sfcflw,tsflw,semis,cldcov,                   !
 !         input/output:                                                !
-!            fluxr,                                                    !
+!            fluxr                                                     !
 !         optional output:                                             !
 !            HTRSWB,HTRLWB)                                            !
 !                                                                      !
@@ -71,10 +73,53 @@
 !     04-10-07    yu-tai hou   - spectral band sw/lw heating rates     !
 !     05-04-07    yu-tai hou   - make options for clim based and modis !
 !                                based (h. wei and c. marshall) albedo !
-!     12-09-09    sarah lu     - grrad computes instant cloud cover    !
-!                               (instead of accumulative fields)       !
-!     01-09-10    sarah lu     - add gocart option                     !
-!     01-24-10    sarah lu     - add aod to fluxr                      !
+!     09-05-08    yu-tai hou   - add the initial date and time 'idate' !
+!                    and control param 'ICTM' to the passing param list!
+!                    to handel different time/date requirements for    !
+!                    external data (co2, aeros, solcon, ...)           !
+!     10-10-08    yu-tai hou   - add the ICTM=-2 option for combining  !
+!                    initial condition data with seasonal cycle from   !
+!                    climatology.                                      !
+!     03-12-09    yu-tai hou   - use two time stamps to keep tracking  !
+!                    dates for init cond and fcst time. remove volcanic!
+!                    aerosols data in climate hindcast (ICTM=-2).      !
+!     03-16-09    yu-tai hou   - included sub-column clouds approx.    !
+!                    control flags isubcsw/isubclw in initialization   !
+!                    subroutine. passed auxiliary cloud control arrays !
+!                    icsdsw/icsdlw (if isubcsw/isubclw =2, it will be  !
+!                    the user provided permutation seeds) to the sw/lw !
+!                    radiation calculation programs. also moved cloud  !
+!                    overlapping control flags iovrsw/iovrlw from main !
+!                    radiation routines to the initialization routines.!
+!     04-02-09    yu-tai hou   - modified surface control flag iems to !
+!                    have additional function of if the surface-air    !
+!                    interface have the same or different temperature  !
+!                    for radiation calculations.                       !
+!     04-03-09    yu-tai hou   - modified to add lw surface emissivity !
+!                    as output variable. changed the sign of sfcnsw to !
+!                    be positive value denote solar flux goes into the !
+!                    ground (this is needed to reduce sign confusion   !
+!                    in other part of model)                           !
+!     04-20-09    carlos perez - prepare driver for nmmb.  added option!
+!                    of run the gfs's radiation on nmmb                !
+!     09-09-09    fanglin yang (thru s.moorthi) added QME5 QME6 to E-20!
+!     01-09-10    sarah lu     - added gocart option, revised grrad for!
+!                    gocart coupling. calling argument modifed: ldiag3 !
+!                    removed; cldcov/fluxr sequence changed; cldcov is !
+!                    changed from accumulative to instant field and    !
+!                    from input/output to output field                 !
+!     01-24-10    sarah lu     - added aod to fluxr, added prslk and   !
+!                    oz to setaer input argument (for gocart coupling),!
+!                    added tau_gocart to setaer output argument (for,  !
+!                    aerosol diag)                                     !
+!     07-08-10    s.moorthi - updated the NEMS version for new physics !
+!     07-28-10    yu-tai hou   - changed grrad interface to allow all  !
+!                    components of sw/lw toa/sfc instantaneous values  !
+!                    being passed to the calling program. moved the    !
+!                    computaion of sfc net sw flux (sfcnsw) to the     !
+!                    calling program. merged carlos' nmmb modification.!
+!     07-30-10    s. moorthi - corrected some errors associated with   !
+!                    unit changes                                      !
 !                                                                      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
@@ -95,7 +140,7 @@
       use module_radiation_gases,   only : NF_VGAS, getgases, getozn,   &
      &                                     gasinit
       use module_radiation_aerosols,only : NF_AESW, aerinit, setaer,    &
-     &                                     NF_AELW,                     &
+     &                                     NF_AELW, laswflg,            &
 ! --- add nv_aod for aerosol diag (Sarah Lu)
      &                                     nv_aod
       use module_radiation_surface, only : NF_ALBD, sfcinit, setalb,    &
@@ -119,13 +164,18 @@
 
 !  ---  constant values
       real (kind=kind_phys) :: QMIN, QME5, QME6, EPSQ
-      parameter ( QMIN=1.0e-10, QME5=1.0e-5, QME6=1.0e-6, EPSQ=1.0e-12 )
+!     parameter (QMIN=1.0e-10, QME5=1.0e-5,  QME6=1.0e-6,  EPSQ=1.0e-12)
+      parameter (QMIN=1.0e-10, QME5=1.0e-7,  QME6=1.0e-7,  EPSQ=1.0e-12)
+!     parameter (QMIN=1.0e-10, QME5=1.0e-20, QME6=1.0e-20, EPSQ=1.0e-12)
 
 !     real (kind=kind_phys), parameter :: psthk = 10.0 ! sfc air press thkness
 !                                                      ! (mb) for tsflw calc.
 
-!  ---  control variables
-      integer :: irad1st=1,   month0=0,   iyear0=0
+!  ---  data input control variables
+      integer :: irad1st=1,   month0=0,   iyear0=0,   monthd=0
+
+!  ---  lw surface air/ground interface temperature setting variable
+      integer :: itsfc=0
 
       public radinit, grrad
 
@@ -140,8 +190,9 @@
 !...................................
 
 !  ---  inputs:
-     &     ( si, NLAY, iflip, NP3D,                                     &
-     &       ISOL, ICO2, ICWP, IALB, IEMS, IAER, jdate, me )
+     &     ( si, NLAY, iflip, idate, jdate, ICTM, ISOL, ICO2,           &
+     &       IAER, IALB, IEMS, ICWP, NP3D, isubcsw, isubclw,            &
+     &       iovrsw, iovrlw, me )
 !  ---  outputs:
 !          ( none )
 
@@ -167,29 +218,62 @@
 !   iflip            : control flag for direction of vertical index     !
 !                     =0: index from toa to surface                     !
 !                     =1: index from surface to toa                     !
-!   NP3D             :=3: ferrier's microphysics cloud scheme           !
-!                     =4: zhao/carr/sundqvist microphysics cloud        !
+!   idate(8)         : ncep absolute date and time of initial condition !
+!                      (yr, mon, day, t-zone, hr, min, sec, mil-sec)    !
+!   jdate(8)         : ncep absolute date and time at fcst time         !
+!                      (yr, mon, day, t-zone, hr, min, sec, mil-sec)    !
+!   ICTM             :=yyyy#, external data time/date control flag      !
+!                     =   -2: same as 0, but superimpose seasonal cycle !
+!                             from climatology data set.                !
+!                     =   -1: use user provided external data for the   !
+!                             forecast time, no extrapolation.          !
+!                     =    0: use data at initial cond time, if not     !
+!                             available, use latest, no extrapolation.  !
+!                     =    1: use data at the forecast time, if not     !
+!                             available, use latest and extrapolation.  !
+!                     =yyyy0: use yyyy data for the forecast time,      !
+!                             no further data extrapolation.            !
+!                     =yyyy1: use yyyy data for the fcst. if needed, do !
+!                             extrapolation to match the fcst time.     !
 !   ISOL             :=0: use a fixed solar constant value              !
 !                     =1: use 11-year cycle solar constant table        !
 !   ICO2             :=0: use prescribed global mean co2 (old  oper)    !
 !                     =1: use observed co2 annual mean value only       !
 !                     =2: use obs co2 monthly data with 2-d variation   !
-!   ICWP             : control flag for cloud generation schemes        !
-!                     =0: use diagnostic cloud scheme                   !
-!                     =1: use prognostic cloud scheme (default)         !
+!   IAER             : 3-digit aerosol flag (for volc, lw, sw)          !
+!                     =  0: turn all aeros effects off (sw,lw,volc)     !
+!                     =  1: use clim tropspheric aerosol for sw only    !
+!                     = 10: use clim tropspheric aerosol for lw only    !
+!                     = 11: use clim tropspheric aerosol for both sw/lw !
+!                     =100: volc aerosol only for both sw and lw        !
+!                     =101: volc and clim trops aerosol for sw only     !
+!                     =110: volc and clim trops aerosol for lw only     !
+!                     =111: volc and clim trops aerosol for both sw/lw  !
+!                     = 2: gocart prognostic, without volc forcing      !
+!                     =12: gocart prognostic, with volcanic forcing     !
 !   IALB             : control flag for surface albedo schemes          !
 !                     =0: climatology, based on surface veg types       !
 !                     =1: modis retrieval based surface albedo scheme   !
-!   IEMS             : control flag for surface emissivity schemes      !
-!                     =0: fixed value of 1.0                            !
-!                     =1: varying value based on surface veg types      !
-!   IAER             : flag for aerosols scheme selection               !
-!                     = 1: opac climatology, without volc forcing       !
-!                     =11: opac climatology, with volcanic forcing      !
-!                     = 2: gocart prognostic, without volc forcing      !
-!                     =12: gocart prognostic, with volcanic forcing     !
-!   jdate(8)         : ncep absolute date and time                      !
-!                      (yr, mon, day, t-zone, hr, min, sec, mil-sec)    !
+!                     =2: use externally provided albedoes directly.    !
+!   IEMS             : ab 2-digit control flag                          !
+!                      a =0 set sfc air/ground t same for lw radiation  !
+!                        =1 set sfc air/ground t diff for lw radiation  !
+!                      b =0 use fixed sfc emissivity=1.0 (black-body)   !
+!                        =1 use varying climtology sfc emiss (veg based)!
+!                        =2 future development (not yet)                !
+!   ICWP             : control flag for cloud generation schemes        !
+!                     =0: use diagnostic cloud scheme                   !
+!                     =1: use prognostic cloud scheme (default)         !
+!   NP3D             :=3: ferrier's microphysics cloud scheme           !
+!                     =4: zhao/carr/sundqvist microphysics cloud        !
+!                     =5: nmmb ferrier+bmj microphysics scheme          !
+!   isubcsw/isubclw  : sub-column cloud approx control flag (sw/lw rad) !
+!                     =0: with out sub-column cloud approximation       !
+!                     =1: mcica sub-col approx. prescribed random seed  !
+!                     =2: mcica sub-col approx. provided random seed    !
+!   iovrsw/iovrlw    : control flag for cloud overlap (sw/lw rad)       !
+!                     =0: random overlapping clouds                     !
+!                     =1: max/ran overlapping clouds                    !
 !   me               : print control flag                               !
 !                                                                       !
 !  outputs: (none)                                                      !
@@ -203,45 +287,119 @@
       implicit none
 
 !  ---  inputs:
-      integer, intent(in) :: NLAY, iflip, NP3D, ISOL, ICO2, ICWP,       &
-     &                       IALB, IEMS, IAER, me
-      integer, intent(in) :: jdate(:)
+      integer, intent(in) :: NLAY, iflip, NP3D, ICTM, ISOL, ICO2, ICWP, &
+     &                       IALB, IEMS, IAER, me, isubcsw, isubclw,    &
+     &                       iovrsw, iovrlw
+      integer, intent(in) :: idate(:), jdate(:)
 
       real (kind=kind_phys), intent(in) :: si(:)
 
 !  ---  outputs: (none)
 
 !  ---  locals:
-      integer :: iyear, month, iday, ihour
+      integer :: iyear, month, iydat, imdat, iaeros, iemslw
+!     integer :: iday, ihour, iddat, ihdat         ! for future use
 
 !
 !===> ...  begin here
 !
+      iaeros = IAER                     ! aerosols control flag
+      iemslw = mod(IEMS, 10)            ! emissivity control
+      itsfc  = IEMS / 10                ! sfc air/ground temp control
 
-      if ( irad1st == 1 ) then
-        if (me == 0) then
-!          print *,' NEW RADIATION PROGRAM STRUCTURES -- SEP 01 2004'
-           print *,' NEW RADIATION PROGRAM STRUCTURES BECAME OPER. ',   &
-     &             '  May 01 2007'
-        endif
-      endif
+!  --- ...  time stamp at fcst time
 
       iyear = jdate(1)
       month = jdate(2)
 !     iday  = jdate(3)
 !     ihour = jdate(5)
 
-!  --- ...  call aerosols and co2 initialization routines
+!  --- ...  set up time stamp used for green house gases (** currently co2 only)
+
+      if ( ICTM==0 .or. ICTM==-2 ) then ! get external data at initial condition time
+        iydat = idate(1)
+        imdat = idate(2)
+!       iddat = idate(3)
+!       ihdat = idate(5)
+
+        iaeros = mod(IAER, 100)   ! no volcanic aerosols for clim hindcast
+      else                        ! get external data at fcst or specified time
+        iydat = iyear
+        imdat = month
+!       iddat = iday
+!       ihdat = ihour
+      endif   ! end if_ICTM_block
+
+      if ( irad1st == 1 ) then
+        if (me == 0) then
+!         print *,' NEW RADIATION PROGRAM STRUCTURES -- SEP 01 2004'
+          print *,' NEW RADIATION PROGRAM STRUCTURES BECAME OPER. ',    &
+     &            '  May 01 2007'
+          print *,' - Selected Control Flag settings: ICTM=',ictm,      &
+     &            ' ISOL=',isol,' ICO2=',ico2,' NP3D=',np3d,' ICWP=',   &
+     &            icwp,' IALB=',ialb,' IEMS=',iems,' IAER=',iaer,       &
+     &            ' ISUBC_LW=',isubclw,' ISUBC_SW=',isubcsw
+
+          if ( ICTM==0 .or. ICTM==-2 ) then
+            print *,'   Data usage is limited by initial condition ',   &
+     &              'time:',idate
+          endif
+
+          if ( isubclw == 0 ) then
+            print *,' - ISUBC_LW=',isubclw,' No McICA, use grid ',      &
+     &              'averaged cloud in LW radiation'
+          elseif ( isubclw == 1 ) then
+            print *,' - ISUBC_LW=',isubclw,' Use McICA with fixed',     &
+     &              'permutation seeds for LW random number generator'
+          elseif ( isubclw == 2 ) then
+            print *,' - ISUBC_LW=',isubclw,' Use McICA with random ',   &
+     &              'permutation seeds for LW random number generator'
+          else
+            print *,' - ERROR!!! ISUBC_LW=',isubclw,' is not a ',       &
+     &              'valid option '
+            stop
+          endif
+
+          if ( isubcsw == 0 ) then
+            print *,' - ISUBC_SW=',isubcsw,' No McICA, use grid ',      &
+     &              'averaged cloud in SW radiation'
+          elseif ( isubcsw == 1 ) then
+            print *,' - ISUBC_SW=',isubcsw,' Use McICA with fixed',     &
+     &              'permutation seeds for SW random number generator'
+          elseif ( isubcsw == 2 ) then
+            print *,' - ISUBC_SW=',isubcsw,' Use McICA with random ',   &
+     &              'permutation seeds for SW random number generator'
+          else
+            print *,' - ERROR!!! ISUBC_SW=',isubcsw,' is not a ',       &
+     &              'valid option '
+            stop
+          endif
+
+          if ( isubcsw /= isubclw ) then
+            print *,' - *** Notice *** ISUBC_SW /= ISUBC_LW !!!',       &
+     &              isubcsw, isubclw
+          endif
+        endif
+      endif
+
+!  --- ...  call aerosols initialization routine
 
       if ( month0 /= month ) then
         month0 = month
+
         if ( iaersw==1 .or. iaerlw==1 ) then
 
-          call aerinit ( iyear, month, IAER, me )
+          call aerinit ( iyear, month, iaeros, me )
 
         endif
+      endif
 
-        call gasinit ( iyear, month, ICO2, me )
+!  --- ...  call co2 and other gases initialization routine
+
+      if ( monthd /= imdat ) then
+        monthd = imdat
+
+        call gasinit ( iydat, imdat, ICTM, ICO2, me )
       endif
 
 !  --- ...  call astronomy initialization routine
@@ -249,14 +407,14 @@
       if ( ISOL == 0 ) then
 
         if ( irad1st == 1) then
-          call solinit ( ISOL, iyear, me )
+          call solinit ( ISOL, iyear, iydat, me )
         endif
 
       else
 
         if ( iyear0 /= iyear ) then
           iyear0 = iyear
-          call solinit ( ISOL, iyear, me )
+          call solinit ( ISOL, iyear, iydat, me )
         endif
 
       endif
@@ -269,7 +427,7 @@
 
 !  --- ...  call surface initialization routine
 
-        call sfcinit ( NLAY, iflip, IALB, IEMS, me )
+        call sfcinit ( NLAY, iflip, IALB, iemslw, me )
 
 !  --- ...  call cloud initialization routine
 
@@ -277,11 +435,11 @@
 
 !  --- ...  call lw radiation initialization routine
 
-        call rlwinit ( ICWP, me, NLAY )
+        call rlwinit ( ICWP, me, NLAY, iovrlw, isubclw )
 
 !  --- ...  call sw radiation initialization routine
 
-        call rswinit ( ICWP, me, NLAY )
+        call rswinit ( ICWP, me, NLAY, iovrsw, isubcsw )
 
       endif      ! end of if_irad1st_block
 !
@@ -295,24 +453,19 @@
       subroutine grrad                                                  &
 !...................................
 
-!* Revisions for gocart coupling  (Sarah Lu)
-!* calling argument modifed: ldiag3 removed; cldcov/fluxr sequence changed
-!* cldcov (3D cloud cover) is changed from accumulative to instant field;
-!                                     from input/output to output field
-
 !  ---  inputs:
      &     ( prsi,prsl,prslk,tgrs,qgrs,oz,vvl,slmsk,                    &
      &       xlon,xlat,tsfc,snowd,sncovr,snoalb,zorl,hprim,             &
      &       alvsf,alnsf,alvwf,alnwf,facsf,facwf,fice,tisfc,            &
      &       solcon,coszen,coszdg,k1oz,k2oz,facoz,                      &
      &       cv,cvt,cvb,iovrsw,iovrlw,fcice,frain,rrime,flgmin,         &
-     &       np3d,ntcw,ncld,ntoz, NTRAC,NFXR,                           &
-     &       dtlw,dtsw, lsswr,lslwr,lssav,sashal,                       &
-     &       IX, IM, LM, iflip, me, lprnt,                              &
+     &       icsdsw,icsdlw, np3d,ntcw,ncld,ntoz, NTRAC,NFXR,            &
+     &       dtlw,dtsw, lsswr,lslwr,lssav,sashal,norad_precip,          &
+     &       crick_proof, ccnorm,                                       &
+     &       IX, IM, LM, iflip, me, lprnt, ipt, kdt,                    &
 !  ---  outputs:
-     &       htrsw,sfcnsw,sfcdsw,sfalb,                                 &
-     &       htrlw,sfcdlw,tsflw,                                        &
-     &       cldcov,                                                    &
+     &       htrsw,topfsw,sfcfsw,sfalb,                                 &
+     &       htrlw,topflw,sfcflw,tsflw,semis,cldcov,                    &
 !  ---  input/output:
      &       fluxr                                                      &
 !! ---  optional outputs:
@@ -324,6 +477,7 @@
 !    this program is the driver of radiation calculation subroutines. * !
 !    It sets up profile variables for radiation input, including      * !
 !    clouds, surface albedos, atmospheric aerosols, ozone, etc.       * !
+!                                                                     * !
 !                                                                     * !
 !    usage:        call grrad                                         * !
 !                                                                     * !
@@ -340,13 +494,13 @@
 !  ====================  defination of variables  ====================  !
 !                                                                       !
 !    input variables:                                                   !
-!      prsi  (IX,LM+1) : model level pressure in cb (kPa)               !
-!      prsl  (IX,LM)   : model layer mean pressure in cb (kPa)          !
-!      prslk (IX,LM)   : pressure in cb (kPa)                           !
+!      prsi  (IX,LM+1) : model level pressure in Pa                     !
+!      prsl  (IX,LM)   : model layer mean pressure in Pa                !
+!      prslk (IX,LM)   : Exner function                                 !
 !      tgrs  (IX,LM)   : model layer mean temperature in k              !
 !      qgrs  (IX,LM)   : layer specific humidity in gm/gm               !
 !      oz  (IX,LM,NTRAC):layer ozone mass mixing ratio                  !
-!      vvl   (IX,LM)   : layer mean vertical velocity in cb/sec         !
+!      vvl   (IX,LM)   : layer mean vertical velocity in Pa/sec         !
 !      slmsk (IM)      : sea/land mask array (sea:0,land:1,sea-ice:2)   !
 !      xlon,xlat (IM)  : grid longitude/latitude in radians             !
 !      tsfc  (IM)      : surface temperature in k                       !
@@ -376,8 +530,14 @@
 !      frain           : fraction of rain water (in ferrier scheme)     !
 !      rrime           : mass ratio of total to unrimed ice ( >= 1 )    !
 !      flgmin          : minimim large ice fraction                     !
+!      icsdsw/icsdlw   : auxiliary cloud control arrays passed to main  !
+!           (IM)         radiations. if isubcsw/isubclw (input to init) !
+!                        are set to 2, the arrays contains provided     !
+!                        random seeds for sub-column clouds generators  !
 !      np3d            : =3 brad ferrier microphysics scheme            !
 !                        =4 zhao/carr/sundqvist microphysics scheme     !
+!                        =5 external microphysics scheme provided bulk/ !
+!                           grey quantities of cloud fields. (nmmb vars)!
 !      ntcw            : =0 no cloud condensate calculated              !
 !                        >0 array index location for cloud condensate   !
 !      ncld            : only used when ntcw .gt. 0                     !
@@ -388,6 +548,10 @@
 !      dtlw, dtsw      : time duration for lw/sw radiation call in sec  !
 !      lsswr, lslwr    : logical flags for sw/lw radiation calls        !
 !      lssav           : logical flag for store 3-d cloud field         !
+!      sashal          : logical flag for Jongil's shallow convection   !
+!      norad_precip    : logical flag for not using precip in radiation !
+!      crick_proof     : logical flag for eliminating CRICK             !
+!      ccnorm          : logical flag for incloud condensate mixing ratio!
 !      IX,IM           : horizontal dimention and num of used points    !
 !      LM              : vertical layer dimension                       !
 !      iflip           : control flag for in/out vertical indexing      !
@@ -395,19 +559,79 @@
 !                        =1 index from surface to toa                   !
 !      me              : control flag for parallel process              !
 !      lprnt           : control flag for diagnostic print out          !
+!      ipt             : index for diagnostic printout point            !
+!      kdt             : time-step number                               !
 !                                                                       !
 !    output variables:                                                  !
 !      htrsw (IX,LM)   : total sky sw heating rate in k/sec             !
-!      sfcnsw(IM)      : total sky surface net sw flux in w/m**2        !
-!      sfcdsw(IM)      : total sky surface downward sw flux in w/m**2   !
-!      sfalb (IM)      : mean surface diffused albedo                   !
+!      topfsw(IM)      : sw radiation fluxes at toa, components:        !
+!                      (check module_radsw_parameters for definition)   !
+!       %upfxc           - total sky upward sw flux at toa (w/m**2)     !
+!       %dnflx           - total sky downward sw flux at toa (w/m**2)   !
+!       %upfx0           - clear sky upward sw flux at toa (w/m**2)     !
+!      sfcfsw(IM)      : sw radiation fluxes at sfc, components:        !
+!                      (check module_radsw_parameters for definition)   !
+!       %upfxc           - total sky upward sw flux at sfc (w/m**2)     !
+!       %dnfxc           - total sky downward sw flux at sfc (w/m**2)   !
+!       %upfx0           - clear sky upward sw flux at sfc (w/m**2)     !
+!       %dnfx0           - clear sky downward sw flux at sfc (w/m**2)   !
+!      sfalb (IM)      : mean surface diffused sw albedo                !
+!      cldcov(IX,LM)   : 3-d cloud fraction                             !
 !      htrlw (IX,LM)   : total sky lw heating rate in k/sec             !
-!      sfcdlw(IM)      : total sky surface downward lw flux in w/m**2   !
+!      topflw(IM)      : lw radiation fluxes at top, component:         !
+!                        (check module_radlw_paramters for definition)  !
+!       %upfxc           - total sky upward lw flux at toa (w/m**2)     !
+!       %upfx0           - clear sky upward lw flux at toa (w/m**2)     !
+!      sfcflw(IM)      : lw radiation fluxes at sfc, component:         !
+!                        (check module_radlw_paramters for definition)  !
+!       %upfxc           - total sky upward lw flux at sfc (w/m**2)     !
+!       %upfx0           - clear sky upward lw flux at sfc (w/m**2)     !
+!       %dnfxc           - total sky downward lw flux at sfc (w/m**2)   !
+!       %dnfx0           - clear sky downward lw flux at sfc (w/m**2)   !
+!      semis (IM)      : surface lw emissivity in fraction              !
 !      tsflw (IM)      : surface air temp during lw calculation in k    !
-!      cldcov(IX,LM)   : to save 3-d cloud fraction                     !
 !                                                                       !
 !    input and output variables:                                        !
-!      fluxr (IX,NFXR) : to save 2-d fields                             !
+!      fluxr (IX,NFXR) : to save time accumulated 2-d fields defined as:!
+!                 1      - toa total sky upwd lw radiation flux         !
+!                 2      - toa total sky upwd sw radiation flux         !
+!                 3      - sfc total sky upwd sw radiation flux         !
+!                 4      - sfc total sky dnwd sw radiation flux         !
+!                 5      - high domain cloud fraction                   !
+!                 6      - mid  domain cloud fraction                   !
+!                 7      - low  domain cloud fraction                   !
+!                 8      - high domain mean cloud top pressure          !
+!                 9      - mid  domain mean cloud top pressure          !
+!                10      - low  domain mean cloud top pressure          !
+!                11      - high domain mean cloud base pressure         !
+!                12      - mid  domain mean cloud base pressure         !
+!                13      - low  domain mean cloud base pressure         !
+!                14      - high domain mean cloud top temperature       !
+!                15      - mid  domain mean cloud top temperature       !
+!                16      - low  domain mean cloud top temperature       !
+!                17      -                                              !
+!                18      - toa incoming solar radiation flux            !
+!                19      - sfc total sky dnwd lw radiation flux         !
+!                20      - sfc total sky upwd lw radiation flux         !
+!                21      - sfc total sky dnwd sw uv-b radiation flux    !
+!                22      - sfc clear sky dnwd sw uv-b radiation flux    !
+!                23      -                                              !
+!                24      -                                              !
+!                25      -                                              !
+!                26      - total cloud fraction                         !
+!                27      - boundary layer domain cloud fraction         !
+!                28      - toa clear sky upwd lw radiation flux         !
+!                29      - toa clear sky upwd sw radiation flux         !
+!                30      - sfc clear sky dnwd lw radiation flux         !
+!                31      - sfc clear sky upwd sw radiation flux         !
+!                32      - sfc clear sky dnwd sw radiation flux         !
+!                33      - sfc clear sky upwd lw radiation flux         !
+!                34      - aeros opt depth at 550nm (all components)    !
+!                35      - aeros opt depth at 550nm for du component    !
+!                36      - aeros opt depth at 550nm for bc component    !
+!                37      - aeros opt depth at 550nm for oc component    !
+!                38      - aeros opt depth at 550nm for su component    !
+!                39      - aeros opt depth at 550nm for ss component    !
 !                                                                       !
 !    optional output variables:                                         !
 !      htrswb(IX,LM,NBDSW) : spectral band total sky sw heating rate    !
@@ -513,13 +737,16 @@
       implicit none
  
 !  ---  constant parameter
-      integer, parameter :: NSPC = 6   
+      integer, parameter :: NSPC = 6
 
-!  ---  inputs: (horizontal dimensioned by IX)
+!  ---  inputs: (for rank>1 arrays, horizontal dimensioned by IX)
       integer,  intent(in) :: IX,IM, LM, NTRAC,NFXR, iflip, me,         &
-     &       k1oz, k2oz, iovrsw, iovrlw, np3d, ntoz, ntcw, ncld
+     &       k1oz, k2oz, iovrsw, iovrlw, np3d, ntoz, ntcw, ncld,        &
+     &       ipt,  kdt
+      integer,  intent(in) :: icsdsw(IM), icsdlw(IM)
 
-      logical,  intent(in) :: lsswr, lslwr, lssav, lprnt, sashal
+      logical,  intent(in) :: lsswr,  lslwr, lssav, lprnt,              &
+     &                        sashal, norad_precip, crick_proof, ccnorm
 
       real (kind=kind_phys), dimension(IX,LM+1), intent(in) ::  prsi
 
@@ -532,19 +759,24 @@
      &       alnwf, facsf, facwf, coszen, coszdg, cv, cvt, cvb, fice,   &
      &       tisfc, sncovr, snoalb
 
-      real (kind=kind_phys),  intent(in) ::  solcon, facoz, dtlw, dtsw, &
+      real (kind=kind_phys), intent(in) ::  solcon, facoz, dtlw, dtsw,  &
      &       oz(IX,LM,NTRAC)
 
 !  ---  outputs: (horizontal dimensioned by IX)
-      real (kind=kind_phys), dimension(IX,LM),intent(out):: htrsw,htrlw,&
-     &                                                      cldcov
+      real (kind=kind_phys), dimension(IX,LM),intent(out):: htrsw,htrlw
 
-      real (kind=kind_phys), dimension(IM),   intent(out):: sfcnsw,     &
-     &       sfcdlw, tsflw, sfcdsw, sfalb
+      real (kind=kind_phys), dimension(IM),   intent(out):: tsflw,      &
+     &       sfalb, semis
+
+      type (topfsw_type), dimension(IM), intent(out) :: topfsw
+      type (sfcfsw_type), dimension(IM), intent(out) :: sfcfsw
+
+      type (topflw_type), dimension(IM), intent(out) :: topflw
+      type (sfcflw_type), dimension(IM), intent(out) :: sfcflw
 
 !  ---  variables are for both input and output:
       real (kind=kind_phys),                  intent(inout) ::          &
-     &       fluxr(IX,NFXR)
+     &       fluxr(IX,NFXR), cldcov(IX,LM)
 
 !! ---  optional outputs:
       real (kind=kind_phys), dimension(IX,LM,NBDSW), optional,          &
@@ -559,7 +791,7 @@
      &       olyr, rhly, qstl, vvel, clw, tem2da, tem2db
 
       real (kind=kind_phys), dimension(IM) :: tsfa, cvt1, cvb1, tem1d,  &
-     &       sfcemis
+     &       sfcemis, tsfg, tskn
 
       real (kind=kind_phys), dimension(IM,NSPC)       :: aod
 
@@ -574,11 +806,6 @@
       real (kind=kind_phys), dimension(IM,LM) :: htswc
       real (kind=kind_phys), dimension(IM,LM) :: htlwc
 
-      type (topfsw_type),    dimension(IM) :: topfsw
-      type (topflw_type),    dimension(IM) :: topflw
-
-      type (sfcfsw_type),    dimension(IM) :: sfcfsw
-      type (sfcflw_type),    dimension(IM) :: sfcflw
 
 !! ---  may be used for optional sw/lw outputs:
 !!      take out "!!" as needed
@@ -594,7 +821,7 @@
       real (kind=kind_phys) :: raddt, es, qs, delt, tem0d, cldsa(IM,5)
 
       integer :: i, j, k, k1, lv, icec, itop, ibtc, nday, idxday(IM),   &
-     &       mbota(IM,3), mtopa(IM,3), LP1
+     &       mbota(IM,3), mtopa(IM,3), LP1, nb
 
 !  ---  for debug test use
 !     real (kind=kind_phys) :: temlon, temlat, alon, alat
@@ -628,7 +855,7 @@
 
       do k = 1, LM
         do i = 1, IM
-          es  = min( prsl(i,k), 0.001 * fpvs( tgrs(i,k) ) )   ! fpvs in pa
+          es  = min( prsl(i,k), fpvs( tgrs(i,k) ) )   ! fpvs in pa
           qs  = max( QMIN, con_eps * es / (prsl(i,k) + con_epsm1*es) )
           rhly(i,k) = max( 0.0, min( 1.0, max(QMIN, qgrs(i,k))/qs ) )
           qstl(i,k) = qs
@@ -664,21 +891,40 @@
 
       endif                            ! end_if_ntoz
 
-!  --- ...  prepare atmospheric profiles for radiation input
-!           convert pressure unit from cb to mb
+!  --- ...  setup surface ground temp and ground/air skin temp if required
 
+      if ( itsfc == 0 ) then            ! use same sfc skin-air/ground temp
+        tskn(:) = tsfc(:)
+        tsfg(:) = tsfc(:)
+      else                              ! use diff sfc skin-air/ground temp
+!!      tskn(:) = ta  (:)               ! not yet
+!!      tsfg(:) = tg  (:)               ! not yet
+        tskn(:) = tsfc(:)
+        tsfg(:) = tsfc(:)
+      endif
+
+!  --- ...  prepare atmospheric profiles for radiation input
+!           convert pressure unit from Pa to mb
+
+!     if (im > ipt) then
+!       write(0,*)' prsi=',prsi(ipt,1:10)
+!       write(0,*)' prsi=',prsl(ipt,1:10)
+!       write(0,*)' tgrs=',tgrs(ipt,1:10)
+!     endif
       do k = 1, LM
         do i = 1, IM
-          plvl(i,k) = 10.0 * prsi(i,k)
-          plyr(i,k) = 10.0 * prsl(i,k)
-          vvel(i,k) = 10.0 * vvl (i,k)
+!         plvl(i,k) = 10.0 * prsi(i,k)
+!         plyr(i,k) = 10.0 * prsl(i,k)
+          plvl(i,k) = 0.01 * prsi(i,k)
+          plyr(i,k) = 0.01 * prsl(i,k)
           tlyr(i,k) = tgrs(i,k)
           olyr(i,k) = max( QMIN, olyr(i,k) )
         enddo
       enddo
 
       do i = 1, IM
-        plvl(i,LP1) = 10.0 * prsi(i,LP1)
+!       plvl(i,LP1) = 10.0 * prsi(i,LP1)
+        plvl(i,LP1) = 0.01 * prsi(i,LP1)
       enddo
 
 !  --- ...  set up non-prognostic gas volume mixing ratioes
@@ -708,7 +954,7 @@
           tem2db(i,1) = 1.0
           tsfa  (i)   = tlyr(i,LM)                   ! sfc layer air temp
           tlvl(i,1)   = tlyr(i,1)
-          tlvl(i,LP1) = tsfc(i)
+          tlvl(i,LP1) = tskn(i)
         enddo
 
         do k = 1, LM
@@ -726,25 +972,6 @@
           enddo
         enddo
 
-!  ---  save mean surface air temp for later sfc lw down calc
-
-        tsflw (1:IM) = tlyr(1:IM,LM)
-
-!       do i = 1, IM
-!option   tsflw (i) = tsfa(i)      ! save sfc layer air temp
-!         tsflw (i) = tlyr(i,LM)
-                                   ! or use code below
-!         lv = 0
-!         tem0d = 0.0
-!         Lab_do_k0 : do k = LM, 1, -1
-!           lv    = lv + 1
-!           tem0d = tem0d + tlyr(i,k)
-!           if (plvl(i,LP1)-plvl(i,k) > psthk) exit Lab_do_k0
-!         enddo  Lab_do_k0
-
-!         tsflw (i) = tem0d / lv   ! simple avg for small psthk val
-!       enddo
-
       else                               ! input data from sfc to toa
 
         do i = 1, IM
@@ -752,7 +979,7 @@
           tem2da(i,1) = log( plyr(i,1) )
           tem2db(i,1) = log( plvl(i,1) )
           tsfa  (i)   = tlyr(i,1)                    ! sfc layer air temp
-          tlvl(i,1)   = tsfc(i)
+          tlvl(i,1)   = tskn(i)
           tlvl(i,LP1) = tlyr(i,LM)
         enddo
 
@@ -771,24 +998,6 @@
           enddo
         enddo
 
-!  ---  save mean surface air temp for later sfc lw down calc
-
-        tsflw (1:IM) = tlyr(1:IM,1)
-
-!       do i = 1, IM
-!option   tsflw (i) = tsfa(i)      ! save sfc layer air temp
-                                   ! or use code below
-!         lv = 0
-!         tem0d = 0.0
-!         Lab_do_k1 : do k = 1, LM
-!           lv    = lv + 1
-!           tem0d = tem0d + tlyr(i,k)
-!           if (plvl(i,1)-plvl(i,k+1) > psthk) exit Lab_do_k1
-!         enddo  Lab_do_k1
-
-!         tsflw (i) = tem0d / lv   ! simple avg for small psthk val
-!       enddo
-
       endif                              ! end_if_iflip
 
 !  ---  check for daytime points
@@ -803,55 +1012,59 @@
 
 !  --- ...  setup aerosols property profile for radiation
 
-      faersw(:,:,:,:) = 0.0
-      faerlw(:,:,:,:) = 0.0
+      do j=1,nf_aesw
+        do nb=1,nbdsw
+          do k=1,lm
+            do i=1,im
+               faersw(i,k,nb,j) = 0.0
+               faerlw(i,k,nb,j) = 0.0
+            enddo
+          enddo
+        enddo
+      enddo
 
       aod       (:,:)   = 0.0
       tau_gocart(:,:,:) = 0.0
 
       if (iaersw==1 .or. iaerlw==1) then
 
-!  --- ...  prslk -> tem2da (added for gocart coupling)                                    
-        do k = 1, LM                                     
-          do i = 1, IM                             
-            tem2da(i,k) = prslk(i,k)              
-          enddo                                
-        enddo         
+!  --- ...  prslk -> tem2da (added for gocart coupling)
+
+        do k = 1, LM
+          do i = 1, IM
+            tem2da(i,k) = prslk(i,k)
+          enddo
+        enddo
 
 !check  print *,' in grrad : calling setaer '
 
-!add tem2da and oz to setaer input argument(for gocart coupling)
-!add tau_gocart to setaer output argument(for aerosol diag)
         call setaer                                                     &
 !  ---  inputs:
-     &     ( xlon,xlat,plvl,plyr,tlyr,qlyr,rhly,                        &
-     &       tem2da, oz,                                                &
+     &     ( xlon,xlat,plvl,plyr,tlyr,qlyr,rhly,tem2da,oz,              &
      &       IM,LM,LP1, iflip, lsswr,lslwr,                             &
 !  ---  outputs:
-     &       faersw,faerlw                                              &
-     &,      tau_gocart                                                 &
+     &       faersw,faerlw,tau_gocart                                   &
      &     )
 
       endif           ! end_if_iaersw_iaerlw
 
-      if ( iaersw==1 ) then
-!
+      if ( laswflg ) then
+ 
 !  --- ...  update aod (column integrated aerosol optical depth)
-        do i = 1, IM                             
+        do i = 1, IM
           do j = 1, NSPC
             do k = 1, LM
               if ( j == NSPC ) then
                 aod(i,j) = aod(i,j) + faersw(i,k,nv_aod,1)
-              else                                     
+              else 
                 aod(i,j) = aod(i,j) + tau_gocart(i,k,j)
               endif
-            enddo         
-          enddo         
-        enddo         
+            enddo  
+          enddo    
+        enddo
 
 
-      endif           ! end_if_iaersw_iaerlw
-
+      endif           ! end_if_iaersw_iaersw
 
 !  --- ...  obtain cloud information for radiation calculations
 
@@ -880,8 +1093,7 @@
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,qlyr,qstl,rhly,clw,                         &
      &       xlat,xlon,slmsk,                                           &
-     &       IM, LM, LP1, iflip, iovrsw, sashal,                        &
-!    &       IM, LM, LP1, iflip, iovrsw,                                &
+     &       IM, LM, LP1, iflip, iovrsw, sashal, crick_proof, ccnorm,   &
 !  ---  outputs:
      &       clouds,cldsa,mtopa,mbota                                   &
      &      )
@@ -893,8 +1105,32 @@
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,qlyr,qstl,rhly,clw,                         &
      &       xlat,xlon,slmsk, fcice,frain,rrime,flgmin,                 &
-     &       IM, LM, LP1, iflip, iovrsw, sashal,                        &
+     &       IM, LM, LP1, iflip, iovrsw, sashal, norad_precip,          &
+     &       crick_proof, ccnorm,                                       &
+!  ---  outputs:
+     &       clouds,cldsa,mtopa,mbota                                   &
+     &      )
+
+        elseif (np3d == 5) then          ! nmmb ferrier+bmj
+
+!     print *,' in grrad : calling progcld3'
+!         call progcld3                                                 &
+!  ---  inputs:
+!    &     ( plyr,plvl,tlyr,qlyr,qstl,rhly,clw,                         &
+!    &       xlat,xlon,slmsk, fcice,frain,rrime,flgmin,                 &
 !    &       IM, LM, LP1, iflip, iovrsw,                                &
+!  ---  outputs:
+!    &       clouds,cldsa,mtopa,mbota                                   &
+!    &      )
+
+      print *,' in grrad : !!! need to develop progcld3 for nmmb',      &
+     &        ' temporarily using progcld2 !!!'
+          call progcld2                                                 &
+!  ---  inputs:
+     &     ( plyr,plvl,tlyr,qlyr,qstl,rhly,clw,                         &
+     &       xlat,xlon,slmsk, fcice,frain,rrime,flgmin,                 &
+     &       IM, LM, LP1, iflip, iovrsw, sashal, norad_precip,          &
+     &       crick_proof, ccnorm,                                       &
 !  ---  outputs:
      &       clouds,cldsa,mtopa,mbota                                   &
      &      )
@@ -904,8 +1140,17 @@
       else                                 ! diagnostic cloud scheme
 
         do i = 1, IM
-          cvt1(i) = 10.0 * cvt(i)
-          cvb1(i) = 10.0 * cvb(i)
+!         cvt1(i) = 10.0 * cvt(i)
+!         cvb1(i) = 10.0 * cvb(i)
+          cvt1(i) = 0.01 * cvt(i)
+          cvb1(i) = 0.01 * cvb(i)
+        enddo
+
+        do k = 1, LM
+          do i = 1, IM
+!           vvel(i,k) = 10.0 * vvl (i,k)
+            vvel(i,k) = 0.01 * vvl (i,k)
+          enddo
         enddo
 
 !  ---  compute diagnostic cloud related quantities
@@ -930,7 +1175,7 @@
 
         call setalb                                                     &
 !  ---  inputs:
-     &     ( slmsk,snowd,sncovr,snoalb,zorl,coszen,tsfc,tsfa,hprim,     &
+     &     ( slmsk,snowd,sncovr,snoalb,zorl,coszen,tsfg,tsfa,hprim,     &
      &       alvsf,alnsf,alvwf,alnwf,facsf,facwf,fice,tisfc,            &
      &       IM,                                                        &
 !  ---  outputs:
@@ -951,7 +1196,7 @@
             call swrad                                                  &
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
-     &       clouds,iovrsw,faersw,sfcalb,                               &
+     &       clouds,icsdsw,faersw,sfcalb,                               &
      &       coszen,solcon, nday,idxday,                                &
      &       IM, LM, LP1, iflip, lprnt,                                 &
 !  ---  outputs:
@@ -963,9 +1208,9 @@
 
             do j = 1, NBDSW
               do k = 1, LM
-              do i = 1, IM
-                htrswb(i,k,j) = htswb(i,k,j)
-              enddo
+                do i = 1, IM
+                  htrswb(i,k,j) = htswb(i,k,j)
+                enddo
               enddo
             enddo
 
@@ -974,7 +1219,7 @@
             call swrad                                                  &
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
-     &       clouds,iovrsw,faersw,sfcalb,                               &
+     &       clouds,icsdsw,faersw,sfcalb,                               &
      &       coszen,solcon, nday,idxday,                                &
      &       IM, LM, LP1, iflip, lprnt,                                 &
 !  ---  outputs:
@@ -986,11 +1231,6 @@
 
           endif
 
-          do i = 1, IM
-            sfcnsw(i) = sfcfsw(i)%upfxc - sfcfsw(i)%dnfxc
-            sfcdsw(i) = sfcfsw(i)%dnfxc
-          enddo
-
           do k = 1, LM
             do i = 1, IM
               htrsw(i,k) = htswc(i,k)
@@ -999,18 +1239,28 @@
 
         else                   ! if_nday_block
 
-          htrsw(:,:) = 0.0
-          sfcnsw (:) = 0.0
-          sfcdsw (:) = 0.0
+          do k = 1, LM
+            do i = 1, IM
+              htrsw(i,k) = 0.0
+            enddo
+          enddo
 
-          sfcfsw= sfcfsw_type( 0.0, 0.0, 0.0, 0.0 )
-          topfsw= topfsw_type( 0.0, 0.0, 0.0 )
-          scmpsw= cmpfsw_type( 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 )
+          sfcfsw = sfcfsw_type( 0.0, 0.0, 0.0, 0.0 )
+          topfsw = topfsw_type( 0.0, 0.0, 0.0 )
+          scmpsw = cmpfsw_type( 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 )
 
 !! ---  optional:
 !!        fswprf= profsw_type( 0.0, 0.0, 0.0, 0.0 )
 
-          if ( present(htrswb) ) htrswb(:,:,:) = 0.0
+          if ( present(htrswb) ) then
+            do j = 1, NBDSW
+              do k = 1, LM
+                do i = 1, IM
+                  htrswb(i,k,j) = 0.0
+                enddo
+              enddo
+            enddo
+          endif
 
         endif                  ! end_if_nday
 
@@ -1020,9 +1270,9 @@
 
 !  ---  setup surface emissivity for lw radiation
 
-          call setemis                                                  &
+        call setemis                                                    &
 !  ---  inputs:
-     &     ( xlon,xlat,slmsk,snowd,sncovr,zorl,tsfc,tsfa,hprim,         &
+     &     ( xlon,xlat,slmsk,snowd,sncovr,zorl,tsfg,tsfa,hprim,         &
      &       IM,                                                        &
 !  ---  outputs:
      &       sfcemis                                                    &
@@ -1035,7 +1285,7 @@
           call lwrad                                                    &
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
-     &       clouds,iovrlw,faerlw,sfcemis,                              &
+     &       clouds,icsdlw,faerlw,sfcemis,tsfg,                         &
      &       IM, LM, LP1, iflip, lprnt,                                 &
 !  ---  outputs:
      &       htlwc,topflw,sfcflw                                        &
@@ -1046,9 +1296,9 @@
 
           do j = 1, NBDLW
             do k = 1, LM
-            do i = 1, IM
-              htrlwb(i,k,j) = htlwb(i,k,j)
-            enddo
+              do i = 1, IM
+                htrlwb(i,k,j) = htlwb(i,k,j)
+              enddo
             enddo
           enddo
 
@@ -1057,19 +1307,21 @@
           call lwrad                                                    &
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
-     &       clouds,iovrlw,faerlw,sfcemis,                              &
+     &       clouds,icsdlw,faerlw,sfcemis,tsfg,                         &
      &       IM, LM, LP1, iflip, lprnt,                                 &
-!  ---  outputs:
+!  ---  outputs 
      &       htlwc,topflw,sfcflw                                        &
 !! ---  optional:
 !!   &,      HLW0=htlw0,FLXPRF=flwprf,HLWB=htlwb                        &
      &     )
 
         endif
+!       if (lprnt) write(0,*)' htlwc=',htlwc(ipt,1:5)
 
         do i = 1, IM
-          sfcdlw(i) = sfcflw(i)%dnfxc
-!         tsflw (i) = tsfc(i)
+          semis (i) = sfcemis(i)
+!  ---  save surface air temp for diurnal adjustment at model t-steps
+          tsflw (i) = tsfa(i)
         enddo
 
         do k = 1, LM
@@ -1091,12 +1343,12 @@
 
         if ( iaersw==1 ) then
           do i = 1, IM
-            fluxr(i,28) = fluxr(i,28) + dtsw*aod(i,1)  ! DU aod at 550nm
-            fluxr(i,29) = fluxr(i,29) + dtsw*aod(i,2)  ! BC aod at 550nm
-            fluxr(i,30) = fluxr(i,30) + dtsw*aod(i,3)  ! OC aod at 550nm
-            fluxr(i,31) = fluxr(i,31) + dtsw*aod(i,4)  ! SU aod at 550nm
-            fluxr(i,32) = fluxr(i,32) + dtsw*aod(i,5)  ! SS aod at 550nm
-            fluxr(i,33) = fluxr(i,33) + dtsw*aod(i,6)  ! total aod at 550nm
+            fluxr(i,34) = fluxr(i,34) + dtsw*aod(i,6)  ! total aod at 550nm
+            fluxr(i,35) = fluxr(i,35) + dtsw*aod(i,1)  ! DU aod at 550nm
+            fluxr(i,36) = fluxr(i,36) + dtsw*aod(i,2)  ! BC aod at 550nm
+            fluxr(i,37) = fluxr(i,37) + dtsw*aod(i,3)  ! OC aod at 550nm
+            fluxr(i,38) = fluxr(i,38) + dtsw*aod(i,4)  ! SU aod at 550nm
+            fluxr(i,39) = fluxr(i,39) + dtsw*aod(i,5)  ! SS aod at 550nm
           enddo
         endif
 
@@ -1105,6 +1357,9 @@
             fluxr(i,1 ) = fluxr(i,1 ) + dtlw * topflw(i)%upfxc   ! total sky top lw up
             fluxr(i,19) = fluxr(i,19) + dtlw * sfcflw(i)%dnfxc   ! total sky sfc lw dn
             fluxr(i,20) = fluxr(i,20) + dtlw * sfcflw(i)%upfxc   ! total sky sfc lw up
+            fluxr(i,28) = fluxr(i,28) + dtlw * topflw(i)%upfx0   ! clear sky top lw up
+            fluxr(i,30) = fluxr(i,30) + dtlw * sfcflw(i)%dnfx0   ! clear sky sfc lw dn
+            fluxr(i,33) = fluxr(i,33) + dtlw * sfcflw(i)%upfx0   ! clear sky sfc lw up
           enddo
         endif
 
@@ -1122,6 +1377,9 @@
 !  ---  sw uv-b fluxes
               fluxr(i,21) = fluxr(i,21) + scmpsw(i)%uvbfc * tem0d  ! total sky uv-b sw dn
               fluxr(i,22) = fluxr(i,22) + scmpsw(i)%uvbf0 * tem0d  ! clear sky uv-b sw dn
+              fluxr(i,29) = fluxr(i,29) + topfsw(i)%upfx0 * tem0d  ! clear sky top sw up
+              fluxr(i,31) = fluxr(i,31) + sfcfsw(i)%upfx0 * tem0d  ! clear sky sfc sw up
+              fluxr(i,32) = fluxr(i,32) + sfcfsw(i)%dnfx0 * tem0d  ! clear sky sfc sw dn
             endif
           enddo
         endif
@@ -1136,7 +1394,7 @@
 
 !  ---  save cld frac,toplyr,botlyr and top temp, note that the order
 !       of h,m,l cloud is reversed for the fluxr output.
-!  ---  save interface pressure (cb) of top/bot
+!  ---  save interface pressure (Pa) of top/bot
 
           do k = 1, 3
             do i = 1, IM
@@ -1151,12 +1409,11 @@
           enddo
         endif
 
-!! cldcov: 3D instant cloud cover
-          do k = 1, LM
-            do i = 1, IM
-              cldcov(i,k) = clouds(i,k,1)
-            enddo
+        do k = 1, LM
+          do i = 1, IM
+            cldcov(i,k) = clouds(i,k,1)
           enddo
+        enddo
 
       endif                                ! end_if_lssav
 !

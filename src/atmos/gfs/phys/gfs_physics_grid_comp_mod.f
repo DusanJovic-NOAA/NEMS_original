@@ -18,6 +18,7 @@
 !  Feb 05 2010      Jun Wang, set init time for restart
 !  Mar 02 2010      Sarah Lu, associate export state with internal state in init
 !  Apr 11 2010      Sarah Lu, debug print removed
+!  Aug 25 2010      Jun Wang, output half dfi filted fields
 !  Oct 16 2010      Sarah Lu, retrieve fscav from exp state
 !                           
 !
@@ -40,7 +41,7 @@
       USE mpi_def,                        ONLY: mpi_comm_all,quilting
       USE layout1,                        ONLY: me
       USE date_def,                       ONLY: idate, fhour
-      USE namelist_physics_def,           ONLY: fhini, fhmax
+      USE namelist_physics_def,           ONLY: fhini, fhmax, lssav,ndfi,ldfi
 !jw
       USE gfs_physics_output,             ONLY: point_physics_output_gfs
 !
@@ -378,7 +379,7 @@
 !        size(int_state%fhour_idate,2),'idate size=',size(idate)
       call gfs_physics_initialize(int_state, rc1)
 ! ----------------------------------------------------------------------
-
+!
       call gfs_physics_err_msg(rc1,'run the gfs_physics_initialize',rc)
 
       call esmf_clockget(clock, timestep    = timestep,            	&
@@ -413,13 +414,13 @@
 !
       call esmf_timeintervalget(timestep, s = timestep_sec, rc = rc1)
                            
-      print *,' timestep_sec=',timestep_sec,' rc1=',rc1
+      if(me==0)print *,' timestep_sec=',timestep_sec,' rc1=',rc1
 !!
       if (me.eq.0) then
         call out_para(real(timestep_sec))
       endif
 !!
-      if (me.eq.0) then
+      if (me==0) then
         print *,' gsm physics will forecast ',runduration_hour,' hours',  &
                 ' from hour ',int_state%kfhour,' to hour ',               &
                  runduration_hour+int_state%kfhour
@@ -544,6 +545,7 @@
       type(gfs_physics_internal_state), pointer   :: int_state   
       integer                                     :: rc1          
       integer                                     :: rcfinal     
+       real(8) :: zhour1
 !
 !jw
       type(esmf_state)                   :: imp_wrt_state
@@ -588,6 +590,7 @@
 !*    call gfs_physics_import2internal(gc_gfs_phy, imp_gfs_phy, 	&
 !*                                        int_state, rc = rc1)
 !
+!       print *,'in gfs phys grid comp, run'
 
       if ( int_state%grid_aldata ) then
         call gfs_physics_import2internal( imp_gfs_phy,    &         
@@ -615,7 +618,7 @@
       donetime = currtime-starttime
       int_state%kdt = nint(donetime/timeStep) + 1
 
-      print *,' in physics kdt=',int_state%kdt
+      if(me==0)print *,' in physics kdt=',int_state%kdt
 
 !     if( currtime .eq. stoptime ) then
 !         print *,' currtime equals to stoptime '
@@ -636,11 +639,24 @@
 !
       CALL gfs_physics_err_msg(rc1,"Retrieve Write Import State from Physics Export State",RC)
 !-----------------------------------------------------------------------
-      CALL ESMF_AttributeSet(state    =imp_wrt_state                    &  !<-- The Write component import state
-                            ,name     ='zhour'                          &  !<-- Name of the var
-                            ,value    =int_state%zhour                  &  !<-- The var being inserted into the import state
-                            ,rc       =RC)
+!      CALL ESMF_AttributeSet(state    =imp_wrt_state                    &  !<-- The Write component import state
+!                           ,name     ='zhour'                          &  !<-- Name of the var
+!                           ,value    =int_state%zhour                  &  !<-- The var being inserted into the impo
+!                            ,rc       =RC)
+      if(ldfi.and.int_state%kdt==ndfi) then
+         CALL ESMF_AttributeSet(state    =imp_wrt_state                    &  !<-- The Write component import state
+                               ,name     ='zhour'                          &  !<-- Name of the var
+                               ,value    =int_state%zhour_dfi              &  !<-- The var being inserted into the import state
+                               ,rc       =RC)
+      else
+         CALL ESMF_AttributeSet(state    =imp_wrt_state                    &  !<-- The Write component import state
+                               ,name     ='zhour'                          &  !<-- Name of the var
+                               ,value    =int_state%zhour                  &  !<-- The var being inserted into the impo
+                               ,rc       =RC)
 
+      endif
+!       write(0,*)'in physgrid comp,kdt=',int_state%kdt,'zhour=',int_state%zhour,'zhour_dfi=',  &
+!           int_state%zhour_dfi,'ldfi=',ldfi,'ndfi=',ndfi,'rc=',rc
 !
 !-----------------------------------------------------------------------
 !***  retrieve the scavenging coefficients from physics export state
@@ -672,9 +688,10 @@
                          esmf_log_info, rc = rc1)
 
       call gfs_physics_run(int_state, rc = rc1)
-
+!
       call gfs_physics_err_msg(rc1,'run the gfs_physics_run',rc)
-
+!
+!
 ! transfer the gfs export fields in the internal state 
 ! to the esmf exprot state which is the public interface
 ! for other esmf grid components.

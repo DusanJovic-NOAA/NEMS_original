@@ -87,7 +87,7 @@
 !
 !------------------------------------------------------------------------
       USE MACHINE , ONLY : kind_phys
-      use module_microphysics_gfs , only : gsmcolumn
+      use module_microphysics , only : gsmcolumn
       implicit none
 !
       integer im, ix, lm, ilon, ilat, me, ipr
@@ -238,15 +238,15 @@
       psfc = 0.0
       DO L=1,LM
         LL = LM + 1 - L
-        P_col(L)     = PRSL(I,LL) * 1000.0       ! Level Pressure in Pa
-        THICK_col(L) = DEL(I,LL) * (1000.0/GRAV) !--- Layer thickness = RHO*DZ
+        P_col(L)     = PRSL(I,LL)
+        THICK_col(L) = DEL(I,LL) * (1.0/GRAV) !--- Layer thickness = RHO*DZ
         T_col(L)     = TIN(I,LL)
         QV_col(L)    = max(EPSQ, QIN(I,LL))
         RHC_col(L)   = RHC(I,LL)
         WC_col(L)    = CCIN(I,LL)
 !       NCW(L)       = XNCW(I) * (P_col(L)*0.001)
         NCW(L)       = XNCW(I)
-        psfc         = psfc + del(I,LL) * 1000.0
+        psfc         = psfc + del(I,LL)
       ENDDO
 !     if (print_diag) print *,' wc_col=',wc_col
       DO L=1,LM
@@ -514,37 +514,37 @@
 210   format(a2,i5,f6.2,4(1x,a10,i7))
 !-----------------------------------------------------------------------
       END
-      SUBROUTINE MICRO_INIT(LM,LEN,F_ice,F_rain,F_RimeF,DT,FHOUR,me     &
+      SUBROUTINE MICRO_INIT(len1,levs,num_p3d,len4,phy_f3d,DT,FHOUR,me  &
      &,                     first)
 !
 !     This subroutine initializes the necessary constants and
 !     tables for Brad Ferrier's cloud microphysics package
 !
       USE MACHINE , ONLY : kind_phys
-      use module_microphysics_gfs , only : gsmconst
+      use module_microphysics , only : gsmconst
       implicit none
 !
       logical first
-      integer LM, LEN, me
-      real (kind=kind_phys) F_ice(LEN,LM), F_rain(LEN,LM),              &
-     &                      F_RimeF(LEN,LM), DT, FHOUR
+      integer len1,levs,num_p3d,len4,me
+      real (kind=kind_phys) phy_f3d(len1,levs,num_p3d,len4),            &
+     &                      DT, FHOUR
 !
       if (fhour .lt. 0.1) then
-        F_ice   = 0.              ! Initialize ice fraction array (real)
-        F_rain  = 0.              ! Initialize rain fraction array (real)
-        F_RimeF = 1.              ! Initialize rime factor array (real)
+        phy_f3d(:,:,1,:) = 0.   ! Initialize ice  fraction array (real)
+        phy_f3d(:,:,2,:) = 0.   ! Initialize rain fraction array (real)
+        phy_f3d(:,:,3,:) = 1.   ! Initialize rime factor   array (real)
       endif
       CALL GSMCONST (DT,me,first) ! Initialize lookup tables & constants
 !
       RETURN
       END
-      SUBROUTINE INIT_MICRO(DT,levs,len,num_p3d,phy_f3d,fhour,me)
+      SUBROUTINE INIT_MICRO(DT,len1,levs,num_p3d,len4,phy_f3d,fhour,me)
 !
       USE MACHINE , ONLY : kind_phys
       implicit none
 !
-      integer levs, len, num_p3d, me,  nsphys
-      real (kind=kind_phys)  dt, fhour, phy_f3d(len,levs,num_p3d)       &
+      integer len1, levs, num_p3d, len4, me, nsphys
+      real (kind=kind_phys)  dt, fhour, phy_f3d(len1,levs,num_p3d,len4) &
      &,                      dtlast, dtp, dtphys
       logical first
       data first/.true./, dtlast/0.0/
@@ -556,12 +556,11 @@
 !
       if (num_p3d .eq. 3 .and. dtp .ne. dtlast) then
 !      Initialization and/or constant evaluation for Ferrier's microphysics
-        call MICRO_INIT(LEVS, len, phy_f3d(1,1,1), phy_f3d(1,1,2)       &
-     &,                 phy_f3d(1,1,3), DTP, FHOUR, me, first)
+        call MICRO_INIT(len1,LEVS,num_p3d,len4,                         &
+     &                  phy_f3d(1,1,1,1), DTP, FHOUR, me, first)
         dtlast = dtp
         first = .false.
       endif
-   
 
       RETURN
       END

@@ -111,7 +111,7 @@
 !
       DO J=1,WRITE_GROUPS
 !
-        DO I=1,NUM_PES_FCST+WRITE_TASKS_PER_GROUP
+        DO I=1,NUM_PES_WRT
           IF(MYPE==PETLIST_WRITE(I,J))THEN                   !<--  Forecast tasks plus the Write tasks in each write group
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -205,14 +205,14 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_TimeGet (time=CURRTIME                                  &  !<-- The current forecast time (ESMF)
-                        ,yy  =YY                                        &  !<-- The current year (integer)
-                        ,mm  =MM                                        &  !<-- The current month (integer)
-                        ,dd  =DD                                        &  !<-- The current day (integer)
-                        ,h   =H                                         &  !<-- The current hour (integer)
-                        ,m   =M                                         &  !<-- The current minute (integer)
-                        ,s   =S                                         &  !<-- The current second (integer)
-                        ,rc  =RC)
+      CALL ESMF_TimeGet (time = CURRTIME  & !<-- current forecast time (ESMF)
+                        ,yy   = YY        & !<-- current year (integer)
+                        ,mm   = MM        & !<-- current month (integer)
+                        ,dd   = DD        & !<-- current day (integer)
+                        ,h    = H         & !<-- current hour (integer)
+                        ,m    = M         & !<-- current minute (integer)
+                        ,s    = S         & !<-- current second (integer)
+                        ,rc   = RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_ASYNC)
@@ -231,10 +231,10 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state          =EXP_STATE    &  !<-- The Dyn component's export state
-                        ,itemName       ="Write Import State"     &  !<-- Name of state to be extracted
-                        ,nestedState    =IMP_STATE_WRITE  &  !<-- The extracted state
-                        ,rc             =RC)
+      CALL ESMF_StateGet(state       = EXP_STATE             &  !<-- The Dyn component's export state
+                        ,itemName    = "Write Import State"  &  !<-- Name of state to be extracted
+                        ,nestedState = IMP_STATE_WRITE       &  !<-- The extracted state
+                        ,rc          = RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_ASYNC)
@@ -245,12 +245,12 @@
 !***  WRITE GROUP EXECUTE THE RUN STEP OF A WRITE COMPONENT.
 !-----------------------------------------------------------------------
 !
-      N_GROUP=WRITE_GROUP_READY_TO_GO                          !<-- The active write group
+      N_GROUP = WRITE_GROUP_READY_TO_GO       !<-- The active write group
 !
 !jw
-      call esmf_GridCompGet(gridcomp=WRT_COMPS(N_GROUP)     &
-                     ,vm=myVM                        &
-                     ,rc=rc)
+      call esmf_GridCompGet(gridcomp = WRT_COMPS(N_GROUP)          &
+                           ,vm       = myVM                        &
+                           ,rc       = rc)
 
     CALL ESMF_VMBarrier(myVM,rc=RC)    ! Insert barrier since fcst tasks are involved in each iteration of write groups
 !
@@ -261,7 +261,7 @@
 !
 
       DO I=1, NUM_PES_WRT
-        IF(MYPE==PETLIST_WRITE(I,N_GROUP))THEN
+        IF(MYPE == PETLIST_WRITE(I,N_GROUP)) THEN
           CALL ESMF_GridCompRun(WRT_COMPS(N_GROUP)          &  !<-- The write gridded component
                                ,importState=IMP_STATE_WRITE &  !<-- Its import state
                                ,exportState=EXP_STATE_WRITE &  !<-- Its export state
@@ -273,7 +273,7 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_ASYNC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          IF(I==NUM_PES_FCST+1)THEN                                          !<-- The first write task tells us the history output time
+          IF(I == NUM_PES_FCST+1) THEN    !<-- First write task tells history output time
             WRITE(0,101)YY,MM,DD,H,M,S
   101       FORMAT(' Wrote File at ',I4.4,'_',I2.2,'_',I2.2,'_',I2.2,':',I2.2,':',I2.2)
           ENDIF
@@ -287,10 +287,10 @@
 !***  RETURN TO THE 1ST GROUP IF WE HAVE CYCLED THROUGH ALL OF THEM.
 !-----------------------------------------------------------------------
 !
-      IF(WRITE_GROUP_READY_TO_GO==WRITE_GROUPS)THEN
-        WRITE_GROUP_READY_TO_GO=1
+      IF(WRITE_GROUP_READY_TO_GO == WRITE_GROUPS) THEN
+        WRITE_GROUP_READY_TO_GO = 1
       ELSE
-        WRITE_GROUP_READY_TO_GO=WRITE_GROUP_READY_TO_GO+1
+        WRITE_GROUP_READY_TO_GO = WRITE_GROUP_READY_TO_GO+1
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -302,8 +302,8 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE WRITE_SETUP_GFS(ATM_GRID_COMP,WRT_COMPS           &
-        ,exp_state_dyn,exp_state_phy                  &
-        ,imp_state_write,exp_state_write)
+                                ,exp_state_dyn,exp_state_phy       &
+                                ,imp_state_write,exp_state_write)
 ! 
       use module_gfs_mpi_def, only : LAST_FCST_PE
 !-----------------------------------------------------------------------
@@ -350,9 +350,9 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_GridCompGet(gridcomp=ATM_GRID_COMP                      &  !<-- The ATM gridded component
-                           ,config  =CF                                 &  !<-- The config object (~namelist)
-                           ,rc      =RC)
+      CALL ESMF_GridCompGet(gridcomp = ATM_GRID_COMP   & !<-- The ATM gridded component
+                           ,config   = CF              & !<-- The config object (~namelist)
+                           ,rc       = RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
@@ -561,8 +561,8 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      RC    =ESMF_SUCCESS
-      RC_DES=ESMF_SUCCESS
+      RC     = ESMF_SUCCESS
+      RC_DES = ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
 !***  RETRIEVE THE CURRENT VM.
@@ -681,5 +681,6 @@
 !
 !-----------------------------------------------------------------------
       END MODULE MODULE_GFS_WRITE
+!
 !
 !-----------------------------------------------------------------------

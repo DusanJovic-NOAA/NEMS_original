@@ -40,6 +40,7 @@
 !                       GOCART_INIT (to initialize GOCART)
 !   2010-03-23  Lu    - Add passive_tracer option
 !   2010-08-17  Lu    - Make debug print optional
+!   2010-08-25  Wang  - Add 3hr dfi filtered fields output option
 
 !
 ! USAGE: GFS Gridded component parts called from subroutines within
@@ -574,6 +575,7 @@
         NFMOUT=0
         NFSOUT=0
       ENDIF
+      IF (gfs_int_state%MYPE == 0 )                                          &
       write(0,*)'nfhout=',nfhout,'nfmout=',nfmout,'nfsout=',nfsout
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -805,11 +807,13 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      IF(TRIM(MODE)=='.true.')THEN                                         !<-- Adiabatic => Physics off
-        gfs_int_state%PHYSICS_ON=ESMF_False
+      IF(TRIM(MODE) == '.true.')THEN                                         !<-- Adiabatic => Physics off
+        gfs_int_state%PHYSICS_ON = ESMF_False
+        IF (gfs_int_state%MYPE == 0 )                                  &
         write(0,*)' Initialize without physics coupling '
       ELSE                                                                 !<-- Not adiabatic => Physics on
-        gfs_int_state%PHYSICS_ON=ESMF_True
+        gfs_int_state%PHYSICS_ON = ESMF_True
+        IF (gfs_int_state%MYPE == 0 )                                  &
         write(0,*)' Initialize with physics coupling '
       ENDIF
 !
@@ -831,7 +835,7 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      IF(TRIM(MODE)=='.true.')THEN                                         !<-- passive tracer => chemistry off
+      IF(TRIM(MODE) == '.true.')THEN                                         !<-- passive tracer => chemistry off
         gfs_int_state%CHEMISTRY_ON=ESMF_False
         write(0,*)' Initialize without chemistry coupling '
       ELSE                                                                 !<-- non-passive tracer => chemistry on
@@ -863,7 +867,7 @@
                                  ,configfile='phy_namelist.rc'     &
                                  ,petList   =PETLIST_FCST          &
                                  ,rc        =RC)
-        write(0,*)'in GFS_INITIALIZE after phys comp created, petlist_fcst=',petlist_fcst
+!       write(0,*)'in GFS_INITIALIZE after phys comp created, petlist_fcst=',petlist_fcst
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -1002,7 +1006,9 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
+      IF (gfs_int_state%MYPE == 0 )                                &
       write(0,*)'before write_setup_gfs, allocate,write_groups=',write_groups
+
       ALLOCATE(gfs_int_state%WRT_COMPS(WRITE_GROUPS))
       CALL WRITE_SETUP_GFS(GFS_GRID_COMP                           &
                           ,gfs_int_state%WRT_COMPS                 &
@@ -1198,6 +1204,7 @@
       TYPE(ESMF_Time) :: CURRTIME                                       &  !<-- The ESMF current time.
                         ,STARTTIME                                         !<-- The ESMF start time.
 !
+      LOGICAL         :: LDFIFLTO                                       !<-- output filtered fields.
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -1255,6 +1262,15 @@
 
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 !
+!------------
+!
+      MESSAGE_CHECK = "GFS get LDFIFLTO from CF"
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The config object
+                                  ,value =LDFIFLTO                      &  !<-- OUPUT filtered fields for fh>=dfihr
+                                  ,label ='ldfiflto:'                   &  !<-- Give this label's value to the previous var iable
+                                  ,rc    =RC)
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+!
 !-----------------------------------------------------------------------
 !***  Execute the GFS forecast runstream.
 !-----------------------------------------------------------------------
@@ -1283,6 +1299,7 @@
                         ,NTIMESTEP                                 &
                         ,TIMESTEP                                  &
                         ,DFIHR                                     &
+                        ,LDFIFLTO                                  &
                         ,gfs_int_state%MYPE                        &
                         ,gfs_int_state%PHYSICS_ON                  &
                         ,gfs_int_state%CHEMISTRY_ON)
@@ -1377,11 +1394,11 @@
                                   ,label ='adiabatic:'                  &
                                   ,rc    =RC)
 !
-        IF(TRIM(MODE)=='.TRUE.')THEN
-          gfs_int_state%PHYSICS_ON=ESMF_False
+        IF(TRIM(MODE) == '.true.')THEN
+          gfs_int_state%PHYSICS_ON = ESMF_False
           write(0,*)' Finalize without physics coupling. '
         ELSE
-          gfs_int_state%PHYSICS_ON=ESMF_True
+          gfs_int_state%PHYSICS_ON = ESMF_True
           write(0,*)' Finalize with physics coupling. '
         ENDIF
 

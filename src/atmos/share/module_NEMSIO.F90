@@ -25,6 +25,7 @@ module module_nemsio
 !    2010-08-09    Sarah Lu - comment gribtable for clarification;
 !                             correct gribtable for OCSCATAU
 !    2010-10-10    Sarah Lu - modify gribtable for gfs met forcing
+!    2010-11-099   Jun Wang - Add flx variables into grib table
 !
 ! Public Variables
 ! Public Defined Types
@@ -2791,19 +2792,27 @@ contains
     if(present(iret) ) iret=-17
     do i=1,gfile%headaryinum
       if(equal_str_nocase(trim(varname),trim(gfile%headaryiname(i))) ) then
-           varval(:)=gfile%headaryival(1:gfile%aryilen(i),i)
+         if(equal_str_nocase(trim(varname),'idate')) then
+           varval(1:7)=gfile%headaryival(1:7,i)
            if(present(iret) ) iret=0
            return
+         else if (equal_str_nocase(trim(varname),'reclev')) then
+           varval(1:size(gfile%reclev))=gfile%headaryival(1:size(gfile%reclev),i)
+           if(present(iret) ) iret=0
+           return
+         endif
       endif
     enddo
 !---
     if(gfile%nmetaaryi.gt.0) then
       do i=1,gfile%nmetaaryi
         if(equal_str_nocase(trim(varname),trim(gfile%aryiname(i))) ) then
-           varval(:)=gfile%aryival(1:gfile%aryilen(i),i)
+         if(size(varval)>=gfile%aryilen(i)) then
+           varval(1:gfile%aryilen(i))=gfile%aryival(1:gfile%aryilen(i),i)
            if(present(iret) ) iret=0
            ierr=0
            return
+         endif
         endif
       enddo
     endif
@@ -2827,7 +2836,7 @@ contains
     if(gfile%headaryrnum>0) then
      do i=1,gfile%headaryrnum
       if(equal_str_nocase(trim(varname),trim(gfile%headaryrname(i))) ) then
-           varval(:)=gfile%headaryrval(1:gfile%aryrlen(i),i)
+           varval(:)=gfile%headaryrval(1:size(varval),i)
            if(present(iret) ) iret=0
            return
       endif
@@ -2837,10 +2846,12 @@ contains
     if(gfile%nmetaaryr.gt.0) then
       do i=1,gfile%nmetaaryr
         if(equal_str_nocase(trim(varname),trim(gfile%aryrname(i)))) then
-           varval(:)=gfile%aryrval(1:gfile%aryrlen(i),i)
+          if(size(varval)>=gfile%aryrlen(i)) then
+           varval(1:gfile%aryrlen(i))=gfile%aryrval(1:gfile%aryrlen(i),i)
            if(present(iret) ) iret=0
            ierr=0
            return
+          endif
         endif
       enddo
     endif
@@ -2891,7 +2902,7 @@ contains
     if(gfile%headarycnum>0) then
      do i=1,gfile%headarycnum
       if(equal_str_nocase(trim(varname),trim(gfile%headarycname(i))) ) then
-           varval(:)=gfile%headarycval(1:gfile%aryclen(i),i)
+           varval(:)=gfile%headarycval(1:size(varval),i)
            if(present(iret) ) iret=0
            return
       endif
@@ -5775,6 +5786,17 @@ contains
     gribtable(1)%item(109)=nemsio_grbtbl_item('evcw','sfc',0,0,200,1)   
     gribtable(1)%item(110)=nemsio_grbtbl_item('trans','sfc',0,0,210,1)   
     gribtable(1)%item(111)=nemsio_grbtbl_item('snowc','sfc',3,0,238,1)   
+    gribtable(1)%item(112)=nemsio_grbtbl_item('dswrf','nom. top',0,0,204,8)   
+    gribtable(1)%item(113)=nemsio_grbtbl_item('csulwrf','nom. top',0,0,162,8)
+    gribtable(1)%item(114)=nemsio_grbtbl_item('csuswrf','nom. top',0,0,160,8)
+    gribtable(1)%item(115)=nemsio_grbtbl_item('csdlwrf','sfc',0,0,163,1)
+    gribtable(1)%item(116)=nemsio_grbtbl_item('csuswrf','sfc',0,0,160,1)
+    gribtable(1)%item(117)=nemsio_grbtbl_item('csdswrf','sfc',0,0,161,1)
+    gribtable(1)%item(118)=nemsio_grbtbl_item('csulwrf','sfc',0,0,162,1)
+    gribtable(1)%item(119)=nemsio_grbtbl_item('snohfa','sfc',0,0,229,1)
+    gribtable(1)%item(120)=nemsio_grbtbl_item('smcwlt','sfc',4,0,219,1)
+    gribtable(1)%item(121)=nemsio_grbtbl_item('smcref','sfc',4,0,220,1)
+    gribtable(1)%item(122)=nemsio_grbtbl_item('sunshine','sfc',0,0,191,1)
 !    
 !    gribtable(1)%item(50)=nemsio_grbtbl_item('nlat','sfc',2,0,176,1)
 !    gribtable(1)%item(51)=nemsio_grbtbl_item('elon','sfc',2,0,177,1)
@@ -5986,6 +6008,11 @@ contains
     gribtable(4)%item(170)=nemsio_grbtbl_item('V64','atmos col',3,0,248,200)
     gribtable(4)%item(171)=nemsio_grbtbl_item('FCLD64','atmos col',3,0,249,200)
     gribtable(4)%item(172)=nemsio_grbtbl_item('DQDT64','atmos col',3,0,250,200)
+!
+!table 133
+    gribtable(5)%iptv=133
+    gribtable(5)%item(1)=nemsio_grbtbl_item('spfhmax','2 m above gnd',5,2,204,105)   
+    gribtable(5)%item(2)=nemsio_grbtbl_item('spfhmin','2 m above gnd',5,2,205,105)   
 !
     iret=0
   end subroutine nemsio_setgrbtbl

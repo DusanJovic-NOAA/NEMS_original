@@ -789,8 +789,8 @@
                               ,rc=RC)
 !
         CALL ESMF_AttributeGet(state     =IMP_STATE_WRITE              &  !<-- The Write component's import state
-                              ,name      ='zhour'                      &  !<-- Name of the Attribute to extract
-                              ,value     =zhour(1)                     &  !<-- Extract local subdomain starting J's
+                              ,name      ='zhour'                    &  !<-- Name of the Attribute to extract
+                              ,value     =zhour(1)                   &  !<-- Extract local subdomain starting J's
                               ,rc=RC)
 !
         CALL ESMF_AttributeGet(state     =IMP_STATE_WRITE              &  !<-- The Write component's import state
@@ -831,6 +831,7 @@
                            ,1                                           &  !<-- # of elements to broadcast
                            ,0                                           &  !<-- Root sender is fcst task 0 
                            ,rc=RC)
+!        write(0,*)'after vmbrct,pdryini=',pdryini(1)
         wrt_int_state%pdryini=pdryini(1)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1763,9 +1764,9 @@
             N=NFIELD+wrt_int_state%KOUNT_I2D(1)
             TMP=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))
 !
-!             write(0,*)'after write N=',N,' var=',trim(NAME),'value=',&
-!              maxval(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)), &
-!              minval(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)), 'itr=',itr
+!              write(0,*)'nfhours=',nf_hours,'after write N=',N,' var=',trim(NAME),'value=',&
+!               maxval(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)), &
+!               minval(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)), 'itr=',itr
 !
             if(itr==-99) then
               CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)

@@ -1,1062 +1,1076 @@
-      SUBROUTINE SFC_LAND(IM,KM,PS,U1,V1,T1,Q1,
-Clu_Rev6: add TPRCP and SRFLAG
-!**  &                  SHELEG,TSKIN,QSURF,
-     &                  SHELEG,TSKIN,QSURF,TPRCP,SRFLAG,
-     &                  SMC,STC,DM,SOILTYP,SIGMAF,VEGTYPE,CANOPY,
-     &                  DLWFLX,SLRAD,SNOWMT,DELT,Z0RL,TG3,
-     &                  GFLUX,ZSOIL,
-     &                  CM, CH, RHSCNPY,RHSMC,AIM,BIM,CIM,
-     &                  RCL,PRSL1,PRSLKI,SLIMSK,
-     &                  DRAIN,EVAP,HFLX,EP,DDVEL,
-     +                  CMM,CHH,Z1,EVBS,EVCW,TRANS,SBSNO,
-     +                  SNOWC,STM,
-     &                  tsurf,flag_iter, flag_guess)
+!-----------------------------------
+      subroutine sfc_land                                               &
+!...................................
+!  ---  inputs:
+     &     ( im, km, ps, u1, v1, t1, q1, smc, soiltyp,                  &
+     &       sigmaf, vegtype, sfcemis, dlwflx, swnet, delt,             &
+     &       zorl, tg3, cm, ch, prsl1, prslki, slimsk,                  &
+     &       ddvel, flag_iter, flag_guess,                              &
+!  ---  input/outputs:
+     &       weasd, tskin, tprcp, srflag, stc, canopy, tsurf,           & 
+!  ---  outputs:
+     &       qsurf, snowmt, gflux, zsoil, rhscnpy, rhsmc,               &
+     &       aim, bim, cim, drain, evap, hflx, ep, cmm, chh,            &
+     &       evbs, evcw, trans, sbsno, snowc, stm, snohf,               &
+     &       twilt, tref  
+     &     )
+
+! ===================================================================== !
+!  description:  osu land surface model                                 !
+!                                                                       !
+!  usage:                                                               !
+!                                                                       !
+!    call sfc_land                                                      !
+!       inputs:                                                         !
+!          ( im, km, ps, u1, v1, t1, q1, smc, soiltyp,                  !
+!            sigmaf, vegtype, sfcemis, dlwflx, swnet, delt,             !
+!            zorl, tg3, cm, ch, prsl1, prslki, slimsk,                  !
+!            ddvel, flag_iter, flag_guess,                              !
+!       input/outputs:                                                  !
+!            weasd, tskin, tprcp, srflag, stc, canopy, tsurf,           !
+!       outputs:                                                        !
+!            qsurf, snowmt, gflux, zsoil, rhscnpy, rhsmc,               !
+!            aim, bim, cim, drain, evap, hflx, ep, cmm, chh,            !
+!            evbs, evcw, trans, sbsno, snowc, stm, snohf,               !
+!            twilt, tref )                                              !
+!                                                                       !
+!  subprograms called: none                                             !
+!                                                                       !
+!                                                                       !
+!  program history log:                                                 !
+!         xxxx  -- original version created from Hula Lu's progtm       !                                  !
+!         200x  -- sarah lu    modified (need description)              !
+!    oct  2006  -- h. wei      modified (need description)              !
+!    apr  2009  -- y.-t. hou   modified to include surface emissivity   !
+!                     effect on lw radiation. also replaced slrad (a    !
+!                     confussing term) with sfc net sw flux swnet       !
+!                     that is redefined as (du-up). rewrite the code    !
+!                     and add program documentation block.              !
+!    sep  2009  -- s. moorthi some additional modification              !
+!                                                                       !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                       size   !
+!     im, km   - integer, horiz dimension and num of soil layers   1    !
+!     ps       - real, surface pressure                            im   !
+!     u1, v1   - real, u/v component of surface layer wind         im   !
+!     t1       - real, surface layer mean temperature ( k )        im   !
+!     q1       - real, surface layer mean specific humidity        im   !
+!     smc      - real, soil moisture content (fractional)        im,km  !
+!     soiltyp  - integer, soil type (integer index)                im   !
+!     sigmaf   - real, areal fractional cover of green vegetation  im   !
+!     vegtype  - integer, vegetation type (integer index)          im   !
+!     sfcemis  - real, sfc lw emissivity ( fraction )              im   !
+!     dlwflx   - real, total sky sfc downward lw flux ( w/m**2 )   im   !
+!     swnet    - real, total sky sfc netsw flx into ground(w/m**2) im   !
+!     delt     - real, time interval (second)                      1    !
+!     zorl     - real, surface roughness                           im   !
+!     tg3      - real, deep soil temperature                       im   !
+!     cm       - real, surface exchange coeff for momentum (m/s)   im   !
+!     ch       - real, surface exchange coeff heat & moisture(m/s) im   !
+!     prsl1    - real, surface layer mean pressure                 im   !
+!     prslki   - real,                                             im   !
+!     slimsk   - real, sea/land/ice mask (=0/1/2)                  im   !
+!     ddvel    - real,                                             im   !
+!     flag_iter- logical,                                          im   !
+!     flag_guess-logical,                                          im   !
+!                                                                       !
+!  input/outputs:                                                       !
+!     weasd    - real, water equivalent accumulated snow depth (mm)im   !
+!     tskin    - real, ground surface skin temperature ( k )       im   !
+!     tprcp    - real, total precipitation                         im   !
+!     srflag   - real, snow/rain flag for precipitation            im   !
+!     stc      - real, soil temp (k)                              im,km !
+!     canopy   - real, canopy moisture content (m)                 im   !
+!     tsurf    - real, surface skin temperature (after iteration)  im   !
+!                                                                       !
+!  outputs:                                                             !
+!     qsurf    - real, specific humidity at sfc                    im   !
+!     snowmt   - real, snow melt (m)                               im   !
+!     gflux    - real, soil heat flux (w/m**2)                     im   !
+!     zsoil    - real, soil depth                                 im,km !
+!     rhscnpy  - real,                                             im   !
+!     rhsmc    - real,                                            im,km !
+!     aim      - real, tridiagonal matrix coeff for soil moist    im,km !
+!     bim      - real, tridiagonal matrix coeff for soil moist    im,km !
+!     cim      - real, tridiagonal matrix coeff for soil moist    im,km !
+!     drain    - real, subsurface runoff                           im   !
+!     evap     - real, evaperation from latent heat flux           im   !
+!     hflx     - real, sensible heat flux                          im   !
+!     ep       - real, potential evaporation                       im   !
+!     cmm      - real,                                             im   !
+!     chh      - real,                                             im   !
+!     evbs     - real, direct soil evaporation (m/s)               im   !
+!     evcw     - real, canopy water evaporation (m/s)              im   !
+!     trans    - real,                                             im   !
+!     sbsno    - real, sublimation/deposit from snopack (m/s)      im   !
+!     snowc    - real, fractional snow cover                       im   !
+!     stm      - real, total soil column moisture content (m)      im   !
+!     snohf    - real, snow/freezing-rain latent heat flux (w/m**2)im   !
+!     twilt    - real, dry soil moisture threshold                 im   !
+!     tref     - real, soil moisture threshold                     im   !
+!                                                                       !
+!  ====================    end of description    =====================  !
 !
-      USE MACHINE , ONLY : kind_phys
-      USE FUNCPHYS, ONLY : fpvs
-      USE PHYSCONS, grav => con_g, SBC => con_sbc, HVAP => con_HVAP
-     &,             CP => con_CP, HFUS => con_HFUS, JCAL => con_JCAL
-     &,             EPS => con_eps, EPSM1 => con_epsm1, t0c => con_t0c
-     &,             RVRDM1 => con_FVirt, RD => con_RD
+      use machine , only : kind_phys
+      use funcphys, only : fpvs
+      use physcons, only : grav => con_g, sbc => con_sbc, cp => con_cp, &
+     &                     hvap => con_hvap, hfus => con_hfus,          &
+     &                     eps => con_eps, epsm1 => con_epsm1,          &
+     &                     t0c => con_t0c, rvrdm1 => con_fvirt,         &
+     &                     rd => con_rd
+!
       implicit none
 !
-      integer              IM, km
-!
-      real(kind=kind_phys), parameter :: cpinv=1.0/cp, HVAPI=1.0/HVAP
-      real(kind=kind_phys) DELT
-      INTEGER              SOILTYP(IM),  VEGTYPE(IM)
-      real(kind=kind_phys) PS(IM),       U1(IM),      V1(IM),
-     &                     T1(IM),       Q1(IM),      SHELEG(IM),
-     &                     TSKIN(IM),    QSURF(IM),   SMC(IM,KM),
-     &                     STC(IM,KM),   DM(IM),      SIGMAF(IM),
-     &                     CANOPY(IM),   DLWFLX(IM),  SLRAD(IM),
-     &                     SNOWMT(IM),   Z0RL(IM),    TG3(IM),
-     &                     GFLUX(IM),
-     &                     ZSOIL(IM,KM), CM(IM),      CH(IM),
-     &                     RHSCNPY(IM), RHSMC(IM,KM),
-     &                     AIM(IM,KM),   BIM(IM,KM),  CIM(IM,KM),
-     &                     RCL(IM),      PRSL1(IM),   PRSLKI(IM),
-     &                     SLIMSK(IM),   DRAIN(IM),   EVAP(IM),
-     &                     HFLX(IM),     RNET(IM),    EP(IM),
-     &                     WIND(IM),     DDVEL(IM)
-Clu_Rev6: add TPRCP and SRFLAG
-     &,                    TPRCP(IM),    SRFLAG(IM)      
-Cwei added 10/24/2006
-     &, CHH(IM),CMM(IM),EVBS(IM),EVCW(IM)
-     &, TRANS(IM),SBSNO(IM),SNOWC(IM),STM(IM)
+!  ---  constant parameters:
+      real (kind=kind_phys), parameter :: cpinv  = 1.0/cp
+      real (kind=kind_phys), parameter :: hvapi  = 1.0/hvap
+      real (kind=kind_phys), parameter :: elocp  = hvap/cp
+      real (kind=kind_phys), parameter :: dfsnow = 0.31
+      real (kind=kind_phys), parameter :: ch2o   = 4.2e6
+      real (kind=kind_phys), parameter :: csoil  = 1.26e6
+      real (kind=kind_phys), parameter :: scanop = 0.5
+      real (kind=kind_phys), parameter :: cfactr = 0.5
+      real (kind=kind_phys), parameter :: zbot   =-3.0
+      real (kind=kind_phys), parameter :: topt   = 298.0
+      real (kind=kind_phys), parameter :: rhoh2o = 1000.0
+      real (kind=kind_phys), parameter :: ctfil1 = 0.5
+      real (kind=kind_phys), parameter :: ctfil2 = 1.0-ctfil1
+      real (kind=kind_phys), parameter :: snomin = 1.0e-9
 
-!
-!     land-related prognostic fields
-!
-      real(kind=kind_phys) SHELEG_OLD(IM),
-     +                     TPRCP_OLD(IM), SRFLAG_OLD(IM),
-     +                     TSKIN_OLD(IM), CANOPY_OLD(IM),
-     +                     STC_OLD(IM,KM)
+!  ---  input:
+      integer, intent(in) :: im, km, soiltyp(im), vegtype(im)
 
+      real (kind=kind_phys), dimension(im),   intent(in) :: ps, u1, v1, &
+     &      t1, q1, sigmaf, sfcemis, dlwflx, swnet, zorl, tg3, cm, ch,  &
+     &      prsl1, prslki, slimsk, ddvel
 
-      logical              flag_iter(im), flag_guess(im)
-!
-!     Locals
-!
-      integer              k,i
-!
-      real(kind=kind_phys) CANFAC(IM),
-     &                     DDZ(IM),     DDZ2(IM),    DELTA(IM),
-     &                     DEW(IM),     DF1(IM),     DFT0(IM),
-     &                     DFT2(IM),    DFT1(IM),
-     &                     DMDZ(IM),    DMDZ2(IM),   DTDZ1(IM),
-     &                     DTDZ2(IM),   DTV(IM),     EC(IM),
-     &                     EDIR(IM),    ETPFAC(IM),
-     &                     FACTSNW(IM), FH2(IM),
-     &                     FX(IM),      GX(IM),
-     &                     HCPCT(IM),   HL1(IM),     HL12(IM),
-     &                     HLINF(IM),   PARTLND(IM), PH(IM),
-     &                     PH2(IM),     PM(IM),      PM10(IM),
-     &                     PSURF(IM),   Q0(IM),      QS1(IM),
-     &                     QSS(IM),     RAT(IM),     RCAP(IM),
-     &                     RCH(IM),     RHO(IM),     RS(IM),
-     &                     RSMALL(IM),  SLWD(IM),    SMCZ(IM),
-     &                     SNET(IM),    SNOEVP(IM),  SNOWD(IM),
-     &                     T1O(IM),     T2MO(IM),    TERM1(IM),
-     &                     TERM2(IM),   THETA1(IM),  THV1(IM),
-     &                     TREF(IM),    TSURF(IM),   TV1(IM),
-     &                     TVS(IM),     TSEA(IM),  TWILT(IM),
-     &                     XX(IM),      XRCL(IM),    YY(IM),
-     &                     Z0(IM),      Z0MAX(IM),   Z1(IM),
-     &                     ZTMAX(IM),   ZZ(IM),      PS1(IM)
-!
-      real(kind=kind_phys) a0,    a0p,      a1,    a1p,     aa,  aa0,
-     &                     aa1,   adtv,     alpha, arnu,    b1,  b1p,
-     &                     b2,    b2p,      bb,    bb0,     bb1, bb2,
-     &                     bfact, ca,       cc,    cc1,     cc2, cfactr,
-     &                     ch2o,  charnock, cice,  convrad, cq,  csoil,
-     &                     ctfil1,ctfil2,   delt2, df2,     dfsnow,
-     &                     elocp, eth,      ff,  FMS,
-     &                     fhs,   funcdf,   funckt,g,       hl0, hl0inf,
-     &                     hl110, hlt,      hltinf,OLINF,   rcq, rcs,
-     &                     rct,   restar,   rhoh2o,rnu,     RSI,
-     &                     rss,   scanop,   sig2k, sigma,   smcdry,
-     &                     t12,   t14,      tflx,  tgice,   topt,
-     &                     val,   vis,      zbot,  snomin,  tem
-!
-cc
-      PARAMETER (CHARNOCK=.014,CA=.4)!C CA IS THE VON KARMAN CONSTANT
-      PARAMETER (G=grav,sigma=sbc)
+      real (kind=kind_phys), dimension(im,km), intent(in) :: smc
 
-      PARAMETER (ALPHA=5.,A0=-3.975,A1=12.32,B1=-7.755,B2=6.041)
-      PARAMETER (A0P=-7.941,A1P=24.75,B1P=-8.705,B2P=7.899,VIS=1.4E-5)
-      PARAMETER (AA1=-1.076,BB1=.7045,CC1=-.05808)
-      PARAMETER (BB2=-.1954,CC2=.009999)
-      PARAMETER (ELOCP=HVAP/CP,DFSNOW=.31,CH2O=4.2E6,CSOIL=1.26E6)
-      PARAMETER (SCANOP=.5,CFACTR=.5,ZBOT=-3.,TGICE=271.2)
-      PARAMETER (CICE=1880.*917.,topt=298.)
-      PARAMETER (RHOH2O=1000.,CONVRAD=JCAL*1.E4/60.)
-      PARAMETER (CTFIL1=.5,CTFIL2=1.-CTFIL1)
-      PARAMETER (RNU=1.51E-5,ARNU=.135*RNU)
-      parameter (snomin=1.0e-9)
-!
-      LOGICAL FLAG(IM), FLAGSNW(IM)
-      real(kind=kind_phys) KT1(IM),       KT2(IM),      KTSOIL,
-     &                     ET(IM,KM),
-     &                     STSOIL(IM,KM), AI(IM,KM),    BI(IM,KM),
-     &                     CI(IM,KM),     RHSTC(IM,KM)
-      real(kind=kind_phys) rsmax(13), rgl(13),  rsmin(13), hs(13),
-     &                     smmax(9),  smdry(9), smref(9),  smwlt(9)
-c
-c  the 13 vegetation types are:
-c
-c  1  ...  broadleave-evergreen trees (tropical forest)
-c  2  ...  broadleave-deciduous trees
-c  3  ...  broadleave and needle leave trees (mixed forest)
-c  4  ...  needleleave-evergreen trees
-c  5  ...  needleleave-deciduous trees (larch)
-c  6  ...  broadleave trees with groundcover (savanna)
-c  7  ...  groundcover only (perenial)
-c  8  ...  broadleave shrubs with perenial groundcover
-c  9  ...  broadleave shrubs with bare soil
-c 10  ...  dwarf trees and shrubs with ground cover (trunda)
-c 11  ...  bare soil
-c 12  ...  cultivations (use parameters from type 7)
-c 13  ...  glacial
-c
-      data rsmax/13*5000./
-      data rsmin/150.,100.,125.,150.,100.,70.,40.,
-     &           300.,400.,150.,999.,40.,999./
-      data rgl/5*30.,65.,4*100.,999.,100.,999./
-      data hs/41.69,54.53,51.93,47.35,47.35,54.53,36.35,
-     &        3*42.00,999.,36.35,999./
-      data smmax/.421,.464,.468,.434,.406,.465,.404,.439,.421/
-      data smdry/.07,.14,.22,.08,.18,.16,.12,.10,.07/
-      data smref/.283,.387,.412,.312,.338,.382,.315,.329,.283/
-      data smwlt/.029,.119,.139,.047,.010,.103,.069,.066,.029/
-!
-      save rsmax, rsmin, rgl, hs, smmax, smdry, smref, smwlt
-!
-      DELT2 = DELT * 2.
-C
-C     ESTIMATE SIGMA ** K AT 2 M
-C
-      SIG2K = 1. - 4. * G * 2. / (CP * 280.)
+      real (kind=kind_phys), intent(in) :: delt
 
-C
-C FLAG for land
-C
-      DO I = 1, IM
-         FLAG(I) = SLIMSK(I).EQ. 1.
-      ENDDO
+      logical, intent(in) :: flag_iter(im), flag_guess(im)
+
+!  ---  in/out:
+      real (kind=kind_phys), dimension(im),    intent(inout) :: weasd,  &
+     &       tskin, tprcp, srflag, canopy, tsurf
+
+      real (kind=kind_phys), dimension(im,km), intent(inout) :: stc
+
+!  ---  output:
+      real (kind=kind_phys), dimension(im),    intent(out) :: qsurf,    &
+     &       snowmt, gflux, rhscnpy, drain, evap, hflx, ep, chh, cmm,   &
+     &       evbs, evcw, trans, sbsno, snowc, stm, snohf, twilt,        &
+     &       tref
+
+      real (kind=kind_phys), dimension(im,km), intent(out) :: zsoil,    &
+     &       rhsmc, aim, bim, cim
+
+!  ---  external functions:
+      real (kind=kind_phys) :: funcdf, funckt, ktsoil
+
+!  ---  locals:
+      real (kind=kind_phys), dimension(im) :: weasd_old, tprcp_old,     &
+     &       srflag_old, tskin_old, canopy_old, wind, canfac, ddz,      &
+     &       ddz2, delta, dew, df1, dft0, dft1, dft2, dmdz, dmdz2,      &
+     &       dtdz1, dtdz2, ec, edir, etpfac, factsnw, fx, gx, hcpct,    &
+     &       partlnd, q0, qs1, qss, rcap, rch, rho, rs, rsmall,         &
+     &       slwd, smcz, snoevp, snowd, term1, term2, theta1, tv1,      &
+     &       tsea, xx, yy, zz, kt1, kt2
 
 
-C
-C  save land-related prognostic fields for guess run
-C
-      do i=1, im
-        if(FLAG(I) .AND. flag_guess(i)) then
-          sheleg_old(i) = sheleg(i)
-          tskin_old(i)  = tskin(i)
+      real (kind=kind_phys), dimension(im,km) :: stc_old, et, stsoil,   &
+     &       ai, bi, ci, rhstc
+
+      real (kind=kind_phys) :: bfact, cc, delt2, df2, eth, ff, g, rcq,  &
+     &       rcs, rct, rsi, rss, smcdry, t12, t14, tflx, tem
+
+      integer :: i, k
+
+      logical :: flag(im), flagsnw(im)
+
+!  ---  local data arrays:
+!     the 13 vegetation types are:
+!      1  ...  broadleave-evergreen trees (tropical forest)
+!      2  ...  broadleave-deciduous trees
+!      3  ...  broadleave and needle leave trees (mixed forest)
+!      4  ...  needleleave-evergreen trees
+!      5  ...  needleleave-deciduous trees (larch)
+!      6  ...  broadleave trees with groundcover (savanna)
+!      7  ...  groundcover only (perenial)
+!      8  ...  broadleave shrubs with perenial groundcover
+!      9  ...  broadleave shrubs with bare soil
+!     10  ...  dwarf trees and shrubs with ground cover (trunda)
+!     11  ...  bare soil
+!     12  ...  cultivations (use parameters from type 7)
+!     13  ...  glacial
+
+      real(kind=kind_phys),dimension(13), save :: rsmax, rsmin, rgl, hs
+
+      data rsmax / 13*5000.0 /
+      data rsmin / 150., 100., 125., 150., 100.,  70.,  40.,            &
+     &             300., 400., 150., 999., 040., 999. /
+
+      data rgl   / 5*30., 65., 4*100., 999., 100., 999. /
+
+      data hs    / 41.69, 54.53, 51.93, 47.35, 47.35, 54.53, 36.35,     &
+     &             3*42.00,      999.0, 36.35, 999.0 /
+
+      real(kind=kind_phys), dimension(9), save :: smdry, smref,  smwlt
+      data smdry / .07, .14, .22, .08, .18, .16, .12, .10, .07  /
+      data smref / .283,.387,.412,.312,.338,.382,.315,.329,.283 /
+      data smwlt / .029,.119,.139,.047,.010,.103,.069,.066,.029 /
+!
+!===> ...  begin here
+!
+      delt2 = delt * 2.0
+
+!  --- ...  set default flag for land
+
+      do i = 1, im
+        flag(i) = ( slimsk(i) == 1.0 )
+      enddo
+
+!  --- ...  save land-related prognostic fields for guess run
+
+      do i = 1, im
+        if (flag(i) .and. flag_guess(i)) then
+          weasd_old(i)  = weasd(i)
+          tskin_old (i) = tskin(i)
           canopy_old(i) = canopy(i)
-          tprcp_old(i)  = tprcp(i)
+          tprcp_old (i) = tprcp(i)
           srflag_old(i) = srflag(i)
-          do k=1, km
+
+          do k = 1, km
            stc_old(i,k) = stc(i,k)
           enddo
         endif
       enddo
 
-C
-CWei_FIX_3: you need to remove snow-rain detection here
-C  For OSU LSM, the snow-rain detection is done inside gbphys routine !!
-C
-Clu_Rev6: snow-rain detection
-C
-C      DO I=1,IM
-C        IF(FLAG(I).AND. flag_guess(i)) THEN
-C          IF(SRFLAG(I) .EQ. 1.) THEN
-C            SHELEG(i) = SHELEG(i) + 1.E3*TPRCP(i)
-C            TPRCP(i)   = 0.
-C          ENDIF
-C        ENDIF
-C      ENDDO
-C
-C  INITIALIZE VARIABLES. ALL UNITS ARE SUPPOSEDLY M.K.S. UNLESS SPECIFIE
-C  PSURF IS IN PASCALS
-C  WIND IS WIND SPEED, THETA1 IS ADIABATIC SURFACE TEMP FROM LEVEL 1
-C  RHO IS DENSITY, QS1 IS SAT. HUM. AT LEVEL1 AND QSS IS SAT. HUM. AT
-C  SURFACE
-C  CONVERT SLRAD TO THE CIVILIZED UNIT FROM LANGLEY MINUTE-1 K-4
-C  SURFACE ROUGHNESS LENGTH IS CONVERTED TO M FROM CM
-C
-!!
+!  --- ...  initialize variables. all units are supposedly m.k.s. unless
+!           specifie ps is in pascals
+!           wind is wind speed, theta1 is adiabatic surface temp from
+!           level 1, rho is density, qs1 is sat. hum. at level1 and qss
+!           is sat. hum. at surface
+!           surface roughness length is converted to m from cm
+!           net sw flux swnet is dn-up, and dlw is positive dnwd
+
 !     qs1 = fpvs(t1)
 !     qss = fpvs(tskin)
-      DO I=1,IM
-        IF(flag_iter(i).and. FLAG(I)) THEN
-        XRCL(I)  = SQRT(RCL(I))
-        PSURF(I) = 1000. * PS(I)
-        PS1(I)   = 1000. * PRSL1(I)
-!       SLWD(I)  = SLRAD(I) * CONVRAD
-        SLWD(I)  = SLRAD(I)
-c
-c  DLWFLX has been given a negative sign for downward longwave
-c  snet is the net shortwave flux
-c
-        SNET(I) = -SLWD(I) - DLWFLX(I)
-        WIND(I) = XRCL(I) * SQRT(U1(I) * U1(I) + V1(I) * V1(I))
-     &              + MAX(0.0, MIN(DDVEL(I), 30.0))
-        WIND(I) = MAX(WIND(I),1.)
-        Q0(I) = MAX(Q1(I),1.E-8)
-!       TSURF(I) = TSKIN(I)
-        TSEA(I) = tsurf(I)                         !!! Cwei_q2m_iter
-        THETA1(I) = T1(I) * PRSLKI(I)
-        TV1(I) = T1(I) * (1. + RVRDM1 * Q0(I))
-        THV1(I) = THETA1(I) * (1. + RVRDM1 * Q0(I))
-        TVS(I) = TSEA(I) * (1. + RVRDM1 * Q0(I))
-        RHO(I) = PS1(I) / (RD * TV1(I))
-cjfe    QS1(I) = 1000. * FPVS(T1(I))
-        qs1(i) = fpvs(t1(i))
-        QS1(I) = EPS * QS1(I) / (PS1(I) + EPSM1 * QS1(I))
-        QS1(I) = MAX(QS1(I), 1.E-8)
-        Q0(I) = min(QS1(I),Q0(I))
-cjfe    QSS(I) = 1000. * FPVS(TSEA(I))
-        qss(i) = fpvs(tskin(i))                  !!! change to tsurf?
-        QSS(I) = EPS * QSS(I) / (PSURF(I) + EPSM1 * QSS(I))
-c       RS = PLANTR
-        RS(I) = 0.
-        if(VEGTYPE(I).gt.0.) RS(I) = rsmin(VEGTYPE(I))
-        Z0(I) = .01 * Z0RL(i)
-        CANOPY(I)= MAX(CANOPY(I),0.)
-        DM(I) = 1.
-        FACTSNW(I) = 10.
-Clu     IF(SLIMSK(I).EQ.2.) FACTSNW(I) = 3.
-C
-C  SNOW DEPTH IN WATER EQUIVALENT IS CONVERTED FROM MM TO M UNIT
-C
-        SNOWD(I) = SHELEG(I) / 1000.
-        FLAGSNW(I) = .FALSE.
-C
-C  WHEN SNOW DEPTH IS LESS THAN 1 MM, A PATCHY SNOW IS ASSUMED AND
-C  SOIL IS ALLOWED TO INTERACT WITH THE ATMOSPHERE.
-C  WE SHOULD EVENTUALLY MOVE TO A LINEAR COMBINATION OF SOIL AND
-C  SNOW UNDER THE CONDITION OF PATCHY SNOW.
-C
-        IF(SNOWD(I).GT..001.OR.SLIMSK(I).EQ.2.) RS(I) = 0.
-        IF(SNOWD(I).GT..001) FLAGSNW(I) = .TRUE.
-C##DG  IF(LAT.EQ.LATD) THEN
-C##DG    PRINT *, ' WIND,TV1,TVS,Q1,QS1,SNOW,SLIMSK=',
-C##DG&   WIND,TV1,TVS,Q1,QS1,SNOWD,SLIMSK
-C##DG    PRINT *, ' SNET, SLWD =', SNET, SLWD(I)
-C##DG  ENDIF
-       ENDIF
-      ENDDO
-!!
-      DO I=1,IM
-        IF(flag_iter(i).and. FLAG(I)) THEN
-          ZSOIL(I,1) = -.10
+
+      do i = 1, im
+
+        if (flag_iter(i) .and. flag(i)) then
+          slwd(i)  = swnet(i) + dlwflx(i)
+
+          wind(i) = sqrt(u1(i)*u1(i) + v1(i)*v1(i))                     &
+     &            + max(0.0, min(ddvel(i), 30.0))
+          wind(i) = max(wind(i), 1.0)
+
+          q0(i) = max(q1(i), 1.e-8)
+!         tsurf(i) = tskin(i)
+          tsea(i) = tsurf(i)
+          theta1(i) = t1(i) * prslki(i)
+          tv1(i)    = t1(i) * (1.0 + rvrdm1*q0(i))
+!         thv1(i)   = theta1(i) * (1.0 + rvrdm1*q0(i))
+!         tvs(i)    = tsea(i) * (1.0 + rvrdm1*q0(i))
+          rho(i)    = prsl1(i) / (rd * tv1(i))
+
+          qs1(i) = fpvs(t1(i))
+          qs1(i) = eps*qs1(i) / (prsl1(i) + epsm1*qs1(i))
+          qs1(i) = max(qs1(i), 1.e-8)
+          q0(i)  = min(qs1(i), q0(i))
+
+          qss(i) = fpvs(tskin(i))              !!! change to tsurf?
+          qss(i) = eps*qss(i) / (ps(i) + epsm1*qss(i))
+
+!         rs = plantr
+          rs(i) = 0.
+          if (vegtype(i) > 0.0) rs(i) = rsmin(vegtype(i))
+
+          canopy(i)  = max(canopy(i), 0.0)
+          factsnw(i) = 10.0
+
+!  --- ...  snow depth in water equivalent is converted from mm to m unit
+
+          snowd(i)   = weasd(i) * 0.001
+          flagsnw(i) = .false.
+
+!  --- ...  when snow depth is less than 1 mm, a patchy snow is assumed
+!           and soil is allowed to interact with the atmosphere.
+!           we should eventually move to a linear combination of soil and
+!           snow under the condition of patchy snow.
+
+          if (snowd(i)>0.001 .or. slimsk(i)==2.0) rs(i) = 0.0
+          if (snowd(i)>0.001) flagsnw(i) = .true.
+        endif   ! end if_flag_iter_block
+
+      enddo   ! end do_i_loop
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          zsoil(i,1) = -0.10
        
-          DO K = 2, KM
-            ZSOIL(I,K) = ZSOIL(I,K-1)
-     &                   + (-2. - ZSOIL(I,1)) / (KM - 1)
-          ENDDO
-CWei [+5] use the same soil layer structure as Noah if running with 4-layer
-          if(km.gt.2)then
-          ZSOIL(I,2) = -.40
-          ZSOIL(I,3) = -1.0
-          ZSOIL(I,4) = -2.0
-          endif
-        ENDIF
-      ENDDO
-!!
-      DO I=1,IM
-        IF(flag_iter(i).and. FLAG(I)) THEN
-        Z1(I) = -RD * TV1(I) * LOG(PS1(I)/PSURF(I)) / G
-        DRAIN(I) = 0.
-        ENDIF
-      ENDDO
-!!
-      DO K = 1, KM
-        DO I=1,IM
-          IF(flag_iter(i).and. FLAG(I)) THEN
-          ET(I,K) = 0.
-          RHSMC(I,K) = 0.
-          AIM(I,K) = 0.
-          BIM(I,K) = 1.
-          CIM(I,K) = 0.
-          STSOIL(I,K) = STC(I,K)
-          ENDIF
-        ENDDO
-      ENDDO
-      DO I=1,IM
-        IF(flag_iter(i).and. FLAG(I)) THEN
-        EDIR(I) = 0.
-        EC(I) = 0.
-        EVAP(I) = 0.
-        HFLX(I) = 0.
-        EP(I) = 0.
-        SNOWMT(I) = 0.
-        GFLUX(I) = 0.
-        RHSCNPY(I) = 0.
-        FX(I) = 0.
-        ETPFAC(I) = 0.
-        CANFAC(I) = 0.
-Cwei added 10/24/2006
-        EVBS(I)=0
-        EVCW(I)=0
-        TRANS(I)=0
-        SBSNO(I)=0
-        SNOWC(I)=0
-        ENDIF
-      ENDDO
-
-C
-C  RCP = RHO CP CH V
-C
-      DO I = 1, IM
-        IF(flag_iter(i).and. FLAG(I)) THEN
-        RCH(I) = RHO(I) * CP * CH(I) * WIND(I)
-Cwei added 10/24/2006
-        CMM(I)=CM(I)* WIND(I)
-        CHH(I)=RHO(I)*CH(I)* WIND(I)
-        ENDIF
-      ENDDO
-
-C
-C  COMPUTE SOIL/SNOW/ICE HEAT FLUX IN PREPARATION FOR SURFACE ENERGY
-C  BALANCE CALCULATION
-C
-      DO I = 1, IM
-Clu     GFLUX(I) = 0.
-        IF(flag_iter(i).and. FLAG(I)) THEN
-          SMCZ(I) = .5 * (SMC(I,1) + .20)
-          DFT0(I) = KTSOIL(SMCZ(I),SOILTYP(I))
-Clu     ELSEIF(SLIMSK(I).EQ.2.) THEN
-C  DF FOR ICE IS TAKEN FROM MAYKUT AND UNTERSTEINER
-C  DF IS IN SI UNIT OF W K-1 M-1
-Clu       DFT0(I) = 2.2
-        ENDIF
-      ENDDO
-!!
-      DO I=1,IM
-        IF(flag_iter(i).and. FLAG(I)) THEN
-C         IF(SNOWD(I).GT..001) THEN
-          IF(FLAGSNW(I)) THEN
-C
-C  WHEN SNOW COVERED, GROUND HEAT FLUX COMES FROM SNOW
-C
-            TFLX = MIN(T1(I), TSEA(I))
-            GFLUX(I) = -DFSNOW * (TFLX - STSOIL(I,1))
-     &                 / (FACTSNW(I) * MAX(SNOWD(I),.001))
-          ELSE
-            GFLUX(I) = DFT0(I) * (STSOIL(I,1) - TSEA(I))
-     &                 / (-.5 * ZSOIL(I,1))
-          ENDIF
-          GFLUX(I) = MAX(GFLUX(I),-200.)
-          GFLUX(I) = MIN(GFLUX(I),+200.)
-        ENDIF
-      ENDDO
-      DO I = 1, IM
-        IF(flag_iter(i).and. FLAG(I)) THEN
-        PARTLND(I) = 1.
-        IF(SNOWD(I).GT.0..AND.SNOWD(I).LE..001) THEN
-          PARTLND(I) = 1. - SNOWD(I) / .001
-        ENDIF
-        ENDIF
-      ENDDO
-      DO I = 1, IM
-        IF(flag_iter(i).and. FLAG(I)) THEN
-        SNOEVP(I) = 0.
-        if(SNOWD(I).gt..001) PARTLND(I) = 0.
-        ENDIF
-      ENDDO
-C
-C  COMPUTE POTENTIAL EVAPORATION FOR LAND AND SEA ICE
-C
-      DO I = 1, IM
-        IF(flag_iter(i).and. FLAG(I)) THEN
-          T12 = T1(I) * T1(I)
-          T14 = T12 * T12
-C
-C  RCAP = FNET - SIGMA T**4 + GFLX - RHO CP CH V (T1-THETA1)
-C
-          RCAP(I) = -SLWD(I) - SIGMA * T14 + GFLUX(I)
-     &              - RCH(I) * (T1(I) - THETA1(I))
-C
-C  RSMALL = 4 SIGMA T**3 / RCH(I) + 1
-C
-          RSMALL(I) = 4. * SIGMA * T1(I) * T12 / RCH(I) + 1.
-C
-C  DELTA = L / CP * DQS/DT
-C
-          DELTA(I) = ELOCP * EPS * HVAP * QS1(I) / (RD * T12)
-C
-C  POTENTIAL EVAPOTRANSPIRATION ( WATTS / M**2 ) AND
-C  POTENTIAL EVAPORATION
-C
-          TERM1(I) = ELOCP * RSMALL(I) * RCH(I)*(QS1(I)-Q0(I))
-          TERM2(I) = RCAP(I) * DELTA(I)
-          EP(I) = (ELOCP * RSMALL(I) * RCH(I) * (QS1(I) - Q0(I))
-     &              + RCAP(I) * DELTA(I))
-          EP(I) = EP(I) / (RSMALL(I) + DELTA(I))
-        ENDIF
-      ENDDO
-C
-C  ACTUAL EVAPORATION OVER LAND IN THREE PARTS : EDIR, ET, AND EC
-C
-C  DIRECT EVAPORATION FROM SOIL, THE UNIT GOES FROM M S-1 TO KG M-2 S-1
-C
-      DO I = 1, IM
-        FLAG(I) = SLIMSK(I).EQ.1..AND.EP(I).GT.0.
-      ENDDO
-      DO I = 1, IM
-        IF(flag_iter(i))THEN
-        IF(FLAG(I)) THEN
-          DF1(I) = FUNCDF(SMC(I,1),SOILTYP(I))
-          KT1(I) = FUNCKT(SMC(I,1),SOILTYP(I))
-        endif
-        if(FLAG(I).and.STC(I,1).lt.t0c) then
-          DF1(I) = 0.
-          KT1(I) = 0.
-        endif
-        IF(FLAG(I)) THEN
-c         TREF = .75 * THSAT(SOILTYP(I))
-          TREF(I) = smref(SOILTYP(I))
-c         TWILT = TWLT(SOILTYP(I))
-          TWILT(I) = smwlt(SOILTYP(I))
-          smcdry = smdry(SOILTYP(I))
-c         FX(I) = -2. * DF1(I) * (SMC(I,1) - .23) / ZSOIL(I,1)
-c    &            - KT1(I)
-          FX(I) = -2. * DF1(I) * (SMC(I,1) - smcdry) / ZSOIL(I,1)
-     &            - KT1(I)
-          FX(I) = MIN(FX(I), EP(I)/HVAP)
-          FX(I) = MAX(FX(I),0.)
-C
-C  SIGMAF IS THE FRACTION OF AREA COVERED BY VEGETATION
-C
-          EDIR(I) = FX(I) * (1. - SIGMAF(I)) * PARTLND(I)
-        ENDIF
-        endif
-      ENDDO
-c
-c  calculate stomatal resistance
-c
-      DO I = 1, IM
-        if(flag_iter(i).and.FLAG(I)) then
-c
-c  resistance due to PAR. We use net solar flux as proxy at the present time
-c
-          ff = .55 * 2. * SNET(I) / rgl(VEGTYPE(I))
-          rcs = (ff + RS(I)/rsmax(VEGTYPE(I))) / (1. + ff)
-          rcs = max(rcs,.0001)
-          rct = 1.
-          rcq = 1.
-c
-c  resistance due to thermal effect
-c
-c         rct = 1. - .0016 * (topt - theta1) ** 2
-c         rct = max(rct,.0001)
-c
-c  resistance due to humidity
-c
-c         rcq = 1. / (1. + hs(VEGTYPE(I)) * (QS1(I) - Q0(I)))
-c         rcq = max(rcq,.0001)
-c
-c  compute resistance without the effect of soil moisture
-c
-          RS(I) = RS(I) / (rcs * rct * rcq)
-        endif
-      ENDDO
-C
-C  TRANSPIRATION FROM ALL LEVELS OF THE SOIL
-C
-      DO I = 1, IM
-        IF(flag_iter(i).and.FLAG(I)) THEN
-          CANFAC(I) = (CANOPY(I) / SCANOP) ** CFACTR
-          ETPFAC(I) = SIGMAF(I)
-     &           * (1. - CANFAC(I)) / HVAP
-          GX(I) = (SMC(I,1) - TWILT(I)) / (TREF(I) - TWILT(I))
-          GX(I) = MAX(GX(I),0.)
-          GX(I) = MIN(GX(I),1.)
-c
-c  resistance due to soil moisture deficit
-c
-          rss = GX(I) * (ZSOIL(I,1) / ZSOIL(I,km))
-          rss = max(rss,.0001)
-          RSI = RS(I) / rss
-c
-c  transpiration a la Monteith
-c
-          eth = (TERM1(I) + TERM2(I)) / 
-     &          (DELTA(I) + RSMALL(I) * (1. + RSI * CH(I) * WIND(I)))
-          ET(I,1) = ETPFAC(I) * eth
-     &            * PARTLND(I)
-        ENDIF
-      ENDDO
-!!
-      DO K = 2, KM
-        DO I=1,IM
-          IF(flag_iter(i).and.FLAG(I)) THEN
-            GX(I) = (SMC(I,K) - TWILT(I)) / (TREF(I) - TWILT(I))
-            GX(I) = MAX(GX(I),0.)
-            GX(I) = MIN(GX(I),1.)
-c
-c  resistance due to soil moisture deficit
-c
-          rss = GX(I) * ((ZSOIL(I,k) - ZSOIL(I,k-1))/ZSOIL(I,km))
-          rss = max(rss,1.e-6)
-          RSI = RS(I) / rss
-c
-c  transpiration a la Monteith
-c
-          eth = (TERM1(I) + TERM2(I)) / 
-     &          (DELTA(I) + RSMALL(I) * (1. + RSI * CH(I) * WIND(I)))
-            ET(I,K) = eth
-     &               * ETPFAC(I) * PARTLND(I)
-          ENDIF
-        ENDDO
-      ENDDO
-!!
- 400  CONTINUE
-C
-C  CANOPY RE-EVAPORATION
-C
-      DO I=1,IM
-        IF(flag_iter(i).and.FLAG(I)) THEN
-          EC(I) = SIGMAF(I) * CANFAC(I) * EP(I) / HVAP
-          EC(I) = EC(I) * PARTLND(I)
-          EC(I) = min(EC(I),CANOPY(I)/delt)
-        ENDIF
-      ENDDO
-C
-C  SUM UP TOTAL EVAPORATION
-C
-      DO I = 1, IM
-        IF(flag_iter(i).and.FLAG(I)) THEN
-         EVAP(I) = EDIR(I) + EC(I)
-        ENDIF
-      ENDDO
-!!
-      DO K = 1, KM
-        DO I=1,IM
-          IF(flag_iter(i).and.FLAG(I)) THEN
-            EVAP(I) = EVAP(I) + ET(I,K)
-          ENDIF
-        ENDDO
-      ENDDO
-!!
-C
-C  RETURN EVAP UNIT FROM KG M-2 S-1 TO WATTS M-2
-C
-      DO I=1,IM
-        IF(flag_iter(i).and.FLAG(I)) THEN
-          EVAP(I) = MIN(EVAP(I)*HVAP,EP(I))
-        ENDIF
-      ENDDO
-C##DG  IF(LAT.EQ.LATD) THEN
-C##DG    PRINT *, 'FX(I), SIGMAF, EDIR(I), ETPFAC=', FX(I)*HVAP,SIGMAF,
-C##DG&          EDIR(I)*HVAP,ETPFAC*HVAP
-C##DG    PRINT *, ' ET =', (ET(K)*HVAP,K=1,KM)
-C##DG    PRINT *, ' CANFAC(I), EC(I), EVAP', CANFAC(I),EC(I)*HVAP,EVAP
-C##DG  ENDIF
-
-C
-C  TREAT DOWNWARD MOISTURE FLUX SITUATION
-C  (EVAP WAS PRESET TO ZERO SO NO UPDATE NEEDED)
-C  DEW IS CONVERTED FROM KG M-2 TO M TO CONFORM TO PRECIP UNIT
-C
-      DO I = 1, IM
-        FLAG(I) = SLIMSK(I).EQ.1..AND.EP(I).LE.0.
-        DEW(I) = 0.
-      ENDDO
-      DO I = 1, IM
-        IF(flag_iter(i).and.FLAG(I)) THEN
-          DEW(I) = -EP(I) * DELT / (HVAP * RHOH2O)
-          EVAP(I) = EP(I)
-          DEW(I) = DEW(I) * PARTLND(I)
-          EVAP(I) = EVAP(I) * PARTLND(I)
-          DM(I) = 1.
-        ENDIF
-      ENDDO
-C
-C  SNOW COVERED LAND 
-C
-      DO I = 1, IM
-        FLAG(I) = SLIMSK(I).EQ.1..AND.SNOWD(I).GT.0.
-      ENDDO
-C
-C  CHANGE OF SNOW DEPTH DUE TO EVAPORATION OR SUBLIMATION
-C
-C  CONVERT EVAP FROM KG M-2 S-1 TO M S-1 TO DETERMINE THE REDUCTION OF S
-C
-      DO I = 1, IM
-        IF(flag_iter(i).and.FLAG(I)) THEN
-          BFACT = SNOWD(I) / (DELT * EP(I) / (HVAP * RHOH2O))
-          BFACT = MIN(BFACT,1.)
-C
-C  THE EVAPORATION OF SNOW
-C
-          IF(EP(I).LE.0.) BFACT = 1.
-          IF(SNOWD(I).LE..001) THEN
-c           EVAP = (SNOWD(I)/.001)*BFACT*EP(I) + EVAP
-!           SNOEVP(I) = bfact * EP(I) * (1. - PARTLND(I))
-!           EVAP = EVAP + SNOEVP(I)
-            SNOEVP(I) = bfact * EP(I)
-!           EVAP   = EVAP + SNOEVP(I) * (1. - PARTLND(I))
-            EVAP(I)=EVAP(I)+SNOEVP(I)*(1.-PARTLND(I))
-          ELSE
-c           EVAP(I) = BFACT * EP(I)
-            SNOEVP(I) = bfact * EP(I)
-            EVAP(I) = SNOEVP(I)
-          ENDIF
-          TSEA(I) = T1(I) +
-     &          (RCAP(I) - GFLUX(I) - DFSNOW * (T1(I) - STSOIL(I,1))
-     &           /(FACTSNW(I) * MAX(SNOWD(I),.001))
-c    &           + THETA1 - T1
-c    &           - BFACT * EP(I)) / (RSMALL(I) * RCH(I)
-     &           - SNOEVP(I)) / (RSMALL(I) * RCH(I)
-     &           + DFSNOW / (FACTSNW(I)* MAX(SNOWD(I),.001)))
-c         SNOWD(I) = SNOWD(I) - BFACT * EP(I) * DELT / (RHOH2O * HVAP)
-          SNOWD(I) = SNOWD(I) - SNOEVP(I) * delt / (rhoh2o * hvap)
-          SNOWD(I) = MAX(SNOWD(I),0.)
-        ENDIF
-      ENDDO
-C
-C  SNOW MELT (M)
-C
- 500  CONTINUE
-      DO I = 1, IM
-        FLAG(I) = SLIMSK(I).EQ.1.
-     &            .AND.SNOWD(I).GT..0
-      ENDDO
-      DO I = 1, IM
-        IF(flag_iter(i))THEN
-        IF(FLAG(I).AND.TSEA(I).GT.T0C) THEN
-          SNOWMT(I) = RCH(I) * RSMALL(I) * DELT
-     &              * (TSEA(I) - T0C) / (RHOH2O * HFUS)
-          SNOWMT(I) = min(SNOWMT(I),SNOWD(I))
-          SNOWD(I) = SNOWD(I) - SNOWMT(I)
-          SNOWD(I) = MAX(SNOWD(I),0.)
-          TSEA(I) = MAX(T0C,TSEA(I)
-     &             -HFUS*SNOWMT(I)*RHOH2O/(RCH(I)*RSMALL(I)*DELT))
-        ENDIF
-        ENDIF
-      ENDDO
-c
-c  We need to re-evaluate evaporation because of snow melt
-c    the skin temperature is now bounded to 0 deg C
-c
-!     qss = fpvs(TSEA)
-      DO I = 1, IM
-        FLAG(I) = SLIMSK(I).EQ. 1.
-        IF(flag_iter(i).and.FLAG(I))THEN
-!       IF (SNOWD(I) .GT. 0.0) THEN
-        IF (SNOWD(I) .GT. snomin) THEN
-cjfe      QSS(I) = 1000. * FPVS(TSEA(I))
-          qss(i) = fpvs(TSEA(i))
-          QSS(I) = EPS * QSS(I) / (PSURF(I) + EPSM1 * QSS(I))
-          EVAP(I) = elocp * RCH(I) * (QSS(I) - Q0(I))
-        ENDIF
-        ENDIF
-      ENDDO
-C
-C  PREPARE TENDENCY TERMS FOR THE SOIL MOISTURE FIELD WITHOUT PRECIPITAT
-C  THE UNIT OF MOISTURE FLUX NEEDS TO BECOME M S-1 FOR SOIL MOISTURE
-C   HENCE THE FACTOR OF RHOH2O
-C
-      DO I = 1, IM
-       IF(flag_iter(i))THEN
-        if(FLAG(I)) then
-          DF1(I) = FUNCDF(SMCZ(I),SOILTYP(I))
-          KT1(I) = FUNCKT(SMCZ(I),SOILTYP(I))
-        endif
-        if(FLAG(I).and.STC(I,1).lt.t0c) then
-          DF1(I) = 0.
-          KT1(I) = 0.
-        endif
-        IF(FLAG(I)) THEN
-          RHSCNPY(I) = -EC(I) + SIGMAF(I) * RHOH2O * DEW(I) / DELT
-          SMCZ(I) = MAX(SMC(I,1), SMC(I,2))
-          DMDZ(I) = (SMC(I,1) - SMC(I,2)) / (-.5 * ZSOIL(I,2))
-          RHSMC(I,1) = (DF1(I) * DMDZ(I) + KT1(I)
-     &        + (EDIR(I) + ET(I,1))) / (ZSOIL(I,1) * RHOH2O)
-          RHSMC(I,1) = RHSMC(I,1) - (1. - SIGMAF(I)) * DEW(I) /
-     &                 ( ZSOIL(I,1) * delt)
-          DDZ(I) = 1. / (-.5 * ZSOIL(I,2))
-C
-C  AIM, BIM, AND CIM ARE THE ELEMENTS OF THE TRIDIAGONAL MATRIX FOR THE
-C  IMPLICIT UPDATE OF THE SOIL MOISTURE
-C
-          AIM(I,1) = 0.
-          BIM(I,1) = DF1(I) * DDZ(I) / (-ZSOIL(I,1) * RHOH2O)
-          CIM(I,1) = -BIM(I,1)
-        ENDIF
-       ENDIF
-      ENDDO
-!!
-      DO K = 2, KM
-        IF(K.LT.KM) THEN
-          DO I=1,IM
-           IF(flag_iter(i))THEN
-            IF(FLAG(I)) THEN
-              DF2 = FUNCDF(SMCZ(I),SOILTYP(I))
-              KT2(I) = FUNCKT(SMCZ(I),SOILTYP(I))
-            ENDIF
-            IF(FLAG(I).and.STC(I,k).lt.t0c) THEN
-              df2 = 0.
-              KT2(I) = 0.
-            ENDIF
-            IF(FLAG(I)) THEN
-              DMDZ2(I) = (SMC(I,K) - SMC(I,K+1))
-     &                   / (.5 * (ZSOIL(I,K-1) - ZSOIL(I,K+1)))
-              SMCZ(I) = MAX(SMC(I,K), SMC(I,K+1))
-              RHSMC(I,K) = (DF2 * DMDZ2(I) + KT2(I)
-     &             - DF1(I) * DMDZ(I) - KT1(I) + ET(I,K))
-     &                     / (RHOH2O*(ZSOIL(I,K) - ZSOIL(I,K-1)))
-              DDZ2(I) = 2. / (ZSOIL(I,K-1) - ZSOIL(I,K+1))
-              CIM(I,K) = -DF2 * DDZ2(I)
-     &                / ((ZSOIL(I,K-1) - ZSOIL(I,K))*RHOH2O)
-            ENDIF
-           ENDIF
-          ENDDO
-        ELSE
-          DO I = 1, IM
-           IF(flag_iter(i))THEN
-            IF(FLAG(I)) THEN
-              KT2(I) = FUNCKT(SMC(I,K),SOILTYP(I))
-            ENDIF
-            if(FLAG(I).and.STC(I,k).lt.t0c) KT2(I) = 0.
-            IF(FLAG(I)) THEN
-              RHSMC(I,K) = (KT2(I)
-     &             - DF1(I) * DMDZ(I) - KT1(I) + ET(I,K))
-     &                     / (RHOH2O*(ZSOIL(I,K) - ZSOIL(I,K-1)))
-              DRAIN(I) = KT2(I)
-              CIM(I,K) = 0.
-            ENDIF
-           ENDIF
-          ENDDO
-        ENDIF
-        DO I = 1, IM
-          IF(flag_iter(i).and.FLAG(I)) THEN
-            AIM(I,K) = -DF1(I) * DDZ(I)
-     &                / ((ZSOIL(I,K-1) - ZSOIL(I,K))*RHOH2O)
-            BIM(I,K) = -(AIM(I,K) + CIM(I,K))
-            DF1(I) = DF2
-            KT1(I) = KT2(I)
-            DMDZ(I) = DMDZ2(I)
-            DDZ(I) = DDZ2(I)
-          ENDIF
-        ENDDO
-      ENDDO
-!!
- 600  CONTINUE
-C
-C  UPDATE SOIL TEMPERATURE
-C
-      DO I=1,IM
-Clu     FLAG(I) = SLIMSK(I).NE.0.
-        FLAG(I) = SLIMSK(I).EQ.1.
-      ENDDO
-C
-C  SURFACE TEMPERATURE IS PART OF THE UPDATE WHEN SNOW IS ABSENT
-C
-      DO I=1,IM
-C       IF(FLAG(I).AND.SNOWD(I).LE..001) THEN
-       IF(flag_iter(i))THEN
-        IF(FLAG(I).AND..NOT.FLAGSNW(I)) THEN
-          YY(I) = T1(I) +
-c    &          (RCAP(I)-GFLUX(I) + THETA1 - T1(I)
-     &          (RCAP(I)-GFLUX(I) 
-     &           - EVAP(I)) / (RSMALL(I) * RCH(I))
-          ZZ(I) = 1. + DFT0(I) / (-.5 * ZSOIL(I,1) * RCH(I) * RSMALL(I))
-          XX(I) = DFT0(I) * (STSOIL(I,1) - YY(I)) /
-     &            (.5 * ZSOIL(I,1) * ZZ(I))
-        ENDIF
-C       IF(FLAG(I).AND.SNOWD(I).GT..001) THEN
-        IF(FLAG(I).AND.FLAGSNW(I)) THEN
-          YY(I) = STSOIL(I,1)
-C
-C  HEAT FLUX FROM SNOW IS EXPLICIT IN TIME
-C
-          ZZ(I) = 1.
-          XX(I) = DFSNOW * (STSOIL(I,1) - TSEA(I))
-     &            / (-FACTSNW(I) * MAX(SNOWD(I),.001))
-        ENDIF
-       ENDIF
-      ENDDO
-C
-C  COMPUTE THE FORCING AND THE IMPLICIT MATRIX ELEMENTS FOR UPDATE
-C
-C  CH2O IS THE HEAT CAPACITY OF WATER AND CSOIL IS THE HEAT CAPACITY OF
-C
-      DO I = 1, IM
-        IF(flag_iter(i).and.FLAG(I)) THEN
-          SMCZ(I) = MAX(SMC(I,1), SMC(I,2))
-          DTDZ1(I) = (STSOIL(I,1) - STSOIL(I,2)) / (-.5 * ZSOIL(I,2))
-          DFT1(I) = KTSOIL(SMCZ(I),SOILTYP(I))
-          HCPCT(I) = SMC(I,1) * CH2O + (1. - SMC(I,1)) * CSOIL
-          DFT2(I) = DFT1(I)
-          DDZ(I) = 1. / (-.5 * ZSOIL(I,2))
-C
-C  AI, BI, AND CI ARE THE ELEMENTS OF THE TRIDIAGONAL MATRIX FOR THE
-C  IMPLICIT UPDATE OF THE SOIL TEMPERATURE
-C
-          AI(I,1) = 0.
-          BI(I,1) = DFT1(I) * DDZ(I) / (-ZSOIL(I,1) * HCPCT(I))
-          CI(I,1) = -BI(I,1)
-          BI(I,1) = BI(I,1)
-     &            + DFT0(I) / (.5 * ZSOIL(I,1) **2 * HCPCT(I) * ZZ(I))
-C         SS = DFT0(I) * (STSOIL(I,1) - YY(I))
-C    &         / (.5 * ZSOIL(I,1) * ZZ(I))
-C         RHSTC(1) = (DFT1(I) * DTDZ1(I) - SS)
-          RHSTC(I,1) = (DFT1(I) * DTDZ1(I) - XX(I))
-     &                 / (ZSOIL(I,1) * HCPCT(I))
-        ENDIF
-      ENDDO
-!!
-      DO K = 2, KM
-        DO I=1,IM
-          IF(flag_iter(i).and.FLAG(I)) THEN
-            HCPCT(I) = SMC(I,K) * CH2O + (1. - SMC(I,K)) * CSOIL
-          ENDIF
-        ENDDO
-        IF(K.LT.KM) THEN
-          DO I = 1, IM
-            IF(flag_iter(i).and.FLAG(I)) THEN
-              DTDZ2(I) = (STSOIL(I,K) - STSOIL(I,K+1))
-     &                   / (.5 * (ZSOIL(I,K-1) - ZSOIL(I,K+1)))
-              SMCZ(I) = MAX(SMC(I,K), SMC(I,K+1))
-              DFT2(I) = KTSOIL(SMCZ(I),SOILTYP(I))
-              DDZ2(I) = 2. / (ZSOIL(I,K-1) - ZSOIL(I,K+1))
-              CI(I,K) = -DFT2(I) * DDZ2(I)
-     &                / ((ZSOIL(I,K-1) - ZSOIL(I,K)) * HCPCT(I))
-            ENDIF
-          ENDDO
-        ELSE
-C
-C  AT THE BOTTOM, CLIMATOLOGY IS ASSUMED AT 2M DEPTH FOR LAND AND
-C  FREEZING TEMPERATURE IS ASSUMED FOR SEA ICE AT Z(KM)
-          DO I = 1, IM
-            IF(flag_iter(i).and.FLAG(I)) THEN
-              DTDZ2(I) = (STSOIL(I,K) - TG3(I))
-     &              / (.5 * (ZSOIL(I,K-1) + ZSOIL(I,K)) - ZBOT)
-              DFT2(I) = KTSOIL(SMC(I,K),SOILTYP(I))
-              CI(I,K) = 0.
-            ENDIF
-          ENDDO
-        ENDIF
-        DO I = 1, IM
-          IF(flag_iter(i).and.FLAG(I)) THEN
-            RHSTC(I,K) = (DFT2(I) * DTDZ2(I) - DFT1(I) * DTDZ1(I))
-     &                 / ((ZSOIL(I,K) - ZSOIL(I,K-1)) * HCPCT(I))
-            AI(I,K) = -DFT1(I) * DDZ(I)
-     &                / ((ZSOIL(I,K-1) - ZSOIL(I,K)) * HCPCT(I))
-            BI(I,K) = -(AI(I,K) + CI(I,K))
-            DFT1(I) = DFT2(I)
-            DTDZ1(I) = DTDZ2(I)
-            DDZ(I) = DDZ2(I)
-          ENDIF
-        ENDDO
-      ENDDO
-!!
- 700  CONTINUE
-C
-C  SOLVE THE TRI-DIAGONAL MATRIX
-C
-      DO K = 1, KM
-        DO I=1,IM
-          IF(flag_iter(i).and.FLAG(I))  THEN
-            RHSTC(I,K) = RHSTC(I,K) * DELT2
-            AI(I,K) = AI(I,K) * DELT2
-            BI(I,K) = 1. + BI(I,K) * DELT2
-            CI(I,K) = CI(I,K) * DELT2
-          ENDIF
-        ENDDO
-      ENDDO
-C  FORWARD ELIMINATION
-      DO I=1,IM
-        IF(flag_iter(i).and.FLAG(I)) THEN
-          CI(I,1) = -CI(I,1) / BI(I,1)
-          RHSTC(I,1) = RHSTC(I,1) / BI(I,1)
-        ENDIF
-      ENDDO
-!!
-      DO K = 2, KM
-        DO I=1,IM
-          IF(flag_iter(i).and.FLAG(I)) THEN
-            CC = 1. / (BI(I,K) + AI(I,K) * CI(I,K-1))
-            CI(I,K) = -CI(I,K) * CC
-            RHSTC(I,K) = (RHSTC(I,K) - AI(I,K) * RHSTC(I,K-1)) * CC
-          ENDIF
-        ENDDO
-      ENDDO
-!!
-C  BACKWARD SUBSTITUTTION
-      DO I=1,IM
-        IF(flag_iter(i).and.FLAG(I)) THEN
-          CI(I,KM) = RHSTC(I,KM)
-        ENDIF
-      ENDDO
-!!
-      DO K = KM-1, 1
-        DO I=1,IM
-          IF(flag_iter(i).and.FLAG(I)) THEN
-            CI(I,K) = CI(I,K) * CI(I,K+1) + RHSTC(I,K)
-          ENDIF
-        ENDDO
-      ENDDO
-C
-C  UPDATE SOIL AND ICE TEMPERATURE
-C
-      DO K = 1, KM
-        DO I=1,IM
-          IF(flag_iter(i).and.FLAG(I)) THEN
-            STSOIL(I,K) = STSOIL(I,K) + CI(I,K)
-          ENDIF
-        ENDDO
-      ENDDO
-C
-C  UPDATE SURFACE TEMPERATURE FOR SNOW FREE SURFACES
-C
-      DO I=1,IM
-        IF(flag_iter(i))THEN
-        IF(FLAG(I).AND..NOT.FLAGSNW(I)) THEN
-          TSEA(I) = (YY(I) + (ZZ(I) - 1.) * STSOIL(I,1)) / ZZ(I)
-        ENDIF
-        ENDIF
-      ENDDO
-!!
-C
-C  TIME FILTER FOR SOIL AND SKIN TEMPERATURE
-C
-      DO I=1,IM
-        IF(flag_iter(i).and. FLAG(I)) THEN
-          TSURF(I) = CTFIL1 * TSEA(I) + CTFIL2 * TSURF(I)
-        ENDIF
-      ENDDO
-      DO K = 1, KM
-        DO I=1,IM
-          IF(flag_iter(i).and. FLAG(I)) THEN
-            STC(I,K) = CTFIL1 * STSOIL(I,K) + CTFIL2 * STC(I,K)
-          ENDIF
-        ENDDO
-      ENDDO
-C
-C  GFLUX CALCULATION
-C
-c     DO I=1,IM
-c       FLAG(I) = SLIMSK(I).EQ.1.
-c    &            .AND.FLAGSNW(I)
-c     ENDDO
-      DO I = 1, IM
-        IF(flag_iter(i).and.FLAG(I)) THEN
-         if(FLAGSNW(I))then
-          GFLUX(I) = -DFSNOW * (TSURF(I) - STC(I,1))
-     &               / (FACTSNW(I) * MAX(SNOWD(I),.001))
-         else
-          GFLUX(I) = DFT0(I) * (STC(I,1) - TSURF(I))
-     &               / (-.5 * ZSOIL(I,1))
-         endif
-        ENDIF
-      ENDDO
-c     DO I = 1, IM
-c       FLAG(I) = SLIMSK(I).EQ.1.
-c       IF(flag_iter(i))THEN
-c       IF(FLAG(I).AND..NOT.FLAGSNW(I)) THEN
-c         GFLUX(I) = DFT0(I) * (STC(I,1) - TSURF(I))
-c    &               / (-.5 * ZSOIL(I,1))
-c       ENDIF
-c       ENDIF
-c     ENDDO
-C
-C  CALCULATE SENSIBLE HEAT FLUX
-C
-      DO I = 1, IM
-        IF(flag_iter(i).and. FLAG(I)) THEN
-        HFLX(I) = RCH(I) * (TSURF(I) - THETA1(I))
-        ENDIF
-      ENDDO
-C
-C  THE REST OF THE OUTPUT
-C
-      DO I = 1, IM
-        IF(flag_iter(i).and. FLAG(I)) THEN
-        QSURF(I) = Q1(I) + EVAP(I) / (ELOCP * RCH(I))
-        DM(I) = 1.
-C
-Cwei added 10/24/2006
-        EVBS(I)=EDIR(I)
-        EVCW(I)=EC(I)
-        SBSNO(I)=SNOEVP(I)
-        SNOWC(I)=1-PARTLND(I)
-          STM(I)=-1.0*SMC(I,1)*ZSOIL(I,1)
-          TRANS(I)=ET(I,1)
-         DO K=2,KM
-          STM(I)=STM(I)+SMC(I,K)*(ZSOIL(I,K-1)-ZSOIL(I,K))
-          TRANS(I)=TRANS(I)+ET(I,K)
-         ENDDO 
-C  CONVERT SNOW DEPTH BACK TO MM OF WATER EQUIVALENT
-C
-        SHELEG(I) = SNOWD(I) * 1000.
-        ENDIF
-      ENDDO
-!
-      do i=1,im
-        IF(flag_iter(i).and. FLAG(I)) THEN
-        tem     = 1.0 / rho(i)
-        hflx(i) = hflx(i) * tem * cpinv
-        evap(i) = evap(i) * tem * hvapi
-        ENDIF
-      enddo
-
-Clu_q2m_iter [+17L]: restore land-related prognostic fields for guess run
-      do i=1, im
-      IF(FLAG(I)) THEN
-        if(flag_guess(i)) then
-          sheleg(i) = sheleg_old(i)
-          tskin(i)  = tskin_old(i)
-          canopy(i) = canopy_old(i)
-          tprcp(i)  = tprcp_old(i)
-          srflag(i) = srflag_old(i)
-          do k=1, km
-           stc(i,k) = stc_old(i,k)
+          do k = 2, km
+            zsoil(i,k) = zsoil(i,k-1) + (-2.0 - zsoil(i,1)) / (km - 1)
           enddo
-         else
-          tskin(i) = tsurf(i)
+
+!  --- ...  wei: use the same soil layer structure as noah if running with 4-layer
+
+          if (km > 0.2)then
+            zsoil(i,2) = -0.4
+            zsoil(i,3) = -1.0
+            zsoil(i,4) = -2.0
+          endif
         endif
-      ENDIF
       enddo
 
-!
-C##DG  IF(LAT.EQ.LATD) THEN
-CC       RBAL = -SLWD-SIGMA*TSKIN**4+GFLUX
-CC    &         -EVAP - HFLX
-C##DG    PRINT 6000,HFLX,EVAP,GFLUX,
-C##DG&             STC(1), STC(2),TSKIN,RNET,SLWD
-C##DG    PRINT *, ' T1 =', T1
- 6000 FORMAT(8(F8.2,','))
-CC     PRINT *, ' EP, ETP,T2M(I) =', EP, ETP,T2M(I)
-CC     PRINT *, ' FH, FH2 =', FH, FH2
-CC     PRINT *, ' PH, PH2 =', PH, PH2
-CC     PRINT *, ' CH, RCH =', CH, RCH
-CC     PRINT *, ' TERM1, TERM2 =', TERM1, TERM2
-CC     PRINT *, ' RS(I), PLANTR =', RS(I), PLANTR
-C##DG  ENDIF
-      RETURN
-      END
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          drain(i) = 0.0
+        endif
+      enddo
+
+      do k = 1, km
+        do i = 1, im
+          if (flag_iter(i) .and. flag(i)) then
+            et   (i,k)  = 0.0
+            rhsmc(i,k)  = 0.0
+            aim  (i,k)  = 0.0
+            bim  (i,k)  = 1.0
+            cim  (i,k)  = 0.0
+            stsoil(i,k) = stc(i,k)
+          endif
+        enddo
+      enddo
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          edir(i) = 0.0
+          ec  (i) = 0.0
+          evap(i) = 0.0
+          hflx(i) = 0.0
+          ep  (i) = 0.0
+          fx  (i) = 0.0
+
+          snowmt(i) = 0.0
+          gflux (i) = 0.0
+          rhscnpy(i)= 0.0
+          etpfac(i) = 0.0
+          canfac(i) = 0.0
+
+          evbs (i) = 0.0
+          evcw (i) = 0.0
+          trans(i) = 0.0
+          sbsno(i) = 0.0
+          snowc(i) = 0.0
+          snohf(i) = 0.0
+        endif
+      enddo
+
+!  --- ...  rcp = rho cp ch v
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          rch(i) = rho(i) * cp * ch(i) * wind(i)
+
+          cmm(i) = cm(i) * wind(i)
+          chh(i) = rho(i) * ch(i) * wind(i)
+        endif
+      enddo
+
+!  --- ...  compute soil/snow/ice heat flux in preparation for surface 
+!           energy balance calculation
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          smcz(i) = 0.5 * (smc(i,1) + 0.20)
+          dft0(i) = ktsoil(smcz(i), soiltyp(i))
+        endif
+      enddo
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          if (flagsnw(i)) then
+
+!  --- ...  when snow covered, ground heat flux comes from snow
+
+            tflx     = min(t1(i), tsea(i))
+            gflux(i) = -dfsnow * (tflx - stsoil(i,1))                   &
+     &               / (factsnw(i) * max(snowd(i), 0.001))
+          else
+
+            gflux(i) = dft0(i) * (stsoil(i,1) - tsea(i))                &
+     &               / (-0.5 * zsoil(i,1))
+
+          endif
+
+          gflux(i) = max(gflux(i), -200.0)
+          gflux(i) = min(gflux(i),  200.0)
+        endif
+      enddo
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          partlnd(i) = 1.0
+
+          if (snowd(i)>0.0 .and. snowd(i)<=0.001) then
+            partlnd(i) = 1.0 - snowd(i) / 0.001
+          endif
+        endif
+      enddo
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          snoevp(i) = 0.0
+          if (snowd(i) > 0.001) partlnd(i) = 0.0
+        endif
+      enddo
+
+!  --- ...  compute potential evaporation for land and sea ice
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          t12 = t1(i) * t1(i)
+          t14 = t12 * t12
+
+!  --- ...  rcap = fnet - sigma t**4 + gflx - rho cp ch v (t1-theta1)
+
+          rcap(i) = slwd(i) - sfcemis(i)*sbc*t14 + gflux(i)             &
+     &            - rch(i)*(t1(i) - theta1(i))
+
+!  --- ...  rsmall = 4 sigma t**3 / rch(i) + 1
+
+          rsmall(i) = 4.0*sfcemis(i)*sbc*t1(i)*t12 / rch(i) + 1.0
+
+!  --- ...  delta = l / cp * dqs/dt
+
+          delta(i) = elocp*eps*hvap*qs1(i) / (rd*t12)
+
+!  --- ...  potential evapotranspiration ( watts / m**2 ) and
+!           potential evaporation
+
+          term1(i) = elocp*rsmall(i)*rch(i) * (qs1(i) - q0(i))
+          term2(i) = rcap(i) * delta(i)
+          ep(i)    = (elocp*rsmall(i)*rch(i) * (qs1(i) - q0(i))         &
+     &             + rcap(i)*delta(i))
+          ep(i)    = ep(i) / (rsmall(i) + delta(i))
+        endif
+      enddo
+
+!  --- ...  actual evaporation over land in three parts : edir, et, and ec
+!           direct evaporation from soil, the unit goes from m s-1 to kg m-2 s-1
+
+      do i = 1, im
+        flag(i) = (slimsk(i)==1.0) .and. (ep(i)>0.0)
+      enddo
+
+      do i = 1, im
+        if (flag_iter(i))then
+          if (flag(i)) then
+            df1(i) = funcdf(smc(i,1),soiltyp(i))
+            kt1(i) = funckt(smc(i,1),soiltyp(i))
+          endif
+
+          if (flag(i) .and. stc(i,1)<t0c) then
+            df1(i) = 0.0
+            kt1(i) = 0.0
+          endif
+
+          if (flag(i)) then
+!           tref = .75 * thsat(soiltyp(i))
+            tref(i) = smref(soiltyp(i))
+!           twilt = twlt(soiltyp(i))
+            twilt(i) = smwlt(soiltyp(i))
+            smcdry = smdry(soiltyp(i))
+!           fx(i)  = -2.0*df1(i)*(smc(i,1) - 0.23) / zsoil(i,1) - kt1(i)
+            fx(i)  = -2.0*df1(i)*(smc(i,1) - smcdry)/zsoil(i,1) - kt1(i)
+            fx(i)  = max( min(fx(i), ep(i)/hvap), 0.0)
+
+!  --- ...  sigmaf is the fraction of area covered by vegetation
+
+            edir(i) = fx(i) * (1.0 - sigmaf(i)) * partlnd(i)
+          endif
+        endif
+      enddo
+
+!  --- ...  calculate stomatal resistance
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+
+!  --- ...  resistance due to par. we use net solar flux as proxy at the present time
+
+          ff  = 0.55*2.0*swnet(i) / rgl(vegtype(i))
+          rcs = (ff + rs(i)/rsmax(vegtype(i))) / (1.0 + ff)
+          rcs = max(rcs, 0.0001)
+          rct = 1.0
+          rcq = 1.0
+
+!  --- ...  resistance due to thermal effect
+
+!         rct = 1.0 - 0.0016 * (topt - theta1)**2
+!         rct = max(rct, 0.0001)
+
+!  --- ...  resistance due to humidity
+
+!         rcq = 1.0 / (1.0 + hs(vegtype(i)) * (qs1(i) - q0(i)))
+!         rcq = max(rcq, 0.0001)
+
+!  --- ...  compute resistance without the effect of soil moisture
+
+          rs(i) = rs(i) / (rcs*rct*rcq)
+        endif
+      enddo
+
+!  --- ...  transpiration from all levels of the soil
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          canfac(i) = (canopy(i)/scanop) ** cfactr
+          etpfac(i) = sigmaf(i) * (1.0 - canfac(i)) / hvap
+          gx(i) = (smc(i,1) - twilt(i)) / (tref(i) - twilt(i))
+          gx(i) = max( min(gx(i), 1.0), 0.0)
+
+!  --- ...  resistance due to soil moisture deficit
+
+          rss = gx(i) * (zsoil(i,1) / zsoil(i,km))
+          rss = max(rss, 0.0001)
+          rsi = rs(i) / rss
+
+!  --- ...  transpiration a la monteith
+
+          eth = (term1(i) + term2(i))                                   &
+     &        / (delta(i) + rsmall(i)*(1.0 + rsi*ch(i)*wind(i)))
+          et(i,1) = etpfac(i) * eth * partlnd(i)
+        endif
+      enddo
+
+      do k = 2, km
+        do i = 1, im
+          if (flag_iter(i) .and. flag(i)) then
+            gx(i) = (smc(i,k) - twilt(i)) / (tref(i) - twilt(i))
+            gx(i) = max( min(gx(i), 1.0), 0.0)
+
+!  --- ...  resistance due to soil moisture deficit
+
+          rss = gx(i) * ((zsoil(i,k) - zsoil(i,k-1))/zsoil(i,km))
+          rss = max(rss, 1.e-6)
+          rsi = rs(i) / rss
+
+!  --- ...  transpiration a la monteith
+
+          eth = (term1(i) + term2(i))                                   &
+     &        / (delta(i) + rsmall(i) * (1.0 + rsi*ch(i)*wind(i)))
+            et(i,k) = eth * etpfac(i) * partlnd(i)
+          endif
+        enddo
+      enddo
+
+!  --- ...  canopy re-evaporation
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          ec(i) = sigmaf(i)*canfac(i)*ep(i) / hvap
+          ec(i) = ec(i) * partlnd(i)
+          ec(i) = min(ec(i), canopy(i)/delt)
+        endif
+      enddo
+
+!  --- ...  sum up total evaporation
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+         evap(i) = edir(i) + ec(i)
+        endif
+      enddo
+
+      do k = 1, km
+        do i = 1, im
+          if (flag_iter(i) .and. flag(i)) then
+            evap(i) = evap(i) + et(i,k)
+          endif
+        enddo
+      enddo
+
+!  --- ...  return evap unit from kg m-2 s-1 to watts m-2
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          evap(i) = min(evap(i)*hvap, ep(i))
+        endif
+      enddo
+
+!  --- ...  treat downward moisture flux situation (evap was preset to
+!           zero so no update needed) dew is converted from kg m-2 to m
+!           to conform to precip unit
+
+      do i = 1, im
+        flag(i) = (slimsk(i)==1.0 .and. ep(i)<=0.0)
+        dew(i) = 0.0
+      enddo
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          dew(i) = -ep(i)*delt / (hvap*rhoh2o)
+          evap(i) = ep(i)
+          dew(i) = dew(i) * partlnd(i)
+          evap(i) = evap(i) * partlnd(i)
+        endif
+      enddo
+
+!  --- ...  snow covered land 
+
+      do i = 1, im
+        flag(i) = (slimsk(i)==1.0 .and. snowd(i)>0.0)
+      enddo
+
+!  --- ...  change of snow depth due to evaporation or sublimation
+!           convert evap from kg m-2 s-1 to m s-1 to determine the reduction of s
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          bfact = snowd(i) / (delt*ep(i) / (hvap*rhoh2o))
+          bfact = min(bfact, 1.0)
+
+!  --- ...  the evaporation of snow
+
+          if (ep(i) <= 0.0) bfact = 1.0
+
+          if (snowd(i) <= 0.001) then
+!           evap = (snowd(i)/0.001) * bfact*ep(i) + evap
+!           snoevp(i) = bfact*ep(i) * (1.0 - partlnd(i))
+!           evap = evap + snoevp(i)
+            snoevp(i) = bfact * ep(i)
+!           evap   = evap + snoevp(i) * (1.0 - partlnd(i))
+            evap(i) = evap(i) + snoevp(i) * (1.0 - partlnd(i))
+          else
+!           evap(i) = bfact * ep(i)
+            snoevp(i) = bfact * ep(i)
+            evap(i) = snoevp(i)
+          endif
+
+          tsea(i) = t1(i)                                               &
+     &            + (rcap(i) - gflux(i) - dfsnow*(t1(i) - stsoil(i,1))  &
+     &            / (factsnw(i) * max(snowd(i), 0.001))                 &
+!    &            + theta1 - t1                                         &
+!    &           - bfact * ep(i)) / (rsmall(i) * rch(i)                 &
+     &           - snoevp(i)) / (rsmall(i) * rch(i)                     &
+     &           + dfsnow / (factsnw(i) * max(snowd(i), 0.001)))
+
+!         snowd(i) = snowd(i) - bfact*ep(i)*delt / (rhoh2o*hvap)
+          snowd(i) = snowd(i) - snoevp(i)*delt / (rhoh2o*hvap)
+          snowd(i) = max(snowd(i), 0.0)
+        endif
+      enddo
+
+!  --- ...  snow melt (m)
+
+      do i = 1, im
+        flag(i) = (slimsk(i)==1.0) .and. (snowd(i)>0.0)
+      enddo
+
+      do i = 1, im
+        if (flag_iter(i)) then
+          if (flag(i) .and. tsea(i)>t0c) then
+            snowmt(i) = rch(i)*rsmall(i)*delt * (tsea(i) - t0c)         &
+     &                / (rhoh2o*hfus)
+            snowmt(i) = min(snowmt(i), snowd(i))
+            snowd(i) = snowd(i) - snowmt(i)
+            snowd(i) = max(snowd(i), 0.0)
+            tsea (i) = max(t0c, tsea(i) - hfus*snowmt(i)*rhoh2o         &
+     &               / (rch(i)*rsmall(i)*delt))
+          endif
+        endif
+      enddo
+
+!  --- ...  we need to re-evaluate evaporation because of snow melt
+!           the skin temperature is now bounded to 0 deg c
+
+!     qss = fpvs(tsea)
+      do i = 1, im
+        flag(i) = (slimsk(i) == 1.0)
+
+        if (flag_iter(i) .and. flag(i))then
+!         if (snowd(i) > 0.0) then
+          if (snowd(i) > snomin) then
+!jfe        qss(i) = 1000.0 * fpvs(tsea(i))
+            qss(i) = fpvs(tsea(i))
+            qss(i) = eps*qss(i) / (ps(i) + epsm1*qss(i))
+            evap(i) = elocp*rch(i) * (qss(i) - q0(i))
+          endif
+        endif
+      enddo
+
+!  --- ...  prepare tendency terms for the soil moisture field without
+!           precipitat. the unit of moisture flux needs to become m s-1
+!           for soil moisture. hence the factor of rhoh2o
+
+      do i = 1, im
+        if (flag_iter(i)) then
+          if (flag(i)) then
+            df1(i) = funcdf(smcz(i),soiltyp(i))
+            kt1(i) = funckt(smcz(i),soiltyp(i))
+          endif
+
+          if (flag(i) .and. stc(i,1)<t0c) then
+            df1(i) = 0.0
+            kt1(i) = 0.0
+          endif
+
+          if (flag(i)) then
+            rhscnpy(i) = -ec(i) + sigmaf(i)*rhoh2o*dew(i) / delt
+            smcz(i) = max(smc(i,1), smc(i,2))
+            dmdz(i) = (smc(i,1) - smc(i,2)) / (-0.5*zsoil(i,2))
+            rhsmc(i,1) = (df1(i)*dmdz(i) + kt1(i)                       &
+     &                 + (edir(i) + et(i,1))) / (zsoil(i,1)*rhoh2o)
+            rhsmc(i,1) = rhsmc(i,1) - (1.0 - sigmaf(i))*dew(i)          &
+     &                 / (zsoil(i,1)*delt)
+            ddz(i) = 1.0 / (-0.5*zsoil(i,2))
+
+!  --- ...  aim, bim, and cim are the elements of the tridiagonal matrix for
+!           the implicit update of the soil moisture
+
+            aim(i,1) = 0.0
+            bim(i,1) = df1(i)*ddz(i) / (-zsoil(i,1)*rhoh2o)
+            cim(i,1) = -bim(i,1)
+          endif
+        endif
+      enddo
+
+      do k = 2, km
+        if (k < km) then
+
+          do i = 1, im
+            if (flag_iter(i)) then
+              if (flag(i)) then
+                df2 = funcdf(smcz(i),soiltyp(i))
+                kt2(i) = funckt(smcz(i),soiltyp(i))
+              endif
+
+              if (flag(i) .and. stc(i,k)<t0c) then
+                df2 = 0.0
+                kt2(i) = 0.0
+              endif
+
+              if (flag(i)) then
+                dmdz2(i) = (smc(i,k) - smc(i,k+1))                      &
+     &                   / (0.5 * (zsoil(i,k-1) - zsoil(i,k+1)))
+                smcz(i) = max(smc(i,k), smc(i,k+1))
+
+                rhsmc(i,k) = (df2*dmdz2(i) + kt2(i)                     &
+     &                     - df1(i)*dmdz(i) - kt1(i) + et(i,k))         &
+     &                     / (rhoh2o*(zsoil(i,k) - zsoil(i,k-1)))
+
+                ddz2(i) = 2.0 / (zsoil(i,k-1) - zsoil(i,k+1))
+                cim(i,k) = -df2*ddz2(i)                                 &
+     &                   / ((zsoil(i,k-1) - zsoil(i,k))*rhoh2o)
+              endif
+            endif
+          enddo
+
+        else       ! if_k_block
+
+          do i = 1, im
+            if (flag_iter(i)) then
+              if (flag(i)) then
+                kt2(i) = funckt(smc(i,k),soiltyp(i))
+              endif
+
+              if (flag(i) .and. stc(i,k)<t0c) kt2(i) = 0.0
+
+              if (flag(i)) then
+                rhsmc(i,k) = (kt2(i) - df1(i)*dmdz(i) - kt1(i)+et(i,k)) &
+     &                     / (rhoh2o*(zsoil(i,k) - zsoil(i,k-1)))
+                drain(i) = kt2(i)
+                cim(i,k) = 0.0
+              endif
+            endif
+          enddo
+
+        endif   ! end if_k_block
+
+        do i = 1, im
+          if (flag_iter(i) .and. flag(i)) then
+            aim(i,k) = -df1(i)*ddz(i)                                   &
+     &               / ((zsoil(i,k-1) - zsoil(i,k))*rhoh2o)
+            bim(i,k) = -(aim(i,k) + cim(i,k))
+            df1(i) = df2
+            kt1(i) = kt2(i)
+            dmdz(i) = dmdz2(i)
+            ddz(i) = ddz2(i)
+          endif
+        enddo
+      enddo   ! end do_k_loop
+
+!  --- ...  update soil temperature
+
+      do i = 1, im
+!       flag(i) = slimsk(i) /= 0.0
+        flag(i) = slimsk(i) == 1.0
+      enddo
+
+!  --- ...  surface temperature is part of the update when snow is absent
+
+      do i = 1, im
+!       if (flag(i) .and. snowd(i)<=0.001) then
+        if (flag_iter(i)) then
+          if (flag(i) .and. .not.flagsnw(i)) then
+            yy(i) = t1(i)                                               &
+     &            + (rcap(i) - gflux(i) - evap(i)) / (rsmall(i)*rch(i))
+            zz(i) = 1.0 + dft0(i) / (-0.5*zsoil(i,1)*rch(i)*rsmall(i))
+            xx(i) = dft0(i) * (stsoil(i,1) - yy(i))                     &
+     &            / (0.5*zsoil(i,1)*zz(i))
+          endif
+
+!         if (flag(i) .and. snowd(i)> 0.001) then
+          if (flag(i) .and. flagsnw(i)) then
+            yy(i) = stsoil(i,1)
+
+!  --- ...  heat flux from snow is explicit in time
+
+            zz(i) = 1.0
+            xx(i) = dfsnow * (stsoil(i,1) - tsea(i))                    &
+     &            / (-factsnw(i) * max(snowd(i), 0.001))
+          endif
+        endif
+      enddo
+
+!  --- ...  compute the forcing and the implicit matrix elements for update
+!           ch2o is the heat capacity of water and csoil is the heat capacity
+!           of soil
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          smcz(i) = max(smc(i,1), smc(i,2))
+          dtdz1(i) = (stsoil(i,1) - stsoil(i,2)) / (-0.5*zsoil(i,2))
+          dft1(i) = ktsoil(smcz(i),soiltyp(i))
+          hcpct(i) = smc(i,1)*ch2o + (1.0 - smc(i,1)) * csoil
+          dft2(i) = dft1(i)
+          ddz(i) = 1.0 / (-0.5*zsoil(i,2))
+
+!  --- ...  ai, bi, and ci are the elements of the tridiagonal matrix for the
+!           implicit update of the soil temperature
+
+          ai(i,1) = 0.0
+          bi(i,1) = dft1(i)*ddz(i) / (-zsoil(i,1)*hcpct(i))
+          ci(i,1) = -bi(i,1)
+          bi(i,1) = bi(i,1)                                             &
+     &            + dft0(i) / (0.5*zsoil(i,1)**2 * hcpct(i)*zz(i))
+          rhstc(i,1) = (dft1(i)*dtdz1(i) - xx(i))/(zsoil(i,1)*hcpct(i))
+        endif
+      enddo
+
+      do k = 2, km
+        do i = 1, im
+          if (flag_iter(i) .and. flag(i)) then
+            hcpct(i) = smc(i,k)*ch2o + (1.0 - smc(i,k)) * csoil
+          endif
+        enddo
+
+        if (k < km) then
+
+          do i = 1, im
+            if (flag_iter(i) .and. flag(i)) then
+              dtdz2(i) = (stsoil(i,k) - stsoil(i,k+1))                  &
+     &                 / (0.5 * (zsoil(i,k-1) - zsoil(i,k+1)))
+              smcz(i) = max(smc(i,k), smc(i,k+1))
+              dft2(i) = ktsoil(smcz(i),soiltyp(i))
+              ddz2(i) = 2.0 / (zsoil(i,k-1) - zsoil(i,k+1))
+              ci(i,k) = -dft2(i) * ddz2(i)                              &
+     &                / ((zsoil(i,k-1) - zsoil(i,k)) * hcpct(i))
+            endif
+          enddo
+
+        else   ! if_k_block
+
+!  --- ...  at the bottom, climatology is assumed at 2m depth for land and
+!           freezing temperature is assumed for sea ice at z(km)
+
+          do i = 1, im
+            if (flag_iter(i) .and. flag(i)) then
+              dtdz2(i) = (stsoil(i,k) - tg3(i))                         &
+     &                 / (0.5 * (zsoil(i,k-1) + zsoil(i,k)) - zbot)
+              dft2(i) = ktsoil(smc(i,k),soiltyp(i))
+              ci(i,k) = 0.0
+            endif
+          enddo
+
+        endif   ! end if_k_block
+
+        do i = 1, im
+          if (flag_iter(i) .and. flag(i)) then
+            rhstc(i,k) = (dft2(i)*dtdz2(i) - dft1(i)*dtdz1(i))          &
+     &                 / ((zsoil(i,k) - zsoil(i,k-1)) * hcpct(i))
+            ai(i,k) = -dft1(i) * ddz(i)                                 &
+     &                / ((zsoil(i,k-1) - zsoil(i,k)) * hcpct(i))
+            bi(i,k) = -(ai(i,k) + ci(i,k))
+            dft1(i) = dft2(i)
+            dtdz1(i) = dtdz2(i)
+            ddz(i) = ddz2(i)
+          endif
+        enddo
+      enddo   ! end do_k_loop
+
+!  --- ...  solve the tri-diagonal matrix
+
+      do k = 1, km
+        do i = 1, im
+          if (flag_iter(i) .and. flag(i))  then
+            rhstc(i,k) = rhstc(i,k) * delt2
+            ai(i,k) = ai(i,k) * delt2
+            bi(i,k) = 1.0 + bi(i,k)*delt2
+            ci(i,k) = ci(i,k) * delt2
+          endif
+        enddo
+      enddo
+
+!  --- ...  forward elimination
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          ci(i,1) = -ci(i,1) / bi(i,1)
+          rhstc(i,1) = rhstc(i,1) / bi(i,1)
+        endif
+      enddo
+
+      do k = 2, km
+        do i = 1, im
+          if (flag_iter(i) .and. flag(i)) then
+            cc = 1.0 / (bi(i,k) + ai(i,k)*ci(i,k-1))
+            ci(i,k) = -ci(i,k) * cc
+            rhstc(i,k) = (rhstc(i,k) - ai(i,k)*rhstc(i,k-1)) * cc
+          endif
+        enddo
+      enddo
+
+!  --- ...  backward substituttion
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          ci(i,km) = rhstc(i,km)
+        endif
+      enddo
+
+      do k = km-1, 1
+        do i = 1, im
+          if (flag_iter(i) .and. flag(i)) then
+            ci(i,k) = ci(i,k)*ci(i,k+1) + rhstc(i,k)
+          endif
+        enddo
+      enddo
+
+!  --- ...  update soil and ice temperature
+
+      do k = 1, km
+        do i = 1, im
+          if (flag_iter(i) .and. flag(i)) then
+            stsoil(i,k) = stsoil(i,k) + ci(i,k)
+          endif
+        enddo
+      enddo
+
+!  --- ...  update surface temperature for snow free surfaces
+
+      do i = 1, im
+        if (flag_iter(i)) then
+          if (flag(i) .and. .not.flagsnw(i)) then
+            tsea(i) = (yy(i) + (zz(i) - 1.0) * stsoil(i,1)) / zz(i)
+          endif
+        endif
+      enddo
+
+!  --- ...  time filter for soil and skin temperature
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          tsurf(i) = ctfil1*tsea(i) + ctfil2*tsurf(i)
+        endif
+      enddo
+
+      do k = 1, km
+        do i = 1, im
+          if (flag_iter(i) .and. flag(i)) then
+            stc(i,k) = ctfil1*stsoil(i,k) + ctfil2*stc(i,k)
+          endif
+        enddo
+      enddo
+
+!  --- ...  gflux calculation
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          if (flagsnw(i)) then
+            gflux(i) = -dfsnow * (tsurf(i) - stc(i,1))                  &
+     &               / (factsnw(i) * max(snowd(i), 0.001))
+          else
+            gflux(i) = dft0(i) * (stc(i,1) - tsurf(i))                  &
+     &               / (-0.5*zsoil(i,1))
+          endif
+        endif
+      enddo
+
+!  --- ...  calculate sensible heat flux
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          hflx(i) = rch(i) * (tsurf(i) - theta1(i))
+        endif
+      enddo
+
+!  --- ...  the rest of the output
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          qsurf(i) = q1(i) + evap(i) / (elocp*rch(i))
+
+          evbs (i) = edir(i)
+          evcw (i) = ec(i)
+          sbsno(i) = snoevp(i)
+          snowc(i) = 1.0 - partlnd(i)
+          stm  (i) = -smc(i,1) * zsoil(i,1)
+          snohf(i) = dfsnow * (t1(i) - stsoil(i,1))
+          trans(i) = et(i,1)
+
+          do k = 2, km
+            stm(i) = stm(i) + smc(i,k) * (zsoil(i,k-1) - zsoil(i,k))
+            trans(i) = trans(i) + et(i,k)
+          enddo 
+
+!  --- ...  convert snow depth back to mm of water equivalent
+
+          weasd(i) = snowd(i) * 1000.0
+        endif
+      enddo
+
+      do i = 1, im
+        if (flag_iter(i) .and. flag(i)) then
+          tem     = 1.0 / rho(i)
+          hflx(i) = hflx(i) * tem * cpinv
+          evap(i) = evap(i) * tem * hvapi
+        endif
+      enddo
+
+!  --- ...  restore land-related prognostic fields for guess run
+
+      do i = 1, im
+        if (flag(i)) then
+          if (flag_guess(i)) then
+            weasd(i) = weasd_old(i)
+            tskin(i)  = tskin_old(i)
+            canopy(i) = canopy_old(i)
+            tprcp(i)  = tprcp_old(i)
+            srflag(i) = srflag_old(i)
+
+            do k = 1, km
+              stc(i,k) = stc_old(i,k)
+            enddo
+          else
+            tskin(i) = tsurf(i)
+          endif
+        endif
+      enddo
+
+      return
+      end

@@ -58,6 +58,12 @@
 !                               - fix bug in modis albedo over sea-ice !
 !      aug  2007   y. hou       - fix bug in emissivity over ocean in  !
 !                                 the modis scheme option              !
+!           2009   f. yang      - replaced orig zenith angle treatment !
+!                    for the direct beam part of surface albedo with a !
+!                    better fit to obs formula over land. yang et al.  !
+!                    (2008, jamc).                                     !
+!      jul  2010   y. hou       - added option (ialb=2) for sw surface !
+!                    albedo that uses input values directly.           !
 !                                                                      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
@@ -130,7 +136,8 @@
 !                     =1: index from surface to toa                     !
 !     IALB          - control flag for surface albedo schemes           !
 !                     =0: climatology, based on surface veg types       !
-!                     =1:                                               !
+!                     =1: modis retrieval based scheme from boston univ.!
+!                     =2: use externally provided albedoes directly.    !
 !     IEMS          - control flag for surface emissivity schemes       !
 !                     =0: fixed value of 1.0                            !
 !                     =1: varying value based on surface veg types      !
@@ -172,6 +179,12 @@
 
         if ( me == 0 ) then
           print *,' - Using MODIS based land surface albedo for sw'
+        endif
+
+      else if ( IALB == 2 ) then
+
+        if ( me == 0 ) then
+          print *,' - Using externally provided surface albedo for sw'
         endif
 
       else
@@ -289,6 +302,11 @@
 !     alnsf (IMAX)  - near-ir black sky albedo at zenith 60 degree      !
 !     alvwf (IMAX)  - visible white sky albedo                          !
 !     alnwf (IMAX)  - near-ir white sky albedo                          !
+!           ---  for ialbflg=2 externally provided surface albedo  ---  !
+!     alvsf (IMAX)  - visible direct beam albedo                        !
+!     alnsf (IMAX)  - near-ir direct beam albedo                        !
+!     alvwf (IMAX)  - visible diffused albedo                           !
+!     alnwf (IMAX)  - near-ir diffused albedo                           !
 !                                                                       !
 !     facsf (IMAX)  - fractional coverage with strong cosz dependency   !
 !     facwf (IMAX)  - fractional coverage with weak cosz dependency     !
@@ -405,8 +423,11 @@
 ! --- direct sea surface albedo
 
          if (coszf(i) > 0.0001) then
-            rfcs = 1.4 / (1.0 + 0.8*coszf(i))
-            rfcw = 1.3 / (1.0 + 0.6*coszf(i))
+!           rfcs = 1.4 / (1.0 + 0.8*coszf(i))     ! briegleb's zenith angle treatment
+!           rfcw = 1.3 / (1.0 + 0.6*coszf(i))
+            rfcs = 2.14 / (1.0 + 1.48*coszf(i))   ! f. yang's zenith angle treatment
+            rfcw = rfcs
+
             if (tsknf(i) >= con_t0c) then
               asevb = max(asevd, 0.026/(coszf(i)**1.7+0.065)            &
      &              + 0.15 * (coszf(i)-0.1) * (coszf(i)-0.5)            &
@@ -434,7 +455,7 @@
 
         enddo    ! end_do_i_loop
 
-      else                       ! use modis based albedo for land area
+      elseif ( ialbflg == 1 ) then ! use modis based albedo for land area
 
         do i = 1, IMAX
 
@@ -509,12 +530,13 @@
            asnnb = snoalb(i)
          endif
 
-! --- direct sea surface albedo, use fanglin's zenith angle treatment
+! --- direct sea surface albedo
 
          if (coszf(i) > 0.0001) then
 
-            rfcs = 1.89 - 3.34*coszf(i) + 4.13*coszf(i)*coszf(i)        &
-     &           - 2.02*coszf(i)*coszf(i)*coszf(i)
+!           rfcs = 1.89 - 3.34*coszf(i) + 4.13*coszf(i)*coszf(i)        &
+!    &           - 2.02*coszf(i)*coszf(i)*coszf(i)
+            rfcs = 1.775/(1.0+1.55*coszf(i))           ! f. yang's zenith angle treatment
 
             if (tsknf(i) >= con_t0c) then
               asevb = max(asevd, 0.026/(coszf(i)**1.7+0.065)            &
@@ -537,6 +559,15 @@
          sfcalb(i,4) = alvwf(i)     *flnd + asevd*fsea + asnvd*fsno
 
         enddo    ! end_do_i_loop
+
+      else                         ! use externally provided albedoes
+
+        do i = 1, IMAX
+          sfcalb(i,1) = alnsf(i)
+          sfcalb(i,2) = alnwf(i)
+          sfcalb(i,3) = alvsf(i)
+          sfcalb(i,4) = alvwf(i)
+        enddo
 
       endif   ! end if_ialbflg
 !

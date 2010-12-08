@@ -23,7 +23,7 @@
 !
 !***  REVISION LOG:
 !***  Jul 23 2010, Sarah Lu   write out 2d aer_diag (g2d_fld)
-!***  Oct 10 2010, Sarah Lu   add g2d_fld%met to 2d aer_diag
+!***  Jul    2010  S. Moorthi Updated for new physics and extra output
 !***
 !-----------------------------------------------------------------------
 !
@@ -46,7 +46,8 @@
       PUBLIC :: PHY_INT_STATE_ISCALAR,PHY_INT_STATE_RSCALAR,            &
      &    PHY_INT_STATE_1D_I,PHY_INT_STATE_1D_R,                        &
      &    PHY_INT_STATE_2D_R_SFC,PHY_INT_STATE_3D_R,                    &
-     &    PHY_INT_STATE_2D_R_FLX,PHY_INT_STATE_2D_R_AER
+     &    PHY_INT_STATE_2D_R_FLX,PHY_INT_STATE_2D_R_AER,                &
+     &    PHY_INT_STATE_2D_R_NST
 !
 !-----------------------------------------------------------------------
 !
@@ -72,18 +73,18 @@
        =RESHAPE((/                                                      &
 !                              -----------------------------------------
 !
-                               'latr           ', 'OGFS_PHY       ', 'R              ' &
-                              ,'lonr           ', 'OGFS_PHY       ', 'R              ' &
-                              ,'levs           ', 'OGFS_PHY       ', 'R              ' &
-                              ,'ntoz           ', 'OGFS_PHY       ', 'R              ' &
-                              ,'ntcw           ', 'OGFS_PHY       ', 'R              ' &
-                              ,'ncld           ', 'OGFS_PHY       ', 'R              ' &
-                              ,'ntrac          ', 'OGFS_PHY       ', 'R              ' &
-                              ,'thermodyn_id   ', 'OGFS_PHY       ', 'R              ' &
-                              ,'sfcpress_id    ', 'OGFS_PHY       ', 'R              ' &
-                              ,'lsoil          ', 'OGFS_PHY       ', 'R              ' &
-                              ,'idrt           ', 'OGFS_PHY       ', 'R              ' &
-                              ,'ivssfc         ', 'OGFS_SFC       ', 'R              ' &
+                       'latr           ', 'OGFS_PHY       ', 'R              ' &
+                      ,'lonr           ', 'OGFS_PHY       ', 'R              ' &
+                      ,'levs           ', 'OGFS_PHY       ', 'R              ' &
+                      ,'ntoz           ', 'OGFS_PHY       ', 'R              ' &
+                      ,'ntcw           ', 'OGFS_PHY       ', 'R              ' &
+                      ,'ncld           ', 'OGFS_PHY       ', 'R              ' &
+                      ,'ntrac          ', 'OGFS_PHY       ', 'R              ' &
+                      ,'thermodyn_id   ', 'OGFS_PHY       ', 'R              ' &
+                      ,'sfcpress_id    ', 'OGFS_PHY       ', 'R              ' &
+                      ,'lsoil          ', 'OGFS_PHY       ', 'R              ' &
+                      ,'idrt           ', 'OGFS_PHY       ', 'R              ' &
+                      ,'ivssfc         ', 'OGFS_SFC       ', 'R              ' &
 !
 !                              -----------------------------------------
 !
@@ -176,10 +177,10 @@
        =RESHAPE((/                                                      &
 !                              -----------------------------------------
 !
-!jw                               'AK5          ', 'OGFS_PHY     ', 'R            ' &
-!jw                              ,'BK5          ', 'OGFS_PHY     ', 'R            ' &
-!jw                              ,'CK5          ', 'OGFS_PHY     ', 'R            ' &
-                               '-            ', '-            ', '-            ' &
+!jw                         'AK5          ', 'OGFS_PHY     ', 'R            ' &
+!jw                        ,'BK5          ', 'OGFS_PHY     ', 'R            ' &
+!jw                        ,'CK5          ', 'OGFS_PHY     ', 'R            ' &
+                           '-            ', '-            ', '-            ' &
 !
 !                              -----------------------------------------
 !
@@ -202,41 +203,41 @@
        =RESHAPE((/                                                      &
 !                              -----------------------------------------
 !
-                     'tmp             ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'weasd           ', 'OGFS_SFC        ', 'sfc             ' &
-!                    ,'tcdc            ', 'OGFS_SFC        ', 'cnvt cld layer ' &
-!                    ,'pres            ', 'OGFS_SFC        ', 'cnvt cld bot   ' &
-!                    ,'pres            ', 'OGFS_SFC        ', 'cnvt cld top   ' &
-                    ,'tg3             ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'sfcr            ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'alvsf           ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'alvwf           ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'alnsf           ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'alnwf           ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'land            ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'veg             ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'cnwat           ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'f10m            ', 'OGFS_SFC        ', '10 m above gnd  ' &
-                    ,'tmp             ', 'OGFS_SFC        ', '2 m above gnd   ' &
-                    ,'spfh            ', 'OGFS_SFC        ', '2 m above gnd   ' &
-                    ,'vtype           ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'stype           ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'facsf           ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'facwf           ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'fricv           ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'ffmm            ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'ffhh            ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'icetk           ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'icec            ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'tisfc           ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'tprcp           ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'crain           ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'snod            ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'shdmin          ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'shdmax          ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'sltyp           ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'salbd           ', 'OGFS_SFC        ', 'sfc             ' &
-                    ,'orog            ', 'OGFS_SFC        ', 'sfc             ' &
+                   'tmp             ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'weasd           ', 'OGFS_SFC        ', 'sfc             ' &
+!                 ,'tcdc            ', 'OGFS_SFC        ', 'cnvt cld layer  ' &
+!                 ,'pres            ', 'OGFS_SFC        ', 'cnvt cld bot    ' &
+!                 ,'pres            ', 'OGFS_SFC        ', 'cnvt cld top    ' &
+                  ,'tg3             ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'sfcr            ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'alvsf           ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'alvwf           ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'alnsf           ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'alnwf           ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'land            ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'veg             ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'cnwat           ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'f10m            ', 'OGFS_SFC        ', '10 m above gnd  ' &
+                  ,'tmp             ', 'OGFS_SFC        ', '2 m above gnd   ' &
+                  ,'spfh            ', 'OGFS_SFC        ', '2 m above gnd   ' &
+                  ,'vtype           ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'stype           ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'facsf           ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'facwf           ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'uustar          ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'ffmm            ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'ffhh            ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'icetk           ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'icec            ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'tisfc           ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'tprcp           ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'srflag          ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'snod            ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'shdmin          ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'shdmax          ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'sltyp           ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'salbd           ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'orog            ', 'OGFS_SFC        ', 'sfc             ' &
 !
 !
 !                              -----------------------------------------
@@ -306,108 +307,122 @@
        =RESHAPE((/                                                      &
 !                              -----------------------------------------
 !
-                     'uflx_ave        ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'vflx_ave        ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'shtfl_ave       ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'lhtfl_ave       ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'tmp             ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'soilw           ', 'OGFS_FLX        ', '0-10 cm down    ' &
-                    ,'soilw           ', 'OGFS_FLX        ', '10-40 cm down   ' &
-                    ,'tmp             ', 'OGFS_FLX        ', '0-10 cm down    ' &
-                    ,'tmp             ', 'OGFS_FLX        ', '10-40 cm down   ' &
-                    ,'weasd           ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'dlwrf_ave       ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'ulwrf_ave       ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'ulwrf_ave       ', 'OGFS_FLX        ', 'nom. top        ' &
-                    ,'uswrf_ave       ', 'OGFS_FLX        ', 'nom. top        ' &
-                    ,'uswrf_ave       ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'dswrf_ave       ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'duvb_ave        ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'cduvb_ave       ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'tcdc_ave        ', 'OGFS_FLX        ', 'high cld lay    ' &
-                    ,'pres_ave        ', 'OGFS_FLX        ', 'high cld top    ' &
-                    ,'pres_ave        ', 'OGFS_FLX        ', 'high cld bot    ' &
-                    ,'tmp_ave         ', 'OGFS_FLX        ', 'high cld top    ' &
-                    ,'tcdc_ave        ', 'OGFS_FLX        ', 'mid cld lay     ' &
-                    ,'pres_ave        ', 'OGFS_FLX        ', 'mid cld top     ' &
-                    ,'pres_ave        ', 'OGFS_FLX        ', 'mid cld bot     ' &
-                    ,'tmp_ave         ', 'OGFS_FLX        ', 'mid cld top     ' &
-                    ,'tcdc_ave        ', 'OGFS_FLX        ', 'low cld lay     ' &
-                    ,'pres_ave        ', 'OGFS_FLX        ', 'low cld top     ' &
-                    ,'pres_ave        ', 'OGFS_FLX        ', 'low cld bot     ' &
-                    ,'tmp_ave         ', 'OGFS_FLX        ', 'low cld top     ' &    !30
-                    ,'prate_ave       ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'cprat_ave       ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'gflux_ave       ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'land            ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'icec            ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'ugrd            ', 'OGFS_FLX        ', '10 m above gnd  ' &
-                    ,'vgrd            ', 'OGFS_FLX        ', '10 m above gnd  ' &
-                    ,'tmp             ', 'OGFS_FLX        ', '2 m above gnd   ' &
-                    ,'spfh            ', 'OGFS_FLX        ', '2 m above gnd   ' &
-                    ,'pres            ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'tmax            ', 'OGFS_FLX        ', '2 m above gnd   ' &
-                    ,'tmin            ', 'OGFS_FLX        ', '2 m above gnd   ' &
-                    ,'watr_acc        ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'pevpr_ave       ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'cwork_ave       ', 'OGFS_FLX        ', 'atmos col       ' &
-                    ,'u-gwd_ave       ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'v-gwd_ave       ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'hpbl            ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'pwat            ', 'OGFS_FLX        ', 'atmos col       ' &
-                    ,'albdo_ave       ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'tcdc_ave        ', 'OGFS_FLX        ', 'atmos col       ' &
-                    ,'tcdc            ', 'OGFS_FLX        ', 'convect-cld laye' &
-                    ,'pres            ', 'OGFS_FLX        ', 'convect-cld top ' &
-                    ,'pres            ', 'OGFS_FLX        ', 'convect-cld bot ' &
-                    ,'tcdc_ave        ', 'OGFS_FLX        ', 'bndary-layer cld' &
-                    ,'icetk           ', 'OGFS_FLX        ', 'sfc             ' &
-                    ,'soilw           ', 'OGFS_FLX        ', '40-100 cm down  ' &
-                    ,'soilw           ', 'OGFS_FLX        ', '100-200 cm down ' &   !58
-                    ,'tmp             ', 'OGFS_FLX        ', '40-100 cm down  ' &   !59
-                    ,'tmp             ', 'OGFS_FLX        ', '100-200 cm down ' &   !60
-                    ,'soill           ', 'OGFS_FLX        ', '0-10 cm down    ' &   !60
-                    ,'soill           ', 'OGFS_FLX        ', '10-40 cm down   ' &   !60
-                    ,'soill           ', 'OGFS_FLX        ', '40-100 cm down  ' &   !60
-                    ,'soill           ', 'OGFS_FLX        ', '100-200 cm down ' &   !64
-                    ,'snod            ', 'OGFS_FLX        ', 'sfc             ' &   !65
-                    ,'cnwat           ', 'OGFS_FLX        ', 'sfc             ' &   !66
-                    ,'sfcr            ', 'OGFS_FLX        ', 'sfc             ' &   !67
-                    ,'veg             ', 'OGFS_FLX        ', 'sfc             ' &   !68
-                    ,'vgtyp           ', 'OGFS_FLX        ', 'sfc             ' &   !69
-                    ,'sotyp           ', 'OGFS_FLX        ', 'sfc             ' &   !70
-                    ,'sltyp           ', 'OGFS_FLX        ', 'sfc             ' &   !71
-                    ,'fricv           ', 'OGFS_FLX        ', 'sfc             ' &   !72
-                    ,'hgt             ', 'OGFS_FLX        ', 'sfc             ' &   !73
-                    ,'crain           ', 'OGFS_FLX        ', 'sfc             ' &   !74
-                    ,'sfexc           ', 'OGFS_FLX        ', 'sfc             ' &   !75
-                    ,'acond           ', 'OGFS_FLX        ', 'sfc             ' &   !76
-                    ,'pevpr           ', 'OGFS_FLX        ', 'sfc             ' &   !77
-                    ,'dlwrf           ', 'OGFS_FLX        ', 'sfc             ' &   !78
-                    ,'ulwrf           ', 'OGFS_FLX        ', 'sfc             ' &   !79
-                    ,'uswrf           ', 'OGFS_FLX        ', 'sfc             ' &   !80
-                    ,'dswrf           ', 'OGFS_FLX        ', 'sfc             ' &   !81
-                    ,'shtfl           ', 'OGFS_FLX        ', 'sfc             ' &   !82
-                    ,'lhtfl           ', 'OGFS_FLX        ', 'sfc             ' &   !83
-                    ,'gflux           ', 'OGFS_FLX        ', 'sfc             ' &   !84
-                    ,'ssrun_acc       ', 'OGFS_FLX        ', 'sfc             ' &   !85
-                    ,'tmp             ', 'OGFS_FLX        ', 'hybrid lev 1    ' &   !86
-                    ,'spfh            ', 'OGFS_FLX        ', 'hybrid lev 1    ' &   !87
-                    ,'ugrd            ', 'OGFS_FLX        ', 'hybrid lev 1    ' &   !88
-                    ,'vgrd            ', 'OGFS_FLX        ', 'hybrid lev 1    ' &   !89
-                    ,'hgt             ', 'OGFS_FLX        ', 'hybrid lev 1    ' &   !90
-                    ,'evbs_ave        ', 'OGFS_FLX        ', 'sfc             ' &   !91
-                    ,'evcw_ave        ', 'OGFS_FLX        ', 'sfc             ' &   !92
-                    ,'trans_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !93
-                    ,'sbsno_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !94
-                    ,'snowc_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !95
-                    ,'soilm           ', 'OGFS_FLX        ', '0-200 cm down   ' &   !96
-                    ,'duaod           ', 'OGFS_FLX        ', 'atmos col       ' &   !97
-                    ,'bcaod           ', 'OGFS_FLX        ', 'atmos col       ' &   !98
-                    ,'ocaod           ', 'OGFS_FLX        ', 'atmos col       ' &   !99
-                    ,'suaod           ', 'OGFS_FLX        ', 'atmos col       ' &   !100
-                    ,'ssaod           ', 'OGFS_FLX        ', 'atmos col       ' &   !101
-                    ,'aod             ', 'OGFS_FLX        ', 'atmos col       ' &   !102
+            'uflx_ave        ', 'OGFS_FLX        ', 'sfc             ' &   !1
+           ,'vflx_ave        ', 'OGFS_FLX        ', 'sfc             ' &   !2
+           ,'shtfl_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !3
+           ,'lhtfl_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !4
+           ,'tmp             ', 'OGFS_FLX        ', 'sfc             ' &   !5
+           ,'soilw           ', 'OGFS_FLX        ', '0-10 cm down    ' &   !6
+           ,'soilw           ', 'OGFS_FLX        ', '10-40 cm down   ' &   !7
+           ,'tmp             ', 'OGFS_FLX        ', '0-10 cm down    ' &   !8
+           ,'tmp             ', 'OGFS_FLX        ', '10-40 cm down   ' &   !9
+           ,'weasd           ', 'OGFS_FLX        ', 'sfc             ' &   !10
+           ,'dlwrf_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !11
+           ,'ulwrf_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !12
+           ,'ulwrf_ave       ', 'OGFS_FLX        ', 'nom. top        ' &   !13
+           ,'uswrf_ave       ', 'OGFS_FLX        ', 'nom. top        ' &   !14
+           ,'uswrf_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !15
+           ,'dswrf_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !16
+           ,'duvb_ave        ', 'OGFS_FLX        ', 'sfc             ' &   !17
+           ,'cduvb_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !18
+           ,'tcdc_ave        ', 'OGFS_FLX        ', 'high cld lay    ' &   !19
+           ,'pres_ave        ', 'OGFS_FLX        ', 'high cld top    ' &   !20
+           ,'pres_ave        ', 'OGFS_FLX        ', 'high cld bot    ' &   !21
+           ,'tmp_ave         ', 'OGFS_FLX        ', 'high cld top    ' &   !22
+           ,'tcdc_ave        ', 'OGFS_FLX        ', 'mid cld lay     ' &   !23
+           ,'pres_ave        ', 'OGFS_FLX        ', 'mid cld top     ' &   !24
+           ,'pres_ave        ', 'OGFS_FLX        ', 'mid cld bot     ' &   !25
+           ,'tmp_ave         ', 'OGFS_FLX        ', 'mid cld top     ' &   !26
+           ,'tcdc_ave        ', 'OGFS_FLX        ', 'low cld lay     ' &   !27
+           ,'pres_ave        ', 'OGFS_FLX        ', 'low cld top     ' &   !28
+           ,'pres_ave        ', 'OGFS_FLX        ', 'low cld bot     ' &   !29
+           ,'tmp_ave         ', 'OGFS_FLX        ', 'low cld top     ' &   !30
+           ,'prate_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !31
+           ,'cprat_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !32
+           ,'gflux_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !33
+           ,'land            ', 'OGFS_FLX        ', 'sfc             ' &   !34
+           ,'icec            ', 'OGFS_FLX        ', 'sfc             ' &   !35
+           ,'ugrd            ', 'OGFS_FLX        ', '10 m above gnd  ' &   !36
+           ,'vgrd            ', 'OGFS_FLX        ', '10 m above gnd  ' &   !37
+           ,'tmp             ', 'OGFS_FLX        ', '2 m above gnd   ' &   !38
+           ,'spfh            ', 'OGFS_FLX        ', '2 m above gnd   ' &   !39
+           ,'pres            ', 'OGFS_FLX        ', 'sfc             ' &   !40
+           ,'tmax            ', 'OGFS_FLX        ', '2 m above gnd   ' &   !41
+           ,'tmin            ', 'OGFS_FLX        ', '2 m above gnd   ' &   !42
+           ,'spfhmax         ', 'OGFS_FLX        ', '2 m above gnd   ' &   !41a
+           ,'spfhmin         ', 'OGFS_FLX        ', '2 m above gnd   ' &   !42a
+           ,'watr_acc        ', 'OGFS_FLX        ', 'sfc             ' &   !43
+           ,'pevpr_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !44
+           ,'cwork_ave       ', 'OGFS_FLX        ', 'atmos col       ' &   !45
+           ,'u-gwd_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !46
+           ,'v-gwd_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !47
+           ,'hpbl            ', 'OGFS_FLX        ', 'sfc             ' &   !48
+           ,'pwat            ', 'OGFS_FLX        ', 'atmos col       ' &   !49
+           ,'albdo_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !50
+           ,'tcdc_ave        ', 'OGFS_FLX        ', 'atmos col       ' &   !51
+           ,'tcdc            ', 'OGFS_FLX        ', 'convect-cld laye' &   !52
+           ,'pres            ', 'OGFS_FLX        ', 'convect-cld top ' &   !53
+           ,'pres            ', 'OGFS_FLX        ', 'convect-cld bot ' &   !54
+           ,'tcdc_ave        ', 'OGFS_FLX        ', 'bndary-layer cld' &   !55
+           ,'icetk           ', 'OGFS_FLX        ', 'sfc             ' &   !56
+           ,'soilw           ', 'OGFS_FLX        ', '40-100 cm down  ' &   !57
+           ,'soilw           ', 'OGFS_FLX        ', '100-200 cm down ' &   !58
+           ,'tmp             ', 'OGFS_FLX        ', '40-100 cm down  ' &   !59
+           ,'tmp             ', 'OGFS_FLX        ', '100-200 cm down ' &   !60
+           ,'soill           ', 'OGFS_FLX        ', '0-10 cm down    ' &   !61
+           ,'soill           ', 'OGFS_FLX        ', '10-40 cm down   ' &   !62
+           ,'soill           ', 'OGFS_FLX        ', '40-100 cm down  ' &   !63
+           ,'soill           ', 'OGFS_FLX        ', '100-200 cm down ' &   !64
+           ,'snod            ', 'OGFS_FLX        ', 'sfc             ' &   !65
+           ,'cnwat           ', 'OGFS_FLX        ', 'sfc             ' &   !66
+           ,'sfcr            ', 'OGFS_FLX        ', 'sfc             ' &   !67
+           ,'veg             ', 'OGFS_FLX        ', 'sfc             ' &   !68
+           ,'vgtyp           ', 'OGFS_FLX        ', 'sfc             ' &   !69
+           ,'sotyp           ', 'OGFS_FLX        ', 'sfc             ' &   !70
+           ,'sltyp           ', 'OGFS_FLX        ', 'sfc             ' &   !71
+           ,'fricv           ', 'OGFS_FLX        ', 'sfc             ' &   !72
+           ,'hgt             ', 'OGFS_FLX        ', 'sfc             ' &   !73
+           ,'crain           ', 'OGFS_FLX        ', 'sfc             ' &   !74
+           ,'sfexc           ', 'OGFS_FLX        ', 'sfc             ' &   !75
+           ,'acond           ', 'OGFS_FLX        ', 'sfc             ' &   !76
+           ,'pevpr           ', 'OGFS_FLX        ', 'sfc             ' &   !77
+           ,'dlwrf           ', 'OGFS_FLX        ', 'sfc             ' &   !78
+           ,'ulwrf           ', 'OGFS_FLX        ', 'sfc             ' &   !79
+           ,'uswrf           ', 'OGFS_FLX        ', 'sfc             ' &   !80
+           ,'dswrf           ', 'OGFS_FLX        ', 'sfc             ' &   !81
+           ,'shtfl           ', 'OGFS_FLX        ', 'sfc             ' &   !82
+           ,'lhtfl           ', 'OGFS_FLX        ', 'sfc             ' &   !83
+           ,'gflux           ', 'OGFS_FLX        ', 'sfc             ' &   !84
+           ,'ssrun_acc       ', 'OGFS_FLX        ', 'sfc             ' &   !85
+           ,'tmp             ', 'OGFS_FLX        ', 'hybrid lev 1    ' &   !86
+           ,'spfh            ', 'OGFS_FLX        ', 'hybrid lev 1    ' &   !87
+           ,'ugrd            ', 'OGFS_FLX        ', 'hybrid lev 1    ' &   !88
+           ,'vgrd            ', 'OGFS_FLX        ', 'hybrid lev 1    ' &   !89
+           ,'hgt             ', 'OGFS_FLX        ', 'hybrid lev 1    ' &   !90
+           ,'evbs_ave        ', 'OGFS_FLX        ', 'sfc             ' &   !91
+           ,'evcw_ave        ', 'OGFS_FLX        ', 'sfc             ' &   !92
+           ,'trans_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !93
+           ,'sbsno_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !94
+           ,'snowc_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !95
+           ,'soilm           ', 'OGFS_FLX        ', '0-200 cm down   ' &   !96
+           ,'dswrf           ', 'OGFS_FLX        ', 'nom. top        ' &   !97
+           ,'csulwrf         ', 'OGFS_FLX        ', 'nom. top        ' &   !98
+           ,'csuswrf         ', 'OGFS_FLX        ', 'nom. top        ' &   !99
+           ,'csdlwrf         ', 'OGFS_FLX        ', 'sfc             ' &   !100
+           ,'csuswrf         ', 'OGFS_FLX        ', 'sfc             ' &   !101
+           ,'csdswrf         ', 'OGFS_FLX        ', 'sfc             ' &   !102
+           ,'csulwrf         ', 'OGFS_FLX        ', 'sfc             ' &   !103
+           ,'snohfa          ', 'OGFS_FLX        ', 'sfc             ' &   !104
+           ,'smcwlt          ', 'OGFS_FLX        ', 'sfc             ' &   !105
+           ,'smcref          ', 'OGFS_FLX        ', 'sfc             ' &   !106
+           ,'sunshine_acc    ', 'OGFS_FLX        ', 'sfc             ' &   !107
+
+           ,'aod             ', 'OGFS_FLX        ', 'atmos col       ' &   !108
+           ,'duaod           ', 'OGFS_FLX        ', 'atmos col       ' &   !109
+           ,'bcaod           ', 'OGFS_FLX        ', 'atmos col       ' &   !110
+           ,'ocaod           ', 'OGFS_FLX        ', 'atmos col       ' &   !111
+           ,'suaod           ', 'OGFS_FLX        ', 'atmos col       ' &   !112
+           ,'ssaod           ', 'OGFS_FLX        ', 'atmos col       ' &   !113
 !
 !                              -----------------------------------------
 !
@@ -424,6 +439,44 @@
 !-------------------------
 !
       CHARACTER(16),DIMENSION(3,MAX_KOUNT),TARGET :: PHY_INT_STATE_2D_R_AER
+!
+!
+!-----------------------------------------------------------------------
+!
+!-------------------------
+!-------------------------
+!***  REAL 2-D ARRAYS  nst**
+!-------------------------
+!-------------------------
+!
+      CHARACTER(16),DIMENSION(3,MAX_KOUNT),TARGET :: PHY_INT_STATE_2D_R_NST        &
+!
+       =RESHAPE((/                                                      &
+!                              -----------------------------------------
+!
+            'slmsk           ', 'OGFS_NST        ', 'sfc             ' &   !1
+           ,'xt              ', 'OGFS_NST        ', 'sfc             ' &   !2
+           ,'xs              ', 'OGFS_NST        ', 'sfc             ' &   !3
+           ,'xu              ', 'OGFS_NST        ', 'sfc             ' &   !4
+           ,'xv              ', 'OGFS_NST        ', 'sfc             ' &   !5
+           ,'xz              ', 'OGFS_NST        ', 'sfc             ' &   !6
+           ,'zm              ', 'OGFS_NST        ', 'sfc             ' &   !7
+           ,'xtts            ', 'OGFS_NST        ', 'sfc             ' &   !8
+           ,'xzts            ', 'OGFS_NST        ', 'sfc             ' &   !9
+           ,'dtCool          ', 'OGFS_NST        ', 'sfc             ' &   !10
+           ,'zc              ', 'OGFS_NST        ', 'sfc             ' &   !11
+           ,'c0              ', 'OGFS_NST        ', 'sfc             ' &   !12
+           ,'cd              ', 'OGFS_NST        ', 'sfc             ' &   !13
+           ,'w0              ', 'OGFS_NST        ', 'sfc             ' &   !14
+           ,'wd              ', 'OGFS_NST        ', 'sfc             ' &   !15
+           ,'dconv           ', 'OGFS_NST        ', 'sfc             ' &   !16
+           ,'ifd             ', 'OGFS_NST        ', 'sfc             ' &   !17
+           ,'tref            ', 'OGFS_NST        ', 'sfc             ' &   !18
+           ,'qrain           ', 'OGFS_NST        ', 'sfc             ' &   !19
+         /)                                                             &
+        ,(/3,MAX_KOUNT/)                                                &
+        ,(/'****************', '****************', '****************'/))
+
 
 !
 !-----------------------------------------------------------------------
@@ -480,12 +533,13 @@
        use resol_def, only: thermodyn_id,sfcpress_id,ntrac,ngrids_gg,ivssfc
        use coordinate_def, only: vertcoord_id,AK5,BK5,CK5
        use date_def, only: fhour,idate
+       use namelist_physics_def, only: nst_fcst
 !
-      use mod_state, only:  buff_mult_piecea2d                          & !for sfc 2d file
-                           ,buff_mult_piecea3d                          & !for sfc 3d file
-                           ,buff_mult_piecef                            & !for flx file
-                           ,buff_mult_pieceg                            & !for aer file
-                           ,ngrid  
+      use mod_state, only:  buff_mult_piecea2d                & !for sfc 2d file
+                           ,buff_mult_piecea3d                & !for sfc 3d file
+                           ,buff_mult_piecef                  & !for flx file
+                           ,buff_mult_pieceg                  & !for aer file
+                           ,buff_mult_piecenst                  !for nst file
 
 !-----------------------------------------------------------------------
 !***  THIS ROUTINE TAKES THE USER'S SELECTIONS FOR OUTPUT QUANTITIES,
@@ -502,7 +556,7 @@
 !
       INTEGER                     :: mype,RC,RC_PHY_OUT
       INTEGER                     :: MINIDX(2),MAXIDX(2)
-      INTEGER                     :: II, IJ, K
+      INTEGER                     :: II, IJ, K,n,nst, ndg
       INTEGER,allocatable         :: I2(:,:)
       real(kind=kind_io4),target  :: fhourtmp
       real(kind=kind_io4),dimension(:),allocatable,target  :: r4tmp
@@ -514,6 +568,7 @@
       TYPE(ESMF_FieldBundle),SAVE :: GFS_SFC_BUNDLE
       TYPE(ESMF_FieldBundle),SAVE :: GFS_FLX_BUNDLE
       TYPE(ESMF_FieldBundle),SAVE :: GFS_AER_BUNDLE
+      TYPE(ESMF_FieldBundle),SAVE :: GFS_NST_BUNDLE
       TYPE(ESMF_DISTGRID) :: DistGrid
       TYPE(ESMF_GRID) :: Grid
 !
@@ -638,7 +693,10 @@
       R_3D( 2)%NAME=>buff_mult_piecea3D
 !flx
       R_3D(3)%NAME=>buff_mult_piecef
+!aer
       R_3D(4)%NAME=>buff_mult_pieceg                 ! for g2d_fld
+!nst
+      R_3D(5)%NAME=>buff_mult_piecenst
 !
 !
 !-----------------------------------------------------------------------
@@ -670,19 +728,19 @@
 !
 !*** add im, jm into import state
 !
-      CALL ESMF_AttributeSet(state    =IMP_WRITE_STATE                  &  !<-- The Write component import state
-                            ,name     ='im'                             &  !<-- Name of the integer array
-                            ,value    =int_state%lonr                   &  !<-- The array being inserted into the import state
+      CALL ESMF_AttributeSet(state    =IMP_WRITE_STATE                  &  !<--The Write component import state
+                            ,name     ='im'                             &  !<--Name of the integer array
+                            ,value    =int_state%lonr                   &  !<--The array being inserted into the import state
                             ,rc       =RC)
 
-      CALL ESMF_AttributeSet(state    =IMP_WRITE_STATE                  &  !<-- The Write component import state
+      CALL ESMF_AttributeSet(state    =IMP_WRITE_STATE                  &  !<--The Write component import state
                             ,name     ='jm'                             &!<-- Name of the integer array
-                            ,value    =int_state%latr                   &  !<-- The array being inserted into the import state
+                            ,value    =int_state%latr                   &  !<--The array being inserted into the import state
                             ,rc       =RC)
 !
-      CALL ESMF_AttributeSet(state    =IMP_WRITE_STATE                  &  !<-- The Write component import state
+      CALL ESMF_AttributeSet(state    =IMP_WRITE_STATE                  &  !<--The Write component import state
                             ,name     ='zhour'                          &!<-- Name of the integer array
-                            ,value    =int_state%zhour                  &  !<-- The array being inserted into the import state
+                            ,value    =int_state%zhour                  &  !<--The array being inserted into the import state
                             ,rc       =RC)
 !
 !-----------------------------------------------------------------------
@@ -727,8 +785,22 @@
 !-----------------------------------------------------------------------
 !! for aer file (optional)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      lab_if_gocart : IF ( int_state%lgocart .and.   &
-                          (int_state%num_file .eq. 4) ) THEN
+
+! SARAH: this is the logic from the trunk version (num_file is hardwired to 4)
+!      lab_if_gocart : IF ( int_state%lgocart .and.                     &
+!                          (int_state%num_file .eq. 4) ) THEN
+! SARAH: now I change it to be consisten with Jun's nst revision
+
+       lab_if_gocart : IF ( int_state%lgocart ) THEN
+        ndg = 0
+        do n=1,int_state%num_file
+         if (trim(int_state%filename_base(n))=='AER.F' ) ndg = n
+        enddo
+        if (ndg == 0) then
+         write(0,*)"ERROR!!! gocart forecast without aer_diag output! "
+         stop 555
+        endif
+
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 ! set up PHY_INT_STATE_2D_R_AER
@@ -738,7 +810,7 @@
         PHY_INT_STATE_2D_R_AER(1:3,II) = '**********'
       ENDDO
 
-      II = 0                     
+      II = 0
 !  fill in variable name
       if ( int_state%g2d_fld%du%nfld > 0 ) then   ! fill in du diag
         do  k = 1, int_state%g2d_fld%du%nfld
@@ -746,7 +818,6 @@
          PHY_INT_STATE_2D_R_AER(1,II)=int_state%g2d_fld%du%diag(k)%name
         enddo
       endif
-
       if ( int_state%g2d_fld%su%nfld > 0 ) then   ! fill in su diag
         do  k = 1, int_state%g2d_fld%su%nfld
          II = II + 1
@@ -775,14 +846,6 @@
         enddo
       endif
 
-      if ( int_state%g2d_fld%met%nfld > 0 ) then   ! fill in gfs forcing
-        do  k = 1, int_state%g2d_fld%met%nfld
-         II = II + 1
-         PHY_INT_STATE_2D_R_AER(1,II)=int_state%g2d_fld%met%diag(k)%name
-        enddo
-      endif
-
-
 !  fill in file type and level type
       DO K = 1, II
         PHY_INT_STATE_2D_R_AER(2,K) = 'OGFS_AER  '
@@ -795,8 +858,10 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       GFS_AER_BUNDLE=ESMF_FieldBundleCreate(grid=GRID                  &  !<-- The ESMF integration Grid
-                                           ,name=int_state%filename_base(4) &  !<-- The Bundle's name
+!                                         ,name=int_state%filename_base(4) &  !<-- The Bundle's name
+                                          ,name=int_state%filename_base(ndg) &  !<-- The Bundle's name
                                            ,rc  =RC)
+!
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL gfs_physics_err_msg(RC,MESSAGE_CHECK,RC_PHY_OUT)
@@ -817,6 +882,40 @@
       ENDIF lab_if_gocart
 !
 !
+!-----------------------------------------------------------------------
+!! for nst file (optional)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      nst_fcst_if:    IF ( nst_fcst > 0)  THEN
+!
+       nst=0
+       do n=1,int_state%num_file
+        if (trim(int_state%filename_base(n))=='NST.F' ) nst=n
+       enddo
+       if(nst==0) then
+         write(0,*)"WRONG!!! nst forecast without nst output! "
+       endif
+!       print *,'in phys_output,nst=',nst,'filename_base=',trim(int_state%filename_base(nst))
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract History Data Bundle from the Write Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      GFS_NST_BUNDLE=ESMF_FieldBundleCreate(grid=GRID                  &  !<-- The ESMF integration Grid
+                                           ,name=int_state%filename_base(nst) &  !<-- The Bundle's name
+                                           ,rc  =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL gfs_physics_err_msg(RC,MESSAGE_CHECK,RC_PHY_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ADD_BUNDLE_TO_WRITE(int_state,imp_write_state,     &
+           grid,I_SC,R_SC,I_1D,I_2D,R_1D,R_2D,R_3D,R_4D,        &
+           2,'OGFS_PHY','OGFS_NST',GFS_NST_BUNDLE)
+
+!
+      endif nst_fcst_if
+
 !-----------------------------------------------------------------------
 !
       END SUBROUTINE POINT_PHYSICS_OUTPUT_GFS
@@ -1089,8 +1188,10 @@
         PHY_INT_STATE_2D_R=>PHY_INT_STATE_2D_R_SFC
       elseif(file_id=='OGFS_FLX') then
         PHY_INT_STATE_2D_R=>PHY_INT_STATE_2D_R_FLX
-      elseif(file_id=='OGFS_AER') then                  ! added by Sarah Lu
+      elseif(file_id=='OGFS_AER') then                  
         PHY_INT_STATE_2D_R=>PHY_INT_STATE_2D_R_AER
+      elseif(file_id=='OGFS_NST') then                  
+        PHY_INT_STATE_2D_R=>PHY_INT_STATE_2D_R_NST
       endif 
 !
       DO NFIND=1,MAX_KOUNT
@@ -1098,10 +1199,12 @@
           VBL_NAME=TRIM(PHY_INT_STATE_2D_R(1,NFIND))//'_'//trim(PHY_INT_STATE_2D_R(3,NFIND))
           if(file_id=='OGFS_SFC') then
             TEMP_R2D=>R_3D(1)%NAME(LDIM1:UDIM1,LDIM2:UDIM2,NUM_2D_FIELDS_R+1)
-          elseif(file_id=='OGFS_FLX') then
+          elseif(file_id == 'OGFS_FLX') then
             TEMP_R2D=>R_3D(3)%NAME(LDIM1:UDIM1,LDIM2:UDIM2,NUM_2D_FIELDS_R+1)
-          elseif(file_id=='OGFS_AER') then              ! added by Sarah Lu
+          elseif(file_id == 'OGFS_AER') then
             TEMP_R2D=>R_3D(4)%NAME(LDIM1:UDIM1,LDIM2:UDIM2,NUM_2D_FIELDS_R+1)
+          elseif(file_id == 'OGFS_NST') then
+            TEMP_R2D=>R_3D(5)%NAME(LDIM1:UDIM1,LDIM2:UDIM2,NUM_2D_FIELDS_R+1)
           endif
 !
 !          write(0,*)'phy_out,R2D NFIND=',NFIND,'VBL_NAME=',trim(VBL_NAME),  &

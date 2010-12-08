@@ -63,7 +63,7 @@
 !        print*,'in dficoll,q=',maxval(grid_gr_dfi%tracer),
 !     &   minval(grid_gr_dfi%tracer)
       endif
-       print *,'in dficoll'
+!       print *,'in dficoll'
 !7: p
       if(grid_gr_dfi%p_imp==1) then
         kstr=g_p

@@ -9,16 +9,22 @@
 ! !revision history:
 !
 !  november 2004      weiyu yang initial code.
-!  may 2005           weiyu yang for the updated gfs version.
+!  may      2005      weiyu yang for the updated gfs version.
 !  february 2006      shrinivas moorthi updated for the new version of gfs
-!  january 2007       hann-ming henry juang for gfs dynamics only
-!  july    2007       shrinivas moorthi for gfs physics only
-!  november 2007       hann-ming henry juang continue for gfs physics
-!  oct 09 2009        sarah lu, add lats_node_r,ipt_lats_node_r,lats_nodes_r_fix
-!  oct 11 2009        sarah lu, add grid_fld and grid_aldata
-!  oct 12 2009        sarah lu, add start_step
-!  oct 16 2009        sarah lu, add gfs_phy_tracer
-!  dec 08 2009        sarah lu, add lgocart and g3d_fld
+!  january  2007      hann-ming henry juang for gfs dynamics only
+!  july     2007      shrinivas moorthi for gfs physics only
+!  november 2007      hann-ming henry juang continue for gfs physics
+!  oct 09   2009      sarah lu, add lats_node_r,ipt_lats_node_r,lats_nodes_r_fix
+!  oct 11   2009      sarah lu, add grid_fld and grid_aldata
+!  oct 12   2009      sarah lu, add start_step
+!  oct 16   2009      sarah lu, add gfs_phy_tracer
+!  dec 08   2009      sarah lu, add lgocart and g3d_fld
+!  July     2010      Shrinivas Moorthi - updated for new physics + nst model
+!  July 30  3010      shrinivas moorthi - removed cldcov
+!  jul 14 2009        sarah lu, add g2d_fld
+!  Aug 09 2010        Jun Wang, add nst_fcst
+!  Aug 25 2010        Jun Wang, add zhour_dfi for filtered dfi fields output
+!  Oct 18 2010        Shrinivas Moorthi - added fscav
 !  jul 14 2009        sarah lu, add g2d_fld
 !
 ! !interface:
@@ -31,8 +37,10 @@
       use gfs_physics_sfc_flx_mod,  ONLY: Sfc_Var_Data, Flx_Var_Data
       use gfs_physics_gridgr_mod,   ONLY: Grid_Var_Data    
       use gfs_physics_g3d_mod,      ONLY: G3D_Var_Data    
-      use gfs_physics_g2d_mod,      ONLY: G2D_Var_Data    
+      use gfs_physics_g2d_mod,      ONLY: G2D_Var_Data
       use gfs_phy_tracer_config,    ONLY: gfs_phy_tracer_type
+      use gfs_physics_nst_var_mod
+      
 
       use machine, only: kind_phys, kind_rad, kind_evod
       implicit none
@@ -53,8 +61,11 @@
       TYPE(G3D_Var_Data)        :: g3d_fld  
       TYPE(G2D_Var_Data)        :: g2d_fld
 
+      TYPE(Nst_Var_Data)        :: nst_fld
+
       logical                   :: grid_aldata  
       logical                   :: lgocart
+      logical                   :: nst_fcst
       logical                   :: start_step
 
       integer                   :: me, nodes
@@ -85,6 +96,7 @@
 
 !  Add lats_nodes_r_fix for mGrid (sarah lu) 
       integer              ,allocatable ::  lats_nodes_r_fix   (:) 
+      real (kind=kind_phys) ,allocatable ::  fscav(:)
 
       real(kind=kind_evod) ,allocatable ::      grid_gr(:,:)
       integer   g_gz ,g_ps ,g_t ,g_u ,g_v ,g_q ,g_p ,g_dp ,g_dpdt
@@ -93,7 +105,7 @@
       REAL(KIND=KIND_RAD) ,ALLOCATABLE :: XLON(:,:),XLAT(:,:)
       REAL(KIND=KIND_RAD) ,ALLOCATABLE :: COSZDG(:,:)
       REAL(KIND=KIND_RAD) ,ALLOCATABLE :: sfalb(:,:)
-      REAL(KIND=KIND_RAD) ,ALLOCATABLE :: CLDCOV(:,:,:)
+!     REAL(KIND=KIND_RAD) ,ALLOCATABLE :: CLDCOV(:,:,:)
       REAL(KIND=KIND_RAD) ,ALLOCATABLE :: HPRIME(:,:,:)
       REAL(KIND=KIND_RAD) ,ALLOCATABLE :: SWH(:,:,:,:),HLW(:,:,:,:)
       REAL(KIND=KIND_RAD) ,ALLOCATABLE :: FLUXR(:,:,:)
@@ -140,7 +152,7 @@
       integer              lan,lat
 
       real(kind=kind_phys) chour
-      real(kind=kind_phys) zhour
+      real(kind=kind_phys) zhour,zhour_dfi=0
 
 !     logical start_step
 !     logical end_step

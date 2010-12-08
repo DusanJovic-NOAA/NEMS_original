@@ -241,6 +241,6 @@ C     ----------------------------------------------------------------------
             DRYSMC(I) = WLTSMC(I)
          END DO
          
-!     if (me.eq.0) write(6,soil_veg)
+!       if (me.eq.0) write(6,soil_veg)
        return
        end

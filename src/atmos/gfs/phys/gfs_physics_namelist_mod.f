@@ -26,6 +26,7 @@
            real                   :: deltim
            character(80)          :: gfs_phy_namelist
            character(20)          :: sfc_ini
+           character(20)          :: nst_ini
       end type nam_gfs_phy_namelist
 !
       type gfs_phy_state_namelist
