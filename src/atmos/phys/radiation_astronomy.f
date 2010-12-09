@@ -209,7 +209,7 @@
 !  ---  inputs:
      &     ( lons_lar,glb_lats_r,sinlat,coslat,xlon,                    &
 !    &       fhswr,jdate,deltim,                                        &
-     &       fhswr,jdate,                                               &
+     &       fhswr,jdate,nrads,                                         &
      &       LON2,LATD,LATR,IPT_LATR, lsswr,                            &
 !  ---  outputs:
      &       solcon,slag,sdec,cdec,coszen,coszdg                        &
@@ -248,7 +248,7 @@
       implicit none
       
 !  ---  input:
-      integer,  intent(in) :: LON2, LATD, LATR, IPT_LATR
+      integer,  intent(in) :: LON2, LATD, LATR, IPT_LATR, nrads
       integer,  intent(in) :: lons_lar(:), glb_lats_r(:), jdate(:)
 
       logical, intent(in) :: lsswr
@@ -319,7 +319,7 @@
 !  ---  inputs:
      &     ( lons_lar,glb_lats_r,xlon,sinlat,coslat,                    &
 !    &       fhswr,deltim,solhr,sdec,cdec,slag,                         &
-     &       fhswr,solhr,sdec,cdec,slag,                                &
+     &       nrads,fhswr,solhr,sdec,cdec,slag,                                &
      &       LON2,LATD,IPT_LATR,                                        &
 !  ---  outputs:
      &       coszen,coszdg                                              &
@@ -528,7 +528,7 @@
 !  ---  inputs:
      &     ( lons_lar,glb_lats_r,xlon,sinlat,coslat,                    &
 !    &       dtswav,deltim,solhr,sdec,cdec,slag,                        &
-     &       dtswav,solhr,sdec,cdec,slag,                               &
+     &       nrads,dtswav,solhr,sdec,cdec,slag,                         &
      &       NLON2,LATD,IPT_LATR,                                       &
 !  ---  outputs:
      &       coszen,coszdg                                              &
@@ -567,7 +567,7 @@
       implicit none
 
 !  ---  inputs:
-      integer, intent(in) :: NLON2, LATD, IPT_LATR
+      integer, intent(in) :: NLON2, LATD, IPT_LATR, nrads
       integer, intent(in) :: lons_lar(:), glb_lats_r(:)
 
       real (kind=kind_phys), intent(in) :: sinlat(:), coslat(:),        &
@@ -578,7 +578,7 @@
       real (kind=kind_phys), intent(out) :: coszen(:,:), coszdg(:,:)
 
 !  ---  locals:
-      real (kind=kind_phys) :: coszn(NLON2), pid12, cns, ss, cc
+      real (kind=kind_phys) :: coszn(NLON2), pid12, cns, ss, cc, rnstp, ristp
 
       integer :: istsun(NLON2), nstp, istp, nlon, nlnsp, i, it, j, lat
 
@@ -586,9 +586,20 @@
 
       nlon = NLON2 / 2
 
-      nstp = 6                               ! number of cosz calc per fcst hour
-!     nstp = max(6, min(10, nint(3600.0/deltim) ))  ! for better time step sync
-      istp = nint( dtswav*nstp )             ! total num of calc in dtswav interval
+!     nstp = 6                               ! number of cosz calc per fcst hour
+!!     nstp = max(6, min(10, nint(3600.0/deltim) ))  ! for better time step sync
+
+!     istp = nint( dtswav*nstp )             ! total num of calc in dtswav interval
+
+      !!!=============== This is a crude test =================================
+
+      nstp = nrads
+      istp = nstp
+
+      rnstp = 1./float(nstp)
+      ristp = 1./float(istp)
+
+      !!!=============== end of crude test =================================
 
 !     pid12 = con_pi / 12.0                  ! angle per hour
       pid12 = (2.0 * asin(1.0)) / 12.0
@@ -603,7 +614,7 @@
         enddo
 
         do it = 1, istp
-          cns = pid12 * (solhr - 12.0 + float(it-1)/float(nstp)) + slag
+          cns = pid12 * (solhr - 12.0 + float(it-1)*rnstp) + slag
           ss  = sinlat(lat) * sdec
           cc  = coslat(lat) * cdec
 
@@ -617,7 +628,7 @@
 !  --- ...  compute time averages
 
         do i = 1, NLON2
-          coszdg(i,j) = coszen(i,j) / float(istp)
+          coszdg(i,j) = coszen(i,j)*ristp
           if (istsun(i) > 0) coszen(i,j) = coszen(i,j) / istsun(i)
         enddo
       enddo

@@ -45,7 +45,7 @@
 !
       REAL, PARAMETER ::  &
      &   TRAD_ice=0.5*T_ice      & !--- Very tunable parameter
-     &,  ABSCOEF_W=800.          & !--- Very tunable parameter
+     &,  ABSCOEF_W=800.            & !--- Very tunable parameter
      &,  ABSCOEF_I=0.            & !--- Very tunable parameter
      &,  Qconv=0.01e-3            & !--- Very tunable parameter
 
@@ -507,8 +507,8 @@
 !
        FHSWR=FLOAT(NRADS*DT_INT)/3600.   ! [h]
        FHLWR=FLOAT(NRADL*DT_INT)/3600.   ! [h]
-       DTLW =FLOAT(NRADS*DT_INT)         ! [s]
-       DTSW =FLOAT(NRADL*DT_INT)         ! [s]
+       DTLW =FLOAT(NRADL*DT_INT)         ! [s]
+       DTSW =FLOAT(NRADS*DT_INT)         ! [s]
        LSSWR=MOD(NTIMESTEP,NRADS)==0
        LSLWR=MOD(NTIMESTEP,NRADL)==0
 !
@@ -541,7 +541,7 @@
        CALL n_ASTRONOMY                                                   &
 !  --- inputs:
            ( LONSPERLAR, GLOBAL_LATS_R, SINLAT_R, COSLAT_R, XLON,       &
-             FHSWR, JDAT,                                               &
+             FHSWR, JDAT, NRADS,                                        &
              LONR, LATS_NODE_R, LATR, IPT_LATS_NODE_R, LSSWR,           &
 !  --- outputs:
              SOLCON, SLAG, SDEC, CDEC, COSZEN, COSZDG                   &
