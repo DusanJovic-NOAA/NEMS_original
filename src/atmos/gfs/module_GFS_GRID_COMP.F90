@@ -287,7 +287,7 @@
       INTEGER(kind=KINT)           :: TIMESTEP_SEC_NUMERATOR
       INTEGER(kind=KINT)           :: TIMESTEP_SEC_DENOMINATOR
       INTEGER(kind=KINT)           :: i, j, i1
-      INTEGER(kind=KINT) :: RC,RC_FINAL
+      INTEGER(kind=KINT) :: RC
 !
       real(kind=8) :: rtim0, rtim1, rtc, total_integ_tim
 !
@@ -1312,7 +1312,7 @@
       IF(RC_RUN == ESMF_SUCCESS) THEN
           WRITE(0, *) 'GFS ATM RUN STEP SUCCEEDED'
       ELSE
-          WRITE(0, *) 'GFS ATM RUN STEP FAILED RC_INIT=', RC_RUN
+          WRITE(0, *) 'GFS ATM RUN STEP FAILED RC_RUN=', RC_RUN
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -1333,7 +1333,7 @@
                              ,IMP_STATE                                 &
                              ,EXP_STATE                                 &
                              ,CLOCK_ATM                                 &
-                             ,RC_FINALIZE)
+                             ,RC_FINAL)
 !
 !-----------------------------------------------------------------------
 !***  THIS ROUTINE FINALIZES THE ATM GRIDDED COMPONENT.
@@ -1344,14 +1344,14 @@
       TYPE(ESMF_State),   INTENT(INOUT) :: EXP_STATE                       !<-- The ATM finalize step's export state
       TYPE(ESMF_Clock),   INTENT(INOUT) :: CLOCK_ATM                       !<-- The main ESMF Clock
       TYPE(ESMF_Config)                 :: CF                              !<-- The config object
-      INTEGER,            INTENT(OUT)   :: RC_FINALIZE                     !<-- Return code for the Finalize step
+      INTEGER,            INTENT(OUT)   :: RC_FINAL                        !<-- Return code for the Finalize step
 !
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES
 !-----------------------------------------------------------------------
 !
       INTEGER :: I,J
-      INTEGER :: RC,RC_FINAL                                               ! The final error signal variables.
+      INTEGER :: RC                                                        ! The final error signal variables.
 !
       CHARACTER(50):: MODE
 !
@@ -1361,7 +1361,6 @@
 !
       RC         =ESMF_SUCCESS
       RC_FINAL   =ESMF_SUCCESS
-      RC_FINALIZE=ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
 !***  For the moment, use a direct copy of the ATM Clock.
@@ -1576,10 +1575,6 @@
         WRITE(0,*)'GFS FINALIZE STEP SUCCEEDED'
       ELSE
         WRITE(0,*)'GFS FINALIZE STEP FAILED'
-      ENDIF
-!
-      IF(PRESENT(RC_FINALIZE))THEN
-        RC_FINALIZE=RC_FINAL
       ENDIF
 !
 !-----------------------------------------------------------------------
