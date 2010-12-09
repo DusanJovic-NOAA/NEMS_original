@@ -233,7 +233,7 @@
       TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE                    &  !<-- The GFS component's import state
                                           ,EXP_STATE                       !<-- The GFS component's export state
       TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_ATM                       !<-- The ESMF Clock from the ATM component.
-      INTEGER,OPTIONAL   ,INTENT(OUT)   :: RC_INIT                         !<-- Return code for Initialize step
+      INTEGER            ,INTENT(OUT)   :: RC_INIT                         !<-- Return code for Initialize step
 !
 !---------------------
 !***  Local variables
@@ -1181,7 +1181,7 @@
       TYPE(ESMF_State),   INTENT(INOUT) :: IMP_STATE                       !<-- The GFS Run step's import
       TYPE(ESMF_State),   INTENT(INOUT) :: EXP_STATE                       !<-- The GFS Run step's export
       TYPE(ESMF_Clock),   INTENT(INOUT) :: CLOCK_ATM                       !<-- The ATM ESMF Clock
-      INTEGER,OPTIONAL,   INTENT(OUT)   :: RC_RUN                          !<-- Return code for the Run step
+      INTEGER,            INTENT(OUT)   :: RC_RUN                          !<-- Return code for the Run step
 !
 !---------------------
 !***  Local variables
@@ -1344,7 +1344,7 @@
       TYPE(ESMF_State),   INTENT(INOUT) :: EXP_STATE                       !<-- The ATM finalize step's export state
       TYPE(ESMF_Clock),   INTENT(INOUT) :: CLOCK_ATM                       !<-- The main ESMF Clock
       TYPE(ESMF_Config)                 :: CF                              !<-- The config object
-      INTEGER,OPTIONAL,   INTENT(OUT)   :: RC_FINALIZE                     !<-- Return code for the Finalize step
+      INTEGER,            INTENT(OUT)   :: RC_FINALIZE                     !<-- Return code for the Finalize step
 !
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES
