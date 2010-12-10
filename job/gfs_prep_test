@@ -2,7 +2,7 @@
 #
 set -x
 #
- export CDATE=2009071000
+ export CDATE=2010010100
 
 # -------------------------------------------------------------
 # SFCPRESS_ID=0 or 1 for ln(psfc), 2 for psfc
@@ -128,9 +128,11 @@ if [[ $lm -eq 64 ]] ; then
   export kop=46
 fi
 #
- export CHGRESDIR=$TOPDIR/wx23hh/00wkgfs/src/global_chgres-moorthi.fd
- export CHGRESEXEC=$CHGRESDIR/global_chgres
- export CHGRESSH=$TOPDIR/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh
+# export CHGRESDIR=$TOPDIR/wx23hh/00wkgfs/src/global_chgres-moorthi.fd
+# export CHGRESEXEC=$CHGRESDIR/global_chgres
+# export CHGRESSH=$TOPDIR/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh
+ export CHGRESEXEC=/climate/save/wx20wa/gfsio/chgres_nems/global_chgres
+ export CHGRESSH=/climate/save/wx20wa/gfsio/chgres_nems_test/test/global_chgres_opn.sh
 #
 export LANDICE_OPT=2
 export CLIMO_FIELDS_OPT=2
@@ -201,7 +203,7 @@ export VERBOSE=YES
   export GFSOUT=$RUNDIR/gfsanl.$CDATE
   export SIGOUT=$RUNDIR/siganl.$CDATE
   export SFCOUT=$RUNDIR/sfcanl.$CDATE
-# export SFCOUT=
+  export SFCOUT=$RUNDIR/sfnanl.$CDATE
 #
   echo ${change_res}
   if [[ ${change_res} = YES ]] ; then

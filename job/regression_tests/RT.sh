@@ -779,7 +779,7 @@ export LIST_FILES=" \
 export TASKS=32    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
 export PE1=30      ; export WTPG=2       ; export NDAYS=1     ; export CP2=.false.
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3   ; export IAER=0      ; export FHRES=24
+export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 export NST_FCST=0  
@@ -813,7 +813,7 @@ export LIST_FILES=" \
 export TASKS=32    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
 export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=.true.
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3   ; export IAER=0      ; export FHRES=24
+export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 export NST_FCST=0  
@@ -847,7 +847,7 @@ export LIST_FILES=" \
 export TASKS=60    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
 export PE1=58      ; export WTPG=2       ; export NDAYS=1     ; export CP2=.false.
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3   ; export IAER=0      ; export FHRES=24
+export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 export NST_FCST=0  
@@ -881,7 +881,7 @@ export LIST_FILES=" \
 export TASKS=16    ; export THRD=2       ; export NSOUT=0     ; export QUILT=.true.
 export PE1=12      ; export WTPG=2       ; export NDAYS=2     ; export CP2=.false.
 export WRTGP=2     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3   ; export IAER=0      ; export FHRES=24
+export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 export NST_FCST=0  
@@ -915,7 +915,7 @@ export LIST_FILES=" \
 export TASKS=1     ; export THRD=1       ; export NSOUT=0     ; export QUILT=.false.
 export PE1=1       ; export WTPG=1       ; export NDAYS=1     ; export CP2=.false.
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3   ; export IAER=0      ; export FHRES=24
+export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 export NST_FCST=0  
@@ -949,7 +949,7 @@ export LIST_FILES=" \
 export TASKS=1     ; export THRD=1       ; export NSOUT=1     ; export QUILT=.false.
 export PE1=1       ; export WTPG=1       ; export NDAYS=2     ; export CP2=.false.
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3   ; export IAER=0      ; export FHRES=24
+export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 export NST_FCST=0  
@@ -983,7 +983,7 @@ export LIST_FILES=" \
 export TASKS=16    ; export THRD=2       ; export NSOUT=2     ; export QUILT=.false.
 export PE1=16      ; export WTPG=1       ; export NDAYS=1     ; export CP2=.false.
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3   ; export IAER=0      ; export FHRES=24
+export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 export NST_FCST=0  
@@ -1017,7 +1017,7 @@ export LIST_FILES=" \
 export TASKS=60    ; export THRD=1       ; export NSOUT=1     ; export QUILT=.false.
 export PE1=60      ; export WTPG=1       ; export NDAYS=2     ; export CP2=.false.
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3   ; export IAER=0      ; export FHRES=24
+export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 export NST_FCST=0  
@@ -1051,7 +1051,7 @@ export LIST_FILES=" \
 export TASKS=32    ; export THRD=1       ; export NSOUT=4     ; export QUILT=.false.
 export PE1=32      ; export WTPG=1       ; export NDAYS=2     ; export CP2=.false.
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3   ; export IAER=0      ; export FHRES=24
+export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 export NST_FCST=0  
@@ -1085,7 +1085,7 @@ export LIST_FILES=" \
 export TASKS=32    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
 export PE1=30      ; export WTPG=2       ; export NDAYS=1     ; export CP2=.false.
 export WRTGP=1     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3   ; export IAER=0      ; export FHRES=24
+export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 export NST_FCST=0  
@@ -1119,7 +1119,7 @@ export LIST_FILES=" \
 export TASKS=16    ; export THRD=2       ; export NSOUT=0     ; export QUILT=.true.
 export PE1=12      ; export WTPG=2       ; export NDAYS=2     ; export CP2=.true.
 export WRTGP=2     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3   ; export IAER=0      ; export FHRES=24
+export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 export NST_FCST=0  
@@ -1153,7 +1153,7 @@ export LIST_FILES=" \
 export TASKS=1     ; export THRD=1       ; export NSOUT=0     ; export QUILT=.false.
 export PE1=1       ; export WTPG=1       ; export NDAYS=1     ; export CP2=.false.
 export WRTGP=1     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3   ; export IAER=0      ; export FHRES=24
+export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 export NST_FCST=0  
@@ -1187,7 +1187,7 @@ export LIST_FILES=" \
 export TASKS=32    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
 export PE1=30      ; export WTPG=2       ; export NDAYS=1     ; export CP2=.false.
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3   ; export IAER=11      ; export FHRES=24
+export IAER=11      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 export NST_FCST=0  
@@ -1206,7 +1206,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CREATE_BASELINE} = false ]; then
+if [ ${CB_arg} != nmm ]; then
 
 export TEST_DESCR="GFS,16 proc, 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid"
 
@@ -1222,7 +1222,7 @@ export LIST_FILES=" \
 export TASKS=16    ; export THRD=2       ; export NSOUT=0     ; export QUILT=.true.
 export PE1=12      ; export WTPG=2       ; export NDAYS=2     ; export CP2=.true.
 export WRTGP=2     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3   ; export IAER=0      ; export FHRES=24
+export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=2      ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALLOOP=2
 export NST_FCST=0  
@@ -1257,7 +1257,7 @@ export LIST_FILES=" \
 export TASKS=16    ; export THRD=2       ; export NSOUT=0     ; export QUILT=.true.
 export PE1=12      ; export WTPG=2       ; export NDAYS=2     ; export CP2=.true.
 export WRTGP=2     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3   ; export IAER=0      ; export FHRES=24
+export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=2      ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALLOOP=2
 export NST_FCST=1
@@ -1291,7 +1291,7 @@ export LIST_FILES=" \
 export TASKS=16    ; export THRD=2       ; export NSOUT=0     ; export QUILT=.true.
 export PE1=12      ; export WTPG=2       ; export NDAYS=2     ; export CP2=.true.
 export WRTGP=2     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export NUMFILE=3   ; export IAER=0      ; export FHRES=24
+export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=2      ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALLOOP=1
 export NST_FCST=0  

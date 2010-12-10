@@ -827,16 +827,6 @@
      &     )
 
       endif
-      if(me==0.and.kdt==5.and.lat==18)then
-       print *,'in gbphys,dcycl,kdt=',kdt,'lat=',lat,'dtdt=',
-     &   maxval(dtdt(:,:)),minval(dtdt(:,:)),'dtdt(2,1)=',dtdt(2,1),
-     & 'swh=',swh(2,1),'hlw(2,1)=',hlw(2,1),'sfcemis(2)=',
-     & sfcemis(2),'adjsfcdlw=',adjsfcdlw(2),'adjsfcdsw=',
-     & adjsfcdsw(2),'adjsfcnsw=',adjsfcnsw(2),'adjsfculw=',
-     &  adjsfculw(2),'xmu=',xmu(2),'xcosz=',xcosz(2),'pre_rad=',
-     &  pre_rad,'tsflw=',tsflw(2),'tgrs=',tgrs(2,1),'sfcdlw=',
-     &  sfcdlw(2)
-      endif
 
 !  ---  convert lw fluxes for land/ocean/sea-ice models
 !  note: adjsfcdlw and adjsfculw are time-step adjusted lw sfc dn/up fluxes.
@@ -1075,10 +1065,6 @@
 !    &         dt_warm, z_c, z_w, c_0, c_d, w_0, w_d,                   &
 !  ---  outputs:
      &         qss, gflx, cmm, chh, evap, hflx, ep1d)
-       if(me==0.and.kdt==5.and.lat==18) then
-        print *,'in gbphys,af sfcnst kdt=',kdt,'hflx=',hflx(2),         &
-     &    'evap=',evap(2)
-       endif
 
 !         if (lprnt) print *,' tseaz2=',tseal(ipr),' tref=',tref(ipr),  &
 !    &     ' dt_cool=',dt_cool(ipr),' dt_warm=',2.0*xt(ipr)/xz(ipr),    &
