@@ -64,6 +64,8 @@
       INTEGER                        :: ARRAY_TOT_SIZ3
       INTEGER                        :: ARRAY_TOT_SIZ4
 
+      CHARACTER(ESMF_MAXSTR)         :: Core
+
 !  Nov. 2007, Added global arrays
       INTEGER, DIMENSION(:), POINTER :: member_id        !global array specifying the member_id for each CPU
 

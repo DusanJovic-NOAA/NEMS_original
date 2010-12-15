@@ -20,6 +20,7 @@
 !   2010-03     Jovic/Black - Revised to create NEMS gridded component
 !                             for new structure.
 !   2010-04     Yang    - Add GEFS and GFS for the revised NEMS.
+!   2010-11     Yang    - Add the "Generic Core" in the NEMS.
 !
 !-----------------------------------------------------------------------
 !

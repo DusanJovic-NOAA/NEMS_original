@@ -20,7 +20,7 @@
 !          ATM/OCEAN/ICE components
 !               |
 !               |
-!          CORE component (GFS,NMM,FIM, etc.)
+!          CORE component (GFS, NMM, FIM, GEN, etc.)
 !
 !-----------------------------------------------------------------------
 !

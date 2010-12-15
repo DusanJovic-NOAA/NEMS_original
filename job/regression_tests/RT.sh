@@ -40,11 +40,12 @@ argn=$#
 if [ $argn -eq 1 ]; then
   export CREATE_BASELINE=true
   CB_arg=$1
-  if [ ${CB_arg} != nmm -a ${CB_arg} != gfs -a ${CB_arg} != all ]; then
+  if [ ${CB_arg} != nmm -a ${CB_arg} != gfs -a ${CB_arg} != geb -a ${CB_arg} != all ]; then
     echo "Wrong CB_arg choice: " $CB_arg
     echo "  Options are: "
     echo "          RT.sh  nmm  (create baselines for NMM)"
     echo "          RT.sh  gfs  (create baselines for GFS)"
+    echo "          RT.sh  gen  (create baselines for GEN)"
     echo "          RT.sh  all  (create baselines for both NMM & GFS)"
     exit
   fi
@@ -135,8 +136,8 @@ printf %s "Compiling model code (this will take some time)......."
 cd ${PATHTR}/src
 
 rm -f ../exe/NEMS.x
-gmake clean                          >  ${PATHRT}/Compile.log 2>&1
-gmake nmm_gfs GOCART_MODE=full       >> ${PATHRT}/Compile.log 2>&1
+gmake clean                              >  ${PATHRT}/Compile.log 2>&1
+gmake nmm_gfs_gen GOCART_MODE=full       >> ${PATHRT}/Compile.log 2>&1
 
 if [ -f ../exe/NEMS.x ] ; then
   echo "   Model code Compiled";echo;echo
@@ -155,7 +156,7 @@ cd $PATHRT
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
 
 export TEST_DESCR="Compare NMMB-global results with previous trunk version"
 
@@ -352,7 +353,7 @@ fi
 #
 ####################################################################################################
 
-#if [ ${CB_arg} != gfs ]; then
+#if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
  
 #export TEST_DESCR="Test NMMB-global with GFS physics package "
 
@@ -385,7 +386,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
 
 export TEST_DESCR="Compare NMMB-regional results with previous trunk version"
 
@@ -580,7 +581,7 @@ fi
 #
 ####################################################################################################
 
-#if [ ${CB_arg} != gfs ]; then
+#if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
 
 #export TEST_DESCR="Test NMMB-regional with GFS physics package "
 
@@ -614,7 +615,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
 
 export TEST_DESCR="Test NMMB-regional with nesting"
 
@@ -667,7 +668,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
 
 export TEST_DESCR="Test NMMB-regional nesting with restart"
 
@@ -699,7 +700,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
 
 export TEST_DESCR="Test NMMB-regional with precipitation adjustment on"
 
@@ -732,7 +733,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
 
 export TEST_DESCR="Test NMMB-regional writing time series"
 
@@ -763,7 +764,7 @@ cd $PATHRT
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
 
 export TEST_DESCR="Compare GFS results with previous trunk version"
 
@@ -1069,7 +1070,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
 
 export TEST_DESCR="GFS,32 proc, 1 thread, quilt, digital filter on reduced grid"
 
@@ -1171,7 +1172,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
 
 export TEST_DESCR="GFS, use the OPAC climo scheme for SW and LW"
 
@@ -1206,7 +1207,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
 
 export TEST_DESCR="GFS,16 proc, 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid"
 
@@ -1240,7 +1241,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
 
 export TEST_DESCR="GFS,16 proc, 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid"
 
@@ -1275,7 +1276,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
 
 export TEST_DESCR="GFS,16 proc, 2 thread, quilt,2x2 wrt pe, HYB 1loop digital filter on reduced grid"
 
@@ -1309,7 +1310,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
 
 export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28."
 
@@ -1341,11 +1342,65 @@ echo 'PATHTR=' $PATHTR
 
 fi
 
+cd $PATHRT
+
+####################################################################################################
+#
+# TEST   - GEN, 16 PEs, 1 node.
+#        - 1 members.
+#
+####################################################################################################
+
+if [ ${CB_arg} != nmm -a ${CB_arg} != gfs ]; then
+
+export TEST_DESCR="GEN, 1 members."
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/GEN_Run_m1
+#---------------------
+ export GEN_ENSEMBLE=0
+ export TASKS=16    ; export THRD=1
+echo 'PATHTR=' $PATHTR
+#---------------------
+  ./rt_gen.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi
+
+cd $PATHRT
+
+####################################################################################################
+#
+# TEST   - Concurrency GEN, 64PEs, 1 node.
+#        - 4 members.
+#
+####################################################################################################
+
+if [ ${CB_arg} != nmm -a ${CB_arg} != gfs ]; then
+
+export TEST_DESCR="Concurrency GEN, 4 members."
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/GEN_Concurrency_Run_m4
+#---------------------
+ export GEN_ENSEMBLE=1
+ export TASKS=64    ; export THRD=1
+echo 'PATHTR=' $PATHTR
+#---------------------
+  ./rt_gen.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi
+
 ####################################################################################################
 # Finalize
 ####################################################################################################
 
-rm -f err out configure_file* nmm_ll gfs_fcst_run  gfs_ll
+rm -f err out configure_file* nmm_ll gfs_fcst_run  gfs_ll gen_fcst_run gen_ll gen_ll.out
 
 cd ${PATHTR}/src
 gmake clean          > /dev/null 2>&1

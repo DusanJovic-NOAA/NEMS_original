@@ -2,7 +2,7 @@ TARGET = ../exe/NEMS.x
 
 include ./conf/configure.nems
 
-INCS = -Iatmos -Iocean -Ichem -Iatmos/share -IENS_Cpl -Iatmos/nmm -Iatmos/fim -Iatmos/gfs -Iatmos/phys
+INCS = -Iatmos -Iocean -Ichem -Iatmos/share -IENS_Cpl -Iatmos/nmm -Iatmos/fim -Iatmos/gfs -Iatmos/phys -Iatmos/gen
 
 MAIN = MAIN_NEMS.o
 
@@ -18,6 +18,7 @@ LIBS = atmos/share/libshare.a           \
        atmos/gfs/dyn/gfs_dynamics.a     \
        atmos/gfs/libgfs.a               \
        atmos/fim/libfim.a               \
+       atmos/gen/libgen.a               \
        atmos/libatmos.a                 \
        ENS_Cpl/ENS_Cpl.a
 
@@ -25,6 +26,16 @@ LIBS_NMM = atmos/libatmos.a             \
            atmos/nmm/libnmm.a           \
            atmos/gfs/libgfs.a           \
            atmos/fim/libfim.a           \
+           atmos/gen/libgen.a           \
+           atmos/phys/libphys.a         \
+           atmos/share/libshare.a       \
+           ENS_Cpl/ENS_Cpl.a
+
+LIBS_GEN = atmos/libatmos.a             \
+           atmos/nmm/libnmm.a           \
+           atmos/gfs/libgfs.a           \
+           atmos/fim/libfim.a           \
+           atmos/gen/libgen.a           \
            atmos/phys/libphys.a         \
            atmos/share/libshare.a       \
            ENS_Cpl/ENS_Cpl.a
@@ -65,6 +76,10 @@ endif
 all:
 	@echo "gmake nmm_gfs --- for both NMM and GFS core - without the GOCART"
 	@echo " or"
+	@echo "gmake gen --- for GEN core only"
+	@echo " or"
+	@echo "gmake nmm_gfs_gen GOCART_MODE=full --- for GEN, NMM and GFS cores - with the GOCART"
+	@echo " or"
 	@echo "gmake nmm_gfs GOCART_MODE=full --- for both NMM and GFS core - with the GOCART"
 	@echo " or"
 	@echo "gmake nmm --- for NMM core only"
@@ -95,6 +110,7 @@ nmm_libs:
 	cd atmos/phys          && gmake
 	cd atmos/nmm           && gmake
 	cd atmos/gfs           && gmake stub
+	cd atmos/gen           && gmake stub
 	cd atmos/fim           && gmake stub
 	cd atmos               && gmake
 	cd ENS_Cpl             && gmake stub
@@ -114,11 +130,54 @@ gfs_libs:
 	cd atmos/share         && gmake
 	cd atmos/phys          && gmake
 	cd atmos/nmm           && gmake stub
+	cd atmos/gen           && gmake stub
 	cd atmos/gfs           && gmake
 	cd atmos/fim           && gmake stub
 	cd atmos               && gmake
 	cd ENS_Cpl             && gmake
 
+################################################################################
+#
+# GEN
+#
+################################################################################
+
+gen: gen_libs $(OBJS) $(MAIN)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_GEN) $(EXTLIBS) $(LIB_GOCART)
+	@echo "nems.x is created for GEN core."
+
+gen_libs:
+	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
+	cd atmos/share         && gmake
+	cd atmos/phys          && gmake
+	cd atmos/nmm           && gmake stub
+	cd atmos/gfs           && gmake stub
+	cd atmos/fim           && gmake stub
+	cd atmos/gen           && gmake
+	cd atmos               && gmake
+	cd ENS_Cpl             && gmake
+
+
+################################################################################
+#
+# GEN, NMM and GFS
+#
+################################################################################
+
+nmm_gfs_gen: nmm_gfs_gen_libs $(OBJS) $(MAIN)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIB_GOCART)
+	@echo "nems.x is created for GEN, NMM and GFS core."
+
+nmm_gfs_gen_libs:
+	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
+	cd atmos/share         && gmake
+	cd atmos/phys          && gmake
+	cd atmos/nmm           && gmake
+	cd atmos/gfs           && gmake
+	cd atmos/gen           && gmake 
+	cd atmos/fim           && gmake stub
+	cd atmos               && gmake
+	cd ENS_Cpl             && gmake
 
 ################################################################################
 #
@@ -137,6 +196,7 @@ nmm_gfs_libs:
 	cd atmos/nmm           && gmake
 	cd atmos/gfs           && gmake
 	cd atmos/fim           && gmake stub
+	cd atmos/gen           && gmake stub
 	cd atmos               && gmake
 	cd ENS_Cpl             && gmake
 
@@ -155,6 +215,7 @@ fim_libs:
 	cd atmos/nmm           && gmake stub
 	cd atmos/gfs           && gmake stub 
 	cd atmos/fim           && gmake
+	cd atmos/gen           && gmake stub
 	cd atmos               && gmake
 
 ################################################################################
@@ -172,6 +233,7 @@ fim_gfs_libs:
 	cd atmos/nmm           && gmake stub
 	cd atmos/gfs           && gmake
 	cd atmos/fim           && gmake
+	cd atmos/gen           && gmake stub
 	cd atmos               && gmake
 
 ################################################################################

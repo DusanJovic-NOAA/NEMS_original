@@ -16,6 +16,7 @@
 !  November 2007      Dingchen, added minimum documentation, mainly for the arrays added during 2007
 !  March    2009      Weiyu yang, modified for the NEMS model.
 !  April    2010      Weiyu Yang, modified for the new NEMS structure (with the EARTH layer)
+!  December 2010      Weiyu Yang, modified for adding the generic core component Cpl.
 
 ! !INTERFACE:
 !
@@ -250,6 +251,11 @@
 
  CALL ESMF_ConfigLoadFile(Cf, Cf_fname, rc = rc1)
 
+  CALL ESMF_ConfigGetAttribute(Cf,                         &
+                               Cpl_Int_State%Core,         &
+                               label = 'core:',            &
+                               rc    = rc1)
+
  CALL ESMF_ConfigGetAttribute(Cf,                         &
                               Cpl_Int_State%Total_member, &
                               label = 'total_member:',    &
@@ -304,29 +310,63 @@
 
 ! Set up the pointer links for the ENS ESMF states.
 !--------------------------------------------------
- DO i = 1, Cpl_Int_State%Total_member
-     IF(Cpl_Int_State%member_id(Cpl_Int_State%mm1) == i) THEN
-         CALL ESMF_StateGet(impENS,    EXPEARTHNAME(i),       exp_EARTH,   rc = rc1)
-         CALL ESMF_StateGet(exp_EARTH, "ATM Export",          exp_atmos,   rc = rc1)
-         CALL ESMF_StateGet(exp_atmos, "CORE Export",         exp_gfs,     rc = rc1)
-         CALL ESMF_StateGet(exp_gfs,   "GFS dynamics export", exp_ENS_dyn, rc = rc1)
+ IF(TRIM(Cpl_Int_State%Core) == 'gfs') THEN
 
-         IF(ESMF_LogMsgFoundError(rc1, "Get the nested state from the import ESMF state.")) THEN
-             rcfinal = ESMF_FAILURE
-             PRINT*, 'Error Happened When Getting the nested state from the import ESMF state, rc = ', rc1
+     DO i = 1, Cpl_Int_State%Total_member
+         IF(Cpl_Int_State%member_id(Cpl_Int_State%mm1) == i) THEN
+             CALL ESMF_StateGet(impENS,    EXPEARTHNAME(i),       exp_EARTH,   rc = rc1)
+             CALL ESMF_StateGet(exp_EARTH, "ATM Export",          exp_atmos,   rc = rc1)
+             CALL ESMF_StateGet(exp_atmos, "CORE Export",         exp_gfs,     rc = rc1)
+             CALL ESMF_StateGet(exp_gfs,   "GFS dynamics export", exp_ENS_dyn, rc = rc1)
+
+             IF(ESMF_LogMsgFoundError(rc1, "Get the nested state from the import ESMF state.")) THEN
+                 rcfinal = ESMF_FAILURE
+                 PRINT*, 'Error Happened When Getting the nested state from the import ESMF state, rc = ', rc1
+             END IF
+
+             CALL ESMF_StateGet(expENS,    IMPEARTHNAME(i),       imp_EARTH,   rc = rc1)
+             CALL ESMF_StateGet(imp_EARTH, "ATM Import",          imp_atmos,   rc = rc1)
+             CALL ESMF_StateGet(imp_atmos, "CORE Import",         imp_gfs,     rc = rc1)
+             CALL ESMF_StateGet(imp_gfs,   "GFS dynamics import", imp_ENS_dyn, rc = rc1)
+
+             IF(ESMF_LogMsgFoundError(rc1, "Get the nested state from the export ESMF state.")) THEN
+                 rcfinal = ESMF_FAILURE
+                 PRINT*, 'Error Happened When Getting the nested state from the export ESMF state, rc = ', rc1
+             END IF
          END IF
+     END DO
 
-         CALL ESMF_StateGet(expENS,    IMPEARTHNAME(i),       imp_EARTH,   rc = rc1)
-         CALL ESMF_StateGet(imp_EARTH, "ATM Import",          imp_atmos,   rc = rc1)
-         CALL ESMF_StateGet(imp_atmos, "CORE Import",         imp_gfs,     rc = rc1)
-         CALL ESMF_StateGet(imp_gfs,   "GFS dynamics import", imp_ENS_dyn, rc = rc1)
+ ELSE IF(TRIM(Cpl_Int_State%Core) == 'gen') THEN
 
-         IF(ESMF_LogMsgFoundError(rc1, "Get the nested state from the export ESMF state.")) THEN
-             rcfinal = ESMF_FAILURE
-             PRINT*, 'Error Happened When Getting the nested state from the export ESMF state, rc = ', rc1
+     DO i = 1, Cpl_Int_State%Total_member
+         IF(Cpl_Int_State%member_id(Cpl_Int_State%mm1) == i) THEN
+             CALL ESMF_StateGet(impENS,    EXPEARTHNAME(i),       exp_EARTH,   rc = rc1)
+             CALL ESMF_StateGet(exp_EARTH, "ATM Export",          exp_atmos,   rc = rc1)
+             CALL ESMF_StateGet(exp_atmos, "CORE Export",         exp_gfs,     rc = rc1)
+
+             IF(ESMF_LogMsgFoundError(rc1, "Get the nested state from the import ESMF state.")) THEN
+                 rcfinal = ESMF_FAILURE
+                 PRINT*, 'Error Happened When Getting the nested state from the import ESMF state, rc = ', rc1
+             END IF
+
+             CALL ESMF_StateGet(expENS,    IMPEARTHNAME(i),       imp_EARTH,   rc = rc1)
+             CALL ESMF_StateGet(imp_EARTH, "ATM Import",          imp_atmos,   rc = rc1)
+             CALL ESMF_StateGet(imp_atmos, "CORE Import",         imp_gfs,     rc = rc1)
+
+             IF(ESMF_LogMsgFoundError(rc1, "Get the nested state from the export ESMF state.")) THEN
+                 rcfinal = ESMF_FAILURE
+                 PRINT*, 'Error Happened When Getting the nested state from the export ESMF state, rc = ', rc1
+             END IF
          END IF
-     END IF
- END DO
+     END DO
+
+! For testing.
+!-------------
+     PRINT*, 'Run in the generic core ensemble coupler initialize routine.'
+
+     GO TO 1000
+
+ END IF
 
 ! Get required parameters from the ESMF import state to do the spectral 
 ! transform processes for the second step of the stochastic perturbation 
@@ -486,6 +526,8 @@
       END DO
  END DO
 
+1000 CONTINUE
+
  IF(rcfinal == ESMF_SUCCESS) THEN
      PRINT*, "PASS: Cpl_Initialize."
  ELSE
@@ -562,30 +604,63 @@
 
 ! Get up the pointer links for the ENS ESMF states.
 !--------------------------------------------------
- DO i = 1, Cpl_Int_State%Total_member
-     IF(Cpl_Int_State%member_id(Cpl_Int_State%mm1) == i) THEN
-         CALL ESMF_StateGet(impENS,    EXPEARTHNAME(i),    exp_EARTH,   rc = rc1)
-         CALL ESMF_StateGet(exp_EARTH, "ATM Export",          exp_atmos,   rc = rc1)
-         CALL ESMF_StateGet(exp_atmos, "CORE Export",         exp_gfs,     rc = rc1)
-         CALL ESMF_StateGet(exp_gfs,   "GFS dynamics export", exp_ENS_dyn, rc = rc1)
+ IF(TRIM(Cpl_Int_State%Core) == 'gfs') THEN
 
-         IF(ESMF_LogMsgFoundError(rc1, "Get the nested state from the import ESMF state.")) THEN
-             rcfinal = ESMF_FAILURE
-             PRINT*, 'Error Happened When Getting the nested state from the import ESMF state, rc = ', rc1
+     DO i = 1, Cpl_Int_State%Total_member
+         IF(Cpl_Int_State%member_id(Cpl_Int_State%mm1) == i) THEN
+             CALL ESMF_StateGet(impENS,    EXPEARTHNAME(i),    exp_EARTH,   rc = rc1)
+             CALL ESMF_StateGet(exp_EARTH, "ATM Export",          exp_atmos,   rc = rc1)
+             CALL ESMF_StateGet(exp_atmos, "CORE Export",         exp_gfs,     rc = rc1)
+             CALL ESMF_StateGet(exp_gfs,   "GFS dynamics export", exp_ENS_dyn, rc = rc1)
+
+             IF(ESMF_LogMsgFoundError(rc1, "Get the nested state from the import ESMF state.")) THEN
+                 rcfinal = ESMF_FAILURE
+                 PRINT*, 'Error Happened When Getting the nested state from the import ESMF state, rc = ', rc1
+             END IF
+
+             CALL ESMF_StateGet(expENS,    IMPEARTHNAME(i),       imp_EARTH,   rc = rc1)
+             CALL ESMF_StateGet(imp_EARTH, "ATM Import",          imp_atmos,   rc = rc1)
+             CALL ESMF_StateGet(imp_atmos, "CORE Import",         imp_gfs,     rc = rc1)
+             CALL ESMF_StateGet(imp_gfs,   "GFS dynamics import", imp_ENS_dyn, rc = rc1)
+
+             IF(ESMF_LogMsgFoundError(rc1, "Get the nested state from the export ESMF state.")) THEN
+                 rcfinal = ESMF_FAILURE
+                 PRINT*, 'Error Happened When Getting the nested state from the export ESMF state, rc = ', rc1
+             END IF
          END IF
+     END DO
 
-         CALL ESMF_StateGet(expENS,    IMPEARTHNAME(i),       imp_EARTH,   rc = rc1)
-         CALL ESMF_StateGet(imp_EARTH, "ATM Import",          imp_atmos,   rc = rc1)
-         CALL ESMF_StateGet(imp_atmos, "CORE Import",         imp_gfs,     rc = rc1)
-         CALL ESMF_StateGet(imp_gfs,   "GFS dynamics import", imp_ENS_dyn, rc = rc1)
+ ELSE IF(TRIM(Cpl_Int_State%Core) == 'gen') THEN
 
-         IF(ESMF_LogMsgFoundError(rc1, "Get the nested state from the export ESMF state.")) THEN
-             rcfinal = ESMF_FAILURE
-             PRINT*, 'Error Happened When Getting the nested state from the export ESMF state, rc = ', rc1
+     DO i = 1, Cpl_Int_State%Total_member
+         IF(Cpl_Int_State%member_id(Cpl_Int_State%mm1) == i) THEN
+             CALL ESMF_StateGet(impENS,    EXPEARTHNAME(i),    exp_EARTH,   rc = rc1)
+             CALL ESMF_StateGet(exp_EARTH, "ATM Export",          exp_atmos,   rc = rc1)
+             CALL ESMF_StateGet(exp_atmos, "CORE Export",         exp_gfs,     rc = rc1)
+
+             IF(ESMF_LogMsgFoundError(rc1, "Get the nested state from the import ESMF state.")) THEN
+                 rcfinal = ESMF_FAILURE
+                 PRINT*, 'Error Happened When Getting the nested state from the import ESMF state, rc = ', rc1
+             END IF
+
+             CALL ESMF_StateGet(expENS,    IMPEARTHNAME(i),       imp_EARTH,   rc = rc1)
+             CALL ESMF_StateGet(imp_EARTH, "ATM Import",          imp_atmos,   rc = rc1)
+             CALL ESMF_StateGet(imp_atmos, "CORE Import",         imp_gfs,     rc = rc1)
+
+             IF(ESMF_LogMsgFoundError(rc1, "Get the nested state from the export ESMF state.")) THEN
+                 rcfinal = ESMF_FAILURE
+                 PRINT*, 'Error Happened When Getting the nested state from the export ESMF state, rc = ', rc1
+             END IF
          END IF
-     END IF
- END DO
+     END DO
 
+! For testing.
+!-------------
+     PRINT*, 'Running in the generic core ensemble coupler run routine.'
+
+     GO TO 2000
+
+ END IF
 ! Transfer the EARTH export fields to the working arrays in the Cpl internal state.
 !----------------------------------------------------------------------------------
  CALL ESMF_LogWrite("ESMF import State to the Cpl Internal State", &
@@ -628,6 +703,9 @@
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Cpl Setting up the ESMF Export State, rc = ', rc1
      END IF
+
+
+2000 CONTINUE
 
 !End of the grid component run.
 !------------------------------

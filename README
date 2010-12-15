@@ -38,6 +38,9 @@ src:  The Main program for NEMS.
       - fim
         - All files directly related to the FIM.
 
+      - gen
+        - All files directly related to the GEN.
+
       - phys
         - All physics science routines (nothing core-specific and no ESMF)
           [Currently holds only NMM-B routines.  GFS routines under /gfs/phys.]
@@ -71,14 +74,16 @@ To compile and load the model(s):
  (2) Set special compile options in the appropiate configure file in /conf .
 
  (3) In /src execute one of the following commands indicating which cores are to be compiled:
-       gmake nmm                      --- for NMM core only
-       gmake gfs                      --- for GFS core only - without GOCART
-       gmake gfs GOCART_MODE=full     --- for GFS core only - with GOCART
-       gmake nmm_gfs                  --- for both NMM and GFS core - without GOCART
-       gmake nmm_gfs GOCART_MODE=full --- for both NMM and GFS core - with GOCART
-       gmake fim                      --- for FIM core only
-       gmake fim_gfs                  --- for both FIM and GFS core only - without GOCART
-       gmake fim_gfs GOCART_MODE=full --- for both FIM and GFS core only - with GOCART
+       gmake nmm                          --- for NMM core only
+       gmake gfs                          --- for GFS core only - without GOCART
+       gmake gfs GOCART_MODE=full         --- for GFS core only - with GOCART
+       gmake nmm_gfs                      --- for both NMM and GFS core - without GOCART
+       gmake nmm_gfs GOCART_MODE=full     --- for both NMM and GFS core - with GOCART
+       gmake fim                          --- for FIM core only
+       gmake fim_gfs                      --- for both FIM and GFS core only - without GOCART
+       gmake fim_gfs GOCART_MODE=full     --- for both FIM and GFS core only - with GOCART
+       gmake gen                          --- for GEN core only
+       gmake gen_nmm_gfs GOCART_MODE=full --- for GEN, NMM and GFS cores - with GOCART
 
  (4) The executable NEMS.x will appear in /exe .
 
@@ -101,10 +106,12 @@ To compile and load the model(s):
  trunk/job/runregional_nmm - regional nmmb experiment 
  trunk/job/gfs_prep_test - gfs prep
  trunk/job/gfs_run_test - gfs experiment
+ trunk/job/gen_run_test - gen experiment
 
  The associated configure files which are read by this scripts are included as well:
 
  trunk/job/configfile_global_nmm - global nmmb experiment configure file
  trunk/job/configfile_regional_nmm - regional nmmb experiment configure file
  trunk/job/exglobal_fcst.sh.sms_nems - gfs experiment configure file
+ trunk/job/gen_fcst.sh.sms_nems - gen experiment job script file.
 

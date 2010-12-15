@@ -20,7 +20,7 @@
 !          ATM/OCEAN/ICE components
 !               |
 !               |
-!          CORE component (GFS,NMM,FIM, etc.)
+!          CORE component (GFS, NMM, FIM, GEN, etc.)
 !
 !-----------------------------------------------------------------------
 !
@@ -32,6 +32,7 @@
       USE module_NMM_GRID_COMP,ONLY: NMM_REGISTER
       USE module_GFS_GRID_COMP,ONLY: GFS_REGISTER
       USE module_FIM_GRID_COMP,ONLY: FIM_REGISTER
+      USE module_GEN_GRID_COMP,ONLY: GEN_REGISTER   ! For the "Generic Core" gridded component.
 !
       USE module_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !
@@ -323,7 +324,12 @@
           CALL ESMF_GridCompSetServices (atm_int_state%CORE_GRID_COMP   &
                                         ,FIM_REGISTER                   &
                                         ,RC)
-!
+
+        CASE('gen')
+          CALL ESMF_GridCompSetServices (atm_int_state%CORE_GRID_COMP   &
+                                        ,GEN_REGISTER                   &
+                                        ,RC)
+
         CASE DEFAULT
           write(0,*)' ATM_INITIALIZE requires unknown core: ',TRIM(atm_int_state%CORE)                      
 !

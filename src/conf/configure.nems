@@ -23,10 +23,12 @@ FFLAGS    = $(TRAPS) $(FINCS)
 OPTS_NMM  = -O3 -qstrict -qmaxmem=-1 -qarch=auto -qtune=auto -NS2000
 OPTS_GFS  = -O2 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave -NS2048 -qsuffix=cpp=f
 OPTS_FIM  = -O0
+OPTS_GEN  = -O2 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave -NS2048 -qsuffix=cpp=f
 
 FFLAGS_NMM= $(OPTS_NMM) $(FFLAGS)
 FFLAGS_GFS= $(OPTS_GFS) $(FFLAGS)
 FFLAGS_FIM= $(OPTS_FIM) $(FFLAGS)
+FFLAGS_GEN= $(OPTS_GEN) $(FFLAGS)
 
 CPP       = /lib/cpp -P
 CPPFLAGS  = -DENABLE_SMP -DIBM

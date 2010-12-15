@@ -2,7 +2,7 @@ include ../conf/configure.nems
 
 MAKEFILE = makefile
 
-UTILINCS = -Ishare -Inmm -Igfs -Ifim -Iphys
+UTILINCS = -Ishare -Inmm -Igfs -Ifim -Iphys -Igen
 
 LIBRARY  = libatmos.a
 
@@ -26,6 +26,7 @@ clean:
 	cd nmm          && gmake clean
 	cd gfs          && gmake clean
 	cd fim          && gmake clean
+	cd gen          && gmake clean
 	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst depend
 
 include ../conf/make.rules

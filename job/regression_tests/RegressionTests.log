@@ -1,4 +1,4 @@
-Fri Dec 10 11:06:28 EST 2010
+Tue Dec 14 12:01:37 EST 2010
 Start Regression test
 
 
@@ -29,7 +29,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  146.92  , test_glob timing:  149.23
+ Original timing:  146.92  , test_glob timing:  150.85
 
 
 Test 002
@@ -156,7 +156,7 @@ Checking test 007 results ....
 
 
 
- Original timing:  235.58  , test_reg timing:  245.46
+ Original timing:  235.58  , test_reg timing:  242.91
 
 
 Test 008
@@ -782,4 +782,28 @@ Checking test 033 results ....
  Comparing FLX.F24_03.........OK
  Comparing FLX.F24_04.........OK
  Test 033 passed 
-Fri Dec 10 15:11:24 EST 2010
+Test 034
+GEN, 1 members.
+GEN, 16 proc, 1 thread
+
+
+
+
+Checking test 034 results ....
+ Test 034 passed 
+
+
+
+Test 035
+Concurrency GEN, 4 members.
+GEN, 64 proc, 1 thread
+
+
+
+
+Checking test 035 results ....
+ Test 035 passed 
+
+
+
+Tue Dec 14 15:59:58 EST 2010
