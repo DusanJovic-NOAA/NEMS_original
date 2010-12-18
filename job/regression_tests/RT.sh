@@ -40,7 +40,7 @@ argn=$#
 if [ $argn -eq 1 ]; then
   export CREATE_BASELINE=true
   CB_arg=$1
-  if [ ${CB_arg} != nmm -a ${CB_arg} != gfs -a ${CB_arg} != geb -a ${CB_arg} != all ]; then
+  if [ ${CB_arg} != nmm -a ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != all ]; then
     echo "Wrong CB_arg choice: " $CB_arg
     echo "  Options are: "
     echo "          RT.sh  nmm  (create baselines for NMM)"
@@ -668,7 +668,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
+if [ ${CREATE_BASELINE} = false ]; then
 
 export TEST_DESCR="Test NMMB-regional nesting with restart"
 

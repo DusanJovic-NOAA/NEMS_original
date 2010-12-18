@@ -3117,6 +3117,8 @@
                                     ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_WBND &  !
                                     ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_EBND &  !<--
 !
+                                      ,'T'                              &  !<-- Parent interpolating T
+!
                                       ,N_BLEND_H_CHILD(N)               &  !<-- Width of boundary blending region
                                       ,IM_CHILD(N)                      &  !<-- East-west points on child domain
                                       ,JM_CHILD(N)                      &  !<-- North-south points on child domain
@@ -3180,6 +3182,8 @@
                                     ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_NBND &  !    points surrounding each child bndry point.
                                     ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_WBND &  !
                                     ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_EBND &  !<--
+!
+                                      ,'Q'                              &  !<-- Parent interpolating Q
 !
                                       ,N_BLEND_H_CHILD(N)               &  !<-- Width of boundary blending region
                                       ,IM_CHILD(N)                      &  !<-- East-west points on child domain
@@ -3246,6 +3250,8 @@
                                     ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_NBND &  !    points surrounding each child bndry point.
                                     ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_WBND &  !
                                     ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_EBND &  !<--
+!
+                                      ,'CW'                             &  !<-- Parent interpolating cloud condensate
 !
                                       ,N_BLEND_H_CHILD(N)               &  !<-- Width of boundary blending region
                                       ,IM_CHILD(N)                      &  !<-- East-west points on child domain
@@ -3364,6 +3370,8 @@
                                     ,PARENT_4_WEIGHTS_V(N)%WEIGHTS_WBND &  !
                                     ,PARENT_4_WEIGHTS_V(N)%WEIGHTS_EBND &  !<--
 !
+                                      ,'U'                              &  !<-- Parent interpolating U wind component
+!
                                       ,N_BLEND_V_CHILD(N)               &  !<-- Width of boundary blending region
                                       ,IM_CHILD(N)                      &  !<-- East-west points on child domain
                                       ,JM_CHILD(N)                      &  !<-- North-south points on child domain
@@ -3427,6 +3435,8 @@
                                     ,PARENT_4_WEIGHTS_V(N)%WEIGHTS_NBND &  !    points surrounding each child bndry point.
                                     ,PARENT_4_WEIGHTS_V(N)%WEIGHTS_WBND &  !
                                     ,PARENT_4_WEIGHTS_V(N)%WEIGHTS_EBND &  !<--
+!
+                                      ,'V'                              &  !<-- Parent interpolating V wind component
 !
                                       ,N_BLEND_V_CHILD(N)               &  !<-- Width of boundary blending region
                                       ,IM_CHILD(N)                      &  !<-- East-west points on child domain
@@ -8661,6 +8671,8 @@
                                           ,WEIGHT_NBND                  &
                                           ,WEIGHT_WBND                  &
                                           ,WEIGHT_EBND                  &
+!                                                                       
+                                          ,VBL_FLAG                     &
 !                                                                               ^
                                           ,N_BLEND                      & !     |
                                           ,IM_CHILD_X                   & !     |
@@ -8731,6 +8743,8 @@
                                                  ,WEIGHT_WBND           &  !   
                                                  ,WEIGHT_EBND              !  
 !
+      CHARACTER(len=*),INTENT(IN) :: VBL_FLAG                              !<-- Which variable is the parent interpolating?
+!
       TYPE(REAL_DATA),DIMENSION(:),POINTER,INTENT(IN) :: PD_SBND        &  !<-- Boundary region PD (Pa) (column mass in sigma domain)
                                                         ,PD_NBND        &  !    on the four sides of the child boundary.
                                                         ,PD_WBND        &  !
@@ -8760,8 +8774,8 @@
       INTEGER,DIMENSION(:,:,:),POINTER :: I_INDX_PARENT_BND             &
                                          ,J_INDX_PARENT_BND
 !
-      REAL :: COEFF_1,DELP_EXTRAP                                       &
-             ,PDTOP_PT,R_DELP
+      REAL :: COEFF_1,DELP_EXTRAP,DP1,DP2,DP3                           &
+             ,PDTOP_PT,PROD1,PROD2,PROD3,R_DELP
 !
       REAL(kind=KFPT) :: PX_NE,PX_NW,PX_SE,PX_SW                        &
                         ,WGHT_NE,WGHT_NW,WGHT_SE,WGHT_SW
@@ -8773,11 +8787,12 @@
                                ,VBL_INPUT
 !
       REAL,DIMENSION(:,:),ALLOCATABLE :: PINT_INTERP_HI                 &
-                                        ,PINT_INTERP_LO                 &
                                         ,PMID_INTERP                    &
                                         , VBL_INTERP
 !
-      real,dimension(1:LM+1,1:4) :: C_TMP                                  !<-- Working array for ESSL spline call
+      REAL,DIMENSION(:,:,:),ALLOCATABLE :: PINT_INTERP_LO
+!
+      REAL,DIMENSION(1:LM+1,1:4) :: C_TMP                                  !<-- Working array for ESSL spline call
 !
       REAL,DIMENSION(:),POINTER :: VBL_COL_CHILD
 !
@@ -8922,7 +8937,7 @@
           ALLOCATE(VBL_INTERP (1:N_STRIDE,1:LM))
 !
           ALLOCATE(PINT_INTERP_HI(I_START:I_END,J_START:J_END))
-          ALLOCATE(PINT_INTERP_LO(I_START:I_END,J_START:J_END))
+          ALLOCATE(PINT_INTERP_LO(I_START:I_END,J_START:J_END,1:NLEV+1))
 !
 !-----------------------------------------------------------------------
 !***  We need the mid-layer pressure values in the parent layers
@@ -8955,10 +8970,10 @@
             PX_NW=PD(I_WEST,J_NORTH)+PT                                    !<-- Sfc pressure on parent point NW of nest point
             PX_NE=PD(I_EAST,J_NORTH)+PT                                    !<-- Sfc pressure on parent point NE of nest point
 !
-            PINT_INTERP_LO(I,J)=WGHT_SW*PX_SW                           &  !<-- Parent's surface pressure interp'd to this child's
-                               +WGHT_SE*PX_SE                           &  !    gridpoint (I,J) along child's boundary for
-                               +WGHT_NW*PX_NW                           &  !    child task NTX.
-                               +WGHT_NE*PX_NE
+            PINT_INTERP_LO(I,J,NLEV+1)=WGHT_SW*PX_SW                    &  !<-- Parent's surface pressure interp'd to this child's
+                                      +WGHT_SE*PX_SE                    &  !    gridpoint (I,J) along child's boundary for
+                                      +WGHT_NW*PX_NW                    &  !    child task NTX.
+                                      +WGHT_NE*PX_NE
 !
           ENDDO
           ENDDO
@@ -9000,7 +9015,7 @@
               KNT_PTS=KNT_PTS+1
 !
               PMID_INTERP(KNT_PTS,L)=0.5*(PINT_INTERP_HI(I,J)           &  !<-- Parent midlayer pressure interp'd to child gridpoint
-                                         +PINT_INTERP_LO(I,J))             !    in child's boundary region of child task NTX
+                                         +PINT_INTERP_LO(I,J,L+1))         !    in child's boundary region of child task NTX
 !
               VBL_INTERP(KNT_PTS,L)=WGHT_SW                             &  !<-- Parent variable interp'd to child gridpoint 
                                     *VBL_PARENT(I_WEST,J_SOUTH,L)       &  !    in child's boundary region of child task NTX.
@@ -9011,12 +9026,40 @@
                                    +WGHT_NE                             &  !
                                     *VBL_PARENT(I_EAST,J_NORTH,L)          !<--
 !
-              PINT_INTERP_LO(I,J)=PINT_INTERP_HI(I,J)
+              PINT_INTERP_LO(I,J,L)=PINT_INTERP_HI(I,J)
 !
             ENDDO
             ENDDO
 !
           ENDDO
+!
+!-----------------------------------------------------------------------
+!***  The parent uses mass-weighted averages of the lowest and 
+!***  2nd lowest layer temperatures to avoid extrapolation problems
+!***  when there is an inversion present.
+!-----------------------------------------------------------------------
+!
+          IF(TRIM(VBL_FLAG)=='T')THEN
+            KNT_PTS=0
+!
+            DO J=J_START,J_END   
+            DO I=I_START,I_END  
+              KNT_PTS=KNT_PTS+1
+              IF(VBL_INTERP(KNT_PTS,NLEV)<VBL_INTERP(KNT_PTS,NLEV-1))THEN
+                DP1=PINT_INTERP_LO(I,J,NLEV+1)-PINT_INTERP_LO(I,J,NLEV)
+                DP2=PINT_INTERP_LO(I,J,NLEV)-PINT_INTERP_LO(I,J,NLEV-1)
+                DP3=PINT_INTERP_LO(I,J,NLEV-1)-PINT_INTERP_LO(I,J,NLEV-2)
+ 
+                PROD1=VBL_INTERP(KNT_PTS,NLEV)*DP1
+                PROD2=VBL_INTERP(KNT_PTS,NLEV-1)*DP2
+                PROD3=VBL_INTERP(KNT_PTS,NLEV-2)*DP3
+!
+                VBL_INTERP(KNT_PTS,NLEV-1)=(PROD2+PROD3)/(DP2+DP3)
+                VBL_INTERP(KNT_PTS,NLEV)=(PROD1+PROD2+PROD3)/(DP1+DP2+DP3)
+              ENDIF
+            ENDDO
+            ENDDO
+          ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Compute values of the variable at mid-layers of the child

@@ -347,7 +347,7 @@ real(8) :: stime,etime,stime1
 !
         stime1=timef()
         call nemsio_denseread(gfile,its,ite,jts,jte,tmp,iret=ierr)
-        if(irtn/=0) then
+        if(ierr/=0) then
           print *,'WRONG: Could not read all the fields in the file!'
         endif
 !

@@ -1439,7 +1439,7 @@
 !
 !-----------------------------------------------------------------------
 !
-        IF(MYPE==0)CALL ESMF_StatePrint(EXP_STATE)
+!       IF(MYPE==0)CALL ESMF_StatePrint(EXP_STATE)
 !
       ENDIF fcst_tasks
 !
@@ -2253,11 +2253,13 @@
 !-----------------------------------------------------------------------
 !
           IF(I_AM_A_NEST)THEN
-            WRITE_BC_FLAG_NEST=0
+            IF (MYPE == 0) THEN
+              WRITE_BC_FLAG_NEST=0
 !
-            IF (S_BDY .and. W_BDY .and. NTIMESTEP <= 1 .and. &
-                int_state%PDBS(1,1,1)/=0.and.int_state%PDBS(1,1,2)/=0) THEN
-              WRITE_BC_FLAG_NEST=1
+              IF (S_BDY .and. W_BDY .and. NTIMESTEP <= 1 .and. &
+                  int_state%PDBS(1,1,1)/=0.and.int_state%PDBS(1,1,2)/=0) THEN
+                WRITE_BC_FLAG_NEST=1
+              ENDIF
             ENDIF
 !
             CALL MPI_BCAST(WRITE_BC_FLAG_NEST,1,MPI_INTEGER,0,MPI_COMM_COMP,IRTN)
@@ -2752,7 +2754,7 @@
         ,int_state%PFNE,int_state%PFNW                                  &
         ,int_state%PFX,int_state%PFY                                    &
         ,int_state%TCT,int_state%TCU,int_state%TCV)
-
+!
       adv1_tim=adv1_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
