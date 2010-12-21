@@ -5,7 +5,7 @@
      &     ( IM, KM, PS, U1, V1, T1, Q1, tref, cm, ch,                  &
      &       prsl1, prslki, slimsk, xlon, sinlat, stress,               &
      &       sfcemis, dlwflx, sfcnsw, rain, timestep, kdt,              &
-     &       ddvel, flag_iter, flag_guess, lprnt, ipr,                  &
+     &       ddvel, flag_iter, flag_guess, nst_fcst, lprnt, ipr,        &
 !  --- Input/output
      &       tskin, tsurf, xt, xs, xu, xv, xz, zm, xtts, xzts, dt_cool, &
      &       z_c,   c_0,   c_d,   w_0, w_d, d_conv, ifd, Qrain,         &
@@ -24,7 +24,7 @@
 !          ( im, km, ps, u1, v1, t1, q1, tref, cm, ch,                  !
 !            prsl1, prslki, slimsk, xlon, sinlat, stress,               !
 !            sfcemis, dlwflx, sfcnsw, rain, timestep, kdt,              !
-!            ddvel, flag_iter, flag_guess, lprnt, ipr,                  !
+!            ddvel, flag_iter, flag_guess, nst_fcst, lprnt, ipr,        !
 !       input/outputs:                                                  !
 !            tskin, tsurf, xt, xs, xu, xv, xz, zm, xtts, xzts, dt_cool, !
 !            z_c, c_0,   c_d,   w_0, w_d, d_conv, ifd, Qrain,           !
@@ -77,6 +77,9 @@
 !     kdt      - integer, time step counter                        1    !
 !     ddvel    - real, wind enhancement due to convection (m/s)    im   !
 !     flag_iter- logical,                                          im   !
+!     flag_guess-logical,                                          im   !
+!     nst_fcst  -integer, flag 0 for no nst, 1 for uncoupled nst        !
+!                          and 2 for coupled NST                   1    !
 !     lprnt    - logical, control flag for check print out         1    !
 !     ipr      - integer, grid index for check print out           1    !
 !                                                                       !
@@ -121,7 +124,6 @@
      &,             RVRDM1 => con_FVirt, RD => con_RD
      &,             RHW0 => con_rhw0,SBC => con_sbc,pi => con_pi
       USE date_def, only: idate
-      use namelist_physics_def, only: nst_fcst
       USE module_nst_parameters, ONLY : t0K,cp_w,omg_m,omg_sh,
      &    sigma_r,gray,solar_time_6am,Ri_c,z_w_max,delz,wd_max,
      &    rad2deg,const_rot,tau_min,tw_max,sst_max
@@ -130,7 +132,7 @@
      &,    sw_ps_9b
       USE nst_module, ONLY : cool_skin,dtm_1p,cal_w,cal_ttop,convdepth,
      &  dtm_1p_fca,dtm_1p_tla,dtm_1p_mwa,dtm_1p_mda,dtm_1p_mta,dtl_reset
-      USE layout1
+!
       implicit none
 !
 !  ---  constant parameters:
@@ -140,7 +142,7 @@
       real (kind=kind_phys), parameter :: f1440 = 1440.0   ! minutes/day
 
 !  ---  inputs:
-      integer, intent(in) :: im, km, kdt, ipr
+      integer, intent(in) :: im, km, kdt, ipr, nst_fcst
       real (kind=kind_phys), dimension(im), intent(in) :: ps, u1, v1,   &
      &       t1, q1, tref, cm, ch, prsl1, prslki, slimsk, xlon,         &
      &       sinlat, stress, sfcemis, dlwflx, sfcnsw, rain, ddvel

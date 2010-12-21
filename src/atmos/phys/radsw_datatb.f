@@ -49,7 +49,7 @@
 
 
 !========================================!
-      module module_n_radsw_cldprtb        !
+      module module_radsw_cldprtb        !
 !........................................!
 !
 ! *********              module descriptions                 ********* !
@@ -80,8 +80,8 @@
 !                                                                      !
 ! *********    *********     end description    *********    ********* !
 
-      use n_machine,                 only : kind_phys
-      use module_n_radsw_parameters, only : NBLOW, NBHGH
+      use machine,                 only : kind_phys
+      use module_radsw_parameters, only : NBLOW, NBHGH
 !
       implicit none
 !
@@ -1045,14 +1045,29 @@
      & 1.821538e-02,1.683281e-02,1.534605e-02,1.371517e-02,1.190025e-02,&
      & 9.959941e-03,7.929838e-03 /
 
+!  ---  ... coefficients to compute tau, ssa, asy for rain drop and
+!           (chou 1999), and snowflake (fu 2001 private communication)
+      real (kind=kind_phys), public  :: a0r, a1r, a0s, a1s
+      data a0r,a1r / 3.07e-3, 0.0 /,    a0s,a1s / 0.0,     1.5 /  ! fu's coeff
+
+      real (kind=kind_phys), dimension(NBLOW:NBHGH), public ::          &
+     &       b0r, b0s, b1s, c0r, c0s
+      data b0r  / 0.466, 0.437, 0.416, 0.391, 0.374, 0.352, 0.183,      &
+     &            0.048, 0.012, 0.000, 0.000, 0.000, 0.000, 0.496 /
+      data c0r  / 0.975, 0.965, 0.960, 0.955, 0.952, 0.950, 0.944,      &
+     &            0.894, 0.884, 0.883, 0.883, 0.883, 0.883, 0.980 /
+      data b0s  / 7*0.460, 2*0.000,   4*0.000, 0.460 /
+      data b1s  / 7*0.000, 2*1.62e-5, 4*0.000, 0.000 /
+      data c0s  / 7*0.970, 2*0.970,   4*0.700, 0.970 /
+
 !........................................!
-      end module module_n_radsw_cldprtb    !
+      end module module_radsw_cldprtb    !
 !========================================!
 
 
 
 !========================================!
-      module module_n_radsw_sflux          !
+      module module_radsw_sflux          !
 !........................................!
 !
 ! *********              module descriptions                 ********* !
@@ -1069,8 +1084,8 @@
 !                                                                      !
 ! *********    *********     end description    *********    ********* !
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radsw_parameters, only : NGMAX, NG16, NG17, NG18, NG19,&
+      use machine,                 only : kind_phys
+      use module_radsw_parameters, only : NGMAX, NG16, NG17, NG18, NG19,&
      &                                    NG20, NG21, NG22, NG23, NG24, &
      &                                    NG25, NG26, NG27, NG28, NG29, &
      &                                    NBLOW, NBHGH
@@ -1360,13 +1375,13 @@
      & .00000000e+0,.00000000e+0,.00000000e+0,.00000000e+0 /
 
 !........................................!
-      end module module_n_radsw_sflux      !
+      end module module_radsw_sflux      !
 !========================================!
 
 
 
 !========================================!
-      module module_n_radsw_kgb16          !
+      module module_radsw_kgb16          !
 !........................................!
 !
 ! *********        the original program descriptions        ********* !
@@ -1381,8 +1396,8 @@
 !                                                                     !
 ! *********    *********    end description    *********    ********* !
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radsw_parameters, only : NG16
+      use machine,                 only : kind_phys
+      use module_radsw_parameters, only : NG16
 
 !
       implicit none
@@ -2510,12 +2525,12 @@
      & .4365805E-02,.3972237E-02,.3614256E-02,.3288634E-02,.2992436E-02/
 
 !........................................!
-      end module module_n_radsw_kgb16      !
+      end module module_radsw_kgb16      !
 !========================================!
 
 
 !========================================!
-      module module_n_radsw_kgb17          !
+      module module_radsw_kgb17          !
 !........................................!
 !
 ! *********        the original program descriptions        ********* !
@@ -2530,8 +2545,8 @@
 !                                                                     !
 ! *********    *********    end description    *********    ********* !
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radsw_parameters, only : NG17
+      use machine,                 only : kind_phys
+      use module_radsw_parameters, only : NG17
 
 !
       implicit none
@@ -7110,12 +7125,12 @@
      & .4717450E+00,.4331576E+00,.3977321E+00,.3652099E+00,.3353523E+00/
 
 !........................................!
-      end module module_n_radsw_kgb17      !
+      end module module_radsw_kgb17      !
 !========================================!
 
 
 !========================================!
-      module module_n_radsw_kgb18          !
+      module module_radsw_kgb18          !
 !........................................!
 !
 ! *********        the original program descriptions        ********* !
@@ -7130,8 +7145,8 @@
 !                                                                     !
 ! *********    *********    end description    *********    ********* !
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radsw_parameters, only : NG18
+      use machine,                 only : kind_phys
+      use module_radsw_parameters, only : NG18
 
 !
       implicit none
@@ -8616,12 +8631,12 @@
      & .1787778E-01,.1671886E-01,.1563887E-01,.1463222E-01,.1369363E-01/
 
 !........................................!
-      end module module_n_radsw_kgb18      !
+      end module module_radsw_kgb18      !
 !========================================!
 
 
 !========================================!
-      module module_n_radsw_kgb19          !
+      module module_radsw_kgb19          !
 !........................................!
 !
 ! *********        the original program descriptions        ********* !
@@ -8636,8 +8651,8 @@
 !                                                                     !
 ! *********    *********    end description    *********    ********* !
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radsw_parameters, only : NG19
+      use machine,                 only : kind_phys
+      use module_radsw_parameters, only : NG19
 
 !
       implicit none
@@ -10123,12 +10138,12 @@
      & .4272483E-02,.4878732E-02,.5631073E-02,.6567477E-02,.7736768E-02/
 
 !........................................!
-      end module module_n_radsw_kgb19      !
+      end module module_radsw_kgb19      !
 !========================================!
 
 
 !========================================!
-      module module_n_radsw_kgb20          !
+      module module_radsw_kgb20          !
 !........................................!
 !
 ! *********        the original program descriptions        ********* !
@@ -10143,8 +10158,8 @@
 !                                                                     !
 ! *********    *********    end description    *********    ********* !
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radsw_parameters, only : NG20
+      use machine,                 only : kind_phys
+      use module_radsw_parameters, only : NG20
 
 !
       implicit none
@@ -10892,12 +10907,12 @@
      & .6619730E-03,.5645520E-03,.2831830E-03,.6714756E-04,.2647642E-06/
 
 !........................................!
-      end module module_n_radsw_kgb20      !
+      end module module_radsw_kgb20      !
 !========================================!
 
 
 !========================================!
-      module module_n_radsw_kgb21          !
+      module module_radsw_kgb21          !
 !........................................!
 !
 ! *********        the original program descriptions        ********* !
@@ -10912,8 +10927,8 @@
 !                                                                     !
 ! *********    *********    end description    *********    ********* !
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radsw_parameters, only : NG21
+      use machine,                 only : kind_phys
+      use module_radsw_parameters, only : NG21
 
 !
       implicit none
@@ -14737,12 +14752,12 @@
      & .4006365E-01,.3688611E-01,.3396089E-01,.3126793E-01,.2878878E-01/
 
 !........................................!
-      end module module_n_radsw_kgb21      !
+      end module module_radsw_kgb21      !
 !========================================!
 
 
 !========================================!
-      module module_n_radsw_kgb22          !
+      module module_radsw_kgb22          !
 !........................................!
 !
 ! *********        the original program descriptions        ********* !
@@ -14757,8 +14772,8 @@
 !                                                                     !
 ! *********    *********    end description    *********    ********* !
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radsw_parameters, only : NG22
+      use machine,                 only : kind_phys
+      use module_radsw_parameters, only : NG22
 
 !
       implicit none
@@ -15172,12 +15187,12 @@
      & .1384633E-03,.1390821E-03,.1403951E-03,.1424925E-03,.1454806E-03/
 
 !........................................!
-      end module module_n_radsw_kgb22      !
+      end module module_radsw_kgb22      !
 !========================================!
 
 
 !========================================!
-      module module_n_radsw_kgb23          !
+      module module_radsw_kgb23          !
 !........................................!
 !
 ! *********        the original program descriptions        ********* !
@@ -15192,8 +15207,8 @@
 !                                                                     !
 ! *********    *********    end description    *********    ********* !
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radsw_parameters, only : NG23
+      use machine,                 only : kind_phys
+      use module_radsw_parameters, only : NG23
 
 !
       implicit none
@@ -15418,12 +15433,12 @@
      & .2514491E-02,.2330645E-02,.2160398E-02,.2002729E-02,.1856699E-02/
 
 !........................................!
-      end module module_n_radsw_kgb23      !
+      end module module_radsw_kgb23      !
 !========================================!
 
 
 !========================================!
-      module module_n_radsw_kgb24          !
+      module module_radsw_kgb24          !
 !........................................!
 !
 ! *********        the original program descriptions        ********* !
@@ -15438,8 +15453,8 @@
 !                                                                     !
 ! *********    *********    end description    *********    ********* !
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radsw_parameters, only : NG24
+      use machine,                 only : kind_phys
+      use module_radsw_parameters, only : NG24
 
 !
       implicit none
@@ -16949,12 +16964,12 @@
      & .1250641E-06,.1089414E-06,.9489759E-07,.8266404E-07,.7200766E-07/
 
 !........................................!
-      end module module_n_radsw_kgb24      !
+      end module module_radsw_kgb24      !
 !========================================!
 
 
 !========================================!
-      module module_n_radsw_kgb25          !
+      module module_radsw_kgb25          !
 !........................................!
 !
 ! *********        the original program descriptions        ********* !
@@ -16969,8 +16984,8 @@
 !                                                                     !
 ! *********    *********    end description    *********    ********* !
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radsw_parameters, only : NG25
+      use machine,                 only : kind_phys
+      use module_radsw_parameters, only : NG25
 
 !
       implicit none
@@ -17101,12 +17116,12 @@
      & .6604518E-06,.7863470E-06,.1049399E-05,.1366331E-05,.1711475E-05/
 
 !........................................!
-      end module module_n_radsw_kgb25      !
+      end module module_radsw_kgb25      !
 !========================================!
 
 
 !========================================!
-      module module_n_radsw_kgb26          !
+      module module_radsw_kgb26          !
 !........................................!
 !
 ! *********        the original program descriptions        ********* !
@@ -17121,8 +17136,8 @@
 !                                                                     !
 ! *********    *********    end description    *********    ********* !
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radsw_parameters, only : NG26
+      use machine,                 only : kind_phys
+      use module_radsw_parameters, only : NG26
 
 !
       implicit none
@@ -17136,12 +17151,12 @@
      & .1434280E-05,.1799798E-05,.2307617E-05,.2814376E-05,.3092339E-05/
 
 !........................................!
-      end module module_n_radsw_kgb26      !
+      end module module_radsw_kgb26      !
 !========================================!
 
 
 !========================================!
-      module module_n_radsw_kgb27          !
+      module module_radsw_kgb27          !
 !........................................!
 !
 ! *********        the original program descriptions        ********* !
@@ -17156,8 +17171,8 @@
 !                                                                     !
 ! *********    *********    end description    *********    ********* !
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radsw_parameters, only : NG27
+      use machine,                 only : kind_phys
+      use module_radsw_parameters, only : NG27
 
 !
       implicit none
@@ -17731,12 +17746,12 @@
      & .9730254E+03,.9819457E+03,.9887533E+03,.9941968E+03,.9981408E+03/
 
 !........................................!
-      end module module_n_radsw_kgb27      !
+      end module module_radsw_kgb27      !
 !========================================!
 
 
 !========================================!
-      module module_n_radsw_kgb28          !
+      module module_radsw_kgb28          !
 !........................................!
 !
 ! *********        the original program descriptions        ********* !
@@ -17751,8 +17766,8 @@
 !                                                                     !
 ! *********    *********    end description    *********    ********* !
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radsw_parameters, only : NG28
+      use machine,                 only : kind_phys
+      use module_radsw_parameters, only : NG28
 
 !
       implicit none
@@ -20042,12 +20057,12 @@
      & .1035589E+04,.7850346E+03,.6018757E+03,.8856974E+03,.1170389E+04/
 
 !........................................!
-      end module module_n_radsw_kgb28      !
+      end module module_radsw_kgb28      !
 !========================================!
 
 
 !========================================!
-      module module_n_radsw_kgb29          !
+      module module_radsw_kgb29          !
 !........................................!
 !
 ! *********        the original program descriptions        ********* !
@@ -20062,8 +20077,8 @@
 !                                                                     !
 ! *********    *********    end description    *********    ********* !
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radsw_parameters, only : NG29
+      use machine,                 only : kind_phys
+      use module_radsw_parameters, only : NG29
 
 !
       implicit none
@@ -20955,6 +20970,6 @@
      & .5872120E-01,.1734700E+00,.5124520E+00,.1513850E+01,.4472090E+01/
 
 !........................................!
-      end module module_n_radsw_kgb29      !
+      end module module_radsw_kgb29      !
 !========================================!
 

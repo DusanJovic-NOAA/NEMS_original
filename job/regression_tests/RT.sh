@@ -135,9 +135,9 @@ echo "Preparing model code for regression tests"
 printf %s "Compiling model code (this will take some time)......."
 cd ${PATHTR}/src
 
-rm -f ../exe/NEMS.x
-gmake clean                              >  ${PATHRT}/Compile.log 2>&1
-gmake nmm_gfs_gen GOCART_MODE=full       >> ${PATHRT}/Compile.log 2>&1
+#rm -f ../exe/NEMS.x
+#gmake clean                              >  ${PATHRT}/Compile.log 2>&1
+#gmake nmm_gfs_gen GOCART_MODE=full       >> ${PATHRT}/Compile.log 2>&1
 
 if [ -f ../exe/NEMS.x ] ; then
   echo "   Model code Compiled";echo;echo

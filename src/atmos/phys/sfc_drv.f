@@ -185,7 +185,7 @@
      &       xlai, zlvl, swdn, tem
 
       integer :: couple, ice, nsoil, nroot, slope, stype, vtype 
-      integer :: i, k,loc
+      integer :: i, k
 
       logical :: flag(im)
 !
@@ -488,11 +488,7 @@
 !              (volumetric)
 !    nroot   - number of root layers, a function of veg type, determined
 !              in subroutine redprm.
-!        if(smcwlt2(i)<0) then
-!          print *,'in sfc_drv,sncwlt=',smcwlt2(i),'i=',i,'flag_ier=',
-!     &     flag_iter(i),'flag=',flag(i),'flag_guess=',flag_guess(i),
-!     &   'soiltyp=',stype,'vtype=',vtype,'slope=',slope
-!         endif
+
          endif  !end if flag_iter
       enddo   ! end do_i_loop
 

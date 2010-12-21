@@ -11,7 +11,7 @@
 !                                                                      !
 !      'gasinit'    -- initialization                                  !
 !         input:                                                       !
-!           ( iyear, month, ICTM, ICO2, me )                           !
+!           ( iyear, month, ICO2, me )                                 !
 !         output:                                                      !
 !           ( none )                                                   !
 !                                                                      !
@@ -48,27 +48,6 @@
 !      ccl4  : volume mixing ratio                   (p/p)             !
 !      cfc113: volume mixing ratio                   (p/p)             !
 !                                                                      !
-!                                                                      !
-!   program history:                                                   !
-!     may 2003 - y-t hou     create rad_module.f that collectively     !
-!                  combines several radiation computation supporting   !
-!                  programs into fortran 90 module structure (gases    !
-!                  and aerosols, etc.)                                 !
-!     apr 2004 - y-t hou     modified to add astronomy and surface     !
-!                  module components.                                  !
-!     feb 2005 - y-t hou     rewrite the component modules into        !
-!                  separate individule modules for thier corresponding !
-!                  tasks. here as radiation_gases.f                    !
-!     mar 2006 - y-t hou     add initialization subroutine to co2 and  !
-!                  other gases. historical 2-d co2 data are added.     !
-!     sep 2008 - y-t hou     add parameter ictm to control the input   !
-!                  data time at the model initial condition.           !
-!     oct 2008 - y-t hou     modify the initialization code to add the !
-!                  option of superimposing climatology seasonal cycle  !
-!                  to the initial condition data (currently co2 only)  !
-!     nov 2008 - y-t hou     fix bugs in superimposing climatology     !
-!                  seasonal cycle calculations                         !
-!                                                                      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
 !!!!!  ==========================================================  !!!!!
@@ -76,17 +55,20 @@
 
 
 !========================================!
-      module module_radiation_gases      !
+      module module_n_radiation_gases      !
 !........................................!
 !
-      use machine ,                only : kind_phys, kind_io4
-      use funcphys,                only : fpkap
-      use physcons,                only : con_pi
-      use ozne_def,                only : jmr => latsozc, loz => levozc &
-     &,                                   blte => blatc, dlte=> dphiozc &
-     &,                                   timeozc => timeozc
-      use module_iounitdef,        only : NIO3CLM, NICO2CN
-!
+      use n_machine ,                only : kind_phys, kind_io4
+!      use funcphys,                only : fpkap
+      use n_funcphys
+      use n_physcons,                only : con_pi
+!!!CARLOS: we pass these varibles as input parameters in getozn
+!      use ozne_def,                only : jmr => latsozc, loz => levozc &
+!     &,                                   blte => blatc, dlte=> dphiozc &
+!     &,                                   timeozc => timeozc
+!!!CARLOS
+      use module_n_iounitdef,        only : NIO3CLM, NICO2CN
+
       implicit   none
 !
       private
@@ -119,7 +101,7 @@
 !  ---  co2 2-d monthly data and global mean from observed data
 
       real (kind=kind_phys), allocatable :: co2vmr_sav(:,:,:)
-      real (kind=kind_phys)              :: co2_glb, gco2cyc(12)
+      real (kind=kind_phys)              :: co2_glb
 
 !  ---  ico2flg  - control flag for co2 data sources set by 'gasinit'
 !          =0: use prescribed global mean value
@@ -132,7 +114,7 @@
 
 !  ---  public interfaces
 
-      public  gasinit, getgases, getozn
+      public  n_gasinit, n_getgases, n_getozn
 
 
 ! =================
@@ -140,11 +122,11 @@
 ! =================
 
 !-----------------------------------
-      subroutine gasinit                                                &
+      subroutine n_gasinit                                                &
 !...................................
 
 !  ---  inputs:
-     &     ( iyear, month, ICTM, ICO2, me )
+     &     ( iyear, month, ICO2, me )
 !  ---  outputs: ( none )
 
 !  ===================================================================  !
@@ -153,21 +135,8 @@
 !  15 degree lat/lon horizontal resolution.                             !
 !                                                                       !
 !  inputs:                                               dimemsion      !
-!     iyear   - year of the requested data for fcst         1           !
+!     iyear   - year of the recorded data                   1           !
 !     month   - month of the year                           1           !
-!     ICTM    - =yyyy#, external data time/date control flag            !
-!               =   -2: same as 0, but superimpose seasonal cycle from  !
-!                       climatology data set.                           !
-!               =   -1: use user provided external data for the fcst    !
-!                       time, no extrapolation.                         !
-!               =    0: use data at initial cond time, if not available,!
-!                       then use latest, without extrapolation.         !
-!               =    1: use data at the forecast time, if not available,!
-!                       then use latest and extrapolate to fcst time.   !
-!               =yyyy0: use yyyy data for the forecast time, no further !
-!                       data extrapolation.                             !
-!               =yyyy1: use yyyy data for the fcst. if needed, do       !
-!                       extrapolation to match the fcst time.           !
 !     ICO2    - input data control flag                     1           !
 !               =0: use prescribed global mean co2 (old opernl)         !
 !               =1: use observed co2 global annual mean value           !
@@ -181,7 +150,6 @@
 !     ico2flg    - control flag as ICO2                     1           !
 !     co2vmr_sav - monthly co2 volume mixing ratio     IMXCO2*JMXCO2*12 !
 !     co2_glb    - global annual mean co2 mixing ratio      1           !
-!     gco2cyc    - global monthly mean co2 variation       12           !
 !                                                                       !
 !  usage:    call gasinit                                               !
 !                                                                       !
@@ -192,20 +160,17 @@
       implicit none
 
 !  ---  inputs:
-      integer, intent(in) :: iyear, month, ICTM, ICO2, me
+      integer, intent(in) :: iyear, month, ICO2, me
 
 !  ---  output: ( none )
 
 !  ---  locals:
-      real (kind=kind_phys), dimension(IMXCO2,JMXCO2) :: co2dat, co2ann
+      real (kind=kind_phys), dimension(IMXCO2,JMXCO2) :: co2dat
       real (kind=kind_phys):: co2g1, co2g2, rate
-      integer    :: i, iyr, imo, iyr1, iyr2, jyr, idyr
-      logical    :: file_exist, lextpl
-      character  :: cline*100, cform*8, cfile0*26, cfile1*26,           &
-     &              cfuser*26, cfmcyc*26
+      integer    :: i, iyr, imo, iyr1, iyr2, jyr
+      logical    :: file_exist
+      character  :: cline*94, cform*8, cfile0*26, cfile1*26
 
-      data  cfuser / 'co2userdata.txt           ' /
-      data  cfmcyc / 'co2monthlycyc.txt         ' /
       data  cfile0 / 'co2historicaldata_glob.txt' /
       data  cfile1 / 'co2historicaldata_2004.txt' /
       data  cform  / '(24f7.2)' /       !! data format in IMXCO2*f7.2
@@ -224,19 +189,7 @@
      &              co2vmr_def
         endif
 
-        return
-      endif
-
-      if ( ICTM < 0 ) then           ! use user provided external data
-        lextpl = .false.                   ! no time extrapolation
-        idyr   = iyear                     ! use the model year
-      else                           ! use historically observed data
-        lextpl = ( mod(ICTM,10) == 1 )     ! flag for data extrapolation
-        idyr   = ICTM / 10                 ! year of data source used
-        if ( idyr == 0 ) idyr = iyear      ! not specified, use model year
-      endif
-
-      if ( ICO2 == 1 .or. ICO2 == 2 ) then
+      else if ( ICO2 == 1 .or. ICO2 == 2 ) then
 !  --- ...  auto select co2 2-d data table for required year
 
         kmonsav = month
@@ -257,7 +210,7 @@
 !           the form of semi-yearly global mean values.  otherwise,
 !           data are monthly mean in horizontal 2-d map.
 
-        Lab_if_idyr : if ( idyr < MINYEAR .and. ICTM > 0 ) then
+        Lab_if_iyr : if ( iyr < MINYEAR ) then
 
           if ( me == 0 ) then
             print *,' - Using Historical Co2 Data Table'
@@ -272,11 +225,9 @@
 
           inquire (file=cfile0, exist=file_exist)
           if ( .not. file_exist ) then
-            if ( me == 0 ) then
-              print *,'   Requested co2 data file "',cfile0,            &
-     &                '" not found!'
-              print *,'   *** Stopped in subroutine GASINIT !!'
-            endif
+            print *,'   Requested co2 data file "',cfile0,              &
+     &              '" not found!'
+            print *,'   *** Stopped in subroutine GASINIT !!'
             stop
           else
             open (NICO2CN,file=cfile0,form='formatted',status='old')
@@ -290,7 +241,7 @@
 !check        print *, iyr1, iyr2, cline(1:48)
             endif
 
-            if ( idyr < iyr1 ) then
+            if ( iyear < iyr1 ) then
               iyr = iyr1
 !check        if ( me == 0 ) then
 !               print *,'   Using earlist available co2 data, year=',   &
@@ -311,101 +262,55 @@
                   co2vmr_sav(:,:,7:12) = co2g2 * 1.0e-6
                 endif
 
-                if ( me == 0 ) print *,'   Co2 data for year',iyear,    &
-     &                                 co2_glb
+!check          if ( me == 0 ) print *,'   Co2 data for year',iyear,    &
+!    &                                 co2_glb
                 exit Lab_dowhile1
               else
 !check          if ( me == 0 ) print *,'   Skip co2 data for year',i
                 i = i - 1
               endif
-            enddo  Lab_dowhile1
+            enddo   Lab_dowhile1
 
             close ( NICO2CN )
-          endif   ! end if_file_exist_block
+          endif      ! end if_file_exist_block
 
-        else  Lab_if_idyr
+        else  Lab_if_iyr
 
 !  --- ...  set up input data file name
-          if ( ICTM == -2 ) then           ! add seasonal cycle to data at ic time
-            cfile1 = cfile0
-            write(cfile1(19:22),34) idyr
-  34        format(i4.4)
+          write(cfile1(19:22),34) iyr
+  34      format(i4.4)
 
-            if ( me == 0 ) then
-              print *,' - Superimpose seasonal cycle to the IC Time ',  &
-     &                'CO2 Data from Historical Data Table'
-            endif
-          elseif ( ICTM == -1 ) then       ! use user provided data
-            cfile1 = cfuser
-
-            if ( me == 0 ) then
-              print *,' - Using user provided CO2 Data Table'
-            endif
-          else                             ! use historical observed data
-            cfile1 = cfile0
-            write(cfile1(19:22),34) idyr
-
-            if ( me == 0 ) then
-              print *,' - Using Historical Co2 Data Table'
-            endif
+          if ( me == 0 ) then
+            print *,' - Using Historical Co2 Data Table'
           endif
 
 !  --- ... check to see if requested co2 data file existed
 
           inquire (file=cfile1, exist=file_exist)
           if ( .not. file_exist ) then
-
-            Lab_if_ICTM : if ( ICTM == -1 ) then    ! can not find user's data file
-
-              if ( me == 0 ) then
-                print *,'   Can not find user CO2 data file: ', cfile1
-                print *,'   *** Stopped in subroutine GASINIT !!'
-              endif
-              stop
-
-            elseif ( ICTM > 10 ) then  Lab_if_ICTM  ! specified year of data not found
-
-              if ( me == 0 ) then
-                print *,'   Specified co2 data for year',idyr,          &
-     &                 ' not found !!  Need to change namelist ICTM !!'
-                print *,'   *** Stopped in subroutine GASINIT !!'
-              endif
-              stop
-
-            else Lab_if_ICTM                        ! looking for latest available data
-
-              if ( me == 0 ) then
-                print *,'   Requested co2 data for year',idyr,          &
+            if ( me == 0 ) then
+              print *,'   Requested co2 data for year',iyr,             &
      &                ' not found, check for other available data set'
+            endif
+
+            Lab_dowhile2 : do while ( iyr >= MINYEAR )
+              iyr = iyr - 1
+              write(cfile1(19:22),34) iyr
+
+              inquire (file=cfile1, exist=file_exist)
+              if ( file_exist ) then
+                exit Lab_dowhile2
               endif
+            enddo   Lab_dowhile2
 
-              Lab_dowhile2 : do while ( iyr >= MINYEAR )
-                iyr = iyr - 1
-                write(cfile1(19:22),34) iyr
-
-                inquire (file=cfile1, exist=file_exist)
-                if ( me == 0 ) then
-                  print *,' Looking for CO2 file ',cfile1
-                endif
-
-                if ( file_exist ) then
-                  exit Lab_dowhile2
-                endif
-              enddo   Lab_dowhile2
-
-              if ( .not. file_exist ) then
-                if ( me == 0 ) then
-                  print *,'   Can not find co2 data source file'
-                  print *,'   *** Stopped in subroutine GASINIT !!'
-                endif
-                stop
-              endif
-
-            endif  Lab_if_ICTM
+            if ( .not. file_exist ) then
+              print *,'   Can not find co2 data source file'
+              print *,'   *** Stopped in subroutine GASINIT !!'
+              stop
+            endif
           endif   ! end if_file_exist_block
 
 !  --- ...  read in co2 2-d data for the requested month
-
           open (NICO2CN,file=cfile1,form='formatted',status='old')
           rewind NICO2CN
           read (NICO2CN, 36) iyr, cline, co2g1, co2g2
@@ -413,11 +318,11 @@
 
           if ( me == 0 ) then
             print *,'   Opened co2 data file: ',cfile1
-            print *, iyr, cline(1:94), co2g1,'  GROWTH RATE =', co2g2
+            print *, iyr, cline, co2g1, '  GROWTH RATE =', co2g2
           endif
 
 !  --- ...  add growth rate if needed
-          if ( lextpl ) then
+          if ( iyr < iyear ) then
 !           rate = co2g2 * (iyear - iyr)   ! rate from early year
 !           rate = 1.60  * (iyear - iyr)   ! avg rate over long period
             rate = 2.00  * (iyear - iyr)   ! avg rate for recent period
@@ -426,130 +331,42 @@
           endif
 
           co2_glb = (co2g1 + rate) * 1.0e-6
-          if ( me == 0 ) then
-            print *,'   Global annual mean CO2 data for year',          &
-     &              iyear, co2_glb
-          endif
+!check    if ( me == 0 ) print *,'   co2 data for year',iyear,co2_glb
 
           if ( ICO2 == 2 ) then
-
-            if ( ICTM == -2 ) then        ! need to calc ic time annual mean first
-              co2ann(:,:) = 0.0
-
-              do imo = 1, 12
-                read (NICO2CN,cform) co2dat
-!check          print cform, co2dat
-
-                co2ann(:,:) = co2ann(:,:) + co2dat(:,:)
-              enddo
-              co2ann(:,:) = co2ann(:,:) * 1.0e-6 / float(12)
-
-              if ( me == 0 ) then
-                print *,' CHECK: Sample of 2-d annual mean of CO2 ',    &
-     &                  'data used for year:',iyear
-                print *, co2ann(1,:)
-              endif
-            else                          ! directly save monthly data
-              do imo = 1, 12
-                read (NICO2CN,cform) co2dat
-!check          print cform, co2dat
-
-                co2vmr_sav(:,:,imo) = (co2dat(:,:) + rate) * 1.0e-6
-              enddo
-
-              if ( me == 0 ) then
-                print *,' CHECK: Sample of selected months of CO2 ',    &
-     &                  'data used for year:',iyear
-                do imo = 1, 12, 3
-                  print *,'        Month =',imo
-                  print *, co2vmr_sav(1,:,imo)
-                enddo
-              endif
-            endif   ! end if_ICTM_block
-
-          endif   ! end if_ICO2_block
-
-          close ( NICO2CN )
-
-!  --- ...  if adding seasonal cycle, check the data set befor superimposing
-!           to the actual data
-
-          if ( ICTM == -2 ) then
-
-            inquire (file=cfmcyc, exist=file_exist)
-            if ( .not. file_exist ) then
-              if ( me == 0 ) then
-                print *,'   Can not find seasonal cycle CO2 data: ',    &
-     &                  cfmcyc
-                print *,'   *** Stopped in subroutine GASINIT !!'
-              endif
-              stop
-            endif
-
-!  --- ...  read in co2 2-d seasonal cycle data
-
-            open (NICO2CN,file=cfmcyc,form='formatted',status='old')
-            rewind NICO2CN
-            read (NICO2CN, 52) cline, co2g1, co2g2
-  52        format(a98,f7.2,16x,f5.2)
-            read (NICO2CN,cform) co2dat        ! skip annual mean part
-
-            if ( me == 0 ) then
-              print *,'   Opened CO2 climatology seasonal cycle data ', &
-     &                'file: ',cfmcyc
-!check        print *, cline(1:98), co2g1, co2g2
-            endif
-
             do imo = 1, 12
-              read (NICO2CN,54) cline, gco2cyc(imo)
-  54          format(a58,f7.2)
-!check        print *, cline(1:58),gco2cyc(imo)
               read (NICO2CN,cform) co2dat
 !check        print cform, co2dat
 
-              if ( ICO2 == 2 ) then
-                co2vmr_sav(:,:,imo) = co2ann(:,:) + co2dat(:,:)*1.0e-6
-              endif
+              co2vmr_sav(:,:,imo) = (co2dat(:,:) + rate) * 1.0e-6
             enddo
 
-            if ( me==0 ) then
-              if ( ICO2==1 ) then
-                print *,' CHECK: Monthly deviations of climatology ',   &
-     &                  'to be superimposed on global annual mean'
-                print *, gco2cyc
-              elseif ( ICO2==2 ) then
-                print *,' CHECK: AFTER adding seasonal cycle, Sample ', &
-     &                  'of selected months of CO2 data for year:',iyear
-                do imo = 1, 12, 3
-                  print *,'        Month =',imo
-                  print *, co2vmr_sav(1,:,imo)
-                enddo
-              endif
-            endif   ! end if_me_block
+            if ( me == 0 ) then
+              print *,' CHECK: Sample CO2 data used for year:',iyear
+              do imo = 1, 12, 3
+                print *,'        Month =',imo
+                print *, co2vmr_sav(1,:,imo)
+              enddo
+            endif
+          endif
 
-            gco2cyc(:) = gco2cyc(:) * 1.0e-6       ! convert from ppm to ppp
+          close ( NICO2CN )
+        endif  Lab_if_iyr
 
-            close ( NICO2CN )
-          else
-            gco2cyc(:) = 0.0
-          endif    ! end if_ICTM_block
-
-        endif  Lab_if_idyr
-
-        return
       else
         print *,' !! ERROR in CO2 Scheme Setting, ICO2=',ICO2
         stop
       endif    ! end if_ICO2_block
 
 !
+      return
 !...................................
-      end subroutine gasinit
+      end subroutine n_gasinit
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine getgases                                               &
+      subroutine n_getgases                                               &
 !...................................
 
 !  ---  inputs:
@@ -593,12 +410,6 @@
 !                   =2: use input 2-d monthly co2 value (co2vmr_sav)    !
 !     co2vmr_sav - saved monthly co2 concentration from sub gasinit     !
 !     co2_glb    - saved global annual mean co2 value from  gasinit     !
-!     gco2cyc    - saved global seasonal variation of co2 climatology   !
-!                  in 12-month form                                     !
-!  ** note ** for ICTM=-2 co2vmr_sav has climatology monthly deviations !
-!             superimposed on init-cond co2 value, while co2_glb only   !
-!             contains the global mean value, thus needs to add the     !
-!             monthly dglobal mean deviation gco2cyc to it.             !
 !                                                                       !
 !  usage:    call getgases                                              !
 !                                                                       !
@@ -644,7 +455,7 @@
 
         do k = 1, LMAX
           do i = 1, IMAX
-            gasdat(i,k,1) = co2_glb + gco2cyc(kmonsav)
+            gasdat(i,k,1) = co2_glb
           enddo
         enddo
 
@@ -660,7 +471,7 @@
             if ( plvl(i,k+1) >= prsco2 ) then
               gasdat(i,k,1) = co2vmr_sav(ilon,ilat,kmonsav)
             else
-              gasdat(i,k,1) = co2_glb + gco2cyc(kmonsav)
+              gasdat(i,k,1) = co2_glb
             endif
           enddo
         enddo
@@ -669,17 +480,20 @@
 !
       return
 !...................................
-      end subroutine getgases
+      end subroutine n_getgases
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine getozn                                                 &
+      subroutine n_getozn                                                 &
 !...................................
 
 !  ---  inputs:
      &     ( prslk,xlat,k1oz,k2oz,facoz,                                &
      &       IMAX, LM, iflip,                                           &
+!!!CARLOS: we include new input parameters that were previously defined in ozne_def
+     &       LATSOZC,LEVOZC,BLATC,DPHIOZC,TIMEOZC,                      &
+!!!CARLOS
 !  ---  outputs:
      &       o3mmr                                                      &
      &     )
@@ -716,7 +530,11 @@
 
 !  ---  inputs:
       integer,  intent(in) :: IMAX, LM, k1oz, k2oz, iflip
-
+!!!CARLOS
+      integer,  intent(in) :: LATSOZC,LEVOZC,TIMEOZC
+      real (kind=kind_phys), intent(in) ::  BLATC,DPHIOZC
+!      logical,  intent(in) :: FIRST
+!!!CARLOS
       real (kind=kind_phys), intent(in) :: prslk(:,:), xlat(:), facoz
 
 !  ---  outputs:
@@ -724,37 +542,65 @@
 
 !  ---  locals:
 !     integer :: JMR, blte, dlte, LOZ
+!!!CARLOS
+      integer :: JMR, blte, dlte, LOZ
+!!!CARLOS
 !  4X5 ozone data
 !     parameter (JMR=45, blte=-86.0, dlte=4.0)
 ! GEOS ozone data
 !     parameter (JMR=18, blte=-85.0, dlte=10.0, LOZ=17)
 !
-      real (kind=kind_io4) :: o3clim4(JMR,LOZ,12), pstr4(LOZ)
+!!!CARLOS
+!      real (kind=kind_io4) :: o3clim4(JMR,LOZ,12), pstr4(LOZ)
+       real (kind=kind_io4) :: o3clim4(LATSOZC,LEVOZC,12), pstr4(LEVOZC)
 
       real (kind=kind_phys), allocatable :: pstr(:), pkstr(:),          &
      &                                     o3r(:,:,:)
-      real (kind=kind_phys) ::  o3i(IMAX,LOZ), wk1(IMAX), deglat, elte, &
+!      real (kind=kind_phys) ::  o3i(IMAX,LOZ), wk1(IMAX), deglat, elte, &
+       real (kind=kind_phys):: o3i(IMAX,LEVOZC),wk1(IMAX),deglat, elte, &
      &                         rdg, tem, tem1, tem2, tem3, tem4, temp
                                                                                
-      integer :: imond(12), ilat(JMR,12)
+!      integer :: imond(12), ilat(JMR,12)
+      integer :: imond(12), ilat(LATSOZC,12)
       integer :: i, j, k, l, nm, j1, j2, ll
-                                                                               
+!!!CARLOS
+
+!!!CARLOS.. include the 03 clomatology file. Extracted from nwprod/fix
+      character  :: cfile0*29
+      data  cfile0 / '/nwprod/fix/global_o3clim.txt' /
+!!!CARLOS
+
+!!!CARLOS   introduce first=true as input parameter  
+!!!This is not optimal since it will read the ozone file each time
+!CHANGE LATER                                                                          
       logical :: first
 !
       data  first / .true. /
                                                                                
       save first, pkstr, pstr, o3r, elte
 !
+!!!CARLOS
+
+!!!CARLOS
+      JMR=LATSOZC
+      LOZ=LEVOZC
+      blte=BLATC
+      dlte=DPHIOZC
+!!!CARLOS
 
       if (first) then
 
          if (timeozc .ne. 12) then
            print *,' timeozc=',timeozc, ' is not monthly mean'          &
      &,' - job aborting'
-           call mpi_quit(999)
+!zj           call mpi_quit(999)
+           return !zj
          endif
 !
          allocate (pstr(LOZ), pkstr(LOZ), o3r(JMR,LOZ,timeozc))
+!!!CARLOS
+        open (NIO3CLM,file=cfile0,form='formatted',status='old')
+!!!CARLOS
          rewind NIO3CLM
          elte = blte + (JMR-1) * dlte
                                                                                
@@ -763,6 +609,7 @@
              read(NIO3CLM,15) pstr4(l)
    15        format(f10.3)
            enddo
+!        write(0,*)'pstr4=',pstr4
 
            do nm = 1, 12
              do j = 1, JMR
@@ -773,6 +620,10 @@
    20         format(6x,10f6.2)
              enddo
            enddo
+!         write(0,*)'imond=',imond
+!         write(0,*)'ilat=',ilat
+!         write(0,*)'o3clim4=',o3clim4
+
          else                      ! For newer ozone climatology
            read (NIO3CLM)
            do l=1,loz
@@ -785,7 +636,9 @@
              enddo
            enddo
          endif
-!
+!!CARLOS
+       close(NIO3CLM)
+!!!CARLOS
          pstr = pstr4
          o3r = o3clim4
 
@@ -798,13 +651,19 @@
          enddo
 
          print *,' FOUND OZONE DATA FOR LEVELS PSTR=',(pstr(l),l=1,LOZ)
-!        print *,' O3=',(o3r(15,l,1),l=1,LOZ)
-
+        print *,' O3=',(o3r(15,l,1),l=1,LOZ)
+!!!
+!!CARLOS
+        call n_gpkap
+!!!  
          do l = 1, LOZ
-           pkstr(l) = fpkap(pstr(l)*100.0)
+           pkstr(l) = n_fpkap(pstr(l)*100.0)
          enddo
+!        print*,'pkstr=',pkstr
 
+!!!CARLOS
          first  = .false.
+!!!CARLOS
       endif
 !
       do i = 1, IMAX
@@ -857,13 +716,15 @@
           if (wk1(i) < pkstr(1))   o3mmr(i,ll) = o3i(i,1)
         enddo
       enddo
+
+!      write(0,*)'o3mmr=', o3mmr
 !
       return
 !...................................
-      end subroutine getozn
+      end subroutine n_getozn
 !-----------------------------------
 
 !
 !........................................!
-      end module module_radiation_gases  !
+      end module module_n_radiation_gases  !
 !========================================!

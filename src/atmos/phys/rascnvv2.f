@@ -194,28 +194,38 @@
 !
       logical REVAP, CUMFRC
       LOGICAL WRKFUN, CALKBL, CRTFUN, UPDRET, BOTOP, vsmooth
-      real(kind=kind_phys) FRAC, CRTMSF, MAX_NEG_BOUY, rhfacs, rhfacl   &
-     &,                    FACE, DELX,   DDFAC
+
+      real(kind=kind_phys), parameter :: frac=0.5,    crtmsf=0.0        &
+     &,                                  rhfacs=0.70, rhfacl=0.70       &
+     &,                                  face=5.0,    delx=10000.0      &
+     &,                                  ddfac=face*delx*0.001          &
+     &,                                  max_neg_bouy=0.25
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!    real(kind=kind_phys) FRAC, CRTMSF, MAX_NEG_BOUY, rhfacs, rhfacl   &
+!!   &,                    FACE, DELX,   DDFAC
 !     parameter (frac=0.1, crtmsf=0.0)
 !     parameter (frac=0.25, crtmsf=0.0)
-      parameter (frac=0.5, crtmsf=0.0)
+!!    parameter (frac=0.5, crtmsf=0.0)
 !     PARAMETER (MAX_NEG_BOUY=0.15, REVAP=.true., CUMFRC=.false.)
 !     PARAMETER (MAX_NEG_BOUY=0.15, REVAP=.true., CUMFRC=.true.)
 !     PARAMETER (MAX_NEG_BOUY=0.10, REVAP=.true., CUMFRC=.true.)
 !     PARAMETER (MAX_NEG_BOUY=0.20, REVAP=.true., CUMFRC=.true.)
-      PARAMETER (MAX_NEG_BOUY=0.25, REVAP=.true., CUMFRC=.true.)
+!!    PARAMETER (MAX_NEG_BOUY=0.25, REVAP=.true., CUMFRC=.true.)
 !     PARAMETER (MAX_NEG_BOUY=0.30, REVAP=.true., CUMFRC=.true.)
-!     PARAMETER (MAX_NEG_BOUY=0.05, REVAP=.true., CUMFRC=.true.)
+!!    PARAMETER (MAX_NEG_BOUY=0.05, REVAP=.true., CUMFRC=.true.)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      PARAMETER (                   REVAP=.true., CUMFRC=.true.)
       PARAMETER (WRKFUN = .FALSE.,  UPDRET = .FALSE., vsmooth=.false.)
 !     PARAMETER (CRTFUN = .TRUE.,   CALKBL = .false., BOTOP=.true.)
       PARAMETER (CRTFUN = .TRUE.,   CALKBL = .true., BOTOP=.true.)
 !
-      parameter (rhfacs=0.70, rhfacl=0.70)
+!!    parameter (rhfacs=0.70, rhfacl=0.70)
 !     parameter (rhfacs=0.75, rhfacl=0.75)
 !     parameter (rhfacs=0.85, rhfacl=0.85)
 !     parameter (rhfacs=0.80, rhfacl=0.80)   ! August 26, 2008
 !     parameter (rhfacs=0.80, rhfacl=0.85)
-      PARAMETER (FACE=5.0, DELX=10000.0, DDFAC=FACE*DELX*0.001)
+!!    PARAMETER (FACE=5.0, DELX=10000.0, DDFAC=FACE*DELX*0.001)
 !
 !     real (kind=kind_phys), parameter :: pgftop=0.7, pgfbot=0.3        &
 !     real (kind=kind_phys), parameter :: pgftop=0.75, pgfbot=0.35      &
@@ -275,11 +285,12 @@
      &,                    RAINC(im),     CDRAG(im),  DDVEL(im)         &
      &,                    rannum(ix,nrcm),dlqfac                       &
      &,                    ud_mf(im,k), dd_mf(im,k), det_mf(im,k)
-      real(kind=kind_phys) DT, facmb, garea(im), dtf, rhc(im,k)
+      real(kind=kind_phys) DT, facmb, garea(im), dtf, rhc(im,k)         &
 !
 !     Added for aerosol scavenging for GOCART
 !
-      real,    optional, intent(in)    :: fscav(trac)                   &
+      real(kind=kind_phys), intent(in) :: fscav(trac)
+
 !    &,                                   ctei_r(im), ctei_rm
 !
 !     locals
@@ -314,12 +325,13 @@
 !  Scavenging related parameters
 !
       real                fscav_(trac+2)  ! Fraction scavenged per km
-      if (present(fscav)) then
-         fscav_ = fscav
-      else
-         fscav_ = 0.0   ! By default no scavenging
-      endif
 !
+      fscav_ = 0.0                        ! By default no scavenging
+      if (trac > 0) then
+        do i=1,trac
+          fscav_(i) = fscav(i)
+        enddo
+      endif
 !
       km1    = k - 1
       kp1    = k + 1
@@ -333,14 +345,16 @@
       IF (CUMFRC) THEN
         ntrc = ntrc + 2
       ENDIF
-      if (.not. allocated(trcfac)) allocate (trcfac(k,ntrc))
-      if (.not. allocated(uvi)) allocate (uvi(k,ntrc))
-      if (.not. allocated(rcu)) allocate (rcu(k,ntrc))
-      do n=1, ntrc
-        do l=1,k
-          trcfac(l,n) = 1.0         !  For other tracers
+      if (ntrc > 0) then
+        if (.not. allocated(trcfac)) allocate (trcfac(k,ntrc))
+        if (.not. allocated(uvi)) allocate (uvi(k,ntrc))
+        if (.not. allocated(rcu)) allocate (rcu(k,ntrc))
+        do n=1, ntrc
+          do l=1,k
+            trcfac(l,n) = 1.0         !  For other tracers
+          enddo
         enddo
-      enddo
+      endif
 !
       if (.not. allocated(alfint)) allocate(alfint(k,ntrc+4))
 !
@@ -350,6 +364,7 @@
 
         ccwf = 0.5
         if (ccwfac(ipt) >= 0.0) ccwf = ccwfac(ipt)
+
 !
 !       ctei = .false.
 !       if (ctei_r(ipt) > ctei_rm) ctei = .true.
@@ -847,6 +862,8 @@
 !
         ktop(ipt) = kp1
         kbot(ipt) = 0
+
+        kcnv(ipt) = 0
 
         do l=lmhij-1,1,-1
           if (sgcs(l,ipt) < 0.85 .and. tcu(l) .ne. 0.0) then
@@ -1813,7 +1830,7 @@
          tx2    = tem2
 !
          IF (rns(l) .lt. zero .or. st1 .lt. zero) ep_wfn = .TRUE.
-         IF (DETP .LE. ZERO) cnvflg = .TRUE.
+         IF (DETP <= ZERO) cnvflg = .TRUE.
 
          ST1  = HST(L) - LTL(L)*NU*(QST(L)-QOL(L))
 
@@ -1879,7 +1896,7 @@
       RNS(KD) = TEM1*DETP  + TEM2*DET - ST1
 !
       IF (rns(kd) .lt. zero) ep_wfn = .TRUE.
-      IF (DETP.LE.ZERO) cnvflg = .TRUE.
+      IF (DETP <= ZERO) cnvflg = .TRUE.
 !
   888 continue
 
@@ -1961,8 +1978,6 @@
 !
       CALCUP = .FALSE.
 
-!     TEM  =  MIN(CD*100.0, MAX_NEG_BOUY)
-!!!   TEM  =  MIN(CD*200.0, MAX_NEG_BOUY)
       TEM  =  max(0.05, MIN(CD*200.0, MAX_NEG_BOUY))
       IF (WFN .GT. ACR .AND.  (.NOT. cnvflg)                             &
 !    & .and. dpneg .lt. 100.0  .AND. AKM .LE. TEM) THEN

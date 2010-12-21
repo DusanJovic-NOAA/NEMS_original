@@ -503,6 +503,7 @@
      &      bkgd_vdif_m,bkgd_vdif_h,bkgd_vdif_s,psautco,prautco,evpco,  &
      &      flipv,old_monin,cnvgwd,shal_cnv,sashal,newsas,cal_pre,      &
      &      mom4ice,mstrat,trans_trac,nst_fcst,moist_adj,fscav,         &
+     &      thermodyn_id, sfcpress_id, gen_coord_hybrid,                &
 !  ---  input/outputs:
      &      sfc_fld%hice  (lon,lan),    sfc_fld%fice  (lon,lan),        &
      &      sfc_fld%tisfc (lon,lan),    sfc_fld%tsea  (lon,lan),        &

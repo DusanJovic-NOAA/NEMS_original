@@ -29,7 +29,7 @@
 !      'swrad'      -- main rrtm2 sw radiation routine                 !
 !         inputs:                                                      !
 !           (plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                     !
-!            clouds,iauxil,aerosols,sfcalb,                            !
+!            clouds,iovr,aerosols,sfcalb,                              !
 !            cosz,solcon,NDAY,idxday,                                  !
 !            IMAX, NLAY, NLP1, iflip, lprnt,                           !
 !         outputs:                                                     !
@@ -40,7 +40,7 @@
 !                                                                      !
 !      'rswinit'    -- initialization routine                          !
 !         inputs:                                                      !
-!           ( icwp, me, NLAY, IOVR, ISUBC )                            !
+!           ( icwp, me, NLAY )                                         !
 !         outputs:                                                     !
 !           (none)                                                     !
 !                                                                      !
@@ -142,37 +142,23 @@
 !                                                                      !
 !   ncep modifications history log:                                    !
 !                                                                      !
-!       sep 2003,  yu-tai hou    -- received aer's rrtm-sw gcm version !
-!                    code (v224)                                       !
-!       nov 2003,  yu-tai hou    -- corrected errors in direct/diffuse !
-!                    surface alabedo components.                       !
-!       jan 2004,  yu-tai hou    -- modified code into standard modular!
-!                    f9x code for ncep models. the original three cloud!
-!                    control flags are simplified into two: iflagliq and
-!                    iflagice. combined the org subr sw_224 and setcoef!
-!                    into radsw (the main program); put all kgb##      !
-!                    together and reformat into a separated data module!
-!                    combined reftra and vrtqdr as swflux; optimized   !
-!                    taumol and all taubgs into contained subroutines. !
-!       jun 2004,  yu-tai hou    -- modified code based on aer's faster!
-!                    version rrtmg_sw (v2.0) with 112 g-points.        !
-!       mar 2005,  yu-tai hou    -- modified to aer v2.3, correct cloud!
-!                    scaling error, total sky prop. are delta scaled   !
-!                    after combining clear and cloudy parts. testing   !
-!                    criterion of ssa is saved before scaling. added   !
-!                    cloud layer rain and snow contributions. all cloud!
-!                    water partical contents are treated the same way  !
-!                    as other atmos particles.                         !
-!       apr 2005,  yu-tai hou    -- modified on module structures (this!
-!                    version of code was given back to aer in jun 2006)!
-!       nov 2006,  yu-tai hou    -- modified code to include the       !
-!                    generallized aerosol optical property scheme.     !
-!       apr 2007,  yu-tai hou    -- added spectral band heating as an  !
-!                    optional output to support the 500km model's upper!
-!                    stratospheric radiation calculations. restructure !
-!                    optional outputs for easy access by diff models.  !
-!       mar 2009,  yu-tai hou   -- modified the program interface that !
-!                    is consistant with newer radiation code structure.!
+!       sep 2003,  yu-tai hou                                          !
+!                  received aer's rrtm-sw gcm version code (v224)      !
+!       jan 2004,  yu-tai hou                                          !
+!                  modified code into standard modular f90 code for    !
+!                  ncep models.                                        !
+!       jun 2004,  yu-tai hou                                          !
+!                  modified code based on aer's faster version         !
+!                  rrtmg_sw (v2.0) with 112 g-points.                  !
+!       mar 2005,  yu-tai hou                                          !
+!                  correct cloud double scaling according to aer.      !
+!                  total sky prop. are delta scaled after combining    !
+!                  clear and cloudy parts. test criterion of s.s.a.    !
+!                  is saved before scaling.                            !
+!       apr 2005,  yu-tai hou                                          !
+!                  modified on module structures                       !
+!       apr 2007,  yu-tai hou                                          !
+!                  add spectral band heating as optional output        !
 !                                                                      !
 !                                                                      !
 !                                                                      !
@@ -183,15 +169,15 @@
 
 
 !========================================!
-      module module_radsw_main           !
+      module module_n_radsw_main           !
 !........................................!
 !
-      use machine,          only : kind_phys
-      use physcons,         only : con_g, con_cp, con_avgd, con_amd,    &
+      use n_machine,          only : kind_phys
+      use n_physcons,         only : con_g, con_cp, con_avgd, con_amd,    &
      &                             con_amw, con_amo3
 
-      use module_radsw_parameters
-      use module_radsw_cntr_para
+      use module_n_radsw_parameters
+      use module_n_radsw_cntr_para
 !
       implicit none
 !
@@ -306,14 +292,7 @@
 
       real (kind=kind_phys) :: heatfac
 
-!  ...  iovrsw  is the clouds overlapping control flag
-!        =0: random overlapping clouds
-!        =1: maximum/random overlapping clouds
-!        =2: maximum overlapping clouds
-
-      integer :: iovrsw
-
-      public swrad, rswinit
+      public n_swrad, n_rswinit
 
 
 ! =================
@@ -321,12 +300,12 @@
 ! =================
 
 !-----------------------------------
-      subroutine swrad                                                  &
+      subroutine n_swrad                                                  &
 !...................................
 
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
-     &       clouds,iauxil,aerosols,sfcalb,                             &
+     &       clouds,iovr,aerosols,sfcalb,                               &
      &       cosz,solcon,NDAY,idxday,                                   &
      &       IMAX, NLAY, NLP1, iflip, lprnt,                            &
 !  ---  outputs:
@@ -373,8 +352,9 @@
 !       clouds(:,:,2)  -   layer cloud optical depth                    !
 !       clouds(:,:,3)  -   layer cloud single scattering albedo         !
 !       clouds(:,:,4)  -   layer cloud asymmetry factor                 !
-!   iauxil(:)        : auxiliary special cloud related array            !
-!                      *** not used in this version of code ***         !
+!   iovr             : control flag for cloud overlapping (approxi only)!
+!                     =0: random overlapping clouds                     !
+!                     =1: max/ran overlapping clouds                    !
 !   aerosols(IMAX,NLAY,NBDSW,:) : aerosol optical properties            !
 !                      (check module_radiation_aerosols for definition) !
 !         (:,:,:,1)   - optical depth                                   !
@@ -459,10 +439,6 @@
 !     NGPT                  - total number of g-point subintervals      !
 !     NGnn   (nn=16-29)     - number of g-points in band nn             !
 !     NSPA,NSPB(NBLOW:NBHGH)- number of lower/upper ref atm's per band  !
-!     iovrlw                - cloud overlapping control flag            !
-!                             =0: random overlapping clouds             !
-!                             =1: maximum/random overlapping clouds     !
-!                             =2: maximum overlapping clouds            !
 !     pavel  (NLAY)         - layer pressures (mb)                      !
 !     delp   (NLAY)         - layer pressure thickness (mb)             !
 !     tavel  (NLAY)         - layer temperatures (k)                    !
@@ -509,7 +485,7 @@
       implicit none
 
 !  ---  inputs:
-      integer, intent(in) :: IMAX, NLAY, NLP1, iflip, NDAY, iauxil(:)
+      integer, intent(in) :: IMAX, NLAY, NLP1, iovr, iflip, NDAY
 
       integer, intent(in) :: idxday(:)
 
@@ -814,11 +790,11 @@
 
 !  ---  compute fractions of clear sky view
 
-        if (iovrsw == 0) then                    ! random overlapping
+        if (iovr == 0) then                      ! random overlapping
           do k = 1, NLAY
             zcf0 = zcf0 * (one - cfrac(k))
           enddo
-        else if (iovrsw == 1) then               ! max/ran overlapping
+        else if (iovr == 1) then                 ! max/ran overlapping
           do k = 1, NLAY
             if (cfrac(k) > eps) then                  ! cloudy layer
               zcf1 = min ( zcf1, one-cfrac(k) )
@@ -828,10 +804,13 @@
             endif
           enddo
           zcf0 = zcf0 * zcf1
-        else if (iovrsw == 2) then               ! maximum overlapping
+        else if (iovr == 2) then                 ! maximum overlapping
           do k = 1, NLAY
             zcf0 = min ( zcf0, one-cfrac(k) )
           enddo
+        else
+          print *,'  invalid specification of iovr =',iovr
+          stop
         endif
 
         if (zcf0 <= eps) zcf0 = zero
@@ -851,7 +830,7 @@
 !===> ...  compute cloud optical properties
 !
 
-        call cldprop                                                    &
+        call n_cldprop                                                    &
 !  ---  inputs:
      &     ( cfrac,cliqp,reliq,cicep,reice,cdat1,cdat2,cdat3,cdat4,     &
      &       NLAY,                                                      &
@@ -947,7 +926,7 @@
 
         if ( lfdncmp ) then
 
-          call spcvrt                                                   &
+          call n_spcvrt                                                   &
 !  ---  inputs:
      &     ( colamt, colmol, coldry, cosz1, sntz1, albbm, albdf,        &
      &       zcf1, zclfr, taucw, ssacw, asycw, tauae, ssaae, asyae,     &
@@ -973,7 +952,7 @@
 
         else
 
-          call spcvrt                                                   &
+          call n_spcvrt                                                   &
 !  ---  inputs:
      &     ( colamt, colmol, coldry, cosz1, sntz1, albbm, albdf,        &
      &       zcf1, zclfr, taucw, ssacw, asycw, tauae, ssaae, asyae,     &
@@ -1113,17 +1092,17 @@
 
       return
 !...................................
-      end subroutine swrad
+      end subroutine n_swrad
 !-----------------------------------
 
 
 
 !-----------------------------------
-      subroutine rswinit                                                &
+      subroutine n_rswinit                                                &
 !...................................
 
 !  ---  inputs:
-     &     ( icwp, me, NLAY, IOVR, ISUBC )
+     &     ( icwp, me, NLAY )
 !  ---  outputs: (none)
 
 !  *******************************************************************  !
@@ -1134,12 +1113,6 @@
 !                =1: prognostic scheme gives cloud liq/ice path, etc.   !
 !    me       - print control for parallel process                      !
 !    NLAY     - number of vertical layers                               !
-!    iovr     - cloud overlapping control flag                          !
-!                =0: random overlapping clouds                          !
-!                =1: maximum/random overlapping clouds                  !
-!                =2: maximum overlap cloud                              !
-!    isubc    - mcica sub-column cloud approximation control flag       !
-!                *** not used in this version of code                   !
 !                                                                       !
 !  outputs: (none)                                                      !
 !                                                                       !
@@ -1166,7 +1139,7 @@
       implicit none
 !
 !  ---  inputs:
-      integer, intent(in) :: icwp, me, NLAY, IOVR, ISUBC
+      integer, intent(in) :: icwp, me, NLAY
 
 !  ---  outputs: none
 
@@ -1176,13 +1149,6 @@
 !
 !===> ... begin here
 !
-      iovrsw  = iovr     ! assign module variable of overlap flag
-
-      if ( iovrsw<0 .or. iovrsw>2 ) then
-        print *,'  *** Error in specification of cloud overlap flag',   &
-     &          ' IOVRSW=',iovrsw,' in RSWINIT !!'
-        stop
-      endif
 
       if (me == 0) then
         print *,' - Using AER Shortwave Radiation, Version: ',VTAGSW
@@ -1208,25 +1174,16 @@
           print *,'   --- Include rare gases N2O, CH4, O2, absorptions',&
      &            ' in SW'
         endif
-
-        if ( isubc == 0 ) then
-          print *,'   --- Using standard grid average clouds, no sub-', &
-     &            'column clouds approximation'
-        else
-          print *,'   --- Sub-column cloud scheme is not available in', &
-     &            ' this version of code.  Using standard grid',        &
-     &            ' average of clouds'
-        endif
       endif
 
 !  --- ...  check cloud flags for consistency
 
-      if ((icwp == 0 .and. iflagliq /= 0) .or.                          &
-     &    (icwp == 1 .and. iflagliq == 0)) then
-        print *, ' *** Model cloud scheme inconsistent with SW',        &
-     &           ' radiation cloud radiative property setup !!'
-        stop
-      endif
+!      if ((icwp == 0 .and. iflagliq /= 0) .or.                          &  !carlos for nmmb iflagliq=0 can work with icwp=1
+!     &    (icwp == 1 .and. iflagliq == 0)) then                            !carlos
+!        print *, ' *** Model cloud scheme inconsistent with SW',        &  !carlos
+!     &           ' radiation cloud radiative property setup !!'            !carlos
+!        stop                                                               !carlos
+!      endif                                                                !carlos
 
 !  --- ...  setup constant factors for heating rate
 !           the 1.0e-2 is to convert pressure from mb to N/m**2
@@ -1241,13 +1198,13 @@
 
       return
 !...................................
-      end subroutine rswinit
+      end subroutine n_rswinit
 !-----------------------------------
 
 
 
 !-----------------------------------
-      subroutine cldprop                                                &
+      subroutine n_cldprop                                                &
 !...................................
 
 !  ---  inputs:
@@ -1333,7 +1290,7 @@
 !                                                                       !
 !  *******************************************************************  !
 !
-      use module_radsw_cldprtb
+      use module_n_radsw_cldprtb
 !
       implicit none
 
@@ -1354,14 +1311,12 @@
 
       real (kind=kind_phys) :: ffliq0, ffliq1, ffice0, ffice1,          &
      &       cldliq, refliq, tauliq, ssaliq, asyliq, factor, fint,      &
-     &       cldice, refice, tauice, ssaice, asyice,                    &
-     &       cldrain, refrain, taurain, ssarain, asyrain,               &
-     &       cldsnow, refsnow, tausnow, ssasnow, asysnow
+     &       cldice, refice, tauice, ssaice, asyice
 
       integer :: ib, k, index
  
 !
-!===> ...  begin here
+!===> ... begin here
 !
       do ib = NBLOW, NBHGH
         do k = 1, NLAY
@@ -1395,11 +1350,6 @@
 !  --- ...  based on FU, factor 1.5396=8/(3*sqrt(3)) converts
 !           effective radius to generalized ice particle size
             refice = max(10.e0, min(140.e0, 1.5396*reice(k) ))
-
-            cldrain = cdat1(k)
-            refrain = cdat2(k)
-            cldsnow = cdat3(k)
-            refsnow = cdat4(k)
 
 !  --- ...  calculation of absorption coefficients due to water clouds.
             if (cldliq <= zero) then
@@ -1464,15 +1414,6 @@
               endif
             endif   ! end if_cldice
 
-!  --- ...  optical depth for rain and snow
-
-            taurain = cldrain * a0r
-            if (cldsnow>zero .and. refsnow>10.0) then
-              tausnow = cldsnow * (a0s + a1s/refsnow)
-            else
-              tausnow = zero
-            endif
-
             do ib = NBLOW, NBHGH
               tauliq = cldliq * extcoliq(ib)
               ssaliq = tauliq * ssacoliq(ib)
@@ -1482,15 +1423,9 @@
               ssaice = tauice * ssacoice(ib)
               asyice = ssaice * asycoice(ib)
 
-              ssarain = taurain * (one - b0r(ib))
-              asyrain = ssarain * c0r(ib)
-
-              ssasnow = tausnow * (one - (b0s(ib)+b1s(ib)*refsnow))
-              asysnow = ssasnow * c0s(ib)
-
-              taucw(k,ib) = tauliq + tauice + taurain + tausnow
-              ssacw(k,ib) = ssaliq + ssaice + ssarain + ssasnow
-              asycw(k,ib) = asyliq + asyice + asyrain + asysnow
+              taucw(k,ib) = tauliq + tauice
+              ssacw(k,ib) = ssaliq + ssaice
+              asycw(k,ib) = asyliq + asyice
 
 !             do istr = 1, nstr
 !  --- ...  this commented code is the standard method for delta-m scaling.
@@ -1515,13 +1450,13 @@
 
       return
 !...................................
-      end subroutine cldprop
+      end subroutine n_cldprop
 !-----------------------------------
 
 
 
 !-----------------------------------
-      subroutine spcvrt                                                 &
+      subroutine n_spcvrt                                                 &
 !...................................
 
 !  ---  inputs:
@@ -1621,7 +1556,7 @@
 !                                                                       !
 !  *******************************************************************  !
 !
-      use module_radsw_sflux, only : sfluxref01, sfluxref02,            &
+      use module_n_radsw_sflux, only : sfluxref01, sfluxref02,            &
      &                               sfluxref03, strrat, specwt,        &
      &                               scalekur, layreffr, ix1, ix2, ibx
 !
@@ -1655,7 +1590,7 @@
 !  ---  locals:
       real (kind=kind_phys) :: fs, speccomb, specmult, colm1, colm2
 
-      real (kind=kind_phys), dimension(:,:), pointer :: sflxptr=>null()
+      real (kind=kind_phys), dimension(:,:), pointer :: sflxptr
 
       integer, dimension(NLAY,NBLOW:NBHGH) :: id0, id1
       integer :: ibd, ifb, j, jb, js, k, klow, khgh, klim, ks, njb
@@ -1671,15 +1606,15 @@
       real (kind=kind_phys) :: sflxbc,sflxdc,sflxb0,sflxd0
 
 !
-!===> ...  begin here
+!===> ... begin here
 !
 !  --- initialization of output fluxes
       do ibd = 1, NBDSW
         do k = 1, NLP1
-          flxdc(k,ibd) = zero
-          flxuc(k,ibd) = zero
-          flxd0(k,ibd) = zero
-          flxu0(k,ibd) = zero
+          flxdc(k,ibd)= zero
+          flxuc(k,ibd)= zero
+          flxd0(k,ibd)= zero
+          flxu0(k,ibd)= zero
         enddo
       enddo
 
@@ -1783,73 +1718,73 @@
 
         if (jb == 16) then
 
-          call taumol16
+          call n_taumol16
 
         else if (jb == 17) then
 
-          call taumol17
+          call n_taumol17
 
         else if (jb == 18) then
 
-          call taumol18
+          call n_taumol18
 
         else if (jb == 19) then
 
-          call taumol19
+          call n_taumol19
 
         else if (jb == 20) then
 
-          call taumol20
+          call n_taumol20
 
         else if (jb == 21) then
 
-          call taumol21
+          call n_taumol21
 
         else if (jb == 22) then
 
-          call taumol22
+          call n_taumol22
 
         else if (jb == 23) then
 
-          call taumol23
+          call n_taumol23
 
         else if (jb == 24) then
 
-          call taumol24
+          call n_taumol24
 
         else if (jb == 25) then
 
 !--- visible 16000-22650 cm-1   0.4415 - 0.6250 um
 
-          call taumol25
+          call n_taumol25
 
         else if (jb == 26) then
 
 !--- uv-a 22650-29000 cm-1   0.3448 - 0.4415 um
 
-          call taumol26
+          call n_taumol26
 
         else if (jb == 27) then
 
 !--- uv-b 29000-38000 cm-1   0.2632 - 0.3448 um
 
-          call taumol27
+          call n_taumol27
 
         else if (jb == 28) then
 
 !--- uv-c 38000-50000 cm-1   0.2000 - 0.2632 um
 
-          call taumol28
+          call n_taumol28
 
         else if (jb == 29) then
 
-          call taumol29
+          call n_taumol29
 
         endif
 
 !  ---  compute radiation fluxes
 
-        call swflux ( jb )
+        call n_swflux ( jb )
 
 !  ---  accumulation of spectral fluxes over whole spectrum
 
@@ -1870,7 +1805,7 @@
 
 !! ---  optional surface downward flux components
           ifb = IDXSFC(jb)
-          if (ifb == 0) then
+          if (ifb .eq. 0) then
             sfbmc(1) = sfbmc(1) + 0.5*sflxbc
             sfdfc(1) = sfdfc(1) + 0.5*sflxdc
             sfbm0(1) = sfbm0(1) + 0.5*sflxb0
@@ -1895,7 +1830,7 @@
 ! =================
 
 !-----------------------------------
-      subroutine swflux ( ib )
+      subroutine n_swflux ( ib )
 !...................................
 
 !  *******************************************************************  !
@@ -2099,17 +2034,17 @@
 
               ztau1 = ztau(k,ipa)
               zssa1 = zssa(k,ipa)
-              zasy1 = zasy(k,ipa)
+              zasy1 = zasy(k,ipa)  
               zasy3 = 3.0 * zasy1
 
 !  ---  general two-stream expressions
               if (imodsw == 1) then                      ! delta-eddington
-                zgam1 = (7.0 - zssa1 * (4.0 + zasy3)) * 0.25
-                zgam2 =-(1.0 - zssa1 * (4.0 - zasy3)) * 0.25
+                zgam1 = (7.0 - zssa1  * (4.0 + zasy3)) * 0.25
+                zgam2 =-(1.0 - zssa1  * (4.0 - zasy3)) * 0.25
                 zgam3 = (2.0 - zasy3 * cosz) * 0.25
               else if (imodsw == 2) then                 ! pifm
-                zgam1 = (8.0 - zssa1 * (5.0 + zasy3)) * 0.25
-                zgam2 = 3.0 * (zssa1 * (1.0 - zasy1)) * 0.25
+                zgam1 = (8.0 - zssa1  * (5.0 + zasy3)) * 0.25
+                zgam2 =  3.0 * (zssa1 * (1.0 - zasy1)) * 0.25
                 zgam3 = (2.0 - zasy3 * cosz) * 0.25
               else if (imodsw == 3) then                 ! discrete ordinates
                 zgam1 = zsr3 * (2.0 - zssa1 * (1.0 + zasy1)) * 0.5
@@ -2179,8 +2114,8 @@
 
 !       ...  diffuse beam
                 zden1 = zr4 / (ze1r45 * zrkg1)
-                zrefd(kp,ipa) = max(zero, zgam2*(zexp1-zexm1)*zden1)
-                ztrad(kp,ipa) = max(zero, zrk2*zden1)
+                zrefd(kp,ipa) =  max(zero, zgam2*(zexp1-zexm1)*zden1)
+                ztrad(kp,ipa) =  max(zero, zrk2*zden1)
               endif  lab_if_zwo
 
             else   lab_if_pclfr                                 ! clear-layer
@@ -2206,7 +2141,7 @@
 
         enddo  lab_do_ipa1                    ! end do_ipa_loop
 
-!  ---  set up toa direct beam for clear-sky and cloudy-sky
+!  --- set up toa direct beam for clear-sky and cloudy-sky
         ztdbt(NLP1,1) = one
         ztdbt(NLP1,2) = one
 
@@ -2332,13 +2267,13 @@
 
       return
 !...................................
-      end subroutine swflux     
+      end subroutine n_swflux     
 !-----------------------------------
 
 
 
 !-----------------------------------
-      subroutine taumol16
+      subroutine n_taumol16
 !...................................
 
 !  ------------------------------------------------------------------  !
@@ -2352,7 +2287,7 @@
 !                                                                      !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb16
+      use module_n_radsw_kgb16
 !
       implicit none
 
@@ -2367,14 +2302,14 @@
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
+!  ---  compute the optical depth by interpolating in ln(pressure), 
 !       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!       vapor self-continuum is interpolated (in temperature) separately.  
 
       do k = 1, NLAY
         tauray = colmol(k) * rayl
 
-        do j = 1, NG16
+        do j = 1 , NG16
           taur(k,j) = tauray
         enddo
       enddo
@@ -2434,13 +2369,13 @@
 
       return
 !...................................
-      end subroutine taumol16
+      end subroutine n_taumol16
 !-----------------------------------
 
 
 
 !-----------------------------------
-      subroutine taumol17
+      subroutine n_taumol17
 !...................................
 
 !  ------------------------------------------------------------------  !
@@ -2453,7 +2388,7 @@
 !     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb17
+      use module_n_radsw_kgb17
 !
       implicit none
 
@@ -2468,14 +2403,14 @@
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
+!  ---  compute the optical depth by interpolating in ln(pressure), 
 !       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!       vapor self-continuum is interpolated (in temperature) separately.  
 
       do k = 1, NLAY
         tauray = colmol(k) * rayl
 
-        do j = 1, NG17
+        do j = 1 , NG17
           taur(k,j) = tauray
         enddo
       enddo
@@ -2559,12 +2494,12 @@
 
       return
 !...................................
-      end subroutine taumol17
+      end subroutine n_taumol17
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine taumol18
+      subroutine n_taumol18
 !...................................
 
 !  ------------------------------------------------------------------  !
@@ -2573,7 +2508,7 @@
 !     band 18:  4000-4650 cm-1 (low - h2o,ch4; high - ch4)             !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb18
+      use module_n_radsw_kgb18
 !
       implicit none
 
@@ -2588,14 +2523,14 @@
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
+!  ---  compute the optical depth by interpolating in ln(pressure), 
 !       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!       vapor self-continuum is interpolated (in temperature) separately.  
 
       do k = 1, NLAY
         tauray = colmol(k) * rayl
 
-        do j = 1, NG18
+        do j = 1 , NG18
           taur(k,j) = tauray
         enddo
       enddo
@@ -2604,7 +2539,7 @@
         speccomb = colamt(k,1) + strrat(18)*colamt(k,5)
         specmult = 8.0 * min(oneminus, colamt(k,1) / speccomb)
 
-        js = 1 + int(specmult)
+        js = 1 +int(specmult)
         fs = mod(specmult, one)
         fs1= one - fs
         fac000 = fs1 * fac00(k)
@@ -2649,18 +2584,18 @@
         do j = 1, NG18
           taug(k,j) = colamt(k,5)                                       &
      &        * ( fac00(k)*absb(ind01,j) + fac10(k)*absb(ind02,j)       &
-     &        +   fac01(k)*absb(ind11,j) + fac11(k)*absb(ind12,j) )
+     &        +   fac01(k)*absb(ind11,j) + fac11(k)*absb(ind12,j) ) 
         enddo
       enddo
 
       return
 !...................................
-      end subroutine taumol18
+      end subroutine n_taumol18
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine taumol19
+      subroutine n_taumol19
 !...................................
 
 !  ------------------------------------------------------------------  !
@@ -2673,7 +2608,7 @@
 !     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb19
+      use module_n_radsw_kgb19
 !
       implicit none
 
@@ -2688,14 +2623,14 @@
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
+!  ---  compute the optical depth by interpolating in ln(pressure), 
 !       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!       vapor self-continuum is interpolated (in temperature) separately.  
 
       do k = 1, NLAY
         tauray = colmol(k) * rayl
 
-        do j = 1, NG19
+        do j = 1 , NG19
           taur(k,j) = tauray
         enddo
       enddo
@@ -2704,7 +2639,7 @@
         speccomb = colamt(k,1) + strrat(19)*colamt(k,2)
         specmult = 8.0 * min(oneminus, colamt(k,1) / speccomb)
 
-        js = 1 + int(specmult)
+        js = 1 +int(specmult)
         fs = mod(specmult, one)
         fs1= one - fs
         fac000 = fs1 * fac00(k)
@@ -2734,7 +2669,7 @@
      &        +   fac001 * absa(ind11,j) + fac101 * absa(ind12,j)       &
      &        +   fac011 * absa(ind13,j) + fac111 * absa(ind14,j) )     &
      &        + colamt(k,1) * (selffac(k) * (selfref(inds,j)            &
-     &        + selffrac(k) * (selfref(inds+1,j)-selfref(inds,j)))      &
+     &        + selffrac(k) * (selfref(inds+1,j)-selfref(inds,j)))      & 
      &        + forfac(k) * (forref(indf,j) + forfrac(k)                &
      &        * (forref(indf+1,j) - forref(indf,j)))) 
         enddo
@@ -2755,12 +2690,12 @@
 
       return
 !...................................
-      end subroutine taumol19
+      end subroutine n_taumol19
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine taumol20
+      subroutine n_taumol20
 !...................................
 
 !  ------------------------------------------------------------------  !
@@ -2773,7 +2708,7 @@
 !     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb20
+      use module_n_radsw_kgb20
 !
       implicit none
 
@@ -2787,14 +2722,14 @@
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
+!  ---  compute the optical depth by interpolating in ln(pressure), 
 !       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!       vapor self-continuum is interpolated (in temperature) separately.  
 
       do k = 1, NLAY
         tauray = colmol(k) * rayl
 
-        do j = 1, NG20
+        do j = 1 , NG20
           taur(k,j) = tauray
         enddo
       enddo
@@ -2838,12 +2773,12 @@
 
       return
 !...................................
-      end subroutine taumol20
+      end subroutine n_taumol20
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine taumol21
+      subroutine n_taumol21
 !...................................
 
 !  ------------------------------------------------------------------  !
@@ -2856,7 +2791,7 @@
 !     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb21
+      use module_n_radsw_kgb21
 !
       implicit none
 
@@ -2871,14 +2806,14 @@
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
+!  ---  compute the optical depth by interpolating in ln(pressure), 
 !       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!       vapor self-continuum is interpolated (in temperature) separately.  
 
       do k = 1, NLAY
         tauray = colmol(k) * rayl
 
-        do j = 1, NG21
+        do j = 1 , NG21
           taur(k,j) = tauray
         enddo
       enddo
@@ -2910,7 +2845,7 @@
         inds = indself(k)
         indf = indfor (k)
 
-        do j = 1, NG21
+        do j = 1 , NG21
           taug(k,j) = speccomb                                          &
      &        * ( fac000 * absa(ind01,j) + fac100 * absa(ind02,j)       &
      &        +   fac010 * absa(ind03,j) + fac110 * absa(ind04,j)       &
@@ -2949,7 +2884,7 @@
         ind14 = ind11 + 6
         indf = indfor(k)
 
-        do j = 1, NG21
+        do j = 1 , NG21
           taug(k,j) = speccomb                                          &
      &        * ( fac000 * absb(ind01,j) + fac100 * absb(ind02,j)       &
      &        +   fac010 * absb(ind03,j) + fac110 * absb(ind04,j)       &
@@ -2962,12 +2897,12 @@
 
       return
 !...................................
-      end subroutine taumol21
+      end subroutine n_taumol21
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine taumol22
+      subroutine n_taumol22
 !...................................
 
 !  ------------------------------------------------------------------  !
@@ -2980,7 +2915,7 @@
 !     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb22
+      use module_n_radsw_kgb22
 !
       implicit none
 
@@ -2995,21 +2930,21 @@
 !
 !===> ... begin here
 !
-!  ---  the following factor is the ratio of total o2 band intensity (lines
-!       and mate continuum) to o2 band intensity (line only). it is needed
-!       to adjust the optical depths since the k's include only lines.
+!  ---  the following factoris the ratio of total o2 bandintensity (lines 
+!       and mate continuum) to o2 bandintensity (line only). itis needed
+!       to adjust the optical depths since the k'sinclude only lines.
 
       o2adj = 1.6
       o2tem = 4.35e-4 / (350.0*2.0)
       
-!  ---  compute the optical depth by interpolating in ln(pressure),
+!  ---  compute the optical depth by interpolating in ln(pressure), 
 !       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!       vapor self-continuum is interpolated (in temperature) separately.  
 
       do k = 1, NLAY
         tauray = colmol(k) * rayl
 
-        do j = 1, NG22
+        do j = 1 , NG22
           taur(k,j) = tauray
         enddo
       enddo
@@ -3042,7 +2977,7 @@
         inds = indself(k)
         indf = indfor (k)
 
-        do j = 1, NG22
+        do j = 1 , NG22
           taug(k,j) = speccomb                                          &
      &        * ( fac000 * absa(ind01,j) + fac100 * absa(ind02,j)       &
      &        +   fac010 * absa(ind03,j) + fac110 * absa(ind04,j)       &
@@ -3063,7 +2998,7 @@
         ind11 = id1(k,22) + 1
         ind12 = ind11 + 1
 
-        do j = 1, NG22
+        do j = 1 , NG22
           taug(k,j) = colamt(k,6) * o2adj                               &
      &        * ( fac00(k)*absb(ind01,j) + fac10(k)*absb(ind02,j)       &
      &        +   fac01(k)*absb(ind11,j) + fac11(k)*absb(ind12,j) )     &
@@ -3073,12 +3008,12 @@
 
       return
 !...................................
-      end subroutine taumol22
+      end subroutine n_taumol22
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine taumol23
+      subroutine n_taumol23
 !...................................
 
 !  ------------------------------------------------------------------  !
@@ -3091,7 +3026,7 @@
 !     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb23
+      use module_n_radsw_kgb23
 !
       implicit none
 
@@ -3103,15 +3038,16 @@
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
+!  ---  compute the optical depth by interpolating in ln(pressure), 
 !       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!       vapor self-continuum is interpolated (in temperature) separately.  
 
       do k = 1, NLAY
-        do j = 1, NG23
+        do j = 1 , NG23
           taur(k,j) = colmol(k) * rayl(j) 
         enddo
       enddo
+
 
       do k = 1, laytrop
         ind01 = id0(k,23) + 1
@@ -3121,7 +3057,7 @@
         inds = indself(k)
         indf = indfor (k)
 
-        do j = 1, NG23
+        do j = 1 , NG23
           taug(k,j) = colamt(k,1) * (givfac                             &
      &        * ( fac00(k)*absa(ind01,j) + fac10(k)*absa(ind02,j)       &
      &        +   fac01(k)*absa(ind11,j) + fac11(k)*absa(ind12,j) )     &
@@ -3140,12 +3076,12 @@
 
       return
 !...................................
-      end subroutine taumol23
+      end subroutine n_taumol23
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine taumol24
+      subroutine n_taumol24
 !...................................
 
 !  ------------------------------------------------------------------  !
@@ -3158,7 +3094,7 @@
 !     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb24
+      use module_n_radsw_kgb24
 !
       implicit none
 
@@ -3173,9 +3109,9 @@
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
+!  ---  compute the optical depth by interpolating in ln(pressure), 
 !       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!       vapor self-continuum is interpolated (in temperature) separately.  
 
       do k = 1, laytrop
         speccomb = colamt(k,1) + strrat(24)*colamt(k,6)
@@ -3210,7 +3146,7 @@
      &        +   fac010 * absa(ind03,j) + fac110 * absa(ind04,j)       &
      &        +   fac001 * absa(ind11,j) + fac101 * absa(ind12,j)       &
      &        +   fac011 * absa(ind13,j) + fac111 * absa(ind14,j) )     &
-     &        + colamt(k,3) * abso3a(j) + colamt(k,1)                   &
+     &        + colamt(k,3) * abso3a(j) +  colamt(k,1)                  & 
      &        * (selffac(k) * (selfref(inds,j) + selffrac(k)            &
      &        * (selfref(inds+1,j) - selfref(inds,j)))                  &
      &        + forfac(k) * (forref(indf,j) + forfrac(k)                &
@@ -3239,12 +3175,12 @@
 
       return
 !...................................
-      end subroutine taumol24
+      end subroutine n_taumol24
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine taumol25
+      subroutine n_taumol25
 !...................................
 
 !  ------------------------------------------------------------------  !
@@ -3257,7 +3193,7 @@
 !     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb25
+      use module_n_radsw_kgb25
 !
       implicit none
 
@@ -3269,9 +3205,9 @@
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
+!  ---  compute the optical depth by interpolating in ln(pressure), 
 !       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!       vapor self-continuum is interpolated (in temperature) separately.  
 
       do k = 1, NLAY
         do j = 1, NG25
@@ -3301,12 +3237,12 @@
 
       return
 !...................................
-      end subroutine taumol25
+      end subroutine n_taumol25
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine taumol26
+      subroutine n_taumol26
 !...................................
 
 !  ------------------------------------------------------------------  !
@@ -3319,7 +3255,7 @@
 !     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb26
+      use module_n_radsw_kgb26
 !
       implicit none
 
@@ -3330,9 +3266,9 @@
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
+!  ---  compute the optical depth by interpolating in ln(pressure), 
 !       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!       vapor self-continuum is interpolated (in temperature) separately.  
 
       do k = 1, NLAY
         do j = 1, NG26 
@@ -3343,12 +3279,12 @@
 
       return
 !...................................
-      end subroutine taumol26
+      end subroutine n_taumol26
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine taumol27
+      subroutine n_taumol27
 !...................................
 
 !  ------------------------------------------------------------------  !
@@ -3361,7 +3297,7 @@
 !     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb27
+      use module_n_radsw_kgb27
 !
       implicit none
 
@@ -3373,9 +3309,9 @@
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
+!  ---  compute the optical depth by interpolating in ln(pressure), 
 !       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!       vapor self-continuum is interpolated (in temperature) separately.  
 
       do k = 1, NLAY
         do j = 1, NG27
@@ -3411,12 +3347,12 @@
 
       return
 !...................................
-      end subroutine taumol27
+      end subroutine n_taumol27
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine taumol28
+      subroutine n_taumol28
 !...................................
 
 !  ------------------------------------------------------------------  !
@@ -3429,7 +3365,7 @@
 !     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb28
+      use module_n_radsw_kgb28
 !
       implicit none
 
@@ -3444,9 +3380,9 @@
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
+!  ---  compute the optical depth by interpolating in ln(pressure), 
 !       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!       vapor self-continuum is interpolated (in temperature) separately.  
 
       do k = 1, NLAY
         tauray = colmol(k) * rayl
@@ -3486,7 +3422,7 @@
      &        * ( fac000 * absa(ind01,j) + fac100 * absa(ind02,j)       &
      &        +   fac010 * absa(ind03,j) + fac110 * absa(ind04,j)       &
      &        +   fac001 * absa(ind11,j) + fac101 * absa(ind12,j)       &
-     &        +   fac011 * absa(ind13,j) + fac111 * absa(ind14,j) )
+     &        +   fac011 * absa(ind13,j) + fac111 * absa(ind14,j) ) 
         enddo
       enddo
 
@@ -3520,18 +3456,18 @@
      &        * ( fac000 * absb(ind01,j) + fac100 * absb(ind02,j)       &
      &        +   fac010 * absb(ind03,j) + fac110 * absb(ind04,j)       &
      &        +   fac001 * absb(ind11,j) + fac101 * absb(ind12,j)       &
-     &        +   fac011 * absb(ind13,j) + fac111 * absb(ind14,j) )
+     &        +   fac011 * absb(ind13,j) + fac111 * absb(ind14,j) ) 
         enddo
       enddo
 
       return
 !...................................
-      end subroutine taumol28
+      end subroutine n_taumol28
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine taumol29
+      subroutine n_taumol29
 !...................................
 
 !  ------------------------------------------------------------------  !
@@ -3544,8 +3480,8 @@
 !     jjmorcrette 2002-10-03 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb29
-
+      use module_n_radsw_kgb29
+  
       implicit none
 
 !  ---  locals:
@@ -3558,9 +3494,9 @@
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
+!  ---  compute the optical depth by interpolating in ln(pressure), 
 !       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!       vapor self-continuum is interpolated (in temperature) separately.  
 
       do k = 1, NLAY
         tauray = colmol(k) * rayl
@@ -3599,22 +3535,22 @@
         do j = 1, NG29
           taug(k,j) = colamt(k,2)                                       &
      &        * ( fac00(k)*absb(ind01,j) + fac10(k)*absb(ind02,j)       &
-     &        +   fac01(k)*absb(ind11,j) + fac11(k)*absb(ind12,j) )     &
+     &        +   fac01(k)*absb(ind11,j) + fac11(k)*absb(ind12,j) )     &  
      &        + colamt(k,1) * absh2o(j) 
         enddo
       enddo
 
       return
 !...................................
-      end subroutine taumol29
+      end subroutine n_taumol29
 !-----------------------------------
 
 !...................................
-      end subroutine spcvrt
+      end subroutine n_spcvrt
 !-----------------------------------
 
 !
 !........................................!
-      end module module_radsw_main       !
+      end module module_n_radsw_main       !
 !========================================!
 

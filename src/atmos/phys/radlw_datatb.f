@@ -43,40 +43,9 @@
 !                                                                      !
 !    and all should be put in front of routines that use lw modules    !
 !                                                                      !
+!    ncep modifications history log:                                   !
 !                                                                      !
-!                                                                      !
-!    the original program declarations:                                !
-!                                                                      !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!                                                                      !
-! Copyright 2002, 2003, Atmospheric & Environmental Research, Inc.(AER)!
-! This software may be used, copied, or redistributed as long as it is !
-! not sold and this copyright notice is reproduced on each copy made.  !
-! This model is provided as is without any express or implied warranties
-!                      (http://www.rtweb.aer.com/)                     !
-!                                                                      !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!                                                                      !
-!                               rrtm                                   !
-!                                                                      !
-!                   rapid radiative transfer model                     !
-!                                                                      !
-!            atmospheric and environmental research, inc.              !
-!                        840 memorial drive                            !
-!                        cambridge, ma 02139                           !
-!                                                                      !
-!                           eli j. mlawer                              !
-!                         steven j. taubman~                           !
-!                         shepard a. clough                            !
-!                                                                      !
-!                         ~currently at gfdl                           !
-!                                                                      !
-!                       email:  mlawer@aer.com                         !
-!                                                                      !
-!        the authors wish to acknowledge the contributions of the      !
-!        following people:  patrick d. brown, michael j. iacono,       !
-!        ronald e. farren, luke chen, robert bergstrom.                !
-!                                                                      !
+!       see list in program "radlw_rrtm1_main.f"                       !
 !                                                                      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
@@ -85,11 +54,11 @@
 
 
 !========================================!
-      module module_n_radlw_avplank        !
+      module module_radlw_avplank        !
 !........................................!
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radlw_parameters, only : NPLNK, NBANDS
+      use machine,                 only : kind_phys
+      use module_radlw_parameters, only : NPLNK, NBANDS
 !
       implicit none
 !
@@ -755,17 +724,17 @@
      &2.73367E-07/
 
 !........................................!
-      end module module_n_radlw_avplank    !
+      end module module_radlw_avplank    !
 !========================================!
 
 
 
 !========================================!
-      module module_n_radlw_cldprlw        !
+      module module_radlw_cldprlw        !
 !........................................!
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radlw_parameters, only : NBANDS
+      use machine,                 only : kind_phys
+      use module_radlw_parameters, only : NBANDS
 !
       implicit none
 !
@@ -1172,13 +1141,13 @@
      & 1.012590e-02,9.973826e-03,9.825151e-03/
 
 !........................................!
-      end module module_n_radlw_cldprlw    !
+      end module module_radlw_cldprlw    !
 !========================================!
 
  
  
 !========================================!
-      module module_n_radlw_kgb01          !
+      module module_radlw_kgb01          !
 !........................................!
 !
 ! *********        the original program descriptions        ********* !
@@ -1198,8 +1167,8 @@
 !                                                                     !
 ! *********    *********    end description    *********    ********* !
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radlw_parameters, only : NG01
+      use machine,                 only : kind_phys
+      use module_radlw_parameters, only : NG01
 !
       implicit none
 !
@@ -1775,17 +1744,17 @@
      & 0.0455209911, 0.0068867803, 0.0040154802, 0.0007363300 /
  
 !........................................!
-      end module module_n_radlw_kgb01      !
+      end module module_radlw_kgb01      !
 !========================================!
  
  
  
 !========================================!
-      module module_n_radlw_kgb02          !
+      module module_radlw_kgb02          !
 !........................................!
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radlw_parameters, only : NG02
+      use machine,                 only : kind_phys
+      use module_radlw_parameters, only : NG02
 !
       implicit none
 !
@@ -2805,17 +2774,17 @@
      &  2.14946e-03, 1.66320e-03, 1.59940e-03 /
  
 !........................................!
-      end module module_n_radlw_kgb02      !
+      end module module_radlw_kgb02      !
 !========================================!
  
  
  
 !========================================!
-      module module_n_radlw_kgb03          !
+      module module_radlw_kgb03          !
 !........................................!
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radlw_parameters, only : NG03
+      use machine,                 only : kind_phys
+      use module_radlw_parameters, only : NG03
 !
       implicit none
 !
@@ -8963,17 +8932,17 @@
      &                  3.5339911e-04, 3.5282588e-04, 3.5079606e-04 /
  
 !........................................!
-      end module module_n_radlw_kgb03      !
+      end module module_radlw_kgb03      !
 !========================================!
  
  
  
 !========================================!
-      module module_n_radlw_kgb04          !
+      module module_radlw_kgb04          !
 !........................................!
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radlw_parameters, only : NG04
+      use machine,                 only : kind_phys
+      use module_radlw_parameters, only : NG04
 !
       implicit none
 !
@@ -14788,17 +14757,17 @@
      &0.0036684300,0.0028936900,0.0021154999,0.0019348300 /
  
 !........................................!
-      end module module_n_radlw_kgb04      !
+      end module module_radlw_kgb04      !
 !========================================!
  
  
  
 !========================================!
-      module module_n_radlw_kgb05          !
+      module module_radlw_kgb05          !
 !........................................!
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radlw_parameters, only : NG05
+      use machine,                 only : kind_phys
+      use module_radlw_parameters, only : NG05
 !
       implicit none
 !
@@ -20685,17 +20654,17 @@
      &0.0031123799,0.0022986501,0.0014757200,0.0005651700,0.0000793900/
  
 !........................................!
-      end module module_n_radlw_kgb05      !
+      end module module_radlw_kgb05      !
 !========================================!
  
  
  
 !========================================!
-      module module_n_radlw_kgb06          !
+      module module_radlw_kgb06          !
 !........................................!
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radlw_parameters, only : NG06
+      use machine,                 only : kind_phys
+      use module_radlw_parameters, only : NG06
 !
       implicit none
 !
@@ -20881,17 +20850,17 @@
      & 0.0478294492, 0.0072561502, 0.0038013197, 0.0006346800 /
  
 !........................................!
-      end module module_n_radlw_kgb06      !
+      end module module_radlw_kgb06      !
 !========================================!
  
  
  
 !========================================!
-      module module_n_radlw_kgb07          !
+      module module_radlw_kgb07          !
 !........................................!
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radlw_parameters, only : NG07
+      use machine,                 only : kind_phys
+      use module_radlw_parameters, only : NG07
 !
       implicit none
 !
@@ -23019,17 +22988,17 @@
      & 0.0037283699, 0.0029409500, 0.0035205102, 0.0005830800 /
  
 !........................................!
-      end module module_n_radlw_kgb07      !
+      end module module_radlw_kgb07      !
 !========================================!
  
  
  
 !========================================!
-      module module_n_radlw_kgb08          !
+      module module_radlw_kgb08          !
 !........................................!
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radlw_parameters, only : NG08
+      use machine,                 only : kind_phys
+      use module_radlw_parameters, only : NG08
 !
       implicit none
 !
@@ -23666,17 +23635,17 @@
      &     5.62185e-10,5.38371e-10,5.15183e-10,4.98660e-10 /
  
 !........................................!
-      end module module_n_radlw_kgb08      !
+      end module module_radlw_kgb08      !
 !========================================!
  
  
  
 !========================================!
-      module module_n_radlw_kgb09          !
+      module module_radlw_kgb09          !
 !........................................!
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radlw_parameters, only : NG09
+      use machine,                 only : kind_phys
+      use module_radlw_parameters, only : NG09
 !
       implicit none
 !
@@ -26145,17 +26114,17 @@
  
  
 !........................................!
-      end module module_n_radlw_kgb09      !
+      end module module_radlw_kgb09      !
 !========================================!
  
  
  
 !========================================!
-      module module_n_radlw_kgb10          !
+      module module_radlw_kgb10          !
 !........................................!
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radlw_parameters, only : NG10
+      use machine,                 only : kind_phys
+      use module_radlw_parameters, only : NG10
 !
       implicit none
 !
@@ -26572,17 +26541,17 @@
      & 0.0532786474, 0.0042107701 /
  
 !........................................!
-      end module module_n_radlw_kgb10      !
+      end module module_radlw_kgb10      !
 !========================================!
  
  
  
 !========================================!
-      module module_n_radlw_kgb11          !
+      module module_radlw_kgb11          !
 !........................................!
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radlw_parameters, only : NG11
+      use machine,                 only : kind_phys
+      use module_radlw_parameters, only : NG11
 !
       implicit none
 !
@@ -27154,17 +27123,17 @@
      & 0.1517885625, 0.0477351174, 0.0092400005, 0.0020862001 /
  
 !........................................!
-      end module module_n_radlw_kgb11      !
+      end module module_radlw_kgb11      !
 !========================================!
  
  
  
 !========================================!
-      module module_n_radlw_kgb12          !
+      module module_radlw_kgb12          !
 !........................................!
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radlw_parameters, only : NG12
+      use machine,                 only : kind_phys
+      use module_radlw_parameters, only : NG12
 !
       implicit none
 !
@@ -28197,17 +28166,17 @@
      & 0.2594290078, 0.1766991019, 0.0665789396, 0.0055363504 /
  
 !........................................!
-      end module module_n_radlw_kgb12      !
+      end module module_radlw_kgb12      !
 !========================================!
  
  
  
 !========================================!
-      module module_n_radlw_kgb13          !
+      module module_radlw_kgb13          !
 !........................................!
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radlw_parameters, only : NG13
+      use machine,                 only : kind_phys
+      use module_radlw_parameters, only : NG13
 !
       implicit none
 !
@@ -28743,17 +28712,17 @@
      & 0.4522779882, 0.3569740057, 0.1805745065, 0.0101753296 /
  
 !........................................!
-      end module module_n_radlw_kgb13      !
+      end module module_radlw_kgb13      !
 !========================================!
  
  
  
 !========================================!
-      module module_n_radlw_kgb14          !
+      module module_radlw_kgb14          !
 !........................................!
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radlw_parameters, only : NG14
+      use machine,                 only : kind_phys
+      use module_radlw_parameters, only : NG14
 !
       implicit none
 !
@@ -28931,17 +28900,17 @@
       data  fracrefb / 0.9458647966, 0.0541389883 /
  
 !........................................!
-      end module module_n_radlw_kgb14      !
+      end module module_radlw_kgb14      !
 !========================================!
  
  
  
 !========================================!
-      module module_n_radlw_kgb15          !
+      module module_radlw_kgb15          !
 !........................................!
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radlw_parameters, only : NG15
+      use machine,                 only : kind_phys
+      use module_radlw_parameters, only : NG15
 !
       implicit none
 !
@@ -29229,17 +29198,17 @@
      & 0.9384269118, 0.0615767650 /
  
 !........................................!
-      end module module_n_radlw_kgb15      !
+      end module module_radlw_kgb15      !
 !========================================!
  
  
  
 !========================================!
-      module module_n_radlw_kgb16          !
+      module module_radlw_kgb16          !
 !........................................!
 !
-      use n_machine,                 only : kind_phys
-      use module_n_radlw_parameters, only : NG16
+      use machine,                 only : kind_phys
+      use module_radlw_parameters, only : NG16
 !
       implicit none
 !
@@ -29527,5 +29496,5 @@
      & 0.9634116888, 0.0365910083 /
  
 !........................................!
-      end module module_n_radlw_kgb16      !
+      end module module_radlw_kgb16      !
 !========================================!

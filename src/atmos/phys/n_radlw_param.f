@@ -43,9 +43,40 @@
 !                                                                      !
 !    and all should be put in front of routines that use lw modules    !
 !                                                                      !
-!    ncep modifications history log:                                   !
 !                                                                      !
-!       see list in program "radlw_rrtm1_main.f"                       !
+!                                                                      !
+!    the original program declarations:                                !
+!                                                                      !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                      !
+! Copyright 2002, 2003, Atmospheric & Environmental Research, Inc.(AER)!
+! This software may be used, copied, or redistributed as long as it is !
+! not sold and this copyright notice is reproduced on each copy made.  !
+! This model is provided as is without any express or implied warranties
+!                      (http://www.rtweb.aer.com/)                     !
+!                                                                      !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                      !
+!                               rrtm                                   !
+!                                                                      !
+!                   rapid radiative transfer model                     !
+!                                                                      !
+!            atmospheric and environmental research, inc.              !
+!                        840 memorial drive                            !
+!                        cambridge, ma 02139                           !
+!                                                                      !
+!                           eli j. mlawer                              !
+!                         steven j. taubman~                           !
+!                         shepard a. clough                            !
+!                                                                      !
+!                         ~currently at gfdl                           !
+!                                                                      !
+!                       email:  mlawer@aer.com                         !
+!                                                                      !
+!        the authors wish to acknowledge the contributions of the      !
+!        following people:  patrick d. brown, michael j. iacono,       !
+!        ronald e. farren, luke chen, robert bergstrom.                !
+!                                                                      !
 !                                                                      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
@@ -54,7 +85,7 @@
 
 
 !========================================!
-      module module_radlw_cntr_para      !
+      module module_n_radlw_cntr_para      !
 !........................................!
 !
         implicit   none
@@ -81,7 +112,7 @@
                         !(default)  ! =0: do not include cfc gases
                                     ! =1: include all cfc gases
 
-        parameter ( iflagliq=3 )    !===> ... liq-cloud optical properties contrl flag
+        parameter ( iflagliq=0 )    !===> ... liq-cloud optical properties contrl flag     !carlos put 0 for nmmb (clouds are input to grrad)
                                     ! =0: input cloud opt depth, ignor iflagice setting
                                     ! =1: input cwp,cip, (ccm2 method) ignor iflagice setting
                                     ! =2: input cwp rew, ccm3 method for liquid clouds
@@ -95,16 +126,16 @@
 
 !
 !........................................!
-      end module module_radlw_cntr_para  !
+      end module module_n_radlw_cntr_para  !
 !========================================!
 
 
 
 !========================================!
-      module module_radlw_parameters     !
+      module module_n_radlw_parameters     !
 !........................................!
 
-      use machine,                 only : kind_phys
+      use n_machine,                 only : kind_phys
 
       implicit none
 !
@@ -121,7 +152,6 @@
 !
       type :: sfcflw_type
         real (kind=kind_phys) :: upfxc         ! total sky upward flux at sfc
-        real (kind=kind_phys) :: upfx0         ! clear sky upward flux at sfc
         real (kind=kind_phys) :: dnfxc         ! total sky downward flux at sfc
         real (kind=kind_phys) :: dnfx0         ! clear sky downward flux at sfc
       end type
@@ -138,7 +168,7 @@
 !  ---  parameter constants for lw band structures
 !
       integer, parameter :: NBANDS = 16         ! num of total spectral bands
-      integer, parameter :: NGPTLW = 140        ! num of total g-points
+      integer, parameter :: NGPT   = 140        ! num of total g-points
       integer, parameter :: N5000  = 5000       !
       integer, parameter :: N200   = 200        !
       integer, parameter :: MAXGAS = 6          ! max num of absorbing gases
@@ -172,5 +202,5 @@
 
 
 !........................................!
-      end module module_radlw_parameters !
+      end module module_n_radlw_parameters !
 !========================================!

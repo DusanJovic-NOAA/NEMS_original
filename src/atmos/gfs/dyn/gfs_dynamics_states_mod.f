@@ -67,9 +67,9 @@
       if( int_state%start_step ) then
         print *,' It is starting, so no need for import_state2internal '
         return
-      else
-        print *,' do import state to internal state '
-      endif
+!     else
+!       print *,' do import state to internal state '
+!     endif
 
 ! idate1_im:  (1) --- fhour (integer), (2) - (5) --- idate.
 !-----------------------------------------------------------

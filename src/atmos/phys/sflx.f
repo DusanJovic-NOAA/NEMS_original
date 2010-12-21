@@ -290,10 +290,6 @@
 !            smcref, smcdry, f1, quartz, fxexp, rtdis, nroot,              !
 !            z0, czil, xlai, csoil )                                       !
 
-       if(smcwlt<0) then
-       print *,'after redprm,smcwlt=',smcwlt,'smcref=',smcref,
-     &    'soiltyp=',soiltyp
-       endif
 !  --- ...  initialize precipitation logicals.
 
       snowng = .false.

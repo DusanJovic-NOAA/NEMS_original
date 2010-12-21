@@ -1,15 +1,18 @@
       subroutine GET_PRS(im,ix,levs,ntrac,t,q,
+     &                   thermodyn_id, sfcpress_id,
+     &                   gen_coord_hybrid,
      &                   prsi,prki,prsl,prkl,phii,phil,del)
 !
       USE MACHINE ,              ONLY : kind_phys
-      use resol_def ,            only : thermodyn_id, sfcpress_id
-      use namelist_physics_def , only : gen_coord_hybrid 
+!     use resol_def ,            only : thermodyn_id, sfcpress_id
+!     use namelist_physics_def , only : gen_coord_hybrid 
       use physcons ,             only : cp => con_cp, nu => con_fvirt
      &,                                 rd => con_rd, rkap => con_rocp
       USE tracer_const
       implicit none
 !
-      integer im, ix, levs, ntrac
+      integer im, ix, levs, ntrac, thermodyn_id, sfcpress_id
+      logical gen_coord_hybrid
       real(kind=kind_phys) prsi(ix,levs+1), prki(ix,levs+1)
      &,                    phii(ix,levs+1), phil(ix,levs)
      &,                    prsl(ix,levs),   prkl(ix,levs)
@@ -200,17 +203,20 @@
       return
       end
       subroutine GET_PHI(im,ix,levs,ntrac,t,q,
+     &                   thermodyn_id, sfcpress_id,
+     &                   gen_coord_hybrid,
      &                   prsi,prki,prsl,prkl,phii,phil)
 !
       USE MACHINE ,              ONLY : kind_phys
-      use resol_def ,            only : thermodyn_id, sfcpress_id
-      use namelist_physics_def , only : gen_coord_hybrid
+!     use resol_def ,            only : thermodyn_id, sfcpress_id
+!     use namelist_physics_def , only : gen_coord_hybrid
       use physcons ,             only : cp => con_cp, nu => con_fvirt
      &,                                 rd => con_rd, rkap => con_rocp
       USE tracer_const
       implicit none
 !
-      integer im, ix, levs, ntrac
+      integer im, ix, levs, ntrac, thermodyn_id, sfcpress_id
+      logical gen_coord_hybrid
       real(kind=kind_phys) prsi(ix,levs+1), prsl(ix,levs)
      &,                    prki(ix,levs+1), prkl(ix,levs)
      &,                    phii(ix,levs+1), phil(ix,levs)

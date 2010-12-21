@@ -185,7 +185,7 @@
      &     flx_fld%sfcemis,
      &     flx_fld%TSFLW,FLUXR,phy_f3d,SLAG,SDEC,CDEC,NBLCK,KDT,
      &     global_times_r)
-           if (iprint .eq. 1) print*,' me = fin gloopr ',me
+!          if (iprint .eq. 1) print*,' me = fin gloopr ',me
 
         endif
 !
@@ -253,7 +253,7 @@
       if(ldfi.and.kdt==ndfi) then
          zhour=zhour_dfi
       endif
-!       print *,'in phys one,kdt=',kdt,'zhour=',zhour,                   &
+!     print *,'in phys one,kdt=',kdt,'zhour=',zhour,                   &
 !     &  'zhour_dfi=',zhour_dfi,'zhour_dfin=',zhour_dfin
  
       if(ndfi>0 .and. kdt==ndfi .and. ldfi ) then

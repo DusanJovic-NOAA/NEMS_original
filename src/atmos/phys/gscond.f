@@ -1,6 +1,5 @@
       SUBROUTINE GSCOND (IM,IX,KM,DT,PRSL,PS,Q,cwm,T
-     &,                  tp, qp, psp, tp1, qp1, psp1, u, lprnt, ipr,
-     &                   kdt,lat,me)
+     &,                  tp, qp, psp, tp1, qp1, psp1, u, lprnt, ipr)
 !
 !     ******************************************************************
 !     *                                                                *
@@ -57,8 +56,6 @@
      &,                      el2orc, albycp, vprs(im)
       INTEGER IW(IM,KM), i, k, iwik
       logical lprnt
-!jw
-      integer kdt,lat,me
 !
 !-----------------PREPARE CONSTANTS FOR LATER USES-----------------
 !

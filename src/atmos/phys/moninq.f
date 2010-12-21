@@ -193,7 +193,6 @@ c
           if (k < kinver(i)) then
 !                                  vertical background diffusivity
             ptem      = prsi(i,k+1) / prsi(i,1)
-!jwtest        tem1      = 1.0 - tem1
             tem1      = 1.0 - ptem
             tem1      = tem1 * tem1 * 10.0
             xkzo(i,k) = xkzm_h * min(1.0, exp(-tem1))

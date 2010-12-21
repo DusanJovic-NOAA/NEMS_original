@@ -1,3 +1,4 @@
+!!!!!  ==========================================================  !!!!!
 !!!!!              module_radiation_clouds description             !!!!!
 !!!!!  ==========================================================  !!!!!
 !                                                                      !
@@ -74,15 +75,12 @@
 !       apr 2003,  yu-tai hou                                          !
 !                  created 'module_rad_clouds' from combining the      !
 !                  original subroutine 'cldjms', 'cldprp', and 'gcljms'!
+!                                                                      !
 !       may 2004,  yu-tai hou                                          !
 !                  incorporate ferrier's cloud microphysics scheme.    !
+!                                                                      !
 !       apr 2005,  yu-tai hou                                          !
 !                  modified cloud array and module structures.         !
-!       dec 2008,  yu-tai hou                                          !
-!                  changed low-cld calc, now cantains clds from sfc    !
-!                  layer and upward to the low/mid boundary (include   !
-!                  bl-cld). h,m,l clds domain boundaries are adjusted  !
-!                  for better agreement with observations.             !
 !                                                                      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
@@ -90,15 +88,15 @@
 
 
 !========================================!
-      module module_radiation_clouds     !
+      module module_n_radiation_clouds     !
 !........................................!
 !
-      use machine,                only : kind_phys, kind_io8, kind_io4
-      use physcons,               only : con_pi,    con_g,   con_rd,    &
+      use n_machine,                only : kind_phys, kind_io8, kind_io4
+      use n_physcons,               only : con_pi,    con_g,   con_rd,    &
      &                                   con_fvirt, con_ttp, con_rocp,  &
      &                                   con_t0c
-      use module_microphysics,    only : rsipath2
-      use module_iounitdef,       only : NICLTUN
+      use module_n_microphysics_gfs,    only : n_rsipath2
+      use module_n_iounitdef,       only : NICLTUN
 !
       implicit   none
 !
@@ -106,18 +104,15 @@
 
 !  ---  set constant parameters
 
-      real (kind=kind_phys), parameter :: gfac=1.0e5/con_g              &
-     &,                                   gord=con_g/con_rd
       integer, parameter, public :: NF_CLDS = 9   ! number of fields in cloud array
 
 !  ---  pressure limits of cloud domain interfaces (low,mid,high) in mb (0.1kPa)
-      real (kind=kind_phys), save :: ptopc(4,2)
+      real (kind=kind_phys) :: ptopc(4,2)
 
-!org  data ptopc / 1050., 642., 350., 0.0,  1050., 750., 500., 0.0 /
-      data ptopc / 1050., 650., 400., 0.0,  1050., 750., 500., 0.0 /
+      data ptopc / 1050., 642., 350., 0.0,  1050., 750., 500., 0.0 /
 
 !     real (kind=kind_phys), parameter :: climit = 0.01
-      real (kind=kind_phys), parameter :: climit = 0.001, climit2=0.05
+      real (kind=kind_phys), parameter :: climit = 0.001
       real (kind=kind_phys), parameter :: ovcst  = 1.0 - 1.0e-8
 
 !  ---  set default quantities as parameters (for prognostic cloud)
@@ -156,7 +151,7 @@
       real (kind=kind_phys) :: rhcl(NBIN,NLON,NLAT,MCLD,NSEAL)
       integer               :: llyr
 
-      public progcld1, progcld2, diagcld1, cldinit
+      public n_progcld1, n_progcld2, n_diagcld1, n_cldinit
 
 
 ! =================
@@ -165,7 +160,7 @@
 
 
 !-----------------------------------
-      subroutine cldinit                                                &
+      subroutine n_cldinit                                                &
 !...................................
 
 !  ---  inputs:
@@ -220,7 +215,7 @@
 
 !  ---  set up tuned rh table
 
-        call rhtable( me, ier )
+        call n_rhtable( me, ier )
 
         if (ier < 0) then
           write(6,99) ier
@@ -265,18 +260,18 @@
 !
       return
 !...................................
-      end subroutine cldinit
+      end subroutine n_cldinit
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine progcld1                                               &
+      subroutine n_progcld1                                               &
 !...................................
 
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,qlyr,qstl,rhly,clw,                         &
      &       xlat,xlon,slmsk,                                           &
-     &       IX, NLAY, NLP1, iflip, iovr, sashal, crick_proof, ccnorm,  &
+     &       IX, NLAY, NLP1, iflip, iovr, sashal,                       &
 !  ---  outputs:
      &       clouds,clds,mtop,mbot                                      &
      &      )
@@ -369,7 +364,7 @@
 
       real (kind=kind_phys), dimension(:),   intent(in) :: xlat, xlon,  &
      &       slmsk
-      logical, intent(in) :: sashal, crick_proof, ccnorm
+      logical, intent(in) :: sashal
 
 !  ---  outputs
       real (kind=kind_phys), dimension(:,:,:), intent(out) :: clouds
@@ -380,28 +375,23 @@
 
 !  ---  local variables:
       real (kind=kind_phys), dimension(IX,NLAY) :: cldtot, cldcnv,      &
-     &       cwp, cip, crp, csp, rew, rei, res, rer, delp, tem2d, clwf
+     &       cwp, cip, crp, csp, rew, rei, res, rer, delp, tem2d
 
       real (kind=kind_phys) :: ptop1(IX,4)
 
       real (kind=kind_phys) :: clwmin, clwm, clwt, onemrh, value,       &
      &       tem1, tem2, tem3
 
+      integer, dimension(IX) :: kinver
 
-      integer :: i, k, id, nf
+      integer :: i, k, id, id1
 
+      logical :: inversn(IX)
 
 !
 !===> ... begin here
 !
-      do nf=1,nf_clds
-        do k=1,nlay
-          do i=1,ix
-            clouds(i,k,nf) = 0.0
-          enddo
-        enddo
-      enddo
-!     clouds(:,:,:) = 0.0
+      clouds(:,:,:) = 0.0
 
       do k = 1, NLAY
         do i = 1, IX
@@ -416,27 +406,8 @@
           rer   (i,k) = rrain_def            ! default rain radius to 1000 micron
           res   (i,k) = rsnow_def            ! default snow radius to 250 micron
           tem2d (i,k) = min( 1.0, max( 0.0, (con_ttp-tlyr(i,k))*0.05 ) )
-          clwf(i,k)   = 0.0
         enddo
       enddo
-!
-      if (crick_proof) then
-        do i = 1, IX
-          clwf(i,1)    = 0.75*clw(i,1)    + 0.25*clw(i,2)
-          clwf(i,nlay) = 0.75*clw(i,nlay) + 0.25*clw(i,nlay-1)
-        enddo
-        do k = 2, NLAY-1
-          do i = 1, IX
-            clwf(i,K) = 0.25*clw(i,k-1) + 0.5*clw(i,k) + 0.25*clw(i,k+1)
-          enddo
-        enddo
-      else
-        do k = 1, NLAY
-          do i = 1, IX
-            clwf(i,k) = clw(i,k)
-          enddo
-        enddo
-      endif
 
 !  ---  find top pressure for each cloud domain for given latitude
 !       ptopc(k,i): top presure of each cld domain (k=1-4 are sfc,L,m,h;
@@ -446,19 +417,20 @@
         tem1 = ptopc(id,2) - ptopc(id,1)
 
         do i =1, IX
-          ptop1(i,id) = ptopc(id,1) +                                   &
-     &                  tem1 * max( 0.0, 4.0*abs(xlat(i))/con_pi-1.0 )
+          tem2 = max( 0.0, 4.0*abs(xlat(i))/con_pi-1.0 )
+          ptop1(i,id) = ptopc(id,1) + tem1*tem2
         enddo
       enddo
 
 !  ---  compute liquid/ice condensate path in g/m**2
 
+      tem1 = 1.0e+5 / con_g
 
       if (iflip == 0) then             ! input data from toa to sfc
         do k = 1, NLAY
           do i = 1, IX
             delp(i,k) = plvl(i,k+1) - plvl(i,k)
-            clwt     = max(0.0, clwf(i,k)) * gfac * delp(i,k)
+            clwt  = max(0.0, clw(i,k)) * tem1 * delp(i,k)
             cip(i,k) = clwt * tem2d(i,k)
             cwp(i,k) = clwt - cip(i,k)
           enddo
@@ -467,7 +439,7 @@
         do k = 1, NLAY
           do i = 1, IX
             delp(i,k) = plvl(i,k) - plvl(i,k+1)
-            clwt     = max(0.0, clwf(i,k)) * gfac * delp(i,k)
+            clwt  = max(0.0, clw(i,k)) * tem1 * delp(i,k)
             cip(i,k) = clwt * tem2d(i,k)
             cwp(i,k) = clwt - cip(i,k)
           enddo
@@ -476,169 +448,23 @@
 
 !  ---  effective liquid cloud droplet radius over land
 
-      do k = 1, NLAY
-        do i = 1, IX
-          if (nint(slmsk(i)) == 1) then
+      do i = 1, IX
+        if (nint(slmsk(i)) == 1) then
+          do k = 1, NLAY
             rew(i,k) = 5.0 + 5.0 * tem2d(i,k)
-          endif
-        enddo
-      enddo
-
-!  ---  layer cloud fraction
-
-      if (iflip == 0) then                 ! input data from toa to sfc
-
-        clwmin = 0.0
-        if (.not. sashal) then
-        do k = NLAY, 1, -1
-          do i = 1, IX
-            clwt = 1.0e-6 * (plyr(i,k)*0.001)
-!           clwt = 2.0e-6 * (plyr(i,k)*0.001)
-
-            if (clwf(i,k) > clwt) then
-
-              onemrh= max( 1.e-10, 1.0-rhly(i,k) )
-              clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
-
-              tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
-              tem1  = 2000.0 / tem1
-!             tem1  = 1000.0 / tem1
-
-              value = max( min( tem1*(clwf(i,k)-clwm), 50.0 ), 0.0 )
-              tem2  = sqrt( sqrt(rhly(i,k)) )
-
-              cldtot(i,k) = max( tem2*(1.0-exp(-value)), 0.0 )
-            endif
           enddo
-        enddo
-        else
-        do k = NLAY, 1, -1
-          do i = 1, IX
-            clwt = 1.0e-6 * (plyr(i,k)*0.001)
-!           clwt = 2.0e-6 * (plyr(i,k)*0.001)
-
-            if (clwf(i,k) > clwt) then
-
-              onemrh= max( 1.e-10, 1.0-rhly(i,k) )
-              clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
-
-!             tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
-!             tem1  = 2000.0 / tem1
-
-              tem1  = min(max((onemrh*qstl(i,k))**0.49,0.0001),1.0)  !jhan
-              tem1  = 100.0 / tem1
-!
-!             tem1  = 2000.0 / tem1
-!             tem1  = 1000.0 / tem1
-!
-
-              value = max( min( tem1*(clwf(i,k)-clwm), 50.0 ), 0.0 )
-              tem2  = sqrt( sqrt(rhly(i,k)) )
-              cldtot(i,k) = max( tem2*(1.0-exp(-value)), 0.0 )
-            endif
-          enddo
-        enddo
         endif
-
-      else                                 ! input data from sfc to toa
-
-        clwmin = 0.0
-        if (.not. sashal) then
-        do k = 1, NLAY
-          do i = 1, IX
-            clwt = 1.0e-6 * (plyr(i,k)*0.001)
-!           clwt = 2.0e-6 * (plyr(i,k)*0.001)
-
-            if (clwf(i,k) > clwt) then
-
-              onemrh= max( 1.e-10, 1.0-rhly(i,k) )
-              clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
-
-              tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
-              tem1  = 2000.0 / tem1
-
-!             tem1  = 1000.0 / tem1
-
-              value = max( min( tem1*(clwf(i,k)-clwm), 50.0 ), 0.0 )
-              tem2  = sqrt( sqrt(rhly(i,k)) )
-
-              cldtot(i,k) = max( tem2*(1.0-exp(-value)), 0.0 )
-            endif
-          enddo
-        enddo
-        else
-                do k = 1, NLAY
-          do i = 1, IX
-            clwt = 1.0e-6 * (plyr(i,k)*0.001)
-!           clwt = 2.0e-6 * (plyr(i,k)*0.001)
-
-            if (clwf(i,k) > clwt) then
-
-              onemrh= max( 1.e-10, 1.0-rhly(i,k) )
-              clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
-
-!             tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
-!             tem1  = 2000.0 / tem1
-
-              tem1  = min(max((onemrh*qstl(i,k))**0.49,0.0001),1.0)  !jhan
-              tem1  = 100.0 / tem1
-!
-!             tem1  = 2000.0 / tem1
-!             tem1  = 1000.0 / tem1
-!
-
-              value = max( min( tem1*(clwf(i,k)-clwm), 50.0 ), 0.0 )
-              tem2  = sqrt( sqrt(rhly(i,k)) )
-
-              cldtot(i,k) = max( tem2*(1.0-exp(-value)), 0.0 )
-            endif
-          enddo
-        enddo
-        endif
-
-      endif                                ! end_if_flip
-
-      do k = 1, NLAY
-        do i = 1, IX
-          if (cldtot(i,k) < climit) then
-            cldtot(i,k) = 0.0
-            cwp(i,k)    = 0.0
-            cip(i,k)    = 0.0
-            crp(i,k)    = 0.0
-            csp(i,k)    = 0.0
-          endif
-        enddo
       enddo
-!     where (cldtot < climit)
-!       cldtot = 0.0
-!       cwp    = 0.0
-!       cip    = 0.0
-!       crp    = 0.0
-!       csp    = 0.0
-!     endwhere
-!
-      if (ccnorm) then
-        do k = 1, NLAY
-          do i = 1, IX
-            if (cldtot(i,k) >= climit) then
-              tem1 = 1.0 / max(climit2, cldtot(i,k))
-              cwp(i,k) = cwp(i,k) * tem1
-              cip(i,k) = cip(i,k) * tem1
-              crp(i,k) = crp(i,k) * tem1
-              csp(i,k) = csp(i,k) * tem1
-            endif
-          enddo
-        enddo
-      endif
 
 !  ---  effective ice cloud droplet radius
 
+      tem1 = con_g / con_rd
       do k = 1, NLAY
         do i = 1, IX
           tem2 = tlyr(i,k) - con_ttp
 
           if (cip(i,k) > 0.0) then
-            tem3 = gord * cip(i,k) * ( plyr(i,k) / delp(i,k) )          &
+            tem3 = tem1 * cip(i,k) * ( plyr(i,k) / delp(i,k) )          &
      &           / (tlyr(i,k) * (1.0 + con_fvirt * qlyr(i,k)))
 
             if (tem2 < -50.0) then
@@ -654,7 +480,165 @@
         enddo
       enddo
 
+!  ---  layer cloud fraction
+
+      if (iflip == 0) then                 ! input data from toa to sfc
+
+        do i = 1, IX
+          inversn(i) = .false.
+          kinver (i) = 1
+        enddo
+
+        do k = NLAY-1, 1, -1
+          do i = 1, IX
+            if (plyr(i,k) > 600.0 .and. (.not.inversn(i))) then
+              tem1 = tlyr(i,k-1) - tlyr(i,k)
+
+              if (tem1 > 0.1 .and. tlyr(i,k) > 278.0) then
+                inversn(i) = .true.
+                kinver(i)  = k
+              endif
+            endif
+          enddo
+        enddo
+
+        clwmin = 0.0
+        if (.not. sashal) then
+        do k = NLAY, 1, -1
+          do i = 1, IX
+            clwt = 1.0e-6 * (plyr(i,k)*0.001)
+!           clwt = 2.0e-6 * (plyr(i,k)*0.001)
+
+            if (clw(i,k) > clwt .or.                                    &
+     &         (inversn(i) .and. k >= kinver(i)) ) then
+
+              onemrh= max( 1.e-10, 1.0-rhly(i,k) )
+              clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
+
+              tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
+              tem1  = 2000.0 / tem1
+!             tem1  = 1000.0 / tem1
+!             if (inversn(i) .and. k >= kinver(i)) tem1 = tem1 * 5.0
+
+              value = max( min( tem1*(clw(i,k)-clwm), 50.0 ), 0.0 )
+              tem2  = sqrt( sqrt(rhly(i,k)) )
+
+              cldtot(i,k) = max( tem2*(1.0-exp(-value)), 0.0 )
+            endif
+          enddo
+        enddo
+        else
+        do k = NLAY, 1, -1
+          do i = 1, IX
+            clwt = 1.0e-6 * (plyr(i,k)*0.001)
+!           clwt = 2.0e-6 * (plyr(i,k)*0.001)
+
+            if (clw(i,k) > clwt .or.                                    &
+     &         (inversn(i) .and. k >= kinver(i)) ) then
+
+              onemrh= max( 1.e-10, 1.0-rhly(i,k) )
+              clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
+
+              tem1  = min(max((onemrh*qstl(i,k))**0.49,0.0001),1.0)  !jhan
+              tem1  = 100.0 / tem1
 !
+!             tem1  = 2000.0 / tem1
+!             tem1  = 1000.0 / tem1
+!             if (inversn(i) .and. k >= kinver(i)) tem1 = tem1 * 5.0
+!
+
+              value = max( min( tem1*(clw(i,k)-clwm), 50.0 ), 0.0 )
+              tem2  = sqrt( sqrt(rhly(i,k)) )
+              cldtot(i,k) = max( tem2*(1.0-exp(-value)), 0.0 )
+            endif
+          enddo
+        enddo
+        endif
+
+      else                                 ! input data from sfc to toa
+
+        do i = 1, IX
+          inversn(i) = .false.
+          kinver (i) = NLAY
+        enddo
+
+        do k = 2, NLAY
+          do i = 1, IX
+            if (plyr(i,k) > 600.0 .and. (.not.inversn(i))) then
+              tem1 = tlyr(i,k+1) - tlyr(i,k)
+
+              if (tem1 > 0.1 .and. tlyr(i,k) > 278.0) then
+                inversn(i) = .true.
+                kinver(i)  = k
+              endif
+            endif
+          enddo
+        enddo
+
+        clwmin = 0.0
+        if (.not. sashal) then
+        do k = 1, NLAY
+          do i = 1, IX
+            clwt = 1.0e-6 * (plyr(i,k)*0.001)
+!           clwt = 2.0e-6 * (plyr(i,k)*0.001)
+
+            if (clw(i,k) > clwt .or.                                    &
+     &         (inversn(i) .and. k <= kinver(i)) ) then
+
+              onemrh= max( 1.e-10, 1.0-rhly(i,k) )
+              clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
+
+              tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
+              tem1  = 2000.0 / tem1
+!             tem1  = 1000.0 / tem1
+!             if (inversn(i) .and. k <= kinver(i)) tem1 = tem1 * 5.0
+
+              value = max( min( tem1*(clw(i,k)-clwm), 50.0 ), 0.0 )
+              tem2  = sqrt( sqrt(rhly(i,k)) )
+
+              cldtot(i,k) = max( tem2*(1.0-exp(-value)), 0.0 )
+            endif
+          enddo
+        enddo
+        else
+                do k = 1, NLAY
+          do i = 1, IX
+            clwt = 1.0e-6 * (plyr(i,k)*0.001)
+!           clwt = 2.0e-6 * (plyr(i,k)*0.001)
+
+            if (clw(i,k) > clwt .or.                                    &
+     &         (inversn(i) .and. k <= kinver(i)) ) then
+
+              onemrh= max( 1.e-10, 1.0-rhly(i,k) )
+              clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
+
+              tem1  = min(max((onemrh*qstl(i,k))**0.49,0.0001),1.0)  !jhan
+              tem1  = 100.0 / tem1
+!
+!             tem1  = 2000.0 / tem1
+!             tem1  = 1000.0 / tem1
+!             if (inversn(i) .and. k <= kinver(i)) tem1 = tem1 * 5.0
+!
+
+              value = max( min( tem1*(clw(i,k)-clwm), 50.0 ), 0.0 )
+              tem2  = sqrt( sqrt(rhly(i,k)) )
+
+              cldtot(i,k) = max( tem2*(1.0-exp(-value)), 0.0 )
+            endif
+          enddo
+        enddo
+        endif
+
+      endif                                ! end_if_flip
+
+      where (cldtot < climit)
+        cldtot = 0.0
+        cwp    = 0.0
+        cip    = 0.0
+        crp    = 0.0
+        csp    = 0.0
+      endwhere
+
       do k = 1, NLAY
         do i = 1, IX
           clouds(i,k,1) = cldtot(i,k)
@@ -669,14 +653,13 @@
         enddo
       enddo
 
-
 !  ---  compute low, mid, high, total, and boundary layer cloud fractions
 !       and clouds top/bottom layer indices for low, mid, and high clouds.
 !       The three cloud domain boundaries are defined by ptopc.  The cloud
 !       overlapping method is defined by control flag 'iovr', which is
 !  ---  also used by the lw and sw radiation programs.
 
-      call gethml                                                       &
+      call n_gethml                                                       &
 !  ---  inputs:
      &     ( plyr, ptop1, cldtot, cldcnv,                               &
      &       IX,NLAY, iflip, iovr,                                      &
@@ -688,19 +671,18 @@
 !
       return
 !...................................
-      end subroutine progcld1
+      end subroutine n_progcld1
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine progcld2                                               &
+      subroutine n_progcld2                                               &
 !...................................
 
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,qlyr,qstl,rhly,clw,                         &
      &       xlat,xlon,slmsk, f_ice,f_rain,r_rime,flgmin,               &
-     &       IX, NLAY, NLP1, iflip, iovr, sashal, norad_precip,         &
-     &       crick_proof, ccnorm,                                       &
+     &       IX, NLAY, NLP1, iflip, iovr, sashal,                       &
 !  ---  outputs:
      &       clouds,clds,mtop,mbot                                      &
      &      )
@@ -788,7 +770,7 @@
 
       real (kind=kind_phys), dimension(:),   intent(in) :: xlat, xlon,  &
      &       slmsk
-      logical, intent(in) :: sashal, norad_precip, crick_proof, ccnorm
+      logical, intent(in) :: sashal
       real (kind=kind_phys), dimension(:), intent(in) :: flgmin
 
 !  ---  outputs
@@ -801,15 +783,18 @@
 !  ---  local variables:
       real (kind=kind_phys), dimension(IX,NLAY) :: cldtot, cldcnv,      &
      &       cwp, cip, crp, csp, rew, rei, res, rer, tem2d, clw2,       &
-     &       qcwat, qcice, qrain, fcice, frain, rrime, rsden, clwf
+     &       qcwat, qcice, qrain, fcice, frain, rrime, rsden
 
-      real (kind=kind_phys) :: ptop1(IX,4)
+      real (kind=kind_phys) :: ptop1(IX,4), tx1(IX)
 
       real (kind=kind_phys) :: clwmin, clwm, clwt, onemrh, value,       &
      &       tem1, tem2, tem3
 
+      integer, dimension(IX) :: kinver
 
-      integer :: i, k, id
+      integer :: i, k, id, id1
+
+      logical :: inversn(IX)
 
 !
 !===> ... begin here
@@ -834,24 +819,6 @@
           tem2d (i,k) = tlyr(i,k) - con_t0c
         enddo
       enddo
-!
-      if (crick_proof) then
-        do i = 1, IX
-          clwf(i,1)    = 0.75*clw(i,1)    + 0.25*clw(i,2)
-          clwf(i,nlay) = 0.75*clw(i,nlay) + 0.25*clw(i,nlay-1)
-        enddo
-        do k = 2, NLAY-1
-          do i = 1, IX
-            clwf(i,K) = 0.25*clw(i,k-1) + 0.5*clw(i,k) + 0.25*clw(i,k+1)
-          enddo
-        enddo
-      else
-        do k = 1, NLAY
-          do i = 1, IX
-            clwf(i,k) = clw(i,k)
-          enddo
-        enddo
-      endif
 
 !  ---  find top pressure for each cloud domain for given latitude
 !       ptopc(k,i): top presure of each cld domain (k=1-4 are sfc,L,m,h;
@@ -873,21 +840,21 @@
       do k = 1, NLAY
         do i = 1, IX
           if (tem2d(i,k) > -40.0) then
-            qcice(i,k) = clwf(i,k) * fcice(i,k)
-            tem1       = clwf(i,k) - qcice(i,k)
+            qcice(i,k) = clw(i,k) * fcice(i,k)
+            tem1       = clw(i,k) - qcice(i,k)
             qrain(i,k) = tem1 * frain(i,k)
             qcwat(i,k) = tem1 - qrain(i,k)
             clw2 (i,k) = qcwat(i,k) + qcice(i,k)
           else
-            qcice(i,k) = clwf(i,k)
+            qcice(i,k) = clw(i,k)
             qrain(i,k) = 0.0
             qcwat(i,k) = 0.0
-            clw2 (i,k) = clwf(i,k)
+            clw2 (i,k) = clw(i,k)
           endif
         enddo
       enddo
 
-      call  rsipath2                                                    &
+      call  n_rsipath2                                                    &
 !  ---  inputs:
      &     ( plyr, plvl, tlyr, qlyr, qcwat, qcice, qrain, rrime,        &
      &       IX, NLAY, iflip, flgmin,                                   &
@@ -895,6 +862,7 @@
      &       cwp, cip, crp, csp, rew, rer, res, rsden                   &
      &     )
 
+!  ---  effective ice cloud droplet radius
 
       if (iflip == 0) then             ! input data from toa to sfc
         do k = 1, NLAY
@@ -911,198 +879,6 @@
           enddo
         enddo
       endif                            ! end_if_iflip
-
-!  ---  layer cloud fraction
-
-      if (iflip == 0) then                 ! input data from toa to sfc
-
-        clwmin = 0.0
-        if (.not. sashal) then
-        do k = NLAY, 1, -1
-          do i = 1, IX
-!           clwt = 1.0e-7 * (plyr(i,k)*0.001)
-!           clwt = 1.0e-6 * (plyr(i,k)*0.001)
-            clwt = 2.0e-6 * (plyr(i,k)*0.001)
-!           clwt = 5.0e-6 * (plyr(i,k)*0.001)
-!           clwt = 5.0e-6
-
-            if (clw2(i,k) > clwt) then
-
-              onemrh= max( 1.e-10, 1.0-rhly(i,k) )
-              clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
-
-!             tem1  = min(max(sqrt(onemrh*qstl(i,k)),0.0001),1.0)
-!             tem1  = 100.0 / tem1
-
-              tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
-              tem1  = 2000.0 / tem1
-!             tem1  = 2400.0 / tem1
-!cnt          tem1  = 2500.0 / tem1
-!             tem1  = min(max(sqrt(onemrh*qstl(i,k)),0.0001),1.0)
-!             tem1  = 2000.0 / tem1
-!             tem1  = 1000.0 / tem1
-!             tem1  = 100.0 / tem1
-
-              value = max( min( tem1*(clw2(i,k)-clwm), 50.0 ), 0.0 )
-              tem2  = sqrt( sqrt(rhly(i,k)) )
-
-              cldtot(i,k) = max( tem2*(1.0-exp(-value)), 0.0 )
-            endif
-          enddo
-        enddo
-        else
-                do k = NLAY, 1, -1
-          do i = 1, IX
-!           clwt = 1.0e-6 * (plyr(i,k)*0.001)
-            clwt = 2.0e-6 * (plyr(i,k)*0.001)
-
-            if (clw2(i,k) > clwt) then
-
-              onemrh= max( 1.e-10, 1.0-rhly(i,k) )
-              clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
-
-              tem1  = min(max((onemrh*qstl(i,k))**0.49,0.0001),1.0)    !jhan
-              tem1  = 100.0 / tem1
-
-!             tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
-!             tem1  = 2000.0 / tem1
-!
-!             tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
-!             tem1  = 2200.0 / tem1
-!             tem1  = 2400.0 / tem1
-!             tem1  = 2500.0 / tem1
-!             tem1  = min(max(sqrt(onemrh*qstl(i,k)),0.0001),1.0)
-!             tem1  = 2000.0 / tem1
-!             tem1  = 1000.0 / tem1
-!             tem1  = 100.0 / tem1
-!
-
-              value = max( min( tem1*(clw2(i,k)-clwm), 50.0 ), 0.0 )
-              tem2  = sqrt( sqrt(rhly(i,k)) )
-
-              cldtot(i,k) = max( tem2*(1.0-exp(-value)), 0.0 )
-            endif
-          enddo
-        enddo
-        endif
-
-      else                                 ! input data from sfc to toa
-
-        clwmin = 0.0e-6
-        if (.not. sashal) then
-        do k = 1, NLAY
-          do i = 1, IX
-!           clwt = 1.0e-7 * (plyr(i,k)*0.001)
-!           clwt = 1.0e-6 * (plyr(i,k)*0.001)
-            clwt = 2.0e-6 * (plyr(i,k)*0.001)
-!           clwt = 5.0e-6 * (plyr(i,k)*0.001)
-!           clwt = 5.0e-6
-
-            if (clw2(i,k) > clwt) then
-
-              onemrh= max( 1.e-10, 1.0-rhly(i,k) )
-              clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
-
-!             tem1  = min(max(sqrt(onemrh*qstl(i,k)),0.0001),1.0)
-!             tem1  = 100.0 / tem1
-
-              tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
-              tem1  = 2000.0 / tem1
-!             tem1  = 2400.0 / tem1
-!cnt          tem1  = 2500.0 / tem1
-!             tem1  = min(max(sqrt(onemrh*qstl(i,k)),0.0001),1.0)
-!             tem1  = 2000.0 / tem1
-!             tem1  = 1000.0 / tem1
-!             tem1  = 100.0 / tem1
-
-              value = max( min( tem1*(clw2(i,k)-clwm), 50.0 ), 0.0 )
-              tem2  = sqrt( sqrt(rhly(i,k)) )
-
-              cldtot(i,k) = max( tem2*(1.0-exp(-value)), 0.0 )
-            endif
-          enddo
-        enddo
-        else
-                do k = 1, NLAY
-          do i = 1, IX
-!           clwt = 1.0e-6 * (plyr(i,k)*0.001)
-            clwt = 2.0e-6 * (plyr(i,k)*0.001)
-
-            if (clw2(i,k) > clwt) then
-
-              onemrh= max( 1.e-10, 1.0-rhly(i,k) )
-              clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
-
-              tem1  = min(max((onemrh*qstl(i,k))**0.49,0.0001),1.0)   !jhan
-              tem1  = 100.0 / tem1
-
-!             tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
-!             tem1  = 2000.0 / tem1
-!
-!             tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
-!             tem1  = 2200.0 / tem1
-!             tem1  = 2400.0 / tem1
-!             tem1  = 2500.0 / tem1
-!             tem1  = min(max(sqrt(onemrh*qstl(i,k)),0.0001),1.0)
-!             tem1  = 2000.0 / tem1
-!             tem1  = 1000.0 / tem1
-!             tem1  = 100.0 / tem1
-
-              value = max( min( tem1*(clw2(i,k)-clwm), 50.0 ), 0.0 )
-              tem2  = sqrt( sqrt(rhly(i,k)) )
-
-              cldtot(i,k) = max( tem2*(1.0-exp(-value)), 0.0 )
-            endif
-          enddo
-        enddo
-        endif
-
-      endif                                ! end_if_flip
-
-      do k = 1, NLAY
-        do i = 1, IX
-          if (cldtot(i,k) < climit) then
-            cldtot(i,k) = 0.0
-            cwp(i,k)    = 0.0
-            cip(i,k)    = 0.0
-            crp(i,k)    = 0.0
-            csp(i,k)    = 0.0
-          endif
-        enddo
-      enddo
-!     where (cldtot < climit)
-!       cldtot = 0.0
-!       cwp    = 0.0
-!       cip    = 0.0
-!       crp    = 0.0
-!       csp    = 0.0
-!     endwhere 
-
-!     When norad_precip = .true. snow/rain has no impact on radiation
-      if (norad_precip) then
-        do k = 1, NLAY
-          do i = 1, IX
-            crp(i,k) = 0.0
-            csp(i,k) = 0.0
-          enddo
-        enddo
-      endif
-!
-      if (ccnorm) then
-        do k = 1, NLAY
-          do i = 1, IX
-            if (cldtot(i,k) >= climit) then
-              tem1 = 1.0 / max(climit2, cldtot(i,k))
-              cwp(i,k) = cwp(i,k) * tem1
-              cip(i,k) = cip(i,k) * tem1
-              crp(i,k) = crp(i,k) * tem1
-              csp(i,k) = csp(i,k) * tem1
-            endif
-          enddo
-        enddo
-      endif
-
-!  ---  effective ice cloud droplet radius
 
       do k = 1, NLAY
         do i = 1, IX
@@ -1128,13 +904,216 @@
 
             rei(i,k)   = max(10.0, min(rei(i,k), 300.0))
 !           rei(i,k)   = max(20.0, min(rei(i,k), 300.0))
-!!!!        rei(i,k)   = max(30.0, min(rei(i,k), 300.0))
-!           rei(i,k)   = max(50.0, min(rei(i,k), 300.0))
+!           rei(i,k)   = max(30.0, min(rei(i,k), 300.0))
+!LLLL       rei(i,k)   = max(50.0, min(rei(i,k), 300.0))
 !           rei(i,k)   = max(100.0, min(rei(i,k), 300.0))
           endif
         enddo
       enddo
+
+!  ---  layer cloud fraction
+
+      if (iflip == 0) then                 ! input data from toa to sfc
+
+        do i = 1, IX
+          inversn(i) = .false.
+          kinver (i) = 1
+          tx1(i)     = 0.0
+        enddo
+
+!       do k = NLAY-1, 1, -1
+        do k = NLAY, 1, -1
+          do i = 1, IX
+!           if (plyr(i,k) > 600.0 .and. (.not.inversn(i))) then
+!             tem1 = tlyr(i,k-1) - tlyr(i,k)
+
+!!            if (tem1 > 0.1 .and. tlyr(i,k) > 278.0) then
+!             if (tem1 > 0.1 ) then
+
+            if (plvl(i,NLP1)-plvl(i,k) .lt. 0.35*plvl(i,NLP1)           &
+     &                              .and. (.not. inversn(i))) then
+              tem1 = (tlyr(i,K-1)-tlyr(i,K)) / (plyr(i,k)-plyr(i,k-1))
+!             if (tem1 .gt. 0.005 .and. tx1(i) .lt. 0.0) then
+              if (tem1 .gt. 0.002 .and. tx1(i) .lt. 0.0) then
+                inversn(i) = .true.
+                kinver(i)  = k - 1
+              endif
+              tx1(i) = tem1
+            endif
+          enddo
+        enddo
+
+        clwmin = 0.0
+        if (.not. sashal) then
+        do k = NLAY, 1, -1
+          do i = 1, IX
+            clwt = 1.0e-7 * (plyr(i,k)*0.001)
+!           clwt = 1.0e-6 * (plyr(i,k)*0.001)
+!           clwt = 2.0e-6 * (plyr(i,k)*0.001)
+
+            if (clw2(i,k) > clwt .or.                                   &
+     &         (inversn(i) .and. k >= kinver(i)) ) then
+
+              onemrh= max( 1.e-10, 1.0-rhly(i,k) )
+              clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
+
+              tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
+              tem1  = 2000.0 / tem1
+!             tem1  = 2400.0 / tem1
+!cnt          tem1  = 2500.0 / tem1
+!             tem1  = min(max(sqrt(onemrh*qstl(i,k)),0.0001),1.0)
+!             tem1  = 2000.0 / tem1
+!             tem1  = 1000.0 / tem1
+!             tem1  = 100.0 / tem1
+!             if (inversn(i) .and. k >= kinver(i)) tem1 = tem1 * 5.0
+
+              value = max( min( tem1*(clw2(i,k)-clwm), 50.0 ), 0.0 )
+              tem2  = sqrt( sqrt(rhly(i,k)) )
+
+              cldtot(i,k) = max( tem2*(1.0-exp(-value)), 0.0 )
+            endif
+          enddo
+        enddo
+        else
+                do k = NLAY, 1, -1
+          do i = 1, IX
+            clwt = 1.0e-6 * (plyr(i,k)*0.001)
+!           clwt = 2.0e-6 * (plyr(i,k)*0.001)
+
+            if (clw2(i,k) > clwt .or.                                   &
+     &         (inversn(i) .and. k >= kinver(i)) ) then
+
+              onemrh= max( 1.e-10, 1.0-rhly(i,k) )
+              clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
+
+              tem1  = min(max((onemrh*qstl(i,k))**0.49,0.0001),1.0)    !jhan
+              tem1  = 100.0 / tem1
 !
+!             tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
+!             tem1  = 2200.0 / tem1
+!             tem1  = 2400.0 / tem1
+!             tem1  = 2500.0 / tem1
+!             tem1  = min(max(sqrt(onemrh*qstl(i,k)),0.0001),1.0)
+!             tem1  = 2000.0 / tem1
+!             tem1  = 1000.0 / tem1
+!             tem1  = 100.0 / tem1
+!             if (inversn(i) .and. k >= kinver(i)) tem1 = tem1 * 5.0
+!
+
+              value = max( min( tem1*(clw2(i,k)-clwm), 50.0 ), 0.0 )
+              tem2  = sqrt( sqrt(rhly(i,k)) )
+
+              cldtot(i,k) = max( tem2*(1.0-exp(-value)), 0.0 )
+            endif
+          enddo
+        enddo
+        endif
+
+      else                                 ! input data from sfc to toa
+
+        do i = 1, IX
+          inversn(i) = .false.
+          kinver (i) = NLAY
+          tx1(i)     = 0.0
+        enddo
+
+!       do k = 2, NLAY
+        do k = 1, NLAY
+          do i = 1, IX
+!           if (plyr(i,k) > 600.0 .and. (.not.inversn(i))) then
+!             tem1 = tlyr(i,k+1) - tlyr(i,k)
+
+!!            if (tem1 > 0.1 .and. tlyr(i,k) > 278.0) then
+!             if (tem1 > 0.1 ) then
+
+            if (plvl(i,1)-plvl(i,k+1) .lt. 0.35*plvl(i,1)               &
+     &                              .and. (.not. inversn(i))) then
+              tem1 = (tlyr(i,K+1)-tlyr(i,K)) / (plyr(i,k)-plyr(i,k+1))
+!             if (tem1 .gt. 0.005 .and. tx1(i) .lt. 0.0) then
+              if (tem1 .gt. 0.002 .and. tx1(i) .lt. 0.0) then
+                inversn(i) = .true.
+                kinver(i)  = k + 1
+              endif
+              tx1(i) = tem1
+            endif
+          enddo
+        enddo
+
+        clwmin = 0.0e-6
+        if (.not. sashal) then
+        do k = 1, NLAY
+          do i = 1, IX
+            clwt = 1.0e-7 * (plyr(i,k)*0.001)
+!           clwt = 1.0e-6 * (plyr(i,k)*0.001)
+!           clwt = 2.0e-6 * (plyr(i,k)*0.001)
+
+            if (clw2(i,k) > clwt .or.                                   &
+     &         (inversn(i) .and. k <= kinver(i)) ) then
+
+              onemrh= max( 1.e-10, 1.0-rhly(i,k) )
+              clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
+
+              tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
+              tem1  = 2000.0 / tem1
+!             tem1  = 2400.0 / tem1
+!cnt          tem1  = 2500.0 / tem1
+!             tem1  = min(max(sqrt(onemrh*qstl(i,k)),0.0001),1.0)
+!             tem1  = 2000.0 / tem1
+!             tem1  = 1000.0 / tem1
+!             tem1  = 100.0 / tem1
+!             if (inversn(i) .and. k <= kinver(i)) tem1 = tem1 * 5.0
+
+              value = max( min( tem1*(clw2(i,k)-clwm), 50.0 ), 0.0 )
+              tem2  = sqrt( sqrt(rhly(i,k)) )
+
+              cldtot(i,k) = max( tem2*(1.0-exp(-value)), 0.0 )
+            endif
+          enddo
+        enddo
+        else
+                do k = 1, NLAY
+          do i = 1, IX
+            clwt = 1.0e-6 * (plyr(i,k)*0.001)
+!           clwt = 2.0e-6 * (plyr(i,k)*0.001)
+
+            if (clw2(i,k) > clwt .or.                                   &
+     &         (inversn(i) .and. k <= kinver(i)) ) then
+
+              onemrh= max( 1.e-10, 1.0-rhly(i,k) )
+              clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
+
+              tem1  = min(max((onemrh*qstl(i,k))**0.49,0.0001),1.0)   !jhan
+              tem1  = 100.0 / tem1
+!
+!             tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
+!             tem1  = 2200.0 / tem1
+!             tem1  = 2400.0 / tem1
+!             tem1  = 2500.0 / tem1
+!             tem1  = min(max(sqrt(onemrh*qstl(i,k)),0.0001),1.0)
+!             tem1  = 2000.0 / tem1
+!             tem1  = 1000.0 / tem1
+!             tem1  = 100.0 / tem1
+!             if (inversn(i) .and. k <= kinver(i)) tem1 = tem1 * 5.0
+
+              value = max( min( tem1*(clw2(i,k)-clwm), 50.0 ), 0.0 )
+              tem2  = sqrt( sqrt(rhly(i,k)) )
+
+              cldtot(i,k) = max( tem2*(1.0-exp(-value)), 0.0 )
+            endif
+          enddo
+        enddo
+        endif
+
+      endif                                ! end_if_flip
+
+      where (cldtot < climit)
+        cldtot = 0.0
+        cwp    = 0.0
+        cip    = 0.0
+        crp    = 0.0
+        csp    = 0.0
+      endwhere
+
       do k = 1, NLAY
         do i = 1, IX
           clouds(i,k,1) = cldtot(i,k)
@@ -1150,14 +1129,13 @@
         enddo
       enddo
 
-
 !  ---  compute low, mid, high, total, and boundary layer cloud fractions
 !       and clouds top/bottom layer indices for low, mid, and high clouds.
 !       The three cloud domain boundaries are defined by ptopc.  The cloud
 !       overlapping method is defined by control flag 'iovr', which is
 !  ---  also used by the lw and sw radiation programs.
 
-      call gethml                                                       &
+      call n_gethml                                                       &
 !  ---  inputs:
      &     ( plyr, ptop1, cldtot, cldcnv,                               &
      &       IX,NLAY, iflip, iovr,                                      &
@@ -1169,12 +1147,12 @@
 !
       return
 !...................................
-      end subroutine progcld2
+      end subroutine n_progcld2
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine diagcld1                                               &
+      subroutine n_diagcld1                                               &
 !...................................
 
 !  ---  inputs:
@@ -1768,7 +1746,7 @@
 !         overlapping method is defined by control flag 'iovr', which is
 !         also used by the lw and sw radiation programs.
 
-      call gethml                                                       &
+      call n_gethml                                                       &
 !  ---  inputs:
      &     ( plyr, ptop1, cldtot, cldcnv,                               &
      &       IX,NLAY, iflip, iovr,                                      &
@@ -1779,12 +1757,12 @@
 !
       return
 !...................................
-      end subroutine diagcld1
+      end subroutine n_diagcld1
 !-----------------------------------
 
 
 !-----------------------------------                                    !
-      subroutine gethml                                                 &
+      subroutine n_gethml                                                 &
 !...................................                                    !
 
 !  ---  inputs:
@@ -1940,8 +1918,6 @@
 
 !  ---  high, mid, low clouds, where cl1, cl2 are cloud fractions
 !       layer processed from one layer below llyr and up
-!  ---  change! layer processed from surface to top, so low clouds will
-!       contains both bl and low clouds.
 
       if (iflip == 0) then                      ! input data from toa to sfc
 
@@ -1955,8 +1931,7 @@
           idom(i) = 1
         enddo
 
-!org    do k = llyr-1, 1, -1
-        do k = NLAY, 1, -1
+        do k = llyr-1, 1, -1
           do i = 1, IX
             id = idom(i)
             id1= id + 1
@@ -2026,8 +2001,7 @@
           idom(i) = 1
         enddo
 
-!org    do k = llyr+1, NLAY
-        do k = 1, NLAY
+        do k = llyr+1, NLAY
           do i = 1, IX
             id = idom(i)
             id1= id + 1
@@ -2090,12 +2064,12 @@
 !
       return
 !...................................
-      end subroutine gethml
+      end subroutine n_gethml
 !-----------------------------------
 
 
 !-----------------------------------                                    !
-      subroutine rhtable                                                &
+      subroutine n_rhtable                                                &
 !...................................                                    !
 
 !  ---  inputs:
@@ -2365,12 +2339,12 @@
       return
 
 !...................................
-      end subroutine rhtable
+      end subroutine n_rhtable
 !-----------------------------------
 
 
 !
 !........................................!
-      end module module_radiation_clouds !
+      end module module_n_radiation_clouds !
 !========================================!
 

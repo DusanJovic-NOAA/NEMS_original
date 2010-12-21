@@ -171,9 +171,9 @@
       reduced_grid     = .true.
 !
       pre_rad          = .false.
-      hybrid           = .false.
+      hybrid           = .true.
       gen_coord_hybrid = .false.                                     !hmhj
-      random_clds      = .true.
+      random_clds      = .false.
       liope            = .true.
 !
       old_monin        = .false.

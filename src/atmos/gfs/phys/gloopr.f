@@ -55,7 +55,7 @@
      &                                iovr_lw, iovr_sw, isol, iems,     &
      &                                ialb, fhlwr, fhswr, ico2, ngptc,  &
      &                                crick_proof, norad_precip, ccnorm,&
-     &                                ictm, isubc_sw, isubc_lw
+     &                                ictm, isubc_sw, isubc_lw, fdaer
       use d3d_def ,             ONLY: cldcov
       use gfs_physics_gridgr_mod, ONLY: Grid_Var_Data
       use gfs_physics_g3d_mod,    ONLY: G3D_Var_Data
@@ -353,7 +353,7 @@
 !  ---  input:
      &     ( si_loc, LEVR, IFLIP, idat, jdat, ICTM, ISOL, ICO2,         &
      &       IAER, IALB, IEMS, ICWP, NUM_P3D, ISUBC_SW, ISUBC_LW,       &
-     &       IOVR_SW, IOVR_LW, me )
+     &       IOVR_SW, IOVR_LW, me, raddt, fdaer )
 !  ---  output: ( none )
                                                                                                             
 !
@@ -445,13 +445,15 @@
 !     write(0,*)' in gloopr lan=',lan,' lons_lat=',lons_lat,' lat=',lat
 !     write (0,*)' grid_fldps=',grid_fld%ps(1:lons_lat:ngptc,lan)
 !!
-!jw!$omp parallel do schedule(dynamic,1) private(lon,j,k,item,njeff,iblk,n)
-!jw!$omp+private(vvel,gt,gr,gr1,work1,work2,flgmin_v)
-!jw!$omp+private(cldcov_v,hprime_v,fluxr_v,f_ice,f_rain,r_rime)
-!jw!$omp+private(prslk,prsl,prsi,topfsw,sfcfsw,topflw,sfcflw)
-!jw!!$omp+private(prslk,prsl,prsik,prsi,topfsw,sfcfsw,topflw,sfcflw)
-!jw!$omp+private(icsdsw,icsdlw)
-!jw!$omp+private(lprnt,ipt)
+!$omp parallel do schedule(dynamic,1) private(lon,j,k,item,njeff,iblk,n)
+!$omp+private(vvel,gt,gr,gr1,work1,work2,flgmin_v)
+!$omp+private(cldcov_v,hprime_v,fluxr_v,f_ice,f_rain,r_rime)
+!$omp+private(prslk,prsl,prsi,topfsw,sfcfsw,topflw,sfcflw)
+!!$omp+private(prslk,prsl,prsik,prsi,topfsw,sfcfsw,topflw,sfcflw)
+!$omp+private(icsdsw,icsdlw)
+!!$omp+private(lprnt,ipt)
+!$omp+private(temlon,temlat,lprnt,ipt)
+
 !!!$omp+private(temlon,temlat,lprnt,ipt)
 
         DO lon=1,lons_lat,NGPTC
@@ -462,22 +464,22 @@
 !  --- ...  for debug test
 !         alon = 236.25
 !         alat = 56.189
-!         alon = 97.5
-!         alat = -6.66
-!         ipt = 0
-!         do i = 1, njeff
-!           item = lon + i - 1
-!           temlon = xlon(item,lan) * 57.29578
-!           if (temlon < 0.0) temlon = temlon + 360.0
-!           temlat = xlat(item,lan) * 57.29578
-!           lprnt = abs(temlon-alon) < 1.1 .and. abs(temlat-alat) < 1.1
-!    &          .and. kdt > 0
-!           if ( lprnt ) then
-!             ipt = i
-!             print *,' ipt=',ipt,' lon=',lon,' lan=',lan
-!             exit
-!           endif
-!         enddo
+          alon = 22.5
+          alat = -12.381
+          ipt = 0
+          do i = 1, njeff
+            item = lon + i - 1
+            temlon = xlon(item,lan) * 57.29578
+            if (temlon < 0.0) temlon = temlon + 360.0
+            temlat = xlat(item,lan) * 57.29578
+            lprnt = abs(temlon-alon) < 0.5 .and. abs(temlat-alat) < 0.5
+     &          .and. kdt > 0
+            if ( lprnt ) then
+              ipt = i
+              print *,' ipt=',ipt,' lon=',lon,' lan=',lan
+              exit
+            endif
+          enddo
 !         lprnt = .false.
 !!
 !
@@ -588,18 +590,18 @@
 !
 !     lprnt = me .eq. 0 .and. kdt .ge. 120
 !     lprnt = me .eq. 0 .and. lan == 13
-      lprnt = me .eq. 0
-      ipt = min(91,njeff)
-!     if (lprnt) then
+!     lprnt = me .eq. 0
+!     ipt = min(91,njeff)
+      if (lprnt) then
 !     if (kdt .gt. 85) then
-!     write(0,*)' calling grrad for me=',me,' lan=',lan,' lat=',lat
-!    &,' num_p3d=',num_p3d,' snoalb=',snoalb(lon,lan),' lon=',lon
-!    &,' tsea=',tsea(lon,lan),' sncovr=',sncovr(lon,lan),
-!    &' snwdph=',snwdph(lon,lan),' ipt=',ipt,' njeff=',njeff
-!     print *,' prsi in gloopr=',prsi(ipt,1:5)
-!     print *,' gt in gloopr=',gt(ipt,1:5)
-!     print *,' gr in gloopr=',gr(ipt,1:5)
-!     endif
+      write(0,*)' calling grrad for me=',me,' lan=',lan,' lat=',lat
+     &,' num_p3d=',num_p3d,' snoalb=',snoalb(lon,lan),' lon=',lon
+     &,' tsea=',tsea(lon,lan),' sncovr=',sncovr(lon,lan),
+     &' snwdph=',snwdph(lon,lan),' ipt=',ipt,' njeff=',njeff
+      write(0,*) ' prsi in gloopr=',prsi(ipt,1:5)
+      write(0,*) ' gt in gloopr=',gt(ipt,1:5)
+      write(0,*) ' gr in gloopr=',gr(ipt,1:5)
+      endif
 !
 
 
@@ -646,9 +648,11 @@
             enddo
           endif
 
-!     write(0,*)' hlw=',hlw(ipt,1:10,iblk,lan),' lan=',lan,' ipt=',ipt,
-!    &' njeff=',njeff
-!     write(0,*)' swh=',swh(ipt,1:10,iblk,lan),' lan=',lan
+      if (lprnt) then
+      write(0,*)' hlw=',hlw(ipt,1:10,iblk,lan),' lan=',lan,' ipt=',ipt,
+     &' njeff=',njeff
+      write(0,*)' swh=',swh(ipt,1:10,iblk,lan),' lan=',lan
+      endif
 !
 ! grrad routine computes cldcov_v (instant 3D cloud cover)    -- Sarah Lu
 ! if ldiag3d is T, update cldcov (accumulative 3D cloud cover)

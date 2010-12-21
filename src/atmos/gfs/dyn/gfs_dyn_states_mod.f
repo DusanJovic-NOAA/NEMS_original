@@ -84,7 +84,7 @@
       IF( int_state%start_step ) THEN
         PRINT *,' It is starting, so no need for import_state2internal '
         RETURN
-      ELSE
+!     ELSE
 !        PRINT *,' do import state to internal state '
       END IF
 

@@ -1,4 +1,4 @@
-Sat Dec 18 11:03:44 EST 2010
+Tue Dec 21 08:57:56 EST 2010
 Start Regression test
 
 
@@ -29,7 +29,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  146.92  , test_glob timing:  151.54
+ Original timing:  146.92  , test_glob timing:  149.42
 
 
 Test 002
@@ -156,7 +156,7 @@ Checking test 007 results ....
 
 
 
- Original timing:  235.58  , test_reg timing:  242.96
+ Original timing:  235.58  , test_reg timing:  243.64
 
 
 Test 008
@@ -806,4 +806,4 @@ Checking test 035 results ....
 
 
 
-Sat Dec 18 14:16:17 EST 2010
+Tue Dec 21 12:31:02 EST 2010

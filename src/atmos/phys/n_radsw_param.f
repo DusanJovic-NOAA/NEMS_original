@@ -48,7 +48,7 @@
 
 
 !========================================!
-      module module_radsw_cntr_para      !
+      module module_n_radsw_cntr_para      !
 !........................................!
 !
         implicit   none
@@ -75,7 +75,7 @@
                                     ! =0: do not include rare gases
                         ! (default) ! =1: include all rare gases
 
-        parameter ( iflagliq=1 )    !===> ... liq-cloud optical properties contrl flag
+        parameter ( iflagliq=0 )    !===> ... liq-cloud optical properties contrl flag    !carlos puts 0 for nmmb (clouds are input to grrad)
                                     ! =0: input cloud opt depth, ignor iflagice setting
                         !(default)  ! =1: input cwp,rew, hu and stamnes(1993) method for liq cld
 
@@ -89,16 +89,16 @@
 
 !
 !........................................!
-      end module module_radsw_cntr_para  !
+      end module module_n_radsw_cntr_para  !
 !========================================!
 
 
 
 !========================================!
-      module module_radsw_parameters     !
+      module module_n_radsw_parameters     !
 !........................................!
 
-      use machine,                 only : kind_phys
+      use n_machine,                 only : kind_phys
 
       implicit   none
 !
@@ -186,5 +186,5 @@
 
 !
 !........................................!
-      end module module_radsw_parameters !
+      end module module_n_radsw_parameters !
 !========================================!

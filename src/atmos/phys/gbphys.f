@@ -22,7 +22,8 @@
 !           ldiag3d,lggfs3d,lssav,lssav_cc,                             !
 !           xkzm_m,xkzm_h,xkzm_s,psautco,prautco,evpco,                 !
 !           flipv,old_monin,cnvgwd,shal_cnv,sashal,newsas,cal_pre,      !
-!           mom4ice,mstrat,trans_trac,nst_fcst,moist_adj,               !
+!           mom4ice,mstrat,trans_trac,nst_fcst,moist_adj,fscav,         !
+!           thermodyn_id, sfcpress_id, gen_coord_hybrid,                !
 !       input/outputs:                                                  !
 !           hice,fice,tisfc,tsea,tprcp,cv,cvb,cvt,                      !
 !           srflag,snwdph,weasd,sncovr,zorl,canopy,                     !
@@ -207,6 +208,9 @@
 !                          and 2 for coupled NST                   1    !
 !     moist_adj- logical, flag for moist convective adjustment     1    !
 !     fscav    - real, tracer convective scavenging coefficient ntrac-ncld-1!
+!     thermodyn_id - integer, valid for GFS only for get_prs/phi   1    !
+!     sfcpress_id  - integer, valid for GFS only for get_prs/phi   1    !
+!     gen_coord_hybrid - logical for Henry's gen coord             1    !
 !                                                                       !
 !  input/outputs:                                                       !
 !     hice     - real, sea-ice thickness                           im   !
@@ -369,6 +373,7 @@
      &      xkzm_m,xkzm_h,xkzm_s,psautco,prautco,evpco,                 &
      &      flipv,old_monin,cnvgwd,shal_cnv,sashal,newsas,cal_pre,      &
      &      mom4ice,mstrat,trans_trac,nst_fcst,moist_adj,fscav,         &
+     &      thermodyn_id, sfcpress_id, gen_coord_hybrid,                &
 !  ---  input/outputs:
      &      hice,fice,tisfc,tsea,tprcp,cv,cvb,cvt,                      &
      &      srflag,snwdph,weasd,sncovr,zorl,canopy,                     &
@@ -430,7 +435,8 @@
       integer, intent(in) :: ix,   im,   levs, lsoil,   lsm,     ntrac, &
      &                       ncld, ntoz, ntcw, nmtvr,   nrcm,    ko3,   &
      &                       lonf, latg, jcap, num_p3d, num_p2d, kdt,   &
-     &                       me,   pl_coeff, lat
+     &                       me,   pl_coeff, lat,                       &
+     &                       thermodyn_id, sfcpress_id
 
 
       integer, intent(in) :: nlons(im), ncw(2), nst_fcst
@@ -439,7 +445,7 @@
      &                       old_monin,  cnvgwd,    sashal,  newsas,    &
      &                       lssav,      lssav_cc,  mom4ice, mstrat,    &
      &                       trans_trac, moist_adj, lggfs3d, cal_pre,   &
-     &                       shal_cnv
+     &                       shal_cnv, gen_coord_hybrid
 
       real(kind=kind_phys), dimension(im),            intent(in) ::     &
      &      sinlat, coslat, pgr,    dpshc,  xlon,   xlat,               &
@@ -676,8 +682,10 @@
       allocate ( clw(ix,levs,tottracer+2) )
 
 !
-      call get_prs(im,ix,levs,ntrac,tgrs,qgrs                           &
-     &,            prsi,prsik,prsl,prslk,phii,phil,del)
+      call get_prs(im,ix,levs,ntrac,tgrs,qgrs,                          &
+     &             thermodyn_id, sfcpress_id,                           &
+     &             gen_coord_hybrid,                                    &
+     &             prsi,prsik,prsl,prslk,phii,phil,del)
 !
 !     if (lprnt) then
 !       print *,' prsi=',prsi(ipr,:)
@@ -990,8 +998,8 @@
         snowc(i)      = 0.0
         snohf(i)      = 0.0
         zlvl(i)       = phil(i,1) / con_g
-        smcwlt2(i)    = 0.
-        smcref2(i)    = 0.
+        smcwlt2(i)    = 0.0
+        smcref2(i)    = 0.0
       enddo
 
 !  --- ...  lu: iter-loop over (sfc_diff,sfc_drv,sfc_ocean,sfc_sice)
@@ -1055,7 +1063,8 @@
      &       ( im,lsoil,pgr,ugrs,vgrs,tgrs,qgrs,tref,cd,cdq,            &
      &         prsl(1,1),work3,slmsk,xlon,sinlat,stress,                &
      &         sfcemis,gsfcdlw,adjsfcnsw,tprcp,dtf,kdt,                 &
-     &         phy_f2d(1,num_p2d),flag_iter,flag_guess,lprnt,ipr,       &
+     &         phy_f2d(1,num_p2d),flag_iter,flag_guess,nst_fcst,        &
+     &         lprnt,ipr,                                               &
 !  --- Input/output
      &         tseal,tsurf,xt,xs,xu,xv,xz,zm,xtts,xzts,dt_cool,         &
      &         z_c,c_0,c_d,w_0,w_d,d_conv,ifd,Qrain,                    &
@@ -1098,7 +1107,7 @@
      &       qss,cmm,chh,gflx,evap,hflx,ep1d                            &
      &     )
 !
-       endif
+        endif
 
 !       if (lprnt) print *,' sfalb=',sfalb(ipr),' ipr=',ipr             &
 !    &,   ' weasd=',weasd(ipr),' snwdph=',snwdph(ipr)                   &
@@ -1157,7 +1166,8 @@
 !  ---  input/outputs:
      &       zice,cice,tice,weasd,tsea,tprcp,stsoil,ep1d,               &
 !  ---  outputs:
-     &       snwdph,qss,snowmt,gflx,cmm,chh,evap,hflx)
+     &       snwdph,qss,snowmt,gflx,cmm,chh,evap,hflx                   &
+     &     )
 
 !  --- ...  lu: update flag_iter and flag_guess
 
@@ -1565,6 +1575,8 @@
       endif   ! end if_ldiag3d/lggfs3d
 
       call get_phi(im,ix,levs,ntrac,gt0,gq0,                            &
+     &             thermodyn_id, sfcpress_id,                           &
+     &             gen_coord_hybrid,                                    &
      &             prsi,prsik,prsl,prslk,phii,phil)
 
 !     if (lprnt) then
@@ -1744,12 +1756,6 @@
 !    &                vvel,rann,ncld)
 
         endif
-
-!      if(me==0.and.kdt==5.and.lat==18)then
-!       print *,'in gbphys,aft sas,kdt=',kdt,'lat=',lat,'im=',im,'gq0=',
-!     &   maxval(gq0(:,:,3)),minval(gq0(:,:,3)),'gq0(2,1,3)=',
-!     &   gq0(2,1,3),'clw=',clw(2,1,3)
-!      endif
 
 !       if (lprnt) print *,' rain1=',rain1(ipr),' rann=',rann(ipr,1)
 
@@ -2347,7 +2353,7 @@
      &                gq0(1,1,1), gq0(1,1,ntcw), gt0,                   &
      &                phy_f3d(1,1,1), phy_f3d(1,1,2), phy_f2d(1,1),     &
      &                phy_f3d(1,1,3), phy_f3d(1,1,4), phy_f2d(1,2),     &
-     &                rhc,lprnt, ipr,kdt,lat,me)
+     &                rhc,lprnt, ipr)
 
           call precpd(im, ix, levs, dtp, del, prsl, pgr,                &
      &                gq0(1,1,1), gq0(1,1,ntcw), gt0, rain1,            &

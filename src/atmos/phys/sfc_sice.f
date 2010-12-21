@@ -9,7 +9,8 @@
 !  ---  input/outputs:
      &       hice, fice, tice, weasd, tskin, tprcp, stc, ep,            &
 !  ---  outputs:
-     &       snwdph, qsurf, snowmt, gflux, cmm, chh, evap, hflx)
+     &       snwdph, qsurf, snowmt, gflux, cmm, chh, evap, hflx         &
+     &     )
 
 ! ===================================================================== !
 !  description:                                                         !
