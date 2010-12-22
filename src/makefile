@@ -106,6 +106,7 @@ nmm: nmm_libs $(OBJS) $(MAIN)
 	@echo "$(TARGET) is created for NMM core."
 
 nmm_libs:
+	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
 	cd atmos/share         && gmake
 	cd atmos/phys          && gmake
 	cd atmos/nmm           && gmake
