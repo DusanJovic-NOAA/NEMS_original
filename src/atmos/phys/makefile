@@ -71,6 +71,8 @@ MODULES_GFSF=                                \
 	           radiation_surface.o       \
 	           grrad.o                   \
 	           ozphys.o                  \
+	           ozinterp.o                \
+	           sfcsub.o                  \
 	           gbphys.o                  \
 	           dcyc2.o                   \
 	           dcyc2.pre.rad.o           \

@@ -1,56 +1,37 @@
-      SUBROUTINE setindxoz(latd,nlats,global_lats_r,
-     &                     jindx1,jindx2,ddy)
+      SUBROUTINE setindxoz(latd,nlats,gaul,jindx1,jindx2,ddy)
 !
       USE MACHINE , ONLY : kind_phys
-      use resol_def
-      use layout1
-      use gg_def
       use ozne_def , only : jo3 => latsozp, pl_lat
 !
       implicit none
 !
-      integer              global_lats_r(latr)
-      integer latd,nlats,j,lat,i
-      real(kind=kind_phys) pi
-      real(kind=kind_phys) GAUL(latd),DDY(latd)
-      integer JINDX1(latd),JINDX2(latd)
- 
-cyt      if(me.eq.0) print*,'begin setindxoz nlats=latd=',nlats,latd
- 
-         PI=ACOS(-1.)
-         DO J=1,nlats
-          lat = global_lats_r(ipt_lats_node_r-1+J)
-          if (lat.le.latr2) then
-            GAUL(J) = 90.0 - colrad_r(lat)*180.0/PI
-          else
-            GAUL(J) = -(90.0 - colrad_r(lat)*180.0/PI)
-          endif
-!cselaif(me.eq.0) print*,'gau(j,1) gau(j,2)',gaul(j,1),gaul(j,2)
-         ENDDO
+      integer latd, nlats, JINDX1(latd),JINDX2(latd)
+      real(kind=kind_phys) GAUL(nlats),DDY(latd)
 !
-         DO J=1,nlats
-           lat = global_lats_r(ipt_lats_node_r-1+J)
-           jindx2(j) = jo3 + 1
-           do i=1,jo3
-             if (gaul(j) .lt. pl_lat(i)) then
-               jindx2(j) = i
-               exit
-             endif
-           enddo
-           jindx1(j) = max(jindx2(j)-1,1)
-           jindx2(j) = min(jindx2(j),jo3)
-           if (jindx2(j) .ne. jindx1(j)) then
-             DDY(j) = (gaul(j)           - pl_lat(jindx1(j)))
-     &              / (pl_lat(jindx2(j)) - pl_lat(jindx1(j)))
-           else
-             ddy(j) = 1.0
-           endif
+      integer i,j,lat
+!
+      DO J=1,nlats
+        jindx2(j) = jo3 + 1
+        do i=1,jo3
+          if (gaul(j) < pl_lat(i)) then
+            jindx2(j) = i
+            exit
+          endif
+        enddo
+        jindx1(j) = max(jindx2(j)-1,1)
+        jindx2(j) = min(jindx2(j),jo3)
+        if (jindx2(j) .ne. jindx1(j)) then
+          DDY(j) = (gaul(j)           - pl_lat(jindx1(j)))
+     &           / (pl_lat(jindx2(j)) - pl_lat(jindx1(j)))
+        else
+          ddy(j) = 1.0
+        endif
 !     print *,' j=',j,' gaul=',gaul(j),' jindx12=',jindx1(j),
 !    &jindx2(j),' pl_lat=',pl_lat(jindx1(j)),pl_lat(jindx2(j))
 !    &,' ddy=',ddy(j)
 !csela if(me.eq.0) print*,'1st ddy(j,1) ddy(j,2),j=',ddy(j,1),ddy(j,2),j
  
-         ENDDO
+      ENDDO
  
 csela do j=1,nlats
 csela if(me.eq.0) print*,'x1(j,1) jindx1(j,2)',jindx1(j,1),jindx1(j,2),j
@@ -67,7 +48,7 @@ cyt   if(me.eq.0) print*,'completed setindxoz for nasa prod. and diss'
 !**********************************************************************
 !
       SUBROUTINE ozinterpol(me,latd,nlats,IDATE,FHOUR,
-     & jindx1,jindx2,ozplin,ozplout,ddy)
+     &                      jindx1,jindx2,ozplin,ozplout,ddy)
 !
       USE MACHINE , ONLY : kind_phys
       use ozne_def

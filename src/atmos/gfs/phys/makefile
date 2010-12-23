@@ -86,15 +86,13 @@ OBJS_IO=                       \
 	  fld_collect.o        \
 	  fld_collect_nst.o    \
 	  para_fixio_w.o       \
-	  para_nst_w.o         \
-	  sfcsub.o
+	  para_nst_w.o
 
 OBJS_RAD =                    \
 	gloopr.o
 
 
 OBJS_PHY = \
-	ozinterp.o            \
 	gloopb.o              \
 	gbphys_adv_hyb_gc.o   \
 	gbphys_adv_hyb_gc_h.o
@@ -127,17 +125,11 @@ clean:
 # *****************************************************************
 #
 
-funcphys_subsx.o:	funcphys_subsx.f
-		$(F77) $(FFLAGM) -c funcphys_subsx.f
-
 gbphys_adv_hyb_gc.o:	gbphys_adv_hyb_gc.f
 		$(F77) $(FFLAGM) -c gbphys_adv_hyb_gc.f
 
 gbphys_adv_hyb_gc_h.o:	gbphys_adv_hyb_gc_h.f
 		$(F77) $(FFLAGM) -c gbphys_adv_hyb_gc_h.f
-
-ozinterp.o:	ozinterp.f
-		$(F77) $(FFLAGM) -c ozinterp.f
 
 # *****************************************************************
 
@@ -168,9 +160,6 @@ gloopr.o:	gloopr.f
 
 gloopb.o:	gloopb.f
 		$(F77) $(FFLAGM) -c gloopb.f
-
-sfcsub.o:	sfcsub.f
-		$(F77) $(FFLAGM) -c sfcsub.f
 
 gcycle.o:	gcycle.f
 		$(F77) $(FFLAGM) -c gcycle.f

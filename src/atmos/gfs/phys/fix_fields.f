@@ -8,12 +8,13 @@
 !! jan 26 2010 Jun Wang, added phy_f3d,phy_f2d read in from restart file
 !! Nov    2010 S. Moorthi - nst model related changes
 !!
-      use machine , only : kind_rad
+      use machine , only : kind_rad, kind_phys
       use funcphys                         
       use module_progtm             
       use resol_def
       use namelist_physics_def
       use layout1
+      use gg_def
       use ozne_def
       use gfs_physics_sfc_flx_mod
       use gfs_physics_nst_var_mod
@@ -39,10 +40,11 @@
       REAL (kind=kind_rad) phy_p3d(NGPTC,LEVS,NBLCK,LATS_NODE_R,num_p3d)
      &                    ,phy_p2d(lonr,lats_node_r,num_p2d)
 !
+      real (kind=kind_phys) gaul(lats_node_r), pi
 
       real, PARAMETER:: RLAPSE=0.65E-2
       real dt_warm
-      integer needoro, i, j
+      integer needoro, i, j, lat
       INTEGER NREAD, NREAD_NST
 !!     
       call gfuncphys
@@ -112,8 +114,22 @@
       CALL read_mtn_hprim_oz(sfc_fld%SLMSK,HPRIME,NEEDORO,sfc_fld%ORO,
      &     IOZONDP,OZPLIN, GLOBAL_LATS_R,LONSPERLAR)
 !      
-      CALL SETINDXOZ(LATS_NODE_R,LATS_NODE_R,GLOBAL_LATS_R,
-     &               JINDX1,JINDX2,DDY)
+!   Set up some interpolation coefficients for ozone forcing
+!
+      if (ntoz > 0) then
+        pi = acos(-1.0)
+        do j=1, lats_node_r
+          lat = global_lats_r(ipt_lats_node_r-1+J)
+          if (lat <= latr2) then
+            gaul(j) = 90.0 - colrad_r(lat)*180.0/PI
+          else
+            gaul(j) = -(90.0 - colrad_r(lat)*180.0/PI)
+          endif
+!cselaif(me.eq.0) print*,'gau(j,1) gau(j,2)',gaul(j,1),gaul(j,2)
+        enddo
+        CALL SETINDXOZ(LATS_NODE_R,LATS_NODE_R,GAUL,
+     &                 JINDX1,JINDX2,DDY)
+      endif
 !      
       CALL LONLAT_PARA(GLOBAL_LATS_R,XLON,XLAT,LONSPERLAR)
 !!     
