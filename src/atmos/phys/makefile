@@ -40,6 +40,7 @@ MODULES_NMM_RRTM = n_machine.o \
 
 MODULES_GFS =                                \
 	           machine.o                 \
+	           num_parthds.o             \
 	           physcons.o                \
 	           funcphys.o                \
 	           module_nst_parameters.o   \

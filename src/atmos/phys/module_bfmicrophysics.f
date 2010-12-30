@@ -1082,7 +1082,7 @@
         MASSR(J)=cmass*MASSR(J)
         RRATE(J)=cmass*RRATE(J)
         VRAIN(J)=RRATE(J)/MASSR(J)
-        if (print_diag) write(6,"(f5.3,5g12.5,f6.3))") 1000.*mdiam,     &
+        if (print_diag) write(6,"(f5.3,5g12.5,f6.3)") 1000.*mdiam,      &
      &    ventr1(j),ventr2(j),accrr(j),8.e6*massr(j),rrate(j),vrain(j)
       enddo
 !

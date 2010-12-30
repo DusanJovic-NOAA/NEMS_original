@@ -134,6 +134,8 @@
 !     &        MONFCS, MONMER, MONDIF
      &        MONFCS, MONMER, MONDIF, LANDICE
 !cggg landice mods end
+
+      integer NUM_PARTHDS
 !
 !  THIS IS A limited point VERSION of SURFACE PROGRAM.
 !
@@ -3034,6 +3036,7 @@
       save NUM_THREADS, first
 !
       integer LEN_THREAD_M, LEN_THREAD, I1_T, I2_T
+      integer NUM_PARTHDS
 !
       if (first) then
          NUM_THREADS    = NUM_PARTHDS()
@@ -4648,6 +4651,7 @@
       save NUM_THREADS, first
 !
       integer LEN_THREAD_M, I1_T, I2_T, IT
+      integer NUM_PARTHDS
 !
       if (first) then
          NUM_THREADS    = NUM_PARTHDS()
@@ -5318,6 +5322,7 @@
       save NUM_THREADS, first
 !
       integer LEN_THREAD_M, I1_T, I2_T, IT
+      integer NUM_PARTHDS
 !
       if (first) then
          NUM_THREADS    = NUM_PARTHDS()
@@ -6524,6 +6529,7 @@
       save NUM_THREADS, first
 !
       integer LEN_THREAD_M, J1_T, J2_T, IT
+      integer NUM_PARTHDS
 !
       if (first) then
          NUM_THREADS    = NUM_PARTHDS()

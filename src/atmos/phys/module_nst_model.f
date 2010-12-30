@@ -237,6 +237,7 @@ module nst_module
 !  local variables
    real(kind=kind_phys) :: dz,t0,ttop0,ttop,fw,Q_warm
    real(kind=kind_phys) :: xz_fca,xz_tla,xz_mwa
+   real(kind=kind_phys) :: xz_mda
 
    tr_mda = 0.0; tr_fca = 0.0; tr_tla = 0.0; tr_mwa = 0.0
 
