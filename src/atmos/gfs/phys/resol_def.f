@@ -7,9 +7,6 @@
       integer   lnte,lnted,lnto,lntod,lnuv
       integer   lonf,lonfx,lonr,lonrx
 !
-!     integer, allocatable :: global_lats_r(:)
-!     integer, allocatable :: lonsperlar(:)
-!
 !jw      integer   ntrac
       integer,target ::   ntrac
       integer   nxpt,nypt,jintmx,latrd
@@ -41,6 +38,10 @@
 
 !     The option to add 2d/3d diag fields to physics export state
       logical :: lgocart
+
+!     For GOCART mapping
+      integer, allocatable :: scatter_lats(:)
+      integer, allocatable :: scatter_lons(:)
 
       end module resol_def
 !

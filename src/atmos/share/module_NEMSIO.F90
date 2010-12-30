@@ -25,7 +25,8 @@ module module_nemsio
 !    2010-08-09    Sarah Lu - comment gribtable for clarification;
 !                             correct gribtable for OCSCATAU
 !    2010-10-10    Sarah Lu - modify gribtable for gfs met forcing
-!    2010-11-099   Jun Wang - Add flx variables into grib table
+!    2010-11-09    Jun Wang - Add flx variables into grib table
+!    2010-12-23    Sarah Lu - modify gribtable for airden
 !
 ! Public Variables
 ! Public Defined Types
@@ -5994,7 +5995,7 @@ contains
 
     gribtable(4)%item(157)=nemsio_grbtbl_item('PLE01','atmos col',3,0,235,200)
     gribtable(4)%item(158)=nemsio_grbtbl_item('ZLE01','atmos col',3,0,236,200)
-    gribtable(4)%item(159)=nemsio_grbtbl_item('AIRDENS01','atmos col',3,0,237,200)
+    gribtable(4)%item(159)=nemsio_grbtbl_item('AIRDEN01','atmos col',3,0,237,200)
     gribtable(4)%item(160)=nemsio_grbtbl_item('T01','atmos col',3,0,238,200)
     gribtable(4)%item(161)=nemsio_grbtbl_item('U01','atmos col',3,0,239,200)
     gribtable(4)%item(162)=nemsio_grbtbl_item('V01','atmos col',3,0,240,200)
@@ -6002,7 +6003,7 @@ contains
     gribtable(4)%item(164)=nemsio_grbtbl_item('DQDT01','atmos col',3,0,242,200)
     gribtable(4)%item(165)=nemsio_grbtbl_item('PLE64','atmos col',3,0,243,200)
     gribtable(4)%item(166)=nemsio_grbtbl_item('ZLE64','atmos col',3,0,244,200)
-    gribtable(4)%item(167)=nemsio_grbtbl_item('AIRDENS64','atmos col',3,0,245,200)
+    gribtable(4)%item(167)=nemsio_grbtbl_item('AIRDEN64','atmos col',3,0,245,200)
     gribtable(4)%item(168)=nemsio_grbtbl_item('T64','atmos col',3,0,246,200)
     gribtable(4)%item(169)=nemsio_grbtbl_item('U64','atmos col',3,0,247,200)
     gribtable(4)%item(170)=nemsio_grbtbl_item('V64','atmos col',3,0,248,200)

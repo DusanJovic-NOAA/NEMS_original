@@ -20,6 +20,7 @@
 !  Apr 11 2010      Sarah Lu, debug print removed
 !  Aug 25 2010      Jun Wang, output half dfi filted fields
 !  Oct 16 2010      Sarah Lu, retrieve fscav from exp state
+!  Dec 23 2010      Sarah Lu, modify fscav initialization 
 !                           
 !
 ! !interface:
@@ -675,9 +676,12 @@
                                 value = fscav , rc=RC1)
          if ( RC1 == ESMF_SUCCESS) THEN
            int_state%gfs_phy_tracer%fscav(i) = fscav
-           int_state%start_step = .false. 
+         else
+           int_state%gfs_phy_tracer%fscav(i) = 0.
          endif
+!	 print *, 'phys_gc: fscav:', i, vname, int_state%gfs_phy_tracer%fscav(i)
         enddo
+        int_state%start_step = .false. 
        endif
 
 !

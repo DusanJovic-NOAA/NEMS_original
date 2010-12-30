@@ -51,6 +51,7 @@
 !  19jul2006  da Silva  First separate GOCART component.
 !  18jun2010  Lu        Add gaseous species (dms,so2,msa) to AERO bundle
 !  16oct2010  Lu        Add fscav to iAERO bundle 
+!  14nov2010  Lu        Add extract_gfs_
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -109,7 +110,7 @@ CONTAINS
     type(Chem_Registry), pointer  :: r
 
     integer                       :: n, nq, i_XX, j_XX
-    logical                       :: GOCART_OWNS_TRACERS
+    logical                       :: GOCART_OWNS_TRACERS   
 
 !                              ------------
 
@@ -122,21 +123,10 @@ CONTAINS
     VERIFY_(STATUS)
     Iam = TRIM(COMP_NAME) // '::' // TRIM(Iam)
 
-!   Determine from RC file if GOCART owns the aerosol tracers
-!   NOTE: Under normal circunstances, GOCART owns its internal
-!         state. However, when running under the GFS at NCEP, the
-!   tracers are owned by Dynamics, so we cope with it.
-!   -------------------------------------------------------------
-    call ESMF_ConfigGetAttribute ( CF, answer, Label="GOCART_OWNS_TRACERS:", &
-                                   default="yes",  __RC__ )
-    if ( answer(1:3) .eq. 'yes' .or. answer(1:3) .eq. 'YES' .or. &
-         answer(1:3) .eq. 'Yes' ) then
-         if (MAPL_AM_I_ROOT()) print *, trim(Iam)//': GOCART owns its tracers (OK for GEOS-5)'
-         GOCART_OWNS_TRACERS = .true.
-    else
-         if (MAPL_AM_I_ROOT()) print *, trim(Iam)//': GOCART does NOT own its tracers (OK for GFS)'
-         GOCART_OWNS_TRACERS = .false.
-    endif
+!   Get GFS parameters from GC and CF (Sarah Lu)
+!   -----------------------------------------
+    call extract_gfs_ ( gc, GOCART_OWNS_TRACERS, STATUS )
+    VERIFY_(STATUS)
 
 !   Wrap internal state for storing in GC; rename legacyState
 !   -------------------------------------
@@ -821,7 +811,7 @@ end if ! doing GOCART
    real(ESMF_KIND_R4), pointer, dimension(:,:)  :: LONS
 
    character(len=ESMF_MAXSTR)       :: short_name, answer
-   logical                       :: GOCART_OWNS_TRACERS
+   logical                          :: GOCART_OWNS_TRACERS
 
    real, parameter :: one = 1.0
 
@@ -856,28 +846,16 @@ end if ! doing GOCART
 !                                Phase II
 !                                --------
 
-!   Determine from RC file if GOCART owns the aerosol tracers
-!   NOTE: Under normal circunstances, GOCART owns its internal
-!         state. However, when running under the GFS at NCEP, the
-!   tracers are owned by Dynamics, so we cope with it.
-!   -------------------------------------------------------------
-    call ESMF_ConfigGetAttribute ( CF, answer, Label="GOCART_OWNS_TRACERS:", &
-                                   default="yes",  __RC__ )
-    if ( answer(1:3) .eq. 'yes' .or. answer(1:3) .eq. 'YES' .or. &
-         answer(1:3) .eq. 'Yes' ) then
-         if (MAPL_AM_I_ROOT()) print *, trim(Iam)//': GOCART owns its tracers (OK for GEOS-5)'
-         GOCART_OWNS_TRACERS = .true.
-    else
-         if (MAPL_AM_I_ROOT()) print *, trim(Iam)//': GOCART does NOT own its tracers (OK for GFS)'
-         GOCART_OWNS_TRACERS = .false.
-    endif
-
-
 !  Get pre-ESMF parameters from gc and clock
 !  -----------------------------------------
    call extract_ ( gc, clock, chemReg, gcChem, w_c, nymd, nhms, cdt, STATUS )
    VERIFY_(STATUS)
 
+!  Get GFS parameters from gc and cf (Sarah Lu)
+!  -----------------------------------------
+   call extract_gfs_ ( gc, GOCART_OWNS_TRACERS, STATUS, &
+                       impChem=impChem, cdt=cdt )
+   VERIFY_(STATUS)
 
 !  Create Chem Bundle
 !  ------------------
@@ -1183,6 +1161,8 @@ end if ! doing GOCART
    integer                         :: in, jn
    integer                         :: iLeft, iRight, jBottom, jTop
 
+   logical                         :: GOCART_OWNS_TRACERS
+
    REAL :: dayOfYear
    REAL(ESMF_KIND_R8) :: dayOfYear_r8
 !                               ---
@@ -1226,6 +1206,12 @@ end if ! doing GOCART
    call extract_ ( gc, clock, chemReg, gcChem, w_c, nymd, nhms, cdt, rc=status )
    VERIFY_(STATUS)
 
+!  Get GFS parameters from gc and cf (Sarah Lu)
+!  -----------------------------------------
+   call extract_gfs_ ( gc, GOCART_OWNS_TRACERS, STATUS, &
+                       impChem=impChem, cdt = cdt )
+   VERIFY_(STATUS)
+
 !  Set pointers for sine/cosine zenith angle
 !  -----------------------------------------
 
@@ -1249,6 +1235,7 @@ end if ! doing GOCART
 !  Make sure tracers remain positive
 !  ---------------------------------
    in = size(w_c%delp,1);   jn = size(w_c%delp,2)
+
    do n = ChemReg%i_GOCART, ChemReg%j_GOCART 
       call Chem_UtilNegFiller ( w_c%qa(n)%data3d, w_c%delp, in, jn, &
                                 qmin=tiny(1.0) )
@@ -1321,6 +1308,8 @@ end if ! doing GOCART
    real                            :: cdt         ! chemistry timestep (secs)
 
     type(GOCART_state), pointer  :: state
+ 
+   logical                         :: GOCART_OWNS_TRACERS
 
 !  Get my name and set-up traceback handle
 !  ---------------------------------------
@@ -1332,6 +1321,12 @@ end if ! doing GOCART
 !  -----------------------------------------
    call extract_ ( gc, clock, chemReg, gcChem, w_c, nymd, nhms, cdt, STATUS, &
                    state = state )
+   VERIFY_(STATUS)
+
+!  Get GFS parameters from gc and cf (Sarah Lu)
+!  -----------------------------------------
+   call extract_gfs_ ( gc, GOCART_OWNS_TRACERS, STATUS, &
+                       impChem=impChem, cdt = cdt )
    VERIFY_(STATUS)
 
 !  Call pre-ESMF version
@@ -1458,6 +1453,75 @@ end if ! doing GOCART
     RETURN_(ESMF_SUCCESS)
 
    end subroutine extract_
+
+!.......................................................................
+
+    subroutine extract_gfs_ ( gc, GOCART_OWNS_TRACERS, rc, impChem, cdt)
+
+    type(ESMF_GridComp), intent(inout)       :: gc          ! Grid Component
+    logical, intent(out)                     :: GOCART_OWNS_TRACERS
+    integer, intent(out)                     :: rc          ! Error return code
+    type(ESMF_State), optional, intent(in)   :: impChem     ! Import State
+    real, optional, intent(out)              :: cdt         ! Time step
+
+
+!   ErrLog Variables
+!   ----------------
+    character(len=ESMF_MAXSTR)      :: IAm
+    integer                         :: STATUS
+    character(len=ESMF_MAXSTR)      :: COMP_NAME
+
+    type(ESMF_Config)               :: CF
+
+    character(len=ESMF_MAXSTR)      :: answer     
+    real                            :: deltim
+
+
+!   Get my name and set-up traceback handle
+!   ---------------------------------------
+    call ESMF_GridCompGet( GC, NAME=COMP_NAME, RC=STATUS )
+    VERIFY_(STATUS)
+    Iam = trim(COMP_NAME) // '::' // 'extract_gfs_'
+
+    rc = 0
+
+!   Get the configuration
+!   ---------------------
+    call ESMF_GridCompGet ( GC, CONFIG = CF, RC=STATUS )
+    VERIFY_(STATUS)
+
+!   Determine from RC file if GOCART owns the aerosol tracers
+!   NOTE: Under normal circunstances, GOCART owns its internal
+!         state. However, when running under the GFS at NCEP, the
+!   tracers are owned by Dynamics, so we cope with it.
+!   -------------------------------------------------------------
+    call ESMF_ConfigGetAttribute ( CF, answer, Label="GOCART_OWNS_TRACERS:", &
+                                   default="yes",  __RC__ )
+    if ( answer(1:3) .eq. 'yes' .or. answer(1:3) .eq. 'YES' .or. &
+         answer(1:3) .eq. 'Yes' ) then
+         if (MAPL_AM_I_ROOT()) print *, trim(Iam)//': GOCART owns its tracers (OK for GEOS-5)'
+         GOCART_OWNS_TRACERS = .true.
+    else
+         if (MAPL_AM_I_ROOT()) print *, trim(Iam)//': GOCART does NOT own its tracers (OK for GFS)'
+         GOCART_OWNS_TRACERS = .false.
+    endif
+
+!   Get time step
+!   -------------
+    if ( present ( cdt ) ) then
+     if (  GOCART_OWNS_TRACERS ) then
+      call ESMF_ConfigGetAttribute ( CF, cdt, Label="RUN_DT:", RC=STATUS )
+      VERIFY_(STATUS)
+     else
+      CALL ESMF_AttributeGet(impChem, name = 'deltim',  &
+                             value = deltim , rc=RC)
+      cdt = deltim
+     endif
+    endif
+
+    RETURN_(ESMF_SUCCESS)
+
+   end subroutine extract_gfs_
 
 end module GOCART_GridCompMod
 

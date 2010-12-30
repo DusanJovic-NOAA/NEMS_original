@@ -19,7 +19,7 @@
 !           slope,shdmin,shdmax,snoalb,tg3,slmsk,vfrac,                 !
 !           vtype,stype,uustar,oro,coszen,sfcdsw,sfcnsw,                !
 !           sfcdlw,tsflw,sfcemis,sfalb,swh,hlw,ras,pre_rad,             !
-!           ldiag3d,lggfs3d,lssav,lssav_cc,                             !
+!           ldiag3d,lggfs3d,lgocart,lssav,lssav_cc,                     !
 !           xkzm_m,xkzm_h,xkzm_s,psautco,prautco,evpco,                 !
 !           flipv,old_monin,cnvgwd,shal_cnv,sashal,newsas,cal_pre,      !
 !           mom4ice,mstrat,trans_trac,nst_fcst,moist_adj,fscav,         !
@@ -89,6 +89,8 @@
 !      aug  2009  - s. moorthi  added j. han and h. pan updated shallow !
 !                               convection package                      !
 !      sep  2009  - s. moorthi  updated for the mcica (rrtm3) radiation !
+!      dec  2010  - sarah lu    lgocart added to input arg;             !
+!                               compute dqdt_v if inline gocart is on   !
 !                                                                       !
 !                                                                       !
 !  ====================  defination of variables  ====================  !
@@ -186,6 +188,7 @@
 !     pre_rad  - logical, flag for testing purpose                 1    !
 !     ldiag3d  - logical, flag for 3d diagnostic fields            1    !
 !     lggfs3d  - logical, flag for 3d diagnostic fields for gocart 1    !
+!     lgocart  - logical, flag for 3d diagnostic fields for gocart 1    !
 !     lssav    - logical, flag controls data store and output      1    !
 !     lssav_cc - logical, flag for save data for ocean coupling    1    !
 !     flipv    - logical, flag for vertical direction flip (ras)   1    !
@@ -369,7 +372,8 @@
      &      vtype,stype,uustar,oro,coszen,sfcdsw,sfcnsw,                &
      &      sfcdlw,tsflw,sfcemis,sfalb,swh,hlw,ras,pre_rad,             &
 !    &      ldiag3d,lggfs3d,lssav,                                      &
-     &      ldiag3d,lggfs3d,lssav,lssav_cc,                             &
+!    &      ldiag3d,lggfs3d,lssav,lssav_cc,                             &
+     &      ldiag3d,lggfs3d,lgocart,lssav,lssav_cc,                     &
      &      xkzm_m,xkzm_h,xkzm_s,psautco,prautco,evpco,                 &
      &      flipv,old_monin,cnvgwd,shal_cnv,sashal,newsas,cal_pre,      &
      &      mom4ice,mstrat,trans_trac,nst_fcst,moist_adj,fscav,         &
@@ -432,6 +436,8 @@
        real(kind=kind_phys) dxmax, dxmin, dxinv
 
 !  ---  inputs:
+!  note: lgocart is the logical for in-line gocart;
+!        lggfs3d is the logical for off-line gocart 
       integer, intent(in) :: ix,   im,   levs, lsoil,   lsm,     ntrac, &
      &                       ncld, ntoz, ntcw, nmtvr,   nrcm,    ko3,   &
      &                       lonf, latg, jcap, num_p3d, num_p2d, kdt,   &
@@ -445,7 +451,7 @@
      &                       old_monin,  cnvgwd,    sashal,  newsas,    &
      &                       lssav,      lssav_cc,  mom4ice, mstrat,    &
      &                       trans_trac, moist_adj, lggfs3d, cal_pre,   &
-     &                       shal_cnv, gen_coord_hybrid
+     &                       shal_cnv, gen_coord_hybrid, lgocart
 
       real(kind=kind_phys), dimension(im),            intent(in) ::     &
      &      sinlat, coslat, pgr,    dpshc,  xlon,   xlat,               &
@@ -498,7 +504,8 @@
       real(kind=kind_phys),                           intent(inout) ::  &
      &      phy_f3d(ix,levs,num_p3d), phy_f2d(ix,num_p2d),              &
      &      dt3dt(ix,levs,6), du3dt(ix,levs,4), dv3dt(ix,levs,4),       &
-     &      dq3dt(ix,levs,5+pl_coeff), dqdt_v(ix,levs)
+     &      dq3dt(ix,levs,5+pl_coeff)
+!    &      dq3dt(ix,levs,5+pl_coeff), dqdt_v(ix,levs)
 
 !  ---  output:
       real(kind=kind_phys), dimension(im),            intent(out) ::    &
@@ -513,7 +520,8 @@
      &      tref,    z_c,     c_0,     c_d,     w_0,   w_d, rqtk
 
       real(kind=kind_phys), dimension(ix,levs),       intent(out) ::    &
-     &      gt0, gu0, gv0
+     &      gt0, gu0, gv0, dqdt_v
+!    &      gt0, gu0, gv0
 
       real(kind=kind_phys), dimension(ix,levs,ntrac), intent(out) ::    &
      &      gq0
@@ -1357,12 +1365,20 @@
             enddo
           enddo
         endif
+! update dqdt_v to include moisture tendency due to vertical diffusion
+        if (lgocart) then
+          do k = 1, levs
+            do i = 1, im
+              dqdt_v(i,k)  = dqdt(i,k,1) * dtf
+            enddo
+          enddo
+        endif
         if (ldiag3d .or. lggfs3d) then
           do k = 1, levs
             do i = 1, im
               tem  = dqdt(i,k,1) * dtf
               dq3dt(i,k,1) = dq3dt(i,k,1) + tem
-              dqdt_v(i,k)  = tem
+!             dqdt_v(i,k)  = tem
             enddo
           enddo
           if (ntoz > 0) then
@@ -1380,6 +1396,7 @@
             enddo
           enddo
         endif
+
 
       endif   ! end if_lssav
 
@@ -1866,12 +1883,21 @@
             enddo
           enddo
         endif
+! update dqdt_v to include moisture tendency due to deep convection
+        if (lgocart) then
+          do k = 1, levs
+            do i = 1, im
+              tem          = (gq0(i,k,1)-dqdt(i,k,1)) * frain
+              dqdt_v(i,k)  = dqdt_v(i,k)  + tem
+            enddo
+          enddo
+        endif
         if (ldiag3d .or. lggfs3d) then
           do k = 1, levs
             do i = 1, im
               tem          = (gq0(i,k,1)-dqdt(i,k,1)) * frain
               dq3dt(i,k,2) = dq3dt(i,k,2) + tem
-              dqdt_v(i,k)  = dqdt_v(i,k)  + tem
+!             dqdt_v(i,k)  = dqdt_v(i,k)  + tem
               upd_mf(i,k)  = upd_mf(i,k)  + ud_mf(i,k) * (con_g*frain)
               dwn_mf(i,k)  = dwn_mf(i,k)  + dd_mf(i,k) * (con_g*frain)
               det_mf(i,k)  = det_mf(i,k)  + dt_mf(i,k) * (con_g*frain)
@@ -2128,6 +2154,15 @@
       endif   ! end if_shal_cnv
 
       if (lssav) then
+! update dqdt_v to include moisture tendency due to shallow convection
+        if (lgocart) then
+          do k = 1, levs
+            do i = 1, im
+              tem          = (gq0(i,k,1)-dqdt(i,k,1)) * frain
+              dqdt_v(i,k)  = dqdt_v(i,k)  + tem
+            enddo
+          enddo
+        endif
         if (ldiag3d) then
           do k = 1, levs
             do i = 1, im
@@ -2148,8 +2183,8 @@
             do i = 1, im
               tem          = (gq0(i,k,1)-dqdt(i,k,1)) * frain
               dq3dt(i,k,3) = dq3dt(i,k,3) + tem
-              dqdt_v(i,k)  = dqdt_v(i,k)  + tem
-              dqdt_v(i,k)  = dqdt_v(i,k)  * (1000.0/dtf)
+!             dqdt_v(i,k)  = dqdt_v(i,k)  + tem
+!             dqdt_v(i,k)  = dqdt_v(i,k)  * (1000.0/dtf)
             enddo
           enddo
           do k = 1, levs
@@ -2265,6 +2300,17 @@
             do i=1,im
               cnvprcp(i) = cnvprcp(i) + rain1(i) * frain
             enddo
+! update dqdt_v to include moisture tendency due to surface processes
+! dqdt_v : instaneous moisture tendency (kg/kg/sec)
+            if (lgocart) then
+              do k=1,levs
+                do i=1,im
+                  tem = (gq0(i,k,1)-dqdt(i,k,1)) * frain
+                  dqdt_v(i,k) = dqdt_v(i,k) + tem
+                  dqdt_v(i,k) = dqdt_v(i,k) / dtf
+                enddo
+              enddo
+            endif
             if (ldiag3d) then
               do k=1,levs
                 do i=1,im

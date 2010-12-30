@@ -12,6 +12,8 @@
 !  2010/09/11     Sarah Lu,  Modify g2d_zerout 
 !  2010/10/10     Sarah Lu,  Add GFS forcing fields to g2d_fld
 !  2010/10/15     Sarah Lu,  Revise g2d_zerout
+!  2010/12/23     Sarah Lu,  Fields not used by GOCART are removed from g2d_fld;
+!                            set doing_MET to F
 !
 ! !INTERFACE:
 !
@@ -31,7 +33,7 @@
 
  TYPE AER_Diag_Data
   TYPE (AER_R2D), DIMENSION(MAX_AER_DIAG)       :: diag 
-  integer, parameter       :: nfld = 0
+  integer                                       :: nfld 
  END TYPE AER_Diag_Data
 
  TYPE G2D_Var_Data
@@ -43,7 +45,7 @@
    TYPE (AER_Diag_Data)         :: MET
  END TYPE G2D_Var_Data
 !
- logical, public      :: doing_MET = .true.
+ logical, public      :: doing_MET = .false.
 !
  contains
 
@@ -71,7 +73,7 @@
  character*10      ::   name_du(29), name_su(30)
  character*10      ::   name_oc(15), name_bc(14)
  character*10      ::   name_ss(29)
- character*10      ::   name_met(31)
+ character*10      ::   name_met(24)
 !
  data name_du(1:29) /                                    &
   'DUEM001', 'DUEM002', 'DUEM003', 'DUEM004', 'DUEM005', &
@@ -111,43 +113,48 @@
    'SSSMASS25','SSCMASS25','SSEXTT25','SSSCAT25',        &
    'SSAERIDX'/
 
- data name_met(1:31) /                                   &
+ data name_met(1:24) /                                   &
    'U10M', 'V10M', 'UUSTAR', 'Z0H', 'LWI', 'ZPBL',       &
-   'WET1', 'GRN',  'PS', 'SH', 'TA', 'TSOIL',            &
-   'TROPP', 'CNPRCP', 'NCNPRCP' ,                        &
-   'PLE01', 'ZLE01' , 'AIRDENS01', 'T01' , 'U01',        &
-   'V01',   'FCLD01', 'DQDT01',                          &
-   'PLE64', 'ZLE64' , 'AIRDENS64', 'T64' , 'U64',        &
-   'V64',   'FCLD64', 'DQDT64'/
+   'WET1', 'SH'  , 'CNPRCP', 'NCNPRCP' ,                 &
+   'ZLE01' , 'AIRDEN01', 'T01'    , 'U01',               &
+   'V01'   , 'FCLD01'   , 'DQDT01' ,                     &
+   'ZLE64' , 'AIRDEN64', 'T64'    , 'U64',               &
+   'V64'   , 'FCLD64'   , 'DQDT64'/
 !
 !! .............................................................
 !
 !   allocate g2d_fld for GFS met fields
+    g2d_fld%met%nfld = 0
     if ( doing_MET ) then
       call aldata_ (dim1, dim2, name_met, g2d_fld%met, iret)
     endif
 
 !   allocate 2d aer diag fields for DU module
+    g2d_fld%du%nfld = 0
     if ( gfs_phy_tracer%doing_DU ) then
       call aldata_ (dim1, dim2, name_du, g2d_fld%du, iret)
     endif
 
 !   allocate 2d aer diag fields for SU module
+    g2d_fld%su%nfld = 0
     if ( gfs_phy_tracer%doing_SU ) then
       call aldata_ (dim1, dim2, name_su, g2d_fld%su, iret)
     endif
 !
 !   allocate 2d aer diag fields for SS module
+    g2d_fld%ss%nfld = 0
     if ( gfs_phy_tracer%doing_SS ) then
       call aldata_ (dim1, dim2, name_ss, g2d_fld%ss, iret)
     endif
 
 !   allocate 2d aer diag fields for OC module
+    g2d_fld%oc%nfld = 0
     if ( gfs_phy_tracer%doing_OC ) then
       call aldata_ (dim1, dim2, name_oc, g2d_fld%oc, iret)
     endif
 
 !   allocate 2d aer diag fields for BC module
+    g2d_fld%bc%nfld = 0
     if ( gfs_phy_tracer%doing_BC ) then
       call aldata_ (dim1, dim2, name_bc, g2d_fld%bc, iret)
     endif

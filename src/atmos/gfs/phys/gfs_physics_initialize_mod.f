@@ -30,6 +30,7 @@
 !  July 30  2010  S. Moorthi    Removed allocation of cldcov
 !  Aug 19   2010  S. Moorthi    Updated for T574 + added num_reduce to namelist
 !  Oct 18   2010  S. Moorthi    Added fscav initialization
+!  Dec 23   2010  Sarah Lu      initialize scatter_lats, scatter_lons, g2d_fld%met
 !
 ! !interface:
 !
@@ -53,8 +54,7 @@
                                                 ngrids_flx, levp1, lonrx, nfxr, ngrids_gg,    &
                                                 levm1, ivssfc, thermodyn_id, sfcpress_id,     &
                                                 ivssfc_restart, latrd, latr2, ivsupa, levh,   &
-                                                lgocart,                                      &
-!                                               lgocart, global_lats_r, lonsperlar,           &
+                                                lgocart, scatter_lats, scatter_lons,          &
                                                 nr_nst, nf_nst, ngrids_nst, ivsnst
 !jw
       use mod_state,                      ONLY: buff_mult_piecea2d,buff_mult_piecea3d,        &  !jwang
@@ -438,11 +438,11 @@
       gis_phy%lats_node_r_max = lats_node_r_max
       gis_phy%lats_nodes_r_fix(:) =  gis_phy%lats_node_r_max 
 
-!* set up global_lats_r and lonsperlar for simple scatter (Sarah Lu)
-!     allocate(global_lats_r (latr))
-!     allocate(lonsperlar (latr))
-!     global_lats_r(1:latr) = gis_phy%global_lats_r(1:latr)
-!     lonsperlar(1:latr) = gis_phy%lonsperlar(1:latr)
+!* set up scatter_lats and scatter_lons for simple scatter (Sarah Lu)
+      allocate(scatter_lats (latr))
+      allocate(scatter_lons (latr))
+      scatter_lats(1:latr) = gis_phy%global_lats_r(1:latr)
+      scatter_lons(1:latr) = gis_phy%lonsperlar(1:latr)
 
 !* change lats_node_r to lats_node_r_max to allow the pointer option
 !*    call sfcvar_aldata(lonr, lats_node_r, lsoil, gis_phy%sfc_fld, ierr)
@@ -524,6 +524,9 @@
 
         if ( gis_phy%g2d_fld%ss%nfld > 0 )   &
           ngrids_aer = ngrids_aer+gis_phy%g2d_fld%ss%nfld
+
+        if ( gis_phy%g2d_fld%met%nfld > 0 )   &
+          ngrids_aer = ngrids_aer+gis_phy%g2d_fld%met%nfld
 
 !       print *, 'INIT_g2d_fld ngrids_aer = ',ngrids_aer
       endif

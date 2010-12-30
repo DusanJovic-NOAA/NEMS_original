@@ -19,6 +19,7 @@
 !! Aug    2010       Shrinivas Moorthi - Recoded 3d diagnostic arrays so that
 !                              trap will not occur on call to gbphys
 !! Oct 18 2010       Shrinivas Moorthi - Added fscav
+!! Dec 23 2010       Sarah Lu, add lgocart to gbphys call arg
 !!
 ! #include "f_hpm.h"
 !!
@@ -499,7 +500,8 @@
      &      flx_fld%sfcemis(lon,lan),   sfalb(lon,lan),                 &
      &      swh(1,1,iblk,lan),hlw(1,1,iblk,lan),                        &
 !    &      ras,pre_rad,ldiag3d,lggfs3d,lssav,                          &
-     &      ras,pre_rad,ldiag3d,lggfs3d,lssav,lssav_cc,                 &
+!    &      ras,pre_rad,ldiag3d,lggfs3d,lssav,lssav_cc,                 &
+     &      ras,pre_rad,ldiag3d,lggfs3d,lgocart,lssav,lssav_cc,         &
      &      bkgd_vdif_m,bkgd_vdif_h,bkgd_vdif_s,psautco,prautco,evpco,  &
      &      flipv,old_monin,cnvgwd,shal_cnv,sashal,newsas,cal_pre,      &
      &      mom4ice,mstrat,trans_trac,nst_fcst,moist_adj,fscav,         &

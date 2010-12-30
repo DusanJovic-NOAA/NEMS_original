@@ -1,15 +1,10 @@
         
-        subroutine GFS_simple_scatter (global, local,
-     &                                 global_lats_r, lonsperlar)
+        subroutine GFS_simple_scatter ( global, local )
 
         use resol_def,   ONLY: lonr, latr
-!       use resol_def,   ONLY: lonr, latr, global_lats_r, 
-!    &                         lonsperlar
+     &,                        scatter_lats, scatter_lons
         use layout1,     ONLY: me, lats_node_r, 
      &                         ipt_lats_node_r, nodes
-
-        integer,intent(in)  :: global_lats_r(latr)
-        integer,intent(in)  :: lonsperlar(latr)
 
         real  :: global (lonr, latr)
         real  :: dist   (lonr, lats_node_r)
@@ -38,7 +33,7 @@
 
 ! scatter 
         do j=1,lats_node_r
-           lat=global_lats_r(ipt_lats_node_r-1+j)
+           lat=scatter_lats(ipt_lats_node_r-1+j)
            do i=1,lonr
              dist(i,j)= global_r4(i,lat)
            enddo
@@ -47,7 +42,7 @@
 
 ! full vs reduced grids
         local(:,:) = dist(:,:)
-        CALL interpred_phys(1,kmsk,dist,local,global_lats_r,lonsperlar)
+        CALL interpred_phys(1,kmsk,dist,local,scatter_lats,scatter_lons)
 
 ! deallocate
         deallocate(global_r4)

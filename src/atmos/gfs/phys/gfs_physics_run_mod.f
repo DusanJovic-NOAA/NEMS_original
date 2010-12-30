@@ -23,6 +23,7 @@
 !  Aug 03  2010       jun wang, fix lsout for dfi
 !  Aug 25  2010       Jun Wang, add zhour_dfi for filtered dfi fields output
 !  Oct 18  2010       s. moorthi added fscav to do tstep
+!  Dec 23  2010       Sarah Lu, setup fscav from gfs_phy_tracer 
 !
 ! !interface:
 !
@@ -44,7 +45,7 @@
       integer, optional,                          intent(out)   :: rc
 
       real , save	:: timestep=0.0
-      integer		rc1, k 
+      integer		rc1, k , i1, i2
 
 !***********************************************************************
 !
@@ -104,7 +105,17 @@
 !        minval(gis_phy%grid_fld%t),'spfh=',maxval(gis_phy%grid_fld%tracers(1)%flds),  &
 !        minval(gis_phy%grid_fld%tracers(1)%flds)
 !       endif
-         
+        
+!!  gfs_phy_tracer%fscav(1:ntrac) is for all tracers
+!!  fscav(1:ntrac-ncld-1) is for ozone + aerosl species
+
+        if ( gis_phy%lgocart ) then
+           i1 = gis_phy%gfs_phy_tracer%ntrac_met+1   ! 1st chemical tracer (excluding o3)
+           i2 = gis_phy%gfs_phy_tracer%ntrac         ! last chemical tracer (excluding o3)
+           gis_phy%fscav(2:gis_phy%ntrac-gis_phy%ncld-1) =      &
+                  gis_phy%gfs_phy_tracer%fscav(i1:i2)
+        endif
+ 
 !
 ! ======================================================================
         call do_physics_one_step(                                         &

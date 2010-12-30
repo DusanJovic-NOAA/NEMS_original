@@ -17,9 +17,12 @@
 !                    output time-avg 2d_aer_diag
 ! Oct 2010 Sarah Lu, add g2d_fld%met
 ! Oct 2010 Sarah Lu, g2d_fld%met changed from instant to accumulated
+! Dec 2010 Sarah Lu, g2d_fld%met contains both instant and time-avg;
+!                    wrtaer is called only when gocart is on
 !
 
-      use resol_def,               ONLY: latr, levs, levp1, lonr, nfxr
+      use resol_def,               ONLY: latr, levs, levp1, lonr, nfxr,
+     &                                   ngrids_aer
       use layout1,                 ONLY: me, nodes, lats_node_r, 
      &                                   nodes_comp
       use namelist_physics_def,    ONLY: gen_coord_hybrid, ldiag3d, 
@@ -155,9 +158,11 @@
      &             (IOPROC,noflx,ZHOUR,FHOUR,IDATE,colat1,SECSWR,SECLWR,
      &              sfc_fld, flx_fld, fluxr, global_lats_r,lonsperlar)
 
-            call   wrtaer
+	    if ( ngrids_aer .gt. 0) then
+               call   wrtaer
      &             (IOPROC,noaer,ZHOUR,FHOUR,IDATE,
      &              sfc_fld, g2d_fld, global_lats_r, lonsperlar)
+            endif
 
       endif                 ! comp node
       t4=rtc()
@@ -2104,13 +2109,6 @@ to
 !
 !..........................................................
 !
-!      CALL uninterprez(1,kmsk,glolal,sfc_fld%slmsk,
-!     &       global_lats_r,lonsperlar,buff_mult_piecef(1,1,ngrid2d))
-!      slmskloc=glolal
-!      slmskful=buff_mult_piecef(1:lonr,1:lats_node_r,ngrid2d)
-!
-!..........................................................
-!
       ngrid2d = 0
       if ( g2d_fld%du%nfld > 0 ) then
         do  k = 1, g2d_fld%du%nfld
@@ -2164,6 +2162,25 @@ to
      &                   lonsperlar,buff_mult_pieceg(1,1,ngrid2d))
         enddo
       endif
+!
+!..........................................................
+! 2d met fields (k=01-10) are time-avg;
+! 3d met fields (k=11-24) are instant
+! this change makes comparison easier (flx for 2d, sig for 3d)
+!
+      if ( g2d_fld%met%nfld > 0 ) then
+        do  k = 1, g2d_fld%met%nfld
+          if (k .le. 10 ) then                      ! time-avg
+             glolal=RTIME*g2d_fld%met%diag(k)%flds
+          else                                      ! instant
+             glolal=g2d_fld%met%diag(k)%flds
+          endif
+          ngrid2d=ngrid2d+1
+          CALL uninterprez(2,kmsk0,buffo,glolal,global_lats_r,
+     &                   lonsperlar,buff_mult_pieceg(1,1,ngrid2d))
+        enddo
+      endif
+
 !!
 
       if(me.eq.ioproc)

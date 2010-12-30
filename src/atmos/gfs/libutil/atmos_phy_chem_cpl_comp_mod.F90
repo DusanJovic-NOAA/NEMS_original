@@ -39,6 +39,10 @@
 !! 10Oct 2010     Sarah Lu, pass g2d_fld%met from chem_imp to phys_exp
 !! 15Oct 2010     Sarah Lu, pass fscav from chem_imp to phys_exp
 !! 16Oct 2010     Sarah Lu, change g2d_fld%met from instant to accumulated 
+!! 08Nov 2010     Sarah Lu, set zle floor values to hs; aer_diag fields
+!!                          are modified
+!! 14Nov 2010     Sarah Lu, pass deltim from phy_exp to chem_imp in init
+!! 29Dec 2010     Sarah Lu, Fields not used by GOCART are removed from diag
 !-----------------------------------------------------------------------
 
       use ESMF_MOD
@@ -169,6 +173,7 @@
 !! Code Revision:
 !! 06Mar 2010     Sarah Lu, First Crack
 !! 04Aug 2010     Sarah Lu, Determine run_DU[SU,SS,OC,BC] from ChemRegistry
+!! 14Nov 2010     Sarah Lu, Pass deltim from phy_exp to chem_imp
 !-----------------------------------------------------------------------
 
       implicit none
@@ -193,6 +198,7 @@
       type(ESMF_FieldBundle)        :: Bundle, iBundle
       type(ESMF_Field)              :: Field
       character(len=ESMF_MAXSTR)    :: vname
+      real                          :: deltim
 !
 !-----------------------------------------------------------------------
 !***  Read Chem_Registry to retrive tracer name
@@ -246,6 +252,21 @@
 !-----------------------------------------------------------------------
 
       call Chem_RegistryDestroy ( chemReg, IERR )
+
+
+!-----------------------------------------------------------------------
+!***  Pass time-step from phy_exp to chem_imp
+!-----------------------------------------------------------------------
+
+      MESSAGE_CHECK="PHY2CHEM_INIT: get deltim from phy_exp"
+      CALL ESMF_AttributeGet(PHY_EXP_STATE, name = 'deltim',  &
+                             value = deltim , rc=RC)
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
+      MESSAGE_CHECK="PHY2CHEM_INIT: add deltim to chem_imp"
+      CALL ESMF_AttributeSet(CHEM_IMP_STATE, name = 'deltim',  &
+                             value = deltim , rc=RC)
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
 !-----------------------------------------------------------------------
 !***  Check the final error signal variable
@@ -785,8 +806,8 @@
           prsln(km)=log(0.01*p_p(i,j,km))   ! convert from Pa to mb
 
 !         compute rho (layer air density in kg/m^3), h (interface height in m)
-!         h(0) =  p_hs(i,j)
-          h(0) =  f_zero
+          h(0) =  max ( p_hs(i,j), 0.0 )
+!         h(0) =  f_zero
           do k = 1, km                           ! from SFC to TOA
             tv1 = p_t(i,j,k) * (f_one + con_fvirt * sh(k))   ! virtual temp (k)
             rho(k) = p_p(i,j,k) /(con_rd * tv1)       ! air density (kg/m3)
@@ -835,93 +856,61 @@
 
         select case ( vname )
           case ('xU10M')
-!           p_diag = c_u10m
             p_diag = p_diag + deltim * c_u10m
           case ('xV10M')
-!           p_diag = c_v10m
             p_diag = p_diag + deltim * c_v10m
           case ('xUUSTAR')
-!           p_diag = c_ustar
             p_diag = p_diag + deltim * c_ustar
           case ('xZ0H')
-!           p_diag = c_z0h
             p_diag = p_diag + deltim * c_z0h
           case ('xLWI')
-!           p_diag = c_lwi
             p_diag = p_diag + deltim * c_lwi
           case ('xZPBL')
-!           p_diag = c_zpbl
             p_diag = p_diag + deltim * c_zpbl
           case ('xWET1')
-!           p_diag = c_wet1
             p_diag = p_diag + deltim * c_wet1
-          case ('xGRN')
-!           p_diag = c_grn
-            p_diag = p_diag + deltim * c_grn
-          case ('xPS')
-!           p_diag = c_ps
-            p_diag = p_diag + deltim * c_ps
           case ('xSH')
-!           p_diag = c_sh
             p_diag = p_diag + deltim * c_sh
-          case ('xTA')
-!           p_diag = c_ta
-            p_diag = p_diag + deltim * c_ta
-          case ('xTSOIL')
-!           p_diag = c_tsoil1
-            p_diag = p_diag + deltim * c_tsoil1
-          case ('xTROPP')
-!           p_diag = c_tropp
-            p_diag = p_diag + deltim * c_tropp
           case ('xCNPRCP')
-!           p_diag = c_cn_prcp
             p_diag = p_diag + deltim * c_cn_prcp
           case ('xNCNPRCP')
-!           p_diag = c_ncn_prcp
             p_diag = p_diag + deltim * c_ncn_prcp
 
-          case ('xPLE01')
-            p_diag = p_diag + deltim * c_ple(:,:,1)
-          case ('xZLE01')
-            p_diag = p_diag + deltim * c_zle(:,:,1)
-          case ('xAIRDENS01')
-            p_diag = p_diag + deltim * c_airdens(:,:,1)
-          case ('xT01')
-            p_diag = p_diag + deltim * c_t(:,:,1)
-          case ('xU01')
-            p_diag = p_diag + deltim * c_u(:,:,1)
-          case ('xV01')
-            p_diag = p_diag + deltim * c_v(:,:,1)
-          case ('xFCLD01')
-            p_diag = p_diag + deltim * c_fcld(:,:,1)
-          case ('xDQDT01')
-            p_diag = p_diag + deltim * c_dqdt(:,:,1)
+! change the following from accumulation to instant values;
+! dqdt is scaled by 1e6
 
-          case ('xPLE64')
-            p_diag = p_diag + deltim * c_ple(:,:,64)
+          case ('xZLE01')
+            p_diag = c_zle(:,:,1)
+          case ('xAIRDEN01')
+            p_diag = c_airdens(:,:,1)
+          case ('xT01')
+            p_diag = c_t(:,:,1)
+          case ('xU01')
+            p_diag = c_u(:,:,1)
+          case ('xV01')
+            p_diag = c_v(:,:,1)
+          case ('xFCLD01')
+            p_diag = c_fcld(:,:,1)
+          case ('xDQDT01')
+            p_diag = c_dqdt(:,:,1) * 1.e6
+
           case ('xZLE64')
-            p_diag = p_diag + deltim * c_zle(:,:,64)
-          case ('xAIRDENS64')
-            p_diag = p_diag + deltim * c_airdens(:,:,64)
+            p_diag = c_zle(:,:,64)
+          case ('xAIRDEN64')
+            p_diag = c_airdens(:,:,64)
           case ('xT64')
-            p_diag = p_diag + deltim * c_t(:,:,64)
+            p_diag = c_t(:,:,64)
           case ('xU64')
-            p_diag = p_diag + deltim * c_u(:,:,64)
+            p_diag = c_u(:,:,64)
           case ('xV64')
-            p_diag = p_diag + deltim * c_v(:,:,64)
+            p_diag = c_v(:,:,64)
           case ('xFCLD64')
-            p_diag = p_diag + deltim * c_fcld(:,:,64)
+            p_diag = c_fcld(:,:,64)
           case ('xDQDT64')
-            p_diag = p_diag + deltim * c_dqdt(:,:,64)
+            p_diag = c_dqdt(:,:,64) * 1.e6
 
         end select   
 
-!        nullify(c_diag)
-!        MESSAGE_CHECK = "Phys2Chem CPL_RUN: Get Farray from Chem_Imp-"//vname
-!        call GetPointer_diag_(CHEM_IMP_STATE, 'xxxx', vname, c_diag, rc)
-!        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
-
-!        p_diag(:,:) = c_diag(:,:)
       enddo    ! kcount-loop
 
 
