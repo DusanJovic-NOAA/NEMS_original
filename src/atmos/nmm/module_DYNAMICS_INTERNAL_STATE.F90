@@ -395,6 +395,20 @@
         int_state%F_QS=.TRUE.
         int_state%F_QI=.TRUE.
         int_state%F_QG=.TRUE.
+      ELSEIF(TRIM(int_state%MICROPHYSICS)=='gfs')THEN
+        int_state%NUM_WATER=1+3
+        int_state%P_QV=2
+        int_state%P_QC=3
+        int_state%P_QR=1
+        int_state%P_QS=1
+        int_state%P_QI=4
+        int_state%P_QG=1
+        int_state%F_QV=.TRUE.
+        int_state%F_QC=.TRUE.
+        int_state%F_QR=.FALSE.
+        int_state%F_QS=.FALSE.
+        int_state%F_QI=.TRUE.
+        int_state%F_QG=.FALSE.
       ENDIF
 
       int_state%NUM_TRACERS_TOTAL=                                      &  !<-- # of 3-D arrays in 4-D TRACERS array

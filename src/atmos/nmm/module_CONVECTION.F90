@@ -25,6 +25,7 @@
       USE MODULE_CONTROL,ONLY : NMMB_FINALIZE
 
       USE MODULE_CU_BMJ
+      USE MODULE_CU_SAS
 !
 !-----------------------------------------------------------------------
 !
@@ -72,6 +73,9 @@
                        ,AVCNVC,ACUTIM                                   &
                        ,RSWIN,RSWOUT                                    &
                        ,CONVECTION                                      &
+!!!! added for SAS
+                       ,SICE,QWBS,TWBS,PBLH,DUDT,DVDT                   &
+!!!
                        ,IDS,IDE,JDS,JDE,LM                              &
                        ,IMS,IME,JMS,JME                                 &
                        ,ITS,ITE,JTS,JTE)
@@ -89,6 +93,7 @@
 !   04-11-18  BLACK      - THREADED
 !   06-10-11  BLACK      - BUILT INTO UMO PHYSICS COMPONENT
 !   08-08     JANJIC     - Synchronize WATER array and Q.
+!   10-10-26  WEIGUO WANG - add GFS SAS convection
 !     
 ! USAGE: CALL CUCNVC FROM PHY_RUN
 !
@@ -150,6 +155,8 @@
       LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
 !
       CHARACTER(99),INTENT(IN) :: CONVECTION
+      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: SICE,QWBS,TWBS,PBLH  !For SAS
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: DUDT, DVDT               ! SAS
 !
 !---------------------
 !***  Local Variables
@@ -173,7 +180,9 @@
 
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1) :: RQCCUTEN,RQRCUTEN       &
                                                ,RQICUTEN,RQSCUTEN       &
-                                               ,RQVCUTEN,RTHCUTEN
+                                               ,RQVCUTEN,RTHCUTEN       &
+                                               ,RQGCUTEN
+
 !
       LOGICAL :: RESTART,WARM_RAIN
       LOGICAL,DIMENSION(IMS:IME,JMS:JME) :: CU_ACT_FLAG
@@ -327,12 +336,15 @@
           P_PHY(I,J,K)=PLYR
           PI_PHY(I,J,K)=(PLYR*1.E-5)**CAPA
 !
+        ENDDO
+        DO K=1,LM+1
           RTHCUTEN(I,J,K)=0.
           RQVCUTEN(I,J,K)=0.
           RQCCUTEN(I,J,K)=0.
           RQRCUTEN(I,J,K)=0.
           RQICUTEN(I,J,K)=0.
           RQSCUTEN(I,J,K)=0.
+          RQGCUTEN(I,J,K)=0.
         ENDDO
 !
       ENDDO
@@ -418,6 +430,29 @@
                          ,RTHCUTEN=rthcuten ,RQVCUTEN=rqvcuten          &
                                                                )
 
+           CASE (SASSCHEME)
+
+             CALL SASDRV(DT=dt,NTSD=NTSD,NCNVC=NCNVC                          &
+                        ,TH=th_phy,T=t_phy,SICE=SICE,OMGALF=OMGALF            &
+                        ,SHEAT=TWBS,LHEAT=QWBS,PBLH=PBLH,U=U,V=V              &
+                        ,WATER=WATER,P_QV=P_QV,P_QC=P_QC,P_QR=P_QR            &
+                        ,P_QS=P_QS,P_QI=P_QI,P_QG=P_QG,NUM_WATER=NUM_WATER    &
+                        ,PINT=pint,PMID=p_phy,PI=PI_PHY,RR=RR,DZ=DZ           &
+                        ,XLAND=XLAND,CU_ACT_FLAG=CU_ACT_FLAG                  &
+                        ,RAINCV=RAINCV,CUTOP=CUTOP,CUBOT=CUBOT                &
+                        ,DUDT=DUDT,DVDT=DVDT                                  &
+                  ! optional
+                        ,RTHCUTEN=rthcuten, RQVCUTEN=RQVCUTEN                 &
+                        ,RQCCUTEN=RQCCUTEN, RQRCUTEN=RQRCUTEN                 &
+                        ,RQICUTEN=RQICUTEN, RQSCUTEN=RQSCUTEN                 &
+                        ,RQGCUTEN=RQGCUTEN                                    &
+                         ,IDS=ids,IDE=ide,JDS=jds,JDE=jde,KDS=1,KDE=lm+1      &
+                         ,IMS=ims,IME=ime,JMS=jms,JME=jme,KMS=1,KME=lm+1      &
+                         ,ITS=ITS_B1,ITE=ITE_B1                         &
+                         ,JTS=JTS_B1,JTE=JTE_B1                         &
+                         ,KTS=1,KTE=lm                                        &
+                                                                              )
+
             CASE DEFAULT
 
               WRITE( 0 , * ) 'The cumulus option does not exist: cu_physics = ', cu_physics
@@ -483,6 +518,15 @@
           Q(I,J,K)=Q(I,J,K)+DQDT*DTCNVC
           TCUCN(I,J,K)=TCUCN(I,J,K)+DTDT
           WATER(I,J,K,P_QV)=Q(I,J,K)/(1.-Q(I,J,K))       !Convert to mixing ratio
+!!! WANG, 11-2-2010 SAS convection
+                IF(CONVECTION=='sas') THEN
+                 WATER(I,J,K,P_QC)=WATER(I,J,K,P_QC)+DTCNVC*RQCCUTEN(I,J,K)
+                 WATER(I,J,K,P_QR)=WATER(I,J,K,P_QR)+DTCNVC*RQRCUTEN(I,J,K)
+                 WATER(I,J,K,P_QI)=WATER(I,J,K,P_QI)+DTCNVC*RQICUTEN(I,J,K)
+                 WATER(I,J,K,P_QS)=WATER(I,J,K,P_QS)+DTCNVC*RQSCUTEN(I,J,K)
+                 WATER(I,J,K,P_QG)=WATER(I,J,K,P_QG)+DTCNVC*RQGCUTEN(I,J,K)
+                ENDIF
+!!! wang, 11-2-2010
 !
 !zj          TCHANGE=DTDT*DTCNVC
 !zj          IF(ABS(TCHANGE)>DTEMP_CHECK)THEN

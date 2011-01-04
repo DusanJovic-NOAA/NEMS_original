@@ -28,6 +28,7 @@
 ! MP options
       USE MODULE_MP_ETANEW
       USE MODULE_MP_WSM6
+      USE MODULE_MP_GFS
 !
 !-----------------------------------------------------------------------
 !
@@ -67,6 +68,7 @@
                          ,TBPVS_STATE,TBPVS0_STATE                      &
                          ,SPECIFIED,NESTED                              &
                          ,MICROPHYSICS                                  &
+                         ,TP1,TP2,QP1,QP2,PSP1,PSP2                     &
                          ,IDS,IDE,JDS,JDE,LM                            &
                          ,IMS,IME,JMS,JME                               &
                          ,ITS,ITE,JTS,JTE                               &
@@ -143,6 +145,9 @@
 !
       REAL,DIMENSION(:),INTENT(INOUT) :: MP_RESTART_STATE               &
                                         ,TBPVS_STATE,TBPVS0_STATE
+!*** GFS microphysics
+      REAL, DIMENSION(IMS:IME,JMS:JME,1:LM), INTENT(INOUT) :: TP1,TP2,QP1,QP2
+      REAL, DIMENSION(IMS:IME,JMS:JME), INTENT(INOUT)      :: PSP1,PSP2
 !
 !---------------------
 !***  Local Variables
@@ -322,6 +327,21 @@
                   ,MP_RESTART_STATE=mp_restart_state                          &
                   ,TBPVS_STATE=tbpvs_state,TBPVS0_STATE=tbpvs0_state          &
                                                                             )
+          CASE ('gfs')
+               !  write(0,*)'before call gfsmp,cwm=',cwm(10,10,:)
+               !  write(0,*)'water(p_qi)=',water(10,10,:,p_qi)
+               !  write(0,*)'water(p_qc)=',water(10,10,:,p_qc)
+               !  write(0,*)'water(p_qv)=',water(10,10,:,p_qv)
+            CALL GFSMP(DT=dtphs,                                               &
+                   dz8w=dz,rho_phy=rr,p_phy=p_phy,pi_phy=pi_phy,th_phy=th_phy, &
+                   SR=SR,QT=CWM, F_ICE_PHY=F_ICE,                              &
+                   RAINNC=RAINNC,RAINNCV=RAINNCV,                              &
+                   WATER=WATER,P_QV=P_QV,P_QC=P_QC,P_QI=P_QI,                  &
+                   NUM_WATER=NUM_WATER,                                        &
+                   TP1=TP1,TP2=TP2,QP1=QP1,QP2=QP2,PSP1=PSP1,PSP2=PSP2,        &
+                   IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=1,KDE=LM+1,           &
+                   IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=1,KME=LM ,            &
+                   ITS=itsloc,ITE=iteloc, JTS=jtsloc,JTE=jteloc, KTS=1,KTE=LM )
           CASE ('wsm6')
       !       write(0,*)'call wsm6'
              CALL wsm6(                                             &

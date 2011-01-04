@@ -26,8 +26,9 @@
 !                           reverse flxur/cldcov sequence 
 !   2009-12-15  Sarah Lu - GBPHYS calling argument modified: add dqdt
 !   2009-11     Jovic    - Modified for ownership/import/export specification
-!   2010-02-08  W. Wang  - Add wsm6 microphysics 
-!   2010-03-10  W. Wang  - ADD species advection option
+!   2010-02-08  Weiguo Wang  - Add wsm6 microphysics
+!   2010-03-10  Weiguo Wang  - ADD species advection option
+!   2010-10-06  Weiguo Wang  - add RSWTT, RLWTT to TURBL, used for GFSPBL option
 !
 !-----------------------------------------------------------------------
 !
@@ -58,6 +59,7 @@
       USE MODULE_LS_NOAHLSM   ,ONLY : DZSOIL,NOAH_LSM_INIT              &
                                      ,NUM_SOIL_LAYERS,SLDPTH
       USE MODULE_CU_BMJ       ,ONLY : BMJ_INIT
+      USE MODULE_CU_SAS       ,ONLY : SAS_INIT
       USE MODULE_CONVECTION   ,ONLY : CUCNVC
 
       USE MODULE_CU_BMJ_DEV       ,ONLY : BMJ_INIT_DEV
@@ -67,6 +69,7 @@
                                          ,MICRO_RESTART
       USE MODULE_MP_ETANEW, ONLY : FERRIER_INIT
       USE MODULE_MP_WSM6,   ONLY : WSM6INIT
+      USE MODULE_MP_GFS,    ONLY : GFSMP_INIT
 
       USE MODULE_H_TO_V       ,ONLY : H_TO_V,H_TO_V_TEND
       USE MODULE_GWD          ,ONLY : GWD_INIT
@@ -1097,6 +1100,8 @@
 !
         update_wtr: IF((int_state%MICROPHYSICS=='fer'                   &
                                    .OR.                                 &
+                        int_state%MICROPHYSICS=='gfs'                   &
+                                   .OR.                                 &
                         int_state%MICROPHYSICS=='wsm6')                 &
                                    .AND.                                &
                        (CALL_SHORTWAVE .OR. CALL_LONGWAVE .OR.          &
@@ -1110,6 +1115,9 @@
            CASE ('wsm3')
               IMICRO=2
 !
+           CASE ('gfs')
+              IMICRO=3
+
            CASE DEFAULT
               IMICRO=0
 !
@@ -1381,6 +1389,7 @@
                     ,int_state%SM,int_state%CZEN,int_state%CZMEAN       &
                     ,int_state%SIGT4,int_state%RLWIN,int_state%RSWIN    &
                     ,int_state%RADOT                                    &
+                    ,int_state%RLWTT,int_state%RSWTT                    &   !! added by wang 2010-10-6
                     ,int_state%PD,int_state%T                           &
                     ,int_state%Q,int_state%CW                           &
                     ,int_state%F_ICE,int_state%F_RAIN,int_state%SR      &
@@ -1563,7 +1572,8 @@
 !***  Temporary switch between two convection schemes (bmj & bmj_dev)
 !***  placed here in PHY_RUN
 !-----------------------------------------------------------------------
-          IF(int_state%CONVECTION=='bmj')THEN
+      !!    IF(int_state%CONVECTION=='bmj')THEN
+          IF(int_state%CONVECTION=='bmj' .OR. int_state%CONVECTION=='sas')THEN
 !
             CALL CUCNVC(NTIMESTEP,int_state%DT,int_state%NPRECIP          &
                        ,int_state%NRADS,int_state%NRADL                   &
@@ -1593,6 +1603,11 @@
                        ,int_state%AVCNVC,int_state%ACUTIM                 &
                        ,int_state%RSWIN,int_state%RSWOUT                  &
                        ,int_state%CONVECTION                              &
+!!!SAS 10-26
+    !!!! added for SAS
+                      ,int_state%SICE,int_state%QWBS,int_state%TWBS       &
+                      ,int_state%PBLH,int_state%DUDT,int_state%DVDT       &
+!!!SAS
                        ,IDS,IDE,JDS,JDE,LM                                &
                        ,IMS,IME,JMS,JME                                   &
                        ,ITS,ITE,JTS,JTE)
@@ -1660,6 +1675,50 @@
 !
             pole_swap_phy_tim=pole_swap_phy_tim+(timef()-btim)
           ENDIF
+
+!!! WANG, SAS convection changes dudt, dvdt, 11-02-2010
+          if (int_state%CONVECTION=='sas') then              !!SAS update UV
+!-----------------------------------------------------------------------
+!***  Exchange wind tendencies.
+!-----------------------------------------------------------------------
+          btim=timef()
+          CALL HALO_EXCH(int_state%DUDT,LM,int_state%DVDT,LM,1,1)
+          exch_phy_tim=exch_phy_tim+(timef()-btim)
+!-----------------------------------------------------------------------
+!***  Now interpolate wind tendencies from H to V points.
+!-----------------------------------------------------------------------
+          btim=timef()
+          CALL H_TO_V_TEND(int_state%DUDT,int_state%DT,int_state%NPRECIP,LM &
+                          ,int_state%U)
+          CALL H_TO_V_TEND(int_state%DVDT,int_state%DT,int_state%NPRECIP,LM &
+                          ,int_state%V)
+          h_to_v_tim=h_to_v_tim+(timef()-btim)
+!-----------------------------------------------------------------------
+!***  Poles and East-West boundary.
+!-----------------------------------------------------------------------
+!
+          IF(int_state%GLOBAL)THEN
+            btim=timef()
+!
+            CALL SWAPWN(int_state%U,IMS,IME,JMS,JME,LM,int_state%INPES)
+            CALL SWAPWN(int_state%V,IMS,IME,JMS,JME,LM,int_state%INPES)
+            CALL POLEWN(int_state%U,int_state%V,IMS,IME,JMS,JME,LM      &
+                       ,int_state%INPES,int_state%JNPES)
+!
+            pole_swap_phy_tim=pole_swap_phy_tim+(timef()-btim)
+          ENDIF
+!
+!
+!-----------------------------------------------------------------------
+!***  Exchange wind components.
+!-----------------------------------------------------------------------
+          btim=timef()
+          CALL HALO_EXCH(int_state%U,LM,int_state%V,LM                  &
+                        ,2,2)
+          exch_phy_tim=exch_phy_tim+(timef()-btim)
+!-----------------------------------------------------------------------
+          endif                                              !!SAS update UV
+!!! END OF SAS  WANG 11-2-2010
 !
         ENDIF convection
 !
@@ -1693,6 +1752,12 @@
                        ,int_state%TBPVS_STATE,int_state%TBPVS0_STATE       &
                        ,int_state%SPECIFIED,int_state%NESTED               &
                        ,int_state%MICROPHYSICS                             &
+                       ,int_state%TP1                                      &  !! below 6 for gfs microphysics
+                       ,int_state%TP2                                      &
+                       ,int_state%QP1                                      &
+                       ,int_state%QP2                                      &
+                       ,int_state%PSP1                                     &
+                       ,int_state%PSP2                                     &   !!
                        ,IDS,IDE,JDS,JDE,LM                                 &
                        ,IMS,IME,JMS,JME                                    &
                        ,ITS,ITE,JTS,JTE                                    &
@@ -1782,6 +1847,12 @@
 !
         CALL HALO_EXCH(int_state%T,LM                                   &
                       ,1,1)
+!If advection is on, cloud species are advected
+        IF( specadv == 1) THEN
+        CALL HALO_EXCH(int_state%WATER,LM,int_state%NUM_WATER,2       &
+                       ,2,2)
+        ENDIF
+
 !
         exch_phy_tim=exch_phy_tim+(timef()-btim)
 !
@@ -3937,6 +4008,7 @@
                             ,IDS,IDE,JDS,JDE,LM                        &
                             ,IMS,IME,JMS,JME                           &
                             ,ITS,ITE,JTS,JTE)
+          CASE ('gfs')
 !!!       CASE ('ysu')
 !!!         CALL YSU_INIT
           CASE DEFAULT
@@ -3982,7 +4054,8 @@
                          ,IDS,IDE,JDS,JDE,1,LM+1                       &
                          ,IMS,IME,JMS,JME,1,LM+1                       &
                          ,ITS,ITE,JTS,JTE,1,LM)
-
+          CASE ('sas')
+            CALL SAS_INIT
 !
 !!!       CASE('kf')
 !!!         CALL KF_INIT
@@ -4020,6 +4093,9 @@
                              ,ITS,ITE,JTS,JTE,1,LM                     &
                              ,MPI_COMM_COMP,MYPE )
 !
+          CASE ('gfs')
+             CALL GFSMP_INIT
+
           CASE ('wsm6')
              CALL WSM6INIT(RHOAIR0,RHOWATER,RHOSNOW,CLIQ,CV             &
                           ,ALLOWED_TO_READ )
@@ -4196,7 +4272,8 @@
            ENDDO
          ENDDO
 !
-      ELSE IF (IMICRO == 1) then micro_update
+     !! ELSE IF (IMICRO == 1) then micro_update
+      ELSE IF (IMICRO == 1 .or. IMICRO ==3) then micro_update   !! imicro=3 is for gfsmp
 !
 !-----------------------------------------------------------------------
 !***  Update CWM, F_rain, F_ice, F_RIMEF from WATER array

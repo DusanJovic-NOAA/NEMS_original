@@ -179,13 +179,13 @@ microphysics:  fer          # Microphysics scheme
                                 # lin--> Lin
                                 # tho--> Thompson
                                 # wsm3--> WSM3
-
+                                # gfs--> GFS microphy
 spec_adv:  .false.          # Individual cloud species advected
 
 #---------------------------------
 turbulence:  myj            # Turbulence schemes
                                 # myj--> Mellor-Yamada-Janjic
-                                                                                                                                              
+                                # gfs--> GFS PBL                                                                                                                                              
 #---------------------------------
                                                                                                                                               
 sfc_layer:  myj             # Surface layer schemes

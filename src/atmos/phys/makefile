@@ -12,10 +12,13 @@ MODULES_NMM      = module_LS_LISS.o \
                    module_SF_URBAN.o
 
 MODULES_NMM_SMP  = module_BL_MYJPBL.o \
+                   module_BL_GFSPBL.o \
+                   module_CU_SAS.o \
                    module_CU_BMJ.o \
                    module_CU_BMJ_DEV.o \
                    module_MP_ETANEW.o \
                    module_MP_WSM6.o \
+                   module_MP_GFS.o \
                    module_RA_GFDL.o \
                    module_RA_RRTM.o \
                    module_SF_JSFC.o

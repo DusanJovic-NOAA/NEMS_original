@@ -13,7 +13,8 @@
 !   2008-07-28  Vasic - Turned off counters (now computed in
 !                       SET_INTERNAL_STATE_PHY).
 !   2009-10-26  Jovic - Remove WRF driver from TURBL
-!
+!   2010-09-10  Weiguo Wang - add GFS PBL option
+!   2010-10-06  Weiguo Wang - add RSWTT, RLWTT, used by GFS PBL
 !-----------------------------------------------------------------------
 !
       USE MODULE_INCLUDE
@@ -35,6 +36,7 @@
 !
       USE MODULE_SF_JSFC,ONLY : JSFC
       USE MODULE_BL_MYJPBL,ONLY : MYJPBL
+      USE MODULE_BL_GFSPBL,ONLY : GFSPBL
 !-----------------------------------------------------------------------
 !
       IMPLICIT NONE
@@ -52,6 +54,7 @@
 !-----------------------------------------------------------------------
 !
       INTEGER(KIND=KINT),PARAMETER :: MYJPBLSCHEME=2
+      INTEGER(KIND=KINT),PARAMETER :: GFSPBLSCHEME=9
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -82,6 +85,7 @@
                       ,DSG2,SGML2,SG2,PDSG1,PSGML1,PSG1,PT              &
                       ,SM,CZEN,CZMEAN,SIGT4,RLWIN,RSWIN,RADOT           &
 !- RLWIN/RSWIN - downward longwave/shortwave at the surface (also TOTLWDN/TOTSWDN in RADIATION)
+                      ,RLWTT,RSWTT                                      &   !! added by wang 2010-10-6
                       ,PD,T,Q,CWM,F_ICE,F_RAIN,SR                       &
                       ,Q2,U,V,DUDT,DVDT                                 &
                       ,THS,TSFC,SST,PREC,SNO,WATER                      &
@@ -247,6 +251,8 @@
 !
       CHARACTER(99),INTENT(IN) :: LAND_SURFACE,MICROPHYSICS             &
                                  ,SFC_LAYER,TURBULENCE
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) ::  RSWTT, RLWTT
+
 !
 !  For precip assimilation:
 !
@@ -300,6 +306,7 @@
                                                ,RR,U_PHY,V_PHY,TH,TKE,Z
 !
 !
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1) :: RQRBLTEN, RQSBLTEN,RQGBLTEN
       REAL,DIMENSION(IMS:IME,1:LM+1,JMS:JME) :: DP_GWD,EXNR_GWD         &
                                                ,PINT_GWD,PMID_GWD,Q_GWD &
                                                ,T_GWD,U_GWD,V_GWD,Z_GWD
@@ -359,6 +366,8 @@
       SELECT CASE (TRIM(TURBULENCE))
         CASE ('myj')
           PBL_PHYSICS=MYJPBLSCHEME
+        CASE ('gfs')
+          PBL_PHYSICS=GFSPBLSCHEME
         CASE DEFAULT
           WRITE(0,*)' User selected TURBULENCE=',TRIM(TURBULENCE)
           WRITE(0,*)' Improper selection of Turbulence scheme in TURBL'
@@ -367,6 +376,8 @@
 !
       SELECT CASE (TRIM(SFC_LAYER))
         CASE ('myj')
+          SFCLAY_PHYSICS=JSFCSCHEME
+        CASE ('gfs')
           SFCLAY_PHYSICS=JSFCSCHEME
         CASE DEFAULT
           WRITE(0,*)' User selected SFC_LAYER=',TRIM(SFC_LAYER)
@@ -589,6 +600,12 @@
           RQIBLTEN(I,J,K)=0.
           RTHBLTEN(I,J,K)=0.
           RQVBLTEN(I,J,K)=0.
+! added 9-10-2010
+          RQRBLTEN(I,J,K)=0.
+          RQSBLTEN(I,J,K)=0.
+          RQGBLTEN(I,J,K)=0.
+! end
+
 !
           DZ(I,J,K)=T(I,J,K)*(P608*QL+1.)*R_D                           &
                     *(PINT(I,J,K+1)-PINT(I,J,K))                        &
@@ -983,6 +1000,57 @@
                          ,KTS=1,KTE=LM)
 
           END IF
+
+        CASE (GFSPBLSCHEME)    !! Wang 09-10-2010 added GFS PBL driver
+
+          IF (NTSD == 1 .OR. MOD(NTSD,NPHS) == 0) THEN
+
+              RTHBLTEN = 0.
+              DUDT_PHY = 0.
+              DVDT_PHY = 0.
+              RQCBLTEN = 0.
+              RQVBLTEN = 0.
+              RQIBLTEN = 0.
+              RQRBLTEN = 0.
+              RQSBLTEN = 0.
+              RQGBLTEN = 0.
+!!
+              CALL GFSPBL(DT=DT,NPHS=NPHS,DP=DELP,AIRDEN=RR              &
+                         ,RIB=RIB                            &
+                         ,PMID=PMID,PINT=PINT,T=T, ZINT=Z                &
+                         ,NUM_WATER=NUM_WATER,WATER=WATER                &
+                         ,P_QV=P_QV,P_QC=P_QC,P_QR=P_QR                  &
+                         ,P_QI=P_QI,P_QS=P_QS,P_QG=P_QG                  &
+                         ,U=U_PHY,V=V_PHY                                &
+                         ,USTAR=USTAR                                    &
+                         ,SHEAT=TWBS, LHEAT=QWBS*XLV*CHKLOWQ             & 
+                    !     ,SHEAT=TWBS, LHEAT=QWBS*XLV*CHKLOWQ            &    !! After testing, TWBS is regular 
+                                                                              !surface heat flux (i.e., up is +)
+                         ,XLAND=XLAND                                    &
+                         ,AKHS=AKHS,AKMS=AKMS                            &
+                         ,THZ0=THZ0,QZ0=QZ0                              &
+                         ,QSFC=QS                                        &
+                         ,TSK=TSFC,SNOW=SNOW,SICE=SICE,CHKLOWQ=CHKLOWQ   &
+                         ,FACTRS=FACTRS,RSWTT=RSWTT,RLWTT=RLWTT          &    !! radiative heating
+                         ,PBLH=PBLH,PBLK=KPBL                            &
+                         ,MIXHT=MIXHT                                    &
+                         ,RUBLTEN=DUDT_PHY                               &
+                         ,RVBLTEN=DVDT_PHY                               &
+                         ,RTHBLTEN=RTHBLTEN                              &
+                         ,RQVBLTEN=RQVBLTEN                              &
+                         ,RQCBLTEN=RQCBLTEN                              &
+                         ,RQRBLTEN=RQRBLTEN                              &
+                         ,RQIBLTEN=RQIBLTEN                              &
+                         ,RQSBLTEN=RQSBLTEN                              &
+                         ,RQGBLTEN=RQGBLTEN                              &
+                         ,IDS=IDS,IDE=IDE,JDS=JDS,JDE=JDE,KDS=1,KDE=LM+1 &
+                         ,IMS=IMS,IME=IME,JMS=JMS,JME=JME,KMS=1,KME=LM+1 &
+                         ,ITS=ITS_B1,ITE=ITE_B1                          &
+                         ,JTS=JTS_B1,JTE=JTE_B1                          &
+                         ,KTS=1,KTE=LM )
+
+          END IF
+
 
         CASE DEFAULT
 

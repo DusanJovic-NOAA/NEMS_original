@@ -238,6 +238,12 @@
         REAL(kind=KDBL),DIMENSION(:,:,:)  ,POINTER   :: PHY_F2DV   ! save last time step 2Ds
         REAL(kind=KDBL),DIMENSION(:,:,:,:),POINTER   :: PHY_F3DV   ! save last time step 3Ds
         REAL(kind=KDBL),DIMENSION(:,:,:,:),POINTER   :: OZPLIN
+!_-----------------------------------------------------------------------------
+!***  gfs microphysics additional arrays saving surface pressure, Temperature,water vapor
+!     at previous time steps, Weiguo Wang 11-22-2010
+!-------------------------------------------------------------------------------
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: TP1,TP2,QP1,QP2
+        REAL(kind=KFPT),DIMENSION(:,:),  POINTER :: PSP1,PSP2
 !
 !-----------------------------------------------------------------------
 !***  Physics Options
@@ -385,6 +391,14 @@
         int_state%P_QS=5
         int_state%P_QI=6
         int_state%P_QG=7
+      ELSEIF(TRIM(int_state%MICROPHYSICS)=='gfs')THEN
+        int_state%NUM_WATER=1+3
+        int_state%P_QV=2
+        int_state%P_QC=3
+        int_state%P_QR=1
+        int_state%P_QS=1
+        int_state%P_QI=4
+        int_state%P_QG=1
       ENDIF
 !
 !-- Moved the initiation of the int_state%F_Q logicals to 
@@ -510,6 +524,28 @@
 !
       ALLOCATE(int_state%PPTDAT(IMS:IME,JMS:JME,1:int_state%PCPHR)) ;int_state%PPTDAT = R4_IN 
 
+!-----------------------------------------------------------------------
+!*** gfs microphysics, wang, 11-22-2010
+!-----------------------------------------------------------------------
+        ALLOCATE(int_state%TP1(IMS:IME,JMS:JME,1:LM))
+        ALLOCATE(int_state%TP2(IMS:IME,JMS:JME,1:LM))
+        ALLOCATE(int_state%QP1(IMS:IME,JMS:JME,1:LM))
+        ALLOCATE(int_state%QP2(IMS:IME,JMS:JME,1:LM))
+        ALLOCATE(int_state%PSP1(IMS:IME,JMS:JME))
+        ALLOCATE(int_state%PSP2(IMS:IME,JMS:JME))
+        DO I=IMS,IME
+        DO J=JMS,JME
+          int_state%PSP1(I,J) = -999.0
+          int_state%PSP2(I,J) = -999.0
+          DO L=1,LM
+           int_state%TP1(I,J,L) = -999.0
+           int_state%TP2(I,J,L) = -999.0
+           int_state%QP1(I,J,L) = -999.0
+           int_state%QP2(I,J,L) = -999.0
+          ENDDO
+        ENDDO
+        ENDDO
+!-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !***  Only for GFS physics
 !-----------------------------------------------------------------------
