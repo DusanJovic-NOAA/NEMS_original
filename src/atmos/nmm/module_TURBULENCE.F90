@@ -95,7 +95,7 @@
                       ,EXCH_H,AKHS,AKMS,AKHS_OUT,AKMS_OUT               &
                       ,THZ0,QZ0,UZ0,VZ0,QS,MAVAIL                       &
                       ,STC,SMC,CMC,SMSTAV,SMSTOT,SSROFF,BGROFF          &
-                      ,IVGTYP,ISLTYP,VEGFRC,SHDMIN,SHDMAX,GRNFLX        &
+                      ,IVGTYP,ISLTYP,VEGFRC,GRNFLX                      &
                       ,SFCEXC,ACSNOW,ACSNOM,SNOPCX,SICE,TG,SOILTB       &
                       ,ALBASE,MXSNAL,ALBEDO,SH2O,SI,EPSR                &
                       ,U10,V10,TH10,Q10,TSHLTR,QSHLTR,PSHLTR,PSFC_OUT   &
@@ -187,7 +187,6 @@
                                                    ,FIS,PD              &
                                                    ,RLWIN,RLWTOA        &
                                                    ,RSWIN,RSWOUT,RSWTOA &
-                                                   ,SHDMIN,SHDMAX       &
                                                    ,SICE,SIGT4          &
                                                    ,SST,TG,VEGFRC
 !
@@ -840,7 +839,7 @@
                            MYJ,FRPCPN,                                  &
                            SH2O,SNOWH,                                  & !H
                            U_PHY,V_PHY,                                 & !I
-                           MXSNAL,SHDMIN,SHDMAX,                        & !I
+                           MXSNAL,                                      & !I
                            ACSNOM,ACSNOW,                               & !O
                            SNOPCX,                                      & !O
                            POTEVP, RIB,                                 & !O Added Bulk Richardson No.

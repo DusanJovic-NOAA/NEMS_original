@@ -200,7 +200,7 @@
                   myj,frpcpn,                                   & 
                   SH2O,SNOWH,                                   & !H 
                   U_PHY,V_PHY,                                  & !I
-                  SNOALB,SHDMIN,SHDMAX,                         & !I
+                  SNOALB,                                       & !I
                   ACSNOM,ACSNOW,                                & !O  
                   SNOPCX,                                       & !O  
 ! MEK JUL2007
@@ -275,8 +275,6 @@
 !-- SNOWC       fraction snow coverage (0-1.0)
 ! --- vegetation variables
 !-- SNOALB      upper bound on maximum albedo over deep snow 
-!-- SHDMIN      minimum areal fractional coverage of annual green vegetation
-!-- SHDMAX      maximum areal fractional coverage of annual green vegetation
 !-- XLAI        leaf area index (dimensionless)
 !-- Z0BRD       Background fixed roughness length (M)
 !-- Z0          Background vroughness length (M) as function
@@ -365,8 +363,6 @@
                                                          XLAND, &
                                                           XICE, &
                                                         VEGFRA, &
-                                                        SHDMIN, &
-                                                        SHDMAX, &
                                                         SNOALB, &
                                                            GSW, &
                                                         SWDOWN, & !added 10 jan 2007
@@ -625,7 +621,6 @@
 
 !      SLOPETYP=2
       SLOPETYP=1
-!      SHDMIN=0.00           
 
       NSOIL=num_soil_layers
 
@@ -711,8 +706,6 @@
         SHDFAC=VEGFRA(I,J)/100.                                       
         T1=TSK(I,J)
         CHK=CHS(I,J) 
-        SHMIN=SHDMIN(I,J)/100. !NEW 
-        SHMAX=SHDMAX(I,J)/100. !NEW
         SNOALB1=SNOALB(I,J)     !NEW
 ! convert snow water equivalent from mm to meter
         SNEQV=SNOW(I,J)*0.001
@@ -873,7 +866,7 @@
                  LWDN,SOLDN,SOLNET,SFCPRS,PRCP,SFCTMP,Q2K,DUMMY,         &    !F
                  DUMMY,DUMMY, DUMMY,                              &    !F PRCPRAIN not used
                  TH2,Q2SAT,DQSDT2,                                &    !I
-                 VEGTYP,SOILTYP,SLOPETYP,SHDFAC,SHMIN,DUMMY,      &    !I   
+                 VEGTYP,SOILTYP,SLOPETYP,SHDFAC,                  &    !I   
                  ALBBRD, SNOALB1,TBOT, Z0BRD, Z0K, EMISSI,        &    !S 
                  CMC,T1,STC,SMC,SWC,SNOWHK,SNEQV,ALBEDOK,CHK,dummy,&    !H
                  ETA,SHEAT, ETA_KINEMATIC,FDOWN,                  &    !O
@@ -896,7 +889,7 @@
         'SFCPRS',SFCPRS, 'PRCP',PRCP,'SFCTMP',SFCTMP,'Q2K',Q2K,   &
          'TH2',TH2,'Q2SAT',Q2SAT,'DQSDT2',DQSDT2,'VEGTYP', VEGTYP,&
           'SOILTYP',SOILTYP, 'SLOPETYP',SLOPETYP, 'SHDFAC',SHDFAC,&
-         'SHDMIN',SHMIN, 'ALBBRD',ALBBRD,'SNOALB',SNOALB1,'TBOT',&
+                         'ALBBRD',ALBBRD,'SNOALB',SNOALB1,'TBOT',&
           TBOT, 'Z0BRD',Z0BRD, 'Z0K',Z0K, 'CMC',CMC, 'T1',T1,'STC',&
           STC, 'SMC',SMC, 'SWc',SWC,'SNOWHK',SNOWHK,'SNEQV',SNEQV,&
           'ALBEDO',ALBEDOK,'CHK',CHK,'ETA',ETA,'SHEAT',SHEAT,      &
@@ -1613,7 +1606,7 @@
                        LWDN,SOLDN,SOLNET,SFCPRS,PRCP,SFCTMP,Q2,SFCSPD,  &    !F  
                        COSZ,PRCPRAIN, SOLARDIRECT,                      &    !F  
                        TH2,Q2SAT,DQSDT2,                                &    !I  
-                       VEGTYP,SOILTYP,SLOPETYP,SHDFAC,SHDMIN,SHDMAX,    &    !I  
+                       VEGTYP,SOILTYP,SLOPETYP,SHDFAC,                  &    !I  
                        ALB, SNOALB,TBOT, Z0BRD, Z0, EMISSI,             &    !S   
                        CMC,T1,STC,SMC,SH2O,SNOWH,SNEQV,ALBEDO,CH,CM,    &    !H  
 ! ----------------------------------------------------------------------         
@@ -1702,8 +1695,6 @@
 !   SLOPETYP   CLASS OF SFC SLOPE (INTEGER INDEX)                                
 !   SHDFAC     AREAL FRACTIONAL COVERAGE OF GREEN VEGETATION                     
 !                (FRACTION= 0.0-1.0)                                             
-!   SHDMIN     MINIMUM AREAL FRACTIONAL COVERAGE OF GREEN VEGETATION             
-!                (FRACTION= 0.0-1.0) <= SHDFAC                                   
 !   PTU        PHOTO THERMAL UNIT (PLANT PHENOLOGY FOR ANNUALS/CROPS)            
 !                (NOT YET USED, BUT PASSED TO REDPRM FOR FUTURE USE IN           
 !                VEG PARMS)                                                      
@@ -1832,9 +1823,9 @@
 ! ----------------------------------------------------------------------         
 ! DECLARATIONS - REAL                                                            
 ! ----------------------------------------------------------------------         
-      REAL, INTENT(IN)   :: SHDMIN,SHDMAX,DT,DQSDT2,LWDN,PRCP,PRCPRAIN,     & 
+      REAL, INTENT(IN)   :: DT,DQSDT2,LWDN,PRCP,PRCPRAIN,                   & 
                             Q2,Q2SAT,SFCPRS,SFCSPD,SFCTMP, SNOALB,          & 
-                            SOLDN,SOLNET,TBOT,TH2,ZLVL,                            &
+                            SOLDN,SOLNET,TBOT,TH2,ZLVL,                     &
                             EMISSI, FFROZP                                         
       REAL, INTENT(INOUT):: COSZ, SOLARDIRECT,ALBEDO,CH,CM,RIBB,            &  
                             CMC,SNEQV,SNCOVR,SNOWH,T1,XLAI,SHDFAC,Z0BRD,ALB
@@ -2001,7 +1992,7 @@
               CALL SNFRAC (SNEQV,SNUP,SALP,SNOWH,SNCOVR)                         
 ! limit snow cover fraction to maximum of 0.98
               SNCOVR = MIN(SNCOVR,0.98)
-              CALL ALCALC (ALB,SNOALB,SHDFAC,SHDMIN,SNCOVR,TSNOW,ALBEDO)         
+              CALL ALCALC (ALB,SNOALB,SHDFAC,SNCOVR,TSNOW,ALBEDO)         
             END IF                                                               
 ! ----------------------------------------------------------------------         
 ! SNOW COVER, ALBEDO OVER SEA-ICE                                                
@@ -2285,14 +2276,13 @@
   END SUBROUTINE SFLX                                                            
 ! ----------------------------------------------------------------------         
                                                                                  
-      SUBROUTINE ALCALC (ALB,SNOALB,SHDFAC,SHDMIN,SNCOVR,TSNOW,ALBEDO)           
+      SUBROUTINE ALCALC (ALB,SNOALB,SHDFAC,SNCOVR,TSNOW,ALBEDO)           
                                                                                  
 ! ----------------------------------------------------------------------         
 ! CALCULATE ALBEDO INCLUDING SNOW EFFECT (0 -> 1)                                
 !   ALB     SNOWFREE ALBEDO                                                      
 !   SNOALB  MAXIMUM (DEEP) SNOW ALBEDO                                           
 !   SHDFAC    AREAL FRACTIONAL COVERAGE OF GREEN VEGETATION                      
-!   SHDMIN    MINIMUM AREAL FRACTIONAL COVERAGE OF GREEN VEGETATION              
 !   SNCOVR  FRACTIONAL SNOW COVER                                                
 !   ALBEDO  SURFACE ALBEDO INCLUDING SNOW EFFECT                                 
 !   TSNOW   SNOW SURFACE TEMPERATURE (K)                                         
@@ -2305,10 +2295,9 @@
 ! SNOW ALBEDO FIELDS PROVIDED BY D. ROBINSON AND G. KUKLA                        
 ! (1985, JCAM, VOL 24, 402-411)                                                  
 ! ----------------------------------------------------------------------         
-      REAL, INTENT(IN)  ::  ALB, SNOALB, SHDFAC, SHDMIN, SNCOVR, TSNOW                
+      REAL, INTENT(IN)  ::  ALB, SNOALB, SHDFAC, SNCOVR, TSNOW                
       REAL, INTENT(OUT) ::  ALBEDO
 ! turn of vegetation effect
-!      ALBEDO = ALB + (1.0- (SHDFAC - SHDMIN))* SNCOVR * (SNOALB - ALB)           
 !      ALBEDO = (1.0-SNCOVR)*ALB + SNCOVR*SNOALB !this is equivalent to below
       ALBEDO = ALB + SNCOVR*(SNOALB-ALB)
                                                                                  

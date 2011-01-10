@@ -180,32 +180,33 @@ real(kind=kfpt):: &
 ,rpdp &                      !
 ,wprp                        ! divergence modification weight at the point
 
-real(kind=kfpt),dimension(its_h1:ite_h1,jts_h1:jte_h1):: &
+real(kind=kfpt),dimension(its_h2:ite_h2,jts_h2:jte_h2):: &
  apel &                      ! scratch, pressure in the middle of the layer
 ,dfi &                       ! scratch, delta phi
 ,filo &                      ! scratch, geopotential at lower interface
 ,fim                         ! scratch, geopotential in the middle of the layer
 
-real(kind=kfpt),dimension(its_h1:ite_h1,jts_h1:jte_h1,1:lm):: &
+real(kind=kfpt),dimension(its_h2:ite_h2,jts_h2:jte_h2,1:lm):: &
  apel_3d &                   ! scratch, 3d copy of pressure in the middle of the layer
 ,fim_3d  &                   ! scratch, 3d copy of geopotential in the middle of the layer
 ,dfi_3d                      ! scratch, 3d copy of delta phi
 
-real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
+real(kind=kfpt),dimension(its_b1:ite_h2,jts_b1:jte_h2):: &
  pgne &                      ! scratch, pgf, ne direction
 ,pgnw                        ! scratch, pgf, nw direction
 
-real(kind=kfpt),dimension(its_b1:ite_h1,jts:jte_h1):: &
+real(kind=kfpt),dimension(its_b1:ite_h2,jts:jte_h2):: &
  pgx                         ! scratch, pgf, x direction
 
-real(kind=kfpt),dimension(its:ite_h1,jts_b1:jte_h1):: &
+real(kind=kfpt),dimension(its:ite_h2,jts_b1:jte_h2):: &
  pgy                         ! scratch, pgf, y direction
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-      do j=jts_h1,jte_h1
-        do i=its_h1,ite_h1
+
+      do j=jts_h2,jte_h2
+        do i=its_h2,ite_h2
           filo(i,j)=fis(i,j)
         enddo
       enddo
@@ -220,12 +221,12 @@ real(kind=kfpt),dimension(its:ite_h1,jts_b1:jte_h1):: &
 !.......................................................................
       nth = omp_get_num_threads()
       tid = omp_get_thread_num()
-      call looplimits(tid, nth, jts_h1, jte_h1, jstart, jstop)
+      call looplimits(tid, nth, jts_h2, jte_h2, jstart, jstop)
 !-----------------
 #else
 !-----------------
-      jstart = jts_h1
-      jstop = jte_h1
+      jstart = jts_h2
+      jstop = jte_h2
 !-----------------
 #endif
 !-----------------
@@ -233,7 +234,7 @@ real(kind=kfpt),dimension(its:ite_h1,jts_b1:jte_h1):: &
       do l=lm,1,-1
 !-----------------------------------------------------------------------
         do j=jstart,jstop
-          do i=its_h1,ite_h1
+          do i=its_h2,ite_h2
             apelp=(pint(i,j,l)+pint(i,j,l+1))*0.5
             apel_3d(i,j,l)=apelp
             dfdp=(q(i,j,l)*0.608+(1.-cw(i,j,l)))*t(i,j,l)*r/apelp
@@ -264,8 +265,8 @@ real(kind=kfpt),dimension(its:ite_h1,jts_b1:jte_h1):: &
 !---vertical grand loop-------------------------------------------------
 !-----------------------------------------------------------------------
       vertical_loop: do l=lm,1,-1
-        do j=jts_h1,jte_h1
-          do i=its_h1,ite_h1
+        do j=jts_h1,jte_h2
+          do i=its_h1,ite_h2
            apel(i,j)= apel_3d(i,j,l)
            fim(i,j) = fim_3d(i,j,l)
            dfi(i,j) = dfi_3d(i,j,l)
@@ -274,8 +275,8 @@ real(kind=kfpt),dimension(its:ite_h1,jts_b1:jte_h1):: &
 !-----------------------------------------------------------------------
 !---pressure gradient force components, behind h points-----------------
 !-----------------------------------------------------------------------
-        do j=jts,jte_h1
-          do i=its_b1,ite_h1
+        do j=jts,jte_h2
+          do i=its_b1,ite_h2
             ppx=(fim(i,j)-fim(i-1,j)) &
                *(pint(i  ,j ,l+1)+pint(i-1,j  ,l+1) &
                 -pint(i  ,j ,l  )-pint(i-1,j  ,l  ))*0.5
@@ -285,8 +286,8 @@ real(kind=kfpt),dimension(its:ite_h1,jts_b1:jte_h1):: &
           enddo
         enddo
 !
-        do j=jts_b1,jte_h1
-          do i=its,ite_h1
+        do j=jts_b1,jte_h2
+          do i=its,ite_h2
             ppy=(fim(i,j)-fim(i,j-1)) &
                *(pint(i ,j ,l+1)+pint(i  ,j-1,l+1) &
                 -pint(i ,j ,l  )-pint(i  ,j-1,l  ))*0.5
@@ -296,8 +297,8 @@ real(kind=kfpt),dimension(its:ite_h1,jts_b1:jte_h1):: &
           enddo
         enddo
 !
-        do j=jts_b1,jte_h1
-          do i=its_b1,ite_h1
+        do j=jts_b1,jte_h2
+          do i=its_b1,ite_h2
             ppne=(fim(i,j)-fim(i-1,j-1)) &
                 *(pint(i-1,j-1,l+1)+pint(i  ,j  ,l+1) &
                  -pint(i-1,j-1,l  )-pint(i  ,j  ,l  ))*0.5

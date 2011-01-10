@@ -1414,7 +1414,7 @@
                     ,int_state%SMSTAV,int_state%SMSTOT                  &
                     ,int_state%SSROFF,int_state%BGROFF                  &
                     ,int_state%IVGTYP,int_state%ISLTYP,int_state%VEGFRC &
-                    ,int_state%SHDMIN,int_state%SHDMAX,int_state%GRNFLX &
+                    ,int_state%GRNFLX                                   &
                     ,int_state%SFCEXC,int_state%ACSNOW,int_state%ACSNOM &
                     ,int_state%SNOPCX,int_state%SICE                    &
                     ,int_state%TG,int_state%SOILTB                      &
