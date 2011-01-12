@@ -59,15 +59,24 @@ MODULE_SMP_MAF= \
                 module_DYNAMICS_ROUTINES.o \
                 module_FLTBNDS.o
 
+MODULE_GFSP   = \
+                n_namelist_physics_def.o \
+                n_layout1.o \
+                n_resol_def.o \
+                n_compns_physics.o \
+                n_mpi_def.o \
+                n_module_gfs_mpi_def.o \
+                n_mpi_quit.o
+
 MODULES_STUB  = module_NMM_GRID_COMP_stub.o
 
-DEPEND_FILES = ${MODULES:.o=.F90} ${MODULE_SMP:.o=.F90} ${MODULE_SMP_MAF:.o=.F90}
+DEPEND_FILES = ${MODULES:.o=.F90} ${MODULE_SMP:.o=.F90} ${MODULE_SMP_MAF:.o=.F90} ${MODULE_GFSP:.o=.f}
 
 all default: depend
 	@gmake -f $(MAKEFILE) $(LIBRARY)
 
-$(LIBRARY): $(MODULES) $(MODULE_SMP) $(MODULE_SMP_MAF)
-	$(AR) $(ARFLAGS) $@ $(MODULES) $(MODULE_SMP) $(MODULE_SMP_MAF)
+$(LIBRARY): $(MODULES) $(MODULE_SMP) $(MODULE_SMP_MAF) ${MODULE_GFSP}
+	$(AR) $(ARFLAGS) $@ $(MODULES) $(MODULE_SMP) $(MODULE_SMP_MAF) ${MODULE_GFSP}
 
 stub: $(MODULES_STUB)
 	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES_STUB)
@@ -80,6 +89,9 @@ $(MODULE_SMP): %.o: %.f90
 
 $(MODULE_SMP_MAF): %.o: %.f90
 	$(FC) $(FFLAGS_NMM) $(SMP) $(MAF) $(UTILINCS) -c $*.f90
+
+$(MODULE_GFSP): %.o: %.f
+	$(F77) $(OPTS_GFS) $(FIXED) $(TRAPS) $(UTILINCS) -c $*.f
 
 $(MODULES_STUB): %.o: %.f90
 	$(FC) $(FFLAGS_NMM) $(UTILINCS) -c $*.f90

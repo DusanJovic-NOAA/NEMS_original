@@ -751,7 +751,7 @@
          if (timeozc .ne. 12) then
            print *,' timeozc=',timeozc, ' is not monthly mean'          &
      &,' - job aborting'
-           call mpi_quit(999)
+!rv        call mpi_quit(999)
          endif
 !
          allocate (pstr(LOZ), pkstr(LOZ), o3r(JMR,LOZ,timeozc))

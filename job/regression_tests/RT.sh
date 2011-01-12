@@ -353,31 +353,31 @@ fi
 #
 ####################################################################################################
 
-#if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
  
-#export TEST_DESCR="Test NMMB-global with GFS physics package "
+export TEST_DESCR="Test NMMB-global with GFS physics package "
 
 #---------------------
-#(( TEST_NR=TEST_NR+1 ))
-#export RUNDIR=${RUNDIR_ROOT}/NMM_gfsP
-#export CNTL_DIR=NMMB_gfsP_glob
-#export LIST_FILES=" \
-#nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
-#nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s  \
-#nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
-#nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  \
-#nmm_b_restart.012h_00m_00.00s  nmm_b_restart_nemsio.012h_00m_00.00s"
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/NMM_gfsP
+export CNTL_DIR=NMMB_gfsP_glob
+export LIST_FILES=" \
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s  \
+nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  \
+nmm_b_restart.012h_00m_00.00s  nmm_b_restart_nemsio.012h_00m_00.00s"
 #---------------------
-#export TPN=32       ; export THRD=1      ; export GBRG=glob  ; export TS=#
-#export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=24
-#export NEMSI=false  ; export RSTRT=false ; export gfsP=true
-#export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+export TPN=32       ; export THRD=1      ; export GBRG=glob  ; export TS=#
+export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=24
+export NEMSI=false  ; export RSTRT=false ; export gfsP=true
+export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
 #---------------------
-#  ./rt_nmm.sh
-#  if [ $? = 2 ]; then exit ; fi
+  ./rt_nmm.sh
+  if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-#fi
+fi
 
 ####################################################################################################
 #
@@ -581,31 +581,31 @@ fi
 #
 ####################################################################################################
 
-#if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
 
-#export TEST_DESCR="Test NMMB-regional with GFS physics package "
+export TEST_DESCR="Test NMMB-regional with GFS physics package "
 
 #---------------------
-#(( TEST_NR=TEST_NR+1 ))
-#export RUNDIR=${RUNDIR_ROOT}/NMM_REG_gfsP
-#export CNTL_DIR=NMMB_gfsP_reg
-#export LIST_FILES=" \
-#nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
-#nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s \
-#nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
-#nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s \
-#nmm_b_restart.012h_00m_00.00s  nmm_b_restart_nemsio.012h_00m_00.00s"
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/NMM_REG_gfsP
+export CNTL_DIR=NMMB_gfsP_reg
+export LIST_FILES=" \
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s \
+nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s \
+nmm_b_restart.012h_00m_00.00s  nmm_b_restart_nemsio.012h_00m_00.00s"
 #---------------------
-#export TPN=32       ; export THRD=1      ; export GBRG=reg   ; export TS=#
-#export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=24
-#export NEMSI=false  ; export RSTRT=false ; export gfsP=true
-#export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+export TPN=32       ; export THRD=1      ; export GBRG=reg   ; export TS=#
+export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=24
+export NEMSI=false  ; export RSTRT=false ; export gfsP=true
+export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
 #---------------------
-#  ./rt_nmm.sh
-#  if [ $? = 2 ]; then exit ; fi
+  ./rt_nmm.sh
+  if [ $? = 2 ]; then exit ; fi
 #---------------------
  
-#fi
+fi
 
 ####################################################################################################
 #

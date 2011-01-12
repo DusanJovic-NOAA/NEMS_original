@@ -229,8 +229,7 @@
         REAL(kind=KDBL),DIMENSION(:)      ,POINTER   :: DDY
         REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: TMPMIN,TMPMAX
         REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: DUGWD,DVGWD
-        REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: SFCNSW,SFCDSW,SFALB,SFCDLW   &
-                                                       ,TSFLW
+        REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: SFALB,TSFLW,SEMIS,SFCDLW,SFCDSW,SFCNSW
         REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: ZORFCS,SIHFCS,SICFCS,SLPFCS  &
                                                        ,TG3FCS,VEGFCS,VETFCS,SOTFCS
         REAL(kind=KDBL),DIMENSION(:,:,:)  ,POINTER   :: ALBFC1,ALFFC1
@@ -604,11 +603,12 @@
         ALLOCATE(int_state%TMPMIN   (IMS:IME,JMS:JME))    ;int_state%TMPMIN = R8_IN     ! Max temp (K)
         ALLOCATE(int_state%TMPMAX   (IMS:IME,JMS:JME))    ;int_state%TMPMAX = R8_IN     ! Min temp (K)
 !
-        ALLOCATE(int_state%SFCNSW   (IMS:IME,JMS:JME))    ;int_state%SFCNSW = R8_IN     !
-        ALLOCATE(int_state%SFCDSW   (IMS:IME,JMS:JME))    ;int_state%SFCDSW = R8_IN     !
         ALLOCATE(int_state%SFALB    (IMS:IME,JMS:JME))    ;int_state%SFALB  = R8_IN     !
-        ALLOCATE(int_state%SFCDLW   (IMS:IME,JMS:JME))    ;int_state%SFCDLW = R8_IN     !
         ALLOCATE(int_state%TSFLW    (IMS:IME,JMS:JME))    ;int_state%TSFLW  = R8_IN     !
+        ALLOCATE(int_state%SEMIS    (IMS:IME,JMS:JME))    ;int_state%SEMIS  = R8_IN     !
+        ALLOCATE(int_state%SFCDLW   (IMS:IME,JMS:JME))    ;int_state%SFCDLW = R8_IN     !
+        ALLOCATE(int_state%SFCDSW   (IMS:IME,JMS:JME))    ;int_state%SFCDSW = R8_IN     !
+        ALLOCATE(int_state%SFCNSW   (IMS:IME,JMS:JME))    ;int_state%SFCNSW = R8_IN     !
 !
         ALLOCATE(int_state%ZORFCS   (IMS:IME,JMS:JME))    ;int_state%ZORFCS = R8_IN     !
         ALLOCATE(int_state%SIHFCS   (IMS:IME,JMS:JME))    ;int_state%SIHFCS = R8_IN     !

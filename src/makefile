@@ -102,7 +102,7 @@ all:
 ################################################################################
 
 nmm: nmm_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_NMM) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_NMM) $(EXTLIBS)
+	$(FC) $(FFLAGS_NMM) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_NMM) $(EXTLIBS) $(LIB_GOCART)
 	@echo "$(TARGET) is created for NMM core."
 
 nmm_libs:
