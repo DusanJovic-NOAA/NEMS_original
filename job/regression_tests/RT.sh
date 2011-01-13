@@ -105,6 +105,30 @@ fi
 # ACCNR       - account number (LoadLeveler)
 # DISKNM      - disk name ( /meso or /mtb)
 # CP2         - 2-copy option
+# FDFI	      - half of digital filter window in hours (e.g. 3)
+# ADIAB       - logical, .true. if the run is adiabatic (i.e. no physics)
+# REDUCEDGRID - turn off/on to run on reduced grid
+# IAER        - 3-digit aerosol flag (for volc, lw, sw)
+#		  =0: turn all aeros effects off (sw, lw, volc)
+#		  =1: use clim tropospheric aerosol for sw only
+#		  =10: use clim tropospheric aerosol for lw only
+#		  =11: use clim tropospheric aerosol for both sw/lw
+#		  =100: volc aerosol only for both sw/lw
+#		  =101: volc and clim trops aerosol for sw only
+#		  =110: volc and clim trops aerosol for lw only
+#		  =111: volc and clim trops aerosol for both sw/lw
+# FHRES       - restart interval in hours
+# wave        - spectral truncation of the model (i.e. JCAP like T574)
+# lm          - number of model levels
+# lsoil       - number of soil levels in the land model
+# IDVC        - integer describing the vertical coord - 2 means hybrid, 3 means
+#		generalized hybrid
+# THERMODYN_ID- integer identifying the thermodynamic variable - virtual T
+#		or enthalpy
+# SFCPRESS_ID - integer identifying whether lnps or ps is the variable used
+# SPECTRALLOOP- option for one loop or two loop
+# NST_FCST    - integer determining whether NST model is run in forecast mode 
+#		or not (values 0 or 1)
 #
 ################################################
 
@@ -1072,7 +1096,7 @@ fi
 
 if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
 
-export TEST_DESCR="GFS,32 proc, 1 thread, quilt, digital filter on reduced grid"
+export TEST_DESCR="GFS,32 total proc (tasks), 1 thread, quilt, digital filter on reduced grid"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
@@ -1106,7 +1130,7 @@ fi
 
 if [ ${CREATE_BASELINE} = false ]; then
 
-export TEST_DESCR="GFS,16 proc, 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid"
+export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
@@ -1134,7 +1158,7 @@ fi
 ####################################################################################################
 #
 # TEST   - GFS digital filter
-#        - 1pe nsout=1
+#        - 1pe nsout=0
 #
 ####################################################################################################
 
@@ -1209,7 +1233,7 @@ fi
 
 if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
 
-export TEST_DESCR="GFS,16 proc, 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid"
+export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
@@ -1243,7 +1267,7 @@ fi
 
 if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
 
-export TEST_DESCR="GFS,16 proc, 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid"
+export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
@@ -1278,7 +1302,7 @@ fi
 
 if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
 
-export TEST_DESCR="GFS,16 proc, 2 thread, quilt,2x2 wrt pe, HYB 1loop digital filter on reduced grid"
+export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 1loop digital filter on reduced grid"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
