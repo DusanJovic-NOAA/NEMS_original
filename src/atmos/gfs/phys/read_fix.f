@@ -85,7 +85,7 @@
       use namelist_soilveg ,       only: salp_data, snupx
       use physcons,     only : tgice => con_tice
       USE machine,      ONLY: kind_io4, kind_io8
-      use module_nemsio
+      use nemsio_module
       implicit none
 !
       TYPE(Sfc_Var_Data)        :: sfc_fld
@@ -107,6 +107,7 @@
       type(nemsio_gfile) gfile_in
       integer iret, vegtyp,lonb4,latb4,nsoil4,ivs4
       integer size1, size2, size3
+      real(8) timef,stime,etime
 !
 !@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 !
@@ -115,7 +116,10 @@
       if(me==0) print *,' nread=',nread,' cfile=',cfile
       call nemsio_init()
 !
+      stime=timef()
       call nemsio_open(gfile_in,trim(cfile),'read',iret=iret)
+       etime=timef()
+        print *,'in read_sfc,nemsio open time=',etime-stime
 !
       IF (me == 0) THEN
 
@@ -126,6 +130,7 @@
         call nemsio_getheadvar(gfile_in,'ivs',ivs4,iret=iret)
         call nemsio_getheadvar(gfile_in,'idate',idate7,iret=iret)
         if(iret/=0) print *,' after sfcio_srohdc,iret=',iret
+        print *,'in read sfc, nemsio head time=',timef()-etime
 
 !        PRINT 99,nread,head%fhour,head%idate,
 !     &           head%lonb,head%latb,head%lsoil,head%ivs,iret
@@ -143,6 +148,7 @@
 
       kmsk = 0
 !
+       stime=timef()
       if(me==0) call nemsio_readrecv(gfile_in,'tmp','sfc',1,buff1,
      &    iret=iret)
       call split2d_phys(buff1, buffo,global_lats_r)
@@ -414,6 +420,8 @@
      &                  global_lats_r,lonsperlar)
          call skip(needoro)
        endif
+       etime=timef()
+        print *,'in read_sfc,nemsio read time=',etime-stime
 !
 !Wei initialize snow fraction(sheleg is in mm)
       DO j=1,lats_node_r
@@ -1497,7 +1505,7 @@ c
       use gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data
       use namelist_soilveg ,       only: salp_data, snupx
       use physcons,                only : tgice => con_tice
-      use module_nemsio
+      use nemsio_module
 !
       implicit none
 !
@@ -1790,7 +1798,7 @@ c
       use layout1
       use mpi_def
       use gfs_physics_nst_var_mod
-      use module_nemsio
+      use nemsio_module
       implicit none
 !
       TYPE(Nst_Var_Data)       :: nst_fld

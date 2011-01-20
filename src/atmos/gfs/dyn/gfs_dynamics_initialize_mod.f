@@ -22,6 +22,7 @@
 !  Aug 19  2010 S. Moorthi       Updated for T574 + added num_reduce to namelist
 !  Aug 25  2010 sarah lu         add option to compute tracer global sum
 !  Sep 08  2010 J. Wang          changed gfsio file to nemsio file
+!  Dec 16  2010 J. Wang          changed to nemsio library
 !
 !
 ! !interface:
@@ -32,7 +33,7 @@
 !
       use gfs_dynamics_getcf_mod
       use gfs_dyn_machine, only : kind_io4
-      use module_nemsio , only : nemsio_init
+      use nemsio_module , only : nemsio_init
 !
       use gfs_dyn_mod_state, only : buff_mult_pieceg
       use gfs_dyn_layout1, only : ipt_lats_node_a, lats_node_a_max

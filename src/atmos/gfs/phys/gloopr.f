@@ -480,7 +480,7 @@
               exit
             endif
           enddo
-!         lprnt = .false.
+          lprnt = .false.
 !!
 !
 

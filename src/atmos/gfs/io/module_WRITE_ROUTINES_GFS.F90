@@ -15,6 +15,7 @@
 !                                modified for GFS
 !       03 Sep 2009:  W. Yang - Ensemble GEFS.
 !       29 Sep 2010:  J. Wang - set up data mapping between fcst/write ps only once
+!       16 Dec 2010:  J. Wang - change to nemsio library
 !
 !-----------------------------------------------------------------------
 !
@@ -29,7 +30,7 @@
 !
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !
-      USE MODULE_NEMSIO
+      USE NEMSIO_MODULE
 !
 !-----------------------------------------------------------------------
 !

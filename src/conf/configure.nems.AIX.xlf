@@ -4,7 +4,9 @@ ESMF_INC  = -I/nwprod/lib/incmod/esmf_3_1_0rp2
 ESMF_LIBS = -L/nwprod/lib -lesmf_3_1_0rp2 -lC_r
 
 #EXTLIBS   = $(ESMF_LIBS) -L/nwprod/lib -lbacio_4 -lw3_d -lsp_d -lessl_r -lmass -lmassvp6
-EXTLIBS   = -L/climate/save/wx20wa/gfsio/w3/sorc_opn_gblevent -lw3_d $(ESMF_LIBS) -L/nwprod/lib -lbacio_4 -lsp_d -lessl_r -lmass -lmassvp6
+#EXTLIBS   = -L/climate/save/wx20wa/gfsio/w3/sorc_opn_gblevent -lw3_d $(ESMF_LIBS) -L/nwprod/lib -lbacio_4 -lsp_d -lessl_r -lmass -lmassvp6
+EXTLIBS   = -L/climate/save/wx20wa/gfsio/w3/sorc_opn_gblevent -lw3_d -L/climate/save/wx20wa/gfsio/lib/nemsio -lnemsio $(ESMF_LIBS) -L/nwprod/lib -lbacio_4 -lsp_d -lessl_r -lmass -lmassvp6
+NEMSIO_INC  = -I/climate/save/wx20wa/gfsio/lib/nemsio/incmod
 
 FC        = mpxlf95_r 
 FREE      = -qfree=f90
@@ -14,7 +16,7 @@ R8        = -qrealsize=8
 SMP       = -qsmp=omp
 MAF       = -qfloat=nomaf
 LIST      = -qsource -qlist
-FINCS     = $(ESMF_INC)
+FINCS     = $(ESMF_INC) $(NEMSIO_INC)
 #TRAPS     = -qinitauto=FF911299 -qflttrap=ov:zero:en -qsigtrap -C
 TRAPS     = 
 

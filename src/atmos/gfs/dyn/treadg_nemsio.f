@@ -6,6 +6,7 @@
 !-------------------------------------------------------------------
 !*** program log
 !*** Dec, 2009 Jun Wang:  read grid point variables for restart
+!*** Dec, 2010 Jun Wang:  change to nemsio library 
 !-------------------------------------------------------------------
 !
 !!
@@ -19,7 +20,7 @@
       use gfs_dyn_physcons, rerth => con_rerth
      &,             grav => con_g, rkap => con_rocp
      &,             cpd => con_cp
-      use module_nemsio
+      use nemsio_module
       use gfs_dyn_tracer_config, ONLY : gfs_dyn_tracer   ! generalized tracer
 !
       IMPLICIT NONE

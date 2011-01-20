@@ -40,6 +40,7 @@
 !                       GOCART_INIT (to initialize GOCART)
 !   2010-03-24  Black - Converted to DOMAIN component for NMM-B only.
 !   2010-10-xx  Pyle  - Revised for digital filters.
+!   2010-12-16  Pyle  - change to nemsio library
 
 !
 ! USAGE: Domain gridded component parts called from subroutines within
@@ -72,7 +73,7 @@
 !
       USE MODULE_CONTROL,ONLY: TIMEF
       USE MODULE_DIAGNOSE,ONLY: FIELD_STATS
-      USE MODULE_NEMSIO
+      USE NEMSIO_MODULE
 ! 
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
       USE MODULE_CLOCKTIMES,ONLY: total_integ_tim

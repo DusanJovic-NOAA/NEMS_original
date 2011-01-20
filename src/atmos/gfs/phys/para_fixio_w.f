@@ -2,10 +2,14 @@
      &         lats_nodes_r,global_lats_r,lonsperlar,
      &         phy_f3d,phy_f2d,ngptc,nblck,ens_nam)
 !!
+! !revision history:
+!  Sep      2010   Jun Wang  change to nemsio file
+!  Dec      2010   Jun Wang  change to nemsio library
+!
       use resol_def,     ONLY: latr, lonr, levs, lsoil, ivssfc_restart,
      &                         num_p2d, num_p3d
       use layout1,       ONLY: lats_node_r, me,ipt_lats_node_r,nodes
-      use module_nemsio
+      use nemsio_module
       use gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data
       USE machine,   ONLY: kind_io4, kind_ior, kind_io8,kind_phys
       implicit none

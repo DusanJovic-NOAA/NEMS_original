@@ -2,9 +2,12 @@
      &         lats_nodes_r,global_lats_r,lonsperlar,
      &         ens_nam)
 !!
+!! revision history
+!  Dec      2010   Jun Wang  change to nemsio library
+!
       use resol_def,     ONLY: latr, lonr, levs
       use layout1,       ONLY: lats_node_r, me,ipt_lats_node_r,nodes
-      use module_nemsio
+      use nemsio_module
       use gfs_physics_nst_var_mod, ONLY: NST_Var_Data
       USE machine,   ONLY: kind_io4, kind_ior, kind_io8,kind_phys
       implicit none

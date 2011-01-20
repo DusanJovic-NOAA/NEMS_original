@@ -15,7 +15,8 @@
 !  Apr 09 2010    Sarah Lu, set rqg initial value to 1.e-15
 !  Aug 17 2010    Sarah Lu, clean debug print
 !  Aug 25 2010    Sarah Lu, modified to compute tracer global sum
-!  Sep 08 2010    Jun Wang, change to nemsio format
+!  Sep 08 2010    Jun Wang, change to nemsio format file
+!  Dec 16 2010    Jun Wang, change to nemsio library
 !  
  
       use gfs_dyn_resol_def
@@ -28,7 +29,7 @@
       use gfs_dyn_physcons, rerth => con_rerth
      &,             grav => con_g, rkap => con_rocp
      &,             cpd => con_cp
-      use module_nemsio
+      use nemsio_module
       use nemsio_def
       USE gfs_dyn_date_def, ONLY: FHOUR
       use gfs_dyn_tracer_config, ONLY : gfs_dyn_tracer   ! generalized tracer
@@ -120,10 +121,15 @@
       REAL(KIND=KIND_GRID) ptot   (lonf,lats_node_a)
       REAL(KIND=KIND_GRID) ptrc   (lonf,lats_node_a,ntrac)                !glbsum
 !
+      real(8) timef,stime,etime
+!
 !------------------------------------------------------------------------
 !       Input file is in grid-point space - use gfs_io package
 !
+      stime=timef()
       call nemsio_open(gfile_in,trim(cfile),'read',iret)
+      etime=timef()
+      print *,'in read nemsio file, open time=',timef()-stime
 !
       call nemsio_getfilehead(gfile_in,iret=iret,
      &  version=ivsupa,idate=idate7,
@@ -201,6 +207,8 @@
       allocate (reclevi(nreci))
       call nemsio_getfilehead(gfile_in,iret=iret,recname=recnamei,
      &                       reclevtyp=reclevtypi,reclev=reclevi)
+       stime=timef()
+        print *,'after nemsioheader,time=',stime-etime
 
 !
       if (gen_coord_hybrid) then                                        ! hmhj
@@ -340,9 +348,10 @@
 !
       allocate (nemsio_data(lonb*latb))
 !  Read orog
+       stime=timef()
       call nemsio_readrecv(gfile_in,'hgt','sfc',1,nemsio_data,iret=iret)
-!      print *,'in treadeo,hgt=',maxval(nemsio_data),minval(nemsio_data),
-!     &  'iret=',iret
+      print *,'in treadeo,time=',timef()-stime,'hgt=',
+     &  maxval(nemsio_data),minval(nemsio_data), 'iret=',iret
       call split2d(nemsio_data,buffo,global_lats_a)
 !      print *,'in treadeo,buffo=',maxval(buffo),minval(buffo)
       CALL interpred(1,kmsk,buffo,zsg,global_lats_a,lonsperlat)
@@ -409,6 +418,8 @@
           endif
         enddo
       enddo       
+       etime=timef()
+        print *,'after nemsioheader,time=',etime-stime
 !
 !   Convert from Gaussian grid to spectral space
 !   including converting to model_uvtp if necessary

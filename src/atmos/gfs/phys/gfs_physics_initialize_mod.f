@@ -346,7 +346,7 @@
 !
       allocate(gis_phy%OZPLIN(LATSOZP,LEVOZP,pl_coeff,timeoz), stat = ierr) !OZONE P-L coeffcients
 
-      print *,' finished array allocation in gfs_physics_initialize '
+!      print *,' finished array allocation in gfs_physics_initialize '
 
 !
 !@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -399,12 +399,12 @@
       if (me.eq.0) then
       print 100, jcap,levs
 100   format (' smf ',i3,i3,' in gfs physics initialize ')
-      print*,'number of threads is ',num_parthds()
+      print*,'number of threads is ',num_parthds()
 !jw        if (liope) then
-!jw          print*,'number of mpi procs is ',nodes
-!jw          print*,'number of mpi io procs is 1 (nodes)'
+!jw          print*,'number of mpi procs is ',nodes
+!jw          print*,'number of mpi io procs is 1 (nodes)'
 !jw        else
-          print*,'number of mpi procs is ',nodes
+          print*,'number of mpi procs is ',nodes
 !jw        endif
       endif
 !c

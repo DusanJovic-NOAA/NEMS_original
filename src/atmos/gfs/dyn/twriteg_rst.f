@@ -6,6 +6,7 @@
 !-------------------------------------------------------------------
 !*** program log
 !*** Dec, 2009 Jun Wang:  write spectral variables for restart
+!*** Dec, 2010 Jun Wang:  change to nemsio library
 !-------------------------------------------------------------------
 !
       use gfs_dyn_resol_def
@@ -14,7 +15,7 @@
       use gfs_dyn_coordinate_def	
       use namelist_dynamics_def
       use gfs_dyn_mpi_def
-      use module_nemsio
+      use nemsio_module
 !
       implicit none
 !

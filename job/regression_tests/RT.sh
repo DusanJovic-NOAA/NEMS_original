@@ -128,7 +128,7 @@ fi
 # SFCPRESS_ID - integer identifying whether lnps or ps is the variable used
 # SPECTRALLOOP- option for one loop or two loop
 # NST_FCST    - integer determining whether NST model is run in forecast mode 
-#		or not (values 0 or 1)
+#		or not (values 0,1 or 2)
 #
 ################################################
 
@@ -1267,7 +1267,7 @@ fi
 
 if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
 
-export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid"
+export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid with nst"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))

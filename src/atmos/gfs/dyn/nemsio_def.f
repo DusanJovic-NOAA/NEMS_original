@@ -1,5 +1,5 @@
       module nemsio_def
-        use module_nemsio
+        use nemsio_module
         implicit none
         save
         type (nemsio_gfile) gfile_in

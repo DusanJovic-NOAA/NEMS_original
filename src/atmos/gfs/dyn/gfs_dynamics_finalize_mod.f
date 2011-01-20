@@ -11,6 +11,7 @@
 !  february 2006      shrinivas moorthi - removed some comments
 !  january  2007      hann-ming henry juang -- modify to be dynamics only
 !  Sept     2010      Jun Wang   change gfsio to nemsio
+!  Dec      2010      Jun Wang   change to nemsio library
 !
 !
 ! !interface:
@@ -20,7 +21,7 @@
 !!uses:
 !
       use gfs_dynamics_internal_state_mod
-      use module_nemsio , only : nemsio_finalize
+      use nemsio_module , only : nemsio_finalize
 
       implicit none
 

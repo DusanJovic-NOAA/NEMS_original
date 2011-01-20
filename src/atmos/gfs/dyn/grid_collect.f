@@ -3,8 +3,11 @@
      &        global_lats_a,lonsperlat)
 !!
 !! Revision history:
+!  2007           Henry Juang, original code
+!  2008           Jun Wang  modified buff for write grid component
 !  Nov 23 2009    Sarah Lu, comment out 4D tracer
 !  Sep 08 2010    Jun Wang  change gfsio to nemsio
+!  Dec 16 2010    Jun Wang  change to nemsio library
 !
 
       use gfs_dyn_resol_def
@@ -67,6 +70,9 @@
       buffi(:,:) = psg(:,:)
       CALL uninterpreg(1,kmsk,buffo,buffi,global_lats_a,lonsperlat,
      & buff_mult_pieceg(1,1,2) )
+!      write(0,*)'in grid collect, buff_psg=',
+!     &  maxval(buff_mult_pieceg(1:lonf,1:lats_node_a,2)),
+!     & minval(buff_mult_pieceg(1:lonf,1:lats_node_a,2))
 !      print *,'in grid collect, buff_psg(135,23)=',
 !     &  buff_mult_pieceg(135,23,2)
 !
@@ -255,7 +261,7 @@ cc
      & DYN_INT_STATE_2D_I,DYN_INT_STATE_1D_R,DYN_INT_STATE_2D_R,
      & DYN_INT_STATE_3D_R_DIAB,DYN_INT_STATE_3D_R_ADIAB,
      & DYN_INT_STATE_4D_R
-      use module_nemsio
+      use nemsio_module
 !
       implicit none
 !!

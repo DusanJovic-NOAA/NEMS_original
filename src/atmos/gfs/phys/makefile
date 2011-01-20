@@ -21,7 +21,7 @@ FFLAGIO  = $(OPTS) $(TRAPS) $(UTILINCS) -qfixed
 FFLAGM   = $(OPTS) $(FINCS) -qfixed $(TRAPS) $(FFLAGM_DEBUG) $(UTILINCS) -NS2048
 FFLAGSF=-qnosave -q free=f90 -qcheck $(FFLAGM_DEBUG)
 FFLAGSI  = -qrealsize=8 -qnosave -q free=f90 $(FFLAGM_DEBUG)
-FFLAG_GFS_PHY=$(OPTS) $(TRAPS) -qfixed    $(UTILINCS) $(GOCARTINCS)
+FFLAG_GFS_PHY=$(FFLAGS) $(OPTS) $(TRAPS) -qfixed    $(UTILINCS) $(GOCARTINCS)
 FFLAG_GFS_PHY90=$(FFLAG90) $(TRAPS)     $(UTILINCS) $(GOCARTINCS)
 
 

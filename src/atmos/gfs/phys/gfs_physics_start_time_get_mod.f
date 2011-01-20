@@ -10,6 +10,7 @@
 !        2006      modified version 
 !  november 2007   henry juang
 !  Sep      2010   Jun Wang  change to nemsio file
+!  Dec      2010   Jun Wang  change to nemsio library
 !
 !uses:
 !
@@ -17,7 +18,7 @@
       use machine,      only: kind_io4, kind_evod
       use date_def,     only: idate,idate7
       use sfcio_module
-      use module_nemsio
+      use nemsio_module
 
       implicit none
 

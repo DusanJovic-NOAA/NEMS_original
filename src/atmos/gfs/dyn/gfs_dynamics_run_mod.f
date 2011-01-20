@@ -142,7 +142,7 @@
       if( gis_dyn% spectral_loop == 1 ) then
 !
 !! grid_gr unfolded from 2D to 3D (Sarah Lu)
-!      if(gis_dyn% kdt>=4.and.gis_dyn% kdt<=5) then
+!      if(gis_dyn% kdt<=1) then
 !          print *,'in gfs dyn run,bf one kdt=',gis_dyn%kdt,'ps=',maxval(gis_dyn%grid_gr(:,:,g_q)),   &
 !        minval(gis_dyn%grid_gr(:,:,g_q)),'u=',maxval(gis_dyn%grid_gr(:,:,g_uu)),   &
 !         minval(gis_dyn%grid_gr(:,:,g_uu)),'v=',maxval(gis_dyn%grid_gr(:,:,g_vv)),   &
@@ -299,6 +299,16 @@
                                      gis_dyn% grid_gr(1,1,gis_dyn%g_dpdt ), & 
                                      gis_dyn%global_lats_a,	            &
                                      gis_dyn%lonsperlat)
+!      if(gis_dyn% kdt<=1) then
+!          print *,'in gfs dyn run,af mdl2com kdt=',gis_dyn%kdt,'ps=',maxval(gis_dyn%grid_gr(:,:,g_q)),   &
+!        minval(gis_dyn%grid_gr(:,:,g_q)),'u=',maxval(gis_dyn%grid_gr(:,:,g_u)),   &
+!         minval(gis_dyn%grid_gr(:,:,g_u)),'v=',maxval(gis_dyn%grid_gr(:,:,g_v)),   &
+!        minval(gis_dyn%grid_gr(:,:,g_v)),'t=',maxval(gis_dyn%grid_gr(:,:,g_t)),   &
+!        minval(gis_dyn%grid_gr(:,:,g_t)),'rq=',maxval(gis_dyn%grid_gr(:,:,g_rt)),   &
+!        minval(gis_dyn%grid_gr(:,:,g_rt)),'psg=',maxval(gis_dyn%grid_gr(:,:,g_zq)),   &
+!        minval(gis_dyn%grid_gr(:,:,g_zq))
+!      endif
+
      END IF
 !cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 !c

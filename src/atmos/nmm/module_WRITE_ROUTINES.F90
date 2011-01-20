@@ -28,6 +28,7 @@
 !       03 Sep 2009:  T. Black - Merged with NMM-B nesting code.
 !       24 Mar 2010:  T. Black - Revised for NEMS restructing.
 !       07 May 2010:  T. Black - Change output frequency to minutes.
+!       16 Dec 2010:  J. Wang  - Change to nemsio library
 !
 !-----------------------------------------------------------------------
 !
@@ -53,7 +54,7 @@
 !
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !
-      USE MODULE_NEMSIO
+      USE NEMSIO_MODULE
 !
       USE MODULE_CONSTANTS,ONLY : A,PI,G
 !

@@ -10,13 +10,14 @@
 !  march 2005      weiyu yang initial code.
 !  Feb   2010      jun wang   read data from nemsio file
 !  Sep   2010      jun wang   remove gfsio option
+!  Dec   2010      jun wang   change to nemsio library
 !
 !uses:
 !
       use esmf_mod,     only: esmf_success
       use gfs_dyn_machine,      only: kind_io4, kind_evod
       use gfs_dyn_date_def,     only: idate,idate7
-      use module_nemsio
+      use nemsio_module
 
       implicit none
 

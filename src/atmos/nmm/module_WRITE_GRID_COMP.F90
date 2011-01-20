@@ -39,6 +39,7 @@
 !       04 Sep 2009:  T. Black - Merged trunk and NMM-B nesting 
 !                                versions.
 !       07 May 2010:  T. Black - Change output frequency to minutes.
+!       16 Dec 2010:  J. Wang  - Change to nemsio library
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
@@ -61,7 +62,7 @@
       USE MODULE_ERR_MSG,ONLY : ERR_MSG,MESSAGE_CHECK
       USE MODULE_INCLUDE
       USE MODULE_CONSTANTS,ONLY : G
-      USE MODULE_NEMSIO
+      USE NEMSIO_MODULE
       USE MODULE_BGRID_INTERP,ONLY: V_TO_H_BGRID
 !
 !-----------------------------------------------------------------------

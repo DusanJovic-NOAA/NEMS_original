@@ -136,6 +136,13 @@
                  gis_phy%N3,      gis_phy%N4,                             &
                  gis_phy%LSOUT,   gis_phy%COLAT1,  gis_phy%CFHOUR1,       &
                  gis_phy%fscav )
+!       if(gis_phy%kdt>=96.and.gis_phy%kdt<=98.or.gis_phy%kdt>=4.and.gis_phy%kdt<=6) then
+!       if(gis_phy%kdt<=1) then
+!        print *,'af phys one,kdt=',gis_phy%kdt,'ps=',maxval(gis_phy%grid_fld%ps), &
+!        minval(gis_phy%grid_fld%ps),'t=',maxval(gis_phy%grid_fld%t), &
+!        minval(gis_phy%grid_fld%t),'spfh=',maxval(gis_phy%grid_fld%tracers(1)%flds),  &
+!        minval(gis_phy%grid_fld%tracers(1)%flds)
+!       endif
 !                        
 ! =======================================================================
 !

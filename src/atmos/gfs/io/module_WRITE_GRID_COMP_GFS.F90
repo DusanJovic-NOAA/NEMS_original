@@ -17,24 +17,13 @@
 !***
 !***  HISTORY   
 !***
-!       xx Feb 2007:  W. Yang - Originator
-!       13 Jun 2007:  T. Black - Name revisions in CPL_REGISTER  
-!                                and CPL_INITIALIZE
-!       14 Aug 2007:  T. Black - Revised CPL_RUN for general output
-!                                selection and added documentation
-!                                for users.
-!       12 Sep 2007:  T. Black - Replaced the write component and the
-!                                write gridded component with only
-!                                a gridded component that contains
-!                                quilting.
-!          Mar 2008:  R. Vasic - Convert from ESMF 3.0.1 to 3.1.0
-!       15 Aug 2008:  J. Wang  - Revised for addition of NEMS-IO
+!       15 Aug 2008:  J. Wang  - Revised for GFS write grid component from NMMB
 !       16 Sep 2008:  J. Wang  - Output array reverts from 3-D to 2-D
-!       14 Oct 2008:  R. Vasic - Add restart capability
 !       03 Sep 2009:  W. Yang  - Ensemble GEFS.
 !       29 Sep 2020:  J. Wang  - reset mutiple files data sending to let fcst pes 
 !                                return without waiting for wrt pes 
 !                                receiving data
+!       16 Dec 2020:  J. Wang  - change to nemsio library
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
@@ -49,7 +38,7 @@
       USE MODULE_GET_CONFIG_WRITE_GFS
       USE MODULE_ERR_MSG       ,ONLY : ERR_MSG,MESSAGE_CHECK
       USE MODULE_INCLUDE_GFS
-      USE MODULE_NEMSIO
+      USE NEMSIO_MODULE
 !
 !
 !-----------------------------------------------------------------------

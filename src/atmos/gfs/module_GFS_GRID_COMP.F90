@@ -16,6 +16,7 @@
 !                                 ATM Component independent of
 !                                 the Main Clock.
 !   2007-12-11  Black - Generalized for easier use by any dynamics core.
+!   2008        Juang - create GFS grid component
 !   2008-08     Colon - Added conditional checks multiple dynamics cores.
 !   2008-10-14  Vasic - Added restart Alarm.
 !   2009-05-29  Wang  - Added GFS write grid component
@@ -41,6 +42,7 @@
 !   2010-03-23  Lu    - Add passive_tracer option
 !   2010-08-17  Lu    - Make debug print optional
 !   2010-08-25  Wang  - Add 3hr dfi filtered fields output option
+!   2010-12-16  Wang  - Change to nemsio library
 
 !
 ! USAGE: GFS Gridded component parts called from subroutines within
@@ -54,7 +56,7 @@
       USE MODULE_GFS_INTERNAL_STATE,ONLY: GFS_INTERNAL_STATE            &
                                          ,WRAP_GFS_INTERNAL_STATE
 !
-      USE MODULE_NEMSIO
+      USE NEMSIO_MODULE
 ! 
       USE GFS_DYNAMICS_GRID_COMP_MOD,ONLY: GFS_DYN_SETSERVICES
       USE GFS_PHYSICS_GRID_COMP_MOD ,ONLY: GFS_PHY_SETSERVICES

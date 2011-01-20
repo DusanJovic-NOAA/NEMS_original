@@ -19,6 +19,7 @@
 ! Oct 2010 Sarah Lu, g2d_fld%met changed from instant to accumulated
 ! Dec 2010 Sarah Lu, g2d_fld%met contains both instant and time-avg;
 !                    wrtaer is called only when gocart is on
+! Dec 2010 Jun Wang, change to nemsio library
 !
 
       use resol_def,               ONLY: latr, levs, levp1, lonr, nfxr,
@@ -710,7 +711,7 @@ c  array copy
       SUBROUTINE sfc_wrt(IOPROC,cfile,xhour,idate
      &,                  global_lats_r,lonsperlar)
 !!
-      use module_nemsio
+      use nemsio_module
       use resol_def,    ONLY: lonr, latr, levs,ngrids_sfcc,
      &   ncld,ntrac,ntcw,ntoz,lsoil, ivssfc,thermodyn_id,sfcpress_id
       use layout1,      ONLY: me,idrt
@@ -2300,7 +2301,7 @@ to
       SUBROUTINE flx_wrt(IOPROC,cfile,ZHOUR,FHOUR,idate
      &,                  global_lats_r,lonsperlar)
 !!
-      use module_nemsio, only: nemsio_open,nemsio_writerec,nemsio_close
+      use nemsio_module, only: nemsio_open,nemsio_writerec,nemsio_close
      &  ,nemsio_gfile, nemsio_init,nemsio_finalize
       use resol_def,    ONLY: lonr, latr, levs,ngrids_flx,
      & ncld,ntrac,ntcw,ntoz,lsoil, ivssfc,thermodyn_id,sfcpress_id

@@ -665,8 +665,8 @@ cc
 !--------------------------------------------
 !-- digital filter state collect
 !--------------------------------------------
-      if (me == 0)
-     &print *,'in one loop,call gfs_dfi_coll,ldfi=',ldfi,'kdt=',kdt
+!      if (me == 0)
+!     &print *,'in one loop,call gfs_dfi_coll,ldfi=',ldfi,'kdt=',kdt
       IF (ldfi) THEN
         call gfs_dficoll_dynamics(grid_gr,grid_gr_dfi)
       ENDIF
