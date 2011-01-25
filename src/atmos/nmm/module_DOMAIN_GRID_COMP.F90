@@ -108,6 +108,7 @@
                            ,WRITE_GROUP_READY_TO_GO                        !<-- The write group to use
 !
       LOGICAL(kind=KLOG) :: QUILTING                                    &  !<-- Is asynchronous quilting specified?
+                           ,WRITE_LAST_RESTART                          &  !<-- Write last restart file?
                            ,RESTARTED_RUN                                  !<-- Restarted run logical flag
 !
       TYPE(ESMF_VM),SAVE :: VM,VM_LOCAL                                    !<-- The ESMF virtual machine.
@@ -554,6 +555,27 @@
         ENDIF
 !
       ENDDO
+!
+!-----------------------------------------------------------------------
+!***  Shall we write last time step restart file?
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Write_last_restart Flag from Config File"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)              &  !<-- The config object
+                                  ,value =WRITE_LAST_RESTART            &  !<-- The quilting flag
+                                  ,label ='write_last_restart:'         &  !<-- Give this label's value to the previous variable
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      domain_int_state%WRITE_LAST_RESTART=WRITE_LAST_RESTART               !<-- Save this for the write_async
+!
 !
 !-----------------------------------------------------------------------
 !***  Will the Write components with asynchronous quilting be used?
@@ -2624,12 +2646,15 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)               :: DOMAIN_GRID_COMP                !<-- The DOMAIN gridded component
+      TYPE(ESMF_GridComp)            :: DOMAIN_GRID_COMP                   !<-- The DOMAIN gridded component
 !
       TYPE(ESMF_State)               :: IMP_STATE                          !<-- The DOMAIN Run step's import state
       TYPE(ESMF_State)               :: EXP_STATE                          !<-- The DOMAIN Run step's export state
 !
       TYPE(ESMF_Clock)               :: CLOCK_DOMAIN                       !<-- The DOMAIN ESMF Clock
+!
+      TYPE(ESMF_Time)                :: CURRTIME                        &  !<-- The ESMF current time.
+                                       ,STOPTIME                           !<-- The ESMF start time.
 !
       INTEGER,INTENT(OUT) :: RC_RUN2                                       !<-- Return code for the Run step 
 !
@@ -2642,6 +2667,8 @@
       TYPE(WRAP_DOMAIN_INTERNAL_STATE) :: WRAP                             !<-- The F90 wrap of the DOMAIN internal state
 !
       CHARACTER(ESMF_MAXSTR) :: CWRT
+!
+      LOGICAL(kind=KINT) :: LAST_TIME                                      !<-- Test time logical
 !
       INTEGER(kind=KINT) :: RC                                             !<-- Error signal variable.
 !
@@ -2725,8 +2752,19 @@
 !***  Execute the writing of a restart file.
 !-----------------------------------------------------------------------
 !
-!     call print_memory()
-        IF(domain_int_state%QUILTING)THEN
+        CALL ESMF_ClockGet(clock    =CLOCK_DOMAIN                       &  !<-- The ESMF Clock of this domain
+                          ,stopTime =STOPTIME                           &  !<-- The simulation stop time
+                          ,currTime =CURRTIME                           &  !<-- Current time of simulation
+                          ,rc       =RC)
+!
+        LAST_TIME = (STOPTIME==CURRTIME)                                   !<-- Is it last write step?
+!
+        IF(domain_int_state%QUILTING                                    &
+              .AND.                                                     &
+           (.NOT.LAST_TIME                                              &
+              .OR.                                                      &
+           domain_int_state%WRITE_LAST_RESTART) )THEN
+
           CWRT='Restart'
           CALL WRITE_ASYNC(DOMAIN_GRID_COMP                             &
                           ,DOMAIN_INT_STATE                             &

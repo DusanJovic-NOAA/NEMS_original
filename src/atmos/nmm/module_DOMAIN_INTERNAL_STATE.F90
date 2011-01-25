@@ -48,6 +48,7 @@
 !---------------------------------------------------------------------------
 !
         LOGICAL :: QUILTING                                                    !<-- Is the user selecting asynchronous quilting/writing?
+        LOGICAL :: WRITE_LAST_RESTART                                          !<-- Shall we write last restart file
 !
         TYPE(ESMF_GridComp),DIMENSION(:),POINTER :: WRITE_COMPS                !<-- The array of Write gridded components
 !
