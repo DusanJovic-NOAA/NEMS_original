@@ -2302,8 +2302,8 @@
       hst_time_get: IF(MYPE==LEAD_WRITE_TASK)THEN                          !<-- The lead write task
 !-----------------------------------------------------------------------
 !
-        IF(wrt_int_state%WRITE_HST_FLAG.OR.                             &
-           wrt_int_state%WRITE_NEMSIOFLAG)THEN
+        IF(wrt_int_state%WRITE_HST_BIN.OR.                              &
+           wrt_int_state%WRITE_HST_NEMSIO)THEN
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Lead Write Task Gets Current ESMF Time from Clock"
@@ -2384,7 +2384,7 @@
 !
       IF(MYPE==LEAD_WRITE_TASK)THEN
 !
-        IF(wrt_int_state%WRITE_HST_FLAG)THEN
+        IF(wrt_int_state%WRITE_HST_BIN)THEN
 !
           CALL WRITE_RUNHISTORY_OPEN(WRT_INT_STATE                      &
                                     ,IYEAR_FCST                         &
@@ -2400,7 +2400,7 @@
                                     ,LEAD_WRITE_TASK)
         ENDIF
 !
-        IF(wrt_int_state%WRITE_NEMSIOFLAG)THEN
+        IF(wrt_int_state%WRITE_HST_NEMSIO)THEN
 !
           DEGRAD=90./ASIN(1.)
           CALL WRITE_NEMSIO_RUNHISTORY_OPEN(WRT_INT_STATE               &
@@ -2525,7 +2525,7 @@
           NPOSN_2=NFIELD*ESMF_MAXSTR
           NAME=wrt_int_state%NAMES_I2D_STRING(NPOSN_1:NPOSN_2)                        !<-- The name of this 2D integer history quantity
 ! 
-          IF(wrt_int_state%WRITE_HST_FLAG)THEN
+          IF(wrt_int_state%WRITE_HST_BIN)THEN
 !
             WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)wrt_int_state%OUTPUT_ARRAY_I2D  !<-- Lead write task writes out the 2D real data
 !
@@ -2538,7 +2538,7 @@
 !***  For the NEMSIO history file.
 !-----------------------------------------------------------------------
 !
-          IF(wrt_int_state%WRITE_NEMSIOFLAG)THEN
+          IF(wrt_int_state%WRITE_HST_NEMSIO)THEN
 !
             IF(FIELDSIZE/=IM*JM)THEN
               WRITE(0,*)'WRONG: input data dimension ',IM*JM,           &
@@ -2711,7 +2711,7 @@
 !           write(0,*)'fact10tmpv=',maxval(fact10tmpv(1:im,1:jm)),minval(fact10tmpv(1:im,1:jm))
           ENDIF
 !
-          IF(wrt_int_state%WRITE_HST_FLAG)THEN
+          IF(wrt_int_state%WRITE_HST_BIN)THEN
 !
             WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)wrt_int_state%OUTPUT_ARRAY_R2D   !<-- Lead write task writes out the 2D real data
 !
@@ -2727,7 +2727,7 @@
 !***  The same for the NEMSIO history file.
 !-----------------------------------------------------------------------
 !
-          IF(wrt_int_state%WRITE_NEMSIOFLAG)THEN
+          IF(wrt_int_state%WRITE_HST_NEMSIO)THEN
 !
             IF(FIELDSIZE/=IM*JM)THEN
               WRITE(0,*)'WRONG: data dimension ',IM*JM,                 &
@@ -2805,17 +2805,15 @@
           DEALLOCATE(FACT10TMPU)
           DEALLOCATE(FACT10TMPV)
 !
-!         write(0,*)'WRITE_HST_FLAG=',wrt_int_state%WRITE_HST_FLAG,'NEMSIOFLAG=',wrt_int_state%WRITE_NEMSIOFLAG
-          IF(wrt_int_state%WRITE_HST_FLAG)THEN
+          IF(wrt_int_state%WRITE_HST_BIN)THEN
             WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)FACT10                    !<-- Lead write task writes out the 2D real data
-!           write(0,*)'WRITE_HST_FLAG=',wrt_int_state%WRITE_HST_FLAG,'rc=',rc
             IF(HST_FIRST)THEN
               WRITE(0,*)'Wrote FACT10 to history file unit ',wrt_int_state%IO_HST_UNIT &
                         ,maxval(fact10),minval(fact10)
             ENDIF
           ENDIF
 !
-          IF(wrt_int_state%WRITE_NEMSIOFLAG)THEN
+          IF(wrt_int_state%WRITE_HST_NEMSIO)THEN
             N=N+1
             TMP=RESHAPE(FACT10(1:IM,1:JM),(/FIELDSIZE/))
             CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)
@@ -2834,7 +2832,7 @@
 !***  Close the history file if needed.
 !-----------------------------------------------------------------------
 !
-      IF(wrt_int_state%WRITE_HST_FLAG.and.MYPE==LEAD_WRITE_TASK)THEN
+      IF(wrt_int_state%WRITE_HST_BIN.and.MYPE==LEAD_WRITE_TASK)THEN
         CLOSE(wrt_int_state%IO_HST_UNIT)
 !       write(0,*)' Closed history file with unit=',wrt_int_state%IO_HST_UNIT
       ENDIF
@@ -2843,7 +2841,7 @@
 !***  Close the NEMSIO history file.
 !-----------------------------------------------------------------------
 !
-      IF(wrt_int_state%WRITE_NEMSIOFLAG.AND.wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
+      IF(wrt_int_state%WRITE_HST_NEMSIO.AND.wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
 !
         IF(ASSOCIATED(GLAT1D).AND.ASSOCIATED(GLON1D)) THEN
           CALL NEMSIO_SETFILEHEAD(NEMSIOFILE,IERR,GLAT1D,GLON1D)
@@ -3098,8 +3096,8 @@
 !
 !-----------------------------------------------------------------------
 !
-        IF(wrt_int_state%WRITE_RST_FLAG.OR.                             &
-           wrt_int_state%WRITE_NEMSIOFLAG)THEN
+        IF(wrt_int_state%WRITE_RST_BIN.OR.                              &
+           wrt_int_state%WRITE_RST_NEMSIO)THEN
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Lead Write Task Gets Current ESMF Time from Clock"
@@ -3185,7 +3183,7 @@
 !
       IF(MYPE==LEAD_WRITE_TASK)THEN
 !
-        IF(wrt_int_state%WRITE_RST_FLAG)THEN
+        IF(wrt_int_state%WRITE_RST_BIN)THEN
 !
           CALL WRITE_RUNRESTART_OPEN(WRT_INT_STATE                      &
                                     ,IYEAR_FCST                         &
@@ -3202,7 +3200,7 @@
                                     ,LEAD_WRITE_TASK)
         ENDIF
 !
-        IF(wrt_int_state%WRITE_NEMSIOFLAG)THEN
+        IF(wrt_int_state%WRITE_RST_NEMSIO)THEN
 !
           DEGRAD=90./ASIN(1.)
           CALL WRITE_NEMSIO_RUNRESTART_OPEN(WRT_INT_STATE               &
@@ -3338,7 +3336,7 @@
          NPOSN_2=NFIELD*ESMF_MAXSTR
          NAME=wrt_int_state%RST_NAMES_I2D_STRING(NPOSN_1:NPOSN_2)                       !<-- The name of this 2D integer restart quantity
 !
-         IF(wrt_int_state%WRITE_RST_FLAG)THEN
+         IF(wrt_int_state%WRITE_RST_BIN)THEN
 !
           WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)wrt_int_state%RST_OUTPUT_ARRAY_I2D   !<-- Lead write task writes out the 2D integer data
 !
@@ -3352,7 +3350,7 @@
 !***  For the NEMSIO restart file
 !-----------------------------------------------------------------------
 !
-         IF(wrt_int_state%WRITE_NEMSIOFLAG)THEN
+         IF(wrt_int_state%WRITE_RST_NEMSIO)THEN
 !
            IF(FIELDSIZE/=IM*JM)THEN
              WRITE(0,*)'WRONG: input data dimension ',IM*JM,                &
@@ -3525,16 +3523,9 @@
           ENDIF
 
 !
-          IF(wrt_int_state%WRITE_RST_FLAG)THEN
+          IF(wrt_int_state%WRITE_RST_BIN)THEN
 !
             WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)wrt_int_state%RST_OUTPUT_ARRAY_R2D   !<-- Lead write task writes out the 2D real data
-!
-!           IF(RST_FIRST)THEN
-!             WRITE(0,*)'Wrote ',TRIM(NAME)                                &
-!                      ,' to restart file unit ',wrt_int_state%IO_RST_UNIT &
-!                      ,MAXVAL(wrt_int_state%RST_OUTPUT_ARRAY_R2D)         &
-!                      ,MINVAL(wrt_int_state%RST_OUTPUT_ARRAY_R2D)
-!           ENDIF
 !
           ENDIF
 !
@@ -3542,7 +3533,7 @@
 !***  The same for the NEMSIO restart file.
 !-----------------------------------------------------------------------
 !
-          IF(wrt_int_state%WRITE_NEMSIOFLAG)THEN
+          IF(wrt_int_state%WRITE_RST_NEMSIO)THEN
 !
             IF(FIELDSIZE/=IM*JM)THEN
               WRITE(0,*)'WRONG: data dimension ',IM*JM,                 &
@@ -3616,15 +3607,11 @@
           DEALLOCATE(FACT10TMPU)
           DEALLOCATE(FACT10TMPV)
 !
-          IF(wrt_int_state%WRITE_RST_FLAG)THEN
+          IF(wrt_int_state%WRITE_RST_BIN)THEN
             WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)FACT10                !<-- Lead write task writes out the 2D real data
-!           IF(RST_FIRST)THEN
-!             WRITE(0,*)'Wrote FACT10 to restart file unit ',wrt_int_state%IO_RST_UNIT &
-!                       ,MAXVAL(fact10),MINVAL(fact10)
-!           ENDIF
           ENDIF
 
-          IF(wrt_int_state%WRITE_NEMSIOFLAG)THEN
+          IF(wrt_int_state%WRITE_RST_NEMSIO)THEN
             N=N+1
             TMP=RESHAPE(FACT10(1:IM,1:JM),(/FIELDSIZE/))
             CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)
@@ -3636,8 +3623,7 @@
 
         ENDIF
 !
-!        IF(wrt_int_state%WRITE_RST_FLAG .and. wrt_int_state%WRITE_NEMSIOFLAG)THEN
-        IF( wrt_int_state%WRITE_NEMSIOFLAG)THEN
+        IF( wrt_int_state%WRITE_RST_NEMSIO)THEN
           N=N+1
           TMP=RESHAPE(HGT(1:IM,1:JM),(/FIELDSIZE/))
           CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)
@@ -3652,7 +3638,7 @@
 !***  Close the restart file.
 !-----------------------------------------------------------------------
 !
-      IF(wrt_int_state%WRITE_RST_FLAG.and.MYPE==LEAD_WRITE_TASK)THEN
+      IF(wrt_int_state%WRITE_RST_BIN.and.MYPE==LEAD_WRITE_TASK)THEN
         CLOSE(wrt_int_state%IO_RST_UNIT)
 !       write(0,*)' Closed restart file with unit=',wrt_int_state%IO_RST_UNIT
       ENDIF
@@ -3661,7 +3647,7 @@
 !***  Close the NEMSIO restart file.
 !-----------------------------------------------------------------------
 !
-      IF(wrt_int_state%WRITE_NEMSIOFLAG.AND.wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
+      IF(wrt_int_state%WRITE_RST_NEMSIO.AND.wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
 !
         IF(ASSOCIATED(GLAT1D).AND.ASSOCIATED(GLON1D)) THEN
           CALL NEMSIO_SETFILEHEAD(NEMSIOFILE,IERR,GLAT1D,GLON1D)

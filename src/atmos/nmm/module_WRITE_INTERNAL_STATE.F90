@@ -264,8 +264,8 @@
 !***  I/O direction flags (Read or Write)
 !-----------------------------------------
 !
-      LOGICAL(kind=KLOG) :: WRITE_HST_FLAG,WRITE_RST_FLAG
-      LOGICAL(kind=KLOG) :: WRITE_NEMSIOFLAG
+      LOGICAL(kind=KLOG) :: WRITE_HST_BIN,WRITE_HST_NEMSIO
+      LOGICAL(kind=KLOG) :: WRITE_RST_BIN,WRITE_RST_NEMSIO
       LOGICAL(kind=KLOG) :: WRITE_NEMSIOCTL
       LOGICAL(kind=KLOG) :: WRITE_DONEFILEFLAG
  
