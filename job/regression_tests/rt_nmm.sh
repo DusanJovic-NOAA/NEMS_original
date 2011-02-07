@@ -29,7 +29,6 @@ cat nmm_${GBRG}_conf.IN | sed s:_INPES_:${INPES}:g   \
                         | sed s:_PCPFLG_:${PCPFLG}:g \
                         | sed s:_WPREC_:${WPREC}:g   \
                         | sed s:_NCHILD_:${NCHILD}:g >  configure_file_01
-exit
 
 if [ ${GBRG} = nests ]; then
   cat ${RTPWD}/NMMB_nests/configure_file_02.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_02
