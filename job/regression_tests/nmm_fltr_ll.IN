@@ -22,8 +22,6 @@ set -x
 #
 export MP_EAGER_LIMIT=65536
 export MP_SHARED_MEMORY=yes
-#export MP_SINGLE_THREAD=yes
-#export TARGET_CPU_RANGE=-1
 export MP_LABELIO=yes
 export MP_STDOUTMODE=ordered
 export MP_COREFILE_FORMAT=core.txt

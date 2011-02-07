@@ -30,7 +30,7 @@ jnpes:  05                  # Number of compute tasks in the J direction
 #################################
 ####  Specify the I/O tasks  ####
 #################################
-                                                                                                                                              
+
 quilting:              true    # Do you want asynchronous quilting/history writes?
 read_groups:           0
 read_tasks_per_group:  0
@@ -50,21 +50,21 @@ dt_den: 1                   # Denominator of fractional second
 #################################
 #####  Forecast Start Time  #####
 #################################
-                                                                                                                                              
+
 start_year:   2009
 start_month:  07
 start_day:    24
 start_hour:   00
 start_minute: 0
 start_second: 0
-                                                                                                                                              
+
 tstart:       0.            # The starting forecast hour
 
 
 #############################################################
 #####  Forecast Length / Restarting / Output Frequency  #####
 #############################################################
-                                                              
+
 nhours_fcst:      _FCSTL_   # Length of the forecast (hours)
 minutes_history:  180       # Frequency of history output (minutes)
 nhours_dfini:       0
@@ -92,9 +92,9 @@ adiabatic: false            # True--> Adiabatic ;  False--> Diabatic
 ######################
  
 secadv:  true               # True--> 2nd order advection ; False--> 4th order advection
-                                                  
+
 smag2:   0.2                # Smagorinsky constant for 2nd order diffusion
-                                        
+
 codamp:  9.0                # Divergence damping constant
 wcor:    0.2                # Divergence correction factor
  
@@ -156,7 +156,7 @@ gwdflg:  true               # True--> GWD on ; False--> GWD off
 
 #---------------------------------
 shortwave: gfdl             # Radiation schemes
-longwave:  gfdl        
+longwave:  gfdl
                                 # gfdl--> GFDL (shortwave and longwave)
                                 # gsfc--> Goddard shortwave
                                 # dudh--> Dudhia shortwave
@@ -182,27 +182,28 @@ microphysics:  fer          # Microphysics scheme
                                 # tho--> Thompson
                                 # wsm3--> WSM3
                                 # gfs--> GFS microphy
+
 spec_adv:  .false.          # Individual cloud species advected
-                                                                                                                                              
+
 #---------------------------------
 turbulence:  myj            # Turbulence schemes
                                 # myj--> Mellor-Yamada-Janjic
-                                # gfs--> GFS PBL                                                                                                                
+                                # gfs--> GFS PBL
+
 #---------------------------------
-                                                                                                                                              
 sfc_layer:  myj             # Surface layer schemes
                                 # myj--> Mellor-Yamada-Jamnjic
                                 # mm5--> MM5 sfc layer
-                                                                                                                                              
+
 #---------------------------------
-                                                                                                                                              
 land_surface:  noah         # Land surface schemes
                                 # noah--> NOAH scheme
+                                # liss--> Janjic LSM
 
 ucmcall: 0                  # Use (1) or do not use (0) the Urban Canopy Model
 
 #---------------------------------
-                                                                                                                                              
+
 gfs:  _gfsP_                # Select entire GFS physics suite
 
 
@@ -256,7 +257,7 @@ nhrs_srfc:  3               # Frequency in hours between times when sfc evap/flu
 ################################################
 ####  Write History/Restart Specifications  ####
 ################################################
- 
+
 nemsio_input: _NEMSI_
 
 write_hst_bin:           .TRUE.      # True--> Write history files in binary format
@@ -264,11 +265,12 @@ write_hst_nemsio:        .TRUE.      # True--> Write history files in NEMSIO for
 write_rst_bin:           .TRUE.      # True--> Write restart files in binary format
 write_rst_nemsio:        .TRUE.      # True--> Write restart files in NEMSIO format
 
-write_nemsioctl:         .FALSE.     # True--> Yes write ctl for nemsio run history files
+write_nemsioctl:         .TRUE.      # True--> Yes write ctl for nemsio run history files
 write_donefileflag:      .FALSE.
 
 io_hst_unit:             -999
 io_rst_unit:             -999
+
 
 #-------------------------------------------------
 # If IO_FILE == 'DEFERRED', use hst/rst_name_base

@@ -56,20 +56,21 @@ if [ $argn -eq 1 ]; then
   cp -r /${DISKNM}/noscrub/wx20rv/REGRESSION_TEST_baselines \
 	/stmp/${LOGIN}/REGRESSION_TEST
   if [ ${CB_arg} = nmm ]; then
-    cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/*  /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_HYB/.
-    cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*  /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID/.
-    cp ${RTPWD}/GFS_NODFI/*            /stmp/${LOGIN}/REGRESSION_TEST/GFS_NODFI/.
-    cp ${RTPWD}/GFS_OPAC/*             /stmp/${LOGIN}/REGRESSION_TEST/GFS_OPAC/.
-    cp ${RTPWD}/GEFS_data_2008082500/* /stmp/${LOGIN}/REGRESSION_TEST/GEFS_data_2008082500/.
-    cp ${RTPWD}/GEFS_m4/*              /stmp/${LOGIN}/REGRESSION_TEST/GEFS_m4/.
-    cp ${RTPWD}/GFS_DFI_hyb_2loop/*    /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_hyb_2loop/.
+    cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/* /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_HYB/.
+    cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*     /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID/.
+    cp ${RTPWD}/GFS_NODFI/*               /stmp/${LOGIN}/REGRESSION_TEST/GFS_NODFI/.
+    cp ${RTPWD}/GFS_OPAC/*                /stmp/${LOGIN}/REGRESSION_TEST/GFS_OPAC/.
+    cp ${RTPWD}/GEFS_data_2008082500/*    /stmp/${LOGIN}/REGRESSION_TEST/GEFS_data_2008082500/.
+    cp ${RTPWD}/GEFS_m4/*                 /stmp/${LOGIN}/REGRESSION_TEST/GEFS_m4/.
+    cp ${RTPWD}/GFS_DFI_hyb_2loop/*       /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_hyb_2loop/.
+    cp ${RTPWD}/GFS_DFI_hyb_2loop_nst/*   /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_hyb_2loop_nst/.
   elif [ ${CB_arg} = gfs ]; then
-    cp ${RTPWD}/NMMB_gfsP_glob/*      /stmp/${LOGIN}/REGRESSION_TEST/NMMB_gfsP_glob/.
-    cp ${RTPWD}/NMMB_gfsP_reg/*       /stmp/${LOGIN}/REGRESSION_TEST/NMMB_gfsP_reg/.
-    cp ${RTPWD}/NMMB_glob/*           /stmp/${LOGIN}/REGRESSION_TEST/NMMB_glob/.
-    cp ${RTPWD}/NMMB_nests/*          /stmp/${LOGIN}/REGRESSION_TEST/NMMB_nests/.
-    cp ${RTPWD}/NMMB_reg/*            /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg/.
-    cp ${RTPWD}/NMMB_reg_pcpadj/*     /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg_pcpadj/.
+    cp ${RTPWD}/NMMB_gfsP_glob/*          /stmp/${LOGIN}/REGRESSION_TEST/NMMB_gfsP_glob/.
+    cp ${RTPWD}/NMMB_gfsP_reg/*           /stmp/${LOGIN}/REGRESSION_TEST/NMMB_gfsP_reg/.
+    cp ${RTPWD}/NMMB_glob/*               /stmp/${LOGIN}/REGRESSION_TEST/NMMB_glob/.
+    cp ${RTPWD}/NMMB_nests/*              /stmp/${LOGIN}/REGRESSION_TEST/NMMB_nests/.
+    cp ${RTPWD}/NMMB_reg/*                /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg/.
+    cp ${RTPWD}/NMMB_reg_pcpadj/*         /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg_pcpadj/.
   fi
 fi
 
@@ -98,7 +99,7 @@ fi
 # NEMSI       - NEMSIO as input file
 # RSTRT       - restarted run
 # gfsP        - GFS physics suite
-# GBRG        - NMMB global/regional option
+# GBRG        - NMMB global/regional/nest/filter option
 # QUILT       - quilting ON/OFF
 # NSOUT       - number of timesteps for output
 # CLASS       - job class/group (LoadLeveler)
@@ -772,6 +773,39 @@ export TPN=32       ; export THRD=1      ; export GBRG=reg   ; export TS=''
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=06
 export NEMSI=false  ; export RSTRT=false ; export gfsP=false
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+#---------------------
+  ./rt_nmm.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi
+
+####################################################################################################
+#
+# TEST   - Regional NMM-B nesting with filter
+#        - Compute tasks - Upper parent 2x2 | Child #1 3x5 | Grandchild 6x7
+#        - 1 thread / opnl physics / free fcst / nemsio binary input
+#
+#
+####################################################################################################
+
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
+
+export TEST_DESCR="Test NMMB-regional digital filter with nests"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/NMM_REG_FILT
+export CNTL_DIR=NMMB_reg_filt
+export LIST_FILES=" \
+nmm_b_history.003h_00m_00.00s    nmm_b_history_nemsio.003h_00m_00.00s    \
+nmm_b_history.02.003h_00m_00.00s nmm_b_history.02_nemsio.003h_00m_00.00s \
+nmm_b_history.03.003h_00m_00.00s nmm_b_history.03_nemsio.003h_00m_00.00s"
+#---------------------
+export TPN=64       ; export THRD=1      ; export GBRG=fltr  ; export TS=#
+export INPES=02     ; export JNPES=02    ; export WTPG=1     ; export FCSTL=03
+export NEMSI=true   ; export RSTRT=false ; export gfsP=false
+export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=01
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
