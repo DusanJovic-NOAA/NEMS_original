@@ -1,5 +1,5 @@
 cfpp$ noconcur r
-      subroutine moninq(ix,im,km,ntrac,dv,du,tau,rtg,
+      subroutine moninq(ix,im,km,ntrac,ntcw,dv,du,tau,rtg,
      &     uo,vo,t1,q1,swh,hlw,xmu,
      &     psk,rbsoil,fm,fh,tsea,qss,heat,evap,stress,spd1,kpbl,
      &     prsi,del,prsl,prslk,phii,phil,deltim,
@@ -18,7 +18,7 @@ cfpp$ noconcur r
 !
 !     arguments
 !
-      integer ix, im, km, ntrac, kpbl(im), kpblx(im), kinver(im)
+      integer ix, im, km, ntrac, ntcw, kpbl(im), kpblx(im), kinver(im)
 !
       real(kind=kind_phys) deltim, xkzm_m, xkzm_h, xkzm_s
       real(kind=kind_phys) dv(im,km),     du(im,km),
@@ -260,7 +260,7 @@ c
       do k = 1,km
         do i = 1,im
           theta(i,k) = t1(i,k) * psk(i) / prslk(i,k)
-          qlx(i,k)   = max(q1(i,k,ntrac),qlmin)
+          qlx(i,k)   = max(q1(i,k,ntcw),qlmin)
           qtx(i,k)   = max(q1(i,k,1),qmin)+qlx(i,k)
           ptem       = qlx(i,k)
           ptem1      = hvap*max(q1(i,k,1),qmin)/(cp*t1(i,k))
@@ -367,7 +367,7 @@ c
            tem1      = ustar(i)**3.
            wscale(i) = (tem1+wfac*vk*wstar3(i)*sfcfrac)**h1
 !          wscale(i) = ustar(i)/phim(i)
-           wscale(i) = min(wscale(i),ustar(i)*aphi16)
+!          wscale(i) = min(wscale(i),ustar(i)*aphi16)
            wscale(i) = max(wscale(i),ustar(i)/aphi5)
          else
            pblflg(i)=.false.

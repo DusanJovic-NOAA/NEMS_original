@@ -249,7 +249,7 @@ C
               PHIH(I) = PHIM(I)
            ENDIF
            WSCALE(I) = USTAR(I)/PHIM(I)
-           WSCALE(I) = MIN(WSCALE(I),USTAR(I)*APHI16)
+!          WSCALE(I) = MIN(WSCALE(I),USTAR(I)*APHI16)
            WSCALE(I) = MAX(WSCALE(I),USTAR(I)/APHI5)
       ENDDO
 C

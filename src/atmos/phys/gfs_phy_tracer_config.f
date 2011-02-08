@@ -43,7 +43,7 @@
 !
 ! misc tracer options
 !
-      logical, save                  :: glbsum  = .true.
+      logical                              :: glbsum  = .true.
 !
 
 ! --- public interface

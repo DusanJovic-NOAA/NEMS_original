@@ -1303,14 +1303,14 @@
       else
 
 !       if (mstrat) then
-!         call moninq1(ix,im,levs,nvdiff,dvdt,dudt,dtdt,dqdt,           &
+!         call moninq1(ix,im,levs,nvdiff,ntcw,dvdt,dudt,dtdt,dqdt,      &
 !    &     ugrs,vgrs,tgrs,qgrs,swh,hlw,xmu,slmsk,                       &
 !    &     prsik(1,1),rb,ffmm,ffhh,tsea,qss,hflx,evap,stress,wind,kpbl, &
 !    &     prsi,del,prsl,prslk,phii,phil,dtp,                           &
 !    &     dusfc1,dvsfc1,dtsfc1,dqsfc1,hpbl,gamt,gamq,dkt,              &
 !    &     kinver)
 !       else
-          call moninq(ix,im,levs,nvdiff,dvdt,dudt,dtdt,dqdt,            &
+          call moninq(ix,im,levs,nvdiff,ntcw,dvdt,dudt,dtdt,dqdt,       &
 !    &     ugrs,vgrs,tgrs,qgrs,swh,hlw,xmu,slmsk,                       &
      &     ugrs,vgrs,tgrs,qgrs,swh,hlw,xmu,                             &
      &     prsik(1,1),rb,ffmm,ffhh,tsea,qss,hflx,evap,stress,wind,kpbl, &

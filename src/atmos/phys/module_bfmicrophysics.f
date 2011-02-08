@@ -16,7 +16,7 @@
      &QAUTx, RFmax,        RQR_DR1, RQR_DR2, RQR_DR3, RQR_DRmin,         &
      &RQR_DRmax, RR_DRmin, RR_DR1, RR_DR2, RR_DR3, RR_DRmax
 !
-      real,private :: mic_step
+      integer, private :: mic_step
 !
 !--- Common block for lookup table used in calculating growth rates of
 !    nucleated ice crystals growing in water saturated conditions

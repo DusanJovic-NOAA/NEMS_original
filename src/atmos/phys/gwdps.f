@@ -113,8 +113,9 @@
 !     Some constants
 !
       real(kind=kind_phys) pi, dw2min, rimin, ric, bnv2min, efmin
-     &,                    efmax,hpmax,hpmin
+     &,                    efmax,hpmax,hpmin, rad_to_deg, deg_to_rad
       PARAMETER (PI=3.1415926535897931)
+      PARAMETER (RAD_TO_DEG=180.0/PI, DEG_TO_RAD=PI/180.0)
       PARAMETER (DW2MIN=1., RIMIN=-100., RIC=0.25, BNV2MIN=1.0E-5)
 !     PARAMETER (EFMIN=0.0, EFMAX=10.0, hpmax=200.0)
       PARAMETER (EFMIN=0.0, EFMAX=10.0, hpmax=2400.0, hpmin=1.0)
@@ -365,10 +366,11 @@
         DO I = 1, npt
           J = ipt(i)
           DO K = iwklm(I), 1, -1
-            PHIANG   =  atan2D(V1(J,K),U1(J,K))
+            PHIANG   =  atan2(V1(J,K),U1(J,K))*RAD_TO_DEG
             ANG(I,K) = ( THETA(J) - PHIANG )
             if ( ANG(I,K) .gt.  90. ) ANG(I,K) = ANG(I,K) - 180.
             if ( ANG(I,K) .lt. -90. ) ANG(I,K) = ANG(I,K) + 180.
+            ANG(I,K) = ANG(I,K) * DEG_TO_RAD
 !
             UDS(I,K) = 
      &          MAX(SQRT(U1(J,K)*U1(J,K) + V1(J,K)*V1(J,K)), minwnd)
@@ -381,7 +383,7 @@
 ! --- Wind projected on the line perpendicular to mtn range, U(Zb(K)).
 ! --- kenetic energy is at the layer Zb
 ! --- THETA ranges from -+90deg |_ to the mtn "largest topo variations"
-              UP(I)  =  UDS(I,K) * cosD(ANG(I,K))
+              UP(I)  =  UDS(I,K) * cos(ANG(I,K))
               EK(I)  = 0.5 *  UP(I) * UP(I) 
 
 ! --- Dividing Stream lime  is found when PE =exceeds EK.
@@ -425,20 +427,20 @@
                 ZLEN = SQRT( ( PHIL(J,IDXZB(I)) - PHIL(J,K) ) / 
      &                       ( PHIL(J,K ) + G * hprime(J) ) )
 ! --- lm eq 14:
-                R = (cosD(ANG(I,K))**2 + GAMMA(J) * sinD(ANG(I,K))**2) / 
-     &              (gamma(J) * cosD(ANG(I,K))**2 + sinD(ANG(I,K))**2)
+                R = (cos(ANG(I,K))**2 + GAMMA(J) * sin(ANG(I,K))**2) / 
+     &              (gamma(J) * cos(ANG(I,K))**2 + sin(ANG(I,K))**2)
 ! --- (negitive of DB -- see sign at tendency)
                 DBTMP = 0.25 *  CDmb * 
      &                  MAX( 2. - 1. / R, 0. ) * sigma(J) * 
-     &                  MAX(cosD(ANG(I,K)), gamma(J)*sinD(ANG(I,K))) *
+     &                  MAX(cos(ANG(I,K)), gamma(J)*sin(ANG(I,K))) *
      &                  ZLEN / hprime(J) 
                 DB(I,K) =  DBTMP * UDS(I,K)    
 !
 !               if(lprnt .and. i .eq. npr) then 
 !                 print *,' in gwdps_lmi.f 10 npt=',npt,i,j,idxzb(i)
 !    &,           DBTMP,R' ang=',ang(i,k),' gamma=',gamma(j),' K=',K
-!                 print *,' in gwdps_lmi.f 11   K=',k,ZLEN,cosD(ANG(I,K))
-!                 print *,' in gwdps_lmi.f 12  DB=',DB(i,k),sinD(ANG(I,K))
+!                 print *,' in gwdps_lmi.f 11   K=',k,ZLEN,cos(ANG(I,K))
+!                 print *,' in gwdps_lmi.f 12  DB=',DB(i,k),sin(ANG(I,K))
 !               endif
               endif
             ENDDO
