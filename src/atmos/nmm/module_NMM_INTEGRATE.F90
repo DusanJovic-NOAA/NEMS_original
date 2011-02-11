@@ -717,36 +717,89 @@
 !
 !-----------------------------------------------------------------------
 !
-        WRITE(0,*)' '
-        WRITE(0,*)' Clocktime NMM_RUN'
-        WRITE(0,*)' '
-        WRITE(0,*)'   Run Phase 1=',atm_drv_run_1
-        WRITE(0,*)'   Run Phase 2=',atm_drv_run_2
-        WRITE(0,*)'   Run Phase 3=',atm_drv_run_3
-        WRITE(0,*)' '
-!
-        IF(NESTING.AND.I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-!
-          IF(I_AM_A_NEST==ESMF_TRUE)THEN
-            if (cpl1_recv_tim > 1.0) then
-            WRITE(0,*)'   Recv in Cpl Phase 1=',cpl1_recv_tim
-            WRITE(0,*)'   Total Cpl Phase 1=',atm_drv_run_cpl1
+        IF(.not. NESTING) then                                                        ! parent only run
+         if (atm_drv_run_1 .lt. 1.0) then                                              ! an I/O task
+          WRITE(0,899)atm_drv_run_3
+         else 
+          if (atm_drv_run_2 >1.0) then                                                 ! digital filter
+           WRITE(0,900)atm_drv_run_1,atm_drv_run_2,atm_drv_run_3
+          else
+           WRITE(0,901)atm_drv_run_1,atm_drv_run_3                                     ! primary compute task
+          endif
+         endif
+        ELSE  
+         IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN                                           ! nested run and a forecast task
+          IF(NUM_CHILDREN == 0)THEN                                                    ! just a nest and not a parent nest
+           if (cpl1_recv_tim > 1.0) then                                               ! child compute task that is a boundary
+            if (atm_drv_run_2 >1.0) then                                               ! digital filter 
+             WRITE(0,902)atm_drv_run_1,atm_drv_run_2,atm_drv_run_3, &
+                         (atm_drv_run_cpl1-cpl1_recv_tim),cpl1_recv_tim 
+            else
+             WRITE(0,903)atm_drv_run_1,atm_drv_run_3,(atm_drv_run_cpl1-cpl1_recv_tim), &
+                         cpl1_recv_tim
+            endif
+           else                                                                         ! child compute task that is not a boundary
+            if (atm_drv_run_2 >1.0) then                                                ! digital filter 
+             WRITE(0,904)atm_drv_run_1,atm_drv_run_2,atm_drv_run_3
+            else
+             WRITE(0,905)atm_drv_run_1,atm_drv_run_3                                    ! no digital filter
+            endif
            endif
           ENDIF
 !
 !
-          IF(NUM_CHILDREN>0)THEN
-            if( cpl2_comp_tim >2.0) then
-            WRITE(0,*)' '
-            WRITE(0,*)'   Cpl Phase 2 Compute=',cpl2_comp_tim
-            WRITE(0,*)'   Cpl Phase 2 Wait   =',cpl2_wait_tim
-            WRITE(0,*)'   Cpl Phase 2 Send   =',cpl2_send_tim
-            WRITE(0,*)'   Total Cpl Phase 2  =',atm_drv_run_cpl2
-            WRITE(0,*)' '
+          IF(NUM_CHILDREN>0)THEN                                                       ! parent task that has a child nest
+           IF(I_AM_A_NEST==ESMF_TRUE)THEN
+            if (cpl1_recv_tim > 1.0) then                                               ! child compute task that is a boundary
+             if (atm_drv_run_2 >1.0) then                                               ! digital filter 
+              WRITE(0,902)atm_drv_run_1,atm_drv_run_2,atm_drv_run_3, &
+                          (atm_drv_run_cpl1-cpl1_recv_tim),cpl1_recv_tim 
+             else
+              WRITE(0,903)atm_drv_run_1,atm_drv_run_3,(atm_drv_run_cpl1-cpl1_recv_tim), &
+                          cpl1_recv_tim
+             endif
+            endif
+           ENDIF
+           if( cpl2_comp_tim >2.0) then
+            if (atm_drv_run_2 >1.0) then                                               ! digital filter 
+             WRITE(0,906)atm_drv_run_1,atm_drv_run_2,atm_drv_run_3,        &
+                         atm_drv_run_cpl2,cpl2_comp_tim,cpl2_wait_tim,     &
+                         cpl2_send_tim
+            else 
+              WRITE(0,907)atm_drv_run_1,atm_drv_run_3,atm_drv_run_cpl2,    &
+                         cpl2_comp_tim,cpl2_wait_tim, cpl2_send_tim
+            endif
+           else                                                                        ! parent compute task without a boundary
+            if (atm_drv_run_2 >1.0) then                                               ! digital filter 
+             WRITE(0,900)atm_drv_run_1,atm_drv_run_2,atm_drv_run_3
+            else
+             WRITE(0,901)atm_drv_run_1,atm_drv_run_3
+            endif
            endif
           ENDIF
 !
+        ELSE                                                                           ! I/O tasks
+          WRITE(0,899)atm_drv_run_3
         ENDIF
+       ENDIF
+ 899    FORMAT(' I/O task Phase 3= ',g10.4)       
+ 900    FORMAT(' Integrate time = ',g10.4,' Filter time = ',g10.4,     &
+               ' Phase 3 time = ',g10.4)
+ 901    FORMAT(' Integrate time = ',g10.4,' Phase 3 time = ',g10.4)
+ 902    FORMAT(' Integrate time = ',g10.4,' Filter time ',g10.4,       &
+               ' Phase 3 time = ',g10.4,' Cpl compute time = ',g10.4,  &
+               ' Cpl recv time = ',g10.4)
+ 903    FORMAT(' Integrate time = ',g10.4,' Phase 3 time = ',g10.4,    &
+               ' Cpl compute time = ',g10.4,' Cpl recv time = ',g10.4)
+ 904    FORMAT(' Integrate time = ',g10.4,' Filter time ',g10.4,       &
+               ' Phase 3 time = ',g10.4)
+ 905    FORMAT(' Integrate time = ',g10.4,' Phase 3 time = ',g10.4)
+ 906    FORMAT(' Integrate time = ',g10.4,' Filter time ',g10.4,       &
+               ' Phase 3 time = ',g10.4,' Total Phase 2= ',g10.4,      &
+               ' Compute= ',g10.4,' Wait= ',g10.4,' Send = ',g10.4)
+ 907    FORMAT(' Integrate time = ',g10.4,                             &
+               ' Phase 3 time = ',g10.4,' Total Phase 2= ',g10.4,      &
+               ' Compute= ',g10.4,' Wait= ',g10.4,' Send = ',g10.4)
 !
 !-----------------------------------------------------------------------
 !

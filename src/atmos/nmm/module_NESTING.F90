@@ -1422,6 +1422,24 @@
 !     write(0,*)' after Albedo'
 !
 !-----------------------------------------------------------------------
+!***  ALBASE
+!-----------------------------------------------------------------------
+!
+      DO J=JMS,JME
+      DO I=IMS,IME
+        DUMMY_2D_IN(I,J,1)=phy_int_state%ALBASE(I,J)
+      ENDDO
+      ENDDO
+!
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                           &
+                               ,'ALBASE'                                 &
+                               ,DUMMY_2D_OUT                            &
+                               ,BILINEAR)
+!
+      IF(MYPE==0)WRITE(NFCST)DUMMY_2D_OUT
+!     write(0,*)' after Albase'
+!
+!-----------------------------------------------------------------------
 !***  EPSR
 !-----------------------------------------------------------------------
 !

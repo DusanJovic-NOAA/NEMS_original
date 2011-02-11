@@ -556,6 +556,10 @@ ihrend &                    ! maximum forecast length, hours
         endif
 !
         if(mype==0)then
+          read(nfcst)temp1  ! ALBASE
+        endif
+!
+        if(mype==0)then
           read(nfcst)temp1  ! EPSR
         endif
 !

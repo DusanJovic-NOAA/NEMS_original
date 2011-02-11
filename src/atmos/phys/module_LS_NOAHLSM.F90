@@ -642,8 +642,8 @@
             SMSTAV(I,J)=0.0                                             
             SMSTOT(I,J)=0.0                                             
             DO NS=1,NSOIL                                               
-              SMOIS(I,J,NS)=0.15                                         
-              SH2O (I,J,NS)=0.15                                         
+              SMOIS(I,J,NS)=1.00                                         
+              SH2O (I,J,NS)=1.00                                         
               TSLB(I,J,NS)=273.16                                          !STEMP
             ENDDO                                                       
           ELSE                                                          
@@ -652,8 +652,8 @@
               SMSTAV(I,J)=0.0                                           
               SMSTOT(I,J)=0.0                                           
               DO NS=1,NSOIL                                             
-                SMOIS(I,J,NS)=0.15                                       
-                SH2O (I,J,NS)=0.15                                       
+                SMOIS(I,J,NS)=1.00                                       
+                SH2O (I,J,NS)=1.00                                       
               ENDDO                                                     
             ENDIF                                                       
           ENDIF                                                         

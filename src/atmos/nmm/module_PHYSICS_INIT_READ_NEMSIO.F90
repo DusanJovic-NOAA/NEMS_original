@@ -389,14 +389,29 @@
           js=(j-jts)*(ite-its+1)
           do i=its,ite
             int_state%ALBEDO(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!
+!-----------------------------------------------------------------------
+!***  ALBASE
+!-----------------------------------------------------------------------
+!
+      call getrecn(recname,reclevtyp,reclev,nrec,'albase','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
             int_state%ALBASE(i,j)=tmp(i-its+1+js+fldst)
           enddo
         enddo
       endif
-!      write(0,*)'phycs albdo=',maxval(int_state%albedo),minval(int_state%albedo), &
-!       int_state%albedo(its:its+2,jts:jts+2)
 !
+!-----------------------------------------------------------------------
 ! **** EPSR
+!-----------------------------------------------------------------------
+!
       call getrecn(recname,reclevtyp,reclev,nrec,'epsr','sfc',1,recn)
       if(recn>0) then
         fldst=(recn-1)*fldsize

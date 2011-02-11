@@ -51,9 +51,9 @@ dt_den: 34                  # Denominator of fractional second
 #####  Forecast Start Time  #####
 #################################
 
-start_year:   2009
-start_month:  10
-start_day:    24
+start_year:   2011
+start_month:  02
+start_day:    04
 start_hour:   00
 start_minute: 0
 start_second: 0
