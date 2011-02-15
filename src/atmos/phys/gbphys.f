@@ -926,7 +926,7 @@
 
 !    Only used for old shallow convection with mstrat=.true.
 
-      if (.not. sashal .and. shal_cnv) then
+      if (.not. sashal .and. shal_cnv .and. mstrat) then
         do i = 1, im
           ctei_rml(i) = ctei_rm(1)*work1(i) + ctei_rm(2)*work2(i)
         enddo
@@ -1311,12 +1311,11 @@
 !    &     kinver)
 !       else
           call moninq(ix,im,levs,nvdiff,ntcw,dvdt,dudt,dtdt,dqdt,       &
-!    &     ugrs,vgrs,tgrs,qgrs,swh,hlw,xmu,slmsk,                       &
      &     ugrs,vgrs,tgrs,qgrs,swh,hlw,xmu,                             &
      &     prsik(1,1),rb,ffmm,ffhh,tsea,qss,hflx,evap,stress,wind,kpbl, &
      &     prsi,del,prsl,prslk,phii,phil,dtp,                           &
      &     dusfc1,dvsfc1,dtsfc1,dqsfc1,hpbl,gamt,gamq,dkt,              &
-     &     kinver, xkzm_m, xkzm_h, xkzm_s)
+     &     kinver, xkzm_m, xkzm_h, xkzm_s, lprnt, ipr)
 !       endif
 
       endif   ! end if_old_monin

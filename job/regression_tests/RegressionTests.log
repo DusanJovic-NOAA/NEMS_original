@@ -1,4 +1,4 @@
-Thu Feb 10 16:53:05 EST 2011
+Mon Feb 14 12:11:33 EST 2011
 Start Regression test
 
 
@@ -29,7 +29,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  146.92  , test_glob timing:  150.46
+ Original timing:  146.92  , test_glob timing:  152.99
 
 
 Test 002
@@ -177,7 +177,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  235.58  , test_reg timing:  240.85
+ Original timing:  235.58  , test_reg timing:  241.09
 
 
 Test 009
@@ -421,16 +421,19 @@ Checking test 020 results ....
  Comparing sigf06.........OK
  Comparing sigf12.........OK
  Comparing sigf24.........OK
+ Comparing sigf48.........OK
  Comparing sfcf00.........OK
  Comparing sfcf03.........OK
  Comparing sfcf06.........OK
  Comparing sfcf12.........OK
  Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
  Comparing flxf00.........OK
  Comparing flxf03.........OK
  Comparing flxf06.........OK
  Comparing flxf12.........OK
  Comparing flxf24.........OK
+ Comparing flxf48.........OK
  Test 020 passed 
 Test 021
 Test GFS with 2-copy option
@@ -440,6 +443,27 @@ GFS, 32 proc, 1 thread
 
 
 Checking test 021 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Test 021 passed 
+Test 022
+Test GFS different decomposition and restart
+GFS, 60 proc, 1 thread
+
+
+
+
+Checking test 022 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
  Comparing sigf12.........OK
@@ -455,27 +479,6 @@ Checking test 021 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 021 passed 
-Test 022
-Test GFS different decomposition
-GFS, 60 proc, 1 thread
-
-
-
-
-Checking test 022 results ....
- Comparing sigf03.........OK
- Comparing sigf06.........OK
- Comparing sigf12.........OK
- Comparing sigf24.........OK
- Comparing sfcf03.........OK
- Comparing sfcf06.........OK
- Comparing sfcf12.........OK
- Comparing sfcf24.........OK
- Comparing flxf03.........OK
- Comparing flxf06.........OK
- Comparing flxf12.........OK
- Comparing flxf24.........OK
  Test 022 passed 
 Test 023
 Test GFS threads
@@ -627,14 +630,17 @@ Checking test 029 results ....
  Comparing sigf06.........OK
  Comparing sigf12.........OK
  Comparing sigf24.........OK
+ Comparing sigf48.........OK
  Comparing sfcf03.........OK
  Comparing sfcf06.........OK
  Comparing sfcf12.........OK
  Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
  Comparing flxf03.........OK
  Comparing flxf06.........OK
  Comparing flxf12.........OK
  Comparing flxf24.........OK
+ Comparing flxf48.........OK
  Test 029 passed 
 Test 030
 GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid
@@ -644,6 +650,27 @@ GFS, 16 proc, 2 thread
 
 
 Checking test 030 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Test 030 passed 
+Test 031
+GFS,1 proc, no quilt, digital filter on reduced grid
+GFS, 1 proc, 1 thread
+
+
+
+
+Checking test 031 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
  Comparing sigf12.........OK
@@ -659,27 +686,6 @@ Checking test 030 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 030 passed 
-Test 031
-GFS,1 proc, no quilt, digital filter on reduced grid
-GFS, 1 proc, 1 thread
-
-
-
-
-Checking test 031 results ....
- Comparing sigf03.........OK
- Comparing sigf06.........OK
- Comparing sigf12.........OK
- Comparing sigf24.........OK
- Comparing sfcf03.........OK
- Comparing sfcf06.........OK
- Comparing sfcf12.........OK
- Comparing sfcf24.........OK
- Comparing flxf03.........OK
- Comparing flxf06.........OK
- Comparing flxf12.........OK
- Comparing flxf24.........OK
  Test 031 passed 
 Test 032
 GFS, use the OPAC climo scheme for SW and LW
@@ -863,4 +869,4 @@ Checking test 038 results ....
 
 
 
-Thu Feb 10 20:27:06 EST 2011
+Mon Feb 14 19:54:31 EST 2011

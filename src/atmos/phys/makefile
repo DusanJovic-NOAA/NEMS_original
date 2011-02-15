@@ -98,6 +98,7 @@ MODULES_GFSF=                                \
 	           sascnv.o                  \
 	           sascnvn.o                 \
 	           cnvc90.o                  \
+		   tridi2t3.o                \
 	           shalcv.o                  \
 	           shalcv_opr.o              \
 	           shalcnv.o                 \

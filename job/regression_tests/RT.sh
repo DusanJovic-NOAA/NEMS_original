@@ -55,6 +55,7 @@ if [ $argn -eq 1 ]; then
   rm -rf /stmp/${LOGIN}/REGRESSION_TEST
   cp -r /${DISKNM}/noscrub/wx20rv/REGRESSION_TEST_baselines \
 	/stmp/${LOGIN}/REGRESSION_TEST
+  mkdir -p /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_hyb_2loop_nst
   if [ ${CB_arg} = nmm ]; then
     cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/* /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_HYB/.
     cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*     /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID/.
@@ -814,6 +815,7 @@ export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=01
 fi
 
 cd $PATHRT
+export RTPWD=/gpfs/t2s/climate/noscrub/wx20wa/esmf/nems/baseline/moorthi
 
 ####################################################################################################
 # 
@@ -831,12 +833,12 @@ export TEST_DESCR="Compare GFS results with previous trunk version"
 export RUNDIR=${RUNDIR_ROOT}/GFS_32
 export CNTL_DIR=GFS_NODFI
 export LIST_FILES=" \
-	sigf00 sigf03 sigf06 sigf12 sigf24 \
-	sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 \
-	flxf00 flxf03 flxf06 flxf12 flxf24"
+	sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
+	sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+	flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
 export TASKS=32    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
-export PE1=30      ; export WTPG=2       ; export NDAYS=1     ; export CP2=.false.
+export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=.false.
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
@@ -852,7 +854,7 @@ fi
 ####################################################################################################
 #
 # TEST   - GFS as two copies
-#        - 30 compute tasks / 1 thread  2 copy restart
+#        - 30 compute tasks / 1 thread  2 copy
 #
 ####################################################################################################
 
@@ -862,15 +864,15 @@ export TEST_DESCR="Test GFS with 2-copy option"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_32
+export RUNDIR=${RUNDIR_ROOT}/GFS_32_60
 export CNTL_DIR=GFS_NODFI
 export LIST_FILES=" \
-	sigf03 sigf06 sigf12 sigf24 sigf48 \
-	sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
-	flxf03 flxf06 flxf12 flxf24 flxf48"
+	sigf03 sigf06 sigf12 sigf24 \
+	sfcf03 sfcf06 sfcf12 sfcf24 \
+	flxf03 flxf06 flxf12 flxf24"
 #---------------------
 export TASKS=32    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
-export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=.true.
+export PE1=30      ; export WTPG=2       ; export NDAYS=1     ; export CP2=.true.
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
@@ -886,25 +888,25 @@ fi
 ####################################################################################################
 #
 # TEST   - GFS with different decomposition
-#        - 58 compute tasks / 1 thread 
+#        - 58 compute tasks / 1 thread  restart
 #
 ####################################################################################################
 
 if [ ${CREATE_BASELINE} = false ]; then
 
-export TEST_DESCR="Test GFS different decomposition"
+export TEST_DESCR="Test GFS different decomposition and restart"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_60_16
+export RUNDIR=${RUNDIR_ROOT}/GFS_32_60
 export CNTL_DIR=GFS_NODFI
 export LIST_FILES=" \
-	sigf03 sigf06 sigf12 sigf24 \
-	sfcf03 sfcf06 sfcf12 sfcf24 \
-	flxf03 flxf06 flxf12 flxf24"
+	sigf03 sigf06 sigf12 sigf24 sigf48 \
+	sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+	flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
 export TASKS=60    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
-export PE1=58      ; export WTPG=2       ; export NDAYS=1     ; export CP2=.false.
+export PE1=58      ; export WTPG=2       ; export NDAYS=2     ; export CP2=.false.
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
@@ -930,7 +932,7 @@ export TEST_DESCR="Test GFS threads"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_60_16
+export RUNDIR=${RUNDIR_ROOT}/GFS_16
 export CNTL_DIR=GFS_NODFI
 export LIST_FILES=" \
        sigf03 sigf06 sigf12 sigf24 sigf48 \
@@ -1137,12 +1139,12 @@ export TEST_DESCR="GFS,32 total proc (tasks), 1 thread, quilt, digital filter on
 export RUNDIR=${RUNDIR_ROOT}/GFS_32_16_dfi
 export CNTL_DIR=GFS_DFI_REDUCEDGRID
 export LIST_FILES=" \
-	sigf03 sigf06 sigf12 sigf24 \
-	sfcf03 sfcf06 sfcf12 sfcf24 \
-	flxf03 flxf06 flxf12 flxf24" 
+	sigf03 sigf06 sigf12 sigf24 sigf48 \
+	sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+	flxf03 flxf06 flxf12 flxf24 flxf48" 
 #---------------------
 export TASKS=32    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
-export PE1=30      ; export WTPG=2       ; export NDAYS=1     ; export CP2=.false.
+export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=.false.
 export WRTGP=1     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
@@ -1168,15 +1170,15 @@ export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digita
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_32_16_dfi
+export RUNDIR=${RUNDIR_ROOT}/GFS_16_1_dfi
 export CNTL_DIR=GFS_DFI_REDUCEDGRID
 export LIST_FILES=" \
-	sigf03 sigf06 sigf12 sigf24 sigf48 \
-        sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
-        flxf03 flxf06 flxf12 flxf24 flxf48"
+	sigf03 sigf06 sigf12 sigf24 \
+	sfcf03 sfcf06 sfcf12 sfcf24 \
+	flxf03 flxf06 flxf12 flxf24"
 #---------------------
 export TASKS=16    ; export THRD=2       ; export NSOUT=0     ; export QUILT=.true.
-export PE1=12      ; export WTPG=2       ; export NDAYS=2     ; export CP2=.true.
+export PE1=12      ; export WTPG=2       ; export NDAYS=1     ; export CP2=.true.
 export WRTGP=2     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
@@ -1202,15 +1204,15 @@ export TEST_DESCR="GFS,1 proc, no quilt, digital filter on reduced grid"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_1_dfi
+export RUNDIR=${RUNDIR_ROOT}/GFS_16_1_dfi
 export CNTL_DIR=GFS_DFI_REDUCEDGRID
 export LIST_FILES=" \
-	sigf03 sigf06 sigf12 sigf24 \
-	sfcf03 sfcf06 sfcf12 sfcf24 \
-	flxf03 flxf06 flxf12 flxf24"
+	sigf03 sigf06 sigf12 sigf24 sigf48 \
+        sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+        flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
 export TASKS=1     ; export THRD=1       ; export NSOUT=0     ; export QUILT=.false.
-export PE1=1       ; export WTPG=1       ; export NDAYS=1     ; export CP2=.false.
+export PE1=1       ; export WTPG=1       ; export NDAYS=2     ; export CP2=.false.
 export WRTGP=1     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
@@ -1461,9 +1463,9 @@ fi
 rm -f err out configure_file* nmm_ll gfs_fcst_run  gfs_ll gen_fcst_run gen_ll gen_ll.out
 
 cd ${PATHTR}/src
-gmake clean          > /dev/null 2>&1
+#gmake clean          > /dev/null 2>&1
 
-rm -rf ${RUNDIR_ROOT}
+#rm -rf ${RUNDIR_ROOT}
 
 date >> ${PATHRT}/RegressionTests.log
 

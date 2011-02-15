@@ -3,21 +3,19 @@ cfpp$ noconcur r
      &     uo,vo,t1,q1,swh,hlw,xmu,
      &     psk,rbsoil,fm,fh,tsea,qss,heat,evap,stress,spd1,kpbl,
      &     prsi,del,prsl,prslk,phii,phil,deltim,
-!    &     prsi,del,prsl,prslk,phii,phil,rcs,deltim,
      &     dusfc,dvsfc,dtsfc,dqsfc,hpbl,hgamt,hgamq,dkt,
-     &     kinver, xkzm_m, xkzm_h, xkzm_s)
+     &     kinver,xkzm_m,xkzm_h,xkzm_s,lprnt,ipr)
 !
-      use machine     , only : kind_phys
+      use machine  , only : kind_phys
       use funcphys , only : fpvs
       use physcons, grav => con_g, rd => con_rd, cp => con_cp
      &,             hvap => con_hvap, fv => con_fvirt
       implicit none
 !
-!     include 'constant.h'
-!
-!
 !     arguments
 !
+      logical lprnt
+      integer ipr
       integer ix, im, km, ntrac, ntcw, kpbl(im), kpblx(im), kinver(im)
 !
       real(kind=kind_phys) deltim, xkzm_m, xkzm_h, xkzm_s
@@ -37,7 +35,6 @@ cfpp$ noconcur r
      &                     prsl(ix,km),   prslk(ix,km),
      &                     phii(ix,km+1), phil(ix,km),
      &                                    dusfc(im),
-!    &                     rcs(im),       dusfc(im),
      &                     dvsfc(im),     dtsfc(im),
      &                     dqsfc(im),     hpbl(im),      hpblx(im),
      &                     hgamt(im),     hgamq(im)
@@ -47,7 +44,8 @@ cfpp$ noconcur r
 !
       integer i,iprt,is,iun,k,kk,km1,kmpbl,latd,lond
       integer lcld(im),icld(im),kcld(im),krad(im)
-      integer kemx(im)
+      integer kx1(im)
+!     integer kemx(im), kx1(im)
 !
 !     real(kind=kind_phys) betaq(im), betat(im),   betaw(im),
       real(kind=kind_phys) evap(im),  heat(im),    phih(im),
@@ -99,7 +97,7 @@ cfpp$ noconcur r
      &                     rentf1,  rentf2, radfac,
      &                     zfmin,   zk,     tem1,   tem2,
      &                     xkzm,    xkzmu,  xkzminv,
-     &                     ptem,    ptem1,  ptem2
+     &                     ptem,    ptem1,  ptem2, tx1(im), tx2(im)
 !
       real(kind=kind_phys) zstblmax,h1,     h2,     qlcr,  actei,
      &                     cldtime, u01,    v01,    delu,  delv
@@ -174,8 +172,6 @@ c
           zl(i,k) = phil(i,k) * gravi
           u1(i,k) = uo(i,k)
           v1(i,k) = vo(i,k)
-!         u1(i,k) = uo(i,k) * rcs(i)
-!         v1(i,k) = vo(i,k) * rcs(i)
         enddo
       enddo
       do i=1,im
@@ -188,11 +184,18 @@ c
         enddo
       enddo
 !
+      do i=1,im
+        kx1(i) = 1
+        tx1(i) = 1.0 / prsi(i,1)
+        tx2(i) = tx1(i)
+      enddo
       do k = 1,km1
         do i=1,im
+          xkzo(i,k)  = 0.0
+          xkzmo(i,k) = 0.0
           if (k < kinver(i)) then
 !                                  vertical background diffusivity
-            ptem      = prsi(i,k+1) / prsi(i,1)
+            ptem      = prsi(i,k+1) * tx1(i)
             tem1      = 1.0 - ptem
             tem1      = tem1 * tem1 * 10.0
             xkzo(i,k) = xkzm_h * min(1.0, exp(-tem1))
@@ -200,15 +203,20 @@ c
 !                                  vertical background diffusivity for momentum
             if (ptem >= xkzm_s) then
               xkzmo(i,k) = xkzm_m
-              ptem1 = 1.0 / prsi(i,k+1)
+              kx1(i)     = k + 1
             else
-              tem1 = 1.0 - prsi(i,k+1) * ptem1
+              if (k == kx1(i) .and. k > 1) tx2(i) = 1.0 / prsi(i,k)
+              tem1 = 1.0 - prsi(i,k+1) * tx2(i)
               tem1 = tem1 * tem1 * 5.0
               xkzmo(i,k) = xkzm_m * min(1.0, exp(-tem1))
             endif
           endif
         enddo
       enddo
+!     if (lprnt) then
+!       print *,' xkzo=',(xkzo(ipr,k),k=1,km1)
+!       print *,' xkzmo=',(xkzmo(ipr,k),k=1,km1)
+!     endif
 !
 !  diffusivity in the inversion layer is set to be xkzminv (m^2/s)
 !
@@ -862,13 +870,10 @@ c
 !
       do k = 1,km
          do i = 1,im
-!           ptem = 1./rcs(i) 
             utend = (a1(i,k)-u1(i,k))*rdt
             vtend = (a2(i,k)-v1(i,k))*rdt
             du(i,k)  = du(i,k)  + utend
             dv(i,k)  = dv(i,k)  + vtend
-!           du(i,k)  = du(i,k)  + utend*ptem
-!           dv(i,k)  = dv(i,k)  + vtend*ptem
             dusfc(i) = dusfc(i) + conw*del(i,k)*utend
             dvsfc(i) = dvsfc(i) + conw*del(i,k)*vtend
          enddo
