@@ -55,7 +55,6 @@ if [ $argn -eq 1 ]; then
   rm -rf /stmp/${LOGIN}/REGRESSION_TEST
   cp -r /${DISKNM}/noscrub/wx20rv/REGRESSION_TEST_baselines \
 	/stmp/${LOGIN}/REGRESSION_TEST
-  mkdir -p /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_hyb_2loop_nst
   if [ ${CB_arg} = nmm ]; then
     cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/* /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_HYB/.
     cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*     /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID/.
@@ -815,7 +814,6 @@ export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=01
 fi
 
 cd $PATHRT
-export RTPWD=/gpfs/t2s/climate/noscrub/wx20wa/esmf/nems/baseline/moorthi
 
 ####################################################################################################
 # 
@@ -1463,9 +1461,9 @@ fi
 rm -f err out configure_file* nmm_ll gfs_fcst_run  gfs_ll gen_fcst_run gen_ll gen_ll.out
 
 cd ${PATHTR}/src
-#gmake clean          > /dev/null 2>&1
+gmake clean          > /dev/null 2>&1
 
-#rm -rf ${RUNDIR_ROOT}
+rm -rf ${RUNDIR_ROOT}
 
 date >> ${PATHRT}/RegressionTests.log
 

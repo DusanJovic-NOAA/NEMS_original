@@ -91,6 +91,8 @@
 !      sep  2009  - s. moorthi  updated for the mcica (rrtm3) radiation !
 !      dec  2010  - sarah lu    lgocart added to input arg;             !
 !                               compute dqdt_v if inline gocart is on   !
+!      feb  2011  - sarah lu    add the option to update surface diag   !
+!                               fields (t2m,q2m,u10m,v10m) at the end   !
 !                                                                       !
 !                                                                       !
 !  ====================  defination of variables  ====================  !
@@ -2566,6 +2568,27 @@
         enddo
 
       endif   ! end if_lsm
+
+!!!
+!!! update surface diagnosis fields at the end of phys package
+!!! this change allows gocart to use filtered wind fields
+!!!
+
+      if ( lgocart ) then
+          call sfc_diag(im,lsoil,pgr,gu0,gv0,gt0,gq0,                   &
+     &              tsea,qss,f10m,u10m,v10m,t2m,q2m,work3,slmsk,        &
+     &              evap,ffmm,ffhh,fm10,fh2)
+
+          if (lssav) then
+            do i = 1, im
+              tmpmax(i)  = max(tmpmax(i),t2m(i))
+              tmpmin(i)  = min(tmpmin(i),t2m(i))
+
+              spfhmax(i) = max(spfhmax(i),q2m(i))
+              spfhmin(i) = min(spfhmin(i),q2m(i))
+            enddo
+          endif
+      endif
 
 !  --- ...  total runoff is composed of drainage into water table and
 !           runoff at the surface and is accumulated in unit of meters

@@ -3,6 +3,9 @@
      &                   LS_NODE,COEF00,K_LEVEL,
      &                   hybrid,gen_coord_hybrid,nislfv)
 !
+! Code Revision
+! 14/02/2011 Sarah Lu, modify FSHK (to be consistent with CFS)
+!
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
       use gfs_dyn_coordinate_def				! hmhj
@@ -109,7 +112,8 @@
           NP=JCAP							! hmhj
           N0=0.0           						! hmhj
           JDEL=4           						! hmhj
-          FSHK=1.0         						! hmhj
+!         FSHK=1.0         						! hmhj
+          FSHK=2.2                                                      ! Lu
         ELSE
 !         RECIPROCAL OF TIME SCALE OF DIFFUSION AT REFERENCE WAVENUMBER NP
           RTNP=1*3.E15/(RERTH**4)*FLOAT(80*81)**2
