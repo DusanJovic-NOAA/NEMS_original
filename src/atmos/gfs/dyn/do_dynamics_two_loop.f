@@ -22,6 +22,7 @@ cc
 ! Aug 2010    Sarah Lu modified to compute tracer global sum
 ! Oct 2010    Jun Wang added digital filter step 
 ! Nov 2010    S Moorthi cleaned up rearranged a little
+! Feb 2011    S Moorthi rearranged glbsum
 !----------------------------------------------
 cc
       use gfs_dyn_resol_def
@@ -353,23 +354,12 @@ c
             lons_lat = lonsperlat(lat)
             ptotp    = 0.
             pwatp    = 0.
-            ptrcp(:) = 0.                                               !glbsum
             do i=1,lons_lat
-               ptotp     = ptotp + ptot(i,lan)
-               pwatp     = pwatp + pwat(i,lan)
-               if ( glbsum ) then                                       !glbsum
-                 do n = 1, ntrac                                        !glbsum
-                   ptrcp(n)  = ptrcp(n) + ptrc(i,lan,n)                 !glbsum
-                 enddo                                                  !glbsum
-               endif                                                    !glbsum
+               ptotp = ptotp + ptot(i,lan)
+               pwatp = pwatp + pwat(i,lan)
             enddo
-            pwatj(lan) = pwatp/(2.*lonsperlat(lat))
-            ptotj(lan) = ptotp/(2.*lonsperlat(lat))
-            if ( glbsum ) then                                          !glbsum
-              do n = 1, ntrac                                           !glbsum
-                ptrcj(lan,n) = ptrcp(n)/(2.*lonsperlat(lat))            !glbsum
-              enddo                                                     !glbsum
-            endif                                                       !glbsum
+            pwatj(lan) = pwatp / (2.*lons_lat)
+            ptotj(lan) = ptotp / (2.*lons_lat)
           enddo
           call excha(lats_nodes_a,global_lats_a,ptotj,pwatj,ptotg,pwatg)
           sumwa = 0.
@@ -378,20 +368,32 @@ c
             sumto = sumto + wgt_a(min(lat,latg-lat+1))*ptotg(lat)
             sumwa = sumwa + wgt_a(min(lat,latg-lat+1))*pwatg(lat)
           enddo
-          if ( glbsum ) then                                             !glbsum
-            do n = 1, ntrac                                              !glbsum
-              sumtrc(n) = 0.                                             !glbsum
-              tmpj(:)   = ptrcj(:,n)                                     !glbsum
-              call excha(lats_nodes_a,global_lats_a,ptotj,tmpj,          !glbsum
-     &                                             ptotg,ptrcg)          !glbsum
-              do lat=1,latg                                              !glbsum
-               sumtrc(n)=sumtrc(n)+wgt_a(min(lat,latg-lat+1))*ptrcg(lat) !glbsum
-              enddo                                                      !glbsum
-            enddo                                                        !glbsum
-          endif                                                          !glbsum
 
           pdryg = sumto - sumwa
           if(pdryini <= 0.) pdryini = pdryg
+
+          if ( glbsum ) then                                             !glbsum
+            do lan=1,lats_node_a
+              lat      = global_lats_a(ipt_lats_node_a-1+lan)
+              lons_lat = lonsperlat(lat)
+              ptrcp(:) = 0.
+              do n = 1, ntrac
+                do i=1,lons_lat
+                  ptrcp(n)   = ptrcp(n) + ptrc(i,lan,n)
+                enddo
+                ptrcj(lan,n) = ptrcp(n) / (2.*lons_lat)
+              enddo
+            enddo
+            do n = 1, ntrac
+              sumtrc(n) = 0.
+              tmpj(:)   = ptrcj(:,n)
+              call excha(lats_nodes_a,global_lats_a,ptotj,tmpj,
+     &                                             ptotg,ptrcg)
+              do lat=1,latg
+               sumtrc(n)=sumtrc(n)+wgt_a(min(lat,latg-lat+1))*ptrcg(lat)
+              enddo
+            enddo
+          endif                                                          !glbsum
 
           if( gen_coord_hybrid ) then                               
             pcorr = (pdryini-pdryg)      *sqrt(2.)                    

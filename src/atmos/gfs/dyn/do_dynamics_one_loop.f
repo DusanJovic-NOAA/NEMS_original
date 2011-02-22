@@ -23,6 +23,7 @@ cc
 
 ! March 2009, Weiyu Yang modified for GEFS run.
 ! Aug 2010    Sarah Lu modified to compute tracer global sum
+! Feb 2011    S Moorthi rearranged glbsu
 !----------------------------------------------
 
       use gfs_dyn_resol_def
@@ -346,24 +347,12 @@ cc
           lons_lat = lonsperlat(lat)
           ptotp=0.
           pwatp=0.
-          ptrcp(:)=0.                                          !glbsum
           do i=1,lons_lat
              ptotp     = ptotp + ptot(i,lan)
              pwatp     = pwatp + pwat(i,lan)
-             if( glbsum ) then                                 !glbsum
-               do n = 1, ntrac                                 !glbsum
-                 ptrcp(n)  = ptrcp(n) + ptrc(i,lan,n)          !glbsum
-               enddo                                           !glbsum
-             endif                                             !glbsum     
           enddo
           pwatj(lan)=pwatp/(2.*lonsperlat(lat))
           ptotj(lan)=ptotp/(2.*lonsperlat(lat))
-          if ( glbsum ) then                                   !glbsum
-            do n = 1, ntrac                                    !glbsum
-              ptrcj(lan,n)=ptrcp(n)/(2.*lonsperlat(lat))       !glbsum
-            enddo                                              !glbsum
-          endif                                                !glbsum
-
         enddo
         call excha(lats_nodes_a,global_lats_a,ptotj,pwatj,ptotg,pwatg)
         sumwa=0.
@@ -377,6 +366,18 @@ cc
 !      print *,' sumwa=',sumwa,'pwatg=',pwatg(1:latg)
 !        endif
         if ( glbsum ) then                                              !glbsum
+          do lan=1,lats_node_a
+            lat      = global_lats_a(ipt_lats_node_a-1+lan)
+            lons_lat = lonsperlat(lat)
+            ptrcp(:) = 0.
+            do n = 1, ntrac
+              do i=1,lons_lat
+                ptrcp(n)   = ptrcp(n) + ptrc(i,lan,n)
+              enddo
+              ptrcj(lan,n) = ptrcp(n) / (2.*lons_lat)
+            enddo
+          enddo
+!
           do n = 1, ntrac                                               !glbsum
            sumtrc(n)=0.                                                 !glbsum
            tmpj(:) = ptrcj(:,n)                                         !glbsum

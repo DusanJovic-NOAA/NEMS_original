@@ -222,17 +222,17 @@
                   ,'tmp             ', 'OGFS_SFC        ', '2 m above gnd   ' &
                   ,'spfh            ', 'OGFS_SFC        ', '2 m above gnd   ' &
                   ,'vtype           ', 'OGFS_SFC        ', 'sfc             ' &
-                  ,'stype           ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'sotyp           ', 'OGFS_SFC        ', 'sfc             ' &
                   ,'facsf           ', 'OGFS_SFC        ', 'sfc             ' &
                   ,'facwf           ', 'OGFS_SFC        ', 'sfc             ' &
-                  ,'uustar          ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'fricv           ', 'OGFS_SFC        ', 'sfc             ' &
                   ,'ffmm            ', 'OGFS_SFC        ', 'sfc             ' &
                   ,'ffhh            ', 'OGFS_SFC        ', 'sfc             ' &
                   ,'icetk           ', 'OGFS_SFC        ', 'sfc             ' &
                   ,'icec            ', 'OGFS_SFC        ', 'sfc             ' &
                   ,'tisfc           ', 'OGFS_SFC        ', 'sfc             ' &
                   ,'tprcp           ', 'OGFS_SFC        ', 'sfc             ' &
-                  ,'srflag          ', 'OGFS_SFC        ', 'sfc             ' &
+                  ,'crain           ', 'OGFS_SFC        ', 'sfc             ' &
                   ,'snod            ', 'OGFS_SFC        ', 'sfc             ' &
                   ,'shdmin          ', 'OGFS_SFC        ', 'sfc             ' &
                   ,'shdmax          ', 'OGFS_SFC        ', 'sfc             ' &
