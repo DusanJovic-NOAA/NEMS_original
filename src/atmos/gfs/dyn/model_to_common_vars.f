@@ -1,11 +1,13 @@
-      subroutine model_to_common_vars (psg,ttg,rqg,uug,vvg,
-     &                                 ppg,dpg,dpdtg,
-     &                                 global_lats_a,lonsperlat)
+      subroutine model_to_common_vars (psg,ttg,rqg,uug,vvg,dpg,
+     &                                 ppg,dpdtg,
+     &                                 global_lats_a,lonsperlat,indxp)
 !!
 !! hmhj - this routine change variables from model usage to common
 !!        common usage are t=dry temperature (k), p is pascal, real winds
 !!        model  usage are t=virtal temperature (k) or enthalpy, 
 !!                         p is centibar, mapping winds
+! program log
+! 2011 02 20 : henry juang, update code to have mass_dp options.
 !!
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
@@ -21,14 +23,15 @@
 !
       integer              global_lats_a(latg)
       integer                 lonsperlat(latg)
+      integer              indxp
 !
       REAL(KIND=KIND_GRID)   psg(lonf,lats_node_a_max)
       REAL(KIND=KIND_GRID)   ttg(lonf,lats_node_a_max,levs)
       REAL(KIND=KIND_GRID)   uug(lonf,lats_node_a_max,levs)
       REAL(KIND=KIND_GRID)   vvg(lonf,lats_node_a_max,levs)
       REAL(KIND=KIND_GRID)   rqg(lonf,lats_node_a_max,levh)
-      REAL(KIND=KIND_GRID)   ppg(lonf,lats_node_a_max,levs)
       REAL(KIND=KIND_GRID)   dpg(lonf,lats_node_a_max,levs)
+      REAL(KIND=KIND_GRID)   ppg(lonf,lats_node_a_max,levs)
       REAL(KIND=KIND_GRID) dpdtg(lonf,lats_node_a_max,levs)
 !
       real(kind=kind_evod)   tfac(lonf,levs), sumq(lonf,levs)
@@ -85,6 +88,7 @@
             ttg(i,lan,k) = ttg(i,lan,k) / tfac(i,k)
             uug(i,lan,k) = uug(i,lan,k) / coslat_a(lat)
             vvg(i,lan,k) = vvg(i,lan,k) / coslat_a(lat)
+            dpg(i,lan,k) = dpg(i,lan,k) * cb2pa 
           enddo
         enddo
 
@@ -106,13 +110,14 @@
           enddo
         endif
 !
-        do k=1,levs
-          do i=1,lons_lat
-            ppg  (i,lan,k) =  ppg  (i,lan,k) * cb2pa 
-            dpg  (i,lan,k) =  dpg  (i,lan,k) * cb2pa 
-            dpdtg(i,lan,k) =  dpdtg(i,lan,k) * cb2pa 
+        if( indxp.eq.1 ) then
+          do k=1,levs
+            do i=1,lons_lat
+              ppg  (i,lan,k) =  ppg  (i,lan,k) * cb2pa 
+              dpdtg(i,lan,k) =  dpdtg(i,lan,k) * cb2pa 
+            enddo
           enddo
-        enddo
+        endif
 !
       enddo
 !

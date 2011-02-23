@@ -1,11 +1,14 @@
       subroutine sumder2(flnev,flnod,lat1s,plnev,plnod,
      x                   nvars,ls_node,latl2,
-     x                   lslag,workdim,nvarsdim,four_gr,
+     x                   workdim,nvarsdim,four_gr,
      x                   ls_nodes,max_ls_nodes,
      x                   lats_nodes,global_lats,
      x                   lats_node,ipt_lats_node,lon_dims,dimg,
      x                   lons_lat,londi,latl)
 cc
+! program log:
+! 2011 02 20 : henry jaung, update code for ndsl
+!
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
       use gfs_dyn_mpi_def
@@ -45,7 +48,6 @@ cc
       integer              nvarsdim,latl
       integer              workdim
       integer              id,dimg,londi
-      logical lslag
       integer lats_node,ipt_lats_node
       integer lon_dims(latgd)
 cc
@@ -292,11 +294,7 @@ cc
       enddo
 cc
       kptr = 0
-      if (lslag) then
-         id=1
-      else
          id=0
-      endif
 !!
 !$omp parallel do private(node,l,lval,j,lat,nvar,ndisp)
       do node=1,nodes
@@ -330,7 +328,7 @@ cc
       end
       subroutine sumdera(flnev,flnod,lat1s,plnev,plnod,
      x                  nvars,ls_node,latl2,
-     x                  lslag,workdim,nvarsdim,four_gr,
+     x                  workdim,nvarsdim,four_gr,
      x                  ls_nodes,max_ls_nodes,
      x                  lats_nodes,global_lats,
      x                  lats_node,ipt_lats_node,lon_dims,dimg,
@@ -356,7 +354,6 @@ cc
       integer              nvarsdim,latl
       integer              workdim
       integer              id,dimg,londi
-      logical lslag
       integer lats_node,ipt_lats_node
       integer lon_dims(latgd)
       real(kind=kind_evod) four_gr( londi*nvarsdim, workdim )
@@ -509,11 +506,7 @@ cc
          endif
       enddo
       kptr = 0
-      if (lslag) then
-         id=1
-      else
          id=0
-      endif
 !$omp parallel do private(node,l,lval,j,lat,ndisp,nvar)
       do node=1,nodes
          do l=1,max_ls_nodes(node)

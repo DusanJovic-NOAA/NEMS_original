@@ -7,8 +7,9 @@
      x     lonsperlat,
      x     pddev_a,pddod_a)
 !
-
-c
+! program log:
+! 20110220    Henry Juang u[date the code to fit mass_dp and ndslfv
+!
 !
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
@@ -43,7 +44,7 @@ c
       real(kind=kind_evod) syn_gr_a_2(lonfx*lots,lats_dim_a)
       real(kind=kind_evod) dyn_gr_a_2(lonfx*lotd,lats_dim_a)
 !
-      integer              i,j,k,l,n
+      integer              i,j,k,l,n,lotx,lotxx
       integer              lon,lan,lat,lmax
       integer              lon_dim,lons_lat,node
 !
@@ -54,10 +55,14 @@ c
 !
       real(kind=kind_evod) cons0
 !
-      logical lslag
-!
       cons0 = 0.d0 
-      lslag=.false.
+      if( .not. ndslfv ) then
+        lotx  =   levs +   levh
+        lotxx = 4*levs + 2*levh
+      else
+        lotx  =   levs
+        lotxx = 4*levs
+      endif
 !
 ! ................................................................
 !
@@ -70,8 +75,8 @@ c
      x             trio_ls(1,1,P_te),
      x             lat1s_a,
      x             pddev_a,pddod_a,
-     x             levs+levh,ls_node,latg2,
-     x             lslag,lats_dim_a,lotd,
+     x             lotx,ls_node,latg2,
+     x             lats_dim_a,lotd,
      x             dyn_gr_a_1,
      x             ls_nodes,max_ls_nodes,
      x             lats_nodes_a,global_lats_a,
@@ -130,6 +135,8 @@ c
             enddo
          end do
 !
+         if( .not. ndslfv ) then
+
 !$omp parallel do private(k,i)
          do k=1,levh
             do i=1,lmax+1
@@ -142,10 +149,12 @@ c
 !
             enddo
          enddo
+
+         endif
 !
          CALL countperf(0,6,0.)
          CALL FOUR2GRID_thread(dyn_gr_a_1(1,lan),dyn_gr_a_2(1,lan),
-     &                  lon_dim,lons_lat,lonfx,4*levs+2*levh,lan,me)
+     &                  lon_dim,lons_lat,lonfx,lotxx,lan,me)
          CALL countperf(1,6,0.)
 !
       enddo !sela fin lan loop 1

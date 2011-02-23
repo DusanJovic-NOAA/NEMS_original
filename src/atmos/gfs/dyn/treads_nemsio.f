@@ -1,15 +1,12 @@
       SUBROUTINE TREADS_nemsio(sfile,FHOUR,IDATE,
-     &                   GZE,QE,TEE,DIE,ZEE,RQE,
-     &                   GZO,QO,TEO,DIO,ZEO,RQO,
-     &                   LS_NODE,LS_NODES,MAX_LS_NODES,
-     &                   SNNP1EV,SNNP1OD,
-     &                   epse,epso,plnew_a,plnow_a,
-     &                   plnev_a,plnod_a)
+     &                         trie_ls,trio_ls,
+     &                         LS_NODE)
 !!
 !-------------------------------------------------------------------
 !*** program log
 !*** Dec, 2009 Jun Wang:  read spectral variables for restart
 !*** Dec, 2010 Jun Wang:  change to nemsio library
+!*** Feb, 2011 Henry Juang: change argument to be generic one to fit NDSL
 !-------------------------------------------------------------------
 !
 !  
@@ -31,27 +28,8 @@
       REAL(KIND=KIND_EVOD) FHOUR
       INTEGER              IDATE(4),NTRACI, nreci,jcapi,idate7(7),levsi
 !!
-      real(kind=kind_evod)  epse(len_trie_ls)
-      real(kind=kind_evod)  epso(len_trio_ls)
-!!
-      real(kind=kind_evod)  plnew_a(len_trie_ls,latg2)
-      real(kind=kind_evod)  plnow_a(len_trio_ls,latg2)
-      real(kind=kind_evod)  plnev_a(len_trie_ls,latg2)
-      real(kind=kind_evod)  plnod_a(len_trio_ls,latg2)
-!!
-      REAL(KIND=KIND_EVOD) GZE(LEN_TRIE_LS,2)
-     &,                     QE(LEN_TRIE_LS,2)
-     &,                    TEE(LEN_TRIE_LS,2,LEVS)
-     &,                    DIE(LEN_TRIE_LS,2,LEVS)
-     &,                    ZEE(LEN_TRIE_LS,2,LEVS)
-     &,                    RQE(LEN_TRIE_LS,2,LEVH)
-     &,                    GZO(LEN_TRIO_LS,2)
-     &,                     QO(LEN_TRIO_LS,2)
-     &,                    TEO(LEN_TRIO_LS,2,LEVS)
-     &,                    DIO(LEN_TRIO_LS,2,LEVS)
-     &,                    ZEO(LEN_TRIO_LS,2,LEVS)
-     &,                    RQO(LEN_TRIO_LS,2,LEVH)
-
+      REAL(KIND=KIND_EVOD) TRIE_LS(LEN_TRIE_LS,2,LOTLS)
+      REAL(KIND=KIND_EVOD) TRIO_LS(LEN_TRIO_LS,2,LOTLS)
 !
       integer              ls_node(ls_dim,3)
 !
@@ -59,10 +37,6 @@
 !cmr  ls_node(1,2) ... ls_node(ls_max_node,2) : values of jbasev
 !cmr  ls_node(1,3) ... ls_node(ls_max_node,3) : values of jbasod
 !
-      INTEGER              LS_NODES(LS_DIM,NODES)
-      INTEGER              MAX_LS_NODES(NODES)
-      REAL(KIND=KIND_EVOD) SNNP1EV(LEN_TRIE_LS)
-      REAL(KIND=KIND_EVOD) SNNP1OD(LEN_TRIO_LS)
       INTEGER              J,K,L,LOCL,N,lv,kk
       integer              i,lan,lat,lons_lat,il,lon,njeff,nn
       integer              indev
@@ -114,7 +88,8 @@
       call nemsio_readrecv(gfile_in,'gz','sfc',1,nemsio_sdata,iret=iret)
 !      print *,'in treads,read gze=',maxval(nemsio_sdata),
 !     &   minval(nemsio_sdata)
-      call triseori(nemsio_sdata,gze,gzo,1,ls_node)
+      call triseori(nemsio_sdata,                                      
+     &              trie_ls(1,1,p_gz),trio_ls(1,1,p_gz),1,ls_node)
 !      print *,'in treads,gze=',maxval(gze(:,1)),minval(gze(:,1)),
 !     & maxval(gze(:,2)),minval(gze(:,2)),'gzo=',maxval(gzo(:,1)),
 !     & minval(gzo(:,1)),maxval(gzo(:,2)),minval(gzo(:,2)),'gze(1:5,2)='
@@ -123,52 +98,74 @@
 !  Read ps
       call nemsio_readrecv(gfile_in,'pres','sfc',1,nemsio_sdata,
      &   iret=iret)
-      call triseori(nemsio_sdata,qe,qo,1,ls_node)
+      call triseori(nemsio_sdata,
+     &              trie_ls(1,1,p_q),trio_ls(1,1,p_q),1,ls_node)
 !      print *,'in treads,qe=',maxval(qe),minval(qe),'qo=',
 !     &  maxval(qo),minval(qo),'qe(1:5,1:2)=',qe(1:5,1),qe(1:5,2),
 !     &  'qo(1:5,1:2)=',qo(1:5,1),qo(1:5,2)
 !
+!  Read dp
+      do k=1,levs
+        kk = p_dp + k - 1
+        call nemsio_readrecv(gfile_in,'dpres','mid layer',k,
+     &       nemsio_sdata,iret=iret)
+        call triseori(nemsio_sdata,
+     &                trie_ls(1,1,kk),trio_ls(1,1,kk),1,ls_node)
+      enddo
+!
 !  Read t
       do k=1,levs
+        kk = p_te + k - 1
         call nemsio_readrecv(gfile_in,'tmp','mid layer',k,nemsio_sdata,
      &    iret=iret)
 !      print *,'in treads,read tmp=',maxval(nemsio_sdata),
 !     &   minval(nemsio_sdata),'k=',k
-        call triseori(nemsio_sdata,tee(1,1,k),teo(1,1,k),1,ls_node)
+        call triseori(nemsio_sdata,   
+     &                trie_ls(1,1,kk),trio_ls(1,1,kk),1,ls_node)
 !      print *,'in treads,',k,'tee=',maxval(tee(:,:,k)),
 !     &  minval(tee(:,:,k)),'teo=',maxval(teo(:,:,k)),minval(teo(:,:,k))
       enddo
+!
 !  Read di
       do k=1,levs
+        kk = p_di + k - 1
         call nemsio_readrecv(gfile_in,'di','mid layer',k,nemsio_sdata,
      &    iret=iret)
-        call triseori(nemsio_sdata,die(1,1,k),dio(1,1,k),1,ls_node)
+        call triseori(nemsio_sdata,  
+     &                trie_ls(1,1,kk),trio_ls(1,1,kk),1,ls_node)
       enddo
 !  Read ze 
       do k=1,levs
+        kk = p_ze + k - 1
         call nemsio_readrecv(gfile_in,'ze','mid layer',k,nemsio_sdata,
      &    iret=iret)
-        call triseori(nemsio_sdata,zee(1,1,k),zeo(1,1,k),1,ls_node)
+        call triseori(nemsio_sdata, 
+     &                trie_ls(1,1,kk),trio_ls(1,1,kk),1,ls_node)
       enddo
 !
-!  Initial Tracers with zero
-!
-      rqe(:,:,:) = 0.0
-      rqo(:,:,:) = 0.0
+
+      if( .not. ndslfv ) then
+
+      trie_ls(:,:,p_rq:p_rq+levh-1) = 0.0
+      trio_ls(:,:,p_rq:p_rq+levh-1) = 0.0
 
 !! Generalized tracers: 
 !! Loop through ntrac to read in met + chem tracers
 !*
       do k=1,levh
+        kk = p_rq + k - 1
         call nemsio_readrecv(gfile_in,'rq',
      &     'tracer layer',k,nemsio_sdata,iret=iret)
         if(iret == 0) then
-          call triseori(nemsio_sdata,rqe(1,1,k),rqo(1,1,k),1,ls_node)
+          call triseori(nemsio_sdata,   
+     &                  trie_ls(1,1,kk),trio_ls(1,1,kk),1,ls_node)
         else
           if(me==0) print *,'TRACER: tracer not found in input; ',
      &         'set chem tracer to default values',me,k
         endif
       enddo       
+!
+      endif
 !
       call nemsio_close(gfile_in,iret)
       call nemsio_finalize()

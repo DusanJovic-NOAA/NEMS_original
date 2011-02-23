@@ -48,7 +48,6 @@ OBJ_MOD	= \
 	  gfs_dyn_reduce_lons_grid_module.o \
 	  gfs_dyn_matrix_sig_def.o      \
 	  gfs_dyn_mpi_def.o             \
-	  semi_lag_def.o        	\
 	  gfs_dyn_deldifs_def.o         \
 	  gfs_dyn_bfilt_def.o   	\
 	  gfs_dyn_glats.o	        \
@@ -60,7 +59,9 @@ OBJS   = \
 	get_cd_hyb.o \
 	get_am_bm_hyb.o \
 	get_cd_hyb_gc.o \
+	get_cd_hyb_gcdp.o \
 	get_am_bm_hyb_gc.o \
+	get_am_bm_hyb_gcdp.o \
 	setlats.o \
 	getysk.o \
 	getysk_gc.o \
@@ -74,7 +75,9 @@ OBJS   = \
 	hpmdummy.o \
 	coundummy.o \
 	damp_speed.o \
+	damp_speed_noq.o \
 	deldifs.o \
+	deldifs_noq.o \
 	input_fields.o \
 	input_fields_rst.o \
 	delnpe.o \
@@ -83,11 +86,15 @@ OBJS   = \
 	impadj_sig.locl.o \
 	impadj_hyb.locl.o \
 	impadj_hyb.locl_gc.o \
+	impadj_hyb.locl_gcdp.o \
 	dozeuv.o \
 	epslon.o \
 	filtereo.o \
 	filter1eo.o \
 	filter2eo.o  \
+	filtereo_noq.o \
+	filter1eo_noq.o \
+	filter2eo_noq.o  \
 	get_ls_node.o \
 	get_lats_node_shuff_a_fix.o \
 	getcon_dynamics.o \
@@ -95,9 +102,18 @@ OBJS   = \
 	gfidi_hyb.o \
 	gfidi_hyb_gc.o \
 	gfidi_hyb_gc_h.o \
+	gfidi_hyb_gchdp.o \
+	gfidi_gchdp_noadv_noq.o \
+	ndslfv_pack.o \
+	ndslfv_para.o \
+	ndslfv_massadvh.o \
+	ndslfv_monoadvh.o \
+	ndslfv_monoadvv.o \
 	grid_to_spect.o \
+	gridzz_to_spect.o \
 	spect_to_grid.o \
 	spect_to_gridxy.o \
+	spectpz_to_gridxy.o \
 	compns_dynamics.o \
 	gozrineo.o \
 	pln2eo.o \
@@ -108,20 +124,21 @@ OBJS   = \
 	sicdif_sig.o                 \
 	sicdif_hyb.o                 \
 	sicdif_hyb_gc.o              \
+	sicdif_hyb_gcdp.o              \
 	common_to_model_vars.o      \
 	getpwatptot.o      \
-        sig2press.o          	\
+	sig2press.o            \
 	hyb2press.o          	\
 	gch2press.o          	\
-	omega_sig.o          	\
+	omega_sig.o             \
 	omega_hyb.o          	\
 	omega_gch.o          	\
+	omega_gcdp.o          	\
 	do_dynamics_mod.o          \
 	gfs_dficoll_dynamics.o       \
 	do_dynamics_one_loop.o       \
 	do_dynamics_two_loop.o       \
 	model_to_common_vars.o      \
-	model_to_common_vars_1.o     \
 	gather_times.o               \
 	four2fln.o                   \
 	sortrx.o                     \
@@ -129,8 +146,9 @@ OBJS   = \
 	sumder2.o                    \
 	triseori.o                   \
 	uveodz.o                     \
-	ysminv.o                     \
-	ver_sig.o       
+	matinv.o                     \
+	ver_sig.o                    \
+	ysminv.o                     
 
 OBJS_PORT = \
 	fftpack.o \
@@ -145,9 +163,8 @@ OBJS_IO= \
 	twrites_rst.o     \
 	twriteg_rst.o     \
 	grid_to_spect_inp.o    \
-	grid_to_spect_inp_1.o  \
-	spect_to_grid_inp.o    \
-	setsig.o
+	setsig.o               \
+	spect_to_grid_inp.o    
 
 DEPEND_FILES = ${OBJS0:.o=.f} ${OBJ_MOD:.o=.f} ${OBJS:.o=.f} ${OBJS_PORT:.o=.f} ${OBJS_IO:.o=.f}
 

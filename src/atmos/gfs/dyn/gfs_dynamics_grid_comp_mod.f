@@ -5,7 +5,7 @@
 !
 ! !revision history:
 !
-!  january 2007     hann-ming henry juang
+!  january 2007     hann-ming henry juang initiated and wrote the code
 !  March   2009     Weiyu Yang, modified for the ensemble NEMS run.
 !  oct 4   2009     sarah lu, 3D Gaussian grid (DistGrid5) added
 !  oct 5   2009     sarah lu, grid_gr unfolded from 2D to 3D
@@ -16,7 +16,8 @@
 !  oct 17 2009      Sarah Lu, add debug print to check imp/exp state
 !  nov 09 2009      Jun Wang, add grid_gr_dfi for digital filter
 !  Feb 05 2010      Jun Wang, add restart step
-!                           
+!  Feb 20 2011      Henry Juang, add non-iterating dimensional-splitting semi-Lagrangian (NDSL)
+!                   advection with options of MASS_DP and NDSLFV
 !
 ! !interface:
 !
@@ -86,7 +87,7 @@
                           esmf_log_info, rc = rc1)
       call esmf_gridcompsetentrypoint (gc_gfs_dyn, 			&
                                        esmf_setinit,  			&
-                                       gfs_dyn_initialize,    		&
+                                       gfs_dyn_initialize,              &
                                        esmf_singlephase, rc1)
       call gfs_dynamics_err_msg(rc1,'set entry point for initialize',rc)
 
@@ -96,7 +97,7 @@
                            esmf_log_info, rc = rc1)
       call esmf_gridcompsetentrypoint (gc_gfs_dyn, 			&
                                        esmf_setrun,   			&
-                                       gfs_dyn_run,           		&
+                                       gfs_dyn_run,	                &
                                        esmf_singlephase, rc1)
       call gfs_dynamics_err_msg(rc1,'set entry point for run',rc)
 
@@ -107,7 +108,7 @@
                         esmf_log_info, rc = rc1)
       call esmf_gridcompsetentrypoint (gc_gfs_dyn, 			&
                                        esmf_setfinal, 			&
-                                       gfs_dyn_finalize,       		&
+                                       gfs_dyn_finalize, 	        &
                                        esmf_singlephase, rc1)
       call gfs_dynamics_err_msg(rc1,'set entry point for finalize',rc)
 
@@ -146,13 +147,13 @@
 ! this argument list is a standard list for all the initialize,
 ! the run and finalize routines for an esmf system.
 !--------------------------------------------------------------
-      subroutine gfs_dyn_initialize(gc_gfs_dyn, 			&
+      subroutine gfs_dyn_initialize(gc_gfs_dyn,		                &
                                    imp_gfs_dyn, exp_gfs_dyn, clock, rc)
 
 ! user code, for computations related to the esmf interface states.
 !------------------------------------------------------------------
-      use gfs_dyn_states_mod, only : gfs_dynamics_import2internal, &
-                                     gfs_dynamics_internal2export
+      use gfs_dynamics_states_mod, only : gfs_dynamics_import2internal, &
+                                          gfs_dynamics_internal2export
       use gfs_dynamics_grid_create_mod
       USE GFS_AddParameterToStateMod
 !
@@ -468,10 +469,10 @@
 ! !interface:
 !
 
-      subroutine gfs_dyn_run(gc_gfs_dyn, 				&
+      subroutine gfs_dyn_run(gc_gfs_dyn,			          &
                             imp_gfs_dyn, exp_gfs_dyn, clock, rc)
 
-      use gfs_dyn_states_mod
+      use gfs_dynamics_states_mod
       use gfs_dyn_date_def
 !
 ! !input variables and parameters:
@@ -747,7 +748,7 @@
 !
 ! !interface:
 
-      subroutine gfs_dyn_finalize(gc_gfs_dyn, 				&
+      subroutine gfs_dyn_finalize(gc_gfs_dyn,		                &
                                  imp_gfs_dyn, exp_gfs_dyn, clock, rc)
 
 !

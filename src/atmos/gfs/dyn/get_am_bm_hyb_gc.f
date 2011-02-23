@@ -2,10 +2,12 @@
 !
 ! hmhj : this is modified hybrid by finite difference from henry juang
 !        work for temperature and enthalpy
+! 20110220: Henry Juang modified to have MASS_DP and NDSL options
 !
       USE gfs_dyn_MACHINE , ONLY : kind_grid
       use gfs_dyn_resol_def
-      use namelist_dynamics_def , only : ref_temp
+      use namelist_dynamics_def , only : ref_temp,
+     &                                   semi_implicit_temp_profile
       use gfs_dyn_coordinate_def
       use gfs_dyn_physcons, rd => con_rd
      &                    , cp => con_cp, rearth => con_rerth
@@ -40,13 +42,22 @@
         TREF=ref_temp                                                         
         RKAA=RD/(REARTH*REARTH)
       endif
+
+      if( semi_implicit_temp_profile ) then
+        print *,' use layer mean temperature for semi-implicit '
+      else
+        print *,' use constant temperature for semi-implicit '
+        do k=1,levs
+          thref(k) = tref
+        enddo
+      endif
                                                                         
       DO K=1,LEVP1                                                      
        PK5REF(K)=AK5(K)+BK5(K)*PSREF+CK5(K)                                  
       ENDDO                                                             
                                                                         
       DO K=1,LEVS                                                       
-       THREF (K)=TREF
+!      THREF (K)=TREF
        DPKREF(K)=PK5REF(K)-PK5REF(K+1)                                  
        rdlref(k)=0.5/dpkref(k)
        RPKREF(K)=1.0/(PK5REF(K)+PK5REF(K+1)) 

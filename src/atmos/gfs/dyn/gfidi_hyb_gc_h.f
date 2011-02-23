@@ -10,6 +10,7 @@
 ! hmhj : this is modified hybrid by finite difference from hann-ming henry juang 
 ! hmhj : use h=CpT instead of Tv for thermodynamical equation
 ! Fanglin Yang, June 2007: use flux-limited scheme for vertical advection of tracers
+! Henry Juang, Feb 2011 : add precise vertical advection for thermodynamics equation
 !
  
       use gfs_dyn_machine , only : kind_grid
@@ -72,7 +73,7 @@ c
       real work(lons_lat,levs)
       real dup(lons_lat,levs),dum(lons_lat,levs)
       real alpha(lons_lat,levs),betta(lons_lat,levs)
-      real gamma(lons_lat,levs),delta(lons_lat,levs)
+      real gamma(lons_lat,levs),delta(lons_lat,levs), alnpk
       real zadv(lons_lat,levs,3+ntrac)
       real sumdf(lons_lat,levs), sumdl(lons_lat,levs)
       real sumrq(lons_lat,levs)
@@ -218,8 +219,11 @@ c
       enddo
       do k=1,levs
         do i=1,lons_lat
-          gamma(i,k)=cons1-xkappa(i,k)*dpp(i,k)*rpp(i,k)*cons2
-          delta(i,k)=cons1+xkappa(i,k)*dpp(i,k)*rpp(i,k)*cons2
+          alnpk = log( ppl(i,k) / 100. )	! cb
+          gamma(i,k)=cons1-(xkappa(i,k-1)-xkappa(i,k))*alnpk
+     &                    -xkappa(i,k)*dpp(i,k)*rpp(i,k)*cons2
+          delta(i,k)=cons1+(xkappa(i,k)-xkappa(i,k+1))*alnpk
+     &                    +xkappa(i,k)*dpp(i,k)*rpp(i,k)*cons2
         enddo
       enddo
 c

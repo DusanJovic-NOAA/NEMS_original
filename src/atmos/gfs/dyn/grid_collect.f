@@ -8,13 +8,14 @@
 !  Nov 23 2009    Sarah Lu, comment out 4D tracer
 !  Sep 08 2010    Jun Wang  change gfsio to nemsio
 !  Dec 16 2010    Jun Wang  change to nemsio library
+!  Feb 20 2011    Hann-Ming Henry Juang add code for NDSL
 !
 
       use gfs_dyn_resol_def
-      use gfs_dyn_mod_state, only: buff_mult_pieceg,ngrid,ngridg
+      use gfs_dyn_write_state, only: buff_mult_pieceg,ngrid,ngridg
       use gfs_dyn_layout1
       use gfs_dyn_mpi_def
-      use gfs_dyn_coordinate_def, only: idvc,idvm
+      use namelist_dynamics_def, only: gen_coord_hybrid
       use gfs_dyn_physcons, rk => con_rocp
       implicit none
 
@@ -89,7 +90,7 @@
          do k=1,levs
            pup(1:lonf,1:lats_node_a) = max(pdn(1:lonf,1:lats_node_a)
      &       -buff_mult_pieceg(1:lonf,1:lats_node_a,2+k), zero4)
-           if (idvc == 3 .and. mod(idvm,10) == 2) then
+           if ( gen_coord_hybrid ) then
              buff_mult_pieceg(1:lonf,1:lats_node_a,2+levs+k) = 
      &       0.5*(pup(1:lonf,1:lats_node_a)+pdn(1:lonf,1:lats_node_a))
              pdn(1:lonf,1:lats_node_a)  = pup(1:lonf,1:lats_node_a)
@@ -142,7 +143,7 @@ c
 c***********************************************************************
 c
       use gfs_dyn_resol_def
-      use gfs_dyn_mod_state
+      use gfs_dyn_write_state
       use gfs_dyn_layout1
       use gfs_dyn_mpi_def
       implicit none
@@ -251,7 +252,7 @@ cc
       use gfs_dyn_coordinate_def
       use gfs_dyn_io_header
       use gfs_dyn_resol_def
-      use gfs_dyn_mod_state
+      use gfs_dyn_write_state
       use gfs_dyn_layout1
       use gfs_dyn_mpi_def
       use gfs_dyn_physcons, rk => con_rocp
@@ -522,7 +523,7 @@ cc
               vcoord4(k,3,1) = ck5(k)*1000.                               ! hmhj
             enddo                                                         ! hmhj
             write(0,*)'in atmgg_wrt,vcoord4(1,1)=',vcoord4(1:levp1,1,1)
-          else if (hybrid) then                                           ! hmhj
+          else if (hybrid) then
             idvc    = 2                        ! for hybrid vertical coord.
             nvcoord = 2
 !            allocate (vcoord4(levp1,nvcoord))
@@ -649,7 +650,7 @@ c
 c***********************************************************************
 c
       use gfs_dyn_resol_def
-      use gfs_dyn_mod_state
+      use gfs_dyn_write_state
       use gfs_dyn_layout1
       use gfs_dyn_mpi_def
       implicit none

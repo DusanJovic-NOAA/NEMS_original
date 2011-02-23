@@ -11,6 +11,7 @@
 !
 ! Oct 17 2009       Sarah Lu, remove shum, oz, cld; modify ndata count
 ! Feb 20 2010       Sarah Lu, p, dp added to phy export state
+! Feb 29 2011       Henry Juang, add dp as prognostic variable for NDSL
 !-----------------------------------------------------------------------
 !
       use esmf_mod
@@ -40,7 +41,7 @@
       integer,parameter :: ndata_1d_dyn_imp=1
       integer,parameter :: ndata_2d_dyn_imp=2
 !*    integer,parameter :: ndata_3d_dyn_imp=6
-      integer,parameter :: ndata_3d_dyn_imp=3
+      integer,parameter :: ndata_3d_dyn_imp=5
       integer,parameter :: ndata_1d_dyn_exp=1
       integer,parameter :: ndata_2d_dyn_exp=2
 !*    integer,parameter :: ndata_3d_dyn_exp=9

@@ -19,6 +19,8 @@
 !  Nov 2009           jun wang, add digital filter variables into internal state
 !  Feb 2010           jun wang, add logical restart
 !  Aug 2010           sarah lu, add glbsum and ptrc
+!  Feb 2011           hann-ming henry jaung, add non-iteration dimensional-split
+!                                            (NDSL) semi-Lagrangian dynamics
 !
 ! !interface:
 !
@@ -36,10 +38,8 @@
       use gfs_dyn_date_def
       use namelist_dynamics_def
       use gfs_dyn_mpi_def
-      use semi_lag_def
       use gfs_dyn_coordinate_def                                      ! hmhj
       use gfs_dyn_tracer_const                                        ! hmhj
-      use gfs_dyn_matrix_sig_def
       use gfs_dyn_dfi_mod, only : gfs_dfi_grid_gr                     ! jw
       use gfs_dyn_tracer_config, only: gfs_dyn_tracer_type, glbsum
 
@@ -119,7 +119,8 @@
 !
       real(kind=kind_evod) ,allocatable ::    syn_gr_a_1(:,:)
       real(kind=kind_evod) ,allocatable ::    syn_gr_a_2(:,:)
-      real(kind=kind_evod) ,allocatable ::    sym_gr_a_2(:,:)
+      real(kind=kind_evod) ,allocatable ::    pyn_gr_a_1(:,:)
+      real(kind=kind_evod) ,allocatable ::    pyn_gr_a_2(:,:)
       real(kind=kind_evod) ,allocatable ::    dyn_gr_a_1(:,:)
       real(kind=kind_evod) ,allocatable ::    dyn_gr_a_2(:,:)
       real(kind=kind_evod) ,allocatable ::    anl_gr_a_1(:,:)
@@ -146,15 +147,17 @@
       real(kind=kind_evod) rlons_lat
       real(kind=kind_evod) scale_ibm
 
-      integer   p_gz,p_zem,p_dim,p_tem,p_rm,p_qm
-      integer   p_uum,p_vvm,p_zslam,p_zsphi
-      integer   p_ze,p_di,p_te,p_rq,p_q,p_dlam,p_dphi,p_uln,p_vln
-      integer   p_w,p_x,p_y,p_rt,p_zq
-      integer   g_uum,g_vvm,g_ttm,g_rm,g_qm,g_gz
-      integer   g_uu ,g_vv ,g_tt ,g_rq,g_q 
-      integer   g_u  ,g_v  ,g_t  ,g_rt,g_zq,g_p,g_dp,g_dpdt
+      integer   p_gz,p_zslam,p_zsphi,p_dlam,p_dphi,p_uln,p_vln
+      integer   p_zem,p_dim,p_tem,p_rm,p_dpm,p_qm
+      integer   p_ze ,p_di ,p_te ,p_rq,p_dp ,p_q
+      integer   p_w  ,p_x  ,p_y  ,p_rt,p_dpn,p_zq
+      integer   p_zz ,p_dpphi,p_dplam,p_zzphi,p_zzlam
+      integer   g_uum,g_vvm,g_ttm,g_rm,g_dpm,g_qm,g_gz,g_zz
+      integer   g_uu ,g_vv ,g_tt ,g_rq ,g_dp ,g_q
+      integer   g_uup,g_vvp,g_ttp,g_rqp,g_dpp,g_zqp
+      integer   g_u  ,g_v  ,g_t  ,g_rt ,g_dpn,g_zq ,g_p ,g_dpdt
 
-      integer              lotls,lotgr,lots,lotd,lota,lotm
+      integer              lotls,lotgr,lots,lotd,lota,lotp
 
       integer              ibrad,ifges,ihour,ini,j,jdt,ksout,maxstp
       integer              mdt,idt,timetot,timer,time0
@@ -185,8 +188,6 @@
 
       real(kind=kind_evod) cons0p5,cons1200,cons3600    !constant
       real(kind=kind_evod) cons0                        !constant
-
-      logical lslag
 
       LOGICAL :: Cpl_flag
       LOGICAL ENS

@@ -1,10 +1,11 @@
-      module gfs_dyn_mod_state
+      module gfs_dyn_write_state
 !
 c new module to supply domain information
 c to the GFS output routines called by
 c wrtout.
 !
 ! May 2009 Jun Wang, modified to use write grid component
+! Feb 2011 Henry Juang, modified to have options for mass_dp and ndsl advection
 !
       use gfs_dyn_machine
       use gfs_dyn_resol_def
@@ -25,7 +26,7 @@ c wrtout.
       integer ngrid ,ngrida,ngridg
       save ngrid,ngrida,buff_mult_piece,buff_mult_pieces,ivar_global
      &,    ngridg,buff_mult_pieceg,buff_mult_piecesg,ivarg_global
-      end module gfs_dyn_mod_state
+      end module gfs_dyn_write_state
 
       subroutine wrtout_dynamics(phour,fhour,zhour,idate,
      &                  TRIE_LS,TRIO_LS,grid_gr,
@@ -44,8 +45,6 @@ c wrtout.
       use namelist_dynamics_def
       use gfs_dyn_mpi_def
       use gfs_dyn_gg_def
-!     use sigio_module
-!     use sigio_r_module
       use gfs_dyn_tracer_const
       use gfs_dyn_physcons, cp => con_cp 
      &                    , rd => con_rd, fv => con_fvirt
@@ -223,24 +222,32 @@ c then (only if liope)  flux state.
      &        exp(grid_gr(jlonf+1:jlonf+lons_lat,g_q))
             endif
 
-            if (gen_coord_hybrid) then        ! for general sigma-thera-p hybrid
-              tki(:,1)       = 0.0
-              tki(:,levs+1)  = 0.0
-              do k=2,levs
-                do i=1,lons_lat
-                  tkrt0 = ( grid_gr(i+jlonf,g_tt-1+k-1)
-     &                     +grid_gr(i+jlonf,g_tt-1+k) )
-     &                      /(thref(k-1)+thref(k))
-                  tki (i,k) = ck5(k)*tkrt0**rkappa
+            if (gen_coord_hybrid) then        ! for general sigma-theta-p hybrid
+              if(mass_dp) then
+                do k=1,levs
+                  do i=1,lons_lat
+                    dpg(i,lan,k) = grid_gr(i+jlonf,g_dp-1+k)
+                  enddo
                 enddo
-              enddo
-              do k=1,levs
-                do i=1,lons_lat
-                  dpg(i,lan,k) = ak5(k)-ak5(k+1)+(bk5(k)-bk5(k+1))
-     &                     * psg(i,lan) + tki(i,k) - tki(i,k+1)
+              else
+                tki(:,1)       = 0.0
+                tki(:,levs+1)  = 0.0
+                do k=2,levs
+                  do i=1,lons_lat
+                    tkrt0 = ( grid_gr(i+jlonf,g_tt-1+k-1)
+     &                       +grid_gr(i+jlonf,g_tt-1+k) )
+     &                        /(thref(k-1)+thref(k))
+                    tki (i,k) = ck5(k)*tkrt0**rkappa
+                  enddo
                 enddo
-              enddo
-            elseif (hybrid) then              ! for sigma-p hybrid (ECWMF)
+                do k=1,levs
+                  do i=1,lons_lat
+                    dpg(i,lan,k) = ak5(k)-ak5(k+1)+(bk5(k)-bk5(k+1))
+     &                       * psg(i,lan) + tki(i,k) - tki(i,k+1)
+                  enddo
+                enddo
+              endif
+            else if( hybrid ) then            ! for sigma-p hybrid (ECWMF)
               do k=1,levs
                 kk = levs - k + 1
                 do i=1,lons_lat
@@ -248,7 +255,7 @@ c then (only if liope)  flux state.
      &                     + (bk5(kk+1)-bk5(kk)) * psg(i,lan)
                 enddo
               enddo
-            else                 ! For sigma coordinate
+            else		! For sigma coordinate
               do k=1,levs
                 do i=1,lons_lat
                   dpg(i,lan,k) = (si(k) - si(k+1)) * psg(i,lan)
@@ -313,42 +320,6 @@ c  send state to I/O task.  All tasks
 !
         call grid_collect (zsg,psg,uug,vvg,ttg,rqg,dpg,
      &                         global_lats_a,lonsperlat)
-!jw      if (.not.quilting ) then
-!jw         call atmgg_move(ioproc)
-!
-c ioproc only
-!jw         CFHOUR1 = CFHOUR          !for the ESMF Export State Creation
-!jw         ta=rtc()
-!jw         if(me .eq. ioproc) then
-!jw           CFORM = 'SIG.F'//CFHOUR
-!jw           print *,' calling atmgg_wrt fhour=',fhour
-!jw     &,                     ' cform=',cform,' idate=',idate
-!jw           call atmgg_wrt(IOPROC,CFORM,fhour,idate
-!jw     &,                global_lats_a,lonsperlat,pdryini)
-!jw           print *,' returning fromatmgg_wrt=',fhour
-!jw         endif
-!jw      endif
-!
-!jw      tc=rtc()
-!jw      if(me .eq. 0) t2=rtc()
-cgwv  t2=rtc()
-!jw      t3=rtc()
-!jw      if(MC_COMP   .ne. MPI_COMM_NULL) then
-!jw        call mpi_barrier(mc_comp,info)
-!jw      endif
-!
-!      write(0,*)'me=',me,'ioproc=',ioproc,'fhour=',fhour
-      if(me .eq. ioproc)  call wrtlog_dynamics(phour,fhour,idate)
-!jw      tb=rtc()
-!jw      tf=tb-ta
-!jw      t2=rtc()
-!jw 1011 format(' WRTOUT_DYNAMICS TIME ',f10.4)
-!jw      timesum=timesum+(t2-t1)
-!jw 1012 format(
-!jw     1 ' WRTOUT_DYNAMICS TIME ALL TASKS  ',f10.4,f10.4,
-!jw     1 ' state, send, io  iobarr, (beginbarr),
-!jw     1 spectbarr,open, openbarr )  ' ,
-!jw     1  8f9.4)
 !
       return
       end
@@ -374,7 +345,7 @@ cgwv  t2=rtc()
       INTEGER              LS_NODE (LS_DIM*3)
       integer              ls_nodes(ls_dim,nodes)
       integer              max_ls_nodes(nodes)
-      integer kdt,nfcstdate7(7)
+      integer step,kdt,nfcstdate7(7)
  
       real(kind=kind_evod) si(levp1)
 !c
@@ -396,28 +367,18 @@ cgwv  t2=rtc()
       if (me == 0) print *,'in restart,lonsperlat=',lonsperlat
 ! n time step spectral file
 !
+      step = -1
       filename='SIGR1'
       CALL TWRITES_rst(filename,ioproc,FHOUR,idate,
-     X                SI,LS_NODES,MAX_LS_NODES,
-     X                TRIE_LS(1,1,P_GZ), TRIE_LS(1,1,P_QM ),
-     X                TRIE_LS(1,1,P_TEM), TRIE_LS(1,1,P_DIM),
-     X                TRIE_LS(1,1,P_ZEM), TRIE_LS(1,1,P_RM),
-     X                TRIO_LS(1,1,P_GZ),TRIO_LS(1,1,P_QM ),
-     X                TRIO_LS(1,1,P_TEM), TRIO_LS(1,1,P_DIM),
-     X                TRIO_LS(1,1,P_ZEM), TRIO_LS(1,1,P_RM) )
+     X                SI,LS_NODES,MAX_LS_NODES,step,trie_ls,trio_ls)
        if (me == 0) print *,'1 end of twritero_rst,',trim(filename)
 !
 ! n+1 time step spectral file
 !
+      step = 0
       filename='SIGR2'
       CALL TWRITES_rst(filename,ioproc,FHOUR,idate,
-     X                SI,LS_NODES,MAX_LS_NODES,
-     X                TRIE_LS(1,1,P_GZ), TRIE_LS(1,1,P_Q ),
-     X                TRIE_LS(1,1,P_TE), TRIE_LS(1,1,P_DI),
-     X                TRIE_LS(1,1,P_ZE), TRIE_LS(1,1,P_RQ),
-     X                TRIO_LS(1,1,P_GZ), TRIO_LS(1,1,P_Q ),
-     X                TRIO_LS(1,1,P_TE), TRIO_LS(1,1,P_DI),
-     X                TRIO_LS(1,1,P_ZE), TRIO_LS(1,1,P_RQ) )
+     X                SI,LS_NODES,MAX_LS_NODES,step,trie_ls,trio_ls)
        if (me == 0) print *,'2 end of twritero_rst for ',trim(filename)
 
 ! n time step grid file
@@ -425,7 +386,8 @@ cgwv  t2=rtc()
        filename='GRDR1'
        CALL TWRITEG_rst(filename,ioproc,FHOUR,idate,
      X                SI,pdryini,global_lats_a,lonsperlat,lats_nodes_a,
-     &                grid_gr(1,1,g_qm),grid_gr(1,1,g_ttm),
+     &                grid_gr(1,1,g_qm),
+     &                grid_gr(1,1,g_dpm),grid_gr(1,1,g_ttm),
      &                grid_gr(1,1,g_uum),grid_gr(1,1,g_vvm),
      &                grid_gr(1,1,g_rm),grid_gr(1,1,g_gz),
      &    kdt,nfcstdate7 )
@@ -436,7 +398,8 @@ cgwv  t2=rtc()
       filename='GRDR2'
       CALL TWRITEG_rst(filename,ioproc,FHOUR,idate,
      X                SI,pdryini,global_lats_a,lonsperlat,lats_nodes_a,
-     &                grid_gr(1,1,g_q),grid_gr(1,1,g_tt),
+     &                grid_gr(1,1,g_q),
+     &                grid_gr(1,1,g_dp),grid_gr(1,1,g_tt),
      &                grid_gr(1,1,g_uu),grid_gr(1,1,g_vv),
      &                grid_gr(1,1,g_rq),grid_gr(1,1,g_gz),
      &    kdt,nfcstdate7 )

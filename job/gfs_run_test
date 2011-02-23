@@ -1,14 +1,41 @@
-#!/bin/ksh
+!/bin/ksh
 #
+# @ job_name = run_gfs_test
+# @ job_type = parallel
+# @ account_no = GFS-T2O
+# @ output = /ptmp/wx23hh/gfs_test_00/out2_atmos
+# @ error =  /ptmp/wx23hh/gfs_test_00/out2_atmos
+##### @ node_usage = shared
+##### @ blocking=unlimited
+##### @ resources = ConsumableMemory(4GB)
+##### @ total_tasks = 32
+##### @ task_affinity = core(1)
+##### @ parallel_threads = 2
+# @ node_usage = not_shared
+# @ tasks_per_node = 16
+# @ node = 1
+# @ resources = ConsumableMemory(4GB)
+# @ task_affinity = core(2)
+# @ parallel_threads = 4
+# @ network.MPI=sn_all,shared,us
+# @ bulkxfer = yes
+##### @ class = 1
+##### @ group = class1onprod
+# @ class = dev
+# @ group = dev
+# @ wall_clock_limit = 03:00:00
+# @ queue
+#
+
 set -x
 #
 #
- export CDATE=2007071000
+ export CDATE=2010091500
 
 
 #export EXPLICIT=.true.
  export ADIAB=.false.
- export REDUCED_GRID=.false.
+ export REDUCED_GRID=.true.
 
 # SFCPRESS_ID=0 or 1 for ln(psfc), 2 for psfc
  export SFCPRESS_ID=2
@@ -33,7 +60,7 @@ export RIlist="  286.05,   461.50, 173.2247,    0.0"
 #    Set up horizontal and vertical resolution ; default will be T6264
 #
 #export wave=382 ; export lm=64 ; export lsoil=4
- export wave=62 ; export lm=64 ; export lsoil=4
+ export wave=126 ; export lm=64 ; export lsoil=4
 #export wave=62 ; export lm=64 ; export lsoil=2 ; export lsm=0
 #
 export NCP=cp
@@ -53,7 +80,7 @@ export MP_LABELIO=yes
 export MP_SHARED_MEMORY=yes
 export MEMORY_AFFINITY=MCM
 ##export BIND_TASKS=yes
-export NTHREADS=1
+export NTHREADS=4
 export XLSMPOPTS="parthds=$NTHREADS:spins=0:yields=0:stack=512000000"
 export SPINLOOPTIME=500
 export YIELDLOOPTIME=500
@@ -64,7 +91,7 @@ export MALLOCMULTIHEAP=true
 #
 #    Set up experiment and directory names
 #
- export expt=gfs.0
+ export expt=gfs_test_00
  
 #
  export NSCDIR=/global/noscrub
@@ -146,9 +173,9 @@ export LEVR=${levr:-0}
 #
 #     Forecaset script and executable name
 #
- export FCSTSCRIPT=/meso/save/${USER}/trunk/job/exglobal_fcst.sh.sms_nems
- export FCSTEXEC=/meso/save/${USER}/trunk/exe/GFS_NEMS.x
-# export FCSTEXEC=/meso/save/${USER}/global_atmos.fd/nems_main_gfs.x
+ export FCSTSCRIPT=/global/save/${USER}/trunk/job/exglobal_fcst.sh.sms_nems
+ export FCSTEXEC=/global/save/${USER}/trunk/exe/NEMS.x
+# export FCSTEXEC=/global/save/${USER}/global_atmos.fd/nems_main_gfs.x
 #
 #
 # ***************************************************************

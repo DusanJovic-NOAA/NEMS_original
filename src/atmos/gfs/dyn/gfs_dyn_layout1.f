@@ -1,7 +1,11 @@
       module gfs_dyn_layout1
       implicit none
       
-cc
+!
+! program log:
+! 20110220     henry jaung  add more indexes for mass_dp and ndslfv options
+!
+
       integer           nodes, nodes_comp,nodes_io,
      x                  me,
      x                  ls_dim,
@@ -22,14 +26,14 @@ cc
       INTEGER ,ALLOCATABLE :: lat1s_a(:),
      .  lon_dims_a(:),lon_dims_ext(:)
 
-!hmhj nislfv
-      integer   lonfull,lonhalf,lonpart,mylonlen
-      integer   latfull,lathalf,latpart,mylatlen
+!hmhj ndslfv
+      integer   lonfull,lonhalf,lonpart,lonlenmax,mylonlen
+      integer   latfull,lathalf,latpart,latlenmax,mylatlen
 
       integer, allocatable :: lonstr(:),lonlen(:)
       integer, allocatable :: latstr(:),latlen(:)
       real, allocatable :: cosglat(:)
-      real, allocatable :: gglat(:),gglati(:)
+      real, allocatable :: gglat(:),gglati(:),gslati(:),ggfact(:,:)
       real, allocatable :: gglon(:),ggloni(:)
 
       end module gfs_dyn_layout1

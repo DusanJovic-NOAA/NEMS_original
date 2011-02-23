@@ -9,7 +9,8 @@
 ! H.-M. H. Juang: get from gloopa to have only spect to grid
 !                 syn_gr_a_1 and syn_gr_a_2 will be used in
 !                 the next spect_to_gridxy for saving time
-c
+! program log
+! 2011 02 20 : henry jaung, updated code for mass_dp and ndsl advection
 !
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
@@ -56,11 +57,8 @@ c
 !
       real(kind=kind_evod) cons0,cons2     !constant
 !
-      logical lslag
-!
       cons0 = 0.d0     !constant
       cons2 = 2.d0     !constant
-      lslag=.false.
 !
 ! ................................................................
 !
@@ -116,7 +114,7 @@ c
      x            lat1s_a,
      x            plnev_a,plnod_a,
      x            lots,ls_node,latg2,
-     x            lslag,lats_dim_a,lots,
+     x            lats_dim_a,lots,
      x            syn_gr_a_1,
      x            ls_nodes,max_ls_nodes,
      x            lats_nodes_a,global_lats_a,

@@ -33,6 +33,20 @@ set -x
  export GEN_COORD_HYBRID=YES
 # SPECTRAL_LOOP       2 for old option, 1 is for one loop.
  export SPECTRAL_LOOP=1
+
+ export NDSLFV=_NDSLFV_
+if [ $NDSLFV = .true. ]
+then
+ export DELTIM=1800.
+ export MASS_DP=.true.
+ export LINEAR_GRID=.false.
+ export PROCESS_SPLIT=.false.
+else
+ export MASS_DP=.false.
+ export LINEAR_GRID=.false.
+ export PROCESS_SPLIT=.false.
+fi
+
 #***************************************************************
 #                    N2 ,    H2O,     O3,        CLW,    O,      O2
 #export CPIlist=" 1039.645, 1846.0, 820.2391,    0.0, 1299.185, 918.0969"

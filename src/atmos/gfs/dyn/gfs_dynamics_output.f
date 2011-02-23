@@ -19,6 +19,7 @@
 !
 !***  REVISION LOG:
 !***  Nov 23 2009, Sarah Lu   Add gocart species to DYN_INT_STATE_3D_R_DIAB
+!***  Feb 20 2011, Henry Juang  use gfs_dyn_write_state for more related name
 !***
 !-----------------------------------------------------------------------
 !
@@ -369,7 +370,7 @@
                ,AK5,BK5,CK5
        use gfs_dyn_vert_def, only: si
        use gfs_dyn_date_def, only: fhour,idate
-       use gfs_dyn_mod_state,only: buff_mult_pieceg
+       use gfs_dyn_write_state,only: buff_mult_pieceg
        use gfs_dyn_io_header, only : icen2,ienst,iensi,itrun
        use gfs_dyn_tracer_const, only : cpi,ri
        use namelist_dynamics_def, only : hybrid,gen_coord_hybrid

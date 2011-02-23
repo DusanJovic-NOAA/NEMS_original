@@ -1,4 +1,8 @@
       module gfs_dyn_resol_def
+
+! program log:
+! 20110220:   Henry Juang update index for MASS_DP and NDSLFV
+!
       use gfs_dyn_machine
       implicit none
       
@@ -18,23 +22,23 @@
       integer,target ::   thermodyn_id, sfcpress_id             ! hmhj
       logical,target ::   adiabatic
 !
-      INTEGER   P_GZ,P_ZEM,P_DIM,P_TEM,P_RM,P_QM
-      INTEGER   P_zslam,P_zsphi
-      INTEGER   P_ZE,P_DI,P_TE,P_RQ,P_Q,P_DLAM,P_DPHI,P_ULN,P_VLN
-      INTEGER   P_W,P_X,P_Y,P_RT,P_ZQ
-      INTEGER   G_UUM,G_VVM,G_TTM,G_RM,G_QM,G_GZ
-      INTEGER   G_UU ,G_VV ,G_TT ,G_RQ,G_Q 
-      INTEGER   G_U  ,G_V  ,G_T  ,G_RT,G_ZQ, g_p, g_dp, g_dpdt
-      INTEGER   LOTS,LOTD,LOTA,LOTM,LOTLS,LOTGR
+      INTEGER   p_gz,p_zslam,p_zsphi,p_dlam,p_dphi,p_uln,p_vln
+      INTEGER   p_zem,p_dim,p_tem,p_rm,p_dpm,p_qm
+      INTEGER   p_ze ,p_di ,p_te ,p_rq,p_dp ,p_q
+      INTEGER   p_w  ,p_x  ,p_y  ,p_rt,p_dpn,p_zq
+      INTEGER   p_zz ,p_dpphi,p_dplam,p_zzphi,p_zzlam
+      INTEGER   g_uum,g_vvm,g_ttm,g_rm ,g_dpm,g_qm,g_gz,g_zz
+      INTEGER   g_uu ,g_vv ,g_tt ,g_rq ,g_dp ,g_q
+      INTEGER   g_uup,g_vvp,g_ttp,g_rqp,g_dpp,g_zqp
+      INTEGER   g_u  ,g_v  ,g_t  ,g_rt ,g_dpn,g_zq, g_p, g_dpdt
+      INTEGER   lots,lotd,lota,lotp,lotls,lotgr,lotgr6
 
-      integer   kwq,kwte,kwdz,kwrq
-
-      integer   ksz, ksd, kst, ksr, ksq, ksplam, kspphi
+      integer   ksz, ksd, kst, ksr, ksdp, ksq, ksplam, kspphi
       integer   ksu, ksv, kzslam, kzsphi
 !
-      integer   ksum, ksvm, kstm, ksrm, kspsm
+      integer   kau, kav, kat, kar, kadp, kaps, kazs, kap2
 !
-      integer   kau, kav, kat, kar, kaps, kazs
+      integer   kdpphi, kzzphi, kdplam, kzzlam
 !
       integer   kdtphi, kdrphi, kdtlam, kdrlam 
       integer   kdulam, kdvlam, kduphi, kdvphi

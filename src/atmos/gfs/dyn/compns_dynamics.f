@@ -42,6 +42,7 @@
 !   2007-02-01  H.-M. H. Juang modify to be used for dynamics only
 !   2009-11-09  Jun Wang       added ndfi 
 !   2010-09-08  Jun Wang       change gfsio to nemsio
+!   2011-02-11  Henry Juang    add codes to fit mass_dp and ndslfv
 !
 ! Usage:    call compns(deltim,
 !    &                  fhout,fhres,
@@ -83,25 +84,26 @@
 c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !
       namelist /nam_dyn/FHMAX,FHOUT,FHRES,FHROT,FHDFI,DELTIM,IGEN,
-     & NGPTC,spectral_loop,nislfv,
-     & shuff_lats_a,reshuff_lats_a,reduced_grid,
-     & explicit,hybrid,gen_coord_hybrid,liope, 
-     & ntrac,nxpt,nypt,jintmx,jcap,levs,lonf,latg,levr,
-     & ntoz,ntcw,ncld,nsout,tfiltc,
-     & nemsio_in,nemsio_out,ref_temp,
+     & NGPTC,shuff_lats_a,reshuff_lats_a,
+     & nxpt,nypt,jintmx,jcap,levs,lonf,latg,levr,
+     & ntrac,ntoz,ntcw,ncld,nsout,tfiltc,
+     & nemsio_in,nemsio_out,liope,ref_temp,
+     & explicit,hybrid,gen_coord_hybrid,process_split, 
+     & spectral_loop,ndslfv,mass_dp,semi_implicit_temp_profile,
+     & reduced_grid,linear_grid,
      & zflxtvd,num_reduce
 
 !
-      num_reduce = -4
-      fhmax   = 0
-      fhout   = 0
-      fhres   = 0
-      fhrot   = 0
-      fhdfi   = 0
-      deltim  = 0
-      igen    = 0
+      num_reduce=-4
+      fhmax=0
+      fhout=0
+      fhres=0
+      fhrot=0
+      fhdfi=0
+      deltim=0
+      igen=0
       tfiltc  = 0.85
-      NGPTC   = lonf
+      NGPTC=lonf
 !
       shuff_lats_a     = .true.
       reshuff_lats_a   = .false.
@@ -111,10 +113,14 @@ c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       explicit         = .false.
       hybrid           = .false.
       gen_coord_hybrid = .false.                                     !hmhj
+      mass_dp          = .false.                                     !hmhj
+      semi_implicit_temp_profile    = .false.                        !hmhj
+      process_split    = .false.                                     !hmhj
+      linear_grid      = .false.                                     !hmhj
       liope            = .true.
 !
       zflxtvd          = .false.
-      nislfv           = 0        ! non_iteration semi_Lagrangian finite volume
+      ndslfv           = .false. ! non_iteration semi_Lagrangian finite volume
 !
       nemsio_in         = .true.
       nemsio_out        = .true.
@@ -130,9 +136,8 @@ c$$$      read(5,nam_dyn)
       open(unit=nlunit,file=gfs_dyn_namelist)
       rewind (nlunit)
       read(nlunit,nam_dyn)
-      if (me == 0) write(*,nam_dyn)
 c
-!     if (me.eq.0) write(6,nam_dyn)
+      if (me.eq.0) write(6,nam_dyn)
       filta = tfiltc
 !
       if (levr == 0) then
@@ -190,4 +195,5 @@ csela - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !     print *,' done compns_dynamics '
       iret=0
 c
+      return
       end subroutine compns_dynamics

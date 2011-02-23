@@ -13,8 +13,10 @@ if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
 # export GROUP=devonprod
   export CLASS=dev
   export GROUP=dev
-  export ACCNR=NAM-T2O
-# export ACCNR=GFS-T2O
+# export CLASS=1
+# export GROUP=class1onprod
+# export ACCNR=NAM-T2O
+  export ACCNR=GFS-T2O
   export DISKNM=meso
 elif [ ${MACHINE_ID} = v ]; then 
   export CLASS=mtb
@@ -27,6 +29,7 @@ fi
 ############################################################
 
 export RTPWD=/${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
+export RTPWD=/stmp/${LOGIN}/REGRESSION_TEST
 
 #########################################################################
 # Check if running regression test or creating baselines.
@@ -55,9 +58,11 @@ if [ $argn -eq 1 ]; then
   rm -rf /stmp/${LOGIN}/REGRESSION_TEST
   cp -r /${DISKNM}/noscrub/wx20rv/REGRESSION_TEST_baselines \
 	/stmp/${LOGIN}/REGRESSION_TEST
+  mkdir -p /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_NDSL
   if [ ${CB_arg} = nmm ]; then
     cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/* /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_HYB/.
     cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*     /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID/.
+    cp ${RTPWD}/GFS_DFI_REDUCEDGRID_NDSL/*  /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_NDSL/.
     cp ${RTPWD}/GFS_NODFI/*               /stmp/${LOGIN}/REGRESSION_TEST/GFS_NODFI/.
     cp ${RTPWD}/GFS_OPAC/*                /stmp/${LOGIN}/REGRESSION_TEST/GFS_OPAC/.
     cp ${RTPWD}/GEFS_data_2008082500/*    /stmp/${LOGIN}/REGRESSION_TEST/GEFS_data_2008082500/.
@@ -130,6 +135,8 @@ fi
 # SPECTRALLOOP- option for one loop or two loop
 # NST_FCST    - integer determining whether NST model is run in forecast mode 
 #		or not (values 0,1 or 2)
+# NDSLFV      - option be true or false for non-iteration dimensional-split
+#               semi-Lagrangian advection
 #
 ################################################
 
@@ -815,6 +822,8 @@ fi
 
 cd $PATHRT
 
+
+
 ####################################################################################################
 # 
 # TEST   - GFS 
@@ -841,7 +850,7 @@ export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGR
 export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  
+export NST_FCST=0  ; export NDSLFV=.false.
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -862,7 +871,7 @@ export TEST_DESCR="Test GFS with 2-copy option"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_32_60
+export RUNDIR=${RUNDIR_ROOT}/GFS_32_48
 export CNTL_DIR=GFS_NODFI
 export LIST_FILES=" \
 	sigf03 sigf06 sigf12 sigf24 \
@@ -875,7 +884,7 @@ export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGR
 export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  
+export NST_FCST=0  ; export NDSLFV=.false.
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -896,20 +905,20 @@ export TEST_DESCR="Test GFS different decomposition and restart"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_32_60
+export RUNDIR=${RUNDIR_ROOT}/GFS_32_48
 export CNTL_DIR=GFS_NODFI
 export LIST_FILES=" \
 	sigf03 sigf06 sigf12 sigf24 sigf48 \
 	sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
 	flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
-export TASKS=60    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
-export PE1=58      ; export WTPG=2       ; export NDAYS=2     ; export CP2=.false.
+export TASKS=48    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
+export PE1=46      ; export WTPG=2       ; export NDAYS=2     ; export CP2=.false.
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  
+export NST_FCST=0  ; export NDSLFV=.false.
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -943,7 +952,7 @@ export WRTGP=2     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGR
 export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  
+export NST_FCST=0  ; export NDSLFV=.false.
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -977,7 +986,7 @@ export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGR
 export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  
+export NST_FCST=0  ; export NDSLFV=.false.
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1011,7 +1020,7 @@ export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGR
 export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  
+export NST_FCST=0  ; export NDSLFV=.false.
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1032,7 +1041,7 @@ export TEST_DESCR="Test GFS, 16 proc, 2 threads,no quilt, output every 2 time st
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_16_60_NOQUILT_NSOUT
+export RUNDIR=${RUNDIR_ROOT}/GFS_16_48_NOQUILT_NSOUT
 export CNTL_DIR=GFS_NODFI
 export LIST_FILES=" \
 	sigf03 sigf06 sigf12 sigf24 \
@@ -1045,7 +1054,7 @@ export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGR
 export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  
+export NST_FCST=0  ; export NDSLFV=.false.
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1056,30 +1065,30 @@ fi
 ####################################################################################################
 #
 # TEST   - GFS with multiple tasks and no quilting
-#        - 60 tasks / 1 thread
+#        - 48 tasks / 1 thread
 #
 ####################################################################################################
 
 if [ ${CREATE_BASELINE} = false ]; then
 
-export TEST_DESCR="Test GFS, 60 proc, 1 thread, no quilt"
+export TEST_DESCR="Test GFS, 48 proc, 1 thread, no quilt"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_16_60_NOQUILT_NSOUT
+export RUNDIR=${RUNDIR_ROOT}/GFS_16_48_NOQUILT_NSOUT
 export CNTL_DIR=GFS_NODFI
 export LIST_FILES=" \
 	sigf03 sigf06 sigf12 sigf24 sigf48 \
 	sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
 	flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
-export TASKS=60    ; export THRD=1       ; export NSOUT=1     ; export QUILT=.false.
-export PE1=60      ; export WTPG=1       ; export NDAYS=2     ; export CP2=.false.
+export TASKS=48    ; export THRD=1       ; export NSOUT=1     ; export QUILT=.false.
+export PE1=46      ; export WTPG=1       ; export NDAYS=2     ; export CP2=.false.
 export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  
+export NST_FCST=0  ; export NDSLFV=.false.
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1113,7 +1122,7 @@ export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGR
 export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  
+export NST_FCST=0  ; export NDSLFV=.false.
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1147,7 +1156,7 @@ export WRTGP=1     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGR
 export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  
+export NST_FCST=0  ; export NDSLFV=.false.
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1181,7 +1190,7 @@ export WRTGP=2     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGR
 export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  
+export NST_FCST=0  ; export NDSLFV=.false.
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1215,7 +1224,7 @@ export WRTGP=1     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGR
 export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  
+export NST_FCST=0  ; export NDSLFV=.false.
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1249,7 +1258,41 @@ export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGR
 export IAER=11      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  
+export NST_FCST=0  ; export NDSLFV=.false.
+#---------------------
+  ./rt_gfs.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi
+
+####################################################################################################
+#
+# TEST   - GFS 
+#        - NDSL 30 compute tasks / 2 thread
+#
+####################################################################################################
+
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
+
+export TEST_DESCR="GFS, 32tasks, 2threads, quilt, dfi3hr, reduced grid, NDSL"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/GFS_32_dfi_ndsl
+export CNTL_DIR=GFS_DFI_REDUCEDGRID_NDSL
+export LIST_FILES=" \
+        sigf03 sigf06 sigf12 sigf24  \
+        sfcf03 sfcf06 sfcf12 sfcf24  \
+        flxf03 flxf06 flxf12 flxf24  "
+#---------------------
+export TASKS=32    ; export THRD=2       ; export NSOUT=0     ; export QUILT=.true.
+export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=.false.
+export WRTGP=1     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
+export IAER=0      ; export FHRES=24
+export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
+export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
+export NST_FCST=0  ; export NDSLFV=.true.
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1284,7 +1327,7 @@ export WRTGP=2     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGR
 export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=2      ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALLOOP=2
-export NST_FCST=0  
+export NST_FCST=0  ; export NDSLFV=.false.
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1319,7 +1362,7 @@ export WRTGP=2     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGR
 export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=2      ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALLOOP=2
-export NST_FCST=1
+export NST_FCST=1  ; export NDSLFV=.false.
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1353,7 +1396,7 @@ export WRTGP=2     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGR
 export IAER=0      ; export FHRES=24
 export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=2      ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALLOOP=1
-export NST_FCST=0  
+export NST_FCST=0  ; export NDSLFV=.false.
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi

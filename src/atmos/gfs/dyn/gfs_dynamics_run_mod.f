@@ -15,6 +15,8 @@
 !  november 2009      jun wang, set digital filter variables
 !  febrary  2010      jun wang, add restart step
 !  aug  2010          sarah lu, compute tracer global sum
+!  febrary  2011      henry juang add non-ierating dimensional-splitting semi_lagrangian
+!                     (NDSL) advection with options of MASS_DP and NDSLFV
 !
 !
 ! !interface:
@@ -73,19 +75,18 @@
 !
 ! ---------------------------------------------------------------------
 !! grid_gr unfolded from 2D to 3D (Sarah Lu)
-
 !     if(gis_dyn%kdt>=4.and.gis_dyn%kdt<=5) then
 !       print *,'in one loop,bf cm2mdl,kdt=',gis_dyn%kdt,'g_rt=',   &
 !        maxval(gis_dyn%grid_gr(:,:,gis_dyn%g_rt+2*gis_dyn%levs:gis_dyn%g_rt+3*gis_dyn%levs-1)), &
 !        minval(gis_dyn%grid_gr(:,:,gis_dyn%g_rt+2*gis_dyn%levs:gis_dyn%g_rt+3*gis_dyn%levs-1))
 !     endif
-
         IF(.NOT. (gis_dyn%ENS .AND. gis_dyn%Cpl_flag)) THEN
-            call common_to_model_vars (gis_dyn%grid_gr(1,1,gis_dyn%g_zq),  &
-                                       gis_dyn%grid_gr(1,1,gis_dyn%g_t ),  &
-                                       gis_dyn%grid_gr(1,1,gis_dyn%g_rt),  &
-                                       gis_dyn%grid_gr(1,1,gis_dyn%g_u ),  &
-                                       gis_dyn%grid_gr(1,1,gis_dyn%g_v ),  &
+            call common_to_model_vars (gis_dyn%grid_gr(1,1,gis_dyn%g_zqp),  &
+                                       gis_dyn%grid_gr(1,1,gis_dyn%g_ttp),  &
+                                       gis_dyn%grid_gr(1,1,gis_dyn%g_rqp),  &
+                                       gis_dyn%grid_gr(1,1,gis_dyn%g_uup),  &
+                                       gis_dyn%grid_gr(1,1,gis_dyn%g_vvp),  &
+                                       gis_dyn%grid_gr(1,1,gis_dyn%g_dpp),  &
                                        gis_dyn%global_lats_a,	           &
                                        gis_dyn%lonsperlat)
         END IF
@@ -98,7 +99,6 @@
 !
 ! ---------------------------------------------------------------------
 !! get pwat and ptot
-
 !     if(gis_dyn%kdt>=4.and.gis_dyn%kdt<=5) then
 !       print *,'in one loop,kdt=',gis_dyn%kdt,'g_rt=',   &
 !        maxval(gis_dyn%grid_gr(:,:,gis_dyn%g_rt+2*gis_dyn%levs:gis_dyn%g_rt+3*gis_dyn%levs-1)), &
@@ -106,30 +106,13 @@
 !        't=',maxval(gis_dyn%grid_gr(:,:,gis_dyn%g_t:gis_dyn%g_t+levs-1)),  &
 !         minval(gis_dyn%grid_gr(:,:,gis_dyn%g_t:gis_dyn%g_t+levs-1))
 !     endif
-
-      call getpwatptot(gis_dyn%grid_gr(1,1,gis_dyn%g_zq),      &
-                       gis_dyn%grid_gr(1,1,gis_dyn%g_t ),      &
-                       gis_dyn%grid_gr(1,1,gis_dyn%g_rt),      &
+      call getpwatptot(gis_dyn%grid_gr(1,1,gis_dyn%g_zqp),      &
+                       gis_dyn%grid_gr(1,1,gis_dyn%g_ttp),      &
+                       gis_dyn%grid_gr(1,1,gis_dyn%g_rqp),      &
                        gis_dyn%global_lats_a,                  &
                        gis_dyn%lonsperlat,                     &
                        gis_dyn%pwat, gis_dyn%ptot, gis_dyn%ptrc )  !glbsum
 
-!
-! ---------------------------------------------------------------------
-! check whether time step is changes to update matrix
-!
-!     if( gis_dyn%deltim .ne. timestep ) then
-!       timestep=gis_dyn%deltim
-!       if( lsfwd ) timestep = 0.5 * timestep
-!       print *,' call get_cd for deltim=',timestep
-!       if(hybrid)then
-!         call get_cd_hyb(timestep)
-!       else if( gen_coord_hybrid ) then           
-!         call get_cd_hyb_gc(timestep)    
-!       else
-!         call get_cd_sig(am,bm,timestep,tov,sv)
-!       endif
-!     endif
 !
 ! ---------------------------------------------------------------------
 ! check whether reset step due to dfi
@@ -171,12 +154,12 @@
                gis_dyn% pddev_a       ,gis_dyn% pddod_a        ,	&
                gis_dyn% plnew_a       ,gis_dyn% plnow_a        ,	&
                gis_dyn% syn_ls_a      ,gis_dyn% dyn_ls_a       ,	&
-               gis_dyn% syn_gr_a_1    ,gis_dyn% dyn_gr_a_1     ,	&
-               gis_dyn% anl_gr_a_1    ,gis_dyn% sym_gr_a_2     ,        &
-               gis_dyn% syn_gr_a_2    ,gis_dyn% dyn_gr_a_2     ,	&
-               gis_dyn% anl_gr_a_2    ,gis_dyn% lslag          ,        &
+               gis_dyn% syn_gr_a_1    ,gis_dyn% pyn_gr_a_1     ,        &
+               gis_dyn% dyn_gr_a_1    ,gis_dyn% anl_gr_a_1     ,        &
+               gis_dyn% syn_gr_a_2    ,gis_dyn% pyn_gr_a_2     ,        &
+               gis_dyn% dyn_gr_a_2    ,gis_dyn% anl_gr_a_2     ,        &
                gis_dyn% pwat          ,gis_dyn% ptot           ,	&
-               gis_dyn% ptrc          ,                                 & !glbsum
+               gis_dyn% ptrc          ,                                 & 
                gis_dyn% pdryini       ,gis_dyn% nblck          ,	&
                gis_dyn% zhour         ,					&
                gis_dyn% n1            ,gis_dyn% n4             ,	&
@@ -221,10 +204,10 @@
                gis_dyn% pddev_a       ,gis_dyn% pddod_a        ,	&
                gis_dyn% plnew_a       ,gis_dyn% plnow_a        ,	&
                gis_dyn% syn_ls_a      ,gis_dyn% dyn_ls_a       ,	&
-               gis_dyn% syn_gr_a_1    ,gis_dyn% dyn_gr_a_1     ,	&
-               gis_dyn% anl_gr_a_1    ,gis_dyn% sym_gr_a_2     ,        &
-               gis_dyn% syn_gr_a_2    ,gis_dyn% dyn_gr_a_2     ,	&
-               gis_dyn% anl_gr_a_2    ,gis_dyn% lslag          ,        &
+               gis_dyn% syn_gr_a_1    ,gis_dyn% pyn_gr_a_1     ,        &
+               gis_dyn% dyn_gr_a_1    ,gis_dyn% anl_gr_a_1     ,        &
+               gis_dyn% syn_gr_a_2    ,gis_dyn% pyn_gr_a_2     ,        &
+               gis_dyn% dyn_gr_a_2    ,gis_dyn% anl_gr_a_2     ,        &
                gis_dyn% pwat          ,gis_dyn% ptot           ,	&
                gis_dyn% ptrc          ,                                 & !glbsum
                gis_dyn% pdryini       ,gis_dyn% nblck          ,	&
@@ -272,33 +255,38 @@
 ! ---------------------------------------------------------------------
 ! prepare n+1 grid value back to common temperature and pressure
 !
-! grid_gr unfolded from 2D to 3D (Sarah Lu)
      IF(gis_dyn%ENS .AND. gis_dyn%end_step) THEN
-         call model_to_common_vars_1(gis_dyn% grid_gr(1,1,gis_dyn%g_uum), &
-                                     gis_dyn% grid_gr(1,1,gis_dyn%g_vvm), & 
-                                     gis_dyn% grid_gr(1,1,gis_dyn%g_ttm), &
-                                     gis_dyn% grid_gr(1,1,gis_dyn%g_rm),  &
-                                     gis_dyn% grid_gr(1,1,gis_dyn%g_qm),  &
-                                     gis_dyn%global_lats_a,	          &
-                                     gis_dyn%lonsperlat, gis_dyn%ptot)
-         call model_to_common_vars_1(gis_dyn% grid_gr(1,1,gis_dyn%g_uu ), &
-                                     gis_dyn% grid_gr(1,1,gis_dyn%g_vv ), & 
-                                     gis_dyn% grid_gr(1,1,gis_dyn%g_tt ), &
-                                     gis_dyn% grid_gr(1,1,gis_dyn%g_rq),  &
-                                     gis_dyn% grid_gr(1,1,gis_dyn%g_q),   &
-                                     gis_dyn%global_lats_a,	          &
-                                     gis_dyn%lonsperlat, gis_dyn%ptot)
+          call model_to_common_vars (gis_dyn% grid_gr(1,1,gis_dyn%g_qm ),   &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_ttm),   &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_rm ),   &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_uum),   &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_vvm),   &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_dpm),   &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_p  ),   &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_dpdt ), &
+                                     gis_dyn%global_lats_a,                 &
+                                     gis_dyn%lonsperlat,0)
+          call model_to_common_vars (gis_dyn% grid_gr(1,1,gis_dyn%g_q  ),   &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_tt ),   &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_rq ),   &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_uu ),   &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_vv ),   &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_dp ),   &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_p  ),   &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_dpdt ), &
+                                     gis_dyn%global_lats_a,                 &
+                                     gis_dyn%lonsperlat,1)
       ELSE
-          call model_to_common_vars (gis_dyn% grid_gr(1,1,gis_dyn%g_zq),    &
-                                     gis_dyn% grid_gr(1,1,gis_dyn%g_t ),    &
-                                     gis_dyn% grid_gr(1,1,gis_dyn%g_rt),    &
-                                     gis_dyn% grid_gr(1,1,gis_dyn%g_u ),    &
-                                     gis_dyn% grid_gr(1,1,gis_dyn%g_v ),    & 
-                                     gis_dyn% grid_gr(1,1,gis_dyn%g_p ),    & 
-                                     gis_dyn% grid_gr(1,1,gis_dyn%g_dp ),   & 
+          call model_to_common_vars (gis_dyn% grid_gr(1,1,gis_dyn%g_zqp),   &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_ttp),   &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_rqp),   &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_uup),   &
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_vvp),   & 
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_dpp),   & 
+                                     gis_dyn% grid_gr(1,1,gis_dyn%g_p  ),   & 
                                      gis_dyn% grid_gr(1,1,gis_dyn%g_dpdt ), & 
                                      gis_dyn%global_lats_a,	            &
-                                     gis_dyn%lonsperlat)
+                                     gis_dyn%lonsperlat,1)
 !      if(gis_dyn% kdt<=1) then
 !          print *,'in gfs dyn run,af mdl2com kdt=',gis_dyn%kdt,'ps=',maxval(gis_dyn%grid_gr(:,:,g_q)),   &
 !        minval(gis_dyn%grid_gr(:,:,g_q)),'u=',maxval(gis_dyn%grid_gr(:,:,g_u)),   &

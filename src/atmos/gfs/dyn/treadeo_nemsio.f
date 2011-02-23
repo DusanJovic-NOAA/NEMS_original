@@ -1,9 +1,7 @@
-      SUBROUTINE TREADEO_nemsio(IDATE,
-     &                   GZE,QE,TEE,DIE,ZEE,RQE,
-     &                   GZO,QO,TEO,DIO,ZEO,RQO,
-     &                   zsg,psg,ttg,uug,vvg,rqg,
+      SUBROUTINE TREADEO_nemsio(IDATE,trie_ls,trio_ls,
+     &                   zsg,psg,ttg,uug,vvg,rqg,dpg,
      &                   LS_NODE,LS_NODES,MAX_LS_NODES,
-     &                   SNNP1EV,SNNP1OD,pdryini,IPRINT,
+     &                   pdryini,IPRINT,
      &                   global_lats_a,lats_nodes_a,lonsperlat,cfile,
      &                   epse,epso,plnew_a,plnow_a,
      &                   plnev_a,plnod_a,pwat,ptot,ptrc)
@@ -17,6 +15,7 @@
 !  Aug 25 2010    Sarah Lu, modified to compute tracer global sum
 !  Sep 08 2010    Jun Wang, change to nemsio format file
 !  Dec 16 2010    Jun Wang, change to nemsio library
+!  Feb 20 2011    Henry Juang, change to have mass dp and ndslfv
 !  
  
       use gfs_dyn_resol_def
@@ -49,19 +48,8 @@
       real(kind=kind_evod)   plnev_a(len_trie_ls,latg2)
       real(kind=kind_evod)   plnod_a(len_trio_ls,latg2)
 !!
-      REAL(KIND=KIND_EVOD) GZE(LEN_TRIE_LS,2)
-     &,                     QE(LEN_TRIE_LS,2)
-     &,                    TEE(LEN_TRIE_LS,2,LEVS)
-     &,                    DIE(LEN_TRIE_LS,2,LEVS)
-     &,                    ZEE(LEN_TRIE_LS,2,LEVS)
-     &,                    RQE(LEN_TRIE_LS,2,LEVS,ntrac)
-     &,                    GZO(LEN_TRIO_LS,2)
-     &,                     QO(LEN_TRIO_LS,2)
-     &,                    TEO(LEN_TRIO_LS,2,LEVS)
-     &,                    DIO(LEN_TRIO_LS,2,LEVS)
-     &,                    ZEO(LEN_TRIO_LS,2,LEVS)
-     &,                    RQO(LEN_TRIO_LS,2,LEVS,ntrac)
- 
+      real(kind=kind_evod) trie_ls(len_trie_ls,2,lotls)
+      real(kind=kind_evod) trio_ls(len_trio_ls,2,lotls)
 !
       integer              ls_node(ls_dim,3)
 !
@@ -72,8 +60,6 @@
       INTEGER              LS_NODES(LS_DIM,NODES)
       INTEGER              MAX_LS_NODES(NODES)
       integer              lats_nodes_a(nodes)
-      REAL(KIND=KIND_EVOD) SNNP1EV(LEN_TRIE_LS)
-      REAL(KIND=KIND_EVOD) SNNP1OD(LEN_TRIO_LS)
       INTEGER              IPRINT
       INTEGER              J,K,L,LOCL,N,lv,kk
       integer              i,lan,lat,iblk,lons_lat,il,lon,njeff,nn
@@ -81,8 +67,6 @@
       integer              indod
       integer              indev1,indev2
       integer              indod1,indod2
-!     REAL(KIND=KIND_EVOD) GA2,GENCODE,GZBAR
-!     REAL(KIND=KIND_EVOD) GA2,GENCODE,GZBAR,ORDER,REALFORM
       REAL(KIND=KIND_EVOD) TRUN,WAVES,XLAYERS
       REAL(KIND=KIND_EVOD) XI(LEVP1),XL(LEVS)
       REAL(KIND=KIND_EVOD) sikp1(levp1)
@@ -115,6 +99,7 @@
       real(kind=kind_grid) uug(lonf,lats_node_a,levs)
       real(kind=kind_grid) vvg(lonf,lats_node_a,levs)
       real(kind=kind_grid) ttg(lonf,lats_node_a,levs)
+      real(kind=kind_grid) dpg(lonf,lats_node_a,levs)
       real(kind=kind_grid) rqg(lonf,lats_node_a,levh)
 !
       REAL(KIND=KIND_GRID) pwat   (lonf,lats_node_a)
@@ -139,7 +124,6 @@
        idate(1)=idate7(4)
        idate(2:3)=idate7(2:3)
        idate(4)=idate7(1)
-       pdryini=0.
 !
       call nemsio_getheadvar(gfile_in,'fhour',fhour4,iret=iret)
       call nemsio_getheadvar(gfile_in,'iorder',iorder,iret=iret)
@@ -156,7 +140,7 @@
       call nemsio_getheadvar(gfile_in,'itrun',itrun,iret=iret)
       call nemsio_getheadvar(gfile_in,'idusr',idusr,iret=iret)
       call nemsio_getheadvar(gfile_in,'idvt',idvt,iret=iret)
-      call nemsio_getheadvar(gfile_in,'pdryini',pdryini4,iret=iret)
+      call nemsio_getheadvar(gfile_in,'pdryini',pdryini,iret=iret)
       call nemsio_getheadvar(gfile_in,'nvcoord',nvcoord,iret=iret)
 
 !      call gfsio_getfilehead(gfile_in,iret=iret,
@@ -178,7 +162,7 @@
      &     jcap .ne. jcapi .or. levs .ne. levsi) then
           print *,' Input resolution and the model resolutions are'
      &,  ' different- run aborted'
-          call mpi_quit(777)
+          call mpi_quit(555)
         endif
       endif
 !
@@ -303,7 +287,7 @@
       else
         print *,' Non compatible Initial state IDVC=',idvc
      &,' iret=',iret
-        call MPI_QUIT(333)
+        call MPI_QUIT(560)
       endif
 !
       FHOUR       = fhour4
@@ -387,6 +371,14 @@
         call split2d(nemsio_data,buffo,global_lats_a)
         CALL interpred(1,kmsk,buffo,ttg(1,1,k),global_lats_a,lonsperlat)
       enddo
+!  Read dp 
+      do k=1,levs
+        call nemsio_readrecv(gfile_in,'dpres','mid layer',k,nemsio_data,
+     &     iret=iret)
+        call split2d(nemsio_data,buffo,global_lats_a)
+        CALL interpred(1,kmsk,buffo,dpg(1,1,k),global_lats_a,lonsperlat)
+      enddo
+      if( me.eq.0 ) print *,' read dpg ',(dpg(1,1,k),k=1,levs)
 !
 !  Initial Tracers with zero
 !
@@ -424,16 +416,33 @@
 !   Convert from Gaussian grid to spectral space
 !   including converting to model_uvtp if necessary
 !
-       if(me<num_pes_fcst) then
+      if(me<num_pes_fcst) then
 
-      call grid_to_spect_inp
-     &     (zsg,psg,uug,vvg,ttg,rqg,
-     &      GZE,GZO,QE,QO,DIE,DIO,ZEE,ZEO,TEE,TEO,RQE,RQO,
+        call grid_to_spect_inp
+     &     (zsg,psg,uug,vvg,ttg,rqg,dpg,
+     &      trie_ls,trio_ls,
      &      ls_node,ls_nodes,max_ls_nodes,
      &      lats_nodes_a,global_lats_a,lonsperlat,
-     &      epse,epso,SNNP1EV,SNNP1OD,
-     &      plnew_a,plnow_a,plnev_a,plnod_a,pwat,ptot,ptrc)    !glbsum
-
+     &      epse,epso,plnew_a,plnow_a,plnev_a,plnod_a,
+     &      pwat,ptot,ptrc)    !glbsum
+        do k=1,levs
+          trie_ls(:,:,p_zem+k-1) = trie_ls(:,:,p_w+k-1)
+          trie_ls(:,:,p_dim+k-1) = trie_ls(:,:,p_x+k-1)
+          trie_ls(:,:,p_tem+k-1) = trie_ls(:,:,p_y+k-1)
+          trie_ls(:,:,p_dpm+k-1) = trie_ls(:,:,p_dpn+k-1)
+          trio_ls(:,:,p_zem+k-1) = trio_ls(:,:,p_w+k-1)
+          trio_ls(:,:,p_dim+k-1) = trio_ls(:,:,p_x+k-1)
+          trio_ls(:,:,p_tem+k-1) = trio_ls(:,:,p_y+k-1)
+          trio_ls(:,:,p_dpm+k-1) = trio_ls(:,:,p_dpn+k-1)
+        enddo
+        trie_ls(:,:,p_qm) = trie_ls(:,:,p_zq)
+        trio_ls(:,:,p_qm) = trio_ls(:,:,p_zq)
+        if( .not. ndslfv ) then
+          do k=1,levh
+            trie_ls(:,:,p_rm+k-1) = trie_ls(:,:,p_rt+k-1)
+            trio_ls(:,:,p_rm+k-1) = trio_ls(:,:,p_rt+k-1)
+          enddo
+        endif
 !
       endif
 !

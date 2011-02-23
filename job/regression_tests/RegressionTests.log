@@ -1,4 +1,4 @@
-Fri Feb 18 08:06:57 EST 2011
+Tue Feb 22 14:32:35 EST 2011
 Start Regression test
 
 
@@ -29,7 +29,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  146.92  , test_glob timing:  151.55
+ Original timing:  146.92  , test_glob timing:  150.87
 
 
 Test 002
@@ -177,7 +177,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  235.58  , test_reg timing:  241.09
+ Original timing:  235.58  , test_reg timing:  240.77
 
 
 Test 009
@@ -458,7 +458,7 @@ Checking test 021 results ....
  Test 021 passed 
 Test 022
 Test GFS different decomposition and restart
-GFS, 60 proc, 1 thread
+GFS, 48 proc, 1 thread
 
 
 
@@ -571,8 +571,8 @@ Checking test 026 results ....
  Comparing flxf24.........OK
  Test 026 passed 
 Test 027
-Test GFS, 60 proc, 1 thread, no quilt
-GFS, 60 proc, 1 thread
+Test GFS, 48 proc, 1 thread, no quilt
+GFS, 48 proc, 1 thread
 
 
 
@@ -709,8 +709,8 @@ Checking test 032 results ....
  Comparing flxf24.........OK
  Test 032 passed 
 Test 033
-GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid
-GFS, 16 proc, 2 thread
+GFS, 32tasks, 2threads, quilt, dfi3hr, reduced grid, NDSL
+GFS, 32 proc, 2 thread
 
 
 
@@ -720,20 +720,17 @@ Checking test 033 results ....
  Comparing sigf06.........OK
  Comparing sigf12.........OK
  Comparing sigf24.........OK
- Comparing sigf48.........OK
  Comparing sfcf03.........OK
  Comparing sfcf06.........OK
  Comparing sfcf12.........OK
  Comparing sfcf24.........OK
- Comparing sfcf48.........OK
  Comparing flxf03.........OK
  Comparing flxf06.........OK
  Comparing flxf12.........OK
  Comparing flxf24.........OK
- Comparing flxf48.........OK
  Test 033 passed 
 Test 034
-GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid with nst
+GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid
 GFS, 16 proc, 2 thread
 
 
@@ -755,20 +752,44 @@ Checking test 034 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Comparing nstf03.........OK
- Comparing nstf06.........OK
- Comparing nstf12.........OK
- Comparing nstf24.........OK
- Comparing nstf48.........OK
  Test 034 passed 
 Test 035
-GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 1loop digital filter on reduced grid
+GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid with nst
 GFS, 16 proc, 2 thread
 
 
 
 
 Checking test 035 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
+ Comparing nstf03.........OK
+ Comparing nstf06.........OK
+ Comparing nstf12.........OK
+ Comparing nstf24.........OK
+ Comparing nstf48.........OK
+ Test 035 passed 
+Test 036
+GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 1loop digital filter on reduced grid
+GFS, 16 proc, 2 thread
+
+
+
+
+Checking test 036 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -787,15 +808,15 @@ Checking test 035 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 035 passed 
-Test 036
+ Test 036 passed 
+Test 037
 Concurrency GEFS, stochastic perturbations, 4 members, T190L28.
 GFS, 64 proc, 1 thread
 
 
 
 
-Checking test 036 results ....
+Checking test 037 results ....
  Comparing SIG.F06_01.........OK
  Comparing SIG.F06_02.........OK
  Comparing SIG.F06_03.........OK
@@ -844,22 +865,10 @@ Checking test 036 results ....
  Comparing FLX.F24_02.........OK
  Comparing FLX.F24_03.........OK
  Comparing FLX.F24_04.........OK
- Test 036 passed 
-Test 037
+ Test 037 passed 
+Test 038
 GEN, 1 members.
 GEN, 16 proc, 1 thread
-
-
-
-
-Checking test 037 results ....
- Test 037 passed 
-
-
-
-Test 038
-Concurrency GEN, 4 members.
-GEN, 64 proc, 1 thread
 
 
 
@@ -869,4 +878,16 @@ Checking test 038 results ....
 
 
 
-Fri Feb 18 13:08:33 EST 2011
+Test 039
+Concurrency GEN, 4 members.
+GEN, 64 proc, 1 thread
+
+
+
+
+Checking test 039 results ....
+ Test 039 passed 
+
+
+
+Tue Feb 22 19:16:06 EST 2011

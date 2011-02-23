@@ -1,22 +1,24 @@
-      subroutine four2fln(lslag,workdim,nvarsdim,nvars,four_gr,
+      subroutine four2fln(workdim,nvarsdim,nvars,four_gr,
      x                    ls_nodes,max_ls_nodes,
      x                    lats_nodes,global_lats,lon_dims,
      x                    lats_node,ipt_lats_node,dimg,
      x                    lat1s,londi,latl,latl2,
      x                    flnev,flnod,
-     x                    plnev,plnod,ls_node)
+     x                    plnev,plnod,ls_node,lev_skip)
 cc
+! program log:
+! 2011 02 20 : Henry Juang, add lev_skip to make sure zero out top spectral or not
+!
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
       use gfs_dyn_mpi_def
       implicit none
 cc
       integer              nvarsdim,latl2,latl
-      integer              nvars
+      integer              nvars,lev_skip
       integer              workdim
       integer              id,dimg,ilon,londi
       integer              lat1s(0:jcap)
-      logical              lslag
       integer              lats_node,ipt_lats_node
       integer              lon_dims(latgd)
 cc
@@ -95,17 +97,8 @@ cc
       call f_hpmstart(22,"1st_four2fln")
 cc
 !!
-      if (.not.lslag) then
-        ifin=lats_node
-        id=0
-      else
-        id=1
-        if (me.ne.nodes-1) then
-           ifin=lats_node
-        else
-           ifin=lats_node-jintmx
-        endif
-      endif
+      ifin=lats_node
+      id=0
 !!
       kpts   = 0
 !$omp parallel do private(node,L,lval,j,ilon,lat,nvar,ndisp)
@@ -113,11 +106,7 @@ cc
          do L=1,max_ls_nodes(node)
             lval=ls_nodes(L,node)+1
             do j=1,ifin
-               if (.not.lslag) then
-                 ilon=lon_dims(j)
-               else
-                 ilon=londi
-               endif
+               ilon=lon_dims(j)
                lat=global_lats(ipt_lats_node-1+j)
                if ( min(lat,latl-lat+1) .ge. lat1s(lval-1) ) then
                   kpts(node)=kpts(node)+1
@@ -145,13 +134,7 @@ cc
       do L=1,ls_max_node
          ilat   = 1
          do node=1,nodes
-!jw            if (node.ne.nodes.or..not.lslag) then
-            if (.not.lslag) then                                           !jwang
-               ifin=lats_nodes(node)
-            else
-               ifin=lats_nodes(node)-jintmx
-            endif
-cjfe        do j=1,lats_nodes_ext(node)
+            ifin=lats_nodes(node)
             do j=1,ifin
                lat=global_lats(ilat)
                ipt_ls=min(lat,latl-lat+1)
@@ -309,13 +292,13 @@ cc
 cc
             if (mod(L,2).eq.mod(jcap+1,2)) then
 cc             set the even (n-L) terms of the top row to zero
-               do k = max(nvar_1,2*levs+1), nvar_2
+               do k = max(nvar_1,lev_skip+1), nvar_2
                   flnev(indev2,1,k) = cons0     !constant
                   flnev(indev2,2,k) = cons0     !constant
                end do
             else
 cc             set the  odd (n-L) terms of the top row to zero
-               do k = max(nvar_1,2*levs+1), nvar_2
+               do k = max(nvar_1,lev_skip+1), nvar_2
                   flnod(indod2,1,k) = cons0     !constant
                   flnod(indod2,2,k) = cons0     !constant
                end do

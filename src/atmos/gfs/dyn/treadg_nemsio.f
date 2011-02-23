@@ -1,5 +1,5 @@
       SUBROUTINE TREADG_nemsio(gfilename,FHOUR,IDATE,
-     &                   zsg,psg,ttg,uug,vvg,rqg,
+     &                   zsg,psg,ttg,uug,vvg,rqg,dpg,
      &                   pdryini,IPRINT,
      &                   global_lats_a,lats_nodes_a,lonsperlat)
 !
@@ -7,6 +7,7 @@
 !*** program log
 !*** Dec, 2009 Jun Wang:  read grid point variables for restart
 !*** Dec, 2010 Jun Wang:  change to nemsio library 
+!*** Feb, 2011 Henry Juang: add dpg for mass_dp and ndsl
 !-------------------------------------------------------------------
 !
 !!
@@ -65,6 +66,7 @@
       real(kind=kind_grid) uug(lonf,lats_node_a,levs)
       real(kind=kind_grid) vvg(lonf,lats_node_a,levs)
       real(kind=kind_grid) ttg(lonf,lats_node_a,levs)
+      real(kind=kind_grid) dpg(lonf,lats_node_a,levs)
       real(kind=kind_grid) rqg(lonf,lats_node_a,levh)
 !
 !------------------------------------------------------------------
@@ -110,7 +112,7 @@
      &     jcap .ne. jcapi .or. levs .ne. levsi) then
           print *,' Input resolution and the model resolutions are'
      &,  ' different- run aborted'
-          call mpi_quit(777)
+          call mpi_quit(660)
         endif
       endif
 !
@@ -218,10 +220,11 @@
           if (me .eq. 0) print 250, k, si(k), sl(k)
 250       format('k=',i2,'  si=',f8.6,'  sl=',e13.5)
         enddo
+
       else
         print *,' Non compatible Initial state IDVC=',idvc
      &,' iret=',iret
-        call MPI_QUIT(333)
+        call MPI_QUIT(670)
       endif
 !
       idate(1)       = idate7(4)
@@ -301,6 +304,13 @@
         call nemsio_readrecv(gfile_in,'tmp','mid layer',k,nemsio_data,
      &    iret=iret)
         call split2d_rdGRD(nemsio_data,ttg(:,:,k),fieldsize,
+     &    global_lats_a,lonsperlat)
+      enddo
+!  Read dp  
+      do k=1,levs
+        call nemsio_readrecv(gfile_in,'dpres','mid layer',k,nemsio_data,
+     &    iret=iret)
+        call split2d_rdGRD(nemsio_data,dpg(:,:,k),fieldsize,
      &    global_lats_a,lonsperlat)
       enddo
 !

@@ -22,7 +22,11 @@
 !  Aug 19  2010 S. Moorthi       Updated for T574 + added num_reduce to namelist
 !  Aug 25  2010 sarah lu         add option to compute tracer global sum
 !  Sep 08  2010 J. Wang          changed gfsio file to nemsio file
+!  Nov 01  2010 H. Juang         add non-iteration dimensional-split
+!                                semi-Lagrangian dynamics (ndslfv)
+!                                with mass_dp, process_split options.
 !  Dec 16  2010 J. Wang          changed to nemsio library
+!  Feb 20  2011 H. Juang         implement into nems for mass_dp and ndsl
 !
 !
 ! !interface:
@@ -35,7 +39,7 @@
       use gfs_dyn_machine, only : kind_io4
       use nemsio_module , only : nemsio_init
 !
-      use gfs_dyn_mod_state, only : buff_mult_pieceg
+      use gfs_dyn_write_state, only : buff_mult_pieceg
       use gfs_dyn_layout1, only : ipt_lats_node_a, lats_node_a_max
       use gfs_dyn_resol_def, only : adiabatic
       use namelist_dynamics_def, only : fhrot,fhini,num_reduce
@@ -60,11 +64,7 @@
 
       integer 		:: j, l, n, ilat, locl, ikey, nrank_all
 !!
-      integer 		nf0, nf1
-      integer           indlsev,jbasev,indev
-      integer           indlsod,jbasod,indod
-!!
-      include 'function2'
+      integer           lineargg
 !!
 
 ! set up gfs internal state dimension and values for dynamics etc
@@ -180,6 +180,8 @@
       allocate(bkl(levs))
       allocate(amhyb(levs,levs))
       allocate(bmhyb(levs,levs))
+      allocate(smhyb(levs,levs))
+      allocate(hmhyb(levs,levs))
       allocate(svhyb(levs))
       allocate(tor_hyb(levs))
       allocate(d_hyb_m(levs,levs,jcap1))
@@ -190,28 +192,20 @@
       if (nemsio_in) then
         call nemsio_init(ierr)
       endif
-
-      allocate(lbasdz(4,2,levs),lbasiz(4,2,levs),detai(levp1), &
-               detam(levs),etamid(levs),etaint(levp1),         &
-               sinlamg(lonf,latg2),coslamg(lonf,latg2))
-!
-
-      allocate(tor_sig(levs), d_m(levs,levs,jcap1),            &
-         dm205(jcap1,levs,levs))
-         dm205=555555555.
-         d_m  =444444444.
-!
-
-!hmhj allocate(z(lnt2))        ! not used
-!hmhj allocate(z_r(lnt2))      ! not used
 !
       if (me == 0)                                                       &
       write(0,*)'before allocate lonsperlat,',allocated(gis_dyn%lonsperlat),'latg=',latg
       allocate(gis_dyn%lonsperlat(latg))
 
       if( reduced_grid ) then
-        if (me == 0) print *,' run with reduced gaussian grid '
-        call set_lonsgg(gis_dyn%lonsperlat,num_reduce,me)
+        if( linear_grid ) then
+          lineargg=2
+          if(me == 0) print *,' run with reduced linear grid '
+        else
+          lineargg=3
+          if(me == 0) print *,' run with reduced quardratic grid '
+        endif
+        call set_lonsgg(gis_dyn%lonsperlat,lineargg,me)
       else
         if (me == 0) print *,' run with full gaussian grid '
         do j=1,latg
@@ -219,155 +213,221 @@
         enddo
       endif
 !
-      p_gz   =         1     !      gze/o(lnte/od,2),
-      p_zem  = p_gz   +1     !     zeme/o(lnte/od,2,levs),
-      p_dim  = p_zem  +levs  !     dime/o(lnte/od,2,levs),
-      p_tem  = p_dim  +levs  !     teme/o(lnte/od,2,levs),
-      p_rm   = p_tem  +levs  !      rme/o(lnte/od,2,levh),
-      p_qm   = p_rm   +levh  !      qme/o(lnte/od,2),
+! spectral location
+        p_zem  =         1     !     zeme/o(lnte/od,2,levs),
+        p_dim  = p_zem  +levs  !     dime/o(lnte/od,2,levs),
+        p_tem  = p_dim  +levs  !     teme/o(lnte/od,2,levs),
+      if( .not. ndslfv ) then
+        p_rm   = p_tem  +levs  !      rme/o(lnte/od,2,levh),
+        p_dpm  = p_rm   +levh  !      qme/o(lnte/od,2),
+      else
+        p_dpm  = p_tem  +levs  !      rme/o(lnte/od,2,levh),
+      endif
+        p_qm   = p_dpm  +levs  !      qme/o(lnte/od,2),
 
-      p_ze   = p_qm   +1     !      zee/o(lnte/od,2,levs),
-      p_di   = p_ze   +levs  !      die/o(lnte/od,2,levs),
-      p_te   = p_di   +levs  !      tee/o(lnte/od,2,levs),
-      p_rq   = p_te   +levs  !      rqe/o(lnte/od,2,levh),
-      p_q    = p_rq   +levh  !       qe/o(lnte/od,2),
-      p_dlam = p_q    +1     !  dpdlame/o(lnte/od,2),
-      p_dphi = p_dlam +1     !  dpdphie/o(lnte/od,2),
-      p_uln  = p_dphi +1     !     ulne/o(lnte/od,2,levs),
-      p_vln  = p_uln  +levs  !     vlne/o(lnte/od,2,levs),
-      p_zslam= p_vln  +levs  !    zslam/o(lnte/od,2),
-      p_zsphi= p_zslam+1     !    zsphi/o(lnte/od,2),
+        p_ze   = p_qm   +1     !      zee/o(lnte/od,2,levs),
+        p_di   = p_ze   +levs  !      die/o(lnte/od,2,levs),
+        p_te   = p_di   +levs  !      tee/o(lnte/od,2,levs),
+      if( .not. ndslfv ) then
+        p_rq   = p_te   +levs  !      rqe/o(lnte/od,2,levh),
+        p_dp   = p_rq   +levh  !       qe/o(lnte/od,2),
+      else
+        p_dp   = p_te   +levs  !      rqe/o(lnte/od,2,levh),
+      endif
+        p_q    = p_dp   +levs  !       qe/o(lnte/od,2),
+        p_dlam = p_q    +1     !  dpdlame/o(lnte/od,2),
+        p_dphi = p_dlam +1     !  dpdphie/o(lnte/od,2),
+        p_uln  = p_dphi +1     !     ulne/o(lnte/od,2,levs),
+        p_vln  = p_uln  +levs  !     vlne/o(lnte/od,2,levs),
+        p_zslam= p_vln  +levs  !    zslam/o(lnte/od,2),
+        p_zsphi= p_zslam+1     !    zsphi/o(lnte/od,2),
                                                                                 
-      p_w    = p_zsphi+1     !       we/o(lnte/od,2,levs),
-      p_x    = p_w    +levs  !       xe/o(lnte/od,2,levs),
-      p_y    = p_x    +levs  !       ye/o(lnte/od,2,levs),
-      p_rt   = p_y    +levs  !      rte/o(lnte/od,2,levh),
-      p_zq   = p_rt   +levh  !      zqe/o(lnte/od,2),
+        p_zz   = p_zsphi+1
+        p_dpphi= p_zz   +levs
+        p_zzphi= p_dpphi+levs
+        p_dplam= p_zzphi+levs
+        p_zzlam= p_dplam+levs
 
-      lotls  = p_zq 
+        p_w    = p_zzlam+levs  !       we/o(lnte/od,2,levs),
+        p_x    = p_w    +levs  !       xe/o(lnte/od,2,levs),
+        p_y    = p_x    +levs  !       ye/o(lnte/od,2,levs),
+      if( .not. ndslfv ) then
+        p_rt   = p_y    +levs  !      rte/o(lnte/od,2,levh),
+        p_dpn  = p_rt   +levh  !      dpe/o(lnte/od,2,levs),
+      else
+        p_dpn  = p_y    +levs  !      rte/o(lnte/od,2,levh),
+      endif
+        p_zq   = p_dpn  +levs  !      zqe/o(lnte/od,2),
+        p_gz   = p_zq   +1     !      gze/o(lnte/od,2),
+
+      lotls  = p_gz
 
       g_gz   = 1
-      g_uum  = g_gz  + 1	!  for grid point 
-      g_vvm  = g_uum + levs	!  for grid point 
-      g_ttm  = g_vvm + levs	!  for grid point 
-      g_rm   = g_ttm + levs	!  for grid point 
-      g_qm   = g_rm  + levh	!  for grid point 
+      g_uum  = g_gz  + 1        !  for grid point
+      g_vvm  = g_uum + levs     !  for grid point
+      g_ttm  = g_vvm + levs     !  for grid point
+      g_rm   = g_ttm + levs     !  for grid point
+      g_dpm  = g_rm  + levh     !  for grid point
+      g_qm   = g_dpm + levs     !  for grid point
 
-      g_uu   = g_qm  + 1	!  for grid point 
-      g_vv   = g_uu  + levs	!  for grid point 
-      g_tt   = g_vv  + levs	!  for grid point 
-      g_rq   = g_tt  + levs	!  for grid point 
-      g_q    = g_rq  + levh	!  for grid point 
+      g_uu   = g_qm  + 1        !  for grid point
+      g_vv   = g_uu  + levs     !  for grid point
+      g_tt   = g_vv  + levs     !  for grid point
+      g_rq   = g_tt  + levs     !  for grid point
+      g_dp   = g_rq  + levh     !  for grid point
+      g_q    = g_dp  + levs     !  for grid point
 
-      g_u    = g_q   + 1	!  for grid point 
-      g_v    = g_u   + levs	!  for grid point 
-      g_t    = g_v   + levs	!  for grid point 
-      g_rt   = g_t   + levs	!  for grid point 
-      g_zq   = g_rt  + levh	!  for grid point 
+      g_u    = g_q   + 1        !  for grid point
+      g_v    = g_u   + levs     !  for grid point
+      g_t    = g_v   + levs     !  for grid point
+      g_rt   = g_t   + levs     !  for grid point
+      g_dpn  = g_rt  + levh     !  for grid point
+      g_zq   = g_dpn + levs     !  for grid point
 
       g_p    = g_zq  + 1   	!  for grid point 
-      g_dp   = g_p   + levs   	!  for grid point 
-      g_dpdt = g_dp  + levs   	!  for grid point 
+      g_dpdt = g_p   + levs   	!  for grid point 
+      g_zz   = g_dpdt+ levs     !  for grid point
 
-      lotgr  = g_dpdt+ levs - 1
+      g_uup   = g_zz  + levs    !  for grid point
+      g_vvp   = g_uup + levs    !  for grid point
+      g_ttp   = g_vvp + levs    !  for grid point
+      g_rqp   = g_ttp + levs    !  for grid point
+      g_dpp   = g_rqp + levh    !  for grid point
+      g_zqp   = g_dpp + levs    !  for grid point
+
+      lotgr  = g_zqp
+      lotgr6 = 4*levs+1*levh+1
 !c
-      lots = 5*levs+1*levh+5 
-      lotd = 6*levs+2*levh+0 
-      lota = 3*levs+1*levh+1 
-      lotm = 3*levs+1*levh+1 
+      if( .not. ndslfv ) then
+        lots = 6*levs+1*levh+5
+        lotd = 6*levs+2*levh+0
+        lota = 5*levs+1*levh+2
+      else
+        lots = 6*levs+5
+        lotd = 6*levs
+        lota = 5*levs+2
+      endif
+      lotp = 4*levs
 !
-      kwq  = 0*levs+0*levh+1   !   qe/o_ls
-      kwte = 0*levs+0*levh+2   !  tee/o_ls
-      kwdz = 1*levs+0*levh+2   !  die/o_ls  zee/o_ls
-      kwrq = 3*levs+0*levh+2   !  rqe/o_ls
+        ksz     =1
+        ksd     =ksz+levs
+        kst     =ksd+levs
+      if( .not. ndslfv ) then
+        ksr     =kst+levs
+        ksdp    =ksr+levh
+      else
+        ksdp    =kst+levs
+      endif
+        ksq     =ksdp+levs
+        ksplam  =ksq+1
+        kspphi  =ksplam+1
+        ksu     =kspphi+1
+        ksv     =ksu+levs
+        kzslam  =ksv+levs
+        kzsphi  =kzslam+1
 !
-      ksz     =1
-      ksd     =ksz+levs
-      kst     =ksd+levs
-      ksr     =kst+levs
-      ksq     =ksr+levh
-      ksplam  =ksq+1
-      kspphi  =ksplam+1
-      ksu     =kspphi+1
-      ksv     =ksu+levs
-      kzslam  =ksv+levs
-      kzsphi  =kzslam+1
+        kau     =1
+        kav     =kau+levs
+        kat     =kav+levs
+      if( .not. ndslfv ) then
+        kar     =kat+levs
+        kadp    =kar+levh
+      else
+        kadp    =kat+levs
+      endif
+        kaps    =kadp+levs
+        kazs    =kaps+1
+        kap2    =kazs+1
 !
-      ksum    =1
-      ksvm    =ksum+levs
-      kstm    =ksvm+levs
-      ksrm    =kstm+levs
-      kspsm   =ksrm+levh
+      kdpphi  =1
+      kzzphi  =kdpphi+levs
+      kdplam  =kzzphi+levs
+      kzzlam  =kdplam+levs
 !
-      kau     =1
-      kav     =kau+levs
-      kat     =kav+levs
-      kar     =kat+levs
-      kaps    =kar+levh
-      kazs    =kaps+1
+        kdtphi  =1
+      if( .not. ndslfv ) then
+        kdrphi  =kdtphi+levs
+        kdtlam  =kdrphi+levh
+        kdrlam  =kdtlam+levs
+        kdulam  =kdrlam+levh
+      else
+        kdtlam  =kdtphi+levs
+        kdulam  =kdtlam+levs
+      endif
+        kdvlam  =kdulam+levs
+        kduphi  =kdvlam+levs
+        kdvphi  =kduphi+levs
 !
-      kdtphi  =1
-      kdrphi  =kdtphi+levs
-      kdtlam  =kdrphi+levh
-      kdrlam  =kdtlam+levs
-      kdulam  =kdrlam+levh
-      kdvlam  =kdulam+levs
-      kduphi  =kdvlam+levs
-      kdvphi  =kduphi+levs
+! point to internal state
+        gis_dyn%p_zem   = p_zem            !     zeme/o(lnte/od,2,levs),
+        gis_dyn%p_dim   = p_dim            !     dime/o(lnte/od,2,levs),
+        gis_dyn%p_tem   = p_tem            !     teme/o(lnte/od,2,levs),
+      if( .not. ndslfv ) then
+        gis_dyn%p_rm    = p_rm             !      rme/o(lnte/od,2,levh),
+      endif
+        gis_dyn%p_dpm   = p_dpm            !     dpme/o(lnte/od,2),
+        gis_dyn%p_qm    = p_qm             !      qme/o(lnte/od,2),
+        gis_dyn%p_zslam = p_zslam          ! hmhj
+        gis_dyn%p_zsphi = p_zsphi          ! hmhj
+        gis_dyn%p_ze    = p_ze             !      zee/o(lnte/od,2,levs),
+        gis_dyn%p_di    = p_di             !      die/o(lnte/od,2,levs),
+        gis_dyn%p_te    = p_te             !      tee/o(lnte/od,2,levs),
+      if( .not. ndslfv ) then
+        gis_dyn%p_rq    = p_rq             !      rqe/o(lnte/od,2,levh),
+      endif
+        gis_dyn%p_dp    = p_dp             !      dpe/o(lnte/od,2),
+        gis_dyn%p_q     = p_q              !       qe/o(lnte/od,2),
+        gis_dyn%p_dlam  = p_dlam           !  dpdlame/o(lnte/od,2),
+        gis_dyn%p_dphi  = p_dphi           !  dpdphie/o(lnte/od,2),
+        gis_dyn%p_uln   = p_uln            !     ulne/o(lnte/od,2,levs),
+        gis_dyn%p_vln   = p_vln            !     vlne/o(lnte/od,2,levs),
+        gis_dyn%p_w     = p_w              !       we/o(lnte/od,2,levs),
+        gis_dyn%p_x     = p_x              !       xe/o(lnte/od,2,levs),
+        gis_dyn%p_y     = p_y              !       ye/o(lnte/od,2,levs),
+      if( .not. ndslfv ) then
+        gis_dyn%p_rt    = p_rt             !      rte/o(lnte/od,2,levh),
+      endif
+        gis_dyn%p_dpn   = p_dpn            !     dpne/o(lnte/od,2)
+        gis_dyn%p_zq    = p_zq             !      zqe/o(lnte/od,2)
+        gis_dyn%p_gz    = p_gz             !      gze/o(lnte/od,2),
 !
-      gis_dyn%p_gz    = p_gz             !      gze/o(lnte/od,2),
-      gis_dyn%p_zem   = p_zem            !     zeme/o(lnte/od,2,levs),
-      gis_dyn%p_dim   = p_dim            !     dime/o(lnte/od,2,levs),
-      gis_dyn%p_tem   = p_tem            !     teme/o(lnte/od,2,levs),
-      gis_dyn%p_rm    = p_rm             !      rme/o(lnte/od,2,levh),
-      gis_dyn%p_qm    = p_qm             !      qme/o(lnte/od,2),
-      gis_dyn%p_zslam = p_zslam          ! hmhj
-      gis_dyn%p_zsphi = p_zsphi          ! hmhj
-      gis_dyn%p_ze    = p_ze             !      zee/o(lnte/od,2,levs),
-      gis_dyn%p_di    = p_di             !      die/o(lnte/od,2,levs),
-      gis_dyn%p_te    = p_te             !      tee/o(lnte/od,2,levs),
-      gis_dyn%p_rq    = p_rq             !      rqe/o(lnte/od,2,levh),
-      gis_dyn%p_q     = p_q              !       qe/o(lnte/od,2),
-      gis_dyn%p_dlam  = p_dlam           !  dpdlame/o(lnte/od,2),
-      gis_dyn%p_dphi  = p_dphi           !  dpdphie/o(lnte/od,2),
-      gis_dyn%p_uln   = p_uln            !     ulne/o(lnte/od,2,levs),
-      gis_dyn%p_vln   = p_vln            !     vlne/o(lnte/od,2,levs),
-      gis_dyn%p_w     = p_w              !       we/o(lnte/od,2,levs),
-      gis_dyn%p_x     = p_x              !       xe/o(lnte/od,2,levs),
-      gis_dyn%p_y     = p_y              !       ye/o(lnte/od,2,levs),
-      gis_dyn%p_rt    = p_rt             !      rte/o(lnte/od,2,levh),
-      gis_dyn%p_zq    = p_zq             !      zqe/o(lnte/od,2)
-!
-      gis_dyn%g_gz    = g_gz             !      gze/o(lnte/od,2),
-      gis_dyn%g_uum   = g_uum            !     uume/o(lnte/od,2,levs),
-      gis_dyn%g_vvm   = g_vvm            !     vvme/o(lnte/od,2,levs),
-      gis_dyn%g_ttm   = g_ttm            !     teme/o(lnte/od,2,levs),
-      gis_dyn%g_rm    = g_rm             !      rme/o(lnte/od,2,levh),
-      gis_dyn%g_qm    = g_qm             !      qme/o(lnte/od,2),
-      gis_dyn%g_uu    = g_uu             !      uue/o(lnte/od,2,levs),
-      gis_dyn%g_vv    = g_vv             !      vve/o(lnte/od,2,levs),
-      gis_dyn%g_tt    = g_tt             !      tee/o(lnte/od,2,levs),
-      gis_dyn%g_rq    = g_rq             !      rqe/o(lnte/od,2,levh),
-      gis_dyn%g_q     = g_q              !       qe/o(lnte/od,2),
-      gis_dyn%g_u     = g_u              !       ue/o(lnte/od,2,levs),
-      gis_dyn%g_v     = g_v              !       ve/o(lnte/od,2,levs),
-      gis_dyn%g_t     = g_t              !       ye/o(lnte/od,2,levs),
-      gis_dyn%g_rt    = g_rt             !      rte/o(lnte/od,2,levh),
-      gis_dyn%g_zq    = g_zq             !      zqe/o(lnte/od,2)
-      gis_dyn%g_p     = g_p              !        p/o(lnte/od,2)
-      gis_dyn%g_dp    = g_dp             !       dp/o(lnte/od,2)
-      gis_dyn%g_dpdt  = g_dpdt           !     dpdt/o(lnte/od,2)
+      gis_dyn%g_gz    = g_gz
+      gis_dyn%g_uum   = g_uum
+      gis_dyn%g_vvm   = g_vvm
+      gis_dyn%g_ttm   = g_ttm
+      gis_dyn%g_rm    = g_rm
+      gis_dyn%g_dpm   = g_dpm
+      gis_dyn%g_qm    = g_qm
+      gis_dyn%g_uu    = g_uu
+      gis_dyn%g_vv    = g_vv
+      gis_dyn%g_tt    = g_tt
+      gis_dyn%g_rq    = g_rq
+      gis_dyn%g_dp    = g_dp
+      gis_dyn%g_q     = g_q
+      gis_dyn%g_u     = g_u
+      gis_dyn%g_v     = g_v
+      gis_dyn%g_t     = g_t
+      gis_dyn%g_rt    = g_rt
+      gis_dyn%g_dpn   = g_dpn
+      gis_dyn%g_zq    = g_zq
+      gis_dyn%g_p     = g_p
+      gis_dyn%g_dpdt  = g_dpdt
+      gis_dyn%g_zz    = g_zz
+      gis_dyn%g_uup   = g_uup
+      gis_dyn%g_vvp   = g_vvp
+      gis_dyn%g_ttp   = g_ttp
+      gis_dyn%g_rqp    = g_rqp
+      gis_dyn%g_dpp    = g_dpp
+      gis_dyn%g_zqp    = g_zqp
 !
       gis_dyn%lotls = lotls
       gis_dyn%lotgr = lotgr
       gis_dyn%lots = lots 
       gis_dyn%lotd = lotd
       gis_dyn%lota = lota
-      gis_dyn%lotm = lotm
+      gis_dyn%lotp = lotp
 !
       allocate(gis_dyn%tee1(levs))
-
-      gis_dyn%lslag=.false.  ! if false eulerian scheme =.true. for semilag
 
 !     print *,' finish dimension in gfs_dynamics_initialize '
 
@@ -506,26 +566,25 @@
       call countperf(0,18,0.)
 !!
       call countperf(0,15,0.)
-      allocate (      gis_dyn%trie_ls(len_trie_ls,2,lotls) )
-      allocate (      gis_dyn%trio_ls(len_trio_ls,2,lotls) )
-      allocate (      gis_dyn%grid_gr (lonf,lats_node_a_max,lotgr    ) )
-      allocate (      gis_dyn%grid_gr6(lonf,lats_node_a_max,lota * 2 ) )
-      allocate (      gis_dyn%pwat    (lonf,lats_node_a) )
-      allocate (      gis_dyn%ptot    (lonf,lats_node_a) )
-      allocate (      gis_dyn%ptrc   (lonf,lats_node_a,ntrac) )         !glbsum
+      allocate (   gis_dyn%trie_ls (len_trie_ls,2,lotls) )
+      allocate (   gis_dyn%trio_ls (len_trio_ls,2,lotls) )
+      allocate (   gis_dyn%grid_gr (lonf,lats_node_a_max,lotgr    ) )
+      allocate (   gis_dyn%grid_gr6(lonf,lats_node_a_max,lotgr6*2 ) )
+      allocate (   gis_dyn%pwat    (lonf,lats_node_a) )
+      allocate (   gis_dyn%ptot    (lonf,lats_node_a) )
+      allocate (   gis_dyn%ptrc    (lonf,lats_node_a,ntrac) )         !glbsum
 !c
-      allocate (     gis_dyn%syn_ls_a(4*ls_dim,gis_dyn%lots,latg2) )
-      allocate (     gis_dyn%dyn_ls_a(4*ls_dim,gis_dyn%lotd,latg2) )
+      allocate (   gis_dyn%syn_ls_a(4*ls_dim,gis_dyn%lots,latg2) )
+      allocate (   gis_dyn%dyn_ls_a(4*ls_dim,gis_dyn%lotd,latg2) )
 !c
       allocate (   gis_dyn%syn_gr_a_1(lonfx*gis_dyn%lots,lats_dim_ext) )
       allocate (   gis_dyn%syn_gr_a_2(lonfx*gis_dyn%lots,lats_dim_ext) )
-      allocate (   gis_dyn%sym_gr_a_2(lonfx*gis_dyn%lotm,lats_dim_ext) )
+      allocate (   gis_dyn%pyn_gr_a_1(lonfx*gis_dyn%lotp,lats_dim_ext) )
+      allocate (   gis_dyn%pyn_gr_a_2(lonfx*gis_dyn%lotp,lats_dim_ext) )
       allocate (   gis_dyn%dyn_gr_a_1(lonfx*gis_dyn%lotd,lats_dim_ext) )
       allocate (   gis_dyn%dyn_gr_a_2(lonfx*gis_dyn%lotd,lats_dim_ext) )
       allocate (   gis_dyn%anl_gr_a_1(lonfx*gis_dyn%lota,lats_dim_ext) )
       allocate (   gis_dyn%anl_gr_a_2(lonfx*gis_dyn%lota,lats_dim_ext) )
-!      write(0,*)'after allocate lonf=',lonf,'lats_node_a_max=',lats_node_a_max, &
-!       'ngrids_gg=',ngrids_gg
 !!
 !** allocate digital filter vars
       gis_dyn%grid_gr_dfi%z_imp=0;gis_dyn%grid_gr_dfi%ps_imp=0
@@ -593,11 +652,7 @@
       gis_dyn%pwat     = 0.0
       gis_dyn%ptrc     = 0.0                            !glbsum
 
-      if (gis_dyn%lslag) then
-        ilat=lats_node_ext
-      else
         ilat=lats_node_a
-      endif
       call countperf(1,15,0.)
 !!
 !c......................................................................
@@ -624,11 +679,10 @@
         call input_fields(gis_dyn%nam_gfs_dyn%grid_ini, gis_dyn%pdryini,     &
           gis_dyn%trie_ls, gis_dyn%trio_ls,  gis_dyn%grid_gr ,               &
           gis_dyn%ls_node, gis_dyn%ls_nodes, gis_dyn%max_ls_nodes,           &
-          gis_dyn%snnp1ev, gis_dyn%snnp1od,                                  &
           gis_dyn%global_lats_a, gis_dyn%lonsperlat,                         &
           gis_dyn%epse, gis_dyn%epso, gis_dyn%plnev_a, gis_dyn%plnod_a,      &
           gis_dyn%plnew_a, gis_dyn%plnow_a, gis_dyn%lats_nodes_a,           &
-          gis_dyn%pwat, gis_dyn%ptot, gis_dyn%ptrc)                     !glbsum
+          gis_dyn%pwat, gis_dyn%ptot, gis_dyn%ptrc)
 !
           gis_dyn% start_step  = .true.
           gis_dyn% reset_step  = .false.
@@ -642,7 +696,6 @@
           gis_dyn%nam_gfs_dyn%sig_ini2, gis_dyn%pdryini,                     &
           gis_dyn%trie_ls, gis_dyn%trio_ls,  gis_dyn%grid_gr ,               &
           gis_dyn%ls_node, gis_dyn%ls_nodes, gis_dyn%max_ls_nodes,           &
-          gis_dyn%snnp1ev, gis_dyn%snnp1od,                                  &
           gis_dyn%global_lats_a,  gis_dyn%lonsperlat,       &
           gis_dyn%epse, gis_dyn%epso, gis_dyn%plnev_a, gis_dyn%plnod_a,      &
           gis_dyn%plnew_a, gis_dyn%plnow_a, gis_dyn%lats_nodes_a)
@@ -663,12 +716,22 @@
        call amhmtm(del,sv,am)
        call bmdi_sig(ci,bm)
       endif
+      if( ndslfv ) then
+      call deldifs_noq                                                  &
+                  (gis_dyn%epse,gis_dyn%epse,gis_dyn%epse,              &
+                   gis_dyn%epse,gis_dyn%epse,gis_dyn%epse,              &
+                   gis_dyn%epso,gis_dyn%epso,                           &
+                   gis_dyn%epso,gis_dyn%epso,                           &
+                   gis_dyn%cons0,sl,gis_dyn%ls_node,gis_dyn%epse,       &
+                   0,hybrid,gen_coord_hybrid)
+      else
       call deldifs(gis_dyn%epse,gis_dyn%epse,gis_dyn%epse,		&
                    gis_dyn%epse,gis_dyn%epse,gis_dyn%epse,      	&
                    gis_dyn%epso,gis_dyn%epso,gis_dyn%epso,		&
                    gis_dyn%epso,gis_dyn%epso,gis_dyn%epso,      	& 
                    gis_dyn%cons0,sl,gis_dyn%ls_node,gis_dyn%epse,	&
-                   0,hybrid,gen_coord_hybrid,nislfv)  
+                   0,hybrid,gen_coord_hybrid)  
+      endif
  
 !c
       call f_hpmstart(26,"step1")
@@ -683,11 +746,11 @@
 !
 ! =========================================================================
 !
-      subroutine set_lonsgg(lonsperlat,num_reduce,me)
+      subroutine set_lonsgg(lonsperlat,lineargg,me)
 !     use gfs_dyn_resol_def
       use gfs_dyn_reduce_lons_grid_module, only : gfs_dyn_reduce_grid   ! hmhj
-      integer num_reduce, me                                            ! hmhj
-      integer lonsperlat(latg)
+      integer lonsperlat(latg),lineargg,me
+      integer num, lgg                                            ! hmhj
 
       integer lonsperlat_62(94)
       integer lonsperlat_126(190)
@@ -888,7 +951,6 @@
          440*0/
  
       integer i
-      if (num_reduce < 0) then
         if (jcap == 62) then
            lonsperlat = lonsperlat_62
         endif
@@ -913,20 +975,24 @@
         if (jcap == 574) then
            lonsperlat = lonsperlat_574
         endif
-      endif
 
-      if (jcap .ne. 62 .and. jcap .ne. 126 .and. jcap .ne. 170 .and.   &
-          jcap .ne. 190 .and. jcap .ne. 574 .and.                        &
-          jcap .ne. 254 .and. jcap .ne. 382 .and. jcap .ne. 510) then
 ! compute reduced grid using juang 2003
-         if ( me == 0 ) then
-           print*,' non standard resolution  - lonsperlat',              &
-                  ' computed locally'
-         endif
-         call gfs_dyn_reduce_grid (abs(num_reduce),jcap,latg,lonsperlat)
-         if ( me == 0 ) then
-           print*,' Reduced grid is computed - lonsperlat '             ! hmhj
-         endif
+      if ( lineargg.eq.2 ) then
+
+         num=4
+         lgg=2
+         call gfs_dyn_reduce_grid (num,jcap,latg,lonsperlat,lgg)
+         if ( me == 0 ) print*,' Reduced linear grid is computed.'
+
+      elseif (jcap .ne.  62 .and. jcap .ne. 126 .and.                     &
+              jcap .ne. 170 .and. jcap .ne. 190 .and.                     &
+              jcap .ne. 574 .and. jcap .ne. 254 .and.                     &
+              jcap .ne. 382 .and. jcap .ne. 510) then
+         num=4
+         lgg=3
+         call gfs_dyn_reduce_grid (num,jcap,latg,lonsperlat,lgg)
+         if ( me == 0 ) print*,' Reduced quardratic grid is computed.'
+
       endif
 
       if ( me == 0 ) then

@@ -57,6 +57,7 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_SFCPRESSID_:${SFCPRESS_ID}:g \
                     | sed s:_THERMODYNID_:${THERMODYN_ID}:g \
                     | sed s:_IDVC_:${IDVC}:g \
+                    | sed s:_NDSLFV_:${NDSLFV}:g \
                     | sed s:_SPECTRALLOOP_:${SPECTRALLOOP}:g \
                     | sed s:_NDAYS_:${NDAYS}:g   >  gfs_fcst_run
 

@@ -10,10 +10,9 @@
      &                 PLNEV_A,PLNOD_A,PDDEV_A,PDDOD_A,
      &                 PLNEW_A,PLNOW_A,
      &                 SYN_LS_A,DYN_LS_A,
-     &                 SYN_GR_A_1,DYN_GR_A_1,ANL_GR_A_1,
-     &                 SYM_GR_A_2,
-     &                 SYN_GR_A_2,DYN_GR_A_2,ANL_GR_A_2,
-     &                 LSLAG,pwat,ptot,ptrc,
+     &                 SYN_GR_A_1,PYN_GR_A_1,DYN_GR_A_1,ANL_GR_A_1,
+     &                 SYN_GR_A_2,PYN_GR_A_2,DYN_GR_A_2,ANL_GR_A_2,
+     &                 pwat,ptot,ptrc,
      &                 pdryini,nblck,ZHOUR,N1,N4,
      &                 LSOUT,ldfi,COLAT1,CFHOUR1,
      &                 start_step,restart_step,reset_step,end_step,
@@ -24,12 +23,15 @@ cc
 ! March 2009, Weiyu Yang modified for GEFS run.
 ! Aug 2010    Sarah Lu modified to compute tracer global sum
 ! Feb 2011    S Moorthi rearranged glbsu
+! February 2010: Hann-Ming Henry Juang add non-iteration dimensional-split
+!                Semi-Lagrangain (NDSL).
 !----------------------------------------------
 
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
       use gfs_dyn_gg_def
       use gfs_dyn_vert_def
+      use gfs_dyn_coordinate_def
       use gfs_dyn_date_def
       use namelist_dynamics_def
       use gfs_dyn_mpi_def
@@ -53,7 +55,7 @@ cc
       REAL(KIND=KIND_EVOD) TRIE_LS(LEN_TRIE_LS,2,LOTls)
       REAL(KIND=KIND_EVOD) TRIO_LS(LEN_TRIO_LS,2,LOTls)
       REAL(KIND=KIND_EVOD) GRID_GR (lonf*lats_node_a_max,lotgr    )
-      REAL(KIND=KIND_EVOD) GRID_GR6(lonf*lats_node_a_max,lota * 2 )
+      REAL(KIND=KIND_EVOD) GRID_GR6(lonf*lats_node_a_max,lotgr6 * 2 )
 !
       integer          ls_node(ls_dim,3)
 !
@@ -86,14 +88,18 @@ cc
       REAL(KIND=KIND_EVOD) DYN_LS_A(4*LS_DIM,LOTD,LATG2)
 
       REAL(KIND=KIND_EVOD) SYN_GR_A_1(LONFX*LOTS,LATS_DIM_EXT)
+      REAL(KIND=KIND_EVOD) PYN_GR_A_1(LONFX*LOTP,LATS_DIM_EXT)
       REAL(KIND=KIND_EVOD) DYN_GR_A_1(LONFX*LOTD,LATS_DIM_EXT)
       REAL(KIND=KIND_EVOD) ANL_GR_A_1(LONFX*LOTA,LATS_DIM_EXT)
 
-      REAL(KIND=KIND_EVOD) SYM_GR_A_2(LONFX*LOTM,LATS_DIM_EXT)
+      REAL(KIND=KIND_EVOD) SYN_GR_syq(LONFX*levh,LATS_DIM_EXT)
 
       REAL(KIND=KIND_EVOD) SYN_GR_A_2(LONFX*LOTS,LATS_DIM_EXT)
+      REAL(KIND=KIND_EVOD) PYN_GR_A_2(LONFX*LOTP,LATS_DIM_EXT)
       REAL(KIND=KIND_EVOD) DYN_GR_A_2(LONFX*LOTD,LATS_DIM_EXT)
       REAL(KIND=KIND_EVOD) ANL_GR_A_2(LONFX*LOTA,LATS_DIM_EXT)
+
+      real(kind=kind_evod) pdot(lonf,levs+1,lats_dim_ext)
 !
       INTEGER LEV,LEVMAX
       real (kind=kind_grid) pdryini,pcorr
@@ -118,11 +124,10 @@ cc
       INTEGER               INDLSOD,JBASOD
       integer               lan,lat
       integer               lon_dim,lons_lat,node,nvcn
-      integer               iblk,njeff,lon
+      integer               iblk,njeff,lon,stp
       integer , parameter :: ngptcd = 12
-      logical , parameter :: repro = .false.
       include 'function2'
-      LOGICAL               LSLAG,LSOUT,ex_out
+      LOGICAL               LSOUT,ex_out
       LOGICAL               start_step,reset_step,end_step,dfiend_step
       LOGICAL               restart_step
 
@@ -147,6 +152,7 @@ cc
       real(kind=kind_mpi) spdmax_nodem (levs)
       real(kind=kind_evod) spdmax_nodes(levs,nodes)
       real(kind=kind_mpi) spdmax_nodesm(levs,nodes)
+      real(kind=kind_mpi) thref_mpi (levs)
 !
 !
 ! timings
@@ -167,8 +173,7 @@ cc
       filtb = (cons1-filta)*cons0p5          !constant
 
       if (me<num_pes_fcst) then                                         
-
-      if(zfirst) then
+      if( zfirst .and. .not.ndslfv ) then
         allocate (szdrdt(lonfx*levh,lats_dim_a))
         szdrdt=0.
       endif
@@ -197,10 +202,26 @@ cc
         dt2  = cons2*dt
         rdt2 = 1./dt2
 
-        if(hybrid)then
+! prepare temp profile for semi_implicit matrix if need
+        if ( semi_implicit_temp_profile ) then
+          if (me.eq.me_l_0) then
+            do k=1,levs
+              n=p_te+k-1
+              thref_mpi(k)=trie_ls(1,1,n)/sqrt(2.)
+            enddo
+!           print *,' thref from te is ',(thref_mpi(k),k=1,levs)
+          endif
+          call mpi_bcast(thref_mpi,levs,MPI_R_MPI,me_l_0,MC_COMP,ierr)
+        endif
+
+        if( gen_coord_hybrid ) then
+          if( mass_dp ) then
+            call get_cd_hyb_gcdp(dt)
+          else
+            call get_cd_hyb_gc(dt)
+          endif
+        else if( hybrid ) then
           call get_cd_hyb(dt)
-        else if( gen_coord_hybrid ) then
-          call get_cd_hyb_gc(dt)
         else
           call get_cd_sig(am,bm,dt,tov,sv)
         endif
@@ -223,7 +244,7 @@ cc
 
 !        print *,'in dyn one step,reset ps=',maxval(grid_gr(:,g_q)), 
 !     &   minval(grid_gr(:,g_q)),'u=',maxval(grid_gr(:,g_uu)),
-!     &    minval(grid_gr(:,g_uu)),'v=',maxval(grid_gr(:,g_vv)),
+!     &   minval(grid_gr(:,g_uu)),'v=',maxval(grid_gr(:,g_vv)),
 !     &   minval(grid_gr(:,g_vv)),'t=',maxval(grid_gr(:,g_tt)),
 !     &   minval(grid_gr(:,g_tt)),'rq=',maxval(grid_gr(:,g_rq)),
 !     &   minval(grid_gr(:,g_rq)),'psg=',maxval(grid_gr(:,g_zq)), 
@@ -235,17 +256,25 @@ cc
         dt2  = cons2*dt
         rdt2 = 1./dt2
 
-        if(hybrid)then
+        if( gen_coord_hybrid ) then
+          if( mass_dp ) then
+            call get_cd_hyb_gcdp(dt)
+          else
+            call get_cd_hyb_gc(dt)
+          endif
+        else if( hybrid ) then
           call get_cd_hyb(dt)
-        else if( gen_coord_hybrid ) then
-          call get_cd_hyb_gc(dt)
         else
           call get_cd_sig(am,bm,dt,tov,sv)
         endif
+
+! after digital filter, all updated in n
+
         call do_dynamics_gridn2anl(grid_gr,anl_gr_a_2,
      &                             global_lats_a,lonsperlat)
-        call griD_to_spect(trie_ls,trio_ls,
-     &       anl_gr_a_1,anl_gr_a_2,
+
+        call grid_to_spect(anl_gr_a_1,anl_gr_a_2,
+     &       trie_ls,trio_ls,
      &       ls_node,ls_nodes,max_ls_nodes,
      &       lats_nodes_a,global_lats_a,lonsperlat,
      &       epse,epso,plnew_a,plnow_a)
@@ -282,10 +311,14 @@ cc
         dt2  = cons2*dt
         rdt2 = 1./dt2
 !
-        if(hybrid)then
+        if( gen_coord_hybrid ) then
+          if( mass_dp ) then
+            call get_cd_hyb_gcdp(dt)
+          else
+            call get_cd_hyb_gc(dt)
+          endif
+        else if( hybrid ) then
           call get_cd_hyb(dt)
-        else if( gen_coord_hybrid ) then
-          call get_cd_hyb_gc(dt)
         else
           call get_cd_sig(am,bm,dt,tov,sv)
         endif
@@ -307,33 +340,47 @@ cc
 ! do after physics, not from input 
 ! -----------------------------------------------------------
 ! compute total tendency (linear and nonlinea, after physics if any)
-        IF(kdt == 1) THEN
-            grid_gr6 = grid_gr(:, 2 : lota * 2 + 1)
-            call model_to_common_vars_1
-     &          (grid_gr6(1,g_uum - 1), 
-     &           grid_gr6(1,g_vvm - 1), 
-     &           grid_gr6(1,g_ttm - 1), 
-     &           grid_gr6(1,g_rm  - 1),  
-     &           grid_gr6(1,g_qm  - 1),  
-     &           global_lats_a, lonsperlat)
 
-            call model_to_common_vars_1
-     &          (grid_gr6(1,g_uu - 1), 
-     &           grid_gr6(1,g_vv - 1), 
-     &           grid_gr6(1,g_tt - 1), 
-     &           grid_gr6(1,g_rq - 1),  
-     &           grid_gr6(1,g_q  - 1),   
-     &           global_lats_a, lonsperlat)
+! move data from physics to n+1
+        if( process_split ) then
+          call do_dynamics_gridap2n(grid_gr,global_lats_a,lonsperlat)
+        else
+          call do_dynamics_gridp2n(grid_gr,global_lats_a,lonsperlat)
+        endif
+
+        IF(kdt == 1) THEN
+            grid_gr6 = grid_gr(:, 2 : lotgr6 * 2 + 1)
+            call model_to_common_vars
+     &          (grid_gr6(1,g_qm  - 1),
+     &           grid_gr6(1,g_ttm - 1),
+     &           grid_gr6(1,g_rm  - 1),
+     &           grid_gr6(1,g_uum - 1),
+     &           grid_gr6(1,g_vvm - 1),
+     &           grid_gr6(1,g_dpm - 1),
+     &           grid_gr (1,g_p      ),
+     &           grid_gr (1,g_dpdt   ),
+     &           global_lats_a, lonsperlat, 0)
+
+            call model_to_common_vars
+     &          (grid_gr6(1,g_q  - 1),
+     &           grid_gr6(1,g_tt - 1),
+     &           grid_gr6(1,g_rq - 1),
+     &           grid_gr6(1,g_uu - 1),
+     &           grid_gr6(1,g_vv - 1),
+     &           grid_gr6(1,g_dp - 1),
+     &           grid_gr (1,g_p      ),
+     &           grid_gr (1,g_dpdt   ),
+     &           global_lats_a, lonsperlat, 0)
         END IF
+
         call do_dynamics_gridt2anl(grid_gr,anl_gr_a_2,rdt2,
      &                             global_lats_a,lonsperlat)
 !
 !----------------------------------------------------------
 ! transform total tendency in grid to spectral
 !
-        call grid_to_spect
-     &    (trie_ls,trio_ls,
-     &     anl_gr_a_1,anl_gr_a_2,
+        call grid_to_spect(anl_gr_a_1,anl_gr_a_2,
+     &     trie_ls,trio_ls,
      &     ls_node,ls_nodes,max_ls_nodes,
      &     lats_nodes_a,global_lats_a,lonsperlat,
      &     epse,epso,plnew_a,plnow_a)
@@ -400,6 +447,10 @@ cc
         if (me.eq.me_l_0) then
           print *,' pdryini pdryg pcorr = ',pdryini,pdryg,pcorr
           trie_ls(1,1,p_zq)=trie_ls(1,1,p_zq)+pcorr/dt2
+          do k=p_dpn,p_dpn+levs-1
+            n=k-p_dpn+1
+            trie_ls(1,1,k)=trie_ls(1,1,k)+pcorr/dt2*dbk(n)
+          enddo
         endif
 
         if (glbsum .and. me.eq.me_l_0) then                             !glbsum
@@ -410,24 +461,6 @@ cc
 
 !----------------------------------------------------------
 ! update in spectral for vorticity and tracers in explicit way       
-!
-! test repro
-      if ( repro ) then
-      do k=1,levs
-         do i=1,len_trie_ls
-            trie_ls(i,1,P_x  +k-1)=
-     x      trie_ls(i,1,P_x  +k-1)+             trie_ls(i,1,P_gz)
-            trie_ls(i,2,P_x  +k-1)=
-     x      trie_ls(i,2,P_x  +k-1)+             trie_ls(i,2,P_gz)
-         enddo
-         do i=1,len_trio_ls
-            trio_ls(i,1,P_x  +k-1)=
-     x      trio_ls(i,1,P_x  +k-1)+             trio_ls(i,1,P_gz)
-            trio_ls(i,2,P_x  +k-1)=
-     x      trio_ls(i,2,P_x  +k-1)+             trio_ls(i,2,P_gz)
-         enddo
-      enddo
-      endif	! repro
 !
         call do_dynamics_spectupdatewrt(trie_ls,trio_ls,dt2)
         do locl=1,ls_max_node
@@ -449,7 +482,7 @@ cc
         if( explicit ) then						
 !----------------------------------------------------------
 !
-          call do_dynamics_spectupdatexyzq(trie_ls,trio_ls,dt2)
+          call do_dynamics_spectupdatexydpnzq(trie_ls,trio_ls,dt2)
 !
 !----------------------------------------------------------
         else	! do semi-implicit
@@ -458,8 +491,49 @@ cc
 !
           if( gen_coord_hybrid ) then                                       
 
+            if( mass_dp ) then
+
 !$omp parallel do private(locl)
-            do locl=1,ls_max_node                                             
+              do locl=1,ls_max_node
+
+       call sicdife_hyb_gcdp(trie_ls(1,1,P_dim), trie_ls(1,1,P_tem),
+     &                       trie_ls(1,1,P_dpm), trie_ls(1,1,P_x  ),
+     &                       trie_ls(1,1,P_y  ), trie_ls(1,1,P_dpn),
+     &                       trie_ls(1,1,P_di ), trie_ls(1,1,P_te ),
+     &                       trie_ls(1,1,P_dp ),dt,
+     &                       trie_ls(1,1,P_uln), trie_ls(1,1,P_vln),
+     &                       ls_node,snnp1ev,ndexev,locl)
+
+       call sicdifo_hyb_gcdp(trio_ls(1,1,P_dim), trio_ls(1,1,P_tem),
+     &                       trio_ls(1,1,P_dpm), trio_ls(1,1,P_x  ),
+     &                       trio_ls(1,1,P_y  ), trio_ls(1,1,P_dpn),
+     &                       trio_ls(1,1,P_di ), trio_ls(1,1,P_te ),
+     &                       trio_ls(1,1,P_dp ),dt,
+     &                       trio_ls(1,1,P_uln), trio_ls(1,1,P_vln),
+     &                       ls_node,snnp1od,ndexod,locl)
+              enddo
+! update zq
+              trie_ls(:,:,p_zq) = 0.0
+              trio_ls(:,:,p_zq) = 0.0
+              do k=levs,1,-1
+                do i=1,len_trie_ls
+                   trie_ls(i,1,P_zq)=
+     x             trie_ls(i,1,P_zq)+ trie_ls(i,1,P_dpn+k-1)
+                   trie_ls(i,2,P_zq)=
+     x             trie_ls(i,2,P_zq)+ trie_ls(i,2,P_dpn+k-1)
+                enddo
+                do i=1,len_trio_ls
+                   trio_ls(i,1,P_zq)=
+     x             trio_ls(i,1,P_zq)+ trio_ls(i,1,P_dpn+k-1)
+                   trio_ls(i,2,P_zq)=
+     x             trio_ls(i,2,P_zq)+ trio_ls(i,2,P_dpn+k-1)
+                enddo
+              enddo
+
+            else        ! end of mass_dp
+
+!$omp parallel do private(locl)
+              do locl=1,ls_max_node                                             
 
          call sicdife_hyb_gc(trie_ls(1,1,P_dim), trie_ls(1,1,P_tem),    
      &                       trie_ls(1,1,P_qm ), trie_ls(1,1,P_x  ),    
@@ -476,9 +550,11 @@ cc
      &                       trio_ls(1,1,P_q  ),dt,                 
      &                       trio_ls(1,1,P_uln), trio_ls(1,1,P_vln),    
      &                       ls_node,snnp1od,ndexod,locl)               
-            enddo                                                             
+              enddo                                                             
 
-          else if(hybrid)then                                               
+            endif       ! end of gc
+
+          else if(hybrid)then
 
 !$omp parallel do private(locl)
             do locl=1,ls_max_node
@@ -500,7 +576,7 @@ cc
      &                    ls_node,snnp1od,ndexod,locl)
             enddo
 
-          else ! hybrid
+          else
 
 !$omp parallel do private(locl)
             do locl=1,ls_max_node
@@ -519,7 +595,8 @@ cc
      &                    TRIO_LS(1,1,P_ULN), TRIO_LS(1,1,P_VLN),
      &                    LS_NODE,SNNP1OD,NDEXOD,locl,TRIO_LS(1,1,P_DI))
             enddo
-          endif ! hybrid
+
+          endif ! end of all sicdif
 
 !----------------------------------------------------------
         endif 		! not explicit					
@@ -557,9 +634,28 @@ cc
                call updown(sl,coef00(1,ntoz))
       endif
 !
+! -----------------------------------------------------------------
+      if( ndslfv ) then
+!
+!$omp parallel do shared(TRIE_LS,TRIO_LS)
+!$omp+shared(dt,SL,LS_NODE,coef00,hybrid,gen_coord_hybrid)
+        do k=1,levs
+          CALL deldifs_noq
+     &               (TRIE_LS(1,1,P_W+k-1),
+     &                TRIE_LS(1,1,P_QM    ), TRIE_LS(1,1,P_X+k-1),
+     &                TRIE_LS(1,1,P_Y +k-1), TRIE_LS(1,1,P_TEM+k-1),
+     &                TRIO_LS(1,1,P_W+k-1),
+     &                TRIO_LS(1,1,P_QM    ), TRIO_LS(1,1,P_X+k-1),
+     &                TRIO_LS(1,1,P_Y +k-1), TRIO_LS(1,1,P_TEM+k-1),
+     &                dt,SL,LS_NODE,coef00,k,hybrid,
+     &                gen_coord_hybrid)
+        enddo
+
+      else
+
 !$omp parallel do shared(TRIE_LS,TRIO_LS)
 !$omp+shared(dt,SL,LS_NODE,coef00,hybrid)
-      do k=1,levs
+        do k=1,levs
          CALL deldifs(TRIE_LS(1,1,P_RT+k-1), TRIE_LS(1,1,P_W+k-1),
      &                TRIE_LS(1,1,P_QM    ), TRIE_LS(1,1,P_X+k-1),
      &                TRIE_LS(1,1,P_Y +k-1), TRIE_LS(1,1,P_TEM+k-1),    
@@ -567,37 +663,82 @@ cc
      &                TRIO_LS(1,1,P_QM    ), TRIO_LS(1,1,P_X+k-1),
      &                TRIO_LS(1,1,P_Y +k-1), TRIO_LS(1,1,P_TEM+k-1),    
      &                dt,SL,LS_NODE,coef00,k,hybrid,                
-     &                gen_coord_hybrid,nislfv)                                 
-      enddo
+     &                gen_coord_hybrid)                                 
+        enddo
+
+      endif
+
 ! ----------------------------------------------------------------------
+      if( ndslfv ) then
+
 !$omp parallel do shared(TRIE_LS,NDEXEV,TRIO_LS,NDEXOD)
 !$omp+shared(SL,SPDMAX,dt,LS_NODE)
-      do k=1,levs
+        do k=1,levs
+         CALL damp_speed_noq
+     &                  (TRIE_LS(1,1,P_X+k-1), TRIE_LS(1,1,P_W +k-1),
+     &                   TRIE_LS(1,1,P_Y+k-1),
+     &                   NDEXEV,
+     &                   TRIO_LS(1,1,P_X+k-1), TRIO_LS(1,1,P_W +k-1),
+     &                   TRIO_LS(1,1,P_Y+k-1),
+     &                   NDEXOD,
+     &                   SL,SPDMAX(k),dt,LS_NODE)
+        enddo
+
+      else
+
+!$omp parallel do shared(TRIE_LS,NDEXEV,TRIO_LS,NDEXOD)
+!$omp+shared(SL,SPDMAX,dt,LS_NODE)
+        do k=1,levs
          CALL damp_speed(TRIE_LS(1,1,P_X+k-1), TRIE_LS(1,1,P_W +k-1),
      &                   TRIE_LS(1,1,P_Y+k-1), TRIE_LS(1,1,P_RT+k-1),
      &                   NDEXEV,
      &                   TRIO_LS(1,1,P_X+k-1), TRIO_LS(1,1,P_W +k-1),
      &                   TRIO_LS(1,1,P_Y+k-1), TRIO_LS(1,1,P_RT+k-1),
      &                   NDEXOD,
-     &                   SL,SPDMAX(k),dt,LS_NODE,nislfv)
-      enddo
+     &                   SL,SPDMAX(k),dt,LS_NODE)
+        enddo
+
+      endif
 !
 !-------------------------------------------
       if(.not.fwd_step)then
 !-------------------------------------------
+      if( ndslfv ) then
+      CALL filtereo_noq
+     &             (TRIE_LS(1,1,P_TEM), TRIE_LS(1,1,P_TE ),
+     &              TRIE_LS(1,1,P_Y  ), TRIE_LS(1,1,P_DIM),
+     &              TRIE_LS(1,1,P_DI ), TRIE_LS(1,1,P_X  ),
+     &              TRIE_LS(1,1,P_ZEM), TRIE_LS(1,1,P_ZE ),
+     &              TRIE_LS(1,1,P_W  ),
+     &              TRIE_LS(1,1,P_dpm), TRIE_LS(1,1,P_dp ),
+     &              TRIE_LS(1,1,P_dpn),
+     &              TRIO_LS(1,1,P_TEM), TRIO_LS(1,1,P_TE ),
+     &              TRIO_LS(1,1,P_Y  ), TRIO_LS(1,1,P_DIM),
+     &              TRIO_LS(1,1,P_DI ), TRIO_LS(1,1,P_X  ),
+     &              TRIO_LS(1,1,P_ZEM), TRIO_LS(1,1,P_ZE ),
+     &              TRIO_LS(1,1,P_W  ),
+     &              TRIO_LS(1,1,P_dpm), TRIO_LS(1,1,P_dp ),
+     &              TRIO_LS(1,1,P_dpn),
+     &              FILTA,LS_NODE)
+      else
       CALL filtereo(TRIE_LS(1,1,P_TEM), TRIE_LS(1,1,P_TE ),
      &              TRIE_LS(1,1,P_Y  ), TRIE_LS(1,1,P_DIM),
      &              TRIE_LS(1,1,P_DI ), TRIE_LS(1,1,P_X  ),
      &              TRIE_LS(1,1,P_ZEM), TRIE_LS(1,1,P_ZE ),
      &              TRIE_LS(1,1,P_W  ), TRIE_LS(1,1,P_RM ),
      &              TRIE_LS(1,1,P_RQ ), TRIE_LS(1,1,P_RT ),
+     &              TRIE_LS(1,1,P_dpm), TRIE_LS(1,1,P_dp ),
+     &              TRIE_LS(1,1,P_dpn),
      &              TRIO_LS(1,1,P_TEM), TRIO_LS(1,1,P_TE ),
      &              TRIO_LS(1,1,P_Y  ), TRIO_LS(1,1,P_DIM),
      &              TRIO_LS(1,1,P_DI ), TRIO_LS(1,1,P_X  ),
      &              TRIO_LS(1,1,P_ZEM), TRIO_LS(1,1,P_ZE ),
      &              TRIO_LS(1,1,P_W  ), TRIO_LS(1,1,P_RM ),
      &              TRIO_LS(1,1,P_RQ ), TRIO_LS(1,1,P_RT ),
+     &              TRIO_LS(1,1,P_dpm), TRIO_LS(1,1,P_dp ),
+     &              TRIO_LS(1,1,P_dpn),
      &              FILTA,LS_NODE)
+      endif
 !
       DO J=1,LEN_TRIE_LS
          TRIE_LS(J,1,P_QM)=TRIE_LS(J,1,P_Q )
@@ -631,7 +772,7 @@ cc
      &       epse,epso,epsedn,epsodn,
      &       snnp1ev,snnp1od,plnev_a,plnod_a)
       call do_dynamics_syn2gridn(syn_gr_a_2,grid_gr,
-     &                           global_lats_a,lonsperlat,nislfv)
+     &                           global_lats_a,lonsperlat)
 !
 ! do filter in the grid point values and advance time with update
 ! ---------------------------
@@ -649,10 +790,14 @@ cc
         dt2  = cons2*dt
         rdt2 = 1./dt2
 
-        if(hybrid)then
+        if( gen_coord_hybrid ) then
+          if( mass_dp ) then
+            call get_cd_hyb_gcdp(dt)
+          else
+            call get_cd_hyb_gc(dt)
+          endif
+        else if( hybrid ) then
           call get_cd_hyb(dt)
-        else if( gen_coord_hybrid ) then
-          call get_cd_hyb_gc(dt)
         else
           call get_cd_sig(am,bm,dt,tov,sv)
         endif
@@ -738,56 +883,40 @@ c
 ! run for Cpl_flag == .true.
 !---------------------------
       ELSE 
-          grid_gr6 = grid_gr(:, 2 : lota*2 + 1)
+          grid_gr6 = grid_gr(:, 2 : lotgr6*2 + 1)
 
-! This causes problem? Weiyu.
-! Causing T, q, clw just one physics step, only 3-5 digits same.
-!	grid_gr(:, g_qm) =  grid_gr(:, g_qm) * 1000.0
-!	grid_gr(:, g_q) =  grid_gr(:, g_q) * 1000.0
-
-!	grid_gr(:, g_qm) =  grid_gr(:, g_qm) * 0.001
-!	grid_gr(:, g_q) =  grid_gr(:, g_q) * 0.001
-! This causes problem?
-! This causes much smaller problem?
-!	grid_gr(:, g_qm) =  grid_gr(:, g_qm) * 1000.0D0
-!	grid_gr(:, g_q) =  grid_gr(:, g_q) * 1000.0D0
-
-!	grid_gr(:, g_qm) =  grid_gr(:, g_qm) * 0.001D0
-!	grid_gr(:, g_q) =  grid_gr(:, g_q) * 0.001D0
-! This causes much smaller problem?
-
-          CALL grid_to_spect_inp_1
-     &        (grid_gr(1, g_qm), 
-     &         grid_gr(1, g_uum),    grid_gr(1, g_vvm), 
+          CALL grid_to_spect_inp
+     &        (grid_gr(1, g_gz ),    grid_gr(1, g_qm),
+     &         grid_gr(1, g_uum),    grid_gr(1, g_vvm),
      &         grid_gr(1, g_ttm),    grid_gr(1, g_rm),
-     &         trie_ls(1, 1, p_qm),  trio_ls(1, 1, p_qm),
-     &         trie_ls(1, 1, p_dim), trio_ls(1, 1, p_dim),
-     &         trie_ls(1, 1, p_zem), trio_ls(1, 1, p_zem),
-     &         trie_ls(1, 1, p_tem), trio_ls(1, 1, p_tem),
-     &         trie_ls(1, 1, p_rm),  trio_ls(1, 1, p_rm),
+     &         grid_gr(1, g_dpm),
+     &         trie_ls,  trio_ls,
      &         ls_node,      ls_nodes,      max_ls_nodes,
      &         lats_nodes_a, global_lats_a, lonsperlat,
-     &         epse, epso, plnew_a, plnow_a, pwat, ptot, ptrc) !glbsum
+     &         epse, epso, plnew_a, plnow_a, plnev_a, plnod_a,
+     &         pwat, ptot, ptrc)
 
-          CALL grid_to_spect_inp_1
-     &        (grid_gr(1, g_q), 
-     &         grid_gr(1, g_uu),     grid_gr(1, g_vv), 
-     &         grid_gr(1, g_tt),     grid_gr(1, g_rq),
-     &         trie_ls(1, 1, p_q),   trio_ls(1, 1, p_q),
-     &         trie_ls(1, 1, p_di),  trio_ls(1, 1, p_di),
-     &         trie_ls(1, 1, p_ze),  trio_ls(1, 1, p_ze),
-     &         trie_ls(1, 1, p_te),  trio_ls(1, 1, p_te),
-     &         trie_ls(1, 1, p_rq),  trio_ls(1, 1, p_rq),
+          call do_dynamics_spectn2m(trie_ls,trio_ls)
+
+          CALL grid_to_spect_inp
+     &        (grid_gr(1, g_gz ),    grid_gr(1, g_q),
+     &         grid_gr(1, g_uu),    grid_gr(1, g_vv),
+     &         grid_gr(1, g_tt),    grid_gr(1, g_rq),
+     &         grid_gr(1, g_dp),
+     &         trie_ls,  trio_ls,
      &         ls_node,      ls_nodes,      max_ls_nodes,
      &         lats_nodes_a, global_lats_a, lonsperlat,
-     &         epse, epso, plnew_a, plnow_a, pwat, ptot, ptrc) !glbsum
+     &         epse, epso, plnew_a, plnow_a, plnev_a, plnod_a,
+     &         pwat, ptot, ptrc)
+
+          call do_dynamics_spectn2c(trie_ls,trio_ls)
 
           call do_dynamics_gridc2n(grid_gr, global_lats_a, lonsperlat)
 
-          call do_dynamics_spectc2n(trie_ls,trio_ls)
-
           Cpl_flag = .false.
-      END IF
+! ---------------------
+      END IF   ! cpl_flag
+! ---------------------
 
       kdt = kdt + 1
 ! ===================================================================
@@ -823,17 +952,38 @@ c
      &     pddev_a,pddod_a)
 !
 ! -------------------------------------------------------------------
+! do pressure gradient related derivatives.
+
+      if( mass_dp ) then
+
+        call do_dynamics_gridzz(grid_gr,global_lats_a,lonsperlat)
+
+        call gridzz_to_spect
+     &      (grid_gr,trie_ls,trio_ls,
+     &       ls_node,ls_nodes,max_ls_nodes,
+     &       lats_nodes_a,global_lats_a,lonsperlat,
+     &       epse,epso,plnew_a,plnow_a)
+
+        call spectpz_to_gridxy
+     &      (trie_ls,trio_ls,
+     &       pyn_gr_a_1,pyn_gr_a_2,
+     &       ls_node,ls_nodes,max_ls_nodes,
+     &       lats_nodes_a,global_lats_a,lonsperlat,
+     &       epse,epso,epsedn,epsodn,
+     &       snnp1ev,snnp1od,plnev_a,plnod_a)
+
+      endif
+
+! -------------------------------------------------------------------
 !  get dpdt in grid point values for export state
 !
-      call do_dynamics_gridomega(syn_gr_a_2,dyn_gr_a_2,grid_gr,
-     &                           rcs2_a,global_lats_a,lonsperlat)
+      call do_dynamics_gridomega(syn_gr_a_2,dyn_gr_a_2,pyn_gr_a_2,
+     &                     grid_gr,rcs2_a,global_lats_a,lonsperlat)
 !
-! -------------------------------------------------------------------
-!  prepare for fv nisl with n-1 values 
-!
-      call do_dynamics_gridm2sym(grid_gr,sym_gr_a_2,
-     &                             global_lats_a,lonsperlat)
-!
+! =============================
+      if( .not. ndslfv ) then
+! =============================
+
 !----------------------------------------------------------
       do lan=1,lats_node_a  
 !
@@ -852,8 +1002,6 @@ c
           enddo
         endif                                   
 ! --------------------------------------------------------------------
-        if(hybrid.or.gen_coord_hybrid) then !-----  hybrid ----------- 
-! --------------------------------------------------------------------
 !$omp parallel do schedule(dynamic,1) private(lon)
 !$omp+private(njeff,iblk)
 !$omp+private(nvcn,xvcn)
@@ -866,6 +1014,42 @@ c
 
           if( gen_coord_hybrid ) then                                    ! hmhj
             if( thermodyn_id.eq.3 ) then                                 ! hmhj
+
+              if( mass_dp ) then
+
+                call gfidi_hyb_gchdp(lon_dim, njeff, lat,             ! hmhj 
+     &               syn_gr_a_2(lon+(ksd   -1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(ksz   -1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(kst   -1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(ksu   -1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(ksv   -1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(ksr   -1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(ksdp  -1)*lon_dim,lan),          ! hmhj
+     &               pyn_gr_a_2(lon+(kdpphi-1)*lon_dim,lan),          ! hmhj
+     &               pyn_gr_a_2(lon+(kdplam-1)*lon_dim,lan),          ! hmhj
+     &               pyn_gr_a_2(lon+(kzzphi-1)*lon_dim,lan),          ! hmhj
+     &               pyn_gr_a_2(lon+(kzzlam-1)*lon_dim,lan),          ! hmhj
+     &               rcs2_a(min(lat,latg-lat+1)),                       ! hmhj
+     &               spdlat(1,iblk),                                    ! hmhj
+     &               dt,nvcn,xvcn,                                      ! hmhj
+     &               dyn_gr_a_2(lon+(kdtphi-1)*lon_dim,lan),          ! hmhj
+     &               dyn_gr_a_2(lon+(kdtlam-1)*lon_dim,lan),          ! hmhj
+     &               dyn_gr_a_2(lon+(kdrphi-1)*lon_dim,lan),          ! hmhj
+     &               dyn_gr_a_2(lon+(kdrlam-1)*lon_dim,lan),          ! hmhj
+     &               dyn_gr_a_2(lon+(kdulam-1)*lon_dim,lan),          ! hmhj
+     &               dyn_gr_a_2(lon+(kdvlam-1)*lon_dim,lan),          ! hmhj
+     &               dyn_gr_a_2(lon+(kduphi-1)*lon_dim,lan),          ! hmhj
+     &               dyn_gr_a_2(lon+(kdvphi-1)*lon_dim,lan),          ! hmhj
+     &               anl_gr_a_2(lon+(kaps  -1)*lon_dim,lan),          ! hmhj
+     &               anl_gr_a_2(lon+(kadp  -1)*lon_dim,lan),          ! hmhj
+     &               anl_gr_a_2(lon+(kat   -1)*lon_dim,lan),          ! hmhj
+     &               anl_gr_a_2(lon+(kar   -1)*lon_dim,lan),          ! hmhj
+     &               anl_gr_a_2(lon+(kau   -1)*lon_dim,lan),          ! hmhj
+     &               anl_gr_a_2(lon+(kav   -1)*lon_dim,lan),          ! hmhj
+     &               szdrdt(lon,lan),zfirst)                          ! fyang
+
+              else      ! not-mass_dp
+
               call gfidi_hyb_gc_h(lon_dim, njeff, lat,                   ! hmhj
      &               syn_gr_a_2(lon+(ksd   -1)*lon_dim,lan),          ! hmhj
      &               syn_gr_a_2(lon+(kst   -1)*lon_dim,lan),          ! hmhj
@@ -896,7 +1080,9 @@ c
      &               anl_gr_a_2(lon+(kav   -1)*lon_dim,lan),          ! hmhj
      &               szdrdt(lon,lan),zfirst)                          ! fyang
 
-            else                                                         ! hmhj
+              endif 	! end of mass_dp 
+
+            else  ! not enthalpy next
 
               call gfidi_hyb_gc(lon_dim, njeff, lat,
      &               syn_gr_a_2(lon+(ksd   -1)*lon_dim,lan),
@@ -930,7 +1116,8 @@ c
 
             endif                                                        ! hmhj
 
-          else                                                           ! hmhj
+          else if( hybrid ) then                                         ! hmhj
+
             call gfidi_hyb(lon_dim, njeff, lat,
      &               syn_gr_a_2(lon+(ksd   -1)*lon_dim,lan),
      &               syn_gr_a_2(lon+(kst   -1)*lon_dim,lan),
@@ -960,25 +1147,9 @@ c
      &               anl_gr_a_2(lon+(kau   -1)*lon_dim,lan),
      &               anl_gr_a_2(lon+(kav   -1)*lon_dim,lan),
      &               szdrdt(lon,lan),zfirst)
+        
+          else
 
-          endif                                                          ! hmhj
-
-          CALL countperf(1,10,0.)
-!
-        enddo   !lon
-! ---------------------------------------------------------------
-        else  !-------------  hybrid  ---------------------------
-! ---------------------------------------------------------------
-! beginlon omp loop 3333333333333333333333333333333333333333333333333
-!$omp parallel do schedule(dynamic,1) private(lon)
-!$omp+private(njeff,iblk)
-!$omp+private(nvcn,xvcn)
-        do lon=1,lons_lat,ngptcd
-!!
-          njeff = min(ngptcd,lons_lat-lon+1)
-          iblk  = (lon-1)/ngptcd + 1
-!
-          CALL countperf(0,10,0.)
           call gfidi_sig(lon_dim, njeff, lat,
      &               syn_gr_a_2(lon+(ksd   -1)*lon_dim,lan),
      &               syn_gr_a_2(lon+(kst   -1)*lon_dim,lan),
@@ -1007,12 +1178,12 @@ c
      &               anl_gr_a_2(lon+(kar   -1)*lon_dim,lan),
      &               anl_gr_a_2(lon+(kau   -1)*lon_dim,lan),
      &               anl_gr_a_2(lon+(kav   -1)*lon_dim,lan))
+
+          endif                                                          ! hmhj
+
           CALL countperf(1,10,0.)
 !
         enddo   !lon
-
-! ---------------------------------------------------------------
-        endif ! -----------------------  hybrid  ------------------
 ! ---------------------------------------------------------------
 !
         iblk=1
@@ -1032,10 +1203,105 @@ c
       call do_dynamics_gridupdate(grid_gr,anl_gr_a_2,dt2,
      &                                  global_lats_a,lonsperlat)
 !
+! ===================================================
+      else     ! ndslfv next
+! ===================================================
+
+      call ndslfv_monoadvh (grid_gr,global_lats_a,lonsperlat,dt)
+
+      call do_dynamics_advhn2anl(grid_gr,anl_gr_a_2,
+     &                                  global_lats_a,lonsperlat)
+
+      call do_dynamics_gridc2syq(grid_gr,syn_gr_syq,
+     &                             global_lats_a,lonsperlat)
+
+      do lan=1,lats_node_a
+!
+        lat = global_lats_a(ipt_lats_node_a-1+lan)
+!
+        lon_dim = lon_dims_a(lan)
+        lons_lat = lonsperlat(lat)
+
+!$omp parallel do schedule(dynamic,1) private(lon)
+!$omp+private(njeff,iblk)
+!$omp+private(nvcn,xvcn)
+        do lon=1,lons_lat,ngptcd
+!!
+          njeff=min(ngptcd,lons_lat-lon+1)
+          iblk  = (lon-1)/ngptcd + 1
+!
+! mass_dp and thermodyn_id=3
+!
+                call gfidi_gchdp_noadv_noq (lon_dim, njeff, lat,        ! hmhj
+     &               syn_gr_a_2(lon+(ksd   -1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(ksz   -1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(kst   -1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(ksu   -1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(ksv   -1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_syq(lon                   ,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(ksdp  -1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(ksq   -1)*lon_dim,lan),
+     &               syn_gr_a_2(lon+(kzsphi-1)*lon_dim,lan),          ! hmhj
+     &               syn_gr_a_2(lon+(kzslam-1)*lon_dim,lan),          ! hmhj
+     &               pyn_gr_a_2(lon+(kdpphi-1)*lon_dim,lan),          ! hmhj
+     &               pyn_gr_a_2(lon+(kdplam-1)*lon_dim,lan),          ! hmhj
+     &               pyn_gr_a_2(lon+(kzzphi-1)*lon_dim,lan),          ! hmhj
+     &               pyn_gr_a_2(lon+(kzzlam-1)*lon_dim,lan),          ! hmhj
+     &               rcs2_a(min(lat,latg-lat+1)),                       ! hmhj
+     &               spdlat(1,iblk),dt,                                 ! hmhj
+     &               dyn_gr_a_2(lon+(kdtphi-1)*lon_dim,lan),          ! hmhj
+     &               dyn_gr_a_2(lon+(kdtlam-1)*lon_dim,lan),          ! hmhj
+     &               dyn_gr_a_2(lon+(kdulam-1)*lon_dim,lan),          ! hmhj
+     &               dyn_gr_a_2(lon+(kdvlam-1)*lon_dim,lan),          ! hmhj
+     &               dyn_gr_a_2(lon+(kduphi-1)*lon_dim,lan),          ! hmhj
+     &               dyn_gr_a_2(lon+(kdvphi-1)*lon_dim,lan),          ! hmhj
+     &               anl_gr_a_2(lon+(kaps  -1)*lon_dim,lan),          ! hmhj
+     &               anl_gr_a_2(lon+(kadp  -1)*lon_dim,lan),          ! hmhj
+     &               anl_gr_a_2(lon+(kat   -1)*lon_dim,lan),          ! hmhj
+     &               anl_gr_a_2(lon+(kau   -1)*lon_dim,lan),          ! hmhj
+     &               anl_gr_a_2(lon+(kav   -1)*lon_dim,lan),          ! hmhj
+     &               anl_gr_a_2(lon+(kap2  -1)*lon_dim,lan),          ! hmhj
+     &               pdot(lon,1,lan))                                 ! hmhj
+
+        enddo   ! end of lon
+! --------------------------------------------------------
+        iblk=1
+        do lon=1,lons_lat,ngptcd
+          do k=1,levs
+            spdmax_node(k)=max(spdmax_node(k),spdlat(k,iblk))
+          enddo
+          iblk=iblk+1
+        enddo
+! --------------------------------------------------------
+      enddo   ! end of lan
+
+
+!  update the grid point values without vertical advection
+!
+      call do_dynamics_gridupdate(grid_gr,anl_gr_a_2,dt2,
+     &                                  global_lats_a,lonsperlat)
+
+!  update the grid point with vertical advection
+!
+      call ndslfv_monoadvv (grid_gr,pdot,
+     &                        global_lats_a,lonsperlat,dt)
+
+! ================
+      endif     ! end of ndslfv
+! ================
 ! -------------------------------------------------------------------
 !  update the grid point values of p and dp
 !
-      call do_dynamics_gridpdp(grid_gr,global_lats_a,lonsperlat)
+      if( mass_dp ) then
+        if( process_split ) then
+          stp = 0
+        else
+          stp = 1
+        endif
+        call do_dynamics_gridp   (grid_gr,global_lats_a,lonsperlat,stp)
+      else
+        call do_dynamics_gridpdpn(grid_gr,global_lats_a,lonsperlat)
+      endif
 !
 ! ---------------------------------------------------------------------
 ! gather all speed max
@@ -1078,6 +1344,13 @@ c
       deallocate ( spdlat )
 !
       if(zfirst) zfirst=.false.
+!!
+      if( process_split ) then
+        call do_dynamics_gridm2p(grid_gr,global_lats_a,lonsperlat)
+      else
+        call do_dynamics_gridn2p(grid_gr,global_lats_a,lonsperlat)
+      endif
+
 !!
 !--------------------------------------------
       endif ! only for forecast pes

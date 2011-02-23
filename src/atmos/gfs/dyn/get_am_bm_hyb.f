@@ -1,9 +1,13 @@
       SUBROUTINE AM_BM_hyb
 
+! program log:
+! 20110220:  Henry Juang updated code for NDSL advection
+!
       USE gfs_dyn_MACHINE , ONLY : kind_grid
       use gfs_dyn_resol_def
       use gfs_dyn_coordinate_def		! hmhj
-      use namelist_dynamics_def , only : ref_temp
+      use namelist_dynamics_def , only : ref_temp,
+     &                                   semi_implicit_temp_profile
       use gfs_dyn_physcons, rd => con_rd
      &                    , cp => con_cp, rearth => con_rerth
       IMPLICIT NONE 
@@ -17,9 +21,14 @@
  
 !     print *,' enter get_am_bm_hyb_fd ' 		! hmhj
 
-      do k=1,levs
-       TREF(k)=ref_temp
-      enddo
+      if( semi_implicit_temp_profile ) then
+        print *,' use layer mean temperature for semi-implicit '
+      else
+        print *,' use constant temperature for semi-implicit '
+        do k=1,levs
+         TREF(k)=ref_temp
+        enddo
+      endif
       PSREF=80.
       BETA=1.
       KAPPA=RD/CP

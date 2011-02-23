@@ -1,18 +1,17 @@
       subroutine grid_to_spect_inp
-     &    (zsg,psg,uug,vvg,ttg,rqg,
-     &     trie_zs,trio_zs,trie_ps,trio_ps,
-     &     trie_di,trio_di,trie_ze,trio_ze,
-     &     trie_te,trio_te,trie_rq,trio_rq,
+     &    (zsg,psg,uug,vvg,ttg,rqg,dpg,
+     &     trie_ls,trio_ls,
      &     ls_node,ls_nodes,max_ls_nodes,
      &     lats_nodes_a,global_lats_a,lonsperlat,
-     &     epse,epso,snnp1ev,snnp1od,
-     &     plnew_a,plnow_a,plnev_a,plnod_a,pwat,ptot,ptrc)
+     &     epse,epso,plnew_a,plnow_a,plnev_a,plnod_a,
+     &     pwat,ptot,ptrc)
 !!
-!! hmhj - this routine do spectral to grid transform 
-!!        from gfsio read in field, to model fields
+!! hmhj - this routine do grid to spectral transform 
+!!        from nemsio read in field, to model fields
 !! input zsg,psg,uug,vvg,ttg,rqg (mapping wind, temp)
 !! output zsg,psg,uug,vvg,ttg,rqg in model values (mapping wind, enthalpy)
 !! aug 2010      sarah lu, modified to compute tracer global sum
+!! feb 2011      henry juang updated to fit mass_dp and ndslfv
 !!
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
@@ -33,6 +32,7 @@
       real(kind=kind_grid) vvg(lonf,lats_node_a,levs)
       real(kind=kind_grid) ttg(lonf,lats_node_a,levs)
       real(kind=kind_grid) rqg(lonf,lats_node_a,levh)
+      real(kind=kind_grid) dpg(lonf,lats_node_a,levs)
 !
       REAL(KIND=KIND_GRID) pwat   (lonf,lats_node_a)
       REAL(KIND=KIND_GRID) ptot   (lonf,lats_node_a)
@@ -44,23 +44,8 @@
       real(kind=kind_evod)  tkrt0
       real(kind=kind_evod), parameter :: rkappa = cp / rd
 !
-      real(kind=kind_evod) trie_zs(len_trie_ls,2)
-      real(kind=kind_evod) trio_zs(len_trio_ls,2)
-      real(kind=kind_evod) trie_ps(len_trie_ls,2)
-      real(kind=kind_evod) trio_ps(len_trio_ls,2)
-      real(kind=kind_evod) trie_di(len_trie_ls,2,levs)
-      real(kind=kind_evod) trio_di(len_trio_ls,2,levs)
-      real(kind=kind_evod) trie_ze(len_trie_ls,2,levs)
-      real(kind=kind_evod) trio_ze(len_trio_ls,2,levs)
-      real(kind=kind_evod) trie_te(len_trie_ls,2,levs)
-      real(kind=kind_evod) trio_te(len_trio_ls,2,levs)
-      real(kind=kind_evod) trie_rq(len_trie_ls,2,levh)
-      real(kind=kind_evod) trio_rq(len_trio_ls,2,levh)
-!
-!!!!  integer, parameter :: lota = 3*levs+1*levh+1 
-!
-      real(kind=kind_evod) trie_ls(len_trie_ls,2,lota+1)
-      real(kind=kind_evod) trio_ls(len_trio_ls,2,lota+1)
+      real(kind=kind_evod) trie_ls(len_trie_ls,2,lotls)
+      real(kind=kind_evod) trio_ls(len_trio_ls,2,lotls)
 !!
       real(kind=kind_evod) for_gr_a_1(lonfx*(lota+1),lats_dim_a)
       real(kind=kind_evod) for_gr_a_2(lonfx*(lota+1),lats_dim_a)
@@ -76,9 +61,6 @@
       real(kind=kind_evod)  epse(len_trie_ls)
       real(kind=kind_evod)  epso(len_trio_ls)
 !
-      real(kind=kind_evod)  snnp1ev(len_trie_ls)
-      real(kind=kind_evod)  snnp1od(len_trio_ls)
-!
       real(kind=kind_evod)   plnew_a(len_trie_ls,latg2)
       real(kind=kind_evod)   plnow_a(len_trio_ls,latg2)
       real(kind=kind_evod)   plnev_a(len_trie_ls,latg2)
@@ -87,7 +69,7 @@
       real(kind=kind_evod)   tfac(lonf,levs), sumq(lonf,levs), rcs2
 !
       integer              i,j,k,kk, nn, nnl
-      integer              l,lan,lat,lotx
+      integer              l,lan,lat,lotdim,lotx
       integer              lon_dim,lons_lat
 !
       integer              locl,n
@@ -97,9 +79,6 @@
       integer              indod1,indod2
       INTEGER              INDLSEV,JBASEV
       INTEGER              INDLSOD,JBASOD
-!
-      logical 	lslag
-      logical , parameter :: repro = .false.
 !
 
       real(kind=kind_evod), parameter :: one=1.0, pa2cb=0.001
@@ -119,11 +98,12 @@
 !
 !--------------------------------------------------------------------
 !
-      lslag   = .false.
-      lotx    = lota + 1
-!
-      trie_ls = 0.0
-      trio_ls = 0.0
+      lotdim  = lota + 1
+      if( ndslfv ) then
+        lotx    = 4*levs+ 1 + 1
+      else
+        lotx    = 4*levs+levh+1 + 1
+      endif
 !
 !--------------------------------------------------------------------
       do lan=1,lats_node_a
@@ -175,11 +155,13 @@
             for_gr_a_2(i+(kav+k-2)*lon_dim,lan) = vvg(i,lan,k) * rcs2
           enddo
         enddo
-        do k=1,levh
-          do i=1,lons_lat
-            for_gr_a_2(i+(kar+k-2)*lon_dim,lan)=rqg(i,lan,k)
+        if( .not. ndslfv ) then
+          do k=1,levh
+            do i=1,lons_lat
+              for_gr_a_2(i+(kar+k-2)*lon_dim,lan)=rqg(i,lan,k)
+            enddo
           enddo
-        enddo
+        endif
         do i=1,lons_lat
           ptot(i,lan) = psg(i,lan) * pa2cb
         enddo
@@ -212,7 +194,7 @@
               prsi(i,k)  = ak5(k)+bk5(k)*psg(i,lan)+tki(i,k) 
             enddo
           enddo
-        else if (hybrid) then
+        else if( hybrid ) then
           do k=1,levp1
             kk=levp1+1-k
             do i=1,lons_lat
@@ -244,10 +226,22 @@
             enddo
           endif
           do i=1,lons_lat
-            pwat(i,lan) = pwat(i,lan) + (prsi(i,k)-prsi(i,k+1))
+! use definition for dpg instead of read in to have more accurate
+! definition by th coordinates
+            dpg (i,lan,k) = prsi(i,k)-prsi(i,k+1)
+            pwat(i,lan) = pwat(i,lan) + dpg(i,lan,k)
      &                                * (rqg(i,lan,k) + work(i))
           enddo
         enddo
+        do k=1,levs
+          do i=1,lons_lat
+            for_gr_a_2(i+(kadp+k-2)*lon_dim,lan) = dpg(i,lan,k)
+          enddo
+        enddo
+        if( me==0 ) then
+          print *,' dpg in grid_to_spect_inp ',(dpg(1,lan,k),k=1,levs)
+        endif
+
 !
 ! compute ptrc (tracer global sum)                               !glbsum
 !
@@ -281,44 +275,46 @@
       enddo
 !
       dimg=0
-      call four2fln(lslag,lats_dim_a,lotx,lotx,for_gr_a_1,
+      call four2fln(lats_dim_a,lotdim,lotx,for_gr_a_1,
      x              ls_nodes,max_ls_nodes,
      x              lats_nodes_a,global_lats_a,lon_dims_a,
      x              lats_node_a,ipt_lats_node_a,dimg,
      x              lat1s_a,lonfx,latg,latg2,
-     x              trie_ls(1,1,1), trio_ls(1,1,1),
+     x              trie_ls(1,1,p_w), trio_ls(1,1,p_w),
      x              plnew_a, plnow_a,
-     x              ls_node)
+     x              ls_node,2*levs)
 !
-!
-      trie_di = 0.0
-      trio_di = 0.0
-      trie_ze = 0.0
-      trio_ze = 0.0
-!
-!$omp parallel do shared(trie_ls,trio_ls)
-!$omp+shared(trie_di,trio_di,trie_ze,trio_ze,trie_te,trio_te)
-!$omp+shared(kau,kav,kat,epse,epso,snnp1ev,snnp1od,ls_node)
-!$omp+private(k)
+!$OMP parallel do shared(trie_ls,trio_ls)
+!$OMP+shared(p_w,p_x,p_uln,p_vln,epse,epso,ls_node)
+!$OMP+private(k)
       do k=1,levs
-         call uveodz(trie_ls(1,1,kau+k-1), trio_ls(1,1,kav+k-1),
-     x               trie_di(1,1,k),       trio_ze(1,1,k),
+         call uveodz(trie_ls(1,1,P_w  +k-1), trio_ls(1,1,P_x  +k-1),
+     x               trie_ls(1,1,P_uln+k-1), trio_ls(1,1,P_vln+k-1),
      x               epse,epso,ls_node)
 !
-         call uvoedz(trio_ls(1,1,kau+k-1), trie_ls(1,1,kav+k-1),
-     x               trio_di(1,1,k),       trie_ze(1,1,k),
+         call uvoedz(trio_ls(1,1,P_w  +k-1), trie_ls(1,1,P_x  +k-1),
+     x               trio_ls(1,1,P_uln+k-1), trie_ls(1,1,P_vln+k-1),
      x               epse,epso,ls_node)
-        trie_te(:,:,k)=trie_ls(:,:,kat+k-1)
-        trio_te(:,:,k)=trio_ls(:,:,kat+k-1)
       enddo
-      do k=1,levh
-        trie_rq(:,:,k)=trie_ls(:,:,kar+k-1)
-        trio_rq(:,:,k)=trio_ls(:,:,kar+k-1)
+!
+!   move uln back to x
+!   move vln back to w
+!
+      do k=1,levs
+         do i=1,len_trie_ls
+            trie_ls(i,1,P_x +k-1)= trie_ls(i,1,P_uln +k-1)
+            trie_ls(i,2,P_x +k-1)= trie_ls(i,2,P_uln +k-1)
+            trie_ls(i,1,P_w +k-1)= trie_ls(i,1,P_vln +k-1)
+            trie_ls(i,2,P_w +k-1)= trie_ls(i,2,P_vln +k-1)
+         enddo
+         do i=1,len_trio_ls
+            trio_ls(i,1,P_x +k-1)= trio_ls(i,1,P_uln +k-1)
+            trio_ls(i,2,P_x +k-1)= trio_ls(i,2,P_uln +k-1)
+            trio_ls(i,1,P_w +k-1)= trio_ls(i,1,P_vln +k-1)
+            trio_ls(i,2,P_w +k-1)= trio_ls(i,2,P_vln +k-1)
+         enddo
       enddo
-      trie_zs(:,:)=trie_ls(:,:,kazs)
-      trio_zs(:,:)=trio_ls(:,:,kazs)
-      trie_ps(:,:)=trie_ls(:,:,kaps)
-      trio_ps(:,:)=trio_ls(:,:,kaps)
+
 !
 ! -------------------------------------------------------------------
 ! model realted filter such as reduced grid spectral transform for zs
@@ -327,11 +323,11 @@
 
       dimg=0
 cc
-      call sumflna(trie_zs,trio_zs,
+      call sumflna(trie_ls(1,1,p_gz),trio_ls(1,1,p_gz),
      x            lat1s_a,
      x            plnev_a,plnod_a,
      x            1,ls_node,latg2,
-     x            lslag,lats_dim_a,lotx,for_gr_a_1,
+     x            lats_dim_a,lotdim,for_gr_a_1,
      x            ls_nodes,max_ls_nodes,
      x            lats_nodes_a,global_lats_a,
      x            lats_node_a,ipt_lats_node_a,lon_dims_a,dimg,
@@ -352,48 +348,6 @@ cc
       enddo   !lan
       endif	! fhour=0.0
 ! -------------------------------------------------------------------
-!
-! In single-loop, we compute terrain derivative for time being
-!
-! test repro
-      if( repro ) then
-
-      GA2 = grav / (RERTH*RERTH)
-      DO LOCL=1,LS_MAX_NODE
-             L=ls_node(locl,1)
-        jbasev=ls_node(locl,2)
-        indev1 = indlsev(L,L)
-        if (mod(L,2).eq.mod(jcap+1,2)) then
-          indev2 = indlsev(jcap+1,L)
-        else
-          indev2 = indlsev(jcap  ,L)
-        endif
-        do indev = indev1 , indev2
-          tem = GA2 * SNNP1EV(INDEV)
-!!    print *,' indev=',indev,' tem=',tem,' trie=',trie_zs(indev,2)
-          trie_zs(INDEV,1) = trie_zs(INDEV,1) * tem
-          trie_zs(INDEV,2) = trie_zs(INDEV,2) * tem
-        END DO
-      END DO
-      DO LOCL=1,LS_MAX_NODE
-             L=ls_node(locl,1)
-        jbasod=ls_node(locl,3)
-        indod1 = indlsod(L+1,L)
-        if (mod(L,2).eq.mod(jcap+1,2)) then
-          indod2 = indlsod(jcap  ,L)
-        else
-          indod2 = indlsod(jcap+1,L)
-        endif
-        do indod = indod1 , indod2
-          tem = GA2 * SNNP1OD(INDOD)
-!!    print *,' indod=',indod,' tem=',tem,' trio=',trio_zs(indev,2)
-          trio_zs(INDOD,1) = trio_zs(INDOD,1) * tem
-          trio_zs(INDOD,2) = trio_zs(INDOD,2) * tem
-        END DO
-      END DO
-
-      endif	! repro
- 
 !     print *,' exit grid_to_spect_inp '
 !!
       return

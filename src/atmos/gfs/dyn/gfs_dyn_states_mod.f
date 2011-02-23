@@ -1,4 +1,4 @@
-       MODULE GFS_Dyn_States_Mod
+       MODULE gfs_dynamics_states_mod
 
 ! 
 !  june 2005 		weiyu yang             initial code.
@@ -9,6 +9,7 @@
 !  Jun Wang  2009-11-09  set difital filter variables to export state
 !  Sarah Lu  2010-02-09  set cpi, ri attributes to export state
 !  Sarah Lu  2010-02-11  add set_dynexp_attribute subprogram for ri/cpi
+!  Henry Juang 2011-01-03 change routine name back to gfs_dynamics_ and for NDSL
 !
 !!USEs:
 !
@@ -84,7 +85,7 @@
       IF( int_state%start_step ) THEN
         PRINT *,' It is starting, so no need for import_state2internal '
         RETURN
-!     ELSE
+      ELSE
 !        PRINT *,' do import state to internal state '
       END IF
 
@@ -117,12 +118,12 @@
                   CALL GetF90ArrayFromState(imp_gfs_dyn, 'psm', FArr2D, 0, rc = rc1)
                   int_state%grid_gr(:,:,mstr) = FArr2D
               ELSE
-                  kstr=int_state%g_zq
+                  kstr=int_state%g_zqp
                   CALL getf90arrayfromstate(imp_gfs_dyn, 'ps', FArr2D, 0, rc = rc1)
                   int_state%grid_gr(:,:,kstr) = FArr2D
               END IF
           ELSE
-              kstr=int_state%g_zq
+              kstr=int_state%g_zqp
               CALL getf90arrayfromstate(exp_gfs_dyn, 'ps_dfi', FArr2D, 0, rc = rc1)
               int_state%grid_gr(:,:,kstr) = FArr2D
           END IF
@@ -144,13 +145,13 @@
                   CALL GetF90ArrayFromState(imp_gfs_dyn, 'tm', FArr3D, 0, rc = rc1)
                   int_state%grid_gr(:,:,mstr:mend) = FArr3D
               ELSE
-                  kstr = int_state%g_t
+                  kstr = int_state%g_ttp
                   kend = kstr + int_state%levs - 1
                   CALL getf90arrayfromstate(imp_gfs_dyn, 't', FArr3D, 0, rc = rc1)
                   int_state%grid_gr(:,:,kstr:kend) = FArr3D
               END IF
           ELSE
-              kstr = int_state%g_t
+              kstr = int_state%g_ttp
               kend = kstr + int_state%levs - 1
               CALL getf90arrayfromstate(exp_gfs_dyn, 't_dfi', FArr3D, 0, rc = rc1)
               int_state%grid_gr(:,:,kstr:kend) = FArr3D
@@ -176,13 +177,13 @@
                   int_state%grid_gr(:,:,mstr:mend) = FArr3D
               ELSE
                   CALL getf90arrayfromstate(imp_gfs_dyn, 'u', FArr3D, 0, rc = rc1)
-                  kstr = int_state%g_u
+                  kstr = int_state%g_uup
                   kend = kstr + int_state%levs - 1
                   int_state%grid_gr(:,:,kstr:kend) = FArr3D
               END IF
           ELSE
               CALL getf90arrayfromstate(exp_gfs_dyn, 'u_dfi', FArr3D, 0, rc = rc1)
-              kstr = int_state%g_u
+              kstr = int_state%g_uup
               kend = kstr + int_state%levs - 1
               int_state%grid_gr(:,:,kstr:kend) = FArr3D
           END IF
@@ -205,13 +206,13 @@
                   int_state%grid_gr(:,:,mstr:mend) = FArr3D
               ELSE
                   CALL getf90arrayfromstate(imp_gfs_dyn, 'v', FArr3D, 0, rc = rc1)
-                  kstr = int_state%g_v
+                  kstr = int_state%g_vvp
                   kend = kstr + int_state%levs - 1
                   int_state%grid_gr(:,:,kstr:kend) = FArr3D
               END IF
           ELSE
               CALL getf90arrayfromstate(exp_gfs_dyn, 'v_dfi', FArr3D, 0, rc = rc1)
-              kstr = int_state%g_v
+              kstr = int_state%g_vvp
               kend = kstr + int_state%levs - 1
               int_state%grid_gr(:,:,kstr:kend) = FArr3D
           END IF
@@ -256,7 +257,7 @@
                   CALL ESMF_StateGet(imp_gfs_dyn, 'tracers', Bundle, rc = rc1 )
                   CALL gfs_dynamics_err_msg(rc1, 'retrieve Ebundle from state', rcfinal)
                   DO k = 1, int_state%ntrac
-                      kstr = int_state%g_rt + (k - 1) * int_state%levs
+                      kstr = int_state%g_rqp + (k - 1) * int_state%levs
                       kend = kstr + int_state%levs - 1
                       IF(ASSOCIATED(FArr3D)) NULLIFY(FArr3D)
                       CALL ESMF_FieldBundleGet(Bundle,                               &
@@ -274,7 +275,7 @@
                   CALL getf90arrayfromstate(exp_gfs_dyn,                  &
                       TRIM(int_state%gfs_dyn_tracer%vname(k, 1))//'_dfi', &
                       FArr3D, 0, rc = rc1)
-                  kstr = int_state%g_rt + (k - 1) * int_state%levs
+                  kstr = int_state%g_rqp + (k - 1) * int_state%levs
                   kend = kstr + int_state%levs - 1
                   int_state%grid_gr(:, :, kstr:kend) = FArr3D
                   CALL gfs_dynamics_err_msg(rc1, 'retrieve Farray from field', rcfinal)
@@ -305,7 +306,7 @@
           ELSE
               CALL getf90arrayfromstate(exp_gfs_dyn, 'dp_dfi', FArr3D, 0, rc = rc1)
           END IF
-          kstr = int_state%g_dp
+          kstr = int_state%g_dpp
           kend = kstr + int_state%levs - 1
           int_state%grid_gr(:, :, kstr:kend) = FArr3D
           CALL gfs_dynamics_err_msg(rc1,"gete esmf state - dp_im",rcfinal)
@@ -443,7 +444,7 @@
               CALL addf90arraytostate(exp_gfs_dyn, mgrid, 'psm6',       & 
                                       hold_psm6, rc = rc1)
           END IF
-          kstr    = int_state%g_zq
+          kstr    = int_state%g_zqp
           hold_ps => int_state%grid_gr(:, :, kstr)
           CALL addf90arraytostate(exp_gfs_dyn, mgrid, 'ps',             & 
                                   hold_ps, rc = rc1)
@@ -478,7 +479,7 @@
               CALL addf90arraytostate(exp_gfs_dyn, mgrid, 'tm6',       & 
                                       hold_tempm6, rc = rc1)
           END IF
-          kstr = int_state%g_t
+          kstr = int_state%g_ttp
           kend = kstr + int_state%levs - 1
           hold_temp => int_state%grid_gr(:, :, kstr : kend)
           CALL addf90arraytostate(exp_gfs_dyn, mgrid, 't',             & 
@@ -515,7 +516,7 @@
               CALL addf90arraytostate(exp_gfs_dyn, mgrid, 'um6',       & 
                                       hold_um6, rc = rc1)
           END IF
-          kstr   = int_state%g_u
+          kstr   = int_state%g_uup
           kend   = kstr + int_state%levs - 1
           hold_u => int_state%grid_gr(:, :, kstr : kend)
           CALL addf90arraytostate(exp_gfs_dyn, mgrid, 'u',             & 
@@ -551,7 +552,7 @@
               CALL addf90arraytostate(exp_gfs_dyn, mgrid, 'vm6',       &
                                       hold_vm6, rc = rc1)
           END IF
-          kstr   = int_state%g_v
+          kstr   = int_state%g_vvp
           kend   = kstr + int_state%levs - 1
           hold_v => int_state%grid_gr(:, :, kstr : kend)
           CALL addf90arraytostate(exp_gfs_dyn, mgrid, 'v',             &
@@ -608,7 +609,7 @@
           END IF
 
           DO k = 1, int_state%ntrac
-              kstr = int_state%g_rt + (k - 1) * int_state%levs
+              kstr = int_state%g_rqp + (k - 1) * int_state%levs
               kend = kstr + int_state%levs - 1
               NULLIFY(FArr3D)
               FArr3D => int_state%grid_gr(:, :, kstr : kend)
@@ -661,7 +662,7 @@
 !-------------------------------------------------------
 
       IF(cf%dp_export == 1) THEN
-          kstr = int_state%g_dp
+          kstr = int_state%g_dpp
           kend = kstr + int_state%levs - 1
           hold_dp => int_state%grid_gr(:, :, kstr : kend)
           CALL addf90arraytostate(exp_gfs_dyn, mgrid, 'dp',          & 
@@ -748,4 +749,4 @@
 
 ! ==========================================================================
 
-      END MODULE GFS_Dyn_States_Mod
+      END MODULE gfs_dynamics_states_mod

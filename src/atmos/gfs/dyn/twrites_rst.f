@@ -1,12 +1,11 @@
       subroutine twrites_rst(fname,IOPROC,fhour,idate,
-     x           si,ls_nodes,max_ls_nodes,
-     x           gze_ls,qe_ls,tee_ls,die_ls,zee_ls,rqe_ls,
-     x           gzo_ls,qo_ls,teo_ls,dio_ls,zeo_ls,rqo_ls)
+     x           si,ls_nodes,max_ls_nodes,step,trie_ls,trio_ls)
 !
 !-------------------------------------------------------------------
 !*** program log
 !*** Dec, 2009 Jun Wang:  write spectral variables for restart
 !*** Dec, 2010 Jun Wang:  change to nemsio library
+!*** Feb, 2011 Henry Juang: use generic argument for spectral fit to mass_dp and ndsl
 !-------------------------------------------------------------------
 !
       use gfs_dyn_resol_def
@@ -21,25 +20,14 @@
       character(*),intent(in) :: fname
       integer,intent(in) :: ioproc
       real(kind=kind_evod),intent(in) :: fhour
-      integer,intent(in) :: idate(4)
+      integer,intent(in) :: idate(4),step
 !
       real(kind=kind_evod),intent(in):: si(levp1)
       integer,intent(in)             :: ls_nodes(ls_dim,nodes)
       integer,intent(in)             :: max_ls_nodes(nodes)
 !
-      real(kind=kind_evod),intent(in) :: gze_ls(len_trie_ls,2)
-     &,                     qe_ls(len_trie_ls,2)
-     &,                    tee_ls(len_trie_ls,2,levs)
-     &,                    die_ls(len_trie_ls,2,levs)
-     &,                    zee_ls(len_trie_ls,2,levs)
-     &,                    rqe_ls(len_trie_ls,2,levh)
-!
-     &,                    gzo_ls(len_trio_ls,2)
-     &,                     qo_ls(len_trio_ls,2)
-     &,                    teo_ls(len_trio_ls,2,levs)
-     &,                    dio_ls(len_trio_ls,2,levs)
-     &,                    zeo_ls(len_trio_ls,2,levs)
-     &,                    rqo_ls(len_trio_ls,2,levh)
+      real(kind=kind_evod),intent(in) :: trie_ls(len_trie_ls,2,lotls)
+      real(kind=kind_evod),intent(in) :: trio_ls(len_trio_ls,2,lotls)
 !
 !local variables:
       REAL(kind=8) t1,t2,t3,t4,t5,t6,ta,tb,rtc
@@ -52,6 +40,7 @@
       integer              indev1,indev2
       integer              indod1,indod2
       integer              ixgr
+      integer              lots_rst
 !
       real(kind=kind_ior), target ::   buf(lnt2)
       real(kind=kind_ior),allocatable ::   Z_R(:)
@@ -88,80 +77,118 @@
       real(kind=kind_mpi_r),allocatable :: trieo_gz_nodes(:,:,:)
 !
       integer      lan,lat,iblk,lons_lat,lon,NJEFF,nn,lv
+      integer      kwq,kwdp,kwte,kwdi,kwze,kwrq
+      integer      kkq,kkdp,kkte,kkdi,kkze,kkrq
 !
 !---------------------------------------------------------------------
 !
 !      print *,' enter twrites_rst ' 
 
+      kwq = 1
+      kwdp = kwq + 1
+      kwte = kwdp + levs
+      kwdi = kwte + levs
+      kwze = kwdi + levs
+      if( .not. ndslfv ) then
+        kwrq = kwze + levs
+        lots_rst = 4*levs + levh + 1
+      else
+        lots_rst = 4*levs + 1
+      endif
+
       call mpi_comm_size(MPI_COMM_ALL,i,ierr)
 !
 !-- allocate
       allocate ( trieo_ls_node  ( len_trie_ls_max+len_trio_ls_max,
-     x                            2, 3*levs+1*levh+1 ) )
+     x                            2, lots_rst ) )
 !
 !-- compute gze_ls only once
       if(first ) then
         allocate(trieo_gz_node(len_trie_ls_max+len_trio_ls_max,2))
         do j=1,len_trie_ls
-          trieo_gz_node(j,1) = gze_ls(j,1)
-          trieo_gz_node(j,2) = gze_ls(j,2)
+          trieo_gz_node(j,1) = trie_ls(j,1,p_gz)
+          trieo_gz_node(j,2) = trie_ls(j,2,p_gz)
         enddo
         do j=1,len_trio_ls
-          trieo_gz_node(j+len_trie_ls_max,1) = gzo_ls(j,1)
-          trieo_gz_node(j+len_trie_ls_max,2) = gzo_ls(j,2)
+          trieo_gz_node(j+len_trie_ls_max,1) = trio_ls(j,1,p_gz)
+          trieo_gz_node(j+len_trie_ls_max,2) = trio_ls(j,2,p_gz)
         enddo
       endif
 !
 !-- collect data
+      if( step==-1 ) then	! time step n-1
+        kkq  = p_qm
+        kkdp = p_dpm
+        kkte = p_tem
+        kkdi = p_dim
+        kkze = p_zem
+        if( .not. ndslfv ) kkrq = p_rm
+      else if( step==0 ) then	! time step n
+        kkq  = p_q
+        kkdp = p_dp
+        kkte = p_te
+        kkdi = p_di
+        kkze = p_ze
+        if( .not. ndslfv ) kkrq = p_rq
+      else
+        print *,' **** error in twrites_rst: unknown step=',step
+      endif
+        
       do j=1,len_trie_ls
-        trieo_ls_node(j,1,kwq) = qe_ls(j,1)
-        trieo_ls_node(j,2,kwq) = qe_ls(j,2)
+        trieo_ls_node(j,1,kwq) = trie_ls(j,1,kkq)
+        trieo_ls_node(j,2,kwq) = trie_ls(j,2,kkq)
       enddo
 !
       do j=1,len_trio_ls
-        trieo_ls_node(j+len_trie_ls_max,1,kwq) = qo_ls(j,1)
-        trieo_ls_node(j+len_trie_ls_max,2,kwq) = qo_ls(j,2)
+        trieo_ls_node(j+len_trie_ls_max,1,kwq) = trio_ls(j,1,kkq)
+        trieo_ls_node(j+len_trie_ls_max,2,kwq) = trio_ls(j,2,kkq)
       enddo
 !
       do k=1,levs
         do j=1,len_trie_ls
-          trieo_ls_node(j,1,kwte+  k-1) = tee_ls(j,1,k)
-          trieo_ls_node(j,2,kwte+  k-1) = tee_ls(j,2,k)
-          trieo_ls_node(j,1,kwdz+  k-1) = die_ls(j,1,k)
-          trieo_ls_node(j,2,kwdz+  k-1) = die_ls(j,2,k)
-          trieo_ls_node(j,1,kwdz+levs+k-1) = zee_ls(j,1,k)
-          trieo_ls_node(j,2,kwdz+levs+k-1) = zee_ls(j,2,k)
+          trieo_ls_node(j,1,kwdp+k-1) = trie_ls(j,1,kkdp+k-1)
+          trieo_ls_node(j,2,kwdp+k-1) = trie_ls(j,2,kkdp+k-1)
+          trieo_ls_node(j,1,kwte+k-1) = trie_ls(j,1,kkte+k-1)
+          trieo_ls_node(j,2,kwte+k-1) = trie_ls(j,2,kkte+k-1)
+          trieo_ls_node(j,1,kwdi+k-1) = trie_ls(j,1,kkdi+k-1)
+          trieo_ls_node(j,2,kwdi+k-1) = trie_ls(j,2,kkdi+k-1)
+          trieo_ls_node(j,1,kwze+k-1) = trie_ls(j,1,kkze+k-1)
+          trieo_ls_node(j,2,kwze+k-1) = trie_ls(j,2,kkze+k-1)
         enddo
         do j=1,len_trio_ls
           jj = j+len_trie_ls_max
-          trieo_ls_node(jj,1,kwte+  k-1) = teo_ls(j,1,k)
-          trieo_ls_node(jj,2,kwte+  k-1) = teo_ls(j,2,k)
-          trieo_ls_node(jj,1,kwdz+  k-1) = dio_ls(j,1,k)
-          trieo_ls_node(jj,2,kwdz+  k-1) = dio_ls(j,2,k)
-          trieo_ls_node(jj,1,kwdz+levs+k-1) = zeo_ls(j,1,k)
-          trieo_ls_node(jj,2,kwdz+levs+k-1) = zeo_ls(j,2,k)
+          trieo_ls_node(jj,1,kwdp+k-1) = trio_ls(j,1,kkdp+k-1)
+          trieo_ls_node(jj,2,kwdp+k-1) = trio_ls(j,2,kkdp+k-1)
+          trieo_ls_node(jj,1,kwte+k-1) = trio_ls(j,1,kkte+k-1)
+          trieo_ls_node(jj,2,kwte+k-1) = trio_ls(j,2,kkte+k-1)
+          trieo_ls_node(jj,1,kwdi+k-1) = trio_ls(j,1,kkdi+k-1)
+          trieo_ls_node(jj,2,kwdi+k-1) = trio_ls(j,2,kkdi+k-1)
+          trieo_ls_node(jj,1,kwze+k-1) = trio_ls(j,1,kkze+k-1)
+          trieo_ls_node(jj,2,kwze+k-1) = trio_ls(j,2,kkze+k-1)
         enddo
       enddo
 !
+      if( .not. ndslfv ) then
       do k=1,levh
         do j=1,len_trie_ls
-          trieo_ls_node(j,1,kwrq+  k-1) = rqe_ls(j,1,k)
-          trieo_ls_node(j,2,kwrq+  k-1) = rqe_ls(j,2,k)
+          trieo_ls_node(j,1,kwrq+k-1) = trie_ls(j,1,kkrq+k-1)
+          trieo_ls_node(j,2,kwrq+k-1) = trie_ls(j,2,kkrq+k-1)
         enddo
         do j=1,len_trio_ls
           jj = j+len_trie_ls_max
-          trieo_ls_node(jj,1,kwrq+  k-1) = rqo_ls(j,1,k)
-          trieo_ls_node(jj,2,kwrq+  k-1) = rqo_ls(j,2,k)
+          trieo_ls_node(jj,1,kwrq+k-1) = trio_ls(j,1,kkrq+k-1)
+          trieo_ls_node(jj,2,kwrq+k-1) = trio_ls(j,2,kkrq+k-1)
         enddo
       enddo
+      endif
 !
 !-- collect data to ioproc
       if ( me .eq. ioproc ) then
 !       write(0,*)'ALLOC PARMS TWRITE ',len_trie_ls_max+len_trio_ls_max,
-!     &      2,3*levs+1*levh+1, nodes,1
+!     &      2, lots_rst, nodes,1
  
          allocate ( trieo_ls_nodes ( len_trie_ls_max+len_trio_ls_max,
-     &                               2, 3*levs+1*levh+1, nodes ),
+     &                               2, lots_rst, nodes ),
      &              stat=ierr )
          if(first) then
            allocate ( trieo_gz_nodes ( len_trie_ls_max+len_trio_ls_max,
@@ -176,8 +203,7 @@
       call mpi_barrier(MPI_COMM_ALL,ierr)
       if(nodes >1 )then
 
-        lenrec = (len_trie_ls_max+len_trio_ls_max) * 2 * 
-     &   (3*levs+1*levh+1)
+        lenrec = (len_trie_ls_max+len_trio_ls_max) * 2 * lots_rst
 !
         t1=rtc()
        call mpi_gather( trieo_ls_node , lenrec, MPI_R_MPI_R,
@@ -258,7 +284,7 @@
         if (first) then
 !
           nmeta=5
-          nrec=3*levs+1*levh+2
+          nrec=1+lots_rst
           ntrac=levh/levs
 !          print *,'write spec rst, nrec=',nrec,'ntrac=',ntrac
 !
@@ -266,24 +292,32 @@
           allocate(recname(nrec),reclevtyp(nrec),reclev(nrec))
           recname(1)='gz'
           recname(2)='pres'
-          recname(3:levs+2)='tmp'
-          recname(levs+3:2*levs+2)='di'
-          recname(2*levs+3:3*levs+2)='ze'
-          recname(3*levs+3:3*levs+levh+2)='rq'
+          recname(       3:  levs+2)='dpres'
+          recname(  levs+3:2*levs+2)='tmp'
+          recname(2*levs+3:3*levs+2)='di'
+          recname(3*levs+3:4*levs+2)='ze'
+          if( .not. ndslfv ) then
+            recname(4*levs+3:4*levs+levh+2)='rq'
+          endif
           reclevtyp(1)='sfc'
           reclevtyp(2)='sfc'
-          reclevtyp(3:3*levs+2)='mid layer'
-          reclevtyp(3*levs+3:3*levs+levh+2)='tracer layer'
+          reclevtyp(3:4*levs+2)='mid layer'
+          if( .not. ndslfv ) then
+            reclevtyp(4*levs+3:4*levs+levh+2)='tracer layer'
+          endif
           reclev(1)=1
           reclev(2)=1
           do i=1,levs
             reclev(i+2)=i
-            reclev(i+2+levs)=i
+            reclev(i+2+  levs)=i
             reclev(i+2+2*levs)=i
-          enddo
-          do i=1,levh
             reclev(i+2+3*levs)=i
           enddo
+          if( .not. ndslfv ) then
+            do i=1,levh
+              reclev(i+2+4*levs)=i
+            enddo
+          endif
 !
           nmetavarr8=1
           allocate(varr8name(nmetavarr8),varr8val(nmetavarr8))
@@ -321,7 +355,7 @@
 !       print *,'after snemsio_writerec gz,',maxval(Z_r),minval(Z_R),
 !     &   'iret=',iret
 !
-       do k=1,3*levs+1*levh+1
+       do k=1,lots_rst
          jrec=k+1
          do node=1,nodes
 !

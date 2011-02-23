@@ -1,4 +1,14 @@
       module gfs_dyn_reduce_lons_grid_module
+!
+! This moudule is based on Juang 2004 paper about reduced spherical
+! transform which has both reduced Gaussian grid and reduced Legendre
+! transform
+!
+! program lot:
+! 20110211:	Henry Juang upgraded to have linear grid option for 
+!               non-iterating dimensional-split semi-Lagrangian NDSL
+!
+
       use gfs_dyn_machine , only : kind_dbl_prec
       implicit none
 
@@ -11,10 +21,10 @@
 
       contains
 ! -------------------------------------------------------------------   
-      subroutine gfs_dyn_reduce_grid (numreduce,jcapi,latg,lons_lat)
+      subroutine gfs_dyn_reduce_grid (numreduce,jcapi,latg,lons_lat,lg)
       use gfs_dyn_machine , only : kind_dbl_prec
       implicit none
-      integer numreduce,jcapi,latg
+      integer numreduce,jcapi,latg,lg
       integer lons_lat(latg)
 
       real(kind=kind_dbl_prec) , allocatable :: qtt(:)
@@ -47,11 +57,11 @@ c
           enddo
         enddo
 ! turn on the safe limit
-!       numreduce=max(numreduce,2)
+        numreduce=max(numreduce,4)
         qttcut=qmaxall/(10.**numreduce)
         do lat=1,latgh
           call gfs_dyn_reduce_pln2i (lat,qtt)
-          call gfs_dyn_reduce_per_lat (qtt,qttcut,lons_lat(lat))
+          call gfs_dyn_reduce_per_lat (qtt,qttcut,lons_lat(lat),lg)
         enddo
         do lat=1,latgh
           lons_lat(latg-lat+1)=lons_lat(lat)
@@ -69,11 +79,11 @@ c
       end subroutine gfs_dyn_reduce_grid
 
 ! -------------------------------------------------------------
-      subroutine gfs_dyn_reduce_per_lat(qtt,qttcut,lonfd)
+      subroutine gfs_dyn_reduce_per_lat(qtt,qttcut,lonfd,lg)
       use gfs_dyn_machine , only : kind_dbl_prec
       implicit none
       real(kind=kind_dbl_prec) qtt(lnt2),qttcut
-      integer lonfd
+      integer lonfd,lg
 c
       integer ind,mwave,need,m,n,ireal,imagi
       integer lcapd,lonfi,lonfo,lonf,lonff
@@ -97,7 +107,8 @@ c
       enddo
  123  lcapd=mwave
 c
-      lonfi=3*(lcapd-1)+1
+!     lonfi=3*(lcapd-1)+1
+      lonfi=lg*(lcapd-1)+1
       lonff=lonfi+mod(lonfi,2)
  100  continue
         lonf=lonff

@@ -1,12 +1,13 @@
       subroutine twriteg_rst(fname,IOPROC,fhour,idate,
      x           si,pdryini,global_lats_a,lonsperlat,lats_nodes_a,
-     x           psg,ttg,uug,vvg,rqg,zsg,
+     x           psg,dpg,ttg,uug,vvg,rqg,zsg,
      &           kdt,nfcstdate7)
 !
 !-------------------------------------------------------------------
 !*** program log
 !*** Dec, 2009 Jun Wang:  write spectral variables for restart
 !*** Dec, 2010 Jun Wang:  change to nemsio library
+!*** Feb, 2011 Henry Juang: add option for mass_dp and  NDSL
 !-------------------------------------------------------------------
 !
       use gfs_dyn_resol_def
@@ -33,6 +34,7 @@
 !
       REAL(KIND=KIND_GRID),intent(in) :: zsg(lonf,lats_node_a_max)
       REAL(KIND=KIND_GRID),intent(in) :: psg(lonf,lats_node_a_max)
+      REAL(KIND=KIND_GRID),intent(in) :: dpg(lonf,lats_node_a_max,levs)
       REAL(KIND=KIND_GRID),intent(in) :: ttg(lonf,lats_node_a_max,levs)
       REAL(KIND=KIND_GRID),intent(in) :: uug(lonf,lats_node_a_max,levs)
       REAL(KIND=KIND_GRID),intent(in) :: vvg(lonf,lats_node_a_max,levs)
@@ -47,7 +49,7 @@
       real(kind=kind_ior),allocatable ::  GZ(:)
 !
       type(nemsio_gfile) gfile
-      integer kps,ktt,kuu,kvv,krq
+      integer kps,ktt,kuu,kvv,krq,kdp
       integer nfhour,nfminute,nfsecondn,nfsecondd,nrec,nmeta
       integer nmetavari,nmetavarr8,nmetaaryi,fieldsize
       character(16),allocatable :: recname(:),reclevtyp(:)
@@ -70,7 +72,7 @@
 !
       real(kind=kind_mpi_r),allocatable :: grid_gz_nodes(:,:,:)
 !
-      integer      lan,lat,iblk,lons_lat,lon,NJEFF,nn,lv
+      integer      lan,lat,iblk,lons_lat,lon,NJEFF,nn,lv,lotg_rst
 !
 !---------------------------------------------------------------------
 !
@@ -78,14 +80,17 @@
 !       print *,'lonf=',lonf,'lats_node_a_max=',lats_node_a_max,
 !     &  'total_levels=',3*levs+1*levh+1,'lonsperlat=',lonsperlat
 
-      allocate ( grid_node ( lonf,lats_node_a_max,3*levs+1*levh+1 ) )
+      lotg_rst = 4*levs+1*levh+1	! ps, dp, tt, uu, vv, rq
+
+      allocate ( grid_node ( lonf,lats_node_a_max,lotg_rst ) )
 !
       fieldsize=sum(lonsperlat)
 !      print *,'fieldsize=',fieldsize
 !
 !collect data 
       kps=1
-      ktt=kps+1
+      kdp=kps+1
+      ktt=kdp+levs
       kuu=ktt+levs
       kvv=kuu+levs
       krq=kvv+levs
@@ -99,6 +104,7 @@
       do k=1,levs
         do j=1,lats_node_a_max
           do i=1,lonf
+            grid_node(i,j,kdp+k-1) = dpg(i,j,k)
             grid_node(i,j,ktt+k-1) = ttg(i,j,k)
             grid_node(i,j,kuu+k-1) = uug(i,j,k)
             grid_node(i,j,kvv+k-1) = vvg(i,j,k)
@@ -119,7 +125,7 @@
 !
       if ( me .eq. ioproc ) then
          allocate ( grid_nodes ( lonf,lats_node_a_max,
-     &                           3*levs+1*levh+1, nodes ),stat=ierr )
+     &                           lotg_rst, nodes ),stat=ierr )
          if(first) then
            allocate ( grid_gz_nodes (lonf,lats_node_a_max,nodes),
      &                stat=ierr )
@@ -130,7 +136,7 @@
       endif
 !
       if(nodes>1) then
-        lenrec = lonf*lats_node_a_max * (3*levs+1*levh+1)
+        lenrec = lonf*lats_node_a_max * lotg_rst
 !
         t1=rtc()
 !        print *,'after allocate grid_nodes,lenrec=',lenrec
@@ -187,7 +193,7 @@
         if (first) then
 !
           nmeta=6
-          nrec=3*levs+1*levh+2
+          nrec=lotg_rst+1
           allocate(vcoord4(levp1,3,2))
           vcoord4=0.
           idvt    = (ntoz-1) + 10 * (ntcw-1)
@@ -213,7 +219,7 @@
 !!
           if (gen_coord_hybrid) then					! hmhj
 
-!            idvc    = vctype						! hmhj
+!           idvc    = vctype						! hmhj
             idvc    = 3      					! hmhj
             idvm    = 32    ! 1: ln(ps) 2:ps				! hmhj
             idsl    = 2    ! idsl=2 for middle of layer		! hmhj
@@ -223,7 +229,7 @@
               vcoord4(k,3,1)=ck5(k)*1000.				! hmhj
             enddo								! hmhj
 
-          else if (hybrid) then						! hmhj
+          else if ( hybrid ) then
             idvc    = 2    ! for hybrid vertical coord.
             do k=1,levp1
               vcoord4(k,1,1)=ak5(levp1+1-k)*1000.
@@ -240,23 +246,25 @@
           allocate(recname(nrec),reclevtyp(nrec),reclev(nrec))
           recname(1)='hgt'
           recname(2)='pres'
-          recname(3:levs+2)='tmp'
-          recname(levs+3:2*levs+2)='ugrd'
-          recname(2*levs+3:3*levs+2)='vgrd'
-          recname(3*levs+3:3*levs+levh+2)='tracer'
+          recname(       3:  levs+2)='dpres'
+          recname(  levs+3:2*levs+2)='tmp'
+          recname(2*levs+3:3*levs+2)='ugrd'
+          recname(3*levs+3:4*levs+2)='vgrd'
+          recname(4*levs+3:4*levs+levh+2)='tracer'
           reclevtyp(1)='sfc'
           reclevtyp(2)='sfc'
-          reclevtyp(3:3*levs+2)='mid layer'
-          reclevtyp(3*levs+3:3*levs+levh+2)='tracer layer'
+          reclevtyp(3:4*levs+2)='mid layer'
+          reclevtyp(4*levs+3:4*levs+levh+2)='tracer layer'
           reclev(1)=1
           reclev(2)=1
           do i=1,levs
             reclev(i+2)=i
-            reclev(i+2+levs)=i
+            reclev(i+2+  levs)=i
             reclev(i+2+2*levs)=i
+            reclev(i+2+3*levs)=i
           enddo
           do i=1,levh
-            reclev(i+2+3*levs)=i
+            reclev(i+2+4*levs)=i
           enddo
 !
           nmetavarr8=2
@@ -300,7 +308,7 @@
 !
        allocate ( tmp8 ( lonf,latg ) )
        allocate ( buf(fieldsize) )
-       do k=1,3*levs+1*levh+1
+       do k=1,lotg_rst
          jrec=k+1
          ipt_lats=1
          do node=1,nodes

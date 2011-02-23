@@ -2,6 +2,7 @@
 !
 ! hmhj : this is modified hybrid by finite difference from henry juang
 !        thgr can be t or h
+! 2011 02 20 : henry jaung, add options for NDSL
 !
  
       use gfs_dyn_machine , only : kind_grid
@@ -15,13 +16,12 @@
 
       real(kind=kind_grid), parameter :: PT01=0.01, rkappa = cp / rd
       real(kind=kind_grid) prsl(nsize_ar,levs)
-      real(kind=kind_grid) dprs(nsize_ar,levs+1)
+      real(kind=kind_grid) dprs(nsize_ar,levs)
       real(kind=kind_grid) pgr(nsize_ar)
       real(kind=kind_grid) thgr(nsize_ar,levs)
 
       real(kind=kind_grid) ppi(njeff,levs+1)
       real(kind=kind_grid) tki(njeff,levs+1)
-      real(kind=kind_grid) tkci(njeff,levs+1)
       real(kind=kind_grid) tkrt0
  
       logical adjusted
@@ -33,17 +33,15 @@
 !     print *,' enter  gch2press '
 
       tki = 0.0
-      tkci= 0.0
       do k=2,levs
         do i=1,njeff
           tkrt0 = (thgr(i,k-1)+thgr(i,k))/(thref(k-1)+thref(k))
           tki (i,k)=ck5(k)*tkrt0**rkappa
-          tkci(i,k)=tki(i,k)*rkappa/(thgr(i,k-1)+thgr(i,k))
         enddo
       enddo
       do k=1,levp1
         do i=1,njeff
-          ppi(i,k)  = ak5(k)+bk5(k)*pgr(i)+tki(i,k) ! si are now pressures
+          ppi(i,k)  = ak5(k)+bk5(k)*pgr(i)+tki(i,k)
         enddo
       enddo
 !

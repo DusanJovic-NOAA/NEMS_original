@@ -1,8 +1,8 @@
       module namelist_dynamics_def
+
 !
-!---- revision history
-!--- Sep 8 2010    J. Wang   change gfsio to nemsio
-!
+! program lot
+! 20 Feb 2011:    Henry Juang add some options for NDSL
 !
       use gfs_dyn_machine
       implicit none
@@ -18,8 +18,9 @@
 
 
       logical nemsio_in, nemsio_out
-      logical reduced_grid
-      integer nislfv
+      logical reduced_grid, semi_implicit_temp_profile
+      logical mass_dp, process_split, linear_grid
+      logical ndslfv
       character*20 ens_nam
 !
       end module namelist_dynamics_def

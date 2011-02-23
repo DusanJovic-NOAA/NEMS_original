@@ -7,7 +7,10 @@
      x                      snnp1ev,snnp1od,ndexev,ndexod,
      x                      plnev_a,plnod_a,pddev_a,pddod_a,
      x                      plnew_a,plnow_a,colat1)
-cc
+!
+! program log:
+! 20110220    henry juang update code to fit mass_dp and ndslfv
+!
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
       use gfs_dyn_gg_def
@@ -495,6 +498,9 @@ cc
 !        print *,' lan lat lons_lat ',lan,lat,lons_lat
 !     enddo
 !
+      if( ndslfv ) then
+        call ndslfv_init(lonf,latg,coslat_a,colrad_a,wgt_a,lats_nodes_a)
+      endif
 
 !     print *,' end of getcon_dynamics '
 cc

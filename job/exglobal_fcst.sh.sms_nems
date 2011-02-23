@@ -40,6 +40,7 @@
 # 2010-07-14  Shrinivas Moorthi : Upgraded for the new physics and nst model
 #             and rewrote some parts and added ensemble generality
 # 2010-07-23  Sarah Lu : add AER, modify filename_base, file_io_form, file_io
+# 2010-12-12  Henry Juang : add linear grid, JCAPG for NDSL
 #
 # Usage:  global_forecast.sh SIGI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO NSTI NSTO G3DO FHOUT_HF FHMAX_HF
 #
@@ -455,12 +456,16 @@ export LDFIFLTO=${LDFIFLTO:-.false.}
 export NUM_FILE=${NUM_FILE:-3}
 export QUILTING=${QUILTING:-.true.}
 export REDUCED_GRID=${REDUCED_GRID:-.true.}
+export LINEAR_GRID=${LINEAR_GRID:-.false.}
 export nemsioget=${nemsioget:-/climate/save/wx20wa/gfsio/nems/nemsio_get}
 export PASSIVE_TRACER=${PASSIVE_TRACER:-.false.}
 #
 export EXPLICIT=${EXPLICIT:-.false.}
-export NON_ITER_SEMI_LAGRANGIAN_FV=${NON_ITER_SEMI_LAGRANGIAN_FV:-.false.}
+export MASS_DP=${MASS_DP:-.false.}
+export PROCESS_SPLIT=${PROCESS_SPLIT:-.false.}
+export NDSLFV=${NDSLFV:-.false.}
 export ZFLXTVD=${ZFLXTVD:-.false.}
+export SEMI_IMPLICIT_TEMP_PROFILE=${SEMI_IMPLICIT_TEMP_PROFILE:-.false.}
 export pre_rad=${pre_rad:-.false.}
 export random_clds=${random_clds:-.false.}
 export FCSTEXEC=${FCSTEXEC:-${EXECGLOBAL}/global_fcst$XC}
@@ -1150,18 +1155,19 @@ EOF
 #eval $PGM <<EOF $REDOUT$PGMOUT $REDERR$PGMERR
 #totalview poe -a $PGM <<EOF $REDOUT$PGMOUT $REDERR$PGMERR
 #
-#eval $PGM <<EOF $REDOUT$PGMOUT $REDERR$PGMERR
-# FHRES=$FHRES, FHROT=$FHROT, nislfv=$NON_ITER_SEMI_LAGRANGIAN_FV,
 cat  > atm_namelist <<EOF
  &nam_dyn
   FHOUT=$FHOUT, FHMAX=$FHMAX, IGEN=$IGEN, DELTIM=$DELTIM,
   FHRES=$FHRES, FHROT=$FHROT, FHDFI=$FHDFI, nsout=$nsout,
-  spectral_loop=$SPECTRAL_LOOP, explicit=$EXPLICIT,
   nxpt=1, nypt=2, jintmx=2, lonf=$LONF, latg=$LATG,
-  jcap=$JCAP, levs=$LEVS,  levr=$LEVR, reduced_grid=$REDUCED_GRID,
+  jcap=$JCAP, levs=$LEVS,  levr=$LEVR, 
   ntrac=$NTRAC, ntoz=$NTOZ, ntcw=$NTCW, ncld=$NCLD,
   ngptc=$NGPTC, hybrid=$HYBRID, tfiltc=$TFILTC,
   gen_coord_hybrid=$GEN_COORD_HYBRID, zflxtvd=$ZFLXTVD,
+  spectral_loop=$SPECTRAL_LOOP, explicit=$EXPLICIT,
+  ndslfv=$NDSLFV,mass_dp=$MASS_DP,process_split=$PROCESS_SPLIT,
+  reduced_grid=$REDUCED_GRID,linear_grid=$LINEAR_GRID,
+  semi_implicit_temp_profile=$SEMI_IMPLICIT_TEMP_PROFILE,
   $DYNVARS /
 &nam_phy
   FHOUT=$FHOUT, FHMAX=$FHMAX, IGEN=$IGEN, DELTIM=$DELTIM,

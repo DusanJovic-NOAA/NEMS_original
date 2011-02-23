@@ -1,10 +1,11 @@
       SUBROUTINE DELDIFS(RTE,WE,QME,XE,YE,TEME,
      &                   RTO,WO,QMO,XO,YO,TEMO,DELTIM,SL,
      &                   LS_NODE,COEF00,K_LEVEL,
-     &                   hybrid,gen_coord_hybrid,nislfv)
+     &                   hybrid,gen_coord_hybrid)
 !
 ! Code Revision
 ! 14/02/2011 Sarah Lu, modify FSHK (to be consistent with CFS)
+! 2011 02 20 : Henry Juang, updated code for ndsl implementation
 !
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
@@ -15,7 +16,6 @@
       IMPLICIT NONE
 !
       logical hybrid, gen_coord_hybrid
-      integer nislfv
       REAL(KIND=KIND_EVOD) RTE(LEN_TRIE_LS,2,LEVS,NTRAC)
      &,                     WE(LEN_TRIE_LS,2)
      &,                    QME(LEN_TRIE_LS,2)
@@ -250,10 +250,8 @@
            XE(INDEV,1)      = XE(INDEV,1)*RFACTRD
            XE(INDEV,2)      = XE(INDEV,2)*RFACTRD
  
-           if( nislfv.le.1 ) then	! hmhj
            RTE(INDEV,1,1,1) = RTE(INDEV,1,1,1)*RFACT
            RTE(INDEV,2,1,1) = RTE(INDEV,2,1,1)*RFACT
-           endif			! hmhj
 
            PE(INDEV,1)=BKLY(K)*QME(INDEV,1)+CKLY(K)*TEME(INDEV,1)	! hmhj
            PE(INDEV,2)=BKLY(K)*QME(INDEV,2)+CKLY(K)*TEME(INDEV,2)	! hmhj
@@ -292,10 +290,8 @@
            XO(INDOD,1)      = XO(INDOD,1)*RFACTRD
            XO(INDOD,2)      = XO(INDOD,2)*RFACTRD
 
-           if( nislfv.le.1 ) then	! hmhj
            RTO(INDOD,1,1,1) = RTO(INDOD,1,1,1)*RFACT
            RTO(INDOD,2,1,1) = RTO(INDOD,2,1,1)*RFACT
-           endif			! hmhj
 
            PO(INDOD,1)=BKLY(K)*QMO(INDOD,1)+CKLY(K)*TEMO(INDOD,1)	! hmhj
            PO(INDOD,2)=BKLY(K)*QMO(INDOD,2)+CKLY(K)*TEMO(INDOD,2)	! hmhj
@@ -312,7 +308,6 @@
 !......................................................................
 !
 !
-      if( nislfv.le.1 ) then
 !
       if (ntrac .gt. 1) then
         do it=2,ntrac
@@ -388,7 +383,6 @@
         enddo                       ! Tracer do loop end
       endif
 !
-      endif	! nislfv
 !
       CALL COUNTPERF(1,13,0.)
 

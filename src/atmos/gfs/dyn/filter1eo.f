@@ -1,12 +1,22 @@
       subroutine filter1eo
      x     (teme,tee,ye,dime,die,xe,zeme,zee,we,rme,rqe,rte,
-     x      temo,teo,yo,dimo,dio,xo,zemo,zeo,wo,rmo,rqo,rto,filta,
-     x      ls_node)
+     &      dpme,dpe,dpne,
+     x      temo,teo,yo,dimo,dio,xo,zemo,zeo,wo,rmo,rqo,rto,
+     &      dpmo,dpo,dpno,
+     &      filta,ls_node)
 cc
+!
+! program log
+! Feb 2011    Hann-Ming Henry Juang  add dp for NDSL
+!
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
       implicit none
 cc
+      real(kind=kind_evod)
+     1  dpe(len_trie_ls,2,levs), 
+     1 dpme(len_trie_ls,2,levs), 
+     1 dpne(len_trie_ls,2,levs)
       real(kind=kind_evod)
      1  tee(len_trie_ls,2,levs),  die(len_trie_ls,2,levs),
      1 teme(len_trie_ls,2,levs), dime(len_trie_ls,2,levs),
@@ -19,6 +29,10 @@ cc
      1   we(len_trie_ls,2,levs),
      1  rme(len_trie_ls,2,levh)
 cc
+      real(kind=kind_evod)
+     1  dpo(len_trio_ls,2,levs), 
+     1 dpmo(len_trio_ls,2,levs), 
+     1 dpno(len_trio_ls,2,levs)
       real(kind=kind_evod)
      1  teo(len_trio_ls,2,levs),  dio(len_trio_ls,2,levs),
      1 temo(len_trio_ls,2,levs), dimo(len_trio_ls,2,levs),
@@ -76,6 +90,12 @@ cc
             endif
             do indev = indev1 , indev2
 cc
+!              dpme(indev,1,k) =         dpe (indev,1,k)
+!              dpme(indev,2,k) =         dpe (indev,2,k)
+               dpme(indev,1,k) = filta * dpe (indev,1,k)
+     x                         + filtb * dpme(indev,1,k)
+               dpme(indev,2,k) = filta * dpe (indev,2,k)
+     x                         + filtb * dpme(indev,2,k)
                teme(indev,1,k) = filta * tee (indev,1,k)
      x                         + filtb * teme(indev,1,k)
                teme(indev,2,k) = filta * tee (indev,2,k)
@@ -88,6 +108,8 @@ cc
      x                         + filtb * zeme(indev,1,k)
                zeme(indev,2,k) = filta * zee (indev,2,k)
      x                         + filtb * zeme(indev,2,k)
+                dpe(indev,1,k) =         dpne(indev,1,k)
+                dpe(indev,2,k) =         dpne(indev,2,k)
                 tee(indev,1,k) =           ye(indev,1,k)
                 tee(indev,2,k) =           ye(indev,2,k)
                 die(indev,1,k) =           xe(indev,1,k)
@@ -111,6 +133,12 @@ cc
             endif
             do indod = indod1 , indod2
 cc
+!              dpmo(indod,1,k) =         dpo (indod,1,k)
+!              dpmo(indod,2,k) =         dpo (indod,2,k)
+               dpmo(indod,1,k) = filta * dpo (indod,1,k)
+     x                         + filtb * dpmo(indod,1,k)
+               dpmo(indod,2,k) = filta * dpo (indod,2,k)
+     x                         + filtb * dpmo(indod,2,k)
                temo(indod,1,k) = filta * teo (indod,1,k)
      x                         + filtb * temo(indod,1,k)
                temo(indod,2,k) = filta * teo (indod,2,k)
@@ -123,6 +151,8 @@ cc
      x                         + filtb * zemo(indod,1,k)
                zemo(indod,2,k) = filta * zeo (indod,2,k)
      x                         + filtb * zemo(indod,2,k)
+                dpo(indod,1,k) =         dpno(indod,1,k)
+                dpo(indod,2,k) =         dpno(indod,2,k)
                 teo(indod,1,k) =           yo(indod,1,k)
                 teo(indod,2,k) =           yo(indod,2,k)
                 dio(indod,1,k) =           xo(indod,1,k)

@@ -68,6 +68,18 @@ NST_SPINUP=${NST_SPINUP:-.false.}
  export THERMODYN_ID=_THERMODYNID_
  export IDVC=_IDVC_
  export SPECTRAL_LOOP=_SPECTRALLOOP_
+ export NDSLFV=_NDSLFV_
+if [ $NDSLFV = .true. ]
+then
+ export DELTIM=1200.
+ export MASS_DP=.true.
+ export LINEAR_GRID=.false.
+ export PROCESS_SPLIT=.false.
+else
+ export MASS_DP=.false.
+ export LINEAR_GRID=.false.
+ export PROCESS_SPLIT=.false.
+fi
 #
 #***************************************************************
 #                    N2 ,    H2O,     O3,        CLW,    O,      O2

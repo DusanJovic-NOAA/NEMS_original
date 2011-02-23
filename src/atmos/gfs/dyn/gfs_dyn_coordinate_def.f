@@ -1,4 +1,8 @@
       module gfs_dyn_coordinate_def
+!
+! program log
+! 2011 02 20 : henry juang, add some matrixes for mass_dp and ndsl options
+!
       use gfs_dyn_machine
       implicit none
       
@@ -6,8 +10,8 @@
 !jw     . AK5(:),BK5(:),CK5(:),CK(:),DBK(:),bkl(:),   		! hmhj
      .                      CK(:),DBK(:),bkl(:),   		! hmhj
      . AMHYB(:,:),BMHYB(:,:),SVHYB(:),tor_hyb(:),
+     . SMHYB(:,:),HMHYB(:,:),
      . D_HYB_m(:,:,:),THREF(:),dm205_hyb(:,:,:)			! hmhj
-!jw       real(kind=kind_evod) vertcoord_id,eps_si			! hmhj
 !jws
        real(kind=kind_evod) eps_si                              ! hmhj
        integer(kind=kind_io4),target :: vertcoord_id            ! hmhj

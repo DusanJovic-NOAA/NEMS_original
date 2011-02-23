@@ -1,7 +1,10 @@
       SUBROUTINE damp_speed(DIVE,VORE,TEME,RTE,NDEXEV,
      X                      DIVO,VORO,TEMO,RTO,NDEXOD,
      X                      SL,SPDMAX,DELTIM,
-     X                      LS_NODE,nislfv)
+     X                      LS_NODE)
+!
+! program log:
+! 2011 02 20 : henry juang, updated code for ndsl
 !
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
@@ -13,7 +16,6 @@
       REAL(KIND=KIND_EVOD)   TEME(LEN_TRIE_LS,2)
       REAL(KIND=KIND_EVOD)    RTE(LEN_TRIE_LS,2,LEVS,ntrac)
       INTEGER              NDEXEV(LEN_TRIE_LS)
-      integer              nislfv
 !
       REAL(KIND=KIND_EVOD)   DIVO(LEN_TRIO_LS,2)
       REAL(KIND=KIND_EVOD)   VORO(LEN_TRIO_LS,2)
@@ -143,9 +145,6 @@ cc
 !
 ! ......................................................................
 !
-! -------------------------------------
-            if( nislfv.le.1 ) then	! nislfv=0 back to control run
-! -------------------------------------
             DO IT=1,NTRAC
 !!!!           DO L = 0, JCAP
                DO LOCL=1,LS_MAX_NODE
@@ -202,8 +201,6 @@ cc
                ENDDO
 !
             ENDDO
-! ----------------------------
-            endif		! nislfv
 ! ----------------------------
 
          ENDIF

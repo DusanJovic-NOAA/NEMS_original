@@ -7,9 +7,11 @@
      x     lats_nodes_a,global_lats_a,lonsperlat,
      x     epsedn,epsodn,snnp1ev,snnp1od,plnev_a,plnod_a)
 !!
-!! hmhj - this routine do spectral to grid 
-!!        from sigio read io, then transform to model fields
-!!  in this case sigio has all model field already, so no convert
+!  routine to do spectral transform initially for grid-point input
+!  initally coded by hann-ming henry juang
+!
+! program log:
+! 2011 02 20 :    Henry Juang, add NDSL and MASS_DP options for semi-Lagrangian
 !!
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
@@ -65,9 +67,8 @@ cc
       real(kind=kind_evod)   plnod_a(len_trio_ls,latg2)
 cc
       integer              i,j,k
-      integer              l,lan,lat,lotx
+      integer              l,lan,lat,lotdim,lotx
       integer              lon_dim,lons_lat
-      logical   lslag
 !
 cc
 cc
@@ -79,8 +80,8 @@ cc
 cc
 cc--------------------------------------------------------------------
 cc
-      lslag   = .false.
-      lotx    = lota+1
+      lotdim  = lota+1
+      lotx    = 4*levs+levh+2
 
 cc
 cc--------------------------------------------------------------------
@@ -116,7 +117,7 @@ cc
      x            lat1s_a,
      x            plnev_a,plnod_a,
      x            lotx,ls_node,latg2,
-     x            lslag,lats_dim_a,lotx,for_gr_a_1,
+     x            lats_dim_a,lotdim,for_gr_a_1,
      x            ls_nodes,max_ls_nodes,
      x            lats_nodes_a,global_lats_a,
      x            lats_node_a,ipt_lats_node_a,lon_dims_a,dimg,

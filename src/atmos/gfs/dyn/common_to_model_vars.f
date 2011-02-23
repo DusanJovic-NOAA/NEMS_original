@@ -1,10 +1,13 @@
-      subroutine common_to_model_vars (psg,ttg,rqg,uug,vvg,
+      subroutine common_to_model_vars (psg,ttg,rqg,uug,vvg,dpg,
      &                                 global_lats_a,lonsperlat)
 !!
 !! hmhj - this routine change variables from common usage to model
 !!        common usage are t=dry temperature (k), p is pascal, real winds
 !!        model  usage are t=virtal temperature (k) or enthalpy, 
 !!                         p is centibar, mapping winds
+! program log
+! 2011 02 20 : henry juang, update for mass_dp and ndsl options.
+!
 !!
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
@@ -22,13 +25,14 @@
       integer              global_lats_a(latg)
       integer                 lonsperlat(latg)
 !
-      REAL(KIND=KIND_EVOD) psg    (lonf,lats_node_a_max)
-      REAL(KIND=KIND_EVOD) ttg    (lonf,lats_node_a_max,levs)
-      REAL(KIND=KIND_EVOD) uug    (lonf,lats_node_a_max,levs)
-      REAL(KIND=KIND_EVOD) vvg    (lonf,lats_node_a_max,levs)
-      REAL(KIND=KIND_EVOD) rqg    (lonf,lats_node_a_max,levh)
+      REAL(KIND=KIND_GRID) psg    (lonf,lats_node_a_max)
+      REAL(KIND=KIND_GRID) ttg    (lonf,lats_node_a_max,levs)
+      REAL(KIND=KIND_GRID) uug    (lonf,lats_node_a_max,levs)
+      REAL(KIND=KIND_GRID) vvg    (lonf,lats_node_a_max,levs)
+      REAL(KIND=KIND_GRID) dpg    (lonf,lats_node_a_max,levs)
+      REAL(KIND=KIND_GRID) rqg    (lonf,lats_node_a_max,levh)
 !
-      real(kind=kind_evod)   tfac(lonf,levs), sumq(lonf,levs), tkrt0
+      real(kind=kind_GRID)   tfac(lonf,levs), sumq(lonf,levs), tkrt0
 !
       integer              i,j,k,kk, nn, nnl
       integer              l,lan,lat
@@ -79,6 +83,7 @@
 ! get model t (virtual temperature or enthalpy)
         do k=1,levs
           do i=1,lons_lat
+            dpg(i,lan,k) = dpg(i,lan,k) * pa2cb
             ttg(i,lan,k) = ttg(i,lan,k) * tfac(i,k)
             uug(i,lan,k) = uug(i,lan,k) * coslat_a(lat)
             vvg(i,lan,k) = vvg(i,lan,k) * coslat_a(lat)
@@ -97,7 +102,6 @@
         endif
 !       call mymaxmin(psg(1,lan),lons_lat,lonf,1,' psg in com to mdl')
 !
-!       call mymaxmin(rqg(1,lan,1),lons_lat,lonf,1,' rqg in com to mdl')
       enddo
 !
 !      print *,' exit common_to_model_vars '
