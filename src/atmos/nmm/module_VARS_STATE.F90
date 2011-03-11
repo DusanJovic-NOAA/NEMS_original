@@ -1,3 +1,9 @@
+! February 2011    Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
+!                              ESMF 5 library and the the ESMF 3.1.0rp2 library.
+!-------------------------------------------------------------------------------
+
+#include "../../ESMFVersionDefine.h"
+
       MODULE MODULE_VARS_STATE
 
       USE ESMF_Mod
@@ -120,8 +126,13 @@
       IMPLICIT NONE
 
       TYPE(VAR), DIMENSION(:), INTENT(INOUT) :: VARS
-      INTEGER, INTENT(IN) :: NUM_VARS
-      TYPE(ESMF_State ), INTENT(IN) :: STATE
+      INTEGER,                 INTENT(IN)    :: NUM_VARS
+
+#ifdef ESMF_3
+      TYPE(ESMF_State ),       INTENT(IN)    :: STATE
+#else
+      TYPE(ESMF_State ),       INTENT(INOUT) :: STATE
+#endif
 
       TYPE(ESMF_Field) :: FIELD
       INTEGER :: N, RC
@@ -150,7 +161,13 @@
             CASE(TKR_I2D)
               CALL ESMF_StateGet(state=STATE ,itemName=VBL_NAME ,field=FIELD ,rc=RC)
               if (rc/=ESMF_SUCCESS) stop 991
-              CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farray=HOLD_I2D ,rc=RC)
+
+#ifdef ESMF_3
+              CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farray   =HOLD_I2D ,rc=RC)
+#else
+              CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farrayPtr=HOLD_I2D ,rc=RC)
+#endif
+
               if (rc/=ESMF_SUCCESS) stop 992
               IF (VARS(N)%OWNED ) THEN
                 if (size(VARS(N)%I2D) /= size(HOLD_I2D) ) stop 2
@@ -167,7 +184,13 @@
             CASE(TKR_R2D)
               CALL ESMF_StateGet(state=STATE ,itemName=VBL_NAME ,field=FIELD ,rc=RC)
               if (rc/=ESMF_SUCCESS) stop 996
-              CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farray=HOLD_R2D ,rc=RC)
+
+#ifdef ESMF_3
+              CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farray   =HOLD_R2D ,rc=RC)
+#else
+              CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farrayPtr=HOLD_R2D ,rc=RC)
+#endif
+
               if (rc/=ESMF_SUCCESS) stop 997
               IF (VARS(N)%OWNED ) THEN
                 if (size(VARS(N)%R2D) /= size(HOLD_R2D) ) stop 4
@@ -178,7 +201,13 @@
             CASE(TKR_R3D)
               CALL ESMF_StateGet(state=STATE ,itemName=VBL_NAME ,field=FIELD ,rc=RC)
               if (rc/=ESMF_SUCCESS) stop 998
-              CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farray=HOLD_R3D ,rc=RC)
+
+#ifdef ESMF_3
+              CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farray   =HOLD_R3D ,rc=RC)
+#else
+              CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farrayPtr=HOLD_R3D ,rc=RC)
+#endif
+
               if (rc/=ESMF_SUCCESS) stop 999
               IF (VARS(N)%OWNED ) THEN
                 if (size(VARS(N)%R3D) /= size(HOLD_R3D) ) then
@@ -194,7 +223,13 @@
             CASE(TKR_R4D)
               CALL ESMF_StateGet(state=STATE ,itemName=VBL_NAME ,field=FIELD ,rc=RC)
               if (rc/=ESMF_SUCCESS) stop 1998
-              CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farray=HOLD_R4D ,rc=RC)
+
+#ifdef ESMF_3
+              CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farray   =HOLD_R4D ,rc=RC)
+#else
+              CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farrayPtr=HOLD_R4D ,rc=RC)
+#endif
+
               if (rc/=ESMF_SUCCESS) stop 1999
               IF (VARS(N)%OWNED ) THEN
                 if (size(VARS(N)%R4D) /= size(HOLD_R4D) ) then
@@ -309,18 +344,35 @@
 !
       DO N=1,NUM_VARS
         IF (VARS(N)%TKR == TKR_I0D) THEN
+
+#ifdef ESMF_3
           IF (VARS(N)%HISTORY) THEN                                        !<-- Take integer scalar data specified for history output
-            CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                &  !<-- The Write component output history Bundle
-                                  ,name  =VARS(N)%VBL_NAME              &  !<-- Name of the integer scalar
-                                  ,value =VARS(N)%I0D                   &  !<-- The scalar being inserted into the import state
-                                  ,rc    =RC)
+            CALL ESMF_AttributeSet(bundle     =HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
+                                  ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the integer scalar
+                                  ,value      =VARS(N)%I0D              &  !<-- The scalar being inserted into the import state
+                                  ,rc         =RC)
           END IF
           IF (VARS(N)%RESTART) THEN                                        !<-- Take integer scalar data specified for restart output
-            CALL ESMF_AttributeSet(bundle=RESTART_BUNDLE                &  !<-- The Write component output restart Bundle
-                                  ,name  =VARS(N)%VBL_NAME              &  !<-- Name of the integer scalar
-                                  ,value =VARS(N)%I0D                   &  !<-- The scalar being inserted into the import state
-                                  ,rc    =RC)
+            CALL ESMF_AttributeSet(bundle     =RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
+                                  ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the integer scalar
+                                  ,value      =VARS(N)%I0D              &  !<-- The scalar being inserted into the import state
+                                  ,rc         =RC)
           END IF
+#else
+          IF (VARS(N)%HISTORY) THEN                                        !<-- Take integer scalar data specified for history output
+            CALL ESMF_AttributeSet(fieldbundle=HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
+                                  ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the integer scalar
+                                  ,value      =VARS(N)%I0D              &  !<-- The scalar being inserted into the import state
+                                  ,rc         =RC)
+          END IF
+          IF (VARS(N)%RESTART) THEN                                        !<-- Take integer scalar data specified for restart output
+            CALL ESMF_AttributeSet(fieldbundle=RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
+                                  ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the integer scalar
+                                  ,value      =VARS(N)%I0D              &  !<-- The scalar being inserted into the import state
+                                  ,rc         =RC)
+          END IF
+#endif
+
         END IF
       END DO
 !
@@ -339,18 +391,35 @@
 !
       DO N=1,NUM_VARS
         IF (VARS(N)%TKR == TKR_R0D) THEN
+
+#ifdef ESMF_3
           IF (VARS(N)%HISTORY) THEN                                        !<-- Take real scalar data specified for history output
-            CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                &  !<-- The Write component output history Bundle
-                                  ,name  =VARS(N)%VBL_NAME              &  !<-- Name of the real scalar
-                                  ,value =VARS(N)%R0D                   &  !<-- The scalar being inserted into the import state
-                                  ,rc    =RC)
+            CALL ESMF_AttributeSet(bundle     =HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
+                                  ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the real scalar
+                                  ,value      =VARS(N)%R0D              &  !<-- The scalar being inserted into the import state
+                                  ,rc         =RC)
           END IF
           IF (VARS(N)%RESTART) THEN                                        !<-- Take real scalar data specified for restart output
-            CALL ESMF_AttributeSet(bundle=RESTART_BUNDLE                &  !<-- The Write component output restart Bundle
-                                  ,name  =VARS(N)%VBL_NAME              &  !<-- Name of the real scalar
-                                  ,value =VARS(N)%R0D                   &  !<-- The scalar being inserted into the import state
-                                  ,rc    =RC)
+            CALL ESMF_AttributeSet(bundle     =RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
+                                  ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the real scalar
+                                  ,value      =VARS(N)%R0D              &  !<-- The scalar being inserted into the import state
+                                  ,rc         =RC)
           END IF
+#else
+          IF (VARS(N)%HISTORY) THEN                                        !<-- Take real scalar data specified for history output
+            CALL ESMF_AttributeSet(fieldbundle=HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
+                                  ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the real scalar
+                                  ,value      =VARS(N)%R0D              &  !<-- The scalar being inserted into the import state
+                                  ,rc         =RC)
+          END IF
+          IF (VARS(N)%RESTART) THEN                                        !<-- Take real scalar data specified for restart output
+            CALL ESMF_AttributeSet(fieldbundle=RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
+                                  ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the real scalar
+                                  ,value      =VARS(N)%R0D              &  !<-- The scalar being inserted into the import state
+                                  ,rc         =RC)
+          END IF
+#endif
+
         END IF
       END DO
 !
@@ -370,20 +439,39 @@
       DO N=1,NUM_VARS
         IF (VARS(N)%TKR == TKR_I1D) THEN
           LENGTH=SIZE(VARS(N)%I1D)
+
+#ifdef ESMF_3
           IF (VARS(N)%HISTORY) THEN                                        !<-- Take 1D integer array data specified for history output
-            CALL ESMF_AttributeSet(bundle   =HISTORY_BUNDLE             &  !<-- The Write component output history Bundle
-                                  ,name     =VARS(N)%VBL_NAME           &  !<-- Name of the integer array
-                                  ,count    =LENGTH                     &  !<-- # of elements in this attribute
-                                  ,valueList=VARS(N)%I1D                &  !<-- The 1D integer being inserted into the import state
-                                  ,rc       =RC)
+            CALL ESMF_AttributeSet(bundle        =HISTORY_BUNDLE        &  !<-- The Write component output history Bundle
+                                  ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the integer array
+                                  ,count         =LENGTH                &  !<-- # of elements in this attribute
+                                  ,valueList     =VARS(N)%I1D           &  !<-- The 1D integer being inserted into the import state
+                                  ,rc            =RC)
           END IF
           IF (VARS(N)%RESTART) THEN                                        !<-- Take 1D integer array data specified for restart output
-            CALL ESMF_AttributeSet(bundle   =RESTART_BUNDLE             &  !<-- The Write component output history Bundle
-                                  ,name     =VARS(N)%VBL_NAME           &  !<-- Name of the integer array
-                                  ,count    =LENGTH                     &  !<-- # of elements in this attribute
-                                  ,valueList=VARS(N)%I1D                &  !<-- The 1D integer being inserted into the import state
-                                  ,rc       =RC)
+            CALL ESMF_AttributeSet(bundle        =RESTART_BUNDLE        &  !<-- The Write component output history Bundle
+                                  ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the integer array
+                                  ,count         =LENGTH                &  !<-- # of elements in this attribute
+                                  ,valueList     =VARS(N)%I1D           &  !<-- The 1D integer being inserted into the import state
+                                  ,rc            =RC)
           END IF
+#else
+          IF (VARS(N)%HISTORY) THEN                                        !<-- Take 1D integer array data specified for history output
+            CALL ESMF_AttributeSet(fieldbundle   =HISTORY_BUNDLE        &  !<-- The Write component output history Bundle
+                                  ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the integer array
+                                  ,itemCount     =LENGTH                &  !<-- # of elements in this attribute
+                                  ,valueList     =VARS(N)%I1D           &  !<-- The 1D integer being inserted into the import state
+                                  ,rc            =RC)
+          END IF
+          IF (VARS(N)%RESTART) THEN                                        !<-- Take 1D integer array data specified for restart output
+            CALL ESMF_AttributeSet(fieldbundle   =RESTART_BUNDLE        &  !<-- The Write component output history Bundle
+                                  ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the integer array
+                                  ,itemCount     =LENGTH                &  !<-- # of elements in this attribute
+                                  ,valueList     =VARS(N)%I1D           &  !<-- The 1D integer being inserted into the import state
+                                  ,rc            =RC)
+          END IF
+#endif
+
         END IF
       END DO
 !
@@ -403,20 +491,39 @@
       DO N=1,NUM_VARS
         IF (VARS(N)%TKR == TKR_R1D) THEN
           LENGTH=SIZE(VARS(N)%R1D)
+
+#ifdef ESMF_3
           IF (VARS(N)%HISTORY) THEN                                        !<-- Take 1D real array data specified for history output
-            CALL ESMF_AttributeSet(bundle   =HISTORY_BUNDLE             &  !<-- The Write component output history Bundle
-                                  ,name     =VARS(N)%VBL_NAME           &  !<-- Name of the real array
-                                  ,count    =LENGTH                     &  !<-- # of elements in this attribute
-                                  ,valueList=VARS(N)%R1D                &  !<-- The 1D real being inserted into the import state
-                                  ,rc       =RC)
+            CALL ESMF_AttributeSet(bundle        =HISTORY_BUNDLE        &  !<-- The Write component output history Bundle
+                                  ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the real array
+                                  ,count         =LENGTH                &  !<-- # of elements in this attribute
+                                  ,valueList     =VARS(N)%R1D           &  !<-- The 1D real being inserted into the import state
+                                  ,rc            =RC)
           END IF
           IF (VARS(N)%RESTART) THEN                                        !<-- Take 1D real array data specified for restart output
-            CALL ESMF_AttributeSet(bundle   =RESTART_BUNDLE             &  !<-- The Write component output history Bundle
-                                  ,name     =VARS(N)%VBL_NAME           &  !<-- Name of the real array
-                                  ,count    =LENGTH                     &  !<-- # of elements in this attribute
-                                  ,valueList=VARS(N)%R1D                &  !<-- The 1D real being inserted into the import state
-                                  ,rc       =RC)
+            CALL ESMF_AttributeSet(bundle        =RESTART_BUNDLE        &  !<-- The Write component output history Bundle
+                                  ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the real array
+                                  ,count         =LENGTH                &  !<-- # of elements in this attribute
+                                  ,valueList     =VARS(N)%R1D           &  !<-- The 1D real being inserted into the import state
+                                  ,rc            =RC)
           END IF
+#else
+          IF (VARS(N)%HISTORY) THEN                                        !<-- Take 1D real array data specified for history output
+            CALL ESMF_AttributeSet(fieldbundle   =HISTORY_BUNDLE        &  !<-- The Write component output history Bundle
+                                  ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the real array
+                                  ,itemCount     =LENGTH                &  !<-- # of elements in this attribute
+                                  ,valueList     =VARS(N)%R1D           &  !<-- The 1D real being inserted into the import state
+                                  ,rc            =RC)
+          END IF
+          IF (VARS(N)%RESTART) THEN                                        !<-- Take 1D real array data specified for restart output
+            CALL ESMF_AttributeSet(fieldbundle   =RESTART_BUNDLE        &  !<-- The Write component output history Bundle
+                                  ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the real array
+                                  ,itemCount     =LENGTH                &  !<-- # of elements in this attribute
+                                  ,valueList     =VARS(N)%R1D           &  !<-- The 1D real being inserted into the import state
+                                  ,rc            =RC)
+          END IF
+#endif
+
         END IF
       END DO
 !

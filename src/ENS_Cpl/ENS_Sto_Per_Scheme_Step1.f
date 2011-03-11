@@ -1,7 +1,11 @@
+#include "../ESMFVersionDefine.h"
+
  SUBROUTINE ENS_Sto_Per_Scheme_Step1(cst)
 
-! March 2009 Weiyu Yang  Modified for the NEMS model.
-!----------------------------------------------------
+! March    2009 Weiyu Yang Modified for the NEMS model.
+! February 2011 Weiyu Yang Updated to use both the ESMF 4.0.0rp2 library,
+!                          ESMF 5 library and the the ESMF 3.1.0rp2 library.
+!---------------------------------------------------------------------------
 
 ! This subroutine is used to compute the first step of the 
 ! stochastic perturbation scheme, in which X_i_dot = T_i + S_i 
@@ -419,8 +423,11 @@
          END IF
 
          NULLIFY(cst%work2)
+#ifdef ESMF_3
          CALL ESMF_FieldGet(Field, FArray = cst%work2, localDE = 0, rc = rc1)
-
+#else
+         CALL ESMF_FieldGet(Field, FArrayPtr = cst%work2, localDE = 0, rc = rc1)
+#endif
          IF(ESMF_LogMsgFoundAllocError(rc1, "Retrieve FArray from Field in ENS Cpl.")) THEN
              rc = ESMF_FAILURE
              PRINT*, 'Error Happened When Retrieving FArray from Field in ENS Cpl, rc = ', rc1

@@ -1,3 +1,5 @@
+#include "../../../ESMFVersionDefine.h"
+
 !-----------------------------------------------------------------------
 !
       MODULE gfs_physics_output
@@ -25,6 +27,8 @@
 !***  Jul 23 2010, Sarah Lu   write out 2d aer_diag (g2d_fld)
 !***  Jul    2010  S. Moorthi Updated for new physics and extra output
 !***  Dec 23 2010, Sarah Lu   add g2d_fld%met to 2d aer_diag
+!***  Feb 2011   Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
+!***                         ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !***
 !-----------------------------------------------------------------------
 !
@@ -1001,12 +1005,19 @@
            trim(PHY_INT_STATE_ISCALAR(file_index,NFIND))==trim(file_gen) )THEN !<-- Take integer scalar data specified for history output
 
           VBL_NAME=TRIM(PHY_INT_STATE_ISCALAR(1,NFIND))
-!
-          CALL ESMF_AttributeSet(bundle=FILE_BUNDLE                     &  !<-- The write component's output data Bundle
-                                ,name  =VBL_NAME                        &  !<-- Name of the integer scalar
-                                ,value =I_SC(NFIND)%NAME                &  !<-- The scalar being inserted into the output data Bundle
-                                ,rc    =RC)
-!
+
+#ifdef ESMF_3
+          CALL ESMF_AttributeSet(bundle     =FILE_BUNDLE                &  !<-- The write component's output data Bundle
+                                ,name       =VBL_NAME                   &  !<-- Name of the integer scalar
+                                ,value      =I_SC(NFIND)%NAME           &  !<-- The scalar being inserted into the output data Bundle
+                                ,rc         =RC)
+#else
+          CALL ESMF_AttributeSet(fieldbundle=FILE_BUNDLE                &  !<-- The write component's output data Bundle
+                                ,name       =VBL_NAME                   &  !<-- Name of the integer scalar
+                                ,value      =I_SC(NFIND)%NAME           &  !<-- The scalar being inserted into the output data Bundle
+                                ,rc         =RC)
+#endif
+
         ENDIF
 !
         IF(PHY_INT_STATE_ISCALAR(file_index,NFIND)=='*' ) THEN           !<-- End of the integer scalar list
@@ -1032,12 +1043,19 @@
         IF(trim(PHY_INT_STATE_RSCALAR(file_index,NFIND))==trim(file_id).or. &
            trim(PHY_INT_STATE_RSCALAR(file_index,NFIND))==trim(file_gen) )THEN     !<-- Take real scalar data specified for history output
           VBL_NAME=TRIM(PHY_INT_STATE_RSCALAR(1,NFIND))
-!
-          CALL ESMF_AttributeSet(bundle=FILE_BUNDLE                     &  !<-- The write component's output data Bundle
-                                ,name  =VBL_NAME                        &  !<-- Name of the integer scalar
-                                ,value =R_SC(NFIND)%NAME                &  !<-- The scalar being inserted into the output data Bundle
-                                ,rc    =RC)
-!
+
+#ifdef ESMF_3
+          CALL ESMF_AttributeSet(bundle     =FILE_BUNDLE                &  !<-- The write component's output data Bundle
+                                ,name       =VBL_NAME                   &  !<-- Name of the integer scalar
+                                ,value      =R_SC(NFIND)%NAME           &  !<-- The scalar being inserted into the output data Bundle
+                                ,rc         =RC)
+#else
+          CALL ESMF_AttributeSet(fieldbundle=FILE_BUNDLE                &  !<-- The write component's output data Bundle
+                                ,name       =VBL_NAME                   &  !<-- Name of the integer scalar
+                                ,value      =R_SC(NFIND)%NAME           &  !<-- The scalar being inserted into the output data Bundle
+                                ,rc         =RC)
+#endif
+
         ENDIF
 !
         IF(PHY_INT_STATE_RSCALAR(file_index,NFIND)=='*' )THEN             !<-- End of the real scalar list
@@ -1067,12 +1085,21 @@
 !
 !          write(0,*)'phy_out,I1D NFIND=',NFIND,'VBL_NAME=',trim(VBL_NAME),  &
 !             'length=',length,'value=',I_1D(NFIND)%NAME
-          CALL ESMF_AttributeSet(bundle   =FILE_BUNDLE               &  !<-- The write component's output data Bundle
-                                ,name     =VBL_NAME                     &  !<-- Name of the integer scalar
-                                ,count    =LENGTH                       &  !<-- # of elements in this attribute
-                                ,valueList=I_1D(NFIND)%NAME             &  !<-- The 1D integer being inserted into the output data Bundle
-                                ,rc       =RC)
-!
+
+#ifdef ESMF_3
+          CALL ESMF_AttributeSet(bundle     =FILE_BUNDLE             &  !<-- The write component's output data Bundle
+                                ,name       =VBL_NAME                &  !<-- Name of the integer scalar
+                                ,count      =LENGTH                  &  !<-- # of elements in this attribute
+                                ,valueList  =I_1D(NFIND)%NAME        &  !<-- The 1D integer being inserted into the output data Bundle
+                                ,rc         =RC)
+#else
+          CALL ESMF_AttributeSet(fieldbundle=FILE_BUNDLE             &  !<-- The write component's output data Bundle
+                                ,name       =VBL_NAME                &  !<-- Name of the integer scalar
+                                ,itemCount  =LENGTH                  &  !<-- # of elements in this attribute
+                                ,valueList  =I_1D(NFIND)%NAME        &  !<-- The 1D integer being inserted into the output data Bundle
+                                ,rc         =RC)
+#endif
+
         ENDIF
 !
         IF(PHY_INT_STATE_1D_I(file_index,NFIND)=='*' )THEN               !<-- End of the 1D integer array list
@@ -1102,12 +1129,21 @@
 !
 !          write(0,*)'phy_out,R1D NFIND=',NFIND,'VBL_NAME=',trim(VBL_NAME),  &
 !             'length=',length,'value=',R_1D(NFIND)%NAME
-          CALL ESMF_AttributeSet(bundle   =FILE_BUNDLE               &  !<-- The write component's output data Bundle
-                                ,name     =VBL_NAME                     &  !<-- Name of the integer scalar
-                                ,count    =LENGTH                       &  !<-- # of elements in this attribute
-                                ,valueList=R_1D(NFIND)%NAME             &  !<-- The 1D real being inserted into the output data Bundle
-                                ,rc       =RC)
-!
+
+#ifdef ESMF_3
+          CALL ESMF_AttributeSet(bundle     =FILE_BUNDLE             &  !<-- The write component's output data Bundle
+                                ,name       =VBL_NAME                &  !<-- Name of the integer scalar
+                                ,count      =LENGTH                  &  !<-- # of elements in this attribute
+                                ,valueList  =R_1D(NFIND)%NAME        &  !<-- The 1D real being inserted into the output data Bundle
+                                ,rc         =RC)
+#else
+          CALL ESMF_AttributeSet(fieldbundle=FILE_BUNDLE             &  !<-- The write component's output data Bundle
+                                ,name       =VBL_NAME                &  !<-- Name of the integer scalar
+                                ,itemCount  =LENGTH                  &  !<-- # of elements in this attribute
+                                ,valueList  =R_1D(NFIND)%NAME        &  !<-- The 1D real being inserted into the output data Bundle
+                                ,rc         =RC)
+#endif
+
         ENDIF
 !
         IF(PHY_INT_STATE_1D_R(file_index,NFIND)=='*' ) THEN                !<-- End of the 1D real array list

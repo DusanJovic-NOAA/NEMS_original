@@ -1,3 +1,5 @@
+#include "../../ESMFVersionDefine.h"
+
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_WRITE_INTERNAL_STATE
@@ -18,8 +20,10 @@
 !       22 Apr 2010:  T. Black - Add minutes and seconds to elapsed
 !                                forecast time.
 !       15 Sep 2010:  T. Black - Changed many components to pointers
+!          Feb 2011:  W. Yang  - Updated to use both the ESMF 4.0.0rp2 library,
+!                                ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !
-!-----------------------------------------------------------------------
+!---------------------------------------------------------------------------------
 !
       USE ESMF_Mod
       USE MODULE_INCLUDE
@@ -71,9 +75,13 @@
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: JDS
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: JDE
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: LM
-!
+
+#ifdef ESMF_3
       TYPE(ESMF_Logical) :: GLOBAL
-!
+#else
+      LOGICAL(kind=KLOG) :: GLOBAL
+#endif
+
 !--------------------
 !***  Subdomain size
 !--------------------
@@ -214,8 +222,8 @@
       REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: WRITE_SUBSET_R =>NULL()       &
                                                  ,RST_WRITE_SUBSET_R=>NULL()
 !
-      TYPE(ESMF_Logical),DIMENSION(:),POINTER :: ALL_DATA_LOG =>NULL()          &
-                                                ,RST_ALL_DATA_LOG=>NULL()
+      LOGICAL,           DIMENSION(:),POINTER :: ALL_DATA_LOG =>NULL()     
+      LOGICAL,           DIMENSION(:),POINTER :: RST_ALL_DATA_LOG=>NULL()
 !
       CHARACTER(ESMF_MAXSTR),DIMENSION(:),POINTER :: FIELD_NAME=>NULL()         &
                                                     ,RST_FIELD_NAME=>NULL()

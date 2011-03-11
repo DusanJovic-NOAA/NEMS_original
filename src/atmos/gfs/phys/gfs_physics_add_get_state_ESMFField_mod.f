@@ -1,3 +1,5 @@
+#include "../../../ESMFVersionDefine.h"
+
 !BOP
 !
 ! !MODULE: GFS_ESMFStateAddGetMod --- a class attaching a F90 array to an 
@@ -49,6 +51,8 @@
 ! September 2007       Weiyu Yang updated to use the ESMF 3.0.3 library.
 ! May 2008             Weiyu Yang updated to use the ESMF 3.1.0r library
 ! November 2009        Weiyu Yang modified to use ESMF field.
+! February 2011        Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
+!                                  ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1038,7 +1042,11 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
- CALL ESMF_FieldGet(ESMFField, FArray = F90Array, localDE = localDE, rc = status)
+#ifdef ESMF_3
+ CALL ESMF_FieldGet(ESMFField, FArray    = F90Array, localDE = localDE, rc = status)
+#else
+ CALL ESMF_FieldGet(ESMFField, FArrayPtr = F90Array, localDE = localDE, rc = status)
+#endif
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1140,7 +1148,11 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
- CALL ESMF_FieldGet(ESMFField, FArray = F90Array, localDE = localDE, rc = status)
+#ifdef ESMF_3
+ CALL ESMF_FieldGet(ESMFField, FArray    = F90Array, localDE = localDE, rc = status)
+#else
+ CALL ESMF_FieldGet(ESMFField, FArrayPtr = F90Array, localDE = localDE, rc = status)
+#endif
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1242,7 +1254,11 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
- CALL ESMF_FieldGet(ESMFField, FArray = F90Array, localDE = localDE, rc = status)
+#ifdef ESMF_3
+ CALL ESMF_FieldGet(ESMFField, FArray    = F90Array, localDE = localDE, rc = status)
+#else
+ CALL ESMF_FieldGet(ESMFField, FArrayPtr = F90Array, localDE = localDE, rc = status)
+#endif
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1344,7 +1360,11 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
- CALL ESMF_FieldGet(ESMFField, FArray = F90Array, localDE = localDE, rc = status)
+#ifdef ESMF_3
+ CALL ESMF_FieldGet(ESMFField, FArray    = F90Array, localDE = localDE, rc = status)
+#else
+ CALL ESMF_FieldGet(ESMFField, FArrayPtr = F90Array, localDE = localDE, rc = status)
+#endif
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1446,7 +1466,11 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
- CALL ESMF_FieldGet(ESMFField, FArray = F90Array, localDE = localDE, rc = status)
+#ifdef ESMF_3
+ CALL ESMF_FieldGet(ESMFField, FArray    = F90Array, localDE = localDE, rc = status)
+#else
+ CALL ESMF_FieldGet(ESMFField, FArrayPtr = F90Array, localDE = localDE, rc = status)
+#endif
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1548,7 +1572,11 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
- CALL ESMF_FieldGet(ESMFField, FArray = F90Array, localDE = localDE, rc = status)
+#ifdef ESMF_3
+ CALL ESMF_FieldGet(ESMFField, FArray    = F90Array, localDE = localDE, rc = status)
+#else
+ CALL ESMF_FieldGet(ESMFField, FArrayPtr = F90Array, localDE = localDE, rc = status)
+#endif
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1650,7 +1678,11 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
- CALL ESMF_FieldGet(ESMFField, FArray = F90Array, localDE = localDE, rc = status)
+#ifdef ESMF_3
+ CALL ESMF_FieldGet(ESMFField, FArray    = F90Array, localDE = localDE, rc = status)
+#else
+ CALL ESMF_FieldGet(ESMFField, FArrayPtr = F90Array, localDE = localDE, rc = status)
+#endif
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1752,7 +1784,11 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
- CALL ESMF_FieldGet(ESMFField, FArray = F90Array, localDE = localDE, rc = status)
+#ifdef ESMF_3
+ CALL ESMF_FieldGet(ESMFField, FArray    = F90Array, localDE = localDE, rc = status)
+#else
+ CALL ESMF_FieldGet(ESMFField, FArrayPtr = F90Array, localDE = localDE, rc = status)
+#endif
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1854,7 +1890,11 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
- CALL ESMF_FieldGet(ESMFField, FArray = F90Array, localDE = localDE, rc = status)
+#ifdef ESMF_3
+ CALL ESMF_FieldGet(ESMFField, FArray    = F90Array, localDE = localDE, rc = status)
+#else
+ CALL ESMF_FieldGet(ESMFField, FArrayPtr = F90Array, localDE = localDE, rc = status)
+#endif
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1956,7 +1996,11 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
- CALL ESMF_FieldGet(ESMFField, FArray = F90Array, localDE = localDE, rc = status)
+#ifdef ESMF_3
+ CALL ESMF_FieldGet(ESMFField, FArray    = F90Array, localDE = localDE, rc = status)
+#else
+ CALL ESMF_FieldGet(ESMFField, FArrayPtr = F90Array, localDE = localDE, rc = status)
+#endif
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2

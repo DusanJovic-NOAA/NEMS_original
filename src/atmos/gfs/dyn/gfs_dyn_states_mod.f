@@ -1,15 +1,20 @@
+#include "../../../ESMFVersionDefine.h"
+
        MODULE gfs_dynamics_states_mod
 
 ! 
-!  june 2005 		weiyu yang             initial code.
-!  february 2007 	hann-ming henry juang  
-!			for gfs dynamics and gaussian grid DATA.
+!  June 2005 	 weiyu yang  initial code.
+!  february 2007 hann-ming henry juang  
+!		for gfs dynamics and gaussian grid DATA.
 !  March 2009           Weiyu Yang, modified for the ensemble NEMS run.
 !  2009/10/05           Sarah Lu, grid_gr unfolded to 3D
-!  Jun Wang  2009-11-09  set difital filter variables to export state
-!  Sarah Lu  2010-02-09  set cpi, ri attributes to export state
-!  Sarah Lu  2010-02-11  add set_dynexp_attribute subprogram for ri/cpi
+!  Jun Wang    2009-11-09 set difital filter variables to export state
+!  Sarah Lu    2010-02-09 set cpi, ri attributes to export state
+!  Sarah Lu    2010-02-11 add set_dynexp_attribute subprogram for ri/cpi
 !  Henry Juang 2011-01-03 change routine name back to gfs_dynamics_ and for NDSL
+!  Weiyu Yang  2011-02    Updated to use both the ESMF 4.0.0rp2 library,
+!                         ESMF 5 series library and the the
+!                         ESMF 3.1.0rp2 library.
 !
 !!USEs:
 !
@@ -236,7 +241,13 @@
                                                Field,                                &
                                                rc = rc1)
                       CALL gfs_dynamics_err_msg(rc1, 'retrieve Efield from bundle', rcfinal)
+
+#ifdef ESMF_3
                       CALL ESMF_FieldGet(Field, FArray = FArr3D, localDE = 0, rc = rc1)
+#else
+                      CALL ESMF_FieldGet(Field, FArrayPtr = FArr3D, localDE = 0, rc = rc1)
+#endif
+
                       CALL gfs_dynamics_err_msg(rc1, 'retrieve Farray from field', rcfinal)
                       int_state%grid_gr(:, :, mstr:mend) = FArr3D
                   END DO
@@ -249,7 +260,13 @@
                                                Field,                                &
                                                rc = rc1)
                       CALL gfs_dynamics_err_msg(rc1, 'retrieve Efield from bundle', rcfinal)
+
+#ifdef ESMF_3
                       CALL ESMF_FieldGet(Field, FArray = FArr3D, localDE = 0, rc = rc1)
+#else
+                      CALL ESMF_FieldGet(Field, FArrayPtr = FArr3D, localDE = 0, rc = rc1)
+#endif
+
                       CALL gfs_dynamics_err_msg(rc1, 'retrieve Farray from field', rcfinal)
                       int_state%grid_gr(:, :, mstr:mend) = FArr3D
                   END DO
@@ -265,7 +282,13 @@
                                                Field,                                &
                                                rc = rc1)
                       CALL gfs_dynamics_err_msg(rc1, 'retrieve Efield from bundle', rcfinal)
+                     
+#ifdef ESMF_3
                       CALL ESMF_FieldGet(Field, FArray = FArr3D, localDE = 0, rc = rc1)
+#else
+                      CALL ESMF_FieldGet(Field, FArrayPtr = FArr3D, localDE = 0, rc = rc1)
+#endif
+
                       CALL gfs_dynamics_err_msg(rc1, 'retrieve Farray from field', rcfinal)
                       int_state%grid_gr(:, :, kstr:kend) = FArr3D
                   END DO
@@ -727,6 +750,7 @@
                ,rc   =RC)
        call gfs_dynamics_err_msg(rc,"insert ri(0) attribute to dyn_exp",rcfinal)
 
+#ifdef ESMF_3
        CALL ESMF_AttributeSet(Bundle                         &  !<-- Dyn export state tracer bundle
                ,name ='cpi'                                  &  !<-- Name of the attribute array
                ,count= int_state%ntrac                       &  !<-- Length of array being inserted
@@ -740,6 +764,21 @@
                ,valueList = int_state%gfs_dyn_tracer%ri(1:int_state%ntrac)  &!<-- The array being inserted
                ,rc   =RC)
        call gfs_dynamics_err_msg(rc,"insert ri(:) attribute to dyn_exp",rcfinal)
+#else
+       CALL ESMF_AttributeSet(Bundle                         &  !<-- Dyn export state tracer bundle
+               ,name ='cpi'                                  &  !<-- Name of the attribute array
+               ,itemCount= int_state%ntrac                   &  !<-- Length of array being inserted
+               ,valueList = int_state%gfs_dyn_tracer%cpi(1:int_state%ntrac)  &!<-- The array being inserted
+               ,rc   =RC)
+       call gfs_dynamics_err_msg(rc,"insert cpi(:) attribute to dyn_exp",rcfinal)
+
+       CALL ESMF_AttributeSet(Bundle                         &  !<-- Dyn export state tracer bundle
+               ,name ='ri'                                   &  !<-- Name of the attribute array
+               ,itemCount= int_state%ntrac                   &  !<-- Length of array being inserted
+               ,valueList = int_state%gfs_dyn_tracer%ri(1:int_state%ntrac)  &!<-- The array being inserted
+               ,rc   =RC)
+       call gfs_dynamics_err_msg(rc,"insert ri(:) attribute to dyn_exp",rcfinal)
+#endif
 
       RETURN
       end subroutine set_dynexp_attribute

@@ -1,3 +1,5 @@
+#include "../../../ESMFVersionDefine.h"
+
 !
       module atmos_phy_chem_cpl_comp_mod
 
@@ -10,40 +12,42 @@
 !** -> run transfers/converts data from phy export state to chem import state
 !
 !! Code Revision:
-!! 11Nov 2009     Sarah Lu, First Crack
-!! 18Nov 2009     Sarah Lu, Revise coupler run to do data copy
-!! 29Dec 2009     Sarah Lu, Comments added for clarification
-!! 01Feb 2010     Sarah Lu, Extend to include all 2d/3d fields needed by
-!!                          GOCART
-!! 07Feb 2010     Sarah Lu, Add getrh subroutine
-!! 11Feb 2010     Sarah Lu, Add get_attribute subroutine to retrieve tracer
-!!                          specification 
-!! 12Feb 2010     Sarah Lu, Include chemical tracers
-!! 06Mar 2010     Sarah Lu, Flip vertical profile index from bottom-up to
-!!                          top-down; add Init routine
-!! 12Mar 2010     Sarah Lu, Clean up phy2chem run
-!! 13Mar 2010     Sarah Lu, Use m_chars: set statename to lower case
-!! 16Mar 2010     Sarah Lu, Add FillDefault_ and patch_; Make dimension and
-!!                          tracer specification public (to chem2phy coupler)
-!! 23Mar 2010     Sarah Lu, Call rtc to track run-time-clock; debug print optional
-!! 09Apr 2010     Sarah Lu, Clean up the code
-!! 09May 2010     Sarah Lu, Revise species name for SU, OC, and BC
-!! 13May 2010     Sarah Lu, Change GetPointer_3D_ from private to public
-!! 09Jun 2010     Sarah Lu, Remove ref to m_chars/lowercase; add g_fixchar
-!! 10Jun 2010     Sarah Lu, Remove aerosol tarcer pointer for iAERO
-!! 30Jun 2010     Sarah Lu, Revise g_fixchar to allow longer char string
-!! 04Aug 2010     Sarah Lu, run_DU[SU,SS,OC,BC] are determined from chemReg
-!! 09Sep 2010     Sarah Lu, wet1 is exported from phys, no longer calculated
-!!                          in the phy-to-chem coupler; correct how cn_prcp
-!!                          and ncn_prcp are computed
-!! 10Oct 2010     Sarah Lu, pass g2d_fld%met from chem_imp to phys_exp
-!! 15Oct 2010     Sarah Lu, pass fscav from chem_imp to phys_exp
-!! 16Oct 2010     Sarah Lu, change g2d_fld%met from instant to accumulated 
-!! 08Nov 2010     Sarah Lu, set zle floor values to hs; aer_diag fields
-!!                          are modified
-!! 14Nov 2010     Sarah Lu, pass deltim from phy_exp to chem_imp in init
-!! 29Dec 2010     Sarah Lu, Fields not used by GOCART are removed from diag
-!-----------------------------------------------------------------------
+!! 11Nov 2009     Sarah Lu,   First Crack
+!! 18Nov 2009     Sarah Lu,   Revise coupler run to do data copy
+!! 29Dec 2009     Sarah Lu,   Comments added for clarification
+!! 01Feb 2010     Sarah Lu,   Extend to include all 2d/3d fields needed by
+!!                            GOCART
+!! 07Feb 2010     Sarah Lu,   Add getrh subroutine
+!! 11Feb 2010     Sarah Lu,   Add get_attribute subroutine to retrieve tracer
+!!                            specification 
+!! 12Feb 2010     Sarah Lu,   Include chemical tracers
+!! 06Mar 2010     Sarah Lu,   Flip vertical profile index from bottom-up to
+!!                            top-down; add Init routine
+!! 12Mar 2010     Sarah Lu,   Clean up phy2chem run
+!! 13Mar 2010     Sarah Lu,   Use m_chars: set statename to lower case
+!! 16Mar 2010     Sarah Lu,   Add FillDefault_ and patch_; Make dimension and
+!!                            tracer specification public (to chem2phy coupler)
+!! 23Mar 2010     Sarah Lu,   Call rtc to track run-time-clock; debug print optional
+!! 09Apr 2010     Sarah Lu,   Clean up the code
+!! 09May 2010     Sarah Lu,   Revise species name for SU, OC, and BC
+!! 13May 2010     Sarah Lu,   Change GetPointer_3D_ from private to public
+!! 09Jun 2010     Sarah Lu,   Remove ref to m_chars/lowercase; add g_fixchar
+!! 10Jun 2010     Sarah Lu,   Remove aerosol tarcer pointer for iAERO
+!! 30Jun 2010     Sarah Lu,   Revise g_fixchar to allow longer char string
+!! 04Aug 2010     Sarah Lu,   run_DU[SU,SS,OC,BC] are determined from chemReg
+!! 09Sep 2010     Sarah Lu,   wet1 is exported from phys, no longer calculated
+!!                            in the phy-to-chem coupler; correct how cn_prcp
+!!                            and ncn_prcp are computed
+!! 10Oct 2010     Sarah Lu,   pass g2d_fld%met from chem_imp to phys_exp
+!! 15Oct 2010     Sarah Lu,   pass fscav from chem_imp to phys_exp
+!! 16Oct 2010     Sarah Lu,   change g2d_fld%met from instant to accumulated 
+!! 08Nov 2010     Sarah Lu,   set zle floor values to hs; aer_diag fields
+!!                            are modified
+!! 14Nov 2010     Sarah Lu,   pass deltim from phy_exp to chem_imp in init
+!! 29Dec 2010     Sarah Lu,   Fields not used by GOCART are removed from diag
+!!   Feb 2011     Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
+!!                            ESMF 5 library and the the ESMF 3.1.0rp2 library.
+!------------------------------------------------------------------------------
 
       use ESMF_MOD
 
@@ -425,7 +429,13 @@
 !
         nullify(Array)
         MESSAGE_CHECK = 'PHY2CHEM_RUN: Get Fortran data pointer from t'
-        CALL ESMF_FieldGet(field=Field, localDe=0, farray=Array, rc = RC)
+
+#ifdef ESMF_3
+        CALL ESMF_FieldGet(field=Field, localDe=0, farray   =Array, rc = RC)
+#else
+        CALL ESMF_FieldGet(field=Field, localDe=0, farrayPtr=Array, rc = RC)
+#endif
+
         CALL ERR_MSG(RC, MESSAGE_CHECK, RC_CPL)
 
 !       Determine dimension in x-, y-, and z-direction
@@ -1138,7 +1148,11 @@
       subroutine get_attribute(STATE, RC_CPL)
 
 !  ---  input
+#ifdef ESMF_3
         type(ESMF_State), intent(in)         :: STATE
+#else
+        type(ESMF_State), intent(inout)      :: STATE
+#endif
 
 !  ---  output
         integer, intent(out)                 :: RC_CPL
@@ -1174,11 +1188,21 @@
         endif
 
         MESSAGE_CHECK = 'Extract lonsperlar_r attribute from '//trim(statename)
-        CALL ESMF_AttributeGet(state=STATE             &  !<-- Name of the state
-                           ,name ='lonsperlar_r'       &  !<-- Name of the attribute to retrieve
-                           ,count = lats_node_r_max    &  !<-- Number of values in the attribute
-                           ,valueList =lonsperlar_r    &  !<-- Value of the attribute
-                           ,rc   =RC)
+
+#ifdef ESMF_3
+        CALL ESMF_AttributeGet(state  =STATE               &  !<-- Name of the state
+                           ,name      ='lonsperlar_r'      &  !<-- Name of the attribute to retrieve
+                           ,count     = lats_node_r_max    &  !<-- Number of values in the attribute
+                           ,valueList =lonsperlar_r        &  !<-- Value of the attribute
+                           ,rc        =RC)
+#else
+        CALL ESMF_AttributeGet(state  =STATE               &  !<-- Name of the state
+                           ,name      ='lonsperlar_r'      &  !<-- Name of the attribute to retrieve
+                           ,itemCount = lats_node_r_max    &  !<-- Number of values in the attribute
+                           ,valueList =lonsperlar_r        &  !<-- Value of the attribute
+                           ,rc        =RC)
+#endif
+
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
 ! ---   Retrieve tracer specification
@@ -1234,7 +1258,13 @@
 
           nullify(Array2D)
           MESSAGE_CHECK = 'Get 2d Fortran data pointer from '//NAME
-          CALL ESMF_FieldGet(field=Field, localDe=0, farray=Array2D, rc=rc1)
+
+#ifdef ESMF_3
+          CALL ESMF_FieldGet(field=Field, localDe=0, farray   =Array2D, rc=rc1)
+#else
+          CALL ESMF_FieldGet(field=Field, localDe=0, farrayPtr=Array2D, rc=rc1)
+#endif
+
           CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !
           ii = size(Array2D, dim=1)
@@ -1250,7 +1280,13 @@
 
           nullify(Array3D)
           MESSAGE_CHECK = 'Get 3d Fortran data pointer from '//NAME
-          CALL ESMF_FieldGet(field=Field, localDe=0, farray=Array3D, rc=rc1)
+
+#ifdef ESMF_3
+          CALL ESMF_FieldGet(field=Field, localDe=0, farray   =Array3D, rc=rc1)
+#else
+          CALL ESMF_FieldGet(field=Field, localDe=0, farrayPtr=Array3D, rc=rc1)
+#endif
+
           CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !
           ii = size(Array3D, dim=1)
@@ -1273,7 +1309,13 @@
 !
           nullify(Array3D)
           MESSAGE_CHECK = 'Get 3d Fortran data pointer from '//NAME
-          CALL ESMF_FieldGet(field=Field, localDe=0, farray=Array3D, rc=rc1)
+
+#ifdef ESMF_3
+          CALL ESMF_FieldGet(field=Field, localDe=0, farray   =Array3D, rc=rc1)
+#else
+          CALL ESMF_FieldGet(field=Field, localDe=0, farrayPtr=Array3D, rc=rc1)
+#endif
+
           CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !
           ii = size(Array3D, dim=1)
@@ -1322,7 +1364,13 @@
 !
         nullify(Array)
         MESSAGE_CHECK = 'PHY2CHEM_RUN: Get Fortran data pointer from '//NAME
-        CALL ESMF_FieldGet(field=Field, localDe=0, farray=Array, rc=rc1)
+
+#ifdef ESMF_3
+        CALL ESMF_FieldGet(field=Field, localDe=0, farray   =Array, rc=rc1)
+#else
+        CALL ESMF_FieldGet(field=Field, localDe=0, farrayPtr=Array, rc=rc1)
+#endif
+
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !
 !       check i- and j-dimension
@@ -1360,7 +1408,13 @@
 !
         nullify(Array)
         MESSAGE_CHECK = 'PHY2CHEM_RUN: Get Fortran data pointer from '//NAME
-        CALL ESMF_FieldGet(field=Field, localDe=0, farray=Array, rc=rc1)
+
+#ifdef ESMF_3
+        CALL ESMF_FieldGet(field=Field, localDe=0, farray   =Array, rc=rc1)
+#else
+        CALL ESMF_FieldGet(field=Field, localDe=0, farrayPtr=Array, rc=rc1)
+#endif
+
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !
 !       check i- and j-dimension
@@ -1416,7 +1470,13 @@
 
         nullify(Array)
         MESSAGE_CHECK = 'PHY2CHEM_RUN: Get Fortran data pointer from '//NAME
-        CALL ESMF_FieldGet(field=Field, localDe=0, farray=Array, rc = rc1)
+
+#ifdef ESMF_3
+        CALL ESMF_FieldGet(field=Field, localDe=0, farray   =Array, rc=rc1)
+#else
+        CALL ESMF_FieldGet(field=Field, localDe=0, farrayPtr=Array, rc=rc1)
+#endif
+
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !
 !       check i- and j-dimension
@@ -1462,7 +1522,13 @@
 
         nullify(Array)
         MESSAGE_CHECK = 'GetPointer_diag:: Get Fortran data pointer from '//NAME
-        CALL ESMF_FieldGet(field=Field, localDe=0, farray=Array, rc = rc1)
+
+#ifdef ESMF_3
+        CALL ESMF_FieldGet(field=Field, localDe=0, farray   =Array, rc=rc1)
+#else
+        CALL ESMF_FieldGet(field=Field, localDe=0, farrayPtr=Array, rc=rc1)
+#endif
+
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !
        end subroutine GetPointer_diag_

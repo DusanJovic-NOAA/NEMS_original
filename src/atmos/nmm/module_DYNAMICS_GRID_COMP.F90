@@ -1,3 +1,5 @@
+#include "../../ESMFVersionDefine.h"
+
 !-----------------------------------------------------------------------
 !
       MODULE module_DYNAMICS_GRID_COMP
@@ -23,6 +25,9 @@
 !   2009-03-12  Black  - Changes for general hybrid coordinate.
 !   2009-11     Jovic  - Modified for ownership/import/export specification
 !   2010-10     Pyle   - Modifications/corrections for digital filter.
+!   2011-02     Yang   - Updated to use both the ESMF 4.0.0rp2 library,
+!                        ESMF 5 series library and the the
+!                        ESMF 3.1.0rp2 library.
 !
 !-----------------------------------------------------------------------
 !
@@ -87,10 +92,11 @@
       CHARACTER(6) :: FMT='(I2.2)'
 !
       TYPE(DYNAMICS_INTERNAL_STATE),POINTER :: INT_STATE                   !<-- The Dynamics component internal state pointer.
-!
-      TYPE(ESMF_Logical) :: INPUT_READY                                 &  !<-- Flag indicating if nest has its own input data
-                           ,NEST_FLAG                                      !<-- Flag indicating if ATM Component is a nest
-!
+
+#ifdef ESMF_3
+      TYPE(ESMF_Logical) :: NEST_FLAG                                      !<-- Flag indicating if ATM Component is a nest
+#endif
+
 !-----------------------------------------------------------------------
 !***  FOR DETERMINING CLOCKTIMES OF VARIOUS PIECES OF THE DYNAMICS.
 !-----------------------------------------------------------------------
@@ -542,6 +548,7 @@
       TYPE(ESMF_State) :: IMP_STATE_WRITE                                  !<-- The Dynamics import state  
       TYPE(ESMF_Grid) :: GRID                                              !<-- The ESMF Grid
       TYPE(ESMF_TimeInterval) :: DT_ESMF                                   !<-- The ESMF fundamental timestep (s)
+      INTEGER                 :: LMP1
 !
 !
 !-----------------------------------------------------------------------
@@ -982,17 +989,30 @@
         MESSAGE_CHECK="Get Nest/Not-a-Nest Flag from Dynamics Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The Dynamics import state
                               ,name ='I-Am-A-Nest Flag'                 &  !<-- Name of variable to get from Dynamics import state
                               ,value=NEST_FLAG                          &  !<-- Put extracted value here
                               ,rc   =RC)
-!
+#else
+        CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The Dynamics import state
+                              ,name ='I-Am-A-Nest Flag'                 &  !<-- Name of variable to get from Dynamics import state
+                              ,value=I_AM_A_NEST                        &  !<-- Put extracted value here
+                              ,rc   =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        I_AM_A_NEST=NEST_FLAG                                              !<-- Convert from ESMF_Logical to LOGICAL
+
+#ifdef ESMF_3
+        IF(NEST_FLAG == ESMF_TRUE) THEN
+            I_AM_A_NEST = .true.
+        ELSE
+            I_AM_A_NEST = .false.
+        END IF
+#endif
 
         IF(I_AM_A_NEST)THEN
 !
@@ -1241,7 +1261,8 @@
                               ,name ='PDTOP'                            &  !<-- The inserted quantity will have this name
                               ,value=int_state%PDTOP                    &  !<-- The value of this is associated with the preceding name
                               ,rc   =RC)
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =EXP_STATE                      &  !<-- The Dynamics export state
                               ,name     ='PSGML1'                       &  !<-- The inserted quantity will have this name
                               ,count    =LM                             &  !<-- The data has this many items
@@ -1254,18 +1275,45 @@
                               ,valueList=int_state%SGML2                &  !<-- The value of this is associated with the preceding name
                               ,rc       =RC)
 !
+        LMP1 = LM + 1
         CALL ESMF_AttributeSet(state    =EXP_STATE                      &  !<-- The Dynamics export state
                               ,name     ='SG1'                          &  !<-- The inserted quantity will have this name
-                              ,count    =LM+1                           &  !<-- The data has this many items
+                              ,count    =LMP1                           &  !<-- The data has this many items
                               ,valueList=int_state%SG1                  &  !<-- The value of this is associated with the preceding name
                               ,rc       =RC)
 !
         CALL ESMF_AttributeSet(state    =EXP_STATE                      &  !<-- The Dynamics export state
                               ,name     ='SG2'                          &  !<-- The inserted quantity will have this name
-                              ,count    =LM+1                           &  !<-- The data has this many items
+                              ,count    =LMP1                           &  !<-- The data has this many items
                               ,valueList=int_state%SG2                  &  !<-- The value of this is associated with the preceding name
                               ,rc       =RC)
+#else
+        CALL ESMF_AttributeSet(state    =EXP_STATE                      &  !<-- The Dynamics export state
+                              ,name     ='PSGML1'                       &  !<-- The inserted quantity will have this name
+                              ,itemCount=LM                             &  !<-- The data has this many items
+                              ,valueList=int_state%PSGML1               &  !<-- The value of this is associated with the preceding name
+                              ,rc       =RC)
 !
+        CALL ESMF_AttributeSet(state    =EXP_STATE                      &  !<-- The Dynamics export state
+                              ,name     ='SGML2'                        &  !<-- The inserted quantity will have this name
+                              ,itemCount=LM                             &  !<-- The data has this many items
+                              ,valueList=int_state%SGML2                &  !<-- The value of this is associated with the preceding name
+                              ,rc       =RC)
+!
+        LMP1 = LM + 1
+        CALL ESMF_AttributeSet(state    =EXP_STATE                      &  !<-- The Dynamics export state
+                              ,name     ='SG1'                          &  !<-- The inserted quantity will have this name
+                              ,itemCount=LMP1                           &  !<-- The data has this many items
+                              ,valueList=int_state%SG1                  &  !<-- The value of this is associated with the preceding name
+                              ,rc       =RC)
+!
+        CALL ESMF_AttributeSet(state    =EXP_STATE                      &  !<-- The Dynamics export state
+                              ,name     ='SG2'                          &  !<-- The inserted quantity will have this name
+                              ,itemCount=LMP1                           &  !<-- The data has this many items
+                              ,valueList=int_state%SG2                  &  !<-- The value of this is associated with the preceding name
+                              ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1315,7 +1363,8 @@
         MESSAGE_CHECK="Local Domain Limits to Dynamics Internal State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The Dynamics import state
                               ,name     ='LOCAL_ISTART'                 &  !<-- Name of the attribute to extract
                               ,count    =NUM_PES                        &  !<-- # of items in attribute
@@ -1339,7 +1388,32 @@
                               ,count    =NUM_PES                        &  !<-- # of items in attribute
                               ,valueList=int_state%LOCAL_JEND           &  !<-- Insert Attribute into Dynamics internal state
                               ,rc       =RC)
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The Dynamics import state
+                              ,name     ='LOCAL_ISTART'                 &  !<-- Name of the attribute to extract
+                              ,itemCount=NUM_PES                        &  !<-- # of items in attribute
+                              ,valueList=int_state%LOCAL_ISTART         &  !<-- Insert Attribute into Dynamics internal state
+                              ,rc       =RC)
 !
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The Dynamics import state
+                              ,name     ='LOCAL_IEND'                   &  !<-- Name of the attribute to extract
+                              ,itemCount=NUM_PES                        &  !<-- # of items in attribute
+                              ,valueList=int_state%LOCAL_IEND           &  !<-- Insert Attribute into Dynamics internal state
+                              ,rc       =RC)
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The Dynamics import state
+                              ,name     ='LOCAL_JSTART'                 &  !<-- Name of the attribute to extract
+                              ,itemCount=NUM_PES                        &  !<-- # of items in attribute
+                              ,valueList=int_state%LOCAL_JSTART         &  !<-- Insert Attribute into Dynamics internal state
+                              ,rc       =RC)
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The Dynamics import state
+                              ,name     ='LOCAL_JEND'                   &  !<-- Name of the attribute to extract
+                              ,itemCount=NUM_PES                        &  !<-- # of items in attribute
+                              ,valueList=int_state%LOCAL_JEND           &  !<-- Insert Attribute into Dynamics internal state
+                              ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3928,13 +4002,21 @@
         MESSAGE_CHECK="Extract South Boundary H Data in UPDATE_BC_TENDS"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
                               ,name     ='SOUTH_H'                      &  !<-- Name of desired boundary data
                               ,count    =KOUNT_S_H                      &  !<-- # of words in this boundary data
                               ,valueList=BND_DATA_S_H                   &  !<-- The boundary data
                               ,rc       =RC )
-!
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
+                              ,name     ='SOUTH_H'                      &  !<-- Name of desired boundary data
+                              ,itemCount=KOUNT_S_H                      &  !<-- # of words in this boundary data
+                              ,valueList=BND_DATA_S_H                   &  !<-- The boundary data
+                              ,rc       =RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3967,13 +4049,21 @@
         MESSAGE_CHECK="Extract South Boundary V Data in UPDATE_BC_TENDS"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
                               ,name     ='SOUTH_V'                      &  !<-- Name of desired boundary data
                               ,count    =KOUNT_S_V                      &  !<-- # of words in this boundary data
                               ,valueList=BND_DATA_S_V                   &  !<-- The boundary data
                               ,rc       =RC )
-!
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
+                              ,name     ='SOUTH_V'                      &  !<-- Name of desired boundary data
+                              ,itemCount=KOUNT_S_V                      &  !<-- # of words in this boundary data
+                              ,valueList=BND_DATA_S_V                   &  !<-- The boundary data
+                              ,rc       =RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4004,13 +4094,21 @@
         MESSAGE_CHECK="Extract North Boundary H Data in UPDATE_BC_TENDS"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
                               ,name     ='NORTH_H'                      &  !<-- Name of desired boundary data
                               ,count    =KOUNT_N_H                      &  !<-- # of words in this boundary data
                               ,valueList=BND_DATA_N_H                   &  !<-- The boundary data
                               ,rc       =RC )
-!
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
+                              ,name     ='NORTH_H'                      &  !<-- Name of desired boundary data
+                              ,itemCount=KOUNT_N_H                      &  !<-- # of words in this boundary data
+                              ,valueList=BND_DATA_N_H                   &  !<-- The boundary data
+                              ,rc       =RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4043,13 +4141,21 @@
         MESSAGE_CHECK="Extract North Boundary V Data in UPDATE_BC_TENDS"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
                               ,name     ='NORTH_V'                      &  !<-- Name of desired boundary data
                               ,count    =KOUNT_N_V                      &  !<-- # of words in this boundary data
                               ,valueList=BND_DATA_N_V                   &  !<-- The boundary data
                               ,rc       =RC )
-!
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
+                              ,name     ='NORTH_V'                      &  !<-- Name of desired boundary data
+                              ,itemCount=KOUNT_N_V                      &  !<-- # of words in this boundary data
+                              ,valueList=BND_DATA_N_V                   &  !<-- The boundary data
+                              ,rc       =RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4080,13 +4186,21 @@
         MESSAGE_CHECK="Extract West Boundary H Data in UPDATE_BC_TENDS"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
                               ,name     ='WEST_H'                       &  !<-- Name of desired boundary data
                               ,count    =KOUNT_W_H                      &  !<-- # of words in this boundary data
                               ,valueList=BND_DATA_W_H                   &  !<-- The boundary data
                               ,rc       =RC )
-!
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
+                              ,name     ='WEST_H'                       &  !<-- Name of desired boundary data
+                              ,itemCount=KOUNT_W_H                      &  !<-- # of words in this boundary data
+                              ,valueList=BND_DATA_W_H                   &  !<-- The boundary data
+                              ,rc       =RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4119,13 +4233,21 @@
         MESSAGE_CHECK="Extract West Boundary V Data in UPDATE_BC_TENDS"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
                               ,name     ='WEST_V'                       &  !<-- Name of desired boundary data
                               ,count    =KOUNT_W_V                      &  !<-- # of words in this boundary data
                               ,valueList=BND_DATA_W_V                   &  !<-- The boundary data
                               ,rc       =RC )
-!
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
+                              ,name     ='WEST_V'                       &  !<-- Name of desired boundary data
+                              ,itemCount=KOUNT_W_V                      &  !<-- # of words in this boundary data
+                              ,valueList=BND_DATA_W_V                   &  !<-- The boundary data
+                              ,rc       =RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4156,13 +4278,21 @@
         MESSAGE_CHECK="Extract East Boundary H Data in UPDATE_BC_TENDS"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
                               ,name     ='EAST_H'                       &  !<-- Name of desired boundary data
                               ,count    =KOUNT_E_H                      &  !<-- # of words in this boundary data
                               ,valueList=BND_DATA_E_H                   &  !<-- The boundary data
                               ,rc       =RC )
-!
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
+                              ,name     ='EAST_H'                       &  !<-- Name of desired boundary data
+                              ,itemCount=KOUNT_E_H                      &  !<-- # of words in this boundary data
+                              ,valueList=BND_DATA_E_H                   &  !<-- The boundary data
+                              ,rc       =RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4195,13 +4325,21 @@
         MESSAGE_CHECK="Extract East Boundary V Data in UPDATE_BC_TENDS"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
                               ,name     ='EAST_V'                       &  !<-- Name of desired boundary data
                               ,count    =KOUNT_E_V                      &  !<-- # of words in this boundary data
                               ,valueList=BND_DATA_E_V                   &  !<-- The boundary data
                               ,rc       =RC )
-!
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Dynamics import state
+                              ,name     ='EAST_V'                       &  !<-- Name of desired boundary data
+                              ,itemCount=KOUNT_E_V                      &  !<-- # of words in this boundary data
+                              ,valueList=BND_DATA_E_V                   &  !<-- The boundary data
+                              ,rc       =RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4342,13 +4480,21 @@
         MESSAGE_CHECK="Set BC South Data Attribute in SAVE_BC_DATA"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                &  !<-- The Write component import state
                               ,name     ='RST_BC_DATA_SOUTH'            &  !<-- Name of 1-D string of south boundary values
                               ,count    =NUM_WORDS_BC_SOUTH             &  !<-- # of south boundary words on this fcst task
                               ,valueList=RST_BC_DATA_SOUTH              &  !<-- The 1-D data being inserted into the Write import state
                               ,rc       =RC)
-!
+#else
+        CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                &  !<-- The Write component import state
+                              ,name     ='RST_BC_DATA_SOUTH'            &  !<-- Name of 1-D string of south boundary values
+                              ,itemCount=NUM_WORDS_BC_SOUTH             &  !<-- # of south boundary words on this fcst task
+                              ,valueList=RST_BC_DATA_SOUTH              &  !<-- The 1-D data being inserted into the Write import state
+                              ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SAVE)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4392,13 +4538,21 @@
         MESSAGE_CHECK="Set BC North Data Attribute in SAVE_BC_DATA"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                &  !<-- The Write component import state
                               ,name     ='RST_BC_DATA_NORTH'            &  !<-- Name of 1-D string of north boundary values
                               ,count    =NUM_WORDS_BC_NORTH             &  !<-- # of north boundary words on this fcst task
                               ,valueList=RST_BC_DATA_NORTH              &  !<-- The 1-D data being inserted into the Write import state
                               ,rc       =RC)
-!
+#else
+        CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                &  !<-- The Write component import state
+                              ,name     ='RST_BC_DATA_NORTH'            &  !<-- Name of 1-D string of north boundary values
+                              ,itemCount=NUM_WORDS_BC_NORTH             &  !<-- # of north boundary words on this fcst task
+                              ,valueList=RST_BC_DATA_NORTH              &  !<-- The 1-D data being inserted into the Write import state
+                              ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SAVE)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4442,13 +4596,21 @@
         MESSAGE_CHECK="Set BC West Data Attribute in SAVE_BC_DATA"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                &  !<-- The Write component import state
                               ,name     ='RST_BC_DATA_WEST'             &  !<-- Name of 1-D string of west boundary values
                               ,count    =NUM_WORDS_BC_WEST              &  !<-- # of west boundary words on this fcst task
                               ,valueList=RST_BC_DATA_WEST               &  !<-- The 1-D data being inserted into the Write import state
                               ,rc       =RC)
-!
+#else
+        CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                &  !<-- The Write component import state
+                              ,name     ='RST_BC_DATA_WEST'             &  !<-- Name of 1-D string of west boundary values
+                              ,itemCount=NUM_WORDS_BC_WEST              &  !<-- # of west boundary words on this fcst task
+                              ,valueList=RST_BC_DATA_WEST               &  !<-- The 1-D data being inserted into the Write import state
+                              ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SAVE)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4492,13 +4654,21 @@
         MESSAGE_CHECK="Set BC East Data Attribute in SAVE_BC_DATA"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                &  !<-- The Write component import state
                               ,name     ='RST_BC_DATA_EAST'             &  !<-- Name of 1-D string of east boundary values
                               ,count    =NUM_WORDS_BC_EAST              &  !<-- # of east boundary words on this fcst task
                               ,valueList=RST_BC_DATA_EAST               &  !<-- The 1-D data being inserted into the Write import state
                               ,rc       =RC)
-!
+#else
+        CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                &  !<-- The Write component import state
+                              ,name     ='RST_BC_DATA_EAST'             &  !<-- Name of 1-D string of east boundary values
+                              ,itemCount=NUM_WORDS_BC_EAST              &  !<-- # of east boundary words on this fcst task
+                              ,valueList=RST_BC_DATA_EAST               &  !<-- The 1-D data being inserted into the Write import state
+                              ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SAVE)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

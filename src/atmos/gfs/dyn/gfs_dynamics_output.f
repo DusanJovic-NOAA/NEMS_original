@@ -1,3 +1,5 @@
+#include "../../../ESMFVersionDefine.h"
+
 !-----------------------------------------------------------------------
 !
       MODULE gfs_dynamics_output
@@ -20,6 +22,8 @@
 !***  REVISION LOG:
 !***  Nov 23 2009, Sarah Lu   Add gocart species to DYN_INT_STATE_3D_R_DIAB
 !***  Feb 20 2011, Henry Juang  use gfs_dyn_write_state for more related name
+!***  February 2011 Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
+!***                            ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !***
 !-----------------------------------------------------------------------
 !
@@ -576,13 +580,21 @@
                             ,name     ='ipt_lats_node_a'                &  !<-- Name of the integer array
                             ,value    =int_state%ipt_lats_node_a        &  !<-- The array being inserted into the import state
                             ,rc       =RC)
-!
+
+#ifdef ESMF_3
       CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
                             ,name     ='global_lats_a'                  &  !<-- Name of the integer array
                             ,count    =int_state%latg                   &  !<-- Length of array being inserted into the import state
                             ,valueList=int_state%global_lats_a          &  !<-- The array being inserted into the import state
                             ,rc       =RC)
-!
+#else
+      CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
+                            ,name     ='global_lats_a'                  &  !<-- Name of the integer array
+                            ,itemCount=int_state%latg                   &  !<-- Length of array being inserted into the import state
+                            ,valueList=int_state%global_lats_a          &  !<-- The array being inserted into the import state
+                            ,rc       =RC)
+#endif
+
       CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
                             ,name     ='zhour'                          &  !<-- Name of the integer array
                             ,value    =int_state%zhour                  &  !<-- The array being inserted into the import state
@@ -658,7 +670,13 @@
 !
       TYPE(ESMF_Field)       :: FIELD
       TYPE(ESMF_CopyFlag)    :: COPYFLAG=ESMF_DATA_REF
-      TYPE(ESMF_Logical),TARGET :: LOG_ESMF    
+
+#ifdef ESMF_3
+      TYPE(ESMF_Logical),TARGET   :: LOG_ESMF
+#else
+      LOGICAL                     :: LOG_ESMF
+#endif
+
       character(esmf_maxstr)      :: MESSAGE_CHECK
 
 ! add local variables for generalized tracer
@@ -678,11 +696,19 @@
       DO NFIND=1,MAX_KOUNT
         IF(trim(DYN_INT_STATE_ISCALAR(2,NFIND))=='OGFS_SIG')THEN                        !<-- Take integer scalar data specified for history output
           VBL_NAME=TRIM(DYN_INT_STATE_ISCALAR(1,NFIND))
-!
-          CALL ESMF_AttributeSet(bundle=file_bundle                     &  !<-- The Write component output history Bundle
-                                ,name  =VBL_NAME                        &  !<-- Name of the integer scalar
-                                ,value =I_SC(NFIND)%NAME                &  !<-- The scalar being inserted into the import state
-                                ,rc    =RC)
+
+#ifdef ESMF_3
+          CALL ESMF_AttributeSet(bundle     =file_bundle                &  !<-- The Write component output history Bundle
+                                ,name       =VBL_NAME                   &  !<-- Name of the integer scalar
+                                ,value      =I_SC(NFIND)%NAME           &  !<-- The scalar being inserted into the import state
+                                ,rc         =RC)
+#else
+          CALL ESMF_AttributeSet(fieldbundle=file_bundle                &  !<-- The Write component output history Bundle
+                                ,name       =VBL_NAME                   &  !<-- Name of the integer scalar
+                                ,value      =I_SC(NFIND)%NAME           &  !<-- The scalar being inserted into the import state
+                                ,rc         =RC)
+#endif
+
 !          if(MYPE==0) write(0,*)'dyn_output,after VBL_NAME=',VBL_NAME,'NFIND=',NFIND,     &
 !           'value=',I_SC(NFIND)%NAME
 !
@@ -714,11 +740,19 @@
 !
 !          write(0,*)'dyn_output,VBL_NAME=',VBL_NAME,'NFIND=',NFIND,     &
 !           'value=',R_SC(NFIND)%NAME
-          CALL ESMF_AttributeSet(bundle=file_bundle                     &  !<-- The Write component output history Bundle
-                                ,name  =VBL_NAME                        &  !<-- Name of the integer scalar
-                                ,value =R_SC(NFIND)%NAME                &  !<-- The scalar being inserted into the import state
-                                ,rc    =RC)
-!
+
+#ifdef ESMF_3
+          CALL ESMF_AttributeSet(bundle     =file_bundle                &  !<-- The Write component output history Bundle
+                                ,name       =VBL_NAME                   &  !<-- Name of the integer scalar
+                                ,value      =R_SC(NFIND)%NAME           &  !<-- The scalar being inserted into the import state
+                                ,rc         =RC)
+#else
+          CALL ESMF_AttributeSet(fieldbundle=file_bundle                &  !<-- The Write component output history Bundle
+                                ,name       =VBL_NAME                   &  !<-- Name of the integer scalar
+                                ,value      =R_SC(NFIND)%NAME           &  !<-- The scalar being inserted into the import state
+                                ,rc         =RC)
+#endif
+
         ENDIF
 !
         IF(DYN_INT_STATE_RSCALAR(2,NFIND)=='*' .AND.                    &
@@ -752,13 +786,23 @@
 !***  IMPORT STATE.
 !
 !          write(0,*)'dyn_output,log VBL_NAME=',VBL_NAME,'NFIND=',NFIND
-          LOG_ESMF=ESMF_False
-          if(L_SC(NFIND)%NAME) LOG_ESMF=ESMF_True
-          CALL ESMF_AttributeSet(bundle=file_bundle                     &  !<-- The Write component output history Bundle
-                                ,name  =VBL_NAME                        &  !<-- Name of the integer scalar
-                                ,value =LOG_ESMF                        &  !<-- The scalar being inserted into the import state
-                                ,rc    =RC)
-!
+
+#ifdef ESMF_3
+          LOG_ESMF = ESMF_FALSE
+          if(L_SC(NFIND)%NAME) LOG_ESMF = ESMF_TRUE
+          CALL ESMF_AttributeSet(bundle     =file_bundle                &  !<-- The Write component output history Bundle
+                                ,name       =VBL_NAME                   &  !<-- Name of the integer scalar
+                                ,value      =LOG_ESMF                   &  !<-- The scalar being inserted into the import state
+                                ,rc         =RC)
+#else
+          LOG_ESMF = .false.
+          if(L_SC(NFIND)%NAME) LOG_ESMF = .true.
+          CALL ESMF_AttributeSet(fieldbundle=file_bundle                &  !<-- The Write component output history Bundle
+                                ,name       =VBL_NAME                   &  !<-- Name of the integer scalar
+                                ,value      =LOG_ESMF                   &  !<-- The scalar being inserted into the import state
+                                ,rc         =RC)
+#endif
+
         ENDIF
 !
         IF(DYN_INT_STATE_LSCALAR(2,NFIND)=='*' .AND.                    &
@@ -788,12 +832,21 @@
 !
 !          write(0,*)'dyn_output,1d int VBL_NAME=',VBL_NAME,'NFIND=',NFIND,     &
 !           'LENGTH=',LENGTH,'value=',I_1D(NFIND)%NAME(1:LENGTH)
-          CALL ESMF_AttributeSet(bundle   =file_bundle                  &  !<-- The Write component output history Bundle
-                                ,name     =VBL_NAME                     &  !<-- Name of the integer scalar
-                                ,count    =LENGTH                       &  !<-- # of elements in this attribute
-                                ,valueList=I_1D(NFIND)%NAME             &  !<-- The 1D integer being inserted into the import state
-                                ,rc       =RC)
-!
+
+#ifdef ESMF_3
+          CALL ESMF_AttributeSet(bundle      =file_bundle               &  !<-- The Write component output history Bundle
+                                ,name        =VBL_NAME                  &  !<-- Name of the integer scalar
+                                ,count       =LENGTH                    &  !<-- # of elements in this attribute
+                                ,valueList   =I_1D(NFIND)%NAME          &  !<-- The 1D integer being inserted into the import state
+                                ,rc          =RC)
+#else
+          CALL ESMF_AttributeSet(fieldbundle =file_bundle               &  !<-- The Write component output history Bundle
+                                ,name        =VBL_NAME                  &  !<-- Name of the integer scalar
+                                ,itemCount   =LENGTH                    &  !<-- # of elements in this attribute
+                                ,valueList   =I_1D(NFIND)%NAME          &  !<-- The 1D integer being inserted into the import state
+                                ,rc          =RC)
+#endif
+
         ENDIF
 !
         IF(DYN_INT_STATE_1D_I(2,NFIND)=='*' .AND.                       &
@@ -824,12 +877,21 @@
 !
 !          write(0,*)'dyn_output,1d real VBL_NAME=',VBL_NAME,'NFIND=',NFIND,     &
 !           'LENGTH=',LENGTH,'value=',R_1D(NFIND)%NAME(1:LENGTH)
-          CALL ESMF_AttributeSet(bundle   =file_bundle                  &  !<-- The Write component output history Bundle
-                                ,name     =VBL_NAME                     &  !<-- Name of the integer scalar
-                                ,count    =LENGTH                       &  !<-- # of elements in this attribute
-                                ,valueList=R_1D(NFIND)%NAME             &  !<-- The 1D real being inserted into the import state
-                                ,rc       =RC)
-!
+
+#ifdef ESMF_3
+          CALL ESMF_AttributeSet(bundle      =file_bundle             &  !<-- The Write component output history Bundle
+                                ,name        =VBL_NAME                &  !<-- Name of the integer scalar
+                                ,count       =LENGTH                  &  !<-- # of elements in this attribute
+                                ,valueList   =R_1D(NFIND)%NAME        &  !<-- The 1D real being inserted into the import state
+                                ,rc          =RC)
+#else
+          CALL ESMF_AttributeSet(fieldbundle =file_bundle             &  !<-- The Write component output history Bundle
+                                ,name        =VBL_NAME                &  !<-- Name of the integer scalar
+                                ,itemCount   =LENGTH                  &  !<-- # of elements in this attribute
+                                ,valueList   =R_1D(NFIND)%NAME        &  !<-- The 1D real being inserted into the import state
+                                ,rc          =RC)
+#endif
+
         ENDIF
 !
         IF(DYN_INT_STATE_1D_R(2,NFIND)=='*' .AND.                       &

@@ -1,3 +1,5 @@
+#include "../../ESMFVersionDefine.h"
+
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_GFS_INTEGRATE
@@ -17,6 +19,9 @@
 !   2010-03-09  Lu    - Add CHEM2PHY CPL
 !   2010-08-18  WANG  - output filtered fields at HALFDFITIME
 !   2010-11-10  WANG  - reset integration loop for dfi
+!   2011-02   W Yang  - Updated to use both the ESMF 4.0.0rp2 library,
+!                       ESMF 5 series library and the the
+!                       ESMF 3.1.0rp2 library.
 !-----------------------------------------------------------------------
 
       USE ESMF_MOD
@@ -121,7 +126,8 @@
 !jw
       TYPE(ESMF_Time)                        :: ALARM_OUTPUT_RING
       TYPE(ESMF_Alarm), SAVE                 :: ALARM_OUTPUT
-      TYPE(ESMF_LOGICAL)                     :: Cpl_flag
+      LOGICAL                                :: Cpl_flag
+      TYPE(ESMF_LOGICAL)                     :: Cpl_flag_ESMF
       LOGICAL, SAVE                          :: write_flag = .true.
       LOGICAL, SAVE                          :: first      = .true.
       LOGICAL, SAVE                          :: first_dfi  = .true.
@@ -398,11 +404,19 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
+         CALL ESMF_AttributeGet(imp_gfs_dyn, 'Cpl_flag', Cpl_flag_ESMF, rc = rc)
+
+         IF(Cpl_flag_ESMF == ESMF_FALSE .AND. .NOT. LSKIP) THEN
+             CALL ESMF_ClockAdvance(clock = CLOCK_GFS, rc = RC)
+         END IF
+#else
          CALL ESMF_AttributeGet(imp_gfs_dyn, 'Cpl_flag', Cpl_flag, rc = rc)
 
-         IF(Cpl_flag == ESMF_FALSE.and..not.LSKIP) THEN
-            CALL ESMF_ClockAdvance(clock = CLOCK_GFS, rc = RC)
+         IF(.NOT. Cpl_flag .AND. .NOT. LSKIP) THEN
+             CALL ESMF_ClockAdvance(clock = CLOCK_GFS, rc = RC)
          END IF
+#endif
 
          CALL ESMF_ClockGet(clock       =CLOCK_GFS             &
                           ,advanceCount=NTIMESTEP_ESMF        &  !<-- # of times the clock has advanced

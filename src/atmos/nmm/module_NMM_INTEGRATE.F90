@@ -1,3 +1,5 @@
+#include "../../ESMFVersionDefine.h"
+
 !-----------------------------------------------------------------------
 !
       MODULE module_NMM_INTEGRATE
@@ -17,6 +19,9 @@
 !                       into one when when merging with nesting.
 !   2010-03-24  Black - Revised for new structure.
 !   2010-10-xx  Pyle  - Revised for digital filters.
+!   2011-02     Yang  - Updated to use both the ESMF 4.0.0rp2 library,
+!                       ESMF 5 series library and the the
+!                       ESMF 3.1.0rp2 library.
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
@@ -139,8 +144,9 @@
       INTEGER(kind=KINT),INTENT(IN) :: COMM_TO_MY_PARENT                &  !<-- MPI Communicator to parent of this domain
                                       ,FILTER_METHOD                    &  !<-- The type of digital filtering desired
                                       ,MYPE                             &  !<-- MPI task rank
-                                      ,NPE_PRINT                        &  !<-- Task to print clocktimes
-                                      ,NUM_CHILDREN                        !<-- # of children on this domain
+                                      ,NPE_PRINT                           !<-- Task to print clocktimes
+
+      INTEGER(kind=KINT),INTENT(INOUT) :: NUM_CHILDREN                     !<-- # of children on this domain
 !
       REAL(kind=KFPT),INTENT(IN) :: DT                                     !<-- Fundamental timestep of this domain (REAL) (s)
 !
@@ -149,10 +155,15 @@
                                       ,RST_OUT_00                          !<-- Shall we write 00h history in restarted run?
 !
       CHARACTER(8),INTENT(IN) :: CLOCK_DIRECTION                           !<-- The direction of time in the Clock
-!
+
+#ifdef ESMF_3
       TYPE(ESMF_Logical),INTENT(IN) :: I_AM_A_FCST_TASK                 &  !<-- Am I in a forecast task?
                                       ,I_AM_A_NEST                         !<-- Am I in a nested domain?
-!
+#else
+      LOGICAL,           INTENT(IN) :: I_AM_A_FCST_TASK                 &  !<-- Am I in a forecast task?
+                                      ,I_AM_A_NEST                         !<-- Am I in a nested domain?
+#endif
+
       TYPE(ESMF_Time),INTENT(IN) :: STARTTIME                              !<-- The clock's start time
 !
       TYPE(ESMF_TimeInterval),INTENT(IN)  :: TIMESTEP                      !<-- Fundamental timestep of this domain (ESMF) (s)
@@ -326,9 +337,13 @@
 !***  Call the 1st Phase of the Parent_Child coupler where children
 !***  will recv from their parents.
 !-----------------------------------------------------------------------
-!
+
+#ifdef ESMF_3
         IF(I_AM_A_NEST==ESMF_TRUE.AND.I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-!
+#else
+        IF(I_AM_A_NEST.AND.I_AM_A_FCST_TASK) THEN
+#endif
+
 !!!       IF(ESMF_AlarmIsRinging(alarm=ALARM_RECV_FROM_PARENT           &  !<-- Alarm to alert child that it must recv from parent
 !         IF((ESMF_AlarmIsRinging(alarm=ALARM_RECV_FROM_PARENT          &  !<-- Alarm to alert child that it must recv from parent
 !                               ,rc   =RC)                              &
@@ -610,7 +625,6 @@
 !-----------------------------------------------------------------------
 !
         IF(MYPE==0.AND.FILTER_METHOD==0)THEN
-!!!       IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
           WRITE(0,25)NTIMESTEP-1,NTIMESTEP*DT/3600.,phase1_tim
    25     FORMAT(' Finished Timestep ',i5,' ending at ',f7.3,           &
                  ' hours: elapsed integration time ',g10.4)
@@ -650,9 +664,13 @@
 !***  Extract Clocktimes of the Parent-Child Coupler from that
 !***  component's export state and print them.
 !-----------------------------------------------------------------------
-!
+
+#ifdef ESMF_3
         IF(I_AM_A_NEST==ESMF_TRUE.AND.I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-!
+#else
+        IF(I_AM_A_NEST.AND.I_AM_A_FCST_TASK) THEN
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract Cpl1 Recv Time from Parent-Child Cpl Export State"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
@@ -728,7 +746,13 @@
           endif
          endif
         ELSE  
-         IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN                                           ! nested run and a forecast task
+
+#ifdef ESMF_3
+         IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
+#else
+         IF(I_AM_A_FCST_TASK) THEN
+#endif
+
           IF(NUM_CHILDREN == 0)THEN                                                    ! just a nest and not a parent nest
            if (cpl1_recv_tim > 1.0) then                                               ! child compute task that is a boundary
             if (atm_drv_run_2 >1.0) then                                               ! digital filter 
@@ -749,7 +773,13 @@
 !
 !
           IF(NUM_CHILDREN>0)THEN                                                       ! parent task that has a child nest
+
+#ifdef ESMF_3
            IF(I_AM_A_NEST==ESMF_TRUE)THEN
+#else
+           IF(I_AM_A_NEST)           THEN
+#endif
+
             if (cpl1_recv_tim > 1.0) then                                               ! child compute task that is a boundary
              if (atm_drv_run_2 >1.0) then                                               ! digital filter 
               WRITE(0,902)atm_drv_run_1,atm_drv_run_2,atm_drv_run_3, &
@@ -842,9 +872,15 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
+
               parents_only: IF(NUM_CHILDREN>0                           &
                                    .AND.                                &
+#ifdef ESMF_3
                                I_AM_A_FCST_TASK==ESMF_TRUE) THEN
+#else
+                               I_AM_A_FCST_TASK)            THEN
+#endif
+
 !-----------------------------------------------------------------------
 !
                 IF(.NOT.ALLOCATED(LOC_PAR_CHILD_TIME_RATIO)) THEN
@@ -855,13 +891,21 @@
       MESSAGE_CHECK="NMM_INTEGRATE: Parent/child DT Ratio for TDFI"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
                 CALL ESMF_AttributeGet(state    =IMP_STATE_CPL_NEST        &  !<-- The parent-child coupler import state
                                       ,name     ='Parent-Child Time Ratio' &  !<-- Name of the attribute to extract
                                       ,count    =NUM_CHILDREN              &  !<-- # of items in the Attribute
                                       ,valueList=LOC_PAR_CHILD_TIME_RATIO  &  !<-- Ratio of parent to child DTs
                                       ,rc       =RC)
-!
+#else
+                CALL ESMF_AttributeGet(state    =IMP_STATE_CPL_NEST        &  !<-- The parent-child coupler import state
+                                      ,name     ='Parent-Child Time Ratio' &  !<-- Name of the attribute to extract
+                                      ,itemCount=NUM_CHILDREN              &  !<-- # of items in the Attribute
+                                      ,valueList=LOC_PAR_CHILD_TIME_RATIO  &  !<-- Ratio of parent to child DTs
+                                      ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

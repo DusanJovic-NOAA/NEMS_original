@@ -1,3 +1,5 @@
+#include "../../../ESMFVersionDefine.h"
+
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_WRITE_GRID_COMP_GFS
@@ -24,7 +26,10 @@
 !                                return without waiting for wrt pes 
 !                                receiving data
 !       16 Dec 2020:  J. Wang  - change to nemsio library
-!-----------------------------------------------------------------------
+!          Feb 2011:  W. Yang  - Updated to use both the ESMF 4.0.0rp2 library,
+!                                ESMF 5 library and the the ESMF 3.1.0rp2 library.
+
+!---------------------------------------------------------------------------------
 !
       USE ESMF_MOD
       USE MODULE_WRITE_INTERNAL_STATE_GFS
@@ -612,7 +617,6 @@
       TYPE(ESMF_DELayout)                   :: MY_DE_LAYOUT
       TYPE(ESMF_Field)                      :: FIELD_WORK1
 !
-      TYPE(ESMF_InternArray)                  :: ARRAY_WORK
       TYPE(WRITE_WRAP_GFS)                        :: WRAP
       TYPE(WRITE_INTERNAL_STATE_GFS),POINTER      :: WRT_INT_STATE
       TYPE(ESMF_LOGICAL),DIMENSION(:),POINTER :: FIRST_IO_PE
@@ -771,12 +775,20 @@
          ALLOCATE(wrt_int_state%global_lats_a(1:wrt_int_state%jm(1)),stat=ISTAT)  !<-- Local starting I for each fcst task's subdomain
         ENDIF
 !
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state     =IMP_STATE_WRITE              &  !<-- The Write component's import state
                               ,name      ='global_lats_a'              &  !<-- Name of the Attribute to extract
                               ,count     =wrt_int_state%jm(1)          &  !<-- Length of Attribute
                               ,valueList =wrt_int_state%global_lats_a  &  !<-- Extract local subdomain starting J's
                               ,rc=RC)
-!
+#else
+        CALL ESMF_AttributeGet(state     =IMP_STATE_WRITE              &  !<-- The Write component's import state
+                              ,name      ='global_lats_a'              &  !<-- Name of the Attribute to extract
+                              ,itemCount     =wrt_int_state%jm(1)      &  !<-- Length of Attribute
+                              ,valueList =wrt_int_state%global_lats_a  &  !<-- Extract local subdomain starting J's
+                              ,rc=RC)
+#endif
+
         CALL ESMF_AttributeGet(state     =IMP_STATE_WRITE              &  !<-- The Write component's import state
                               ,name      ='zhour'                    &  !<-- Name of the Attribute to extract
                               ,value     =zhour(1)                   &  !<-- Extract local subdomain starting J's
@@ -1045,10 +1057,18 @@
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL ESMF_FieldGet(field  =FIELD_WORK1                      &  !<-- The ESMF Field
-                              ,localDe=0                                &  !<-- # of DEs in this grid
-                              ,farray =WORK_ARRAY_I2D                   &  !<-- Put the 2D integer data from the Field here
-                              ,rc     =RC)
+#ifdef ESMF_3
+            CALL ESMF_FieldGet(field     =FIELD_WORK1                  &  !<-- The ESMF Field
+                              ,localDe   =0                            &  !<-- # of DEs in this grid
+                              ,farray    =WORK_ARRAY_I2D               &  !<-- Put the 2D integer data from the Field here
+                              ,rc        =RC)
+#else
+            CALL ESMF_FieldGet(field     =FIELD_WORK1                  &  !<-- The ESMF Field
+                              ,localDe   =0                            &  !<-- # of DEs in this grid
+                              ,farrayPtr =WORK_ARRAY_I2D               &  !<-- Put the 2D integer data from the Field here
+                              ,rc        =RC)
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -1103,10 +1123,18 @@
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL ESMF_FieldGet(field  =FIELD_WORK1                      &  !<-- The ESMF Field
-                              ,localDe=0                                &  !<-- # of DEs in this grid
-                              ,farray =WORK_ARRAY_R2D                   &  !<-- Put the 2D real data from the Field here
-                              ,rc     =RC)
+#ifdef ESMF_3
+            CALL ESMF_FieldGet(field     =FIELD_WORK1                   &  !<-- The ESMF Field
+                              ,localDe   =0                             &  !<-- # of DEs in this grid
+                              ,farray    =WORK_ARRAY_R2D                &  !<-- Put the 2D real data from the Field here
+                              ,rc        =RC)
+#else
+            CALL ESMF_FieldGet(field     =FIELD_WORK1                   &  !<-- The ESMF Field
+                              ,localDe   =0                             &  !<-- # of DEs in this grid
+                              ,farrayPtr =WORK_ARRAY_R2D                &  !<-- Put the 2D real data from the Field here
+                              ,rc        =RC)
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)

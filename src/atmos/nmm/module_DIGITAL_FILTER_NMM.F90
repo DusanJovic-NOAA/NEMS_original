@@ -1,3 +1,5 @@
+#include "../../ESMFVersionDefine.h"
+
 !-----------------------------------------------------------------------
 !
       MODULE module_DIGITAL_FILTER_NMM
@@ -7,9 +9,11 @@
 ! a generic digital filter for any model under ESMF 
 !
 !-----------------------------------------------------------------------
-! March 2007	Hann-Ming Henry Juang
+! March    2007	Hann-Ming Henry Juang
 ! February 2008 Weiyu Yang, updated to use the ESMF 3.1.0 library.
-!-----------------------------------------------------------------------
+! February 2011 Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
+!                           ESMF 5 library and the the ESMF 3.1.0rp2 library.
+!----------------------------------------------------------------------------
 !
       use esmf_mod
       use module_include
@@ -230,10 +234,18 @@
                             ,field   =HOLD_FIELD                        &  !<-- Put extracted Field here
                             ,rc      = RC)
 !
-          call ESMF_FieldGet(field  =HOLD_FIELD                         &  !<-- Field that holds the data pointer
-                            ,localDe=0                                  &
-                            ,farray =HOLD_2D                            &  !<-- Put the pointer here
-                            ,rc     =RC)
+#ifdef ESMF_3
+          call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
+                            ,localDe   =0                               &
+                            ,farray    =HOLD_2D                         &  !<-- Put the pointer here
+                            ,rc        =RC)
+#else
+          call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
+                            ,localDe   =0                               &
+                            ,farrayPtr =HOLD_2D                         &  !<-- Put the pointer here
+                            ,rc        =RC)
+#endif
+
           do j=jts,jte
           do i=its,ite
             array_save_2d(i,j,n)=array_save_2d(i,j,n)+digfil*hold_2d(i,j)
@@ -251,12 +263,19 @@
                             ,itemName=FIELD_NAME                        &  !<-- Name of the Field to extract
                             ,field   =HOLD_FIELD                        &  !<-- Put extracted Field here
                             ,rc      = RC)
-!
-          call ESMF_FieldGet(field  =HOLD_FIELD                         &  !<-- Field that holds the data pointer
-                            ,localDe=0                                  &
-                            ,farray =HOLD_3D                            &  !<-- Put the pointer here
-                            ,rc     =RC)
-!
+
+#ifdef ESMF_3
+          call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
+                            ,localDe   =0                               &
+                            ,farray    =HOLD_3D                         &  !<-- Put the pointer here
+                            ,rc        =RC)
+#else
+          call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
+                            ,localDe   =0                               &
+                            ,farrayPtr =HOLD_3D                         &  !<-- Put the pointer here
+                            ,rc        =RC)
+#endif
+
           do l=1,lm  
             do j=jts,jte
             do i=its,ite
@@ -282,12 +301,19 @@
                             ,itemName=FIELD_NAME                        &  !<-- Name of the Field to extract
                             ,field   =HOLD_FIELD                        &  !<-- Put extracted Field here
                             ,rc      = RC)
-!
-          call ESMF_FieldGet(field  =HOLD_FIELD                         &  !<-- Field that holds the data pointer
-                            ,localDe=0                                  &
-                            ,farray =HOLD_4D                            &  !<-- Put the pointer here
-                            ,rc     =RC)
-!
+
+#ifdef ESMF_3
+          call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
+                            ,localDe   =0                               &
+                            ,farray    =HOLD_4D                         &  !<-- Put the pointer here
+                            ,rc        =RC)
+#else
+          call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
+                            ,localDe   =0                               &
+                            ,farrayPtr =HOLD_4D                         &  !<-- Put the pointer here
+                            ,rc        =RC)
+#endif
+
           do p=1,num_spec
             do l=1,lm
               do j=jts,jte
@@ -413,12 +439,19 @@
 !         MESSAGE_CHECK="Dyn Update: Extract Temperature Pointer from Field"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field that holds the data pointer
-                            ,localDe  =0                                &
-                            ,farray   =HOLD_2D                          &  !<-- Put the pointer here
-                            ,rc       =RC)
-!
+
+#ifdef ESMF_3
+          call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
+                            ,localDe   =0                               &
+                            ,farray    =HOLD_2D                         &  !<-- Put the pointer here
+                            ,rc        =RC)
+#else
+          call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
+                            ,localDe   =0                               &
+                            ,farrayPtr =HOLD_2D                         &  !<-- Put the pointer here
+                            ,rc        =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -458,12 +491,19 @@
 !         MESSAGE_CHECK="Dyn Update: Extract Temperature Pointer from Field"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field that holds the data pointer
-                            ,localDe  =0                                &
-                            ,farray   =HOLD_3D                          &  !<-- Put the pointer here
-                            ,rc       =RC)
-!
+
+#ifdef ESMF_3
+          call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
+                            ,localDe   =0                               &
+                            ,farray    =HOLD_3D                         &  !<-- Put the pointer here
+                            ,rc        =RC)
+#else
+          call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
+                            ,localDe   =0                               &
+                            ,farrayPtr =HOLD_3D                         &  !<-- Put the pointer here
+                            ,rc        =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -508,12 +548,19 @@
 !         MESSAGE_CHECK="Dyn Update: Extract Temperature Pointer from Field"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field that holds the data pointer
-                            ,localDe  =0                                &
-                            ,farray   =HOLD_4D                          &  !<-- Put the pointer here
-                            ,rc       =RC)
-!
+
+#ifdef ESMF_3
+          call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
+                            ,localDe   =0                               &
+                            ,farray    =HOLD_4D                         &  !<-- Put the pointer here
+                            ,rc        =RC)
+#else
+          call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
+                            ,localDe   =0                               &
+                            ,farrayPtr =HOLD_4D                         &  !<-- Put the pointer here
+                            ,rc        =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

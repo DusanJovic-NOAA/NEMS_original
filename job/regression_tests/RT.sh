@@ -159,16 +159,19 @@ export TEST_NR=0
 
 clear;echo;echo
 
-#########################################################################
-# Clean and compile both NMMB & GFS cores
-#########################################################################
+############################################################################
+# Clean and compile both NMMB & GFS cores, using ESMF ESMF 3.1.0rp2 library.
+############################################################################
 
 echo "Preparing model code for regression tests"
+echo "Using the ESMF 3.1.0rp2 library"
+printf %s  "Using the ESMF 3.1.0rp2 library.   "
 printf %s "Compiling model code (this will take some time)......."
 cd ${PATHTR}/src
 
 rm -f ../exe/NEMS.x
 gmake clean                              >  ${PATHRT}/Compile.log 2>&1
+esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
 gmake nmm_gfs_gen GOCART_MODE=full       >> ${PATHRT}/Compile.log 2>&1
 
 if [ -f ../exe/NEMS.x ] ; then
@@ -1465,6 +1468,334 @@ export RUNDIR=${RUNDIR_ROOT}/GEN_Run_m1
 echo 'PATHTR=' $PATHTR
 #---------------------
   ./rt_gen.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi
+
+cd $PATHRT
+
+####################################################################################################
+#
+# TEST   - Concurrency GEN, 64PEs, 1 node.
+#        - 4 members.
+#
+####################################################################################################
+
+if [ ${CB_arg} != nmm -a ${CB_arg} != gfs ]; then
+
+export TEST_DESCR="Concurrency GEN, 4 members."
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/GEN_Concurrency_Run_m4
+#---------------------
+ export GEN_ENSEMBLE=1
+ export TASKS=64    ; export THRD=1
+echo 'PATHTR=' $PATHTR
+#---------------------
+  ./rt_gen.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi
+
+############################################################################
+# Clean and compile both NMMB & GFS cores, using ESMF ESMF 4.0.0rp2 library.
+############################################################################
+
+echo "Preparing model code for regression tests"
+echo "Using the ESMF 4.0.0rp2 library"
+printf %s  "Using the ESMF 4.0.0rp2 library.   "
+printf %s "Compiling model code (this will take some time)......."
+cd ${PATHTR}/src
+
+rm -f ../exe/NEMS.x
+gmake clean                              >> ${PATHRT}/Compile.log 2>&1
+esmf_version 4                           >> ${PATHRT}/Compile.log 2>&1
+gmake nmm_gfs_gen                        >> ${PATHRT}/Compile.log 2>&1
+
+if [ -f ../exe/NEMS.x ] ; then
+  echo "   Model code Compiled";echo;echo
+else
+  echo "   Model code is NOT compiled" >> ${PATHRT}/RegressionTests.log
+  echo "   Model code is NOT compiled"
+  exit
+fi
+
+cd $PATHRT
+
+####################################################################################################
+#
+# TEST   - Global NMM-B with pure binary input
+#        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
+#
+####################################################################################################
+
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
+
+export TEST_DESCR="Compare NMMB-global results with previous trunk version"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL
+export CNTL_DIR=NMMB_glob
+export LIST_FILES=" \
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s  nmm_b_history.027h_00m_00.00s \
+nmm_b_history.030h_00m_00.00s  nmm_b_history.036h_00m_00.00s  nmm_b_history.048h_00m_00.00s \
+nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  nmm_b_history_nemsio.048h_00m_00.00s \
+nmm_b_restart.024h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s "
+#---------------------
+export TPN=32       ; export THRD=1      ; export GBRG=glob  ; export TS=#
+export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false
+export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+#---------------------
+  ./rt_nmm.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+export timing1=`grep total_integration_tim $PATHRT/err | tail -1 | awk '{ print $5 }'`
+export timingc=`cat ${RTPWD}/NMMB_glob/timing.txt`
+(echo " Original timing: " $timingc " , test_glob timing: " $timing1;echo;echo)>> RegressionTests.log
+ echo " Original timing: " $timingc " , test_glob timing: " $timing1;echo;echo
+
+fi
+
+####################################################################################################
+# 
+# TEST   - GFS 
+#        - 30 compute tasks / 1 thread 
+#
+####################################################################################################
+
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
+
+export TEST_DESCR="Compare GFS results with previous trunk version"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/GFS_32
+export CNTL_DIR=GFS_NODFI
+export LIST_FILES=" \
+	sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
+	sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+	flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
+#---------------------
+export TASKS=32    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
+export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=.false.
+export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
+export IAER=0      ; export FHRES=24
+export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
+export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
+export NST_FCST=0  ; export NDSLFV=.false.
+#---------------------
+  ./rt_gfs.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi
+
+####################################################################################################
+#
+# TEST   - Concurrency GEFS
+#        - 4 members, every 6 hours, couple and add stochastic perturbations, T190L28.
+#
+####################################################################################################
+
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
+
+export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28."
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run
+export CNTL_DIR=GEFS_m4
+export LIST_FILES=" \
+        SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
+        SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
+        SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
+        SIG.F24_01 SIG.F24_02 SIG.F24_03 SIG.F24_04 \
+        SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
+        SFC.F12_01 SFC.F12_02 SFC.F12_03 SFC.F12_04 \
+        SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
+        SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
+        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
+        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
+        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
+        FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
+#---------------------
+export GEFS_ENSEMBLE=1
+export TASKS=64    ; export THRD=1
+echo 'PATHTR=' $PATHTR
+#---------------------
+  ./rt_gfs.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi
+
+cd $PATHRT
+
+####################################################################################################
+#
+# TEST   - Concurrency GEN, 64PEs, 1 node.
+#        - 4 members.
+#
+####################################################################################################
+
+if [ ${CB_arg} != nmm -a ${CB_arg} != gfs ]; then
+
+export TEST_DESCR="Concurrency GEN, 4 members."
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/GEN_Concurrency_Run_m4
+#---------------------
+ export GEN_ENSEMBLE=1
+ export TASKS=64    ; export THRD=1
+echo 'PATHTR=' $PATHTR
+#---------------------
+  ./rt_gen.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi
+
+#########################################################################
+# Clean and compile both NMMB & GFS cores, using ESMF ESMF 5.1.0 library.
+#########################################################################
+
+echo "Preparing model code for regression tests"
+echo "Using the ESMF 5.1.0 library"
+printf %s  "Using the ESMF 5.1.0 library.   "
+printf %s "Compiling model code (this will take some time)......."
+cd ${PATHTR}/src
+
+rm -f ../exe/NEMS.x
+gmake clean                              >> ${PATHRT}/Compile.log 2>&1
+esmf_version 5                           >> ${PATHRT}/Compile.log 2>&1
+gmake nmm_gfs_gen                        >> ${PATHRT}/Compile.log 2>&1
+
+if [ -f ../exe/NEMS.x ] ; then
+  echo "   Model code Compiled";echo;echo
+else
+  echo "   Model code is NOT compiled" >> ${PATHRT}/RegressionTests.log
+  echo "   Model code is NOT compiled"
+  exit
+fi
+
+cd $PATHRT
+
+####################################################################################################
+#
+# TEST   - Global NMM-B with pure binary input
+#        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
+#
+####################################################################################################
+
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
+
+export TEST_DESCR="Compare NMMB-global results with previous trunk version"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL
+export CNTL_DIR=NMMB_glob
+export LIST_FILES=" \
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s  nmm_b_history.027h_00m_00.00s \
+nmm_b_history.030h_00m_00.00s  nmm_b_history.036h_00m_00.00s  nmm_b_history.048h_00m_00.00s \
+nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  nmm_b_history_nemsio.048h_00m_00.00s \
+nmm_b_restart.024h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s "
+#---------------------
+export TPN=32       ; export THRD=1      ; export GBRG=glob  ; export TS=#
+export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false
+export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+#---------------------
+  ./rt_nmm.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+export timing1=`grep total_integration_tim $PATHRT/err | tail -1 | awk '{ print $5 }'`
+export timingc=`cat ${RTPWD}/NMMB_glob/timing.txt`
+(echo " Original timing: " $timingc " , test_glob timing: " $timing1;echo;echo)>> RegressionTests.log
+ echo " Original timing: " $timingc " , test_glob timing: " $timing1;echo;echo
+
+fi
+
+####################################################################################################
+# 
+# TEST   - GFS 
+#        - 30 compute tasks / 1 thread 
+#
+####################################################################################################
+
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
+
+export TEST_DESCR="Compare GFS results with previous trunk version"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/GFS_32
+export CNTL_DIR=GFS_NODFI
+export LIST_FILES=" \
+	sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
+	sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+	flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
+#---------------------
+export TASKS=32    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
+export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=.false.
+export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
+export IAER=0      ; export FHRES=24
+export wave=62     ; export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
+export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
+export NST_FCST=0  ; export NDSLFV=.false.
+#---------------------
+  ./rt_gfs.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi
+
+####################################################################################################
+#
+# TEST   - Concurrency GEFS
+#        - 4 members, every 6 hours, couple and add stochastic perturbations, T190L28.
+#
+####################################################################################################
+
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
+
+export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28."
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run
+export CNTL_DIR=GEFS_m4
+export LIST_FILES=" \
+        SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
+        SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
+        SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
+        SIG.F24_01 SIG.F24_02 SIG.F24_03 SIG.F24_04 \
+        SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
+        SFC.F12_01 SFC.F12_02 SFC.F12_03 SFC.F12_04 \
+        SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
+        SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
+        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
+        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
+        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
+        FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
+#---------------------
+export GEFS_ENSEMBLE=1
+export TASKS=64    ; export THRD=1
+echo 'PATHTR=' $PATHTR
+#---------------------
+  ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
 #---------------------
 

@@ -8,21 +8,21 @@
 !** run transfer/convert data from chem export state to phy export state
 !
 !! Code Revision:
-!! 24Feb 2010     Sarah Lu, First Crack
-!! 12Mar 2010     Sarah Lu, Use routines from phy2chem coupler
-!! 16Mar 2010     Sarah Lu, Dimension and tracer specification are passed 
-!!                          in from phy2chem coupler module; flip the 
-!!                          vertical index from top-down to bottom-up
-!! 09May 2010     Sarah Lu, Revise species name for SU, OC, and BC
-!! 13May 2010     Sarah Lu, Gaseous species (DMS, SO2, MSA) are extracted
-!!                          from GOCART export state (not from AERO bundle)
-!! 10Jun 2010     Sarah Lu, Gaseous species are taken from AERO bundle (as
-!!                          GOCART grid component is revised)
-!! 06Aug 2010     Sarah Lu, Modify phy2chem run routine to pass g2d_fld
-!!                          from chem_exp to phys_exp 
-!! 10Aug 2010     Sarah Lu, Modify chem2phy run routine to accumulate g2d_fld
-!! 10Oct 2010     Sarah Lu, Move GetPointer_diag_ to phy2chem coupler
-!-----------------------------------------------------------------------
+!! 24Feb 2010     Sarah Lu,   First Crack
+!! 12Mar 2010     Sarah Lu,   Use routines from phy2chem coupler
+!! 16Mar 2010     Sarah Lu,   Dimension and tracer specification are passed 
+!!                            in from phy2chem coupler module; flip the 
+!!                            vertical index from top-down to bottom-up
+!! 09May 2010     Sarah Lu,   Revise species name for SU, OC, and BC
+!! 13May 2010     Sarah Lu,   Gaseous species (DMS, SO2, MSA) are extracted
+!!                            from GOCART export state (not from AERO bundle)
+!! 10Jun 2010     Sarah Lu,   Gaseous species are taken from AERO bundle (as
+!!                            GOCART grid component is revised)
+!! 06Aug 2010     Sarah Lu,   Modify phy2chem run routine to pass g2d_fld
+!!                            from chem_exp to phys_exp 
+!! 10Aug 2010     Sarah Lu,   Modify chem2phy run routine to accumulate g2d_fld
+!! 10Oct 2010     Sarah Lu,   Move GetPointer_diag_ to phy2chem coupler
+!------------------------------------------------------------------------------
 
       use ESMF_MOD
 

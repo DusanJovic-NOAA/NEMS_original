@@ -1,3 +1,5 @@
+#include "../ESMFVersionDefine.h"
+
 !
 ! !MODULE: ENS_CplState_ESMFMod --- Run module of the ESMF grided
 !                                   component of the EARTH ensemble coupler.
@@ -9,6 +11,8 @@
 !  April    2006     Weiyu Yang, Initial code.
 !  May      2008     Weiyu Yang, updated to use the ESMF 3.1.0r library.
 !  November 2009     Weiyu Yang, NEMS ENS model.
+!  February 2011     Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
+!                                ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !
 !
 ! !INTERFACE:
@@ -127,9 +131,9 @@
 
  DO j = 2, 5
      DO i = 1, Cpl_Int_State%ntrac
-         CALL ESMF_FieldBundleGet(Bundle,                    &
+         CALL ESMF_FieldBundleGet(Bundle,                          &
                                   trim(Cpl_Int_State%vname(i, j)), &
-                                  Field,                     &
+                                  Field,                           &
                                   rc = rc1)
 
          IF(ESMF_LogMsgFoundAllocError(rc1, "Retrieve Field from Bundle in ENS Cpl.")) THEN
@@ -139,7 +143,11 @@
          END IF
 
          NULLIFY(Cpl_Int_State%work2)
+#ifdef ESMF_3
          CALL ESMF_FieldGet(Field, FArray = Cpl_Int_State%work2, localDE = 0, rc = rc1)
+#else
+         CALL ESMF_FieldGet(Field, FArrayPtr = Cpl_Int_State%work2, localDE = 0, rc = rc1)
+#endif
 
          IF(ESMF_LogMsgFoundAllocError(rc1, "Retrieve FArray from Field in ENS Cpl.")) THEN
              rcfinal = ESMF_FAILURE
@@ -480,7 +488,11 @@
 
 ! Get the array sizes.
 !---------------------
+#ifdef ESMF_3
      CALL ESMF_FieldGet(ESMFField, FArray = t_wk, localDE = 0, rc = rc1)
+#else
+     CALL ESMF_FieldGet(ESMFField, FArrayPtr = t_wk, localDE = 0, rc = rc1)
+#endif
 
          IF(ESMF_LogMsgFoundError(rc1, "Get t for its Size")) THEN
              rcfinal = ESMF_FAILURE

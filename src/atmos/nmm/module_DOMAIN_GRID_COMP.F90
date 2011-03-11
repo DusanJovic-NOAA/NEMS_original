@@ -1,3 +1,5 @@
+#include "../../ESMFVersionDefine.h"
+
 !-----------------------------------------------------------------------
 !
       MODULE module_DOMAIN_GRID_COMP
@@ -41,6 +43,9 @@
 !   2010-03-24  Black - Converted to DOMAIN component for NMM-B only.
 !   2010-10-xx  Pyle  - Revised for digital filters.
 !   2010-12-16  Pyle  - change to nemsio library
+!   2011-02     Yang  - Updated to use both the ESMF 4.0.0rp2 library,
+!                       ESMF 5 series library and the the
+!                       ESMF 3.1.0rp2 library.
 
 !
 ! USAGE: Domain gridded component parts called from subroutines within
@@ -125,8 +130,12 @@
 !
       TYPE(ESMF_TimeInterval),SAVE :: TIMEINTERVAL_CLOCKTIME               !<-- The ESMF time interval between NMM clocktime output
 !
+#ifdef ESMF_3
       TYPE(ESMF_Logical),SAVE :: PHYSICS_ON                                !<-- Is physics active?
-!
+#else
+      LOGICAL(kind=KLOG)      :: PHYSICS_ON                                !<-- Is physics active?
+#endif
+
 !-----------------------------------------------------------------------
 !
 !---------------------
@@ -141,10 +150,15 @@
                                 ,PARENT_CHILD_TIME_RATIO                   !<-- # of child timesteps per parent timestep
 !
       INTEGER(kind=KINT),DIMENSION(:),POINTER,SAVE :: MY_CHILDREN_ID       !<-- A parent's children's domain IDs
-!
+
+#ifdef ESMF_3
       TYPE(ESMF_Logical),SAVE :: I_AM_A_NEST                            &  !<-- Is the domain a nest?
                                 ,INPUT_READY                               !<-- If a nest, does its input file already exist?
-!
+#else
+      LOGICAL(kind=KLOG)      :: I_AM_A_NEST                            &
+                                ,INPUT_READY                               !<-- If a nest, does its input file already exist?
+#endif
+
 !---------------------------------
 !***  For determining clocktimes.
 !---------------------------------
@@ -311,11 +325,11 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)               :: DOMAIN_GRID_COMP                !<-- The DOMAIN component
-!
+      TYPE(ESMF_GridComp)            :: DOMAIN_GRID_COMP                   !<-- The DOMAIN component
+
       TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The DOMAIN component's import state
                                        ,EXP_STATE                          !<-- The DOMAIN component's export state
-!
+
       TYPE(ESMF_Clock)               :: CLOCK_DOMAIN                       !<-- The ESMF Clock from the NMM component.
 !
       INTEGER,INTENT(OUT) :: RC_INIT                                       !<-- Return code for Initialize step
@@ -346,7 +360,6 @@
       REAL(kind=KFPT) :: SECOND_FCST                                       !<-- Current second from restart file
 !
       LOGICAL(kind=KLOG) :: CFILE_EXIST                                 &
-                           ,INPUT_READY_FLAG                            &
                            ,INPUT_READY_MY_CHILD                        &
                            ,NEMSIO_INPUT                                &
                            ,OPENED
@@ -368,9 +381,14 @@
                                                                            !     the NMM dynamics gridded component.
       TYPE(ESMF_Grid) :: GRID_PHY                                          !<-- The ESMF GRID for the integration attached to
                                                                            !     the NMM physics gridded component.
-!
-      TYPE(ESMF_Logical) :: I_AM_A_FCST_TASK,I_AM_A_PARENT
-!
+#ifdef ESMF_3
+      LOGICAL(kind=KLOG) :: INPUT_READY_FLAG
+      TYPE(ESMF_Logical) :: I_AM_A_FCST_TASK, I_AM_A_PARENT
+#else
+      LOGICAL(kind=KLOG) :: I_AM_A_FCST_TASK                            &
+                           ,I_AM_A_PARENT 
+#endif
+
       TYPE(NEMSIO_GFILE) :: GFILE
 !
 !-----------------------------------------------------------------------
@@ -494,13 +512,21 @@
       MESSAGE_CHECK="Extract Association of Configure Files with Domains"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
       CALL ESMF_AttributeGet(state    =IMP_STATE                        &  !<-- The DOMAIN import state
                             ,name     ='DOMAIN_ID_TO_RANK'              &  !<-- Name of the attribute to extract
                             ,count    =MAX_DOMAINS                      &  !<-- Name of the attribute to extract
                             ,valueList=DOMAIN_ID_TO_RANK                &  !<-- The ID of this domain
                             ,rc       =RC)
-!
+#else
+      CALL ESMF_AttributeGet(state    =IMP_STATE                        &  !<-- The DOMAIN import state
+                            ,name     ='DOMAIN_ID_TO_RANK'              &  !<-- Name of the attribute to extract
+                            ,itemCount=MAX_DOMAINS                      &  !<-- Name of the attribute to extract
+                            ,valueList=DOMAIN_ID_TO_RANK                &  !<-- The ID of this domain
+                            ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -622,9 +648,13 @@
 !***  Also extract the flag indicating whether or not the nest's
 !***  input file has already been generated by NPS.
 !-----------------------------------------------------------------------
-!
-      IF(I_AM_A_NEST==ESMF_TRUE)THEN
-!
+
+#ifdef ESMF_3
+      IF(I_AM_A_NEST == ESMF_TRUE)THEN
+#else
+      IF(I_AM_A_NEST)THEN
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Parent-Child Time Ratio from DOMAIN Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
@@ -643,22 +673,34 @@
         MESSAGE_CHECK="Extract Input Ready Flag from Configure File"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)              &  !<-- The config object
                                     ,value =INPUT_READY_FLAG              &  !<-- The variable filled (does nest input file exist?
                                     ,label ='input_ready:'                &  !<-- The input datafile for this domain does or does not exist
                                     ,rc    =RC)
-!
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
         IF(INPUT_READY_FLAG)THEN
           INPUT_READY=ESMF_TRUE
         ELSE
           INPUT_READY=ESMF_FALSE
         ENDIF
-!
+#else
+        CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)              &  !<-- The config object
+                                    ,value =INPUT_READY                   &  !<-- The variable filled (does nest input file exist?
+                                    ,label ='input_ready:'                &  !<-- The input datafile for this domain does or does not exist
+                                    ,rc    =RC)
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+#endif
+
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -1081,9 +1123,13 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!
-      physics_0: IF(PHYSICS_ON==ESMF_True)THEN
-!
+
+#ifdef ESMF_3
+      physics_0: IF(PHYSICS_ON == ESMF_TRUE)THEN
+#else
+      physics_0: IF(PHYSICS_ON)THEN
+#endif
+
 !-------------------------------
 !***  Create Physics component
 !-------------------------------
@@ -1284,9 +1330,13 @@
 !***  alerady has an input file or if one needs to be generated by
 !***  its parent.
 !------------------------------------------------------------------------
-!
-      IF(I_AM_A_NEST==ESMF_TRUE)THEN
-!
+
+#ifdef ESMF_3
+      IF(I_AM_A_NEST == ESMF_TRUE)THEN
+#else
+      IF(I_AM_A_NEST)THEN
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="DOMAIN_INIT: Add Parent-Child Time Ratio to the Dyn Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
@@ -1382,9 +1432,13 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!
-      physics_1: IF(PHYSICS_ON==ESMF_True)THEN
-!
+
+#ifdef ESMF_3
+      physics_1: IF(PHYSICS_ON == ESMF_True)THEN
+#else
+      physics_1: IF(PHYSICS_ON)THEN
+#endif
+
 !-----------------------------------------------------------------------
 !
 !-------------
@@ -1466,9 +1520,13 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!
-      physics_2: IF(PHYSICS_ON==ESMF_True)THEN
-!
+
+#ifdef ESMF_3
+      physics_2: IF(PHYSICS_ON == ESMF_True)THEN
+#else
+      physics_2: IF(PHYSICS_ON)THEN
+#endif
+
 !-----------------------------------------------------------------------
 !
 !-------------
@@ -1508,9 +1566,13 @@
 !***  import states which themselves reside in the Dynamics/Physics
 !***  export states.
 !-----------------------------------------------------------------------
-!
+
+#ifdef ESMF_3
       I_AM_A_FCST_TASK=ESMF_TRUE
-!
+#else
+      I_AM_A_FCST_TASK=.TRUE.
+#endif
+
       IF(QUILTING)THEN
 !
         CALL WRITE_INIT(DOMAIN_GRID_COMP                                &
@@ -1518,7 +1580,13 @@
                        ,CLOCK_DOMAIN)
 !
           IF(MYPE>=domain_int_state%NUM_PES_FCST)THEN
+
+#ifdef ESMF_3
             I_AM_A_FCST_TASK=ESMF_FALSE
+#else
+            I_AM_A_FCST_TASK=.FALSE.
+#endif
+
           ENDIF
 !
       ENDIF
@@ -1574,9 +1642,13 @@
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
-!
+
+#ifdef ESMF_3
       I_AM_A_PARENT=ESMF_FALSE
-!
+#else
+      I_AM_A_PARENT=.FALSE.
+#endif
+
 !-----------------------------------------------------------------------
 !***  Extract from the Dynamics and Physics export state the quantities
 !***  relevant to the children's boundaries.  Insert them into the 
@@ -1585,9 +1657,13 @@
 !***  in doing this since the Quilt/Write tasks never loaded data into
 !***  the Dynamics or Physics export states.
 !-----------------------------------------------------------------------
-!
-      IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN       
-!
+
+#ifdef ESMF_3
+      IF(I_AM_A_FCST_TASK == ESMF_TRUE)THEN
+#else
+      IF(I_AM_A_FCST_TASK)THEN
+#endif
+
         CALL PARENT_DATA_TO_DOMAIN(domain_int_state%EXP_STATE_DYN       &  !<-- The Dynamics export state
                                   ,domain_int_state%EXP_STATE_PHY       &  !<-- The Physics export state
                                   ,EXP_STATE)                              !<-- The DOMAIN export state
@@ -1597,9 +1673,13 @@
 !-----------------------------------------------------------------------
 !
       child_init_block: IF(NUM_CHILDREN>0)THEN                             !<-- Only parents participate                              
-!
+
+#ifdef ESMF_3
         I_AM_A_PARENT=ESMF_TRUE
-!
+#else
+        I_AM_A_PARENT=.TRUE.
+#endif
+
 !-----------------------------------------------------------------------
 !***  Initialize the children's data directly from the parent if
 !***  there are no pre-processed input files ready for them.
@@ -1613,13 +1693,21 @@
         MESSAGE_CHECK="Extract Children's IDs from Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The DOMAIN import state
                               ,name     ='CHILD_IDs'                    &  !<-- Name of the attribute to extract
                               ,count    =NUM_CHILDREN                   &  !<-- # of items in the Attribute
                               ,valueList=MY_CHILDREN_ID                 &  !<-- Put the Attribute here
                               ,rc       =RC)
-!
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The DOMAIN import state
+                              ,name     ='CHILD_IDs'                    &  !<-- Name of the attribute to extract
+                              ,itemCount=NUM_CHILDREN                   &  !<-- # of items in the Attribute
+                              ,valueList=MY_CHILDREN_ID                 &  !<-- Put the Attribute here
+                              ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
@@ -1839,8 +1927,13 @@
 !***  every N timesteps where N is the number of the nest's timesteps 
 !***  within one timestep of its parent.
 !-----------------------------------------------------------------------
-!
-        IF(I_AM_A_NEST==ESMF_TRUE)THEN
+
+#ifdef ESMF_3
+        IF(I_AM_A_NEST == ESMF_TRUE)THEN
+#else
+        IF(I_AM_A_NEST)THEN
+#endif
+
 !         write(6,*)' DOMAIN_RUN calling BOUNDARY_DATA_STATE_TO_STATE'
 !         call print_memory()
           CALL BOUNDARY_DATA_STATE_TO_STATE(clock    =CLOCK_DOMAIN                  &  !<-- The DOMAIN Clock
@@ -1876,8 +1969,12 @@
 
 !
 
-        physics: IF(INTEGER_DT>0.AND.PHYSICS_ON==ESMF_True)THEN            !<-- Physics is active
-!
+#ifdef ESMF_3
+        physics: IF(INTEGER_DT>0.AND.PHYSICS_ON == ESMF_TRUE)THEN                                !<-- Physics is active
+#else
+        physics: IF(INTEGER_DT>0.AND.PHYSICS_ON)THEN                                !<-- Physics is active
+#endif
+
 !-----------------------------------------------------------------------
 !***  Bring export data from the Dynamics into the Coupler and
 !***  point the Physics import state at it.
@@ -2034,9 +2131,13 @@
       INTEGER :: RC                                                        ! The final error signal variables.
 !
       CHARACTER(50):: MODE
-!
-      TYPE(ESMF_Logical) :: PHYSICS_ON     
-!
+
+#ifdef ESMF_3
+      TYPE(ESMF_Logical) :: PHYSICS_ON
+#else
+      LOGICAL            :: PHYSICS_ON
+#endif
+
       TYPE(ESMF_Config) :: CF                                              !<-- The config object
 !
       TYPE(WRAP_DOMAIN_INTERNAL_STATE) :: WRAP                             !<-- The F90 wrap of the DOMAIN internal state
@@ -2086,15 +2187,25 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!
+
+#ifdef ESMF_3
       IF(TRIM(MODE)=='TRUE')THEN
-        PHYSICS_ON=ESMF_False
+        PHYSICS_ON=ESMF_FALSE
         write(0,*)' Finalize without physics coupling. '
       ELSE
-        PHYSICS_ON=ESMF_True 
+        PHYSICS_ON=ESMF_TRUE
         write(0,*)' Finalize with physics coupling. '
       ENDIF
-!
+#else
+      IF(TRIM(MODE)=='TRUE')THEN
+        PHYSICS_ON=.FALSE.
+        write(0,*)' Finalize without physics coupling. '
+      ELSE
+        PHYSICS_ON=.TRUE.
+        write(0,*)' Finalize with physics coupling. '
+      ENDIF
+#endif
+
 !-----------------------------------------------------------------------
 !***  Retrieve the DOMAIN component's internal state.
 !-----------------------------------------------------------------------
@@ -2131,9 +2242,13 @@
  RC_FINALIZE=ESMF_SUCCESS
 !ratko
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      IF(PHYSICS_ON==ESMF_True)THEN
-!
+
+#ifdef ESMF_3
+      IF(PHYSICS_ON == ESMF_TRUE)THEN
+#else
+      IF(PHYSICS_ON)THEN
+#endif
+
 !-------------
 !***  Physics
 !-------------
@@ -2191,8 +2306,13 @@
 !
       CALL ESMF_StateDestroy(state=domain_int_state%EXP_STATE_DYN       &
                             ,rc   =RC)
-!
-      IF(PHYSICS_ON==ESMF_True)THEN
+
+#ifdef ESMF_3
+      IF(PHYSICS_ON == ESMF_TRUE)THEN
+#else
+      IF(PHYSICS_ON)THEN
+#endif
+
         CALL ESMF_StateDestroy(state=domain_int_state%IMP_STATE_PHY     &
                               ,rc   =RC)
 !
@@ -2256,9 +2376,13 @@
 !-------------
 !***  Physics
 !-------------
-!
-      IF(PHYSICS_ON==ESMF_TRUE)THEN
-!
+
+#ifdef ESMF_3
+      IF(PHYSICS_ON == ESMF_TRUE)THEN
+#else
+      IF(PHYSICS_ON)THEN
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Destroy Physics Component"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)

@@ -1,3 +1,5 @@
+#include "../../../ESMFVersionDefine.h"
+
 !----------------------------------------------------------------------
 ! !MODULE: GFS_AddParameterToStateMod
 !        --- Add required parameters to the GFS ESMF export state
@@ -10,6 +12,8 @@
 !
 !  May      2007     Weiyu Yang Initial code.
 !  March    2009     Weiyu Yang Modified for the NEMS model.
+!  February 2011     Weiyu Yang Updated to use both the ESMF 4.0.0rp2 library,
+!                               ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !
 !
 ! !INTERFACE:
@@ -121,7 +125,12 @@
          rc1 = ESMF_SUCCESS
      END IF
 
+#ifdef ESMF_3
  CALL ESMF_AttributeSet(State, 'GLOBAL_LATS_A', latg, Int_State%global_lats_a, rc = rc1)
+#else
+ CALL ESMF_AttributeSet(State, 'GLOBAL_LATS_A', Int_State%global_lats_a, &
+     itemCount = latg, rc = rc1)
+#endif
 
      IF(ESMF_LogMsgFoundAllocError(rc1, "Add GLOBAL_LATS_A to the GFS export state.")) THEN
          rcfinal = ESMF_FAILURE
@@ -129,7 +138,12 @@
          rc1 = ESMF_SUCCESS
      END IF
 
+#ifdef ESMF_3
  CALL ESMF_AttributeSet(State, 'LONSPERLAT', latg, Int_State%lonsperlat, rc = rc1)
+#else
+ CALL ESMF_AttributeSet(State, 'LONSPERLAT', Int_State%lonsperlat, &
+     itemCount = latg, rc = rc1)
+#endif
 
      IF(ESMF_LogMsgFoundAllocError(rc1, "Add LONSPERLAT to the GFS export state.")) THEN
          rcfinal = ESMF_FAILURE

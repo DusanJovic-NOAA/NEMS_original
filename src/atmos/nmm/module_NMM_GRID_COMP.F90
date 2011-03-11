@@ -1,3 +1,9 @@
+! February 2011        Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
+!                                  ESMF 5 library and the the ESMF 3.1.0rp2 library.
+!-----------------------------------------------------------------------------------
+
+#include "../../ESMFVersionDefine.h"
+
 !-----------------------------------------------------------------------
 !
       MODULE module_NMM_GRID_COMP
@@ -104,10 +110,15 @@
       LOGICAL(kind=KLOG) :: NESTING_NMM
 !
       TYPE(ESMF_Config),DIMENSION(MAX_DOMAINS),SAVE :: CF                  !<-- The config objects (one per domain)
-!
+
+#ifdef ESMF_3
       TYPE(ESMF_Logical),SAVE :: I_AM_A_FCST_TASK                       &  !<-- Am I a forecast task?
                                 ,I_AM_A_NEST                               !<-- Am I in a nested domain?
-!
+#else
+      LOGICAL                 :: I_AM_A_FCST_TASK                       &  !<-- Am I a forecast task?
+                                ,I_AM_A_NEST                               !<-- Am I in a nested domain?
+#endif
+
       TYPE(ESMF_State),SAVE :: IMP_STATE_CPL_NEST                       &
                               ,EXP_STATE_CPL_NEST
 !
@@ -289,9 +300,13 @@
                                ,DOMAIN_GRID_COMP_NAME
 !
       TYPE(ESMF_TimeInterval) :: TIMEINTERVAL_RECV_FROM_PARENT             !<-- ESMF time interval between Recv times from parent
-!
-      TYPE(ESMF_Logical) :: PHYSICS_ON                                     !<-- Does the integration include physics?
-!
+
+#ifdef ESMF_3
+      TYPE(ESMF_LOGICAL)      :: PHYSICS_ON                                !<-- Does the integration include physics?
+#else
+      LOGICAL                 :: PHYSICS_ON                                !<-- Does the integration include physics?
+#endif
+
       TYPE(ESMF_Config) :: CF_X                                            !<-- Working config object
 !
       INTEGER(kind=KINT) :: RC
@@ -983,15 +998,25 @@
                                     ,value =MODE                        &
                                     ,label ='adiabatic:'                &
                                     ,rc    =rc)
-!
+
+#ifdef ESMF_3
         IF(TRIM(MODE)=='true')THEN
-          PHYSICS_ON=ESMF_False
+          PHYSICS_ON = ESMF_FALSE
           IF(MYPE==0) WRITE(0,*)' NMM will run without physics.'
         ELSE
-          PHYSICS_ON=ESMF_True
+          PHYSICS_ON = ESMF_TRUE
           IF(MYPE==0) WRITE(0,*)' NMM will run with physics.'
         ENDIF
-!
+#else
+        IF(TRIM(MODE)=='true')THEN
+          PHYSICS_ON = .false.
+          IF(MYPE==0) WRITE(0,*)' NMM will run without physics.'
+        ELSE
+          PHYSICS_ON = .true.
+          IF(MYPE==0) WRITE(0,*)' NMM will run with physics.'
+        ENDIF
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Add Physics flag to the DOMAIN Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
@@ -1055,13 +1080,21 @@
         MESSAGE_CHECK="Add Configure File ID Associated With Each Domain ID"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =nmm_int_state%IMP_STATE_DOMAIN(ID_DOM) &  !<-- This DOMAIN component's import state
                               ,name     ='DOMAIN_ID_TO_RANK'                    &  !<-- Adding Attribute with this name
                               ,count    =MAX_DOMAINS                            &  !<-- Total # of domains
                               ,valueList=DOMAIN_ID_TO_RANK                      &  !<-- Configure file IDs linked to each domain
                               ,rc       =RC)
-!
+#else
+        CALL ESMF_AttributeSet(state    =nmm_int_state%IMP_STATE_DOMAIN(ID_DOM) &  !<-- This DOMAIN component's import state
+                              ,name     ='DOMAIN_ID_TO_RANK'                    &  !<-- Adding Attribute with this name
+                              ,itemCount=MAX_DOMAINS                            &  !<-- Total # of domains
+                              ,valueList=DOMAIN_ID_TO_RANK                      &  !<-- Configure file IDs linked to each domain
+                              ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1079,13 +1112,21 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         IF(COMM_TO_MY_PARENT<0)THEN
-          I_AM_A_NEST=ESMF_FALSE
+          I_AM_A_NEST = ESMF_FALSE
         ELSE
-          I_AM_A_NEST=ESMF_TRUE
+          I_AM_A_NEST = ESMF_TRUE
         ENDIF
-!
+#else
+        IF(COMM_TO_MY_PARENT<0)THEN
+          I_AM_A_NEST = .false.
+        ELSE
+          I_AM_A_NEST = .true.
+        ENDIF
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Add Nest/Not-a-Nest Flag to the DOMAIN Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
@@ -1109,18 +1150,31 @@
 !
           LENGTH=MAX(1,NUM_CHILDREN(ID_DOM))
           CHILD_ID=>ID_CHILDREN(1:LENGTH,ID_DOM)                           !<-- Select only the IDs of this domain's children
-!
+
+#ifdef ESMF_3
           CALL ESMF_AttributeSet(state    =nmm_int_state%IMP_STATE_DOMAIN(ID_DOM) &  !<-- This DOMAIN component import state
                                 ,name     ='CHILD_IDs'                            &  !<-- The children's IDs of this DOMAIN Component
                                 ,count    =LENGTH                                 &  !<-- Length of inserted array
                                 ,valueList=CHILD_ID                               &  !<-- Insert this into the import state
                                 ,rc       =RC)
-!
+#else
+          CALL ESMF_AttributeSet(state    =nmm_int_state%IMP_STATE_DOMAIN(ID_DOM) &  !<-- This DOMAIN component import state
+                                ,name     ='CHILD_IDs'                            &  !<-- The children's IDs of this DOMAIN Component
+                                ,itemCount=LENGTH                                 &  !<-- Length of inserted array
+                                ,valueList=CHILD_ID                               &  !<-- Insert this into the import state
+                                ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
           IF(I_AM_A_NEST==ESMF_TRUE)THEN
+#else
+          IF(I_AM_A_NEST) THEN
+#endif
+
 !
             PARENT_CHILD_TIME_RATIO=NINT(DT(ID_PARENTS(ID_DOM))/DT(ID_DOM))   !<-- Ratio of parent's timestep to this nest's
 !
@@ -1218,9 +1272,13 @@
 !-----------------------------------------------------------------------
 !***  Now we can initialize the Parent_Child coupler subcomponent.
 !-----------------------------------------------------------------------
-!
+
+#ifdef ESMF_3
         IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN                                !<-- Only forecast tasks are relevant
-!
+#else
+        IF(I_AM_A_FCST_TASK)           THEN                                !<-- Only forecast tasks are relevant
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Initialize Parent-Child Coupler"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
@@ -1253,8 +1311,13 @@
         MESSAGE_CHECK="Create Alarm for Child to Recv from Parent"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         IF(MY_DOMAIN_ID==1.OR.I_AM_A_FCST_TASK==ESMF_FALSE)THEN                !<-- Uppermost domain and quilt/write tasks do not
+#else
+        IF(MY_DOMAIN_ID==1.OR.I_AM_A_FCST_TASK)            THEN                !<-- Uppermost domain and quilt/write tasks do not
+#endif
+
           TIMEINTERVAL_RECV_FROM_PARENT=TIMESTEP(MY_DOMAIN_ID)*1000000         !     recv from parents
         ELSE
           TIMEINTERVAL_RECV_FROM_PARENT=TIMESTEP(MY_DOMAIN_ID)              &  !<-- Children recv at the end of each parent timestep
@@ -2192,20 +2255,31 @@
 !
       FILTER_METHOD=0
 
+#ifdef ESMF_3
       IF (NUM_CHILDREN(MY_DOMAIN_ID) > 0 .and. I_AM_A_FCST_TASK == ESMF_TRUE ) THEN
-!
+#else
+      IF (NUM_CHILDREN(MY_DOMAIN_ID) > 0 .and. I_AM_A_FCST_TASK)               THEN
+#endif
+
         IF (.NOT. ALLOCATED(LOC_PAR_CHILD_TIME_RATIO)) THEN
           ALLOCATE(LOC_PAR_CHILD_TIME_RATIO(1:NUM_CHILDREN(MY_DOMAIN_ID)))
         ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
 
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE_CPL_NEST             &  !<-- The parent-child coupler import state
                               ,name     ='Parent-Child Time Ratio'      &  !<-- Name of the attribute to extract
                               ,count    =NUM_CHILDREN(MY_DOMAIN_ID)     &  !<-- # of items in the Attribute
                               ,valueList=LOC_PAR_CHILD_TIME_RATIO        &  !<-- Ratio of parent to child DTs
                               ,rc       =RC)
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE_CPL_NEST             &  !<-- The parent-child coupler import state
+                              ,name     ='Parent-Child Time Ratio'      &  !<-- Name of the attribute to extract
+                              ,itemCount=NUM_CHILDREN(MY_DOMAIN_ID)     &  !<-- # of items in the Attribute
+                              ,valueList=LOC_PAR_CHILD_TIME_RATIO        &  !<-- Ratio of parent to child DTs
+                              ,rc       =RC)
+#endif
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
@@ -2375,9 +2449,9 @@
 !***  the NMM nests' DOMAIN components.
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_State),INTENT(IN)  :: EXP_STATE_CPL                        !<-- The Parent-Child Coupler's export state
-!
-      TYPE(ESMF_State),INTENT(OUT) :: IMP_STATE_DOMAIN                     !<-- The nests' DOMAIN import state
+      TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE_CPL                      !<-- The Parent-Child Coupler's export state
+
+      TYPE(ESMF_State),INTENT(OUT)   :: IMP_STATE_DOMAIN                   !<-- The nests' DOMAIN import state
 !
 !-----------------------------------------------------------------------
 !***  Local variables
@@ -2413,12 +2487,19 @@
       MESSAGE_CHECK="Check Parent-Child Cpl Export State for South H Data"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeGet(state=EXP_STATE_CPL                        &   !<-- Look at the Parent-Child Coupler's export state
-                            ,name ='SOUTH_H'                            &   !<-- Is this name present?
-                            ,count=KOUNT                                &   !<-- How many items present?
-                            ,rc   =RC )
-!
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                    &   !<-- Look at the Parent-Child Coupler's export state
+                            ,name     ='SOUTH_H'                        &   !<-- Is this name present?
+                            ,count    =KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#else
+      CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                    &   !<-- Look at the Parent-Child Coupler's export state
+                            ,name     ='SOUTH_H'                        &   !<-- Is this name present?
+                            ,itemCount=KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2434,13 +2515,21 @@
         MESSAGE_CHECK="Extract South H Data from Parent-Child Cpl Export State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                  &   !<-- Extract data from Parent-Child Coupler's export state
                               ,name     ='SOUTH_H'                      &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_H%SOUTH               &   !<-- The new combined boundary data
                               ,rc=RC )
-!
+#else
+        CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                  &   !<-- Extract data from Parent-Child Coupler's export state
+                              ,name     ='SOUTH_H'                      &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_H%SOUTH               &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2449,13 +2538,21 @@
         MESSAGE_CHECK="Insert South H Data into Nest DOMAIN Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =IMP_STATE_DOMAIN               &   !<-- Insert data into nest's DOMAIN import state
-                              ,name     ='SOUTH_H'                      &   !<-- The name of the data 
+                              ,name     ='SOUTH_H'                      &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_H%SOUTH               &   !<-- The new combined boundary data
                               ,rc=RC )
-!
+#else
+        CALL ESMF_AttributeSet(state    =IMP_STATE_DOMAIN               &   !<-- Insert data into nest's DOMAIN import state
+                              ,name     ='SOUTH_H'                      &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_H%SOUTH               &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2470,12 +2567,19 @@
       MESSAGE_CHECK="Check Parent-Child Cpl Export State for South V Data"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeGet(state=EXP_STATE_CPL                        &   !<-- Look at the Parent-Child Coupler's export state
-                            ,name ='SOUTH_V'                            &   !<-- Is this name present?
-                            ,count=KOUNT                                &   !<-- How many items present?
-                            ,rc   =RC )
-!
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                    &   !<-- Look at the Parent-Child Coupler's export state
+                            ,name     ='SOUTH_V'                        &   !<-- Is this name present?
+                            ,count    =KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#else
+      CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                    &   !<-- Look at the Parent-Child Coupler's export state
+                            ,name     ='SOUTH_V'                        &   !<-- Is this name present?
+                            ,itemCount=KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2491,13 +2595,21 @@
         MESSAGE_CHECK="Extract South V Data from Parent-Child Cpl Export State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                  &   !<-- Extract data from Parent-Child Coupler's export state
                               ,name     ='SOUTH_V'                      &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_V%SOUTH               &   !<-- The new combined boundary data
                               ,rc=RC )
-!
+#else
+        CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                  &   !<-- Extract data from Parent-Child Coupler's export state
+                              ,name     ='SOUTH_V'                      &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_V%SOUTH               &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2506,13 +2618,21 @@
         MESSAGE_CHECK="Insert South V Data into Nest DOMAIN Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =IMP_STATE_DOMAIN               &   !<-- Insert data into nest's DOMAIN import state
-                              ,name     ='SOUTH_V'                      &   !<-- The name of the data 
+                              ,name     ='SOUTH_V'                      &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_V%SOUTH               &   !<-- The new combined boundary data
                               ,rc=RC )
-!
+#else
+        CALL ESMF_AttributeSet(state    =IMP_STATE_DOMAIN               &   !<-- Insert data into nest's DOMAIN import state
+                              ,name     ='SOUTH_V'                      &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_V%SOUTH               &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2527,12 +2647,19 @@
       MESSAGE_CHECK="Check Parent-Child Cpl Export State for North H Data"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeGet(state=EXP_STATE_CPL                        &   !<-- Look at the Parent-Child Coupler's export state
-                            ,name ='NORTH_H'                            &   !<-- Is this name present?
-                            ,count=KOUNT                                &   !<-- How many items present?
-                            ,rc   =RC )
-!
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                    &   !<-- Look at the Parent-Child Coupler's export state
+                            ,name     ='NORTH_H'                        &   !<-- Is this name present?
+                            ,count    =KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#else
+      CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                    &   !<-- Look at the Parent-Child Coupler's export state
+                            ,name     ='NORTH_H'                        &   !<-- Is this name present?
+                            ,itemCount=KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2548,13 +2675,21 @@
         MESSAGE_CHECK="Extract North H Data from Parent-Child Cpl Export State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                  &   !<-- Extract data from Parent-Child Coupler's export state
                               ,name     ='NORTH_H'                      &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_H%NORTH               &   !<-- The new combined boundary data
                               ,rc=RC )
-!
+#else
+        CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                  &   !<-- Extract data from Parent-Child Coupler's export state
+                              ,name     ='NORTH_H'                      &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_H%NORTH               &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2563,13 +2698,21 @@
         MESSAGE_CHECK="Insert North H Data into Nest DOMAIN Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =IMP_STATE_DOMAIN               &   !<-- Insert data into nest's DOMAIN import state
-                              ,name     ='NORTH_H'                      &   !<-- The name of the data 
+                              ,name     ='NORTH_H'                      &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_H%NORTH               &   !<-- The new combined boundary data
                               ,rc=RC )
-!
+#else
+        CALL ESMF_AttributeSet(state    =IMP_STATE_DOMAIN               &   !<-- Insert data into nest's DOMAIN import state
+                              ,name     ='NORTH_H'                      &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_H%NORTH               &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2584,12 +2727,19 @@
       MESSAGE_CHECK="Check Parent-Child Cpl Export State for North V Data"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeGet(state=EXP_STATE_CPL                        &   !<-- Look at the Parent-Child Coupler's export state
-                            ,name ='NORTH_V'                            &   !<-- Is this name present?
-                            ,count=KOUNT                                &   !<-- How many items present?
-                            ,rc   =RC )
-!
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                    &   !<-- Look at the Parent-Child Coupler's export state
+                            ,name     ='NORTH_V'                        &   !<-- Is this name present?
+                            ,count    =KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#else
+      CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                    &   !<-- Look at the Parent-Child Coupler's export state
+                            ,name     ='NORTH_V'                        &   !<-- Is this name present?
+                            ,itemCount=KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2605,13 +2755,21 @@
         MESSAGE_CHECK="Extract North V Data from Parent-Child Cpl Export State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                  &   !<-- Extract data from Parent-Child Coupler's export state
                               ,name     ='NORTH_V'                      &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_V%NORTH               &   !<-- The new combined boundary data
                               ,rc=RC )
-!
+#else
+        CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                  &   !<-- Extract data from Parent-Child Coupler's export state
+                              ,name     ='NORTH_V'                      &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_V%NORTH               &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2620,13 +2778,21 @@
         MESSAGE_CHECK="Insert North V Data into Nest DOMAIN Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =IMP_STATE_DOMAIN               &   !<-- Insert data into nest's DOMAIN import state
-                              ,name     ='NORTH_V'                      &   !<-- The name of the data 
+                              ,name     ='NORTH_V'                      &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_V%NORTH               &   !<-- The new combined boundary data
                               ,rc=RC )
-!
+#else
+        CALL ESMF_AttributeSet(state    =IMP_STATE_DOMAIN               &   !<-- Insert data into nest's DOMAIN import state
+                              ,name     ='NORTH_V'                      &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_V%NORTH               &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2641,12 +2807,19 @@
       MESSAGE_CHECK="Check Parent-Child Cpl Export State for West H Data"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeGet(state=EXP_STATE_CPL                        &   !<-- Look at the Parent-Child Coupler's export state
-                            ,name ='WEST_H'                             &   !<-- Is this name present?
-                            ,count=KOUNT                                &   !<-- How many items present?
-                            ,rc   =RC )
-!
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                    &   !<-- Look at the Parent-Child Coupler's export state
+                            ,name     ='WEST_H'                         &   !<-- Is this name present?
+                            ,count    =KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#else
+      CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                    &   !<-- Look at the Parent-Child Coupler's export state
+                            ,name     ='WEST_H'                         &   !<-- Is this name present?
+                            ,itemCount=KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2662,13 +2835,21 @@
         MESSAGE_CHECK="Extract West H Data from Parent-Child Cpl Export State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                  &   !<-- Extract data from Parent-Child Coupler's export state
                               ,name     ='WEST_H'                       &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_H%WEST                &   !<-- The new combined boundary data
                               ,rc=RC )
-!
+#else
+        CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                  &   !<-- Extract data from Parent-Child Coupler's export state
+                              ,name     ='WEST_H'                       &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_H%WEST                &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2677,13 +2858,21 @@
         MESSAGE_CHECK="Insert West H Data into Nest DOMAIN Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =IMP_STATE_DOMAIN               &   !<-- Insert data into nest's DOMAIN import state
-                              ,name     ='WEST_H'                       &   !<-- The name of the data 
+                              ,name     ='WEST_H'                       &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_H%WEST                &   !<-- The new combined boundary data
                               ,rc=RC )
-!
+#else
+        CALL ESMF_AttributeSet(state    =IMP_STATE_DOMAIN               &   !<-- Insert data into nest's DOMAIN import state
+                              ,name     ='WEST_H'                       &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_H%WEST                &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2698,12 +2887,19 @@
       MESSAGE_CHECK="Check Parent-Child Cpl Export State for West V Data"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeGet(state=EXP_STATE_CPL                        &   !<-- Look at the Parent-Child Coupler's export state
-                            ,name ='WEST_V'                             &   !<-- Is this name present?
-                            ,count=KOUNT                                &   !<-- How many items present?
-                            ,rc   =RC )
-!
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                    &   !<-- Look at the Parent-Child Coupler's export state
+                            ,name     ='WEST_V'                         &   !<-- Is this name present?
+                            ,count    =KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#else
+      CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                    &   !<-- Look at the Parent-Child Coupler's export state
+                            ,name     ='WEST_V'                         &   !<-- Is this name present?
+                            ,itemCount=KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2719,13 +2915,21 @@
         MESSAGE_CHECK="Extract West V Data from Parent-Child Cpl Export State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                  &   !<-- Extract data from Parent-Child Coupler's export state
                               ,name     ='WEST_V'                       &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_V%WEST                &   !<-- The new combined boundary data
                               ,rc=RC )
-!
+#else
+        CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                  &   !<-- Extract data from Parent-Child Coupler's export state
+                              ,name     ='WEST_V'                       &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_V%WEST                &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2734,13 +2938,21 @@
         MESSAGE_CHECK="Insert West V Data into Nest DOMAIN Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =IMP_STATE_DOMAIN               &   !<-- Insert data into nest's DOMAIN import state
-                              ,name     ='WEST_V'                       &   !<-- The name of the data 
+                              ,name     ='WEST_V'                       &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_V%NORTH               &   !<-- The new combined boundary data
                               ,rc=RC )
-!
+#else
+        CALL ESMF_AttributeSet(state    =IMP_STATE_DOMAIN               &   !<-- Insert data into nest's DOMAIN import state
+                              ,name     ='WEST_V'                       &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_V%NORTH               &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2755,12 +2967,19 @@
       MESSAGE_CHECK="Check Parent-Child Cpl Export State for East H Data"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeGet(state=EXP_STATE_CPL                        &   !<-- Look at the Parent-Child Coupler's export state
-                            ,name ='EAST_H'                             &   !<-- Is this name present?
-                            ,count=KOUNT                                &   !<-- How many items present?
-                            ,rc   =RC )
-!
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                    &   !<-- Look at the Parent-Child Coupler's export state
+                            ,name     ='EAST_H'                         &   !<-- Is this name present?
+                            ,count    =KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#else
+      CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                    &   !<-- Look at the Parent-Child Coupler's export state
+                            ,name     ='EAST_H'                         &   !<-- Is this name present?
+                            ,itemCount=KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2776,13 +2995,21 @@
         MESSAGE_CHECK="Extract East H Data from Parent-Child Cpl Export State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                  &   !<-- Extract data from Parent-Child Coupler's export state
                               ,name     ='EAST_H'                       &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_H%EAST                &   !<-- The new combined boundary data
                               ,rc=RC )
-!
+#else
+        CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                  &   !<-- Extract data from Parent-Child Coupler's export state
+                              ,name     ='EAST_H'                       &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_H%EAST                &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2791,13 +3018,21 @@
         MESSAGE_CHECK="Insert East H Data into Nest DOMAIN Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =IMP_STATE_DOMAIN               &   !<-- Insert data into nest's DOMAIN import state
-                              ,name     ='EAST_H'                       &   !<-- The name of the data 
+                              ,name     ='EAST_H'                       &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_H%EAST                &   !<-- The new combined boundary data
                               ,rc=RC )
-!
+#else
+        CALL ESMF_AttributeSet(state    =IMP_STATE_DOMAIN               &   !<-- Insert data into nest's DOMAIN import state
+                              ,name     ='EAST_H'                       &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_H%EAST                &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2812,12 +3047,19 @@
       MESSAGE_CHECK="Check Parent-Child Cpl Export State for East V Data"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeGet(state=EXP_STATE_CPL                        &   !<-- Look at the Parent-Child Coupler's export state
-                            ,name ='EAST_V'                             &   !<-- Is this name present?
-                            ,count=KOUNT                                &   !<-- How many items present?
-                            ,rc   =RC )
-!
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                    &   !<-- Look at the Parent-Child Coupler's export state
+                            ,name     ='EAST_V'                         &   !<-- Is this name present?
+                            ,count    =KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#else
+      CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                    &   !<-- Look at the Parent-Child Coupler's export state
+                            ,name     ='EAST_V'                         &   !<-- Is this name present?
+                            ,itemCount=KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2833,13 +3075,21 @@
         MESSAGE_CHECK="Extract East V Data from Parent-Child Cpl Export State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                  &   !<-- Extract data from Parent-Child Coupler's export state
                               ,name     ='EAST_V'                       &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_V%EAST                &   !<-- The new combined boundary data
                               ,rc=RC )
-!
+#else
+        CALL ESMF_AttributeGet(state    =EXP_STATE_CPL                  &   !<-- Extract data from Parent-Child Coupler's export state
+                              ,name     ='EAST_V'                       &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_V%EAST                &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2848,13 +3098,21 @@
         MESSAGE_CHECK="Insert East V Data into Nest DOMAIN Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =IMP_STATE_DOMAIN               &   !<-- Insert data into nest's DOMAIN import state
-                              ,name     ='EAST_V'                       &   !<-- The name of the data 
+                              ,name     ='EAST_V'                       &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_V%EAST                &   !<-- The new combined boundary data
                               ,rc=RC )
-!
+#else
+        CALL ESMF_AttributeSet(state    =IMP_STATE_DOMAIN               &   !<-- Insert data into nest's DOMAIN import state
+                              ,name     ='EAST_V'                       &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_V%EAST                &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

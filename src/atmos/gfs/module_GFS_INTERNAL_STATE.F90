@@ -1,3 +1,9 @@
+#include "../../ESMFVersionDefine.h"
+
+! February 2011    Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
+!                              ESMF 5 library and the the ESMF 3.1.0rp2 library.
+!-------------------------------------------------------------------------------
+
 !-----------------------------------------------------------------------
 !
       MODULE module_GFS_INTERNAL_STATE
@@ -29,7 +35,11 @@
 
           TYPE(ESMF_Clock   ) :: CLOCK_GFS
 
+#ifdef ESMF_3
           TYPE(ESMF_LOGICAL)  :: Cpl_flag
+#else
+          LOGICAL             :: Cpl_flag
+#endif
 
 !-----------------------------------------------------------------------
 !***  FOR GSFC CHEMISTRY PACKAGE

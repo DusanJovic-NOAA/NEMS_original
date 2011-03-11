@@ -1,3 +1,5 @@
+#include "ESMFVersionDefine.h"
+
 !-----------------------------------------------------------------------
 !
       PROGRAM MAIN_NEMS
@@ -21,6 +23,9 @@
 !                             for new structure.
 !   2010-04     Yang    - Add GEFS and GFS for the revised NEMS.
 !   2010-11     Yang    - Add the "Generic Core" in the NEMS.
+!   2011-02     Yang    - Updated to use both the ESMF 4.0.0rp2 library,
+!                         ESMF 5 series library and the the 
+!                         ESMF 3.1.0rp2 library.
 !
 !-----------------------------------------------------------------------
 !
@@ -145,6 +150,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_LogSet(verbose    =ESMF_TRUE                            &
                       ,flush      =ESMF_TRUE                            &
                       ,rootOnly   =ESMF_FALSE                           &
@@ -153,6 +159,17 @@
                       ,maxElements=1                                    &  !<-- Maximum number of elements in the log
                                                                            !    before printing them to the log file.
                       ,rc         =RC)
+#else
+      CALL ESMF_LogSet(verbose    =.true.                               &
+                      ,flush      =.true.                               &
+                      ,rootOnly   =.false.                              &
+                      ,halt       =ESMF_LOG_HALTNEVER                   &  !<-- The job will not stop automatically
+                                                                           !    when an ESMF error occurs.
+                      ,maxElements=1                                    &  !<-- Maximum number of elements in the log
+                                                                           !    before printing them to the log file.
+                      ,rc         =RC)
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)

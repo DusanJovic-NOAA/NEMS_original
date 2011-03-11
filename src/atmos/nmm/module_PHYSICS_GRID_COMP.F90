@@ -1,3 +1,5 @@
+#include "../../ESMFVersionDefine.h"
+
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_PHYSICS_GRID_COMP
@@ -29,6 +31,9 @@
 !   2010-02-08  Weiguo Wang  - Add wsm6 microphysics
 !   2010-03-10  Weiguo Wang  - ADD species advection option
 !   2010-10-06  Weiguo Wang  - add RSWTT, RLWTT to TURBL, used for GFSPBL option
+!   2011-02     Weiyu Yang   - Updated to use both the ESMF 4.0.0rp2 library,
+!                              ESMF 5 series library and the the
+!                              ESMF 3.1.0rp2 library.
 !
 !-----------------------------------------------------------------------
 !
@@ -752,7 +757,8 @@
         MESSAGE_CHECK="Local Domain Limits to Physics Internal State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The write component import state
                               ,name     ='LOCAL_ISTART'                 &  !<-- Name of the attribute to extract
                               ,count    =NUM_PES                        &  !<-- # of items in attribute
@@ -776,7 +782,32 @@
                               ,count    =NUM_PES                        &  !<-- # of items in attribute
                               ,valueList=int_state%LOCAL_JEND           &  !<-- Extract this attribute from import state
                               ,rc       =RC)
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The write component import state
+                              ,name     ='LOCAL_ISTART'                 &  !<-- Name of the attribute to extract
+                              ,itemCount=NUM_PES                        &  !<-- # of items in attribute
+                              ,valueList=int_state%LOCAL_ISTART         &  !<-- Extract this attribute from import state
+                              ,rc       =RC)
 !
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The write component import state
+                              ,name     ='LOCAL_IEND'                   &  !<-- Name of the attribute to extract
+                              ,itemCount=NUM_PES                        &  !<-- # of items in attribute
+                              ,valueList=int_state%LOCAL_IEND           &  !<-- Extract this attribute from import state
+                              ,rc       =RC)
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The write component import state
+                              ,name     ='LOCAL_JSTART'                 &  !<-- Name of the attribute to extract
+                              ,itemCount=NUM_PES                        &  !<-- # of items in attribute
+                              ,valueList=int_state%LOCAL_JSTART         &  !<-- Extract this attribute from import state
+                              ,rc       =RC)
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The write component import state
+                              ,name     ='LOCAL_JEND'                   &  !<-- Name of the attribute to extract
+                              ,itemCount=NUM_PES                        &  !<-- # of items in attribute
+                              ,valueList=int_state%LOCAL_JEND           &  !<-- Extract this attribute from import state
+                              ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

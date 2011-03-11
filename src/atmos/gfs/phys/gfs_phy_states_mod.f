@@ -1,3 +1,5 @@
+#include "../../../ESMFVersionDefine.h"
+
        MODULE GFS_Phy_States_Mod
 
 !BOP
@@ -21,6 +23,8 @@
 !  2010/09/09           Sarah Lu, change smc1 to wet1 
 !  2010/10/10           Sarah Lu, add g2d_fld%met to phy_exp
 !  2010/11/18           Jun Wang, fix error on allocating cpi and ri
+!  2011/02              Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
+!                       ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !
 !!USEs:
 !
@@ -170,7 +174,13 @@
                                        Field,                             &
                                        rc = rc1)
               CALL gfs_physics_err_msg(rc1, 'retrieve Efield from bundle', rcfinal)
-              CALL ESMF_FieldGet(Field, FArray = FArr3D, localDE = 0, rc = rc1)
+
+#ifdef ESMF_3
+              CALL ESMF_FieldGet(Field, FArray    = FArr3D, localDE = 0, rc = rc1)
+#else
+              CALL ESMF_FieldGet(Field, FArrayPtr = FArr3D, localDE = 0, rc = rc1)
+#endif
+
               CALL gfs_physics_err_msg(rc1, 'retrieve Farray from field', rcfinal)
               IF(int_state%grid_aldata) THEN
                   int_state%grid_fld%tracers(i)%flds =  FArr3D
@@ -256,6 +266,7 @@
                ,rc   =RC)
        call gfs_physics_err_msg(rc,'retrieve ri(0) attribute from phy_imp',rcfinal)
 
+#ifdef ESMF_3
        CALL ESMF_AttributeGet(Bundle                         &  !<-- Tracer bundle
                ,name ='cpi'                                  &  !<-- Name of the attribute to retrieve
                ,count= int_state%ntrac                       &  !<-- Number of values in the attribute
@@ -269,6 +280,21 @@
                ,valueList = int_state%gfs_phy_tracer%ri(1:int_state%ntrac)  &!<-- Value of the attribute
                ,rc   =RC)
        call gfs_physics_err_msg(rc,'retrieve ri(:) attribute from phy_imp',rcfinal)
+#else
+       CALL ESMF_AttributeGet(Bundle                         &  !<-- Tracer bundle
+               ,name ='cpi'                                  &  !<-- Name of the attribute to retrieve
+               ,itemCount= int_state%ntrac                   &  !<-- Number of values in the attribute
+               ,valueList = int_state%gfs_phy_tracer%cpi(1:int_state%ntrac)  &!<-- Value of the attribute
+               ,rc   =RC)
+       call gfs_physics_err_msg(rc,'retrieve cpi(:) attribute from phy_imp',rcfinal)
+
+       CALL ESMF_AttributeGet(Bundle                         &  !<-- Tracer bundle
+               ,name ='ri'                                   &  !<-- Name of the attribute to retrieve
+               ,itemCount= int_state%ntrac                   &  !<-- Number of values in the attribute
+               ,valueList = int_state%gfs_phy_tracer%ri(1:int_state%ntrac)  &!<-- Value of the attribute
+               ,rc   =RC)
+       call gfs_physics_err_msg(rc,'retrieve ri(:) attribute from phy_imp',rcfinal)
+#endif
 
 ! ---  Fill in ri/cpi local array
        if(.not.allocated(ri)) then
@@ -554,11 +580,19 @@
                             ,value= lonr                   &
                             ,rc   =RC)
 
+#ifdef ESMF_3
       CALL ESMF_AttributeSet(state=exp_gfs_phy             &  !<-- The physics export state
                             ,name ='lonsperlar_r'          &  !<-- Name of the attribute to insert
                             ,count= lats_node_r_max        &  !<-- Number of values in the attribute
                             ,valueList =lonsperlar_r       &  !<-- Value of the attribute
                             ,rc   =RC)
+#else
+      CALL ESMF_AttributeSet(state=exp_gfs_phy             &  !<-- The physics export state
+                            ,name ='lonsperlar_r'          &  !<-- Name of the attribute to insert
+                            ,itemCount= lats_node_r_max    &  !<-- Number of values in the attribute
+                            ,valueList =lonsperlar_r       &  !<-- Value of the attribute
+                            ,rc   =RC)
+#endif
 
 ! loop through the 2D diag fields
 
@@ -768,6 +802,7 @@
                ,rc   =RC)
        call gfs_physics_err_msg(rc,msg,rcfinal)
 
+#ifdef ESMF_3
        msg   = "insert cpi(:) attribute to phy_exp"
        CALL ESMF_AttributeSet(Bundle                         &  !<-- Phy export state tracer bundle
                ,name ='cpi'                                  &  !<-- Name of the attribute array
@@ -783,6 +818,23 @@
                ,valueList = int_state%gfs_phy_tracer%ri(1:int_state%ntrac)  &!<-- The array being inserted
                ,rc   =RC)
        call gfs_physics_err_msg(rc,msg,rcfinal)
+#else
+       msg   = "insert cpi(:) attribute to phy_exp"
+       CALL ESMF_AttributeSet(Bundle                         &  !<-- Phy export state tracer bundle
+               ,name ='cpi'                                  &  !<-- Name of the attribute array
+               ,itemCount= int_state%ntrac                   &  !<-- Length of array being inserted
+               ,valueList = int_state%gfs_phy_tracer%cpi(1:int_state%ntrac)  &!<-- The array being inserted
+               ,rc   =RC)
+       call gfs_physics_err_msg(rc,msg,rcfinal)
+
+       msg   = "insert ri(:) attribute to phy_exp"
+       CALL ESMF_AttributeSet(Bundle                         &  !<-- Phy export state tracer bundle
+               ,name ='ri'                                   &  !<-- Name of the attribute array
+               ,itemCount= int_state%ntrac                   &  !<-- Length of array being inserted
+               ,valueList = int_state%gfs_phy_tracer%ri(1:int_state%ntrac)  &!<-- The array being inserted
+               ,rc   =RC)
+       call gfs_physics_err_msg(rc,msg,rcfinal)
+#endif
 
 ! ---  Set attribute for ntrac
        msg   = "insert ntrac attribute to phy_exp"

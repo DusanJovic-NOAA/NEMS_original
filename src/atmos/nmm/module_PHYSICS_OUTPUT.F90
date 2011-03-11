@@ -1,3 +1,9 @@
+! February 2011    Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
+!                              ESMF 5 library and the the ESMF 3.1.0rp2 library.
+!-------------------------------------------------------------------------------
+
+#include "../../ESMFVersionDefine.h"
+
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_PHYSICS_OUTPUT
@@ -147,12 +153,19 @@
       MESSAGE_CHECK="Insert Microphysics Scheme Specification into History Bundle"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                      &  !<-- The Write component history Bundle
-                            ,name  ='MP_PHYSICS'                        &  !<-- Name of microphysics scheme variable
-                            ,value =MP_PHYSICS                          &  !<-- The microphysics scheme integer specification
-                            ,rc    =RC)
-!
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeSet(bundle     =HISTORY_BUNDLE                 &  !<-- The Write component history Bundle
+                            ,name       ='MP_PHYSICS'                   &  !<-- Name of microphysics scheme variable
+                            ,value      =MP_PHYSICS                     &  !<-- The microphysics scheme integer specification
+                            ,rc         =RC)
+#else
+      CALL ESMF_AttributeSet(fieldbundle=HISTORY_BUNDLE                 &  !<-- The Write component history Bundle
+                            ,name       ='MP_PHYSICS'                   &  !<-- Name of microphysics scheme variable
+                            ,value      =MP_PHYSICS                     &  !<-- The microphysics scheme integer specification
+                            ,rc         =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PHY_OUT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -161,12 +174,19 @@
       MESSAGE_CHECK="Insert Microphysics Scheme Specification into Restart Bundle"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeSet(bundle=RESTART_BUNDLE                      &  !<-- The Write component restart Bundle
-                            ,name  ='MP_PHYSICS'                        &  !<-- Name of microphysics scheme variable
-                            ,value =MP_PHYSICS                          &  !<-- The microphysics scheme integer specification
-                            ,rc    =RC)
-!
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeSet(bundle     =RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
+                            ,name       ='MP_PHYSICS'                   &  !<-- Name of microphysics scheme variable
+                            ,value      =MP_PHYSICS                     &  !<-- The microphysics scheme integer specification
+                            ,rc         =RC)
+#else
+      CALL ESMF_AttributeSet(fieldbundle=RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
+                            ,name       ='MP_PHYSICS'                   &  !<-- Name of microphysics scheme variable
+                            ,value      =MP_PHYSICS                     &  !<-- The microphysics scheme integer specification
+                            ,rc         =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PHY_OUT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -190,12 +210,19 @@
       MESSAGE_CHECK="Insert Surface Physics Scheme Specification into History Bundle"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeSet(bundle=HISTORY_BUNDLE                      &  !<-- The Write component history Bundle
-                            ,name  ='SF_SURFACE_PHYSICS'                &  !<-- Name of land surface scheme variable
-                            ,value =SF_SURFACE_PHYSICS                  &  !<-- The land surface scheme integer specification
-                            ,rc    =RC)
-!
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeSet(bundle     =HISTORY_BUNDLE                 &  !<-- The Write component history Bundle
+                            ,name       ='SF_SURFACE_PHYSICS'           &  !<-- Name of land surface scheme variable
+                            ,value      =SF_SURFACE_PHYSICS             &  !<-- The land surface scheme integer specification
+                            ,rc         =RC)
+#else
+      CALL ESMF_AttributeSet(fieldbundle=HISTORY_BUNDLE                 &  !<-- The Write component history Bundle
+                            ,name       ='SF_SURFACE_PHYSICS'           &  !<-- Name of land surface scheme variable
+                            ,value      =SF_SURFACE_PHYSICS             &  !<-- The land surface scheme integer specification
+                            ,rc         =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PHY_OUT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -204,12 +231,19 @@
       MESSAGE_CHECK="Insert Surface Physics Scheme Specification into Restart Bundle"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeSet(bundle=RESTART_BUNDLE                      &  !<-- The Write component restart Bundle
-                            ,name  ='SF_SURFACE_PHYSICS'                &  !<-- Name of land surface scheme variable
-                            ,value =SF_SURFACE_PHYSICS                  &  !<-- The land surface scheme integer specification
-                            ,rc    =RC)
-!
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeSet(bundle     =RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
+                            ,name       ='SF_SURFACE_PHYSICS'           &  !<-- Name of land surface scheme variable
+                            ,value      =SF_SURFACE_PHYSICS             &  !<-- The land surface scheme integer specification
+                            ,rc         =RC)
+#else
+      CALL ESMF_AttributeSet(fieldbundle=RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
+                            ,name       ='SF_SURFACE_PHYSICS'           &  !<-- Name of land surface scheme variable
+                            ,value      =SF_SURFACE_PHYSICS             &  !<-- The land surface scheme integer specification
+                            ,rc         =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PHY_OUT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

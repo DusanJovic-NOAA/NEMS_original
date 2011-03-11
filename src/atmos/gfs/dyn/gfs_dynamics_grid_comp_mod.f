@@ -1,3 +1,5 @@
+#include "../../../ESMFVersionDefine.h"
+
 ! !module: gfs_dynamics_grid_comp_mod --- 
 !                       esmf gridded component of gfs dynamics
 !
@@ -18,6 +20,8 @@
 !  Feb 05 2010      Jun Wang, add restart step
 !  Feb 20 2011      Henry Juang, add non-iterating dimensional-splitting semi-Lagrangian (NDSL)
 !                   advection with options of MASS_DP and NDSLFV
+!  Feb    2011      Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
+!                   ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !
 ! !interface:
 !
@@ -509,8 +513,10 @@
       logical,save                           :: first_dfiend=.true.
       TYPE(ESMF_TimeInterval)                :: HALFDFIINTVAL
       integer                                :: DFIHR
+#ifdef ESMF_3
       TYPE(ESMF_LOGICAL)                     :: Cpl_flag1  ! in ESMF 3.1.0rp2, to  get logical from state
                                                        ! must use the ESMF_LOGICAL type.
+#endif
 
 !! debug print for tracking import and export state (Sarah Lu)
       TYPE(ESMF_Field)                   :: ESMFField             !chlu_debug
@@ -601,12 +607,20 @@
 
 ! Set up the ensemble coupling time flag.
 !----------------------------------------
+#ifdef ESMF_3
+
       CALL ESMF_AttributeGet(imp_gfs_dyn, 'Cpl_flag', Cpl_flag1, rc = rc1)
       IF(Cpl_flag1 == ESMF_TRUE) THEN
           int_state%Cpl_flag = .true.
       ELSE
           int_state%Cpl_flag = .false.
       END IF
+
+#else
+
+      CALL ESMF_AttributeGet(imp_gfs_dyn, 'Cpl_flag', int_state%Cpl_flag, rc = rc1)
+
+#endif
 
       if( currtime .eq. stoptime ) then
           print *,' currtime equals to stoptime '
@@ -661,8 +675,15 @@
                         ,field     = ESMFField                          & !chlu_debug
                         ,rc        = rc1)                                 !chlu_debug
             call gfs_dynamics_err_msg(rc1,'LU_DYN: get ESMFarray',rc)     !chlu_debug
+
+#ifdef ESMF_3
             CALL ESMF_FieldGet(field=ESMFField, localDe=0, &              !chlu_debug
                                farray=fArr3D, rc = rc1)                   !chlu_debug
+#else
+            CALL ESMF_FieldGet(field=ESMFField, localDe=0, &              !chlu_debug
+                               farrayPtr=fArr3D, rc = rc1)                !chlu_debug
+#endif
+
             call gfs_dynamics_err_msg(rc1,'LU_DYN: get F90array',rc)      !chlu_debug
 !            ii1 = size(fArr3D, dim=1)                                     !chlu_debug
 !            ii2 = size(fArr3D, dim=2)                                     !chlu_debug
@@ -680,8 +701,15 @@
           print *,'LU_DYN:',trim(vname)                                   !chlu_debug
           CALL ESMF_FieldBundleGet(bundle=ESMFBundle, &                   !chlu_debug
                  name=vname, field=ESMFfield, rc = rc1)                   !chlu_debug
-          CALL ESMF_FieldGet(field=ESMFfield, localDe=0, &                !chlu_debug
-                          farray=fArr3D, rc = rc1)                        !chlu_debug
+
+#ifdef ESMF_3
+          CALL ESMF_FieldGet(field=ESMFField, localDe=0, &                !chlu_debug
+                             farray=fArr3D, rc = rc1)                     !chlu_debug
+#else
+          CALL ESMF_FieldGet(field=ESMFField, localDe=0, &                !chlu_debug
+                             farrayPtr=fArr3D, rc = rc1)                  !chlu_debug
+#endif
+
 !          if(n==1) then                                                   !chlu_debug
 !            ii1 = size(fArr3D, dim=1)                                     !chlu_debug
 !            ii2 = size(fArr3D, dim=2)                                     !chlu_debug

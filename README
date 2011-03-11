@@ -73,6 +73,12 @@ To compile and load the model(s):
 
  (2) Set special compile options in the appropiate configure file in /conf .
 
+ (3) Based on which version of the ESMF library will be used, 
+     run "esmf_version ESMF_Version_Number", where:
+          ESMF_Version_Number = 3,  use ESMF 3.1.0rp2 library 
+          ESMF_Version_Number = 4,  use ESMF 4.0.0rp2 library
+          ESMF_Version_Number = 5,  use ESMF 5.1.0    library
+
  (3) In /src execute one of the following commands indicating which cores are to be compiled:
        gmake nmm                          --- for NMM core only
        gmake gfs                          --- for GFS core only - without GOCART

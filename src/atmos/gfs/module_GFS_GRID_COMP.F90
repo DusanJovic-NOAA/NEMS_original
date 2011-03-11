@@ -1,3 +1,5 @@
+#include "../../ESMFVersionDefine.h"
+
 !----------------------------------------------------------------------
 !
       MODULE MODULE_GFS_GRID_COMP
@@ -43,7 +45,9 @@
 !   2010-08-17  Lu    - Make debug print optional
 !   2010-08-25  Wang  - Add 3hr dfi filtered fields output option
 !   2010-12-16  Wang  - Change to nemsio library
-
+!   2011-02   W Yang  - Updated to use both the ESMF 4.0.0rp2 library,
+!                       ESMF 5 series library and the the
+!                       ESMF 3.1.0rp2 library.
 !
 ! USAGE: GFS Gridded component parts called from subroutines within
 !        module_ATM_GRID_COMP.F90.
@@ -778,7 +782,11 @@
       MESSAGE_CHECK = "GFS set Cpl_flag"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 
+#ifdef ESMF_3
       gfs_int_state%Cpl_flag = ESMF_FALSE
+#else
+      gfs_int_state%Cpl_flag = .false.
+#endif
 
       CALL ESMF_AttributeSet(gfs_int_state%IMP_GFS_DYN,          &
                              'Cpl_flag',                         &

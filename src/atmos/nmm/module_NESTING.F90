@@ -1,3 +1,5 @@
+#include "../../ESMFVersionDefine.h"
+
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_NESTING
@@ -20,6 +22,8 @@
 !   2008-08-14  Black - Added BOUNDARY_DATA_STATE_TO_STATE
 !   2009-03-12  Black - Added Z0BASE and STDH now needed for NPS.
 !   2009-10-12  Black - Fix for generalized of parent-child space ratios.
+!   2010-08-25  Yang  - Updated to use both the ESMF 4.0.0rp2 library
+!                       and the the ESMF 3.1.0rp2 library.
 !
 !-----------------------------------------------------------------------
 !
@@ -4050,8 +4054,15 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_State),INTENT(IN)  :: EXP_STATE_DYN                     &   !<-- Dynamics export state
-                                     ,EXP_STATE_PHY                         !<-- Physics export state
+
+#ifdef ESMF_3
+      TYPE(ESMF_State),INTENT(IN)    :: EXP_STATE_DYN                   &   !<-- Dynamics export state
+                                       ,EXP_STATE_PHY                       !<-- Physics export state
+#else
+      TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE_DYN                   &   !<-- Dynamics export state
+                                       ,EXP_STATE_PHY                       !<-- Physics export state
+#endif
+
 !
       TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE_DOMAIN                    !<-- DOMAIN export state into which fcst Arrays are transferred
 !
@@ -4076,6 +4087,7 @@
       TYPE(ESMF_Field) :: HOLD_FIELD
 !
       integer :: n
+      INTEGER :: LMP1
 !
       CHARACTER(LEN=8), DIMENSION(5) :: EXP_FIELD
 !-----------------------------------------------------------------------
@@ -4460,58 +4472,111 @@
                             ,rc   =RC)
 !
       ALLOCATE(ARRAY_1D(1:LM))
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeGet(state        =EXP_STATE_DYN                &  !<-- The Dynamics export state
+                            ,name         ='PSGML1'                     &  !<-- Extract PGMSL1
+                            ,count        =LM                           &  !<-- # of words in data list
+                            ,valueList    =ARRAY_1D                     &  !<-- Put extracted values ehre
+                            ,rc           =RC)
 !
-      CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
-                            ,name     ='PSGML1'                         &  !<-- Extract PGMSL1
-                            ,count    =LM                               &  !<-- # of words in data list
-                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
-                            ,rc       =RC)
+      CALL ESMF_AttributeSet(state        =EXP_STATE_DOMAIN             &  !<-- The DOMAIN export state
+                            ,name         ='PSGML1'                     &  !<-- Extract PGMSL1
+                            ,count        =LM                           &  !<-- # of words in data list
+                            ,valueList    =ARRAY_1D                     &  !<-- Put extracted values ehre
+                            ,rc           =RC)
 !
-      CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The DOMAIN export state
-                            ,name     ='PSGML1'                         &  !<-- Extract PGMSL1
-                            ,count    =LM                               &  !<-- # of words in data list
-                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
-                            ,rc       =RC)
+      CALL ESMF_AttributeGet(state        =EXP_STATE_DYN                &  !<-- The Dynamics export state
+                            ,name         ='SGML2'                      &  !<-- Extract PGMSL1
+                            ,count        =LM                           &  !<-- # of words in data list
+                            ,valueList    =ARRAY_1D                     &  !<-- Put extracted values ehre
+                            ,rc           =RC)
 !
-      CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
-                            ,name     ='SGML2'                          &  !<-- Extract PGMSL1
-                            ,count    =LM                               &  !<-- # of words in data list
-                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
-                            ,rc       =RC)
+      CALL ESMF_AttributeSet(state        =EXP_STATE_DOMAIN             &  !<-- The DOMAIN export state
+                            ,name         ='SGML2'                      &  !<-- Extract PGMSL1
+                            ,count        =LM                           &  !<-- # of words in data list
+                            ,valueList    =ARRAY_1D                     &  !<-- Put extracted values ehre
+                            ,rc           =RC)
+#else
+      CALL ESMF_AttributeGet(state        =EXP_STATE_DYN                &  !<-- The Dynamics export state
+                            ,name         ='PSGML1'                     &  !<-- Extract PGMSL1
+                            ,itemCount    =LM                           &  !<-- # of words in data list
+                            ,valueList    =ARRAY_1D                     &  !<-- Put extracted values ehre
+                            ,rc           =RC)
 !
-      CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The DOMAIN export state
-                            ,name     ='SGML2'                          &  !<-- Extract PGMSL1
-                            ,count    =LM                               &  !<-- # of words in data list
-                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
-                            ,rc       =RC)
+      CALL ESMF_AttributeSet(state        =EXP_STATE_DOMAIN             &  !<-- The DOMAIN export state
+                            ,name         ='PSGML1'                     &  !<-- Extract PGMSL1
+                            ,itemCount    =LM                           &  !<-- # of words in data list
+                            ,valueList    =ARRAY_1D                     &  !<-- Put extracted values ehre
+                            ,rc           =RC)
 !
+      CALL ESMF_AttributeGet(state        =EXP_STATE_DYN                &  !<-- The Dynamics export state
+                            ,name         ='SGML2'                      &  !<-- Extract PGMSL1
+                            ,itemCount    =LM                           &  !<-- # of words in data list
+                            ,valueList    =ARRAY_1D                     &  !<-- Put extracted values ehre
+                            ,rc           =RC)
+!
+      CALL ESMF_AttributeSet(state        =EXP_STATE_DOMAIN             &  !<-- The DOMAIN export state
+                            ,name         ='SGML2'                      &  !<-- Extract PGMSL1
+                            ,itemCount    =LM                           &  !<-- # of words in data list
+                            ,valueList    =ARRAY_1D                     &  !<-- Put extracted values ehre
+                            ,rc           =RC)
+#endif
+
+      LMP1 = LM + 1
       DEALLOCATE(ARRAY_1D)
-      ALLOCATE(ARRAY_1D(1:LM+1))
-!
+      ALLOCATE(ARRAY_1D(1:LMP1))
+
+#ifdef ESMF_3
       CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
                             ,name     ='SG1'                            &  !<-- Extract PGMSL1
-                            ,count    =LM+1                             &  !<-- # of words in data list
+                            ,count    =LMP1                             &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
                             ,rc       =RC)
 !
       CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The DOMAIN export state
                             ,name     ='SG1'                            &  !<-- Extract PGMSL1
-                            ,count    =LM+1                             &  !<-- # of words in data list
+                            ,count    =LMP1                             &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
                             ,rc       =RC)
 !
       CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
                             ,name     ='SG2'                            &  !<-- Extract PGMSL1
-                            ,count    =LM+1                             &  !<-- # of words in data list
+                            ,count    =LMP1                             &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
                             ,rc       =RC)
 !
       CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The DOMAIN export state
                             ,name     ='SG2'                            &  !<-- Extract PGMSL1
-                            ,count    =LM+1                             &  !<-- # of words in data list
+                            ,count    =LMP1                             &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
+                            ,rc       =RC)
+#else
+      CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
+                            ,name     ='SG1'                            &  !<-- Extract PGMSL1
+                            ,itemCount=LMP1                             &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
                             ,rc       =RC)
 !
+      CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The DOMAIN export state
+                            ,name     ='SG1'                            &  !<-- Extract PGMSL1
+                            ,itemCount=LMP1                             &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
+                            ,rc       =RC)
+!
+      CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
+                            ,name     ='SG2'                            &  !<-- Extract PGMSL1
+                            ,itemCount=LMP1                             &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
+                            ,rc       =RC)
+!
+      CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The DOMAIN export state
+                            ,name     ='SG2'                            &  !<-- Extract PGMSL1
+                            ,itemCount=LMP1                             &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
+                            ,rc       =RC)
+#endif
+
       DEALLOCATE(ARRAY_1D)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4771,10 +4836,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=STATE_IN                             &   !<-- Look at the input state
-                            ,name ='SOUTH_H'                            &   !<-- Is this name present?
-                            ,count=KOUNT                                &   !<-- How many items present?
-                            ,rc   =RC )
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
+                            ,name     ='SOUTH_H'                        &   !<-- Is this name present?
+                            ,count    =KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#else
+      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
+                            ,name     ='SOUTH_H'                        &   !<-- Is this name present?
+                            ,itemCount=KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !!!   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -4792,6 +4866,8 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
                               ,name     ='SOUTH_H'                      &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
@@ -4817,6 +4893,34 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#else
+        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
+                              ,name     ='SOUTH_H'                      &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_H%SOUTH               &   !<-- The new combined boundary data
+                              ,rc=RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert South H Data into Output State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
+                              ,name     ='SOUTH_H'                      &   !<-- The name of the data 
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_H%SOUTH               &   !<-- The new combined boundary data
+                              ,rc=RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#endif
+
       ENDIF south_h
 !
 !-------------
@@ -4828,10 +4932,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=STATE_IN                             &   !<-- Look at the input state
-                            ,name ='SOUTH_V'                            &   !<-- Is this name present?
-                            ,count=KOUNT                                &   !<-- How many items present?
-                            ,rc   =RC )
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
+                            ,name     ='SOUTH_V'                        &   !<-- Is this name present?
+                            ,count    =KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#else
+      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
+                            ,name     ='SOUTH_V'                        &   !<-- Is this name present?
+                            ,itemCount=KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !!!   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -4849,11 +4962,21 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
                               ,name     ='SOUTH_V'                      &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_V%SOUTH               &   !<-- The new combined boundary data
                               ,rc=RC )
+#else
+        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
+                              ,name     ='SOUTH_V'                      &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_V%SOUTH               &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -4864,11 +4987,21 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
                               ,name     ='SOUTH_V'                      &   !<-- The name of the data 
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_V%SOUTH               &   !<-- The new combined boundary data
                               ,rc=RC )
+#else
+        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
+                              ,name     ='SOUTH_V'                      &   !<-- The name of the data 
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_V%SOUTH               &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -4885,10 +5018,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=STATE_IN                             &   !<-- Look at input state
-                            ,name ='NORTH_H'                            &   !<-- Is this name present?
-                            ,count=KOUNT                                &   !<-- How many items present?
-                            ,rc   =RC )
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at input state
+                            ,name     ='NORTH_H'                        &   !<-- Is this name present?
+                            ,count    =KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#else
+      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at input state
+                            ,name     ='NORTH_H'                        &   !<-- Is this name present?
+                            ,itemCount=KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !!!   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -4906,11 +5048,21 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
                               ,name     ='NORTH_H'                      &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_H%NORTH               &   !<-- The new combined boundary data
                               ,rc=RC )
+#else
+        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
+                              ,name     ='NORTH_H'                      &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_H%NORTH               &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -4921,11 +5073,21 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
                               ,name     ='NORTH_H'                      &   !<-- The name of the data 
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_H%NORTH               &   !<-- The new combined boundary data
                               ,rc=RC )
+#else
+        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
+                              ,name     ='NORTH_H'                      &   !<-- The name of the data 
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_H%NORTH               &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -4942,10 +5104,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=STATE_IN                             &   !<-- Look at the input state
-                            ,name ='NORTH_V'                            &   !<-- Is this name present?
-                            ,count=KOUNT                                &   !<-- How many items present?
-                            ,rc   =RC )
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
+                            ,name     ='NORTH_V'                        &   !<-- Is this name present?
+                            ,count    =KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#else
+      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
+                            ,name     ='NORTH_V'                        &   !<-- Is this name present?
+                            ,itemCount=KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !!!   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -4963,11 +5134,21 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
                               ,name     ='NORTH_V'                      &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_V%NORTH               &   !<-- The new combined boundary data
                               ,rc=RC )
+#else
+        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
+                              ,name     ='NORTH_V'                      &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_V%NORTH               &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -4978,11 +5159,21 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
                               ,name     ='NORTH_V'                      &   !<-- The name of the data 
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_V%NORTH               &   !<-- The new combined boundary data
                               ,rc=RC )
+#else
+        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
+                              ,name     ='NORTH_V'                      &   !<-- The name of the data 
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_V%NORTH               &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -4999,10 +5190,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=STATE_IN                             &   !<-- Look at the input state
-                            ,name ='WEST_H'                             &   !<-- Is this name present?
-                            ,count=KOUNT                                &   !<-- How many items present?
-                            ,rc   =RC )
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
+                            ,name     ='WEST_H'                         &   !<-- Is this name present?
+                            ,count    =KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#else
+      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
+                            ,name     ='WEST_H'                         &   !<-- Is this name present?
+                            ,itemCount=KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !!!   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -5020,11 +5220,21 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
                               ,name     ='WEST_H'                       &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_H%WEST                &   !<-- The new combined boundary data
                               ,rc=RC )
+#else
+        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
+                              ,name     ='WEST_H'                       &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_H%WEST                &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -5035,11 +5245,21 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
                               ,name     ='WEST_H'                       &   !<-- The name of the data 
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_H%WEST                &   !<-- The new combined boundary data
                               ,rc=RC )
+#else
+        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
+                              ,name     ='WEST_H'                       &   !<-- The name of the data 
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_H%WEST                &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -5056,10 +5276,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=STATE_IN                             &   !<-- Look at the input state
-                            ,name ='WEST_V'                             &   !<-- Is this name present?
-                            ,count=KOUNT                                &   !<-- How many items present?
-                            ,rc   =RC )
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
+                            ,name     ='WEST_V'                         &   !<-- Is this name present?
+                            ,count    =KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#else
+      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
+                            ,name     ='WEST_V'                         &   !<-- Is this name present?
+                            ,itemCount=KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !!!   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -5077,11 +5306,21 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data input state
                               ,name     ='WEST_V'                       &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_V%WEST                &   !<-- The new combined boundary data
                               ,rc=RC )
+#else
+        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data input state
+                              ,name     ='WEST_V'                       &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_V%WEST                &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -5092,11 +5331,21 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
                               ,name     ='WEST_V'                       &   !<-- The name of the data 
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_V%WEST                &   !<-- The new combined boundary data
                               ,rc=RC )
+#else
+        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
+                              ,name     ='WEST_V'                       &   !<-- The name of the data 
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_V%WEST                &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -5113,10 +5362,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=STATE_IN                             &   !<-- Look at the input state
-                            ,name ='EAST_H'                             &   !<-- Is this name present?
-                            ,count=KOUNT                                &   !<-- How many items present?
-                            ,rc   =RC )
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
+                            ,name     ='EAST_H'                         &   !<-- Is this name present?
+                            ,count    =KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#else
+      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
+                            ,name     ='EAST_H'                         &   !<-- Is this name present?
+                            ,itemCount=KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !!!   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -5134,11 +5392,21 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
                               ,name     ='EAST_H'                       &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_H%EAST                &   !<-- The new combined boundary data
                               ,rc=RC )
+#else
+        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
+                              ,name     ='EAST_H'                       &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_H%EAST                &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -5149,11 +5417,21 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
                               ,name     ='EAST_H'                       &   !<-- The name of the data 
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_H%EAST                &   !<-- The new combined boundary data
                               ,rc=RC )
+#else
+        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
+                              ,name     ='EAST_H'                       &   !<-- The name of the data 
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_H%EAST                &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -5170,10 +5448,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=STATE_IN                             &   !<-- Look at the input state
-                            ,name ='EAST_V'                             &   !<-- Is this name present?
-                            ,count=KOUNT                                &   !<-- How many items present?
-                            ,rc   =RC )
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
+                            ,name     ='EAST_V'                         &   !<-- Is this name present?
+                            ,count    =KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#else
+      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
+                            ,name     ='EAST_V'                         &   !<-- Is this name present?
+                            ,itemCount=KOUNT                            &   !<-- How many items present?
+                            ,rc       =RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !!!   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -5191,11 +5478,21 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
                               ,name     ='EAST_V'                       &   !<-- The name of the data
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_V%EAST                &   !<-- The new combined boundary data
                               ,rc=RC )
+#else
+        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
+                              ,name     ='EAST_V'                       &   !<-- The name of the data
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_V%EAST                &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -5206,11 +5503,21 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
                               ,name     ='EAST_V'                       &   !<-- The name of the data 
                               ,count    =KOUNT                          &   !<-- The data has this many items
                               ,valueList=BOUNDARY_V%EAST                &   !<-- The new combined boundary data
                               ,rc=RC )
+#else
+        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
+                              ,name     ='EAST_V'                       &   !<-- The name of the data 
+                              ,itemCount=KOUNT                          &   !<-- The data has this many items
+                              ,valueList=BOUNDARY_V%EAST                &   !<-- The new combined boundary data
+                              ,rc=RC )
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)

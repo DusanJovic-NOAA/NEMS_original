@@ -641,9 +641,6 @@
      arraysize_1 = SIZE(t_wk, 1)
      arraysize_2 = SIZE(t_wk, 2)
 
-     Cpl_Int_State%lonsize = Cpl_Int_State%lonf
-     Cpl_Int_State%latsize = arraysize_1 / Cpl_Int_State%lonsize
-
      arraysize_1_pointer(1)    = arraysize_1 
      Cpl_Int_State%arraysize_1 = arraysize_1 
      Cpl_Int_State%arraysize_2 = arraysize_2 

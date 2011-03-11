@@ -1,3 +1,5 @@
+#include "../../../ESMFVersionDefine.h"
+
 !
 ! !module: gfs_dynamics_run_mod --- run module of the grided
 !                              component of the gfs dynamics system.
@@ -17,6 +19,8 @@
 !  aug  2010          sarah lu, compute tracer global sum
 !  febrary  2011      henry juang add non-ierating dimensional-splitting semi_lagrangian
 !                     (NDSL) advection with options of MASS_DP and NDSLFV
+!  Feb      2011      Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
+!                     ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !
 !
 ! !interface:
@@ -42,7 +46,11 @@
       integer, save     :: kdt_save=0
       integer		rc1, k 
 
+#ifdef ESMF_3
       TYPE(ESMF_LOGICAL) :: Cpl_flag1
+#else
+      LOGICAL            :: Cpl_flag1
+#endif
 
 !***********************************************************************
 !
@@ -171,6 +179,8 @@
                gis_dyn% nfcstdate7,                                     &
                gis_dyn%Cpl_flag)
 
+#ifdef ESMF_3
+
         IF(gis_dyn%end_step) THEN
             Cpl_flag1 = ESMF_TRUE
             CALL ESMF_AttributeSet(imp_gfs_dyn, 'Cpl_flag',             &
@@ -180,6 +190,20 @@
             CALL ESMF_AttributeSet(imp_gfs_dyn, 'Cpl_flag',             &
                 Cpl_flag1, rc = rc1)
         END IF
+
+#else
+
+        IF(gis_dyn%end_step) THEN
+            Cpl_flag1 = .true.
+            CALL ESMF_AttributeSet(imp_gfs_dyn, 'Cpl_flag',             &
+                Cpl_flag1, rc = rc1)
+        ELSE
+            Cpl_flag1 = .false.
+            CALL ESMF_AttributeSet(imp_gfs_dyn, 'Cpl_flag',             &
+                Cpl_flag1, rc = rc1)
+        END IF
+
+#endif
 
 !
 ! ======================================================================

@@ -1,3 +1,5 @@
+#include "../../../ESMFVersionDefine.h"
+
       module module_digital_filter_gfs
 !
 ! a generic digital filter for any model under ESMF 
@@ -5,6 +7,9 @@
 ! March 2007	Hann-Ming Henry Juang
 ! February 2008 Weiyu Yang, updated to use the ESMF 3.1.0 library.
 ! November 2009 Jun Wang, digital filter is done on n+1 time step.
+! February 2011 Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
+!                           ESMF 5 library and the the ESMF 3.1.0rp2 library.
+!----------------------------------------------------------------------------
 !
       use esmf_mod
 
@@ -155,7 +160,12 @@
           dim3=dyn_dim(3,n)
           if(dim3==1) then
             nullify(tmp_ptr2D)
-            CALL ESMF_FieldGet(FIELD, localDe=0, farray=tmp_ptr2D, rc = rc)
+
+#ifdef ESMF_3
+            CALL ESMF_FieldGet(FIELD, localDe = 0, farray    = tmp_ptr2D, rc = rc) 
+#else
+            CALL ESMF_FieldGet(FIELD, localDe = 0, farrayPtr = tmp_ptr2D, rc = rc) 
+#endif
 
             dyn_array_save(1:dim1,1:dim2,1,n)=                     &
                dyn_array_save(1:dim1,1:dim2,1,n)+                    &
@@ -165,7 +175,12 @@
 !              maxval(dyn_array_save(1:dim1,1:dim2,1,n)),minval(dyn_array_save(1:dim1,1:dim2,1,n))
           else
             nullify(tmp_ptr)
-            CALL ESMF_FieldGet(FIELD, localDe=0, farray=tmp_ptr, rc = rc)
+
+#ifdef ESMF_3
+            CALL ESMF_FieldGet(FIELD, localDe = 0, farray    = tmp_ptr, rc = rc) 
+#else
+            CALL ESMF_FieldGet(FIELD, localDe = 0, farrayPtr = tmp_ptr, rc = rc) 
+#endif
 
             dyn_array_save(1:dim1,1:dim2,1:dim3,n)=                     &
                dyn_array_save(1:dim1,1:dim2,1:dim3,n)+                    &
@@ -208,7 +223,13 @@
         dim3=dyn_dim(3,n)
         if(dim3==1) then
           nullify(tmp_ptr2D)
-          CALL ESMF_FieldGet(FIELD, localDe=0, farray=tmp_ptr2D, rc = rc) 
+
+#ifdef ESMF_3
+            CALL ESMF_FieldGet(FIELD, localDe = 0, farray    = tmp_ptr2D, rc = rc) 
+#else
+            CALL ESMF_FieldGet(FIELD, localDe = 0, farrayPtr = tmp_ptr2D, rc = rc) 
+#endif
+
 !          print *,'dfi dyn save field ',trim(dyn_name(item)),'rc=',rc,'value=',  &
 !           maxval(tmp_ptr2D),minval(tmp_ptr2D),'dyn_save=',  &
 !           maxval(dyn_array_save(1:dim1,1:dim2,1,n)), &
@@ -216,7 +237,13 @@
           tmp_ptr2D(1:dim1,1:dim2) = dyn_array_save(1:dim1,1:dim2,1,n)
         else
           nullify(tmp_ptr)
-          CALL ESMF_FieldGet(FIELD, localDe=0, farray=tmp_ptr, rc = rc)
+
+#ifdef ESMF_3
+            CALL ESMF_FieldGet(FIELD, localDe = 0, farray    = tmp_ptr, rc = rc) 
+#else
+            CALL ESMF_FieldGet(FIELD, localDe = 0, farrayPtr = tmp_ptr, rc = rc) 
+#endif
+
 !          print *,'dfi dyn save field ',trim(dyn_name(item)),'=',  &
 !           maxval(tmp_ptr),minval(tmp_ptr)
           tmp_ptr(1:dim1,1:dim2,1:dim3) = dyn_array_save(1:dim1,1:dim2,1:dim3,n)

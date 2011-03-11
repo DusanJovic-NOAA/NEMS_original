@@ -1,3 +1,5 @@
+#include "../../ESMFVersionDefine.h"
+
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_PARENT_CHILD_CPL_COMP
@@ -13,6 +15,9 @@
 !
 !   2008-06-12  Black - Module created.
 !   2009-02-19  Black - Hydrostatic update of nest boundaries.
+!   2011-02     Yang  - Updated to use both the ESMF 4.0.0rp2 library,
+!                       ESMF 5 series library and the the
+!                       ESMF 3.1.0rp2 library.
 !
 !-----------------------------------------------------------------------
 !
@@ -232,9 +237,13 @@
       REAL,DIMENSION(:,:,:,:),POINTER,SAVE :: TRACERS
 !
       LOGICAL,DIMENSION(:),ALLOCATABLE,SAVE :: SEND_CHILD_DATA
-!
-      TYPE(ESMF_Logical) :: I_AM_A_FCST_TASK,I_AM_A_PARENT
-!
+
+#ifdef ESMF_3
+      TYPE(ESMF_Logical) :: I_AM_A_FCST_TASK, I_AM_A_PARENT
+#else
+      LOGICAL            :: I_AM_A_FCST_TASK, I_AM_A_PARENT
+#endif
+
       TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER,SAVE ::                &
                                                  CHILD_BOUND_H_SOUTH    & 
                                                 ,CHILD_BOUND_H_NORTH    & 
@@ -563,7 +572,7 @@
 !
       INTEGER(KIND=ESMF_KIND_I8) :: NTIMESTEP_ESMF
 !
-      integer :: mype
+      integer :: mype, LMP1
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -700,13 +709,21 @@
       MESSAGE_CHECK="Extract Assocaition of Domains and Config Files"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
       CALL ESMF_AttributeGet(state    =IMP_STATE                        &  !<-- The parent-child coupler import state
                             ,name     ='DOMAIN_ID_TO_RANK'              &  !<-- Name of the attribute to extract
                             ,count    =MAX_DOMAINS                      &  !<-- Name of elements in the Attribute
                             ,valueList=DOMAIN_ID_TO_RANK                &  !<-- Array associating domains and config files
                             ,rc       =RC)
-!
+#else
+      CALL ESMF_AttributeGet(state    =IMP_STATE                        &  !<-- The parent-child coupler import state
+                            ,name     ='DOMAIN_ID_TO_RANK'              &  !<-- Name of the attribute to extract
+                            ,itemCount=MAX_DOMAINS                      &  !<-- Name of elements in the Attribute
+                            ,valueList=DOMAIN_ID_TO_RANK                &  !<-- Array associating domains and config files
+                            ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -721,13 +738,21 @@
       MESSAGE_CHECK="Extract Number of Fcst Tasks on Each Domain in Init Step Coupler"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
       CALL ESMF_AttributeGet(state    =IMP_STATE                        &  !<-- The parent-child coupler import state
                             ,name     ='FTASKS_DOMAIN'                  &  !<-- Name of the attribute to extract
                             ,count    =NUM_DOMAINS                      &  !<-- # of items in the Attribute
                             ,valueList=FTASKS_DOMAIN                    &  !<-- # of forecast tasks on each domain
                             ,rc       =RC)
-!
+#else
+      CALL ESMF_AttributeGet(state    =IMP_STATE                        &  !<-- The parent-child coupler import state
+                            ,name     ='FTASKS_DOMAIN'                  &  !<-- Name of the attribute to extract
+                            ,itemCount=NUM_DOMAINS                      &  !<-- # of items in the Attribute
+                            ,valueList=FTASKS_DOMAIN                    &  !<-- # of forecast tasks on each domain
+                            ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -742,13 +767,21 @@
       MESSAGE_CHECK="Extract Domain IDs of Parents in Init Step Coupler"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
       CALL ESMF_AttributeGet(state    =IMP_STATE                        &  !<-- The parent-child coupler import state
                             ,name     ='ID_PARENTS'                     &  !<-- Name of the attribute to extract
                             ,count    =NUM_DOMAINS                      &  !<-- # of items in the Attribute
-                            ,valueList=ID_PARENTS                       &  !<-- Domain IDs of parents 
+                            ,valueList=ID_PARENTS                       &  !<-- Domain IDs of parents
                             ,rc       =RC)
-!
+#else
+      CALL ESMF_AttributeGet(state    =IMP_STATE                        &  !<-- The parent-child coupler import state
+                            ,name     ='ID_PARENTS'                     &  !<-- Name of the attribute to extract
+                            ,itemCount=NUM_DOMAINS                      &  !<-- # of items in the Attribute
+                            ,valueList=ID_PARENTS                       &  !<-- Domain IDs of parents
+                            ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -884,13 +917,21 @@
         MESSAGE_CHECK="Extract Parent-to-Child Comm in Coupler"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The parent-child coupler import state
                               ,name     ='Parent-to-Child Comms'        &  !<-- Name of the attribute to extract
                               ,count    =NUM_CHILDREN                   &  !<-- # of items in the Attribute
                               ,valueList=COMM_TO_MY_CHILDREN            &  !<-- MPI communicators to my children
                               ,rc       =RC)
-!
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The parent-child coupler import state
+                              ,name     ='Parent-to-Child Comms'        &  !<-- Name of the attribute to extract
+                              ,itemCount=NUM_CHILDREN                   &  !<-- # of items in the Attribute
+                              ,valueList=COMM_TO_MY_CHILDREN            &  !<-- MPI communicators to my children
+                              ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -905,13 +946,21 @@
         MESSAGE_CHECK="Extract IDs of Children in Parent-Child Coupler"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The parent-child coupler import state
                               ,name     ='CHILD_IDs'                    &  !<-- Name of the attribute to extract
                               ,count    =NUM_CHILDREN                   &  !<-- # of items in the Attribute
                               ,valueList=MY_CHILDREN_ID                 &  !<-- The domain IDs of the current domain's children
                               ,rc       =RC)
-!
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The parent-child coupler import state
+                              ,name     ='CHILD_IDs'                    &  !<-- Name of the attribute to extract
+                              ,itemCount=NUM_CHILDREN                   &  !<-- # of items in the Attribute
+                              ,valueList=MY_CHILDREN_ID                 &  !<-- The domain IDs of the current domain's children
+                              ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -943,12 +992,19 @@
         MESSAGE_CHECK="Extract PD from ESMF Field in Parent-Child Coupler"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_FieldGet(field  =HOLD_FIELD                           &  !<-- Field that holds the data pointer
-                          ,localDe=0                                    &
-                          ,farray =PD                                   &  !<-- Put the pointer here
-                          ,rc     =RC)
-!
+
+#ifdef ESMF_3
+        CALL ESMF_FieldGet(field      =HOLD_FIELD                      &  !<-- Field that holds the data pointer
+                          ,localDe   =0                                &
+                          ,farray    =PD                               &  !<-- Put the pointer here
+                          ,rc        =RC)
+#else
+        CALL ESMF_FieldGet(field      =HOLD_FIELD                      &  !<-- Field that holds the data pointer
+                          ,localDe   =0                                &
+                          ,farrayPtr =PD                               &  !<-- Put the pointer here
+                          ,rc        =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -966,6 +1022,7 @@
                           ,itemName='T'                                 &  !<-- Extract temperature
                           ,field   =HOLD_FIELD                          &  !<-- Put the extracted Field here
                           ,rc      =RC)
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
@@ -975,11 +1032,18 @@
         MESSAGE_CHECK="Extract T from ESMF Field in Parent-Child Coupler"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_FieldGet(field  =HOLD_FIELD                           &  !<-- Field that holds the data pointer
-                          ,localDe=0                                    &
-                          ,farray =T                                    &  !<-- Put the pointer here
-                          ,rc     =RC)
+
+#ifdef ESMF_3
+        CALL ESMF_FieldGet(field     =HOLD_FIELD                        &  !<-- Field that holds the data pointer
+                          ,localDe   =0                                 &
+                          ,farray    =T                                 &  !<-- Put the pointer here
+                          ,rc        =RC)
+#else
+        CALL ESMF_FieldGet(field     =HOLD_FIELD                        &  !<-- Field that holds the data pointer
+                          ,localDe   =0                                 &
+                          ,farrayPtr =T                                 &  !<-- Put the pointer here
+                          ,rc        =RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
@@ -1007,12 +1071,19 @@
         MESSAGE_CHECK="Extract U from ESMF Field in Parent-Child Coupler"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_FieldGet(field  =HOLD_FIELD                           &  !<-- Field that holds the data pointer
-                          ,localDe=0                                    &
-                          ,farray =U                                    &  !<-- Put the pointer here
-                          ,rc     =RC)
-!
+
+#ifdef ESMF_3
+        CALL ESMF_FieldGet(field     =HOLD_FIELD                        &  !<-- Field that holds the data pointer
+                          ,localDe   =0                                 &
+                          ,farray    =U                                 &  !<-- Put the pointer here
+                          ,rc        =RC)
+#else
+        CALL ESMF_FieldGet(field     =HOLD_FIELD                        &  !<-- Field that holds the data pointer
+                          ,localDe   =0                                 &
+                          ,farrayPtr =U                                 &  !<-- Put the pointer here
+                          ,rc        =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1039,12 +1110,19 @@
         MESSAGE_CHECK="Extract V from ESMF Field in Parent-Child Coupler"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_FieldGet(field  =HOLD_FIELD                           &  !<-- Field that holds the data pointer
-                          ,localDe=0                                    &
-                          ,farray =V                                    &  !<-- Put the pointer here
-                          ,rc     =RC)
-!
+
+#ifdef ESMF_3
+        CALL ESMF_FieldGet(field     =HOLD_FIELD                        &  !<-- Field that holds the data pointer
+                          ,localDe   =0                                 &
+                          ,farray    =V                                 &  !<-- Put the pointer here
+                          ,rc        =RC)
+#else
+        CALL ESMF_FieldGet(field     =HOLD_FIELD                        &  !<-- Field that holds the data pointer
+                          ,localDe   =0                                 &
+                          ,farrayPtr =V                                 &  !<-- Put the pointer here
+                          ,rc        =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1071,12 +1149,19 @@
         MESSAGE_CHECK="Extract Tracers from ESMF Field in Parent-Child Coupler"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_FieldGet(field  =HOLD_FIELD                           &  !<-- Field that holds the data pointer
-                          ,localDe=0                                    &
-                          ,farray =TRACERS                              &  !<-- Put the pointer here
-                          ,rc     =RC)
-!
+
+#ifdef ESMF_3
+        CALL ESMF_FieldGet(field     =HOLD_FIELD                        &  !<-- Field that holds the data pointer
+                          ,localDe   =0                                 &
+                          ,farray    =TRACERS                           &  !<-- Put the pointer here
+                          ,rc        =RC)
+#else
+        CALL ESMF_FieldGet(field     =HOLD_FIELD                        &  !<-- Field that holds the data pointer
+                          ,localDe   =0                                 &
+                          ,farrayPtr =TRACERS                           &  !<-- Put the pointer here
+                          ,rc        =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1103,12 +1188,19 @@
         MESSAGE_CHECK="Extract FIS from ESMF Field in Parent-Child Coupler"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_FieldGet(field  =HOLD_FIELD                           &  !<-- Field that holds the data pointer
-                          ,localDe=0                                    &
-                          ,farray =FIS                                  &  !<-- Put the pointer here
-                          ,rc     =RC)
-!
+
+#ifdef ESMF_3
+        CALL ESMF_FieldGet(field     =HOLD_FIELD                        &  !<-- Field that holds the data pointer
+                          ,localDe   =0                                 &
+                          ,farray    =FIS                               &  !<-- Put the pointer here
+                          ,rc        =RC)
+#else
+        CALL ESMF_FieldGet(field     =HOLD_FIELD                        &  !<-- Field that holds the data pointer
+                          ,localDe   =0                                 &
+                          ,farrayPtr =FIS                               &  !<-- Put the pointer here
+                          ,rc        =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1151,47 +1243,72 @@
         MESSAGE_CHECK="Extract PSGML1 from Parent-Child Coupler Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The parent-child coupler import state
                               ,name     ='PSGML1'                       &  !<-- Name of Attribute to extract
                               ,count    =LM                             &  !<-- # of words in data list
                               ,valueList=PSGML1                         &  !<-- Put the extracted Attribute here
                               ,rc       =RC)
-!
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The parent-child coupler import state
+                              ,name     ='PSGML1'                       &  !<-- Name of Attribute to extract
+                              ,itemCount=LM                             &  !<-- # of words in data list
+                              ,valueList=PSGML1                         &  !<-- Put the extracted Attribute here
+                              ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        ALLOCATE(SG1(1:LM+1))
+        LMP1 = LM + 1
+        ALLOCATE(SG1(1:LMP1))
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract SG1 from Parent-Child Coupler Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The parent-child coupler import state
                               ,name     ='SG1'                          &  !<-- Name of Attribute to extract
-                              ,count    =LM+1                           &  !<-- # of words in data list
+                              ,count    =LMP1                           &  !<-- # of words in data list
                               ,valueList=SG1                            &  !<-- Put the extracted Attribute here
                               ,rc       =RC)
-!
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The parent-child coupler import state
+                              ,name     ='SG1'                          &  !<-- Name of Attribute to extract
+                              ,itemCount=LMP1                           &  !<-- # of words in data list
+                              ,valueList=SG1                            &  !<-- Put the extracted Attribute here
+                              ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        ALLOCATE(SG2(1:LM+1))
+        ALLOCATE(SG2(1:LMP1))
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract SG2 from Parent-Child Coupler Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The parent-child coupler import state
                               ,name     ='SG2'                          &  !<-- Name of Attribute to extract
-                              ,count    =LM+1                           &  !<-- # of words in data list
+                              ,count    =LMP1                           &  !<-- # of words in data list
                               ,valueList=SG2                            &  !<-- Put the extracted Attribute here
                               ,rc       =RC)
-!
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The parent-child coupler import state
+                              ,name     ='SG2'                          &  !<-- Name of Attribute to extract
+                              ,itemCount=LMP1                           &  !<-- # of words in data list
+                              ,valueList=SG2                            &  !<-- Put the extracted Attribute here
+                              ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1202,13 +1319,21 @@
         MESSAGE_CHECK="Extract SGML2 from Parent-Child Coupler Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The parent-child coupler import state
                               ,name     ='SGML2'                        &  !<-- Name of Attribute to extract
                               ,count    =LM                             &  !<-- # of words in data list
                               ,valueList=SGML2                          &  !<-- Put the extracted Attribute here
                               ,rc       =RC)
-!
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The parent-child coupler import state
+                              ,name     ='SGML2'                        &  !<-- Name of Attribute to extract
+                              ,itemCount=LM                             &  !<-- # of words in data list
+                              ,valueList=SGML2                          &  !<-- Put the extracted Attribute here
+                              ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1352,13 +1477,21 @@
         MESSAGE_CHECK="Extract Parent-to-Child DT Ratio from Imp State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The parent-child coupler import state
                               ,name     ='Parent-Child Time Ratio'      &  !<-- Name of the attribute to extract
                               ,count    =NUM_CHILDREN                   &  !<-- # of items in the Attribute
-                              ,valueList=PARENT_CHILD_TIME_RATIO        &  !<-- Ratio of parent to child DTs 
+                              ,valueList=PARENT_CHILD_TIME_RATIO        &  !<-- Ratio of parent to child DTs
                               ,rc       =RC)
-!
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The parent-child coupler import state
+                              ,name     ='Parent-Child Time Ratio'      &  !<-- Name of the attribute to extract
+                              ,itemCount=NUM_CHILDREN                   &  !<-- # of items in the Attribute
+                              ,valueList=PARENT_CHILD_TIME_RATIO        &  !<-- Ratio of parent to child DTs
+                              ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3923,7 +4056,7 @@
 !
       TYPE(ESMF_Field) :: HOLD_FIELD
 !
-      integer :: nsize
+      integer :: nsize, LMP1
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -3976,11 +4109,19 @@
       MESSAGE_CHECK="Register the Nesting Coupler's Init, Run, Finalize"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
+
       CALL ESMF_CplCompSetServices(comp          =PARENT_CHILD_COUPLER_COMP &  ! <-- The Nesting coupler component
                                   ,subroutineName=PARENT_CHILD_CPL_REGISTER &  ! <-- The user's subroutineName
                                   ,rc            =RC)
-!
+#else
+
+      CALL ESMF_CplCompSetServices(cplcomp       =PARENT_CHILD_COUPLER_COMP &  ! <-- The Nesting coupler component
+                                  ,userRoutine   =PARENT_CHILD_CPL_REGISTER &  ! <-- The user's subroutineName
+                                  ,rc            =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4018,10 +4159,15 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!!!   IF(I_AM_A_FCST_TASK==ESMF_FALSE.OR.I_AM_A_PARENT==ESMF_FALSE)RETURN
-      IF(I_AM_A_FCST_TASK==ESMF_FALSE)RETURN
-!
+
+#ifdef ESMF_3
+!!!   IF(I_AM_A_FCST_TASK==ESMF_FALSE.OR.I_AM_A_PARENT==ESMF_FALSE) RETURN
+      IF(I_AM_A_FCST_TASK == ESMF_FALSE) RETURN
+#else
+!!!   IF(.NOT. I_AM_A_FCST_TASK .OR. .NOT. I_AM_A_PARENT) RETURN
+      IF(.NOT. I_AM_A_FCST_TASK)         RETURN
+#endif
+
 !-----------------------------------------------------------------------
 !***  Load key variables into the coupler's import state.
 !-----------------------------------------------------------------------
@@ -4089,13 +4235,21 @@
       MESSAGE_CHECK="Add Domain/ConfigFile Association to the Parent-Child Cpl Import State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
       CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler's import state
                             ,name     ='DOMAIN_ID_TO_RANK'              &  !<-- The association of domains and their config files
                             ,count    =MAX_DOMAINS                      &  !<-- Maximum # of domains
                             ,valueList=DOMAIN_ID_TO_RANK                &  !<-- Insert this into the import state
                             ,rc       =RC)
-!
+#else
+      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler's import state
+                            ,name     ='DOMAIN_ID_TO_RANK'              &  !<-- The association of domains and their config files
+                            ,itemCount=MAX_DOMAINS                      &  !<-- Maximum # of domains
+                            ,valueList=DOMAIN_ID_TO_RANK                &  !<-- Insert this into the import state
+                            ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4108,13 +4262,21 @@
       MESSAGE_CHECK="Add Number of Fcst Tasks Per Domain to the Nesting CPL Import State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
       CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
                             ,name     ='FTASKS_DOMAIN'                  &  !<-- Number of forecast tasks on each domain
                             ,count    =NUM_DOMAINS                      &  !<-- Number of domains
                             ,valueList=FTASKS_DOMAIN                    &  !<-- Insert this into the import state
                             ,rc       =RC)
-!
+#else
+      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
+                            ,name     ='FTASKS_DOMAIN'                  &  !<-- Number of forecast tasks on each domain
+                            ,itemCount=NUM_DOMAINS                      &  !<-- Number of domains
+                            ,valueList=FTASKS_DOMAIN                    &  !<-- Insert this into the import state
+                            ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4127,13 +4289,21 @@
       MESSAGE_CHECK="Add Domain IDs of Parents to the Nesting CPL Import State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
       CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
                             ,name     ='ID_PARENTS'                     &  !<-- IDs of parent domain
                             ,count    =NUM_DOMAINS                      &  !<-- Number of domains
                             ,valueList=ID_PARENTS_IN                    &  !<-- Insert this into the import state
                             ,rc       =RC)
-!
+#else
+      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
+                            ,name     ='ID_PARENTS'                     &  !<-- IDs of parent domain
+                            ,itemCount=NUM_DOMAINS                      &  !<-- Number of domains
+                            ,valueList=ID_PARENTS_IN                    &  !<-- Insert this into the import state
+                            ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4166,13 +4336,21 @@
         MESSAGE_CHECK="Add Parent-to-Child Communicators to the Nesting CPL Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
                               ,name     ='Parent-to-Child Comms'          &  !<-- Name of Attribute
                               ,count    =NUM_CHILDREN                     &  !<-- Length of inserted array
                               ,valueList=COMM_TO_MY_CHILDREN              &  !<-- Communicators to my children
                               ,rc       =RC)
-!
+#else
+        CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
+                              ,name     ='Parent-to-Child Comms'          &  !<-- Name of Attribute
+                              ,itemCount=NUM_CHILDREN                     &  !<-- Length of inserted array
+                              ,valueList=COMM_TO_MY_CHILDREN              &  !<-- Communicators to my children
+                              ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4463,6 +4641,8 @@
 !
       ALLOCATE(ARRAY_1D(1:LM))
 !
+
+#ifdef ESMF_3
       CALL ESMF_AttributeGet(state    =EXP_STATE_ATM                    &  !<-- The Parent's ATM export state
                             ,name     ='PSGML1'                         &  !<-- Extract PGMSL1
                             ,count    =LM                               &  !<-- # of words in data list
@@ -4489,32 +4669,90 @@
 !
       DEALLOCATE(ARRAY_1D)
       ALLOCATE(ARRAY_1D(1:LM+1))
+      LMP1 = LM + 1
 !
       CALL ESMF_AttributeGet(state    =EXP_STATE_ATM                    &  !<-- The Parent's ATM export state
                             ,name     ='SG1'                            &  !<-- Extract SG1
-                            ,count    =LM+1                             &  !<-- # of words in data list
+                            ,count    =LMP1                             &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
                             ,rc       =RC)
 !
       CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
                             ,name     ='SG1'                            &  !<-- Insert SG1
-                            ,count    =LM+1                             &  !<-- # of words in data list
+                            ,count    =LMP1                             &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Insert these values
                             ,rc       =RC)
 !
       CALL ESMF_AttributeGet(state    =EXP_STATE_ATM                    &  !<-- The Parent's ATM export state
                             ,name     ='SG2'                            &  !<-- Extract SG2
-                            ,count    =LM+1                             &  !<-- # of words in data list
+                            ,count    =LMP1                             &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
                             ,rc       =RC)
 !
       CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
                             ,name     ='SG2'                            &  !<-- Insert SG2
-                            ,count    =LM+1                             &  !<-- # of words in data list
+                            ,count    =LMP1                             &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Insert these values
                             ,rc       =RC)
 !
       DEALLOCATE(ARRAY_1D)
+
+#else
+      CALL ESMF_AttributeGet(state    =EXP_STATE_ATM                    &  !<-- The Parent's ATM export state
+                            ,name     ='PSGML1'                         &  !<-- Extract PGMSL1
+                            ,itemCount=LM                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
+                            ,rc       =RC)
+!
+      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
+                            ,name     ='PSGML1'                         &  !<-- Insert PGMSL1
+                            ,itemCount=LM                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Insert these values
+                            ,rc       =RC)
+!
+      CALL ESMF_AttributeGet(state    =EXP_STATE_ATM                    &  !<-- The Parent's ATM export state
+                            ,name     ='SGML2'                          &  !<-- Extract SGML2
+                            ,itemCount=LM                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
+                            ,rc       =RC)
+!
+      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
+                            ,name     ='SGML2'                          &  !<-- Insert SGML2
+                            ,itemCount=LM                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Insert these values
+                            ,rc       =RC)
+!
+      DEALLOCATE(ARRAY_1D)
+      ALLOCATE(ARRAY_1D(1:LM+1))
+      LMP1 = LM + 1
+!
+      CALL ESMF_AttributeGet(state    =EXP_STATE_ATM                    &  !<-- The Parent's ATM export state
+                            ,name     ='SG1'                            &  !<-- Extract SG1
+                            ,itemCount=LMP1                             &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
+                            ,rc       =RC)
+!
+      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
+                            ,name     ='SG1'                            &  !<-- Insert SG1
+                            ,itemCount=LMP1                             &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Insert these values
+                            ,rc       =RC)
+!
+      CALL ESMF_AttributeGet(state    =EXP_STATE_ATM                    &  !<-- The Parent's ATM export state
+                            ,name     ='SG2'                            &  !<-- Extract SG2
+                            ,itemCount=LMP1                             &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
+                            ,rc       =RC)
+!
+      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
+                            ,name     ='SG2'                            &  !<-- Insert SG2
+                            ,itemCount=LMP1                             &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Insert these values
+                            ,rc       =RC)
+!
+      DEALLOCATE(ARRAY_1D)
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
@@ -4540,13 +4778,21 @@
         MESSAGE_CHECK="Add Parent-Child DT Ratios to the Nesting CPL Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST             &  !<-- The Nesting Coupler's import state
                               ,name     ='Parent-Child Time Ratio'      &  !<-- Name of Attribute
                               ,count    =NUM_CHILDREN                   &  !<-- Length of inserted array
                               ,valueList=PARENT_CHILD_RATIO             &  !<-- The communicator to my parent
                               ,rc       =RC)
-!
+#else
+        CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST             &  !<-- The Nesting Coupler's import state
+                              ,name     ='Parent-Child Time Ratio'      &  !<-- Name of Attribute
+                              ,itemCount=NUM_CHILDREN                   &  !<-- Length of inserted array
+                              ,valueList=PARENT_CHILD_RATIO             &  !<-- The communicator to my parent
+                              ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4561,13 +4807,21 @@
         MESSAGE_CHECK="Add Domain IDs of Children to Nesting CPL Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST             &  !<-- The Nesting Coupler's import state
                               ,name     ='CHILD_IDs'                    &  !<-- Name of Attribute
                               ,count    =NUM_CHILDREN                   &  !<-- Length of inserted array
                               ,valueList=CHILD_ID                       &  !<-- The children's IDs of this ATM Component
                               ,rc       =RC)
-!
+#else
+        CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST             &  !<-- The Nesting Coupler's import state
+                              ,name     ='CHILD_IDs'                    &  !<-- Name of Attribute
+                              ,itemCount=NUM_CHILDREN                   &  !<-- Length of inserted array
+                              ,valueList=CHILD_ID                       &  !<-- The children's IDs of this ATM Component
+                              ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -7718,12 +7972,19 @@
         MESSAGE_CHECK="Extract FIS from ESMF Field in Parent-Child Coupler"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_FieldGet(field  =HOLD_FIELD                           &  !<-- Field that holds the data pointer
-                          ,localDe=0                                    &
-                          ,farray =FIS                                  &  !<-- Put the pointer here
-                          ,rc     =RC)
-!
+
+#ifdef ESMF_3
+        CALL ESMF_FieldGet(field     =HOLD_FIELD                        &  !<-- Field that holds the data pointer
+                          ,localDe   =0                                 &
+                          ,farray    =FIS                               &  !<-- Put the pointer here
+                          ,rc        =RC)
+#else
+        CALL ESMF_FieldGet(field     =HOLD_FIELD                        &  !<-- Field that holds the data pointer
+                          ,localDe   =0                                 &
+                          ,farrayPtr =FIS                               &  !<-- Put the pointer here
+                          ,rc        =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PRELIM)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -9776,13 +10037,21 @@
         MESSAGE_CHECK="Load Child Bndry Data "//DATA_NAME//" Into Coupler Export"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =EXPORT_STATE                  &  !<-- This Parent_child Coupler export state
                               ,name     =DATA_NAME                     &  !<-- Name of the children's new boundary H data
-                              ,count    =NN                            &  !<-- # of words in the data 
+                              ,count    =NN                            &  !<-- # of words in the data
                               ,valueList=DATA_EXP                      &  !<-- The children's new boundary H data
                               ,rc       =RC)
-!
+#else
+        CALL ESMF_AttributeSet(state    =EXPORT_STATE                  &  !<-- This Parent_child Coupler export state
+                              ,name     =DATA_NAME                     &  !<-- Name of the children's new boundary H data
+                              ,itemCount=NN                            &  !<-- # of words in the data
+                              ,valueList=DATA_EXP                      &  !<-- The children's new boundary H data
+                              ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_EXP_BNDRY)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -9811,13 +10080,21 @@
         MESSAGE_CHECK="Load Child Bndry Data "//DATA_NAME//" Into Coupler Export"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
+#ifdef ESMF_3
         CALL ESMF_AttributeSet(state    =EXPORT_STATE                    &  !<-- This Parent_child Coupler export state
                               ,name     =DATA_NAME                       &  !<-- Name of the children's new boundary V data
-                              ,count    =NN                              &  !<-- # of words in the data 
+                              ,count    =NN                              &  !<-- # of words in the data
                               ,valueList=DATA_EXP                        &  !<-- The children's new boundary V data
                               ,rc       =RC)
-!
+#else
+        CALL ESMF_AttributeSet(state    =EXPORT_STATE                    &  !<-- This Parent_child Coupler export state
+                              ,name     =DATA_NAME                       &  !<-- Name of the children's new boundary V data
+                              ,itemCount=NN                              &  !<-- # of words in the data
+                              ,valueList=DATA_EXP                        &  !<-- The children's new boundary V data
+                              ,rc       =RC)
+#endif
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_EXP_BNDRY)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

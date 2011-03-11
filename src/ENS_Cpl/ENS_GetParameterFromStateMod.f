@@ -1,3 +1,5 @@
+#include "../ESMFVersionDefine.h"
+
 !----------------------------------------------------------------------
 ! !MODULE: ENS_GetParameterFromStateMod
 !        --- Get required parameters from the ENS Coupler ESMF import state
@@ -10,6 +12,8 @@
 !
 !  May      2007     Weiyu Yang Initial code.
 !  March    2009     Weiyu Yang Modified for the NEMS model.
+!  February 2011     Weiyu Yang Updated to use both the ESMF 4.0.0rp2 library,
+!                               ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !
 !
 ! !INTERFACE:
@@ -122,15 +126,24 @@
  ALLOCATE(Int_State%global_lats_a(Int_State%latg))
  ALLOCATE(Int_State%lonsperlat   (Int_State%latg))
 
+#ifdef ESMF_3
  CALL ESMF_AttributeGet(State, 'GLOBAL_LATS_A', Int_State%latg, Int_State%global_lats_a, rc = rc1)
+#else
+ CALL ESMF_AttributeGet(State, 'GLOBAL_LATS_A', Int_State%global_lats_a, &
+     itemCount = Int_State%latg, rc = rc1)
+#endif
 
      IF(ESMF_LogMsgFoundAllocError(rc1, "Get GLOBAL_LATS_A from the ENS Cpl import state.")) THEN
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting GLOBAL_LATS_A from the ENS Cpl import state, rc = ', rc1
          rc1 = ESMF_SUCCESS
      END IF
-
+#ifdef ESMF_3
  CALL ESMF_AttributeGet(State, 'LONSPERLAT', Int_State%latg, Int_State%lonsperlat, rc = rc1)
+#else
+ CALL ESMF_AttributeGet(State, 'LONSPERLAT', Int_State%lonsperlat, &
+     itemCount = Int_State%latg, rc = rc1)
+#endif
 
      IF(ESMF_LogMsgFoundAllocError(rc1, "Get LONSPERLAT from the ENS Cpl import state.")) THEN
          rcfinal = ESMF_FAILURE
