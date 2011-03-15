@@ -3,6 +3,7 @@
      &  ntrac,nxpt,nypt,jintmx,jcap,
      &  levs,levr,lonf,latg, ntoz,
      &  ntcw,ncld, spectral_loop, me,
+     &  thermodyn_id,sfcpress_id,
      &  nlunit, gfs_dyn_namelist,ndfi)
 !$$$  Subprogram Documentation Block
 !
@@ -43,6 +44,7 @@
 !   2009-11-09  Jun Wang       added ndfi 
 !   2010-09-08  Jun Wang       change gfsio to nemsio
 !   2011-02-11  Henry Juang    add codes to fit mass_dp and ndslfv
+!   2011-02-28  Sarah Lu       add thermodyn_id and sfcpress_id
 !
 ! Usage:    call compns(deltim,
 !    &                  fhout,fhres,
@@ -79,6 +81,7 @@
       integer ntrac,nxpt,nypt,jintmx,jcap,levs,lonf,latg
       integer levr,lsoil,nmtvr,lonr,latr,ndfi
       integer ntoz,ntcw,ncld,spectral_loop,member_num
+      integer thermodyn_id, sfcpress_id
       real    tfiltc
 
 c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -91,6 +94,7 @@ c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      & explicit,hybrid,gen_coord_hybrid,process_split, 
      & spectral_loop,ndslfv,mass_dp,semi_implicit_temp_profile,
      & reduced_grid,linear_grid,
+     & thermodyn_id, sfcpress_id,
      & zflxtvd,num_reduce
 
 !
@@ -118,6 +122,9 @@ c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       process_split    = .false.                                     !hmhj
       linear_grid      = .false.                                     !hmhj
       liope            = .true.
+!
+      thermodyn_id     = 1
+      sfcpress_id      = 1
 !
       zflxtvd          = .false.
       ndslfv           = .false. ! non_iteration semi_Lagrangian finite volume

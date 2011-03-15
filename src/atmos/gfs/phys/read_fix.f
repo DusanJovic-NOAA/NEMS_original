@@ -77,6 +77,11 @@
 !
 !***********************************************************************
 !
+! !REVISION HISTORY:
+!
+!  2011/02/26  Sarah Lu, Modified to read cold-start (from chgres) and warm
+!              start (from replay) ICs
+!
 !      use sfcio_module, ONLY: sfcio_head, sfcio_data, sfcio_realfill,
 !     &                        sfcio_srohdc, sfcio_axdata
       use resol_def,    ONLY: latr, latr2, lonr, lsoil
@@ -103,7 +108,8 @@
       integer kmsk(lonr,latr),kmskcv(lonr,latr)
       CHARACTER*8 labfix(4)
       real t1,t2,timef,rsnow
-      real(4) fhour4
+      real(4) fhour
+      integer nfhour,nfminute,nfsecondn,nfsecondd
       type(nemsio_gfile) gfile_in
       integer iret, vegtyp,lonb4,latb4,nsoil4,ivs4
       integer size1, size2, size3
@@ -123,18 +129,22 @@
 !
       IF (me == 0) THEN
 
-        call nemsio_getheadvar(gfile_in,'fhour',fhour4,iret=iret)
         call nemsio_getheadvar(gfile_in,'lonb',lonb4,iret=iret)
         call nemsio_getheadvar(gfile_in,'latb',latb4,iret=iret)
         call nemsio_getheadvar(gfile_in,'nsoil',nsoil4,iret=iret)
         call nemsio_getheadvar(gfile_in,'ivs',ivs4,iret=iret)
-        call nemsio_getheadvar(gfile_in,'idate',idate7,iret=iret)
+        call nemsio_getfilehead(gfile_in,idate=idate7,nfhour=nfhour,    
+     &       nfminute=nfminute,nfsecondn=nfsecondn,nfsecondd=nfsecondd,
+     &       iret=iret)   
         if(iret/=0) print *,' after sfcio_srohdc,iret=',iret
         print *,'in read sfc, nemsio head time=',timef()-etime
 
+        FHOUR     = real(nfhour,8)+real(nfminute,8)/60.+        
+     &              real(nfsecondn,8)/(real(nfsecondd,8)*3600.)
+
 !        PRINT 99,nread,head%fhour,head%idate,
 !     &           head%lonb,head%latb,head%lsoil,head%ivs,iret
-        PRINT 99,nread,fhour4,idate7(1:4),
+        PRINT 99,nread,fhour,idate7(1:4),
      &           lonb4,latb4,nsoil4,ivs4,iret
 99      FORMAT(1H ,'in fixio nread=',i3,2x,'HOUR=',f8.2,3x,'IDATE=',
      &  4(1X,I4),4x,'lonsfc,latsfc,lsoil,ivssfc,iret=',5i8)

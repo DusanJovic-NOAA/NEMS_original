@@ -8,6 +8,7 @@
 !*** Dec, 2009 Jun Wang:  read grid point variables for restart
 !*** Dec, 2010 Jun Wang:  change to nemsio library 
 !*** Feb, 2011 Henry Juang: add dpg for mass_dp and ndsl
+!*** Feb, 2011 Sarah Lu: change for new nemsio file header
 !-------------------------------------------------------------------
 !
 !!
@@ -27,7 +28,7 @@
       IMPLICIT NONE
       character(*) gfilename
       REAL(KIND=KIND_EVOD) FHOUR
-      INTEGER              IDATE(4),NTRACI, ntozi, ntcwi, ncldi
+      INTEGER              IDATE(4)
      &,                    latbi, lonbi, levsi, jcapi,
      &                     latgi, lonfi, latri, lonri,idate7(7)
 !
@@ -82,8 +83,7 @@
       call nemsio_getfilehead(gfile_in,iret=iret,
      &  idate=idate7,
      &  dimy=im,dimx=jm,dimz=levsi,jcap=jcapi,
-     &  ntrac=ntraci,idsl=idsl,idvc=idvc,idvm=idvm,
-     &  ncldt=ncldt)
+     &  idvc=idvc)
 !      print *,'after nemsio_getfilehead,iret=',iret
 !!
       call nemsio_getheadvar(gfile_in,'fhour',fhour,iret=iret)
@@ -95,18 +95,17 @@
       call nemsio_getheadvar(gfile_in,'icen2',icen2,iret=iret)
       call nemsio_getheadvar(gfile_in,'iens',iens,iret=iret)
       call nemsio_getheadvar(gfile_in,'idpp',idpp,iret=iret)
-      call nemsio_getheadvar(gfile_in,'idvt',idvt,iret=iret)
       call nemsio_getheadvar(gfile_in,'idrun',idrun,iret=iret)
       call nemsio_getheadvar(gfile_in,'itrun',itrun,iret=iret)
       call nemsio_getheadvar(gfile_in,'nvcoord',nvcoord,iret=iret)
       call nemsio_getheadvar(gfile_in,'pdryini',pdryini,iret=iret)
 !
       if (me == 0) then
-        print *,'iret=',iret,'idvt=',idvt,' nvcoord=',nvcoord,
-     &     ' levsi=',levsi,'ntoz=',ntoz,'idate7=',idate7,
+        print *,'iret=',iret,' nvcoord=',nvcoord,
+     &     ' levsi=',levsi,'idate7=',idate7,
      &   'lonf=',lonf,'lonfi=',lonfi,'latg=',latg,'latgi=',latgi,
      &   'jcap=',jcap,'jcapi=',jcapi,'levs=',levs,'levsi=',levsi,
-     &   'idvc=',idvc,'idvm=',idvm,'idsl=',idsl,'itrun=',itrun,
+     &   'idvc=',idvc,'itrun=',itrun,
      &   'gen_coord_hybrid=',gen_coord_hybrid,'pdryini=',pdryini
         if(lonf .ne. lonfi .or. latg .ne. latgi .or.
      &     jcap .ne. jcapi .or. levs .ne. levsi) then
@@ -114,6 +113,26 @@
      &,  ' different- run aborted'
           call mpi_quit(660)
         endif
+        if ( gen_coord_hybrid ) then
+          print *, ' Use sigma-theta-p hybrid coordinate'
+          if (idvc == 3 ) then
+           print *, ' Restart input is consistent, run continues'
+          else
+           print *, ' Restart input is different, run aborted'
+           call mpi_quit(661)
+          endif
+        endif
+        if ( hybrid ) then
+          print *, ' Use sigma-p hybrid coordinate'
+          if (idvc == 2 ) then
+           print *, ' Restart input is consistent, run continues'
+          else
+           print *, ' Restart input is different, run aborted'
+           call mpi_quit(662)
+          endif
+        endif
+
+
       endif
 !
       allocate (vcoord4(levsi+1,3,2))
@@ -134,8 +153,8 @@
 !---
       if (gen_coord_hybrid) then                                        ! hmhj
 
-        sfcpress_id  = mod(idvm , 10)
-        thermodyn_id = mod(idvm/10 , 10)
+!        sfcpress_id  = mod(idvm , 10)
+!        thermodyn_id = mod(idvm/10 , 10)
 !   ak bk ck in file have the same order as model                       ! hmhj
         do k=1,levp1                                                    ! hmhj
           ak5(k) = vcoord(k,1)/1000.                                    ! hmhj
@@ -227,43 +246,21 @@
         call MPI_QUIT(670)
       endif
 !
-      idate(1)       = idate7(4)
-      idate(2:3)       = idate7(2:3)
-      idate(4)       = idate7(1)
+      idate(1)    = idate7(4)
+      idate(2:3)  = idate7(2:3)
+      idate(4)    = idate7(1)
       WAVES       = jcap
       XLAYERS     = levs
       itrun       = itrun
       icen        = 7
       ienst       = iens(1)
       iensi       = iens(2)
-      ntraci = ntrac
-      if (idvt .gt. 0.0) then
-        ntcwi = idvt / 10
-        ntozi = idvt - ntcwi * 10 + 1
-        ntcwi = ntcwi + 1
-        ncldi = ncldt
-      elseif(ntraci .eq. 2) then
-        ntozi = 2
-        ntcwi = 0
-        ncldi = 0
-      elseif(ntraci .eq. 3) then
-        ntozi = 2
-        ntcwi = 3
-        ncldi = 1
-      else
-        ntozi = 0
-        ntcwi = 0
-        ncldi = 0
-      endif
-
 !
 !
       IF (me.eq.0) THEN
         write(0,*)'gfile,in treadeo fhour,idate=',gfilename,fhour,idate
-     &, ' ntozi=',ntozi,' ntcwi=',ntcwi,' ncldi=',ncldi
-     &, ' ntraci=',ntraci,' tracers=',ntrac,' idvt=',idvt
-     &, ' ncldt=',ncldt,' idvc=',idvc,' jcap=',jcap
-     &, ' pdryini=',pdryini,'ntoz=',ntoz,'idate=',idate
+     &, ' idvc=',idvc,' jcap=',jcap 
+     &, ' pdryini=',pdryini,'idate=',idate
       ENDIF
 !
       fieldsize=im*jm

@@ -20,6 +20,7 @@
 !       16 Dec 2010:  J. Wang - change to nemsio library
 !          Feb 2011:  W. Yang - Updated to use both the ESMF 4.0.0rp2 library,
 !                               ESMF 5 library and the the ESMF 3.1.0rp2 library.
+!       07 Mar 2011:  S. Lu - idvm is determined from sfcpress and thermodyn
 !
 !--------------------------------------------------------------------------------
 !
@@ -2203,9 +2204,9 @@
       ALLOCATE(VCOORD(LM+1,3,2))
       VCOORD=0.
       if(wrt_int_state%core=='gfs') then
-!        idvm    = Nthermodyn_id*10 + Nsfcpress_id    in model
+        idvm    = Nthermodyn_id*10 + Nsfcpress_id    ! user specified
 !for output:
-        idvm    = 22                                 ! 1:  ln(ps) 2:ps   ! hmhj
+!       idvm    = 22                                 ! 1:  ln(ps) 2:ps   ! hmhj
                                                      ! 1: Tv, 2: T, 3:Th
         IF(gen_coord_hybrid) then
           idvc    = 3

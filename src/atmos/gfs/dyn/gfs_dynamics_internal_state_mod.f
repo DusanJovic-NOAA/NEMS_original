@@ -21,6 +21,7 @@
 !  Aug 2010           sarah lu, add glbsum and ptrc
 !  Feb 2011           hann-ming henry jaung, add non-iteration dimensional-split
 !                                            (NDSL) semi-Lagrangian dynamics
+!  Feb 2011           sarah lu, add thermodyn_id, sfcpress_id
 !
 ! !interface:
 !
@@ -61,6 +62,7 @@
 !
       integer ntrac,nxpt,nypt,jintmx,jcap,levs,lonf,latg,lats_node_a_max
       integer ntoz, ntcw, ncld, levr
+      integer thermodyn_id, sfcpress_id
 
       character(16)                     ::  cfhour1
 !jws

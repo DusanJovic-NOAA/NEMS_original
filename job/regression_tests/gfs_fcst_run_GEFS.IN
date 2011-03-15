@@ -191,7 +191,7 @@ echo 'FCSTEXEC=' $FCSTEXEC
 #    ____________________________________________
 #
 
-cp /global/save/wx20wy/svn_nems_trunk/trunk_work3/job/regression_tests/gfs_configfile_190 _RUNDIR_/configure_file
+##cp /global/save/wx20wy/svn_nems_trunk/trunk_work3/job/regression_tests/gfs_configfile_190 _RUNDIR_/configure_file
 
 cd _RUNDIR_
  export COMOUT=_RUNDIR_

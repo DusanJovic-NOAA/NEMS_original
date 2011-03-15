@@ -71,7 +71,7 @@ NST_SPINUP=${NST_SPINUP:-.false.}
  export NDSLFV=_NDSLFV_
 if [ $NDSLFV = .true. ]
 then
- export DELTIM=1200.
+ export DELTIM=1200
  export MASS_DP=.true.
  export LINEAR_GRID=.false.
  export PROCESS_SPLIT=.false.

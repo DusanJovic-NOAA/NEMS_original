@@ -11,6 +11,7 @@
 !  Feb   2010      jun wang   read data from nemsio file
 !  Sep   2010      jun wang   remove gfsio option
 !  Dec   2010      jun wang   change to nemsio library
+!  Feb   2011      sarah lu   change to read nfhour
 !
 !uses:
 !
@@ -32,8 +33,7 @@
       integer,                intent(out) :: rc     ! return code
 
       integer                        :: rc1 = esmf_success
-      real(kind = kind_evod)         :: fhour
-      real(kind = kind_io4)          :: fhour4
+      integer                        :: nfhour 
       type(nemsio_gfile) :: nfile
       character (len=*)              :: cfile, cfile2
       integer iret, khour
@@ -46,15 +46,8 @@
         call nemsio_init()
         call nemsio_open(nfile,trim(cfile),'read',iret=iret)
 !        print *,'nemsio open instart iret=',iret
-        call nemsio_getheadvar(nfile,'idate',idate7,iret=iret)
-!        print *,'nemsio open inidate7 iret=',iret
-        call nemsio_getheadvar(nfile,'fhour',fhour4,iret=iret)
-        if(iret==0) then
-          fhour=fhour4
-        else
-          call nemsio_getheadvar(nfile,'fhour',fhour,iret=iret)
-        endif
-        print *,'nemsio open in fhour iret=',iret
+        call nemsio_getfilehead(nfile,idate=idate7,nfhour=kfhour,   & 
+     &     iret=iret)                                            
         call nemsio_close(nfile)
         call nemsio_finalize()
 !
@@ -75,8 +68,7 @@
 
 !      print *,' fhour=',fhour,' idate=',idate7,' iret=',iret
       if (iret .ne. 0) call mpi_quit(5555)
-      kfhour = nint(fhour)
-      print *,' idate=',idate,' fhour=',fhour,' kfhour=',kfhour
+      print *,' idate=',idate,' kfhour=',kfhour
 
       rc = rc1
 

@@ -27,6 +27,7 @@
 !                                with mass_dp, process_split options.
 !  Dec 16  2010 J. Wang          changed to nemsio library
 !  Feb 20  2011 H. Juang         implement into nems for mass_dp and ndsl
+!  Feb 28  2011 Sarah Lu         add thermodyn_id and sfcpress_id
 !
 !
 ! !interface:
@@ -41,7 +42,7 @@
 !
       use gfs_dyn_write_state, only : buff_mult_pieceg
       use gfs_dyn_layout1, only : ipt_lats_node_a, lats_node_a_max
-      use gfs_dyn_resol_def, only : adiabatic
+      use gfs_dyn_resol_def, only : adiabatic, thermodyn_id, sfcpress_id
       use namelist_dynamics_def, only : fhrot,fhini,num_reduce
       use gfs_dyn_tracer_config, only: gfs_dyn_tracer, tracer_config_init
 
@@ -82,7 +83,8 @@
                            gis_dyn%lonf,   gis_dyn%latg,          	&
                            gis_dyn%ntoz,   gis_dyn%ntcw, gis_dyn%ncld, 	&
                            gis_dyn%spectral_loop,               	&
-                     me,   gis_dyn%nam_gfs_dyn%nlunit, 			&
+                     me,   gis_dyn%thermodyn_id,gis_dyn%sfcpress_id,    &
+                           gis_dyn%nam_gfs_dyn%nlunit, 			&
                            gis_dyn%nam_gfs_dyn%gfs_dyn_namelist,        &
                            gis_dyn%ndfi)                           ! jw
 !
@@ -116,6 +118,9 @@
       ntoz    = gis_dyn%ntoz
       ntcw    = gis_dyn%ntcw
       ncld    = gis_dyn%ncld
+      thermodyn_id = gis_dyn%thermodyn_id
+      sfcpress_id  = gis_dyn%sfcpress_id
+
       if (gis_dyn%nam_gfs_dyn%total_member <= 1) then
         ens_nam=' '
       else

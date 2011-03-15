@@ -16,6 +16,8 @@
 !  Sep 08 2010    Jun Wang, change to nemsio format file
 !  Dec 16 2010    Jun Wang, change to nemsio library
 !  Feb 20 2011    Henry Juang, change to have mass dp and ndslfv
+!  Feb 26 2011    Sarah Lu, modify to read both cold-start (from chgres) and 
+!                 warm-start (from replay) ICs
 !  
  
       use gfs_dyn_resol_def
@@ -36,9 +38,9 @@
 !
       IMPLICIT NONE
       character*(*) cfile
-      INTEGER              IDATE(4),NTRACI, ntozi, ntcwi, ncldi
-     &,                    latbi, lonbi, levsi, jcapi,
-     &                     latgi, lonfi, latri, lonri,idate7(7)
+      INTEGER             IDATE(4),
+     &                    latbi, lonbi, levsi, jcapi,
+     &                    latgi, lonfi, latri, lonri,idate7(7)
 !!
       real(kind=kind_evod)  epse(len_trie_ls)
       real(kind=kind_evod)  epso(len_trio_ls)
@@ -70,7 +72,9 @@
       REAL(KIND=KIND_EVOD) TRUN,WAVES,XLAYERS
       REAL(KIND=KIND_EVOD) XI(LEVP1),XL(LEVS)
       REAL(KIND=KIND_EVOD) sikp1(levp1)
-      REAL(KIND=KIND_IO4)   VTID,RUNID4,fhour4,pdryini4,XNCLD,xgf
+      REAL(KIND=KIND_IO4)  VTID,RUNID4,pdryini4,XNCLD,xgf
+      integer              nfhour,nfminute,nfsecondn,nfsecondd 
+
       REAL(KIND=KIND_grid)  PDRYINI
       real(kind=kind_io4), allocatable ::  vcoord4(:,:,:)
 ! for generalized tracers
@@ -118,18 +122,19 @@
 !
       call nemsio_getfilehead(gfile_in,iret=iret,
      &  version=ivsupa,idate=idate7,
+     &  nfhour=nfhour,nfminute=nfminute,
+     &  nfsecondn=nfsecondn,nfsecondd=nfsecondd,
      &  dimy=latb,dimx=lonb,dimz=levsi,jcap=jcapi,
-     &  ntrac=ntraci,idsl=idsl,idvc=idvc,idvm=idvm,
+     &  idvc=idvc,
      &  ncldt=ncldt,tlmeta=tlmeta)
        idate(1)=idate7(4)
        idate(2:3)=idate7(2:3)
        idate(4)=idate7(1)
 !
-      call nemsio_getheadvar(gfile_in,'fhour',fhour4,iret=iret)
       call nemsio_getheadvar(gfile_in,'iorder',iorder,iret=iret)
       call nemsio_getheadvar(gfile_in,'irealf',irealf,iret=iret)
       call nemsio_getheadvar(gfile_in,'igen',igen,iret=iret)
-      call nemsio_getheadvar(gfile_in,'latf',latgi,iret=iret)
+      call nemsio_getheadvar(gfile_in,'latg',latgi,iret=iret)
       call nemsio_getheadvar(gfile_in,'lonf',lonfi,iret=iret)
       call nemsio_getheadvar(gfile_in,'latr',latri,iret=iret)
       call nemsio_getheadvar(gfile_in,'lonr',lonri,iret=iret)
@@ -139,7 +144,6 @@
       call nemsio_getheadvar(gfile_in,'idrun',idrun,iret=iret)
       call nemsio_getheadvar(gfile_in,'itrun',itrun,iret=iret)
       call nemsio_getheadvar(gfile_in,'idusr',idusr,iret=iret)
-      call nemsio_getheadvar(gfile_in,'idvt',idvt,iret=iret)
       call nemsio_getheadvar(gfile_in,'pdryini',pdryini,iret=iret)
       call nemsio_getheadvar(gfile_in,'nvcoord',nvcoord,iret=iret)
 
@@ -152,11 +156,11 @@
 !     &  idusr=idusr,pdryini=pdryini4,ncldt=ncldt,nvcoord=nvcoord)
 !
       if (me == 0) then
-        print *,'iret=',iret,'idvt=',idvt,' nvcoord=',nvcoord,
-     &     ' levsi=',levsi,'ntoz=',ntoz,' idate=',idate,
+        print *,'iret=',iret,' nvcoord=',nvcoord,
+     &     ' levsi=',levsi,' idate=',idate,
      &   'lonf=',lonf,'lonfi=',lonfi,'latg=',latg,'latgi=',latgi,
      &   'jcap=',jcap,'jcapi=',jcapi,'levs=',levs,'levsi=',levsi,
-     &   'idvc=',idvc,'idvm=',idvm,'idsl=',idsl,'tlmeta=',tlmeta,
+     &   'idvc=',idvc,'tlmeta=',tlmeta,
      &   'gen_coord_hybrid=',gen_coord_hybrid,'pdryini4=',pdryini4
         if(lonf .ne. lonfi .or. latg .ne. latgi .or.
      &     jcap .ne. jcapi .or. levs .ne. levsi) then
@@ -164,6 +168,24 @@
      &,  ' different- run aborted'
           call mpi_quit(555)
         endif
+        if ( gen_coord_hybrid ) then
+          print *, ' Use sigma-theta-p hybrid coordinate'
+          if (idvc == 3 ) then
+           print *, ' Cold_start input is consistent, run continues'
+          else 
+           print *, ' Cold_start input is different, run aborted'
+           call mpi_quit(556)
+          endif
+        endif   
+        if ( hybrid ) then
+          print *, ' Use sigma-p hybrid coordinate'
+          if (idvc == 2 ) then
+           print *, ' Cold_start input is consistent, run continues'
+          else 
+           print *, ' Cold_start input is different, run aborted'
+           call mpi_quit(557)
+          endif
+        endif   
       endif
 !
       allocate (vcoord4(levsi+1,3,2))
@@ -197,8 +219,6 @@
 !
       if (gen_coord_hybrid) then                                        ! hmhj
 
-        sfcpress_id  = mod(idvm , 10)
-        thermodyn_id = mod(idvm/10 , 10)
 !   ak bk ck in file have the same order as model                       ! hmhj
         do k=1,levp1                                                    ! hmhj
           ak5(k) = vcoord(k,1)/1000.                                    ! hmhj
@@ -290,7 +310,8 @@
         call MPI_QUIT(560)
       endif
 !
-      FHOUR       = fhour4
+      FHOUR       = real(nfhour,8)+real(nfminute,8)/60.+          
+     &              real(nfsecondn,8)/(real(nfsecondd,8)*3600.)
       WAVES       = jcap
       XLAYERS     = levs
       itrun       = itrun
@@ -300,34 +321,11 @@
       ienst       = iens(1)
       iensi       = iens(2)
       if (pdryini .eq. 0.0) pdryini = pdryini4
-      ntraci = ntrac
-      if (idvt .gt. 0.0) then
-        ntcwi = idvt / 10
-        ntozi = idvt - ntcwi * 10 + 1
-        ntcwi = ntcwi + 1
-        ncldi = ncldt
-      elseif(ntraci .eq. 2) then
-        ntozi = 2
-        ntcwi = 0
-        ncldi = 0
-      elseif(ntraci .eq. 3) then
-        ntozi = 2
-        ntcwi = 3
-        ncldi = 1
-      else
-        ntozi = 0
-        ntcwi = 0
-        ncldi = 0
-      endif
-
 !
 !
       IF (me.eq.0) THEN
         write(0,*)'cfile,in treadeo fhour,idate=',cfile,fhour,idate
-     &, ' ntozi=',ntozi,' ntcwi=',ntcwi,' ncldi=',ncldi
-     &, ' ntraci=',ntraci,' tracers=',ntrac,' vtid=',idvt
-     &,   ncldt,' idvc=',idvc,' jcap=',jcap
-     &, ' pdryini=',pdryini,'ntoz=',ntoz
+     &, ' idvc=',idvc,' jcap=',jcap, ' pdryini=',pdryini
       ENDIF
 !
       allocate (nemsio_data(lonb*latb))

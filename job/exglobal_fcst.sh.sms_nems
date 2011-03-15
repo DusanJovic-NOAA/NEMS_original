@@ -41,6 +41,7 @@
 #             and rewrote some parts and added ensemble generality
 # 2010-07-23  Sarah Lu : add AER, modify filename_base, file_io_form, file_io
 # 2010-12-12  Henry Juang : add linear grid, JCAPG for NDSL
+# 2011-02-28  Sarah Lu : add thermodyn_id and sfcpress_id to nam_dyn
 #
 # Usage:  global_forecast.sh SIGI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO NSTI NSTO G3DO FHOUT_HF FHMAX_HF
 #
@@ -1168,6 +1169,7 @@ cat  > atm_namelist <<EOF
   ndslfv=$NDSLFV,mass_dp=$MASS_DP,process_split=$PROCESS_SPLIT,
   reduced_grid=$REDUCED_GRID,linear_grid=$LINEAR_GRID,
   semi_implicit_temp_profile=$SEMI_IMPLICIT_TEMP_PROFILE,
+  thermodyn_id=$THERMODYN_ID, sfcpress_id=$SFCPRESS_ID,
   $DYNVARS /
 &nam_phy
   FHOUT=$FHOUT, FHMAX=$FHMAX, IGEN=$IGEN, DELTIM=$DELTIM,

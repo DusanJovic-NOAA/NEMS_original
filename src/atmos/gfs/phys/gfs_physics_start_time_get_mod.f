@@ -11,6 +11,7 @@
 !  november 2007   henry juang
 !  Sep      2010   Jun Wang  change to nemsio file
 !  Dec      2010   Jun Wang  change to nemsio library
+!  Feb      2011   Sarah Lu  change to read nfhour from nemsio file header
 !
 !uses:
 !
@@ -35,7 +36,6 @@
 
       integer                        :: rc1 = esmf_success
       real(kind = kind_evod)         :: fhour
-      real(kind = kind_io4)          :: fhour4
       type(sfcio_head) head
       type(nemsio_gfile) nfile
       integer iret, khour
@@ -59,6 +59,7 @@
         mns    = 0
         sec    = 0
 
+        kfhour = nint(fhour) 
 
         rc = rc1
       else
@@ -67,17 +68,12 @@
         call nemsio_init()
         call nemsio_open(nfile,trim(cfile),'read',iret=iret)
         print *,'in start time,after nemsio_open,iret=',iret
-        call nemsio_getheadvar(nfile,'idate',idate7,iret=iret)
-        call nemsio_getheadvar(nfile,'fhour',fhour4,iret=iret)
-        if(iret==0) then
-          fhour=fhour4
-          fhini=fhour4
-        else
-          call nemsio_getheadvar(nfile,'fhour',fhour,iret=iret)
-          fhini=fhour
-        endif
 
-        print *,'after nemsio,idate=',idate7,'fhour=',fhour,iret
+        call nemsio_getfilehead(nfile,idate=idate7,nfhour=kfhour,   & 
+     &     iret=iret)                                               
+        fhini=real(kfhour) 
+
+!       print *,'after nemsio,idate=',idate7,'nfhour=',kfhour,iret
         call nemsio_close(nfile)
         call nemsio_finalize()
         idate(1)=idate7(4)
@@ -96,9 +92,7 @@
 
       endif
 !
-      print *,' fhour=',fhour,' idate=',idate7,' iret=',iret
+      print *,' idate=',idate,' kfhour=',kfhour
       if (iret .ne. 0) call mpi_quit(5555)
-      kfhour = nint(fhour)
-      print *,' idate=',idate,' fhour=',fhour,' kfhour=',kfhour
 
       end subroutine gfs_physics_start_time_get

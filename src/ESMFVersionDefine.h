@@ -1,1 +1,1 @@
-#define ESMF_3
+#undef ESMF_3
