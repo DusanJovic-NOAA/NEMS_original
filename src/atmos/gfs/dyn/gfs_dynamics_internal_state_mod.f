@@ -22,6 +22,7 @@
 !  Feb 2011           hann-ming henry jaung, add non-iteration dimensional-split
 !                                            (NDSL) semi-Lagrangian dynamics
 !  Feb 2011           sarah lu, add thermodyn_id, sfcpress_id
+!  Mar 2011           hann-ming henry jaung, add jcapg for NDSL
 !
 ! !interface:
 !
@@ -60,8 +61,9 @@
       integer                   :: grib_inp
 
 !
-      integer ntrac,nxpt,nypt,jintmx,jcap,levs,lonf,latg,lats_node_a_max
-      integer ntoz, ntcw, ncld, levr
+      integer nxpt,nypt,jintmx
+      integer jcap,jcapg,levs,lonf,latg,lats_node_a_max
+      integer ntrac, ntoz, ntcw, ncld, levr
       integer thermodyn_id, sfcpress_id
 
       character(16)                     ::  cfhour1

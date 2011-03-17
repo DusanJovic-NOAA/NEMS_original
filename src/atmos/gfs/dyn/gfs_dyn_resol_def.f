@@ -2,11 +2,12 @@
 
 ! program log:
 ! 20110220:   Henry Juang update index for MASS_DP and NDSLFV
+! 20110315:   Henry Juang add JCAPG for usual resolution in grid
 !
       use gfs_dyn_machine
       implicit none
       
-      integer   jcap,jcap1,jcap2,latg,latg2
+      integer   jcap,jcapg,jcap1,jcap2,latg,latg2
       integer   levh,levm1,levp1,levs,lnt,lnt2,lnt22,levr
       integer   lnte,lnted,lnto,lntod,lnuv
       integer   lonf,lonfx

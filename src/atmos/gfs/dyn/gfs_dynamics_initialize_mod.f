@@ -28,6 +28,7 @@
 !  Dec 16  2010 J. Wang          changed to nemsio library
 !  Feb 20  2011 H. Juang         implement into nems for mass_dp and ndsl
 !  Feb 28  2011 Sarah Lu         add thermodyn_id and sfcpress_id
+!  Mar 15  2011 H. Juang         add jcapg for NDSL
 !
 !
 ! !interface:
@@ -65,8 +66,6 @@
 
       integer 		:: j, l, n, ilat, locl, ikey, nrank_all
 !!
-      integer           lineargg
-!!
 
 ! set up gfs internal state dimension and values for dynamics etc
 !-------------------------------------------------------------------
@@ -79,7 +78,8 @@
 
       call compns_dynamics(gis_dyn%deltim, gis_dyn%iret, gis_dyn%ntrac,	&
                            gis_dyn%nxpt,   gis_dyn%nypt, gis_dyn%jintmx,&
-                           gis_dyn%jcap,   gis_dyn%levs, gis_dyn%levr, 	&
+                           gis_dyn%jcap,   gis_dyn%jcapg,             	&
+                           gis_dyn%levs,   gis_dyn%levr, 		&
                            gis_dyn%lonf,   gis_dyn%latg,          	&
                            gis_dyn%ntoz,   gis_dyn%ntcw, gis_dyn%ncld, 	&
                            gis_dyn%spectral_loop,               	&
@@ -111,6 +111,7 @@
       nypt    = gis_dyn%nypt
       jintmx  = gis_dyn%jintmx
       jcap    = gis_dyn%jcap
+      jcapg   = gis_dyn%jcapg
       levs    = gis_dyn%levs
       levr    = gis_dyn%levr
       lonf    = gis_dyn%lonf
@@ -203,14 +204,8 @@
       allocate(gis_dyn%lonsperlat(latg))
 
       if( reduced_grid ) then
-        if( linear_grid ) then
-          lineargg=2
-          if(me == 0) print *,' run with reduced linear grid '
-        else
-          lineargg=3
-          if(me == 0) print *,' run with reduced quardratic grid '
-        endif
-        call set_lonsgg(gis_dyn%lonsperlat,lineargg,me)
+        if(me == 0) print *,' run with reduced quardratic grid '
+        call set_lonsgg(gis_dyn%lonsperlat,me)
       else
         if (me == 0) print *,' run with full gaussian grid '
         do j=1,latg
@@ -751,10 +746,10 @@
 !
 ! =========================================================================
 !
-      subroutine set_lonsgg(lonsperlat,lineargg,me)
-!     use gfs_dyn_resol_def
+      subroutine set_lonsgg(lonsperlat,me)
+      use gfs_dyn_resol_def
       use gfs_dyn_reduce_lons_grid_module, only : gfs_dyn_reduce_grid   ! hmhj
-      integer lonsperlat(latg),lineargg,me
+      integer lonsperlat(latg),me
       integer num, lgg                                            ! hmhj
 
       integer lonsperlat_62(94)
@@ -956,52 +951,47 @@
          440*0/
  
       integer i
-        if (jcap == 62) then
+        if (jcapg == 62) then
            lonsperlat = lonsperlat_62
         endif
-        if (jcap == 126) then
+        if (jcapg == 126) then
            lonsperlat = lonsperlat_126
         endif
-        if (jcap == 170) then
+        if (jcapg == 170) then
            lonsperlat = lonsperlat_170
         endif
-        if (jcap == 190) then
+        if (jcapg == 190) then
            lonsperlat = lonsperlat_190
         endif
-        if (jcap == 254) then
+        if (jcapg == 254) then
            lonsperlat = lonsperlat_254
         endif
-        if (jcap == 382) then
+        if (jcapg == 382) then
            lonsperlat = lonsperlat_382
         endif
-        if (jcap == 510) then
+        if (jcapg == 510) then
            lonsperlat = lonsperlat_510
         endif
-        if (jcap == 574) then
+        if (jcapg == 574) then
            lonsperlat = lonsperlat_574
         endif
 
 ! compute reduced grid using juang 2003
-      if ( lineargg.eq.2 ) then
+      if (jcapg .ne.  62 .and. jcapg .ne. 126 .and.                     &
+          jcapg .ne. 170 .and. jcapg .ne. 190 .and.                     &
+          jcapg .ne. 254 .and. jcapg .ne. 382 .and.                     &
+          jcapg .ne. 510 .and. jcapg .ne. 574) then
 
-         num=4
-         lgg=2
-         call gfs_dyn_reduce_grid (num,jcap,latg,lonsperlat,lgg)
-         if ( me == 0 ) print*,' Reduced linear grid is computed.'
-
-      elseif (jcap .ne.  62 .and. jcap .ne. 126 .and.                     &
-              jcap .ne. 170 .and. jcap .ne. 190 .and.                     &
-              jcap .ne. 574 .and. jcap .ne. 254 .and.                     &
-              jcap .ne. 382 .and. jcap .ne. 510) then
          num=4
          lgg=3
-         call gfs_dyn_reduce_grid (num,jcap,latg,lonsperlat,lgg)
+         call gfs_dyn_reduce_grid (num,jcapg,latg,lonsperlat,lgg)
          if ( me == 0 ) print*,' Reduced quardratic grid is computed.'
 
       endif
 
       if ( me == 0 ) then
-        print*,' jcap = ',jcap
+        print*,' jcap  = ',jcap
+        print*,' jcapg = ',jcapg
         print*,'min,max of lonsperlat = ',minval(lonsperlat),              &
                 maxval(lonsperlat)
       endif

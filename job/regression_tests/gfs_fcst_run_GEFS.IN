@@ -4,13 +4,21 @@ set -x
 #
  export CDATE=2008082500
 
+#***************************************************************
+#
+#    Set up horizontal and vertical resolution ; default will be T6264
+#
+#export wave=382 ; export lm=64 ; export lsoil=4
+ export wave=190 ; export lm=28 ; export lsoil=4
+# export wave=62 ; export lm=64 ; export lsoil=4
+#export wave=62 ; export lm=64 ; export lsoil=2 ; export lsm=0
+
  export EXPLICIT=.false.
  export ADIAB=.false.
  export NST_FCST=0
  export NUM_FILE=3
  export FILENAME_BASE="'SIG.F' 'SFC.F' 'FLX.F'"
  export FILE_IO_FORM="'grib' 'bin4' 'grib'"
-
 
 # The old Henry's version required.
 #----------------------------------
@@ -37,13 +45,11 @@ set -x
  export NDSLFV=_NDSLFV_
 if [ $NDSLFV = .true. ]
 then
- export DELTIM=1800.
+ export DELTIM=1800
  export MASS_DP=.true.
- export LINEAR_GRID=.false.
  export PROCESS_SPLIT=.false.
 else
  export MASS_DP=.false.
- export LINEAR_GRID=.false.
  export PROCESS_SPLIT=.false.
 fi
 
@@ -55,14 +61,6 @@ fi
 #                   Dry ,    H2O,     O3,        CLW,    O,      O2
 export CPIlist=" 1004.6,   1846.0, 820.2391,    0.0"
 export RIlist="  286.05,   461.50, 173.2247,    0.0"
-#***************************************************************
-#
-#    Set up horizontal and vertical resolution ; default will be T6264
-#
-#export wave=382 ; export lm=64 ; export lsoil=4
- export wave=190 ; export lm=28 ; export lsoil=4
-# export wave=62 ; export lm=64 ; export lsoil=4
-#export wave=62 ; export lm=64 ; export lsoil=2 ; export lsm=0
 #
 #export NCP=cp
 export FTSFS=0.0
@@ -248,6 +246,8 @@ fi
 # ------------------------ initial condition ----------------
 #
   export JCAP=$wave
+  if [[ $NDSLFV = .true. ]] ; then export JCAP=` expr $jm - 2 ` ; fi
+  export JCAPG=$wave
   export LEVS=$lm
   export LONB=$im
   export LATB=$jm

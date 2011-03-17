@@ -1,4 +1,4 @@
-Mon Mar 14 22:51:59 EDT 2011
+Wed Mar 16 18:36:14 EDT 2011
 Start Regression test
 
 
@@ -29,7 +29,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  146.92  , test_glob timing:  151.16
+ Original timing:  146.92  , test_glob timing:  153.51
 
 
 Test 002
@@ -177,7 +177,7 @@ Checking test 008 results ....
 
 
 
- Original timing:   , test_reg timing:  240.83
+ Original timing:   , test_reg timing:  241.37
 
 
 Test 009
@@ -916,7 +916,7 @@ Checking test 040 results ....
 
 
 
- Original timing:  146.92  , test_glob timing:  151.73
+ Original timing:  146.92  , test_glob timing:  153.02
 
 
 Test 041
@@ -954,4 +954,190 @@ GFS, 64 proc, 1 thread
 
 
 Checking test 042 results ....
- Comparing SIG.F06_01.....
+ Comparing SIG.F06_01.........OK
+ Comparing SIG.F06_02.........OK
+ Comparing SIG.F06_03.........OK
+ Comparing SIG.F06_04.........OK
+ Comparing SIG.F12_01.........OK
+ Comparing SIG.F12_02.........OK
+ Comparing SIG.F12_03.........OK
+ Comparing SIG.F12_04.........OK
+ Comparing SIG.F18_01.........OK
+ Comparing SIG.F18_02.........OK
+ Comparing SIG.F18_03.........OK
+ Comparing SIG.F18_04.........OK
+ Comparing SIG.F24_01.........OK
+ Comparing SIG.F24_02.........OK
+ Comparing SIG.F24_03.........OK
+ Comparing SIG.F24_04.........OK
+ Comparing SFC.F06_01.........OK
+ Comparing SFC.F06_02.........OK
+ Comparing SFC.F06_03.........OK
+ Comparing SFC.F06_04.........OK
+ Comparing SFC.F12_01.........OK
+ Comparing SFC.F12_02.........OK
+ Comparing SFC.F12_03.........OK
+ Comparing SFC.F12_04.........OK
+ Comparing SFC.F18_01.........OK
+ Comparing SFC.F18_02.........OK
+ Comparing SFC.F18_03.........OK
+ Comparing SFC.F18_04.........OK
+ Comparing SFC.F24_01.........OK
+ Comparing SFC.F24_02.........OK
+ Comparing SFC.F24_03.........OK
+ Comparing SFC.F24_04.........OK
+ Comparing FLX.F06_01.........OK
+ Comparing FLX.F06_02.........OK
+ Comparing FLX.F06_03.........OK
+ Comparing FLX.F06_04.........OK
+ Comparing FLX.F12_01.........OK
+ Comparing FLX.F12_02.........OK
+ Comparing FLX.F12_03.........OK
+ Comparing FLX.F12_04.........OK
+ Comparing FLX.F18_01.........OK
+ Comparing FLX.F18_02.........OK
+ Comparing FLX.F18_03.........OK
+ Comparing FLX.F18_04.........OK
+ Comparing FLX.F24_01.........OK
+ Comparing FLX.F24_02.........OK
+ Comparing FLX.F24_03.........OK
+ Comparing FLX.F24_04.........OK
+ Test 042 passed 
+Test 043
+Concurrency GEN, 4 members.
+GEN, 64 proc, 1 thread
+
+
+
+
+Checking test 043 results ....
+ Test 043 passed 
+
+
+
+Test 044
+Compare NMMB-global results with previous trunk version
+
+
+Checking test 044 results ....
+ Comparing nmm_b_history.000h_00m_00.00s.........OK
+ Comparing nmm_b_history.003h_00m_00.00s.........OK
+ Comparing nmm_b_history.006h_00m_00.00s.........OK
+ Comparing nmm_b_history.012h_00m_00.00s.........OK
+ Comparing nmm_b_history.024h_00m_00.00s.........OK
+ Comparing nmm_b_history.027h_00m_00.00s.........OK
+ Comparing nmm_b_history.030h_00m_00.00s.........OK
+ Comparing nmm_b_history.036h_00m_00.00s.........OK
+ Comparing nmm_b_history.048h_00m_00.00s.........OK
+ Comparing nmm_b_history_nemsio.000h_00m_00.00s.........OK
+ Comparing nmm_b_history_nemsio.003h_00m_00.00s.........OK
+ Comparing nmm_b_history_nemsio.006h_00m_00.00s.........OK
+ Comparing nmm_b_history_nemsio.012h_00m_00.00s.........OK
+ Comparing nmm_b_history_nemsio.024h_00m_00.00s.........OK
+ Comparing nmm_b_history_nemsio.048h_00m_00.00s.........OK
+ Comparing nmm_b_restart.024h_00m_00.00s.........OK
+ Comparing nmm_b_restart_nemsio.024h_00m_00.00s.........OK
+ Test 044 passed 
+
+
+
+ Original timing:  146.92  , test_glob timing:  153.91
+
+
+Test 045
+Compare GFS results with previous trunk version
+GFS, 32 proc, 1 thread
+
+
+
+
+Checking test 045 results ....
+ Comparing sigf00.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf00.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf00.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
+ Test 045 passed 
+Test 046
+Concurrency GEFS, stochastic perturbations, 4 members, T190L28.
+GFS, 64 proc, 1 thread
+
+
+
+
+Checking test 046 results ....
+ Comparing SIG.F06_01.........OK
+ Comparing SIG.F06_02.........OK
+ Comparing SIG.F06_03.........OK
+ Comparing SIG.F06_04.........OK
+ Comparing SIG.F12_01.........OK
+ Comparing SIG.F12_02.........OK
+ Comparing SIG.F12_03.........OK
+ Comparing SIG.F12_04.........OK
+ Comparing SIG.F18_01.........OK
+ Comparing SIG.F18_02.........OK
+ Comparing SIG.F18_03.........OK
+ Comparing SIG.F18_04.........OK
+ Comparing SIG.F24_01.........OK
+ Comparing SIG.F24_02.........OK
+ Comparing SIG.F24_03.........OK
+ Comparing SIG.F24_04.........OK
+ Comparing SFC.F06_01.........OK
+ Comparing SFC.F06_02.........OK
+ Comparing SFC.F06_03.........OK
+ Comparing SFC.F06_04.........OK
+ Comparing SFC.F12_01.........OK
+ Comparing SFC.F12_02.........OK
+ Comparing SFC.F12_03.........OK
+ Comparing SFC.F12_04.........OK
+ Comparing SFC.F18_01.........OK
+ Comparing SFC.F18_02.........OK
+ Comparing SFC.F18_03.........OK
+ Comparing SFC.F18_04.........OK
+ Comparing SFC.F24_01.........OK
+ Comparing SFC.F24_02.........OK
+ Comparing SFC.F24_03.........OK
+ Comparing SFC.F24_04.........OK
+ Comparing FLX.F06_01.........OK
+ Comparing FLX.F06_02.........OK
+ Comparing FLX.F06_03.........OK
+ Comparing FLX.F06_04.........OK
+ Comparing FLX.F12_01.........OK
+ Comparing FLX.F12_02.........OK
+ Comparing FLX.F12_03.........OK
+ Comparing FLX.F12_04.........OK
+ Comparing FLX.F18_01.........OK
+ Comparing FLX.F18_02.........OK
+ Comparing FLX.F18_03.........OK
+ Comparing FLX.F18_04.........OK
+ Comparing FLX.F24_01.........OK
+ Comparing FLX.F24_02.........OK
+ Comparing FLX.F24_03.........OK
+ Comparing FLX.F24_04.........OK
+ Test 046 passed 
+Test 047
+Concurrency GEN, 4 members.
+GEN, 64 proc, 1 thread
+
+
+
+
+Checking test 047 results ....
+ Test 047 passed 
+
+
+
+Thu Mar 17 00:38:34 EDT 2011

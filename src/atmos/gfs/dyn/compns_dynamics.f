@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------
       subroutine compns_dynamics (deltim,iret,
-     &  ntrac,nxpt,nypt,jintmx,jcap,
+     &  ntrac,nxpt,nypt,jintmx,jcap,jcapg,
      &  levs,levr,lonf,latg, ntoz,
      &  ntcw,ncld, spectral_loop, me,
      &  thermodyn_id,sfcpress_id,
@@ -45,6 +45,9 @@
 !   2010-09-08  Jun Wang       change gfsio to nemsio
 !   2011-02-11  Henry Juang    add codes to fit mass_dp and ndslfv
 !   2011-02-28  Sarah Lu       add thermodyn_id and sfcpress_id
+!   2011-03-15  Henry Juang    add jcapg for usual truncation in grid
+!                              for Eulerian jcap=jcapg<lonf/3
+!                              for NDSL jcap<lonf/2, jcapg<lonf/3
 !
 ! Usage:    call compns(deltim,
 !    &                  fhout,fhres,
@@ -78,7 +81,7 @@
       integer, intent(in)           :: me, nlunit
       real,intent(inout)            :: deltim
       integer,intent(out)           :: iret
-      integer ntrac,nxpt,nypt,jintmx,jcap,levs,lonf,latg
+      integer ntrac,nxpt,nypt,jintmx,jcap,jcapg,levs,lonf,latg
       integer levr,lsoil,nmtvr,lonr,latr,ndfi
       integer ntoz,ntcw,ncld,spectral_loop,member_num
       integer thermodyn_id, sfcpress_id
@@ -88,12 +91,12 @@ c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !
       namelist /nam_dyn/FHMAX,FHOUT,FHRES,FHROT,FHDFI,DELTIM,IGEN,
      & NGPTC,shuff_lats_a,reshuff_lats_a,
-     & nxpt,nypt,jintmx,jcap,levs,lonf,latg,levr,
+     & nxpt,nypt,jintmx,jcap,jcapg,levs,lonf,latg,levr,
      & ntrac,ntoz,ntcw,ncld,nsout,tfiltc,
      & nemsio_in,nemsio_out,liope,ref_temp,
      & explicit,hybrid,gen_coord_hybrid,process_split, 
      & spectral_loop,ndslfv,mass_dp,semi_implicit_temp_profile,
-     & reduced_grid,linear_grid,
+     & reduced_grid,
      & thermodyn_id, sfcpress_id,
      & zflxtvd,num_reduce
 
@@ -120,7 +123,6 @@ c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       mass_dp          = .false.                                     !hmhj
       semi_implicit_temp_profile    = .false.                        !hmhj
       process_split    = .false.                                     !hmhj
-      linear_grid      = .false.                                     !hmhj
       liope            = .true.
 !
       thermodyn_id     = 1

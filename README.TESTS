@@ -49,17 +49,20 @@ Tests performed:
 
     GFS, control version (32 processors, 1 thread)
     GFS, 2-copy option
-    GFS, different decompostition (60 processors, 1 thread)
+    GFS, different decompostition (48 processors, 1 thread)
     GFS, test threading (16 processors, 2 threads)
     GFS, test single processor version (1 processor)
     GFS,  1 proc, 1 thread, no quilt, nsout=1
     GFS, 16 proc, 2 threads,no quilt, output every 2 time steps
-    GFS, 60 proc, 1 thread, no quilt
+    GFS, 48 proc, 1 thread, no quilt
     GFS, 32 proc, 1 thread, no quilt, output every 4 timestep
     GFS, 32 proc, 1 thread,    quilt, digital filter on reduced grid
     GFS, 16 proc, 2 thread,    quilt, 2x2 wrt pe, digital filter on reduced grid
     GFS,  1 proc,           no quilt, digital filter on reduced grid
     GFS, use the OPAC climo scheme for SW and LW
+    GFS, 32tasks, 2threads, quilt, dfi3hr, reduced grid, NDSL
+    GFS, 16tasks, 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid
+    GFS, 16tasks, 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid with nst
+    GFS, 16tasks, 2 thread, quilt,2x2 wrt pe, HYB 1loop digital filter on reduced grid
     GFS, Concurrency GEFS, stochastic perturbations, 4 members, T190L28
-    GFS, 16 proc, 2 thread, quilt,2x2 wrt pe, HYB digital filter on reduced grid
 
