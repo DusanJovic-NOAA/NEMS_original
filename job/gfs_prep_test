@@ -23,9 +23,8 @@ export RIlist="  286.05,   461.50, 173.2247,    0.0"
 #
 #    Set up horizontal and vertical resolution ; default will be T6264
 #
-#export wave=382 ; export lm=64 ; export lsoil=4
- export wave=62 ; export lm=64 ; export lsoil=4
-#export wave=62 ; export lm=64 ; export lsoil=2 ; export lsm=0
+ export wavecoef=188 ; export wavegrid=126 ; export lm=64 ; export lsoil=4
+#export wavecoef=92  ; export wavegrid=62 ; export lm=64 ; export lsoil=2 ; export lsm=0
 #
 export NCP=cp
 export FTSFS=0.0
@@ -75,7 +74,8 @@ export NCP=${NCP:-/u/wx20mi/bin/ncp}
 #
 #    Forecast model : horizontal truncation  and vertical levels
 #
-export wave=${wave:-62}
+export wavecoef=${wavecoef:-92}
+export wavegrid=${wavegrid:-62}
 export lm=${lm:-64}
 export lsoil=${lsoil:-4}
 #
@@ -87,7 +87,7 @@ export NMTVR=${NMTVR:-14}
 #
 export lsm=${lsm:-1}
 #
-export R=${wave}${lm}
+export R=${wavecoef}${lm}
 echo $R
 if [ $hybrid = YES ] ; then
  export SIGLEVEL=$TOPDIR/wx23sm/2jif/f2006/fix/global_hyblev.l$lm.txt
@@ -139,7 +139,7 @@ export CLIMO_FIELDS_OPT=2
 #
 # ----------------- determine resolution related ----------------------
 #
-if [[ $wave -eq 62 ]] ; then
+if [[ $wavegrid -eq 62 ]] ; then
   export LONF=192 ; export LATG=94 ; export LONR=192 ; export LATR=94
   export im=$LONR ; export jm=$LATR ; export iop=144 ; export jop=73
   if [[ $lm -eq 64 ]] ; then
@@ -149,32 +149,32 @@ if [[ $wave -eq 62 ]] ; then
     export DELTIM=${DELTIM:-180}
   fi
   export DELTIM=${DELTIM:-1200}
-elif [[ $wave -eq 126 ]] ; then
+elif [[ $wavegrid -eq 126 ]] ; then
   export LONF=384 ; export LATG=190 ; export LONR=384 ; export LATR=190
   export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
   export DELTIM=${DELTIM:-600}
-elif [[ $wave -eq 170 ]] ; then
+elif [[ $wavegrid -eq 170 ]] ; then
   export LONF=512 ; export LATG=256 ; export LONR=512 ; export LATR=256
   export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
   export DELTIM=${DELTIM:-450}
-elif [[ $wave -eq 190 ]] ; then
+elif [[ $wavegrid -eq 190 ]] ; then
   export LONF=576 ; export LATG=288 ; export LONR=576 ; export LATR=288
   export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
   export DELTIM=${DELTIM:-300}
-elif [[ $wave -eq 254 ]] ; then
+elif [[ $wavegrid -eq 254 ]] ; then
   export LONF=768 ; export LATG=384 ; export LONR=768 ; export LATR=384
   export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
   export DELTIM=${DELTIM:-300}
-elif [[ $wave -eq 382 ]] ; then
+elif [[ $wavegrid -eq 382 ]] ; then
   export LONF=1152 ; export LATG=576 ; export LONR=1152 ; export LATR=576
   export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
   export DELTIM=${DELTIM:-180}
-elif [[ $wave -eq 510 ]] ; then
+elif [[ $wavegrid -eq 510 ]] ; then
   export LONF=1536 ; export LATG=766 ; export LONR=1536 ; export LATR=766
   export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
   export DELTIM=${DELTIM:-120}
-  export OROGRAPHY=$TOPDIR/wx23ys/fix.all/global_orography.t${wave}.grb
-  export MTNVAR=$TOPDIR/wx23my/fix.all/global_mtnvar.t${wave}.f77
+  export OROGRAPHY=$TOPDIR/wx23ys/fix.all/global_orography.t${wavegrid}.grb
+  export MTNVAR=$TOPDIR/wx23my/fix.all/global_mtnvar.t${wavegrid}.f77
 fi
 #
 # ------------------ initial data ---------------------------
@@ -189,7 +189,8 @@ fi
 #
 # ----------------- change resolution or not ----------------
 #
-export JCAP=$wave
+export JCAP=$wavecoef
+export JCAPG=$wavegrid
 export LEVS=$lm
 export LONB=$im
 export LATB=$jm
@@ -209,7 +210,7 @@ export VERBOSE=YES
   if [[ ${change_res} = YES ]] ; then
     export CHGRESVARS="ntrac=$ntrc,idvt=$varid,ncldt=$numcld,idvc=$IDVC,IVSSIG=$ivssig,NVCOORD=$nvcoord,IVSSFC=$ivssfc,idvm=$IDVM,idsl=$IDSL,OUTTYP=1,"
     export SIGLEVEL=${SIGLEVEL:-/nwprod/fix/global_siglevel.l$lm.txt}
-    export LONSPERLAT=$TOPDIR/wx20mi/newres/global_lonsperlat.t$JCAP.txt
+    export LONSPERLAT=$TOPDIR/wx20mi/newres/global_lonsperlat.t$JCAPG.txt
     export CHGRESSH=${CHGRESSH:-/nwprod/ush/global_chgres.sh}
     export CHGRESVARS=$CHGRESVARS"RI=$RIlist,CPI=$CPIlist"
     $CHGRESSH
