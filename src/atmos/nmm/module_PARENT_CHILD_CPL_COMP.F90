@@ -6269,7 +6269,7 @@
       IF(FLAG_H_OR_V=='H_POINTS')THEN                         
         R_IEND=REAL(MIN(ITE+1,IDE))-EPS                                    !<-- Allow search for child points to go into
                                                                            !    the parent's halo
-      ELSEIF(FLAG_H_OR_V=='H_POINTS')THEN                     
+      ELSEIF(FLAG_H_OR_V=='V_POINTS')THEN                     
         R_IEND=REAL(MIN(REAL(ITE+0.5),REAL(IDE)))-EPS                      !<-- Use ITE+0.5 to stop V search at the column of the
                                                                            !    easternmost H that is searched; this ensures that
                                                                            !    a parent will send both H and V boundary points.
@@ -6496,6 +6496,8 @@
 !***  Local Variables
 !---------------------
 !
+      INTEGER :: LEN=0
+!
       INTEGER :: ID_CHILDTASK,ID_DOM,IERR,ISTAT,KOUNT,LENGTH,MYPE       &
                 ,N,N1,N2,NBASE,NT,NTX,NUM_WORDS,RC,RC_PRELIM
 !
@@ -6508,13 +6510,19 @@
 !
       INTEGER,DIMENSION(MPI_STATUS_SIZE) :: STATUS
 !
-      REAL,DIMENSION(:),ALLOCATABLE :: FIS_SEND
+      REAL,DIMENSION(:),ALLOCATABLE :: DUMMY_0                          &
+                                      ,FIS_SEND
 !
       TYPE(ESMF_Field) :: HOLD_FIELD
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
+!
+      ALLOCATE(DUMMY_0(LEN),stat=ISTAT)
+      IF(ISTAT/=0)THEN
+        WRITE(0,*)' Failed to allocate DUMMY_0 to length 0'
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Parents send three pieces of information to child tasks 
@@ -6925,7 +6933,9 @@
         NUM_PARENT_TASKS_SENDING_H%SOUTH=KOUNT
 !!!     LENGTH_BND_SEG_H%SOUTH=INDX_MAX_H%SOUTH-INDX_MIN_H%SOUTH+1
 !
+!---------------
         south_h: IF(NUM_PARENT_TASKS_SENDING_H%SOUTH>0)THEN                    !<-- Does this child task recv Sboundary H data from parent?
+!---------------
 !
           ALLOCATE(PDB_S(INDX_MIN_H%SOUTH:INDX_MAX_H%SOUTH,1:N_BLEND_H))       !<-- Full PDB south H boundary segment on this child task
           ALLOCATE( TB_S(INDX_MIN_H%SOUTH:INDX_MAX_H%SOUTH,1:N_BLEND_H,1:LM))  !<-- Full TB south H boundary segment on this child task
@@ -6996,7 +7006,36 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PRELIM)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!--------------------
+        ELSE south_h
+!--------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Load 0 Length for South H BC Data"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+          CALL ESMF_AttributeSet(state    =EXP_STATE                   &  !<-- The Parent_Child Coupler export state
+                                ,name     ='SOUTH_H'                   &  !<-- Name of south H BC data
+                                ,count    =LEN                         &  !<-- Loading 0 words
+                                ,valueList=DUMMY_0                     &  !<-- Empty data
+                                ,rc       =RC)
+#else
+          CALL ESMF_AttributeSet(state    =EXP_STATE                   &  !<-- The Parent_Child Coupler export state
+                                ,name     ='SOUTH_H'                   &  !<-- Name of south H BC data
+                                ,itemCount=LEN                         &  !<-- Loading 0 words
+                                ,valueList=DUMMY_0                     &  !<-- Empty data
+                                ,rc       =RC)
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PRELIM)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!---------------
         ENDIF south_h
+!---------------
 !
 !-------------
 !***  South V
@@ -7059,7 +7098,9 @@
         NUM_PARENT_TASKS_SENDING_V%SOUTH=KOUNT
 !!!     LENGTH_BND_SEG_V%SOUTH=INDX_MAX_V%SOUTH-INDX_MIN_V%SOUTH+1
 !
+!---------------
         south_v: IF(NUM_PARENT_TASKS_SENDING_V%SOUTH>0)THEN                !<-- Does this child task recv any Sboundary V data from parent?
+!---------------
 !
           ALLOCATE(UB_S(INDX_MIN_V%SOUTH:INDX_MAX_V%SOUTH,1:N_BLEND_H,1:LM))
           ALLOCATE(VB_S(INDX_MIN_V%SOUTH:INDX_MAX_V%SOUTH,1:N_BLEND_H,1:LM))
@@ -7128,7 +7169,36 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PRELIM)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!--------------------
+        ELSE south_v
+!--------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Load 0 Length for South V BC Data"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+          CALL ESMF_AttributeSet(state    =EXP_STATE                   &  !<-- The Parent_Child Coupler export state
+                                ,name     ='SOUTH_V'                   &  !<-- Name of south V BC data
+                                ,count    =LEN                         &  !<-- Loading 0 words
+                                ,valueList=DUMMY_0                     &  !<-- Empty data
+                                ,rc       =RC)
+#else
+          CALL ESMF_AttributeSet(state    =EXP_STATE                   &  !<-- The Parent_Child Coupler export state
+                                ,name     ='SOUTH_V'                   &  !<-- Name of south V BC data
+                                ,itemCount=LEN                         &  !<-- Loading 0 words
+                                ,valueList=DUMMY_0                     &  !<-- Empty data
+                                ,rc       =RC)
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PRELIM)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!---------------------
         ENDIF south_v
+!---------------------
 !
 !-------------
 !***  North H
@@ -7192,7 +7262,9 @@
         NUM_PARENT_TASKS_SENDING_H%NORTH=KOUNT
 !!!     LENGTH_BND_SEG_H%NORTH=INDX_MAX_H%NORTH-INDX_MIN_H%NORTH+1
 !
+!----------------
         north_h: IF(NUM_PARENT_TASKS_SENDING_H%NORTH>0)THEN                    !<-- Does this child task recv Nboundary H data from parent?
+!----------------
 !
           ALLOCATE(PDB_N(INDX_MIN_H%NORTH:INDX_MAX_H%NORTH,1:N_BLEND_H))
           ALLOCATE( TB_N(INDX_MIN_H%NORTH:INDX_MAX_H%NORTH,1:N_BLEND_H,1:LM))
@@ -7264,7 +7336,36 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PRELIM)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!--------------------
+        ELSE north_h
+!--------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Load 0 Length for North H BC Data"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+          CALL ESMF_AttributeSet(state    =EXP_STATE                   &  !<-- The Parent_Child Coupler export state
+                                ,name     ='NORTH_H'                   &  !<-- Name of north H BC data
+                                ,count    =LEN                         &  !<-- Loading 0 words
+                                ,valueList=DUMMY_0                     &  !<-- Empty data
+                                ,rc       =RC)
+#else
+          CALL ESMF_AttributeSet(state    =EXP_STATE                   &  !<-- The Parent_Child Coupler export state
+                                ,name     ='NORTH_H'                   &  !<-- Name of north H BC data
+                                ,itemCount=LEN                         &  !<-- Loading 0 words
+                                ,valueList=DUMMY_0                     &  !<-- Empty data
+                                ,rc       =RC)
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PRELIM)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!---------------------
         ENDIF north_h
+!---------------------
 !
 !-------------
 !***  North V
@@ -7327,7 +7428,9 @@
         NUM_PARENT_TASKS_SENDING_V%NORTH=KOUNT
 !!!     LENGTH_BND_SEG_V%NORTH=INDX_MAX_V%NORTH-INDX_MIN_V%NORTH+1
 !
+!----------------
         north_v: IF(NUM_PARENT_TASKS_SENDING_V%NORTH>0)THEN                !<-- Does this child task recv any Nboundary V data from parent?
+!----------------
 !
           ALLOCATE(UB_N(INDX_MIN_V%NORTH:INDX_MAX_V%NORTH,1:N_BLEND_V,1:LM))
           ALLOCATE(VB_N(INDX_MIN_V%NORTH:INDX_MAX_V%NORTH,1:N_BLEND_V,1:LM))
@@ -7396,7 +7499,36 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PRELIM)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!--------------------
+        ELSE north_v
+!--------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Load 0 Length for North V BC Data"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+          CALL ESMF_AttributeSet(state    =EXP_STATE                   &  !<-- The Parent_Child Coupler export state
+                                ,name     ='NORTH_V'                   &  !<-- Name of north V BC data
+                                ,count    =LEN                         &  !<-- Loading 0 words
+                                ,valueList=DUMMY_0                     &  !<-- Empty data
+                                ,rc       =RC)
+#else
+          CALL ESMF_AttributeSet(state    =EXP_STATE                   &  !<-- The Parent_Child Coupler export state
+                                ,name     ='NORTH_V'                   &  !<-- Name of north V BC data
+                                ,itemCount=LEN                         &  !<-- Loading 0 words
+                                ,valueList=DUMMY_0                     &  !<-- Empty data
+                                ,rc       =RC)
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PRELIM)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!---------------------
         ENDIF north_v
+!---------------------
 !
 !------------
 !***  West H
@@ -7460,7 +7592,9 @@
         NUM_PARENT_TASKS_SENDING_H%WEST=KOUNT
 !!!     LENGTH_BND_SEG_H%WEST=INDX_MAX_H%WEST-INDX_MIN_H%WEST+1
 !
+!---------------
         west_h: IF(NUM_PARENT_TASKS_SENDING_H%WEST>0)THEN                  !<-- Does this child task recv Wboundary H data from parent?
+!---------------
 !
           ALLOCATE(PDB_W(1:N_BLEND_H,INDX_MIN_H%WEST:INDX_MAX_H%WEST))
           ALLOCATE( TB_W(1:N_BLEND_H,INDX_MIN_H%WEST:INDX_MAX_H%WEST,1:LM))
@@ -7531,7 +7665,36 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PRELIM)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!-------------------
+        ELSE west_h
+!-------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Load 0 Length for West H BC Data"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+          CALL ESMF_AttributeSet(state    =EXP_STATE                   &  !<-- The Parent_Child Coupler export state
+                                ,name     ='WEST_H'                    &  !<-- Name of west H BC data
+                                ,count    =LEN                         &  !<-- Loading 0 words
+                                ,valueList=DUMMY_0                     &  !<-- Empty data
+                                ,rc       =RC)
+#else
+          CALL ESMF_AttributeSet(state    =EXP_STATE                   &  !<-- The Parent_Child Coupler export state
+                                ,name     ='WEST_H'                    &  !<-- Name of west H BC data
+                                ,itemCount=LEN                         &  !<-- Loading 0 words
+                                ,valueList=DUMMY_0                     &  !<-- Empty data
+                                ,rc       =RC)
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PRELIM)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!--------------------
         ENDIF west_h
+!--------------------
 !
 !------------
 !***  West V
@@ -7594,7 +7757,9 @@
         NUM_PARENT_TASKS_SENDING_V%WEST=KOUNT
 !!!     LENGTH_BND_SEG_V%WEST=INDX_MAX_V%WEST-INDX_MIN_V%WEST+1
 !
+!---------------
         west_v: IF(NUM_PARENT_TASKS_SENDING_V%WEST>0)THEN                  !<-- Does this child task recv Wboundary V data from parent?
+!---------------
 !
           ALLOCATE(UB_W(1:N_BLEND_H,INDX_MIN_V%WEST:INDX_MAX_V%WEST,1:LM))
           ALLOCATE(VB_W(1:N_BLEND_H,INDX_MIN_V%WEST:INDX_MAX_V%WEST,1:LM))
@@ -7663,7 +7828,36 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PRELIM)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!-------------------
+        ELSE west_v
+!-------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Load 0 Length for West V BC Data"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+          CALL ESMF_AttributeSet(state    =EXP_STATE                   &  !<-- The Parent_Child Coupler export state
+                                ,name     ='WEST_V'                    &  !<-- Name of west V BC data
+                                ,count    =LEN                         &  !<-- Loading 0 words
+                                ,valueList=DUMMY_0                     &  !<-- Empty data
+                                ,rc       =RC)
+#else
+          CALL ESMF_AttributeSet(state    =EXP_STATE                   &  !<-- The Parent_Child Coupler export state
+                                ,name     ='WEST_V'                    &  !<-- Name of west V BC data
+                                ,itemCount=LEN                         &  !<-- Loading 0 words
+                                ,valueList=DUMMY_0                     &  !<-- Empty data
+                                ,rc       =RC)
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PRELIM)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!--------------------
         ENDIF west_v
+!--------------------
 !
 !------------
 !***  East H
@@ -7727,7 +7921,9 @@
         NUM_PARENT_TASKS_SENDING_H%EAST=KOUNT
 !!!     LENGTH_BND_SEG_H%EAST=INDX_MAX_H%EAST-INDX_MIN_H%EAST+1
 !
+!---------------
         east_h: IF(NUM_PARENT_TASKS_SENDING_H%EAST>0)THEN                  !<-- Does this child task recv Eboundary H data from parent?
+!---------------
 !
           ALLOCATE(PDB_E(1:N_BLEND_H,INDX_MIN_H%EAST:INDX_MAX_H%EAST))
           ALLOCATE( TB_E(1:N_BLEND_H,INDX_MIN_H%EAST:INDX_MAX_H%EAST,1:LM))
@@ -7798,7 +7994,36 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PRELIM)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!-------------------
+        ELSE east_h
+!-------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Load 0 Length for East H BC Data"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+          CALL ESMF_AttributeSet(state    =EXP_STATE                   &  !<-- The Parent_Child Coupler export state
+                                ,name     ='EAST_H'                    &  !<-- Name of east H BC data
+                                ,count    =LEN                         &  !<-- Loading 0 words
+                                ,valueList=DUMMY_0                     &  !<-- Empty data
+                                ,rc       =RC)
+#else
+          CALL ESMF_AttributeSet(state    =EXP_STATE                   &  !<-- The Parent_Child Coupler export state
+                                ,name     ='EAST_H'                    &  !<-- Name of east H BC data
+                                ,itemCount=LEN                         &  !<-- Loading 0 words
+                                ,valueList=DUMMY_0                     &  !<-- Empty data
+                                ,rc       =RC)
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PRELIM)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!--------------------
         ENDIF east_h
+!--------------------
 !
 !------------
 !***  East V
@@ -7862,7 +8087,9 @@
         NUM_PARENT_TASKS_SENDING_V%EAST=KOUNT
 !!!     LENGTH_BND_SEG_V%EAST=INDX_MAX_V%EAST-INDX_MIN_V%EAST+1
 !
+!---------------
         east_v: IF(NUM_PARENT_TASKS_SENDING_V%EAST>0)THEN                  !<-- Does this child task recv Eboundary V data from parent?
+!---------------
 !
           ALLOCATE(UB_E(1:N_BLEND_H,INDX_MIN_V%EAST:INDX_MAX_V%EAST,1:LM))
           ALLOCATE(VB_E(1:N_BLEND_H,INDX_MIN_V%EAST:INDX_MAX_V%EAST,1:LM))
@@ -7931,7 +8158,36 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PRELIM)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!-------------------
+        ELSE east_v
+!-------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Load 0 Length for East V BC Data"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+          CALL ESMF_AttributeSet(state    =EXP_STATE                   &  !<-- The Parent_Child Coupler export state
+                                ,name     ='EAST_V'                    &  !<-- Name of east V BC data
+                                ,count    =LEN                         &  !<-- Loading 0 words
+                                ,valueList=DUMMY_0                     &  !<-- Empty data
+                                ,rc       =RC)
+#else
+          CALL ESMF_AttributeSet(state    =EXP_STATE                   &  !<-- The Parent_Child Coupler export state
+                                ,name     ='EAST_V'                    &  !<-- Name of east V BC data
+                                ,itemCount=LEN                         &  !<-- Loading 0 words
+                                ,valueList=DUMMY_0                     &  !<-- Empty data
+                                ,rc       =RC)
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_PRELIM)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!--------------------
         ENDIF east_v
+!--------------------
 !
 !-----------------------------------------------------------------------
 !
