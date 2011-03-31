@@ -81,16 +81,16 @@ if [ $IDVC = 2 ] ; then
   cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/gfsanl.2010010100 ${RUNDIR}/.
   cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/sfcanl.2010010100 ${RUNDIR}/.
 
-#  cp /gpfs/c4/climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/t62hyb/gfsanl.2010010100 ${RUNDIR}/.
-#  cp /gpfs/c4/climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/t62hyb/sfnanl.2010010100 ${RUNDIR}/sfcanl.2010010100
+#  cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/t62hyb/gfsanl.2010010100 ${RUNDIR}/.
+#  cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/t62hyb/sfnanl.2010010100 ${RUNDIR}/sfcanl.2010010100
 
 
 elif [ $IDVC = 3 ] ; then
   cp ${RTPWD}/GFS_NODFI/gfsanl.2010010100 ${RUNDIR}/.
   cp ${RTPWD}/GFS_NODFI/sfcanl.2010010100 ${RUNDIR}/.
 
-#   cp /gpfs/c4/climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/t62/gfsanl.2010010100 ${RUNDIR}/.
-#   cp /gpfs/c4/climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/t62/sfnanl.2010010100 ${RUNDIR}/sfcanl.2010010100
+#  cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/t62/gfsanl.2010010100 ${RUNDIR}/.
+#  cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/t62/sfnanl.2010010100 ${RUNDIR}/sfcanl.2010010100
 fi
 
 else
@@ -104,14 +104,15 @@ cd $PATHRT
 
 echo 'RUNDIR=' $RUNDIR
 
-cp ${RTPWD}/GEFS_data_2008082500/* $RUNDIR
-#cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/GEFS_data_2008082500/gfsanl* $RUNDIR
-#cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/GEFS_data_2008082500/sfnanl* $RUNDIR/sfcanl*
+ cp ${RTPWD}/GEFS_data_2008082500/* $RUNDIR
+# cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/GEFS_data_2008082500/gfsanl* $RUNDIR
+# cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/GEFS_data_2008082500/sfcanl* $RUNDIR
 cp $PATHRT/gfs_configfile_190 $RUNDIR/configure_file
 
 
 cat gfs_fcst_run_GEFS.IN \
                     | sed s:_SRCDIR_:${PATHTR}:g \
+                    | sed s:_NDSLFV_:${NDSLFV}:g \
                     | sed s:_RUNDIR_:${RUNDIR}:g > gfs_fcst_run
 
 cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc

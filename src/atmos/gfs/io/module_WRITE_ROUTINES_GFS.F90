@@ -21,7 +21,7 @@
 !          Feb 2011:  W. Yang - Updated to use both the ESMF 4.0.0rp2 library,
 !                               ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !       07 Mar 2011:  S. Lu - idvm is determined from sfcpress and thermodyn
-!
+!       27 Mar 2011:  J. Wang - set idsl for hybrid and sigms coord
 !--------------------------------------------------------------------------------
 !
       USE ESMF_MOD
@@ -2219,6 +2219,7 @@
           endif
         ELSEIF(hybrid) then
           idvc    = 2                        ! for hybrid vertical coord.
+          idsl    = 1
           nvcoord = 2
           if(NAK5>0 .and. NBK5>0 ) then
             do i=1,LM+1
@@ -2229,6 +2230,7 @@
           endif
         ELSE if(NGEN_COORD_HYBRID/=0.and.NHYBRID/=0) THEN
           idvc    = 1    ! for sigma vertical coord. (default)
+          idsl    = 1
           nvcoord = 1
           if(NSI>0 ) then
             vcoord(:,1,1) = ARYRVAL(:,NSI)

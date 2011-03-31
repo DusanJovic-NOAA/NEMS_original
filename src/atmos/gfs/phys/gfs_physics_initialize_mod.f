@@ -31,6 +31,7 @@
 !  Aug 19   2010  S. Moorthi    Updated for T574 + added num_reduce to namelist
 !  Oct 18   2010  S. Moorthi    Added fscav initialization
 !  Dec 23   2010  Sarah Lu      initialize scatter_lats, scatter_lons, g2d_fld%met
+!  Mar 27   2010  J. Wang       add zsoil to sfc file
 !
 ! !interface:
 !
@@ -187,6 +188,13 @@
       ivssfc_restart  = 200509
       if (ivssfc > ivssfc_restart) ivssfc_restart = ivssfc
       ivsnst  = 200907
+!
+      allocate(gis_phy%zsoil(lsoil))
+      if(lsoil==2) then
+        gis_phy%zsoil=(/-0.1,-2.0/)   
+      elseif(lsoil==4) then
+        gis_phy%zsoil=(/-0.1,-0.4,-1.0,-2.0/)
+      endif
 
       ivsupa  = 0
       if (levs .gt. 99) ivsupa  = 200509

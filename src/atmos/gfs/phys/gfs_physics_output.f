@@ -24,11 +24,13 @@
 !*        IN SUBROUTINE POINT_PHYSICS_OUPUT
 !
 !***  REVISION LOG:
+!***  Oct    2008  J. WANG    create gfs physics output
 !***  Jul 23 2010, Sarah Lu   write out 2d aer_diag (g2d_fld)
 !***  Jul    2010  S. Moorthi Updated for new physics and extra output
 !***  Dec 23 2010, Sarah Lu   add g2d_fld%met to 2d aer_diag
 !***  Feb 2011   Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
 !***                         ESMF 5 library and the the ESMF 3.1.0rp2 library.
+!***  Mar    2011  J. WANG    output lpl,zsoil for sfc file
 !***
 !-----------------------------------------------------------------------
 !
@@ -137,6 +139,7 @@
 !                              -----------------------------------------
 !
                                'IDAT      ', 'OGFS_PHY  ', '-         ' &
+                              ,'LPL       ', 'OGFS_SFC  ', '-         ' &
 !
 !                              -----------------------------------------
 !
@@ -182,10 +185,9 @@
        =RESHAPE((/                                                      &
 !                              -----------------------------------------
 !
-!jw                         'AK5          ', 'OGFS_PHY     ', 'R            ' &
+                         'zsoil        ', 'OGFS_SFC     ', '             ' &
 !jw                        ,'BK5          ', 'OGFS_PHY     ', 'R            ' &
 !jw                        ,'CK5          ', 'OGFS_PHY     ', 'R            ' &
-                           '-            ', '-            ', '-            ' &
 !
 !                              -----------------------------------------
 !
@@ -504,7 +506,7 @@
       END TYPE PHY_I2D
 !-----------------------------------------------------------------------
       TYPE PHY_R1D
-        REAL(KIND=kind_grid),DIMENSION(:),POINTER :: NAME                   !<-- Pointer for 1D real arrays
+        REAL(KIND=kind_io4),DIMENSION(:),POINTER :: NAME                   !<-- Pointer for 1D real arrays
       END TYPE PHY_R1D
 !-----------------------------------------------------------------------
       TYPE PHY_R2D
@@ -667,12 +669,13 @@
 !-----------------------
 !
       I_1D(1)%NAME=>idate
+      I_1D(2)%NAME=>int_state%lonsperlar
 !        
 !--------------------
 !***  1D REAL ARRAYS
 !--------------------
 !
-!      R_1D(1)%NAME=>ak5
+      R_1D(1)%NAME=>int_state%zsoil
 !      R_1D(2)%NAME=>bk5
 !      R_1D(3)%NAME=>ck5
 !        
@@ -1082,9 +1085,10 @@
            trim(PHY_INT_STATE_1D_I(file_index,NFIND))==trim(file_gen) )THEN        !<-- Take 1D integer array data specified for history output
           VBL_NAME=TRIM(PHY_INT_STATE_1D_I(1,NFIND))
           LENGTH=SIZE(I_1D(NFIND)%NAME)
+          if(VBL_NAME=="LPL") LENGTH=SIZE(I_1D(NFIND)%NAME)/2
 !
-!          write(0,*)'phy_out,I1D NFIND=',NFIND,'VBL_NAME=',trim(VBL_NAME),  &
-!             'length=',length,'value=',I_1D(NFIND)%NAME
+          write(0,*)'phy_out,I1D NFIND=',NFIND,'VBL_NAME=',trim(VBL_NAME),  &
+             'length=',length,'value=',I_1D(NFIND)%NAME
 
 #ifdef ESMF_3
           CALL ESMF_AttributeSet(bundle     =FILE_BUNDLE             &  !<-- The write component's output data Bundle

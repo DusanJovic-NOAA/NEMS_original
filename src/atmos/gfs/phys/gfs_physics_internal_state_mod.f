@@ -25,7 +25,7 @@
 !  Aug 09 2010        Jun Wang, add nst_fcst
 !  Aug 25 2010        Jun Wang, add zhour_dfi for filtered dfi fields output
 !  Oct 18 2010        Shrinivas Moorthi - added fscav
-!  jul 14 2009        sarah lu, add g2d_fld
+!  Mar 28 2011        Jun Wang, add zsoil
 !
 ! !interface:
 !
@@ -83,6 +83,8 @@
       integer                           ::  num_file
       character(32)        ,allocatable ::  filename_base(:)
       integer                           ::  idrt
+!add zsoil for output
+      real(4),pointer                   ::  zsoil (:)
 !jwe
 
       integer                           ::  nblck, kdt

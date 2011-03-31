@@ -1438,6 +1438,7 @@ export LIST_FILES=" \
 #---------------------
 export GEFS_ENSEMBLE=1
 export TASKS=64    ; export THRD=1
+export NDSLFV=.false.
 echo 'PATHTR=' $PATHTR
 #---------------------
   ./rt_gfs.sh
@@ -2779,6 +2780,7 @@ export LIST_FILES=" \
 #---------------------
 export GEFS_ENSEMBLE=1
 export TASKS=64    ; export THRD=1
+export NDSLFV=.false.
 echo 'PATHTR=' $PATHTR
 #---------------------
   ./rt_gfs.sh
@@ -4120,6 +4122,7 @@ export LIST_FILES=" \
 #---------------------
 export GEFS_ENSEMBLE=1
 export TASKS=64    ; export THRD=1
+export NDSLFV=.false.
 echo 'PATHTR=' $PATHTR
 #---------------------
   ./rt_gfs.sh

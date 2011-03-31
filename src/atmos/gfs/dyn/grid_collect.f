@@ -525,6 +525,7 @@ cc
             write(0,*)'in atmgg_wrt,vcoord4(1,1)=',vcoord4(1:levp1,1,1)
           else if (hybrid) then
             idvc    = 2                        ! for hybrid vertical coord.
+            idsl    = 1    ! idsl=1 for Phillips 
             nvcoord = 2
 !            allocate (vcoord4(levp1,nvcoord))
             do k=1,levp1
@@ -535,6 +536,7 @@ cc
             enddo
           else
             idvc    = 1    ! for sigma vertical coord. (default)
+            idsl    = 1    ! idsl=1 for Phillips 
             nvcoord = 1
             vcoord4(:,1,1) = si (:)
           endif
