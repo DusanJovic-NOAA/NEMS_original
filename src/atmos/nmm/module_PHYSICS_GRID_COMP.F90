@@ -957,7 +957,7 @@
       LOGICAL                                      :: LSFWD,OPENED,FLIPV,CHANGE,LSSAV_CC,LGOCART=.FALSE.
       INTEGER,PARAMETER                            :: IFLIP=1,NTRAC=3            !!!!!! later ntrac read form namelist
       INTEGER                                      :: II, JJ, ICWP,IMJM, IDATE(4)
-      INTEGER                                      :: KFLIP,ISEED
+      INTEGER                                      :: KFLIP,ISEED,IDE_GR
       INTEGER ,SAVE                                :: ID,IDAY,IMON,MIDMON,MIDM,MIDP,K1OZ,K2OZ,SEED0
       INTEGER ,DIMENSION(1)                        :: ICSDSW,ICSDLW
       INTEGER ,DIMENSION(JTS:JTE)                  :: LONSPERLAR, GLOBAL_LATS_R
@@ -2203,6 +2203,8 @@
           XLVRWI   = 1./XLVRW
           RoCP     = R/CP
           LSSAV_CC = LSSAV
+          IDE_GR   = IDE-1
+          IF(int_state%GLOBAL) IDE_GR = IDE-3
 !
 !-----------------------------------------------------------------------
 ! ***  MAIN GFS-PHYS DOMAIN LOOP
@@ -2359,9 +2361,9 @@
              VVEL(KFLIP)     = int_state%OMGALF(I,J,L) * PRSL(KFLIP) * RTvR
 !
              GU(KFLIP)       = (int_state%U(I,J  ,L) + int_state%U(I-1,J  ,L) +                    &
-                                int_state%U(I,J-1,L) + int_state%U(I-1,J-1,L))*COSLAT_R(J)*0.25d0
+                                int_state%U(I,J-1,L) + int_state%U(I-1,J-1,L))*0.25d0
              GV(KFLIP)       = (int_state%V(I,J  ,L) + int_state%V(I-1,J  ,L) +                    &
-                                int_state%V(I,J-1,L) + int_state%V(I-1,J-1,L))*COSLAT_R(J)*0.25d0
+                                int_state%V(I,J-1,L) + int_state%V(I-1,J-1,L))*0.25d0
              GT(KFLIP)       = int_state%T(I,J,L)
              GR(KFLIP)       = int_state%Q(II,JJ,L)
              GR3(KFLIP,1)    = int_state%Q(II,JJ,L)
@@ -2413,7 +2415,7 @@
              HPRIME(10)      = int_state%HLENNW(I,J)
              HPRIME(11)      = int_state%HANGL(I,J)*180.D0/3.14159D0
              HPRIME(12)      = int_state%HANIS(I,J)
-             HPRIME(13)      = int_state%HSLOP(I,J)*0.2d0   ! calculated from different terrain file
+             HPRIME(13)      = int_state%HSLOP(I,J)
              HPRIME(14)      = int_state%HZMAX(I,J)
 !---
              RUNOFF(1)       = int_state%BGROFF(I,J)*0.001D0
@@ -2457,46 +2459,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!  GBPHYS   !!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!---
-!  update temp. with radiative tendencies
-!---
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!rv
-        DO L=1,LM
-          KFLIP=LM+1-L
-          int_state%RSWTT(I,J,L)=SWH(KFLIP)
-          int_state%RLWTT(I,J,L)=HLW(KFLIP)
-        ENDDO
-          int_state%CZEN  (I,J)=COSZEN(I,J)
-          int_state%CZMEAN(I,J)=COSZDG(I,J)
-        CALL TIME_MEASURE(START_YEAR,START_MONTH,START_DAY,START_HOUR   &
-                         ,START_MINUTE,START_SECOND                     &
-                         ,NTIMESTEP_rad,int_state%DT                    &
-                         ,JULDAY,JULYR,JULIAN,XTIME)
-        CALL RDTEMP(NTIMESTEP,int_state%DT,JULDAY,JULYR,START_HOUR                &
-                   ,int_state%GLAT(I:I,J:J),int_state%GLON(I:I,J:J)               &
-                   ,int_state%CZEN(I:I,J:J),int_state%CZMEAN(I:I,J:J),int_state%T(I:I,J:J,:)  &
-                   ,int_state%RSWTT(I:I,J:J,:),int_state%RLWTT(I:I,J:J,:)                 &
-                   ,1,1,1,1,LM                                  &
-                   ,I,I,J,J                                     &
-                   ,I,I,J,J                                     &
-                   ,I,I,J,J)
-          COSZEN(I,J)=int_state%CZEN(I,J)
-        DO L=1,LM
-          KFLIP=LM+1-L
-!rv       GT(KFLIP)=int_state%T(I,J,L)   !!!! GT = T + NPHS * deltaT
-!rv       GT(KFLIP)=GT(KFLIP) + (int_state%T(I,J,L)-GT(KFLIP))*int_state%NPHS
-        ENDDO
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!       DO L=1,LM
-!         IF(COSZDG(I,J)>0.0D0) THEN
-!           FAC=COSZEN(I,J)/COSZDG(I,J)
-!         ELSE
-!           FAC=0.0D0
-!         ENDIF
-!
-!         GT(L)=GT(L)+(SWH(L)*FAC+HLW(L))*int_state%DT
-!       ENDDO
 !---
         IF (LSSWR .OR. LSLWR ) THEN
           SFCDLW(1)             = SFCFLW(1)%DNFXC
@@ -2544,7 +2506,7 @@
          FLIPV       = .FALSE.
          NCW(1)      = 50
          NCW(2)      = 150
-         OLD_MONIN   = .TRUE.
+         OLD_MONIN   = .FALSE.
          CNVGWD      = .FALSE.
          NEWSAS      = .FALSE.
          CCWF        = 0.5d0  ! only for RAS scheme
@@ -2573,7 +2535,7 @@
       ENDIF
 !-----------------------------------------------------------------------
       CALL GBPHYS(1, 1, LM, NUM_SOIL_LAYERS, LSM, NTRAC, NCLD, NTOZ, NTCW,  &
-           NMTVR, 1, LEVOZP, LONR, LATR, 62, NUM_P3D, NUM_P2D,              &
+           NMTVR, 1, LEVOZP, IDE_GR, LATR, 62, NUM_P3D, NUM_P2D,            &
            NTIMESTEP, J-JTS+1, MYPE, PL_COEFF, LONR, NCW, FLGMIN, CRTRH,    &
              CDMBGWD, &
            CCWF, DLQF, CTEI_RM, CLSTP, DTP, DTF, FHOUR, SOLHR,              &
@@ -2708,8 +2670,8 @@
          DO L=1,LM
             KFLIP=LM+1-L
              int_state%T(I,J,L)           = ADT(KFLIP)
-             int_state%DUDT(I,J,L)        = (ADU(KFLIP) - GU(KFLIP)) / (COSLAT_R(J) + 0.0001) / DTP
-             int_state%DVDT(I,J,L)        = (ADV(KFLIP) - GV(KFLIP)) / (COSLAT_R(J) + 0.0001) / DTP
+             int_state%DUDT(I,J,L)        = (ADU(KFLIP) - GU(KFLIP)) / DTP
+             int_state%DVDT(I,J,L)        = (ADV(KFLIP) - GV(KFLIP)) / DTP
              int_state%CLDFRA(I,J,L)      = CLDCOV_V(KFLIP) 
              int_state%Q (II,JJ,L)        = ADR(KFLIP,1)
              int_state%O3(II,JJ,L)        = ADR(KFLIP,2)
