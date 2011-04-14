@@ -11,6 +11,7 @@ cat nmm_${GBRG}_ll.IN   | sed s:_JBNME_:${JBNME}:g   \
                         | sed s:_CLASS_:${CLASS}:g   \
                         | sed s:_GROUP_:${GROUP}:g   \
                         | sed s:_ACCNR_:${ACCNR}:g   \
+                        | sed s:_WLCLK_:${WLCLK}:g   \
                         | sed s:_TPN_:${TPN}:g       \
                         | sed s:_THRD_:${THRD}:g     \
                         | sed s:_TS_:${TS}:g         \
@@ -26,6 +27,9 @@ cat nmm_${GBRG}_conf.IN | sed s:_INPES_:${INPES}:g   \
                         | sed s:_NEMSI_:${NEMSI}:g   \
                         | sed s:_RSTRT_:${RSTRT}:g   \
                         | sed s:_gfsP_:${gfsP}:g     \
+                        | sed s:_CONVC_:${CONVC}:g   \
+                        | sed s:_MICRO_:${MICRO}:g   \
+                        | sed s:_TURBL_:${TURBL}:g   \
                         | sed s:_PCPFLG_:${PCPFLG}:g \
                         | sed s:_WPREC_:${WPREC}:g   \
                         | sed s:_NCHILD_:${NCHILD}:g >  configure_file_01

@@ -233,7 +233,7 @@
         REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: ZORFCS,SIHFCS,SICFCS,SLPFCS  &
                                                        ,TG3FCS,VEGFCS,VETFCS,SOTFCS
         REAL(kind=KDBL),DIMENSION(:,:,:)  ,POINTER   :: ALBFC1,ALFFC1
-        REAL(kind=KDBL),DIMENSION(:,:,:)  ,POINTER   :: SWH,HLW
+!rv     REAL(kind=KDBL),DIMENSION(:,:,:)  ,POINTER   :: SWH,HLW
         REAL(kind=KDBL),DIMENSION(:,:,:)  ,POINTER   :: PHY_F2DV   ! save last time step 2Ds
         REAL(kind=KDBL),DIMENSION(:,:,:,:),POINTER   :: PHY_F3DV   ! save last time step 3Ds
         REAL(kind=KDBL),DIMENSION(:,:,:,:),POINTER   :: OZPLIN
@@ -621,8 +621,8 @@
 !
         ALLOCATE(int_state%ALBFC1   (IMS:IME,JMS:JME,4))  ;int_state%ALBFC1 = R8_IN     !
         ALLOCATE(int_state%ALFFC1   (IMS:IME,JMS:JME,2))  ;int_state%ALFFC1 = R8_IN     !
-        ALLOCATE(int_state%SWH      (IMS:IME,JMS:JME,LM)) ;int_state%SWH    = R8_IN     !
-        ALLOCATE(int_state%HLW      (IMS:IME,JMS:JME,LM)) ;int_state%HLW    = R8_IN     !
+!rv     ALLOCATE(int_state%SWH      (IMS:IME,JMS:JME,LM)) ;int_state%SWH    = R8_IN     !
+!rv     ALLOCATE(int_state%HLW      (IMS:IME,JMS:JME,LM)) ;int_state%HLW    = R8_IN     !
 !
         ALLOCATE(int_state%PHY_F2DV (IMS:IME,JMS:JME,3))    ;int_state%PHY_F2DV = R8_IN ! for Zhao =3, Ferr=1
         ALLOCATE(int_state%PHY_F3DV (IMS:IME,JMS:JME,LM,4)) ;int_state%PHY_F3DV = R8_IN ! for Zhao =4, Ferr=3

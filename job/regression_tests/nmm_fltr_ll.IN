@@ -11,7 +11,7 @@
 #@ node_resources= ConsumableMemory(110GB)
 #@ class = _CLASS_
 #@ group = _GROUP_
-#@ wall_clock_limit = 00:06:00
+#@ wall_clock_limit = 00:_WLCLK_:00
 #@ parallel_threads = _THRD_
 #@ preferences = Feature == "dev"
 #@ network.MPI = sn_all,not_shared,us

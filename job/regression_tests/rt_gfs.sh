@@ -130,6 +130,7 @@ cat gfs_ll.IN       | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_CLASS_:${CLASS}:g   \
                     | sed s:_GROUP_:${GROUP}:g   \
                     | sed s:_ACCNR_:${ACCNR}:g   \
+                    | sed s:_WLCLK_:${WLCLK}:g   \
                     | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_THRDS_:${THRD}:g    >  gfs_ll
 

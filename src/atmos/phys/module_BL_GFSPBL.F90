@@ -126,7 +126,7 @@
 !***
 !***  LOCAL VARIABLES
 !***
-      INTEGER :: I,J,K,LM,KFLIP,K1,nvdiff, levs 
+      INTEGER :: I,J,K,LM,KFLIP,K1,nvdiff,ntcw, levs , ipr
       INTEGER, DIMENSION(1) :: kpbl, kinver
       REAL(kind=kind_phys) :: dtp, surface,xkzm_m,xkzm_h,xkzm_s
       REAL(kind=kind_phys), DIMENSION(1,KTE-1) :: dkt
@@ -138,19 +138,25 @@
                                    dusfc1,dvsfc1,dtsfc1,dqsfc1,hpbl,gamt,gamq,pii
       REAL(kind=kind_phys), DIMENSION(1,KTE,NUM_WATER-1) :: dqdt ,qgrs
        real a96, a97, temp1, plow, tz0,seamask,qz0ss
-      REAL :: QKLOW, CWMKLOW,RHOKLOW,QFC1,EXNSFC, PSFC, THSK
-      LOGICAL :: lpr
+      REAL :: QKLOW, CWMKLOW,RHOKLOW,QFC1,EXNSFC, PSFC, THSK, zmid1
+      LOGICAL :: lpr, lprnt
 !----------------------------------------------------------------------
     !  lpr=.true.  !.false.
       lpr=.false.  !.false.
-      dtp=DT*float(NPHS)
+      ipr=0
+      lprnt=.false.
+    !  dtp=DT*float(NPHS)
+      dtp=DT*float(NPHS)/2.0
+
       LM = KTE
       levs = LM
       nvdiff = NUM_WATER -1     !! p_qv = 2, 
+      ntcw  = P_QC-1    !-- Mix only cloud water; mixing of other species may not be robust
    !
       kinver(1) = levs          !! temp
       xkzm_m = 3.0
-      xkzm_h = 1.0
+     !! xkzm_h = 1.0
+      xkzm_h = 0.1  !0.0  !1.0 !0.1  !0.2 !#0.5
       xkzm_s = 0.2              !! background diffusivity, see compns_physics.f in gfs/phys
 
       RQCBLTEN = 0.0
@@ -235,15 +241,15 @@
               prsik(1,K) = (prsi(1,K)*1.e-5)**CAPPA
               phii(1,K)  = ZINT(I,J,KFLIP)*G99
            ENDDO
-           DO K=1,LM
+          DO K=1,LM
              KFLIP = LM+1-K
               ugrs(1,K) = U(I,J,KFLIP)
               vgrs(1,K) = V(I,J,KFLIP)
               tgrs(1,K) = T(I,J,KFLIP)
-              DO k1=1,nvdiff
-              ! qgrs(1,K,K1) = WATER(I,J,KFLIP,K1+1)    !! qgrs(K1=1) must be P_QV (vapor)
      !! mixing ratio to specific humidity
-              qgrs(1,K,K1) = WATER(I,J,KFLIP,K1+1)/(1.0+WATER(I,J,KFLIP,K1+1)) !! qgrs(K1=1) must be P_QV (vapor)
+              qgrs(1,K,1) = WATER(I,J,KFLIP,P_QV)/(1.0+WATER(I,J,KFLIP,P_QV))
+              DO k1=2,nvdiff
+                qgrs(1,K,K1) = WATER(I,J,KFLIP,K1+1)
               ENDDO 
 
         !       if (i == 35 .and. j == 17) then 
@@ -255,9 +261,14 @@
               prsl(1,K) = PMID(I,J,KFLIP)  !! pa
               prslk(1,K)= (prsl(1,K)*1.0e-5)**CAPPA
              !! phil(1,K) = G99*0.5*(ZINT(I,J,KFLIP)+ZINT(I,J,KFLIP+1))
-              phil(1,K) = 0.5*(phii(1,K)+phii(1,K+1)) 
+             !! phil(1,K) = 0.5*(phii(1,K)+phii(1,K+1)) 
               swh(1,K) = RSWTT(I,J,KFLIP)    !!0.0  
               hlw(1,K) = RLWTT(I,J,KFLIP)    !!0.0 
+                 zmid1=zint(i,j,kflip+1)+pmid(i,j,kflip)/airden(i,j,kflip)/g99 &
+                          *alog(pint(i,j,kflip+1)/pmid(i,j,kflip))
+              !!write(0,*)'K=',phil(1,k)/g99
+                 phil(1,K)=zmid1*G99 
+              !!write(0,*)'K=,new',phil(1,k)/g99
            ENDDO
 
               xmu(1) = factrs(I,J) 
@@ -293,14 +304,14 @@
            gamq(1)   = 0.0
            dkt(1,:)    = 0.0 
            pii(1)    = 1.0 
-          call moninq(1,1,levs,nvdiff,dvdt,dudt,dtdt,dqdt,            &
+          call moninq(1,1,levs,nvdiff,ntcw,dvdt,dudt,dtdt,dqdt,         &
      &     ugrs,vgrs,tgrs,qgrs,swh,hlw,xmu,                             &
   !!   &     prsik(1,1),rb,ffmm,ffhh,tsea,qss,hflx,evap,stress,wind,kpbl, &
      &     pii,rb,ffmm,ffhh,tsea,qss,hflx,evap,stress,wind,kpbl, &
      &     prsi,del,prsl,prslk,phii,phil,dtp,                           &
      &     dusfc1,dvsfc1,dtsfc1,dqsfc1,hpbl,gamt,gamq,dkt,              &
-     &     kinver,xkzm_m,xkzm_h,xkzm_s)    
-
+     &     kinver,xkzm_m,xkzm_h,xkzm_s                                  &    
+     &    ,lprnt,ipr)
 !! AFTER CALLING, flip Z , then back to NEMS variables                 
           
            DO K=1,LM

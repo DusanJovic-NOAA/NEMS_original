@@ -166,7 +166,7 @@ co2tf:  1                       # co2tf--> Read (0) or generate internally (1)
                                 #          the GFDL CO2 transmission functions
 
 #---------------------------------
-convection:  bmj            # Convection scheme
+convection:  _CONVC_        # Convection scheme
                                 # bmj    --> Betts-Miller-Janjic
                                 # bmj_dev--> BMJ (development)
                                 #  kf    --> Kain-Fritsch
@@ -175,7 +175,7 @@ convection:  bmj            # Convection scheme
                                 # none   --> No convection
 
 #---------------------------------
-microphysics:  fer          # Microphysics scheme
+microphysics:  _MICRO_      # Microphysics scheme
                                 # fer--> Ferrier
                                 # kes--> Kessler
                                 # lin--> Lin
@@ -186,7 +186,7 @@ microphysics:  fer          # Microphysics scheme
 spec_adv:  .false.          # Individual cloud species advected
 
 #---------------------------------
-turbulence:  myj            # Turbulence schemes
+turbulence:  _TURBL_        # Turbulence schemes
                                 # myj--> Mellor-Yamada-Janjic
                                 # gfs--> GFS PBL
 

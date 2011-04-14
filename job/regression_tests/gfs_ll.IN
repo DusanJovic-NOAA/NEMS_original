@@ -8,12 +8,11 @@
 # @ total_tasks = _TASKS_
 # @ parallel_threads = _THRDS_
 # @ task_affinity = cpu(_THRDS_)
-# @ blocking = unlimited
-# @ node_usage = shared
-# @ resources=ConsumableCPUs(1)ConsumableMemory(5GB)
+# @ node_usage = not_shared
+# @ node_resources= ConsumableMemory(110GB)
 # @ class = _CLASS_
 # @ group = _GROUP_
-# @ wall_clock_limit = 00:30:00
+# @ wall_clock_limit = 00:_WLCLK_:00
 # @ preferences = Feature == "dev"
 # @ network.MPI = sn_all,not_shared,us
 # @ account_no=_ACCNR_

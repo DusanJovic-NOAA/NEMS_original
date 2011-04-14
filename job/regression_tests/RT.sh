@@ -28,12 +28,12 @@ fi
 # RTPWD - Path to previously stored regression test answers
 ############################################################
 
- export RTPWD=/${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
-## export RTPWD=/stmp/${LOGIN}/REGRESSION_TEST
+  export RTPWD=/${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
+# export RTPWD=/stmp/${LOGIN}/REGRESSION_TEST
 
 #########################################################################
 # Check if running regression test or creating baselines.
-# If one argument is provided and argument is = create_baselines
+# If one argument is provided and argument is = nmm, gfs, gen, or all,
 # then this script will prepare new answers for regression tests
 #########################################################################
 
@@ -58,31 +58,53 @@ if [ $argn -eq 1 ]; then
   rm -rf /stmp/${LOGIN}/REGRESSION_TEST
   cp -r /${DISKNM}/noscrub/wx20rv/REGRESSION_TEST_baselines \
 	/stmp/${LOGIN}/REGRESSION_TEST
-  mkdir -p /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_NDSL
   if [ ${CB_arg} = nmm ]; then
-    cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/* /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_HYB/.
-    cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*     /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID/.
+    cp ${RTPWD}/GEFS_data_2008082500/*      /stmp/${LOGIN}/REGRESSION_TEST/GEFS_data_2008082500/.
+    cp ${RTPWD}/GEFS_m4/*                   /stmp/${LOGIN}/REGRESSION_TEST/GEFS_m4/.
+    cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*       /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID/.
+    cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/*   /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_HYB/.
     cp ${RTPWD}/GFS_DFI_REDUCEDGRID_NDSL/*  /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_NDSL/.
-    cp ${RTPWD}/GFS_NODFI/*               /stmp/${LOGIN}/REGRESSION_TEST/GFS_NODFI/.
-    cp ${RTPWD}/GFS_OPAC/*                /stmp/${LOGIN}/REGRESSION_TEST/GFS_OPAC/.
-    cp ${RTPWD}/GEFS_data_2008082500/*    /stmp/${LOGIN}/REGRESSION_TEST/GEFS_data_2008082500/.
-    cp ${RTPWD}/GEFS_m4/*                 /stmp/${LOGIN}/REGRESSION_TEST/GEFS_m4/.
-    cp ${RTPWD}/GFS_DFI_hyb_2loop/*       /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_hyb_2loop/.
-    cp ${RTPWD}/GFS_DFI_hyb_2loop_nst/*   /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_hyb_2loop_nst/.
+    cp ${RTPWD}/GFS_DFI_hyb_2loop/*         /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_hyb_2loop/.
+    cp ${RTPWD}/GFS_DFI_hyb_2loop_nst/*     /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_hyb_2loop_nst/.
+    cp ${RTPWD}/GFS_NODFI/*                 /stmp/${LOGIN}/REGRESSION_TEST/GFS_NODFI/.
+    cp ${RTPWD}/GFS_OPAC/*                  /stmp/${LOGIN}/REGRESSION_TEST/GFS_OPAC/.
   elif [ ${CB_arg} = gfs ]; then
-    cp ${RTPWD}/NMMB_gfsP_glob/*          /stmp/${LOGIN}/REGRESSION_TEST/NMMB_gfsP_glob/.
-    cp ${RTPWD}/NMMB_gfsP_reg/*           /stmp/${LOGIN}/REGRESSION_TEST/NMMB_gfsP_reg/.
-    cp ${RTPWD}/NMMB_glob/*               /stmp/${LOGIN}/REGRESSION_TEST/NMMB_glob/.
-    cp ${RTPWD}/NMMB_nests/*              /stmp/${LOGIN}/REGRESSION_TEST/NMMB_nests/.
-    cp ${RTPWD}/NMMB_reg/*                /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg/.
-    cp ${RTPWD}/NMMB_reg_pcpadj/*         /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg_pcpadj/.
+    cp ${RTPWD}/NMMB_gfsP_glob/*            /stmp/${LOGIN}/REGRESSION_TEST/NMMB_gfsP_glob/.
+    cp ${RTPWD}/NMMB_gfsP_reg/*             /stmp/${LOGIN}/REGRESSION_TEST/NMMB_gfsP_reg/.
+    cp ${RTPWD}/NMMB_glob/*                 /stmp/${LOGIN}/REGRESSION_TEST/NMMB_glob/.
+    cp ${RTPWD}/NMMB_nests/*                /stmp/${LOGIN}/REGRESSION_TEST/NMMB_nests/.
+    cp ${RTPWD}/NMMB_reg/*                  /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg/.
+    cp ${RTPWD}/NMMB_reg_filt/*             /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg_filt/.
+    cp ${RTPWD}/NMMB_reg_pcpadj/*           /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg_pcpadj/.
+    cp ${RTPWD}/NMMB_reg_sel_phy/*          /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg_sel_phy/.
+    cp ${RTPWD}/NMMB_reg_timesr/*           /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg_timesr/.
   fi
+fi
+
+#########################################################################
+# If two arguments are provided ("big test") this will run complete
+# set of regression tests, otherwise it will run only base (small) test.
+#########################################################################
+
+  RT_BIG=false
+  if [ ${CREATE_BASELINE} = true ] ; then RT_BIG=true ; fi
+if [ $argn -eq 2 ]; then
+  RT_arg1=$1
+  RT_arg2=$2
+  if [ ${RT_arg1} != big -o ${RT_arg2} != test ]; then
+    echo "Wrong RT_arg choice: " $RT_arg1 $RT_arg2
+    echo "  Option is: "
+    echo "          RT.sh  big test  (run complete regression test)"
+    exit
+  fi
+  RT_BIG=true
 fi
 
 ################################################
 # List of variables in use:
 ################################################
 #
+# RT_BIG      - true: big test; false: small test
 # TEST_NR     - test number
 # TEST_DESCR  - test description
 # RTPWD       - path with previous stored data
@@ -97,6 +119,7 @@ fi
 # PE1         - number of computing tasks
 # WTPG        - number of write tasks
 # THRD        - number of threads
+# WLCLK       - wall clock limit
 # TS          - write time series
 # INPES       - number od PE's on x direction
 # FCSTL       - forecast length in hours
@@ -161,19 +184,22 @@ export TEST_NR=0
 clear;echo;echo
 
 ############################################################################
-# Clean and compile both NMMB & GFS cores, using ESMF ESMF 3.1.0rp2 library.
+# Clean and compile both NMMB & GFS cores, using ESMF 3.1.0rp2 library.
 ############################################################################
 
 echo "Preparing model code for regression tests"
 echo "Using the ESMF 3.1.0rp2 library"
-printf %s  "Using the ESMF 3.1.0rp2 library.   "
+printf %s "Using the ESMF 3.1.0rp2 library.   "
 printf %s "Compiling model code (this will take some time)......."
 cd ${PATHTR}/src
 
+date                                     >> ${PATHRT}/RegressionTests.log
+echo "Compilation ALL"                   >> ${PATHRT}/RegressionTests.log
 rm -f ../exe/NEMS.x
 gmake clean                              >  ${PATHRT}/Compile.log 2>&1
 esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
 gmake nmm_gfs_gen GOCART_MODE=full       >> ${PATHRT}/Compile.log 2>&1
+date                                     >> ${PATHRT}/RegressionTests.log
 
 if [ -f ../exe/NEMS.x ] ; then
   echo "   Model code Compiled";echo;echo
@@ -210,8 +236,9 @@ nmm_b_restart.024h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s "
 #---------------------
 export TPN=32       ; export THRD=1      ; export GBRG=glob  ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export WLCLK=04
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -231,7 +258,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CREATE_BASELINE} = false ]; then
+if [ ${CREATE_BASELINE} = false -a ${RT_BIG} = true ]; then
 
 export TEST_DESCR="Test NMMB-global NEMSIO as input file"
 
@@ -248,8 +275,9 @@ nmm_b_restart.024h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GBRG=glob  ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
-export NEMSI=true   ; export RSTRT=false ; export gfsP=false
+export NEMSI=true   ; export RSTRT=false ; export gfsP=false ; export WLCLK=04
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -264,7 +292,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CREATE_BASELINE} = false ]; then
+if [ ${CREATE_BASELINE} = false -a ${RT_BIG} = true ]; then
 
 export TEST_DESCR="Test NMMB-global restart run"
 
@@ -278,8 +306,9 @@ nmm_b_history.048h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GBRG=glob  ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
-export NEMSI=false  ; export RSTRT=true  ; export gfsP=false
+export NEMSI=false  ; export RSTRT=true  ; export gfsP=false ; export WLCLK=04
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -308,8 +337,9 @@ nmm_b_history.048h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GBRG=glob  ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
-export NEMSI=true   ; export RSTRT=true  ; export gfsP=false
+export NEMSI=true   ; export RSTRT=true  ; export gfsP=false ; export WLCLK=04
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -340,8 +370,9 @@ nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s"
 #---------------------
 export TPN=16       ; export THRD=1      ; export GBRG=glob  ; export TS=#
 export INPES=03     ; export JNPES=05    ; export WTPG=1     ; export FCSTL=24
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export WLCLK=04
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -373,8 +404,9 @@ nmm_b_restart.024h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=2      ; export GBRG=glob  ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export WLCLK=04
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -389,7 +421,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${RT_BIG} = true ]; then
  
 export TEST_DESCR="Test NMMB-global with GFS physics package "
 
@@ -406,8 +438,9 @@ nmm_b_restart.012h_00m_00.00s  nmm_b_restart_nemsio.012h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GBRG=glob  ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=24
-export NEMSI=false  ; export RSTRT=false ; export gfsP=true
+export NEMSI=false  ; export RSTRT=false ; export gfsP=true  ; export WLCLK=04
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -422,7 +455,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${RT_BIG} = true ]; then
 
 export TEST_DESCR="Compare NMMB-regional results with previous trunk version"
 
@@ -441,8 +474,9 @@ fort.41  fort.42  fort.43  fort.44  fort.45  fort.46  fort.47"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GBRG=reg   ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export WLCLK=06
 export PCPFLG=false ; export WPREC=true  ; export CPPCP=#    ; export NCHILD=0
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -478,8 +512,9 @@ nmm_b_history_nemsio.012h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GBRG=reg   ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=12
-export NEMSI=true   ; export RSTRT=false ; export gfsP=false
+export NEMSI=true   ; export RSTRT=false ; export gfsP=false ; export WLCLK=04
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -508,8 +543,9 @@ nmm_b_history.048h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GBRG=reg   ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
-export NEMSI=false  ; export RSTRT=true  ; export gfsP=false
+export NEMSI=false  ; export RSTRT=true  ; export gfsP=false ; export WLCLK=04
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -524,7 +560,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CREATE_BASELINE} = false ]; then
+if [ ${CREATE_BASELINE} = false -a ${RT_BIG} = true ]; then
 
 export TEST_DESCR="Test NMMB-regional restart run with NEMSIO file "
 
@@ -538,8 +574,9 @@ nmm_b_history.048h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GBRG=reg   ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
-export NEMSI=true   ; export RSTRT=true  ; export gfsP=false
+export NEMSI=true   ; export RSTRT=true  ; export gfsP=false ; export WLCLK=04
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -554,7 +591,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CREATE_BASELINE} = false ]; then
+if [ ${CREATE_BASELINE} = false -a ${RT_BIG} = true ]; then
 
 export TEST_DESCR="Test NMMB-regional different decomposition"
 
@@ -568,8 +605,9 @@ nmm_b_history.012h_00m_00.00s"
 #---------------------
 export TPN=16       ; export THRD=1      ; export GBRG=reg   ; export TS=#
 export INPES=03     ; export JNPES=05    ; export WTPG=1     ; export FCSTL=12
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export WLCLK=04
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -584,7 +622,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CREATE_BASELINE} = false ]; then
+if [ ${CREATE_BASELINE} = false -a ${RT_BIG} = true ]; then
 
 export TEST_DESCR="Test NMMB-regional threading "
 
@@ -601,8 +639,9 @@ nmm_b_restart.024h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=2      ; export GBRG=reg   ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export WLCLK=04
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -634,13 +673,112 @@ nmm_b_restart.012h_00m_00.00s  nmm_b_restart_nemsio.012h_00m_00.00s"
 #---------------------
 export TPN=32       ; export THRD=1      ; export GBRG=reg   ; export TS=#
 export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=24
-export NEMSI=false  ; export RSTRT=false ; export gfsP=true
+export NEMSI=false  ; export RSTRT=false ; export gfsP=true  ; export WLCLK=04
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
 #---------------------
  
+fi
+
+####################################################################################################
+#
+# TEST   - Regional NMM-B with selected GFS physics schemes
+#        - 6x5 compute tasks / 1 thread / selected GFS physics / free fcst / pure binary input
+#
+####################################################################################################
+
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${RT_BIG} = true ]; then
+
+export TEST_DESCR="Test NMMB-regional with selected GFS physics schemes "
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/NMM_REG_SEL_PHY
+export CNTL_DIR=NMMB_reg_sel_phy
+export LIST_FILES=" \
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s \
+nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s \
+nmm_b_restart.012h_00m_00.00s  nmm_b_restart_nemsio.012h_00m_00.00s"
+#---------------------
+export TPN=32       ; export THRD=1      ; export GBRG=reg   ; export TS=#
+export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=24
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export WLCLK=04
+export PCPFLG=false ; export WPREC=true  ; export CPPCP=#    ; export NCHILD=0
+export CONVC=sas    ; export MICRO=gfs   ; export TURBL=gfs
+#---------------------
+  ./rt_nmm.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi
+
+####################################################################################################
+#
+# TEST   - Regional NMM-B with precipitation adjustment on
+#        - 6x5 compute tasks / 1 thread / opnl physics / free fcst / pure binary input
+#
+####################################################################################################
+
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${RT_BIG} = true ]; then
+
+export TEST_DESCR="Test NMMB-regional with precipitation adjustment on"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/NMM_REG_PCPADJ
+export CNTL_DIR=NMMB_reg_pcpadj
+export LIST_FILES=" \
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  \
+nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s  \
+nmm_b_restart.012h_00m_00.00s  nmm_b_restart_nemsio.012h_00m_00.00s"
+#---------------------
+export TPN=32       ; export THRD=1      ; export GBRG=reg   ; export TS=#
+export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=12
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export WLCLK=04
+export PCPFLG=true  ; export WPREC=false ; export CPPCP=''   ; export NCHILD=0
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
+#---------------------
+  ./rt_nmm.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi
+
+####################################################################################################
+#
+# TEST   - Regional NMM-B writing time series
+#        - 6x5 compute tasks / 1 thread / opnl physics / free fcst / pure binary input
+#
+####################################################################################################
+
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${RT_BIG} = true ]; then
+
+export TEST_DESCR="Test NMMB-regional writing time series"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/NMM_REG_TIMESR
+export CNTL_DIR=NMMB_reg_timesr
+export LIST_FILES=" \
+nmm_b_history.006h_00m_00.00s ts_p01_d01.bin ts_p02_d01.bin"
+#---------------------
+export TPN=32       ; export THRD=1      ; export GBRG=reg   ; export TS=''
+export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=06
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export WLCLK=04
+export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
+#---------------------
+  ./rt_nmm.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
 fi
 
 ####################################################################################################
@@ -651,7 +789,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${RT_BIG} = true ]; then
 
 export TEST_DESCR="Test NMMB-regional with nesting"
 
@@ -687,8 +825,9 @@ nmm_b_restart.04_nemsio.012h_00m_00.00s  nmm_b_restart.04_nemsio.024h_00m_00.00s
 #---------------------
 export TPN=64       ; export THRD=1      ; export GBRG=nests ; export TS=#
 export INPES=02     ; export JNPES=03    ; export WTPG=1     ; export FCSTL=24
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export WLCLK=16
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=02
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -720,70 +859,9 @@ nmm_b_history.04.024h_00m_00.00s nmm_b_history.04_nemsio.024h_00m_00.00s"
 #---------------------
 export TPN=64       ; export THRD=1      ; export GBRG=nests ; export TS=#
 export INPES=02     ; export JNPES=03    ; export WTPG=1     ; export FCSTL=24
-export NEMSI=false  ; export RSTRT=true  ; export gfsP=false
+export NEMSI=false  ; export RSTRT=true  ; export gfsP=false ; export WLCLK=10
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=02
-#---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi
-
-####################################################################################################
-#
-# TEST   - Regional NMM-B with precipitation adjustment on
-#        - 6x5 compute tasks / 1 thread / opnl physics / free fcst / pure binary input
-#
-####################################################################################################
-
-if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
-
-export TEST_DESCR="Test NMMB-regional with precipitation adjustment on"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_REG_PCPADJ
-export CNTL_DIR=NMMB_reg_pcpadj
-export LIST_FILES=" \
-nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
-nmm_b_history.012h_00m_00.00s  \
-nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
-nmm_b_history_nemsio.012h_00m_00.00s  \
-nmm_b_restart.012h_00m_00.00s  nmm_b_restart_nemsio.012h_00m_00.00s"
-#---------------------
-export TPN=32       ; export THRD=1      ; export GBRG=reg   ; export TS=#
-export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=12
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false
-export PCPFLG=true  ; export WPREC=false ; export CPPCP=''   ; export NCHILD=0
-#---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi
-
-####################################################################################################
-#
-# TEST   - Regional NMM-B writing time series
-#        - 6x5 compute tasks / 1 thread / opnl physics / free fcst / pure binary input
-#
-####################################################################################################
-
-if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
-
-export TEST_DESCR="Test NMMB-regional writing time series"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_REG_TIMESR
-export CNTL_DIR=NMMB_reg_timesr
-export LIST_FILES=" \
-nmm_b_history.006h_00m_00.00s ts_p01_d01.bin ts_p02_d01.bin"
-#---------------------
-export TPN=32       ; export THRD=1      ; export GBRG=reg   ; export TS=''
-export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=06
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false
-export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -800,7 +878,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${RT_BIG} = true ]; then
 
 export TEST_DESCR="Test NMMB-regional digital filter with nests"
 
@@ -815,8 +893,9 @@ nmm_b_history.03.003h_00m_00.00s nmm_b_history.03_nemsio.003h_00m_00.00s"
 #---------------------
 export TPN=64       ; export THRD=1      ; export GBRG=fltr  ; export TS=#
 export INPES=02     ; export JNPES=02    ; export WTPG=1     ; export FCSTL=03
-export NEMSI=true   ; export RSTRT=false ; export gfsP=false
+export NEMSI=true   ; export RSTRT=false ; export gfsP=false ; export WLCLK=06
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=01
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -825,7 +904,6 @@ export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=01
 fi
 
 cd $PATHRT
-
 
 
 ####################################################################################################
@@ -855,7 +933,7 @@ export IAER=0      ; export FHRES=24
 export wavecoef=62 ; export wavegrid=62
 export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  ; export NDSLFV=.false.
+export NST_FCST=0  ; export NDSLFV=.false.  ; export WLCLK=05
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -870,7 +948,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CREATE_BASELINE} = false ]; then
+if [ ${CREATE_BASELINE} = false -a ${RT_BIG} = true ]; then
 
 export TEST_DESCR="Test GFS with 2-copy option"
 
@@ -890,7 +968,7 @@ export IAER=0      ; export FHRES=24
 export wavecoef=62 ; export wavegrid=62
 export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  ; export NDSLFV=.false.
+export NST_FCST=0  ; export NDSLFV=.false.  ; export WLCLK=05
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -905,7 +983,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CREATE_BASELINE} = false ]; then
+if [ ${CREATE_BASELINE} = false -a ${RT_BIG} = true ]; then
 
 export TEST_DESCR="Test GFS different decomposition and restart"
 
@@ -925,7 +1003,7 @@ export IAER=0      ; export FHRES=24
 export wavecoef=62 ; export wavegrid=62
 export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  ; export NDSLFV=.false.
+export NST_FCST=0  ; export NDSLFV=.false.  ; export WLCLK=05
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -960,7 +1038,7 @@ export IAER=0      ; export FHRES=24
 export wavecoef=62 ; export wavegrid=62
 export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  ; export NDSLFV=.false.
+export NST_FCST=0  ; export NDSLFV=.false.  ; export WLCLK=05
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -975,7 +1053,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CREATE_BASELINE} = false ]; then
+if [ ${CREATE_BASELINE} = false -a ${RT_BIG} = true ]; then
 
 export TEST_DESCR="Test GFS single processor"
 
@@ -995,7 +1073,7 @@ export IAER=0      ; export FHRES=24
 export wavecoef=62 ; export wavegrid=62
 export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  ; export NDSLFV=.false.
+export NST_FCST=0  ; export NDSLFV=.false.  ; export WLCLK=20
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1010,7 +1088,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CREATE_BASELINE} = false ]; then
+if [ ${CREATE_BASELINE} = false -a ${RT_BIG} = true ]; then
 
 export TEST_DESCR="Test GFS, 1 proc, 1 thread, no quilting,nsout=1"
 
@@ -1030,7 +1108,7 @@ export IAER=0      ; export FHRES=24
 export wavecoef=62 ; export wavegrid=62
 export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  ; export NDSLFV=.false.
+export NST_FCST=0  ; export NDSLFV=.false.  ; export WLCLK=20
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1045,7 +1123,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CREATE_BASELINE} = false ]; then
+if [ ${CREATE_BASELINE} = false -a ${RT_BIG} = true ]; then
 
 export TEST_DESCR="Test GFS, 16 proc, 2 threads,no quilt, output every 2 time steps"
 
@@ -1065,7 +1143,7 @@ export IAER=0      ; export FHRES=24
 export wavecoef=62 ; export wavegrid=62
 export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  ; export NDSLFV=.false.
+export NST_FCST=0  ; export NDSLFV=.false.  ; export WLCLK=05
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1080,7 +1158,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CREATE_BASELINE} = false ]; then
+if [ ${CREATE_BASELINE} = false -a ${RT_BIG} = true ]; then
 
 export TEST_DESCR="Test GFS, 48 proc, 1 thread, no quilt"
 
@@ -1100,7 +1178,7 @@ export IAER=0      ; export FHRES=24
 export wavecoef=62 ; export wavegrid=62
 export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  ; export NDSLFV=.false.
+export NST_FCST=0  ; export NDSLFV=.false.  ; export WLCLK=05
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1115,7 +1193,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CREATE_BASELINE} = false ]; then
+if [ ${CREATE_BASELINE} = false -a ${RT_BIG} = true ]; then
 
 export TEST_DESCR="GFS, 32 proc, 1 thread, no quilt, output every 4 timestep"
 
@@ -1135,7 +1213,7 @@ export IAER=0      ; export FHRES=24
 export wavecoef=62 ; export wavegrid=62
 export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  ; export NDSLFV=.false.
+export NST_FCST=0  ; export NDSLFV=.false.  ; export WLCLK=05
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1150,7 +1228,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${RT_BIG} = true ]; then
 
 export TEST_DESCR="GFS,32 total proc (tasks), 1 thread, quilt, digital filter on reduced grid"
 
@@ -1170,7 +1248,7 @@ export IAER=0      ; export FHRES=24
 export wavecoef=62 ; export wavegrid=62
 export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  ; export NDSLFV=.false.
+export NST_FCST=0  ; export NDSLFV=.false.  ; export WLCLK=05
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1205,7 +1283,7 @@ export IAER=0      ; export FHRES=24
 export wavecoef=62 ; export wavegrid=62
 export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  ; export NDSLFV=.false.
+export NST_FCST=0  ; export NDSLFV=.false.  ; export WLCLK=05
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1220,7 +1298,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CREATE_BASELINE} = false ]; then
+if [ ${CREATE_BASELINE} = false -a ${RT_BIG} = true ]; then
 
 export TEST_DESCR="GFS,1 proc, no quilt, digital filter on reduced grid"
 
@@ -1240,7 +1318,7 @@ export IAER=0      ; export FHRES=24
 export wavecoef=62 ; export wavegrid=62
 export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  ; export NDSLFV=.false.
+export NST_FCST=0  ; export NDSLFV=.false.  ; export WLCLK=20
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1255,7 +1333,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${RT_BIG} = true ]; then
 
 export TEST_DESCR="GFS, use the OPAC climo scheme for SW and LW"
 
@@ -1275,7 +1353,7 @@ export IAER=11      ; export FHRES=24
 export wavecoef=62 ; export wavegrid=62
 export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  ; export NDSLFV=.false.
+export NST_FCST=0  ; export NDSLFV=.false.  ; export WLCLK=05
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1286,13 +1364,13 @@ fi
 ####################################################################################################
 #
 # TEST   - GFS 
-#        - NDSL 30 compute tasks / 2 thread
+#        - NDSL 12 compute tasks / 2 thread
 #
 ####################################################################################################
 
 if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
 
-export TEST_DESCR="GFS, 32tasks, 2threads, quilt, dfi3hr, reduced grid, NDSL"
+export TEST_DESCR="GFS, 16tasks, 2threads, quilt, dfi3hr, reduced grid, NDSL"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
@@ -1303,14 +1381,14 @@ export LIST_FILES=" \
         sfcf03 sfcf06 sfcf12 sfcf24  \
         flxf03 flxf06 flxf12 flxf24  "
 #---------------------
-export TASKS=32    ; export THRD=2       ; export NSOUT=0     ; export QUILT=.true.
-export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=.false.
-export WRTGP=1     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
+export TASKS=16    ; export THRD=2       ; export NSOUT=0     ; export QUILT=.true.
+export PE1=12      ; export WTPG=2       ; export NDAYS=2     ; export CP2=.false.
+export WRTGP=2     ; export FDFI=3      ; export ADIAB=.false.; export REDUCEDGRID=.true.
 export IAER=0      ; export FHRES=24
 export wavecoef=62 ; export wavegrid=62
 export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  ; export NDSLFV=.true.
+export NST_FCST=0  ; export NDSLFV=.true.   ; export WLCLK=05
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1326,7 +1404,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${RT_BIG} = true ]; then
 
 export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid"
 
@@ -1346,7 +1424,7 @@ export IAER=0      ; export FHRES=24
 export wavecoef=62 ; export wavegrid=62
 export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=2      ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALLOOP=2
-export NST_FCST=0  ; export NDSLFV=.false.
+export NST_FCST=0  ; export NDSLFV=.false.  ; export WLCLK=05
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1382,7 +1460,7 @@ export IAER=0      ; export FHRES=24
 export wavecoef=62 ; export wavegrid=62
 export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=2      ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALLOOP=2
-export NST_FCST=1  ; export NDSLFV=.false.
+export NST_FCST=1  ; export NDSLFV=.false.  ; export WLCLK=05
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1417,7 +1495,7 @@ export IAER=0      ; export FHRES=24
 export wavecoef=62 ; export wavegrid=62
 export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=2      ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALLOOP=1
-export NST_FCST=0  ; export NDSLFV=.false.
+export NST_FCST=0  ; export NDSLFV=.false.  ; export WLCLK=05
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1456,12 +1534,13 @@ export LIST_FILES=" \
 #---------------------
 export GEFS_ENSEMBLE=1
 export TASKS=64    ; export THRD=1
-export NDSLFV=.false.
+export NDSLFV=.false.  ; export WLCLK=20
 echo 'PATHTR=' $PATHTR
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
 #---------------------
+export GEFS_ENSEMBLE=0
 
 fi
 
@@ -1482,9 +1561,7 @@ export TEST_DESCR="GEN, 1 members."
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/GEN_Run_m1
 #---------------------
- export GEN_ENSEMBLE=0
- export TASKS=16    ; export THRD=1
-echo 'PATHTR=' $PATHTR
+export TASKS=16 ; export THRD=1 ; export WLCLK=02
 #---------------------
   ./rt_gen.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1501,7 +1578,7 @@ cd $PATHRT
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm -a ${CB_arg} != gfs ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gfs -a ${RT_BIG} = true ]; then
 
 export TEST_DESCR="Concurrency GEN, 4 members."
 
@@ -1509,196 +1586,50 @@ export TEST_DESCR="Concurrency GEN, 4 members."
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/GEN_Concurrency_Run_m4
 #---------------------
- export GEN_ENSEMBLE=1
- export TASKS=64    ; export THRD=1
-echo 'PATHTR=' $PATHTR
+export GEN_ENSEMBLE=1
+export TASKS=64 ; export THRD=1 ; export WLCLK=02
 #---------------------
   ./rt_gen.sh
   if [ $? = 2 ]; then exit ; fi
 #---------------------
+export GEN_ENSEMBLE=0
 
 fi
 
-############################################################################
-# Clean and compile both NMMB & GFS cores, using ESMF ESMF 4.0.0rp2 library.
-############################################################################
-
-echo "Preparing model code for regression tests"
-echo "Using the ESMF 4.0.0rp2 library"
-printf %s  "Using the ESMF 4.0.0rp2 library.   "
-printf %s "Compiling model code (this will take some time)......."
-cd ${PATHTR}/src
-
-rm -f ../exe/NEMS.x
-gmake clean                              >> ${PATHRT}/Compile.log 2>&1
-esmf_version 4                           >> ${PATHRT}/Compile.log 2>&1
-gmake nmm_gfs_gen                        >> ${PATHRT}/Compile.log 2>&1
-
-if [ -f ../exe/NEMS.x ] ; then
-  echo "   Model code Compiled";echo;echo
-else
-  echo "   Model code is NOT compiled" >> ${PATHRT}/RegressionTests.log
-  echo "   Model code is NOT compiled"
-  exit
-fi
-
-cd $PATHRT
 
 ####################################################################################################
 #
-# TEST   - Global NMM-B with pure binary input
-#        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
+#   Now test different compilation options (only as part of BIG test)
+#     - nmm_gfs_gen GOCART_MODE=full (ESMF5)
+#     - nmm
+#     - gfs
+#     - nmm (traps ON)
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
-
-export TEST_DESCR="Compare NMMB-global results with previous trunk version"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL
-export CNTL_DIR=NMMB_glob
-export LIST_FILES=" \
-nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
-nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s  nmm_b_history.027h_00m_00.00s \
-nmm_b_history.030h_00m_00.00s  nmm_b_history.036h_00m_00.00s  nmm_b_history.048h_00m_00.00s \
-nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
-nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  nmm_b_history_nemsio.048h_00m_00.00s \
-nmm_b_restart.024h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s "
-#---------------------
-export TPN=32       ; export THRD=1      ; export GBRG=glob  ; export TS=#
-export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false
-export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
-#---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-export timing1=`grep total_integration_tim $PATHRT/err | tail -1 | awk '{ print $5 }'`
-export timingc=`cat ${RTPWD}/NMMB_glob/timing.txt`
-(echo " Original timing: " $timingc " , test_glob timing: " $timing1;echo;echo)>> RegressionTests.log
- echo " Original timing: " $timingc " , test_glob timing: " $timing1;echo;echo
-
-fi
-
-####################################################################################################
-# 
-# TEST   - GFS 
-#        - 30 compute tasks / 1 thread 
-#
-####################################################################################################
-
-if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
-
-export TEST_DESCR="Compare GFS results with previous trunk version"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_32
-export CNTL_DIR=GFS_NODFI
-export LIST_FILES=" \
-	sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
-	sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
-	flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
-#---------------------
-export TASKS=32    ; export THRD=1       ; export NSOUT=0     ; export QUILT=.true.
-export PE1=30      ; export WTPG=2       ; export NDAYS=2     ; export CP2=.false.
-export WRTGP=1     ; export FDFI=0      ; export ADIAB=.false.; export REDUCEDGRID=.true.
-export IAER=0      ; export FHRES=24
-export wavecoef=62 ; export wavegrid=62
-export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
-export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  ; export NDSLFV=.false.
-#---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi
-
-####################################################################################################
-#
-# TEST   - Concurrency GEFS
-#        - 4 members, every 6 hours, couple and add stochastic perturbations, T190L28.
-#
-####################################################################################################
-
-if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
-
-export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28."
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run
-export CNTL_DIR=GEFS_m4
-export LIST_FILES=" \
-        SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
-        SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
-        SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
-        SIG.F24_01 SIG.F24_02 SIG.F24_03 SIG.F24_04 \
-        SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
-        SFC.F12_01 SFC.F12_02 SFC.F12_03 SFC.F12_04 \
-        SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
-        SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
-        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
-        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
-        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
-        FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
-#---------------------
-export GEFS_ENSEMBLE=1
-export TASKS=64    ; export THRD=1
-export NDSLFV=.false.
-echo 'PATHTR=' $PATHTR
-#---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi
-
-cd $PATHRT
-
-####################################################################################################
-#
-# TEST   - Concurrency GEN, 64PEs, 1 node.
-#        - 4 members.
-#
-####################################################################################################
-
-if [ ${CB_arg} != nmm -a ${CB_arg} != gfs ]; then
-
-export TEST_DESCR="Concurrency GEN, 4 members."
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GEN_Concurrency_Run_m4
-#---------------------
- export GEN_ENSEMBLE=1
- export TASKS=64    ; export THRD=1
-echo 'PATHTR=' $PATHTR
-#---------------------
-  ./rt_gen.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi
+if [ ${RT_BIG} = true ]; then
 
 #########################################################################
-# Clean and compile both NMMB & GFS cores, using ESMF ESMF 5.1.0 library.
+#########################################################################
+#
+# Clean and compile both NMMB & GFS cores, using ESMF 5.1.0 library.
+#
+#########################################################################
 #########################################################################
 
 echo "Preparing model code for regression tests"
 echo "Using the ESMF 5.1.0 library"
-printf %s  "Using the ESMF 5.1.0 library.   "
+printf %s "Using the ESMF 5.1.0 library.   "
 printf %s "Compiling model code (this will take some time)......."
 cd ${PATHTR}/src
 
+date                                     >> ${PATHRT}/RegressionTests.log
+echo "Compilation ESMF 5"                >> ${PATHRT}/RegressionTests.log
 rm -f ../exe/NEMS.x
 gmake clean                              >> ${PATHRT}/Compile.log 2>&1
 esmf_version 5                           >> ${PATHRT}/Compile.log 2>&1
 gmake nmm_gfs_gen                        >> ${PATHRT}/Compile.log 2>&1
+date                                     >> ${PATHRT}/RegressionTests.log
 
 if [ -f ../exe/NEMS.x ] ; then
   echo "   Model code Compiled";echo;echo
@@ -1717,37 +1648,28 @@ cd $PATHRT
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
-
-export TEST_DESCR="Compare NMMB-global results with previous trunk version"
+export TEST_DESCR="Compare NMMB-global results with previous trunk version ESMF5"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL
+export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_ESMF5
 export CNTL_DIR=NMMB_glob
 export LIST_FILES=" \
 nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
-nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s  nmm_b_history.027h_00m_00.00s \
-nmm_b_history.030h_00m_00.00s  nmm_b_history.036h_00m_00.00s  nmm_b_history.048h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s  \
 nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
-nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  nmm_b_history_nemsio.048h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  \
 nmm_b_restart.024h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s "
 #---------------------
 export TPN=32       ; export THRD=1      ; export GBRG=glob  ; export TS=#
-export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=48
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false
+export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=24
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export WLCLK=02
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
 #---------------------
-
-export timing1=`grep total_integration_tim $PATHRT/err | tail -1 | awk '{ print $5 }'`
-export timingc=`cat ${RTPWD}/NMMB_glob/timing.txt`
-(echo " Original timing: " $timingc " , test_glob timing: " $timing1;echo;echo)>> RegressionTests.log
- echo " Original timing: " $timingc " , test_glob timing: " $timing1;echo;echo
-
-fi
 
 ####################################################################################################
 # 
@@ -1756,13 +1678,11 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
-
-export TEST_DESCR="Compare GFS results with previous trunk version"
+export TEST_DESCR="Compare GFS results with previous trunk version ESMF5"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_32
+export RUNDIR=${RUNDIR_ROOT}/GFS_32_ESMF5
 export CNTL_DIR=GFS_NODFI
 export LIST_FILES=" \
 	sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
@@ -1776,13 +1696,11 @@ export IAER=0      ; export FHRES=24
 export wavecoef=62 ; export wavegrid=62
 export lm=64       ; export lsoil=4      ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  ; export NDSLFV=.false.
+export NST_FCST=0  ; export NDSLFV=.false.  ; export WLCLK=05
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
 #---------------------
-
-fi
 
 ####################################################################################################
 #
@@ -1791,13 +1709,11 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
-
-export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28."
+export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF5"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run
+export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run_ESMF5
 export CNTL_DIR=GEFS_m4
 export LIST_FILES=" \
         SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
@@ -1815,16 +1731,13 @@ export LIST_FILES=" \
 #---------------------
 export GEFS_ENSEMBLE=1
 export TASKS=64    ; export THRD=1
-export NDSLFV=.false.
+export NDSLFV=.false.  ; export WLCLK=20
 echo 'PATHTR=' $PATHTR
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
 #---------------------
-
-fi
-
-cd $PATHRT
+export GEFS_ENSEMBLE=0
 
 ####################################################################################################
 #
@@ -1833,35 +1746,164 @@ cd $PATHRT
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm -a ${CB_arg} != gfs ]; then
-
-export TEST_DESCR="Concurrency GEN, 4 members."
+export TEST_DESCR="Concurrency GEN, 4 members. ESMF5"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GEN_Concurrency_Run_m4
+export RUNDIR=${RUNDIR_ROOT}/GEN_Concurrency_Run_m4_ESMF5
 #---------------------
- export GEN_ENSEMBLE=1
- export TASKS=64    ; export THRD=1
-echo 'PATHTR=' $PATHTR
+export GEN_ENSEMBLE=1
+export TASKS=64 ; export THRD=1 ; export WLCLK=02
 #---------------------
   ./rt_gen.sh
   if [ $? = 2 ]; then exit ; fi
 #---------------------
+export GEN_ENSEMBLE=0
 
+
+#########################################################################
+#########################################################################
+#
+# Clean and compile only NMMB core
+#
+#########################################################################
+#########################################################################
+
+echo "Preparing model code for regression tests"
+printf %s "Compiling model code (this will take some time)......."
+cd ${PATHTR}/src
+
+date                                     >> ${PATHRT}/RegressionTests.log
+echo "Compilation only NMM"              >> ${PATHRT}/RegressionTests.log
+rm -f ../exe/NEMS.x
+gmake clean                              >> ${PATHRT}/Compile.log 2>&1
+esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
+gmake nmm                                >> ${PATHRT}/Compile.log 2>&1
+date                                     >> ${PATHRT}/RegressionTests.log
+
+if [ -f ../exe/NEMS.x ] ; then
+  echo "   Model code Compiled";echo;echo
+else
+  echo "   Model code is NOT compiled" >> ${PATHRT}/RegressionTests.log
+  echo "   Model code is NOT compiled"
+  exit
 fi
+
+cd $PATHRT
+
+####################################################################################################
+#
+# TEST   - Global NMM-B with pure binary input
+#        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
+#
+####################################################################################################
+
+export TEST_DESCR="Compare NMMB-global results with previous trunk version, only NMM compiled"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_NMM_only
+export CNTL_DIR=NMMB_glob
+export LIST_FILES=" \
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s  \
+nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  \
+nmm_b_restart.024h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s "
+#---------------------
+export TPN=32       ; export THRD=1      ; export GBRG=glob  ; export TS=#
+export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=24
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export WLCLK=02
+export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
+#---------------------
+  ./rt_nmm.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+
+#########################################################################
+#########################################################################
+#
+# Clean and compile only NMMB core with TRAPS turned on
+#
+#########################################################################
+#########################################################################
+
+echo "Preparing model code for regression tests"
+printf %s "Compiling model code (this will take some time)......."
+cd ${PATHTR}/src
+
+date                                     >> ${PATHRT}/RegressionTests.log
+echo "Compilation NMM with TRAPS on"     >> ${PATHRT}/RegressionTests.log
+rm -f ../exe/NEMS.x
+gmake clean                              >> ${PATHRT}/Compile.log 2>&1
+esmf_version traps_on                    >> ${PATHRT}/Compile.log 2>&1
+gmake nmm                                >> ${PATHRT}/Compile.log 2>&1
+date                                     >> ${PATHRT}/RegressionTests.log
+
+if [ -f ../exe/NEMS.x ] ; then
+  echo "   Model code Compiled";echo;echo
+else
+  echo "   Model code is NOT compiled" >> ${PATHRT}/RegressionTests.log
+  echo "   Model code is NOT compiled"
+  exit
+fi
+
+cd $PATHRT
+
+####################################################################################################
+#
+# TEST   - Global NMM-B with pure binary input
+#        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
+#
+####################################################################################################
+
+export TEST_DESCR="Compare NMMB-global results with previous trunk version, TRAPS on"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_TRAPS_on
+export CNTL_DIR=NMMB_glob
+export LIST_FILES=" nmm_b_history.000h_00m_00.00s "
+#---------------------
+export TPN=32       ; export THRD=1      ; export GBRG=glob  ; export TS=#
+export INPES=06     ; export JNPES=05    ; export WTPG=2     ; export FCSTL=12
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export WLCLK=04
+export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export NCHILD=0
+export CONVC=bmj    ; export MICRO=fer   ; export TURBL=myj
+#---------------------
+  ./rt_nmm.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+
+
+
+
+
+####################################################################################################
+fi # end BIG test
+####################################################################################################
+
+
+
 
 ####################################################################################################
 # Finalize
 ####################################################################################################
 
-rm -f err out configure_file* nmm_ll gfs_fcst_run  gfs_ll gen_fcst_run gen_ll gen_ll.out
+rm -f err out configure_file* nmm_ll gfs_fcst_run  gfs_ll gen_fcst_run gen_ll
 
 cd ${PATHTR}/src
 gmake clean          > /dev/null 2>&1
+esmf_version 3       > /dev/null 2>&1
 
 rm -rf ${RUNDIR_ROOT}
 
 date >> ${PATHRT}/RegressionTests.log
+
+banner REGRESSION TEST WAS SUCCESSFUL
+
 
 exit

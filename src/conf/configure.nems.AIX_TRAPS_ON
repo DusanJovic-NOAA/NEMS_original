@@ -17,8 +17,8 @@ SMP       = -qsmp=omp
 MAF       = -qfloat=nomaf
 LIST      = -qsource -qlist
 FINCS     = $(ESMF_INC) $(NEMSIO_INC)
-#TRAPS     = -qinitauto=FF911299 -qflttrap=ov:zero:en -qsigtrap -C
-TRAPS     = 
+TRAPS     = -qinitauto=FF911299 -qflttrap=ov:zero:en -qsigtrap -C
+#TRAPS     = 
 
 FFLAGS    = $(TRAPS) $(FINCS)
 

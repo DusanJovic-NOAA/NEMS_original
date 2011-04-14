@@ -2386,8 +2386,8 @@
              USWSFCI(1)      = int_state%RSWOUT(I,J)
 !---
              GFLUX(1)        = 0.0D0
-             DQSFCI(1)       = int_state%TWBS(I,J)  ! check
-             DTSFCI(1)       = int_state%QWBS(I,J)  ! check
+             DQSFCI(1)       = 0.0D0
+             DTSFCI(1)       = 0.0D0
              GFLUXI(1)       = 0.0D0
              EP(1)           = int_state%POTEVP(I,J)*XLVRW
 !---
@@ -2424,8 +2424,6 @@
            DO L=1,LM
              DKH(L)          = 0.0D0
              RNP(L)          = 0.0D0
-             SWH(L)          = int_state%SWH(I,J,L)
-             HLW(L)          = int_state%HLW(I,J,L)
            ENDDO
            DO N=1,3                                    ! for Zhao =3, Ferr=1
              PHY_F2DV(N)     = int_state%PHY_F2DV (I,J,N)
@@ -2598,8 +2596,9 @@
              int_state%SMSTOT(I,J)        = SOILM(1)*1000.
 
          DO L=1,LM
-             int_state%SWH(I,J,L)         = SWH(L)
-             int_state%HLW(I,J,L)         = HLW(L)
+            KFLIP=LM+1-L
+             int_state%RSWTT(I,J,L)       = SWH(KFLIP)
+             int_state%RLWTT(I,J,L)       = HLW(KFLIP)
          ENDDO
 
          DO N=1,3                                    ! for Zhao =3, Ferr=1
@@ -2627,11 +2626,11 @@
              int_state%ALWTOA(I,J)        = int_state%ALWTOA(I,J) + FLUXR_V(1)*DTLWI
              int_state%ASWTOA(I,J)        = int_state%ASWTOA(I,J) + FLUXR_V(2)*DTSWI
 
-             int_state%SFCSHX(I,J)        = int_state%SFCSHX(I,J) + DTSFCI(1)/int_state%NSRFC*int_state%NPHS
-             int_state%SFCLHX(I,J)        = int_state%SFCLHX(I,J) + DQSFCI(1)/int_state%NSRFC*int_state%NPHS
+             int_state%TWBS(I,J)          = -DQSFCI(1)
+             int_state%QWBS(I,J)          = -DTSFCI(1)
+             int_state%SFCSHX(I,J)        = int_state%SFCSHX(I,J) + int_state%QWBS(I,J)
+             int_state%SFCLHX(I,J)        = int_state%SFCLHX(I,J) + int_state%TWBS(I,J)
              int_state%SUBSHX(I,J)        = int_state%SUBSHX(I,J) + GFLUXI(1)
-             int_state%TWBS(I,J)          = DQSFCI(1)
-             int_state%QWBS(I,J)          = DTSFCI(1)
              int_state%GRNFLX(I,J)        = GFLUXI(1)
              int_state%POTEVP(I,J)        = EP(1)*XLVRWI
              int_state%POTFLX(I,J)        = -EP(1)*DTPHSI
@@ -3263,11 +3262,6 @@
 !
           DO N=1,2
             int_state%ALFFC1(I,J,N)=-1.D6
-          ENDDO
-!
-          DO L=1,LM
-            int_state%SWH  (I,J,L)=-1.D6
-            int_state%HLW  (I,J,L)=-1.D6
           ENDDO
 !
           DO N=1,3                                 ! for Zhao =3, Ferr=1
