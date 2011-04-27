@@ -1,11 +1,11 @@
-Wed Apr 13 14:21:15 EDT 2011
+Tue Apr 26 07:52:50 EDT 2011
 Start Regression test
 
 
 
-Wed Apr 13 14:21:15 EDT 2011
+Tue Apr 26 07:52:50 EDT 2011
 Compilation ALL
-Wed Apr 13 15:06:03 EDT 2011
+Tue Apr 26 08:30:04 EDT 2011
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -32,7 +32,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  151.53
+ Original timing:  151.20  , test_glob timing:  151.48
 
 
 Test 002
@@ -197,17 +197,14 @@ Checking test 010 results ....
  Comparing sigf06.........OK
  Comparing sigf12.........OK
  Comparing sigf24.........OK
- Comparing sigf48.........OK
  Comparing sfcf03.........OK
  Comparing sfcf06.........OK
  Comparing sfcf12.........OK
  Comparing sfcf24.........OK
- Comparing sfcf48.........OK
  Comparing flxf03.........OK
  Comparing flxf06.........OK
  Comparing flxf12.........OK
  Comparing flxf24.........OK
- Comparing flxf48.........OK
  Test 010 passed 
 Test 011
 GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid
@@ -376,4 +373,4 @@ Checking test 016 results ....
 
 
 
-Wed Apr 13 16:22:27 EDT 2011
+Tue Apr 26 10:02:26 EDT 2011
