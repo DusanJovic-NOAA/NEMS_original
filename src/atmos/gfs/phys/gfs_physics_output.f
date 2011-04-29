@@ -188,7 +188,6 @@
 !                              -----------------------------------------
 !
                          'zsoil        ', 'OGFS_SFC     ', '             ' &
-                         'zsoil        ', 'OGFS_SFC     ', '             ' &
 !jw                        ,'BK5          ', 'OGFS_PHY     ', 'R            ' &
 !jw                        ,'CK5          ', 'OGFS_PHY     ', 'R            ' &
 !
