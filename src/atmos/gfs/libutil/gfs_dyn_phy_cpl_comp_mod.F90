@@ -21,6 +21,8 @@
 !! May 31 2010        Sarah Lu, remove ref to NMM_B and StatePrint call
 !! Aug 17 2010        Sarah Lu, debug print only for master PE and the first
 !!                    run step
+!! Mar 30 2011        Weiyu Yang, modified the code to avoid the ESMF 
+!!                    log error.
 !-----------------------------------------------------------------------
 !
       use esmf_mod
@@ -396,7 +398,6 @@
 ! Additional variables are added, allowing the couple to handle array,
 ! field, and/or field bundle  (Sarah Lu)
 !
-      TYPE(ESMF_Array)               :: ESMFArray          
       TYPE(ESMF_Field)               :: ESMFField        
       TYPE(ESMF_FieldBundle)         :: ESMFBundle      
       integer                        :: rc2           
@@ -483,20 +484,8 @@
 ! check the data class in the imp/exp state (Sarah Lu)
 
       if ( first ) then                                               
-!---> query ps as an ESMF Array
       array_name=trim(datanames_2d(1))                               
-      CALL ESMF_StateGet(state   = imp_state                        & 
-                        ,itemName  = array_name                     & 
-                        ,array     = ESMFArray                      & 
-                        ,rc        = rc2)                          
-      if ( rc2 == esmf_success ) then                         
-         if(MYPE==0)print *,' LU_CPL: ESMFArray found in imp state'          
-         cpl_array = .true.                                     
-      else                                                          
-         if(MYPE==0)print *,' LU_CPL: ESMFArray not found in imp state'     
-         cpl_array = .false.                               
-      endif                                             
-!---> query ps as an ESMF Field
+!---> query hs as an ESMF Field
       CALL ESMF_StateGet(state   = imp_state                        & 
                         ,itemName  = array_name                     &
                         ,field     = ESMFField                      & 

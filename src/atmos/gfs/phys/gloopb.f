@@ -245,7 +245,6 @@
         first = .false.
 
       endif
-
 !
       dtphys = 3600.
       nsphys = max(int(2*tstep/dtphys+0.9999),1)

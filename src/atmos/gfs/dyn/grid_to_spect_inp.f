@@ -155,6 +155,7 @@
             for_gr_a_2(i+(kav+k-2)*lon_dim,lan) = vvg(i,lan,k) * rcs2
           enddo
         enddo
+
         if( .not. ndslfv ) then
           do k=1,levh
             do i=1,lons_lat
@@ -314,7 +315,6 @@
             trio_ls(i,2,P_w +k-1)= trio_ls(i,2,P_vln +k-1)
          enddo
       enddo
-
 !
 ! -------------------------------------------------------------------
 ! model realted filter such as reduced grid spectral transform for zs

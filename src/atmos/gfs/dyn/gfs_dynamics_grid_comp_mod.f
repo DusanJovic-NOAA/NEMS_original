@@ -323,7 +323,6 @@
 
       call gfs_dynamics_err_msg(rc1,'get the vm',rc)
 
-
 ! set up parameters of mpi communications.
 ! use esmf utility to get pe identification and total number of pes.
 !-------------------------------------------------------------------
@@ -534,6 +533,7 @@
 
 ! initialize the error signal variables.
 !---------------------------------------
+
       rc1     = esmf_success
       rcfinal = esmf_success
 

@@ -1074,6 +1074,7 @@
 !$omp parallel do private(lan)
 !$omp+private(lat,lon_dim,lons_lat,jlonf,i,k,ilan)
 
+
       do lan=1,lats_node_a
         lat = global_lats_a(ipt_lats_node_a-1+lan)
         lon_dim = lon_dims_a(lan)

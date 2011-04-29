@@ -8,6 +8,8 @@
 cc
 ! program log:
 ! 2011 02 20 : Henry Juang, add lev_skip to make sure zero out top spectral or not
+! 2011 04 08 : Weiyu Yang,  correct the dimension size of sendcounts, sdispls 
+!                           recvcounts, kpts and kptr.
 !
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
@@ -33,11 +35,11 @@ cc
       real(kind=kind_mpi) works(2,nvars,ls_dim*workdim,nodes)
       real(kind=kind_mpi) workr(2,nvars,ls_dim*workdim,nodes)
 cc
-      integer                    kpts(1+jcap)
-      integer                    kptr(1+jcap)
-      integer              sendcounts(1+jcap)
-      integer              recvcounts(1+jcap)
-      integer                 sdispls(1+jcap)
+      integer                    kpts(nodes)
+      integer                    kptr(nodes)
+      integer              sendcounts(nodes)
+      integer              recvcounts(nodes)
+      integer                 sdispls(nodes)
 cc
       integer              ierr,ilat,ipt_ls,i3
       integer              lval,ndisp,node,nvar,ifin
@@ -98,6 +100,7 @@ cc
 cc
 !!
       ifin=lats_node
+
       id=0
 !!
       kpts   = 0

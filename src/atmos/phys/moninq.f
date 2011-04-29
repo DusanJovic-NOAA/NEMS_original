@@ -746,6 +746,7 @@ c
          a1(i,1) = t1(i,1)   + beta(i) * heat(i)
          a2(i,1) = q1(i,1,1) + beta(i) * evap(i)
       enddo
+
       if(ntrac.ge.2) then
         do k = 2, ntrac
           is = (k-1) * km
@@ -763,6 +764,7 @@ c
 !         rdz    = rdzt(i,k)*2./(t1(i,k)+t1(i,k+1))
           rdz    = rdzt(i,k)
           tem1   = dsig * dkt(i,k) * rdz
+
           if(pblflg(i).and.k.lt.kpbl(i)) then
 !            dsdzt = dsig*dkt(i,k)*rdz*(gocp-hgamt(i)/hpbl(i))
 !            dsdzq = dsig*dkt(i,k)*rdz*(-hgamq(i)/hpbl(i))
@@ -787,6 +789,7 @@ c
           a1(i,k+1) = t1(i,k+1)-dtodsu*dsdzt
         enddo
       enddo
+
       if(ntrac.ge.2) then
         do kk = 2, ntrac
           is = (kk-1) * km
@@ -801,6 +804,7 @@ c
 !     solve tridiagonal problem for heat and moisture
 !
       call tridin(im,km,ntrac,al,ad,au,a1,a2,au,a1,a2)
+
 !
 !     recover tendencies of heat and moisture
 !

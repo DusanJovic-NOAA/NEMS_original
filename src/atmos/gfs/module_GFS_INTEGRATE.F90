@@ -22,6 +22,8 @@
 !   2011-02   W Yang  - Updated to use both the ESMF 4.0.0rp2 library,
 !                       ESMF 5 series library and the the
 !                       ESMF 3.1.0rp2 library.
+!   2011-03   W Yang  - Modified the digiter filter code for turning off
+!                       the digiter filter case.
 !-----------------------------------------------------------------------
 
       USE ESMF_MOD
@@ -182,7 +184,9 @@
                             ,rc          =RC)
             NTIMESTEP = NTIMESTEP_ESMF
             IF(NTIMESTEP>2*NTIMESTEPH) LDFI=.false.
-!
+      ELSE
+          HALFDFITIME = STARTTIME
+          DFITIME     = STARTTIME
       END IF
 !
 !-----------------------------------------------------------------------
@@ -213,16 +217,19 @@
           NTIMESTEP = NTIMESTEP_ESMF
 !
 !*** decide when to disable alarm
-          LALM1=DFIHR>0.and..not.LDFIFLTO.and.CURRTIME>HALFDFITIME     &
-           .and.CURRTIME<=DFITIME .and. first_dfi
-          LALM2=DFIHR>0.and.LDFIFLTO.and.CURRTIME>=HALFDFITIME         &
-           .and.CURRTIME<=DFITIME .and. first_dfi
-!
-          IF(LALM1.or.LALM2) THEN
-            call ESMF_AlarmDisable(ALARM_OUTPUT,rc=rc)
-            first_dfi=.false.
-          ENDIF
 
+          IF(DFIHR > 0) THEN
+              LALM1=.not.LDFIFLTO.and.CURRTIME>HALFDFITIME     &
+               .and.CURRTIME<=DFITIME .and. first_dfi
+
+              LALM2=LDFIFLTO.and.CURRTIME>=HALFDFITIME         &
+               .and.CURRTIME<=DFITIME .and. first_dfi
+
+              IF(LALM1.or.LALM2) THEN
+                call ESMF_AlarmDisable(ALARM_OUTPUT,rc=rc)
+                first_dfi=.false.
+              ENDIF
+          END IF
 !
 !-----------------------------------------------------------------------
 !***  Call the Write component if it is time.
@@ -244,7 +251,11 @@
             END IF outputdyn
 !
 !*** skip phys when output filtered fields at halfdfitime
-         LSKIP=DFIHR>0.and.CURRTIME==DFITIME
+         IF(DFIHR > 0) THEN
+             LSKIP=CURRTIME==DFITIME
+         ELSE
+             LSKIP = .false.
+         END IF
 !         write(0,*)'in gfs intg,aft wrt, NTIMESTEP=',NTIMESTEP,'LSKIP=',LSKIP
 !
          lskipif: if(.not.LSKIP) then
@@ -429,8 +440,8 @@
 !-----------------------------------------------------------------------
 !*** enable alarm
 !
-          LALM1=end_dfi.and..not.LDFIFLTO.and.currTime>HALFDFITIME
-          LALM2=end_dfi.and.LDFIFLTO.and.currTime==HALFDFITIME
+         LALM1=end_dfi.and..not.LDFIFLTO.and.currTime>HALFDFITIME
+         LALM2=end_dfi.and.LDFIFLTO.and.currTime==HALFDFITIME
 !
          IF (lalm1 .or.lalm2 ) then
              CALL ESMF_AlarmEnable(alarm=ALARM_OUTPUT                    &

@@ -30,7 +30,13 @@
 !***  Dec 23 2010, Sarah Lu   add g2d_fld%met to 2d aer_diag
 !***  Feb 2011   Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
 !***                         ESMF 5 library and the the ESMF 3.1.0rp2 library.
+<<<<<<< .mine
 !***  Mar    2011  J. WANG    output lpl,zsoil for sfc file
+!***  MAR 2011   Weiyu Yang, Use the fieldbundle list to avoid the ESMF
+!***                         log error. Fix bug.
+=======
+!***  Mar    2011  J. WANG    output lpl,zsoil for sfc file
+>>>>>>> .r13632
 !***
 !-----------------------------------------------------------------------
 !
@@ -186,6 +192,7 @@
 !                              -----------------------------------------
 !
                          'zsoil        ', 'OGFS_SFC     ', '             ' &
+                         'zsoil        ', 'OGFS_SFC     ', '             ' &
 !jw                        ,'BK5          ', 'OGFS_PHY     ', 'R            ' &
 !jw                        ,'CK5          ', 'OGFS_PHY     ', 'R            ' &
 !
@@ -251,7 +258,7 @@
 !
          /)                                                             &
         ,(/3,MAX_KOUNT/)                                                &
-        ,(/'****************', '****************', '****************'/))
+        ,(/'**********', '**********', '**********'/))
 !
 !-----------------------------------------------------------------------
 !
@@ -423,7 +430,6 @@
            ,'smcwlt          ', 'OGFS_FLX        ', 'sfc             ' &   !105
            ,'smcref          ', 'OGFS_FLX        ', 'sfc             ' &   !106
            ,'sunshine_acc    ', 'OGFS_FLX        ', 'sfc             ' &   !107
-
            ,'aod             ', 'OGFS_FLX        ', 'atmos col       ' &   !108
            ,'duaod           ', 'OGFS_FLX        ', 'atmos col       ' &   !109
            ,'bcaod           ', 'OGFS_FLX        ', 'atmos col       ' &   !110
@@ -435,7 +441,7 @@
 !
          /)                                                             &
         ,(/3,MAX_KOUNT/)                                                &
-        ,(/'****************', '****************', '****************'/))
+        ,(/'**********', '**********','**********'/))
 !
 !-----------------------------------------------------------------------
 !
@@ -482,7 +488,7 @@
            ,'qrain           ', 'OGFS_NST        ', 'sfc             ' &   !19
          /)                                                             &
         ,(/3,MAX_KOUNT/)                                                &
-        ,(/'****************', '****************', '****************'/))
+        ,(/'**********', '**********','**********'/))
 
 
 !
@@ -564,6 +570,7 @@
       INTEGER                     :: mype,RC,RC_PHY_OUT
       INTEGER                     :: MINIDX(2),MAXIDX(2)
       INTEGER                     :: II, IJ, K,n,nst, ndg
+      INTEGER                     :: GFS_BUNDLE_LIST_size, GFS_BUNDLE_LIST_aer, GFS_BUNDLE_LIST_nst
       INTEGER,allocatable         :: I2(:,:)
       real(kind=kind_io4),target  :: fhourtmp
       real(kind=kind_io4),dimension(:),allocatable,target  :: r4tmp
@@ -572,10 +579,15 @@
 !***  ARRAYS OF POINTERS OF THE ABOVE TYPES
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_FieldBundle),SAVE :: GFS_SFC_BUNDLE
-      TYPE(ESMF_FieldBundle),SAVE :: GFS_FLX_BUNDLE
-      TYPE(ESMF_FieldBundle),SAVE :: GFS_AER_BUNDLE
-      TYPE(ESMF_FieldBundle),SAVE :: GFS_NST_BUNDLE
+! Add the ESMF field bundle list array to 
+! avoid the ESMF log error.  WY.
+! GFS_BUNDLE_LIST(1) -------- GFS_SFC_BUNDLE.
+! GFS_BUNDLE_LIST(2) -------- GFS_FLX_BUNDLE.
+! GFS_BUNDLE_LIST(GFS_BUNDLE_LIST_aer) -------- GFS_AER_BUNDLE.
+! GFS_BUNDLE_LIST(GFS_BUNDLE_LIST_nst) -------- GFS_NST_BUNDLE.
+!--------------------------------------------
+      TYPE(ESMF_FieldBundle),ALLOCATABLE, SAVE :: GFS_BUNDLE_LIST(:)
+
       TYPE(ESMF_DISTGRID) :: DistGrid
       TYPE(ESMF_GRID) :: Grid
 !
@@ -631,6 +643,23 @@
       CALL gfs_physics_err_msg(RC,MESSAGE_CHECK,RC_PHY_OUT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
+!Set up GFS_BUNDLE_LIST_size, allocate GFS_BUNDLE_LIST.
+!------------------------------------------------------
+      GFS_BUNDLE_LIST_size = 2
+      IF(int_state%lgocart) THEN
+          GFS_BUNDLE_LIST_size = GFS_BUNDLE_LIST_size + 1
+          GFS_BUNDLE_LIST_aer  = 3
+          IF(nst_fcst > 0) THEN
+              GFS_BUNDLE_LIST_nst = 4
+              GFS_BUNDLE_LIST_size = GFS_BUNDLE_LIST_size + 1
+          END IF
+       ELSE
+           IF(nst_fcst > 0) THEN
+               GFS_BUNDLE_LIST_size = GFS_BUNDLE_LIST_size + 1
+               GFS_BUNDLE_LIST_nst  = 3
+           END IF
+       END IF
+       ALLOCATE(GFS_BUNDLE_LIST(GFS_BUNDLE_LIST_size))
 !
 !-----------------------------------------------------------------------
 !***  THE PHYSICS INTERNAL STATE POINTER BLOCK
@@ -726,7 +755,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      GFS_SFC_BUNDLE=ESMF_FieldBundleCreate(grid=GRID                  &  !<-- The ESMF integration Grid
+      GFS_BUNDLE_LIST(1) = ESMF_FieldBundleCreate(grid=GRID                 &  !<-- The ESMF integration Grid
                                            ,name=int_state%filename_base(2) &  !<-- The Bundle's name
                                            ,rc  =RC)
 !
@@ -761,7 +790,7 @@
 !
       CALL ADD_BUNDLE_TO_WRITE(int_state,imp_write_state,     &
            grid,I_SC,R_SC,I_1D,I_2D,R_1D,R_2D,R_3D,R_4D,        &
-           2,'OGFS_PHY','OGFS_SFC',GFS_SFC_BUNDLE)
+           2,'OGFS_PHY','OGFS_SFC',GFS_BUNDLE_LIST(1))
 !
 !-----------------------------------------------------------------------
 !! for flx file
@@ -770,14 +799,15 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      GFS_FLX_BUNDLE=ESMF_FieldBundleCreate(grid=GRID                  &  !<-- The ESMF integration Grid
+      GFS_BUNDLE_LIST(2) = ESMF_FieldBundleCreate(grid=GRID                 &  !<-- The ESMF integration Grid
                                            ,name=int_state%filename_base(3) &  !<-- The Bundle's name
                                            ,rc  =RC)
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL gfs_physics_err_msg(RC,MESSAGE_CHECK,RC_PHY_OUT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+! 
 !-----------------------------------------------------------------------
 !***  INSERT INTO THE WRITE COMPONENTS' IMPORT STATE THE POINTERS
 !***  OF ONLY THOSE QUANTITIES THAT ARE SPECIFIED BY THE USER
@@ -788,8 +818,7 @@
 !
       CALL ADD_BUNDLE_TO_WRITE(int_state,imp_write_state,     &
            grid,I_SC,R_SC,I_1D,I_2D,R_1D,R_2D,R_3D,R_4D,        &
-           2,'OGFS_PHY','OGFS_FLX',GFS_FLX_BUNDLE)
-
+           2,'OGFS_PHY','OGFS_FLX',GFS_BUNDLE_LIST(2))
 !-----------------------------------------------------------------------
 !! for aer file (optional)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -873,10 +902,10 @@
       MESSAGE_CHECK="Extract History Data Bundle from the Write Import State"
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      GFS_AER_BUNDLE=ESMF_FieldBundleCreate(grid=GRID                  &  !<-- The ESMF integration Grid
-!                                         ,name=int_state%filename_base(4) &  !<-- The Bundle's name
-                                          ,name=int_state%filename_base(ndg) &  !<-- The Bundle's name
-                                           ,rc  =RC)
+      GFS_BUNDLE_LIST(GFS_BUNDLE_LIST_aer) = ESMF_FieldBundleCreate(grid=GRID &  !<-- The ESMF integration Grid
+!                                         ,name=int_state%filename_base(4)    &  !<-- The Bundle's name
+                                          ,name=int_state%filename_base(ndg)  &  !<-- The Bundle's name
+                                          ,rc  =RC)
 !
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -893,7 +922,7 @@
 !
       CALL ADD_BUNDLE_TO_WRITE(int_state,imp_write_state,     &
            grid,I_SC,R_SC,I_1D,I_2D,R_1D,R_2D,R_3D,R_4D,        &
-           2,'OGFS_PHY','OGFS_AER',GFS_AER_BUNDLE)
+           2,'OGFS_PHY','OGFS_AER',GFS_BUNDLE_LIST(GFS_BUNDLE_LIST_aer))
 
       ENDIF lab_if_gocart
 !
@@ -917,7 +946,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      GFS_NST_BUNDLE=ESMF_FieldBundleCreate(grid=GRID                  &  !<-- The ESMF integration Grid
+      GFS_BUNDLE_LIST(GFS_BUNDLE_LIST_nst) = ESMF_FieldBundleCreate(grid=GRID &  !<-- The ESMF integration Grid
                                            ,name=int_state%filename_base(nst) &  !<-- The Bundle's name
                                            ,rc  =RC)
 !
@@ -927,11 +956,29 @@
 !
       CALL ADD_BUNDLE_TO_WRITE(int_state,imp_write_state,     &
            grid,I_SC,R_SC,I_1D,I_2D,R_1D,R_2D,R_3D,R_4D,        &
-           2,'OGFS_PHY','OGFS_NST',GFS_NST_BUNDLE)
+           2,'OGFS_PHY','OGFS_NST',GFS_BUNDLE_LIST(GFS_BUNDLE_LIST_nst))
 
 !
       endif nst_fcst_if
 
+!-----------------------------------------------------------------------
+!***  INSERT THE OUTPUT DATA Bundle INTO THE WRITE COMPONENT'S
+!***  IMPORT STATE.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Phsyics: Insert History Bundle into the Write Import State"
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateAdd(state           = IMP_WRITE_STATE              & 
+                        ,fieldbundleList = GFS_BUNDLE_LIST              &
+                        ,count           = GFS_BUNDLE_LIST_size         &
+                        ,rc              = RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL gfs_physics_err_msg(RC,MESSAGE_CHECK,RC_PHY_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
 !-----------------------------------------------------------------------
 !
       END SUBROUTINE POINT_PHYSICS_OUTPUT_GFS
@@ -1007,6 +1054,7 @@
         IF(trim(PHY_INT_STATE_ISCALAR(file_index,NFIND))==trim(file_id).or. &
            trim(PHY_INT_STATE_ISCALAR(file_index,NFIND))==trim(file_gen) )THEN !<-- Take integer scalar data specified for history output
 
+
           VBL_NAME=TRIM(PHY_INT_STATE_ISCALAR(1,NFIND))
 
 #ifdef ESMF_3
@@ -1020,10 +1068,9 @@
                                 ,value      =I_SC(NFIND)%NAME           &  !<-- The scalar being inserted into the output data Bundle
                                 ,rc         =RC)
 #endif
-
         ENDIF
 !
-        IF(PHY_INT_STATE_ISCALAR(file_index,NFIND)=='*' ) THEN           !<-- End of the integer scalar list
+        IF(PHY_INT_STATE_ISCALAR(file_index,NFIND)=='**********' ) THEN           !<-- End of the integer scalar list
           EXIT
         ENDIF
 !
@@ -1061,7 +1108,7 @@
 
         ENDIF
 !
-        IF(PHY_INT_STATE_RSCALAR(file_index,NFIND)=='*' )THEN             !<-- End of the real scalar list
+        IF(PHY_INT_STATE_RSCALAR(file_index,NFIND)=='**********' )THEN             !<-- End of the real scalar list
           EXIT
         ENDIF
 !
@@ -1106,7 +1153,8 @@
 
         ENDIF
 !
-        IF(PHY_INT_STATE_1D_I(file_index,NFIND)=='*' )THEN               !<-- End of the 1D integer array list
+
+        IF(PHY_INT_STATE_1D_I(file_index,NFIND)=='**********' )THEN               !<-- End of the 1D integer array list
           EXIT
         ENDIF
 !
@@ -1150,7 +1198,7 @@
 
         ENDIF
 !
-        IF(PHY_INT_STATE_1D_R(file_index,NFIND)=='*' ) THEN                !<-- End of the 1D real array list
+        IF(PHY_INT_STATE_1D_R(file_index,NFIND)=='**********' ) THEN                !<-- End of the 1D real array list
           EXIT
         ENDIF
 !
@@ -1215,7 +1263,7 @@
 !
         ENDIF
 !
-        IF(PHY_INT_STATE_2D_I(file_index,NFIND)=='*' )THEN               !<-- End of the 2D integer array list
+        IF(PHY_INT_STATE_2D_I(file_index,NFIND)=='**********' )THEN               !<-- End of the 2D integer array list
           EXIT
         ENDIF
 !
@@ -1292,7 +1340,7 @@
 !
         ENDIF
 !
-        IF(PHY_INT_STATE_2D_R(file_index,NFIND)=='*' ) THEN                !<-- End of the 2D real array list
+        IF(PHY_INT_STATE_2D_R(file_index,NFIND)=='**********' ) THEN                !<-- End of the 2D real array list
           EXIT
         ENDIF
 !
@@ -1373,8 +1421,8 @@
 !
         ENDIF
 !
-        IF(PHY_INT_STATE_3D_R(2,NFIND)=='*' .AND.                       &
-           PHY_INT_STATE_3D_R(3,NFIND)=='*'      )THEN                     !<-- End of the 3D real array list
+        IF(PHY_INT_STATE_3D_R(2,NFIND)=='**********' .AND.                       &
+           PHY_INT_STATE_3D_R(3,NFIND)=='**********'      )THEN                     !<-- End of the 3D real array list
           EXIT
         ENDIF
 !
@@ -1453,8 +1501,8 @@
 !
         ENDIF
 !
-        IF(PHY_INT_STATE_4D_R(2,NFIND)=='*' .AND.                       &
-           PHY_INT_STATE_4D_R(3,NFIND)=='*'      )THEN                     !<-- End of the 4D real array list
+        IF(PHY_INT_STATE_4D_R(2,NFIND)=='**********' .AND.                       &
+           PHY_INT_STATE_4D_R(3,NFIND)=='**********'      )THEN                     !<-- End of the 4D real array list
           EXIT
         ENDIF
 !
@@ -1462,26 +1510,6 @@
 !-----------------------------------------------------------------------
 !
       IF(MYPE==0)WRITE(0,*)' PHYSICS_OUTPUT: Number of 2-D Real Fields=',NUM_2D_FIELDS_R
-!
-!-----------------------------------------------------------------------
-!***  INSERT THE OUTPUT DATA Bundle INTO THE WRITE COMPONENT'S
-!***  IMPORT STATE.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Phsyics: Insert History Bundle into the Write Import State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateAdd(state      =IMP_WRITE_STATE                    &  !<-- The write component's import state
-                        ,fieldbundle=FILE_BUNDLE                     &  !<-- The ESMF Bundle holding all Physics output data
-                        ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL gfs_physics_err_msg(RC,MESSAGE_CHECK,RC_PHY_OUT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
 !
       END SUBROUTINE ADD_BUNDLE_TO_WRITE
 !

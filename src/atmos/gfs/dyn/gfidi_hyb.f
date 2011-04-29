@@ -220,7 +220,7 @@
         dtdt(j,levs+1-k)=-ug(j,levs+1-k)*dtdl(j,levs+1-k)
      1                   -vg(j,levs+1-k)*dtdf(j,levs+1-k)
       enddo
- 
+
       k=levs
       do j=1,lons_lat
         dudt(j,levs+1-k)=-ug(j,levs+1-k)*dudl(j,levs+1-k)
@@ -305,6 +305,7 @@
         px2v(j,k)=px2(j,k)*expq(j)*dphi(j)
       enddo
       enddo
+
       do j=1,lons_lat
        px3u(j,levs)=cons0 ! constant
        px3v(j,levs)=cons0 ! constant
@@ -321,12 +322,14 @@
        px3v(j,levs-k)=px3v(j,levp1-k)-rd*rlnp(j,levp1-k)*dtdf(j,k)
       enddo
       enddo
+
       do k=1,levs
       do j=1,lons_lat
        px3u(j,k)=px3u(j,k)/rcl
        px3v(j,k)=px3v(j,k)/rcl
       enddo
       enddo
+
       do k=1,levs
       do j=1,lons_lat
         px4u(j,k)=-rd*alfa(j,k)*dtdl(j,levs+1-k)/rcl
@@ -347,12 +350,14 @@
         vphi(j,k)=px1v(j,k)+px2v(j,k)+px3v(j,k)+px4v(j,k)+px5v(j,k)
       enddo
       enddo
+
       do k=1,levs
       do j=1,lons_lat
         dudt(j,levs+1-k)=dudt(j,levs+1-k)+uphi(j,k)+uprs(j,k)
         dvdt(j,levs+1-k)=dvdt(j,levs+1-k)+vphi(j,k)+vprs(j,k)
       enddo
       enddo
+
 ! hmhj add
       do k=1,levs
       do j=1,lons_lat
@@ -583,6 +588,7 @@
        dtdt(j,k)=dtdt(j,k)+zadv(j,k,3)
       enddo
       enddo
+
       do  n=1,ntrac
        do k=1,levs
        do j=1,lons_lat

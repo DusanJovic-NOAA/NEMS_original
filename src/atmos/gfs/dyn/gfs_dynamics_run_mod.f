@@ -65,7 +65,6 @@
 !     nsres time steps between writing restart files
 !
 !***********************************************************************
-
        rc1 = 0.0
 ! ---------------------------------------------------------------------
 ! check if need do digital filter data collect
@@ -204,7 +203,6 @@
         END IF
 
 #endif
-
 !
 ! ======================================================================
 !                     do one time step with two-loop
@@ -320,7 +318,6 @@
 !        minval(gis_dyn%grid_gr(:,:,g_rt)),'psg=',maxval(gis_dyn%grid_gr(:,:,g_zq)),   &
 !        minval(gis_dyn%grid_gr(:,:,g_zq))
 !      endif
-
      END IF
 !cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 !c

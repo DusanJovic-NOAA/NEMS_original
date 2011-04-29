@@ -76,7 +76,6 @@ c$$$  IF ( ME .EQ. 0 ) IPRINT = 1
      &               global_lats_a,lats_nodes_a,lonsperlat, cread,
      &               epse, epso, plnew_a, plnow_a, 
      &               plnev_a, plnod_a, pwat, ptot, ptrc)            !glbsum
-
       
       do j = 1, lats_node_a
         grid_gr(:,j,g_gz) = zsg(:,j)

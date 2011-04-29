@@ -389,6 +389,7 @@ cc
 ! adjust moisture changes to the total mass to conserve dry mass
 !
 !     write(0,*)' pdryini=',pdryini
+
         do lan=1,lats_node_a
           lat = global_lats_a(ipt_lats_node_a-1+lan)
           lons_lat = lonsperlat(lat)
@@ -412,6 +413,7 @@ cc
 !      print *,' sumto=',sumto,' sumwa=',sumwa,' ptotg=',ptotg(1:latg)
 !      print *,' sumwa=',sumwa,'pwatg=',pwatg(1:latg)
 !        endif
+
         if ( glbsum ) then                                              !glbsum
           do lan=1,lats_node_a
             lat      = global_lats_a(ipt_lats_node_a-1+lan)
@@ -917,7 +919,6 @@ c
 ! ---------------------
       END IF   ! cpl_flag
 ! ---------------------
-
       kdt = kdt + 1
 ! ===================================================================
 ! ===================================================================
@@ -973,7 +974,6 @@ c
      &       snnp1ev,snnp1od,plnev_a,plnod_a)
 
       endif
-
 ! -------------------------------------------------------------------
 !  get dpdt in grid point values for export state
 !
@@ -1002,6 +1002,7 @@ c
           enddo
         endif                                   
 ! --------------------------------------------------------------------
+
 !$omp parallel do schedule(dynamic,1) private(lon)
 !$omp+private(njeff,iblk)
 !$omp+private(nvcn,xvcn)
@@ -1184,6 +1185,7 @@ c
           CALL countperf(1,10,0.)
 !
         enddo   !lon
+
 ! ---------------------------------------------------------------
 !
         iblk=1

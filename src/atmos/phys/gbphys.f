@@ -1158,7 +1158,6 @@
      &       evbs,evcw,trans,sbsno,snowc,soilm,                         &
      &       snohf,smcwlt2,smcref2                                      &
      &     )
-
         endif
 
 !       if (lprnt) print *,' tseabeficemodel =',tsea(ipr),' me=',me     &
@@ -1321,7 +1320,6 @@
 !       endif
 
       endif   ! end if_old_monin
-
 !     if (lprnt) then
 !       print *,' dusfc1=',dusfc1(ipr)
 !       print *,' dtsfc1=',dtsfc1(ipr)
@@ -1799,7 +1797,6 @@
      &,             phy_f2d(1,num_p2d), flipv, pa2mb                    &
      &,             me, garea, lmh, ccwfac, nrcm, rhc                   &
      &,             ud_mf, dd_mf, dt_mf, dlqfac, lprnt, ipr, kdt, fscav)
-
 !  --- ...  check print
 
 !       if (lprnt) print *,' rain1=',rain1(ipr),' rann=',rann(ipr,1)
@@ -2410,7 +2407,6 @@
         endif   ! end if_num_p3d
 
       endif   ! end if_ncld
-
 !     if (lprnt) print *,' rain1=',rain1(ipr),' rainc=',rainc(ipr)
 
 
@@ -2453,7 +2449,6 @@
           end if
         enddo
       endif
-
       if (lssav) then
         do i = 1, im
           totprcp(i) = totprcp(i) + rain(i)

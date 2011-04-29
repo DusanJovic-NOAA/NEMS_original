@@ -21,6 +21,7 @@
 !  Aug 25 2010      Jun Wang, output half dfi filted fields
 !  Oct 16 2010      Sarah Lu, retrieve fscav from exp state
 !  Dec 23 2010      Sarah Lu, modify fscav initialization 
+!  Mar 30 2011      Weiyu Yang, modified code to avoid ESMF log error.
 !                           
 !
 ! !interface:
@@ -633,6 +634,7 @@
       call esmf_logwrite("Retrieve Write Import State from Physics Export State", &
                         esmf_log_info, rc = rc1)
 
+
       CALL ESMF_StateGet(state      =exp_gfs_phy                        &  !<-- The Physics export state
                         ,itemName   ='Write Import State'               &  !<-- Name of the state to get from Physics export state
                         ,nestedState=imp_wrt_state                      &  !<-- Extract Write component import state from Physics export
@@ -664,24 +666,27 @@
 !-----------------------------------------------------------------------
 !
        if ( int_state%start_step ) then                             
-        CALL ESMF_StateGet(exp_gfs_phy, 'tracers', Bundle, rc = RC1 )
-        CALL gfs_physics_err_msg(rc1,"Retrieve tracer bundle from phy_exp",RC)
+           IF(int_state%lgocart) THEN 
+               CALL ESMF_StateGet(exp_gfs_phy, 'tracers', Bundle, rc = RC1 )
+               CALL gfs_physics_err_msg(rc1,"Retrieve tracer bundle from phy_exp",RC)
 
-        do I = 1, int_state%ntrac
+               do I = 1, int_state%ntrac
 
-         vname = trim(int_state%gfs_phy_tracer%vname(i))
-         call ESMF_FieldBundleGet(Bundle, NAME=vname, FIELD=Field, rc = RC1 )
-         CALL gfs_physics_err_msg(rc1,"Retrieve field from tracer bundle ",RC)
-         CALL ESMF_AttributeGet(Field, NAME="ScavengingFractionPerKm", &
-                                value = fscav , rc=RC1)
-         if ( RC1 == ESMF_SUCCESS) THEN
-           int_state%gfs_phy_tracer%fscav(i) = fscav
-         else
-           int_state%gfs_phy_tracer%fscav(i) = 0.
-         endif
-!	 print *, 'phys_gc: fscav:', i, vname, int_state%gfs_phy_tracer%fscav(i)
-        enddo
-        int_state%start_step = .false. 
+                vname = trim(int_state%gfs_phy_tracer%vname(i))
+
+                call ESMF_FieldBundleGet(Bundle, NAME=vname, FIELD=Field, rc = RC1 )
+                CALL gfs_physics_err_msg(rc1,"Retrieve field from tracer bundle ",RC)
+                CALL ESMF_AttributeGet(Field, NAME="ScavengingFractionPerKm", &
+                                       value = fscav , rc=RC1)
+                if ( RC1 == ESMF_SUCCESS) THEN
+                  int_state%gfs_phy_tracer%fscav(i) = fscav
+                endif
+!               print *, 'phys_gc: fscav:', i, vname, int_state%gfs_phy_tracer%fscav(i)
+               enddo
+               int_state%start_step = .false. 
+           ELSE
+               int_state%gfs_phy_tracer%fscav = 0.0
+           END IF
        endif
 
 !

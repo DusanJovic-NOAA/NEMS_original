@@ -135,6 +135,7 @@
 
           theta1   = t1(i) * prslki(i)
           hflx(i)  = rch * (tskin(i) - theta1)
+
           evap(i)  = elocp*rch * (qss - q0)
           qsurf(i) = qss
 

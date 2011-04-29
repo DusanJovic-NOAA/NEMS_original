@@ -161,6 +161,7 @@ c
 cmy sort the lat times in descending order
 c
       call sortrx(latg,-global_time_a,global_time_sort_index_a)
+
       if (iprint .eq. 1)
      .  print*,' after sortrx global_time_sort_index_a = ',
      .      global_time_sort_index_a

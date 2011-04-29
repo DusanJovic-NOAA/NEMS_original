@@ -331,7 +331,9 @@
       allocate (nemsio_data(lonb*latb))
 !  Read orog
        stime=timef()
+
       call nemsio_readrecv(gfile_in,'hgt','sfc',1,nemsio_data,iret=iret)
+
       print *,'in treadeo,time=',timef()-stime,'hgt=',
      &  maxval(nemsio_data),minval(nemsio_data), 'iret=',iret
       call split2d(nemsio_data,buffo,global_lats_a)
@@ -369,6 +371,7 @@
         call split2d(nemsio_data,buffo,global_lats_a)
         CALL interpred(1,kmsk,buffo,ttg(1,1,k),global_lats_a,lonsperlat)
       enddo
+
 !  Read dp 
       do k=1,levs
         call nemsio_readrecv(gfile_in,'dpres','mid layer',k,nemsio_data,
