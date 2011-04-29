@@ -30,13 +30,9 @@
 !***  Dec 23 2010, Sarah Lu   add g2d_fld%met to 2d aer_diag
 !***  Feb 2011   Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
 !***                         ESMF 5 library and the the ESMF 3.1.0rp2 library.
-<<<<<<< .mine
 !***  Mar    2011  J. WANG    output lpl,zsoil for sfc file
 !***  MAR 2011   Weiyu Yang, Use the fieldbundle list to avoid the ESMF
 !***                         log error. Fix bug.
-=======
-!***  Mar    2011  J. WANG    output lpl,zsoil for sfc file
->>>>>>> .r13632
 !***
 !-----------------------------------------------------------------------
 !
