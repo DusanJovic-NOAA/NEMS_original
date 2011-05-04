@@ -2422,8 +2422,11 @@
              SRUNOFF(1)      = int_state%SSROFF(I,J)*0.001D0
 !---
            DO L=1,LM
+            KFLIP=LM+1-L
              DKH(L)          = 0.0D0
              RNP(L)          = 0.0D0
+             SWH(KFLIP)      = int_state%RSWTT(I,J,L)
+             HLW(KFLIP)      = int_state%RLWTT(I,J,L)
            ENDDO
            DO N=1,3                                    ! for Zhao =3, Ferr=1
              PHY_F2DV(N)     = int_state%PHY_F2DV (I,J,N)
