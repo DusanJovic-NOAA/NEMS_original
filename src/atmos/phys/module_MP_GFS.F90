@@ -22,7 +22,7 @@
                            SR,QT,F_ICE_phy,                            &
                            RAINNC,RAINNCV,                             &
                            WATER,P_QV,P_QC,P_QI,NUM_WATER,             &
-                           TP1,TP2,QP1,QP2,PSP1,PSP2,                  &
+                           TP1,QP1,PSP1,                               &
                            ids,ide, jds,jde, kds,kde,                  &
                            ims,ime, jms,jme, kms,kme,                  &
                            its,ite, jts,jte, kts,kte )
@@ -46,8 +46,8 @@
       INTEGER,INTENT(IN) ::  NUM_WATER 
       INTEGER,INTENT(IN) ::  P_QV,P_QC,P_QI
       REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE,NUM_WATER),INTENT(INOUT) :: WATER
-      REAL, INTENT(INOUT),  DIMENSION(ims:ime,jms:jme)           :: PSP1,PSP2
-      REAL, INTENT(INOUT),  DIMENSION(ims:ime,jms:jme,1:KTE)     :: TP1,TP2,QP1,QP2 
+      REAL, INTENT(INOUT),  DIMENSION(ims:ime,jms:jme)           :: PSP1
+      REAL, INTENT(INOUT),  DIMENSION(ims:ime,jms:jme,1:KTE)     :: TP1,QP1
 
 !-----------------------------------------------------------------------
 !     LOCAL VARS
@@ -83,7 +83,12 @@
 !------------------------------------------------------------------------
 !**********************************************************************
         KM = KTE
-        DTP = 2.0*DT
+!
+!-- Because the NMMB does not use leapfrog time differencing, only arrays from
+!   the previous time step are needed (TP1, QP1, PSP1) and the time step (DTP)
+!   used for physics rates does *NOT* need to be doubled (BSF, 03-30-2011).
+!
+        DTP = DT   !- was 2.0*DT
         frain = DT/DTP
         RHC(:,:) = rh00
 
@@ -124,13 +129,25 @@
             CWM_COL(IX,KFLIP)=WATER(I,J,K,P_QC) &
                              +WATER(I,J,K,P_QI) 
             T_COL(IX,KFLIP) = t_phy(i,j,k) 
-
+!
+!-- The original GFS uses a leapfrog time-differencing scheme that goes back
+!   2 time steps, represented by arrays with the names TP1, QP1, & PSP1.
+!   The arrays with the names TP2, QP2, & PSP2 are associated with the previous
+!   time step.  But because the NMMB does not use leapfrog time differencing,
+!   the TP1, QP1, PSP1 set of arrays now represent the previous time step,
+!   and the TP2, QP2, PSP2 set of arrays are treated as dummy input values to
+!   subroutine gscond, and they will also store the T, Q, & P values for the
+!   previous time step (BSF, 03-30-2011).
+!
+!-- The situation is a little different after leaving subroutine gscond, so 
+!   please read the next set of comments after the "300 continue" line below.
+!   
             TP1_COL(IX,K) = tp1(i,j,k)
             QP1_COL(IX,K) = qp1(i,j,k)
-            TP2_COL(IX,K) = tp2(i,j,k)
-            QP2_COL(IX,K) = qp2(i,j,k)
+            TP2_COL(IX,K) = tp1(i,j,k)   !-- was tp2(i,j,k)
+            QP2_COL(IX,K) = qp1(i,j,k)   !-- was qp2(i,j,k)
             psp1_1(IX)   = psp1(i,j)
-            psp2_1(IX)   = psp2(i,j)
+            psp2_1(IX)   = psp1(i,j)     !-- was psp2(i,j,k)
             iw(ix,KFLIP) = 0 !F_ICE_phy(I,J,K) 
           ENDDO
 
@@ -162,13 +179,17 @@
                        lprnt, ipr)
  300      continue 
 
+!
+!-- Before exiting gscond, the arrays TP1_COL, QP1_COL, PSP1_1 are set
+!   to the previous time step, while TP2_COL, QP2_COL, PSP2_1 are set
+!   to values at the current time step.  The arrays below will be set
+!   to values associated with TP2_COL, QP2_COL, PSP2_1, while the
+!   TP1_COL, QP1_COL, PSP1_1 arrays will not be used (BSF, 03-30-2011).
+!   
             DO K=kts,kte
-             tp1(i,j,k) = tp1_COL(ix,k)
-             qp1(i,j,k) = qp1_COL(ix,k)
-             tp2(i,j,k) = tp2_COL(ix,k)
-             qp2(i,j,k) = qp2_COL(ix,k)
-             psp1(i,j)  = psp1_1(ix)
-             psp2(i,j)  = psp2_1(ix)
+             tp1(i,j,k) = tp2_COL(ix,k)   !- was tp1_COL(ix,k)
+             qp1(i,j,k) = qp2_COL(ix,k)   !- was qp1_COL(ix,k)
+             psp1(i,j)  = psp2_1(ix)      !- was psp1_1(ix)
             ENDDO
 !#######################################################################
 !
@@ -224,9 +245,6 @@
           write(0,*)'tp1=',tp1(i,j,:)
           write(0,*)'qp1=',qp1(i,j,:)
           write(0,*)'psp1=',psp1(i,j)
-          write(0,*)'tp2=',tp2(i,j,:)
-          write(0,*)'qp2=',qp2(i,j,:)
-          write(0,*)'psp2=',psp2(i,j)
 
           write(0,*)'p,cwm,T,Fice,Q'
            do k=1,km

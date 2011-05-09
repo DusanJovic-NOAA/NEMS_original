@@ -156,7 +156,7 @@
       kinver(1) = levs          !! temp
       xkzm_m = 3.0
      !! xkzm_h = 1.0
-      xkzm_h = 0.1  !0.0  !1.0 !0.1  !0.2 !#0.5
+      xkzm_h = 0.05  ! 0.1  !0.0  !1.0 !0.1  !0.2 !#0.5
       xkzm_s = 0.2              !! background diffusivity, see compns_physics.f in gfs/phys
 
       RQCBLTEN = 0.0

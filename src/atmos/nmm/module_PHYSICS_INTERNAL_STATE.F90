@@ -240,8 +240,8 @@
 !***  gfs microphysics additional arrays saving surface pressure, Temperature,water vapor
 !     at previous time steps, Weiguo Wang 11-22-2010
 !-------------------------------------------------------------------------------
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: TP1,TP2,QP1,QP2
-        REAL(kind=KFPT),DIMENSION(:,:),  POINTER :: PSP1,PSP2
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: TP1,QP1
+        REAL(kind=KFPT),DIMENSION(:,:),  POINTER :: PSP1
 !
 !-----------------------------------------------------------------------
 !***  Physics Options
@@ -526,20 +526,14 @@
 !*** gfs microphysics, wang, 11-22-2010
 !-----------------------------------------------------------------------
         ALLOCATE(int_state%TP1(IMS:IME,JMS:JME,1:LM))
-        ALLOCATE(int_state%TP2(IMS:IME,JMS:JME,1:LM))
         ALLOCATE(int_state%QP1(IMS:IME,JMS:JME,1:LM))
-        ALLOCATE(int_state%QP2(IMS:IME,JMS:JME,1:LM))
         ALLOCATE(int_state%PSP1(IMS:IME,JMS:JME))
-        ALLOCATE(int_state%PSP2(IMS:IME,JMS:JME))
         DO I=IMS,IME
         DO J=JMS,JME
           int_state%PSP1(I,J) = -999.0
-          int_state%PSP2(I,J) = -999.0
           DO L=1,LM
            int_state%TP1(I,J,L) = -999.0
-           int_state%TP2(I,J,L) = -999.0
            int_state%QP1(I,J,L) = -999.0
-           int_state%QP2(I,J,L) = -999.0
           ENDDO
         ENDDO
         ENDDO

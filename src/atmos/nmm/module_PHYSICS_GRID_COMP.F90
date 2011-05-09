@@ -34,7 +34,7 @@
 !   2011-02     Weiyu Yang   - Updated to use both the ESMF 4.0.0rp2 library,
 !                              ESMF 5 series library and the the
 !                              ESMF 3.1.0rp2 library.
-!
+!   2011-03-30  Brad Ferrier - modifications to Ferrier & GFS microphysics!!
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
@@ -1814,12 +1814,9 @@
                        ,int_state%TBPVS_STATE,int_state%TBPVS0_STATE       &
                        ,int_state%SPECIFIED,int_state%NESTED               &
                        ,int_state%MICROPHYSICS                             &
-                       ,int_state%TP1                                      &  !! below 6 for gfs microphysics
-                       ,int_state%TP2                                      &
-                       ,int_state%QP1                                      &
-                       ,int_state%QP2                                      &
-                       ,int_state%PSP1                                     &
-                       ,int_state%PSP2                                     &   !!
+                       ,int_state%TP1                                      &  !gfs mod-brad 
+                       ,int_state%QP1                                      &  !gfs mod-brad
+                       ,int_state%PSP1                                     &  !gfs mod-brad
                        ,IDS,IDE,JDS,JDE,LM                                 &
                        ,IMS,IME,JMS,JME                                    &
                        ,ITS,ITE,JTS,JTE                                    &

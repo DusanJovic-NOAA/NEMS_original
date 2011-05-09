@@ -68,7 +68,7 @@
                          ,TBPVS_STATE,TBPVS0_STATE                      &
                          ,SPECIFIED,NESTED                              &
                          ,MICROPHYSICS                                  &
-                         ,TP1,TP2,QP1,QP2,PSP1,PSP2                     &
+                         ,TP1,QP1,PSP1                                  &
                          ,IDS,IDE,JDS,JDE,LM                            &
                          ,IMS,IME,JMS,JME                               &
                          ,ITS,ITE,JTS,JTE                               &
@@ -146,8 +146,8 @@
       REAL,DIMENSION(:),INTENT(INOUT) :: MP_RESTART_STATE               &
                                         ,TBPVS_STATE,TBPVS0_STATE
 !*** GFS microphysics
-      REAL, DIMENSION(IMS:IME,JMS:JME,1:LM), INTENT(INOUT) :: TP1,TP2,QP1,QP2
-      REAL, DIMENSION(IMS:IME,JMS:JME), INTENT(INOUT)      :: PSP1,PSP2
+      REAL, DIMENSION(IMS:IME,JMS:JME,1:LM), INTENT(INOUT) :: TP1,QP1
+      REAL, DIMENSION(IMS:IME,JMS:JME), INTENT(INOUT)      :: PSP1
 !
 !---------------------
 !***  Local Variables
@@ -338,7 +338,7 @@
                    RAINNC=RAINNC,RAINNCV=RAINNCV,                              &
                    WATER=WATER,P_QV=P_QV,P_QC=P_QC,P_QI=P_QI,                  &
                    NUM_WATER=NUM_WATER,                                        &
-                   TP1=TP1,TP2=TP2,QP1=QP1,QP2=QP2,PSP1=PSP1,PSP2=PSP2,        &
+                   TP1=TP1,QP1=QP1,PSP1=PSP1,                                  &
                    IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=1,KDE=LM+1,           &
                    IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=1,KME=LM ,            &
                    ITS=itsloc,ITE=iteloc, JTS=jtsloc,JTE=jteloc, KTS=1,KTE=LM )
