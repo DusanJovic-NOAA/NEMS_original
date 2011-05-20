@@ -1,8 +1,15 @@
 ! February 2011        Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
 !                                  ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! May      2011        Weiyu Yang, Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !-----------------------------------------------------------------------------------
 
 #include "../../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#else
+#define ESMF_520rbs
+#endif
 
 !-----------------------------------------------------------------------
 !
@@ -188,11 +195,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
                                      ,ESMF_SETINIT                      &
                                      ,NMM_INITIALIZE                    &
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
+                                     ,ESMF_SETINIT                      &
+                                     ,NMM_INITIALIZE                    &
+                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -204,12 +219,20 @@
       MESSAGE_CHECK="Register the NMM Run routine"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+! 
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
                                      ,ESMF_SETRUN                       &
                                      ,NMM_RUN                           &
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
+                                     ,ESMF_SETRUN                       &
+                                     ,NMM_RUN                           &
+                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -222,11 +245,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
                                      ,ESMF_SETFINAL                     &
                                      ,NMM_FINALIZE                      &
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
+                                     ,ESMF_SETFINAL                     &
+                                     ,NMM_FINALIZE                      &
+                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -629,10 +660,17 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_520rbs
+        nmm_int_state%IMP_STATE_DOMAIN(ID_DOM)=ESMF_StateCreate(        &  !<-- DOMAIN import state
+                                            name='Domain Import State'  &  !<-- DOMAIN import state name
+                                      ,statetype= ESMF_STATE_IMPORT     &
+                                      ,rc       = RC)
+#else
         nmm_int_state%IMP_STATE_DOMAIN(ID_DOM)=ESMF_StateCreate(        &  !<-- DOMAIN import state
                                        statename='Domain Import State'  &  !<-- DOMAIN import state name
                                       ,statetype= ESMF_STATE_IMPORT     &
                                       ,rc       = RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -643,10 +681,17 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 ! 
+#ifdef ESMF_520rbs
+        nmm_int_state%EXP_STATE_DOMAIN(ID_DOM)=ESMF_StateCreate(        &  !<-- DOMAIN export state
+                                            name='Domain Export State'  &  !<-- DOMAIN export state name
+                                      ,statetype= ESMF_STATE_EXPORT     &
+                                      ,rc       = RC)
+#else
         nmm_int_state%EXP_STATE_DOMAIN(ID_DOM)=ESMF_StateCreate(        &  !<-- DOMAIN export state
                                        statename='Domain Export State'  &  !<-- DOMAIN export state name
                                       ,statetype= ESMF_STATE_EXPORT     &
                                       ,rc       = RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -976,9 +1021,15 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
         CALL ESMF_GridCompSetServices(nmm_int_state%DOMAIN_GRID_COMP(ID_DOM) &  !<-- The DOMAIN component
                                      ,DOMAIN_REGISTER                        &  !<-- User's subroutineName
                                      ,RC)
+#else
+        CALL ESMF_GridCompSetServices(nmm_int_state%DOMAIN_GRID_COMP(ID_DOM) &  !<-- The DOMAIN component
+                                     ,DOMAIN_REGISTER                        &  !<-- User's subroutineName
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)

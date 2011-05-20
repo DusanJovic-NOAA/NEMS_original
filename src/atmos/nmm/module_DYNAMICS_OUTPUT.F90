@@ -1,5 +1,6 @@
 !  February 2011     Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
 !                                ESMF 5 library and the the ESMF 3.1.0rp2 library.
+!  May      2011     Weiyu Yang, Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !---------------------------------------------------------------------------------
 
 #include "../../ESMFVersionDefine.h"
@@ -137,8 +138,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      HISTORY_BUNDLE=ESMF_FieldBundleCreate(grid=GRID                   &  !<-- The ESMF integration Grid
-                                           ,name='History Bundle'       &  !<-- The Bundle's name
+      HISTORY_BUNDLE=ESMF_FieldBundleCreate(name='History Bundle'       &  !<-- The Bundle's name
                                            ,rc  =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -157,8 +157,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      RESTART_BUNDLE=ESMF_FieldBundleCreate(grid=GRID                   &  !<-- The ESMF integration Grid
-                                           ,name='Restart Bundle'       &  !<-- The Bundle's name
+      RESTART_BUNDLE=ESMF_FieldBundleCreate(name='Restart Bundle'       &  !<-- The Bundle's name
                                            ,rc  =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

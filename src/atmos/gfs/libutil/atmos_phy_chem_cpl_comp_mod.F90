@@ -1,5 +1,11 @@
 #include "../../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#else
+#define ESMF_520rbs
+#endif
+
 !
       module atmos_phy_chem_cpl_comp_mod
 
@@ -47,6 +53,7 @@
 !! 29Dec 2010     Sarah Lu,   Fields not used by GOCART are removed from diag
 !!   Feb 2011     Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
 !!                            ESMF 5 library and the the ESMF 3.1.0rp2 library.
+!! 12May 2011     Weiyu Yang, Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !------------------------------------------------------------------------------
 
       use ESMF_MOD
@@ -125,11 +132,19 @@
 !
       MESSAGE_CHECK="Set Entry Point for phy2chem coupler init"
 
+#ifdef ESMF_3
       call ESMF_CplCompSetEntryPoint(GC                        & !<-- The gridded component
                                     ,ESMF_SETINIT              & !<-- Predefined subroutine type
                                     ,INIT                      & !<-- User's subroutineName
                                     ,ESMF_SINGLEPHASE          &
-                                    ,rc)
+                                    ,RC)
+#else
+      call ESMF_CplCompSetEntryPoint(GC                        & !<-- The gridded component
+                                    ,ESMF_SETINIT              & !<-- Predefined subroutine type
+                                    ,INIT                      & !<-- User's subroutineName
+                                    ,phase=ESMF_SINGLEPHASE    &
+                                    ,rc=RC)
+#endif
 
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
 
@@ -139,11 +154,19 @@
 !
       MESSAGE_CHECK="Set Entry Point for phy2chem coupler run"
 
+#ifdef ESMF_3
       call ESMF_CplCompSetEntryPoint(GC                        & !<-- The gridded component
                                     ,ESMF_SETRUN               & !<-- Predefined subroutine type
                                     ,RUN                       & !<-- User's subroutineName
                                     ,ESMF_SINGLEPHASE          &
-                                    ,rc)
+                                    ,RC)
+#else
+      call ESMF_CplCompSetEntryPoint(GC                        & !<-- The gridded component
+                                    ,ESMF_SETRUN               & !<-- Predefined subroutine type
+                                    ,RUN                       & !<-- User's subroutineName
+                                    ,phase=ESMF_SINGLEPHASE    &
+                                    ,rc=RC)
+#endif
 
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
 
@@ -231,7 +254,12 @@
          vname = chemReg%vname(N)
          spec(L) = vname
          MESSAGE_CHECK="PHY2CHEM_INIT: get field from tracers: "//vname
-         call ESMF_FieldBundleGet(iBundle, NAME=vname, FIELD=Field, rc = RC )
+#ifdef ESMF_520rbs
+         call ESMF_FieldBundleGet(iBundle, FIELDNAME=vname, FIELD=Field, rc = RC )
+#else
+         call ESMF_FieldBundleGet(iBundle,      NAME=vname, FIELD=Field, rc = RC )
+#endif
+
          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
          MESSAGE_CHECK="PHY2CHEM_INIT: add field to iAero: "//vname
@@ -521,7 +549,11 @@
 
          vname = spec(N)
          MESSAGE_CHECK="PHY2CHEM_RUN: Get Field : "//vname
-         call ESMF_FieldBundleGet(iBundle, NAME=vname, FIELD=Field, rc = RC )
+#ifdef ESMF_520rbs
+         call ESMF_FieldBundleGet(iBundle, FIELDNAME=vname, FIELD=Field, rc = RC )
+#else
+         call ESMF_FieldBundleGet(iBundle,      NAME=vname, FIELD=Field, rc = RC )
+#endif
          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
          MESSAGE_CHECK="PHY2CHEM_RUN: Get Attribute "
@@ -530,7 +562,11 @@
          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
          MESSAGE_CHECK="PHY2CHEM_RUN: Get Field : "//vname
-         call ESMF_FieldBundleGet(Bundle, NAME=vname, FIELD=Field, rc = RC )
+#ifdef ESMF_520rbs
+         call ESMF_FieldBundleGet(Bundle, FIELDNAME=vname, FIELD=Field, rc = RC )
+#else
+         call ESMF_FieldBundleGet(Bundle,      NAME=vname, FIELD=Field, rc = RC )
+#endif
          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
          MESSAGE_CHECK="PHY2CHEM_RUN: Add Attribute "
@@ -1302,7 +1338,11 @@
           CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !
           MESSAGE_CHECK = 'Extract '//NAME//' from '//trim(BundleName)
-          CALL ESMF_FieldBundleGet(bundle=Bundle, name=NAME, field=Field, rc=rc1)
+#ifdef ESMF_520rbs
+          CALL ESMF_FieldBundleGet(Bundle, FIELDNAME=name, field=Field, rc=rc1)
+#else
+          CALL ESMF_FieldBundleGet(Bundle,      NAME=name, field=Field, rc=rc1)
+#endif
           CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 
 !
@@ -1465,7 +1505,11 @@
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 
         MESSAGE_CHECK = 'PHY2CHEM_RUN: Extract '//NAME//' from '//BundleName
-        CALL ESMF_FieldBundleGet(bundle=Bundle, name=NAME, field=Field, rc=rc1)
+#ifdef ESMF_520rbs
+        CALL ESMF_FieldBundleGet(Bundle, FIELDNAME=name, field=Field, rc=rc1)
+#else
+        CALL ESMF_FieldBundleGet(Bundle,      NAME=name, field=Field, rc=rc1)
+#endif
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 
         nullify(Array)
@@ -1516,7 +1560,11 @@
          CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 
          MESSAGE_CHECK = 'GetPointer_diag:: Extract Field '//NAME
-         CALL ESMF_FieldBundleGet(bundle=Bundle, name=NAME, field=Field, rc=rc1)
+#ifdef ESMF_520rbs
+         CALL ESMF_FieldBundleGet(Bundle, FIELDNAME=name, field=Field, rc=rc1)
+#else
+         CALL ESMF_FieldBundleGet(Bundle,      NAME=name, field=Field, rc=rc1)
+#endif
          CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
         ENDIF
 

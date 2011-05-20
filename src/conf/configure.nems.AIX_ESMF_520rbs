@@ -1,0 +1,46 @@
+SHELL     = /bin/sh
+
+ESMF_INC  = -I /gpfs/t3/global/save/wx20wy/BASELIBS/esmf_5_2_0r_beta_snapshot_07_src/AIX/include/esmf/modO
+ESMF_LIBS = /gpfs/t3/global/save/wx20wy/BASELIBS/esmf_5_2_0r_beta_snapshot_07_src/AIX/lib/libO/libesmf.a -lC_r
+
+#EXTLIBS   = $(ESMF_LIBS) -L/nwprod/lib -lbacio_4 -lw3_d -lsp_d -lessl_r -lmass -lmassvp6
+#EXTLIBS   = -L/climate/save/wx20wa/gfsio/w3/sorc_opn_gblevent -lw3_d $(ESMF_LIBS) -L/nwprod/lib -lbacio_4 -lsp_d -lessl_r -lmass -lmassvp6
+
+EXTLIBS   = -L/climate/save/wx20wa/gfsio/w3/sorc_opn_gblevent -lw3_d -L/climate/save/wx20wa/gfsio/lib/nemsio -lnemsio $(ESMF_LIBS) -L/nwprod/lib -lbacio_4 -lsp_d -lessl_r -lmass -lmassvp6
+
+NEMSIO_INC  = -I/climate/save/wx20wa/gfsio/lib/nemsio/incmod
+
+FC        = mpxlf95_r 
+FREE      = -qfree=f90
+FIXED     = -qfixed
+R8        = -qrealsize=8
+
+SMP       = -qsmp=omp
+MAF       = -qfloat=nomaf
+LIST      = -qsource -qlist
+FINCS     = $(ESMF_INC) $(NEMSIO_INC)
+#TRAPS     = -qinitauto=FF911299 -qflttrap=ov:zero:en -qsigtrap -C
+TRAPS     = 
+
+FFLAGS    = $(TRAPS) $(FINCS)
+
+OPTS_NMM  = -O3 -qstrict -qmaxmem=-1 -qarch=auto -qtune=auto -NS2000
+OPTS_GFS  = -O3 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave -NS2048 -qsuffix=cpp=f
+OPTS_GEN  = -O3 -qstrict -qxlf77=leadzero -qmaxmem=-1 -qnolm -qsmp=noauto -qnosave -NS2048 -qsuffix=cpp=f
+OPTS_FIM  = -O0
+
+FFLAGS_NMM= $(OPTS_NMM) $(FFLAGS)
+FFLAGS_GFS= $(OPTS_GFS) $(FFLAGS)
+FFLAGS_GFSF= $(OPTS_GFS) $(FFLAGS) -qfixed
+FFLAGS_GEN= $(OPTS_GEN) $(FFLAGS)
+FFLAGS_FIM= $(OPTS_FIM) $(FFLAGS)
+
+CPP       = /lib/cpp -P
+CPPFLAGS  = -DENABLE_SMP -DIBM
+
+AR        = ar
+ARFLAGS   = -r
+
+RM        = rm
+
+MAKEDEPF90 = /u/wx20du/bin/makedepf90

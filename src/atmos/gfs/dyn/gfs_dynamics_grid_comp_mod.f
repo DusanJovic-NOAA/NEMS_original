@@ -1,5 +1,11 @@
 #include "../../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#else
+#define ESMF_520rbs
+#endif
+
 ! !module: gfs_dynamics_grid_comp_mod --- 
 !                       esmf gridded component of gfs dynamics
 !
@@ -22,6 +28,7 @@
 !                   advection with options of MASS_DP and NDSLFV
 !  Feb    2011      Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
 !                   ESMF 5 library and the the ESMF 3.1.0rp2 library.
+!  May    2011      Weiyu Yang, Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !
 ! !interface:
 !
@@ -65,7 +72,7 @@
 ! !arguments:
 !------------
 
-      type(esmf_gridcomp), intent(in)  :: gc_gfs_dyn 	! gridded component
+      type(esmf_gridcomp)              :: gc_gfs_dyn 	! gridded component
       integer,             intent(out) :: rc    	! return code
      
 ! !description: set services (register) for the gfs dynamics grid component.
@@ -89,20 +96,34 @@
 !---------------------------------------------------------------------
       call esmf_logwrite("set entry point for initialize",              &
                           esmf_log_info, rc = rc1)
+#ifdef ESMF_3
       call esmf_gridcompsetentrypoint (gc_gfs_dyn, 			&
                                        esmf_setinit,  			&
                                        gfs_dyn_initialize,              &
                                        esmf_singlephase, rc1)
+#else
+      call esmf_gridcompsetentrypoint (gc_gfs_dyn, 			&
+                                       esmf_setinit,  			&
+                                       gfs_dyn_initialize,              &
+                                       phase=esmf_singlephase, rc=rc1)
+#endif
       call gfs_dynamics_err_msg(rc1,'set entry point for initialize',rc)
 
 ! register the run subroutine.
 !-----------------------------
       call esmf_logwrite("set entry point for run",              	&
                            esmf_log_info, rc = rc1)
+#ifdef ESMF_3
       call esmf_gridcompsetentrypoint (gc_gfs_dyn, 			&
                                        esmf_setrun,   			&
                                        gfs_dyn_run,	                &
                                        esmf_singlephase, rc1)
+#else
+      call esmf_gridcompsetentrypoint (gc_gfs_dyn, 			&
+                                       esmf_setrun,   			&
+                                       gfs_dyn_run,	                &
+                                       phase=esmf_singlephase, rc=rc1)
+#endif
       call gfs_dynamics_err_msg(rc1,'set entry point for run',rc)
 
 
@@ -110,10 +131,17 @@
 !----------------------------------
       call esmf_logwrite("set entry point for finalize",                &
                         esmf_log_info, rc = rc1)
+#ifdef ESMF_3
       call esmf_gridcompsetentrypoint (gc_gfs_dyn, 			&
                                        esmf_setfinal, 			&
                                        gfs_dyn_finalize, 	        &
                                        esmf_singlephase, rc1)
+#else
+      call esmf_gridcompsetentrypoint (gc_gfs_dyn, 			&
+                                       esmf_setfinal, 			&
+                                       gfs_dyn_finalize, 	        &
+                                       phase=esmf_singlephase, rc=rc1)
+#endif
       call gfs_dynamics_err_msg(rc1,'set entry point for finalize',rc)
 
 ! check the error signal variable and print out the result.
@@ -699,8 +727,13 @@
         do n = 1, int_state%ntrac                                         !chlu_debug
           vname = int_state%gfs_dyn_tracer%vname(n, 1)                    !chlu_debug
           print *,'LU_DYN:',trim(vname)                                   !chlu_debug
-          CALL ESMF_FieldBundleGet(bundle=ESMFBundle, &                   !chlu_debug
-                 name=vname, field=ESMFfield, rc = rc1)                   !chlu_debug
+#ifdef ESMF_520rbs
+          CALL ESMF_FieldBundleGet(ESMFBundle, &                          !chlu_debug
+                 FIELDNAME=vname, field=ESMFfield, rc = rc1)              !chlu_debug
+#else
+          CALL ESMF_FieldBundleGet(ESMFBundle, &                          !chlu_debug
+                      NAME=vname, field=ESMFfield, rc = rc1)              !chlu_debug
+#endif
 
 #ifdef ESMF_3
           CALL ESMF_FieldGet(field=ESMFField, localDe=0, &                !chlu_debug

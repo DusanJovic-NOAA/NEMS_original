@@ -187,7 +187,7 @@
                'gfs physics getcf','num_file',rcfinal)
 !
       allocate(int_state%filename_base(int_state%num_file))
-      call esmf_configFindLabel(CF,'filename_base:',RC)
+      call esmf_configFindLabel(CF,'filename_base:',rc=RC)
       Do I=1,int_state%num_file
         call esmf_configgetattribute(cf,                                &
                               int_state%filename_base(i),               &

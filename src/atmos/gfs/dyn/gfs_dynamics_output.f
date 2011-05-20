@@ -534,8 +534,7 @@
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      GFS_DYN_BUNDLE=ESMF_FieldBundleCreate(grid=GRID                      &  !<-- The ESMF integration Grid
-                                           ,name=int_state%filename_base(1) &  !<-- The Bundle's name
+      GFS_DYN_BUNDLE=ESMF_FieldBundleCreate(name=int_state%filename_base(1) &  !<-- The Bundle's name
                                            ,rc  =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -948,8 +947,8 @@
           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_FieldBundleAdd(bundle=file_bundle                   &  !<-- The Write component output history Bundle
-                                  ,field =FIELD                         &  !<-- ESMF Field holding the 2D real array
+          CALL ESMF_FieldBundleAdd(file_bundle                   &  !<-- The Write component output history Bundle
+                                  ,FIELD                         &  !<-- ESMF Field holding the 2D real array
                                   ,rc    =RC)
           CALL gfs_dynamics_err_msg(RC,MESSAGE_CHECK,RC_DYN_OUT)
 !
@@ -1055,8 +1054,8 @@
             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL ESMF_FieldBundleAdd(bundle=file_bundle                 &  !<-- The Write component output history Bundle
-                                    ,field =FIELD                       &  !<-- ESMF Field holding the 1D real array
+            CALL ESMF_FieldBundleAdd(file_bundle                 &  !<-- The Write component output history Bundle
+                                    ,FIELD                       &  !<-- ESMF Field holding the 1D real array
                                     ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

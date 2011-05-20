@@ -1,5 +1,11 @@
 #include "../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#else
+#define ESMF_520rbs
+#endif
+
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_PARENT_CHILD_CPL_COMP
@@ -18,6 +24,7 @@
 !   2011-02     Yang  - Updated to use both the ESMF 4.0.0rp2 library,
 !                       ESMF 5 series library and the the
 !                       ESMF 3.1.0rp2 library.
+!   2011-05-12  Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !
 !-----------------------------------------------------------------------
 !
@@ -425,11 +432,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Parent-Child Coupler Component
                                     ,ESMF_SETINIT                       &  !<-- subroutineType
                                     ,PARENT_CHILD_CPL_INITIALIZE        &  !<-- User's subroutineName
                                     ,ESMF_SINGLEPHASE                   &  !<-- Phase
                                     ,RC)
+#else
+      CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Parent-Child Coupler Component
+                                    ,ESMF_SETINIT                       &  !<-- subroutineType
+                                    ,PARENT_CHILD_CPL_INITIALIZE        &  !<-- User's subroutineName
+                                    ,phase=ESMF_SINGLEPHASE             &  !<-- Phase
+                                    ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NEST_REG)
@@ -449,11 +464,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Parent-Child Coupler Component
                                     ,ESMF_SETRUN                        &  !<-- subroutineType
                                     ,PARENT_CHILD_CPL_RUN_RECV          &  !<-- User's subroutineName
                                     ,1                                  &  !<-- Phase
                                     ,RC)
+#else
+      CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Parent-Child Coupler Component
+                                    ,ESMF_SETRUN                        &  !<-- subroutineType
+                                    ,PARENT_CHILD_CPL_RUN_RECV          &  !<-- User's subroutineName
+                                    ,phase=1                            &  !<-- Phase
+                                    ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NEST_REG)
@@ -464,11 +487,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Parent-Child Coupler Component
                                     ,ESMF_SETRUN                        &  !<-- subroutineType
                                     ,PARENT_CHILD_CPL_RUN_SEND          &  !<-- User's subroutineName
                                     ,2                                  &  !<-- Phase
                                     ,RC)
+#else
+      CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Parent-Child Coupler Component
+                                    ,ESMF_SETRUN                        &  !<-- subroutineType
+                                    ,PARENT_CHILD_CPL_RUN_SEND          &  !<-- User's subroutineName
+                                    ,phase=2                            &  !<-- Phase
+                                    ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NEST_REG)
@@ -483,11 +514,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Parent-Child Coupler Component
                                     ,ESMF_SETFINAL                      &  !<-- subroutineType
                                     ,PARENT_CHILD_CPL_FINALIZE          &  !<-- User's subroutineName
                                     ,ESMF_SINGLEPHASE                   &  !<-- Phase
                                     ,RC)
+#else
+      CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Parent-Child Coupler Component
+                                    ,ESMF_SETFINAL                      &  !<-- subroutineType
+                                    ,PARENT_CHILD_CPL_FINALIZE          &  !<-- User's subroutineName
+                                    ,phase=ESMF_SINGLEPHASE             &  !<-- Phase
+                                    ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NEST_REG)
@@ -4073,6 +4112,15 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_520rbs
+      IMP_STATE_CPL_NEST=ESMF_StateCreate(     Name="Nesting Coupler Import" &  !<-- The Nesting Coupler import state name
+                                         ,statetype=ESMF_STATE_IMPORT        &
+                                         ,rc       =RC)
+!
+      EXP_STATE_CPL_NEST=ESMF_StateCreate(     Name="Nesting Coupler Export" &  !<-- The Nesting Coupler export state name
+                                         ,statetype=ESMF_STATE_EXPORT        &
+                                         ,rc       =RC)
+#else
       IMP_STATE_CPL_NEST=ESMF_StateCreate(stateName="Nesting Coupler Import" &  !<-- The Nesting Coupler import state name
                                          ,statetype=ESMF_STATE_IMPORT        &
                                          ,rc       =RC)
@@ -4080,6 +4128,7 @@
       EXP_STATE_CPL_NEST=ESMF_StateCreate(stateName="Nesting Coupler Export" &  !<-- The Nesting Coupler export state name
                                          ,statetype=ESMF_STATE_EXPORT        &
                                          ,rc       =RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)

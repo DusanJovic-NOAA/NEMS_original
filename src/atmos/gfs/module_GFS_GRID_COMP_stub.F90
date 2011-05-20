@@ -1,3 +1,8 @@
+!  2011-05-11  Theurich & Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!-------------------------------------------------------------------------------------
+
+#include "../../ESMFVersionDefine.h"
+
       MODULE module_GFS_GRID_COMP
 
       USE ESMF_MOD
@@ -20,9 +25,15 @@
       INTEGER :: RC
 
       write(0,*) "    GFS_REGISTER stub"
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP ,ESMF_SETINIT ,GFS_INITIALIZE ,ESMF_SINGLEPHASE ,RC)
       CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP ,ESMF_SETRUN  ,GFS_RUN        ,1                ,RC)
       CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP ,ESMF_SETFINAL,GFS_FINALIZE   ,ESMF_SINGLEPHASE ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP ,ESMF_SETINIT ,GFS_INITIALIZE ,phase=ESMF_SINGLEPHASE ,rc=RC)
+      CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP ,ESMF_SETRUN  ,GFS_RUN        ,phase=1                ,rc=RC)
+      CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP ,ESMF_SETFINAL,GFS_FINALIZE   ,phase=ESMF_SINGLEPHASE ,rc=RC)
+#endif
 
       RC_REG = ESMF_SUCCESS
       write(0,*) "    END OF GFS_REGISTER stub"

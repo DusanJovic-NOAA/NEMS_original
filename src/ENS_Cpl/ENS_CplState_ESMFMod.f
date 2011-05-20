@@ -1,5 +1,13 @@
 #include "../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520rbs
+#endif
+
+
 !
 ! !MODULE: ENS_CplState_ESMFMod --- Run module of the ESMF grided
 !                                   component of the EARTH ensemble coupler.
@@ -13,6 +21,7 @@
 !  November 2009     Weiyu Yang, NEMS ENS model.
 !  February 2011     Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
 !                                ESMF 5 library and the the ESMF 3.1.0rp2 library.
+!  May      2011     Theurich & W. Yang, Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !
 !
 ! !INTERFACE:
@@ -56,7 +65,11 @@
 
  CALL GetF90ArrayFromState(impENS, 'pps', Cpl_Int_State%work1, 0, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Get From impENS to the Cpl Internal State -- PS.")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- PS.")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- PS.")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- PS, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -64,7 +77,11 @@
 
  CALL DistributeForStep1_1(Cpl_Int_State%ps, Cpl_Int_State, rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Distribute for the Step1 Scheme -- PS.")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Distribute for the Step1 Scheme -- PS.")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Distribute for the Step1 Scheme -- PS.")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Distributing for the Step1 Scheme -- PS, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -72,7 +89,11 @@
 
  CALL GetF90ArrayFromState(impENS, 'tt', Cpl_Int_State%work2, 0, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Get From impENS to the Cpl Internal State -- T.")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- T.")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- T.")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- T, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -81,7 +102,11 @@
  name = "T"
  CALL DistributeForStep1(Cpl_Int_State%t, name, Cpl_Int_State, rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Distribute for the Step1 Scheme -- T.")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Distribute for the Step1 Scheme -- T.")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Distribute for the Step1 Scheme -- T.")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Distributing for the Step1 Scheme -- T, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -89,7 +114,11 @@
 
  CALL GetF90ArrayFromState(impENS, 'uu', Cpl_Int_State%work2, 0, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Get From impENS to the Cpl Internal State -- U.")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- U.")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- U.")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- U, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -98,7 +127,11 @@
  name = "U"
  CALL DistributeForStep1(Cpl_Int_State%u, name, Cpl_Int_State, rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Distribute for the Step1 Scheme -- U.")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Distribute for the Step1 Scheme -- U.")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Distribute for the Step1 Scheme -- U.")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Distributing for the Step1 Scheme -- U, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -106,7 +139,11 @@
 
  CALL GetF90ArrayFromState(impENS, 'vv', Cpl_Int_State%work2, 0, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Get From impENS to the Cpl Internal State -- V.")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- V.")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- V.")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- V, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -115,7 +152,11 @@
  name = "V"
  CALL DistributeForStep1(Cpl_Int_State%v, name, Cpl_Int_State, rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Distribute for the Step1 Scheme -- V.")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Distribute for the Step1 Scheme -- V.")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Distribute for the Step1 Scheme -- V.")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Distributing for the Step1 Scheme -- V, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -123,7 +164,11 @@
 
  CALL ESMF_StateGet(impENS, 'tracers', Bundle, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Retrieve Bundle from impENS in ENS Cpl.")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Retrieve Bundle from impENS in ENS Cpl.")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Retrieve Bundle from impENS in ENS Cpl.")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Retrieving Bundle from impENS in ENS Cpl, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -136,7 +181,11 @@
                                   Field,                           &
                                   rc = rc1)
 
-         IF(ESMF_LogMsgFoundAllocError(rc1, "Retrieve Field from Bundle in ENS Cpl.")) THEN
+#ifdef ESMF_520rbs
+         IF(ESMF_LogFoundError(rc1, msg="Retrieve Field from Bundle in ENS Cpl.")) THEN
+#else
+         IF(ESMF_LogFoundError(rc1,     "Retrieve Field from Bundle in ENS Cpl.")) THEN
+#endif
              rcfinal = ESMF_FAILURE
              PRINT*, 'Error Happened When Retrieving Field from Bundle in ENS Cpl, rc = ', rc1
              rc1 = ESMF_SUCCESS
@@ -149,7 +198,11 @@
          CALL ESMF_FieldGet(Field, FArrayPtr = Cpl_Int_State%work2, localDE = 0, rc = rc1)
 #endif
 
-         IF(ESMF_LogMsgFoundAllocError(rc1, "Retrieve FArray from Field in ENS Cpl.")) THEN
+#ifdef ESMF_520rbs
+         IF(ESMF_LogFoundError(rc1, msg="Retrieve FArray from Field in ENS Cpl.")) THEN
+#else
+         IF(ESMF_LogFoundError(rc1,     "Retrieve FArray from Field in ENS Cpl.")) THEN
+#endif
              rcfinal = ESMF_FAILURE
              PRINT*, 'Error Happened When Retrieving FArray from Field in ENS Cpl, rc = ', rc1
              rc1 = ESMF_SUCCESS
@@ -198,7 +251,11 @@
                  CALL DistributeForStep1(Cpl_Int_State%tracer6m(:, :, i), name, Cpl_Int_State, rc1)
          END SELECT
 
-         IF(ESMF_LogMsgFoundAllocError(rc1, "Distribute for the Step1 Scheme -- tracer.")) THEN
+#ifdef ESMF_520rbs
+         IF(ESMF_LogFoundError(rc1, msg="Distribute for the Step1 Scheme -- tracer.")) THEN
+#else
+         IF(ESMF_LogFoundError(rc1,     "Distribute for the Step1 Scheme -- tracer.")) THEN
+#endif
              rcfinal = ESMF_FAILURE
              PRINT*, 'Error Happened When Distributing for the Step1 Scheme -- tracer, rc = ', rc1
              rc1 = ESMF_SUCCESS
@@ -208,7 +265,11 @@
 
  CALL GetF90ArrayFromState(impENS, 'psm', Cpl_Int_State%work1, 0, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Get From impENS to the Cpl Internal State -- PS(-DT).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- PS(-DT).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- PS(-DT).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- PS(-DT), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -216,7 +277,11 @@
 
  CALL DistributeForStep1_1(Cpl_Int_State%psm, Cpl_Int_State, rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Distribute for the Step1 Scheme -- PS(-DT).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Distribute for the Step1 Scheme -- PS(-DT).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Distribute for the Step1 Scheme -- PS(-DT).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Distributing for the Step1 Scheme -- PS(-DT), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -224,7 +289,11 @@
 
  CALL GetF90ArrayFromState(impENS, 'tm', Cpl_Int_State%work2, 0, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Get From impENS to the Cpl Internal State -- T(-DT).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- T(-DT).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- T(-DT).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- T(-DT), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -233,7 +302,11 @@
  name = "T(-DT)"
  CALL DistributeForStep1(Cpl_Int_State%tm, name, Cpl_Int_State, rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Distribute for the Step1 Scheme -- T(-DT).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Distribute for the Step1 Scheme -- T(-DT).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Distribute for the Step1 Scheme -- T(-DT).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Distributing for the Step1 Scheme -- T(-DT), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -241,7 +314,11 @@
 
  CALL GetF90ArrayFromState(impENS, 'um', Cpl_Int_State%work2, 0, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Get From impENS to the Cpl Internal State -- U(-DT).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- U(-DT).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- U(-DT).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- U(-DT), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -250,7 +327,11 @@
  name = "U(-DT)"
  CALL DistributeForStep1(Cpl_Int_State%um, name, Cpl_Int_State, rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Distribute for the Step1 Scheme -- U(-DT).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Distribute for the Step1 Scheme -- U(-DT).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Distribute for the Step1 Scheme -- U(-DT).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Distributing for the Step1 Scheme -- U(-DT), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -258,7 +339,11 @@
 
  CALL GetF90ArrayFromState(impENS, 'vm', Cpl_Int_State%work2, 0, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Get From impENS to the Cpl Internal State -- V(-DT).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- V(-DT).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- V(-DT).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- V(-DT), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -267,7 +352,11 @@
  name = "V(-DT)"
  CALL DistributeForStep1(Cpl_Int_State%vm, name, Cpl_Int_State, rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Distribute for the Step1 Scheme -- V(-DT).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Distribute for the Step1 Scheme -- V(-DT).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Distribute for the Step1 Scheme -- V(-DT).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Distributing for the Step1 Scheme -- V(-DT), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -275,7 +364,11 @@
 
  CALL GetF90ArrayFromState(impENS, 'pps6', Cpl_Int_State%work1, 0, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Get From impENS to the Cpl Internal State -- PS(-6H).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- PS(-6H).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- PS(-6H).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- PS(-6H), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -283,7 +376,11 @@
 
  CALL DistributeForStep1_1(Cpl_Int_State%ps6, Cpl_Int_State, rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Distribute for the Step1 Scheme -- PS(-6H).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Distribute for the Step1 Scheme -- PS(-6H).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Distribute for the Step1 Scheme -- PS(-6H).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Distributing for the Step1 Scheme -- PS(-6H), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -291,7 +388,11 @@
 
  CALL GetF90ArrayFromState(impENS, 'tt6', Cpl_Int_State%work2, 0, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Get From impENS to the Cpl Internal State -- T(-6H).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- T(-6H).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- T(-6H).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- T(-6H), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -300,7 +401,11 @@
  name = "T(-6H)"
  CALL DistributeForStep1(Cpl_Int_State%t6, name, Cpl_Int_State, rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Distribute for the Step1 Scheme -- T(-6H).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Distribute for the Step1 Scheme -- T(-6H).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Distribute for the Step1 Scheme -- T(-6H).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Distributing for the Step1 Scheme -- T(-6H), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -308,7 +413,11 @@
 
  CALL GetF90ArrayFromState(impENS, 'uu6', Cpl_Int_State%work2, 0, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Get From impENS to the Cpl Internal State -- U(-6H).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- U(-6H).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- U(-6H).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- U(-6H), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -317,7 +426,11 @@
  name = "U(-6H)"
  CALL DistributeForStep1(Cpl_Int_State%u6, name, Cpl_Int_State, rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Distribute for the Step1 Scheme -- U(-6H).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Distribute for the Step1 Scheme -- U(-6H).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Distribute for the Step1 Scheme -- U(-6H).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Distributing for the Step1 Scheme -- U(-6H), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -325,7 +438,11 @@
 
  CALL GetF90ArrayFromState(impENS, 'vv6', Cpl_Int_State%work2, 0, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Get From impENS to the Cpl Internal State -- V(-6H).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- V(-6H).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- V(-6H).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- V(-6H), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -334,7 +451,11 @@
  name = "V(-6H)"
  CALL DistributeForStep1(Cpl_Int_State%v6, name, Cpl_Int_State, rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Distribute for the Step1 Scheme -- V(-6H).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Distribute for the Step1 Scheme -- V(-6H).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Distribute for the Step1 Scheme -- V(-6H).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Distributing for the Step1 Scheme -- V(-6H), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -342,7 +463,11 @@
 
  CALL GetF90ArrayFromState(impENS, 'psm6', Cpl_Int_State%work1, 0, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Get From impENS to the Cpl Internal State -- PS(-6H-DT).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- PS(-6H-DT).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- PS(-6H-DT).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- PS(-6H-DT), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -350,7 +475,11 @@
 
  CALL DistributeForStep1_1(Cpl_Int_State%ps6m, Cpl_Int_State, rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Distribute for the Step1 Scheme -- PS(-6H-DT).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Distribute for the Step1 Scheme -- PS(-6H-DT).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Distribute for the Step1 Scheme -- PS(-6H-DT).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Distributing for the Step1 Scheme -- PS(-6H-DT), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -358,7 +487,11 @@
 
  CALL GetF90ArrayFromState(impENS, 'tm6', Cpl_Int_State%work2, 0, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Get From impENS to the Cpl Internal State -- T(-6H-DT).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- T(-6H-DT).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- T(-6H-DT).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- T(-6H-DT), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -367,7 +500,11 @@
  name = "T(-6H-DT)"
  CALL DistributeForStep1(Cpl_Int_State%t6m,  name, Cpl_Int_State, rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Distribute for the Step1 Scheme -- T(-6H-DT).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Distribute for the Step1 Scheme -- T(-6H-DT).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Distribute for the Step1 Scheme -- T(-6H-DT).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Distributing for the Step1 Scheme -- T(-6H-DT), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -375,7 +512,11 @@
 
  CALL GetF90ArrayFromState(impENS, 'um6', Cpl_Int_State%work2, 0, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Get From impENS to the Cpl Internal State -- U(-6H-DT).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- U(-6H-DT).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- U(-6H-DT).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- U(-6H-DT), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -384,7 +525,11 @@
  name = "U(-6H-DT)"
  CALL DistributeForStep1(Cpl_Int_State%u6m, name, Cpl_Int_State, rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Distribute for the Step1 Scheme -- U(-6H-DT).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Distribute for the Step1 Scheme -- U(-6H-DT).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Distribute for the Step1 Scheme -- U(-6H-DT).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Distributing for the Step1 Scheme -- U(-6H-DT), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -392,7 +537,11 @@
 
  CALL GetF90ArrayFromState(impENS, 'vm6', Cpl_Int_State%work2, 0, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Get From impENS to the Cpl Internal State -- V(-6H-DT).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- V(-6H-DT).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- V(-6H-DT).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- V(-6H-DT), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -401,7 +550,11 @@
  name = "V(-6H-DT)"
  CALL DistributeForStep1(Cpl_Int_State%v6m, name, Cpl_Int_State, rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Distribute for the Step1 Scheme -- V(-6H-DT).")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Distribute for the Step1 Scheme -- V(-6H-DT).")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Distribute for the Step1 Scheme -- V(-6H-DT).")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Distributing for the Step1 Scheme -- V(-6H-DT), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -472,7 +625,11 @@
 !-------------------
      CALL ESMF_StateGet(impENS, 'tt', ESMFField, rc = rc1)
 
-         IF(ESMF_LogMsgFoundError(rc1, "Get ESMF Field")) THEN
+#ifdef ESMF_520rbs
+         IF(ESMF_LogFoundError(rc1, msg="Get ESMF Field")) THEN
+#else
+         IF(ESMF_LogFoundError(rc1,     "Get ESMF Field")) THEN
+#endif
              rcfinal = ESMF_FAILURE
              PRINT*, 'Error Happened When Getting the ESMF Field, rc = ', rc1
              rc1 = ESMF_SUCCESS
@@ -480,7 +637,11 @@
 
      CALL ESMF_FieldGet(ESMFField, grid = mgrid, rc = rc1)
 
-         IF(ESMF_LogMsgFoundError(rc1, "Get ESMF mgrid")) THEN
+#ifdef ESMF_520rbs
+         IF(ESMF_LogFoundError(rc1, msg="Get ESMF mgrid")) THEN
+#else
+         IF(ESMF_LogFoundError(rc1,     "Get ESMF mgrid")) THEN
+#endif
              rcfinal = ESMF_FAILURE
              PRINT*, 'Error Happened When Getting the ESMF mgrid, rc = ', rc1
              rc1 = ESMF_SUCCESS
@@ -494,7 +655,11 @@
      CALL ESMF_FieldGet(ESMFField, FArrayPtr = t_wk, localDE = 0, rc = rc1)
 #endif
 
-         IF(ESMF_LogMsgFoundError(rc1, "Get t for its Size")) THEN
+#ifdef ESMF_520rbs
+         IF(ESMF_LogFoundError(rc1, msg="Get t for its Size")) THEN
+#else
+         IF(ESMF_LogFoundError(rc1,     "Get t for its Size")) THEN
+#endif
              rcfinal = ESMF_FAILURE
              PRINT*, 'Error Happened When Getting t for its Size, rc = ', rc1
              rc1 = ESMF_SUCCESS
@@ -703,7 +868,11 @@
 !---------------------------------------------------------------------
      CALL AddF90ArrayToState(expENS, mgrid, "tt",   Cpl_Int_State%tw,   rc = rc1)
 
-         IF(ESMF_LogMsgFoundError(rc1, "Add t to expENS")) THEN
+#ifdef ESMF_520rbs
+         IF(ESMF_LogFoundError(rc1, msg="Add t to expENS")) THEN
+#else
+         IF(ESMF_LogFoundError(rc1,     "Add t to expENS")) THEN
+#endif
              rcfinal = ESMF_FAILURE
              PRINT*, 'Error Happened When Adding t to expENS, rc = ', rc1
              rc1 = ESMF_SUCCESS
@@ -711,7 +880,11 @@
 
      CALL AddF90ArrayToState(expENS, mgrid, "uu",   Cpl_Int_State%uw,   rc = rc1)
 
-         IF(ESMF_LogMsgFoundError(rc1, "Add u to expENS")) THEN
+#ifdef ESMF_520rbs
+         IF(ESMF_LogFoundError(rc1, msg="Add u to expENS")) THEN
+#else
+         IF(ESMF_LogFoundError(rc1,     "Add u to expENS")) THEN
+#endif
              rcfinal = ESMF_FAILURE
              PRINT*, 'Error Happened When Adding u to expENS, rc = ', rc1
              rc1 = ESMF_SUCCESS
@@ -719,7 +892,11 @@
 
      CALL AddF90ArrayToState(expENS, mgrid, "vv",   Cpl_Int_State%vw,   rc = rc1)
 
-         IF(ESMF_LogMsgFoundError(rc1, "Add v to expENS")) THEN
+#ifdef ESMF_520rbs
+         IF(ESMF_LogFoundError(rc1, msg="Add v to expENS")) THEN
+#else
+         IF(ESMF_LogFoundError(rc1,     "Add v to expENS")) THEN
+#endif
              rcfinal = ESMF_FAILURE
              PRINT*, 'Error Happened When Adding v to expENS, rc = ', rc1
              rc1 = ESMF_SUCCESS
@@ -727,15 +904,23 @@
 
      CALL AddF90ArrayToState(expENS, mgrid, "pps",  Cpl_Int_State%psw,  rc = rc1)
 
-         IF(ESMF_LogMsgFoundError(rc1, "Add ps to expENS")) THEN
+#ifdef ESMF_520rbs
+         IF(ESMF_LogFoundError(rc1, msg="Add ps to expENS")) THEN
+#else
+         IF(ESMF_LogFoundError(rc1,     "Add ps to expENS")) THEN
+#endif
              rcfinal = ESMF_FAILURE
              PRINT*, 'Error Happened When Adding ps to expENS, rc = ', rc1
              rc1 = ESMF_SUCCESS
          END IF
 
-     Bundle = ESMF_FieldBundleCreate(name = 'tracers_ENS', grid = mgrid, rc = rc1)
+     Bundle = ESMF_FieldBundleCreate(name = 'tracers_ENS', rc = rc1)
 
-         IF(ESMF_LogMsgFoundError(rc1, "Create Empty Fieldbundle")) THEN
+#ifdef ESMF_520rbs
+         IF(ESMF_LogFoundError(rc1, msg="Create Empty Fieldbundle")) THEN
+#else
+         IF(ESMF_LogFoundError(rc1,     "Create Empty Fieldbundle")) THEN
+#endif
              rcfinal = ESMF_FAILURE
              PRINT*, 'Error Hapened When Creating Empty Fieldbundle, rc = ', rc1
              rc1 = ESMF_SUCCESS
@@ -747,7 +932,11 @@
          ESMFField = ESMF_FieldCreate(mgrid, FArr3D, &
              name = trim(Cpl_Int_State%vname(k, 2)), rc = rc1)
 
-         IF(ESMF_LogMsgFoundError(rc1, "Create ESMF Field")) THEN
+#ifdef ESMF_520rbs
+         IF(ESMF_LogFoundError(rc1, msg="Create ESMF Field")) THEN
+#else
+         IF(ESMF_LogFoundError(rc1,     "Create ESMF Field")) THEN
+#endif
              rcfinal = ESMF_FAILURE
              PRINT*, 'Error Happened When Creating ESMF Field, rc = ', rc1
              rc1 = ESMF_SUCCESS
@@ -755,7 +944,11 @@
 
          CALL ESMF_FieldBundleAdd(Bundle, ESMFField, rc = rc1)
 
-         IF(ESMF_LogMsgFoundError(rc1, "Add the ESMF Field into Bundle")) THEN
+#ifdef ESMF_520rbs
+         IF(ESMF_LogFoundError(rc1, msg="Add the ESMF Field into Bundle")) THEN
+#else
+         IF(ESMF_LogFoundError(rc1,     "Add the ESMF Field into Bundle")) THEN
+#endif
              rcfinal = ESMF_FAILURE
              PRINT*, 'Error Happened When Adding the ESMF Field into Bundle, rc = ', rc1
              rc1 = ESMF_SUCCESS
@@ -766,7 +959,11 @@
          ESMFField = ESMF_FieldCreate(mgrid, FArr3D, &
              name = trim(Cpl_Int_State%vname(k, 3)), rc = rc1)
 
-         IF(ESMF_LogMsgFoundError(rc1, "Create ESMF Field")) THEN
+#ifdef ESMF_520rbs
+         IF(ESMF_LogFoundError(rc1, msg="Create ESMF Field")) THEN
+#else
+         IF(ESMF_LogFoundError(rc1,     "Create ESMF Field")) THEN
+#endif
              rcfinal = ESMF_FAILURE
              PRINT*, 'Error Happened When Creating ESMF Field, rc = ', rc1
              rc1 = ESMF_SUCCESS
@@ -774,7 +971,11 @@
 
          CALL ESMF_FieldBundleAdd(Bundle, ESMFField, rc = rc1)
 
-         IF(ESMF_LogMsgFoundError(rc1, "Add the ESMF Field into Bundle")) THEN
+#ifdef ESMF_520rbs
+         IF(ESMF_LogFoundError(rc1, msg="Add the ESMF Field into Bundle")) THEN
+#else
+         IF(ESMF_LogFoundError(rc1,     "Add the ESMF Field into Bundle")) THEN
+#endif
              rcfinal = ESMF_FAILURE
              PRINT*, 'Error Happened When Adding the ESMF Field into Bundle, rc = ', rc1
              rc1 = ESMF_SUCCESS
@@ -783,7 +984,11 @@
 
      CALL ESMF_StateAdd(expENS, Bundle, rc = rc1)
 
-         IF(ESMF_LogMsgFoundError(rc1, "ESMF State Adds the Bundle")) THEN
+#ifdef ESMF_520rbs
+         IF(ESMF_LogFoundError(rc1, msg="ESMF State Adds the Bundle")) THEN
+#else
+         IF(ESMF_LogFoundError(rc1,     "ESMF State Adds the Bundle")) THEN
+#endif
              rcfinal = ESMF_FAILURE
              PRINT*, 'Error Happened When ESMF State Adds the Bundle, rc = ', rc1
              rc1 = ESMF_SUCCESS
@@ -793,7 +998,11 @@
 !------------------------------------------------------------------
      CALL AddF90ArrayToState(expENS, mgrid, "tm",   Cpl_Int_State%twm,   rc = rc1)
 
-         IF(ESMF_LogMsgFoundError(rc1, "Add tm to expENS")) THEN
+#ifdef ESMF_520rbs
+         IF(ESMF_LogFoundError(rc1, msg="Add tm to expENS")) THEN
+#else
+         IF(ESMF_LogFoundError(rc1,     "Add tm to expENS")) THEN
+#endif
              rcfinal = ESMF_FAILURE
              PRINT*, 'Error Happened When Adding tm to expENS, rc = ', rc1
              rc1 = ESMF_SUCCESS
@@ -801,7 +1010,11 @@
 
      CALL AddF90ArrayToState(expENS, mgrid, "um",   Cpl_Int_State%uwm,   rc = rc1)
 
-         IF(ESMF_LogMsgFoundError(rc1, "Add um to expENS")) THEN
+#ifdef ESMF_520rbs
+         IF(ESMF_LogFoundError(rc1, msg="Add um to expENS")) THEN
+#else
+         IF(ESMF_LogFoundError(rc1,     "Add um to expENS")) THEN
+#endif
              rcfinal = ESMF_FAILURE
              PRINT*, 'Error Happened When Adding um to expENS, rc = ', rc1
              rc1 = ESMF_SUCCESS
@@ -809,7 +1022,11 @@
 
      CALL AddF90ArrayToState(expENS, mgrid, "vm",   Cpl_Int_State%vwm,   rc = rc1)
 
-         IF(ESMF_LogMsgFoundError(rc1, "Add vm to expENS")) THEN
+#ifdef ESMF_520rbs
+         IF(ESMF_LogFoundError(rc1, msg="Add vm to expENS")) THEN
+#else
+         IF(ESMF_LogFoundError(rc1,     "Add vm to expENS")) THEN
+#endif
              rcfinal = ESMF_FAILURE
              PRINT*, 'Error Happened When Adding vm to expENS, rc = ', rc1
              rc1 = ESMF_SUCCESS
@@ -817,7 +1034,11 @@
 
      CALL AddF90ArrayToState(expENS, mgrid, "psm",  Cpl_Int_State%pswm,  rc = rc1)
 
-         IF(ESMF_LogMsgFoundError(rc1, "Add psm to expENS")) THEN
+#ifdef ESMF_520rbs
+         IF(ESMF_LogFoundError(rc1, msg="Add psm to expENS")) THEN
+#else
+         IF(ESMF_LogFoundError(rc1,     "Add psm to expENS")) THEN
+#endif
              rcfinal = ESMF_FAILURE
              PRINT*, 'Error Happened When Adding psm to expENS, rc = ', rc1
              rc1 = ESMF_SUCCESS

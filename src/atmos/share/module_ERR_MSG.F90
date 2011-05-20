@@ -1,9 +1,19 @@
+#include "../../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520rbs
+#endif
+
 !
 ! !description: error messages
 !
 ! !revision history:
 !
 !  january 2007 	hann-ming henry juang
+!  May     2011         Weiyu yang, Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !
 !
 ! !interface:
@@ -13,6 +23,7 @@
 !
 !!uses:
 !
+
       use esmf_mod 
 
       implicit none
@@ -31,7 +42,11 @@
       integer, intent(out)          :: rcfinal
       character (len=*), intent(in) :: msg
       integer,           intent(in) :: val
-      if(esmf_logmsgfounderror(rc1, msg)) then
+#ifdef ESMF_520rbs
+      if(esmf_logfounderror(rc1, msg=msg)) then
+#else
+      if(esmf_logfounderror(rc1, msg)) then
+#endif
           rcfinal = esmf_failure
           print*, 'error happened for ',msg,' ',val,' rc = ', rc1
           write(0,*)' ERROR: ',msg,' ',val,' rc = ', rc1
@@ -48,7 +63,11 @@
       integer, intent(out)          :: rcfinal
       character (len=*), intent(in) :: msg
       real,              intent(in) :: val
-      if(esmf_logmsgfounderror(rc1, msg)) then
+#ifdef ESMF_520rbs
+      if(esmf_logfounderror(rc1, msg=msg)) then
+#else
+      if(esmf_logfounderror(rc1, msg)) then
+#endif
           rcfinal = esmf_failure
           print*, 'error happened for ',msg,' ',val,' rc = ', rc1
           write(0,*)' ERROR: ',msg,' ',val,' rc = ', rc1
@@ -65,7 +84,11 @@
       integer, intent(out)          :: rcfinal
       character (len=*), intent(in) :: msg
       character (len=*), intent(in) :: chr
-      if(esmf_logmsgfounderror(rc1, msg)) then
+#ifdef ESMF_520rbs
+      if(esmf_logfounderror(rc1, msg=msg)) then
+#else
+      if(esmf_logfounderror(rc1, msg)) then
+#endif
           rcfinal = esmf_failure
           print*, 'error happened for ',msg,' ',chr,' rc = ', rc1
           write(0,*)' ERROR: ',msg,' ',chr,' rc = ', rc1
@@ -80,7 +103,11 @@
       integer, intent(inout)        :: rc1
       integer, intent(out)          :: rc
       character (len=*), intent(in) :: msg
-      if(esmf_logmsgfounderror(rc1, msg)) then
+#ifdef ESMF_520rbs
+      if(esmf_logfounderror(rc1, msg=msg)) then
+#else
+      if(esmf_logfounderror(rc1, msg)) then
+#endif
           rc  = esmf_failure
           print*, 'error happened for ',msg, ' rc = ', rc1
           write(0,*)' ERROR: ',trim(msg),' rc = ', rc1

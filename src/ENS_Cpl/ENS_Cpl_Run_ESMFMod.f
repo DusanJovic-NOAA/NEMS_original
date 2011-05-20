@@ -1,3 +1,12 @@
+#include "../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520rbs
+#endif
+
 !
 ! !MODULE: ENS_Cpl_Run_ESMFMod --- Run module of the ESMF grided
 !                                   component of the EARTH ensemble coupler.
@@ -8,6 +17,7 @@
 !
 !  April    2006     Weiyu Yang Initial code.
 !  March    2009     Weiyu Yang, modified for the NEMS model.
+!  May      2011     Weiyu yang, modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !
 !
 ! !INTERFACE:
@@ -58,7 +68,11 @@
 !  Get the initial time and forecast hours
 !-----------------------------------------------------
  CALL ESMF_ClockGet(clock, currTime = currTime, rc = rc1)
- IF(ESMF_LogMsgFoundError(rc1, "Get clock in the Cpl")) THEN
+#ifdef ESMF_520rbs
+ IF(ESMF_LogFoundError(rc1, msg="Get clock in the Cpl")) THEN
+#else
+ IF(ESMF_LogFoundError(rc1,     "Get clock in the Cpl")) THEN
+#endif
      rcfinal = ESMF_FAILURE
      PRINT*, 'Error Happened When Getting currTime in the Cpl, rc = ', rc1
      rc1     = ESMF_SUCCESS
@@ -66,7 +80,11 @@
  CALL ESMF_TimeGet(currTime, yy = year, mm = month, dd = day, h = hour, rc = rc1)
 
  CALL ESMF_ClockGet(clock, runDuration = runDuration, rc = rc1)
- IF(ESMF_LogMsgFoundError(rc1, "Get clock in the Cpl")) THEN
+#ifdef ESMF_520rbs
+ IF(ESMF_LogFoundError(rc1, msg="Get clock in the Cpl")) THEN
+#else
+ IF(ESMF_LogFoundError(rc1,     "Get clock in the Cpl")) THEN
+#endif
      rcfinal = ESMF_FAILURE
      PRINT*, 'Error Happened When Getting runDuration in the Cpl, rc = ', rc1
      rc1     = ESMF_SUCCESS
@@ -158,7 +176,11 @@
          cst%tracerwm(:, :, :, i), name, cst, rc1)
  END DO
 
- IF(ESMF_LogMsgFoundError(rc1, "Distribute Back For the step2 - CLWM")) THEN
+#ifdef ESMF_520rbs
+ IF(ESMF_LogFoundError(rc1, msg="Distribute Back For the step2 - CLWM")) THEN
+#else
+ IF(ESMF_LogFoundError(rc1,     "Distribute Back For the step2 - CLWM")) THEN
+#endif
      rcfinal = ESMF_FAILURE
      PRINT*, 'Error Happened When Distributing Back For the step2 - CLWM, rc = ', rc1
      rc1     = ESMF_SUCCESS
@@ -181,7 +203,11 @@
 
  PRINT*, 'Finished calling STEP2_1'
 
- IF(ESMF_LogMsgFoundError(rc1, "Run Sto_Per_Scheme_Step2")) THEN
+#ifdef ESMF_520rbs
+ IF(ESMF_LogFoundError(rc1, msg="Run Sto_Per_Scheme_Step2")) THEN
+#else
+ IF(ESMF_LogFoundError(rc1,     "Run Sto_Per_Scheme_Step2")) THEN
+#endif
      rcfinal = ESMF_FAILURE
      PRINT*, 'Error Happened When Running Sto_Per_Scheme_Step2, rc = ', rc1
      rc1     = ESMF_SUCCESS
@@ -191,7 +217,11 @@
 !---------------------------------------------------------
  CALL ENS_Sto_Per_Scheme_Step1_2(impState, cst, rc1)
 
- IF(ESMF_LogMsgFoundError(rc1, "Run Sto_Per_Scheme_Step1_2")) THEN
+#ifdef ESMF_520rbs
+ IF(ESMF_LogFoundError(rc1, msg="Run Sto_Per_Scheme_Step1_2")) THEN
+#else
+ IF(ESMF_LogFoundError(rc1,     "Run Sto_Per_Scheme_Step1_2")) THEN
+#endif
      rcfinal = ESMF_FAILURE
      PRINT*, 'Error Happened When Running Sto_Per_Scheme_Step1_2, rc = ', rc1
      rc1     = ESMF_SUCCESS

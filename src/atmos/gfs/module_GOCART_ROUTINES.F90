@@ -1,3 +1,11 @@
+#include "../../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#else
+#define ESMF_520rbs
+#endif
+
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_GOCART_ROUTINES
@@ -18,6 +26,7 @@
 !   2010-03-05  Lu    - Change chemistry_on from out to inout
 !   2010-03-06  Lu    - 2-phased GOCART initialization
 !   2010-08-17  Lu    - Call Chem_RegistryPrint only for master PE
+!   2011-05-11  Theurich & Yang - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !
 !-----------------------------------------------------------------------
 !
@@ -126,13 +135,23 @@
 !
       MESSAGE_CHECK="Create Empty Import/Export States for GFS Chemistry"
 !
-      IMP_GFS_CHEM =ESMF_StateCreate(statename="chemistry import"       &
+#ifdef ESMF_520rbs
+      IMP_GFS_CHEM =ESMF_StateCreate(     NAME="chemistry import"       &
                                   ,statetype=ESMF_STATE_IMPORT          &
                                   ,rc       =RC)
 !
-      EXP_GFS_CHEM =ESMF_StateCreate(statename="chemistry export"       &
+      EXP_GFS_CHEM =ESMF_StateCreate(     NAME="chemistry export"       &
                                   ,statetype=ESMF_STATE_EXPORT          &
                                   ,rc       =RC)
+#else
+      IMP_GFS_CHEM =ESMF_StateCreate(STATENAME="chemistry import"       &
+                                  ,statetype=ESMF_STATE_IMPORT          &
+                                  ,rc       =RC)
+!
+      EXP_GFS_CHEM =ESMF_StateCreate(STATENAME="chemistry export"       &
+                                  ,statetype=ESMF_STATE_EXPORT          &
+                                  ,rc       =RC)
+#endif
 
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
 
@@ -153,7 +172,6 @@
 !
         GC_GFS_CHEM =ESMF_GridCompCreate(name    ="chemistry component"   &
                                      ,ConfigFile ='MAPL.rc'               &
-                                     ,GridCompType = ESMF_ATM             &
                                      ,petList   =PETLIST_FCST             &
                                      ,rc        =RC)
         write(0,*)'in GOCART_SETUP after chem comp created, petlist_fcst=',petlist_fcst
@@ -191,9 +209,15 @@
 !
         MESSAGE_CHECK="Register the Phy2Chem Coupler's Init and Run"
 !
+#ifdef ESMF_3
         CALL ESMF_CplCompSetServices(GC_PHY2CHEM_CPL             &  !<-- The GFS Phys-to-Chem coupler component
                                   ,PHY2CHEM_SETSERVICES          &  !<-- The user's subroutine name for Register
                                   ,RC)
+#else
+        CALL ESMF_CplCompSetServices(GC_PHY2CHEM_CPL             &  !<-- The GFS Phys-to-Chem coupler component
+                                  ,PHY2CHEM_SETSERVICES          &  !<-- The user's subroutine name for Register
+                                  ,rc=RC)
+#endif
 !
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
 !
@@ -215,9 +239,15 @@
 !
         MESSAGE_CHECK="Register the Chem2Phy Coupler's Run"
 !
+#ifdef ESMF_3
         CALL ESMF_CplCompSetServices(GC_CHEM2PHY_CPL             &  !<-- The GFS Chem-to-Phys coupler component
                                   ,CHEM2PHY_SETSERVICES          &  !<-- The user's subroutine name for Register
                                   ,RC)
+#else
+        CALL ESMF_CplCompSetServices(GC_CHEM2PHY_CPL             &  !<-- The GFS Chem-to-Phys coupler component
+                                  ,CHEM2PHY_SETSERVICES          &  !<-- The user's subroutine name for Register
+                                  ,rc=RC)
+#endif
 !
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
 

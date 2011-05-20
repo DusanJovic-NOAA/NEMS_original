@@ -12,12 +12,18 @@ elif [[ $1 = 5 ]]; then
      cp conf/configure.nems.AIX_ESMF_5 conf/configure.nems
      cp ESMFVersionDefine_ESMF_5.h ESMFVersionDefine.h
      print "Use the ESMF 5.1.0 library"
+elif [[ $1 = 5.2 ]]; then
+     cp conf/configure.nems.AIX_ESMF_520rbs conf/configure.nems
+     cp ESMFVersionDefine_ESMF_520rbs.h ESMFVersionDefine.h
+     print "Use the ESMF 5.2.0r_beta_snapshot_07 library"
 elif [[ $1 = traps_on ]]; then
      cp conf/configure.nems.AIX_TRAPS_ON conf/configure.nems
      cp ESMFVersionDefine_ESMF_3.h ESMFVersionDefine.h
      print "Use the ESMF 3.1.0rp2 library"
 else
      print "When using the ESMF 3.1.0rp2 library, enter 'esmf_version 3'."
+     print "When using the ESMF 3.1.0rp2 library and turn on the traps, enter 'esmf_version traps_on'."
      print "When using the ESMF 4.0.0rp2 library, enter 'esmf_version 4'."
      print "When using the ESMF 5.1.0 library, enter 'esmf_version 5'."
+     print "Wgen using the ESMF 5.2.0r_beta_snapshot_07 library, enter 'esmf_version 5.2'"
 fi     

@@ -22,6 +22,7 @@
 !   2011-02     Yang  - Updated to use both the ESMF 4.0.0rp2 library,
 !                       ESMF 5 series library and the the
 !                       ESMF 3.1.0rp2 library.
+!   2011-05     Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
@@ -201,7 +202,7 @@
                                                     ,INTERVAL_HISTORY   &  !<-- Time interval between history output
                                                     ,INTERVAL_RESTART      !<-- Time interval between restart output
 !
-      TYPE(ESMF_CplComp),INTENT(IN),OPTIONAL :: PARENT_CHILD_CPL           !<-- Coupler component for parent-child/nest exchange
+      TYPE(ESMF_CplComp),INTENT(INOUT),OPTIONAL :: PARENT_CHILD_CPL        !<-- Coupler component for parent-child/nest exchange
 !
 !---------------------
 !***  Local Variables
@@ -326,7 +327,7 @@
 !-----------------------------------------------------------------------
 !
       timeloop_drv: DO WHILE (.NOT.ESMF_ClockIsStopTime(CLOCK_INTEGRATE &
-                                                       ,RC) )
+                                                       ,rc=RC) )
 
 !
 !-----------------------------------------------------------------------
@@ -357,7 +358,7 @@
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL ESMF_CplCompRun(cplcomp    =PARENT_CHILD_CPL           &  !<-- The Nesting coupler component
+            CALL ESMF_CplCompRun(            PARENT_CHILD_CPL           &  !<-- The Nesting coupler component
                                 ,importState=IMP_STATE_CPL_NEST         &  !<-- The Nesting coupler import state
                                 ,exportState=EXP_STATE_CPL_NEST         &  !<-- The Nesting coupler export state
                                 ,clock      =CLOCK_INTEGRATE            &  !<-- The DOMAIN Clock
@@ -501,7 +502,7 @@
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL ESMF_CplCompRun(cplcomp    =PARENT_CHILD_CPL           &  !<-- The Nesting coupler component
+            CALL ESMF_CplCompRun(            PARENT_CHILD_CPL           &  !<-- The Nesting coupler component
                                 ,importState=IMP_STATE_CPL_NEST         &  !<-- The Nesting coupler import state
                                 ,exportState=EXP_STATE_CPL_NEST         &  !<-- The Nesting coupler export state
                                 ,clock      =CLOCK_INTEGRATE            &  !<-- The DOMAIN Clock

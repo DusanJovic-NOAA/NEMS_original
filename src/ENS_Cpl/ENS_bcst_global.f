@@ -1,3 +1,12 @@
+#include "../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520rbs
+#endif
+
  SUBROUTINE ENS_bcst_global(var, peid, rc)
 
 !----------------------------------------------------------------------
@@ -11,6 +20,7 @@
 ! REVISION HISTORY:
 !
 !  Setpember 2007     Weiyu Yang Initial code.
+!  May       2011     Weiyu yang, Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !
 !
 ! INTERFACE:
@@ -32,7 +42,11 @@
 
  CALL ESMF_VMGetGlobal(vm, rc = rc)
 
- IF(ESMF_LogMsgFoundError(rc, 'VMGetGlobal Error')) THEN
+#ifdef ESMF_520rbs
+ IF(ESMF_LogFoundError(rc, msg='VMGetGlobal Error')) THEN
+#else
+ IF(ESMF_LogFoundError(rc,     'VMGetGlobal Error')) THEN
+#endif
      PRINT*, 'Error Happened When Getting the Global VM, peid, rc=', &
           peid, rc
  END IF
@@ -43,7 +57,11 @@
 
  CALL ESMF_VMBroadcast(vm, var_work, 1, peid, rc = rc) 
 
- IF(ESMF_LogMsgFoundError(rc, 'VM Broadcast Error')) THEN
+#ifdef ESMF_520rbs
+ IF(ESMF_LogFoundError(rc, msg='VM Broadcast Error')) THEN
+#else
+ IF(ESMF_LogFoundError(rc,     'VM Broadcast Error')) THEN
+#endif
      PRINT*, 'Error Happened When VM Broadcasting, peid, rc=', &
           peid, rc
  END IF
@@ -92,7 +110,11 @@
 
  CALL ESMF_VMGetGlobal(vm, rc = rc)
 
- IF(ESMF_LogMsgFoundError(rc, 'VMGetGlobal Error')) THEN
+#ifdef ESMF_520rbs
+ IF(ESMF_LogFoundError(rc, msg='VMGetGlobal Error')) THEN
+#else
+ IF(ESMF_LogFoundError(rc,     'VMGetGlobal Error')) THEN
+#endif
      PRINT*, 'Error Happened When Getting the Global VM, peid, rc=', &
           peid, rc
  END IF
@@ -103,7 +125,11 @@
 
  CALL ESMF_VMBroadcast(vm, var_work, 1, peid, rc = rc) 
 
- IF(ESMF_LogMsgFoundError(rc, 'VM Broadcast Error')) THEN
+#ifdef ESMF_520rbs
+ IF(ESMF_LogFoundError(rc, msg='VM Broadcast Error')) THEN
+#else
+ IF(ESMF_LogFoundError(rc,     'VM Broadcast Error')) THEN
+#endif
      PRINT*, 'Error Happened When VM Broadcasting, peid, rc=', &
           peid, rc
  END IF

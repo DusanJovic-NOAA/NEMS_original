@@ -28,6 +28,7 @@
 !   2011-02     Yang   - Updated to use both the ESMF 4.0.0rp2 library,
 !                        ESMF 5 series library and the the
 !                        ESMF 3.1.0rp2 library.
+!  2011-05-12  Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !
 !-----------------------------------------------------------------------
 !
@@ -151,11 +152,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+ #ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- The gridded component
                                      ,ESMF_SETINIT                      &  !<-- Predefined subroutine type
                                      ,DYN_INITIALIZE_1                  &  !<-- User's subroutineName
                                      ,1                                 &  !<-- phase
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- The gridded component
+                                     ,ESMF_SETINIT                      &  !<-- Predefined subroutine type
+                                     ,DYN_INITIALIZE_1                  &  !<-- User's subroutineName
+                                     ,phase=1                           &  !<-- phase
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -166,11 +175,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+ #ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- The gridded component
                                      ,ESMF_SETINIT                      &  !<-- Predefined subroutine type
                                      ,DYN_INITIALIZE_2                  &  !<-- User's subroutineName
                                      ,2                                 &  !<-- phase
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- The gridded component
+                                     ,ESMF_SETINIT                      &  !<-- Predefined subroutine type
+                                     ,DYN_INITIALIZE_2                  &  !<-- User's subroutineName
+                                     ,phase=2                           &  !<-- phase
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -185,11 +202,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- gridcomp
                                      ,ESMF_SETRUN                       &  !<-- subroutineType
                                      ,DYN_RUN                           &  !<-- user's subroutineName
                                      ,ESMF_SINGLEPHASE                  &  !<-- phase
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- gridcomp
+                                     ,ESMF_SETRUN                       &  !<-- subroutineType
+                                     ,DYN_RUN                           &  !<-- user's subroutineName
+                                     ,phase=ESMF_SINGLEPHASE            &  !<-- phase
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -204,11 +229,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- gridcomp
                                      ,ESMF_SETFINAL                     &  !<-- subroutineType
                                      ,DYN_FINALIZE                      &  !<-- user's subroutineName
                                      ,ESMF_SINGLEPHASE                  &  !<-- phase
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- gridcomp
+                                     ,ESMF_SETFINAL                     &  !<-- subroutineType
+                                     ,DYN_FINALIZE                      &  !<-- user's subroutineName
+                                     ,phase=ESMF_SINGLEPHASE            &  !<-- phase
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)

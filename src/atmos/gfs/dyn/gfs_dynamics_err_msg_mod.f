@@ -1,9 +1,19 @@
+#include "../../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520rbs
+#endif
+
 !
 ! !description: gfs dynamics gridded component error messages
 !
 ! !revision history:
 !
-!  january 2007 	hann-ming henry juang
+!  january 2007     hann-ming henry juang
+!  May     2011     Weiyu yang, modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !
 !
 ! !interface:
@@ -25,7 +35,11 @@
       integer, intent(out)          :: rcfinal
       character (len=*), intent(in) :: msg
       character (len=*), intent(in) :: var
-      if(esmf_logmsgfounderror(rc1, msg)) then
+#ifdef ESMF_520rbs
+      if(esmf_logfounderror(rc1, msg=msg)) then
+#else
+      if(esmf_logfounderror(rc1,     msg)) then
+#endif
           rcfinal = esmf_failure
           print*, 'error happened in dynamics for ',msg,' ',var,' rc = ', rc1
           rc1     = esmf_success
@@ -38,7 +52,11 @@
       integer, intent(inout)        :: rc1
       integer, intent(out)          :: rc
       character (len=*), intent(in) :: msg
-      if(esmf_logmsgfounderror(rc1, msg)) then
+#ifdef ESMF_520rbs
+      if(esmf_logfounderror(rc1, msg=msg)) then
+#else
+      if(esmf_logfounderror(rc1,     msg)) then
+#endif
           rc  = esmf_failure
           print*, 'error happened in dynamics for ',msg, ' rc = ', rc1
           rc1 = esmf_success

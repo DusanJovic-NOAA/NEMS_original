@@ -1,3 +1,8 @@
+#include "../../ESMFVersionDefine.h"
+
+!  2011-05-12  Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!--------------------------------------------------------------------------
+
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_DYN_PHY_CPL_COMP
@@ -94,11 +99,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Dyn-Phy Coupler Component
                                     ,ESMF_SETINIT                       &  !<-- subroutineType
                                     ,CPL_INITIALIZE                     &  !<-- User's subroutineName
                                     ,ESMF_SINGLEPHASE                   &  !<-- Phase
                                     ,RC)
+#else
+      CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Dyn-Phy Coupler Component
+                                    ,ESMF_SETINIT                       &  !<-- subroutineType
+                                    ,CPL_INITIALIZE                     &  !<-- User's subroutineName
+                                    ,phase=ESMF_SINGLEPHASE             &  !<-- Phase
+                                    ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -113,11 +126,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Dyn-Phy Coupler Component
                                     ,ESMF_SETRUN                        &  !<-- subroutineType
                                     ,CPL_RUN                            &  !<-- User's subroutineName
                                     ,ESMF_SINGLEPHASE                   &  !<-- Phase
                                     ,RC)
+#else
+      CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Dyn-Phy Coupler Component
+                                    ,ESMF_SETRUN                        &  !<-- subroutineType
+                                    ,CPL_RUN                            &  !<-- User's subroutineName
+                                    ,phase=ESMF_SINGLEPHASE             &  !<-- Phase
+                                    ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -132,11 +153,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Dyn-Phy Coupler Component
                                     ,ESMF_SETFINAL                      &  !<-- subroutineType
                                     ,CPL_FINALIZE                       &  !<-- User's subroutineName
                                     ,ESMF_SINGLEPHASE                   &  !<-- Phase
                                     ,RC)
+#else
+      CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Dyn-Phy Coupler Component
+                                    ,ESMF_SETFINAL                      &  !<-- subroutineType
+                                    ,CPL_FINALIZE                       &  !<-- User's subroutineName
+                                    ,phase=ESMF_SINGLEPHASE             &  !<-- Phase
+                                    ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -245,9 +274,9 @@
                         ,rc          =RC)
 !
       DO i=1,itemCount  
-        CALL ESMF_StateGet(state        =IMP_STATE                      &
-                          ,name         =itemNameList(i)                &
-                          ,stateitemtype=stateItemType                  &
+        CALL ESMF_StateGet(              IMP_STATE                      &
+                          ,              itemNameList(i)                &
+                          ,              stateItemType                  &
                           ,rc           =RC)
 !
         IF (stateItemType == ESMF_STATEITEM_FIELD) THEN

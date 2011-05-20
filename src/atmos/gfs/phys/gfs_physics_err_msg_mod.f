@@ -1,3 +1,12 @@
+#include "../../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520rbs
+#endif
+
 !
 ! !description: gfs physics gridded component error messages
 !
@@ -5,6 +14,7 @@
 !
 !  July 2007 		Shrinivas Moorti
 !  November 2007 	Hann-Ming Henry Juang
+!  May     2011     Weiyu yang, modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !
 !
 ! !interface:
@@ -14,7 +24,8 @@
 !
 !!uses:
 !
-      use esmf_mod, ONLY: esmf_logmsgfounderror, esmf_failure, &
+
+      use esmf_mod, ONLY: esmf_logfounderror, esmf_failure, &
                           esmf_success
 
       implicit none
@@ -29,7 +40,11 @@
       integer, intent(out)          :: rcfinal
       character (len=*), intent(in) :: msg
       character (len=*), intent(in) :: var
-      if(esmf_logmsgfounderror(rc1, msg)) then
+#ifdef ESMF_520rbs
+      if(esmf_logfounderror(rc1, msg=msg)) then
+#else
+      if(esmf_logfounderror(rc1,     msg)) then
+#endif
           rcfinal = esmf_failure
           print*, 'error happened in physics for ',msg,' ',var,' rc = ', rc1
           rc1     = esmf_success
@@ -42,7 +57,11 @@
       integer, intent(inout)        :: rc1
       integer, intent(out)          :: rc
       character (len=*), intent(in) :: msg
-      if(esmf_logmsgfounderror(rc1, msg)) then
+#ifdef ESMF_520rbs
+      if(esmf_logfounderror(rc1, msg=msg)) then
+#else
+      if(esmf_logfounderror(rc1,     msg)) then
+#endif
           rc  = esmf_failure
           print*, 'error happened in physics for ',msg, ' rc = ', rc1
           rc1 = esmf_success

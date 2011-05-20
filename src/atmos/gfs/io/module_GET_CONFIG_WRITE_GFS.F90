@@ -218,7 +218,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ConfigFindLabel(CF,'filename_base:',RC)
+      CALL ESMF_ConfigFindLabel(CF,'filename_base:',rc=RC)
       DO I=1,int_state%num_file
          CALL ESMF_ConfigGetAttribute(cf,int_state%filename_base(i),rc=rc)
       ENDDO
@@ -234,7 +234,7 @@
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ConfigFindLabel(CF,'file_io_form:',RC)
+      CALL ESMF_ConfigFindLabel(CF,'file_io_form:',rc=RC)
       DO I=1,int_state%num_file
          CALL ESMF_ConfigGetAttribute(cf,int_state%io_form(i),rc=rc)
       ENDDO
@@ -250,7 +250,7 @@
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ConfigFindLabel(CF,'file_io:',RC)
+      CALL ESMF_ConfigFindLabel(CF,'file_io:',rc=RC)
       DO I=1,int_state%num_file
          CALL ESMF_ConfigGetAttribute(cf,int_state%io_file(i),rc=rc)
       ENDDO

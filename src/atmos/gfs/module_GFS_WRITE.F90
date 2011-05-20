@@ -1,3 +1,11 @@
+#include "../../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#else
+#define ESMF_520rbs
+#endif
+
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_GFS_WRITE
@@ -14,6 +22,7 @@
 !       07 May 2009:  J. Wang - adopt write _routine from NMMB_io
 !                                modified for GFS
 !       03 Sep 2009:  W. Yang - Ensemble GEFS.
+!       12 May 2011:  Theurich & Yang - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !
 !-----------------------------------------------------------------------
 !
@@ -463,9 +472,15 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
         CALL ESMF_GridCompSetServices(WRT_COMPS(I)         &  !<-- The Write gridded components
                                      ,WRITE_REGISTER_GFS   &  !<-- The user's subroutine name
                                      ,RC)
+#else
+        CALL ESMF_GridCompSetServices(WRT_COMPS(I)         &  !<-- The Write gridded components
+                                     ,WRITE_REGISTER_GFS   &  !<-- The user's subroutine name
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
@@ -482,13 +497,23 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      IMP_STATE_WRITE=ESMF_StateCreate(statename='Write Import State' &  !<-- Import state name for writes
+#ifdef ESMF_520rbs
+      IMP_STATE_WRITE=ESMF_StateCreate(     NAME='Write Import State' &  !<-- Import state name for writes
                                       ,statetype= ESMF_STATE_IMPORT   &
                                       ,rc       = RC)
 !
-      EXP_STATE_WRITE=ESMF_StateCreate(statename='Write Export State' &  !<-- Export state names for writes
+      EXP_STATE_WRITE=ESMF_StateCreate(     NAME='Write Export State' &  !<-- Export state names for writes
                                       ,statetype= ESMF_STATE_EXPORT   &
-                                      ,rc       = RC) 
+                                      ,rc       = RC)
+#else
+      IMP_STATE_WRITE=ESMF_StateCreate(STATENAME='Write Import State' &  !<-- Import state name for writes
+                                      ,statetype= ESMF_STATE_IMPORT   &
+                                      ,rc       = RC)
+!
+      EXP_STATE_WRITE=ESMF_StateCreate(STATENAME='Write Export State' &  !<-- Export state names for writes
+                                      ,statetype= ESMF_STATE_EXPORT   &
+                                      ,rc       = RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)

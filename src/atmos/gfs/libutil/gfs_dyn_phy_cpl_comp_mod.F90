@@ -1,3 +1,5 @@
+#include "../../../ESMFVersionDefine.h"
+
 !-----------------------------------------------------------------------
 !
       module gfs_dyn_phy_cpl_comp_mod
@@ -23,6 +25,7 @@
 !!                    run step
 !! Mar 30 2011        Weiyu Yang, modified the code to avoid the ESMF 
 !!                    log error.
+!! May 12 2011        Weiyu Yang, modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !-----------------------------------------------------------------------
 !
       use esmf_mod
@@ -83,11 +86,19 @@
       call esmf_logwrite("set entry point for coupler initialize"       &
                         ,esmf_log_info,rc=rc)
 !
+#ifdef ESMF_3
       call esmf_cplcompsetentrypoint(gc_gfs_cpl                         &  
                                     ,esmf_setinit                       &  
                                     ,gfs_cpl_initialize                 &  
                                     ,esmf_singlephase                   &  
                                     ,rc)
+#else
+      call esmf_cplcompsetentrypoint(gc_gfs_cpl                         &  
+                                    ,esmf_setinit                       &  
+                                    ,gfs_cpl_initialize                 &  
+                                    ,phase=esmf_singlephase             &  
+                                    ,rc=rc)
+#endif
 !
       call err_msg(rc,'set entry point for coupler initialize',rc_reg)
 !
@@ -98,11 +109,19 @@
       call esmf_logwrite("set entry point for coupler run"              &
                         ,esmf_log_info,rc=rc)
 !
+#ifdef ESMF_3
       call esmf_cplcompsetentrypoint(gc_gfs_cpl                         &  
                                     ,esmf_setrun                        &  
                                     ,gfs_cpl_run                        &  
-                                    ,esmf_singlephase                   &  
+                                    ,esmf_singlephase                   &
                                     ,rc)
+#else
+      call esmf_cplcompsetentrypoint(gc_gfs_cpl                         &  
+                                    ,esmf_setrun                        &  
+                                    ,gfs_cpl_run                        &  
+                                    ,phase=esmf_singlephase             &
+                                    ,rc=rc)
+#endif
 !
       call err_msg(rc,'set entry point for coupler run',rc_reg)
 !
@@ -113,11 +132,19 @@
       call esmf_logwrite("set entry point for coupler finalize"         &
                         ,esmf_log_info,rc=rc)
 !
+#ifdef ESMF_3
       call esmf_cplcompsetentrypoint(gc_gfs_cpl                         &  
                                     ,esmf_setfinal                      &  
                                     ,gfs_cpl_finalize                   &  
-                                    ,esmf_singlephase                   &  
+                                    ,esmf_singlephase                   &
                                     ,rc)
+#else
+      call esmf_cplcompsetentrypoint(gc_gfs_cpl                         &  
+                                    ,esmf_setfinal                      &  
+                                    ,gfs_cpl_finalize                   &  
+                                    ,phase=esmf_singlephase             &
+                                    ,rc=rc)
+#endif
 !
       call err_msg(rc,'set entry point for coupler finalize',rc_reg)
 !

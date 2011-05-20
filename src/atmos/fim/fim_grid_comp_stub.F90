@@ -1,3 +1,7 @@
+! 05/11/2011   Weiyu Yang   Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!-------------------------------------------------------------------------------
+#include "../../ESMFVersionDefine.h"
+
       MODULE module_FIM_GRID_COMP
 
       USE ESMF_MOD
@@ -20,9 +24,15 @@
       INTEGER :: RC
 
       write(0,*) "    FIM_REGISTER"
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(FIM_GRID_COMP ,ESMF_SETINIT ,FIM_INITIALIZE ,ESMF_SINGLEPHASE ,RC)
       CALL ESMF_GridCompSetEntryPoint(FIM_GRID_COMP ,ESMF_SETRUN  ,FIM_RUN        ,1                ,RC)
       CALL ESMF_GridCompSetEntryPoint(FIM_GRID_COMP ,ESMF_SETFINAL,FIM_FINALIZE   ,ESMF_SINGLEPHASE ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(FIM_GRID_COMP ,ESMF_SETINIT ,FIM_INITIALIZE ,phase=ESMF_SINGLEPHASE ,rc=RC)
+      CALL ESMF_GridCompSetEntryPoint(FIM_GRID_COMP ,ESMF_SETRUN  ,FIM_RUN        ,phase=1                ,rc=RC)
+      CALL ESMF_GridCompSetEntryPoint(FIM_GRID_COMP ,ESMF_SETFINAL,FIM_FINALIZE   ,phase=ESMF_SINGLEPHASE ,rc=RC)
+#endif
 
       RC_REG = ESMF_SUCCESS
       write(0,*) "    END OF FIM_REGISTER"

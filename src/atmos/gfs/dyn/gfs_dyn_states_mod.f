@@ -592,7 +592,7 @@
 ! add the tracer fields into the esmf export state.
 !---------------------------------------------------
       IF(cf%tracer_export == 1) THEN
-          Bundle = ESMF_FieldBundleCreate(name = 'tracers', grid = mgrid, rc = rc1)
+          Bundle = ESMF_FieldBundleCreate(name = 'tracers', rc = rc1)
           CALL gfs_dynamics_err_msg(rc1, "create empty fieldbundle", rcfinal)
           IF(int_state%ENS) THEN
               DO k = 1, int_state%ntrac

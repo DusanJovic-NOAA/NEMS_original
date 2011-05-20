@@ -1,5 +1,11 @@
 #include "../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#else
+#define ESMF_520rbs
+#endif
+
 !-----------------------------------------------------------------------
 !
       MODULE module_DIGITAL_FILTER_NMM
@@ -13,6 +19,7 @@
 ! February 2008 Weiyu Yang, updated to use the ESMF 3.1.0 library.
 ! February 2011 Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
 !                           ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! May      2011 Weiyu Yang, Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !----------------------------------------------------------------------------
 !
       use esmf_mod
@@ -465,7 +472,7 @@
           CALL HALO_EXCH(hold_2d,1,2,2)
 
 
-          CALL ESMF_StateAdd(dyn_state,HOLD_FIELD,rc) 
+          CALL ESMF_StateAdd(dyn_state,HOLD_FIELD,rc=rc) 
         ENDDO
       ENDIF
 !
@@ -518,7 +525,7 @@
 
           CALL HALO_EXCH(hold_3d,LM,2,2)
 
-          CALL ESMF_StateAdd(dyn_state,HOLD_FIELD,rc)
+          CALL ESMF_StateAdd(dyn_state,HOLD_FIELD,rc=rc)
         ENDDO
       ENDIF
 !
@@ -574,7 +581,7 @@
               ENDDO
             ENDDO
           ENDDO
-          CALL ESMF_StateAdd(dyn_state,HOLD_FIELD,rc)
+          CALL ESMF_StateAdd(dyn_state,HOLD_FIELD,rc=rc)
         ENDDO
       ENDIF
 
@@ -626,9 +633,15 @@
       call esmf_stateget(state=phy_state,				&
                          itemnamelist = phy_name,			&
                          rc=rc)
+#ifdef ESMF_520rbs
+      phy_state_save=esmf_statecreate(     name="digital filter phy"	&
+                                     ,statetype=esmf_state_unspecified	&
+                                     ,rc       =rc)
+#else
       phy_state_save=esmf_statecreate(statename="digital filter phy"	&
                                      ,statetype=esmf_state_unspecified	&
                                      ,rc       =rc)
+#endif
 !-----------------------------------------------------------------------
 !
       end subroutine digital_filter_phy_init_nmm

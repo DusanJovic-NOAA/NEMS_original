@@ -1,3 +1,5 @@
+#include "../../../ESMFVersionDefine.h"
+
 !
       module atmos_chem_phy_cpl_comp_mod
 
@@ -22,6 +24,7 @@
 !!                            from chem_exp to phys_exp 
 !! 10Aug 2010     Sarah Lu,   Modify chem2phy run routine to accumulate g2d_fld
 !! 10Oct 2010     Sarah Lu,   Move GetPointer_diag_ to phy2chem coupler
+!! 2011-05-11     Weiyu Yang, Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !------------------------------------------------------------------------------
 
       use ESMF_MOD
@@ -83,11 +86,19 @@
 !
       MESSAGE_CHECK="Set Entry Point for chem2phy coupler run"
 
+#ifdef ESMF_3
       call ESMF_CplCompSetEntryPoint(GC                        & !<-- The gridded component
                                     ,ESMF_SETRUN               & !<-- Predefined subroutine type
                                     ,RUN                       & !<-- User's subroutineName
                                     ,ESMF_SINGLEPHASE          &
-                                    ,rc)
+                                    ,RC)
+#else
+      call ESMF_CplCompSetEntryPoint(GC                        & !<-- The gridded component
+                                    ,ESMF_SETRUN               & !<-- Predefined subroutine type
+                                    ,RUN                       & !<-- User's subroutineName
+                                    ,phase=ESMF_SINGLEPHASE    &
+                                    ,rc=RC)
+#endif
 
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
 

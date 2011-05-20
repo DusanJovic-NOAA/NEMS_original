@@ -1,3 +1,5 @@
+#include "../ESMFVersionDefine.h"
+
 !----------------------------------------------------------------------
 ! !MODULE: ENS_CplComp_ESMFMod
 !        --- ESMF coupler gridded component of the EARTH Ensemble 
@@ -15,6 +17,7 @@
 !                     Added Broadcasting procedure and Global variables/arrays
 !  November 2007      Dingchen, added minimum documentation, mainly for the arrays added during 2007
 !  March    2009      Weiyu yang, modified for the NEMS model.
+!  May      2011      Weiyu Yang  modified for using the ESMF 5.2.0r_beta_snapshot_07.
 
 ! !INTERFACE:
 !
@@ -73,6 +76,7 @@
 ! REGISTER SERVICES FOR THIS COMPONENT
 ! ------------------------------------
 
+#ifdef ESMF_3
  CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_SETINIT,  Cpl_Initialize, &
                                  ESMF_SINGLEPHASE, rc1)
 
@@ -81,6 +85,16 @@
 
  CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_SETFINAL, Cpl_Finalize,   &
                                  ESMF_SINGLEPHASE, rc1)
+#else
+ CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_SETINIT,  Cpl_Initialize, &
+                                 phase=ESMF_SINGLEPHASE, rc=rc1)
+
+ CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_SETRUN,   Cpl_Run,        &
+                                 phase=ESMF_SINGLEPHASE, rc=rc1)
+
+ CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_SETFINAL, Cpl_Finalize,   &
+                                 phase=ESMF_SINGLEPHASE, rc=rc1)
+#endif
 
  END SUBROUTINE ENS_CplCompSetServices
 

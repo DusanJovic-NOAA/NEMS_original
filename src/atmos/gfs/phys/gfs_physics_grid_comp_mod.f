@@ -1,3 +1,11 @@
+#include "../../../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#else
+#define ESMF_520rbs
+#endif
+
 !! !module: gfs_physics_grid_comp_mod --- 
 !                       esmf gridded component of gfs physics
 !
@@ -22,6 +30,7 @@
 !  Oct 16 2010      Sarah Lu, retrieve fscav from exp state
 !  Dec 23 2010      Sarah Lu, modify fscav initialization 
 !  Mar 30 2011      Weiyu Yang, modified code to avoid ESMF log error.
+!  May 05 2011      Weiyu Yang, modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !                           
 !
 ! !interface:
@@ -76,7 +85,7 @@
 ! !arguments:
 !------------
 
-      type(esmf_gridcomp), intent(in)  :: gc_gfs_phy 	! gridded component
+      type(esmf_gridcomp)              :: gc_gfs_phy 	! gridded component
       integer,             intent(out) :: rc    	! return code
      
 ! !description: set services (register) for the gfs physics grid component.
@@ -100,20 +109,34 @@
 !---------------------------------------------------------------------
       call esmf_logwrite("set entry point for initialize",              &
                           esmf_log_info, rc = rc1)
+#ifdef ESMF_3
       call esmf_gridcompsetentrypoint (gc_gfs_phy, 			&
                                        esmf_setinit,  			&
                                        gfs_phy_initialize,    		&
                                        esmf_singlephase, rc1)
+#else
+      call esmf_gridcompsetentrypoint (gc_gfs_phy, 			&
+                                       esmf_setinit,  			&
+                                       gfs_phy_initialize,    		&
+                                       phase=esmf_singlephase, rc=rc1)
+#endif
       call gfs_physics_err_msg(rc1,'set entry point for initialize',rc)
 
 ! register the run subroutine.
 !-----------------------------
       call esmf_logwrite("set entry point for run",              	&
                            esmf_log_info, rc = rc1)
+#ifdef ESMF_3
       call esmf_gridcompsetentrypoint (gc_gfs_phy, 			&
                                        esmf_setrun,   			&
                                        gfs_phy_run,           		&
                                        esmf_singlephase, rc1)
+#else
+      call esmf_gridcompsetentrypoint (gc_gfs_phy, 			&
+                                       esmf_setrun,   			&
+                                       gfs_phy_run,           		&
+                                       phase=esmf_singlephase, rc=rc1)
+#endif
       call gfs_physics_err_msg(rc1,'set entry point for run',rc)
 
 
@@ -121,10 +144,17 @@
 !----------------------------------
       call esmf_logwrite("set entry point for finalize",                &
                         esmf_log_info, rc = rc1)
+#ifdef ESMF_3
       call esmf_gridcompsetentrypoint (gc_gfs_phy, 			&
                                        esmf_setfinal, 			&
                                        gfs_phy_finalize,       		&
                                        esmf_singlephase, rc1)
+#else
+      call esmf_gridcompsetentrypoint (gc_gfs_phy, 			&
+                                       esmf_setfinal, 			&
+                                       gfs_phy_finalize,       		&
+                                       phase=esmf_singlephase, rc=rc1)
+#endif
       call gfs_physics_err_msg(rc1,'set entry point for finalize',rc)
 
 ! check the error signal variable and print out the result.
@@ -673,8 +703,11 @@
                do I = 1, int_state%ntrac
 
                 vname = trim(int_state%gfs_phy_tracer%vname(i))
-
-                call ESMF_FieldBundleGet(Bundle, NAME=vname, FIELD=Field, rc = RC1 )
+#ifdef ESMF_520rbs
+                call ESMF_FieldBundleGet(Bundle, FIELDNAME=vname, FIELD=Field, rc = RC1 )
+#else
+                call ESMF_FieldBundleGet(Bundle,      NAME=vname, FIELD=Field, rc = RC1 )
+#endif
                 CALL gfs_physics_err_msg(rc1,"Retrieve field from tracer bundle ",RC)
                 CALL ESMF_AttributeGet(Field, NAME="ScavengingFractionPerKm", &
                                        value = fscav , rc=RC1)

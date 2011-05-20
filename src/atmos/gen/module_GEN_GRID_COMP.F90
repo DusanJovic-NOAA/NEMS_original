@@ -1,3 +1,5 @@
+#include "../../ESMFVersionDefine.h"
+
 !----------------------------------------------------------------------
 !
       MODULE MODULE_GEN_GRID_COMP
@@ -12,6 +14,7 @@
 !
 ! PROGRAM HISTORY LOG:
 !   2010-11-30  W Yang - Add the "Generic Core".
+!   2011-05-11  W Yang - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !
 ! USAGE: GEN Gridded component parts called from subroutines within
 !        module_ATM_GRID_COMP.F90.
@@ -80,11 +83,19 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
                                      ,ESMF_SETINIT                      &  !<-- Subroutine type
                                      ,GEN_INITIALIZE                    &  !<-- User's subroutine name
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
+                                     ,ESMF_SETINIT                      &  !<-- Subroutine type
+                                     ,GEN_INITIALIZE                    &  !<-- User's subroutine name
+                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -99,11 +110,19 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
+#ifdef ESMF_3
         CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
                                        ,ESMF_SETRUN                       &  !<-- Subroutine type
                                        ,GEN_RUN                           &  !<-- The primary Dynamics / Physics /Coupler sequence
                                        ,ESMF_SINGLEPHASE                  &
                                        ,RC)
+#else
+        CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
+                                       ,ESMF_SETRUN                       &  !<-- Subroutine type
+                                       ,GEN_RUN                           &  !<-- The primary Dynamics / Physics /Coupler sequence
+                                       ,phase=ESMF_SINGLEPHASE            &
+                                       ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -119,11 +138,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
                                      ,ESMF_SETFINAL                     &  !<-- Subroutine type
                                      ,GEN_FINALIZE                      &  !<-- User's subroutine name
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
+                                     ,ESMF_SETFINAL                     &  !<-- Subroutine type
+                                     ,GEN_FINALIZE                      &  !<-- User's subroutine name
+                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)

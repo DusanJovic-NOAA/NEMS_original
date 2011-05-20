@@ -1,4 +1,14 @@
+#include "../../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520rbs
+#endif
+
       module gfs_physics_grid_create_mod
+
 !
 !-------------------------------------------------------------------
 ! this code is used to create the esmf grids for the gfs esmf model.
@@ -9,6 +19,7 @@
 ! weiyu yang, 02/2008, updated to use the ESMF 3.1.0 library.
 ! Sarah Lu, 10/09/09, add gfs_physics_grid_create_Gauss3D routine 
 !                     that creates mGrid (3D Gaussian grids)
+! Weiyu yang, 05/16/2011, modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !-------------------------------------------------------------------
 !
 !!uses:
@@ -17,7 +28,7 @@
                                                   ESMF_DistGrid, esmf_success,       &
                                                   ESMF_LogWrite, ESMF_LOG_INFO,      &
                                                   ESMF_DistGridCreate,               &
-                                                  ESMF_LogMsgFoundError,             &
+                                                  ESMF_LogFoundError,             &
                                                   ESMF_FAILURE, ESMF_GridCreate,     &
                                                   ESMF_GridCreateShapeTile,          &
                                                   ESMF_INDEX_DELOCAL,                &
@@ -87,7 +98,11 @@
 
       DistGrid3 = ESMF_DistGridCreate(arraystr, arrayend, rc = rc1)
 
-      IF(ESMF_LogMsgFoundError(rc1, "Create DistGrid3")) THEN
+#ifdef ESMF_520rbs
+      IF(ESMF_LogFoundError(rc1, msg="Create DistGrid3")) THEN
+#else
+      IF(ESMF_LogFoundError(rc1,     "Create DistGrid3")) THEN
+#endif
           rcfinal = ESMF_FAILURE
           PRINT*, 'Error Happened When Creating DistGrid3, rc = ', rc1
           rc1     = ESMF_SUCCESS
@@ -100,7 +115,11 @@
 
       grid3 = ESMF_GridCreate(name = "gfs_phy grid3", distgrid = DistGrid3, rc = rc1)
 
-      IF(ESMF_LogMsgFoundError(rc1, "Create Grid3")) THEN
+#ifdef ESMF_520rbs
+      IF(ESMF_LogFoundError(rc1, msg="Create Grid3")) THEN
+#else
+      IF(ESMF_LogFoundError(rc1,     "Create Grid3")) THEN
+#endif
           rcfinal = ESMF_FAILURE
           PRINT*, 'Error Happened When Creating Grid3, rc = ', rc1
           rc1     = ESMF_SUCCESS
@@ -125,7 +144,11 @@
 
       DistGrid4 = ESMF_DistGridCreate(arraystr, arrayend, rc = rc1)
 
-      IF(ESMF_LogMsgFoundError(rc1, "Create DistGrid4")) THEN
+#ifdef ESMF_520rbs
+      IF(ESMF_LogFoundError(rc1, msg="Create DistGrid4")) THEN
+#else
+      IF(ESMF_LogFoundError(rc1,     "Create DistGrid4")) THEN
+#endif
           rcfinal = ESMF_FAILURE
           PRINT*, 'Error Happened When Creating DistGrid4, rc = ', rc1
           rc1     = ESMF_SUCCESS
@@ -138,7 +161,11 @@
 
       grid4 = ESMF_GridCreate(name = "gfs_phy grid4", distgrid = DistGrid4, rc = rc1)
 
-      IF(ESMF_LogMsgFoundError(rc1, "Create Grid4")) THEN
+#ifdef ESMF_520rbs
+      IF(ESMF_LogFoundError(rc1, msg="Create Grid4")) THEN
+#else
+      IF(ESMF_LogFoundError(rc1,     "Create Grid4")) THEN
+#endif
           rcfinal = ESMF_FAILURE
           PRINT*, 'Error Happened When Creating Grid4, rc = ', rc1
           rc1     = ESMF_SUCCESS
@@ -161,7 +188,11 @@
 
       DistGrid0 = ESMF_DistGridCreate(arraystr, arrayend, rc = rc1)
 
-      IF(ESMF_LogMsgFoundError(rc1, "Create DistGrid0")) THEN
+#ifdef ESMF_520rbs
+      IF(ESMF_LogFoundError(rc1, msg="Create DistGrid0")) THEN
+#else
+      IF(ESMF_LogFoundError(rc1,     "Create DistGrid0")) THEN
+#endif
           rcfinal = ESMF_FAILURE
           PRINT*, 'Error Happened When Creating DistGrid0, rc = ', rc1
           rc1     = ESMF_SUCCESS
@@ -173,7 +204,11 @@
 
       grid0 = ESMF_GridCreate(name = "gfs_phy grid0", distgrid = DistGrid0, rc = rc1)
 
-      IF(ESMF_LogMsgFoundError(rc1, "Create Grid0")) THEN
+#ifdef ESMF_520rbs
+      IF(ESMF_LogFoundError(rc1, msg="Create Grid0")) THEN
+#else
+      IF(ESMF_LogFoundError(rc1,     "Create Grid0")) THEN
+#endif
           rcfinal = ESMF_FAILURE
           PRINT*, 'Error Happened When Creating Grid0, rc = ', rc1
           rc1     = ESMF_SUCCESS
@@ -258,13 +293,23 @@
 
 !  Retrieve the coordinates so we can set them
 !  -------------------------------------------
-   call ESMF_GridGetCoord (mGrid, coordDim=1, localDE=0, &
+#ifdef ESMF_520rbs
+   call ESMF_GridGetCoord (mGrid, 1, localDE=0,               &
                            staggerloc=ESMF_STAGGERLOC_CENTER, &
-                           fptr=centerX, rc = rc1 )                            
-   
-   call ESMF_GridGetCoord (mGrid, coordDim=2, localDE=0, &
+                           FARRAYPTR=centerX, rc = rc1 )
+
+   call ESMF_GridGetCoord (mGrid, 2, localDE=0,               &
                            staggerloc=ESMF_STAGGERLOC_CENTER, &
-                           fptr=centerY, rc = rc1 )                        
+                           FARRAYPTR=centerY, rc = rc1 )
+#else
+   call ESMF_GridGetCoord (mGrid, 0, 1,                       &
+                           staggerloc=ESMF_STAGGERLOC_CENTER, &
+                                FPTR=centerX, rc = rc1 )
+
+   call ESMF_GridGetCoord (mGrid, 0, 2,                       &
+                           staggerloc=ESMF_STAGGERLOC_CENTER, &
+                                FPTR=centerY, rc = rc1 )
+#endif
 
    call GridGetInterior_ (mGrid,i1,in,j1,jn)
   

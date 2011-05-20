@@ -34,7 +34,8 @@
 !   2011-02     Weiyu Yang   - Updated to use both the ESMF 4.0.0rp2 library,
 !                              ESMF 5 series library and the the
 !                              ESMF 3.1.0rp2 library.
-!   2011-03-30  Brad Ferrier - modifications to Ferrier & GFS microphysics!!
+!   2011-05-12  Weiyu Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
@@ -174,11 +175,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- Physics gridcomp
                                      ,ESMF_SETINIT                      &  !<-- Subroutine type
                                      ,PHY_INITIALIZE_1                  &  !<-- User's subroutine name
                                      ,1                                 &  !<-- Phase
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- Physics gridcomp
+                                     ,ESMF_SETINIT                      &  !<-- Subroutine type
+                                     ,PHY_INITIALIZE_1                  &  !<-- User's subroutine name
+                                     ,phase=1                           &  !<-- Phase
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -189,11 +198,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- Physics gridcomp
                                      ,ESMF_SETINIT                      &  !<-- Subroutine type
                                      ,PHY_INITIALIZE_2                  &  !<-- User's subroutine name
                                      ,2                                 &  !<-- Phase
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- Physics gridcomp
+                                     ,ESMF_SETINIT                      &  !<-- Subroutine type
+                                     ,PHY_INITIALIZE_2                  &  !<-- User's subroutine name
+                                     ,phase=2                           &  !<-- Phase
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -208,11 +225,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- Physics gridcomp
                                      ,ESMF_SETRUN                       &  !<-- Subroutine type
                                      ,PHY_RUN                           &  !<-- User's subroutine name
                                      ,ESMF_SINGLEPHASE                  &  !<-- Phase
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- Physics gridcomp
+                                     ,ESMF_SETRUN                       &  !<-- Subroutine type
+                                     ,PHY_RUN                           &  !<-- User's subroutine name
+                                     ,phase=ESMF_SINGLEPHASE            &  !<-- Phase
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -227,11 +252,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- Physics gridcomp
                                      ,ESMF_SETFINAL                     &  !<-- Subroutine type
                                      ,PHY_FINALIZE                      &  !<-- User's subroutine name
                                      ,ESMF_SINGLEPHASE                  &  !<-- Phase
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- Physics gridcomp
+                                     ,ESMF_SETFINAL                     &  !<-- Subroutine type
+                                     ,PHY_FINALIZE                      &  !<-- User's subroutine name
+                                     ,phase=ESMF_SINGLEPHASE            &  !<-- Phase
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -1814,7 +1847,7 @@
                        ,int_state%TBPVS_STATE,int_state%TBPVS0_STATE       &
                        ,int_state%SPECIFIED,int_state%NESTED               &
                        ,int_state%MICROPHYSICS                             &
-                       ,int_state%TP1                                      &  !gfs mod-brad 
+                       ,int_state%TP1                                      &  !gfs mod-brad
                        ,int_state%QP1                                      &  !gfs mod-brad
                        ,int_state%PSP1                                     &  !gfs mod-brad
                        ,IDS,IDE,JDS,JDE,LM                                 &

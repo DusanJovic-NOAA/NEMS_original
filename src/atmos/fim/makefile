@@ -9,7 +9,7 @@ LIBRARY  = libfim.a
 MODULES  = fim_internal_state.o fim_grid_comp.o
 MODULES_STUB  = fim_grid_comp_stub.o
 
-DEPEND_FILES = ${MODULES:.o=.f90}
+DEPEND_FILES = ${MODULES:.o=.F90}
 
 all default: depend
 	@gmake -f $(MAKEFILE) $(LIBRARY)

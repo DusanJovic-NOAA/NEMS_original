@@ -1,4 +1,10 @@
-#include "ESMFVersionDefine.h"
+#include "./ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#else
+#define ESMF_520rbs
+#endif
 
 !-----------------------------------------------------------------------
 !
@@ -26,6 +32,7 @@
 !   2011-02     Yang    - Updated to use both the ESMF 4.0.0rp2 library,
 !                         ESMF 5 series library and the the 
 !                         ESMF 3.1.0rp2 library.
+!   2011-05     Theurich & Yang - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !
 !-----------------------------------------------------------------------
 !
@@ -207,7 +214,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       NEMS_GRID_COMP=ESMF_GridCompCreate(name        ='NEMS Grid Comp'  & !<-- NEMS component name
-                                        ,gridcomptype=ESMF_ATM          & !<-- A Type that the user can query.
                                         ,configFile  ='model_configure'  & !<-- Link the user-created configure file.
                                         ,rc          =RC)
 !
@@ -225,9 +231,15 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetServices(NEMS_GRID_COMP                      &  !<-- The NEMS component
                                    ,NEMS_REGISTER                       &  !<-- User's subroutineName
                                    ,RC)
+#else
+      CALL ESMF_GridCompSetServices(NEMS_GRID_COMP                      &  !<-- The NEMS component
+                                   ,NEMS_REGISTER                       &  !<-- User's subroutineName
+                                   ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
@@ -431,11 +443,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      NEMS_IMP_STATE=ESMF_StateCreate(stateName='NEMS Import State'     &
+#ifdef ESMF_520rbs
+      NEMS_IMP_STATE=ESMF_StateCreate(     NAME='NEMS Import State'     &
                                      ,rc       =RC)
 !
-      NEMS_EXP_STATE=ESMF_StateCreate(stateName='NEMS Export State'     &
+      NEMS_EXP_STATE=ESMF_StateCreate(     NAME='NEMS Export State'     &
                                      ,rc       =RC)
+#else
+      NEMS_IMP_STATE=ESMF_StateCreate(STATENAME='NEMS Import State'     &
+                                     ,rc       =RC)
+!
+      NEMS_EXP_STATE=ESMF_StateCreate(STATENAME='NEMS Export State'     &
+                                     ,rc       =RC)
+#endif
 !      
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)

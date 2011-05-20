@@ -1,5 +1,12 @@
 #include "../../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520rbs
+#endif
+
 !----------------------------------------------------------------------
 ! !MODULE: GFS_AddParameterToStateMod
 !        --- Add required parameters to the GFS ESMF export state
@@ -14,6 +21,7 @@
 !  March    2009     Weiyu Yang Modified for the NEMS model.
 !  February 2011     Weiyu Yang Updated to use both the ESMF 4.0.0rp2 library,
 !                               ESMF 5 library and the the ESMF 3.1.0rp2 library.
+!  May      2011     Weiyu yang, modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !
 !
 ! !INTERFACE:
@@ -46,8 +54,11 @@
 ! One by one add the parameters to the GFS ESMF export state.
 !------------------------------------------------------------
  CALL ESMF_AttributeSet(State, 'NTRAC', ntrac, rc = rc1)
-
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Add ntrac to the GFS export state.")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Add ntrac to the GFS export state.")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Add ntrac to the GFS export state.")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Adding ntrac to the GFS export state, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -55,7 +66,11 @@
 
  CALL ESMF_AttributeSet(State, 'MPI_R_MPI_R', MPI_R_MPI_R, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Add MPI_R_MPI_R to the GFS export state.")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Add MPI_R_MPI_R to the GFS export state.")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Add MPI_R_MPI_R to the GFS export state.")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Adding MPI_R_MPI_R to the GFS export state, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -63,7 +78,11 @@
 
  CALL ESMF_AttributeSet(State, 'JCAP', jcap, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Add JCAP to the GFS export state.")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Add JCAP to the GFS export state.")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Add JCAP to the GFS export state.")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Adding JCAP to the GFS export state, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -71,7 +90,11 @@
 
  CALL ESMF_AttributeSet(State, 'NODES_COMP', nodes, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Add NODES_COMP to the GFS export state.")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Add NODES_COMP to the GFS export state.")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Add NODES_COMP to the GFS export state.")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Adding NODES_COMP to the GFS export state, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -79,7 +102,11 @@
 
  CALL ESMF_AttributeSet(State, 'ME_COMP', me, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Add ME_COMP to the GFS export state.")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Add ME_COMP to the GFS export state.")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Add ME_COMP to the GFS export state.")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Adding ME_COMP to the GFS export state, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -87,7 +114,11 @@
 
  CALL ESMF_AttributeSet(State, 'MC_COMP', MC_COMP, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Add MC_COMP to the GFS export state.")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Add MC_COMP to the GFS export state.")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Add MC_COMP to the GFS export state.")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Adding MC_COMP to the GFS export state, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -95,7 +126,11 @@
 
  CALL ESMF_AttributeSet(State, 'LATS_NODE_A', lats_node_a, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Add LATS_NODE_A to the GFS export state.")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Add LATS_NODE_A to the GFS export state.")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Add LATS_NODE_A to the GFS export state.")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Adding LATS_NODE_A to the GFS export state, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -103,7 +138,11 @@
 
  CALL ESMF_AttributeSet(State, 'IPT_LATS_NODE_A', ipt_lats_node_a, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Add IPT_LATS_NODE_A to the GFS export state.")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Add IPT_LATS_NODE_A to the GFS export state.")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Add IPT_LATS_NODE_A to the GFS export state.")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Adding IPT_LATS_NODE_A to the GFS export state, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -111,7 +150,11 @@
 
  CALL ESMF_AttributeSet(State, 'LONF', lonf, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Add LONF to the GFS export state.")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Add LONF to the GFS export state.")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Add LONF to the GFS export state.")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Adding LONF to the GFS export state, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -119,7 +162,11 @@
 
  CALL ESMF_AttributeSet(State, 'LATG', latg, rc = rc1)
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Add LATG to the GFS export state.")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Add LATG to the GFS export state.")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Add LATG to the GFS export state.")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Adding LATG to the GFS export state, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -132,7 +179,11 @@
      itemCount = latg, rc = rc1)
 #endif
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Add GLOBAL_LATS_A to the GFS export state.")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Add GLOBAL_LATS_A to the GFS export state.")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Add GLOBAL_LATS_A to the GFS export state.")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Adding GLOBAL_LATS_A to the GFS export state, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -145,7 +196,11 @@
      itemCount = latg, rc = rc1)
 #endif
 
-     IF(ESMF_LogMsgFoundAllocError(rc1, "Add LONSPERLAT to the GFS export state.")) THEN
+#ifdef ESMF_520rbs
+     IF(ESMF_LogFoundError(rc1, msg="Add LONSPERLAT to the GFS export state.")) THEN
+#else
+     IF(ESMF_LogFoundError(rc1,     "Add LONSPERLAT to the GFS export state.")) THEN
+#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Adding LONSPERLAT to the GFS export state, rc = ', rc1
          rc1 = ESMF_SUCCESS

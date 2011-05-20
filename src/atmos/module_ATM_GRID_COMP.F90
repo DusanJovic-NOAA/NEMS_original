@@ -1,3 +1,11 @@
+#include "../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#else
+#define ESMF_520rbs
+#endif
+
 !-----------------------------------------------------------------------
 !
       MODULE module_ATM_GRID_COMP
@@ -22,6 +30,8 @@
 !               |
 !          CORE component (GFS, NMM, FIM, GEN, etc.)
 !
+!-----------------------------------------------------------------------
+!  2011-05-11  Theurich & Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
@@ -90,11 +100,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP                     &  !<-- The ATM component
                                      ,ESMF_SETINIT                      &  !<-- Subroutine type (Initialize)
                                      ,ATM_INITIALIZE                    &  !<-- User's subroutine name
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP                     &  !<-- The ATM component
+                                     ,ESMF_SETINIT                      &  !<-- Subroutine type (Initialize)
+                                     ,ATM_INITIALIZE                    &  !<-- User's subroutine name
+                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -107,11 +125,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP                     &  !<-- The ATM component
                                      ,ESMF_SETRUN                       &  !<-- Subroutine type (Run)
                                      ,ATM_RUN                           &  !<-- User's subroutine name
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP                     &  !<-- The ATM component
+                                     ,ESMF_SETRUN                       &  !<-- Subroutine type (Run)
+                                     ,ATM_RUN                           &  !<-- User's subroutine name
+                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -124,11 +150,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP                     &  !<-- The ATM component
                                      ,ESMF_SETFINAL                     &  !<-- Subroutine type (Finalize)
                                      ,ATM_FINALIZE                      &  !<-- User's subroutine name
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP                     &  !<-- The ATM component
+                                     ,ESMF_SETFINAL                     &  !<-- Subroutine type (Finalize)
+                                     ,ATM_FINALIZE                      &  !<-- User's subroutine name
+                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -310,6 +344,7 @@
 !
       SELECT CASE(atm_int_state%CORE)
 !
+#ifdef ESMF_3
         CASE('nmm')
           CALL ESMF_GridCompSetServices (atm_int_state%CORE_GRID_COMP   &
                                         ,NMM_REGISTER                   &
@@ -330,6 +365,27 @@
                                         ,GEN_REGISTER                   &
                                         ,RC)
 
+#else
+        CASE('nmm')
+          CALL ESMF_GridCompSetServices (atm_int_state%CORE_GRID_COMP   &
+                                        ,NMM_REGISTER                   &
+                                        ,rc=RC)
+!
+        CASE('gfs')
+          CALL ESMF_GridCompSetServices (atm_int_state%CORE_GRID_COMP   &
+                                        ,GFS_REGISTER                   &
+                                        ,rc=RC)
+!
+        CASE('fim')
+          CALL ESMF_GridCompSetServices (atm_int_state%CORE_GRID_COMP   &
+                                        ,FIM_REGISTER                   &
+                                        ,rc=RC)
+
+        CASE('gen')
+          CALL ESMF_GridCompSetServices (atm_int_state%CORE_GRID_COMP   &
+                                        ,GEN_REGISTER                   &
+                                        ,rc=RC)
+#endif
         CASE DEFAULT
           write(0,*)' ATM_INITIALIZE requires unknown core: ',TRIM(atm_int_state%CORE)                      
 !
@@ -348,9 +404,15 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      atm_int_state%CORE_IMP_STATE=ESMF_StateCreate(stateName="CORE Import"     &
+#ifdef ESMF_520rbs
+      atm_int_state%CORE_IMP_STATE=ESMF_StateCreate(     NAME="CORE Import"     &
                                                    ,statetype=ESMF_STATE_IMPORT &
                                                    ,rc       =RC)
+#else
+      atm_int_state%CORE_IMP_STATE=ESMF_StateCreate(STATENAME="CORE Import"     &
+                                                   ,statetype=ESMF_STATE_IMPORT &
+                                                   ,rc       =RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -361,9 +423,15 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      atm_int_state%CORE_EXP_STATE=ESMF_StateCreate(stateName="CORE Export"     &
+#ifdef ESMF_520rbs
+      atm_int_state%CORE_EXP_STATE=ESMF_StateCreate(     NAME="CORE Export"     &
                                                    ,statetype=ESMF_STATE_EXPORT &
                                                    ,rc       =RC)
+#else
+      atm_int_state%CORE_EXP_STATE=ESMF_StateCreate(STATENAME="CORE Export"     &
+                                                   ,statetype=ESMF_STATE_EXPORT &
+                                                   ,rc       =RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)

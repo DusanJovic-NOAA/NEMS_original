@@ -1,3 +1,8 @@
+#include "../../ESMFVersionDefine.h"
+
+!  2011-05-11  Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!--------------------------------------------------------------------------
+
 !-----------------------------------------------------------------------
 !
       MODULE module_NMM_GRID_COMP
@@ -51,6 +56,7 @@
 !
       write(0,*) "    NMM_REGISTER"
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
                                      ,ESMF_SETINIT                      &
                                      ,NMM_INITIALIZE                    &
@@ -69,6 +75,27 @@
                                      ,1                                 &
                                      ,RC)
 !
+#else
+      CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
+                                     ,ESMF_SETINIT                      &
+                                     ,NMM_INITIALIZE                    &
+                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,rc=RC)
+!
+      CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
+                                     ,ESMF_SETRUN                       &
+                                     ,NMM_RUN                           &
+                                     ,phase=1                           &
+                                     ,rc=RC)
+!
+      CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
+                                     ,ESMF_SETFINAL                     &
+                                     ,NMM_FINALIZE                      &
+                                     ,phase=1                           &
+                                     ,rc=RC)
+!
+#endif
+
 !-----------------------------------------------------------------------
 !
       RC_REG = ESMF_SUCCESS

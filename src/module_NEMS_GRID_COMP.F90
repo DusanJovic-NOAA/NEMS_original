@@ -1,3 +1,11 @@
+#include "./ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#else
+#define ESMF_520rbs
+#endif
+
 !-----------------------------------------------------------------------
 !
       MODULE module_NEMS_GRID_COMP
@@ -22,6 +30,8 @@
 !               |
 !          CORE component (GFS, NMM, FIM, GEN, etc.)
 !
+!-----------------------------------------------------------------------
+!  2011-05-11  Theurich & Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
@@ -120,11 +130,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(NEMS_GRID_COMP                    &  !<-- The NEMS component
                                      ,ESMF_SETINIT                      &  !<-- Subroutine type (Initialize)
                                      ,NEMS_INITIALIZE                   &  !<-- User's subroutine name
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(NEMS_GRID_COMP                    &  !<-- The NEMS component
+                                     ,ESMF_SETINIT                      &  !<-- Subroutine type (Initialize)
+                                     ,NEMS_INITIALIZE                   &  !<-- User's subroutine name
+                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -137,11 +155,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(NEMS_GRID_COMP                    &  !<-- The NEMS component
                                      ,ESMF_SETRUN                       &  !<-- Subroutine type (Run)
                                      ,NEMS_RUN                          &  !<-- User's subroutine name
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(NEMS_GRID_COMP                    &  !<-- The NEMS component
+                                     ,ESMF_SETRUN                       &  !<-- Subroutine type (Run)
+                                     ,NEMS_RUN                          &  !<-- User's subroutine name
+                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -154,11 +180,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(NEMS_GRID_COMP                    &  !<-- The NEMS component
                                      ,ESMF_SETFINAL                     &  !<-- Subroutine type (Finalize)
                                      ,NEMS_FINALIZE                     &  !<-- User's subroutine name
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(NEMS_GRID_COMP                    &  !<-- The NEMS component
+                                     ,ESMF_SETFINAL                     &  !<-- Subroutine type (Finalize)
+                                     ,NEMS_FINALIZE                     &  !<-- User's subroutine name
+                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -494,7 +528,6 @@
       DO I = 1, TOTAL_MEMBER
         EARTH_GRID_COMP(i) = ESMF_GridCompCreate (                      &
                              name         = EARTH_COMP_NAME(I)          &  !<-- Name of element I of the EARTH component array
-                            ,gridcomptype = ESMF_ATM                    &
                             ,petlist      = PETLIST(1:PE_MEMBER(I), I)  &  !<-- Element I's PE list
                             ,config       = CF_NEMS                     &  !<-- Associate the NEMS config object with this element
                             ,rc           = RC)
@@ -525,9 +558,15 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO I = 1, TOTAL_MEMBER
+#ifdef ESMF_3
         CALL ESMF_GridCompSetServices(EARTH_GRID_COMP(I)                &  !<-- The EARTH gridded components
                                      ,EARTH_REGISTER                    &  !<-- User's name for the Register routine
                                      ,RC)
+#else
+        CALL ESMF_GridCompSetServices(EARTH_GRID_COMP(I)                &  !<-- The EARTH gridded components
+                                     ,EARTH_REGISTER                    &  !<-- User's name for the Register routine
+                                     ,rc=RC)
+#endif
       END DO
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -546,9 +585,15 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
         CALL ESMF_CplCompSetServices(ENS_CPL_COMP                       &
                                     ,ENS_CplCompSetServices             &  !<-- The user's name for the Register routine
                                     ,RC)
+#else
+        CALL ESMF_CplCompSetServices(ENS_CPL_COMP                       &
+                                    ,ENS_CplCompSetServices             &  !<-- The user's name for the Register routine
+                                    ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -566,10 +611,17 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO I = 1,TOTAL_MEMBER
+#ifdef ESMF_520rbs
         EARTH_IMP_STATE(I) = ESMF_StateCreate(                          &
-                                         stateName = IMP_EARTH_NAME(I)  &
+                                              NAME = IMP_EARTH_NAME(I)  &
                                         ,statetype = ESMF_STATE_IMPORT  &
                                         ,rc        = RC)
+#else
+        EARTH_IMP_STATE(I) = ESMF_StateCreate(                          &
+                                         STATENAME = IMP_EARTH_NAME(I)  &
+                                        ,statetype = ESMF_STATE_IMPORT  &
+                                        ,rc        = RC)
+#endif
       END DO
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -584,10 +636,17 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO I = 1,TOTAL_MEMBER
+#ifdef ESMF_520rbs
         EARTH_EXP_STATE(I) = ESMF_StateCreate(                          &
-                                         stateName = EXP_EARTH_NAME(I)  &
+                                              NAME = EXP_EARTH_NAME(I)  &
                                         ,statetype = ESMF_STATE_EXPORT  &
                                         ,rc        = RC)
+#else
+        EARTH_EXP_STATE(I) = ESMF_StateCreate(                          &
+                                         STATENAME = EXP_EARTH_NAME(I)  &
+                                        ,statetype = ESMF_STATE_EXPORT  &
+                                        ,rc        = RC)
+#endif
       END DO
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -605,9 +664,15 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        ENS_CPL_IMP_STATE=ESMF_StateCreate(stateName = "ENS_CPL_Import"  &
+#ifdef ESMF_520rbs
+        ENS_CPL_IMP_STATE=ESMF_StateCreate(     NAME = "ENS_CPL_Import"  &
                                           ,statetype = ESMF_STATE_IMPORT &
                                           ,rc        = RC)
+#else
+        ENS_CPL_IMP_STATE=ESMF_StateCreate(STATENAME = "ENS_CPL_Import"  &
+                                          ,statetype = ESMF_STATE_IMPORT &
+                                          ,rc        = RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -620,9 +685,15 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        ENS_CPL_EXP_STATE=ESMF_StateCreate(stateName = "ENS_CPL_Export"  &
+#ifdef ESMF_520rbs
+        ENS_CPL_EXP_STATE=ESMF_StateCreate(     NAME = "ENS_CPL_Export"  &
                                           ,statetype = ESMF_STATE_EXPORT &
                                           ,rc        = RC)
+#else
+        ENS_CPL_EXP_STATE=ESMF_StateCreate(STATENAME = "ENS_CPL_Export"  &
+                                          ,statetype = ESMF_STATE_EXPORT &
+                                          ,rc        = RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)

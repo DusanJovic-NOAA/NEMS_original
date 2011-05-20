@@ -1,5 +1,11 @@
 #include "../../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#else
+#define ESMF_520rbs
+#endif
+
       module module_digital_filter_gfs
 !
 ! a generic digital filter for any model under ESMF 
@@ -9,6 +15,7 @@
 ! November 2009 Jun Wang, digital filter is done on n+1 time step.
 ! February 2011 Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
 !                           ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! May      2011 Weiyu Yang, Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !----------------------------------------------------------------------------
 !
       use esmf_mod
@@ -281,9 +288,15 @@
                          itemnamelist = phy_name,			&
                          rc=rc)
 !       print *,'dfi phy init, phy_items=',phy_items,'names=',phy_name(1:phy_items)
-      phy_state_save=esmf_statecreate(statename="digital filter phy"	&
+#ifdef ESMF_520rbs
+      phy_state_save=esmf_statecreate(     NAME="digital filter phy"	&
                                      ,statetype=esmf_state_unspecified	&
                                      ,rc       =rc)
+#else
+      phy_state_save=esmf_statecreate(STATENAME="digital filter phy"	&
+                                     ,statetype=esmf_state_unspecified	&
+                                     ,rc       =rc)
+#endif
 !
       end subroutine digital_filter_phy_init_gfs
 

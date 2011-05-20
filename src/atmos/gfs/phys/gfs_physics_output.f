@@ -750,8 +750,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      GFS_BUNDLE_LIST(1) = ESMF_FieldBundleCreate(grid=GRID                 &  !<-- The ESMF integration Grid
-                                           ,name=int_state%filename_base(2) &  !<-- The Bundle's name
+      GFS_BUNDLE_LIST(1) = ESMF_FieldBundleCreate(name=int_state%filename_base(2) &  !<-- The Bundle's name
                                            ,rc  =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -794,8 +793,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      GFS_BUNDLE_LIST(2) = ESMF_FieldBundleCreate(grid=GRID                 &  !<-- The ESMF integration Grid
-                                           ,name=int_state%filename_base(3) &  !<-- The Bundle's name
+      GFS_BUNDLE_LIST(2) = ESMF_FieldBundleCreate(name=int_state%filename_base(3) &  !<-- The Bundle's name
                                            ,rc  =RC)
 
 !
@@ -897,10 +895,10 @@
       MESSAGE_CHECK="Extract History Data Bundle from the Write Import State"
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      GFS_BUNDLE_LIST(GFS_BUNDLE_LIST_aer) = ESMF_FieldBundleCreate(grid=GRID &  !<-- The ESMF integration Grid
-!                                         ,name=int_state%filename_base(4)    &  !<-- The Bundle's name
-                                          ,name=int_state%filename_base(ndg)  &  !<-- The Bundle's name
-                                          ,rc  =RC)
+      GFS_BUNDLE_LIST(GFS_BUNDLE_LIST_aer) = ESMF_FieldBundleCreate(          &
+!                                         name=int_state%filename_base(4),    &  !<-- The Bundle's name
+                                          name=int_state%filename_base(ndg),  &  !<-- The Bundle's name
+                                          rc  =RC)
 !
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -941,8 +939,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      GFS_BUNDLE_LIST(GFS_BUNDLE_LIST_nst) = ESMF_FieldBundleCreate(grid=GRID &  !<-- The ESMF integration Grid
-                                           ,name=int_state%filename_base(nst) &  !<-- The Bundle's name
+      GFS_BUNDLE_LIST(GFS_BUNDLE_LIST_nst) = ESMF_FieldBundleCreate(         &
+                                           name=int_state%filename_base(nst) &  !<-- The Bundle's name
                                            ,rc  =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1246,8 +1244,8 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_FieldBundleAdd(bundle=FILE_BUNDLE                &  !<-- The write component's output data Bundle
-                                  ,field =FIELD                         &  !<-- ESMF Field holding the 2D integer array
+          CALL ESMF_FieldBundleAdd(FILE_BUNDLE                &  !<-- The write component's output data Bundle
+                                  ,FIELD                      &  !<-- ESMF Field holding the 2D integer array
                                   ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1323,8 +1321,8 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_FieldBundleAdd(bundle=FILE_BUNDLE                &  !<-- The write component's output data Bundle
-                                  ,field =FIELD                         &  !<-- ESMF Field holding the 2D real array
+          CALL ESMF_FieldBundleAdd(FILE_BUNDLE                &  !<-- The write component's output data Bundle
+                                  ,FIELD                      &  !<-- ESMF Field holding the 2D real array
                                   ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1401,8 +1399,8 @@
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL ESMF_FieldBundleAdd(bundle=FILE_BUNDLE                 &  !<-- The write component's output data Bundle
-                                    ,field =FIELD                       &  !<-- ESMF Field holding the 1D real array
+            CALL ESMF_FieldBundleAdd(FILE_BUNDLE                 &  !<-- The write component's output data Bundle
+                                    ,FIELD                       &  !<-- ESMF Field holding the 1D real array
                                     ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1481,8 +1479,8 @@
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL ESMF_FieldBundleAdd(bundle=FILE_BUNDLE              &  !<-- The write component's output data Bundle
-                                    ,field =FIELD                       &  !<-- ESMF Field holding the 1D real array
+            CALL ESMF_FieldBundleAdd(FILE_BUNDLE              &  !<-- The write component's output data Bundle
+                                    ,FIELD                    &  !<-- ESMF Field holding the 1D real array
                                     ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

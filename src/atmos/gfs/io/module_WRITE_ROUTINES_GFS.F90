@@ -1,5 +1,11 @@
 #include "../../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#else
+#define ESMF_520rbs
+#endif
+
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_WRITE_ROUTINES_GFS
@@ -22,6 +28,7 @@
 !                               ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !       07 Mar 2011:  S. Lu - idvm is determined from sfcpress and thermodyn
 !       27 Mar 2011:  J. Wang - set idsl for hybrid and sigms coord
+!       13 May 2011:  W. yang - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !--------------------------------------------------------------------------------
 !
       USE ESMF_MOD
@@ -997,7 +1004,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_FieldBundleGet(bundle    =FILE_BUNDLE                   &  !<-- The write component's history data Bundle
+        CALL ESMF_FieldBundleGet(FILE_BUNDLE                   &  !<-- The write component's history data Bundle
                                 ,fieldCount=wrt_int_state%NCOUNT_FIELDS(NBDL)   &  !<-- Get total # of Fields in the history data Bundle
                                 ,rc        =RC)
 !
@@ -1017,10 +1024,17 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         allocate(field_name(5000))
-        CALL ESMF_FieldBundleGet(bundle    =FILE_BUNDLE              &  !<-- The write component's history data Bundle
-                                ,nameList  =FIELD_NAME               & !<-- Array of ESMF Field names in the Bundle
-                                ,nameCount =NUM_FIELD_NAMES             &  !<-- Number of Field names in the Bundle
+#ifdef ESMF_520rbs
+        CALL ESMF_FieldBundleGet(FILE_BUNDLE                         &  !<-- The write component's history data Bundle
+                                ,FIELDNAMELIST =FIELD_NAME           &  !<-- Array of ESMF Field names in the Bundle
+                                ,FIELDCOUNT    =NUM_FIELD_NAMES      &  !<-- Number of Field names in the Bundle
+                                ,rc            =RC)
+#else
+        CALL ESMF_FieldBundleGet(FILE_BUNDLE                         &  !<-- The write component's history data Bundle
+                                ,NAMELIST  =FIELD_NAME               &  !<-- Array of ESMF Field names in the Bundle
+                                ,NAMECOUNT =NUM_FIELD_NAMES          &  !<-- Number of Field names in the Bundle
                                 ,rc        =RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
@@ -1050,10 +1064,17 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_FieldBundleGet(bundle=FILE_BUNDLE                &  !<-- The write component's history data Bundle
-                                  ,name  =FIELD_NAME(N)              &  !<-- The ESMF Field's name
-                                  ,field =FIELD_WORK1                   &  !<-- The ESMF Field taken from the Bundle
+#ifdef ESMF_520rbs
+          CALL ESMF_FieldBundleGet(FILE_BUNDLE               &  !<-- The write component's history data Bundle
+                                  ,FIELDNAME =FIELD_NAME(N)  &  !<-- The ESMF Field's name
+                                  ,field     =FIELD_WORK1    &  !<-- The ESMF Field taken from the Bundle
+                                  ,rc        =RC)
+#else
+          CALL ESMF_FieldBundleGet(FILE_BUNDLE               &  !<-- The write component's history data Bundle
+                                  ,NAME  =FIELD_NAME(N)      &  !<-- The ESMF Field's name
+                                  ,field =FIELD_WORK1        &  !<-- The ESMF Field taken from the Bundle
                                   ,rc    =RC)
+#endif
          wrt_int_state%FIELD_NAME(N,NBDL)=field_name(N)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1138,10 +1159,10 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=NO_FIELDS                           &  !<-- Send this data
-                          ,count   =1                                   &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
+          CALL ESMF_VMSend(VM                                  &  !<-- ESMF Virtual Machine
+                          ,NO_FIELDS                           &  !<-- Send this data
+                          ,1                                   &  !<-- Words sent
+                          ,N                                   &  !<-- Receiving task in active write group
                           ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1158,10 +1179,10 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=NO_FIELDS                             &  !<-- Recv this data
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
+        CALL ESMF_VMRecv(VM                                    &  !<-- ESMF Virtual Machine
+                        ,NO_FIELDS                             &  !<-- Recv this data
+                        ,1                                     &  !<-- Words received
+                        ,0                                     &  !<-- Sending task (forecast task 0)
                         ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1212,24 +1233,24 @@
         DO N=LEAD_WRITE_TASK,LAST_WRITE_TASK                               !<-- Loop through all the write tasks in the write group
 !
           ITMP(1)=wrt_int_state%NCOUNT_FIELDS(NBDL)
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=ITMP                                &  !<-- Send this data
-                          ,count   =1                                   &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
+          CALL ESMF_VMSend(VM                                  &  !<-- ESMF Virtual Machine
+                          ,ITMP                                &  !<-- Send this data
+                          ,1                                   &  !<-- Words sent
+                          ,N                                   &  !<-- Receiving task in active write group
                           ,rc      =RC)
 !
           ITMP(1)=wrt_int_state%KOUNT_R2D(NBDL)    
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=ITMP                                &  !<-- Send this data
-                          ,count   =1                                   &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
+          CALL ESMF_VMSend(VM                                  &  !<-- ESMF Virtual Machine
+                          ,ITMP                                &  !<-- Send this data
+                          ,1                                   &  !<-- Words sent
+                          ,N                                   &  !<-- Receiving task in active write group
                           ,rc      =RC)
 !
           ITMP(1)=wrt_int_state%KOUNT_I2D(NBDL)    
-          CALL ESMF_VMSend(vm      =VM                                  &  !<-- ESMF Virtual Machine
-                          ,sendData=ITMP                                &  !<-- Send this data
-                          ,count   =1                                   &  !<-- Words sent
-                          ,dst     =N                                   &  !<-- Receiving task in active write group
+          CALL ESMF_VMSend(VM                                  &  !<-- ESMF Virtual Machine
+                          ,ITMP                                &  !<-- Send this data
+                          ,1                                   &  !<-- Words sent
+                          ,N                                   &  !<-- Receiving task in active write group
                           ,rc      =RC)
 !
         ENDDO
@@ -1249,24 +1270,24 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=ITMP                                  &  !<-- Recv this data
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
+        CALL ESMF_VMRecv(VM                                    &  !<-- ESMF Virtual Machine
+                        ,ITMP                                  &  !<-- Recv this data
+                        ,1                                     &  !<-- Words received
+                        ,0                                     &  !<-- Sending task (forecast task 0)
                         ,rc      =RC)
         wrt_int_state%NCOUNT_FIELDS(NBDL)=ITMP(1)
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=ITMP                                  &  !<-- Recv this data
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
+        CALL ESMF_VMRecv(VM                                    &  !<-- ESMF Virtual Machine
+                        ,ITMP                                  &  !<-- Recv this data
+                        ,1                                     &  !<-- Words received
+                        ,0                                     &  !<-- Sending task (forecast task 0)
                         ,rc      =RC)
         wrt_int_state%KOUNT_R2D(NBDL)=ITMP(1)
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=ITMP                                  &  !<-- Recv this data
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
+        CALL ESMF_VMRecv(VM                                    &  !<-- ESMF Virtual Machine
+                        ,ITMP                                  &  !<-- Recv this data
+                        ,1                                     &  !<-- Words received
+                        ,0                                     &  !<-- Sending task (forecast task 0)
                         ,rc      =RC)
         wrt_int_state%KOUNT_I2D(NBDL)=ITMP(1)
 !
@@ -1289,31 +1310,31 @@
 !
        DO N=LEAD_WRITE_TASK,LAST_WRITE_TASK
 !
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=NCHAR_I2D                             &  !<-- Send total length of the names of 2D integer data
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =N                                     &  !<-- Receiving task (1st write task in group)
+        CALL ESMF_VMSend(VM                                    &  !<-- ESMF Virtual Machine
+                        ,NCHAR_I2D                             &  !<-- Send total length of the names of 2D integer data
+                        ,1                                     &  !<-- Words sent
+                        ,N                                     &  !<-- Receiving task (1st write task in group)
                         ,rc      =RC)
 !
         if(NCHAR_I2D(1)>0) then
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%NAMES_I2D_STRING(nbdl) &  !<-- Send names of 2D integer history variables
-                        ,count   =NCHAR_I2D(1)                          &  !<-- Words sent
-                        ,dst     =N                                     &  !<-- Receiving task (1st write task in group)
+        CALL ESMF_VMSend(VM                                    &  !<-- ESMF Virtual Machine
+                        ,wrt_int_state%NAMES_I2D_STRING(nbdl) &  !<-- Send names of 2D integer history variables
+                        ,NCHAR_I2D(1)                          &  !<-- Words sent
+                        ,N                                     &  !<-- Receiving task (1st write task in group)
                         ,rc      =RC)
         endif
 !
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=NCHAR_R2D                             &  !<-- Send total length of the names of 2D real data
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =N                                     &  !<-- Receiving task (1st write task in group)
+        CALL ESMF_VMSend(VM                                    &  !<-- ESMF Virtual Machine
+                        ,NCHAR_R2D                             &  !<-- Send total length of the names of 2D real data
+                        ,1                                     &  !<-- Words sent
+                        ,N                                     &  !<-- Receiving task (1st write task in group)
                         ,rc      =RC)
 !
         if(NCHAR_R2D(1)>0) then
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=wrt_int_state%NAMES_R2D_STRING(NBDL)  &  !<-- Send names of 2D real history variables
-                        ,count   =NCHAR_R2D(1)                          &  !<-- Words sent
-                        ,dst     =N                                     &  !<-- Receiving task (1st write task in group)
+        CALL ESMF_VMSend(VM                                    &  !<-- ESMF Virtual Machine
+                        ,wrt_int_state%NAMES_R2D_STRING(NBDL)  &  !<-- Send names of 2D real history variables
+                        ,NCHAR_R2D(1)                          &  !<-- Words sent
+                        ,N                                     &  !<-- Receiving task (1st write task in group)
                         ,rc      =RC)
          endif
 !
@@ -1321,31 +1342,31 @@
 !
       ELSEIF(MYPE>=LEAD_WRITE_TASK) then                                    !<-- 1st write task receives 2D preliminary info
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=NCHAR_I2D                             &  !<-- Recv total length of the names of 2D integer data
-                        ,count   =1                                     &  !<-- Words sent
-                        ,src     =0                                     &  !<-- Sending task (fcst task 0)
+        CALL ESMF_VMRecv(VM                                    &  !<-- ESMF Virtual Machine
+                        ,NCHAR_I2D                             &  !<-- Recv total length of the names of 2D integer data
+                        ,1                                     &  !<-- Words sent
+                        ,0                                     &  !<-- Sending task (fcst task 0)
                         ,rc      =RC)
 !
         if(NCHAR_I2D(1)>0) then
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%NAMES_I2D_STRING(NBDL)        &  !<-- Recv names of 2D integer history variables
-                        ,count   =NCHAR_I2D(1)                          &  !<-- Words sent
-                        ,src     =0                                     &  !<-- Sending task (fcst task 0)
+        CALL ESMF_VMRecv(VM                                    &  !<-- ESMF Virtual Machine
+                        ,wrt_int_state%NAMES_I2D_STRING(NBDL)        &  !<-- Recv names of 2D integer history variables
+                        ,NCHAR_I2D(1)                          &  !<-- Words sent
+                        ,0                                     &  !<-- Sending task (fcst task 0)
                         ,rc      =RC)
          endif
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=NCHAR_R2D                             &  !<-- Recv total length of the names of 2D gridded data
-                        ,count   =1                                     &  !<-- Words sent
-                        ,src     =0                                     &  !<-- Sending task (fcst task 0)
+        CALL ESMF_VMRecv(VM                                    &  !<-- ESMF Virtual Machine
+                        ,NCHAR_R2D                             &  !<-- Recv total length of the names of 2D gridded data
+                        ,1                                     &  !<-- Words sent
+                        ,0                                     &  !<-- Sending task (fcst task 0)
                         ,rc      =RC)
 !
         if(NCHAR_R2D(1)>0) then
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=wrt_int_state%NAMES_R2D_STRING(NBDL)        &  !<-- Recv names of 2D real history variables
-                        ,count   =NCHAR_R2D(1)                          &  !<-- Words sent
-                        ,src     =0                                     &  !<-- Sending task (fcst task 0)
+        CALL ESMF_VMRecv(VM                                    &  !<-- ESMF Virtual Machine
+                        ,wrt_int_state%NAMES_R2D_STRING(NBDL)        &  !<-- Recv names of 2D real history variables
+                        ,NCHAR_R2D(1)                          &  !<-- Words sent
+                        ,0                                     &  !<-- Sending task (fcst task 0)
                         ,rc      =RC)
          endif
 !
@@ -1430,10 +1451,10 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         ITMP(1)=wrt_int_state%KOUNT_I1D(NBDL)
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=ITMP                               &  !<-- Send # of scalar/1D integer history variables
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =N                                     &  !<-- Receiving task (1st write task in group)
+        CALL ESMF_VMSend(VM                                    &  !<-- ESMF Virtual Machine
+                        ,ITMP                               &  !<-- Send # of scalar/1D integer history variables
+                        ,1                                     &  !<-- Words sent
+                        ,N                                     &  !<-- Receiving task (1st write task in group)
                         ,rc      =RC)
 !
 !if there are any I 1D data
@@ -1441,33 +1462,33 @@
         if(wrt_int_state%KOUNT_I1D(NBDL)>0 )then
 !
         ITMP(1)=wrt_int_state%LENGTH_SUM_I1D(NBDL)
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=ITMP                                  &  !<-- Send length of string of all such integer history variables
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =N                                     &  !<-- Receiving task (1st write task in group)
+        CALL ESMF_VMSend(VM                                    &  !<-- ESMF Virtual Machine
+                        ,ITMP                                  &  !<-- Send length of string of all such integer history variables
+                        ,1                                     &  !<-- Words sent
+                        ,N                                     &  !<-- Receiving task (1st write task in group)
                         ,rc      =RC)
 !
         ITMP(1:wrt_int_state%KOUNT_I1D(NBDL))=                          &
          wrt_int_state%LENGTH_DATA_I1D(1:wrt_int_state%KOUNT_I1D(NBDL),NBDL)
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=ITMP                                  &  !<-- Send lengths of each scalar/1D integer history variable
-                        ,count   =wrt_int_state%KOUNT_I1D(NBDL)         &  !<-- Words sent
-                        ,dst     =N                                     &  !<-- Receiving task (1st write task in group)
+        CALL ESMF_VMSend(VM                                    &  !<-- ESMF Virtual Machine
+                        ,ITMP                                  &  !<-- Send lengths of each scalar/1D integer history variable
+                        ,wrt_int_state%KOUNT_I1D(NBDL)         &  !<-- Words sent
+                        ,N                                     &  !<-- Receiving task (1st write task in group)
                         ,rc      =RC)
 !
         NAMETMP(1:NCHAR_I1D)=wrt_int_state%NAMES_I1D_STRING(nbdl)(1:NCHAR_I1D)
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=NAMETMP                               &  !<-- Send names of each scalar/1D integer history variable
-                        ,count   =NCHAR_I1D                                      &  !<-- Words sent
-                        ,dst     =N                                     &  !<-- Receiving task (1st write task in group)
+        CALL ESMF_VMSend(VM                                    &  !<-- ESMF Virtual Machine
+                        ,NAMETMP                               &  !<-- Send names of each scalar/1D integer history variable
+                        ,NCHAR_I1D                                      &  !<-- Words sent
+                        ,N                                     &  !<-- Receiving task (1st write task in group)
                         ,rc      =RC)
 !
         ITMP(1:wrt_int_state%LENGTH_SUM_I1D(NBDL))=                     &
            wrt_int_state%ALL_DATA_I1D(1:wrt_int_state%LENGTH_SUM_I1D(NBDL),NBDL)
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=ITMP                                  &  !<-- Send the full string of all scalar/1D integer history data
-                        ,count   =wrt_int_state%LENGTH_SUM_I1D(NBDL)       &  !<-- Words sent
-                        ,dst     =N                                     &  !<-- Receiving task (1st write task in group)
+        CALL ESMF_VMSend(VM                                    &  !<-- ESMF Virtual Machine
+                        ,ITMP                                  &  !<-- Send the full string of all scalar/1D integer history data
+                        ,wrt_int_state%LENGTH_SUM_I1D(NBDL)       &  !<-- Words sent
+                        ,N                                     &  !<-- Receiving task (1st write task in group)
                         ,rc      =RC)
 !
          endif
@@ -1486,10 +1507,10 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         ITMP(1)=wrt_int_state%KOUNT_R1D(NBDL)
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=ITMP                                  &  !<-- Send # of scalar/1D real history variables
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =N                                     &  !<-- Receiving task (1st write task in group)
+        CALL ESMF_VMSend(VM                                    &  !<-- ESMF Virtual Machine
+                        ,ITMP                                  &  !<-- Send # of scalar/1D real history variables
+                        ,1                                     &  !<-- Words sent
+                        ,N                                     &  !<-- Receiving task (1st write task in group)
                         ,rc      =RC)
 !
 !
@@ -1498,33 +1519,33 @@
        if(wrt_int_state%KOUNT_R1D(NBDL)>0 )then
 !
         ITMP(1)=wrt_int_state%LENGTH_SUM_R1D(NBDL)
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=ITMP                                  &  !<-- Send length of string of all such real history variables
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =N                                     &  !<-- Receiving task (1st write task in group)
+        CALL ESMF_VMSend(VM                                    &  !<-- ESMF Virtual Machine
+                        ,ITMP                                  &  !<-- Send length of string of all such real history variables
+                        ,1                                     &  !<-- Words sent
+                        ,N                                     &  !<-- Receiving task (1st write task in group)
                         ,rc      =RC)
 !
         ITMP(1:wrt_int_state%KOUNT_R1D(NBDL))=wrt_int_state%LENGTH_DATA_R1D &
           (1:wrt_int_state%KOUNT_R1D(NBDL),NBDL)
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=ITMP                                  &!<-- Send lengths of each scalar/1D real history variable
-                        ,count   =wrt_int_state%KOUNT_R1D(NBDL)         &  !<-- Words sent
-                        ,dst     =N                                     &  !<-- Receiving task (1st write task in group)
+        CALL ESMF_VMSend(VM                                    &  !<-- ESMF Virtual Machine
+                        ,ITMP                                  &!<-- Send lengths of each scalar/1D real history variable
+                        ,wrt_int_state%KOUNT_R1D(NBDL)         &  !<-- Words sent
+                        ,N                                     &  !<-- Receiving task (1st write task in group)
                         ,rc      =RC)
 !
         NAMETMP(1:NCHAR_R1D)=wrt_int_state%NAMES_R1D_STRING(NBDL)(1:NCHAR_R1D)
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=NAMETMP                               &  !<-- Send names of each scalar/1D real history variable
-                        ,count   =NCHAR_R1D                             &  !<-- Words sent
-                        ,dst     =N                                     &  !<-- Receiving task (1st write task in group)
+        CALL ESMF_VMSend(VM                                    &  !<-- ESMF Virtual Machine
+                        ,NAMETMP                               &  !<-- Send names of each scalar/1D real history variable
+                        ,NCHAR_R1D                             &  !<-- Words sent
+                        ,N                                     &  !<-- Receiving task (1st write task in group)
                         ,rc      =RC)
 !
         RTMP(1:wrt_int_state%LENGTH_SUM_R1D(NBDL))=wrt_int_state%ALL_DATA_R1D( &
              1:wrt_int_state%LENGTH_SUM_R1D(NBDL),NBDL)
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=RTMP                                  &  !<-- Send the full string of all scalar/1D real history data
-                        ,count   =wrt_int_state%LENGTH_SUM_R1D(NBDL)       &  !<-- Words sent
-                        ,dst     =N                                     &  !<-- Receiving task (1st write task in group)
+        CALL ESMF_VMSend(VM                                    &  !<-- ESMF Virtual Machine
+                        ,RTMP                                  &  !<-- Send the full string of all scalar/1D real history data
+                        ,wrt_int_state%LENGTH_SUM_R1D(NBDL)       &  !<-- Words sent
+                        ,N                                     &  !<-- Receiving task (1st write task in group)
                         ,rc      =RC)
 !
          ENDIF
@@ -1542,10 +1563,10 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         ITMP(1)=wrt_int_state%KOUNT_LOG(NBDL)
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=ITMP                                  &  !<-- Send # of logical history variables
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =N                                     &  !<-- Receiving task (1st write task in group)
+        CALL ESMF_VMSend(VM                                    &  !<-- ESMF Virtual Machine
+                        ,ITMP                                  &  !<-- Send # of logical history variables
+                        ,1                                     &  !<-- Words sent
+                        ,N                                     &  !<-- Receiving task (1st write task in group)
                         ,rc      =RC)
 !
 !
@@ -1554,17 +1575,17 @@
         if(wrt_int_state%KOUNT_LOG(NBDL)>0 )then
 !
         ITMP(1)=wrt_int_state%LENGTH_SUM_LOG(NBDL)
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=ITMP                                  &  !<-- Send length of string of all logical variables
-                        ,count   =1                                     &  !<-- Words sent
-                        ,dst     =N                                     &  !<-- Receiving task (1st write task in group)
+        CALL ESMF_VMSend(VM                                    &  !<-- ESMF Virtual Machine
+                        ,ITMP                                  &  !<-- Send length of string of all logical variables
+                        ,1                                     &  !<-- Words sent
+                        ,N                                     &  !<-- Receiving task (1st write task in group)
                         ,rc      =RC)
 !
         NAMETMP(1:NCHAR_R1D)=wrt_int_state%NAMES_LOG_STRING(NBDL)(1:NCHAR_LOG)
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=NAMETMP                               & !<-- Send names of each logical history variable
-                        ,count   =NCHAR_LOG                                      &  !<-- Words sent
-                        ,dst     =N                                     &  !<-- Receiving task (1st write task in group)
+        CALL ESMF_VMSend(VM                                    &  !<-- ESMF Virtual Machine
+                        ,NAMETMP                               & !<-- Send names of each logical history variable
+                        ,NCHAR_LOG                                      &  !<-- Words sent
+                        ,N                                     &  !<-- Receiving task (1st write task in group)
                         ,rc      =RC)
 !
         DO I=1,wrt_int_state%LENGTH_SUM_LOG(NBDL)
@@ -1575,10 +1596,10 @@
           endif
         ENDDO
 
-        CALL ESMF_VMSend(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,sendData=LTMP                                  &  !<-- Send the full string of all logical history data
-                        ,count   =wrt_int_state%LENGTH_SUM_LOG(NBDL)    &  !<-- Words sent
-                        ,dst     =N                                     &  !<-- Receiving task (1st write task in group)
+        CALL ESMF_VMSend(VM                                    &  !<-- ESMF Virtual Machine
+                        ,LTMP                                  &  !<-- Send the full string of all logical history data
+                        ,wrt_int_state%LENGTH_SUM_LOG(NBDL)    &  !<-- Words sent
+                        ,N                                     &  !<-- Receiving task (1st write task in group)
                         ,rc      =RC)
 !
         ENDIF
@@ -1609,10 +1630,10 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=ITMP                                  &  !<-- Recv # of integer history variables
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
+        CALL ESMF_VMRecv(VM                                    &  !<-- ESMF Virtual Machine
+                        ,ITMP                                  &  !<-- Recv # of integer history variables
+                        ,1                                     &  !<-- Words received
+                        ,0                                     &  !<-- Sending task (forecast task 0)
                         ,rc      =RC)
         wrt_int_state%KOUNT_I1D(NBDL)=ITMP(1)
 !
@@ -1620,33 +1641,33 @@
 !---------------------------------------------------------------------
         if(wrt_int_state%KOUNT_I1D(NBDL)>0 )then
 !
-         CALL ESMF_VMRecv(vm      =VM                                   &  !<-- ESMF Virtual Machine
-                        ,recvData=itmp                                  &  !<-- Recv length of string of all integer history variables
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
+         CALL ESMF_VMRecv(VM                                   &  !<-- ESMF Virtual Machine
+                        ,itmp                                  &  !<-- Recv length of string of all integer history variables
+                        ,1                                     &  !<-- Words received
+                        ,0                                     &  !<-- Sending task (forecast task 0)
                         ,rc      =RC)
          wrt_int_state%LENGTH_SUM_I1D(NBDL)=itmp(1)
 !
-         CALL ESMF_VMRecv(vm      =VM                                   &  !<-- ESMF Virtual Machine
-                        ,recvData=itmp                                  &  !<-- Recv lengths of each integer history variable
-                        ,count   =wrt_int_state%KOUNT_I1D(NBDL)         &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
+         CALL ESMF_VMRecv(VM                                   &  !<-- ESMF Virtual Machine
+                        ,itmp                                  &  !<-- Recv lengths of each integer history variable
+                        ,wrt_int_state%KOUNT_I1D(NBDL)         &  !<-- Words received
+                        ,0                                     &  !<-- Sending task (forecast task 0)
                         ,rc      =RC)
         wrt_int_state%LENGTH_DATA_I1D(1:wrt_int_state%KOUNT_I1D(NBDL),NBDL)= &
           itmp(1:wrt_int_state%KOUNT_I1D(NBDL))
 !
         NCHAR_I1D=wrt_int_state%KOUNT_I1D(NBDL)*NAME_MAXSTR
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=NAMETMP                               &  !<-- Recv names of integer history variables
-                        ,count   =NCHAR_I1D                             &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
+        CALL ESMF_VMRecv(VM                                    &  !<-- ESMF Virtual Machine
+                        ,NAMETMP                               &  !<-- Recv names of integer history variables
+                        ,NCHAR_I1D                             &  !<-- Words received
+                        ,0                                     &  !<-- Sending task (forecast task 0)
                         ,rc      =RC)
         wrt_int_state%NAMES_I1D_STRING(NBDL)=trim(NAMETMP)
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=ITMP                                  &  !<-- Recv the string of integer history data
-                        ,count   =wrt_int_state%LENGTH_SUM_I1D(NBDL)    &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
+        CALL ESMF_VMRecv(VM                                    &  !<-- ESMF Virtual Machine
+                        ,ITMP                                  &  !<-- Recv the string of integer history data
+                        ,wrt_int_state%LENGTH_SUM_I1D(NBDL)    &  !<-- Words received
+                        ,0                                     &  !<-- Sending task (forecast task 0)
                         ,rc      =RC)
         wrt_int_state%ALL_DATA_I1D(1:wrt_int_state%LENGTH_SUM_I1D(NBDL),NBDL)= &
           ITMP(1:wrt_int_state%LENGTH_SUM_I1D(NBDL))
@@ -1665,10 +1686,10 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=itmp                                  &  !<-- Recv # of scalar/1D real history variables
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
+        CALL ESMF_VMRecv(VM                                    &  !<-- ESMF Virtual Machine
+                        ,itmp                                  &  !<-- Recv # of scalar/1D real history variables
+                        ,1                                     &  !<-- Words received
+                        ,0                                     &  !<-- Sending task (forecast task 0)
                         ,rc      =RC)
         wrt_int_state%KOUNT_R1D(NBDL)=itmp(1)
 !
@@ -1676,33 +1697,33 @@
 !---------------------------------------------------------------------
         if(wrt_int_state%KOUNT_R1D(NBDL)>0 )then
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=itmp                                  &  !<-- Recv length of string of all such real history variables
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
+        CALL ESMF_VMRecv(VM                                    &  !<-- ESMF Virtual Machine
+                        ,itmp                                  &  !<-- Recv length of string of all such real history variables
+                        ,1                                     &  !<-- Words received
+                        ,0                                     &  !<-- Sending task (forecast task 0)
                         ,rc      =RC)
         wrt_int_state%LENGTH_SUM_R1D(NBDL)=itmp(1)
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=itmp                                  &  !<-- Recv lengths of each scalar/1D real history variable
-                        ,count   =wrt_int_state%KOUNT_R1D(NBDL)         &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
+        CALL ESMF_VMRecv(VM                                    &  !<-- ESMF Virtual Machine
+                        ,itmp                                  &  !<-- Recv lengths of each scalar/1D real history variable
+                        ,wrt_int_state%KOUNT_R1D(NBDL)         &  !<-- Words received
+                        ,0                                     &  !<-- Sending task (forecast task 0)
                         ,rc      =RC)
         wrt_int_state%LENGTH_DATA_R1D(1:wrt_int_state%KOUNT_R1D(NBDL),NBDL)= &
           itmp(1:wrt_int_state%KOUNT_R1D(NBDL))
 !
         NCHAR_R1D=wrt_int_state%KOUNT_R1D(NBDL)*ESMF_MAXSTR
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=nametmp                               &  !<-- Recv names of scalar/1D real history variables
-                        ,count   =NCHAR_R1D                             &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
+        CALL ESMF_VMRecv(VM                                    &  !<-- ESMF Virtual Machine
+                        ,nametmp                               &  !<-- Recv names of scalar/1D real history variables
+                        ,NCHAR_R1D                             &  !<-- Words received
+                        ,0                                     &  !<-- Sending task (forecast task 0)
                         ,rc      =RC)
         wrt_int_state%NAMES_R1D_STRING(NBDL)=trim(nametmp)
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=rtmp                                  &  !<-- Recv the string of all scalar/1D real history data
-                        ,count   =wrt_int_state%LENGTH_SUM_R1D(NBDL)       &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
+        CALL ESMF_VMRecv(VM                                    &  !<-- ESMF Virtual Machine
+                        ,rtmp                                  &  !<-- Recv the string of all scalar/1D real history data
+                        ,wrt_int_state%LENGTH_SUM_R1D(NBDL)       &  !<-- Words received
+                        ,0                                     &  !<-- Sending task (forecast task 0)
                         ,rc      =RC)
         wrt_int_state%ALL_DATA_R1D(1:wrt_int_state%LENGTH_SUM_R1D(NBDL),NBDL)= &
           rtmp(1:wrt_int_state%LENGTH_SUM_R1D(NBDL))
@@ -1721,10 +1742,10 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=itmp                                  &  !<-- Recv # of logical history variables
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
+        CALL ESMF_VMRecv(VM                                    &  !<-- ESMF Virtual Machine
+                        ,itmp                                  &  !<-- Recv # of logical history variables
+                        ,1                                     &  !<-- Words received
+                        ,0                                     &  !<-- Sending task (forecast task 0)
                         ,rc      =RC)
         wrt_int_state%KOUNT_LOG(NBDL)=itmp(1)
 !
@@ -1733,25 +1754,25 @@
         if(wrt_int_state%KOUNT_LOG(NBDL)>0 )then
 
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=itmp                                  &  !<-- Recv length of string of all logical history variables
-                        ,count   =1                                     &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
+        CALL ESMF_VMRecv(VM                                    &  !<-- ESMF Virtual Machine
+                        ,itmp                                  &  !<-- Recv length of string of all logical history variables
+                        ,1                                     &  !<-- Words received
+                        ,0                                     &  !<-- Sending task (forecast task 0)
                         ,rc      =RC)
         wrt_int_state%LENGTH_SUM_LOG(NBDL)=itmp(1)
 !
         NCHAR_LOG=wrt_int_state%KOUNT_LOG(NBDL)*NAME_MAXSTR
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=NAMETMP                               & !<-- Recv names of logical history variables
-                        ,count   =NCHAR_LOG                             &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
+        CALL ESMF_VMRecv(VM                                    &  !<-- ESMF Virtual Machine
+                        ,NAMETMP                               & !<-- Recv names of logical history variables
+                        ,NCHAR_LOG                             &  !<-- Words received
+                        ,0                                     &  !<-- Sending task (forecast task 0)
                         ,rc      =RC)
         wrt_int_state%NAMES_LOG_STRING(NBDL)=trim(NAMETMP)
 !
-        CALL ESMF_VMRecv(vm      =VM                                    &  !<-- ESMF Virtual Machine
-                        ,recvData=LTMP                                  &  !<-- Recv the string of all logical history data
-                        ,count   =wrt_int_state%LENGTH_SUM_LOG(NBDL)       &  !<-- Words received
-                        ,src     =0                                     &  !<-- Sending task (forecast task 0)
+        CALL ESMF_VMRecv(VM                                    &  !<-- ESMF Virtual Machine
+                        ,LTMP                                  &  !<-- Recv the string of all logical history data
+                        ,wrt_int_state%LENGTH_SUM_LOG(NBDL)       &  !<-- Words received
+                        ,0                                     &  !<-- Sending task (forecast task 0)
                         ,rc      =RC)
         wrt_int_state%ALL_DATA_LOG(1:wrt_int_state%LENGTH_SUM_LOG(NBDL),NBDL)= &
          LTMP(1:wrt_int_state%LENGTH_SUM_LOG(NBDL))

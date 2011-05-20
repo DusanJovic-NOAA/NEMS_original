@@ -1,5 +1,11 @@
 #include "../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#else
+#define ESMF_520rbs
+#endif
+
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_WRITE_GRID_COMP
@@ -44,6 +50,7 @@
 !       16 Dec 2010:  J. Wang  - Change to nemsio library
 !          Feb 2011:  W. Yang  - Updated to use both the ESMF 4.0.0rp2 library,
 !                                ESMF 5 library and the the ESMF 3.1.0rp2 library.
+!       12 May 2011   W. Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !---------------------------------------------------------------------------------
 !
       USE ESMF_MOD
@@ -174,11 +181,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(WRITE_COMP                        &  !<-- The write component
                                      ,ESMF_SETINIT                      &  !<-- Predefined subroutine type (INIT)
                                      ,WRITE_INITIALIZE                  &  !<-- User's subroutineName
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(WRITE_COMP                        &  !<-- The write component
+                                     ,ESMF_SETINIT                      &  !<-- Predefined subroutine type (INIT)
+                                     ,WRITE_INITIALIZE                  &  !<-- User's subroutineName
+                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
@@ -191,11 +206,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(WRITE_COMP                        &  !<-- The write component
                                      ,ESMF_SETRUN                       &  !<-- Predefined subroutine type (RUN)
                                      ,WRITE_RUN                         &  !<-- User's subroutineName
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(WRITE_COMP                        &  !<-- The write component
+                                     ,ESMF_SETRUN                       &  !<-- Predefined subroutine type (RUN)
+                                     ,WRITE_RUN                         &  !<-- User's subroutineName
+                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
@@ -208,11 +231,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
      CALL ESMF_GridCompSetEntryPoint(WRITE_COMP                         &  !<-- The write component
                                     ,ESMF_SETFINAL                      &  !<-- Predefined subroutine type (FINALIZE)
                                     ,WRITE_FINALIZE                     &  !<-- User's subroutineName
-                                    ,ESMF_SINGLEPHASE                   &
-                                    ,RC)
+                                     ,ESMF_SINGLEPHASE                  &
+                                     ,RC)
+#else
+     CALL ESMF_GridCompSetEntryPoint(WRITE_COMP                         &  !<-- The write component
+                                    ,ESMF_SETFINAL                      &  !<-- Predefined subroutine type (FINALIZE)
+                                    ,WRITE_FINALIZE                     &  !<-- User's subroutineName
+                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
@@ -1330,10 +1361,17 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_520rbs
+          CALL ESMF_FieldBundleGet(Fieldbundle=HISTORY_BUNDLE                &  !<-- The write component's history data Bundle
+                                  ,Fieldname  =wrt_int_state%FIELD_NAME(N)   &  !<-- The ESMF Field's name
+                                  ,field =FIELD_WORK1                        &  !<-- The ESMF Field data pointer
+                                  ,rc    =RC)
+#else
           CALL ESMF_FieldBundleGet(bundle=HISTORY_BUNDLE                &  !<-- The write component's history data Bundle
                                   ,name  =wrt_int_state%FIELD_NAME(N)   &  !<-- The ESMF Field's name
                                   ,field =FIELD_WORK1                   &  !<-- The ESMF Field data pointer
                                   ,rc    =RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -1572,10 +1610,17 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_520rbs
+          CALL ESMF_FieldBundleGet(Fieldbundle=RESTART_BUNDLE                  &  !<-- The write component's restart data Bundle
+                                  ,Fieldname  =wrt_int_state%RST_FIELD_NAME(N) &  !<-- The ESMF Field's name
+                                  ,field =FIELD_WORK1                          &  !<-- The ESMF Field data pointer
+                                  ,rc    =RC)
+#else
           CALL ESMF_FieldBundleGet(bundle=RESTART_BUNDLE                  &  !<-- The write component's restart data Bundle
                                   ,name  =wrt_int_state%RST_FIELD_NAME(N) &  !<-- The ESMF Field's name
                                   ,field =FIELD_WORK1                     &  !<-- The ESMF Field data pointer
                                   ,rc    =RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -4138,9 +4183,15 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
         CALL ESMF_GridCompSetServices(domain_int_state%WRITE_COMPS(I)    &  !<-- The Write gridded components
                                      ,WRITE_REGISTER                     &  !<-- The user's subroutine name
                                      ,RC)
+#else
+        CALL ESMF_GridCompSetServices(domain_int_state%WRITE_COMPS(I)    &  !<-- The Write gridded components
+                                     ,WRITE_REGISTER                     &  !<-- The user's subroutine name
+                                     ,rc = RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
@@ -4157,6 +4208,15 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_520rbs
+      domain_int_state%IMP_STATE_WRITE=ESMF_StateCreate(     name='Write Import State' &  !<-- Import state name for writes
+                                                       ,statetype= ESMF_STATE_IMPORT   &
+                                                       ,rc       = RC)
+!
+      domain_int_state%EXP_STATE_WRITE=ESMF_StateCreate(     name='Write Export State' &  !<-- Export state names for writes
+                                                       ,statetype= ESMF_STATE_EXPORT   &
+                                                       ,rc       = RC) 
+#else
       domain_int_state%IMP_STATE_WRITE=ESMF_StateCreate(statename='Write Import State' &  !<-- Import state name for writes
                                                        ,statetype= ESMF_STATE_IMPORT   &
                                                        ,rc       = RC)
@@ -4164,6 +4224,7 @@
       domain_int_state%EXP_STATE_WRITE=ESMF_StateCreate(statename='Write Export State' &  !<-- Export state names for writes
                                                        ,statetype= ESMF_STATE_EXPORT   &
                                                        ,rc       = RC) 
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)

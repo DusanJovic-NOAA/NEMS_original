@@ -1,5 +1,11 @@
 #include "../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#else
+#define ESMF_520rbs
+#endif
+
 !----------------------------------------------------------------------
 !
       MODULE MODULE_GFS_GRID_COMP
@@ -48,6 +54,7 @@
 !   2011-02   W Yang  - Updated to use both the ESMF 4.0.0rp2 library,
 !                       ESMF 5 series library and the the
 !                       ESMF 3.1.0rp2 library.
+!   2011-05-11  Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !
 ! USAGE: GFS Gridded component parts called from subroutines within
 !        module_ATM_GRID_COMP.F90.
@@ -152,11 +159,19 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP                     &  !<-- GFS gridded component
                                      ,ESMF_SETINIT                      &  !<-- Subroutine type
                                      ,GFS_INITIALIZE                    &  !<-- User's subroutine name
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP                     &  !<-- GFS gridded component
+                                     ,ESMF_SETINIT                      &  !<-- Subroutine type
+                                     ,GFS_INITIALIZE                    &  !<-- User's subroutine name
+                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -171,11 +186,19 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
+#ifdef ESMF_3
         CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP                     &  !<-- GFS gridded component
                                        ,ESMF_SETRUN                       &  !<-- Subroutine type
                                        ,GFS_RUN                           &  !<-- The primary Dynamics / Physics /Coupler sequence
                                        ,ESMF_SINGLEPHASE                  &
                                        ,RC)
+#else
+        CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP                     &  !<-- GFS gridded component
+                                       ,ESMF_SETRUN                       &  !<-- Subroutine type
+                                       ,GFS_RUN                           &  !<-- The primary Dynamics / Physics /Coupler sequence
+                                       ,phase=ESMF_SINGLEPHASE            &
+                                       ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -191,11 +214,19 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP                     &  !<-- GFS gridded component
                                      ,ESMF_SETFINAL                     &  !<-- Subroutine type
                                      ,GFS_FINALIZE                      &  !<-- User's subroutine name
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
+#else
+      CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP                     &  !<-- GFS gridded component
+                                     ,ESMF_SETFINAL                     &  !<-- Subroutine type
+                                     ,GFS_FINALIZE                      &  !<-- User's subroutine name
+                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -710,7 +741,7 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      IF( ESMF_ClockIsStopTime(gfs_int_state%CLOCK_GFS,RC)) then
+      IF( ESMF_ClockIsStopTime(gfs_int_state%CLOCK_GFS,rc=RC)) then
          print *,'in GFS_INITIALIZE, It is stop time'
       ENDIF
 !-----------------------------------------------------------------------
@@ -748,9 +779,15 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_GridCompSetServices(gfs_int_state%GC_GFS_DYN            &  !<-- The GFS Dynamics gridded component
                                    ,GFS_DYN_SETSERVICES                 &  !<-- The user's subroutineName for Register
                                    ,RC)
+#else
+      CALL ESMF_GridCompSetServices(gfs_int_state%GC_GFS_DYN            &  !<-- The GFS Dynamics gridded component
+                                   ,GFS_DYN_SETSERVICES                 &  !<-- The user's subroutineName for Register
+                                   ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -765,15 +802,27 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_520rbs
       gfs_int_state%IMP_GFS_DYN=ESMF_StateCreate                   &
-                             (statename="GFS dynamics import"      &
+                             (     NAME="GFS dynamics import"      &
                              ,statetype=esmf_state_import          &
                              ,rc       =RC)
 !
       gfs_int_state%EXP_GFS_DYN=ESMF_StateCreate                   &
-                             (statename="GFS dynamics export"      &
+                             (     NAME="GFS dynamics export"      &
                              ,statetype=esmf_state_export          &
                              ,rc       =RC)
+#else
+      gfs_int_state%IMP_GFS_DYN=ESMF_StateCreate                   &
+                             (STATENAME="GFS dynamics import"      &
+                             ,statetype=esmf_state_import          &
+                             ,rc       =RC)
+!
+      gfs_int_state%EXP_GFS_DYN=ESMF_StateCreate                   &
+                             (STATENAME="GFS dynamics export"      &
+                             ,statetype=esmf_state_export          &
+                             ,rc       =RC)
+#endif
 ! Add the GFS dynamics ESMF states as the nested states into the ATM parent states.
 !----------------------------------------------------------------------------------
       CALL ESMF_StateAdd(IMP_STATE, gfs_int_state%IMP_GFS_DYN, rc = RC)
@@ -892,9 +941,15 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
         CALL ESMF_GridCompSetServices(gfs_int_state%GC_GFS_PHY     &
                                      ,GFS_PHY_SETSERVICES          &
                                      ,RC)
+#else
+        CALL ESMF_GridCompSetServices(gfs_int_state%GC_GFS_PHY     &
+                                     ,GFS_PHY_SETSERVICES          &
+                                     ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -911,15 +966,27 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_520rbs
       gfs_int_state%IMP_GFS_PHY=ESMF_StateCreate                   &
-                             (statename="physics import"           &
+                             (     NAME="physics import"           &
                              ,statetype=ESMF_STATE_IMPORT          &
                              ,rc       =RC)
 !
       gfs_int_state%EXP_GFS_PHY=ESMF_StateCreate                   &
-                             (statename="physics export"           &
+                             (     NAME="physics export"           &
                              ,statetype=ESMF_STATE_EXPORT          &
                              ,rc       =RC)
+#else
+      gfs_int_state%IMP_GFS_PHY=ESMF_StateCreate                   &
+                             (STATENAME="physics import"           &
+                             ,statetype=ESMF_STATE_IMPORT          &
+                             ,rc       =RC)
+!
+      gfs_int_state%EXP_GFS_PHY=ESMF_StateCreate                   &
+                             (STATENAME="physics export"           &
+                             ,statetype=ESMF_STATE_EXPORT          &
+                             ,rc       =RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -942,7 +1009,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       gfs_int_state%GC_GFS_CPL=ESMF_CplCompCreate          &
-                              ("coupler component"         &
+                              (name="coupler component"         &
                               ,petList=PETLIST_FCST        &
                               ,rc     =RC)
 !
@@ -959,9 +1026,15 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
       CALL ESMF_CplCompSetServices(gfs_int_state%GC_GFS_CPL        &  !<-- The GFS Dynamics/Physics coupler component
                                   ,GFS_CPL_SETSERVICES             &  !<-- The user's subroutine name for Register
                                   ,RC)
+#else
+      CALL ESMF_CplCompSetServices(gfs_int_state%GC_GFS_CPL        &  !<-- The GFS Dynamics/Physics coupler component
+                                  ,GFS_CPL_SETSERVICES             &  !<-- The user's subroutine name for Register
+                                  ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)

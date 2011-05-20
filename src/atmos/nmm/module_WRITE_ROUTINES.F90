@@ -1,5 +1,11 @@
 #include "../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#else
+#define ESMF_520rbs
+#endif
+
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_WRITE_ROUTINES
@@ -1078,7 +1084,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_FieldBundleGet(bundle    =OUTPUT_BUNDLE               &  !<-- The write component's data Bundle
+        CALL ESMF_FieldBundleGet(           OUTPUT_BUNDLE               &  !<-- The write component's data Bundle
                                 ,fieldCount=NCOUNT_FIELDS(1)            &  !<-- Get total # of Fields in the data Bundle
                                 ,rc        =RC)
 !
@@ -1093,10 +1099,17 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_FieldBundleGet(bundle   =OUTPUT_BUNDLE                &  !<-- The write component's data Bundle
+#ifdef ESMF_520rbs
+        CALL ESMF_FieldBundleGet(          OUTPUT_BUNDLE                &  !<-- The write component's data Bundle
+                                ,fieldNameList =FIELD_NAME              &  !<-- Array of ESMF Field names in the Bundle
+                                ,fieldCount=NUM_FIELD_NAMES             &  !<-- Number of Field names in the Bundle
+                                ,rc       =RC)
+#else
+        CALL ESMF_FieldBundleGet(          OUTPUT_BUNDLE                &  !<-- The write component's data Bundle
                                 ,nameList =FIELD_NAME                   &  !<-- Array of ESMF Field names in the Bundle
                                 ,nameCount=NUM_FIELD_NAMES              &  !<-- Number of Field names in the Bundle
                                 ,rc       =RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
@@ -1128,9 +1141,9 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_FieldBundleGet(bundle=OUTPUT_BUNDLE                 &  !<-- The write component's data Bundle
-                                  ,name  =FIELD_NAME(N)                 &  !<-- The ESMF Field's name
-                                  ,field =FIELD_WORK1                   &  !<-- The ESMF Field taken from the Bundle
+          CALL ESMF_FieldBundleGet(       OUTPUT_BUNDLE                 &  !<-- The write component's data Bundle
+                                  ,       FIELD_NAME(N)                 &  !<-- The ESMF Field's name
+                                  ,       FIELD_WORK1                   &  !<-- The ESMF Field taken from the Bundle
                                   ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
