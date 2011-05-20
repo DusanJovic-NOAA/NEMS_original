@@ -78,6 +78,7 @@ To compile and load the model(s):
           ESMF_Version_Number = 3,  use ESMF 3.1.0rp2 library 
           ESMF_Version_Number = 4,  use ESMF 4.0.0rp2 library
           ESMF_Version_Number = 5,  use ESMF 5.1.0    library
+          ESMF_Version_Number = 5.2,use ESMF 5.2.0r_beta_snapshot_07 library
 
  (4) In /src execute one of the following commands indicating which cores are to be compiled:
        gmake nmm                          --- for NMM core only
