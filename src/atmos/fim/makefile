@@ -27,7 +27,7 @@ $(MODULES_STUB): %.o: %.f90
 	$(FC) $(FFLAGS_FIM) $(UTILINCS) -c $*.f90
 
 clean:
-	$(RM) -f $(LIBRARY) *.o *.mod *.lst lm map depend
+	$(RM) -f $(LIBRARY) *.o *.mod *.f90 *.lst lm map depend
 
 include ../../conf/make.rules
 
