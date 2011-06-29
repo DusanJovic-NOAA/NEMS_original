@@ -122,16 +122,42 @@
       KM = KTE
       LM = KTE
        mommix = 1.0    !!! HWRF uses this to adjust/tune moment mixing
-       DUDT = 0.0
-       DVDT = 0.0
-       RTHCUTEN = 0.0
-       RQVCUTEN = 0.0
-       RQCCUTEN = 0.0
-       RQRCUTEN = 0.0
-       RQICUTEN = 0.0
-       RQSCUTEN = 0.0
-       RQGCUTEN = 0.0
-       
+
+!.......................................................................
+!$omp parallel do                &
+!$omp     private(k,j,i)
+!.......................................................................
+       DO K=KTS,KTE
+        DO J=JMS,JME
+         DO I=IMS,IME
+          DUDT(I,J,K) = 0.0
+          DVDT(I,J,K) = 0.0
+         ENDDO
+        ENDDO
+       ENDDO
+!.......................................................................
+!$omp end parallel do              
+!.......................................................................
+!.......................................................................
+!$omp parallel do                &
+!$omp     private(k,j,i)
+!.......................................................................
+       DO K=KMS,KME
+        DO J=JMS,JME
+         DO I=IMS,IME
+            RTHCUTEN(I,J,K) = 0.0
+            RQVCUTEN(I,J,K) = 0.0
+            RQCCUTEN(I,J,K) = 0.0
+            RQRCUTEN(I,J,K) = 0.0
+            RQICUTEN(I,J,K) = 0.0
+            RQSCUTEN(I,J,K) = 0.0
+            RQGCUTEN(I,J,K) = 0.0
+         ENDDO
+        ENDDO
+       ENDDO
+!.......................................................................
+!$omp end parallel do                
+!.......................................................................
       IF ( (.NOT. DEEP) .AND. (.NOT. SHALLOW) ) RETURN
 
 !-----------------------------------------------------------------------
@@ -158,6 +184,12 @@
 !
         DTCNVC=DT*NCNVC
 !
+!.......................................................................
+!$omp parallel do                &
+!$omp     private(j,i,k,landmask,slimsk,zf,kflip,delt,psp,prsl,delp,phil,u1,&
+!$omp             v1,t1,q1,clw,ud_mf,dd_mf,dt_mf,cldwrk,vvel,hflx,evap,hpbl,&
+!$omp             kcnv,kbot,ktop,u0,v0,t0,q0,clw0,tmp,fract,rn,jcap)
+!.......................................................................
         DO J=JTS,JTE  
         DO I=ITS,ITE
 !
@@ -358,6 +390,9 @@
         ENDIF
         ENDDO
         ENDDO
+!.......................................................................
+!$omp end parallel do              
+!.......................................................................
 !
       ENDIF                                               !! end of convection
 !

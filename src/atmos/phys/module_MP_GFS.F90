@@ -90,16 +90,32 @@
 !
         DTP = DT   !- was 2.0*DT
         frain = DT/DTP
-        RHC(:,:) = rh00
-
-               DO j = jts,jte
                DO k = kts,kte
+                rhc(ix,k)=rh00
+               enddo
+!.......................................................................
+!$omp parallel do                &
+!$omp     private(k,j,i)
+!.......................................................................
+
+               DO k = kts,kte
+               DO j = jts,jte
                DO i = its,ite
                 t_phy(i,j,k) = th_phy(i,j,k)*pi_phy(i,j,k)
+                TLATGS_PHY (i,j,k)=0.
+                TRAIN_PHY  (i,j,k)=0.
                ENDDO
                ENDDO
                ENDDO
+!.......................................................................
+!$omp end parallel do
+!.......................................................................
 
+
+!.......................................................................
+!$omp parallel do                &
+!$omp     private(j,i)
+!.......................................................................
       DO j = jts,jte
        DO i = its,ite
          ACPREC(i,j)=0.
@@ -107,17 +123,20 @@
          PREC  (i,j)=0.
          SR    (i,j)=0.
        ENDDO
-       DO k = kts,kte
-       DO i = its,ite
-	 TLATGS_PHY (i,j,k)=0.
-	 TRAIN_PHY  (i,j,k)=0.
-       ENDDO
-       ENDDO
       ENDDO
+!.......................................................................
+!$omp end parallel do
+!.......................................................................
 !
 !-----------------------------------------------------------------------
 !-- Start of original driver for EGCP01COLUMN
 !-----------------------------------------------------------------------
+!.......................................................................
+!$omp parallel do                &
+!$omp     private(j,i,k,kflip,delp,prsl,q_col,cwm_col,t_col,tp1_col, &
+!$omp             qp1_col,tp2_col,qp2_col,psp1_1,psp2_1,iw,ps,rain1,fice &
+!$omp             )
+!.......................................................................
        DO J=JTS,JTE    
         DO I=ITS,ITE  
           DO K=KTS,KTE
@@ -258,13 +277,21 @@
     enddo                          ! End "I" loop
     enddo                          ! End "J" loop
 !.......................................................................
-     DO j = jts,jte
-        DO k = kts,kte
+!$omp end parallel do
+!.......................................................................
+!.......................................................................
+!$omp parallel do                &
+!$omp     private(k,j,i)
+!.......................................................................
+     DO k = kts,kte
+        DO j = jts,jte
 	DO i = its,ite
            th_phy(i,j,k) = t_phy(i,j,k)/pi_phy(i,j,k)
           ENDDO   !- i
         ENDDO     !- k
      ENDDO        !- j
+!.......................................................................
+!$omp end parallel do
 !.......................................................................
 ! 
 !- Update rain (convert from m to kg/m**2, which is also equivalent to mm depth)

@@ -158,17 +158,42 @@
      !! xkzm_h = 1.0
       xkzm_h = 0.05  ! 0.1  !0.0  !1.0 !0.1  !0.2 !#0.5
       xkzm_s = 0.2              !! background diffusivity, see compns_physics.f in gfs/phys
+!--------------------------------------------------------------
+!.......................................................................
+!$omp parallel do                &
+!$omp     private(k,j,i)
+!.......................................................................
+      DO K=KMS,KME
+      DO J=JMS,JME
+      DO I=IMS,IME
+      RQCBLTEN(I,J,K) = 0.0
+      RQVBLTEN(I,J,K) = 0.0
+      RQRBLTEN(I,J,K) = 0.0
+      RQIBLTEN(I,J,K) = 0.0
+      RQSBLTEN(I,J,K) = 0.0
+      RQGBLTEN(I,J,K) = 0.0
+      RTHBLTEN(I,J,K) = 0.0
+      RUBLTEN(I,J,K) = 0.0
+      RVBLTEN(I,J,K) = 0.0
+      ENDDO
+      ENDDO
+      ENDDO
+!.......................................................................
+!$omp end parallel do
+!.......................................................................
 
-      RQCBLTEN = 0.0
-      RQVBLTEN = 0.0
-      RQRBLTEN = 0.0
-      RQIBLTEN = 0.0
-      RQSBLTEN = 0.0
-      RQGBLTEN = 0.0
-      RTHBLTEN = 0.0
-      RUBLTEN = 0.0
-      RVBLTEN = 0.0
-      pblh = 0.9
+!.......................................................................
+!$omp parallel do                &
+!$omp     private(j,i)
+!.......................................................................
+      DO J=JMS,JME
+      DO I=IMS,IME
+       PBLH(I,J) = 0.9
+      ENDDO
+      ENDDO
+!.......................................................................
+!$omp end parallel do
+!.......................................................................
 
 !!         write(0,*)'inside GFSBL',water(35,17,lm-5:lm,p_qv)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -179,8 +204,13 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    
        if(lpr) write(0,*)'old qsfc,qz0,thz0,tsk',qsfc(35,17),qz0(35,17),thz0(35,17),tsk(35,17)         
-      DO I=ITS,ITE
+!--------------------------------------------------------------
+!.......................................................................
+!$omp parallel do                &
+!$omp     private(j,i,k,qklow,cwmklow,rhoklow,thsk,seamask,qfc1,psfc,exnsfc)
+!.......................................................................
       DO J=JTS,JTE
+      DO I=ITS,ITE
            K=LM
            QKLOW=WATER(I,J,K,P_QV)/(1.0+ WATER(I,J,K,P_QV))
            CWMKLOW=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)+WATER(I,J,K,P_QI)+ &
@@ -220,11 +250,22 @@
                QZ0 (I,J)=(1.-SEAMASK)*QSFC(I,J)+SEAMASK*QZ0 (I,J)
       ENDDO
       ENDDO
+!.......................................................................
+!$omp end parallel do
+!.......................................................................
       if(lpr) write(0,*)'new qsfc,qz0,thz0',qsfc(35,17),qz0(35,17),thz0(35,17)         
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!END OF UPDATING QSFC, QZ0 !!!!!!!!!!!!!!!!!!!!!!!!!
 
-      DO I=ITS,ITE
+!--------------------------------------------------------------
+!.......................................................................
+!$omp parallel do                                                                     &
+!$omp     private(j,i,k,dvdt,dudt,dtdt,k1,dqdt,kflip,prsi,prsik,phii,ugrs,vgrs,       &
+!$omp            tgrs,qgrs,del,prsl,prslk,swh,hlw,zmid1,phil,xmu,surface,seamask,plow,&
+!$omp             tz0,hflx,evap,rb,ffmm,ffhh,tsea,qss,wind,stress,kpbl,dusfc1,dvsfc1, &
+!$omp             dqsfc1,hpbl,gamt,gamq,dkt,pii)
+!.......................................................................
       DO J=JTS,JTE
+      DO I=ITS,ITE
 
            DO K=1,LM  
             dvdt(1,K) = 0.0
@@ -328,71 +369,16 @@
              IF(P_QS .GT. 1) RQSBLTEN(I,J,K) = dqdt(1,KFLIP,P_QS-1)
              IF(P_QG .GT. 1) RQGBLTEN(I,J,K) = dqdt(1,KFLIP,P_QG-1)
           ENDDO
- 
 
              PBLH(I,J)  = hpbl(1)
              PBLK(I,J)  = LM+1-kpbl(1)
              MIXHT(I,J)  = hpbl(1)
-          !!IF (lpr .and. I .eq. 9 .and. J .eq. 952) Then
-          IF (lpr .and. I .eq. 35 .and. J .eq. 17) Then
-           write(0,*)'surface air den=',airden(I,J,LM)
-           write(0,*)'pmid=',Pmid(I,J,1:LM)
-           write(0,*)'Z=',ZINT(I,J,1:LM)
-           write(0,*)'DP=',dp(I,J,1:LM)
-           write(0,*)'prsik=',prsik(1,1:LM)
-           write(0,*)'prslk=',prslk(1,1:LM)
-           write(0,*)'phii=',phii(1,1:LM)
-           write(0,*)'phil=',phil(1,1:LM)
-           write(0,*)'Sheat,Lheat=',SHEAT(I,J),Lheat(I,J)
-           write(0,*)'a96, a97=',a96, a97
-           write(0,*)'hflx,evap=',hflx(1),evap(1)
-           write(0,*)'qz0,qgrs(1,1,1)=',qz0(I,J),qgrs(1,1:5,1)
-           write(0,*)'thz0,tgrs(1,1)=',thz0(I,J),tgrs(1,1:5)/prslk(1,1:5)
-           write(0,*)'temp1,akhs=',temp1,akhs(I,j)
-           write(0,*)'RiB=',RIB(I,J)
-           write(0,*)'fffmm=,fh=',ffmm(1),ffhh(1)
-       !    write(0,*)'flux RI,new, old =',a96, a97
-           write(0,*)'Ustar=',Ustar(I,J)
-           write(0,*)'PBLH=',hpbl(1)
-           write(0,*)'PBLK=',pblk(I,J)
-           write(0,*)'xmu=',xmu(1) 
-           write(0,*)'swh,hlw=',swh(1,1:LM),hlw(1,1:LM)
-            write(0,*)'ugrs,   v,  t,   qv,   qc, dtdt, dqdt '
-            do k1=1,LM
-            write(0,119)phil(1,k1)/9.8,ugrs(1,k1),vgrs(1,k1),tgrs(1,k1)/prslk(1,k1),qgrs(1,k1,1),&
-                        qgrs(1,k1,2),dtdt(1,k1),dqdt(1,k1,1)
-            enddo
-119        format(F6.0,7E12.4)
-        !   write(0,*)'ugrs=,',Ugrs(1,1:LM)
-        !   write(0,*)'vgrs=,',vgrs(1,1:LM)
-        !   write(0,*)'tgrs=,',tgrs(1,1:LM)
-        !   write(0,*)'qv=,',qgrs(1,1:LM,1)
-        !   write(0,*)'qc=,',qgrs(1,1:LM,2)
-           write(0,*)'dudt=',rublten(i,j,:)  !!dudt(1,:)
-           write(0,*)'dvdt=',rvblten(i,j,:)  !!dvdt(1,:)
-           write(0,*)'dtdt=',rthblten(i,j,:) !!dtdt(1,:)
-           write(0,*)'num_water,p_qv,p_qc,qr,qi,qs,qg=',num_water,p_qv, p_qc,p_qr,p_qi,p_qs,p_qg
-           write(0,*)'dqvdt=',rqvblten(i,j,:)
-           write(0,*)'LM=',LM
-
-          ENDIF
-            IF(maxval(abs(dqdt)) .ge. 100*0.5e-2) Then
-              write(0,*)'big dqdt'
-              write(0,*)'i,j=',i,j
-              write(0,*)'dqdt=',dqdt(1,:,1)
-              write(0,*)'dqcdt=',dqdt(1,:,2)
-              write(0,*)'dqrdt=',dqdt(1,:,3)
-              write(0,*)'dqsdt=',dqdt(1,:,4)
-              write(0,*)'dtdt=',dtdt(1,:)
-              write(0,*)'T=',tgrs(1,1:lm)
-              write(0,*)'qv=',qgrs(1,1:lm,1)
-              write(0,*)'u=',ugrs(1,1:lm)
-              write(0,*)'v=',vgrs(1,1:lm)
-              stop
-            endif
  
       ENDDO
       ENDDO
+!.......................................................................
+!$omp end parallel do
+!.......................................................................
 
          IF (lpr ) Then
       write(0,*)'max pblh=',maxval(pblh), minval(pblh)
