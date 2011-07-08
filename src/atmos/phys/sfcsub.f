@@ -2722,6 +2722,8 @@
       implicit none
       integer lgrib,n,lskip,jret,j,ndata,lugi,jdim,idim,lugb,
      &        iret, me,kpds5,mdata,kdata,i
+!jw: get w3 real kind
+     &        ,w3kindreal,w3kindint
 !
       CHARACTER*500 FNGRIB
 !Clu [-1L/+1L] increase the dimension size
@@ -2732,7 +2734,8 @@
       REAL (KIND=KIND_IO8) GDATA(IDIM*JDIM)
       LOGICAL GAUS
       REAL (KIND=KIND_IO8) BLNO,BLTO
-      real(kind=kind_io8) data4(idim*jdim)
+      real(kind=kind_io8) data8(idim*jdim)
+      real(kind=kind_io4) data4(idim*jdim)
 !
       LOGICAL*1 LBMS(MDATA)
 !
@@ -2783,8 +2786,16 @@
       jpds = kpds0
       lskip = -1
       kdata=idim*jdim
-      call getgb(lugb,lugi,kdata,lskip,jpds,jgds,ndata,lskip,
+      call w3kind(w3kindreal,w3kindint)
+      if(w3kindreal==8) then
+        call getgb(lugb,lugi,kdata,lskip,jpds,jgds,ndata,lskip,
+     &                kpds,kgds,lbms,data8,jret)
+      else if (w3kindreal==4) then
+        call getgb(lugb,lugi,kdata,lskip,jpds,jgds,ndata,lskip,
      &                kpds,kgds,lbms,data4,jret)
+        data8=data4
+      endif
+
 !
       if(jret.eq.0) then
         IF(NDATA.EQ.0) THEN
@@ -2798,7 +2809,7 @@
         gaus=kgds(1).eq.4
         blno=kgds(5)*1.d-3
         blto=kgds(4)*1.d-3
-        gdata(1:idim*jdim)=data4(1:idim*jdim)
+        gdata(1:idim*jdim)=data8(1:idim*jdim)
         if (me .eq. 0) WRITE(6,*) 'IDIM,JDIM=',IDIM,JDIM
      &,                ' gaus=',gaus,' blno=',blno,' blto=',blto
       ELSE
@@ -7768,6 +7779,8 @@ cjfe
       implicit none
       integer mdata,imax,jmax,ijmax,i,j,n,jret,inttyp,iret,imsk,
      &        jmsk,len,lugb,kpds5,mon,lskip,lgrib,ndata,lugi,me,KMAMI
+!jw: get w3 real kind
+     &        ,w3kindreal,w3kindint
       REAL (KIND=KIND_IO8) wlon,elon,rnlat,dlat,dlon,rslat,blno,blto
 !
 !   Read in GRIB climatology files and interpolate to the input
@@ -7787,7 +7800,8 @@ cjfe
 !
       REAL (KIND=KIND_IO8) GDATA(LEN), SLMASK(LEN)
       REAL (KIND=KIND_IO8) DATA(MDATA),WORK(MDATA),RSLMSK(MDATA)
-      real(kind=kind_io8) data4(mdata)
+      real(kind=kind_io8) data8(mdata)
+      real(kind=kind_io4) data4(mdata)
       real (kind=kind_io8), allocatable :: rlngrb(:), rltgrb(:)
 !
       LOGICAL LMASK, YR2KC, GAUS, IJORDR
@@ -7850,8 +7864,16 @@ cjfe
       JPDS    = KPDS0
       JPDS(9) = MON
       IF(JPDS(9).EQ.13) JPDS(9) = 1
-      call getgb(lugb,lugi,mdata,lskip,jpds,jgds,ndata,lskip,
+      call w3kind(w3kindreal,w3kindint)
+      if(w3kindreal==8) then
+        call getgb(lugb,lugi,mdata,lskip,jpds,jgds,ndata,lskip,
+     &          kpds,kgds,lbms,data8,jret)
+      else if (w3kindreal==4) then
+        call getgb(lugb,lugi,mdata,lskip,jpds,jgds,ndata,lskip,
      &          kpds,kgds,lbms,data4,jret)
+        data8=data4
+      endif
+
       if (me .eq. 0) WRITE(6,*) ' Input grib file dates=',
      &              (KPDS(I),I=8,11)
       if(jret.eq.0) then
@@ -7864,7 +7886,7 @@ cjfe
         IMAX=KGDS(2)
         JMAX=KGDS(3)
         IJMAX=IMAX*JMAX
-        data(1:ijmax)=data4(1:ijmax)
+        data(1:ijmax)=data8(1:ijmax)
         if (me .eq. 0) WRITE(6,*) 'IMAX,JMAX,IJMAX=',IMAX,JMAX,IJMAX
       ELSE
         WRITE(6,*) ' Error in getgb - jret=', jret
@@ -7924,6 +7946,8 @@ cjfe
      &        lgrib,j,ndata,i,inttyp,jmax,imax,ijmax,ij,jday,len,iret,
      &        jmsk,imsk,ih,kpds5,lugb,iy,id,im,jh,jd,jdoy,jdow,jm,me,
      &        monend,jy,iy4,KMAMI,iret2
+!jw get w3 real kind
+     &        ,w3kindreal,w3kindint
       REAL (KIND=KIND_IO8) rnlat,rslat,wlon,elon,dlon,dlat,fh,blno,
      &                     rjday,blto
 !
@@ -7947,7 +7971,8 @@ cjfe
 !
       REAL (KIND=KIND_IO8) GDATA(LEN), SLMASK(LEN)
       REAL (KIND=KIND_IO8) DATA(MDATA),WORK(MDATA),RSLMSK(MDATA)
-      real(kind=kind_io8) data4(mdata)
+      real(kind=kind_io8) data8(mdata)
+      real(kind=kind_io4) data4(mdata)
       real (kind=kind_io8), allocatable :: rlngrb(:), rltgrb(:)
 !
       LOGICAL LMASK, YR2KC, GAUS, IJORDR
@@ -8066,8 +8091,16 @@ cjfe
       JPDS(10)=IDY
 !     JPDS(11)=IHR
       JPDS(21)=(IYR-1)/100+1
-      call getgb(lugb,lugi,mdata,lskip,jpds,jgds,ndata,lskip,
+      call w3kind(w3kindreal,w3kindint)
+      if(w3kindreal==8) then
+        call getgb(lugb,lugi,mdata,lskip,jpds,jgds,ndata,lskip,
+     &           kpds,kgds,lbms,data8,jret)
+      else if (w3kindreal==4) then
+        call getgb(lugb,lugi,mdata,lskip,jpds,jgds,ndata,lskip,
      &           kpds,kgds,lbms,data4,jret)
+        data8=data4
+      endif
+
       if (me .eq. 0) WRITE(6,*) ' Input grib file dates=',
      &              (KPDS(I),I=8,11)
       IF(jret.eq.0) THEN
@@ -8080,7 +8113,7 @@ cjfe
         IMAX=KGDS(2)
         JMAX=KGDS(3)
         IJMAX=IMAX*JMAX
-         data(1:ijmax)=data4(1:ijmax)
+         data(1:ijmax)=data8(1:ijmax)
       ELSE
         IF(NREPT.EQ.0) THEN
           if (me .eq. 0) then

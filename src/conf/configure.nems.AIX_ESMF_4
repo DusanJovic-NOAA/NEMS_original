@@ -5,7 +5,7 @@ ESMF_LIBS = /gpfs/t3/global/save/wx20wy/BASELIBS/esmf_4_0_0rp2_src/AIX/lib/libO/
 
 #EXTLIBS   = $(ESMF_LIBS) -L/nwprod/lib -lbacio_4 -lw3_d -lsp_d -lessl_r -lmass -lmassvp6
 #EXTLIBS   = -L/climate/save/wx20wa/gfsio/w3/sorc_opn_gblevent -lw3_d $(ESMF_LIBS) -L/nwprod/lib -lbacio_4 -lsp_d -lessl_r -lmass -lmassvp6
-EXTLIBS   = -L/climate/save/wx20wa/gfsio/w3/sorc_opn_gblevent -lw3_d -L/climate/save/wx20wa/gfsio/lib/nemsio -lnemsio $(ESMF_LIBS) -L/nwprod/lib -lbacio_4 -lsp_d -lessl_r -lmass -lmassvp6 
+EXTLIBS   = -L/climate/save/wx20wa/gfsio/w3/sorc_opn -lw3_d -L/climate/save/wx20wa/gfsio/lib/nemsio -lnemsio $(ESMF_LIBS) -L/nwprod/lib -lbacio_4 -lsp_d -lessl_r -lmass -lmassvp6 
 NEMSIO_INC  = -I/climate/save/wx20wa/gfsio/lib/nemsio/incmod
 
 FC        = mpxlf95_r 

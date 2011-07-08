@@ -8,6 +8,7 @@
 
 !!
 !! Revision history:
+!         2008    Henry Juang, original code
 !  Nov 23 2009    Sarah Lu, tracer read-in is generalized (loop through ntrac, with
 !                 tracer name specified in gfs_dyn_tracer_config)
 !  Apr 09 2010    Sarah Lu, set rqg initial value to 1.e-15
@@ -18,6 +19,8 @@
 !  Feb 20 2011    Henry Juang, change to have mass dp and ndslfv
 !  Feb 26 2011    Sarah Lu, modify to read both cold-start (from chgres) and 
 !                 warm-start (from replay) ICs
+!  Jun    2011    Jun Wang   reading fields from grib file with either w3_d 
+!                 or w3_4 lib
 !  
  
       use gfs_dyn_resol_def
@@ -63,7 +66,7 @@
       INTEGER              MAX_LS_NODES(NODES)
       integer              lats_nodes_a(nodes)
       INTEGER              IPRINT
-      INTEGER              J,K,L,LOCL,N,lv,kk
+      INTEGER              J,K,L,LOCL,N,lv,kk,w3rlkind,w3ikind
       integer              i,lan,lat,iblk,lons_lat,il,lon,njeff,nn
       integer              indev
       integer              indod
@@ -332,7 +335,15 @@
 !  Read orog
        stime=timef()
 
-      call nemsio_readrecv(gfile_in,'hgt','sfc',1,nemsio_data,iret=iret)
+      call w3kind(w3rlkind,w3ikind)
+!
+      if(w3rlkind==8) then
+        call nemsio_readrecv(gfile_in,'hgt','sfc',1,nemsio_data,
+     &     iret=iret)
+      elseif(w3rlkind==4) then
+        call nemsio_readrecvw34(gfile_in,'hgt','sfc',1,nemsio_data, 
+     &    iret=iret)
+      endif
 
       print *,'in treadeo,time=',timef()-stime,'hgt=',
      &  maxval(nemsio_data),minval(nemsio_data), 'iret=',iret
@@ -343,15 +354,25 @@
       ijm=lonf*lats_node_a
 !
 !  Read ps
-      call nemsio_readrecv(gfile_in,'pres','sfc',1,nemsio_data,
+      if(w3rlkind==8) then
+        call nemsio_readrecv(gfile_in,'pres','sfc',1,nemsio_data,
      &    iret=iret)
+      elseif(w3rlkind==4) then
+        call nemsio_readrecvw34(gfile_in,'pres','sfc',1,nemsio_data,
+     &    iret=iret)
+      endif
       call split2d(nemsio_data,buffo,global_lats_a)
       CALL interpred(1,kmsk,buffo,psg,global_lats_a,lonsperlat)
 !
 !  Read u
       do k=1,levs
-       call nemsio_readrecv(gfile_in,'ugrd','mid layer',k,nemsio_data,
+       if(w3rlkind==8) then
+         call nemsio_readrecv(gfile_in,'ugrd','mid layer',k,nemsio_data,
      &     iret=iret)
+       elseif(w3rlkind==4) then
+         call nemsio_readrecvw34(gfile_in,'ugrd','mid layer',k,
+     &     nemsio_data,iret=iret)
+       endif
 !      print *,'in treadeo,ugrd=',maxval(nemsio_data),
 !     & minval(nemsio_data),'iret=',iret,'k=',k
        call split2d(nemsio_data,buffo,global_lats_a)
@@ -359,23 +380,38 @@
       enddo
 !  Read v
       do k=1,levs
+       if(w3rlkind==8) then
         call nemsio_readrecv(gfile_in,'vgrd','mid layer',k,nemsio_data,
      &   iret=iret)
-        call split2d(nemsio_data,buffo,global_lats_a)
-        CALL interpred(1,kmsk,buffo,vvg(1,1,k),global_lats_a,lonsperlat)
+       elseif(w3rlkind==4) then
+        call nemsio_readrecvw34(gfile_in,'vgrd','mid layer',k,
+     &   nemsio_data,iret=iret)
+       endif
+       call split2d(nemsio_data,buffo,global_lats_a)
+       CALL interpred(1,kmsk,buffo,vvg(1,1,k),global_lats_a,lonsperlat)
       enddo
 !  Read T   -- this is real temperature
       do k=1,levs
+       if(w3rlkind==8) then
         call nemsio_readrecv(gfile_in,'tmp','mid layer',k,nemsio_data,
      &     iret=iret)
+       elseif(w3rlkind==4) then
+        call nemsio_readrecvw34(gfile_in,'tmp','mid layer',k,
+     &     nemsio_data,iret=iret)
+       endif
         call split2d(nemsio_data,buffo,global_lats_a)
         CALL interpred(1,kmsk,buffo,ttg(1,1,k),global_lats_a,lonsperlat)
       enddo
 
 !  Read dp 
       do k=1,levs
+       if(w3rlkind==8) then
         call nemsio_readrecv(gfile_in,'dpres','mid layer',k,nemsio_data,
      &     iret=iret)
+       elseif(w3rlkind==4) then
+        call nemsio_readrecvw34(gfile_in,'dpres','mid layer',k,
+     &     nemsio_data,iret=iret)
+       endif
         call split2d(nemsio_data,buffo,global_lats_a)
         CALL interpred(1,kmsk,buffo,dpg(1,1,k),global_lats_a,lonsperlat)
       enddo
@@ -393,8 +429,13 @@
         vname = trim(gfs_dyn_tracer%vname(n, 1))
         if(me==0) print *,'LU_TRC: initialize ',n,vname
         do k=1,levs
+         if(w3rlkind==8) then
           call nemsio_readrecv(gfile_in,trim(vname),
      &                       'mid layer',k,nemsio_data,iret=iret)
+         elseif(w3rlkind==4) then
+          call nemsio_readrecvw34(gfile_in,trim(vname),
+     &                       'mid layer',k,nemsio_data,iret=iret)
+         endif
           if(iret == 0) then
 !*          if(me==0) print *,'LU_TRC: tracer read in ok -',
 !*   &                gfs_dyn_tracer%vname(n, 1),k

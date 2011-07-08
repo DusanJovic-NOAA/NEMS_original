@@ -33,6 +33,8 @@
 !***  Mar    2011  J. WANG    output lpl,zsoil for sfc file
 !***  MAR 2011   Weiyu Yang, Use the fieldbundle list to avoid the ESMF
 !***                         log error. Fix bug.
+!***  Jun    2011  J. Wang   change field names in flx file to standard grib
+!***                         names
 !***
 !-----------------------------------------------------------------------
 !
@@ -415,16 +417,16 @@
            ,'snowc_ave       ', 'OGFS_FLX        ', 'sfc             ' &   !95
            ,'soilm           ', 'OGFS_FLX        ', '0-200 cm down   ' &   !96
            ,'dswrf           ', 'OGFS_FLX        ', 'nom. top        ' &   !97
-           ,'csulwrf         ', 'OGFS_FLX        ', 'nom. top        ' &   !98
-           ,'csuswrf         ', 'OGFS_FLX        ', 'nom. top        ' &   !99
-           ,'csdlwrf         ', 'OGFS_FLX        ', 'sfc             ' &   !100
-           ,'csuswrf         ', 'OGFS_FLX        ', 'sfc             ' &   !101
-           ,'csdswrf         ', 'OGFS_FLX        ', 'sfc             ' &   !102
-           ,'csulwrf         ', 'OGFS_FLX        ', 'sfc             ' &   !103
-           ,'snohfa          ', 'OGFS_FLX        ', 'sfc             ' &   !104
-           ,'smcwlt          ', 'OGFS_FLX        ', 'sfc             ' &   !105
-           ,'smcref          ', 'OGFS_FLX        ', 'sfc             ' &   !106
-           ,'sunshine_acc    ', 'OGFS_FLX        ', 'sfc             ' &   !107
+           ,'csulf           ', 'OGFS_FLX        ', 'nom. top        ' &   !98
+           ,'csusf           ', 'OGFS_FLX        ', 'nom. top        ' &   !99
+           ,'csdlf           ', 'OGFS_FLX        ', 'sfc             ' &   !100
+           ,'csusf           ', 'OGFS_FLX        ', 'sfc             ' &   !101
+           ,'csdsf           ', 'OGFS_FLX        ', 'sfc             ' &   !102
+           ,'csulf           ', 'OGFS_FLX        ', 'sfc             ' &   !103
+           ,'snohf           ', 'OGFS_FLX        ', 'sfc             ' &   !104
+           ,'wilt            ', 'OGFS_FLX        ', 'sfc             ' &   !105
+           ,'fldcp           ', 'OGFS_FLX        ', 'sfc             ' &   !106
+           ,'sunsd_acc       ', 'OGFS_FLX        ', 'sfc             ' &   !107
            ,'aod             ', 'OGFS_FLX        ', 'atmos col       ' &   !108
            ,'duaod           ', 'OGFS_FLX        ', 'atmos col       ' &   !109
            ,'bcaod           ', 'OGFS_FLX        ', 'atmos col       ' &   !110

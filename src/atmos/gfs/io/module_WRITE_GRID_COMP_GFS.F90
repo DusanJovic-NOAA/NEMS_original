@@ -35,6 +35,8 @@
 !          Feb 2011:  W. Yang  - Updated to use both the ESMF 4.0.0rp2 library,
 !                                ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !       05 May 2011:  W. Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!       25 Jun 2011:  J. Wang  - Writing output grib file with either w3_d or 
+!                                w3_4 lib
 
 !---------------------------------------------------------------------------------
 !
@@ -612,6 +614,7 @@
 !jw
       INTEGER                               :: nnext,nstart,nlat,jlat    &
                                               ,nfcst_tasks_send
+      INTEGER                               :: w3realkind,w3ikind
       INTEGER                               :: NSTART_I2D,NSTART_R2D
       INTEGER                               :: JFCST_I2D,JFCST_R2D
       INTEGER                               :: NLAT_I2D,NLAT_R2D
@@ -1705,7 +1708,12 @@
 !
             TMP=RESHAPE(wrt_int_state%OUTPUT_ARRAY_I2D(1:IM,1:JM),(/FIELDSIZE/))
 !
-            CALL NEMSIO_WRITEREC(NEMSIOFILE,NFIELD,TMP,IRET=IERR)           !<-- Lead write task writes out the 2D int data!
+            call w3kind(w3realkind,w3ikind)
+            if(w3realkind==8) then
+              CALL NEMSIO_WRITEREC(NEMSIOFILE,NFIELD,TMP,IRET=IERR)           !<-- Lead write task writes out the 2D int data!
+            else
+              CALL NEMSIO_WRITERECW34(NEMSIOFILE,NFIELD,TMP,IRET=IERR)        !<-- Lead write task writes out the 2D int data!
+             endif
              if(ierr/=0) print *,'rec num=',NFIELD,' write ',trim(NAME), &
                'into file,ierr=',ierr,'NF_hours=',NF_HOURS,'nf_minutes=',&
                NF_MINUTES
@@ -1824,11 +1832,21 @@
 !               maxval(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)), &
 !               minval(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)), 'itr=',itr
 !
+            call w3kind(w3realkind,w3ikind)
             if(itr==-99) then
-              CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)
+             if(w3realkind==8) then
+               CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)
+             else
+               CALL NEMSIO_WRITERECW34(NEMSIOFILE,N,TMP,IRET=IERR)
+             endif
             else
-              CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR,itr=itr,      &
+             if(w3realkind==8) then
+              CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR,itr=itr,         &
                 zhour=wrt_int_state%zhour)
+             else
+              CALL NEMSIO_WRITERECW34(NEMSIOFILE,N,TMP,IRET=IERR,itr=itr,      &
+                zhour=wrt_int_state%zhour)
+             endif
             endif
              if(ierr/=0) print *,'rec num=',N,' write ',trim(NAME), &
                'into file,ierr=',ierr,'NF_hours=',NF_HOURS,'nf_minutes=',&
