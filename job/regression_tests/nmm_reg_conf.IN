@@ -72,6 +72,9 @@ nhours_dfini:       0
 restart:          _RSTRT_   # True--> A restarted run
 minutes_restart:  720       # Frequency of restart output (minutes)
 
+avg_max_length: 3600        # Time in seconds when averaged fields are reset
+
+
 rst_out_00:          false  # True--> Write 00h history in restarted run
 write_last_restart:  true   # True--> Write last restart file
 freerun:             true   # True--> Original
@@ -177,6 +180,7 @@ convection:  _CONVC_        # Convection scheme
 #---------------------------------
 microphysics:  _MICRO_      # Microphysics scheme
                                 # fer--> Ferrier
+                                # fer_hires--> Ferrier operational
                                 # kes--> Kessler
                                 # lin--> Lin
                                 # tho--> Thompson
@@ -201,6 +205,7 @@ land_surface:  noah         # Land surface schemes
                                 # liss--> Janjic LSM
 
 ucmcall: 0                  # Use (1) or do not use (0) the Urban Canopy Model
+igbp: 0                     # Use (1) or do not use (0) IGBP types
 
 #---------------------------------
 
@@ -267,6 +272,7 @@ write_rst_nemsio:        .TRUE.      # True--> Write restart files in NEMSIO for
 
 write_nemsioctl:         .TRUE.      # True--> Yes write ctl for nemsio run history files
 write_donefileflag:      .FALSE.
+write_fsyncflag:         .FALSE.     # True--> Yes write fsync
 
 io_hst_unit:             -999
 io_rst_unit:             -999

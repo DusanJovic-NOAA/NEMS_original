@@ -65,7 +65,7 @@
 !
         INTEGER(kind=KINT), POINTER :: NPHS
         INTEGER(kind=KINT) :: DT_INT,NPRECIP,NRADL,NRADS                &
-                             ,PCPHR,UCMCALL
+                             ,PCPHR,UCMCALL,IGBP
 !
         REAL(kind=KFPT) :: DT,SBD,WBD,TPH0D,TLM0D
 !
@@ -126,7 +126,8 @@
                                       ,NPREC                            &  !<-- # of fundamental timesteps precip is accumulated
                                       ,NRDLW                            &  !<-- # of fundamental timesteps LW radiation is accumulated
                                       ,NRDSW                            &  !<-- # of fundamental timesteps SW radiation is accumulated
-                                      ,NSRFC                               !<-- # of fundamental timesteps sfc evap/flux is accumulated
+                                      ,NSRFC                            &  !<-- # of fundamental timesteps sfc evap/flux is accumulated
+                                      ,AVGMAXLEN                           !<-- Fcst sec over which avg/max diags are accumulated
 !
         INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: ISLTYP,IVGTYP      &
                                                     ,LPBL               &
@@ -136,7 +137,7 @@
                                                    ,DUDT,DVDT           &
                                                    ,Q,CW                &
                                                    ,Q2,OMGALF           &
-                                                   ,O3,PINT,DWDT
+                                                   ,O3,PINT,DWDT,W,Z
 !
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: RLWTT,RSWTT
 !
@@ -191,7 +192,7 @@
                                                  ,SFCLHX,SFCSHX         &
                                                  ,SHDMAX,SHDMIN         &
                                                  ,SI,SMSTAV,SMSTOT      &
-                                                 ,SNO,SNOPCX            &
+                                                 ,SNO,SNOAVG,SNOPCX     &
                                                  ,SOILT1,SOILTB         &
                                                  ,SR,SSROFF,SUBSHX      &
                                                  ,TG,TSKIN,TSNAV,TWBS   &
@@ -199,10 +200,18 @@
 !
         REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ACPREC,ACSNOM,ACSNOW  &
                                                  ,CUPREC,CLDEFI         &
-                                                 ,PREC,PSHLTR,Q02,Q10   &
-                                                 ,QSHLTR,PSFC           &
+                                                 ,PREC,PSHLTR,P10,Q02   &
+                                                 ,Q10,QSHLTR,PSFC       &
+                                                 ,PSFCAVG               &
                                                  ,T2,TH02,TH10,TSHLTR   &
-                                                 ,U10,V10,TLMIN,TLMAX
+                                                 ,T02MAX,T02MIN         &
+                                                 ,RH02MAX,RH02MIN       &
+                                                 ,U10,V10,T10,T10AVG    &
+                                                 ,U10MAX,V10MAX,SPD10MAX &
+                                                 ,TLMIN,TLMAX           &
+                                                 ,UPVVELMAX,DNVVELMAX   &
+                                                 ,UPHLMAX,REFDMAX       &
+                                                 ,AKHSAVG,AKMSAVG
 !
 !***  The following are 2-D arrays needed only to hold scalars.
 !***  This is done since ESMF does not permit scalar Attributes
@@ -737,6 +746,7 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'NRDLW'      ,int_state%NRDLW ) 
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'NRDSW'      ,int_state%NRDSW ) 
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'NSRFC'      ,int_state%NSRFC ) 
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'AVGMAXLEN'  ,int_state%AVGMAXLEN ) 
 
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ISLTYP'     ,int_state%ISLTYP   ,(/ IMS,JMS /),(/ IME,JME /) )  
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'IVGTYP'     ,int_state%IVGTYP   ,(/ IMS,JMS /),(/ IME,JME /) )  
@@ -754,7 +764,9 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ACSNOM'     ,int_state%ACSNOM   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ACSNOW'     ,int_state%ACSNOW   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'AKHS_OUT'   ,int_state%AKHS_OUT ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'AKHSAVG'    ,int_state%AKHSAVG  ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'AKMS_OUT'   ,int_state%AKMS_OUT ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'AKMSAVG'    ,int_state%AKMSAVG  ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ALBASE'     ,int_state%ALBASE   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ALBEDO'     ,int_state%ALBEDO   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'ALWIN'      ,int_state%ALWIN    ,(/ IMS,JMS /),(/ IME,JME /) )
@@ -776,6 +788,7 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'CUPREC'     ,int_state%CUPREC   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'CZEN'       ,int_state%CZEN     ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'CZMEAN'     ,int_state%CZMEAN   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'DNVVELMAX'  ,int_state%DNVVELMAX,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'EPSR'       ,int_state%EPSR     ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'FIS'        ,int_state%FIS      ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'GRNFLX'     ,int_state%GRNFLX   ,(/ IMS,JMS /),(/ IME,JME /) )
@@ -789,13 +802,18 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'PD'         ,int_state%PD       ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'POTEVP'     ,int_state%POTEVP   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'PREC'       ,int_state%PREC     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'PSFCAVG'    ,int_state%PSFCAVG  ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'PSHLTR'     ,int_state%PSHLTR   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'P10'        ,int_state%P10      ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'Q10'        ,int_state%Q10      ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'QSH'        ,int_state%QSH      ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'QSHLTR'     ,int_state%QSHLTR   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'QWBS'       ,int_state%QWBS     ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'QZ0'        ,int_state%QZ0      ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'RADOT'      ,int_state%RADOT    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'REFDMAX'    ,int_state%REFDMAX  ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'RH02MAX'    ,int_state%RH02MAX  ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'RH02MIN'    ,int_state%RH02MIN  ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'RLWIN'      ,int_state%RLWIN    ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'RLWTOA'     ,int_state%RLWTOA   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'RSWIN'      ,int_state%RSWIN    ,(/ IMS,JMS /),(/ IME,JME /) )
@@ -812,22 +830,32 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SMSTAV'     ,int_state%SMSTAV   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SMSTOT'     ,int_state%SMSTOT   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SNO'        ,int_state%SNO      ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SNOAVG'     ,int_state%SNOAVG   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SNOPCX'     ,int_state%SNOPCX   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SOILTB'     ,int_state%SOILTB   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SPD10MAX'   ,int_state%SPD10MAX ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SR'         ,int_state%SR       ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SSROFF'     ,int_state%SSROFF   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SST'        ,int_state%SST      ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SUBSHX'     ,int_state%SUBSHX   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'T02MAX'     ,int_state%T02MAX   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'T02MIN'     ,int_state%T02MIN   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'T10'        ,int_state%T10      ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'T10AVG'     ,int_state%T10AVG   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TG'         ,int_state%TG       ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TH10'       ,int_state%TH10     ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'THS'        ,int_state%THS      ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'THZ0'       ,int_state%THZ0     ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TSHLTR'     ,int_state%TSHLTR   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'TWBS'       ,int_state%TWBS     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'UPHLMAX'    ,int_state%UPHLMAX  ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'UPVVELMAX'  ,int_state%UPVVELMAX,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'U10'        ,int_state%U10      ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'U10MAX'     ,int_state%U10MAX   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'USTAR'      ,int_state%USTAR    ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'UZ0'        ,int_state%UZ0      ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'V10'        ,int_state%V10      ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'V10MAX'     ,int_state%V10MAX   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'VEGFRC'     ,int_state%VEGFRC   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'VZ0'        ,int_state%VZ0      ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'Z0'         ,int_state%Z0       ,(/ IMS,JMS /),(/ IME,JME /) )
@@ -861,6 +889,8 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'Q'          ,int_state%Q	     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'U'          ,int_state%U	     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'V'          ,int_state%V	     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'W'          ,int_state%W	     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'Z'          ,int_state%Z	     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'RLWTT'      ,int_state%RLWTT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'RSWTT'      ,int_state%RSWTT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'EXCH_H'     ,int_state%EXCH_H   ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))

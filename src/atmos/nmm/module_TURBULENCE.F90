@@ -111,7 +111,7 @@
                       ,RTHBLTEN,RQVBLTEN                                &
                       ,GWDFLG                                           &
                       ,PCPFLG,DDATA                                     & ! PRECIP ASSIM
-                      ,UCMCALL                                          &
+                      ,UCMCALL,IGBP                                     &
                       ,TURBULENCE,SFC_LAYER                             &
                       ,LAND_SURFACE                                     &
                       ,MICROPHYSICS                                     &
@@ -163,7 +163,7 @@
                            ,IMS,IME,JMS,JME                             &
                            ,ITS,ITE,JTS,JTE                             &
                            ,NPHS,NSOIL,NTSD,NUM_WATER                   &
-                           ,UCMCALL
+                           ,UCMCALL,IGBP
 !
       INTEGER,INTENT(IN) :: P_QV,P_QC,P_QR,P_QI,P_QS,P_QG
 !
@@ -269,7 +269,7 @@
       REAL,PARAMETER :: XLV=ELWV
 !
       INTEGER :: I,I_M,IEND,IJ,ISTR,J,K,KFLIP,KOUNT_ALL                 &
-                ,LENGTH_ROW,N,NRDL,NRL,NWL,SST_UPDATE
+                ,LENGTH_ROW,N,NRDL,NRL,NWL,SST_UPDATE,IW
 !
       INTEGER :: PBL_PHYSICS,SFCLAY_PHYSICS,SURFACE_PHYSICS
 !
@@ -846,7 +846,7 @@
                            IDS,IDE,JDS,JDE,1,LM+1,                      &
                            IMS,IME,JMS,JME,1,LM+1,                      &
                            ITS_B1,ITE_B1,JTS_B1,JTE_B1, 1,LM,           &
-                           UCMCALL,                                     &
+                           UCMCALL,IGBP,                                &
 ! Optional urban
                            TR_URB2D,TB_URB2D,TG_URB2D,TC_URB2D,         & !H urban
                            QC_URB2D,UC_URB2D,                           & !H urban
@@ -878,15 +878,19 @@
                             ITS_B1,ITE_B1,JTS_B1,JTE_B1, 1,LM)
 
               urban: IF(UCMCALL==1) THEN
+!
+                IW = 1
+                IF( IGBP == 1 ) IW = 13
+!
                 DO J=JTS_B1,JTE_B1
                 DO I=ITS_B1,ITE_B1
-                  IF( IVGTYP(I,J) ==  1 .OR. IVGTYP(I,J) == 31 .OR.     &
+                  IF( IVGTYP(I,J) == IW .OR. IVGTYP(I,J) == 31 .OR.   &
                       IVGTYP(I,J) == 32 .OR. IVGTYP(I,J) == 33 ) THEN
 !
-                    T2(I,J)   = FRC_URB2D(I,J)*TH2_URB2D(I,J)           &
+                    T2(I,J)   = FRC_URB2D(I,J)*TH2_URB2D(I,J)         &
                                +(1-FRC_URB2D(I,J))*T2(I,J)
                     TH2X(I,J) = T2(I,J)*(1.E5/PSFC_OUT(I,J))**CAPPA
-                    Q2X(I,J)  = FRC_URB2D(i,j)*Q2_URB2D(I,J)            &
+                    Q2X(I,J)  = FRC_URB2D(i,j)*Q2_URB2D(I,J)          &
                                +(1-FRC_URB2D(I,J))* Q2X(I,J)
                     U10(I,J)  = U10_URB2D(I,J)
                     V10(I,J)  = V10_URB2D(I,J)

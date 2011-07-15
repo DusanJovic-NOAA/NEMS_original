@@ -275,6 +275,7 @@
       LOGICAL(kind=KLOG) :: WRITE_HST_BIN,WRITE_HST_NEMSIO
       LOGICAL(kind=KLOG) :: WRITE_RST_BIN,WRITE_RST_NEMSIO
       LOGICAL(kind=KLOG) :: WRITE_NEMSIOCTL
+      LOGICAL(kind=KLOG) :: WRITE_FSYNCFLAG
       LOGICAL(kind=KLOG) :: WRITE_DONEFILEFLAG
  
 !-----------------------------------------------------------------------

@@ -3245,7 +3245,7 @@
       CALL CDWDT                                                        &
         (GLOBAL,HYDRO,int_state%RESTART                                 &
         ,INPES,JNPES,LM,ABS(NTIMESTEP)                                  &
-        ,DT,G,DSG2,PDSG1,FAH                                            &
+        ,DT,G,DSG2,PDSG1,PSGML1,FAH                                     &
         ,int_state%HDACX,int_state%HDACY                                &
         ,int_state%PD,int_state%PDO                                     &
         ,int_state%PSGDT                                                &

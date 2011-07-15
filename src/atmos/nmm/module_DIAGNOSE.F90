@@ -1,4 +1,4 @@
-!-----------------------------------------------------------------------
+!----------------------------------------------------------------------
 !
       MODULE MODULE_DIAGNOSE
 !
@@ -739,6 +739,1155 @@
 !----------------------------------------------------------------------
 !
       END SUBROUTINE WRT_2D
+!
+!----------------------------------------------------------------------
+!
+!----------------------------------------------------------------------
+      SUBROUTINE CALMICT(P1D,T1D,Q1D,C1D,FI1D,FR1D,FS1D,CUREFL, &
+                       DBZ1,I,J, Ilook,Jlook) 
+
+      USE MODULE_MP_ETANEW, ONLY : FERRIER_INIT, GPVS,FPVS,FPVS0,NX,RQR_DRmin, &
+                                   RQR_DRmax,MASSI,CN0R0,CN0r_DMRmin,CN0r_DMRmax
+      USE MODULE_CONSTANTS, ONLY : R_D,P608
+
+      IMPLICIT NONE
+
+      REAL, PARAMETER :: &
+      FMW=18.015,FMD=28.964,EPS=FMW/FMD,ONEPS=1.-EPS,TFRZ=273.15, &
+      PQ0=379.90516,EPSQ=1.E-12, &
+      QCLDmin=1.E-6,  &
+      STBOL=1./5.67E-8, DBZmin=-20., abscoef=8.0, abscoefi=5.0, &
+      XLAI=4.0, &
+      RHmin=1.0E-6, &
+      SMALL=1.E-6 !  RHgrd=1.0
+
+      REAL, PARAMETER :: DMImin=.05e-3, DMImax=1.e-3, &
+                         XMImin=1.e6*DMImin, XMImax=1.e6*DMImax
+      INTEGER, PARAMETER :: MDImin=XMImin, MDImax=XMImax
+!
+!-----------------------------------------------------------------------
+!
+!--- Mean rain drop diameters vary from 50 microns to 1000 microns (1 mm)
+!
+      REAL, PARAMETER :: DMRmin=.05E-3, DMRmax=1.E-3, DelDMR=1.E-6,        &
+         XMRmin=1.E6*DMRmin, XMRmax=1.E6*DMRmax
+      INTEGER, PARAMETER :: MDRmin=XMRmin, MDRmax=XMRmax
+
+      INTEGER INDEXS, INDEXR, I, J, Ilook, Jlook
+      REAL, PARAMETER :: Cice=1.634e13
+
+      REAL ::  NLICE, N0r,Ztot,Zrain,Zice,Zconv
+      REAL ::  P1D,T1D,Q1D,C1D,                                            &
+               FI1D,FR1D,FS1D,CUREFL,                                      &
+               QW1,QI1,QR1,QS1,                                            &
+               DBZ1
+
+      REAL :: FLARGE, FSMALL, WV, ESAT, TC, WC, FPVS_MINE,  RHO,  &
+              QSAT, RRHO, RQR, ZMIN, Fice, Frain, Rimef , XLI, QICE, DRmm, &
+              DLI, XSIMASS, XLIMASS, DUM, WVQW, QSIGRD, QLICE, FLIMASS
+
+      REAL, PARAMETER ::                                                   &
+     &  RHgrd=1.                                                           &
+     & ,T_ICE=-40.                                                         &
+     & ,NLImax=5.E3                                                        &
+     & ,NLImin=1.E3                                                        &
+     & ,N0r0=8.E6                                                          &
+     & ,N0rmin=1.E4
+
+! ---------
+      Zmin=10.**(0.1*DBZmin)
+          QW1=0.
+          QI1=0.
+          QR1=0.
+          QS1=0.
+          DBZ1=DBZmin
+!          DBZR1=DBZmin
+!          DBZI1=DBZmin
+!          DBZC1=DBZmin
+
+          Zrain=0.            !--- Radar reflectivity from rain
+          Zice=0.             !--- Radar reflectivity from ice
+          Zconv=CUREFL   !--- Radar reflectivity from convection
+          IF (C1D .LE. EPSQ) THEN
+!
+!--- Skip rest of calculatiions if no condensate is present
+!
+            GO TO 10
+          ELSE
+            WC=C1D
+          ENDIF
+!
+!--- Code below is from GSMDRIVE for determining:
+!    QI1 - total ice (cloud ice & snow) mixing ratio
+!    QW1 - cloud water mixing ratio
+!    QR1 - rain mixing ratio
+
+          TC=T1D-TFRZ
+          Fice=FI1D
+          Frain=FR1D
+          IF (TC.LE.T_ICE .OR. Fice.GE.1.) THEN
+            QI1=WC
+          ELSE IF (Fice .LE. 0.) THEN
+            QW1=WC
+          ELSE
+            QI1=Fice*WC
+            QW1=WC-QI1
+          ENDIF
+
+          IF (QW1.GT.0. .AND. Frain.GT.0.) THEN
+            IF (Frain .GE. 1.) THEN
+              QR1=QW1
+              QW1=0.
+            ELSE
+              QR1=Frain*QW1
+              QW1=QW1-QR1
+            ENDIF
+          ENDIF
+          WV=Q1D/(1.-Q1D)
+
+!--- Saturation vapor pressure w/r/t water ( >=0C ) or ice ( <0C )
+!
+          ESAT=1000.*FPVS0(T1D)
+          QSAT=EPS*ESAT/(P1D-ESAT)
+          RHO=P1D/(R_D*T1D*(1.+P608*Q1D))
+
+          RRHO=1./RHO
+  !
+  !--- Based on code from GSMCOLUMN in model to determine reflectivity from rain
+  !
+
+          IF (QR1 .GT. EPSQ) THEN
+            RQR=RHO*QR1
+            IF (RQR .LE. RQR_DRmin) THEN
+              N0r=MAX(N0rmin, CN0r_DMRmin*RQR)
+              INDEXR=MDRmin
+            ELSE IF (RQR .GE. RQR_DRmax) THEN
+              N0r=CN0r_DMRmax*RQR
+              INDEXR=MDRmax
+            ELSE
+              N0r=N0r0
+              INDEXR=MAX( XMRmin, MIN(CN0r0*RQR**.25, XMRmax) )
+            ENDIF
+  !
+  !--- INDEXR is the mean drop size in microns; convert to mm
+  !
+            DRmm=1.e-3*REAL(INDEXR)
+            Zrain=0.72*N0r*DRmm*DRmm*DRmm*DRmm*DRmm*DRmm*DRmm
+          ENDIF        !--- End IF (QR1 .GT. EPSQ) block
+!
+!--- Based on code from GSMCOLUMN in model to determine partition of
+!    total ice into cloud ice & snow (precipitation ice)
+!
+          IF (QI1 .GT. EPSQ) THEN
+            QICE=QI1
+            RHO=P1D/(R_D*T1D*(1.+ONEPS*Q1D))
+            RRHO=1./RHO
+            QSIgrd=RHgrd*QSAT
+            WVQW=WV+QW1
+!
+! * FLARGE  - ratio of number of large ice to total (large & small) ice
+! * FSMALL  - ratio of number of small ice crystals to large ice particles
+!  ->  Small ice particles are assumed to have a mean diameter of 50 microns.
+!  * XSIMASS - used for calculating small ice mixing ratio
+!  * XLIMASS - used for calculating large ice mixing ratio
+!  * INDEXS  - mean size of snow to the nearest micron (units of microns)
+!  * RimeF   - Rime Factor, which is the mass ratio of total (unrimed &
+!              rimed) ice mass to the unrimed ice mass (>=1)
+!  * FLIMASS - mass fraction of large ice
+!  * QTICE   - time-averaged mixing ratio of total ice
+!  * QLICE   - time-averaged mixing ratio of large ice
+!  * NLICE   - time-averaged number concentration of large ice
+!
+            IF (TC.GE.0. .OR. WVQW.LT.QSIgrd) THEN
+              FLARGE=1.
+            ELSE
+              FLARGE=.2
+              IF (TC.GE.-8. .AND. TC.LE.-3.) FLARGE=.5*FLARGE
+            ENDIF
+            FSMALL=(1.-FLARGE)/FLARGE
+            XSIMASS=RRHO*MASSI(MDImin)*FSMALL
+            DUM=XMImax*EXP(.0536*TC)
+            INDEXS=MIN(MDImax, MAX(MDImin, INT(DUM) ) )
+            RimeF=AMAX1(1., FS1D )
+            XLIMASS=RRHO*RimeF*MASSI(INDEXS)
+            FLIMASS=XLIMASS/(XLIMASS+XSIMASS)
+            QLICE=FLIMASS*QICE
+            NLICE=QLICE/XLIMASS
+            IF (NLICE.LT.NLImin .OR. NLICE.GT.NLImax) THEN
+!
+!--- Force NLICE to be between NLImin and NLImax
+!
+              DUM=MAX(NLImin, MIN(NLImax, NLICE) )
+              XLI=RHO*(QICE/DUM-XSIMASS)/RimeF
+              IF (XLI .LE. MASSI(MDImin) ) THEN
+                INDEXS=MDImin
+              ELSE IF (XLI .LE. MASSI(450) ) THEN
+                DLI=9.5885E5*XLI**.42066         ! DLI in microns
+                INDEXS=MIN(MDImax, MAX(MDImin, INT(DLI) ) )
+              ELSE IF (XLI .LE. MASSI(MDImax) ) THEN
+                DLI=3.9751E6*XLI**.49870         ! DLI in microns
+                INDEXS=MIN(MDImax, MAX(MDImin, INT(DLI) ) )
+              ELSE
+                INDEXS=MDImax
+!
+!--- 8/22/01: Increase density of large ice if maximum limits
+!    are reached for number concentration (NLImax) and mean size
+!    (MDImax).  Done to increase fall out of ice.
+!
+                IF (DUM .GE. NLImax) &
+                 RimeF=RHO*(QICE/NLImax-XSIMASS)/MASSI(INDEXS)
+              ENDIF             ! End IF (XLI .LE. MASSI(MDImin) )
+              XLIMASS=RRHO*RimeF*MASSI(INDEXS)
+              FLIMASS=XLIMASS/(XLIMASS+XSIMASS)
+              QLICE=FLIMASS*QICE
+              NLICE=QLICE/XLIMASS
+            ENDIF               ! End IF (NLICE.LT.NLImin ...
+            QS1=AMIN1(QI1, QLICE)
+            QI1=AMAX1(0., QI1-QS1)
+   !
+   !--- Equation (C.8) in Ferrier (1994, JAS, p. 272), which when
+   !    converted from cgs units to mks units results in the same
+   !    value for Cice, which is equal to the {} term below:
+   !
+   !    Zi={.224*720*(10**18)/[(PI*RHOL)**2]}*(RHO*QLICE)**2/NLICE,
+   !    where RHOL=1000 kg/m**3 is the density of liquid water
+   !
+   !--- Valid only for exponential ice distributions
+   !
+            Zice=Cice*RHO*RHO*QLICE*QLICE/NLICE
+          ENDIF                 ! End IF (QI1 .GT. 0.) THEN
+!
+!---  Calculate total (convective + grid-scale) radar reflectivity
+10        Ztot=Zrain+Zice+Zconv
+          IF (Ztot .GT. Zmin)  DBZ1= 10.*ALOG10(Ztot)
+      RETURN
+      END SUBROUTINE CALMICT
+
+!----------------------------------------------------------------------
+!
+!----------------------------------------------------------------------
+!
+
+      SUBROUTINE MAX_FIELDS(T,Q,U                     &
+                           ,V,CW                      &
+                           ,F_RAIN,F_ICE              &
+                           ,F_RIMEF                   &
+                           ,Z,W,PINT,PD               &
+                           ,CPRATE,HTOP               &
+                           ,T2,U10,V10                &
+                           ,PSHLTR,TSHLTR,QSHLTR      &
+                           ,SGML2,PSGML1              &
+                           ,REFDMAX                   &
+                           ,UPVVELMAX,DNVVELMAX       &
+                           ,TLMAX,TLMIN               &
+                           ,T02MAX,T02MIN             &
+                           ,RH02MAX,RH02MIN           &
+                           ,U10MAX,V10MAX,TH10,T10    &
+                           ,SPD10MAX,T10AVG,PSFCAVG   &
+                           ,AKHS,AKMS                 &
+                           ,AKHSAVG,AKMSAVG           &
+                           ,SNO,SNOAVG                &
+                           ,UPHLMAX                   &
+                           ,DT,NPHS,NTSD              &
+                           ,DXH,DYH                   &
+                           ,FIS                       &
+                           ,ITS,ITE,JTS,JTE           & 
+                           ,IMS,IME,JMS,JME           &
+                           ,IDE,JDE                   & 
+                           ,LM,NCOUNT,FIRST_NMM)
+
+      USE MODULE_MP_ETANEW, ONLY : FERRIER_INIT, GPVS,FPVS,FPVS0,NX
+      USE MODULE_CONSTANTS, ONLY : R_D,R_V,CPV,CP,G
+
+      IMPLICIT NONE
+       
+      REAL, PARAMETER :: RCP=R_D/CP, P00_INV=1.E-5
+
+      INTEGER,INTENT(IN) :: ITS,ITE,JTS,JTE,IMS,IME,JMS,JME,LM,NTSD
+      INTEGER,INTENT(IN) :: IDE,JDE,NPHS
+
+      REAL, DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: T, Q, U, V, CW   & 
+                                              ,F_RAIN,F_ICE,F_RIMEF        &
+                                              ,W,Z
+
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1),INTENT(IN) :: PINT
+
+      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: PD,CPRATE,HTOP         &
+                                                    ,T2,U10,V10            &
+                                                    ,PSHLTR,TSHLTR,QSHLTR  &
+                                                    ,TH10,AKHS             &
+                                                    ,AKMS,SNO,FIS   
+
+      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT):: REFDMAX               & 
+                                                   ,UPVVELMAX,DNVVELMAX     &
+                                                   ,TLMAX,TLMIN             &
+                                                   ,T02MAX,T02MIN           &
+                                                   ,RH02MAX,RH02MIN         &
+                                                   ,U10MAX,V10MAX           &
+                                                   ,SPD10MAX,T10AVG,PSFCAVG &
+                                                   ,UPHLMAX,T10,AKHSAVG     &
+                                                   ,AKMSAVG,SNOAVG 
+
+      REAL, INTENT(IN) :: DYH, DXH(JMS:JME)
+      LOGICAL,INTENT(INOUT) :: FIRST_NMM
+      REAL, INTENT(IN) :: SGML2(LM),PSGML1(LM), DT
+ 
+      INTEGER :: UPINDX(IMS:IME,JMS:JME)
+      REAL, DIMENSION(IMS:IME,JMS:JME) :: P10
+
+      REAL, DIMENSION(IMS:IME,JMS:JME) :: ZINTSFC 
+      REAL, DIMENSION(IMS:IME,JMS:JME,LM) :: PMID 
+
+      REAL :: PLOW, PUP,WGTa,WGTb,ZMIDloc,ZMIDP1
+      REAL :: P1Da,P1Db,P1D(2)
+      REAL :: T1Da,T1Db,T1D(2),fact
+      REAL :: Q1Da,Q1Db,Q1D(2)
+      REAL :: C1Da,C1Db,C1D(2)
+      REAL :: FR1Da,FR1Db,FR1D(2)
+      REAL :: FI1Da,FI1Db,FI1D(2)
+      REAL :: FS1Da,FS1Db,FS1D(2),DBZ1(2)
+
+      REAL :: CUPRATE, CUREFL, CUREFL_I, ZFRZ, DBZ1avg, FCTR, DELZ
+      REAL :: T02, RH02, TERM
+      REAL :: CAPPA_MOIST, VAPOR_PRESS, EPSILON, ONE_MINUS_EPSILON, SAT_VAPOR_PRESS
+      REAL :: R_FACTOR,CP_FACTOR
+      REAL, SAVE:: DTPHS, RDTPHS
+      REAL :: MAGW2
+
+      INTEGER :: LCTOP
+      INTEGER :: I,J,L,NCOUNT,LL, RC, Ilook,Jlook
+
+
+!***  COMPUTE AND SAVE THE FACTORS IN R AND CP TO ACCOUNT FOR
+!***  WATER VAPOR IN THE AIR.
+!***
+!***  RECALL: R  = Rd * (1. + Q * (1./EPSILON - 1.))
+!***          CP = CPd * (1. + Q * (CPv/CPd - 1.))
+
+      Ilook=99
+      Jlook=275
+
+      IF (FIRST_NMM) THEN
+        DTPHS=DT*NPHS
+        RDTPHS=3.6e6/DTPHS
+        EPSILON=R_D/R_V
+        ONE_MINUS_EPSILON=1.-EPSILON
+        R_FACTOR=1./EPSILON-1.
+        CP_FACTOR=CPV/CP-1.
+! Make sure saturation vapor pressure lookup table is initialized
+        CALL GPVS
+        FIRST_NMM=.false.
+      ENDIF
+
+      DO L=1,LM
+       DO J=JTS,JTE
+        DO I=ITS,ITE
+         PMID(I,J,L)=PSGML1(L)+SGML2(L)*PD(I,J)
+        ENDDO
+       ENDDO
+      ENDDO
+!
+      DO J=JTS,JTE
+       DO I=ITS,ITE
+         ZINTSFC(I,J)=FIS(I,J)/g
+       ENDDO
+      ENDDO
+!
+!     WON'T BOTHER TO REBUILD HEIGHTS AS IS DONE IN POST.
+!     THE NONHYDROSTATIC MID-LAYER Z VALUES MATCH CLOSELY ENOUGH
+!     AT 1000 m AGL
+!
+      DO J=JTS,JTE
+       DO I=ITS,ITE
+ L_LOOP: DO L=1,LM-1
+          PLOW= PMID(I,J,L+1)
+          PUP=  PMID(I,J,L)
+          IF (PLOW .ge. 40000. .and. PUP .le. 40000.) THEN
+            UPINDX(I,J)=L
+            exit L_LOOP
+          ENDIF 
+         ENDDO L_LOOP
+       ENDDO
+      ENDDO
+!
+      DO J=JTS,JTE
+       DO I=ITS,ITE
+  vloop: DO L=8,LM-1
+          IF ( (Z(I,J,L+1)-ZINTSFC(I,J)) .LE. 1000.                &
+          .AND.(Z(I,J,L)-ZINTSFC(I,J))   .GE. 1000.)  THEN
+            ZMIDP1=Z(I,J,L)
+            ZMIDloc=Z(I,J,L+1)
+            P1D(1)=PMID(I,J,L)
+            P1D(2)=PMID(I,J,L+1)
+            T1D(1)=T(I,J,L)
+            T1D(2)=T(I,J,L+1)
+            Q1D(1)=Q(I,J,L)
+            Q1D(2)=Q(I,J,L+1)
+            C1D(1)=CW(I,J,L)
+            C1D(2)=CW(I,J,L+1)
+            FR1D(1)=F_RAIN(I,J,L)
+            FR1D(2)=F_RAIN(I,J,L+1)
+            FI1D(1)=F_ICE(I,J,L)
+            FI1D(2)=F_ICE(I,J,L+1)
+            FS1D(1)=F_RIMEF(I,J,L)
+            FS1D(2)=F_RIMEF(I,J,L+1)
+            EXIT vloop
+          ENDIF
+        ENDDO vloop
+!
+!!! INITIAL CUREFL VALUE WITHOUT REDUCTION ABOVE FREEZING LEVEL
+!
+        CUPRATE=RDTPHS*CPRATE(I,J)
+        CUREFL=300.*CUPRATE**1.4
+        ZFRZ=Z(I,J,LM)
+!
+ culoop: IF (CUREFL > 0) THEN
+ vloop2:  DO L=1,LM
+            IF (T(I,J,L) >= 273.15) THEN
+              ZFRZ=Z(I,J,L)
+              EXIT vloop2
+            ENDIF
+          ENDDO vloop2
+!
+          LCTOP=NINT(HTOP(I,J))
+          CUREFL_I=-2./MAX( 1000., Z(I,J,LCTOP)-ZFRZ )
+!
+ vloop3:  DO L=1,LM
+            FCTR=0.
+            IF (L >= LCTOP .and. L <= LM) THEN
+              DELZ=Z(I,J,L)-ZFRZ
+              IF (DELZ <= 0.) THEN
+                FCTR=1.        !-- Below the highest freezing level
+              ELSE
+       !
+       !--- Reduce convective radar reflectivity above freezing level
+       !
+                FCTR=10.**(CUREFL_I*DELZ)
+              ENDIF
+            ENDIF
+          ENDDO vloop3
+          CUREFL=FCTR*CUREFL
+         ENDIF culoop
+!
+         DO LL=1,2
+          IF (C1D(LL) .GE. 1.e-12 .OR. CUREFL .GT. 0.) then
+           CALL CALMICT(P1D(LL),T1D(LL),Q1D(LL),C1D(LL), &
+                        FI1D(LL),FR1D(LL),FS1D(LL),CUREFL, &
+                        DBZ1(LL), I, J, Ilook, Jlook) 
+          ELSE
+           DBZ1(LL)=-20.
+          ENDIF 
+         ENDDO
+         FACT=(1000.+ZINTSFC(I,J)-ZMIDloc)/(ZMIDloc-ZMIDP1)
+         DBZ1avg=DBZ1(2)+(DBZ1(2)-DBZ1(1))*FACT
+         REFDMAX(I,J)=max(REFDMAX(I,J),DBZ1avg)
+       ENDDO
+      ENDDO
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      DO L=1,LM
+       DO J=JTS,JTE
+        DO I=ITS,ITE
+         IF (L >= UPINDX(I,J)) THEN
+           UPVVELMAX(I,J)=max(UPVVELMAX(I,J),W(I,J,L))
+           DNVVELMAX(I,J)=min(DNVVELMAX(I,J),W(I,J,L))
+         ENDIF
+        ENDDO
+       ENDDO
+      ENDDO
+!
+      DO J=JTS,JTE
+      DO I=ITS,ITE
+        TLMAX(I,J)=MAX(TLMAX(I,J),T(I,J,LM))  !<--- Hourly max lowest layer T
+        TLMIN(I,J)=MIN(TLMIN(I,J),T(I,J,LM))  !<--- Hourly min lowest layer T
+        IF (NTSD > 0) THEN
+          CAPPA_MOIST=RCP*(1.+QSHLTR(I,J)*R_FACTOR)/(1.+QSHLTR(I,J)*CP_FACTOR)
+          T02=TSHLTR(I,J)*(P00_INV*PSHLTR(I,J))**CAPPA_MOIST
+          T02MAX(I,J)=MAX(T02MAX(I,J),T02)  !<--- Hourly max 2m T
+          T02MIN(I,J)=MIN(T02MIN(I,J),T02)  !<--- Hourly min 2m T
+!
+          VAPOR_PRESS=PSHLTR(I,J)*QSHLTR(I,J)/                          &
+                     (EPSILON+QSHLTR(I,J)*ONE_MINUS_EPSILON)
+          SAT_VAPOR_PRESS=1.E3*FPVS0(T02)
+          RH02=MIN(VAPOR_PRESS/SAT_VAPOR_PRESS,0.99)
+!
+          RH02MAX(I,J)=MAX(RH02MAX(I,J),RH02)     !<--- Hourly max shelter RH
+          RH02MIN(I,J)=MIN(RH02MIN(I,J),RH02)     !<--- Hourly min shelter RH
+!
+          MAGW2=(U10(I,J)**2.+V10(I,J)**2.)
+          IF (MAGW2 .gt. SPD10MAX(I,J)) THEN
+            U10MAX(I,J)=U10(I,J)                 !<--- U assoc with Hrly max 10m wind speed
+            V10MAX(I,J)=V10(I,J)                 !<--- V assoc with Hrly max 10m wind speed
+            SPD10MAX(I,J)=MAGW2
+          ENDIF
+	ENDIF
+      ENDDO
+      ENDDO
+
+      CALL CALC_UPHLCY(U,V,W,Z,ZINTSFC,UPHLMAX,DXH,DYH            &
+                            ,IMS,IME,JMS,JME                          &
+                            ,ITS,ITE,JTS,JTE,IDE,JDE,LM)
+
+      NCOUNT=NCOUNT+1
+      DO J=JTS,JTE
+       DO I=ITS,ITE
+        TERM=-0.273133/T2(I,J)
+        P10(I,J)=PSHLTR(I,J)*exp(TERM)
+        T10(I,J)=TH10(I,J)*(P10(I,J)/1.e5)**RCP
+        T10AVG(I,J)=T10AVG(I,J)*(NCOUNT-1)+T10(I,J)
+        T10AVG(I,J)=T10AVG(I,J)/NCOUNT
+        PSFCAVG(I,J)=PSFCAVG(I,J)*(NCOUNT-1)+PINT(I,J,LM+1)
+        PSFCAVG(I,J)=PSFCAVG(I,J)/NCOUNT
+        AKHSAVG(I,J)=AKHSAVG(I,J)*(NCOUNT-1)+AKHS(I,J)
+        AKHSAVG(I,J)=AKHSAVG(I,J)/NCOUNT
+        AKMSAVG(I,J)=AKMSAVG(I,J)*(NCOUNT-1)+AKMS(I,J)
+        AKMSAVG(I,J)=AKMSAVG(I,J)/NCOUNT
+        IF (SNO(I,J) > 0.) THEN
+         SNOAVG(I,J)=SNOAVG(I,J)*(NCOUNT-1)+1
+        ELSE 
+         SNOAVG(I,J)=SNOAVG(I,J)*(NCOUNT-1)
+        ENDIF
+        SNOAVG(I,J)=SNOAVG(I,J)/NCOUNT
+       ENDDO
+      ENDDO
+
+      END SUBROUTINE MAX_FIELDS
+!
+!----------------------------------------------------------------------
+      SUBROUTINE CALC_UPHLCY(U,V,W,Z,ZINTSFC,UPHLMAX,DX,DY            &
+                            ,IMS,IME,JMS,JME                          &
+                            ,ITS,ITE,JTS,JTE,IDE,JDE,LM)
+
+      INTEGER, INTENT(IN) :: IMS,IME,JMS,JME,ITS,ITE
+      INTEGER, INTENT(IN) :: JTS,JTE,IDE,JDE,LM
+      REAL,INTENT(IN) :: U(IMS:IME,JMS:JME,LM)
+      REAL,INTENT(IN) :: V(IMS:IME,JMS:JME,LM)
+      REAL,INTENT(IN) :: W(IMS:IME,JMS:JME,LM)
+      REAL,INTENT(IN) :: Z(IMS:IME,JMS:JME,LM)
+      REAL,INTENT(IN) :: ZINTSFC(IMS:IME,JMS:JME)
+      REAL,INTENT(INOUT) :: UPHLMAX(IMS:IME,JMS:JME)
+      REAL,INTENT(IN) :: DX(JMS:JME),DY
+
+! local variables
+
+      REAL :: UPHL   (IMS:IME,JMS:JME)
+      INTEGER :: I,J,L
+      REAL :: R2DX,R2DY,DZ,ZMIDLOC
+      REAL :: DUDY,DVDX
+
+      REAL, PARAMETER:: HLOWER=2000.
+      REAL, PARAMETER:: HUPPER=5000.
+
+      do J=JMS,JME
+       do I=IMS,IME
+          UPHL(I,J)=0.
+       enddo
+      enddo
+
+      R2DY=1./(2.*DY)
+      DO J=MAX(JTS,2),MIN(JTE,JDE-1)
+        R2DX=1./(2.*DX(J))
+        DO I=MAX(ITS,2),MIN(ITE,IDE-1)
+  L_LOOP:  DO L=1,LM
+             ZMIDLOC=Z(I,J,L)
+             IF ( (ZMIDLOC - ZINTSFC(I,J)) .ge. HLOWER  .AND. &
+                  (ZMIDLOC - ZINTSFC(I,J)) .le. HUPPER ) THEN
+               DZ=(Z(I,J,L)-Z(I,J,L+1))
+!
+!*             ANY DOWNWARD MOTION IN 2-5 km LAYER KILLS COMPUTATION AND
+!*             SETS RESULTANT UPDRAFT HELICTY TO ZERO
+!
+               IF (W(I,J,L) .lt. 0) THEN
+                 UPHL(I,J)=0.
+                 EXIT l_loop
+               ENDIF
+
+               DVDX=(V(I+1,J,L)-V(I-1,J,L))*R2DX
+               DUDY=(U(I,J+1,L)-U(I,J-1,L))*R2DY
+               UPHL(I,J)=UPHL(I,J)+(DVDX-DUDY)*W(I,J,L)*DZ
+             ENDIF
+           ENDDO L_LOOP
+           UPHLMAX(I,J)=MAX(UPHL(I,J),UPHLMAX(I,J))
+        ENDDO
+      ENDDO
+     
+      END SUBROUTINE CALC_UPHLCY
+!
+!----------------------------------------------------------------------
+!
+!----------------------------------------------------------------------
+!
+      SUBROUTINE CALMICT_HR(P1D,T1D,Q1D,C1D,FI1D,FR1D,FS1D,CUREFL, &
+                       DBZ1,I,J, Ilook,Jlook) 
+
+      USE MODULE_MP_FER_HIRES, ONLY : FERRIER_INIT_HR, GPVS_HR,FPVS,FPVS0,NX,RQR_DRmin, &
+                                   RQR_DRmax,MASSI,CN0R0,CN0r_DMRmin,CN0r_DMRmax
+      USE MODULE_CONSTANTS,    ONLY : R_D,P608
+
+      IMPLICIT NONE
+
+      REAL, PARAMETER :: &
+      FMW=18.015,FMD=28.964,EPS=FMW/FMD,ONEPS=1.-EPS,TFRZ=273.15, &
+      PQ0=379.90516,EPSQ=1.E-12, &
+      QCLDmin=1.E-6,  &
+      STBOL=1./5.67E-8, DBZmin=-20., abscoef=8.0, abscoefi=5.0, &
+      XLAI=4.0, &
+      RHmin=1.0E-6, &
+      SMALL=1.E-6 !  RHgrd=1.0
+
+      REAL, PARAMETER :: DMImin=.05e-3, DMImax=1.e-3, &
+                         XMImin=1.e6*DMImin, XMImax=1.e6*DMImax
+      INTEGER, PARAMETER :: MDImin=XMImin, MDImax=XMImax
+!
+!-----------------------------------------------------------------------
+!
+!--- Mean rain drop diameters vary from 50 microns to 1000 microns (1 mm)
+!
+      REAL, PARAMETER :: DMRmin=.05E-3, DMRmax=1.E-3, DelDMR=1.E-6,        &
+         XMRmin=1.E6*DMRmin, XMRmax=1.E6*DMRmax
+      INTEGER, PARAMETER :: MDRmin=XMRmin, MDRmax=XMRmax
+
+      INTEGER INDEXS, INDEXR, I, J, Ilook, Jlook
+      REAL, PARAMETER :: Cice=1.634e13
+
+      REAL ::  NLICE, N0r,Ztot,Zrain,Zice,Zconv
+      REAL ::  P1D,T1D,Q1D,C1D,                                            &
+               FI1D,FR1D,FS1D,CUREFL,                                      &
+               QW1,QI1,QR1,QS1,                                            &
+               DBZ1
+
+      REAL :: FLARGE, FSMALL, WV, ESAT, TC, WC, FPVS_MINE,  RHO,  &
+              QSAT, RRHO, RQR, ZMIN, Fice, Frain, Rimef , XLI, QICE, DRmm, &
+              DLI, XSIMASS, XLIMASS, DUM, WVQW, QSIGRD, QLICE, FLIMASS
+
+      REAL, PARAMETER ::                                                   &
+     &  RHgrd=1.                                                           &
+     & ,T_ICE=-40.                                                         &
+     & ,NLImax=5.E3                                                        &
+     & ,NLImin=1.E3                                                        &
+     & ,N0r0=8.E6                                                          &
+     & ,N0rmin=1.E4
+
+! ---------
+      Zmin=10.**(0.1*DBZmin)
+          QW1=0.
+          QI1=0.
+          QR1=0.
+          QS1=0.
+          DBZ1=DBZmin
+!          DBZR1=DBZmin
+!          DBZI1=DBZmin
+!          DBZC1=DBZmin
+
+          Zrain=0.            !--- Radar reflectivity from rain
+          Zice=0.             !--- Radar reflectivity from ice
+          Zconv=CUREFL   !--- Radar reflectivity from convection
+          IF (C1D .LE. EPSQ) THEN
+!
+!--- Skip rest of calculatiions if no condensate is present
+!
+            GO TO 10
+          ELSE
+            WC=C1D
+          ENDIF
+!
+!--- Code below is from GSMDRIVE for determining:
+!    QI1 - total ice (cloud ice & snow) mixing ratio
+!    QW1 - cloud water mixing ratio
+!    QR1 - rain mixing ratio
+
+          TC=T1D-TFRZ
+          Fice=FI1D
+          Frain=FR1D
+          IF (TC.LE.T_ICE .OR. Fice.GE.1.) THEN
+            QI1=WC
+          ELSE IF (Fice .LE. 0.) THEN
+            QW1=WC
+          ELSE
+            QI1=Fice*WC
+            QW1=WC-QI1
+          ENDIF
+
+          IF (QW1.GT.0. .AND. Frain.GT.0.) THEN
+            IF (Frain .GE. 1.) THEN
+              QR1=QW1
+              QW1=0.
+            ELSE
+              QR1=Frain*QW1
+              QW1=QW1-QR1
+            ENDIF
+          ENDIF
+          WV=Q1D/(1.-Q1D)
+
+!--- Saturation vapor pressure w/r/t water ( >=0C ) or ice ( <0C )
+!
+          ESAT=1000.*FPVS0(T1D)
+          QSAT=EPS*ESAT/(P1D-ESAT)
+          RHO=P1D/(R_D*T1D*(1.+P608*Q1D))
+
+          RRHO=1./RHO
+  !
+  !--- Based on code from GSMCOLUMN in model to determine reflectivity from rain
+  !
+
+          IF (QR1 .GT. EPSQ) THEN
+            RQR=RHO*QR1
+            IF (RQR .LE. RQR_DRmin) THEN
+              N0r=MAX(N0rmin, CN0r_DMRmin*RQR)
+              INDEXR=MDRmin
+            ELSE IF (RQR .GE. RQR_DRmax) THEN
+              N0r=CN0r_DMRmax*RQR
+              INDEXR=MDRmax
+            ELSE
+              N0r=N0r0
+              INDEXR=MAX( XMRmin, MIN(CN0r0*RQR**.25, XMRmax) )
+            ENDIF
+  !
+  !--- INDEXR is the mean drop size in microns; convert to mm
+  !
+            DRmm=1.e-3*REAL(INDEXR)
+            Zrain=0.72*N0r*DRmm*DRmm*DRmm*DRmm*DRmm*DRmm*DRmm
+          ENDIF        !--- End IF (QR1 .GT. EPSQ) block
+!
+!--- Based on code from GSMCOLUMN in model to determine partition of
+!    total ice into cloud ice & snow (precipitation ice)
+!
+          IF (QI1 .GT. EPSQ) THEN
+            QICE=QI1
+            RHO=P1D/(R_D*T1D*(1.+ONEPS*Q1D))
+            RRHO=1./RHO
+            QSIgrd=RHgrd*QSAT
+            WVQW=WV+QW1
+!
+! * FLARGE  - ratio of number of large ice to total (large & small) ice
+! * FSMALL  - ratio of number of small ice crystals to large ice particles
+!  ->  Small ice particles are assumed to have a mean diameter of 50 microns.
+!  * XSIMASS - used for calculating small ice mixing ratio
+!  * XLIMASS - used for calculating large ice mixing ratio
+!  * INDEXS  - mean size of snow to the nearest micron (units of microns)
+!  * RimeF   - Rime Factor, which is the mass ratio of total (unrimed &
+!              rimed) ice mass to the unrimed ice mass (>=1)
+!  * FLIMASS - mass fraction of large ice
+!  * QTICE   - time-averaged mixing ratio of total ice
+!  * QLICE   - time-averaged mixing ratio of large ice
+!  * NLICE   - time-averaged number concentration of large ice
+!
+            IF (TC.GE.0. .OR. WVQW.LT.QSIgrd) THEN
+              FLARGE=1.
+            ELSE
+              FLARGE=.2
+              IF (TC.GE.-8. .AND. TC.LE.-3.) FLARGE=.5*FLARGE
+            ENDIF
+            FSMALL=(1.-FLARGE)/FLARGE
+            XSIMASS=RRHO*MASSI(MDImin)*FSMALL
+            DUM=XMImax*EXP(.0536*TC)
+            INDEXS=MIN(MDImax, MAX(MDImin, INT(DUM) ) )
+            RimeF=AMAX1(1., FS1D )
+            XLIMASS=RRHO*RimeF*MASSI(INDEXS)
+            FLIMASS=XLIMASS/(XLIMASS+XSIMASS)
+            QLICE=FLIMASS*QICE
+            NLICE=QLICE/XLIMASS
+            IF (NLICE.LT.NLImin .OR. NLICE.GT.NLImax) THEN
+!
+!--- Force NLICE to be between NLImin and NLImax
+!
+              DUM=MAX(NLImin, MIN(NLImax, NLICE) )
+              XLI=RHO*(QICE/DUM-XSIMASS)/RimeF
+              IF (XLI .LE. MASSI(MDImin) ) THEN
+                INDEXS=MDImin
+              ELSE IF (XLI .LE. MASSI(450) ) THEN
+                DLI=9.5885E5*XLI**.42066         ! DLI in microns
+                INDEXS=MIN(MDImax, MAX(MDImin, INT(DLI) ) )
+              ELSE IF (XLI .LE. MASSI(MDImax) ) THEN
+                DLI=3.9751E6*XLI**.49870         ! DLI in microns
+                INDEXS=MIN(MDImax, MAX(MDImin, INT(DLI) ) )
+              ELSE
+                INDEXS=MDImax
+!
+!--- 8/22/01: Increase density of large ice if maximum limits
+!    are reached for number concentration (NLImax) and mean size
+!    (MDImax).  Done to increase fall out of ice.
+!
+                IF (DUM .GE. NLImax) &
+                 RimeF=RHO*(QICE/NLImax-XSIMASS)/MASSI(INDEXS)
+              ENDIF             ! End IF (XLI .LE. MASSI(MDImin) )
+              XLIMASS=RRHO*RimeF*MASSI(INDEXS)
+              FLIMASS=XLIMASS/(XLIMASS+XSIMASS)
+              QLICE=FLIMASS*QICE
+              NLICE=QLICE/XLIMASS
+            ENDIF               ! End IF (NLICE.LT.NLImin ...
+            QS1=AMIN1(QI1, QLICE)
+            QI1=AMAX1(0., QI1-QS1)
+   !
+   !--- Equation (C.8) in Ferrier (1994, JAS, p. 272), which when
+   !    converted from cgs units to mks units results in the same
+   !    value for Cice, which is equal to the {} term below:
+   !
+   !    Zi={.224*720*(10**18)/[(PI*RHOL)**2]}*(RHO*QLICE)**2/NLICE,
+   !    where RHOL=1000 kg/m**3 is the density of liquid water
+   !
+   !--- Valid only for exponential ice distributions
+   !
+            Zice=Cice*RHO*RHO*QLICE*QLICE/NLICE
+          ENDIF                 ! End IF (QI1 .GT. 0.) THEN
+!
+!---  Calculate total (convective + grid-scale) radar reflectivity
+10        Ztot=Zrain+Zice+Zconv
+          IF (Ztot .GT. Zmin)  DBZ1= 10.*ALOG10(Ztot)
+      RETURN
+      END SUBROUTINE CALMICT_HR
+
+!----------------------------------------------------------------------
+!
+!----------------------------------------------------------------------
+!
+
+      SUBROUTINE MAX_FIELDS_HR(T,Q,U                  &
+                           ,V,CW                      &
+                           ,F_RAIN,F_ICE              &
+                           ,F_RIMEF                   &
+                           ,Z,W,PINT,PD               &
+                           ,CPRATE,HTOP               &
+                           ,T2,U10,V10                &
+                           ,PSHLTR,TSHLTR,QSHLTR      &
+                           ,SGML2,PSGML1              &
+                           ,REFDMAX                   &
+                           ,UPVVELMAX,DNVVELMAX       &
+                           ,TLMAX,TLMIN               &
+                           ,T02MAX,T02MIN             &
+                           ,RH02MAX,RH02MIN           &
+                           ,U10MAX,V10MAX,TH10,T10    &
+                           ,SPD10MAX,T10AVG,PSFCAVG   &
+                           ,AKHS,AKMS                 &
+                           ,AKHSAVG,AKMSAVG           &
+                           ,SNO,SNOAVG                &
+                           ,UPHLMAX                   &
+                           ,DT,NPHS,NTSD              &
+                           ,DXH,DYH                   &
+                           ,FIS                       &
+                           ,ITS,ITE,JTS,JTE           & 
+                           ,IMS,IME,JMS,JME           &
+                           ,IDE,JDE                   & 
+                           ,LM,NCOUNT,FIRST_NMM)
+
+      USE MODULE_MP_FER_HIRES, ONLY : FERRIER_INIT_HR, GPVS_HR,FPVS,FPVS0,NX
+      USE MODULE_CONSTANTS,    ONLY : R_D,R_V,CPV,CP,G
+
+      IMPLICIT NONE
+       
+      REAL, PARAMETER :: RCP=R_D/CP, P00_INV=1.E-5
+
+      INTEGER,INTENT(IN) :: ITS,ITE,JTS,JTE,IMS,IME,JMS,JME,LM,NTSD
+      INTEGER,INTENT(IN) :: IDE,JDE,NPHS
+
+      REAL, DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: T, Q, U, V, CW   & 
+                                              ,F_RAIN,F_ICE,F_RIMEF        &
+                                              ,W,Z
+
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1),INTENT(IN) :: PINT
+
+      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: PD,CPRATE,HTOP         &
+                                                    ,T2,U10,V10            &
+                                                    ,PSHLTR,TSHLTR,QSHLTR  &
+                                                    ,TH10,AKHS             &
+                                                    ,AKMS,SNO,FIS   
+
+      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT):: REFDMAX               & 
+                                                   ,UPVVELMAX,DNVVELMAX     &
+                                                   ,TLMAX,TLMIN             &
+                                                   ,T02MAX,T02MIN           &
+                                                   ,RH02MAX,RH02MIN         &
+                                                   ,U10MAX,V10MAX           &
+                                                   ,SPD10MAX,T10AVG,PSFCAVG &
+                                                   ,UPHLMAX,T10,AKHSAVG     &
+                                                   ,AKMSAVG,SNOAVG 
+
+      REAL, INTENT(IN) :: DYH, DXH(JMS:JME)
+      LOGICAL,INTENT(INOUT) :: FIRST_NMM
+      REAL, INTENT(IN) :: SGML2(LM),PSGML1(LM), DT
+ 
+      INTEGER :: UPINDX(IMS:IME,JMS:JME)
+      REAL, DIMENSION(IMS:IME,JMS:JME) :: P10
+
+      REAL, DIMENSION(IMS:IME,JMS:JME) :: ZINTSFC 
+      REAL, DIMENSION(IMS:IME,JMS:JME,LM) :: PMID 
+
+      REAL :: PLOW, PUP,WGTa,WGTb,ZMIDloc,ZMIDP1
+      REAL :: P1Da,P1Db,P1D(2)
+      REAL :: T1Da,T1Db,T1D(2),fact
+      REAL :: Q1Da,Q1Db,Q1D(2)
+      REAL :: C1Da,C1Db,C1D(2)
+      REAL :: FR1Da,FR1Db,FR1D(2)
+      REAL :: FI1Da,FI1Db,FI1D(2)
+      REAL :: FS1Da,FS1Db,FS1D(2),DBZ1(2)
+
+      REAL :: CUPRATE, CUREFL, CUREFL_I, ZFRZ, DBZ1avg, FCTR, DELZ
+      REAL :: T02, RH02, TERM
+      REAL :: CAPPA_MOIST, VAPOR_PRESS, EPSILON, ONE_MINUS_EPSILON, SAT_VAPOR_PRESS
+      REAL :: R_FACTOR,CP_FACTOR
+      REAL, SAVE:: DTPHS, RDTPHS
+      REAL :: MAGW2
+
+      INTEGER :: LCTOP
+      INTEGER :: I,J,L,NCOUNT,LL, RC, Ilook,Jlook
+
+
+!***  COMPUTE AND SAVE THE FACTORS IN R AND CP TO ACCOUNT FOR
+!***  WATER VAPOR IN THE AIR.
+!***
+!***  RECALL: R  = Rd * (1. + Q * (1./EPSILON - 1.))
+!***          CP = CPd * (1. + Q * (CPv/CPd - 1.))
+
+      Ilook=99
+      Jlook=275
+
+      IF (FIRST_NMM) THEN
+        DTPHS=DT*NPHS
+        RDTPHS=3.6e6/DTPHS
+        EPSILON=R_D/R_V
+        ONE_MINUS_EPSILON=1.-EPSILON
+        R_FACTOR=1./EPSILON-1.
+        CP_FACTOR=CPV/CP-1.
+! Make sure saturation vapor pressure lookup table is initialized
+        CALL GPVS_HR
+        FIRST_NMM=.false.
+      ENDIF
+
+      DO L=1,LM
+       DO J=JTS,JTE
+        DO I=ITS,ITE
+         PMID(I,J,L)=PSGML1(L)+SGML2(L)*PD(I,J)
+        ENDDO
+       ENDDO
+      ENDDO
+!
+      DO J=JTS,JTE
+       DO I=ITS,ITE
+         ZINTSFC(I,J)=FIS(I,J)/g
+       ENDDO
+      ENDDO
+!
+!     WON'T BOTHER TO REBUILD HEIGHTS AS IS DONE IN POST.
+!     THE NONHYDROSTATIC MID-LAYER Z VALUES MATCH CLOSELY ENOUGH
+!     AT 1000 m AGL
+!
+      DO J=JTS,JTE
+       DO I=ITS,ITE
+ L_LOOP: DO L=1,LM-1
+          PLOW= PMID(I,J,L+1)
+          PUP=  PMID(I,J,L)
+          IF (PLOW .ge. 40000. .and. PUP .le. 40000.) THEN
+            UPINDX(I,J)=L
+            exit L_LOOP
+          ENDIF 
+         ENDDO L_LOOP
+       ENDDO
+      ENDDO
+!
+      DO J=JTS,JTE
+       DO I=ITS,ITE
+  vloop: DO L=8,LM-1
+          IF ( (Z(I,J,L+1)-ZINTSFC(I,J)) .LE. 1000.                &
+          .AND.(Z(I,J,L)-ZINTSFC(I,J))   .GE. 1000.)  THEN
+            ZMIDP1=Z(I,J,L)
+            ZMIDloc=Z(I,J,L+1)
+            P1D(1)=PMID(I,J,L)
+            P1D(2)=PMID(I,J,L+1)
+            T1D(1)=T(I,J,L)
+            T1D(2)=T(I,J,L+1)
+            Q1D(1)=Q(I,J,L)
+            Q1D(2)=Q(I,J,L+1)
+            C1D(1)=CW(I,J,L)
+            C1D(2)=CW(I,J,L+1)
+            FR1D(1)=F_RAIN(I,J,L)
+            FR1D(2)=F_RAIN(I,J,L+1)
+            FI1D(1)=F_ICE(I,J,L)
+            FI1D(2)=F_ICE(I,J,L+1)
+            FS1D(1)=F_RIMEF(I,J,L)
+            FS1D(2)=F_RIMEF(I,J,L+1)
+            EXIT vloop
+          ENDIF
+        ENDDO vloop
+!
+!!! INITIAL CUREFL VALUE WITHOUT REDUCTION ABOVE FREEZING LEVEL
+!
+        CUPRATE=RDTPHS*CPRATE(I,J)
+        CUREFL=300.*CUPRATE**1.4
+        ZFRZ=Z(I,J,LM)
+!
+ culoop: IF (CUREFL > 0) THEN
+ vloop2:  DO L=1,LM
+            IF (T(I,J,L) >= 273.15) THEN
+              ZFRZ=Z(I,J,L)
+              EXIT vloop2
+            ENDIF
+          ENDDO vloop2
+!
+          LCTOP=NINT(HTOP(I,J))
+          CUREFL_I=-2./MAX( 1000., Z(I,J,LCTOP)-ZFRZ )
+!
+ vloop3:  DO L=1,LM
+            FCTR=0.
+            IF (L >= LCTOP .and. L <= LM) THEN
+              DELZ=Z(I,J,L)-ZFRZ
+              IF (DELZ <= 0.) THEN
+                FCTR=1.        !-- Below the highest freezing level
+              ELSE
+       !
+       !--- Reduce convective radar reflectivity above freezing level
+       !
+                FCTR=10.**(CUREFL_I*DELZ)
+              ENDIF
+            ENDIF
+          ENDDO vloop3
+          CUREFL=FCTR*CUREFL
+         ENDIF culoop
+!
+         DO LL=1,2
+          IF (C1D(LL) .GE. 1.e-12 .OR. CUREFL .GT. 0.) then
+           CALL CALMICT_HR(P1D(LL),T1D(LL),Q1D(LL),C1D(LL), &
+                           FI1D(LL),FR1D(LL),FS1D(LL),CUREFL, &
+                           DBZ1(LL), I, J, Ilook, Jlook) 
+          ELSE
+           DBZ1(LL)=-20.
+          ENDIF 
+         ENDDO
+         FACT=(1000.+ZINTSFC(I,J)-ZMIDloc)/(ZMIDloc-ZMIDP1)
+         DBZ1avg=DBZ1(2)+(DBZ1(2)-DBZ1(1))*FACT
+         REFDMAX(I,J)=max(REFDMAX(I,J),DBZ1avg)
+       ENDDO
+      ENDDO
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      DO L=1,LM
+       DO J=JTS,JTE
+        DO I=ITS,ITE
+         IF (L >= UPINDX(I,J)) THEN
+           UPVVELMAX(I,J)=max(UPVVELMAX(I,J),W(I,J,L))
+           DNVVELMAX(I,J)=min(DNVVELMAX(I,J),W(I,J,L))
+         ENDIF
+        ENDDO
+       ENDDO
+      ENDDO
+!
+      DO J=JTS,JTE
+      DO I=ITS,ITE
+        TLMAX(I,J)=MAX(TLMAX(I,J),T(I,J,LM))  !<--- Hourly max lowest layer T
+        TLMIN(I,J)=MIN(TLMIN(I,J),T(I,J,LM))  !<--- Hourly min lowest layer T
+        IF (NTSD > 0) THEN
+          CAPPA_MOIST=RCP*(1.+QSHLTR(I,J)*R_FACTOR)/(1.+QSHLTR(I,J)*CP_FACTOR)
+          T02=TSHLTR(I,J)*(P00_INV*PSHLTR(I,J))**CAPPA_MOIST
+          T02MAX(I,J)=MAX(T02MAX(I,J),T02)  !<--- Hourly max 2m T
+          T02MIN(I,J)=MIN(T02MIN(I,J),T02)  !<--- Hourly min 2m T
+!
+          VAPOR_PRESS=PSHLTR(I,J)*QSHLTR(I,J)/                          &
+                     (EPSILON+QSHLTR(I,J)*ONE_MINUS_EPSILON)
+          SAT_VAPOR_PRESS=1.E3*FPVS0(T02)
+          RH02=MIN(VAPOR_PRESS/SAT_VAPOR_PRESS,0.99)
+!
+          RH02MAX(I,J)=MAX(RH02MAX(I,J),RH02)     !<--- Hourly max shelter RH
+          RH02MIN(I,J)=MIN(RH02MIN(I,J),RH02)     !<--- Hourly min shelter RH
+!
+          MAGW2=(U10(I,J)**2.+V10(I,J)**2.)
+          IF (MAGW2 .gt. SPD10MAX(I,J)) THEN
+            U10MAX(I,J)=U10(I,J)                 !<--- U assoc with Hrly max 10m wind speed
+            V10MAX(I,J)=V10(I,J)                 !<--- V assoc with Hrly max 10m wind speed
+            SPD10MAX(I,J)=MAGW2
+          ENDIF
+	ENDIF
+      ENDDO
+      ENDDO
+
+      CALL CALC_UPHLCY_HR(U,V,W,Z,ZINTSFC,UPHLMAX,DXH,DYH          & 
+                         ,IMS,IME,JMS,JME                          &
+                         ,ITS,ITE,JTS,JTE,IDE,JDE,LM)
+
+      NCOUNT=NCOUNT+1
+      DO J=JTS,JTE
+       DO I=ITS,ITE
+        TERM=-0.273133/T2(I,J)
+        P10(I,J)=PSHLTR(I,J)*exp(TERM)
+        T10(I,J)=TH10(I,J)*(P10(I,J)/1.e5)**RCP
+        T10AVG(I,J)=T10AVG(I,J)*(NCOUNT-1)+T10(I,J)
+        T10AVG(I,J)=T10AVG(I,J)/NCOUNT
+        PSFCAVG(I,J)=PSFCAVG(I,J)*(NCOUNT-1)+PINT(I,J,LM+1)
+        PSFCAVG(I,J)=PSFCAVG(I,J)/NCOUNT
+        AKHSAVG(I,J)=AKHSAVG(I,J)*(NCOUNT-1)+AKHS(I,J)
+        AKHSAVG(I,J)=AKHSAVG(I,J)/NCOUNT
+        AKMSAVG(I,J)=AKMSAVG(I,J)*(NCOUNT-1)+AKMS(I,J)
+        AKMSAVG(I,J)=AKMSAVG(I,J)/NCOUNT
+        IF (SNO(I,J) > 0.) THEN
+         SNOAVG(I,J)=SNOAVG(I,J)*(NCOUNT-1)+1
+        ELSE 
+         SNOAVG(I,J)=SNOAVG(I,J)*(NCOUNT-1)
+        ENDIF
+        SNOAVG(I,J)=SNOAVG(I,J)/NCOUNT
+       ENDDO
+      ENDDO
+
+      END SUBROUTINE MAX_FIELDS_HR
+!
+!----------------------------------------------------------------------
+      SUBROUTINE CALC_UPHLCY_HR(U,V,W,Z,ZINTSFC,UPHLMAX,DX,DY         &
+                               ,IMS,IME,JMS,JME                       &
+                               ,ITS,ITE,JTS,JTE,IDE,JDE,LM)
+
+      INTEGER, INTENT(IN) :: IMS,IME,JMS,JME,ITS,ITE
+      INTEGER, INTENT(IN) :: JTS,JTE,IDE,JDE,LM
+      REAL,INTENT(IN) :: U(IMS:IME,JMS:JME,LM)
+      REAL,INTENT(IN) :: V(IMS:IME,JMS:JME,LM)
+      REAL,INTENT(IN) :: W(IMS:IME,JMS:JME,LM)
+      REAL,INTENT(IN) :: Z(IMS:IME,JMS:JME,LM)
+      REAL,INTENT(IN) :: ZINTSFC(IMS:IME,JMS:JME)
+      REAL,INTENT(INOUT) :: UPHLMAX(IMS:IME,JMS:JME)
+      REAL,INTENT(IN) :: DX(JMS:JME),DY
+
+! local variables
+
+      REAL :: UPHL   (IMS:IME,JMS:JME)
+      INTEGER :: I,J,L
+      REAL :: R2DX,R2DY,DZ,ZMIDLOC
+      REAL :: DUDY,DVDX
+
+      REAL, PARAMETER:: HLOWER=2000.
+      REAL, PARAMETER:: HUPPER=5000.
+
+      do J=JMS,JME
+       do I=IMS,IME
+          UPHL(I,J)=0.
+       enddo
+      enddo
+
+      R2DY=1./(2.*DY)
+      DO J=MAX(JTS,2),MIN(JTE,JDE-1)
+        R2DX=1./(2.*DX(J))
+        DO I=MAX(ITS,2),MIN(ITE,IDE-1)
+  L_LOOP:  DO L=1,LM
+             ZMIDLOC=Z(I,J,L)
+             IF ( (ZMIDLOC - ZINTSFC(I,J)) .ge. HLOWER  .AND. &
+                  (ZMIDLOC - ZINTSFC(I,J)) .le. HUPPER ) THEN
+               DZ=(Z(I,J,L)-Z(I,J,L+1))
+!
+!*             ANY DOWNWARD MOTION IN 2-5 km LAYER KILLS COMPUTATION AND
+!*             SETS RESULTANT UPDRAFT HELICTY TO ZERO
+!
+               IF (W(I,J,L) .lt. 0) THEN
+                 UPHL(I,J)=0.
+                 EXIT l_loop
+               ENDIF
+
+               DVDX=(V(I+1,J,L)-V(I-1,J,L))*R2DX
+               DUDY=(U(I,J+1,L)-U(I,J-1,L))*R2DY
+               UPHL(I,J)=UPHL(I,J)+(DVDX-DUDY)*W(I,J,L)*DZ
+             ENDIF
+           ENDDO L_LOOP
+           UPHLMAX(I,J)=MAX(UPHL(I,J),UPHLMAX(I,J))
+        ENDDO
+      ENDDO
+     
+      END SUBROUTINE CALC_UPHLCY_HR
 !
 !----------------------------------------------------------------------
 !

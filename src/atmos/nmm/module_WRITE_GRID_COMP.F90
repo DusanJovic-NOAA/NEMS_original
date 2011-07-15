@@ -1110,7 +1110,7 @@
       INTEGER(kind=KINT) :: ID_DOMAIN,LENGTH                            &
                            ,MPI_COMM,MPI_COMM2
 !
-      INTEGER(kind=KINT) :: IO_HST_UNIT,IO_RST_UNIT
+      INTEGER(kind=KINT) :: IO_HST_UNIT,IO_RST_UNIT,FFSYNC
 !
       INTEGER(kind=KINT) :: IERR,ISTAT,RC
 !
@@ -3024,6 +3024,32 @@
 !       WRITE(0,*)' Closed nemsio_history file, ', gfname
 !
         CALL NEMSIO_FINALIZE()
+!
+! ffsync
+        IF(WRT_INT_STATE%WRITE_FSYNCFLAG) THEN
+          DO N=51,99
+            INQUIRE(N,opened=OPENED)
+            IF(.NOT.OPENED)THEN
+              IO_HST_UNIT=N
+              EXIT
+            ENDIF
+          ENDDO
+!
+          OPEN(unit=IO_HST_UNIT, file=trim(GFNAME) )
+!
+          RC=FFSYNC(IO_HST_UNIT)
+
+! Handle possible error
+          IF (RC.NE.0) THEN
+            print *,"Error returned from ffsync, file=",                &
+     &            trim(GFNAME),"rc=",RC
+          ENDIF
+!
+          CLOSE(IO_HST_UNIT)
+!
+        ENDIF
+!
+!ffsync end
 !
       ENDIF
 !

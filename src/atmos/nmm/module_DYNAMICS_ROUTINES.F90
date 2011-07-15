@@ -1281,7 +1281,7 @@ real(kind=kfpt),parameter:: &
 ,epscm=2.e-6 &               ! a floor value (not used)
 ,pfc=1.+4./6. &              ! 4th order momentum advection
 ,sfc=-1./6. &                ! 4th order momentum advection
-,w1=1.0 &                    ! crank-nicholson uncentering
+,w1=0.9 &                    ! crank-nicholson uncentering
 !,w1=0.0 &                    ! crank-nicholson uncentering
 ,w2=2.-w1                    ! crank-nicholson uncentering
 
@@ -2901,8 +2901,9 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
           do j=jts_b1,jte_b1
             do i=its_b1,ite_b1
               t (i,j,l)=t (i,j,l)+tdif (i,j)
-              q (i,j,l)=q (i,j,l)+qdif (i,j)
-              cw(i,j,l)=cw(i,j,l)+cdif (i,j)
+!-- Enhanced diffusion for Q & CWM (doubling smag2 = 4X diffusion)
+              q (i,j,l)=q (i,j,l)+4.*qdif (i,j)
+              cw(i,j,l)=cw(i,j,l)+4.*cdif (i,j)
               q2(i,j,l)=q2(i,j,l)+q2dif(i,j)
             enddo
           enddo
@@ -3280,7 +3281,7 @@ real(kind=kfpt),dimension(its_h1:ite_h1,jts_h1:jte_h1):: &
 (global,hydro,restart &
 ,inpes,jnpes,lm,ntsd &
 ,dt,g &
-,dsg2,pdsg1 &
+,dsg2,pdsg1,psgml1 &
 ,fah &
 ,hdacx,hdacy &
 ,pd,pdo &
@@ -3299,9 +3300,12 @@ integer(kind=kint),parameter:: &
 ,lnsnh=02                    ! # of rows with smoothing along boundaries
 
 real(kind=kfpt),parameter:: &
- epsfc=9.81 &                ! limiter value
+ epsfc=9.80 &                ! limiter value
 ,epsn=-epsfc &               ! floor value for vertical acceleration
 ,epsp=epsfc &                ! upper limit for vertical acceleration
+,fwhy=1. &                   ! dwdt control factor
+,slpd=1500. &                ! dwdt control layer depth (Pa)
+,epsvw=9999. &               ! limit on horizontal advection of w
 ,wa=0.125 &                  ! weighting factor
 ,wb=0.5 &                    ! weighting factor
 !,wad=0.125 &                 ! lateral smoothing weight 
@@ -3312,6 +3316,10 @@ real(kind=kfpt),parameter:: &
 !,wp=0.075 &                  ! time smoothing weight
 ,wp=0.                       ! time smoothing weight
 !-----------------------------------------------------------------------
+
+integer(kind=kint):: &
+ lsltp                       ! # of layers within dwdt contol range
+
 logical(kind=klog),intent(in):: &
  global &                    ! global or regional
 ,hydro  &                    ! hydrostatic or nonhydrostatic
@@ -3329,7 +3337,8 @@ real(kind=kfpt),intent(in):: &
 
 real(kind=kfpt),dimension(1:lm),intent(in):: &
  dsg2 &                      ! delta sigmas
-,pdsg1                       ! delta pressures
+,pdsg1 &                     ! delta pressures
+,psgml1                      ! midlayer pressure part
 
 real(kind=kfpt),dimension(jds:jde),intent(in):: &
  fah                         ! delta sigmas
@@ -3364,11 +3373,6 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(in) :: &
 !-----------------------------------------------------------------------
 logical(kind=klog) :: diffw      ! turn horizontal diffusion of w on/off
 
-real(kind=kfpt),parameter:: &
-! epsvw=0.001                 !
- epsvw=9999.                 !
-
-
 integer(kind=kint):: &
  i &                         ! index in x direction
 ,imn &                       !
@@ -3385,12 +3389,17 @@ integer(kind=kint):: &
 
 real(kind=kfpt):: &
  advec &                     !
+,arg &                       !
 ,dwdtmn &                    ! minimum value of dwdt
 ,dwdtmx &                    ! maximum value of dwdt
 ,dwdtp &                     ! nonhydrostatic correction factor at the point
 ,fahp &                      ! grid factor
 ,rdt &                       ! 1/dt
-,rg                          ! 1/g
+,rg &                        ! 1/g
+,sltp                        ! uppermost midlayer pressure
+
+real(kind=kfpt),dimension(1:lm):: &
+ why                         ! dwdt control weight
 
 real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1):: &
  tta                         ! advection through upper interface
@@ -3700,6 +3709,30 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
  1400 format(' **** advecmn=',f9.5,' kn=',i6,' imn=',i4,' jmn=',i4,' lmn=',i2)
 !      if(mype.eq.192) write(0,1300) dwdtmx,kp,imx,jmx,lmx
 !      if(mype.eq.192) write(0,1400) dwdtmn,kp,imn,jmn,lmn
+        do l=1,lm
+          why(l)=-99.
+        enddo
+!
+        lsltp=0
+        sltp=(psgml1(1)+psgml1(2))*0.5
+        do l=1,lm-1
+          arg=((psgml1(l)+psgml1(l+1))*0.5-sltp)/slpd
+          if(arg.gt.1.) exit
+          why(l)=1.-fwhy*cos(arg*pi*0.5)**2
+          lsltp=l
+        enddo
+!if (mype.eq.035) then
+!write(0,*) 'lsltp,why ',lsltp,why
+!endif
+!stop
+!
+      do l=1,lsltp
+        do j=jts_b1,jte_b1
+          do i=its_b1,ite_b1
+            dwdt(i,j,l)=dwdt(i,j,l)*why(l)
+          enddo
+        enddo
+      enddo
 !-----------------------------------------------------------------------
 !---taking external mode out--------------------------------------------
 !-----------------------------------------------------------------------

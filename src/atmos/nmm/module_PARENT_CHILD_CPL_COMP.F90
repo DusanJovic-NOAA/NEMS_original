@@ -6212,8 +6212,8 @@
 !-----------
 !-----------
 !
-          REAL_J_START=PARENT_J_CHILD_NBND-(N_BLEND-1+N_ADD)*RATIO_C_P     !<-- Parent J of southernmost row of nest blending region.
-          J_CHILD=JM_END-N_BLEND+1-N_ADD                                   !<-- Child J of southernmost row of its blending region.
+          REAL_J_START=PARENT_J_CHILD_NBND                                 !<-- Parent J of northernmost row of boundary region.
+          J_CHILD=JM_END                                                   !<-- Child J of northernmost row of boundary region.
 !
           KOUNT_J=0
 !
@@ -6425,8 +6425,8 @@
 !----------
 !----------
 !
-          REAL_I_START=PARENT_I_CHILD_EBND-(N_BLEND-1+N_ADD)*RATIO_C_P     !<-- Parent I of westernmost row of nest blending region.
-          I_CHILD=IM_END-N_BLEND+1-N_ADD                                   !<-- Child I of westernmost row of its blending region.
+          REAL_I_START=PARENT_I_CHILD_EBND                                 !<-- Parent I of easternmost row of nest boundary region.
+          I_CHILD=IM_END                                                   !<-- Child I of easternmost row of nest boundary region.
 !
           KOUNT_I=0
 !
@@ -6545,9 +6545,7 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER :: LEN=0
-!
-      INTEGER :: ID_CHILDTASK,ID_DOM,IERR,ISTAT,KOUNT,LENGTH,MYPE       &
+      INTEGER :: ID_CHILDTASK,ID_DOM,IERR,ISTAT,KOUNT,LEN,LENGTH,MYPE   &
                 ,N,N1,N2,NBASE,NT,NTX,NUM_WORDS,RC,RC_PRELIM
 !
       INTEGER :: I_LO,I_HI,I_OFFSET,ILIM_HI,ILIM_LO                     &
@@ -6568,9 +6566,10 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
+      LEN=0
       ALLOCATE(DUMMY_0(LEN),stat=ISTAT)
       IF(ISTAT/=0)THEN
-        WRITE(0,*)' Failed to allocate DUMMY_0 to length 0'
+        WRITE(0,*)' PRELIM_CHILD_INFO: Failed allocation of DUMMY_0'
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -8882,6 +8881,16 @@
         ENDIF
 !
 !-----------------------------------------------------------------------
+!.......................................................................
+!$OMP PARALLEL DO PRIVATE(                                                     &
+!$OMP         NTX,I_START,I_END,J_START,J_END,I_START_TRANSFER,I_END_TRANSFER, &
+!$OMP         J_START_TRANSFER,J_END_TRANSFER,PINT_INTERP,PHI_INTERP,          &
+!$OMP         LOG_PTOP,LOG_PBOT,TMP,LOG_LENGTH,J,I,I_WEST,I_EAST,J_SOUTH,      &
+!$OMP         J_NORTH,WGHT_SW,WGHT_SE,WGHT_NW,WGHT_NE,PX_SW,PX_SE,PX_NW,       &
+!$OMP         PX_NE,L,PDTOP_PT,T_INTERP,Q_INTERP, KOUNT_PTS,KOUNT_TRANSFER,    &
+!$OMP         FIS_CHILD,COEFF_1,COEFF_2,PHI_DIFF,PSFC_CHILD,LOG_P1_PARENT,     &
+!$OMP         D_LNP_DFI)
+!.......................................................................
 !
         child_task_loop: DO NTX=1,NUM_TASKS_SEND                            !<-- Fill bndry data for each child task on the child bndry
                                                                             !    segment seen by this parent task.
@@ -9181,6 +9190,10 @@
 !
         ENDDO child_task_loop
 !
+!.......................................................................
+!$OMP END PARALLEL DO
+!.......................................................................
+!
 !-----------------------------------------------------------------------
 !
       ENDDO loop_sides
@@ -9428,6 +9441,17 @@
         ENDIF
 !
 !-----------------------------------------------------------------------
+!.......................................................................
+!$OMP PARALLEL DO                                                         &
+!$OMP PRIVATE(NTX,I_START,I_END,J_START,J_END,I_START_EXPAND,I_END_EXPAND,&
+!$OMP         J_START_EXPAND,J_END_EXPAND,N_STRIDE,PMID_INTERP,VBL_INTERP,&
+!$OMP         PINT_INTERP_HI,PINT_INTERP_LO,J,I,I_WEST,I_EAST,J_SOUTH,    &
+!$OMP         J_NORTH,WGHT_SW,WGHT_SE,WGHT_NW,WGHT_NE,PX_SW,PX_SE,PX_NW,  &
+!$OMP         PX_NE,L,KNT_PTS,PDTOP_PT,DP1,DP2,DP3,PROD1,PROD2,PROD3,     &
+!$OMP         KNT_PTS_X,LOC_1,N_ADD,PMID_CHILD,P_INPUT,VBL_INPUT,LOC_2,   &
+!$OMP         VBL_COL_CHILD,NUM_LEVS_SPLINE,R_DELP,DELP_EXTRAP,COEFF_1,   &
+!$OMP         C_TMP)
+!.......................................................................
 !
         child_task_loop: DO NTX=1,NUM_TASKS_SEND                           !<-- Fill bndry data for each child task on the child bndry
                                                                            !    segment seen by this parent task.
@@ -9750,6 +9774,10 @@
 !-----------------------------------------------------------------------
 !
         ENDDO child_task_loop
+!
+!.......................................................................
+!$OMP END PARALLEL DO
+!.......................................................................
 !
 !-----------------------------------------------------------------------
 !

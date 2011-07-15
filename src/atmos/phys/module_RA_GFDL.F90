@@ -2,6 +2,9 @@
 !
       MODULE MODULE_RA_GFDL
 !
+!-- Slight change w/r/t module_RA_GFDL.F90_czmean_hiclds_20101110 with
+!   1% (QCLD=1.e-4 g/kg) to 100% (QCLD=.01 g/kg).
+!
 !-----------------------------------------------------------------------
 !
 !***  THE RADIATION DRIVERS AND PACKAGES
@@ -18,11 +21,9 @@
 !-----------------------------------------------------------------------
 !
       USE MODULE_INCLUDE
-      USE MODULE_CONSTANTS,ONLY : CAPPA,CP,EP_2,EPSQ,G,PI
+      USE MODULE_CONSTANTS,ONLY : CAPPA,CP,EP_2,G,PI
 !
-      USE MODULE_MP_ETANEW,ONLY : RHgrd,T_ICE,FPVS,QAUT0,XMImax,XMIexp  &
-                                 ,MDImin,MDImax,MASSI,FLARGE1,FLARGE2   &
-                                 ,NLImin,NLImax,GPVS
+      USE MODULE_MP_ETANEW,ONLY : RHgrd,T_ICE,FPVS,GPVS
 !
 !-----------------------------------------------------------------------
 !
@@ -388,9 +389,6 @@
 !! !***
 !! !***  MESO STANDARD DEVIATION OF EK AND MAHRT'S CLOUD COVER ALOGRITHM
 !! !***
-       if (SDprint) print *,                                            &
-     & 'RHgrd,T_ICE,NLImin,NLImax,FLARGE1,FLARGE2,MDImin,MDImax=',&
-     &  RHgrd,T_ICE,NLImin,NLImax,FLARGE1,FLARGE2,MDImin,MDImax
 !
 !-----------------------------------------------------------------------
       END SUBROUTINE GFDL_INIT
@@ -780,6 +778,13 @@
 
       REAL,DIMENSION(10),SAVE :: CC,PPT
 !-----------------------------------------------------------------------
+!rv------------------------------------
+!rv   This should be temporary fix!!!!!
+!rv   New (currently operational) calculation of cloud fraction is
+!rv   causing different results with different decomposition
+!rv   We should find cause of this!!!!!
+      LOGICAL :: OPER=.false.
+!rv------------------------------------
       REAL,SAVE :: ABCFF(NB)
       INTEGER,DIMENSION(its:ite,jts:jte) :: LVL
       REAL,   DIMENSION(its:ite, jts:jte):: PDSL,FNE,FSE,TL
@@ -811,7 +816,9 @@
       REAL    :: PMOD,CLFR1,CTAU,WV,ARG,CLDMAX
       REAL    :: CL1,CL2,CR1,DPCL,QSUM,PRS1,PRS2,DELP,TCLD,DD,EE,AA,FF
       REAL    :: BB,GG,FCTR,PDSLIJ,CFRAVG,SNOMM
+!rv   REAL    :: THICK,CONVPRATE,CLFR,ESAT,QSAT,QCLD
       REAL    :: THICK,CONVPRATE,CLFR,ESAT,QSAT,RHUM,QCLD
+!rv --- take out RHUM when CDLFRA is fixed
       REAL    :: RHtot,RRHO,FLARGE,FSMALL,DSNOW,SDM,QPCLDY,DIFCLD
       REAL    :: TauC,CTauL,CTauS,  CFSmax,CFCmax
       INTEGER :: I,J,MYJS,MYJE,MYIS,MYIE,NTSPH,NRADPP,ITIMSW,ITIMLW,    &
@@ -902,7 +909,8 @@
         ENDDO
         ENDDO
 !
-        DO II=0,NRADS,NPHS
+!!        DO II=0,NRADS,NPHS
+        DO II=0,NRADS     !-- More accurate calculation of CZMEAN?
           TIMES=XTIME*60.+II*DT
           CALL ZENITH(TIMES,DAYI,HOUR,IDAT,IHRST,GLON,GLAT,CZEN,        &
      &                ITS,ITE,JTS,JTE,                                  &
@@ -1047,10 +1055,17 @@
             LL=L+LVLIJ
             WV=QMID(I,LL)/(1.-QMID(I,LL))       !--- Water vapor mixing ratio
             QCLD=QWMID(I,LL)+QIMID(I,LL)        !--- Total cloud water + ice mixing ratio
+!rv------------------------------------
+          if (oper) then
+!rv------------------------------------
+            CLFR=MIN(H1, MAX(H0,1.E5*QCLD))
+            IF (CLFR>=CLFRmin) CSMID(I,LL)=SQRT(CLFR)
+!rv------------------------------------
+          else
+!rv------------------------------------
             IF (QCLD .LE. EPSQ) GO TO 255       !--- Skip if no condensate is present
             CLFR=H0
             WV=QMID(I,LL)/(1.-QMID(I,LL))       !--- Water vapor mixing ratio
-               
     !
     !--- Saturation vapor pressure w/r/t water ( >=0C ) or ice ( <0C )
     !
@@ -1061,27 +1076,6 @@
     !--- Revised cloud cover parameterization (temporarily ignore rain)
     !
             RHtot=(WV+QCLD)/QSAT                !--- Total relative humidity
-!!    !
-!!    !--- QOVRCST is the amount of cloud condensate associated with full
-!!    !    overcast, PCLDY is an arbitrary factor for partial cloudiness
-!!    !
-!!            TCLD=TMID(I,LL)-T0C                 !--- Air temp in deg C
-!!            RRHO=(R_D*TMID(I,LL)*(1.+EP_1*QMID(I,LL)))/PMID(I,LL)
-!!            IF (TCLD .GE. 0.) THEN
-!!               QOVRCST(I,LL)=QAUT0*RRHO
-!!            ELSE
-!!               IF (TCLD.GE.-8. .AND. TCLD.LE.-3.) THEN
-!!                  FLARGE=FLARGE1
-!!               ELSE
-!!                  FLARGE=FLARGE2
-!!               ENDIF
-!!               FSMALL=(1.-FLARGE)/FLARGE
-!!               DSNOW=XMImax*EXP(XMIexp*TCLD)
-!!               INDEXS=MAX(MDImin, MIN(MDImax, INT(DSNOW)))
-!!               QOVRCST(I,LL)=NLImax*( FSMALL*MASSI(MDImin)              &
-!!     &                               +MASSI(INDEXS) )*RRHO
-!!            ENDIF                 !--- End IF (TCLD .GE. 0.)
-!!            QOVRCST(I,LL)=PCLDY*QOVRCST(I,LL)
             LCNVT=NINT(CUTOP(I,J))+LVLIJ
             LCNVT=MIN(LM,LCNVT)
             LCNVB=NINT(CUBOT(I,J))+LVLIJ
@@ -1110,23 +1104,12 @@
                   IXSD=MIN(NXSD, MAX(IXSD,1))
                   CLFR=HALF-AXSD(IXSD)
                   IF (CLFR .LT. CLFRmin) CLFR=H0
-               ENDIF        !--- End IF (ARG .LE. XSDmin) 
+               ENDIF        !--- End IF (ARG .LE. XSDmin)
             ENDIF           !--- IF (ARG.LE.DXSD2 .AND. ARG.GE.DXSD2N)
             CSMID(I,LL)=CLFR
-!!  !
-!!  !--- Here the condensate is adjusted to be only over the cloudy area
-!!  !
-!!            IF (CLFR.GT.0. .AND. QCLD.LE.0.) THEN
-!!  !
-!!  !--- Put in modest amounts of cloud water & cloud ice for partially cloudy grids
-!!  !
-!!               QPCLDY=MIN(.01*QSAT, QOVRCST(I,LL))
-!!               IF (TCLD .GE. H0) THEN
-!!                  QWMID(I,LL)=QPCLDY
-!!               ELSE
-!!                  QIMID(I,LL)=QPCLDY
-!!               ENDIF
-!!            ENDIF          !--- End IF (CLFR.GT.0. .AND. QCLD.LE.0.) 
+!rv------------------------------------
+          endif
+!rv------------------------------------
 255       CONTINUE         !--- End DO L=1,LML
       ENDDO                !--- End DO I=MYIS,MYIE
 !
@@ -1396,10 +1379,17 @@
 !***
       NEW_CLOUD=.TRUE.
 !
+!--- Set cloud fractions to 1 if grid-scale condensate is present (CSMID>CLFRmin),
+!    otherwise set to (partial) convective cloud fractions (CCMID>0).
+!
       DO L=2,LML
         LL=LML-L+1+LVLIJ                        !-- Model layer
-        CLFR=MAX(CCMID(I,LL),CSMID(I,LL))       !-- Cloud fraction in layer
-        CLFR1=MAX(CCMID(I,LL+1),CSMID(I,LL+1))  !-- Cloud fraction in lower layer
+!        CLFR=MAX(CCMID(I,LL),CSMID(I,LL))       !-- Cloud fraction in layer
+!        CLFR1=MAX(CCMID(I,LL+1),CSMID(I,LL+1))  !-- Cloud fraction in lower layer
+        CLFR=CCMID(I,LL)                        !-- Cloud fraction in layer
+        IF (CSMID(I,LL) > CLFRmin) CLFR=1.0
+        CLFR1=CCMID(I,LL+1)                     !-- Cloud fraction in lower layer
+        IF (CSMID(I,LL+1) > CLFRmin) CLFR1=1.0
 !-------------------
         IF (CLFR .GE. CLFRMIN) THEN
 !--- Cloud present at level
@@ -1638,24 +1628,17 @@
         CFRACM(I,J)=CLDCFR(I,2)
         CFRACH(I,J)=CLDCFR(I,3)
         IF(CNCLD)THEN
-          CFSmax=0.   !-- Maximum cloud fraction (stratiform component)
           CFCmax=0.   !-- Maximum cloud fraction (convective component)
           DO L=1,LMH(I,J)
             LL=L+LVL(I,J)
-            CFSmax=MAX(CFSmax, CSMID(I,LL) )
             CFCmax=MAX(CFCmax, CCMID(I,LL) )
           ENDDO
-          ACFRST(I,J)=ACFRST(I,J)+CFSmax
-          NCFRST(I,J)=NCFRST(I,J)+1
           ACFRCV(I,J)=ACFRCV(I,J)+CFCmax
           NCFRCV(I,J)=NCFRCV(I,J)+1
-        ELSE
-  !--- Count only locations with grid-scale cloudiness, ignore convective clouds
-  !    (option not used, but if so set to the total cloud fraction)
-          CFRAVG=1.-(1.-CFRACL(I,J))*(1.-CFRACM(I,J))*(1.-CFRACH(I,J))
-          ACFRST(I,J)=ACFRST(I,J)+CFRAVG
-          NCFRST(I,J)=NCFRST(I,J)+1
         ENDIF
+        CFRAVG=1.-(1.-CFRACL(I,J))*(1.-CFRACM(I,J))*(1.-CFRACH(I,J))
+        ACFRST(I,J)=ACFRST(I,J)+CFRAVG
+        NCFRST(I,J)=NCFRST(I,J)+1
 !--- Flip 3D cloud fractions in the vertical and save time
         LML=LMH(I,J)
         DO L=1,LML
@@ -3575,7 +3558,6 @@
       KMAX=0
       DO 1362 I=MYIS,MYIE
         J1=KTOP(I,KK+1)
-!       IF (J1.EQ.1) GO TO 1362
         J3=KBTM(I,KK+1)
         IF (J3.GT.J1) THEN
           PTOP(I)=P(I,J1)

@@ -293,11 +293,11 @@
 
       CALL HALO_EXCH(int_state%PINT,LM+1,2,2)
 
-        if (MYPE .eq. 0) then
-      DO L=1,LM+1
-        write(0,*) 'L, pint(5,5,L): ', L, int_state%PINT(5,5,L)
-      ENDDO
-        endif
+!       if (MYPE .eq. 0) then
+!     DO L=1,LM+1
+!       write(0,*) 'L, pint(5,5,L): ', L, int_state%PINT(5,5,L)
+!     ENDDO
+!       endif
 
 !
 
@@ -689,8 +689,8 @@
       CALL NEMSIO_GETHEADVAR(gfile,'DLMD',int_state%DLMD,iret=irtn)
       CALL NEMSIO_GETHEADVAR(gfile,'TPH0D',int_state%TPH0D,iret=irtn)
       CALL NEMSIO_GETHEADVAR(gfile,'TLM0D',int_state%TLM0D,iret=irtn)
-      write(0,*)'phycs sbd=',int_state%SBD,int_state%WBD,int_state%DPHD,  &
-       int_state%DLMD,int_state%TPH0D,int_state%TLM0D
+!     write(0,*)'phycs sbd=',int_state%SBD,int_state%WBD,int_state%DPHD,  &
+!      int_state%DLMD,int_state%TPH0D,int_state%TLM0D
 !
 !----------------------------------------------------------------------
 !
@@ -703,7 +703,7 @@
       DEALLOCATE(TMP)
 !
        etime=timef()
-        write(0,*)'PHYSICS_READ_INPUT_NEMSIO,time=',etime-stime
+!       write(0,*)'PHYSICS_READ_INPUT_NEMSIO,time=',etime-stime
 !
 !-----------------------------------------------------------------------
 !

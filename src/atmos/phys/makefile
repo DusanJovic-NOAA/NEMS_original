@@ -17,6 +17,7 @@ MODULES_NMM_SMP  = module_BL_MYJPBL.o \
                    module_CU_BMJ.o \
                    module_CU_BMJ_DEV.o \
                    module_MP_ETANEW.o \
+                   module_MP_FER_HIRES.o \
                    module_MP_WSM6.o \
                    module_MP_GFS.o \
                    module_RA_GFDL.o \

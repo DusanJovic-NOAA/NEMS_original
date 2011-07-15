@@ -27,6 +27,7 @@
       USE MODULE_CONTROL,ONLY : NMMB_FINALIZE
 ! MP options
       USE MODULE_MP_ETANEW
+      USE MODULE_MP_FER_HIRES
       USE MODULE_MP_WSM6
       USE MODULE_MP_GFS
 !
@@ -310,6 +311,25 @@
 !
           CASE ('fer')
             CALL ETAMP_NEW(                                                   &
+                   ITIMESTEP=ntsd,DT=dtphs,DX=dx,DY=dy                        &
+                  ,DZ8W=dz,RHO_PHY=rr,P_PHY=p_phy,PI_PHY=pi_phy,TH_PHY=th_phy &
+                  ,QV=water(ims,jms,1,p_qv)                                   &
+                  ,QC=water(ims,jms,1,p_qc)                                   &
+                  ,QS=water(ims,jms,1,p_qs)                                   &
+                  ,QR=water(ims,jms,1,p_qr)                                   &
+                  ,QT=cwm                                                     &
+                  ,LOWLYR=LOWLYR,SR=SR                                        &
+                  ,F_ICE_PHY=F_ICE,F_RAIN_PHY=F_RAIN                          &
+                  ,F_RIMEF_PHY=F_RIMEF                                        &
+                  ,RAINNC=rainnc,RAINNCV=rainncv                              &
+                  ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=1,KDE=LM+1           &
+                  ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=1,KME=LM             &
+                  ,ITS=itsloc,ITE=iteloc, JTS=jtsloc,JTE=jteloc, KTS=1,KTE=LM &
+                  ,MP_RESTART_STATE=mp_restart_state                          &
+                  ,TBPVS_STATE=tbpvs_state,TBPVS0_STATE=tbpvs0_state          &
+                                                                            )
+          CASE ('fer_hires')
+            CALL FER_HIRES(                                                   &
                    ITIMESTEP=ntsd,DT=dtphs,DX=dx,DY=dy                        &
                   ,DZ8W=dz,RHO_PHY=rr,P_PHY=p_phy,PI_PHY=pi_phy,TH_PHY=th_phy &
                   ,QV=water(ims,jms,1,p_qv)                                   &

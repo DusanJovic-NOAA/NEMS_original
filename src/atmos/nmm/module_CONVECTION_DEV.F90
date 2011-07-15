@@ -216,7 +216,6 @@
 !-----------------------------------------------------------------------
 !
       SELECT CASE (TRIM(CONVECTION))
-!rv     CASE ('bmj')
         CASE ('bmj_dev')
           CU_PHYSICS=2
         CASE ('kf')

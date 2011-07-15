@@ -1651,6 +1651,12 @@
 	write(0,*) 'filter_method here is: ', filter_method
 	write(0,*) 'setting filter_method to zero'
         FILTER_METHOD=0
+
+      CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                     &  !<-- This DOMAIN component's import state for filter method
+                            ,name ='Filter_Method'                      &  !<-- Flag for filter method
+                            ,value=FILTER_METHOD                        &  !<-- Value of filter method flag
+                            ,rc   =RC)
+
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -1771,7 +1777,7 @@
                                  ,sd          =Sd &
                                  ,rc          =RC)
 
-        NDFISTEP=DFIHR/(S+float(Sn)/float(Sd))
+        NDFISTEP=INT( DFIHR/(S+float(Sn)/float(Sd)) + 0.5)
         DFIHR_CHK=NDFISTEP*(S+float(Sn)/float(Sd))
 
         IF (DFIHR_CHK /= DFIHR) THEN 
@@ -1893,7 +1899,7 @@
                                  ,sd          =Sd &
                                  ,rc          =RC)
 
-        NDFISTEP=DFIHR/(S+float(Sn)/float(Sd))
+        NDFISTEP=INT( DFIHR/(S+float(Sn)/float(Sd)) + 0.5)
         DFIHR_CHK=NDFISTEP*(S+float(Sn)/float(Sd))
 
         IF (DFIHR_CHK /= DFIHR) THEN 
@@ -2089,7 +2095,7 @@
                                  ,sd          =Sd &
                                  ,rc          =RC)
 
-        NDFISTEP=DFIHR/(S+float(Sn)/float(Sd))
+        NDFISTEP=INT( DFIHR/(S+float(Sn)/float(Sd)) + 0.5)
         DFIHR_CHK=NDFISTEP*(S+float(Sn)/float(Sd))
 
         IF (DFIHR_CHK /= DFIHR) THEN 
@@ -2304,7 +2310,7 @@
 !***  integration that follows.
 !-----------------------------------------------------------------------
 !
-      FILTER_METHOD=0
+!     FILTER_METHOD=0
 
 #ifdef ESMF_3
       IF (NUM_CHILDREN(MY_DOMAIN_ID) > 0 .and. I_AM_A_FCST_TASK == ESMF_TRUE ) THEN

@@ -62,7 +62,7 @@
 'V'          -       -       -      I      -   T  'V wind component  (m s-1)'
 'Q2'         -       -       -      I      -   T  '2*tke  (m2 s-2)'
 'CW'         -       -       -      -      -   T  ''
-'W'          H       R       O      -      -   T  'Vertical velocity at midlayers  (m s-1)'
+'W'          H       R       O      -      X   T  'Vertical velocity at midlayers  (m s-1)'
 'DWDT'       -       -       -      I      -   T  'Vertical acceleration, correction factor  (m s-2)'
 'PINT'       -       -       -      I      -   T  'Nonhydrostatic interface pressure  (Pa)'
 'OMGALF'     H       R       O      -      X   -  'Omega-alpha  (K)'
@@ -77,7 +77,7 @@
 'VP'         -       R       O      -      -   -  'V wind component, previous step  (m s-1)'
 'E2'         -       R       -      -      -   -  '3D, 2*TKE - turbulent kinetic energy'
 'PSGDT'      -       R       O      -      -   -  'Specific volume  (m3 kg-1)'
-'Z'          -       R       O      -      -   -  'Height at midlayers  (m)'
+'Z'          -       R       O      -      X   -  'Height at midlayers  (m)'
 
 ###    4D real
 

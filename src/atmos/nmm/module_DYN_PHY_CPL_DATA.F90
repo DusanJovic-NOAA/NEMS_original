@@ -28,7 +28,7 @@
 !----------------------------
 !
       INTEGER,PARAMETER :: NDATA_2D=1       ! Number of 2D variables handled by the coupler
-      INTEGER,PARAMETER :: NDATA_3D=5       ! Number of 3D variables handled by the coupler
+      INTEGER,PARAMETER :: NDATA_3D=7       ! Number of 3D variables handled by the coupler
 !
 !-------------------------------------------------
 !***  Number of Fields moved from Dynamics export
@@ -56,6 +56,8 @@
                                                      =(/'T     '        &
                                                        ,'U     '        &
                                                        ,'V     '        &
+                                                       ,'W     '        &
+                                                       ,'Z     '        &
                                                        ,'Q2    '        &
                                                        ,'OMGALF'        &
                                                             /)

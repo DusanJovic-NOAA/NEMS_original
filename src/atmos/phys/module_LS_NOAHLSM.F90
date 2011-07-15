@@ -208,7 +208,7 @@
                   ids,ide, jds,jde, kds,kde,                    &
                   ims,ime, jms,jme, kms,kme,                    &
                   its,ite, jts,jte, kts,kte,                    &
-                  ucmcall,                                      &
+                  ucmcall,igbp,                                 &
 !Optional Urban
                   TR_URB2D,TB_URB2D,TG_URB2D,TC_URB2D,QC_URB2D, & !H urban
                   UC_URB2D,                                     & !H urban
@@ -356,7 +356,7 @@
                                     ims,ime, jms,jme, kms,kme,  &
                                     its,ite, jts,jte, kts,kte
 
-   INTEGER,  INTENT(IN   )   ::  ucmcall                        !urban
+   INTEGER,  INTENT(IN   )   ::  ucmcall,igbp                   !urban
 
    REAL,    DIMENSION( ims:ime, jms:jme )                     , &
             INTENT(IN   )    ::                            TMN, &
@@ -457,6 +457,7 @@
       INTEGER :: NROOT
       INTEGER :: KZ ,K
       INTEGER :: NS 
+      INTEGER :: IW 
 ! ----------------------------------------------------------------------
 ! DECLARATIONS - REAL
 ! ----------------------------------------------------------------------
@@ -621,7 +622,10 @@
 
 !      SLOPETYP=2
       SLOPETYP=1
-
+!
+      IW=1
+      IF(IGBP==1) IW=13
+!
       NSOIL=num_soil_layers
 
      DO NS=1,NSOIL
@@ -816,9 +820,10 @@
 !Fei: urban. for urban surface, if calling UCM, redefine urban as 5: Cropland/Grassland Mosaic
 	 
 	   IF(UCMCALL == 1 ) THEN
-                IF( IVGTYP(I,J) == 1 .or. IVGTYP(I,J) == 31 .or. &
+                IF( IVGTYP(I,J) == IW .or. IVGTYP(I,J) == 31 .or. &
                   IVGTYP(I,J) == 32 .or. IVGTYP(I,J) == 33) THEN
 		 VEGTYP = 5
+                 IF (IGBP == 1) VEGTYP = 14
                  SHDFAC = 0.8 
                  ALBEDOK =0.2
                  ALBBRD  =0.2
@@ -829,9 +834,10 @@
                  ENDIF
                 ENDIF
            ELSE
-                 IF( IVGTYP(I,J) == 1 .or. IVGTYP(I,J) == 31 .or. &
+                 IF( IVGTYP(I,J) == IW .or. IVGTYP(I,J) == 31 .or. &
                   IVGTYP(I,J) == 32 .or. IVGTYP(I,J) == 33) THEN
                   VEGTYP = 1 
+                  IF (IGBP == 1) VEGTYP = 13
            	 ENDIF
            ENDIF
 
@@ -861,7 +867,7 @@
 
 
        CALL SFLX (FFROZP, ICE,DT,ZLVL,NSOIL,SLDPTH,               &    !C
-                 LOCAL,                                           &    !L
+                 LOCAL,IGBP,                                      &    !L
                  LUTYPE, SLTYPE,                                  &    !CL
                  LWDN,SOLDN,SOLNET,SFCPRS,PRCP,SFCTMP,Q2K,DUMMY,         &    !F
                  DUMMY,DUMMY, DUMMY,                              &    !F PRCPRAIN not used
@@ -946,7 +952,7 @@
 ! Input variables lsm --> urban
 
 
-          IF( IVGTYP(I,J) == 1 .or. IVGTYP(I,J) == 31 .or. &
+          IF( IVGTYP(I,J) == IW .or. IVGTYP(I,J) == 31 .or. &
               IVGTYP(I,J) == 32 .or. IVGTYP(I,J) == 33 ) THEN
 
 ! Call urban
@@ -1146,6 +1152,7 @@
  
   SUBROUTINE NOAH_LSM_INIT(CANWAT,  ISLTYP,           &
                            TSLB,    SMOIS,            &
+                           IGBP,                      &
                            SH2O,    num_soil_layers,  &
                            restart, allowed_to_read , &
                            ids,ide, jds,jde,          &
@@ -1160,6 +1167,7 @@
                                     its,ite, jts,jte
 
    INTEGER, INTENT(IN)       ::     num_soil_layers
+   INTEGER, INTENT(IN)       ::     igbp
 
    LOGICAL      :: ALLOWED_TO_READ, RESTART
 
@@ -1188,7 +1196,7 @@
 
 ! initialize three Noah LSM related tables
         IF ( allowed_to_read ) THEN
-     CALL  LSM_PARM_INIT
+     CALL  LSM_PARM_INIT(IGBP)
         ENDIF
    
         IF(.not.restart)THEN
@@ -1199,7 +1207,11 @@
    errflag = 0
    DO j = jts,jtf
      DO i = its,itf
-       IF ( ISLTYP( i,j ) .LT. 1 ) THEN
+       IF ( IGBP == 0 .and. ISLTYP( i,j ) .LT. 1 ) THEN
+         errflag = 1
+         WRITE(0,*)"module_sf_noahlsm.F: lsminit: out of range ISLTYP ",i,j,ISLTYP( i,j )
+       ENDIF
+       IF ( IGBP == 1 .and. ISLTYP( i,j ) .LT. 0 ) THEN
          errflag = 1
          WRITE(0,*)"module_sf_noahlsm.F: lsminit: out of range ISLTYP ",i,j,ISLTYP( i,j )
        ENDIF
@@ -1284,12 +1296,14 @@
 
 !
 !-----------------------------------------------------------------
-        SUBROUTINE LSM_PARM_INIT
+        SUBROUTINE LSM_PARM_INIT(IGBP)
 !-----------------------------------------------------------------
 
         character*4 :: MMINLU, MMINSL 
+        integer, intent(in) :: IGBP
 
         MMINLU='USGS'
+        IF(IGBP == 1) MMINLU='IGBP'
         MMINSL='STAS'
         call SOIL_VEG_GEN_PARM( MMINLU, MMINSL)
 
@@ -1601,7 +1615,7 @@
 !-----------------------------------------------------------------
 
       SUBROUTINE SFLX (FFROZP,ICE,DT,ZLVL,NSOIL,SLDPTH,                 &    !C  
-                       LOCAL,                                           &    !L  
+                       LOCAL,IGBP,                                      &    !L  
                        LLANDUSE, LSOIL,                                 &    !CL 
                        LWDN,SOLDN,SOLNET,SFCPRS,PRCP,SFCTMP,Q2,SFCSPD,  &    !F  
                        COSZ,PRCPRAIN, SOLARDIRECT,                      &    !F  
@@ -1666,6 +1680,7 @@
 !             true:  all LSM parameters (inluding albedo, veg fraction and 
 !                    roughness length) will be defined by three tables          
 !   LLANDUSE  (=USGS, using USGS landuse classification)                         
+!             (=IGBP, using IGBP landuse classification)                         
 !   LSOIL     (=STAS, using FAO/STATSGO soil texture classification)             
 ! ----------------------------------------------------------------------         
 ! 3. FORCING DATA (F):                                                           
@@ -1816,9 +1831,9 @@
 ! ----------------------------------------------------------------------         
 ! DECLARATIONS - INTEGER                                                         
 ! ----------------------------------------------------------------------         
-      INTEGER,INTENT(IN) ::  ICE,NSOIL,SLOPETYP,SOILTYP,VEGTYP                                 
+      INTEGER,INTENT(IN) ::  ICE,NSOIL,SLOPETYP,SOILTYP,VEGTYP,IGBP
       INTEGER,INTENT(OUT)::  NROOT                                                             
-      INTEGER  KZ, K, iout                                                             
+      INTEGER  KZ, K, iout, IW
                                                                                  
 ! ----------------------------------------------------------------------         
 ! DECLARATIONS - REAL                                                            
@@ -1862,6 +1877,8 @@
          RUNOFF3 = 0.0                                                           
          SNOMLT = 0.0                                                            
                                                                                  
+         IW=1
+         IF(IGBP==1) IW=13
 ! ----------------------------------------------------------------------         
 !  THE VARIABLE "ICE" IS A FLAG DENOTING SEA-ICE CASE                            
 ! ----------------------------------------------------------------------         
@@ -1895,7 +1912,7 @@
          END IF                                                                  
 
 !urban
-         IF(VEGTYP==1)THEN
+         IF(VEGTYP==IW)THEN
               SHDFAC=0.05
               RSMIN=400.0
               SMCMAX = 0.45
@@ -2034,7 +2051,7 @@
             CALL TDFCND (DF1,SMC (1),QUARTZ,SMCMAX,SH2O (1))                     
 
 !urban
-            IF (VEGTYP==1) DF1=3.24
+            IF (VEGTYP==IW) DF1=3.24
 
             DF1 = DF1 * EXP (SBETA * SHDFAC)                                     
 ! ----------------------------------------------------------------------         
@@ -2164,6 +2181,9 @@
 ! EXISTS OR NOT:                                                                 
 ! ----------------------------------------------------------------------         
          ESNOW = 0.0                                                             
+
+         IF (ETP <= 0.0.AND.RIBB.GT.0.90) ETP=MIN(ETP*(1.0-RIBB),0.0)
+
          IF (SNEQV  == 0.0) THEN                                                
             CALL NOPAC (ETP,ETA,PRCP,SMC,SMCMAX,SMCWLT,                  &  
                             SMCREF,SMCDRY,CMC,CMCMAX,NSOIL,DT,           &  
@@ -2175,7 +2195,7 @@
                             DKSAT,DWSAT,TBOT,ZBOT,RUNOFF1,RUNOFF2,       &  
                             RUNOFF3,EDIR,EC,ET,ETT,NROOT,ICE,RTDIS,      &  
                             QUARTZ,FXEXP,CSOIL,                          &  
-                            BETA,DRIP,DEW,FLX1,FLX3,VEGTYP)                  
+                            BETA,DRIP,DEW,FLX1,FLX3,VEGTYP,IGBP)                  
             ETA_KINEMATIC = ETA                                                  
          ELSE                                                                    
             CALL SNOPAC (ETP,ETA,PRCP,PRCPF,SNOWNG,SMC,SMCMAX,SMCWLT,    & 
@@ -2188,7 +2208,7 @@
                          RUNOFF2,RUNOFF3,EDIR,EC,ET,ETT,NROOT,SNOMLT,    & 
                          ICE,RTDIS,QUARTZ,FXEXP,CSOIL,                   & 
                          BETA,DRIP,DEW,FLX1,FLX2,FLX3,ESNOW,ETNS,EMISSI, &               
-                         VEGTYP,RIBB,SOLDN)
+                         VEGTYP,RIBB,SOLDN,IGBP)
             ETA_KINEMATIC =  ESNOW + ETNS                                        
          END IF                                                                  
                                                                                  
@@ -2554,7 +2574,8 @@
                          SMCMAX,BEXP,PC,SMCWLT,DKSAT,DWSAT,             &        
                          SMCREF,SHDFAC,CMCMAX,                          &        
                          SMCDRY,CFACTR,                                 &        
-                         EDIR,EC,ET,ETT,SFCTMP,Q2,NROOT,RTDIS,FXEXP)             
+                         EDIR,EC,ET,ETT,SFCTMP,Q2,NROOT,RTDIS,FXEXP,    &
+                         VEGTYP,STC)
                                                                                  
 ! ----------------------------------------------------------------------         
 ! SUBROUTINE EVAPO                                                               
@@ -2566,8 +2587,9 @@
 ! CORRECTION FACTOR, FRZFACT AND PARAMETER SLOPE.                                
 ! ----------------------------------------------------------------------         
       IMPLICIT NONE                                                              
-      INTEGER, INTENT(IN)   :: NSOIL, NROOT
+      INTEGER, INTENT(IN)   :: NSOIL, NROOT, VEGTYP
       INTEGER               :: I,K
+      REAL,DIMENSION(1:NSOIL), INTENT(IN) :: STC
       REAL,    INTENT(IN)   :: BEXP, CFACTR,CMC,CMCMAX,DKSAT,           &
                                  DT,DWSAT,ETP1,FXEXP,PC,Q2,SFCTMP,      &
                                  SHDFAC,SMCDRY,SMCMAX,SMCREF,SMCWLT
@@ -2603,8 +2625,8 @@
 ! ----------------------------------------------------------------------         
                                                                                  
          IF (SHDFAC > 0.0) THEN                                               
-            CALL TRANSP (ET,NSOIL,ETP1,SH2O,CMC,ZSOIL,SHDFAC,SMCWLT,     &       
-                          CMCMAX,PC,CFACTR,SMCREF,SFCTMP,Q2,NROOT,RTDIS)         
+            CALL TRANSP (ET,NSOIL,ETP1,SH2O,CMC,ZSOIL,SHDFAC,SMCWLT,     &
+               CMCMAX,PC,CFACTR,SMCREF,SFCTMP,Q2,NROOT,RTDIS,VEGTYP,STC)
             DO K = 1,NSOIL                                                       
                ETT = ETT + ET ( K )                                              
             END DO                                                               
@@ -2777,7 +2799,7 @@
                                                                                  
       SUBROUTINE HRT (RHSTS,STC,SMC,SMCMAX,NSOIL,ZSOIL,YY,ZZ1,          &        
                        TBOT,ZBOT,PSISAT,SH2O,DT,BEXP,                   &        
-                       F1,DF1,QUARTZ,CSOIL,AI,BI,CI,VEGTYP)                             
+                       F1,DF1,QUARTZ,CSOIL,AI,BI,CI,VEGTYP,IGBP)
                                                                                  
 ! ----------------------------------------------------------------------         
 ! SUBROUTINE HRT                                                                 
@@ -2788,8 +2810,8 @@
 ! ----------------------------------------------------------------------         
       IMPLICIT NONE                                                              
       LOGICAL              :: ITAVG 
-      INTEGER, INTENT(IN)  :: NSOIL, VEGTYP                              
-      INTEGER              :: I, K
+      INTEGER, INTENT(IN)  :: NSOIL, VEGTYP, IGBP
+      INTEGER              :: I, K, IW
 
       REAL, INTENT(IN)     :: BEXP, CSOIL, DF1, DT,F1,PSISAT,QUARTZ,     &
                               SMCMAX ,TBOT,YY,ZZ1, ZBOT
@@ -2805,7 +2827,11 @@
                                                                                  
 
 !urban
-        IF(VEGTYP==1) then
+!
+        IW=1
+        IF(IGBP==1) IW=13
+!
+        IF(VEGTYP==IW) then
             CSOIL_LOC=3.0E6
         ELSE
             CSOIL_LOC=CSOIL
@@ -2927,7 +2953,7 @@
             CALL TDFCND (DF1N,SMC (K),QUARTZ,SMCMAX,SH2O (K))                    
 
 !urban
-       IF(VEGTYP==1) DF1N = 3.24
+       IF(VEGTYP==IW) DF1N = 3.24
 
             DENOM = 0.5 * ( ZSOIL (K -1) - ZSOIL (K +1) )                        
                                                                                  
@@ -2960,7 +2986,7 @@
 
 
 !urban
-       IF(VEGTYP==1) DF1N = 3.24
+       IF(VEGTYP==IW) DF1N = 3.24
 
             DENOM = .5 * (ZSOIL (K -1) + ZSOIL (K)) - ZBOT                       
                                                                                  
@@ -3199,7 +3225,7 @@
                          DKSAT,DWSAT,TBOT,ZBOT,RUNOFF1,RUNOFF2,         &        
                          RUNOFF3,EDIR,EC,ET,ETT,NROOT,ICE,RTDIS,        &        
                          QUARTZ,FXEXP,CSOIL,                            &        
-                         BETA,DRIP,DEW,FLX1,FLX3,VEGTYP)                          
+                         BETA,DRIP,DEW,FLX1,FLX3,VEGTYP,IGBP)                          
                                                                                  
 ! ----------------------------------------------------------------------         
 ! SUBROUTINE NOPAC                                                               
@@ -3210,7 +3236,7 @@
 ! ----------------------------------------------------------------------         
       IMPLICIT NONE                                                              
 
-      INTEGER, INTENT(IN)  :: ICE, NROOT,NSOIL,VEGTYP                   
+      INTEGER, INTENT(IN)  :: ICE, NROOT,NSOIL,VEGTYP,IGBP
       INTEGER              :: K
 
       REAL, INTENT(IN)     :: BEXP,CFACTR, CMCMAX,CSOIL,DKSAT,DT,DWSAT, &
@@ -3255,7 +3281,8 @@
                       SMCMAX,BEXP,PC,SMCWLT,DKSAT,DWSAT,                &        
                       SMCREF,SHDFAC,CMCMAX,                             &        
                       SMCDRY,CFACTR,                                    &        
-                       EDIR1,EC1,ET1,ETT1,SFCTMP,Q2,NROOT,RTDIS,FXEXP)           
+                      EDIR1,EC1,ET1,ETT1,SFCTMP,Q2,NROOT,RTDIS,FXEXP,   &
+                      VEGTYP,STC)
          CALL SMFLX (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,                      &        
                       SH2O,SLOPE,KDT,FRZFACT,                           &        
                       SMCMAX,BEXP,SMCWLT,DKSAT,DWSAT,                   &        
@@ -3299,17 +3326,26 @@
 ! ----------------------------------------------------------------------         
 ! BASED ON ETP AND E VALUES, DETERMINE BETA                                      
 ! ----------------------------------------------------------------------         
-                                                                                 
-      IF ( ETP <= 0.0 ) THEN                                                   
-         BETA = 0.0                                                              
-         IF ( ETP < 0.0 ) THEN                                                
-            BETA = 1.0                                                           
-            ETA = ETP                                                            
-         END IF                                                                  
-      ELSE                                                                       
-         BETA = ETA / ETP                                                        
-      END IF                                                                     
-                                                                                 
+
+!     IF ( ETP <= 0.0 ) THEN
+!        BETA = 0.0
+!        IF ( ETP < 0.0 ) THEN
+!           BETA = 1.0
+!           ETA = ETP
+!        END IF
+!     ELSE
+!        BETA = ETA / ETP
+!     END IF
+
+     IF(ETP<0.000001) THEN
+       BETA = 1.0
+       ETA = ETP
+       ELSE IF(ETP==0.000001)THEN
+         BETA=0.0
+       ELSE
+       BETA = ETA / ETP
+     END IF
+
 ! ----------------------------------------------------------------------         
 ! CONVERT MODELED EVAPOTRANSPIRATION COMPONENTS 'M S-1' TO 'KG M-2 S-1'.         
 ! ----------------------------------------------------------------------         
@@ -3352,7 +3388,7 @@
 !urban
       CALL SHFLX (SSOIL,STC,SMC,SMCMAX,NSOIL,T1,DT,YY,ZZ1,ZSOIL,        &
                   TBOT,ZBOT,SMCWLT,PSISAT,SH2O,BEXP,F1,DF1,ICE,         &
-                  QUARTZ,CSOIL,VEGTYP)                                 
+                  QUARTZ,CSOIL,VEGTYP,IGBP)
                                                                                  
 ! ----------------------------------------------------------------------         
 ! SET FLX1 AND FLX3 (SNOPACK PHASE CHANGE HEAT FLUXES) TO ZERO SINCE             
@@ -3721,7 +3757,7 @@
                                                                                  
       SUBROUTINE SHFLX (SSOIL,STC,SMC,SMCMAX,NSOIL,T1,DT,YY,ZZ1,ZSOIL,  &        
                          TBOT,ZBOT,SMCWLT,PSISAT,SH2O,BEXP,F1,DF1,ICE,  &        
-                         QUARTZ,CSOIL,VEGTYP)                                           
+                         QUARTZ,CSOIL,VEGTYP,IGBP)
                                                                                  
 ! ----------------------------------------------------------------------         
 ! SUBROUTINE SHFLX                                                               
@@ -3732,7 +3768,7 @@
 ! ----------------------------------------------------------------------         
       IMPLICIT NONE                                                              
 
-      INTEGER, INTENT(IN)   :: ICE, NSOIL, VEGTYP                      
+      INTEGER, INTENT(IN)   :: ICE, NSOIL, VEGTYP, IGBP
       INTEGER               :: I
 
       REAL, INTENT(IN)      :: BEXP,CSOIL,DF1,DT,F1,PSISAT,QUARTZ,     & 
@@ -3764,7 +3800,7 @@
       ELSE                                                                       
          CALL HRT (RHSTS,STC,SMC,SMCMAX,NSOIL,ZSOIL,YY,ZZ1,TBOT,        &        
                     ZBOT,PSISAT,SH2O,DT,                                &        
-                    BEXP,F1,DF1,QUARTZ,CSOIL,AI,BI,CI,VEGTYP)                           
+                    BEXP,F1,DF1,QUARTZ,CSOIL,AI,BI,CI,VEGTYP,IGBP)
                                                                                  
          CALL HSTEP (STCF,STC,RHSTS,DT,NSOIL,AI,BI,CI)                           
       END IF                                                                     
@@ -4050,7 +4086,7 @@
                           RUNOFF2,RUNOFF3,EDIR,EC,ET,ETT,NROOT,SNOMLT,  &        
                           ICE,RTDIS,QUARTZ,FXEXP,CSOIL,                 &        
                           BETA,DRIP,DEW,FLX1,FLX2,FLX3,ESNOW,ETNS,EMISSI,&             
-                          VEGTYP,RIBB,SOLDN)                                       
+                          VEGTYP,RIBB,SOLDN,IGBP)                                       
                                                                                  
 ! ----------------------------------------------------------------------         
 ! SUBROUTINE SNOPAC                                                              
@@ -4061,7 +4097,7 @@
 ! ----------------------------------------------------------------------         
       IMPLICIT NONE                                                              
 
-      INTEGER, INTENT(IN)   :: ICE, NROOT, NSOIL,VEGTYP                 
+      INTEGER, INTENT(IN)   :: ICE, NROOT, NSOIL,VEGTYP,IGBP
       INTEGER               :: K
       LOGICAL, INTENT(IN)   :: SNOWNG
       REAL, INTENT(IN)      :: BEXP,CFACTR, CMCMAX,CSOIL,DF1,DKSAT,     &
@@ -4133,9 +4169,9 @@
       BETA = 1.0                                                                 
       IF (ETP <= 0.0) THEN                                                     
 !vckw
-         IF(RIBB.GE.0.1.AND.FDOWN.GT.150.0) &
-         ETP=(MIN(ETP*(1.0-RIBB),0.)*SNCOVR/0.980 + &
-             ETP*(0.980-SNCOVR))/0.980
+!        IF(RIBB.GE.0.1.AND.FDOWN.GT.150.0) &
+!        ETP=(MIN(ETP*(1.0-RIBB),0.)*SNCOVR/0.980 + &
+!            ETP*(0.980-SNCOVR))/0.980
         IF(ETP == 0.) BETA = 0.0                                                 
          ETP1 = ETP * 0.001
          DEW = -ETP1
@@ -4151,7 +4187,7 @@
                             SMCREF,SHDFAC,CMCMAX,                       &        
                             SMCDRY,CFACTR,                              &        
                             EDIR1,EC1,ET1,ETT1,SFCTMP,Q2,NROOT,RTDIS,   &        
-                            FXEXP)                                               
+                            FXEXP,VEGTYP,STC)
 ! ----------------------------------------------------------------------------
                EDIR1 = EDIR1* (1. - SNCOVR)                                      
                EC1 = EC1* (1. - SNCOVR)                                          
@@ -4349,7 +4385,7 @@
       T11 = T1                                                                   
       CALL SHFLX (SSOIL1,STC,SMC,SMCMAX,NSOIL,T11,DT,YY,ZZ1,ZSOIL,      &        
                    TBOT,ZBOT,SMCWLT,PSISAT,SH2O,BEXP,F1,DF1,ICE,        &        
-                   QUARTZ,CSOIL,VEGTYP)                                                 
+                   QUARTZ,CSOIL,VEGTYP,IGBP)
                                                                                  
 ! ----------------------------------------------------------------------         
 ! SNOW DEPTH AND DENSITY ADJUSTMENT BASED ON SNOW COMPACTION.  YY IS             
@@ -5169,7 +5205,7 @@
                                                                                  
       SUBROUTINE TRANSP (ET,NSOIL,ETP1,SMC,CMC,ZSOIL,SHDFAC,SMCWLT,     &        
      &                      CMCMAX,PC,CFACTR,SMCREF,SFCTMP,Q2,NROOT,    &        
-     &                      RTDIS)                                               
+     &                      RTDIS,VEGTYP,STC)
                                                                                  
 ! ----------------------------------------------------------------------         
 ! SUBROUTINE TRANSP                                                              
@@ -5180,6 +5216,7 @@
       INTEGER  I                                                                 
       INTEGER  K                                                                 
       INTEGER  NSOIL                                                             
+      INTEGER VEGTYP
                                                                                  
       INTEGER  NROOT                                                             
       REAL     CFACTR                                                            
@@ -5201,7 +5238,12 @@
       REAL     SMC (NSOIL)                                                       
       REAL     SMCREF                                                            
       REAL     SMCWLT                                                            
-                                                                                 
+
+      REAL     STC (NSOIL)
+      REAL     GTX,GTX2
+      REAL     STCRT
+      REAL     DSTCRT
+
 ! ----------------------------------------------------------------------         
 ! INITIALIZE PLANT TRANSP TO ZERO FOR ALL SOIL LAYERS.                           
 ! ----------------------------------------------------------------------         

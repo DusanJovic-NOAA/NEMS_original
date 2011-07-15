@@ -31,10 +31,12 @@
 !   2010-02-08  Weiguo Wang  - Add wsm6 microphysics
 !   2010-03-10  Weiguo Wang  - ADD species advection option
 !   2010-10-06  Weiguo Wang  - add RSWTT, RLWTT to TURBL, used for GFSPBL option
+!   2011-02-25  M. Pyle  - Adds call to MAX_FIELDS diagnostic routine
 !   2011-02     Weiyu Yang   - Updated to use both the ESMF 4.0.0rp2 library,
 !                              ESMF 5 series library and the the
 !                              ESMF 3.1.0rp2 library.
 !   2011-05-12  Weiyu Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!   2011-03-30  Brad Ferrier - modifications to Ferrier & GFS microphysics!!
 !
 !-----------------------------------------------------------------------
 !
@@ -73,16 +75,17 @@
 
       USE MODULE_MICROPHYSICS_NMM ,ONLY : GSMDRIVE                      &
                                          ,MICRO_RESTART
-      USE MODULE_MP_ETANEW, ONLY : FERRIER_INIT
-      USE MODULE_MP_WSM6,   ONLY : WSM6INIT
-      USE MODULE_MP_GFS,    ONLY : GFSMP_INIT
+      USE MODULE_MP_ETANEW, ONLY    : FERRIER_INIT
+      USE MODULE_MP_FER_HIRES, ONLY : FERRIER_INIT_HR
+      USE MODULE_MP_WSM6,   ONLY    : WSM6INIT
+      USE MODULE_MP_GFS,    ONLY    : GFSMP_INIT
 
       USE MODULE_H_TO_V       ,ONLY : H_TO_V,H_TO_V_TEND
       USE MODULE_GWD          ,ONLY : GWD_INIT
       USE MODULE_PRECIP_ADJUST
 !
       USE MODULE_EXCHANGE
-      USE MODULE_DIAGNOSE,ONLY: TWR,VWR,EXIT,EXIT_PHY,WRT_2D
+      USE MODULE_DIAGNOSE,ONLY: TWR,VWR,EXIT,EXIT_PHY,WRT_2D,MAX_FIELDS,MAX_FIELDS_HR
 !
       USE MODULE_PHYSICS_OUTPUT,ONLY: POINT_PHYSICS_OUTPUT
 !
@@ -117,7 +120,8 @@
       INTEGER(kind=KINT) :: START_YEAR,START_MONTH,START_DAY,START_HOUR &
                            ,START_MINUTE,START_SECOND
 !
-      INTEGER(kind=KINT),SAVE :: JC,NSTEPS_PER_HOUR
+      INTEGER(kind=KINT),SAVE :: JC,NSTEPS_PER_HOUR,NSTEPS_PER_RESET   &
+                                ,NSTEPS_PER_CHECK
 !
 !-----------------------------------------------------------------------
 !
@@ -658,6 +662,8 @@
         DT=int_state%DT
 !
         NSTEPS_PER_HOUR=NINT(3600./DT)
+        NSTEPS_PER_RESET=NINT(int_state%AVGMAXLEN/DT)
+        NSTEPS_PER_CHECK=MAX(2,NINT(40/DT))
 !
 !-----------------------------------------------------------------------
 !***  Retrieve the domain ID from the Physics import state.
@@ -956,7 +962,8 @@
 !
       INTEGER(kind=KINT) :: I,J,IRTN,ISTAT,JULDAY,JULYR,L               &
                            ,N,NPRECIP,NTIMESTEP,RC,NTIMESTEP_RAD,IMICRO &
-                           ,SPECADV
+                           ,SPECADV,FILTER_METHOD
+      INTEGER(kind=KINT),SAVE :: NCOUNT
 !
       INTEGER(kind=KINT),DIMENSION(8)  :: JDAT,IDAT
       INTEGER(kind=KINT),DIMENSION(13) :: DAYS
@@ -973,7 +980,10 @@
                            ,CALL_SHORTWAVE                              &
                            ,CALL_TURBULENCE                             &
                            ,CALL_PRECIP                                 &
-                           ,CALL_GFS_PHY
+                           ,CALL_GFS_PHY                                &
+                           ,LOC_PCPFLG
+!
+      LOGICAL(kind=KLOG),save :: FIRST_NMM=.true.
 !
       TYPE(ESMF_Time) :: STARTTIME,CURRTIME
 !
@@ -1132,31 +1142,117 @@
       CALL GET_VARS_FROM_STATE(int_state%VARS, int_state%NUM_VARS, IMP_STATE)
 !
 !-----------------------------------------------------------------------
-!***  Update the max/min values of the Temperature in the lowest
-!***  model layer.  Reset those values at the start of each hour.
-!-----------------------------------------------------------------------
-!
-      IF(MOD(NTIMESTEP*int_state%DT,3600.)==0)THEN
-        DO J=JTS,JTE
-        DO I=ITS,ITE
-          int_state%TLMAX(I,J)=-999.
-          int_state%TLMIN(I,J)=999.
-        ENDDO
-        ENDDO
-      ENDIF
-!
-      DO J=JTS,JTE
-      DO I=ITS,ITE
-        int_state%TLMAX(I,J)=MAX(int_state%TLMAX(I,J),int_state%T(I,J,LM))  !<--- Hourly max lowest layer T
-        int_state%TLMIN(I,J)=MIN(int_state%TLMIN(I,J),int_state%T(I,J,LM))  !<--- Hourly min lowest layer T
-      ENDDO
-      ENDDO
-!
-!-----------------------------------------------------------------------
 !
       gfs_phys_test: IF(.NOT.int_state%GFS)THEN                            !<-- NMM-B physics is NOT the GFS package
 !
 !-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  At the appropriate times, reset the various min/max/average
+!***  diagnostic fields to begin accumulating for the next period
+!-----------------------------------------------------------------------
+!
+      IF(NTIMESTEP == 0 .or. MOD(NTIMESTEP,NSTEPS_PER_RESET)==0) THEN
+        DO J=JTS,JTE
+        DO I=ITS,ITE
+          int_state%TLMAX(I,J)=-999.
+          int_state%TLMIN(I,J)=999.
+          int_state%T02MAX(I,J)=-999.
+          int_state%T02MIN(I,J)=999.
+          int_state%RH02MAX(I,J)=-999.
+          int_state%RH02MIN(I,J)=999.
+          int_state%SPD10MAX(I,J)=-999.
+          int_state%UPHLMAX(I,J)=0.
+          int_state%U10MAX(I,J)=-999.
+          int_state%V10MAX(I,J)=-999.
+          int_state%UPVVELMAX(I,J)=-999.
+          int_state%DNVVELMAX(I,J)=999.
+          int_state%T10AVG(I,J)=0.
+          int_state%PSFCAVG(I,J)=0.
+          int_state%AKHSAVG(I,J)=0.
+          int_state%AKMSAVG(I,J)=0.
+          int_state%SNOAVG(I,J)=0.
+          int_state%REFDMAX(I,J)=-999.
+          int_state%UPHLMAX(I,J)=-999.
+        ENDDO
+        ENDDO
+
+        NCOUNT=0
+      ENDIF
+!
+      IF (mod(int_state%NTSD,NSTEPS_PER_CHECK) == 0) THEN
+!
+        IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
+!
+          CALL MAX_FIELDS(int_state%T,int_state%Q,int_state%U            &
+                         ,int_state%V,int_state%CW                       &
+                         ,int_state%F_RAIN,int_state%F_ICE               &
+                         ,int_state%F_RIMEF,int_state%Z                  &
+                         ,int_state%W,int_state%PINT                     &
+                         ,int_state%PD                                   &
+                         ,int_state%CPRATE,int_state%HTOP                &
+                         ,int_state%T2,int_state%U10,int_state%V10       &
+                         ,int_state%PSHLTR,int_state%TSHLTR              &
+                         ,int_state%QSHLTR                               &
+                         ,int_state%SGML2,int_state%PSGML1               &
+                         ,int_state%REFDMAX                              &
+                         ,int_state%UPVVELMAX,int_state%DNVVELMAX        &
+                         ,int_state%TLMAX,int_state%TLMIN                &
+                         ,int_state%T02MAX,int_state%T02MIN              &
+                         ,int_state%RH02MAX,int_state%RH02MIN            &
+                         ,int_state%U10MAX,int_state%V10MAX              &
+                         ,int_state%TH10,int_state%T10                   &
+                         ,int_state%SPD10MAX,int_state%T10AVG            &
+                         ,int_state%PSFCAVG                              &
+                         ,int_state%AKHS,int_state%AKMS                  &
+                         ,int_state%AKHSAVG,int_state%AKMSAVG            &
+                         ,int_state%SNO,int_state%SNOAVG                 &
+                         ,int_state%UPHLMAX                              &
+                         ,int_state%DT,int_state%NPHS,int_state%NTSD     &
+                         ,int_state%DXH,int_state%DYH                    &
+                         ,int_state%FIS                                  &
+                         ,ITS,ITE,JTS,JTE                                &
+                         ,IMS,IME,JMS,JME                                &
+                         ,IDE,JDE                                        &
+                         ,LM,NCOUNT,FIRST_NMM)
+!
+        ELSEIF (TRIM(int_state%MICROPHYSICS) == 'fer_hires') THEN
+!
+          CALL MAX_FIELDS_HR(int_state%T,int_state%Q,int_state%U         &
+                            ,int_state%V,int_state%CW                    &
+                            ,int_state%F_RAIN,int_state%F_ICE            &
+                            ,int_state%F_RIMEF,int_state%Z               &
+                            ,int_state%W,int_state%PINT                  &
+                            ,int_state%PD                                &
+                            ,int_state%CPRATE,int_state%HTOP             &
+                            ,int_state%T2,int_state%U10,int_state%V10    &
+                            ,int_state%PSHLTR,int_state%TSHLTR           &
+                            ,int_state%QSHLTR                            &
+                            ,int_state%SGML2,int_state%PSGML1            &
+                            ,int_state%REFDMAX                           &
+                            ,int_state%UPVVELMAX,int_state%DNVVELMAX     &
+                            ,int_state%TLMAX,int_state%TLMIN             &
+                            ,int_state%T02MAX,int_state%T02MIN           &
+                            ,int_state%RH02MAX,int_state%RH02MIN         &
+                            ,int_state%U10MAX,int_state%V10MAX           &
+                            ,int_state%TH10,int_state%T10                &
+                            ,int_state%SPD10MAX,int_state%T10AVG         &
+                            ,int_state%PSFCAVG                           &
+                            ,int_state%AKHS,int_state%AKMS               &
+                            ,int_state%AKHSAVG,int_state%AKMSAVG         &
+                            ,int_state%SNO,int_state%SNOAVG              &
+                            ,int_state%UPHLMAX                           &
+                            ,int_state%DT,int_state%NPHS,int_state%NTSD  &
+                            ,int_state%DXH,int_state%DYH                 &
+                            ,int_state%FIS                               &
+                            ,ITS,ITE,JTS,JTE                             &
+                            ,IMS,IME,JMS,JME                             &
+                            ,IDE,JDE                                     &
+                            ,LM,NCOUNT,FIRST_NMM)
+!
+        ENDIF
+!
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Set logical switches for calling each of the Physics schemes.
@@ -1179,11 +1275,10 @@
 !
         SPECADV = 0
         IF(int_state%SPEC_ADV) SPECADV=1 
-  !      IF(int_state%SPEC_ADV                                           &
-  !                 .OR.                                                 &
-  !         int_state%MICROPHYSICS=='wsm6') SPECADV=1
 !
         update_wtr: IF((int_state%MICROPHYSICS=='fer'                   &
+                                   .OR.                                 &
+                        int_state%MICROPHYSICS=='fer_hires'             &
                                    .OR.                                 &
                         int_state%MICROPHYSICS=='gfs'                   &
                                    .OR.                                 &
@@ -1243,8 +1338,13 @@
 !***
 !-----------------------------------------------------------------------
 !
+    CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The DOMAIN import state
+                              ,name ='Filter_Method'                &  !<-- Name of the attribute to extract
+                              ,value=FILTER_METHOD                  &  !<-- The scalar being extracted from the import state
+                              ,rc   =RC)
+
         IF(int_state%NTSD==0)THEN
-          IF(int_state%PCPFLG)THEN
+          IF(int_state%PCPFLG .and. FILTER_METHOD == 0)THEN
             CALL READPCP(MYPE                                           &
                         ,int_state%PPTDAT                               &
                         ,int_state%DDATA                                &
@@ -1480,6 +1580,12 @@
             DZSOIL(L)=SLDPTH(L)
           ENDDO
 !
+          IF(int_state%PCPFLG .and. FILTER_METHOD == 0)THEN
+            LOC_PCPFLG=int_state%PCPFLG
+          ELSE
+            LOC_PCPFLG=.false.
+          ENDIF
+!
           CALL TURBL(NTIMESTEP,int_state%DT,int_state%NPHS              &
                     ,int_state%NUM_WATER,NUM_SOIL_LAYERS,SLDPTH,DZSOIL  &
                     ,DSG2,SGML2,SG2,PDSG1,PSGML1,PSG1,PT                &
@@ -1539,8 +1645,8 @@
                     ,int_state%ASWIN,int_state%ASWOUT,int_state%ASWTOA  &
                     ,int_state%ALWIN,int_state%ALWOUT,int_state%ALWTOA  &
                     ,int_state%RTHBLTEN,int_state%RQVBLTEN              &
-                    ,int_state%GWDFLG,int_state%PCPFLG                  &
-                    ,int_state%DDATA,int_state%UCMCALL                  &
+                    ,int_state%GWDFLG,LOC_PCPFLG                        &
+                    ,int_state%DDATA,int_state%UCMCALL,int_state%IGBP   &
                     ,int_state%TURBULENCE,int_state%SFC_LAYER           &
                     ,int_state%LAND_SURFACE                             &
                     ,int_state%MICROPHYSICS                             &
@@ -1861,7 +1967,7 @@
 !***  Precipitation Assimilation
 !-----------------------------------------------------------------------
 !
-          IF (int_state%PCPFLG) THEN
+          IF (int_state%PCPFLG .and. FILTER_METHOD == 0) THEN
 !
             btim=timef()
             CALL CHKSNOW(MYPE                                           &
@@ -3216,6 +3322,7 @@
         int_state%PREC(I,J)  = 0.
         int_state%CLDEFI(I,J)= 0.
         int_state%PSHLTR(I,J)= 1.E5
+        int_state%P10(I,J)   = 1.E5
         int_state%PSFC(I,J)  = 1.E5
         int_state%Q02(I,J)   = 0.
         int_state%Q10(I,J)   = 0.
@@ -4174,6 +4281,7 @@
 
           CALL NOAH_LSM_INIT(int_state%CMC,     int_state%ISLTYP       &
                             ,int_state%STC,     int_state%SMC          &
+                            ,int_state%IGBP                            &
                             ,int_state%SH2O,    NUM_SOIL_LAYERS        &
                             ,int_state%RESTART, ALLOWED_TO_READ        &
                             ,IDS,IDE, JDS,JDE                          &
@@ -4243,6 +4351,24 @@
                              ,IMS,IME,JMS,JME,1,LM                     &
                              ,ITS,ITE,JTS,JTE,1,LM                     &
                              ,MPI_COMM_COMP,MYPE )
+!
+          CASE ('fer_hires')
+            DT_MICRO=int_state%NPRECIP*DT
+            DELX=-2.*int_state%WBD*111.3/REAL(int_state%IM) !DX at rotated equator (km)
+            DELY=-2.*int_state%SBD*111.3/REAL(int_state%JM) !DY at rotated equator (km)
+!
+            CALL FERRIER_INIT_HR(DT_MICRO,DT,DELX,DELY,int_state%RESTART  &
+                                ,int_state%F_ICE                          &
+                                ,int_state%F_RAIN                         &
+                                ,int_state%F_RIMEF                        &
+                                ,int_state%MP_RESTART_STATE               &
+                                ,int_state%TBPVS_STATE                    &
+                                ,int_state%TBPVS0_STATE                   &
+                                ,ALLOWED_TO_READ                          &
+                                ,IDS,IDE,JDS,JDE,1,LM+1                   &
+                                ,IMS,IME,JMS,JME,1,LM                     &
+                                ,ITS,ITE,JTS,JTE,1,LM                     &
+                                ,MPI_COMM_COMP,MYPE )
 !
           CASE ('gfs')
              CALL GFSMP_INIT
